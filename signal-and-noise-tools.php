@@ -90,3 +90,33 @@ if ( defined( 'WPMU_PLUGIN_DIR' )
 } else {
 	require_once SNT_PATH . 'inc/rss-plausible-tracker.php';
 }
+
+// ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
+//
+// Phase 3 moved og-image.php, reading-time.php, and notes-and-provenance.php
+// from theme to plugin. If the theme still ships those files (i.e. user
+// installed plugin v1.3.0 before theme v8.4.0), our require_once chain
+// would PHP-fatal at parse time with "Cannot redeclare function." Bail
+// with a clear admin notice instead of a white-screen-of-death.
+$sn_phase3_theme_dir = get_template_directory();
+$sn_phase3_retired   = array(
+	$sn_phase3_theme_dir . '/inc/og-image.php',
+	$sn_phase3_theme_dir . '/inc/reading-time.php',
+	$sn_phase3_theme_dir . '/inc/notes-and-provenance.php',
+);
+foreach ( $sn_phase3_retired as $sn_phase3_legacy_file ) {
+	if ( file_exists( $sn_phase3_legacy_file ) ) {
+		add_action( 'admin_notices', function() use ( $sn_phase3_legacy_file ) {
+			$rel = str_replace( ABSPATH, '', $sn_phase3_legacy_file );
+			echo '<div class="notice notice-error"><p><strong>Signal &amp; Noise Tools v1.3.0:</strong> theme still ships <code>' . esc_html( $rel ) . '</code>. Update theme to v8.4.0+ first to avoid function-redeclare fatals. Plugin require chain skipped.</p></div>';
+		} );
+		return; // Skip the require_once chain entirely.
+	}
+}
+unset( $sn_phase3_theme_dir, $sn_phase3_retired, $sn_phase3_legacy_file );
+
+require_once __DIR__ . '/inc/content-rendering-helpers.php';
+require_once __DIR__ . '/inc/content-surfaces.php';
+require_once __DIR__ . '/inc/content-migrations.php';
+require_once __DIR__ . '/inc/og-card-generator.php';
+require_once __DIR__ . '/inc/reading-time.php';
