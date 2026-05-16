@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.9.6] - 2026-05-16
+
+### Added
+- **Identity tab dirty-tracking on the sticky save bar.** JS snapshots all form values on `DOMContentLoaded`; on any field change, the save bar hint switches from default copy to "N unsaved change(s)" with a subtle amber dot prefix. Reverts cleanly when you type back to the original value. Scoped to `.sn-identity-form` only — Login (single field), Cloudflare, and Plausible have inline save buttons where this is overkill.
+- **"+ Add another profile URL" button** in the sameAs section, replacing the v1.9.5 always-shown trailing empty input. Click → JS clones a fresh empty `<input type="url">` row above the button, focuses it, fires a custom `sn:row-added` event so the dirty-tracker doesn't read the empty row as "dirty" before typing. `<noscript>` fallback preserves the v1.9.5 single-trailing-input behaviour for users with JS disabled.
+- New `assets/admin.js` (~150 LOC vanilla JS, no jQuery, no build pipeline). Enqueued only on SN admin pages via the same hook-suffix guard as `admin.css`. Loaded in the footer (`$in_footer = true`) so it runs after DOM is parsed.
+
+### Accessibility (WCAG 2.1 AA)
+- **Focus ring contrast**: `.sn-add-row-btn:focus-visible` box-shadow opacity at 0.65 (≈3:1 against white card surface) — meets WCAG 1.4.11 non-text contrast minimum.
+- **JS-added inputs get `aria-label="Profile URL"`** — placeholders don't satisfy WCAG 4.1.2 / 3.3.2; each row needs its own accessible name beyond the group label.
+- **`prefers-reduced-motion` query** disables the row fade-in animation and button transitions for users who've expressed that OS-level preference.
+- **`:focus-visible`** (not `:focus`) so the focus ring only shows for keyboard users, not mouse clicks.
+- **`<button type="button">`** native element with descriptive `aria-label` and real text content (not icon-only).
+
+### Notes
+- **Pure UX polish — no schema change, no server-side behaviour change.** The form submits identically: `social_same_as[]` array with one or more URLs, sanitized by `sn_settings_save()` (empty values filtered, valid URLs persisted).
+- Zero-build-pipeline architecture preserved. The plugin still has no webpack / babel / npm pipeline; `admin.js` is hand-written vanilla JS that ships as-is.
+- PATCH bump within `1.9.x` (counter at 6/7 of the per-minor cap).
+
 ## [1.9.5] - 2026-05-16
 
 ### Fixed
