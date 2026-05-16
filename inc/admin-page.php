@@ -144,14 +144,22 @@ add_action( 'admin_menu', function() {
  * busted by SNT_VERSION.
  */
 add_action( 'admin_enqueue_scripts', function( $hook ) {
-	if ( in_array( $hook, sn_admin_page_hooks(), true ) ) {
-		wp_enqueue_style(
-			'sn-admin',
-			SNT_URL . 'assets/admin.css',
-			array(),
-			SNT_VERSION
-		);
+	if ( ! in_array( $hook, sn_admin_page_hooks(), true ) ) {
+		return;
 	}
+	wp_enqueue_style(
+		'sn-admin',
+		SNT_URL . 'assets/admin.css',
+		array(),
+		SNT_VERSION
+	);
+	wp_enqueue_script(
+		'sn-admin',
+		SNT_URL . 'assets/admin.js',
+		array(),
+		SNT_VERSION,
+		true // load in footer, after DOM is parsed
+	);
 } );
 
 /**
@@ -617,11 +625,14 @@ function sn_theme_options_page() {
 		foreach ( $same_as as $url ) {
 			echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://...">';
 		}
-		// One trailing empty row, styled subtly so it reads as "add another"
-		// rather than a forgotten dangling input.
-		echo '<div class="sn-sameas-empty">';
-		echo '<input type="url" name="social_same_as[]" value="" placeholder="Add another profile URL…">';
-		echo '</div>';
+		// "+ Add another" button — JS handler in assets/admin.js inserts a
+		// new <input> above the button on click. <noscript> fallback
+		// preserves the v1.9.5 single-trailing-input behaviour for users
+		// with JavaScript disabled.
+		echo '<button type="button" class="sn-add-row-btn" aria-label="Add another profile URL row">Add another profile URL</button>';
+		echo '<noscript>';
+		echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." style="margin-top:6px;">';
+		echo '</noscript>';
 		echo '</div>'; // .sn-sameas
 		echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';
 		echo '</div>';
