@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.7.0] - 2026-05-16
+
+### Added
+- `inc/seo-schema.php` — JSON-LD structured data emission (~150 LOC). Single `@graph` script in `<head>` carrying three connected schemas:
+  - **WebSite** — every page; publisher references the Person
+  - **Person** — every page; name + URL + `sameAs` (X / Instagram / LinkedIn profiles, filterable via `sn_schema_same_as`)
+  - **Article** — singular posts only; headline, `datePublished`, `dateModified`, `mainEntityOfPage`, image (via `sn_og_image_url` + `sn_og_image_dimensions` filters), references the Person as author + publisher
+
+### Skipped (deliberate)
+- **BreadcrumbList** — WordPress 7.0 ships a native Breadcrumbs block; use that instead.
+- **SearchAction** — site has no `/search/{term}` route.
+- **WebPage on non-post singulars** — marginal value; omit.
+
+### Notes
+- Output is `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE` for readability and minor byte savings. Single `<script>` tag (Google prefers connected `@graph` over multiple disjoint scripts).
+- Schemas reference each other by `@id` (`#/schema/Person`, `#/schema/WebSite`, `<permalink>#article`) so Google's structured-data validator sees them as a graph, not isolated nodes.
+- After Phase 13 cutover (TSF deactivation), this becomes the site's only structured-data emission. Until then, TSF emits its own `@graph` in parallel — duplicate schemas in `<head>` (verifiable via [Google Rich Results Test](https://search.google.com/test/rich-results)). The duplication is cosmetic; both validate; Phase 13 removes the second source.
+
 ## [1.6.0] - 2026-05-16
 
 ### Added
