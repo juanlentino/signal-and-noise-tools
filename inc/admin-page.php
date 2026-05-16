@@ -56,15 +56,27 @@ function sn_admin_pages() {
 	// submenu entry (gotcha #14). Order matters: must be first submenu
 	// registered.
 	return array(
-		array( 'slug' => 'sn-theme-options', 'tab' => 'dashboard',    'label' => 'Dashboard',     'title' => 'Signal & Noise — Dashboard' ),
-		array( 'slug' => 'sn-identity',      'tab' => 'identity',     'label' => 'Identity',      'title' => 'Signal & Noise — Identity' ),
-		array( 'slug' => 'sn-login',         'tab' => 'login',        'label' => 'Login',         'title' => 'Signal & Noise — Login' ),
-		array( 'slug' => 'sn-cloudflare',    'tab' => 'cloudflare',   'label' => 'Cloudflare',    'title' => 'Signal & Noise — Cloudflare' ),
-		array( 'slug' => 'sn-plausible',     'tab' => 'plausible',    'label' => 'Plausible',     'title' => 'Signal & Noise — Plausible' ),
-		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS' ),
-		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time' ),
-		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links' ),
+		array( 'slug' => 'sn-theme-options', 'tab' => 'dashboard',    'label' => 'Dashboard',     'title' => 'Signal & Noise — Dashboard',     'subtitle' => 'Status overview and maintenance actions for the theme + plugin pair.' ),
+		array( 'slug' => 'sn-identity',      'tab' => 'identity',     'label' => 'Identity',      'title' => 'Signal & Noise — Identity',      'subtitle' => 'Site name, social profiles, Open Graph cards, and per-route SEO copy.' ),
+		array( 'slug' => 'sn-login',         'tab' => 'login',        'label' => 'Login',         'title' => 'Signal & Noise — Login',         'subtitle' => 'Custom login URL and emergency unlock for the WordPress admin.' ),
+		array( 'slug' => 'sn-cloudflare',    'tab' => 'cloudflare',   'label' => 'Cloudflare',    'title' => 'Signal & Noise — Cloudflare',    'subtitle' => 'API token and zone config for automatic edge-cache purges.' ),
+		array( 'slug' => 'sn-plausible',     'tab' => 'plausible',    'label' => 'Plausible',     'title' => 'Signal & Noise — Plausible',     'subtitle' => 'Stats API token for the dashboard widgets.' ),
+		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS',           'subtitle' => 'RSS subscriber tracking (delivered by the rss-plausible-tracker MU plugin).' ),
+		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
+		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links',         'subtitle' => 'External shortcuts — GitHub repos, release pages, Cloudflare, Cloudways.' ),
 	);
+}
+
+/**
+ * Look up the subtitle for the active tab. Used by the page header.
+ */
+function sn_admin_page_subtitle_for_tab( $tab ) {
+	foreach ( sn_admin_pages() as $page ) {
+		if ( $page['tab'] === $tab ) {
+			return $page['subtitle'];
+		}
+	}
+	return '';
 }
 
 /**
@@ -287,8 +299,11 @@ function sn_theme_options_page() {
 
 	// ── PAGE SHELL ──
 	echo '<div class="wrap">';
-	echo '<h1 style="font-size:1.6em;margin-bottom:0.2em;">Signal &amp; Noise</h1>';
-	echo '<p style="color:#666;margin-top:0;margin-bottom:1em;">Theme management and maintenance.</p>';
+	echo '<h1 class="sn-page-h1">Signal &amp; Noise</h1>';
+	$subtitle = sn_admin_page_subtitle_for_tab( $active_tab );
+	if ( $subtitle ) {
+		echo '<p class="sn-page-subtitle">' . esc_html( $subtitle ) . '</p>';
+	}
 
 	// Notices. Severity is escaped as an attribute; bodies are run
 	// through wp_kses_post because some entries deliberately ship
@@ -672,12 +687,16 @@ function sn_theme_options_page() {
 		echo '<p class="sn-field-helper">Bookmark this URL. The default <code>/wp-login.php</code> 404s for unauthenticated visitors.</p>';
 		echo '</div>';
 
-		echo '</div>'; // .sn-fieldset
-
-		echo '<div class="sn-savebar">';
-		echo '<p class="sn-savebar-hint">' . ( $slug_const ? 'Slug locked by constant — save disabled.' : 'Changing the slug re-flushes WP rewrite rules automatically.' ) . '</p>';
-		echo '<button type="submit" class="button button-primary"' . ( $slug_const ? ' disabled' : '' ) . '>Save Login Settings</button>';
+		// Inline save action — short form, no need for sticky save bar.
+		// Hint copy only appears when the constant is locking the field.
+		echo '<div class="sn-fieldset-actions">';
+		if ( $slug_const ) {
+			echo '<p class="sn-fieldset-actions-hint">Slug locked by <code>SN_LOGIN_SLUG</code> constant.</p>';
+		}
+		echo '<button type="submit" class="button button-primary"' . ( $slug_const ? ' disabled' : '' ) . '>Save</button>';
 		echo '</div>';
+
+		echo '</div>'; // .sn-fieldset
 		echo '</form>';
 
 		// Emergency unlock docs (out-of-form, no submission)

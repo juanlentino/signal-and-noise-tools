@@ -396,3 +396,46 @@
 	font-size: 0.85em;
 	overflow-x: auto;
 }
+
+/* ─── Fieldset inline actions (short forms) ──────────────────
+ *
+ * Pair with .sn-fieldset for forms short enough to fit in the
+ * viewport (e.g. Login). Use .sn-savebar (sticky) for long forms
+ * that require scrolling past content to reach Save.
+ */
+.sn-fieldset-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--sn-space-4);
+	margin-top: var(--sn-space-5);
+	padding-top: var(--sn-space-4);
+	border-top: 1px solid var(--sn-border);
+}
+
+.sn-fieldset-actions-hint {
+	color: var(--sn-text-muted);
+	font-size: 0.82em;
+	margin: 0;
+	margin-right: auto;
+}
+
+/* ─── Page-header subtitle (tab-specific) ────────────────────
+ *
+ * Replaces the inline-style h1 + generic subtitle pattern with
+ * a class-driven header where each tab can provide its own
+ * descriptive subtitle.
+ */
+.sn-page-h1 {
+	font-size: 1.6em;
+	margin: 0 0 var(--sn-space-1);
+	font-weight: 600;
+	color: var(--sn-text);
+}
+
+.sn-page-subtitle {
+	color: var(--sn-text-muted);
+	font-size: 0.95em;
+	margin: 0 0 var(--sn-space-4);
+	line-height: 1.45;
+}
