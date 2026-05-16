@@ -50,6 +50,7 @@ if ( 'signal-and-noise' === $snt_stylesheet
 }
 
 // Module includes.
+require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
@@ -123,3 +124,9 @@ require_once __DIR__ . '/inc/reading-time.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
+
+// Settings migration: seed legacy values once per environment.
+// register_activation_hook fires only on WP-upgrader-driven activations;
+// the admin_init handler covers SSH-based git-checkout deploys.
+register_activation_hook( __FILE__, 'sn_settings_seed_legacy_values' );
+add_action( 'admin_init', 'sn_settings_lazy_migration_check' );
