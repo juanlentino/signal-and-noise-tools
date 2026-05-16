@@ -226,110 +226,91 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		return;
 	}
 
-	$notices = array();
-
-	// Handle save action.
-	$posted_action = isset( $_POST['sn_action'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_action'] ) ) : '';
-	if ( 'cf_save' === $posted_action
-		&& check_admin_referer( 'sn_theme_options_nonce', '_wpnonce', false ) ) {
-
-		$token_constant_set = defined( 'SN_CLOUDFLARE_API_TOKEN' );
-		$zone_constant_set  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
-
-		if ( ! $token_constant_set ) {
-			$new_token = isset( $_POST['sn_cf_token'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_cf_token'] ) ) : '';
-			// Empty submission with non-empty placeholder = leave existing alone.
-			// Explicit clear: user types literal "clear".
-			if ( 'clear' === $new_token ) {
-				delete_option( SN_CF_TOKEN_OPT );
-			} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
-				update_option( SN_CF_TOKEN_OPT, $new_token, false ); // not autoloaded
-			}
-		}
-		if ( ! $zone_constant_set ) {
-			$new_zone = isset( $_POST['sn_cf_zone'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_cf_zone'] ) ) : '';
-			if ( 'clear' === $new_zone ) {
-				delete_option( SN_CF_ZONE_OPT );
-			} elseif ( '' !== $new_zone ) {
-				update_option( SN_CF_ZONE_OPT, $new_zone, true );
-			}
-		}
-		$notices[] = array( 'success', 'Cloudflare settings saved.' );
-	}
-
-	// Handle manual purge.
-	if ( 'cf_purge_now' === $posted_action
-		&& check_admin_referer( 'sn_theme_options_nonce', '_wpnonce', false ) ) {
-		if ( sn_cf_purge_everything() ) {
-			$notices[] = array( 'success', 'Cloudflare zone purge dispatched.' );
-		} else {
-			$notices[] = array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' );
-		}
-	}
-
-	foreach ( $notices as $n ) {
-		echo '<div class="notice notice-' . esc_attr( $n[0] ) . ' is-dismissible" style="margin:1em 0;"><p>' . esc_html( $n[1] ) . '</p></div>';
-	}
-
+	// POST handling lives in sn_handle_admin_post() (admin_init, PRG).
+	// This callback is render-only.
 	$token            = sn_cf_get_token();
 	$zone             = sn_cf_get_zone();
 	$token_obscured   = '' === $token ? '' : '••••' . substr( $token, -4 );
 	$token_const_set  = defined( 'SN_CLOUDFLARE_API_TOKEN' );
 	$zone_const_set   = defined( 'SN_CLOUDFLARE_ZONE_ID' );
+	$both_locked      = $token_const_set && $zone_const_set;
 	$last_purge       = get_option( SN_CF_LAST_PURGE_OPT, array() );
 	$is_configured    = sn_cf_is_configured();
 
-	// No top-level heading here — the "Cloudflare" tab name in the
-	// nav above is sufficient label. Just an intro paragraph.
-	echo '<p style="color:#666;font-size:0.95em;max-width:680px;margin-top:0;">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with — without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
+	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with — without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
 
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:680px;margin-top:1em;">';
+	// ── MODULE STATUS BOX ──
+	if ( $is_configured ) {
+		$last_line = '';
+		if ( ! empty( $last_purge['time'] ) ) {
+			$ago       = human_time_diff( (int) $last_purge['time'], time() );
+			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : ( (int) ( $last_purge['count'] ?? 0 ) ) . ' URL(s)';
+			$last_line = ' Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ').';
+		}
+		echo '<div class="sn-status-box">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Configured — auto-purge active</p>';
+		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--ok">Active</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Not configured</p>';
+		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID below to activate.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+	}
+
+	// ── CREDENTIALS FIELDSET ──
+	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 
-	// Token input
-	echo '<p style="margin:0 0 0.4em;"><strong>API Token</strong></p>';
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Credentials</h2>';
+	echo '<p class="sn-fieldset-intro">API token + zone ID from your Cloudflare dashboard. Both required.</p>';
+
+	// API Token
+	echo '<div class="sn-field sn-field-w-lg">';
+	echo '<label class="sn-field-label" for="sn_cf_token">API token</label>';
 	if ( $token_const_set ) {
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 1em;">Set via <code>SN_CLOUDFLARE_API_TOKEN</code> in wp-config.php (constant takes precedence over this option).</p>';
+		echo '<input type="text" id="sn_cf_token" value="' . esc_attr( $token_obscured ? $token_obscured : '••••' ) . '" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_API_TOKEN</code> in <code>wp-config.php</code>.</p>';
 	} else {
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 0.4em;">A Cloudflare API token with <code>Cache Purge</code> permission scoped to your zone.</p>';
-		echo '<input type="text" name="sn_cf_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh token to update; type \'clear\' to remove" style="width:100%;font-family:monospace;font-size:0.85em;margin-bottom:1em;">';
-	}
-
-	// Zone input
-	echo '<p style="margin:0 0 0.4em;"><strong>Zone ID</strong></p>';
-	if ( $zone_const_set ) {
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 1em;">Set via <code>SN_CLOUDFLARE_ZONE_ID</code> in wp-config.php.</p>';
-	} else {
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 0.4em;">32-char zone ID from Cloudflare dashboard → site overview → API.</p>';
-		echo '<input type="text" name="sn_cf_zone" value="' . esc_attr( $zone ) . '" placeholder="Paste zone ID; type \'clear\' to remove" style="width:100%;font-family:monospace;font-size:0.85em;margin-bottom:1em;">';
-	}
-
-	if ( ! ( $token_const_set && $zone_const_set ) ) {
-		echo '<p style="margin:0.8em 0 0;"><button type="submit" name="sn_action" value="cf_save" class="button button-primary">Save Cloudflare Settings</button></p>';
-	}
-
-	echo '</form>';
-
-	// Status & manual purge
-	echo '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-top:1em;">';
-	echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
-	echo '<strong style="display:block;margin-bottom:4px;">Status</strong>';
-	if ( $is_configured ) {
-		echo '<p style="color:#00a32a;font-size:0.85em;margin:0 0 8px;">&#10003; Configured — auto-purge active</p>';
-	} else {
-		echo '<p style="color:#dba617;font-size:0.85em;margin:0 0 8px;">Not configured — auto-purge disabled</p>';
-	}
-	if ( ! empty( $last_purge['time'] ) ) {
-		$ago = human_time_diff( (int) $last_purge['time'], time() );
-		$kind = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : ( (int) ( $last_purge['count'] ?? 0 ) ) . ' URL(s)';
-		echo '<p style="color:#666;font-size:0.8em;margin:0;">Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ')</p>';
+		echo '<input type="text" id="sn_cf_token" name="sn_cf_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh token to update; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper">Cloudflare API token with <code>Cache Purge</code> permission scoped to your zone. Leave the obscured value alone to keep the existing token.</p>';
 	}
 	echo '</div>';
 
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
+	// Zone ID
+	echo '<div class="sn-field sn-field-w-md">';
+	echo '<label class="sn-field-label" for="sn_cf_zone">Zone ID</label>';
+	if ( $zone_const_set ) {
+		echo '<input type="text" id="sn_cf_zone" value="' . esc_attr( $zone ) . '" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_ZONE_ID</code> in <code>wp-config.php</code>.</p>';
+	} else {
+		echo '<input type="text" id="sn_cf_zone" name="sn_cf_zone" value="' . esc_attr( $zone ) . '" placeholder="Paste zone ID; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper">32-char zone ID from Cloudflare dashboard → site overview → API.</p>';
+	}
+	echo '</div>';
+
+	if ( ! $both_locked ) {
+		echo '<div class="sn-fieldset-actions">';
+		echo '<button type="submit" name="sn_action" value="cf_save" class="button button-primary">Save</button>';
+		echo '</div>';
+	}
+
+	echo '</div>'; // .sn-fieldset
+	echo '</form>';
+
+	// ── MANUAL PURGE ACTION CARD ──
+	echo '<div class="sn-card-grid">';
+	echo '<form method="post" class="sn-card" style="max-width:300px;">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<strong style="display:block;margin-bottom:4px;">Purge Everything Now</strong>';
-	echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Clears the entire Cloudflare zone cache. Use after manual edits to global elements.</p>';
+	echo '<strong>Purge Everything Now</strong>';
+	echo '<p class="sn-helper">Clears the entire Cloudflare zone cache. Use after manual edits to global elements.</p>';
 	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge Cloudflare</button>';
 	echo '</form>';
 	echo '</div>';

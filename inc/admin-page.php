@@ -246,6 +246,29 @@ function sn_handle_admin_post() {
 			$result = sn_plausible_api( 'aggregate', array( 'period' => '7d', 'metrics' => 'visitors' ), $cfg );
 			$flash  = is_array( $result ) ? 'pl_test_ok' : 'pl_test_err';
 		}
+	} elseif ( 'cf_save' === $action ) {
+		$token_const = defined( 'SN_CLOUDFLARE_API_TOKEN' );
+		$zone_const  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
+
+		if ( ! $token_const ) {
+			$new_token = isset( $_POST['sn_cf_token'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_cf_token'] ) ) : '';
+			if ( 'clear' === $new_token ) {
+				delete_option( SN_CF_TOKEN_OPT );
+			} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
+				update_option( SN_CF_TOKEN_OPT, $new_token, false ); // not autoloaded
+			}
+		}
+		if ( ! $zone_const ) {
+			$new_zone = isset( $_POST['sn_cf_zone'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_cf_zone'] ) ) : '';
+			if ( 'clear' === $new_zone ) {
+				delete_option( SN_CF_ZONE_OPT );
+			} elseif ( '' !== $new_zone ) {
+				update_option( SN_CF_ZONE_OPT, $new_zone, true );
+			}
+		}
+		$flash = 'cf_saved';
+	} elseif ( 'cf_purge_now' === $action ) {
+		$flash = sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
 	} else {
 		return;
 	}
@@ -330,6 +353,12 @@ function sn_theme_options_page() {
 			$notices[] = array( 'error', '&#10005; API call failed &mdash; ' . $detail );
 		} elseif ( 'pl_test_unconfigured' === $flash ) {
 			$notices[] = array( 'error', 'Plausible not fully configured (missing domain or token).' );
+		} elseif ( 'cf_saved' === $flash ) {
+			$notices[] = array( 'success', 'Cloudflare settings saved.' );
+		} elseif ( 'cf_purged_ok' === $flash ) {
+			$notices[] = array( 'success', 'Cloudflare zone purge dispatched.' );
+		} elseif ( 'cf_purged_unconfigured' === $flash ) {
+			$notices[] = array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' );
 		} elseif ( 'purged' === $flash ) {
 			$notices[] = array( 'success', 'All caches purged.' );
 		} elseif ( 0 === strpos( $flash, 'cleared_' ) ) {
