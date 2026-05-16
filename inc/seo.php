@@ -58,20 +58,20 @@ function sn_seo_meta_for_current_view() {
 	$url         = '';
 
 	if ( is_front_page() ) {
-		$title       = 'Juan Lentino — Music producer & creative strategist';
-		$description = 'Music producer, mix engineer, and creative strategist based in Buenos Aires. Founder of Panacea recording studio.';
+		$title       = sn_setting( 'seo_copy.home_title', '' );
+		$description = sn_setting( 'seo_copy.home_description', '' );
 		$url         = home_url( '/' );
 	} elseif ( is_page( 'notes' ) || is_home() ) {
-		$title       = 'Notes — Juan Lentino';
-		$description = 'Working notes on music, AI, and the infrastructure underneath. Written when there\'s something worth writing.';
+		$title       = sn_setting( 'seo_copy.notes_title', '' );
+		$description = sn_setting( 'seo_copy.notes_description', '' );
 		$url         = home_url( '/notes/' );
 	} elseif ( is_page( 'provenance' ) ) {
-		$title       = 'Music has a verification problem. Detection isn\'t the answer.';
-		$description = "A short read on why the industry needs to prove what's human, not chase what isn't.";
+		$title       = sn_setting( 'seo_copy.provenance_title', '' );
+		$description = sn_setting( 'seo_copy.provenance_description', '' );
 		$url         = home_url( '/provenance/' );
 	} elseif ( is_singular() ) {
 		$post  = get_queried_object();
-		$title = $post ? wp_strip_all_tags( get_the_title( $post ) ) . ' — Juan Lentino' : '';
+		$title = $post ? wp_strip_all_tags( get_the_title( $post ) ) . ' — ' . sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ) : '';
 		if ( $post && ! empty( $post->post_excerpt ) ) {
 			$description = wp_strip_all_tags( $post->post_excerpt );
 		}
@@ -147,11 +147,12 @@ add_action( 'wp_head', function() {
 	}
 
 	$is_article = is_singular( 'post' );
-	$default_og = home_url( '/wp-content/uploads/2026/02/cropped-jl_logo-min-300x300.png' );
+	$default_og = sn_setting( 'og.default_image_url', '' );
 	$og_image   = apply_filters( 'sn_og_image_url', $default_og );
 
+	$locale = sn_setting( 'identity.locale', 'en_US' );
 	echo '<meta property="og:type" content="' . ( $is_article ? 'article' : 'website' ) . '">' . "\n";
-	echo '<meta property="og:locale" content="en_US">' . "\n";
+	echo '<meta property="og:locale" content="' . esc_attr( $locale ) . '">' . "\n";
 	if ( $title ) {
 		echo '<meta property="og:title" content="' . esc_attr( $title ) . '">' . "\n";
 		echo '<meta name="twitter:title" content="' . esc_attr( $title ) . '">' . "\n";
@@ -163,11 +164,19 @@ add_action( 'wp_head', function() {
 	if ( $url ) {
 		echo '<meta property="og:url" content="' . esc_url( $url ) . '">' . "\n";
 	}
-	echo '<meta property="og:site_name" content="Juan Lentino">' . "\n";
+	$site_name = sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
+	echo '<meta property="og:site_name" content="' . esc_attr( $site_name ) . '">' . "\n";
 	if ( $og_image ) {
 		// Dimensions filterable; defaults match our generated /sn-og/ cards (1200x630).
 		// Site-icon fallback would be 512x512 but the discrepancy is harmless for crawlers.
-		$dims = (array) apply_filters( 'sn_og_image_dimensions', array( 1200, 630 ), $og_image );
+		$dims = (array) apply_filters(
+			'sn_og_image_dimensions',
+			array(
+				sn_setting( 'og.card_width', 1200 ),
+				sn_setting( 'og.card_height', 630 ),
+			),
+			$og_image
+		);
 		echo '<meta property="og:image" content="' . esc_url( $og_image ) . '">' . "\n";
 		echo '<meta property="og:image:width" content="' . (int) ( $dims[0] ?? 1200 ) . '">' . "\n";
 		echo '<meta property="og:image:height" content="' . (int) ( $dims[1] ?? 630 ) . '">' . "\n";
@@ -178,7 +187,10 @@ add_action( 'wp_head', function() {
 	}
 
 	// Twitter handle attribution (filterable so future config UI can change).
-	$twitter_handle = (string) apply_filters( 'sn_twitter_handle', '@juan_lentino' );
+	$twitter_handle = (string) apply_filters(
+		'sn_twitter_handle',
+		sn_setting( 'social.twitter_handle', '' )
+	);
 	if ( $twitter_handle ) {
 		echo '<meta name="twitter:site" content="' . esc_attr( $twitter_handle ) . '">' . "\n";
 		echo '<meta name="twitter:creator" content="' . esc_attr( $twitter_handle ) . '">' . "\n";
