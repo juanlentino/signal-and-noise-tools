@@ -370,6 +370,14 @@ add_filter( 'sn_og_image_url', function( $default ) {
 	if ( ! $post ) {
 		return $default;
 	}
+	// v1.10.0+: per-post _sn_og_image_url wins over featured image
+	// and auto-generated card. Explicit beats implicit.
+	if ( function_exists( 'sn_post_settings_get_og_image_url' ) ) {
+		$override = sn_post_settings_get_og_image_url( $post->ID );
+		if ( '' !== $override ) {
+			return $override;
+		}
+	}
 	$url = sn_og_image_url_for_post( $post );
 	return $url ? $url : $default;
 } );
