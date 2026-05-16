@@ -82,6 +82,42 @@ function sn_seo_meta_for_current_view() {
 }
 
 /**
+ * SEO: Canonical URL.
+ *
+ * Emits <link rel="canonical"> on the front page, /notes, /provenance,
+ * and any singular post/page. Migrated from The SEO Framework in
+ * plugin v1.6.0 (Phase 10).
+ */
+add_action( 'wp_head', function() {
+	list( , , $url ) = sn_seo_meta_for_current_view();
+	if ( $url ) {
+		echo '<link rel="canonical" href="' . esc_url( $url ) . '">' . "\n";
+	}
+}, 1 );
+
+/**
+ * SEO: Robots meta.
+ *
+ * Mirrors The SEO Framework's default "no restrictions" robots meta.
+ * Honors a per-post `_sn_noindex` post-meta flag for individual posts
+ * we want to hide from search (admin UI for setting this lands in
+ * Phase 11).
+ */
+add_action( 'wp_head', function() {
+	$noindex = false;
+	if ( is_singular() ) {
+		$post = get_queried_object();
+		if ( $post && '1' === (string) get_post_meta( $post->ID, '_sn_noindex', true ) ) {
+			$noindex = true;
+		}
+	}
+	$content = $noindex
+		? 'noindex,nofollow,max-snippet:-1,max-image-preview:large,max-video-preview:-1'
+		: 'max-snippet:-1,max-image-preview:large,max-video-preview:-1';
+	echo '<meta name="robots" content="' . esc_attr( $content ) . '">' . "\n";
+}, 1 );
+
+/**
  * SEO: Meta description tag.
  */
 add_action( 'wp_head', function() {
@@ -115,6 +151,7 @@ add_action( 'wp_head', function() {
 	$og_image   = apply_filters( 'sn_og_image_url', $default_og );
 
 	echo '<meta property="og:type" content="' . ( $is_article ? 'article' : 'website' ) . '">' . "\n";
+	echo '<meta property="og:locale" content="en_US">' . "\n";
 	if ( $title ) {
 		echo '<meta property="og:title" content="' . esc_attr( $title ) . '">' . "\n";
 		echo '<meta name="twitter:title" content="' . esc_attr( $title ) . '">' . "\n";
@@ -128,11 +165,38 @@ add_action( 'wp_head', function() {
 	}
 	echo '<meta property="og:site_name" content="Juan Lentino">' . "\n";
 	if ( $og_image ) {
+		// Dimensions filterable; defaults match our generated /sn-og/ cards (1200x630).
+		// Site-icon fallback would be 512x512 but the discrepancy is harmless for crawlers.
+		$dims = (array) apply_filters( 'sn_og_image_dimensions', array( 1200, 630 ), $og_image );
 		echo '<meta property="og:image" content="' . esc_url( $og_image ) . '">' . "\n";
+		echo '<meta property="og:image:width" content="' . (int) ( $dims[0] ?? 1200 ) . '">' . "\n";
+		echo '<meta property="og:image:height" content="' . (int) ( $dims[1] ?? 630 ) . '">' . "\n";
 		echo '<meta name="twitter:card" content="summary_large_image">' . "\n";
 		echo '<meta name="twitter:image" content="' . esc_url( $og_image ) . '">' . "\n";
 	} else {
 		echo '<meta name="twitter:card" content="summary">' . "\n";
+	}
+
+	// Twitter handle attribution (filterable so future config UI can change).
+	$twitter_handle = (string) apply_filters( 'sn_twitter_handle', '@juan_lentino' );
+	if ( $twitter_handle ) {
+		echo '<meta name="twitter:site" content="' . esc_attr( $twitter_handle ) . '">' . "\n";
+		echo '<meta name="twitter:creator" content="' . esc_attr( $twitter_handle ) . '">' . "\n";
+	}
+
+	// Article published/modified times on singular posts.
+	if ( $is_article ) {
+		$post = get_queried_object();
+		if ( $post ) {
+			$published = get_post_time( 'c', true, $post );
+			$modified  = get_post_modified_time( 'c', true, $post );
+			if ( $published ) {
+				echo '<meta property="article:published_time" content="' . esc_attr( $published ) . '">' . "\n";
+			}
+			if ( $modified ) {
+				echo '<meta property="article:modified_time" content="' . esc_attr( $modified ) . '">' . "\n";
+			}
+		}
 	}
 }, 3 );
 

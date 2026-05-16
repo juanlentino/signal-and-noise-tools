@@ -374,28 +374,8 @@ add_filter( 'sn_og_image_url', function( $default ) {
 	return $url ? $url : $default;
 } );
 
-/**
- * Yoast SEO emits its OG/Twitter tags first and wins the scrape race,
- * so we filter its values to point at the same generated card. If
- * Yoast isn't installed these filters simply never fire.
- */
-add_filter( 'wpseo_opengraph_image', function( $image ) {
-	if ( ! is_singular() ) {
-		return $image;
-	}
-	$url = sn_og_image_url_for_post( get_post() );
-	return $url ? $url : $image;
-} );
-
-add_filter( 'wpseo_twitter_image', function( $image ) {
-	if ( ! is_singular() ) {
-		return $image;
-	}
-	$url = sn_og_image_url_for_post( get_post() );
-	return $url ? $url : $image;
-} );
-
-add_filter( 'wpseo_opengraph_image_size', function( $size ) {
-	// Tell Yoast the generated card is full-bleed; suppresses thumbnail-size logic.
-	return 'full';
-} );
+// Note: Phase 10 (plugin v1.6.0) removed three dead `wpseo_*` filter hooks
+// that targeted Yoast SEO's filter namespace. The active site runs The SEO
+// Framework (`the_seo_framework_*` namespace), so those hooks never fired.
+// The OG card URL surfaces through our own `sn_og_image_url` filter, which
+// `inc/seo.php` reads when emitting `<meta property="og:image">` directly.
