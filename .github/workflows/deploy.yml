@@ -1,0 +1,98 @@
+name: Deploy to Cloudways
+
+# Fires on annotated-tag push (vX.Y.Z) — matches the theme's release ritual.
+# workflow_dispatch enables manual re-runs from the Actions UI.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Serialise deploys: if a new tag fires while one is in flight, queue
+# rather than cancel — never drop a release.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH git checkout + CF purge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Configure SSH for Cloudways
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: SSH git checkout on Cloudways
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Validate ref name (defense-in-depth — git already constrains
+          # ref characters, but a strict pattern here prevents future
+          # surprises if upstream ever loosens its rules).
+          case "$TAG_REF" in
+            v[0-9]*) ;;
+            *) echo "ERROR: invalid tag ref: $TAG_REF"; exit 1 ;;
+          esac
+          # Pass TAG_REF as a positional arg to the remote bash so the
+          # local shell never expands it into the heredoc body.
+          ssh "$SSH_USER@$SSH_HOST" bash -s -- "$TAG_REF" <<'REMOTE'
+          set -euo pipefail
+          TAG_REF="$1"
+          # The deploy runs as Cloudways' restricted "additional SSH user"
+          # (sn-plugin → nffqxsrgxz). Their ~/.ssh is root-owned and
+          # read-only, so the GitHub deploy key lives in the user-writable
+          # ~/.openssh/ directory (Cloudways convention) and we point git
+          # at it explicitly via GIT_SSH_COMMAND.
+          export GIT_SSH_COMMAND="ssh -i $HOME/.openssh/cw-to-gh-deploy_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.openssh/known_hosts"
+          # Auto-discover the plugin path — Cloudways uses random per-app
+          # dir names (e.g. nffqxsrgxz). Surviving a Cloudways app
+          # migration is worth one extra ls invocation.
+          PLUGIN_DIR=$(ls -d /home/master/applications/*/public_html/wp-content/plugins/signal-and-noise-tools 2>/dev/null | head -1)
+          [ -z "$PLUGIN_DIR" ] && { echo "ERROR: plugin dir not found"; exit 1; }
+          echo "Plugin dir: $PLUGIN_DIR"
+          cd "$PLUGIN_DIR"
+          echo "Before: $(git describe --tags --always)"
+          git fetch --tags --quiet
+          git checkout --quiet "$TAG_REF"
+          echo "After:  $(git describe --tags --always)"
+          grep -E '^[[:space:]]*\*?[[:space:]]*Version:' signal-and-noise-tools.php | head -1
+          REMOTE
+
+      - name: Purge Cloudflare cache
+        env:
+          WP_DEPLOY_USER: ${{ secrets.WP_DEPLOY_USER }}
+          WP_DEPLOY_APP_PASSWORD: ${{ secrets.WP_DEPLOY_APP_PASSWORD }}
+          PURGE_URL: 'https://juanlentino.com/wp-json/signal-noise/v1/purge-cache'
+        run: |
+          set -euo pipefail
+          # Let OPcache pick up the new files (validate_timestamps gates this).
+          sleep 5
+          auth=$(printf '%s:%s' "$WP_DEPLOY_USER" "$WP_DEPLOY_APP_PASSWORD" | base64 -w 0)
+          # Content-Length: 0 satisfies Cloudways' WAF (ModSecurity rejects
+          # zero-byte POSTs with empty 400; see docs/WORDPRESS-REFERENCE.md §13).
+          response=$(curl -sS -w '\n%{http_code}' -X POST "$PURGE_URL" \
+            -H "Authorization: Basic $auth" \
+            -H 'Accept: application/json' \
+            -H 'Content-Length: 0')
+          status=$(printf '%s' "$response" | tail -n1)
+          body=$(printf '%s' "$response" | sed '$d')
+          printf 'HTTP %s\n' "$status"
+          printf '%s\n' "$body"
+          case "$status" in
+            200) ;;
+            *) exit 1 ;;
+          esac
