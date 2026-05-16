@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.11.0] - 2026-05-16
+
+### Added
+- **`inc/sitemap.php` — sitemap filter for WP core's built-in `/wp-sitemap.xml`.** Hooks `wp_sitemaps_posts_query_args` to exclude two classes of posts from the sitemap:
+  - Posts with `_sn_noindex = '1'` (the per-post noindex flag from v1.10.0). If a post is hidden from search engines, it shouldn't be in the sitemap either.
+  - Posts with a non-empty `_sn_canonical_url` (per-post canonical override from v1.10.2). Canonical pointing elsewhere = this URL isn't the source-of-truth → exclude from our sitemap.
+- Scoped to `post` + `page` post types (matches `SN_POST_SETTINGS_POST_TYPES`).
+
+### Architectural note — dormant until Phase 13
+- **Currently inactive on the live site.** The SEO Framework (TSF) is still active on juanlentino.com; TSF deregisters WP core's `/wp-sitemap.xml` route and serves its own at `/sitemap.xml` instead. Our filter targets WP core's sitemap, so it doesn't fire as long as TSF runs.
+- **Activates automatically at Phase 13 cutover** (v2.0.0). When TSF is deactivated, WP core's sitemap takes over at `/wp-sitemap.xml` and our filter immediately starts honoring the per-post overrides.
+- Registered unconditionally because doing so is cheap (no overhead when the hook never fires) and avoids coordination logic with TSF. The pattern "register filters that activate when their feature target becomes live" is the same approach used in the v1.5.0 login-hide module (stands down while wps-hide-login is active; activates when that plugin is removed).
+
+### Sitemap features NOT shipped in v1.11.0
+- **Custom URL routing** (intercepting `/sitemap.xml` while TSF is active) — would create two competing sitemaps. Wait for Phase 13.
+- **Image sitemap extensions** — marginal SEO value; Google indexes inline `<img>` regardless.
+- **Video sitemap, news sitemap** — not applicable to this site (no video catalog, not a news publisher).
+- **Per-post `changefreq` / `priority`** — Google has explicitly stated these are ignored. WP core skips them.
+- **Sitemap ping on update** — Google deprecated sitemap ping in 2023. WP core never implemented it. Search engines discover sitemap updates via robots.txt + crawl cadence.
+
+### Notes
+- **MINOR bump (v1.11.0).** New file + new user-visible behavior (when activated), even though the activation is currently latent. Aligns with the project's pattern of preferring MINOR for additive features and reserving PATCH for fixes / refactors.
+- **Ships through the WP-UI-updates flow** introduced in v1.10.1. Push tag → `wp-admin → Updates` → "Update Now". (Or `gh workflow run deploy.yml --ref v1.11.0` for emergency.)
+- **Theme parallel work** still queued: the theme repo needs the same WP-UI-updates treatment as the plugin got in v1.10.1. Will ship as `v8.5.1` in a separate task — same file changes (deploy.yml trigger + wp-update-integration.php).
+
 ## [1.10.2] - 2026-05-16
 
 ### Added
