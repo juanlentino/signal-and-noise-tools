@@ -99,6 +99,20 @@ function sn_seo_meta_for_current_view() {
  */
 add_action( 'wp_head', function() {
 	list( , , $url ) = sn_seo_meta_for_current_view();
+
+	// v1.10.2+: per-post _sn_canonical_url override wins for singulars.
+	// Use case: republished/syndicated content where the canonical lives
+	// at the original publisher's URL.
+	if ( is_singular() && function_exists( 'sn_post_settings_get_canonical_url' ) ) {
+		$post = get_queried_object();
+		if ( $post ) {
+			$override = sn_post_settings_get_canonical_url( $post->ID );
+			if ( '' !== $override ) {
+				$url = $override;
+			}
+		}
+	}
+
 	if ( $url ) {
 		echo '<link rel="canonical" href="' . esc_url( $url ) . '">' . "\n";
 	}
@@ -108,22 +122,45 @@ add_action( 'wp_head', function() {
  * SEO: Robots meta.
  *
  * Mirrors The SEO Framework's default "no restrictions" robots meta.
- * Honors a per-post `_sn_noindex` post-meta flag for individual posts
- * we want to hide from search (admin UI for setting this lands in
- * Phase 11).
+ * Honors per-post override flags for singulars (set via the post
+ * settings meta box, added in v1.10.0 for noindex / v1.10.2 for
+ * noarchive + noimageindex):
+ *   _sn_noindex       — adds 'noindex,nofollow'
+ *   _sn_noarchive     — adds 'noarchive'    (no cached copy)
+ *   _sn_noimageindex  — adds 'noimageindex' (no Google Images)
  */
 add_action( 'wp_head', function() {
-	$noindex = false;
+	$directives = array();
+
 	if ( is_singular() ) {
 		$post = get_queried_object();
-		if ( $post && '1' === (string) get_post_meta( $post->ID, '_sn_noindex', true ) ) {
-			$noindex = true;
+		if ( $post ) {
+			// noindex — kept as the v1.6.0 semantic (also implies nofollow).
+			$noindex = function_exists( 'sn_post_settings_get_noindex' )
+				? sn_post_settings_get_noindex( $post->ID )
+				: ( '1' === (string) get_post_meta( $post->ID, '_sn_noindex', true ) );
+			if ( $noindex ) {
+				$directives[] = 'noindex';
+				$directives[] = 'nofollow';
+			}
+
+			// noarchive + noimageindex — v1.10.2 standalone flags. Layer
+			// on top of (or independent of) noindex.
+			if ( function_exists( 'sn_post_settings_get_noarchive' ) && sn_post_settings_get_noarchive( $post->ID ) ) {
+				$directives[] = 'noarchive';
+			}
+			if ( function_exists( 'sn_post_settings_get_noimageindex' ) && sn_post_settings_get_noimageindex( $post->ID ) ) {
+				$directives[] = 'noimageindex';
+			}
 		}
 	}
-	$content = $noindex
-		? 'noindex,nofollow,max-snippet:-1,max-image-preview:large,max-video-preview:-1'
-		: 'max-snippet:-1,max-image-preview:large,max-video-preview:-1';
-	echo '<meta name="robots" content="' . esc_attr( $content ) . '">' . "\n";
+
+	// Always-present permissive defaults (mirrors TSF's "no restrictions").
+	$directives[] = 'max-snippet:-1';
+	$directives[] = 'max-image-preview:large';
+	$directives[] = 'max-video-preview:-1';
+
+	echo '<meta name="robots" content="' . esc_attr( implode( ',', $directives ) ) . '">' . "\n";
 }, 1 );
 
 /**

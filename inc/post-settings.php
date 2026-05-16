@@ -66,7 +66,10 @@ function sn_post_settings_register_meta() {
 
 	foreach ( SN_POST_SETTINGS_POST_TYPES as $post_type ) {
 		register_post_meta( $post_type, '_sn_noindex',          $bool_args );
+		register_post_meta( $post_type, '_sn_noarchive',        $bool_args );
+		register_post_meta( $post_type, '_sn_noimageindex',     $bool_args );
 		register_post_meta( $post_type, '_sn_meta_description', $text_args );
+		register_post_meta( $post_type, '_sn_canonical_url',    $url_args );
 		register_post_meta( $post_type, '_sn_og_image_url',     $url_args );
 	}
 }
@@ -103,29 +106,55 @@ add_action( 'add_meta_boxes', 'sn_post_settings_register_meta_box' );
 function sn_post_settings_render( $post ) {
 	wp_nonce_field( SN_POST_SETTINGS_NONCE, 'sn_post_settings_nonce' );
 
-	$noindex = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
-	$desc    = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
-	$og      = (string) get_post_meta( $post->ID, '_sn_og_image_url', true );
+	$noindex      = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
+	$noarchive    = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
+	$noimageindex = (bool) get_post_meta( $post->ID, '_sn_noimageindex', true );
+	$desc         = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
+	$canonical    = (string) get_post_meta( $post->ID, '_sn_canonical_url', true );
+	$og           = (string) get_post_meta( $post->ID, '_sn_og_image_url', true );
 
 	echo '<div class="sn-post-settings">';
 
-	// noindex toggle
+	// ─── Robots directives ───
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label sn-field-label--inline">';
 	echo '<input type="checkbox" name="sn_noindex" value="1"' . checked( $noindex, true, false ) . '> ';
 	echo 'Hide from search engines (noindex)';
 	echo '</label>';
-	echo '<p class="sn-field-helper">Adds <code>noindex,nofollow</code> to the robots meta tag for this post only.</p>';
+	echo '<p class="sn-field-helper">Adds <code>noindex,nofollow</code> to the robots meta tag.</p>';
 	echo '</div>';
 
-	// Meta description
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label sn-field-label--inline">';
+	echo '<input type="checkbox" name="sn_noarchive" value="1"' . checked( $noarchive, true, false ) . '> ';
+	echo 'No cached copy (noarchive)';
+	echo '</label>';
+	echo '<p class="sn-field-helper">Tells Google etc. not to show a cached version of this page.</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label sn-field-label--inline">';
+	echo '<input type="checkbox" name="sn_noimageindex" value="1"' . checked( $noimageindex, true, false ) . '> ';
+	echo 'Hide images from image search (noimageindex)';
+	echo '</label>';
+	echo '<p class="sn-field-helper">Images on this page won&rsquo;t appear in Google Images.</p>';
+	echo '</div>';
+
+	// ─── Meta description ───
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_meta_description">Meta description</label>';
 	echo '<textarea id="sn_meta_description" name="sn_meta_description" rows="3">' . esc_textarea( $desc ) . '</textarea>';
 	echo '<p class="sn-field-helper">Overrides the post excerpt for <code>&lt;meta name=&quot;description&quot;&gt;</code>, OG description, and JSON-LD. Empty falls back to excerpt.</p>';
 	echo '</div>';
 
-	// OG image URL
+	// ─── Canonical URL ───
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_canonical_url">Canonical URL</label>';
+	echo '<input type="url" id="sn_canonical_url" name="sn_canonical_url" value="' . esc_attr( $canonical ) . '" placeholder="' . esc_attr( get_permalink( $post ) ?: 'https://...' ) . '">';
+	echo '<p class="sn-field-helper">Overrides the default <code>&lt;link rel=&quot;canonical&quot;&gt;</code>. Use when this post is a republish / syndication of content that lives at another URL. Empty falls back to the permalink.</p>';
+	echo '</div>';
+
+	// ─── OG image URL ───
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_og_image_url">OG image URL</label>';
 	echo '<input type="url" id="sn_og_image_url" name="sn_og_image_url" value="' . esc_attr( $og ) . '" placeholder="https://...">';
@@ -164,11 +193,18 @@ function sn_post_settings_save( $post_id ) {
 		return;
 	}
 
-	// noindex — checkbox unchecked = absent from $_POST.
-	if ( ! empty( $_POST['sn_noindex'] ) ) {
-		update_post_meta( $post_id, '_sn_noindex', '1' );
-	} else {
-		delete_post_meta( $post_id, '_sn_noindex' );
+	// Boolean flags — checkbox unchecked = absent from $_POST.
+	$bool_fields = array(
+		'_sn_noindex'      => 'sn_noindex',
+		'_sn_noarchive'    => 'sn_noarchive',
+		'_sn_noimageindex' => 'sn_noimageindex',
+	);
+	foreach ( $bool_fields as $meta_key => $post_key ) {
+		if ( ! empty( $_POST[ $post_key ] ) ) {
+			update_post_meta( $post_id, $meta_key, '1' );
+		} else {
+			delete_post_meta( $post_id, $meta_key );
+		}
 	}
 
 	// Meta description — wp_unslash before sanitize (WP stripslashes
@@ -182,14 +218,20 @@ function sn_post_settings_save( $post_id ) {
 		delete_post_meta( $post_id, '_sn_meta_description' );
 	}
 
-	// OG image URL — esc_url_raw strips invalid URLs to ''.
-	$og = isset( $_POST['sn_og_image_url'] )
-		? esc_url_raw( wp_unslash( $_POST['sn_og_image_url'] ) )
-		: '';
-	if ( '' !== $og ) {
-		update_post_meta( $post_id, '_sn_og_image_url', $og );
-	} else {
-		delete_post_meta( $post_id, '_sn_og_image_url' );
+	// URL fields — esc_url_raw strips invalid URLs to ''.
+	$url_fields = array(
+		'_sn_canonical_url' => 'sn_canonical_url',
+		'_sn_og_image_url'  => 'sn_og_image_url',
+	);
+	foreach ( $url_fields as $meta_key => $post_key ) {
+		$url = isset( $_POST[ $post_key ] )
+			? esc_url_raw( wp_unslash( $_POST[ $post_key ] ) )
+			: '';
+		if ( '' !== $url ) {
+			update_post_meta( $post_id, $meta_key, $url );
+		} else {
+			delete_post_meta( $post_id, $meta_key );
+		}
 	}
 }
 add_action( 'save_post', 'sn_post_settings_save' );
@@ -204,8 +246,20 @@ function sn_post_settings_get_noindex( $post_id ) {
 	return '1' === (string) get_post_meta( $post_id, '_sn_noindex', true );
 }
 
+function sn_post_settings_get_noarchive( $post_id ) {
+	return '1' === (string) get_post_meta( $post_id, '_sn_noarchive', true );
+}
+
+function sn_post_settings_get_noimageindex( $post_id ) {
+	return '1' === (string) get_post_meta( $post_id, '_sn_noimageindex', true );
+}
+
 function sn_post_settings_get_description( $post_id ) {
 	return (string) get_post_meta( $post_id, '_sn_meta_description', true );
+}
+
+function sn_post_settings_get_canonical_url( $post_id ) {
+	return (string) get_post_meta( $post_id, '_sn_canonical_url', true );
 }
 
 function sn_post_settings_get_og_image_url( $post_id ) {

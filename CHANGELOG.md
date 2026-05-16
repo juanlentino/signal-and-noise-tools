@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.10.2] - 2026-05-16
+
+### Added
+- **Three new per-post override fields** in the "Signal & Noise" meta box:
+  - **Custom canonical URL** (`_sn_canonical_url`) — overrides `<link rel="canonical">` for this post. Use case: republished or syndicated content where the canonical lives at the original publisher's URL. Empty falls back to the permalink.
+  - **No archive checkbox** (`_sn_noarchive`) — appends `noarchive` to the robots meta tag (tells Google etc. not to show a cached version).
+  - **No image index checkbox** (`_sn_noimageindex`) — appends `noimageindex` to the robots meta tag (images on this page won't appear in Google Images).
+- Three new typed accessors in `inc/post-settings.php`: `sn_post_settings_get_canonical_url()`, `sn_post_settings_get_noarchive()`, `sn_post_settings_get_noimageindex()`. All three meta keys registered via `register_post_meta()` with `show_in_rest=true` — same architectural pattern as v1.10.0's three fields. REST `/wp-json/wp/v2/posts/{id}` now exposes `meta._sn_canonical_url`, `meta._sn_noarchive`, `meta._sn_noimageindex` alongside the v1.10.0 fields.
+
+### Changed
+- **`inc/seo.php` canonical emitter** — checks `_sn_canonical_url` first for singulars before falling back to the permalink returned by `sn_seo_meta_for_current_view()`.
+- **`inc/seo.php` robots emitter** refactored from a hardcoded string concatenation to a directives-array build pattern. Honors all four robots flags (`noindex` + auto `nofollow` since v1.6.0; `noarchive` + `noimageindex` added in v1.10.2). The permissive defaults (`max-snippet:-1,max-image-preview:large,max-video-preview:-1`) are always appended regardless of per-post flags. Backward compatible: existing `_sn_noindex` behavior unchanged.
+- **`inc/post-settings.php` save handler** refactored to iterate over field-key maps (boolean fields and URL fields) rather than 1:1 inline blocks per field. Same behavior; halves the LOC and makes adding more fields later trivial.
+
+### Notes
+- **TSF parity:** these are the per-post equivalents of three TSF settings (canonical URL override, noarchive directive, noimageindex directive). Combined with v1.10.0's noindex + meta description + OG image, the SN per-post meta box now covers ~80% of TSF's per-post SEO controls. Remaining TSF features queued: focus keyword analysis (complex UI, marginal value), nofollow / nosnippet standalone toggles (incremental).
+- **PATCH bump within `1.10.x`.** Additive only; no schema migrations.
+- **First update via WP UI flow** since v1.10.1 shipped the fix. Push the tag → check `wp-admin → Dashboard → Updates` → "Update Now" → installs from GitHub archive. (12h cache TTL on update detection — can be forced via "Check Again" button on the Updates page.)
+
 ## [1.10.1] - 2026-05-16
 
 ### Fixed
