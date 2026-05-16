@@ -1,0 +1,135 @@
+<?php
+/**
+ * Signal & Noise Tools — content rendering helpers.
+ *
+ * Pure Gutenberg block-markup generators called from content
+ * migrations. Stateless string builders; no hooks, no DB writes.
+ *
+ * Moved from theme inc/notes-and-provenance.php in Phase 3
+ * (theme v8.4.0 / plugin v1.3.0, 2026-05-16).
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Reading-time block markup for the Provenance byline. Factored out so
+ * the seed file (inc/seed-content/provenance-body.html) and the
+ * migration above share a single source of truth — change the markup
+ * here and both ship the same shape.
+ */
+function sn_provenance_byline_reading_time_markup() {
+	return '<!-- wp:paragraph {"className":"sn-provenance-byline-divider","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}}} -->' . "\n"
+		. "\t" . '<p class="sn-provenance-byline-divider" style="margin-top:0;margin-bottom:0">·</p>' . "\n"
+		. "\t" . '<!-- /wp:paragraph -->' . "\n\n"
+		. "\t" . '<!-- wp:paragraph {"className":"sn-provenance-byline-reading-time","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"textColor":"blood"} -->' . "\n"
+		. "\t" . '<p class="sn-provenance-byline-reading-time has-blood-color has-text-color" style="margin-top:0;margin-bottom:0">[sn_reading_time]</p>' . "\n"
+		. "\t" . '<!-- /wp:paragraph -->';
+}
+
+/**
+ * The TOC block markup, factored out so the seed file and the migration
+ * stay in lockstep. If the TOC ever changes shape, change it here.
+ */
+function sn_provenance_toc_block_markup() {
+	return '<!-- wp:paragraph {"className":"sn-provenance-toc","style":{"typography":{"fontSize":"0.95rem","fontStyle":"italic"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|50"}}},"textColor":"rust"} -->' . "\n"
+		. '<p class="sn-provenance-toc has-rust-color has-text-color" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--50);font-size:0.95rem;font-style:italic">Jump to: <a href="#setup">The setup</a> · <a href="#analogy">The analogy</a> · <a href="#what-it-means">What provenance means</a> · <a href="#why-it-matters">Why this matters</a> · <a href="#the-shift">The shift</a></p>' . "\n"
+		. '<!-- /wp:paragraph -->';
+}
+
+/**
+ * Block markup for the "On Provenance" series header + two-paper index.
+ * Single source of truth — the seed file
+ * (inc/seed-content/provenance-body.html) and the migration above must
+ * stay in lockstep. Change the markup here and both ship the same shape.
+ */
+function sn_provenance_papers_index_markup() {
+	return <<<'HTML'
+<!-- wp:group {"className":"sn-prov-series","style":{"spacing":{"margin":{"bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group sn-prov-series" style="margin-bottom:var(--wp--preset--spacing--60)">
+
+	<!-- wp:heading {"level":2,"className":"font-display sn-prov-series-heading","style":{"typography":{"fontSize":"clamp(1.75rem, 4vw, 2.5rem)"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}}} -->
+	<h2 class="wp-block-heading font-display sn-prov-series-heading" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:clamp(1.75rem, 4vw, 2.5rem)">On Provenance</h2>
+	<!-- /wp:heading -->
+
+	<!-- wp:paragraph {"className":"sn-prov-series-intro","style":{"typography":{"fontSize":"1.05rem"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|50"}}},"textColor":"rust"} -->
+	<p class="sn-prov-series-intro has-rust-color has-text-color" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--50);font-size:1.05rem">Two papers proposing cryptographic provenance as the foundation of music rights infrastructure. The first argues that detection of AI-generated music is structurally falsifiable; provenance is not. The second extends the framework from authorship verification to the music industry's identifier infrastructure.</p>
+	<!-- /wp:paragraph -->
+
+	<!-- wp:group {"className":"sn-prov-papers","layout":{"type":"default"}} -->
+	<div class="wp-block-group sn-prov-papers">
+
+		<!-- wp:group {"tagName":"article","className":"sn-prov-paper-card","layout":{"type":"default"}} -->
+		<article class="wp-block-group sn-prov-paper-card">
+
+			<!-- wp:paragraph {"className":"sn-catalog-number","style":{"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|10"}}}} -->
+			<p class="sn-catalog-number" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--10)">№ 01</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-meta","style":{"typography":{"fontSize":"0.75rem","letterSpacing":"0.15em","textTransform":"uppercase"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|20"}}},"textColor":"blood","fontFamily":"body"} -->
+			<p class="sn-prov-paper-meta has-blood-color has-text-color has-body-font-family" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--20);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase">March 2026 · [sn_reading_time slug="provenance/over-detection"]</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:heading {"level":3,"className":"font-display sn-prov-paper-title","style":{"typography":{"fontSize":"1.5rem","lineHeight":"1.15"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|10"}}}} -->
+			<h3 class="wp-block-heading font-display sn-prov-paper-title" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--10);font-size:1.5rem;line-height:1.15"><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6402298" target="_blank" rel="noopener noreferrer">Provenance Over Detection</a></h3>
+			<!-- /wp:heading -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-subtitle","style":{"typography":{"fontSize":"0.85rem","lineHeight":"1.4"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}},"textColor":"rust"} -->
+			<p class="sn-prov-paper-subtitle has-rust-color has-text-color" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.85rem;line-height:1.4">A Cryptographic Framework for Human Authorship Verification in Music Distribution</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-blurb","style":{"typography":{"fontSize":"0.875rem"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}}} -->
+			<p class="sn-prov-paper-blurb" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.875rem">Detection-based responses to AI-generated music — output classifiers that lag the models they chase and produce false positives that punish legitimate artists — are the wrong frame. The solution is provenance: cryptographic verification of human authorship embedded at the point of creation and carried through the distribution chain in a single tamper-evident metadata layer.</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-longform","style":{"typography":{"fontSize":"0.8rem","fontStyle":"italic"},"spacing":{"margin":{"top":"0","bottom":"0"}}},"textColor":"rust"} -->
+			<p class="sn-prov-paper-longform has-rust-color has-text-color" style="margin-top:0;margin-bottom:0;font-size:0.8rem;font-style:italic"><a href="/provenance/over-detection/">Read the long-form on this site →</a></p>
+			<!-- /wp:paragraph -->
+
+		</article>
+		<!-- /wp:group -->
+
+		<!-- wp:group {"tagName":"article","className":"sn-prov-paper-card","layout":{"type":"default"}} -->
+		<article class="wp-block-group sn-prov-paper-card">
+
+			<!-- wp:paragraph {"className":"sn-catalog-number","style":{"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|10"}}}} -->
+			<p class="sn-catalog-number" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--10)">№ 02</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-meta","style":{"typography":{"fontSize":"0.75rem","letterSpacing":"0.15em","textTransform":"uppercase"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|20"}}},"textColor":"blood","fontFamily":"body"} -->
+			<p class="sn-prov-paper-meta has-blood-color has-text-color has-body-font-family" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--20);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase">May 2026 · [sn_reading_time slug="provenance/as-substrate"]</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:heading {"level":3,"className":"font-display sn-prov-paper-title","style":{"typography":{"fontSize":"1.5rem","lineHeight":"1.15"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|10"}}}} -->
+			<h3 class="wp-block-heading font-display sn-prov-paper-title" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--10);font-size:1.5rem;line-height:1.15"><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6730343" target="_blank" rel="noopener noreferrer">Provenance as Substrate</a></h3>
+			<!-- /wp:heading -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-subtitle","style":{"typography":{"fontSize":"0.85rem","lineHeight":"1.4"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}},"textColor":"rust"} -->
+			<p class="sn-prov-paper-subtitle has-rust-color has-text-color" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.85rem;line-height:1.4">A Cryptographic Identifier Framework for Music Rights and Royalty Infrastructure</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-blurb","style":{"typography":{"fontSize":"0.875rem"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}}} -->
+			<p class="sn-prov-paper-blurb" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.875rem">Extends the provenance argument from authorship verification to identifier infrastructure. The proposal is cryptographic provenance as a substrate beneath ISRC, ISWC, and the rest of the music industry's identifier stack — self-issuing, collision-resistant, signed at creation, with legacy identifiers continuing to function as aliases. The unmatched royalty pool, hundreds of millions at the MLC alone, is a downstream consequence of identifier failure.</p>
+			<!-- /wp:paragraph -->
+
+			<!-- wp:paragraph {"className":"sn-prov-paper-longform","style":{"typography":{"fontSize":"0.8rem","fontStyle":"italic"},"spacing":{"margin":{"top":"0","bottom":"0"}}},"textColor":"rust"} -->
+			<p class="sn-prov-paper-longform has-rust-color has-text-color" style="margin-top:0;margin-bottom:0;font-size:0.8rem;font-style:italic"><a href="/provenance/as-substrate/">Read the long-form on this site →</a></p>
+			<!-- /wp:paragraph -->
+
+		</article>
+		<!-- /wp:group -->
+
+	</div>
+	<!-- /wp:group -->
+
+	<!-- wp:paragraph {"className":"sn-prov-series-footer","style":{"typography":{"fontSize":"0.85rem","letterSpacing":"0.15em","textTransform":"uppercase"},"spacing":{"margin":{"top":"var:preset|spacing|40","bottom":"0"}}},"fontFamily":"heading"} -->
+	<p class="sn-prov-series-footer has-heading-font-family" style="margin-top:var(--wp--preset--spacing--40);margin-bottom:0;font-size:0.85rem;letter-spacing:0.15em;text-transform:uppercase"><a href="/notes/">Read more notes →</a></p>
+	<!-- /wp:paragraph -->
+
+</div>
+<!-- /wp:group -->
+HTML;
+}
