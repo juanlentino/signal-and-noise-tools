@@ -72,8 +72,17 @@ function sn_seo_meta_for_current_view() {
 	} elseif ( is_singular() ) {
 		$post  = get_queried_object();
 		$title = $post ? wp_strip_all_tags( get_the_title( $post ) ) . ' — ' . sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ) : '';
-		if ( $post && ! empty( $post->post_excerpt ) ) {
-			$description = wp_strip_all_tags( $post->post_excerpt );
+		if ( $post ) {
+			// v1.10.0+: per-post _sn_meta_description override wins over
+			// the excerpt. Empty override falls through to excerpt.
+			$override = function_exists( 'sn_post_settings_get_description' )
+				? sn_post_settings_get_description( $post->ID )
+				: '';
+			if ( '' !== $override ) {
+				$description = $override;
+			} elseif ( ! empty( $post->post_excerpt ) ) {
+				$description = wp_strip_all_tags( $post->post_excerpt );
+			}
 		}
 		$url = $post ? get_permalink( $post ) : '';
 	}
