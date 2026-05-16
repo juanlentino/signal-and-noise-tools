@@ -39,16 +39,68 @@ if ( ! defined( 'ABSPATH' ) ) {
  * parent label ("Signal & Noise / Signal & Noise"); add_submenu_page
  * with the same slug overrides the auto entry's label to "Dashboard".
  */
-function sn_admin_page_hook( $set = null ) {
-	static $hook = '';
-	if ( null !== $set ) {
-		$hook = (string) $set;
+/**
+ * The 8 SN admin pages, each rendered by sn_theme_options_page().
+ *
+ * Defined once at module scope so registration and dispatch read from
+ * a single source of truth. Slug uniqueness is critical — WP's
+ * add_submenu_page() has no duplicate detection (gotcha #16 in
+ * docs/WORDPRESS-REFERENCE.md), so a typo here would silently produce
+ * a phantom sidebar entry.
+ *
+ * Order in the array = display order in the WP sidebar.
+ */
+function sn_admin_pages() {
+	// Note: the 'dashboard' slug ('sn-theme-options') intentionally matches
+	// the parent menu slug to suppress WP's auto-prepended duplicate-parent
+	// submenu entry (gotcha #14). Order matters: must be first submenu
+	// registered.
+	return array(
+		array( 'slug' => 'sn-theme-options', 'tab' => 'dashboard',    'label' => 'Dashboard',     'title' => 'Signal & Noise — Dashboard' ),
+		array( 'slug' => 'sn-identity',      'tab' => 'identity',     'label' => 'Identity',      'title' => 'Signal & Noise — Identity' ),
+		array( 'slug' => 'sn-login',         'tab' => 'login',        'label' => 'Login',         'title' => 'Signal & Noise — Login' ),
+		array( 'slug' => 'sn-cloudflare',    'tab' => 'cloudflare',   'label' => 'Cloudflare',    'title' => 'Signal & Noise — Cloudflare' ),
+		array( 'slug' => 'sn-plausible',     'tab' => 'plausible',    'label' => 'Plausible',     'title' => 'Signal & Noise — Plausible' ),
+		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS' ),
+		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time' ),
+		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links' ),
+	);
+}
+
+/**
+ * Map an admin-page slug to a tab name. Used by sn_theme_options_page()
+ * to dispatch when $_GET['tab'] isn't present (v1.9.0+ deep links).
+ */
+function sn_admin_page_tab_for_slug( $slug ) {
+	foreach ( sn_admin_pages() as $page ) {
+		if ( $page['slug'] === $slug ) {
+			return $page['tab'];
+		}
 	}
-	return $hook;
+	return 'dashboard';
+}
+
+/**
+ * Cache of all registered hook suffixes for the SN admin pages.
+ * Used by the enqueue guard to load the stylesheet on any of our
+ * pages without re-deriving hook names from slugs.
+ *
+ * add_menu_page() always returns a string; add_submenu_page() returns
+ * false when the user lacks the required capability (gotcha #15), so
+ * we filter the array before comparing.
+ */
+function sn_admin_page_hooks( $set = null ) {
+	static $hooks = array();
+	if ( is_array( $set ) ) {
+		$hooks = array_values( array_filter( $set, 'is_string' ) );
+	}
+	return $hooks;
 }
 
 add_action( 'admin_menu', function() {
-	$hook = add_menu_page(
+	$hooks = array();
+
+	$hooks[] = add_menu_page(
 		'Signal & Noise',
 		'Signal & Noise',
 		'manage_options',
@@ -57,28 +109,30 @@ add_action( 'admin_menu', function() {
 		'dashicons-megaphone',
 		81
 	);
-	sn_admin_page_hook( $hook );
 
-	// Override the auto-generated first submenu (which inherits the
-	// parent label "Signal & Noise") with a clearer "Dashboard" label.
-	add_submenu_page(
-		'sn-theme-options',
-		'Signal & Noise — Dashboard',
-		'Dashboard',
-		'manage_options',
-		'sn-theme-options',
-		'sn_theme_options_page'
-	);
+	foreach ( sn_admin_pages() as $page ) {
+		$hooks[] = add_submenu_page(
+			'sn-theme-options',
+			$page['title'],
+			$page['label'],
+			'manage_options',
+			$page['slug'],
+			'sn_theme_options_page'
+		);
+	}
+
+	sn_admin_page_hooks( $hooks );
 } );
 
 /**
- * Enqueue the SN admin stylesheet on our top-level page only.
+ * Enqueue the SN admin stylesheet on any of our 8 pages.
  *
- * Guard uses the hook suffix captured at registration time so a slug
- * rename doesn't silently break the guard. Cache-busted by SNT_VERSION.
+ * Guards via in_array() against the collected hook list so a slug
+ * rename in sn_admin_pages() won't silently break the guard. Cache-
+ * busted by SNT_VERSION.
  */
 add_action( 'admin_enqueue_scripts', function( $hook ) {
-	if ( $hook === sn_admin_page_hook() ) {
+	if ( in_array( $hook, sn_admin_page_hooks(), true ) ) {
 		wp_enqueue_style(
 			'sn-admin',
 			SNT_URL . 'assets/admin.css',
@@ -101,8 +155,19 @@ function sn_theme_options_page() {
 	$theme         = wp_get_theme( 'signal-and-noise' );
 	$local_version = $theme->get( 'Version' );
 	$notices       = array();
-	$valid_tabs    = array( 'dashboard', 'identity', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
-	$active_tab    = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'dashboard';
+	$valid_tabs = array( 'dashboard', 'identity', 'login', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
+
+	// Dispatch order: (1) explicit ?tab=… in URL (v1.8.x legacy deep links;
+	// must keep working); (2) derive from the current ?page=… slug (v1.9.0
+	// path — each sidebar submenu has a unique slug). Default to dashboard
+	// if neither resolves.
+	if ( isset( $_GET['tab'] ) ) {
+		$active_tab = sanitize_text_field( wp_unslash( $_GET['tab'] ) );
+	} else {
+		$current_slug = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'sn-theme-options';
+		$active_tab   = sn_admin_page_tab_for_slug( $current_slug );
+	}
+
 	if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 		$active_tab = 'dashboard';
 	}
@@ -172,6 +237,7 @@ function sn_theme_options_page() {
 	$tab_labels = array(
 		'dashboard'    => 'Dashboard',
 		'identity'     => 'Identity',
+		'login'        => 'Login',
 		'cloudflare'   => 'Cloudflare',
 		'plausible'    => 'Plausible',
 		'rss'          => 'RSS',
