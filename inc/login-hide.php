@@ -1,0 +1,140 @@
+<?php
+/**
+ * Signal & Noise Tools — Custom login URL.
+ *
+ * Renames /wp-login.php to a custom slug (default: /sn-login).
+ * Direct visits to /wp-login.php return 404. Unauthenticated
+ * /wp-admin requests also return 404. Login URL appears in
+ * password-reset emails, logout links, etc. via filter rewrites
+ * of site_url() / wp_redirect() output.
+ *
+ * Configuration via wp-config.php constants:
+ *   SN_LOGIN_SLUG    — custom login slug (default 'sn-login')
+ *   SN_LOGIN_BYPASS  — set true to disable this module entirely
+ *                      (emergency unlock if you ever lock yourself out)
+ *
+ * Replaces the third-party `wps-hide-login` plugin (~80 LOC vs theirs ~700).
+ *
+ * Defensive pre-flight: if `wps-hide-login` is still active, this module
+ * stands down to avoid conflicting rewrite rules / URL filters.
+ *
+ * Added in v1.5.0 (Phase 8 absorption, 2026-05-16).
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+// Emergency bypass — restore default /wp-login.php behaviour.
+if ( defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS ) {
+	return;
+}
+
+// Pre-flight: bail if wps-hide-login is still active to avoid conflicts.
+// Once wps-hide-login is deactivated (Phase 13), this module takes over.
+if ( ! function_exists( 'is_plugin_active' ) ) {
+	include_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+if ( is_plugin_active( 'wps-hide-login/wps-hide-login.php' ) ) {
+	add_action( 'admin_notices', function() {
+		echo '<div class="notice notice-info"><p><strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>wps-hide-login</code> is still active. Deactivate that plugin to switch over.</p></div>';
+	} );
+	return;
+}
+
+/**
+ * Get the configured custom login slug.
+ */
+function sn_login_get_slug() {
+	if ( defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG ) {
+		return trim( (string) SN_LOGIN_SLUG, '/' );
+	}
+	return 'sn-login';
+}
+
+/**
+ * Rewrite '/wp-login.php' in any URL produced by site_url(),
+ * network_site_url(), or wp_redirect() to the custom slug. Affects
+ * password-reset emails, logout-redirect URLs, etc.
+ */
+function sn_login_filter_url( $url, $path = '' ) {
+	if ( strpos( $url, 'wp-login.php' ) === false ) {
+		return $url;
+	}
+	return str_replace( '/wp-login.php', '/' . sn_login_get_slug(), $url );
+}
+add_filter( 'site_url', 'sn_login_filter_url', 10, 2 );
+add_filter( 'network_site_url', 'sn_login_filter_url', 10, 2 );
+add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
+
+/**
+ * Register the rewrite rule so /<custom-slug> resolves to wp-login.php.
+ */
+add_action( 'init', function() {
+	add_rewrite_rule(
+		'^' . preg_quote( sn_login_get_slug(), '/' ) . '/?$',
+		'wp-login.php',
+		'top'
+	);
+} );
+
+/**
+ * One-time rewrite flush so the new rule resolves immediately on first
+ * activation, and again whenever SN_LOGIN_SLUG changes. Keyed by current
+ * slug so a constant change triggers a single re-flush.
+ */
+add_action( 'init', function() {
+	$current = sn_login_get_slug();
+	$flushed = get_option( 'sn_login_rewrites_flushed' );
+	if ( $flushed !== $current ) {
+		flush_rewrite_rules( false );
+		update_option( 'sn_login_rewrites_flushed', $current );
+	}
+}, 99 );
+
+/**
+ * Intercept direct visits to /wp-login.php and unauthenticated /wp-admin
+ * requests. Both return 404. The custom slug path is exempt (it's how
+ * legitimate logins reach the login form).
+ */
+add_action( 'wp_loaded', function() {
+	if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
+		return;
+	}
+	$request_uri = (string) wp_unslash( $_SERVER['REQUEST_URI'] );
+	$slug        = sn_login_get_slug();
+
+	// Allow the custom login slug.
+	if ( strpos( $request_uri, '/' . $slug ) === 0 ) {
+		return;
+	}
+	// Allow admin-ajax.php (used by both logged-out and logged-in flows).
+	if ( strpos( $request_uri, 'admin-ajax.php' ) !== false ) {
+		return;
+	}
+	// Allow async upload + WP-Cron + REST + RSS endpoints.
+	$allowed = array( 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' );
+	foreach ( $allowed as $needle ) {
+		if ( strpos( $request_uri, $needle ) !== false ) {
+			return;
+		}
+	}
+
+	// 404 direct visits to /wp-login.php.
+	if ( strpos( $request_uri, 'wp-login.php' ) !== false ) {
+		status_header( 404 );
+		nocache_headers();
+		include get_query_template( '404' );
+		exit;
+	}
+
+	// 404 unauthenticated visits to /wp-admin.
+	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {
+		status_header( 404 );
+		nocache_headers();
+		include get_query_template( '404' );
+		exit;
+	}
+} );
