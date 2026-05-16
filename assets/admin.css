@@ -203,3 +203,196 @@
 	font-weight: 600;
 	color: var(--sn-text);
 }
+
+/* ─── Fieldset card (Identity, Login redesigned forms) ──────── */
+
+.sn-fieldset {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: var(--sn-space-5);
+	margin: 0 0 var(--sn-space-4);
+	max-width: 820px;
+	scroll-margin-top: 80px;
+}
+
+.sn-fieldset-h {
+	font-size: 1.15em;
+	font-weight: 600;
+	margin: 0 0 var(--sn-space-1);
+	color: var(--sn-text);
+	letter-spacing: 0.005em;
+}
+
+.sn-fieldset-intro {
+	color: var(--sn-text-muted);
+	font-size: 0.88em;
+	margin: 0 0 var(--sn-space-5);
+	line-height: 1.5;
+}
+
+/* ─── Field (vertical label → input → helper) ──────────────── */
+
+.sn-field {
+	display: block;
+	margin: 0 0 var(--sn-space-4);
+}
+
+.sn-field:last-child {
+	margin-bottom: 0;
+}
+
+.sn-field-label {
+	display: block;
+	font-weight: 600;
+	font-size: 0.92em;
+	margin: 0 0 6px;
+	color: var(--sn-text);
+}
+
+.sn-field-helper {
+	color: var(--sn-text-muted);
+	font-size: 0.82em;
+	margin: 6px 0 0;
+	line-height: 1.45;
+}
+
+.sn-field-helper code {
+	font-size: 0.95em;
+	padding: 1px 5px;
+}
+
+/* Field inputs — reset WP defaults so widths are predictable. */
+.sn-field input[type="text"],
+.sn-field input[type="url"],
+.sn-field input[type="number"],
+.sn-field textarea {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.sn-field textarea {
+	min-height: 56px;
+	resize: vertical;
+}
+
+/* Width caps per field type — applied via wrapper class on .sn-field. */
+.sn-field-w-xs input,
+.sn-field-w-xs textarea { max-width: 140px; }   /* number, locale */
+.sn-field-w-sm input,
+.sn-field-w-sm textarea { max-width: 240px; }   /* handle, slug */
+.sn-field-w-md input,
+.sn-field-w-md textarea { max-width: 480px; }   /* site name, person name */
+.sn-field-w-lg input,
+.sn-field-w-lg textarea { max-width: 580px; }   /* URL, single-line description */
+.sn-field-w-xl input,
+.sn-field-w-xl textarea { max-width: 720px; }   /* multi-line descriptions */
+
+/* ─── sameAs URL list ────────────────────────────────────────── */
+
+.sn-sameas {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.sn-sameas input {
+	max-width: 580px;
+}
+
+.sn-sameas-empty input {
+	background: rgba(0,0,0,0.015);
+	border-style: dashed;
+}
+
+.sn-sameas-empty input::placeholder {
+	color: rgba(0,0,0,0.35);
+	font-style: italic;
+}
+
+/* ─── Status box (Login tab) ─────────────────────────────────── */
+
+.sn-status-box {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-left: 3px solid var(--sn-ok);
+	border-radius: var(--sn-radius);
+	padding: var(--sn-space-3) var(--sn-space-4);
+	margin: 0 0 var(--sn-space-4);
+	max-width: 820px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sn-space-4);
+}
+
+.sn-status-box--warn { border-left-color: var(--sn-warn); }
+.sn-status-box--err  { border-left-color: var(--sn-err); }
+
+.sn-status-box-title {
+	font-weight: 600;
+	font-size: 0.95em;
+	margin: 0 0 2px;
+}
+
+.sn-status-box-body {
+	color: var(--sn-text-muted);
+	font-size: 0.85em;
+	margin: 0;
+}
+
+.sn-url-preview {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--sn-space-2);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.88em;
+	background: rgba(0,0,0,0.04);
+	padding: 4px 10px;
+	border-radius: var(--sn-radius);
+	color: var(--sn-text);
+	text-decoration: none;
+	border: 1px solid transparent;
+}
+
+.sn-url-preview:hover,
+.sn-url-preview:focus {
+	border-color: var(--sn-border);
+	color: var(--sn-link);
+	outline: none;
+}
+
+/* ─── Callout (constants / emergency unlock docs) ───────────── */
+
+.sn-callout {
+	background: rgba(34,113,177,0.05);
+	border: 1px solid rgba(34,113,177,0.18);
+	border-radius: var(--sn-radius);
+	padding: var(--sn-space-3) var(--sn-space-4);
+	margin: 0 0 var(--sn-space-4);
+	max-width: 820px;
+	font-size: 0.88em;
+	line-height: 1.55;
+}
+
+.sn-callout-h {
+	font-weight: 600;
+	margin: 0 0 var(--sn-space-1);
+	color: var(--sn-text);
+	font-size: 0.95em;
+}
+
+.sn-callout code {
+	font-size: 0.95em;
+}
+
+.sn-callout pre {
+	background: rgba(0,0,0,0.04);
+	padding: var(--sn-space-2) var(--sn-space-3);
+	border-radius: var(--sn-radius);
+	margin: var(--sn-space-2) 0 0;
+	font-size: 0.85em;
+	overflow-x: auto;
+}
