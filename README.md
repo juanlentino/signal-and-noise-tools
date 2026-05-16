@@ -8,11 +8,14 @@ Phase 1 of a 4-phase split from the theme repo. See the theme's `docs/superpower
 
 ## Installation (Phase 1, manual)
 
-1. Download a release zip from this repo's *Releases* tab (or `https://github.com/juanlentino/signal-and-noise-tools/archive/refs/tags/v1.0.0.zip`).
-2. WP admin → Plugins → Add New → Upload Plugin → choose the zip → Install Now → Activate.
-3. If WP unzips to `wp-content/plugins/signal-and-noise-tools-1.0.0/` (with the version suffix), rename via SFTP to `wp-content/plugins/signal-and-noise-tools/`.
+**Order matters.** The companion theme (Signal & Noise) must be at v8.2.0+ before this plugin can load. v8.2.0 is the theme release that deleted the 9 module files from the theme's `inc/`; without that deletion, both packages declare the same function names and PHP fatals. Since v1.0.1, the plugin's bootstrap detects this situation and bails out with an admin notice instead of fataling — but the maintainer still needs to ship the theme update to actually use the plugin.
 
-Phase 2 will add a GitHub-poll self-updater that handles install/update automatically.
+1. Update the Signal & Noise theme to v8.2.0+ (WP admin → Dashboard → Updates → click *Update* on the theme tile, or visit `…/wp-admin/update-core.php?force-check=1` to surface it faster).
+2. Download a release zip from this repo's *Releases* tab (or `https://github.com/juanlentino/signal-and-noise-tools/archive/refs/tags/v1.0.1.zip`).
+3. WP admin → Plugins → Add New → Upload Plugin → choose the zip → Install Now → Activate.
+4. If WP unzips to `wp-content/plugins/signal-and-noise-tools-1.0.1/` (with the version suffix), rename via SFTP to `wp-content/plugins/signal-and-noise-tools/`.
+
+Phase 2 will add a GitHub-poll self-updater that handles install/update automatically and removes the manual zip step.
 
 ## Cross-package contracts
 
