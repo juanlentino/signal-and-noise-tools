@@ -142,6 +142,85 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 	}
 } );
 
+/**
+ * Handle all SN admin form submissions on admin_init.
+ *
+ * Runs before any HTML output, so wp_safe_redirect() works cleanly.
+ * This implements Post/Redirect/Get for our custom forms — the Plugin
+ * Handbook recommends Settings API specifically because it does this
+ * for you. Since we bypass Settings API to keep a single nested-array
+ * option (sn_settings), we own this responsibility (gotchas #18, #19).
+ *
+ * Save status survives the redirect via the ?sn_flash query arg,
+ * which sn_theme_options_page() reads to render the appropriate
+ * success/error notice on the post-redirect GET request.
+ */
+add_action( 'admin_init', 'sn_handle_admin_post' );
+
+function sn_handle_admin_post() {
+	if ( ! isset( $_POST['sn_action'] ) ) {
+		return;
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	// Only process for our admin pages — guards against the handler
+	// firing for an unrelated $_POST that happens to carry sn_action.
+	$current_page  = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
+	$our_slugs     = array_column( sn_admin_pages(), 'slug' );
+	if ( ! in_array( $current_page, $our_slugs, true ) ) {
+		return;
+	}
+
+	check_admin_referer( 'sn_theme_options_nonce' );
+
+	$action = sanitize_text_field( wp_unslash( $_POST['sn_action'] ) );
+	$flash  = '';
+
+	if ( 'clear_overrides' === $action ) {
+		$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
+		$flash = 'cleared_' . $count;
+	} elseif ( 'purge_caches' === $action ) {
+		apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+		$flash = 'purged';
+	} elseif ( 'full_reset' === $action ) {
+		$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
+		$flash = 'reset_' . $count;
+	} elseif ( 'save_identity' === $action ) {
+		$saved = sn_settings_save( $_POST );
+		$flash = $saved ? 'identity_saved' : 'identity_unchanged';
+	} elseif ( 'save_login' === $action ) {
+		$slug = isset( $_POST['login_slug'] ) ? sanitize_title( wp_unslash( $_POST['login_slug'] ) ) : '';
+		if ( ! $slug ) {
+			$flash = 'login_empty';
+		} else {
+			$settings                  = (array) get_option( 'sn_settings', array() );
+			$settings['login']         = is_array( $settings['login'] ?? null ) ? $settings['login'] : array();
+			$settings['login']['slug'] = $slug;
+			update_option( 'sn_settings', $settings );
+			// gotcha #10: update_option returns false on both "no change"
+			// and "real failure" — re-read to disambiguate.
+			$re_read = (array) get_option( 'sn_settings', array() );
+			$flash   = ( $re_read['login']['slug'] ?? '' ) === $slug ? 'login_saved' : 'login_failed';
+		}
+	} else {
+		return;
+	}
+
+	$redirect_args = array(
+		'page'     => $current_page,
+		'sn_flash' => $flash,
+	);
+	// Preserve v1.8.x-style ?tab=… so legacy bookmarks survive PRG.
+	if ( isset( $_REQUEST['tab'] ) ) {
+		$redirect_args['tab'] = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
+	}
+	$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) );
+	wp_safe_redirect( $redirect_url );
+	exit;
+}
+
 function sn_theme_options_page() {
 	// Defense-in-depth capability check. WordPress's add_theme_page()
 	// already gates access to the admin URL itself, but re-checking here
@@ -172,68 +251,33 @@ function sn_theme_options_page() {
 		$active_tab = 'dashboard';
 	}
 
-	// Handle form actions.
-	if ( isset( $_POST['sn_action'] ) && check_admin_referer( 'sn_theme_options_nonce' ) ) {
-		$action = sanitize_text_field( wp_unslash( $_POST['sn_action'] ) );
-
-		if ( 'clear_overrides' === $action ) {
-			// Dispatched via sn_clear_template_overrides_result filter
-			// contract — theme module template-maintenance.php owns
-			// the implementation; returns 0 if not loaded.
-			$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
-			$notices[] = array( 'success', $count . ' database override(s) cleared. Site is reading from theme files.' );
-		}
-
-		if ( 'purge_caches' === $action ) {
-			// Single source of truth for "purge everything" — see
-			// sn_purge_all_caches() in the theme's template-maintenance.php.
-			// Dispatched via sn_purge_all_caches_result filter contract.
-			// template_overrides => false matches the button copy ("purge
-			// caches", not "also delete admin Site Editor edits").
-			$cleared = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+	// Form processing happens in sn_handle_admin_post() on admin_init —
+	// before any output, so wp_safe_redirect() works (gotcha #17, #19).
+	// This block just translates ?sn_flash=… into notices for the
+	// post-redirect GET request.
+	if ( isset( $_GET['sn_flash'] ) ) {
+		$flash = sanitize_text_field( wp_unslash( $_GET['sn_flash'] ) );
+		if ( 'identity_saved' === $flash ) {
+			$notices[] = array( 'success', 'Identity settings saved.' );
+		} elseif ( 'identity_unchanged' === $flash ) {
+			$notices[] = array( 'info', 'No changes to save.' );
+		} elseif ( 'login_saved' === $flash ) {
+			$slug_now  = sn_setting( 'login.slug', 'sn-login' );
+			$login_url = home_url( '/' . $slug_now );
+			$notices[] = array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
+		} elseif ( 'login_empty' === $flash ) {
+			$notices[] = array( 'error', 'Login slug cannot be empty.' );
+		} elseif ( 'login_failed' === $flash ) {
+			$notices[] = array( 'error', 'Login slug save failed.' );
+		} elseif ( 'purged' === $flash ) {
 			$notices[] = array( 'success', 'All caches purged.' );
-		}
-
-		if ( 'full_reset' === $action ) {
-			// Full reset = purge everything including DB template overrides.
-			// Purge dispatched via sn_purge_all_caches_result filter
-			// (default args include template_overrides).
-			$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
+		} elseif ( 0 === strpos( $flash, 'cleared_' ) ) {
+			$count     = (int) substr( $flash, strlen( 'cleared_' ) );
+			$notices[] = array( 'success', $count . ' database override(s) cleared. Site is reading from theme files.' );
+		} elseif ( 0 === strpos( $flash, 'reset_' ) ) {
+			$count     = (int) substr( $flash, strlen( 'reset_' ) );
 			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
 		}
-
-		if ( 'save_identity' === $action ) {
-			// update_option() returns false when the new value equals the
-			// existing one; surface that as an info notice rather than a
-			// failure so users get accurate feedback on no-op saves.
-			$saved = sn_settings_save( $_POST );
-			if ( $saved ) {
-				$notices[] = array( 'success', 'Identity settings saved.' );
-			} else {
-				$notices[] = array( 'info', 'No changes to save.' );
-			}
-		}
-
-		if ( 'save_login' === $action ) {
-			$slug = isset( $_POST['login_slug'] ) ? sanitize_title( wp_unslash( $_POST['login_slug'] ) ) : '';
-			if ( ! $slug ) {
-				$notices[] = array( 'error', 'Login slug cannot be empty.' );
-			} else {
-				$settings                  = (array) get_option( 'sn_settings', array() );
-				$settings['login']         = is_array( $settings['login'] ?? null ) ? $settings['login'] : array();
-				$settings['login']['slug'] = $slug;
-				update_option( 'sn_settings', $settings );
-				// gotcha #10: update_option returns false on both "no change"
-				// and "real failure" — re-read to disambiguate.
-				$re_read = (array) get_option( 'sn_settings', array() );
-				if ( ( $re_read['login']['slug'] ?? '' ) === $slug ) {
-					$notices[] = array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( home_url( '/' . $slug ) ) . '">' . esc_html( home_url( '/' . $slug ) ) . '</a>' );
-				} else {
-					$notices[] = array( 'error', 'Login slug save failed.' );
-				}
-			}
-		}
-
 	}
 
 	$local_sha = (string) get_option( 'sn_github_local_sha', '' );
