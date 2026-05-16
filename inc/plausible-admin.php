@@ -33,54 +33,9 @@ add_action( 'sn_admin_plausible_tab', function() {
 		return;
 	}
 
-	$notices       = array();
-	$posted_action = isset( $_POST['sn_action'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_action'] ) ) : '';
-
-	// ── SAVE ──
-	if ( 'pl_save' === $posted_action
-		&& check_admin_referer( 'sn_theme_options_nonce', '_wpnonce', false )
-		&& ! defined( 'SN_PLAUSIBLE_STATS_TOKEN' ) ) {
-
-		$new_token = isset( $_POST['sn_pl_token'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_pl_token'] ) ) : '';
-		// Empty submission with the obscured placeholder = leave existing
-		// alone. Explicit clear: user types literal "clear".
-		if ( 'clear' === $new_token ) {
-			delete_option( SN_PLAUSIBLE_TOKEN_OPT );
-			sn_pl_admin_invalidate_caches();
-			$notices[] = array( 'success', 'Stats API key cleared. Caches purged.' );
-		} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
-			update_option( SN_PLAUSIBLE_TOKEN_OPT, $new_token, false ); // not autoloaded
-			sn_pl_admin_invalidate_caches();
-			$notices[] = array( 'success', 'Stats API key saved. Caches purged — widgets refresh on next dashboard view.' );
-		}
-	}
-
-	// ── TEST ──
-	if ( 'pl_test' === $posted_action
-		&& check_admin_referer( 'sn_theme_options_nonce', '_wpnonce', false ) ) {
-
-		$cfg = sn_plausible_config();
-		if ( ! $cfg ) {
-			$notices[] = array( 'error', 'Plausible not fully configured (missing domain or token).' );
-		} else {
-			delete_transient( SN_PLAUSIBLE_ERR_KEY ); // force-fresh
-			$result = sn_plausible_api( 'aggregate', array( 'period' => '7d', 'metrics' => 'visitors' ), $cfg );
-			if ( is_array( $result ) ) {
-				$visitors  = (int) ( $result['visitors']['value'] ?? 0 );
-				$notices[] = array( 'success', '&#10003; API call succeeded — ' . number_format_i18n( $visitors ) . ' visitor(s) in last 7 days.' );
-			} else {
-				$err       = sn_plausible_last_error();
-				$detail    = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
-				$notices[] = array( 'error', '&#10005; API call failed &mdash; ' . $detail );
-			}
-		}
-	}
-
-	foreach ( $notices as $n ) {
-		echo '<div class="notice notice-' . esc_attr( $n[0] ) . ' is-dismissible" style="margin:1em 0;"><p>' . wp_kses_post( $n[1] ) . '</p></div>';
-	}
-
 	// ── STATE ──
+	// POST handling lives in sn_handle_admin_post() (admin_init, PRG).
+	// This callback is render-only.
 	$constant_set    = defined( 'SN_PLAUSIBLE_STATS_TOKEN' ) && SN_PLAUSIBLE_STATS_TOKEN;
 	$option_token    = (string) get_option( SN_PLAUSIBLE_TOKEN_OPT, '' );
 	$plugin_settings = get_option( 'plausible_analytics_settings', array() );
@@ -99,23 +54,60 @@ add_action( 'sn_admin_plausible_tab', function() {
 		$source_label = '<em>not configured</em>';
 	}
 
-	echo '<p style="color:#666;font-size:0.95em;max-width:680px;margin-top:0;">Powers the four Plausible widgets on the WP dashboard. The site domain is read from the Plausible plugin&rsquo;s settings; <strong>this tab manages a separate Stats API key</strong> (created at <em>Plausible &rarr; Settings &rarr; API Keys</em> with <code>stats:read</code> scope). The Plausible plugin&rsquo;s wizard creates a <em>Plugin Token</em> in a different namespace, which the Stats API rejects with HTTP 401.</p>';
+	echo '<p class="sn-prose">Powers the four Plausible widgets on the WP dashboard. The site domain is read from the Plausible plugin&rsquo;s settings; <strong>this tab manages a separate Stats API key</strong> (created at <em>Plausible &rarr; Settings &rarr; API Keys</em> with <code>stats:read</code> scope). The Plausible plugin&rsquo;s wizard creates a <em>Plugin Token</em> in a different namespace, which the Stats API rejects with HTTP 401.</p>';
 
-	// ── STATUS ──
-	echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:680px;margin-top:1em;">';
-	echo '<strong style="display:block;margin-bottom:8px;">Status</strong>';
-	echo '<table class="form-table" style="margin:0;"><tbody>';
-	echo '<tr><th scope="row" style="width:140px;padding:6px 10px 6px 0;font-weight:400;color:#646970;">Domain</th><td style="padding:6px 0;">' . ( '' !== $plugin_domain ? '<code>' . esc_html( $plugin_domain ) . '</code>' : '<em>not set in plugin</em>' ) . '</td></tr>';
-	echo '<tr><th scope="row" style="padding:6px 10px 6px 0;font-weight:400;color:#646970;">Token source</th><td style="padding:6px 0;">' . wp_kses_post( $source_label ) . '</td></tr>';
-	echo '<tr><th scope="row" style="padding:6px 10px 6px 0;font-weight:400;color:#646970;">Last call</th><td style="padding:6px 0;">';
+	// ── MODULE STATUS BOX ──
+	// At-a-glance: is the API likely to work or not?
+	$has_sn_token = $constant_set || '' !== $option_token;
+	if ( $has_sn_token && ! $err ) {
+		echo '<div class="sn-status-box">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Configured</p>';
+		echo '<p class="sn-status-box-body">Stats API key present. Widgets on the WP dashboard will use it for visitor data.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--ok">Configured</span>';
+		echo '</div>';
+	} elseif ( $has_sn_token && $err ) {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Configured but failing</p>';
+		echo '<p class="sn-status-box-body">Token present, but last API call returned HTTP ' . (int) $err['code'] . '. Run Test below for fresh diagnostic.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Failing</span>';
+		echo '</div>';
+	} elseif ( '' !== $plugin_token ) {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Misconfigured — wrong token namespace</p>';
+		echo '<p class="sn-status-box-body">Only the Plausible plugin&rsquo;s <code>api_token</code> is available. That&rsquo;s a Plugin Token, not a Stats API key — the Stats API rejects it with HTTP 401. Paste a Stats API key below.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Wrong key</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--err">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Not configured</p>';
+		echo '<p class="sn-status-box-body">No Stats API key. Dashboard widgets show "no data" until a key is provided.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--err">Missing</span>';
+		echo '</div>';
+	}
+
+	// ── STATUS DETAILS FIELDSET ──
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Status details</h2>';
+	echo '<table class="form-table sn-status-table" style="margin:0;max-width:none;"><tbody>';
+	echo '<tr><th>Domain</th><td>' . ( '' !== $plugin_domain ? '<code>' . esc_html( $plugin_domain ) . '</code>' : '<em>not set in Plausible plugin</em>' ) . '</td></tr>';
+	echo '<tr><th>Token source</th><td>' . wp_kses_post( $source_label ) . '</td></tr>';
+	echo '<tr><th>Last call</th><td>';
 	if ( $err ) {
 		$ago = human_time_diff( (int) $err['when'], time() );
-		echo '<span style="color:#d63638;">&#10005; HTTP ' . (int) $err['code'] . ' &middot; ' . esc_html( $ago ) . ' ago</span>';
+		echo '<span class="sn-pill sn-pill--err">HTTP ' . (int) $err['code'] . ' &middot; ' . esc_html( $ago ) . ' ago</span>';
 	} else {
 		$cached = get_transient( SN_PLAUSIBLE_BATCH_KEY );
 		if ( is_array( $cached ) && isset( $cached['fetched'] ) ) {
 			$ago = human_time_diff( (int) $cached['fetched'], time() );
-			echo '<span style="color:#00a32a;">&#10003; succeeded ' . esc_html( $ago ) . ' ago</span>';
+			echo '<span class="sn-pill sn-pill--ok">succeeded ' . esc_html( $ago ) . ' ago</span>';
 		} else {
 			echo '<em>no recent activity</em>';
 		}
@@ -125,36 +117,54 @@ add_action( 'sn_admin_plausible_tab', function() {
 	echo '</div>';
 
 	// ── TOKEN FORM ──
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:680px;margin-top:1em;">';
+	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<p style="margin:0 0 0.4em;"><strong>Stats API Key</strong></p>';
+
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Stats API Key</h2>';
+
 	if ( $constant_set ) {
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 0.4em;">Set via <code>SN_PLAUSIBLE_STATS_TOKEN</code> in <code>wp-config.php</code>. The constant takes precedence over this option, so this field is locked.</p>';
+		echo '<p class="sn-fieldset-intro">A Plausible Stats API Key with <code>stats:read</code> scope on the configured site.</p>';
+		echo '<div class="sn-field sn-field-w-lg">';
+		echo '<label class="sn-field-label">Token</label>';
+		echo '<input type="text" value="••••" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_PLAUSIBLE_STATS_TOKEN</code> in <code>wp-config.php</code>. Remove the constant to edit here.</p>';
+		echo '</div>';
 	} else {
-		$token_obscured = '' === $option_token ? '' : '&bull;&bull;&bull;&bull;' . esc_attr( substr( $option_token, -4 ) );
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 0.4em;">A Plausible Stats API Key with <code>stats:read</code> scope on the configured site. Stored as a non-autoloaded option, so the token isn&rsquo;t in memory on every request.</p>';
-		echo '<input type="text" name="sn_pl_token" value="' . $token_obscured . '" placeholder="Paste a fresh key to update; type &lsquo;clear&rsquo; to remove" style="width:100%;font-family:monospace;font-size:0.85em;margin-bottom:1em;">';
-		echo '<p style="margin:0.4em 0 0;"><button type="submit" name="sn_action" value="pl_save" class="button button-primary">Save Stats API Key</button></p>';
+		echo '<p class="sn-fieldset-intro">Stored as a non-autoloaded option, so the token isn&rsquo;t in memory on every request.</p>';
+		$token_obscured = '' === $option_token ? '' : '••••' . esc_attr( substr( $option_token, -4 ) );
+		echo '<div class="sn-field sn-field-w-lg">';
+		echo '<label class="sn-field-label" for="sn_pl_token">Token</label>';
+		echo '<input type="text" id="sn_pl_token" name="sn_pl_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh key to update; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<p class="sn-field-helper">A Plausible Stats API Key with <code>stats:read</code> scope. Leave the obscured value alone to keep the existing token; type <code>clear</code> to remove.</p>';
+		echo '</div>';
+
+		echo '<div class="sn-fieldset-actions">';
+		echo '<button type="submit" name="sn_action" value="pl_save" class="button button-primary">Save</button>';
+		echo '</div>';
 	}
+
+	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
-	// ── TEST + EMBEDDED LINK ──
-	echo '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-top:1em;">';
+	// ── ACTION CARDS (Test + Embedded) ──
+	echo '<div class="sn-card-grid">';
 
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
+	echo '<form method="post" class="sn-card" style="max-width:300px;">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<strong style="display:block;margin-bottom:4px;">Test Connection</strong>';
-	echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Fires a synchronous 7-day aggregate call and reports the outcome above.</p>';
+	echo '<strong>Test Connection</strong>';
+	echo '<p class="sn-helper">Fires a synchronous 7-day aggregate call and reports the outcome above.</p>';
 	echo '<button type="submit" name="sn_action" value="pl_test" class="button"' . ( $cfg ? '' : ' disabled' ) . '>Run Test</button>';
 	echo '</form>';
 
 	if ( '' !== $plugin_domain ) {
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
-		echo '<strong style="display:block;margin-bottom:4px;">Embedded Stats</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Open the Plausible plugin&rsquo;s in-admin dashboard.</p>';
+		echo '<div class="sn-card" style="max-width:300px;">';
+		echo '<strong>Embedded Stats</strong>';
+		echo '<p class="sn-helper">Open the Plausible plugin&rsquo;s in-admin dashboard.</p>';
 		echo '<a href="' . esc_url( admin_url( 'index.php?page=plausible_analytics_statistics' ) ) . '" class="button">Open dashboard</a>';
 		echo '</div>';
 	}
+
 	echo '</div>';
 } );
 

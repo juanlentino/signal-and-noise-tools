@@ -216,6 +216,36 @@ function sn_handle_admin_post() {
 			$re_read = (array) get_option( 'sn_settings', array() );
 			$flash   = ( $re_read['login']['slug'] ?? '' ) === $slug ? 'login_saved' : 'login_failed';
 		}
+	} elseif ( 'pl_save' === $action ) {
+		// Constant-locked field: short-circuit the save so admin edits
+		// can't override wp-config. Matches the locked-field-disabled
+		// pattern on the Login tab.
+		if ( defined( 'SN_PLAUSIBLE_STATS_TOKEN' ) && SN_PLAUSIBLE_STATS_TOKEN ) {
+			$flash = 'pl_locked';
+		} else {
+			$new_token = isset( $_POST['sn_pl_token'] ) ? sanitize_text_field( wp_unslash( $_POST['sn_pl_token'] ) ) : '';
+			if ( 'clear' === $new_token ) {
+				delete_option( SN_PLAUSIBLE_TOKEN_OPT );
+				sn_pl_admin_invalidate_caches();
+				$flash = 'pl_cleared';
+			} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
+				update_option( SN_PLAUSIBLE_TOKEN_OPT, $new_token, false ); // not autoloaded
+				sn_pl_admin_invalidate_caches();
+				$flash = 'pl_saved';
+			} else {
+				// Empty submission with the obscured placeholder = leave alone.
+				$flash = 'pl_unchanged';
+			}
+		}
+	} elseif ( 'pl_test' === $action ) {
+		$cfg = sn_plausible_config();
+		if ( ! $cfg ) {
+			$flash = 'pl_test_unconfigured';
+		} else {
+			delete_transient( SN_PLAUSIBLE_ERR_KEY ); // force-fresh
+			$result = sn_plausible_api( 'aggregate', array( 'period' => '7d', 'metrics' => 'visitors' ), $cfg );
+			$flash  = is_array( $result ) ? 'pl_test_ok' : 'pl_test_err';
+		}
 	} else {
 		return;
 	}
@@ -281,6 +311,25 @@ function sn_theme_options_page() {
 			$notices[] = array( 'error', 'Login slug cannot be empty.' );
 		} elseif ( 'login_failed' === $flash ) {
 			$notices[] = array( 'error', 'Login slug save failed.' );
+		} elseif ( 'pl_saved' === $flash ) {
+			$notices[] = array( 'success', 'Stats API key saved. Caches purged — widgets refresh on next dashboard view.' );
+		} elseif ( 'pl_cleared' === $flash ) {
+			$notices[] = array( 'success', 'Stats API key cleared. Caches purged.' );
+		} elseif ( 'pl_unchanged' === $flash ) {
+			$notices[] = array( 'info', 'No changes to save.' );
+		} elseif ( 'pl_locked' === $flash ) {
+			$notices[] = array( 'error', 'Token is locked by the SN_PLAUSIBLE_STATS_TOKEN constant — remove the constant in wp-config.php to edit here.' );
+		} elseif ( 'pl_test_ok' === $flash ) {
+			// Read fresh count from the transient sn_plausible_api populates.
+			$cached   = get_transient( SN_PLAUSIBLE_BATCH_KEY );
+			$visitors = is_array( $cached ) && isset( $cached['data']['visitors']['value'] ) ? (int) $cached['data']['visitors']['value'] : 0;
+			$notices[] = array( 'success', '&#10003; API call succeeded — ' . number_format_i18n( $visitors ) . ' visitor(s) in last 7 days.' );
+		} elseif ( 'pl_test_err' === $flash ) {
+			$err    = sn_plausible_last_error();
+			$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
+			$notices[] = array( 'error', '&#10005; API call failed &mdash; ' . $detail );
+		} elseif ( 'pl_test_unconfigured' === $flash ) {
+			$notices[] = array( 'error', 'Plausible not fully configured (missing domain or token).' );
 		} elseif ( 'purged' === $flash ) {
 			$notices[] = array( 'success', 'All caches purged.' );
 		} elseif ( 0 === strpos( $flash, 'cleared_' ) ) {
