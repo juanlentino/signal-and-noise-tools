@@ -212,27 +212,6 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 }, 30, 4 );
 
 /**
- * Auto-purge: when this theme is updated via the WP upgrader, purge
- * the entire zone. Theme updates can change global elements (header,
- * footer, navigation, design tokens) so per-URL purges aren't
- * sufficient.
- */
-add_action( 'upgrader_process_complete', function( $upgrader, $options ) {
-	if ( ( $options['type'] ?? '' ) !== 'theme' ) {
-		return;
-	}
-	$theme_slug = get_option( 'stylesheet' );
-	$updated    = $options['themes'] ?? ( isset( $options['theme'] ) ? array( $options['theme'] ) : array() );
-	if ( ! in_array( $theme_slug, $updated, true ) ) {
-		return;
-	}
-	if ( ! sn_cf_is_configured() ) {
-		return;
-	}
-	sn_cf_purge_everything();
-}, 30, 2 );
-
-/**
  * Admin UI for the Cloudflare tab. Lets the user save the API token +
  * zone ID and trigger a manual full-zone purge.
  *
