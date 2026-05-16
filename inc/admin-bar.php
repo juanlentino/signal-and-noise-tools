@@ -78,7 +78,7 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 	$admin_bar->add_node( array(
 		'id'    => 'sn-quick',
 		'title' => '<span class="ab-label">S&amp;N</span>',
-		'href'  => admin_url( 'themes.php?page=sn-theme-options' ),
+		'href'  => admin_url( 'admin.php?page=sn-theme-options' ),
 		'meta'  => array(
 			'title' => 'Signal & Noise — quick actions',
 		),
@@ -109,7 +109,7 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 		'id'     => 'sn-quick-dashboard',
 		'parent' => 'sn-quick',
 		'title'  => '⚙ Open Dashboard',
-		'href'   => admin_url( 'themes.php?page=sn-theme-options' ),
+		'href'   => admin_url( 'admin.php?page=sn-theme-options' ),
 	) );
 }, 100 );
 

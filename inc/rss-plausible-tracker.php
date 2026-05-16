@@ -330,7 +330,7 @@ function sn_rss_tracker_dashboard_widget() {
 	echo '<p style="font-size:2rem;font-weight:600;margin:0 0 4px;line-height:1">' . esc_html( number_format_i18n( $w30['total'] ) ) . '</p>';
 	echo '<p style="margin:0 0 16px;color:#646970">feed requests · last 30 days · ' . esc_html( number_format_i18n( $w30['uniques'] ) ) . ' unique clients</p>';
 	echo '<p style="margin:0;font-size:0.85rem">';
-	echo '<a href="' . esc_url( admin_url( 'themes.php?page=sn-theme-options&tab=rss' ) ) . '">Settings &amp; activity</a>';
+	echo '<a href="' . esc_url( admin_url( 'admin.php?page=sn-rss' ) ) . '">Settings &amp; activity</a>';
 	echo ' &nbsp;·&nbsp; ';
 	$dashboard_url = sn_rss_tracker_plausible_dashboard_url( $settings );
 	if ( '' !== $dashboard_url ) {
