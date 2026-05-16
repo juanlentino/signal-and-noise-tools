@@ -29,6 +29,21 @@ This plugin coordinates with the theme via WP hooks.
 | `sn_updater_force_check` | Plugin → Theme | Force the theme updater to re-poll GitHub |
 | `sn_updater_clear_error` | Plugin → Theme | Dismiss the theme updater's error notice |
 
+## Modules in this plugin
+
+| Module | What it does |
+| --- | --- |
+| `inc/seo.php` | Meta description filter, Breeze cache excludes |
+| `inc/security-headers.php` | HTTP security headers + WP hardening |
+| `inc/cloudflare-purge.php` | Auto-purge CF edge cache on save_post / theme update |
+| `inc/plausible-api.php` | Plausible Stats API client + SWR cache |
+| `inc/plausible-admin.php` | Plausible settings tab |
+| `inc/plausible-widget.php` | Dashboard Plausible widgets (snapshot + realtime + pages + sources) |
+| `inc/admin-bar.php` | Top-bar quick-action dropdown |
+| `inc/admin-page.php` | *Appearance → Signal & Noise* options page |
+| `inc/rest-api.php` | `signal-noise/v1` REST surface |
+| `inc/rss-plausible-tracker.php` | RSS subscriber tracking via Plausible + `wp_rss_feed_log` table (added v1.1.0, migrated from theme MU plugin) |
+
 ## License
 
 GPL-2.0-or-later — same as the theme.
