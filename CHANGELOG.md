@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.10.1] - 2026-05-16
+
+### Fixed
+- **WP update gating — updates now go through the WordPress admin Updates page.** Previously, pushing a `vX.Y.Z` tag triggered the GHA deploy workflow which SSH'd into Cloudways and `git checkout`ed the new tag ~30s later. The `inc/wp-update-integration.php` UI was just a deploy-health indicator — it explicitly REJECTED actual "Update Now" clicks (`upgrader_pre_install` filter returned a `WP_Error`). Net effect: tag push = update lands without maintainer confirmation. After v1.10.1, tag pushes do nothing automatically; updates appear in `wp-admin → Updates` and `wp-admin → Plugins`, and the maintainer clicks "Update Now" to install.
+
+### Changed
+- **`.github/workflows/deploy.yml` trigger** changed from `on: push: tags: 'v*'` to `on: workflow_dispatch:` only. Tag pushes no longer fire the workflow. Manual emergency-hotfix deploys remain available via the GitHub Actions UI or `gh workflow run deploy.yml --ref vX.Y.Z`.
+- **`inc/wp-update-integration.php`**:
+  - **Removed** the `upgrader_pre_install` filter that rejected WP installer attempts with a `WP_Error` directing the maintainer to push a git tag instead.
+  - **Added** `upgrader_source_selection` filter to rename the unpacked source directory from GitHub's auto-generated format (`signal-and-noise-tools-1.10.1/`) to the plugin slug (`signal-and-noise-tools/`). Without this, WP would install to the wrong directory and the plugin would deactivate on update.
+  - Docstring rewritten to describe the new WP-UI-driven flow.
+- The `package` URL (pointing at `https://github.com/juanlentino/signal-and-noise-tools/archive/refs/tags/<tag>.zip`) was already set correctly since v1.4.0 — only the install path needed fixing.
+
+### How updates work from v1.10.1 onward
+1. Maintainer pushes tag `vX.Y.Z` to GitHub.
+2. WP poll (every 12h, cached in `sn_gh_latest_plugin` transient) sees the new tag.
+3. `wp-admin → Dashboard → Updates` shows "Signal & Noise Tools" with an "Update Available" badge.
+4. Maintainer clicks "Update Now". WP downloads the GitHub tag archive, the source-selection filter renames the directory, WP installs over the previous version, plugin reactivates.
+
+### Emergency hotfix path
+If the WP UI install ever fails (e.g., GitHub API down, ZIP fetch blocked, file-permission issue on Cloudways), trigger the workflow manually:
+```bash
+gh workflow run deploy.yml --ref v1.10.1 --repo juanlentino/signal-and-noise-tools
+```
+This runs the same SSH + `git checkout` path the legacy auto-deploy used. Reserved for emergencies — the canonical flow is the WP UI.
+
+### Notes
+- **PATCH bump within `1.10.x`.** No plugin schema or functional change; only the release-pipeline trigger gating changed.
+- **First install bootstrap:** the v1.10.1 tag itself can't be installed via WP UI because the v1.10.0 server-side has the OLD code that rejects WP installer attempts. v1.10.1 lands on Cloudways via one manual `gh workflow run` invocation. After that, v1.10.2+ install via the WP UI.
+- **One-time loss of `.git` directory on first WP UI install.** WP's installer wipes the existing plugin directory before unpacking the new version, including the legacy `.git` checkout from past SSH deploys. Harmless — the SSH-based deploy path is no longer needed (still available via `workflow_dispatch` emergency fallback, which re-clones).
+- **Theme repo** (`signal-and-noise`) gets the equivalent treatment in v8.5.1 (separate ship). Same one-line workflow change + same `wp-update-integration.php` fixes; the existing wp-update-integration.php in the theme mirrors this plugin's pattern.
+- **Replaces the failed v1.10.1 attempt** (force-reverted) that incorrectly used a GitHub Actions environment approval gate instead of the WP admin UI flow.
+
 ## [1.10.0] - 2026-05-16
 
 ### Added

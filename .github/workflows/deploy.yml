@@ -1,11 +1,11 @@
 name: Deploy to Cloudways
 
-# Fires on annotated-tag push (vX.Y.Z) — matches the theme's release ritual.
-# workflow_dispatch enables manual re-runs from the Actions UI.
+# v1.10.1+: tag pushes no longer auto-deploy. Updates land via the
+# WP admin Updates page (inc/wp-update-integration.php registers the
+# plugin with WP's native update system). workflow_dispatch remains
+# as a manual emergency-hotfix fallback — trigger from the GitHub
+# Actions UI or via `gh workflow run deploy.yml --ref vX.Y.Z`.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 # Serialise deploys: if a new tag fires while one is in flight, queue
