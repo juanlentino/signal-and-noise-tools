@@ -439,3 +439,77 @@
 	margin: 0 0 var(--sn-space-4);
 	line-height: 1.45;
 }
+
+/* ─── Add-row button + dirty state (v1.9.6) ──────────────────── */
+
+.sn-add-row-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	background: transparent;
+	border: 1px dashed var(--sn-border);
+	border-radius: var(--sn-radius);
+	color: var(--sn-text-muted);
+	font-size: 0.85em;
+	cursor: pointer;
+	transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+	align-self: flex-start;
+	margin-top: var(--sn-space-1);
+}
+
+.sn-add-row-btn:hover,
+.sn-add-row-btn:focus {
+	border-color: var(--sn-link);
+	color: var(--sn-link);
+	background: rgba(34,113,177,0.04);
+	outline: none;
+}
+
+.sn-add-row-btn:focus-visible {
+	box-shadow: 0 0 0 2px rgba(34,113,177,0.25);
+}
+
+.sn-add-row-btn::before {
+	content: '+';
+	font-size: 1.15em;
+	line-height: 1;
+	font-weight: 600;
+}
+
+/* Dirty state — sticky save bar hint takes on a muted accent so
+   "N unsaved changes" reads as actionable, not informational. */
+.sn-identity-form[data-dirty="true"] .sn-savebar-hint {
+	color: var(--sn-text);
+	font-weight: 500;
+}
+
+.sn-identity-form[data-dirty="true"] .sn-savebar-hint::before {
+	content: '●';
+	display: inline-block;
+	color: var(--sn-warn);
+	margin-right: 6px;
+	font-size: 0.75em;
+	transform: translateY(-1px);
+}
+
+/* Newly-added sameAs row animation — soft fade-in so the user
+   visually catches the addition without it feeling jarring. */
+.sn-sameas input.sn-row-fresh {
+	animation: sn-fade-in 0.18s ease;
+}
+
+@keyframes sn-fade-in {
+	from { opacity: 0; transform: translateY(-4px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect prefers-reduced-motion — accessibility. */
+@media (prefers-reduced-motion: reduce) {
+	.sn-sameas input.sn-row-fresh {
+		animation: none;
+	}
+	.sn-add-row-btn {
+		transition: none;
+	}
+}
