@@ -131,8 +131,13 @@ function sn_settings_save( $raw ) {
 		'card_height'       => max( 1, (int) ( $raw['og_card_height'] ?? 630 ) ),
 	);
 
+	// Preserve existing login slug when login_slug isn't in $raw — happens
+	// when save_identity fires after v1.9.0 moved the slug field to its
+	// own Login tab. Without this, saving Identity would clobber the
+	// configured slug back to 'sn-login'.
+	$existing_slug = (string) sn_setting( 'login.slug', 'sn-login' );
 	$sanitized['login'] = array(
-		'slug' => sanitize_title( (string) ( $raw['login_slug'] ?? 'sn-login' ) ),
+		'slug' => sanitize_title( (string) ( $raw['login_slug'] ?? $existing_slug ) ),
 	);
 
 	$sanitized['seo_copy'] = array(

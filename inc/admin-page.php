@@ -397,7 +397,7 @@ function sn_theme_options_page() {
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="save_identity">';
 
-		echo '<p class="sn-prose">Site-identity values used by OG/Twitter meta, JSON-LD schema, the custom login URL, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline). The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides the Login Slug field below.</p>';
+		echo '<p class="sn-prose">Site-identity values used by OG/Twitter meta, JSON-LD schema, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline).</p>';
 
 		// Section TOC — anchor-jump links into the long form below.
 		echo '<nav class="sn-toc" aria-label="Identity sections">';
@@ -405,99 +405,127 @@ function sn_theme_options_page() {
 		echo '<a href="#sn-sec-identity">Identity</a>';
 		echo '<a href="#sn-sec-social">Social</a>';
 		echo '<a href="#sn-sec-og">Open Graph</a>';
-		echo '<a href="#sn-sec-login">Login</a>';
 		echo '<a href="#sn-sec-seo">SEO Copy</a>';
 		echo '</nav>';
 
 		// ── IDENTITY ──
-		echo '<h2 id="sn-sec-identity" class="sn-section-h">Identity</h2>';
-		echo '<table class="form-table"><tbody>';
+		echo '<div class="sn-fieldset" id="sn-sec-identity">';
+		echo '<h2 class="sn-fieldset-h">Identity</h2>';
+		echo '<p class="sn-fieldset-intro">Site-wide name, description, and locale.</p>';
 
-		echo '<tr><th><label for="sn_identity_site_name">Site name</label></th>';
-		echo '<td><input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '" class="regular-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-md">';
+		echo '<label class="sn-field-label" for="sn_identity_site_name">Site name</label>';
+		echo '<input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_identity_site_description">Site description</label></th>';
-		echo '<td><textarea id="sn_identity_site_description" name="identity_site_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_identity_site_description">Site description</label>';
+		echo '<textarea id="sn_identity_site_description" name="identity_site_description" rows="2">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea>';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_identity_person_name">Person name (schema author)</label></th>';
-		echo '<td><input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '" class="regular-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-md">';
+		echo '<label class="sn-field-label" for="sn_identity_person_name">Person name (schema author)</label>';
+		echo '<input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_identity_locale">Locale</label></th>';
-		echo '<td><input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" class="regular-text" placeholder="en_US"><p class="description">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p></td></tr>';
+		echo '<div class="sn-field sn-field-w-xs">';
+		echo '<label class="sn-field-label" for="sn_identity_locale">Locale</label>';
+		echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" placeholder="en_US">';
+		echo '<p class="sn-field-helper">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p>';
+		echo '</div>';
 
-		echo '</tbody></table>';
+		echo '</div>'; // .sn-fieldset
 
 		// ── SOCIAL ──
-		echo '<h2 id="sn-sec-social" class="sn-section-h">Social</h2>';
-		echo '<table class="form-table"><tbody>';
+		echo '<div class="sn-fieldset" id="sn-sec-social">';
+		echo '<h2 class="sn-fieldset-h">Social</h2>';
+		echo '<p class="sn-fieldset-intro">Twitter / X handle and profile URLs (emitted as schema sameAs).</p>';
 
-		echo '<tr><th><label for="sn_social_twitter_handle">Twitter / X handle</label></th>';
-		echo '<td><input type="text" id="sn_social_twitter_handle" name="social_twitter_handle" value="' . esc_attr( sn_setting( 'social.twitter_handle', '' ) ) . '" class="regular-text" placeholder="@username"><p class="description">Used as twitter:site and twitter:creator. Include the @ prefix.</p></td></tr>';
+		echo '<div class="sn-field sn-field-w-sm">';
+		echo '<label class="sn-field-label" for="sn_social_twitter_handle">Twitter / X handle</label>';
+		echo '<input type="text" id="sn_social_twitter_handle" name="social_twitter_handle" value="' . esc_attr( sn_setting( 'social.twitter_handle', '' ) ) . '" placeholder="@username">';
+		echo '<p class="sn-field-helper">Used as twitter:site and twitter:creator. Include the @ prefix.</p>';
+		echo '</div>';
 
 		$same_as = (array) sn_setting( 'social.same_as', array() );
-		// Render existing rows + one trailing blank for adding a new URL.
-		// sn_settings_save() filters empty strings on persist, so leaving
-		// the trailing row blank simply means "no new URL this submit".
-		$rows = array_merge( $same_as, array( '' ) );
-		echo '<tr><th><label>Profile URLs (sameAs)</label></th><td>';
-		foreach ( $rows as $url ) {
-			echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" class="regular-text" style="margin-bottom:4px;display:block;" placeholder="https://x.com/...">';
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label">Profile URLs (sameAs)</label>';
+		echo '<div class="sn-sameas">';
+		foreach ( $same_as as $url ) {
+			echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://...">';
 		}
-		echo '<p class="description">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p></td></tr>';
+		// One trailing empty row, styled subtly so it reads as "add another"
+		// rather than a forgotten dangling input.
+		echo '<div class="sn-sameas-empty">';
+		echo '<input type="url" name="social_same_as[]" value="" placeholder="Add another profile URL…">';
+		echo '</div>';
+		echo '</div>'; // .sn-sameas
+		echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';
+		echo '</div>';
 
-		echo '</tbody></table>';
+		echo '</div>'; // .sn-fieldset
 
 		// ── OG ──
-		echo '<h2 id="sn-sec-og" class="sn-section-h">Open Graph</h2>';
-		echo '<table class="form-table"><tbody>';
+		echo '<div class="sn-fieldset" id="sn-sec-og">';
+		echo '<h2 class="sn-fieldset-h">Open Graph</h2>';
+		echo '<p class="sn-fieldset-intro">Fallback OG image and card dimensions for social shares.</p>';
 
-		echo '<tr><th><label for="sn_og_default_image_url">Default OG image URL</label></th>';
-		echo '<td><input type="url" id="sn_og_default_image_url" name="og_default_image_url" value="' . esc_attr( (string) sn_setting( 'og.default_image_url', '' ) ) . '" class="large-text"><p class="description">Fallback image used when no per-post OG card exists.</p></td></tr>';
+		echo '<div class="sn-field sn-field-w-lg">';
+		echo '<label class="sn-field-label" for="sn_og_default_image_url">Default OG image URL</label>';
+		echo '<input type="url" id="sn_og_default_image_url" name="og_default_image_url" value="' . esc_attr( (string) sn_setting( 'og.default_image_url', '' ) ) . '">';
+		echo '<p class="sn-field-helper">Fallback image used when no per-post OG card exists.</p>';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_og_card_width">Card width (px)</label></th>';
-		echo '<td><input type="number" min="1" id="sn_og_card_width" name="og_card_width" value="' . esc_attr( (string) sn_setting( 'og.card_width', 1200 ) ) . '" class="small-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-xs">';
+		echo '<label class="sn-field-label" for="sn_og_card_width">Card width (px)</label>';
+		echo '<input type="number" min="1" id="sn_og_card_width" name="og_card_width" value="' . esc_attr( (string) sn_setting( 'og.card_width', 1200 ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_og_card_height">Card height (px)</label></th>';
-		echo '<td><input type="number" min="1" id="sn_og_card_height" name="og_card_height" value="' . esc_attr( (string) sn_setting( 'og.card_height', 630 ) ) . '" class="small-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-xs">';
+		echo '<label class="sn-field-label" for="sn_og_card_height">Card height (px)</label>';
+		echo '<input type="number" min="1" id="sn_og_card_height" name="og_card_height" value="' . esc_attr( (string) sn_setting( 'og.card_height', 630 ) ) . '">';
+		echo '</div>';
 
-		echo '</tbody></table>';
-
-		// ── LOGIN ──
-		echo '<h2 id="sn-sec-login" class="sn-section-h">Login</h2>';
-		echo '<table class="form-table"><tbody>';
-
-		echo '<tr><th><label for="sn_login_slug">Custom login slug</label></th>';
-		echo '<td><input type="text" id="sn_login_slug" name="login_slug" value="' . esc_attr( (string) sn_setting( 'login.slug', 'sn-login' ) ) . '" class="regular-text" placeholder="sn-login"><p class="description">Replaces <code>/wp-login.php</code>. The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides this field.</p></td></tr>';
-
-		echo '</tbody></table>';
+		echo '</div>'; // .sn-fieldset
 
 		// ── SEO COPY ──
-		echo '<h2 id="sn-sec-seo" class="sn-section-h">SEO Copy (per-route)</h2>';
-		echo '<table class="form-table"><tbody>';
+		echo '<div class="sn-fieldset" id="sn-sec-seo">';
+		echo '<h2 class="sn-fieldset-h">SEO Copy</h2>';
+		echo '<p class="sn-fieldset-intro">Per-route title + description for the home, /notes, and /provenance pages.</p>';
 
-		echo '<tr><th><label for="sn_seo_home_title">Home title</label></th>';
-		echo '<td><input type="text" id="sn_seo_home_title" name="seo_home_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.home_title', '' ) ) . '" class="large-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_home_title">Home title</label>';
+		echo '<input type="text" id="sn_seo_home_title" name="seo_home_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.home_title', '' ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_seo_home_description">Home description</label></th>';
-		echo '<td><textarea id="sn_seo_home_description" name="seo_home_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.home_description', '' ) ) . '</textarea></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_home_description">Home description</label>';
+		echo '<textarea id="sn_seo_home_description" name="seo_home_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.home_description', '' ) ) . '</textarea>';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_seo_notes_title">/notes title</label></th>';
-		echo '<td><input type="text" id="sn_seo_notes_title" name="seo_notes_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.notes_title', '' ) ) . '" class="large-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_notes_title">/notes title</label>';
+		echo '<input type="text" id="sn_seo_notes_title" name="seo_notes_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.notes_title', '' ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_seo_notes_description">/notes description</label></th>';
-		echo '<td><textarea id="sn_seo_notes_description" name="seo_notes_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.notes_description', '' ) ) . '</textarea></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_notes_description">/notes description</label>';
+		echo '<textarea id="sn_seo_notes_description" name="seo_notes_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.notes_description', '' ) ) . '</textarea>';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_seo_provenance_title">/provenance title</label></th>';
-		echo '<td><input type="text" id="sn_seo_provenance_title" name="seo_provenance_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.provenance_title', '' ) ) . '" class="large-text"></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_provenance_title">/provenance title</label>';
+		echo '<input type="text" id="sn_seo_provenance_title" name="seo_provenance_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.provenance_title', '' ) ) . '">';
+		echo '</div>';
 
-		echo '<tr><th><label for="sn_seo_provenance_description">/provenance description</label></th>';
-		echo '<td><textarea id="sn_seo_provenance_description" name="seo_provenance_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.provenance_description', '' ) ) . '</textarea></td></tr>';
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_seo_provenance_description">/provenance description</label>';
+		echo '<textarea id="sn_seo_provenance_description" name="seo_provenance_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.provenance_description', '' ) ) . '</textarea>';
+		echo '</div>';
 
-		echo '</tbody></table>';
+		echo '</div>'; // .sn-fieldset
 
-		// Sticky save bar — pure CSS (position: sticky). Always visible
-		// while editing this long form so the Save button is one click
-		// away regardless of scroll position.
+		// Sticky save bar — same pattern as v1.8.1.
 		echo '<div class="sn-savebar">';
 		echo '<p class="sn-savebar-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>';
 		echo '<button type="submit" class="button button-primary">Save Identity Settings</button>';
