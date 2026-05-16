@@ -32,11 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Default social profile URLs (sameAs). Filterable.
  */
 function sn_schema_default_same_as() {
-	return array(
-		'https://x.com/juan_lentino',
-		'https://instagram.com/juan_lentino',
-		'https://linkedin.com/in/juanlentino',
-	);
+	return (array) sn_setting( 'social.same_as', array() );
 }
 
 /**
@@ -45,13 +41,14 @@ function sn_schema_default_same_as() {
 function sn_schema_person() {
 	$home    = home_url( '/' );
 	$same_as = (array) apply_filters( 'sn_schema_same_as', sn_schema_default_same_as() );
+	$name    = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
 
 	return array(
-		'@type'   => 'Person',
-		'@id'     => $home . '#/schema/Person',
-		'name'    => 'Juan Lentino',
-		'url'     => $home,
-		'sameAs'  => array_values( $same_as ),
+		'@type'  => 'Person',
+		'@id'    => $home . '#/schema/Person',
+		'name'   => $name,
+		'url'    => $home,
+		'sameAs' => array_values( $same_as ),
 	);
 }
 
@@ -59,15 +56,16 @@ function sn_schema_person() {
  * Build the WebSite schema.
  */
 function sn_schema_website() {
-	$home = home_url( '/' );
+	$home   = home_url( '/' );
+	$locale = sn_setting( 'identity.locale', 'en_US' );
 
 	return array(
 		'@type'       => 'WebSite',
 		'@id'         => $home . '#/schema/WebSite',
 		'url'         => $home,
-		'name'        => 'Juan Lentino',
-		'description' => 'Music Production & Creative Strategy',
-		'inLanguage'  => 'en-US',
+		'name'        => sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ),
+		'description' => sn_setting( 'identity.site_description', get_bloginfo( 'description' ) ),
+		'inLanguage'  => str_replace( '_', '-', $locale ),
 		'publisher'   => array(
 			'@id' => $home . '#/schema/Person',
 		),
