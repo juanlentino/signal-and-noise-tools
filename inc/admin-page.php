@@ -27,16 +27,65 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Admin page: Signal & Noise Theme Options under Appearance menu.
+ * Admin page: Signal & Noise — top-level menu (v1.8.1+).
+ *
+ * Lives at admin.php?page=sn-theme-options (was previously under
+ * Appearance via add_theme_page; URL slug unchanged so all existing
+ * ?tab=… deep links remain valid). The hook suffix returned by
+ * add_menu_page() is cached so the stylesheet enqueue can guard on
+ * it without re-deriving it from the slug.
+ *
+ * The auto-generated first submenu would otherwise duplicate the
+ * parent label ("Signal & Noise / Signal & Noise"); add_submenu_page
+ * with the same slug overrides the auto entry's label to "Dashboard".
  */
+function sn_admin_page_hook( $set = null ) {
+	static $hook = '';
+	if ( null !== $set ) {
+		$hook = (string) $set;
+	}
+	return $hook;
+}
+
 add_action( 'admin_menu', function() {
-	add_theme_page(
+	$hook = add_menu_page(
 		'Signal & Noise',
 		'Signal & Noise',
 		'manage_options',
 		'sn-theme-options',
+		'sn_theme_options_page',
+		'dashicons-megaphone',
+		81
+	);
+	sn_admin_page_hook( $hook );
+
+	// Override the auto-generated first submenu (which inherits the
+	// parent label "Signal & Noise") with a clearer "Dashboard" label.
+	add_submenu_page(
+		'sn-theme-options',
+		'Signal & Noise — Dashboard',
+		'Dashboard',
+		'manage_options',
+		'sn-theme-options',
 		'sn_theme_options_page'
 	);
+} );
+
+/**
+ * Enqueue the SN admin stylesheet on our top-level page only.
+ *
+ * Guard uses the hook suffix captured at registration time so a slug
+ * rename doesn't silently break the guard. Cache-busted by SNT_VERSION.
+ */
+add_action( 'admin_enqueue_scripts', function( $hook ) {
+	if ( $hook === sn_admin_page_hook() ) {
+		wp_enqueue_style(
+			'sn-admin',
+			SNT_URL . 'assets/admin.css',
+			array(),
+			SNT_VERSION
+		);
+	}
 } );
 
 function sn_theme_options_page() {
@@ -105,7 +154,7 @@ function sn_theme_options_page() {
 	$local_sha = (string) get_option( 'sn_github_local_sha', '' );
 
 	$overrides = get_posts( array( 'post_type' => array( 'wp_template', 'wp_template_part', 'wp_navigation' ), 'posts_per_page' => -1, 'post_status' => 'any' ) );
-	$base_url  = admin_url( 'themes.php?page=sn-theme-options' );
+	$base_url  = admin_url( 'admin.php?page=sn-theme-options' );
 
 	// ── PAGE SHELL ──
 	echo '<div class="wrap">';
@@ -142,26 +191,28 @@ function sn_theme_options_page() {
 	if ( 'dashboard' === $active_tab ) {
 
 		// ── STATUS ──
-		echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Status</h2>';
-		echo '<table class="form-table" style="max-width:500px;">';
+		echo '<h2 class="sn-section-h">Status</h2>';
+		echo '<table class="form-table sn-status-table" style="max-width:560px;">';
 		// Print escaped fragments inline rather than building a pre-escaped
 		// string and echoing it. Same visual output; eliminates the future-
 		// bug class where a maintainer adds a new dynamic field to the
 		// concatenation and forgets to esc_html it. (Audit finding H2.)
-		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">Installed version</th><td style="padding:8px 0;"><code>' . esc_html( $local_version ) . '</code>';
+		echo '<tr><th>Installed version</th><td><code>' . esc_html( $local_version ) . '</code>';
 		if ( $local_sha ) {
-			echo ' <span style="color:#666;">at <code>' . esc_html( $local_sha ) . '</code></span>';
+			echo ' <span class="sn-helper" style="margin:0;">at <code>' . esc_html( $local_sha ) . '</code></span>';
 		}
 		echo '</td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">DB overrides</th><td style="padding:8px 0;">' . count( $overrides );
+		echo '<tr><th>DB overrides</th><td>';
 		if ( count( $overrides ) > 0 ) {
-			echo ' <span style="color:#dba617;">&#9888; Reading from database, not theme files</span>';
+			echo '<span class="sn-pill sn-pill--warn">' . count( $overrides ) . ' — reading from database</span>';
 		} else {
-			echo ' <span style="color:#00a32a;">&#10003; Clean</span>';
+			echo '<span class="sn-pill sn-pill--ok">Clean</span>';
 		}
 		echo '</td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">Self-updater</th><td style="padding:8px 0;">';
-		echo defined( 'SN_GITHUB_TOKEN' ) ? '<span style="color:#00a32a;">&#10003; Connected</span>' : '<span style="color:#d63638;">&#10005; SN_GITHUB_TOKEN not set</span>';
+		echo '<tr><th>Self-updater</th><td>';
+		echo defined( 'SN_GITHUB_TOKEN' )
+			? '<span class="sn-pill sn-pill--ok">Connected</span>'
+			: '<span class="sn-pill sn-pill--err">SN_GITHUB_TOKEN not set</span>';
 		echo '</td></tr>';
 		echo '</table>';
 
@@ -176,27 +227,27 @@ function sn_theme_options_page() {
 		echo '<hr style="margin:1.5em 0;">';
 
 		// ── ACTIONS ──
-		echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Actions</h2>';
+		echo '<h2 class="sn-section-h">Actions</h2>';
 		echo '<form method="post">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 
-		echo '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
+		echo '<div class="sn-card-grid">';
 
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
-		echo '<strong style="display:block;margin-bottom:4px;">Full Reset</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Clears all overrides and purges every cache. Use after theme updates.</p>';
+		echo '<div class="sn-card">';
+		echo '<strong>Full Reset</strong>';
+		echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
 		echo '<button type="submit" name="sn_action" value="full_reset" class="button button-primary">Run Full Reset</button>';
 		echo '</div>';
 
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
-		echo '<strong style="display:block;margin-bottom:4px;">Clear Overrides</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Removes template, template part, and navigation DB entries.</p>';
+		echo '<div class="sn-card">';
+		echo '<strong>Clear Overrides</strong>';
+		echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
 		echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
 		echo '</div>';
 
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
-		echo '<strong style="display:block;margin-bottom:4px;">Purge Caches</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">WP object cache, transients, Breeze page/minification, Varnish.</p>';
+		echo '<div class="sn-card">';
+		echo '<strong>Purge Caches</strong>';
+		echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
 		echo '<button type="submit" name="sn_action" value="purge_caches" class="button">Purge All Caches</button>';
 		echo '</div>';
 
@@ -264,11 +315,11 @@ function sn_theme_options_page() {
 	// ════════════════════════════════════════
 	} elseif ( 'links' === $active_tab ) {
 
-		echo '<table class="form-table" style="max-width:500px;">';
-		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">GitHub Repository</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise" target="_blank" rel="noopener">juanlentino/signal-and-noise</a></td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">Release History</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise/releases" target="_blank" rel="noopener">All releases</a></td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudflare</th><td style="padding:8px 0;"><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare Dashboard</a></td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudways</th><td style="padding:8px 0;"><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways Platform</a></td></tr>';
+		echo '<table class="form-table sn-status-table" style="max-width:560px;">';
+		echo '<tr><th>GitHub repository</th><td><a href="https://github.com/juanlentino/signal-and-noise" target="_blank" rel="noopener">juanlentino/signal-and-noise</a> &middot; <a href="https://github.com/juanlentino/signal-and-noise-tools" target="_blank" rel="noopener">…/signal-and-noise-tools</a></td></tr>';
+		echo '<tr><th>Release history</th><td><a href="https://github.com/juanlentino/signal-and-noise/releases" target="_blank" rel="noopener">Theme</a> &middot; <a href="https://github.com/juanlentino/signal-and-noise-tools/releases" target="_blank" rel="noopener">Plugin</a></td></tr>';
+		echo '<tr><th>Cloudflare</th><td><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare dashboard</a></td></tr>';
+		echo '<tr><th>Cloudways</th><td><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways platform</a></td></tr>';
 		echo '</table>';
 
 	// ════════════════════════════════════════
@@ -276,14 +327,24 @@ function sn_theme_options_page() {
 	// ════════════════════════════════════════
 	} elseif ( 'identity' === $active_tab ) {
 
-		echo '<form method="post">';
+		echo '<form method="post" class="sn-identity-form">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="save_identity">';
 
-		echo '<p style="color:#666;max-width:700px;">Site-identity values used by OG/Twitter meta, JSON-LD schema, the custom login URL, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline). The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides the Login Slug field below.</p>';
+		echo '<p class="sn-prose">Site-identity values used by OG/Twitter meta, JSON-LD schema, the custom login URL, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline). The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides the Login Slug field below.</p>';
+
+		// Section TOC — anchor-jump links into the long form below.
+		echo '<nav class="sn-toc" aria-label="Identity sections">';
+		echo '<span class="sn-toc-label">Jump to</span>';
+		echo '<a href="#sn-sec-identity">Identity</a>';
+		echo '<a href="#sn-sec-social">Social</a>';
+		echo '<a href="#sn-sec-og">Open Graph</a>';
+		echo '<a href="#sn-sec-login">Login</a>';
+		echo '<a href="#sn-sec-seo">SEO Copy</a>';
+		echo '</nav>';
 
 		// ── IDENTITY ──
-		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Identity</h2>';
+		echo '<h2 id="sn-sec-identity" class="sn-section-h">Identity</h2>';
 		echo '<table class="form-table"><tbody>';
 
 		echo '<tr><th><label for="sn_identity_site_name">Site name</label></th>';
@@ -301,7 +362,7 @@ function sn_theme_options_page() {
 		echo '</tbody></table>';
 
 		// ── SOCIAL ──
-		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Social</h2>';
+		echo '<h2 id="sn-sec-social" class="sn-section-h">Social</h2>';
 		echo '<table class="form-table"><tbody>';
 
 		echo '<tr><th><label for="sn_social_twitter_handle">Twitter / X handle</label></th>';
@@ -321,7 +382,7 @@ function sn_theme_options_page() {
 		echo '</tbody></table>';
 
 		// ── OG ──
-		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Open Graph</h2>';
+		echo '<h2 id="sn-sec-og" class="sn-section-h">Open Graph</h2>';
 		echo '<table class="form-table"><tbody>';
 
 		echo '<tr><th><label for="sn_og_default_image_url">Default OG image URL</label></th>';
@@ -336,7 +397,7 @@ function sn_theme_options_page() {
 		echo '</tbody></table>';
 
 		// ── LOGIN ──
-		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Login</h2>';
+		echo '<h2 id="sn-sec-login" class="sn-section-h">Login</h2>';
 		echo '<table class="form-table"><tbody>';
 
 		echo '<tr><th><label for="sn_login_slug">Custom login slug</label></th>';
@@ -345,7 +406,7 @@ function sn_theme_options_page() {
 		echo '</tbody></table>';
 
 		// ── SEO COPY ──
-		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">SEO Copy (per-route)</h2>';
+		echo '<h2 id="sn-sec-seo" class="sn-section-h">SEO Copy (per-route)</h2>';
 		echo '<table class="form-table"><tbody>';
 
 		echo '<tr><th><label for="sn_seo_home_title">Home title</label></th>';
@@ -368,7 +429,13 @@ function sn_theme_options_page() {
 
 		echo '</tbody></table>';
 
-		echo '<p style="margin-top:1.5em;"><button type="submit" class="button button-primary">Save Identity Settings</button></p>';
+		// Sticky save bar — pure CSS (position: sticky). Always visible
+		// while editing this long form so the Save button is one click
+		// away regardless of scroll position.
+		echo '<div class="sn-savebar">';
+		echo '<p class="sn-savebar-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>';
+		echo '<button type="submit" class="button button-primary">Save Identity Settings</button>';
+		echo '</div>';
 		echo '</form>';
 
 	}

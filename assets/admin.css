@@ -1,0 +1,205 @@
+/*
+ * Signal & Noise Tools — admin styles.
+ *
+ * Loaded only on the SN admin page (Signal & Noise top-level menu).
+ * CSS variables provide a single source of truth for surface, border,
+ * spacing, and status colors. Component classes replace the inline
+ * style strings that used to live in inc/admin-page.php.
+ *
+ * Other tab modules (cloudflare-purge.php, plausible-admin.php,
+ * reading-time.php) still use inline styles — those win on specificity
+ * for now. The v1.9.0 component pass will refactor them too.
+ *
+ * Added in v1.8.1 (2026-05-16).
+ */
+
+:root {
+	--sn-surface:     #fff;
+	--sn-border:      #c3c4c7;
+	--sn-text:        #1d2327;
+	--sn-text-muted:  #646970;
+	--sn-radius:      4px;
+	--sn-space-1:     4px;
+	--sn-space-2:     8px;
+	--sn-space-3:     12px;
+	--sn-space-4:     16px;
+	--sn-space-5:     24px;
+	--sn-ok:          #00a32a;
+	--sn-warn:        #dba617;
+	--sn-err:         #d63638;
+	--sn-link:        #2271b1;
+}
+
+/* ─── Layout primitives ─────────────────────────── */
+
+.sn-prose {
+	color: var(--sn-text-muted);
+	font-size: 0.95em;
+	max-width: 680px;
+	margin: 0 0 var(--sn-space-4);
+	line-height: 1.5;
+}
+
+.sn-prose + .sn-prose {
+	margin-top: var(--sn-space-3);
+}
+
+.sn-card {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: var(--sn-space-4) var(--sn-space-5);
+	max-width: 260px;
+}
+
+.sn-card strong {
+	display: block;
+	margin-bottom: var(--sn-space-1);
+}
+
+.sn-card-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--sn-space-3);
+	align-items: flex-start;
+}
+
+.sn-helper {
+	color: var(--sn-text-muted);
+	font-size: 0.85em;
+	margin: 0 0 var(--sn-space-3);
+}
+
+.sn-section-h {
+	font-size: 1.05em;
+	font-weight: 600;
+	margin: var(--sn-space-5) 0 var(--sn-space-2);
+	color: var(--sn-text);
+	letter-spacing: 0.01em;
+}
+
+.sn-section-h:first-of-type {
+	margin-top: var(--sn-space-3);
+}
+
+/* ─── Status pills ──────────────────────────────── */
+
+.sn-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	font-size: 0.82em;
+	font-weight: 500;
+	background: rgba(0,0,0,0.04);
+	color: var(--sn-text);
+	border: 1px solid transparent;
+}
+
+.sn-pill::before {
+	content: '';
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--sn-text-muted);
+}
+
+.sn-pill--ok   { background: rgba(0,163,42,0.10);  color: #0a5a1a; }
+.sn-pill--ok::before   { background: var(--sn-ok); }
+
+.sn-pill--warn { background: rgba(219,166,23,0.14); color: #6e4d00; }
+.sn-pill--warn::before { background: var(--sn-warn); }
+
+.sn-pill--err  { background: rgba(214,54,56,0.10); color: #8b1a1a; }
+.sn-pill--err::before  { background: var(--sn-err); }
+
+/* ─── Identity tab — TOC ────────────────────────── */
+
+.sn-toc {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: var(--sn-space-3) var(--sn-space-4);
+	margin: 0 0 var(--sn-space-5);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--sn-space-2) var(--sn-space-4);
+	font-size: 0.9em;
+}
+
+.sn-toc-label {
+	color: var(--sn-text-muted);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	font-size: 0.78em;
+	margin-right: var(--sn-space-2);
+	align-self: center;
+}
+
+.sn-toc a {
+	color: var(--sn-link);
+	text-decoration: none;
+	padding: 2px 0;
+	border-bottom: 1px solid transparent;
+	transition: border-color 0.12s ease;
+}
+
+.sn-toc a:hover,
+.sn-toc a:focus {
+	border-bottom-color: var(--sn-link);
+	outline: none;
+}
+
+/* Pull the section anchor target out from under the WP admin top bar
+   so jumping to a section doesn't hide its h2 behind the sticky bar. */
+.sn-section-h[id] {
+	scroll-margin-top: 80px;
+}
+
+/* Tighten Identity-tab form rows so the long form feels less endless. */
+.sn-identity-form .form-table > tbody > tr > th,
+.sn-identity-form .form-table > tbody > tr > td {
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+/* ─── Sticky save bar ───────────────────────────── */
+
+.sn-savebar {
+	position: sticky;
+	bottom: 0;
+	margin: var(--sn-space-5) calc(var(--sn-space-5) * -1) 0;
+	padding: var(--sn-space-3) var(--sn-space-5);
+	background: rgba(255,255,255,0.94);
+	backdrop-filter: saturate(180%) blur(8px);
+	-webkit-backdrop-filter: saturate(180%) blur(8px);
+	border-top: 1px solid var(--sn-border);
+	box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sn-space-4);
+	z-index: 10;
+}
+
+.sn-savebar-hint {
+	color: var(--sn-text-muted);
+	font-size: 0.85em;
+	margin: 0;
+}
+
+/* ─── Dashboard status table tightening ─────────── */
+
+.sn-status-table th,
+.sn-status-table td {
+	padding: 10px 12px 10px 0;
+}
+
+.sn-status-table th {
+	width: 180px;
+	font-weight: 600;
+	color: var(--sn-text);
+}
