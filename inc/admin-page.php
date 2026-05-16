@@ -52,7 +52,7 @@ function sn_theme_options_page() {
 	$theme         = wp_get_theme( 'signal-and-noise' );
 	$local_version = $theme->get( 'Version' );
 	$notices       = array();
-	$valid_tabs    = array( 'dashboard', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
+	$valid_tabs    = array( 'dashboard', 'identity', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
 	$active_tab    = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'dashboard';
 	if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
 		$active_tab = 'dashboard';
@@ -88,6 +88,18 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
 		}
 
+		if ( 'save_identity' === $action ) {
+			// update_option() returns false when the new value equals the
+			// existing one; surface that as an info notice rather than a
+			// failure so users get accurate feedback on no-op saves.
+			$saved = sn_settings_save( $_POST );
+			if ( $saved ) {
+				$notices[] = array( 'success', 'Identity settings saved.' );
+			} else {
+				$notices[] = array( 'info', 'No changes to save.' );
+			}
+		}
+
 	}
 
 	$local_sha = (string) get_option( 'sn_github_local_sha', '' );
@@ -110,6 +122,7 @@ function sn_theme_options_page() {
 	// ── TABS ──
 	$tab_labels = array(
 		'dashboard'    => 'Dashboard',
+		'identity'     => 'Identity',
 		'cloudflare'   => 'Cloudflare',
 		'plausible'    => 'Plausible',
 		'rss'          => 'RSS',
@@ -257,6 +270,106 @@ function sn_theme_options_page() {
 		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudflare</th><td style="padding:8px 0;"><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare Dashboard</a></td></tr>';
 		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudways</th><td style="padding:8px 0;"><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways Platform</a></td></tr>';
 		echo '</table>';
+
+	// ════════════════════════════════════════
+	// TAB: IDENTITY
+	// ════════════════════════════════════════
+	} elseif ( 'identity' === $active_tab ) {
+
+		echo '<form method="post">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<input type="hidden" name="sn_action" value="save_identity">';
+
+		echo '<p style="color:#666;max-width:700px;">Site-identity values used by OG/Twitter meta, JSON-LD schema, the custom login URL, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline). The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides the Login Slug field below.</p>';
+
+		// ── IDENTITY ──
+		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Identity</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th><label for="sn_identity_site_name">Site name</label></th>';
+		echo '<td><input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '" class="regular-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_identity_site_description">Site description</label></th>';
+		echo '<td><textarea id="sn_identity_site_description" name="identity_site_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea></td></tr>';
+
+		echo '<tr><th><label for="sn_identity_person_name">Person name (schema author)</label></th>';
+		echo '<td><input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '" class="regular-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_identity_locale">Locale</label></th>';
+		echo '<td><input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" class="regular-text" placeholder="en_US"><p class="description">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p></td></tr>';
+
+		echo '</tbody></table>';
+
+		// ── SOCIAL ──
+		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Social</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th><label for="sn_social_twitter_handle">Twitter / X handle</label></th>';
+		echo '<td><input type="text" id="sn_social_twitter_handle" name="social_twitter_handle" value="' . esc_attr( sn_setting( 'social.twitter_handle', '' ) ) . '" class="regular-text" placeholder="@username"><p class="description">Used as twitter:site and twitter:creator. Include the @ prefix.</p></td></tr>';
+
+		$same_as = (array) sn_setting( 'social.same_as', array() );
+		// Render existing rows + one trailing blank for adding a new URL.
+		// sn_settings_save() filters empty strings on persist, so leaving
+		// the trailing row blank simply means "no new URL this submit".
+		$rows = array_merge( $same_as, array( '' ) );
+		echo '<tr><th><label>Profile URLs (sameAs)</label></th><td>';
+		foreach ( $rows as $url ) {
+			echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" class="regular-text" style="margin-bottom:4px;display:block;" placeholder="https://x.com/...">';
+		}
+		echo '<p class="description">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p></td></tr>';
+
+		echo '</tbody></table>';
+
+		// ── OG ──
+		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Open Graph</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th><label for="sn_og_default_image_url">Default OG image URL</label></th>';
+		echo '<td><input type="url" id="sn_og_default_image_url" name="og_default_image_url" value="' . esc_attr( (string) sn_setting( 'og.default_image_url', '' ) ) . '" class="large-text"><p class="description">Fallback image used when no per-post OG card exists.</p></td></tr>';
+
+		echo '<tr><th><label for="sn_og_card_width">Card width (px)</label></th>';
+		echo '<td><input type="number" min="1" id="sn_og_card_width" name="og_card_width" value="' . esc_attr( (string) sn_setting( 'og.card_width', 1200 ) ) . '" class="small-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_og_card_height">Card height (px)</label></th>';
+		echo '<td><input type="number" min="1" id="sn_og_card_height" name="og_card_height" value="' . esc_attr( (string) sn_setting( 'og.card_height', 630 ) ) . '" class="small-text"></td></tr>';
+
+		echo '</tbody></table>';
+
+		// ── LOGIN ──
+		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">Login</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th><label for="sn_login_slug">Custom login slug</label></th>';
+		echo '<td><input type="text" id="sn_login_slug" name="login_slug" value="' . esc_attr( (string) sn_setting( 'login.slug', 'sn-login' ) ) . '" class="regular-text" placeholder="sn-login"><p class="description">Replaces <code>/wp-login.php</code>. The <code>SN_LOGIN_SLUG</code> constant in wp-config.php overrides this field.</p></td></tr>';
+
+		echo '</tbody></table>';
+
+		// ── SEO COPY ──
+		echo '<h2 style="font-size:1.1em;margin:1.5em 0 0.6em;">SEO Copy (per-route)</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th><label for="sn_seo_home_title">Home title</label></th>';
+		echo '<td><input type="text" id="sn_seo_home_title" name="seo_home_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.home_title', '' ) ) . '" class="large-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_seo_home_description">Home description</label></th>';
+		echo '<td><textarea id="sn_seo_home_description" name="seo_home_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.home_description', '' ) ) . '</textarea></td></tr>';
+
+		echo '<tr><th><label for="sn_seo_notes_title">/notes title</label></th>';
+		echo '<td><input type="text" id="sn_seo_notes_title" name="seo_notes_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.notes_title', '' ) ) . '" class="large-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_seo_notes_description">/notes description</label></th>';
+		echo '<td><textarea id="sn_seo_notes_description" name="seo_notes_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.notes_description', '' ) ) . '</textarea></td></tr>';
+
+		echo '<tr><th><label for="sn_seo_provenance_title">/provenance title</label></th>';
+		echo '<td><input type="text" id="sn_seo_provenance_title" name="seo_provenance_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.provenance_title', '' ) ) . '" class="large-text"></td></tr>';
+
+		echo '<tr><th><label for="sn_seo_provenance_description">/provenance description</label></th>';
+		echo '<td><textarea id="sn_seo_provenance_description" name="seo_provenance_description" rows="2" class="large-text">' . esc_textarea( (string) sn_setting( 'seo_copy.provenance_description', '' ) ) . '</textarea></td></tr>';
+
+		echo '</tbody></table>';
+
+		echo '<p style="margin-top:1.5em;"><button type="submit" class="button button-primary">Save Identity Settings</button></p>';
+		echo '</form>';
 
 	}
 
