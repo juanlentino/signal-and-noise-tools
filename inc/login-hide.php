@@ -48,10 +48,14 @@ if ( is_plugin_active( 'wps-hide-login/wps-hide-login.php' ) ) {
  * Get the configured custom login slug.
  */
 function sn_login_get_slug() {
+	// Constant override has highest priority — for wp-config.php-based
+	// emergency unlocks and per-environment overrides.
 	if ( defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG ) {
 		return trim( (string) SN_LOGIN_SLUG, '/' );
 	}
-	return 'sn-login';
+	// Otherwise the configured setting (defaults to 'sn-login').
+	$slug = sn_setting( 'login.slug', 'sn-login' );
+	return $slug ? $slug : 'sn-login';
 }
 
 /**
