@@ -61,11 +61,7 @@ function sn_admin_bar_items() {
 			// Only shown when CF is configured.
 			'guard'  => 'sn_cf_is_configured',
 		),
-		'sn-quick-check-updates' => array(
-			'action' => 'sn_quick_check_updates',
-			'label'  => '↗ Check for Updates',
-		),
-	);
+);
 }
 
 /**
@@ -131,8 +127,7 @@ add_action( 'init', function() {
 		'sn_quick_purge_caches'    => 'sn_handle_quick_purge_caches',
 		'sn_quick_clear_overrides' => 'sn_handle_quick_clear_overrides',
 		'sn_quick_cf_purge'        => 'sn_handle_quick_cf_purge',
-		'sn_quick_check_updates'   => 'sn_handle_quick_check_updates',
-	);
+);
 	foreach ( $handlers as $action => $callback ) {
 		add_action( 'wp_ajax_' . $action, $callback );
 	}
@@ -179,26 +174,6 @@ function sn_handle_quick_cf_purge() {
 	wp_send_json_error( array(
 		'message' => 'Cloudflare not configured — set token + zone first.',
 	), 400 );
-}
-
-function sn_handle_quick_check_updates() {
-	check_ajax_referer( 'sn_quick_check_updates' );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
-	}
-
-	// Force-check dispatched via the sn_updater_force_check action
-	// contract — theme module updater.php owns the cache-key-naming
-	// details and runs wp_update_themes() to re-prime WP's transient.
-	// No-op when theme not loaded.
-	if ( ! has_action( 'sn_updater_force_check' ) ) {
-		wp_send_json_error( array( 'message' => 'Self-updater module not loaded.' ), 500 );
-	}
-	do_action( 'sn_updater_force_check' );
-
-	wp_send_json_success( array(
-		'message' => 'Update check complete. See Dashboard → Updates.',
-	) );
 }
 
 /**
