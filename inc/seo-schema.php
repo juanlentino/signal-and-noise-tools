@@ -73,6 +73,30 @@ function sn_schema_website() {
 }
 
 /**
+ * Resolve the Article schema description with the v1.10.0 fallback
+ * chain — per-post _sn_meta_description override wins over excerpt.
+ *
+ * Separate helper because seo-schema.php reads $post->post_excerpt
+ * directly (independent of sn_seo_meta_for_current_view() in seo.php).
+ * Both callsites need the same fallback logic.
+ *
+ * @param WP_Post $post Post being rendered.
+ * @return string Description string (may be empty).
+ */
+function sn_schema_article_description( $post ) {
+	$override = function_exists( 'sn_post_settings_get_description' )
+		? sn_post_settings_get_description( $post->ID )
+		: '';
+	if ( '' !== $override ) {
+		return $override;
+	}
+	if ( ! empty( $post->post_excerpt ) ) {
+		return wp_strip_all_tags( $post->post_excerpt );
+	}
+	return '';
+}
+
+/**
  * Build the Article schema for the current singular post.
  * Returns null if not on a singular post.
  */
@@ -85,9 +109,9 @@ function sn_schema_article() {
 		return null;
 	}
 
-	$permalink = get_permalink( $post );
-	$title     = wp_strip_all_tags( get_the_title( $post ) );
-	$excerpt   = wp_strip_all_tags( (string) $post->post_excerpt );
+	$permalink   = get_permalink( $post );
+	$title       = wp_strip_all_tags( get_the_title( $post ) );
+	$description = sn_schema_article_description( $post );
 
 	$image_url = (string) apply_filters( 'sn_og_image_url', '' );
 	$image_dim = (array) apply_filters( 'sn_og_image_dimensions', array( 1200, 630 ), $image_url );
@@ -108,8 +132,8 @@ function sn_schema_article() {
 		),
 	);
 
-	if ( $excerpt ) {
-		$article['description'] = $excerpt;
+	if ( '' !== $description ) {
+		$article['description'] = $description;
 	}
 
 	if ( $image_url ) {
