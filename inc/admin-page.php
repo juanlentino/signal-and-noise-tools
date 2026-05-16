@@ -80,24 +80,10 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'All caches purged.' );
 		}
 
-		if ( 'check_updates' === $action ) {
-			// Updater force-check dispatched via the sn_updater_force_check
-			// action contract — theme module updater.php owns the cache-
-			// key-naming details and runs wp_update_themes() to re-prime
-			// WP's update_themes site transient (without that re-prime, the
-			// Dashboard → Updates page would render empty until the next
-			// cron tick — see the docblock on sn_updater_force_check()).
-			do_action( 'sn_updater_force_check' );
-
-			$notices[] = array( 'info', 'Update check complete. Visit <a href="' . esc_url( admin_url( 'update-core.php' ) ) . '">Dashboard &rarr; Updates</a> to install pending updates.' );
-		}
-
 		if ( 'full_reset' === $action ) {
 			// Full reset = purge everything including DB template overrides.
-			// Updater error notice dismissed via sn_updater_clear_error
-			// action; purge dispatched via sn_purge_all_caches_result
-			// filter (default args include template_overrides).
-			do_action( 'sn_updater_clear_error' );
+			// Purge dispatched via sn_purge_all_caches_result filter
+			// (default args include template_overrides).
 			$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
 			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
 		}
@@ -113,7 +99,7 @@ function sn_theme_options_page() {
 			if ( is_array( $heal ) ) {
 				$fixed_n  = count( $heal['fixed'] );
 				$failed_n = count( $heal['failed'] );
-				$branch   = (string) apply_filters( 'sn_updater_branch', 'main' );
+				$branch   = 'main';
 				if ( $fixed_n ) {
 					$notices[] = array(
 						'success',
@@ -137,37 +123,7 @@ function sn_theme_options_page() {
 		}
 	}
 
-	// Resolve "what's on GitHub" against the *tracked branch HEAD*, not the
-	// latest release tag. The updater tracks main directly (since v6.5.4),
-	// so the meaningful comparison is local_sha vs main HEAD. The previous
-	// release-tag check produced stale "Up to date" results whenever the
-	// maintainer iterated past a tag without bumping Version: — exactly
-	// the workflow the architecture was redesigned to support.
-	// Branch + revcount sourced via filter contracts since v1.0.0 (plugin
-	// extracted from theme). Theme module updater.php owns both filters.
-	$branch       = (string) apply_filters( 'sn_updater_branch', 'main' );
-	$local_sha    = (string) get_option( 'sn_github_local_sha', '' );
-	$remote_sha   = '';
-	$github_url   = defined( 'SN_GITHUB_REPO' ) ? 'https://github.com/' . SN_GITHUB_REPO . '/tree/' . rawurlencode( $branch ) : '';
-	$rev          = (int) apply_filters( 'sn_updater_revcount', 0, $branch, null );
-
-	if ( defined( 'SN_GITHUB_TOKEN' ) && ! empty( SN_GITHUB_TOKEN ) ) {
-		// Read-only since v7.3.1 — the shared `sn_github_branch_$branch`
-		// transient is warmed by the theme's updater (sn_updater_refresh_cache())
-		// via WP-Cron, never on this page-render path. The transient key is
-		// part of the stable cross-package contract (see plan spec).
-		// If the cache is empty (cron hasn't populated yet), `$remote_sha`
-		// stays empty and the Status table renders "(refreshing in
-		// background)" instead of blocking on a 10s GitHub round-trip.
-		$cached = get_transient( 'sn_github_branch_' . sanitize_key( $branch ) );
-		if ( is_array( $cached ) && ! empty( $cached['sha'] ) ) {
-			$remote_sha = substr( $cached['sha'], 0, 7 );
-		}
-	}
-
-	$rev_suffix     = $rev > 0 ? '-r' . $rev : '';
-	$github_version = $local_version . $rev_suffix . ( $remote_sha ? '+' . $branch . '.' . $remote_sha : '' );
-	$is_up_to_date  = ! $remote_sha || ( $local_sha && $local_sha === $remote_sha );
+	$local_sha = (string) get_option( 'sn_github_local_sha', '' );
 
 	$overrides = get_posts( array( 'post_type' => array( 'wp_template', 'wp_template_part', 'wp_navigation' ), 'posts_per_page' => -1, 'post_status' => 'any' ) );
 	$base_url  = admin_url( 'themes.php?page=sn-theme-options' );
@@ -215,20 +171,6 @@ function sn_theme_options_page() {
 		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">Installed version</th><td style="padding:8px 0;"><code>' . esc_html( $local_version ) . '</code>';
 		if ( $local_sha ) {
 			echo ' <span style="color:#666;">at <code>' . esc_html( $local_sha ) . '</code></span>';
-		}
-		echo '</td></tr>';
-		echo '<tr><th style="padding:8px 10px 8px 0;">Latest on GitHub</th><td style="padding:8px 0;"><code>' . esc_html( $github_version ) . '</code>';
-		if ( '' === $remote_sha ) {
-			// Cron hasn't populated the cache yet (first pageview after
-			// install / token rotation / cache flush). Render an honest
-			// "fetching" rather than "Up to date" — the latter would
-			// imply a comparison happened, when really we have no data.
-			echo ' <span style="color:#646970;"><em>refreshing in background — reload in a moment</em></span>';
-		} elseif ( $is_up_to_date ) {
-			echo ' <span style="color:#00a32a;">&#10003; Up to date</span>';
-		} else {
-			$gap_label = $rev > 0 ? ' (' . (int) $rev . ' commit' . ( $rev === 1 ? '' : 's' ) . ' on main since the last tag)' : '';
-			echo ' <span style="color:#d63638;">&#9650; Update available</span>' . $gap_label;
 		}
 		echo '</td></tr>';
 		echo '<tr><th style="padding:8px 10px 8px 0;">DB overrides</th><td style="padding:8px 0;">' . count( $overrides );
@@ -282,12 +224,6 @@ function sn_theme_options_page() {
 		echo '<strong style="display:block;margin-bottom:4px;">Heal Templates Now</strong>';
 		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Force re-fetch every <code>templates/*.html</code> and <code>parts/*.html</code> from GitHub <code>main</code>. Bypasses the 5-min rate limit. Use when a deploy didn&rsquo;t take effect on a route.</p>';
 		echo '<button type="submit" name="sn_action" value="heal_templates" class="button">Re-sync from GitHub</button>';
-		echo '</div>';
-
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
-		echo '<strong style="display:block;margin-bottom:4px;">Check for Updates</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Clears GitHub cache and checks for new versions now.</p>';
-		echo '<button type="submit" name="sn_action" value="check_updates" class="button">Check Now</button>';
 		echo '</div>';
 
 		echo '</div>';
@@ -357,9 +293,6 @@ function sn_theme_options_page() {
 		echo '<table class="form-table" style="max-width:500px;">';
 		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">GitHub Repository</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise" target="_blank" rel="noopener">juanlentino/signal-and-noise</a></td></tr>';
 		echo '<tr><th style="padding:8px 10px 8px 0;">Release History</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise/releases" target="_blank" rel="noopener">All releases</a></td></tr>';
-		if ( '#' !== $github_url && ! $is_up_to_date ) {
-			echo '<tr><th style="padding:8px 10px 8px 0;">Latest Release</th><td style="padding:8px 0;"><a href="' . esc_url( $github_url ) . '" target="_blank" rel="noopener">v' . esc_html( $github_version ) . ' release notes</a></td></tr>';
-		}
 		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudflare</th><td style="padding:8px 0;"><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare Dashboard</a></td></tr>';
 		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudways</th><td style="padding:8px 0;"><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways Platform</a></td></tr>';
 		echo '</table>';
