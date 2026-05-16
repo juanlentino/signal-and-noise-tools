@@ -27,17 +27,9 @@
  *   POST signal-noise/v1/clear-overrides         — clear DB template
  *                                                  / template-part /
  *                                                  navigation overrides.
- *   POST signal-noise/v1/heal-templates          — force re-fetch every
- *                                                  monitored .html file
- *                                                  from GitHub main.
- *                                                  Bypasses rate limit.
- *   POST signal-noise/v1/full-reset              — both above + every
- *                                                  cache. The "after a
- *                                                  bad deploy" panic
- *                                                  button.
- *   POST signal-noise/v1/check-updates           — clear updater
- *                                                  caches + force a
- *                                                  fresh GitHub poll.
+ *   POST signal-noise/v1/full-reset              — purge + clear-overrides.
+ *                                                  The "after a bad deploy"
+ *                                                  panic button.
  *
  *   GET  signal-noise/v1/plausible/stats         — 7-day batched cache
  *                                                  (visitors, pageviews,
@@ -118,22 +110,10 @@ add_action( 'rest_api_init', function() {
 		'callback'            => 'sn_rest_clear_overrides',
 	) );
 
-	register_rest_route( SN_REST_NAMESPACE, '/heal-templates', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'sn_rest_can_manage',
-		'callback'            => 'sn_rest_heal_templates',
-	) );
-
 	register_rest_route( SN_REST_NAMESPACE, '/full-reset', array(
 		'methods'             => WP_REST_Server::CREATABLE,
 		'permission_callback' => 'sn_rest_can_manage',
 		'callback'            => 'sn_rest_full_reset',
-	) );
-
-	register_rest_route( SN_REST_NAMESPACE, '/check-updates', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'sn_rest_can_manage',
-		'callback'            => 'sn_rest_check_updates',
 	) );
 
 	// ── Plausible read endpoints (GET, idempotent) ───────────────────
@@ -192,100 +172,26 @@ function sn_rest_clear_overrides( WP_REST_Request $request ) {
 }
 
 /**
- * POST /heal-templates — force re-fetch every monitored .html file
- * from the tracked GitHub branch. Bypasses the 5-min ambient rate
- * limit and clears per-file failure cooldowns.
- */
-function sn_rest_heal_templates( WP_REST_Request $request ) {
-	// Dispatched via sn_self_heal_force_run_result filter contract —
-	// theme module template-self-heal.php owns the implementation;
-	// returns null when not loaded.
-	$result = apply_filters( 'sn_self_heal_force_run_result', null );
-	if ( ! is_array( $result ) ) {
-		return new WP_Error( 'sn_rest_unavailable', 'Self-heal module not loaded.', array( 'status' => 500 ) );
-	}
-	$fixed_n   = isset( $result['fixed'] ) ? count( (array) $result['fixed'] ) : 0;
-	$failed_n  = isset( $result['failed'] ) ? count( (array) $result['failed'] ) : 0;
-	$message   = $fixed_n > 0
-		/* translators: %d: number of files re-synced from GitHub. */
-		? sprintf( 'Self-heal: re-synced %d template file(s) from GitHub.', $fixed_n )
-		: 'Self-heal: all monitored files already match GitHub.';
-
-	if ( $failed_n > 0 ) {
-		return new WP_Error(
-			'sn_heal_partial',
-			/* translators: %d: number of files that failed to write. */
-			sprintf( 'Self-heal: drift detected but write failed for %d file(s).', $failed_n ),
-			array(
-				'status' => 500,
-				'fixed'  => $result['fixed'] ?? array(),
-				'failed' => $result['failed'] ?? array(),
-			)
-		);
-	}
-	return sn_rest_ok(
-		$message,
-		array(
-			'fixed'  => $result['fixed'] ?? array(),
-			'failed' => $result['failed'] ?? array(),
-		)
-	);
-}
-
-/**
  * POST /full-reset — purge all caches AND clear DB overrides. The
  * "I just deployed and something's wrong" panic button.
  */
 function sn_rest_full_reset( WP_REST_Request $request ) {
-	// Updater error dismissed via sn_updater_clear_error action; purge
-	// dispatched via sn_purge_all_caches_result filter (default args
-	// include template_overrides).
+	// Step 1: purge all caches (including object cache, transients, Breeze, Cloudflare).
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
 		return new WP_Error( 'sn_rest_unavailable', 'Cache purge module not loaded.', array( 'status' => 500 ) );
 	}
-	do_action( 'sn_updater_clear_error' );
-	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
-	return sn_rest_ok(
-		/* translators: %d: number of overrides cleared as part of a full reset. */
-		sprintf( 'Full reset: %d override(s) cleared and all caches purged.', $count ),
-		array( 'cleared' => $count )
-	);
-}
-
-/**
- * POST /check-updates — clear updater caches + force a fresh GitHub
- * poll. Mirrors the "Check Now" button. Returns the post-poll
- * synthetic version label for sanity-checking from CI.
- */
-function sn_rest_check_updates( WP_REST_Request $request ) {
-	// Force-check dispatched via sn_updater_force_check action contract —
-	// theme module updater.php owns the full cache-clear sequence AND
-	// calls wp_update_themes() to re-prime WP's transient. Branch sourced
-	// via filter contract for the response payload.
-	if ( ! has_action( 'sn_updater_force_check' ) ) {
-		return new WP_Error( 'sn_rest_unavailable', 'Self-updater module not loaded.', array( 'status' => 500 ) );
+	if ( ! has_filter( 'sn_clear_template_overrides_result' ) ) {
+		return new WP_Error( 'sn_rest_unavailable', 'Template override module not loaded.', array( 'status' => 500 ) );
 	}
-
-	$branch = sanitize_key( (string) apply_filters( 'sn_updater_branch', 'main' ) );
-
-	do_action( 'sn_updater_force_check' );
-
-	// After the dispatch, the theme listener has re-run wp_update_themes()
-	// which populated this site transient via the theme's
-	// pre_set_site_transient_update_themes filter. Read the offered
-	// update slice for the response payload.
-	$transient = get_site_transient( 'update_themes' );
-	$slug      = defined( 'SN_THEME_SLUG' ) ? SN_THEME_SLUG : 'signal-and-noise';
-	$offered   = ( is_object( $transient ) && isset( $transient->response[ $slug ] ) )
-		? $transient->response[ $slug ]
-		: null;
-
+	$purged   = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+	// Step 2: clear DB template/template-part/navigation overrides.
+	$overrides = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
 	return sn_rest_ok(
-		'Update check complete.',
+		/* translators: 1: caches purged count, 2: overrides cleared count. */
+		sprintf( 'Full reset complete: %d caches purged, %d overrides cleared.', $purged, $overrides ),
 		array(
-			'branch'           => $branch,
-			'update_available' => null !== $offered,
-			'offered'          => $offered,
+			'purged'   => $purged,
+			'overrides' => $overrides,
 		)
 	);
 }
