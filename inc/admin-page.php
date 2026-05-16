@@ -269,6 +269,9 @@ function sn_handle_admin_post() {
 		$flash = 'cf_saved';
 	} elseif ( 'cf_purge_now' === $action ) {
 		$flash = sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
+	} elseif ( 'apply_reading_time_cleanup' === $action ) {
+		$count = (int) sn_apply_legacy_reading_time_cleanup();
+		$flash = 'rt_applied_' . $count;
 	} else {
 		return;
 	}
@@ -359,6 +362,9 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Cloudflare zone purge dispatched.' );
 		} elseif ( 'cf_purged_unconfigured' === $flash ) {
 			$notices[] = array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' );
+		} elseif ( 0 === strpos( $flash, 'rt_applied_' ) ) {
+			$count     = (int) substr( $flash, strlen( 'rt_applied_' ) );
+			$notices[] = array( 'success', sprintf( '%d post(s) cleaned. Reading-time cache rebuilt.', $count ) );
 		} elseif ( 'purged' === $flash ) {
 			$notices[] = array( 'success', 'All caches purged.' );
 		} elseif ( 0 === strpos( $flash, 'cleared_' ) ) {

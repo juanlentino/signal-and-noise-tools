@@ -335,49 +335,65 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		return;
 	}
 
-	$preview = isset( $_GET['sn_rt_preview'] );
-	$applied = isset( $_POST['sn_action'] ) && 'apply_reading_time_cleanup' === $_POST['sn_action']
-		&& check_admin_referer( 'sn_theme_options_nonce', '_wpnonce', false );
-
-	if ( $applied ) {
-		$count = sn_apply_legacy_reading_time_cleanup();
-		echo '<div class="notice notice-success is-dismissible" style="margin:1em 0;"><p>' .
-			esc_html( sprintf( '%d post(s) cleaned. Reading-time cache rebuilt.', $count ) ) .
-			'</p></div>';
-	}
-
-	$base_url    = admin_url( 'themes.php?page=sn-theme-options' );
+	// POST handling lives in sn_handle_admin_post() (admin_init, PRG).
+	// This callback is render-only. Preview is a GET-driven scan (read-
+	// only, no PRG needed).
+	$preview     = isset( $_GET['sn_rt_preview'] );
+	$base_url    = admin_url( 'admin.php?page=sn-reading-time' );
 	$preview_url = esc_url( add_query_arg( 'sn_rt_preview', '1', $base_url ) );
 	$report      = $preview ? sn_find_legacy_reading_time() : array();
+	$report_n    = count( $report );
 
-	// No top-level heading here — the "Reading Time" tab name in the
-	// nav above is sufficient label.
-	echo '<p style="color:#666;font-size:0.95em;max-width:680px;margin-top:0;">Word count ÷ ' . (int) SN_READING_TIME_DEFAULT_WPM . ' WPM, cached in <code>_sn_reading_time_minutes</code> post meta and rebuilt on save. The cleanup tool below scans for hand-typed strings like "8-minute read" left over from before the shortcode existed.</p>';
+	echo '<p class="sn-prose">Word count ÷ ' . (int) SN_READING_TIME_DEFAULT_WPM . ' WPM, cached in <code>_sn_reading_time_minutes</code> post meta and rebuilt on save. The cleanup tool below scans for hand-typed strings like "8-minute read" left over from before the shortcode existed.</p>';
 
-	echo '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-top:1em;">';
-	echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
-	echo '<strong style="display:block;margin-bottom:4px;">Preview Cleanup</strong>';
-	echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Scan all posts and pages for legacy reading-time strings. Read-only.</p>';
-	echo '<a href="' . $preview_url . '" class="button">Run Preview</a>';
+	// ── TOOL FIELDSET ──
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Legacy string cleanup</h2>';
+	echo '<p class="sn-fieldset-intro">Scan posts + pages for hand-typed reading-time strings; review the matches; apply the cleanup. The shortcode produces fresh values automatically — this tool only removes the legacy ones.</p>';
+
+	echo '<div class="sn-card-grid">';
+
+	// Preview card — always shown
+	echo '<div class="sn-card" style="max-width:300px;">';
+	echo '<strong>1 · Preview</strong>';
+	echo '<p class="sn-helper">Scan all posts and pages for legacy reading-time strings. Read-only.</p>';
+	echo '<a href="' . $preview_url . '" class="button">' . ( $preview ? 'Re-run preview' : 'Run preview' ) . '</a>';
 	echo '</div>';
 
+	// Apply card — shown when preview has run
 	if ( $preview ) {
-		echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:300px;">';
+		echo '<form method="post" class="sn-card" style="max-width:300px;">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<strong style="display:block;margin-bottom:4px;">Apply Cleanup</strong>';
-		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Removes the matches above. Cannot be undone — back up first.</p>';
-		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"' . ( empty( $report ) ? ' disabled' : '' ) . '>Apply to ' . count( $report ) . ' post(s)</button>';
+		echo '<strong>2 · Apply</strong>';
+		if ( 0 === $report_n ) {
+			echo '<p class="sn-helper">No matches found — nothing to apply.</p>';
+		} else {
+			echo '<p class="sn-helper"><strong>Destructive.</strong> Removes the ' . (int) $report_n . ' match(es) below from post content / excerpts / meta. Cannot be undone — back up first.</p>';
+		}
+		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"' . ( 0 === $report_n ? ' disabled' : '' ) . '>Apply to ' . (int) $report_n . ' post(s)</button>';
 		echo '</form>';
 	}
-	echo '</div>';
 
+	echo '</div>'; // .sn-card-grid
+	echo '</div>'; // .sn-fieldset
+
+	// ── PREVIEW RESULTS ──
 	if ( $preview ) {
-		if ( empty( $report ) ) {
-			echo '<p style="margin-top:1em;color:#00a32a;">&#10003; No legacy reading-time strings found.</p>';
+		if ( 0 === $report_n ) {
+			echo '<div class="sn-status-box">';
+			echo '<div>';
+			echo '<p class="sn-status-box-title">Clean</p>';
+			echo '<p class="sn-status-box-body">No legacy reading-time strings found in any post, page, excerpt, or post meta.</p>';
+			echo '</div>';
+			echo '<span class="sn-pill sn-pill--ok">All clean</span>';
+			echo '</div>';
 			return;
 		}
-		echo '<div style="margin-top:1.5em;background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:0;max-width:900px;">';
-		echo '<table class="widefat striped" style="border:0;"><thead><tr><th style="width:60px;">ID</th><th>Title</th><th>Where</th><th>Match</th></tr></thead><tbody>';
+
+		echo '<div class="sn-fieldset">';
+		echo '<h2 class="sn-fieldset-h">Matches (' . (int) $report_n . ')</h2>';
+		echo '<p class="sn-fieldset-intro">Each row shows where a legacy string lives. The Apply action above removes all of them.</p>';
+		echo '<table class="widefat striped"><thead><tr><th style="width:60px;">ID</th><th>Title</th><th>Where</th><th>Match</th></tr></thead><tbody>';
 		foreach ( $report as $post_id => $entry ) {
 			$rows = array();
 			foreach ( $entry['content'] as $m ) $rows[] = array( 'content', $m );
@@ -389,11 +405,12 @@ add_action( 'sn_admin_reading_time_tab', function() {
 				echo '<tr>';
 				echo '<td>' . ( 0 === $i ? '<a href="' . esc_url( get_edit_post_link( $post_id ) ) . '">' . (int) $post_id . '</a>' : '' ) . '</td>';
 				echo '<td>' . ( 0 === $i ? esc_html( get_the_title( $post_id ) ) : '' ) . '</td>';
-				echo '<td><code style="font-size:0.8em;">' . esc_html( $row[0] ) . '</code></td>';
-				echo '<td><span style="color:#d63638;font-family:monospace;font-size:0.85em;">' . esc_html( $row[1]['match'] ) . '</span><br><small style="color:#787c82;">' . esc_html( $row[1]['snippet'] ) . '</small></td>';
+				echo '<td><code>' . esc_html( $row[0] ) . '</code></td>';
+				echo '<td><span class="sn-pill sn-pill--err" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . esc_html( $row[1]['match'] ) . '</span><br><small style="color:var(--sn-text-muted);">' . esc_html( $row[1]['snippet'] ) . '</small></td>';
 				echo '</tr>';
 			}
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
+		echo '</div>'; // .sn-fieldset
 	}
 } );
