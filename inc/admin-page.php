@@ -1,0 +1,370 @@
+<?php
+/**
+ * Signal & Noise — Theme options admin page.
+ *
+ * Registers the Appearance → Signal & Noise submenu and renders a tabbed
+ * interface that covers theme management without overflowing into a
+ * single-page-of-everything:
+ *
+ *   - Dashboard      — status overview + the four maintenance actions
+ *                      (full reset, clear overrides, purge caches,
+ *                      check for updates).
+ *   - Cloudflare     — token + zone configuration, status, manual
+ *                      zone purge, last-purge timestamp.
+ *   - Reading Time   — legacy reading-time-string cleanup tool
+ *                      (preview + apply).
+ *   - Links          — external service links.
+ *
+ * Modules contribute their per-tab content via dedicated action hooks
+ * (`sn_admin_cloudflare_tab`, `sn_admin_reading_time_tab`) so each
+ * subsystem keeps its UI code colocated with its logic.
+ *
+ * @package SignalNoise
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Admin page: Signal & Noise Theme Options under Appearance menu.
+ */
+add_action( 'admin_menu', function() {
+	add_theme_page(
+		'Signal & Noise',
+		'Signal & Noise',
+		'manage_options',
+		'sn-theme-options',
+		'sn_theme_options_page'
+	);
+} );
+
+function sn_theme_options_page() {
+	// Defense-in-depth capability check. WordPress's add_theme_page()
+	// already gates access to the admin URL itself, but re-checking here
+	// matches WPCS convention for any handler that mutates state and
+	// keeps this function safe if it's ever invoked from another context
+	// (e.g. a future shortcode, AJAX dispatcher, or REST callback).
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html( 'You do not have sufficient permissions to access this page.' ) );
+	}
+
+	$theme         = wp_get_theme( 'signal-and-noise' );
+	$local_version = $theme->get( 'Version' );
+	$notices       = array();
+	$valid_tabs    = array( 'dashboard', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
+	$active_tab    = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'dashboard';
+	if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
+		$active_tab = 'dashboard';
+	}
+
+	// Handle form actions.
+	if ( isset( $_POST['sn_action'] ) && check_admin_referer( 'sn_theme_options_nonce' ) ) {
+		$action = sanitize_text_field( wp_unslash( $_POST['sn_action'] ) );
+
+		if ( 'clear_overrides' === $action ) {
+			// Dispatched via sn_clear_template_overrides_result filter
+			// contract — theme module template-maintenance.php owns
+			// the implementation; returns 0 if not loaded.
+			$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
+			$notices[] = array( 'success', $count . ' database override(s) cleared. Site is reading from theme files.' );
+		}
+
+		if ( 'purge_caches' === $action ) {
+			// Single source of truth for "purge everything" — see
+			// sn_purge_all_caches() in the theme's template-maintenance.php.
+			// Dispatched via sn_purge_all_caches_result filter contract.
+			// template_overrides => false matches the button copy ("purge
+			// caches", not "also delete admin Site Editor edits").
+			$cleared = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+			$notices[] = array( 'success', 'All caches purged.' );
+		}
+
+		if ( 'check_updates' === $action ) {
+			// Updater force-check dispatched via the sn_updater_force_check
+			// action contract — theme module updater.php owns the cache-
+			// key-naming details and runs wp_update_themes() to re-prime
+			// WP's update_themes site transient (without that re-prime, the
+			// Dashboard → Updates page would render empty until the next
+			// cron tick — see the docblock on sn_updater_force_check()).
+			do_action( 'sn_updater_force_check' );
+
+			$notices[] = array( 'info', 'Update check complete. Visit <a href="' . esc_url( admin_url( 'update-core.php' ) ) . '">Dashboard &rarr; Updates</a> to install pending updates.' );
+		}
+
+		if ( 'full_reset' === $action ) {
+			// Full reset = purge everything including DB template overrides.
+			// Updater error notice dismissed via sn_updater_clear_error
+			// action; purge dispatched via sn_purge_all_caches_result
+			// filter (default args include template_overrides).
+			do_action( 'sn_updater_clear_error' );
+			$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
+			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
+		}
+
+		if ( 'heal_templates' === $action ) {
+			// Force-sync every monitored template/part file from GitHub
+			// main, bypassing the 5-min rate limit and clearing the per-
+			// file failure cooldown so retries happen now. Dispatched via
+			// the sn_self_heal_force_run_result filter contract — theme
+			// module template-self-heal.php owns the implementation;
+			// returns null when not loaded.
+			$heal = apply_filters( 'sn_self_heal_force_run_result', null );
+			if ( is_array( $heal ) ) {
+				$fixed_n  = count( $heal['fixed'] );
+				$failed_n = count( $heal['failed'] );
+				$branch   = (string) apply_filters( 'sn_updater_branch', 'main' );
+				if ( $fixed_n ) {
+					$notices[] = array(
+						'success',
+						'Self-heal: re-synced ' . $fixed_n . ' template file(s) from GitHub <code>' . esc_html( $branch ) . '</code> — '
+						. '<code>' . implode( '</code>, <code>', array_map( 'esc_html', $heal['fixed'] ) ) . '</code>. Caches purged.',
+					);
+				} elseif ( ! $failed_n ) {
+					$notices[] = array( 'info', 'Self-heal: all monitored template files already match GitHub <code>' . esc_html( $branch ) . '</code>. Nothing to do.' );
+				}
+				if ( $failed_n ) {
+					$notices[] = array(
+						'error',
+						'Self-heal: drift detected but write failed for ' . $failed_n . ' file(s) — '
+						. '<code>' . implode( '</code>, <code>', array_map( 'esc_html', $heal['failed'] ) ) . '</code>. '
+						. 'Check file permissions on the affected paths via SFTP.',
+					);
+				}
+			} else {
+				$notices[] = array( 'error', 'Self-heal module not loaded.' );
+			}
+		}
+	}
+
+	// Resolve "what's on GitHub" against the *tracked branch HEAD*, not the
+	// latest release tag. The updater tracks main directly (since v6.5.4),
+	// so the meaningful comparison is local_sha vs main HEAD. The previous
+	// release-tag check produced stale "Up to date" results whenever the
+	// maintainer iterated past a tag without bumping Version: — exactly
+	// the workflow the architecture was redesigned to support.
+	// Branch + revcount sourced via filter contracts since v1.0.0 (plugin
+	// extracted from theme). Theme module updater.php owns both filters.
+	$branch       = (string) apply_filters( 'sn_updater_branch', 'main' );
+	$local_sha    = (string) get_option( 'sn_github_local_sha', '' );
+	$remote_sha   = '';
+	$github_url   = defined( 'SN_GITHUB_REPO' ) ? 'https://github.com/' . SN_GITHUB_REPO . '/tree/' . rawurlencode( $branch ) : '';
+	$rev          = (int) apply_filters( 'sn_updater_revcount', 0, $branch, null );
+
+	if ( defined( 'SN_GITHUB_TOKEN' ) && ! empty( SN_GITHUB_TOKEN ) ) {
+		// Read-only since v7.3.1 — the shared `sn_github_branch_$branch`
+		// transient is warmed by the theme's updater (sn_updater_refresh_cache())
+		// via WP-Cron, never on this page-render path. The transient key is
+		// part of the stable cross-package contract (see plan spec).
+		// If the cache is empty (cron hasn't populated yet), `$remote_sha`
+		// stays empty and the Status table renders "(refreshing in
+		// background)" instead of blocking on a 10s GitHub round-trip.
+		$cached = get_transient( 'sn_github_branch_' . sanitize_key( $branch ) );
+		if ( is_array( $cached ) && ! empty( $cached['sha'] ) ) {
+			$remote_sha = substr( $cached['sha'], 0, 7 );
+		}
+	}
+
+	$rev_suffix     = $rev > 0 ? '-r' . $rev : '';
+	$github_version = $local_version . $rev_suffix . ( $remote_sha ? '+' . $branch . '.' . $remote_sha : '' );
+	$is_up_to_date  = ! $remote_sha || ( $local_sha && $local_sha === $remote_sha );
+
+	$overrides = get_posts( array( 'post_type' => array( 'wp_template', 'wp_template_part', 'wp_navigation' ), 'posts_per_page' => -1, 'post_status' => 'any' ) );
+	$base_url  = admin_url( 'themes.php?page=sn-theme-options' );
+
+	// ── PAGE SHELL ──
+	echo '<div class="wrap">';
+	echo '<h1 style="font-size:1.6em;margin-bottom:0.2em;">Signal &amp; Noise</h1>';
+	echo '<p style="color:#666;margin-top:0;margin-bottom:1em;">Theme management and maintenance.</p>';
+
+	// Notices. Severity is escaped as an attribute; bodies are run
+	// through wp_kses_post because some entries deliberately ship
+	// inline markup (<a>, <code>) — esc_html would mangle those.
+	foreach ( $notices as $n ) {
+		echo '<div class="notice notice-' . esc_attr( $n[0] ) . ' is-dismissible"><p>' . wp_kses_post( $n[1] ) . '</p></div>';
+	}
+
+	// ── TABS ──
+	$tab_labels = array(
+		'dashboard'    => 'Dashboard',
+		'cloudflare'   => 'Cloudflare',
+		'plausible'    => 'Plausible',
+		'rss'          => 'RSS',
+		'reading-time' => 'Reading Time',
+		'links'        => 'Links',
+	);
+	echo '<nav class="nav-tab-wrapper" style="margin-bottom:1.5em;">';
+	foreach ( $tab_labels as $slug => $label ) {
+		$is_active = ( $slug === $active_tab );
+		echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="nav-tab' . ( $is_active ? ' nav-tab-active' : '' ) . '">' . esc_html( $label ) . '</a>';
+	}
+	echo '</nav>';
+
+	// ════════════════════════════════════════
+	// TAB: DASHBOARD
+	// ════════════════════════════════════════
+	if ( 'dashboard' === $active_tab ) {
+
+		// ── STATUS ──
+		echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Status</h2>';
+		echo '<table class="form-table" style="max-width:500px;">';
+		// Print escaped fragments inline rather than building a pre-escaped
+		// string and echoing it. Same visual output; eliminates the future-
+		// bug class where a maintainer adds a new dynamic field to the
+		// concatenation and forgets to esc_html it. (Audit finding H2.)
+		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">Installed version</th><td style="padding:8px 0;"><code>' . esc_html( $local_version ) . '</code>';
+		if ( $local_sha ) {
+			echo ' <span style="color:#666;">at <code>' . esc_html( $local_sha ) . '</code></span>';
+		}
+		echo '</td></tr>';
+		echo '<tr><th style="padding:8px 10px 8px 0;">Latest on GitHub</th><td style="padding:8px 0;"><code>' . esc_html( $github_version ) . '</code>';
+		if ( '' === $remote_sha ) {
+			// Cron hasn't populated the cache yet (first pageview after
+			// install / token rotation / cache flush). Render an honest
+			// "fetching" rather than "Up to date" — the latter would
+			// imply a comparison happened, when really we have no data.
+			echo ' <span style="color:#646970;"><em>refreshing in background — reload in a moment</em></span>';
+		} elseif ( $is_up_to_date ) {
+			echo ' <span style="color:#00a32a;">&#10003; Up to date</span>';
+		} else {
+			$gap_label = $rev > 0 ? ' (' . (int) $rev . ' commit' . ( $rev === 1 ? '' : 's' ) . ' on main since the last tag)' : '';
+			echo ' <span style="color:#d63638;">&#9650; Update available</span>' . $gap_label;
+		}
+		echo '</td></tr>';
+		echo '<tr><th style="padding:8px 10px 8px 0;">DB overrides</th><td style="padding:8px 0;">' . count( $overrides );
+		if ( count( $overrides ) > 0 ) {
+			echo ' <span style="color:#dba617;">&#9888; Reading from database, not theme files</span>';
+		} else {
+			echo ' <span style="color:#00a32a;">&#10003; Clean</span>';
+		}
+		echo '</td></tr>';
+		echo '<tr><th style="padding:8px 10px 8px 0;">Self-updater</th><td style="padding:8px 0;">';
+		echo defined( 'SN_GITHUB_TOKEN' ) ? '<span style="color:#00a32a;">&#10003; Connected</span>' : '<span style="color:#d63638;">&#10005; SN_GITHUB_TOKEN not set</span>';
+		echo '</td></tr>';
+		echo '</table>';
+
+		if ( $overrides ) {
+			echo '<details style="margin-top:0.5em;"><summary style="cursor:pointer;color:#2271b1;font-size:0.85em;">View override details</summary><ul style="margin:0.5em 0 0 1.5em;">';
+			foreach ( $overrides as $tpl ) {
+				echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';
+			}
+			echo '</ul></details>';
+		}
+
+		echo '<hr style="margin:1.5em 0;">';
+
+		// ── ACTIONS ──
+		echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Actions</h2>';
+		echo '<form method="post">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+
+		echo '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
+
+		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
+		echo '<strong style="display:block;margin-bottom:4px;">Full Reset</strong>';
+		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Clears all overrides and purges every cache. Use after theme updates.</p>';
+		echo '<button type="submit" name="sn_action" value="full_reset" class="button button-primary">Run Full Reset</button>';
+		echo '</div>';
+
+		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
+		echo '<strong style="display:block;margin-bottom:4px;">Clear Overrides</strong>';
+		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Removes template, template part, and navigation DB entries.</p>';
+		echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
+		echo '</div>';
+
+		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
+		echo '<strong style="display:block;margin-bottom:4px;">Purge Caches</strong>';
+		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">WP object cache, transients, Breeze page/minification, Varnish.</p>';
+		echo '<button type="submit" name="sn_action" value="purge_caches" class="button">Purge All Caches</button>';
+		echo '</div>';
+
+		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
+		echo '<strong style="display:block;margin-bottom:4px;">Heal Templates Now</strong>';
+		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Force re-fetch every <code>templates/*.html</code> and <code>parts/*.html</code> from GitHub <code>main</code>. Bypasses the 5-min rate limit. Use when a deploy didn&rsquo;t take effect on a route.</p>';
+		echo '<button type="submit" name="sn_action" value="heal_templates" class="button">Re-sync from GitHub</button>';
+		echo '</div>';
+
+		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:260px;">';
+		echo '<strong style="display:block;margin-bottom:4px;">Check for Updates</strong>';
+		echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Clears GitHub cache and checks for new versions now.</p>';
+		echo '<button type="submit" name="sn_action" value="check_updates" class="button">Check Now</button>';
+		echo '</div>';
+
+		echo '</div>';
+		echo '</form>';
+
+		/**
+		 * Legacy hook for backward compatibility. As of v7.0.x, modules
+		 * should target their dedicated tab hooks instead:
+		 *   - sn_admin_cloudflare_tab    (Cloudflare tab)
+		 *   - sn_admin_reading_time_tab  (Reading Time tab)
+		 * This action is kept firing on the Dashboard tab so any
+		 * third-party additions land somewhere visible during the
+		 * transition.
+		 */
+		do_action( 'sn_admin_dashboard_extras' );
+
+	// ════════════════════════════════════════
+	// TAB: CLOUDFLARE
+	// ════════════════════════════════════════
+	} elseif ( 'cloudflare' === $active_tab ) {
+
+		/** Module-owned UI: see inc/cloudflare-purge.php. */
+		do_action( 'sn_admin_cloudflare_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: PLAUSIBLE
+	// ════════════════════════════════════════
+	} elseif ( 'plausible' === $active_tab ) {
+
+		/** Module-owned UI: see inc/plausible-admin.php. */
+		do_action( 'sn_admin_plausible_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: RSS
+	// ════════════════════════════════════════
+	} elseif ( 'rss' === $active_tab ) {
+
+		/**
+		 * Module-owned UI: see mu-plugins/rss-plausible-tracker.php.
+		 *
+		 * The tracker is a Must-Use plugin (not part of the theme) so it
+		 * survives theme switches and continues collecting subscriber
+		 * metrics regardless. When the MU plugin is deployed it hooks
+		 * this action; when it isn't, the tab renders an install hint
+		 * via the fallback below.
+		 */
+		if ( has_action( 'sn_admin_rss_tab' ) ) {
+			do_action( 'sn_admin_rss_tab' );
+		} else {
+			echo '<div class="notice notice-warning inline" style="margin:0;padding:12px 16px;"><p><strong>RSS subscriber tracker not installed.</strong></p>';
+			echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
+		}
+
+	// ════════════════════════════════════════
+	// TAB: READING TIME
+	// ════════════════════════════════════════
+	} elseif ( 'reading-time' === $active_tab ) {
+
+		/** Module-owned UI: see inc/reading-time.php. */
+		do_action( 'sn_admin_reading_time_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: LINKS
+	// ════════════════════════════════════════
+	} elseif ( 'links' === $active_tab ) {
+
+		echo '<table class="form-table" style="max-width:500px;">';
+		echo '<tr><th style="width:180px;padding:8px 10px 8px 0;">GitHub Repository</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise" target="_blank" rel="noopener">juanlentino/signal-and-noise</a></td></tr>';
+		echo '<tr><th style="padding:8px 10px 8px 0;">Release History</th><td style="padding:8px 0;"><a href="https://github.com/juanlentino/signal-and-noise/releases" target="_blank" rel="noopener">All releases</a></td></tr>';
+		if ( '#' !== $github_url && ! $is_up_to_date ) {
+			echo '<tr><th style="padding:8px 10px 8px 0;">Latest Release</th><td style="padding:8px 0;"><a href="' . esc_url( $github_url ) . '" target="_blank" rel="noopener">v' . esc_html( $github_version ) . ' release notes</a></td></tr>';
+		}
+		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudflare</th><td style="padding:8px 0;"><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare Dashboard</a></td></tr>';
+		echo '<tr><th style="padding:8px 10px 8px 0;">Cloudways</th><td style="padding:8px 0;"><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways Platform</a></td></tr>';
+		echo '</table>';
+
+	}
+
+	echo '</div>'; // wrap
+}
