@@ -515,3 +515,54 @@
 		transition: none;
 	}
 }
+
+/* ─── Post-edit screen meta box (v1.10.0) ───────────────────── */
+
+/* The meta box renders inside #sn_post_settings .inside provided by
+   WP. Fields inside the meta box ignore the absolute width caps
+   from .sn-field-w-* because the surrounding panel is narrower
+   than the desktop admin page. */
+#sn_post_settings .sn-post-settings {
+	padding: 0;
+}
+
+#sn_post_settings .sn-field {
+	margin: 0 0 var(--sn-space-3);
+}
+
+#sn_post_settings .sn-field:last-child {
+	margin-bottom: 0;
+}
+
+#sn_post_settings .sn-field-label {
+	font-size: 0.85em;
+	margin-bottom: 4px;
+}
+
+/* Inline label variant — checkbox + text on one line. */
+.sn-field-label--inline {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+#sn_post_settings .sn-field input[type="text"],
+#sn_post_settings .sn-field input[type="url"],
+#sn_post_settings .sn-field textarea {
+	width: 100%;
+	max-width: 100%;
+	font-size: 0.88em;
+}
+
+#sn_post_settings .sn-field textarea {
+	min-height: 60px;
+	resize: vertical;
+}
+
+#sn_post_settings .sn-field-helper {
+	font-size: 0.78em;
+	margin-top: 4px;
+	line-height: 1.4;
+}
