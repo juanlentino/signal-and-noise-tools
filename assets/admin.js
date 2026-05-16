@@ -135,6 +135,10 @@
 			input.value = '';
 			input.placeholder = 'https://...';
 			input.className = 'sn-row-fresh';
+			// WCAG 4.1.2 — screen readers need an accessible name.
+			// Placeholder is not a label. The visible .sn-field-label above
+			// applies to the group; each row also needs its own name.
+			input.setAttribute( 'aria-label', 'Profile URL' );
 			container.insertBefore( input, btn );
 			input.focus();
 
