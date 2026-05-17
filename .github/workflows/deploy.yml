@@ -66,6 +66,11 @@ jobs:
           echo "Plugin dir: $PLUGIN_DIR"
           cd "$PLUGIN_DIR"
           echo "Before: $(git describe --tags --always)"
+          # v2.0.3 hardening: discard any working-tree state from WP-UI
+          # installs that wrote files without updating the git index.
+          # Safe because plugin dir is fully reproducible from git.
+          git reset --hard --quiet HEAD
+          git clean -fd --quiet
           git fetch --tags --quiet
           git checkout --quiet "$TAG_REF"
           echo "After:  $(git describe --tags --always)"

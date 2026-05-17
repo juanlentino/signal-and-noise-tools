@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.0.3] - 2026-05-17
+
+### Deploy workflow hardening — same plugin code as v2.0.2
+
+The v2.0.2 code (title format fix + canonical de-duplication) couldn't reliably reach the live server via the WP-UI Updates path due to the plugin's 1h GitHub-tag cache lag combined with WP-installer slowness. Manual GHA deploy via `gh workflow run` was failing too because prior WP-UI installs had written files to disk without updating the git index, leaving a dirty working tree that `git checkout` refused to overwrite.
+
+### Fixed
+
+- **`.github/workflows/deploy.yml`** — adds `git reset --hard HEAD` and `git clean -fd` before `git fetch && git checkout <tag>`. Makes the manual deploy idempotent regardless of working-tree state. Safe because the plugin directory is fully reproducible from git; "real" runtime data (uploads, cache, logs) lives outside the plugin dir.
+
+### Notes
+
+- **Plugin code is unchanged from v2.0.2.** This release exists purely to land a deploy-workflow improvement that the next manual deploy will use (GHA pulls the workflow definition from the ref being deployed, so the fix has to be tagged to be effective).
+- **PATCH within `2.0.x`.** Patch headroom: 2/7 → **3/7 on 2.0.x**.
+
 ## [2.0.2] - 2026-05-17
 
 ### Post-cutover hotfix — two duplicate emissions caught by verification
