@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.13.0] - 2026-05-16
+
+### Removed
+- **WP dashboard widgets — deploy status (`sn_deploy_status`) AND RSS subscribers (`sn_rss_tracker_widget`) — both deleted.** v1.12.0's `inc/deploy-widget.php` ripped out entirely; the RSS dashboard widget registration in `inc/rss-plausible-tracker.php` also removed. The WP dashboard is a shared surface where SN-specific info competes for attention with other plugins; it's the wrong home for our operational tooling. SN settings pages are the canonical surface.
+- **Admin bar pills** (`[T x.y.z] [P x.y.z]`) introduced in v1.12.0 — also gone with `inc/deploy-widget.php`.
+
+### Added
+- `inc/deploy-status.php` (~251 LOC) — hooks the existing `sn_admin_dashboard_extras` action to extend the **SN admin → Dashboard tab** with three read-only sections + a force-check button:
+  1. **Versions table** — theme + plugin current vs. latest GitHub tag, with status pills + repo links.
+  2. **Recent deploys** — last 5 GHA workflow runs across both repos (sorted newest-first). Status, ref, trigger, duration, relative time per row.
+  3. **External API limits** — live snapshots of GitHub / Cloudflare / Plausible rate-limit headers, with ok/low/critical pills.
+  4. **Force-check updates button** — POSTs to `admin-post.php?action=sn_force_update_check`. Handler clears all our update transients + WP's own `update_themes` / `update_plugins`, then redirects to `update-core.php?force-check=1`.
+- `inc/api-rate-monitor.php` (~217 LOC) — **Phase 15a outgoing API rate-limit monitor.** Filters `http_response` (verified WP source: fires after success, $response guaranteed array, accept_args=3) on every outgoing `wp_remote_*` call. Inspects URL host; if it matches `api.github.com`, `api.cloudflare.com`, or `plausible.io`, reads server-reported rate-limit headers (`X-RateLimit-Remaining` / `-Limit` / `-Reset`) and stores in `sn_rate_limit_<host>` site transient (5min TTL).
+  - **Throttled email warning** — when remaining drops below 10% for any tracked host, sends one `wp_mail()` to the site admin email, throttled to once-per-day-per-host via lock transient. Subject + body include host, percent, reset-time, and mitigation hints (e.g., "set `SNT_GITHUB_TOKEN`").
+  - **Public helpers** — `snt_rate_limit_status($host)` and `snt_rate_limit_all_statuses()` consumed by the deploy-status sections.
+
+### Changed
+- **RSS tab — 2-column layout** (`inc/rss-plausible-tracker.php` + `assets/admin.css`). The four sections (Activity, Settings, Recent requests, Maintenance) used to stack vertically, creating a 4-screen scroll on the RSS tab. Now:
+  - **Left column (3fr, ~60%):** Activity stats + Recent requests (read-heavy, wants horizontal room).
+  - **Right column (2fr, ~40%):** Settings form + Maintenance (config, narrower).
+  - Stacks on viewports < 1100px (`grid-template-columns: 1fr` media query). Internal `max-width` constraints on the sub-tables removed — the grid column is now the constraint.
+- Dashboard tab now extends with the new deploy-status sections below the existing Status + Actions blocks. No structural change to the existing rows; just additive via `sn_admin_dashboard_extras` (the hook was already designed for this — see legacy docblock in `inc/admin-page.php:494`).
+
+### Verified against WP source
+- `apply_filters('http_response', $response, $parsed_args, $url)` in `wp-includes/class-wp-http.php` — `$response` guaranteed array (WP_Error returns early without filtering). accept_args=3.
+- `admin-post.php` reads `$action` from `$_REQUEST`, fires `admin_post_{$action}` for logged-in users; no automatic nonce verification.
+- GitHub REST rate-limit headers documented: `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-used`, `x-ratelimit-reset` (Unix epoch). 60/h unauthenticated, 5000/h with token.
+
+### Versioning rationale
+- **MINOR bump (1.12.0 → 1.13.0).** Net new user-visible capability (the Dashboard tab sections + RSS 2-col layout + API rate monitor) plus the removal of v1.12.0's dashboard widget + admin bar pills. The removal isn't breaking per CLAUDE.md's definition (no public-API removal, no schema change, no required user action) — anyone who *used* the widget for ~24h sees it gone, but the same info is now in a better place.
+
+### Notes
+- The deploy-status sections only render when the SN admin → Dashboard tab is open. Zero overhead on regular wp-admin pages.
+- The API rate monitor runs on EVERY `http_response` filter invocation (every `wp_remote_*` request anywhere on the site, including WP core's own update polling). Cost: one `wp_parse_url()` call + one foreach over 3 host entries. Negligible.
+- Per user feedback: this is the canonical pattern for SN operational info from now on — extend the SN settings tabs, not WP-shared surfaces like the dashboard or admin bar.
+
 ## [1.12.0] - 2026-05-16
 
 ### Added

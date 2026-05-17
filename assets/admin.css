@@ -566,3 +566,30 @@
 	margin-top: 4px;
 	line-height: 1.4;
 }
+
+/* ─── RSS tab 2-column layout (v1.13.0) ─────────────────────────────────
+   60/40 split on wide screens (read-heavy on the left, config on the right);
+   stacks on narrower viewports. Reduces vertical scroll dramatically vs.
+   the original 4-section stack. */
+.sn-rss-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+	gap: 24px;
+	align-items: start;
+}
+.sn-rss-col {
+	min-width: 0; /* lets internal tables shrink instead of overflowing */
+}
+@media (max-width: 1100px) {
+	.sn-rss-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Subsection headings used inside deploy-status sections (h3 vs sn-section-h's h2). */
+.sn-subsection-h {
+	font-size: 1em;
+	font-weight: 600;
+	margin: 1.25em 0 0.5em;
+	color: #1d2327;
+}

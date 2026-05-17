@@ -322,34 +322,14 @@ function sn_rss_tracker_recent( $limit = 20 ) {
 	), ARRAY_A );
 }
 
-function sn_rss_tracker_dashboard_widget() {
-	$settings = sn_rss_tracker_settings();
-	$stats    = sn_rss_tracker_window_stats_multi( array( 30 ) );
-	$w30      = $stats['windows'][30] ?? array( 'total' => 0, 'uniques' => 0 );
-
-	echo '<p style="font-size:2rem;font-weight:600;margin:0 0 4px;line-height:1">' . esc_html( number_format_i18n( $w30['total'] ) ) . '</p>';
-	echo '<p style="margin:0 0 16px;color:#646970">feed requests · last 30 days · ' . esc_html( number_format_i18n( $w30['uniques'] ) ) . ' unique clients</p>';
-	echo '<p style="margin:0;font-size:0.85rem">';
-	echo '<a href="' . esc_url( admin_url( 'admin.php?page=sn-rss' ) ) . '">Settings &amp; activity</a>';
-	echo ' &nbsp;·&nbsp; ';
-	$dashboard_url = sn_rss_tracker_plausible_dashboard_url( $settings );
-	if ( '' !== $dashboard_url ) {
-		echo '<a href="' . esc_url( $dashboard_url ) . '" target="_blank" rel="noopener">Open in Plausible &rarr;</a>';
-	}
-	echo '</p>';
-}
-
-function sn_rss_tracker_register_widget() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	wp_add_dashboard_widget(
-		'sn_rss_tracker_widget',
-		'RSS Subscribers (30 days)',
-		'sn_rss_tracker_dashboard_widget'
-	);
-}
-add_action( 'wp_dashboard_setup', 'sn_rss_tracker_register_widget' );
+/**
+ * RSS dashboard widget removed in v1.13.0. The RSS subscriber count
+ * surface now lives exclusively on the SN admin → RSS tab. Reason:
+ * dashboard widgets clutter the WP dashboard surface where SN-specific
+ * info competes with other plugins' widgets. The SN settings pages
+ * are the canonical home for operational info.
+ * (See memory: feedback_no_dashboard_widgets.md)
+ */
 
 /**
  * Runs on admin_init so it processes POSTs before the tab's render
@@ -449,7 +429,7 @@ function sn_rss_tracker_render_flash( $flash ) {
 }
 
 function sn_rss_tracker_render_stats( $stats, $dashboard_url ) {
-	echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Activity</h2>';
+	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:0;margin-bottom:0.8em;">Activity</h2>';
 	echo '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:1.5em;">';
 	foreach ( array( 1 => '24 hours', 7 => '7 days', 30 => '30 days' ) as $days => $label ) {
 		$w = $stats['windows'][ $days ] ?? array( 'total' => 0, 'uniques' => 0 );
@@ -473,13 +453,13 @@ function sn_rss_tracker_render_stats( $stats, $dashboard_url ) {
 }
 
 function sn_rss_tracker_render_settings_form( $settings ) {
-	echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Settings</h2>';
+	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:0;margin-bottom:0.8em;">Settings</h2>';
 	// Empty action attr = POST to current URL. Page lives under themes.php
 	// (add_theme_page); easier to self-post and let admin_init route than
 	// to maintain a URL that has to match the registration site exactly.
 	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<table class="form-table" style="max-width:640px;">';
+	echo '<table class="form-table">';
 
 	echo '<tr><th scope="row"><label for="sn_rss_enabled">Tracking</label></th><td>';
 	echo '<label><input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking</label>';
@@ -515,12 +495,12 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 }
 
 function sn_rss_tracker_render_recent_table( $recent ) {
-	echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Recent requests</h2>';
+	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:1.5em;margin-bottom:0.8em;">Recent requests</h2>';
 	if ( empty( $recent ) ) {
 		echo '<p style="color:#646970;"><em>No requests logged yet.</em></p>';
 		return;
 	}
-	echo '<table class="widefat striped" style="max-width:900px;">';
+	echo '<table class="widefat striped">';
 	echo '<thead><tr><th style="width:170px;">Time (UTC)</th><th>Feed URL</th><th style="width:140px;">Client</th></tr></thead><tbody>';
 	foreach ( $recent as $row ) {
 		echo '<tr>';
@@ -533,8 +513,8 @@ function sn_rss_tracker_render_recent_table( $recent ) {
 }
 
 function sn_rss_tracker_render_maintenance_form( $settings ) {
-	echo '<h2 style="font-size:1.1em;margin-bottom:0.8em;">Maintenance</h2>';
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;max-width:520px;">';
+	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:1.5em;margin-bottom:0.8em;">Maintenance</h2>';
+	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
 	echo '<strong style="display:block;margin-bottom:4px;">Purge old log entries</strong>';
 	echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Delete rows older than the threshold below. Plausible events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
@@ -554,12 +534,23 @@ function sn_rss_tracker_render_admin_tab() {
 	$flash         = isset( $_GET['sn_rss_ok'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_rss_ok'] ) ) : '';
 
 	sn_rss_tracker_render_flash( $flash );
+
+	// v1.13.0: 2-column layout reduces vertical scroll. CSS in
+	// assets/admin.css → .sn-rss-grid (stacks on narrow screens).
+	// LEFT (60%): Activity stats + Recent requests (read-heavy)
+	// RIGHT (40%): Settings form + Maintenance (write/config-heavy)
+	echo '<div class="sn-rss-grid">';
+
+	echo '<div class="sn-rss-col sn-rss-col--main">';
 	sn_rss_tracker_render_stats( $stats, $dashboard_url );
-	echo '<hr style="margin:1.5em 0;">';
-	sn_rss_tracker_render_settings_form( $settings );
-	echo '<hr style="margin:1.5em 0;">';
 	sn_rss_tracker_render_recent_table( $recent );
-	echo '<hr style="margin:1.5em 0;">';
+	echo '</div>';
+
+	echo '<div class="sn-rss-col sn-rss-col--side">';
+	sn_rss_tracker_render_settings_form( $settings );
 	sn_rss_tracker_render_maintenance_form( $settings );
+	echo '</div>';
+
+	echo '</div>';
 }
 add_action( 'sn_admin_rss_tab', 'sn_rss_tracker_render_admin_tab' );
