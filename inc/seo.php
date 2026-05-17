@@ -174,6 +174,38 @@ add_action( 'wp_head', function() {
 }, 2 );
 
 /**
+ * Title tag format — WP-native emission via document_title_parts filter.
+ *
+ * Cooperates with WP core's _wp_render_title_tag() (active because the
+ * theme declares add_theme_support('title-tag') as of theme v8.5.5).
+ * Splits our pre-built "Page Name — Site Name" format from
+ * sn_seo_meta_for_current_view() into the title/site parts WP expects.
+ *
+ * Gated on TSF: while TSF is active, TSF emits the <title> itself and
+ * we let it. The instant TSF is deactivated, this filter takes over.
+ *
+ * Added in plugin v2.0.0 (Phase 13 TSF cutover).
+ */
+add_filter( 'document_title_parts', function( $parts ) {
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return $parts;
+	}
+
+	list( $title, , ) = sn_seo_meta_for_current_view();
+	if ( '' === $title ) {
+		return $parts;
+	}
+
+	$segments       = explode( ' — ', $title, 2 );
+	$parts['title'] = $segments[0];
+	if ( isset( $segments[1] ) ) {
+		$parts['site'] = $segments[1];
+	}
+
+	return $parts;
+}, 10, 1 );
+
+/**
  * Open Graph + Twitter card meta.
  *
  * Emitted on the front page and any singular post/page (including the
