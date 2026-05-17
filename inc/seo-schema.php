@@ -189,6 +189,105 @@ function sn_schema_webpage() {
 }
 
 /**
+ * Build the CollectionPage schema for /notes archive views.
+ * Returns null if not on a CollectionPage-appropriate view.
+ *
+ * Added in v2.0.0 (Phase 13 TSF cutover).
+ */
+function sn_schema_collection_page() {
+	if ( ! is_home() && ! is_page( 'notes' ) ) {
+		return null;
+	}
+
+	$url  = home_url( '/notes/' );
+	$name = sn_setting( 'seo_copy.notes_title', 'Notes' );
+
+	return array(
+		'@type'      => 'CollectionPage',
+		'@id'        => $url,
+		'url'        => $url,
+		'name'       => $name,
+		'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
+		'isPartOf'   => array(
+			'@id' => home_url( '/' ) . '#/schema/WebSite',
+		),
+		'breadcrumb' => array(
+			'@id' => $url . '#breadcrumb',
+		),
+	);
+}
+
+/**
+ * Build the BreadcrumbList schema for the current view.
+ * Returns null on the front page (no useful trail).
+ *
+ * Trail order: Home → (parent page chain if any) → current page.
+ * For singular posts: Home → Post Title (no post-type archive in the trail).
+ *
+ * Added in v2.0.0 (Phase 13 TSF cutover). Will be removed in a
+ * post-WP-7.0 refactor once the native Breadcrumbs block is added to
+ * templates and emits its own BreadcrumbList structured data.
+ */
+function sn_schema_breadcrumb_list() {
+	if ( is_front_page() ) {
+		return null;
+	}
+
+	$home  = home_url( '/' );
+	$items = array(
+		array(
+			'@type'    => 'ListItem',
+			'position' => 1,
+			'item'     => $home,
+			'name'     => sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ),
+		),
+	);
+
+	$position = 2;
+	$base_id  = '';
+
+	if ( is_singular() ) {
+		$post    = get_queried_object();
+		$base_id = $post ? get_permalink( $post ) : '';
+
+		if ( $post && $post->post_parent ) {
+			$ancestors = array_reverse( get_post_ancestors( $post ) );
+			foreach ( $ancestors as $ancestor_id ) {
+				$items[] = array(
+					'@type'    => 'ListItem',
+					'position' => $position++,
+					'item'     => get_permalink( $ancestor_id ),
+					'name'     => wp_strip_all_tags( get_the_title( $ancestor_id ) ),
+				);
+			}
+		}
+
+		if ( $post ) {
+			$items[] = array(
+				'@type'    => 'ListItem',
+				'position' => $position,
+				'name'     => wp_strip_all_tags( get_the_title( $post ) ),
+			);
+		}
+	} elseif ( is_home() || is_page( 'notes' ) ) {
+		$base_id = home_url( '/notes/' );
+		$items[] = array(
+			'@type'    => 'ListItem',
+			'position' => $position,
+			'name'     => sn_setting( 'seo_copy.notes_title', 'Notes' ),
+		);
+	} else {
+		return null;
+	}
+
+	return array(
+		'@type'           => 'BreadcrumbList',
+		'@id'             => $base_id . '#breadcrumb',
+		'itemListElement' => $items,
+	);
+}
+
+/**
  * Emit the @graph JSON-LD script in <head>.
  *
  * Single script tag carries all schemas as a connected graph
