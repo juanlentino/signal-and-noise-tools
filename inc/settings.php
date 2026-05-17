@@ -105,10 +105,23 @@ function sn_setting( $path, $default = null ) {
 function sn_settings_save( $raw ) {
 	$sanitized = array();
 
+	// knows_about — textarea, one topic per line. Trim each, drop empties.
+	$knows_about_raw   = (string) ( $raw['identity_knows_about'] ?? '' );
+	$knows_about_lines = preg_split( '/\r\n|\r|\n/', $knows_about_raw );
+	$knows_about_clean = array();
+	foreach ( $knows_about_lines as $line ) {
+		$clean = sanitize_text_field( trim( (string) $line ) );
+		if ( '' !== $clean ) {
+			$knows_about_clean[] = $clean;
+		}
+	}
+
 	$sanitized['identity'] = array(
 		'site_name'        => sanitize_text_field( (string) ( $raw['identity_site_name'] ?? '' ) ),
 		'site_description' => sanitize_text_field( (string) ( $raw['identity_site_description'] ?? '' ) ),
 		'person_name'      => sanitize_text_field( (string) ( $raw['identity_person_name'] ?? '' ) ),
+		'job_title'        => sanitize_text_field( (string) ( $raw['identity_job_title'] ?? '' ) ),
+		'knows_about'      => $knows_about_clean,
 		'locale'           => sanitize_text_field( (string) ( $raw['identity_locale'] ?? 'en_US' ) ),
 	);
 

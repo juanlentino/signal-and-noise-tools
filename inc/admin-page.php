@@ -573,6 +573,22 @@ function sn_theme_options_page() {
 		echo '<input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '">';
 		echo '</div>';
 
+		echo '<div class="sn-field sn-field-w-md">';
+		echo '<label class="sn-field-label" for="sn_identity_job_title">Job title</label>';
+		echo '<input type="text" id="sn_identity_job_title" name="identity_job_title" value="' . esc_attr( sn_setting( 'identity.job_title', 'Music Producer' ) ) . '" placeholder="Music Producer">';
+		echo '<p class="sn-field-helper">Emitted as <code>jobTitle</code> on the Person schema. Single short phrase.</p>';
+		echo '</div>';
+
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_identity_knows_about">Knows about</label>';
+		$knows_about_value = (array) sn_setting(
+			'identity.knows_about',
+			array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' )
+		);
+		echo '<textarea id="sn_identity_knows_about" name="identity_knows_about" rows="4">' . esc_textarea( implode( "\n", $knows_about_value ) ) . '</textarea>';
+		echo '<p class="sn-field-helper">One topic per line. Emitted as the <code>knowsAbout</code> array on the Person schema — domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.</p>';
+		echo '</div>';
+
 		echo '<div class="sn-field sn-field-w-xs">';
 		echo '<label class="sn-field-label" for="sn_identity_locale">Locale</label>';
 		echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" placeholder="en_US">';
