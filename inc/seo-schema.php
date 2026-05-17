@@ -310,6 +310,27 @@ add_action( 'wp_head', function() {
 		$graph[] = $article;
 	}
 
+	// v2.0.0 (Phase 13 TSF cutover): when TSF is inactive, also emit
+	// WebPage/CollectionPage and BreadcrumbList. These replace TSF's
+	// equivalent schema emission. Gate keeps them dormant while TSF
+	// is active to avoid duplicate JSON-LD entries on rollback.
+	if ( ! function_exists( 'the_seo_framework' ) ) {
+		$webpage = sn_schema_webpage();
+		if ( $webpage ) {
+			$graph[] = $webpage;
+		}
+
+		$collection = sn_schema_collection_page();
+		if ( $collection ) {
+			$graph[] = $collection;
+		}
+
+		$breadcrumb = sn_schema_breadcrumb_list();
+		if ( $breadcrumb ) {
+			$graph[] = $breadcrumb;
+		}
+	}
+
 	$payload = array(
 		'@context' => 'https://schema.org',
 		'@graph'   => $graph,
