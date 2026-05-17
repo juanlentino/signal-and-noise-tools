@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.15.0] - 2026-05-16
+
+### Added — WordPress/desktop-mode integration
+
+Makes Signal & Noise a first-class participant in the [`WordPress/desktop-mode`](https://github.com/WordPress/desktop-mode) plugin when installed + active. Adds dock visibility, desktop icons, command-palette access, and a live deploy-status widget. **Every integration is `function_exists()`-gated** — the plugin behaves identically when desktop-mode is inactive or uninstalled.
+
+### Three surfaces
+
+1. **Dock + desktop icons** (always-on visibility when desktop-mode is active):
+   - Dock item "Signal & Noise" (`dashicons-shield-alt`) with a submenu of all 8 SN settings tabs.
+   - Badge count on the dock item = number of "update available" packages (theme + plugin). 0 = no badge per desktop-mode convention.
+   - Desktop icons for Dashboard + Identity (the two most-frequent surfaces).
+2. **Command palette (Cmd+K)** — 13 commands across 3 categories:
+   - **Maintenance (4):** `SN: Force-check updates`, `SN: Purge all caches`, `SN: Clear template overrides`, `SN: Full reset`. All fire REST endpoints (no page navigation) and dispatch `wp.desktop.notify()` toasts on response. Full reset has a confirm() guard.
+   - **Navigation (7):** `SN: Open Dashboard / Identity / Login / Cloudflare / Plausible / RSS / Reading Time`. Each sets `window.location.href` to the matching SN admin page.
+   - **Info (2):** `SN: Theme version`, `SN: Plugin version`. Reads from `wp_localize_script`'ed data and dispatches a toast like `Theme: v8.5.3 (up to date)`.
+3. **Desktop widget** `SN Deploy Status` — compact floating card showing theme + plugin version pills + last deploy time + "Open Dashboard →" link. Auto-refreshes every 60s. Click target opens the SN Dashboard.
+
+### REST endpoints — `signal-noise/v1/cmd/*`
+
+Single dispatcher handler in `inc/desktop-mode-integration.php`:
+
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/cmd/force-check` | POST | Clear `sn_gh_latest_theme`, `sn_gh_latest_plugin`, `update_themes`, `update_plugins` transients |
+| `/cmd/purge-caches` | POST | Fire `sn_purge_all_caches_result` filter (excludes template overrides per existing convention) |
+| `/cmd/clear-overrides` | POST | Fire `sn_clear_template_overrides_result` filter |
+| `/cmd/full-reset` | POST | Clear overrides + purge caches in one shot |
+| `/cmd/status` | GET | Read-only: theme + plugin status struct + last deploy time (powers the widget) |
+
+All endpoints `permission_callback` = `current_user_can('manage_options')`. WP REST API handles `_wpnonce` automatically when JS uses `wp.apiFetch` (which our scripts do via the `wp-api-fetch` script dependency).
+
+Response shape: `{ ok: bool, message?: string, data?: object }`. Errors via standard `WP_Error` for the WP REST framework to handle.
+
+### Files added
+
+- `inc/desktop-mode-integration.php` (~230 LOC) — dock filter + icon + command + widget registrations + REST endpoints + script registrations + localized data.
+- `assets/desktop-mode.js` (~130 LOC) — IIFE that calls `wp.desktop.registerCommand({ slug, run })` for each of the 13 commands. Maintenance commands use `wp.apiFetch`; nav uses `window.location`; info reads from `window.snDesktopData`. Defensive fallbacks: if `wp.desktop.notify` is unavailable, falls back to `wp.data.dispatch('core/notices')`; if `wp.apiFetch` is unavailable, error toast.
+- `assets/desktop-mode-widget.js` (~140 LOC) — IIFE that calls `wp.desktop.registerWidget({ id, render })`. Built entirely via `createElement` + `textContent` (zero `innerHTML` — eliminates the string-concat XSS risk class). Auto-clears `setInterval` when the container detaches from the DOM (defensive against shell-side disposal without a teardown hook).
+
+### Files changed
+
+- `signal-and-noise-tools.php` — `Version: 1.15.0` + `SNT_VERSION` constant + `require_once 'inc/desktop-mode-integration.php'`.
+
+### Verified against desktop-mode docs
+
+- `docs/api-index.md` — function signatures for all 4 registrars verified.
+- `docs/getting-started.md` — dock-item filter array shape (slug, title, icon, url, badge, submenu) verified.
+- `docs/plugin-compat-layer.md` — chromeless iframe + `?desktop_mode_chromeless=1` parameter noted; our existing admin CSS uses no hardcoded admin-bar offsets, so we render correctly in chromeless mode out of the box (no Tier 3 targeted override needed).
+
+### Versioning
+
+**MINOR bump (1.14.0 → 1.15.0)** — new user-visible capability. Continues plugin's over-cap pattern (minor 15/5, per documented user preference). Theme is unaffected.
+
+### Notes
+
+- **No native window (`desktop_mode_register_window`)** — iframe-loading of our existing SN admin pages works fine; native window would duplicate the rendering logic for marginal UX gain. Reserved for a future phase if there's specific value (e.g., a multi-tab inspection window).
+- **No custom wallpaper** — brand-on-admin pushback from v1.13.0/v1.14.0 redesign applies even on desktop-mode's customizable surfaces. The plugin contributes utility, not aesthetic.
+- **No AI provider / AI tool registration** — that's Phase 12 work (depends on WP 7.0 + the AI Client landing on 2026-05-20).
+- **Test plan after deploy:** load wp-admin with desktop-mode active → dock should show "Signal & Noise" with shield icon → Cmd+K should surface 13 `SN:` commands → place SN Deploy Status widget on desktop → check live data appears + refreshes every 60s. If anything breaks, iterate in v1.15.1.
+
 ## [1.14.0] - 2026-05-16
 
 ### Changed — admin UI redesign across all 8 tabs (user-requested cleanup)
