@@ -23,7 +23,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SNT_GH_RUNS_CACHE_KEY_PREFIX = 'sn_gh_recent_runs_';
-const SNT_GH_RUNS_CACHE_TTL        = MINUTE_IN_SECONDS; // 60s — widget polls per pageview, transient absorbs.
+// v1.15.2: bumped 60s → 5min after hitting 53/60 GitHub API rate limit on
+// the unauthenticated 60/h tier. ETag-based conditional requests (added in
+// v1.15.2 as the real fix) make the practical TTL essentially infinite for
+// the no-new-deploys case — a 304 response refreshes the cache without
+// consuming quota. The 5min floor is just for the "data DID change, but
+// we don't need to know that fast" case. Define SNT_GITHUB_TOKEN in
+// wp-config.php to raise the bucket 60/h → 5000/h if poll cadence ever
+// needs to be more aggressive.
+const SNT_GH_RUNS_CACHE_TTL        = 5 * MINUTE_IN_SECONDS;
 const SNT_GH_RUNS_FAIL_TTL         = 5 * MINUTE_IN_SECONDS;
 
 /**
@@ -55,8 +63,25 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 
 	$cache_key = SNT_GH_RUNS_CACHE_KEY_PREFIX . sanitize_key( str_replace( '/', '-', $repo ) );
 	$cached    = get_site_transient( $cache_key );
-	if ( $cached !== false ) {
-		return is_array( $cached ) ? $cached : array();
+
+	// v1.15.2: cache shape upgraded to { data, etag, fetched_at } to
+	// support ETag conditional requests. Pre-v1.15.2 cached values are
+	// flat arrays of records — handle both shapes during the transition.
+	$cached_data = null;
+	$cached_etag = '';
+	if ( is_array( $cached ) ) {
+		if ( isset( $cached['data'] ) && is_array( $cached['data'] ) && array_key_exists( 'etag', $cached ) ) {
+			$cached_data = $cached['data'];
+			$cached_etag = (string) $cached['etag'];
+		} else {
+			// Legacy v1.12-v1.15.1 flat shape — treat as data, no ETag.
+			$cached_data = $cached;
+		}
+	}
+
+	// Live cache hit before TTL expiry — return immediately, no request.
+	if ( $cached_data !== null && $cached !== false ) {
+		return $cached_data;
 	}
 
 	$url     = sprintf(
@@ -71,19 +96,44 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 	if ( defined( 'SNT_GITHUB_TOKEN' ) && SNT_GITHUB_TOKEN ) {
 		$headers['Authorization'] = 'Bearer ' . SNT_GITHUB_TOKEN;
 	}
+	// v1.15.2: send If-None-Match if we have an ETag from a previous
+	// successful fetch. A 304 response doesn't count against rate limit.
+	if ( '' !== $cached_etag ) {
+		$headers['If-None-Match'] = $cached_etag;
+	}
 
 	$response = wp_remote_get( $url, array(
 		'timeout' => 8,
 		'headers' => $headers,
 	) );
 
-	if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-		set_site_transient( $cache_key, array(), SNT_GH_RUNS_FAIL_TTL );
+	if ( is_wp_error( $response ) ) {
+		set_site_transient( $cache_key, array( 'data' => array(), 'etag' => '', 'fetched_at' => time() ), SNT_GH_RUNS_FAIL_TTL );
+		return array();
+	}
+
+	$code = wp_remote_retrieve_response_code( $response );
+
+	// v1.15.2: 304 Not Modified — data unchanged. Refresh cache TTL so
+	// we don't re-poll until the next natural expiry, but don't count
+	// this request against the quota check below (it's already free).
+	if ( $code === 304 && $cached_data !== null ) {
+		set_site_transient( $cache_key, array(
+			'data'       => $cached_data,
+			'etag'       => $cached_etag,
+			'fetched_at' => time(),
+		), SNT_GH_RUNS_CACHE_TTL );
+		return $cached_data;
+	}
+
+	if ( $code !== 200 ) {
+		set_site_transient( $cache_key, array( 'data' => array(), 'etag' => '', 'fetched_at' => time() ), SNT_GH_RUNS_FAIL_TTL );
 		return array();
 	}
 
 	$body = json_decode( wp_remote_retrieve_body( $response ), true );
 	$runs = isset( $body['workflow_runs'] ) && is_array( $body['workflow_runs'] ) ? $body['workflow_runs'] : array();
+	$etag = (string) wp_remote_retrieve_header( $response, 'etag' );
 
 	$records = array();
 	foreach ( $runs as $run ) {
@@ -110,7 +160,11 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 		$records[] = $record;
 	}
 
-	set_site_transient( $cache_key, $records, SNT_GH_RUNS_CACHE_TTL );
+	set_site_transient( $cache_key, array(
+		'data'       => $records,
+		'etag'       => $etag,
+		'fetched_at' => time(),
+	), SNT_GH_RUNS_CACHE_TTL );
 	return $records;
 }
 

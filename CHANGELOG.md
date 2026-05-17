@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.15.2] - 2026-05-17
+
+### Fixed
+- **GitHub API rate-limit pressure.** Live site hit 53/60 on the unauthenticated 60/h tier. Root causes traced to:
+  1. GHA runs cache TTL of 60s × 2 repos = 120 req/h theoretical max when the SN Dashboard tab is open.
+  2. Force-check action cleared ALL caches including the runs cache — every click cost 4 fresh requests instead of 2 (the user is asking "is there a new version?", which is the tag-poll question, not the deploy-history question).
+  3. No ETag conditional requests — every cache miss spent a full quota slot even when GitHub had nothing new to return.
+
+### Three-layer fix
+1. **GHA runs cache TTL bumped 60s → 5min** in `inc/github-actions-api.php`. Practical impact alone: ~5× reduction.
+2. **Force-check handler (`inc/admin-tab-dashboard.php`) no longer clears the GHA runs cache.** Only clears the version-comparison caches (`sn_gh_latest_*`, `update_themes`, `update_plugins`). The runs cache stays warm — natural 5min TTL handles freshness. The REST `/cmd/force-check` endpoint already didn't clear runs (v1.15.0 separation), so this brings parity.
+3. **ETag/If-None-Match conditional requests in `snt_gh_recent_runs()`.** Cache shape upgraded from flat array to `{ data, etag, fetched_at }` (with backward-compat for the pre-v1.15.2 flat shape). On every fetch, the cached ETag is sent as `If-None-Match`. A 304 response refreshes the cache TTL without consuming quota — **the real fix**.
+
+### Expected steady-state usage after deploy
+- 1 GHA runs request per repo per 5min, returning 304 most of the time (free) → effective quota burn: **~2 requests/hour when no deploys, ~6/hour during active deploy iteration**. Down from the 50+/hour pattern that triggered this fix.
+- Theme + plugin tag polls unchanged at 1 req/hr each = 2/hr. (Adding ETags here is a future PATCH; the polls are too infrequent to matter — <2% of total usage.)
+
+### Escape hatch (no code change needed)
+- Define `SNT_GITHUB_TOKEN` in `wp-config.php` to raise the rate-limit bucket from 60/h (unauthenticated) to 5000/h (authenticated). Constant is already supported by `inc/github-actions-api.php` — sends `Authorization: Bearer …` header on every outgoing request. Define it once, never worry about quota again.
+
+### Backward compat
+- The cache shape change in `snt_gh_recent_runs()` handles both new `{ data, etag, fetched_at }` and pre-v1.15.2 flat-array values during the transition. No site-side flush required.
+
+### Why this PATCH and not the broader ETag rollout
+- Theme + plugin tag polls (`sn_gh_latest_theme_tag`, `sn_gh_latest_plugin_tag`) also could use ETags, but they run at 1/hr cache TTL — they account for ~2/60 = 3% of the quota under any realistic usage. Not worth the parallel rewrite this turn. Reserve as a future PATCH if anyone ever notices.
+
+### Notes
+- PATCH bump (1.15.1 → 1.15.2). Bugfix + perf optimization; no functional behavior change. Force-check still does what users expect (clears version comparison caches + redirects to `wp-admin/update-core.php?force-check=1` for the belt-and-braces WP-side refresh).
+
 ## [1.15.1] - 2026-05-17
 
 ### Fixed

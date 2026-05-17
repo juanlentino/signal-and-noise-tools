@@ -372,11 +372,15 @@ add_action( 'admin_post_sn_force_update_check', function() {
 	}
 	check_admin_referer( 'sn_force_update_check', 'sn_force_update_check_nonce' );
 
+	// v1.15.2: only clear the "is there a new version?" caches. The GHA
+	// runs cache (deploy history) is a separate concern — clearing it
+	// would force a 60/h GitHub API request without answering the
+	// question the user actually asked (force-check is about updates,
+	// not deploy timeline). ETag-based conditional requests in
+	// snt_gh_recent_runs() handle the runs cache freshness automatically
+	// without quota cost.
 	delete_site_transient( 'sn_gh_latest_theme' );
 	delete_site_transient( 'sn_gh_latest_plugin' );
-	foreach ( array_values( SNT_DEPLOY_REPOS ) as $repo ) {
-		delete_site_transient( 'sn_gh_recent_runs_' . sanitize_key( str_replace( '/', '-', $repo ) ) );
-	}
 	delete_site_transient( 'update_themes' );
 	delete_site_transient( 'update_plugins' );
 
