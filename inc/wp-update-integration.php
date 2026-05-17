@@ -214,6 +214,18 @@ add_action( 'admin_init', function() {
 		// re-fetches fresh data (covers the case where WP cached our
 		// pre-update version as "latest").
 		delete_site_transient( 'update_plugins' );
+		// v1.15.1: also clear the parsed-plugins-headers cache so the
+		// Plugins screen renders the current plugin header (Name,
+		// Description, Author) instead of cached pre-update values.
+		// Required because our SSH-checkout deploy path doesn't trigger
+		// WP's installer (which would call wp_clean_plugins_cache
+		// automatically). Bug surfaced when "Signal & Noise Tools"
+		// displayed as the literal text "Signal &amp; Noise Tools" in
+		// the plugins list (header was already plain `&`, but the cache
+		// retained an old double-escaped value across SSH deploys).
+		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+			wp_clean_plugins_cache();
+		}
 		update_option( SN_GH_PLUGIN_LAST_SEEN_OPT, $current );
 	}
 } );

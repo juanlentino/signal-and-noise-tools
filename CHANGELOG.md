@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.15.1] - 2026-05-17
+
+### Fixed
+- **"Signal & Noise Tools" displayed as the literal text "Signal &amp; Noise Tools" in the WordPress Plugins list** (and any other surface that renders the plugin name — desktop-mode dock submenu, update notifications, etc.). Root cause: `wp_cache_get('plugins', ...)` retained a stale double-escaped value across our SSH-checkout deploy path. The plugin header in `signal-and-noise-tools.php` was always plain `&` — but the parsed-plugin-headers cache survives across deploys that don't go through WP's installer, and the cached value was double-encoded from a much earlier release that had `&amp;` in the header.
+- **`inc/wp-update-integration.php` `admin_init` version-change handler** now also calls `wp_clean_plugins_cache()` on every detected version change. Mirrors the existing pattern for `sn_gh_latest_plugin` + `update_plugins` transient invalidation; same admin_init pageview, no new overhead. Self-heals the plugin-headers cache on the next admin pageview after any version bump — including SSH-checkout deploys.
+
+### Why this matters
+- Plugin name renders correctly in:
+  - wp-admin → Plugins (the canonical list)
+  - wp-admin → Updates (when a plugin update is available)
+  - Desktop-mode dock (the v1.15.0 integration's submenu we just shipped)
+  - Any third-party plugin that lists installed plugins by name
+- Without the watchdog, every future SSH-checkout deploy that bumps the plugin version would leave the header cache stale until manual deactivation/reactivation. Now it self-heals on the next admin pageview.
+
+### Companion fix
+- Theme **v8.5.4** ships the matching fix for the theme-side cache (`wp_clean_themes_cache()` added to the theme's equivalent admin_init handler), plus the actual `Theme Name: Signal &amp; Noise` → `Theme Name: Signal & Noise` header fix in `style.css` that was the original root-cause bug on the theme side.
+
+### Notes
+- **PATCH bump within `1.15.x`.** Bugfix; no functional behavior change.
+- Bug surfaced visibly when the v1.15.0 desktop-mode integration shipped — the new dock submenu rendered the entity-escaped plugin name, making the cache staleness visible. Existing wp-admin Plugins list had the same issue all along; nobody noticed because the rest of the screen is busy enough that a single `&amp;` doesn't catch the eye.
+
 ## [1.15.0] - 2026-05-16
 
 ### Added — WordPress/desktop-mode integration
