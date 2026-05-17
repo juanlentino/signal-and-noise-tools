@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.12.0] - 2026-05-16
+
+### Added
+- **Phase 9 — Deploy status surfaces.** Closes the loop on the entire WP-update plumbing built across v1.10.x + v1.11.x: every piece of work now has a single readable place in wp-admin.
+- `inc/deploy-widget.php` (~336 LOC) — registers the **"Signal & Noise · Deploy status" dashboard widget** (visible at wp-admin/index.php on login). Three sections:
+  1. **Versions table** — theme + plugin current `Version:` vs. latest GitHub tag, each with a status pill (`up to date` / `vX.Y.Z available` / `unknown`) and a repo link.
+  2. **Recent deploys** — last 5 GHA workflow runs merged across both repos, sorted newest-first. Each row: status icon (✓/✗/⊘/•), repo (theme/plugin), ref, trigger (push/workflow_dispatch), duration, relative time.
+  3. **Force-check button** — POSTs to `admin-post.php?action=sn_force_update_check`. Handler clears `sn_gh_latest_theme`, `sn_gh_latest_plugin`, both `sn_gh_recent_runs_*` transients, AND WP's own `update_themes` / `update_plugins` transients, then redirects to `update-core.php?force-check=1` for belt-and-braces refresh.
+- **Admin bar pills** (also in `inc/deploy-widget.php`) — two compact `[T 8.5.3] [P 1.12.0]` pills on the top-secondary (right) side of the admin bar. Visible on every wp-admin page AND on the front-end when admin bar is shown. Background color tracks state: green=ok, amber=update available, red=unknown. Hover title shows the full version comparison. Click links to the dashboard widget anchor.
+- `inc/github-actions-api.php` (~141 LOC) — thin `wp_remote_get` wrapper for the workflow-scoped GHA Actions runs endpoint:
+  - `snt_gh_recent_runs($repo, $count = 5)` — returns normalized run records from `/repos/<repo>/actions/workflows/deploy.yml/runs`. Cached 60s in `sn_gh_recent_runs_<repo>` site transient; 5min empty-sentinel on failure.
+  - `snt_gh_recent_runs_merged(array $repos, $count = 5)` — merges + sorts by `created_at` DESC across multiple repos.
+  - Honors `SNT_GITHUB_TOKEN` constant for authenticated requests (60/h → 5000/h rate limit). Define in `wp-config.php` to enable.
+  - Run records pass through `apply_filters('sn_deploy_widget_run_record', $record, $raw)` for future enrichment (Phase 16+ AI summaries).
+
+### Verified against WP source (per CLAUDE.md framework-source-first rule)
+- `wp_add_dashboard_widget()` in `wp-admin/includes/dashboard.php` — confirmed 7-arg signature, callback receives `($post, $callback_args)` where `$post` is empty on dashboard. No auto capability check → render callback self-gates on `manage_options`.
+- `admin-post.php` — confirmed `$action` read from `$_REQUEST` (POST+GET), fires `admin_post_{$action}` hook for logged-in users, no automatic nonce verification → handler does `check_admin_referer()` itself.
+- `WP_Admin_Bar::add_node()` in `wp-includes/class-wp-admin-bar.php` — confirmed `parent => 'top-secondary'` for right-side placement (not action priority). Meta keys verified: `html, class, rel, lang, dir, onclick, target, title, tabindex, menu_title`.
+
+### Architecture notes
+- **Zero new contract hooks** — uses only documented WP primitives + reads existing `sn_gh_latest_*_tag()` cache from `inc/wp-update-integration.php`. WP-REFERENCE §10.0 surface unchanged.
+- **Compatibility rules met** (per absorption roadmap): pure functions (`snt_deploy_status_for($pkg)`, `snt_gh_recent_runs($repo)`); filterable values (`sn_deploy_widget_run_record`); data-model first (transients), UI second.
+- **CSS reuses existing `.sn-pill--ok/warn/err` classes** from `assets/admin.css`. Admin bar gets a minimal style override since `#wpadminbar` flattens backgrounds — printed via `admin_print_styles` + `wp_print_styles` actions to cover both admin pages and front-end bar appearances.
+
+### Notes
+- **MINOR bump** — new user-visible capability (the widget + admin bar surface). Plugin minor count 11 → 12; continues over-cap pattern per documented user preference (memory: `feedback_versioning_patch_cap.md`).
+- Widget uses `human_time_diff(strtotime($iso), time())` for relative times — UTC-based, no timezone surprises.
+- Force-check handler doesn't return early on no-change — it always clears transients + redirects, so even a "no new version" state benefits from the refreshed cache.
+
 ## [1.11.2] - 2026-05-16
 
 ### Added
