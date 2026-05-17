@@ -91,6 +91,28 @@ function sn_seo_meta_for_current_view() {
 }
 
 /**
+ * Remove WP core's rel_canonical to avoid emitting two canonical tags.
+ *
+ * WP core's wp-includes/link-template.php registers rel_canonical()
+ * on wp_head at priority 10. It fires on singular views (which
+ * includes static front pages). Until Phase 13, TSF was the suppressor;
+ * now that TSF is gone, our seo.php canonical at priority 1 would
+ * race-emit alongside WP core's at priority 10, producing two
+ * <link rel="canonical"> tags per page (caught in v2.0.1 cutover
+ * verification).
+ *
+ * Gated on TSF — keeps the removal scoped to "when SN owns canonical
+ * emission" so accidental TSF reactivation doesn't double-remove.
+ *
+ * Added in v2.0.2.
+ */
+add_action( 'init', function() {
+	if ( ! function_exists( 'the_seo_framework' ) ) {
+		remove_action( 'wp_head', 'rel_canonical' );
+	}
+}, 1 );
+
+/**
  * SEO: Canonical URL.
  *
  * Emits <link rel="canonical"> on the front page, /notes, /provenance,
@@ -196,13 +218,13 @@ add_filter( 'document_title_parts', function( $parts ) {
 		return $parts;
 	}
 
-	$segments       = explode( ' — ', $title, 2 );
-	$parts['title'] = $segments[0];
-	if ( isset( $segments[1] ) ) {
-		$parts['site'] = $segments[1];
-	}
-
-	return $parts;
+	// Our title from sn_seo_meta_for_current_view() is already in
+	// "Page Name — Site Name" final format. WP joins all non-empty
+	// $parts (title + site + tagline + page) with a separator, so we
+	// must REPLACE the whole array — not just add to it — otherwise
+	// WP appends the site tagline (= bloginfo('description')) and the
+	// rendered <title> becomes "X — Y — Z" with three segments.
+	return array( 'title' => $title );
 }, 10, 1 );
 
 /**

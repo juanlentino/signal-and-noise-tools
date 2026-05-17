@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.0.2] - 2026-05-17
+
+### Post-cutover hotfix — two duplicate emissions caught by verification
+
+The full TSF cutover (TSF deactivated + deleted) surfaced two regressions that didn't appear while TSF was still suppressing things. Both fixed in this patch.
+
+### Fixed
+
+1. **`<title>` now emits the brand format cleanly — no tagline append.**
+   In v2.0.0, the `document_title_parts` filter set `$parts['title']` and `$parts['site']` but didn't clear `$parts['tagline']` (which WP populates from `get_bloginfo('description')`). Result post-cutover: `<title>Juan Lentino – Site Name – Site Tagline</title>` — three segments instead of two. WP joins every non-empty key in `$parts` with the separator, so the only correct fix is to **replace the whole array** rather than augment it. Filter now returns `array( 'title' => $title )` — one segment, fully pre-built, exactly the format TSF was emitting before.
+
+2. **No more duplicate `<link rel="canonical">` tags.**
+   [WP core's `rel_canonical()`](https://github.com/WordPress/WordPress/blob/master/wp-includes/link-template.php) is registered on `wp_head` at priority 10 and fires on singular views (which includes static front pages). Until Phase 13, TSF was suppressing it. With TSF gone, our seo.php canonical (priority 1) and WP core's (priority 10) were both firing, producing two canonical tags per page. Fix adds `remove_action( 'wp_head', 'rel_canonical' )` on `init`, gated on `! function_exists( 'the_seo_framework' )` so accidental TSF reactivation doesn't double-suppress.
+
+### Why the gates matter
+
+Both fixes are gated on TSF being absent. This preserves the rollback property of the v2.0.0 cutover: if TSF is ever reactivated, our gates flip back, WP core's `rel_canonical` re-registers, and the legacy TSF suppression resumes. No code revert needed.
+
+### Notes
+
+- **PATCH within `2.0.x`.** Bug fixes to v2.0.0/v2.0.1 cutover. Patch headroom: 1/7 → **2/7 on 2.0.x**.
+- Caught by the 10-check verification script from the [cutover spec](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-17-tsf-cutover-design.md#verification-checklist). Without that systematic verification both regressions would have shipped silently.
+
 ## [2.0.1] - 2026-05-17
 
 ### Comprehensive QA pass — three fixes bundled
