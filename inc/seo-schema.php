@@ -44,11 +44,21 @@ function sn_schema_person() {
 	$name    = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
 
 	return array(
-		'@type'  => 'Person',
-		'@id'    => $home . '#/schema/Person',
-		'name'   => $name,
-		'url'    => $home,
-		'sameAs' => array_values( $same_as ),
+		'@type'      => 'Person',
+		'@id'        => $home . '#/schema/Person',
+		'name'       => $name,
+		'url'        => $home,
+		'sameAs'     => array_values( $same_as ),
+		'jobTitle'   => sn_setting( 'identity.job_title', 'Music Producer' ),
+		'knowsAbout' => (array) sn_setting(
+			'identity.knows_about',
+			array(
+				'Music Production',
+				'Audio Engineering',
+				'Provenance',
+				'Music Industry',
+			)
+		),
 	);
 }
 
