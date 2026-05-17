@@ -168,7 +168,12 @@ function snt_dashboard_tab_render() {
 		snt_dashboard_render_api_summary();
 	}
 
-	// ── 5. DIAGNOSTICS ── only when there's anything to show
+	// ── 5. RSS ACTIVITY ── single-line summary + link to RSS tab
+	if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
+		snt_dashboard_render_rss_summary();
+	}
+
+	// ── 6. DIAGNOSTICS ── only when there's anything to show
 	if ( ! empty( $overrides ) ) {
 		echo '<h2 class="sn-section-h">Diagnostics</h2>';
 		echo '<details class="sn-override-details" open>';
@@ -354,6 +359,51 @@ function snt_dashboard_render_api_summary() {
 	echo implode( ' ' . $sep . ' ', $items );
 	echo ' ' . $sep . ' ';
 	echo '<a class="button-link" href="' . esc_url( $refresh_url ) . '">' . esc_html__( 'Refresh now', 'signal-noise-tools' ) . '</a>';
+	echo '</p>';
+}
+
+/**
+ * RSS activity summary — single line, content-driven (not arithmetic).
+ *
+ * Mirrors the External APIs summary pattern: most-recent timestamp +
+ * three rolling windows (24h/7d/30d) showing total requests + unique
+ * subscribers. Click-through to the RSS tab for deeper data.
+ *
+ * Re-added in v2.0.1 (RSS activity was on the dashboard in v1.13.0 then
+ * dropped in v1.14.0's redesign for being "arithmetic, not content-
+ * driven." This treatment fixes that critique — it's the same scannable
+ * single-line shape as External APIs, with a clear next-action link).
+ */
+function snt_dashboard_render_rss_summary() {
+	$stats = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
+	$sep   = '<span class="sn-api-summary__sep" aria-hidden="true">&middot;</span>';
+
+	$last_request = '';
+	if ( ! empty( $stats['most_recent'] ) ) {
+		$t = strtotime( $stats['most_recent'] );
+		if ( $t ) {
+			$last_request = human_time_diff( $t, time() ) . ' ago';
+		}
+	}
+
+	$windows = $stats['windows'] ?? array();
+	$w24h    = $windows[1]  ?? array( 'total' => 0, 'uniques' => 0 );
+	$w7d     = $windows[7]  ?? array( 'total' => 0, 'uniques' => 0 );
+	$w30d    = $windows[30] ?? array( 'total' => 0, 'uniques' => 0 );
+
+	$rss_url = admin_url( 'admin.php?page=sn-rss' );
+
+	echo '<h2 class="sn-section-h">RSS feed activity</h2>';
+	echo '<p class="sn-api-summary">';
+	echo '<span class="sn-api-summary__item">Last request: <em>' . esc_html( $last_request ?: 'none yet' ) . '</em></span>';
+	echo ' ' . $sep . ' ';
+	echo '<span class="sn-api-summary__item">24h: <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['uniques'] ) ) . '</span> uniq</span>';
+	echo ' ' . $sep . ' ';
+	echo '<span class="sn-api-summary__item">7d: <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['uniques'] ) ) . '</span> uniq</span>';
+	echo ' ' . $sep . ' ';
+	echo '<span class="sn-api-summary__item">30d: <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['uniques'] ) ) . '</span> uniq</span>';
+	echo ' ' . $sep . ' ';
+	echo '<a class="button-link" href="' . esc_url( $rss_url ) . '">' . esc_html__( 'Open RSS tab', 'signal-noise-tools' ) . '</a>';
 	echo '</p>';
 }
 
