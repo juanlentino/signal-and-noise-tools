@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.11.1] - 2026-05-16
+
+### Fixed
+- **WP UI update cache was too sticky.** Symptom: after pushing v1.10.2 and v1.11.0, neither showed up in `wp-admin → Dashboard → Updates`. Cause: the GitHub Tags API result was cached in a site transient for 12 hours, AND clicking "Check Again" in the WP UI didn't force a refresh because the code didn't honor WP's `WP_FORCE_UPDATE_CHECK` constant. The cache was set when WP last polled (right around when v1.10.1 deployed) and any tags pushed after that stayed invisible until cache expiry.
+- **Three fixes** in `inc/wp-update-integration.php`:
+  1. `sn_gh_latest_plugin_tag()` gains an optional `$force_refresh` parameter that bypasses the cache.
+  2. The `pre_set_site_transient_update_plugins` filter callback detects WP's force-check signals (`WP_FORCE_UPDATE_CHECK` constant OR `?force-check=1` query arg) and passes through to the new parameter. Clicking "Check Again" now actually re-fetches from GitHub.
+  3. New `admin_init` hook stores the on-disk plugin version in an option (`sn_last_seen_plugin_version`). On every admin pageview, if the on-disk version differs from the stored last-seen, the GitHub-tag transient AND WP's own `update_plugins` transient are cleared. This handles the upgrade-just-happened case automatically — whether the upgrade came via WP UI install or manual `workflow_dispatch` deploy.
+- **Cache TTL reduced from 12 hours → 1 hour.** 12h was too long for "I just pushed a tag, where's my update?" Even with force-check working, the autonomous background poll cadence matters. 1h is responsive enough that pushed tags surface naturally within minutes-to-an-hour without any explicit user action.
+
+### Notes
+- **PATCH bump within `1.11.x`.** Bugfix in the update-detection path; no functional change to the actual plugin features.
+- **First WP-UI-flow installs (v1.10.2, v1.11.0) were lost in the cache window.** Their changes are still in the bundle (v1.11.1 supersedes both — it includes the v1.10.2 per-post canonical/noarchive/noimageindex fields AND the v1.11.0 sitemap filter). No regression; just compressed into one release.
+- **Bootstrap path:** v1.11.1 deploys via one final manual `workflow_dispatch`. From then on, the WP UI install flow works correctly for all future tags — the `admin_init` cache-clear means even the next upgrade after this one will surface cleanly.
+
 ## [1.11.0] - 2026-05-16
 
 ### Added

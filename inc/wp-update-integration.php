@@ -30,22 +30,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_GH_PLUGIN_OWNER     = 'juanlentino';
-const SN_GH_PLUGIN_REPO      = 'signal-and-noise-tools';
-const SN_GH_PLUGIN_CACHE_KEY = 'sn_gh_latest_plugin';
-const SN_GH_PLUGIN_CACHE_TTL = 12 * HOUR_IN_SECONDS;
-const SN_GH_PLUGIN_BASENAME  = 'signal-and-noise-tools/signal-and-noise-tools.php';
-const SN_GH_PLUGIN_SLUG      = 'signal-and-noise-tools';
+const SN_GH_PLUGIN_OWNER          = 'juanlentino';
+const SN_GH_PLUGIN_REPO           = 'signal-and-noise-tools';
+const SN_GH_PLUGIN_CACHE_KEY      = 'sn_gh_latest_plugin';
+const SN_GH_PLUGIN_CACHE_TTL      = HOUR_IN_SECONDS; // v1.11.1: 12h → 1h
+const SN_GH_PLUGIN_BASENAME       = 'signal-and-noise-tools/signal-and-noise-tools.php';
+const SN_GH_PLUGIN_SLUG           = 'signal-and-noise-tools';
+const SN_GH_PLUGIN_LAST_SEEN_OPT  = 'sn_last_seen_plugin_version';
 
 /**
  * Fetch the highest semver-formatted tag from GitHub. Returns the tag
  * string (e.g. "v1.4.0") on success, null on error / no matching tags.
  * Cached for SN_GH_PLUGIN_CACHE_TTL; empty sentinel cached 1h on failure.
+ *
+ * @param bool $force_refresh When true, bypass the cache and re-fetch.
+ *                            Used when WP's "Check Again" button is
+ *                            clicked (WP_FORCE_UPDATE_CHECK constant
+ *                            or `?force-check=1` query arg).
  */
-function sn_gh_latest_plugin_tag() {
-	$cached = get_site_transient( SN_GH_PLUGIN_CACHE_KEY );
-	if ( $cached !== false ) {
-		return $cached === '' ? null : $cached;
+function sn_gh_latest_plugin_tag( $force_refresh = false ) {
+	if ( ! $force_refresh ) {
+		$cached = get_site_transient( SN_GH_PLUGIN_CACHE_KEY );
+		if ( $cached !== false ) {
+			return $cached === '' ? null : $cached;
+		}
 	}
 
 	$url      = 'https://api.github.com/repos/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO . '/tags?per_page=100';
@@ -100,7 +108,14 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 		$transient = new stdClass();
 	}
 
-	$latest_tag = sn_gh_latest_plugin_tag();
+	// v1.11.1: honor WP's "Check Again" button. WP sets the WP_FORCE_UPDATE_CHECK
+	// constant during the wp-admin/update-core.php?force-check=1 flow.
+	// Without this, our 12h-cached value persists even when the user
+	// explicitly asks for a fresh check.
+	$force_refresh = ( defined( 'WP_FORCE_UPDATE_CHECK' ) && WP_FORCE_UPDATE_CHECK )
+		|| ( isset( $_GET['force-check'] ) && $_GET['force-check'] );
+
+	$latest_tag = sn_gh_latest_plugin_tag( $force_refresh );
 	if ( $latest_tag === null ) {
 		return $transient;
 	}
@@ -169,3 +184,30 @@ add_filter( 'upgrader_source_selection', function( $source, $remote_source, $upg
 
 	return $desired_source;
 }, 10, 4 );
+
+/**
+ * On every admin pageview, check whether the on-disk plugin version
+ * differs from the last-seen version. If it does, clear the update
+ * transient — the cached "latest" was relative to the previous
+ * version and is now stale.
+ *
+ * Handles the upgrade-just-happened case automatically:
+ * - WP UI install completes → next admin pageview clears the cache
+ * - workflow_dispatch deploy lands → next admin pageview clears the cache
+ *
+ * Costs one get_option() call per admin pageview. Negligible.
+ *
+ * Added in v1.11.1 (2026-05-16).
+ */
+add_action( 'admin_init', function() {
+	$last_seen = (string) get_option( SN_GH_PLUGIN_LAST_SEEN_OPT, '' );
+	$current   = defined( 'SNT_VERSION' ) ? SNT_VERSION : '';
+	if ( $current && $last_seen !== $current ) {
+		delete_site_transient( SN_GH_PLUGIN_CACHE_KEY );
+		// Also clear WP's own plugin update transient so the next poll
+		// re-fetches fresh data (covers the case where WP cached our
+		// pre-update version as "latest").
+		delete_site_transient( 'update_plugins' );
+		update_option( SN_GH_PLUGIN_LAST_SEEN_OPT, $current );
+	}
+} );
