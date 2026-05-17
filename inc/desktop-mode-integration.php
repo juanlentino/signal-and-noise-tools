@@ -99,6 +99,38 @@ add_action( 'admin_enqueue_scripts', function() {
  *   slug, title, icon (dashicons-*), url, badge?, submenu? (array of items
  *   with the same shape, recursively)
  */
+/**
+ * Suppress desktop-mode's automatic dock import of our menu page.
+ *
+ * Per WordPress/desktop-mode core/payload.php, every entry registered via
+ * add_menu_page() / add_submenu_page() is auto-imported as a dock item
+ * by default. Our admin-page.php registers "Signal & Noise" as a top-
+ * level menu, so without this filter we end up with TWO dock entries:
+ *
+ *   1. Auto-imported "Signal & Noise" from add_menu_page (generic icon
+ *      because desktop-mode falls back when the menu doesn't specify a
+ *      dashicon explicitly — looks like a megaphone glyph on small
+ *      screens, which is what surfaced the bug).
+ *   2. Our explicit "Signal & Noise" with shield icon registered in the
+ *      desktop_mode_dock_items filter below (richer: 8-tab submenu +
+ *      update-available badge).
+ *
+ * Returning 'hidden' for the SN menu slug suppresses the auto-import.
+ * Our explicit entry remains. Single dock item, shield icon, full
+ * submenu.
+ *
+ * Verified against WordPress/desktop-mode includes/core/payload.php:
+ *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
+ *
+ * Added in v2.0.1 (post-v1.15.0 desktop-mode bug fix).
+ */
+add_filter( 'desktop_mode_dock_placement', function( $placement, $menu_slug ) {
+	if ( 'sn-theme-options' === $menu_slug ) {
+		return 'hidden';
+	}
+	return $placement;
+}, 10, 2 );
+
 add_filter( 'desktop_mode_dock_items', function( $items ) {
 	if ( ! is_array( $items ) ) {
 		$items = array();
