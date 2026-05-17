@@ -321,3 +321,48 @@ add_filter( 'breeze_exclude_css', function( $excluded ) {
 	$excluded[] = 'critical.css';
 	return $excluded;
 } );
+
+/**
+ * Last-Modified header + If-Modified-Since 304 handling on singulars.
+ *
+ * TSF emits Last-Modified itself when active; gate keeps us dormant
+ * until TSF deactivates. Returns 304 Not Modified when the request's
+ * If-Modified-Since timestamp is at-or-after the post's modified time
+ * — saves crawl budget for Google and friends.
+ *
+ * Hooked at template_redirect (after the query is set, before output
+ * starts) so we can still send headers + exit cleanly.
+ *
+ * Added in v2.0.0 (Phase 13 TSF cutover).
+ */
+add_action( 'template_redirect', function() {
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+
+	if ( ! is_singular() ) {
+		return;
+	}
+
+	$post = get_queried_object();
+	if ( ! $post ) {
+		return;
+	}
+
+	$modified_gmt = (int) get_post_modified_time( 'U', true, $post );
+	if ( ! $modified_gmt ) {
+		return;
+	}
+
+	$modified_http = gmdate( 'D, d M Y H:i:s', $modified_gmt ) . ' GMT';
+	header( 'Last-Modified: ' . $modified_http );
+
+	if ( ! empty( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) {
+		$client_since = strtotime( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) );
+		if ( $client_since && $client_since >= $modified_gmt ) {
+			$protocol = isset( $_SERVER['SERVER_PROTOCOL'] ) ? wp_unslash( $_SERVER['SERVER_PROTOCOL'] ) : 'HTTP/1.1';
+			header( $protocol . ' 304 Not Modified', true, 304 );
+			exit;
+		}
+	}
+}, 10 );
