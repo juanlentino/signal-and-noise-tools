@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.0.1] - 2026-05-17
+
+### Comprehensive QA pass — three fixes bundled
+
+A QA audit after the v2.0.0 deploy surfaced three issues. This patch addresses all of them in one release so the TSF cutover can proceed cleanly.
+
+### Fixed
+
+1. **Identity tab now has UI for `jobTitle` + `knowsAbout`** ([inc/admin-page.php](inc/admin-page.php), [inc/settings.php](inc/settings.php)) — v2.0.0 shipped these as new Person-schema fields with hard-coded defaults, but the spec promised "settable via existing settings layer" without delivering admin UI. Fix adds:
+   - **Job title** (text input, placeholder "Music Producer"): emitted as `jobTitle` on the Person schema.
+   - **Knows about** (textarea, one topic per line): emitted as the `knowsAbout` array. Empty lines stripped, each line `sanitize_text_field()`'d.
+
+2. **Desktop-mode dock no longer shows SN duplicated** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)) — verified against [WordPress/desktop-mode core/payload.php on trunk](https://github.com/WordPress/desktop-mode/blob/trunk/includes/core/payload.php): desktop-mode auto-imports every `add_menu_page()` entry into the dock by default. Our admin page was being auto-imported AS WELL AS our explicit `desktop_mode_dock_items` filter entry, so the dock showed two "Signal & Noise" entries (different icons because the auto-import falls back to a generic dashicon — the "megaphone" the user spotted). Fix uses the documented `desktop_mode_dock_placement` filter to return `'hidden'` for the `sn-theme-options` menu slug, keeping only our explicit entry (which has the richer 8-tab submenu + update-available badge).
+
+3. **RSS activity section restored to Dashboard tab** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)) — v1.13.0 had RSS stats on the Dashboard; v1.14.0's redesign removed them as "arithmetic, not content-driven." This re-adds the data in a content-driven shape that matches the existing External APIs single-line summary pattern: last-request timestamp + 24h/7d/30d totals + unique-subscriber counts + click-through to the RSS tab. Hidden when the rss-plausible-tracker module isn't loaded (`function_exists()` guard).
+
+### Notes
+
+- **PATCH bump within `2.0.x`.** All three are post-v2.0.0 QA corrections to surfaces that should have shipped with v2.0.0. Patch headroom: 0/7 → **1/7 on 2.0.x**.
+- No version bump for the theme (theme was clean at v8.5.5).
+- Companion to the v2.0.0 release shipped earlier this session.
+
 ## [2.0.0] - 2026-05-17
 
 ### Major release — The SEO Framework dependency dropped
