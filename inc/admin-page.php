@@ -415,7 +415,7 @@ function sn_theme_options_page() {
 		'reading-time' => 'Reading Time',
 		'links'        => 'Links',
 	);
-	echo '<nav class="nav-tab-wrapper" style="margin-bottom:1.5em;">';
+	echo '<nav class="nav-tab-wrapper sn-nav-tabs">';
 	foreach ( $tab_labels as $slug => $label ) {
 		$is_active = ( $slug === $active_tab );
 		echo '<a href="' . esc_url( $base_url . '&tab=' . $slug ) . '" class="nav-tab' . ( $is_active ? ' nav-tab-active' : '' ) . '">' . esc_html( $label ) . '</a>';
@@ -427,78 +427,18 @@ function sn_theme_options_page() {
 	// ════════════════════════════════════════
 	if ( 'dashboard' === $active_tab ) {
 
-		// ── STATUS ──
-		echo '<h2 class="sn-section-h">Status</h2>';
-		echo '<table class="form-table sn-status-table" style="max-width:560px;">';
-		// Print escaped fragments inline rather than building a pre-escaped
-		// string and echoing it. Same visual output; eliminates the future-
-		// bug class where a maintainer adds a new dynamic field to the
-		// concatenation and forgets to esc_html it. (Audit finding H2.)
-		echo '<tr><th>Installed version</th><td><code>' . esc_html( $local_version ) . '</code>';
-		if ( $local_sha ) {
-			echo ' <span class="sn-helper" style="margin:0;">at <code>' . esc_html( $local_sha ) . '</code></span>';
-		}
-		echo '</td></tr>';
-		echo '<tr><th>DB overrides</th><td>';
-		if ( count( $overrides ) > 0 ) {
-			echo '<span class="sn-pill sn-pill--warn">' . count( $overrides ) . ' — reading from database</span>';
-		} else {
-			echo '<span class="sn-pill sn-pill--ok">Clean</span>';
-		}
-		echo '</td></tr>';
-		echo '<tr><th>Self-updater</th><td>';
-		echo defined( 'SN_GITHUB_TOKEN' )
-			? '<span class="sn-pill sn-pill--ok">Connected</span>'
-			: '<span class="sn-pill sn-pill--err">SN_GITHUB_TOKEN not set</span>';
-		echo '</td></tr>';
-		echo '</table>';
-
-		if ( $overrides ) {
-			echo '<details style="margin-top:0.5em;"><summary style="cursor:pointer;color:#2271b1;font-size:0.85em;">View override details</summary><ul style="margin:0.5em 0 0 1.5em;">';
-			foreach ( $overrides as $tpl ) {
-				echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';
-			}
-			echo '</ul></details>';
-		}
-
-		echo '<hr style="margin:1.5em 0;">';
-
-		// ── ACTIONS ──
-		echo '<h2 class="sn-section-h">Actions</h2>';
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-
-		echo '<div class="sn-card-grid">';
-
-		echo '<div class="sn-card">';
-		echo '<strong>Full Reset</strong>';
-		echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-		echo '<button type="submit" name="sn_action" value="full_reset" class="button button-primary">Run Full Reset</button>';
-		echo '</div>';
-
-		echo '<div class="sn-card">';
-		echo '<strong>Clear Overrides</strong>';
-		echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
-		echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
-		echo '</div>';
-
-		echo '<div class="sn-card">';
-		echo '<strong>Purge Caches</strong>';
-		echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-		echo '<button type="submit" name="sn_action" value="purge_caches" class="button">Purge All Caches</button>';
-		echo '</div>';
-
-		echo '</div>';
-		echo '</form>';
-
 		/**
-		 * Legacy hook for backward compatibility. As of v7.0.x, modules
-		 * should target their dedicated tab hooks instead:
-		 *   - sn_admin_cloudflare_tab    (Cloudflare tab)
-		 *   - sn_admin_reading_time_tab  (Reading Time tab)
-		 * This action is kept firing on the Dashboard tab so any
-		 * third-party additions land somewhere visible during the
-		 * transition.
+		 * As of v1.14.0, the Dashboard tab is rendered entirely by
+		 * inc/admin-tab-dashboard.php via the sn_admin_dashboard_extras
+		 * hook. The legacy Status table + Override details + Actions
+		 * card grid that used to live here were absorbed into the new
+		 * file's unified composition (hero state grid + recent deploys
+		 * + maintenance cards + API summary + diagnostics).
+		 *
+		 * The hook name stays for backward compatibility with any
+		 * third-party listener (none currently registered) and matches
+		 * the module-owned tab pattern used by all other tabs
+		 * (sn_admin_cloudflare_tab, sn_admin_plausible_tab, etc.).
 		 */
 		do_action( 'sn_admin_dashboard_extras' );
 
@@ -535,7 +475,7 @@ function sn_theme_options_page() {
 		if ( has_action( 'sn_admin_rss_tab' ) ) {
 			do_action( 'sn_admin_rss_tab' );
 		} else {
-			echo '<div class="notice notice-warning inline" style="margin:0;padding:12px 16px;"><p><strong>RSS subscriber tracker not installed.</strong></p>';
+			echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
 			echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
 		}
 
@@ -552,12 +492,46 @@ function sn_theme_options_page() {
 	// ════════════════════════════════════════
 	} elseif ( 'links' === $active_tab ) {
 
-		echo '<table class="form-table sn-status-table" style="max-width:560px;">';
-		echo '<tr><th>GitHub repository</th><td><a href="https://github.com/juanlentino/signal-and-noise" target="_blank" rel="noopener">juanlentino/signal-and-noise</a> &middot; <a href="https://github.com/juanlentino/signal-and-noise-tools" target="_blank" rel="noopener">…/signal-and-noise-tools</a></td></tr>';
-		echo '<tr><th>Release history</th><td><a href="https://github.com/juanlentino/signal-and-noise/releases" target="_blank" rel="noopener">Theme</a> &middot; <a href="https://github.com/juanlentino/signal-and-noise-tools/releases" target="_blank" rel="noopener">Plugin</a></td></tr>';
-		echo '<tr><th>Cloudflare</th><td><a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare dashboard</a></td></tr>';
-		echo '<tr><th>Cloudways</th><td><a href="https://platform.cloudways.com" target="_blank" rel="noopener">Cloudways platform</a></td></tr>';
-		echo '</table>';
+		// v1.14.0: upgraded from a 4-row .form-table to a card grid that
+		// scans faster. Each card has a category label + a title + the
+		// destination host, with the whole card as the click target via
+		// an absolutely-positioned link overlay (.sn-link-card__link).
+		$link_groups = array(
+			array(
+				'label' => 'Source code',
+				'links' => array(
+					array( 'title' => 'Theme repo',  'href' => 'https://github.com/juanlentino/signal-and-noise' ),
+					array( 'title' => 'Plugin repo', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools' ),
+				),
+			),
+			array(
+				'label' => 'Releases',
+				'links' => array(
+					array( 'title' => 'Theme releases',  'href' => 'https://github.com/juanlentino/signal-and-noise/releases' ),
+					array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/releases' ),
+				),
+			),
+			array(
+				'label' => 'Infrastructure',
+				'links' => array(
+					array( 'title' => 'Cloudflare dashboard', 'href' => 'https://dash.cloudflare.com' ),
+					array( 'title' => 'Cloudways platform',   'href' => 'https://platform.cloudways.com' ),
+				),
+			),
+		);
+		echo '<div class="sn-link-grid">';
+		foreach ( $link_groups as $group ) {
+			foreach ( $group['links'] as $link ) {
+				$host = (string) wp_parse_url( $link['href'], PHP_URL_HOST );
+				echo '<div class="sn-link-card">';
+				echo '<span class="sn-link-card__label">' . esc_html( $group['label'] ) . '</span>';
+				echo '<span class="sn-link-card__title">' . esc_html( $link['title'] ) . '</span>';
+				echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' &#x2197;</span>';
+				echo '<a class="sn-link-card__link" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
+				echo '</div>';
+			}
+		}
+		echo '</div>';
 
 	// ════════════════════════════════════════
 	// TAB: IDENTITY
@@ -631,7 +605,7 @@ function sn_theme_options_page() {
 		// with JavaScript disabled.
 		echo '<button type="button" class="sn-add-row-btn" aria-label="Add another profile URL row">Add another profile URL</button>';
 		echo '<noscript>';
-		echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." style="margin-top:6px;">';
+		echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." class="sn-sameas-extra">';
 		echo '</noscript>';
 		echo '</div>'; // .sn-sameas
 		echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';

@@ -354,7 +354,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 	echo '<div class="sn-card-grid">';
 
 	// Preview card — always shown
-	echo '<div class="sn-card" style="max-width:300px;">';
+	echo '<div class="sn-card sn-card--narrow">';
 	echo '<strong>1 · Preview</strong>';
 	echo '<p class="sn-helper">Scan all posts and pages for legacy reading-time strings. Read-only.</p>';
 	echo '<a href="' . $preview_url . '" class="button">' . ( $preview ? 'Re-run preview' : 'Run preview' ) . '</a>';
@@ -362,7 +362,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 
 	// Apply card — shown when preview has run
 	if ( $preview ) {
-		echo '<form method="post" class="sn-card" style="max-width:300px;">';
+		echo '<form method="post" class="sn-card sn-card--narrow">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<strong>2 · Apply</strong>';
 		if ( 0 === $report_n ) {
@@ -393,7 +393,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		echo '<div class="sn-fieldset">';
 		echo '<h2 class="sn-fieldset-h">Matches (' . (int) $report_n . ')</h2>';
 		echo '<p class="sn-fieldset-intro">Each row shows where a legacy string lives. The Apply action above removes all of them.</p>';
-		echo '<table class="widefat striped"><thead><tr><th style="width:60px;">ID</th><th>Title</th><th>Where</th><th>Match</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th class="column-id">ID</th><th>Title</th><th>Where</th><th>Match</th></tr></thead><tbody>';
 		foreach ( $report as $post_id => $entry ) {
 			$rows = array();
 			foreach ( $entry['content'] as $m ) $rows[] = array( 'content', $m );
@@ -406,7 +406,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 				echo '<td>' . ( 0 === $i ? '<a href="' . esc_url( get_edit_post_link( $post_id ) ) . '">' . (int) $post_id . '</a>' : '' ) . '</td>';
 				echo '<td>' . ( 0 === $i ? esc_html( get_the_title( $post_id ) ) : '' ) . '</td>';
 				echo '<td><code>' . esc_html( $row[0] ) . '</code></td>';
-				echo '<td><span class="sn-pill sn-pill--err" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . esc_html( $row[1]['match'] ) . '</span><br><small style="color:var(--sn-text-muted);">' . esc_html( $row[1]['snippet'] ) . '</small></td>';
+				echo '<td><span class="sn-pill sn-pill--err sn-mono">' . esc_html( $row[1]['match'] ) . '</span><br><small class="sn-helper sn-rt-snippet">' . esc_html( $row[1]['snippet'] ) . '</small></td>';
 				echo '</tr>';
 			}
 		}

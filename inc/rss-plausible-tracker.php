@@ -429,64 +429,70 @@ function sn_rss_tracker_render_flash( $flash ) {
 }
 
 function sn_rss_tracker_render_stats( $stats, $dashboard_url ) {
-	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:0;margin-bottom:0.8em;">Activity</h2>';
-	echo '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:1.5em;">';
+	echo '<h2 class="sn-section-h">Activity</h2>';
+	echo '<div class="sn-rss-activity">';
 	foreach ( array( 1 => '24 hours', 7 => '7 days', 30 => '30 days' ) as $days => $label ) {
 		$w = $stats['windows'][ $days ] ?? array( 'total' => 0, 'uniques' => 0 );
-		echo '<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:14px 18px;min-width:160px;">';
-		echo '<p style="margin:0;color:#646970;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;">' . esc_html( $label ) . '</p>';
-		echo '<p style="font-size:1.8rem;font-weight:600;margin:4px 0 2px;line-height:1;">' . esc_html( number_format_i18n( $w['total'] ) ) . '</p>';
-		echo '<p style="margin:0;color:#646970;font-size:0.85em;">' . esc_html( number_format_i18n( $w['uniques'] ) ) . ' unique</p>';
+		echo '<div class="sn-rss-activity-card">';
+		echo '<p class="sn-rss-activity-card__label">' . esc_html( $label ) . '</p>';
+		echo '<p class="sn-rss-activity-card__value">' . esc_html( number_format_i18n( $w['total'] ) ) . '</p>';
+		echo '<p class="sn-rss-activity-card__sub">' . esc_html( number_format_i18n( $w['uniques'] ) ) . ' unique</p>';
 		echo '</div>';
 	}
 	echo '</div>';
 
 	if ( ! empty( $stats['most_recent'] ) ) {
-		echo '<p style="color:#646970;font-size:0.85em;margin:-0.5em 0 1.5em;">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC';
+		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC';
 		if ( '' !== $dashboard_url ) {
 			echo ' &middot; <a href="' . esc_url( $dashboard_url ) . '" target="_blank" rel="noopener">Open in Plausible &rarr;</a>';
 		}
 		echo '</p>';
 	} else {
-		echo '<p style="color:#646970;font-size:0.85em;margin:-0.5em 0 1.5em;"><em>No feed requests logged yet.</em></p>';
+		echo '<p class="sn-rss-meta"><em>No feed requests logged yet.</em></p>';
 	}
 }
 
 function sn_rss_tracker_render_settings_form( $settings ) {
-	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:0;margin-bottom:0.8em;">Settings</h2>';
+	echo '<h2 class="sn-section-h">Settings</h2>';
 	// Empty action attr = POST to current URL. Page lives under themes.php
 	// (add_theme_page); easier to self-post and let admin_init route than
 	// to maintain a URL that has to match the registration site exactly.
-	echo '<form method="post">';
+	echo '<form method="post" class="sn-rss-settings">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<table class="form-table">';
 
-	echo '<tr><th scope="row"><label for="sn_rss_enabled">Tracking</label></th><td>';
-	echo '<label><input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking</label>';
-	echo '<p class="description">When off, the plugin still loads but skips all DB writes and Plausible POSTs.</p>';
-	echo '</td></tr>';
+	// Stacked .sn-field rows instead of two-column .form-table — fits the
+	// narrow right column of the 2-col layout much better.
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">';
+	echo '<input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking';
+	echo '</label>';
+	echo '<p class="sn-field-helper">When off, the plugin still loads but skips all DB writes and Plausible POSTs.</p>';
+	echo '</div>';
 
-	echo '<tr><th scope="row"><label for="sn_rss_plausible_url">Plausible event endpoint</label></th><td>';
-	echo '<input type="url" id="sn_rss_plausible_url" name="plausible_url" class="regular-text" value="' . esc_attr( $settings['plausible_url'] ) . '" required>';
-	echo '<p class="description">Full URL of your Plausible CE <code>/api/event</code> endpoint.</p>';
-	echo '</td></tr>';
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_rss_plausible_url">Plausible event endpoint</label>';
+	echo '<input type="url" id="sn_rss_plausible_url" name="plausible_url" class="large-text sn-mono" value="' . esc_attr( $settings['plausible_url'] ) . '" required>';
+	echo '<p class="sn-field-helper">Full URL of your Plausible CE <code>/api/event</code> endpoint.</p>';
+	echo '</div>';
 
-	echo '<tr><th scope="row"><label for="sn_rss_plausible_domain">Plausible site domain</label></th><td>';
-	echo '<input type="text" id="sn_rss_plausible_domain" name="plausible_domain" class="regular-text" value="' . esc_attr( $settings['plausible_domain'] ) . '" required>';
-	echo '<p class="description">The <code>domain</code> field as configured in your Plausible site settings — usually the bare hostname.</p>';
-	echo '</td></tr>';
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_rss_plausible_domain">Plausible site domain</label>';
+	echo '<input type="text" id="sn_rss_plausible_domain" name="plausible_domain" class="large-text" value="' . esc_attr( $settings['plausible_domain'] ) . '" required>';
+	echo '<p class="sn-field-helper">The <code>domain</code> field as configured in your Plausible site settings — usually the bare hostname.</p>';
+	echo '</div>';
 
-	echo '<tr><th scope="row"><label for="sn_rss_event_name">Event name</label></th><td>';
-	echo '<input type="text" id="sn_rss_event_name" name="event_name" class="regular-text" value="' . esc_attr( $settings['event_name'] ) . '" required>';
-	echo '<p class="description">Custom event name sent to Plausible. Configure a matching goal in Plausible to surface it in the dashboard.</p>';
-	echo '</td></tr>';
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_rss_event_name">Event name</label>';
+	echo '<input type="text" id="sn_rss_event_name" name="event_name" class="large-text" value="' . esc_attr( $settings['event_name'] ) . '" required>';
+	echo '<p class="sn-field-helper">Custom event name sent to Plausible. Configure a matching goal in Plausible to surface it in the dashboard.</p>';
+	echo '</div>';
 
-	echo '<tr><th scope="row"><label for="sn_rss_retention">Log retention (days)</label></th><td>';
-	echo '<input type="number" id="sn_rss_retention" name="log_retention_days" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
-	echo '<p class="description">How long to keep rows in <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code>. A daily WP-Cron job prunes rows older than this threshold; the manual button below forces a prune right now.</p>';
-	echo '</td></tr>';
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_rss_retention">Log retention (days)</label>';
+	echo '<input type="number" id="sn_rss_retention" name="log_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
+	echo '<p class="sn-field-helper">How long to keep rows in <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code>. A daily WP-Cron job prunes rows older than this threshold; the manual button below forces a prune right now.</p>';
+	echo '</div>';
 
-	echo '</table>';
 	echo '<p class="submit">';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_SAVE ) . '" class="button button-primary">Save Settings</button> ';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" onclick="return confirm(\'Reset all RSS tracker settings to defaults?\');">Reset to Defaults</button>';
@@ -495,32 +501,42 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 }
 
 function sn_rss_tracker_render_recent_table( $recent ) {
-	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:1.5em;margin-bottom:0.8em;">Recent requests</h2>';
+	echo '<h2 class="sn-section-h">Recent requests</h2>';
 	if ( empty( $recent ) ) {
-		echo '<p style="color:#646970;"><em>No requests logged yet.</em></p>';
+		echo '<p class="description"><em>No requests logged yet.</em></p>';
 		return;
 	}
+	echo '<div class="sn-rss-recent">';
 	echo '<table class="widefat striped">';
-	echo '<thead><tr><th style="width:170px;">Time (UTC)</th><th>Feed URL</th><th style="width:140px;">Client</th></tr></thead><tbody>';
+	echo '<thead><tr><th class="column-primary">Time (UTC)</th><th>Feed URL</th><th>Client</th></tr></thead><tbody>';
 	foreach ( $recent as $row ) {
 		echo '<tr>';
-		echo '<td><code>' . esc_html( $row['ts'] ) . '</code></td>';
-		echo '<td><code>' . esc_html( $row['feed_url'] ) . '</code></td>';
-		echo '<td><code>' . esc_html( $row['ua_hash'] ) . '</code></td>';
+		echo '<td><code class="sn-mono">' . esc_html( $row['ts'] ) . '</code></td>';
+		echo '<td><code class="sn-mono">' . esc_html( $row['feed_url'] ) . '</code></td>';
+		echo '<td><code class="sn-mono">' . esc_html( $row['ua_hash'] ) . '</code></td>';
 		echo '</tr>';
 	}
 	echo '</tbody></table>';
+	echo '</div>';
 }
 
 function sn_rss_tracker_render_maintenance_form( $settings ) {
-	echo '<h2 class="sn-section-h" style="font-size:1.1em;margin-top:1.5em;margin-bottom:0.8em;">Maintenance</h2>';
-	echo '<form method="post" style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:16px 20px;">';
+	// Lives inside the right column, separated from Settings by a single
+	// border-top via .sn-rss-maintenance — no extra card chrome.
+	echo '<div class="sn-rss-maintenance">';
+	echo '<h2 class="sn-section-h">Maintenance</h2>';
+	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<strong style="display:block;margin-bottom:4px;">Purge old log entries</strong>';
-	echo '<p style="color:#666;font-size:0.85em;margin:0 0 12px;">Delete rows older than the threshold below. Plausible events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
-	echo '<label>Older than <input type="number" name="purge_days" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '" style="width:80px;"> days</label> ';
+	echo '<p class="sn-field-helper">Delete rows older than the threshold below. Plausible events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
+	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
+	echo '</div>';
+	echo '<p class="submit sn-submit--tight">';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" onclick="return confirm(\'Delete log entries older than the specified threshold?\');">Purge now</button>';
+	echo '</p>';
 	echo '</form>';
+	echo '</div>';
 }
 
 function sn_rss_tracker_render_admin_tab() {
@@ -535,18 +551,19 @@ function sn_rss_tracker_render_admin_tab() {
 
 	sn_rss_tracker_render_flash( $flash );
 
-	// v1.13.0: 2-column layout reduces vertical scroll. CSS in
-	// assets/admin.css → .sn-rss-grid (stacks on narrow screens).
-	// LEFT (60%): Activity stats + Recent requests (read-heavy)
-	// RIGHT (40%): Settings form + Maintenance (write/config-heavy)
-	echo '<div class="sn-rss-grid">';
-
-	echo '<div class="sn-rss-col sn-rss-col--main">';
+	// v1.14.0: Activity stats are full-width on top (3 boxes naturally
+	// form one row). Below, 2-col content-driven split via .sn-2col:
+	// wide left for the table-heavy Recent column, narrow right for
+	// the form+maintenance config column. Stacks at <960px.
 	sn_rss_tracker_render_stats( $stats, $dashboard_url );
+
+	echo '<div class="sn-2col">';
+
+	echo '<div class="sn-2col__col">';
 	sn_rss_tracker_render_recent_table( $recent );
 	echo '</div>';
 
-	echo '<div class="sn-rss-col sn-rss-col--side">';
+	echo '<div class="sn-2col__col">';
 	sn_rss_tracker_render_settings_form( $settings );
 	sn_rss_tracker_render_maintenance_form( $settings );
 	echo '</div>';

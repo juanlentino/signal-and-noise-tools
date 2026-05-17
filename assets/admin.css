@@ -567,29 +567,368 @@
 	line-height: 1.4;
 }
 
-/* ─── RSS tab 2-column layout (v1.13.0) ─────────────────────────────────
-   60/40 split on wide screens (read-heavy on the left, config on the right);
-   stacks on narrower viewports. Reduces vertical scroll dramatically vs.
-   the original 4-section stack. */
-.sn-rss-grid {
+/* ═══════════════════════════════════════════════════════════════════════
+   v1.14.0 — Admin UI unified pattern
+   ═══════════════════════════════════════════════════════════════════════
+
+   Design principles (per memory: feedback_no_brutalist_in_admin_ui.md):
+   - Clean wp-admin native — extend the WP design language, don't replace it
+   - Structural discipline > visual branding for admin surfaces
+   - Reuse existing wp-admin classes (.form-table, .button, .notice, .widefat)
+     for primitives; extend with .sn-* classes for composition patterns
+
+   v1.13.0's .sn-rss-grid renamed to generic .sn-2col (the 2-col pattern
+   isn't RSS-specific). .sn-subsection-h removed — h2 sections only, no
+   invented heading levels. */
+
+/* ─── Generic 2-column layout (formerly .sn-rss-grid) ────────────────────
+   Used by: RSS tab (Recent + Settings), potentially others.
+   Content-driven width via .sn-2col--main / .sn-2col--side modifiers
+   on the children (instead of arithmetic ratios). */
+.sn-2col {
 	display: grid;
-	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+	grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
 	gap: 24px;
 	align-items: start;
 }
-.sn-rss-col {
+.sn-2col__col {
 	min-width: 0; /* lets internal tables shrink instead of overflowing */
 }
-@media (max-width: 1100px) {
-	.sn-rss-grid {
+@media (max-width: 960px) {
+	.sn-2col {
 		grid-template-columns: 1fr;
 	}
 }
 
-/* Subsection headings used inside deploy-status sections (h3 vs sn-section-h's h2). */
-.sn-subsection-h {
-	font-size: 1em;
+/* ─── Mono font utility ──────────────────────────────────────────────────
+   System mono stack. Replaces the inline
+     style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
+   that was repeated 4+ times across Cloudflare / Plausible / Reading Time. */
+.sn-mono {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* ─── Status table width modifier ────────────────────────────────────────
+   The default sn-status-table caps at 560px (settings-form width).
+   --full unlocks it to fill its container (used inside fieldsets where
+   the fieldset itself is the width constraint). Replaces the inline
+   style="margin:0;max-width:none;" on the Plausible status-details table. */
+.sn-status-table--full {
+	margin: 0;
+	max-width: none;
+	width: 100%;
+}
+
+/* ─── Dashboard hero: 4-card state grid ──────────────────────────────────
+   Replaces the legacy 3-row Status table on the Dashboard tab.
+   Each card answers one glanceable question (theme version, plugin
+   version, deploys, health). Reflows to 2x2 on narrower screens. */
+.sn-state-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	margin: 0 0 1.5em;
+}
+@media (max-width: 1100px) {
+	.sn-state-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 600px) {
+	.sn-state-grid {
+		grid-template-columns: 1fr;
+	}
+}
+.sn-state-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 14px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-height: 96px;
+}
+.sn-state-card__label {
+	color: #646970;
+	font-size: 0.72rem;
 	font-weight: 600;
-	margin: 1.25em 0 0.5em;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	margin: 0;
+}
+.sn-state-card__value {
+	font-size: 1.4rem;
+	font-weight: 500;
 	color: #1d2327;
+	margin: 0;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+.sn-state-card__meta {
+	font-size: 0.82rem;
+	color: #646970;
+	margin: 0;
+	line-height: 1.35;
+}
+
+/* ─── Deploy list ────────────────────────────────────────────────────────
+   Replaces the 6-column table from v1.13.0. Compact rows, positional
+   readability, no header row needed at this density. */
+.sn-deploy-list {
+	list-style: none;
+	margin: 0 0 1.5em;
+	padding: 0;
+	border-top: 1px solid #e0e0e0;
+}
+.sn-deploy-row {
+	display: grid;
+	grid-template-columns: 28px 70px 1fr 70px 110px 24px;
+	gap: 12px;
+	align-items: center;
+	padding: 8px 4px;
+	border-bottom: 1px solid #e0e0e0;
+	font-size: 13px;
+}
+.sn-deploy-row__status {
+	font-size: 14px;
+	font-weight: 600;
+	text-align: center;
+}
+.sn-deploy-row__status--ok   { color: var(--sn-ok, #0a5a1a); }
+.sn-deploy-row__status--err  { color: var(--sn-err, #8b1a1a); }
+.sn-deploy-row__status--warn { color: var(--sn-warn, #6e4d00); }
+.sn-deploy-row__repo {
+	color: #646970;
+	font-size: 12px;
+}
+.sn-deploy-row__ref {
+	color: #1d2327;
+}
+.sn-deploy-row__duration,
+.sn-deploy-row__when {
+	color: #646970;
+	font-size: 12px;
+	text-align: right;
+}
+.sn-deploy-row__link {
+	text-align: right;
+	text-decoration: none;
+	color: #2271b1;
+}
+@media (max-width: 782px) {
+	.sn-deploy-row {
+		grid-template-columns: 24px 60px 1fr 90px;
+	}
+	.sn-deploy-row__duration,
+	.sn-deploy-row__link {
+		display: none;
+	}
+}
+
+/* ─── Single-line API summary ────────────────────────────────────────────
+   Replaces the over-engineered API limits table from v1.13.0. Promotes
+   to a notice-warning above the hero only if any host is critical. */
+.sn-api-summary {
+	margin: 0;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	font-size: 13px;
+	color: #1d2327;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	align-items: center;
+}
+.sn-api-summary__item {
+	white-space: nowrap;
+}
+.sn-api-summary__item--crit {
+	color: var(--sn-err, #8b1a1a);
+	font-weight: 600;
+}
+.sn-api-summary__item--warn {
+	color: var(--sn-warn, #6e4d00);
+}
+.sn-api-summary__sep {
+	color: #c3c4c7;
+}
+
+/* ─── Override details (Dashboard diagnostics) ───────────────────────────
+   Tightened from the previous inline-styled <details> block. */
+.sn-override-details {
+	margin: 0.75em 0 0;
+	font-size: 13px;
+}
+.sn-override-details summary {
+	cursor: pointer;
+	color: #2271b1;
+	font-size: 0.85em;
+	padding: 4px 0;
+}
+.sn-override-details ul {
+	margin: 8px 0 0 1.5em;
+}
+
+/* ─── Link cards (Links tab) ─────────────────────────────────────────────
+   Upgrades from the 4-row .form-table to a card grid of external links.
+   Each card has a label, the URL host, and the clickable link as the
+   whole-card target via overlay. */
+.sn-link-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin-top: 0.5em;
+}
+.sn-link-card {
+	position: relative;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 14px 16px;
+	transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.sn-link-card:hover {
+	border-color: #8c8f94;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.sn-link-card__label {
+	display: block;
+	color: #646970;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	margin-bottom: 4px;
+}
+.sn-link-card__title {
+	display: block;
+	color: #1d2327;
+	font-size: 0.95rem;
+	font-weight: 500;
+	margin-bottom: 2px;
+}
+.sn-link-card__host {
+	color: #2271b1;
+	font-size: 0.82rem;
+}
+.sn-link-card__link {
+	position: absolute;
+	inset: 0;
+	text-indent: -9999px;
+	overflow: hidden;
+	z-index: 1;
+}
+
+/* ─── RSS tab tweaks ─────────────────────────────────────────────────────
+   Activity row is full-width above; recent + settings below in .sn-2col.
+   Settings form loses .form-table chrome in favor of stacked .sn-field. */
+.sn-rss-activity {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 0 0 1em;
+}
+.sn-rss-activity-card {
+	flex: 1 1 160px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 14px 18px;
+	min-width: 160px;
+}
+.sn-rss-activity-card__label {
+	margin: 0;
+	color: #646970;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.sn-rss-activity-card__value {
+	font-size: 1.8rem;
+	font-weight: 500;
+	margin: 4px 0 2px;
+	line-height: 1;
+	color: #1d2327;
+	font-variant-numeric: tabular-nums;
+}
+.sn-rss-activity-card__sub {
+	margin: 0;
+	color: #646970;
+	font-size: 0.82rem;
+}
+.sn-rss-recent {
+	margin: 0;
+}
+.sn-rss-recent table {
+	width: 100%;
+}
+.sn-rss-settings .sn-field,
+.sn-rss-maintenance .sn-field {
+	margin-bottom: 14px;
+}
+.sn-rss-maintenance {
+	margin-top: 1em;
+	padding-top: 1em;
+	border-top: 1px solid #e0e0e0;
+}
+.sn-rss-meta {
+	color: #646970;
+	font-size: 0.85em;
+	margin: 0 0 1em;
+}
+
+/* ─── Card modifiers ─────────────────────────────────────────────────────
+   .sn-card--narrow replaces the repeated inline style="max-width:300px;"
+   on action cards (Reading Time, Cloudflare, Plausible). */
+.sn-card--narrow {
+	max-width: 320px;
+}
+
+/* Submit-row variant with no top spacing — used inside form sections
+   that already have a label above (no need for the default p.submit
+   margin-top:20px / padding-top:10px). */
+.sn-submit--tight {
+	margin-top: 0;
+	padding-top: 0;
+}
+
+/* Inline notice spacing for warnings that need vertical margin without
+   the box-shadow / extra padding of a top-of-page notice. */
+.sn-notice-spacing {
+	margin: 1em 0;
+}
+
+/* Bottom margin for the page-level nav-tab-wrapper. WP's default has
+   no bottom margin; we want breathing room before tab content. */
+.sn-nav-tabs {
+	margin-bottom: 1.5em;
+}
+
+/* RSS-tracker-missing notice — tighter padding than the default top-of-
+   page notice (this one renders INSIDE the RSS tab body). */
+.sn-rss-not-installed {
+	margin: 0;
+	padding: 12px 16px;
+}
+
+/* Identity tab "additional sameAs URL" inputs added via JS get a small
+   top spacing so they don't visually fuse to the previous input. */
+.sn-sameas-extra {
+	margin-top: 6px;
+}
+
+/* Match snippets — small muted lines under each err pill in the Matches table. */
+.sn-rt-snippet {
+	color: var(--sn-text-muted, #646970);
+	display: inline-block;
+	margin-top: 2px;
+}
+
+/* Match-table ID column — narrow numeric column. */
+.widefat .column-id {
+	width: 60px;
 }

@@ -2,6 +2,88 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.14.0] - 2026-05-16
+
+### Changed — admin UI redesign across all 8 tabs (user-requested cleanup)
+
+User feedback during v1.13.0 testing: the Dashboard tab was "sloppy" (information dense without hierarchy), the brutalist front-end aesthetic shouldn't translate to admin UI (admin should read as clean wp-admin native), and the RSS layout still needed work. This release applies that direction comprehensively across every SN admin surface.
+
+### Design discipline applied (per memories)
+- **`feedback_no_brutalist_in_admin_ui.md`** — admin UI is wp-admin native, not branded. Reuse WP's `.button`, `.notice`, `.widefat`, `.form-table`, `.regular-text`, `.large-text`, `.small-text`, `.description`, `.submit`, `.code` primitives. Extend with `.sn-*` classes only for composition patterns WP doesn't already cover.
+- **`feedback_no_dashboard_widgets.md`** — SN operational info stays in SN settings tabs, NOT WP dashboard widgets. The Plausible widgets are an exception because they surface third-party stats (not SN internal state), and Plausible widgets historically belong on the WP dashboard (Jetpack/WooCommerce convention).
+- **CLAUDE.md invariant #3** — design system classes live in `assets/admin.css`. **Zero inline styles in admin PHP after this release** (down from ~25 instances across 6 files at v1.13.0 entry).
+
+### Dashboard tab — full redesign
+- `inc/deploy-status.php` renamed → `inc/admin-tab-dashboard.php` (385 LOC). Now owns the ENTIRE Dashboard tab content via the existing `sn_admin_dashboard_extras` hook.
+- `inc/admin-page.php` Dashboard render block (~80 LOC of legacy Status table + Override details + Actions card grid) deleted; the new file's unified composition replaces it.
+- **New composition (top to bottom):**
+  1. **Site state** — 4-card hero grid (`.sn-state-grid`). Theme version, plugin version, deploys-since (with "N in last 24h"), health (with override count or "clean"). Replaces the v1.13.0 entry's existing 3-row Status table AND the new Versions table — both were duplicate sources of truth for the same data. Also eliminates the stale "Self-updater / SN_GITHUB_TOKEN" row (wrong constant name, dead concept since v8.3.0).
+  2. **Recent deploys** — clean `<ul class="sn-deploy-list">` of last 5 GHA workflow runs (status glyph + repo + ref + duration + relative time + GitHub link). Replaces the 6-column table that would have overflowed on long branch names.
+  3. **Maintenance** — 3-card action grid (Full Reset / Clear Overrides / Purge Caches) using the existing `.sn-card-grid` pattern. Force-check button DROPPED from the maintenance grid (it duplicated wp-admin/update-core.php's "Check Again" link) and moved to a tertiary `.button-link` inside the API summary.
+  4. **External APIs** — single-line `.sn-api-summary` instead of a 3-row table. Each host: label + `mono number/limit` with state coloring. Promotes to a `.notice notice-warning` ABOVE everything only if any host hits critical (<10%).
+  5. **Diagnostics** — `<details class="sn-override-details">` only renders when there ARE overrides. Hidden when clean.
+
+### RSS tab — redesign
+- **Activity stats full-width on top** (3 boxes — 24h / 7d / 30d). Cards use `.sn-rss-activity-card` (uniform width, content-driven, no inline styles).
+- **2-col layout below** via the renamed generic `.sn-2col` (was `.sn-rss-grid` in v1.13.0). LEFT column: Recent requests table. RIGHT column: Settings form + Maintenance form. Content-driven widths (`minmax(0, 1fr)` left + `minmax(280px, 360px)` right) — replaces the arbitrary 60/40 from v1.13.0.
+- **Breakpoint dropped from 1100px → 960px** so realistic admin viewports (1280-1440) keep the 2-col benefit.
+- **Settings form** converted from `.form-table` to stacked `.sn-field` rows — fits the narrow right column much better than the WP-default two-column form table.
+- **Maintenance form** lost its decorative bordered card (orphaned visual noise per design-critique). Now a borderless section with a single border-top divider (`.sn-rss-maintenance`).
+
+### Plausible widgets (WP dashboard) — polish
+- **Duplicate "Plausible not configured" copy** (line 78 + 132 — verbatim duplicate across snapshot + realtime widgets) extracted to `sn_pl_render_not_configured()`. One source of truth.
+- **Diagnostic error block** rewritten from a fully inline-styled `<div>` (re-implementing `.notice notice-error`) to a proper `.notice notice-error notice-alt inline.sn-pl-diagnostic` — uses WP's canonical notice classes per the WP handbook + `wp-admin/css/common.css` source verification.
+- All 4 inline `style="display:inline-block;..."` / `style="font-size:..."` / `style="color:#646970;"` on internal elements removed; promoted to scoped classes in the existing inline `<style>` block.
+- **WP-native styling philosophy** preserved (already noted in the file's docblock: "no theme fonts, WP palette only").
+
+### Other tabs — inline-style sweep + polish
+- **Cloudflare tab:** 4 inline `style="font-family:ui-monospace,..."` on credential inputs → new `.sn-mono` utility class.
+- **Plausible tab:** 2 inline mono fonts → `.sn-mono`. Inline `style="margin:0;max-width:none"` on status table → new `.sn-status-table--full` modifier.
+- **Reading Time tab:** `style="max-width:300px"` on 2 action cards → `.sn-card--narrow` modifier (generalized — also used by Cloudflare + Plausible action cards now). Inline mono font on match-table pill → `.sn-mono`. Inline `style="color:var(--sn-text-muted)"` on snippet text → `.sn-rt-snippet` class. Inline `style="width:60px"` on ID column → `.widefat .column-id` class.
+- **Links tab:** upgraded from a 4-row `.form-table` of links to a `.sn-link-grid` of cards. Each card has a category label (Source code / Releases / Infrastructure) + a title + the destination host, with the whole card as the click target via `.sn-link-card__link` overlay.
+- **Identity tab:** zero inline styles — kept the `.sn-fieldset` pattern (it's already the reference standard) + the small "additional sameAs URL" margin promoted to `.sn-sameas-extra`.
+- **Login tab:** zero changes — already well-structured (`.sn-status-box`, `.sn-fieldset`, `.sn-callout`).
+- **`inc/admin-page.php`:** nav-tab margin promoted to `.sn-nav-tabs`. RSS-tracker-missing notice padding promoted to `.sn-rss-not-installed`.
+
+### New CSS classes (assets/admin.css)
+- `.sn-mono` — system mono font stack (eliminates 4+ duplicate inline declarations).
+- `.sn-state-grid`, `.sn-state-card`, `.sn-state-card__{label,value,meta}` — Dashboard hero.
+- `.sn-deploy-list`, `.sn-deploy-row`, `.sn-deploy-row__*` — clean deploy list (responsive: collapses to 4 columns on <782px).
+- `.sn-api-summary`, `.sn-api-summary__item`, `.sn-api-summary__sep` — single-line API summary.
+- `.sn-2col`, `.sn-2col__col` — generic 2-column layout (renamed from RSS-specific `.sn-rss-grid`).
+- `.sn-rss-activity`, `.sn-rss-activity-card`, `.sn-rss-activity-card__*` — Activity stats row.
+- `.sn-rss-recent`, `.sn-rss-settings`, `.sn-rss-maintenance`, `.sn-rss-meta` — RSS section wrappers.
+- `.sn-link-grid`, `.sn-link-card`, `.sn-link-card__*` — Links tab cards.
+- `.sn-card--narrow` — narrow action card modifier (replaces 4 inline `max-width:300px`).
+- `.sn-submit--tight` — no-top-spacing submit row modifier.
+- `.sn-notice-spacing` — inline notice vertical margin.
+- `.sn-nav-tabs` — nav-tab-wrapper bottom margin.
+- `.sn-rss-not-installed` — fallback notice for missing RSS tracker.
+- `.sn-sameas-extra` — additional sameAs URL input margin (Identity tab).
+- `.sn-status-table--full` — width-unlocked status table inside a fieldset.
+- `.sn-override-details` — Dashboard diagnostics collapsible.
+- `.sn-rt-snippet` — Reading Time match snippet.
+- `.widefat .column-id` — narrow ID column for any widefat table.
+- `.sn-pl-config-snippet`, `.sn-pl-diagnostic`, `.sn-pl-diagnostic-msg` — Plausible widget polish.
+
+### Removed
+- `inc/deploy-status.php` — renamed to `inc/admin-tab-dashboard.php`.
+- `.sn-rss-grid`, `.sn-rss-col`, `.sn-rss-col--main`, `.sn-rss-col--side`, `.sn-subsection-h`, `.sn-rt-action-card` — all renamed/generalized into `.sn-2col` / `.sn-card--narrow`.
+- ~80 LOC of Dashboard render block from `inc/admin-page.php` (absorbed into new tab file).
+
+### Verified against WP handbook + source (per CLAUDE.md framework-source-first rule)
+- WP Plugin Handbook: settings page structure (`.wrap` + `<h1>` + `<form>`), `.description` for helper text.
+- `wp-admin/css/common.css`: `.notice` (left border + white bg), `.notice-{success,error,warning,info}` (color variants), `.notice-alt` (no box-shadow), `.notice .inline` (no margin), `.button`, `.button-primary`, `.button-secondary`, `.button-link`, `.nav-tab-wrapper`, `.nav-tab`, `.nav-tab-active`, `.postbox`, `.dashicons`, `.screen-reader-text`.
+- `wp-admin/css/forms.css`: `.form-table` (2-col label+input layout), `.regular-text` (25em), `.large-text` (99%), `.small-text` (50px), `.tiny-text` (35px), `.code`, `.submit`, `p.submit`.
+- WordPress CSS coding standards: hyphenated selectors, lowercase, no camelCase/underscores.
+- WP `apply_filters('http_response', ...)` signature (already verified for the rate monitor in v1.13.0).
+- `wp_add_dashboard_widget()` 7-arg signature (already verified in v1.12.0; the Plausible widgets continue to use it correctly).
+
+### Notes
+- **MINOR bump (1.13.0 → 1.14.0).** Pure visual + structural refactor — zero behavior change. Same functions, same data, same hooks, same forms POSTing to the same handlers. Just better composition + WP-native classes + zero inline styles. Plugin minor count 13 → 14 (continues over-cap pattern per documented preference).
+- The companion theme repo will receive an equivalent audit pass next (user request).
+- Inline styles remaining in `inc/content-rendering-helpers.php` and `inc/seed-content/*.html` are FSE Gutenberg block markup for FRONT-END post content — they're how block themes serialize layouts and intentionally left as-is.
+
 ## [1.13.0] - 2026-05-16
 
 ### Removed

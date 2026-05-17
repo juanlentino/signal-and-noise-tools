@@ -96,7 +96,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 	// ── STATUS DETAILS FIELDSET ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Status details</h2>';
-	echo '<table class="form-table sn-status-table" style="margin:0;max-width:none;"><tbody>';
+	echo '<table class="form-table sn-status-table sn-status-table--full"><tbody>';
 	echo '<tr><th>Domain</th><td>' . ( '' !== $plugin_domain ? '<code>' . esc_html( $plugin_domain ) . '</code>' : '<em>not set in Plausible plugin</em>' ) . '</td></tr>';
 	echo '<tr><th>Token source</th><td>' . wp_kses_post( $source_label ) . '</td></tr>';
 	echo '<tr><th>Last call</th><td>';
@@ -127,7 +127,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 		echo '<p class="sn-fieldset-intro">A Plausible Stats API Key with <code>stats:read</code> scope on the configured site.</p>';
 		echo '<div class="sn-field sn-field-w-lg">';
 		echo '<label class="sn-field-label">Token</label>';
-		echo '<input type="text" value="••••" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" value="••••" disabled class="sn-mono">';
 		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_PLAUSIBLE_STATS_TOKEN</code> in <code>wp-config.php</code>. Remove the constant to edit here.</p>';
 		echo '</div>';
 	} else {
@@ -135,7 +135,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 		$token_obscured = '' === $option_token ? '' : '••••' . esc_attr( substr( $option_token, -4 ) );
 		echo '<div class="sn-field sn-field-w-lg">';
 		echo '<label class="sn-field-label" for="sn_pl_token">Token</label>';
-		echo '<input type="text" id="sn_pl_token" name="sn_pl_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh key to update; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" id="sn_pl_token" name="sn_pl_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh key to update; type ‘clear’ to remove" class="sn-mono">';
 		echo '<p class="sn-field-helper">A Plausible Stats API Key with <code>stats:read</code> scope. Leave the obscured value alone to keep the existing token; type <code>clear</code> to remove.</p>';
 		echo '</div>';
 
@@ -150,7 +150,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 	// ── ACTION CARDS (Test + Embedded) ──
 	echo '<div class="sn-card-grid">';
 
-	echo '<form method="post" class="sn-card" style="max-width:300px;">';
+	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<strong>Test Connection</strong>';
 	echo '<p class="sn-helper">Fires a synchronous 7-day aggregate call and reports the outcome above.</p>';
@@ -158,7 +158,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 	echo '</form>';
 
 	if ( '' !== $plugin_domain ) {
-		echo '<div class="sn-card" style="max-width:300px;">';
+		echo '<div class="sn-card sn-card--narrow">';
 		echo '<strong>Embedded Stats</strong>';
 		echo '<p class="sn-helper">Open the Plausible plugin&rsquo;s in-admin dashboard.</p>';
 		echo '<a href="' . esc_url( admin_url( 'index.php?page=plausible_analytics_statistics' ) ) . '" class="button">Open dashboard</a>';

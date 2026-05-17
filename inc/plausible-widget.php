@@ -63,8 +63,22 @@ function sn_pl_styles() {
 	.sn-pl-foot{margin:12px 0 0;font-size:0.85em;color:#646970;}
 	.sn-pl-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
 	.sn-pl-err{color:#d63638;font-size:0.9em;margin:0;}
+	.sn-pl-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+	.sn-pl-diagnostic{margin-top:12px;}
+	.sn-pl-diagnostic code{word-break:break-all;}
+	.sn-pl-diagnostic-msg{color:#646970;font-size:0.85em;}
 	</style>
 	<?php
+}
+
+/**
+ * Shared "Plausible not configured" copy. Renders inside the widget body
+ * with a single line + a code snippet showing the wp-config line to add.
+ * Extracted in v1.14.0 (was duplicated across snapshot + realtime widgets).
+ */
+function sn_pl_render_not_configured() {
+	echo '<p class="sn-pl-err">Plausible not configured. Set domain in <em>Settings → Plausible Analytics</em>, then create a Stats API key (<em>Plausible → Settings → API Keys</em>) and add to <code>wp-config.php</code>:</p>';
+	echo '<pre class="sn-pl-config-snippet">define( \'SN_PLAUSIBLE_STATS_TOKEN\', \'plnt_…\' );</pre>';
 }
 
 /**
@@ -75,7 +89,7 @@ function sn_pl_preamble() {
 	sn_pl_styles();
 	$data = sn_plausible_dashboard_data();
 	if ( ! $data ) {
-		echo '<p class="sn-pl-err">Plausible not configured. Set domain in <em>Settings → Plausible Analytics</em>, then create a Stats API key (<em>Plausible → Settings → API Keys</em>) and add to <code>wp-config.php</code>:<br><code style="display:inline-block;margin-top:4px;font-size:0.95em;">define( \'SN_PLAUSIBLE_STATS_TOKEN\', \'plnt_…\' );</code></p>';
+		sn_pl_render_not_configured();
 		return null;
 	}
 	return $data;
@@ -117,19 +131,20 @@ function sn_pl_render_diagnostic() {
 		return;
 	}
 	$code_label = $err['code'] > 0 ? ( 'HTTP ' . (int) $err['code'] ) : 'Network error';
-	echo '<div style="margin-top:12px;padding:8px 10px;background:#fcf0f1;border-left:3px solid #d63638;font-size:0.8em;line-height:1.5;color:#1d2327;">';
-	echo '<strong>API call failed.</strong> ' . esc_html( $code_label ) . ' from <code style="font-size:0.95em;word-break:break-all;">' . esc_html( $err['url'] ) . '</code>';
+	// WP-native notice (alt + inline = no box-shadow, no margin, fits inside the widget body).
+	echo '<div class="notice notice-error notice-alt inline sn-pl-diagnostic">';
+	echo '<p><strong>API call failed.</strong> ' . esc_html( $code_label ) . ' from <code>' . esc_html( $err['url'] ) . '</code>';
 	if ( ! empty( $err['message'] ) ) {
-		echo '<br><span style="color:#646970;">' . esc_html( $err['message'] ) . '</span>';
+		echo '<br><span class="sn-pl-diagnostic-msg">' . esc_html( $err['message'] ) . '</span>';
 	}
-	echo '</div>';
+	echo '</p></div>';
 }
 
 function sn_pl_widget_realtime() {
 	sn_pl_styles();
 	$cfg = sn_plausible_config();
 	if ( ! $cfg ) {
-		echo '<p class="sn-pl-err">Plausible not configured. Set domain in <em>Settings → Plausible Analytics</em>, then create a Stats API key (<em>Plausible → Settings → API Keys</em>) and add to <code>wp-config.php</code>:<br><code style="display:inline-block;margin-top:4px;font-size:0.95em;">define( \'SN_PLAUSIBLE_STATS_TOKEN\', \'plnt_…\' );</code></p>';
+		sn_pl_render_not_configured();
 		return;
 	}
 	$n = sn_plausible_realtime();

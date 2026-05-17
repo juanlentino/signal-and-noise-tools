@@ -276,10 +276,10 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	echo '<div class="sn-field sn-field-w-lg">';
 	echo '<label class="sn-field-label" for="sn_cf_token">API token</label>';
 	if ( $token_const_set ) {
-		echo '<input type="text" id="sn_cf_token" value="' . esc_attr( $token_obscured ? $token_obscured : '••••' ) . '" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" id="sn_cf_token" value="' . esc_attr( $token_obscured ? $token_obscured : '••••' ) . '" disabled class="sn-mono">';
 		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_API_TOKEN</code> in <code>wp-config.php</code>.</p>';
 	} else {
-		echo '<input type="text" id="sn_cf_token" name="sn_cf_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh token to update; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" id="sn_cf_token" name="sn_cf_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh token to update; type ‘clear’ to remove" class="sn-mono">';
 		echo '<p class="sn-field-helper">Cloudflare API token with <code>Cache Purge</code> permission scoped to your zone. Leave the obscured value alone to keep the existing token.</p>';
 	}
 	echo '</div>';
@@ -288,10 +288,10 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_cf_zone">Zone ID</label>';
 	if ( $zone_const_set ) {
-		echo '<input type="text" id="sn_cf_zone" value="' . esc_attr( $zone ) . '" disabled style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" id="sn_cf_zone" value="' . esc_attr( $zone ) . '" disabled class="sn-mono">';
 		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_ZONE_ID</code> in <code>wp-config.php</code>.</p>';
 	} else {
-		echo '<input type="text" id="sn_cf_zone" name="sn_cf_zone" value="' . esc_attr( $zone ) . '" placeholder="Paste zone ID; type ‘clear’ to remove" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">';
+		echo '<input type="text" id="sn_cf_zone" name="sn_cf_zone" value="' . esc_attr( $zone ) . '" placeholder="Paste zone ID; type ‘clear’ to remove" class="sn-mono">';
 		echo '<p class="sn-field-helper">32-char zone ID from Cloudflare dashboard → site overview → API.</p>';
 	}
 	echo '</div>';
@@ -307,7 +307,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 
 	// ── MANUAL PURGE ACTION CARD ──
 	echo '<div class="sn-card-grid">';
-	echo '<form method="post" class="sn-card" style="max-width:300px;">';
+	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<strong>Purge Everything Now</strong>';
 	echo '<p class="sn-helper">Clears the entire Cloudflare zone cache. Use after manual edits to global elements.</p>';
