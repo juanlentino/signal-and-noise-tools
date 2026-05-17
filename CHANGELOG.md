@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.0.0] - 2026-05-17
+
+### Major release — The SEO Framework dependency dropped
+
+Phase 13 of the plugin absorption roadmap. The SEO Framework (`autodescription`) is no longer required for this site's SEO emission. All meta tags, JSON-LD structured data, sitemap routing, and `<title>` emission now come from this plugin (plus WP core's title-tag support via the companion theme release v8.5.5).
+
+### Added — Six new gated emitters
+
+All NEW emissions are gated on `function_exists('the_seo_framework')` — they stay dormant while TSF is active and activate the instant TSF is deactivated. Existing v1.6.0–v1.8.0 emissions (canonical, robots, description, OG, Twitter) stay unconditional.
+
+1. **`document_title_parts` filter in [inc/seo.php](inc/seo.php)** — emits the page `<title>` via WP-native `_wp_render_title_tag()` (theme v8.5.5 declares `add_theme_support('title-tag')`). Format matches what TSF was emitting: `Page Name — Site Name`. Pulls from existing `sn_seo_meta_for_current_view()` so per-route titles (front page, /notes, /provenance) still come from settings copy.
+2. **`sn_schema_webpage()` in [inc/seo-schema.php](inc/seo-schema.php)** — WebPage schema for every singular (Page or Post). Includes `breadcrumb` reference + `isPartOf` WebSite reference.
+3. **`sn_schema_collection_page()`** — CollectionPage schema for /notes and home archive views.
+4. **`sn_schema_breadcrumb_list()`** — manual breadcrumb trail until WP 7.0 native Breadcrumbs block lands in templates (then this becomes a small refactor in a follow-up release).
+5. **`inc/sitemap-redirect.php`** — 301 redirect from TSF's legacy routes (`/sitemap.xml`, `/sitemap_index.xml`, `/sitemap.xsl`) to WP core's `/wp-sitemap.xml`. Preserves Google Search Console crawl continuity.
+6. **Last-Modified header + If-Modified-Since 304 in [inc/seo.php](inc/seo.php)** — singular content gets `Last-Modified` header set to post's modified GMT. Honors `If-Modified-Since` request header by returning `304 Not Modified` when post is unchanged. Improves crawl budget efficiency. (TSF emits Last-Modified itself when active; gate keeps ours dormant until cutover.)
+
+### Added — Music-specific Person schema fields
+
+`sn_schema_person()` now includes:
+- `jobTitle` — defaults to `"Music Producer"`; settable via `sn_setting('identity.job_title')`.
+- `knowsAbout` — defaults to `["Music Production", "Audio Engineering", "Provenance", "Music Industry"]`; settable via `sn_setting('identity.knows_about')`.
+
+Both fields exist because this plugin uses richer domain context for the Person entity than TSF's generic schema generator can. A future v2.1.0+ may add a settings UI surface for these fields; for now they're settings-array-only.
+
+### Why MAJOR (breaking change)
+
+Per [CLAUDE.md](https://github.com/juanlentino/signal-and-noise/blob/main/CLAUDE.md) versioning rules: "removed/renamed public API, settings schema change without a migration, or a behavioural shift that requires user action." This release requires a user wp-admin action (TSF deactivation) to take full effect. The plugin's effective contract changes from "we cover SEO gaps TSF doesn't" to "we are the SEO surface." Resets minor count to 0 for v2.x.
+
+### Cutover sequence (executed in this session)
+
+1. Theme v8.5.5 deployed (declares `add_theme_support('title-tag')`).
+2. This release (v2.0.0) deployed — new code live but gated dormant.
+3. User deactivates TSF in wp-admin → Plugins.
+4. Gates flip; new emissions activate; TSF stops emitting anything.
+5. Verification via the runnable script in [the design spec](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-17-tsf-cutover-design.md#verification-checklist).
+6. After 24-48h with no regressions: TSF plugin deleted from wp-admin.
+
+### Rollback
+
+Reactivate TSF in wp-admin (one click). All new emissions flip back to dormant automatically (gates re-fire). No code revert needed for rollback.
+
+### Notes
+
+- **Existing OG/Twitter suppression** (the `the_seo_framework_meta_generator_pools` filter from v1.4.1) stays in place permanently as defense-in-depth.
+- **No data migration needed.** Plugin already reads from its own `_sn_*` post meta keys; no TSF data to import.
+- Companion: theme v8.5.5 (PATCH) shipped in the same session.
+
 ## [1.16.0] - 2026-05-17
 
 ### Added — Phase 12 scaffolding: AI-assisted meta description generation
