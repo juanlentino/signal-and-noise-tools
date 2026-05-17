@@ -149,6 +149,46 @@ function sn_schema_article() {
 }
 
 /**
+ * Build the WebPage schema for the current singular view.
+ * Returns null if not on a singular (caller should use CollectionPage or skip).
+ *
+ * Added in v2.0.0 (Phase 13 TSF cutover).
+ */
+function sn_schema_webpage() {
+	if ( ! is_singular() ) {
+		return null;
+	}
+	$post = get_queried_object();
+	if ( ! $post ) {
+		return null;
+	}
+
+	$permalink   = get_permalink( $post );
+	$name        = wp_strip_all_tags( get_the_title( $post ) );
+	$description = sn_schema_article_description( $post );
+
+	$webpage = array(
+		'@type'      => 'WebPage',
+		'@id'        => $permalink,
+		'url'        => $permalink,
+		'name'       => $name,
+		'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
+		'isPartOf'   => array(
+			'@id' => home_url( '/' ) . '#/schema/WebSite',
+		),
+		'breadcrumb' => array(
+			'@id' => $permalink . '#breadcrumb',
+		),
+	);
+
+	if ( '' !== $description ) {
+		$webpage['description'] = $description;
+	}
+
+	return $webpage;
+}
+
+/**
  * Emit the @graph JSON-LD script in <head>.
  *
  * Single script tag carries all schemas as a connected graph
