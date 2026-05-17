@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, Plausible integration, security headers, Cloudflare purge, admin UI, RSS Plausible tracker. Self-updater migrates in Phase 2.
- * Version:     1.15.2
+ * Version:     1.16.0
  * Requires at least: 6.4
  * Requires PHP: 8.0
  * Author:      Juan Lentino
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SNT_VERSION', '1.15.2' );
+define( 'SNT_VERSION', '1.16.0' );
 define( 'SNT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SNT_URL', plugin_dir_url( __FILE__ ) );
 
@@ -127,6 +127,8 @@ require_once __DIR__ . '/inc/github-actions-api.php';
 require_once __DIR__ . '/inc/api-rate-monitor.php';
 require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';
+require_once __DIR__ . '/inc/ai-bootstrap.php';
+require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/post-settings.php';

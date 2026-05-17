@@ -2,6 +2,71 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.16.0] - 2026-05-17
+
+### Added — Phase 12 scaffolding: AI-assisted meta description generation
+
+Pre-stages the AI features arc for WordPress 7.0 (ships 2026-05-20, 3 days from this release). Everything in this release is **dormant on WP 6.x** — gated behind `wp_has_ai_client()` which returns `false` until either WP 7.0 is installed OR the `wp-ai-client` plugin is active on 6.x. The instant either condition becomes true, the "Generate with AI" button appears on the per-post SN meta box and the REST endpoint starts answering.
+
+### Three new files
+
+- `inc/ai-bootstrap.php` (~140 LOC) — central function_exists() gate (`snt_ai_is_available()`) and shared prompt-execution helper (`snt_ai_generate_with_constraints()`). All AI code in the plugin goes through this — there are no scattered `function_exists()` checks elsewhere. Helper accepts a prompt + system instruction + max_tokens cap, returns string or `WP_Error`. Defensive try/catch around the SDK call (the WP wrapper converts most exceptions but PHP runtime errors can still bubble; we catch + convert to keep callers' error handling uniform).
+- `inc/ai-meta-description.php` (~110 LOC) — Phase 12 slice 1. Registers REST endpoint `POST signal-noise/v1/ai/generate-meta-description` (permission: `edit_post` for the given post_id — not just `manage_options`). On post.php / post-new.php screens, enqueues the JS that injects the button. Both gated on `snt_ai_is_available()` — zero overhead, zero markup on 6.x without backport.
+- `assets/ai-meta-description.js` (~120 LOC) — IIFE, no globals. Polls for the meta description textarea (id="sn_meta_description") for up to 10s after DOMContentLoaded (block editor renders meta boxes asynchronously; classic editor has them at load). On click: `wp.apiFetch` → fill textarea → fire `input`/`change` events so block editor's meta-sync picks up the change. DOM-built throughout (createElement + textContent — no innerHTML, no XSS risk class).
+
+### Provider-agnostic by design — NOT pinned to Anthropic
+
+Code calls `wp_ai_client_prompt()` (the WP-idiomatic procedural wrapper). It does NOT pick a provider, NOT set `temperature` / `top_p` / `top_k`, NOT pin a model. The provider is whatever the user configured in `Settings > Connectors`. Reasoning:
+
+- **Claude Opus 4.7 specifically removed sampling params** — setting `temperature` returns 400. The portable choice is to set none. Constraints go in the system instruction.
+- **The user could swap providers tomorrow** without our code changing — Anthropic today, OpenAI next week, Google after that. WP AI Client abstracts this.
+- **Each provider has different model availability** — pinning a model name would lock the user into one provider's catalog.
+
+This matches the rule from prior course-corrections: work WITH WordPress's abstraction, don't fight it. (Same reasoning as v1.14.0 admin redesign sticking to wp-admin native classes — extend, don't replace.)
+
+### Meta description prompt
+
+The system instruction targets SEO meta description conventions: 140-160 chars, active voice, no marketing fluff, output only the description text. Tuned for the SN voice (no first-person plural, capture single most-useful thing). Input is post content truncated to 1000 words (~1200-1400 input tokens — quality plateaus well before context-window limits; tokens scale linearly).
+
+### REST endpoint design
+
+`POST /signal-noise/v1/ai/generate-meta-description`
+- Body: `{ post_id: int }`
+- Permission: `current_user_can( 'edit_post', $post_id )` (per-post, not global)
+- Returns: `{ ok: true, description: string, length: int }` or `WP_Error`
+
+Error cases all return `WP_Error` with appropriate HTTP status codes (503 if AI unavailable, 422 if post empty, 500 if runtime error, 502 if AI returned empty).
+
+### Companion documentation
+
+Theme repo: [`docs/WP-7.0-AI-API-MAP.md`](https://github.com/juanlentino/signal-and-noise/blob/main/docs/WP-7.0-AI-API-MAP.md) — full API map + Phase 7/12/14 plan + verified-from-source notes on `wp_ai_client_prompt()`, `AiClient::prompt()`, `wp_has_ai_client()`, the Abilities API. Read that doc before working on AI features in future sessions.
+
+### Phase 7 (May 21) — what user does on launch day
+
+1. Upgrade WP core to 7.0
+2. Install `WordPress/ai-provider-for-anthropic` plugin
+3. Settings → Connectors → Anthropic → paste API key
+4. (Optional) Install `WordPress/ai` for generic features (alt text, title gen)
+5. Edit any post → SN meta box → click "Generate with AI" → ~150 chars in ~3-5 seconds
+
+If step 5 fails: the REST endpoint returns a `WP_Error` with a clear message (status 503 = AI unavailable, 422 = empty post, etc.) — surfaced in the button's inline status text.
+
+### Verified against actual source
+
+- `WordPress/wp-ai-client/autoload.php` — confirmed `wp_has_ai_client()` is the canonical 7.0/backport detection function (not `function_exists('wp_ai_client_prompt')`).
+- `WordPress/php-ai-client/src/AiClient.php` — confirmed fluent API: `usingSystemInstruction()`, `usingMaxTokens()`, `generateText()`. WP wrapper uses snake_case versions.
+- WP make blog (Feb 3 merge proposal + Mar 24 intro + May 14 Field Guide) — confirmed providers ship as separately-installed plugins, not bundled in core. Confirmed `Settings > Connectors` is in core.
+
+### Versioning
+
+**MINOR bump (1.15.2 → 1.16.0)** — new user-visible capability (the "Generate with AI" button + the REST endpoint that backs it). Dormant on the current 6.x install until WP 7.0 + a provider plugin land on May 21+. Plugin minor count: 15 → 16 (continues over-cap pattern per documented user preference).
+
+### Notes
+
+- **Phase 12 slice 1 only.** Slice 2 (OG card title gen) deferred to v1.17.0+ — ship the meta description pattern, verify it works under real 7.0, then expand.
+- **Phase 14 (Abilities API registration)** deferred separately to v1.17.0 or later. SN has obvious candidates (regenerate_og_card, purge_caches, etc.) but they're all currently exposed as filter hooks; registration is thin glue, ~80 LOC. Worth doing once we know the Abilities API stability.
+- **Hybrid model with `WordPress/ai`:** that experimental plugin provides generic features (alt text, title gen). Recommended install on May 21 for those features; SN's plugin owns SN-specific features. If `WordPress/ai` breaks (it's marked experimental), our SN code keeps working.
+
 ## [1.15.2] - 2026-05-17
 
 ### Fixed
