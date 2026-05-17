@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [1.11.2] - 2026-05-16
+
+### Added
+- `inc/wp-update-git-preservation.php` (200 LOC) — `.git`-preservation filter pair + admin_init self-recovery. Closes the footgun where clicking "Update Now" in wp-admin destroyed the plugin's `.git` directory (via WP_Upgrader's recursive `clear_destination()`) and broke the canonical `gh workflow run deploy.yml --ref vX.Y.Z` install path.
+
+### How it works
+- `upgrader_pre_install` (priority 10, accept_args=2) — atomically `rename()`s `.git/` → `wp-content/upgrade/sn-signal-and-noise-tools-git-backup/` before WP's `clear_destination()` runs. Returns `WP_Error` to abort the install if the backup fails (better than silent .git destruction).
+- WP runs its normal install (clear_destination + `upgrader_source_selection` rename of the unpacked archive dir → `move_dir`).
+- `upgrader_post_install` (priority 10, accept_args=3) — atomically `rename()`s the backup back into the (now newly installed) destination dir. On WP-side install failure (WP_Error response), restores `.git` to the original plugin dir so the rolled-back code keeps its checkout intact.
+- `admin_init` self-recovery — on every admin pageview, if an orphaned backup is detected (post_install never fired — PHP timeout mid-install, fatal in another plugin's update hook, etc.), restore intelligently. Idempotent.
+
+### Behaviour
+- Both install paths now coexist. `gh workflow run deploy.yml --ref vX.Y.Z` stays the canonical/fast path; clicking "Update Now" in wp-admin no longer breaks the subsequent workflow_dispatch.
+- Same-filesystem `rename()` is **atomic at the kernel level** — no window where `.git` exists in both places or neither. Cross-FS rename silently falls back to copy+delete (NOT atomic) — that's why the backup lives under `wp-content/upgrade/` (same mount as `wp-content/plugins/` in standard WP installs incl. Cloudways).
+- `inc/wp-update-integration.php` docblock extended with the v1.11.1 + v1.11.2 history.
+
+### Mirrors theme v8.5.2
+- Same file structure + filter pair + restore primitive as the theme's `inc/wp-update-git-preservation.php` (shipped earlier this session at theme v8.5.2). The two implementations differ only in which `$hook_extra` key they guard on (`plugin` vs `theme`), which constants they reference (`SN_GH_PLUGIN_*` vs `SN_GH_THEME_*`), and which directory primitives they use (`WP_PLUGIN_DIR` + `SN_GH_PLUGIN_SLUG` vs `get_theme_root()` + `SN_GH_THEME_STYLESHEET`).
+
+### Three patches to make one click work
+The WP UI update path required three independent blockers to be removed:
+1. **v1.10.1** — enable the infrastructure (register with WP's update transient, add `upgrader_source_selection` to rename GitHub's archive dir).
+2. **v1.11.1** — fix the 12h cache that was hiding new tags from WP's update checker.
+3. **v1.11.2** — preserve `.git` through the install so the workflow_dispatch fallback doesn't break.
+
+After this release, both install paths work end-to-end and coexist safely.
+
+### Notes
+- This release ships via the canonical `gh workflow run deploy.yml --ref v1.11.2` (the new code is dormant on this install since workflow_dispatch is SSH `git checkout`, not WP-installer). The filter pair activates only on the NEXT update if the maintainer chooses WP UI.
+- `error_log()` is used for restoration failures, not `WP_Error` — the WP install itself succeeded; a failed `.git` restore is post-hoc and shouldn't fail the install. The admin_init self-recovery retries on next pageview.
+
 ## [1.11.1] - 2026-05-16
 
 ### Fixed

@@ -21,7 +21,13 @@
  * WP_Error because the legacy auto-deploy-on-tag-push pipeline would
  * .git-checkout the new tag and overwrite the WP installer's work.
  * v1.10.1 moves to WP-UI-driven updates and disables the tag-push
- * auto-deploy (see .github/workflows/deploy.yml).
+ * auto-deploy (see .github/workflows/deploy.yml). v1.11.1 fixed the
+ * 12h cache that was hiding new tags from the WP updater. v1.11.2
+ * adds inc/wp-update-git-preservation.php which backs up + restores
+ * the .git directory through the install — closing the footgun where
+ * WP's clear_destination() would otherwise destroy the .git checkout
+ * that the canonical workflow_dispatch deploy depends on. Both install
+ * paths (gh workflow run AND wp-admin Update Now) now coexist safely.
  *
  * @package SignalNoiseTools
  */
