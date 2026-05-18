@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.0] - 2026-05-17
+
+### Desktop-mode dock fixed + two new desktop widgets
+
+User reported they couldn't open Signal & Noise from the desktop-mode dock after the v2.0.1 auto-import suppression. Parallel subagent investigation surfaced a deeper bug: **our dock entry has been broken since v1.15.0** — the [WordPress/desktop-mode docs](https://github.com/WordPress/desktop-mode/blob/trunk/docs/hooks-reference.md) say `'slug'` is the key, but the actual code at [`includes/core/payload.php:163`](https://github.com/WordPress/desktop-mode/blob/trunk/includes/core/payload.php#L163) uses `'id'`. Wrong key → `item.id` was `undefined` in JS → click handler threw `TypeError: Cannot read properties of undefined (reading 'startsWith')` at [`src/dock.ts:1711`](https://github.com/WordPress/desktop-mode/blob/trunk/src/dock.ts) on every click of the SN tile. The Phase 13 auto-import suppression just made the breakage visible.
+
+### Fixed
+
+- **Dock entry key renamed `'slug'` → `'id'`** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)) — fixes the click TypeError. SN tile now opens the Dashboard on single click.
+- **Dock icon switched from `dashicons-shield-alt` → `dashicons-megaphone`** — matches the icon passed to `add_menu_page()` in admin-page.php (`'dashicons-megaphone'` at line 121), which was the icon rendering on the now-suppressed auto-imported entry. User specifically requested it back.
+- **Submenu entries cleaned up** — only `'title'` + `'url'` are honored per [`src/dock.ts:89`](https://github.com/WordPress/desktop-mode/blob/trunk/src/dock.ts) SubmenuItem type. Removed the silently-dropped `'slug'` + `'icon'` keys on the 8 submenu items. The 8 tabs ride into the opened SN window as the in-window tab strip (per desktop-mode behavior verified in src/dock.ts:1703-1765).
+
+### Added — two new desktop widgets
+
+User: *"if there's a way to create widgets for the desktop, do it... Maybe we can replace some that are hidden in the menu or other screens"*
+
+1. **SN Quick Actions widget** ([assets/desktop-mode-widget-actions.js](assets/desktop-mode-widget-actions.js)) — three buttons (Purge all caches / Clear DB overrides / Full reset) calling the existing `/signal-noise/v1/cmd/{action}` REST endpoints. Replaces the 3-click path of S&N → Dashboard tab → Maintenance section with single-click access from the desktop. Inline toast feedback on success/failure.
+
+2. **SN RSS Subscribers widget** ([assets/desktop-mode-widget-rss.js](assets/desktop-mode-widget-rss.js)) — surfaces 24h / 7d / 30d unique-subscriber + total-request counts + last-request timestamp at-a-glance. Data previously lived only behind S&N → RSS tab + a single line on the Dashboard tab; now visible without navigation. Polls every 5 min (RSS counts don't change rapidly).
+   - New REST endpoint: `GET /signal-noise/v1/cmd/rss-stats` — read-only wrapper around the existing `sn_rss_tracker_window_stats_multi()` function. Capability-gated `manage_options`.
+
+Existing `sn-deploy-status` widget unchanged.
+
+### Why MINOR (not PATCH)
+
+Per [CLAUDE.md](https://github.com/juanlentino/signal-and-noise/blob/main/CLAUDE.md): "MINOR for new user-visible capabilities." Two new desktop widgets is net-new user-facing surface. Resets minor count from 0/5 → **1/5 on 2.x**.
+
+### Notes
+
+- Surfaced via the audit-then-fix pattern: 5-agent parallel audit caught WP 7.0 + Phase 13 cleanup work in v2.0.4; the followup user-report dispatched a focused subagent that decoded the desktop-mode `id`-vs-`slug` docs error.
+- Filed a mental note to PR the [WordPress/desktop-mode docs](https://github.com/WordPress/desktop-mode/blob/trunk/docs/hooks-reference.md) to align with the actual code.
+
 ## [2.0.4] - 2026-05-17
 
 ### Comprehensive audit pass — 8 findings fixed before WP 7.0 launch (3 days out)

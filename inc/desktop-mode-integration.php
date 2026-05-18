@@ -71,6 +71,23 @@ add_action( 'admin_enqueue_scripts', function() {
 		true
 	);
 
+	// v2.1.0: two new widget scripts — Quick Actions + RSS Subscribers.
+	wp_register_script(
+		'sn-desktop-mode-widget-actions',
+		plugins_url( 'assets/desktop-mode-widget-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'wp-api-fetch' ),
+		SNT_VERSION,
+		true
+	);
+
+	wp_register_script(
+		'sn-desktop-mode-widget-rss',
+		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'wp-api-fetch' ),
+		SNT_VERSION,
+		true
+	);
+
 	// Shared data — both scripts read from window.snDesktopData.
 	$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' ) : array();
 	$plugin = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
@@ -136,21 +153,43 @@ add_filter( 'desktop_mode_dock_items', function( $items ) {
 		$items = array();
 	}
 
+	/**
+	 * v2.1.0 dock fix:
+	 *   - Key is 'id' not 'slug' (the desktop-mode docs/hooks-reference.md
+	 *     says 'slug' but the actual code at includes/core/payload.php:163
+	 *     uses 'id'. Verified against test fixture at tests/phpunit/tests/
+	 *     desktopModeBuildDockItems.php:394 which uses 'id' => 'replaced').
+	 *     Wrong key meant item.id was undefined in JS, crashing dock.ts:1711
+	 *     with TypeError on every click of the SN tile — silent breakage
+	 *     since v1.15.0, only surfaced post-Phase-13 when our auto-import
+	 *     suppression removed the parallel working entry.
+	 *   - Submenu entries only honor 'title' + 'url' per src/dock.ts:89
+	 *     SubmenuItem type — 'icon' and 'slug' on submenu items are
+	 *     silently dropped. Removed the noise.
+	 *   - Icon is dashicons-megaphone (matches the icon passed to
+	 *     add_menu_page() in admin-page.php:121, which is what was
+	 *     rendering on the auto-imported entry before suppression).
+	 *
+	 * Click behavior (verified via src/dock.ts:911-913 + 1703-1765):
+	 *   - Single click on parent tile → window opens to item.url
+	 *   - Submenu rides into the opened window as an in-window tab strip
+	 *     (the "submenu chevron" on the dock tile is documented future work)
+	 */
 	$items[] = array(
-		'slug'    => 'signal-noise',
+		'id'      => 'signal-noise',
 		'title'   => 'Signal & Noise',
-		'icon'    => 'dashicons-shield-alt',
+		'icon'    => 'dashicons-megaphone',
 		'url'     => admin_url( 'admin.php?page=sn-theme-options' ),
 		'badge'   => snt_desktop_dock_badge(),
 		'submenu' => array(
-			array( 'slug' => 'sn-sub-dashboard',    'title' => 'Dashboard',    'icon' => 'dashicons-dashboard',     'url' => admin_url( 'admin.php?page=sn-theme-options' ) ),
-			array( 'slug' => 'sn-sub-identity',     'title' => 'Identity',     'icon' => 'dashicons-id',            'url' => admin_url( 'admin.php?page=sn-identity' ) ),
-			array( 'slug' => 'sn-sub-login',        'title' => 'Login',        'icon' => 'dashicons-lock',          'url' => admin_url( 'admin.php?page=sn-login' ) ),
-			array( 'slug' => 'sn-sub-cloudflare',   'title' => 'Cloudflare',   'icon' => 'dashicons-cloud',         'url' => admin_url( 'admin.php?page=sn-cloudflare' ) ),
-			array( 'slug' => 'sn-sub-plausible',    'title' => 'Plausible',    'icon' => 'dashicons-chart-line',    'url' => admin_url( 'admin.php?page=sn-plausible' ) ),
-			array( 'slug' => 'sn-sub-rss',          'title' => 'RSS',          'icon' => 'dashicons-rss',           'url' => admin_url( 'admin.php?page=sn-rss' ) ),
-			array( 'slug' => 'sn-sub-reading-time', 'title' => 'Reading Time', 'icon' => 'dashicons-clock',         'url' => admin_url( 'admin.php?page=sn-reading-time' ) ),
-			array( 'slug' => 'sn-sub-links',        'title' => 'Links',        'icon' => 'dashicons-admin-links',   'url' => admin_url( 'admin.php?page=sn-links' ) ),
+			array( 'title' => 'Dashboard',    'url' => admin_url( 'admin.php?page=sn-theme-options' ) ),
+			array( 'title' => 'Identity',     'url' => admin_url( 'admin.php?page=sn-identity' ) ),
+			array( 'title' => 'Login',        'url' => admin_url( 'admin.php?page=sn-login' ) ),
+			array( 'title' => 'Cloudflare',   'url' => admin_url( 'admin.php?page=sn-cloudflare' ) ),
+			array( 'title' => 'Plausible',    'url' => admin_url( 'admin.php?page=sn-plausible' ) ),
+			array( 'title' => 'RSS',          'url' => admin_url( 'admin.php?page=sn-rss' ) ),
+			array( 'title' => 'Reading Time', 'url' => admin_url( 'admin.php?page=sn-reading-time' ) ),
+			array( 'title' => 'Links',        'url' => admin_url( 'admin.php?page=sn-links' ) ),
 		),
 	);
 
@@ -247,6 +286,23 @@ add_action( 'admin_enqueue_scripts', function() {
 		'script' => 'sn-desktop-mode-widget',
 		'sort'   => 50,
 	) );
+
+	// v2.1.0: Quick Actions widget — replaces the 3-click path of
+	// S&N → Dashboard → Maintenance with single-click access from desktop.
+	desktop_mode_register_widget( 'sn-quick-actions', array(
+		'label'  => 'SN Quick Actions',
+		'script' => 'sn-desktop-mode-widget-actions',
+		'sort'   => 55,
+	) );
+
+	// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
+	// was previously buried under S&N → RSS tab + a single line on the
+	// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
+	desktop_mode_register_widget( 'sn-rss-subscribers', array(
+		'label'  => 'SN RSS Subscribers',
+		'script' => 'sn-desktop-mode-widget-rss',
+		'sort'   => 60,
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -308,6 +364,34 @@ function snt_desktop_cmd_handler( WP_REST_Request $request ) {
 				'ok'      => true,
 				'message' => sprintf( 'Full reset: %d override%s cleared + all caches purged.', $count, 1 === $count ? '' : 's' ),
 				'data'    => array( 'count' => $count ),
+			) );
+
+		case 'rss-stats':
+			// v2.1.0: read-only RSS feed activity for the desktop widget.
+			// Reuses sn_rss_tracker_window_stats_multi() that powers the
+			// existing /sn-rss tab + Dashboard tab RSS summary.
+			if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
+				return new WP_Error(
+					'snt_rss_unavailable',
+					'RSS tracker module not loaded.',
+					array( 'status' => 503 )
+				);
+			}
+			$stats        = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
+			$last_rel     = '';
+			if ( ! empty( $stats['most_recent'] ) ) {
+				$t = strtotime( $stats['most_recent'] );
+				if ( $t ) {
+					$last_rel = human_time_diff( $t, time() ) . ' ago';
+				}
+			}
+			return rest_ensure_response( array(
+				'ok'   => true,
+				'data' => array(
+					'last_request'          => $stats['most_recent'] ?? null,
+					'last_request_relative' => $last_rel,
+					'windows'               => $stats['windows'] ?? array(),
+				),
 			) );
 
 		case 'status':
