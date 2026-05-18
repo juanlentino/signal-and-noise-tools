@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.3] - 2026-05-18
+
+### Fixed — Desktop Mode Plugins window: missing icon + literal `&amp;` in plugin name
+
+User report: in WordPress/desktop-mode's custom "Plugins" panel (the OS-style window, distinct from `wp-admin/plugins.php`), our entry rendered with no icon AND the plugin name displayed as the literal text `Signal &amp; Noise Tools` — entity not decoded. The v2.1.2 brand-assets work covered WP core surfaces only; Desktop Mode has its own REST controller + TypeScript frontend that does not consult `plugins_api` or the `update_plugins` site_transient.
+
+Dispatched a research subagent against [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode) trunk to locate the exact lookup paths before writing any code (per project memory: "Read framework source before claiming to know it").
+
+### Root causes (verified against upstream source)
+
+- **Icon**: [`includes/plugins-window/rest-fields.php:404-445`](https://github.com/WordPress/desktop-mode/blob/trunk/includes/plugins-window/rest-fields.php) hardcodes `https://ps.w.org/<slug>/assets/icon.svg` from `dirname( plugin_file )`. Self-hosted plugins get a `ps.w.org` 404 → JS fallback at [`src/plugins-window/icon-fallback.ts`](https://github.com/WordPress/desktop-mode/blob/trunk/src/plugins-window/icon-fallback.ts) gives up after one shot for non-`ps.w.org` URLs → the dashicons-admin-plugins placeholder paints. The exposed `desktop_mode_plugins_window_icon_url` filter is the documented escape hatch.
+- **Name**: [`src/plugins-window/installed-view.ts:396`](https://github.com/WordPress/desktop-mode/blob/trunk/src/plugins-window/installed-view.ts) uses `title.textContent = row.name;` directly. WP core's `_get_plugin_data_markup_translate()` already `wp_kses`'d the `&` to `&amp;`, and `textContent` renders entities literally. The Browse view at [`src/plugins-window/card.ts:91`](https://github.com/WordPress/desktop-mode/blob/trunk/src/plugins-window/card.ts) correctly calls `decodeEntities()` first — the Installed view forgot to. **Pure upstream frontend oversight; cannot be fixed via any plugin-side JS hook.**
+
+### Implementation — [inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)
+
+- **`desktop_mode_plugins_window_icon_url` filter**: returns `plugins_url('assets/icon.svg', …)` when slug matches `SN_GH_PLUGIN_SLUG`. SVG renders crisp at any DPR; served from same WP origin so CSP + mixed-content pass.
+- **`all_plugins` filter**: substitutes `html_entity_decode()`'d Name back into the global plugin list, scoped to `SN_GH_PLUGIN_BASENAME`. Idempotent (`strpos( …, '&amp;' )` guard prevents double-decode). Standard wp-admin surfaces still render correctly because the browser is lenient with raw `&` AND any downstream `esc_html()` calls re-encode safely.
+
+### Roundtrip verification for the `all_plugins` filter
+
+| Consumer | Behavior |
+|---|---|
+| `wp-admin/plugins.php` `<strong>$name</strong>` | Raw `&` parsed leniently by browser → "Signal & Noise Tools" ✓ |
+| `wp-admin/update-core.php` (echoes through `esc_html`) | Re-encodes to `&amp;` → browser decodes ✓ |
+| Desktop Mode REST + `textContent` | Receives raw "Signal & Noise Tools" → renders correctly ✓ |
+| JSON/REST consumers | Receive canonical unescaped value (the expected JSON form) ✓ |
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 2/7 → **3/7 on 2.1.x**.
+- Both filters short-circuit cleanly when Desktop Mode is uninstalled (the icon filter is never invoked; the `all_plugins` filter no-ops since no consumer cares about the difference).
+- Worth a new WP-REFERENCE gotcha: `all_plugins` is the right hook for surgical Name/Description overrides since the underlying file header is immutable and core's `wp_kses` pass is hardcoded.
+
 ## [2.1.2] - 2026-05-18
 
 ### Added — plugin brand assets in wp-admin

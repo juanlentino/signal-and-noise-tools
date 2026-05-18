@@ -424,3 +424,100 @@ function snt_desktop_cmd_handler( WP_REST_Request $request ) {
 			);
 	}
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v2.1.3 — Desktop Mode Plugins-window fixes
+ *
+ * The v2.1.2 brand-assets work (icons + banners via plugins_api + the
+ * update_plugins transient) only covers WP core surfaces. Desktop Mode
+ * ships its own custom Plugins window (a REST-fed TypeScript frontend
+ * under includes/plugins-window/* + src/plugins-window/*) that does NOT
+ * consult either of those data sources. Two surgical filters land the
+ * icon + decode the plugin name for that surface only.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Provide our plugin's icon to Desktop Mode's custom Plugins window.
+ *
+ * Desktop Mode derives the icon URL by hardcoding
+ *   https://ps.w.org/{dirname(plugin_file)}/assets/icon.svg
+ * at includes/plugins-window/rest-fields.php:404-445 — works for the
+ * wordpress.org plugin directory, 404s for self-hosted plugins like ours.
+ * The update_plugins site_transient icons array (which we populate in
+ * inc/wp-update-integration.php) is never read by this code path.
+ *
+ * The 'desktop_mode_plugins_window_icon_url' filter is exposed at the
+ * same line; we return our own SVG so the icon column on Desktop Mode's
+ * Plugins panel renders correctly. SVG renders crisp at any DPR — no
+ * separate PNG fallback needed.
+ *
+ * Note on the JS fallback chain: src/plugins-window/icon-fallback.ts
+ * only walks SVG → 256.png → 128.png when the URL matches the
+ * ps.w.org/<slug>/assets/icon.svg shape. Custom URLs get one shot and
+ * then resolve to the dashicons-admin-plugins placeholder. Our SVG is
+ * served from the same WP origin as the admin UI, so CSP + mixed-content
+ * checks pass and the single shot is enough.
+ *
+ * Verified against WordPress/desktop-mode
+ * (includes/plugins-window/rest-fields.php trunk @ 2026-05-18).
+ */
+add_filter( 'desktop_mode_plugins_window_icon_url', function( $url, $slug ) {
+	if ( defined( 'SN_GH_PLUGIN_SLUG' ) && SN_GH_PLUGIN_SLUG === $slug ) {
+		return plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	}
+	return $url;
+}, 10, 2 );
+
+/**
+ * Decode HTML entities in our plugin's Name before any UI reads it.
+ *
+ * WP core's _get_plugin_data_markup_translate() (wp-admin/includes/plugin.php)
+ * runs the Plugin Name header through wp_kses on parse, converting our
+ * literal `&` in "Signal & Noise Tools" to `&amp;`. Standard wp-admin
+ * surfaces echo that value into HTML, where the browser decodes the
+ * entity at paint time — correct.
+ *
+ * Desktop Mode's installed-view.ts:396 instead does:
+ *     title.textContent = row.name;
+ * which is the safe DOM API for plain text but renders the literal
+ * string `Signal &amp; Noise Tools` (the entity is shown raw, not
+ * decoded). The companion Browse view at card.ts:91 calls
+ * `decodeEntities(plugin.name)` first — the Installed view forgot to.
+ * Pure upstream frontend oversight; we can't fix it from the plugin
+ * side via any JS hook.
+ *
+ * Workaround: substitute the decoded Name back into the global plugin
+ * list via the `all_plugins` filter, scoped to our entry only.
+ *
+ * Roundtrip safety for OTHER surfaces:
+ *   - wp-admin/plugins.php emits the Name via `<strong>$name</strong>`.
+ *     Browser parses raw `&` leniently → renders "Signal & Noise Tools". ✓
+ *   - wp-admin/update-core.php echoes through esc_html → re-encodes to
+ *     `&amp;` → browser renders correctly. ✓
+ *   - Desktop Mode REST: serializes to JSON as raw "Signal & Noise
+ *     Tools"; textContent renders correctly. ✓
+ *   - JSON consumers (REST APIs, plugin scanners): receive the canonical
+ *     unescaped form, which is what they expect from JSON values. ✓
+ *
+ * Scope is narrowed to SN_GH_PLUGIN_BASENAME — other plugins' Name
+ * strings are never touched. No security surface: the Name comes from
+ * our own file header (no untrusted input).
+ *
+ * Verified against WordPress/desktop-mode
+ * (src/plugins-window/installed-view.ts:396 + src/plugins-window/card.ts:91
+ * trunk @ 2026-05-18).
+ */
+add_filter( 'all_plugins', function( $plugins ) {
+	if ( ! defined( 'SN_GH_PLUGIN_BASENAME' ) ) {
+		return $plugins;
+	}
+	$slug = SN_GH_PLUGIN_BASENAME;
+	if ( isset( $plugins[ $slug ]['Name'] ) && false !== strpos( $plugins[ $slug ]['Name'], '&amp;' ) ) {
+		$plugins[ $slug ]['Name'] = html_entity_decode(
+			$plugins[ $slug ]['Name'],
+			ENT_QUOTES,
+			'UTF-8'
+		);
+	}
+	return $plugins;
+} );
