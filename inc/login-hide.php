@@ -32,17 +32,31 @@ if ( defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS ) {
 	return;
 }
 
-// Pre-flight: bail if wps-hide-login is still active to avoid conflicts.
-// Once wps-hide-login is deactivated (Phase 13), this module takes over.
+// Pre-flight: bail if wps-hide-login is still GENUINELY active to avoid
+// conflicts. "Genuinely" means BOTH active in the WP options table AND
+// the plugin file exists on disk. WP's is_plugin_active() is a pure
+// option lookup (wp-admin/includes/plugin.php) — it never checks the
+// filesystem. If wps-hide-login was deleted by removing the file
+// directly (instead of going through WP's Deactivate flow), the slug
+// stays in active_plugins as an orphan forever, our check would bail
+// every time, and this module would silently never register its
+// rewrite rule. Symptom: /sn-login 404s indefinitely.
+//
+// v2.1.1 hardening (surfaced by a real login lockout in production):
+// require both signals. If the file is gone, the ghost option entry is
+// no longer authoritative — our module activates and serves the slug.
 if ( ! function_exists( 'is_plugin_active' ) ) {
 	include_once ABSPATH . 'wp-admin/includes/plugin.php';
 }
-if ( is_plugin_active( 'wps-hide-login/wps-hide-login.php' ) ) {
+$wps_basename = 'wps-hide-login/wps-hide-login.php';
+$wps_file     = WP_PLUGIN_DIR . '/' . $wps_basename;
+if ( is_plugin_active( $wps_basename ) && file_exists( $wps_file ) ) {
 	add_action( 'admin_notices', function() {
 		echo '<div class="notice notice-info"><p><strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>wps-hide-login</code> is still active. Deactivate that plugin to switch over.</p></div>';
 	} );
 	return;
 }
+unset( $wps_basename, $wps_file );
 
 /**
  * Get the configured custom login slug.

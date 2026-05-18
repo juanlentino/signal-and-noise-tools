@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.1] - 2026-05-18
+
+### Critical hotfix — production login lockout caused by `wps-hide-login` ghost option entry
+
+User reported login was broken after deleting `wps-hide-login` from disk. Root-cause investigation (parallel debugging agent + WP-core source verification) confirmed: the `wps-hide-login` files were removed without going through WP's `Deactivate Plugin` flow, leaving the slug as an orphan in the `active_plugins` DB option. Our [`inc/login-hide.php:40`](inc/login-hide.php) pre-flight check uses `is_plugin_active()` — which is a pure option lookup that never checks the filesystem — so the orphan slug made it return `true`. Our module bailed entirely, never registered the rewrite rule, and `/sn-login` returned 404 indefinitely.
+
+### Fixed
+
+- **[inc/login-hide.php](inc/login-hide.php)**: pre-flight check now requires BOTH `is_plugin_active( $wps_basename )` AND `file_exists( WP_PLUGIN_DIR . '/' . $wps_basename )`. If the file is gone, the orphan option entry is no longer authoritative — our module activates, adds the rewrite rule, flushes, and `/sn-login` resolves correctly.
+- **[inc/admin-page.php](inc/admin-page.php)** Login tab status display: mirrored the same tightened check at line ~713 so the admin status doesn't falsely claim "dormant — conflict with wps-hide-login" when the file is actually gone.
+
+### Why this matters — the upstream-WP gotcha
+
+WordPress's `is_plugin_active()` (in `wp-admin/includes/plugin.php`) is documented as a state lookup against the `active_plugins` option. It does NOT verify the file referenced by the slug exists on disk. WP runs the `active_plugins` slug list every page load, tries to `include` each file, and **silently skips** missing files without removing them from the option. That divergence between option-state and filesystem-state is what bit this.
+
+Worth adding to the running upstream-WP-gotchas list in [docs/WORDPRESS-REFERENCE.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/WORDPRESS-REFERENCE.md).
+
+### Emergency unlock path
+
+If you hit this lockout again, the plugin has a baked-in escape hatch: add `define( 'SN_LOGIN_BYPASS', true );` to `wp-config.php`. The module returns at [line 31](inc/login-hide.php) before reaching any rewrite or interception logic, restoring default `/wp-login.php` behavior. Remove the constant once you've fixed the underlying issue.
+
+### Other latent bugs spotted by the audit (deferred — not critical)
+
+- `sn_login_rewrites_flushed` keying trusts the option, not actual rule presence in `rewrite_rules`. Could leave us stuck if a flush silently fails. Defer until evidence it bites.
+- `strpos( $request_uri, '/' . $slug ) === 0` (line 114) matches `/sn-login-foo` as a prefix. Tighten with a regex boundary check. Defer.
+- REST allowlist substring match could be query-string-bypassed. Tighten with `wp_parse_url(..., PHP_URL_PATH)` normalization. Defer.
+
+### Notes
+
+- **PATCH within `2.1.x`.** Production hotfix. Patch headroom: 0/7 → **1/7 on 2.1.x**.
+- Recommended cleanup AFTER installing this patch: WP-CLI `wp plugin uninstall wps-hide-login --deactivate` (or remove the orphan slug from `active_plugins` via SQL/phpMyAdmin) to clear the ghost entry. Not required for the fix to work — just hygiene.
+
 ## [2.1.0] - 2026-05-17
 
 ### Desktop-mode dock fixed + two new desktop widgets

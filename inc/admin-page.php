@@ -710,9 +710,16 @@ function sn_theme_options_page() {
 		if ( ! function_exists( 'is_plugin_active' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$wps_active = is_plugin_active( 'wps-hide-login/wps-hide-login.php' );
-		$bypassed   = defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS;
-		$slug       = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' );
+		// v2.1.1: mirror the tightened check from login-hide.php — option
+		// entry alone isn't authoritative; the file must also exist on
+		// disk. Without this, an orphan slug in active_plugins would
+		// have this status display falsely claim "dormant — conflict
+		// with wps-hide-login" even though the file is gone and our
+		// module is actually active.
+		$wps_basename = 'wps-hide-login/wps-hide-login.php';
+		$wps_active   = is_plugin_active( $wps_basename ) && file_exists( WP_PLUGIN_DIR . '/' . $wps_basename );
+		$bypassed     = defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS;
+		$slug         = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' );
 		$slug_const = defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG;
 		$login_url  = home_url( '/' . $slug );
 
