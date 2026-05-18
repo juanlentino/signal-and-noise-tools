@@ -88,21 +88,6 @@ add_action( 'admin_enqueue_scripts', function() {
 		true
 	);
 
-	// v2.1.6: DOM patch for Desktop Mode's Installed Plugins view —
-	// hides the "View on WordPress.org" button for our self-hosted slug
-	// (no server-side hook exists per installed-detail.ts:297-301) and
-	// defensively decodes any leftover `&amp;` in our plugin name as a
-	// belt + suspenders for the rest_prepare_plugin filter. Enqueued
-	// (not just registered) on every admin page when Desktop Mode is
-	// active — the script is ~3KB, self-gates via MutationObserver, and
-	// no-ops when its target nodes don't exist.
-	wp_enqueue_script(
-		'sn-desktop-mode-installed-view-patch',
-		plugins_url( 'assets/desktop-mode-installed-view-patch.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array(),
-		SNT_VERSION,
-		true
-	);
 
 	// Shared data — both scripts read from window.snDesktopData.
 	$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' ) : array();
@@ -540,13 +525,17 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 		$dirty = true;
 	}
 
-	// Belt + suspenders for the icon: Desktop Mode adds desktop_mode_icon_url
-	// as a custom REST field. Our `desktop_mode_plugins_window_icon_url`
-	// filter above already populates it via Desktop Mode's hook. Re-assert
-	// here in case the field arrives empty for any reason (e.g. Desktop
-	// Mode internal caching, race during plugin activation, etc.).
-	if ( empty( $data['desktop_mode_icon_url'] ) ) {
-		$data['desktop_mode_icon_url'] = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	// Icon URL — ALWAYS override, never just-when-empty (v2.1.7 fix).
+	// Desktop Mode's get_callback may have already populated
+	// desktop_mode_icon_url with the ps.w.org URL that 404s for self-
+	// hosted plugins; in that case the field is non-empty but wrong, and
+	// an `if ( empty(...) )` guard lets it pass through. Self-hosted
+	// plugins know their own canonical icon URL — overwrite
+	// unconditionally for our basename. Safe scope: gated on
+	// $item['_file'] === SN_GH_PLUGIN_BASENAME at the top of this filter.
+	$canonical_icon_url = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	if ( ! isset( $data['desktop_mode_icon_url'] ) || $data['desktop_mode_icon_url'] !== $canonical_icon_url ) {
+		$data['desktop_mode_icon_url'] = $canonical_icon_url;
 		$dirty = true;
 	}
 
@@ -555,3 +544,85 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 	}
 	return $response;
 }, 10, 3 );
+
+/**
+ * Inline DOM patch printed to admin_footer.
+ *
+ * Two upstream bugs in Desktop Mode trunk that have NO server-side filter:
+ *
+ *   1. "View on WordPress.org" button in the Installed-view detail panel
+ *      ([installed-detail.ts:297-301]). Gated purely on `if (slug)` where
+ *      slug = dirname(plugin_file) — non-empty for every installed plugin,
+ *      so the button shows even for self-hosted plugins. Link 404s for us.
+ *
+ *   2. Belt + suspenders for the plugin Name. The rest_prepare_plugin
+ *      filter above already decodes the Name on the wire, but if Desktop
+ *      Mode ever caches a pre-fix response (service worker, in-memory),
+ *      the literal `Signal &amp; Noise Tools` could resurface.
+ *
+ * Why admin_footer + inline instead of wp_enqueue_script:
+ *   - wp_enqueue_script depends on Desktop Mode's script lifecycle. Their
+ *     custom Plugins window may load JS in a different context than the
+ *     standard admin enqueue chain (the v2.1.6 enqueue did not visibly
+ *     fire — the button persisted post-install).
+ *   - admin_footer prints into the raw <body>, so the script is in the
+ *     DOM regardless of how Desktop Mode loads its frontend bundle.
+ *   - Inline avoids the assets/ file altogether, dropping the 1 extra
+ *     HTTP request + removing a moving part.
+ *
+ * The script is ~1.5KB minified, self-gates on `Signal &amp; Noise Tools`
+ * presence + MutationObserver, and no-ops on any page where its target
+ * nodes don't exist.
+ *
+ * @since 2.1.7 (supersedes the wp_enqueue_script approach from v2.1.6)
+ */
+add_action( 'admin_print_footer_scripts', function() {
+	// Only fire when Desktop Mode is active — no point patching pages
+	// it doesn't render.
+	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+		return;
+	}
+	?>
+<script id="sn-desktop-mode-installed-view-patch">
+(function(){
+'use strict';
+var SLUG = 'signal-and-noise-tools';
+var LITERAL = 'Signal &amp; Noise Tools';
+var DECODED = 'Signal & Noise Tools';
+function patch(root){
+if(!root||!root.querySelectorAll)return;
+// Hide any wp.org link pointing at our self-hosted slug.
+var links = root.querySelectorAll('a[href*="wordpress.org/plugins/'+SLUG+'"], a[href*="wordpress.org/support/plugin/'+SLUG+'"], a[href*="ps.w.org/'+SLUG+'"]');
+for(var i=0;i<links.length;i++){
+var el = links[i];
+if(el.dataset.snHidden==='1')continue;
+var host = el.closest('button, .wpd-button, [class*="action"], [class*="cta"], [class*="link"]') || el;
+host.style.display='none';
+el.dataset.snHidden='1';
+}
+// Defensive Name decode — only leaf nodes with the exact literal text.
+var nodes = root.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,span,div,td,a,p');
+for(var j=0;j<nodes.length;j++){
+var n = nodes[j];
+if(n.children.length===0 && n.textContent===LITERAL){
+n.textContent=DECODED;
+}
+}
+}
+function init(){
+patch(document.body);
+new MutationObserver(function(muts){
+for(var i=0;i<muts.length;i++){
+var added = muts[i].addedNodes;
+for(var j=0;j<added.length;j++){
+if(added[j].nodeType===1)patch(added[j]);
+}
+}
+}).observe(document.body,{childList:true,subtree:true});
+}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init,{once:true});}
+else{init();}
+})();
+</script>
+	<?php
+}, 99 );

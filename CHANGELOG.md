@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.7] - 2026-05-18
+
+### Fixed — icon still blank + wp.org button still visible after v2.1.6
+
+User confirmed v2.1.6 fixed the plugin name (`Signal & Noise Tools` now decodes correctly via `rest_prepare_plugin`) but the icon stayed blank and the "View on WordPress.org" button stayed visible. Two follow-on fixes:
+
+### Fix 1 — icon: unconditional override in `rest_prepare_plugin`
+
+v2.1.6 had `if ( empty( $data['desktop_mode_icon_url'] ) )` before re-asserting our URL. **But the field is never empty** — Desktop Mode's REST `get_callback` populates it with `https://ps.w.org/signal-and-noise-tools/assets/icon.svg` even for self-hosted plugins. Non-empty + wrong, so the `empty()` guard let the 404 URL pass through.
+
+Now overwrites unconditionally for our basename: self-hosted plugins know their own canonical icon URL.
+
+### Fix 2 — wp.org button: inline JS via `admin_print_footer_scripts`
+
+v2.1.6 enqueued [assets/desktop-mode-installed-view-patch.js](assets/desktop-mode-installed-view-patch.js) via `wp_enqueue_script` inside `admin_enqueue_scripts`. The button persisted post-install, suggesting Desktop Mode's custom Plugins window runs JS in a different lifecycle than the standard admin enqueue chain. Switched to printing the patch inline into `admin_print_footer_scripts` at priority 99 — guarantees the script lands in the raw DOM regardless of how Desktop Mode loads its frontend. Deleted the orphaned assets/ file.
+
+### Implementation — [inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)
+
+- `rest_prepare_plugin` filter now always sets `desktop_mode_icon_url` to our canonical URL when the row is ours (was: only when empty).
+- New `admin_print_footer_scripts` action gated on `function_exists('desktop_mode_register_command')`. Prints a ~1.5KB self-contained MutationObserver that:
+  - Hides `<a href="…wordpress.org/plugins/signal-and-noise-tools…">`, `…/support/plugin/…`, and `…ps.w.org/…` links pointing at our slug
+  - Defensively decodes any `Signal &amp; Noise Tools` leaf-node text
+- Removed [assets/desktop-mode-installed-view-patch.js](assets/desktop-mode-installed-view-patch.js) (replaced by the inline version).
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 6/7 → **7/7 on 2.1.x** (cap reached — next bump is 2.2.0).
+- Why inline instead of enqueued: `admin_print_footer_scripts` fires at the very end of every admin page render, in the raw `<body>` DOM, with no script-handle dependencies. Enqueued scripts depend on the `admin_enqueue_scripts` hook firing for the right screen + the enqueue chain not being short-circuited by a custom loader.
+- Pairs with the upstream issue worth filing: Desktop Mode should add a `desktop_mode_plugins_window_show_wporg_link` filter so self-hosted plugins can suppress the button cleanly.
+
 ## [2.1.6] - 2026-05-18
 
 ### Fixed — Desktop Mode Installed view: name decode at REST layer + wp.org button hidden
