@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Signal & Noise Tools">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Signal &amp; Noise Tools">
   <title>Signal &amp; Noise Tools</title>
   <!-- Brand: white-first brutalist, condensed display sans, red blood accent -->
   <rect width="256" height="256" fill="#ffffff"/>
-  <!-- Red accent stripe top-left (matches the red `--` brand mark used in dock + header) -->
+  <!-- Red accent stripe top-left (matches the red brand bar used in dock + header) -->
   <rect x="20" y="20" width="44" height="6" fill="#e00404"/>
   <!-- SN wordmark, condensed display sans. Impact is the widest-installed
        system font that approximates Bebas Neue's geometry; if the user's

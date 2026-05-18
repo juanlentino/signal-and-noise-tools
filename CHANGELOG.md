@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.5] - 2026-05-18
+
+### Fixed — broken plugin icon was a malformed SVG (not a cache issue)
+
+User report after v2.1.4: icon STILL renders as the browser broken-image glyph in the Updates page row. Server returns the file correctly (`HTTP/2 200, content-type: image/svg+xml`), our `pre_set_site_transient_update_plugins` filter sets `icons['svg']` on the transient row, core's `list_plugin_updates()` at [`wp-admin/update-core.php:520`](https://raw.githubusercontent.com/WordPress/WordPress/6.9.4/wp-admin/update-core.php) reads it and emits the right `<img>`. So the transport was fine — the *body* was the bug.
+
+### Two XML violations in the SVG bodies
+
+Both `assets/icon.svg` and `assets/banner.svg` were authored as HTML rather than strict XML. When served as `Content-Type: image/svg+xml` (the standard for SVG-as-`<img>`), browsers parse the body as XML and reject anything that violates XML 1.0:
+
+1. **Raw `&` inside an attribute value** — `aria-label="Signal & Noise Tools"`. XML 1.0 §2.4 requires `&` in attribute values be encoded as `&amp;`. Most browsers' SVG renderer fails strict parsing → broken-image glyph.
+2. **`--` inside an XML comment** (icon only) — `<!-- … the red \`--\` brand mark … -->`. XML 1.0 §2.5 forbids the literal substring `--` inside comments because `-->` is the terminator. Strict parsers fail at the first `--` they see inside a comment.
+
+### Implementation
+
+- [assets/icon.svg](assets/icon.svg) — encoded `&` as `&amp;` in `aria-label`; rephrased the comment to remove the literal `--` reference to the brand bar.
+- [assets/banner.svg](assets/banner.svg) — encoded `&` as `&amp;` in `aria-label`.
+- Verified both files now parse cleanly under `python3 -c "import xml.etree.ElementTree as ET; ET.parse(...)"` (strict XML parser equivalent to what browsers run on SVG-as-`<img>`).
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 4/7 → **5/7 on 2.1.x**.
+- The `<title>` element body was already using `&amp;` correctly — the bug was only inside attribute values + the comment.
+- Worth a new WP-REFERENCE gotcha: **SVGs served as `image/svg+xml` and consumed via `<img>` are parsed in strict XML mode**, not HTML mode. Common HTML shortcuts (raw `&` in attrs, `--` in comments) are fatal. Always validate plugin SVG assets with an XML parser — opening them in a browser tab via the URL bar is not equivalent (different parser context).
+
 ## [2.1.4] - 2026-05-18
 
 ### Fixed — Dashboard → Updates row: "Compatibility: Unknown" + broken icon
