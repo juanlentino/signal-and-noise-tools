@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.2.0] - 2026-05-18
+
+### Fixed — icon was rendering but invisible against white admin background
+
+After v2.1.5 fixed the SVG XML parse errors and v2.1.7 fixed the transient field assignment, the icon URL was: serving 200 OK with correct content-type, fresh from CDN (cache MISS confirmed), valid XML, and reaching the `<img>` tag correctly. **It was rendering — just invisible.**
+
+The original brand SVG was white-first brutalist: `fill="#ffffff"` ground, a 5px red stripe at the corner, and small black "SN" wordmark. At 32px display size in the wp-admin Updates row (white background), the ground blended into the page, the red stripe shrank to a sub-pixel speck, and only faint black "SN" text remained. The "broken-image-looking" appearance was actually the icon rendering against a same-colored background.
+
+### Implementation — [assets/icon.svg](assets/icon.svg)
+
+Inverted treatment to match the existing [assets/banner.svg](assets/banner.svg):
+- Black ground (`#000000`) — strong contrast against white admin rows
+- White "SN" wordmark
+- Red `#e00404` accent stripe, sized to remain visible at 32px display
+- Added a subtle bottom rule + "TOOLS" sub-label for the 64px+ contexts
+
+Same brand vocabulary, same XML compliance from v2.1.5. The banner already used this palette — icon now consistent.
+
+### Version cap rollover
+
+Per project versioning: patch cap is 7 per minor. v2.1.x exhausted (2.1.0 → 2.1.7). This is functionally a patch but the cap forces the minor bump to **2.2.0**.
+
+### Notes
+
+- Banner.svg already used the inverted palette — this aligns the two assets.
+- After install, the icon should be unambiguously visible in: Dashboard → Updates row, Plugins list, Desktop Mode's Plugins window, the View Details modal hero, and the Desktop Mode Installed detail panel hero.
+
 ## [2.1.7] - 2026-05-18
 
 ### Fixed — icon still blank + wp.org button still visible after v2.1.6

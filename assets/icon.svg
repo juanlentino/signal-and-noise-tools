@@ -1,28 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Signal &amp; Noise Tools">
   <title>Signal &amp; Noise Tools</title>
-  <!-- Brand: white-first brutalist, condensed display sans, red blood accent -->
-  <rect width="256" height="256" fill="#ffffff"/>
-  <!-- Red accent stripe top-left (matches the red brand bar used in dock + header) -->
-  <rect x="20" y="20" width="44" height="6" fill="#e00404"/>
-  <!-- SN wordmark, condensed display sans. Impact is the widest-installed
-       system font that approximates Bebas Neue's geometry; if the user's
-       OS has Bebas Neue installed (e.g. macOS via Font Book), it wins via
-       the font-family fallback chain. -->
+  <!-- v2.2.0: inverted treatment for visibility at small sizes.
+       Original white-on-white design was invisible against the white
+       wp-admin row background at 32px display. Black ground matches
+       banner.svg, gives strong contrast on any backdrop. -->
+  <rect width="256" height="256" fill="#000000"/>
+  <!-- Red brand accent stripe, top-left corner anchor. Sized large
+       enough to be visible at 32px (8px at display) without
+       overpowering the wordmark. -->
+  <rect x="20" y="20" width="60" height="8" fill="#e00404"/>
+  <!-- SN wordmark, condensed display sans. White on black for
+       maximum contrast. Bebas Neue + Impact + Helvetica Neue
+       fallback chain. -->
   <text x="128" y="172"
         font-family="'Bebas Neue', Impact, 'Helvetica Neue', sans-serif"
         font-size="148"
         font-weight="700"
         text-anchor="middle"
-        fill="#000000"
+        fill="#ffffff"
         letter-spacing="-3">SN</text>
-  <!-- Tiny rust-gray Tools sub-label for legibility at the larger 256+ sizes
-       (won't read at 64px but won't hurt at small sizes either — the SN
-       wordmark anchors the icon identity). -->
-  <text x="128" y="226"
+  <!-- Bottom rule + TOOLS sub-label. Subtle but readable at 64px+. -->
+  <rect x="20" y="220" width="216" height="2" fill="#444444"/>
+  <text x="128" y="244"
         font-family="ui-monospace, 'DM Mono', 'SF Mono', Menlo, monospace"
-        font-size="18"
+        font-size="16"
         font-weight="400"
         text-anchor="middle"
-        fill="#666666"
+        fill="#999999"
         letter-spacing="6">TOOLS</text>
 </svg>
