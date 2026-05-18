@@ -164,6 +164,24 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 		'high' => $banner_low_url,
 	);
 
+	// v2.1.4: compatibility metadata. wp-admin/update-core.php
+	// list_plugin_updates() reads $plugin_data->update->tested at
+	// line 527 (verified against WP 6.9.4 source). Without it, every
+	// upgrade row renders "Compatibility with WordPress N.N.N: Unknown".
+	// list_plugin_updates() also reads ->requires_php at line 545 to
+	// gate the "this requires PHP X" notice, and ->requires at line ~550
+	// for the core-version requirement notice. Setting all three keeps
+	// the Updates page green instead of falling through to the
+	// uncertainty messaging.
+	//
+	// `tested` must satisfy version_compare( $tested, $cur_wp_version, '>=' )
+	// — bumping it as we test against newer WP. `requires` + `requires_php`
+	// mirror the values in the plugin file header for consistency with
+	// what the View Details modal renders (plugins_api filter below).
+	$plugin_data->tested       = '7.0';
+	$plugin_data->requires     = '6.4';
+	$plugin_data->requires_php = '8.0';
+
 	if ( version_compare( $latest_version, $current_version, '>' ) ) {
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
 			$transient->response = array();

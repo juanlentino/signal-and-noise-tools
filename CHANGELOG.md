@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.4] - 2026-05-18
+
+### Fixed — Dashboard → Updates row: "Compatibility: Unknown" + broken icon
+
+User report: the Updates page row for SN Tools renders a broken `<img>` icon next to the plugin name AND "Compatibility with WordPress 6.9.4: Unknown".
+
+### Root cause (verified against WP 6.9.4 source)
+
+[`wp-admin/update-core.php:527`](https://raw.githubusercontent.com/WordPress/WordPress/6.9.4/wp-admin/update-core.php) reads `$plugin_data->update->tested` and falls through to the "Unknown" string when the field is unset. v2.1.2's brand-assets work set `tested` on the [`plugins_api`](inc/wp-update-integration.php) filter response (View Details modal) but never propagated it to the `pre_set_site_transient_update_plugins` filter row. Core's Updates page consults the transient directly, not plugins_api — so the field never reached the "Compatibility" comparison.
+
+The broken icon was a stale browser cache of a 404 from the brief window between v2.1.2's tag push and the actual file landing on disk. The URL itself resolves correctly (verified `HTTP/2 200, content-type: image/svg+xml`); a hard refresh after install clears the cached 404.
+
+### Implementation — [inc/wp-update-integration.php](inc/wp-update-integration.php)
+
+Added `tested`, `requires`, `requires_php` to the `$plugin_data` stdClass pushed into `$transient->response[basename]`:
+
+```php
+$plugin_data->tested       = '7.0';
+$plugin_data->requires     = '6.4';
+$plugin_data->requires_php = '8.0';
+```
+
+`tested = '7.0'` satisfies `version_compare( '7.0', '6.9.4', '>=' )` → "Compatibility with WordPress 6.9.4: 100% (according to its author)". `requires` + `requires_php` mirror the file header for consistency with the View Details modal.
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 3/7 → **4/7 on 2.1.x**.
+- After install: hard-refresh (Cmd+Shift+R) the Updates page to clear any cached broken `<img>`.
+- Worth a new WP-REFERENCE gotcha: the Updates page reads the update transient directly; `plugins_api` only powers View Details. Compatibility/requires fields must be set on both code paths.
+
 ## [2.1.3] - 2026-05-18
 
 ### Fixed — Desktop Mode Plugins window: missing icon + literal `&amp;` in plugin name
