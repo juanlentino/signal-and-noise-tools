@@ -109,6 +109,14 @@ function sn_seo_meta_for_current_view() {
 add_action( 'init', function() {
 	if ( ! function_exists( 'the_seo_framework' ) ) {
 		remove_action( 'wp_head', 'rel_canonical' );
+		// wp_robots() (WP 5.7+) is hooked on wp_head priority 1 and emits
+		// a competing <meta name="robots"> tag when blog_public=0
+		// ("Discourage search engines" in Settings > Reading). Today our
+		// production site has blog_public=1 so this is harmless, but a
+		// staging clone or accidental toggle would cause two robots tags
+		// with conflicting directives. Belt-and-suspenders removal so the
+		// plugin owns robots emission unconditionally. v2.0.4 hardening.
+		remove_action( 'wp_head', 'wp_robots', 1 );
 	}
 }, 1 );
 
@@ -382,7 +390,16 @@ add_action( 'template_redirect', function() {
 	if ( ! empty( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) {
 		$client_since = strtotime( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) );
 		if ( $client_since && $client_since >= $modified_gmt ) {
-			$protocol = isset( $_SERVER['SERVER_PROTOCOL'] ) ? wp_unslash( $_SERVER['SERVER_PROTOCOL'] ) : 'HTTP/1.1';
+			// SERVER_PROTOCOL is normally set by the front-end web server,
+			// but allowlist defensively — a manipulated value here would
+			// be the protocol portion of an HTTP response status line, so
+			// CRLF injection could enable response splitting. The status
+			// code arg to header() handles the actual status; protocol
+			// is just the prefix string.
+			$raw_protocol = isset( $_SERVER['SERVER_PROTOCOL'] ) ? wp_unslash( $_SERVER['SERVER_PROTOCOL'] ) : '';
+			$protocol     = in_array( $raw_protocol, array( 'HTTP/1.0', 'HTTP/1.1', 'HTTP/2', 'HTTP/2.0', 'HTTP/3' ), true )
+				? $raw_protocol
+				: 'HTTP/1.1';
 			header( $protocol . ' 304 Not Modified', true, 304 );
 			exit;
 		}

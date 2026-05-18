@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.0.4] - 2026-05-17
+
+### Comprehensive audit pass — 8 findings fixed before WP 7.0 launch (3 days out)
+
+After the v2.0.3 deploy, dispatched 5 parallel subagents to audit Phase 13's full surface (code review, WP 7.0 readiness, WCAG accessibility, critical.css size, Abilities API verification). Zero "must fix before May 20" breakers surfaced. Eight non-breaker findings consolidated into this single patch:
+
+### Fixed — Phase 13 SEO code
+
+1. **BreadcrumbList final ListItem now includes `item` URL** ([inc/seo-schema.php](inc/seo-schema.php)) — Google Rich Results spec requires `item` on every ListItem. Missing on the current-page item suppressed breadcrumb display in SERPs.
+2. **`sn_og_image_url` filter seed consistency** ([inc/seo-schema.php](inc/seo-schema.php)) — was seeded with `''` in Article schema but with `sn_setting('og.default_image_url', '')` in OG meta. Latent inconsistency: any augment-style filter would behave differently between the two callsites. Both now use the same seed.
+3. **`SERVER_PROTOCOL` allowlisted in 304 emission** ([inc/seo.php](inc/seo.php)) — was passed through `wp_unslash()` only and concatenated into `header()`. Allowlisted against `HTTP/1.0 | 1.1 | 2 | 2.0 | 3` with fallback `HTTP/1.1`. Defensive against CRLF response splitting even though Cloudways front-end normalizes.
+
+### Fixed — Abilities API (Phase 14 — was broken in v2.0.3)
+
+A parallel audit caught that v2.0.3's experimental `inc/abilities-registration.php` would have silently failed on WP 7.0 due to FOUR issues. Fixed before the file got registered:
+
+4. **Categories now pre-registered** — `wp_register_ability()` calls return `null` (with `_doing_it_wrong`) if the category slug isn't registered first. Added `wp_abilities_api_categories_init` hook that registers `maintenance`, `content`, `diagnostics` before the abilities themselves try to cite them.
+5. **`sn_og_card_regenerate` → `sn_generate_og_card`** — the function name was wrong; right function returns `bool`, not URL. Code now calls `sn_generate_og_card()` for the work and `sn_og_image_url_for_post()` separately for the URL in the response.
+6. **`regenerate-og-card` permission_callback simplified** — was returning `WP_Error` for missing input, but `input_schema`'s `required: ['post_id']` handles that automatically before `permission_callback` fires. Now purely auth.
+7. **`meta.annotations` added to all 4 abilities** — destructive/idempotent/readonly behavioral hints so the AI Client doesn't treat `purge-all-caches` or `clear-template-overrides` as safe operations. Required by the API for AI Clients to make sound decisions.
+8. **`abilities-registration.php` now in the require_once chain in [signal-and-noise-tools.php](signal-and-noise-tools.php)** — file was created in v2.0.3 but never loaded. Silent regression.
+
+### Fixed — WP 7.0 defensive
+
+9. **`wp_robots()` now suppressed via `remove_action`** ([inc/seo.php](inc/seo.php)) — WP core's `wp_robots()` fires on `wp_head` priority 1 and emits a competing robots tag when `blog_public=0`. Production is fine today but a staging clone or accidental toggle would cause double-emission. Added next to the existing `rel_canonical` removal, gated on TSF absence.
+
+### Notes
+
+- **PATCH within `2.0.x`.** Patch headroom: 3/7 → **4/7 on 2.0.x**.
+- All fixes verified against actual upstream WordPress source on trunk + the WP 7.0 Field Guide.
+- The audit-then-fix pattern (5 parallel subagents → one consolidated patch) caught 8 issues that linear sequential review would have shipped silently or surfaced post-launch.
+
 ## [2.0.3] - 2026-05-17
 
 ### Deploy workflow hardening — same plugin code as v2.0.2

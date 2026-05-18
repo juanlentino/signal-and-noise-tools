@@ -123,8 +123,12 @@ function sn_schema_article() {
 	$title       = wp_strip_all_tags( get_the_title( $post ) );
 	$description = sn_schema_article_description( $post );
 
-	$image_url = (string) apply_filters( 'sn_og_image_url', '' );
-	$image_dim = (array) apply_filters( 'sn_og_image_dimensions', array( 1200, 630 ), $image_url );
+	// Seed the filter with the same default OG image URL that seo.php uses,
+	// so any filter listener that augments-rather-than-replaces produces
+	// consistent behavior between the JSON-LD Article and the OG meta tag.
+	$default_og = sn_setting( 'og.default_image_url', '' );
+	$image_url  = (string) apply_filters( 'sn_og_image_url', $default_og );
+	$image_dim  = (array) apply_filters( 'sn_og_image_dimensions', array( 1200, 630 ), $image_url );
 
 	$article = array(
 		'@type'            => 'Article',
@@ -276,6 +280,9 @@ function sn_schema_breadcrumb_list() {
 			$items[] = array(
 				'@type'    => 'ListItem',
 				'position' => $position,
+				// `item` is required on every ListItem per Google Rich Results
+				// spec — without it the breadcrumb is suppressed in SERPs.
+				'item'     => get_permalink( $post ),
 				'name'     => wp_strip_all_tags( get_the_title( $post ) ),
 			);
 		}
@@ -284,6 +291,7 @@ function sn_schema_breadcrumb_list() {
 		$items[] = array(
 			'@type'    => 'ListItem',
 			'position' => $position,
+			'item'     => $base_id,
 			'name'     => sn_setting( 'seo_copy.notes_title', 'Notes' ),
 		);
 	} else {
