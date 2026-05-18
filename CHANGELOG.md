@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.6] - 2026-05-18
+
+### Fixed — Desktop Mode Installed view: name decode at REST layer + wp.org button hidden
+
+After v2.1.5, the SVG icon was clean XML but the Plugins window still rendered:
+- Plugin name as the literal `Signal &amp; Noise Tools`
+- A "View on WordPress.org" button on the expanded detail panel (404 for self-hosted)
+
+### Root cause (verified upstream)
+
+A research subagent mapped the full Desktop Mode data flow against [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode) trunk. The Installed view calls **Core's** REST endpoint `GET /wp/v2/plugins?context=view` ([rest.ts:261-272](https://raw.githubusercontent.com/WordPress/desktop-mode/trunk/src/plugins-window/rest.ts)) — Desktop Mode only adds custom fields via `register_rest_field()`. Two consequences:
+
+1. **The v2.1.3 `all_plugins` filter never fires for this code path.** That filter is wired into wp-admin/plugins.php's UI layer, not Core's REST controller. The REST controller bypasses it entirely.
+2. **Core's `_get_plugin_data_markup_translate()` ([wp-admin/includes/plugin.php:188](https://raw.githubusercontent.com/WordPress/WordPress/6.9.4/wp-admin/includes/plugin.php)) runs `wp_kses` on the Name field unconditionally** — even when called with `$markup=false`. So the REST JSON response always carries `"name": "Signal &amp; Noise Tools"`. Desktop Mode's frontend then does `title.textContent = row.name` ([installed-view.ts:754 + installed-detail.ts:241](https://raw.githubusercontent.com/WordPress/desktop-mode/trunk/src/plugins-window/installed-view.ts)) which renders entities literally.
+
+The "View on WordPress.org" button is gated purely on `if (slug)` in [installed-detail.ts:297-301](https://raw.githubusercontent.com/WordPress/desktop-mode/trunk/src/plugins-window/installed-detail.ts), where slug = `dirname(row.plugin)`. **No server-side hook exists to suppress it for self-hosted plugins.**
+
+### Implementation
+
+- **Replaced `all_plugins` filter with `rest_prepare_plugin` filter** in [inc/desktop-mode-integration.php](inc/desktop-mode-integration.php). `rest_prepare_plugin` is Core's last writable layer before JSON serialization ([class-wp-rest-plugins-controller.php:619](https://raw.githubusercontent.com/WordPress/WordPress/6.9.4/wp-includes/rest-api/endpoints/class-wp-rest-plugins-controller.php)). The filter decodes `name` + `author` for our basename and belt-and-suspenders re-asserts `desktop_mode_icon_url` in case Desktop Mode's REST field arrives empty.
+- **Added [assets/desktop-mode-installed-view-patch.js](assets/desktop-mode-installed-view-patch.js)** — a ~3KB MutationObserver that hides any `<a href="…wordpress.org/plugins/signal-and-noise-tools…">` for the wp.org button (no upstream filter exists) and defensively decodes `Signal &amp; Noise Tools` if it ever leaks through. Enqueued only on admin pages where Desktop Mode is active; no-ops everywhere else.
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 5/7 → **6/7 on 2.1.x**.
+- The JS patch is **upstream-friendly**: hosts the wp.org button instead of deleting it, leaves the DOM tree intact, and won't conflict if upstream later adds a server-side suppressor.
+- Worth a new WP-REFERENCE gotcha: **`all_plugins` is a UI-layer filter, not a data-layer filter.** Only fires from wp-admin/plugins.php. For REST/CLI/custom integrations, use `rest_prepare_plugin` instead.
+- Worth filing upstream: a `desktop_mode_plugins_window_show_wporg_link` filter would let self-hosted plugins suppress the broken button cleanly.
+
 ## [2.1.5] - 2026-05-18
 
 ### Fixed — broken plugin icon was a malformed SVG (not a cache issue)

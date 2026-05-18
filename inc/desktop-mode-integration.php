@@ -88,6 +88,22 @@ add_action( 'admin_enqueue_scripts', function() {
 		true
 	);
 
+	// v2.1.6: DOM patch for Desktop Mode's Installed Plugins view —
+	// hides the "View on WordPress.org" button for our self-hosted slug
+	// (no server-side hook exists per installed-detail.ts:297-301) and
+	// defensively decodes any leftover `&amp;` in our plugin name as a
+	// belt + suspenders for the rest_prepare_plugin filter. Enqueued
+	// (not just registered) on every admin page when Desktop Mode is
+	// active — the script is ~3KB, self-gates via MutationObserver, and
+	// no-ops when its target nodes don't exist.
+	wp_enqueue_script(
+		'sn-desktop-mode-installed-view-patch',
+		plugins_url( 'assets/desktop-mode-installed-view-patch.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+
 	// Shared data — both scripts read from window.snDesktopData.
 	$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' ) : array();
 	$plugin = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
@@ -469,55 +485,73 @@ add_filter( 'desktop_mode_plugins_window_icon_url', function( $url, $slug ) {
 }, 10, 2 );
 
 /**
- * Decode HTML entities in our plugin's Name before any UI reads it.
+ * Decode HTML entities in our plugin's Name on the REST response.
  *
- * WP core's _get_plugin_data_markup_translate() (wp-admin/includes/plugin.php)
- * runs the Plugin Name header through wp_kses on parse, converting our
- * literal `&` in "Signal & Noise Tools" to `&amp;`. Standard wp-admin
- * surfaces echo that value into HTML, where the browser decodes the
- * entity at paint time — correct.
+ * Desktop Mode's installed Plugins view calls Core's REST endpoint
+ *   GET /wp/v2/plugins?context=view
+ * which runs WP_REST_Plugins_Controller::prepare_item_for_response()
+ * (wp-includes/rest-api/endpoints/class-wp-rest-plugins-controller.php
+ * lines 578-620). That method calls _get_plugin_data_markup_translate()
+ * which unconditionally `wp_kses`'s the Name header (plugin.php line 188)
+ * even when called with $markup=false — so the JSON response always
+ * carries the entity-encoded form `"name": "Signal &amp; Noise Tools"`.
  *
- * Desktop Mode's installed-view.ts:396 instead does:
- *     title.textContent = row.name;
- * which is the safe DOM API for plain text but renders the literal
- * string `Signal &amp; Noise Tools` (the entity is shown raw, not
- * decoded). The companion Browse view at card.ts:91 calls
- * `decodeEntities(plugin.name)` first — the Installed view forgot to.
- * Pure upstream frontend oversight; we can't fix it from the plugin
- * side via any JS hook.
+ * Desktop Mode's frontend then sets `title.textContent = row.name`
+ * (src/plugins-window/installed-view.ts + installed-detail.ts), and
+ * textContent renders entities literally. The Browse view at card.ts
+ * decodes via decodeEntities() — Installed/Detail views forgot to.
  *
- * Workaround: substitute the decoded Name back into the global plugin
- * list via the `all_plugins` filter, scoped to our entry only.
+ * v2.1.3 attempted this fix via the `all_plugins` filter — wrong layer:
+ * `all_plugins` only fires from wp-admin/plugins.php's UI layer, NOT
+ * from the REST controller. The REST controller is the ONLY data path
+ * Desktop Mode uses for the Installed view.
  *
- * Roundtrip safety for OTHER surfaces:
- *   - wp-admin/plugins.php emits the Name via `<strong>$name</strong>`.
- *     Browser parses raw `&` leniently → renders "Signal & Noise Tools". ✓
- *   - wp-admin/update-core.php echoes through esc_html → re-encodes to
- *     `&amp;` → browser renders correctly. ✓
- *   - Desktop Mode REST: serializes to JSON as raw "Signal & Noise
- *     Tools"; textContent renders correctly. ✓
- *   - JSON consumers (REST APIs, plugin scanners): receive the canonical
- *     unescaped form, which is what they expect from JSON values. ✓
+ * Correct layer: `rest_prepare_plugin` at line 619 of the REST
+ * controller, the last writable layer before JSON serialization.
+ * Scoped strictly to SN_GH_PLUGIN_BASENAME ($item['_file']) so other
+ * plugins' Name strings are never touched.
  *
- * Scope is narrowed to SN_GH_PLUGIN_BASENAME — other plugins' Name
- * strings are never touched. No security surface: the Name comes from
- * our own file header (no untrusted input).
+ * Verified against WordPress/WordPress @ tag 6.9.4:
+ *   wp-includes/rest-api/endpoints/class-wp-rest-plugins-controller.php
+ *   lines 578-620 + wp-admin/includes/plugin.php line 188.
  *
- * Verified against WordPress/desktop-mode
- * (src/plugins-window/installed-view.ts:396 + src/plugins-window/card.ts:91
- * trunk @ 2026-05-18).
+ * @since 2.1.6 (supersedes the all_plugins approach from v2.1.3)
  */
-add_filter( 'all_plugins', function( $plugins ) {
+add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 	if ( ! defined( 'SN_GH_PLUGIN_BASENAME' ) ) {
-		return $plugins;
+		return $response;
 	}
-	$slug = SN_GH_PLUGIN_BASENAME;
-	if ( isset( $plugins[ $slug ]['Name'] ) && false !== strpos( $plugins[ $slug ]['Name'], '&amp;' ) ) {
-		$plugins[ $slug ]['Name'] = html_entity_decode(
-			$plugins[ $slug ]['Name'],
-			ENT_QUOTES,
-			'UTF-8'
-		);
+	if ( ! is_array( $item ) || empty( $item['_file'] ) || SN_GH_PLUGIN_BASENAME !== $item['_file'] ) {
+		return $response;
 	}
-	return $plugins;
-} );
+
+	$data = $response->get_data();
+	$dirty = false;
+
+	// Decode the Name field — primary fix.
+	if ( isset( $data['name'] ) && false !== strpos( $data['name'], '&amp;' ) ) {
+		$data['name'] = html_entity_decode( $data['name'], ENT_QUOTES, 'UTF-8' );
+		$dirty = true;
+	}
+
+	// Author field also runs through wp_kses in the same function.
+	if ( isset( $data['author'] ) && false !== strpos( $data['author'], '&amp;' ) ) {
+		$data['author'] = html_entity_decode( $data['author'], ENT_QUOTES, 'UTF-8' );
+		$dirty = true;
+	}
+
+	// Belt + suspenders for the icon: Desktop Mode adds desktop_mode_icon_url
+	// as a custom REST field. Our `desktop_mode_plugins_window_icon_url`
+	// filter above already populates it via Desktop Mode's hook. Re-assert
+	// here in case the field arrives empty for any reason (e.g. Desktop
+	// Mode internal caching, race during plugin activation, etc.).
+	if ( empty( $data['desktop_mode_icon_url'] ) ) {
+		$data['desktop_mode_icon_url'] = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+		$dirty = true;
+	}
+
+	if ( $dirty ) {
+		$response->set_data( $data );
+	}
+	return $response;
+}, 10, 3 );
