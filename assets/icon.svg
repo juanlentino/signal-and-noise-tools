@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Signal & Noise Tools">
+  <title>Signal &amp; Noise Tools</title>
+  <!-- Brand: white-first brutalist, condensed display sans, red blood accent -->
+  <rect width="256" height="256" fill="#ffffff"/>
+  <!-- Red accent stripe top-left (matches the red `--` brand mark used in dock + header) -->
+  <rect x="20" y="20" width="44" height="6" fill="#e00404"/>
+  <!-- SN wordmark, condensed display sans. Impact is the widest-installed
+       system font that approximates Bebas Neue's geometry; if the user's
+       OS has Bebas Neue installed (e.g. macOS via Font Book), it wins via
+       the font-family fallback chain. -->
+  <text x="128" y="172"
+        font-family="'Bebas Neue', Impact, 'Helvetica Neue', sans-serif"
+        font-size="148"
+        font-weight="700"
+        text-anchor="middle"
+        fill="#000000"
+        letter-spacing="-3">SN</text>
+  <!-- Tiny rust-gray Tools sub-label for legibility at the larger 256+ sizes
+       (won't read at 64px but won't hurt at small sizes either — the SN
+       wordmark anchors the icon identity). -->
+  <text x="128" y="226"
+        font-family="ui-monospace, 'DM Mono', 'SF Mono', Menlo, monospace"
+        font-size="18"
+        font-weight="400"
+        text-anchor="middle"
+        fill="#666666"
+        letter-spacing="6">TOOLS</text>
+</svg>

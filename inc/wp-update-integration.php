@@ -135,6 +135,34 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	$plugin_data->new_version = $latest_version;
 	$plugin_data->url         = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO;
 	$plugin_data->package     = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO . '/archive/refs/tags/' . $latest_tag . '.zip';
+	// v2.1.2: brand assets — icons + banners served from our own
+	// assets/ directory. WP core reads these from the update transient to
+	// render the plugin icon on Dashboard → Updates list (verified
+	// against wp-admin/update-core.php list_plugin_updates() which
+	// checks svg > 2x > 1x > default in that priority order). Without
+	// this, the default puzzle-piece dashicon renders.
+	//
+	// IMPORTANT: `default` key must always be set — class-wp-plugin-
+	// install-list-table.php reads `$plugin['icons']['default']`
+	// without an `! empty()` guard, so unsetting it would throw a PHP
+	// notice on the Plugins → Add New screen. We point every key at the
+	// same SVG; browsers render SVG inside <img> tags fine, and the SVG
+	// scales to any DPR without a separate retina file.
+	$icon_url                 = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	$banner_low_url           = plugins_url( 'assets/banner.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	$plugin_data->icons       = array(
+		'svg'     => $icon_url,
+		'2x'      => $icon_url,
+		'1x'      => $icon_url,
+		'default' => $icon_url,
+	);
+	// banners only render in the "View Details" modal which goes
+	// through the plugins_api filter below — included here for
+	// symmetry/scanner-tool compatibility but inert on the update list.
+	$plugin_data->banners     = array(
+		'low'  => $banner_low_url,
+		'high' => $banner_low_url,
+	);
 
 	if ( version_compare( $latest_version, $current_version, '>' ) ) {
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
@@ -226,6 +254,80 @@ add_action( 'admin_init', function() {
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache();
 		}
+		// v2.1.2: also clear the plugin_information_<slug> transient
+		// which caches the plugins_api response (used by the View
+		// Details modal). Without this, the modal would keep showing
+		// the previous version's metadata even after install.
+		delete_site_transient( 'plugin_information_' . SN_GH_PLUGIN_SLUG );
 		update_option( SN_GH_PLUGIN_LAST_SEEN_OPT, $current );
 	}
 } );
+
+/**
+ * Filter plugins_api to provide the View Details modal data for our
+ * self-hosted plugin.
+ *
+ * WP core's plugin_install.php fires plugins_api( 'plugin_information', $args )
+ * when a user clicks "View details" on any plugin row. For
+ * wordpress.org plugins, the WP.org API server populates the response.
+ * For self-hosted, that API returns nothing, so the modal shows a
+ * "Plugin not found" error — unless we filter and supply the response
+ * ourselves.
+ *
+ * v2.1.2: added so the View Details modal renders correctly + the
+ * banner + the inline description. Result cached in the
+ * `plugin_information_<slug>` site transient (24h TTL by WP default);
+ * the version-change watchdog above clears it on each upgrade.
+ *
+ * Verified shape against wp-admin/includes/plugin-install.php
+ * install_plugin_information() lines ~872-891 (banner rendering) and
+ * wp-admin/includes/class-wp-plugin-install-list-table.php display_rows()
+ * lines ~445-475 (icon rendering).
+ */
+add_filter( 'plugins_api', function( $result, $action, $args ) {
+	if ( 'plugin_information' !== $action ) {
+		return $result;
+	}
+	if ( ! isset( $args->slug ) || SN_GH_PLUGIN_SLUG !== $args->slug ) {
+		return $result;
+	}
+
+	$icon_url       = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	$banner_url     = plugins_url( 'assets/banner.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	$latest_tag     = sn_gh_latest_plugin_tag();
+	$latest_version = $latest_tag ? ltrim( $latest_tag, 'v' ) : ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '' );
+	$repo_url       = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO;
+
+	$info                    = new stdClass();
+	$info->name              = 'Signal & Noise Tools';
+	$info->slug              = SN_GH_PLUGIN_SLUG;
+	$info->version           = $latest_version;
+	$info->author            = '<a href="https://juanlentino.com">Juan Lentino</a>';
+	$info->author_profile    = 'https://juanlentino.com';
+	$info->homepage          = $repo_url;
+	$info->requires          = '6.4';
+	$info->tested            = '7.0';
+	$info->requires_php      = '8.0';
+	$info->download_link     = $latest_tag ? $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip' : '';
+	$info->short_description = 'Operational + content tooling that powers juanlentino.com — SEO emission, cache controls, RSS subscriber tracking, OG card generation, GitHub-Actions deploy status, AI-assisted meta descriptions (WP 7.0+), and a WordPress/desktop-mode integration with on-desktop widgets.';
+	$info->sections          = array(
+		'description' => '<p>Companion plugin to the <a href="https://github.com/juanlentino/signal-and-noise">Signal &amp; Noise</a> brutalist block theme. Owns everything operational + content-authoring-related so the theme can stay focused on presentation.</p>'
+			. '<p><strong>SEO</strong> — meta tags, JSON-LD <code>@graph</code>, sitemap routing, <code>&lt;title&gt;</code> emission, <code>Last-Modified</code> header + <code>If-Modified-Since</code> 304 (post-Phase-13 cutover; The SEO Framework dropped as a dependency).</p>'
+			. '<p><strong>Ops tooling</strong> — Cloudflare cache purge, custom login URL, RSS subscriber tracking, API rate-limit monitor, OG card generator, GitHub Actions deploy status.</p>'
+			. '<p><strong>WP 7.0 readiness</strong> — AI-assisted meta description (Phase 12 scaffold, dormant on 6.x), Abilities API registration (4 abilities: <code>purge-all-caches</code>, <code>regenerate-og-card</code>, <code>get-deploy-status</code>, <code>clear-template-overrides</code>).</p>'
+			. '<p><strong>Desktop-mode integration</strong> — dock entry with 8-tab submenu, three desktop widgets (deploy status, quick actions, RSS subscribers), 13 ⌘K commands.</p>',
+		'changelog'   => '<p>See the full <a href="' . esc_url( $repo_url . '/blob/main/CHANGELOG.md' ) . '">CHANGELOG on GitHub</a>.</p>',
+	);
+	$info->icons             = array(
+		'svg'     => $icon_url,
+		'2x'      => $icon_url,
+		'1x'      => $icon_url,
+		'default' => $icon_url,
+	);
+	$info->banners           = array(
+		'low'  => $banner_url,
+		'high' => $banner_url,
+	);
+
+	return $info;
+}, 10, 3 );

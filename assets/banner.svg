@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1544 500" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Signal & Noise Tools">
+  <title>Signal &amp; Noise Tools</title>
+  <!-- Brand: brutalist inverted treatment for the View Details modal
+       header. Black ground, white wordmark, red stripe accent — same
+       palette as the icon, swapped contrast. -->
+  <rect width="1544" height="500" fill="#000000"/>
+  <!-- Red accent stripe, left-edge, full-height anchor mark -->
+  <rect x="80" y="80" width="6" height="340" fill="#e00404"/>
+  <!-- Primary wordmark — condensed display sans -->
+  <text x="140" y="290"
+        font-family="'Bebas Neue', Impact, 'Helvetica Neue', sans-serif"
+        font-size="180"
+        font-weight="700"
+        fill="#ffffff"
+        letter-spacing="-2">SIGNAL &amp; NOISE</text>
+  <!-- Sub-label, monospace for that "ops tooling" feel -->
+  <text x="140" y="370"
+        font-family="ui-monospace, 'DM Mono', 'SF Mono', Menlo, monospace"
+        font-size="36"
+        font-weight="400"
+        fill="#666666"
+        letter-spacing="8">TOOLS · COMPANION PLUGIN</text>
+  <!-- Quiet version tag on the right edge for "ops tooling" feel.
+       Static "v2" because text-on-banner shouldn't churn with each
+       patch release. -->
+  <text x="1464" y="430"
+        font-family="ui-monospace, 'DM Mono', 'SF Mono', Menlo, monospace"
+        font-size="24"
+        font-weight="400"
+        fill="#444444"
+        text-anchor="end"
+        letter-spacing="4">v2</text>
+</svg>

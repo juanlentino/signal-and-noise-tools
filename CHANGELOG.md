@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.1.2] - 2026-05-18
+
+### Added — plugin brand assets in wp-admin
+
+User asked: "We'd create an image for the plugin to show in the plugin list and all that... it's WP rule, right?" Yes — WP supports plugin icons + banners via the `plugins_api` filter + the update transient. Self-hosted plugins (like this one) have to provide them; the default is a puzzle-piece dashicon.
+
+Parallel-dispatched a research subagent to read the upstream WP source (`wp-admin/update-core.php`, `wp-admin/includes/plugin-install.php`, `wp-admin/includes/class-wp-plugin-install-list-table.php`) before writing code. Findings drove the exact shape used here:
+
+### Implementation
+
+- **[assets/icon.svg](assets/icon.svg)** — 256×256 viewBox, brand-aligned: white ground, condensed display sans "SN" wordmark in black, red blood-accent stripe top-left, "TOOLS" sub-label in DM Mono. SVG scales crisply at any DPR; pure markup, no font dependency at runtime (uses Bebas Neue + Impact + Helvetica Neue + sans-serif fallback chain — Impact is the widest-installed system font that approximates Bebas Neue's geometry).
+- **[assets/banner.svg](assets/banner.svg)** — 1544×500 viewBox, inverted treatment (black ground, white wordmark) for the View Details modal header. Same brand vocabulary.
+- **[inc/wp-update-integration.php](inc/wp-update-integration.php) update transient filter** — added `icons` + `banners` arrays to the `$plugin_data` object pushed into `update_plugins` site_transient. Every key (`svg`, `2x`, `1x`, `default`) points at the same SVG — modern WP picks `svg` first; older paths get the SVG via `default` (which MUST be set per `class-wp-plugin-install-list-table.php:445` which reads it without an `! empty()` guard).
+- **[inc/wp-update-integration.php](inc/wp-update-integration.php) NEW `plugins_api` filter** — supplies the View Details modal data (name, slug, version, author, sections, icons, banners). Without this filter, the modal shows "Plugin not found" for self-hosted plugins because the wordpress.org API returns nothing. The `description` section reads as a real plugin landing page (SEO, ops tooling, WP 7.0 readiness, desktop-mode integration).
+- **Cache invalidation** — extended the existing version-change watchdog at `admin_init` to also clear `plugin_information_<slug>` site transient (24h WP-default TTL). Without this, the View Details modal would keep showing the previous version's metadata after install.
+
+### Surfaces affected
+
+| Surface | Now shows |
+|---|---|
+| wp-admin → Dashboard → Updates (when update available) | SN icon (svg) next to the plugin entry |
+| wp-admin → Plugins → Add New (search/browse) | Not relevant for self-hosted; we don't appear in search results |
+| wp-admin → Plugins → View Details modal | SN banner header + icon + name + description sections + author + version + tested-up-to + requires-PHP |
+| wp-admin → Plugins → Installed Plugins list | No icon — WP core never renders icons on this surface |
+
+### Notes
+
+- **PATCH within `2.1.x`.** Patch headroom: 1/7 → **2/7 on 2.1.x**.
+- All URLs are HTTPS (mixed-content blocks `<img>` silently on HTTPS admin).
+- SVG fine in WP 5.0+; the developer.wordpress.org "PNG fallback required" rule is wordpress.org CDN docs, not WP core rendering — core renders SVG via `<img>` without issue.
+- Worth a new WP-REFERENCE gotcha: `class-wp-plugin-install-list-table.php` reads `$plugin['icons']['default']` without `! empty()` — always set the default key.
+
 ## [2.1.1] - 2026-05-18
 
 ### Critical hotfix — production login lockout caused by `wps-hide-login` ghost option entry
