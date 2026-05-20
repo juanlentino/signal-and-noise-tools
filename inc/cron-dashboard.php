@@ -47,3 +47,44 @@ function snt_cron_sn_owned_hooks() {
 function snt_cron_is_sn_owned( $hook ) {
 	return in_array( $hook, snt_cron_sn_owned_hooks(), true );
 }
+
+/**
+ * Last-fired storage: write helper.
+ *
+ * Key format: snt_cron_last_fired_<md5(hook)>. md5 avoids the
+ * varchar(191) wp_options key column limit for long hook names like
+ * 'action_scheduler_run_queue' and handles hook names with slashes.
+ *
+ * Stored as integer unix timestamp. autoload=false so it doesn't
+ * bloat the autoloaded options cache.
+ */
+function snt_cron_record_last_fired( $hook ) {
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return;
+	}
+	update_option( 'snt_cron_last_fired_' . md5( $hook ), time(), false );
+}
+
+/**
+ * Last-fired storage: read helper. Returns int|null.
+ */
+function snt_cron_last_fired_for( $hook ) {
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return null;
+	}
+	$value = get_option( 'snt_cron_last_fired_' . md5( $hook ), null );
+	if ( null === $value || '' === $value ) {
+		return null;
+	}
+	return (int) $value;
+}
+
+/**
+ * Named callback referenced by both wp_loaded path (registered for each
+ * cron hook during DOING_CRON requests) and the synchronous run-now
+ * path (registered ad-hoc in snt_cron_run_event_impl). Uses
+ * current_action() so one function works for every hook.
+ */
+function snt_cron_track_last_fired_cb() {
+	snt_cron_record_last_fired( current_action() );
+}
