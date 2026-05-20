@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.3] - 2026-05-20
+
+### Fixed — ability input validation rejected `null`
+
+v2.5.2's JS `executeAbility()` skipped sending the input parameter when the caller passed `null` (e.g., the "SN: Show deploy status" command callback). The abilities REST controller's input validation requires the value match the ability's `input_schema` — our maintenance/diagnostic abilities have `{ type: 'object', properties: {} }`, which accepts empty objects but rejects `null`. Server error: *"Ability has invalid input. Reason: input is not of type object."*
+
+Fix in [assets/command-palette.js](assets/command-palette.js) `executeAbility()`: always coerce `null`/`undefined` to `{}` before sending. For GET requests the input goes in `?input=%7B%7D`; for POST in `{ input: {} }`. Single defensive change; covers all 11 abilities + future callers.
+
+### Added — "Check for Updates" button in SN Dashboard tab Maintenance section
+
+Removes the need to run `gh workflow run deploy.yml --ref vX.Y.Z` to land plugin releases on the live site.
+
+**Why this is needed:** WP's own `update_plugins` site transient has a ~12h TTL. Our `pre_set_site_transient_update_plugins` filter (which injects our GitHub-hosted release into the WP update flow) only fires when WP is about to *re-set* that transient — on cache miss, on `WP_FORCE_UPDATE_CHECK`, or on `?force-check=1`. After tagging a new release, WP's cached "no update" answer persists until WP next polls 12 hours later. The user would either wait or click "Check Again" on update-core.php.
+
+The new "Check for Updates" card (next to Full Reset / Clear Overrides / Purge Caches) is one click → existing `sn_force_update_check` admin-post handler clears `sn_gh_latest_theme`, `sn_gh_latest_plugin`, `update_themes`, `update_plugins` → redirects to `update-core.php?force-check=1` → WP repolls → our filter injects the new tag → Updates UI shows it. Same flow that was already wired to the "Refresh now" link in the External APIs summary; just made it discoverable in the Maintenance section where users look after tagging a release.
+
+After v2.5.3 is installed, the canonical release workflow becomes:
+1. `git push origin main && git push origin vX.Y.Z`
+2. **Wait ~30 seconds** for GitHub to surface the tag in its API
+3. wp-admin → S&N → Dashboard → **Check Now** under "Check for Updates"
+4. wp-admin → Updates → click "Update plugin" for Signal & Noise Tools
+5. Done
+
+No more `gh workflow run` for routine releases.
+
+### Documented — WP 7.0 research findings
+
+Comprehensive post-launch read of [WP 7.0 Field Guide](https://make.wordpress.org/core/2026/05/14/wordpress-7-0-field-guide/) (final), [Armstrong release announcement](https://wordpress.org/news/2026/05/armstrong/), and abilities-api source. Findings relevant to this plugin:
+
+- **WP 7.0 changes nothing in the plugin update system.** `pre_set_site_transient_update_plugins`, `plugins_api`, and `upgrader_*` filters all unchanged. The "Updates UI doesn't show my plugin" issue we hit was about WP's own transient TTL, not a 7.0 regression.
+- **WP 7.0 changes nothing in plugin readme.txt validation.** `Requires at least: 6.4`, `Tested up to: 7.0`, `Requires PHP: 8.0` continue to be the canonical headers.
+- **Abilities REST URL is `/wp-abilities/v1/abilities/<name>/run`.** The abilities-api repo's `docs/rest-api.md` documents it without the `/abilities/` segment — **the docs are wrong vs the implementation**. Source verified at [run-controller.php](https://github.com/WordPress/abilities-api/blob/trunk/includes/rest-api/endpoints/class-wp-rest-abilities-v1-run-controller.php). v2.5.2 fixed this in our JS.
+- **AI Client availability check is `is_supported_for_text_generation()`, not `wp_has_ai_client()`.** Per the [AI Client dev note](https://make.wordpress.org/core/2026/03/24/introducing-the-ai-client-in-wordpress-7-0/). v2.5.0 fixed this in our gate function.
+- **Command Palette has NO official UI feedback pattern.** `@wordpress/core-commands` imports `element`, `router`, `commands` — but NOT `notices`. No `<SnackbarList>` rendered on wp-admin pages outside the Gutenberg block editor. v2.5.1 fixed this with DOM-built admin notices.
+
+The Field Guide had post-launch updates on 5/17 (DataViews dev note) and 5/18 (Notes section removed) — neither affects SN.
+
 ## [2.5.2] - 2026-05-20
 
 ### Fixed — abilities REST URL was missing `/abilities/` segment

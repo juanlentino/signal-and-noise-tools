@@ -160,6 +160,37 @@ function snt_dashboard_tab_render() {
 	echo '<button type="submit" name="sn_action" value="purge_caches" class="button">Purge All Caches</button>';
 	echo '</div>';
 
+	// v2.5.3: visible UI shortcut for the "tagged a new release, where's
+	// the Updates UI?" workflow. Replaces the need to run
+	// `gh workflow run deploy.yml --ref vX.Y.Z` for every release.
+	//
+	// Why this exists: WP's `update_plugins` site transient has a ~12h TTL.
+	// Our pre_set_site_transient_update_plugins filter only fires when WP
+	// is about to RE-SET that transient — i.e., on cache miss, on
+	// WP_FORCE_UPDATE_CHECK, or on `?force-check=1`. Without an explicit
+	// re-check, a freshly-tagged release can stay invisible to Updates UI
+	// for up to 12 hours. This button is one click → both transients
+	// cleared → redirect to update-core.php?force-check=1 → WP repolls →
+	// our filter injects the new tag → Updates UI shows it.
+	//
+	// As a bonus, this is just an admin-bar-free version of the
+	// `signal-noise/force-check-updates` ability (Cmd+K path), reachable
+	// without depending on the ⌘K palette working.
+	// v2.5.3: re-use the existing sn_force_update_check admin-post handler
+	// (lower in this file) which clears both transients + redirects to
+	// update-core.php?force-check=1. Same handler as the API summary's
+	// "Refresh now" link — single source of truth for force-check.
+	$check_updates_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=sn_force_update_check' ),
+		'sn_force_update_check',
+		'sn_force_update_check_nonce'
+	);
+	echo '<div class="sn-card">';
+	echo '<strong>Check for Updates</strong>';
+	echo '<p class="sn-helper">Clears the theme + plugin update caches and re-polls GitHub. Use after tagging a new release.</p>';
+	echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">Check Now</a>';
+	echo '</div>';
+
 	echo '</div>';
 	echo '</form>';
 

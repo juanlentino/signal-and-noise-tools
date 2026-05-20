@@ -131,12 +131,18 @@
 		// segment — the docs are wrong vs the implementation.
 		var path = '/wp-abilities/v1/abilities/' + name + '/run';
 		var opts = { path: path, method: verb };
-		if ( input !== null && input !== undefined ) {
-			if ( verb === 'POST' ) {
-				opts.data = { input: input };
-			} else {
-				opts.path += '?input=' + encodeURIComponent( JSON.stringify( input ) );
-			}
+		// v2.5.3: ALWAYS send input (default to {}). The abilities REST
+		// controller validates input against input_schema BEFORE running
+		// the execute_callback. Our maintenance/diagnostic abilities have
+		// input_schema { type: 'object', properties: {} } — they accept
+		// empty objects but reject null. The v2.5.2 code skipped sending
+		// any input when null was passed, which caused "invalid input. Reason:
+		// input is not of type object" on the server.
+		var safeInput = ( input === null || input === undefined ) ? {} : input;
+		if ( verb === 'POST' ) {
+			opts.data = { input: safeInput };
+		} else {
+			opts.path += '?input=' + encodeURIComponent( JSON.stringify( safeInput ) );
 		}
 		return wp.apiFetch( opts );
 	}
