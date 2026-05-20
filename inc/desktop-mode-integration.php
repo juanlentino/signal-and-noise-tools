@@ -307,10 +307,91 @@ add_action( 'admin_enqueue_scripts', function() {
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * COMMAND IMPLEMENTATIONS
+ *
+ * Each operation lives in a pure function returning array (success payload)
+ * or WP_Error. Both the legacy REST handler AND the new abilities (v2.5.0+)
+ * call these — single source of truth.
+ *
+ * @since v2.5.0 — extracted from snt_desktop_cmd_handler for the
+ * abilities-first refactor.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+function snt_cmd_impl_force_check() {
+	delete_site_transient( 'sn_gh_latest_theme' );
+	delete_site_transient( 'sn_gh_latest_plugin' );
+	delete_site_transient( 'update_themes' );
+	delete_site_transient( 'update_plugins' );
+	return array(
+		'ok'      => true,
+		'message' => 'Update caches cleared. Next page-load fetches fresh data from GitHub.',
+	);
+}
+
+function snt_cmd_impl_purge_caches( $include_template_overrides = false ) {
+	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => (bool) $include_template_overrides ) );
+	return array(
+		'ok'      => true,
+		'message' => 'All caches purged.',
+		'data'    => array( 'count' => $count ),
+	);
+}
+
+function snt_cmd_impl_clear_overrides() {
+	$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
+	return array(
+		'ok'      => true,
+		'message' => sprintf( '%d database override%s cleared.', $count, 1 === $count ? '' : 's' ),
+		'data'    => array( 'count' => $count ),
+	);
+}
+
+function snt_cmd_impl_full_reset() {
+	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
+	return array(
+		'ok'      => true,
+		'message' => sprintf( 'Full reset: %d override%s cleared + all caches purged.', $count, 1 === $count ? '' : 's' ),
+		'data'    => array( 'count' => $count ),
+	);
+}
+
+function snt_cmd_impl_rss_stats() {
+	if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
+		return new WP_Error(
+			'snt_rss_unavailable',
+			'RSS tracker module not loaded.',
+			array( 'status' => 503 )
+		);
+	}
+	$stats    = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
+	$last_rel = '';
+	if ( ! empty( $stats['most_recent'] ) ) {
+		$t = strtotime( $stats['most_recent'] );
+		if ( $t ) {
+			$last_rel = human_time_diff( $t, time() ) . ' ago';
+		}
+	}
+	return array(
+		'ok'   => true,
+		'data' => array(
+			'last_request'          => $stats['most_recent'] ?? null,
+			'last_request_relative' => $last_rel,
+			'windows'               => $stats['windows'] ?? array(),
+		),
+	);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
  * REST ENDPOINTS — signal-noise/v1/cmd/*
  *
- * Single handler dispatches on the {action} URL param. Response shape:
- *   { ok: bool, message: string, data?: object }
+ * @deprecated since 2.5.0 — prefer the abilities REST surface at
+ * /wp-abilities/v1/signal-noise/<ability>/run. These endpoints stay
+ * wired for back-compat with the desktop-mode plugin's own command
+ * palette which still calls /cmd/* directly. Each handler now delegates
+ * to a snt_cmd_impl_* pure function shared with the new ability execute
+ * callbacks (single source of truth).
+ *
+ * Response shape: { ok: bool, message: string, data?: object }
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'rest_api_init', function() {
@@ -334,66 +415,23 @@ function snt_desktop_cmd_handler( WP_REST_Request $request ) {
 
 	switch ( $action ) {
 		case 'force-check':
-			delete_site_transient( 'sn_gh_latest_theme' );
-			delete_site_transient( 'sn_gh_latest_plugin' );
-			delete_site_transient( 'update_themes' );
-			delete_site_transient( 'update_plugins' );
-			return rest_ensure_response( array(
-				'ok'      => true,
-				'message' => 'Update caches cleared. Next page-load fetches fresh data from GitHub.',
-			) );
+			return rest_ensure_response( snt_cmd_impl_force_check() );
 
 		case 'purge-caches':
-			$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
-			return rest_ensure_response( array(
-				'ok'      => true,
-				'message' => 'All caches purged.',
-				'data'    => array( 'count' => $count ),
-			) );
+			return rest_ensure_response( snt_cmd_impl_purge_caches( false ) );
 
 		case 'clear-overrides':
-			$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
-			return rest_ensure_response( array(
-				'ok'      => true,
-				'message' => sprintf( '%d database override%s cleared.', $count, 1 === $count ? '' : 's' ),
-				'data'    => array( 'count' => $count ),
-			) );
+			return rest_ensure_response( snt_cmd_impl_clear_overrides() );
 
 		case 'full-reset':
-			$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
-			return rest_ensure_response( array(
-				'ok'      => true,
-				'message' => sprintf( 'Full reset: %d override%s cleared + all caches purged.', $count, 1 === $count ? '' : 's' ),
-				'data'    => array( 'count' => $count ),
-			) );
+			return rest_ensure_response( snt_cmd_impl_full_reset() );
 
 		case 'rss-stats':
-			// v2.1.0: read-only RSS feed activity for the desktop widget.
-			// Reuses sn_rss_tracker_window_stats_multi() that powers the
-			// existing /sn-rss tab + Dashboard tab RSS summary.
-			if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
-				return new WP_Error(
-					'snt_rss_unavailable',
-					'RSS tracker module not loaded.',
-					array( 'status' => 503 )
-				);
+			$result = snt_cmd_impl_rss_stats();
+			if ( is_wp_error( $result ) ) {
+				return $result;
 			}
-			$stats        = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
-			$last_rel     = '';
-			if ( ! empty( $stats['most_recent'] ) ) {
-				$t = strtotime( $stats['most_recent'] );
-				if ( $t ) {
-					$last_rel = human_time_diff( $t, time() ) . ' ago';
-				}
-			}
-			return rest_ensure_response( array(
-				'ok'   => true,
-				'data' => array(
-					'last_request'          => $stats['most_recent'] ?? null,
-					'last_request_relative' => $last_rel,
-					'windows'               => $stats['windows'] ?? array(),
-				),
-			) );
+			return rest_ensure_response( $result );
 
 		case 'status':
 			$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' )  : array();
