@@ -77,10 +77,12 @@
 			btn.disabled = true;
 			setStatus( status, __( 'Generating…', 'signal-noise-tools' ), 'info' );
 
+			// v2.5.0+: route through the abilities REST API instead of the
+			// legacy /signal-noise/v1/ai/generate-og-card-title endpoint.
 			window.wp.apiFetch( {
-				path: restPath,
+				path: '/wp-abilities/v1/signal-noise/ai-generate-og-card-title/run',
 				method: 'POST',
-				data: { post_id: postId },
+				data: { input: { post_id: postId } },
 			} )
 				.then( function( res ) {
 					if ( ! res || ! res.title ) {
