@@ -178,7 +178,13 @@ function sn_generate_og_card( $post_id ) {
 	imagettftext( $im, 18, 0, $pad_x, 130, $gray, $dmmono_path, 'JUANLENTINO.COM' );
 
 	// Title: Bebas Neue, big, up to 3 lines.
-	$title       = (string) $post->post_title;
+	//
+	// Filterable so plugin v2.4.0+ can substitute an AI-generated punchier
+	// variant when _sn_og_card_title post meta is set. Default = post_title,
+	// matching pre-v2.4.0 behavior exactly. The og:title HTML meta tag is
+	// unaffected — it continues to emit the canonical article title; only
+	// the visual title baked into the PNG changes.
+	$title       = (string) apply_filters( 'sn_og_card_title', $post->post_title, $post->ID );
 	$title_lines = sn_og_wrap_lines( $title, 88, $bebas_path, $max_width, 3 );
 	$y           = 250;
 	foreach ( $title_lines as $line ) {

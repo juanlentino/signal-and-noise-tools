@@ -11,10 +11,15 @@
  *                    but Article is the broader supertype.)
  *
  * Skipped vs The SEO Framework's emission:
- *   - BreadcrumbList — WordPress 7.0 ships a native Breadcrumbs block,
- *     use that instead of duplicating in JSON-LD.
  *   - SearchAction — site has no /search/{term} route.
  *   - WebPage on non-post singulars — marginal value, omit.
+ *
+ * NOTE: BreadcrumbList JSON-LD IS emitted from here (sn_schema_breadcrumb_list
+ * below). The earlier v2.0.0 docblock claimed WP 7.0's native Breadcrumbs
+ * block would emit its own structured data so we could drop this — that
+ * claim was false. Verified 2026-05-20 against Gutenberg trunk: the native
+ * core/breadcrumbs block emits visual <nav><ol> HTML only, no JSON-LD. So
+ * this function remains load-bearing for SERP breadcrumb rich results.
  *
  * Social profile URLs (sameAs) are filterable via `sn_schema_same_as`
  * for future configurability.
@@ -238,9 +243,10 @@ function sn_schema_collection_page() {
  * Trail order: Home → (parent page chain if any) → current page.
  * For singular posts: Home → Post Title (no post-type archive in the trail).
  *
- * Added in v2.0.0 (Phase 13 TSF cutover). Will be removed in a
- * post-WP-7.0 refactor once the native Breadcrumbs block is added to
- * templates and emits its own BreadcrumbList structured data.
+ * Added in v2.0.0 (Phase 13 TSF cutover). The original docblock claimed
+ * this would be removed once WP 7.0's native Breadcrumbs block landed —
+ * inspection of Gutenberg trunk on 2026-05-20 showed the native block
+ * emits visual <nav><ol> only, no JSON-LD. So this stays.
  */
 function sn_schema_breadcrumb_list() {
 	if ( is_front_page() ) {

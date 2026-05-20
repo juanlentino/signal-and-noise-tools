@@ -71,6 +71,7 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_meta_description', $text_args );
 		register_post_meta( $post_type, '_sn_canonical_url',    $url_args );
 		register_post_meta( $post_type, '_sn_og_image_url',     $url_args );
+		register_post_meta( $post_type, '_sn_og_card_title',    $text_args );
 	}
 }
 add_action( 'init', 'sn_post_settings_register_meta' );
@@ -106,12 +107,13 @@ add_action( 'add_meta_boxes', 'sn_post_settings_register_meta_box' );
 function sn_post_settings_render( $post ) {
 	wp_nonce_field( SN_POST_SETTINGS_NONCE, 'sn_post_settings_nonce' );
 
-	$noindex      = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
-	$noarchive    = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
-	$noimageindex = (bool) get_post_meta( $post->ID, '_sn_noimageindex', true );
-	$desc         = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
-	$canonical    = (string) get_post_meta( $post->ID, '_sn_canonical_url', true );
-	$og           = (string) get_post_meta( $post->ID, '_sn_og_image_url', true );
+	$noindex       = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
+	$noarchive     = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
+	$noimageindex  = (bool) get_post_meta( $post->ID, '_sn_noimageindex', true );
+	$desc          = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
+	$canonical     = (string) get_post_meta( $post->ID, '_sn_canonical_url', true );
+	$og            = (string) get_post_meta( $post->ID, '_sn_og_image_url', true );
+	$og_card_title = (string) get_post_meta( $post->ID, '_sn_og_card_title', true );
 
 	echo '<div class="sn-post-settings">';
 
@@ -159,6 +161,13 @@ function sn_post_settings_render( $post ) {
 	echo '<label class="sn-field-label" for="sn_og_image_url">OG image URL</label>';
 	echo '<input type="url" id="sn_og_image_url" name="sn_og_image_url" value="' . esc_attr( $og ) . '" placeholder="https://...">';
 	echo '<p class="sn-field-helper">Overrides the featured image / auto-generated card for OG and Twitter shares. Empty falls back to default resolution.</p>';
+	echo '</div>';
+
+	// ─── OG card title override ───
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_og_card_title">OG card title</label>';
+	echo '<textarea id="sn_og_card_title" name="sn_og_card_title" rows="2">' . esc_textarea( $og_card_title ) . '</textarea>';
+	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only — the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. Aim for 60-90 chars for the punchiest card.</p>';
 	echo '</div>';
 
 	echo '</div>';
@@ -218,6 +227,16 @@ function sn_post_settings_save( $post_id ) {
 		delete_post_meta( $post_id, '_sn_meta_description' );
 	}
 
+	// OG card title override — same sanitize shape as meta description.
+	$og_card_title = isset( $_POST['sn_og_card_title'] )
+		? sanitize_textarea_field( wp_unslash( $_POST['sn_og_card_title'] ) )
+		: '';
+	if ( '' !== $og_card_title ) {
+		update_post_meta( $post_id, '_sn_og_card_title', $og_card_title );
+	} else {
+		delete_post_meta( $post_id, '_sn_og_card_title' );
+	}
+
 	// URL fields — esc_url_raw strips invalid URLs to ''.
 	$url_fields = array(
 		'_sn_canonical_url' => 'sn_canonical_url',
@@ -264,4 +283,8 @@ function sn_post_settings_get_canonical_url( $post_id ) {
 
 function sn_post_settings_get_og_image_url( $post_id ) {
 	return (string) get_post_meta( $post_id, '_sn_og_image_url', true );
+}
+
+function sn_post_settings_get_og_card_title( $post_id ) {
+	return (string) get_post_meta( $post_id, '_sn_og_card_title', true );
 }

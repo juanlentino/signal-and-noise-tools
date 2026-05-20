@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.3.0] - 2026-05-20
+
+### Added — WP 7.0 Command Palette integration
+
+WordPress 7.0 ships a built-in Command Palette (⌘K / Ctrl+K in wp-admin) via `@wordpress/commands`. This release registers 5 SN actions in it so the most-used maintenance operations are reachable from anywhere in wp-admin without navigating to the SN settings page.
+
+Commands registered (admin only — gated on `manage_options`):
+- **SN: Purge all caches** → `POST /signal-noise/v1/cmd/purge-caches`
+- **SN: Clear template overrides** → `POST /signal-noise/v1/cmd/clear-overrides`
+- **SN: Force-check updates** → `POST /signal-noise/v1/cmd/force-check`
+- **SN: Show deploy status** → `GET /signal-noise/v1/cmd/status` (snackbar)
+- **SN: Open Signal & Noise settings** → navigate to dashboard
+
+Implementation — [inc/command-palette.php](inc/command-palette.php) + [assets/command-palette.js](assets/command-palette.js):
+- JS-only registration via `wp.data.dispatch( 'core/commands' ).registerCommand( … )` — WP 7.0's commands package has no PHP wrapper.
+- Each command's callback hits an existing REST endpoint registered by [inc/desktop-mode-integration.php](inc/desktop-mode-integration.php) — one endpoint set, three callers (SN admin UI, desktop-mode palette, WP-native palette).
+- Snackbar results via `core/notices` — the canonical WP toast surface.
+- Bails silently if `wp.commands` / `wp.data` / `wp.apiFetch` is missing (WP < 7.0, no admin context, stripped-down install).
+- Dashicons-as-React-element pattern (`wp.element.createElement('span', { className: 'dashicons dashicons-…' })`) avoids needing a JSX build step.
+
+### Added — AI-assisted OG card title generation (Phase 16, slice 1)
+
+Builds on v1.16.0's AI-meta-description scaffolding. Adds a "Generate with AI" button next to a new "OG card title" field in the per-post SN meta box. AI generates a 60-90 character punchier variant of the post title, writes to `_sn_og_card_title` post meta, AND immediately re-runs `sn_generate_og_card()` so the PNG on disk reflects the new title without the user having to save the post.
+
+**Critical:** the `og:title` HTML meta tag is untouched — search engines and social-share scrapers still see the canonical article title. Only the visual title baked into the PNG is replaced. Think of it as "alt for the card image."
+
+Implementation:
+- [inc/og-card-generator.php:181](inc/og-card-generator.php) — new `sn_og_card_title` filter point. Default = `$post->post_title`, matching pre-v2.3.0 behavior exactly. Pre-existing posts have no behavior change until the user explicitly opts in via the new field.
+- [inc/post-settings.php](inc/post-settings.php) — new `_sn_og_card_title` post meta (REST-exposed) + textarea field in the meta box + save/sanitize handler + typed accessor.
+- [inc/ai-og-card-title.php](inc/ai-og-card-title.php) — REST endpoint `POST /signal-noise/v1/ai/generate-og-card-title` + filter listener that reads the post meta override + script enqueue.
+- [assets/ai-og-card-title.js](assets/ai-og-card-title.js) — DOM-built button + status row, mirrors the AI meta-description button's XSS-safe pattern.
+- Prompt design: same provider-agnostic / no-temperature posture as ai-meta-description (works against Anthropic + Gemini connectors without code branching). System instruction constrains to 60-90 chars, active voice, no marketing fluff, drop subtitles after a colon if they pad length.
+
+### Fixed — false claim about WP 7.0 emitting BreadcrumbList JSON-LD
+
+[inc/seo-schema.php](inc/seo-schema.php) docblock and the `sn_schema_breadcrumb_list()` function comment both claimed WP 7.0's native `core/breadcrumbs` block would emit its own BreadcrumbList structured data, so we could drop our JSON-LD emission post-7.0 launch. **The claim was false.** Verified 2026-05-20 against Gutenberg trunk: the native block emits visual `<nav><ol>` HTML only — no `<script type="application/ld+json">` anywhere in the package. Deleting `sn_schema_breadcrumb_list()` would have silently dropped breadcrumb rich results from SERPs. Corrected the comments + logged the gotcha at WORDPRESS-REFERENCE.md #30 (theme repo) so future-us doesn't re-believe the false claim.
+
+### Notes
+
+- Both AI features (meta description from v1.16.0, OG card title from this release) are dormant on installs without WP 7.0 + a configured AI provider. The `snt_ai_is_available()` gate means zero behavior change for users who haven't enabled the AI Client.
+- Command Palette commands are admin-only and bail silently on WP < 7.0 — safe to ship without a 7.0-only gate.
+
 ## [2.2.0] - 2026-05-18
 
 ### Fixed — icon was rendering but invisible against white admin background
