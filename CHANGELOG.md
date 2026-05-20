@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.0.1] - 2026-05-20
+
+### Fixed — Cron Dashboard Run-now timezone display
+
+After clicking Run-now, the JS replaced the **Last fired** cell's content using a client-side `Date.toISOString()` formatter, which always emits UTC. The rest of the table renders timestamps via PHP `wp_date( 'Y-m-d H:i:s' )`, which honors the site's configured timezone. Result: the inline-updated cell briefly displayed UTC time until the next page reload, creating a visual inconsistency users would (rightly) read as a bug.
+
+**Fix:** `snt_cron_run_event_impl` now includes a `last_fired_formatted` string in its response (`wp_date( 'Y-m-d H:i:s', $last_fired_ts )` server-side), and the JS uses it directly. The cell content matches the rest of the table's timezone exactly.
+
+Bumps tests from 34 to 35 passing assertions (Test 10 now verifies the response shape includes `last_fired_formatted`).
+
+Flagged by the Task 12 code quality review during the v3.0.0 implementation; landed as the first v3.x patch.
+
+### Files
+
+- `inc/cron-dashboard.php` — `snt_cron_run_event_impl` return shape adds `last_fired_formatted`
+- `assets/cron-dashboard.js` — `updateLastFiredCell` accepts a pre-formatted string; removes the `formatTimestamp` helper
+- `tests/cron-dashboard.php` — new assertion in Test 10
+
 ## [3.0.0] - 2026-05-20
 
 ### Added — Phase 15 net-new: Cron Dashboard

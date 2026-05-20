@@ -266,13 +266,20 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 	}
 
 	$elapsed_ms = ( microtime( true ) - $start ) * 1000;
+	$last_fired_ts = snt_cron_last_fired_for( $hook );
 
 	return array(
-		'success'       => $success,
-		'elapsed_ms'    => $elapsed_ms,
-		'error'         => $error,
-		'last_fired_ts' => snt_cron_last_fired_for( $hook ),
-		'hook'          => $hook,
+		'success'              => $success,
+		'elapsed_ms'           => $elapsed_ms,
+		'error'                => $error,
+		'last_fired_ts'        => $last_fired_ts,
+		// v3.0.1: include a server-side-formatted timestamp so the JS
+		// doesn't need to call toISOString() (which produces UTC, not
+		// site timezone). Matches the wp_date format used by the PHP
+		// renderer for the initial cell content — keeps the inline
+		// cell update visually consistent with the rest of the table.
+		'last_fired_formatted' => $last_fired_ts ? wp_date( 'Y-m-d H:i:s', $last_fired_ts ) : null,
+		'hook'                 => $hook,
 	);
 }
 

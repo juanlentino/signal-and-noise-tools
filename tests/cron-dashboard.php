@@ -192,6 +192,11 @@ $res = snt_cron_run_event_impl( 'sn_rss_tracker_daily_prune' );
 assert_true( $fired, 'handler was invoked' );
 assert_eq( true, $res['success'], 'success=true' );
 assert_eq( 'sn_rss_tracker_daily_prune', $res['hook'], 'hook echoed back' );
+// v3.0.1: response shape includes a server-formatted last_fired string
+// for the JS to render without timezone drift. In this test scenario the
+// stub's add_action is a no-op so last_fired_ts stays null after dispatch,
+// meaning last_fired_formatted is also null — but the key MUST exist.
+assert_true( array_key_exists( 'last_fired_formatted', $res ), 'response has last_fired_formatted key (v3.0.1)' );
 assert_true( is_float( $res['elapsed_ms'] ) || is_int( $res['elapsed_ms'] ), 'elapsed_ms is numeric' );
 
 // ─── Test 11: snt_cron_run_event_impl catches Throwable ──────────────

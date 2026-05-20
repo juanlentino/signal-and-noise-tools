@@ -33,22 +33,18 @@
 		console.log( '[SN cron]', msg );
 	}
 
-	function formatTimestamp( unixSeconds ) {
-		var d = new Date( unixSeconds * 1000 );
-		// "YYYY-MM-DD HH:MM:SS" — matches wp_date( 'Y-m-d H:i:s' ) server-side.
-		return d.toISOString().replace( 'T', ' ' ).replace( /\..+/, '' );
-	}
-
-	function updateLastFiredCell( tr, lastFiredTs ) {
+	function updateLastFiredCell( tr, formatted ) {
 		var cell = tr.querySelector( '.sn-cron-last-fired' );
-		if ( ! cell || ! lastFiredTs ) {
+		if ( ! cell || ! formatted ) {
 			return;
 		}
 		// Safe DOM construction — clear, then append text + br + small.
+		// v3.0.1: `formatted` is the server-side wp_date() output, so the
+		// inline cell matches the rest of the table's timezone exactly.
 		while ( cell.firstChild ) {
 			cell.removeChild( cell.firstChild );
 		}
-		cell.appendChild( document.createTextNode( formatTimestamp( lastFiredTs ) ) );
+		cell.appendChild( document.createTextNode( formatted ) );
 		cell.appendChild( document.createElement( 'br' ) );
 		var sm = document.createElement( 'small' );
 		sm.textContent = 'just now';
@@ -96,7 +92,10 @@
 					data: { hook: hook }
 				} ).then( function( res ) {
 					if ( res && res.success ) {
-						updateLastFiredCell( tr, res.last_fired_ts );
+						// v3.0.1: use server-formatted timestamp (site
+						// timezone, matches the rest of the table) instead
+						// of client-side UTC toISOString.
+						updateLastFiredCell( tr, res.last_fired_formatted );
 						toast( hook + ' fired in ' + Math.round( res.elapsed_ms ) + 'ms', 'success' );
 					} else {
 						toast( 'Run failed: ' + ( ( res && res.error ) || 'unknown error' ), 'error' );
