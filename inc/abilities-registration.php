@@ -113,6 +113,7 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 		'meta'                => array(
+			'show_in_rest' => true,
 			'annotations' => array(
 				'destructive' => true,
 				'idempotent'  => true,
@@ -151,6 +152,7 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 		'meta'                => array(
+			'show_in_rest' => true,
 			'annotations' => array(
 				'idempotent' => true,
 			),
@@ -189,6 +191,7 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 		'meta'                => array(
+			'show_in_rest' => true,
 			'annotations' => array(
 				'readonly'   => true,
 				'idempotent' => true,
@@ -215,6 +218,7 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 		'meta'                => array(
+			'show_in_rest' => true,
 			'annotations' => array(
 				'destructive' => true,
 				'idempotent'  => true,
