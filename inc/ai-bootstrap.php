@@ -38,18 +38,57 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Is the WP AI Client available on this install?
+ * Is the WP AI Client wired up with at least one provider that can
+ * generate text on this install?
  *
- * Returns true if either:
- *   - WP 7.0+ is installed (AI Client bundled in core)
- *   - WP 6.x + wp-ai-client plugin is active (backport)
+ * Canonical check per the WordPress 7.0 AI Client dev note (2026-03-24):
+ *   https://make.wordpress.org/core/2026/03/24/introducing-the-ai-client-in-wordpress-7-0/
  *
- * Use this gate for every AI integration in SN code. Dormant when false.
+ *   > "Available support check methods include is_supported_for_text_generation(),
+ *   >  is_supported_for_image_generation(), and others — NOT wp_has_ai_client()."
+ *
+ * The check builds a no-cost prompt and asks the resulting builder whether
+ * its configuration (no provider/model pinned, default sampling) is
+ * supported by any registered, configured provider. Per the dev note,
+ * this is deterministic — no API calls fired.
+ *
+ * Returns false when:
+ *   - WP < 7.0 (and no wp-ai-client backport plugin)
+ *   - AI Client present but no provider plugin installed (e.g. Anthropic provider missing)
+ *   - Provider plugin present but no API key configured in Settings > Connectors
+ *
+ * @since v2.5.0 — replaces wp_has_ai_client() gate that returned true even
+ * when no provider was configured (causing AI buttons to render then 503).
+ *
+ * @return bool
+ */
+function snt_ai_can_text_generate() {
+	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+		return false;
+	}
+
+	try {
+		$builder = wp_ai_client_prompt( 'check' );
+		if ( ! is_object( $builder ) ) {
+			return false;
+		}
+		if ( ! method_exists( $builder, 'is_supported_for_text_generation' ) ) {
+			return false; // Older wp-ai-client backport without the feature-detection method.
+		}
+		return (bool) $builder->is_supported_for_text_generation();
+	} catch ( \Throwable $e ) {
+		return false;
+	}
+}
+
+/**
+ * Back-compat alias — every existing call site of snt_ai_is_available()
+ * gets the corrected behavior automatically.
  *
  * @return bool
  */
 function snt_ai_is_available() {
-	return function_exists( 'wp_has_ai_client' ) && wp_has_ai_client();
+	return snt_ai_can_text_generate();
 }
 
 /**
