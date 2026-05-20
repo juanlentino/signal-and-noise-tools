@@ -528,6 +528,115 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	// ── Cron Dashboard abilities (v3.0.0) ─────────────────────────────
+
+	wp_register_ability( 'signal-noise/list-cron-events', array(
+		'label'               => 'List Cron Events',
+		'description'         => 'Returns all scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag.',
+		'category'            => 'diagnostics',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => function( $input ) {
+			if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
+				return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+			}
+			$sn_only = is_array( $input ) && ! empty( $input['sn_only'] );
+			return snt_cron_get_events_impl( $sn_only );
+		},
+		'input_schema'        => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(
+				'sn_only' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'If true, filter to the 3 SN-owned hooks only.',
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'  => 'array',
+			'items' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'hook'           => array( 'type' => 'string' ),
+					'args_signature' => array( 'type' => 'string' ),
+					'next_run_ts'    => array( 'type' => 'integer' ),
+					'schedule'       => array( 'type' => array( 'string', 'boolean' ) ),
+					'interval_s'     => array( 'type' => array( 'integer', 'null' ) ),
+					'args'           => array( 'type' => 'array' ),
+					'last_fired_ts'  => array( 'type' => array( 'integer', 'null' ) ),
+					'has_handler'    => array( 'type' => 'boolean' ),
+					'is_sn_owned'    => array( 'type' => 'boolean' ),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'        => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/get-cron-event', array(
+		'label'               => 'Get Cron Event Details',
+		'description'         => 'Returns details for a single scheduled cron event identified by hook + args_signature. Returns null if no match.',
+		'category'            => 'diagnostics',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => function( $input ) {
+			if ( ! function_exists( 'snt_cron_get_event_impl' ) ) {
+				return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+			}
+			return snt_cron_get_event_impl(
+				(string) $input['hook'],
+				(string) $input['args_signature']
+			);
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'hook', 'args_signature' ),
+			'properties' => array(
+				'hook'           => array(
+					'type'        => 'string',
+					'description' => 'The cron hook name.',
+					'minLength'   => 1,
+				),
+				'args_signature' => array(
+					'type'        => 'string',
+					'description' => 'The md5 args signature from list-cron-events.',
+					'minLength'   => 1,
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(
+				'hook'           => array( 'type' => 'string' ),
+				'args_signature' => array( 'type' => 'string' ),
+				'next_run_ts'    => array( 'type' => 'integer' ),
+				'schedule'       => array( 'type' => array( 'string', 'boolean' ) ),
+				'interval_s'     => array( 'type' => array( 'integer', 'null' ) ),
+				'args'           => array( 'type' => 'array' ),
+				'last_fired_ts'  => array( 'type' => array( 'integer', 'null' ) ),
+				'has_handler'    => array( 'type' => 'boolean' ),
+				'is_sn_owned'    => array( 'type' => 'boolean' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'        => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
