@@ -131,18 +131,27 @@
 		// segment — the docs are wrong vs the implementation.
 		var path = '/wp-abilities/v1/abilities/' + name + '/run';
 		var opts = { path: path, method: verb };
-		// v2.5.3: ALWAYS send input (default to {}). The abilities REST
-		// controller validates input against input_schema BEFORE running
-		// the execute_callback. Our maintenance/diagnostic abilities have
-		// input_schema { type: 'object', properties: {} } — they accept
-		// empty objects but reject null. The v2.5.2 code skipped sending
-		// any input when null was passed, which caused "invalid input. Reason:
-		// input is not of type object" on the server.
-		var safeInput = ( input === null || input === undefined ) ? {} : input;
-		if ( verb === 'POST' ) {
-			opts.data = { input: safeInput };
-		} else {
-			opts.path += '?input=' + encodeURIComponent( JSON.stringify( safeInput ) );
+		// v2.5.4: only send input if it's actually populated. The
+		// abilities-api REST controller does NOT JSON-decode the query
+		// string `input` param for GET/DELETE — it returns the raw string
+		// to validate_input(). Sending `?input=%7B%7D` (URL-encoded {})
+		// makes the server read the literal string "{}" and fail
+		// validation against `type: 'object'` schemas (the bug v2.5.3
+		// thought it fixed by always sending {}). For empty input, send
+		// nothing; server reads null; the corresponding PHP schema change
+		// in abilities-registration.php (`type: ['object', 'null']`) lets
+		// validate_input(null) pass.
+		//
+		// For POST requests, the body IS JSON-decoded by WP REST, so
+		// sending {} works fine.
+		var hasInput = input !== null && input !== undefined
+			&& ! ( typeof input === 'object' && Object.keys( input ).length === 0 );
+		if ( hasInput ) {
+			if ( verb === 'POST' ) {
+				opts.data = { input: input };
+			} else {
+				opts.path += '?input=' + encodeURIComponent( JSON.stringify( input ) );
+			}
 		}
 		return wp.apiFetch( opts );
 	}

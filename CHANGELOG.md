@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.4] - 2026-05-20
+
+### Fixed — abilities REST input validation rejects null + URL-encoded `{}` for GET/DELETE
+
+**Symptom:** Cmd+K "SN: Show deploy status" (and any other readonly/destructive-idempotent ability) returned: *"Ability 'signal-noise/get-deploy-status' has invalid input. Reason: input is not of type object."*
+
+**Two-step diagnosis** (per `superpowers:systematic-debugging`):
+
+1. **The abilities-api server doesn't JSON-decode the `?input=` query parameter** for GET/DELETE requests. Verified at [class-wp-rest-abilities-v1-run-controller.php `get_input_from_request()`](https://github.com/WordPress/abilities-api/blob/trunk/includes/rest-api/endpoints/class-wp-rest-abilities-v1-run-controller.php): the function returns the raw string from `$query_params['input']` with no decoding. The repo's own `docs/rest-api.md` documents "URL-encoded JSON" as the input format, but the implementation never decodes it. This is an upstream bug/oversight.
+
+2. **My v2.5.3 fix made it worse.** v2.5.3's JS forced sending `?input=%7B%7D` (URL-encoded empty object) for every call, thinking the server would parse it. The server reads the literal string `"{}"` and validates it against `type: 'object'` → fails because string ≠ object.
+
+**The fix has two parts** — JS sends nothing for empty input, AND PHP schemas accept null:
+
+1. **`assets/command-palette.js` `executeAbility()`** — only append `?input=` when input is a non-empty object. For empty input, server reads `null`.
+2. **`inc/abilities-registration.php`** — change `'type' => 'object'` to `'type' => array( 'object', 'null' )` on the 6 abilities that hit the GET/DELETE path: `purge-all-caches`, `clear-template-overrides`, `full-reset` (DELETE), `get-deploy-status`, `list-template-overrides`, `get-rss-stats` (GET). Verified at [wp-includes/rest-api.php `rest_validate_value_from_schema()`](https://github.com/WordPress/WordPress/blob/master/wp-includes/rest-api.php): when `type` is an array, WP uses `rest_handle_multi_type_schema()` to pick the best matching type. `null` input against `['object', 'null']` matches `'null'` → validation passes.
+
+POST abilities (`force-check-updates`, `regenerate-og-card`, the 3 AI generation abilities) are unaffected because WP REST natively JSON-decodes POST bodies.
+
+### Process
+
+This release followed the project's new hard rule (memory: `feedback_skills_plugins_docs_always`):
+
+- Invoked `superpowers:systematic-debugging` — Phase 1 root cause via source-reading, not symptom-guessing.
+- Read FULL source of: abilities-api `WP_Ability::validate_input()` + `WP_REST_Abilities_V1_Run_Controller::get_input_from_request()` + WP core `rest_validate_value_from_schema()` + `rest_handle_multi_type_schema()`.
+- Verified fix theory against source before writing code (`type: ['object', 'null']` IS valid JSON Schema 7 syntax and accepted by WP REST).
+- Will use `superpowers:verification-before-completion` before claiming shipped — curl the live `/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run` after deploy.
+
+### Files changed
+
+- `assets/command-palette.js` — `executeAbility()` only sends `?input=` for non-empty input
+- `inc/abilities-registration.php` — 6 input_schemas changed to `type: ['object', 'null']`
+
+### Why v2.5.0 → v2.5.4 had 4 attempted fixes
+
+For future reference + the project's WP-REFERENCE gotchas list:
+- **v2.5.0:** Built JS against the abilities-api `docs/rest-api.md` URL pattern (`/wp-abilities/v1/<name>/run`) instead of reading the implementation. Docs are wrong vs source — the actual route is `/wp-abilities/v1/abilities/<name>/run`.
+- **v2.5.1:** Fixed the `<SnackbarList>` absence on wp-admin Dashboard with DOM-built admin notices. Correct fix but downstream of the URL bug.
+- **v2.5.2:** Fixed the URL after reading the run-controller source. Surfaced the next-layer input validation bug.
+- **v2.5.3:** Tried to fix input validation by sending `{}` URL-encoded. Made it worse (server reads string, not object).
+- **v2.5.4 (this):** Read the full validation chain. Server doesn't decode query-param JSON; fix is "don't send when empty" + "schemas accept null."
+
 ## [2.5.3] - 2026-05-20
 
 ### Fixed — ability input validation rejected `null`

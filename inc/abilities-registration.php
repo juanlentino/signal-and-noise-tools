@@ -106,7 +106,11 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => $permission_manage_options,
 		'execute_callback'    => 'snt_ability_purge_all_caches',
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: accept null because the abilities-api REST controller
+			// passes null when the GET/DELETE caller omits the `?input=`
+			// query parameter (the only way to avoid the controller's
+			// missing JSON-decode step rejecting URL-encoded "{}" strings).
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(
 				'include_template_overrides' => array(
 					'type'        => 'boolean',
@@ -177,7 +181,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => $permission_manage_options,
 		'execute_callback'    => 'snt_ability_get_deploy_status',
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: see purge-all-caches comment — null accepted because
+			// readonly abilities (GET) receive null when caller omits ?input=.
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(),
 		),
 		'output_schema'       => array(
@@ -217,7 +223,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => $permission_manage_options,
 		'execute_callback'    => 'snt_ability_clear_template_overrides',
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: see purge-all-caches comment — destructive abilities
+			// (DELETE) also receive null when caller omits ?input=.
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(),
 		),
 		'output_schema'       => array(
@@ -289,7 +297,8 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_cmd_impl_full_reset();
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: see purge-all-caches comment.
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(),
 		),
 		'output_schema'       => array(
@@ -340,7 +349,8 @@ add_action( 'wp_abilities_api_init', function() {
 			);
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: see purge-all-caches comment.
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(),
 		),
 		'output_schema'       => array(
@@ -382,7 +392,8 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_cmd_impl_rss_stats();
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
+			// v2.5.4: see purge-all-caches comment.
+			'type'       => array( 'object', 'null' ),
 			'properties' => array(),
 		),
 		'output_schema'       => array(
