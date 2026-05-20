@@ -196,3 +196,82 @@ function snt_cron_get_event_impl( $hook, $args_signature ) {
 	}
 	return null;
 }
+
+/**
+ * Synchronously dispatch a cron event. The 4 safety guards:
+ *
+ *   1. manage_options gate (defense in depth; REST also gates)
+ *   2. has_action() pre-flight — orphan hooks return WP_Error rather
+ *      than dispatching to nothing
+ *   3. DOING_CRON spoof — handlers that guard on wp_doing_cron() (e.g.,
+ *      Action Scheduler) will actually execute. Standard pattern from
+ *      WP-Crontrol since 2012.
+ *   4. Throwable catch — PHP 7+ throws fatals as Error subclasses, so
+ *      Throwable covers Exception, TypeError, ParseError, OutOfMemory*,
+ *      ArgumentCountError, etc. Only truly unrecoverable cases (segfault,
+ *      hard OOM) bypass it; those return 502 to the browser.
+ *
+ * Time limit: @set_time_limit(30) is best-effort (some hosts disable).
+ * If exceeded, PHP kills the process → browser sees 502/timeout. The
+ * Cron tab is the recovery surface — refresh, check last-fired column.
+ *
+ * Note on the ad-hoc tracker registration here: wp_loaded already fired
+ * by the time this REST request reaches us. The DOING_CRON gate at
+ * wp_loaded didn't register listeners. We register one manually for
+ * just this hook so the synchronous dispatch updates last-fired too.
+ */
+function snt_cron_run_event_impl( $hook, $args = array() ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error(
+			'snt_cron_forbidden',
+			'Insufficient permissions.',
+			array( 'status' => 403 )
+		);
+	}
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return new WP_Error(
+			'snt_cron_invalid_hook',
+			'Hook name must be a non-empty string.',
+			array( 'status' => 400 )
+		);
+	}
+	if ( false === has_action( $hook ) ) {
+		return new WP_Error(
+			'snt_cron_no_handler',
+			sprintf( 'No handler registered for "%s" — this is an orphan event.', $hook ),
+			array( 'status' => 400 )
+		);
+	}
+
+	// DOING_CRON spoof — makes wp_doing_cron() return true for guarded handlers.
+	if ( ! defined( 'DOING_CRON' ) ) {
+		define( 'DOING_CRON', true );
+	}
+
+	// Best-effort time limit. Some shared hosts disable set_time_limit.
+	@set_time_limit( 30 );
+
+	// Register the last-fired tracker ad-hoc (wp_loaded already fired).
+	add_action( $hook, 'snt_cron_track_last_fired_cb', PHP_INT_MAX );
+
+	$start = microtime( true );
+	$success = true;
+	$error = null;
+
+	try {
+		do_action_ref_array( $hook, is_array( $args ) ? $args : array() );
+	} catch ( Throwable $e ) {
+		$success = false;
+		$error = $e->getMessage();
+	}
+
+	$elapsed_ms = ( microtime( true ) - $start ) * 1000;
+
+	return array(
+		'success'       => $success,
+		'elapsed_ms'    => $elapsed_ms,
+		'error'         => $error,
+		'last_fired_ts' => snt_cron_last_fired_for( $hook ),
+		'hook'          => $hook,
+	);
+}
