@@ -105,6 +105,102 @@ function assert_true( $cond, $msg ) {
 	}
 }
 
-// Tests will be appended in Task 8.
+// ─── Test 1: snt_cron_is_sn_owned ───────────────────────────────────
+echo "\nTest 1: snt_cron_is_sn_owned\n";
+assert_true( snt_cron_is_sn_owned( 'sn_plausible_refresh_dashboard' ), 'SN-owned dashboard hook recognized' );
+assert_true( snt_cron_is_sn_owned( 'sn_rss_tracker_daily_prune' ), 'SN-owned RSS hook recognized' );
+assert_eq( false, snt_cron_is_sn_owned( 'wp_version_check' ), 'WP core hook is not SN-owned' );
+assert_eq( false, snt_cron_is_sn_owned( '' ), 'Empty string is not SN-owned' );
+
+// ─── Test 2: last-fired round trip ───────────────────────────────────
+echo "\nTest 2: last-fired round trip\n";
+$GLOBALS['__test_options'] = array(); // reset
+$now = time();
+snt_cron_record_last_fired( 'my_test_hook' );
+$got = snt_cron_last_fired_for( 'my_test_hook' );
+assert_true( is_int( $got ) && $got >= $now, 'record + read round-trips an int >= now' );
+assert_eq( null, snt_cron_last_fired_for( 'never_fired_hook' ), 'unknown hook returns null' );
+assert_eq( null, snt_cron_last_fired_for( '' ), 'empty hook name returns null' );
+
+// ─── Test 3: snt_cron_get_events_impl flat structure ─────────────────
+echo "\nTest 3: snt_cron_get_events_impl flat structure\n";
+$GLOBALS['__test_cron_array'] = array(
+	1747936800 => array(
+		'wp_version_check' => array(
+			'sig_wp_version_check_a' => array( 'schedule' => 'twicedaily', 'args' => array(), 'interval' => 43200 ),
+		),
+	),
+	1747940000 => array(
+		'sn_rss_tracker_daily_prune' => array(
+			'sig_sn_rss_a' => array( 'schedule' => 'daily', 'args' => array(), 'interval' => 86400 ),
+		),
+	),
+);
+$GLOBALS['__test_actions'] = array( 'wp_version_check' => true, 'sn_rss_tracker_daily_prune' => true );
+
+$rows = snt_cron_get_events_impl();
+assert_eq( 2, count( $rows ), 'returns 2 rows from 2-event fixture' );
+
+// ─── Test 4: SN-owned events sort first ──────────────────────────────
+echo "\nTest 4: SN-owned events sort first\n";
+assert_eq( 'sn_rss_tracker_daily_prune', $rows[0]['hook'], 'SN-owned row sorts before wp_version_check despite later next_run_ts' );
+assert_eq( true, $rows[0]['is_sn_owned'], 'first row is_sn_owned=true' );
+assert_eq( false, $rows[1]['is_sn_owned'], 'second row is_sn_owned=false' );
+
+// ─── Test 5: row schema ──────────────────────────────────────────────
+echo "\nTest 5: row schema\n";
+$row = $rows[0];
+$required_keys = array( 'hook', 'args_signature', 'next_run_ts', 'schedule', 'interval_s', 'args', 'last_fired_ts', 'has_handler', 'is_sn_owned' );
+foreach ( $required_keys as $k ) {
+	assert_true( array_key_exists( $k, $row ), "row has '$k' key" );
+}
+assert_eq( true, $row['has_handler'], 'has_handler reflects has_action()' );
+
+// ─── Test 6: sn_only filter ──────────────────────────────────────────
+echo "\nTest 6: sn_only filter\n";
+$sn_rows = snt_cron_get_events_impl( true );
+assert_eq( 1, count( $sn_rows ), 'sn_only=true filters to 1 SN-owned row' );
+assert_eq( 'sn_rss_tracker_daily_prune', $sn_rows[0]['hook'], 'filtered row is the SN hook' );
+
+// ─── Test 7: empty cron array ────────────────────────────────────────
+echo "\nTest 7: empty cron array\n";
+$GLOBALS['__test_cron_array'] = array();
+$empty = snt_cron_get_events_impl();
+assert_eq( array(), $empty, 'empty cron returns empty array' );
+
+// ─── Test 8: snt_cron_run_event_impl permission gate ─────────────────
+echo "\nTest 8: snt_cron_run_event_impl permission gate\n";
+$GLOBALS['__test_current_user_can'] = false;
+$res = snt_cron_run_event_impl( 'any_hook' );
+assert_true( $res instanceof WP_Error, 'non-admin gets WP_Error' );
+assert_eq( 'snt_cron_forbidden', $res->code, 'error code is snt_cron_forbidden' );
+$GLOBALS['__test_current_user_can'] = true;
+
+// ─── Test 9: snt_cron_run_event_impl orphan-hook rejection ───────────
+echo "\nTest 9: snt_cron_run_event_impl orphan-hook rejection\n";
+$GLOBALS['__test_actions'] = array(); // no actions registered
+$res = snt_cron_run_event_impl( 'no_such_handler_hook' );
+assert_true( $res instanceof WP_Error, 'orphan hook gets WP_Error' );
+assert_eq( 'snt_cron_no_handler', $res->code, 'error code is snt_cron_no_handler' );
+
+// ─── Test 10: snt_cron_run_event_impl successful dispatch ────────────
+echo "\nTest 10: snt_cron_run_event_impl successful dispatch\n";
+$GLOBALS['__test_actions'] = array( 'sn_rss_tracker_daily_prune' => true );
+$fired = false;
+$GLOBALS['__test_action_callbacks']['sn_rss_tracker_daily_prune'] = function() use ( &$fired ) { $fired = true; };
+$res = snt_cron_run_event_impl( 'sn_rss_tracker_daily_prune' );
+assert_true( $fired, 'handler was invoked' );
+assert_eq( true, $res['success'], 'success=true' );
+assert_eq( 'sn_rss_tracker_daily_prune', $res['hook'], 'hook echoed back' );
+assert_true( is_float( $res['elapsed_ms'] ) || is_int( $res['elapsed_ms'] ), 'elapsed_ms is numeric' );
+
+// ─── Test 11: snt_cron_run_event_impl catches Throwable ──────────────
+echo "\nTest 11: snt_cron_run_event_impl catches Throwable\n";
+$GLOBALS['__test_actions'] = array( 'boom_hook' => true );
+$GLOBALS['__test_action_callbacks']['boom_hook'] = function() { throw new RuntimeException( 'simulated handler failure' ); };
+$res = snt_cron_run_event_impl( 'boom_hook' );
+assert_eq( false, $res['success'], 'success=false on Throwable' );
+assert_true( strpos( (string) $res['error'], 'simulated handler failure' ) !== false, 'error message captured' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
