@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.0.0] - 2026-05-20
+
+### Added — Phase 15 net-new: Cron Dashboard
+
+New wp-admin **Cron** tab (9th tab) surfaces every scheduled WP-Cron event with next-run, recurrence, last-fired, args, and a Run-now button. ~955 LOC across 4 new files + 6 modified files.
+
+**Cap rollover note:** v3.0.0 is a minor-cap rollover, NOT a semantic breaking change. v2.x consumed 6 minors (v2.0–v2.5) which is the project's cap of 5 per major (per `CLAUDE.md` versioning rules). All existing APIs, abilities, REST routes, and ⌘K commands continue to work exactly as in v2.5.5.
+
+### 4-surface dispatch (per Phase 14+ convention)
+
+All four routes converge on `snt_cron_*_impl()` pure functions:
+
+| Surface | Read | Run-now |
+|---|:---:|:---:|
+| wp-admin Cron tab | ✅ | ✅ (button + `confirm()` prompt) |
+| Legacy REST `/signal-noise/v1/cron/run` | — | ✅ (`manage_options` gated) |
+| Abilities API `list-cron-events`, `get-cron-event` | ✅ | ❌ |
+| desktop-mode ⌘K `sn-cmd-cron-health`, `sn-cmd-cron-list` | ✅ (`aiCallable: true`) | ❌ |
+
+Run-now stays human-only per the v2.5.5 destructive-command safety precedent.
+
+### Safety guards on Run-now
+
+1. `manage_options` permission gate
+2. `has_action($hook)` pre-flight — orphans return `snt_cron_no_handler` WP_Error
+3. `DOING_CRON` spoof — handlers gated on `wp_doing_cron()` actually execute
+4. `Throwable` catch — covers PHP 7+ `Error` subclasses
+5. JS `confirm()` prompt before any side-effecting POST
+
+### Universal last-fired tracking
+
+WP-Cron doesn't track last-fired natively. We register `snt_cron_track_last_fired_cb` at `PHP_INT_MAX` for every unique cron hook during `DOING_CRON` requests (gated at `wp_loaded` priority 1; non-cron requests pay only one `defined()` check). Storage: `wp_options` autoload `false`, keys hashed via `md5($hook)` to fit the varchar(191) limit.
+
+### WP 7.0 ecosystem audit (no overlap)
+
+Verified our `signal-noise/list-cron-events` + `signal-noise/get-cron-event` abilities don't duplicate native functionality:
+- **WP 7.0 core abilities** registered in `wp-includes/abilities.php`: only `core/get-site-info`, `core/get-user-info`, `core/get-environment-info` — none cron-related
+- **WP REST API native endpoints**: no cron endpoints (20 documented resources, all content/admin)
+- **`WordPress/abilities-api` shim plugin**: defines API only, registers zero abilities
+- **`WordPress/desktop-mode` AI tools**: 7 built-ins (`search_posts/pages/comments/comments_by_post`, `list_admin_pages`, `search_wporg_plugins`, `get_php_error_log`) — none cron
+
+Our abilities fill a real diagnostic gap.
+
+### Files
+
+- **New:** `inc/cron-dashboard.php` (~300 LOC), `inc/cron-dashboard-admin.php` (~125 LOC), `assets/cron-dashboard.js` (~123 LOC), `tests/cron-dashboard.php` (~205 LOC, 34 passing assertions)
+- **Modified:** `signal-and-noise-tools.php`, `inc/admin-page.php`, `inc/abilities-registration.php`, `inc/rest-api.php`, `inc/desktop-mode-integration.php`, `assets/desktop-mode.js`
+
+### Out of scope (deferred)
+
+Editing cron events (reschedule/unschedule); adding new cron events from UI; cron history log; pagination; per-user filter prefs; Action Scheduler-specific handling.
+
+### Process
+
+`superpowers:brainstorming` → 4 design decisions locked (all events, universal last-fired, synchronous run-now, read-only AI exposure) → safety hardening lens applied → `superpowers:writing-plans` → 18-task plan → `superpowers:subagent-driven-development` executed task-by-task with spec + code-quality reviews. Final cross-cutting review caught a `$valid_tabs` whitelist blocker that per-task reviews missed in isolation — fix landed before deploy. No source-reading skipped per `feedback_skills_plugins_docs_always`.
+
+### Spec & plan
+
+- Spec: `docs/superpowers/specs/2026-05-20-cron-dashboard-design.md` (theme repo)
+- Plan: `docs/superpowers/plans/2026-05-20-cron-dashboard.md` (theme repo)
+
 ## [2.5.5] - 2026-05-20
 
 ### Added — Phase 16 slice 1: SN commands opt into desktop-mode AI Copilot
