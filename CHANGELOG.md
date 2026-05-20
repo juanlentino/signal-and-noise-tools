@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.4.0] - 2026-05-20
+
+### Added — AI excerpt generation (Phase 16, slice 3)
+
+Completes the per-post AI editing trio (meta description from v1.16.0, OG card title from v2.3.0, post excerpt here). New "AI helpers" section appended to the per-post SN meta box with a "Generate excerpt with AI" button that fills WordPress's native excerpt field (Document panel → Excerpt) via `wp.data.dispatch('core/editor').editPost({ excerpt: ... })`.
+
+Why `wp.data` instead of DOM polling: the block editor's excerpt textarea has no stable id/class — the React tree may rerender it under different markup across Gutenberg versions. `editPost()` is the canonical API and is version-stable. Classic editor fallback is included (writes to `#excerpt` directly if the wp.data dispatch path is unavailable).
+
+Prompt design:
+- 2-3 sentences, 50-75 words total
+- Hook-driven — captures the reader's reason to click
+- Provider-agnostic posture (same as the other AI surfaces): no temperature/top_p/top_k, all constraints in `using_system_instruction()`
+- Banned words list: amazing, ultimate, best, powerful, revolutionary, transformative, cutting-edge, dive into, unlock, unleash — the AI-detection tells
+
+Files:
+- [inc/ai-excerpt.php](inc/ai-excerpt.php) — REST endpoint `POST /signal-noise/v1/ai/generate-excerpt` + script enqueue
+- [assets/ai-excerpt.js](assets/ai-excerpt.js) — DOM-built UI section + button, polls for `.sn-post-settings` container, falls back gracefully if container never appears (e.g. meta box hidden in screen options)
+
+### Notes
+
+- Dormant unless `snt_ai_is_available()` returns true (= WP 7.0+ AI Client with configured provider). Zero behavior change for installs without 7.0 + a provider.
+- The button writes to `post_excerpt`, the canonical WP field used by RSS feeds, archive cards, search results, and `the_excerpt()`. No SN-shadow field — single source of truth.
+
 ## [2.3.0] - 2026-05-20
 
 ### Added — WP 7.0 Command Palette integration
