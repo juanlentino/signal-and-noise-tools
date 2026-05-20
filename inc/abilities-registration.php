@@ -74,6 +74,17 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		'label'       => 'Diagnostics',
 		'description' => 'Read-only inspection of the theme + plugin pair\'s state.',
 	) );
+
+	// v2.5.0: 2 new categories ahead of registering 7 new abilities.
+	wp_register_ability_category( 'updates', array(
+		'label'       => 'Updates',
+		'description' => 'Theme + plugin update detection + force-check.',
+	) );
+
+	wp_register_ability_category( 'ai-generation', array(
+		'label'       => 'AI Generation',
+		'description' => 'AI Client-backed content generation (meta descriptions, OG card titles, excerpts).',
+	) );
 } );
 
 /**
