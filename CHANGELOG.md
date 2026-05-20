@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.1] - 2026-05-20
+
+### Fixed — Command Palette result feedback was invisible
+
+**Symptom:** v2.5.0 Command Palette commands registered successfully (visible in ⌘K when typing "SN:") but clicking any of them produced no visible result — no error, no success message, nothing.
+
+**Root cause** (identified via source inspection after an earlier incorrect guess about ad blockers): `@wordpress/core-commands` — the WP-admin Command Palette integration — only imports `element`, `router`, and `commands`. It does NOT import or render `@wordpress/notices` / `<SnackbarList>`. Verified at [gutenberg/packages/core-commands/src/index.js](https://github.com/WordPress/gutenberg/blob/trunk/packages/core-commands/src/index.js) on 2026-05-20: `initializeCommandPalette` creates a div, appends `<CommandMenu />`, and renders — no snackbar host alongside.
+
+v2.5.0's `showToast()` called `wp.data.dispatch('core/notices').createNotice({ type: 'snackbar', ... })`. The notice was added to the store, but with no `<SnackbarList>` DOM consumer on regular wp-admin pages, **nothing rendered**. The promise resolved silently; the user saw no feedback. (The `<SnackbarList>` is only rendered inside Gutenberg block editor screens.)
+
+**Fix:** [assets/command-palette.js](assets/command-palette.js) replaces `showToast()` with DOM-built native WP admin notices (`<div class="notice notice-success is-dismissible">`). Universal across every wp-admin page. Injects after `.wp-header-end` (WP convention) with fallbacks to `#wpbody-content` or `<body>`. Auto-dismisses after 6s; click × to close earlier.
+
+Also added `console.log` checkpoints at each step of `run()` so any future silent-failure modes are visible to anyone with browser devtools open.
+
+### What's NOT changing
+
+- The abilities REST path (`/wp-abilities/v1/.../run`) stays — there's no evidence it's broken. v2.5.0 introduced TWO new things (REST path + snackbar UI) and only the latter was the failure; reverting both would be over-correcting.
+- No PHP changes. The 11 registered abilities, 5 categories, gate function fix, impl extractions all stay as v2.5.0 shipped them.
+
+### Process note
+
+The earlier diagnostic of "the ad blocker is killing the abilities REST" was a guess from the `ERR_BLOCKED_BY_CLIENT` on `load-scripts.php` in the browser console — that error was actually unrelated (it blocked a script bundle, not the REST endpoint). After invoking `superpowers:systematic-debugging`: source inspection pointed to the snackbar UI absence rather than a network issue.
+
 ## [2.5.0] - 2026-05-20
 
 ### Changed — abilities-first architecture

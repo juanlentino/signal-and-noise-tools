@@ -57,19 +57,60 @@
 		} );
 	}
 
-	// Snackbar via core/notices.
+	// Visible feedback — DOM-injected admin notice.
+	//
+	// v2.5.1: replaces the earlier `wp.data.dispatch('core/notices').createNotice`
+	// path because @wordpress/core-commands (the WP-admin Command Palette
+	// integration) only renders <CommandMenu />, NOT a <SnackbarList>. The
+	// createNotice call would succeed (notice added to store) but no visible UI
+	// would render on wp-admin pages outside the block editor. Verified by
+	// inspecting WordPress/gutenberg/packages/core-commands/src/index.js on
+	// 2026-05-20 — only element/router/commands imports, no notices import.
+	//
+	// Native WP `.notice` classes are universally styled in wp-admin. Auto-
+	// dismiss after 6s. Click the × to dismiss earlier. Multiple notices stack.
 	function showToast( text, kind ) {
-		var notices = wp.data.dispatch( 'core/notices' );
-		if ( notices && typeof notices.createNotice === 'function' ) {
-			notices.createNotice(
-				kind === 'err' ? 'error' : 'success',
-				text,
-				{ type: 'snackbar', isDismissible: true }
-			);
-			return;
-		}
 		// eslint-disable-next-line no-console
 		console.log( '[SN]', text );
+
+		var notice = document.createElement( 'div' );
+		notice.className = 'notice notice-' + ( kind === 'err' ? 'error' : 'success' ) + ' is-dismissible';
+		notice.setAttribute( 'role', 'alert' );
+		notice.style.position = 'relative';
+
+		var p = document.createElement( 'p' );
+		p.textContent = text;
+		notice.appendChild( p );
+
+		var dismiss = document.createElement( 'button' );
+		dismiss.type = 'button';
+		dismiss.className = 'notice-dismiss';
+		dismiss.addEventListener( 'click', function() {
+			if ( notice.parentNode ) {
+				notice.parentNode.removeChild( notice );
+			}
+		} );
+		notice.appendChild( dismiss );
+
+		// Inject after .wp-header-end (WP convention for auto-dismiss notices).
+		// Fallback to prepending to #wpbody-content. Last resort: body.
+		var anchor = document.querySelector( '.wp-header-end' );
+		if ( anchor && anchor.parentNode ) {
+			anchor.parentNode.insertBefore( notice, anchor.nextSibling );
+		} else {
+			var wpbody = document.getElementById( 'wpbody-content' );
+			if ( wpbody ) {
+				wpbody.insertBefore( notice, wpbody.firstChild );
+			} else {
+				document.body.insertBefore( notice, document.body.firstChild );
+			}
+		}
+
+		window.setTimeout( function() {
+			if ( notice.parentNode ) {
+				notice.parentNode.removeChild( notice );
+			}
+		}, 6000 );
 	}
 
 	/**
@@ -96,13 +137,20 @@
 		return wp.apiFetch( opts );
 	}
 
-	// Generic runner: close palette → execute → snackbar result.
+	// Generic runner: close palette → execute → DOM notice with result.
+	// v2.5.1 added console.log checkpoints at each step so failures inside the
+	// promise chain are visible in browser console (the previous silent-on-failure
+	// path made the v2.5.0 snackbar bug invisible to the user).
 	function run( label, name, annotations, input, close, onSuccess ) {
+		// eslint-disable-next-line no-console
+		console.log( '[SN] command clicked:', name );
 		if ( typeof close === 'function' ) {
 			close();
 		}
 		executeAbility( name, annotations, input )
 			.then( function( res ) {
+				// eslint-disable-next-line no-console
+				console.log( '[SN] ability response:', name, res );
 				if ( typeof onSuccess === 'function' ) {
 					onSuccess( res, label );
 				} else {
@@ -111,6 +159,8 @@
 				}
 			} )
 			.catch( function( err ) {
+				// eslint-disable-next-line no-console
+				console.error( '[SN] ability error:', name, err );
 				var msg = ( err && err.message ) ? err.message : __( 'Unknown error.', 'signal-noise-tools' );
 				showToast( label + ': ' + msg, 'err' );
 			} );
