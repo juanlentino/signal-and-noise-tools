@@ -139,6 +139,7 @@ require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once __DIR__ . '/inc/command-palette.php';
 require_once SNT_PATH . 'inc/cron-dashboard.php';
+require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;

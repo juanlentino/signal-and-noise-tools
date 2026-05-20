@@ -63,6 +63,7 @@ function sn_admin_pages() {
 		array( 'slug' => 'sn-plausible',     'tab' => 'plausible',    'label' => 'Plausible',     'title' => 'Signal & Noise — Plausible',     'subtitle' => 'Stats API token for the dashboard widgets.' ),
 		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS',           'subtitle' => 'RSS subscriber tracking (delivered by the rss-plausible-tracker MU plugin).' ),
 		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
+		array( 'slug' => 'sn-cron',          'tab' => 'cron',         'label' => 'Cron',          'title' => 'Signal & Noise — Cron',          'subtitle' => 'Scheduled jobs — next run, recurrence, last fired, manual trigger.' ),
 		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links',         'subtitle' => 'External shortcuts — GitHub repos, release pages, Cloudflare, Cloudways.' ),
 	);
 }
@@ -486,6 +487,14 @@ function sn_theme_options_page() {
 
 		/** Module-owned UI: see inc/reading-time.php. */
 		do_action( 'sn_admin_reading_time_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: CRON
+	// ════════════════════════════════════════
+	} elseif ( 'cron' === $active_tab ) {
+
+		/** Module-owned UI: see inc/cron-dashboard-admin.php. */
+		do_action( 'sn_admin_cron_tab' );
 
 	// ════════════════════════════════════════
 	// TAB: LINKS
