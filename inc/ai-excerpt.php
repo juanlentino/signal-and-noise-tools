@@ -84,13 +84,21 @@ function snt_ai_excerpt_rest_permission( WP_REST_Request $request ) {
 	return current_user_can( 'edit_post', $post_id );
 }
 
-function snt_ai_excerpt_rest_handler( WP_REST_Request $request ) {
-	$post_id = (int) $request->get_param( 'post_id' );
-
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+/**
+ * Generate a 2-3 sentence post excerpt via the WP AI Client.
+ *
+ * Pure function called by both the (@deprecated since 2.5.0) REST handler
+ * AND the signal-noise/ai-generate-excerpt ability execute callback.
+ *
+ * @param int $post_id
+ * @return array{ok:bool,excerpt:string,length:int,words:int}|WP_Error
+ * @since v2.5.0
+ */
+function snt_ai_excerpt_impl( $post_id ) {
+	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
-			__( 'AI Client is not available. Install wp-ai-client (WP 6.x) or upgrade to WordPress 7.0+, then configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
+			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
 			array( 'status' => 503 )
 		);
 	}
@@ -120,12 +128,27 @@ function snt_ai_excerpt_rest_handler( WP_REST_Request $request ) {
 	$excerpt = trim( $result );
 	$excerpt = trim( $excerpt, "\"'" );
 
-	return rest_ensure_response( array(
+	return array(
 		'ok'      => true,
 		'excerpt' => $excerpt,
 		'length'  => strlen( $excerpt ),
 		'words'   => str_word_count( $excerpt ),
-	) );
+	);
+}
+
+/**
+ * @deprecated since 2.5.0 — prefer
+ *   POST /wp-abilities/v1/signal-noise/ai-generate-excerpt/run
+ * via the WP Abilities REST surface. This endpoint stays wired for
+ * back-compat with v2.4.0+ JS clients on installs running pre-v2.5.0.
+ */
+function snt_ai_excerpt_rest_handler( WP_REST_Request $request ) {
+	$post_id = (int) $request->get_param( 'post_id' );
+	$result  = snt_ai_excerpt_impl( $post_id );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
 }
 
 /* ════════════════════════════════════════════════════════════════════════

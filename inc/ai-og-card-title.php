@@ -96,13 +96,21 @@ function snt_ai_og_card_title_rest_permission( WP_REST_Request $request ) {
 	return current_user_can( 'edit_post', $post_id );
 }
 
-function snt_ai_og_card_title_rest_handler( WP_REST_Request $request ) {
-	$post_id = (int) $request->get_param( 'post_id' );
-
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+/**
+ * Generate an OG card title via the WP AI Client + persist + regenerate card.
+ *
+ * Pure function called by both the (@deprecated since 2.5.0) REST handler
+ * AND the signal-noise/ai-generate-og-card-title ability execute callback.
+ *
+ * @param int $post_id
+ * @return array{ok:bool,title:string,length:int,card_regenerated:bool,card_url:?string}|WP_Error
+ * @since v2.5.0
+ */
+function snt_ai_og_card_title_impl( $post_id ) {
+	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
-			__( 'AI Client is not available. Install wp-ai-client (WP 6.x) or upgrade to WordPress 7.0+, then configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
+			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
 			array( 'status' => 503 )
 		);
 	}
@@ -159,13 +167,28 @@ function snt_ai_og_card_title_rest_handler( WP_REST_Request $request ) {
 		? sn_og_image_url_for_post( $post )
 		: null;
 
-	return rest_ensure_response( array(
+	return array(
 		'ok'               => true,
 		'title'            => $title,
 		'length'           => strlen( $title ),
 		'card_regenerated' => $card_regenerated,
 		'card_url'         => $card_url,
-	) );
+	);
+}
+
+/**
+ * @deprecated since 2.5.0 — prefer
+ *   POST /wp-abilities/v1/signal-noise/ai-generate-og-card-title/run
+ * via the WP Abilities REST surface. This endpoint stays wired for
+ * back-compat with v2.3.0+ JS clients on installs running pre-v2.5.0.
+ */
+function snt_ai_og_card_title_rest_handler( WP_REST_Request $request ) {
+	$post_id = (int) $request->get_param( 'post_id' );
+	$result  = snt_ai_og_card_title_impl( $post_id );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
 }
 
 /* ════════════════════════════════════════════════════════════════════════
