@@ -2,6 +2,53 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.0] - 2026-05-20
+
+### Changed — abilities-first architecture
+
+WordPress 7.0 ("Armstrong") ships the Abilities API as a coupled stack with the AI Client and Command Palette. This release consolidates ALL SN actions (4 from Phase 14 + 7 new) onto abilities as the single canonical layer. Three caller surfaces — wp-admin UI, ⌘K Command Palette, future AI Client chat — all converge on `/wp-abilities/v1/<ability>/run`.
+
+**Note on v2.3.0 + v2.4.0:** both were tagged on origin but never installed on the live site. This release supersedes them. The user-facing surface from those releases (Command Palette commands + 2 new AI generation buttons) is included here, just rewired through abilities.
+
+### Added — 7 new abilities + 2 new ability categories
+
+Existing abilities (Phase 14, v2.0.4) gained `meta.show_in_rest = true` so they're now invocable from client-side JS via the abilities REST endpoint:
+- `signal-noise/purge-all-caches` (was REST-hidden)
+- `signal-noise/regenerate-og-card` (was REST-hidden)
+- `signal-noise/get-deploy-status` (was REST-hidden)
+- `signal-noise/clear-template-overrides` (was REST-hidden)
+
+New abilities (this release):
+- `signal-noise/force-check-updates` (category: updates, idempotent)
+- `signal-noise/full-reset` (maintenance, destructive+idempotent)
+- `signal-noise/list-template-overrides` (diagnostics, readonly+idempotent — pairs with the destructive clear-template-overrides)
+- `signal-noise/get-rss-stats` (diagnostics, readonly+idempotent)
+- `signal-noise/ai-generate-meta-description` (ai-generation, idempotent)
+- `signal-noise/ai-generate-og-card-title` (ai-generation, idempotent)
+- `signal-noise/ai-generate-excerpt` (ai-generation, idempotent)
+
+New categories: `updates`, `ai-generation`.
+
+### Fixed — `snt_ai_is_available()` gate function
+
+The previous gate used `wp_has_ai_client()` which returns true the moment the AI Client package is installed (true on 7.0+) even when NO provider is configured. AI buttons would render but fail at request time with a 503. Per the official AI Client dev note (2026-03-24):
+
+> "Available support check methods include `is_supported_for_text_generation()`, `is_supported_for_image_generation()`, and others — **not** `wp_has_ai_client()`."
+
+The corrected gate `snt_ai_can_text_generate()` builds a no-cost prompt and asks `is_supported_for_text_generation()` (deterministic per the dev note — no API calls fire). `snt_ai_is_available()` becomes a back-compat alias so every existing call site inherits the fix.
+
+### Deprecated
+
+Legacy REST endpoints under `/signal-noise/v1/cmd/*` and `/signal-noise/v1/ai/*` are marked `@deprecated since 2.5.0` but stay wired. The desktop-mode plugin's command palette still uses `/cmd/*`; back-compat preserved.
+
+### Implementation
+
+- Modified PHP: `inc/ai-bootstrap.php`, `inc/abilities-registration.php`, `inc/desktop-mode-integration.php`, `inc/ai-meta-description.php`, `inc/ai-og-card-title.php`, `inc/ai-excerpt.php`.
+- Modified JS: `assets/command-palette.js`, `assets/ai-meta-description.js`, `assets/ai-og-card-title.js`, `assets/ai-excerpt.js`.
+- No new files.
+- Pattern: each operation has ONE impl function (`snt_*_impl()` or `snt_cmd_impl_*()`). Both the legacy REST handler AND the new ability's `execute_callback` call it. Single source of truth.
+- JS goes through `wp.apiFetch` against `/wp-abilities/v1/<name>/run` with HTTP verb chosen per annotation (GET/POST/DELETE). Avoids the `@wordpress/core-abilities` ES-module loader entirely — works in classic-script IIFE files.
+
 ## [2.4.0] - 2026-05-20
 
 ### Added — AI excerpt generation (Phase 16, slice 3)
