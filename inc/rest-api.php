@@ -135,6 +135,24 @@ add_action( 'rest_api_init', function() {
 		'permission_callback' => 'sn_rest_can_manage',
 		'callback'            => 'sn_rest_plausible_test',
 	) );
+
+	// ── Cron Dashboard endpoint (POST, mutating) ─────────────────────
+
+	register_rest_route( SN_REST_NAMESPACE, '/cron/run', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'sn_rest_can_manage',
+		'callback'            => 'snt_rest_cron_run',
+		'args'                => array(
+			'hook' => array(
+				'required' => true,
+				'type'     => 'string',
+			),
+			'args' => array(
+				'type'    => 'array',
+				'default' => array(),
+			),
+		),
+	) );
 } );
 
 // ── Callbacks ────────────────────────────────────────────────────────
@@ -266,4 +284,34 @@ function sn_rest_plausible_test( WP_REST_Request $request ) {
 			'last_error'  => $err,
 		)
 	);
+}
+
+/**
+ * POST /cron/run — synchronously dispatch a cron event by hook name.
+ *
+ * Defers all logic to snt_cron_run_event_impl. This callback is the
+ * REST surface only; the impl module owns the safety guards
+ * (DOING_CRON spoof, has_action pre-flight, Throwable catch).
+ *
+ * Returns the impl's array payload as a WP_REST_Response.
+ *
+ * @since plugin v3.0.0
+ */
+function snt_rest_cron_run( WP_REST_Request $request ) {
+	if ( ! function_exists( 'snt_cron_run_event_impl' ) ) {
+		return new WP_Error(
+			'snt_cron_unavailable',
+			'Cron dashboard module not loaded.',
+			array( 'status' => 500 )
+		);
+	}
+	$hook = (string) $request->get_param( 'hook' );
+	$args = $request->get_param( 'args' );
+	$result = snt_cron_run_event_impl( $hook, is_array( $args ) ? $args : array() );
+
+	if ( $result instanceof WP_Error ) {
+		return $result;
+	}
+
+	return rest_ensure_response( $result );
 }
