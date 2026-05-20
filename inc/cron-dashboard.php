@@ -126,3 +126,73 @@ add_action( 'wp_loaded', function() {
 		}
 	}
 }, 1 );
+
+/**
+ * Walks _get_cron_array() and returns a flat list of event rows.
+ *
+ * Each row has 9 keys per spec § 4.1.
+ *
+ * args_signature is the md5 key the cron array uses to disambiguate
+ * multiple scheduled instances of the same hook with different args
+ * (e.g., wp_version_check can be scheduled twice with different args).
+ *
+ * Sort: SN-owned hooks first, then by next_run_ts ascending.
+ *
+ * @param bool $sn_only If true, filter to the 3 SN-owned hooks only.
+ * @return array Flat array of event rows (empty array if cron empty).
+ */
+function snt_cron_get_events_impl( $sn_only = false ) {
+	if ( ! function_exists( '_get_cron_array' ) ) {
+		return array();
+	}
+	$crons = _get_cron_array();
+	if ( empty( $crons ) ) {
+		return array();
+	}
+
+	$rows = array();
+	foreach ( $crons as $ts => $hooks ) {
+		foreach ( $hooks as $hook => $events ) {
+			$is_sn = snt_cron_is_sn_owned( $hook );
+			if ( $sn_only && ! $is_sn ) {
+				continue;
+			}
+			foreach ( $events as $signature => $data ) {
+				$rows[] = array(
+					'hook'           => $hook,
+					'args_signature' => (string) $signature,
+					'next_run_ts'    => (int) $ts,
+					'schedule'       => isset( $data['schedule'] ) ? $data['schedule'] : false,
+					'interval_s'     => isset( $data['interval'] ) ? (int) $data['interval'] : null,
+					'args'           => isset( $data['args'] ) ? (array) $data['args'] : array(),
+					'last_fired_ts'  => snt_cron_last_fired_for( $hook ),
+					'has_handler'    => has_action( $hook ) !== false,
+					'is_sn_owned'    => $is_sn,
+				);
+			}
+		}
+	}
+
+	// Sort: SN-owned first, then by next_run_ts ascending.
+	usort( $rows, function( $a, $b ) {
+		if ( $a['is_sn_owned'] !== $b['is_sn_owned'] ) {
+			return $a['is_sn_owned'] ? -1 : 1;
+		}
+		return $a['next_run_ts'] - $b['next_run_ts'];
+	} );
+
+	return $rows;
+}
+
+/**
+ * Single-event variant. Returns the row matching hook+signature, or
+ * null if no match. Useful for the get-cron-event ability.
+ */
+function snt_cron_get_event_impl( $hook, $args_signature ) {
+	foreach ( snt_cron_get_events_impl() as $row ) {
+		if ( $row['hook'] === $hook && $row['args_signature'] === $args_signature ) {
+			return $row;
+		}
+	}
+	return null;
+}
