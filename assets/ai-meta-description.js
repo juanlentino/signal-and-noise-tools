@@ -92,10 +92,10 @@
 
 			// v2.5.0+: route through the abilities REST API instead of the
 			// legacy /signal-noise/v1/ai/generate-meta-description endpoint.
-			// Response shape unchanged (the impl function returns the same array
-			// regardless of caller); only the URL + { input: ... } wrapping change.
+			// v2.5.2: URL fix — abilities route includes /abilities/ segment
+			// per the run-controller source. The abilities-api docs were wrong.
 			window.wp.apiFetch( {
-				path: '/wp-abilities/v1/signal-noise/ai-generate-meta-description/run',
+				path: '/wp-abilities/v1/abilities/signal-noise/ai-generate-meta-description/run',
 				method: 'POST',
 				data: { input: { post_id: postId } },
 			} )

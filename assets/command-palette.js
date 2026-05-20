@@ -125,7 +125,11 @@
 		var verb = annotations.readonly    ? 'GET'
 		         : annotations.destructive ? 'DELETE'
 		         :                           'POST';
-		var path = '/wp-abilities/v1/' + name + '/run';
+		// v2.5.2 URL fix: route includes /abilities/ segment per
+		// class-wp-rest-abilities-v1-run-controller.php source ($rest_base = 'abilities').
+		// The abilities-api docs/rest-api.md documents the URL WITHOUT this
+		// segment — the docs are wrong vs the implementation.
+		var path = '/wp-abilities/v1/abilities/' + name + '/run';
 		var opts = { path: path, method: verb };
 		if ( input !== null && input !== undefined ) {
 			if ( verb === 'POST' ) {

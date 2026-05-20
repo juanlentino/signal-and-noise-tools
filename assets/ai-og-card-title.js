@@ -79,8 +79,9 @@
 
 			// v2.5.0+: route through the abilities REST API instead of the
 			// legacy /signal-noise/v1/ai/generate-og-card-title endpoint.
+			// v2.5.2: URL fix — abilities route includes /abilities/ segment.
 			window.wp.apiFetch( {
-				path: '/wp-abilities/v1/signal-noise/ai-generate-og-card-title/run',
+				path: '/wp-abilities/v1/abilities/signal-noise/ai-generate-og-card-title/run',
 				method: 'POST',
 				data: { input: { post_id: postId } },
 			} )

@@ -2,6 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.2] - 2026-05-20
+
+### Fixed — abilities REST URL was missing `/abilities/` segment
+
+The actual root cause behind v2.5.0/v2.5.1 Command Palette + AI buttons not working: the URL my JS constructed for the abilities REST API was **wrong** by one path segment.
+
+**My (wrong) URL:** `/wp-abilities/v1/signal-noise/get-deploy-status/run`
+**Correct URL:** `/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run`
+
+The `/abilities/` segment is the `rest_base` of the run-controller. Verified at [class-wp-rest-abilities-v1-run-controller.php:35-61](https://github.com/WordPress/abilities-api/blob/trunk/includes/rest-api/endpoints/class-wp-rest-abilities-v1-run-controller.php) on 2026-05-20:
+
+```php
+protected $namespace = 'wp-abilities/v1';
+protected $rest_base = 'abilities';
+
+register_rest_route(
+    $this->namespace,
+    '/' . $this->rest_base . '/(?P<name>[a-zA-Z0-9\-\/]+?)/run',
+    ...
+);
+```
+
+**Why I got this wrong:** the abilities-api repo's own [docs/rest-api.md](https://github.com/WordPress/abilities-api/blob/trunk/docs/rest-api.md) documents the URL as:
+
+```
+GET|POST|DELETE /wp-abilities/v1/(?P<namespace>[a-z0-9-]+)/(?P<ability>[a-z0-9-]+)/run
+```
+
+— **without the `/abilities/` segment**. The documentation is wrong vs the implementation. I trusted the docs and built v2.5.0's JS off them. Cost: 2 incorrect releases (v2.5.0, v2.5.1) + a wasted diagnostic round before I read the actual source.
+
+**Verified empirically on the live server:**
+- Wrong URL: `curl -sI /wp-json/wp-abilities/v1/signal-noise/get-deploy-status/run` → **HTTP/2 404**
+- Correct URL: `curl -sI /wp-json/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run` → **HTTP/2 405** (route exists, HEAD not allowed = correct for a GET-only ability)
+
+### Files changed
+
+- `assets/command-palette.js` — `executeAbility()` URL builder: `/wp-abilities/v1/` → `/wp-abilities/v1/abilities/`
+- `assets/ai-meta-description.js` — hardcoded URL: same fix
+- `assets/ai-og-card-title.js` — hardcoded URL: same fix
+- `assets/ai-excerpt.js` — hardcoded URL: same fix
+
+Single-character fix per file (well, single-segment). PHP untouched. No version regression in registered abilities (still 11). The v2.5.1 DOM-notice feedback fix stays in place — that was correct (snackbar host is genuinely absent on wp-admin pages outside the block editor), just downstream of the actual broken URL.
+
+### Process
+
+Followed `superpowers:systematic-debugging` Phase 1 + the project memory rule `feedback_read_framework_source`. The framework-source check pointed at the right answer in ~5 minutes. Earlier guesses (ad blocker, snackbar UI) cost an entire diagnostic loop because I trusted the abilities-api docs instead of the implementation.
+
+WP-REFERENCE upstream-gotcha entry to be added in a follow-up theme docs commit.
+
 ## [2.5.1] - 2026-05-20
 
 ### Fixed — Command Palette result feedback was invisible
