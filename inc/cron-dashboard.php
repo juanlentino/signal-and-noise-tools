@@ -275,3 +275,27 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 		'hook'          => $hook,
 	);
 }
+
+/**
+ * Compact summary for desktop-mode wp_localize_script. Avoids serializing
+ * the full event list into snDesktopData on every admin page load.
+ */
+function snt_cron_summary_for_localize() {
+	$rows = snt_cron_get_events_impl();
+	$total = count( $rows );
+	$sn_count = 0;
+	$orphans = 0;
+	foreach ( $rows as $row ) {
+		if ( $row['is_sn_owned'] ) {
+			$sn_count++;
+		}
+		if ( ! $row['has_handler'] ) {
+			$orphans++;
+		}
+	}
+	return array(
+		'total'    => $total,
+		'sn_count' => $sn_count,
+		'orphans'  => $orphans,
+	);
+}

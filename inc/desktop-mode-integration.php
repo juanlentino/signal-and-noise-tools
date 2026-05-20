@@ -96,11 +96,13 @@ add_action( 'admin_enqueue_scripts', function() {
 		'restNamespace' => 'signal-noise/v1',
 		'theme'         => $theme,
 		'plugin'        => $plugin,
+		'cronSummary'   => function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array(),
 		'pages'         => array(
 			'dashboard'    => admin_url( 'admin.php?page=sn-theme-options' ),
 			'identity'     => admin_url( 'admin.php?page=sn-identity' ),
 			'login'        => admin_url( 'admin.php?page=sn-login' ),
 			'cloudflare'   => admin_url( 'admin.php?page=sn-cloudflare' ),
+			'cron'         => admin_url( 'admin.php?page=sn-cron' ),
 			'plausible'    => admin_url( 'admin.php?page=sn-plausible' ),
 			'rss'          => admin_url( 'admin.php?page=sn-rss' ),
 			'reading_time' => admin_url( 'admin.php?page=sn-reading-time' ),
@@ -262,6 +264,10 @@ add_action( 'admin_enqueue_scripts', function() {
 		// Info (read from localized data → toast).
 		array( 'slug' => 'sn-cmd-version-theme',  'label' => 'SN: Theme version',  'description' => 'Show current theme version + GitHub-latest comparison.',  'icon' => 'dashicons-admin-appearance' ),
 		array( 'slug' => 'sn-cmd-version-plugin', 'label' => 'SN: Plugin version', 'description' => 'Show current plugin version + GitHub-latest comparison.', 'icon' => 'dashicons-admin-plugins' ),
+
+		// Cron Dashboard (v3.0.0).
+		array( 'slug' => 'sn-cmd-cron-health', 'label' => 'SN: Cron health overview',    'description' => 'Toast a summary of scheduled events + navigate to the Cron tab.',     'icon' => 'dashicons-clock' ),
+		array( 'slug' => 'sn-cmd-cron-list',   'label' => 'SN: Open Cron tab',           'description' => 'Navigate directly to the SN Cron tab in wp-admin.',                  'icon' => 'dashicons-list-view' ),
 	);
 
 	foreach ( $commands as $cmd ) {
