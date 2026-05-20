@@ -2,6 +2,60 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.0.2] - 2026-05-20
+
+### Added — Tab registry single source of truth + a11y + i18n polish
+
+The v3.0.0 session caught a real regression at the eleventh hour: Task 10 added the Cron tab's page entry + dispatch case but missed two inline `$valid_tabs` / `$tab_labels` whitelists ~200 lines away in `sn_theme_options_page()`. The final cross-cutting reviewer found it. This patch encodes that lesson architecturally so the same coordination bug class becomes impossible.
+
+#### Single source of truth
+
+`sn_admin_pages()` is now the only place a new admin tab is registered. Two derived helpers replace the previously-duplicated inline arrays:
+
+- `sn_admin_page_valid_tabs()` → `array_column( sn_admin_pages(), 'tab' )`
+- `sn_admin_page_tab_labels()` → `array_column( sn_admin_pages(), 'label', 'tab' )`
+
+`sn_theme_options_page()` now calls those instead of holding its own copies. Adding a future tab = one entry in `sn_admin_pages()`; whitelist, label map, dispatch list, hook enqueue all derive from it automatically.
+
+#### A11y on the Cron dashboard renderer
+
+Addresses Task 9 + Task 12 reviewer notes:
+
+- `<label for="sn-cron-filter">` (`.screen-reader-text`) — search input now has a programmatic label
+- `<caption class="screen-reader-text">` on the table — describes purpose for assistive tech
+- `<th scope="col">` on column headers + `<th scope="row">` on the hook cell
+- SN / orphan badges now have `title` + `<span class="screen-reader-text">` prefixes (e.g., "Signal and Noise owned:" / "Warning:")
+- Run-now buttons get `aria-label="Run cron event {hook} now"` so screen readers can disambiguate identically-labeled buttons across rows
+- Plural-aware count line via `_n()` + `number_format_i18n()`
+
+#### i18n on the JS layer
+
+`wp_localize_script` now passes a `sntCronI18n` bag with every user-facing string (Running…, Run now, just now, confirm prompt, toast templates). The JS consumes them with defensive English fallbacks. `wp_set_script_translations` registers the handle so `.pot` extraction picks them up.
+
+The PHP-side renderer strings now flow through `__()` / `esc_html__()` / `esc_attr__()` with `translators:` comments on the ones that use `printf` placeholders.
+
+#### Tests
+
+New standalone test file `tests/admin-tabs.php` — **135 assertions across 8 tests** covering:
+
+- `sn_admin_pages()` registry shape (every page has the 5 required keys, every value is a non-empty string)
+- Unique slugs + unique tabs (no duplicate dispatch routes)
+- `sn_admin_page_valid_tabs()` derives exactly from `array_column`
+- `sn_admin_page_tab_labels()` round-trips every tab → label pair
+- **The Cron tab IS resolvable end-to-end** (regression guard — would have caught v3.0.0's whitelist miss before merge)
+- `sn_admin_page_tab_for_slug()` round-trips every slug; unknown slug falls through to dashboard
+- `sn_admin_page_subtitle_for_tab()` returns the registered subtitle for each tab
+
+Run: `php tests/admin-tabs.php` — exits 0 on pass. Existing `tests/cron-dashboard.php` still passes (35 assertions, unchanged).
+
+### Files
+
+- `inc/admin-page.php` — adds `sn_admin_page_valid_tabs()` + `sn_admin_page_tab_labels()`; collapses two inline arrays at the call sites in `sn_theme_options_page()`
+- `inc/cron-dashboard-admin.php` — `wp_register_script` + `wp_localize_script` + `wp_set_script_translations`; a11y attributes + i18n on every renderer string
+- `assets/cron-dashboard.js` — reads `window.sntCronI18n` with a defensive English fallback; replaces all hardcoded strings with localized references
+- `tests/admin-tabs.php` — new (135 assertions)
+- `signal-and-noise-tools.php` — version bump
+
 ## [3.0.1] - 2026-05-20
 
 ### Fixed — Cron Dashboard Run-now timezone display

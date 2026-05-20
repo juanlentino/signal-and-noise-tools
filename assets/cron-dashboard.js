@@ -23,6 +23,27 @@
 		return;
 	}
 
+	// v3.0.2: strings come from PHP via wp_localize_script (sntCronI18n).
+	// Defensive fallback to English so the module still works if the
+	// localize call ever fails to enqueue (e.g., during a botched deploy).
+	var I = ( typeof window !== 'undefined' && window.sntCronI18n ) || {
+		running:           'Running…',
+		runNow:            'Run now',
+		justNow:           'just now',
+		confirmRun:        "Run cron event '%s' now?",
+		apiFetchMissing:   'wp.apiFetch unavailable — cannot dispatch.',
+		unknownError:      'unknown error',
+		firedTemplate:     '%1$s fired in %2$dms',
+		runFailedTemplate: 'Run failed: %s'
+	};
+
+	function fmt1( tmpl, a ) { return String( tmpl ).replace( '%s', a ); }
+	function fmtFired( hook, ms ) {
+		return String( I.firedTemplate )
+			.replace( '%1$s', hook )
+			.replace( '%2$d', Math.round( ms ) );
+	}
+
 	function toast( msg, type ) {
 		type = type || 'success';
 		if ( window.wp && window.wp.data && window.wp.data.dispatch( 'core/notices' ) ) {
@@ -47,7 +68,7 @@
 		cell.appendChild( document.createTextNode( formatted ) );
 		cell.appendChild( document.createElement( 'br' ) );
 		var sm = document.createElement( 'small' );
-		sm.textContent = 'just now';
+		sm.textContent = I.justNow;
 		cell.appendChild( sm );
 	}
 
@@ -77,15 +98,15 @@
 					return;
 				}
 				var hook = tr.getAttribute( 'data-hook' );
-				if ( ! window.confirm( "Run cron event '" + hook + "' now?" ) ) {
+				if ( ! window.confirm( fmt1( I.confirmRun, hook ) ) ) {
 					return;
 				}
 				if ( ! window.wp || ! window.wp.apiFetch ) {
-					toast( 'wp.apiFetch unavailable — cannot dispatch.', 'error' );
+					toast( I.apiFetchMissing, 'error' );
 					return;
 				}
 				btn.disabled = true;
-				btn.textContent = 'Running…';
+				btn.textContent = I.running;
 				window.wp.apiFetch( {
 					path: '/signal-noise/v1/cron/run',
 					method: 'POST',
@@ -96,15 +117,15 @@
 						// timezone, matches the rest of the table) instead
 						// of client-side UTC toISOString.
 						updateLastFiredCell( tr, res.last_fired_formatted );
-						toast( hook + ' fired in ' + Math.round( res.elapsed_ms ) + 'ms', 'success' );
+						toast( fmtFired( hook, res.elapsed_ms ), 'success' );
 					} else {
-						toast( 'Run failed: ' + ( ( res && res.error ) || 'unknown error' ), 'error' );
+						toast( fmt1( I.runFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
 					}
 				} ).catch( function( err ) {
-					toast( 'Run failed: ' + ( err.message || err ), 'error' );
+					toast( fmt1( I.runFailedTemplate, err.message || err ), 'error' );
 				} ).finally( function() {
 					btn.disabled = false;
-					btn.textContent = 'Run now';
+					btn.textContent = I.runNow;
 				} );
 			} );
 		} );

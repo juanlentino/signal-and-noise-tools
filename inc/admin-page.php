@@ -81,6 +81,30 @@ function sn_admin_page_subtitle_for_tab( $tab ) {
 }
 
 /**
+ * Single source of truth: every tab slug registered in sn_admin_pages().
+ *
+ * Derived (not duplicated) so adding a new tab is a one-line edit in
+ * sn_admin_pages(). v3.0.0 shipped a regression where Task 10 added the
+ * page entry + dispatch case but missed two inline whitelists 200 lines
+ * away (CHANGELOG v3.0.2). Encoding this as a derived helper makes the
+ * coordination constraint impossible to violate.
+ *
+ * @since 3.0.2
+ */
+function sn_admin_page_valid_tabs() {
+	return array_column( sn_admin_pages(), 'tab' );
+}
+
+/**
+ * Single source of truth: tab → label map, keyed by tab slug.
+ *
+ * @since 3.0.2
+ */
+function sn_admin_page_tab_labels() {
+	return array_column( sn_admin_pages(), 'label', 'tab' );
+}
+
+/**
  * Map an admin-page slug to a tab name. Used by sn_theme_options_page()
  * to dispatch when $_GET['tab'] isn't present (v1.9.0+ deep links).
  */
@@ -311,7 +335,7 @@ function sn_theme_options_page() {
 	$theme         = wp_get_theme( 'signal-and-noise' );
 	$local_version = $theme->get( 'Version' );
 	$notices       = array();
-	$valid_tabs = array( 'dashboard', 'identity', 'login', 'cloudflare', 'plausible', 'rss', 'reading-time', 'cron', 'links' );
+	$valid_tabs = sn_admin_page_valid_tabs();
 
 	// Dispatch order: (1) explicit ?tab=… in URL (v1.8.x legacy deep links;
 	// must keep working); (2) derive from the current ?page=… slug (v1.9.0
@@ -406,17 +430,7 @@ function sn_theme_options_page() {
 	}
 
 	// ── TABS ──
-	$tab_labels = array(
-		'dashboard'    => 'Dashboard',
-		'identity'     => 'Identity',
-		'login'        => 'Login',
-		'cloudflare'   => 'Cloudflare',
-		'plausible'    => 'Plausible',
-		'rss'          => 'RSS',
-		'reading-time' => 'Reading Time',
-		'cron'         => 'Cron',
-		'links'        => 'Links',
-	);
+	$tab_labels = sn_admin_page_tab_labels();
 	echo '<nav class="nav-tab-wrapper sn-nav-tabs">';
 	foreach ( $tab_labels as $slug => $label ) {
 		$is_active = ( $slug === $active_tab );
