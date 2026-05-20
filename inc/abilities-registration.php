@@ -236,6 +236,287 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	/* ════════════════════════════════════════════════════════════════════
+	 * v2.5.0 additions — 7 new abilities consolidating the entire SN
+	 * canonical action surface onto the Abilities API.
+	 * ════════════════════════════════════════════════════════════════════ */
+
+	$permission_edit_post = function( $input ) {
+		$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+		return current_user_can( 'edit_post', $post_id );
+	};
+
+	wp_register_ability( 'signal-noise/force-check-updates', array(
+		'label'               => 'Force-check theme + plugin updates',
+		'description'         => 'Clears the sn_gh_latest_* + update_themes + update_plugins site transients so the next admin page-load refetches fresh data from GitHub. No user data deleted.',
+		'category'            => 'updates',
+		'permission_callback' => $permission_manage_options,
+		'execute_callback'    => function() {
+			if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'Force-check helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_cmd_impl_force_check();
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'properties' => array(),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'message' => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/full-reset', array(
+		'label'               => 'Full reset (clear overrides + purge all caches)',
+		'description'         => 'Clears wp_template / wp_template_part / wp_navigation DB overrides AND purges every cache (object cache, Breeze, Varnish, Cloudflare). Use after a theme/plugin update or when content appears stale.',
+		'category'            => 'maintenance',
+		'permission_callback' => $permission_manage_options,
+		'execute_callback'    => function() {
+			if ( ! function_exists( 'snt_cmd_impl_full_reset' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_cmd_impl_full_reset();
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'properties' => array(),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'message' => array( 'type' => 'string' ),
+				'data'    => array(
+					'type'       => 'object',
+					'properties' => array(
+						'count' => array( 'type' => 'integer' ),
+					),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/list-template-overrides', array(
+		'label'               => 'List database template overrides',
+		'description'         => 'Returns the slugs and post types of any wp_template / wp_template_part / wp_navigation rows currently overriding theme files. Read-only inspection before the destructive clear-template-overrides.',
+		'category'            => 'diagnostics',
+		'permission_callback' => $permission_manage_options,
+		'execute_callback'    => function() {
+			$rows = get_posts( array(
+				'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
+				'posts_per_page' => -1,
+				'post_status'    => 'any',
+			) );
+			$items = array();
+			foreach ( $rows as $row ) {
+				$items[] = array(
+					'post_type' => $row->post_type,
+					'slug'      => $row->post_name,
+					'id'        => (int) $row->ID,
+				);
+			}
+			return array(
+				'ok'    => true,
+				'count' => count( $items ),
+				'items' => $items,
+			);
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'properties' => array(),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'    => array( 'type' => 'boolean' ),
+				'count' => array( 'type' => 'integer' ),
+				'items' => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'post_type' => array( 'type' => 'string' ),
+							'slug'      => array( 'type' => 'string' ),
+							'id'        => array( 'type' => 'integer' ),
+						),
+					),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'   => true,
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/get-rss-stats', array(
+		'label'               => 'Get RSS feed activity statistics',
+		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts. Backed by the sn_rss_tracker module.',
+		'category'            => 'diagnostics',
+		'permission_callback' => $permission_manage_options,
+		'execute_callback'    => function() {
+			if ( ! function_exists( 'snt_cmd_impl_rss_stats' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'RSS-stats helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_cmd_impl_rss_stats();
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'properties' => array(),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'   => array( 'type' => 'boolean' ),
+				'data' => array( 'type' => 'object' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'   => true,
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-generate-meta-description', array(
+		'label'               => 'Generate SEO meta description with AI',
+		'description'         => 'Generates a 140-160 character meta description from post content via the WP AI Client. Writes to the _sn_meta_description post meta override.',
+		'category'            => 'ai-generation',
+		'permission_callback' => $permission_edit_post,
+		'execute_callback'    => function( $input ) {
+			if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'Meta-desc helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_ai_meta_desc_impl( (int) $input['post_id'] );
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'post_id' ),
+			'properties' => array(
+				'post_id' => array(
+					'type'        => 'integer',
+					'description' => 'The WordPress post ID to summarize.',
+					'minimum'     => 1,
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'          => array( 'type' => 'boolean' ),
+				'description' => array( 'type' => 'string' ),
+				'length'      => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-generate-og-card-title', array(
+		'label'               => 'Generate OG card title with AI',
+		'description'         => 'Generates a 60-90 character punchy variant of the post title via the WP AI Client, writes to _sn_og_card_title post meta, AND re-runs sn_generate_og_card so the social-share PNG reflects the new title immediately.',
+		'category'            => 'ai-generation',
+		'permission_callback' => $permission_edit_post,
+		'execute_callback'    => function( $input ) {
+			if ( ! function_exists( 'snt_ai_og_card_title_impl' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'OG-title helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_ai_og_card_title_impl( (int) $input['post_id'] );
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'post_id' ),
+			'properties' => array(
+				'post_id' => array(
+					'type'        => 'integer',
+					'description' => 'The WordPress post ID.',
+					'minimum'     => 1,
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'               => array( 'type' => 'boolean' ),
+				'title'            => array( 'type' => 'string' ),
+				'length'           => array( 'type' => 'integer' ),
+				'card_regenerated' => array( 'type' => 'boolean' ),
+				'card_url'         => array( 'type' => 'string', 'format' => 'uri' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-generate-excerpt', array(
+		'label'               => 'Generate post excerpt with AI',
+		'description'         => 'Generates a 50-75 word, 2-3 sentence excerpt from post content via the WP AI Client. Returns the text; the caller writes it to WP\'s native post_excerpt field.',
+		'category'            => 'ai-generation',
+		'permission_callback' => $permission_edit_post,
+		'execute_callback'    => function( $input ) {
+			if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
+				return new WP_Error( 'snt_helper_unavailable', 'Excerpt helper unavailable.', array( 'status' => 500 ) );
+			}
+			return snt_ai_excerpt_impl( (int) $input['post_id'] );
+		},
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'post_id' ),
+			'properties' => array(
+				'post_id' => array(
+					'type'        => 'integer',
+					'description' => 'The WordPress post ID to summarize.',
+					'minimum'     => 1,
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'excerpt' => array( 'type' => 'string' ),
+				'length'  => array( 'type' => 'integer' ),
+				'words'   => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
