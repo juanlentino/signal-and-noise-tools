@@ -2,6 +2,44 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [2.5.5] - 2026-05-20
+
+### Added — Phase 16 slice 1: SN commands opt into desktop-mode AI Copilot
+
+10 of our 13 desktop-mode-registered ⌘K commands now carry `aiCallable: true`, which opts them into `wp.desktop.ai.ask()`'s tool registry. Result: when you press ⌘K and type a natural-language query like *"force-check for updates"* or *"go to the RSS tab"*, desktop-mode's AI Copilot can dispatch the right SN command instead of just doing fuzzy string match.
+
+**Why this is 10 LOC instead of 600:** the WordPress/desktop-mode plugin already ships the entire AI orchestration stack — `wp.desktop.ai.ask(query, opts)` since 0.17.0, the ⌘K Copilot overlay, the `/ai/search` server endpoint, built-in tools for site queries (`search_posts`, `search_pages`, `search_comments`), and the `aiCallable: true` opt-in flag. The user already has desktop-mode installed and uses it. So our work is just flagging which SN commands are safe for AI invocation.
+
+Reference: [desktop-mode docs/javascript-reference.md `wp.desktop.ai.ask`](https://github.com/WordPress/desktop-mode/blob/trunk/docs/javascript-reference.md).
+
+### Selection
+
+| Command | aiCallable | Reason |
+|---|:---:|---|
+| `sn-cmd-force-check` | ✅ | Idempotent transient clear. Safe. |
+| `sn-cmd-purge-caches` | ❌ | Destructive (cache wipe). Manual ⌘K only. |
+| `sn-cmd-clear-overrides` | ❌ | Deletes DB rows. Manual only. |
+| `sn-cmd-full-reset` | ❌ | Combination of above. Manual only. |
+| 7 nav commands (`sn-cmd-nav-*`) | ✅ | Navigation, no state change. |
+| `sn-cmd-version-theme`, `sn-cmd-version-plugin` | ✅ | Read-only info toast. |
+
+The 3 destructive commands stay manual — typing them explicitly IS the safety check. Per desktop-mode's own doc: *"AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones) would turn a typo into a catastrophe."*
+
+### File
+
+- `assets/desktop-mode.js` — `aiCallable: true` added inline on each of the 10 opted-in `wp.desktop.registerCommand()` calls, with comments documenting WHY each destructive command intentionally omits it.
+
+### What this is NOT
+
+- Not a chat UI (desktop-mode owns that)
+- Not a custom AI client integration (desktop-mode owns that)
+- Not new REST endpoints
+- Not new abilities (desktop-mode's `search_*` tools cover site queries)
+
+### Process
+
+`superpowers:brainstorming` → user pushed back on "chatbot" framing → recommended augmented ⌘K via desktop-mode → read FULL source of desktop-mode AI integration before writing code (per memory rule [`feedback_skills_plugins_docs_always`](https://github.com/juanlentino/signal-and-noise/blob/main/.claude/projects/-Users-juanlentino-Projects-signal-and-noise/memory/feedback_skills_plugins_docs_always.md)).
+
 ## [2.5.4] - 2026-05-20
 
 ### Fixed — abilities REST input validation rejects null + URL-encoded `{}` for GET/DELETE

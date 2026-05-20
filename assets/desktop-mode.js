@@ -96,9 +96,23 @@
 
 	/* ── COMMAND BINDINGS ──────────────────────────────────────────────── */
 
+	// v2.5.5: aiCallable opt-in per command. Per desktop-mode docs/javascript-
+	// reference.md, this flag harvests the command into wp.desktop.ai.ask()'s
+	// tool registry. The built-in ⌘K AI Copilot overlay can then invoke it
+	// by name when the user types a matching natural-language query.
+	//
+	// Conservative selection: opt in non-destructive commands (navigation,
+	// info, idempotent transient clears). Skip the 3 destructive maintenance
+	// commands (purge-caches, clear-overrides, full-reset) — typing them
+	// explicitly via the palette IS the safety check. Quote from the
+	// desktop-mode docs: "AI tool-calling is a paraphrasing channel, and
+	// handing the model every registered command (including destructive
+	// ones) would turn a typo into a catastrophe."
+
 	// Maintenance.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-force-check',
+		aiCallable: true, // v2.5.5: idempotent, clears transients only — safe.
 		run: function() {
 			callRest( 'force-check' )
 				.then( function( res ) { toast( res.message || 'Update caches cleared.' ); } )
@@ -108,6 +122,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-purge-caches',
+		// v2.5.5: aiCallable INTENTIONALLY OMITTED — destructive. Manual ⌘K only.
 		run: function() {
 			callRest( 'purge-caches' )
 				.then( function( res ) { toast( res.message || 'All caches purged.' ); } )
@@ -117,6 +132,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-clear-overrides',
+		// v2.5.5: aiCallable INTENTIONALLY OMITTED — deletes DB rows. Manual only.
 		run: function() {
 			callRest( 'clear-overrides' )
 				.then( function( res ) { toast( res.message || 'Overrides cleared.' ); } )
@@ -126,6 +142,8 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-full-reset',
+		// v2.5.5: aiCallable INTENTIONALLY OMITTED — combines the two destructive
+		// commands above; even bigger blast radius. Manual ⌘K only.
 		run: function() {
 			if ( ! window.confirm( 'Run Full Reset?\n\nThis clears every template override AND purges every cache.' ) ) {
 				return;
@@ -136,17 +154,17 @@
 		},
 	} );
 
-	// Navigation.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard',    run: function() { navigate( pages.dashboard ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity',     run: function() { navigate( pages.identity ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login',        run: function() { navigate( pages.login ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare',   run: function() { navigate( pages.cloudflare ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-plausible',    run: function() { navigate( pages.plausible ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss',          run: function() { navigate( pages.rss ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', run: function() { navigate( pages.reading_time ); } } );
+	// Navigation. All aiCallable — pure navigation, no state change.
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard',    aiCallable: true, run: function() { navigate( pages.dashboard ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity',     aiCallable: true, run: function() { navigate( pages.identity ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login',        aiCallable: true, run: function() { navigate( pages.login ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare',   aiCallable: true, run: function() { navigate( pages.cloudflare ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-plausible',    aiCallable: true, run: function() { navigate( pages.plausible ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss',          aiCallable: true, run: function() { navigate( pages.rss ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', aiCallable: true, run: function() { navigate( pages.reading_time ); } } );
 
-	// Info.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme',  run: function() { versionToast( 'theme' ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', run: function() { versionToast( 'plugin' ); } } );
+	// Info. Both aiCallable — read-only toast.
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme',  aiCallable: true, run: function() { versionToast( 'theme' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', aiCallable: true, run: function() { versionToast( 'plugin' ); } } );
 
 } )();
