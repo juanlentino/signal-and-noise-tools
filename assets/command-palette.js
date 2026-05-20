@@ -1,28 +1,29 @@
 /**
- * Signal & Noise Tools — WP 7.0 Command Palette commands.
+ * Signal & Noise Tools — WP 7.0 Command Palette commands (v2.5.0+).
  *
- * Registers 5 SN actions via @wordpress/commands using the imperative API
- *   wp.data.dispatch( 'core/commands' ).registerCommand( config )
- * (no React tree needed, unlike the useCommand hook).
+ * Registers 5 SN actions in WordPress 7.0's ⌘K palette. Each command's
+ * callback invokes a registered ability via the wp-abilities REST API
+ * (with the correct HTTP verb per the ability's annotations) rather than
+ * calling our legacy /signal-noise/v1/cmd/* endpoints directly.
  *
- * Commands:
- *   1. SN: Purge all caches              — POST /cmd/purge-caches
- *   2. SN: Clear template overrides      — POST /cmd/clear-overrides
- *   3. SN: Force-check updates           — POST /cmd/force-check
- *   4. SN: Show deploy status            — GET  /cmd/status (snackbar)
- *   5. SN: Open Signal & Noise settings  — navigate to dashboard
+ * Why not @wordpress/core-abilities: that package is loaded as an ES
+ * script module (wp_enqueue_script_module) and can't be imported from
+ * classic-script IIFE files like this one. wp.apiFetch against the
+ * abilities REST URLs works fine in classic scripts; we just pick the
+ * verb manually based on each ability's annotation set (known at
+ * registration time).
  *
- * Bail policy: if wp.commands, wp.data, or wp.apiFetch is missing (e.g.
- * WP < 7.0, no admin context, or a stripped-down install) we silently
- * return. The plugin behaves identically when the palette is unavailable.
+ * Annotation → verb mapping (per WordPress/abilities-api docs/rest-api.md):
+ *   readonly:    true → GET    (input via ?input=<encoded JSON>)
+ *   destructive: true → DELETE (same input shape)
+ *   neither           → POST   (input in JSON body as { input: ... })
  *
  * Verified against:
- *   - WordPress/gutenberg/packages/commands/src/store/index.js — store
- *     name is 'core/commands'
- *   - .../components/command-menu.js — callback invoked as
- *     command.callback( { close } )
+ *   - WordPress/abilities-api docs/rest-api.md (REST endpoint /run shape)
+ *   - WordPress/gutenberg/packages/commands/src/store/index.js (store name)
+ *   - .../components/command-menu.js (callback({ close }) signature)
  *
- * @since plugin v2.3.0
+ * @since plugin v2.5.0
  */
 ( function() {
 	'use strict';
@@ -37,18 +38,15 @@
 	}
 
 	var __ = ( wp.i18n && wp.i18n.__ ) || function( s ) { return s; };
-	var cfg = window.sntCommandPalette || {};
-	var restNs = cfg.restNamespace || 'signal-noise/v1';
-	var dashboardUrl = cfg.dashboardUrl || '/wp-admin/admin.php?page=sn-theme-options';
-
 	var dispatch = wp.data.dispatch( 'core/commands' );
 	if ( ! dispatch || typeof dispatch.registerCommand !== 'function' ) {
 		return;
 	}
 
-	// Dashicon-as-React-element helper. The commands API expects icon to
-	// be a JSX element; we use createElement to produce a dashicon span
-	// without needing a JSX build step.
+	var cfg = window.sntCommandPalette || {};
+	var dashboardUrl = cfg.dashboardUrl || '/wp-admin/admin.php?page=sn-theme-options';
+
+	// Dashicon as React element via wp.element.createElement (no JSX build step).
 	function dashicon( name ) {
 		if ( ! wp.element || ! wp.element.createElement ) {
 			return undefined;
@@ -59,9 +57,7 @@
 		} );
 	}
 
-	// Snackbar via core/notices — the canonical WP toast surface. Falls
-	// through to console.log only as a defensive last resort (shouldn't
-	// fire on a normal 7.0 install).
+	// Snackbar via core/notices.
 	function showToast( text, kind ) {
 		var notices = wp.data.dispatch( 'core/notices' );
 		if ( notices && typeof notices.createNotice === 'function' ) {
@@ -76,20 +72,43 @@
 		console.log( '[SN]', text );
 	}
 
-	// Generic REST runner used by the 3 maintenance commands. Close the
-	// palette as soon as the request lands (so the user sees the snackbar
-	// against their normal admin surface, not behind the palette overlay).
-	function runRest( method, path, close, label ) {
+	/**
+	 * Execute a registered SN ability via the abilities REST API.
+	 *
+	 * @param {string} name         Full ability name (e.g. 'signal-noise/purge-all-caches')
+	 * @param {object} annotations  { readonly?, destructive? } — same shape as PHP meta.annotations
+	 * @param {object|null} input   Input payload matching the ability's input_schema. Pass null for no input.
+	 * @returns {Promise<any>}      Resolves with the ability's output payload, rejects with WP_Error JSON.
+	 */
+	function executeAbility( name, annotations, input ) {
+		var verb = annotations.readonly    ? 'GET'
+		         : annotations.destructive ? 'DELETE'
+		         :                           'POST';
+		var path = '/wp-abilities/v1/' + name + '/run';
+		var opts = { path: path, method: verb };
+		if ( input !== null && input !== undefined ) {
+			if ( verb === 'POST' ) {
+				opts.data = { input: input };
+			} else {
+				opts.path += '?input=' + encodeURIComponent( JSON.stringify( input ) );
+			}
+		}
+		return wp.apiFetch( opts );
+	}
+
+	// Generic runner: close palette → execute → snackbar result.
+	function run( label, name, annotations, input, close, onSuccess ) {
 		if ( typeof close === 'function' ) {
 			close();
 		}
-		wp.apiFetch( {
-			path: '/' + restNs + path,
-			method: method,
-		} )
+		executeAbility( name, annotations, input )
 			.then( function( res ) {
-				var msg = ( res && res.message ) ? res.message : __( 'Done.', 'signal-noise-tools' );
-				showToast( label + ': ' + msg, 'ok' );
+				if ( typeof onSuccess === 'function' ) {
+					onSuccess( res, label );
+				} else {
+					var msg = ( res && res.message ) ? res.message : __( 'Done.', 'signal-noise-tools' );
+					showToast( label + ': ' + msg, 'ok' );
+				}
 			} )
 			.catch( function( err ) {
 				var msg = ( err && err.message ) ? err.message : __( 'Unknown error.', 'signal-noise-tools' );
@@ -104,7 +123,13 @@
 		label: __( 'SN: Purge all caches', 'signal-noise-tools' ),
 		icon: dashicon( 'trash' ),
 		callback: function( args ) {
-			runRest( 'POST', '/cmd/purge-caches', args.close, __( 'Purge caches', 'signal-noise-tools' ) );
+			run(
+				__( 'Purge caches', 'signal-noise-tools' ),
+				'signal-noise/purge-all-caches',
+				{ destructive: true, idempotent: true },
+				{},  // ability accepts empty input
+				args.close
+			);
 		},
 	} );
 
@@ -113,7 +138,13 @@
 		label: __( 'SN: Clear template overrides', 'signal-noise-tools' ),
 		icon: dashicon( 'editor-removeformatting' ),
 		callback: function( args ) {
-			runRest( 'POST', '/cmd/clear-overrides', args.close, __( 'Clear overrides', 'signal-noise-tools' ) );
+			run(
+				__( 'Clear overrides', 'signal-noise-tools' ),
+				'signal-noise/clear-template-overrides',
+				{ destructive: true, idempotent: true },
+				{},
+				args.close
+			);
 		},
 	} );
 
@@ -122,7 +153,13 @@
 		label: __( 'SN: Force-check updates', 'signal-noise-tools' ),
 		icon: dashicon( 'update' ),
 		callback: function( args ) {
-			runRest( 'POST', '/cmd/force-check', args.close, __( 'Force-check', 'signal-noise-tools' ) );
+			run(
+				__( 'Force-check', 'signal-noise-tools' ),
+				'signal-noise/force-check-updates',
+				{ idempotent: true },  // not readonly (clears state); not destructive (no user data)
+				{},
+				args.close
+			);
 		},
 	} );
 
@@ -131,24 +168,20 @@
 		label: __( 'SN: Show deploy status', 'signal-noise-tools' ),
 		icon: dashicon( 'chart-line' ),
 		callback: function( args ) {
-			if ( typeof args.close === 'function' ) {
-				args.close();
-			}
-			wp.apiFetch( {
-				path: '/' + restNs + '/cmd/status',
-				method: 'GET',
-			} )
-				.then( function( res ) {
-					var theme  = ( res && res.data && res.data.theme )  || {};
-					var plugin = ( res && res.data && res.data.plugin ) || {};
+			run(
+				__( 'Status', 'signal-noise-tools' ),
+				'signal-noise/get-deploy-status',
+				{ readonly: true, idempotent: true },
+				null,
+				args.close,
+				function( res, label ) {
+					var theme  = res && res.theme  || {};
+					var plugin = res && res.plugin || {};
 					var themeMsg  = 'Theme '  + ( theme.current  || '?' ) + ( theme.state  === 'available' ? ' (update: ' + theme.latest  + ')' : '' );
 					var pluginMsg = 'Plugin ' + ( plugin.current || '?' ) + ( plugin.state === 'available' ? ' (update: ' + plugin.latest + ')' : '' );
 					showToast( themeMsg + ' · ' + pluginMsg, 'ok' );
-				} )
-				.catch( function( err ) {
-					var msg = ( err && err.message ) ? err.message : __( 'Unknown error.', 'signal-noise-tools' );
-					showToast( __( 'Status fetch failed', 'signal-noise-tools' ) + ': ' + msg, 'err' );
-				} );
+				}
+			);
 		},
 	} );
 
