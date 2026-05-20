@@ -167,4 +167,28 @@
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme',  aiCallable: true, run: function() { versionToast( 'theme' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', aiCallable: true, run: function() { versionToast( 'plugin' ); } } );
 
+	// Cron Dashboard (v3.0.0) — both aiCallable, read-only.
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-cron-health',
+		aiCallable: true,
+		run: function() {
+			var summary = data.cronSummary || {};
+			toast(
+				'Cron: ' + ( summary.total || 0 ) + ' events, ' +
+				( summary.sn_count || 0 ) + ' SN-owned, ' +
+				( summary.orphans || 0 ) + ' orphan' + ( summary.orphans === 1 ? '' : 's' ),
+				'info'
+			);
+			navigate( pages.cron );
+		}
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-cron-list',
+		aiCallable: true,
+		run: function() {
+			navigate( pages.cron );
+		}
+	} );
+
 } )();
