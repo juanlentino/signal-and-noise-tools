@@ -88,3 +88,41 @@ function snt_cron_last_fired_for( $hook ) {
 function snt_cron_track_last_fired_cb() {
 	snt_cron_record_last_fired( current_action() );
 }
+
+/**
+ * During DOING_CRON requests, register snt_cron_track_last_fired_cb at
+ * PHP_INT_MAX for every unique cron hook. This way it fires AFTER the
+ * real handler completes, capturing last-fired exactly once per event
+ * firing.
+ *
+ * Gated at wp_loaded priority 1 so non-cron requests pay only one
+ * defined() check. Pre-walks _get_cron_array() to register named
+ * (not closure) listeners so WordPress's internal callback dedupe
+ * works if multiple plugins do this trick.
+ *
+ * _get_cron_array() is underscore-prefixed (technically private) but
+ * stable since WP 2.1 (2007). It's the only way to enumerate all
+ * scheduled events; documented in spec § 7.4 as accepted API risk.
+ */
+add_action( 'wp_loaded', function() {
+	if ( ! ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		return;
+	}
+	if ( ! function_exists( '_get_cron_array' ) ) {
+		return;
+	}
+	$crons = _get_cron_array();
+	if ( empty( $crons ) ) {
+		return;
+	}
+	$seen = array();
+	foreach ( $crons as $events ) {
+		foreach ( $events as $hook => $_ ) {
+			if ( isset( $seen[ $hook ] ) ) {
+				continue;
+			}
+			$seen[ $hook ] = true;
+			add_action( $hook, 'snt_cron_track_last_fired_cb', PHP_INT_MAX );
+		}
+	}
+}, 1 );
