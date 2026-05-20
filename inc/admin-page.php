@@ -311,7 +311,7 @@ function sn_theme_options_page() {
 	$theme         = wp_get_theme( 'signal-and-noise' );
 	$local_version = $theme->get( 'Version' );
 	$notices       = array();
-	$valid_tabs = array( 'dashboard', 'identity', 'login', 'cloudflare', 'plausible', 'rss', 'reading-time', 'links' );
+	$valid_tabs = array( 'dashboard', 'identity', 'login', 'cloudflare', 'plausible', 'rss', 'reading-time', 'cron', 'links' );
 
 	// Dispatch order: (1) explicit ?tab=… in URL (v1.8.x legacy deep links;
 	// must keep working); (2) derive from the current ?page=… slug (v1.9.0
@@ -414,6 +414,7 @@ function sn_theme_options_page() {
 		'plausible'    => 'Plausible',
 		'rss'          => 'RSS',
 		'reading-time' => 'Reading Time',
+		'cron'         => 'Cron',
 		'links'        => 'Links',
 	);
 	echo '<nav class="nav-tab-wrapper sn-nav-tabs">';
