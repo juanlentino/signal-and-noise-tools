@@ -428,5 +428,65 @@ $with_long = '[
 $recs = snt_insights_parse_response( $with_long );
 ins_eq( 3, count( $recs ), 'long title rejected' );
 
+// ─── Test 16: state read returns empty arrays by default ─────────────
+echo "\nTest 16: state read/write\n";
+$GLOBALS['__test_options'][ SN_INSIGHTS_STATE_OPT ] = array();
+$state = snt_insights_state_read();
+ins_true( isset( $state['dismissed_ids'] ),  'dismissed_ids key present' );
+ins_true( isset( $state['snoozed_until'] ),  'snoozed_until key present' );
+ins_true( isset( $state['done_ids'] ),       'done_ids key present' );
+ins_eq( array(), $state['dismissed_ids'], 'dismissed_ids default empty' );
+
+// ─── Test 17: dismiss + snooze + mark_done ───────────────────────────
+echo "\nTest 17: dismiss/snooze/done write through\n";
+$GLOBALS['__test_options'][ SN_INSIGHTS_STATE_OPT ] = array();
+snt_insights_dismiss( 'rec_a' );
+snt_insights_snooze( 'rec_b' );
+snt_insights_mark_done( 'rec_c' );
+$state = snt_insights_state_read();
+ins_true( in_array( 'rec_a', $state['dismissed_ids'], true ), 'dismissed contains rec_a' );
+ins_true( isset( $state['snoozed_until']['rec_b'] ),          'snoozed contains rec_b' );
+ins_true( in_array( 'rec_c', $state['done_ids'], true ),      'done contains rec_c' );
+ins_true( $state['snoozed_until']['rec_b'] > time() + 25 * DAY_IN_SECONDS, 'snooze ~30 days out' );
+
+// ─── Test 18: filter_active hides dismissed + active-snoozed ─────────
+echo "\nTest 18: filter_active\n";
+$GLOBALS['__test_options'][ SN_INSIGHTS_STATE_OPT ] = array(
+	'dismissed_ids' => array( 'rec_a' ),
+	'snoozed_until' => array( 'rec_b' => time() + 100, 'rec_c' => time() - 100 ),  // c expired
+	'done_ids'      => array( 'rec_d' ),
+);
+$all = array(
+	array( 'id' => 'rec_a' ),  // dismissed → hidden
+	array( 'id' => 'rec_b' ),  // snoozed-active → hidden
+	array( 'id' => 'rec_c' ),  // snoozed-expired → visible
+	array( 'id' => 'rec_d' ),  // done → visible (greyed)
+	array( 'id' => 'rec_e' ),  // untouched → visible
+);
+$active = snt_insights_filter_active( $all );
+$visible_ids = array_column( $active, 'id' );
+ins_true( ! in_array( 'rec_a', $visible_ids, true ), 'dismissed hidden' );
+ins_true( ! in_array( 'rec_b', $visible_ids, true ), 'active-snoozed hidden' );
+ins_true( in_array( 'rec_c', $visible_ids, true ),   'expired-snooze visible' );
+ins_true( in_array( 'rec_d', $visible_ids, true ),   'done still visible' );
+ins_true( in_array( 'rec_e', $visible_ids, true ),   'untouched visible' );
+
+// ─── Test 19: state list FIFO cap (200 entries) ──────────────────────
+echo "\nTest 19: state list cap at 200 entries\n";
+$big_state = array(
+	'dismissed_ids' => array(),
+	'snoozed_until' => array(),
+	'done_ids'      => array(),
+);
+for ( $i = 0; $i < 250; $i++ ) {
+	$big_state['dismissed_ids'][] = "rec_$i";
+}
+$GLOBALS['__test_options'][ SN_INSIGHTS_STATE_OPT ] = $big_state;
+snt_insights_dismiss( 'new_rec' );  // should evict oldest
+$state = snt_insights_state_read();
+ins_eq( 200, count( $state['dismissed_ids'] ), 'dismissed_ids capped at 200' );
+ins_true( in_array( 'new_rec', $state['dismissed_ids'], true ), 'new entry retained' );
+ins_true( ! in_array( 'rec_0', $state['dismissed_ids'], true ), 'oldest evicted' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

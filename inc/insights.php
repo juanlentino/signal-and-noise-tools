@@ -341,3 +341,82 @@ function snt_insights_parse_response( $raw ) {
 
 	return $valid;
 }
+
+/**
+ * Read the per-recommendation state from sn_insights_state.
+ * Returns dict with three arrays/maps. Defaults to empty.
+ */
+function snt_insights_state_read() {
+	$stored = get_option( SN_INSIGHTS_STATE_OPT, array() );
+	if ( ! is_array( $stored ) ) { $stored = array(); }
+	return array(
+		'dismissed_ids' => isset( $stored['dismissed_ids'] ) && is_array( $stored['dismissed_ids'] ) ? array_values( $stored['dismissed_ids'] ) : array(),
+		'snoozed_until' => isset( $stored['snoozed_until'] ) && is_array( $stored['snoozed_until'] ) ? $stored['snoozed_until'] : array(),
+		'done_ids'      => isset( $stored['done_ids'] )      && is_array( $stored['done_ids'] )      ? array_values( $stored['done_ids'] )      : array(),
+	);
+}
+
+function snt_insights_state_write( $state ) {
+	// FIFO cap each list.
+	if ( count( $state['dismissed_ids'] ) > SN_INSIGHTS_STATE_LIST_CAP ) {
+		$state['dismissed_ids'] = array_slice( $state['dismissed_ids'], -SN_INSIGHTS_STATE_LIST_CAP );
+	}
+	if ( count( $state['done_ids'] ) > SN_INSIGHTS_STATE_LIST_CAP ) {
+		$state['done_ids'] = array_slice( $state['done_ids'], -SN_INSIGHTS_STATE_LIST_CAP );
+	}
+	if ( count( $state['snoozed_until'] ) > SN_INSIGHTS_STATE_LIST_CAP ) {
+		asort( $state['snoozed_until'] );
+		$state['snoozed_until'] = array_slice( $state['snoozed_until'], -SN_INSIGHTS_STATE_LIST_CAP, null, true );
+	}
+	update_option( SN_INSIGHTS_STATE_OPT, $state, false );
+}
+
+function snt_insights_dismiss( $rec_id ) {
+	$rec_id = (string) $rec_id;
+	if ( '' === $rec_id ) { return; }
+	$state = snt_insights_state_read();
+	if ( ! in_array( $rec_id, $state['dismissed_ids'], true ) ) {
+		$state['dismissed_ids'][] = $rec_id;
+		snt_insights_state_write( $state );
+	}
+}
+
+function snt_insights_snooze( $rec_id ) {
+	$rec_id = (string) $rec_id;
+	if ( '' === $rec_id ) { return; }
+	$state = snt_insights_state_read();
+	$state['snoozed_until'][ $rec_id ] = time() + ( SN_INSIGHTS_SNOOZE_DAYS * DAY_IN_SECONDS );
+	snt_insights_state_write( $state );
+}
+
+function snt_insights_mark_done( $rec_id ) {
+	$rec_id = (string) $rec_id;
+	if ( '' === $rec_id ) { return; }
+	$state = snt_insights_state_read();
+	if ( ! in_array( $rec_id, $state['done_ids'], true ) ) {
+		$state['done_ids'][] = $rec_id;
+		snt_insights_state_write( $state );
+	}
+}
+
+/**
+ * Filter a recommendations array against the saved state.
+ * Hides dismissed + active-snoozed. Done recs stay (callers can flag).
+ */
+function snt_insights_filter_active( $recommendations ) {
+	if ( ! is_array( $recommendations ) ) { return array(); }
+	$state = snt_insights_state_read();
+	$now   = time();
+	$dismissed = array_flip( $state['dismissed_ids'] );
+	$snoozed   = $state['snoozed_until'];
+
+	$out = array();
+	foreach ( $recommendations as $rec ) {
+		$id = isset( $rec['id'] ) ? (string) $rec['id'] : '';
+		if ( '' === $id ) { continue; }
+		if ( isset( $dismissed[ $id ] ) ) { continue; }
+		if ( isset( $snoozed[ $id ] ) && (int) $snoozed[ $id ] > $now ) { continue; }
+		$out[] = $rec;
+	}
+	return $out;
+}
