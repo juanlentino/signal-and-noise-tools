@@ -65,6 +65,7 @@ function sn_admin_pages() {
 		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
 		array( 'slug' => 'sn-cron',          'tab' => 'cron',         'label' => 'Cron',          'title' => 'Signal & Noise — Cron',          'subtitle' => 'Scheduled jobs — next run, recurrence, last fired, manual trigger.' ),
 		array( 'slug' => 'sn-webhooks',      'tab' => 'webhooks',     'label' => 'Webhooks',      'title' => 'Signal & Noise — Webhooks',      'subtitle' => 'Personal automation — fire HMAC-signed POSTs to your own endpoints when posts publish.' ),
+		array( 'slug' => 'sn-health',        'tab' => 'health',       'label' => 'Health',        'title' => 'Signal & Noise — Content Health','subtitle' => 'Detection scans — missing alt text, orphaned media, broken internal links, stale posts.' ),
 		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links',         'subtitle' => 'External shortcuts — GitHub repos, release pages, Cloudflare, Cloudways.' ),
 	);
 }
@@ -419,6 +420,8 @@ function sn_theme_options_page() {
 			$notices[] = array( 'error', 'Could not add webhook — name and valid URL are required.' );
 		} elseif ( 'wh_not_found' === $flash ) {
 			$notices[] = array( 'error', 'Webhook not found.' );
+		} elseif ( 'health_scanned' === $flash ) {
+			$notices[] = array( 'success', 'Scan complete — findings below.' );
 		}
 	}
 
@@ -531,6 +534,14 @@ function sn_theme_options_page() {
 
 		/** Module-owned UI: see inc/webhooks-admin.php. */
 		do_action( 'sn_admin_webhooks_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: HEALTH
+	// ════════════════════════════════════════
+	} elseif ( 'health' === $active_tab ) {
+
+		/** Module-owned UI: see inc/health-checks-admin.php. */
+		do_action( 'sn_admin_health_tab' );
 
 	// ════════════════════════════════════════
 	// TAB: LINKS

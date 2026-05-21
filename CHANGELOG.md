@@ -2,6 +2,65 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.5.0] - 2026-05-20
+
+### Added — Content Health detection scans
+
+New "Health" admin tab (10th tab) runs four independent detection scans against the post + attachment graph. v1 is **detection-only** — findings list with deep-links to the editor; no AI tokens spent, no auto-fixes. The "Run scan" button is manual-only; results cache in a 24h transient.
+
+#### The 4 checks
+
+1. **Missing alt text** — two passes:
+   a. Image attachments where the `_wp_attachment_image_alt` meta is empty (LEFT JOIN with NULL/'' filter — single query, ≤500 rows).
+   b. Inline `<img>` tags in published `post_content` that lack an `alt` attribute (regex-extracted; case-insensitive; respects the HTML spec's "alt='' is valid for decorative images" rule).
+2. **Orphaned media** — attachments older than 7 days that are neither used as a `_thumbnail_id` (featured image) NOR referenced by basename in any published post body. The 7-day skip avoids flagging media that was just uploaded and not yet inserted.
+3. **Broken internal links** — extract internal links (same-host absolute OR root-relative) from published post content; HEAD-probe each (24h-cached per URL in a separate transient). Flag 4xx + 5xx + network errors. HEAD-405 falls through to GET (some hosts reject HEAD).
+4. **Stale posts** — published posts whose `post_modified_gmt` is older than 12 months. No AI judgment in v1; user reviews currency in the editor.
+
+#### Why detection-only for v1
+
+User explicitly chose "Detection only" in the scope question — keeps v1 free of AI token spend and avoids any auto-edit surprise. The same `findings` shape is forward-compatible with a v3.5.x "AI propose fix" extension that would add a `suggestion` field per finding without breaking the current admin UI consumer.
+
+#### Why manual-only for v1
+
+User explicitly chose "Manual button only" over weekly cron / on-publish hook. The 24h transient cache means re-visiting the tab is cheap; only "Run scan" triggers the underlying DB + HTTP work.
+
+#### Performance notes
+
+- Each check has a `LIMIT` cap (500 for alt + orphaned, 1000 for broken-links source rows, 200 for stale posts) so even on a large site the scan completes in seconds.
+- Broken-links uses a per-URL 24h transient cache (`sn_health_link_<md5>`) so the second scan only probes URLs added since the previous scan.
+- The combined scan envelope records its `elapsed_ms` in the cached transient so the admin can see "Last scanned 2 minutes ago (1247ms)."
+
+#### Findings shape
+
+Each finding is a self-contained dict:
+```php
+[ 'subject_type'  => 'attachment' | 'inline_img' | 'internal_link' | 'post',
+  'subject_id'    => int,
+  'subject_url'   => string,
+  'subject_label' => string,
+  'edit_url'      => string (deep-link to the editor),
+  'note'          => string ]
+```
+
+This is the v3.5.x extension point: future AI-suggest work can add a `suggestion` field per finding without breaking the admin renderer.
+
+#### Tests
+
+New `tests/health-checks.php` — 32 assertions across 4 tests covering the **pure logic**: regex extractors (alt + internal-link parsers, including edge cases like uppercase tag names, `alt=""` decorative, single-quoted attrs, anchor/mailto/tel/javascript: skipping, root-relative normalization, case-insensitive host matching, deduplication), link-status transient caching (verified the second call returns the cached value not the live updated one), HEAD-405 → GET fallback (with separate fixture maps for the two HTTP verbs), WP_Error → ok:false / code:0, and the `pack_check` result envelope.
+
+The DB-touching scan functions (the 4 main `sn_health_check_*` entry points) are exercised by the live "Run scan" button — they're pure wpdb calls that don't benefit from fixture coverage.
+
+All 5 test suites green: **319 total assertions** (163 admin-tabs + 54 cron-dashboard + 24 cron-history + 46 webhooks + 32 health-checks). The +14 in admin-tabs since v3.4.0 is the SSOT refactor's recurring dividend — adding the Health tab earned its regression coverage automatically from the registry-iteration tests.
+
+### Files
+
+- `inc/health-checks.php` — new (~290 LOC); all 4 scan impls + pure-logic helpers + transient cache
+- `inc/health-checks-admin.php` — new (~110 LOC); the Health tab renderer + the `health_scan` form handler
+- `inc/admin-page.php` — Health entry in `sn_admin_pages()` (one line) + dispatch case + 1 new flash message
+- `signal-and-noise-tools.php` — 2 new requires + version bump
+- `tests/health-checks.php` — new (32 assertions)
+
 ## [3.4.0] - 2026-05-20
 
 ### Added — Personal automation webhooks
