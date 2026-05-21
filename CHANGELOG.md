@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.6.1] - 2026-05-20
+
+### Fixed — Insights tab "AI client not available" link pointed nowhere
+
+The unavailable-state helper text in the Insights tab linked to `admin.php?page=ai-connectors`, which 404s with "Sorry, you are not allowed to access this page." That URL was a guess in v3.6.0; it's not where the `ai/ai` plugin actually puts its surfaces.
+
+Replaced with the correct two-link sentence pointing to both required setup steps:
+- **Settings → AI** at `options-general.php?page=ai-wp-admin` — global enable + per-feature toggles (per [Gutenberg PR #77336](https://github.com/WordPress/gutenberg/pull/77336), the canonical slug for the AI plugin's settings page)
+- **Settings → Connectors** at `options-general.php?page=connectors` — provider + API key configuration (the WP 7.0 Connectors API page)
+
+Both must be configured before AI features (Insights, meta description, excerpt, OG card title) can run. The `ai/ai` plugin readme.txt makes this explicit but it's an easy step to miss; this patch surfaces both links inline when the AI gate fails.
+
+### Files
+
+- `inc/insights-admin.php` — single helper-text line updated
+- `signal-and-noise-tools.php` — version bump
+
+No test impact (UI-only string change).
+
 ## [3.6.0] - 2026-05-20
 
 ### Added — Insights Tab + Content Opportunity Advisor (first cross-system AI synthesis)

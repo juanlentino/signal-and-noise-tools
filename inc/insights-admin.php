@@ -64,7 +64,7 @@ function snt_insights_render_admin_tab() {
 	echo '<h2 class="sn-fieldset-h">Run Analysis</h2>';
 	echo '<p class="sn-fieldset-intro">Single AI call per scan. Returns 5 recommendations across types: write_about, update_post, cadence_change, topic_double_down, topic_pivot. Re-runs within 7 days return the cached result unless you check "Force fresh scan".</p>';
 	if ( ! $ai_ready ) {
-		echo '<p class="sn-field-helper" style="color:#dc3232;"><strong>AI client not available.</strong> Configure a provider under <a href="' . esc_url( admin_url( 'options-general.php?page=ai-connectors' ) ) . '">Settings → Connectors</a> before running.</p>';
+		echo '<p class="sn-field-helper" style="color:#dc3232;"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
 	}
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="insights_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( $last ? 'Re-run analysis' : 'Run Analysis' ) . '</button>';
