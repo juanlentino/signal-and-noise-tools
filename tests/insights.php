@@ -101,7 +101,12 @@ class Stub_wpdb_insights {
 		return $out;
 	}
 	public function get_results( $query, $output = OBJECT_K ) {
-		// Used only for the post-list query in Task 2.
+		// Cron history query — distinct hooks with stats from snt_cron_history.
+		if ( false !== strpos( $query, 'snt_cron_history' ) ) {
+			$rows = isset( $GLOBALS['__test_cron_history'] ) ? $GLOBALS['__test_cron_history'] : array();
+			return $rows;
+		}
+		// Post list query.
 		$rows = $this->rows;
 		if ( preg_match( "/post_status\s*=\s*'publish'/", $query ) ) {
 			$rows = array_values( array_filter( $rows, function( $r ) { return ! empty( $r['post_status'] ) && 'publish' === $r['post_status']; } ) );
@@ -150,6 +155,16 @@ if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
 }
 if ( ! function_exists( 'get_bloginfo' ) ) {
 	function get_bloginfo( $show ) { return ''; }
+}
+if ( ! function_exists( 'sn_webhooks_all' ) ) {
+	function sn_webhooks_all() {
+		return isset( $GLOBALS['__test_webhooks'] ) ? $GLOBALS['__test_webhooks'] : array();
+	}
+}
+if ( ! function_exists( 'sn_webhook_log_read' ) ) {
+	function sn_webhook_log_read( $id ) {
+		return isset( $GLOBALS['__test_webhook_logs'][ $id ] ) ? $GLOBALS['__test_webhook_logs'][ $id ] : array();
+	}
 }
 
 require_once __DIR__ . '/../inc/insights.php';
@@ -263,6 +278,40 @@ for ( $i = 1; $i <= 150; $i++ ) {
 $GLOBALS['wpdb']->rows = $rows;
 $signals = snt_insights_collect_signals();
 ins_eq( 100, count( $signals['posts'] ), 'capped at 100' );
+
+// ─── Test 6: webhooks summary ────────────────────────────────────────
+echo "\nTest 6: webhook summary — success rate + last attempt\n";
+$GLOBALS['__test_webhooks'] = array(
+	array( 'id' => 'wh_n8n', 'name' => 'n8n', 'enabled' => true ),
+	array( 'id' => 'wh_off', 'name' => 'Disabled', 'enabled' => false ),
+);
+$GLOBALS['__test_webhook_logs'] = array(
+	'wh_n8n' => array(
+		array( 'success' => true,  'fired_at' => time() - 3600 ),
+		array( 'success' => false, 'fired_at' => time() - 7200 ),
+		array( 'success' => true,  'fired_at' => time() - 10800 ),
+	),
+);
+$GLOBALS['wpdb']->rows = array();
+$signals = snt_insights_collect_signals();
+ins_eq( 1, $signals['webhooks']['total_active'], 'one enabled webhook counted' );
+ins_true( isset( $signals['webhooks']['recent_deliveries_summary']['wh_n8n'] ), 'wh_n8n has summary' );
+$wh = $signals['webhooks']['recent_deliveries_summary']['wh_n8n'];
+ins_eq( 'n8n', $wh['name'], 'webhook name echoed' );
+ins_true( abs( $wh['success_rate'] - 0.6667 ) < 0.01, 'success_rate ≈ 0.67 (2 of 3)' );
+ins_true( $wh['last_attempt_ago_seconds'] >= 3600 - 1, 'last_attempt computed' );
+
+// ─── Test 7: cron freshness ──────────────────────────────────────────
+echo "\nTest 7: cron_freshness — last_fired + last_24h_count\n";
+$GLOBALS['__test_cron_history'] = array(
+	array( 'hook' => 'sn_plausible_refresh_dashboard', 'last_fired_ts' => time() - 240,   'fires_24h' => 288 ),
+	array( 'hook' => 'sn_rss_tracker_daily_prune',     'last_fired_ts' => time() - 43200, 'fires_24h' => 1 ),
+);
+$signals = snt_insights_collect_signals();
+ins_true( isset( $signals['cron_freshness']['sn_plausible_refresh_dashboard'] ), 'plausible cron present' );
+$cron = $signals['cron_freshness']['sn_plausible_refresh_dashboard'];
+ins_eq( 4, $cron['last_fired_ago_minutes'], '240s ≈ 4min' );
+ins_eq( 288, $cron['last_24h_count'], '288 fires/24h echoed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

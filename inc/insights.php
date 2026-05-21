@@ -150,5 +150,63 @@ function snt_insights_collect_signals() {
 	// Cap at top N.
 	$out['posts'] = array_slice( $posts, 0, SN_INSIGHTS_POST_CAP );
 
+	// ── 4. Webhook summary ──
+	$wh_count_active = 0;
+	$wh_summary = array();
+	if ( function_exists( 'sn_webhooks_all' ) ) {
+		foreach ( sn_webhooks_all() as $wh ) {
+			if ( ! empty( $wh['enabled'] ) ) {
+				$wh_count_active++;
+			}
+			$wh_id = isset( $wh['id'] ) ? (string) $wh['id'] : '';
+			if ( '' === $wh_id ) { continue; }
+			$log = function_exists( 'sn_webhook_log_read' ) ? sn_webhook_log_read( $wh_id ) : array();
+			if ( empty( $log ) ) { continue; }
+			$success = 0; $total = 0; $last_fired = 0;
+			foreach ( $log as $entry ) {
+				$total++;
+				if ( ! empty( $entry['success'] ) ) { $success++; }
+				if ( isset( $entry['fired_at'] ) && (int) $entry['fired_at'] > $last_fired ) {
+					$last_fired = (int) $entry['fired_at'];
+				}
+			}
+			$wh_summary[ $wh_id ] = array(
+				'name'                       => isset( $wh['name'] ) ? (string) $wh['name'] : $wh_id,
+				'enabled'                    => ! empty( $wh['enabled'] ),
+				'success_rate'               => $total > 0 ? round( $success / $total, 4 ) : 0,
+				'last_attempt_ago_seconds'   => $last_fired > 0 ? ( time() - $last_fired ) : null,
+				'total_attempts_logged'      => $total,
+			);
+		}
+	}
+	$out['webhooks'] = array(
+		'total_active'              => $wh_count_active,
+		'recent_deliveries_summary' => $wh_summary,
+	);
+
+	// ── 5. Cron freshness — query the snt_cron_history table ──
+	$out['cron_freshness'] = array();
+	$table = $wpdb->prefix . 'snt_cron_history';
+	$cutoff = time() - DAY_IN_SECONDS;
+	$cron_rows = $wpdb->get_results( $wpdb->prepare(
+		"SELECT hook,
+		        MAX(UNIX_TIMESTAMP(fired_at)) AS last_fired_ts,
+		        SUM(CASE WHEN UNIX_TIMESTAMP(fired_at) >= %d THEN 1 ELSE 0 END) AS fires_24h
+		 FROM {$table}
+		 GROUP BY hook",
+		$cutoff
+	), ARRAY_A );
+	if ( is_array( $cron_rows ) ) {
+		foreach ( $cron_rows as $r ) {
+			$hook = isset( $r['hook'] ) ? (string) $r['hook'] : '';
+			if ( '' === $hook ) { continue; }
+			$last = isset( $r['last_fired_ts'] ) ? (int) $r['last_fired_ts'] : 0;
+			$out['cron_freshness'][ $hook ] = array(
+				'last_fired_ago_minutes' => $last > 0 ? (int) floor( ( time() - $last ) / 60 ) : null,
+				'last_24h_count'         => isset( $r['fires_24h'] ) ? (int) $r['fires_24h'] : 0,
+			);
+		}
+	}
+
 	return $out;
 }
