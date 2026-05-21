@@ -284,6 +284,76 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 }
 
 /**
+ * Unschedule a cron event by hook + args.
+ *
+ * Uses wp_clear_scheduled_hook() rather than wp_unschedule_event() so
+ * BOTH the next firing AND the recurring schedule are removed in one
+ * call. A user looking at a recurring row in the dashboard almost
+ * certainly wants to STOP the schedule entirely, not skip one firing
+ * (which would re-appear at the next interval).
+ *
+ * Safety gates:
+ *   1. manage_options (defense in depth; REST + ability layers also gate)
+ *   2. SN-owned hook refusal — the dashboard hides this surface from the
+ *      UI but a direct REST / ability caller could still try; refuse so
+ *      "kill the cron that powers the dashboard widgets" isn't a single
+ *      misclick away.
+ *   3. has_action() pre-flight is NOT enforced here — unscheduling
+ *      orphan events is the whole point of cleanup, so we WANT to allow
+ *      that path. (The orphan-cleanup GHA workflow uses wp-cli; this
+ *      gives REST/ability callers the same capability.)
+ *
+ * @since 3.1.0
+ *
+ * @param string $hook Hook name to unschedule.
+ * @param array  $args Optional args array (must match the scheduled signature).
+ * @return array|WP_Error On success: { success: true, hook, args, cleared: int }
+ *                        where cleared is the count of events removed
+ *                        (0 if hook+args didn't match anything). On
+ *                        failure: WP_Error with snt_cron_* code.
+ */
+function snt_cron_unschedule_event_impl( $hook, $args = array() ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error(
+			'snt_cron_forbidden',
+			'Insufficient permissions.',
+			array( 'status' => 403 )
+		);
+	}
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return new WP_Error(
+			'snt_cron_invalid_hook',
+			'Hook name must be a non-empty string.',
+			array( 'status' => 400 )
+		);
+	}
+	if ( snt_cron_is_sn_owned( $hook ) ) {
+		return new WP_Error(
+			'snt_cron_sn_owned_refused',
+			sprintf( 'Refusing to unschedule "%s": this hook is registered by Signal & Noise itself and unscheduling it would silently break dashboard refreshes or RSS tracking. Disable the owning module (Plausible, RSS) from the admin instead.', $hook ),
+			array( 'status' => 400 )
+		);
+	}
+
+	$args = is_array( $args ) ? $args : array();
+
+	// wp_clear_scheduled_hook() returns int (events cleared) since WP 6.1;
+	// older returns null/false. Normalize both branches.
+	$cleared = wp_clear_scheduled_hook( $hook, $args );
+	if ( false === $cleared || null === $cleared ) {
+		$cleared = 0;
+	}
+	$cleared = (int) $cleared;
+
+	return array(
+		'success' => true,
+		'hook'    => $hook,
+		'args'    => $args,
+		'cleared' => $cleared,
+	);
+}
+
+/**
  * Compact summary for desktop-mode wp_localize_script. Avoids serializing
  * the full event list into snDesktopData on every admin page load.
  */

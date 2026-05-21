@@ -49,6 +49,17 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'firedTemplate'    => __( '%1$s fired in %2$dms', 'signal-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
 		'runFailedTemplate' => __( 'Run failed: %s', 'signal-noise-tools' ),
+		/* translators: button label while a cron event is being unscheduled (v3.1.0) */
+		'unscheduling'     => __( 'Unscheduling…', 'signal-noise-tools' ),
+		/* translators: button label when idle (v3.1.0) */
+		'unschedule'       => __( 'Unschedule', 'signal-noise-tools' ),
+		/* translators: %s is the cron hook name — confirmation prompt before destructive unschedule */
+		'confirmUnschedule' => __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone — the event will re-appear only if a plugin re-registers it.", 'signal-noise-tools' ),
+		/* translators: 1: hook name, 2: number of events cleared */
+		'unscheduledTemplate' => __( "%1\$s unscheduled (%2\$d event(s) cleared)", 'signal-noise-tools' ),
+		'unscheduledNoMatch' => __( 'No matching scheduled event found — likely already gone.', 'signal-noise-tools' ),
+		/* translators: %s is the error message returned by the REST endpoint */
+		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-noise-tools' ),
 	) );
 
 	wp_enqueue_script( 'sn-cron-dashboard' );
@@ -155,18 +166,39 @@ function snt_cron_render_admin_tab() {
 		}
 
 		// Actions — aria-label disambiguates which hook each button targets
-		// for screen readers (visible label "Run now" is repeated per row).
+		// for screen readers (visible labels are repeated per row).
 		$run_aria = sprintf(
 			/* translators: %s is the cron hook name */
 			__( 'Run cron event %s now', 'signal-noise-tools' ),
 			$row['hook']
 		);
+		$unschedule_aria = sprintf(
+			/* translators: %s is the cron hook name */
+			__( 'Unschedule cron event %s', 'signal-noise-tools' ),
+			$row['hook']
+		);
+		// Encode the args array as a JSON data attribute so the JS can
+		// echo it back unchanged on the REST call. Empty args = '[]'.
+		$args_json = wp_json_encode( $row['args'] );
+		if ( ! is_string( $args_json ) ) {
+			$args_json = '[]';
+		}
 		echo '<td>';
 		if ( $row['has_handler'] ) {
 			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
 		} else {
 			$disabled_title = esc_attr__( 'No handler registered', 'signal-noise-tools' );
 			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . $disabled_title . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+		}
+		// v3.1.0: Unschedule button. SN-owned events refuse this op via
+		// the impl-layer guard, so disable the button + explain why
+		// rather than letting the user click into an error.
+		echo ' ';
+		if ( $row['is_sn_owned'] ) {
+			$sn_disabled_title = esc_attr__( 'Signal & Noise–owned: disable the owning module from its settings tab instead', 'signal-noise-tools' );
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $unschedule_aria ) . '" title="' . $sn_disabled_title . '">' . esc_html__( 'Unschedule', 'signal-noise-tools' ) . '</button>';
+		} else {
+			echo '<button class="button button-small button-link-delete sn-cron-unschedule" type="button" aria-label="' . esc_attr( $unschedule_aria ) . '" data-args="' . esc_attr( $args_json ) . '">' . esc_html__( 'Unschedule', 'signal-noise-tools' ) . '</button>';
 		}
 		echo '</td>';
 

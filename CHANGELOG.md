@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.1.0] - 2026-05-20
+
+### Added — Cron Dashboard: Unschedule (destructive, SN-owned refused)
+
+Net-new on top of the read-only-plus-Run-now surface from v3.0.0. Lets you permanently remove any non-Signal-&-Noise scheduled WP-Cron event directly from the dashboard. Useful for pruning orphans inline, without having to go fire the `cron-orphan-cleanup.yml` workflow.
+
+#### What got built
+
+- **`snt_cron_unschedule_event_impl($hook, $args)`** in `inc/cron-dashboard.php` — pure impl with three safety gates: `manage_options`, non-empty-hook validation, and SN-owned refusal. Uses `wp_clear_scheduled_hook()` (not `wp_unschedule_event()`) so BOTH the next firing AND the recurring schedule disappear in one call. Pruning orphans is the explicit intended use case, so `has_action()` is deliberately NOT gated.
+- **`POST /signal-noise/v1/cron/unschedule`** in `inc/rest-api.php` — `manage_options`-gated, accepts `{ hook, args }`. Thin wrapper around the impl.
+- **`signal-noise/unschedule-cron-event`** ability in the `maintenance` category — `destructive: true`, `idempotent: true` (running twice on the same hook is safe), `open_world_hint: false` (only mutates local cron state, no network calls). First destructive cron ability — Run-now stays read-only per the v3.0.0 spec § 6 / Q4 decision.
+- **Dashboard UI** — Unschedule button next to Run-now on every event row. SN-owned events get a `disabled` button with a `title` explaining where to disable the owning module instead. Click → `confirm()` prompt → POST → row fades out + removes from the table on success. Both Run-now and Unschedule are disabled during dispatch so users can't double-act on a half-removed event.
+- **i18n** — 6 new strings on the `sntCronI18n` localize bag (Unscheduling…, Unschedule, confirm prompt, success/no-match/failure templates).
+
+#### Why `wp_clear_scheduled_hook` not `wp_unschedule_event`
+
+A user looking at a recurring row in the dashboard almost certainly wants to STOP the schedule entirely, not skip one firing. `wp_unschedule_event(ts, hook, args)` only removes ONE event at a specific timestamp; the recurrence keeps re-creating it. `wp_clear_scheduled_hook(hook, args)` removes both the next firing and the recurring schedule. Tested as Test 18 (matching-args clears the row) + Test 19 (mismatched args do NOT touch the original — the args signature must round-trip exactly).
+
+#### Why SN-owned events are refused
+
+The plugin schedules 3 of its own cron events: `sn_plausible_refresh_dashboard`, `sn_plausible_refresh_realtime`, `sn_rss_tracker_daily_prune`. Unscheduling any of these from the cron dashboard would silently break the corresponding admin widget without giving the user a way to recover (the schedule won't come back until plugin re-activation OR a manual fix). The impl-layer guard refuses the op with a clear error message pointing the user to the correct settings tab for disabling the owning module. The dashboard UI mirrors this by disabling the button with a tooltip — same protection at two layers.
+
+#### Tests
+
+- 35 → **54 passing assertions** (added 8 new tests + 19 new assertions covering: permission gate, invalid-hook validation, SN-owned refusal, successful unschedule with row removal, idempotent no-match path, orphan-allow path, args round-trip, args mismatch isolation)
+- The 4-surface dispatch shape (admin / REST / ability / desktop-mode read-only) is unchanged — Unschedule extends the existing pattern, doesn't introduce a 5th surface
+
+### Files
+
+- `inc/cron-dashboard.php` — `snt_cron_unschedule_event_impl` (~60 LOC)
+- `inc/rest-api.php` — `/cron/unschedule` route + `snt_rest_cron_unschedule` callback
+- `inc/abilities-registration.php` — `signal-noise/unschedule-cron-event` registration + `snt_ability_unschedule_cron_event` execute callback
+- `inc/cron-dashboard-admin.php` — Unschedule button in the Actions column; 6 new localize keys
+- `assets/cron-dashboard.js` — `wireUnschedule()` handler with confirm + row-fade + Run-now-disable-during-dispatch
+- `tests/cron-dashboard.php` — `wp_clear_scheduled_hook` stub + 19 new assertions
+- `signal-and-noise-tools.php` — version bump
+
 ## [3.0.2] - 2026-05-20
 
 ### Added — Tab registry single source of truth + a11y + i18n polish

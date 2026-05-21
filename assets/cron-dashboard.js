@@ -34,7 +34,14 @@
 		apiFetchMissing:   'wp.apiFetch unavailable — cannot dispatch.',
 		unknownError:      'unknown error',
 		firedTemplate:     '%1$s fired in %2$dms',
-		runFailedTemplate: 'Run failed: %s'
+		runFailedTemplate: 'Run failed: %s',
+		// v3.1.0: unschedule strings
+		unscheduling:        'Unscheduling…',
+		unschedule:          'Unschedule',
+		confirmUnschedule:   "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any.",
+		unscheduledTemplate: "%1$s unscheduled (%2$d event(s) cleared)",
+		unscheduledNoMatch:  'No matching scheduled event found — likely already gone.',
+		unscheduleFailedTemplate: 'Unschedule failed: %s'
 	};
 
 	function fmt1( tmpl, a ) { return String( tmpl ).replace( '%s', a ); }
@@ -42,6 +49,11 @@
 		return String( I.firedTemplate )
 			.replace( '%1$s', hook )
 			.replace( '%2$d', Math.round( ms ) );
+	}
+	function fmtUnscheduled( hook, count ) {
+		return String( I.unscheduledTemplate )
+			.replace( '%1$s', hook )
+			.replace( '%2$d', count );
 	}
 
 	function toast( msg, type ) {
@@ -131,13 +143,90 @@
 		} );
 	}
 
+	function wireUnschedule() {
+		var buttons = document.querySelectorAll( '.sn-cron-unschedule' );
+		buttons.forEach( function( btn ) {
+			btn.addEventListener( 'click', function( e ) {
+				e.preventDefault();
+				var tr = btn.closest( 'tr.sn-cron-row' );
+				if ( ! tr ) {
+					return;
+				}
+				var hook = tr.getAttribute( 'data-hook' );
+				if ( ! window.confirm( fmt1( I.confirmUnschedule, hook ) ) ) {
+					return;
+				}
+				if ( ! window.wp || ! window.wp.apiFetch ) {
+					toast( I.apiFetchMissing, 'error' );
+					return;
+				}
+				// Parse args off the data attribute so we send the exact
+				// signature the server scheduled. Falls back to [] on any
+				// parse error (matches the unschedule impl's default).
+				var args = [];
+				try {
+					var raw = btn.getAttribute( 'data-args' );
+					if ( raw ) {
+						args = JSON.parse( raw );
+						if ( ! Array.isArray( args ) ) {
+							args = [];
+						}
+					}
+				} catch ( err ) {
+					args = [];
+				}
+				btn.disabled = true;
+				btn.textContent = I.unscheduling;
+				// Also disable the Run-now button on the same row during
+				// dispatch so users can't double-act on a half-removed event.
+				var runBtn = tr.querySelector( '.sn-cron-run-now' );
+				if ( runBtn ) { runBtn.disabled = true; }
+
+				window.wp.apiFetch( {
+					path: '/signal-noise/v1/cron/unschedule',
+					method: 'POST',
+					data: { hook: hook, args: args }
+				} ).then( function( res ) {
+					if ( res && res.success ) {
+						if ( res.cleared > 0 ) {
+							toast( fmtUnscheduled( hook, res.cleared ), 'success' );
+						} else {
+							toast( I.unscheduledNoMatch, 'info' );
+						}
+						// Remove the row from the table. Wrapped in a
+						// short fade so the change isn't jarring.
+						tr.style.transition = 'opacity 0.25s ease';
+						tr.style.opacity = '0';
+						setTimeout( function() {
+							if ( tr.parentNode ) {
+								tr.parentNode.removeChild( tr );
+							}
+						}, 260 );
+					} else {
+						toast( fmt1( I.unscheduleFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
+						btn.disabled = false;
+						btn.textContent = I.unschedule;
+						if ( runBtn ) { runBtn.disabled = false; }
+					}
+				} ).catch( function( err ) {
+					toast( fmt1( I.unscheduleFailedTemplate, err.message || err ), 'error' );
+					btn.disabled = false;
+					btn.textContent = I.unschedule;
+					if ( runBtn ) { runBtn.disabled = false; }
+				} );
+			} );
+		} );
+	}
+
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', function() {
 			wireFilter();
 			wireRunNow();
+			wireUnschedule();
 		} );
 	} else {
 		wireFilter();
 		wireRunNow();
+		wireUnschedule();
 	}
 } )();

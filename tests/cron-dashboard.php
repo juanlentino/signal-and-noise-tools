@@ -39,6 +39,26 @@ function has_action( $hook ) {
 	return isset( $GLOBALS['__test_actions'][ $hook ] ) && $GLOBALS['__test_actions'][ $hook ];
 }
 
+// v3.1.0: stubs for unschedule path. wp_clear_scheduled_hook returns
+// the count of events cleared (WP 6.1+) or false/null on failure.
+// We model the test fixture as a flat map of "hook|md5(args)" => count.
+$GLOBALS['__test_scheduled'] = array();
+
+function wp_clear_scheduled_hook( $hook, $args = array() ) {
+	$key = $hook . '|' . md5( wp_json_encode( $args ) );
+	$count = isset( $GLOBALS['__test_scheduled'][ $key ] ) ? (int) $GLOBALS['__test_scheduled'][ $key ] : 0;
+	unset( $GLOBALS['__test_scheduled'][ $key ] );
+	return $count;
+}
+
+// PHP's json_encode is sufficient for the test fixture; the impl itself
+// doesn't reach wp_json_encode (only the test stub does, for keying).
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $val ) {
+		return json_encode( $val );
+	}
+}
+
 function get_option( $key, $default = false ) {
 	return isset( $GLOBALS['__test_options'][ $key ] ) ? $GLOBALS['__test_options'][ $key ] : $default;
 }
@@ -206,6 +226,76 @@ $GLOBALS['__test_action_callbacks']['boom_hook'] = function() { throw new Runtim
 $res = snt_cron_run_event_impl( 'boom_hook' );
 assert_eq( false, $res['success'], 'success=false on Throwable' );
 assert_true( strpos( (string) $res['error'], 'simulated handler failure' ) !== false, 'error message captured' );
+
+// ─── Test 12: snt_cron_unschedule_event_impl permission gate ─────────
+echo "\nTest 12: snt_cron_unschedule_event_impl permission gate (v3.1.0)\n";
+$GLOBALS['__test_current_user_can'] = false;
+$res = snt_cron_unschedule_event_impl( 'any_hook' );
+assert_true( $res instanceof WP_Error, 'non-admin gets WP_Error' );
+assert_eq( 'snt_cron_forbidden', $res->code, 'forbidden error code' );
+$GLOBALS['__test_current_user_can'] = true;
+
+// ─── Test 13: invalid hook validation ────────────────────────────────
+echo "\nTest 13: snt_cron_unschedule_event_impl invalid hook (v3.1.0)\n";
+$res = snt_cron_unschedule_event_impl( '' );
+assert_true( $res instanceof WP_Error, 'empty hook returns WP_Error' );
+assert_eq( 'snt_cron_invalid_hook', $res->code, 'invalid-hook error code' );
+
+// ─── Test 14: SN-owned refusal (the critical safety check) ───────────
+echo "\nTest 14: snt_cron_unschedule_event_impl refuses SN-owned hooks (v3.1.0)\n";
+$res = snt_cron_unschedule_event_impl( 'sn_plausible_refresh_dashboard' );
+assert_true( $res instanceof WP_Error, 'SN-owned hook returns WP_Error' );
+assert_eq( 'snt_cron_sn_owned_refused', $res->code, 'sn-owned-refused error code' );
+$res = snt_cron_unschedule_event_impl( 'sn_rss_tracker_daily_prune' );
+assert_eq( 'snt_cron_sn_owned_refused', $res->code, 'SN RSS hook also refused' );
+
+// ─── Test 15: successful unschedule (cleared > 0) ────────────────────
+echo "\nTest 15: snt_cron_unschedule_event_impl clears scheduled events (v3.1.0)\n";
+$GLOBALS['__test_scheduled'] = array(
+	'some_plugin_hook|' . md5( '[]' )    => 1,
+	'another_hook|'    . md5( '[]' )    => 1,
+);
+$res = snt_cron_unschedule_event_impl( 'some_plugin_hook' );
+assert_eq( true, $res['success'], 'success=true' );
+assert_eq( 'some_plugin_hook', $res['hook'], 'hook echoed back' );
+assert_eq( 1, $res['cleared'], 'cleared=1 (one event removed)' );
+assert_true( ! isset( $GLOBALS['__test_scheduled']['some_plugin_hook|' . md5( '[]' ) ] ), 'event removed from fixture store' );
+
+// ─── Test 16: no-match unschedule returns cleared=0, NOT an error ────
+echo "\nTest 16: snt_cron_unschedule_event_impl no-match returns success/0 (v3.1.0)\n";
+$res = snt_cron_unschedule_event_impl( 'never_scheduled_hook' );
+assert_eq( true, $res['success'], 'no-match is still success=true (idempotency)' );
+assert_eq( 0, $res['cleared'], 'cleared=0 when nothing matched' );
+
+// ─── Test 17: orphan-allow path — unschedule works WITHOUT has_action ─
+echo "\nTest 17: snt_cron_unschedule_event_impl works on orphan hooks (v3.1.0)\n";
+// Orphan = present in cron but no registered handler. We must NOT refuse
+// — pruning orphans is the whole point of having this op.
+$GLOBALS['__test_actions'] = array(); // explicitly no handlers
+$GLOBALS['__test_scheduled'] = array(
+	'orphan_hook|' . md5( '[]' ) => 1,
+);
+$res = snt_cron_unschedule_event_impl( 'orphan_hook' );
+assert_eq( true, $res['success'], 'orphan unschedule succeeds (no has_action gate)' );
+assert_eq( 1, $res['cleared'], 'orphan event was cleared' );
+
+// ─── Test 18: args round-trip ────────────────────────────────────────
+echo "\nTest 18: snt_cron_unschedule_event_impl args round-trip (v3.1.0)\n";
+$GLOBALS['__test_scheduled'] = array(
+	'do_pings|' . md5( '[1587]' ) => 1,
+);
+$res = snt_cron_unschedule_event_impl( 'do_pings', array( 1587 ) );
+assert_eq( 1, $res['cleared'], 'matching-args invocation clears the row' );
+assert_eq( array( 1587 ), $res['args'], 'args echoed back in response' );
+
+// ─── Test 19: args mismatch — different args = different signature ───
+echo "\nTest 19: snt_cron_unschedule_event_impl args mismatch returns cleared=0 (v3.1.0)\n";
+$GLOBALS['__test_scheduled'] = array(
+	'do_pings|' . md5( '[1587]' ) => 1,
+);
+$res = snt_cron_unschedule_event_impl( 'do_pings', array( 9999 ) );
+assert_eq( 0, $res['cleared'], 'wrong-args call does not clear the [1587] event' );
+assert_true( isset( $GLOBALS['__test_scheduled']['do_pings|' . md5( '[1587]' ) ] ), 'original event still scheduled' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

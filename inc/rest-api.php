@@ -153,6 +153,22 @@ add_action( 'rest_api_init', function() {
 			),
 		),
 	) );
+
+	register_rest_route( SN_REST_NAMESPACE, '/cron/unschedule', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'sn_rest_can_manage',
+		'callback'            => 'snt_rest_cron_unschedule',
+		'args'                => array(
+			'hook' => array(
+				'required' => true,
+				'type'     => 'string',
+			),
+			'args' => array(
+				'type'    => 'array',
+				'default' => array(),
+			),
+		),
+	) );
 } );
 
 // ── Callbacks ────────────────────────────────────────────────────────
@@ -308,6 +324,34 @@ function snt_rest_cron_run( WP_REST_Request $request ) {
 	$hook = (string) $request->get_param( 'hook' );
 	$args = $request->get_param( 'args' );
 	$result = snt_cron_run_event_impl( $hook, is_array( $args ) ? $args : array() );
+
+	if ( $result instanceof WP_Error ) {
+		return $result;
+	}
+
+	return rest_ensure_response( $result );
+}
+
+/**
+ * POST /cron/unschedule — unschedule a cron event by hook + args.
+ *
+ * Calls wp_clear_scheduled_hook() (via snt_cron_unschedule_event_impl)
+ * so both the next firing and any recurring schedule are removed in
+ * one call. SN-owned hooks are refused.
+ *
+ * @since plugin v3.1.0
+ */
+function snt_rest_cron_unschedule( WP_REST_Request $request ) {
+	if ( ! function_exists( 'snt_cron_unschedule_event_impl' ) ) {
+		return new WP_Error(
+			'snt_cron_unavailable',
+			'Cron dashboard module not loaded.',
+			array( 'status' => 500 )
+		);
+	}
+	$hook = (string) $request->get_param( 'hook' );
+	$args = $request->get_param( 'args' );
+	$result = snt_cron_unschedule_event_impl( $hook, is_array( $args ) ? $args : array() );
 
 	if ( $result instanceof WP_Error ) {
 		return $result;

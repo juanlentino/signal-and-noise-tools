@@ -637,6 +637,49 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/unschedule-cron-event', array(
+		'label'               => 'Unschedule cron event',
+		'description'         => 'Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. SN-owned hooks (Plausible refresh, RSS prune) are refused with a clear error. The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.',
+		'category'            => 'maintenance',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => 'snt_ability_unschedule_cron_event',
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'hook' ),
+			'properties' => array(
+				'hook' => array(
+					'type'        => 'string',
+					'description' => 'The cron hook name to unschedule.',
+					'minLength'   => 1,
+				),
+				'args' => array(
+					'type'        => 'array',
+					'description' => 'Optional args array — must match the scheduled signature exactly. Pass [] for events scheduled without args.',
+					'default'     => array(),
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'success' => array( 'type' => 'boolean' ),
+				'hook'    => array( 'type' => 'string' ),
+				'args'    => array( 'type' => 'array' ),
+				'cleared' => array( 'type' => 'integer', 'description' => 'Number of events removed; 0 if no match.' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive'     => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -717,4 +760,20 @@ function snt_ability_clear_template_overrides() {
 		'count'   => $count,
 		'message' => sprintf( '%d database template override%s cleared.', $count, 1 === $count ? '' : 's' ),
 	);
+}
+
+/**
+ * Ability execute callback for signal-noise/unschedule-cron-event.
+ * Thin wrapper around snt_cron_unschedule_event_impl() so the dispatch
+ * layer (ability) doesn't duplicate the impl's safety checks.
+ *
+ * @since 3.1.0
+ */
+function snt_ability_unschedule_cron_event( $input ) {
+	if ( ! function_exists( 'snt_cron_unschedule_event_impl' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+	}
+	$hook = isset( $input['hook'] ) ? (string) $input['hook'] : '';
+	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
+	return snt_cron_unschedule_event_impl( $hook, $args );
 }
