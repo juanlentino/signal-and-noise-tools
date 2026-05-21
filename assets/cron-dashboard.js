@@ -41,7 +41,19 @@
 		confirmUnschedule:   "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any.",
 		unscheduledTemplate: "%1$s unscheduled (%2$d event(s) cleared)",
 		unscheduledNoMatch:  'No matching scheduled event found — likely already gone.',
-		unscheduleFailedTemplate: 'Unschedule failed: %s'
+		unscheduleFailedTemplate: 'Unschedule failed: %s',
+		// v3.2.0: cron history panel fallbacks
+		historyShow:           'history',
+		historyHide:           'hide',
+		historyLoading:        'Loading history…',
+		historyEmpty:          'No firings recorded yet.',
+		historyHeaderTime:     'Fired at',
+		historyHeaderElapsed:  'Elapsed',
+		historyHeaderStatus:   'Status',
+		historyOk:             'ok',
+		historyFail:           'fail',
+		historyMs:             '%dms',
+		historyFetchFailed:    'Could not load history: %s'
 	};
 
 	function fmt1( tmpl, a ) { return String( tmpl ).replace( '%s', a ); }
@@ -143,6 +155,126 @@
 		} );
 	}
 
+	function wireHistory() {
+		var toggles = document.querySelectorAll( '.sn-cron-history-toggle' );
+		toggles.forEach( function( btn ) {
+			btn.addEventListener( 'click', function( e ) {
+				e.preventDefault();
+				var tr = btn.closest( 'tr.sn-cron-row' );
+				if ( ! tr ) { return; }
+				var panel = btn.nextElementSibling;
+				if ( ! panel || ! panel.classList.contains( 'sn-cron-history-panel' ) ) { return; }
+
+				var expanded = btn.getAttribute( 'aria-expanded' ) === 'true';
+				if ( expanded ) {
+					panel.hidden = true;
+					btn.setAttribute( 'aria-expanded', 'false' );
+					btn.textContent = I.historyShow;
+					return;
+				}
+
+				// Expanding: show + fetch.
+				btn.setAttribute( 'aria-expanded', 'true' );
+				btn.textContent = I.historyHide;
+				panel.hidden = false;
+
+				// Loading state.
+				while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
+				var loading = document.createElement( 'small' );
+				loading.textContent = I.historyLoading;
+				panel.appendChild( loading );
+
+				if ( ! window.wp || ! window.wp.apiFetch ) {
+					panel.removeChild( loading );
+					var err = document.createElement( 'small' );
+					err.textContent = fmt1( I.historyFetchFailed, I.apiFetchMissing );
+					panel.appendChild( err );
+					return;
+				}
+
+				var hook = tr.getAttribute( 'data-hook' );
+				window.wp.apiFetch( {
+					path: '/signal-noise/v1/cron/history?hook=' + encodeURIComponent( hook ) + '&limit=10',
+					method: 'GET'
+				} ).then( function( res ) {
+					renderHistoryPanel( panel, ( res && res.history ) || [] );
+				} ).catch( function( fetchErr ) {
+					while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
+					var msg = document.createElement( 'small' );
+					msg.textContent = fmt1( I.historyFetchFailed, fetchErr.message || fetchErr );
+					panel.appendChild( msg );
+				} );
+			} );
+		} );
+	}
+
+	function renderHistoryPanel( panel, rows ) {
+		while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
+
+		if ( ! rows.length ) {
+			var em = document.createElement( 'small' );
+			em.textContent = I.historyEmpty;
+			panel.appendChild( em );
+			return;
+		}
+
+		var table = document.createElement( 'table' );
+		table.className = 'sn-cron-history-table';
+		// Compact inline styles — no separate CSS file for this v3.2.0
+		// surface. If usage grows, promote to assets/cron-dashboard.css.
+		table.style.marginTop = '0.5rem';
+		table.style.fontSize  = '0.85em';
+		table.style.width     = '100%';
+		table.style.borderCollapse = 'collapse';
+
+		var thead = document.createElement( 'thead' );
+		var thr   = document.createElement( 'tr' );
+		[ I.historyHeaderTime, I.historyHeaderElapsed, I.historyHeaderStatus ].forEach( function( label ) {
+			var th = document.createElement( 'th' );
+			th.scope = 'col';
+			th.textContent = label;
+			th.style.textAlign = 'left';
+			th.style.padding   = '2px 6px';
+			th.style.borderBottom = '1px solid #ccc';
+			thr.appendChild( th );
+		} );
+		thead.appendChild( thr );
+		table.appendChild( thead );
+
+		var tbody = document.createElement( 'tbody' );
+		rows.forEach( function( r ) {
+			var trEl = document.createElement( 'tr' );
+
+			var tdTime = document.createElement( 'td' );
+			// fired_at is server-side UTC; convert client-side for display.
+			// fired_at_ts is also server-provided as unix seconds.
+			var dt = r.fired_at_ts ? new Date( r.fired_at_ts * 1000 ) : null;
+			tdTime.textContent = dt ? dt.toLocaleString() : ( r.fired_at || '—' );
+			tdTime.style.padding = '2px 6px';
+			trEl.appendChild( tdTime );
+
+			var tdMs = document.createElement( 'td' );
+			tdMs.textContent = ( r.elapsed_ms === null || typeof r.elapsed_ms === 'undefined' )
+				? '—'
+				: String( I.historyMs ).replace( '%d', r.elapsed_ms );
+			tdMs.style.padding = '2px 6px';
+			trEl.appendChild( tdMs );
+
+			var tdStatus = document.createElement( 'td' );
+			tdStatus.textContent = r.success ? I.historyOk : I.historyFail;
+			tdStatus.style.padding = '2px 6px';
+			if ( ! r.success ) {
+				tdStatus.style.color = '#dc3232';
+				tdStatus.title = r.error_message || '';
+			}
+			trEl.appendChild( tdStatus );
+
+			tbody.appendChild( trEl );
+		} );
+		table.appendChild( tbody );
+		panel.appendChild( table );
+	}
+
 	function wireUnschedule() {
 		var buttons = document.querySelectorAll( '.sn-cron-unschedule' );
 		buttons.forEach( function( btn ) {
@@ -223,10 +355,12 @@
 			wireFilter();
 			wireRunNow();
 			wireUnschedule();
+			wireHistory();
 		} );
 	} else {
 		wireFilter();
 		wireRunNow();
 		wireUnschedule();
+		wireHistory();
 	}
 } )();

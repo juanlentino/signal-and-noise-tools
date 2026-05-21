@@ -2,6 +2,64 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.2.0] - 2026-05-20
+
+### Added — Cron Dashboard: persistent firing history log
+
+Every WP-Cron firing now writes a row to a dedicated `wp_snt_cron_history` table. Surfaces the last 10 firings per hook in the Cron dashboard's "Last fired" cell on click, and exposes the same data via REST + a read-only ability for AI / automation use.
+
+#### What got built
+
+- **New module `inc/cron-history.php`** (~230 LOC) — owns the table schema, INSERT/SELECT helpers, pre/post action callbacks for elapsed-time bracketing, and the daily prune.
+- **Schema (`wp_snt_cron_history`, db version 1):**
+  ```
+  id BIGINT, hook VARCHAR(190), args_signature CHAR(32),
+  fired_at DATETIME, elapsed_ms MEDIUMINT, success TINYINT(1),
+  error_message TEXT, KEY (hook, fired_at), KEY (fired_at)
+  ```
+  VARCHAR(190) is the largest indexable varchar at utf8mb4; matches our existing `wp_rss_feed_log` choice for the same reason. Installed via `dbDelta` gated on the `snt_cron_history_db_version` option (same install-once pattern as the RSS Plausible tracker module).
+- **Capture mechanism:**
+  - For scheduled firings: pre-callback at `-PHP_INT_MAX` stashes `microtime(true)` in a static map keyed by hook; post-callback at `PHP_INT_MAX` reads the stash, calculates elapsed, INSERTs a row. Both callbacks are registered for every unique hook discovered in `_get_cron_array()` during DOING_CRON requests — same wp_loaded gate as the existing `snt_cron_track_last_fired_cb`, extended.
+  - For Run-now (manual dispatch via `snt_cron_run_event_impl`): the impl writes a history row directly using its own measured `elapsed_ms` + the `success` / `error` values from its try-catch. A global flag `__snt_cron_history_skip_auto` tells the post-callback to skip the auto-record so we never get a duplicate row for the same firing.
+- **Retention** (daily cron `snt_cron_history_prune`):
+  - Rolling 30-day window via indexed `DELETE WHERE fired_at < UTC_TIMESTAMP() - INTERVAL 30 DAY`.
+  - Per-hook hard cap of 1000 rows. For each distinct hook, fetch the newest 1000 ids and `DELETE WHERE hook = X AND id NOT IN (...)`. Race-safe under concurrent INSERTs because the cap is enforced atomically per hook.
+- **`GET /signal-noise/v1/cron/history?hook=X&limit=10`** — `manage_options`-gated; returns the newest N rows for a single hook. Limit is clamped to 1–100 by the REST schema.
+- **`signal-noise/get-cron-history` ability** — read-only, idempotent, `open_world_hint: false`. Same response shape as the REST endpoint.
+- **Dashboard UI** — adds a small `history` toggle next to the Last-fired timestamp on every row. Click → `aria-expanded="true"` + fetch + render an inline table with Fired-at (local time), Elapsed (ms), Status (ok/fail). Failed rows surface the error message as a `title` tooltip on the Status cell. The toggle works on rows with no last-fired record too — useful for confirming an event that fires for the first time after install.
+- **Plurality / i18n** — 11 new strings on `sntCronI18n` (toggle labels, panel headers, status pills, error templates).
+
+#### Why a custom table over wp_options
+
+At 33 cron events × ~10–100 firings/day, a wp_options-based store would (a) bloat the autoloaded options set (even with `autoload=false`, write contention is real), (b) race-condition under concurrent firings (no atomic append), and (c) make retention windowing painful (parsing serialized blobs to filter by timestamp). A dedicated table with proper indexes is the right primitive. The `dbDelta` install-once pattern keeps it cheap on hot path.
+
+#### Tests
+
+New `tests/cron-history.php` — 24 assertions across 10 tests. Highlights:
+- Round-trip record + read with elapsed_ms rounding
+- Success path defaults vs explicit failure path with error capture
+- Empty/null hook rejection
+- elapsed_ms clamp to mediumint unsigned range (0–16,777,215)
+- error_message truncation at 4096 chars
+- limit clamp bounds (0 → 1, 9999 → 100)
+- Newest-first ordering by `(fired_at DESC, id DESC)`
+- Per-hook isolation (SELECT for hook A doesn't return hook B rows)
+- 30-day prune window drops old rows
+- 1000-row per-hook cap is enforced
+
+Plus the existing `tests/cron-dashboard.php` (54 assertions) and `tests/admin-tabs.php` (135 assertions) — all still green. **Total: 213 passing assertions.**
+
+### Files
+
+- `inc/cron-history.php` — new (~230 LOC); the whole module
+- `inc/cron-dashboard.php` — wp_loaded gate now also registers the history pre/post callbacks; `snt_cron_run_event_impl` writes a richer history row directly
+- `inc/cron-dashboard-admin.php` — history-toggle button + panel placeholder + 11 new localize keys
+- `assets/cron-dashboard.js` — `wireHistory()` + `renderHistoryPanel()`; safe-DOM construction throughout (no innerHTML)
+- `inc/rest-api.php` — `GET /cron/history` route + `snt_rest_cron_history` callback
+- `inc/abilities-registration.php` — `signal-noise/get-cron-history` ability + `snt_ability_get_cron_history` execute callback
+- `signal-and-noise-tools.php` — module include + version bump
+- `tests/cron-history.php` — new (24 assertions)
+
 ## [3.1.0] - 2026-05-20
 
 ### Added — Cron Dashboard: Unschedule (destructive, SN-owned refused)

@@ -169,6 +169,24 @@ add_action( 'rest_api_init', function() {
 			),
 		),
 	) );
+
+	register_rest_route( SN_REST_NAMESPACE, '/cron/history', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'sn_rest_can_manage',
+		'callback'            => 'snt_rest_cron_history',
+		'args'                => array(
+			'hook'  => array(
+				'required' => true,
+				'type'     => 'string',
+			),
+			'limit' => array(
+				'type'    => 'integer',
+				'default' => 10,
+				'minimum' => 1,
+				'maximum' => 100,
+			),
+		),
+	) );
 } );
 
 // ── Callbacks ────────────────────────────────────────────────────────
@@ -358,4 +376,26 @@ function snt_rest_cron_unschedule( WP_REST_Request $request ) {
 	}
 
 	return rest_ensure_response( $result );
+}
+
+/**
+ * GET /cron/history — read the last N firings for a hook.
+ *
+ * @since plugin v3.2.0
+ */
+function snt_rest_cron_history( WP_REST_Request $request ) {
+	if ( ! function_exists( 'snt_cron_history_for_hook' ) ) {
+		return new WP_Error(
+			'snt_cron_unavailable',
+			'Cron history module not loaded.',
+			array( 'status' => 500 )
+		);
+	}
+	$hook  = (string) $request->get_param( 'hook' );
+	$limit = (int) $request->get_param( 'limit' );
+	return rest_ensure_response( array(
+		'hook'    => $hook,
+		'limit'   => $limit,
+		'history' => snt_cron_history_for_hook( $hook, $limit ),
+	) );
 }

@@ -60,6 +60,19 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'unscheduledNoMatch' => __( 'No matching scheduled event found — likely already gone.', 'signal-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
 		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-noise-tools' ),
+		// v3.2.0: cron history panel
+		'historyShow'      => __( 'history', 'signal-noise-tools' ),
+		'historyHide'      => __( 'hide', 'signal-noise-tools' ),
+		'historyLoading'   => __( 'Loading history…', 'signal-noise-tools' ),
+		'historyEmpty'     => __( 'No firings recorded yet (history tracking landed in plugin v3.2.0).', 'signal-noise-tools' ),
+		'historyHeaderTime'    => __( 'Fired at', 'signal-noise-tools' ),
+		'historyHeaderElapsed' => __( 'Elapsed', 'signal-noise-tools' ),
+		'historyHeaderStatus'  => __( 'Status', 'signal-noise-tools' ),
+		'historyOk'        => __( 'ok', 'signal-noise-tools' ),
+		'historyFail'      => __( 'fail', 'signal-noise-tools' ),
+		'historyMs'        => __( '%dms', 'signal-noise-tools' ),
+		/* translators: %s is the error message returned by the REST endpoint */
+		'historyFetchFailed' => __( 'Could not load history: %s', 'signal-noise-tools' ),
 	) );
 
 	wp_enqueue_script( 'sn-cron-dashboard' );
@@ -147,15 +160,31 @@ function snt_cron_render_admin_tab() {
 		}
 
 		// Last fired
+		$history_toggle_aria = sprintf(
+			/* translators: %s is the cron hook name */
+			__( 'Show firing history for %s', 'signal-noise-tools' ),
+			$row['hook']
+		);
 		if ( $row['last_fired_ts'] ) {
 			$last_str = wp_date( 'Y-m-d H:i:s', $row['last_fired_ts'] );
 			$last_rel = human_time_diff( $row['last_fired_ts'], time() );
 			echo '<td class="sn-cron-last-fired">' . esc_html( $last_str ) . '<br><small>';
 			/* translators: %s is a human-readable relative time, e.g., "5 mins" */
 			printf( esc_html__( '%s ago', 'signal-noise-tools' ), esc_html( $last_rel ) );
-			echo '</small></td>';
+			echo '</small>';
+			// v3.2.0: history toggle.
+			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-noise-tools' ) . '">' . esc_html__( 'history', 'signal-noise-tools' ) . '</button>';
+			echo '<div class="sn-cron-history-panel" hidden></div>';
+			echo '</td>';
 		} else {
-			echo '<td class="sn-cron-last-fired">&mdash;</td>';
+			echo '<td class="sn-cron-last-fired">&mdash;';
+			// v3.2.0: still allow the toggle — history can exist even
+			// without a last-fired record (manual one-shot dispatches
+			// land in history without updating the last-fired option
+			// during edge cases).
+			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-noise-tools' ) . '">' . esc_html__( 'history', 'signal-noise-tools' ) . '</button>';
+			echo '<div class="sn-cron-history-panel" hidden></div>';
+			echo '</td>';
 		}
 
 		// Args

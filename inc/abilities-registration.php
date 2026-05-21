@@ -638,6 +638,58 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	wp_register_ability( 'signal-noise/get-cron-history', array(
+		'label'               => 'Get Cron Firing History',
+		'description'         => 'Returns the most recent N firings of a cron hook with elapsed time, success/failure, and any error message. Backed by the snt_cron_history table populated since plugin v3.2.0; retention is a rolling 30 days OR 1000 rows per hook, whichever is shorter.',
+		'category'            => 'diagnostics',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => 'snt_ability_get_cron_history',
+		'input_schema'        => array(
+			'type'       => 'object',
+			'required'   => array( 'hook' ),
+			'properties' => array(
+				'hook'  => array(
+					'type'        => 'string',
+					'description' => 'The cron hook name to look up history for.',
+					'minLength'   => 1,
+				),
+				'limit' => array(
+					'type'        => 'integer',
+					'description' => 'Maximum rows to return (1–100, default 10, newest first).',
+					'minimum'     => 1,
+					'maximum'     => 100,
+					'default'     => 10,
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'  => 'array',
+			'items' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'id'             => array( 'type' => 'integer' ),
+					'hook'           => array( 'type' => 'string' ),
+					'args_signature' => array( 'type' => 'string' ),
+					'fired_at'       => array( 'type' => 'string', 'description' => 'UTC datetime "Y-m-d H:i:s".' ),
+					'fired_at_ts'    => array( 'type' => 'integer', 'description' => 'Unix timestamp of fired_at.' ),
+					'elapsed_ms'     => array( 'type' => array( 'integer', 'null' ) ),
+					'success'        => array( 'type' => 'boolean' ),
+					'error_message'  => array( 'type' => array( 'string', 'null' ) ),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'        => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/unschedule-cron-event', array(
 		'label'               => 'Unschedule cron event',
 		'description'         => 'Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. SN-owned hooks (Plausible refresh, RSS prune) are refused with a clear error. The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.',
@@ -776,4 +828,19 @@ function snt_ability_unschedule_cron_event( $input ) {
 	$hook = isset( $input['hook'] ) ? (string) $input['hook'] : '';
 	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
 	return snt_cron_unschedule_event_impl( $hook, $args );
+}
+
+/**
+ * Ability execute callback for signal-noise/get-cron-history.
+ * Thin wrapper around snt_cron_history_for_hook().
+ *
+ * @since 3.2.0
+ */
+function snt_ability_get_cron_history( $input ) {
+	if ( ! function_exists( 'snt_cron_history_for_hook' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron history module not loaded.', array( 'status' => 500 ) );
+	}
+	$hook  = isset( $input['hook'] ) ? (string) $input['hook'] : '';
+	$limit = isset( $input['limit'] ) ? (int) $input['limit'] : 10;
+	return snt_cron_history_for_hook( $hook, $limit );
 }

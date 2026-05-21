@@ -116,6 +116,7 @@ add_action( 'wp_loaded', function() {
 		return;
 	}
 	$seen = array();
+	$history_loaded = function_exists( 'snt_cron_history_pre_cb' );
 	foreach ( $crons as $events ) {
 		foreach ( $events as $hook => $_ ) {
 			if ( isset( $seen[ $hook ] ) ) {
@@ -123,6 +124,15 @@ add_action( 'wp_loaded', function() {
 			}
 			$seen[ $hook ] = true;
 			add_action( $hook, 'snt_cron_track_last_fired_cb', PHP_INT_MAX );
+			// v3.2.0: history capture pair. Pre at -PHP_INT_MAX stashes
+			// start time; post at PHP_INT_MAX records elapsed + INSERTs.
+			// Bracketing the real handlers gives an accurate elapsed_ms
+			// (within PHP precision; some firings will see negligible
+			// time but that still surfaces as "fired ok, ~0ms").
+			if ( $history_loaded ) {
+				add_action( $hook, 'snt_cron_history_pre_cb', -PHP_INT_MAX );
+				add_action( $hook, 'snt_cron_history_post_cb', PHP_INT_MAX );
+			}
 		}
 	}
 }, 1 );
@@ -267,6 +277,16 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 
 	$elapsed_ms = ( microtime( true ) - $start ) * 1000;
 	$last_fired_ts = snt_cron_last_fired_for( $hook );
+
+	// v3.2.0: write a history row with the impl's own success/error
+	// values. The post-hook fires AFTER this (since we're still inside
+	// do_action_ref_array's after-hooks) so we set a global flag to
+	// skip the auto-record in snt_cron_history_post_cb and avoid a
+	// duplicate row.
+	if ( function_exists( 'snt_cron_history_record' ) ) {
+		$GLOBALS['__snt_cron_history_skip_auto'] = true;
+		snt_cron_history_record( $hook, is_array( $args ) ? $args : array(), $elapsed_ms, $success, $error );
+	}
 
 	return array(
 		'success'              => $success,
