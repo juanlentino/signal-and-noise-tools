@@ -61,13 +61,21 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; }
 }
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
-	function wp_next_scheduled() { return false; }
+	function wp_next_scheduled( $hook ) {
+		return isset( $GLOBALS['__test_scheduled'][ $hook ] ) ? $GLOBALS['__test_scheduled'][ $hook ] : false;
+	}
 }
 if ( ! function_exists( 'wp_schedule_event' ) ) {
-	function wp_schedule_event() {}
+	function wp_schedule_event( $ts, $recurrence, $hook ) {
+		$GLOBALS['__test_scheduled'][ $hook ] = $ts;
+		return true;
+	}
 }
 if ( ! function_exists( 'wp_unschedule_event' ) ) {
-	function wp_unschedule_event() {}
+	function wp_unschedule_event( $ts, $hook ) {
+		unset( $GLOBALS['__test_scheduled'][ $hook ] );
+		return true;
+	}
 }
 if ( ! function_exists( 'sn_setting' ) ) {
 	function sn_setting( $path, $default = null ) {
@@ -533,6 +541,26 @@ ins_eq( 'x', $last['recommendations'][0]['id'], 'rec echoed' );
 
 $GLOBALS['__test_transients'] = array();
 ins_eq( null, snt_insights_last_scan(), 'null when transient missing' );
+
+// ─── Test 25: cron scheduled when setting enabled ────────────────────
+echo "\nTest 25: maybe_schedule_weekly_cron — opt-in\n";
+$GLOBALS['__test_scheduled'] = array();
+$GLOBALS['__test_sn_settings']['insights.weekly_cron_enabled'] = true;
+snt_insights_maybe_schedule_weekly_cron();
+ins_true( isset( $GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] ), 'cron event scheduled' );
+
+// ─── Test 26: cron NOT scheduled when setting disabled ───────────────
+echo "\nTest 26: maybe_schedule_weekly_cron — opt-out\n";
+$GLOBALS['__test_scheduled'] = array();
+$GLOBALS['__test_sn_settings']['insights.weekly_cron_enabled'] = false;
+snt_insights_maybe_schedule_weekly_cron();
+ins_true( ! isset( $GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] ), 'cron NOT scheduled when off' );
+
+// ─── Test 27: unschedule when setting flipped to off ─────────────────
+echo "\nTest 27: unschedule_weekly_cron\n";
+$GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] = time() + 86400;
+snt_insights_unschedule_weekly_cron();
+ins_true( ! isset( $GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] ), 'cron unscheduled' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -470,3 +470,44 @@ function snt_insights_last_scan() {
 	$cached = get_transient( SN_INSIGHTS_CACHE_KEY );
 	return is_array( $cached ) ? $cached : null;
 }
+
+/**
+ * Returns true if the weekly cron is opted in.
+ */
+function snt_insights_weekly_cron_enabled() {
+	return (bool) sn_setting( 'insights.weekly_cron_enabled', false );
+}
+
+/**
+ * Schedule the weekly cron if the setting is on AND not already scheduled.
+ */
+function snt_insights_maybe_schedule_weekly_cron() {
+	if ( ! snt_insights_weekly_cron_enabled() ) {
+		return;
+	}
+	if ( ! wp_next_scheduled( SN_INSIGHTS_CRON_HOOK ) ) {
+		// First firing in 1 hour; recurrence is weekly.
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'weekly', SN_INSIGHTS_CRON_HOOK );
+	}
+}
+
+/**
+ * Cancel any scheduled weekly cron event.
+ */
+function snt_insights_unschedule_weekly_cron() {
+	$ts = wp_next_scheduled( SN_INSIGHTS_CRON_HOOK );
+	if ( $ts ) {
+		wp_unschedule_event( $ts, SN_INSIGHTS_CRON_HOOK );
+	}
+}
+
+/**
+ * Cron handler: run a forced scan (bypasses 7-day cache).
+ */
+function snt_insights_weekly_scan_cb() {
+	snt_insights_run_scan( true );
+}
+add_action( SN_INSIGHTS_CRON_HOOK, 'snt_insights_weekly_scan_cb' );
+
+// Schedule check fires on admin_init (matches the rss-plausible-tracker pattern).
+add_action( 'admin_init', 'snt_insights_maybe_schedule_weekly_cron' );
