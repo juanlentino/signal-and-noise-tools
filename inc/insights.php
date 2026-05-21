@@ -63,12 +63,18 @@ function snt_insights_collect_signals() {
 	$pl = sn_plausible_dashboard_data();
 	$out['plausible'] = is_array( $pl ) ? $pl : array();
 
-	// Build a quick {slug => views_7d} map for the post list join.
+	// Build a quick {relative-permalink-path => views_7d} map for the
+	// post-list join. The Plausible breakdown endpoint returns rows
+	// shaped { page: "/notes/my-slug", visitors: <int> } — visitors is a
+	// SCALAR, not nested under .value (that's the aggregate shape, see
+	// inc/plausible-widget.php:105 vs :183). Joining by relative path
+	// (not slug) makes the match work for any permalink structure,
+	// including nested permalinks like /notes/<slug>/.
 	$views_map = array();
 	if ( ! empty( $out['plausible']['pages'] ) && is_array( $out['plausible']['pages'] ) ) {
 		foreach ( $out['plausible']['pages'] as $row ) {
-			$page = isset( $row['page'] ) ? trim( $row['page'], '/' ) : '';
-			$visitors = isset( $row['visitors']['value'] ) ? (int) $row['visitors']['value'] : 0;
+			$page = isset( $row['page'] ) ? trim( (string) $row['page'], '/' ) : '';
+			$visitors = isset( $row['visitors'] ) ? (int) $row['visitors'] : 0;
 			if ( '' !== $page ) {
 				$views_map[ $page ] = $visitors;
 			}
@@ -111,11 +117,16 @@ function snt_insights_collect_signals() {
 				$cats = is_array( $cat_terms ) ? array_values( $cat_terms ) : array();
 			}
 
+			$permalink = get_permalink( (int) $r['ID'] );
+			$permalink_path = function_exists( 'wp_make_link_relative' )
+				? trim( wp_make_link_relative( $permalink ), '/' )
+				: trim( (string) $permalink, '/' );
+
 			$posts[] = array(
 				'id'                   => (int) $r['ID'],
 				'title'                => (string) $r['post_title'],
 				'slug'                 => $slug,
-				'url'                  => get_permalink( (int) $r['ID'] ),
+				'url'                  => $permalink,
 				'published'            => gmdate( 'Y-m-d', $published_ts ),
 				'modified'             => gmdate( 'Y-m-d', $modified_ts ),
 				'days_since_publish'   => (int) floor( ( time() - $published_ts ) / DAY_IN_SECONDS ),
@@ -123,7 +134,7 @@ function snt_insights_collect_signals() {
 				'type'                 => (string) $r['post_type'],
 				'tags'                 => $tags,
 				'categories'           => $cats,
-				'views_7d'             => isset( $views_map[ $slug ] ) ? (int) $views_map[ $slug ] : 0,
+				'views_7d'             => isset( $views_map[ $permalink_path ] ) ? (int) $views_map[ $permalink_path ] : 0,
 			);
 		}
 	}

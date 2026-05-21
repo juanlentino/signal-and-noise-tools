@@ -115,7 +115,26 @@ class Stub_wpdb_insights {
 $GLOBALS['wpdb'] = new Stub_wpdb_insights();
 
 if ( ! function_exists( 'get_permalink' ) ) {
-	function get_permalink( $id ) { return "https://juanlentino.com/?p={$id}"; }
+	// Test stub: return distinct permalink paths so the views-join
+	// matches against $views_map[<relative-path>]. Per-test fixtures
+	// override via $GLOBALS['__test_permalinks'] when needed.
+	function get_permalink( $id ) {
+		if ( isset( $GLOBALS['__test_permalinks'][ $id ] ) ) {
+			return $GLOBALS['__test_permalinks'][ $id ];
+		}
+		return "https://juanlentino.com/p/{$id}/";
+	}
+}
+if ( ! function_exists( 'wp_make_link_relative' ) ) {
+	function wp_make_link_relative( $url ) {
+		$parsed = wp_parse_url( $url );
+		return isset( $parsed['path'] ) ? $parsed['path'] : '/';
+	}
+}
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
 }
 if ( ! function_exists( 'wp_get_post_terms' ) ) {
 	function wp_get_post_terms( $post_id, $taxonomy, $args = array() ) {
@@ -171,24 +190,58 @@ ins_eq( 'Music Producer', $signals['site']['job_title'], 'site.job_title' );
 ins_eq( 'https://juanlentino.com/', $signals['site']['home_url'], 'site.home_url' );
 
 // ─── Test 3: post list shape + sort by views_7d ──────────────────────
-echo "\nTest 3: posts sorted by views_7d desc\n";
+echo "\nTest 3: posts sorted by views_7d desc — realistic Plausible shape + nested permalink join\n";
 $GLOBALS['wpdb']->rows = array(
 	array( 'ID' => 1, 'post_title' => 'Low traffic',  'post_name' => 'low',  'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
 	array( 'ID' => 2, 'post_title' => 'High traffic', 'post_name' => 'high', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 5  * DAY_IN_SECONDS ) ),
 );
+// Simulate the nested /notes/<slug>/ permalink pattern used on juanlentino.com.
+$GLOBALS['__test_permalinks'] = array(
+	1 => 'https://juanlentino.com/notes/low/',
+	2 => 'https://juanlentino.com/notes/high/',
+);
+// Realistic Plausible breakdown shape: visitors is SCALAR int, not nested.
 $GLOBALS['__test_plausible'] = array(
 	'aggregate' => array( 'visitors' => array( 'value' => 1000 ) ),
 	'pages'     => array(
-		array( 'page' => '/high', 'visitors' => array( 'value' => 500 ) ),
-		array( 'page' => '/low',  'visitors' => array( 'value' => 10 ) ),
+		array( 'page' => '/notes/high', 'visitors' => 500 ),
+		array( 'page' => '/notes/low',  'visitors' => 10 ),
 	),
 	'sources'   => array(),
 );
 $signals = snt_insights_collect_signals();
 ins_eq( 2, count( $signals['posts'] ), 'two posts' );
 ins_eq( 2, $signals['posts'][0]['id'], 'highest-traffic post first' );
-ins_eq( 500, $signals['posts'][0]['views_7d'], 'views_7d matched from Plausible' );
+ins_eq( 500, $signals['posts'][0]['views_7d'], 'views_7d matched from Plausible (scalar visitors + nested permalink path)' );
+ins_eq( 10,  $signals['posts'][1]['views_7d'], 'low-traffic post also matched (proves both join entries land)' );
 ins_eq( 'post', $signals['posts'][0]['type'], 'post.type' );
+
+// ─── Test 3b: tiebreak — same views_7d sorts by days_since_publish ASC
+echo "\nTest 3b: tiebreak — equal views, older publish date wins (ASC)\n";
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 10, 'post_title' => 'Newer same-traffic', 'post_name' => 'newer', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 5  * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 5  * DAY_IN_SECONDS ) ),
+	array( 'ID' => 11, 'post_title' => 'Older same-traffic', 'post_name' => 'older', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 50 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 50 * DAY_IN_SECONDS ) ),
+);
+$GLOBALS['__test_permalinks'] = array(
+	10 => 'https://juanlentino.com/notes/newer/',
+	11 => 'https://juanlentino.com/notes/older/',
+);
+$GLOBALS['__test_plausible'] = array(
+	'aggregate' => array( 'visitors' => array( 'value' => 1000 ) ),
+	'pages'     => array(
+		array( 'page' => '/notes/newer', 'visitors' => 100 ),
+		array( 'page' => '/notes/older', 'visitors' => 100 ),
+	),
+	'sources'   => array(),
+);
+$signals = snt_insights_collect_signals();
+// Comparator returns $a['days_since_publish'] - $b['days_since_publish']
+// for equal views_7d — smaller (newer) days_since_publish comes first.
+// Wait: smaller days_since_publish = NEWER. So newer (id=10) wins.
+ins_eq( 100, $signals['posts'][0]['views_7d'], 'both posts have views_7d=100' );
+ins_eq( 100, $signals['posts'][1]['views_7d'], 'second post also views_7d=100' );
+ins_eq( 10, $signals['posts'][0]['id'], 'tiebreak: newer post (days_since_publish ASC) comes first' );
+ins_eq( 11, $signals['posts'][1]['id'], 'tiebreak: older post comes second' );
 
 // ─── Test 4: post age cap (2 years) ──────────────────────────────────
 echo "\nTest 4: posts older than 2 years excluded\n";
