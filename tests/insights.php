@@ -84,6 +84,55 @@ class WP_Error {
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
+// ─── wpdb stub for post queries ──────────────────────────────────────
+class Stub_wpdb_insights {
+	public $prefix = 'wp_';
+	public $posts  = 'wp_posts';
+	public $rows   = array();
+
+	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
+	public function prepare( $query, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
+		$out = $query;
+		foreach ( $args as $a ) {
+			$rep = is_int( $a ) || is_float( $a ) ? (string) $a : "'" . addslashes( (string) $a ) . "'";
+			$out = preg_replace( '/%s|%d|%f/', $rep, $out, 1 );
+		}
+		return $out;
+	}
+	public function get_results( $query, $output = OBJECT_K ) {
+		// Used only for the post-list query in Task 2.
+		$rows = $this->rows;
+		if ( preg_match( "/post_status\s*=\s*'publish'/", $query ) ) {
+			$rows = array_values( array_filter( $rows, function( $r ) { return ! empty( $r['post_status'] ) && 'publish' === $r['post_status']; } ) );
+		}
+		if ( preg_match( '/LIMIT (\d+)/', $query, $lm ) ) {
+			$rows = array_slice( $rows, 0, (int) $lm[1] );
+		}
+		return $rows;
+	}
+}
+$GLOBALS['wpdb'] = new Stub_wpdb_insights();
+
+if ( ! function_exists( 'get_permalink' ) ) {
+	function get_permalink( $id ) { return "https://juanlentino.com/?p={$id}"; }
+}
+if ( ! function_exists( 'wp_get_post_terms' ) ) {
+	function wp_get_post_terms( $post_id, $taxonomy, $args = array() ) {
+		return isset( $GLOBALS['__test_post_terms'][ $post_id ][ $taxonomy ] )
+			? $GLOBALS['__test_post_terms'][ $post_id ][ $taxonomy ]
+			: array();
+	}
+}
+if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
+	function sn_plausible_dashboard_data() {
+		return isset( $GLOBALS['__test_plausible'] ) ? $GLOBALS['__test_plausible'] : null;
+	}
+}
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $show ) { return ''; }
+}
+
 require_once __DIR__ . '/../inc/insights.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -104,6 +153,63 @@ ins_true( defined( 'SN_INSIGHTS_CACHE_KEY' ), 'SN_INSIGHTS_CACHE_KEY defined' );
 ins_true( defined( 'SN_INSIGHTS_STATE_OPT' ), 'SN_INSIGHTS_STATE_OPT defined' );
 ins_true( defined( 'SN_INSIGHTS_CRON_HOOK' ), 'SN_INSIGHTS_CRON_HOOK defined' );
 ins_eq( 7 * DAY_IN_SECONDS, SN_INSIGHTS_CACHE_TTL, 'cache TTL is 7 days' );
+
+// ─── Test 2: collect_signals returns site identity ───────────────────
+echo "\nTest 2: snt_insights_collect_signals() — site identity\n";
+$GLOBALS['__test_sn_settings'] = array(
+	'identity.site_name'        => 'Juan Lentino',
+	'identity.site_description' => 'A music producer site',
+	'identity.person_name'      => 'Juan Lentino',
+	'identity.job_title'        => 'Music Producer',
+);
+$GLOBALS['wpdb']->rows  = array();
+$GLOBALS['__test_plausible'] = array( 'aggregate' => array(), 'pages' => array(), 'sources' => array() );
+$signals = snt_insights_collect_signals();
+ins_true( is_array( $signals ), 'returns array' );
+ins_eq( 'Juan Lentino', $signals['site']['name'], 'site.name' );
+ins_eq( 'Music Producer', $signals['site']['job_title'], 'site.job_title' );
+ins_eq( 'https://juanlentino.com/', $signals['site']['home_url'], 'site.home_url' );
+
+// ─── Test 3: post list shape + sort by views_7d ──────────────────────
+echo "\nTest 3: posts sorted by views_7d desc\n";
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'Low traffic',  'post_name' => 'low',  'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
+	array( 'ID' => 2, 'post_title' => 'High traffic', 'post_name' => 'high', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 5  * DAY_IN_SECONDS ) ),
+);
+$GLOBALS['__test_plausible'] = array(
+	'aggregate' => array( 'visitors' => array( 'value' => 1000 ) ),
+	'pages'     => array(
+		array( 'page' => '/high', 'visitors' => array( 'value' => 500 ) ),
+		array( 'page' => '/low',  'visitors' => array( 'value' => 10 ) ),
+	),
+	'sources'   => array(),
+);
+$signals = snt_insights_collect_signals();
+ins_eq( 2, count( $signals['posts'] ), 'two posts' );
+ins_eq( 2, $signals['posts'][0]['id'], 'highest-traffic post first' );
+ins_eq( 500, $signals['posts'][0]['views_7d'], 'views_7d matched from Plausible' );
+ins_eq( 'post', $signals['posts'][0]['type'], 'post.type' );
+
+// ─── Test 4: post age cap (2 years) ──────────────────────────────────
+echo "\nTest 4: posts older than 2 years excluded\n";
+$old_date = gmdate( 'Y-m-d H:i:s', time() - 800 * DAY_IN_SECONDS );  // 800d > 730d cap
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'Old', 'post_name' => 'old', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => $old_date, 'post_modified_gmt' => $old_date ),
+	array( 'ID' => 2, 'post_title' => 'New', 'post_name' => 'new', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ) ),
+);
+$signals = snt_insights_collect_signals();
+ins_eq( 1, count( $signals['posts'] ), 'only the new post included' );
+ins_eq( 2, $signals['posts'][0]['id'], 'new post (id=2) survived' );
+
+// ─── Test 5: post count cap (100) ────────────────────────────────────
+echo "\nTest 5: post list capped at 100\n";
+$rows = array();
+for ( $i = 1; $i <= 150; $i++ ) {
+	$rows[] = array( 'ID' => $i, 'post_title' => "P{$i}", 'post_name' => "p{$i}", 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) );
+}
+$GLOBALS['wpdb']->rows = $rows;
+$signals = snt_insights_collect_signals();
+ins_eq( 100, count( $signals['posts'] ), 'capped at 100' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
