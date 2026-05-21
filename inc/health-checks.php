@@ -60,10 +60,11 @@ function sn_health_run_scan() {
 		'elapsed_ms'   => 0,
 		'site_url'     => home_url( '/' ),
 		'checks'       => array(
-			'missing_alt'    => sn_health_check_missing_alt(),
-			'orphaned_media' => sn_health_check_orphaned_media(),
-			'broken_links'   => sn_health_check_broken_links(),
-			'stale_posts'    => sn_health_check_stale_posts(),
+			'missing_alt'         => sn_health_check_missing_alt(),
+			'orphaned_media'      => sn_health_check_orphaned_media(),
+			'broken_links'        => sn_health_check_broken_links(),
+			'stale_posts'         => sn_health_check_stale_posts(),
+			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
