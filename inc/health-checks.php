@@ -376,6 +376,87 @@ function sn_health_check_stale_posts() {
 }
 
 /**
+ * Pattern set for time-relative phrases that decay deterministically.
+ *
+ * Each regex captures the offending phrase as $matches[0]. Adding a new
+ * pattern: append to the array (order doesn't matter for matching, only
+ * for FIFO order in results — they get sorted by position downstream).
+ *
+ * Patterns are intentionally permissive — false positives are fine
+ * because the AI evaluator (Task B) is the second filter. Missing a
+ * real candidate is the more expensive failure mode.
+ *
+ * @since 3.7.0
+ * @return array<string> regex patterns (Perl-compatible, case-insensitive enabled at call site).
+ */
+function sn_health_drift_time_patterns() {
+	return array(
+		'/\bas of \d{4}\b/i',
+		'/\bthis (year|month|week)\b/i',
+		'/\b(last|next) (year|month|week)\b/i',
+		'/\bcurrently\b/i',
+		'/\brecently\b/i',
+		'/\bjust (released|launched|announced|shipped|published)\b/i',
+		'/\bthe latest\b/i',
+		'/\bnow (available|free|paid|in beta|in alpha)\b/i',
+		'/\b(today|yesterday|tomorrow)\b/i',
+	);
+}
+
+/**
+ * Extract time-relative phrase candidates from post content.
+ *
+ * Returns an array of dicts: { phrase, context_snippet, position }.
+ * - phrase: the matched substring as-is from the source
+ * - context_snippet: ~200 chars around the phrase (for AI evaluation)
+ * - position: byte offset in the post_content (sort stable)
+ *
+ * Strips shortcodes and HTML before scanning to avoid matching inside
+ * attributes (e.g., href="...recently...").
+ *
+ * @since 3.7.0
+ * @param string $content Raw post_content.
+ * @return array
+ */
+function sn_health_extract_time_phrase_candidates( $content ) {
+	$text = (string) $content;
+	if ( '' === trim( $text ) ) {
+		return array();
+	}
+
+	if ( function_exists( 'strip_shortcodes' ) ) {
+		$text = strip_shortcodes( $text );
+	}
+	if ( function_exists( 'wp_strip_all_tags' ) ) {
+		$text = wp_strip_all_tags( $text );
+	} else {
+		$text = strip_tags( $text );
+	}
+
+	$out = array();
+	foreach ( sn_health_drift_time_patterns() as $pattern ) {
+		if ( preg_match_all( $pattern, $text, $m, PREG_OFFSET_CAPTURE ) ) {
+			foreach ( $m[0] as $hit ) {
+				$phrase  = $hit[0];
+				$pos     = (int) $hit[1];
+				$start   = max( 0, $pos - 80 );
+				$len     = min( 200, strlen( $text ) - $start );
+				$snippet = trim( substr( $text, $start, $len ) );
+				$out[]   = array(
+					'phrase'          => $phrase,
+					'context_snippet' => $snippet,
+					'position'        => $pos,
+				);
+			}
+		}
+	}
+
+	usort( $out, function( $a, $b ) { return $a['position'] - $b['position']; } );
+
+	return $out;
+}
+
+/**
  * Common per-check result envelope used by 2-4.
  */
 function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {

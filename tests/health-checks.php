@@ -184,5 +184,34 @@ $empty = sn_health_pack_check( 'Empty', array() );
 hc_eq( 0, $empty['count'], 'empty findings → count 0' );
 hc_eq( '', $empty['fix_hint'], 'fix_hint defaults to empty string' );
 
+// ─── Test: extract_time_phrase_candidates — pattern coverage ─────────
+echo "\nTest extract_time_phrase_candidates: pattern coverage\n";
+$content = "Welcome. As of 2024 the framework supports both modes. This year we expect changes. Recently the team announced a new approach — just released last month. The latest version is 5.4. Currently in beta. Next year, things may differ.";
+$candidates = sn_health_extract_time_phrase_candidates( $content );
+hc_true( is_array( $candidates ), 'returns array' );
+hc_true( count( $candidates ) >= 5, 'finds at least 5 phrases in mixed content' );
+$phrase_set = array_map( 'strtolower', array_column( $candidates, 'phrase' ) );
+hc_true( in_array( 'as of 2024', $phrase_set, true ),     'matches "as of YYYY"' );
+hc_true( in_array( 'this year', $phrase_set, true ),       'matches "this year"' );
+hc_true( in_array( 'recently', $phrase_set, true ),        'matches "recently"' );
+hc_true( in_array( 'just released', $phrase_set, true ),   'matches "just released"' );
+hc_true( in_array( 'the latest', $phrase_set, true ),      'matches "the latest"' );
+hc_true( in_array( 'currently', $phrase_set, true ),       'matches "currently"' );
+hc_true( in_array( 'next year', $phrase_set, true ),       'matches "next year"' );
+
+// ─── Test: empty content returns empty ───────────────────────────────
+echo "\nTest extract_time_phrase_candidates: empty content\n";
+hc_eq( array(), sn_health_extract_time_phrase_candidates( '' ), 'empty string → empty array' );
+hc_eq( array(), sn_health_extract_time_phrase_candidates( '<p>No timey phrases here at all.</p>' ), 'no matches → empty array' );
+
+// ─── Test: candidate has context_snippet for AI ──────────────────────
+echo "\nTest extract_time_phrase_candidates: context snippet\n";
+$content = str_repeat( 'lorem ipsum dolor sit amet ', 5 ) . 'as of 2024 things changed. ' . str_repeat( 'consectetur adipiscing elit ', 5 );
+$candidates = sn_health_extract_time_phrase_candidates( $content );
+hc_true( count( $candidates ) >= 1, 'one phrase found' );
+$snippet = $candidates[0]['context_snippet'];
+hc_true( false !== stripos( $snippet, 'as of 2024' ), 'context includes the phrase' );
+hc_true( strlen( $snippet ) <= 220 && strlen( $snippet ) >= 30, 'context is bounded (~200 chars)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
