@@ -1,0 +1,172 @@
+name: Cron orphan cleanup
+
+# Removes scheduled-but-no-handler WP-Cron entries left over from
+# uninstalled plugins. Reusable tool, not a one-off — as plugins
+# come and go on the site, orphans accumulate and need pruning.
+#
+# **Default is DRY-RUN.** First execution lists what WOULD be deleted;
+# trigger again with dry_run=false to actually delete. Idempotent —
+# running twice with dry_run=false is a no-op the second time because
+# each `wp cron event delete` only acts on existing events.
+#
+# Trigger from the Actions UI or via:
+#   gh workflow run cron-orphan-cleanup.yml --repo juanlentino/signal-and-noise-tools \
+#     -f dry_run=false
+#
+# Runs as the same app-scoped sn-plugin SSH user as deploy.yml.
+# Blast radius is bounded to the WP app's cron state.
+#
+# Security note: inputs are typed (boolean / string) and passed via
+# env: → positional args to the remote heredoc body, so they never
+# get expanded by the runner shell. The remote-side `has_action()`
+# guard refuses to delete any hook that has a live handler, even if
+# someone supplies it on the input list.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list orphans, do not delete)'
+        type: boolean
+        default: true
+      hooks:
+        description: 'Comma-separated hook names (leave blank for documented 14)'
+        type: string
+        default: ''
+
+concurrency:
+  group: cron-orphan-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: SSH wp-cli cron event delete
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Configure SSH for Cloudways
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Cleanup orphan cron events
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          HOOKS_INPUT: ${{ inputs.hooks }}
+        run: |
+          set -euo pipefail
+          ssh "$SSH_USER@$SSH_HOST" bash -s -- "$DRY_RUN" "$HOOKS_INPUT" <<'REMOTE'
+          set -euo pipefail
+          DRY_RUN="$1"
+          HOOKS_INPUT="$2"
+
+          DEFAULT_ORPHANS=(
+            koko_analytics_send_traffic_spike_notification
+            koko_analytics_send_email_reports
+            wp_statistics_record_daily_summary
+            wp_statistics_dbmaint_hook
+            wp_statistics_daily_cron_hook
+            wp_statistics_check_licenses_status
+            jetpack_clean_nonces
+            jetpack_v2_heartbeat
+            jp_purge_transients_cron
+            ai1wm_storage_cleanup
+            wpcomsh_translation_update
+            updraftplus_clean_temporary_files
+            regenerate_json_links_daily
+            grunion_scheduled_delete
+            trp_plugin_optin_sync
+          )
+
+          if [ -n "$HOOKS_INPUT" ]; then
+            IFS=',' read -ra ORPHANS <<<"$HOOKS_INPUT"
+            for i in "${!ORPHANS[@]}"; do
+              ORPHANS[$i]="$(echo "${ORPHANS[$i]}" | xargs)"
+            done
+          else
+            ORPHANS=("${DEFAULT_ORPHANS[@]}")
+          fi
+
+          WP_CLI=""
+          if command -v wp >/dev/null 2>&1; then
+            WP_CLI="wp"
+          elif [ -x /usr/local/bin/wp ]; then
+            WP_CLI="/usr/local/bin/wp"
+          elif [ -x /usr/bin/wp ]; then
+            WP_CLI="/usr/bin/wp"
+          else
+            echo "ERROR: wp-cli not found in PATH, /usr/local/bin, or /usr/bin"
+            echo "PATH=$PATH"
+            exit 1
+          fi
+          echo "Using wp-cli: $WP_CLI ($("$WP_CLI" --version 2>&1 | head -1))"
+
+          WP_ROOT=$(ls -d /home/master/applications/*/public_html 2>/dev/null | head -1)
+          [ -z "$WP_ROOT" ] && { echo "ERROR: WP root not found"; exit 1; }
+          cd "$WP_ROOT"
+          echo "WP root: $WP_ROOT"
+          echo ""
+
+          MODE="DRY-RUN"
+          [ "$DRY_RUN" = "false" ] && MODE="APPLY"
+          echo "Mode: $MODE"
+          echo "Candidates: ${#ORPHANS[@]} hook(s)"
+          echo ""
+
+          TOTAL_BEFORE=$("$WP_CLI" cron event list --format=count 2>/dev/null || echo 0)
+          echo "Total cron events before: $TOTAL_BEFORE"
+          echo ""
+
+          DELETED=0
+          ABSENT=0
+          GUARDED=0
+          for hook in "${ORPHANS[@]}"; do
+            [ -z "$hook" ] && continue
+            COUNT=$("$WP_CLI" cron event list --hook="$hook" --format=count 2>/dev/null || echo 0)
+
+            if [ "$COUNT" -eq 0 ]; then
+              echo "  [SKIP]   $hook  (no events scheduled)"
+              ABSENT=$((ABSENT + 1))
+              continue
+            fi
+
+            HAS=$("$WP_CLI" eval "echo has_action('$hook') ? '1' : '0';" 2>/dev/null || echo "?")
+            if [ "$HAS" = "1" ]; then
+              echo "  [GUARD]  $hook  ($COUNT events, has_action=true — REFUSING to delete)"
+              GUARDED=$((GUARDED + 1))
+              continue
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "  [WOULD]  $hook  ($COUNT events, has_action=false)"
+            else
+              echo -n "  [DELETE] $hook  ($COUNT events)... "
+              if "$WP_CLI" cron event delete "$hook" >/dev/null 2>&1; then
+                echo "done"
+                DELETED=$((DELETED + 1))
+              else
+                echo "failed (continuing)"
+              fi
+            fi
+          done
+
+          echo ""
+          TOTAL_AFTER=$("$WP_CLI" cron event list --format=count 2>/dev/null || echo 0)
+          echo "Total cron events after:  $TOTAL_AFTER"
+          echo "Delta: $((TOTAL_BEFORE - TOTAL_AFTER))"
+          echo "Already absent: $ABSENT"
+          echo "Guarded (live handler): $GUARDED"
+          if [ "$DRY_RUN" = "false" ]; then
+            echo "Deleted: $DELETED"
+          fi
+          REMOTE
