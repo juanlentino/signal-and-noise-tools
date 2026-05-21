@@ -2,6 +2,75 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.3] - 2026-05-21
+
+### Security — Eliminated the deploy App Password (rotatable credential removed entirely)
+
+Architecture change: the GH Actions deploy workflow no longer uses HTTP Basic Auth to trigger cache purges. The auth surface that required rotatable WP App Passwords is gone.
+
+#### What changed
+
+`.github/workflows/deploy.yml`'s "Purge Cloudflare cache" step previously called `POST /wp-json/signal-noise/v1/purge-cache` over HTTP, authenticating with `WP_DEPLOY_USER` + `WP_DEPLOY_APP_PASSWORD` GH secrets. This required:
+
+1. Manually generating an App Password in wp-admin → Users → Profile
+2. Manually setting `WP_DEPLOY_APP_PASSWORD` GH secret via `echo -n ... | gh secret set ...`
+3. Rotating periodically (or after any chat/log exposure)
+
+The fundamental problem: rotating a credential automatically requires getting the new credential into GH secrets without human eyes, which requires SSH and `wp user application-password create` and piping output to `gh secret set` — at which point we're already in SSH-land and the HTTP layer is doing nothing the SSH layer can't do directly.
+
+#### New flow
+
+The deploy workflow now invokes the same purge work via `wp eval` over the existing SSH connection (the one already used by the git checkout step):
+
+```yaml
+ssh sn-plugin@cloudways "cd /apps/.../public_html && \
+  wp eval 'echo (int) apply_filters(\"sn_purge_all_caches_result\", 0, array(\"template_overrides\" => false));'"
+```
+
+The theme's `inc/template-maintenance.php` registers a handler for the `sn_purge_all_caches_result` filter that does the actual work: object cache + Breeze + Varnish + Cloudflare (using CF API credentials from WP options). The REST endpoint at `/wp-json/signal-noise/v1/purge-cache` is just a thin auth + dispatch wrapper around this filter — calling the filter directly via WP-CLI does the same work with no auth ceremony.
+
+#### What was eliminated
+
+- ❌ `WP_DEPLOY_USER` GH secret (no longer referenced anywhere in `.github/workflows/`)
+- ❌ `WP_DEPLOY_APP_PASSWORD` GH secret (no longer referenced anywhere in `.github/workflows/`)
+- ❌ HTTP Basic Auth path during deploy
+- ❌ The 401/403 `sn_rest_forbidden` failure mode entirely
+- ❌ Manual password rotation forever
+
+After v3.7.3 ships successfully, both GH secrets can be deleted (`gh secret delete WP_DEPLOY_USER --repo juanlentino/signal-and-noise-tools` etc.) and the App Password revoked in wp-admin → Users → Profile → Application Passwords.
+
+#### What's preserved
+
+- ✅ The `/wp-json/signal-noise/v1/purge-cache` REST endpoint still exists and still requires `manage_options` — for manual curl debugging or third-party integration callers
+- ✅ All other dispatch paths into the purge filter (admin form, desktop-mode commands, abilities API) are unchanged
+- ✅ `continue-on-error: true` shape from v3.7.2 retained — wp-cli being unavailable or the filter returning 0 doesn't redden the workflow
+
+#### Verifying after deploy
+
+1. Trigger a deploy: `gh workflow run deploy.yml --repo juanlentino/signal-and-noise-tools --ref v3.7.3`
+2. Watch the run: the "Purge caches via WP-CLI in-process" step should show `Purged N caches via sn_purge_all_caches_result filter.`
+3. Once verified, delete the now-unused secrets:
+   ```bash
+   gh secret delete WP_DEPLOY_USER --repo juanlentino/signal-and-noise-tools
+   gh secret delete WP_DEPLOY_APP_PASSWORD --repo juanlentino/signal-and-noise-tools
+   ```
+4. Optionally revoke the App Password in wp-admin → Users → Profile → Application Passwords (clean hygiene; not strictly required since nothing uses it from automation anymore)
+
+#### Why this matters
+
+The previous flow had a fundamental contradiction: it required a credential that needed to be rotated, but rotation required either (a) a human pasting the new value into chat/CLI (vector for accidental disclosure) or (b) a more complex automation involving `wp user application-password create` pipelining. The right architecture eliminates the credential, not just automates its rotation.
+
+The auth model is now: "you have the SSH key, you can do the things." Same scope as the SSH git checkout step that ships the actual code — no new attack surface beyond what's already been authorized.
+
+### Tests
+
+No new tests. The deploy.yml workflow change is verified live by the next deploy. All 6 PHP test suites still pass at 441 total assertions.
+
+### Files
+
+- `.github/workflows/deploy.yml` — replaced HTTP Basic Auth purge step with SSH+wp-eval invocation of the existing purge filter
+- `signal-and-noise-tools.php` — version bump 3.7.2 → 3.7.3
+
 ## [3.7.2] - 2026-05-21
 
 ### Maintenance pass — Wave 1: cost + deploy hygiene

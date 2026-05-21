@@ -77,57 +77,56 @@ jobs:
           grep -E '^[[:space:]]*\*?[[:space:]]*Version:' signal-and-noise-tools.php | head -1
           REMOTE
 
-      - name: Purge Cloudflare cache (best-effort)
-        # Best-effort: a 401/403 here typically means WP_DEPLOY_USER lacks
-        # manage_options for the SN purge route's sn_rest_can_manage
-        # permission_callback (not necessarily a stale password — verify
-        # role first, rotate only if needed). SSH step above has already
-        # landed the files on Cloudways. CF edge revalidates naturally via
-        # last-modified headers on every plugin asset. A missed purge is a
-        # latency artifact, not a deploy failure. The step still runs (to
-        # attempt the purge when auth is valid) but won't redden the
-        # workflow when it can't auth — applied 2026-05-21 (v3.7.2)
-        # matching theme repo's commit 4ec38b6 (v8.5.1).
+      - name: Purge caches via WP-CLI in-process (no App Password required)
+        # v3.7.3 architecture change: replaces the HTTP REST-based purge that
+        # required WP_DEPLOY_USER + WP_DEPLOY_APP_PASSWORD. The actual purge
+        # work (object cache + Breeze + Varnish + Cloudflare) lives in the
+        # theme's `sn_purge_all_caches_result` filter at
+        # inc/template-maintenance.php. We invoke it via `wp eval` over the
+        # same SSH connection used by the git checkout step above — auth is
+        # already established via the deploy SSH key (app-scoped sn-plugin
+        # user), so no HTTP Basic Auth and no rotatable App Password is
+        # involved. After v3.7.3 ships, WP_DEPLOY_USER and
+        # WP_DEPLOY_APP_PASSWORD GH secrets can be deleted.
+        #
+        # Same continue-on-error shape as v3.7.2's HTTP version for the
+        # same reason: SSH git checkout above already landed the files; a
+        # missed cache purge is a latency artifact, not a deploy failure.
+        # If wp-cli is unavailable or the filter fails, CF edge revalidates
+        # naturally via last-modified headers on every plugin asset.
         continue-on-error: true
         env:
-          WP_DEPLOY_USER: ${{ secrets.WP_DEPLOY_USER }}
-          WP_DEPLOY_APP_PASSWORD: ${{ secrets.WP_DEPLOY_APP_PASSWORD }}
-          PURGE_URL: 'https://juanlentino.com/wp-json/signal-noise/v1/purge-cache'
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          # Let OPcache pick up the new files (validate_timestamps gates this).
+          # Let OPcache pick up the new files written by the prior SSH step
+          # (validate_timestamps gates this on Cloudways).
           sleep 5
-          if [ -z "${WP_DEPLOY_USER:-}" ] || [ -z "${WP_DEPLOY_APP_PASSWORD:-}" ]; then
-            echo "::warning::WP_DEPLOY_USER or WP_DEPLOY_APP_PASSWORD not set — skipping purge."
-            echo "Files are live on Cloudways; CF edge cache will TTL/revalidate naturally."
-            exit 0
+          ssh "$SSH_USER@$SSH_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+          # Auto-discover the app's public_html. Cloudways uses random
+          # per-app directory names (e.g. nffqxsrgxz); the sn-plugin SSH
+          # user has read access only to its own app, so this glob matches
+          # exactly one entry — same lookup pattern as the SSH git checkout
+          # step.
+          APP_PUBLIC=$(ls -d /home/master/applications/*/public_html 2>/dev/null | head -1)
+          if [ -z "$APP_PUBLIC" ]; then
+            echo "::warning::Could not locate app public_html for wp-cli."
+            exit 1
           fi
-          auth=$(printf '%s:%s' "$WP_DEPLOY_USER" "$WP_DEPLOY_APP_PASSWORD" | base64 -w 0)
-          # Content-Length: 0 satisfies Cloudways' WAF (ModSecurity rejects
-          # zero-byte POSTs with empty 400; see docs/WORDPRESS-REFERENCE.md §13).
-          response=$(curl -sS -w '\n%{http_code}' -X POST "$PURGE_URL" \
-            -H "Authorization: Basic $auth" \
-            -H 'Accept: application/json' \
-            -H 'Content-Length: 0')
-          status=$(printf '%s' "$response" | tail -n1)
-          body=$(printf '%s' "$response" | sed '$d')
-          printf 'HTTP %s\n' "$status"
-          printf '%s\n' "$body"
-          case "$status" in
-            200)
-              echo "Purge dispatched."
-              ;;
-            401|403)
-              echo "::warning::Purge auth failed (HTTP $status). The bound user likely lacks manage_options (sn_rest_forbidden) OR the App Password is revoked."
-              echo "Diagnostic order (cheapest first):"
-              echo "  1) wp-admin -> Users: verify the WP_DEPLOY_USER has the Administrator role"
-              echo "  2) If role is correct: wp-admin -> Users -> Profile -> Application Passwords -> generate gha-deploy-plugin"
-              echo "  3) Update GH secret: echo -n PASSWORD | gh secret set WP_DEPLOY_APP_PASSWORD --repo juanlentino/signal-and-noise-tools"
-              echo "Files are live on Cloudways regardless; CF edge will revalidate naturally via last-modified."
-              exit 1
-              ;;
-            *)
-              echo "::warning::Purge returned HTTP $status (unexpected). Files are live; CF edge cache may take time to refresh."
-              exit 1
-              ;;
-          esac
+          cd "$APP_PUBLIC"
+          # Verify wp-cli is on PATH (Cloudways ships it for app-scoped
+          # SSH users on all apps; explicit check survives a future
+          # Cloudways base-image change).
+          if ! command -v wp >/dev/null 2>&1; then
+            echo "::warning::wp-cli not found on PATH for SSH_USER. CF edge will revalidate naturally."
+            exit 1
+          fi
+          # Call SN's purge filter in-process. The theme's
+          # inc/template-maintenance.php registers a filter handler that
+          # purges object cache + Breeze + Varnish + Cloudflare (uses CF
+          # API credentials from WP options). Returns purged count.
+          count=$(wp eval 'echo (int) apply_filters("sn_purge_all_caches_result", 0, array("template_overrides" => false));' 2>&1)
+          echo "Purged $count caches via sn_purge_all_caches_result filter."
+          REMOTE
