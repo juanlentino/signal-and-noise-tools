@@ -488,5 +488,51 @@ ins_eq( 200, count( $state['dismissed_ids'] ), 'dismissed_ids capped at 200' );
 ins_true( in_array( 'new_rec', $state['dismissed_ids'], true ), 'new entry retained' );
 ins_true( ! in_array( 'rec_0', $state['dismissed_ids'], true ), 'oldest evicted' );
 
+// ─── Test 20: run_scan happy path stores in cache ────────────────────
+echo "\nTest 20: run_scan caches result\n";
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_response'] = $valid_json;  // from Test 10
+$GLOBALS['__test_posts_exist'] = array( 1 => true );
+$GLOBALS['wpdb']->rows = array();
+$result = snt_insights_run_scan();
+ins_true( is_array( $result ), 'run_scan returns array' );
+ins_eq( 5, count( $result['recommendations'] ), '5 recs cached' );
+ins_true( isset( $result['scanned_at'] ), 'scanned_at set' );
+ins_true( ! empty( $GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] ), 'cache written' );
+
+// ─── Test 21: cache hit short-circuits ───────────────────────────────
+echo "\nTest 21: run_scan uses cache when present\n";
+$GLOBALS['__test_ai_response'] = '[]';  // would fail if called
+$cached = snt_insights_run_scan();
+ins_eq( 5, count( $cached['recommendations'] ), 'returns cached 5 recs (AI not re-called)' );
+
+// ─── Test 22: force=true bypasses cache ──────────────────────────────
+echo "\nTest 22: run_scan force=true bypasses cache\n";
+$GLOBALS['__test_ai_response'] = $valid_json;
+$forced = snt_insights_run_scan( true );
+ins_eq( 5, count( $forced['recommendations'] ), 'force re-ran scan' );
+
+// ─── Test 23: WP_Error from AI propagates ────────────────────────────
+echo "\nTest 23: AI failure returns WP_Error (cache untouched)\n";
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_ai_available'] = false;
+$res = snt_insights_run_scan( true );
+ins_true( $res instanceof WP_Error, 'WP_Error returned' );
+ins_true( empty( $GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] ), 'cache NOT written on failure' );
+
+// ─── Test 24: last_scan reads cache ──────────────────────────────────
+echo "\nTest 24: last_scan reads transient\n";
+$GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] = array(
+	'scanned_at'      => 12345,
+	'recommendations' => array( array( 'id' => 'x' ) ),
+);
+$last = snt_insights_last_scan();
+ins_eq( 12345, $last['scanned_at'], 'scanned_at echoed' );
+ins_eq( 'x', $last['recommendations'][0]['id'], 'rec echoed' );
+
+$GLOBALS['__test_transients'] = array();
+ins_eq( null, snt_insights_last_scan(), 'null when transient missing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

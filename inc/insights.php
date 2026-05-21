@@ -420,3 +420,53 @@ function snt_insights_filter_active( $recommendations ) {
 	}
 	return $out;
 }
+
+/**
+ * Run a full scan: collect signals → call AI → parse → cache.
+ *
+ * @param bool $force If true, bypass the 7-day cache.
+ * @return array|WP_Error Scan result OR WP_Error.
+ */
+function snt_insights_run_scan( $force = false ) {
+	if ( ! $force ) {
+		$cached = snt_insights_last_scan();
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+	}
+
+	$started = microtime( true );
+
+	$signals = snt_insights_collect_signals();
+	$raw     = snt_insights_call_ai( $signals );
+	if ( is_wp_error( $raw ) ) {
+		return $raw;
+	}
+
+	$parsed = snt_insights_parse_response( $raw );
+	if ( is_wp_error( $parsed ) ) {
+		return $parsed;
+	}
+
+	$result = array(
+		'scanned_at'      => time(),
+		'elapsed_ms'      => (int) round( ( microtime( true ) - $started ) * 1000 ),
+		'recommendations' => $parsed,
+		'signal_summary'  => array(
+			'posts_count'    => count( $signals['posts'] ),
+			'webhooks_count' => isset( $signals['webhooks']['total_active'] ) ? (int) $signals['webhooks']['total_active'] : 0,
+			'cron_hooks_seen' => count( $signals['cron_freshness'] ),
+		),
+	);
+
+	set_transient( SN_INSIGHTS_CACHE_KEY, $result, SN_INSIGHTS_CACHE_TTL );
+	return $result;
+}
+
+/**
+ * Read the cached scan result, or null if no cache.
+ */
+function snt_insights_last_scan() {
+	$cached = get_transient( SN_INSIGHTS_CACHE_KEY );
+	return is_array( $cached ) ? $cached : null;
+}
