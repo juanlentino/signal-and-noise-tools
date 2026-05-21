@@ -307,6 +307,46 @@ function sn_handle_admin_post() {
 	} elseif ( 'apply_reading_time_cleanup' === $action ) {
 		$count = (int) sn_apply_legacy_reading_time_cleanup();
 		$flash = 'rt_applied_' . $count;
+	} elseif ( 'health_scan' === $action ) {
+		// v3.5.1: route through the central dispatcher per the established
+		// pattern (matches cf_save, pl_save, etc.). The impl module owns
+		// the work; this handler just dispatches + sets the flash.
+		if ( function_exists( 'sn_health_run_scan' ) ) {
+			sn_health_run_scan();
+		}
+		$flash = 'health_scanned';
+	} elseif ( 'webhook_add' === $action ) {
+		if ( function_exists( 'sn_webhook_create' ) ) {
+			$result = sn_webhook_create( wp_unslash( $_POST ) );
+			if ( is_wp_error( $result ) ) {
+				$flash = 'wh_invalid';
+			} else {
+				// Encode new id in the flash so the renderer can show the
+				// secret once. Same pattern as 'rt_applied_<count>' etc.
+				$flash = 'wh_added_' . $result['id'];
+			}
+		} else {
+			$flash = 'wh_invalid';
+		}
+	} elseif ( 'webhook_update' === $action ) {
+		if ( function_exists( 'sn_webhook_update' ) ) {
+			$id     = isset( $_POST['webhook_id'] ) ? sanitize_text_field( wp_unslash( $_POST['webhook_id'] ) ) : '';
+			$rotate = ! empty( $_POST['rotate_secret'] );
+			$result = sn_webhook_update( $id, wp_unslash( $_POST ) );
+			if ( is_wp_error( $result ) ) {
+				$flash = 'wh_not_found';
+			} else {
+				$flash = $rotate ? ( 'wh_rotated_' . $id ) : 'wh_updated';
+			}
+		} else {
+			$flash = 'wh_not_found';
+		}
+	} elseif ( 'webhook_delete' === $action ) {
+		if ( function_exists( 'sn_webhook_delete' ) ) {
+			$id = isset( $_POST['webhook_id'] ) ? sanitize_text_field( wp_unslash( $_POST['webhook_id'] ) ) : '';
+			sn_webhook_delete( $id );
+		}
+		$flash = 'wh_deleted';
 	} else {
 		return;
 	}
@@ -408,11 +448,11 @@ function sn_theme_options_page() {
 		} elseif ( 0 === strpos( $flash, 'reset_' ) ) {
 			$count     = (int) substr( $flash, strlen( 'reset_' ) );
 			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
-		} elseif ( 'wh_added' === $flash ) {
+		} elseif ( 0 === strpos( $flash, 'wh_added_' ) ) {
 			$notices[] = array( 'success', 'Webhook added. Copy the signing secret below — it will not be shown again.' );
 		} elseif ( 'wh_updated' === $flash ) {
 			$notices[] = array( 'success', 'Webhook updated.' );
-		} elseif ( 'wh_rotated' === $flash ) {
+		} elseif ( 0 === strpos( $flash, 'wh_rotated_' ) ) {
 			$notices[] = array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong> — copy the new value below before navigating away.' );
 		} elseif ( 'wh_deleted' === $flash ) {
 			$notices[] = array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' );
@@ -422,6 +462,17 @@ function sn_theme_options_page() {
 			$notices[] = array( 'error', 'Webhook not found.' );
 		} elseif ( 'health_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
+		}
+	}
+
+	// Extract the new/rotated webhook id from the flash so the Webhooks
+	// renderer can highlight the affected row + show the secret once.
+	if ( ! isset( $_GET['new_id'] ) && isset( $_GET['sn_flash'] ) ) {
+		$flash_now = sanitize_text_field( wp_unslash( $_GET['sn_flash'] ) );
+		if ( 0 === strpos( $flash_now, 'wh_added_' ) ) {
+			$_GET['new_id'] = substr( $flash_now, strlen( 'wh_added_' ) );
+		} elseif ( 0 === strpos( $flash_now, 'wh_rotated_' ) ) {
+			$_GET['new_id'] = substr( $flash_now, strlen( 'wh_rotated_' ) );
 		}
 	}
 

@@ -2,6 +2,45 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.5.1] - 2026-05-20
+
+### Fixed — Nonce conflict on Webhooks + Health forms + design-system alignment
+
+Two bugs from user smoke-testing v3.5.0, both rooted in the same process failure: I didn't read enough of the existing `inc/admin-page.php` patterns before adding the new tabs in v3.4.0 + v3.5.0. The systematic-debugging skill found both root causes in one pass.
+
+#### Bug 1: "The link you followed has expired" on Health "Run scan"
+
+**Root cause:** `sn_handle_admin_post` in `inc/admin-page.php:223` calls `check_admin_referer( 'sn_theme_options_nonce' )` for ANY POST that hits an SN admin page with `$_POST['sn_action']` set. It doesn't gate on action-name first. My v3.5.0 Health form sent a nonce for action `'sn_health'`, my v3.4.0 Webhooks forms sent nonces for `'sn_webhooks'`. The existing handler's nonce check ran FIRST (admin_init), failed against the wrong action, and died with `wp_nonce_ays()` — the standard WP "Link expired" page. My own per-handler nonce checks never got the chance to run.
+
+**Fix:** route all action dispatch through `sn_handle_admin_post` (the established pattern — matches how `cf_save`, `pl_save`, `apply_reading_time_cleanup` all work). My module files now have the impl functions; the central dispatcher routes incoming actions to them by name. All SN forms now use the single shared `sn_theme_options_nonce` action — one nonce contract for the whole admin.
+
+Removed: `sn_health_handle_post` and `sn_webhooks_handle_post` standalone `add_action( 'admin_init', ... )` handlers. Added: `health_scan`, `webhook_add`, `webhook_update`, `webhook_delete` elseif branches in `sn_handle_admin_post` that delegate to `sn_health_run_scan` / `sn_webhook_create` / `sn_webhook_update` / `sn_webhook_delete` (impl functions stayed in their modules).
+
+#### Bug 2: Webhooks + Health tabs visually didn't match other SN tabs
+
+**Root cause:** I used WordPress's generic `<table class="form-table">` for the new forms instead of the bespoke `.sn-fieldset` / `.sn-field` / `.sn-field-label` / `.sn-field-helper` / `.sn-card-grid` design system that `inc/cloudflare-purge.php` and `inc/plausible-admin.php` (and every other existing tab) use. Visual result: the new tabs rendered with default gray-bordered WordPress admin tables while everything else uses the bespoke SN brand styling.
+
+**Fix:** rewrote both `inc/webhooks-admin.php` and `inc/health-checks-admin.php` to use the same design-system classes as the existing tabs. Same structure: `.sn-prose` intro, `.sn-status-box` with `.sn-pill` badges for status displays, `.sn-fieldset` containers with `.sn-fieldset-h` headers + `.sn-fieldset-intro`, `.sn-field sn-field-w-lg/md/sm` for inputs with `.sn-field-label` + `.sn-field-helper`, `.sn-fieldset-actions` for submit buttons.
+
+#### Flash routing
+
+Action redirects now go through `sn_handle_admin_post`'s bottom-of-function `wp_safe_redirect` block. The webhook flash names that needed extra context (showing the secret once after add/rotate) are encoded as `wh_added_<id>` / `wh_rotated_<id>` and decoded back to `$_GET['new_id']` in the page renderer — same pattern as the existing `rt_applied_<count>` flash.
+
+#### Process gap acknowledgment
+
+This patch landed because the user flagged both bugs from a live screenshot. The discipline gap that allowed them in: I shipped v3.4.0 + v3.5.0 without invoking the superpowers skills (`brainstorming`, `writing-plans`, `verification-before-completion`, `systematic-debugging`) explicitly via the Skill tool. I did the *substance* of each (read framework source, dual test suites, lint pass before commit) but didn't formally invoke the skill workflow, and that's what missed the existing patterns in the codebase. The hard-rule memory entry ([feedback_skills_plugins_docs_always](../../signal-and-noise/.claude/projects/-Users-juanlentino-Projects-signal-and-noise/memory/feedback_skills_plugins_docs_always.md)) was set after a similar failure mode in earlier work. This patch was developed using `superpowers:systematic-debugging` (Phase 1–4: root-cause investigation → pattern analysis → hypothesis → verification) + `superpowers:verification-before-completion` (lint + 5 test suites green before claiming fix).
+
+### Files
+
+- `inc/admin-page.php` — 4 new elseif branches in `sn_handle_admin_post`; flash decoder updated to pull `new_id` from prefixed flash strings
+- `inc/webhooks-admin.php` — rewritten to use SN design-system classes; standalone POST handler removed
+- `inc/health-checks-admin.php` — rewritten to use SN design-system classes; standalone POST handler removed
+- `signal-and-noise-tools.php` — version bump
+
+### Tests
+
+All 5 suites still green (no regressions): **319 assertions** (163 admin-tabs + 54 cron-dashboard + 24 cron-history + 46 webhooks + 32 health-checks).
+
 ## [3.5.0] - 2026-05-20
 
 ### Added — Content Health detection scans

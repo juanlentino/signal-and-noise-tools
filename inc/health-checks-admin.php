@@ -2,10 +2,12 @@
 /**
  * Signal & Noise Tools — Health Checks admin tab.
  *
- * Renders the Content Health tab with a "Run scan" button + the
- * cached results from sn_health_last_scan(). One form action:
- * `health_scan` triggers sn_health_run_scan(), redirects with a
- * flash, the next GET shows the fresh result.
+ * Render-only. The `health_scan` action routes through
+ * sn_handle_admin_post in inc/admin-page.php (matches cf_save /
+ * pl_save). Shared sn_theme_options_nonce contract.
+ *
+ * Uses the bespoke .sn-fieldset / .sn-field / .sn-card-grid design
+ * system (matches cloudflare-purge.php, plausible-admin.php).
  *
  * @package SignalNoiseTools
  * @since 3.5.0
@@ -16,85 +18,85 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
-add_action( 'admin_init', 'sn_health_handle_post' );
-
-function sn_health_handle_post() {
-	if ( ! isset( $_POST['sn_action'] ) || 'health_scan' !== $_POST['sn_action'] ) { return; }
-	if ( ! current_user_can( 'manage_options' ) ) { return; }
-	check_admin_referer( 'sn_health' );
-
-	sn_health_run_scan();
-
-	$base_url = admin_url( 'admin.php?page=sn-health' );
-	wp_safe_redirect( add_query_arg( 'sn_flash', 'health_scanned', $base_url ) );
-	exit;
-}
 
 function sn_health_render_admin_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'You do not have permission to view this page.', 'signal-noise-tools' ) );
+		return;
 	}
 
 	$last_scan = sn_health_last_scan();
 
-	echo '<div class="sn-health">';
+	// ── INTRO ──
+	echo '<p class="sn-prose">Detection-only scans of your post + attachment graph. v1 finds problems; the editor is the fix surface. Results cache for 24 hours.</p>';
 
-	// Header + run button.
-	echo '<p class="sn-field-helper">' . esc_html__( 'Detection-only scans of your post + attachment graph. v1 finds problems; the editor is the fix surface. Results cache for 24 hours.', 'signal-noise-tools' ) . '</p>';
-
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-health' ) ) . '" style="margin-bottom:1rem;">';
-	wp_nonce_field( 'sn_health' );
-	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">';
-	echo esc_html( $last_scan ? __( 'Re-run scan', 'signal-noise-tools' ) : __( 'Run scan', 'signal-noise-tools' ) );
-	echo '</button>';
+	// ── STATUS BOX + RUN BUTTON ──
 	if ( $last_scan ) {
-		echo ' <span class="description" style="margin-left:0.75rem;">';
-		printf(
-			/* translators: 1: human-readable time, 2: elapsed ms */
-			esc_html__( 'Last scanned %1$s (%2$s in %3$dms).', 'signal-noise-tools' ),
-			esc_html( wp_date( 'Y-m-d H:i:s', (int) $last_scan['scanned_at'] ) ),
-			esc_html( human_time_diff( (int) $last_scan['scanned_at'], time() ) . ' ago' ),
-			(int) $last_scan['elapsed_ms']
-		);
-		echo '</span>';
+		$total_findings = 0;
+		foreach ( $last_scan['checks'] as $check ) {
+			$total_findings += (int) $check['count'];
+		}
+		$pill_kind = $total_findings > 0 ? 'warn' : 'ok';
+		echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last_scan['scanned_at'], time() ) ) . ' ago</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $total_findings ) . ' total finding' . ( 1 === $total_findings ? '' : 's' ) . ' across 4 checks · scan ran in ' . esc_html( (int) $last_scan['elapsed_ms'] ) . 'ms. Results cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last_scan['scanned_at'] + DAY_IN_SECONDS ) ) . '.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $total_findings > 0 ? 'Issues found' : 'All clear' ) . '</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">No scan has run yet</p>';
+		echo '<p class="sn-status-box-body">Click <strong>Run scan</strong> below to populate findings. The scan reads only — no edits.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
 	}
+
+	echo '<form method="post">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
+	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. Typical run: 1–10 seconds on a small site.</p>';
+	echo '<div class="sn-fieldset-actions">';
+	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
+	echo '</div>';
+	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
 	if ( ! $last_scan ) {
-		echo '<div class="sn-card"><p>' . esc_html__( 'No scan has run yet. Click "Run scan" above to populate findings.', 'signal-noise-tools' ) . '</p></div>';
-		echo '</div>';
 		return;
 	}
 
-	// One section per check.
+	// ── ONE FIELDSET PER CHECK ──
 	foreach ( $last_scan['checks'] as $key => $check ) {
-		echo '<div class="sn-card" style="margin-bottom:1rem;">';
-		echo '<h2 style="display:flex;align-items:baseline;gap:0.5rem;">';
+		echo '<div class="sn-fieldset">';
+
+		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;">';
 		echo esc_html( $check['label'] );
-		echo ' <span class="sn-health-count" style="font-size:0.85em;color:' . ( $check['count'] > 0 ? '#d63638' : '#46b450' ) . ';">';
-		echo esc_html( sprintf( '(%d %s)', $check['count'], 1 === $check['count'] ? 'finding' : 'findings' ) );
-		echo '</span>';
+		$pill_kind = $check['count'] > 0 ? 'warn' : 'ok';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
 		echo '</h2>';
 
-		if ( 0 === $check['count'] ) {
-			echo '<p style="color:#46b450;">' . esc_html__( '✓ No findings.', 'signal-noise-tools' ) . '</p>';
+		if ( 0 === (int) $check['count'] ) {
+			echo '<p class="sn-fieldset-intro">No findings.</p>';
 			echo '</div>';
 			continue;
 		}
 
 		if ( ! empty( $check['fix_hint'] ) ) {
-			echo '<p class="description" style="margin-bottom:0.75rem;">' . esc_html( $check['fix_hint'] ) . '</p>';
+			echo '<p class="sn-fieldset-intro">' . esc_html( $check['fix_hint'] ) . '</p>';
 		}
 
-		echo '<table class="widefat striped"><thead><tr>';
-		echo '<th scope="col" style="width:55%;">' . esc_html__( 'Subject', 'signal-noise-tools' ) . '</th>';
-		echo '<th scope="col">' . esc_html__( 'Note', 'signal-noise-tools' ) . '</th>';
-		echo '<th scope="col" style="width:90px;">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
-		echo '</tr></thead><tbody>';
-
-		// Cap visible rows at 50; deep lists collapse into a "+N more" indicator.
+		// Cap visible rows at 50.
 		$visible = array_slice( $check['findings'], 0, 50 );
 		$hidden  = count( $check['findings'] ) - count( $visible );
+
+		echo '<table class="widefat striped" style="margin-top:0.5rem;"><thead><tr>';
+		echo '<th scope="col" style="width:55%;">Subject</th>';
+		echo '<th scope="col">Note</th>';
+		echo '<th scope="col" style="width:90px;">Action</th>';
+		echo '</tr></thead><tbody>';
 
 		foreach ( $visible as $f ) {
 			echo '<tr>';
@@ -106,7 +108,7 @@ function sn_health_render_admin_tab() {
 			echo '<td>' . esc_html( (string) ( $f['note'] ?? '' ) ) . '</td>';
 			echo '<td>';
 			if ( ! empty( $f['edit_url'] ) ) {
-				echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">' . esc_html__( 'Edit', 'signal-noise-tools' ) . '</a>';
+				echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">Edit</a>';
 			}
 			echo '</td>';
 			echo '</tr>';
@@ -114,17 +116,9 @@ function sn_health_render_admin_tab() {
 		echo '</tbody></table>';
 
 		if ( $hidden > 0 ) {
-			echo '<p class="description">';
-			printf(
-				/* translators: %d: number of additional findings hidden in the table */
-				esc_html__( '+%d more findings — re-run scan after fixing the top batch.', 'signal-noise-tools' ),
-				$hidden
-			);
-			echo '</p>';
+			echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings — re-run scan after fixing the top batch.</p>';
 		}
 
-		echo '</div>';
+		echo '</div>'; // .sn-fieldset
 	}
-
-	echo '</div>'; // .sn-health
 }
