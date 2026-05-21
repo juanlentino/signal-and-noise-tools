@@ -511,3 +511,28 @@ add_action( SN_INSIGHTS_CRON_HOOK, 'snt_insights_weekly_scan_cb' );
 
 // Schedule check fires on admin_init (matches the rss-plausible-tracker pattern).
 add_action( 'admin_init', 'snt_insights_maybe_schedule_weekly_cron' );
+
+/**
+ * Compact summary for desktop-mode's wp_localize_script.
+ * Mirrors snt_cron_summary_for_localize from v3.0.0.
+ * @since 3.6.0
+ */
+function snt_insights_summary_for_localize() {
+	$last = snt_insights_last_scan();
+	if ( ! is_array( $last ) ) {
+		return array(
+			'scanned_at'      => null,
+			'active_count'    => 0,
+			'total_count'     => 0,
+		);
+	}
+	$state = snt_insights_state_read();
+	$active = snt_insights_filter_active( $last['recommendations'] );
+	return array(
+		'scanned_at'      => isset( $last['scanned_at'] ) ? (int) $last['scanned_at'] : null,
+		'active_count'    => count( $active ),
+		'total_count'     => count( $last['recommendations'] ),
+		'dismissed_count' => count( $state['dismissed_ids'] ),
+		'done_count'      => count( $state['done_ids'] ),
+	);
+}
