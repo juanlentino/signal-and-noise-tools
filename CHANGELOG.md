@@ -2,6 +2,65 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.6.0] - 2026-05-20
+
+### Added — Insights Tab + Content Opportunity Advisor (first cross-system AI synthesis)
+
+New 11th admin tab "Insights" between Webhooks and Health. Combines Plausible analytics, WP publish history, webhook delivery patterns, cron firings, and site identity into a single AI call that returns 5 actionable recommendations per scan: write_about, update_post, cadence_change, topic_double_down, topic_pivot.
+
+This is the first cross-system AI feature in the plugin and the only AI-related work in v3.6.0. Genuinely net-new — nothing else in the WP plugin ecosystem combines these 5 SN-owned data sources. Verified via audit of `ai/ai` v1.0.0 features + roadmap + the wider WP AI plugin space before designing.
+
+#### What got built
+
+- **New module `inc/insights.php`** — constants, signal aggregation (`snt_insights_collect_signals`), AI call (`snt_insights_call_ai`), response parsing + validation (`snt_insights_parse_response`), state management (`snt_insights_dismiss/snooze/mark_done`), run orchestrator + 7-day cache (`snt_insights_run_scan` / `snt_insights_last_scan`), opt-in weekly cron, desktop-mode summary helper
+- **New module `inc/insights-admin.php`** — tab renderer using the `.sn-fieldset` design system (v3.5.1 lesson encoded)
+- **`inc/admin-page.php`** — Insights entry in `sn_admin_pages()` (the v3.0.2 SSOT meant only 1 line + 1 dispatch case to add the tab); 5 new `sn_action` branches (`insights_run`, `insights_dismiss`, `insights_snooze`, `insights_mark_done`, `save_insights_settings`); 6 new flash messages
+- **`inc/rest-api.php`** — `POST /signal-noise/v1/insights/run` + `GET /signal-noise/v1/insights/last`
+- **`inc/abilities-registration.php`** — `signal-noise/run-insights-scan` (idempotent, open_world_hint: false) + `signal-noise/get-insights` (readonly, idempotent)
+- **`inc/desktop-mode-integration.php`** + **`assets/desktop-mode.js`** — `sn-cmd-insights` ⌘K command (`aiCallable: true`) + `pages.insights` + `insightsSummary` localize data
+
+#### AI integration
+
+Single call per scan via `snt_ai_generate_with_constraints` (from the existing `inc/ai-bootstrap.php`). System instruction explicitly forbids vague claims, requires JSON-only output, enumerates the 5 allowed `type` values, caps title at 80 chars. Response parser strips optional markdown fences (defensive — model sometimes wraps despite instructions), validates each entry against the schema, drops invalid entries, and returns WP_Error if fewer than 3 valid recommendations remain (configurable via `SN_INSIGHTS_MIN_VALID_RECS`).
+
+Estimated cost per scan: ~$0.02 (Sonnet). Annual ceiling at weekly cron + occasional manual: ~$1–2.
+
+#### State management
+
+Per-recommendation state stored in `sn_insights_state` option (autoload=false): `dismissed_ids[]`, `snoozed_until[id => ts]`, `done_ids[]`. Each list FIFO-capped at 200 entries. State persists across scans so dismissed recommendations don't reappear if regenerated. Snoozed recommendations rejoin the active list after their TTL expires (30 days).
+
+#### Trigger pattern
+
+Manual "Run Analysis" button by default. Opt-in weekly cron (`sn_insights_weekly_scan` hook) gated by `sn_settings.insights.weekly_cron_enabled` setting (default OFF). When toggled on, schedules via `wp_schedule_event` with `weekly` recurrence; when toggled off, unschedules. Cache (`sn_insights_last_scan` transient, 7-day TTL) prevents duplicate AI calls within the window — even manual re-clicks return cached unless "Force fresh scan" is checked.
+
+#### Tests
+
+New `tests/insights.php` — 27 named tests across ~76 assertions covering:
+- Signal aggregation: shape, post sort by views_7d, post cap (100), post age cap (730d), webhook success rate, cron freshness, Plausible breakdown shape (the C1 lesson from Task 2 review)
+- AI prompt construction: signals encoded into JSON, system instruction shape, max_tokens
+- Response parsing: happy path, markdown fence stripping, invalid entry drops, < 3 valid → WP_Error, target.post_id validation, title length cap
+- State management: read/write defaults, dismiss/snooze/mark_done writes, filter_active behavior, FIFO 200-entry cap
+- Orchestrator: cache miss → AI call, cache hit short-circuits, force=true bypasses cache, WP_Error propagates without writing cache
+- Weekly cron: schedule when setting on, no-schedule when off, unschedule
+
+All 6 test suites still green: **~390 total assertions** (177 admin-tabs + 54 cron-dashboard + 24 cron-history + 46 webhooks + 32 health-checks + 76 insights).
+
+#### Why this is genuinely net-new (vs every other plugin)
+
+`ai/ai` v1.0.0 already ships title generation, excerpt generation, meta description, content classification, editorial notes, alt-text generation, content resizing, summarization, comment moderation, image generation, and Guidelines (the canonical voice-training surface). None of them combine Plausible analytics + cron history + webhook delivery data. That synthesis is only possible because SN owns all three data sources in one plugin — which makes Insights the first genuinely defensible "on steroids" AI feature in this codebase.
+
+### Files
+
+- `inc/insights.php` — new
+- `inc/insights-admin.php` — new
+- `inc/admin-page.php` — Insights entry + dispatch + 5 sn_action branches + 6 flash messages
+- `inc/rest-api.php` — 2 new endpoints
+- `inc/abilities-registration.php` — 2 new abilities + execute callbacks
+- `inc/desktop-mode-integration.php` — 1 new ⌘K command + summary localize
+- `assets/desktop-mode.js` — JS-side ⌘K registration with aiCallable + toast
+- `signal-and-noise-tools.php` — 2 new requires + version bump
+- `tests/insights.php` — new (~76 assertions across 27 tests)
+
 ## [3.5.1] - 2026-05-20
 
 ### Fixed — Nonce conflict on Webhooks + Health forms + design-system alignment
