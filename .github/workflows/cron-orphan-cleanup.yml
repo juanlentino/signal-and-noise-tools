@@ -66,9 +66,13 @@ jobs:
         run: |
           set -euo pipefail
           ssh "$SSH_USER@$SSH_HOST" bash -s -- "$DRY_RUN" "$HOOKS_INPUT" <<'REMOTE'
-          set -euo pipefail
-          DRY_RUN="$1"
-          HOOKS_INPUT="$2"
+          set -eo pipefail
+          # Note: -u (nounset) is NOT enabled here because positional $2
+          # may legitimately be empty (no custom hooks supplied) and
+          # bash 4.x raises "unbound variable" on `"$2"` reference before
+          # the safer ${2:-} expansion runs in some configurations.
+          DRY_RUN="${1:-true}"
+          HOOKS_INPUT="${2:-}"
 
           DEFAULT_ORPHANS=(
             koko_analytics_send_traffic_spike_notification
