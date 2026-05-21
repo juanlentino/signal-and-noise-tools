@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.2] - 2026-05-21
+
+### Maintenance pass — Wave 1: cost + deploy hygiene
+
+First wave of the post-v3.7.1 maintenance pass. Three independent fixes bundled into one release because they're small, mechanical, and unblock subsequent work.
+
+#### Fixed — Anthropic Opus 4.7 model selection (5x cost overage)
+
+`snt_ai_generate_with_constraints()` in `inc/ai-bootstrap.php` did not pin a model preference, letting the WP AI Client route to the Anthropic provider's default — which on a fully-configured install is `claude-opus-4-7`, roughly 5x the cost of Sonnet 4.6 per token.
+
+The v3.6.0 Insights plan budgeted **~$0.01/scan** assuming Sonnet pricing. Verified via AI Request Logs on 2026-05-21 (first scan after the v3.7.1 gate fix landed): single Insights call was 4.9K tokens at `claude-opus-4-7` ≈ **$0.10/scan** in production — 10x plan, ~$5/year at weekly use, ~$40/year at daily use.
+
+Fix: pin `claude-sonnet-4-6` via `->using_model_preference('claude-sonnet-4-6')` in the builder chain. Per [php-ai-client/src/Builders/PromptBuilder.php:288](https://github.com/WordPress/php-ai-client/blob/trunk/src/Builders/PromptBuilder.php), `usingModelPreference()` accepts string model IDs as well as ModelInterface instances and provider/model tuples — string IDs are portable across providers that expose the same model.
+
+Filter `snt_ai_model_preference` lets callers override per-feature if the quality differential ever justifies Opus for a specific surface (e.g., Insights cross-system synthesis). v3.6.0 plan budget restored: ~$0.02/scan, ~$1/year at weekly use.
+
+Gate check (`snt_ai_can_text_generate`) intentionally does NOT pin a model — it asks "is ANY text-gen model available?" and a permissive check is correct there.
+
+#### Fixed — Plugin repo deploy.yml CF purge step strict-fails
+
+`.github/workflows/deploy.yml` previously strict-failed the entire workflow when the CF purge step returned 401/403, even though the load-bearing SSH git checkout step succeeded. This produced misleading red runs for v3.6.0, v3.6.1, v3.7.0, and v3.7.1 — each one showed ❌ on the GH Actions UI and in SN's Dashboard "Recent deploys" widget despite plugin files being live on Cloudways.
+
+Fix: applied theme repo's [`continue-on-error: true`](https://github.com/juanlentino/signal-and-noise/commit/4ec38b6) shape from v8.5.1. The step still runs and attempts the purge; on auth failure it emits a `::warning::` annotation with diagnostic remediation steps but no longer reddens the workflow.
+
+The 401 diagnostic message now correctly prioritizes the `sn_rest_forbidden` interpretation (user-role issue — verify `manage_options` first) over the "stale password" interpretation (rotate App Password second), per the 2026-05-21 diagnosis. This was the prior handoff's QA item #4 + #5 combined.
+
+#### Fixed — `inc/health-checks.php:405` cosmetic comment self-reference
+
+The `KEEP IN SYNC WITH` comment above `sn_health_drift_time_patterns()` self-referenced its own function name instead of pointing at the SQL caller. Rewrote to "Source-of-truth list. KEEP IN SYNC WITH the SQL REGEXP in `sn_health_check_drift_time_phrases()`" so future maintainers know which way the sync arrow points.
+
+Caught during v3.7.0 Task B code review; non-blocking, fixed in this maintenance wave per the prior handoff item #20.
+
+### Tests
+
+No new tests. All 6 existing suites pass unchanged: **441 total assertions** (admin-tabs 177 / cron-dashboard 54 / cron-history 24 / webhooks 46 / health-checks 64 / insights 76).
+
+Test-coverage gaps for `snt_ai_can_text_generate` (the function the v3.7.1 bug lived in) and `snt_ai_generate_with_constraints` (the function now pinning Sonnet) are scoped for the maintenance pass's Wave 3 — integration tests stubbing `wp_ai_client_prompt` to lock in correct gate + model-pinning behavior.
+
+### Files
+
+- `inc/ai-bootstrap.php` — added `using_model_preference('claude-sonnet-4-6')` to the builder chain in `snt_ai_generate_with_constraints` + filter hook
+- `inc/health-checks.php` — line 405 comment direction fixed
+- `.github/workflows/deploy.yml` — CF purge step now `continue-on-error: true` with diagnostic remediation messages
+- `signal-and-noise-tools.php` — version bump 3.7.1 → 3.7.2
+
 ## [3.7.1] - 2026-05-21
 
 ### Fixed — AI gate `method_exists()` guard always returned false

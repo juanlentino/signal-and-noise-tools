@@ -125,8 +125,34 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 
 	$max_tokens = max( 1, min( 4096, (int) $max_tokens ) );
 
+	/**
+	 * Pinned model preference for ALL SN AI text generation.
+	 *
+	 * Why pin rather than let the AI Client pick:
+	 * - The Anthropic provider plugin defaults to the most-capable available
+	 *   model (currently `claude-opus-4-7`), which is ~5x the cost of Sonnet.
+	 * - The v3.6.0 Insights plan budgeted ~$0.01/scan based on Sonnet pricing.
+	 *   Unpinned, Opus 4.7 was being used → ~$0.10/scan in production (verified
+	 *   via AI Request Logs 2026-05-21: single Insights call was 4.9K tokens
+	 *   at claude-opus-4-7 = ~$0.10).
+	 * - Pinning by string model ID (per usingModelPreference signature) lets
+	 *   the call still route through any provider that exposes the same model
+	 *   ID, so the pin is portable across provider changes.
+	 *
+	 * Filter `snt_ai_model_preference` lets callers override per-feature if
+	 * the quality differential ever justifies Opus for a specific surface.
+	 *
+	 * Per php-ai-client/src/Builders/PromptBuilder.php (line 288):
+	 * `usingModelPreference(...$preferredModels)` — accepts string IDs,
+	 * ModelInterface instances, or [providerId, modelId] tuples.
+	 *
+	 * @since 3.7.2
+	 */
+	$model_preference = apply_filters( 'snt_ai_model_preference', 'claude-sonnet-4-6', $prompt, $system_instruction );
+
 	try {
 		$result = wp_ai_client_prompt( (string) $prompt )
+			->using_model_preference( (string) $model_preference )
 			->using_system_instruction( (string) $system_instruction )
 			->using_max_tokens( $max_tokens )
 			->generate_text();

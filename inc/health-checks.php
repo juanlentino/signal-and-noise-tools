@@ -402,9 +402,9 @@ function sn_health_check_stale_posts() {
  * @return array<string> regex patterns (Perl-compatible, case-insensitive enabled at call site).
  */
 function sn_health_drift_time_patterns() {
-	// KEEP IN SYNC WITH sn_health_drift_time_patterns().
-	// (Source-of-truth list; the SQL REGEXP in sn_health_check_drift_time_phrases()
-	// is a pre-filter that must mirror these patterns.)
+	// Source-of-truth list. KEEP IN SYNC WITH the SQL REGEXP in
+	// sn_health_check_drift_time_phrases() (which is a pre-filter that
+	// must mirror these patterns).
 	return array(
 		'/\bas of \d{4}\b/i',
 		'/\bthis (year|month|week)\b/i',
