@@ -36,6 +36,17 @@ define( 'SN_HEALTH_STALE_MONTHS',  12 );
 define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
 define( 'SN_HEALTH_LINK_TIMEOUT',  5 );
 
+const SNT_AI_DRIFT_SYSTEM = "You are an editor evaluating whether time-relative phrases in a post are still accurate given the post's last_modified date vs. 'now'.\n\n" .
+	"For each candidate in the input JSON, return ONLY a JSON array of objects:\n" .
+	"[{\"phrase\": \"<phrase>\", \"verdict\": \"stale\" | \"ok\" | \"unsure\", \"reason\": \"<one sentence>\"}]\n\n" .
+	"Rules:\n" .
+	"- Be conservative. Only return \"stale\" if the phrase is materially misleading given the date gap.\n" .
+	"- \"as of YYYY\" is ok if YYYY >= last_modified year; stale if the gap > 1 year and the surrounding context implies current state.\n" .
+	"- \"recently\" / \"just released\" are stale when last_modified is > 12 months ago.\n" .
+	"- \"this year\" / \"this month\" are stale when last_modified year/month doesn't match now.\n" .
+	"- \"the latest\" is unsure (cannot verify without external knowledge).\n" .
+	"- Output JSON only. No markdown, no preamble.";
+
 /**
  * Run all 4 checks and cache the combined result. Returns the array
  * regardless of cache state (callers wanting the cached version
@@ -390,6 +401,9 @@ function sn_health_check_stale_posts() {
  * @return array<string> regex patterns (Perl-compatible, case-insensitive enabled at call site).
  */
 function sn_health_drift_time_patterns() {
+	// KEEP IN SYNC WITH sn_health_drift_time_patterns().
+	// (Source-of-truth list; the SQL REGEXP in sn_health_check_drift_time_phrases()
+	// is a pre-filter that must mirror these patterns.)
 	return array(
 		'/\bas of \d{4}\b/i',
 		'/\bthis (year|month|week)\b/i',
@@ -482,12 +496,13 @@ function sn_health_check_drift_time_phrases() {
 	}
 
 	global $wpdb;
+	// KEEP IN SYNC WITH sn_health_drift_time_patterns().
 	$rows = $wpdb->get_results(
 		"SELECT ID, post_title, post_content, post_modified_gmt
 		 FROM {$wpdb->posts}
 		 WHERE post_status = 'publish'
 		   AND post_type IN ('post','page')
-		   AND post_content REGEXP '(as of [0-9]{4}|this (year|month|week)|currently|recently|just (released|launched|announced|shipped|published)|the latest|now (available|free|paid|in beta)|today|yesterday|tomorrow|last (year|month|week)|next (year|month|week))'
+		   AND post_content REGEXP '(as of [0-9]{4}|this (year|month|week)|currently|recently|just (released|launched|announced|shipped|published)|the latest|now (available|free|paid|in beta|in alpha)|today|yesterday|tomorrow|last (year|month|week)|next (year|month|week))'
 		 LIMIT 500",
 		ARRAY_A
 	);
@@ -498,6 +513,11 @@ function sn_health_check_drift_time_phrases() {
 	$findings = array();
 	foreach ( $rows as $r ) {
 		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
+		if ( count( $candidates ) > 25 ) {
+			// Cap candidates per post: max_tokens=600 budgets for ~25 verdicts;
+			// truncation mid-JSON would drop the post silently. Hard cap is safer.
+			$candidates = array_slice( $candidates, 0, 25 );
+		}
 		if ( empty( $candidates ) ) {
 			continue;  // Regex pre-filter — no AI call needed.
 		}
@@ -505,7 +525,7 @@ function sn_health_check_drift_time_phrases() {
 		// Build a compact AI prompt with candidates + post metadata.
 		$payload = array(
 			'post_id'       => (int) $r['ID'],
-			'last_modified' => (string) $r['post_modified_gmt'],
+			'last_modified' => substr( (string) $r['post_modified_gmt'], 0, 10 ),
 			'now'           => gmdate( 'Y-m-d' ),
 			'candidates'    => array_map( function( $c ) {
 				return array(
@@ -515,18 +535,15 @@ function sn_health_check_drift_time_phrases() {
 			}, $candidates ),
 		);
 		$prompt = wp_json_encode( $payload );
-		$system = "You are an editor evaluating whether time-relative phrases in a post are still accurate given the post's last_modified date vs. 'now'.\n\nFor each candidate in the input JSON, return ONLY a JSON array of objects:\n[{\"phrase\": \"<phrase>\", \"verdict\": \"stale\" | \"ok\" | \"unsure\", \"reason\": \"<one sentence>\"}]\n\nRules:\n- Be conservative. Only return \"stale\" if the phrase is materially misleading given the date gap.\n- \"as of YYYY\" is ok if YYYY >= last_modified year; stale if the gap > 1 year and the surrounding context implies current state.\n- \"recently\" / \"just released\" are stale when last_modified is > 12 months ago.\n- \"this year\" / \"this month\" are stale when last_modified year/month doesn't match now.\n- \"the latest\" is unsure (cannot verify without external knowledge).\n- Output JSON only. No markdown, no preamble.";
+		if ( false === $prompt ) { continue; }
 
-		$raw = snt_ai_generate_with_constraints( $prompt, $system, 600 );
+		$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600 );
 		if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
 			continue;  // Soft fail — skip this post.
 		}
 
-		// Strip optional markdown fences.
-		$text = trim( $raw );
-		if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
-			$text = trim( $m[1] );
-		}
+		// Strip optional markdown fences (opener and/or closer, independently).
+		$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( $raw ) ) );
 		$verdicts = json_decode( $text, true );
 		if ( ! is_array( $verdicts ) ) {
 			continue;  // Malformed — skip this post.

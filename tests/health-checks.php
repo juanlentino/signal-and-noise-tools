@@ -319,5 +319,23 @@ hc_true( false !== strpos( $f['edit_url'], 'post=8' ),    'edit_url contains pos
 hc_true( false !== strpos( $f['subject_url'], '?p=8' ),   'subject_url uses get_permalink stub' );
 hc_eq( 'Old', $f['subject_label'], 'subject_label is post title' );
 
+// ─── Test: drift_time_phrases — markdown-fenced AI response unwraps ───
+echo "\nTest drift_time_phrases: markdown-fenced AI response is unwrapped\n";
+$GLOBALS['__test_ai_response'] = "```json\n[{\"phrase\":\"as of 2024\",\"verdict\":\"stale\",\"reason\":\"Old snapshot.\"}]\n```";
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 9, 'post_title' => 'Fenced', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'As of 2024 things changed.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 500 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 1, $check['count'], 'markdown-fenced JSON gets stripped and parsed' );
+
+// ─── Test: drift_time_phrases — partial fence (no closing) still parses ─
+echo "\nTest drift_time_phrases: partial fence still parses\n";
+$GLOBALS['__test_ai_response'] = "```json\n[{\"phrase\":\"recently\",\"verdict\":\"stale\",\"reason\":\"Old.\"}]";
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 10, 'post_title' => 'Partial', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'We recently shipped.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 500 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 1, $check['count'], 'partial fence (no closer) still strips and parses' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
