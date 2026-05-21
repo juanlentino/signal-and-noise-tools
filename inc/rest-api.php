@@ -187,6 +187,24 @@ add_action( 'rest_api_init', function() {
 			),
 		),
 	) );
+
+	register_rest_route( SN_REST_NAMESPACE, '/insights/run', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'sn_rest_can_manage',
+		'callback'            => 'snt_rest_insights_run',
+		'args'                => array(
+			'force' => array(
+				'type'    => 'boolean',
+				'default' => false,
+			),
+		),
+	) );
+
+	register_rest_route( SN_REST_NAMESPACE, '/insights/last', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'sn_rest_can_manage',
+		'callback'            => 'snt_rest_insights_last',
+	) );
 } );
 
 // ── Callbacks ────────────────────────────────────────────────────────
@@ -398,4 +416,43 @@ function snt_rest_cron_history( WP_REST_Request $request ) {
 		'limit'   => $limit,
 		'history' => snt_cron_history_for_hook( $hook, $limit ),
 	) );
+}
+
+/**
+ * POST /insights/run — trigger a synthesis scan (cached 7d unless force=true).
+ * @since plugin v3.6.0
+ */
+function snt_rest_insights_run( WP_REST_Request $request ) {
+	if ( ! function_exists( 'snt_insights_run_scan' ) ) {
+		return new WP_Error(
+			'snt_insights_unavailable',
+			'Insights module not loaded.',
+			array( 'status' => 500 )
+		);
+	}
+	$force  = (bool) $request->get_param( 'force' );
+	$result = snt_insights_run_scan( $force );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return rest_ensure_response( $result );
+}
+
+/**
+ * GET /insights/last — read the cached scan, or {scanned_at: null} if none.
+ * @since plugin v3.6.0
+ */
+function snt_rest_insights_last( WP_REST_Request $request ) {
+	if ( ! function_exists( 'snt_insights_last_scan' ) ) {
+		return new WP_Error(
+			'snt_insights_unavailable',
+			'Insights module not loaded.',
+			array( 'status' => 500 )
+		);
+	}
+	$last = snt_insights_last_scan();
+	if ( null === $last ) {
+		return rest_ensure_response( array( 'scanned_at' => null, 'recommendations' => array() ) );
+	}
+	return rest_ensure_response( $last );
 }
