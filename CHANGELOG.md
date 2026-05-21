@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.0] - 2026-05-21
+
+### Added — Health tab: time-relative drift detection (5th check)
+
+New 5th check on the v3.5.0 Health tab named `drift_time_phrases`. Detects time-relative phrases ("as of 2024", "recently", "just released", "this year", "the latest", etc.) that decay deterministically as posts age. The second of two net-new AI-native features designed in the 2026-05-20 brainstorm session (after v3.6.0's Insights tab). Genuinely net-new — the existing `ai/ai` plugin v1.0.0 + roadmap have no semantic content drift detection; v3.5.0's Health tab is purely rule-based.
+
+#### Hybrid algorithm (regex + AI)
+
+The cost-control trick is the two-stage hybrid:
+
+1. **Stage 1 — regex pre-filter (free).** SQL `REGEXP` clause + PHP-side `preg_match_all` against 9 patterns covering common time-relative idioms. Posts with zero candidate phrases skip AI entirely.
+2. **Stage 2 — AI evaluation (only on candidates).** For each post with candidates, single AI call passes the post's `last_modified` date + the candidates with ~200-char context snippets + the current date. The model returns per-candidate verdicts (`stale` / `ok` / `unsure`). Only `stale` verdicts surface as Health-tab findings.
+
+Per-scan cost estimate at 10 candidate posts: ~$0.01–$0.02. Annual ceiling at weekly use: under $1. Candidate count is capped at 25 per post to keep responses within the 600-token budget — guards against silent post-drops from mid-JSON truncation.
+
+#### Detection only in v1
+
+Findings follow the existing Health-tab finding shape: per-post `subject_label` + `subject_url` + `edit_url` + `note`. The `note` field carries the offending phrase + the AI's one-sentence reason. Users click "Edit" to deep-link to the editor and fix manually.
+
+AI-suggested replacement text (e.g., "Suggested: 'as of 2026'") is deferred to a future v3.7.x feature — needs more design work on the accept/reject UX.
+
+#### Graceful degradation
+
+If the AI gate (`snt_ai_is_available()` from `inc/ai-bootstrap.php`) returns false, the check still runs but produces zero findings and updates `fix_hint` to point users at the AI plugin's Connectors + Settings pages. No fatal errors, no log spam. Soft-fail paths also handle: `wp_json_encode` returning false (skip post), AI returning `WP_Error` (skip post), malformed AI JSON (skip post), markdown-fenced JSON responses (strip fences and parse).
+
+#### Tests
+
+`tests/health-checks.php` extended with **11** new test blocks (32 → 64 assertions, +32) covering:
+- Regex match enumeration across the full pattern set
+- Empty content + no-match content both return empty arrays
+- Context snippet bounds (30 ≤ length ≤ 220 chars)
+- AI-unavailable path returns empty findings without crashing
+- Zero-candidate post skips AI entirely (call count = 0)
+- `stale` verdict surfaces as finding with phrase + reason in note
+- `ok` verdict produces no finding
+- Malformed AI JSON degrades silently (no fatal, just skips the post)
+- Finding shape matches existing Health checks (`subject_id`, `subject_url`, `edit_url`, `subject_label`)
+- Markdown-fenced AI response is unwrapped and parsed
+- Partial-fence response (no closing fence) still parses
+
+All 6 test suites green: **441** total assertions (177 admin-tabs + 54 cron-dashboard + 24 cron-history + 46 webhooks + 64 health-checks + 76 insights).
+
+#### Why this is genuinely net-new
+
+`ai/ai` v1.0.0 ships Editorial Notes (block-by-block review for grammar / SEO / readability / a11y) but doesn't analyze semantic drift over time. v3.5.0's Health tab is rule-based — counts missing alts, finds orphaned media, etc., but can't tell whether "recently" is still accurate. This check fills that exact gap.
+
+### Files
+
+- `inc/health-checks.php` — `sn_health_drift_time_patterns()` + `sn_health_extract_time_phrase_candidates()` + `sn_health_check_drift_time_phrases()` + `sn_health_run_scan()` registers the 5th check + `SNT_AI_DRIFT_SYSTEM` constant
+- `tests/health-checks.php` — 11 new test blocks (+32 assertions; 32 → 64)
+- `signal-and-noise-tools.php` — version bump
+
 ## [3.6.1] - 2026-05-20
 
 ### Fixed — Insights tab "AI client not available" link pointed nowhere
