@@ -65,6 +65,7 @@ function sn_admin_pages() {
 		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
 		array( 'slug' => 'sn-cron',          'tab' => 'cron',         'label' => 'Cron',          'title' => 'Signal & Noise — Cron',          'subtitle' => 'Scheduled jobs — next run, recurrence, last fired, manual trigger.' ),
 		array( 'slug' => 'sn-webhooks',      'tab' => 'webhooks',     'label' => 'Webhooks',      'title' => 'Signal & Noise — Webhooks',      'subtitle' => 'Personal automation — fire HMAC-signed POSTs to your own endpoints when posts publish.' ),
+		array( 'slug' => 'sn-insights',      'tab' => 'insights',     'label' => 'Insights',      'title' => 'Signal & Noise — Insights',      'subtitle' => 'AI-synthesized recommendations from your analytics, publish history, and automation patterns.' ),
 		array( 'slug' => 'sn-health',        'tab' => 'health',       'label' => 'Health',        'title' => 'Signal & Noise — Content Health','subtitle' => 'Detection scans — missing alt text, orphaned media, broken internal links, stale posts.' ),
 		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links',         'subtitle' => 'External shortcuts — GitHub repos, release pages, Cloudflare, Cloudways.' ),
 	);
@@ -347,6 +348,32 @@ function sn_handle_admin_post() {
 			sn_webhook_delete( $id );
 		}
 		$flash = 'wh_deleted';
+	} elseif ( 'insights_run' === $action ) {
+		if ( function_exists( 'snt_insights_run_scan' ) ) {
+			$force  = ! empty( $_POST['force'] );
+			$result = snt_insights_run_scan( $force );
+			$flash  = is_wp_error( $result ) ? 'insights_failed' : 'insights_scanned';
+		} else {
+			$flash = 'insights_failed';
+		}
+	} elseif ( 'insights_dismiss' === $action ) {
+		if ( function_exists( 'snt_insights_dismiss' ) ) {
+			$id = isset( $_POST['rec_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rec_id'] ) ) : '';
+			snt_insights_dismiss( $id );
+		}
+		$flash = 'insights_dismissed';
+	} elseif ( 'insights_snooze' === $action ) {
+		if ( function_exists( 'snt_insights_snooze' ) ) {
+			$id = isset( $_POST['rec_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rec_id'] ) ) : '';
+			snt_insights_snooze( $id );
+		}
+		$flash = 'insights_snoozed';
+	} elseif ( 'insights_mark_done' === $action ) {
+		if ( function_exists( 'snt_insights_mark_done' ) ) {
+			$id = isset( $_POST['rec_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rec_id'] ) ) : '';
+			snt_insights_mark_done( $id );
+		}
+		$flash = 'insights_done';
 	} else {
 		return;
 	}
@@ -460,6 +487,16 @@ function sn_theme_options_page() {
 			$notices[] = array( 'error', 'Could not add webhook — name and valid URL are required.' );
 		} elseif ( 'wh_not_found' === $flash ) {
 			$notices[] = array( 'error', 'Webhook not found.' );
+		} elseif ( 'insights_scanned' === $flash ) {
+			$notices[] = array( 'success', 'Insights scan complete — recommendations below.' );
+		} elseif ( 'insights_failed' === $flash ) {
+			$notices[] = array( 'error', 'Insights scan failed. Check that an AI provider is configured under Settings → Connectors.' );
+		} elseif ( 'insights_dismissed' === $flash ) {
+			$notices[] = array( 'success', 'Recommendation dismissed.' );
+		} elseif ( 'insights_snoozed' === $flash ) {
+			$notices[] = array( 'success', 'Recommendation snoozed for 30 days.' );
+		} elseif ( 'insights_done' === $flash ) {
+			$notices[] = array( 'success', 'Recommendation marked as done.' );
 		} elseif ( 'health_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
 		}
@@ -585,6 +622,14 @@ function sn_theme_options_page() {
 
 		/** Module-owned UI: see inc/webhooks-admin.php. */
 		do_action( 'sn_admin_webhooks_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: INSIGHTS
+	// ════════════════════════════════════════
+	} elseif ( 'insights' === $active_tab ) {
+
+		/** Module-owned UI: see inc/insights-admin.php. */
+		do_action( 'sn_admin_insights_tab' );
 
 	// ════════════════════════════════════════
 	// TAB: HEALTH
