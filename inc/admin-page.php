@@ -64,6 +64,7 @@ function sn_admin_pages() {
 		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS',           'subtitle' => 'RSS subscriber tracking (delivered by the rss-plausible-tracker MU plugin).' ),
 		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
 		array( 'slug' => 'sn-cron',          'tab' => 'cron',         'label' => 'Cron',          'title' => 'Signal & Noise — Cron',          'subtitle' => 'Scheduled jobs — next run, recurrence, last fired, manual trigger.' ),
+		array( 'slug' => 'sn-webhooks',      'tab' => 'webhooks',     'label' => 'Webhooks',      'title' => 'Signal & Noise — Webhooks',      'subtitle' => 'Personal automation — fire HMAC-signed POSTs to your own endpoints when posts publish.' ),
 		array( 'slug' => 'sn-links',         'tab' => 'links',        'label' => 'Links',         'title' => 'Signal & Noise — Links',         'subtitle' => 'External shortcuts — GitHub repos, release pages, Cloudflare, Cloudways.' ),
 	);
 }
@@ -406,6 +407,18 @@ function sn_theme_options_page() {
 		} elseif ( 0 === strpos( $flash, 'reset_' ) ) {
 			$count     = (int) substr( $flash, strlen( 'reset_' ) );
 			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
+		} elseif ( 'wh_added' === $flash ) {
+			$notices[] = array( 'success', 'Webhook added. Copy the signing secret below — it will not be shown again.' );
+		} elseif ( 'wh_updated' === $flash ) {
+			$notices[] = array( 'success', 'Webhook updated.' );
+		} elseif ( 'wh_rotated' === $flash ) {
+			$notices[] = array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong> — copy the new value below before navigating away.' );
+		} elseif ( 'wh_deleted' === $flash ) {
+			$notices[] = array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' );
+		} elseif ( 'wh_invalid' === $flash ) {
+			$notices[] = array( 'error', 'Could not add webhook — name and valid URL are required.' );
+		} elseif ( 'wh_not_found' === $flash ) {
+			$notices[] = array( 'error', 'Webhook not found.' );
 		}
 	}
 
@@ -510,6 +523,14 @@ function sn_theme_options_page() {
 
 		/** Module-owned UI: see inc/cron-dashboard-admin.php. */
 		do_action( 'sn_admin_cron_tab' );
+
+	// ════════════════════════════════════════
+	// TAB: WEBHOOKS
+	// ════════════════════════════════════════
+	} elseif ( 'webhooks' === $active_tab ) {
+
+		/** Module-owned UI: see inc/webhooks-admin.php. */
+		do_action( 'sn_admin_webhooks_tab' );
 
 	// ════════════════════════════════════════
 	// TAB: LINKS

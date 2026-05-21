@@ -2,6 +2,73 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.4.0] - 2026-05-20
+
+### Added — Personal automation webhooks
+
+POST HMAC-SHA256-signed JSON payloads to user-configured endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) when a post or page is published. Async dispatch via WP-Cron — the publish request never blocks on slow receivers. Three retries with 5-minute backoff on transient failure.
+
+Note: v3.3.0 was skipped — Action Scheduler integration was triaged out because no plugin on juanlentino.com bundles it (no WooCommerce, no large AS-using plugin). The version sequence is intentional, not a slip.
+
+#### What got built
+
+- **New module `inc/webhooks.php`** (~270 LOC) — owns CRUD over the webhook config store, HMAC signing, payload construction, async dispatch + retry, per-webhook delivery log
+- **New module `inc/webhooks-admin.php`** (~170 LOC) — admin tab UI (CRUD form + delivery log details disclosure + payload reference)
+- **9th admin tab** registered in `sn_admin_pages()` — the v3.0.2 SSOT refactor meant adding this was a one-line edit (entry registers itself with valid_tabs + tab_labels + dispatch case derived; only the tab body dispatcher case in `sn_theme_options_page()` needed to be added explicitly)
+
+#### Trigger semantics
+
+`transition_post_status` with the canonical `($new === 'publish' && $old !== 'publish')` guard. This is more reliable than `publish_post` alone — the latter fires on metadata updates of already-published posts, which would spam receivers on every quick-edit.
+
+Allowed post types default to `array( 'post', 'page' )` and are filterable via the `sn_webhook_post_types` filter. Attachments, revisions, nav-menu-items, and other internal types are skipped without needing per-type exclusions.
+
+#### Signing
+
+Every delivery carries `X-SN-Signature: sha256=<HMAC_SHA256(secret, raw_body)>`. Standard pattern — matches GitHub, Stripe, Square. Receivers MUST verify before trusting the payload (the payload reference panel in the admin UI documents the expected header set + verification pattern).
+
+Secrets are 48 chars of `[A-Za-z0-9]` from `wp_generate_password` (~288 bits of entropy). Shown ONCE on create + on explicit rotation; not retrievable from the admin UI thereafter (the secret column shows only a `xxxx…xxxx` preview). Rotation is a single checkbox on the update form — the old secret stops working immediately.
+
+#### Async + retry
+
+The `transition_post_status` handler doesn't open any HTTP connections. It calls `wp_schedule_single_event` with the dispatch hook name + (webhook_id, post_id, attempt=1, delivery_id). The cron worker `sn_webhook_dispatch` is the only thing in the module that POSTs.
+
+Retry policy:
+- HTTP 2xx → success, no retry
+- HTTP 5xx OR network error → retry +5min, attempt+1, max 3
+- HTTP 4xx → receiver-side rejection, no retry (don't spam a receiver that's saying "go away")
+
+Each attempt records a row to the per-webhook delivery log (capped at 20 entries, stored in `sn_webhook_log_<id>` with `autoload=false`). The admin UI surfaces the log as a `<details>`-disclosure below each webhook card with fired-at, attempt #, HTTP code, success ✓/✕, and a truncated response excerpt.
+
+#### Storage
+
+- `sn_webhooks` (autoload=true): array of `{ id, name, url, secret, enabled, created_at }`
+- `sn_webhook_log_<id>` (autoload=false): array of `{ delivery_id, attempt, fired_at, response_code, response_excerpt, success }`, capped at 20
+
+No custom table for v1. Log volume is bounded (20 entries × N webhooks), so even with the autoload=false flag the storage is trivial. Promotion to a custom table is a v3.5+ consideration if usage scales.
+
+#### Tests
+
+New `tests/webhooks.php` — 46 assertions across 10 tests:
+- HMAC signature shape, determinism, and sensitivity (validates against an independent `hash_hmac` call)
+- CRUD round-trip with validation rejections for empty name / invalid URL
+- Update path with optional secret rotation
+- Delete path, including log purge + unknown-id WP_Error
+- Log cap at 20 entries (oldest fall off, newest retained)
+- Payload shape including post.published event + post fields + draft/missing rejection
+- `transition_post_status` enqueue logic (enabled-only)
+- Guard: publish→publish, publish→draft, publish→trash all skip
+- Post-type allowlist: attachments don't trigger
+
+All 4 test suites still green: **273 total assertions** (149 admin-tabs + 54 cron-dashboard + 24 cron-history + 46 webhooks).
+
+### Files
+
+- `inc/webhooks.php` — new (~270 LOC)
+- `inc/webhooks-admin.php` — new (~170 LOC)
+- `inc/admin-page.php` — Webhooks entry in `sn_admin_pages()` + dispatch case + 6 wh_* flash messages
+- `signal-and-noise-tools.php` — 2 new requires + version bump
+- `tests/webhooks.php` — new (46 assertions)
+
 ## [3.2.0] - 2026-05-20
 
 ### Added — Cron Dashboard: persistent firing history log
