@@ -67,6 +67,46 @@ function wp_remote_retrieve_response_code( $resp ) {
 class WP_Error { public $code; public $message; public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; } public function get_error_message() { return $this->message; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
+// AI client stubs — tests inject responses + availability via globals.
+if ( ! function_exists( 'snt_ai_is_available' ) ) {
+	function snt_ai_is_available() {
+		return ! empty( $GLOBALS['__test_ai_available'] );
+	}
+}
+if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
+	function snt_ai_generate_with_constraints( $prompt, $system, $max_tokens = 256 ) {
+		if ( ! isset( $GLOBALS['__test_ai_call_count'] ) ) {
+			$GLOBALS['__test_ai_call_count'] = 0;
+		}
+		$GLOBALS['__test_ai_call_count']++;
+		$GLOBALS['__test_ai_last_prompt'] = $prompt;
+		$GLOBALS['__test_ai_last_system'] = $system;
+		if ( isset( $GLOBALS['__test_ai_response'] ) ) {
+			return $GLOBALS['__test_ai_response'];
+		}
+		return new WP_Error( 'snt_ai_unavailable', 'no fixture' );
+	}
+}
+
+// Minimal $wpdb stub — drift-detection tests load rows into ->rows and
+// get_results() returns them verbatim. The SQL string is ignored: the
+// real filter under test is the PHP regex extractor.
+if ( ! defined( 'OBJECT' ) )  { define( 'OBJECT', 'OBJECT' ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+if ( ! isset( $GLOBALS['wpdb'] ) ) {
+	$GLOBALS['wpdb'] = new class {
+		public $posts = 'wp_posts';
+		public $rows  = array();
+		public function get_results( $sql, $output_mode = 'OBJECT' ) {
+			return $this->rows;
+		}
+	};
+}
+
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $v ) { return json_encode( $v ); }
+}
+
 require_once __DIR__ . '/../inc/health-checks.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -212,6 +252,72 @@ hc_true( count( $candidates ) >= 1, 'one phrase found' );
 $snippet = $candidates[0]['context_snippet'];
 hc_true( false !== stripos( $snippet, 'as of 2024' ), 'context includes the phrase' );
 hc_true( strlen( $snippet ) <= 220 && strlen( $snippet ) >= 30, 'context is bounded (~200 chars)' );
+
+// ─── Test: drift_time_phrases — no AI available skips entirely ───────
+echo "\nTest drift_time_phrases: AI unavailable returns empty\n";
+$GLOBALS['__test_ai_available'] = false;
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 0, $check['count'], 'no findings when AI unavailable' );
+hc_eq( 'Time-relative drift', $check['label'], 'label set' );
+
+// ─── Test: drift_time_phrases — no candidate phrases skips AI ────────
+echo "\nTest drift_time_phrases: zero-candidate post skips AI call\n";
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_call_count'] = 0;
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'Evergreen post', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'Evergreen content with no time-relative language at all.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 0, $check['count'], 'no findings for post without candidates' );
+hc_eq( 0, $GLOBALS['__test_ai_call_count'], 'AI was NOT called (regex pre-filter eliminated post)' );
+
+// ─── Test: drift_time_phrases — stale verdict surfaces as finding ────
+echo "\nTest drift_time_phrases: stale verdict creates finding\n";
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_response'] = '[{"phrase":"as of 2024","verdict":"stale","reason":"Year is 2026; the post claims 2024-current state."}]';
+$GLOBALS['__test_ai_call_count'] = 0;
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 5, 'post_title' => 'Dated post', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'As of 2024 the docs say X. Now things may differ.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 365 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 1, $check['count'], 'one stale finding' );
+hc_eq( 1, $GLOBALS['__test_ai_call_count'], 'AI was called exactly once' );
+$f = $check['findings'][0];
+hc_eq( 5, $f['subject_id'], 'finding refers to post id 5' );
+hc_eq( 'post', $f['subject_type'], 'subject_type = post' );
+hc_true( false !== strpos( $f['note'], 'as of 2024' ),   'note quotes the phrase' );
+hc_true( false !== strpos( $f['note'], 'Year is 2026' ), 'note includes AI reason' );
+
+// ─── Test: drift_time_phrases — "ok" verdict does NOT create finding
+echo "\nTest drift_time_phrases: ok verdict yields no finding\n";
+$GLOBALS['__test_ai_response'] = '[{"phrase":"as of 2024","verdict":"ok","reason":"Post was last modified in 2024; phrase reflects accurate snapshot."}]';
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 6, 'post_title' => 'Snapshot post', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'As of 2024 the docs say X.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 0, $check['count'], 'no findings — AI said ok' );
+
+// ─── Test: drift_time_phrases — malformed AI JSON returns empty for that post
+echo "\nTest drift_time_phrases: malformed AI response degrades gracefully\n";
+$GLOBALS['__test_ai_response'] = 'not even json';
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 7, 'post_title' => 'P', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'As of 2024', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 0, $check['count'], 'malformed AI → silently drops the post (no finding, no fatal)' );
+
+// ─── Test: drift_time_phrases — per-finding edit_url + subject_url
+echo "\nTest drift_time_phrases: finding shape matches existing health checks\n";
+$GLOBALS['__test_ai_response'] = '[{"phrase":"recently","verdict":"stale","reason":"Old post — \'recently\' refers to events from 2023."}]';
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 8, 'post_title' => 'Old', 'post_status' => 'publish', 'post_type' => 'post', 'post_content' => 'We recently launched.', 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 500 * DAY_IN_SECONDS ) ),
+);
+$check = sn_health_check_drift_time_phrases();
+hc_eq( 1, $check['count'], 'one finding' );
+$f = $check['findings'][0];
+hc_true( false !== strpos( $f['edit_url'], 'post=8' ),    'edit_url contains post id' );
+hc_true( false !== strpos( $f['subject_url'], '?p=8' ),   'subject_url uses get_permalink stub' );
+hc_eq( 'Old', $f['subject_label'], 'subject_label is post title' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -457,6 +457,103 @@ function sn_health_extract_time_phrase_candidates( $content ) {
 }
 
 /**
+ * Health check #5: time-relative drift detection.
+ *
+ * Hybrid algorithm: regex pre-filter eliminates posts with no candidate
+ * phrases (free, fast); then a single AI call per remaining post evaluates
+ * each candidate in context and returns a verdict (stale / ok / unsure).
+ * Only "stale" verdicts become Health-tab findings.
+ *
+ * Detection only in v1 — findings deep-link to the editor. AI-suggested
+ * replacement text is a future v3.7.x feature.
+ *
+ * Gracefully degrades when AI is unavailable (returns empty findings,
+ * doesn't crash the scan).
+ *
+ * @since 3.7.0
+ * @return array { count, findings, label, fix_hint }
+ */
+function sn_health_check_drift_time_phrases() {
+	$label    = 'Time-relative drift';
+	$fix_hint = 'Open each post and replace dated phrasing with absolute references (years, dates) or remove time-relative language entirely.';
+
+	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+		return sn_health_pack_check( $label, array(), 'AI provider not configured — skipping drift detection. Configure Settings → Connectors + Settings → AI to enable.' );
+	}
+
+	global $wpdb;
+	$rows = $wpdb->get_results(
+		"SELECT ID, post_title, post_content, post_modified_gmt
+		 FROM {$wpdb->posts}
+		 WHERE post_status = 'publish'
+		   AND post_type IN ('post','page')
+		   AND post_content REGEXP '(as of [0-9]{4}|this (year|month|week)|currently|recently|just (released|launched|announced|shipped|published)|the latest|now (available|free|paid|in beta)|today|yesterday|tomorrow|last (year|month|week)|next (year|month|week))'
+		 LIMIT 500",
+		ARRAY_A
+	);
+	if ( ! is_array( $rows ) ) {
+		return sn_health_pack_check( $label, array(), $fix_hint );
+	}
+
+	$findings = array();
+	foreach ( $rows as $r ) {
+		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
+		if ( empty( $candidates ) ) {
+			continue;  // Regex pre-filter — no AI call needed.
+		}
+
+		// Build a compact AI prompt with candidates + post metadata.
+		$payload = array(
+			'post_id'       => (int) $r['ID'],
+			'last_modified' => (string) $r['post_modified_gmt'],
+			'now'           => gmdate( 'Y-m-d' ),
+			'candidates'    => array_map( function( $c ) {
+				return array(
+					'phrase'  => $c['phrase'],
+					'context' => $c['context_snippet'],
+				);
+			}, $candidates ),
+		);
+		$prompt = wp_json_encode( $payload );
+		$system = "You are an editor evaluating whether time-relative phrases in a post are still accurate given the post's last_modified date vs. 'now'.\n\nFor each candidate in the input JSON, return ONLY a JSON array of objects:\n[{\"phrase\": \"<phrase>\", \"verdict\": \"stale\" | \"ok\" | \"unsure\", \"reason\": \"<one sentence>\"}]\n\nRules:\n- Be conservative. Only return \"stale\" if the phrase is materially misleading given the date gap.\n- \"as of YYYY\" is ok if YYYY >= last_modified year; stale if the gap > 1 year and the surrounding context implies current state.\n- \"recently\" / \"just released\" are stale when last_modified is > 12 months ago.\n- \"this year\" / \"this month\" are stale when last_modified year/month doesn't match now.\n- \"the latest\" is unsure (cannot verify without external knowledge).\n- Output JSON only. No markdown, no preamble.";
+
+		$raw = snt_ai_generate_with_constraints( $prompt, $system, 600 );
+		if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
+			continue;  // Soft fail — skip this post.
+		}
+
+		// Strip optional markdown fences.
+		$text = trim( $raw );
+		if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
+			$text = trim( $m[1] );
+		}
+		$verdicts = json_decode( $text, true );
+		if ( ! is_array( $verdicts ) ) {
+			continue;  // Malformed — skip this post.
+		}
+
+		foreach ( $verdicts as $v ) {
+			if ( ! is_array( $v ) ) { continue; }
+			if ( ( $v['verdict'] ?? '' ) !== 'stale' ) { continue; }
+			$phrase = isset( $v['phrase'] ) ? (string) $v['phrase'] : '';
+			$reason = isset( $v['reason'] ) ? (string) $v['reason'] : '';
+			if ( '' === $phrase ) { continue; }
+
+			$findings[] = array(
+				'subject_type'  => 'post',
+				'subject_id'    => (int) $r['ID'],
+				'subject_url'   => get_permalink( (int) $r['ID'] ),
+				'subject_label' => (string) $r['post_title'],
+				'edit_url'      => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
+				'note'          => sprintf( '"%s" — %s', $phrase, $reason ),
+			);
+		}
+	}
+
+	return sn_health_pack_check( $label, $findings, $fix_hint );
+}
+
+/**
  * Common per-check result envelope used by 2-4.
  */
 function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
