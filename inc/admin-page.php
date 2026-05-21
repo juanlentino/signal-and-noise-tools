@@ -374,6 +374,26 @@ function sn_handle_admin_post() {
 			snt_insights_mark_done( $id );
 		}
 		$flash = 'insights_done';
+	} elseif ( 'save_insights_settings' === $action ) {
+		$settings = (array) get_option( 'sn_settings', array() );
+		if ( ! isset( $settings['insights'] ) || ! is_array( $settings['insights'] ) ) {
+			$settings['insights'] = array();
+		}
+		$was_enabled = ! empty( $settings['insights']['weekly_cron_enabled'] );
+		$settings['insights']['weekly_cron_enabled'] = ! empty( $_POST['insights_weekly_cron'] );
+		update_option( 'sn_settings', $settings );
+
+		// Sync the cron schedule with the new setting.
+		if ( $settings['insights']['weekly_cron_enabled'] ) {
+			if ( function_exists( 'snt_insights_maybe_schedule_weekly_cron' ) ) {
+				snt_insights_maybe_schedule_weekly_cron();
+			}
+		} else {
+			if ( function_exists( 'snt_insights_unschedule_weekly_cron' ) ) {
+				snt_insights_unschedule_weekly_cron();
+			}
+		}
+		$flash = 'insights_settings_saved';
 	} else {
 		return;
 	}
@@ -497,6 +517,8 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Recommendation snoozed for 30 days.' );
 		} elseif ( 'insights_done' === $flash ) {
 			$notices[] = array( 'success', 'Recommendation marked as done.' );
+		} elseif ( 'insights_settings_saved' === $flash ) {
+			$notices[] = array( 'success', 'Insights settings saved.' );
 		} elseif ( 'health_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
 		}

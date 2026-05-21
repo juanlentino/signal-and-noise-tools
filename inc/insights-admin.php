@@ -83,18 +83,96 @@ function snt_insights_render_admin_tab() {
 }
 
 /**
- * Renders the recommendations cards section. Stub for Task 12.
+ * Renders the recommendations cards section.
  */
 function snt_insights_render_recommendations_section( $last ) {
 	if ( ! $last || empty( $last['recommendations'] ) ) {
 		return;
 	}
-	// Filled in Task 12.
+
+	$state = snt_insights_state_read();
+	$active = snt_insights_filter_active( $last['recommendations'] );
+
+	if ( empty( $active ) ) {
+		echo '<div class="sn-fieldset">';
+		echo '<h2 class="sn-fieldset-h">No active recommendations</h2>';
+		echo '<p class="sn-fieldset-intro">All recommendations from the last scan are either dismissed or snoozed. Run a fresh scan to get new ones.</p>';
+		echo '</div>';
+		return;
+	}
+
+	$type_labels = array(
+		'write_about'        => 'Write About',
+		'update_post'        => 'Update Post',
+		'cadence_change'     => 'Cadence',
+		'topic_double_down'  => 'Double Down',
+		'topic_pivot'        => 'Pivot',
+	);
+	$done_ids_flip = array_flip( $state['done_ids'] );
+
+	foreach ( $active as $rec ) {
+		$id = (string) $rec['id'];
+		$is_done = isset( $done_ids_flip[ $id ] );
+		$type_label = isset( $type_labels[ $rec['type'] ] ) ? $type_labels[ $rec['type'] ] : $rec['type'];
+
+		echo '<div class="sn-fieldset"' . ( $is_done ? ' style="opacity:0.55;"' : '' ) . '>';
+		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;">';
+		echo esc_html( $rec['title'] );
+		echo ' <span class="sn-pill sn-pill--ok">' . esc_html( $type_label ) . '</span>';
+		if ( $is_done ) {
+			echo ' <span class="sn-pill" style="background:#e0e0e0;color:#555;">done</span>';
+		}
+		echo '</h2>';
+
+		echo '<p class="sn-fieldset-intro">' . esc_html( $rec['rationale'] ) . '</p>';
+
+		// Evidence pills.
+		if ( ! empty( $rec['evidence_pills'] ) ) {
+			echo '<p>';
+			foreach ( (array) $rec['evidence_pills'] as $pill ) {
+				echo '<span class="sn-pill sn-pill--ok" style="margin-right:0.5rem;">' . esc_html( $pill ) . '</span>';
+			}
+			echo '</p>';
+		}
+
+		// Target link.
+		if ( ! empty( $rec['target']['post_id'] ) ) {
+			$edit_url = admin_url( 'post.php?post=' . (int) $rec['target']['post_id'] . '&action=edit' );
+			echo '<p><a href="' . esc_url( $edit_url ) . '" class="button button-small">Open target post →</a></p>';
+		}
+
+		// Action buttons (form per card to share the nonce + carry rec_id).
+		echo '<form method="post" class="sn-fieldset-actions" style="display:inline-block;">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
+		if ( ! $is_done ) {
+			echo '<button type="submit" name="sn_action" value="insights_mark_done" class="button button-small">Mark done</button> ';
+		}
+		echo '<button type="submit" name="sn_action" value="insights_snooze" class="button button-small">Snooze 30d</button> ';
+		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" onclick="return confirm(\'Dismiss this recommendation? It won\\\'t appear again.\')">Dismiss</button>';
+		echo '</form>';
+
+		echo '</div>';
+	}
 }
 
 /**
- * Renders the weekly-cron settings section. Stub for Task 12.
+ * Renders the weekly-cron settings section.
  */
 function snt_insights_render_settings_section() {
-	// Filled in Task 12.
+	$enabled = function_exists( 'snt_insights_weekly_cron_enabled' ) ? snt_insights_weekly_cron_enabled() : false;
+
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-insights' ) ) . '">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Settings</h2>';
+	echo '<p class="sn-fieldset-intro">A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.</p>';
+	echo '<div class="sn-field">';
+	echo '<label><input type="checkbox" name="insights_weekly_cron" value="1"' . checked( $enabled, true, false ) . '> Run a weekly scan automatically</label>';
+	echo '</div>';
+	echo '<div class="sn-fieldset-actions">';
+	echo '<button type="submit" name="sn_action" value="save_insights_settings" class="button button-primary">Save settings</button>';
+	echo '</div>';
+	echo '</div>';
+	echo '</form>';
 }
