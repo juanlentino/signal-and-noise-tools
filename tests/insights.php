@@ -166,6 +166,22 @@ if ( ! function_exists( 'sn_webhook_log_read' ) ) {
 		return isset( $GLOBALS['__test_webhook_logs'][ $id ] ) ? $GLOBALS['__test_webhook_logs'][ $id ] : array();
 	}
 }
+if ( ! function_exists( 'snt_ai_is_available' ) ) {
+	function snt_ai_is_available() {
+		return ! empty( $GLOBALS['__test_ai_available'] );
+	}
+}
+if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
+	function snt_ai_generate_with_constraints( $prompt, $system, $max_tokens = 256 ) {
+		$GLOBALS['__test_ai_last_prompt'] = $prompt;
+		$GLOBALS['__test_ai_last_system'] = $system;
+		$GLOBALS['__test_ai_last_max']    = $max_tokens;
+		if ( isset( $GLOBALS['__test_ai_response'] ) ) {
+			return $GLOBALS['__test_ai_response'];
+		}
+		return new WP_Error( 'snt_ai_unavailable', 'no fixture' );
+	}
+}
 
 require_once __DIR__ . '/../inc/insights.php';
 
@@ -312,6 +328,27 @@ ins_true( isset( $signals['cron_freshness']['sn_plausible_refresh_dashboard'] ),
 $cron = $signals['cron_freshness']['sn_plausible_refresh_dashboard'];
 ins_eq( 4, $cron['last_fired_ago_minutes'], '240s ≈ 4min' );
 ins_eq( 288, $cron['last_24h_count'], '288 fires/24h echoed' );
+
+// ─── Test 8: AI call passes signals as JSON + correct system prompt ──
+echo "\nTest 8: snt_insights_call_ai builds correct prompt\n";
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_response']  = '[]';
+$signals = array( 'site' => array( 'name' => 'Test' ), 'posts' => array() );
+$result = snt_insights_call_ai( $signals );
+$prompt = $GLOBALS['__test_ai_last_prompt'];
+$system = $GLOBALS['__test_ai_last_system'];
+ins_true( false !== strpos( $prompt, '"name":"Test"' ), 'signals JSON-encoded into prompt' );
+ins_true( false !== strpos( $system, 'content strategist' ), 'system mentions strategist' );
+ins_true( false !== strpos( $system, 'exactly 5 recommendations' ), 'system asks for 5 recs' );
+ins_true( false !== strpos( $system, 'write_about' ), 'system enumerates types' );
+ins_eq( 1500, $GLOBALS['__test_ai_last_max'], 'max_tokens = 1500' );
+
+// ─── Test 9: AI call returns WP_Error when not available ─────────────
+echo "\nTest 9: AI unavailable returns WP_Error\n";
+$GLOBALS['__test_ai_available'] = false;
+$result = snt_insights_call_ai( array( 'site' => array() ) );
+ins_true( $result instanceof WP_Error, 'returns WP_Error when AI unavailable' );
+ins_eq( 'snt_insights_ai_unavailable', $result->code, 'error code' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -210,3 +210,58 @@ function snt_insights_collect_signals() {
 
 	return $out;
 }
+
+/**
+ * Build the AI prompt + system instruction and call the AI client.
+ *
+ * @param array $signals Output of snt_insights_collect_signals().
+ * @return string|WP_Error Raw AI response text, or WP_Error on failure.
+ */
+function snt_insights_call_ai( $signals ) {
+	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+		return new WP_Error(
+			'snt_insights_ai_unavailable',
+			'AI client not available. Configure a provider in Settings → Connectors.',
+			array( 'status' => 503 )
+		);
+	}
+
+	$system = snt_insights_system_instruction();
+	$prompt = wp_json_encode( $signals );
+	if ( ! is_string( $prompt ) ) {
+		return new WP_Error( 'snt_insights_encode_failed', 'Failed to encode signals as JSON.' );
+	}
+
+	return snt_ai_generate_with_constraints( $prompt, $system, 1500 );
+}
+
+/**
+ * System instruction for the content opportunity advisor.
+ * Centralized so the prompt can be tweaked in one place.
+ */
+function snt_insights_system_instruction() {
+	return <<<INSTRUCTIONS
+You are a content strategist analyzing a personal site's data. You will receive a JSON blob with: site identity, 7-day Plausible analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals.
+
+Return ONLY a JSON array of exactly 5 recommendations. Each must be an object:
+
+{
+  "id": "rec_<short-stable-slug>",
+  "type": "write_about" | "update_post" | "cadence_change" | "topic_double_down" | "topic_pivot",
+  "title": "<concise headline; max 80 chars>",
+  "rationale": "<2-3 sentence explanation citing specific numbers from the data>",
+  "evidence_pills": ["<short fact 1>", "<short fact 2>"],
+  "target": null
+}
+
+When the recommendation refers to a specific existing post, set target to {"post_id": <int>, "url": "<string>"}. Otherwise target is null.
+
+Rules:
+- Cite specific numbers (view counts, days, percentages). No vague claims.
+- Prioritize recommendations the site owner can act on this week.
+- Mix recommendation types — don't return 5 of the same type.
+- No marketing fluff, no exclamation marks.
+- The "id" field should be deterministic from type + title (slugified, max 32 chars).
+- Output JSON only. No preamble, no markdown fences.
+INSTRUCTIONS;
+}
