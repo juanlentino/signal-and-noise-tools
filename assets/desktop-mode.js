@@ -191,4 +191,22 @@
 		}
 	} );
 
+	// Insights (v3.6.0) — aiCallable, read-only summary toast + navigate.
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-insights',
+		aiCallable: true,
+		run: function() {
+			var summary = data.insightsSummary || {};
+			if ( summary.active_count !== undefined ) {
+				toast(
+					summary.active_count + ' active recommendation' +
+					( summary.active_count === 1 ? '' : 's' ) +
+					' from your last Insights scan.',
+					'info'
+				);
+			}
+			navigate( pages.insights );
+		}
+	} );
+
 } )();
