@@ -143,6 +143,7 @@ require_once SNT_PATH . 'inc/cron-history.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 require_once SNT_PATH . 'inc/webhooks.php';
 require_once SNT_PATH . 'inc/webhooks-admin.php';
+require_once SNT_PATH . 'inc/insights.php';
 require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 
