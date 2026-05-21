@@ -2,6 +2,74 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.1] - 2026-05-21
+
+### Fixed — AI gate `method_exists()` guard always returned false
+
+Critical one-line bug in `inc/ai-bootstrap.php`'s `snt_ai_can_text_generate()` that has been silently disabling ALL SN AI features since v2.5.0 (introduced 2026-05-17).
+
+#### What was broken
+
+The gate guarded against "older wp-ai-client backport without the feature-detection method" using:
+
+```php
+if ( ! method_exists( $builder, 'is_supported_for_text_generation' ) ) {
+    return false;
+}
+```
+
+But the WP AI Client's `Prompt_Builder` class dispatches snake_case methods through PHP's `__call` magic method (so it can translate WordPress-convention `is_supported_for_text_generation` to the underlying PHP AI Client's `isSupportedForTextGeneration`). PHP's `method_exists()` does NOT detect magic-method-routed methods — only `is_callable()` does. So this guard always returned false on every install, regardless of whether the AI Client was configured, regardless of which connector was set up, regardless of Connector Approval state.
+
+Verified against [wp-ai-client trunk source](https://github.com/WordPress/wp-ai-client/blob/trunk/includes/Builders/Prompt_Builder.php): the parent class declares only `__construct`, `using_abilities`, and `__call`. Every other snake_case API method (`using_temperature`, `using_max_tokens`, `is_supported_for_text_generation`, `generate_text`, etc.) is `__call`-routed magic dispatch, documented via `@method` PHPDoc annotations rather than actual declarations.
+
+#### Impact
+
+Six months of SN AI features have been silently no-op'ing in production:
+- Insights tab + Content Opportunity Advisor (v3.6.0)
+- Drift detection (v3.7.0)
+- AI Meta Description generator
+- AI Excerpt generator
+- AI OG card title generator
+- AI alt-text helper
+
+In every case, `snt_ai_is_available()` returned false → features rendered "AI client not available" warnings → no AI calls fired from SN → SN's calls never appeared in the AI plugin's AI Request Logs. The Anthropic connector works fine; the AI plugin's own features call Anthropic successfully. The bug was entirely SN-side.
+
+#### Fix
+
+Removed the `method_exists()` guard entirely. The existing try/catch (which catches `\Throwable`) already handles the "method doesn't exist" case — PHP throws `BadMethodCallException` if `__call` is missing, the catch returns false. The guard's intent (fail safe when the method isn't present) is preserved; the broken `method_exists` mechanism is gone.
+
+```php
+function snt_ai_can_text_generate() {
+    if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+        return false;
+    }
+    try {
+        $builder = wp_ai_client_prompt( 'check' );
+        if ( ! is_object( $builder ) ) {
+            return false;
+        }
+        return (bool) $builder->is_supported_for_text_generation();
+    } catch ( \Throwable $e ) {
+        return false;
+    }
+}
+```
+
+#### How this was diagnosed
+
+User reported AI gate returning false despite Anthropic being connected and SN being approved in the Connector Approval matrix. After four messages of incorrect hypothesis-driven guessing (model selection, cache, Connector Approval, parsing differences) — all wrong — user redirected: *"You'd read the documentation on this before doing anything."* Reading the wp-ai-client trunk source for `Prompt_Builder.php` revealed the `__call`-based dispatch; a 5-line PHP one-liner confirmed `method_exists` returns false for `__call`-routed methods while `is_callable` returns true. Root cause confirmed from upstream source in ~5 minutes.
+
+The discipline lesson is captured in the memory file [`feedback_read_framework_source.md`](../../.claude/projects/-Users-juanlentino-Projects-signal-and-noise/memory/feedback_read_framework_source.md): when integrating with any upstream primitive, read the actual source first; don't reason from dev notes or summaries.
+
+### Files
+
+- `inc/ai-bootstrap.php` — removed lines 75–77 (the wrong guard); added `@since v3.7.1` docblock entry citing wp-ai-client trunk source
+- `signal-and-noise-tools.php` — version bump 3.7.0 → 3.7.1
+
+### Tests
+
+No new tests added. Existing test suites (6 suites, 441 total assertions) pass unchanged because they mock `snt_ai_is_available()` and don't exercise the actual gate function. A future v3.7.x candidate is a small integration test that stubs `wp_ai_client_prompt` and confirms the gate returns true when the stubbed builder's `is_supported_for_text_generation()` returns true.
+
 ## [3.7.0] - 2026-05-21
 
 ### Added — Health tab: time-relative drift detection (5th check)

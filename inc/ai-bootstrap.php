@@ -59,6 +59,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since v2.5.0 — replaces wp_has_ai_client() gate that returned true even
  * when no provider was configured (causing AI buttons to render then 503).
+ * @since v3.7.1 — removed `method_exists()` guard that always returned false.
+ * Prompt_Builder dispatches snake_case methods via `__call` magic, which
+ * `method_exists()` cannot detect (only `is_callable()` can). The try/catch
+ * already handles a missing method (BadMethodCallException → return false),
+ * so the guard's only effect was to unconditionally disable ALL SN AI
+ * features since v2.5.0. Verified against wp-ai-client trunk:
+ *   https://github.com/WordPress/wp-ai-client/blob/trunk/includes/Builders/Prompt_Builder.php
  *
  * @return bool
  */
@@ -71,9 +78,6 @@ function snt_ai_can_text_generate() {
 		$builder = wp_ai_client_prompt( 'check' );
 		if ( ! is_object( $builder ) ) {
 			return false;
-		}
-		if ( ! method_exists( $builder, 'is_supported_for_text_generation' ) ) {
-			return false; // Older wp-ai-client backport without the feature-detection method.
 		}
 		return (bool) $builder->is_supported_for_text_generation();
 	} catch ( \Throwable $e ) {
