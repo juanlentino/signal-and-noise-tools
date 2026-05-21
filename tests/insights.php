@@ -182,6 +182,14 @@ if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 		return new WP_Error( 'snt_ai_unavailable', 'no fixture' );
 	}
 }
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) {
+		if ( ! empty( $GLOBALS['__test_posts_exist'][ $id ] ) ) {
+			return (object) array( 'ID' => $id, 'post_status' => 'publish' );
+		}
+		return null;
+	}
+}
 
 require_once __DIR__ . '/../inc/insights.php';
 
@@ -349,6 +357,76 @@ $GLOBALS['__test_ai_available'] = false;
 $result = snt_insights_call_ai( array( 'site' => array() ) );
 ins_true( $result instanceof WP_Error, 'returns WP_Error when AI unavailable' );
 ins_eq( 'snt_insights_ai_unavailable', $result->code, 'error code' );
+
+// ─── Test 10: parse valid response (5 recs) ──────────────────────────
+echo "\nTest 10: parse_response — happy path\n";
+$valid_json = '[
+  {"id":"rec_write_synths","type":"write_about","title":"Write about modular synths","rationale":"Your /notes/ posts on modular synths average 4x traffic; you haven\'t published one in 6 months.","evidence_pills":["+340% views","6mo since last"],"target":null},
+  {"id":"rec_update_old","type":"update_post","title":"Update post about ableton","rationale":"This post has 500 views/wk but was last modified 14 months ago.","evidence_pills":["500 views/wk","14mo old"],"target":{"post_id":1,"url":"https://x/"}},
+  {"id":"rec_cadence","type":"cadence_change","title":"Try publishing Tuesdays","rationale":"Posts published on Tuesdays outperform Fridays 3:1.","evidence_pills":["3:1 ratio"],"target":null},
+  {"id":"rec_dd","type":"topic_double_down","title":"More tutorials","rationale":"Tutorial-tagged posts get 2x the traffic of essays.","evidence_pills":["2x traffic"],"target":null},
+  {"id":"rec_pivot","type":"topic_pivot","title":"Skip jazz takes","rationale":"Jazz posts get 1/5 the average traffic.","evidence_pills":["20% of average"],"target":null}
+]';
+$GLOBALS['__test_posts_exist'] = array( 1 => true );
+$recs = snt_insights_parse_response( $valid_json );
+ins_true( is_array( $recs ), 'returns array' );
+ins_eq( 5, count( $recs ), '5 recs parsed' );
+ins_eq( 'write_about', $recs[0]['type'], 'first rec type' );
+
+// ─── Test 11: markdown code fence stripping ──────────────────────────
+echo "\nTest 11: parse_response strips markdown fences\n";
+$fenced = "```json\n" . $valid_json . "\n```";
+$recs = snt_insights_parse_response( $fenced );
+ins_true( is_array( $recs ), 'returns array (fences stripped)' );
+ins_eq( 5, count( $recs ), '5 recs after fence strip' );
+
+// ─── Test 12: drops invalid entries (missing keys, bad type) ─────────
+echo "\nTest 12: parse_response drops invalid entries\n";
+$mixed = '[
+  {"id":"rec_a","type":"write_about","title":"Valid 1","rationale":"r1","evidence_pills":[],"target":null},
+  {"type":"write_about","title":"Missing id"},
+  {"id":"rec_b","type":"bogus_type","title":"Bad type","rationale":"r","evidence_pills":[],"target":null},
+  {"id":"rec_c","type":"update_post","title":"Valid 2","rationale":"r2","evidence_pills":[],"target":null},
+  {"id":"rec_d","type":"cadence_change","title":"Valid 3","rationale":"r3","evidence_pills":[],"target":null}
+]';
+$recs = snt_insights_parse_response( $mixed );
+ins_true( is_array( $recs ), 'returns array' );
+ins_eq( 3, count( $recs ), 'only 3 valid (2 invalid dropped)' );
+
+// ─── Test 13: fewer than 3 valid → WP_Error ──────────────────────────
+echo "\nTest 13: parse_response returns WP_Error when < 3 valid\n";
+$too_few = '[
+  {"id":"rec_x","type":"write_about","title":"Only valid","rationale":"r","evidence_pills":[],"target":null},
+  {"missing":"keys"},
+  {"id":"y","type":"bogus","title":"t","rationale":"r","evidence_pills":[],"target":null}
+]';
+$res = snt_insights_parse_response( $too_few );
+ins_true( $res instanceof WP_Error, 'returns WP_Error' );
+ins_eq( 'snt_insights_too_few_valid', $res->code, 'error code' );
+
+// ─── Test 14: target.post_id must reference real post ────────────────
+echo "\nTest 14: parse_response validates target.post_id\n";
+$with_bad_target = '[
+  {"id":"a","type":"update_post","title":"v1","rationale":"r","evidence_pills":[],"target":{"post_id":1,"url":"u"}},
+  {"id":"b","type":"update_post","title":"v2","rationale":"r","evidence_pills":[],"target":{"post_id":999999,"url":"u"}},
+  {"id":"c","type":"update_post","title":"v3","rationale":"r","evidence_pills":[],"target":null},
+  {"id":"d","type":"update_post","title":"v4","rationale":"r","evidence_pills":[],"target":null}
+]';
+$GLOBALS['__test_posts_exist'] = array( 1 => true );
+$recs = snt_insights_parse_response( $with_bad_target );
+ins_eq( 3, count( $recs ), 'invalid target dropped (post 999999 unknown)' );
+
+// ─── Test 15: title length cap (80 chars) ────────────────────────────
+echo "\nTest 15: parse_response rejects titles > 80 chars\n";
+$long_title = str_repeat( 'x', 90 );
+$with_long = '[
+  {"id":"a","type":"write_about","title":"' . $long_title . '","rationale":"r","evidence_pills":[],"target":null},
+  {"id":"b","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null},
+  {"id":"c","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null},
+  {"id":"d","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null}
+]';
+$recs = snt_insights_parse_response( $with_long );
+ins_eq( 3, count( $recs ), 'long title rejected' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

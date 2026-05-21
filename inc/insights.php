@@ -265,3 +265,79 @@ Rules:
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
 }
+
+/**
+ * Parse + validate raw AI response into an array of recommendations.
+ *
+ * Strips optional markdown code fences (defensive — model sometimes
+ * wraps JSON in ```json … ``` despite the system instruction).
+ *
+ * @param string $raw Raw text returned by the AI.
+ * @return array|WP_Error Array of validated recommendations OR WP_Error
+ *                        if fewer than SN_INSIGHTS_MIN_VALID_RECS remain.
+ */
+function snt_insights_parse_response( $raw ) {
+	$text = trim( (string) $raw );
+
+	// Strip ```json … ``` or ``` … ``` fences if present.
+	if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
+		$text = trim( $m[1] );
+	}
+
+	$decoded = json_decode( $text, true );
+	if ( ! is_array( $decoded ) ) {
+		return new WP_Error(
+			'snt_insights_invalid_json',
+			'AI response was not valid JSON.',
+			array( 'raw' => substr( $text, 0, 500 ) )
+		);
+	}
+
+	$allowed_types = array( 'write_about', 'update_post', 'cadence_change', 'topic_double_down', 'topic_pivot' );
+
+	$valid = array();
+	foreach ( $decoded as $entry ) {
+		if ( ! is_array( $entry ) ) { continue; }
+		// Required keys.
+		foreach ( array( 'id', 'type', 'title', 'rationale', 'evidence_pills' ) as $key ) {
+			if ( ! array_key_exists( $key, $entry ) ) { continue 2; }
+		}
+		if ( ! in_array( $entry['type'], $allowed_types, true ) ) { continue; }
+		if ( ! is_string( $entry['title'] ) || strlen( $entry['title'] ) === 0 || strlen( $entry['title'] ) > 80 ) { continue; }
+		if ( ! is_string( $entry['rationale'] ) || strlen( $entry['rationale'] ) === 0 ) { continue; }
+		if ( ! is_array( $entry['evidence_pills'] ) ) { continue; }
+
+		// Validate target if present.
+		$target = null;
+		if ( array_key_exists( 'target', $entry ) && is_array( $entry['target'] ) ) {
+			$pid = isset( $entry['target']['post_id'] ) ? (int) $entry['target']['post_id'] : 0;
+			if ( $pid > 0 ) {
+				$post = get_post( $pid );
+				if ( ! $post ) { continue; }  // drop — references non-existent post
+				$target = array(
+					'post_id' => $pid,
+					'url'     => isset( $entry['target']['url'] ) ? (string) $entry['target']['url'] : '',
+				);
+			}
+		}
+
+		$valid[] = array(
+			'id'             => (string) $entry['id'],
+			'type'           => (string) $entry['type'],
+			'title'          => (string) $entry['title'],
+			'rationale'      => (string) $entry['rationale'],
+			'evidence_pills' => array_values( array_map( 'strval', $entry['evidence_pills'] ) ),
+			'target'         => $target,
+		);
+	}
+
+	if ( count( $valid ) < SN_INSIGHTS_MIN_VALID_RECS ) {
+		return new WP_Error(
+			'snt_insights_too_few_valid',
+			sprintf( 'Only %d valid recommendations parsed (need at least %d).', count( $valid ), SN_INSIGHTS_MIN_VALID_RECS ),
+			array( 'parsed_count' => count( $valid ) )
+		);
+	}
+
+	return $valid;
+}
