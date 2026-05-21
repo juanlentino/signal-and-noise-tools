@@ -690,6 +690,84 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	wp_register_ability( 'signal-noise/run-insights-scan', array(
+		'label'               => 'Run Insights Synthesis Scan',
+		'description'         => 'Triggers a cross-system synthesis scan that combines Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable content recommendations. Cached for 7 days. Pass force=true to bypass the cache.',
+		'category'            => 'diagnostics',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => 'snt_ability_run_insights_scan',
+		'input_schema'        => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(
+				'force' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'If true, bypass the 7-day cache and run a fresh AI call.',
+				),
+			),
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'scanned_at'      => array( 'type' => 'integer' ),
+				'elapsed_ms'      => array( 'type' => 'integer' ),
+				'recommendations' => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'             => array( 'type' => 'string' ),
+							'type'           => array( 'type' => 'string', 'enum' => array( 'write_about', 'update_post', 'cadence_change', 'topic_double_down', 'topic_pivot' ) ),
+							'title'          => array( 'type' => 'string' ),
+							'rationale'      => array( 'type' => 'string' ),
+							'evidence_pills' => array( 'type' => 'array' ),
+							'target'         => array( 'type' => array( 'object', 'null' ) ),
+						),
+					),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/get-insights', array(
+		'label'               => 'Get Last Insights Scan',
+		'description'         => 'Returns the cached result of the last synthesis scan (recommendations array + metadata). Returns null when no scan has run yet.',
+		'category'            => 'diagnostics',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+		'execute_callback'    => 'snt_ability_get_insights',
+		'input_schema'        => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(),
+		),
+		'output_schema'       => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(
+				'scanned_at'      => array( 'type' => array( 'integer', 'null' ) ),
+				'elapsed_ms'      => array( 'type' => array( 'integer', 'null' ) ),
+				'recommendations' => array( 'type' => 'array' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'        => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/unschedule-cron-event', array(
 		'label'               => 'Unschedule cron event',
 		'description'         => 'Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. SN-owned hooks (Plausible refresh, RSS prune) are refused with a clear error. The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.',
@@ -843,4 +921,29 @@ function snt_ability_get_cron_history( $input ) {
 	$hook  = isset( $input['hook'] ) ? (string) $input['hook'] : '';
 	$limit = isset( $input['limit'] ) ? (int) $input['limit'] : 10;
 	return snt_cron_history_for_hook( $hook, $limit );
+}
+
+/**
+ * Ability execute callback: signal-noise/run-insights-scan.
+ * Thin wrapper around snt_insights_run_scan().
+ * @since 3.6.0
+ */
+function snt_ability_run_insights_scan( $input ) {
+	if ( ! function_exists( 'snt_insights_run_scan' ) ) {
+		return new WP_Error( 'snt_insights_unavailable', 'Insights module not loaded.', array( 'status' => 500 ) );
+	}
+	$force = is_array( $input ) && ! empty( $input['force'] );
+	return snt_insights_run_scan( $force );
+}
+
+/**
+ * Ability execute callback: signal-noise/get-insights.
+ * Thin wrapper around snt_insights_last_scan().
+ * @since 3.6.0
+ */
+function snt_ability_get_insights( $input ) {
+	if ( ! function_exists( 'snt_insights_last_scan' ) ) {
+		return new WP_Error( 'snt_insights_unavailable', 'Insights module not loaded.', array( 'status' => 500 ) );
+	}
+	return snt_insights_last_scan();
 }
