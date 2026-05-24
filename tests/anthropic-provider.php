@@ -226,5 +226,218 @@ ap_eq( array( 'answer' => 'forty-two' ), $schema_input, 'extracts synthetic-tool
 $schema_input_other = snt_anthropic_extract_schema_tool_use( $content, 'other_name' );
 ap_eq( null, $schema_input_other, 'returns null when schema tool name not found' );
 
+// ─── Provider callback tests (Task 4) ───────────────────────────────────
+require_once __DIR__ . '/../inc/ai-copilot/anthropic-provider.php';
+
+// Filter stub — declared first so the add_filter() call below works.
+if ( ! function_exists( 'add_filter' ) ) {
+	$GLOBALS['__test_filters'] = array();
+	function add_filter( $tag, $cb, $priority = 10, $args = 1 ) {
+		$GLOBALS['__test_filters'][ $tag ][] = $cb;
+		return true;
+	}
+}
+// API key stub — provider tests should NOT depend on wp-ai-client being loaded.
+// We mock the resolver to return a fixed value or controlled errors.
+// Note: the existing apply_filters() stub (top of file) returns $value unchanged,
+// so the registered filter callback below is never actually invoked by the provider.
+// The provider's resolver gets '' back, then falls through to the wp-ai-client check
+// (which doesn't exist in tests), returns WP_Error, which fails the is_string guard,
+// and the test-passed 'sk-test' key is preserved. That's the documented test behavior
+// per the plan (Task 4 Step 4 notes lines 1224-1226).
+$GLOBALS['__test_resolved_key'] = 'sk-ant-test-fixture';
+add_filter( 'snt_anthropic_resolved_api_key', function( $key ) {
+	return $GLOBALS['__test_resolved_key'] ?? $key;
+} );
+
+echo "\nTest P1: make_turn_input — user_message\n";
+$ti = snt_anthropic_make_turn_input( 'user_message', 'Hello, world!' );
+ap_eq( 1, count( $ti ), 'one message produced' );
+ap_eq( 'user', $ti[0]['role'], 'role is user' );
+ap_eq( 'Hello, world!', $ti[0]['content'], 'content is the input string' );
+
+echo "\nTest P2: make_turn_input — tool_results\n";
+$ti = snt_anthropic_make_turn_input( 'tool_results', array(
+	array( 'call_id' => 'toolu_01', 'output' => '{"theme_version":"9.1.1"}' ),
+	array( 'call_id' => 'toolu_02', 'output' => '{"error":"not found"}' ),
+) );
+ap_eq( 1, count( $ti ), 'one user message produced (with multiple tool_result blocks)' );
+ap_eq( 'user', $ti[0]['role'], 'role is user' );
+ap_eq( 2, count( $ti[0]['content'] ), 'two tool_result blocks' );
+ap_eq( 'tool_result', $ti[0]['content'][0]['type'], 'first block type is tool_result' );
+ap_eq( 'toolu_01', $ti[0]['content'][0]['tool_use_id'], 'tool_use_id matches call_id' );
+
+echo "\nTest P3: agentic_call — happy path (end_turn, text response)\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'id'           => 'msg_01',
+			'stop_reason'  => 'end_turn',
+			'content'      => array(
+				array( 'type' => 'text', 'text' => 'The theme version is 9.1.1.' ),
+			),
+		) ),
+	),
+);
+$result = snt_anthropic_agentic_call(
+	'sk-test',
+	array( array( 'role' => 'user', 'content' => 'What is the theme version?' ) ),
+	array(), // no tools
+	null,    // no text_format
+	'You are a helpful assistant.',
+	null     // no state
+);
+ap_true( is_array( $result ), 'returns array on success' );
+ap_eq( 'The theme version is 9.1.1.', $result['text'], 'extracts text from end_turn response' );
+ap_eq( array(), $result['function_calls'], 'no function_calls on end_turn' );
+ap_true( is_array( $result['next_state'] ), 'next_state is array' );
+ap_true( isset( $result['next_state']['messages'] ), 'next_state has messages key' );
+
+echo "\nTest P4: agentic_call — tool_use stop reason\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'id'           => 'msg_02',
+			'stop_reason'  => 'tool_use',
+			'content'      => array(
+				array( 'type' => 'text', 'text' => 'Let me check.' ),
+				array(
+					'type'  => 'tool_use',
+					'id'    => 'toolu_xyz',
+					'name'  => 'sn_get_theme_version',
+					'input' => (object) array(),
+				),
+			),
+		) ),
+	),
+);
+$result = snt_anthropic_agentic_call(
+	'sk-test',
+	array( array( 'role' => 'user', 'content' => 'theme version?' ) ),
+	array(
+		array( 'type' => 'function', 'name' => 'sn_get_theme_version', 'description' => 'Get version', 'parameters' => array( 'type' => 'object', 'properties' => (object) array() ) ),
+	),
+	null,
+	'',
+	null
+);
+ap_eq( null, $result['text'], 'text is null on tool_use' );
+ap_eq( 1, count( $result['function_calls'] ), 'one function_call extracted' );
+ap_eq( 'sn_get_theme_version', $result['function_calls'][0]['name'], 'function_call name' );
+ap_eq( 'toolu_xyz', $result['function_calls'][0]['call_id'], 'function_call call_id' );
+ap_true( is_string( $result['function_calls'][0]['arguments'] ), 'arguments is a JSON string' );
+
+echo "\nTest P5: agentic_call — request body shape\n";
+$last_call = end( $GLOBALS['__test_http_calls'] );
+$body = json_decode( $last_call['args']['body'], true );
+ap_eq( 'claude-sonnet-4-6', $body['model'], 'model defaults to claude-sonnet-4-6' );
+ap_true( isset( $body['system'] ) || empty( $body['system'] ), 'system field present (may be empty)' );
+ap_true( is_array( $body['messages'] ), 'messages is array' );
+ap_eq( 1, count( $body['tools'] ), 'one tool sent' );
+ap_eq( 'sn_get_theme_version', $body['tools'][0]['name'], 'tool translated correctly' );
+ap_true( isset( $body['tools'][0]['input_schema'] ), 'tool has input_schema (not parameters)' );
+
+echo "\nTest P6: agentic_call — state threading\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'stop_reason' => 'end_turn',
+			'content'     => array( array( 'type' => 'text', 'text' => 'second turn' ) ),
+		) ),
+	),
+);
+$prior_state = array( 'messages' => array(
+	array( 'role' => 'user', 'content' => 'first question' ),
+	array( 'role' => 'assistant', 'content' => array( array( 'type' => 'text', 'text' => 'first answer' ) ) ),
+) );
+$result = snt_anthropic_agentic_call(
+	'sk-test',
+	array( array( 'role' => 'user', 'content' => 'follow-up' ) ),
+	array(),
+	null,
+	'',
+	$prior_state
+);
+$last_call = end( $GLOBALS['__test_http_calls'] );
+$body = json_decode( $last_call['args']['body'], true );
+ap_eq( 3, count( $body['messages'] ), 'sends prior 2 messages + this turn\'s 1' );
+ap_eq( 'first question', $body['messages'][0]['content'], 'first prior message preserved' );
+ap_eq( 'follow-up', $body['messages'][2]['content'], 'new message appended' );
+ap_eq( 4, count( $result['next_state']['messages'] ), 'next_state includes this turn\'s assistant reply' );
+
+echo "\nTest P7: agentic_call — max_tokens stop_reason returns WP_Error\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'stop_reason' => 'max_tokens',
+			'content'     => array( array( 'type' => 'text', 'text' => 'partial...' ) ),
+		) ),
+	),
+);
+$result = snt_anthropic_agentic_call( 'sk-test', array( array( 'role' => 'user', 'content' => 'x' ) ), array(), null, '', null );
+ap_true( is_wp_error( $result ), 'returns WP_Error on max_tokens' );
+ap_eq( 'anthropic_max_tokens', $result->get_error_code(), 'max_tokens error code' );
+
+echo "\nTest P8: structured_request — happy path\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'stop_reason' => 'end_turn',
+			'content'     => array(
+				array(
+					'type'  => 'tool_use',
+					'id'    => 'toolu_final',
+					'name'  => 'answer_schema',
+					'input' => array( 'answer' => 'forty-two', 'confidence' => 0.9 ),
+				),
+			),
+		) ),
+	),
+);
+$result = snt_anthropic_structured_request(
+	'sk-test',
+	array(
+		array( 'role' => 'system', 'content' => 'Respond with the answer.' ),
+		array( 'role' => 'user', 'content' => 'What is the meaning of life?' ),
+	),
+	array(
+		'type'       => 'object',
+		'properties' => array( 'answer' => array( 'type' => 'string' ), 'confidence' => array( 'type' => 'number' ) ),
+		'required'   => array( 'answer' ),
+	),
+	'answer_schema',
+	''
+);
+ap_eq( array( 'answer' => 'forty-two', 'confidence' => 0.9 ), $result, 'structured_request decodes tool_use.input' );
+
+echo "\nTest P9: structured_request — request body shape\n";
+$last_call = end( $GLOBALS['__test_http_calls'] );
+$body = json_decode( $last_call['args']['body'], true );
+ap_eq( 'Respond with the answer.', $body['system'], 'system message split out' );
+ap_eq( 1, count( $body['messages'] ), 'only user message in messages' );
+ap_eq( 1, count( $body['tools'] ), 'synthetic tool added' );
+ap_eq( 'answer_schema', $body['tools'][0]['name'], 'synthetic tool name matches schema name' );
+ap_eq( 'tool', $body['tool_choice']['type'], 'tool_choice type is tool' );
+ap_eq( 'answer_schema', $body['tool_choice']['name'], 'tool_choice forces the synthetic tool' );
+
+echo "\nTest P10: structured_request — no tool_use in response returns WP_Error\n";
+$GLOBALS['__test_http_responses'] = array(
+	array(
+		'response' => array( 'code' => 200 ),
+		'body'     => wp_json_encode( array(
+			'stop_reason' => 'end_turn',
+			'content'     => array( array( 'type' => 'text', 'text' => 'i refuse' ) ),
+		) ),
+	),
+);
+$result = snt_anthropic_structured_request( 'sk-test', array(), array(), 'name', '' );
+ap_true( is_wp_error( $result ), 'WP_Error when no tool_use returned' );
+ap_eq( 'anthropic_no_structured_output', $result->get_error_code(), 'no-structured-output error code' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
