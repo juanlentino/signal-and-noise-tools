@@ -400,7 +400,39 @@ add_action( 'wp_abilities_api_init', function() {
 			'type'       => 'object',
 			'properties' => array(
 				'ok'   => array( 'type' => 'boolean' ),
-				'data' => array( 'type' => 'object' ),
+				'data' => array(
+					'type'        => 'object',
+					'description' => 'Stats payload from sn_rss_tracker_window_stats_multi().',
+					'properties'  => array(
+						'last_request'          => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'UTC timestamp of the most recent RSS feed request (Y-m-d H:i:s), or null if no requests recorded.',
+						),
+						'last_request_relative' => array(
+							'type'        => 'string',
+							'description' => 'Human-readable relative time (e.g. "3 hours ago"). Empty string when no last_request.',
+						),
+						'windows'               => array(
+							'type'                 => 'object',
+							'description'          => 'Per-window aggregate counts. Keys are day-counts (1, 7, 30). Each value has total request count + count of distinct ua_hash values.',
+							'additionalProperties' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'total'   => array(
+										'type'        => 'integer',
+										'description' => 'Total RSS feed requests in this window.',
+										'minimum'     => 0,
+									),
+									'uniques' => array(
+										'type'        => 'integer',
+										'description' => 'Distinct ua_hash count in this window (proxy for unique subscriber clients).',
+										'minimum'     => 0,
+									),
+								),
+							),
+						),
+					),
+				),
 			),
 		),
 		'meta'                => array(
