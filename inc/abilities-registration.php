@@ -110,14 +110,15 @@ add_action( 'wp_abilities_api_init', function() {
 			// passes null when the GET/DELETE caller omits the `?input=`
 			// query parameter (the only way to avoid the controller's
 			// missing JSON-decode step rejecting URL-encoded "{}" strings).
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
 				'include_template_overrides' => array(
 					'type'        => 'boolean',
 					'description' => 'Also clear wp_template/wp_template_part/wp_navigation DB rows. Default false — overrides are typically intentional Site Editor changes.',
 					'default'     => false,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -148,15 +149,16 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'execute_callback'    => 'snt_ability_regenerate_og_card',
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'post_id' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id' ),
+			'properties'           => array(
 				'post_id' => array(
 					'type'        => 'integer',
 					'description' => 'The WordPress post ID whose OG card should be regenerated.',
 					'minimum'     => 1,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -183,8 +185,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment — null accepted because
 			// readonly abilities (GET) receive null when caller omits ?input=.
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -225,8 +228,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment — destructive abilities
 			// (DELETE) also receive null when caller omits ?input=.
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -267,8 +271,9 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_cmd_impl_force_check();
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
-			'properties' => array(),
+			'type'                 => 'object',
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -298,8 +303,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -350,8 +356,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -393,8 +400,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -456,15 +464,16 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_ai_meta_desc_impl( (int) $input['post_id'] );
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'post_id' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id' ),
+			'properties'           => array(
 				'post_id' => array(
 					'type'        => 'integer',
 					'description' => 'The WordPress post ID to summarize.',
 					'minimum'     => 1,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -494,15 +503,16 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_ai_og_card_title_impl( (int) $input['post_id'] );
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'post_id' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id' ),
+			'properties'           => array(
 				'post_id' => array(
 					'type'        => 'integer',
 					'description' => 'The WordPress post ID.',
 					'minimum'     => 1,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -534,15 +544,16 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_ai_excerpt_impl( (int) $input['post_id'] );
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'post_id' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id' ),
+			'properties'           => array(
 				'post_id' => array(
 					'type'        => 'integer',
 					'description' => 'The WordPress post ID to summarize.',
 					'minimum'     => 1,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -578,14 +589,15 @@ add_action( 'wp_abilities_api_init', function() {
 			return snt_cron_get_events_impl( $sn_only );
 		},
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
 				'sn_only' => array(
 					'type'        => 'boolean',
 					'default'     => false,
 					'description' => 'If true, filter to the 3 SN-owned hooks only.',
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'  => 'array',
@@ -631,9 +643,9 @@ add_action( 'wp_abilities_api_init', function() {
 			);
 		},
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'hook', 'args_signature' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'hook', 'args_signature' ),
+			'properties'           => array(
 				'hook'           => array(
 					'type'        => 'string',
 					'description' => 'The cron hook name.',
@@ -645,6 +657,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'minLength'   => 1,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => array( 'object', 'null' ),
@@ -679,9 +692,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'execute_callback'    => 'snt_ability_get_cron_history',
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'hook' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'hook' ),
+			'properties'           => array(
 				'hook'  => array(
 					'type'        => 'string',
 					'description' => 'The cron hook name to look up history for.',
@@ -695,6 +708,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'default'     => 10,
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'  => 'array',
@@ -731,14 +745,15 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'execute_callback'    => 'snt_ability_run_insights_scan',
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
 				'force' => array(
 					'type'        => 'boolean',
 					'default'     => false,
 					'description' => 'If true, bypass the 7-day cache and run a fresh AI call.',
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
@@ -779,8 +794,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'execute_callback'    => 'snt_ability_get_insights',
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(),
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => array( 'object', 'null' ),
@@ -809,9 +825,9 @@ add_action( 'wp_abilities_api_init', function() {
 		},
 		'execute_callback'    => 'snt_ability_unschedule_cron_event',
 		'input_schema'        => array(
-			'type'       => 'object',
-			'required'   => array( 'hook' ),
-			'properties' => array(
+			'type'                 => 'object',
+			'required'             => array( 'hook' ),
+			'properties'           => array(
 				'hook' => array(
 					'type'        => 'string',
 					'description' => 'The cron hook name to unschedule.',
@@ -823,6 +839,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'default'     => array(),
 				),
 			),
+			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
 			'type'       => 'object',
