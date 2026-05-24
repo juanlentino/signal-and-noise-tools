@@ -145,7 +145,109 @@ function tac_true( $c, $msg ) {
 
 echo "Theme ability commands suite — plugin v3.7.4\n";
 
-// (Task 3 will append assertions here.)
+// ─── Test 1: total command count after plugin v3.7.4 ────────────────
+// Note: plan said "17 existing + 12 new = 29", but the actual pre-task
+// baseline was 16 commands in inc/desktop-mode-integration.php's $commands
+// array (4 maintenance + 7 nav + 2 version + 2 cron + 1 insights). After
+// adding 12 new theme-ability commands the total is 28, not 29.
+echo "\nTest 1: total command count\n";
+tac_eq( 28, count( $GLOBALS['__test_commands_registered'] ), '16 existing + 12 new = 28 commands' );
+
+// ─── Test 2: extract slugs ──────────────────────────────────────────
+echo "\nTest 2: new command slugs registered\n";
+$slugs = array_column( $GLOBALS['__test_commands_registered'], 'slug' );
+
+$expected_new_slugs = array(
+	'sn-cmd-get-design-tokens',
+	'sn-cmd-list-block-patterns',
+	'sn-cmd-get-template-structure',
+	'sn-cmd-theme-version',
+	'sn-cmd-page-notes-pillars',
+	'sn-cmd-reading-time',
+	'sn-cmd-design-summary',
+	'sn-cmd-ai-page-note-summary',
+	'sn-cmd-ai-suggest-pattern',
+	'sn-cmd-ai-brand-validate',
+	'sn-cmd-ai-pattern-content',
+	'sn-cmd-ai-rewrite-voice',
+);
+foreach ( $expected_new_slugs as $slug ) {
+	tac_true( in_array( $slug, $slugs, true ), "slug present: $slug" );
+}
+
+// ─── Test 3: every new command has ability + render_mode + ai_callable
+echo "\nTest 3: shape of new commands\n";
+$by_slug = array();
+foreach ( $GLOBALS['__test_commands_registered'] as $c ) {
+	$by_slug[ $c['slug'] ] = $c;
+}
+
+$expected_abilities = array(
+	'sn-cmd-get-design-tokens'        => 'signal-and-noise/get-design-tokens',
+	'sn-cmd-list-block-patterns'      => 'signal-and-noise/list-block-patterns',
+	'sn-cmd-get-template-structure'   => 'signal-and-noise/get-active-template-structure',
+	'sn-cmd-theme-version'            => 'signal-and-noise/get-theme-version',
+	'sn-cmd-page-notes-pillars'       => 'signal-and-noise/get-page-notes-pillars',
+	'sn-cmd-reading-time'             => 'signal-and-noise/get-reading-time-for-slug',
+	'sn-cmd-design-summary'           => 'signal-and-noise/get-design-system-summary',
+	'sn-cmd-ai-page-note-summary'     => 'signal-and-noise/ai-generate-page-note-summary',
+	'sn-cmd-ai-suggest-pattern'       => 'signal-and-noise/ai-suggest-block-pattern',
+	'sn-cmd-ai-brand-validate'        => 'signal-and-noise/ai-validate-brand-alignment',
+	'sn-cmd-ai-pattern-content'       => 'signal-and-noise/ai-generate-pattern-content',
+	'sn-cmd-ai-rewrite-voice'         => 'signal-and-noise/ai-rewrite-in-brand-voice',
+);
+foreach ( $expected_abilities as $slug => $ability ) {
+	tac_eq( $ability, $by_slug[ $slug ]['ability'] ?? null, "$slug → ability $ability" );
+}
+
+// ─── Test 4: render_mode distribution ──────────────────────────────────
+echo "\nTest 4: render_mode distribution\n";
+$expected_render_modes = array(
+	// result-panel: 5 commands (read abilities with no input)
+	'sn-cmd-get-design-tokens'    => 'result-panel',
+	'sn-cmd-list-block-patterns'  => 'result-panel',
+	'sn-cmd-get-template-structure' => 'result-panel',
+	'sn-cmd-theme-version'        => 'result-panel',
+	'sn-cmd-page-notes-pillars'   => 'result-panel',
+	// input-then-result: 7 commands (2 read abilities with required input + 5 generative AI calls)
+	'sn-cmd-reading-time'         => 'input-then-result',
+	'sn-cmd-design-summary'       => 'input-then-result',
+	'sn-cmd-ai-page-note-summary' => 'input-then-result',
+	'sn-cmd-ai-suggest-pattern'   => 'input-then-result',
+	'sn-cmd-ai-brand-validate'    => 'input-then-result',
+	'sn-cmd-ai-pattern-content'   => 'input-then-result',
+	'sn-cmd-ai-rewrite-voice'     => 'input-then-result',
+);
+foreach ( $expected_render_modes as $slug => $mode ) {
+	tac_eq( $mode, $by_slug[ $slug ]['render_mode'] ?? null, "$slug → render_mode $mode" );
+}
+
+// ─── Test 5: input_fields on input-then-result commands ────────────────
+echo "\nTest 5: input_fields\n";
+$expected_input_fields = array(
+	'sn-cmd-reading-time'         => array( 'slug' ),
+	'sn-cmd-design-summary'       => array( 'format' ),
+	'sn-cmd-ai-page-note-summary' => array( 'post_id', 'max_words' ),
+	'sn-cmd-ai-suggest-pattern'   => array( 'draft_content', 'topic_hint' ),
+	'sn-cmd-ai-brand-validate'    => array( 'content', 'content_type' ),
+	'sn-cmd-ai-pattern-content'   => array( 'pattern_name', 'topic', 'tone_hint' ),
+	'sn-cmd-ai-rewrite-voice'     => array( 'source_text', 'intensity' ),
+);
+foreach ( $expected_input_fields as $slug => $fields ) {
+	tac_eq( $fields, $by_slug[ $slug ]['input_fields'] ?? null, "$slug → input_fields " . implode( ',', $fields ) );
+}
+
+// ─── Test 6: ai_callable: true on all 12 new commands ──────────────────
+echo "\nTest 6: ai_callable opt-in on theme-ability commands\n";
+foreach ( $expected_new_slugs as $slug ) {
+	tac_eq( true, $by_slug[ $slug ]['ai_callable'] ?? null, "$slug → ai_callable true" );
+}
+
+// ─── Test 7: ability slugs are all in signal-and-noise/* namespace ─────
+echo "\nTest 7: ability namespace consistency\n";
+foreach ( $expected_abilities as $slug => $ability ) {
+	tac_true( 0 === strpos( $ability, 'signal-and-noise/' ), "$slug ability is in signal-and-noise/* namespace" );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
