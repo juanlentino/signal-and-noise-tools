@@ -2,6 +2,74 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.4] - 2026-05-24
+
+### Refactor — AI-readiness preparation pass + v3.8.0 cancellation cleanup
+
+Two concurrent threads in this release:
+
+1. **AI-readiness pass** for the 17 plugin ability registrations (same prep work as theme v9.1.2 — making our `wp_register_ability()` registrations great AI tools for when [WordPress/desktop-mode PR #240](https://github.com/WordPress/desktop-mode/pull/240) ships the Abilities-as-tools harvester).
+2. **v3.8.0 cancellation cleanup** — formally cancelling the planned v3.8.0 (Anthropic provider + 26 manual AI tool wrappers) after reading upstream signals.
+
+No breaking changes. All 9 test suites pass (550+ assertions, 0 failures).
+
+#### What changed — AI-readiness pass
+
+**Backfilled `get-rss-stats` output_schema with real shape** ([`f420d27`](https://github.com/juanlentino/signal-and-noise-tools/commit/f420d27))
+
+`output_schema.data` was an opaque `{type: 'object'}` with no property hints — consumers (wp-cli, REST, future AI tool harvester) had no insight into return structure. Now reflects the actual `snt_cmd_impl_rss_stats()` return shape: `last_request`, `last_request_relative`, and `windows` (per-window object keyed by day count with `total` + `uniques` integers).
+
+**`additionalProperties: false` on all 17 input schemas** ([`5850c6a`](https://github.com/juanlentino/signal-and-noise-tools/commit/5850c6a))
+
+Conventional LLM-tool-calling signal that "these are all the parameters" — without it, models may hallucinate extra fields. Matches theme abilities (all 12 already set this correctly). Non-breaking: extras were already ignored by the abilities-api input validator. Affected: all 17 plugin abilities.
+
+**Description use-case hints on 3 ambiguous abilities** ([`33c77cd`](https://github.com/juanlentino/signal-and-noise-tools/commit/33c77cd))
+
+| Ability | Hint added |
+|---|---|
+| `get-rss-stats` | "Use to verify RSS feed traffic before changing feed structure or auditing crawler activity." |
+| `list-cron-events` | "Pass `sn_only=true` to filter to the 3 SN-owned hooks (Plausible refresh, RSS prune, deploy webhook)." |
+| `get-cron-event` | "`args_signature` is the md5 hash returned by `signal-noise/list-cron-events`. Use that ability first to discover signatures." |
+
+Descriptions are LLM-facing in WP 7.0 Abilities-API harvesting; specific use-case hints help the model pick the right tool for the user's actual scenario.
+
+#### What changed — v3.8.0 cancellation cleanup
+
+**12 launcher commands stripped to display-only entries** ([`b3430cc`](https://github.com/juanlentino/signal-and-noise-tools/commit/b3430cc))
+
+The 12 ⌘K Command Palette entries previously shipped (in earlier session work) carried `ability`, `render_mode`, `input_fields`, `ai_callable` metadata fields. Reading [WordPress/desktop-mode `commands.php:145-153`](https://github.com/WordPress/desktop-mode/blob/trunk/includes/commands.php#L145) revealed that `desktop_mode_register_command()` silently strips fields outside its 6-key schema (`slug`, `label`, `description`, `icon`, `hint`, `script`). Our extras never reached the registry in production — they only "worked" in tests because the stub captured the full args. Stripped to launcher-only entries (slug/label/description/icon). The 12 ⌘K entries remain as discoverability hooks (no `run()` callback wired yet — that lands when the Agents framework ships).
+
+**v3.8.0 plan + spec annotated as CANCELLED** ([`efc9459`](https://github.com/juanlentino/signal-and-noise-tools/commit/efc9459))
+
+The planned v3.8.0 (Anthropic provider + 26 manual `desktop_mode_register_ai_tool()` wrappers) is cancelled. Reasons:
+
+1. The Anthropic provider is generic infrastructure — it contained zero Signal & Noise content. It belongs in desktop-mode or WordPress Core, not in our plugin.
+2. The 26 manual tool wrappers will be obsoleted by step 3 of PR #240's Agents framework (Abilities-as-tools bridge), which will auto-promote `wp_register_ability()` registrations into LLM-shaped tools.
+3. Desktop-mode maintainer signal ([issue #271 comment](https://github.com/WordPress/desktop-mode/issues/271)) explicitly says they're waiting for WordPress Core's AI provider abstraction to crystallize before adding more built-in providers.
+
+The v3.8.0 spec + plan documents remain in `docs/superpowers/` with `CANCELLED` headers as historical record. The Anthropic provider implementation (HTTP layer, tool format translation, 3 callbacks, 71 test assertions) is preserved in git history at commits `d3d89cc`, `92e39cc`, `a1275b2` (reverted in `efc9459`) — available for porting if maintainers later open the door.
+
+**Renamed plan namespaces for the v9.1.1 theme sync** ([`2a42937`](https://github.com/juanlentino/signal-and-noise-tools/commit/2a42937))
+
+Stale `signal-noise/*` references in the v3.7.4 plan (since cancelled) updated to `signal-and-noise/*` to match the theme's v9.1.1 namespace rename. Bug discovered during planning: `strpos($ability, 'signal-noise/')` does NOT match `signal-and-noise/...` since the strings diverge at character 7.
+
+#### Why now
+
+Reading WordPress/desktop-mode source ([`commands.php`](https://github.com/WordPress/desktop-mode/blob/trunk/includes/commands.php), [provider registry](https://github.com/WordPress/desktop-mode/blob/trunk/includes/ai-copilot/providers-registry.php), [tools registry](https://github.com/WordPress/desktop-mode/blob/trunk/includes/ai-copilot/tools-registry.php), [PR #240](https://github.com/WordPress/desktop-mode/pull/240)'s Agents framework mock, and [issue #271](https://github.com/WordPress/desktop-mode/issues/271)) made the v3.8.0 architecture obsolete before it shipped. This release captures the lessons + leaves the plugin's 17 abilities well-positioned for whichever upstream story crystallizes first.
+
+#### Files
+
+- `inc/abilities-registration.php` — schema improvements (3 commits)
+- `inc/desktop-mode-integration.php` — launcher command refactor (1 commit, from earlier session work)
+- `docs/superpowers/specs/2026-05-24-plugin-v3.8.0-anthropic-provider-design.md` — CANCELLED annotation
+- `docs/superpowers/plans/2026-05-24-plugin-v3.8.0-anthropic-provider.md` — CANCELLED annotation
+- `docs/superpowers/plans/2026-05-24-plugin-v3.7.4-ability-command-palette.md` — SUPERSEDED annotation (also cancelled)
+- `signal-and-noise-tools.php` — version bump 3.7.3 → 3.7.4 (header + `SNT_VERSION` constant)
+
+#### Patch-cap status
+
+Patch cap is 7 per minor. v3.7.4 is the 5th patch in v3.7.x. 2 patches remain before v3.8.0.
+
 ## [3.7.3] - 2026-05-21
 
 ### Security — Eliminated the deploy App Password (rotatable credential removed entirely)
