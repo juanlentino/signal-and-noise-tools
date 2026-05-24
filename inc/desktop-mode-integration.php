@@ -274,162 +274,40 @@ add_action( 'admin_enqueue_scripts', function() {
 		// Insights (v3.6.0).
 		array( 'slug' => 'sn-cmd-insights',    'label' => 'SN: Open Insights tab',       'description' => 'Navigate to the AI-powered Insights tab in wp-admin.',               'icon' => 'dashicons-lightbulb' ),
 
-		// ─── v3.7.4: Theme-ability ⌘K commands (12 total) ──────────────────
-		// All 12 dispatch via /wp-abilities/v1/abilities/signal-and-noise/<slug>/run
-		// per the v2.5.2 URL fix in assets/command-palette.js:128-132. Theme
-		// v9.1.0 owns the actual ability registrations — these PHP entries
-		// are pure data; the JS side does the dispatch.
+		// ─── Theme-ability ⌘K launcher commands (12 total) ─────────────────
+		// Pure launcher entries — slug/label/description/icon only. These
+		// surface the theme's WP 7.0 abilities in the Command Palette for
+		// discoverability. v3.8.0 wires real invocation via the
+		// desktop_mode_register_ai_tool() server-side AI tool registry +
+		// an Anthropic provider (desktop_mode_register_ai_provider()) so
+		// the AI Copilot can dispatch them with structured arguments.
 		//
-		// Note on the extra fields beyond the legacy 15-command shape:
-		//   - 'ability'      — Theme-registered ability slug to invoke.
-		//   - 'render_mode'  — 'result-panel' (no input) or 'input-then-result'
-		//                      (input form → submit → result panel).
-		//   - 'input_fields' — Ordered field names for the input form (only
-		//                      present on render_mode = 'input-then-result').
-		//   - 'ai_callable'  — Per spec §11.3, all 12 opt in for AI Copilot
-		//                      consumption. Non-destructive reads + generative
-		//                      AI calls are safe to expose to the Copilot.
-		//
-		// desktop_mode_register_command() ignores extra fields, but they
-		// flow through to wp_localize_script() so the JS side can read
-		// them. See the localize block above.
-
-		// ── Read abilities (5 result-panel + 2 input-then-result) ──
-		array(
-			'slug'         => 'sn-cmd-get-design-tokens',
-			'label'        => 'SN: Show design tokens',
-			'description'  => 'Theme palette + typography + spacing scale.',
-			'icon'         => 'dashicons-art',
-			'ability'      => 'signal-and-noise/get-design-tokens',
-			'render_mode'  => 'result-panel',
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-list-block-patterns',
-			'label'        => 'SN: List block patterns',
-			'description'  => 'All registered patterns with category + keywords.',
-			'icon'         => 'dashicons-screenoptions',
-			'ability'      => 'signal-and-noise/list-block-patterns',
-			'render_mode'  => 'result-panel',
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-get-template-structure',
-			'label'        => 'SN: Inspect active template',
-			'description'  => 'FSE block tree for the current page.',
-			'icon'         => 'dashicons-layout',
-			'ability'      => 'signal-and-noise/get-active-template-structure',
-			'render_mode'  => 'result-panel',
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-theme-version',
-			'label'        => 'SN: Theme version info',
-			'description'  => 'Theme + WP version + block-theme flags.',
-			'icon'         => 'dashicons-info-outline',
-			'ability'      => 'signal-and-noise/get-theme-version',
-			'render_mode'  => 'result-panel',
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-page-notes-pillars',
-			'label'        => 'SN: List /notes pillars',
-			'description'  => 'Pillar essay metadata for the /notes catalog.',
-			'icon'         => 'dashicons-book',
-			'ability'      => 'signal-and-noise/get-page-notes-pillars',
-			'render_mode'  => 'result-panel',
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-reading-time',
-			'label'        => 'SN: Reading time for slug',
-			'description'  => 'Computed minutes for a given post slug.',
-			'icon'         => 'dashicons-clock',
-			'ability'      => 'signal-and-noise/get-reading-time-for-slug',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'slug' ),
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-design-summary',
-			'label'        => 'SN: Design-system summary',
-			'description'  => 'Formatted overview optimized for AI prompts.',
-			'icon'         => 'dashicons-edit-page',
-			'ability'      => 'signal-and-noise/get-design-system-summary',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'format' ),
-			'ai_callable'  => true,
-		),
-
-		// ── Generative abilities (5 input-then-result) ──
-		array(
-			'slug'         => 'sn-cmd-ai-page-note-summary',
-			'label'        => 'SN: Generate page-note summary',
-			'description'  => 'AI-summarize the current post in /notes catalog voice.',
-			'icon'         => 'dashicons-text',
-			'ability'      => 'signal-and-noise/ai-generate-page-note-summary',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'post_id', 'max_words' ),
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-ai-suggest-pattern',
-			'label'        => 'SN: Suggest block pattern',
-			'description'  => 'AI recommends patterns for a draft.',
-			'icon'         => 'dashicons-screenoptions',
-			'ability'      => 'signal-and-noise/ai-suggest-block-pattern',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'draft_content', 'topic_hint' ),
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-ai-brand-validate',
-			'label'        => 'SN: Validate brand alignment',
-			'description'  => 'AI checks if content fits SN voice + palette.',
-			'icon'         => 'dashicons-yes-alt',
-			'ability'      => 'signal-and-noise/ai-validate-brand-alignment',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'content', 'content_type' ),
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-ai-pattern-content',
-			'label'        => 'SN: Generate pattern content',
-			'description'  => 'Fill a pattern with brand-voiced copy.',
-			'icon'         => 'dashicons-format-aside',
-			'ability'      => 'signal-and-noise/ai-generate-pattern-content',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'pattern_name', 'topic', 'tone_hint' ),
-			'ai_callable'  => true,
-		),
-		array(
-			'slug'         => 'sn-cmd-ai-rewrite-voice',
-			'label'        => 'SN: Rewrite in brand voice',
-			'description'  => 'Transform external copy into SN voice.',
-			'icon'         => 'dashicons-edit',
-			'ability'      => 'signal-and-noise/ai-rewrite-in-brand-voice',
-			'render_mode'  => 'input-then-result',
-			'input_fields' => array( 'source_text', 'intensity' ),
-			'ai_callable'  => true,
-		),
+		// Until v3.8.0 lands, these are display-only entries — clicking a
+		// command does nothing beyond the desktop-mode default behavior
+		// (no JS run() registered). That's intentional: the wrong UX
+		// (sequential window.prompt() forms) is worse than no UX.
+		array( 'slug' => 'sn-cmd-get-design-tokens',        'label' => 'SN: Show design tokens',          'description' => 'Theme palette + typography + spacing scale.',           'icon' => 'dashicons-art' ),
+		array( 'slug' => 'sn-cmd-list-block-patterns',      'label' => 'SN: List block patterns',         'description' => 'All registered patterns with category + keywords.',     'icon' => 'dashicons-screenoptions' ),
+		array( 'slug' => 'sn-cmd-get-template-structure',   'label' => 'SN: Inspect active template',     'description' => 'FSE block tree for the current page.',                  'icon' => 'dashicons-layout' ),
+		array( 'slug' => 'sn-cmd-theme-version',            'label' => 'SN: Theme version info',          'description' => 'Theme + WP version + block-theme flags.',               'icon' => 'dashicons-info-outline' ),
+		array( 'slug' => 'sn-cmd-page-notes-pillars',       'label' => 'SN: List /notes pillars',         'description' => 'Pillar essay metadata for the /notes catalog.',         'icon' => 'dashicons-book' ),
+		array( 'slug' => 'sn-cmd-reading-time',             'label' => 'SN: Reading time for slug',       'description' => 'Computed minutes for a given post slug.',               'icon' => 'dashicons-clock' ),
+		array( 'slug' => 'sn-cmd-design-summary',           'label' => 'SN: Design-system summary',       'description' => 'Formatted overview optimized for AI prompts.',          'icon' => 'dashicons-edit-page' ),
+		array( 'slug' => 'sn-cmd-ai-page-note-summary',     'label' => 'SN: Generate page-note summary',  'description' => 'AI-summarize the current post in /notes catalog voice.', 'icon' => 'dashicons-text' ),
+		array( 'slug' => 'sn-cmd-ai-suggest-pattern',       'label' => 'SN: Suggest block pattern',       'description' => 'AI recommends patterns for a draft.',                   'icon' => 'dashicons-screenoptions' ),
+		array( 'slug' => 'sn-cmd-ai-brand-validate',        'label' => 'SN: Validate brand alignment',    'description' => 'AI checks if content fits SN voice + palette.',         'icon' => 'dashicons-yes-alt' ),
+		array( 'slug' => 'sn-cmd-ai-pattern-content',       'label' => 'SN: Generate pattern content',    'description' => 'Fill a pattern with brand-voiced copy.',                'icon' => 'dashicons-format-aside' ),
+		array( 'slug' => 'sn-cmd-ai-rewrite-voice',         'label' => 'SN: Rewrite in brand voice',      'description' => 'Transform external copy into SN voice.',                'icon' => 'dashicons-edit' ),
 	);
 
 	foreach ( $commands as $cmd ) {
-		$registration = array(
+		desktop_mode_register_command( array(
 			'slug'        => $cmd['slug'],
 			'label'       => $cmd['label'],
 			'description' => $cmd['description'],
 			'icon'        => $cmd['icon'],
 			'script'      => 'sn-desktop-mode',
-		);
-		// v3.7.4: pass through theme-ability fields when present so they
-		// reach the JS side via desktop-mode's localize pipeline.
-		foreach ( array( 'ability', 'render_mode', 'input_fields', 'ai_callable' ) as $extra ) {
-			if ( array_key_exists( $extra, $cmd ) ) {
-				$registration[ $extra ] = $cmd[ $extra ];
-			}
-		}
-		desktop_mode_register_command( $registration );
+		) );
 	}
 } );
 
