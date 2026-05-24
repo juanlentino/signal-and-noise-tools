@@ -135,5 +135,96 @@ $result = snt_anthropic_messages_call( '', array() );
 ap_true( is_wp_error( $result ), 'wire rejects empty API key' );
 ap_eq( 'anthropic_no_key', $result->get_error_code(), 'no-key error code' );
 
+// ─── Tool translation tests (Task 3) ────────────────────────────────────
+require_once __DIR__ . '/../inc/ai-copilot/anthropic-tools.php';
+
+echo "\nTest T1: OpenAI → Anthropic tool translation\n";
+$openai_tools = array(
+	array(
+		'type'        => 'function',
+		'name'        => 'sn_get_theme_version',
+		'description' => 'Return theme version info.',
+		'parameters'  => array( 'type' => 'object', 'properties' => (object) array() ),
+	),
+	array(
+		'type'        => 'function',
+		'name'        => 'sn_validate',
+		'description' => 'Validate brand alignment.',
+		'parameters'  => array(
+			'type'       => 'object',
+			'properties' => array(
+				'content' => array( 'type' => 'string' ),
+			),
+			'required'   => array( 'content' ),
+		),
+	),
+);
+$translated = snt_anthropic_translate_tools( $openai_tools );
+ap_eq( 2, count( $translated ), 'translates 2 tools' );
+ap_eq( 'sn_get_theme_version', $translated[0]['name'], 'preserves name' );
+ap_eq( 'Return theme version info.', $translated[0]['description'], 'preserves description' );
+ap_true( isset( $translated[0]['input_schema'] ), 'renames parameters to input_schema' );
+ap_true( ! isset( $translated[0]['type'] ), 'drops type:function' );
+ap_true( ! isset( $translated[0]['parameters'] ), 'drops parameters key' );
+ap_eq( array( 'content' ), $translated[1]['input_schema']['required'] ?? null, 'preserves required array' );
+
+echo "\nTest T2: tool_use block extraction\n";
+$content = array(
+	array( 'type' => 'text', 'text' => 'I will call the tool.' ),
+	array(
+		'type'  => 'tool_use',
+		'id'    => 'toolu_01ABC',
+		'name'  => 'sn_get_theme_version',
+		'input' => (object) array(),
+	),
+	array(
+		'type'  => 'tool_use',
+		'id'    => 'toolu_02DEF',
+		'name'  => 'sn_validate',
+		'input' => array( 'content' => 'hello' ),
+	),
+);
+$tool_uses = snt_anthropic_extract_tool_uses( $content );
+ap_eq( 2, count( $tool_uses ), 'extracts 2 tool_use blocks' );
+ap_eq( 'sn_get_theme_version', $tool_uses[0]['name'], 'first tool name' );
+ap_eq( 'toolu_01ABC', $tool_uses[0]['call_id'], 'first call_id' );
+ap_true( is_string( $tool_uses[0]['arguments'] ), 'arguments is a string (per registry contract)' );
+ap_eq( '{"content":"hello"}', $tool_uses[1]['arguments'], 'JSON-encodes input back to string for registry contract' );
+
+echo "\nTest T3: text-block extraction\n";
+$content = array(
+	array( 'type' => 'text', 'text' => 'Hello, ' ),
+	array( 'type' => 'text', 'text' => 'world!' ),
+	array( 'type' => 'tool_use', 'id' => 'x', 'name' => 'y', 'input' => (object) array() ),
+);
+$text = snt_anthropic_extract_text_blocks( $content );
+ap_eq( 'Hello, world!', $text, 'concatenates text blocks, skips tool_use' );
+
+echo "\nTest T4: synthetic structured tool builder\n";
+$schema = array(
+	'type'       => 'object',
+	'properties' => array( 'answer' => array( 'type' => 'string' ) ),
+	'required'   => array( 'answer' ),
+);
+$tool = snt_anthropic_synthetic_structured_tool( 'final_answer', $schema );
+ap_eq( 'final_answer', $tool['name'], 'synthetic tool name' );
+ap_true( ! empty( $tool['description'] ), 'synthetic tool has description' );
+ap_eq( $schema, $tool['input_schema'], 'synthetic tool input_schema matches input' );
+
+echo "\nTest T5: schema-tool-use extraction\n";
+$content = array(
+	array(
+		'type'  => 'tool_use',
+		'id'    => 'toolu_final',
+		'name'  => 'final_answer',
+		'input' => array( 'answer' => 'forty-two' ),
+	),
+);
+$schema_input = snt_anthropic_extract_schema_tool_use( $content, 'final_answer' );
+ap_eq( array( 'answer' => 'forty-two' ), $schema_input, 'extracts synthetic-tool input as array' );
+
+$schema_input_other = snt_anthropic_extract_schema_tool_use( $content, 'other_name' );
+ap_eq( null, $schema_input_other, 'returns null when schema tool name not found' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
