@@ -148,6 +148,18 @@ require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 
+// v3.8.0: Optional Anthropic AI provider for desktop-mode 0.18.0+ AI Copilot.
+// Skipped cleanly when desktop-mode isn't installed or is older than 0.18.0
+// (no fatals, no half-registered state).
+if ( function_exists( 'desktop_mode_register_ai_provider' ) ) {
+	require_once SNT_PATH . 'inc/ai-copilot/anthropic-wire.php';
+	require_once SNT_PATH . 'inc/ai-copilot/anthropic-tools.php';
+	require_once SNT_PATH . 'inc/ai-copilot/anthropic-provider.php';
+	require_once SNT_PATH . 'inc/ai-copilot/ability-dispatch.php';
+	require_once SNT_PATH . 'inc/ai-copilot/ai-tools-theme.php';
+	require_once SNT_PATH . 'inc/ai-copilot/ai-tools-plugin.php';
+}
+
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;
 // the admin_init handler covers SSH-based git-checkout deploys.
