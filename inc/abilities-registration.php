@@ -389,7 +389,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-rss-stats', array(
 		'label'               => 'Get RSS feed activity statistics',
-		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts. Backed by the sn_rss_tracker module.',
+		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts. Backed by the sn_rss_tracker module. Use to verify RSS feed traffic before changing feed structure or auditing crawler activity.',
 		'category'            => 'diagnostics',
 		'permission_callback' => $permission_manage_options,
 		'execute_callback'    => function() {
@@ -576,7 +576,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-cron-events', array(
 		'label'               => 'List Cron Events',
-		'description'         => 'Returns all scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag.',
+		'description'         => 'Returns all scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the 3 SN-owned hooks (Plausible refresh, RSS prune, deploy webhook).',
 		'category'            => 'diagnostics',
 		'permission_callback' => function() {
 			return current_user_can( 'manage_options' );
@@ -628,7 +628,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-cron-event', array(
 		'label'               => 'Get Cron Event Details',
-		'description'         => 'Returns details for a single scheduled cron event identified by hook + args_signature. Returns null if no match.',
+		'description'         => 'Returns details for a single scheduled cron event identified by hook + args_signature. Returns null if no match. `args_signature` is the md5 hash returned by signal-noise/list-cron-events. Use that ability first to discover signatures.',
 		'category'            => 'diagnostics',
 		'permission_callback' => function() {
 			return current_user_can( 'manage_options' );
