@@ -1088,6 +1088,51 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/ai-alt-inline-suggest', array(
+		'label'               => 'Suggest alt text for an inline <img> in a post body',
+		'description'         => 'Generate descriptive 80-125 character alt text for an <img> tag found in a post\'s post_content. Uses post title + image filename + ~500 chars of surrounding paragraph context. Does NOT write — returns the suggestion for the user to copy + paste into the editor. Inline-img Apply is deferred indefinitely per block-serialization risk.',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+			return current_user_can( 'edit_post', $post_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_alt_inline_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'image_src' ),
+			'properties'           => array(
+				'post_id'   => array(
+					'type'        => 'integer',
+					'description' => 'Post that contains the inline <img> tag.',
+					'minimum'     => 1,
+					'examples'    => array( 42 ),
+				),
+				'image_src' => array(
+					'type'        => 'string',
+					'description' => 'The <img src="..."> URL as it appears in post_content. Must match byte-for-byte.',
+					'minLength'   => 1,
+					'examples'    => array( 'https://juanlentino.com/wp-content/uploads/2026/05/example.png' ),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'         => array( 'type' => 'boolean' ),
+				'suggestion' => array( 'type' => 'string' ),
+				'post_id'    => array( 'type' => 'integer' ),
+				'image_src'  => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1469,5 +1514,21 @@ function snt_ability_ai_drift_apply( $input ) {
 		(int) $input['position'],
 		(string) $input['replacement'],
 		(string) $input['fingerprint']
+	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-alt-inline-suggest.
+ * Thin wrapper around snt_ai_alt_inline_suggest_impl().
+ *
+ * @since 4.0.2
+ */
+function snt_ability_ai_alt_inline_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_alt_inline_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Inline-alt suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_alt_inline_suggest_impl(
+		(int) $input['post_id'],
+		(string) $input['image_src']
 	);
 }

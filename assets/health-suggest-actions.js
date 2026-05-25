@@ -34,8 +34,9 @@
 	var ABILITY_PATH = '/wp-abilities/v1/abilities/signal-noise/';
 
 	var ABILITY_BY_CHECK = {
-		missing_alt:         { suggest: 'ai-alt-suggest', apply: 'ai-alt-apply' },
-		drift_time_phrases:  { suggest: 'ai-drift-suggest', apply: 'ai-drift-apply' },
+		missing_alt:         { suggest: 'ai-alt-suggest',         apply: 'ai-alt-apply' },
+		missing_alt_inline:  { suggest: 'ai-alt-inline-suggest',  apply: null },  // v4.0.2: no-apply variant
+		drift_time_phrases:  { suggest: 'ai-drift-suggest',       apply: 'ai-drift-apply' },
 	};
 
 	/**
@@ -99,6 +100,14 @@
 				renderError( cell, __( 'Missing attachment ID.', 'signal-noise-tools' ) );
 				return;
 			}
+		} else if ( 'missing_alt_inline' === checkType ) {
+			// v4.0.2: inline-<img> findings carry post_id + image_src
+			input.post_id   = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
+			input.image_src = btn.getAttribute( 'data-image-src' ) || '';
+			if ( ! input.post_id || ! input.image_src ) {
+				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
+				return;
+			}
 		} else if ( 'drift_time_phrases' === checkType ) {
 			input.post_id         = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
 			input.phrase          = btn.getAttribute( 'data-phrase' ) || '';
@@ -155,23 +164,49 @@
 		var actions = document.createElement( 'div' );
 		actions.setAttribute( 'style', 'display:flex;gap:6px;flex-wrap:wrap;' );
 
-		var applyBtn = document.createElement( 'button' );
-		applyBtn.type = 'button';
-		applyBtn.className = 'button button-primary button-small';
-		applyBtn.textContent = __( 'Apply', 'signal-noise-tools' );
-		applyBtn.addEventListener( 'click', function() {
-			onApplyClick( cell, ta, status, applyBtn, applyAbility, input, checkType, res );
-		} );
-		actions.appendChild( applyBtn );
+		if ( null === applyAbility ) {
+			// v4.0.2: no-apply variant — read-only textarea + Copy button + helper text.
+			// Used by Suggest-only check types like missing_alt_inline (inline-<img> alt
+			// where Apply is deferred indefinitely per block-serialization risk).
+			ta.readOnly = true;
+			setStatus( status, __( 'Open the editor to apply.', 'signal-noise-tools' ), 'info' );
 
-		var discardBtn = document.createElement( 'button' );
-		discardBtn.type = 'button';
-		discardBtn.className = 'button button-small';
-		discardBtn.textContent = __( 'Discard', 'signal-noise-tools' );
-		discardBtn.addEventListener( 'click', function() {
-			resetCellToSuggestButton( cell, checkType, input, res );
-		} );
-		actions.appendChild( discardBtn );
+			var copyBtn = document.createElement( 'button' );
+			copyBtn.type = 'button';
+			copyBtn.className = 'button button-small';
+			copyBtn.textContent = __( 'Copy', 'signal-noise-tools' );
+			copyBtn.addEventListener( 'click', function() {
+				if ( window.navigator && window.navigator.clipboard ) {
+					window.navigator.clipboard.writeText( ta.value ).then( function() {
+						setStatus( status, __( 'Copied to clipboard.', 'signal-noise-tools' ), 'ok' );
+					}, function() {
+						setStatus( status, __( 'Copy failed.', 'signal-noise-tools' ), 'err' );
+					} );
+				} else {
+					setStatus( status, __( 'Clipboard API not available.', 'signal-noise-tools' ), 'err' );
+				}
+			} );
+			actions.appendChild( copyBtn );
+		} else {
+			// Standard Apply + Discard flow (unchanged from v4.0.0).
+			var applyBtn = document.createElement( 'button' );
+			applyBtn.type = 'button';
+			applyBtn.className = 'button button-primary button-small';
+			applyBtn.textContent = __( 'Apply', 'signal-noise-tools' );
+			applyBtn.addEventListener( 'click', function() {
+				onApplyClick( cell, ta, status, applyBtn, applyAbility, input, checkType, res );
+			} );
+			actions.appendChild( applyBtn );
+
+			var discardBtn = document.createElement( 'button' );
+			discardBtn.type = 'button';
+			discardBtn.className = 'button button-small';
+			discardBtn.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtn.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtn );
+		}
 
 		wrap.appendChild( actions );
 		cell.appendChild( wrap );

@@ -160,24 +160,27 @@ function sn_health_render_admin_tab() {
  * @since 4.0.0
  */
 function sn_health_render_suggest_cell( $check_key, $finding ) {
-	// v4.0.0: skip inline-img findings entirely; deferred to v4.0.x.
-	if ( 'missing_alt' === $check_key
-		&& isset( $finding['subject_type'] )
-		&& 'inline_img' === $finding['subject_type'] ) {
-		return '';
-	}
-
+	// v4.0.2: inline-img findings now emit a Suggest button (was empty in v4.0.0).
+	// The button uses a distinct check key so the JS dispatch table can route to
+	// the sibling ability signal-noise/ai-alt-inline-suggest with apply: null.
 	$attrs = array(
 		'type'             => 'button',
 		'class'            => 'button button-small',
 		'data-snt-suggest' => '1',
-		'data-check'       => $check_key,
 	);
 
 	if ( 'missing_alt' === $check_key ) {
-		// Attachment case only — subject_id IS the attachment ID.
-		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+		$is_inline = isset( $finding['subject_type'] ) && 'inline_img' === $finding['subject_type'];
+		$attrs['data-check'] = $is_inline ? 'missing_alt_inline' : 'missing_alt';
+		if ( $is_inline ) {
+			$attrs['data-post-id']   = (int) ( $finding['subject_id'] ?? 0 );
+			$attrs['data-image-src'] = (string) ( $finding['subject_url'] ?? '' );
+		} else {
+			// Attachment case — subject_id IS the attachment ID.
+			$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+		}
 	} elseif ( 'drift_time_phrases' === $check_key ) {
+		$attrs['data-check']    = $check_key;
 		$attrs['data-post-id']  = (int) ( $finding['subject_id'] ?? 0 );
 		$attrs['data-phrase']   = isset( $finding['phrase'] ) ? (string) $finding['phrase'] : '';
 		$attrs['data-position'] = (int) ( $finding['position'] ?? 0 );

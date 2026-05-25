@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.0.2] - 2026-05-25
+
+### Added — Inline-`<img>` alt Suggest + Copy
+
+Discharges the v4.0.0 CHANGELOG-flagged scope debt for inline-`<img>` missing-alt findings. v4.0.0 deferred this because inline imgs have no attachment_id; subject_id is the parent post ID, and `snt_ai_alt_suggest_impl()` rejects non-attachment input.
+
+**v4.0.2 ships Suggest + Copy only.** Apply remains deferred indefinitely per block-serialization risk (WORDPRESS-REFERENCE.md gotcha #4). UX: click Suggest → AI generates alt text from post title + image filename + ~500 chars of stripped paragraph context → user reviews in a read-only textarea → clicks Copy → opens the editor → pastes into the alt field.
+
+**Impl boundary decision (Option B from v4.0.x roadmap):** sibling ability `signal-noise/ai-alt-inline-suggest` with separate `(post_id, image_src)` schema. Preserves the canonical single-shape input_schema pattern from the 25 existing abilities; avoids the polymorphic-input cost of Option A.
+
+**4-surface integration:**
+- New impl `snt_ai_alt_inline_suggest_impl()` + context-extraction helper `snt_ai_extract_inline_img_context()` in `inc/ai-alt-inline-suggest.php`
+- New ability `signal-noise/ai-alt-inline-suggest` with `annotations: { idempotent: true }`
+- New REST endpoint `POST /signal-noise/v1/ai/alt-inline-suggest`
+- JS dispatch via `missing_alt_inline` check key with `apply: null` sentinel for no-apply variant rendering (read-only textarea + Copy button + helper text "Open the editor to apply")
+
+The `apply: null` sentinel generalizes for future Suggest-only check variants (e.g., read-only stale-post suggestions in v4.1.0). One JS dispatch shape serves all "Suggest with no destructive apply" cases.
+
+**Patch cap status:** 2/7 in v4.0.x (after v4.0.1 drift cache).
+
+**Coming in v4.0.3:** Before/After Apply preview modal — visual diff before destructive Apply writes, zero new AI cost.
+
 ## [4.0.1] - 2026-05-25
 
 ### Cache AI drift-verdicts per (post_id, post_modified) — stops re-evaluating unchanged posts on Run scan

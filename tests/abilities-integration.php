@@ -272,6 +272,19 @@ if ( ! function_exists( 'snt_ai_drift_apply_impl' ) ) {
 		);
 	}
 }
+if ( ! function_exists( 'snt_ai_alt_inline_suggest_impl' ) ) {
+	function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
+		if ( 'broken' === $image_src ) {
+			return new WP_Error( 'snt_ai_img_not_found', 'Img not in post_content.', array( 'status' => 422 ) );
+		}
+		return array(
+			'ok'         => true,
+			'suggestion' => 'Stub: inline-img alt for ' . (string) $image_src,
+			'post_id'    => (int) $post_id,
+			'image_src'  => (string) $image_src,
+		);
+	}
+}
 $GLOBALS['__test_cron_events_call_count'] = 0;
 if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 	function snt_cron_get_events_impl( $sn_only = false ) {
@@ -855,6 +868,35 @@ $conflict_input = array_merge( $apply_input, array( 'fingerprint' => 'badfingerp
 $res = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $conflict_input );
 ap_true( is_wp_error( $res ), 'ai-drift-apply: fingerprint mismatch → WP_Error' );
 ap_eq( 'snt_ai_apply_conflict', $res->get_error_code(), 'ai-drift-apply: snt_ai_apply_conflict code' );
+
+// ── ai-alt-inline-suggest — happy path ──────────────────────────────
+$inline_input = array(
+	'post_id'   => 200,
+	'image_src' => 'https://example.com/wp-content/uploads/2026/05/foo.png',
+);
+$out = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( $inline_input );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['suggestion'], $out['post_id'], $out['image_src'] ), 'ai-alt-inline-suggest: required keys' );
+ap_eq( true, $out['ok'], 'ai-alt-inline-suggest: ok=true' );
+
+// ── ai-alt-inline-suggest — edit_post denied ────────────────────────
+$GLOBALS['__test_edit_post_ok'] = false;
+$res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( $inline_input );
+ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: edit_post denied → WP_Error' );
+ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-alt-inline-suggest: rest_forbidden code' );
+$GLOBALS['__test_edit_post_ok'] = true;
+
+// ── ai-alt-inline-suggest — missing required field ──────────────────
+$res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( array( 'post_id' => 200 ) );
+ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: missing image_src → WP_Error' );
+ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-alt-inline-suggest: rest_invalid_param code' );
+
+// ── ai-alt-inline-suggest — img not in post ─────────────────────────
+$res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( array(
+	'post_id'   => 200,
+	'image_src' => 'broken',
+) );
+ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: img not in post → WP_Error' );
+ap_eq( 'snt_ai_img_not_found', $res->get_error_code(), 'ai-alt-inline-suggest: snt_ai_img_not_found code' );
 
 ap_reset_caps();
 
