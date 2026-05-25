@@ -64,7 +64,7 @@ function wp_remote_retrieve_response_code( $resp ) {
 	return 0;
 }
 
-class WP_Error { public $code; public $message; public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; } public function get_error_message() { return $this->message; } }
+class WP_Error { public $code; public $message; public $data; public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; } public function get_error_code() { return $this->code; } public function get_error_message() { return $this->message; } public function get_error_data() { return $this->data; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
 // AI client stubs — tests inject responses + availability via globals.
