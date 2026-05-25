@@ -93,6 +93,9 @@ if ( ! function_exists( 'current_user_can' ) ) {
 		if ( 'edit_post' === $cap ) {
 			return ! empty( $GLOBALS['__test_edit_post_ok'] );
 		}
+		if ( 'delete_post' === $cap ) {
+			return ! isset( $GLOBALS['__test_delete_post_ok'] ) || ! empty( $GLOBALS['__test_delete_post_ok'] );
+		}
 		return ! empty( $GLOBALS['__test_user_caps'][ $cap ] );
 	}
 }
@@ -968,6 +971,25 @@ ap_true( false !== strpos( $out['reason'], 'parsed' ), 'ai-orphan-suggest: unsur
 $res = wp_get_ability( 'signal-noise/ai-orphan-suggest' )->execute( array( 'attachment_id' => 9999 ) );
 ap_true( is_wp_error( $res ), 'ai-orphan-suggest: non-image → WP_Error' );
 ap_eq( 'snt_ai_not_attachment', $res->get_error_code(), 'ai-orphan-suggest: snt_ai_not_attachment code' );
+
+// ── ai-orphan-apply — happy path ───────────────────────────────────
+$out = wp_get_ability( 'signal-noise/ai-orphan-apply' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['attachment_id'], $out['deleted'] ), 'ai-orphan-apply: required keys' );
+ap_eq( true, $out['ok'], 'ai-orphan-apply: ok=true' );
+ap_eq( true, $out['deleted'], 'ai-orphan-apply: deleted=true' );
+ap_eq( 1234, $out['attachment_id'], 'ai-orphan-apply: attachment_id echo' );
+
+// ── ai-orphan-apply — delete_post denied ───────────────────────────
+$GLOBALS['__test_delete_post_ok'] = false;
+$res = wp_get_ability( 'signal-noise/ai-orphan-apply' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_wp_error( $res ), 'ai-orphan-apply: delete_post denied → WP_Error' );
+ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-orphan-apply: rest_forbidden code' );
+$GLOBALS['__test_delete_post_ok'] = true;
+
+// ── ai-orphan-apply — vanished mid-flight (attachment_id 9999) ─────
+$res = wp_get_ability( 'signal-noise/ai-orphan-apply' )->execute( array( 'attachment_id' => 9999 ) );
+ap_true( is_wp_error( $res ), 'ai-orphan-apply: vanished → WP_Error' );
+ap_eq( 'snt_ai_not_attachment', $res->get_error_code(), 'ai-orphan-apply: snt_ai_not_attachment code' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
