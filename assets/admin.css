@@ -585,25 +585,23 @@
    Used by: RSS tab (Recent + Settings), potentially others.
    Content-driven width via .sn-2col--main / .sn-2col--side modifiers
    on the children (instead of arithmetic ratios). */
+/* v3.8.5: stack always (single column). The 2-col layout (Recent
+   requests + Settings/Maintenance) looked cramped at every viewport we
+   tested — at narrow portal widths the right column hit its minimum
+   and the left column was too tight for the table, at wide widths the
+   right column never expanded enough to give the form labels room. The
+   v3.8.4 breakpoint bump from 960→1200px helped narrower viewports but
+   wider monitors stayed cramped. Defensive choice: always stack. Both
+   Recent + Settings get full width. If side-by-side at very wide
+   viewports is wanted back, easy to re-add a min-width media query. */
 .sn-2col {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+	grid-template-columns: 1fr;
 	gap: 24px;
 	align-items: start;
 }
 .sn-2col__col {
 	min-width: 0; /* lets internal tables shrink instead of overflowing */
-}
-/* v3.8.4: stack at 1200px (was 960px). The desktop-mode portal viewport
-   sits in the ~1000-1200px range where the 2-col was cramped (Recent
-   requests table + Settings form overlapped visually because the right
-   column hit its 280px minimum while the left column was too narrow for
-   the table's content). Above 1200px (full wp-admin), side-by-side still
-   works comfortably. */
-@media (max-width: 1200px) {
-	.sn-2col {
-		grid-template-columns: 1fr;
-	}
 }
 
 /* ─── Mono font utility ──────────────────────────────────────────────────

@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.5] - 2026-05-25
+
+### Fixed — RSS Monitoring tab: `.sn-2col` always stacks (v3.8.4 breakpoint fix wasn't enough)
+
+v3.8.4 raised the stack breakpoint from `960px` to `1200px`, which helped narrow desktop-mode portal viewports. But on wider monitors (>1200px) the 2-col stayed active and stayed cramped — the right column was capped at `360px` so the Settings form labels still felt squeezed against the table.
+
+Defensive fix: `.sn-2col` now always renders as a single column. Both Recent-requests table and Settings/Maintenance get full width to breathe. The grid container stays in place (so the `.sn-2col__col` wrappers still work) — only the `grid-template-columns` was changed from `minmax(0, 1fr) minmax(280px, 360px)` to plain `1fr`. The 24px gap between rows preserves visual separation.
+
+**If side-by-side at very wide viewports is wanted back**, easy to re-add a `min-width` media query (e.g., `@media (min-width: 1600px) { .sn-2col { grid-template-columns: 1fr 1fr; } }`).
+
+**Patch 5/7 in v3.8.x.**
+
 ## [3.8.4] - 2026-05-25
 
 ### Fixed — Desktop-mode dock submenu showed 8 stale entries; RSS 2-col layout was cramped
