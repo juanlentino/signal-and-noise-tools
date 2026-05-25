@@ -200,3 +200,50 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 		'deleted'       => true,
 	);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * REST endpoints — back-compat surface for non-JS callers (CI, wp-cli).
+ * JS clients use the Abilities API REST surface via wp.apiFetch.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+add_action( 'rest_api_init', function() {
+	register_rest_route( 'signal-noise/v1', '/ai/orphan-suggest', array(
+		'methods'             => 'POST',
+		'callback'            => function( WP_REST_Request $request ) {
+			$result = snt_ai_orphan_suggest_impl( (int) $request->get_param( 'attachment_id' ) );
+			if ( is_wp_error( $result ) ) { return $result; }
+			return rest_ensure_response( $result );
+		},
+		'permission_callback' => function( WP_REST_Request $request ) {
+			return current_user_can( 'edit_post', (int) $request->get_param( 'attachment_id' ) );
+		},
+		'args' => array(
+			'attachment_id' => array(
+				'required'          => true,
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'validate_callback' => function( $v ) { return is_numeric( $v ) && (int) $v > 0; },
+			),
+		),
+	) );
+
+	register_rest_route( 'signal-noise/v1', '/ai/orphan-apply', array(
+		'methods'             => 'POST',
+		'callback'            => function( WP_REST_Request $request ) {
+			$result = snt_ai_orphan_apply_impl( (int) $request->get_param( 'attachment_id' ) );
+			if ( is_wp_error( $result ) ) { return $result; }
+			return rest_ensure_response( $result );
+		},
+		'permission_callback' => function( WP_REST_Request $request ) {
+			return current_user_can( 'delete_post', (int) $request->get_param( 'attachment_id' ) );
+		},
+		'args' => array(
+			'attachment_id' => array(
+				'required'          => true,
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'validate_callback' => function( $v ) { return is_numeric( $v ) && (int) $v > 0; },
+			),
+		),
+	) );
+} );
