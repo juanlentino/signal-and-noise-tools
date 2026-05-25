@@ -81,6 +81,12 @@ function snt_ai_can_text_generate() {
 		}
 		return (bool) $builder->is_supported_for_text_generation();
 	} catch ( \Throwable $e ) {
+		// v3.7.6: server-log surfacing per v3.7.1 lesson. The bug-of-record
+		// for SN AI features (6 months of silently no-op'ing in v2.5.0–v3.7.0)
+		// was a silent guard. Even though this catch returns false correctly
+		// from the v3.7.1 fix, runtime exceptions deserve a log trail so future
+		// regressions surface in PHP error log instead of vanishing.
+		error_log( 'snt_ai_can_text_generate exception: ' . $e->getMessage() );
 		return false;
 	}
 }

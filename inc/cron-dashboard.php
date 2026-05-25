@@ -273,6 +273,11 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 	} catch ( Throwable $e ) {
 		$success = false;
 		$error = $e->getMessage();
+		// v3.7.6: server-log surfacing per v3.7.1 lesson. The $error is also
+		// persisted to snt_cron_history below, but DB-only logging is invisible
+		// to log search tools (grep, journalctl, fail2ban). One-line PHP log
+		// keeps both surfaces in sync.
+		error_log( 'snt_cron_run hook "' . $hook . '" failed: ' . $e->getMessage() );
 	}
 
 	$elapsed_ms = ( microtime( true ) - $start ) * 1000;
