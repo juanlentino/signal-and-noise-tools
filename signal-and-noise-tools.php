@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, Plausible integration, security headers, Cloudflare purge, admin UI, RSS Plausible tracker. Self-updater migrates in Phase 2.
- * Version:     3.8.1
+ * Version:     3.8.2
  * Requires at least: 6.4
  * Requires PHP: 8.0
  * Author:      Juan Lentino
@@ -18,7 +18,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SNT_VERSION', '3.7.6' );
+// v3.8.2: derive SNT_VERSION from the docblock Version header above so future
+// version bumps need only edit the docblock (single source of truth). Previously
+// hardcoded as a literal string, which drifted: bumping the docblock to 3.8.0 then
+// 3.8.1 left this constant at '3.7.6', causing (1) wrong version on the dashboard
+// widget that reads SNT_VERSION directly, and (2) stale `?ver=…` cache-buster on
+// admin.css so browsers served the OLD admin.css that lacked `.sn-sub-tabs` rules
+// (file on disk was updated but URL cache key didn't change → browser served cached
+// content). Reading from the docblock at load eliminates the two-sources-of-truth bug.
+$snt_plugin_data = function_exists( 'get_file_data' )
+	? get_file_data( __FILE__, array( 'Version' => 'Version' ), 'plugin' )
+	: array( 'Version' => '0.0.0' );
+define( 'SNT_VERSION', $snt_plugin_data['Version'] ?: '0.0.0' );
+unset( $snt_plugin_data );
 define( 'SNT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SNT_URL', plugin_dir_url( __FILE__ ) );
 

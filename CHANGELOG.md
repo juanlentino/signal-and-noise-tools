@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.2] - 2026-05-25
+
+### Fixed — `SNT_VERSION` constant now derives from the docblock Version (no more drift)
+
+The `SNT_VERSION` constant was hardcoded as a literal `'3.7.6'` string at the top of `signal-and-noise-tools.php`. Bumping the docblock `Version:` header to 3.8.0 then 3.8.1 left this constant at `'3.7.6'`, which cascaded into TWO visible bugs:
+
+1. **Dashboard widget showed wrong plugin version.** The SN admin Dashboard tab's "PLUGIN" badge reads `SNT_VERSION` directly. After v3.8.0/v3.8.1 deploys, it kept reporting "PLUGIN 3.7.6 • v3.8.1 available" — the plugin was actually at v3.8.1 on disk but the badge reflected the stale constant.
+
+2. **Sub-tabs CSS didn't render.** `wp_enqueue_style()` uses `SNT_VERSION` as the `?ver=…` cache-buster for `admin.css`. Browser had cached `admin.css?ver=3.7.6` (the OLD CSS without `.sn-sub-tabs` rules from v3.8.0). When v3.8.1's CSS shipped, the URL key didn't change (still `?ver=3.7.6`), so browsers served their cached OLD content. Sub-tab nav rendered as run-on inline links instead of the styled pill-tab pattern.
+
+**The fix:** read the version from the docblock at load time using WP's `get_file_data()`:
+
+```php
+$snt_plugin_data = function_exists( 'get_file_data' )
+    ? get_file_data( __FILE__, array( 'Version' => 'Version' ), 'plugin' )
+    : array( 'Version' => '0.0.0' );
+define( 'SNT_VERSION', $snt_plugin_data['Version'] ?: '0.0.0' );
+unset( $snt_plugin_data );
+```
+
+**Structural improvement:** the docblock `Version:` header is now the single source of truth for the plugin version. Future bumps need only edit the docblock — `SNT_VERSION` follows automatically. No more drift possible.
+
+**After v3.8.2 deploys**, browsers fetch `admin.css?ver=3.8.2` (a fresh URL key) → new CSS loads → sub-tabs render correctly. Dashboard widget also reads the correct version.
+
+**Patch cap status:** v3.8.x at 2/7 patches used.
+
+### Note on previously theme-side fix (theme v9.1.5)
+
+The earlier theme v9.1.5 added `wp_clean_plugins_cache()` to the purge filter chain. That fix IS working as intended (WP's general plugin metadata cache IS being invalidated on each deploy). The remaining stale-version bugs were unrelated — they came from the hardcoded constant, not WP's cache.
+
 ## [3.8.1] - 2026-05-25
 
 ### Changed — Sub-tabs navigation + 6-entry submenu (post-v3.8.0 refinement)
