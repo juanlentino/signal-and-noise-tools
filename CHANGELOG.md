@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.6] - 2026-05-24
+
+### Security — error_log surfacing on 2 silent catch sites
+
+Per the security audit (Wave 5 from `2026-05-21-maintenance-pass-in-flight.md`) — both pre-existing catch blocks were silently coercing exceptions to a fallback value. The v3.7.1 incident memorialized why this matters: SN AI features silently no-op'd for 6 months because a guard returned false on exception with no log trail.
+
+#### What changed
+
+**`inc/cron-dashboard.php:269`** ([`fe83c72`](https://github.com/juanlentino/signal-and-noise-tools/commit/fe83c72)) — `snt_cron_run()` catch persisted the exception message to the `snt_cron_history` table (visible in the Cron Dashboard UI) but didn't surface to PHP error log. DB-only logging is invisible to log search tools (grep, journalctl, fail2ban, Cloudways alerts). Added one-line `error_log()` to keep both surfaces in sync. The DB persistence path is unchanged.
+
+**`inc/ai-bootstrap.php:84`** ([`fe83c72`](https://github.com/juanlentino/signal-and-noise-tools/commit/fe83c72)) — `snt_ai_can_text_generate()` catch was the exact bug surface the v3.7.1 fix corrected, but the catch itself remained silent. The current code returns `false` correctly on exception (caller treats AI as unavailable), but runtime exceptions deserved a log trail so future regressions surface in PHP error log instead of vanishing. Added one-line `error_log()`.
+
+No behavioral change for callers — both sites still return their original value paths. Pure observability improvement.
+
+#### Audit clean results (no other findings)
+
+The full security audit covered 9 dimensions across both repos:
+
+- **0 live API keys / SSH keys / GitHub tokens / passwords** in committed code (either repo)
+- **0 unauthenticated mutating REST endpoints** (all 15 plugin routes have proper `permission_callback`)
+- **0 destructive abilities reachable by unprivileged users** (29 abilities audited, all consistent: destructive → `manage_options` + `destructive: true`; readonly → low cap + `readonly: true`)
+- **0 `is_plugin_active` calls without `file_exists` pairing** (WP-REFERENCE entry #26 — both call sites correctly paired)
+- **`rel_canonical` + `wp_robots` removals both present** at `inc/seo.php:111,119` (WP-REFERENCE entries #21, #22)
+- **All 16 wpdb queries safe** — 11 use `prepare()`, 5 raw queries verified constant-SQL with no user input
+- **All admin POST handlers paired** with capability check + nonce verification
+- **0 `shell_exec` / `eval` / `proc_open` usages** in either repo's `inc/`
+- **0 plan/spec docs contain literal live credentials** in current HEAD
+
+Posture has materially improved since the v3.7.1 incident — the 12 ability callbacks added in v3.7.5 P4 (named-function refactor) all include `error_log` discipline; theme abilities-registration.php is 12-for-12 on `error_log`-in-catch. Only the 2 pre-existing catches above were stragglers.
+
+#### Files
+
+- `inc/cron-dashboard.php` — +5 lines (comment + error_log)
+- `inc/ai-bootstrap.php` — +6 lines (comment + error_log)
+
+#### Companion changes (not in this release)
+
+- **Theme**: WORDPRESS-REFERENCE.md gained 3 new gotchas (entries #32–#34) capturing the v3.7.x lessons. Docs-only commit `dc7a123` — no theme version bump per project versioning rule.
+- **GH secrets cleanup**: `WP_DEPLOY_USER` + `WP_DEPLOY_APP_PASSWORD` verified absent from `gh secret list --repo juanlentino/signal-and-noise-tools` (cleanup happened post-v3.7.3; comments updated separately).
+
+#### Patch-cap status
+
+Patch cap is 7 per minor. v3.7.6 is the 7th patch in v3.7.x. **This is the last patch slot in v3.7.x** — the next code-bearing release must roll to v3.8.0. Plan accordingly.
+
 ## [3.7.5] - 2026-05-24
 
 ### Added — Integration tests + named-function refactor + JSON Schema examples + AI catalog + agent guideline templates
