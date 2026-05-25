@@ -160,6 +160,7 @@ require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/audit-log.php';
+require_once SNT_PATH . 'inc/audit-log-admin.php';
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;

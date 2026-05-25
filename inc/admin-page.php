@@ -122,9 +122,10 @@ function sn_admin_top_tabs() {
 			'title'    => 'Signal & Noise — Security',
 			'subtitle' => 'Custom login URL.',
 			'sub_tabs' => array(
-				// Only 1 sub-tab at v3.8.1 → sn_admin_render_sub_tabs() hides the nav.
-				// Future v3.8.x adds 'audit-log' which reveals the sub-tab nav automatically.
-				'login' => array( 'label' => 'Login URL' ),
+				'login'     => array( 'label' => 'Login URL' ),
+				// v3.8.3: audit-log sub-tab. Adding the 2nd sub-tab automatically
+				// reveals the sub-tab nav row (sn_admin_render_sub_tabs() hides at count<2).
+				'audit-log' => array( 'label' => 'Audit log' ),
 			),
 		),
 		array(
@@ -1142,9 +1143,10 @@ function sn_theme_options_page() {
 
 		sn_admin_render_sub_tabs( 'security', $active_sub );
 
-		// Only 1 sub-tab at v3.8.1 — but gate on $active_sub for forward-compat
-		// (future audit-log addition gates on $active_sub === 'audit-log').
-		if ( 'login' === $active_sub ) {
+		// v3.8.3+: 2 sub-tabs (Login URL + Audit log) — sub-tab nav now visible.
+		if ( 'audit-log' === $active_sub ) {
+			sn_admin_render_section( 'audit-log', 'snt_audit_log_render_tab' );
+		} elseif ( 'login' === $active_sub || '' === $active_sub ) {
 		sn_admin_render_section( 'login', function() {
 			// Detect module state. Three possibilities:
 			//   1. ACTIVE: our login-hide.php is firing (no wps-hide-login,
@@ -1236,7 +1238,7 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 			echo '<p>The constants take priority over the setting and persist across plugin updates. Remove them once you\'ve regained access.</p>';
 			echo '</div>';
 		} );
-		}  // close: if ( 'login' === $active_sub )
+		}  // close: elseif login (default)
 
 	// ════════════════════════════════════════
 	// TAB: AUTOMATION (v3.8.1+: sub-tabs)
