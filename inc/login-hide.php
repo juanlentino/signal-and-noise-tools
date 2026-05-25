@@ -142,6 +142,9 @@ add_action( 'wp_loaded', function() {
 
 	// 404 direct visits to /wp-login.php.
 	if ( strpos( $request_uri, 'wp-login.php' ) !== false ) {
+		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
+			snt_audit_increment_counter_impl( 'wp_login_404', $_SERVER['REMOTE_ADDR'] ?? null );
+		}
 		status_header( 404 );
 		nocache_headers();
 		include get_query_template( '404' );
@@ -150,6 +153,9 @@ add_action( 'wp_loaded', function() {
 
 	// 404 unauthenticated visits to /wp-admin.
 	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {
+		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
+			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', $_SERVER['REMOTE_ADDR'] ?? null );
+		}
 		status_header( 404 );
 		nocache_headers();
 		include get_query_template( '404' );
