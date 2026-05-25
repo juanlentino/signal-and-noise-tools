@@ -109,6 +109,34 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 
 require_once __DIR__ . '/../inc/health-checks.php';
 
+// snt_ai_can_text_generate stub for orphan-suggest gate.
+if ( ! function_exists( 'snt_ai_can_text_generate' ) ) {
+	function snt_ai_can_text_generate() {
+		return ! empty( $GLOBALS['__test_ai_available'] );
+	}
+}
+
+// Minimal get_post / wp_get_attachment_image_url stubs.
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) {
+		$id = (int) $id;
+		if ( ! isset( $GLOBALS['__test_posts'][ $id ] ) ) {
+			return null;
+		}
+		return (object) $GLOBALS['__test_posts'][ $id ];
+	}
+}
+if ( ! function_exists( 'wp_get_attachment_image_url' ) ) {
+	function wp_get_attachment_image_url( $id, $size ) {
+		return 'https://example.com/thumb-' . (int) $id . '.jpg';
+	}
+}
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = null ) { return $s; }
+}
+
+require_once __DIR__ . '/../inc/ai-orphan-suggest.php';
+
 // ─── Harness ──────────────────────────────────────────────────────────
 $pass = 0; $fail = 0;
 function hc_eq( $e, $a, $msg ) {
@@ -336,6 +364,43 @@ $GLOBALS['wpdb']->rows = array(
 );
 $check = sn_health_check_drift_time_phrases();
 hc_eq( 1, $check['count'], 'partial fence (no closer) still strips and parses' );
+
+// ─── Test: orphan-suggest cache invariants (v4.1.0) ──────────────────
+echo "\nTest: snt_ai_orphan_suggest_impl cache invariants\n";
+
+$GLOBALS['__test_ai_available']  = true;
+$GLOBALS['__test_transients']    = array();
+$GLOBALS['__test_ai_call_count'] = 0;
+$GLOBALS['__test_ai_response']   = '{"verdict":"delete","reason":"one-off screenshot"}';
+$GLOBALS['__test_posts']         = array(
+	555 => array(
+		'ID'                => 555,
+		'post_type'         => 'attachment',
+		'post_mime_type'    => 'image/png',
+		'post_title'        => 'screenshot-2024-03',
+		'post_excerpt'      => '',
+		'guid'              => 'https://example.com/uploads/screenshot-2024-03.png',
+		'post_parent'       => 0,
+		'post_date_gmt'     => '2024-03-15 10:00:00',
+		'post_modified_gmt' => '2024-03-15 10:00:00',
+	),
+);
+
+// First call — cold cache, should fire AI.
+$res1 = snt_ai_orphan_suggest_impl( 555 );
+hc_eq( 1, $GLOBALS['__test_ai_call_count'], 'cold cache: AI call count = 1' );
+hc_eq( 'delete', $res1['verdict'], 'cold cache: verdict=delete' );
+
+// Second call — warm cache, should NOT fire AI.
+$res2 = snt_ai_orphan_suggest_impl( 555 );
+hc_eq( 1, $GLOBALS['__test_ai_call_count'], 'warm cache: AI call count still = 1 (no new call)' );
+hc_eq( 'delete', $res2['verdict'], 'warm cache: same verdict returned' );
+
+// Third call after prompt_version mismatch — should fire AI again.
+$cache_key = 'sn_orphan_verdict_555';
+$GLOBALS['__test_transients'][ $cache_key ]['prompt_version'] = 'stale-md5';
+$res3 = snt_ai_orphan_suggest_impl( 555 );
+hc_eq( 2, $GLOBALS['__test_ai_call_count'], 'prompt_version mismatch: AI call count = 2' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

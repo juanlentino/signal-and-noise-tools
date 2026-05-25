@@ -954,5 +954,20 @@ ap_eq( 'delete', $out['verdict'], 'ai-orphan-suggest: verdict=delete for attachm
 ap_eq( 1234, $out['attachment_id'], 'ai-orphan-suggest: attachment_id echo' );
 ap_eq( 'https://example.com/wp-content/uploads/thumb-1234.jpg', $out['thumbnail_url'], 'ai-orphan-suggest: thumbnail_url matches stub' );
 
+// ── ai-orphan-suggest — happy path (verdict=keep) ──────────────────
+$out = wp_get_ability( 'signal-noise/ai-orphan-suggest' )->execute( array( 'attachment_id' => 1235 ) );
+ap_eq( 'keep', $out['verdict'], 'ai-orphan-suggest: verdict=keep for attachment 1235' );
+ap_true( isset( $out['reason'] ) && '' !== $out['reason'], 'ai-orphan-suggest: reason non-empty for keep verdict' );
+
+// ── ai-orphan-suggest — malformed JSON → unsure fallback ───────────
+$out = wp_get_ability( 'signal-noise/ai-orphan-suggest' )->execute( array( 'attachment_id' => 1236 ) );
+ap_eq( 'unsure', $out['verdict'], 'ai-orphan-suggest: malformed JSON → verdict=unsure' );
+ap_true( false !== strpos( $out['reason'], 'parsed' ), 'ai-orphan-suggest: unsure reason mentions parse fallback' );
+
+// ── ai-orphan-suggest — non-image attachment → WP_Error ────────────
+$res = wp_get_ability( 'signal-noise/ai-orphan-suggest' )->execute( array( 'attachment_id' => 9999 ) );
+ap_true( is_wp_error( $res ), 'ai-orphan-suggest: non-image → WP_Error' );
+ap_eq( 'snt_ai_not_attachment', $res->get_error_code(), 'ai-orphan-suggest: snt_ai_not_attachment code' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
