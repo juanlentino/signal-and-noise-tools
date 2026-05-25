@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.0.3] - 2026-05-25
+
+### Added — Before/After Apply preview modal
+
+Replaces `window.confirm()` on Apply clicks with a custom modal showing side-by-side before/after preview. Catches "wait, that's not what I expected" before the destructive write — visual confirmation for AI-suggested edits to attachment alt text and post body text.
+
+**Unified modal, two render variants:**
+- Attachment-alt Apply: thumbnail + filename + "(no existing alt)" caption / read-only textarea with proposed alt text + character count
+- Drift-phrase Apply: post_content snippet with phrase highlighted (red before / green after)
+
+**UX details:**
+- Keyboard: Escape = Cancel, Enter (not in textarea) = Apply
+- Focus trap: focus moves into modal on open, returns to originating cell's Apply button on close
+- Backdrop click + × close button = Cancel
+- Mobile (<600px viewport): panes stack vertically with `<hr>` separator
+
+**Backend addition:** `signal-noise/ai-alt-suggest` ability output gains `thumbnail_url` + `filename` fields (powers the modal thumbnail + filename label). Two extra calls per Suggest (`wp_get_attachment_image_url()` + `wp_basename(get_attached_file())`); cost is microseconds (local DB lookups via WP object cache). Additive change; older JS consumers ignore the fields — no coordinated rollout needed.
+
+**Inline-img findings (v4.0.2) skip the modal** — they use the `apply: null` sentinel which renders Copy button + helper text instead of Apply + Discard. The modal never opens for those.
+
+**Zero new AI cost.** Modal is pure UI. The 136 integration test assertions pass (was 133; +3 verify `thumbnail_url` + `filename` shape).
+
+**Patch cap status:** 3/7 in v4.0.x. v4.0.x roadmap is now fully shipped (v4.0.1 drift cache + v4.0.2 inline-img Suggest+Copy + v4.0.3 Before/After modal). Next ship goes to v4.1.0 (stale-posts + orphaned-media Suggest+Apply + cheap zero-AI Health checks like color drift + block pattern usage analytics).
+
 ## [4.0.2] - 2026-05-25
 
 ### Added — Inline-`<img>` alt Suggest + Copy

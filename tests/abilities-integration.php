@@ -233,6 +233,8 @@ if ( ! function_exists( 'snt_ai_alt_suggest_impl' ) ) {
 			'ok'            => true,
 			'suggestion'    => 'Stub: a descriptive alt for attachment ' . (int) $attachment_id,
 			'attachment_id' => (int) $attachment_id,
+			'thumbnail_url' => 'https://example.com/wp-content/uploads/thumb-' . (int) $attachment_id . '.jpg',
+			'filename'      => 'thumb-' . (int) $attachment_id . '.jpg',
 		);
 	}
 }
@@ -817,6 +819,9 @@ $out = wp_get_ability( 'signal-noise/ai-alt-suggest' )->execute( array( 'attachm
 ap_true( is_array( $out ) && isset( $out['ok'], $out['suggestion'], $out['attachment_id'] ), 'ai-alt-suggest: required keys' );
 ap_eq( true, $out['ok'], 'ai-alt-suggest: ok=true' );
 ap_eq( 1234, $out['attachment_id'], 'ai-alt-suggest: attachment_id echo' );
+ap_true( isset( $out['thumbnail_url'] ), 'ai-alt-suggest: thumbnail_url key present' );
+ap_eq( 'https://example.com/wp-content/uploads/thumb-1234.jpg', $out['thumbnail_url'], 'ai-alt-suggest: thumbnail_url value matches stub' );
+ap_true( isset( $out['filename'] ), 'ai-alt-suggest: filename key present' );
 
 // ── ai-alt-suggest — edit_post denied ───────────────────────────────
 $GLOBALS['__test_edit_post_ok'] = false;

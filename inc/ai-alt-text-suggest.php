@@ -152,6 +152,8 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 		'ok'            => true,
 		'suggestion'    => $suggestion,
 		'attachment_id' => (int) $attachment_id,
+		'thumbnail_url' => (string) wp_get_attachment_image_url( (int) $attachment_id, 'thumbnail' ),
+		'filename'      => (string) wp_basename( (string) get_attached_file( (int) $attachment_id ) ),
 	);
 }
 

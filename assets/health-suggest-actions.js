@@ -39,6 +39,11 @@
 		drift_time_phrases:  { suggest: 'ai-drift-suggest',       apply: 'ai-drift-apply' },
 	};
 
+	// v4.0.3: Active modal state. Only one modal can be open at a time.
+	// Stores { backdrop, originatingButton, escapeHandler, focusHandler, applyCallback, cancelCallback }
+	// or null when no modal is open.
+	var activeModal = null;
+
 	/**
 	 * POST to an ability run endpoint.
 	 * @param {string} abilitySlug e.g. "ai-alt-suggest"
@@ -71,6 +76,276 @@
 			case 'err':  node.style.color = '#8b1a1a'; break;
 			default:     node.style.color = '#646970';
 		}
+	}
+
+	/**
+	 * Open the Apply preview modal.
+	 *
+	 * Builds the modal DOM, appends to body, installs event listeners,
+	 * moves focus into the modal. Calls onApply() if user accepts;
+	 * onCancel() if user cancels (or modal is dismissed via Esc/backdrop/×).
+	 *
+	 * @param {object}   opts
+	 * @param {string}   opts.title        Modal title text
+	 * @param {Element}  opts.beforeNode   DOM node for the Before pane
+	 * @param {Element}  opts.afterNode    DOM node for the After pane
+	 * @param {Element}  opts.originatingButton  Where focus returns on close
+	 * @param {function} opts.onApply      Called when user clicks Apply
+	 * @param {function} opts.onCancel     Called when user cancels
+	 */
+	function openApplyModal( opts ) {
+		if ( activeModal ) {
+			// Only one modal at a time — close the existing one first.
+			closeApplyModal();
+		}
+
+		var isMobile = window.matchMedia && window.matchMedia( '(max-width: 600px)' ).matches;
+
+		var backdrop = document.createElement( 'div' );
+		backdrop.className = 'snt-modal-backdrop';
+		backdrop.setAttribute( 'style', 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100000;' );
+
+		var box = document.createElement( 'div' );
+		box.className = 'snt-modal-box';
+		box.setAttribute( 'style', 'background:#fff;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-width:720px;width:90vw;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;' );
+
+		var header = document.createElement( 'div' );
+		header.className = 'snt-modal-header';
+		header.setAttribute( 'style', 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e0e0e0;' );
+
+		var titleEl = document.createElement( 'h2' );
+		titleEl.textContent = opts.title;
+		titleEl.setAttribute( 'style', 'margin:0;font-size:16px;font-weight:600;' );
+		header.appendChild( titleEl );
+
+		var closeBtn = document.createElement( 'button' );
+		closeBtn.type = 'button';
+		closeBtn.className = 'snt-modal-close';
+		closeBtn.textContent = '×';
+		closeBtn.setAttribute( 'aria-label', __( 'Close', 'signal-noise-tools' ) );
+		closeBtn.setAttribute( 'style', 'background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:#646970;padding:0 4px;' );
+		header.appendChild( closeBtn );
+
+		box.appendChild( header );
+
+		var body = document.createElement( 'div' );
+		body.className = 'snt-modal-body';
+		body.setAttribute( 'style', 'padding:20px;display:grid;grid-template-columns:' + ( isMobile ? '1fr' : '1fr 1fr' ) + ';gap:24px;' );
+
+		var beforePane = document.createElement( 'div' );
+		beforePane.className = 'snt-modal-pane-before';
+		var beforeLabel = document.createElement( 'div' );
+		beforeLabel.textContent = __( 'Before', 'signal-noise-tools' );
+		beforeLabel.setAttribute( 'style', 'font-size:11px;font-weight:600;text-transform:uppercase;color:#646970;margin-bottom:8px;' );
+		beforePane.appendChild( beforeLabel );
+		beforePane.appendChild( opts.beforeNode );
+		body.appendChild( beforePane );
+
+		if ( isMobile ) {
+			var hr = document.createElement( 'hr' );
+			hr.setAttribute( 'style', 'border:none;border-top:1px solid #e0e0e0;margin:0;' );
+			body.appendChild( hr );
+		}
+
+		var afterPane = document.createElement( 'div' );
+		afterPane.className = 'snt-modal-pane-after';
+		var afterLabel = document.createElement( 'div' );
+		afterLabel.textContent = __( 'After', 'signal-noise-tools' );
+		afterLabel.setAttribute( 'style', 'font-size:11px;font-weight:600;text-transform:uppercase;color:#646970;margin-bottom:8px;' );
+		afterPane.appendChild( afterLabel );
+		afterPane.appendChild( opts.afterNode );
+		body.appendChild( afterPane );
+
+		box.appendChild( body );
+
+		var footer = document.createElement( 'div' );
+		footer.className = 'snt-modal-footer';
+		footer.setAttribute( 'style', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e0e0e0;' );
+
+		var cancelBtn = document.createElement( 'button' );
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'button';
+		cancelBtn.textContent = __( 'Cancel', 'signal-noise-tools' );
+		footer.appendChild( cancelBtn );
+
+		var applyBtn = document.createElement( 'button' );
+		applyBtn.type = 'button';
+		applyBtn.className = 'button button-primary';
+		applyBtn.textContent = __( 'Apply', 'signal-noise-tools' );
+		footer.appendChild( applyBtn );
+
+		box.appendChild( footer );
+		backdrop.appendChild( box );
+		document.body.appendChild( backdrop );
+
+		// Wire up close paths.
+		var dismiss = function() { closeApplyModal(); opts.onCancel(); };
+		var accept  = function() { closeApplyModal(); opts.onApply(); };
+
+		closeBtn.addEventListener( 'click', dismiss );
+		cancelBtn.addEventListener( 'click', dismiss );
+		applyBtn.addEventListener( 'click', accept );
+		backdrop.addEventListener( 'click', function( e ) {
+			if ( e.target === backdrop ) { dismiss(); }
+		} );
+
+		// Keyboard handler: Escape = cancel, Enter (not in textarea) = apply.
+		var escapeHandler = function( e ) {
+			if ( ! activeModal ) { return; }
+			if ( 'Escape' === e.key ) {
+				e.preventDefault();
+				dismiss();
+			} else if ( 'Enter' === e.key && 'TEXTAREA' !== ( e.target && e.target.tagName ) ) {
+				e.preventDefault();
+				accept();
+			}
+		};
+		document.addEventListener( 'keydown', escapeHandler );
+
+		// Focus trap: redirect any focus escaping the modal back to Apply button.
+		var focusHandler = function( e ) {
+			if ( ! activeModal ) { return; }
+			if ( ! box.contains( e.target ) ) {
+				e.preventDefault();
+				applyBtn.focus();
+			}
+		};
+		document.addEventListener( 'focusin', focusHandler );
+
+		activeModal = {
+			backdrop:            backdrop,
+			originatingButton:   opts.originatingButton,
+			escapeHandler:       escapeHandler,
+			focusHandler:        focusHandler,
+		};
+
+		// Move focus to the Apply button (primary action).
+		applyBtn.focus();
+	}
+
+	/**
+	 * Close the currently-open modal. Idempotent — safe to call when no modal exists.
+	 */
+	function closeApplyModal() {
+		if ( ! activeModal ) { return; }
+
+		document.removeEventListener( 'keydown', activeModal.escapeHandler );
+		document.removeEventListener( 'focusin', activeModal.focusHandler );
+
+		if ( activeModal.backdrop && activeModal.backdrop.parentNode ) {
+			activeModal.backdrop.parentNode.removeChild( activeModal.backdrop );
+		}
+
+		if ( activeModal.originatingButton ) {
+			activeModal.originatingButton.focus();
+		}
+
+		activeModal = null;
+	}
+
+	/**
+	 * Build modal Before+After nodes for the attachment-alt variant.
+	 *
+	 * @param {object}  res      Suggest response (must include thumbnail_url, suggestion)
+	 * @param {object}  input    Input from onApplyClick (has attachment_id)
+	 * @param {string}  altText  The user-edited alt text (from textarea)
+	 * @return {{ before: Element, after: Element }}
+	 */
+	function buildAttachmentAltModalContent( res, input, altText ) {
+		var beforeNode = document.createElement( 'div' );
+
+		if ( res.thumbnail_url && '' !== res.thumbnail_url ) {
+			var img = document.createElement( 'img' );
+			img.src = res.thumbnail_url;
+			img.setAttribute( 'style', 'max-width:160px;max-height:160px;display:block;border-radius:4px;border:1px solid #e0e0e0;' );
+			beforeNode.appendChild( img );
+		}
+
+		var filenameEl = document.createElement( 'p' );
+		var filename = res.filename && '' !== res.filename
+			? res.filename
+			: ( '#' + ( input.attachment_id || 0 ) );
+		filenameEl.textContent = filename;
+		filenameEl.setAttribute( 'style', 'font-family:monospace;font-size:12px;margin:8px 0 4px 0;color:#1d2327;word-break:break-all;' );
+		beforeNode.appendChild( filenameEl );
+
+		var captionEl = document.createElement( 'p' );
+		captionEl.textContent = __( '(no existing alt)', 'signal-noise-tools' );
+		captionEl.setAttribute( 'style', 'font-style:italic;color:#646970;font-size:12px;margin:0;' );
+		beforeNode.appendChild( captionEl );
+
+		var afterNode = document.createElement( 'div' );
+
+		var afterTa = document.createElement( 'textarea' );
+		afterTa.readOnly = true;
+		afterTa.rows = 4;
+		afterTa.value = altText;
+		afterTa.setAttribute( 'style', 'width:100%;font-family:inherit;font-size:13px;background:#f6f7f7;color:#1d2327;border:1px solid #c3c4c7;border-radius:4px;padding:8px;' );
+		afterNode.appendChild( afterTa );
+
+		var countEl = document.createElement( 'p' );
+		countEl.textContent = altText.length + ' ' + __( 'chars', 'signal-noise-tools' );
+		countEl.setAttribute( 'style', 'text-align:right;font-size:11px;color:#646970;margin:4px 0 0 0;' );
+		afterNode.appendChild( countEl );
+
+		return { before: beforeNode, after: afterNode };
+	}
+
+	/**
+	 * Build modal Before+After nodes for the drift-phrase variant.
+	 *
+	 * @param {object}  res          Suggest response (has suggestion)
+	 * @param {object}  input        Input from onApplyClick (has phrase, position, context_snippet)
+	 * @param {string}  replacement  The user-edited replacement text (from textarea)
+	 * @return {{ before: Element, after: Element }}
+	 */
+	function buildDriftModalContent( res, input, replacement ) {
+		var snippet = input.context_snippet || '';
+		var phrase  = input.phrase || '';
+		var snippetPhraseIndex = snippet.indexOf( phrase );
+
+		var beforeNode = document.createElement( 'div' );
+		beforeNode.setAttribute( 'style', 'white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.5;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;padding:12px;' );
+
+		if ( snippetPhraseIndex >= 0 ) {
+			var beforeLeft = document.createElement( 'span' );
+			beforeLeft.textContent = snippet.substring( 0, snippetPhraseIndex );
+			beforeNode.appendChild( beforeLeft );
+
+			var beforePhrase = document.createElement( 'span' );
+			beforePhrase.textContent = phrase;
+			beforePhrase.setAttribute( 'style', 'background:#fde8e8;color:#8b1a1a;padding:2px 4px;border-radius:2px;font-weight:600;' );
+			beforeNode.appendChild( beforePhrase );
+
+			var beforeRight = document.createElement( 'span' );
+			beforeRight.textContent = snippet.substring( snippetPhraseIndex + phrase.length );
+			beforeNode.appendChild( beforeRight );
+		} else {
+			// Phrase not found in snippet — fallback to plain snippet.
+			beforeNode.textContent = snippet;
+		}
+
+		var afterNode = document.createElement( 'div' );
+		afterNode.setAttribute( 'style', 'white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.5;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;padding:12px;' );
+
+		if ( snippetPhraseIndex >= 0 ) {
+			var afterLeft = document.createElement( 'span' );
+			afterLeft.textContent = snippet.substring( 0, snippetPhraseIndex );
+			afterNode.appendChild( afterLeft );
+
+			var afterPhrase = document.createElement( 'span' );
+			afterPhrase.textContent = replacement;
+			afterPhrase.setAttribute( 'style', 'background:#e8f5e9;color:#0a5a1a;padding:2px 4px;border-radius:2px;font-weight:600;' );
+			afterNode.appendChild( afterPhrase );
+
+			var afterRight = document.createElement( 'span' );
+			afterRight.textContent = snippet.substring( snippetPhraseIndex + phrase.length );
+			afterNode.appendChild( afterRight );
+		} else {
+			afterNode.textContent = snippet;
+		}
+
+		return { before: beforeNode, after: afterNode };
 	}
 
 	/**
@@ -217,44 +492,60 @@
 	 * marks the row done on success or surfaces the error on failure.
 	 */
 	function onApplyClick( cell, textarea, status, applyBtn, applyAbility, suggestInput, checkType, suggestRes ) {
-		var msg;
-		if ( 'missing_alt' === checkType ) {
-			msg = __( 'Write this alt text to the attachment? This cannot be undone via this UI.', 'signal-noise-tools' );
-		} else {
-			msg = __( 'Replace the phrase in the post? This cannot be undone via this UI.', 'signal-noise-tools' );
-		}
-		if ( ! window.confirm( msg ) ) { return; }
+		// v4.0.3: replace window.confirm() with Before/After preview modal.
+		var modalTitle;
+		var modalContent;
+		var currentEditedValue = textarea.value;
 
-		applyBtn.disabled = true;
-		setStatus( status, __( 'Applying…', 'signal-noise-tools' ), 'info' );
-
-		// Build apply input from suggest input + textarea value + suggest response.
-		var applyInput;
 		if ( 'missing_alt' === checkType ) {
-			applyInput = {
-				attachment_id: suggestInput.attachment_id,
-				alt_text:      textarea.value,
-			};
+			modalTitle   = __( 'Apply alt text to attachment?', 'signal-noise-tools' );
+			modalContent = buildAttachmentAltModalContent( suggestRes, suggestInput, currentEditedValue );
 		} else {
-			applyInput = {
-				post_id:     suggestInput.post_id,
-				phrase:      suggestInput.phrase,
-				position:    suggestInput.position,
-				replacement: textarea.value,
-				fingerprint: suggestRes.fingerprint,
-			};
+			modalTitle   = __( 'Replace phrase in post?', 'signal-noise-tools' );
+			modalContent = buildDriftModalContent( suggestRes, suggestInput, currentEditedValue );
 		}
 
-		callAbility( applyAbility, applyInput )
-			.then( function() {
-				renderApplied( cell );
-				var row = cell.closest( 'tr' );
-				if ( row ) { row.style.opacity = '0.5'; }
-			} )
-			.catch( function( err ) {
-				setStatus( status, __( 'Failed', 'signal-noise-tools' ) + ': ' + err.message, 'err' );
-				applyBtn.disabled = false;
-			} );
+		openApplyModal( {
+			title:             modalTitle,
+			beforeNode:        modalContent.before,
+			afterNode:         modalContent.after,
+			originatingButton: applyBtn,
+			onApply:           function() { doApply(); },
+			onCancel:          function() { /* no-op */ },
+		} );
+
+		function doApply() {
+			applyBtn.disabled = true;
+			setStatus( status, __( 'Applying…', 'signal-noise-tools' ), 'info' );
+
+			// Build apply input from suggest input + textarea value + suggest response.
+			var applyInput;
+			if ( 'missing_alt' === checkType ) {
+				applyInput = {
+					attachment_id: suggestInput.attachment_id,
+					alt_text:      currentEditedValue,
+				};
+			} else {
+				applyInput = {
+					post_id:     suggestInput.post_id,
+					phrase:      suggestInput.phrase,
+					position:    suggestInput.position,
+					replacement: currentEditedValue,
+					fingerprint: suggestRes.fingerprint,
+				};
+			}
+
+			callAbility( applyAbility, applyInput )
+				.then( function() {
+					renderApplied( cell );
+					var row = cell.closest( 'tr' );
+					if ( row ) { row.style.opacity = '0.5'; }
+				} )
+				.catch( function( err ) {
+					setStatus( status, __( 'Failed', 'signal-noise-tools' ) + ': ' + err.message, 'err' );
+					applyBtn.disabled = false;
+				} );
+		}
 	}
 
 	function renderApplied( cell ) {

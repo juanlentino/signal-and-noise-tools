@@ -956,6 +956,8 @@ add_action( 'wp_abilities_api_init', function() {
 				'ok'            => array( 'type' => 'boolean' ),
 				'suggestion'    => array( 'type' => 'string' ),
 				'attachment_id' => array( 'type' => 'integer' ),
+				'thumbnail_url' => array( 'type' => 'string', 'description' => 'Thumbnail URL for the attachment, or empty string if no thumbnail exists.' ),
+				'filename'      => array( 'type' => 'string', 'description' => 'Bare filename of the attachment (e.g., "my-image.png"), or empty string if unavailable.' ),
 			),
 		),
 		'meta'                => array(
