@@ -111,6 +111,7 @@ function snt_audit_log_render_hero( $summary ) {
  */
 function snt_audit_log_render_counter_table( $counters ) {
 	echo '<h2 class="sn-fieldset-h">Counter timeline (last 30 days)</h2>';
+	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-timeline">';
 	echo '<thead><tr>';
 	echo '<th>Date</th>';
@@ -137,6 +138,7 @@ function snt_audit_log_render_counter_table( $counters ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
+	echo '</div>';
 }
 
 /**
@@ -148,6 +150,7 @@ function snt_audit_log_render_logins_table( $logins ) {
 		echo '<p class="sn-prose">No successful logins recorded in this window.</p>';
 		return;
 	}
+	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-logins">';
 	echo '<thead><tr><th>Timestamp</th><th>User</th></tr></thead>';
 	echo '<tbody>';
@@ -159,6 +162,7 @@ function snt_audit_log_render_logins_table( $logins ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
+	echo '</div>';
 }
 
 /**

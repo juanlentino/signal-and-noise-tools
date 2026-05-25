@@ -22,8 +22,8 @@
 	--sn-space-1:     4px;
 	--sn-space-2:     8px;
 	--sn-space-3:     12px;
-	--sn-space-4:     16px;
-	--sn-space-5:     24px;
+	--sn-space-4:     12px;
+	--sn-space-5:     20px;
 	--sn-ok:          #00a32a;
 	--sn-warn:        #dba617;
 	--sn-err:         #d63638;
@@ -34,9 +34,9 @@
 
 .sn-prose {
 	color: var(--sn-text-muted);
-	font-size: 0.95em;
+	font-size: 0.88em;          /* v3.8.6: tighter for viewport-fit (was 0.95em) */
 	max-width: 680px;
-	margin: 0 0 var(--sn-space-4);
+	margin: 0 0 8px;            /* v3.8.6: tighter (was var(--sn-space-4) = 16px) */
 	line-height: 1.5;
 }
 
@@ -127,6 +127,11 @@
 	flex-wrap: wrap;
 	gap: var(--sn-space-2) var(--sn-space-4);
 	font-size: 0.9em;
+	/* v3.8.6: sticky below sub-tab nav (32px admin bar + ~48px sub-tab nav row).
+	   z-index slightly below sub-tabs so the layering reads correctly. */
+	position: sticky;
+	top: 80px;
+	z-index: 9;
 }
 
 .sn-toc-label {
@@ -219,7 +224,7 @@
 .sn-fieldset-h {
 	font-size: 1.15em;
 	font-weight: 600;
-	margin: 0 0 var(--sn-space-1);
+	margin: 16px 0 var(--sn-space-1);    /* v3.8.6: explicit top margin for inter-section rhythm */
 	color: var(--sn-text);
 	letter-spacing: 0.005em;
 }
@@ -227,7 +232,7 @@
 .sn-fieldset-intro {
 	color: var(--sn-text-muted);
 	font-size: 0.88em;
-	margin: 0 0 var(--sn-space-5);
+	margin: 0 0 8px;                /* v3.8.6: tighter for viewport-fit (was var(--sn-space-5) = 20px) */
 	line-height: 1.5;
 }
 
@@ -647,11 +652,11 @@
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
-	padding: 14px 16px;
+	padding: 10px 12px;          /* v3.8.6: tighter for viewport-fit (was 14px 16px) */
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	min-height: 96px;
+	gap: 4px;                    /* v3.8.6: tighter gap (was 6px) */
+	min-height: 76px;            /* v3.8.6: tighter min-height (was 96px) */
 }
 .sn-state-card__label {
 	color: #646970;
@@ -662,7 +667,7 @@
 	margin: 0;
 }
 .sn-state-card__value {
-	font-size: 1.4rem;
+	font-size: 1.2rem;           /* v3.8.6: tighter (was 1.4rem ≈ 22.4px → now ≈ 19.2px) */
 	font-weight: 500;
 	color: #1d2327;
 	margin: 0;
@@ -920,10 +925,16 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
-	margin: 0 0 1.5em 0;
+	margin: 0 0 1em 0;            /* v3.8.6: tighter for sticky context (was 1.5em) */
 	padding: 4px;
 	background: #f0f0f1;
 	border-radius: 4px;
+	/* v3.8.6: sticky below WP admin bar (32px desktop). Keeps sub-tab
+	   context visible while user scrolls in-page. z-index keeps it above
+	   table content scrolling past. */
+	position: sticky;
+	top: 32px;
+	z-index: 10;
 }
 
 .sn-sub-tab {
@@ -977,4 +988,42 @@
 /* Match-table ID column — narrow numeric column. */
 .widefat .column-id {
 	width: 60px;
+}
+
+/* ─── Internal-scroll table wrapper (v3.8.6) ──────────────────────────────
+   Opt-in via class="snt-scroll-table" on a div wrapping a long .widefat
+   table. Caps the table at 50vh visible (~400px on an 800px viewport ≈ 12
+   rows) and scrolls internally. The wrapped table's <thead> sticks at the
+   wrapper's top so column headers stay visible during internal scroll.
+
+   Pattern usage in PHP module:
+       echo '<div class="snt-scroll-table">';
+       echo '<table class="widefat">';
+       echo '<thead>...</thead><tbody>...</tbody>';
+       echo '</table>';
+       echo '</div>';
+
+   Used by: audit-log-admin (counter timeline + recent logins), cron-
+   dashboard-admin (events), health-checks-admin (scan results), webhooks-
+   admin (deliveries log), rss-plausible-tracker (recent requests).
+*/
+.snt-scroll-table {
+	max-height: 50vh;
+	overflow-y: auto;
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	margin: 0 0 var(--sn-space-4);
+}
+
+.snt-scroll-table .widefat {
+	border: none;               /* outer wrapper owns the border */
+	box-shadow: none;
+	margin: 0;
+}
+
+.snt-scroll-table .widefat thead th {
+	position: sticky;
+	top: 0;
+	background: #f0f0f1;        /* WP-admin native thead bg */
+	z-index: 1;
 }

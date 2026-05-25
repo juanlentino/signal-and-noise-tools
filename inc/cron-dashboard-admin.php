@@ -113,6 +113,7 @@ function snt_cron_render_admin_tab() {
 	echo '<input type="search" id="sn-cron-filter" placeholder="' . esc_attr__( 'Filter by hook name…', 'signal-noise-tools' ) . '" style="width: 320px; padding: 6px 10px;" />';
 	echo '</p>';
 
+	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped" id="sn-cron-table">';
 	echo '<caption class="screen-reader-text">' . esc_html__( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-noise-tools' ) . '</caption>';
 	echo '<thead><tr>';
@@ -235,5 +236,6 @@ function snt_cron_render_admin_tab() {
 	}
 
 	echo '</tbody></table>';
-	echo '</div>';
+	echo '</div>';  // .snt-scroll-table
+	echo '</div>';  // .sn-cron-dashboard
 }

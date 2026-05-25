@@ -92,6 +92,7 @@ function sn_health_render_admin_tab() {
 		$visible = array_slice( $check['findings'], 0, 50 );
 		$hidden  = count( $check['findings'] ) - count( $visible );
 
+		echo '<div class="snt-scroll-table">';
 		echo '<table class="widefat striped" style="margin-top:0.5rem;"><thead><tr>';
 		echo '<th scope="col" style="width:55%;">Subject</th>';
 		echo '<th scope="col">Note</th>';
@@ -114,6 +115,7 @@ function sn_health_render_admin_tab() {
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
+		echo '</div>';
 
 		if ( $hidden > 0 ) {
 			echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings — re-run scan after fixing the top batch.</p>';

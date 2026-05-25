@@ -115,6 +115,7 @@ function sn_webhooks_render_admin_tab() {
 		if ( ! empty( $log ) ) {
 			echo '<details class="sn-prose" style="margin-bottom:1rem;">';
 			echo '<summary>Recent deliveries (' . count( $log ) . ')</summary>';
+			echo '<div class="snt-scroll-table">';
 			echo '<table class="widefat striped" style="margin-top:0.5rem; font-size:0.85em;"><thead><tr>';
 			echo '<th scope="col">Fired at</th>';
 			echo '<th scope="col">Attempt</th>';
@@ -131,7 +132,9 @@ function sn_webhooks_render_admin_tab() {
 				echo '<td><code>' . esc_html( (string) $entry['response_excerpt'] ) . '</code></td>';
 				echo '</tr>';
 			}
-			echo '</tbody></table></details>';
+			echo '</tbody></table>';
+			echo '</div>';
+			echo '</details>';
 		}
 
 		echo '</form>';

@@ -11,7 +11,7 @@
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
-	padding: 16px;
+	padding: 12px;              /* v3.8.6: tighter for viewport-fit (was 16px) */
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
@@ -25,7 +25,7 @@
 }
 
 .sn-audit-card-value {
-	font-size: 28px;
+	font-size: 22px;            /* v3.8.6: tighter for viewport-fit (was 28px) */
 	font-weight: 600;
 	color: #1d2327;
 	line-height: 1.1;

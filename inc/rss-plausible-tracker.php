@@ -507,6 +507,7 @@ function sn_rss_tracker_render_recent_table( $recent ) {
 		return;
 	}
 	echo '<div class="sn-rss-recent">';
+	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped">';
 	echo '<thead><tr><th class="column-primary">Time (UTC)</th><th>Feed URL</th><th>Client</th></tr></thead><tbody>';
 	foreach ( $recent as $row ) {
@@ -517,6 +518,7 @@ function sn_rss_tracker_render_recent_table( $recent ) {
 		echo '</tr>';
 	}
 	echo '</tbody></table>';
+	echo '</div>';
 	echo '</div>';
 }
 

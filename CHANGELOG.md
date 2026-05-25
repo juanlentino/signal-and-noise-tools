@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.6] - 2026-05-25
+
+### Changed — Viewport-fit admin pages (system-wide CSS pass)
+
+SN admin pages now fit the desktop-mode portal viewport via sticky chrome + internal-scroll for long tables + density tightening. Dashboard-app feel: chrome stays anchored (sub-tab nav + TOC + hero cards always visible), data regions (tables) scroll internally with sticky `<thead>` so column headers stay visible during scroll. Forms keep natural page scroll (users tab through fields).
+
+**6 tactics:**
+
+1. **Sub-tab nav becomes sticky** below the WP admin bar (`top: 32px`)
+2. **TOC nav sticky** below the sub-tab nav (`top: 80px`) — used on Identity & SEO
+3. **Long tables get `.snt-scroll-table` wrapper** with `max-height: 50vh`, sticky `<thead>`, scoped border. 6 wrappers across 5 module files: audit-log-admin (counter timeline + recent logins), cron-dashboard-admin (events), health-checks-admin (scan results), webhooks-admin (deliveries log inside `<details>`), rss-plausible-tracker (recent requests)
+4. **Hero stat cards tightened** — `.sn-audit-card` padding 16→12px, value font 28→22px; `.sn-state-card` padding 14/16→10/12px, value font 1.4→1.2rem, min-height 96→76px
+5. **`.sn-fieldset` density tightened** via CSS variable updates — `--sn-space-4` 16→12px, `--sn-space-5` 24→20px; ripples through 23 callsites; all UI tightens by ~25%
+6. **Section intros (`.sn-prose` / `.sn-fieldset-intro`) compacted** — 0.95→0.88em font, margins to 8px
+
+**Pages affected:**
+
+- Audit log, Cron Dashboard, Content Health, Webhooks, RSS Recent: get internal-scroll tables + sticky chrome + tighter density
+- Dashboard: tighter density only (recent-deploys list is short)
+- Identity & SEO, Cloudflare, Login, Plausible, Webhooks form: tighter density + sticky chrome; forms keep natural page scroll (users tab through fields)
+- Insights, Reading Time: tighter density only
+
+**Verification:** 16 manual smoke gates in the spec (G1-G16). The big wins: sub-tab nav never scrolls off, table headers stay visible during in-table scroll, hero cards stay anchored at top of every page.
+
+**File diff:**
+
+- Modified: `assets/admin.css` (+40 / -8 lines: variable tightening, sticky chrome, density, `.snt-scroll-table` rule)
+- Modified: `assets/audit-log.css` (2 line replacements: card padding + value font)
+- Modified: `inc/audit-log-admin.php` (+4 lines: 2 table wrappers)
+- Modified: `inc/cron-dashboard-admin.php` (+2 lines: 1 wrapper)
+- Modified: `inc/health-checks-admin.php` (+2 lines: 1 wrapper)
+- Modified: `inc/webhooks-admin.php` (+3 lines: 1 wrapper inside the deliveries log `<details>` disclosure)
+- Modified: `inc/rss-plausible-tracker.php` (+2 lines: 1 wrapper)
+- Modified: `signal-and-noise-tools.php` (version bump)
+
+**Patch 6/7 in v3.8.x.** 1 patch remains before v3.9.0 rollover.
+
 ## [3.8.5] - 2026-05-25
 
 ### Fixed — RSS Monitoring tab: `.sn-2col` always stacks (v3.8.4 breakpoint fix wasn't enough)
