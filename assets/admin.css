@@ -594,7 +594,13 @@
 .sn-2col__col {
 	min-width: 0; /* lets internal tables shrink instead of overflowing */
 }
-@media (max-width: 960px) {
+/* v3.8.4: stack at 1200px (was 960px). The desktop-mode portal viewport
+   sits in the ~1000-1200px range where the 2-col was cramped (Recent
+   requests table + Settings form overlapped visually because the right
+   column hit its 280px minimum while the left column was too narrow for
+   the table's content). Above 1200px (full wp-admin), side-by-side still
+   works comfortably. */
+@media (max-width: 1200px) {
 	.sn-2col {
 		grid-template-columns: 1fr;
 	}

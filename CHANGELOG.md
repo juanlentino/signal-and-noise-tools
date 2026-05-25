@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.4] - 2026-05-25
+
+### Fixed — Desktop-mode dock submenu showed 8 stale entries; RSS 2-col layout was cramped
+
+**Bug 1 — Duplicate-nav appearance in desktop-mode portal.** The dock-items filter in `inc/desktop-mode-integration.php` was still hardcoded with the legacy 8-entry submenu (Dashboard, Identity, Login, Cloudflare, Plausible, RSS, Reading Time, Links) — even though v3.8.1 reduced the wp-admin sidebar submenu to the 6 new top-tab entries (Dashboard, Site, Security, Automation, Monitoring, Tools). Desktop-mode renders the dock-items submenu as a horizontal top-nav row, so the portal continued showing the OLD 8 entries above the 6 new in-page tabs — exactly the "duplicate nav" pattern v3.8.1 was meant to fix.
+
+**Root cause:** single-source-of-truth violation. v3.8.1 updated `add_submenu_page()` iteration to read from `sn_admin_top_tabs()` but missed the parallel dock-items filter.
+
+**Fix:** dock-items submenu now derives from `sn_admin_top_tabs()` — same list, single source. Future top-tab additions update both surfaces automatically. URLs go direct-to-canonical (`?page=sn-theme-options&tab=<top>`) instead of the legacy slugs.
+
+**Bug 2 — RSS Monitoring tab cramped 2-col layout.** The Recent-requests table and Settings form rendered side-by-side via `.sn-2col` (`grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)`) with a stack breakpoint at `max-width: 960px`. Desktop-mode portal viewport sits in the ~1000-1200px range — above the breakpoint, so the layout stayed 2-col, but the right column hit its 280px minimum while the left column wasn't wide enough for the table's content. Visual result: form labels and table cells competing for the same horizontal band.
+
+**Fix:** raised the stack breakpoint from `960px` to `1200px`. The 2-col still works comfortably on full wp-admin (>1200px viewport); stacks on the desktop-mode portal width. `.sn-2col` is only used by the RSS tab (1 caller in the codebase), so the change is scoped.
+
+**Patch 4/7 in v3.8.x.**
+
 ## [3.8.3] - 2026-05-25
 
 ### Added — Login hardening audit log under Security

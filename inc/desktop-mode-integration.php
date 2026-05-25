@@ -180,22 +180,33 @@ add_filter( 'desktop_mode_dock_items', function( $items ) {
 	 *   - Submenu rides into the opened window as an in-window tab strip
 	 *     (the "submenu chevron" on the dock tile is documented future work)
 	 */
+	// v3.8.4: derive submenu from sn_admin_top_tabs() instead of hardcoding
+	// the legacy 8-entry list. Was a single-source-of-truth violation: when
+	// v3.8.1 reduced the wp-admin sidebar submenu to 6 entries to match the
+	// new in-page tab IA, THIS filter was missed — so desktop-mode portal
+	// continued rendering the OLD 8 entries as a horizontal top-nav row.
+	// That re-created the "duplicate nav appearance" that v3.8.1 was meant
+	// to fix (see memory feedback_desktop_mode_horizontal_submenu_warning).
+	$dock_submenu = array();
+	foreach ( sn_admin_top_tabs() as $top_tab ) {
+		// Direct-to-canonical URLs (no redirect round-trip): page=sn-theme-options&tab=<top>.
+		// Dashboard tab omits the &tab= param since it's the default.
+		$url = 'dashboard' === $top_tab['tab']
+			? admin_url( 'admin.php?page=sn-theme-options' )
+			: admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $top_tab['tab'] ) );
+		$dock_submenu[] = array(
+			'title' => $top_tab['label'],
+			'url'   => $url,
+		);
+	}
+
 	$items[] = array(
 		'id'      => 'signal-noise',
 		'title'   => 'Signal & Noise',
 		'icon'    => 'dashicons-megaphone',
 		'url'     => admin_url( 'admin.php?page=sn-theme-options' ),
 		'badge'   => snt_desktop_dock_badge(),
-		'submenu' => array(
-			array( 'title' => 'Dashboard',    'url' => admin_url( 'admin.php?page=sn-theme-options' ) ),
-			array( 'title' => 'Identity',     'url' => admin_url( 'admin.php?page=sn-identity' ) ),
-			array( 'title' => 'Login',        'url' => admin_url( 'admin.php?page=sn-login' ) ),
-			array( 'title' => 'Cloudflare',   'url' => admin_url( 'admin.php?page=sn-cloudflare' ) ),
-			array( 'title' => 'Plausible',    'url' => admin_url( 'admin.php?page=sn-plausible' ) ),
-			array( 'title' => 'RSS',          'url' => admin_url( 'admin.php?page=sn-rss' ) ),
-			array( 'title' => 'Reading Time', 'url' => admin_url( 'admin.php?page=sn-reading-time' ) ),
-			array( 'title' => 'Links',        'url' => admin_url( 'admin.php?page=sn-links' ) ),
-		),
+		'submenu' => $dock_submenu,
 	);
 
 	return $items;
