@@ -925,6 +925,169 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	// ── v4.0.0: AI health suggest+apply (4 abilities — 2 suggest, 2 apply) ──
+
+	wp_register_ability( 'signal-noise/ai-alt-suggest', array(
+		'label'               => 'Suggest alt text for an attachment',
+		'description'         => 'Generate descriptive 80-125 character alt text for an image attachment via the WP AI Client, using attachment title + caption + filename + first referencing post as context. Does NOT write — returns the suggestion for review.',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$attachment_id = isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+			return current_user_can( 'edit_post', $attachment_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_alt_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'attachment_id' ),
+			'properties'           => array(
+				'attachment_id' => array(
+					'type'        => 'integer',
+					'description' => 'Image-attachment post ID to generate alt text for.',
+					'minimum'     => 1,
+					'examples'    => array( 1234 ),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'suggestion'    => array( 'type' => 'string' ),
+				'attachment_id' => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-alt-apply', array(
+		'label'               => 'Apply alt text to an attachment',
+		'description'         => 'Writes a (possibly user-edited) alt text string to an image attachment\'s _wp_attachment_image_alt meta. Destructive — requires edit_post on the attachment.',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$attachment_id = isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+			return current_user_can( 'edit_post', $attachment_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_alt_apply',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'attachment_id', 'alt_text' ),
+			'properties'           => array(
+				'attachment_id' => array(
+					'type'        => 'integer',
+					'description' => 'Image-attachment post ID to update.',
+					'minimum'     => 1,
+					'examples'    => array( 1234 ),
+				),
+				'alt_text' => array(
+					'type'        => 'string',
+					'description' => 'The alt text to write. Trimmed, non-empty, max 250 chars.',
+					'minLength'   => 1,
+					'maxLength'   => 250,
+					'examples'    => array( 'A red barn at dusk with two figures walking toward it.' ),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'attachment_id' => array( 'type' => 'integer' ),
+				'written_alt'   => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-drift-suggest', array(
+		'label'               => 'Suggest replacement for a drifted time-phrase',
+		'description'         => 'Generate a temporally-explicit replacement for a stale time-relative phrase (e.g., "recently" → "in early 2025") via the WP AI Client. Includes a fingerprint that the apply call must echo back to detect post_content drift since the suggest. Does NOT write — returns the suggestion + fingerprint for review.',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+			return current_user_can( 'edit_post', $post_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_drift_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'phrase', 'position', 'context_snippet' ),
+			'properties'           => array(
+				'post_id'         => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Post that owns the phrase.', 'examples' => array( 42 ) ),
+				'phrase'          => array( 'type' => 'string', 'minLength' => 1, 'description' => 'Original phrase as flagged by drift detection.', 'examples' => array( 'recently' ) ),
+				'position'        => array( 'type' => 'integer', 'minimum' => 0, 'description' => 'Byte offset of phrase in post_content (from scan).', 'examples' => array( 145 ) ),
+				'context_snippet' => array( 'type' => 'string', 'description' => '~200 chars around phrase (from scan; helps AI judge replacement appropriateness).', 'examples' => array( 'we recently shipped a new feature that' ) ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'          => array( 'type' => 'boolean' ),
+				'suggestion'  => array( 'type' => 'string' ),
+				'fingerprint' => array( 'type' => 'string', 'description' => 'md5 hash to echo back on apply.' ),
+				'post_id'     => array( 'type' => 'integer' ),
+				'position'    => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-drift-apply', array(
+		'label'               => 'Apply replacement for a drifted time-phrase',
+		'description'         => 'Replaces a drifted phrase in post_content at a known position with a (possibly user-edited) replacement string. Gated on a fingerprint match against current post_content to detect concurrent edits since the suggest call. Destructive — writes via wp_update_post().',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+			return current_user_can( 'edit_post', $post_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_drift_apply',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'phrase', 'position', 'replacement', 'fingerprint' ),
+			'properties'           => array(
+				'post_id'     => array( 'type' => 'integer', 'minimum' => 1, 'examples' => array( 42 ) ),
+				'phrase'      => array( 'type' => 'string', 'minLength' => 1, 'examples' => array( 'recently' ) ),
+				'position'    => array( 'type' => 'integer', 'minimum' => 0, 'examples' => array( 145 ) ),
+				'replacement' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 200, 'examples' => array( 'in early 2025' ) ),
+				'fingerprint' => array( 'type' => 'string', 'minLength' => 32, 'maxLength' => 32, 'description' => 'md5 hash from the matching suggest call.', 'examples' => array( 'a1b2c3d4e5f6789012345678901234ab' ) ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'       => array( 'type' => 'boolean' ),
+				'post_id'  => array( 'type' => 'integer' ),
+				'replaced' => array( 'type' => 'string' ),
+				'with'     => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				'idempotent'  => true,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1241,4 +1404,70 @@ function snt_ability_run_audit_prune() {
 		return new WP_Error( 'snt_audit_unavailable', 'Audit log module not loaded.', array( 'status' => 500 ) );
 	}
 	return snt_audit_prune_impl();
+}
+
+/**
+ * Execute callback for signal-noise/ai-alt-suggest.
+ * Thin wrapper around snt_ai_alt_suggest_impl().
+ *
+ * @since 4.0.0
+ */
+function snt_ability_ai_alt_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_alt_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Alt-suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_alt_suggest_impl( (int) $input['attachment_id'] );
+}
+
+/**
+ * Execute callback for signal-noise/ai-alt-apply.
+ * Thin wrapper around snt_ai_alt_apply_impl().
+ *
+ * @since 4.0.0
+ */
+function snt_ability_ai_alt_apply( $input ) {
+	if ( ! function_exists( 'snt_ai_alt_apply_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Alt-apply helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_alt_apply_impl(
+		(int) $input['attachment_id'],
+		(string) $input['alt_text']
+	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-drift-suggest.
+ * Thin wrapper around snt_ai_drift_suggest_impl().
+ *
+ * @since 4.0.0
+ */
+function snt_ability_ai_drift_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_drift_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Drift-suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_drift_suggest_impl(
+		(int) $input['post_id'],
+		(string) $input['phrase'],
+		(int) $input['position'],
+		(string) $input['context_snippet']
+	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-drift-apply.
+ * Thin wrapper around snt_ai_drift_apply_impl().
+ *
+ * @since 4.0.0
+ */
+function snt_ability_ai_drift_apply( $input ) {
+	if ( ! function_exists( 'snt_ai_drift_apply_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Drift-apply helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_drift_apply_impl(
+		(int) $input['post_id'],
+		(string) $input['phrase'],
+		(int) $input['position'],
+		(string) $input['replacement'],
+		(string) $input['fingerprint']
+	);
 }

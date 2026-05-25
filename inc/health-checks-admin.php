@@ -24,6 +24,9 @@ function sn_health_render_admin_tab() {
 		return;
 	}
 
+	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
+	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases' );
+
 	$last_scan = sn_health_last_scan();
 
 	// ── INTRO ──
@@ -72,10 +75,13 @@ function sn_health_render_admin_tab() {
 	foreach ( $last_scan['checks'] as $key => $check ) {
 		echo '<div class="sn-fieldset">';
 
-		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;">';
+		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;">';
 		echo esc_html( $check['label'] );
 		$pill_kind = $check['count'] > 0 ? 'warn' : 'ok';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
+		if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) && (int) $check['count'] > 0 ) {
+			echo '<button type="button" class="button button-small" data-snt-suggest-all="1" style="margin-left:auto;">' . esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), (int) $check['count'] ) ) . '</button>';
+		}
 		echo '</h2>';
 
 		if ( 0 === (int) $check['count'] ) {
@@ -92,11 +98,15 @@ function sn_health_render_admin_tab() {
 		$visible = array_slice( $check['findings'], 0, 50 );
 		$hidden  = count( $check['findings'] ) - count( $visible );
 
+		$show_ai_col = $ai_available && in_array( $key, $suggest_supported_checks, true );
 		echo '<div class="snt-scroll-table">';
 		echo '<table class="widefat striped" style="margin-top:0.5rem;"><thead><tr>';
-		echo '<th scope="col" style="width:55%;">Subject</th>';
+		echo '<th scope="col" style="width:' . ( $show_ai_col ? '40%' : '55%' ) . ';">Subject</th>';
 		echo '<th scope="col">Note</th>';
 		echo '<th scope="col" style="width:90px;">Action</th>';
+		if ( $show_ai_col ) {
+			echo '<th scope="col" style="width:280px;">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
+		}
 		echo '</tr></thead><tbody>';
 
 		foreach ( $visible as $f ) {
@@ -112,6 +122,11 @@ function sn_health_render_admin_tab() {
 				echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">Edit</a>';
 			}
 			echo '</td>';
+			if ( $show_ai_col ) {
+				echo '<td>';
+				echo sn_health_render_suggest_cell( $key, $f );
+				echo '</td>';
+			}
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
@@ -123,4 +138,57 @@ function sn_health_render_admin_tab() {
 
 		echo '</div>'; // .sn-fieldset
 	}
+}
+
+/**
+ * Render the AI-fix table cell content for a finding.
+ *
+ * Returns either a Suggest button (with data-attributes that the
+ * shared JS module assets/health-suggest-actions.js consumes) OR an
+ * empty string for findings v4.0.0 doesn't support (inline-img alt).
+ *
+ * Inline-img findings (subject_type='inline_img' on the missing_alt
+ * check) are deferred to v4.0.x because they need a separate impl
+ * boundary — inline imgs have no attachment_id; subject_id is the
+ * PARENT POST ID, which the alt-suggest impl rejects. Scoping out
+ * here is cleaner than introducing a second impl + ability.
+ *
+ * @param string $check_key The Health check key (missing_alt, drift_time_phrases).
+ * @param array  $finding   One finding row from the scan result.
+ * @return string HTML for the cell content (escaped via esc_attr) — may be empty.
+ *
+ * @since 4.0.0
+ */
+function sn_health_render_suggest_cell( $check_key, $finding ) {
+	// v4.0.0: skip inline-img findings entirely; deferred to v4.0.x.
+	if ( 'missing_alt' === $check_key
+		&& isset( $finding['subject_type'] )
+		&& 'inline_img' === $finding['subject_type'] ) {
+		return '';
+	}
+
+	$attrs = array(
+		'type'             => 'button',
+		'class'            => 'button button-small',
+		'data-snt-suggest' => '1',
+		'data-check'       => $check_key,
+	);
+
+	if ( 'missing_alt' === $check_key ) {
+		// Attachment case only — subject_id IS the attachment ID.
+		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+	} elseif ( 'drift_time_phrases' === $check_key ) {
+		$attrs['data-post-id']  = (int) ( $finding['subject_id'] ?? 0 );
+		$attrs['data-phrase']   = isset( $finding['phrase'] ) ? (string) $finding['phrase'] : '';
+		$attrs['data-position'] = (int) ( $finding['position'] ?? 0 );
+		$attrs['data-context']  = isset( $finding['context_snippet'] ) ? (string) $finding['context_snippet'] : '';
+	}
+
+	$html = '<button';
+	foreach ( $attrs as $k => $v ) {
+		$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( (string) $v ) . '"';
+	}
+	$html .= '>' . esc_html__( 'Suggest', 'signal-noise-tools' ) . '</button>';
+
+	return $html;
 }

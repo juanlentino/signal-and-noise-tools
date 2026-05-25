@@ -222,6 +222,56 @@ if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
 		);
 	}
 }
+
+// ─── v4.0.0 — 4 new health suggest/apply impl stubs ──────────────
+if ( ! function_exists( 'snt_ai_alt_suggest_impl' ) ) {
+	function snt_ai_alt_suggest_impl( $attachment_id ) {
+		if ( 9999 === (int) $attachment_id ) {
+			return new WP_Error( 'snt_ai_not_attachment', 'Not an attachment.', array( 'status' => 422 ) );
+		}
+		return array(
+			'ok'            => true,
+			'suggestion'    => 'Stub: a descriptive alt for attachment ' . (int) $attachment_id,
+			'attachment_id' => (int) $attachment_id,
+		);
+	}
+}
+if ( ! function_exists( 'snt_ai_alt_apply_impl' ) ) {
+	function snt_ai_alt_apply_impl( $attachment_id, $alt_text ) {
+		if ( '' === trim( (string) $alt_text ) ) {
+			return new WP_Error( 'snt_ai_alt_empty', 'Empty alt.', array( 'status' => 422 ) );
+		}
+		return array(
+			'ok'            => true,
+			'attachment_id' => (int) $attachment_id,
+			'written_alt'   => (string) $alt_text,
+		);
+	}
+}
+if ( ! function_exists( 'snt_ai_drift_suggest_impl' ) ) {
+	function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snippet ) {
+		return array(
+			'ok'          => true,
+			'suggestion'  => 'in early 2025',
+			'fingerprint' => md5( $phrase . '|' . $context_snippet ),
+			'post_id'     => (int) $post_id,
+			'position'    => (int) $position,
+		);
+	}
+}
+if ( ! function_exists( 'snt_ai_drift_apply_impl' ) ) {
+	function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint ) {
+		if ( 'badfingerprint' === $fingerprint ) {
+			return new WP_Error( 'snt_ai_apply_conflict', 'Fingerprint mismatch.', array( 'status' => 409 ) );
+		}
+		return array(
+			'ok'       => true,
+			'post_id'  => (int) $post_id,
+			'replaced' => (string) $phrase,
+			'with'     => (string) $replacement,
+		);
+	}
+}
 $GLOBALS['__test_cron_events_call_count'] = 0;
 if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 	function snt_cron_get_events_impl( $sn_only = false ) {
@@ -742,6 +792,71 @@ foreach ( $denied_ai as $slug ) {
 	ap_true( is_wp_error( $res ), "$slug: missing post_id → WP_Error" );
 	ap_eq( 'rest_invalid_param', $res->get_error_code(), "$slug: rest_invalid_param code" );
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * v4.0.0 — AI health suggest+apply abilities (4 abilities, 16 asserts)
+ * ════════════════════════════════════════════════════════════════════ */
+
+ap_reset_caps();
+
+// ── ai-alt-suggest — happy path ─────────────────────────────────────
+$out = wp_get_ability( 'signal-noise/ai-alt-suggest' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['suggestion'], $out['attachment_id'] ), 'ai-alt-suggest: required keys' );
+ap_eq( true, $out['ok'], 'ai-alt-suggest: ok=true' );
+ap_eq( 1234, $out['attachment_id'], 'ai-alt-suggest: attachment_id echo' );
+
+// ── ai-alt-suggest — edit_post denied ───────────────────────────────
+$GLOBALS['__test_edit_post_ok'] = false;
+$res = wp_get_ability( 'signal-noise/ai-alt-suggest' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_wp_error( $res ), 'ai-alt-suggest: edit_post denied → WP_Error' );
+ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-alt-suggest: rest_forbidden code' );
+$GLOBALS['__test_edit_post_ok'] = true;
+
+// ── ai-alt-apply — happy path ───────────────────────────────────────
+$out = wp_get_ability( 'signal-noise/ai-alt-apply' )->execute( array( 'attachment_id' => 1234, 'alt_text' => 'A red barn at dusk.' ) );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['attachment_id'], $out['written_alt'] ), 'ai-alt-apply: required keys' );
+ap_eq( 'A red barn at dusk.', $out['written_alt'], 'ai-alt-apply: written_alt echo' );
+
+// ── ai-alt-apply — missing alt_text → schema validation ─────────────
+$res = wp_get_ability( 'signal-noise/ai-alt-apply' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_wp_error( $res ), 'ai-alt-apply: missing alt_text → WP_Error' );
+ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-alt-apply: rest_invalid_param code' );
+
+// ── ai-drift-suggest — happy path ───────────────────────────────────
+$drift_input = array(
+	'post_id'         => 200,
+	'phrase'          => 'recently',
+	'position'        => 145,
+	'context_snippet' => 'we recently shipped a new feature that',
+);
+$out = wp_get_ability( 'signal-noise/ai-drift-suggest' )->execute( $drift_input );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['suggestion'], $out['fingerprint'] ), 'ai-drift-suggest: required keys' );
+ap_eq( 32, strlen( $out['fingerprint'] ), 'ai-drift-suggest: fingerprint is md5 (32 hex chars)' );
+
+// ── ai-drift-suggest — missing required field ───────────────────────
+$res = wp_get_ability( 'signal-noise/ai-drift-suggest' )->execute( array( 'post_id' => 200 ) );
+ap_true( is_wp_error( $res ), 'ai-drift-suggest: missing phrase → WP_Error' );
+ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-drift-suggest: rest_invalid_param code' );
+
+// ── ai-drift-apply — happy path ─────────────────────────────────────
+$apply_input = array(
+	'post_id'     => 200,
+	'phrase'      => 'recently',
+	'position'    => 145,
+	'replacement' => 'in early 2025',
+	'fingerprint' => 'goodfingerprint000000000000000000',
+);
+$out = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $apply_input );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['replaced'], $out['with'] ), 'ai-drift-apply: required keys' );
+ap_eq( 'in early 2025', $out['with'], 'ai-drift-apply: with echo' );
+
+// ── ai-drift-apply — fingerprint conflict ───────────────────────────
+$conflict_input = array_merge( $apply_input, array( 'fingerprint' => 'badfingerprint' ) );
+$res = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $conflict_input );
+ap_true( is_wp_error( $res ), 'ai-drift-apply: fingerprint mismatch → WP_Error' );
+ap_eq( 'snt_ai_apply_conflict', $res->get_error_code(), 'ai-drift-apply: snt_ai_apply_conflict code' );
+
+ap_reset_caps();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

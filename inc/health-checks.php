@@ -557,13 +557,28 @@ function sn_health_check_drift_time_phrases() {
 			$reason = isset( $v['reason'] ) ? (string) $v['reason'] : '';
 			if ( '' === $phrase ) { continue; }
 
+			// Look up the candidate's position + context_snippet for this phrase.
+			// The $candidates array (built before the AI call) has them; find by phrase match.
+			$position = 0;
+			$context  = '';
+			foreach ( $candidates as $cand ) {
+				if ( $cand['phrase'] === $phrase ) {
+					$position = (int) $cand['position'];
+					$context  = (string) $cand['context_snippet'];
+					break;
+				}
+			}
+
 			$findings[] = array(
-				'subject_type'  => 'post',
-				'subject_id'    => (int) $r['ID'],
-				'subject_url'   => get_permalink( (int) $r['ID'] ),
-				'subject_label' => (string) $r['post_title'],
-				'edit_url'      => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
-				'note'          => sprintf( '"%s" — %s', $phrase, $reason ),
+				'subject_type'    => 'post',
+				'subject_id'      => (int) $r['ID'],
+				'subject_url'     => get_permalink( (int) $r['ID'] ),
+				'subject_label'   => (string) $r['post_title'],
+				'edit_url'        => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
+				'note'            => sprintf( '"%s" — %s', $phrase, $reason ),
+				'phrase'          => $phrase,
+				'position'        => $position,
+				'context_snippet' => $context,
 			);
 		}
 	}

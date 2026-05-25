@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.0.0] - 2026-05-25
+
+### Added — AI-assisted content-health fix proposals (alt text + drift phrases)
+
+Closes the longstanding "AI-assisted fix proposals are a future extension" note in `inc/health-checks.php` (since v3.5.0). Two checks gain AI Suggest+Apply UX in this release; the remaining two (stale posts + orphaned media) ship in v4.1.0.
+
+**`missing_alt` check (attachment case only in v4.0.0)** — for image attachments without alt text, the new "Suggest" button generates a descriptive 80–125 character proposal via the WP AI Client (using attachment title + caption + filename + first referencing post as context). User reviews + optionally edits the textarea, then "Apply" writes to `_wp_attachment_image_alt`. **Inline-`<img>` findings within `post_content` continue rendering only the Edit button** — both the Suggest and Apply paths for inline imgs are deferred to v4.0.x. The impl boundary (inline imgs have no attachment_id; subject_id is the parent post ID) is cleaner to settle in a follow-up than to ship inside v4.0.0's broader change.
+
+**`drift_time_phrases` check** — the detection layer (`sn_health_check_drift_time_phrases()`) already AI-evaluated regex-matched candidates and flagged the stale ones. v4.0.0 adds the Suggest layer (AI proposes a temporally-explicit replacement, e.g., "recently" → "in early 2025") plus an Apply layer that splices the replacement into `post_content` at the known byte position. Concurrency-safe via a fingerprint pattern: `md5(phrase + 80-char context window)` is computed at Suggest time and validated at Apply time, so a post edited between scan and apply surfaces a clear "Post changed since scan. Re-run scan." error instead of overwriting the wrong content.
+
+**UX**: per-row Suggest button + per-check "Suggest all N" batch button (sequential, 500ms throttle, populates inline proposals). Apply remains per-row to keep the AI from writing without explicit user confirmation. Suggest is gated on AI availability — the "AI fix" column and buttons don't render at all when no provider is configured.
+
+**4 new abilities** registered under the existing `ai-generation` category:
+- `signal-noise/ai-alt-suggest` (idempotent)
+- `signal-noise/ai-alt-apply` (destructive, idempotent)
+- `signal-noise/ai-drift-suggest` (idempotent)
+- `signal-noise/ai-drift-apply` (destructive, idempotent)
+
+All 4 follow the established `snt_*_impl()` pure-function pattern with REST endpoints (back-compat for non-JS callers under `/wp-json/signal-noise/v1/ai/`) and Abilities API registrations. JS calls go through the Abilities REST surface.
+
+**Cost**: bounded to user clicks. No background generation. ~$0.001 per AI call at Sonnet 4.6 pricing. A "Suggest all" on 50 missing-alt findings = ~$0.055 + ~25 seconds at the 500ms throttle.
+
+#### Cap rollover — v3.x → v4.x
+
+The plugin's minor-version cap is 5 per major (per `CLAUDE.md` versioning rules). v3.x reached 8 minors (v3.0 → v3.8), past the cap. This release's headline feature would conventionally have been v3.9.0 — instead it rolls to v4.0.0 per the cap policy. Future v4.x minors reset the counter; the next cap check happens after v4.5.
+
+#### v3.x in summary (36 ships across 9 minors)
+
+The v3.x line was about consolidating the plugin's role from a small operational tooling layer into the canonical SEO + login + dashboard surface for the Signal & Noise stack. Key milestones: **v3.0.0** (abilities-first refactor + WP 7.0 Armstrong support), **v3.4.0** (webhooks), **v3.5.0** (content health checks — detection only), **v3.6.0** (Insights / Content Opportunity Advisor — cross-system AI synthesis), **v3.7.0** (drift detection — first AI-powered health check), **v3.7.1** (the 6-month silent-bug fix where `method_exists()` was failing on the wp-ai-client's `__call`-routed methods), **v3.7.3** (deploy SSH+wp-eval reroute — eliminated all rotatable credentials), **v3.8.0** (12 → 6 admin tab IA reorganization), **v3.8.3** (login hardening audit log with 90-day retention), **v3.8.6** (viewport-fit admin pages — sticky chrome + density). v4.0.0 turns the detection-only health checks into actionable fixes.
+
+#### Coming in v4.1.0
+
+- AI suggest for stale posts (>12mo unmodified) — read-only suggestion list (whole-post rewrites are too risky for one-click apply)
+- AI keep/delete recommendation for orphaned media with one-click apply
+- Inline-`<img>` alt Suggest + Copy + manual application in editor (Apply itself remains deferred pending a clean block-serialization primitive)
+
 ## [3.8.6] - 2026-05-25
 
 ### Changed — Viewport-fit admin pages (system-wide CSS pass)
