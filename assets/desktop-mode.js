@@ -209,4 +209,55 @@
 		}
 	} );
 
+	// Audit log (v3.8.3) — both aiCallable, read-only fetch + toast.
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-audit-summary',
+		aiCallable: true,
+		run: function() {
+			if ( ! window.wp.apiFetch ) {
+				toast( 'wp.apiFetch unavailable.', 'error' );
+				return;
+			}
+			window.wp.apiFetch( { path: '/signal-noise/v1/audit/summary' } )
+				.then( function( s ) {
+					var msg = 'Last 24h: ' + ( s.last_24h.all_total || 0 ) + ' events (' +
+						( s.last_24h.failed_total || 0 ) + ' failed, ' +
+						( s.last_24h.recon_total || 0 ) + ' recon). ' +
+						'7d trend: ' + ( s.last_7d_vs_prior.pct_delta >= 0 ? '+' : '' ) +
+						s.last_7d_vs_prior.pct_delta + '%. ' +
+						'Unique IPs (24h): ' + ( s.unique_attackers_24h || 0 ) + '. ' +
+						'LLA lockouts: ' + ( s.lla.active_lockouts || 0 ) + '.';
+					toast( msg, 'info' );
+				} )
+				.catch( function( err ) {
+					toast( 'Audit summary failed: ' + ( err.message || 'unknown error' ), 'error' );
+				} );
+		}
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-audit-recent-logins',
+		aiCallable: true,
+		run: function() {
+			if ( ! window.wp.apiFetch ) {
+				toast( 'wp.apiFetch unavailable.', 'error' );
+				return;
+			}
+			window.wp.apiFetch( { path: '/signal-noise/v1/audit/login-successes?days=30' } )
+				.then( function( rows ) {
+					if ( ! rows || ! rows.length ) {
+						toast( 'No successful logins in last 30 days.', 'info' );
+						return;
+					}
+					var last10 = rows.slice( 0, 10 );
+					var msg = 'Last ' + last10.length + ' logins: ' +
+						last10.map( function( r ) { return r.formatted + ' (' + r.user + ')'; } ).join( '; ' );
+					toast( msg, 'info' );
+				} )
+				.catch( function( err ) {
+					toast( 'Recent logins failed: ' + ( err.message || 'unknown error' ), 'error' );
+				} );
+		}
+	} );
+
 } )();

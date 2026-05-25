@@ -413,3 +413,64 @@ add_action( 'init', function() {
 } );
 
 add_action( SN_AUDIT_PRUNE_HOOK, 'snt_audit_prune_impl' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * REST routes — co-located here (not in inc/rest-api.php) for cohesion.
+ * All require manage_options. Surface 2 of 4 in the 4-surface dispatch.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+add_action( 'rest_api_init', function() {
+	$manage_options_cap = function() {
+		return current_user_can( 'manage_options' );
+	};
+
+	register_rest_route( 'signal-noise/v1', '/audit/summary', array(
+		'methods'             => 'GET',
+		'callback'            => function() {
+			return new WP_REST_Response( snt_audit_get_summary_impl(), 200 );
+		},
+		'permission_callback' => $manage_options_cap,
+	) );
+
+	register_rest_route( 'signal-noise/v1', '/audit/counters', array(
+		'methods'             => 'GET',
+		'callback'            => function( $request ) {
+			$days = (int) ( $request->get_param( 'days' ) ?: 30 );
+			return new WP_REST_Response( snt_audit_get_counters_impl( $days ), 200 );
+		},
+		'permission_callback' => $manage_options_cap,
+		'args'                => array(
+			'days' => array(
+				'required'          => false,
+				'default'           => 30,
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+			),
+		),
+	) );
+
+	register_rest_route( 'signal-noise/v1', '/audit/login-successes', array(
+		'methods'             => 'GET',
+		'callback'            => function( $request ) {
+			$days = (int) ( $request->get_param( 'days' ) ?: 30 );
+			return new WP_REST_Response( snt_audit_get_login_successes_impl( $days ), 200 );
+		},
+		'permission_callback' => $manage_options_cap,
+		'args'                => array(
+			'days' => array(
+				'required'          => false,
+				'default'           => 30,
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+			),
+		),
+	) );
+
+	register_rest_route( 'signal-noise/v1', '/audit/prune', array(
+		'methods'             => 'POST',
+		'callback'            => function() {
+			return new WP_REST_Response( snt_audit_prune_impl(), 200 );
+		},
+		'permission_callback' => $manage_options_cap,
+	) );
+} );

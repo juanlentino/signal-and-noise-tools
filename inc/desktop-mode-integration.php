@@ -274,6 +274,10 @@ add_action( 'admin_enqueue_scripts', function() {
 		// Insights (v3.6.0).
 		array( 'slug' => 'sn-cmd-insights',    'label' => 'SN: Open Insights tab',       'description' => 'Navigate to the AI-powered Insights tab in wp-admin.',               'icon' => 'dashicons-lightbulb' ),
 
+		// Audit log (v3.8.3).
+		array( 'slug' => 'sn-cmd-audit-summary',       'label' => 'SN: Audit log summary',        'description' => 'Toast last-24h totals, 7-day trend, unique IPs, LLA lockout count.', 'icon' => 'dashicons-shield-alt' ),
+		array( 'slug' => 'sn-cmd-audit-recent-logins', 'label' => 'SN: Recent successful logins', 'description' => 'Toast last 10 successful login timestamps + usernames.',              'icon' => 'dashicons-admin-users' ),
+
 		// ─── Theme-ability ⌘K launcher commands (12 total) ─────────────────
 		// Pure launcher entries — slug/label/description/icon only. These
 		// surface the theme's WP 7.0 abilities in the Command Palette for
