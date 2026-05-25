@@ -158,8 +158,18 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 /**
  * Pure impl: force-delete an orphan attachment.
  *
+ * Defense-in-depth: re-checks delete_post capability + attachment existence
+ * even though the Abilities API permission_callback already gates the call.
+ * The inner check protects direct PHP callers (wp-cli, REST endpoint in
+ * signal-noise/v1/ai/orphan-apply, or future code bypassing Abilities).
+ *
  * @param int $attachment_id
  * @return array{ok:true,attachment_id:int,deleted:true}|WP_Error
+ *
+ * WP_Error codes:
+ *   snt_ai_capability      (403) — caller lacks delete_post on $attachment_id
+ *   snt_ai_not_attachment  (422) — post doesn't exist or isn't an attachment (TOCTOU)
+ *   snt_ai_delete_failed   (500) — wp_delete_attachment() returned false/null
  *
  * @since 4.1.0
  */
@@ -167,7 +177,7 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 
 	if ( ! current_user_can( 'delete_post', $attachment_id ) ) {
-		return new WP_Error( 'rest_forbidden', __( 'You cannot delete this attachment.', 'signal-noise-tools' ), array( 'status' => 403 ) );
+		return new WP_Error( 'snt_ai_capability', __( 'You cannot delete this attachment.', 'signal-noise-tools' ), array( 'status' => 403 ) );
 	}
 
 	$attachment = get_post( $attachment_id );
@@ -175,6 +185,8 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment not found or already deleted.', 'signal-noise-tools' ), array( 'status' => 422 ) );
 	}
 
+	// wp_delete_attachment() returns WP_Post|false in WP 7.0; null guard is
+	// defensive for any future return-type change.
 	$result = wp_delete_attachment( $attachment_id, true );
 	if ( false === $result || null === $result ) {
 		return new WP_Error( 'snt_ai_delete_failed', __( 'Delete failed. Check file permissions on uploads/.', 'signal-noise-tools' ), array( 'status' => 500 ) );
