@@ -25,7 +25,7 @@ function sn_health_render_admin_tab() {
 	}
 
 	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
-	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases' );
+	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media' );
 
 	$last_scan = sn_health_last_scan();
 
@@ -185,6 +185,9 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 		$attrs['data-phrase']   = isset( $finding['phrase'] ) ? (string) $finding['phrase'] : '';
 		$attrs['data-position'] = (int) ( $finding['position'] ?? 0 );
 		$attrs['data-context']  = isset( $finding['context_snippet'] ) ? (string) $finding['context_snippet'] : '';
+	} elseif ( 'orphaned_media' === $check_key ) {
+		$attrs['data-check']         = 'orphaned_media';
+		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
 	}
 
 	$html = '<button';
