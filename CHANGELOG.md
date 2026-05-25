@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.3] - 2026-05-25
+
+### Added — Login hardening audit log under Security
+
+New "Audit log" sub-tab under Security (`?page=sn-theme-options&tab=security&sub=audit-log`). Captures 6 login-related events:
+
+- **`login_success`** as per-event rows (timestamp + username; no IP) — the security-critical event you want to spot anomalies in ("did someone log in as me at 4am?")
+- **`login_failed`**, **`wp_login_404`** (direct visits to `/wp-login.php` caught by `login-hide.php`), **`wp_admin_unauth_404`** (unauth `/wp-admin` visits caught by `login-hide.php`), **`lockout_triggered`** (from LLA via polling fallback), **`password_reset`** — as day-bucketed counters
+- **`unique_ips_count`** per day, computed via an ephemeral hashed-IP transient set with 25h TTL. The set rolls forward at day-flip into the long-term counter; raw or hashed IPs **never persist long-term**.
+
+**4-surface dispatch** (per project pattern; all 4 converge on `snt_audit_*_impl()` pure functions):
+
+- **Admin sub-tab** with stat-card hero (last 24h totals + 7d trend + unique IPs + LLA status) + 30-day counter timeline table + recent-logins table + LLA lockout summary card with deep-link
+- **REST**: `GET /signal-noise/v1/audit/{summary,counters,login-successes}` + `POST /audit/prune`
+- **Abilities** (4 total — categories: `diagnostics` + `maintenance`):
+  - `signal-noise/get-audit-summary` (read, AI-eligible)
+  - `signal-noise/get-audit-counters` (read, AI-eligible)
+  - `signal-noise/get-audit-login-successes` (read, AI-eligible)
+  - `signal-noise/run-audit-prune` (maintenance, **NOT** AI-callable — destructive of historical data)
+- **desktop-mode ⌘K**: `SN: Audit log summary` + `SN: Recent successful logins` (both `aiCallable: true`, read-only fetch + toast via `wp.apiFetch`)
+
+**Storage:** single autoloaded `wp_options` blob `sn_audit_log_v1` (JSON-encoded, schema-versioned). Worst-case envelope ~100 KB after 90 days. Daily WP-Cron `sn_audit_log_prune` enforces the 90-day retention window — visible in the Cron Dashboard tab.
+
+**Notable verified-at-design-time finding:** LLA fires **NO** action hook on lockout (only `llar_plugin_version_updated` + `llar_mfa_generate_codes` exist in LLA core). The `lockout_triggered` counter therefore uses a polling fallback — the daily prune tick reads `limit_login_lockouts` array size delta vs. the last-seen count and adds the delta to today's bucket. Imprecise (only captures net-positive changes between tick boundaries) but acceptable for the trend-detection use case.
+
+**Visible UI change:** the Security tab's sub-tab nav row is now visible (was hidden when count=1; adding the "Audit log" sub-tab makes count=2).
+
+**Patch 3/7 in v3.8.x.**
+
+### File diff (this release)
+
+- **New:** `inc/audit-log.php` (~470 LOC — impls + capture hooks + REST routes co-located + retention cron)
+- **New:** `inc/audit-log-admin.php` (~200 LOC — sub-tab renderer)
+- **New:** `assets/audit-log.css` (~60 LOC — stat-cards grid + responsive)
+- **Modified:** `signal-and-noise-tools.php` — `require_once` the 2 new files + version bump
+- **Modified:** `inc/login-hide.php` — 2 lines at the 404 paths to increment the new counters
+- **Modified:** `inc/admin-page.php` — `audit-log` added to Security `sub_tabs`; dispatch arm added
+- **Modified:** `inc/abilities-registration.php` — +4 abilities + 4 execute callbacks (~120 LOC)
+- **Modified:** `inc/desktop-mode-integration.php` — 2 new commands in the registration array
+- **Modified:** `assets/desktop-mode.js` — 2 new `registerCommand` calls
+
 ## [3.8.2] - 2026-05-25
 
 ### Fixed — `SNT_VERSION` constant now derives from the docblock Version (no more drift)
