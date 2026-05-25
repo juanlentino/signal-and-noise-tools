@@ -264,12 +264,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Clears the sn_gh_latest_* + update_themes + update_plugins site transients so the next admin page-load refetches fresh data from GitHub. No user data deleted.',
 		'category'            => 'updates',
 		'permission_callback' => $permission_manage_options,
-		'execute_callback'    => function() {
-			if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'Force-check helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_cmd_impl_force_check();
-		},
+		'execute_callback'    => 'snt_ability_force_check_updates',
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'properties'           => array(),
@@ -295,12 +290,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Clears wp_template / wp_template_part / wp_navigation DB overrides AND purges every cache (object cache, Breeze, Varnish, Cloudflare). Use after a theme/plugin update or when content appears stale.',
 		'category'            => 'maintenance',
 		'permission_callback' => $permission_manage_options,
-		'execute_callback'    => function() {
-			if ( ! function_exists( 'snt_cmd_impl_full_reset' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_cmd_impl_full_reset();
-		},
+		'execute_callback'    => 'snt_ability_full_reset',
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
 			'type'                 => array( 'object', 'null' ),
@@ -334,26 +324,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Returns the slugs and post types of any wp_template / wp_template_part / wp_navigation rows currently overriding theme files. Read-only inspection before the destructive clear-template-overrides.',
 		'category'            => 'diagnostics',
 		'permission_callback' => $permission_manage_options,
-		'execute_callback'    => function() {
-			$rows = get_posts( array(
-				'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
-				'posts_per_page' => -1,
-				'post_status'    => 'any',
-			) );
-			$items = array();
-			foreach ( $rows as $row ) {
-				$items[] = array(
-					'post_type' => $row->post_type,
-					'slug'      => $row->post_name,
-					'id'        => (int) $row->ID,
-				);
-			}
-			return array(
-				'ok'    => true,
-				'count' => count( $items ),
-				'items' => $items,
-			);
-		},
+		'execute_callback'    => 'snt_ability_list_template_overrides',
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
 			'type'                 => array( 'object', 'null' ),
@@ -392,12 +363,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts. Backed by the sn_rss_tracker module. Use to verify RSS feed traffic before changing feed structure or auditing crawler activity.',
 		'category'            => 'diagnostics',
 		'permission_callback' => $permission_manage_options,
-		'execute_callback'    => function() {
-			if ( ! function_exists( 'snt_cmd_impl_rss_stats' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'RSS-stats helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_cmd_impl_rss_stats();
-		},
+		'execute_callback'    => 'snt_ability_get_rss_stats',
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
 			'type'                 => array( 'object', 'null' ),
@@ -457,12 +423,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Generates a 140-160 character meta description from post content via the WP AI Client. Writes to the _sn_meta_description post meta override.',
 		'category'            => 'ai-generation',
 		'permission_callback' => $permission_edit_post,
-		'execute_callback'    => function( $input ) {
-			if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'Meta-desc helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_ai_meta_desc_impl( (int) $input['post_id'] );
-		},
+		'execute_callback'    => 'snt_ability_ai_generate_meta_description',
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'required'             => array( 'post_id' ),
@@ -496,12 +457,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Generates a 60-90 character punchy variant of the post title via the WP AI Client, writes to _sn_og_card_title post meta, AND re-runs sn_generate_og_card so the social-share PNG reflects the new title immediately.',
 		'category'            => 'ai-generation',
 		'permission_callback' => $permission_edit_post,
-		'execute_callback'    => function( $input ) {
-			if ( ! function_exists( 'snt_ai_og_card_title_impl' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'OG-title helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_ai_og_card_title_impl( (int) $input['post_id'] );
-		},
+		'execute_callback'    => 'snt_ability_ai_generate_og_card_title',
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'required'             => array( 'post_id' ),
@@ -537,12 +493,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Generates a 50-75 word, 2-3 sentence excerpt from post content via the WP AI Client. Returns the text; the caller writes it to WP\'s native post_excerpt field.',
 		'category'            => 'ai-generation',
 		'permission_callback' => $permission_edit_post,
-		'execute_callback'    => function( $input ) {
-			if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
-				return new WP_Error( 'snt_helper_unavailable', 'Excerpt helper unavailable.', array( 'status' => 500 ) );
-			}
-			return snt_ai_excerpt_impl( (int) $input['post_id'] );
-		},
+		'execute_callback'    => 'snt_ability_ai_generate_excerpt',
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'required'             => array( 'post_id' ),
@@ -581,13 +532,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => function() {
 			return current_user_can( 'manage_options' );
 		},
-		'execute_callback'    => function( $input ) {
-			if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
-				return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
-			}
-			$sn_only = is_array( $input ) && ! empty( $input['sn_only'] );
-			return snt_cron_get_events_impl( $sn_only );
-		},
+		'execute_callback'    => 'snt_ability_list_cron_events',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ),
 			'properties'           => array(
@@ -633,15 +578,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => function() {
 			return current_user_can( 'manage_options' );
 		},
-		'execute_callback'    => function( $input ) {
-			if ( ! function_exists( 'snt_cron_get_event_impl' ) ) {
-				return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
-			}
-			return snt_cron_get_event_impl(
-				(string) $input['hook'],
-				(string) $input['args_signature']
-			);
-		},
+		'execute_callback'    => 'snt_ability_get_cron_event',
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'required'             => array( 'hook', 'args_signature' ),
@@ -862,12 +799,16 @@ add_action( 'wp_abilities_api_init', function() {
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
- * EXECUTE CALLBACKS
+ * Ability execute callbacks
  *
- * Each delegates to the existing filter contracts that already power the
- * REST endpoints in inc/desktop-mode-integration.php. This is intentional:
- * abilities are a third dispatch surface (alongside admin UI + REST) for
- * the same underlying operations. One implementation, three callers.
+ * Extracted from inline closures to top-level named functions per the
+ * v3.7.5 audit P4 follow-up. Enables unit testing in isolation; matches
+ * the theme's pattern (sn_theme_ability_*).
+ *
+ * Each delegates to the existing filter contracts and impl helpers that
+ * already power the REST endpoints in inc/desktop-mode-integration.php.
+ * Abilities are a third dispatch surface (alongside admin UI + REST) for
+ * the same underlying operations — one implementation, three callers.
  * ════════════════════════════════════════════════════════════════════════ */
 
 function snt_ability_purge_all_caches( $input ) {
@@ -995,4 +936,130 @@ function snt_ability_get_insights( $input ) {
 		return new WP_Error( 'snt_insights_unavailable', 'Insights module not loaded.', array( 'status' => 500 ) );
 	}
 	return snt_insights_last_scan();
+}
+
+/**
+ * Ability execute callback: signal-noise/force-check-updates.
+ * Thin wrapper around snt_cmd_impl_force_check().
+ * @since 3.7.5
+ */
+function snt_ability_force_check_updates() {
+	if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Force-check helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_cmd_impl_force_check();
+}
+
+/**
+ * Ability execute callback: signal-noise/full-reset.
+ * Thin wrapper around snt_cmd_impl_full_reset().
+ * @since 3.7.5
+ */
+function snt_ability_full_reset() {
+	if ( ! function_exists( 'snt_cmd_impl_full_reset' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_cmd_impl_full_reset();
+}
+
+/**
+ * Ability execute callback: signal-noise/list-template-overrides.
+ * Read-only inspection of wp_template / wp_template_part / wp_navigation rows.
+ * @since 3.7.5
+ */
+function snt_ability_list_template_overrides() {
+	$rows = get_posts( array(
+		'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
+		'posts_per_page' => -1,
+		'post_status'    => 'any',
+	) );
+	$items = array();
+	foreach ( $rows as $row ) {
+		$items[] = array(
+			'post_type' => $row->post_type,
+			'slug'      => $row->post_name,
+			'id'        => (int) $row->ID,
+		);
+	}
+	return array(
+		'ok'    => true,
+		'count' => count( $items ),
+		'items' => $items,
+	);
+}
+
+/**
+ * Ability execute callback: signal-noise/get-rss-stats.
+ * Thin wrapper around snt_cmd_impl_rss_stats().
+ * @since 3.7.5
+ */
+function snt_ability_get_rss_stats() {
+	if ( ! function_exists( 'snt_cmd_impl_rss_stats' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'RSS-stats helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_cmd_impl_rss_stats();
+}
+
+/**
+ * Ability execute callback: signal-noise/ai-generate-meta-description.
+ * Thin wrapper around snt_ai_meta_desc_impl().
+ * @since 3.7.5
+ */
+function snt_ability_ai_generate_meta_description( $input ) {
+	if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Meta-desc helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_meta_desc_impl( (int) $input['post_id'] );
+}
+
+/**
+ * Ability execute callback: signal-noise/ai-generate-og-card-title.
+ * Thin wrapper around snt_ai_og_card_title_impl().
+ * @since 3.7.5
+ */
+function snt_ability_ai_generate_og_card_title( $input ) {
+	if ( ! function_exists( 'snt_ai_og_card_title_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'OG-title helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_og_card_title_impl( (int) $input['post_id'] );
+}
+
+/**
+ * Ability execute callback: signal-noise/ai-generate-excerpt.
+ * Thin wrapper around snt_ai_excerpt_impl().
+ * @since 3.7.5
+ */
+function snt_ability_ai_generate_excerpt( $input ) {
+	if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Excerpt helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_excerpt_impl( (int) $input['post_id'] );
+}
+
+/**
+ * Ability execute callback: signal-noise/list-cron-events.
+ * Thin wrapper around snt_cron_get_events_impl() with sn_only filter passthrough.
+ * @since 3.7.5
+ */
+function snt_ability_list_cron_events( $input ) {
+	if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+	}
+	$sn_only = is_array( $input ) && ! empty( $input['sn_only'] );
+	return snt_cron_get_events_impl( $sn_only );
+}
+
+/**
+ * Ability execute callback: signal-noise/get-cron-event.
+ * Thin wrapper around snt_cron_get_event_impl().
+ * @since 3.7.5
+ */
+function snt_ability_get_cron_event( $input ) {
+	if ( ! function_exists( 'snt_cron_get_event_impl' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+	}
+	return snt_cron_get_event_impl(
+		(string) $input['hook'],
+		(string) $input['args_signature']
+	);
 }
