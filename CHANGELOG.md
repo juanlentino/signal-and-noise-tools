@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.1] - 2026-05-25
+
+### Changed — Sub-tabs navigation + 6-entry submenu (post-v3.8.0 refinement)
+
+v3.8.0 shipped 6 top tabs with internal-TOC scroll-pattern for sub-sections. Real-world use surfaced three issues:
+
+1. **WP submenu duplicated in-page tabs in desktop-mode.** The 12 legacy WP submenu entries (kept for deep-link shortcut preservation) render as a horizontal top nav in desktop-mode plugin, visually duplicating the 6-tab in-page nav.
+2. **Long scrolling per tab.** Internal-TOC pattern forced each multi-section tab onto one long page (Site tab = Identity + Social + OG + SEO Copy + Cloudflare stacked).
+3. (Theme-side, shipped as v9.1.5) Plugin metadata cache stale after SSH deploys.
+
+**Fixes in v3.8.1:**
+
+- **Sub-tabs** (click-to-swap, URL-driven via `&sub=` query arg) replace internal-TOC scrolling on multi-section top tabs. Each sub-tab renders only its own content. Exception: "Identity & SEO" sub-tab on the Site tab preserves the internal TOC for its 4 form-coupled sections (Identity / Social / Open Graph / SEO Copy), keeping the existing single-save UX intact.
+- **WP submenu reduced from 12 entries to 6** matching the new top-tab IA. Eliminates the duplicate-nav appearance in desktop-mode. Legacy slugs (`sn-identity`, `sn-login`, etc.) still 301-redirect via the extended redirect map — bookmarks survive.
+- **New helpers** in `inc/admin-page.php`: `sn_admin_render_sub_tabs($tab, $active_sub)`, `sn_admin_get_sub_tabs($tab)`, `sn_admin_resolve_active_sub($tab)`. Existing `sn_admin_render_toc()` updated to take a sub-tab slug parameter (scoped to the inner-TOC use case).
+- **`sn_admin_legacy_redirect_map()` extended** with `sub` field on each entry so legacy URLs land on the correct sub-tab. New entries for `social`, `open-graph`, `seo-copy` — these were previously inner section anchors only, now redirectable to canonical `?tab=site&sub=identity-and-seo#sn-sec-<inner>`.
+- **PRG flash redirect preserves `&sub=`** so saving a form on a sub-tab redirects back to the same sub-tab (instead of the top tab's default).
+- **`.sn-sub-tabs` CSS** added — pill-style nav on a light-gray track, visually subordinate to the top tabs.
+
+**Architectural property preserved:** module hook contracts unchanged. No `inc/*-admin.php` module files touched.
+
+**Visual review of admin spacing** (user-reported "space issues") deferred to post-deploy user feedback — the structural sub-tabs change should resolve the most visible issue (the long-scroll problem). Specific spacing complaints addressed in follow-up patches as identified.
+
+**Patch cap status:** v3.8.x at 1/7 patches used. Six patches remain in the v3.8.x line.
+
+**Spec + plan:** `docs/superpowers/specs/2026-05-25-v3.8.1-sub-tabs-and-cache-fix-design.md` + `docs/superpowers/plans/2026-05-25-v3.8.1-sub-tabs-and-cache-fix-v3.8.1.md`.
+
+**Companion ship:** theme v9.1.5 (already deployed) — `wp_clean_plugins_cache()` added to the theme's purge filter so plugin metadata cache stays fresh through SSH deploys.
+
 ## [3.8.0] - 2026-05-25
 
 ### Changed — Admin tabs reorganized from 12 flat → 6 hierarchical

@@ -905,7 +905,49 @@
 /* Bottom margin for the page-level nav-tab-wrapper. WP's default has
    no bottom margin; we want breathing room before tab content. */
 .sn-nav-tabs {
-	margin-bottom: 1.5em;
+	margin-bottom: 1em;
+}
+
+/* Sub-tabs nav (v3.8.1+): visually subordinate to .sn-nav-tabs. Pills on a
+   light-gray track that reads as a secondary navigation surface. Appears
+   immediately below the top tabs when a top tab has 2+ sub-tabs (hidden
+   when count < 2 — see sn_admin_render_sub_tabs() in inc/admin-page.php). */
+.sn-sub-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0 0 1.5em 0;
+	padding: 4px;
+	background: #f0f0f1;
+	border-radius: 4px;
+}
+
+.sn-sub-tab {
+	display: inline-block;
+	padding: 6px 14px;
+	color: var(--sn-text-muted, #646970);
+	background: transparent;
+	border-radius: 3px;
+	text-decoration: none;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.4;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sn-sub-tab:hover,
+.sn-sub-tab:focus {
+	color: var(--sn-text, #1d2327);
+	background: rgba( 255, 255, 255, 0.7 );
+	text-decoration: none;
+	box-shadow: none;
+}
+
+.sn-sub-tab.is-active {
+	color: var(--sn-text, #1d2327);
+	background: #fff;
+	font-weight: 600;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.05 );
 }
 
 /* RSS-tracker-missing notice — tighter padding than the default top-of-

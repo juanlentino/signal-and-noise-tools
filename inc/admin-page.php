@@ -84,55 +84,67 @@ function sn_admin_pages() {
 function sn_admin_top_tabs() {
 	return array(
 		array(
-			'slug'         => 'sn-theme-options',
-			'tab'          => 'dashboard',
-			'label'        => 'Dashboard',
-			'title'        => 'Signal & Noise — Dashboard',
-			'subtitle'     => 'Status overview and maintenance actions.',
-			'sub_sections' => array(),
+			'slug'     => 'sn-theme-options',
+			'tab'      => 'dashboard',
+			'label'    => 'Dashboard',
+			'title'    => 'Signal & Noise — Dashboard',
+			'subtitle' => 'Status overview and maintenance actions.',
+			'sub_tabs' => array(),  // landing page, no sub-tabs
 		),
 		array(
-			'slug'         => 'sn-site',
-			'tab'          => 'site',
-			'label'        => 'Site',
-			'title'        => 'Signal & Noise — Site',
-			'subtitle'     => 'Site identity, social profiles, Open Graph, SEO copy, Cloudflare.',
-			'sub_sections' => array(
-				'identity'   => array( 'label' => 'Identity' ),
-				'social'     => array( 'label' => 'Social' ),
-				'open-graph' => array( 'label' => 'Open Graph' ),
-				'seo-copy'   => array( 'label' => 'SEO Copy' ),
-				'cloudflare' => array( 'label' => 'Cloudflare' ),
+			'slug'     => 'sn-site',
+			'tab'      => 'site',
+			'label'    => 'Site',
+			'title'    => 'Signal & Noise — Site',
+			'subtitle' => 'Site identity, social profiles, Open Graph, SEO copy, Cloudflare.',
+			'sub_tabs' => array(
+				// Identity-and-SEO bundles 4 tightly-coupled form sections (one save button
+				// saves all 4). Internal TOC navigates between them.
+				'identity-and-seo' => array(
+					'label'        => 'Identity & SEO',
+					'sub_sections' => array(
+						'identity'   => array( 'label' => 'Identity' ),
+						'social'     => array( 'label' => 'Social' ),
+						'open-graph' => array( 'label' => 'Open Graph' ),
+						'seo-copy'   => array( 'label' => 'SEO Copy' ),
+					),
+				),
+				// Cloudflare is its own sub-tab — independent form, its own save button via module hook.
+				'cloudflare' => array(
+					'label' => 'Cloudflare',
+				),
 			),
 		),
 		array(
-			'slug'         => 'sn-security',
-			'tab'          => 'security',
-			'label'        => 'Security',
-			'title'        => 'Signal & Noise — Security',
-			'subtitle'     => 'Custom login URL.',
-			'sub_sections' => array(
+			'slug'     => 'sn-security',
+			'tab'      => 'security',
+			'label'    => 'Security',
+			'title'    => 'Signal & Noise — Security',
+			'subtitle' => 'Custom login URL.',
+			'sub_tabs' => array(
+				// Only 1 sub-tab at v3.8.1 → sn_admin_render_sub_tabs() hides the nav.
+				// Future v3.8.x adds 'audit-log' which reveals the sub-tab nav automatically.
 				'login' => array( 'label' => 'Login URL' ),
 			),
 		),
 		array(
-			'slug'         => 'sn-automation',
-			'tab'          => 'automation',
-			'label'        => 'Automation',
-			'title'        => 'Signal & Noise — Automation',
-			'subtitle'     => 'Webhooks and scheduled jobs.',
-			'sub_sections' => array(
+			'slug'     => 'sn-automation',
+			'tab'      => 'automation',
+			'label'    => 'Automation',
+			'title'    => 'Signal & Noise — Automation',
+			'subtitle' => 'Webhooks and scheduled jobs.',
+			'sub_tabs' => array(
 				'webhooks' => array( 'label' => 'Webhooks' ),
 				'cron'     => array( 'label' => 'Cron' ),
 			),
 		),
 		array(
-			'slug'         => 'sn-monitoring',
-			'tab'          => 'monitoring',
-			'label'        => 'Monitoring',
-			'title'        => 'Signal & Noise — Monitoring',
-			'subtitle'     => 'Insights, content health, analytics, RSS subscribers.',
-			'sub_sections' => array(
+			'slug'     => 'sn-monitoring',
+			'tab'      => 'monitoring',
+			'label'    => 'Monitoring',
+			'title'    => 'Signal & Noise — Monitoring',
+			'subtitle' => 'Insights, content health, analytics, RSS subscribers.',
+			'sub_tabs' => array(
 				'insights'  => array( 'label' => 'Insights' ),
 				'health'    => array( 'label' => 'Health' ),
 				'plausible' => array( 'label' => 'Plausible' ),
@@ -140,12 +152,12 @@ function sn_admin_top_tabs() {
 			),
 		),
 		array(
-			'slug'         => 'sn-tools',
-			'tab'          => 'tools',
-			'label'        => 'Tools',
-			'title'        => 'Signal & Noise — Tools',
-			'subtitle'     => 'Utility surfaces and external shortcuts.',
-			'sub_sections' => array(
+			'slug'     => 'sn-tools',
+			'tab'      => 'tools',
+			'label'    => 'Tools',
+			'title'    => 'Signal & Noise — Tools',
+			'subtitle' => 'Utility surfaces and external shortcuts.',
+			'sub_tabs' => array(
 				'reading-time' => array( 'label' => 'Reading Time' ),
 				'links'        => array( 'label' => 'Links' ),
 			),
@@ -154,33 +166,116 @@ function sn_admin_top_tabs() {
 }
 
 /**
- * Render the in-page TOC for a multi-section top tab. Reads sub-sections
- * from sn_admin_top_tabs() — single source of truth for both display order
- * and anchor labels.
+ * Render the in-page TOC for a multi-section sub-tab (e.g., Identity & SEO
+ * with its 4 inner sections: Identity / Social / Open Graph / SEO Copy).
+ *
+ * Reads sub-sections from sn_admin_top_tabs()'s nested
+ * sub_tabs[<sub>]['sub_sections']. No-op if the sub-tab has no inner
+ * sub_sections defined.
  *
  * Generates: <nav class="sn-toc" aria-label="..."><a href="#sn-sec-X">…</a></nav>
  *
- * No-op for top tabs with no sub-sections (Dashboard).
+ * v3.8.1 change: now scoped to a specific sub-tab (not the whole top tab),
+ * since v3.8.0's flat top-level sub_sections moved into sub_tabs in v3.8.1.
  *
- * @since 3.8.0
- * @param string $tab_slug The top-tab slug (e.g., 'site', 'security').
+ * @since 3.8.0  (3.8.1 added $sub_tab_slug parameter for sub-tabs IA)
+ * @param string $tab_slug      The top-tab slug (e.g., 'site').
+ * @param string $sub_tab_slug  The sub-tab slug (e.g., 'identity-and-seo').
  */
-function sn_admin_render_toc( $tab_slug ) {
+function sn_admin_render_toc( $tab_slug, $sub_tab_slug ) {
 	foreach ( sn_admin_top_tabs() as $top ) {
 		if ( $top['tab'] !== $tab_slug ) {
 			continue;
 		}
-		if ( empty( $top['sub_sections'] ) ) {
+		$sub_tab = $top['sub_tabs'][ $sub_tab_slug ] ?? null;
+		if ( ! is_array( $sub_tab ) || empty( $sub_tab['sub_sections'] ) ) {
 			return;
 		}
-		echo '<nav class="sn-toc" aria-label="' . esc_attr( $top['label'] . ' sections' ) . '">';
+		echo '<nav class="sn-toc" aria-label="' . esc_attr( $sub_tab['label'] . ' sections' ) . '">';
 		echo '<span class="sn-toc-label">Jump to</span>';
-		foreach ( $top['sub_sections'] as $sub_slug => $sub ) {
+		foreach ( $sub_tab['sub_sections'] as $sub_slug => $sub ) {
 			echo '<a href="#sn-sec-' . esc_attr( $sub_slug ) . '">' . esc_html( $sub['label'] ) . '</a>';
 		}
 		echo '</nav>';
 		return;
 	}
+}
+
+/**
+ * Render the sub-tab nav for a top tab. Reads sub_tabs from
+ * sn_admin_top_tabs() — single source of truth for both display order
+ * and labels.
+ *
+ * Generates: <nav class="sn-sub-tabs"><a href="?tab=...&sub=...">…</a></nav>
+ *
+ * Hidden (returns without echoing) when:
+ * - Top tab has 0 sub_tabs (Dashboard — landing page)
+ * - Top tab has only 1 sub_tab (Security at v3.8.1 — single-item nav is noise)
+ *
+ * @since 3.8.1
+ * @param string $tab_slug     The top-tab slug.
+ * @param string $active_sub   The currently-active sub-tab slug (for is-active class).
+ */
+function sn_admin_render_sub_tabs( $tab_slug, $active_sub ) {
+	foreach ( sn_admin_top_tabs() as $top ) {
+		if ( $top['tab'] !== $tab_slug ) {
+			continue;
+		}
+		$sub_tabs = is_array( $top['sub_tabs'] ?? null ) ? $top['sub_tabs'] : array();
+		if ( count( $sub_tabs ) < 2 ) {
+			// 0 sub_tabs (Dashboard) or 1 sub_tab (Security at v3.8.1) → no nav.
+			return;
+		}
+		$base_url = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $tab_slug ) );
+		echo '<nav class="sn-sub-tabs" aria-label="' . esc_attr( $top['label'] . ' sub-tabs' ) . '">';
+		foreach ( $sub_tabs as $sub_slug => $sub ) {
+			$is_active = ( $sub_slug === $active_sub );
+			$class     = 'sn-sub-tab' . ( $is_active ? ' is-active' : '' );
+			$url       = $base_url . '&sub=' . rawurlencode( $sub_slug );
+			echo '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $sub['label'] ) . '</a>';
+		}
+		echo '</nav>';
+		return;
+	}
+}
+
+/**
+ * Helper: get the configured sub_tabs array for a top tab.
+ * Returns empty array if the tab has no sub_tabs.
+ *
+ * @since 3.8.1
+ * @param string $tab_slug
+ * @return array<string,array<string,mixed>>
+ */
+function sn_admin_get_sub_tabs( $tab_slug ) {
+	foreach ( sn_admin_top_tabs() as $top ) {
+		if ( $top['tab'] === $tab_slug ) {
+			return is_array( $top['sub_tabs'] ?? null ) ? $top['sub_tabs'] : array();
+		}
+	}
+	return array();
+}
+
+/**
+ * Helper: resolve the active sub-tab for a top tab from $_GET['sub'].
+ * Falls back to the first configured sub-tab. Returns empty string if
+ * the top tab has no sub_tabs (Dashboard).
+ *
+ * @since 3.8.1
+ * @param string $tab_slug
+ * @return string The active sub-tab slug (or '' if no sub_tabs configured).
+ */
+function sn_admin_resolve_active_sub( $tab_slug ) {
+	$sub_tabs = sn_admin_get_sub_tabs( $tab_slug );
+	if ( empty( $sub_tabs ) ) {
+		return '';
+	}
+	$requested = isset( $_GET['sub'] ) ? sanitize_text_field( wp_unslash( $_GET['sub'] ) ) : '';
+	if ( $requested && isset( $sub_tabs[ $requested ] ) ) {
+		return $requested;
+	}
+	// Default: first sub-tab in display order.
+	return (string) array_key_first( $sub_tabs );
 }
 
 /**
@@ -219,19 +314,26 @@ function sn_admin_render_section( $section_slug, $callback ) {
  * @return array<string,array{tab:string,anchor:?string}>
  */
 function sn_admin_legacy_redirect_map() {
+	// v3.8.1: each entry now includes a `sub` field naming the canonical sub-tab
+	// (introduced by the sub-tabs IA). The `anchor` field stays — it's the inner
+	// section anchor within the Identity & SEO sub-tab for the 4 form sections
+	// (identity, social, open-graph, seo-copy). Other sub-tabs have anchor=null.
 	return array(
-		'dashboard'    => array( 'tab' => 'dashboard',  'anchor' => null ),
-		'identity'     => array( 'tab' => 'site',       'anchor' => 'identity' ),
-		'cloudflare'   => array( 'tab' => 'site',       'anchor' => 'cloudflare' ),
-		'login'        => array( 'tab' => 'security',   'anchor' => 'login' ),
-		'webhooks'     => array( 'tab' => 'automation', 'anchor' => 'webhooks' ),
-		'cron'         => array( 'tab' => 'automation', 'anchor' => 'cron' ),
-		'insights'     => array( 'tab' => 'monitoring', 'anchor' => 'insights' ),
-		'health'       => array( 'tab' => 'monitoring', 'anchor' => 'health' ),
-		'plausible'    => array( 'tab' => 'monitoring', 'anchor' => 'plausible' ),
-		'rss'          => array( 'tab' => 'monitoring', 'anchor' => 'rss' ),
-		'reading-time' => array( 'tab' => 'tools',      'anchor' => 'reading-time' ),
-		'links'        => array( 'tab' => 'tools',      'anchor' => 'links' ),
+		'dashboard'    => array( 'tab' => 'dashboard',  'sub' => null,                'anchor' => null ),
+		'identity'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'identity' ),
+		'social'       => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'social' ),       // v3.8.1: previously inner section, now redirectable
+		'open-graph'   => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'open-graph' ),   // v3.8.1
+		'seo-copy'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'seo-copy' ),     // v3.8.1
+		'cloudflare'   => array( 'tab' => 'site',       'sub' => 'cloudflare',        'anchor' => null ),
+		'login'        => array( 'tab' => 'security',   'sub' => 'login',             'anchor' => null ),
+		'webhooks'     => array( 'tab' => 'automation', 'sub' => 'webhooks',          'anchor' => null ),
+		'cron'         => array( 'tab' => 'automation', 'sub' => 'cron',              'anchor' => null ),
+		'insights'     => array( 'tab' => 'monitoring', 'sub' => 'insights',          'anchor' => null ),
+		'health'       => array( 'tab' => 'monitoring', 'sub' => 'health',            'anchor' => null ),
+		'plausible'    => array( 'tab' => 'monitoring', 'sub' => 'plausible',         'anchor' => null ),
+		'rss'          => array( 'tab' => 'monitoring', 'sub' => 'rss',               'anchor' => null ),
+		'reading-time' => array( 'tab' => 'tools',      'sub' => 'reading-time',      'anchor' => null ),
+		'links'        => array( 'tab' => 'tools',      'sub' => 'links',             'anchor' => null ),
 	);
 }
 
@@ -282,7 +384,11 @@ function sn_admin_maybe_redirect_legacy() {
 
 	$canonical = $map[ $requested_tab ];
 	$url       = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $canonical['tab'] ) );
-	if ( $canonical['anchor'] ) {
+	// v3.8.1: include &sub= query arg for sub-tab routing
+	if ( ! empty( $canonical['sub'] ) ) {
+		$url .= '&sub=' . rawurlencode( $canonical['sub'] );
+	}
+	if ( ! empty( $canonical['anchor'] ) ) {
 		$url .= '#sn-sec-' . rawurlencode( $canonical['anchor'] );
 	}
 
@@ -395,7 +501,12 @@ add_action( 'admin_menu', function() {
 		81
 	);
 
-	foreach ( sn_admin_pages() as $page ) {
+	// v3.8.1+: register 6 submenu entries (matching the new top-tab IA) instead
+	// of the 12 legacy entries from sn_admin_pages(). Legacy entries' URLs still
+	// resolve via the redirect map in sn_admin_maybe_redirect_legacy(). The 12-
+	// entry sidebar was creating a duplicate-nav appearance in desktop-mode
+	// (where the WP submenu renders as horizontal top nav instead of left sidebar).
+	foreach ( sn_admin_top_tabs() as $page ) {
 		$hooks[] = add_submenu_page(
 			'sn-theme-options',
 			$page['title'],
@@ -649,11 +760,12 @@ function sn_handle_admin_post() {
 	);
 
 	// v3.8.0+: redirect to canonical top-tab + anchor (instead of legacy
-	// tab slug). The legacy tab slug from the form POST is mapped to its
-	// canonical destination via sn_admin_legacy_redirect_map() — if it's
-	// a known legacy slug, the canonical top-tab replaces it. Anchor goes
-	// in the URL fragment (preserved by raw header() — wp_safe_redirect()
-	// would strip it).
+	// tab slug). v3.8.1+: also preserves &sub= query arg so flash notices
+	// land on the right sub-tab (otherwise saving a form on sub-tab X
+	// would redirect to the top-tab's default sub-tab, losing context).
+	// The legacy tab slug from the form POST is mapped via
+	// sn_admin_legacy_redirect_map() — if it's a known legacy slug, the
+	// canonical top-tab + sub-tab + anchor replace it.
 	$anchor = '';
 	if ( isset( $_REQUEST['tab'] ) ) {
 		$requested_tab = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
@@ -663,10 +775,17 @@ function sn_handle_admin_post() {
 		if ( in_array( $requested_tab, $top_tabs, true ) ) {
 			// Already a canonical top tab; pass through.
 			$redirect_args['tab'] = $requested_tab;
+			// v3.8.1+: preserve &sub= from the request (set by sub-tab forms).
+			if ( isset( $_REQUEST['sub'] ) ) {
+				$redirect_args['sub'] = sanitize_text_field( wp_unslash( $_REQUEST['sub'] ) );
+			}
 		} elseif ( isset( $map[ $requested_tab ] ) ) {
 			// Legacy slug; rewrite to canonical destination.
 			$redirect_args['tab'] = $map[ $requested_tab ]['tab'];
-			if ( $map[ $requested_tab ]['anchor'] ) {
+			if ( ! empty( $map[ $requested_tab ]['sub'] ) ) {
+				$redirect_args['sub'] = $map[ $requested_tab ]['sub'];
+			}
+			if ( ! empty( $map[ $requested_tab ]['anchor'] ) ) {
 				$anchor = '#sn-sec-' . rawurlencode( $map[ $requested_tab ]['anchor'] );
 			}
 		} else {
@@ -842,8 +961,14 @@ function sn_theme_options_page() {
 	}
 	echo '</nav>';
 
+	// v3.8.1+: resolve the active sub-tab for the current top tab. Used by
+	// every dispatch arm below to render only the active sub-tab's content
+	// instead of all sub-sections (fixes the v3.8.0 long-scroll-per-tab issue).
+	// Returns '' for Dashboard (which has no sub_tabs).
+	$active_sub = sn_admin_resolve_active_sub( $active_tab );
+
 	// ════════════════════════════════════════
-	// TAB: DASHBOARD (landing — no sub-sections)
+	// TAB: DASHBOARD (landing — no sub-tabs)
 	// ════════════════════════════════════════
 	if ( 'dashboard' === $active_tab ) {
 
@@ -856,17 +981,22 @@ function sn_theme_options_page() {
 		do_action( 'sn_admin_dashboard_extras' );
 
 	// ════════════════════════════════════════
-	// TAB: SITE (v3.8.0+)
-	// Sub-sections: identity, social, open-graph, seo-copy, cloudflare
+	// TAB: SITE (v3.8.1+: sub-tabs)
+	// Sub-tabs: identity-and-seo (with inner TOC for 4 form sections), cloudflare
 	// ════════════════════════════════════════
 	} elseif ( 'site' === $active_tab ) {
 
-		sn_admin_render_toc( 'site' );
+		sn_admin_render_sub_tabs( 'site', $active_sub );
 
-		// The Identity form wraps 4 sub-sections (one Save button saves
-		// all 4 fieldsets — preserves the existing single-form UX).
-		// Cloudflare is rendered AFTER the form close (it has its own
-		// form inside its hook).
+	if ( 'cloudflare' === $active_sub ) {
+		// Cloudflare sub-tab — module-owned (inc/cloudflare-purge.php), own form.
+		sn_admin_render_section( 'cloudflare', function() {
+			do_action( 'sn_admin_cloudflare_tab' );
+		} );
+	} else {
+		// Default sub-tab: 'identity-and-seo' (bundle of 4 form sections with one Save).
+		sn_admin_render_toc( 'site', 'identity-and-seo' );
+
 		echo '<form method="post" class="sn-identity-form">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="save_identity">';
@@ -996,26 +1126,25 @@ function sn_theme_options_page() {
 		} );
 
 		// Sticky save bar — saves Identity / Social / OG / SEO Copy (the 4 above).
-		// Cloudflare's save is separate (its own form, its own hook).
+		// Cloudflare's save is separate (its own form on its own sub-tab now).
 		echo '<div class="sn-savebar">';
 		echo '<p class="sn-savebar-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>';
 		echo '<button type="submit" class="button button-primary">Save Identity Settings</button>';
 		echo '</div>';
 		echo '</form>';
-
-		// Cloudflare sub-section — module-owned (inc/cloudflare-purge.php).
-		sn_admin_render_section( 'cloudflare', function() {
-			do_action( 'sn_admin_cloudflare_tab' );
-		} );
+	}  // close: else (identity-and-seo sub-tab)
 
 	// ════════════════════════════════════════
-	// TAB: SECURITY (v3.8.0+)
-	// Sub-sections: login (audit-log added in v3.8.1)
+	// TAB: SECURITY (v3.8.1+: sub-tabs)
+	// Sub-tabs: login (audit-log added in future v3.8.x). Sub-tab nav hidden when count < 2.
 	// ════════════════════════════════════════
 	} elseif ( 'security' === $active_tab ) {
 
-		sn_admin_render_toc( 'security' );
+		sn_admin_render_sub_tabs( 'security', $active_sub );
 
+		// Only 1 sub-tab at v3.8.1 — but gate on $active_sub for forward-compat
+		// (future audit-log addition gates on $active_sub === 'audit-log').
+		if ( 'login' === $active_sub ) {
 		sn_admin_render_section( 'login', function() {
 			// Detect module state. Three possibilities:
 			//   1. ACTIVE: our login-hide.php is firing (no wps-hide-login,
@@ -1107,65 +1236,69 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 			echo '<p>The constants take priority over the setting and persist across plugin updates. Remove them once you\'ve regained access.</p>';
 			echo '</div>';
 		} );
+		}  // close: if ( 'login' === $active_sub )
 
 	// ════════════════════════════════════════
-	// TAB: AUTOMATION (v3.8.0+)
-	// Sub-sections: webhooks, cron
+	// TAB: AUTOMATION (v3.8.1+: sub-tabs)
+	// Sub-tabs: webhooks, cron
 	// ════════════════════════════════════════
 	} elseif ( 'automation' === $active_tab ) {
 
-		sn_admin_render_toc( 'automation' );
+		sn_admin_render_sub_tabs( 'automation', $active_sub );
 
-		sn_admin_render_section( 'webhooks', function() {
-			do_action( 'sn_admin_webhooks_tab' );
-		} );
-
-		sn_admin_render_section( 'cron', function() {
-			do_action( 'sn_admin_cron_tab' );
-		} );
+		if ( 'cron' === $active_sub ) {
+			sn_admin_render_section( 'cron', function() {
+				do_action( 'sn_admin_cron_tab' );
+			} );
+		} else {
+			// Default sub-tab: 'webhooks'
+			sn_admin_render_section( 'webhooks', function() {
+				do_action( 'sn_admin_webhooks_tab' );
+			} );
+		}
 
 	// ════════════════════════════════════════
-	// TAB: MONITORING (v3.8.0+)
-	// Sub-sections: insights, health, plausible, rss
+	// TAB: MONITORING (v3.8.1+: sub-tabs)
+	// Sub-tabs: insights, health, plausible, rss
 	// ════════════════════════════════════════
 	} elseif ( 'monitoring' === $active_tab ) {
 
-		sn_admin_render_toc( 'monitoring' );
+		sn_admin_render_sub_tabs( 'monitoring', $active_sub );
 
-		sn_admin_render_section( 'insights', function() {
-			do_action( 'sn_admin_insights_tab' );
-		} );
-
-		sn_admin_render_section( 'health', function() {
-			do_action( 'sn_admin_health_tab' );
-		} );
-
-		sn_admin_render_section( 'plausible', function() {
-			do_action( 'sn_admin_plausible_tab' );
-		} );
-
-		sn_admin_render_section( 'rss', function() {
-			if ( has_action( 'sn_admin_rss_tab' ) ) {
-				do_action( 'sn_admin_rss_tab' );
-			} else {
-				echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
-				echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
-			}
-		} );
+		if ( 'health' === $active_sub ) {
+			sn_admin_render_section( 'health', function() {
+				do_action( 'sn_admin_health_tab' );
+			} );
+		} elseif ( 'plausible' === $active_sub ) {
+			sn_admin_render_section( 'plausible', function() {
+				do_action( 'sn_admin_plausible_tab' );
+			} );
+		} elseif ( 'rss' === $active_sub ) {
+			sn_admin_render_section( 'rss', function() {
+				if ( has_action( 'sn_admin_rss_tab' ) ) {
+					do_action( 'sn_admin_rss_tab' );
+				} else {
+					echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
+					echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
+				}
+			} );
+		} else {
+			// Default sub-tab: 'insights'
+			sn_admin_render_section( 'insights', function() {
+				do_action( 'sn_admin_insights_tab' );
+			} );
+		}
 
 	// ════════════════════════════════════════
-	// TAB: TOOLS (v3.8.0+)
-	// Sub-sections: reading-time, links
+	// TAB: TOOLS (v3.8.1+: sub-tabs)
+	// Sub-tabs: reading-time, links
 	// ════════════════════════════════════════
 	} elseif ( 'tools' === $active_tab ) {
 
-		sn_admin_render_toc( 'tools' );
+		sn_admin_render_sub_tabs( 'tools', $active_sub );
 
-		sn_admin_render_section( 'reading-time', function() {
-			do_action( 'sn_admin_reading_time_tab' );
-		} );
-
-		sn_admin_render_section( 'links', function() {
+		if ( 'links' === $active_sub ) {
+			sn_admin_render_section( 'links', function() {
 			$link_groups = array(
 				array(
 					'label' => 'Source code',
@@ -1203,6 +1336,12 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 			}
 			echo '</div>';
 		} );
+		} else {
+			// Default sub-tab: 'reading-time'
+			sn_admin_render_section( 'reading-time', function() {
+				do_action( 'sn_admin_reading_time_tab' );
+			} );
+		}
 
 	}
 
