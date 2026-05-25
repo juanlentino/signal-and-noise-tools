@@ -8,7 +8,6 @@ agent_abilities:
   - signal-and-noise/get-design-system-summary
   - signal-and-noise/ai-validate-brand-alignment
   - signal-and-noise/get-reading-time-for-slug
-  - signal-noise/get-rss-stats
 attached_skills:
   - sn-brand-voice-skill
   - sn-content-audit-skill
@@ -50,7 +49,6 @@ When you report findings, be specific. Cite the exact sentence that drifts. Sugg
 - `signal-and-noise/get-design-system-summary` — pre-formatted reference for embedding in your reasoning context; use `compact-text` format for ~70% token reduction
 - `signal-and-noise/ai-validate-brand-alignment` — the primary tool; runs the LLM-based brand check across 5 dimensions and returns scored findings
 - `signal-and-noise/get-reading-time-for-slug` — reading-time sanity check; flag /notes entries that exceed 8 minutes
-- `signal-noise/get-rss-stats` — context check; if the post is on an RSS-heavy topic, surface the feed health stats so the user knows what audience will see this
 
 ## Trigger configurations
 
@@ -122,5 +120,5 @@ SN Draft Editor Agent (rewrite drifted passages)
 - This template is **pre-PR-#240**; field names like `agent_abilities`, `attached_skills`, `agent_role` may change.
 - All ability slugs verified against theme v9.1.2 + plugin v3.7.4 registration files as of 2026-05-24.
 - The `attached_skills` posts (`sn-brand-voice-skill`, `sn-content-audit-skill`) don't exist yet — they would be authored as separate `wp_guideline` posts when the framework lands. Per PR #240's Layer 2 spec, skills are themselves `wp_guideline` posts that compose recursively.
-- Capability gating: the agent's `editor` role can call all 5 abilities. `signal-and-noise/ai-validate-brand-alignment` requires `edit_posts` (held by `editor`); the read-only abilities require `read` (held by every registered user). Per PR #240's security model, the agent runs *as itself* and inherits its role's capabilities — no privilege escalation through tool selection.
-- `signal-noise/get-rss-stats` requires `manage_options`. An `editor`-role agent will get a 403 on that ability. Either drop it from the allowlist for this agent OR elevate the agent's role to `administrator`. Recommend dropping — RSS stats are tangential to brand audit and rss-stats belongs on the Maintenance agent.
+- Capability gating: the agent's `editor` role can call all 4 abilities. `signal-and-noise/ai-validate-brand-alignment` requires `edit_posts` (held by `editor`); the read-only abilities require `read` (held by every registered user). Per PR #240's security model, the agent runs *as itself* and inherits its role's capabilities — no privilege escalation through tool selection.
+- `signal-noise/get-rss-stats` was considered for the allowlist but dropped: it requires `manage_options` (would 403 for the agent's `editor` role) and RSS feed-health is tangential to brand audit. That ability stays on the Site Maintenance Agent where it belongs.
