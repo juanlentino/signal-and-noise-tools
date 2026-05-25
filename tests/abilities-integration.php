@@ -941,7 +941,7 @@ ap_eq( 'snt_ai_img_not_found', $res->get_error_code(), 'ai-alt-inline-suggest: s
 ap_reset_caps();
 
 /* ════════════════════════════════════════════════════════════════════
- * v4.1.0 — AI orphan suggest+apply abilities (2 abilities, 7 asserts)
+ * v4.1.0 — AI orphan suggest+apply abilities (2 abilities)
  * ════════════════════════════════════════════════════════════════════ */
 
 ap_reset_caps();
@@ -953,8 +953,6 @@ ap_eq( true, $out['ok'], 'ai-orphan-suggest: ok=true' );
 ap_eq( 'delete', $out['verdict'], 'ai-orphan-suggest: verdict=delete for attachment 1234' );
 ap_eq( 1234, $out['attachment_id'], 'ai-orphan-suggest: attachment_id echo' );
 ap_eq( 'https://example.com/wp-content/uploads/thumb-1234.jpg', $out['thumbnail_url'], 'ai-orphan-suggest: thumbnail_url matches stub' );
-
-ap_reset_caps();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
