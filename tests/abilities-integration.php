@@ -287,6 +287,41 @@ if ( ! function_exists( 'snt_ai_alt_inline_suggest_impl' ) ) {
 		);
 	}
 }
+// ─── v4.1.0 — orphan suggest/apply impl stubs ────────────────────
+if ( ! function_exists( 'snt_ai_orphan_suggest_impl' ) ) {
+	function snt_ai_orphan_suggest_impl( $attachment_id ) {
+		$id = (int) $attachment_id;
+		if ( 9999 === $id ) {
+			return new WP_Error( 'snt_ai_not_attachment', 'Not an attachment.', array( 'status' => 422 ) );
+		}
+		// Test fixtures: 1234 → delete, 1235 → keep, 1236 → unsure (parse fallback simulation).
+		$verdict = 'delete';
+		$reason  = 'Filename suggests one-off screenshot; no parent post.';
+		if ( 1235 === $id ) { $verdict = 'keep';   $reason = 'Filename suggests site asset (hero-banner).'; }
+		if ( 1236 === $id ) { $verdict = 'unsure'; $reason = 'AI response could not be parsed; review manually'; }
+		return array(
+			'ok'            => true,
+			'verdict'       => $verdict,
+			'reason'        => $reason,
+			'attachment_id' => $id,
+			'thumbnail_url' => 'https://example.com/wp-content/uploads/thumb-' . $id . '.jpg',
+			'filename'      => 'thumb-' . $id . '.jpg',
+		);
+	}
+}
+if ( ! function_exists( 'snt_ai_orphan_apply_impl' ) ) {
+	function snt_ai_orphan_apply_impl( $attachment_id ) {
+		$id = (int) $attachment_id;
+		if ( 9999 === $id ) {
+			return new WP_Error( 'snt_ai_not_attachment', 'Attachment not found or already deleted.', array( 'status' => 422 ) );
+		}
+		return array(
+			'ok'            => true,
+			'attachment_id' => $id,
+			'deleted'       => true,
+		);
+	}
+}
 $GLOBALS['__test_cron_events_call_count'] = 0;
 if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 	function snt_cron_get_events_impl( $sn_only = false ) {
@@ -902,6 +937,22 @@ $res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( array(
 ) );
 ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: img not in post → WP_Error' );
 ap_eq( 'snt_ai_img_not_found', $res->get_error_code(), 'ai-alt-inline-suggest: snt_ai_img_not_found code' );
+
+ap_reset_caps();
+
+/* ════════════════════════════════════════════════════════════════════
+ * v4.1.0 — AI orphan suggest+apply abilities (2 abilities, 7 asserts)
+ * ════════════════════════════════════════════════════════════════════ */
+
+ap_reset_caps();
+
+// ── ai-orphan-suggest — happy path (verdict=delete) ────────────────
+$out = wp_get_ability( 'signal-noise/ai-orphan-suggest' )->execute( array( 'attachment_id' => 1234 ) );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['verdict'], $out['reason'], $out['attachment_id'], $out['thumbnail_url'], $out['filename'] ), 'ai-orphan-suggest: required keys' );
+ap_eq( true, $out['ok'], 'ai-orphan-suggest: ok=true' );
+ap_eq( 'delete', $out['verdict'], 'ai-orphan-suggest: verdict=delete for attachment 1234' );
+ap_eq( 1234, $out['attachment_id'], 'ai-orphan-suggest: attachment_id echo' );
+ap_eq( 'https://example.com/wp-content/uploads/thumb-1234.jpg', $out['thumbnail_url'], 'ai-orphan-suggest: thumbnail_url matches stub' );
 
 ap_reset_caps();
 

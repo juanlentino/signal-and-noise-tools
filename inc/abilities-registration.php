@@ -1135,6 +1135,86 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/ai-orphan-suggest', array(
+		'label'               => 'Suggest orphan-media verdict for an attachment',
+		'description'         => 'AI evaluates a SQL-flagged orphaned attachment and returns a binary-ish verdict (delete/keep/unsure) with reason. Inputs: attachment metadata (filename, title, caption, parent post). Cached 30 days per (attachment_id, post_modified, prompt_version_md5).',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$attachment_id = isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+			return current_user_can( 'edit_post', $attachment_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_orphan_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'attachment_id' ),
+			'properties'           => array(
+				'attachment_id' => array(
+					'type'        => 'integer',
+					'description' => 'Image-attachment post ID to evaluate.',
+					'minimum'     => 1,
+					'examples'    => array( 1234 ),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'verdict'       => array( 'type' => 'string', 'enum' => array( 'delete', 'keep', 'unsure' ) ),
+				'reason'        => array( 'type' => 'string' ),
+				'attachment_id' => array( 'type' => 'integer' ),
+				'thumbnail_url' => array( 'type' => 'string' ),
+				'filename'      => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-orphan-apply', array(
+		'label'               => 'Delete an orphan attachment',
+		'description'         => 'Force-deletes an orphan-verdict attachment via wp_delete_attachment($id, true). Destructive. Skips trash. Clears the orphan verdict cache for this attachment.',
+		'category'            => 'ai-generation',
+		'permission_callback' => function( $input ) {
+			$attachment_id = isset( $input['attachment_id'] ) ? (int) $input['attachment_id'] : 0;
+			return current_user_can( 'delete_post', $attachment_id );
+		},
+		'execute_callback'    => 'snt_ability_ai_orphan_apply',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'attachment_id' ),
+			'properties'           => array(
+				'attachment_id' => array(
+					'type'        => 'integer',
+					'description' => 'Image-attachment post ID to delete.',
+					'minimum'     => 1,
+					'examples'    => array( 1234 ),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'attachment_id' => array( 'type' => 'integer' ),
+				'deleted'       => array( 'type' => 'boolean' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				'idempotent'  => true,
+			),
+		),
+	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1533,4 +1613,30 @@ function snt_ability_ai_alt_inline_suggest( $input ) {
 		(int) $input['post_id'],
 		(string) $input['image_src']
 	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-orphan-suggest.
+ * Thin wrapper around snt_ai_orphan_suggest_impl().
+ *
+ * @since 4.1.0
+ */
+function snt_ability_ai_orphan_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_orphan_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Orphan-suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_orphan_suggest_impl( (int) $input['attachment_id'] );
+}
+
+/**
+ * Execute callback for signal-noise/ai-orphan-apply.
+ * Thin wrapper around snt_ai_orphan_apply_impl().
+ *
+ * @since 4.1.0
+ */
+function snt_ability_ai_orphan_apply( $input ) {
+	if ( ! function_exists( 'snt_ai_orphan_apply_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Orphan-apply helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_orphan_apply_impl( (int) $input['attachment_id'] );
 }
