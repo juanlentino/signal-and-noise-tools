@@ -54,8 +54,105 @@ const SNT_AI_ORPHAN_CACHE_TTL          = 30 * DAY_IN_SECONDS;
  * @since 4.1.0
  */
 function snt_ai_orphan_suggest_impl( $attachment_id ) {
-	// TASK 2 will replace this stub with the real impl.
-	return new WP_Error( 'snt_ai_not_implemented', 'Stub.', array( 'status' => 501 ) );
+	$attachment_id = (int) $attachment_id;
+
+	// Gate: AI client available.
+	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
+		return new WP_Error(
+			'snt_ai_unavailable',
+			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
+			array( 'status' => 503 )
+		);
+	}
+
+	// Gate: attachment exists and is an image.
+	$attachment = get_post( $attachment_id );
+	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Not an image attachment.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+	}
+	if ( 0 !== strpos( (string) $attachment->post_mime_type, 'image/' ) ) {
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment is not an image MIME type.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+	}
+
+	// Cache lookup. Mirrors v4.0.1 drift cache shape.
+	$cache_key      = 'sn_orphan_verdict_' . $attachment_id;
+	$post_modified  = (string) $attachment->post_modified_gmt;
+	$prompt_version = md5( SNT_AI_ORPHAN_SUGGEST_SYSTEM );
+	$cached         = get_transient( $cache_key );
+
+	if ( is_array( $cached )
+		&& isset( $cached['modified'], $cached['prompt_version'], $cached['payload'] )
+		&& $cached['modified']       === $post_modified
+		&& $cached['prompt_version'] === $prompt_version
+		&& is_array( $cached['payload'] ) ) {
+		return $cached['payload'];
+	}
+
+	// Build prompt context.
+	$filename     = wp_basename( (string) $attachment->guid );
+	$title        = trim( (string) $attachment->post_title );
+	$caption      = trim( (string) $attachment->post_excerpt );
+	$mime         = (string) $attachment->post_mime_type;
+	$upload_date  = substr( (string) $attachment->post_date_gmt, 0, 10 );
+	$parent_title = '';
+	if ( $attachment->post_parent ) {
+		$parent = get_post( (int) $attachment->post_parent );
+		if ( $parent ) {
+			$parent_title = trim( (string) $parent->post_title );
+		}
+	}
+
+	$context_parts = array_filter( array(
+		$filename     ? "Filename: $filename"          : '',
+		$title        ? "Title: $title"                : '',
+		$caption      ? "Caption: $caption"            : '',
+		$mime         ? "MIME: $mime"                  : '',
+		$upload_date  ? "Uploaded: $upload_date"       : '',
+		$parent_title ? "Parent post: $parent_title"   : '',
+	) );
+
+	$prompt = implode( "\n", $context_parts );
+	$raw    = snt_ai_generate_with_constraints( $prompt, SNT_AI_ORPHAN_SUGGEST_SYSTEM, SNT_AI_ORPHAN_SUGGEST_MAX_TOKENS );
+
+	if ( is_wp_error( $raw ) ) {
+		return $raw;
+	}
+
+	$text = trim( (string) $raw );
+	if ( '' === $text ) {
+		return new WP_Error( 'snt_ai_empty_response', __( 'AI returned empty response.', 'signal-noise-tools' ), array( 'status' => 502 ) );
+	}
+
+	// Strip optional markdown fences (same defensive pattern as v4.0.1 drift).
+	$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', $text ) );
+
+	$parsed  = json_decode( $text, true );
+	$verdict = is_array( $parsed ) && isset( $parsed['verdict'] ) ? (string) $parsed['verdict'] : '';
+	$reason  = is_array( $parsed ) && isset( $parsed['reason'] )  ? (string) $parsed['reason']  : '';
+
+	// Fallback to 'unsure' for unparseable / out-of-enum responses. Preserves the finding.
+	if ( ! in_array( $verdict, array( 'delete', 'keep', 'unsure' ), true ) ) {
+		$verdict = 'unsure';
+		$reason  = __( 'AI response could not be parsed; review manually', 'signal-noise-tools' );
+	}
+
+	$payload = array(
+		'ok'            => true,
+		'verdict'       => $verdict,
+		'reason'        => $reason,
+		'attachment_id' => $attachment_id,
+		'thumbnail_url' => (string) wp_get_attachment_image_url( $attachment_id, 'thumbnail' ),
+		'filename'      => $filename,
+	);
+
+	// Cache only successful parses (including unsure-fallbacks). Errors never cache.
+	set_transient( $cache_key, array(
+		'modified'       => $post_modified,
+		'prompt_version' => $prompt_version,
+		'payload'        => $payload,
+	), SNT_AI_ORPHAN_CACHE_TTL );
+
+	return $payload;
 }
 
 /**
