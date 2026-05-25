@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.0.1] - 2026-05-25
+
+### Cache AI drift-verdicts per (post_id, post_modified) — stops re-evaluating unchanged posts on Run scan
+
+**Problem**: `sn_health_check_drift_time_phrases()` was calling `snt_ai_generate_with_constraints()` once per post that had regex-flagged candidates, on every Run scan. Production logs showed 8-10 AI calls per scan, all redundant for unchanged posts. Drift verdicts are deterministic from `(post_content, post_modified_gmt, system_prompt)`, so re-evaluating stable content burned tokens for no new signal.
+
+**Fix**: wrap the AI call in a transient cache keyed on `(post_id, post_modified_gmt, md5(SNT_AI_DRIFT_SYSTEM))`. 30-day TTL. Invalidation is content-change-driven, not time-driven — the cache entry is ignored if either the post's `post_modified_gmt` or the drift system prompt's hash changes.
+
+**Result**: re-scans on stable content are now ~free. First scan still costs the full per-post AI evaluation; subsequent scans of unchanged posts skip the AI call entirely. A post edit (which bumps `post_modified_gmt`) or a tweak to `SNT_AI_DRIFT_SYSTEM` (which changes the prompt hash) transparently re-evaluates the affected posts on the next scan.
+
+Patch cap: 1/7 in v4.0.x.
+
 ## [4.0.0] - 2026-05-25
 
 ### Added — AI-assisted content-health fix proposals (alt text + drift phrases)

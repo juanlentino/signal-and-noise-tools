@@ -538,16 +538,37 @@ function sn_health_check_drift_time_phrases() {
 		$prompt = wp_json_encode( $payload );
 		if ( false === $prompt ) { continue; }
 
-		$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600 );
-		if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
-			continue;  // Soft fail — skip this post.
-		}
+		// v4.0.1: cache AI verdicts per (post_id, post_modified, prompt_version).
+		// Verdicts are deterministic from (post_content, post_modified_gmt, system_prompt),
+		// so unchanged posts skip the AI call on subsequent Run scans.
+		$cache_key      = 'sn_drift_verdicts_' . (int) $r['ID'];
+		$post_modified  = (string) $r['post_modified_gmt'];
+		$prompt_version = md5( SNT_AI_DRIFT_SYSTEM );
+		$cached         = get_transient( $cache_key );
 
-		// Strip optional markdown fences (opener and/or closer, independently).
-		$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( $raw ) ) );
-		$verdicts = json_decode( $text, true );
-		if ( ! is_array( $verdicts ) ) {
-			continue;  // Malformed — skip this post.
+		if ( is_array( $cached )
+			&& isset( $cached['post_modified'], $cached['prompt_version'], $cached['verdicts'] )
+			&& $cached['post_modified']  === $post_modified
+			&& $cached['prompt_version'] === $prompt_version ) {
+			$verdicts = $cached['verdicts'];
+		} else {
+			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600 );
+			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
+				continue;  // Soft fail — skip this post.
+			}
+
+			// Strip optional markdown fences (opener and/or closer, independently).
+			$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( $raw ) ) );
+			$verdicts = json_decode( $text, true );
+			if ( ! is_array( $verdicts ) ) {
+				continue;  // Malformed — skip this post.
+			}
+
+			set_transient( $cache_key, array(
+				'post_modified'  => $post_modified,
+				'prompt_version' => $prompt_version,
+				'verdicts'       => $verdicts,
+			), 30 * DAY_IN_SECONDS );
 		}
 
 		foreach ( $verdicts as $v ) {
