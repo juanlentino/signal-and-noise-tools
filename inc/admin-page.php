@@ -72,10 +72,236 @@ function sn_admin_pages() {
 }
 
 /**
+ * The 6 top-level tabs of the SN admin UI (v3.8.0+ IA).
+ *
+ * Each entry has a `sub_sections` array (may be empty for landing pages
+ * with no in-page TOC). Sub-section ordering = display order in the
+ * in-page TOC. Slugs are stable URL fragments (`?tab=<top>#sn-sec-<sub>`).
+ *
+ * @since 3.8.0
+ * @return array<int,array<string,mixed>>
+ */
+function sn_admin_top_tabs() {
+	return array(
+		array(
+			'slug'         => 'sn-theme-options',
+			'tab'          => 'dashboard',
+			'label'        => 'Dashboard',
+			'title'        => 'Signal & Noise — Dashboard',
+			'subtitle'     => 'Status overview and maintenance actions.',
+			'sub_sections' => array(),
+		),
+		array(
+			'slug'         => 'sn-site',
+			'tab'          => 'site',
+			'label'        => 'Site',
+			'title'        => 'Signal & Noise — Site',
+			'subtitle'     => 'Site identity, social profiles, Open Graph, SEO copy, Cloudflare.',
+			'sub_sections' => array(
+				'identity'   => array( 'label' => 'Identity' ),
+				'social'     => array( 'label' => 'Social' ),
+				'open-graph' => array( 'label' => 'Open Graph' ),
+				'seo-copy'   => array( 'label' => 'SEO Copy' ),
+				'cloudflare' => array( 'label' => 'Cloudflare' ),
+			),
+		),
+		array(
+			'slug'         => 'sn-security',
+			'tab'          => 'security',
+			'label'        => 'Security',
+			'title'        => 'Signal & Noise — Security',
+			'subtitle'     => 'Custom login URL.',
+			'sub_sections' => array(
+				'login' => array( 'label' => 'Login URL' ),
+			),
+		),
+		array(
+			'slug'         => 'sn-automation',
+			'tab'          => 'automation',
+			'label'        => 'Automation',
+			'title'        => 'Signal & Noise — Automation',
+			'subtitle'     => 'Webhooks and scheduled jobs.',
+			'sub_sections' => array(
+				'webhooks' => array( 'label' => 'Webhooks' ),
+				'cron'     => array( 'label' => 'Cron' ),
+			),
+		),
+		array(
+			'slug'         => 'sn-monitoring',
+			'tab'          => 'monitoring',
+			'label'        => 'Monitoring',
+			'title'        => 'Signal & Noise — Monitoring',
+			'subtitle'     => 'Insights, content health, analytics, RSS subscribers.',
+			'sub_sections' => array(
+				'insights'  => array( 'label' => 'Insights' ),
+				'health'    => array( 'label' => 'Health' ),
+				'plausible' => array( 'label' => 'Plausible' ),
+				'rss'       => array( 'label' => 'RSS' ),
+			),
+		),
+		array(
+			'slug'         => 'sn-tools',
+			'tab'          => 'tools',
+			'label'        => 'Tools',
+			'title'        => 'Signal & Noise — Tools',
+			'subtitle'     => 'Utility surfaces and external shortcuts.',
+			'sub_sections' => array(
+				'reading-time' => array( 'label' => 'Reading Time' ),
+				'links'        => array( 'label' => 'Links' ),
+			),
+		),
+	);
+}
+
+/**
+ * Render the in-page TOC for a multi-section top tab. Reads sub-sections
+ * from sn_admin_top_tabs() — single source of truth for both display order
+ * and anchor labels.
+ *
+ * Generates: <nav class="sn-toc" aria-label="..."><a href="#sn-sec-X">…</a></nav>
+ *
+ * No-op for top tabs with no sub-sections (Dashboard).
+ *
+ * @since 3.8.0
+ * @param string $tab_slug The top-tab slug (e.g., 'site', 'security').
+ */
+function sn_admin_render_toc( $tab_slug ) {
+	foreach ( sn_admin_top_tabs() as $top ) {
+		if ( $top['tab'] !== $tab_slug ) {
+			continue;
+		}
+		if ( empty( $top['sub_sections'] ) ) {
+			return;
+		}
+		echo '<nav class="sn-toc" aria-label="' . esc_attr( $top['label'] . ' sections' ) . '">';
+		echo '<span class="sn-toc-label">Jump to</span>';
+		foreach ( $top['sub_sections'] as $sub_slug => $sub ) {
+			echo '<a href="#sn-sec-' . esc_attr( $sub_slug ) . '">' . esc_html( $sub['label'] ) . '</a>';
+		}
+		echo '</nav>';
+		return;
+	}
+}
+
+/**
+ * Render a sub-section wrapper with anchor target. The callback emits
+ * the section's actual content (form fields, hook invocation, etc.).
+ *
+ * Wraps with .sn-fieldset (matching the existing Identity tab pattern)
+ * so existing CSS at admin.css applies without changes. The anchor ID
+ * is the structural commitment for the TOC links.
+ *
+ * For module-hook sub-sections (e.g., Cloudflare), the callback should
+ * just `do_action('sn_admin_<slug>_tab')` — the hook listener will
+ * emit its own heading + form inside this wrapper.
+ *
+ * @since 3.8.0
+ * @param string   $section_slug Anchor target (e.g., 'identity', 'cloudflare').
+ * @param callable $callback     Emits the section body.
+ */
+function sn_admin_render_section( $section_slug, $callback ) {
+	echo '<div class="sn-fieldset" id="sn-sec-' . esc_attr( $section_slug ) . '">';
+	call_user_func( $callback );
+	echo '</div>';
+}
+
+/**
+ * Map of legacy tab slugs (and equivalent page slugs) to their canonical
+ * v3.8.0+ destinations: a top tab + anchor.
+ *
+ * Used by sn_admin_maybe_redirect_legacy() to 301 old URLs to canonical
+ * `?tab=<top>#sn-sec-<sub>` destinations.
+ *
+ * The dashboard slug maps to itself (already canonical) — explicit entry
+ * for completeness so the absence-vs-present check is uniform.
+ *
+ * @since 3.8.0
+ * @return array<string,array{tab:string,anchor:?string}>
+ */
+function sn_admin_legacy_redirect_map() {
+	return array(
+		'dashboard'    => array( 'tab' => 'dashboard',  'anchor' => null ),
+		'identity'     => array( 'tab' => 'site',       'anchor' => 'identity' ),
+		'cloudflare'   => array( 'tab' => 'site',       'anchor' => 'cloudflare' ),
+		'login'        => array( 'tab' => 'security',   'anchor' => 'login' ),
+		'webhooks'     => array( 'tab' => 'automation', 'anchor' => 'webhooks' ),
+		'cron'         => array( 'tab' => 'automation', 'anchor' => 'cron' ),
+		'insights'     => array( 'tab' => 'monitoring', 'anchor' => 'insights' ),
+		'health'       => array( 'tab' => 'monitoring', 'anchor' => 'health' ),
+		'plausible'    => array( 'tab' => 'monitoring', 'anchor' => 'plausible' ),
+		'rss'          => array( 'tab' => 'monitoring', 'anchor' => 'rss' ),
+		'reading-time' => array( 'tab' => 'tools',      'anchor' => 'reading-time' ),
+		'links'        => array( 'tab' => 'tools',      'anchor' => 'links' ),
+	);
+}
+
+/**
+ * If the current request has a legacy ?tab=<slug> OR is on a legacy
+ * ?page=sn-<slug> URL whose tab is no longer top-level, 301-redirect
+ * to the canonical destination + URL fragment.
+ *
+ * Called early in sn_theme_options_page() before any output. Uses raw
+ * header() + exit because wp_safe_redirect() strips URL fragments — the
+ * fragment is the part that scrolls the page to the right sub-section.
+ *
+ * Same-host admin URLs are trusted; the redirect destination is always
+ * constructed from a fixed allow-listed top-tab whitelist, never from
+ * user input.
+ *
+ * @since 3.8.0
+ */
+function sn_admin_maybe_redirect_legacy() {
+	$top_tabs = array_column( sn_admin_top_tabs(), 'tab' );
+	$map      = sn_admin_legacy_redirect_map();
+
+	// Source 1: explicit ?tab=<slug>
+	$requested_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+
+	// Source 2: derive from ?page=sn-<slug>
+	if ( ! $requested_tab && isset( $_GET['page'] ) ) {
+		$current_slug  = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+		// sn_admin_page_tab_for_slug() returns the tab name for a given
+		// legacy page slug; v3.8.0+ also recognizes new top-tab slugs
+		// (sn-site, sn-security, etc.) and returns their canonical tab.
+		$requested_tab = sn_admin_page_tab_for_slug( $current_slug );
+	}
+
+	if ( ! $requested_tab ) {
+		return;  // No tab in URL; default dispatcher will use 'dashboard'.
+	}
+
+	// If the requested tab is already a NEW top tab, nothing to redirect.
+	if ( in_array( $requested_tab, $top_tabs, true ) ) {
+		return;
+	}
+
+	// If it's a legacy slug, look up canonical destination.
+	if ( ! isset( $map[ $requested_tab ] ) ) {
+		return;  // Unknown slug; let the dispatcher fall through to dashboard.
+	}
+
+	$canonical = $map[ $requested_tab ];
+	$url       = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $canonical['tab'] ) );
+	if ( $canonical['anchor'] ) {
+		$url .= '#sn-sec-' . rawurlencode( $canonical['anchor'] );
+	}
+
+	// Raw header() because wp_safe_redirect() strips the fragment.
+	// Same-host admin URL, no user input in destination → safe.
+	header( 'Location: ' . $url, true, 301 );
+	exit;
+}
+
+/**
  * Look up the subtitle for the active tab. Used by the page header.
+ *
+ * v3.8.0+: reads from sn_admin_top_tabs() (the new 6-tab structure).
+ * The legacy sn_admin_pages() still drives the WP submenu sidebar
+ * (preserves all 12 deep-link shortcuts) but the page header reflects
+ * the new top-tab IA the user is actually navigating.
  */
 function sn_admin_page_subtitle_for_tab( $tab ) {
-	foreach ( sn_admin_pages() as $page ) {
+	foreach ( sn_admin_top_tabs() as $page ) {
 		if ( $page['tab'] === $tab ) {
 			return $page['subtitle'];
 		}
@@ -95,7 +321,10 @@ function sn_admin_page_subtitle_for_tab( $tab ) {
  * @since 3.0.2
  */
 function sn_admin_page_valid_tabs() {
-	return array_column( sn_admin_pages(), 'tab' );
+	// v3.8.0+: derive from the 6 NEW top tabs. Legacy tab slugs are
+	// handled by sn_admin_maybe_redirect_legacy() (301-redirected before
+	// dispatch ever reaches the valid-tabs check).
+	return array_column( sn_admin_top_tabs(), 'tab' );
 }
 
 /**
@@ -104,14 +333,30 @@ function sn_admin_page_valid_tabs() {
  * @since 3.0.2
  */
 function sn_admin_page_tab_labels() {
-	return array_column( sn_admin_pages(), 'label', 'tab' );
+	// v3.8.0+: derive from the 6 NEW top tabs (drives the in-page
+	// .nav-tab-wrapper). The WP submenu sidebar still uses
+	// sn_admin_pages() for its 12 entries.
+	return array_column( sn_admin_top_tabs(), 'label', 'tab' );
 }
 
 /**
  * Map an admin-page slug to a tab name. Used by sn_theme_options_page()
  * to dispatch when $_GET['tab'] isn't present (v1.9.0+ deep links).
+ *
+ * v3.8.0+: iterates the union of sn_admin_top_tabs() (new 6 slugs:
+ * sn-site, sn-security, sn-automation, sn-monitoring, sn-tools) AND
+ * sn_admin_pages() (legacy 12 slugs). Legacy slugs return their legacy
+ * tab name (e.g., 'sn-login' → 'login'); the redirect map in
+ * sn_admin_maybe_redirect_legacy() then 301s 'login' → 'security#sn-sec-login'.
+ * New slugs return their canonical top-tab name (e.g., 'sn-site' → 'site');
+ * no redirect needed.
  */
 function sn_admin_page_tab_for_slug( $slug ) {
+	foreach ( sn_admin_top_tabs() as $page ) {
+		if ( $page['slug'] === $slug ) {
+			return $page['tab'];
+		}
+	}
 	foreach ( sn_admin_pages() as $page ) {
 		if ( $page['slug'] === $slug ) {
 			return $page['tab'];
@@ -402,12 +647,41 @@ function sn_handle_admin_post() {
 		'page'     => $current_page,
 		'sn_flash' => $flash,
 	);
-	// Preserve v1.8.x-style ?tab=… so legacy bookmarks survive PRG.
+
+	// v3.8.0+: redirect to canonical top-tab + anchor (instead of legacy
+	// tab slug). The legacy tab slug from the form POST is mapped to its
+	// canonical destination via sn_admin_legacy_redirect_map() — if it's
+	// a known legacy slug, the canonical top-tab replaces it. Anchor goes
+	// in the URL fragment (preserved by raw header() — wp_safe_redirect()
+	// would strip it).
+	$anchor = '';
 	if ( isset( $_REQUEST['tab'] ) ) {
-		$redirect_args['tab'] = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
+		$requested_tab = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
+		$map           = sn_admin_legacy_redirect_map();
+		$top_tabs      = array_column( sn_admin_top_tabs(), 'tab' );
+
+		if ( in_array( $requested_tab, $top_tabs, true ) ) {
+			// Already a canonical top tab; pass through.
+			$redirect_args['tab'] = $requested_tab;
+		} elseif ( isset( $map[ $requested_tab ] ) ) {
+			// Legacy slug; rewrite to canonical destination.
+			$redirect_args['tab'] = $map[ $requested_tab ]['tab'];
+			if ( $map[ $requested_tab ]['anchor'] ) {
+				$anchor = '#sn-sec-' . rawurlencode( $map[ $requested_tab ]['anchor'] );
+			}
+		} else {
+			// Unknown slug; fall back to dashboard.
+			$redirect_args['tab'] = 'dashboard';
+		}
 	}
-	$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) );
-	wp_safe_redirect( $redirect_url );
+
+	$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) . $anchor;
+
+	// Raw header() because wp_safe_redirect() strips URL fragments.
+	// Destination is admin_url() (same-host, trusted) with sanitized
+	// top-tab name from a fixed allowlist — safe.
+	// 302 not 301: this is a transient post-save redirect, not a "moved permanently" signal.
+	header( 'Location: ' . $redirect_url, true, 302 );
 	exit;
 }
 
@@ -420,6 +694,10 @@ function sn_theme_options_page() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( esc_html( 'You do not have sufficient permissions to access this page.' ) );
 	}
+
+	// v3.8.0+: 301-redirect legacy tab/page slugs to canonical destinations.
+	// Must run BEFORE any output so headers can still be sent.
+	sn_admin_maybe_redirect_legacy();
 
 	$theme         = wp_get_theme( 'signal-and-noise' );
 	$local_version = $theme->get( 'Version' );
@@ -565,417 +843,366 @@ function sn_theme_options_page() {
 	echo '</nav>';
 
 	// ════════════════════════════════════════
-	// TAB: DASHBOARD
+	// TAB: DASHBOARD (landing — no sub-sections)
 	// ════════════════════════════════════════
 	if ( 'dashboard' === $active_tab ) {
 
 		/**
-		 * As of v1.14.0, the Dashboard tab is rendered entirely by
-		 * inc/admin-tab-dashboard.php via the sn_admin_dashboard_extras
-		 * hook. The legacy Status table + Override details + Actions
-		 * card grid that used to live here were absorbed into the new
-		 * file's unified composition (hero state grid + recent deploys
-		 * + maintenance cards + API summary + diagnostics).
-		 *
-		 * The hook name stays for backward compatibility with any
-		 * third-party listener (none currently registered) and matches
-		 * the module-owned tab pattern used by all other tabs
-		 * (sn_admin_cloudflare_tab, sn_admin_plausible_tab, etc.).
+		 * Dashboard renders the hero state grid + recent deploys +
+		 * maintenance cards + API summary + diagnostics via the
+		 * sn_admin_dashboard_extras hook (see inc/admin-tab-dashboard.php).
+		 * This is a landing page with no in-page TOC.
 		 */
 		do_action( 'sn_admin_dashboard_extras' );
 
 	// ════════════════════════════════════════
-	// TAB: CLOUDFLARE
+	// TAB: SITE (v3.8.0+)
+	// Sub-sections: identity, social, open-graph, seo-copy, cloudflare
 	// ════════════════════════════════════════
-	} elseif ( 'cloudflare' === $active_tab ) {
+	} elseif ( 'site' === $active_tab ) {
 
-		/** Module-owned UI: see inc/cloudflare-purge.php. */
-		do_action( 'sn_admin_cloudflare_tab' );
+		sn_admin_render_toc( 'site' );
 
-	// ════════════════════════════════════════
-	// TAB: PLAUSIBLE
-	// ════════════════════════════════════════
-	} elseif ( 'plausible' === $active_tab ) {
-
-		/** Module-owned UI: see inc/plausible-admin.php. */
-		do_action( 'sn_admin_plausible_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: RSS
-	// ════════════════════════════════════════
-	} elseif ( 'rss' === $active_tab ) {
-
-		/**
-		 * Module-owned UI: see mu-plugins/rss-plausible-tracker.php.
-		 *
-		 * The tracker is a Must-Use plugin (not part of the theme) so it
-		 * survives theme switches and continues collecting subscriber
-		 * metrics regardless. When the MU plugin is deployed it hooks
-		 * this action; when it isn't, the tab renders an install hint
-		 * via the fallback below.
-		 */
-		if ( has_action( 'sn_admin_rss_tab' ) ) {
-			do_action( 'sn_admin_rss_tab' );
-		} else {
-			echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
-			echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
-		}
-
-	// ════════════════════════════════════════
-	// TAB: READING TIME
-	// ════════════════════════════════════════
-	} elseif ( 'reading-time' === $active_tab ) {
-
-		/** Module-owned UI: see inc/reading-time.php. */
-		do_action( 'sn_admin_reading_time_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: CRON
-	// ════════════════════════════════════════
-	} elseif ( 'cron' === $active_tab ) {
-
-		/** Module-owned UI: see inc/cron-dashboard-admin.php. */
-		do_action( 'sn_admin_cron_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: WEBHOOKS
-	// ════════════════════════════════════════
-	} elseif ( 'webhooks' === $active_tab ) {
-
-		/** Module-owned UI: see inc/webhooks-admin.php. */
-		do_action( 'sn_admin_webhooks_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: INSIGHTS
-	// ════════════════════════════════════════
-	} elseif ( 'insights' === $active_tab ) {
-
-		/** Module-owned UI: see inc/insights-admin.php. */
-		do_action( 'sn_admin_insights_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: HEALTH
-	// ════════════════════════════════════════
-	} elseif ( 'health' === $active_tab ) {
-
-		/** Module-owned UI: see inc/health-checks-admin.php. */
-		do_action( 'sn_admin_health_tab' );
-
-	// ════════════════════════════════════════
-	// TAB: LINKS
-	// ════════════════════════════════════════
-	} elseif ( 'links' === $active_tab ) {
-
-		// v1.14.0: upgraded from a 4-row .form-table to a card grid that
-		// scans faster. Each card has a category label + a title + the
-		// destination host, with the whole card as the click target via
-		// an absolutely-positioned link overlay (.sn-link-card__link).
-		$link_groups = array(
-			array(
-				'label' => 'Source code',
-				'links' => array(
-					array( 'title' => 'Theme repo',  'href' => 'https://github.com/juanlentino/signal-and-noise' ),
-					array( 'title' => 'Plugin repo', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools' ),
-				),
-			),
-			array(
-				'label' => 'Releases',
-				'links' => array(
-					array( 'title' => 'Theme releases',  'href' => 'https://github.com/juanlentino/signal-and-noise/releases' ),
-					array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/releases' ),
-				),
-			),
-			array(
-				'label' => 'Infrastructure',
-				'links' => array(
-					array( 'title' => 'Cloudflare dashboard', 'href' => 'https://dash.cloudflare.com' ),
-					array( 'title' => 'Cloudways platform',   'href' => 'https://platform.cloudways.com' ),
-				),
-			),
-		);
-		echo '<div class="sn-link-grid">';
-		foreach ( $link_groups as $group ) {
-			foreach ( $group['links'] as $link ) {
-				$host = (string) wp_parse_url( $link['href'], PHP_URL_HOST );
-				echo '<div class="sn-link-card">';
-				echo '<span class="sn-link-card__label">' . esc_html( $group['label'] ) . '</span>';
-				echo '<span class="sn-link-card__title">' . esc_html( $link['title'] ) . '</span>';
-				echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' &#x2197;</span>';
-				echo '<a class="sn-link-card__link" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
-				echo '</div>';
-			}
-		}
-		echo '</div>';
-
-	// ════════════════════════════════════════
-	// TAB: IDENTITY
-	// ════════════════════════════════════════
-	} elseif ( 'identity' === $active_tab ) {
-
+		// The Identity form wraps 4 sub-sections (one Save button saves
+		// all 4 fieldsets — preserves the existing single-form UX).
+		// Cloudflare is rendered AFTER the form close (it has its own
+		// form inside its hook).
 		echo '<form method="post" class="sn-identity-form">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="save_identity">';
 
-		echo '<p class="sn-prose">Site-identity values used by OG/Twitter meta, JSON-LD schema, and per-route SEO copy. Empty fields fall back to WordPress built-in defaults (site name, tagline).</p>';
+		sn_admin_render_section( 'identity', function() {
+			echo '<h2 class="sn-fieldset-h">Identity</h2>';
+			echo '<p class="sn-fieldset-intro">Site-wide name, description, and locale.</p>';
 
-		// Section TOC — anchor-jump links into the long form below.
-		echo '<nav class="sn-toc" aria-label="Identity sections">';
-		echo '<span class="sn-toc-label">Jump to</span>';
-		echo '<a href="#sn-sec-identity">Identity</a>';
-		echo '<a href="#sn-sec-social">Social</a>';
-		echo '<a href="#sn-sec-og">Open Graph</a>';
-		echo '<a href="#sn-sec-seo">SEO Copy</a>';
-		echo '</nav>';
+			echo '<div class="sn-field sn-field-w-md">';
+			echo '<label class="sn-field-label" for="sn_identity_site_name">Site name</label>';
+			echo '<input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '">';
+			echo '</div>';
 
-		// ── IDENTITY ──
-		echo '<div class="sn-fieldset" id="sn-sec-identity">';
-		echo '<h2 class="sn-fieldset-h">Identity</h2>';
-		echo '<p class="sn-fieldset-intro">Site-wide name, description, and locale.</p>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_identity_site_description">Site description</label>';
+			echo '<textarea id="sn_identity_site_description" name="identity_site_description" rows="2">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea>';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-md">';
-		echo '<label class="sn-field-label" for="sn_identity_site_name">Site name</label>';
-		echo '<input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '">';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-md">';
+			echo '<label class="sn-field-label" for="sn_identity_person_name">Person name (schema author)</label>';
+			echo '<input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '">';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_identity_site_description">Site description</label>';
-		echo '<textarea id="sn_identity_site_description" name="identity_site_description" rows="2">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-md">';
+			echo '<label class="sn-field-label" for="sn_identity_job_title">Job title</label>';
+			echo '<input type="text" id="sn_identity_job_title" name="identity_job_title" value="' . esc_attr( sn_setting( 'identity.job_title', 'Music Producer' ) ) . '" placeholder="Music Producer">';
+			echo '<p class="sn-field-helper">Emitted as <code>jobTitle</code> on the Person schema. Single short phrase.</p>';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-md">';
-		echo '<label class="sn-field-label" for="sn_identity_person_name">Person name (schema author)</label>';
-		echo '<input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '">';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_identity_knows_about">Knows about</label>';
+			$knows_about_value = (array) sn_setting(
+				'identity.knows_about',
+				array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' )
+			);
+			echo '<textarea id="sn_identity_knows_about" name="identity_knows_about" rows="4">' . esc_textarea( implode( "\n", $knows_about_value ) ) . '</textarea>';
+			echo '<p class="sn-field-helper">One topic per line. Emitted as the <code>knowsAbout</code> array on the Person schema — domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.</p>';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-md">';
-		echo '<label class="sn-field-label" for="sn_identity_job_title">Job title</label>';
-		echo '<input type="text" id="sn_identity_job_title" name="identity_job_title" value="' . esc_attr( sn_setting( 'identity.job_title', 'Music Producer' ) ) . '" placeholder="Music Producer">';
-		echo '<p class="sn-field-helper">Emitted as <code>jobTitle</code> on the Person schema. Single short phrase.</p>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xs">';
+			echo '<label class="sn-field-label" for="sn_identity_locale">Locale</label>';
+			echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" placeholder="en_US">';
+			echo '<p class="sn-field-helper">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p>';
+			echo '</div>';
+		} );
 
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_identity_knows_about">Knows about</label>';
-		$knows_about_value = (array) sn_setting(
-			'identity.knows_about',
-			array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' )
-		);
-		echo '<textarea id="sn_identity_knows_about" name="identity_knows_about" rows="4">' . esc_textarea( implode( "\n", $knows_about_value ) ) . '</textarea>';
-		echo '<p class="sn-field-helper">One topic per line. Emitted as the <code>knowsAbout</code> array on the Person schema — domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.</p>';
-		echo '</div>';
+		sn_admin_render_section( 'social', function() {
+			echo '<h2 class="sn-fieldset-h">Social</h2>';
+			echo '<p class="sn-fieldset-intro">Twitter / X handle and profile URLs (emitted as schema sameAs).</p>';
 
-		echo '<div class="sn-field sn-field-w-xs">';
-		echo '<label class="sn-field-label" for="sn_identity_locale">Locale</label>';
-		echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" placeholder="en_US">';
-		echo '<p class="sn-field-helper">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-sm">';
+			echo '<label class="sn-field-label" for="sn_social_twitter_handle">Twitter / X handle</label>';
+			echo '<input type="text" id="sn_social_twitter_handle" name="social_twitter_handle" value="' . esc_attr( sn_setting( 'social.twitter_handle', '' ) ) . '" placeholder="@username">';
+			echo '<p class="sn-field-helper">Used as twitter:site and twitter:creator. Include the @ prefix.</p>';
+			echo '</div>';
 
-		echo '</div>'; // .sn-fieldset
+			$same_as = (array) sn_setting( 'social.same_as', array() );
+			echo '<div class="sn-field">';
+			echo '<label class="sn-field-label">Profile URLs (sameAs)</label>';
+			echo '<div class="sn-sameas">';
+			foreach ( $same_as as $url ) {
+				echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://...">';
+			}
+			echo '<button type="button" class="sn-add-row-btn" aria-label="Add another profile URL row">Add another profile URL</button>';
+			echo '<noscript>';
+			echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." class="sn-sameas-extra">';
+			echo '</noscript>';
+			echo '</div>'; // .sn-sameas
+			echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';
+			echo '</div>';
+		} );
 
-		// ── SOCIAL ──
-		echo '<div class="sn-fieldset" id="sn-sec-social">';
-		echo '<h2 class="sn-fieldset-h">Social</h2>';
-		echo '<p class="sn-fieldset-intro">Twitter / X handle and profile URLs (emitted as schema sameAs).</p>';
+		sn_admin_render_section( 'open-graph', function() {
+			echo '<h2 class="sn-fieldset-h">Open Graph</h2>';
+			echo '<p class="sn-fieldset-intro">Fallback OG image and card dimensions for social shares.</p>';
 
-		echo '<div class="sn-field sn-field-w-sm">';
-		echo '<label class="sn-field-label" for="sn_social_twitter_handle">Twitter / X handle</label>';
-		echo '<input type="text" id="sn_social_twitter_handle" name="social_twitter_handle" value="' . esc_attr( sn_setting( 'social.twitter_handle', '' ) ) . '" placeholder="@username">';
-		echo '<p class="sn-field-helper">Used as twitter:site and twitter:creator. Include the @ prefix.</p>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-lg">';
+			echo '<label class="sn-field-label" for="sn_og_default_image_url">Default OG image URL</label>';
+			echo '<input type="url" id="sn_og_default_image_url" name="og_default_image_url" value="' . esc_attr( (string) sn_setting( 'og.default_image_url', '' ) ) . '">';
+			echo '<p class="sn-field-helper">Fallback image used when no per-post OG card exists.</p>';
+			echo '</div>';
 
-		$same_as = (array) sn_setting( 'social.same_as', array() );
-		echo '<div class="sn-field">';
-		echo '<label class="sn-field-label">Profile URLs (sameAs)</label>';
-		echo '<div class="sn-sameas">';
-		foreach ( $same_as as $url ) {
-			echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://...">';
-		}
-		// "+ Add another" button — JS handler in assets/admin.js inserts a
-		// new <input> above the button on click. <noscript> fallback
-		// preserves the v1.9.5 single-trailing-input behaviour for users
-		// with JavaScript disabled.
-		echo '<button type="button" class="sn-add-row-btn" aria-label="Add another profile URL row">Add another profile URL</button>';
-		echo '<noscript>';
-		echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." class="sn-sameas-extra">';
-		echo '</noscript>';
-		echo '</div>'; // .sn-sameas
-		echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xs">';
+			echo '<label class="sn-field-label" for="sn_og_card_width">Card width (px)</label>';
+			echo '<input type="number" min="1" id="sn_og_card_width" name="og_card_width" value="' . esc_attr( (string) sn_setting( 'og.card_width', 1200 ) ) . '">';
+			echo '</div>';
 
-		echo '</div>'; // .sn-fieldset
+			echo '<div class="sn-field sn-field-w-xs">';
+			echo '<label class="sn-field-label" for="sn_og_card_height">Card height (px)</label>';
+			echo '<input type="number" min="1" id="sn_og_card_height" name="og_card_height" value="' . esc_attr( (string) sn_setting( 'og.card_height', 630 ) ) . '">';
+			echo '</div>';
+		} );
 
-		// ── OG ──
-		echo '<div class="sn-fieldset" id="sn-sec-og">';
-		echo '<h2 class="sn-fieldset-h">Open Graph</h2>';
-		echo '<p class="sn-fieldset-intro">Fallback OG image and card dimensions for social shares.</p>';
+		sn_admin_render_section( 'seo-copy', function() {
+			echo '<h2 class="sn-fieldset-h">SEO Copy</h2>';
+			echo '<p class="sn-fieldset-intro">Per-route title + description for the home, /notes, and /provenance pages.</p>';
 
-		echo '<div class="sn-field sn-field-w-lg">';
-		echo '<label class="sn-field-label" for="sn_og_default_image_url">Default OG image URL</label>';
-		echo '<input type="url" id="sn_og_default_image_url" name="og_default_image_url" value="' . esc_attr( (string) sn_setting( 'og.default_image_url', '' ) ) . '">';
-		echo '<p class="sn-field-helper">Fallback image used when no per-post OG card exists.</p>';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_home_title">Home title</label>';
+			echo '<input type="text" id="sn_seo_home_title" name="seo_home_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.home_title', '' ) ) . '">';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-xs">';
-		echo '<label class="sn-field-label" for="sn_og_card_width">Card width (px)</label>';
-		echo '<input type="number" min="1" id="sn_og_card_width" name="og_card_width" value="' . esc_attr( (string) sn_setting( 'og.card_width', 1200 ) ) . '">';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_home_description">Home description</label>';
+			echo '<textarea id="sn_seo_home_description" name="seo_home_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.home_description', '' ) ) . '</textarea>';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-xs">';
-		echo '<label class="sn-field-label" for="sn_og_card_height">Card height (px)</label>';
-		echo '<input type="number" min="1" id="sn_og_card_height" name="og_card_height" value="' . esc_attr( (string) sn_setting( 'og.card_height', 630 ) ) . '">';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_notes_title">/notes title</label>';
+			echo '<input type="text" id="sn_seo_notes_title" name="seo_notes_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.notes_title', '' ) ) . '">';
+			echo '</div>';
 
-		echo '</div>'; // .sn-fieldset
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_notes_description">/notes description</label>';
+			echo '<textarea id="sn_seo_notes_description" name="seo_notes_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.notes_description', '' ) ) . '</textarea>';
+			echo '</div>';
 
-		// ── SEO COPY ──
-		echo '<div class="sn-fieldset" id="sn-sec-seo">';
-		echo '<h2 class="sn-fieldset-h">SEO Copy</h2>';
-		echo '<p class="sn-fieldset-intro">Per-route title + description for the home, /notes, and /provenance pages.</p>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_provenance_title">/provenance title</label>';
+			echo '<input type="text" id="sn_seo_provenance_title" name="seo_provenance_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.provenance_title', '' ) ) . '">';
+			echo '</div>';
 
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_home_title">Home title</label>';
-		echo '<input type="text" id="sn_seo_home_title" name="seo_home_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.home_title', '' ) ) . '">';
-		echo '</div>';
+			echo '<div class="sn-field sn-field-w-xl">';
+			echo '<label class="sn-field-label" for="sn_seo_provenance_description">/provenance description</label>';
+			echo '<textarea id="sn_seo_provenance_description" name="seo_provenance_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.provenance_description', '' ) ) . '</textarea>';
+			echo '</div>';
+		} );
 
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_home_description">Home description</label>';
-		echo '<textarea id="sn_seo_home_description" name="seo_home_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.home_description', '' ) ) . '</textarea>';
-		echo '</div>';
-
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_notes_title">/notes title</label>';
-		echo '<input type="text" id="sn_seo_notes_title" name="seo_notes_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.notes_title', '' ) ) . '">';
-		echo '</div>';
-
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_notes_description">/notes description</label>';
-		echo '<textarea id="sn_seo_notes_description" name="seo_notes_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.notes_description', '' ) ) . '</textarea>';
-		echo '</div>';
-
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_provenance_title">/provenance title</label>';
-		echo '<input type="text" id="sn_seo_provenance_title" name="seo_provenance_title" value="' . esc_attr( (string) sn_setting( 'seo_copy.provenance_title', '' ) ) . '">';
-		echo '</div>';
-
-		echo '<div class="sn-field sn-field-w-xl">';
-		echo '<label class="sn-field-label" for="sn_seo_provenance_description">/provenance description</label>';
-		echo '<textarea id="sn_seo_provenance_description" name="seo_provenance_description" rows="2">' . esc_textarea( (string) sn_setting( 'seo_copy.provenance_description', '' ) ) . '</textarea>';
-		echo '</div>';
-
-		echo '</div>'; // .sn-fieldset
-
-		// Sticky save bar — same pattern as v1.8.1.
+		// Sticky save bar — saves Identity / Social / OG / SEO Copy (the 4 above).
+		// Cloudflare's save is separate (its own form, its own hook).
 		echo '<div class="sn-savebar">';
 		echo '<p class="sn-savebar-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>';
 		echo '<button type="submit" class="button button-primary">Save Identity Settings</button>';
 		echo '</div>';
 		echo '</form>';
 
+		// Cloudflare sub-section — module-owned (inc/cloudflare-purge.php).
+		sn_admin_render_section( 'cloudflare', function() {
+			do_action( 'sn_admin_cloudflare_tab' );
+		} );
+
 	// ════════════════════════════════════════
-	// TAB: LOGIN
+	// TAB: SECURITY (v3.8.0+)
+	// Sub-sections: login (audit-log added in v3.8.1)
 	// ════════════════════════════════════════
-	} elseif ( 'login' === $active_tab ) {
+	} elseif ( 'security' === $active_tab ) {
 
-		// Detect module state. Three possibilities:
-		//   1. ACTIVE: our login-hide.php is firing (no wps-hide-login,
-		//      no SN_LOGIN_BYPASS)
-		//   2. DORMANT (conflict): wps-hide-login is still active so
-		//      our module stood down
-		//   3. DORMANT (bypass): SN_LOGIN_BYPASS constant is set
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			include_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		// v2.1.1: mirror the tightened check from login-hide.php — option
-		// entry alone isn't authoritative; the file must also exist on
-		// disk. Without this, an orphan slug in active_plugins would
-		// have this status display falsely claim "dormant — conflict
-		// with wps-hide-login" even though the file is gone and our
-		// module is actually active.
-		$wps_basename = 'wps-hide-login/wps-hide-login.php';
-		$wps_active   = is_plugin_active( $wps_basename ) && file_exists( WP_PLUGIN_DIR . '/' . $wps_basename );
-		$bypassed     = defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS;
-		$slug         = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' );
-		$slug_const = defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG;
-		$login_url  = home_url( '/' . $slug );
+		sn_admin_render_toc( 'security' );
 
-		echo '<p class="sn-prose">Custom login URL module — replaces <code>/wp-login.php</code> with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).</p>';
+		sn_admin_render_section( 'login', function() {
+			// Detect module state. Three possibilities:
+			//   1. ACTIVE: our login-hide.php is firing (no wps-hide-login,
+			//      no SN_LOGIN_BYPASS)
+			//   2. DORMANT (conflict): wps-hide-login is still active so
+			//      our module stood down
+			//   3. DORMANT (bypass): SN_LOGIN_BYPASS constant is set
+			if ( ! function_exists( 'is_plugin_active' ) ) {
+				include_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$wps_basename = 'wps-hide-login/wps-hide-login.php';
+			$wps_active   = is_plugin_active( $wps_basename ) && file_exists( WP_PLUGIN_DIR . '/' . $wps_basename );
+			$bypassed     = defined( 'SN_LOGIN_BYPASS' ) && SN_LOGIN_BYPASS;
+			$slug         = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' );
+			$slug_const   = defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG;
+			$login_url    = home_url( '/' . $slug );
 
-		// Status box
-		if ( $bypassed ) {
-			echo '<div class="sn-status-box sn-status-box--warn">';
-			echo '<div>';
-			echo '<p class="sn-status-box-title">Module bypassed</p>';
-			echo '<p class="sn-status-box-body">The <code>SN_LOGIN_BYPASS</code> constant is set in <code>wp-config.php</code>. Default <code>/wp-login.php</code> behavior is restored. Remove the constant to re-enable.</p>';
+			echo '<p class="sn-prose">Custom login URL module — replaces <code>/wp-login.php</code> with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).</p>';
+
+			// Status box
+			if ( $bypassed ) {
+				echo '<div class="sn-status-box sn-status-box--warn">';
+				echo '<div>';
+				echo '<p class="sn-status-box-title">Module bypassed</p>';
+				echo '<p class="sn-status-box-body">The <code>SN_LOGIN_BYPASS</code> constant is set in <code>wp-config.php</code>. Default <code>/wp-login.php</code> behavior is restored. Remove the constant to re-enable.</p>';
+				echo '</div>';
+				echo '<span class="sn-pill sn-pill--warn">Bypassed</span>';
+				echo '</div>';
+			} elseif ( $wps_active ) {
+				echo '<div class="sn-status-box sn-status-box--warn">';
+				echo '<div>';
+				echo '<p class="sn-status-box-title">Module dormant — conflict with wps-hide-login</p>';
+				echo '<p class="sn-status-box-body">The <code>wps-hide-login</code> plugin is still active. Our built-in module stands down to avoid rewrite conflicts. Deactivate that plugin to switch over to this one.</p>';
+				echo '</div>';
+				echo '<span class="sn-pill sn-pill--warn">Dormant</span>';
+				echo '</div>';
+			} else {
+				echo '<div class="sn-status-box">';
+				echo '<div>';
+				echo '<p class="sn-status-box-title">Module active</p>';
+				echo '<p class="sn-status-box-body">Direct visits to <code>/wp-login.php</code> and unauthenticated <code>/wp-admin</code> return 404. Login form reachable at the custom URL below.</p>';
+				echo '</div>';
+				echo '<span class="sn-pill sn-pill--ok">Active</span>';
+				echo '</div>';
+			}
+
+			echo '<form method="post">';
+			wp_nonce_field( 'sn_theme_options_nonce' );
+			echo '<input type="hidden" name="sn_action" value="save_login">';
+
+			echo '<h2 class="sn-fieldset-h">Custom login slug</h2>';
+			echo '<p class="sn-fieldset-intro">The path segment used in place of <code>wp-login.php</code>.</p>';
+
+			echo '<div class="sn-field sn-field-w-sm">';
+			echo '<label class="sn-field-label" for="sn_login_slug">Slug</label>';
+			if ( $slug_const ) {
+				echo '<input type="text" id="sn_login_slug" value="' . esc_attr( $slug ) . '" disabled>';
+				echo '<p class="sn-field-helper"><strong>Locked.</strong> The <code>SN_LOGIN_SLUG</code> constant in <code>wp-config.php</code> is overriding this field. Remove the constant to edit here.</p>';
+			} else {
+				echo '<input type="text" id="sn_login_slug" name="login_slug" value="' . esc_attr( $slug ) . '" placeholder="sn-login">';
+				echo '<p class="sn-field-helper">Letters, numbers, dashes only. Avoid common guesses (admin, login, panel, etc.).</p>';
+			}
 			echo '</div>';
-			echo '<span class="sn-pill sn-pill--warn">Bypassed</span>';
+
+			echo '<div class="sn-field">';
+			echo '<label class="sn-field-label">Current login URL</label>';
+			echo '<a class="sn-url-preview" href="' . esc_url( $login_url ) . '" target="_blank" rel="noopener">' . esc_html( $login_url ) . '</a>';
+			echo '<p class="sn-field-helper">Bookmark this URL. The default <code>/wp-login.php</code> 404s for unauthenticated visitors.</p>';
 			echo '</div>';
-		} elseif ( $wps_active ) {
-			echo '<div class="sn-status-box sn-status-box--warn">';
-			echo '<div>';
-			echo '<p class="sn-status-box-title">Module dormant — conflict with wps-hide-login</p>';
-			echo '<p class="sn-status-box-body">The <code>wps-hide-login</code> plugin is still active. Our built-in module stands down to avoid rewrite conflicts. Deactivate that plugin to switch over to this one.</p>';
+
+			echo '<div class="sn-fieldset-actions">';
+			if ( $slug_const ) {
+				echo '<p class="sn-fieldset-actions-hint">Slug locked by <code>SN_LOGIN_SLUG</code> constant.</p>';
+			}
+			echo '<button type="submit" class="button button-primary"' . ( $slug_const ? ' disabled' : '' ) . '>Save</button>';
 			echo '</div>';
-			echo '<span class="sn-pill sn-pill--warn">Dormant</span>';
-			echo '</div>';
-		} else {
-			echo '<div class="sn-status-box">';
-			echo '<div>';
-			echo '<p class="sn-status-box-title">Module active</p>';
-			echo '<p class="sn-status-box-body">Direct visits to <code>/wp-login.php</code> and unauthenticated <code>/wp-admin</code> return 404. Login form reachable at the custom URL below.</p>';
-			echo '</div>';
-			echo '<span class="sn-pill sn-pill--ok">Active</span>';
-			echo '</div>';
-		}
 
-		// Slug edit form (in its own fieldset)
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<input type="hidden" name="sn_action" value="save_login">';
+			echo '</form>';
 
-		echo '<div class="sn-fieldset">';
-		echo '<h2 class="sn-fieldset-h">Custom login slug</h2>';
-		echo '<p class="sn-fieldset-intro">The path segment used in place of <code>wp-login.php</code>.</p>';
-
-		echo '<div class="sn-field sn-field-w-sm">';
-		echo '<label class="sn-field-label" for="sn_login_slug">Slug</label>';
-		if ( $slug_const ) {
-			echo '<input type="text" id="sn_login_slug" value="' . esc_attr( $slug ) . '" disabled>';
-			echo '<p class="sn-field-helper"><strong>Locked.</strong> The <code>SN_LOGIN_SLUG</code> constant in <code>wp-config.php</code> is overriding this field. Remove the constant to edit here.</p>';
-		} else {
-			echo '<input type="text" id="sn_login_slug" name="login_slug" value="' . esc_attr( $slug ) . '" placeholder="sn-login">';
-			echo '<p class="sn-field-helper">Letters, numbers, dashes only. Avoid common guesses (admin, login, panel, etc.).</p>';
-		}
-		echo '</div>';
-
-		// Current login URL preview
-		echo '<div class="sn-field">';
-		echo '<label class="sn-field-label">Current login URL</label>';
-		echo '<a class="sn-url-preview" href="' . esc_url( $login_url ) . '" target="_blank" rel="noopener">' . esc_html( $login_url ) . '</a>';
-		echo '<p class="sn-field-helper">Bookmark this URL. The default <code>/wp-login.php</code> 404s for unauthenticated visitors.</p>';
-		echo '</div>';
-
-		// Inline save action — short form, no need for sticky save bar.
-		// Hint copy only appears when the constant is locking the field.
-		echo '<div class="sn-fieldset-actions">';
-		if ( $slug_const ) {
-			echo '<p class="sn-fieldset-actions-hint">Slug locked by <code>SN_LOGIN_SLUG</code> constant.</p>';
-		}
-		echo '<button type="submit" class="button button-primary"' . ( $slug_const ? ' disabled' : '' ) . '>Save</button>';
-		echo '</div>';
-
-		echo '</div>'; // .sn-fieldset
-		echo '</form>';
-
-		// Emergency unlock docs (out-of-form, no submission)
-		echo '<div class="sn-callout">';
-		echo '<p class="sn-callout-h">Emergency unlock</p>';
-		echo '<p>If you ever lock yourself out (forgot the slug, can\'t reach the login form), add either of these constants to <code>wp-config.php</code> via SSH or your host\'s file manager:</p>';
-		echo '<pre>// Option 1 — pin the slug. Reachable at /&lt;slug-here&gt;.
+			// Emergency unlock docs (out-of-form, no submission)
+			echo '<div class="sn-callout">';
+			echo '<p class="sn-callout-h">Emergency unlock</p>';
+			echo '<p>If you ever lock yourself out (forgot the slug, can\'t reach the login form), add either of these constants to <code>wp-config.php</code> via SSH or your host\'s file manager:</p>';
+			echo '<pre>// Option 1 — pin the slug. Reachable at /&lt;slug-here&gt;.
 define( \'SN_LOGIN_SLUG\', \'your-fallback-slug\' );
 
 // Option 2 — disable the module entirely. Restores /wp-login.php.
 define( \'SN_LOGIN_BYPASS\', true );</pre>';
-		echo '<p>The constants take priority over the setting and persist across plugin updates. Remove them once you\'ve regained access.</p>';
-		echo '</div>';
+			echo '<p>The constants take priority over the setting and persist across plugin updates. Remove them once you\'ve regained access.</p>';
+			echo '</div>';
+		} );
+
+	// ════════════════════════════════════════
+	// TAB: AUTOMATION (v3.8.0+)
+	// Sub-sections: webhooks, cron
+	// ════════════════════════════════════════
+	} elseif ( 'automation' === $active_tab ) {
+
+		sn_admin_render_toc( 'automation' );
+
+		sn_admin_render_section( 'webhooks', function() {
+			do_action( 'sn_admin_webhooks_tab' );
+		} );
+
+		sn_admin_render_section( 'cron', function() {
+			do_action( 'sn_admin_cron_tab' );
+		} );
+
+	// ════════════════════════════════════════
+	// TAB: MONITORING (v3.8.0+)
+	// Sub-sections: insights, health, plausible, rss
+	// ════════════════════════════════════════
+	} elseif ( 'monitoring' === $active_tab ) {
+
+		sn_admin_render_toc( 'monitoring' );
+
+		sn_admin_render_section( 'insights', function() {
+			do_action( 'sn_admin_insights_tab' );
+		} );
+
+		sn_admin_render_section( 'health', function() {
+			do_action( 'sn_admin_health_tab' );
+		} );
+
+		sn_admin_render_section( 'plausible', function() {
+			do_action( 'sn_admin_plausible_tab' );
+		} );
+
+		sn_admin_render_section( 'rss', function() {
+			if ( has_action( 'sn_admin_rss_tab' ) ) {
+				do_action( 'sn_admin_rss_tab' );
+			} else {
+				echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
+				echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
+			}
+		} );
+
+	// ════════════════════════════════════════
+	// TAB: TOOLS (v3.8.0+)
+	// Sub-sections: reading-time, links
+	// ════════════════════════════════════════
+	} elseif ( 'tools' === $active_tab ) {
+
+		sn_admin_render_toc( 'tools' );
+
+		sn_admin_render_section( 'reading-time', function() {
+			do_action( 'sn_admin_reading_time_tab' );
+		} );
+
+		sn_admin_render_section( 'links', function() {
+			$link_groups = array(
+				array(
+					'label' => 'Source code',
+					'links' => array(
+						array( 'title' => 'Theme repo',  'href' => 'https://github.com/juanlentino/signal-and-noise' ),
+						array( 'title' => 'Plugin repo', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools' ),
+					),
+				),
+				array(
+					'label' => 'Releases',
+					'links' => array(
+						array( 'title' => 'Theme releases',  'href' => 'https://github.com/juanlentino/signal-and-noise/releases' ),
+						array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/releases' ),
+					),
+				),
+				array(
+					'label' => 'Infrastructure',
+					'links' => array(
+						array( 'title' => 'Cloudflare dashboard', 'href' => 'https://dash.cloudflare.com' ),
+						array( 'title' => 'Cloudways platform',   'href' => 'https://platform.cloudways.com' ),
+					),
+				),
+			);
+			echo '<div class="sn-link-grid">';
+			foreach ( $link_groups as $group ) {
+				foreach ( $group['links'] as $link ) {
+					$host = (string) wp_parse_url( $link['href'], PHP_URL_HOST );
+					echo '<div class="sn-link-card">';
+					echo '<span class="sn-link-card__label">' . esc_html( $group['label'] ) . '</span>';
+					echo '<span class="sn-link-card__title">' . esc_html( $link['title'] ) . '</span>';
+					echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' &#x2197;</span>';
+					echo '<a class="sn-link-card__link" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
+					echo '</div>';
+				}
+			}
+			echo '</div>';
+		} );
 
 	}
 

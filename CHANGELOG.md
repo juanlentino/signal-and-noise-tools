@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.8.0] - 2026-05-25
+
+### Changed — Admin tabs reorganized from 12 flat → 6 hierarchical
+
+Major IA refactor of the SN Tools admin page. 12 flat top-level tabs (Dashboard, Identity, Login, Cloudflare, Plausible, RSS, Reading Time, Cron, Webhooks, Insights, Health, Links) consolidate into **6 hierarchical tabs**:
+
+```
+Dashboard │ Site │ Security │ Automation │ Monitoring │ Tools
+```
+
+Each multi-section tab uses the internal-TOC anchor pattern (already proven on the Identity tab) for sub-section navigation. **14 sub-sections** distributed across the 6 top tabs. Within the 5-7 magic number for top-level nav.
+
+**Architectural property: module hook contracts unchanged.** Each module's `do_action('sn_admin_<slug>_tab')` still fires identically; only the parent dispatcher changes. Refactor contained entirely to `inc/admin-page.php` — zero LOC in any module file.
+
+**Backward compatibility:** all 12 legacy `?tab=<slug>` and `?page=sn-<slug>` URLs 301-redirect to canonical `?tab=<category>#sn-sec-<sub>` destinations. WP sidebar keeps all 12 entries as direct-jump shortcuts (different optimization surface than in-page tabs). Existing bookmarks survive; browsers update them over time per 301 semantics.
+
+**Two new helpers added:**
+- `sn_admin_render_toc( $tab_slug )` — generates the in-page anchor nav for multi-section tabs
+- `sn_admin_render_section( $section_slug, $callback )` — wraps content in anchor target
+
+**Patch cap status:** plugin v3.7.x hit 7/7 patches; this is the cap-rollover minor bump.
+
+### What's NOT in this release
+- **No new functionality.** Refactor only.
+- **No CSS changes.** Existing `assets/admin.css` already supports the patterns used.
+- **No JavaScript changes.** Anchor scroll is browser-native.
+- **No data-schema changes.** `sn_settings` schema unchanged.
+
+### Coming in v3.8.1
+- Login hardening: counter-based audit log under Security → Audit log sub-section. Designed but not implemented (paused brainstorm Section 1).
+
+### Spec + plan
+- Spec: `docs/superpowers/specs/2026-05-25-admin-tabs-ia-reorganization-design.md`
+- Plan: `docs/superpowers/plans/2026-05-25-admin-tabs-ia-reorganization-v3.8.0.md`
+
 ## [3.7.6] - 2026-05-24
 
 ### Security — error_log surfacing on 2 silent catch sites
