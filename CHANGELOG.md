@@ -2,6 +2,92 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [3.7.5] - 2026-05-24
+
+### Added — Integration tests + named-function refactor + JSON Schema examples + AI catalog + agent guideline templates
+
+Final phases of the AI-readiness preparation arc (v9.1.2 → v9.1.3 in theme, v3.7.4 → v3.7.5 here). Five concurrent threads:
+
+1. **AI-invocation integration tests** — 108 new assertions exercising `wp_get_ability()->execute()` for all 17 plugin abilities. ([`23f89f8`](https://github.com/juanlentino/signal-and-noise-tools/commit/23f89f8))
+2. **Closure-to-named-function refactor** — 10 inline `execute_callback` closures extracted to top-level `snt_ability_*` functions, matching theme's pattern. ([`3ce5fa7`](https://github.com/juanlentino/signal-and-noise-tools/commit/3ce5fa7))
+3. **JSON Schema `examples` arrays** on 8 input properties across 6 plugin abilities. ([`8259316`](https://github.com/juanlentino/signal-and-noise-tools/commit/8259316))
+4. **AI abilities catalog** — 1384-line canonical reference at [`docs/ai-abilities-catalog.md`](docs/ai-abilities-catalog.md) for all 29 SN abilities (12 theme + 17 plugin). Verbatim descriptions, full input/output examples, wp-cli + REST invocations, use cases. ([`1d70aa8`](https://github.com/juanlentino/signal-and-noise-tools/commit/1d70aa8))
+5. **Agent guideline templates** — speculative pre-PR-#240 templates at [`docs/agent-guidelines/`](docs/agent-guidelines/) for 3 SN-specific agent workflows (Brand Audit, Draft Editor, Site Maintenance). ([`05d9269`](https://github.com/juanlentino/signal-and-noise-tools/commit/05d9269), [`53e0d1b`](https://github.com/juanlentino/signal-and-noise-tools/commit/53e0d1b))
+
+#### Test additions
+
+`tests/abilities-integration.php` — NEW (747 lines, 108 assertions):
+- Dispatch fundamentals (18 assertions): unknown slug + 17 registered checks
+- Read/diagnostics happy paths (8 abilities, ~16 assertions)
+- Read/diagnostics capability denial (7 × 2 = 14)
+- Required + enum validation (4)
+- Destructive ops (purge-all-caches idempotency + 4 capability denials + unschedule-cron-event SN-owned hook refusal + missing-hook validation)
+- `regenerate-og-card` per-post edit_post gating
+- Generative AI abilities (happy paths + denial + missing-required across 3 plugin AI abilities)
+
+Plugin test count: 658 total across 10 suites (108 new integration + 550 prior). All green.
+
+#### Named-function refactor
+
+The 10 anonymous closures in `inc/abilities-registration.php` are now top-level named functions `snt_ability_<slug-as-snake-case>`. The file now has 17 top-level `snt_ability_*` functions matching 1:1 with the 17 `wp_register_ability()` calls. Behavioral equivalence guaranteed by the integration test suite landed in the same release.
+
+Examples:
+- `signal-noise/purge-all-caches` → `snt_ability_purge_all_caches`
+- `signal-noise/ai-generate-meta-description` → `snt_ability_ai_generate_meta_description`
+- `signal-noise/unschedule-cron-event` → `snt_ability_unschedule_cron_event`
+
+Benefits: grep-able from anywhere, unit-testable in isolation, matches theme's `sn_theme_ability_*` convention.
+
+#### Schema example additions
+
+Properties enhanced (8 total):
+
+| Ability | Property | Examples |
+|---|---|---|
+| `regenerate-og-card` | `post_id` | integer examples |
+| `ai-generate-meta-description` | `post_id` | integer examples |
+| `ai-generate-og-card-title` | `post_id` | integer examples |
+| `ai-generate-excerpt` | `post_id` | integer examples |
+| `get-cron-event` | `hook`, `args_signature` | real SN-owned hooks + md5 prefix |
+| `get-cron-history` | `hook`, `limit` | hook examples + integer examples |
+| `unschedule-cron-event` | `hook` | non-SN hook examples (SN-owned hooks refused by impl) |
+
+No validation changes; examples are advisory metadata. Non-breaking.
+
+#### AI abilities catalog
+
+`docs/ai-abilities-catalog.md` is now the canonical reference for all 29 SN abilities. Each ability's section includes:
+
+- Category, capability, annotations
+- Description (verbatim from registration)
+- Input parameters (humanized table)
+- Output JSON example with realistic values
+- wp-cli + REST invocation
+- 2-4 specific use cases
+
+Verified against actual registrations — no hallucinated paths, no phantom endpoints. Will be the source-of-truth for documentation across releases.
+
+#### Agent guideline templates
+
+`docs/agent-guidelines/` contains 3 speculative `wp_guideline`-format templates pre-authored for WordPress/desktop-mode PR #240's Agents framework when it lands:
+
+- `sn-brand-audit-agent.md` — drafts → brand alignment audit (editor role)
+- `sn-draft-editor-agent.md` — content writing in SN voice (editor role)
+- `sn-site-maintenance-agent.md` — operational monitoring (administrator role, destructive ops intentionally excluded)
+
+All 17 ability references verified against v9.1.3/v3.7.5 registrations. The brand-audit agent's allowlist dropped `signal-noise/get-rss-stats` after capability-mismatch review (the ability requires `manage_options`; an `editor` role would 403).
+
+#### Files
+
+- `inc/abilities-registration.php` — closure refactor + schema example additions
+- `tests/abilities-integration.php` — NEW test file
+- `docs/ai-abilities-catalog.md` — NEW canonical catalog
+- `docs/agent-guidelines/README.md` + 3 agent files — NEW speculative templates
+
+#### Patch-cap status
+
+Patch cap is 7 per minor. v3.7.5 is the 6th patch in v3.7.x. **1 patch remains** before forced rollover to v3.8.0. Plan the next code-bearing release accordingly.
+
 ## [3.7.4] - 2026-05-24
 
 ### Refactor — AI-readiness preparation pass + v3.8.0 cancellation cleanup
