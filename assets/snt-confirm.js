@@ -32,9 +32,10 @@
  *    immediately; if confirmed, the button is re-clicked programmatically
  *    with a flag attribute set so the handler doesn't re-prompt.
  *
- * Inline-style choice mirrors openApplyModal in assets/health-suggest-actions.js
- * (the v4.0.3 precedent) — full CSS extraction is deferred to a future minor
- * (audit finding U-03, scoped out of v4.1.1).
+ * CSS-driven styling: v4.1.2 (U-03) moved all chrome from inline `setAttribute`
+ * strings to class catalog in assets/admin.css. Shared shell rules (.snt-modal-*
+ * + .snt-confirm-* backdrop/header/footer) are comma-grouped in the CSS so
+ * either file's class names render identically.
  *
  * @since plugin v4.1.1
  */
@@ -76,40 +77,38 @@
 
 			var backdrop = document.createElement( 'div' );
 			backdrop.className = 'snt-confirm-backdrop';
-			backdrop.setAttribute( 'style', 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100000;' );
 
 			var box = document.createElement( 'div' );
 			box.className = 'snt-confirm-box';
-			box.setAttribute( 'style', 'background:#fff;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-width:480px;width:90vw;display:flex;flex-direction:column;' );
 			box.setAttribute( 'role', 'dialog' );
 			box.setAttribute( 'aria-modal', 'true' );
 
 			var header = document.createElement( 'div' );
-			header.setAttribute( 'style', 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e0e0e0;' );
+			header.className = 'snt-confirm-header';
 
 			var titleEl = document.createElement( 'h2' );
+			titleEl.className = 'snt-confirm-title';
 			titleEl.textContent = String( opts.title || __( 'Are you sure?', 'signal-noise-tools' ) );
-			titleEl.setAttribute( 'style', 'margin:0;font-size:16px;font-weight:600;' );
 			titleEl.id = 'snt-confirm-title-' + Date.now() + '-' + Math.floor( Math.random() * 1e6 );
 			box.setAttribute( 'aria-labelledby', titleEl.id );
 			header.appendChild( titleEl );
 
 			var closeBtn = document.createElement( 'button' );
 			closeBtn.type = 'button';
+			closeBtn.className = 'snt-confirm-close';
 			closeBtn.textContent = '×';
 			closeBtn.setAttribute( 'aria-label', __( 'Close', 'signal-noise-tools' ) );
-			closeBtn.setAttribute( 'style', 'background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:#646970;padding:0 4px;' );
 			header.appendChild( closeBtn );
 
 			box.appendChild( header );
 
 			var body = document.createElement( 'div' );
-			body.setAttribute( 'style', 'padding:20px;font-size:14px;line-height:1.5;white-space:pre-wrap;' );
+			body.className = 'snt-confirm-body';
 			body.textContent = String( opts.message || '' );
 			box.appendChild( body );
 
 			var footer = document.createElement( 'div' );
-			footer.setAttribute( 'style', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e0e0e0;' );
+			footer.className = 'snt-confirm-footer';
 
 			var cancelBtn = document.createElement( 'button' );
 			cancelBtn.type = 'button';

@@ -1060,3 +1060,289 @@
 	background: #f0f0f1;        /* WP-admin native thead bg */
 	z-index: 1;
 }
+
+/* ─── v4.1.2 (U-03): Modal + confirm + suggest/verdict panel styles ──────
+   Extracts ~50 setAttribute('style', ...) calls that previously lived in
+   assets/health-suggest-actions.js (Before/After Apply modal) and
+   assets/snt-confirm.js (destructive-confirm dialog).
+
+   The two JS files keep parallel class-name roots (.snt-modal-* vs
+   .snt-confirm-*) so each module owns its node hierarchy, but shared
+   shell rules (backdrop dimming, header chrome, footer button row)
+   are comma-grouped here to avoid duplicate declarations.
+
+   Genuinely-dynamic styling stays inline in JS:
+     - .snt-modal-body grid-template-columns switches on isMobile
+     - row.style.opacity = 0.5 after a successful Apply/Delete
+     - button.disabled state (not styled, just disabled attribute)
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Backdrop — full-viewport scrim + flex-centered child. */
+.snt-modal-backdrop,
+.snt-confirm-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100000;
+}
+
+/* Box — white card with shadow + scroll. Sizes diverge: Apply preview is
+   wider (720px), simple confirm is narrower (480px). */
+.snt-modal-box,
+.snt-confirm-box {
+	background: var(--sn-surface);
+	border-radius: 6px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+	width: 90vw;
+	display: flex;
+	flex-direction: column;
+}
+
+.snt-modal-box {
+	max-width: 720px;
+	max-height: 90vh;
+	overflow-y: auto;
+}
+
+.snt-confirm-box {
+	max-width: 480px;
+}
+
+/* Header — title row with × close button. */
+.snt-modal-header,
+.snt-confirm-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.snt-modal-title,
+.snt-confirm-title {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.snt-modal-close,
+.snt-confirm-close {
+	background: none;
+	border: none;
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--sn-text-muted);
+	padding: 0 4px;
+}
+
+/* Body — modal has a 2-pane Before/After grid; confirm has a single
+   text body. The modal's grid-template-columns is set inline because
+   it switches on isMobile (single-column on narrow viewports). */
+.snt-modal-body {
+	padding: 20px;
+	display: grid;
+	gap: 24px;
+}
+
+.snt-confirm-body {
+	padding: 20px;
+	font-size: 14px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+/* Mobile-only divider between stacked Before/After panes. */
+.snt-modal-divider {
+	border: none;
+	border-top: 1px solid #e0e0e0;
+	margin: 0;
+}
+
+/* "Before"/"After" pane labels — small caps, muted. */
+.snt-modal-pane-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: var(--sn-text-muted);
+	margin-bottom: 8px;
+}
+
+/* Footer — right-aligned action button row. */
+.snt-modal-footer,
+.snt-confirm-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 12px 20px;
+	border-top: 1px solid #e0e0e0;
+}
+
+/* Modal content — per-type (alt thumbnail, drift snippet, orphan-delete warning). */
+
+.snt-modal-thumb {
+	max-width: 160px;
+	max-height: 160px;
+	display: block;
+	border-radius: var(--sn-radius);
+	border: 1px solid #e0e0e0;
+}
+
+.snt-modal-filename {
+	font-family: monospace;
+	font-size: 12px;
+	margin: 8px 0 4px 0;
+	color: var(--sn-text);
+	word-break: break-all;
+}
+
+.snt-modal-caption {
+	font-style: italic;
+	color: var(--sn-text-muted);
+	font-size: 12px;
+	margin: 0;
+}
+
+.snt-modal-textarea {
+	width: 100%;
+	font-family: inherit;
+	font-size: 13px;
+	background: #f6f7f7;
+	color: var(--sn-text);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: 8px;
+}
+
+.snt-modal-count {
+	text-align: right;
+	font-size: 11px;
+	color: var(--sn-text-muted);
+	margin: 4px 0 0 0;
+}
+
+/* Drift-phrase snippet panes — monospace block with highlighted phrase. */
+.snt-modal-snippet {
+	white-space: pre-wrap;
+	font-family: monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	background: #f6f7f7;
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: 12px;
+}
+
+/* Highlighted phrase chip inside snippet — red (before) / green (after). */
+.snt-modal-phrase-err {
+	background: #fde8e8;
+	color: #8b1a1a;
+	padding: 2px 4px;
+	border-radius: 2px;
+	font-weight: 600;
+}
+
+.snt-modal-phrase-ok {
+	background: #e8f5e9;
+	color: #0a5a1a;
+	padding: 2px 4px;
+	border-radius: 2px;
+	font-weight: 600;
+}
+
+/* Orphan-delete after-pane warning box. */
+.snt-modal-warn-box {
+	background: #fde8e8;
+	border: 1px solid #8b1a1a;
+	border-radius: var(--sn-radius);
+	padding: 12px;
+}
+
+.snt-modal-warn-text {
+	margin: 0;
+	color: #8b1a1a;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.snt-modal-warn-note {
+	margin: 8px 0 0 0;
+	color: var(--sn-text-muted);
+	font-size: 11px;
+}
+
+/* Suggest panel — replaces the inline Suggest editor inside a Health cell. */
+.snt-suggest-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.snt-suggest-textarea {
+	width: 100%;
+	font-family: inherit;
+	font-size: 12px;
+}
+
+.snt-suggest-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.snt-suggest-status {
+	font-size: 11px;
+	color: var(--sn-text-muted);
+}
+
+.snt-suggest-inline-err {
+	font-size: 11px;
+	color: #8b1a1a;
+	margin-top: 4px;
+}
+
+/* Verdict panel — renders Suggest verdict (delete / keep / unsure) for orphan media. */
+.snt-verdict-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.snt-verdict-headline {
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.snt-verdict-headline--err  { color: #8b1a1a; }
+.snt-verdict-headline--ok   { color: #0a5a1a; }
+.snt-verdict-headline--warn { color: #6e4d00; }
+
+.snt-verdict-reason {
+	font-size: 11px;
+	color: var(--sn-text-muted);
+}
+
+.snt-verdict-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+/* Destructive Delete button inside a verdict=delete panel. */
+.snt-verdict-delete-btn {
+	color: #8b1a1a;
+	border-color: #8b1a1a;
+}
+
+/* Cell-replacement states — "✓ Applied", inline error span. */
+.snt-cell-applied {
+	color: #0a5a1a;
+	font-weight: 600;
+}
+
+.snt-cell-error {
+	color: #8b1a1a;
+}

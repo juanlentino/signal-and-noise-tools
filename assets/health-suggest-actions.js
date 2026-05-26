@@ -104,11 +104,9 @@
 
 		var backdrop = document.createElement( 'div' );
 		backdrop.className = 'snt-modal-backdrop';
-		backdrop.setAttribute( 'style', 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100000;' );
 
 		var box = document.createElement( 'div' );
 		box.className = 'snt-modal-box';
-		box.setAttribute( 'style', 'background:#fff;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-width:720px;width:90vw;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;' );
 		// v4.1.1 (U-10): dialog semantics for screen readers — announce as a modal
 		// dialog on open, anchor the accessible name to the title <h2>.
 		box.setAttribute( 'role', 'dialog' );
@@ -116,11 +114,10 @@
 
 		var header = document.createElement( 'div' );
 		header.className = 'snt-modal-header';
-		header.setAttribute( 'style', 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e0e0e0;' );
 
 		var titleEl = document.createElement( 'h2' );
+		titleEl.className = 'snt-modal-title';
 		titleEl.textContent = opts.title;
-		titleEl.setAttribute( 'style', 'margin:0;font-size:16px;font-weight:600;' );
 		// v4.1.1 (U-10): unique id-per-instance so multiple modal opens don't collide.
 		titleEl.id = 'snt-modal-title-' + Date.now() + '-' + Math.floor( Math.random() * 1e6 );
 		box.setAttribute( 'aria-labelledby', titleEl.id );
@@ -131,35 +128,36 @@
 		closeBtn.className = 'snt-modal-close';
 		closeBtn.textContent = '×';
 		closeBtn.setAttribute( 'aria-label', __( 'Close', 'signal-noise-tools' ) );
-		closeBtn.setAttribute( 'style', 'background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:#646970;padding:0 4px;' );
 		header.appendChild( closeBtn );
 
 		box.appendChild( header );
 
 		var body = document.createElement( 'div' );
 		body.className = 'snt-modal-body';
-		body.setAttribute( 'style', 'padding:20px;display:grid;grid-template-columns:' + ( isMobile ? '1fr' : '1fr 1fr' ) + ';gap:24px;' );
+		// grid-template-columns is genuinely dynamic — single-column on mobile,
+		// 2-column Before/After on desktop. Other body styling lives in CSS.
+		body.style.gridTemplateColumns = isMobile ? '1fr' : '1fr 1fr';
 
 		var beforePane = document.createElement( 'div' );
 		beforePane.className = 'snt-modal-pane-before';
 		var beforeLabel = document.createElement( 'div' );
+		beforeLabel.className = 'snt-modal-pane-label';
 		beforeLabel.textContent = __( 'Before', 'signal-noise-tools' );
-		beforeLabel.setAttribute( 'style', 'font-size:11px;font-weight:600;text-transform:uppercase;color:#646970;margin-bottom:8px;' );
 		beforePane.appendChild( beforeLabel );
 		beforePane.appendChild( opts.beforeNode );
 		body.appendChild( beforePane );
 
 		if ( isMobile ) {
 			var hr = document.createElement( 'hr' );
-			hr.setAttribute( 'style', 'border:none;border-top:1px solid #e0e0e0;margin:0;' );
+			hr.className = 'snt-modal-divider';
 			body.appendChild( hr );
 		}
 
 		var afterPane = document.createElement( 'div' );
 		afterPane.className = 'snt-modal-pane-after';
 		var afterLabel = document.createElement( 'div' );
+		afterLabel.className = 'snt-modal-pane-label';
 		afterLabel.textContent = __( 'After', 'signal-noise-tools' );
-		afterLabel.setAttribute( 'style', 'font-size:11px;font-weight:600;text-transform:uppercase;color:#646970;margin-bottom:8px;' );
 		afterPane.appendChild( afterLabel );
 		afterPane.appendChild( opts.afterNode );
 		body.appendChild( afterPane );
@@ -168,7 +166,6 @@
 
 		var footer = document.createElement( 'div' );
 		footer.className = 'snt-modal-footer';
-		footer.setAttribute( 'style', 'display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e0e0e0;' );
 
 		var cancelBtn = document.createElement( 'button' );
 		cancelBtn.type = 'button';
@@ -264,36 +261,36 @@
 
 		if ( res.thumbnail_url && '' !== res.thumbnail_url ) {
 			var img = document.createElement( 'img' );
+			img.className = 'snt-modal-thumb';
 			img.src = res.thumbnail_url;
-			img.setAttribute( 'style', 'max-width:160px;max-height:160px;display:block;border-radius:4px;border:1px solid #e0e0e0;' );
 			beforeNode.appendChild( img );
 		}
 
 		var filenameEl = document.createElement( 'p' );
+		filenameEl.className = 'snt-modal-filename';
 		var filename = res.filename && '' !== res.filename
 			? res.filename
 			: ( '#' + ( input.attachment_id || 0 ) );
 		filenameEl.textContent = filename;
-		filenameEl.setAttribute( 'style', 'font-family:monospace;font-size:12px;margin:8px 0 4px 0;color:#1d2327;word-break:break-all;' );
 		beforeNode.appendChild( filenameEl );
 
 		var captionEl = document.createElement( 'p' );
+		captionEl.className = 'snt-modal-caption';
 		captionEl.textContent = __( '(no existing alt)', 'signal-noise-tools' );
-		captionEl.setAttribute( 'style', 'font-style:italic;color:#646970;font-size:12px;margin:0;' );
 		beforeNode.appendChild( captionEl );
 
 		var afterNode = document.createElement( 'div' );
 
 		var afterTa = document.createElement( 'textarea' );
+		afterTa.className = 'snt-modal-textarea';
 		afterTa.readOnly = true;
 		afterTa.rows = 4;
 		afterTa.value = altText;
-		afterTa.setAttribute( 'style', 'width:100%;font-family:inherit;font-size:13px;background:#f6f7f7;color:#1d2327;border:1px solid #c3c4c7;border-radius:4px;padding:8px;' );
 		afterNode.appendChild( afterTa );
 
 		var countEl = document.createElement( 'p' );
+		countEl.className = 'snt-modal-count';
 		countEl.textContent = altText.length + ' ' + __( 'chars', 'signal-noise-tools' );
-		countEl.setAttribute( 'style', 'text-align:right;font-size:11px;color:#646970;margin:4px 0 0 0;' );
 		afterNode.appendChild( countEl );
 
 		return { before: beforeNode, after: afterNode };
@@ -313,7 +310,7 @@
 		var snippetPhraseIndex = snippet.indexOf( phrase );
 
 		var beforeNode = document.createElement( 'div' );
-		beforeNode.setAttribute( 'style', 'white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.5;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;padding:12px;' );
+		beforeNode.className = 'snt-modal-snippet';
 
 		if ( snippetPhraseIndex >= 0 ) {
 			var beforeLeft = document.createElement( 'span' );
@@ -321,8 +318,8 @@
 			beforeNode.appendChild( beforeLeft );
 
 			var beforePhrase = document.createElement( 'span' );
+			beforePhrase.className = 'snt-modal-phrase-err';
 			beforePhrase.textContent = phrase;
-			beforePhrase.setAttribute( 'style', 'background:#fde8e8;color:#8b1a1a;padding:2px 4px;border-radius:2px;font-weight:600;' );
 			beforeNode.appendChild( beforePhrase );
 
 			var beforeRight = document.createElement( 'span' );
@@ -334,7 +331,7 @@
 		}
 
 		var afterNode = document.createElement( 'div' );
-		afterNode.setAttribute( 'style', 'white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.5;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;padding:12px;' );
+		afterNode.className = 'snt-modal-snippet';
 
 		if ( snippetPhraseIndex >= 0 ) {
 			var afterLeft = document.createElement( 'span' );
@@ -342,8 +339,8 @@
 			afterNode.appendChild( afterLeft );
 
 			var afterPhrase = document.createElement( 'span' );
+			afterPhrase.className = 'snt-modal-phrase-ok';
 			afterPhrase.textContent = replacement;
-			afterPhrase.setAttribute( 'style', 'background:#e8f5e9;color:#0a5a1a;padding:2px 4px;border-radius:2px;font-weight:600;' );
 			afterNode.appendChild( afterPhrase );
 
 			var afterRight = document.createElement( 'span' );
@@ -446,22 +443,19 @@
 
 		var wrap = document.createElement( 'div' );
 		wrap.className = 'snt-suggest-panel';
-		wrap.setAttribute( 'style', 'display:flex;flex-direction:column;gap:6px;' );
 
 		var ta = document.createElement( 'textarea' );
 		ta.className = 'snt-suggest-textarea';
 		ta.rows = 3;
 		ta.value = res.suggestion;
-		ta.setAttribute( 'style', 'width:100%;font-family:inherit;font-size:12px;' );
 		wrap.appendChild( ta );
 
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
-		status.setAttribute( 'style', 'font-size:11px;color:#646970;' );
 		wrap.appendChild( status );
 
 		var actions = document.createElement( 'div' );
-		actions.setAttribute( 'style', 'display:flex;gap:6px;flex-wrap:wrap;' );
+		actions.className = 'snt-suggest-actions';
 
 		if ( null === applyAbility ) {
 			// v4.0.2: no-apply variant — read-only textarea + Copy button + helper text.
@@ -530,36 +524,32 @@
 
 		var wrap = document.createElement( 'div' );
 		wrap.className = 'snt-verdict-panel';
-		wrap.setAttribute( 'style', 'display:flex;flex-direction:column;gap:6px;' );
 
 		var headline = document.createElement( 'div' );
-		headline.setAttribute( 'style', 'font-size:12px;font-weight:600;' );
+		// Headline color set below via --err/--ok/--warn modifier per verdict.
 
 		var reasonEl = document.createElement( 'div' );
-		reasonEl.setAttribute( 'style', 'font-size:11px;color:#646970;' );
+		reasonEl.className = 'snt-verdict-reason';
 		reasonEl.textContent = res.reason || '';
 
 		var actions = document.createElement( 'div' );
-		actions.setAttribute( 'style', 'display:flex;gap:6px;flex-wrap:wrap;' );
+		actions.className = 'snt-verdict-actions';
 
 		// `status` is only used by the delete branch (passed into onOrphanDeleteClick
 		// so async progress/errors can be surfaced inline). Declared here only because
 		// the delete branch closes over it; keep/unsure branches don't render it.
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
-		status.setAttribute( 'style', 'font-size:11px;color:#646970;' );
 
 		if ( 'delete' === res.verdict ) {
+			headline.className = 'snt-verdict-headline snt-verdict-headline--err';
 			headline.textContent = '⚠ ' + __( 'Likely orphan — safe to delete', 'signal-noise-tools' );
-			headline.style.color = '#8b1a1a';
 			wrap.appendChild( headline );
 			wrap.appendChild( reasonEl );
 
 			var deleteBtn = document.createElement( 'button' );
 			deleteBtn.type = 'button';
-			deleteBtn.className = 'button button-small';
-			deleteBtn.style.color = '#8b1a1a';
-			deleteBtn.style.borderColor = '#8b1a1a';
+			deleteBtn.className = 'button button-small snt-verdict-delete-btn';
 			deleteBtn.textContent = __( 'Delete', 'signal-noise-tools' );
 			deleteBtn.addEventListener( 'click', function() {
 				onOrphanDeleteClick( cell, status, deleteBtn, applyAbility, input, res );
@@ -578,8 +568,8 @@
 			wrap.appendChild( actions );
 			wrap.appendChild( status );
 		} else if ( 'keep' === res.verdict ) {
+			headline.className = 'snt-verdict-headline snt-verdict-headline--ok';
 			headline.textContent = '✓ ' + __( 'Likely keep — false positive', 'signal-noise-tools' );
-			headline.style.color = '#0a5a1a';
 			wrap.appendChild( headline );
 			wrap.appendChild( reasonEl );
 
@@ -595,8 +585,8 @@
 			wrap.appendChild( actions );
 		} else {
 			// 'unsure' (and any other verdict that slipped through).
+			headline.className = 'snt-verdict-headline snt-verdict-headline--warn';
 			headline.textContent = '? ' + __( 'Manual review', 'signal-noise-tools' );
-			headline.style.color = '#6e4d00';
 			wrap.appendChild( headline );
 			wrap.appendChild( reasonEl );
 			// No Apply button. The existing row's [Edit] link in the adjacent
@@ -631,7 +621,7 @@
 				.then( function() {
 					while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
 					var span = document.createElement( 'span' );
-					span.setAttribute( 'style', 'color:#0a5a1a;font-weight:600;' );
+					span.className = 'snt-cell-applied';
 					span.textContent = '✓ ' + __( 'Deleted', 'signal-noise-tools' );
 					cell.appendChild( span );
 					var row = cell.closest( 'tr' );
@@ -658,32 +648,32 @@
 
 		if ( res.thumbnail_url && '' !== res.thumbnail_url ) {
 			var img = document.createElement( 'img' );
+			img.className = 'snt-modal-thumb';
 			img.src = res.thumbnail_url;
-			img.setAttribute( 'style', 'max-width:160px;max-height:160px;display:block;border-radius:4px;border:1px solid #e0e0e0;' );
 			beforeNode.appendChild( img );
 		}
 
 		var filenameEl = document.createElement( 'p' );
+		filenameEl.className = 'snt-modal-filename';
 		filenameEl.textContent = res.filename || ( '#' + ( res.attachment_id || 0 ) );
-		filenameEl.setAttribute( 'style', 'font-family:monospace;font-size:12px;margin:8px 0 4px 0;color:#1d2327;word-break:break-all;' );
 		beforeNode.appendChild( filenameEl );
 
 		var reasonEl = document.createElement( 'p' );
+		reasonEl.className = 'snt-modal-caption';
 		reasonEl.textContent = res.reason || '';
-		reasonEl.setAttribute( 'style', 'font-style:italic;color:#646970;font-size:12px;margin:0;' );
 		beforeNode.appendChild( reasonEl );
 
 		var afterNode = document.createElement( 'div' );
-		afterNode.setAttribute( 'style', 'background:#fde8e8;border:1px solid #8b1a1a;border-radius:4px;padding:12px;' );
+		afterNode.className = 'snt-modal-warn-box';
 
 		var warnEl = document.createElement( 'p' );
+		warnEl.className = 'snt-modal-warn-text';
 		warnEl.textContent = __( 'This permanently deletes the attachment file and database record. No undo.', 'signal-noise-tools' );
-		warnEl.setAttribute( 'style', 'margin:0;color:#8b1a1a;font-size:13px;font-weight:600;' );
 		afterNode.appendChild( warnEl );
 
 		var noteEl = document.createElement( 'p' );
+		noteEl.className = 'snt-modal-warn-note';
 		noteEl.textContent = __( 'If this attachment is used in a widget, customizer setting, or theme template, you will see a broken image on the site.', 'signal-noise-tools' );
-		noteEl.setAttribute( 'style', 'margin:8px 0 0 0;color:#646970;font-size:11px;' );
 		afterNode.appendChild( noteEl );
 
 		return { before: beforeNode, after: afterNode };
@@ -760,7 +750,7 @@
 	function renderApplied( cell ) {
 		while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
 		var span = document.createElement( 'span' );
-		span.setAttribute( 'style', 'color:#0a5a1a;font-weight:600;' );
+		span.className = 'snt-cell-applied';
 		span.textContent = '✓ ' + __( 'Applied', 'signal-noise-tools' );
 		cell.appendChild( span );
 	}
@@ -780,7 +770,6 @@
 			if ( existingErr ) { existingErr.parentNode.removeChild( existingErr ); }
 			var err = document.createElement( 'div' );
 			err.className = 'snt-suggest-inline-err';
-			err.setAttribute( 'style', 'font-size:11px;color:#8b1a1a;margin-top:4px;' );
 			err.textContent = msg;
 			cell.appendChild( err );
 			return;
@@ -788,7 +777,7 @@
 		// Fallback: replace content.
 		while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
 		var span = document.createElement( 'span' );
-		span.setAttribute( 'style', 'color:#8b1a1a;' );
+		span.className = 'snt-cell-error';
 		span.textContent = msg;
 		cell.appendChild( span );
 	}

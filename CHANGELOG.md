@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.2] - 2026-05-25
+
+Polish release — single-concern follow-up to v4.1.1's audit. Headline: the Health-tab Apply preview modal and the shared `sntConfirm` dialog rendered every visual property via inline `setAttribute('style', …)` strings (~50 calls combined across two files). All chrome is now CSS-driven, leaving only genuinely-dynamic styling inline.
+
+### Changed
+
+- **Modal + confirm + verdict-panel chrome extracted to `admin.css`.** ~50 `setAttribute('style', …)` calls removed from [`assets/health-suggest-actions.js`](assets/health-suggest-actions.js) and [`assets/snt-confirm.js`](assets/snt-confirm.js). New class catalog in [`assets/admin.css`](assets/admin.css): `.snt-modal-backdrop/box/header/title/close/body/divider/pane-label/footer`, `.snt-modal-thumb/filename/caption/textarea/count`, `.snt-modal-snippet/phrase-err/phrase-ok`, `.snt-modal-warn-box/warn-text/warn-note`, `.snt-suggest-panel/textarea/actions/status/inline-err`, `.snt-verdict-panel/headline (+--err/--ok/--warn)/reason/actions/delete-btn`, `.snt-cell-applied/error`, `.snt-confirm-backdrop/box/header/title/close/body/footer`. Shared shell rules between the two modal flavors are comma-grouped so neither file owns the rule, but each module assigns its own class name. (U-03 / this commit)
+
+### Preserved as inline
+
+Three genuinely-dynamic mutations stay inline by design, documented in the CSS banner:
+
+1. `body.style.gridTemplateColumns` in `openApplyModal` switches on `isMobile` (single-column vs. 2-column Before/After).
+2. `row.style.opacity = '0.5'` after a successful Apply or Delete — state mutation on existing DOM, not construction-time styling.
+3. `setStatus()` color writes in `health-suggest-actions.js:71` — out of U-03 scope; targeted by deferred audit finding U-15, which dedupes the helper across 4 files in a future batch.
+
+### Manual gate-walk (post-update)
+
+Run after pulling v4.1.2. No PHP changed, so abilities + checks tests don't catch visual regressions.
+
+1. **Alt-text Apply modal** — Health → "Missing alt text" → click Suggest on any attachment → Apply opens modal; verify thumbnail + filename + "no existing alt" caption render in Before pane, read-only textarea + char-count render in After pane.
+2. **Drift Apply modal** — Health → "Time-phrase drift" → click Suggest → Apply opens modal; verify phrase highlights red in Before snippet, green in After snippet.
+3. **Orphan Delete modal** — Health → "Orphaned media" → click Suggest on a `verdict=delete` row → click Delete; verify thumbnail + reason in Before pane, red warning box in After pane.
+4. **Mobile breakpoint** — narrow window to ≤600px during any of the above; verify Before/After stack vertically with horizontal-rule divider between them.
+5. **sntConfirm sites (7 buttons)** — Cron Run Now, Cron Unschedule, Webhook Delete, Insights Dismiss, RSS Reset, RSS Purge, Desktop-mode Full Reset. Each should open a 480px modal that looks identical to v4.1.1.
+6. **Focus + Escape** — open any modal, press Escape; verify it closes and focus returns to the originating button. Open a modal, click outside the box; verify it closes.
+
+### Audit provenance
+
+Removes U-03 from deferred list. Remaining audit deferrals: D-02 (`sn_admin_pages()` deprecation), D-06 (option-cache invalidation), D-09 (cross-prompt reference), D-10 (centralize quote-strip), D-11 (cron-dashboard guard pattern), D-12 (standardize ai-availability check), D-13 (desktop-mode hook merge), U-05/U-11/U-12/U-13/U-15 (refactors), B-06/B-07 (acknowledged design limitations), B-11 (file-size violations — 13 files > 150 LOC).
+
+**v4.x cap state:** patches **2/7** in v4.1.x · minors 1/5 in v4.x.
+
+**Verification:** `php tests/abilities-integration.php` → 157/0 · `php tests/health-checks.php` → 76/0 green. `node --check` on both modified JS files → silent (no syntax errors). Visual parity verified by reading every extracted inline-style string into the corresponding CSS rule before deletion.
+
 ## [4.1.1] - 2026-05-25
 
 Bugfix + polish release. Headline: AI Suggest+Apply for `drift_time_phrases` was silently broken on every Gutenberg post since v4.0.0 — the extractor reported byte offsets in stripped content but the impls used those offsets against raw `post_content`, so preflight 409'd. Restored via a new locator that resolves position dynamically in raw content. Six v4.1.1-labelled commits had landed on `main` since v4.1.0 but the release packaging (version bump, CHANGELOG, tag) was skipped — this entry closes the release.
