@@ -2,6 +2,70 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.3.0] - 2026-05-26 — Structural-block pattern adoption (Suggest+Apply)
+
+**Released:** 2026-05-26.
+
+**Headline:** Zero-AI structural-block upgrade Suggest+Apply for two of the three v9.2.0 theme patterns. Existing `core/quote` blocks become pull-quote candidates; ordered `core/list` blocks become steps-enumerated candidates. Surfaced in the Health tab's new "Opportunities" sub-section, collapsed-by-default. Fingerprint-validated apply via `parse_blocks ↔ serialize_blocks` round-trip — no byte offsets, no AI calls, no recurring cron scans.
+
+**Compare-columns is intentionally excluded** from v4.3.0 detection (no structural antecedent in raw HTML; pattern stays available in the inserter for new posts). Rationale in spec §3 Q2.
+
+**New modules:**
+- `inc/pattern-adoption-detect.php` (187 LOC) — block-tree walk + scan REST endpoint
+- `inc/pattern-adoption-suggest.php` (~245 LOC) — deterministic template substitution mirroring `theme/patterns/pull-quote.php` and `theme/patterns/steps-enumerated.php` + REST endpoint
+- `inc/pattern-adoption-apply.php` (188 LOC) — fingerprint-validated mutate-in-place via `parse_blocks ↔ serialize_blocks` round-trip + REST endpoint
+- `inc/pattern-adoption-admin.php` (165 LOC) — Health-tab Opportunities section renderer + dismiss REST endpoint
+- `inc/abilities-ai-pattern-adoption.php` (151 LOC) — 2 Abilities API registrations (suggest + apply pair)
+
+**Modified files:**
+- `signal-and-noise-tools.php` — bump `Version:` to 4.3.0; 4 new `require_once` lines (`SNT_VERSION` constant derives from docblock via `get_file_data`)
+- `inc/abilities-registration.php` — 1 new `require_once` line for the pattern-adoption abilities file
+- `inc/health-checks-admin.php` — Opportunities section render call + `$suggest_supported_checks` extension + new defensive branches in `sn_health_render_suggest_cell()`
+- `inc/admin-page.php` — `pattern_adoption_scan` dispatcher branch in `sn_handle_admin_post()` (matches `health_scan` convention) + flash decoder for `pattern_adoption_scanned`
+- `assets/health-suggest-actions.js` — 2 new entries in `ABILITY_BY_CHECK` map + new `onDismissClick` handler wired through the existing `init()` dispatcher
+
+**New REST endpoints** (back-compat surface; JS dispatches via Abilities API):
+- `POST /signal-noise/v1/health/pattern-adoption-scan` — runs detector, caches result in user-scoped transient (1h TTL)
+- `POST /signal-noise/v1/ai/pattern-adoption-suggest` — synthesizes replacement markup for a fingerprinted candidate
+- `POST /signal-noise/v1/ai/pattern-adoption-apply` — fingerprint-validated splice via `parse_blocks ↔ serialize_blocks`
+- `POST /signal-noise/v1/health/pattern-adoption-dismiss` — appends `"<pattern_type>:<fingerprint>"` to `_snt_pattern_adoption_dismissed` post meta
+
+**New Abilities API registrations:**
+- `signal-noise/pattern-adoption-suggest` (idempotent, category: `ai-generation`)
+- `signal-noise/pattern-adoption-apply` (destructive, category: `ai-generation`)
+
+**Apply safety model:** fingerprint = `md5(serialize_block($node))`. On apply, the impl re-parses current `post_content`, walks the tree, locates the block whose `serialize_block` markup still matches the fingerprint, mutates it in place, and writes back via `wp_update_post`. If the block changed or was removed between scan and apply, returns `snt_pattern_adoption_conflict` (409) and JS prompts re-scan. The block-tree round-trip sidesteps the v4.1.1 raw-vs-stripped coordinate bug class entirely.
+
+**Dismiss state:** lives in `_snt_pattern_adoption_dismissed` post meta as an array of `"<pattern_type>:<fingerprint>"` strings. Persistent across scans — a writer's "decline this candidate" sticks.
+
+**Two critical bugs caught + corrected during execution** (via two-stage review discipline):
+- Task 2 (commit b453112): suggest impl initially emitted `<!-- wp:signal-noise/* -->` block-comment delimiters, but those are pattern slugs (not registered block types). Code quality review caught this before downstream tasks; fixed in 75473b3 with core-block compositions matching the theme pattern files.
+- Task 4 (commit eac0b88): "Scan for opportunities" button initially registered via `add_action('admin_post_*', ...)` but the form posts to the SN admin URL (not `admin-post.php`), routing through `sn_handle_admin_post()` instead. Code quality review caught this; fixed in 9772836 by adding a `pattern_adoption_scan` branch to the central dispatcher.
+
+**Tests post-v4.3.0:**
+
+| Suite | New assertions | Status |
+|---|---|---|
+| `tests/pattern-adoption-detect.php` | 12 (new file) | green |
+| `tests/pattern-adoption-suggest.php` | 35 (new file) | green |
+| `tests/pattern-adoption-apply.php` | 21 (new file) | green |
+| `tests/abilities-integration.php` | +11 (extension; 157 → 168 total) | green |
+| **Total v4.3.0 new** | **79** | **green** |
+
+**Cap math:** plugin minor 3/5 → **4/5** (v4.0, v4.1, v4.2, v4.3 used; v4.4.0 is the last minor before v5.0.0). Plugin patch cap resets from 1/7 → **0/7** for v4.3.x (7 patches available).
+
+**Plan reference:** [`docs/superpowers/plans/2026-05-26-v4.3.0-structural-pattern-adoption.md`](docs/superpowers/plans/2026-05-26-v4.3.0-structural-pattern-adoption.md)
+**Spec reference:** [`docs/superpowers/specs/2026-05-26-v4.3.0-bulk-pattern-adoption-suggest-apply-design.md`](docs/superpowers/specs/2026-05-26-v4.3.0-bulk-pattern-adoption-suggest-apply-design.md)
+
+**Known minor items deferred** (documented in code review reports; candidates for v4.3.1 patch):
+- Detector's `block_path` docblock describes "0" prefix; actual output is "0/N" (cosmetic, diagnostic field only)
+- Detector: redundant `'fields' => 'all'` arg; dead `is_array` check after `(array)` cast; asymmetric `function_exists` guard on `get_permalink`
+- Suggest: test stub `wp_kses` doesn't validate URL schemes (documented in stub comment); empty-inline-tag cite would produce empty attribution paragraph (edge case requires malformed source)
+- Apply: capability denial / malformed replacement / `wp_update_post` WP_Error paths lack explicit tests
+- Abilities wrappers lack `function_exists($impl_name)` guard that the 7 health-ability wrappers in `inc/abilities-ai-health.php` use (require_once chain protects against the failure mode)
+
+---
+
 ## [4.2.1] - 2026-05-26 — Login: refactor to plugins_loaded intercept pattern
 
 **Released:** 2026-05-26.
