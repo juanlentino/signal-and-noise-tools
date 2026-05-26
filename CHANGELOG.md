@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.2.1] - 2026-05-26 — Login: refactor to plugins_loaded intercept pattern
+
+**Released:** 2026-05-26.
+
+**Why this patch exists:** v4.2.0's self-heal addressed *symptoms* of the production `/backend` 404 (flush sentinel desync) but not the *root cause* — v1.5.0–v4.2.0's reliance on `add_rewrite_rule`, which depends on a chain of fragile assumptions (rewrite_rules option persisted, Apache routes through index.php, no plugin wipes the rule after us, WP's deferred-flush succeeds). On production juanlentino.com, `/backend` continued to 404 even after v4.2.0 install. The reference implementation we replaced — [wps-hide-login](https://github.com/WPPlugins/wps-hide-login/blob/master/wps-hide-login.php#L351) — uses a completely different approach (intercept at `plugins_loaded` priority 2, set `$pagenow = 'wp-login.php'`, `require_once ABSPATH . 'wp-login.php'` in `wp_loaded`). That's bulletproof against rewrite-engine fragility and runs on millions of sites. v4.2.1 refactors `inc/login-hide.php` to this proven pattern.
+
+**Changes:**
+- **Removed:** `add_rewrite_rule()` registration at init priority 10.
+- **Removed:** init priority 99 flush sentinel + verify-before-trust self-heal (v4.2.0's symptomatic fix — no longer needed without the rewrite rule).
+- **Removed:** `delete_option('sn_login_rewrites_flushed')` force-flush call in the `save_login` handler.
+- **Added:** `sn_login_intercept_request()` at `plugins_loaded` priority 2 — parses `REQUEST_URI`, sets `$pagenow = 'wp-login.php'` + serve-form flag when the path matches the custom slug, sets block-wp-login flag for direct `/wp-login.php` access, returns early for allowlisted endpoints (admin-ajax, async-upload, wp-cron, /wp-json/, /feed).
+- **Modified:** `sn_login_handle_request()` at `wp_loaded` — three branches: (1) `require_once ABSPATH . 'wp-login.php'; die` for serve-form, (2) audit-log counter + 404 for block-wp-login, (3) audit-log counter + 404 for unauthenticated `/wp-admin`. All hardening preserved (audit counters, allowlist, status_header + nocache_headers + 404 template).
+- **Added:** preflight check for `rename-wp-login` (parity with `wps-hide-login`'s own conflict-detection — see [wps-hide-login.php:125-141](https://github.com/WPPlugins/wps-hide-login/blob/master/wps-hide-login.php#L125)). If active, our module stands down with the same admin-notice pattern as the existing `wps-hide-login` check.
+
+**Preserved hardening (unchanged):**
+- `SN_LOGIN_BYPASS` constant — emergency escape hatch restores `/wp-login.php` immediately.
+- `SN_LOGIN_SLUG` constant — wp-config override for per-environment slugs.
+- `wps-hide-login` v2.1.1 preflight (require BOTH `is_plugin_active` AND `file_exists` — defends against orphaned `active_plugins` entries).
+- URL filters: `site_url`, `network_site_url`, `wp_redirect` — replace `/wp-login.php` in generated URLs (password reset emails, logout, etc.).
+- Audit-log counter integration: `wp_login_404` and `wp_admin_unauth_404` still fire for blocked requests.
+- Allowlist precedence: admin-ajax / async-upload / wp-cron / /wp-json/ / /feed never get touched by the intercept or the wp_loaded handler.
+
+**Tests:**
+- Removed: `tests/login-self-heal.php`, `tests/login-self-heal-no-regression.php` (tested removed code).
+- Added: `tests/login-intercept.php` (19 assertions — covers serve-form for matching slug, block-wp-login for direct access, allowlist precedence for 5 endpoints, substring-match prevention, nested-path rejection, action-registration priority).
+- Total tests: 459 → 467 → 491 (v4.2.0) → **507** (v4.2.1).
+
+**Migration notes:**
+- The `sn_login_rewrites_flushed` option from v1.5.0–v4.2.0 is now orphaned in the database. It's a single autoloaded string — harmless. Any future cleanup can remove via `delete_option('sn_login_rewrites_flushed')` (no risk of breaking anything since the code path that read it is gone).
+- The stale `rewrite_rules` option may still contain `^<slug>/?$ => wp-login.php` from earlier. Also harmless — the rewrite engine just no longer reaches this path because the intercept short-circuits at `plugins_loaded` priority 2. The rule will be naturally cleaned on the next `flush_rewrite_rules()` triggered by anything else (any other plugin that uses `add_rewrite_rule`, or wp-admin → Settings → Permalinks → Save Changes).
+
+**Lesson learned (codified in memory):** when fixing a fragile component that replaces or runs parallel to a proven third-party implementation, read the proven implementation's source FIRST. The HARD RULE memory says "read framework source before claiming to know it" — but the same applies to peer plugins. We treated `wps-hide-login` as something we could reimplement from first principles in v1.5.0; the better approach was to read their source and understand WHY they made the design choices they did. v4.2.0's self-heal was a sophisticated fix for the wrong layer of the problem.
+
+**Cap math:** plugin patch cap 0/7 → 1/7 for v4.2.x. Minor cap unchanged at 3/5.
+
+---
+
 ## [4.2.0] - 2026-05-26 — Login self-heal + Tier C cleanup + audit-log retention
 
 **Released:** 2026-05-26.
