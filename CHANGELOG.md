@@ -2,6 +2,44 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.0] - 2026-05-25
+
+### Added — AI Suggest+Apply for orphaned-media
+
+Completes the AI Suggest+Apply suite. Orphan-flagged attachments (detected via SQL since v3.5.0) now get an AI verdict layer (delete/keep/unsure) with one-click delete (modal-confirmed) for high-confidence cases.
+
+**New abilities:**
+- `signal-noise/ai-orphan-suggest` (idempotent) — returns `{verdict, reason}` for a SQL-flagged orphan attachment
+- `signal-noise/ai-orphan-apply` (destructive, idempotent) — force-deletes via `wp_delete_attachment($id, true)` after capability + existence re-validation
+
+**UX:**
+- Suggest button per orphan-media row (matches the existing alt + drift Suggest column)
+- Verdict-shaped response renders 3 distinct cell states:
+  - `delete` → red Delete button + reason → modal confirmation → `wp_delete_attachment(force=true)` → "✓ Deleted"
+  - `keep` → "✓ Likely keep" + reason + Discard (false positive — no Apply)
+  - `unsure` → "? Manual review" + reason (use the existing per-row Edit link)
+- Delete modal reuses v4.0.3 `openApplyModal()`; Before pane = thumbnail + filename + reason, After pane = red-background destructive warning + caveat about widgets/customizer
+- Modal primary button label stays "Apply" — destructive intent carried by modal title ("Permanently delete this attachment?") and After-pane warning. Changing the shared modal's button signature would have risked regressing the v4.0.3-shipped alt + drift Apply paths.
+
+**Cost + caching:**
+- 30-day transient cache per `(attachment_id, post_modified_gmt, prompt_version_md5)` — mirrors v4.0.1 drift cache pattern
+- Errors never cache; `unsure`-fallback verdicts DO cache (prevents repeated AI calls against a model returning malformed output until 30d decay)
+- Cold scan against 50 orphans ≈ $0.025 in Anthropic Sonnet tokens; warm scan = $0.00
+
+**Security invariants:**
+- Apply impl takes only `attachment_id` (no `verdict` parameter) — server re-validates capability + attachment existence from scratch. Client-side verdict is JS display logic only.
+- Defense-in-depth: Abilities API permission_callback + REST permission_callback + impl-level `current_user_can` check, all on `delete_post`.
+- Cache verdict cleared explicitly on successful Apply (belt + suspenders against ghost cache hits).
+
+**Scope changes from the original v4.1.0 plan:**
+- `stale_posts` Suggest+Apply **dropped** from this minor and removed from the v4.x roadmap. juanlentino.com posts are evergreen by design — the stale-posts feature would have generated suggestions the user dismisses every time. `drift_time_phrases` (v3.7.0) already handles the real decay vector in evergreen content. Theme A is now complete with orphan-media alone.
+
+**Files:** 1 new (`inc/ai-orphan-suggest.php`), 4 modified (`signal-and-noise-tools.php` for require + version, `inc/abilities-registration.php` for 2 new abilities, `inc/health-checks-admin.php` for the Suggest button render, `assets/health-suggest-actions.js` for the verdict-render branch + delete modal). 2 test files extended. ~270 LOC production code + ~110 LOC of tests.
+
+**v4.x cap state:** patches 0/7 in v4.1.x · minors 1/5 in v4.x.
+
+**Verification:** 8 PHP ability-dispatch tests + 5 cache-invariant assertions all green (155/0 + 69/0). 14-gate manual walk required before tag push.
+
 ## [4.0.3] - 2026-05-25
 
 ### Added — Before/After Apply preview modal
