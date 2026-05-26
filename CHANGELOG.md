@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.7] - 2026-05-25 ⚠️ patch-cap rollover
+
+Test catch-up release. Two test files had been left modified-but-uncommitted in the working tree from an earlier session that rewrote them for the v3.8.0+ two-source IA architecture (`sn_admin_top_tabs()` + `sn_admin_legacy_redirect_map()`). They were running cleanly post-rewrite but were never staged or committed. v4.1.7 captures the catch-up.
+
+⚠️ **This is the last allowed patch in v4.1.x** (7/7). Any subsequent plugin change rolls to v4.2.0.
+
+### Changed
+
+- **[`tests/admin-tabs.php`](tests/admin-tabs.php) — rewritten for v3.8.0+ architecture.** Pre-rewrite assertions targeted the v3.0.2-era single-source-of-truth helpers (`sn_admin_pages()` driving everything). v3.8.0 split into two sources: `sn_admin_top_tabs()` (6 canonical top tabs that drive `valid_tabs`, `tab_labels`, `subtitle`) and `sn_admin_legacy_redirect_map()` (legacy slug → canonical top tab + sub-tab + anchor). The rewrite now asserts the new coordination constraint: **every legacy tab is reachable via EITHER `sn_admin_top_tabs()` OR the redirect map** — catching the same class of regression as the original v3.0.0 Cron-tab miss under the new architecture. Test count: 84 → 189 passes (legitimate coverage expansion).
+- **[`tests/theme-ability-commands.php`](tests/theme-ability-commands.php) — count assertion updated for v3.8.3 audit-log additions.** The baseline existing-command count went from 16 to 18 when v3.8.3 added `sn-cmd-audit-summary` + `sn-cmd-audit-recent-logins`. Test assertion updated from `28` to `30` to match (16+12 → 18+12).
+
+### Architectural notes
+
+- These tests were orphaned during the v3.8.x churn — the rewrites tracked the code, just never got committed. Discarding them would have regressed test coverage (the v3.0.2 versions don't exercise the legacy redirect map at all).
+- Running both files in isolation confirms green: `admin-tabs.php` → 189/0, `theme-ability-commands.php` → 37/0. Existing suites unchanged: `abilities-integration.php` → 157/0, `health-checks.php` → 76/0.
+- The `@since` annotation in each test file reflects "rewritten for v3.8.0+" rather than a fresh `@since 4.1.7` — the original v3.0.2 / v3.7.4 provenance is the meaningful origin; this commit just landed work that should have shipped sessions ago.
+
+### Audit + roadmap closeout
+
+This release closes the **plugin absorption roadmap** (15 phases from `docs/superpowers/specs/2026-05-16-plugin-absorption-roadmap.md`). All 5 residual items from the 2026-05-25 reconciliation handoff are now resolved:
+
+1. ✅ Login hardening audit log — shipped v3.8.3
+2. ✅ AI-assisted content-health fixes — shipped v4.0.0–v4.1.0 (massively over-scope: alt-text + inline-alt + drift + orphan)
+3. ✅ Native Breadcrumbs theme-template adoption — verified no-action (zero breadcrumb references across 13 templates / 2 parts / 2 patterns)
+4. ✅ GSC sitemap submission — user-confirmed submitted
+5. ⏳ WORDPRESS-REFERENCE.md gotchas append — ships as theme docs commit (no version bump per CLAUDE.md)
+
+**v4.x cap state:** patches **7/7 in v4.1.x ⚠️ MAX** — any subsequent plugin change forces v4.2.0. Minors 2/5 in v4.x.
+
+### Verification
+
+- `php tests/admin-tabs.php` → 189/0
+- `php tests/theme-ability-commands.php` → 37/0
+- `php tests/abilities-integration.php` → 157/0 (unchanged — no code modified)
+- `php tests/health-checks.php` → 76/0 (unchanged)
+
 ## [4.1.6] - 2026-05-25
 
 Tier B polish batch from the 2026-05-25 audit — 6 small refactors bundled into one ship per the v4.1.2-deferred-audit handoff recommendation. No behavioral changes; all are consistency / consolidation / dedup work that the audit flagged but classified below the Tier A modal-CSS-extract + abilities-registration-split work.
