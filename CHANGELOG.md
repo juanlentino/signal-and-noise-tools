@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.4] - 2026-05-25
+
+Bugfix release. Headline: **the Dashboard's "Recent deploys" panel froze at plugin v3.8.6 (9+ hours stale)** — every release since v1.10.1 (plugin) / v8.5.1 (theme) landed via wp-admin Updates UI, which bypasses the GitHub Actions workflow-runs API the panel reads from. Now wp-admin installs are recorded locally and merged with GHA runs.
+
+### Fixed
+
+- **Recent Deploys panel now reflects wp-admin Updates installs.** Pre-v4.1.4 the panel was sourced exclusively from `https://api.github.com/repos/<repo>/actions/workflows/deploy.yml/runs` — which only fires on `workflow_dispatch` or (pre-v1.10.1) tag push. Every release between v3.9.x and v4.1.3 that the user landed via wp-admin → Updates → "Update plugin/theme" was invisible to this feed. Result: the most recent entry on the live site was plugin **v3.8.6** (the last auto-on-tag-push deploy from before v1.10.1 made plugin deploys manual-dispatch). The panel was 15+ releases stale by the time it was reported.
+
+### Added
+
+- **[`inc/deploy-history.php`](inc/deploy-history.php) — local install log + merge helper.** New module:
+  - `snt_deploy_history_record( $package, $version )` — appends a record (newest-first, capped at 20 rows) to a new `sn_deploy_history` option (autoload=no — read only on the SN admin page).
+  - `snt_deploy_history_get( $limit )` — returns records in the same shape as `snt_gh_recent_runs_merged()` so the dashboard renderer needs no per-source branching.
+  - `snt_deploy_history_merged( $repos, $limit )` — merges GHA runs with local installs, sorts by `created_at` DESC, dedupes by (repo, ref) preferring GHA records (which have `html_url` for click-through to the run).
+  - `snt_deploy_history_on_upgrader_complete()` — hooks `upgrader_process_complete` (fires after successful WP-admin installs), filters to only SN packages via `SNT_DEPLOY_HISTORY_PACKAGES`, reads the post-install version via `get_plugin_data()` / `wp_get_theme()`, calls `snt_deploy_history_record()`.
+
+### Changed
+
+- **[`inc/admin-tab-dashboard.php`](inc/admin-tab-dashboard.php):** `snt_dashboard_tab_render()` now calls `snt_deploy_history_merged()` instead of `snt_gh_recent_runs_merged()`. No renderer changes — local install records have an empty `html_url` and the existing branch in `snt_dashboard_render_deploy_row()` already emits an empty `<span>` for that case.
+
+### Architectural notes
+
+- The record shape matches GHA workflow runs exactly (`id`, `status`, `conclusion`, `ref`, `trigger`, `created_at`, `duration_s`, `html_url`, `repo`). Three fields differ from a real GHA run: `id` is a synthetic timestamp+rand, `html_url` is empty (no URL — this happened on-server), `trigger` is `'wp_admin'` instead of `'workflow_dispatch'`. The renderer treats them uniformly.
+- The hook handler reads the version POST-install (after the upgrader has placed the new files on disk), not from `$hook_extra` — that way the recorded `ref` reflects what's actually loaded, not what the upgrader claimed it was installing.
+- Backfill is intentionally NOT done: the v3.9.x through v4.1.3 historical deploys won't appear retroactively. The user will see one row at first ("v4.1.4 via wp-admin"), then accumulate forward. Re-importing tag history from GitHub would conflate "tag exists" with "this site installed it" and is out of scope.
+
+### Audit provenance
+
+This bug was reported in-session after v4.1.3 shipped — not from the 2026-05-25 audit findings. Adds to the v4.1.x track on its own.
+
+**v4.x cap state:** patches **4/7** in v4.1.x · minors 2/5 in v4.x.
+
+**Verification:** `php tests/abilities-integration.php` → 157/0 · `php tests/health-checks.php` → 76/0. `php -l` clean on the 3 modified/added files. Live verification: after this v4.1.4 lands via wp-admin Updates, the "Recent deploys" panel should show a fresh "plugin v4.1.4" entry within seconds of clicking "Update plugin".
+
 ## [4.1.3] - 2026-05-25
 
 Structural refactor — single-concern follow-up to v4.1.2 closing audit finding **B-11** (the file-size violation that affected `inc/abilities-registration.php` at 1660 lines / 11× the CLAUDE.md 150-line guideline). The monolith is now a 55-line orchestrator that requires 8 per-feature ability files. All 28 abilities still register identically; the abilities-integration test stays 157/0.

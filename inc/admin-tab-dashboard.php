@@ -94,8 +94,13 @@ function snt_dashboard_tab_render() {
 
 	$theme     = snt_deploy_status_for( 'theme' );
 	$plugin    = snt_deploy_status_for( 'plugin' );
-	$runs      = function_exists( 'snt_gh_recent_runs_merged' )
-		? snt_gh_recent_runs_merged( array_values( SNT_DEPLOY_REPOS ), 5 )
+	// v4.1.4: merge wp-admin Updates installs with GHA workflow runs. Since
+	// v1.10.1 (plugin) / v8.5.1 (theme) tag pushes no longer auto-deploy, so
+	// the GHA-only feed froze at the last auto-on-tag-push deploy. The
+	// deploy-history module records wp-admin installs via the
+	// upgrader_process_complete hook; the merged view shows both sources.
+	$runs      = function_exists( 'snt_deploy_history_merged' )
+		? snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 5 )
 		: array();
 	$overrides = get_posts( array(
 		'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
