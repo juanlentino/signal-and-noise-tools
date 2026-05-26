@@ -458,6 +458,21 @@
 	margin-right: auto;
 }
 
+/* v4.2.0 (U-05): inline variant for forms that need to flow inline with
+   surrounding text — e.g., Insights Dismiss button row. Matches the inline
+   display the inline-style was producing; no visual change. */
+.sn-fieldset-actions--inline {
+	display: inline-block;
+}
+
+/* v4.2.0 (U-11): sized search-input variant for table filters (cron
+   dashboard, future expansion). Matches the width + padding values the
+   inline-style was producing on cron-dashboard-admin.php:117. */
+.sn-input--filter {
+	width: 320px;
+	padding: 6px 10px;
+}
+
 /* ─── Page-header subtitle (tab-specific) ────────────────────
  *
  * Replaces the inline-style h1 + generic subtitle pattern with

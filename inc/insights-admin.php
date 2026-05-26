@@ -145,7 +145,7 @@ function snt_insights_render_recommendations_section( $last ) {
 		}
 
 		// Action buttons (form per card to share the nonce + carry rec_id).
-		echo '<form method="post" class="sn-fieldset-actions" style="display:inline-block;">';
+		echo '<form method="post" class="sn-fieldset-actions sn-fieldset-actions--inline">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
 		if ( ! $is_done ) {

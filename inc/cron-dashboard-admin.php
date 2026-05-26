@@ -114,7 +114,7 @@ function snt_cron_render_admin_tab() {
 
 	echo '<p>';
 	echo '<label for="sn-cron-filter" class="screen-reader-text">' . esc_html__( 'Filter cron events by hook name', 'signal-noise-tools' ) . '</label>';
-	echo '<input type="search" id="sn-cron-filter" placeholder="' . esc_attr__( 'Filter by hook name…', 'signal-noise-tools' ) . '" style="width: 320px; padding: 6px 10px;" />';
+	echo '<input type="search" id="sn-cron-filter" class="sn-input--filter" placeholder="' . esc_attr__( 'Filter by hook name…', 'signal-noise-tools' ) . '" />';
 	echo '</p>';
 
 	echo '<div class="snt-scroll-table">';
