@@ -2,6 +2,49 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.5] - 2026-05-25
+
+Bugfix release. v4.1.4 shipped the Recent Deploys logging fix but had a self-observation gap: the `upgrader_process_complete` hook fires in the SAME PHP request as the install, which means v4.1.3's PHP code was in memory during the v4.1.4 install — and v4.1.3 had no handler for that hook. The v4.1.4 install slipped past its own fix. User confirmed the dashboard stayed stuck at v3.8.6 even after v4.1.4 deployed.
+
+### Fixed
+
+- **Self-bootstrap gap closed via `admin_init` version-check.** New `snt_deploy_history_version_check()` runs on every admin page load, compares the in-memory plugin + theme versions to a tiny autoloaded sentinel option (`sn_deploy_history_current_versions`), and records any version not yet in history. Once v4.1.5 lands on the user's site, the FIRST admin page load picks up the current versions and writes records — no further install action required.
+
+### Architectural notes
+
+- **Why the v4.1.4 fix missed:** WordPress's `Plugin_Upgrader` does not re-require plugin files during an upgrade. The PHP process loaded at request-start is what's in memory throughout. So a new handler defined in version N cannot observe the install that brings version N into existence. Future installs (N → N+1) ARE caught — that path works as designed in v4.1.4.
+- **Fast path:** the sentinel option is `autoload=true` (tiny payload, lives in `wp_load_alloptions` cache). On the hot path — admin user visits any wp-admin page after their versions have been recorded — the check is an in-memory string compare and bails without any DB write. Only version changes trigger a write.
+- **Dedupe vs the upgrader hook:** for v4.1.5 → v4.1.6 and beyond, both the `upgrader_process_complete` hook (records during the install request) AND the `admin_init` check (records on the next admin page load) could write the same version. `snt_deploy_history_has_version()` scans the history before writing to avoid duplicates.
+- **Capability gate:** only fires for `manage_options` users. Non-admin visits to wp-admin (subscribers reading their profile, etc.) don't burn cycles on a check whose output only matters for the SN dashboard.
+- **Theme detection:** only records the active theme as the SN theme if `wp_get_theme()->get_stylesheet() === 'signal-and-noise'`. If the user switches themes, we don't attribute another theme's version to the SN repo.
+- **Cap discipline:** the new sentinel option is the only addition to `wp_options`. The history option remains autoload=no (capped at 20 FIFO rows).
+
+### Expected behavior post-deploy
+
+After v4.1.5 lands via wp-admin Updates:
+
+1. User updates plugin → v4.1.5 files on disk, `upgrader_process_complete` fires in v4.1.4 PHP context — and v4.1.4 HAS the handler, so it records "plugin v4.1.5" (this path works correctly from v4.1.4 onward; only v4.1.3 → v4.1.4 was the gap).
+2. User loads any wp-admin page → `admin_init` fires in v4.1.5 PHP context → `snt_deploy_history_version_check()` runs.
+3. Sentinel option doesn't exist yet → both plugin (4.1.5) and theme (9.1.7) compared against missing sentinel.
+4. `has_version('plugin', '4.1.5')` returns true (step 1 recorded it) → sentinel updated, no duplicate written.
+5. `has_version('theme', '9.1.7')` returns false (v9.1.7 install pre-dated deploy-history feature) → theme record written.
+6. User visits Dashboard → merged list shows: theme v9.1.7 (just-now), plugin v4.1.5 (a moment ago), then the GHA-cached plugin v3.8.6/.5/.4 trail.
+7. Subsequent admin page loads → sentinel matches current versions → no-op fast path.
+
+**v4.x cap state:** patches **5/7** in v4.1.x · minors 2/5 in v4.x.
+
+### Verification
+
+- `php -l inc/deploy-history.php` → clean (fresh in this commit's working set).
+- `php tests/abilities-integration.php` → 157 passed, 0 failed (no change — deploy-history isn't exercised by tests).
+- `php tests/health-checks.php` → 76 passed, 0 failed.
+- Code traced through 4 execution scenarios: (A) v4.1.5 install via v4.1.4's hook + admin_init backfill, (B) post-install dashboard render, (C) subsequent admin page loads (no-op), (D) future v4.1.6 install (hook + check dedupe via `has_version`). All scenarios produce correct sentinel state and history records.
+- Live verification REQUIRES user to install v4.1.5 via wp-admin and visit any admin page. Cannot be verified from CLI.
+
+### Process note
+
+This release was the first in the v4.1.x track to formally invoke `superpowers:systematic-debugging` (Phase 1 root-cause investigation through Phase 4 implementation) AND `superpowers:verification-before-completion` (fresh evidence in this turn before claiming done). The v4.1.4 bug was the consequence of skipping both — v4.1.4 was shipped on assumption that `upgrader_process_complete` would observe its own install, which a 30-second read of `WP_Upgrader::run()` source would have falsified.
+
 ## [4.1.4] - 2026-05-25
 
 Bugfix release. Headline: **the Dashboard's "Recent deploys" panel froze at plugin v3.8.6 (9+ hours stale)** — every release since v1.10.1 (plugin) / v8.5.1 (theme) landed via wp-admin Updates UI, which bypasses the GitHub Actions workflow-runs API the panel reads from. Now wp-admin installs are recorded locally and merged with GHA runs.

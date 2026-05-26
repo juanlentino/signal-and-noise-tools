@@ -40,6 +40,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_DEPLOY_HISTORY_OPTION   = 'sn_deploy_history';
 const SNT_DEPLOY_HISTORY_MAX_ROWS = 20;
 
+// v4.1.5: tiny autoloaded sentinel for the admin_init version-check fast
+// path. Stores { plugin: 'X.Y.Z', theme: 'X.Y.Z' } so the version-check
+// can short-circuit on every admin page load via in-memory comparison
+// against the autoloaded alloptions cache — no DB read on the hot path.
+// The history option itself stays autoload=no.
+const SNT_DEPLOY_HISTORY_SENTINEL_OPTION = 'sn_deploy_history_current_versions';
+
 /**
  * Map of SN package handles to their (repo, package-key) tuples.
  * Mirrors SNT_DEPLOY_REPOS from inc/admin-tab-dashboard.php so the
@@ -132,6 +139,36 @@ function snt_deploy_history_get( $limit = null ) {
 		$history = array_slice( $history, 0, $limit );
 	}
 	return $history;
+}
+
+/**
+ * Return true if a specific (package, version) pair is already in history.
+ *
+ * Used by snt_deploy_history_version_check() to dedupe against records
+ * the upgrader_process_complete hook may have written for the same
+ * version. Linear scan over at most SNT_DEPLOY_HISTORY_MAX_ROWS rows;
+ * no DB query (snt_deploy_history_get reads once).
+ *
+ * @since 4.1.5
+ * @param string $package_key 'plugin' or 'theme'
+ * @param string $version     Version string with or without leading 'v'.
+ * @return bool
+ */
+function snt_deploy_history_has_version( $package_key, $version ) {
+	if ( ! isset( SNT_DEPLOY_HISTORY_PACKAGES[ $package_key ] ) ) {
+		return false;
+	}
+	$repo       = SNT_DEPLOY_HISTORY_PACKAGES[ $package_key ]['repo'];
+	$target_ref = 'v' . ltrim( (string) $version, 'v' );
+
+	foreach ( snt_deploy_history_get() as $row ) {
+		$row_repo = isset( $row['repo'] ) ? (string) $row['repo'] : '';
+		$row_ref  = isset( $row['ref'] )  ? (string) $row['ref']  : '';
+		if ( $row_repo === $repo && $row_ref === $target_ref ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -249,3 +286,104 @@ function snt_deploy_history_on_upgrader_complete( $upgrader, $hook_extra ) {
 	}
 }
 add_action( 'upgrader_process_complete', 'snt_deploy_history_on_upgrader_complete', 10, 2 );
+
+/**
+ * Admin-init version-check — self-heals the self-observation gap.
+ *
+ * The problem (v4.1.4): `upgrader_process_complete` fires in the SAME
+ * PHP request as the install. When v4.1.3 was the on-disk version, its
+ * code (which had no handler for this hook) is what's in memory during
+ * the v4.1.4 install. So the v4.1.4 install can't be recorded by the
+ * hook that v4.1.4 added — the handler doesn't exist in v4.1.3's
+ * memory image. The install slips through.
+ *
+ * The fix (v4.1.5): on every admin page load, compare the in-memory
+ * plugin + theme versions against a tiny autoloaded sentinel option.
+ * If they differ (or sentinel is missing), check if the version is
+ * already recorded — if not, record it now.
+ *
+ * Performance:
+ *   - Sentinel option is autoload=true → loaded once per request into
+ *     wp_load_alloptions cache. No DB read on the fast path.
+ *   - Version compare is in-memory string equality.
+ *   - DB write only on actual version change.
+ *
+ * Dedupe: the upgrader_process_complete hook (from v4.1.5+) WILL fire
+ * correctly on future installs since the handler now exists in v4.1.4+
+ * memory. To avoid double-recording the same version once that path
+ * works, snt_deploy_history_has_version() scans existing history
+ * before writing.
+ *
+ * Capability check: only fires for users with `manage_options` — those
+ * are the only users who see the dashboard anyway, so we don't burn
+ * cycles on every subscriber visiting wp-admin.
+ *
+ * @since 4.1.5
+ */
+function snt_deploy_history_version_check() {
+	static $checked = false;
+	if ( $checked ) {
+		return;
+	}
+	$checked = true;
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	$current_plugin = defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '';
+
+	$current_theme = '';
+	if ( function_exists( 'wp_get_theme' ) ) {
+		$theme = wp_get_theme();
+		// Only treat the active theme as the SN theme if it actually IS
+		// 'signal-and-noise' — protects against attributing a different
+		// theme's version to the SN repo if the user has switched themes.
+		if ( $theme && method_exists( $theme, 'get_stylesheet' ) && 'signal-and-noise' === $theme->get_stylesheet() ) {
+			$current_theme = (string) $theme->get( 'Version' );
+		}
+	}
+
+	if ( '' === $current_plugin && '' === $current_theme ) {
+		return;
+	}
+
+	$sentinel = get_option( SNT_DEPLOY_HISTORY_SENTINEL_OPTION, array() );
+	if ( ! is_array( $sentinel ) ) {
+		$sentinel = array();
+	}
+
+	$dirty = false;
+
+	if ( '' !== $current_plugin ) {
+		$seen_plugin = isset( $sentinel['plugin'] ) ? (string) $sentinel['plugin'] : '';
+		if ( $seen_plugin !== $current_plugin ) {
+			// Sentinel says we haven't observed this version yet.
+			// Double-check via history scan in case the upgrader hook
+			// already recorded it during the install request (relevant
+			// for v4.1.5 → v4.1.6 and beyond).
+			if ( ! snt_deploy_history_has_version( 'plugin', $current_plugin ) ) {
+				snt_deploy_history_record( 'plugin', $current_plugin );
+			}
+			$sentinel['plugin'] = $current_plugin;
+			$dirty = true;
+		}
+	}
+
+	if ( '' !== $current_theme ) {
+		$seen_theme = isset( $sentinel['theme'] ) ? (string) $sentinel['theme'] : '';
+		if ( $seen_theme !== $current_theme ) {
+			if ( ! snt_deploy_history_has_version( 'theme', $current_theme ) ) {
+				snt_deploy_history_record( 'theme', $current_theme );
+			}
+			$sentinel['theme'] = $current_theme;
+			$dirty = true;
+		}
+	}
+
+	if ( $dirty ) {
+		// autoload=true → small footprint, accessed per admin request.
+		update_option( SNT_DEPLOY_HISTORY_SENTINEL_OPTION, $sentinel, true );
+	}
+}
+add_action( 'admin_init', 'snt_deploy_history_version_check' );
