@@ -150,6 +150,7 @@ require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';
+require_once __DIR__ . '/inc/pattern-adoption-apply.php';
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/post-settings.php';
