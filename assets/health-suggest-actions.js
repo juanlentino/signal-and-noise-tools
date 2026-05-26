@@ -717,12 +717,19 @@
 					alt_text:      currentEditedValue,
 				};
 			} else {
+				// v4.1.1: pass context_snippet through to apply so the impl can resolve
+				// the phrase's RAW-content position via the locator (the suggestInput
+				// position is in stripped-content coords from the scan — apply can't
+				// use it directly for raw post_content). Also use the position
+				// returned by Suggest (raw coords as of v4.1.1) rather than
+				// suggestInput.position (stripped coords from scan).
 				applyInput = {
-					post_id:     suggestInput.post_id,
-					phrase:      suggestInput.phrase,
-					position:    suggestInput.position,
-					replacement: currentEditedValue,
-					fingerprint: suggestRes.fingerprint,
+					post_id:         suggestInput.post_id,
+					phrase:          suggestInput.phrase,
+					position:        ( suggestRes && typeof suggestRes.position === 'number' ) ? suggestRes.position : suggestInput.position,
+					replacement:     currentEditedValue,
+					fingerprint:     suggestRes.fingerprint,
+					context_snippet: suggestInput.context_snippet || '',
 				};
 			}
 

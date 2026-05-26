@@ -64,27 +64,127 @@ function snt_ai_drift_fingerprint( $post_content, $phrase, $position ) {
 }
 
 /**
+ * Locate $phrase in $raw_content at the position whose surroundings best
+ * match $context_snippet.
+ *
+ * The extractor (`sn_health_extract_time_phrase_candidates`) operates on
+ * STRIPPED content — `strip_shortcodes()` + `wp_strip_all_tags()`. Its
+ * reported byte offsets do NOT line up with raw `post_content` byte offsets
+ * for any post containing block markup or shortcodes. v4.0.0 through v4.1.0
+ * mistakenly used the stored offsets directly against raw content, which
+ * meant Suggest+Apply produced `snt_ai_phrase_drifted` (409) for every
+ * Gutenberg post — silently broken since v4.0.0. v4.1.1 fix: resolve the
+ * raw-content offset dynamically, treating the stored `position` as advisory
+ * only.
+ *
+ * Algorithm:
+ * - If $phrase occurs once in raw content → return that offset (fast path).
+ * - If it occurs multiple times → for each occurrence, strip a 200-char
+ *   window around it the same way the extractor does, then score similarity
+ *   against $context_snippet. The highest-similarity occurrence wins.
+ * - If it doesn't occur → return -1 (caller surfaces a 409 drift error).
+ *
+ * @param string $raw_content     Raw post_content (may contain block markup, shortcodes, HTML).
+ * @param string $phrase          The phrase as captured by the extractor.
+ * @param string $context_snippet ~200 chars from stripped content around the phrase (from scan).
+ * @return int                    Byte offset in $raw_content, or -1 if not found.
+ *
+ * @since 4.1.1
+ */
+function snt_ai_drift_locate_in_raw( $raw_content, $phrase, $context_snippet ) {
+	$raw_content = (string) $raw_content;
+	$phrase      = (string) $phrase;
+	if ( '' === $phrase ) {
+		return -1;
+	}
+
+	$first = strpos( $raw_content, $phrase );
+	if ( false === $first ) {
+		return -1;
+	}
+	$second = strpos( $raw_content, $phrase, $first + strlen( $phrase ) );
+	if ( false === $second ) {
+		// Unambiguous — only one occurrence.
+		return $first;
+	}
+
+	// Multiple occurrences. Disambiguate by similarity of stripped surroundings
+	// to $context_snippet.
+	$snippet_norm = snt_ai_drift_normalize_for_compare( (string) $context_snippet );
+	if ( '' === $snippet_norm ) {
+		// No context to disambiguate with — return first occurrence (least surprising fallback).
+		return $first;
+	}
+
+	$best_pos   = $first;
+	$best_score = -1;
+	$pos        = 0;
+	$plen       = strlen( $phrase );
+
+	while ( false !== ( $pos = strpos( $raw_content, $phrase, $pos ) ) ) {
+		$start  = max( 0, $pos - 80 );
+		$window = substr( $raw_content, $start, 200 );
+
+		if ( function_exists( 'strip_shortcodes' ) ) {
+			$window = strip_shortcodes( $window );
+		}
+		$window      = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $window ) : strip_tags( $window );
+		$window_norm = snt_ai_drift_normalize_for_compare( $window );
+
+		// similar_text returns common-char count; higher = better match.
+		$score = 0;
+		if ( '' !== $window_norm ) {
+			similar_text( $snippet_norm, $window_norm, $pct );
+			$score = (int) ( $pct * 100 );
+		}
+		if ( $score > $best_score ) {
+			$best_score = $score;
+			$best_pos   = $pos;
+		}
+		$pos += $plen;
+	}
+
+	return $best_pos;
+}
+
+/**
+ * Normalize a string for similarity comparison: collapse whitespace, trim.
+ * Keeps unicode characters intact (no `sanitize_text_field` — that strips
+ * em-dashes and curly quotes).
+ *
+ * @param string $str
+ * @return string
+ *
+ * @since 4.1.1
+ */
+function snt_ai_drift_normalize_for_compare( $str ) {
+	return trim( preg_replace( '/\s+/u', ' ', (string) $str ) );
+}
+
+/**
  * Pure impl: generate a replacement phrase for a drifted time-phrase.
  *
- * Pre-flight: verifies the phrase still exists at $position in current
- * post_content. If not, returns snt_ai_phrase_drifted WITHOUT calling AI
- * (cheaper than calling AI then discovering the post moved).
+ * Pre-flight: resolves the phrase's RAW-content position via
+ * `snt_ai_drift_locate_in_raw()` (the stored `$position` from the extractor
+ * is in STRIPPED-content coordinates and cannot be used directly — see the
+ * locator's docblock for the v4.1.1 fix history). The returned response's
+ * `position` field is the RAW-content offset, which Apply must use.
  *
  * @param int    $post_id
  * @param string $phrase          Original phrase (e.g., "recently")
- * @param int    $position        Byte offset in post_content
- * @param string $context_snippet ~200 chars around phrase (from scan)
+ * @param int    $position        Byte offset in STRIPPED content from extractor (advisory).
+ * @param string $context_snippet ~200 chars around phrase (from scan) — used to disambiguate.
  * @return array{ok:bool,suggestion:string,fingerprint:string,post_id:int,position:int}|WP_Error
  *
  * WP_Error codes:
  *   snt_ai_unavailable
  *   snt_ai_post_not_found  (404)
- *   snt_ai_phrase_drifted  (409) — phrase no longer at position
+ *   snt_ai_phrase_drifted  (409) — phrase no longer present in post_content
  *   snt_ai_no_replacement  (422) — AI returned PHRASE_NO_REPLACEMENT marker
  *   snt_ai_runtime_error
  *   snt_ai_empty_response
  *
- * @since 4.0.0
+ * @since 4.0.0 (4.1.1 fix: dynamic raw-position resolution)
  */
 function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snippet ) {
 	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
@@ -92,7 +192,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	}
 
 	$post_id  = (int) $post_id;
-	$position = (int) $position;
+	$position = (int) $position; // Advisory — from extractor in stripped coords; not used directly.
 	$phrase   = (string) $phrase;
 
 	$post = get_post( $post_id );
@@ -100,13 +200,14 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-noise-tools' ), array( 'status' => 404 ) );
 	}
 
-	// Pre-flight: phrase must still exist at the recorded position.
+	// Pre-flight: phrase must still exist somewhere in raw post_content.
+	// Resolve the RAW offset (extractor's stored $position is in stripped coords).
 	$current_content = (string) $post->post_content;
-	$at_position     = substr( $current_content, $position, strlen( $phrase ) );
-	if ( $at_position !== $phrase ) {
+	$raw_position    = snt_ai_drift_locate_in_raw( $current_content, $phrase, (string) $context_snippet );
+	if ( -1 === $raw_position ) {
 		return new WP_Error(
 			'snt_ai_phrase_drifted',
-			__( 'Phrase no longer at the recorded position — post was edited since the scan. Re-run the scan to refresh.', 'signal-noise-tools' ),
+			__( 'Phrase no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-noise-tools' ),
 			array( 'status' => 409 )
 		);
 	}
@@ -138,41 +239,46 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	return array(
 		'ok'          => true,
 		'suggestion'  => $suggestion,
-		'fingerprint' => snt_ai_drift_fingerprint( $current_content, $phrase, $position ),
+		'fingerprint' => snt_ai_drift_fingerprint( $current_content, $phrase, $raw_position ),
 		'post_id'     => $post_id,
-		'position'    => $position,
+		'position'    => $raw_position, // RAW offset, not the extractor's stripped-coords offset.
 	);
 }
 
 /**
  * Pure impl: replace a drifted phrase in post_content.
  *
- * Atomicity: loads current post_content, validates fingerprint + phrase
- * still at position, splices in $replacement, calls wp_update_post() with
- * the wp_error flag.
+ * Atomicity: loads current post_content, resolves the phrase's RAW-content
+ * position via `snt_ai_drift_locate_in_raw()` (the client-passed `$position`
+ * is the value returned by Suggest, which is also RAW-coords as of v4.1.1;
+ * we re-resolve here for defense-in-depth against any future client drift).
+ * Validates fingerprint at the resolved position, splices in $replacement,
+ * calls wp_update_post() with the wp_error flag.
  *
  * @param int    $post_id
- * @param string $phrase       Original phrase (must still match at $position)
- * @param int    $position     Byte offset
- * @param string $replacement  AI suggestion (possibly user-edited; max length enforced)
- * @param string $fingerprint  md5 from Suggest response — must still match current state
+ * @param string $phrase           Original phrase
+ * @param int    $position         Byte offset returned by Suggest (raw coords; advisory — re-resolved here).
+ * @param string $replacement      AI suggestion (possibly user-edited; max length enforced)
+ * @param string $fingerprint      md5 from Suggest response — must still match current state
+ * @param string $context_snippet  ~200 chars around phrase from scan — used to disambiguate phrase occurrences. Required since 4.1.1.
  * @return array{ok:bool,post_id:int,replaced:string,with:string}|WP_Error
  *
  * WP_Error codes:
  *   snt_ai_post_not_found      (404)
- *   snt_ai_apply_conflict      (409) — fingerprint mismatch (post changed)
+ *   snt_ai_apply_conflict      (409) — fingerprint mismatch (post changed) OR phrase gone
  *   snt_ai_replacement_invalid (422) — empty / too-long / contains HTML
  *   snt_ai_capability          (403)
  *   snt_ai_write_failed        (500)
  *
- * @since 4.0.0
+ * @since 4.0.0 (4.1.1 fix: dynamic raw-position resolution via context_snippet)
  */
-function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint ) {
-	$post_id     = (int) $post_id;
-	$position    = (int) $position;
-	$phrase      = (string) $phrase;
-	$replacement = trim( (string) $replacement );
-	$fingerprint = (string) $fingerprint;
+function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '' ) {
+	$post_id         = (int) $post_id;
+	$position        = (int) $position; // Advisory — re-resolved below.
+	$phrase          = (string) $phrase;
+	$replacement     = trim( (string) $replacement );
+	$fingerprint     = (string) $fingerprint;
+	$context_snippet = (string) $context_snippet;
 
 	if ( '' === $replacement ) {
 		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement is empty.', 'signal-noise-tools' ), array( 'status' => 422 ) );
@@ -195,20 +301,22 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 
 	$current_content = (string) $post->post_content;
 
-	// Fingerprint must still match.
-	$current_fp = snt_ai_drift_fingerprint( $current_content, $phrase, $position );
+	// Re-resolve the raw-content position. The client-passed $position should
+	// already be in raw coords (returned by v4.1.1+ Suggest), but we re-resolve
+	// for defense-in-depth (e.g., post edited between suggest and apply).
+	$raw_position = snt_ai_drift_locate_in_raw( $current_content, $phrase, $context_snippet );
+	if ( -1 === $raw_position ) {
+		return new WP_Error( 'snt_ai_apply_conflict', __( 'Phrase no longer present in post content. Re-run scan.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+	}
+
+	// Fingerprint must still match at the resolved position.
+	$current_fp = snt_ai_drift_fingerprint( $current_content, $phrase, $raw_position );
 	if ( $current_fp !== $fingerprint ) {
 		return new WP_Error( 'snt_ai_apply_conflict', __( 'Post changed since scan. Re-run scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
 	}
 
-	// Defense in depth: phrase still at position byte-for-byte.
-	$at_position = substr( $current_content, $position, strlen( $phrase ) );
-	if ( $at_position !== $phrase ) {
-		return new WP_Error( 'snt_ai_apply_conflict', __( 'Phrase no longer at recorded position. Re-run scan.', 'signal-noise-tools' ), array( 'status' => 409 ) );
-	}
-
-	// Splice.
-	$new_content = substr_replace( $current_content, $replacement, $position, strlen( $phrase ) );
+	// Splice at the resolved raw-content position.
+	$new_content = substr_replace( $current_content, $replacement, $raw_position, strlen( $phrase ) );
 
 	$result = wp_update_post( array(
 		'ID'           => $post_id,
@@ -232,6 +340,27 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
  * JS clients use the Abilities API REST surface via wp.apiFetch.
  * ════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * v4.1.1: minimal sanitizer for prose strings (phrase, context_snippet,
+ * replacement). `sanitize_text_field` is too aggressive — it strips
+ * sequences that decode to em-dashes / curly quotes / unusual whitespace
+ * via its octet-removal step, which then breaks the byte-exact comparison
+ * against raw post_content. We only need: strip HTML tags + clean invalid
+ * UTF-8. Length/HTML validation happens inside the impl.
+ *
+ * @param mixed $val
+ * @return string
+ *
+ * @since 4.1.1
+ */
+function snt_ai_drift_sanitize_prose( $val ) {
+	$val = (string) $val;
+	if ( function_exists( 'wp_check_invalid_utf8' ) ) {
+		$val = wp_check_invalid_utf8( $val );
+	}
+	return function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $val ) : strip_tags( $val );
+}
+
 add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/drift-suggest', array(
 		'methods'             => 'POST',
@@ -250,9 +379,9 @@ add_action( 'rest_api_init', function() {
 		},
 		'args' => array(
 			'post_id'         => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'phrase'          => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+			'phrase'          => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
 			'position'        => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'context_snippet' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+			'context_snippet' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
 		),
 	) );
 
@@ -264,7 +393,8 @@ add_action( 'rest_api_init', function() {
 				(string) $request->get_param( 'phrase' ),
 				(int) $request->get_param( 'position' ),
 				(string) $request->get_param( 'replacement' ),
-				(string) $request->get_param( 'fingerprint' )
+				(string) $request->get_param( 'fingerprint' ),
+				(string) $request->get_param( 'context_snippet' )
 			);
 			if ( is_wp_error( $result ) ) { return $result; }
 			return rest_ensure_response( $result );
@@ -273,11 +403,12 @@ add_action( 'rest_api_init', function() {
 			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
 		},
 		'args' => array(
-			'post_id'     => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'phrase'      => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'position'    => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'replacement' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'fingerprint' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+			'post_id'         => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
+			'phrase'          => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
+			'position'        => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
+			'replacement'     => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
+			'fingerprint'     => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+			'context_snippet' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
 		),
 	) );
 } );

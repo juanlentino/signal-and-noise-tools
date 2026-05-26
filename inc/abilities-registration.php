@@ -1054,7 +1054,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/ai-drift-apply', array(
 		'label'               => 'Apply replacement for a drifted time-phrase',
-		'description'         => 'Replaces a drifted phrase in post_content at a known position with a (possibly user-edited) replacement string. Gated on a fingerprint match against current post_content to detect concurrent edits since the suggest call. Destructive — writes via wp_update_post().',
+		'description'         => 'Replaces a drifted phrase in post_content with a (possibly user-edited) replacement string. The phrase\'s RAW-content position is resolved at runtime via the context_snippet (the stored position from scan is in stripped-content coords; using it directly broke Apply for Gutenberg posts pre-v4.1.1). Gated on a fingerprint match against current post_content to detect concurrent edits since the suggest call. Destructive — writes via wp_update_post().',
 		'category'            => 'ai-generation',
 		'permission_callback' => function( $input ) {
 			$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
@@ -1063,13 +1063,14 @@ add_action( 'wp_abilities_api_init', function() {
 		'execute_callback'    => 'snt_ability_ai_drift_apply',
 		'input_schema'        => array(
 			'type'                 => 'object',
-			'required'             => array( 'post_id', 'phrase', 'position', 'replacement', 'fingerprint' ),
+			'required'             => array( 'post_id', 'phrase', 'position', 'replacement', 'fingerprint', 'context_snippet' ),
 			'properties'           => array(
-				'post_id'     => array( 'type' => 'integer', 'minimum' => 1, 'examples' => array( 42 ) ),
-				'phrase'      => array( 'type' => 'string', 'minLength' => 1, 'examples' => array( 'recently' ) ),
-				'position'    => array( 'type' => 'integer', 'minimum' => 0, 'examples' => array( 145 ) ),
-				'replacement' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 200, 'examples' => array( 'in early 2025' ) ),
-				'fingerprint' => array( 'type' => 'string', 'minLength' => 32, 'maxLength' => 32, 'description' => 'md5 hash from the matching suggest call.', 'examples' => array( 'a1b2c3d4e5f6789012345678901234ab' ) ),
+				'post_id'         => array( 'type' => 'integer', 'minimum' => 1, 'examples' => array( 42 ) ),
+				'phrase'          => array( 'type' => 'string', 'minLength' => 1, 'examples' => array( 'recently' ) ),
+				'position'        => array( 'type' => 'integer', 'minimum' => 0, 'description' => 'Raw-content byte offset from the matching suggest call. Advisory — re-resolved at apply time via context_snippet.', 'examples' => array( 145 ) ),
+				'replacement'     => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 200, 'examples' => array( 'in early 2025' ) ),
+				'fingerprint'     => array( 'type' => 'string', 'minLength' => 32, 'maxLength' => 32, 'description' => 'md5 hash from the matching suggest call.', 'examples' => array( 'a1b2c3d4e5f6789012345678901234ab' ) ),
+				'context_snippet' => array( 'type' => 'string', 'description' => '~200 chars around the phrase from the scan. Used at apply time to disambiguate which occurrence of $phrase to replace when the phrase appears multiple times in the post.', 'examples' => array( 'we recently shipped a new feature that' ) ),
 			),
 			'additionalProperties' => false,
 		),
@@ -1595,7 +1596,8 @@ function snt_ability_ai_drift_apply( $input ) {
 		(string) $input['phrase'],
 		(int) $input['position'],
 		(string) $input['replacement'],
-		(string) $input['fingerprint']
+		(string) $input['fingerprint'],
+		(string) ( $input['context_snippet'] ?? '' )
 	);
 }
 

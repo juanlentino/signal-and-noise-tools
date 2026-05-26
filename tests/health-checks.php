@@ -402,5 +402,48 @@ $GLOBALS['__test_transients'][ $cache_key ]['prompt_version'] = 'stale-md5';
 $res3 = snt_ai_orphan_suggest_impl( 555 );
 hc_eq( 2, $GLOBALS['__test_ai_call_count'], 'prompt_version mismatch: AI call count = 2' );
 
+// ─── Test: drift locator handles Gutenberg block markup (v4.1.1 B-01 regression test) ───
+//
+// Pre-v4.1.1 bug: extractor reported stripped-content offsets; apply impl used
+// them against raw post_content. For any post with block markup before the
+// phrase, the stripped offset was smaller than the raw offset → preflight always
+// failed with 409. snt_ai_drift_locate_in_raw() resolves the raw offset
+// dynamically using context_snippet — this test guards the regression.
+
+require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
+
+echo "\nTest: snt_ai_drift_locate_in_raw — Gutenberg block markup\n";
+
+$gutenberg_content = "<!-- wp:paragraph -->\n<p>Some intro text without the phrase.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>We recently shipped a new feature that customers love.</p>\n<!-- /wp:paragraph -->";
+
+// Extract candidates from the SAME content (as the scan would).
+$candidates = sn_health_extract_time_phrase_candidates( $gutenberg_content );
+hc_true( count( $candidates ) >= 1, 'gutenberg: extractor found at least one candidate' );
+$cand = $candidates[0];
+hc_eq( 'recently', $cand['phrase'], 'gutenberg: first candidate phrase is "recently"' );
+
+// The bug: cand['position'] is in stripped coords. substr(raw, position, len(phrase))
+// would NOT equal "recently" for this content. Verify the bug exists at the
+// data-shape level (so we know the test fixture is realistic).
+$at_stripped_offset = substr( $gutenberg_content, $cand['position'], strlen( $cand['phrase'] ) );
+hc_true( $at_stripped_offset !== $cand['phrase'], 'gutenberg: stripped-coords position does NOT match raw content (confirms pre-v4.1.1 bug shape)' );
+
+// The fix: snt_ai_drift_locate_in_raw resolves the raw offset.
+$raw_pos = snt_ai_drift_locate_in_raw( $gutenberg_content, $cand['phrase'], $cand['context_snippet'] );
+hc_true( $raw_pos >= 0, 'gutenberg locator: returned a valid raw offset (not -1)' );
+$at_raw_offset = substr( $gutenberg_content, $raw_pos, strlen( $cand['phrase'] ) );
+hc_eq( 'recently', $at_raw_offset, 'gutenberg locator: phrase IS at the resolved raw offset' );
+
+// Disambiguation: same phrase appearing twice. Locator should pick the one
+// whose surroundings best match context_snippet.
+$dup_content = "<!-- wp:paragraph -->\n<p>We recently shipped feature A.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Customers recently asked for feature B.</p>\n<!-- /wp:paragraph -->";
+$snippet_b   = 'Customers recently asked for feature B.';
+$pos_b       = snt_ai_drift_locate_in_raw( $dup_content, 'recently', $snippet_b );
+hc_true( $pos_b > strpos( $dup_content, 'recently shipped' ), 'gutenberg disambiguation: snippet_b locator picks the SECOND occurrence (further into the content)' );
+
+// Phrase not present → -1.
+$gone = snt_ai_drift_locate_in_raw( "<p>nothing here</p>", 'recently', 'we recently shipped' );
+hc_eq( -1, $gone, 'gutenberg locator: returns -1 when phrase absent (drift signal)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

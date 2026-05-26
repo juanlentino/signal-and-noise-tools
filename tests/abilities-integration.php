@@ -266,7 +266,9 @@ if ( ! function_exists( 'snt_ai_drift_suggest_impl' ) ) {
 	}
 }
 if ( ! function_exists( 'snt_ai_drift_apply_impl' ) ) {
-	function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint ) {
+	// v4.1.1: signature gained $context_snippet (6th param) to support raw-position
+	// resolution at apply time. Default empty string keeps pre-4.1.1 callers compatible.
+	function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '' ) {
 		if ( 'badfingerprint' === $fingerprint ) {
 			return new WP_Error( 'snt_ai_apply_conflict', 'Fingerprint mismatch.', array( 'status' => 409 ) );
 		}
@@ -896,12 +898,15 @@ ap_true( is_wp_error( $res ), 'ai-drift-suggest: missing phrase → WP_Error' );
 ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-drift-suggest: rest_invalid_param code' );
 
 // ── ai-drift-apply — happy path ─────────────────────────────────────
+// v4.1.1: context_snippet is now required (used by the impl to resolve raw
+// post_content position via the locator). Test fixture forwards it unchanged.
 $apply_input = array(
-	'post_id'     => 200,
-	'phrase'      => 'recently',
-	'position'    => 145,
-	'replacement' => 'in early 2025',
-	'fingerprint' => 'goodfingerprint000000000000000000',
+	'post_id'         => 200,
+	'phrase'          => 'recently',
+	'position'        => 145,
+	'replacement'     => 'in early 2025',
+	'fingerprint'     => 'goodfingerprint000000000000000000',
+	'context_snippet' => 'we recently shipped a new feature that',
 );
 $out = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $apply_input );
 ap_true( is_array( $out ) && isset( $out['ok'], $out['replaced'], $out['with'] ), 'ai-drift-apply: required keys' );
@@ -912,6 +917,13 @@ $conflict_input = array_merge( $apply_input, array( 'fingerprint' => 'badfingerp
 $res = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $conflict_input );
 ap_true( is_wp_error( $res ), 'ai-drift-apply: fingerprint mismatch → WP_Error' );
 ap_eq( 'snt_ai_apply_conflict', $res->get_error_code(), 'ai-drift-apply: snt_ai_apply_conflict code' );
+
+// ── ai-drift-apply — missing context_snippet → schema validation (v4.1.1) ──
+$missing_ctx_input = $apply_input;
+unset( $missing_ctx_input['context_snippet'] );
+$res = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $missing_ctx_input );
+ap_true( is_wp_error( $res ), 'ai-drift-apply: missing context_snippet → WP_Error' );
+ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-drift-apply: rest_invalid_param code (v4.1.1 schema)' );
 
 // ── ai-alt-inline-suggest — happy path ──────────────────────────────
 $inline_input = array(
