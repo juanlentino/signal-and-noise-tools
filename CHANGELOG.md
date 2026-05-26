@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.3] - 2026-05-25
+
+Structural refactor — single-concern follow-up to v4.1.2 closing audit finding **B-11** (the file-size violation that affected `inc/abilities-registration.php` at 1660 lines / 11× the CLAUDE.md 150-line guideline). The monolith is now a 55-line orchestrator that requires 8 per-feature ability files. All 28 abilities still register identically; the abilities-integration test stays 157/0.
+
+### Changed
+
+- **`inc/abilities-registration.php`: 1660 → 55 lines (97% reduction).** Now a thin orchestrator that `require_once`s the 8 split files plus a named-helper file. Bootstrap require at [`signal-and-noise-tools.php:155`](signal-and-noise-tools.php) is unchanged — drop-in swap.
+- **Per-feature ability files added under `inc/`:**
+  - [`abilities-permission-helpers.php`](inc/abilities-permission-helpers.php) (87 LOC) — 4 named callables (`snt_ability_perm_manage_options/_edit_post/_edit_attachment/_delete_attachment`) replacing ~12 inline closure copies. Permission audits now read from a single file.
+  - [`abilities-categories.php`](inc/abilities-categories.php) (73 LOC) — 5 ability category registrations on `wp_abilities_api_categories_init`, each guarded by `wp_has_ability_category()` (X-02 from v4.1.1 retained).
+  - [`abilities-system.php`](inc/abilities-system.php) (344 LOC) — 6 abilities: purge-all-caches, clear-template-overrides, list-template-overrides, full-reset, force-check-updates, get-deploy-status.
+  - [`abilities-content.php`](inc/abilities-content.php) (167 LOC) — 2 abilities: regenerate-og-card, get-rss-stats.
+  - [`abilities-cron.php`](inc/abilities-cron.php) (277 LOC) — 4 abilities: list-cron-events, get-cron-event, get-cron-history, unschedule-cron-event.
+  - [`abilities-insights.php`](inc/abilities-insights.php) (128 LOC) — 2 abilities: run-insights-scan, get-insights.
+  - [`abilities-audit.php`](inc/abilities-audit.php) (194 LOC) — 4 abilities: get-audit-summary, get-audit-counters, get-audit-login-successes, run-audit-prune.
+  - [`abilities-ai-post-editor.php`](inc/abilities-ai-post-editor.php) (172 LOC) — 3 abilities: ai-generate-meta-description, ai-generate-og-card-title, ai-generate-excerpt.
+  - [`abilities-ai-health.php`](inc/abilities-ai-health.php) (412 LOC) — 7 abilities: ai-alt-suggest/apply, ai-drift-suggest/apply, ai-alt-inline-suggest, ai-orphan-suggest/apply.
+
+### Architectural notes
+
+- WordPress's `add_action()` queues all callbacks for a hook regardless of registration order, so splitting one `wp_abilities_api_init` action into 8 parallel ones is semantically identical to the original.
+- The named-permission-helper pattern means future security reviews can `grep -r "snt_ability_perm_"` to enumerate every permission rule in one place rather than reading 28 ability registration blocks.
+- Each split file follows the same shape: docblock → ABSPATH guard → `add_action(..., function() { ... wp_register_ability(...); ... })` → impl wrapper functions co-located outside the action callback.
+- Largest remaining file (`abilities-ai-health.php` at 412 LOC) still exceeds the 150-line guideline but is 4× smaller than the original monolith. Further splitting (per-feature pairs like alt-suggest/apply) was rejected: the 7 abilities share an underlying mental model (Health-tab Suggest+Apply UX) and splitting further would fragment the per-ability docblocks.
+
+### Audit provenance
+
+Closes audit finding B-11 (file-size violation, plugin-side). The companion theme refactor (1814-line `inc/abilities-registration.php` in the theme repo) ships as v9.1.7.
+
+**v4.x cap state:** patches **3/7** in v4.1.x · minors 2/5 in v4.x.
+
+**Verification:** `php tests/abilities-integration.php` → 157/0 (every dispatched ability still routes identically) · `php tests/health-checks.php` → 76/0. No PHP-side behavioral change.
+
 ## [4.1.2] - 2026-05-25
 
 Polish release — single-concern follow-up to v4.1.1's audit. Headline: the Health-tab Apply preview modal and the shared `sntConfirm` dialog rendered every visual property via inline `setAttribute('style', …)` strings (~50 calls combined across two files). All chrome is now CSS-driven, leaving only genuinely-dynamic styling inline.
