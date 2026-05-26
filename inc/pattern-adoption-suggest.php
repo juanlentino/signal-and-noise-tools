@@ -120,12 +120,21 @@ function snt_pattern_adoption_find_block( $tree, $fingerprint ) {
 /**
  * Build the pull-quote pattern's block markup from a source core/quote.
  *
+ * Mirrors signal-and-noise/patterns/pull-quote.php (theme v9.2.0+).
+ * If theme redesigns the pattern, update this template in lockstep.
+ *
  * Source structure:
  *   core/quote
- *     ├── core/paragraph (innerHTML = "<p>text</p>")
+ *     ├── core/paragraph[] (innerHTML = "<p>text</p>")
  *     └── (optional) <cite> in the wrapper's innerHTML
  *
- * Target: the signal-noise/pull-quote pattern's block markup.
+ * Target: a wp:group (sn-pattern-pull-quote, tagName=aside) containing
+ * a wp:paragraph (sn-pull-quote__body) and an optional wp:paragraph
+ * (sn-pull-quote__attribution). NOT wp:signal-noise/pull-quote — that
+ * was a pattern slug, not a block type.
+ *
+ * Inline formatting (<strong>, <em>, <a>, <code>) is preserved via
+ * wp_kses allowlist.
  *
  * @param array $quote_block
  * @return string
@@ -133,37 +142,67 @@ function snt_pattern_adoption_find_block( $tree, $fingerprint ) {
  * @since 4.3.0
  */
 function snt_pattern_adoption_build_pull_quote_markup( $quote_block ) {
-	// Extract paragraph text from innerBlocks.
-	$paragraph_text = '';
+	$allowed_inline = array(
+		'strong' => array(),
+		'em'     => array(),
+		'a'      => array( 'href' => true ),
+		'code'   => array(),
+	);
+
+	// Extract body text from core/quote's core/paragraph innerBlocks,
+	// preserving inline formatting.
+	$body_html = '';
 	foreach ( ( $quote_block['innerBlocks'] ?? array() ) as $inner ) {
 		if ( 'core/paragraph' === ( $inner['blockName'] ?? '' ) ) {
-			$paragraph_text .= ' ' . strip_tags( $inner['innerHTML'] ?? '' );
+			$inner_html = (string) ( $inner['innerHTML'] ?? '' );
+			// Strip <p> wrapper, preserve inline content.
+			$inner_html = preg_replace( '~^\s*<p[^>]*>~i', '', (string) $inner_html );
+			$inner_html = preg_replace( '~</p>\s*$~i', '', (string) $inner_html );
+			$body_html .= ' ' . wp_kses( (string) $inner_html, $allowed_inline );
 		}
 	}
-	$paragraph_text = trim( $paragraph_text );
+	$body_html = trim( $body_html );
 
-	// Extract optional <cite> from the wrapper innerHTML.
-	$cite = '';
+	// Extract optional <cite> from the wrapper innerHTML. First-cite wins;
+	// nested or multiple cites collapse to the first match's text.
+	$cite_html = '';
 	if ( preg_match( '~<cite[^>]*>(.*?)</cite>~is', (string) ( $quote_block['innerHTML'] ?? '' ), $m ) ) {
-		$cite = trim( strip_tags( $m[1] ) );
+		$cite_html = trim( wp_kses( $m[1], $allowed_inline ) );
 	}
 
-	$paragraph_html = '<p>' . htmlspecialchars( $paragraph_text, ENT_QUOTES, 'UTF-8' ) . '</p>';
-	$cite_html      = '' !== $cite ? '<p class="sn-pull-quote__attribution">' . htmlspecialchars( $cite, ENT_QUOTES, 'UTF-8' ) . '</p>' : '';
+	// Build target markup. Attribution paragraph OMITTED if no <cite>.
+	$markup  = "<!-- wp:group {\"className\":\"sn-pattern-pull-quote\",\"tagName\":\"aside\",\"layout\":{\"type\":\"constrained\"}} -->\n";
+	$markup .= "<aside class=\"wp-block-group sn-pattern-pull-quote\">\n";
+	$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__body\"} -->\n";
+	$markup .= "<p class=\"sn-pull-quote__body\">{$body_html}</p>\n";
+	$markup .= "<!-- /wp:paragraph -->\n";
+	if ( '' !== $cite_html ) {
+		$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__attribution\"} -->\n";
+		$markup .= "<p class=\"sn-pull-quote__attribution\">{$cite_html}</p>\n";
+		$markup .= "<!-- /wp:paragraph -->\n";
+	}
+	$markup .= "</aside>\n";
+	$markup .= "<!-- /wp:group -->";
 
-	return sprintf(
-		'<!-- wp:signal-noise/pull-quote -->%s%s<!-- /wp:signal-noise/pull-quote -->',
-		"\n" . $paragraph_html . "\n",
-		'' !== $cite_html ? $cite_html . "\n" : ''
-	);
+	return $markup;
 }
 
 /**
  * Build the steps-enumerated pattern's block markup from a source
  * ordered core/list.
  *
- * Source: core/list (attrs.ordered=true) containing core/list-item children.
- * Target: the signal-noise/steps-enumerated pattern markup.
+ * Mirrors signal-and-noise/patterns/steps-enumerated.php (theme v9.2.0+).
+ * The pattern's label paragraph (<p class="sn-steps__label">) is
+ * intentionally OMITTED — source core/list has no concept of a label,
+ * and inventing one would inject editorial content. User adds a label
+ * manually after apply if desired.
+ *
+ * Target: wp:group (sn-pattern-steps-enumerated) containing wp:list
+ * (ordered, sn-steps__list) with wp:list-item children. NOT
+ * wp:signal-noise/steps-enumerated — that was a pattern slug.
+ *
+ * Inline formatting (<strong>, <em>, <a>, <code>) in list items is
+ * preserved via wp_kses allowlist.
  *
  * @param array $list_block
  * @return string
@@ -171,22 +210,39 @@ function snt_pattern_adoption_build_pull_quote_markup( $quote_block ) {
  * @since 4.3.0
  */
 function snt_pattern_adoption_build_steps_enumerated_markup( $list_block ) {
+	$allowed_inline = array(
+		'strong' => array(),
+		'em'     => array(),
+		'a'      => array( 'href' => true ),
+		'code'   => array(),
+	);
+
 	$items_html = '';
 	foreach ( ( $list_block['innerBlocks'] ?? array() ) as $inner ) {
 		if ( 'core/list-item' === ( $inner['blockName'] ?? '' ) ) {
-			// Strip the outer <li> wrapper from innerHTML; we re-wrap below.
-			$text = trim( strip_tags( $inner['innerHTML'] ?? '', '<strong><em><a><code>' ) );
-			// Defensive: remove leftover <li> tags that strip_tags whitelist didn't catch.
-			$text = preg_replace( '~^\s*<li[^>]*>~i', '', (string) $text );
-			$text = preg_replace( '~</li>\s*$~i', '', (string) $text );
-			$items_html .= '<li>' . htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' ) . "</li>\n";
+			$inner_html = (string) ( $inner['innerHTML'] ?? '' );
+			// Strip <li> wrapper, preserve inline content.
+			$inner_html = preg_replace( '~^\s*<li[^>]*>~i', '', (string) $inner_html );
+			$inner_html = preg_replace( '~</li>\s*$~i', '', (string) $inner_html );
+			$cleaned    = trim( wp_kses( (string) $inner_html, $allowed_inline ) );
+
+			$items_html .= "<!-- wp:list-item -->\n";
+			$items_html .= "<li>{$cleaned}</li>\n";
+			$items_html .= "<!-- /wp:list-item -->\n";
 		}
 	}
 
-	return sprintf(
-		'<!-- wp:signal-noise/steps-enumerated --><ol class="sn-steps-enumerated">%s</ol><!-- /wp:signal-noise/steps-enumerated -->',
-		"\n" . $items_html
-	);
+	$markup  = "<!-- wp:group {\"className\":\"sn-pattern-steps-enumerated\",\"layout\":{\"type\":\"constrained\"}} -->\n";
+	$markup .= "<div class=\"wp-block-group sn-pattern-steps-enumerated\">\n";
+	$markup .= "<!-- wp:list {\"ordered\":true,\"className\":\"sn-steps__list\"} -->\n";
+	$markup .= "<ol class=\"wp-block-list sn-steps__list\">\n";
+	$markup .= $items_html;
+	$markup .= "</ol>\n";
+	$markup .= "<!-- /wp:list -->\n";
+	$markup .= "</div>\n";
+	$markup .= "<!-- /wp:group -->";
+
+	return $markup;
 }
 
 /* ════════════════════════════════════════════════════════════════════════

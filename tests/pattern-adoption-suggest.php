@@ -40,6 +40,21 @@ if ( ! function_exists( 'rest_ensure_response' ) ) {
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $domain = '' ) { return $s; }
 }
+if ( ! function_exists( 'wp_kses' ) ) {
+	// Test stub: minimal HTML allowlist enforcement. For testing the
+	// builders, we just strip everything not in the allowed-tags array
+	// keys. Real WP wp_kses does much more (attribute validation, etc.);
+	// for these tests, "preserve <strong>/<em>/<a>/<code>, drop the rest"
+	// is enough.
+	function wp_kses( $content, $allowed_html ) {
+		$keep = array_keys( (array) $allowed_html );
+		$allow_str = '';
+		foreach ( $keep as $tag ) {
+			$allow_str .= '<' . $tag . '>';
+		}
+		return strip_tags( (string) $content, $allow_str );
+	}
+}
 
 // Minimal stub so the REST callback's type-hint resolves at file load.
 if ( ! class_exists( 'WP_REST_Request' ) ) {
@@ -103,10 +118,13 @@ $fp = md5( serialize_block( $quote_block ) );
 $result = snt_ai_pattern_adoption_suggest_impl( 201, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 1.1: result is array (not WP_Error)' );
 ps_true( ! empty( $result['suggestion_markup'] ), 'Test 1.2: suggestion_markup non-empty' );
-ps_contains( $result['suggestion_markup'], 'wp:signal-noise/pull-quote', 'Test 1.3: suggestion uses pull-quote pattern block markup' );
-ps_contains( $result['suggestion_markup'], 'always loses on cost', 'Test 1.4: original quote text preserved in suggestion' );
-ps_eq( 'pull-quote', $result['pattern_type'], 'Test 1.5: pattern_type echoed back' );
-ps_eq( $fp, $result['fingerprint'], 'Test 1.6: fingerprint echoed back' );
+ps_contains( $result['suggestion_markup'], 'sn-pattern-pull-quote', 'Test 1.3: suggestion uses sn-pattern-pull-quote className' );
+ps_contains( $result['suggestion_markup'], 'sn-pull-quote__body', 'Test 1.4: body paragraph className present' );
+ps_contains( $result['suggestion_markup'], 'always loses on cost', 'Test 1.5: original quote text preserved in suggestion' );
+ps_contains( $result['suggestion_markup'], 'sn-pull-quote__attribution', 'Test 1.6: attribution paragraph present (fixture has cite)' );
+ps_contains( $result['suggestion_markup'], 'Juan', 'Test 1.7: cite text preserved' );
+ps_eq( 'pull-quote', $result['pattern_type'], 'Test 1.8: pattern_type echoed back' );
+ps_eq( $fp, $result['fingerprint'], 'Test 1.9: fingerprint echoed back' );
 
 // ─── Test 2: steps-enumerated suggest happy path ─────────────────────
 echo "\nTest 2: steps-enumerated suggestion from ordered core/list\n";
@@ -123,9 +141,11 @@ _tas_post( 202, array( $list_block ) );
 $fp = md5( serialize_block( $list_block ) );
 $result = snt_ai_pattern_adoption_suggest_impl( 202, $fp, 'steps-enumerated' );
 ps_true( is_array( $result ), 'Test 2.1: result is array (not WP_Error)' );
-ps_contains( $result['suggestion_markup'], 'wp:signal-noise/steps-enumerated', 'Test 2.2: suggestion uses steps-enumerated pattern markup' );
-ps_contains( $result['suggestion_markup'], 'First step.', 'Test 2.3: first list item preserved' );
-ps_contains( $result['suggestion_markup'], 'Second step.', 'Test 2.4: second list item preserved' );
+ps_contains( $result['suggestion_markup'], 'sn-pattern-steps-enumerated', 'Test 2.2: suggestion uses sn-pattern-steps-enumerated className' );
+ps_contains( $result['suggestion_markup'], 'sn-steps__list', 'Test 2.3: list className present' );
+ps_contains( $result['suggestion_markup'], 'First step.', 'Test 2.4: first list item preserved' );
+ps_contains( $result['suggestion_markup'], 'Second step.', 'Test 2.5: second list item preserved' );
+ps_true( false === strpos( $result['suggestion_markup'], 'sn-steps__label' ), 'Test 2.6: label paragraph omitted per spec §5.4' );
 
 // ─── Test 3: candidate not found (fingerprint mismatch) ──────────────
 echo "\nTest 3: candidate not found returns WP_Error 404\n";
@@ -147,6 +167,87 @@ echo "\nTest 5: post not found returns WP_Error 404\n";
 $result = snt_ai_pattern_adoption_suggest_impl( 999999, 'anything', 'pull-quote' );
 ps_true( is_wp_error( $result ), 'Test 5.1: result is WP_Error' );
 ps_eq( 'snt_pattern_adoption_post_not_found', $result->get_error_code(), 'Test 5.2: error code correct' );
+
+// ─── Test 6: pull-quote WITHOUT <cite> — attribution paragraph omitted ───
+echo "\nTest 6: pull-quote with no cite — attribution omitted\n";
+$quote_no_cite = array(
+	'blockName'   => 'core/quote',
+	'attrs'       => array(),
+	'innerBlocks' => array(
+		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>A quote without attribution.</p>' ),
+	),
+	'innerHTML'   => '<blockquote class="wp-block-quote"></blockquote>',
+);
+_tas_post( 206, array( $quote_no_cite ) );
+$fp = md5( serialize_block( $quote_no_cite ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 206, $fp, 'pull-quote' );
+ps_true( is_array( $result ), 'Test 6.1: result is array' );
+ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 6.2: attribution paragraph absent when no cite' );
+
+// ─── Test 7: pull-quote with inline formatting preserved ─────────────
+echo "\nTest 7: pull-quote preserves inline <strong>, <em>, <a>\n";
+$quote_inline = array(
+	'blockName'   => 'core/quote',
+	'attrs'       => array(),
+	'innerBlocks' => array(
+		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>The <strong>classifier</strong> loses on <a href="https://example.com">cost</a>.</p>' ),
+	),
+	'innerHTML'   => '<blockquote class="wp-block-quote"><cite>Juan</cite></blockquote>',
+);
+_tas_post( 207, array( $quote_inline ) );
+$fp = md5( serialize_block( $quote_inline ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 207, $fp, 'pull-quote' );
+ps_true( is_array( $result ), 'Test 7.1: result is array' );
+ps_contains( $result['suggestion_markup'], '<strong>classifier</strong>', 'Test 7.2: <strong> preserved' );
+ps_contains( $result['suggestion_markup'], 'href="https://example.com"', 'Test 7.3: <a href> preserved' );
+
+// ─── Test 8: steps-enumerated with inline formatting in list items ────
+echo "\nTest 8: steps-enumerated preserves inline formatting in items\n";
+$list_inline = array(
+	'blockName'   => 'core/list',
+	'attrs'       => array( 'ordered' => true ),
+	'innerBlocks' => array(
+		array( 'blockName' => 'core/list-item', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<li><strong>Capture</strong> at session start.</li>' ),
+		array( 'blockName' => 'core/list-item', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<li>Embed <em>C2PA manifest</em>.</li>' ),
+	),
+	'innerHTML'   => '<ol class="wp-block-list"></ol>',
+);
+_tas_post( 208, array( $list_inline ) );
+$fp = md5( serialize_block( $list_inline ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 208, $fp, 'steps-enumerated' );
+ps_true( is_array( $result ), 'Test 8.1: result is array' );
+ps_contains( $result['suggestion_markup'], '<strong>Capture</strong>', 'Test 8.2: <strong> preserved in item' );
+ps_contains( $result['suggestion_markup'], '<em>C2PA manifest</em>', 'Test 8.3: <em> preserved in item' );
+
+// ─── Test 9: pull-quote with empty innerBlocks (degenerate) ──────────
+echo "\nTest 9: pull-quote with no paragraphs — empty body, no fatal\n";
+$quote_empty = array(
+	'blockName'   => 'core/quote',
+	'attrs'       => array(),
+	'innerBlocks' => array(),
+	'innerHTML'   => '<blockquote class="wp-block-quote"><cite>Author</cite></blockquote>',
+);
+_tas_post( 209, array( $quote_empty ) );
+$fp = md5( serialize_block( $quote_empty ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 209, $fp, 'pull-quote' );
+ps_true( is_array( $result ), 'Test 9.1: degenerate quote produces result (no fatal)' );
+ps_contains( $result['suggestion_markup'], 'sn-pull-quote__body', 'Test 9.2: body paragraph still present (empty text)' );
+ps_contains( $result['suggestion_markup'], 'Author', 'Test 9.3: cite still extracted' );
+
+// ─── Test 10: steps-enumerated with empty list (zero items) ──────────
+echo "\nTest 10: steps-enumerated with empty list — valid wrapper, no items\n";
+$list_empty = array(
+	'blockName'   => 'core/list',
+	'attrs'       => array( 'ordered' => true ),
+	'innerBlocks' => array(),
+	'innerHTML'   => '<ol class="wp-block-list"></ol>',
+);
+_tas_post( 210, array( $list_empty ) );
+$fp = md5( serialize_block( $list_empty ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 210, $fp, 'steps-enumerated' );
+ps_true( is_array( $result ), 'Test 10.1: degenerate list produces result' );
+ps_contains( $result['suggestion_markup'], 'sn-steps__list', 'Test 10.2: list wrapper still present' );
+ps_true( false === strpos( $result['suggestion_markup'], 'wp:list-item' ), 'Test 10.3: no list-item blocks for empty source' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
