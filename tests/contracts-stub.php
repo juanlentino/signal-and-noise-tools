@@ -62,6 +62,7 @@ if ( ! function_exists( 'apply_filters' ) ) {
 	}
 }
 if ( ! function_exists( 'add_action' ) ) {
+	// Note: filter-grade fidelity only; priority/accepted_args not modeled for actions.
 	function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 		$GLOBALS['__test_actions'][ $hook ][] = $callback;
 		return true;
@@ -72,6 +73,11 @@ if ( ! function_exists( 'do_action' ) ) {
 		foreach ( $GLOBALS['__test_actions'][ $hook ] ?? array() as $cb ) {
 			call_user_func_array( $cb, $args );
 		}
+	}
+}
+if ( ! function_exists( 'has_filter' ) ) {
+	function has_filter( $hook, $callback = false ) {
+		return ! empty( $GLOBALS['__test_filters'][ $hook ] );
 	}
 }
 
@@ -136,6 +142,72 @@ add_filter( 'sn_purge_all_caches_result', function( $count, $args ) {
 }, 20, 2 );
 $result = apply_filters( 'sn_purge_all_caches_result', 0, array() );
 cs_eq( 43, $result, '1.6: second listener at higher priority increments first' );
+
+// ─── Contract 2: sn_clear_template_overrides_result ──────────────────
+echo "\nContract 2: sn_clear_template_overrides_result\n";
+$GLOBALS['__test_filters'] = array();
+
+// 2a. Default (no listener) returns int 0.
+$result = apply_filters( 'sn_clear_template_overrides_result', 0 );
+cs_eq( 0, $result, '2.1: default int 0' );
+cs_true( is_int( $result ), '2.2: return type int' );
+
+// 2b. Listener mutates return.
+add_filter( 'sn_clear_template_overrides_result', function( $count ) {
+	return 7;
+} );
+$result = apply_filters( 'sn_clear_template_overrides_result', 0 );
+cs_eq( 7, $result, '2.3: listener mutates to 7' );
+
+// 2c. Filter accepts single arg (no $args payload per spec).
+$result = apply_filters( 'sn_clear_template_overrides_result', 100 );
+cs_eq( 7, $result, '2.4: initial value gets overridden by listener regardless of starting value' );
+
+// ─── Contract 3: sn_og_font_paths ────────────────────────────────────
+echo "\nContract 3: sn_og_font_paths\n";
+$GLOBALS['__test_filters'] = array();
+
+// 3a. Default (no listener) returns empty array.
+$result = apply_filters( 'sn_og_font_paths', array() );
+cs_true( is_array( $result ), '3.1: return type is array' );
+cs_eq( 0, count( $result ), '3.2: empty array when no listener' );
+
+// 3b. Listener returns the expected shape: assoc array with bebas + dmmono keys.
+add_filter( 'sn_og_font_paths', function( $paths ) {
+	return array(
+		'bebas'  => '/var/www/example/wp-content/themes/signal-and-noise/assets/fonts/og/BebasNeue-Regular.ttf',
+		'dmmono' => '/var/www/example/wp-content/themes/signal-and-noise/assets/fonts/og/DMMono-Regular.ttf',
+	);
+} );
+$result = apply_filters( 'sn_og_font_paths', array() );
+cs_true( isset( $result['bebas'] ),  '3.3: bebas key present' );
+cs_true( isset( $result['dmmono'] ), '3.4: dmmono key present' );
+cs_true( is_string( $result['bebas'] ),  '3.5: bebas value is string' );
+cs_true( is_string( $result['dmmono'] ), '3.6: dmmono value is string' );
+
+// ─── Contract 4: sn_gh_latest_theme_tag_result ───────────────────────
+echo "\nContract 4: sn_gh_latest_theme_tag_result\n";
+$GLOBALS['__test_filters'] = array();
+
+// 4a. Default (no listener) returns null.
+$result = apply_filters( 'sn_gh_latest_theme_tag_result', null );
+cs_true( is_null( $result ), '4.1: default null when no listener' );
+
+// 4b. Listener returns string (tag).
+add_filter( 'sn_gh_latest_theme_tag_result', function( $tag ) {
+	return 'v9.3.0';
+} );
+$result = apply_filters( 'sn_gh_latest_theme_tag_result', null );
+cs_eq( 'v9.3.0', $result, '4.2: listener returns string tag' );
+cs_true( is_string( $result ), '4.3: return type string' );
+
+// 4c. Listener can also return null (e.g., API failure case).
+$GLOBALS['__test_filters'] = array();
+add_filter( 'sn_gh_latest_theme_tag_result', function( $tag ) {
+	return null;
+} );
+$result = apply_filters( 'sn_gh_latest_theme_tag_result', null );
+cs_true( is_null( $result ), '4.4: listener can return null on failure case' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
