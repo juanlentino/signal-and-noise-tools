@@ -506,7 +506,7 @@
 	 * Three branches:
 	 *   verdict=delete → Delete button (red) + Discard
 	 *   verdict=keep   → "✓ Likely keep" + reason + Discard (no Apply)
-	 *   verdict=unsure → "? Manual review" + reason + Edit link (no Apply)
+	 *   verdict=unsure → "? Manual review" + reason (no Apply; Edit link is in the adjacent Action cell, rendered by PHP)
 	 *
 	 * @param {Element} cell
 	 * @param {object}  res          Suggest response with { verdict, reason, attachment_id, thumbnail_url, filename }
