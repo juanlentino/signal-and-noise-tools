@@ -189,10 +189,16 @@ function sn_health_check_orphaned_media() {
 	$findings = array();
 	$one_week_ago = gmdate( 'Y-m-d H:i:s', time() - ( 7 * DAY_IN_SECONDS ) );
 
+	// v4.1.1 (B-02): restrict to image MIME types. The AI orphan-suggest impl
+	// rejects non-image attachments with a 422 (Suggest button always fails on
+	// PDFs/videos/audio). Filtering at the SQL layer prevents the false-positive
+	// Suggest UX entirely. Non-image orphans are an acceptable scope omission
+	// today — the AI verdict heuristics are tuned for image filenames, not docs.
 	$attachments = $wpdb->get_results( $wpdb->prepare(
 		"SELECT ID, post_title, guid, post_date_gmt
 		 FROM {$wpdb->posts}
 		 WHERE post_type = 'attachment'
+		   AND post_mime_type LIKE 'image/%%'
 		   AND post_date_gmt < %s
 		 ORDER BY post_date_gmt DESC
 		 LIMIT 500",
