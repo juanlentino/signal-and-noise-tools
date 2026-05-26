@@ -237,7 +237,8 @@ function sn_rss_tracker_schedule_cron() {
 		wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', SN_RSS_TRACKER_CRON_HOOK );
 	}
 }
-add_action( 'admin_init', 'sn_rss_tracker_schedule_cron' );
+// v4.1.1 (B-04): hook on `init` (not `admin_init`) — see cron-history.php for rationale.
+add_action( 'init', 'sn_rss_tracker_schedule_cron' );
 
 function sn_rss_tracker_cron_prune() {
 	global $wpdb;

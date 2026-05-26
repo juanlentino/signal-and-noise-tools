@@ -273,4 +273,8 @@ function snt_cron_history_schedule_cron() {
 		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', SNT_CRON_HISTORY_CRON_HOOK );
 	}
 }
-add_action( 'admin_init', 'snt_cron_history_schedule_cron' );
+// v4.1.1 (B-04): hook on `init` (not `admin_init`) so the cron is scheduled on
+// front-end / WP-CLI requests too. Prior `admin_init` hooking meant the cron
+// never registered on installs where the first hit wasn't an admin page.
+// wp_next_scheduled() inside the callback makes registration idempotent.
+add_action( 'init', 'snt_cron_history_schedule_cron' );

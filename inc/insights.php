@@ -509,8 +509,10 @@ function snt_insights_weekly_scan_cb() {
 }
 add_action( SN_INSIGHTS_CRON_HOOK, 'snt_insights_weekly_scan_cb' );
 
-// Schedule check fires on admin_init (matches the rss-plausible-tracker pattern).
-add_action( 'admin_init', 'snt_insights_maybe_schedule_weekly_cron' );
+// v4.1.1 (B-04): hook on `init` (not `admin_init`) — see cron-history.php for rationale.
+// admin_init does not fire on WP-CLI or front-end-only requests, so the cron
+// was never scheduled on installs whose first hit wasn't an admin page.
+add_action( 'init', 'snt_insights_maybe_schedule_weekly_cron' );
 
 /**
  * Compact summary for desktop-mode's wp_localize_script.
