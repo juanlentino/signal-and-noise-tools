@@ -34,10 +34,12 @@
 	var ABILITY_PATH = '/wp-abilities/v1/abilities/signal-noise/';
 
 	var ABILITY_BY_CHECK = {
-		missing_alt:         { suggest: 'ai-alt-suggest',         apply: 'ai-alt-apply' },
-		missing_alt_inline:  { suggest: 'ai-alt-inline-suggest',  apply: null },  // v4.0.2: no-apply variant
-		drift_time_phrases:  { suggest: 'ai-drift-suggest',       apply: 'ai-drift-apply' },
-		orphaned_media:      { suggest: 'ai-orphan-suggest',      apply: 'ai-orphan-apply' },
+		missing_alt:                         { suggest: 'ai-alt-suggest',                  apply: 'ai-alt-apply' },
+		missing_alt_inline:                  { suggest: 'ai-alt-inline-suggest',           apply: null },  // v4.0.2: no-apply variant
+		drift_time_phrases:                  { suggest: 'ai-drift-suggest',                apply: 'ai-drift-apply' },
+		orphaned_media:                      { suggest: 'ai-orphan-suggest',               apply: 'ai-orphan-apply' },
+		pattern_adoption_pull_quote:         { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
+		pattern_adoption_steps_enumerated:   { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
@@ -844,12 +846,47 @@
 		step( 0 );
 	}
 
+	// v4.3.0: pattern-adoption dismiss handler. POSTs to the dismiss REST
+	// endpoint (registered in inc/pattern-adoption-admin.php), removes the
+	// row from the Opportunities queue on success, restores the button on
+	// error. Reads data-* attrs emitted by the renderer at
+	// snt_pattern_adoption_render_opportunities_section() — post_id maps to
+	// dataset.postId, block_fingerprint to dataset.fingerprint, pattern_type
+	// to dataset.patternType.
+	function onDismissClick( event ) {
+		var btn = event.target.closest( '[data-snt-dismiss]' );
+		if ( ! btn ) { return; }
+		event.preventDefault();
+
+		var postId      = parseInt( btn.dataset.postId, 10 );
+		var fingerprint = String( btn.dataset.fingerprint || '' );
+		var patternType = String( btn.dataset.patternType || '' );
+
+		btn.disabled = true;
+		btn.textContent = __( 'Dismissing…', 'signal-noise-tools' );
+
+		window.wp.apiFetch( {
+			path:   '/signal-noise/v1/health/pattern-adoption-dismiss',
+			method: 'POST',
+			data:   { post_id: postId, block_fingerprint: fingerprint, pattern_type: patternType },
+		} ).then( function() {
+			var row = btn.closest( 'tr' );
+			if ( row ) { row.remove(); }
+		} ).catch( function( err ) {
+			btn.disabled = false;
+			btn.textContent = __( 'Dismiss', 'signal-noise-tools' );
+			window.alert( ( err && err.message ) ? err.message : __( 'Dismiss failed.', 'signal-noise-tools' ) );
+		} );
+	}
+
 	function init() {
 		document.addEventListener( 'click', function( e ) {
 			if ( e.target.closest( '[data-snt-suggest]' ) ) {
 				onSuggestClick( e );
 			} else if ( e.target.closest( '[data-snt-suggest-all]' ) ) {
 				onSuggestAllClick( e );
+			} else if ( e.target.closest( '[data-snt-dismiss]' ) ) {
+				onDismissClick( e );
 			}
 		} );
 	}
