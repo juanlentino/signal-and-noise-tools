@@ -531,6 +531,9 @@
 		var actions = document.createElement( 'div' );
 		actions.setAttribute( 'style', 'display:flex;gap:6px;flex-wrap:wrap;' );
 
+		// `status` is only used by the delete branch (passed into onOrphanDeleteClick
+		// so async progress/errors can be surfaced inline). Declared here only because
+		// the delete branch closes over it; keep/unsure branches don't render it.
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
 		status.setAttribute( 'style', 'font-size:11px;color:#646970;' );
