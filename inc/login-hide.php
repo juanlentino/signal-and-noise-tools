@@ -106,7 +106,19 @@ add_action( 'init', function() {
 add_action( 'init', function() {
 	$current = sn_login_get_slug();
 	$flushed = get_option( 'sn_login_rewrites_flushed' );
-	if ( $flushed !== $current ) {
+
+	// v4.2.0: verify-before-trust — sentinel can desync from the
+	// rewrite_rules option (silent update_option failure, another
+	// plugin wiping the option, WP's deferred-flush failure mode).
+	// Re-check that our rule is actually present before trusting the
+	// sentinel. If desynced, re-flush to self-heal. This fixed the
+	// production /backend 404 bug where the sentinel said "done" but
+	// rewrite_rules didn't have the rule.
+	$pattern      = '^' . preg_quote( $current, '/' ) . '/?$';
+	$rules_option = get_option( 'rewrite_rules' );
+	$rule_present = is_array( $rules_option ) && isset( $rules_option[ $pattern ] );
+
+	if ( $flushed !== $current || ! $rule_present ) {
 		flush_rewrite_rules( false );
 		update_option( 'sn_login_rewrites_flushed', $current );
 	}
