@@ -79,6 +79,14 @@ function sn_settings_defaults() {
  */
 function sn_setting( $path, $default = null ) {
 	static $merged = null;
+
+	// v4.2.0: sentinel path forces cache reset. Used by
+	// sn_setting_reset_cache() — no other call site should pass this.
+	if ( '__sn_reset_cache__' === $path ) {
+		$merged = null;
+		return null;
+	}
+
 	if ( null === $merged ) {
 		$stored = get_option( SN_SETTINGS_OPTION, array() );
 		$merged = array_replace_recursive(
@@ -94,6 +102,73 @@ function sn_setting( $path, $default = null ) {
 		$value = $value[ $key ];
 	}
 	return $value;
+}
+
+/**
+ * Bust the per-request static cache held by sn_setting().
+ *
+ * Call after any write to the sn_settings option that happens outside
+ * sn_setting_update() — for example, manual update_option() in a save
+ * handler. Without this, subsequent sn_setting() reads in the same
+ * request return the stale cached value (the D-06 audit failure mode).
+ *
+ * @since 4.2.0
+ */
+function sn_setting_reset_cache() {
+	sn_setting( '__sn_reset_cache__' );
+}
+
+/**
+ * Write a single dot-path setting + bust the cache + return success.
+ *
+ * Replaces the direct get_option/update_option pattern in admin save
+ * handlers. Busting the cache makes the new value visible to any
+ * sn_setting() call later in the same request.
+ *
+ * Note: this writes a SPARSE option — only the dot-path key is included in the
+ * stored array. Read-side defaults from sn_settings_defaults() fill the gaps,
+ * but if sn_settings_save() runs afterward and you've written a setting whose
+ * top-level key isn't in the Identity-tab form payload, this sparse write may
+ * be overwritten by sn_settings_save()'s whole-option replace.
+ *
+ * @since 4.2.0
+ * @param string $path  Dot-delimited path (e.g. 'login.slug').
+ * @param mixed  $value New value.
+ * @return bool True if value is correctly present after the write
+ *              (re-read disambiguates "no change" from "real failure" —
+ *              same gotcha as the v3.x save_login handler comment).
+ */
+function sn_setting_update( $path, $value ) {
+	$settings = (array) get_option( SN_SETTINGS_OPTION, array() );
+	$segments = explode( '.', $path );
+	$cursor   =& $settings;
+	$last     = count( $segments ) - 1;
+	foreach ( $segments as $i => $segment ) {
+		if ( $i === $last ) {
+			$cursor[ $segment ] = $value;
+		} else {
+			if ( ! isset( $cursor[ $segment ] ) || ! is_array( $cursor[ $segment ] ) ) {
+				$cursor[ $segment ] = array();
+			}
+			$cursor =& $cursor[ $segment ];
+		}
+	}
+	unset( $cursor );
+
+	update_option( SN_SETTINGS_OPTION, $settings );
+	sn_setting_reset_cache();
+
+	// gotcha #10 disambiguation: update_option returns false on both
+	// "no change" and "real failure" — re-read to confirm.
+	$re_read = (array) get_option( SN_SETTINGS_OPTION, array() );
+	$cursor  = $re_read;
+	foreach ( $segments as $segment ) {
+		if ( ! is_array( $cursor ) || ! array_key_exists( $segment, $cursor ) ) {
+			return false;
+		}
+		$cursor = $cursor[ $segment ];
+	}
+	return $cursor === $value;
 }
 
 /**
