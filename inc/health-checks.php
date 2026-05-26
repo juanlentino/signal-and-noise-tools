@@ -9,18 +9,27 @@
  *
  * The checks intentionally do NOT call any AI / LLM service in v1.
  * Findings are surfaced as plain lists with deep-links to the editor;
- * the user fixes them manually. AI-assisted fix proposals are a future
- * extension (see v3.5.x roadmap notes in the handoff).
+ * the user fixes them manually for the read-only checks; AI-assisted
+ * Suggest+Apply ships for missing_alt + drift_time_phrases (v4.0.0) and
+ * orphaned_media (v4.1.0).
  *
- * The 4 checks:
+ * The 5 checks (as of v4.1.0):
  *
- *   1. missing_alt       — image attachments and inline <img> tags
- *                          without an alt attribute
- *   2. orphaned_media    — attachments not used as a featured image
- *                          and not referenced in any post body
- *   3. broken_links      — internal links in post_content that 404 or
- *                          return network errors (cached HEAD requests)
- *   4. stale_posts       — published posts unedited in the last 12 months
+ *   1. missing_alt          — image attachments and inline <img> tags
+ *                             without an alt attribute. AI Suggest+Apply.
+ *   2. orphaned_media       — image attachments not used as a featured
+ *                             image and not referenced in any post body
+ *                             (image MIME only since v4.1.1, B-02).
+ *                             AI verdict + force-delete since v4.1.0.
+ *   3. broken_links         — internal links in post_content that 404 or
+ *                             return network errors (cached HEAD requests).
+ *   4. stale_posts          — published posts unedited in the last 12 months.
+ *                             Read-only; AI Suggest was scoped out of v4.1.0
+ *                             per evergreen-site mismatch.
+ *   5. drift_time_phrases   — time-relative phrases (recently, last year,
+ *                             as of YYYY) whose meaning decays. AI verdict
+ *                             since v3.7.0; Suggest+Apply since v4.0.0
+ *                             (raw-position resolver fix v4.1.1, B-01).
  *
  * @package SignalNoiseTools
  * @since 3.5.0
@@ -34,6 +43,9 @@ define( 'SN_HEALTH_CACHE_KEY',     'sn_health_last_scan' );
 define( 'SN_HEALTH_CACHE_TTL',     DAY_IN_SECONDS );
 define( 'SN_HEALTH_STALE_MONTHS',  12 );
 define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
+// v4.1.1 (B-10): cap candidates per post in drift-detection. AI max_tokens=600
+// budgets for ~25 verdicts; truncation mid-JSON would drop the post silently.
+define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 );
 define( 'SN_HEALTH_LINK_TIMEOUT',  5 );
 
 const SNT_AI_DRIFT_SYSTEM = "You are an editor evaluating whether time-relative phrases in a post are still accurate given the post's last_modified date vs. 'now'.\n\n" .
@@ -485,8 +497,11 @@ function sn_health_extract_time_phrase_candidates( $content ) {
  * each candidate in context and returns a verdict (stale / ok / unsure).
  * Only "stale" verdicts become Health-tab findings.
  *
- * Detection only in v1 — findings deep-link to the editor. AI-suggested
- * replacement text is a future v3.7.x feature.
+ * v3.7.0: detection only — findings deep-link to the editor.
+ * v4.0.0: AI Suggest+Apply layer added (inc/ai-drift-phrase-suggest.php).
+ * v4.1.1: raw-content position resolver — Apply now works for Gutenberg
+ *         posts (B-01 fix; pre-v4.1.1 the apply step silently failed with
+ *         409 on any post with block markup before the target phrase).
  *
  * Gracefully degrades when AI is unavailable (returns empty findings,
  * doesn't crash the scan).
@@ -520,10 +535,11 @@ function sn_health_check_drift_time_phrases() {
 	$findings = array();
 	foreach ( $rows as $r ) {
 		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
-		if ( count( $candidates ) > 25 ) {
-			// Cap candidates per post: max_tokens=600 budgets for ~25 verdicts;
-			// truncation mid-JSON would drop the post silently. Hard cap is safer.
-			$candidates = array_slice( $candidates, 0, 25 );
+		if ( count( $candidates ) > SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST ) {
+			// v4.1.1 (B-10): cap is the named constant SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST
+			// (defined at file scope) so a max_tokens budget tweak only needs the
+			// constant value changed, not a grep-and-replace for the literal 25.
+			$candidates = array_slice( $candidates, 0, SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST );
 		}
 		if ( empty( $candidates ) ) {
 			continue;  // Regex pre-filter — no AI call needed.
