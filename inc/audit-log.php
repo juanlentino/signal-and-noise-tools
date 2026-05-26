@@ -169,7 +169,7 @@ function snt_audit_record_login_success_impl( $user_id, $username ) {
  * @return array<int,array> Each row: { date, login_failed, wp_login_404, wp_admin_unauth_404, lockout_triggered, password_reset, unique_ips_count }
  */
 function snt_audit_get_counters_impl( $days = 30 ) {
-	$days  = max( 1, min( SN_AUDIT_RETENTION_DAYS, (int) $days ) );
+	$days  = max( 1, min( (int) sn_setting( 'audit.retention_days', 90 ), (int) $days ) );
 	$blob  = snt_audit_get_blob();
 	$out   = array();
 	$today = time();
@@ -198,7 +198,7 @@ function snt_audit_get_counters_impl( $days = 30 ) {
  * @return array<int,array> Each row: { ts, user, formatted }
  */
 function snt_audit_get_login_successes_impl( $days = 30 ) {
-	$days   = max( 1, min( SN_AUDIT_RETENTION_DAYS, (int) $days ) );
+	$days   = max( 1, min( (int) sn_setting( 'audit.retention_days', 90 ), (int) $days ) );
 	$blob   = snt_audit_get_blob();
 	$cutoff = time() - $days * DAY_IN_SECONDS;
 	$out    = array();
@@ -271,7 +271,8 @@ function snt_audit_get_summary_impl() {
 }
 
 /**
- * Drop counter buckets and login_success rows older than SN_AUDIT_RETENTION_DAYS.
+ * Drop counter buckets and login_success rows older than the configured
+ * retention (sn_setting('audit.retention_days'), default 90).
  * Returns prune stats.
  *
  * Also: implements the LLA polling fallback for lockout_triggered counter
@@ -283,7 +284,7 @@ function snt_audit_get_summary_impl() {
  */
 function snt_audit_prune_impl() {
 	$blob        = snt_audit_get_blob();
-	$cutoff      = strtotime( '-' . SN_AUDIT_RETENTION_DAYS . ' days' );
+	$cutoff      = strtotime( '-' . (int) sn_setting( 'audit.retention_days', 90 ) . ' days' );
 	$cutoff_date = wp_date( 'Y-m-d', $cutoff );
 
 	// Prune counter buckets.

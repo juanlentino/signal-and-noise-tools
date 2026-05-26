@@ -56,6 +56,9 @@ function sn_settings_defaults() {
 		'login' => array(
 			'slug' => 'sn-login',
 		),
+		'audit' => array(
+			'retention_days' => 90,
+		),
 		'seo_copy' => array(
 			'home_title'             => '',
 			'home_description'       => '',
