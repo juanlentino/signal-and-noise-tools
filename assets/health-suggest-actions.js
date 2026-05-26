@@ -398,6 +398,18 @@
 				renderError( cell, __( 'Missing attachment ID.', 'signal-noise-tools' ) );
 				return;
 			}
+		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
+			// v4.4.3 (Bug-B2): pattern-adoption Suggest+Apply — data-attrs emitted
+			// by snt_pattern_adoption_render_opportunities_section() in
+			// inc/pattern-adoption-admin.php. The PHP uses data-fingerprint (not
+			// data-block-fingerprint) and data-pattern-type.
+			input.post_id           = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
+			input.block_fingerprint = btn.getAttribute( 'data-fingerprint' ) || '';
+			input.pattern_type      = btn.getAttribute( 'data-pattern-type' ) || '';
+			if ( ! input.post_id || ! input.block_fingerprint || ! input.pattern_type ) {
+				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
+				return;
+			}
 		}
 
 		btn.disabled = true;
@@ -405,6 +417,15 @@
 
 		callAbility( slugs.suggest, input )
 			.then( function( res ) {
+				// v4.4.3 (Bug-B2): normalize pattern-adoption suggest response.
+				// The impl returns { suggestion_markup, fingerprint, post_id, pattern_type }
+				// rather than { suggestion }. Map suggestion_markup → suggestion so
+				// renderSuggestion's textarea pre-fill path works without a separate
+				// render branch. The original suggestion_markup is preserved on the
+				// res object for onApplyClick's replacement_markup field.
+				if ( res && res.suggestion_markup && ! res.suggestion ) {
+					res.suggestion = res.suggestion_markup;
+				}
 				renderSuggestion( cell, res, slugs.apply, input, checkType );
 			} )
 			.catch( function( err ) {
@@ -671,6 +692,54 @@
 	}
 
 	/**
+	 * v4.4.3: Build modal Before+After nodes for pattern-adoption Apply.
+	 *
+	 * Before pane: pattern type + fingerprint (brief identifier of what's being replaced).
+	 * After pane: read-only textarea showing the proposed replacement markup.
+	 *
+	 * @param {object}  res           Suggest response (has suggestion_markup, pattern_type)
+	 * @param {object}  input         Suggest input (has post_id, block_fingerprint, pattern_type)
+	 * @param {string}  replacementMarkup  The user-edited markup from the textarea
+	 * @return {{ before: Element, after: Element }}
+	 */
+	function buildPatternAdoptionModalContent( res, input, replacementMarkup ) {
+		var patternType = input.pattern_type || ( res && res.pattern_type ) || '';
+
+		var beforeNode = document.createElement( 'div' );
+
+		var patternLabel = document.createElement( 'p' );
+		patternLabel.className = 'snt-modal-caption';
+		patternLabel.textContent = __( 'Pattern type:', 'signal-noise-tools' ) + ' ' + patternType;
+		beforeNode.appendChild( patternLabel );
+
+		var fingerprintEl = document.createElement( 'p' );
+		fingerprintEl.className = 'snt-modal-filename';
+		fingerprintEl.textContent = __( 'Block:', 'signal-noise-tools' ) + ' ' + ( input.block_fingerprint ? input.block_fingerprint.slice( 0, 8 ) + '…' : '?' );
+		beforeNode.appendChild( fingerprintEl );
+
+		var postEl = document.createElement( 'p' );
+		postEl.className = 'snt-modal-caption';
+		postEl.textContent = __( 'Post ID:', 'signal-noise-tools' ) + ' ' + ( input.post_id || 0 );
+		beforeNode.appendChild( postEl );
+
+		var afterNode = document.createElement( 'div' );
+
+		var afterTa = document.createElement( 'textarea' );
+		afterTa.className = 'snt-modal-textarea';
+		afterTa.readOnly = true;
+		afterTa.rows = 8;
+		afterTa.value = replacementMarkup;
+		afterNode.appendChild( afterTa );
+
+		var noteEl = document.createElement( 'p' );
+		noteEl.className = 'snt-modal-caption';
+		noteEl.textContent = __( 'This replaces the original block. Edits in the post editor are preserved below the replaced block.', 'signal-noise-tools' );
+		afterNode.appendChild( noteEl );
+
+		return { before: beforeNode, after: afterNode };
+	}
+
+	/**
 	 * Handle Apply button click. Confirms, calls the apply ability,
 	 * marks the row done on success or surfaces the error on failure.
 	 */
@@ -683,6 +752,10 @@
 		if ( 'missing_alt' === checkType ) {
 			modalTitle   = __( 'Apply alt text to attachment?', 'signal-noise-tools' );
 			modalContent = buildAttachmentAltModalContent( suggestRes, suggestInput, currentEditedValue );
+		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
+			// v4.4.3 (Bug-B2): pattern-adoption Apply — show markup diff in modal.
+			modalTitle   = __( 'Apply pattern upgrade to post?', 'signal-noise-tools' );
+			modalContent = buildPatternAdoptionModalContent( suggestRes, suggestInput, currentEditedValue );
 		} else {
 			modalTitle   = __( 'Replace phrase in post?', 'signal-noise-tools' );
 			modalContent = buildDriftModalContent( suggestRes, suggestInput, currentEditedValue );
@@ -707,6 +780,17 @@
 				applyInput = {
 					attachment_id: suggestInput.attachment_id,
 					alt_text:      currentEditedValue,
+				};
+			} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
+				// v4.4.3 (Bug-B2): pattern-adoption Apply input shape.
+				// replacement_markup is the (possibly user-edited) markup from textarea.
+				// block_fingerprint and pattern_type come from the original suggest input
+				// (set in onSuggestClick from the button data-attrs).
+				applyInput = {
+					post_id:             suggestInput.post_id,
+					block_fingerprint:   suggestInput.block_fingerprint,
+					replacement_markup:  currentEditedValue,
+					pattern_type:        suggestInput.pattern_type,
 				};
 			} else {
 				// v4.1.1: pass context_snippet through to apply so the impl can resolve
@@ -798,6 +882,11 @@
 			btn.setAttribute( 'data-context', input.context_snippet );
 		} else if ( 'orphaned_media' === checkType ) {
 			btn.setAttribute( 'data-attachment-id', input.attachment_id );
+		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
+			// v4.4.3 (Bug-B2): re-build pattern-adoption button on Discard.
+			btn.setAttribute( 'data-post-id', input.post_id );
+			btn.setAttribute( 'data-fingerprint', input.block_fingerprint );
+			btn.setAttribute( 'data-pattern-type', input.pattern_type );
 		}
 		return btn;
 	}

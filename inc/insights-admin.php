@@ -64,12 +64,12 @@ function snt_insights_render_admin_tab() {
 	echo '<h2 class="sn-fieldset-h">Run Analysis</h2>';
 	echo '<p class="sn-fieldset-intro">Single AI call per scan. Returns 5 recommendations across types: write_about, update_post, cadence_change, topic_double_down, topic_pivot. Re-runs within 7 days return the cached result unless you check "Force fresh scan".</p>';
 	if ( ! $ai_ready ) {
-		echo '<p class="sn-field-helper" style="color:#dc3232;"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
+		echo '<p class="sn-field-helper sn-text--err"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
 	}
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="insights_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( $last ? 'Re-run analysis' : 'Run Analysis' ) . '</button>';
 	if ( $last ) {
-		echo ' <label style="margin-left:1rem;"><input type="checkbox" name="force" value="1"> Force fresh scan (ignore cache)</label>';
+		echo ' <label class="sn-ml-auto"><input type="checkbox" name="force" value="1"> Force fresh scan (ignore cache)</label>';
 	}
 	echo '</div>';
 	echo '</div>';
@@ -115,12 +115,12 @@ function snt_insights_render_recommendations_section( $last ) {
 		$is_done = isset( $done_ids_flip[ $id ] );
 		$type_label = isset( $type_labels[ $rec['type'] ] ) ? $type_labels[ $rec['type'] ] : $rec['type'];
 
-		echo '<div class="sn-fieldset"' . ( $is_done ? ' style="opacity:0.55;"' : '' ) . '>';
-		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;">';
+		echo '<div class="sn-fieldset' . ( $is_done ? ' sn-fieldset--muted' : '' ) . '">';
+		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
 		echo esc_html( $rec['title'] );
 		echo ' <span class="sn-pill sn-pill--ok">' . esc_html( $type_label ) . '</span>';
 		if ( $is_done ) {
-			echo ' <span class="sn-pill" style="background:#e0e0e0;color:#555;">done</span>';
+			echo ' <span class="sn-pill sn-pill--done">done</span>';
 		}
 		echo '</h2>';
 
@@ -133,7 +133,7 @@ function snt_insights_render_recommendations_section( $last ) {
 				// v4.1.1 (U-14): evidence pills are data snippets ("3 posts in 7 days"),
 				// not status — use the base .sn-pill (neutral gray), not --ok (green).
 				// The semantic-ok color was misread by users as "all good."
-				echo '<span class="sn-pill" style="margin-right:0.5rem;">' . esc_html( $pill ) . '</span>';
+				echo '<span class="sn-pill sn-pill--spaced">' . esc_html( $pill ) . '</span>';
 			}
 			echo '</p>';
 		}

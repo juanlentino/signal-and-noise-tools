@@ -37,7 +37,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 	$last_scan = snt_pattern_adoption_last_scan();
 
 	echo '<div class="sn-fieldset" style="margin-top:2rem;">';
-	echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;">';
+	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
 	echo esc_html__( 'Opportunities', 'signal-noise-tools' );
 	if ( $last_scan ) {
 		$total = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
@@ -74,7 +74,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	// Collapsed-by-default: wrap candidate rows in <details>.
 	echo '<details style="margin-top:1rem;">';
-	echo '<summary style="cursor:pointer;font-weight:500;">' .
+	echo '<summary>' .
 		esc_html( sprintf(
 			/* translators: %d is the count of pattern-adoption candidates to review */
 			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-noise-tools' ),

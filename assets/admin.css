@@ -1361,3 +1361,71 @@
 .snt-cell-error {
 	color: #8b1a1a;
 }
+
+/* ─── v4.4.3 utility classes (inline-style consolidation) ────────────────
+ *
+ * Promotes recurring inline style patterns across 4 admin PHP files to
+ * named classes. Replaces copy-pasted style="" attributes in:
+ *   inc/health-checks-admin.php  (U-03)
+ *   inc/insights-admin.php       (U-06)
+ *   inc/pattern-adoption-admin.php (U-07, U-08)
+ *
+ * No visual change — this is a refactor only.
+ */
+
+/* Flex row variant for .sn-fieldset-h — used when the heading needs to
+   sit inline with status pills and action buttons (Suggest All, etc.).
+   Replaces: style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;" */
+.sn-fieldset-h--row {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+/* Muted fieldset — used for "done" recommendation cards where opacity
+   communicates "resolved, no action needed." Replaces: style="opacity:0.55;" */
+.sn-fieldset--muted {
+	opacity: 0.55;
+}
+
+/* "Done" pill — neutral gray chip for completed/resolved states. Distinct
+   from .sn-pill--ok (green = healthy) and the base .sn-pill (gray = neutral
+   data). The no-dot before pseudo lets this read as a label, not a status.
+   Replaces: style="background:#e0e0e0;color:#555;" on a sn-pill span. */
+.sn-pill--done {
+	background: #e0e0e0;
+	color: #555;
+}
+.sn-pill--done::before {
+	display: none;
+}
+
+/* Error-colored text — for non-pill inline warnings (e.g., "AI client not
+   available" helper text). Uses the project's --sn-err var for consistency
+   with pill and verdict colors. Replaces: style="color:#dc3232;" */
+.sn-text--err {
+	color: var(--sn-err);
+}
+
+/* Push-to-end utility — for action buttons in flex rows that should
+   sit at the far end (e.g. Suggest All button in a heading row).
+   Replaces: style="margin-left:auto;" */
+.sn-ml-auto {
+	margin-left: auto;
+}
+
+/* Summary element base styling for collapsible Opportunities sections.
+   Browsers default cursor:pointer on <summary> per HTML spec; font-weight
+   override is the only non-default rule needed.
+   Replaces: style="cursor:pointer;font-weight:500;" (cursor:pointer removed — redundant) */
+.sn-fieldset details > summary {
+	font-weight: 500;
+}
+
+/* Spaced pill — adds right margin for pill groups rendered in a <p> with
+   foreach. Replaces: style="margin-right:0.5rem;" on .sn-pill spans in
+   insights-admin.php evidence-pills loop. */
+.sn-pill--spaced {
+	margin-right: 0.5rem;
+}

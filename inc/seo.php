@@ -128,6 +128,14 @@ add_action( 'init', function() {
  * plugin v1.6.0 (Phase 10).
  */
 add_action( 'wp_head', function() {
+	// v4.4.3: TSF coexistence defense-in-depth. If TSF is ever reactivated,
+	// let it own canonical emission; our emitter stands down. The init hook
+	// already gates the rel_canonical() REMOVAL on TSF absence, but the
+	// emitter itself was unconditional — would produce a duplicate tag.
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+
 	list( , , $url ) = sn_seo_meta_for_current_view();
 
 	// v1.10.2+: per-post _sn_canonical_url override wins for singulars.
@@ -160,6 +168,14 @@ add_action( 'wp_head', function() {
  *   _sn_noimageindex  — adds 'noimageindex' (no Google Images)
  */
 add_action( 'wp_head', function() {
+	// v4.4.3: TSF coexistence defense-in-depth. TSF owns robots meta while
+	// active; our emitter defers. The init hook removes wp_robots() when TSF
+	// is inactive, but that removal only covers WP core's hook — without this
+	// gate, TSF + our emitter would both fire if TSF were reactivated.
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+
 	$directives = array();
 
 	if ( is_singular() ) {
@@ -197,6 +213,13 @@ add_action( 'wp_head', function() {
  * SEO: Meta description tag.
  */
 add_action( 'wp_head', function() {
+	// v4.4.3: TSF coexistence defense-in-depth. TSF owns meta description
+	// while active; our emitter defers. Without this gate, reactivating TSF
+	// would produce a duplicate meta description tag in <head>.
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+
 	list( , $description, ) = sn_seo_meta_for_current_view();
 	if ( $description ) {
 		echo '<meta name="description" content="' . esc_attr( $description ) . '">' . "\n";

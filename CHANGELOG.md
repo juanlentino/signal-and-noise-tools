@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.3] - 2026-05-26 — Bundled fixes from v4.4.x cycle audit
+
+**Released:** 2026-05-26.
+
+**Headline:** Bundled patch addressing all remaining non-urgent findings from the v4.4.x cycle audit. v4.4.2 closed the critical security exposure; this patch closes the v4.3.0 functional regression, two medium-severity defense-in-depth gaps, and consolidates inline styles across 4 admin files.
+
+**Fixes:**
+
+- **Bug-B2 (HIGH) — v4.3.0 pattern-adoption Suggest+Apply now functional in the UI.** v4.3.0 added new check types to the `ABILITY_BY_CHECK` map but the JS dispatcher (`assets/health-suggest-actions.js`) never gained input-building branches for them. Clicking Suggest on a pattern-adoption Opportunity row sent `{}` → ability failed schema validation. Apply path was using drift-shaped input instead of pattern-adoption shape. Both paths now correctly read `post_id` / `block_fingerprint` / `pattern_type` (Suggest) and `replacement_markup` (Apply) from button data attributes. The PHP impls (76 PHP-level assertions across 3 test files) always worked; this fix lets the UI actually reach them.
+- **Bug-B1 (MEDIUM, latent) — Login intercept Branch 3 now allowlists `/wp-admin/admin-ajax.php` etc.** The `plugins_loaded` allowlist (lines 159-166 of `inc/login-hide.php`) skips setting flags for admin-ajax / async-upload / wp-cron / /wp-json/ / /feed, but Branch 3 of `sn_login_handle_request()` ran independently and 404-ed them. No current impact (no first-party plugin uses `wp_ajax_nopriv_*`), but any future plugin shipping public AJAX would have broken silently. Now safe.
+- **Bug-E1 (MEDIUM) — Article schema `inLanguage` reads from Identity → Locale setting.** Previously hardcoded `'en-US'` while WebSite schema correctly read from `sn_setting('identity.locale')`. If locale ever changed, schemas diverged.
+- **TSF coexistence defense-in-depth in `inc/seo.php`.** Canonical / robots-meta / meta-description emitters now early-return when `function_exists('the_seo_framework')`. Previously only the WP-core `rel_canonical()` REMOVAL was gated on TSF inactivity; emitters themselves ran unconditionally. If TSF were ever reactivated, duplicate tags would have shipped.
+- **Inline-style consolidation across 4 admin files** (`inc/health-checks-admin.php`, `inc/insights-admin.php`, `inc/pattern-adoption-admin.php`, redundant `cursor:pointer` removed from `<summary>` elements). Inline `style="..."` attributes promoted to utility classes in `assets/admin.css`. New classes: `.sn-fieldset-h--row`, `.sn-pill--done`, `.sn-fieldset--muted`, `.sn-text--err`, `.sn-ml-auto`, `.sn-pill--spaced`. No visual change; refactor only. Kills the copy-paste pattern before it spreads further.
+
+**Audit reference:** [`docs/superpowers/specs/2026-05-26-v4.4.x-and-v9.4.x-cycle-audit-findings.md`](../signal-and-noise/docs/superpowers/specs/2026-05-26-v4.4.x-and-v9.4.x-cycle-audit-findings.md) — Bugs B-1, B-2, E-1 + UI/UX U-03, U-06, U-07, U-08.
+
+**Tests:** 888 assertions / 21 plugin suites — all green (CSS + PHP fixes don't affect test count; JS change uncovered by tests but verified by inspection).
+
+**Cap math:** plugin patch 2/7 → **3/7** in v4.4.x. 4 patches remaining.
+
+---
+
 ## [4.4.2] - 2026-05-26 — URGENT security patch (remote unauthenticated destructive action)
 
 **Released:** 2026-05-26.

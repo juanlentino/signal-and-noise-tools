@@ -232,6 +232,19 @@ function sn_login_handle_request() {
 		return;
 	}
 	$request_uri = (string) wp_unslash( $_SERVER['REQUEST_URI'] );
+
+	// v4.4.3 (Bug-B1): re-apply the same allowlist that plugins_loaded uses.
+	// plugins_loaded sets no GLOBALS for allowlisted paths, so Branch 1+2
+	// fall through to here. Without this guard, /wp-admin/admin-ajax.php
+	// (and async-upload, wp-cron, /wp-json/, /feed) would get 404-ed for
+	// unauthenticated requests even though they must remain publicly reachable
+	// (e.g. wp_ajax_nopriv_* handlers, REST API, feed readers).
+	foreach ( array( 'admin-ajax.php', 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' ) as $needle ) {
+		if ( strpos( $request_uri, $needle ) !== false ) {
+			return;
+		}
+	}
+
 	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
 			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', $_SERVER['REMOTE_ADDR'] ?? null );

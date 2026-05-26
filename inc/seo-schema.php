@@ -142,7 +142,10 @@ function sn_schema_article() {
 		'datePublished'    => get_post_time( 'c', true, $post ),
 		'dateModified'     => get_post_modified_time( 'c', true, $post ),
 		'mainEntityOfPage' => $permalink,
-		'inLanguage'       => 'en-US',
+		// v4.4.3 (Bug-E1): read from Identity locale setting (same as WebSite
+		// schema on line 83 and WebPage schema on line 194). Hardcoded 'en-US'
+		// would diverge if the locale setting is ever changed.
+		'inLanguage'       => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
 		'author'           => array(
 			'@id' => home_url( '/' ) . '#/schema/Person',
 		),

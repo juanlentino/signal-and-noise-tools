@@ -78,12 +78,12 @@ function sn_health_render_admin_tab() {
 	foreach ( $last_scan['checks'] as $key => $check ) {
 		echo '<div class="sn-fieldset">';
 
-		echo '<h2 class="sn-fieldset-h" style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;">';
+		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
 		echo esc_html( $check['label'] );
 		$pill_kind = $check['count'] > 0 ? 'warn' : 'ok';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
 		if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) && (int) $check['count'] > 0 ) {
-			echo '<button type="button" class="button button-small" data-snt-suggest-all="1" style="margin-left:auto;">' . esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), (int) $check['count'] ) ) . '</button>';
+			echo '<button type="button" class="button button-small sn-ml-auto" data-snt-suggest-all="1">' . esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), (int) $check['count'] ) ) . '</button>';
 		}
 		echo '</h2>';
 
