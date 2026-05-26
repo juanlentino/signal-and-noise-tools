@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.0] - 2026-05-26 — Cross-package contracts E2E + v5.0.0 readiness pass
+
+**Released:** 2026-05-26.
+
+**Headline:** Last plugin minor before forced v5.0.0. Two coordinated workstreams: (A) hybrid test harness locking the 4 theme↔plugin filter contracts documented in [WORDPRESS-REFERENCE §10.0](https://github.com/juanlentino/signal-and-noise/blob/main/docs/WORDPRESS-REFERENCE.md#10-the-theme--companion-plugin-split-v820--v840-complete-ongoing-contract-surface); (D) v5.0.0 readiness pass with a public-API inventory at [`docs/superpowers/specs/2026-05-26-v5.0.0-scope.md`](docs/superpowers/specs/2026-05-26-v5.0.0-scope.md). No new user-facing features in this minor; this is infrastructure to enable v5.0.0 to ship cleanly.
+
+**A — Cross-package contracts E2E:**
+- [`tests/contracts-stub.php`](tests/contracts-stub.php) (NEW, 213 LOC) — pure-PHP filter-simulator scaffolding + 4 contract tests, 20 assertions
+- [`tests/contracts-smoke.php`](tests/contracts-smoke.php) (NEW, 71 LOC) — WP-loaded smoke runner, ~13 assertions, manual `wp eval-file` invocation
+- Contracts locked: `sn_purge_all_caches_result`, `sn_clear_template_overrides_result`, `sn_og_font_paths`, `sn_gh_latest_theme_tag_result`
+
+**D — v5.0.0 readiness pass:**
+- [`docs/superpowers/specs/2026-05-26-v5.0.0-scope.md`](docs/superpowers/specs/2026-05-26-v5.0.0-scope.md) (NEW) — canonical inventory of plugin public APIs with v5.0.0 dispositions
+
+**Audit outcome:** 268 surface items inventoried (177 functions, 30 REST routes, 27 hooks, 31 options). Disposition: **267 KEEP / 1 REMOVE / 0 RENAME / 0 SCHEMA-CHANGE**. The single REMOVE is the orphaned `sn_login_rewrites_flushed` option (already unused since v4.2.1; v5.0.0 will `delete_option()` once during upgrade). **No `_deprecated_function()` calls were added** because zero functions or hooks warrant deprecation — the plugin's public surface is already stable after the v4.0.x–v4.2.x audit/fix sweeps. v5.0.0 can ship as a minimal-breakage major (option cleanup + minor-counter reset), not a sweeping API rewrite.
+
+**Tests post-v4.4.0:**
+
+| Suite | Δ | Total |
+|---|---|---|
+| `tests/contracts-stub.php` | NEW (+20) | 20 |
+| `tests/contracts-smoke.php` | NEW (manual; 0 in standard sweep) | 0 in sweep |
+| `tests/abilities-integration.php` | 0 | 168 |
+| All other suites | 0 | 700 |
+| **All 21 plugin suites (sweep)** | **+20** | **888 / 0 failed** |
+
+**Cap math:** plugin minor 4/5 → **5/5 (FULL)** — v4.4.0 is the LAST minor before forced v5.0.0. Plugin patch resets to 0/7 for v4.4.x (7 patches available; anticipated triggers in [plan §"Out-of-scope for this plan"](docs/superpowers/plans/2026-05-26-v4.4.0-cross-package-contracts-and-v5-readiness.md)).
+
+**Plan reference:** [`docs/superpowers/plans/2026-05-26-v4.4.0-cross-package-contracts-and-v5-readiness.md`](docs/superpowers/plans/2026-05-26-v4.4.0-cross-package-contracts-and-v5-readiness.md)
+**Spec reference:** [`docs/superpowers/specs/2026-05-26-v4.4.0-cross-package-contracts-and-v5-readiness-design.md`](docs/superpowers/specs/2026-05-26-v4.4.0-cross-package-contracts-and-v5-readiness-design.md)
+
+---
+
 ## [4.3.1] - 2026-05-26 — v4.3.0 code-review polish sweep
 
 **Released:** 2026-05-26.
