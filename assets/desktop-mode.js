@@ -145,12 +145,23 @@
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — combines the two destructive
 		// commands above; even bigger blast radius. Manual ⌘K only.
 		run: function() {
-			if ( ! window.confirm( 'Run Full Reset?\n\nThis clears every template override AND purges every cache.' ) ) {
-				return;
-			}
-			callRest( 'full-reset' )
-				.then( function( res ) { toast( res.message || 'Full reset complete.' ); } )
-				.catch( function( err ) { toast( 'Full reset failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			// v4.1.1 (U-01): sntConfirm replaces window.confirm (which is blocked
+			// inside the desktop-mode portal iframe by the chrome-extension boundary).
+			// Falls back to native confirm if snt-confirm.js didn't enqueue.
+			var prompt = ( typeof window.sntConfirm === 'function' )
+				? window.sntConfirm( {
+					title:        'Run Full Reset?',
+					message:      'This clears every template override AND purges every cache. There is no undo.',
+					confirmLabel: 'Full Reset',
+					danger:       true,
+				} )
+				: Promise.resolve( window.confirm( 'Run Full Reset?\n\nThis clears every template override AND purges every cache.' ) );
+			prompt.then( function ( confirmed ) {
+				if ( ! confirmed ) { return; }
+				callRest( 'full-reset' )
+					.then( function( res ) { toast( res.message || 'Full reset complete.' ); } )
+					.catch( function( err ) { toast( 'Full reset failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			} );
 		},
 	} );
 

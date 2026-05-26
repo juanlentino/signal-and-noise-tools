@@ -546,6 +546,18 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		true // load in footer, after DOM is parsed
 	);
 
+	// v4.1.1 (U-01): shared confirm-dialog utility. Replaces 7 legacy
+	// `window.confirm()` / `onclick="return confirm(...)"` call sites with
+	// an in-page modal that works inside the desktop-mode portal iframe
+	// (native confirm() is blocked there by the chrome-extension boundary).
+	wp_enqueue_script(
+		'snt-confirm',
+		SNT_URL . 'assets/snt-confirm.js',
+		array( 'wp-i18n' ),
+		SNT_VERSION,
+		true
+	);
+
 	// v4.0.0: Health Suggest+Apply JS — only on the Health tab, only
 	// if an AI provider is configured. Mirrors the gating in
 	// inc/health-checks-admin.php (the "AI fix" column + Suggest

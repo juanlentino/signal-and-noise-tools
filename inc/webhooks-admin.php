@@ -105,7 +105,8 @@ function sn_webhooks_render_admin_tab() {
 
 		echo '<div class="sn-fieldset-actions">';
 		echo '<button type="submit" name="sn_action" value="webhook_update" class="button button-primary">Save changes</button>';
-		echo ' <button type="submit" name="sn_action" value="webhook_delete" class="button button-link-delete" onclick="return confirm(\'Delete this webhook? Pending retries will be dropped.\')">Delete</button>';
+		// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm attribute.
+		echo ' <button type="submit" name="sn_action" value="webhook_delete" class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'Pending retries will be dropped. This cannot be undone.', 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this webhook?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>';
 		echo '</div>';
 
 		echo '</div>'; // .sn-fieldset

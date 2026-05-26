@@ -496,7 +496,8 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 
 	echo '<p class="submit">';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_SAVE ) . '" class="button button-primary">Save Settings</button> ';
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" onclick="return confirm(\'Reset all RSS tracker settings to defaults?\');">Reset to Defaults</button>';
+	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-noise-tools' ) . '">Reset to Defaults</button>';
 	echo '</p>';
 	echo '</form>';
 }
@@ -536,7 +537,8 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
 	echo '</div>';
 	echo '<p class="submit sn-submit--tight">';
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" onclick="return confirm(\'Delete log entries older than the specified threshold?\');">Purge now</button>';
+	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
 	echo '</p>';
 	echo '</form>';
 	echo '</div>';

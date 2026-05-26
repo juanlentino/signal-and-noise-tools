@@ -122,34 +122,45 @@
 					return;
 				}
 				var hook = tr.getAttribute( 'data-hook' );
-				if ( ! window.confirm( fmt1( I.confirmRun, hook ) ) ) {
-					return;
-				}
-				if ( ! window.wp || ! window.wp.apiFetch ) {
-					toast( I.apiFetchMissing, 'error' );
-					return;
-				}
-				btn.disabled = true;
-				btn.textContent = I.running;
-				window.wp.apiFetch( {
-					path: '/signal-noise/v1/cron/run',
-					method: 'POST',
-					data: { hook: hook }
-				} ).then( function( res ) {
-					if ( res && res.success ) {
-						// v3.0.1: use server-formatted timestamp (site
-						// timezone, matches the rest of the table) instead
-						// of client-side UTC toISOString.
-						updateLastFiredCell( tr, res.last_fired_formatted );
-						toast( fmtFired( hook, res.elapsed_ms ), 'success' );
-					} else {
-						toast( fmt1( I.runFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
+				// v4.1.1 (U-01): sntConfirm replaces window.confirm (which is
+				// blocked by the desktop-mode portal iframe). Falls back to
+				// window.confirm if the snt-confirm helper failed to enqueue.
+				var prompt = ( typeof window.sntConfirm === 'function' )
+					? window.sntConfirm( {
+						title:             I.confirmRunTitle || 'Run cron event now?',
+						message:           fmt1( I.confirmRun, hook ),
+						confirmLabel:      I.confirmRunLabel || 'Run now',
+						originatingButton: btn,
+					} )
+					: Promise.resolve( window.confirm( fmt1( I.confirmRun, hook ) ) );
+				prompt.then( function ( confirmed ) {
+					if ( ! confirmed ) { return; }
+					if ( ! window.wp || ! window.wp.apiFetch ) {
+						toast( I.apiFetchMissing, 'error' );
+						return;
 					}
-				} ).catch( function( err ) {
-					toast( fmt1( I.runFailedTemplate, err.message || err ), 'error' );
-				} ).finally( function() {
-					btn.disabled = false;
-					btn.textContent = I.runNow;
+					btn.disabled = true;
+					btn.textContent = I.running;
+					window.wp.apiFetch( {
+						path: '/signal-noise/v1/cron/run',
+						method: 'POST',
+						data: { hook: hook }
+					} ).then( function( res ) {
+						if ( res && res.success ) {
+							// v3.0.1: use server-formatted timestamp (site
+							// timezone, matches the rest of the table) instead
+							// of client-side UTC toISOString.
+							updateLastFiredCell( tr, res.last_fired_formatted );
+							toast( fmtFired( hook, res.elapsed_ms ), 'success' );
+						} else {
+							toast( fmt1( I.runFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
+						}
+					} ).catch( function( err ) {
+						toast( fmt1( I.runFailedTemplate, err.message || err ), 'error' );
+					} ).finally( function() {
+						btn.disabled = false;
+						btn.textContent = I.runNow;
+					} );
 				} );
 			} );
 		} );
@@ -285,39 +296,48 @@
 					return;
 				}
 				var hook = tr.getAttribute( 'data-hook' );
-				if ( ! window.confirm( fmt1( I.confirmUnschedule, hook ) ) ) {
-					return;
-				}
-				if ( ! window.wp || ! window.wp.apiFetch ) {
-					toast( I.apiFetchMissing, 'error' );
-					return;
-				}
-				// Parse args off the data attribute so we send the exact
-				// signature the server scheduled. Falls back to [] on any
-				// parse error (matches the unschedule impl's default).
-				var args = [];
-				try {
-					var raw = btn.getAttribute( 'data-args' );
-					if ( raw ) {
-						args = JSON.parse( raw );
-						if ( ! Array.isArray( args ) ) {
-							args = [];
-						}
+				// v4.1.1 (U-01): sntConfirm replaces window.confirm.
+				var prompt = ( typeof window.sntConfirm === 'function' )
+					? window.sntConfirm( {
+						title:             I.confirmUnscheduleTitle || 'Unschedule this cron event?',
+						message:           fmt1( I.confirmUnschedule, hook ),
+						confirmLabel:      I.confirmUnscheduleLabel || 'Unschedule',
+						danger:            true,
+						originatingButton: btn,
+					} )
+					: Promise.resolve( window.confirm( fmt1( I.confirmUnschedule, hook ) ) );
+				prompt.then( function ( confirmed ) {
+					if ( ! confirmed ) { return; }
+					if ( ! window.wp || ! window.wp.apiFetch ) {
+						toast( I.apiFetchMissing, 'error' );
+						return;
 					}
-				} catch ( err ) {
-					args = [];
-				}
-				btn.disabled = true;
-				btn.textContent = I.unscheduling;
-				// Also disable the Run-now button on the same row during
-				// dispatch so users can't double-act on a half-removed event.
-				var runBtn = tr.querySelector( '.sn-cron-run-now' );
-				if ( runBtn ) { runBtn.disabled = true; }
+					// Parse args off the data attribute so we send the exact
+					// signature the server scheduled. Falls back to [] on any
+					// parse error (matches the unschedule impl's default).
+					var args = [];
+					try {
+						var raw = btn.getAttribute( 'data-args' );
+						if ( raw ) {
+							args = JSON.parse( raw );
+							if ( ! Array.isArray( args ) ) {
+								args = [];
+							}
+						}
+					} catch ( err ) {
+						args = [];
+					}
+					btn.disabled = true;
+					btn.textContent = I.unscheduling;
+					// Also disable the Run-now button on the same row during
+					// dispatch so users can't double-act on a half-removed event.
+					var runBtn = tr.querySelector( '.sn-cron-run-now' );
+					if ( runBtn ) { runBtn.disabled = true; }
 
-				window.wp.apiFetch( {
-					path: '/signal-noise/v1/cron/unschedule',
-					method: 'POST',
-					data: { hook: hook, args: args }
+					window.wp.apiFetch( {
+						path: '/signal-noise/v1/cron/unschedule',
+						method: 'POST',
+						data: { hook: hook, args: args }
 				} ).then( function( res ) {
 					if ( res && res.success ) {
 						if ( res.cleared > 0 ) {
@@ -346,6 +366,7 @@
 					btn.textContent = I.unschedule;
 					if ( runBtn ) { runBtn.disabled = false; }
 				} );
+				} ); // close prompt.then
 			} );
 		} );
 	}
