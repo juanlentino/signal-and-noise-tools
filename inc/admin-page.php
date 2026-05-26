@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * with the same slug overrides the auto entry's label to "Dashboard".
  */
 /**
- * The 8 SN admin pages, each rendered by sn_theme_options_page().
+ * Legacy table of admin page slugs.
  *
  * Defined once at module scope so registration and dispatch read from
  * a single source of truth. Slug uniqueness is critical — WP's
@@ -49,6 +49,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * a phantom sidebar entry.
  *
  * Order in the array = display order in the WP sidebar.
+ *
+ * @deprecated 4.2.0 Use sn_admin_top_tabs() instead. This table is
+ *             retained for backward compat with sn_admin_maybe_redirect_legacy()
+ *             which 302-redirects legacy ?page=sn-<slug> URLs to canonical
+ *             tab URLs. New code MUST use sn_admin_top_tabs() — the legacy
+ *             URLs redirect on GET, but POST bodies submitted to a legacy
+ *             URL are lost in the redirect.
  */
 function sn_admin_pages() {
 	// Note: the 'dashboard' slug ('sn-theme-options') intentionally matches
