@@ -38,7 +38,11 @@ function smoke_assert( $cond, $msg ) {
 
 // ─── Contract 1: sn_purge_all_caches_result ──────────────────────────
 echo "Contract 1: sn_purge_all_caches_result\n";
-$count = apply_filters( 'sn_purge_all_caches_result', 0, array( 'reason' => 'smoke-test' ) );
+$count = apply_filters( 'sn_purge_all_caches_result', 0, array(
+	'template_overrides' => false,
+	'cloudflare'         => false,
+	'reason'             => 'smoke-test',
+) );
 smoke_assert( is_int( $count ),  '1.1: returns int' );
 smoke_assert( $count >= 0,       '1.2: count is non-negative' );
 

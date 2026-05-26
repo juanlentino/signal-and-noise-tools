@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.1] - 2026-05-26 — Docs tightening from v4.4.x QA pass
+
+**Released:** 2026-05-26.
+
+**Headline:** Three small documentation clarifications surfaced in the v4.4.x post-ship QA. No behavior changes; tests still pass at 888 assertions across 21 suites.
+
+**Changes:**
+
+- **Smoke runner payload safety** — [`tests/contracts-smoke.php`](tests/contracts-smoke.php) line 41 now passes `template_overrides => false, cloudflare => false` in the Contract 1 `$args` payload. Previously, running the smoke test against a live install would trigger a full Cloudflare cache purge as a side effect because the theme listener's `sn_purge_all_caches()` defaults both to `true` when not specified. Smoke test is now safe to run repeatedly against production without unintended side effects.
+
+- **v5.0.0 scope doc namespace philosophy** — [`docs/superpowers/specs/2026-05-26-v5.0.0-scope.md`](docs/superpowers/specs/2026-05-26-v5.0.0-scope.md) §1 now explicitly documents that the audit covers only the `sn_*` public-surface namespace; the ~171 `snt_*` internal-impl functions are intentionally not enumerated. Default disposition for `snt_*` is KEEP; case-by-case `@deprecated` docblock is the workflow. Eliminates the implicit-assumption risk surfaced by the v4.4.x QA.
+
+- **WORDPRESS-REFERENCE §10.0 Contract 1 `$args` shape** — companion theme repo's [`docs/WORDPRESS-REFERENCE.md`](https://github.com/juanlentino/signal-and-noise/blob/main/docs/WORDPRESS-REFERENCE.md) now documents the expected `$args` keys for `sn_purge_all_caches_result`. Pinned dispatch contract; eliminates payload-key drift between dispatch sites, test fixtures, and contract docs.
+
+**Cap math:** plugin patch 0/7 → **1/7** in v4.4.x. 6 patches remaining before forced v5.0.0.
+
+---
+
 ## [4.4.0] - 2026-05-26 — Cross-package contracts E2E + v5.0.0 readiness pass
 
 **Released:** 2026-05-26.
