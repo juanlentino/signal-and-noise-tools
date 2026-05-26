@@ -170,8 +170,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 		return $result;
 	}
 
-	$suggestion = trim( (string) $result );
-	$suggestion = trim( $suggestion, "\"'" );  // Strip surrounding quotes if model fights the prompt.
+	$suggestion = (string) $result;  // v4.1.6 (D-10): quote-strip now happens in snt_ai_generate_with_constraints().
 
 	if ( 'ALT_INSUFFICIENT_CONTEXT' === $suggestion ) {
 		return new WP_Error(

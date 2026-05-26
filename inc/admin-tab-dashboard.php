@@ -155,10 +155,14 @@ function snt_dashboard_tab_render() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-card-grid">';
 
+	// v4.1.6 (U-13): button hierarchy matches action gravity.
+	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
+	//   - Purge All Caches is the most-common routine action → button-primary.
+	//   - Clear Overrides + Check for Updates are reversible/informational → bare button.
 	echo '<div class="sn-card">';
 	echo '<strong>Full Reset</strong>';
 	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-	echo '<button type="submit" name="sn_action" value="full_reset" class="button button-primary">Run Full Reset</button>';
+	echo '<button type="submit" name="sn_action" value="full_reset" class="button button-link-delete">Run Full Reset</button>';
 	echo '</div>';
 
 	echo '<div class="sn-card">';
@@ -170,7 +174,7 @@ function snt_dashboard_tab_render() {
 	echo '<div class="sn-card">';
 	echo '<strong>Purge Caches</strong>';
 	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-	echo '<button type="submit" name="sn_action" value="purge_caches" class="button">Purge All Caches</button>';
+	echo '<button type="submit" name="sn_action" value="purge_caches" class="button button-primary">Purge All Caches</button>';
 	echo '</div>';
 
 	// v2.5.3: visible UI shortcut for the "tagged a new release, where's

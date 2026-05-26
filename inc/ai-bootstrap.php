@@ -92,8 +92,19 @@ function snt_ai_can_text_generate() {
 }
 
 /**
- * Back-compat alias — every existing call site of snt_ai_is_available()
- * gets the corrected behavior automatically.
+ * Public name for the same check. Convention (audit D-12, v4.1.6):
+ *
+ *   - **`snt_ai_is_available()`** — preferred at CALL SITES (admin enqueue
+ *     guards, REST permission_callbacks, conditional rendering). Reads as
+ *     "is AI available?" which is what the caller actually wants to know.
+ *   - **`snt_ai_can_text_generate()`** — internal implementation detail
+ *     (the underlying capability check against wp-ai-client). Stays as the
+ *     impl-named function for clarity when reading ai-bootstrap.php itself.
+ *
+ * Every external caller in inc/ uses `snt_ai_is_available()` after the
+ * v4.1.1 D-03 consolidation (verified by `grep -rn 'snt_ai_can_text_generate' inc/`).
+ * Keep both names indefinitely — renaming the impl would touch the wp-ai-client
+ * provenance trail in the docblock above.
  *
  * @return bool
  */
@@ -226,6 +237,18 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 		);
 	}
 
+	// v4.1.6 (D-10): centralized post-AI quote-strip. Sonnet 4.6 + competing
+	// models occasionally wrap single-line outputs in surrounding double or
+	// single quotes despite explicit "no quotes" system instructions. Pre-v4.1.6
+	// the trim was duplicated in 4 caller sites (ai-alt-text-suggest:138,
+	// ai-alt-inline-suggest:174, ai-drift-phrase-suggest:235, ai-meta-description:120).
+	// Centralizing here means callers receive a clean string; any future caller
+	// gets the same defense automatically. JSON-shaped outputs (where the model
+	// returns `{"foo":"bar"}`) are unaffected because the outermost characters
+	// are braces, not quotes — trim() with this charset only strips MATCHING
+	// outer quote characters at the very start/end of the string.
+	$text = trim( $text, "\"'" );
+
 	return $text;
 }
 
@@ -255,3 +278,33 @@ function snt_ai_extract_post_text( $post_id, $words = 1000 ) {
 	// we want a clean truncation, not "..." appended.
 	return (string) wp_trim_words( $raw, max( 50, (int) $words ), '' );
 }
+
+/**
+ * Register the shared `snt-status` JS utility — exposes window.sntSetStatus.
+ *
+ * Replaces 4 byte-identical setStatus() copies that lived in
+ * ai-meta-description.js, ai-excerpt.js, ai-og-card-title.js, and
+ * health-suggest-actions.js pre-v4.1.6 (audit finding U-15).
+ *
+ * Registration only (NOT enqueue) — callers declare 'snt-status' in their
+ * deps array and WP chains the load. Registering here in ai-bootstrap (which
+ * is required early in the plugin bootstrap, before any AI feature file)
+ * guarantees the handle exists at the time the 4 consumer scripts enqueue.
+ *
+ * Gated on snt_ai_is_available() because all 4 consumers are AI features —
+ * no point registering a util whose only consumers won't load.
+ *
+ * @since 4.1.6
+ */
+add_action( 'admin_enqueue_scripts', function() {
+	if ( ! snt_ai_is_available() ) {
+		return;
+	}
+	wp_register_script(
+		'snt-status',
+		plugins_url( 'assets/snt-status.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+} );

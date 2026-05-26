@@ -115,9 +115,8 @@ function snt_ai_meta_desc_impl( $post_id ) {
 	// despite the system prompt's "no preamble" instruction.
 	$description = trim( $result );
 
-	// If the response somehow includes surrounding quotes (model fighting
-	// the system prompt), strip them. Don't strip inner quotes.
-	$description = trim( $description, "\"'" );
+	// v4.1.6 (D-10): centralized — surrounding-quote strip now happens in
+	// snt_ai_generate_with_constraints() before this caller receives $description.
 
 	return array(
 		'ok'          => true,
@@ -169,7 +168,8 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_register_script(
 		'snt-ai-meta-description',
 		plugins_url( 'assets/ai-meta-description.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'wp-i18n' ),
+		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+		array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
 		SNT_VERSION,
 		true
 	);

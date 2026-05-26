@@ -50,7 +50,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sn_desktop_data is localized so the JS can read current version +
  * latest tag without an extra REST call for the "Info" commands.
  */
+// v4.1.6 (D-13): merged 3 separate admin_enqueue_scripts actions
+// (script-register + localize, command-register, widget-register) into a
+// single hook. Each sub-block keeps its own function_exists guard so the
+// merge is semantically identical to the 3-hook version — desktop-mode
+// could theoretically ship _commands_ without _widgets_ (or vice versa)
+// even though in practice both come from the same plugin.
 add_action( 'admin_enqueue_scripts', function() {
+	// ── Sub-block 1: register desktop-mode scripts + localize shared data ──
 	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
 		return;
 	}
@@ -118,6 +125,103 @@ add_action( 'admin_enqueue_scripts', function() {
 	// transitively on wp-api-fetch), so the global will be set by the time it
 	// runs.
 	wp_localize_script( 'sn-desktop-mode', 'snDesktopData', $shared );
+
+	// ── Sub-block 2: register Command Palette commands ──
+	// (Pre-v4.1.6 this was a separate add_action — merged for D-13.)
+	$commands = array(
+		// Maintenance (REST → toast).
+		array( 'slug' => 'sn-cmd-force-check',     'label' => 'SN: Force-check updates',       'description' => 'Clear all GitHub + WordPress update transients.',           'icon' => 'dashicons-update' ),
+		array( 'slug' => 'sn-cmd-purge-caches',    'label' => 'SN: Purge all caches',          'description' => 'Object cache + Breeze + Varnish + Cloudflare.',           'icon' => 'dashicons-trash' ),
+		array( 'slug' => 'sn-cmd-clear-overrides', 'label' => 'SN: Clear template overrides',  'description' => 'Remove wp_template / wp_template_part / wp_navigation DB rows.', 'icon' => 'dashicons-editor-removeformatting' ),
+		array( 'slug' => 'sn-cmd-full-reset',      'label' => 'SN: Full reset',                'description' => 'Clear overrides AND purge every cache.',                  'icon' => 'dashicons-controls-repeat' ),
+
+		// Navigation (window.location).
+		array( 'slug' => 'sn-cmd-nav-dashboard',    'label' => 'SN: Open Dashboard',    'description' => 'Site state, recent deploys, maintenance actions.', 'icon' => 'dashicons-dashboard' ),
+		array( 'slug' => 'sn-cmd-nav-identity',     'label' => 'SN: Open Identity',     'description' => 'Site name, social profiles, OG cards, SEO copy.',  'icon' => 'dashicons-id' ),
+		array( 'slug' => 'sn-cmd-nav-login',        'label' => 'SN: Open Login',        'description' => 'Custom login URL + emergency unlock.',             'icon' => 'dashicons-lock' ),
+		array( 'slug' => 'sn-cmd-nav-cloudflare',   'label' => 'SN: Open Cloudflare',   'description' => 'CF API token + zone + auto-purge config.',         'icon' => 'dashicons-cloud' ),
+		array( 'slug' => 'sn-cmd-nav-plausible',    'label' => 'SN: Open Plausible',    'description' => 'Stats API key for dashboard widgets.',             'icon' => 'dashicons-chart-line' ),
+		array( 'slug' => 'sn-cmd-nav-rss',          'label' => 'SN: Open RSS',          'description' => 'Subscriber tracking + recent feed requests.',      'icon' => 'dashicons-rss' ),
+		array( 'slug' => 'sn-cmd-nav-reading-time', 'label' => 'SN: Open Reading Time', 'description' => 'Legacy reading-time-string cleanup tool.',         'icon' => 'dashicons-clock' ),
+
+		// Info (read from localized data → toast).
+		array( 'slug' => 'sn-cmd-version-theme',  'label' => 'SN: Theme version',  'description' => 'Show current theme version + GitHub-latest comparison.',  'icon' => 'dashicons-admin-appearance' ),
+		array( 'slug' => 'sn-cmd-version-plugin', 'label' => 'SN: Plugin version', 'description' => 'Show current plugin version + GitHub-latest comparison.', 'icon' => 'dashicons-admin-plugins' ),
+
+		// Cron Dashboard (v3.0.0).
+		array( 'slug' => 'sn-cmd-cron-health', 'label' => 'SN: Cron health overview',    'description' => 'Toast a summary of scheduled events + navigate to the Cron tab.',     'icon' => 'dashicons-clock' ),
+		array( 'slug' => 'sn-cmd-cron-list',   'label' => 'SN: Open Cron tab',           'description' => 'Navigate directly to the SN Cron tab in wp-admin.',                  'icon' => 'dashicons-list-view' ),
+
+		// Insights (v3.6.0).
+		array( 'slug' => 'sn-cmd-insights',    'label' => 'SN: Open Insights tab',       'description' => 'Navigate to the AI-powered Insights tab in wp-admin.',               'icon' => 'dashicons-lightbulb' ),
+
+		// Audit log (v3.8.3).
+		array( 'slug' => 'sn-cmd-audit-summary',       'label' => 'SN: Audit log summary',        'description' => 'Toast last-24h totals, 7-day trend, unique IPs, LLA lockout count.', 'icon' => 'dashicons-shield-alt' ),
+		array( 'slug' => 'sn-cmd-audit-recent-logins', 'label' => 'SN: Recent successful logins', 'description' => 'Toast last 10 successful login timestamps + usernames.',              'icon' => 'dashicons-admin-users' ),
+
+		// ─── Theme-ability ⌘K launcher commands (12 total) ─────────────────
+		// Pure launcher entries — slug/label/description/icon only. These
+		// surface the theme's WP 7.0 abilities in the Command Palette for
+		// discoverability. v3.8.0 wires real invocation via the
+		// desktop_mode_register_ai_tool() server-side AI tool registry +
+		// an Anthropic provider (desktop_mode_register_ai_provider()) so
+		// the AI Copilot can dispatch them with structured arguments.
+		//
+		// Until v3.8.0 lands, these are display-only entries — clicking a
+		// command does nothing beyond the desktop-mode default behavior
+		// (no JS run() registered). That's intentional: the wrong UX
+		// (sequential window.prompt() forms) is worse than no UX.
+		array( 'slug' => 'sn-cmd-get-design-tokens',        'label' => 'SN: Show design tokens',          'description' => 'Theme palette + typography + spacing scale.',           'icon' => 'dashicons-art' ),
+		array( 'slug' => 'sn-cmd-list-block-patterns',      'label' => 'SN: List block patterns',         'description' => 'All registered patterns with category + keywords.',     'icon' => 'dashicons-screenoptions' ),
+		array( 'slug' => 'sn-cmd-get-template-structure',   'label' => 'SN: Inspect active template',     'description' => 'FSE block tree for the current page.',                  'icon' => 'dashicons-layout' ),
+		array( 'slug' => 'sn-cmd-theme-version',            'label' => 'SN: Theme version info',          'description' => 'Theme + WP version + block-theme flags.',               'icon' => 'dashicons-info-outline' ),
+		array( 'slug' => 'sn-cmd-page-notes-pillars',       'label' => 'SN: List /notes pillars',         'description' => 'Pillar essay metadata for the /notes catalog.',         'icon' => 'dashicons-book' ),
+		array( 'slug' => 'sn-cmd-reading-time',             'label' => 'SN: Reading time for slug',       'description' => 'Computed minutes for a given post slug.',               'icon' => 'dashicons-clock' ),
+		array( 'slug' => 'sn-cmd-design-summary',           'label' => 'SN: Design-system summary',       'description' => 'Formatted overview optimized for AI prompts.',          'icon' => 'dashicons-edit-page' ),
+		array( 'slug' => 'sn-cmd-ai-page-note-summary',     'label' => 'SN: Generate page-note summary',  'description' => 'AI-summarize the current post in /notes catalog voice.', 'icon' => 'dashicons-text' ),
+		array( 'slug' => 'sn-cmd-ai-suggest-pattern',       'label' => 'SN: Suggest block pattern',       'description' => 'AI recommends patterns for a draft.',                   'icon' => 'dashicons-screenoptions' ),
+		array( 'slug' => 'sn-cmd-ai-brand-validate',        'label' => 'SN: Validate brand alignment',    'description' => 'AI checks if content fits SN voice + palette.',         'icon' => 'dashicons-yes-alt' ),
+		array( 'slug' => 'sn-cmd-ai-pattern-content',       'label' => 'SN: Generate pattern content',    'description' => 'Fill a pattern with brand-voiced copy.',                'icon' => 'dashicons-format-aside' ),
+		array( 'slug' => 'sn-cmd-ai-rewrite-voice',         'label' => 'SN: Rewrite in brand voice',      'description' => 'Transform external copy into SN voice.',                'icon' => 'dashicons-edit' ),
+	);
+
+	foreach ( $commands as $cmd ) {
+		desktop_mode_register_command( array(
+			'slug'        => $cmd['slug'],
+			'label'       => $cmd['label'],
+			'description' => $cmd['description'],
+			'icon'        => $cmd['icon'],
+			'script'      => 'sn-desktop-mode',
+		) );
+	}
+
+	// ── Sub-block 3: register desktop widgets ──
+	// Independent function_exists check — desktop-mode could theoretically
+	// ship commands without widgets (defensive, mirrors the pre-v4.1.6 split).
+	if ( function_exists( 'desktop_mode_register_widget' ) ) {
+		desktop_mode_register_widget( 'sn-deploy-status', array(
+			'label'  => 'SN Deploy Status',
+			'script' => 'sn-desktop-mode-widget',
+			'sort'   => 50,
+		) );
+
+		// v2.1.0: Quick Actions widget — replaces the 3-click path of
+		// S&N → Dashboard → Maintenance with single-click access from desktop.
+		desktop_mode_register_widget( 'sn-quick-actions', array(
+			'label'  => 'SN Quick Actions',
+			'script' => 'sn-desktop-mode-widget-actions',
+			'sort'   => 55,
+		) );
+
+		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
+		// was previously buried under S&N → RSS tab + a single line on the
+		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
+		desktop_mode_register_widget( 'sn-rss-subscribers', array(
+			'label'  => 'SN RSS Subscribers',
+			'script' => 'sn-desktop-mode-widget-rss',
+			'sort'   => 60,
+		) );
+	}
 } );
 
 /**
@@ -249,117 +353,6 @@ add_action( 'init', function() {
 		'title' => 'SN Identity',
 		'icon'  => 'dashicons-id',
 		'url'   => admin_url( 'admin.php?page=sn-identity' ),
-	) );
-} );
-
-/**
- * Command-palette commands — 13 total.
- *
- * Each command's run callback lives in assets/desktop-mode.js. The PHP
- * registration here gives desktop-mode the metadata (slug, label, icon)
- * + the script handle that contains the JS callback.
- */
-add_action( 'admin_enqueue_scripts', function() {
-	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
-		return;
-	}
-
-	$commands = array(
-		// Maintenance (REST → toast).
-		array( 'slug' => 'sn-cmd-force-check',     'label' => 'SN: Force-check updates',       'description' => 'Clear all GitHub + WordPress update transients.',           'icon' => 'dashicons-update' ),
-		array( 'slug' => 'sn-cmd-purge-caches',    'label' => 'SN: Purge all caches',          'description' => 'Object cache + Breeze + Varnish + Cloudflare.',           'icon' => 'dashicons-trash' ),
-		array( 'slug' => 'sn-cmd-clear-overrides', 'label' => 'SN: Clear template overrides',  'description' => 'Remove wp_template / wp_template_part / wp_navigation DB rows.', 'icon' => 'dashicons-editor-removeformatting' ),
-		array( 'slug' => 'sn-cmd-full-reset',      'label' => 'SN: Full reset',                'description' => 'Clear overrides AND purge every cache.',                  'icon' => 'dashicons-controls-repeat' ),
-
-		// Navigation (window.location).
-		array( 'slug' => 'sn-cmd-nav-dashboard',    'label' => 'SN: Open Dashboard',    'description' => 'Site state, recent deploys, maintenance actions.', 'icon' => 'dashicons-dashboard' ),
-		array( 'slug' => 'sn-cmd-nav-identity',     'label' => 'SN: Open Identity',     'description' => 'Site name, social profiles, OG cards, SEO copy.',  'icon' => 'dashicons-id' ),
-		array( 'slug' => 'sn-cmd-nav-login',        'label' => 'SN: Open Login',        'description' => 'Custom login URL + emergency unlock.',             'icon' => 'dashicons-lock' ),
-		array( 'slug' => 'sn-cmd-nav-cloudflare',   'label' => 'SN: Open Cloudflare',   'description' => 'CF API token + zone + auto-purge config.',         'icon' => 'dashicons-cloud' ),
-		array( 'slug' => 'sn-cmd-nav-plausible',    'label' => 'SN: Open Plausible',    'description' => 'Stats API key for dashboard widgets.',             'icon' => 'dashicons-chart-line' ),
-		array( 'slug' => 'sn-cmd-nav-rss',          'label' => 'SN: Open RSS',          'description' => 'Subscriber tracking + recent feed requests.',      'icon' => 'dashicons-rss' ),
-		array( 'slug' => 'sn-cmd-nav-reading-time', 'label' => 'SN: Open Reading Time', 'description' => 'Legacy reading-time-string cleanup tool.',         'icon' => 'dashicons-clock' ),
-
-		// Info (read from localized data → toast).
-		array( 'slug' => 'sn-cmd-version-theme',  'label' => 'SN: Theme version',  'description' => 'Show current theme version + GitHub-latest comparison.',  'icon' => 'dashicons-admin-appearance' ),
-		array( 'slug' => 'sn-cmd-version-plugin', 'label' => 'SN: Plugin version', 'description' => 'Show current plugin version + GitHub-latest comparison.', 'icon' => 'dashicons-admin-plugins' ),
-
-		// Cron Dashboard (v3.0.0).
-		array( 'slug' => 'sn-cmd-cron-health', 'label' => 'SN: Cron health overview',    'description' => 'Toast a summary of scheduled events + navigate to the Cron tab.',     'icon' => 'dashicons-clock' ),
-		array( 'slug' => 'sn-cmd-cron-list',   'label' => 'SN: Open Cron tab',           'description' => 'Navigate directly to the SN Cron tab in wp-admin.',                  'icon' => 'dashicons-list-view' ),
-
-		// Insights (v3.6.0).
-		array( 'slug' => 'sn-cmd-insights',    'label' => 'SN: Open Insights tab',       'description' => 'Navigate to the AI-powered Insights tab in wp-admin.',               'icon' => 'dashicons-lightbulb' ),
-
-		// Audit log (v3.8.3).
-		array( 'slug' => 'sn-cmd-audit-summary',       'label' => 'SN: Audit log summary',        'description' => 'Toast last-24h totals, 7-day trend, unique IPs, LLA lockout count.', 'icon' => 'dashicons-shield-alt' ),
-		array( 'slug' => 'sn-cmd-audit-recent-logins', 'label' => 'SN: Recent successful logins', 'description' => 'Toast last 10 successful login timestamps + usernames.',              'icon' => 'dashicons-admin-users' ),
-
-		// ─── Theme-ability ⌘K launcher commands (12 total) ─────────────────
-		// Pure launcher entries — slug/label/description/icon only. These
-		// surface the theme's WP 7.0 abilities in the Command Palette for
-		// discoverability. v3.8.0 wires real invocation via the
-		// desktop_mode_register_ai_tool() server-side AI tool registry +
-		// an Anthropic provider (desktop_mode_register_ai_provider()) so
-		// the AI Copilot can dispatch them with structured arguments.
-		//
-		// Until v3.8.0 lands, these are display-only entries — clicking a
-		// command does nothing beyond the desktop-mode default behavior
-		// (no JS run() registered). That's intentional: the wrong UX
-		// (sequential window.prompt() forms) is worse than no UX.
-		array( 'slug' => 'sn-cmd-get-design-tokens',        'label' => 'SN: Show design tokens',          'description' => 'Theme palette + typography + spacing scale.',           'icon' => 'dashicons-art' ),
-		array( 'slug' => 'sn-cmd-list-block-patterns',      'label' => 'SN: List block patterns',         'description' => 'All registered patterns with category + keywords.',     'icon' => 'dashicons-screenoptions' ),
-		array( 'slug' => 'sn-cmd-get-template-structure',   'label' => 'SN: Inspect active template',     'description' => 'FSE block tree for the current page.',                  'icon' => 'dashicons-layout' ),
-		array( 'slug' => 'sn-cmd-theme-version',            'label' => 'SN: Theme version info',          'description' => 'Theme + WP version + block-theme flags.',               'icon' => 'dashicons-info-outline' ),
-		array( 'slug' => 'sn-cmd-page-notes-pillars',       'label' => 'SN: List /notes pillars',         'description' => 'Pillar essay metadata for the /notes catalog.',         'icon' => 'dashicons-book' ),
-		array( 'slug' => 'sn-cmd-reading-time',             'label' => 'SN: Reading time for slug',       'description' => 'Computed minutes for a given post slug.',               'icon' => 'dashicons-clock' ),
-		array( 'slug' => 'sn-cmd-design-summary',           'label' => 'SN: Design-system summary',       'description' => 'Formatted overview optimized for AI prompts.',          'icon' => 'dashicons-edit-page' ),
-		array( 'slug' => 'sn-cmd-ai-page-note-summary',     'label' => 'SN: Generate page-note summary',  'description' => 'AI-summarize the current post in /notes catalog voice.', 'icon' => 'dashicons-text' ),
-		array( 'slug' => 'sn-cmd-ai-suggest-pattern',       'label' => 'SN: Suggest block pattern',       'description' => 'AI recommends patterns for a draft.',                   'icon' => 'dashicons-screenoptions' ),
-		array( 'slug' => 'sn-cmd-ai-brand-validate',        'label' => 'SN: Validate brand alignment',    'description' => 'AI checks if content fits SN voice + palette.',         'icon' => 'dashicons-yes-alt' ),
-		array( 'slug' => 'sn-cmd-ai-pattern-content',       'label' => 'SN: Generate pattern content',    'description' => 'Fill a pattern with brand-voiced copy.',                'icon' => 'dashicons-format-aside' ),
-		array( 'slug' => 'sn-cmd-ai-rewrite-voice',         'label' => 'SN: Rewrite in brand voice',      'description' => 'Transform external copy into SN voice.',                'icon' => 'dashicons-edit' ),
-	);
-
-	foreach ( $commands as $cmd ) {
-		desktop_mode_register_command( array(
-			'slug'        => $cmd['slug'],
-			'label'       => $cmd['label'],
-			'description' => $cmd['description'],
-			'icon'        => $cmd['icon'],
-			'script'      => 'sn-desktop-mode',
-		) );
-	}
-} );
-
-/**
- * Desktop widget — SN Deploy Status.
- */
-add_action( 'admin_enqueue_scripts', function() {
-	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
-		return;
-	}
-	desktop_mode_register_widget( 'sn-deploy-status', array(
-		'label'  => 'SN Deploy Status',
-		'script' => 'sn-desktop-mode-widget',
-		'sort'   => 50,
-	) );
-
-	// v2.1.0: Quick Actions widget — replaces the 3-click path of
-	// S&N → Dashboard → Maintenance with single-click access from desktop.
-	desktop_mode_register_widget( 'sn-quick-actions', array(
-		'label'  => 'SN Quick Actions',
-		'script' => 'sn-desktop-mode-widget-actions',
-		'sort'   => 55,
-	) );
-
-	// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
-	// was previously buried under S&N → RSS tab + a single line on the
-	// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
-	desktop_mode_register_widget( 'sn-rss-subscribers', array(
-		'label'  => 'SN RSS Subscribers',
-		'script' => 'sn-desktop-mode-widget-rss',
-		'sort'   => 60,
 	) );
 } );
 

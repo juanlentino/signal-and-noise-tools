@@ -568,7 +568,8 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 			wp_enqueue_script(
 				'snt-health-suggest-actions',
 				plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-				array( 'wp-api-fetch', 'wp-i18n' ),
+				// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+				array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
 				SNT_VERSION,
 				true
 			);

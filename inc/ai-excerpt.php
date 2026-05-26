@@ -165,7 +165,8 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_register_script(
 		'snt-ai-excerpt',
 		plugins_url( 'assets/ai-excerpt.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'wp-i18n', 'wp-data' ),
+		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+		array( 'wp-api-fetch', 'wp-i18n', 'wp-data', 'snt-status' ),
 		SNT_VERSION,
 		true
 	);

@@ -62,22 +62,11 @@
 		} );
 	}
 
-	/**
-	 * Set the color + text of a status span.
-	 * @param {Element} node
-	 * @param {string}  text
-	 * @param {'info'|'ok'|'warn'|'err'} kind
-	 */
-	function setStatus( node, text, kind ) {
-		if ( ! node ) { return; }
-		node.textContent = text;
-		switch ( kind ) {
-			case 'ok':   node.style.color = '#0a5a1a'; break;
-			case 'warn': node.style.color = '#6e4d00'; break;
-			case 'err':  node.style.color = '#8b1a1a'; break;
-			default:     node.style.color = '#646970';
-		}
-	}
+	// v4.1.6 (U-15): setStatus moved to shared assets/snt-status.js;
+	// exposed as window.sntSetStatus and added as a script dep above.
+	// All existing call sites in this file (setStatus(node, text, kind))
+	// continue to work via this local alias.
+	var setStatus = window.sntSetStatus;
 
 	/**
 	 * Open the Apply preview modal.

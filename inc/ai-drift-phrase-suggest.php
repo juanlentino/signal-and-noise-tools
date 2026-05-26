@@ -231,8 +231,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 		return $result;
 	}
 
-	$suggestion = trim( (string) $result );
-	$suggestion = trim( $suggestion, "\"'" );
+	$suggestion = (string) $result;  // v4.1.6 (D-10): quote-strip now happens in snt_ai_generate_with_constraints().
 
 	if ( 'PHRASE_NO_REPLACEMENT' === $suggestion ) {
 		return new WP_Error( 'snt_ai_no_replacement', __( 'AI could not generate a useful replacement for this phrase.', 'signal-noise-tools' ), array( 'status' => 422 ) );

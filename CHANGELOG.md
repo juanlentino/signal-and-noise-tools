@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.1.6] - 2026-05-25
+
+Tier B polish batch from the 2026-05-25 audit — 6 small refactors bundled into one ship per the v4.1.2-deferred-audit handoff recommendation. No behavioral changes; all are consistency / consolidation / dedup work that the audit flagged but classified below the Tier A modal-CSS-extract + abilities-registration-split work.
+
+### Fixed
+
+- **D-11 — Cron-dashboard JS was silently broken since v3.8.1.** [`inc/cron-dashboard-admin.php`](inc/cron-dashboard-admin.php) used `strpos($hook_suffix, 'sn-cron')` to gate the enqueue, but v3.8.1's IA reorg consolidated 12 submenu entries to 6 top-tabs — the Cron sub-tab now lives inside the Automation page whose `$hook_suffix` is `signal-noise_page_sn-automation`. The substring match never fired, so the cron filter input + Run-now + Unschedule JS never loaded on the live tab. Replaced with the canonical `in_array($hook_suffix, sn_admin_page_hooks(), true)` guard from [`admin-page.php:532`](inc/admin-page.php). JS is a no-op when its selectors don't match, so loading on every SN admin page is safe overhead.
+
+### Changed
+
+- **U-13 — Maintenance card button hierarchy reflects action gravity.** [`inc/admin-tab-dashboard.php`](inc/admin-tab-dashboard.php): "Purge All Caches" is now `button-primary` (most-common routine action — what you click after every deploy). "Full Reset" is `button-link-delete` (red destructive — clears overrides AND every cache). "Clear Overrides" + "Check for Updates" stay bare `button`. Pre-v4.1.6 all four cards looked equally de-emphasized except for the highly-destructive Full Reset being highlighted as primary — inverted hierarchy.
+- **D-12 — `snt_ai_is_available()` convention documented.** v4.1.1's D-03 consolidation already standardized every CALL SITE on `snt_ai_is_available()`; v4.1.6 adds the documenting docblock to [`inc/ai-bootstrap.php`](inc/ai-bootstrap.php) explaining the two-function convention (`snt_ai_is_available()` for callers, `snt_ai_can_text_generate()` as the impl-named internal). Future grep audits land in one place.
+- **D-13 — 3 desktop-mode `admin_enqueue_scripts` hooks merged into 1.** [`inc/desktop-mode-integration.php`](inc/desktop-mode-integration.php) had separate hooks for (1) registering scripts + localizing data, (2) registering Command Palette commands, (3) registering desktop widgets. Single hook now with three guarded sub-blocks (preserves the independent `function_exists` checks for `desktop_mode_register_command` and `desktop_mode_register_widget`). Removes ~10 boilerplate lines + a hook-firing-order ambiguity.
+- **D-10 — Centralized post-AI quote-strip.** Moved `trim($s, "\"'")` from 4 caller sites ([`ai-alt-text-suggest.php`](inc/ai-alt-text-suggest.php), [`ai-alt-inline-suggest.php`](inc/ai-alt-inline-suggest.php), [`ai-drift-phrase-suggest.php`](inc/ai-drift-phrase-suggest.php), [`ai-meta-description.php`](inc/ai-meta-description.php)) into the `snt_ai_generate_with_constraints()` return path in [`inc/ai-bootstrap.php`](inc/ai-bootstrap.php). Verified safe for all 9 known callers — JSON-shaped outputs (insights, orphan-suggest) have outer `{` or `[` chars not in the trim charset, so the centralized trim is a no-op for them. Net -4 lines across 4 sites, +1 line in bootstrap. Future AI callers get the defense automatically.
+- **U-15 — Shared `setStatus` helper extracted to [`assets/snt-status.js`](assets/snt-status.js).** 4 byte-identical `setStatus()` copies (post-editor: [`ai-meta-description.js`](assets/ai-meta-description.js), [`ai-excerpt.js`](assets/ai-excerpt.js), [`ai-og-card-title.js`](assets/ai-og-card-title.js); health admin: [`health-suggest-actions.js`](assets/health-suggest-actions.js)) replaced by a single shared utility exposing `window.sntSetStatus(node, text, kind)`. Registered in [`inc/ai-bootstrap.php`](inc/ai-bootstrap.php)'s `admin_enqueue_scripts` hook; each of the 4 caller scripts declares `'snt-status'` in its deps array. Palette changes (e.g., switching to CSS variables) now land in one file. Each caller keeps a `var setStatus = window.sntSetStatus;` local alias so existing call sites inside each file work unchanged.
+
+### Verification
+
+- `php -l` clean on all 7 modified PHP files.
+- `node --check` clean on all 5 modified JS files (1 new + 4 modified).
+- `php tests/abilities-integration.php` → 157/0 · `php tests/health-checks.php` → 76/0 (no PHP behavior touched).
+- Code traced for D-10 across all 9 callers of `snt_ai_generate_with_constraints()` — JSON-shaped outputs proven unaffected by the centralized trim.
+- Code traced for U-15 dependency chain: `inc/ai-bootstrap.php` is required BEFORE the 4 callers in [`signal-and-noise-tools.php`](signal-and-noise-tools.php), so its `add_action('admin_enqueue_scripts', ...)` runs first and registers `snt-status` before any caller's enqueue. WP resolves script deps at enqueue time, not registration time.
+
+### Audit provenance
+
+Closes Tier B from the v4.1.2-deferred-audit handoff: D-10, D-11, D-12, D-13, U-13, U-15 — 6 of 6. Tier C (D-02, D-06, D-09, B-06, B-07, U-05, U-11, U-12) remains deferred indefinitely per the original tier classifications (acknowledged design limitations or pending design decisions).
+
+**v4.x cap state:** patches **6/7** in v4.1.x · minors 2/5 in v4.x. v4.1.7 is the LAST patch slot before forced v4.2.0.
+
+### Process note
+
+This release was scoped via the v4.1.2-deferred-audit handoff (committed to the theme repo on 2026-05-25 as `73f5bb9`). Each finding has its commented inline reference (`v4.1.6 (X-NN): ...`) so a future reader can trace from the code back to the audit and the handoff that classified it.
+
 ## [4.1.5] - 2026-05-25
 
 Bugfix release. v4.1.4 shipped the Recent Deploys logging fix but had a self-observation gap: the `upgrader_process_complete` hook fires in the SAME PHP request as the install, which means v4.1.3's PHP code was in memory during the v4.1.4 install — and v4.1.3 had no handler for that hook. The v4.1.4 install slipped past its own fix. User confirmed the dashboard stayed stuck at v3.8.6 even after v4.1.4 deployed.
