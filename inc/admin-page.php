@@ -777,16 +777,15 @@ function sn_handle_admin_post() {
 		}
 		$flash = 'insights_done';
 	} elseif ( 'save_insights_settings' === $action ) {
-		$settings = (array) get_option( 'sn_settings', array() );
-		if ( ! isset( $settings['insights'] ) || ! is_array( $settings['insights'] ) ) {
-			$settings['insights'] = array();
-		}
-		$was_enabled = ! empty( $settings['insights']['weekly_cron_enabled'] );
-		$settings['insights']['weekly_cron_enabled'] = ! empty( $_POST['insights_weekly_cron'] );
-		update_option( 'sn_settings', $settings );
+		// v4.2.0 (D-06): write via sn_setting_update() — busts the
+		// per-request cache and provides the standard re-read
+		// confirmation. The cron sync below reads back the new value
+		// via sn_setting(), which now sees it.
+		$enabled = ! empty( $_POST['insights_weekly_cron'] );
+		sn_setting_update( 'insights.weekly_cron_enabled', $enabled );
 
 		// Sync the cron schedule with the new setting.
-		if ( $settings['insights']['weekly_cron_enabled'] ) {
+		if ( $enabled ) {
 			if ( function_exists( 'snt_insights_maybe_schedule_weekly_cron' ) ) {
 				snt_insights_maybe_schedule_weekly_cron();
 			}
