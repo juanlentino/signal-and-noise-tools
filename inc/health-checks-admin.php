@@ -25,7 +25,7 @@ function sn_health_render_admin_tab() {
 	}
 
 	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
-	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media' );
+	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated' );
 
 	$last_scan = sn_health_last_scan();
 
@@ -140,8 +140,13 @@ function sn_health_render_admin_tab() {
 		}
 
 		echo '</div>'; // .sn-fieldset
+	} // end foreach ( $last_scan['checks'] as $key => $check )
+
+	// v4.3.0: Opportunities sub-section (pattern-adoption Suggest+Apply).
+	if ( function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
+		snt_pattern_adoption_render_opportunities_section();
 	}
-}
+} // end function sn_health_render_admin_tab
 
 /**
  * Render the AI-fix table cell content for a finding.
@@ -190,6 +195,15 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 	} elseif ( 'orphaned_media' === $check_key ) {
 		$attrs['data-check']         = 'orphaned_media';
 		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+	} elseif ( 'pattern_adoption_pull_quote' === $check_key || 'pattern_adoption_steps_enumerated' === $check_key ) {
+		// v4.3.0: pattern-adoption opportunities — rendered by snt_pattern_adoption_render_opportunities_section,
+		// not by this generic suggest_cell helper. This branch exists so the existing $suggest_supported_checks
+		// gate in sn_health_render_admin_tab doesn't trip if someone wires these check keys into the general
+		// findings table by accident.
+		$attrs['data-check']         = $check_key;
+		$attrs['data-post-id']       = (int) ( $finding['post_id'] ?? 0 );
+		$attrs['data-fingerprint']   = (string) ( $finding['fingerprint'] ?? '' );
+		$attrs['data-pattern-type']  = (string) ( $finding['pattern_type'] ?? '' );
 	}
 
 	$html = '<button';
