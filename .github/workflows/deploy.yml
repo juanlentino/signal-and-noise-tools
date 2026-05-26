@@ -5,6 +5,13 @@ name: Deploy to Cloudways
 # plugin with WP's native update system). workflow_dispatch remains
 # as a manual emergency-hotfix fallback — trigger from the GitHub
 # Actions UI or via `gh workflow run deploy.yml --ref vX.Y.Z`.
+#
+# v4.4.2 security note: tests/ is deployed as part of the git checkout
+# (no rsync, no exclude list possible). Web access is blocked at the
+# PHP layer: every tests/*.php has a CLI-only guard (PHP_SAPI !== 'cli')
+# that returns 404 for HTTP requests. tests/.htaccess adds Apache
+# defense-in-depth (nginx on Cloudways ignores .htaccess — PHP guard
+# is load-bearing).
 on:
   workflow_dispatch:
 

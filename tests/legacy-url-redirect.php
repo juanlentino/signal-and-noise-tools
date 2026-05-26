@@ -8,6 +8,15 @@
  * pins down the contract.
  */
 
+// SECURITY: Prevent web access. This file is a test fixture, not a runtime
+// module. Direct HTTP GET to this path would either bootstrap WordPress
+// (contracts-smoke.php) or leak internal structure (all others). Allow only
+// CLI / WP-CLI invocations.
+if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
+    http_response_code( 404 );
+    exit;
+}
+
 define( 'ABSPATH', '/' );
 
 // Minimal WP stubs.

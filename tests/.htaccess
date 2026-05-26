@@ -1,0 +1,6 @@
+# Deny all web access to test fixtures. Defense-in-depth alongside the
+# CLI-only PHP guard at the top of each test file. Apache enforced;
+# nginx (Cloudways) ignores .htaccess — that layer relies on the PHP guard.
+<FilesMatch "\.php$">
+    Require all denied
+</FilesMatch>

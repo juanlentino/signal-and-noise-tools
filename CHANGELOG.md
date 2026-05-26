@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.2] - 2026-05-26 — URGENT security patch (remote unauthenticated destructive action)
+
+**Released:** 2026-05-26.
+
+**Headline:** Closes a remote unauthenticated destructive-action vulnerability in `tests/contracts-smoke.php`. The file was web-accessible after v4.4.0 install; an HTTP GET would bootstrap WordPress and trigger `apply_filters('sn_clear_template_overrides_result', 0)`, which deletes every `wp_template`, `wp_template_part`, and `wp_navigation` post in the database. The v4.4.x post-ship cycle's deep audit pass surfaced this within hours of v4.4.0 / v4.4.1 shipping.
+
+**v4.4.1's claim that the smoke runner was "safe to run repeatedly against production without unintended side effects" was WRONG.** That patch correctly disabled Contract 1's destructive payload (`template_overrides=false`, `cloudflare=false`) but Contract 2 takes no args — its filter dispatch invokes `sn_clear_template_overrides()` in the theme directly, with no payload to neutralize. v4.4.2 closes the gap by gating ALL `tests/*.php` files on CLI-only execution.
+
+**Changes:**
+
+- **CLI-only guard on every `tests/*.php` file** (22 files total). Top-of-file check:
+  ```php
+  if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
+      http_response_code( 404 );
+      exit;
+  }
+  ```
+  Closes both the `contracts-smoke.php` destructive trigger AND the info-leak surface across all other test files (function names, ability slugs, capability matrices visible via HTTP).
+- **`tests/.htaccess` with `Require all denied`** as Apache defense-in-depth. Nginx (Cloudways' actual server) ignores `.htaccess` — the PHP guard is the load-bearing defense.
+- **`.github/workflows/deploy.yml`** header comment updated to document that `tests/` is deployed via `git checkout` (no rsync, no exclude list). PHP guards are the primary defense; `.htaccess` is Apache-only.
+
+**Audit reference:** [`docs/superpowers/specs/2026-05-26-v4.4.x-and-v9.4.x-cycle-audit-findings.md`](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-26-v4.4.x-and-v9.4.x-cycle-audit-findings.md) §3 — full Bug-A1 + Bug-A2 detail.
+
+**Post-install user actions:**
+1. Install v4.4.2 via wp-admin → Updates IMMEDIATELY
+2. Verify the URL `https://juanlentino.com/wp-content/plugins/signal-and-noise-tools/tests/contracts-smoke.php` returns 404
+3. Verify `https://juanlentino.com/wp-content/plugins/signal-and-noise-tools/tests/abilities-integration.php` also 404s (info-leak surface check)
+4. Check Cloudflare WAF logs + Aikido Security alerts for any prior exploitation of the URL between v4.4.0 install and v4.4.2 install
+5. Inspect WP Site Editor to confirm no template/template-part/navigation rows were destroyed during the exposure window (Tools → Site Editor → Templates / Template Parts / Navigation)
+
+**Cap math:** plugin patch 1/7 → **2/7** in v4.4.x. 5 patches remaining.
+
+---
+
 ## [4.4.1] - 2026-05-26 — Docs tightening from v4.4.x QA pass
 
 **Released:** 2026-05-26.
