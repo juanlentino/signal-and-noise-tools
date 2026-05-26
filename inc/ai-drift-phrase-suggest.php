@@ -187,9 +187,11 @@ function snt_ai_drift_normalize_for_compare( $str ) {
  * @since 4.0.0 (4.1.1 fix: dynamic raw-position resolution)
  */
 function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snippet ) {
-	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
-		return new WP_Error( 'snt_ai_unavailable', __( 'AI text generation is not available.', 'signal-noise-tools' ), array( 'status' => 503 ) );
-	}
+	// v4.1.1 (D-03): shared AI-gate helper. Pre-v4.1.1 this file used a shorter
+	// error message ("AI text generation is not available.") which diverged from
+	// the six other AI impls — centralization eliminates the drift.
+	$gate = snt_ai_require_text_generation();
+	if ( $gate ) { return $gate; }
 
 	$post_id  = (int) $post_id;
 	$position = (int) $position; // Advisory — from extractor in stripped coords; not used directly.

@@ -60,13 +60,10 @@ const SNT_AI_ALT_APPLY_MAX_LENGTH   = 250;
  * @since 4.0.0
  */
 function snt_ai_alt_suggest_impl( $attachment_id ) {
-	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
-		return new WP_Error(
-			'snt_ai_unavailable',
-			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
-			array( 'status' => 503 )
-		);
-	}
+	// v4.1.1 (D-03): shared AI-gate helper. Centralizes the snt_ai_unavailable
+	// WP_Error so the message stays consistent across all AI impls.
+	$gate = snt_ai_require_text_generation();
+	if ( $gate ) { return $gate; }
 
 	$attachment = get_post( (int) $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {

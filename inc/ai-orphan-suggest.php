@@ -57,13 +57,9 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 
 	// Gate: AI client available.
-	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
-		return new WP_Error(
-			'snt_ai_unavailable',
-			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
-			array( 'status' => 503 )
-		);
-	}
+	// v4.1.1 (D-03): shared AI-gate helper.
+	$gate = snt_ai_require_text_generation();
+	if ( $gate ) { return $gate; }
 
 	// Gate: attachment exists and is an image.
 	$attachment = get_post( $attachment_id );

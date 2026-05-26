@@ -102,6 +102,46 @@ function snt_ai_is_available() {
 }
 
 /**
+ * v4.1.1 (D-03): single-source-of-truth gate for AI-feature impl functions.
+ *
+ * Returns null when AI text generation is available, or a uniform WP_Error
+ * with code 'snt_ai_unavailable' (HTTP 503) when it isn't. Every AI impl
+ * file (alt-text-suggest, alt-inline-suggest, drift-phrase-suggest,
+ * meta-description, og-card-title, excerpt, orphan-suggest) opens with the
+ * same gate — pre-v4.1.1 each duplicated the 4-line if-block with subtly
+ * divergent error messages (one file already used a shortened "AI text
+ * generation is not available." while the other six used the longer text).
+ * Centralizing here eliminates the drift and gives us one message to localize.
+ *
+ * Usage:
+ *
+ *     function snt_ai_foo_impl( ... ) {
+ *         $gate = snt_ai_require_text_generation();
+ *         if ( $gate ) { return $gate; }
+ *         // ... real impl
+ *     }
+ *
+ * The inner gate inside snt_ai_generate_with_constraints() also fires
+ * (with a slightly different message about the wp-ai-client plugin
+ * specifically) — that one stays in place as defense-in-depth. This
+ * outer gate lets impls short-circuit BEFORE building expensive prompts.
+ *
+ * @return WP_Error|null  WP_Error when AI is unavailable, null when it is.
+ *
+ * @since 4.1.1
+ */
+function snt_ai_require_text_generation() {
+	if ( snt_ai_can_text_generate() ) {
+		return null;
+	}
+	return new WP_Error(
+		'snt_ai_unavailable',
+		__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
+		array( 'status' => 503 )
+	);
+}
+
+/**
  * Generate text via the WP AI Client with SN's standard constraints.
  *
  * Wraps wp_ai_client_prompt() with:

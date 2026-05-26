@@ -115,6 +115,14 @@ if ( ! function_exists( 'snt_ai_can_text_generate' ) ) {
 		return ! empty( $GLOBALS['__test_ai_available'] );
 	}
 }
+// v4.1.1 (D-03): the shared AI-gate helper. Mirrors snt_ai_require_text_generation()
+// in inc/ai-bootstrap.php — returns null when available, WP_Error otherwise.
+if ( ! function_exists( 'snt_ai_require_text_generation' ) ) {
+	function snt_ai_require_text_generation() {
+		if ( ! empty( $GLOBALS['__test_ai_available'] ) ) { return null; }
+		return new WP_Error( 'snt_ai_unavailable', 'AI text generation is not available.', array( 'status' => 503 ) );
+	}
+}
 
 // Minimal get_post / wp_get_attachment_image_url stubs.
 if ( ! function_exists( 'get_post' ) ) {

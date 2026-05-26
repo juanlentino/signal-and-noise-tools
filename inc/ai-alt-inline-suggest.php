@@ -117,13 +117,9 @@ function snt_ai_extract_inline_img_context( $post_content, $image_src, $window =
  * @since 4.0.2
  */
 function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
-	if ( ! function_exists( 'snt_ai_can_text_generate' ) || ! snt_ai_can_text_generate() ) {
-		return new WP_Error(
-			'snt_ai_unavailable',
-			__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
-			array( 'status' => 503 )
-		);
-	}
+	// v4.1.1 (D-03): shared AI-gate helper.
+	$gate = snt_ai_require_text_generation();
+	if ( $gate ) { return $gate; }
 
 	$post_id   = (int) $post_id;
 	$image_src = (string) $image_src;
