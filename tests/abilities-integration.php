@@ -1004,5 +1004,35 @@ $res = wp_get_ability( 'signal-noise/ai-orphan-apply' )->execute( array( 'attach
 ap_true( is_wp_error( $res ), 'ai-orphan-apply: vanished → WP_Error' );
 ap_eq( 'snt_ai_not_attachment', $res->get_error_code(), 'ai-orphan-apply: snt_ai_not_attachment code' );
 
+/* ════════════════════════════════════════════════════════════════════
+ * v4.3.0 — pattern-adoption Suggest+Apply abilities (2 abilities)
+ *
+ * The wp_register_ability stub in this file stores entries as
+ *   $GLOBALS['__test_registered_abilities'][ $slug ] = $args
+ * (the slug is the KEY, the config is the VALUE directly — no nested
+ * 'slug' / 'args' keys). Shape-check assertions reflect that.
+ * ════════════════════════════════════════════════════════════════════ */
+
+echo "\nv4.3.0: pattern-adoption abilities registration\n";
+
+$registered_slugs = array_keys( $GLOBALS['__test_registered_abilities'] );
+ap_true( in_array( 'signal-noise/pattern-adoption-suggest', $registered_slugs, true ), 'v4.3.0: pattern-adoption-suggest ability registered' );
+ap_true( in_array( 'signal-noise/pattern-adoption-apply',   $registered_slugs, true ), 'v4.3.0: pattern-adoption-apply ability registered' );
+
+// Shape check on suggest
+$suggest_ability = $GLOBALS['__test_registered_abilities']['signal-noise/pattern-adoption-suggest'] ?? null;
+ap_true( is_array( $suggest_ability ), 'v4.3.0: pattern-adoption-suggest entry retrievable' );
+ap_eq( 'ai-generation', $suggest_ability['category'], 'v4.3.0: pattern-adoption-suggest category = ai-generation' );
+ap_true( isset( $suggest_ability['input_schema']['properties']['post_id'] ), 'v4.3.0: pattern-adoption-suggest input has post_id' );
+ap_true( isset( $suggest_ability['input_schema']['properties']['block_fingerprint'] ), 'v4.3.0: pattern-adoption-suggest input has block_fingerprint' );
+ap_true( isset( $suggest_ability['input_schema']['properties']['pattern_type'] ), 'v4.3.0: pattern-adoption-suggest input has pattern_type' );
+ap_true( isset( $suggest_ability['output_schema']['properties']['suggestion_markup'] ), 'v4.3.0: pattern-adoption-suggest output has suggestion_markup' );
+
+// Shape check on apply
+$apply_ability = $GLOBALS['__test_registered_abilities']['signal-noise/pattern-adoption-apply'] ?? null;
+ap_true( is_array( $apply_ability ), 'v4.3.0: pattern-adoption-apply entry retrievable' );
+ap_eq( 'ai-generation', $apply_ability['category'], 'v4.3.0: pattern-adoption-apply category = ai-generation' );
+ap_true( isset( $apply_ability['input_schema']['properties']['replacement_markup'] ), 'v4.3.0: pattern-adoption-apply input has replacement_markup' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
