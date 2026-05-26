@@ -37,6 +37,7 @@
 		missing_alt:         { suggest: 'ai-alt-suggest',         apply: 'ai-alt-apply' },
 		missing_alt_inline:  { suggest: 'ai-alt-inline-suggest',  apply: null },  // v4.0.2: no-apply variant
 		drift_time_phrases:  { suggest: 'ai-drift-suggest',       apply: 'ai-drift-apply' },
+		orphaned_media:      { suggest: 'ai-orphan-suggest',      apply: 'ai-orphan-apply' },
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
@@ -392,6 +393,12 @@
 				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
 				return;
 			}
+		} else if ( 'orphaned_media' === checkType ) {
+			input.attachment_id = parseInt( btn.getAttribute( 'data-attachment-id' ), 10 );
+			if ( ! input.attachment_id ) {
+				renderError( cell, __( 'Missing attachment ID.', 'signal-noise-tools' ) );
+				return;
+			}
 		}
 
 		btn.disabled = true;
@@ -412,6 +419,12 @@
 	 * Replace the cell's contents with the suggestion editor + Apply/Discard.
 	 */
 	function renderSuggestion( cell, res, applyAbility, input, checkType ) {
+		// v4.1.0: verdict-shaped responses (orphaned_media) take a different render path.
+		if ( res && res.verdict ) {
+			renderVerdictSuggestion( cell, res, applyAbility, input, checkType );
+			return;
+		}
+
 		if ( ! res || ! res.suggestion ) {
 			renderError( cell, __( 'AI returned no suggestion.', 'signal-noise-tools' ) );
 			return;
@@ -485,6 +498,181 @@
 
 		wrap.appendChild( actions );
 		cell.appendChild( wrap );
+	}
+
+	/**
+	 * v4.1.0: render a verdict-shaped Suggest response (orphaned_media).
+	 *
+	 * Three branches:
+	 *   verdict=delete → Delete button (red) + Discard
+	 *   verdict=keep   → "✓ Likely keep" + reason + Discard (no Apply)
+	 *   verdict=unsure → "? Manual review" + reason + Edit link (no Apply)
+	 *
+	 * @param {Element} cell
+	 * @param {object}  res          Suggest response with { verdict, reason, attachment_id, thumbnail_url, filename }
+	 * @param {string}  applyAbility ability slug for Apply (used in delete branch)
+	 * @param {object}  input        Input from onSuggestClick (has attachment_id)
+	 * @param {string}  checkType    'orphaned_media'
+	 */
+	function renderVerdictSuggestion( cell, res, applyAbility, input, checkType ) {
+		while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
+
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'snt-verdict-panel';
+		wrap.setAttribute( 'style', 'display:flex;flex-direction:column;gap:6px;' );
+
+		var headline = document.createElement( 'div' );
+		headline.setAttribute( 'style', 'font-size:12px;font-weight:600;' );
+
+		var reasonEl = document.createElement( 'div' );
+		reasonEl.setAttribute( 'style', 'font-size:11px;color:#646970;' );
+		reasonEl.textContent = res.reason || '';
+
+		var actions = document.createElement( 'div' );
+		actions.setAttribute( 'style', 'display:flex;gap:6px;flex-wrap:wrap;' );
+
+		var status = document.createElement( 'span' );
+		status.className = 'snt-suggest-status';
+		status.setAttribute( 'style', 'font-size:11px;color:#646970;' );
+
+		if ( 'delete' === res.verdict ) {
+			headline.textContent = '⚠ ' + __( 'Likely orphan — safe to delete', 'signal-noise-tools' );
+			headline.style.color = '#8b1a1a';
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+
+			var deleteBtn = document.createElement( 'button' );
+			deleteBtn.type = 'button';
+			deleteBtn.className = 'button button-small';
+			deleteBtn.style.color = '#8b1a1a';
+			deleteBtn.style.borderColor = '#8b1a1a';
+			deleteBtn.textContent = __( 'Delete', 'signal-noise-tools' );
+			deleteBtn.addEventListener( 'click', function() {
+				onOrphanDeleteClick( cell, status, deleteBtn, applyAbility, input, res );
+			} );
+			actions.appendChild( deleteBtn );
+
+			var discardBtn = document.createElement( 'button' );
+			discardBtn.type = 'button';
+			discardBtn.className = 'button button-small';
+			discardBtn.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtn.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtn );
+
+			wrap.appendChild( actions );
+			wrap.appendChild( status );
+		} else if ( 'keep' === res.verdict ) {
+			headline.textContent = '✓ ' + __( 'Likely keep — false positive', 'signal-noise-tools' );
+			headline.style.color = '#0a5a1a';
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+
+			var discardBtnKeep = document.createElement( 'button' );
+			discardBtnKeep.type = 'button';
+			discardBtnKeep.className = 'button button-small';
+			discardBtnKeep.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtnKeep.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtnKeep );
+
+			wrap.appendChild( actions );
+		} else {
+			// 'unsure' (and any other verdict that slipped through).
+			headline.textContent = '? ' + __( 'Manual review', 'signal-noise-tools' );
+			headline.style.color = '#6e4d00';
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+			// No Apply button. The existing row's [Edit] link in the adjacent
+			// Action cell handles "open the attachment for manual review."
+		}
+
+		cell.appendChild( wrap );
+	}
+
+	/**
+	 * v4.1.0: Handle Delete click for an orphan verdict=delete row.
+	 *
+	 * Opens the modal with thumbnail + filename + reason in the Before pane
+	 * and a warning text in the After pane. On Apply (modal primary button,
+	 * label stays "Apply" per spec), calls ai-orphan-apply ability.
+	 */
+	function onOrphanDeleteClick( cell, status, deleteBtn, applyAbility, input, res ) {
+		var modalContent = buildOrphanDeleteModalContent( res );
+		openApplyModal( {
+			title:             __( 'Permanently delete this attachment?', 'signal-noise-tools' ),
+			beforeNode:        modalContent.before,
+			afterNode:         modalContent.after,
+			originatingButton: deleteBtn,
+			onApply:           function() { doOrphanDelete(); },
+			onCancel:          function() { /* no-op */ },
+		} );
+
+		function doOrphanDelete() {
+			deleteBtn.disabled = true;
+			setStatus( status, __( 'Deleting…', 'signal-noise-tools' ), 'info' );
+			callAbility( applyAbility, { attachment_id: input.attachment_id } )
+				.then( function() {
+					while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
+					var span = document.createElement( 'span' );
+					span.setAttribute( 'style', 'color:#0a5a1a;font-weight:600;' );
+					span.textContent = '✓ ' + __( 'Deleted', 'signal-noise-tools' );
+					cell.appendChild( span );
+					var row = cell.closest( 'tr' );
+					if ( row ) { row.style.opacity = '0.5'; }
+				} )
+				.catch( function( err ) {
+					setStatus( status, __( 'Failed', 'signal-noise-tools' ) + ': ' + err.message, 'err' );
+					deleteBtn.disabled = false;
+				} );
+		}
+	}
+
+	/**
+	 * v4.1.0: Build modal Before+After nodes for the orphan-delete confirmation.
+	 *
+	 * Before pane: attachment thumbnail + filename + AI reason text.
+	 * After pane: warning text ("This deletes the file and DB record. No undo.").
+	 *
+	 * @param {object} res Suggest response with { thumbnail_url, filename, reason }
+	 * @return {{ before: Element, after: Element }}
+	 */
+	function buildOrphanDeleteModalContent( res ) {
+		var beforeNode = document.createElement( 'div' );
+
+		if ( res.thumbnail_url && '' !== res.thumbnail_url ) {
+			var img = document.createElement( 'img' );
+			img.src = res.thumbnail_url;
+			img.setAttribute( 'style', 'max-width:160px;max-height:160px;display:block;border-radius:4px;border:1px solid #e0e0e0;' );
+			beforeNode.appendChild( img );
+		}
+
+		var filenameEl = document.createElement( 'p' );
+		filenameEl.textContent = res.filename || ( '#' + ( res.attachment_id || 0 ) );
+		filenameEl.setAttribute( 'style', 'font-family:monospace;font-size:12px;margin:8px 0 4px 0;color:#1d2327;word-break:break-all;' );
+		beforeNode.appendChild( filenameEl );
+
+		var reasonEl = document.createElement( 'p' );
+		reasonEl.textContent = res.reason || '';
+		reasonEl.setAttribute( 'style', 'font-style:italic;color:#646970;font-size:12px;margin:0;' );
+		beforeNode.appendChild( reasonEl );
+
+		var afterNode = document.createElement( 'div' );
+		afterNode.setAttribute( 'style', 'background:#fde8e8;border:1px solid #8b1a1a;border-radius:4px;padding:12px;' );
+
+		var warnEl = document.createElement( 'p' );
+		warnEl.textContent = __( 'This permanently deletes the attachment file and database record. No undo.', 'signal-noise-tools' );
+		warnEl.setAttribute( 'style', 'margin:0;color:#8b1a1a;font-size:13px;font-weight:600;' );
+		afterNode.appendChild( warnEl );
+
+		var noteEl = document.createElement( 'p' );
+		noteEl.textContent = __( 'If this attachment is used in a widget, customizer setting, or theme template, you will see a broken image on the site.', 'signal-noise-tools' );
+		noteEl.setAttribute( 'style', 'margin:8px 0 0 0;color:#646970;font-size:11px;' );
+		afterNode.appendChild( noteEl );
+
+		return { before: beforeNode, after: afterNode };
 	}
 
 	/**
@@ -607,6 +795,8 @@
 			btn.setAttribute( 'data-phrase', input.phrase );
 			btn.setAttribute( 'data-position', input.position );
 			btn.setAttribute( 'data-context', input.context_snippet );
+		} else if ( 'orphaned_media' === checkType ) {
+			btn.setAttribute( 'data-attachment-id', input.attachment_id );
 		}
 		return btn;
 	}
