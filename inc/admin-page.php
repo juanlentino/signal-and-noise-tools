@@ -638,14 +638,21 @@ function sn_handle_admin_post() {
 		if ( ! $slug ) {
 			$flash = 'login_empty';
 		} else {
-			$settings                  = (array) get_option( 'sn_settings', array() );
-			$settings['login']         = is_array( $settings['login'] ?? null ) ? $settings['login'] : array();
-			$settings['login']['slug'] = $slug;
-			update_option( 'sn_settings', $settings );
-			// gotcha #10: update_option returns false on both "no change"
-			// and "real failure" — re-read to disambiguate.
-			$re_read = (array) get_option( 'sn_settings', array() );
-			$flash   = ( $re_read['login']['slug'] ?? '' ) === $slug ? 'login_saved' : 'login_failed';
+			// v4.2.0 (D-06): use sn_setting_update() instead of direct
+			// get_option/update_option so the per-request static cache
+			// is busted. Without this, any sn_setting('login.slug')
+			// call later in this request returns the stale cached value.
+			$ok    = sn_setting_update( 'login.slug', $slug );
+			$flash = $ok ? 'login_saved' : 'login_failed';
+
+			// v4.2.0: force the next-init flush to fire even if the
+			// flush sentinel is somehow already at the new slug.
+			// Belt-and-suspenders against sentinel desync. Only fire
+			// on a successful save — if the write failed, the slug
+			// is unchanged so there's nothing to re-flush for.
+			if ( $ok ) {
+				delete_option( 'sn_login_rewrites_flushed' );
+			}
 		}
 	} elseif ( 'pl_save' === $action ) {
 		// Constant-locked field: short-circuit the save so admin edits
