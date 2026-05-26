@@ -143,17 +143,16 @@ function sn_health_render_admin_tab() {
 /**
  * Render the AI-fix table cell content for a finding.
  *
- * Returns either a Suggest button (with data-attributes that the
- * shared JS module assets/health-suggest-actions.js consumes) OR an
- * empty string for findings v4.0.0 doesn't support (inline-img alt).
+ * Returns a Suggest button (with data-attributes that the shared JS module
+ * assets/health-suggest-actions.js consumes) for every supported check key.
  *
- * Inline-img findings (subject_type='inline_img' on the missing_alt
- * check) are deferred to v4.0.x because they need a separate impl
- * boundary — inline imgs have no attachment_id; subject_id is the
- * PARENT POST ID, which the alt-suggest impl rejects. Scoping out
- * here is cleaner than introducing a second impl + ability.
+ * Supported check keys (as of v4.1.0):
+ *   - missing_alt              — attachment-alt Suggest+Apply (v4.0.0)
+ *   - missing_alt (inline_img) — inline-<img> Suggest+Copy, apply:null (v4.0.2)
+ *   - drift_time_phrases       — time-phrase Suggest+Apply (v4.0.0)
+ *   - orphaned_media           — orphan-verdict Suggest+Apply, modal-confirmed (v4.1.0)
  *
- * @param string $check_key The Health check key (missing_alt, drift_time_phrases).
+ * @param string $check_key The Health check key.
  * @param array  $finding   One finding row from the scan result.
  * @return string HTML for the cell content (escaped via esc_attr) — may be empty.
  *

@@ -6,7 +6,8 @@
  * API dispatch surface that real AI callers hit (WP AI Client, desktop-mode
  * Command Palette, abilities REST controller).
  *
- * For each of the 17 abilities the plugin registers, we verify:
+ * For each of the abilities the plugin registers (count grows over minors;
+ * was 17 at v3.7.x, +4 at v4.0.0, +1 at v4.0.2, +2 at v4.1.0), we verify:
  *   - registration is reachable via wp_get_ability()
  *   - permission_callback gates correctly (manage_options vs edit_post)
  *   - input_schema's `required` is enforced before the callback fires
