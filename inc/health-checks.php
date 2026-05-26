@@ -48,6 +48,10 @@ define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
 define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 );
 define( 'SN_HEALTH_LINK_TIMEOUT',  5 );
 
+// v4.2.0 PROMPT DESIGN (D-09): paired with inc/ai-drift-phrase-suggest.php's
+// SNT_AI_DRIFT_SUGGEST_SYSTEM. Detection and suggestion are intentionally
+// split — this prompt returns flagged positions; the suggest prompt proposes
+// replacement phrases. See docs/superpowers/specs/2026-05-25-v4.0.0-ai-health-suggest-apply-design.md.
 const SNT_AI_DRIFT_SYSTEM = "You are an editor evaluating whether time-relative phrases in a post are still accurate given the post's last_modified date vs. 'now'.\n\n" .
 	"For each candidate in the input JSON, return ONLY a JSON array of objects:\n" .
 	"[{\"phrase\": \"<phrase>\", \"verdict\": \"stale\" | \"ok\" | \"unsure\", \"reason\": \"<one sentence>\"}]\n\n" .

@@ -29,6 +29,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v4.2.0 PROMPT DESIGN (D-09): paired with inc/health-checks.php's
+// SNT_AI_DRIFT_SYSTEM detection prompt. This prompt generates replacement
+// suggestions for positions identified by the detection pass. See spec
+// at docs/superpowers/specs/2026-05-25-v4.0.0-ai-health-suggest-apply-design.md.
 const SNT_AI_DRIFT_SUGGEST_SYSTEM = 'Replace a time-relative phrase with a temporally-explicit equivalent. ' .
 	'Given the original phrase, the surrounding context, the post\'s last-modified date, and today\'s date, ' .
 	'output ONLY the replacement phrase. Rules: ' .
@@ -247,7 +251,9 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 }
 
 /**
- * Pure impl: replace a drifted phrase in post_content.
+ * Apply a drift-replacement to post_content. Validates the fingerprint
+ * at the resolved position before splicing; returns a WP_Error if the
+ * post has been modified since the suggestion was generated.
  *
  * Atomicity: loads current post_content, resolves the phrase's RAW-content
  * position via `snt_ai_drift_locate_in_raw()` (the client-passed `$position`
@@ -256,13 +262,27 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  * Validates fingerprint at the resolved position, splices in $replacement,
  * calls wp_update_post() with the wp_error flag.
  *
- * @param int    $post_id
- * @param string $phrase           Original phrase
+ * KNOWN LIMITATION (audit B-06, 2026-05-25): this calls wp_update_post()
+ * to splice the AI suggestion into post_content. That triggers downstream
+ * WordPress hooks — post-save indexing, cache busts, revision creation,
+ * any save_post listeners. The md5 fingerprint produced by
+ * snt_ai_drift_fingerprint() (this file, line 59) and validated at the
+ * splice site (lines 290-310 region) is the mitigation — if post_content
+ * has shifted, we return WP_Error instead of writing.
+ *
+ * Acknowledged as a design tradeoff, not a bug. The hook fanout cost is
+ * proportional to the number of phrases applied, which is small (handful
+ * per post per scan cycle).
+ *
+ * @since 4.0.0 (4.1.1 fix: dynamic raw-position resolution via context_snippet)
+ *
+ * @param int    $post_id          Target post ID.
+ * @param string $phrase           Original time-relative phrase from the detect pass.
  * @param int    $position         Byte offset returned by Suggest (raw coords; advisory — re-resolved here).
- * @param string $replacement      AI suggestion (possibly user-edited; max length enforced)
- * @param string $fingerprint      md5 from Suggest response — must still match current state
+ * @param string $replacement      Proposed replacement phrase from the suggest pass (possibly user-edited; max length enforced).
+ * @param string $fingerprint      md5 from snt_ai_drift_fingerprint() — required match.
  * @param string $context_snippet  ~200 chars around phrase from scan — used to disambiguate phrase occurrences. Required since 4.1.1.
- * @return array{ok:bool,post_id:int,replaced:string,with:string}|WP_Error
+ * @return array{ok:bool,post_id:int,replaced:string,with:string}|WP_Error Apply result on success; WP_Error on fingerprint mismatch or wp_update_post failure.
  *
  * WP_Error codes:
  *   snt_ai_post_not_found      (404)
@@ -270,8 +290,6 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  *   snt_ai_replacement_invalid (422) — empty / too-long / contains HTML
  *   snt_ai_capability          (403)
  *   snt_ai_write_failed        (500)
- *
- * @since 4.0.0 (4.1.1 fix: dynamic raw-position resolution via context_snippet)
  */
 function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '' ) {
 	$post_id         = (int) $post_id;
