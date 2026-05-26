@@ -22,7 +22,7 @@
 	--sn-space-1:     4px;
 	--sn-space-2:     8px;
 	--sn-space-3:     12px;
-	--sn-space-4:     12px;
+	--sn-space-4:     12px;  /* v4.1.1 (U-04): kept as an alias for backward-compat across the file. Both tokens resolve to 12px. The audit flagged this as confusing — they're not a scale, they're a coincidence after v3.8.6 tightened spacing. New rules should prefer --sn-space-3. */
 	--sn-space-5:     20px;
 	--sn-ok:          #00a32a;
 	--sn-warn:        #dba617;
@@ -114,6 +114,39 @@
 
 .sn-pill--err  { background: rgba(214,54,56,0.10); color: #8b1a1a; }
 .sn-pill--err::before  { background: var(--sn-err); }
+
+/* ─── v4.1.1 (U-02): Badges — smaller chip variant of .sn-pill ───────────
+ * The Cron tab renders "SN" (owned-event marker) and "orphan" (dangling-hook
+ * marker) badges using .sn-badge / .sn-badge-warn. Pre-v4.1.1 these classes
+ * had no CSS at all and rendered as unstyled inline text. The visual
+ * difference vs .sn-pill: smaller font, squarish (4px radius vs pill's 999px),
+ * tighter padding. Use .sn-pill for status, .sn-badge for inline annotations.
+ */
+.sn-badge {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-size: 0.72em;
+	font-weight: 600;
+	line-height: 1.4;
+	background: rgba(0,0,0,0.07);
+	color: var(--sn-text);
+	letter-spacing: 0.02em;
+	vertical-align: baseline;
+}
+.sn-badge-warn {
+	background: rgba(219,166,23,0.15);
+	color: #6e4d00;
+}
+
+/* ─── v4.1.1 (U-09): Input highlight — for freshly-generated values
+ * (e.g., a new webhook secret) that the user is expected to copy.
+ * Replaces hardcoded inline `style="background:#fffbcc;"` in
+ * inc/webhooks-admin.php so the palette stays consistent.
+ */
+.snt-input-highlight {
+	background: #fffbcc;
+}
 
 /* ─── Identity tab — TOC ────────────────────────── */
 

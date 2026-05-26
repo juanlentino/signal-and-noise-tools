@@ -94,7 +94,7 @@ function sn_webhooks_render_admin_tab() {
 		echo '<div class="sn-field sn-field-w-lg">';
 		echo '<label class="sn-field-label">Signing secret</label>';
 		if ( $is_new ) {
-			echo '<input type="text" readonly value="' . esc_attr( $wh['secret'] ) . '" class="sn-mono" style="background:#fffbcc;">';
+			echo '<input type="text" readonly value="' . esc_attr( $wh['secret'] ) . '" class="sn-mono snt-input-highlight">';
 			echo '<p class="sn-field-helper"><strong>Copy this now</strong> — it will not be shown again. Receivers compute <code>HMAC_SHA256(secret, raw_body)</code> and compare against the <code>X-SN-Signature</code> header.</p>';
 		} else {
 			echo '<input type="text" readonly value="' . esc_attr( '••••' . substr( $wh['secret'], -4 ) ) . '" class="sn-mono" disabled>';

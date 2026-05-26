@@ -29,7 +29,7 @@ function snt_insights_render_admin_tab() {
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 
 	// ── INTRO ──
-	echo '<p class="sn-prose">Cross-system synthesis: combines your Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable recommendations per scan. One AI call per scan; results cached 7 days. <strong>Net-new in v3.6.0.</strong></p>';
+	echo '<p class="sn-prose">Cross-system synthesis: combines your Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable recommendations per scan. One AI call per scan; results cached 7 days.</p>';
 
 	// ── STATUS BOX ──
 	if ( $last ) {
@@ -130,7 +130,10 @@ function snt_insights_render_recommendations_section( $last ) {
 		if ( ! empty( $rec['evidence_pills'] ) ) {
 			echo '<p>';
 			foreach ( (array) $rec['evidence_pills'] as $pill ) {
-				echo '<span class="sn-pill sn-pill--ok" style="margin-right:0.5rem;">' . esc_html( $pill ) . '</span>';
+				// v4.1.1 (U-14): evidence pills are data snippets ("3 posts in 7 days"),
+				// not status — use the base .sn-pill (neutral gray), not --ok (green).
+				// The semantic-ok color was misread by users as "all good."
+				echo '<span class="sn-pill" style="margin-right:0.5rem;">' . esc_html( $pill ) . '</span>';
 			}
 			echo '</p>';
 		}

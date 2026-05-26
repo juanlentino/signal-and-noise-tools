@@ -30,7 +30,7 @@ function sn_health_render_admin_tab() {
 	$last_scan = sn_health_last_scan();
 
 	// ── INTRO ──
-	echo '<p class="sn-prose">Detection-only scans of your post + attachment graph. v1 finds problems; the editor is the fix surface. Results cache for 24 hours.</p>';
+	echo '<p class="sn-prose">Scans your post and attachment graph. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Results cache for 24 hours.</p>';
 
 	// ── STATUS BOX + RUN BUTTON ──
 	if ( $last_scan ) {

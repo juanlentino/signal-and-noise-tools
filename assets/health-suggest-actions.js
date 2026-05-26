@@ -109,6 +109,10 @@
 		var box = document.createElement( 'div' );
 		box.className = 'snt-modal-box';
 		box.setAttribute( 'style', 'background:#fff;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-width:720px;width:90vw;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;' );
+		// v4.1.1 (U-10): dialog semantics for screen readers — announce as a modal
+		// dialog on open, anchor the accessible name to the title <h2>.
+		box.setAttribute( 'role', 'dialog' );
+		box.setAttribute( 'aria-modal', 'true' );
 
 		var header = document.createElement( 'div' );
 		header.className = 'snt-modal-header';
@@ -117,6 +121,9 @@
 		var titleEl = document.createElement( 'h2' );
 		titleEl.textContent = opts.title;
 		titleEl.setAttribute( 'style', 'margin:0;font-size:16px;font-weight:600;' );
+		// v4.1.1 (U-10): unique id-per-instance so multiple modal opens don't collide.
+		titleEl.id = 'snt-modal-title-' + Date.now() + '-' + Math.floor( Math.random() * 1e6 );
+		box.setAttribute( 'aria-labelledby', titleEl.id );
 		header.appendChild( titleEl );
 
 		var closeBtn = document.createElement( 'button' );
@@ -366,9 +373,13 @@
 		if ( ! cell ) { return; }
 
 		// Build input object from data attributes (per check type).
-		// Note: v4.0.0 only handles attachment-alt + drift findings.
-		// Inline-img findings get no Suggest button at the PHP-render
-		// layer (see sn_health_render_suggest_cell in inc/health-checks-admin.php).
+		// Supported as of v4.1.0:
+		//   - missing_alt          (attachment-alt Suggest+Apply, v4.0.0)
+		//   - missing_alt_inline   (inline-<img> Suggest+Copy, apply:null, v4.0.2)
+		//   - drift_time_phrases   (time-phrase Suggest+Apply, v4.0.0; raw-position fix v4.1.1)
+		//   - orphaned_media       (orphan-verdict Suggest+Apply, modal-confirmed, v4.1.0)
+		// The PHP-side `sn_health_render_suggest_cell` (inc/health-checks-admin.php)
+		// emits the data-attributes the JS branches below consume.
 		var input = {};
 		if ( 'missing_alt' === checkType ) {
 			input.attachment_id = parseInt( btn.getAttribute( 'data-attachment-id' ), 10 );
