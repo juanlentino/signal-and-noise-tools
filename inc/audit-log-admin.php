@@ -42,7 +42,8 @@ function snt_audit_log_render_tab() {
 	$counters = snt_audit_get_counters_impl( 30 );
 	$logins   = snt_audit_get_login_successes_impl( 30 );
 
-	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). 90-day retention. Hashed-IP unique-attacker count via ephemeral transient — no raw or hashed IPs are stored long-term.</p>';
+	$retention_intro = (int) sn_setting( 'audit.retention_days', 90 );
+	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). ' . esc_html( $retention_intro ) . '-day retention. Hashed-IP unique-attacker count via ephemeral transient — no raw or hashed IPs are stored long-term.</p>';
 
 	// 1. Hero stat-cards.
 	snt_audit_log_render_hero( $summary );
@@ -56,7 +57,10 @@ function snt_audit_log_render_tab() {
 	// 4. LLA summary card (deep-link to LLA settings).
 	snt_audit_log_render_lla_card( $summary['lla'] );
 
-	// 5. Maintenance — Prune now button.
+	// 5. Retention setting (v4.2.0).
+	snt_audit_log_render_retention_form();
+
+	// 6. Maintenance — Prune now button.
 	snt_audit_log_render_prune_form();
 }
 
@@ -187,8 +191,29 @@ function snt_audit_log_render_prune_form() {
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="audit_prune_now">';
-	echo '<p class="sn-prose">Manually run the daily prune now. Drops counter buckets and login_success rows older than ' . (int) SN_AUDIT_RETENTION_DAYS . ' days, plus polls LLA for new lockouts.</p>';
+	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
+	echo '<p class="sn-prose">Manually run the daily prune now. Drops counter buckets and login_success rows older than ' . esc_html( $retention_days ) . ' days, plus polls LLA for new lockouts.</p>';
 	echo '<p><button type="submit" class="button">Prune now</button></p>';
+	echo '</form>';
+}
+
+/**
+ * Render the retention-days form on the Audit log tab. Mirrors the
+ * RSS tracker retention pattern (inc/rss-plausible-tracker.php:493).
+ *
+ * @since 4.2.0
+ */
+function snt_audit_log_render_retention_form() {
+	$retention = (int) sn_setting( 'audit.retention_days', 90 );
+
+	echo '<form method="post" class="sn-fieldset sn-fieldset-actions">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="audit_save_retention">';
+	echo '<h2 class="sn-fieldset-h">Retention</h2>';
+	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
+	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';
+	echo '<p class="sn-field-helper">How long to keep counter buckets and <code>login_success</code> rows. Range 7–365. Daily cron prune enforces this.</p>';
+	echo '<button type="submit" class="button button-primary">Save retention</button>';
 	echo '</form>';
 }
 

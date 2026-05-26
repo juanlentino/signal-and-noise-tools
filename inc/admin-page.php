@@ -802,6 +802,11 @@ function sn_handle_admin_post() {
 			}
 		}
 		$flash = 'insights_settings_saved';
+	} elseif ( 'audit_save_retention' === $action ) {
+		$raw   = isset( $_POST['audit_retention_days'] ) ? (int) $_POST['audit_retention_days'] : 90;
+		$days  = max( 7, min( 365, $raw ) );
+		$ok    = sn_setting_update( 'audit.retention_days', $days );
+		$flash = $ok ? 'audit_retention_saved' : 'audit_retention_unchanged';
 	} else {
 		return;
 	}
@@ -970,6 +975,10 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Insights settings saved.' );
 		} elseif ( 'health_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
+		} elseif ( 'audit_retention_saved' === $flash ) {
+			$notices[] = array( 'success', 'Audit retention saved.' );
+		} elseif ( 'audit_retention_unchanged' === $flash ) {
+			$notices[] = array( 'info', 'Audit retention unchanged.' );
 		}
 	}
 
