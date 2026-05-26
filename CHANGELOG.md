@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.2.0] - 2026-05-26 — Login self-heal + Tier C cleanup + audit-log retention
+
+**Released:** 2026-05-26.
+
+**Highlights:**
+- **Fixed:** production `/backend` 404 bug via verify-before-trust self-heal in the login module's flush sentinel check. The rewrite-rule sentinel can desync from the persisted `rewrite_rules` option (silent DB failure, plugin conflicts, WP deferred-flush failures); v4.2.0 now confirms the rule is actually present before trusting the sentinel.
+- **Class-of-bug elimination:** generalizes the "cached sentinel must verify against underlying reality" pattern. Same shape as v4.1.5's admin_init version-check + this release's D-06 accessor enforcement.
+- **Audit-log retention controls (new feature):** Settings → Security → Audit log now has a `Retention (days)` field (7–365, default 90). The daily cron prune respects user overrides. Mirrors the v1.4.1 RSS tracker retention pattern.
+
+**Closed audit findings (Tier C, 6 of 8):**
+- **D-02:** `sn_admin_pages()` marked `@deprecated 4.2.0` with explicit POST-data-loss warning. The existing `sn_admin_maybe_redirect_legacy()` handler continues to 302 legacy URLs on GET.
+- **D-06:** New `sn_setting_update()` and `sn_setting_reset_cache()` helpers enforce the accessor contract on writes. Replaced 5 direct `get_option`/`update_option` calls across 2 save handlers (`save_login`, `save_insights_settings`). The accessor's per-request static cache is now busted on every write.
+- **D-09:** Cross-reference comments added between `inc/health-checks.php` (drift-DETECT prompt) and `inc/ai-drift-phrase-suggest.php` (drift-SUGGEST prompt).
+- **B-06:** Acknowledged-limitation docblock on the `wp_update_post` side-effect in `snt_ai_drift_apply_impl` — md5 fingerprint check is the mitigation.
+- **U-05:** `.sn-fieldset-actions--inline` CSS modifier replaces inline `display:inline-block` on the Insights Dismiss form.
+- **U-11:** `.sn-input--filter` CSS modifier replaces inline width/padding on the cron-dashboard filter input.
+
+**Deferred (not in v4.2.0):**
+- **B-07** (stylistic `const` at file scope) — skip per audit recommendation.
+- **U-12** (`.sn-audit-card` ↔ `.sn-state-card` duplication) — holds for a v4.3.0 visual-cleanup minor where it can ship with company.
+
+**Tests:** 8 new test files added; total now 491 (was 459).
+
+**Cap math:** plugin minor cap usage 2/5 → 3/5. Patch cap resets to 0/7 for v4.2.x. Theme repo untouched (stays at v9.1.7).
+
+**Spec:** [docs/superpowers/specs/2026-05-25-v4.2.0-login-self-heal-tier-c-design.md](docs/superpowers/specs/2026-05-25-v4.2.0-login-self-heal-tier-c-design.md).
+
+---
+
 ## [4.1.7] - 2026-05-25 ⚠️ patch-cap rollover
 
 Test catch-up release. Two test files had been left modified-but-uncommitted in the working tree from an earlier session that rewrote them for the v3.8.0+ two-source IA architecture (`sn_admin_top_tabs()` + `sn_admin_legacy_redirect_map()`). They were running cleanly post-rewrite but were never staged or committed. v4.1.7 captures the catch-up.
