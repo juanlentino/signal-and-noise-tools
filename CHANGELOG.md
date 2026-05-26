@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.3.1] - 2026-05-26 — v4.3.0 code-review polish sweep
+
+**Released:** 2026-05-26.
+
+**Headline:** Addresses the 6 deferred items from the v4.3.0 code-quality review (CHANGELOG entry below, "Known minor items deferred"). Zero behavior changes for the happy path. Net +10 test assertions (236 → 246 across the 4 pattern-adoption + abilities suites; 868 across all 20 plugin suites). Plugin patch 0/7 → **1/7** in v4.3.x; 6 patches remaining before forced v4.4.0.
+
+**Changes:**
+
+- **Detector docblock corrected** ([`inc/pattern-adoption-detect.php`](inc/pattern-adoption-detect.php)) — `snt_pattern_adoption_walk_blocks`'s docblock said top-level blocks have `block_path = "0"`; actual output is `"0/N"` (the leading `"0"` is the seed prefix, each `$idx` appends after it). Docblock now reflects reality. Diagnostic field only; no downstream consumer depends on the format.
+- **Detector cleanup** ([`inc/pattern-adoption-detect.php`](inc/pattern-adoption-detect.php)) — three small clarities:
+  - Removed redundant `'fields' => 'all'` from the `get_posts()` call (WP default).
+  - Removed dead `is_array( $dismissed )` check after the `(array)` cast (always true after the cast).
+  - Removed the asymmetric `function_exists( 'get_permalink' )` guard. The function is now stubbed in [`tests/pattern-adoption-detect.php`](tests/pattern-adoption-detect.php) for the same reason the other WP functions are. Treats all WP function dependencies uniformly.
+- **wp_kses test stub warning expanded** ([`tests/pattern-adoption-suggest.php`](tests/pattern-adoption-suggest.php)) — the existing stub comment said "real WP wp_kses does much more (attribute validation, etc.)" but was silent on the most security-relevant gap: URL scheme validation. Expanded comment now explicitly warns that this stub passes `<a href="javascript:...">` through unchanged, and forbids adding tests against this stub that assert URL-scheme or attribute-injection sanitization (such tests would falsely validate production behavior).
+- **Suggest: empty-cite edge case** ([`inc/pattern-adoption-suggest.php`](inc/pattern-adoption-suggest.php)) — source `<cite><em></em></cite>` previously emitted an attribution paragraph containing `<em></em>` because `wp_kses` preserves the empty inline tag, so the `'' !== $cite_html` guard let it through. Now uses `'' !== trim( strip_tags( $cite_html ) )` to detect visible content. Test 11 fixture added (2 new assertions: result-is-array + attribution-omitted).
+- **Apply: three new error-path tests** ([`tests/pattern-adoption-apply.php`](tests/pattern-adoption-apply.php)) — Tests 6 (capability denial → 403), 7 (empty replacement_markup → 422; documents the existing `snt_pattern_adoption_invalid_pattern_type` conflation between "type not in enum" and "replacement didn't parse"), 8 (`wp_update_post` returning WP_Error → 500). Two stub mods enable the new paths: `current_user_can` now reads `$GLOBALS['__test_caps']` (default true), `wp_update_post` now reads `$GLOBALS['__test_force_wp_error']` (default record + apply). Net +8 assertions.
+- **Pattern-adoption ability wrappers guarded** ([`inc/abilities-ai-pattern-adoption.php`](inc/abilities-ai-pattern-adoption.php)) — both `snt_ability_pattern_adoption_suggest` and `snt_ability_pattern_adoption_apply` now check `function_exists( '<impl>' )` before calling and return `WP_Error( 'snt_helper_unavailable', ..., 500 )` if missing. Matches the canonical pattern used by the 7 health-ability wrappers in [`inc/abilities-ai-health.php`](inc/abilities-ai-health.php). Defense-in-depth — the `require_once` chain at plugin bootstrap protects against the failure mode in production; the guards exist for convention consistency and to return a clean 500 instead of a fatal `Call to undefined function` if the chain ever breaks.
+
+**Tests post-v4.3.1:**
+
+| Suite | Δ | Total |
+|---|---|---|
+| `tests/pattern-adoption-detect.php` | 0 | 12 |
+| `tests/pattern-adoption-suggest.php` | +2 (Test 11) | 37 |
+| `tests/pattern-adoption-apply.php` | +8 (Tests 6/7/8) | 29 |
+| `tests/abilities-integration.php` | 0 | 168 |
+| **All 20 plugin suites** | **+10** | **868 / 0 failed** |
+
+**Cap math:** plugin patch 0/7 → **1/7** in v4.3.x. 6 patches still available before forced v4.4.0 minor. Plugin minor still 4/5 (v4.4.0 is the LAST minor before v5.0.0).
+
+**Source reference:** [docs/superpowers/handoffs/2026-05-26-v9.3.0-shipped-next-cycle-prep.md §3](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/handoffs/2026-05-26-v9.3.0-shipped-next-cycle-prep.md) — the patch sweep plan that drove this release.
+
+---
+
 ## [4.3.0] - 2026-05-26 — Structural-block pattern adoption (Suggest+Apply)
 
 **Released:** 2026-05-26.

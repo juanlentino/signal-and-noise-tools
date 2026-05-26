@@ -30,6 +30,12 @@ if ( ! function_exists( 'serialize_blocks' ) ) {
 }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $args, $wp_error = false ) {
+		// Switch: tests that need to exercise the write-failure path set
+		// $GLOBALS['__test_force_wp_error'] = true. Default behavior is
+		// to record the call + apply to the in-memory fixture.
+		if ( ! empty( $GLOBALS['__test_force_wp_error'] ) ) {
+			return new WP_Error( 'forced_for_test', 'Forced WP_Error for apply error-path test.' );
+		}
 		$GLOBALS['__test_wp_updates'][] = $args;
 		// Apply the update to the in-memory fixture so subsequent reads see it.
 		$id = (int) ( $args['ID'] ?? 0 );
@@ -40,7 +46,11 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 	}
 }
 if ( ! function_exists( 'current_user_can' ) ) {
-	function current_user_can() { return true; }
+	function current_user_can() {
+		// Switch: tests that need to exercise the capability-denied path
+		// set $GLOBALS['__test_caps'] = false. Unset/null defaults to true.
+		return array_key_exists( '__test_caps', $GLOBALS ) ? (bool) $GLOBALS['__test_caps'] : true;
+	}
 }
 if ( ! function_exists( 'register_rest_route' ) ) {
 	function register_rest_route() { return true; }
@@ -188,6 +198,46 @@ $new_content = $GLOBALS['__test_wp_updates'][0]['post_content'];
 pa_true( false !== strpos( $new_content, 'wp-block-group' ), 'Test 5.3: outer group preserved (innerHTML survived)' );
 pa_true( false !== strpos( $new_content, 'sn-pattern-pull-quote' ), 'Test 5.4: nested block replaced' );
 pa_true( false === strpos( $new_content, 'Nested.' ), 'Test 5.5: original nested content removed' );
+
+// ─── Test 6: capability denial returns 403 ──────────────────────────
+echo "\nTest 6: current_user_can returns false → 403 capability error\n";
+$GLOBALS['__test_posts']       = array();
+$GLOBALS['__test_wp_updates']  = array();
+$GLOBALS['__test_caps']        = false;
+_taa_post( 306, array( $source_block ) );
+$fp     = md5( serialize_block( $source_block ) );
+$result = snt_ai_pattern_adoption_apply_impl( 306, $fp, $replacement, 'pull-quote' );
+pa_true( is_wp_error( $result ), 'Test 6.1: result is WP_Error' );
+pa_eq( 'snt_pattern_adoption_capability', $result->get_error_code(), 'Test 6.2: error code = capability' );
+pa_eq( 0, count( $GLOBALS['__test_wp_updates'] ), 'Test 6.3: no wp_update_post call' );
+unset( $GLOBALS['__test_caps'] );
+
+// ─── Test 7: malformed replacement_markup rejected ───────────────────
+// Note: apply.php currently reuses snt_pattern_adoption_invalid_pattern_type
+// for both "type not in enum" and "replacement_markup didn't parse". A future
+// release could introduce a distinct snt_pattern_adoption_invalid_replacement_markup
+// code; this test asserts the existing semantic to lock the current contract.
+echo "\nTest 7: empty/garbage replacement_markup → 422 invalid_pattern_type\n";
+$GLOBALS['__test_posts']      = array();
+$GLOBALS['__test_wp_updates'] = array();
+_taa_post( 307, array( $source_block ) );
+$fp     = md5( serialize_block( $source_block ) );
+$result = snt_ai_pattern_adoption_apply_impl( 307, $fp, '', 'pull-quote' );
+pa_true( is_wp_error( $result ), 'Test 7.1: empty replacement is WP_Error' );
+pa_eq( 'snt_pattern_adoption_invalid_pattern_type', $result->get_error_code(), 'Test 7.2: error code = invalid_pattern_type (existing conflation)' );
+pa_eq( 0, count( $GLOBALS['__test_wp_updates'] ), 'Test 7.3: no wp_update_post call for empty markup' );
+
+// ─── Test 8: wp_update_post returns WP_Error → 500 write_failed ──────
+echo "\nTest 8: wp_update_post WP_Error → 500 write_failed\n";
+$GLOBALS['__test_posts']            = array();
+$GLOBALS['__test_wp_updates']       = array();
+$GLOBALS['__test_force_wp_error']   = true;
+_taa_post( 308, array( $source_block ) );
+$fp     = md5( serialize_block( $source_block ) );
+$result = snt_ai_pattern_adoption_apply_impl( 308, $fp, $replacement, 'pull-quote' );
+pa_true( is_wp_error( $result ), 'Test 8.1: result is WP_Error' );
+pa_eq( 'snt_pattern_adoption_write_failed', $result->get_error_code(), 'Test 8.2: error code = write_failed' );
+unset( $GLOBALS['__test_force_wp_error'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

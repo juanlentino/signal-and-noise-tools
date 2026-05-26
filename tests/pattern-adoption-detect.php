@@ -59,6 +59,9 @@ if ( ! function_exists( 'set_transient' ) ) {
 if ( ! function_exists( 'get_current_user_id' ) ) {
 	function get_current_user_id() { return 1; }
 }
+if ( ! function_exists( 'get_permalink' ) ) {
+	function get_permalink( $post_id ) { return 'https://example.test/?p=' . (int) $post_id; }
+}
 if ( ! function_exists( 'register_rest_route' ) ) {
 	function register_rest_route() { return true; }
 }

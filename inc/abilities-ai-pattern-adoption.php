@@ -126,6 +126,9 @@ add_action( 'wp_abilities_api_init', function() {
  * @since 4.3.0
  */
 function snt_ability_pattern_adoption_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_pattern_adoption_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Pattern-adoption suggest helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+	}
 	return snt_ai_pattern_adoption_suggest_impl(
 		(int)    ( $input['post_id'] ?? 0 ),
 		(string) ( $input['block_fingerprint'] ?? '' ),
@@ -142,6 +145,9 @@ function snt_ability_pattern_adoption_suggest( $input ) {
  * @since 4.3.0
  */
 function snt_ability_pattern_adoption_apply( $input ) {
+	if ( ! function_exists( 'snt_ai_pattern_adoption_apply_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Pattern-adoption apply helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+	}
 	return snt_ai_pattern_adoption_apply_impl(
 		(int)    ( $input['post_id'] ?? 0 ),
 		(string) ( $input['block_fingerprint'] ?? '' ),

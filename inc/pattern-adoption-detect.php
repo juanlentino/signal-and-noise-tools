@@ -44,14 +44,15 @@ function snt_pattern_adoption_detect_candidates() {
 		'post_status'    => 'publish',
 		'posts_per_page' => -1,
 		'no_found_rows'  => true,
-		'fields'         => 'all',
 	) );
 
 	$candidates = array();
 
 	foreach ( $posts as $post ) {
+		// (array) cast on get_post_meta's $single=true return guarantees an array.
+		// Edge case: missing meta returns "" → (array)"" → array(""); the empty-string
+		// entry never matches a "<type>:<fp>" key in in_array(), so it's benign.
 		$dismissed = (array) get_post_meta( $post->ID, '_snt_pattern_adoption_dismissed', true );
-		if ( ! is_array( $dismissed ) ) { $dismissed = array(); }
 
 		$blocks = parse_blocks( (string) $post->post_content );
 		snt_pattern_adoption_walk_blocks( $blocks, $post, $dismissed, $candidates, '0' );
@@ -62,8 +63,9 @@ function snt_pattern_adoption_detect_candidates() {
 
 /**
  * Recursive walker — appends to $candidates by reference. $block_path
- * encodes the position within the tree (e.g. "0", "0/innerBlocks/2")
- * for diagnostic display in the admin UI.
+ * encodes the position within the tree (e.g. "0/0", "0/0/innerBlocks/2")
+ * for diagnostic display in the admin UI. The leading "0" is the initial
+ * $path_prefix seeded by the caller; each $idx is appended after it.
  *
  * @param array  $tree
  * @param object $post
@@ -87,7 +89,7 @@ function snt_pattern_adoption_walk_blocks( $tree, $post, $dismissed, &$candidate
 					'block_fingerprint' => $fp,
 					'block_path'        => $path_prefix . '/' . $idx,
 					'post_title'        => (string) ( $post->post_title ?? '' ),
-					'permalink'         => function_exists( 'get_permalink' ) ? (string) get_permalink( $post->ID ) : '',
+					'permalink'         => (string) get_permalink( $post->ID ),
 				);
 			}
 		}

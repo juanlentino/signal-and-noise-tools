@@ -41,11 +41,24 @@ if ( ! function_exists( '__' ) ) {
 	function __( $s, $domain = '' ) { return $s; }
 }
 if ( ! function_exists( 'wp_kses' ) ) {
-	// Test stub: minimal HTML allowlist enforcement. For testing the
-	// builders, we just strip everything not in the allowed-tags array
-	// keys. Real WP wp_kses does much more (attribute validation, etc.);
-	// for these tests, "preserve <strong>/<em>/<a>/<code>, drop the rest"
-	// is enough.
+	// Test stub: minimal HTML allowlist enforcement — preserves the tags
+	// named in $allowed_html's keys and strips everything else. Adequate
+	// for these tests, which only exercise structural tag preservation.
+	//
+	// DOES NOT replicate real WP wp_kses behavior in two security-relevant
+	// ways:
+	//   1. URL scheme validation — real WP strips javascript: / vbscript:
+	//      / data: URLs via wp_kses_bad_protocol; this stub lets them
+	//      through unchanged. <a href="javascript:alert(1)">x</a> passes
+	//      verbatim here but would be sanitized in production.
+	//   2. Attribute allowlist enforcement — real WP rejects attributes
+	//      not in the per-tag allowlist (onclick, onerror, style, etc.);
+	//      this stub keeps any attributes the source tag had.
+	//
+	// DO NOT add tests against this stub that assert URL-scheme or
+	// attribute-injection sanitization — they would pass against the stub
+	// and FALSELY validate behavior that production would handle
+	// differently. Such tests belong in a WP-loaded integration suite.
 	function wp_kses( $content, $allowed_html ) {
 		$keep = array_keys( (array) $allowed_html );
 		$allow_str = '';
@@ -248,6 +261,22 @@ $result = snt_ai_pattern_adoption_suggest_impl( 210, $fp, 'steps-enumerated' );
 ps_true( is_array( $result ), 'Test 10.1: degenerate list produces result' );
 ps_contains( $result['suggestion_markup'], 'sn-steps__list', 'Test 10.2: list wrapper still present' );
 ps_true( false === strpos( $result['suggestion_markup'], 'wp:list-item' ), 'Test 10.3: no list-item blocks for empty source' );
+
+// ─── Test 11: cite with only empty inline tags → attribution omitted ──
+echo "\nTest 11: cite with only empty inline tags — attribution omitted\n";
+$quote_empty_cite = array(
+	'blockName'   => 'core/quote',
+	'attrs'       => array(),
+	'innerBlocks' => array(
+		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Body.</p>' ),
+	),
+	'innerHTML'   => '<blockquote class="wp-block-quote"><cite><em></em></cite></blockquote>',
+);
+_tas_post( 211, array( $quote_empty_cite ) );
+$fp = md5( serialize_block( $quote_empty_cite ) );
+$result = snt_ai_pattern_adoption_suggest_impl( 211, $fp, 'pull-quote' );
+ps_true( is_array( $result ), 'Test 11.1: result is array (not WP_Error)' );
+ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 11.2: attribution paragraph omitted when cite has only empty inline tags' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

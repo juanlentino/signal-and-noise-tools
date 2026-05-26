@@ -176,7 +176,13 @@ function snt_pattern_adoption_build_pull_quote_markup( $quote_block ) {
 	$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__body\"} -->\n";
 	$markup .= "<p class=\"sn-pull-quote__body\">{$body_html}</p>\n";
 	$markup .= "<!-- /wp:paragraph -->\n";
-	if ( '' !== $cite_html ) {
+	// Edge: a cite containing only empty inline tags (e.g.,
+	// "<cite><em></em></cite>") survives wp_kses with the inline-tag
+	// wrappers intact, so $cite_html is non-empty as a string. Strip
+	// the tags to check for actual visible content before emitting an
+	// attribution paragraph; otherwise readers see an empty stylized
+	// block where an attribution should be.
+	if ( '' !== trim( strip_tags( $cite_html ) ) ) {
 		$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__attribution\"} -->\n";
 		$markup .= "<p class=\"sn-pull-quote__attribution\">{$cite_html}</p>\n";
 		$markup .= "<!-- /wp:paragraph -->\n";
