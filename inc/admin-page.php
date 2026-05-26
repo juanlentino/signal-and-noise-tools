@@ -801,6 +801,15 @@ function sn_handle_admin_post() {
 		$days  = max( 7, min( 365, $raw ) );
 		$ok    = sn_setting_update( 'audit.retention_days', $days );
 		$flash = $ok ? 'audit_retention_saved' : 'audit_retention_unchanged';
+	} elseif ( 'pattern_adoption_scan' === $action ) {
+		// v4.3.0: Pattern-adoption opportunity scan — routes through the
+		// central dispatcher per the established health_scan pattern. The
+		// impl module owns the work; this handler just dispatches + sets
+		// the flash.
+		if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {
+			snt_pattern_adoption_run_scan();
+		}
+		$flash = 'pattern_adoption_scanned';
 	} else {
 		return;
 	}
@@ -969,6 +978,8 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Insights settings saved.' );
 		} elseif ( 'health_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
+		} elseif ( 'pattern_adoption_scanned' === $flash ) {
+			$notices[] = array( 'success', 'Scan complete.' );
 		} elseif ( 'audit_retention_saved' === $flash ) {
 			$notices[] = array( 'success', 'Audit retention saved.' );
 		} elseif ( 'audit_retention_unchanged' === $flash ) {

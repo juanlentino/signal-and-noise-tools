@@ -199,10 +199,11 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 		// v4.3.0: pattern-adoption opportunities — rendered by snt_pattern_adoption_render_opportunities_section,
 		// not by this generic suggest_cell helper. This branch exists so the existing $suggest_supported_checks
 		// gate in sn_health_render_admin_tab doesn't trip if someone wires these check keys into the general
-		// findings table by accident.
+		// findings table by accident. NOTE: the candidate row shape uses 'block_fingerprint' (not 'fingerprint')
+		// — verified against snt_pattern_adoption_detect_candidates() return shape.
 		$attrs['data-check']         = $check_key;
 		$attrs['data-post-id']       = (int) ( $finding['post_id'] ?? 0 );
-		$attrs['data-fingerprint']   = (string) ( $finding['fingerprint'] ?? '' );
+		$attrs['data-fingerprint']   = (string) ( $finding['block_fingerprint'] ?? '' );
 		$attrs['data-pattern-type']  = (string) ( $finding['pattern_type'] ?? '' );
 	}
 

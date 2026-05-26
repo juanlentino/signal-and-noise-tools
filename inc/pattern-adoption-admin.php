@@ -42,7 +42,12 @@ function snt_pattern_adoption_render_opportunities_section() {
 	if ( $last_scan ) {
 		$total = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $total ) . ' ' . esc_html__( 'opportunit', 'signal-noise-tools' ) . ( 1 === $total ? esc_html__( 'y', 'signal-noise-tools' ) : esc_html__( 'ies', 'signal-noise-tools' ) ) . '</span>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' .
+			esc_html( sprintf(
+				/* translators: %d is the count of pattern-adoption opportunities found */
+				_n( '%d opportunity', '%d opportunities', $total, 'signal-noise-tools' ),
+				$total
+			) ) . '</span>';
 	}
 	echo '</h2>';
 
@@ -69,7 +74,12 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	// Collapsed-by-default: wrap candidate rows in <details>.
 	echo '<details style="margin-top:1rem;">';
-	echo '<summary style="cursor:pointer;font-weight:500;">' . esc_html( sprintf( __( 'Review %d candidates', 'signal-noise-tools' ), count( $candidates ) ) ) . '</summary>';
+	echo '<summary style="cursor:pointer;font-weight:500;">' .
+		esc_html( sprintf(
+			/* translators: %d is the count of pattern-adoption candidates to review */
+			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-noise-tools' ),
+			count( $candidates )
+		) ) . '</summary>';
 
 	echo '<div class="snt-scroll-table" style="margin-top:0.75rem;">';
 	echo '<table class="widefat striped"><thead><tr>';
@@ -109,23 +119,13 @@ function snt_pattern_adoption_render_opportunities_section() {
 	echo '</div>'; // .sn-fieldset
 }
 
-/**
- * Handle the "Scan for opportunities" form submission.
- * Hooked via sn_admin_post action routing (matches health_scan pattern).
- *
- * @return void
- *
- * @since 4.3.0
- */
-add_action( 'admin_post_pattern_adoption_scan', function() {
-	check_admin_referer( 'sn_theme_options_nonce' );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( 'Insufficient permissions.', 403 );
-	}
-	snt_pattern_adoption_run_scan();
-	wp_safe_redirect( wp_get_referer() ?: admin_url() );
-	exit;
-} );
+// v4.3.0: scan-trigger form posts route through sn_handle_admin_post()
+// in inc/admin-page.php (the established SN dispatcher pattern). See the
+// 'pattern_adoption_scan' branch around admin-page.php:805. The form in
+// snt_pattern_adoption_render_opportunities_section() above posts to the
+// current admin URL with name="sn_action" value="pattern_adoption_scan";
+// the dispatcher reads $_POST['sn_action'], runs the scan, and redirects
+// with sn_flash=pattern_adoption_scanned.
 
 /* ════════════════════════════════════════════════════════════════════════
  * REST endpoint — dismiss.
