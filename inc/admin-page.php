@@ -970,7 +970,11 @@ function sn_theme_options_page() {
 		}
 	}
 
-	$local_sha = (string) get_option( 'sn_github_local_sha', '' );
+	// v4.1.1 (X-03): removed dead `$local_sha = get_option('sn_github_local_sha', '')`.
+	// The option was written by the legacy updater (inc/updater.php) retired in
+	// theme v8.3.0 — the variable was never read after fetch and the option is
+	// always empty string on current installs. Existing leftover DB data is
+	// harmless; no migration needed.
 
 	$overrides = get_posts( array( 'post_type' => array( 'wp_template', 'wp_template_part', 'wp_navigation' ), 'posts_per_page' => -1, 'post_status' => 'any' ) );
 	$base_url  = admin_url( 'admin.php?page=sn-theme-options' );

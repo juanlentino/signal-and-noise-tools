@@ -55,9 +55,17 @@ const SNT_DEPLOY_REPOS = array(
 function snt_deploy_status_for( $package ) {
 	if ( 'theme' === $package ) {
 		$current = (string) wp_get_theme( 'signal-and-noise' )->get( 'Version' );
-		$latest  = function_exists( 'sn_gh_latest_theme_tag' ) ? sn_gh_latest_theme_tag() : null;
+		// v4.1.1 (X-01): contract — fetch via filter (theme registers a listener),
+		// don't call the theme function directly. WORDPRESS-REFERENCE.md §10 mandates
+		// "never let plugin code directly call a theme function — even with
+		// function_exists guards." The pre-v4.1.1 direct call worked only because
+		// the theme happens to be active on this install; the filter pattern is
+		// tolerant of theme-absent/inactive by design.
+		$latest  = apply_filters( 'sn_gh_latest_theme_tag_result', null );
 	} else {
 		$current = defined( 'SNT_VERSION' ) ? SNT_VERSION : '';
+		// sn_gh_latest_plugin_tag is plugin-owned (inc/wp-update-integration.php) —
+		// calling it directly is fine; same repo as the caller.
 		$latest  = function_exists( 'sn_gh_latest_plugin_tag' ) ? sn_gh_latest_plugin_tag() : null;
 	}
 	$latest_version = $latest ? ltrim( $latest, 'v' ) : '';

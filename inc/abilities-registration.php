@@ -60,31 +60,47 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		return;
 	}
 
-	wp_register_ability_category( 'maintenance', array(
-		'label'       => 'Maintenance',
-		'description' => 'Cache + template-override + update-detection housekeeping operations.',
-	) );
+	// v4.1.1 (X-02): wp_has_ability_category() guards on every category. The
+	// theme also registers `content`, `diagnostics`, and `ai-generation` (with
+	// its own guards) — WP loads themes before plugins, so without these guards
+	// the plugin's second registration would fire _doing_it_wrong on every
+	// request on debug installs. The guard makes registrations idempotent and
+	// preserves the theme's category metadata as canonical when both register.
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'maintenance' ) ) {
+		wp_register_ability_category( 'maintenance', array(
+			'label'       => 'Maintenance',
+			'description' => 'Cache + template-override + update-detection housekeeping operations.',
+		) );
+	}
 
-	wp_register_ability_category( 'content', array(
-		'label'       => 'Content',
-		'description' => 'Per-post content artifacts (OG cards, schema, etc.).',
-	) );
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'content' ) ) {
+		wp_register_ability_category( 'content', array(
+			'label'       => 'Content',
+			'description' => 'Per-post content artifacts (OG cards, schema, etc.).',
+		) );
+	}
 
-	wp_register_ability_category( 'diagnostics', array(
-		'label'       => 'Diagnostics',
-		'description' => 'Read-only inspection of the theme + plugin pair\'s state.',
-	) );
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'diagnostics' ) ) {
+		wp_register_ability_category( 'diagnostics', array(
+			'label'       => 'Diagnostics',
+			'description' => 'Read-only inspection of the theme + plugin pair\'s state.',
+		) );
+	}
 
 	// v2.5.0: 2 new categories ahead of registering 7 new abilities.
-	wp_register_ability_category( 'updates', array(
-		'label'       => 'Updates',
-		'description' => 'Theme + plugin update detection + force-check.',
-	) );
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'updates' ) ) {
+		wp_register_ability_category( 'updates', array(
+			'label'       => 'Updates',
+			'description' => 'Theme + plugin update detection + force-check.',
+		) );
+	}
 
-	wp_register_ability_category( 'ai-generation', array(
-		'label'       => 'AI Generation',
-		'description' => 'AI Client-backed content generation (meta descriptions, OG card titles, excerpts).',
-	) );
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'ai-generation' ) ) {
+		wp_register_ability_category( 'ai-generation', array(
+			'label'       => 'AI Generation',
+			'description' => 'AI Client-backed content generation (meta descriptions, OG card titles, excerpts).',
+		) );
+	}
 } );
 
 /**
