@@ -110,8 +110,14 @@ add_action( 'admin_enqueue_scripts', function() {
 			'reading_time' => admin_url( 'admin.php?page=sn-reading-time' ),
 		),
 	);
+	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and
+	// 'sn-desktop-mode-widget' read from window.snDesktopData (the same global).
+	// wp_localize_script outputs a <script> tag with the JSON payload before
+	// the target script — emitting it twice doubled the inline payload for no
+	// benefit. The widget script enqueues after sn-desktop-mode (it depends
+	// transitively on wp-api-fetch), so the global will be set by the time it
+	// runs.
 	wp_localize_script( 'sn-desktop-mode', 'snDesktopData', $shared );
-	wp_localize_script( 'sn-desktop-mode-widget', 'snDesktopData', $shared );
 } );
 
 /**
@@ -368,6 +374,16 @@ add_action( 'admin_enqueue_scripts', function() {
  * abilities-first refactor.
  * ════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Force-check: clear all "is there a new version?" caches. Single source of
+ * truth — the admin dashboard's force-check button handler also calls this.
+ *
+ * v4.1.1 (D-01): The GHA runs cache (deploy history) is intentionally NOT
+ * cleared here. Clearing it would force a 60/h GitHub API request without
+ * answering the question the user actually asked. ETag-based conditional
+ * requests in snt_gh_recent_runs() handle that cache's freshness without
+ * quota cost.
+ */
 function snt_cmd_impl_force_check() {
 	delete_site_transient( 'sn_gh_latest_theme' );
 	delete_site_transient( 'sn_gh_latest_plugin' );

@@ -453,17 +453,12 @@ add_action( 'admin_post_sn_force_update_check', function() {
 	}
 	check_admin_referer( 'sn_force_update_check', 'sn_force_update_check_nonce' );
 
-	// v1.15.2: only clear the "is there a new version?" caches. The GHA
-	// runs cache (deploy history) is a separate concern — clearing it
-	// would force a 60/h GitHub API request without answering the
-	// question the user actually asked (force-check is about updates,
-	// not deploy timeline). ETag-based conditional requests in
-	// snt_gh_recent_runs() handle the runs cache freshness automatically
-	// without quota cost.
-	delete_site_transient( 'sn_gh_latest_theme' );
-	delete_site_transient( 'sn_gh_latest_plugin' );
-	delete_site_transient( 'update_themes' );
-	delete_site_transient( 'update_plugins' );
+	// v4.1.1 (D-01): delegate to the shared impl in desktop-mode-integration.php.
+	// Pre-v4.1.1 this 4-line block was duplicated byte-for-byte across this
+	// handler and snt_cmd_impl_force_check(). Single source of truth now.
+	if ( function_exists( 'snt_cmd_impl_force_check' ) ) {
+		snt_cmd_impl_force_check();
+	}
 
 	wp_safe_redirect( admin_url( 'update-core.php?force-check=1' ) );
 	exit;

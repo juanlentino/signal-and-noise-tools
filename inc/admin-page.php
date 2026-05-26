@@ -610,7 +610,12 @@ function sn_handle_admin_post() {
 		apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
 		$flash = 'purged';
 	} elseif ( 'full_reset' === $action ) {
-		$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
+		// v4.1.1 (D-07): pass explicit template_overrides=true rather than an
+		// empty args array. The theme-side listener's interpretation of an
+		// empty array vs. an explicit truthy flag was previously undefined at
+		// the call site. "Full reset" semantically includes template overrides;
+		// being explicit prevents drift if the theme tightens its filter contract.
+		$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => true ) );
 		$flash = 'reset_' . $count;
 	} elseif ( 'save_identity' === $action ) {
 		$saved = sn_settings_save( $_POST );

@@ -32,15 +32,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Hook names owned by this plugin. Used by snt_cron_is_sn_owned() to
  * pin SN-owned events at the top of the dashboard table.
  *
- * Kept as a string array (not constants) because the constants live in
- * the modules that schedule them and we want to avoid a require_once
- * cycle. If the list grows, consider exposing via a filter.
+ * v4.1.1 (D-05): switched to constant references so a hook rename in
+ * plausible-api.php or rss-plausible-tracker.php auto-propagates. The
+ * plugin bootstrap requires those files before cron-dashboard.php so the
+ * constants are always defined at call time. The defensive `defined()`
+ * fallback to the legacy string keeps this resilient if a constant ever
+ * vanishes (e.g., partial deploy).
  */
 function snt_cron_sn_owned_hooks() {
 	return array(
-		'sn_plausible_refresh_dashboard',
-		'sn_plausible_refresh_realtime',
-		'sn_rss_tracker_daily_prune',
+		defined( 'SN_PLAUSIBLE_REFRESH_BATCH_HOOK' )    ? SN_PLAUSIBLE_REFRESH_BATCH_HOOK    : 'sn_plausible_refresh_dashboard',
+		defined( 'SN_PLAUSIBLE_REFRESH_REALTIME_HOOK' ) ? SN_PLAUSIBLE_REFRESH_REALTIME_HOOK : 'sn_plausible_refresh_realtime',
+		defined( 'SN_RSS_TRACKER_CRON_HOOK' )           ? SN_RSS_TRACKER_CRON_HOOK           : 'sn_rss_tracker_daily_prune',
 	);
 }
 
