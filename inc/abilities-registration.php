@@ -25,8 +25,10 @@
  *     OG card title, excerpt (post-editor AI buttons).
  *   - inc/abilities-ai-health.php             — 7 abilities: Health-tab AI
  *     Suggest+Apply (alt text, drift phrases, inline alt, orphan media).
+ *   - inc/abilities-ai-pattern-adoption.php  — 2 abilities: pattern-adoption
+ *     Suggest+Apply (pull-quote + steps-enumerated). Added v4.3.0.
  *
- * Total: 28 abilities + 5 categories. Each feature file owns its
+ * Total: 30 abilities + 5 categories. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *

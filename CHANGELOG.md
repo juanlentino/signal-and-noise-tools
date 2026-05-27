@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.4] - 2026-05-26 — Audit C + D fixes — admin tabs aria-current, docblock hygiene, Tested up to: 7.0
+
+**Released:** 2026-05-26.
+
+**Headline:** Bundles the plugin-side Tier A bug fix from Audit D (PA-03 — admin tabs missing `aria-current` for screen readers, WCAG 4.1.2 Level A) with three Tier C / Tier D doc-hygiene fixes from Audit C. None of the underlying behaviour changes — this is a small accessibility + documentation accuracy patch.
+
+**Why bumped:** PA-03 is a real WCAG-AA failure (active state announced visually but not programmatically) and warrants a code change in `inc/admin-page.php`. The three doc edits (HYG-03, HYG-06, HYG-08) ride along because they touch the same plugin and would otherwise need their own commit churn.
+
+**Fixes:**
+
+- **PA-03 (BUG-MED, WCAG 4.1.2 Level A) — Plugin admin sub-tabs now emit `aria-current="page"` on the active item.** The visual `.sn-sub-tab.is-active` styling was present but no programmatic affordance for assistive tech; screen readers couldn't announce which sub-tab was selected. `sn_admin_render_sub_tabs()` (`inc/admin-page.php:227-248`) now renders `aria-current="page"` on the active anchor in addition to the `is-active` class. ~3 LOC. Note: the in-page `.sn-toc` anchor nav (lines 202-210) does not get the same treatment because its active state is scroll-position-dependent and would need a JS observer to maintain — deferred to backlog.
+- **HYG-03 — `Tested up to: 7.0` header added to plugin docblock.** WP's Updates UI was showing "compatibility unknown" because the plugin header omitted this field. Plugin has been live since v1.x; just never declared its target WP range.
+- **HYG-06 — `inc/abilities-registration.php` docblock count fixed.** Docblock said "Total: 28 abilities + 5 categories"; actual is 30 (v4.3.0's `abilities-ai-pattern-adoption.php` added 2 abilities but the prose summary missed updating). The `require_once` list at lines 47-56 always loaded the file correctly — this is purely a docblock-accuracy fix.
+- **HYG-08 — `sn_admin_pages()` framing corrected (`@deprecated 4.2.0` → `@internal`).** Function is load-bearing legacy infrastructure (active call site at line ~474 for the POST allowlist + the legacy URL redirect at `sn_admin_maybe_redirect_legacy()`), not pending removal. The `@deprecated` tag was misleading.
+
+**Audit reference:** [`docs/superpowers/specs/2026-05-26-audits-c-d-cycle-findings.md`](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-26-audits-c-d-cycle-findings.md) §3 (PA-03), §4 (HYG-06, HYG-08), §3 (HYG-03).
+
+**Tests:** 888 assertions / 21 plugin suites — all green. PA-03 fix is HTML-attribute only; no test surface affected.
+
+**Post-install user actions:**
+- Install v4.4.4 via wp-admin → Dashboard → Updates (canonical) or `gh workflow run deploy.yml --ref v4.4.4` (emergency).
+- Verify in Updates UI that "compatibility unknown" warning is gone (the new `Tested up to: 7.0` header).
+- Tab through plugin sub-tabs in wp-admin → Signal & Noise with VoiceOver / NVDA — the active sub-tab should now announce its current state.
+
+---
+
 ## [4.4.3] - 2026-05-26 — Bundled fixes from v4.4.x cycle audit
 
 **Released:** 2026-05-26.

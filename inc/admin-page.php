@@ -50,12 +50,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Order in the array = display order in the WP sidebar.
  *
- * @deprecated 4.2.0 Use sn_admin_top_tabs() instead. This table is
- *             retained for backward compat with sn_admin_maybe_redirect_legacy()
- *             which 302-redirects legacy ?page=sn-<slug> URLs to canonical
- *             tab URLs. New code MUST use sn_admin_top_tabs() — the legacy
- *             URLs redirect on GET, but POST bodies submitted to a legacy
- *             URL are lost in the redirect.
+ * @internal Permanent legacy infrastructure (NOT pending removal). Was marked
+ *           @deprecated in v4.2.0 framing but the function is load-bearing —
+ *           active call site at line ~474 (POST allowlist) plus the legacy URL
+ *           redirect at sn_admin_maybe_redirect_legacy() that 302s
+ *           ?page=sn-<slug> URLs to canonical tab URLs. The redirect handles
+ *           GET fine but POST bodies submitted to a legacy URL are lost in
+ *           the redirect. New code MUST use sn_admin_top_tabs() for routing
+ *           decisions; this table is the source of truth for the legacy URL
+ *           shape only. Re-framed 2026-05-26 after Audit C HYG-08.
  */
 function sn_admin_pages() {
 	// Note: the 'dashboard' slug ('sn-theme-options') intentionally matches
@@ -240,7 +243,8 @@ function sn_admin_render_sub_tabs( $tab_slug, $active_sub ) {
 			$is_active = ( $sub_slug === $active_sub );
 			$class     = 'sn-sub-tab' . ( $is_active ? ' is-active' : '' );
 			$url       = $base_url . '&sub=' . rawurlencode( $sub_slug );
-			echo '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $sub['label'] ) . '</a>';
+			$aria      = $is_active ? ' aria-current="page"' : '';
+			echo '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '"' . $aria . '>' . esc_html( $sub['label'] ) . '</a>';
 		}
 		echo '</nav>';
 		return;
