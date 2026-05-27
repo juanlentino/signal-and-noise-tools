@@ -40,6 +40,7 @@
 		orphaned_media:                      { suggest: 'ai-orphan-suggest',               apply: 'ai-orphan-apply' },
 		pattern_adoption_pull_quote:         { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
 		pattern_adoption_steps_enumerated:   { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
+		block_migrations_heading_skip:       { suggest: 'block-migrations-suggest',        apply: 'block-migrations-apply' },
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
@@ -410,6 +411,14 @@
 				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
 				return;
 			}
+		} else if ( 'block_migrations_heading_skip' === checkType ) {
+			input.post_id           = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
+			input.block_fingerprint = btn.getAttribute( 'data-fingerprint' ) || '';
+			input.migration_type    = btn.getAttribute( 'data-migration-type' ) || '';
+			if ( ! input.post_id || ! input.block_fingerprint || ! input.migration_type ) {
+				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
+				return;
+			}
 		}
 
 		btn.disabled = true;
@@ -740,6 +749,54 @@
 	}
 
 	/**
+	 * v4.5.0: Build modal Before+After nodes for block-migration apply.
+	 *
+	 * Before pane: migration type + fingerprint + post ID.
+	 * After pane: read-only textarea showing the proposed replacement block markup.
+	 *
+	 * @param {object}  res                Suggest response (has suggestion_markup, migration_type)
+	 * @param {object}  input              Suggest input (has post_id, block_fingerprint, migration_type)
+	 * @param {string}  replacementMarkup  User-edited markup from textarea
+	 * @return {{ before: Element, after: Element }}
+	 */
+	function buildBlockMigrationModalContent( res, input, replacementMarkup ) {
+		var migrationType = input.migration_type || ( res && res.migration_type ) || '';
+
+		var beforeNode = document.createElement( 'div' );
+
+		var typeLabel = document.createElement( 'p' );
+		typeLabel.className = 'snt-modal-caption';
+		typeLabel.textContent = __( 'Migration:', 'signal-noise-tools' ) + ' ' + migrationType;
+		beforeNode.appendChild( typeLabel );
+
+		var fingerprintEl = document.createElement( 'p' );
+		fingerprintEl.className = 'snt-modal-filename';
+		fingerprintEl.textContent = __( 'Block:', 'signal-noise-tools' ) + ' ' + ( input.block_fingerprint ? input.block_fingerprint.slice( 0, 8 ) + '…' : '?' );
+		beforeNode.appendChild( fingerprintEl );
+
+		var postEl = document.createElement( 'p' );
+		postEl.className = 'snt-modal-caption';
+		postEl.textContent = __( 'Post ID:', 'signal-noise-tools' ) + ' ' + ( input.post_id || 0 );
+		beforeNode.appendChild( postEl );
+
+		var afterNode = document.createElement( 'div' );
+
+		var afterTa = document.createElement( 'textarea' );
+		afterTa.className = 'snt-modal-textarea';
+		afterTa.readOnly = true;
+		afterTa.rows = 6;
+		afterTa.value = replacementMarkup;
+		afterNode.appendChild( afterTa );
+
+		var noteEl = document.createElement( 'p' );
+		noteEl.className = 'snt-modal-caption';
+		noteEl.textContent = __( 'This replaces the original block. A WP revision is created automatically.', 'signal-noise-tools' );
+		afterNode.appendChild( noteEl );
+
+		return { before: beforeNode, after: afterNode };
+	}
+
+	/**
 	 * Handle Apply button click. Confirms, calls the apply ability,
 	 * marks the row done on success or surfaces the error on failure.
 	 */
@@ -756,6 +813,9 @@
 			// v4.4.3 (Bug-B2): pattern-adoption Apply — show markup diff in modal.
 			modalTitle   = __( 'Apply pattern upgrade to post?', 'signal-noise-tools' );
 			modalContent = buildPatternAdoptionModalContent( suggestRes, suggestInput, currentEditedValue );
+		} else if ( 'block_migrations_heading_skip' === checkType ) {
+			modalTitle   = __( 'Apply heading migration to post?', 'signal-noise-tools' );
+			modalContent = buildBlockMigrationModalContent( suggestRes, suggestInput, currentEditedValue );
 		} else {
 			modalTitle   = __( 'Replace phrase in post?', 'signal-noise-tools' );
 			modalContent = buildDriftModalContent( suggestRes, suggestInput, currentEditedValue );
@@ -791,6 +851,13 @@
 					block_fingerprint:   suggestInput.block_fingerprint,
 					replacement_markup:  currentEditedValue,
 					pattern_type:        suggestInput.pattern_type,
+				};
+			} else if ( 'block_migrations_heading_skip' === checkType ) {
+				applyInput = {
+					post_id:             suggestInput.post_id,
+					block_fingerprint:   suggestInput.block_fingerprint,
+					replacement_markup:  currentEditedValue,
+					migration_type:      suggestInput.migration_type,
 				};
 			} else {
 				// v4.1.1: pass context_snippet through to apply so the impl can resolve
@@ -968,6 +1035,39 @@
 		} );
 	}
 
+	// v4.5.0: block-migrations dismiss handler. POSTs to the dismiss REST
+	// endpoint (registered in inc/block-migrations-admin.php), removes the
+	// row from the candidate table on success, restores the button on
+	// error. Reads data-* attrs emitted by the renderer at
+	// snt_block_migrations_render_section() — post_id maps to dataset.postId,
+	// block_fingerprint to dataset.fingerprint, migration_type to
+	// dataset.migrationType.
+	function onBlockMigrationsDismissClick( event ) {
+		var btn = event.target.closest( '[data-snt-block-migrations-dismiss]' );
+		if ( ! btn ) { return; }
+		event.preventDefault();
+
+		var postId        = parseInt( btn.dataset.postId, 10 );
+		var fingerprint   = String( btn.dataset.fingerprint || '' );
+		var migrationType = String( btn.dataset.migrationType || '' );
+
+		btn.disabled = true;
+		btn.textContent = __( 'Dismissing…', 'signal-noise-tools' );
+
+		window.wp.apiFetch( {
+			path:   '/signal-noise/v1/tools/block-migrations-dismiss',
+			method: 'POST',
+			data:   { post_id: postId, block_fingerprint: fingerprint, migration_type: migrationType },
+		} ).then( function() {
+			var row = btn.closest( 'tr' );
+			if ( row ) { row.remove(); }
+		} ).catch( function( err ) {
+			btn.disabled = false;
+			btn.textContent = __( 'Dismiss', 'signal-noise-tools' );
+			window.alert( ( err && err.message ) ? err.message : __( 'Dismiss failed.', 'signal-noise-tools' ) );
+		} );
+	}
+
 	function init() {
 		document.addEventListener( 'click', function( e ) {
 			if ( e.target.closest( '[data-snt-suggest]' ) ) {
@@ -976,6 +1076,8 @@
 				onSuggestAllClick( e );
 			} else if ( e.target.closest( '[data-snt-dismiss]' ) ) {
 				onDismissClick( e );
+			} else if ( e.target.closest( '[data-snt-block-migrations-dismiss]' ) ) {
+				onBlockMigrationsDismissClick( e );
 			}
 		} );
 	}
