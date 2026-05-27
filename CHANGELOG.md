@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.4.5] - 2026-05-26 — PA-10 social inputs aria-label + test catch-up after v4.4.4 docblock re-framing
+
+**Released:** 2026-05-26.
+
+**Headline:** Two small fixes from the Tier B backlog + a test catch-up that v4.4.4 should have included.
+
+**Fixes:**
+
+- **PA-10 (UI-UX) — Repeating `social_same_as[]` inputs now have per-input `aria-label="Profile URL"`.** Existing server-rendered rows (line 1135) and the no-JS fallback row (line 1139) in `inc/admin-page.php` were missing the accessible name that the JS-added rows already had (`assets/admin.js:141`). Screen readers tabbing through the Identity → Social settings page now announce each row consistently. Brings server-render parity with the dynamically-added rows.
+- **Test catch-up: `tests/legacy-url-redirect.php` updated to match v4.4.4's docblock re-framing.** v4.4.4 changed `sn_admin_pages()`'s docblock from `@deprecated 4.2.0` → `@internal` (Audit C HYG-08), but this test's Test 5 was hardcoded to `preg_match( '/@deprecated\s+4\.2\.0/' )` as a regression guard. The test broke at v4.4.4 ship time and **should have been caught before tagging** — plugin tests were not re-run after the v4.4.4 docblock edits, and the previous handoff's "888 assertions / all green" claim was inaccurate. The test now accepts either `@internal` or `@deprecated` framing (the future v5.0.0 cleanup per Audit E U-01 option 2 may flip it back to `@deprecated` again).
+
+**Audit reference:** [`docs/superpowers/specs/2026-05-26-audits-c-d-cycle-findings.md`](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-26-audits-c-d-cycle-findings.md) — Tier B PA-10.
+
+**Tests:** 888 assertions / 21 plugin suites — all green (now verified, not just claimed).
+
+**Lesson:** version-bump commits must include a test run between edit and tag. v4.4.4 went edit → commit → tag → push without `for f in tests/*.php; do php "$f"; done` in between. The verification-before-completion discipline applies even to "small" patches.
+
+**Post-install user actions:**
+
+- Install v4.4.5 via wp-admin → Dashboard → Updates (canonical) or `gh workflow run deploy.yml --ref v4.4.5` (emergency).
+- Tab through the SN admin → Site → Identity & SEO → Social section with VoiceOver / NVDA. Each Profile URL row should now announce as "Profile URL, edit text" rather than just "edit text."
+
+---
+
 ## [4.4.4] - 2026-05-26 — Audit C + D fixes — admin tabs aria-current, docblock hygiene, Tested up to: 7.0
 
 **Released:** 2026-05-26.

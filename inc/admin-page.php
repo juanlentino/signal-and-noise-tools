@@ -1131,12 +1131,17 @@ function sn_theme_options_page() {
 			echo '<div class="sn-field">';
 			echo '<label class="sn-field-label">Profile URLs (sameAs)</label>';
 			echo '<div class="sn-sameas">';
+			// WCAG 4.1.2: each repeating input needs its own accessible name.
+			// The visible .sn-field-label applies to the group; aria-label on
+			// each row gives screen readers a per-input name. Matches the
+			// pattern already in assets/admin.js initAddRowButton() for
+			// dynamically-added rows (audit D PA-10).
 			foreach ( $same_as as $url ) {
-				echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://...">';
+				echo '<input type="url" name="social_same_as[]" value="' . esc_attr( (string) $url ) . '" placeholder="https://..." aria-label="Profile URL">';
 			}
 			echo '<button type="button" class="sn-add-row-btn" aria-label="Add another profile URL row">Add another profile URL</button>';
 			echo '<noscript>';
-			echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." class="sn-sameas-extra">';
+			echo '<input type="url" name="social_same_as[]" value="" placeholder="https://..." class="sn-sameas-extra" aria-label="Profile URL">';
 			echo '</noscript>';
 			echo '</div>'; // .sn-sameas
 			echo '<p class="sn-field-helper">Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.</p>';

@@ -61,13 +61,19 @@ assertContains( "admin_url( 'admin.php?page=sn-theme-options&tab=' .", $src, 'ha
 assertContains( "'login'", $src, 'redirect map covers login slug' );
 assertContains( "'rss'", $src, 'redirect map covers rss slug' );
 
-// === Test 5: @deprecated docblock on sn_admin_pages ===
-if ( preg_match( '/@deprecated\s+4\.2\.0/', $src ) ) {
+// === Test 5: explicit legacy framing on sn_admin_pages ===
+// The function must be explicitly framed as legacy infrastructure in its
+// docblock. Re-framed in v4.4.4 from `@deprecated 4.2.0` → `@internal`
+// (Audit C HYG-08 — function is load-bearing and not pending removal, so
+// @internal is the accurate framing). Test accepts either framing so a
+// future re-deprecation (Audit E U-01 option 2 / v5.0.0 cleanup) doesn't
+// re-break this assertion.
+if ( preg_match( '/(@internal|@deprecated).*?\*\/\s*function sn_admin_pages/s', $src ) ) {
     $pass++;
-    echo "PASS: @deprecated 4.2.0 docblock present in file\n";
+    echo "PASS: sn_admin_pages has explicit legacy framing (@internal or @deprecated)\n";
 } else {
     $fail++;
-    echo "FAIL: no @deprecated 4.2.0 docblock found\n";
+    echo "FAIL: sn_admin_pages missing @internal/@deprecated framing in docblock\n";
 }
 
 echo "\n--- $pass passed, $fail failed ---\n";
