@@ -196,5 +196,22 @@ $cached = snt_block_migrations_last_scan();
 bm_true( is_array( $cached ), 'Test 7.2: last_scan reads from transient' );
 bm_eq( $scan['counts']['heading_hierarchy_skip'], $cached['counts']['heading_hierarchy_skip'], 'Test 7.3: cached value matches' );
 
+// ─── Test 8: mixed ordering h3 → h2 → h3 (leading flagged, trailing valid) ─
+echo "\nTest 8: mixed h3 → h2 → h3 ordering\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_bm_post( 208, array(
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Leading skip</h3>', 'innerContent' => array( '<h3>Leading skip</h3>' ) ),
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>Proper section</h2>', 'innerContent' => array( '<h2>Proper section</h2>' ) ),
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Valid subsection</h3>', 'innerContent' => array( '<h3>Valid subsection</h3>' ) ),
+) );
+$candidates = snt_block_migrations_detect_candidates();
+bm_eq( 1, count( $candidates ), 'Test 8.1: only the leading h3 is flagged (trailing h3 after h2 is valid)' );
+// Compute fingerprint of the leading h3 and verify the candidate matches it (not the trailing one).
+$leading_h3 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Leading skip</h3>', 'innerContent' => array( '<h3>Leading skip</h3>' ) );
+$leading_fp = md5( serialize_block( $leading_h3 ) );
+bm_eq( $leading_fp, $candidates[0]['block_fingerprint'] ?? '', 'Test 8.2: candidate fingerprint matches the leading h3 (not the trailing one)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
