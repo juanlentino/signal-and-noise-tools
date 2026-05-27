@@ -78,19 +78,14 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 	$blocks      = parse_blocks( (string) $post->post_content );
 	$replacement = parse_blocks( $replacement_markup );
 
-	// parse_blocks returns a list; if it decoded as an assoc array (bare JSON
-	// object = single block), treat it directly as the replacement node.
-	if ( ! empty( $replacement ) && isset( $replacement['blockName'] ) ) {
-		$replacement_node = $replacement;
-	} elseif ( ! empty( $replacement ) && is_array( $replacement[0] ?? null ) ) {
-		$replacement_node = $replacement[0];
-	} else {
+	if ( empty( $replacement ) || ! is_array( $replacement[0] ?? null ) ) {
 		return new WP_Error(
 			'snt_block_migration_invalid_markup',
 			__( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
+	$replacement_node = $replacement[0];
 
 	$found = false;
 	snt_block_migrations_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );

@@ -125,7 +125,7 @@ $GLOBALS['__test_posts'] = array();
 _bma_post( 402, array(
 	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>' ),
 ) );
-$result = snt_block_migrations_apply_impl( 402, 'wrongfingerprint000000000000000', json_encode( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerHTML' => '<h2>x</h2>' ) ), 'heading-hierarchy-skip' );
+$result = snt_block_migrations_apply_impl( 402, 'wrongfingerprint000000000000000', json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>x</h2>' ) ) ), 'heading-hierarchy-skip' );
 bma_true( is_wp_error( $result ), 'Test 3.1: returns WP_Error' );
 bma_eq( 'snt_block_migration_conflict', $result->get_error_code(), 'Test 3.2: error = conflict (409)' );
 
