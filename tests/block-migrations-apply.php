@@ -157,5 +157,15 @@ bma_true( is_wp_error( $result ), 'Test 5.1: returns WP_Error' );
 bma_eq( 'snt_block_migration_write_failed', $result->get_error_code(), 'Test 5.2: error = write_failed' );
 $GLOBALS['__test_update_fail'] = false;
 
+// ─── Test 6: invalid replacement markup → WP_Error 422 ──────────────
+echo "\nTest 6: invalid replacement markup\n";
+$GLOBALS['__test_posts'] = array();
+_bma_post( 405, array(
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>' ),
+) );
+$result = snt_block_migrations_apply_impl( 405, 'fp', 'not valid block markup', 'heading-hierarchy-skip' );
+bma_true( is_wp_error( $result ), 'Test 6.1: returns WP_Error' );
+bma_eq( 'snt_block_migration_invalid_markup', $result->get_error_code(), 'Test 6.2: error = invalid_markup (422)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
