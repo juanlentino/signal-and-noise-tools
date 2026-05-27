@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.1] - 2026-05-27 — v4.5.0 post-ship audit fixes — dead Suggest button + Discard retry break + 2 minor
+
+**Released:** 2026-05-27.
+
+**Headline:** v4.5.0 shipped with a JS enqueue gap that left the Block Migrations Suggest button dead in production (script only loaded on the Health tab, but block-migrations lives under Tools). Plus a Discard → Suggest retry path that lost the button's data-attrs. Both caught by the post-ship audit before user UAT exposure. Patch in v4.5.1.
+
+**Fixes:**
+
+- **CRITICAL: `assets/health-suggest-actions.js` now enqueued on the Tools tab too** (`inc/admin-page.php`). Previously only loaded when `?tab=health` AND `snt_ai_is_available()`. Block Migrations is pure structural (no AI), so neither condition fired and every click on `[data-snt-suggest]` in the block-migrations table silently produced nothing. The whole Suggest+Apply loop was non-functional. Added a parallel enqueue for `?tab=tools` with no AI gate.
+- **IMPORTANT: `buildSuggestButton()` now handles `block_migrations_heading_skip`** (`assets/health-suggest-actions.js`). The function rebuilds the Suggest button after Discard. Every other check type had a branch restoring its `data-*` attrs; the v4.5.0 cycle added the new check type to the click-handler chain but missed adding it here. After Discard, the rebuilt button lacked `data-post-id` / `data-fingerprint` / `data-migration-type` — clicking Suggest then fell through validation and rendered an error. Same shape as the v4.4.3 Bug-B2 fix for pattern-adoption — carried forward correctly this time.
+- **MINOR: Test 4 dismiss fixture in `tests/block-migrations-detect.php` was double-nested** — `array(array('heading-hierarchy-skip:...'))` instead of `array('heading-hierarchy-skip:...')`. The test reported 0 candidates and passed, but the dismiss filter was never actually exercised because the stored value didn't match what `in_array()` looked for. Unwrapped to a single-level array — Test 4 now tests what it claims.
+- **MINOR: `inc/block-migrations-admin.php` file docblock corrected** — dismiss REST endpoint was described as "back-compat surface for JS clients" (carried over from pattern-adoption-admin's docblock where it WAS a back-compat alias). For block-migrations it's the PRIMARY JS surface; the ability wrapper is the secondary path for AI agents. Rephrased for accuracy.
+
+**Tests:** 940 assertions across 25 suites, 0 failed (unchanged total — Test 4 now passes for the right reason instead of the wrong reason).
+
+**Refs:** Post-ship audit findings (cross-cutting holistic review over the 15-commit v4.5.0 cycle).
+
 ## [4.5.0] - 2026-05-26 — Block Migration tool (Tools sub-tab) + deprecation annotations on legacy REST
 
 **Released:** 2026-05-26.

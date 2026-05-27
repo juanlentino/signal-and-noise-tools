@@ -9,8 +9,10 @@
  *     health-suggest-actions.js) + [Dismiss]
  *
  * Also registers the dismiss REST endpoint at
- * POST /signal-noise/v1/tools/block-migrations-dismiss as a back-compat
- * surface for JS clients.
+ * POST /signal-noise/v1/tools/block-migrations-dismiss as the primary
+ * JS-client surface (the abilities API wrapper at
+ * signal-noise/block-migrations-dismiss is the secondary path for AI
+ * agents).
  *
  * Mirrors inc/pattern-adoption-admin.php structurally.
  *

@@ -152,7 +152,7 @@ _bm_post( 204, array(
 ) );
 $block_for_fp = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Skip me</h3>', 'innerContent' => array( '<h3>Skip me</h3>' ) );
 $fp_dismissed = md5( serialize_block( $block_for_fp ) );
-$GLOBALS['__test_post_meta'][ 204 ]['_snt_block_migrations_dismissed'] = array( array( 'heading-hierarchy-skip:' . $fp_dismissed ) );
+$GLOBALS['__test_post_meta'][ 204 ]['_snt_block_migrations_dismissed'] = array( 'heading-hierarchy-skip:' . $fp_dismissed );
 $candidates = snt_block_migrations_detect_candidates();
 bm_eq( 0, count( $candidates ), 'Test 4.1: dismissed fingerprint excluded' );
 

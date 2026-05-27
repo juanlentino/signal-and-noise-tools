@@ -590,6 +590,25 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 			}
 		}
 	}
+
+	// v4.5.1: enqueue health-suggest-actions.js on the Tools tab too. The
+	// Block Migrations sub-tab (introduced in v4.5.0) reuses the same
+	// shared Suggest+Apply JS. No AI gate — block-migrations is pure
+	// structural detection (no AI calls anywhere in the impl).
+	// Tab param is canonical post-redirect: ?page=sn-monitoring&tab=tools.
+	if ( isset( $_GET['tab'] ) && 'tools' === $_GET['tab'] ) {
+		wp_enqueue_script(
+			'snt-health-suggest-actions',
+			plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+			// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+			array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
+			SNT_VERSION,
+			true
+		);
+		if ( function_exists( 'wp_set_script_translations' ) ) {
+			wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
+		}
+	}
 } );
 
 /**

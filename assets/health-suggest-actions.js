@@ -954,6 +954,13 @@
 			btn.setAttribute( 'data-post-id', input.post_id );
 			btn.setAttribute( 'data-fingerprint', input.block_fingerprint );
 			btn.setAttribute( 'data-pattern-type', input.pattern_type );
+		} else if ( 'block_migrations_heading_skip' === checkType ) {
+			// v4.5.1: re-build block-migrations button on Discard. Same
+			// shape as pattern-adoption above; uses data-migration-type
+			// (not data-pattern-type) to match the click-handler attrs.
+			btn.setAttribute( 'data-post-id', input.post_id );
+			btn.setAttribute( 'data-fingerprint', input.block_fingerprint );
+			btn.setAttribute( 'data-migration-type', input.migration_type );
 		}
 		return btn;
 	}
