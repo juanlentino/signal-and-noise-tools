@@ -169,8 +169,9 @@ function sn_admin_top_tabs() {
 			'title'    => 'Signal & Noise — Tools',
 			'subtitle' => 'Utility surfaces and external shortcuts.',
 			'sub_tabs' => array(
-				'reading-time' => array( 'label' => 'Reading Time' ),
-				'links'        => array( 'label' => 'Links' ),
+				'reading-time'     => array( 'label' => 'Reading Time' ),
+				'links'            => array( 'label' => 'Links' ),
+				'block-migrations' => array( 'label' => 'Block Migrations' ),
 			),
 		),
 	);
@@ -814,6 +815,14 @@ function sn_handle_admin_post() {
 			snt_pattern_adoption_run_scan();
 		}
 		$flash = 'pattern_adoption_scanned';
+	} elseif ( 'block_migrations_scan' === $action ) {
+		// v4.5.0: Block-migration opportunity scan — mirrors the
+		// pattern_adoption_scan dispatcher. The impl module owns the work;
+		// this handler just dispatches + sets the flash.
+		if ( function_exists( 'snt_block_migrations_run_scan' ) ) {
+			snt_block_migrations_run_scan();
+		}
+		$flash = 'block_migrations_scanned';
 	} else {
 		return;
 	}
@@ -1416,6 +1425,10 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 			}
 			echo '</div>';
 		} );
+		} elseif ( 'block-migrations' === $active_sub ) {
+			sn_admin_render_section( 'block-migrations', function() {
+				do_action( 'sn_admin_tools_block_migrations_tab' );
+			} );
 		} else {
 			// Default sub-tab: 'reading-time'
 			sn_admin_render_section( 'reading-time', function() {
