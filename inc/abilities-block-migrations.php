@@ -162,6 +162,14 @@ add_action( 'wp_abilities_api_init', function() {
  * Ability execute wrappers — delegate to impls.
  * ════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Ability wrapper: delegates to snt_block_migrations_run_scan().
+ *
+ * @param array $input  Validated against input_schema above (empty object — no args).
+ * @return array|WP_Error
+ *
+ * @since 4.5.0
+ */
 function snt_ability_block_migrations_scan( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_run_scan' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations scan helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
@@ -169,6 +177,14 @@ function snt_ability_block_migrations_scan( $input ) {
 	return snt_block_migrations_run_scan();
 }
 
+/**
+ * Ability wrapper: delegates to snt_block_migrations_suggest_impl().
+ *
+ * @param array $input  Validated against input_schema above.
+ * @return array|WP_Error
+ *
+ * @since 4.5.0
+ */
 function snt_ability_block_migrations_suggest( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_suggest_impl' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations suggest helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
@@ -180,6 +196,14 @@ function snt_ability_block_migrations_suggest( $input ) {
 	);
 }
 
+/**
+ * Ability wrapper: delegates to snt_block_migrations_apply_impl().
+ *
+ * @param array $input  Validated against input_schema above.
+ * @return array|WP_Error
+ *
+ * @since 4.5.0
+ */
 function snt_ability_block_migrations_apply( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_apply_impl' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations apply helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
@@ -192,6 +216,19 @@ function snt_ability_block_migrations_apply( $input ) {
 	);
 }
 
+/**
+ * Ability wrapper: dismisses a block-migration candidate (inline impl).
+ *
+ * Appends "<migration_type>:<fingerprint>" to the post's
+ * _snt_block_migrations_dismissed meta and invalidates the current
+ * user's scan transient. Idempotent — re-dismissing the same
+ * fingerprint is a no-op.
+ *
+ * @param array $input  Validated against input_schema above.
+ * @return array|WP_Error
+ *
+ * @since 4.5.0
+ */
 function snt_ability_block_migrations_dismiss( $input ) {
 	$post_id        = (int) ( $input['post_id'] ?? 0 );
 	$fingerprint    = (string) ( $input['block_fingerprint'] ?? '' );
@@ -202,7 +239,6 @@ function snt_ability_block_migrations_dismiss( $input ) {
 	}
 
 	$existing = (array) get_post_meta( $post_id, '_snt_block_migrations_dismissed', true );
-	if ( ! is_array( $existing ) ) { $existing = array(); }
 	$key = $migration_type . ':' . $fingerprint;
 	if ( ! in_array( $key, $existing, true ) ) {
 		$existing[] = $key;
