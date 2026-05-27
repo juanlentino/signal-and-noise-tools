@@ -141,5 +141,33 @@ _bms_post( 304, array( $h3_block ) );
 $result = snt_block_migrations_suggest_impl( 304, $fp, 'heading-hierarchy-skip' );
 bms_true( strpos( $result['suggestion_markup'], 'Configuration steps' ) !== false, 'Test 5.1: inner text preserved' );
 
+
+// ─── Test 6: regex boundary cases (regression for \b → lookahead fix) ─
+echo "\nTest 6: regex boundary cases\n";
+
+// 6.1: hyphenated tag name must NOT be rewritten
+$h3_with_hyphen_neighbor = array(
+	'blockName'    => 'core/heading',
+	'attrs'        => array( 'level' => 3 ),
+	'innerBlocks'  => array(),
+	'innerHTML'    => '<h3>Heading <h3-custom>nested-fake</h3-custom> text</h3>',
+	'innerContent' => array( '<h3>Heading <h3-custom>nested-fake</h3-custom> text</h3>' ),
+);
+$result_h3_hyphen = snt_block_migrations_build_heading_promotion( $h3_with_hyphen_neighbor );
+bms_true( strpos( $result_h3_hyphen, '<h2-custom>' ) === false, 'Test 6.1: <h3-custom> is NOT rewritten to <h2-custom>' );
+bms_true( strpos( $result_h3_hyphen, '<h2>' ) !== false, 'Test 6.2: outer <h3> IS rewritten to <h2>' );
+
+// 6.3: non-heading block passed in returns unchanged
+$paragraph_block = array(
+	'blockName'    => 'core/paragraph',
+	'attrs'        => array(),
+	'innerBlocks'  => array(),
+	'innerHTML'    => '<p>Not a heading.</p>',
+	'innerContent' => array( '<p>Not a heading.</p>' ),
+);
+$result_paragraph = snt_block_migrations_build_heading_promotion( $paragraph_block );
+bms_true( strpos( $result_paragraph, '<p>' ) !== false, 'Test 6.3: non-heading block is passed through unchanged' );
+bms_true( strpos( $result_paragraph, '<h2>' ) === false, 'Test 6.4: non-heading block does NOT get h2 injected' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

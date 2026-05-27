@@ -134,6 +134,14 @@ function snt_block_migrations_find_block( $tree, $fingerprint ) {
  * @since 4.5.0
  */
 function snt_block_migrations_build_heading_promotion( $heading_block ) {
+	// Defensive guard: only mutate genuine core/heading blocks. A forged
+	// fingerprint matching a non-heading block (paragraph, list, etc.)
+	// would otherwise get its innerHTML regex-processed and return mangled
+	// markup. Pass through unchanged via serialize_block instead.
+	if ( 'core/heading' !== ( $heading_block['blockName'] ?? '' ) ) {
+		return serialize_block( $heading_block );
+	}
+
 	// Unset level: serialize_block omits the JSON key when attrs is empty,
 	// which is canonical for h2 (default level).
 	unset( $heading_block['attrs']['level'] );
@@ -142,7 +150,7 @@ function snt_block_migrations_build_heading_promotion( $heading_block ) {
 	foreach ( $heading_block['innerContent'] ?? array() as $i => $content ) {
 		if ( is_string( $content ) ) {
 			$heading_block['innerContent'][ $i ] = preg_replace(
-				array( '/<h3(\b[^>]*)>/', '/<\/h3>/' ),
+				array( '/<h3(?=[\s>])([^>]*)>/', '/<\/h3>/' ),
 				array( '<h2$1>', '</h2>' ),
 				$content
 			);
@@ -153,7 +161,7 @@ function snt_block_migrations_build_heading_promotion( $heading_block ) {
 	// reconstruction. Update for consistency.
 	if ( isset( $heading_block['innerHTML'] ) ) {
 		$heading_block['innerHTML'] = preg_replace(
-			array( '/<h3(\b[^>]*)>/', '/<\/h3>/' ),
+			array( '/<h3(?=[\s>])([^>]*)>/', '/<\/h3>/' ),
 			array( '<h2$1>', '</h2>' ),
 			$heading_block['innerHTML']
 		);
