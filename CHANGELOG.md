@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.0] - 2026-05-26 — Block Migration tool (Tools sub-tab) + deprecation annotations on legacy REST
+
+**Released:** 2026-05-26.
+
+**Headline:** First content-migration tool ships under a new Tools sub-tab — `parse_blocks` / `serialize_block` infrastructure with Suggest+Apply UX, mirroring v4.3.0 pattern-adoption. First migration is **heading-hierarchy-skip** (h3 with no preceding h2 → h2, WCAG 1.3.1). Plus signal-only `_deprecated_function()` annotations on 4 legacy REST handlers so we can track external callers ahead of v5.0.0 removal.
+
+**Added:**
+
+- **Block Migration tool** (`inc/block-migrations-detect.php`, `inc/block-migrations-suggest.php`, `inc/block-migrations-apply.php`, `inc/block-migrations-admin.php`). Tools sub-tab "Block Migrations" detects + fixes structural block issues via `parse_blocks`/`serialize_block` round-trip. Suggest+Apply UX mirrors v4.3.0 pattern-adoption (modal preview, fingerprint conflict detection at 409, per-finding dismiss state, idempotent per-user scans cached for 1 hour). Generalizes the PA-01 SQL-miss from the v4.4.x cycle — future content migrations all use this infrastructure (no more bespoke SQL).
+- **4 new abilities** under category `tools` (NOT `ai-generation` — these are pure structural, zero AI calls): `signal-noise/block-migrations-scan`, `signal-noise/block-migrations-suggest`, `signal-noise/block-migrations-apply`, `signal-noise/block-migrations-dismiss`. Apply gets `annotations.idempotent: false, destructive: true`; the rest are `idempotent: true`. See `inc/abilities-block-migrations.php`.
+- **REST surfaces** at `POST /signal-noise/v1/tools/block-migrations-{scan,suggest,apply,dismiss}`.
+- **`_deprecated_function()` annotations** on the 4 `@deprecated 2.5.0` REST handlers: `snt_ai_meta_desc_rest_handler`, `snt_ai_excerpt_rest_handler`, `snt_ai_og_card_title_rest_handler`, `snt_desktop_cmd_handler`. Signal-only — notices fire under `WP_DEBUG_LOG=true` when external callers (WP-CLI scripts, wp-cron jobs, third-party integrations, `WordPress/desktop-mode`'s `command-palette.js`, cached browser tabs) hit the legacy routes. Once the notice log shows zero traffic for a few months, v5.0.0 can safely remove them per spec §9.
+- **Test coverage**: 52 new assertions across 4 new test files:
+  - `tests/legacy-deprecation.php` (5 assertions, static-grep guard for WS1)
+  - `tests/block-migrations-detect.php` (15 assertions across 8 scenarios)
+  - `tests/block-migrations-suggest.php` (18 assertions across 6 scenarios — includes regex boundary regression for `<h3-custom>`)
+  - `tests/block-migrations-apply.php` (14 assertions across 6 scenarios — includes `invalid_markup` 422 coverage)
+- Plugin aggregate: 888 → **940 assertions**, 0 failures across 25 runnable suites.
+
+**Changed:**
+
+- Tools tab gains a 3rd sub-tab: **Block Migrations** (after Reading Time + Links). New per-sub-tab hook `sn_admin_block_migrations_tab` matches the project's flat hook convention (`sn_admin_cloudflare_tab`, `sn_admin_health_tab`, etc.).
+- `assets/health-suggest-actions.js` extended (~120 LOC) to handle the new `block_migrations_heading_skip` check type. Shared modal + status infrastructure reused — no new JS file.
+- `inc/admin-page.php`: new entry in Tools `sub_tabs`, new render-branch elseif, new `block_migrations_scan` dispatcher branch, new `block_migrations_scanned` flash notice.
+
+**Implementation notes:**
+
+- Workstream 2 from the original v4.5.0 paired-design spec ("JS-client flip: ability-first, REST-fallback") was **DROPPED** during pre-plan-writing source verification — the flip already shipped in v2.5.0 (verified at `assets/ai-*.js`). Spec revised at theme commit `7475d2c` before plan-writing began. Direct application of the `read framework source` discipline rule.
+- Subagent-driven execution found 3 code-quality issues during the review cycles that produced cleanup commits: regex word-boundary bug (`\b` matched `<h3-custom>` — fixed at `cf8a571`); dead-code branch from malformed test fixture (fixed at `7552fcd`); hook-name convention deviation (renamed `sn_admin_tools_block_migrations_tab` → `sn_admin_block_migrations_tab` at `e80c1f2`). All caught BEFORE the v4.5.0 tag.
+- Spec source: [docs/superpowers/specs/2026-05-26-v4.5.0-and-v9.5.0-paired-design.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/specs/2026-05-26-v4.5.0-and-v9.5.0-paired-design.md) (theme repo, paired with theme v9.5.0).
+- Plan source: `docs/superpowers/plans/2026-05-26-v4.5.0.md` (this repo).
+
+**Paired with:** Theme v9.5.0 (not yet shipped; will convene after this gate per spec §1 relaxed sync).
+
+---
+
 ## [4.4.5] - 2026-05-26 — PA-10 social inputs aria-label + test catch-up after v4.4.4 docblock re-framing
 
 **Released:** 2026-05-26.
