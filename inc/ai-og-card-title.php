@@ -179,6 +179,7 @@ function snt_ai_og_card_title_impl( $post_id ) {
  * back-compat with v2.3.0+ JS clients on installs running pre-v2.5.0.
  */
 function snt_ai_og_card_title_rest_handler( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/ai-generate-og-card-title/run' );
 	$post_id = (int) $request->get_param( 'post_id' );
 	$result  = snt_ai_og_card_title_impl( $post_id );
 	if ( is_wp_error( $result ) ) {

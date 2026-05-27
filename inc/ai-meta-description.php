@@ -132,6 +132,7 @@ function snt_ai_meta_desc_impl( $post_id ) {
  * back-compat with v1.16.0+ JS clients on installs running pre-v2.5.0.
  */
 function snt_ai_meta_desc_rest_handler( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/ai-generate-meta-description/run' );
 	$post_id = (int) $request->get_param( 'post_id' );
 	$result  = snt_ai_meta_desc_impl( $post_id );
 	if ( is_wp_error( $result ) ) {

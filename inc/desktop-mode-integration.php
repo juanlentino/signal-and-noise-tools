@@ -471,6 +471,7 @@ add_action( 'rest_api_init', function() {
 } );
 
 function snt_desktop_cmd_handler( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/<command-ability-slug>/run' );
 	$action = (string) $request->get_param( 'action' );
 
 	switch ( $action ) {
