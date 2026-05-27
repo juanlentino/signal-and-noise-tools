@@ -993,6 +993,8 @@ function sn_theme_options_page() {
 			$notices[] = array( 'success', 'Scan complete — findings below.' );
 		} elseif ( 'pattern_adoption_scanned' === $flash ) {
 			$notices[] = array( 'success', 'Scan complete.' );
+		} elseif ( 'block_migrations_scanned' === $flash ) {
+			$notices[] = array( 'success', 'Block migration scan complete.' );
 		} elseif ( 'audit_retention_saved' === $flash ) {
 			$notices[] = array( 'success', 'Audit retention saved.' );
 		} elseif ( 'audit_retention_unchanged' === $flash ) {
@@ -1380,7 +1382,7 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 
 	// ════════════════════════════════════════
 	// TAB: TOOLS (v3.8.1+: sub-tabs)
-	// Sub-tabs: reading-time, links
+	// Sub-tabs: reading-time, links, block-migrations
 	// ════════════════════════════════════════
 	} elseif ( 'tools' === $active_tab ) {
 
@@ -1427,7 +1429,7 @@ define( \'SN_LOGIN_BYPASS\', true );</pre>';
 		} );
 		} elseif ( 'block-migrations' === $active_sub ) {
 			sn_admin_render_section( 'block-migrations', function() {
-				do_action( 'sn_admin_tools_block_migrations_tab' );
+				do_action( 'sn_admin_block_migrations_tab' );
 			} );
 		} else {
 			// Default sub-tab: 'reading-time'

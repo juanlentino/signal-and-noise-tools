@@ -24,13 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Render the Block Migrations sub-tab. Hooked into
- * sn_admin_tools_block_migrations_tab action.
+ * sn_admin_block_migrations_tab action.
  *
  * @return void
  *
  * @since 4.5.0
  */
-add_action( 'sn_admin_tools_block_migrations_tab', 'snt_block_migrations_render_section' );
+add_action( 'sn_admin_block_migrations_tab', 'snt_block_migrations_render_section' );
 
 function snt_block_migrations_render_section() {
 	if ( ! current_user_can( 'manage_options' ) ) {
