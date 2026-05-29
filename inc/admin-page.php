@@ -346,93 +346,14 @@ function sn_theme_options_page() {
 	}
 
 	// Form processing happens in sn_handle_admin_post() on admin_init —
-	// before any output, so wp_safe_redirect() works (gotcha #17, #19).
-	// This block just translates ?sn_flash=… into notices for the
-	// post-redirect GET request.
+	// before any output. This block just translates ?sn_flash=… into a
+	// notice for the post-redirect GET request, via the shared flash
+	// registry (inc/admin-flash-messages.php) — the single source of truth
+	// consumed by both the dispatcher (which emits the codes) and here.
 	if ( isset( $_GET['sn_flash'] ) ) {
-		$flash = sanitize_text_field( wp_unslash( $_GET['sn_flash'] ) );
-		if ( 'identity_saved' === $flash ) {
-			$notices[] = array( 'success', 'Identity settings saved.' );
-		} elseif ( 'identity_unchanged' === $flash ) {
-			$notices[] = array( 'info', 'No changes to save.' );
-		} elseif ( 'login_saved' === $flash ) {
-			$slug_now  = sn_setting( 'login.slug', 'sn-login' );
-			$login_url = home_url( '/' . $slug_now );
-			$notices[] = array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
-		} elseif ( 'login_empty' === $flash ) {
-			$notices[] = array( 'error', 'Login slug cannot be empty.' );
-		} elseif ( 'login_failed' === $flash ) {
-			$notices[] = array( 'error', 'Login slug save failed.' );
-		} elseif ( 'pl_saved' === $flash ) {
-			$notices[] = array( 'success', 'Stats API key saved. Caches purged — widgets refresh on next dashboard view.' );
-		} elseif ( 'pl_cleared' === $flash ) {
-			$notices[] = array( 'success', 'Stats API key cleared. Caches purged.' );
-		} elseif ( 'pl_unchanged' === $flash ) {
-			$notices[] = array( 'info', 'No changes to save.' );
-		} elseif ( 'pl_locked' === $flash ) {
-			$notices[] = array( 'error', 'Token is locked by the SN_PLAUSIBLE_STATS_TOKEN constant — remove the constant in wp-config.php to edit here.' );
-		} elseif ( 'pl_test_ok' === $flash ) {
-			// Read fresh count from the transient sn_plausible_api populates.
-			$cached   = get_transient( SN_PLAUSIBLE_BATCH_KEY );
-			$visitors = is_array( $cached ) && isset( $cached['data']['visitors']['value'] ) ? (int) $cached['data']['visitors']['value'] : 0;
-			$notices[] = array( 'success', '&#10003; API call succeeded — ' . number_format_i18n( $visitors ) . ' visitor(s) in last 7 days.' );
-		} elseif ( 'pl_test_err' === $flash ) {
-			$err    = sn_plausible_last_error();
-			$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
-			$notices[] = array( 'error', '&#10005; API call failed &mdash; ' . $detail );
-		} elseif ( 'pl_test_unconfigured' === $flash ) {
-			$notices[] = array( 'error', 'Plausible not fully configured (missing domain or token).' );
-		} elseif ( 'cf_saved' === $flash ) {
-			$notices[] = array( 'success', 'Cloudflare settings saved.' );
-		} elseif ( 'cf_purged_ok' === $flash ) {
-			$notices[] = array( 'success', 'Cloudflare zone purge dispatched.' );
-		} elseif ( 'cf_purged_unconfigured' === $flash ) {
-			$notices[] = array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' );
-		} elseif ( 0 === strpos( $flash, 'rt_applied_' ) ) {
-			$count     = (int) substr( $flash, strlen( 'rt_applied_' ) );
-			$notices[] = array( 'success', sprintf( '%d post(s) cleaned. Reading-time cache rebuilt.', $count ) );
-		} elseif ( 'purged' === $flash ) {
-			$notices[] = array( 'success', 'All caches purged.' );
-		} elseif ( 0 === strpos( $flash, 'cleared_' ) ) {
-			$count     = (int) substr( $flash, strlen( 'cleared_' ) );
-			$notices[] = array( 'success', $count . ' database override(s) cleared. Site is reading from theme files.' );
-		} elseif ( 0 === strpos( $flash, 'reset_' ) ) {
-			$count     = (int) substr( $flash, strlen( 'reset_' ) );
-			$notices[] = array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
-		} elseif ( 0 === strpos( $flash, 'wh_added_' ) ) {
-			$notices[] = array( 'success', 'Webhook added. Copy the signing secret below — it will not be shown again.' );
-		} elseif ( 'wh_updated' === $flash ) {
-			$notices[] = array( 'success', 'Webhook updated.' );
-		} elseif ( 0 === strpos( $flash, 'wh_rotated_' ) ) {
-			$notices[] = array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong> — copy the new value below before navigating away.' );
-		} elseif ( 'wh_deleted' === $flash ) {
-			$notices[] = array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' );
-		} elseif ( 'wh_invalid' === $flash ) {
-			$notices[] = array( 'error', 'Could not add webhook — name and valid URL are required.' );
-		} elseif ( 'wh_not_found' === $flash ) {
-			$notices[] = array( 'error', 'Webhook not found.' );
-		} elseif ( 'insights_scanned' === $flash ) {
-			$notices[] = array( 'success', 'Insights scan complete — recommendations below.' );
-		} elseif ( 'insights_failed' === $flash ) {
-			$notices[] = array( 'error', 'Insights scan failed. Check that an AI provider is configured under Settings → Connectors.' );
-		} elseif ( 'insights_dismissed' === $flash ) {
-			$notices[] = array( 'success', 'Recommendation dismissed.' );
-		} elseif ( 'insights_snoozed' === $flash ) {
-			$notices[] = array( 'success', 'Recommendation snoozed for 30 days.' );
-		} elseif ( 'insights_done' === $flash ) {
-			$notices[] = array( 'success', 'Recommendation marked as done.' );
-		} elseif ( 'insights_settings_saved' === $flash ) {
-			$notices[] = array( 'success', 'Insights settings saved.' );
-		} elseif ( 'health_scanned' === $flash ) {
-			$notices[] = array( 'success', 'Scan complete — findings below.' );
-		} elseif ( 'pattern_adoption_scanned' === $flash ) {
-			$notices[] = array( 'success', 'Scan complete.' );
-		} elseif ( 'block_migrations_scanned' === $flash ) {
-			$notices[] = array( 'success', 'Block migration scan complete.' );
-		} elseif ( 'audit_retention_saved' === $flash ) {
-			$notices[] = array( 'success', 'Audit retention saved.' );
-		} elseif ( 'audit_retention_unchanged' === $flash ) {
-			$notices[] = array( 'info', 'Audit retention unchanged.' );
+		$notice = sn_admin_flash_to_notice( sanitize_text_field( wp_unslash( $_GET['sn_flash'] ) ) );
+		if ( $notice ) {
+			$notices[] = $notice;
 		}
 	}
 
