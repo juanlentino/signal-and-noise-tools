@@ -72,6 +72,10 @@ require_once SNT_PATH . 'inc/plausible-admin.php';
 require_once SNT_PATH . 'inc/plausible-widget.php';
 require_once SNT_PATH . 'inc/admin-bar.php';
 require_once SNT_PATH . 'inc/admin-page.php';
+// Admin UI — split out of the former 1,468-line inc/admin-page.php in v4.5.3.
+// Order is irrelevant: every cross-call between these modules happens at
+// runtime (inside admin_init / admin_menu / render hooks), never at load.
+require_once SNT_PATH . 'inc/admin-tabs-data.php';
 require_once SNT_PATH . 'inc/rest-api.php';
 
 /**
