@@ -77,6 +77,7 @@ require_once SNT_PATH . 'inc/admin-page.php';
 // runtime (inside admin_init / admin_menu / render hooks), never at load.
 require_once SNT_PATH . 'inc/admin-tabs-data.php';
 require_once SNT_PATH . 'inc/admin-tabs.php';
+require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/rest-api.php';
 
 /**

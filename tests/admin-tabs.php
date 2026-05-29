@@ -64,7 +64,7 @@ if ( ! defined( 'SNT_PATH' ) ) {
 
 require_once __DIR__ . '/../inc/admin-tabs-data.php';
 require_once __DIR__ . '/../inc/admin-tabs.php';
-require_once __DIR__ . '/../inc/admin-page.php';
+require_once __DIR__ . '/../inc/admin-legacy-redirect.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
 $pass = 0;

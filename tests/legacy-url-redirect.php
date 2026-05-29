@@ -31,7 +31,7 @@ function wp_unslash( $v ) {
     return is_string( $v ) ? stripslashes( $v ) : $v;
 }
 
-$path = __DIR__ . '/../inc/admin-page.php';
+$path = __DIR__ . '/../inc/admin-legacy-redirect.php';
 $src  = file_get_contents( $path );
 
 $pass = 0;
