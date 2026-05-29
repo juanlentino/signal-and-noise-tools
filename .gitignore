@@ -7,3 +7,5 @@ composer.lock
 node_modules/
 .idea/
 .vscode/
+# Claude Code session state + nested git worktrees (worktree-local, never committed).
+.claude/

@@ -24,7 +24,14 @@
 	<exclude-pattern>*/assets/*</exclude-pattern>
 	<exclude-pattern>*/seed-content/*</exclude-pattern>
 	<exclude-pattern>*/.git/*</exclude-pattern>
-	<exclude-pattern>*/.claude/*</exclude-pattern>
+	<!-- .claude/ holds Claude session state + nested git worktrees (a FULL second
+	     copy of inc/*.php). It MUST be excluded or PHPCS scans those duplicates
+	     too. Anchored type="relative" (matched against basepath, not the absolute
+	     path) so it only ever matches a `.claude/` at THIS repo's root — never a
+	     `.claude/` ANCESTOR. A bare `*/.claude/*` matches absolute paths and would
+	     silently exclude everything if this repo were itself checked out under a
+	     `…/.claude/worktrees/…` path (the exact false-0/0 the theme hit). -->
+	<exclude-pattern type="relative">^\.claude/</exclude-pattern>
 
 	<arg name="extensions" value="php"/>
 	<arg name="basepath" value="."/>
