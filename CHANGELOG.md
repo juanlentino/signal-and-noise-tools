@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.5] - 2026-05-29 — Dashboard External-APIs line only shows APIs that actually report
+
+**Released:** 2026-05-29.
+
+**Headline:** The Dashboard "External APIs" summary showed GitHub's rate-limit count but rendered Cloudflare and Plausible as a permanent `—`, implying "tracked, no data yet." They can never populate: the monitor (`inc/api-rate-monitor.php`) parses `X-RateLimit-*` headers, but Cloudflare uses non-standard `Ratelimit`/`Ratelimit-Policy` headers (verified against Cloudflare's API limits docs) and the Plausible stats API emits no rate-limit headers at all (600/h, documented-only). The line now renders a host only when it has a real snapshot — GitHub shows; CF + Plausible are omitted. Self-healing: if either ever starts reporting, it appears automatically with no code change. The monitor still tracks all three internally (email warnings unaffected).
+
+### Fixed
+
+- **`snt_dashboard_render_api_summary()` skips hosts with no rate-limit snapshot** instead of printing a permanent `—` placeholder. The separator before "Refresh now" is now suppressed when zero host items render (avoids a dangling `·`; unreachable in practice since GitHub is polled by the update-checker, but kept clean). (`inc/admin-tab-dashboard.php`)
+
+### Added
+
+- **`tests/dashboard-api-summary.php`** — 13 assertions locking the contract: reporting hosts shown, non-reporting hosts omitted (no `—`), section heading + Refresh link always present, the self-heal path (a previously-silent host appears once it reports), critical (<10%) hosts still surface the warning notice, and no dangling separator with zero items. Plugin test total: **1,046 assertions across 30 suites**.
+
 ## [4.5.4] - 2026-05-29 — Refactor: split inc/admin-page.php into handler + flash-data + form modules
 
 **Released:** 2026-05-29.

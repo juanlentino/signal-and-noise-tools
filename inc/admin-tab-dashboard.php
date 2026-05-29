@@ -364,8 +364,15 @@ function snt_dashboard_render_api_summary() {
 	foreach ( $statuses as $host => $info ) {
 		$snap  = $info['snapshot'];
 		$label = $info['label'];
+		// v4.5.5: only render a host that has actually reported a rate-limit
+		// snapshot. Two of the three tracked hosts never will: Cloudflare uses
+		// non-standard `Ratelimit`/`Ratelimit-Policy` response headers (not the
+		// `X-RateLimit-*` set inc/api-rate-monitor.php parses), and the Plausible
+		// stats API emits no rate-limit headers at all (600/h, documented-only).
+		// A permanent "—" implied "tracked, no data yet" — misleading. Omitting
+		// the host is self-healing: if it ever reports, it appears automatically.
+		// GitHub (polled by the update-checker, returns X-RateLimit-*) still shows.
 		if ( ! $snap ) {
-			$items[] = '<span class="sn-api-summary__item">' . esc_html( $label ) . ': <em>—</em></span>';
 			continue;
 		}
 		$pct       = $snap['remaining'] / max( 1, $snap['limit'] );
@@ -405,7 +412,13 @@ function snt_dashboard_render_api_summary() {
 	echo '<h2 class="sn-section-h">External APIs</h2>';
 	echo '<p class="sn-api-summary">';
 	echo implode( ' ' . $sep . ' ', $items );
-	echo ' ' . $sep . ' ';
+	// Separator before the Refresh link only when at least one host item
+	// rendered — avoids a leading "· Refresh" when no host has a snapshot
+	// (unreachable in practice since GitHub is polled by the update-checker,
+	// but keeps the markup clean if it ever happens). (v4.5.5)
+	if ( ! empty( $items ) ) {
+		echo ' ' . $sep . ' ';
+	}
 	echo '<a class="button-link" href="' . esc_url( $refresh_url ) . '">' . esc_html__( 'Refresh now', 'signal-noise-tools' ) . '</a>';
 	echo '</p>';
 }
