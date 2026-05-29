@@ -37,13 +37,14 @@
 
 	<!--
 		NonceVerification: EXCLUDED (whole plugin). All admin POST handling funnels
-		through the central dispatcher sn_handle_admin_post() (admin-page.php),
-		which calls check_admin_referer('sn_theme_options_nonce') ONCE before
-		routing to per-action branches. PHPCS can't follow that cross-function
-		flow, so it flags every downstream $_POST/$_GET read as "no nonce" — but
-		the nonce IS verified. RE-ENABLE after the queued admin-page.php split:
-		each handler will then verify its own nonce in-scope and the sniff can
-		follow the flow.
+		through the central dispatcher sn_handle_admin_post() (inc/admin-post-handler.php
+		since the v4.5.4 split; formerly admin-page.php), which calls
+		check_admin_referer('sn_theme_options_nonce') ONCE before routing via the
+		action→callback map to per-action handlers in inc/admin-post-actions.php.
+		PHPCS can't follow that cross-function flow, so it flags every downstream
+		$_POST/$_GET read as "no nonce" — but the nonce IS verified. The split kept
+		the single shared-nonce design (one check before dispatch), so the
+		cross-function limitation — and this exclusion — remain by design.
 	-->
 	<rule ref="WordPress.Security.NonceVerification.Recommended">
 		<severity>0</severity>
@@ -58,12 +59,13 @@
 		inspects the echo statement, not the assignment, so it can't see the
 		pre-escaping; wrapping again would DOUBLE-escape (&middot; → &amp;middot;).
 		All are manage_options-gated admin screens. The sniff stays ACTIVE on every
-		other file. admin-page.php is here for its single $aria finding (line 248,
-		a literal ' aria-current="page"' fragment) — coverage there returns when
-		the file is split into per-tab render modules (queued refactor).
+		other file. admin-tabs.php is here for its single $aria finding (a literal
+		' aria-current="page"' fragment in sn_admin_render_sub_tabs()) — relocated
+		from admin-page.php by the v4.5.4 split (which performed the "queued
+		refactor" noted above); admin-page.php is now fully covered (no findings).
 	-->
 	<rule ref="WordPress.Security.EscapeOutput.OutputNotEscaped">
-		<exclude-pattern>*/inc/admin-page.php</exclude-pattern>
+		<exclude-pattern>*/inc/admin-tabs.php</exclude-pattern>
 		<exclude-pattern>*/inc/admin-tab-dashboard.php</exclude-pattern>
 		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
