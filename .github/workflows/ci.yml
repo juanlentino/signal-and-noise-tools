@@ -1,0 +1,152 @@
+name: CI
+
+# Code-quality gate for pull requests + pushes to main. Four jobs:
+#   1. lint      — PHP syntax check (php -l) across all non-vendor files.
+#   2. phpcs     — WordPress-Coding-Standards via the committed phpcs.xml.dist
+#                  (catches escaping/unslash/deprecated-API issues php -l can't).
+#   3. tests     — the standalone tests/*.php fixture sweep (no WP/DB needed).
+#   4. changelog — on PRs, fail if the plugin Version: bumped without a matching
+#                  CHANGELOG.md entry (the gap that shipped v4.5.2 changelog-less).
+#
+# This is the code gate. Deployment is manual via the WP self-updater
+# (deploy.yml, workflow_dispatch only) — CI passing does NOT deploy.
+#
+# Security: only hardcoded values in run: steps; untrusted github.event.*
+# fields (base.ref) are passed via env: and quoted, never interpolated into
+# shell — no command-injection surface.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: PHP syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: none
+      - name: Lint all .php files
+        run: |
+          set -e
+          fail=0
+          while IFS= read -r f; do
+            if ! php -l "$f" > /dev/null; then
+              echo "::error file=$f::PHP parse error"
+              fail=1
+            fi
+          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
+          exit $fail
+
+  phpcs:
+    name: WordPress Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+      # Install only the dev tooling (PHPCS + WPCS + PHPCompatibilityWP) declared
+      # in composer.json require-dev. The phpcodesniffer-composer-installer plugin
+      # auto-wires the WordPress + PHPCompatibilityWP standards into vendor/bin/phpcs.
+      - name: Install dev dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Run PHPCS (curated WP-handbook ruleset)
+        run: composer run lint
+
+  tests:
+    name: Test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: none
+      # Standalone fixture tests — each stubs its own WP functions, so no WP
+      # install or DB is needed. contracts-smoke.php is EXCLUDED: it requires a
+      # live WP env (wp-load.php) and is a manual `wp eval-file` run only — in CI
+      # it would no-op with "ABSPATH not set" and assert nothing (a false green).
+      - name: Run standalone test sweep
+        run: |
+          set -e
+          fail=0
+          total=0
+          passed=0
+          for f in tests/*.php; do
+            base=$(basename "$f")
+            if [ "$base" = "contracts-smoke.php" ]; then
+              echo "SKIP (needs live WP): $base"
+              continue
+            fi
+            total=$((total + 1))
+            out=$(php "$f" 2>&1) || true
+            summary=$(echo "$out" | grep -ioE "[0-9]+ passed, [0-9]+ failed" | tail -1)
+            if [ -z "$summary" ]; then
+              echo "::error file=$f::no test summary line — suite did not assert (possible silent skip)"
+              echo "$out" | tail -3
+              fail=1
+              continue
+            fi
+            f_count=$(echo "$summary" | grep -oE "[0-9]+ failed" | grep -oE "[0-9]+")
+            p_count=$(echo "$summary" | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+")
+            passed=$((passed + ${p_count:-0}))
+            if [ "${f_count:-0}" -gt 0 ]; then
+              echo "::error file=$f::$summary"
+              fail=1
+            else
+              echo "OK ($summary): $base"
+            fi
+          done
+          echo "-- swept $total suites, $passed assertions passed --"
+          exit $fail
+
+  changelog:
+    name: CHANGELOG entry present
+    runs-on: ubuntu-latest
+    # Only meaningful on PRs (compares against the base branch). A version bump
+    # without a matching CHANGELOG.md entry is the exact gap that shipped the
+    # v4.5.2 release changelog-less (an editor no-op went unnoticed).
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require CHANGELOG entry when Version bumps
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -e
+          # Read the plugin Version: from the docblock on both the PR head and base.
+          head_ver=$(grep -m1 -E '^\s*\*\s*Version:' signal-and-noise-tools.php | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          base_ver=$(git show "origin/${BASE_REF}:signal-and-noise-tools.php" 2>/dev/null | grep -m1 -E '^\s*\*\s*Version:' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+          echo "base version: ${base_ver:-(unknown)}  ->  head version: ${head_ver:-(unknown)}"
+          if [ -z "$head_ver" ]; then
+            echo "::error::could not parse Version: from signal-and-noise-tools.php"
+            exit 1
+          fi
+          if [ "$head_ver" = "$base_ver" ]; then
+            echo "Version unchanged - CHANGELOG entry not required."
+            exit 0
+          fi
+          # Version changed: a matching '## [x.y.z]' header must exist in CHANGELOG.md.
+          if grep -qE "^##\s*\[${head_ver}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md has an entry for ${head_ver}."
+          else
+            echo "::error file=CHANGELOG.md::Version bumped to ${head_ver} but no '## [${head_ver}]' entry in CHANGELOG.md. Add one (see global rule: ALWAYS update CHANGELOG.md)."
+            exit 1
+          fi
