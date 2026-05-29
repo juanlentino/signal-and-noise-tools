@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.6] - 2026-05-29 — Self-updater authenticates to GitHub (60/h → 5000/h)
+
+**Released:** 2026-05-29.
+
+**Headline:** The self-updater's GitHub tag-fetch (`sn_gh_latest_plugin_tag`) only ever sent `Accept` + `User-Agent` — never an `Authorization` header — so every WP update-check spent from GitHub's **60/h unauthenticated** pool (shared per-server-IP on Cloudways). When that pool exhausts, the fetch 403s, the function returns `null`, and the Updates page silently shows "no update available" even when a release exists. The deploy-history poller (`github-actions-api.php`) already authenticated with the `SNT_GITHUB_TOKEN` wp-config constant and ran at 5000/h — this brings the updater to parity. (Surfaced when the dashboard's GitHub-API counter showed 48/60 instead of the authenticated ~5000.)
+
+### Fixed
+
+- **`sn_gh_latest_plugin_tag()` now sends `Authorization: Bearer <SNT_GITHUB_TOKEN>`** when the constant is defined in wp-config.php — 60/h → 5000/h. Conditional: when the constant is absent the request is byte-for-byte the previous unauthenticated call, so there is no regression and no behavior change for installs without a token. Mirrors `inc/github-actions-api.php`. (`inc/wp-update-integration.php`)
+
+### Added
+
+- **`tests/updater-github-auth.php`** — 6 assertions: token-defined → `Authorization: Bearer <token>` present, Accept/User-Agent preserved, application guarded by `defined()` (graceful unauthenticated fallback), header built from `SNT_GITHUB_TOKEN`. Plugin test total: **1,052 assertions across 30 suites**.
+
 ## [4.5.5] - 2026-05-29 — Dashboard External-APIs line only shows APIs that actually report
 
 **Released:** 2026-05-29.
