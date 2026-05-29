@@ -3,7 +3,7 @@
  * Signal & Noise — admin flash-message registry.
  *
  * Single source of truth for the ?sn_flash=… → admin-notice translation.
- * Before v4.5.3 this lived as a second if/elseif inside sn_theme_options_page(),
+ * Before v4.5.4 this lived as a second if/elseif inside sn_theme_options_page(),
  * maintained ~40 lines away from the dispatcher that emits the codes — the two
  * had to be hand-kept in sync. Now the dispatcher emits a code and this module
  * owns the code → [severity, message] mapping. Three message shapes:

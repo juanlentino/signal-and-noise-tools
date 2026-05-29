@@ -6,7 +6,7 @@
  * canonical (top tab + sub-tab + anchor) redirect map, slug → tab resolution,
  * and the 301 redirect performed before dispatch. Keeps every pre-v3.8.0
  * ?page=sn-<slug> / ?tab=<slug> deep link working. Extracted from
- * inc/admin-page.php in v4.5.3.
+ * inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

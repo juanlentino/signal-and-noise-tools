@@ -4,7 +4,7 @@
  *
  * Renders the custom-login-URL module status (active / dormant-conflict /
  * bypassed / constant-locked), the slug form (sn_action=save_login), and the
- * emergency-unlock docs. Extracted verbatim from inc/admin-page.php in v4.5.3.
+ * emergency-unlock docs. Extracted verbatim from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

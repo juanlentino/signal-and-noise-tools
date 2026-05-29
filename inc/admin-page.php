@@ -9,7 +9,7 @@
  * keeps its UI colocated with its logic, plus the Identity & SEO / Login /
  * Links sections via inc/admin-forms/*.php.
  *
- * The surrounding concerns were split out of this file in v4.5.3 (it had grown
+ * The surrounding concerns were split out of this file in v4.5.4 (it had grown
  * to ~1,468 lines) into sibling modules, all loaded via the flat require_once
  * manifest in signal-and-noise-tools.php:
  *   - inc/admin-tabs-data.php       — the 6-tab IA data (sn_admin_top_tabs).

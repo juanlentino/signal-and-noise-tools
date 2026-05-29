@@ -6,7 +6,7 @@
  * performs the action's side effects (option writes, filter dispatch, module
  * calls) and returns a ?sn_flash=… code. Dispatched by sn_handle_admin_post()
  * (inc/admin-post-handler.php) via the sn_admin_post_handlers() map. Extracted
- * verbatim from the 270-line if/elseif in inc/admin-page.php in v4.5.3.
+ * verbatim from the 270-line if/elseif in inc/admin-page.php in v4.5.4.
  *
  * Handlers receive the RAW $_POST and unslash per-field exactly as the original
  * arms did (notably: save_identity passes the raw array straight to

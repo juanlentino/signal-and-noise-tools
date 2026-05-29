@@ -7,7 +7,7 @@
  * shared nonce + capability + page allowlist, dispatches to the matching
  * sn_handle_<action>() in inc/admin-post-actions.php via sn_admin_post_handlers(),
  * then redirects to the canonical top-tab + sub-tab + anchor carrying the
- * resulting ?sn_flash=… code. Extracted from inc/admin-page.php in v4.5.3.
+ * resulting ?sn_flash=… code. Extracted from inc/admin-page.php in v4.5.4.
  *
  * Save status survives the redirect via ?sn_flash, which sn_theme_options_page()
  * resolves to an admin notice through inc/admin-flash-messages.php.

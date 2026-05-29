@@ -3,7 +3,7 @@
  * Signal & Noise — Links admin section (Tools tab → Links sub-tab).
  *
  * Renders the external-shortcuts grid (source repos, releases, infrastructure).
- * Extracted verbatim from inc/admin-page.php in v4.5.3.
+ * Extracted verbatim from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

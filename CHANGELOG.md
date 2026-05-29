@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.4] - 2026-05-29 — Refactor: split inc/admin-page.php into handler + flash-data + form modules
+
+**Released:** 2026-05-29.
+
+**Headline:** Pure, behavior-preserving refactor of the 1,467-line `inc/admin-page.php` monolith (flagged HIGH in the 2026-05-29 full-codebase QA audit — ~10× the ~150-line convention, 2× the next-biggest file) into 10 focused modules + a 248-line render orchestrator. No functional change: every form action, nonce check, capability gate, sanitize/unslash, flash message, redirect, and tab behaves identically. Lands on top of the v4.5.3 conformance pass and holds its 0/0 PHPCS baseline. (Numbered 4.5.4 — 4.5.3 shipped the WPCS pass first.)
+
+### Cleanup
+
+- **Dispatcher de-monolithed** — the 270-line, 22-branch `if/elseif` in `sn_handle_admin_post()` is now an action→callback map (`sn_admin_post_handlers()` in `inc/admin-post-handler.php`) dispatching to 22 atomic, individually-testable `sn_handle_<action>()` functions in `inc/admin-post-actions.php`. Per-handler unslash behavior preserved verbatim — including `save_identity`'s raw-`$_POST` pass-through to `sn_settings_save()`.
+- **Two duplicate flash ladders collapsed into one** — the dispatcher's emitted `?sn_flash=…` codes and the renderer's notice translation now share a single registry (`inc/admin-flash-messages.php`: `sn_admin_flash_messages()` + `sn_admin_flash_to_notice()`), removing the hand-synced second `if/elseif`. Handles all three message shapes (static, count/id-prefixed, live-data); all 34 literal messages verified byte-identical against the old translator.
+- **Inline-HTML form walls extracted** — Identity & SEO (`inc/admin-forms/identity-and-seo.php`), Login URL (`inc/admin-forms/login.php`), and Links (`inc/admin-forms/links.php`) moved out of the renderer as byte-identical echo-for-echo lifts.
+- **Tab data / framework / legacy / menu split out** — `inc/admin-tabs-data.php` (the v3.8.0+ IA), `inc/admin-tabs.php` (accessors + nav renderers), `inc/admin-legacy-redirect.php` (legacy-URL 301 layer), and `inc/admin-menu.php` (menu registration + asset enqueue). All loaded via the existing flat `require_once` manifest in `signal-and-noise-tools.php`.
+- **`inc/admin-page.php` reduced 1,467 → 248 lines** — now a thin orchestrator (cap check → legacy redirect → tab resolution → flash loop → page shell → tab router).
+- **PHPCS 0/0 baseline maintained** — the single `EscapeOutput` exclusion (the `$aria` literal-attribute fragment) moved with `sn_admin_render_sub_tabs()` from `admin-page.php` to `inc/admin-tabs.php` in `phpcs.xml.dist`; `admin-page.php` is now fully covered. Verified by inspection (only one bare-variable echo across the split); re-run `composer run lint` to confirm 0/0.
+
+### Improvements
+
+- **New unit coverage where there was none** — `tests/admin-post-actions.php` (40 assertions: handler flash codes + side effects — `save_login`, `audit_save_retention` clamp, `save_identity`, `cf_save` constant-lock, `pl_save` branches, plus map completeness) and `tests/admin-flash-messages.php` (46 assertions: all three message shapes + a coordination guard that every emitted code resolves). `tests/audit-retention-bounds.php` upgraded from a brittle source-grep proxy to a real handler call; `tests/admin-tabs.php` + `tests/legacy-url-redirect.php` re-pointed at the new module locations.
+
+**Tests:** 1,033 assertions across 29 suites, 0 failed (was 945 pre-refactor; +88 from the extracted dispatcher/flash coverage).
+
+**Refs:** 2026-05-29 full-codebase QA audit (HIGH). Spec: `docs/superpowers/specs/2026-05-29-admin-page-refactor-design.md`. Plan: `docs/superpowers/plans/2026-05-29-admin-page-refactor.md`.
+
 ## [4.5.3] - 2026-05-29 — WordPress-handbook conformance pass (PHPCS + WPCS) + input/escaping hardening
 
 **Released:** 2026-05-29.

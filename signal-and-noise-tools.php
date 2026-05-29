@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, Plausible integration, security headers, Cloudflare purge, admin UI, RSS Plausible tracker. Self-updater migrates in Phase 2.
- * Version:     4.5.3
+ * Version:     4.5.4
  * Requires at least: 6.4
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -72,7 +72,7 @@ require_once SNT_PATH . 'inc/plausible-admin.php';
 require_once SNT_PATH . 'inc/plausible-widget.php';
 require_once SNT_PATH . 'inc/admin-bar.php';
 require_once SNT_PATH . 'inc/admin-page.php';
-// Admin UI — split out of the former 1,468-line inc/admin-page.php in v4.5.3.
+// Admin UI — split out of the former 1,468-line inc/admin-page.php in v4.5.4.
 // Order is irrelevant: every cross-call between these modules happens at
 // runtime (inside admin_init / admin_menu / render hooks), never at load.
 require_once SNT_PATH . 'inc/admin-tabs-data.php';

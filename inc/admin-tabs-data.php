@@ -5,7 +5,7 @@
  * The single source of truth for the 6 top-level admin tabs and their
  * sub-tabs / in-page sub-sections. Pure data (no side effects, no output) so
  * registration, routing, rendering, and the legacy-redirect layer all read
- * from one place. Extracted from inc/admin-page.php in v4.5.3.
+ * from one place. Extracted from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

@@ -5,7 +5,7 @@
  * Derived accessors over sn_admin_top_tabs() (valid tabs, labels, subtitle,
  * sub-tab resolution) plus the nav/section renderers (top-tab TOC, sub-tab
  * nav, section wrapper). No data tables here — those live in
- * inc/admin-tabs-data.php. Extracted from inc/admin-page.php in v4.5.3.
+ * inc/admin-tabs-data.php. Extracted from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

@@ -5,7 +5,7 @@
  * Registers the top-level "Signal & Noise" menu and its 6 submenu entries
  * (admin_menu), caches the resulting hook suffixes (sn_admin_page_hooks), and
  * enqueues admin.css/admin.js + the per-tab Suggest+Apply scripts
- * (admin_enqueue_scripts). Extracted from inc/admin-page.php in v4.5.3.
+ * (admin_enqueue_scripts). Extracted from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */

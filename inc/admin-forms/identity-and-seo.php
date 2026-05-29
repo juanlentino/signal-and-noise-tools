@@ -6,7 +6,7 @@
  * saved by a single "Save Identity Settings" button (sn_action=save_identity →
  * sn_handle_save_identity → sn_settings_save). The 4 sections are emitted via
  * sn_admin_render_section() so the anchor wrappers + TOC links keep working.
- * Extracted verbatim from inc/admin-page.php in v4.5.3.
+ * Extracted verbatim from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */
