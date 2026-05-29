@@ -1,6 +1,9 @@
 .DS_Store
 *.log
 vendor/
+# composer.lock gitignored: distributed plugin, deps are dev-only linters
+# (PHPCS/WPCS) that never ship — repo-wide pinning adds churn for no benefit.
+composer.lock
 node_modules/
 .idea/
 .vscode/
