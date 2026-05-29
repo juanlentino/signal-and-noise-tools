@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<ruleset name="Signal and Noise Tools — curated WP handbook conformance">
+	<description>
+		Curated WordPress-handbook ruleset: security (escaping/sanitization),
+		direct-DB safety, deprecated/discouraged APIs, and PHP 8.0+ cross-version
+		compatibility against the declared `Requires PHP` floor.
+
+		Cosmetic/whitespace/Yoda/alignment sniffs are intentionally EXCLUDED — this
+		is a private, single-author plugin with its own consistent tab style; the
+		goal is correctness + security conformance, not WPCS formatting churn.
+
+		Several architecturally-determined false-positive categories are excluded
+		below with rationale. The high-value ERROR sniffs stay ACTIVE everywhere
+		they aren't explicitly scoped out, so genuinely-unsafe future code still
+		trips the alarm. Status as of 2026-05-29: 0 errors / 0 warnings.
+
+		Run:  composer install, then composer run lint
+		Fix:  composer run lint:fix   (whitespace-safe sniffs only)
+	</description>
+
+	<file>.</file>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+	<exclude-pattern>*/assets/*</exclude-pattern>
+	<exclude-pattern>*/seed-content/*</exclude-pattern>
+	<exclude-pattern>*/.git/*</exclude-pattern>
+	<exclude-pattern>*/.claude/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<arg value="sp"/><!-- show sniff codes + progress -->
+
+	<!-- ── Security: the load-bearing group (kept ACTIVE) ─────────────── -->
+	<rule ref="WordPress.Security"/>
+
+	<!--
+		NonceVerification: EXCLUDED (whole plugin). All admin POST handling funnels
+		through the central dispatcher sn_handle_admin_post() (admin-page.php),
+		which calls check_admin_referer('sn_theme_options_nonce') ONCE before
+		routing to per-action branches. PHPCS can't follow that cross-function
+		flow, so it flags every downstream $_POST/$_GET read as "no nonce" — but
+		the nonce IS verified. RE-ENABLE after the queued admin-page.php split:
+		each handler will then verify its own nonce in-scope and the sniff can
+		follow the flow.
+	-->
+	<rule ref="WordPress.Security.NonceVerification.Recommended">
+		<severity>0</severity>
+	</rule>
+
+	<!--
+		EscapeOutput.OutputNotEscaped: scoped-EXCLUDED only in the admin RENDER
+		files below. Every flagged value in these files is assembled from
+		esc_attr__()/esc_url()/esc_html()'d fragments or literal HTML one–two lines
+		above its echo (e.g. cron-dashboard $*_title via esc_attr__, dashboard $sep
+		literal <span>, deploy $status_icon via the glyph helper). PHPCS only
+		inspects the echo statement, not the assignment, so it can't see the
+		pre-escaping; wrapping again would DOUBLE-escape (&middot; → &amp;middot;).
+		All are manage_options-gated admin screens. The sniff stays ACTIVE on every
+		other file. admin-page.php is here for its single $aria finding (line 248,
+		a literal ' aria-current="page"' fragment) — coverage there returns when
+		the file is split into per-tab render modules (queued refactor).
+	-->
+	<rule ref="WordPress.Security.EscapeOutput.OutputNotEscaped">
+		<exclude-pattern>*/inc/admin-page.php</exclude-pattern>
+		<exclude-pattern>*/inc/admin-tab-dashboard.php</exclude-pattern>
+		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
+		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
+		<exclude-pattern>*/inc/plausible-widget.php</exclude-pattern>
+		<exclude-pattern>*/inc/cloudflare-purge.php</exclude-pattern>
+	</rule>
+
+	<!--
+		ValidatedSanitizedInput.InputNotSanitized: scoped-EXCLUDED only in the
+		files below. Each flagged read is either (a) a $_SERVER value used solely
+		in a comparison/parse — strpos / strtotime / in_array (allow-list) /
+		filter_var(FILTER_VALIDATE_IP) / wp_parse_url — never stored unsanitized
+		into a sink, or (b) a nonce value passed straight to wp_verify_nonce().
+		All are wp_unslash()'d. Hand-verified in the v4.5.1 security audit + this
+		pass. Sanitizing further would be a no-op (the value is validated by the
+		comparison itself). The sniff stays ACTIVE on every other file.
+	-->
+	<rule ref="WordPress.Security.ValidatedSanitizedInput.InputNotSanitized">
+		<exclude-pattern>*/inc/login-hide.php</exclude-pattern>
+		<exclude-pattern>*/inc/seo.php</exclude-pattern>
+		<exclude-pattern>*/inc/sitemap-redirect.php</exclude-pattern>
+		<exclude-pattern>*/inc/post-settings.php</exclude-pattern>
+		<exclude-pattern>*/inc/audit-log.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-plausible-tracker.php</exclude-pattern>
+	</rule>
+
+	<!--
+		PreparedSQL: scoped-EXCLUDED only in the two custom-table files + the
+		insights reader. Those tables (wp_snt_cron_history, wp_rss_feed_log) have
+		no WP API wrapper, so the table NAME must be interpolated ($wpdb->prefix .
+		CONSTANT — never user input; identifiers cannot be bound by prepare()).
+		Every VALUE is bound (%d/%s) or integer-clamped. Hand-verified in the
+		v4.5.1 security audit. The sniff stays ACTIVE everywhere else.
+	-->
+	<rule ref="WordPress.DB.PreparedSQL">
+		<exclude-pattern>*/inc/cron-history.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-plausible-tracker.php</exclude-pattern>
+		<exclude-pattern>*/inc/insights.php</exclude-pattern>
+	</rule>
+
+	<!--
+		DirectDatabaseQuery: EXCLUDED. The plugin owns two custom tables and runs
+		diagnostic reads against core tables (health-checks). Direct $wpdb access
+		is required and correct; the caching sub-sniff is noise for prune/insert
+		maintenance paths.
+	-->
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<severity>0</severity>
+	</rule>
+
+	<!-- ── API hygiene: deprecated / discouraged / global-override / extract ─ -->
+	<rule ref="WordPress.WP.DeprecatedFunctions"/>
+	<rule ref="WordPress.WP.DeprecatedParameters"/>
+	<rule ref="WordPress.WP.DeprecatedClasses"/>
+	<rule ref="WordPress.WP.DiscouragedFunctions"/>
+	<rule ref="WordPress.WP.GlobalVariablesOverride"/>
+	<rule ref="WordPress.PHP.DontExtract"/>
+
+	<!--
+		I18n: EXCLUDED. i18n is a documented non-goal for this single-author tool
+		(no Text Domain header; no translations will ever be produced — see the
+		theme's matching stance in inc/setup.php). Strings remain wrapped in __()
+		so i18n CAN be enabled later if the decision changes.
+	-->
+
+	<!-- ── PHP cross-version compatibility against the declared floor ──── -->
+	<config name="testVersion" value="8.0-"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<!-- WP version floor used by the deprecated/discouraged sniffs. -->
+	<config name="minimum_wp_version" value="6.4"/>
+</ruleset>

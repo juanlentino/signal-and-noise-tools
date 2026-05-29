@@ -357,7 +357,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 	echo '<div class="sn-card sn-card--narrow">';
 	echo '<strong>1 · Preview</strong>';
 	echo '<p class="sn-helper">Scan all posts and pages for legacy reading-time strings. Read-only.</p>';
-	echo '<a href="' . $preview_url . '" class="button">' . ( $preview ? 'Re-run preview' : 'Run preview' ) . '</a>';
+	echo '<a href="' . esc_url( $preview_url ) . '" class="button">' . ( $preview ? 'Re-run preview' : 'Run preview' ) . '</a>';
 	echo '</div>';
 
 	// Apply card — shown when preview has run

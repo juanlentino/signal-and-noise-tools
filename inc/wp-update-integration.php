@@ -119,7 +119,7 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	// Without this, our 12h-cached value persists even when the user
 	// explicitly asks for a fresh check.
 	$force_refresh = ( defined( 'WP_FORCE_UPDATE_CHECK' ) && WP_FORCE_UPDATE_CHECK )
-		|| ( isset( $_GET['force-check'] ) && $_GET['force-check'] );
+		|| ! empty( $_GET['force-check'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only cache-buster; presence-only boolean, no state change.
 
 	$latest_tag = sn_gh_latest_plugin_tag( $force_refresh );
 	if ( $latest_tag === null ) {

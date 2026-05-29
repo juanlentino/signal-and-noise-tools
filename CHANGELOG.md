@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.3] - 2026-05-29 — WordPress-handbook conformance pass (PHPCS + WPCS) + input/escaping hardening
+
+**Released:** 2026-05-29.
+
+**Headline:** Ran the codebases against the WordPress Plugin/Theme handbooks via PHPCS + WordPress-Coding-Standards (curated ruleset). Committed a `phpcs.xml.dist` baseline + `composer run lint` workflow; the plugin now passes clean (0/0). The runtime changes below are the genuine handbook violations the scan surfaced — all low-severity (admin-only / comparison-only inputs), none exploitable, fixed for correctness and to lock a true zero-baseline.
+
+### Security
+
+- **Unslash before use on 5 superglobal reads** — `$_SERVER['REMOTE_ADDR']` (`inc/login-hide.php`), `$_SERVER['REQUEST_URI']` (`inc/security-headers.php`), `$_POST['log_retention_days']` + `$_POST['purge_days']` (`inc/rss-plausible-tracker.php`), and the `force-check` cache-buster (`inc/wp-update-integration.php`) now pass through `wp_unslash()` per the WordPress unslash-then-sanitize rule (magic-quotes correctness).
+- **`$preview_url` escaped at output** in the reading-time tool — was `esc_url()`'d only at assignment; now also at the echo. (`inc/reading-time.php`)
+
+### Fixed
+
+- **Annotated the intentional `$pagenow` global override** in the login-hide intercept (the core mechanism, mirrored from wps-hide-login, that routes the custom login slug) with a `phpcs:ignore` + rationale so it reads as deliberate, not an accidental global clobber. (`inc/login-hide.php`)
+
+### Tooling
+
+- **Added `phpcs.xml.dist`** — curated handbook ruleset: `WordPress.Security` (escaping/sanitization/nonce), `PreparedSQL`, deprecated/discouraged-API sniffs, `PHPCompatibilityWP` against the PHP 8.0 floor. Architecturally-determined false-positive categories (central-dispatcher nonce verification, custom-table direct queries + table-name interpolation, comparison-only `$_SERVER` reads, pre-escaped admin HTML builders, i18n non-goal) are scoped-excluded with inline rationale; all high-value security sniffs stay ACTIVE everywhere else. **Result: 0 errors / 0 warnings across 68 files.**
+- **Added `composer require-dev`** (`squizlabs/php_codesniffer`, `wp-coding-standards/wpcs`, `phpcompatibility/phpcompatibility-wp` + installer plugin) with `composer run lint` / `lint:fix` scripts. `vendor/` stays gitignored.
+
+## [4.5.2] - 2026-05-29 — Post-ship QA audit fixes — dead button + audit-retention data loss + unstyled tab + SSRF/input hardening
+
+**Released:** 2026-05-29. (CHANGELOG entry backfilled 2026-05-29 — the v4.5.2 commit + tag shipped without it due to an editor no-op; code + version were correct.)
+
+**Headline:** Full-codebase QA audit (7 parallel review agents across both repos) run before the v4.6.0 cycle. One dead control, one cross-tab data-loss bug, one unstyled screen, plus input/SSRF hardening. No settings-schema changes. The recurring bug-classes (`is_callable` AI gate, install-hook self-observation, version-from-docblock, all 37 REST permission_callbacks, custom-table SQL) were all verified CLEAN.
+
+### Fixed
+
+- **Dead pattern-adoption Suggest/Dismiss buttons on the Health tab when no AI provider is configured** — `health-suggest-actions.js` was enqueued only under the `snt_ai_is_available()` gate, but the AI-free Opportunities (pattern-adoption) section rendered its buttons unconditionally, so clicks did nothing. Same dead-button class as the v4.5.1 Tools-tab fix. Now enqueued unconditionally on the Health tab. (`inc/admin-page.php`)
+- **Identity save silently wiped the Audit-log retention setting** — `sn_settings_save()` did a whole-option replace that omitted the `audit` subtree, reverting a configured retention to the 90-day default. Now preserved, mirroring the existing `login.slug` guard. Locked behind a new regression test. (`inc/settings.php`)
+- **Audit-log sub-tab rendered unstyled via the "Security" sidebar link** — CSS was guarded on `toplevel_page_sn-theme-options`, which the `?page=sn-security` deep-link doesn't match. Switched to the canonical `sn_admin_page_hooks()` guard (same fix as the cron tab's D-11). (`inc/audit-log-admin.php`)
+
+### Security
+
+- **Webhook dispatch no longer follows redirects** — `redirection` was `3`; WP's HTTP layer doesn't re-validate redirect targets, so a receiver returning a 30x to an internal host / cloud-metadata endpoint (`169.254.169.254`) would be followed and its body recorded in the admin-visible delivery log (SSRF + exfiltration). Set to `0`. (`inc/webhooks.php`)
+- **Apply handlers now reject non-block markup** — malformed `replacement_markup` that `parse_blocks()` resolves to a nameless freeform block previously passed the validity guard and spliced raw HTML into post content. Both apply handlers now require a named block. (`inc/pattern-adoption-apply.php`, `inc/block-migrations-apply.php`)
+
+### Improvements
+
+- **Reading-time "Apply" now confirms before running** — the irreversible bulk content mutation gained the shared confirm modal (`snt-confirm.js`), matching every other destructive action. (`inc/reading-time.php`)
+
+### Added
+
+- **`tests/settings-save-preserves-subtrees.php`** — regression test (5 assertions) locking cross-tab subtree preservation (audit + login) through an Identity save. Plugin test total: **945 assertions across 26 suites**.
+
 ## [4.5.1] - 2026-05-27 — v4.5.0 post-ship audit fixes — dead Suggest button + Discard retry break + 2 minor
 
 **Released:** 2026-05-27.

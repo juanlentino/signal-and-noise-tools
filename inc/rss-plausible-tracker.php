@@ -363,7 +363,7 @@ function sn_rss_tracker_handle_form() {
 			'plausible_url'      => esc_url_raw( wp_unslash( $_POST['plausible_url'] ?? $defaults['plausible_url'] ) ),
 			'plausible_domain'   => sanitize_text_field( wp_unslash( $_POST['plausible_domain'] ?? $defaults['plausible_domain'] ) ),
 			'event_name'         => sanitize_text_field( wp_unslash( $_POST['event_name'] ?? $defaults['event_name'] ) ),
-			'log_retention_days' => max( 7, min( 365, (int) ( $_POST['log_retention_days'] ?? $defaults['log_retention_days'] ) ) ),
+			'log_retention_days' => max( 7, min( 365, (int) wp_unslash( $_POST['log_retention_days'] ?? $defaults['log_retention_days'] ) ) ),
 		);
 		$ok = update_option( SN_RSS_TRACKER_SETTINGS_OPT, $new );
 		// update_option returns false on both real-failure and value-
@@ -380,7 +380,7 @@ function sn_rss_tracker_handle_form() {
 		}
 	} elseif ( SN_RSS_TRACKER_ACTION_PURGE === $action ) {
 		global $wpdb;
-		$days    = max( 7, min( 365, (int) ( $_POST['purge_days'] ?? 90 ) ) );
+		$days    = max( 7, min( 365, (int) wp_unslash( $_POST['purge_days'] ?? 90 ) ) );
 		$result  = $wpdb->query( $wpdb->prepare(
 			"DELETE FROM {$wpdb->prefix}" . SN_RSS_TRACKER_TABLE . "
 			   WHERE ts < ( UTC_TIMESTAMP() - INTERVAL %d DAY )",

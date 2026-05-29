@@ -110,7 +110,7 @@ add_filter( 'rest_authentication_errors', function( $result ) {
 	if ( is_user_logged_in() ) {
 		return $result;
 	}
-	$path = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+	$path = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	// Match both /wp-json/wp/v2/users and the rest-route query form.
 	if ( false !== strpos( $path, '/wp/v2/users' ) || false !== strpos( $path, 'rest_route=/wp/v2/users' ) ) {
 		return new WP_Error(

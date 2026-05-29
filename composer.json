@@ -12,5 +12,20 @@
 	"require": {
 		"php": ">=8.0"
 	},
-	"minimum-stability": "stable"
+	"require-dev": {
+		"squizlabs/php_codesniffer": "^3.13",
+		"wp-coding-standards/wpcs": "^3.1",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+	},
+	"scripts": {
+		"lint": "phpcs --standard=phpcs.xml.dist",
+		"lint:fix": "phpcbf --standard=phpcs.xml.dist"
+	},
+	"minimum-stability": "stable",
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	}
 }

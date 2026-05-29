@@ -186,6 +186,7 @@ function sn_login_intercept_request() {
 		// Things downstream (theme code, wp-admin checks, conditional
 		// tags) that inspect $pagenow see the canonical value.
 		global $pagenow;
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- intentional: this is the core mechanism (mirrored from wps-hide-login) that makes WP treat the custom-slug request as wp-login.php. See peer-impl note in this file's docblock.
 		$pagenow = 'wp-login.php';
 	}
 }
@@ -219,7 +220,7 @@ function sn_login_handle_request() {
 	// Branch 2: 404 direct /wp-login.php access.
 	if ( ! empty( $GLOBALS['sn_login_block_wp_login'] ) ) {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
-			snt_audit_increment_counter_impl( 'wp_login_404', $_SERVER['REMOTE_ADDR'] ?? null );
+			snt_audit_increment_counter_impl( 'wp_login_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 		}
 		status_header( 404 );
 		nocache_headers();
@@ -247,7 +248,7 @@ function sn_login_handle_request() {
 
 	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
-			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', $_SERVER['REMOTE_ADDR'] ?? null );
+			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 		}
 		status_header( 404 );
 		nocache_headers();
