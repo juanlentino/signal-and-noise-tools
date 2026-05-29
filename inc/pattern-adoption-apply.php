@@ -83,16 +83,20 @@ function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $repl
 		);
 	}
 
-	$blocks       = parse_blocks( (string) $post->post_content );
-	$replacement  = parse_blocks( $replacement_markup );
-	if ( empty( $replacement ) || ! is_array( $replacement[0] ?? null ) ) {
+	$blocks           = parse_blocks( (string) $post->post_content );
+	$replacement      = parse_blocks( $replacement_markup );
+	$replacement_node = $replacement[0] ?? null;
+	// v4.5.2: require a NAMED block. parse_blocks() on non-block input (raw HTML,
+	// plain text, or garbage) returns a single node with blockName === null — a
+	// "freeform" classic block. The old guard accepted that (it IS a non-empty
+	// array) and spliced raw HTML into post_content instead of rejecting it.
+	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
 		return new WP_Error(
 			'snt_pattern_adoption_invalid_pattern_type',
 			__( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
-	$replacement_node = $replacement[0];
 
 	$found = false;
 	snt_pattern_adoption_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );

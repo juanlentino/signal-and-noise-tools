@@ -75,17 +75,20 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 		);
 	}
 
-	$blocks      = parse_blocks( (string) $post->post_content );
-	$replacement = parse_blocks( $replacement_markup );
+	$blocks           = parse_blocks( (string) $post->post_content );
+	$replacement      = parse_blocks( $replacement_markup );
+	$replacement_node = $replacement[0] ?? null;
 
-	if ( empty( $replacement ) || ! is_array( $replacement[0] ?? null ) ) {
+	// v4.5.2: require a NAMED block. parse_blocks() on non-block input returns a
+	// single node with blockName === null (a "freeform" classic block); the old
+	// guard accepted it and spliced raw HTML into post_content.
+	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
 		return new WP_Error(
 			'snt_block_migration_invalid_markup',
 			__( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
-	$replacement_node = $replacement[0];
 
 	$found = false;
 	snt_block_migrations_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );

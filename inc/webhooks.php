@@ -278,7 +278,13 @@ function sn_webhook_dispatch( $webhook_id, $post_id, $attempt, $delivery_id ) {
 	$response = wp_remote_post( $webhook['url'], array(
 		'method'      => 'POST',
 		'timeout'     => 10,
-		'redirection' => 3,
+		// v4.5.2: do NOT follow redirects. The webhook URL is validated with
+		// wp_http_validate_url() at config time, but WP's HTTP layer does not
+		// re-validate redirect targets — a receiver returning 30x → an internal
+		// host / cloud-metadata endpoint (169.254.169.254) would be followed and
+		// its response body recorded in the admin-visible delivery log (SSRF +
+		// exfil). Webhook receivers expose a stable endpoint; they don't redirect.
+		'redirection' => 0,
 		'headers'     => array(
 			'Content-Type'      => 'application/json',
 			'Accept'            => 'application/json',

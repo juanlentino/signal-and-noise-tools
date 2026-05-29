@@ -231,6 +231,18 @@ function sn_settings_save( $raw ) {
 		'slug' => sanitize_title( (string) ( $raw['login_slug'] ?? $existing_slug ) ),
 	);
 
+	// Preserve the audit subtree — configured on the Security tab's Audit-log
+	// sub-tab via sn_setting_update('audit.retention_days', …), NOT in this
+	// Identity-tab form payload. Without this, saving Identity clobbers a
+	// configured retention back to the 90-day default — the exact whole-option-
+	// replace hazard documented in sn_setting_update()'s docblock, and the same
+	// reason login.slug is preserved above. Re-include the whole subtree (rather
+	// than a single key) so future audit settings survive too. (v4.5.2)
+	$existing_settings = (array) get_option( SN_SETTINGS_OPTION, array() );
+	if ( isset( $existing_settings['audit'] ) && is_array( $existing_settings['audit'] ) ) {
+		$sanitized['audit'] = $existing_settings['audit'];
+	}
+
 	$sanitized['seo_copy'] = array(
 		'home_title'             => sanitize_text_field( (string) ( $raw['seo_home_title'] ?? '' ) ),
 		'home_description'       => sanitize_textarea_field( (string) ( $raw['seo_home_description'] ?? '' ) ),

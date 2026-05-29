@@ -218,17 +218,19 @@ function snt_audit_log_render_retention_form() {
 }
 
 /**
- * Enqueue audit-log.css on the SN admin page when the audit-log sub-tab is active.
+ * Enqueue audit-log.css on any SN admin page.
+ *
+ * v4.5.2: previously guarded on 'toplevel_page_sn-theme-options' + a tab/sub
+ * query refinement. That missed the 'Security' submenu deep-link
+ * (?page=sn-security), whose hook_suffix is 'signal-noise_page_sn-security'
+ * and which carries no tab/sub args — so the audit hero grid rendered UNSTYLED
+ * when reached via the sidebar. Mirror the canonical guard used by
+ * cron-dashboard-admin.php (D-11): load on any registered SN page. The
+ * stylesheet is tiny and scoped to .sn-audit-* selectors, so loading it on
+ * sibling SN tabs is harmless.
  */
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// Only on the SN admin page.
-	if ( 'toplevel_page_sn-theme-options' !== $hook_suffix ) {
-		return;
-	}
-	// Only when audit-log sub-tab is active.
-	$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
-	$sub = isset( $_GET['sub'] ) ? sanitize_text_field( wp_unslash( $_GET['sub'] ) ) : '';
-	if ( 'security' !== $tab || 'audit-log' !== $sub ) {
+	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
 		return;
 	}
 	wp_enqueue_style(

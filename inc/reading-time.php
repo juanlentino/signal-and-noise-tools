@@ -370,7 +370,17 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		} else {
 			echo '<p class="sn-helper"><strong>Destructive.</strong> Removes the ' . (int) $report_n . ' match(es) below from post content / excerpts / meta. Cannot be undone — back up first.</p>';
 		}
-		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"' . ( 0 === $report_n ? ' disabled' : '' ) . '>Apply to ' . (int) $report_n . ' post(s)</button>';
+		// v4.5.2: gate this irreversible bulk content mutation behind the shared
+		// confirm modal (snt-confirm.js, enqueued on all SN pages) — matching
+		// every other destructive action in the plugin (webhook delete, insights
+		// dismiss, cron run/unschedule). Disabled when there are 0 matches.
+		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"'
+			. ( 0 === $report_n ? ' disabled' : '' )
+			. ' data-snt-confirm="' . esc_attr( sprintf( 'Removes legacy reading-time strings from %d post(s) — rewrites post content, excerpts, and meta. Cannot be undone.', (int) $report_n ) ) . '"'
+			. ' data-snt-confirm-title="' . esc_attr__( 'Apply reading-time cleanup?', 'signal-noise-tools' ) . '"'
+			. ' data-snt-confirm-label="' . esc_attr__( 'Apply', 'signal-noise-tools' ) . '"'
+			. ' data-snt-confirm-danger="1"'
+			. '>Apply to ' . (int) $report_n . ' post(s)</button>';
 		echo '</form>';
 	}
 

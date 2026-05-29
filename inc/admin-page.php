@@ -570,24 +570,28 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		true
 	);
 
-	// v4.0.0: Health Suggest+Apply JS — only on the Health tab, only
-	// if an AI provider is configured. Mirrors the gating in
-	// inc/health-checks-admin.php (the "AI fix" column + Suggest
-	// buttons don't render at all without snt_ai_is_available()).
+	// Health Suggest+Apply JS — enqueued on the Health tab UNCONDITIONALLY as
+	// of v4.5.2. The AI-fix column (missing_alt / drift / orphan Suggest
+	// buttons) self-gates on snt_ai_is_available() at RENDER time in
+	// inc/health-checks-admin.php — but the Opportunities sub-section
+	// (pattern-adoption) renders its Suggest/Dismiss buttons with NO AI gate
+	// (pure structural detection), and they use this same shared JS. Gating the
+	// ENQUEUE on snt_ai_is_available() therefore left those buttons DEAD whenever
+	// no AI provider was configured — the same dead-button class v4.5.1 fixed for
+	// the Tools tab below. The JS is inert when no buttons are present, so loading
+	// it unconditionally is safe.
 	// Tab param is canonical post-redirect: ?page=sn-monitoring&tab=health.
 	if ( isset( $_GET['tab'] ) && 'health' === $_GET['tab'] ) {
-		if ( function_exists( 'snt_ai_is_available' ) && snt_ai_is_available() ) {
-			wp_enqueue_script(
-				'snt-health-suggest-actions',
-				plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-				// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-				array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
-				SNT_VERSION,
-				true
-			);
-			if ( function_exists( 'wp_set_script_translations' ) ) {
-				wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
-			}
+		wp_enqueue_script(
+			'snt-health-suggest-actions',
+			plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+			// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+			array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
+			SNT_VERSION,
+			true
+		);
+		if ( function_exists( 'wp_set_script_translations' ) ) {
+			wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
 		}
 	}
 
