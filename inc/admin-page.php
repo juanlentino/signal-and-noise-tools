@@ -1,25 +1,26 @@
 <?php
 /**
- * Signal & Noise — Theme options admin page.
+ * Signal & Noise — Theme options admin page (render orchestrator).
  *
- * Registers the Appearance → Signal & Noise submenu and renders a tabbed
- * interface that covers theme management without overflowing into a
- * single-page-of-everything:
+ * Holds sn_theme_options_page(), the render callback for the Signal & Noise
+ * admin screens: it resolves the active tab, emits the page shell + top-tab
+ * nav, and dispatches each tab to its renderer — most via do_action() hooks
+ * (`sn_admin_cloudflare_tab`, `sn_admin_reading_time_tab`, …) so each subsystem
+ * keeps its UI colocated with its logic, plus the Identity & SEO / Login /
+ * Links sections via inc/admin-forms/*.php.
  *
- *   - Dashboard      — status overview + the four maintenance actions
- *                      (full reset, clear overrides, purge caches,
- *                      check for updates).
- *   - Cloudflare     — token + zone configuration, status, manual
- *                      zone purge, last-purge timestamp.
- *   - Reading Time   — legacy reading-time-string cleanup tool
- *                      (preview + apply).
- *   - Links          — external service links.
+ * The surrounding concerns were split out of this file in v4.5.3 (it had grown
+ * to ~1,468 lines) into sibling modules, all loaded via the flat require_once
+ * manifest in signal-and-noise-tools.php:
+ *   - inc/admin-tabs-data.php       — the 6-tab IA data (sn_admin_top_tabs).
+ *   - inc/admin-tabs.php            — tab accessors + nav/section renderers.
+ *   - inc/admin-legacy-redirect.php — legacy ?page=/?tab= → canonical 301s.
+ *   - inc/admin-menu.php            — menu registration + asset enqueue.
+ *   - inc/admin-flash-messages.php  — ?sn_flash= → admin-notice resolver.
+ *   - inc/admin-post-handler.php    — admin_init form dispatcher (PRG).
+ *   - inc/admin-post-actions.php    — the per-action handler functions.
  *
- * Modules contribute their per-tab content via dedicated action hooks
- * (`sn_admin_cloudflare_tab`, `sn_admin_reading_time_tab`) so each
- * subsystem keeps its UI code colocated with its logic.
- *
- * @package SignalNoise
+ * @package SignalNoiseTools
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -229,44 +230,7 @@ function sn_theme_options_page() {
 		sn_admin_render_sub_tabs( 'tools', $active_sub );
 
 		if ( 'links' === $active_sub ) {
-			sn_admin_render_section( 'links', function() {
-			$link_groups = array(
-				array(
-					'label' => 'Source code',
-					'links' => array(
-						array( 'title' => 'Theme repo',  'href' => 'https://github.com/juanlentino/signal-and-noise' ),
-						array( 'title' => 'Plugin repo', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools' ),
-					),
-				),
-				array(
-					'label' => 'Releases',
-					'links' => array(
-						array( 'title' => 'Theme releases',  'href' => 'https://github.com/juanlentino/signal-and-noise/releases' ),
-						array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/releases' ),
-					),
-				),
-				array(
-					'label' => 'Infrastructure',
-					'links' => array(
-						array( 'title' => 'Cloudflare dashboard', 'href' => 'https://dash.cloudflare.com' ),
-						array( 'title' => 'Cloudways platform',   'href' => 'https://platform.cloudways.com' ),
-					),
-				),
-			);
-			echo '<div class="sn-link-grid">';
-			foreach ( $link_groups as $group ) {
-				foreach ( $group['links'] as $link ) {
-					$host = (string) wp_parse_url( $link['href'], PHP_URL_HOST );
-					echo '<div class="sn-link-card">';
-					echo '<span class="sn-link-card__label">' . esc_html( $group['label'] ) . '</span>';
-					echo '<span class="sn-link-card__title">' . esc_html( $link['title'] ) . '</span>';
-					echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' &#x2197;</span>';
-					echo '<a class="sn-link-card__link" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
-					echo '</div>';
-				}
-			}
-			echo '</div>';
-		} );
+			sn_admin_render_section( 'links', 'sn_admin_render_links_section' );
 		} elseif ( 'block-migrations' === $active_sub ) {
 			sn_admin_render_section( 'block-migrations', function() {
 				do_action( 'sn_admin_block_migrations_tab' );
