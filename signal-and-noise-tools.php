@@ -80,6 +80,8 @@ require_once SNT_PATH . 'inc/admin-tabs.php';
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-menu.php';
 require_once SNT_PATH . 'inc/admin-flash-messages.php';
+require_once SNT_PATH . 'inc/admin-post-handler.php';
+require_once SNT_PATH . 'inc/admin-post-actions.php';
 require_once SNT_PATH . 'inc/rest-api.php';
 
 /**

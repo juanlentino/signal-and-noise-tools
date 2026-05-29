@@ -27,6 +27,7 @@ function update_option( $name, $value ) {
 function get_bloginfo( $what ) { return ''; }
 
 require __DIR__ . '/../inc/settings.php';
+require_once __DIR__ . '/../inc/admin-post-actions.php';
 
 // Replicate the clamping logic the save handler uses, in isolation.
 function audit_retention_clamp( $raw ) {
@@ -55,14 +56,23 @@ assertEq( 365, audit_retention_clamp( 366 ),  'clamps 366 to 365 (max)' );
 assertEq( 90,  audit_retention_clamp( 90 ),   'passes 90 through' );
 assertEq( 30,  audit_retention_clamp( 30 ),   'passes 30 through' );
 
-// Also verify the production source actually uses this expression:
-$admin_src = file_get_contents( __DIR__ . '/../inc/admin-page.php' );
-if ( false !== strpos( $admin_src, "max( 7, min( 365" ) ) {
+// Real behavioral check (v4.5.3): the extracted handler clamps + persists.
+// Replaces the old source-grep proxy now that the clamp is a standalone fn.
+$GLOBALS['__options'] = array();
+sn_setting_reset_cache();
+sn_handle_audit_save_retention( array( 'audit_retention_days' => 999 ) );
+assertEq( 365, sn_setting( 'audit.retention_days' ), 'handler clamps 999 to 365 (real call)' );
+sn_handle_audit_save_retention( array( 'audit_retention_days' => 1 ) );
+assertEq( 7, sn_setting( 'audit.retention_days' ), 'handler clamps 1 to 7 (real call)' );
+
+// The clamp expression now lives in inc/admin-post-actions.php (was admin-page.php).
+$actions_src = file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+if ( false !== strpos( $actions_src, "max( 7, min( 365" ) ) {
     $pass++;
-    echo "PASS: admin-page.php contains the clamp expression\n";
+    echo "PASS: admin-post-actions.php contains the clamp expression\n";
 } else {
     $fail++;
-    echo "FAIL: admin-page.php does not contain expected clamp expression\n";
+    echo "FAIL: admin-post-actions.php does not contain expected clamp expression\n";
 }
 
 echo "\n--- $pass passed, $fail failed ---\n";
