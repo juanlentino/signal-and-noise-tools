@@ -1,6 +1,34 @@
 # Stub spec — Desktop Mode native windows for S&N tools
 
-**Status:** STUB — not scheduled. Captured 2026-05-29 after reviewing the [AllTerrainDeveloper/desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions) repo (the Desktop Mode developer's own extension collection). Parked behind the v4.6.0 → v5.0.0 prep-major chain. Idea-only; no commitment.
+> ## ✅ VERIFIED AGAINST OFFICIAL SOURCE (2026-05-30)
+>
+> Prompted by a user challenge ("there's nothing here about those extensions" → [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode)), the API below was checked against the **official** repo. **The API is real, official, and stable** — the original capture (from the AllTerrainDeveloper mirror) was substantively correct. Corrections:
+>
+> - **`desktop_mode_register_window()` + `desktop_mode_register_icon()` are OFFICIAL, supported, stable APIs.** Confirmed: 71 + 30 code hits in `WordPress/desktop-mode`, and a dedicated contract doc, **[`docs/use-from-a-plugin.md`](https://github.com/WordPress/desktop-mode/blob/trunk/docs/use-from-a-plugin.md)**, which states verbatim: *"This guide is the public extension contract. Everything here is a supported, stable API. If you build against it, we treat breaking it as a regression."* **Stable as of Desktop Mode 0.20.0**; signatures follow semver (arg keys only added, never removed/repurposed within a major).
+> - **The extensions live IN the official repo** (`extensions/desktop-mode-cron-manager/`, `…-code-editor/`, `…-phpmyadmin/`, plus a base class `extensions/base/includes/ExtensionWindow.php`). The AllTerrainDeveloper repo is a **mirror/copy** of that `extensions/` tree — not a separate/third-party API. So the earlier "borrow the pattern, not the code; 0-star personal repo" license worry (Caveat 1 below) is **downgraded**: the canonical source is the official GPL-2.0 `WordPress/desktop-mode` repo + its `docs/use-from-a-plugin.md`. Build from THAT, not the mirror.
+> - **Doc-name correction:** the official docs are `use-from-a-plugin.md` (the canonical contract), `hooks-reference.md`, `javascript-reference.md`, `api-index.md`, `event-driven-framework.md`, `components-reference.md` — NOT the `native-windows.md`/`extensions.md` names guessed below. (There is also a `native-windows-proposal.md`, but `use-from-a-plugin.md` is the shipped contract.)
+> - **Process win:** Caveat 3 ("MANDATORY: verify against live source before building") did its job. The user's challenge triggered exactly that verification. Outcome: the API was *confirmed*, not refuted — but the doc references + license framing were corrected. This is [[feedback_read_framework_source]] working as intended.
+>
+> **Official minimal example** (`docs/use-from-a-plugin.md` Quick Start — "a complete, working extension; no build step, no JavaScript required"):
+> ```php
+> // Plugin header: Requires Plugins: desktop-mode
+> add_action( 'init', function () {
+>     if ( ! function_exists( 'desktop_mode_register_window' ) ) { return; }
+>     desktop_mode_register_window( 'my-app', array(
+>         'title' => __( 'My App', 'my-app' ), 'icon' => 'dashicons-smiley',
+>         'template' => 'my_app_render', 'script' => 'my-app',  // template = PHP callback echoing HTML; script optional
+>         'width' => 800, 'height' => 600, 'placement' => 'taskbar',
+>         'capabilities' => array( 'read' ),
+>     ) );
+>     desktop_mode_register_icon( 'my-app', array(
+>         'title' => __( 'My App', 'my-app' ), 'icon' => 'dashicons-smiley',
+>         'window' => 'my-app', 'capabilities' => array( 'read' ),
+>     ) );
+> }, 20 );
+> ```
+> Everything below this box is the ORIGINAL capture (from the mirror) — accurate on the API shape, but read it through the corrections above. Caveat 1 (license) is downgraded; Caveats 2/4 still apply.
+
+**Status:** STUB — not scheduled. Captured 2026-05-29 from the [AllTerrainDeveloper/desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions) mirror; **API verified against the official [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode) repo 2026-05-30 (see box above).** Parked behind the v4.6.0 → v5.0.0 prep-major chain. Idea-only; no commitment.
 
 **Why this exists:** capture a newly-discovered desktop-mode PHP API + the strategic idea while fresh, so a future session can evaluate it without re-deriving the contract. Pairs with the existing desktop-mode memory notes ([[reference_desktop_mode_ai_copilot]], [[reference_desktop_mode_plugins_window]], [[feedback_desktop_mode_blocks_browser_automation]], [[feedback_desktop_mode_horizontal_submenu_warning]]).
 
