@@ -30,6 +30,22 @@
 
 **Status:** STUB — not scheduled. Captured 2026-05-29 from the [AllTerrainDeveloper/desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions) mirror; **API verified against the official [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode) repo 2026-05-30 (see box above).** Parked behind the v4.6.0 → v5.0.0 prep-major chain. Idea-only; no commitment.
 
+> ## ⚠️ MATURITY CAVEAT — Desktop Mode is NOT 1:1 with classic wp-admin (user-observed 2026-05-30)
+>
+> User feedback after daily use: *"Desktop Mode isn't 1:1 with the classic admin dashboard at all, at least for now."* This is **by design**, not a gap that's about to close — and it directly shapes the cost/benefit of this stub. Desktop Mode has **two tiers**:
+>
+> 1. **Curated native windows** — bespoke desktop apps hand-built in the repo (`includes/posts-window/`, `pages-window/`, `comments-window/`, `my-wordpress/`, the AI Copilot). Beautiful, `wpd-*`-component-based, feel OS-native. But each is *individually written* — coverage = only what they've explicitly built.
+> 2. **Compat fallback** (`includes/plugins-window/`, `includes/compat/`) — everything WITHOUT a native window renders classic wp-admin inside a portal iframe. This is the "annoying / not really desktop-native" tier, and it carries the automation limits already in [[feedback_desktop_mode_blocks_browser_automation]].
+>
+> The non-1:1-ness traces to Desktop Mode's own design promise (README: *"doesn't change core, and fully reverts on deactivation"*). A true 1:1 surface would require deep coupling to core's admin rendering — the opposite of that promise — so they chose curated native windows + an iframe fallback instead.
+>
+> **What this means for THIS stub (it's a reason FOR, gated on conditions — not against):**
+> - Building S&N's tools as native DM windows (`desktop_mode_register_window()`) is **tier-1 work** — it's the *only* way to lift S&N's Cron/Health/Insights out of the tier-2 iframe fallback and make them first-class desktop apps. So the non-1:1-ness *increases* the potential payoff, not decreases it.
+> - **But the gate is real:** only worth the build IF (a) you actually use Desktop Mode daily/regularly (otherwise you're polishing a surface no one opens), AND (b) the `desktop_mode_register_window()` API stays stable (it's marked stable as of DM 0.20.0 per `use-from-a-plugin.md`, but DM is young + evolving fast).
+> - **Re-evaluation trigger:** revisit this stub when EITHER you've adopted Desktop Mode as a primary admin surface, OR Desktop Mode ships materially broader native coverage (signalling the project + its API have matured). Until one of those, parked is correct.
+>
+> Net: the idea got *more* compelling from this observation (native windows are the escape hatch from the iframe friction), but the *timing* stays "wait" — pending adoption + maturity signals.
+
 **Why this exists:** capture a newly-discovered desktop-mode PHP API + the strategic idea while fresh, so a future session can evaluate it without re-deriving the contract. Pairs with the existing desktop-mode memory notes ([[reference_desktop_mode_ai_copilot]], [[reference_desktop_mode_plugins_window]], [[feedback_desktop_mode_blocks_browser_automation]], [[feedback_desktop_mode_horizontal_submenu_warning]]).
 
 ---
