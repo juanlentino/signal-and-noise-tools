@@ -104,7 +104,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 **Headline:** v4.5.0 shipped with a JS enqueue gap that left the Block Migrations Suggest button dead in production (script only loaded on the Health tab, but block-migrations lives under Tools). Plus a Discard → Suggest retry path that lost the button's data-attrs. Both caught by the post-ship audit before user UAT exposure. Patch in v4.5.1.
 
-**Fixes:**
+### Fixed
 
 - **CRITICAL: `assets/health-suggest-actions.js` now enqueued on the Tools tab too** (`inc/admin-page.php`). Previously only loaded when `?tab=health` AND `snt_ai_is_available()`. Block Migrations is pure structural (no AI), so neither condition fired and every click on `[data-snt-suggest]` in the block-migrations table silently produced nothing. The whole Suggest+Apply loop was non-functional. Added a parallel enqueue for `?tab=tools` with no AI gate.
 - **IMPORTANT: `buildSuggestButton()` now handles `block_migrations_heading_skip`** (`assets/health-suggest-actions.js`). The function rebuilds the Suggest button after Discard. Every other check type had a branch restoring its `data-*` attrs; the v4.5.0 cycle added the new check type to the click-handler chain but missed adding it here. After Discard, the rebuilt button lacked `data-post-id` / `data-fingerprint` / `data-migration-type` — clicking Suggest then fell through validation and rendered an error. Same shape as the v4.4.3 Bug-B2 fix for pattern-adoption — carried forward correctly this time.
@@ -121,7 +121,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 **Headline:** First content-migration tool ships under a new Tools sub-tab — `parse_blocks` / `serialize_block` infrastructure with Suggest+Apply UX, mirroring v4.3.0 pattern-adoption. First migration is **heading-hierarchy-skip** (h3 with no preceding h2 → h2, WCAG 1.3.1). Plus signal-only `_deprecated_function()` annotations on 4 legacy REST handlers so we can track external callers ahead of v5.0.0 removal.
 
-**Added:**
+### Added
 
 - **Block Migration tool** (`inc/block-migrations-detect.php`, `inc/block-migrations-suggest.php`, `inc/block-migrations-apply.php`, `inc/block-migrations-admin.php`). Tools sub-tab "Block Migrations" detects + fixes structural block issues via `parse_blocks`/`serialize_block` round-trip. Suggest+Apply UX mirrors v4.3.0 pattern-adoption (modal preview, fingerprint conflict detection at 409, per-finding dismiss state, idempotent per-user scans cached for 1 hour). Generalizes the PA-01 SQL-miss from the v4.4.x cycle — future content migrations all use this infrastructure (no more bespoke SQL).
 - **4 new abilities** under category `tools` (NOT `ai-generation` — these are pure structural, zero AI calls): `signal-noise/block-migrations-scan`, `signal-noise/block-migrations-suggest`, `signal-noise/block-migrations-apply`, `signal-noise/block-migrations-dismiss`. Apply gets `annotations.idempotent: false, destructive: true`; the rest are `idempotent: true`. See `inc/abilities-block-migrations.php`.
@@ -134,7 +134,7 @@ All notable changes to Signal & Noise Tools are documented here.
   - `tests/block-migrations-apply.php` (14 assertions across 6 scenarios — includes `invalid_markup` 422 coverage)
 - Plugin aggregate: 888 → **940 assertions**, 0 failures across 25 runnable suites.
 
-**Changed:**
+### Changed
 
 - Tools tab gains a 3rd sub-tab: **Block Migrations** (after Reading Time + Links). New per-sub-tab hook `sn_admin_block_migrations_tab` matches the project's flat hook convention (`sn_admin_cloudflare_tab`, `sn_admin_health_tab`, etc.).
 - `assets/health-suggest-actions.js` extended (~120 LOC) to handle the new `block_migrations_heading_skip` check type. Shared modal + status infrastructure reused — no new JS file.
@@ -157,7 +157,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 **Headline:** Two small fixes from the Tier B backlog + a test catch-up that v4.4.4 should have included.
 
-**Fixes:**
+### Fixed
 
 - **PA-10 (UI-UX) — Repeating `social_same_as[]` inputs now have per-input `aria-label="Profile URL"`.** Existing server-rendered rows (line 1135) and the no-JS fallback row (line 1139) in `inc/admin-page.php` were missing the accessible name that the JS-added rows already had (`assets/admin.js:141`). Screen readers tabbing through the Identity → Social settings page now announce each row consistently. Brings server-render parity with the dynamically-added rows.
 - **Test catch-up: `tests/legacy-url-redirect.php` updated to match v4.4.4's docblock re-framing.** v4.4.4 changed `sn_admin_pages()`'s docblock from `@deprecated 4.2.0` → `@internal` (Audit C HYG-08), but this test's Test 5 was hardcoded to `preg_match( '/@deprecated\s+4\.2\.0/' )` as a regression guard. The test broke at v4.4.4 ship time and **should have been caught before tagging** — plugin tests were not re-run after the v4.4.4 docblock edits, and the previous handoff's "888 assertions / all green" claim was inaccurate. The test now accepts either `@internal` or `@deprecated` framing (the future v5.0.0 cleanup per Audit E U-01 option 2 may flip it back to `@deprecated` again).
@@ -183,7 +183,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 **Why bumped:** PA-03 is a real WCAG-AA failure (active state announced visually but not programmatically) and warrants a code change in `inc/admin-page.php`. The three doc edits (HYG-03, HYG-06, HYG-08) ride along because they touch the same plugin and would otherwise need their own commit churn.
 
-**Fixes:**
+### Fixed
 
 - **PA-03 (BUG-MED, WCAG 4.1.2 Level A) — Plugin admin sub-tabs now emit `aria-current="page"` on the active item.** The visual `.sn-sub-tab.is-active` styling was present but no programmatic affordance for assistive tech; screen readers couldn't announce which sub-tab was selected. `sn_admin_render_sub_tabs()` (`inc/admin-page.php:227-248`) now renders `aria-current="page"` on the active anchor in addition to the `is-active` class. ~3 LOC. Note: the in-page `.sn-toc` anchor nav (lines 202-210) does not get the same treatment because its active state is scroll-position-dependent and would need a JS observer to maintain — deferred to backlog.
 - **HYG-03 — `Tested up to: 7.0` header added to plugin docblock.** WP's Updates UI was showing "compatibility unknown" because the plugin header omitted this field. Plugin has been live since v1.x; just never declared its target WP range.
@@ -207,7 +207,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 **Headline:** Bundled patch addressing all remaining non-urgent findings from the v4.4.x cycle audit. v4.4.2 closed the critical security exposure; this patch closes the v4.3.0 functional regression, two medium-severity defense-in-depth gaps, and consolidates inline styles across 4 admin files.
 
-**Fixes:**
+### Fixed
 
 - **Bug-B2 (HIGH) — v4.3.0 pattern-adoption Suggest+Apply now functional in the UI.** v4.3.0 added new check types to the `ABILITY_BY_CHECK` map but the JS dispatcher (`assets/health-suggest-actions.js`) never gained input-building branches for them. Clicking Suggest on a pattern-adoption Opportunity row sent `{}` → ability failed schema validation. Apply path was using drift-shaped input instead of pattern-adoption shape. Both paths now correctly read `post_id` / `block_fingerprint` / `pattern_type` (Suggest) and `replacement_markup` (Apply) from button data attributes. The PHP impls (76 PHP-level assertions across 3 test files) always worked; this fix lets the UI actually reach them.
 - **Bug-B1 (MEDIUM, latent) — Login intercept Branch 3 now allowlists `/wp-admin/admin-ajax.php` etc.** The `plugins_loaded` allowlist (lines 159-166 of `inc/login-hide.php`) skips setting flags for admin-ajax / async-upload / wp-cron / /wp-json/ / /feed, but Branch 3 of `sn_login_handle_request()` ran independently and 404-ed them. No current impact (no first-party plugin uses `wp_ajax_nopriv_*`), but any future plugin shipping public AJAX would have broken silently. Now safe.
