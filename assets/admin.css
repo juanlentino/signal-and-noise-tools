@@ -1429,3 +1429,93 @@
 .sn-pill--spaced {
 	margin-right: 0.5rem;
 }
+
+/* ─── v9.x inline-style consolidation (round 2) ──────────────────────────
+ *
+ * Second pass promoting recurring inline style="" attributes to named
+ * utility classes across the admin PHP, following the v4.4.3 pattern above.
+ * Replaces copy-pasted style="" attributes in:
+ *   inc/health-checks-admin.php
+ *   inc/pattern-adoption-admin.php
+ *   inc/block-migrations-admin.php
+ *   inc/webhooks-admin.php
+ *
+ * No visual change — pure relocation — EXCEPT .sn-fieldset--new, which
+ * intentionally swaps the brutalist brand-red accent for the native
+ * wp-admin primary blue (#2271b1) per the no-brand-vocabulary-in-admin rule.
+ */
+
+/* Vertical-rhythm margin utilities. Each maps verbatim to a recurring
+   inline margin-top/-bottom used on fieldsets, intros, <details>, scroll
+   tables, and log tables. */
+.snt-mt-half {
+	margin-top: 0.5rem;
+}
+.snt-mt-075 {
+	margin-top: 0.75rem;
+}
+.snt-mt-1 {
+	margin-top: 1rem;
+}
+.snt-mt-2 {
+	margin-top: 2rem;
+}
+.snt-mb-1 {
+	margin-bottom: 1rem;
+}
+
+/* Shared review-table column widths — the Post / — / Action triple appears
+   verbatim in BOTH pattern-adoption-admin.php and block-migrations-admin.php
+   (40% / 20% / 40%). De-duplicated here so the column geometry has one home.
+   .snt-col-55 / .snt-col-90px / .snt-col-280px serve the Health findings
+   table (Subject / Action / AI fix). Replaces: style="width:NN%;" / "width:NNpx;". */
+.snt-col-20 {
+	width: 20%;
+}
+.snt-col-40 {
+	width: 40%;
+}
+.snt-col-55 {
+	width: 55%;
+}
+.snt-col-90px {
+	width: 90px;
+}
+.snt-col-280px {
+	width: 280px;
+}
+
+/* Inline checkbox row with top spacing — webhooks "Rotate secret on save"
+   label. Replaces: style="margin-top:0.25rem;display:block;". */
+.snt-checkbox-row {
+	margin-top: 0.25rem;
+	display: block;
+}
+
+/* Delivery-log table — compact font, small top margin. Replaces:
+   style="margin-top:0.5rem; font-size:0.85em;" on the webhooks log table. */
+.snt-table-log {
+	margin-top: 0.5rem;
+	font-size: 0.85em;
+}
+
+/* Payload-reference <pre> — light-gray code block in the webhooks payload
+   reference. Replaces:
+   style="background:#f3f3f3;padding:0.75rem;overflow:auto;font-size:0.85em;". */
+.snt-pre-payload {
+	background: #f3f3f3;
+	padding: 0.75rem;
+	overflow: auto;
+	font-size: 0.85em;
+}
+
+/* "New" fieldset accent — left border highlighting a just-created webhook.
+   INTENTIONAL VISUAL CHANGE: the original inline style used the brutalist
+   brand red (--wp--preset--color--blood, #e00404), which leaked the
+   front-end brand vocabulary into wp-admin. Swapped for the native WP
+   admin primary blue so the "new / attention" affordance survives but reads
+   as native WordPress, not brutalist. Border width/style otherwise identical.
+   Replaces: style="border-left:3px solid var(--wp--preset--color--blood, #e00404);". */
+.sn-fieldset--new {
+	border-left: 3px solid #2271b1;
+}

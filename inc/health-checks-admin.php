@@ -103,12 +103,12 @@ function sn_health_render_admin_tab() {
 
 		$show_ai_col = $ai_available && in_array( $key, $suggest_supported_checks, true );
 		echo '<div class="snt-scroll-table">';
-		echo '<table class="widefat striped" style="margin-top:0.5rem;"><thead><tr>';
-		echo '<th scope="col" style="width:' . ( $show_ai_col ? '40%' : '55%' ) . ';">Subject</th>';
+		echo '<table class="widefat striped snt-mt-half"><thead><tr>';
+		echo '<th scope="col" class="' . ( $show_ai_col ? 'snt-col-40' : 'snt-col-55' ) . '">Subject</th>';
 		echo '<th scope="col">Note</th>';
-		echo '<th scope="col" style="width:90px;">Action</th>';
+		echo '<th scope="col" class="snt-col-90px">Action</th>';
 		if ( $show_ai_col ) {
-			echo '<th scope="col" style="width:280px;">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
+			echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 

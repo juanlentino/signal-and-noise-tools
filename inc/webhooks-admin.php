@@ -67,7 +67,7 @@ function sn_webhooks_render_admin_tab() {
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="webhook_id" value="' . esc_attr( $wh['id'] ) . '">';
 
-		echo '<div class="sn-fieldset"' . ( $is_new ? ' style="border-left:3px solid var(--wp--preset--color--blood, #e00404);"' : '' ) . '>';
+		echo '<div class="sn-fieldset' . ( $is_new ? ' sn-fieldset--new' : '' ) . '">';
 		echo '<h2 class="sn-fieldset-h">' . esc_html( $wh['name'] ) . '</h2>';
 		echo '<p class="sn-fieldset-intro"><code>' . esc_html( $wh['id'] ) . '</code> — created ' . esc_html( wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>';
 
@@ -99,7 +99,7 @@ function sn_webhooks_render_admin_tab() {
 		} else {
 			echo '<input type="text" readonly value="' . esc_attr( '••••' . substr( $wh['secret'], -4 ) ) . '" class="sn-mono" disabled>';
 			echo '<p class="sn-field-helper">Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).</p>';
-			echo '<label style="margin-top:0.25rem;display:block;"><input type="checkbox" name="rotate_secret" value="1"> Rotate secret on save</label>';
+			echo '<label class="snt-checkbox-row"><input type="checkbox" name="rotate_secret" value="1"> Rotate secret on save</label>';
 		}
 		echo '</div>';
 
@@ -114,10 +114,10 @@ function sn_webhooks_render_admin_tab() {
 		// Delivery log — inline disclosure under the fieldset.
 		$log = sn_webhook_log_read( $wh['id'] );
 		if ( ! empty( $log ) ) {
-			echo '<details class="sn-prose" style="margin-bottom:1rem;">';
+			echo '<details class="sn-prose snt-mb-1">';
 			echo '<summary>Recent deliveries (' . count( $log ) . ')</summary>';
 			echo '<div class="snt-scroll-table">';
-			echo '<table class="widefat striped" style="margin-top:0.5rem; font-size:0.85em;"><thead><tr>';
+			echo '<table class="widefat striped snt-table-log"><thead><tr>';
 			echo '<th scope="col">Fired at</th>';
 			echo '<th scope="col">Attempt</th>';
 			echo '<th scope="col">HTTP</th>';
@@ -174,7 +174,7 @@ function sn_webhooks_render_admin_tab() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Payload reference</h2>';
 	echo '<p class="sn-fieldset-intro">Every delivery is a POST with these headers and a JSON body:</p>';
-	echo '<pre class="sn-mono" style="background:#f3f3f3;padding:0.75rem;overflow:auto;font-size:0.85em;">POST &lt;your URL&gt; HTTP/1.1
+	echo '<pre class="sn-mono snt-pre-payload">POST &lt;your URL&gt; HTTP/1.1
 Content-Type: application/json
 X-SN-Event: post.published
 X-SN-Delivery: del_…

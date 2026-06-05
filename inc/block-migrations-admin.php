@@ -72,12 +72,12 @@ function snt_block_migrations_render_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro" style="margin-top:1rem;">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-noise-tools' ) . '</p>';
+		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
 
-	echo '<details style="margin-top:1rem;">';
+	echo '<details class="snt-mt-1">';
 	echo '<summary>' .
 		esc_html( sprintf(
 			/* translators: %d is the count of candidates to review */
@@ -85,11 +85,11 @@ function snt_block_migrations_render_section() {
 			count( $candidates )
 		) ) . '</summary>';
 
-	echo '<div class="snt-scroll-table" style="margin-top:0.75rem;">';
+	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th scope="col" style="width:40%;">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" style="width:20%;">' . esc_html__( 'Issue', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" style="width:40%;">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Issue', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $candidates as $c ) {

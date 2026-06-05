@@ -36,7 +36,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	$last_scan = snt_pattern_adoption_last_scan();
 
-	echo '<div class="sn-fieldset" style="margin-top:2rem;">';
+	echo '<div class="sn-fieldset snt-mt-2">';
 	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
 	echo esc_html__( 'Opportunities', 'signal-noise-tools' );
 	if ( $last_scan ) {
@@ -67,13 +67,13 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro" style="margin-top:1rem;">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-noise-tools' ) . '</p>';
+		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
 
 	// Collapsed-by-default: wrap candidate rows in <details>.
-	echo '<details style="margin-top:1rem;">';
+	echo '<details class="snt-mt-1">';
 	echo '<summary>' .
 		esc_html( sprintf(
 			/* translators: %d is the count of pattern-adoption candidates to review */
@@ -81,11 +81,11 @@ function snt_pattern_adoption_render_opportunities_section() {
 			count( $candidates )
 		) ) . '</summary>';
 
-	echo '<div class="snt-scroll-table" style="margin-top:0.75rem;">';
+	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th scope="col" style="width:40%;">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" style="width:20%;">' . esc_html__( 'Pattern', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" style="width:40%;">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Pattern', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $candidates as $c ) {
