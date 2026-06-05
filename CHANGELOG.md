@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.7] - 2026-06-05 — /sn-login noindex header + wp-admin inline-style cleanup
+
+**Released:** 2026-06-05.
+
+**Headline:** Two pre-v5.0.0 hardening/cleanup items batched into one patch. (1) The custom `/sn-login` form now emits an HTTP `X-Robots-Tag: noindex, nofollow` header as defense-in-depth over WP core's existing `wp_robots` noindex meta tag — an HTTP header is honored by non-HTML-parsing crawlers and survives output filtering. (2) 22 inline `style=` attributes across four admin screens moved into `assets/admin.css` utility classes, which also removed a brutalist brand-red border leaking into wp-admin (now a native WordPress blue).
+
+### Added
+
+- **`X-Robots-Tag: noindex, nofollow` on the `/sn-login` serve-form path** — emitted before `wp-login.php` loads, behind a `headers_sent()` guard (`wp_loaded` runs before any login output, so the guard is a safety net). Pure testable seam `sn_login_serve_form_headers()` locks the header contract. (`inc/login-hide.php`)
+
+### Cleanup
+
+- **22 inline `style=` attributes → `assets/admin.css` utility classes** across `health-checks-admin.php`, `pattern-adoption-admin.php`, `block-migrations-admin.php`, `webhooks-admin.php` — byte-equivalent relocation (margins, column widths, log table, payload `<pre>`) into `snt-*` utilities, plus deduping the verbatim 40%/20%/40% column triple shared by pattern-adoption and block-migrations into `.snt-col-40` / `.snt-col-20`.
+- **Removed a brand-vocabulary leak in wp-admin** — the new-webhook fieldset's `border-left` used the front-end `--wp--preset--color--blood` brand red; it now uses native wp-admin blue (`#2271b1`) via `.sn-fieldset--new`, keeping wp-admin reading as native WordPress (discharges the no-brutalist-in-admin rule).
+
+### Tests
+
+- **`tests/login-noindex-header.php`** — 6 assertions locking the noindex-header contract (function defined, returns the `X-Robots-Tag: noindex, nofollow` header, exactly one well-formed entry, handler still registered on `wp_loaded`).
+
 ## [4.5.6] - 2026-05-29 — Self-updater authenticates to GitHub (60/h → 5000/h)
 
 **Released:** 2026-05-29.
