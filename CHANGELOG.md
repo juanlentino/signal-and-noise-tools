@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.5.8] - 2026-06-05 — Post-ship audit fix: restore admin table top-inset
+
+**Released:** 2026-06-05.
+
+**Headline:** Post-ship audit (AR-01) caught a cosmetic regression in v4.5.7's inline-style consolidation: moving `margin-top:0.5rem` from an inline `style=` (which always wins) into the single-class utilities `.snt-mt-half` / `.snt-table-log` (specificity 0,1,0) let the pre-existing `.snt-scroll-table .widefat { margin: 0 }` rule (0,2,0) silently override it — so the Health-findings table and the webhooks delivery-log table lost their ~8px top inset and rendered flush. Restored at higher specificity (no functional impact; supersedes v4.5.7, which was never required to be installed).
+
+### Fixed
+
+- **Admin table top-inset restored** — added `.snt-scroll-table .widefat.snt-mt-half, .snt-scroll-table .widefat.snt-table-log { margin-top: 0.5rem; }` so the two tables inside `.snt-scroll-table` regain the 0.5rem top gap that the v4.5.7 refactor dropped. Inline styles and class selectors are not render-equivalent (specificity differs) — this corrects v4.5.7's "byte-equivalent, no visual change" claim for these two tables. (`assets/admin.css`)
+
 ## [4.5.7] - 2026-06-05 — /sn-login noindex header + wp-admin inline-style cleanup
 
 **Released:** 2026-06-05.
