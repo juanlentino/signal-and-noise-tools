@@ -193,6 +193,19 @@ function sn_login_intercept_request() {
 add_action( 'plugins_loaded', 'sn_login_intercept_request', 2 );
 
 /**
+ * HTTP headers emitted on the custom-login serve-form path, before
+ * wp-login.php is loaded. Pure (returns the list); the handler emits
+ * them behind a headers_sent() guard. Defense-in-depth over WP core's
+ * wp_robots noindex META tag — an HTTP header is also honored by
+ * non-HTML-parsing crawlers and survives output filtering.
+ *
+ * @return string[]
+ */
+function sn_login_serve_form_headers() {
+	return array( 'X-Robots-Tag: noindex, nofollow' );
+}
+
+/**
  * Respond per the routing decision made in plugins_loaded.
  *
  * Runs at default priority on wp_loaded, AFTER auth cookies have been
@@ -213,6 +226,14 @@ add_action( 'plugins_loaded', 'sn_login_intercept_request', 2 );
 function sn_login_handle_request() {
 	// Branch 1: serve the login form for custom-slug matches.
 	if ( ! empty( $GLOBALS['sn_login_serve_form'] ) ) {
+		// Defense-in-depth: emit an HTTP-layer noindex header before
+		// wp-login.php produces output. headers_sent() is a safety net —
+		// wp_loaded runs before any login output on this path.
+		if ( ! headers_sent() ) {
+			foreach ( sn_login_serve_form_headers() as $sn_login_header ) {
+				header( $sn_login_header, true );
+			}
+		}
 		require_once ABSPATH . 'wp-login.php';
 		die;
 	}
