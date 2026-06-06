@@ -318,15 +318,24 @@ function snt_ability_unschedule_cron_event( $input ) {
 /**
  * Ability execute_callback for signal-noise/run-cron-event.
  *
- * Refuses to dispatch SN-namespaced hooks (sn_*) — those have dedicated
- * abilities (purge-all-caches, force-check-updates, etc.) with proper
- * input schemas. This generic runner exists for WP-native + 3rd-party hooks.
+ * Delegates to snt_cron_run_event_impl() (inc/cron-dashboard.php), which
+ * carries the proven safety guards: manage_options gate, non-empty-string
+ * check, has_action() orphan pre-flight (WP_Error snt_cron_no_handler),
+ * DOING_CRON spoof, Throwable catch, last-fired tracking, and a history
+ * record. This wrapper adds only the sn_* pre-filter — SN-namespaced hooks
+ * have dedicated abilities (purge-all-caches, force-check-updates, etc.)
+ * with proper input schemas, so this generic runner refuses them.
+ *
+ * Hook names are matched VERBATIM (no sanitize_key — that would mangle
+ * mixed-case/namespaced hooks). The impl's array return is collapsed to
+ * the {ok,message} output_schema; the impl's WP_Error paths (orphan /
+ * forbidden / invalid) pass through unchanged with their status + message.
  *
  * @param array $input { hook: string, args?: array }
  * @return array{ok:bool,message:string}|WP_Error
  */
 function snt_ability_run_cron_event( $input ) {
-	$hook = isset( $input['hook'] ) ? sanitize_key( $input['hook'] ) : '';
+	$hook = isset( $input['hook'] ) ? trim( (string) $input['hook'] ) : '';
 	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
 
 	if ( '' === $hook ) {
@@ -341,7 +350,20 @@ function snt_ability_run_cron_event( $input ) {
 		);
 	}
 
-	do_action_ref_array( $hook, $args );
+	if ( ! function_exists( 'snt_cron_run_event_impl' ) ) {
+		return new WP_Error( 'snt_impl_missing', 'Cron runner not available.', array( 'status' => 500 ) );
+	}
 
-	return array( 'ok' => true, 'message' => sprintf( 'Dispatched %s.', $hook ) );
+	$r = snt_cron_run_event_impl( $hook, $args );
+	if ( is_wp_error( $r ) ) {
+		return $r; // orphan/forbidden/invalid — carries status + message.
+	}
+
+	$ok = ! empty( $r['success'] );
+	return array(
+		'ok'      => $ok,
+		'message' => $ok
+			? sprintf( 'Dispatched %s.', $hook )
+			: ( 'Dispatch failed: ' . ( ! empty( $r['error'] ) ? $r['error'] : 'unknown error' ) ),
+	);
 }
