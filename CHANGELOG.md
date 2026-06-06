@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.8.0] - 2026-06-06 — Post-editor cleanup + AI prepopulation
+
+### New
+- **AI prepopulation at publish.** When you publish or schedule a post, the meta description, excerpt, and OG card title now auto-fill from the content — but only when each field is empty (your own writing is never overwritten). Generation runs in the background, so publishing stays instant. A one-line notice in the Signal & Noise panel tells you which fields were auto-generated, and clears the next time you save or when you dismiss it.
+
+### Improvements
+- **De-duplicated the editor AI sidebar.** The "AI" plugin's Meta Description and Excerpt generators duplicated Signal & Noise's own; both are now hidden, leaving a single generator for each field. The plugin's other AI features (editorial notes, summary, suggest categories/tags, title) are untouched.
+- **Tighter auto-generated copy.** Auto-filled meta descriptions stay within the ~155-character search-result limit; auto-filled excerpts stay punchy (≤3 short sentences).
+
+### Fixed
+- **Removed a duplicate `<meta name="description">` tag.** With no third-party SEO plugin active, the "AI" plugin emitted its own meta-description tag alongside Signal & Noise's. Hiding its meta-description feature resolves the double tag.
+
 ## [4.7.0] - 2026-06-06 — Admin-bar expansion — 3 quick-action items
 
 **Released:** 2026-06-06.
