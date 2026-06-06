@@ -1043,5 +1043,21 @@ ap_true( is_array( $apply_ability ), 'v4.3.0: pattern-adoption-apply entry retri
 ap_eq( 'ai-generation', $apply_ability['category'], 'v4.3.0: pattern-adoption-apply category = ai-generation' );
 ap_true( isset( $apply_ability['input_schema']['properties']['replacement_markup'] ), 'v4.3.0: pattern-adoption-apply input has replacement_markup' );
 
+// ─── v4.6.0 NEW ABILITIES ─────────────────────────────────────────────
+echo "\n[v4.6.0] new abilities (Plausible × 3, run-cron-event, pattern-adoption-scan/dismiss):\n";
+
+$v460_new = array(
+	'signal-noise/get-plausible-stats',
+	'signal-noise/get-plausible-realtime',
+	'signal-noise/test-plausible-connection',
+	'signal-noise/run-cron-event',
+	'signal-noise/pattern-adoption-scan',
+	'signal-noise/pattern-adoption-dismiss',
+);
+
+foreach ( $v460_new as $slug ) {
+	ap_true( null !== wp_get_ability( $slug ), "v4.6.0: ability registered: $slug" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

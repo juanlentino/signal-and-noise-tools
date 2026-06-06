@@ -36,7 +36,7 @@ PHPdoc-level annotations only — no runtime warnings yet. Runtime `_deprecated_
 
 **Total abilities registered:** 40 (was 34 at v4.5.8).
 
-**Tests:** [TBD count] assertions across [TBD count] suites — Task 7 covers the new ability assertions + admin notice test.
+**Tests:** 1,074 assertions across 32 suites (excludes the WP-only `contracts-smoke.php`) — adds 6 new-ability registration assertions to `tests/abilities-integration.php`, the new `tests/wp-version-admin-notice.php` (4 assertions across the WP-version/dismissal/capability matrix), and extends `tests/legacy-deprecation.php` from 4 to 10 covered handlers.
 
 ## [4.5.8] - 2026-06-05 — Post-ship audit fix: restore admin table top-inset
 
