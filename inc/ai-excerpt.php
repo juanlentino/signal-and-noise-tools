@@ -57,6 +57,19 @@ const SNT_AI_EXCERPT_SYSTEM = 'Generate a WordPress excerpt for a published arti
 const SNT_AI_EXCERPT_MAX_TOKENS    = 200;
 const SNT_AI_EXCERPT_INPUT_WORDS   = 1200;
 
+// v4.8.0: concise variant for auto-prepopulation. Tighter than the 50-75
+// word default — punchy, not comprehensive.
+const SNT_AI_EXCERPT_SYSTEM_CONCISE = 'Generate a WordPress excerpt for a published article. Constraints: ' .
+	'(1) Up to 3 SHORT sentences, 40-60 words total — punchy, not comprehensive; ' .
+	'(2) Hook-driven — capture the single most useful reason a reader would click; ' .
+	'(3) Match the source article\'s voice — don\'t turn an editorial piece into generic marketing; ' .
+	'(4) Active voice. Declarative. No fluff; ' .
+	'(5) Avoid: amazing, ultimate, best, powerful, revolutionary, transformative, cutting-edge, dive into, unlock, unleash; ' .
+	'(6) No quotes, no preamble, no "Excerpt:" labels, no markdown. ' .
+	'Output ONLY the excerpt text.';
+
+const SNT_AI_EXCERPT_MAX_TOKENS_CONCISE = 120;
+
 /* ════════════════════════════════════════════════════════════════════════
  * REST ENDPOINT
  * ════════════════════════════════════════════════════════════════════════ */
@@ -94,7 +107,7 @@ function snt_ai_excerpt_rest_permission( WP_REST_Request $request ) {
  * @return array{ok:bool,excerpt:string,length:int,words:int}|WP_Error
  * @since v2.5.0
  */
-function snt_ai_excerpt_impl( $post_id ) {
+function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 	// v4.1.1 (D-03): shared AI-gate helper.
 	$gate = snt_ai_require_text_generation();
 	if ( $gate ) { return $gate; }
@@ -113,8 +126,8 @@ function snt_ai_excerpt_impl( $post_id ) {
 
 	$result = snt_ai_generate_with_constraints(
 		$content,
-		SNT_AI_EXCERPT_SYSTEM,
-		SNT_AI_EXCERPT_MAX_TOKENS
+		$concise ? SNT_AI_EXCERPT_SYSTEM_CONCISE : SNT_AI_EXCERPT_SYSTEM,
+		$concise ? SNT_AI_EXCERPT_MAX_TOKENS_CONCISE : SNT_AI_EXCERPT_MAX_TOKENS
 	);
 
 	if ( is_wp_error( $result ) ) {

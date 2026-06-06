@@ -43,6 +43,38 @@ const SNT_AI_META_DESC_SYSTEM = 'Generate a meta description for SEO. Output 140
 const SNT_AI_META_DESC_MAX_TOKENS = 150;
 const SNT_AI_META_DESC_INPUT_WORDS = 1000;
 
+// v4.8.0: concise variant for auto-prepopulation at publish. Hard char
+// ceiling (SERP display limit) wins over sentence count; the truncation
+// guard below is the backstop because models count chars unreliably.
+const SNT_AI_META_DESC_SYSTEM_CONCISE = 'Generate a meta description for SEO. ' .
+	'Output AT MOST 155 characters — count carefully. One or two short, declarative sentences. ' .
+	'Active voice. No marketing fluff — avoid words like: amazing, powerful, ultimate, best, ' .
+	'revolutionary, transformative, cutting-edge. Capture the single most useful thing a ' .
+	'search-result reader would want to know. Output ONLY the description text — no quotes, ' .
+	'no preamble, no labels, no markdown.';
+
+const SNT_AI_META_DESC_MAX_TOKENS_CONCISE = 80;
+
+/**
+ * Trim a meta description to a word boundary at or below $max chars.
+ * Backstop for the concise path — models overshoot character ceilings.
+ *
+ * @param string $text
+ * @param int    $max
+ * @return string
+ */
+function snt_ai_truncate_meta_description( $text, $max = 155 ) {
+	if ( mb_strlen( $text ) <= $max ) {
+		return $text;
+	}
+	$cut   = mb_substr( $text, 0, $max );
+	$space = mb_strrpos( $cut, ' ' );
+	if ( false !== $space && $space > 0 ) {
+		$cut = mb_substr( $cut, 0, $space );
+	}
+	return rtrim( $cut, " \t\n\r\0\x0B.,;:" );
+}
+
 /* ════════════════════════════════════════════════════════════════════════
  * REST ENDPOINT — signal-noise/v1/ai/generate-meta-description
  * ════════════════════════════════════════════════════════════════════════ */
@@ -87,7 +119,7 @@ function snt_ai_meta_desc_rest_permission( WP_REST_Request $request ) {
  * @return array{ok:bool,description:string,length:int}|WP_Error
  * @since v2.5.0
  */
-function snt_ai_meta_desc_impl( $post_id ) {
+function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
 	// v4.1.1 (D-03): shared AI-gate helper.
 	$gate = snt_ai_require_text_generation();
 	if ( $gate ) { return $gate; }
@@ -103,8 +135,8 @@ function snt_ai_meta_desc_impl( $post_id ) {
 
 	$result = snt_ai_generate_with_constraints(
 		$content,
-		SNT_AI_META_DESC_SYSTEM,
-		SNT_AI_META_DESC_MAX_TOKENS
+		$concise ? SNT_AI_META_DESC_SYSTEM_CONCISE : SNT_AI_META_DESC_SYSTEM,
+		$concise ? SNT_AI_META_DESC_MAX_TOKENS_CONCISE : SNT_AI_META_DESC_MAX_TOKENS
 	);
 
 	if ( is_wp_error( $result ) ) {
@@ -114,6 +146,9 @@ function snt_ai_meta_desc_impl( $post_id ) {
 	// Defensive trim — some providers add stray newlines or trailing spaces
 	// despite the system prompt's "no preamble" instruction.
 	$description = trim( $result );
+	if ( $concise ) {
+		$description = snt_ai_truncate_meta_description( $description, 155 );
+	}
 
 	// v4.1.6 (D-10): centralized — surrounding-quote strip now happens in
 	// snt_ai_generate_with_constraints() before this caller receives $description.

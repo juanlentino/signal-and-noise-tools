@@ -42,6 +42,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'minimum'     => 1,
 					'examples'    => array( 42, 1023 ),
 				),
+				'concise' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
+				),
 			),
 			'additionalProperties' => false,
 		),
@@ -76,6 +81,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'description' => 'The WordPress post ID.',
 					'minimum'     => 1,
 					'examples'    => array( 42, 1023 ),
+				),
+				'concise' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
 				),
 			),
 			'additionalProperties' => false,
@@ -114,6 +124,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'minimum'     => 1,
 					'examples'    => array( 42, 1023 ),
 				),
+				'concise' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
+				),
 			),
 			'additionalProperties' => false,
 		),
@@ -144,7 +159,7 @@ function snt_ability_ai_generate_meta_description( $input ) {
 	if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Meta-desc helper unavailable.', array( 'status' => 500 ) );
 	}
-	return snt_ai_meta_desc_impl( (int) $input['post_id'] );
+	return snt_ai_meta_desc_impl( (int) $input['post_id'], ! empty( $input['concise'] ) );
 }
 
 /**
@@ -168,5 +183,5 @@ function snt_ability_ai_generate_excerpt( $input ) {
 	if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Excerpt helper unavailable.', array( 'status' => 500 ) );
 	}
-	return snt_ai_excerpt_impl( (int) $input['post_id'] );
+	return snt_ai_excerpt_impl( (int) $input['post_id'], ! empty( $input['concise'] ) );
 }
