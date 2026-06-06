@@ -47,6 +47,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_admin_bar_items() {
 	return array(
+		'sn-quick-force-update-check' => array(
+			'action' => 'sn_quick_force_update_check',
+			'label'  => '↺ Force Update Check',
+		),
 		'sn-quick-purge-caches' => array(
 			'action' => 'sn_quick_purge_caches',
 			'label'  => '↻ Purge All Caches',
@@ -124,14 +128,34 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
  */
 add_action( 'init', function() {
 	$handlers = array(
-		'sn_quick_purge_caches'    => 'sn_handle_quick_purge_caches',
-		'sn_quick_clear_overrides' => 'sn_handle_quick_clear_overrides',
-		'sn_quick_cf_purge'        => 'sn_handle_quick_cf_purge',
+		'sn_quick_force_update_check' => 'sn_handle_quick_force_update_check',
+		'sn_quick_purge_caches'       => 'sn_handle_quick_purge_caches',
+		'sn_quick_clear_overrides'    => 'sn_handle_quick_clear_overrides',
+		'sn_quick_cf_purge'           => 'sn_handle_quick_cf_purge',
 );
 	foreach ( $handlers as $action => $callback ) {
 		add_action( 'wp_ajax_' . $action, $callback );
 	}
 } );
+
+function sn_handle_quick_force_update_check() {
+	check_ajax_referer( 'sn_quick_force_update_check' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
+	}
+	// Same work the signal-noise/force-check-updates ability does: its
+	// execute_callback (snt_ability_force_check_updates) is a thin wrapper
+	// around snt_cmd_impl_force_check(), which busts the GitHub tag caches
+	// + WP's update_themes/update_plugins transients. Call the same impl so
+	// the admin-bar action and the ability stay behaviorally identical.
+	if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
+		wp_send_json_error( array( 'message' => 'Force-check helper unavailable.' ), 500 );
+	}
+	snt_cmd_impl_force_check();
+	wp_send_json_success( array(
+		'message' => 'Update check forced — see Dashboard › Updates.',
+	) );
+}
 
 function sn_handle_quick_purge_caches() {
 	check_ajax_referer( 'sn_quick_purge_caches' );
