@@ -51,6 +51,10 @@ function sn_admin_bar_items() {
 			'action' => 'sn_quick_force_update_check',
 			'label'  => '↺ Force Update Check',
 		),
+		'sn-quick-scan-patterns' => array(
+			'action' => 'sn_quick_scan_patterns',
+			'label'  => '⌕ Scan Pattern Adoption',
+		),
 		'sn-quick-purge-caches' => array(
 			'action' => 'sn_quick_purge_caches',
 			'label'  => '↻ Purge All Caches',
@@ -129,6 +133,7 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 add_action( 'init', function() {
 	$handlers = array(
 		'sn_quick_force_update_check' => 'sn_handle_quick_force_update_check',
+		'sn_quick_scan_patterns'      => 'sn_handle_quick_scan_patterns',
 		'sn_quick_purge_caches'       => 'sn_handle_quick_purge_caches',
 		'sn_quick_clear_overrides'    => 'sn_handle_quick_clear_overrides',
 		'sn_quick_cf_purge'           => 'sn_handle_quick_cf_purge',
@@ -154,6 +159,32 @@ function sn_handle_quick_force_update_check() {
 	snt_cmd_impl_force_check();
 	wp_send_json_success( array(
 		'message' => 'Update check forced — see Dashboard › Updates.',
+	) );
+}
+
+function sn_handle_quick_scan_patterns() {
+	check_ajax_referer( 'sn_quick_scan_patterns' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
+	}
+	if ( ! function_exists( 'snt_pattern_adoption_run_scan' ) ) {
+		wp_send_json_error( array( 'message' => 'Pattern-adoption scanner unavailable.' ), 500 );
+	}
+	// snt_pattern_adoption_run_scan() returns an ENVELOPE:
+	// array( 'candidates' => [...], 'counts' => [...], 'scanned_at' => int ).
+	// Surface count( $result['candidates'] ) — NOT count( $result ), which
+	// would always be 3 (the envelope's key count). This exact off-by-envelope
+	// bug was caught in the v4.6.0 pattern-adoption-scan ability.
+	$result = snt_pattern_adoption_run_scan();
+	$count  = ( is_array( $result ) && isset( $result['candidates'] ) && is_array( $result['candidates'] ) )
+		? count( $result['candidates'] )
+		: 0;
+	wp_send_json_success( array(
+		'message' => sprintf(
+			'Pattern scan complete — %d candidate%s.',
+			$count,
+			1 === $count ? '' : 's'
+		),
 	) );
 }
 
