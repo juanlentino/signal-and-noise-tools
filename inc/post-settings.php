@@ -117,6 +117,12 @@ function sn_post_settings_render( $post ) {
 
 	echo '<div class="sn-post-settings">';
 
+	// v4.8.0: consolidated "auto-generated at publish" notice (empty unless
+	// a prepop sentinel is set for this post).
+	if ( function_exists( 'sn_prepop_render_notice' ) ) {
+		sn_prepop_render_notice( $post );
+	}
+
 	// ─── Robots directives ───
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label sn-field-label--inline">';
@@ -251,6 +257,11 @@ function sn_post_settings_save( $post_id ) {
 		} else {
 			delete_post_meta( $post_id, $meta_key );
 		}
+	}
+
+	// v4.8.0: an editor save acknowledges the prepop notice — clear sentinels.
+	if ( function_exists( 'sn_prepop_clear_sentinels' ) ) {
+		sn_prepop_clear_sentinels( $post_id );
 	}
 }
 add_action( 'save_post', 'sn_post_settings_save' );

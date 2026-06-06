@@ -124,5 +124,30 @@ pp_reset(); pp_post( 23, 'publish', 10, '' );
 snt_run_prepop( 23 );
 pp_eq( '', get_post_meta( 23, '_sn_meta_description', true ), 'content under min words → no generation' );
 
+// ── Notice render ──
+pp_reset();
+$GLOBALS['__test_post_meta'][30]['_sn_autogen_meta_description'] = '1';
+$GLOBALS['__test_post_meta'][30]['_sn_autogen_excerpt']         = '1';
+$p = new stdClass(); $p->ID = 30;
+ob_start(); sn_prepop_render_notice( $p ); $html = ob_get_clean();
+pp_true( false !== strpos( $html, 'sn-prepop-notice' ), 'notice renders when sentinels set' );
+pp_true( false !== strpos( $html, 'meta description' ) && false !== strpos( $html, 'excerpt' ), 'notice lists the auto-generated fields' );
+pp_true( false === strpos( $html, 'OG card title' ), 'notice omits fields without a sentinel' );
+
+pp_reset();
+$p = new stdClass(); $p->ID = 31;
+ob_start(); sn_prepop_render_notice( $p ); $html = ob_get_clean();
+pp_eq( '', trim( $html ), 'no notice when no sentinels set' );
+
+// ── Sentinel clear on save ──
+pp_reset();
+$GLOBALS['__test_post_meta'][32]['_sn_autogen_meta_description'] = '1';
+$GLOBALS['__test_post_meta'][32]['_sn_autogen_excerpt']         = '1';
+$GLOBALS['__test_post_meta'][32]['_sn_autogen_og_card_title']   = '1';
+sn_prepop_clear_sentinels( 32 );
+pp_eq( '', get_post_meta( 32, '_sn_autogen_meta_description', true ), 'save clears meta-desc sentinel' );
+pp_eq( '', get_post_meta( 32, '_sn_autogen_excerpt', true ), 'save clears excerpt sentinel' );
+pp_eq( '', get_post_meta( 32, '_sn_autogen_og_card_title', true ), 'save clears og-title sentinel' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

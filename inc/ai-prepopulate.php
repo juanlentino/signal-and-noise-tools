@@ -118,3 +118,52 @@ function snt_run_prepop( $post_id ) {
 	}
 }
 add_action( 'snt_prepop_event', 'snt_run_prepop', 10, 1 );
+
+/**
+ * Map of sentinel meta key → human label for the notice.
+ *
+ * @return array<string,string>
+ */
+function sn_prepop_fields() {
+	return array(
+		'_sn_autogen_meta_description' => 'meta description',
+		'_sn_autogen_excerpt'          => 'excerpt',
+		'_sn_autogen_og_card_title'    => 'OG card title',
+	);
+}
+
+/**
+ * Render the consolidated "auto-generated at publish" notice at the top of
+ * the SN meta box, listing only the fields whose sentinel is set. Called
+ * from sn_post_settings_render(). Emits nothing when no sentinel is set.
+ *
+ * @param WP_Post $post
+ */
+function sn_prepop_render_notice( $post ) {
+	$labels = array();
+	foreach ( sn_prepop_fields() as $sentinel => $label ) {
+		if ( '1' === (string) get_post_meta( $post->ID, $sentinel, true ) ) {
+			$labels[] = $label;
+		}
+	}
+	if ( empty( $labels ) ) {
+		return;
+	}
+	echo '<div class="sn-prepop-notice notice notice-info" data-post="' . (int) $post->ID . '">';
+	echo '<p>' . esc_html( 'Auto-generated when you published: ' . implode( ', ', $labels ) . '.' );
+	echo ' <button type="button" class="button-link sn-prepop-dismiss">' . esc_html( 'Dismiss' ) . '</button></p>';
+	echo '</div>';
+}
+
+/**
+ * Clear all prepop sentinels for a post (the notice shows once, then clears
+ * on the next editor save or an explicit dismiss). Called from
+ * sn_post_settings_save() and the dismiss REST route.
+ *
+ * @param int $post_id
+ */
+function sn_prepop_clear_sentinels( $post_id ) {
+	foreach ( array_keys( sn_prepop_fields() ) as $sentinel ) {
+		delete_post_meta( (int) $post_id, $sentinel );
+	}
+}
