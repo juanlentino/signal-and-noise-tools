@@ -56,3 +56,4 @@ require_once __DIR__ . '/abilities-audit.php';
 require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
+require_once __DIR__ . '/abilities-plausible.php';  // v4.6.0: 3 Plausible abilities
