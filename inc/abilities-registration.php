@@ -16,19 +16,26 @@
  *     overrides + force-check-updates + deploy status.
  *   - inc/abilities-content.php               — 2 abilities: OG card regen
  *     + RSS feed activity stats.
- *   - inc/abilities-cron.php                  — 4 abilities: WP-Cron dashboard.
+ *   - inc/abilities-cron.php                  — 5 abilities: WP-Cron dashboard
+ *     + run-cron-event (v4.6.0).
  *   - inc/abilities-insights.php              — 2 abilities: Content Opportunity
  *     Advisor scan + last-result.
  *   - inc/abilities-audit.php                 — 4 abilities: login-hardening
  *     audit log read + prune.
+ *   - inc/abilities-block-migrations.php      — 4 abilities: block-migration
+ *     scan/suggest/apply/dismiss ('tools' category).
  *   - inc/abilities-ai-post-editor.php       — 3 abilities: meta-description,
  *     OG card title, excerpt (post-editor AI buttons).
  *   - inc/abilities-ai-health.php             — 7 abilities: Health-tab AI
  *     Suggest+Apply (alt text, drift phrases, inline alt, orphan media).
  *   - inc/abilities-ai-pattern-adoption.php  — 2 abilities: pattern-adoption
  *     Suggest+Apply (pull-quote + steps-enumerated). Added v4.3.0.
+ *   - inc/abilities-plausible.php             — 3 abilities: Plausible stats,
+ *     realtime, connection test (v4.6.0).
+ *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
+ *     scan + dismiss (structural 'tools' category, v4.6.0).
  *
- * Total: 30 abilities + 5 categories. Each feature file owns its
+ * Total: 40 abilities + 5 categories. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *
