@@ -132,6 +132,54 @@ function snt_pattern_adoption_render_opportunities_section() {
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
+ * Shared dismiss impl: append a `$pattern_type:$fingerprint` key to the
+ * post's `_snt_pattern_adoption_dismissed` meta (the array the scanner
+ * reads in inc/pattern-adoption-detect.php) and invalidate the current
+ * user's scan transient so the next render reflects the dismissal.
+ *
+ * The single source of truth for the dismiss write — both the REST route
+ * (snt_rest_pattern_adoption_dismiss) and the Ability
+ * (snt_ability_pattern_adoption_dismiss) call this so they can never drift.
+ * Idempotent: dismissing the same key twice is a no-op.
+ *
+ * @param int    $post_id      Target post ID (> 0).
+ * @param string $pattern_type Pattern slug (e.g. 'pull-quote'); non-empty.
+ * @param string $fingerprint  Block fingerprint from the scan; non-empty.
+ * @return array{ok:bool,message:string}
+ *
+ * @since 4.6.0
+ */
+function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprint ) {
+	$post_id      = (int) $post_id;
+	$pattern_type = (string) $pattern_type;
+	$fingerprint  = (string) $fingerprint;
+
+	if ( $post_id <= 0 ) {
+		return array( 'ok' => false, 'message' => 'Invalid post_id.' );
+	}
+	if ( '' === $pattern_type || '' === $fingerprint ) {
+		return array( 'ok' => false, 'message' => 'Missing pattern_type or fingerprint.' );
+	}
+
+	$existing = (array) get_post_meta( $post_id, '_snt_pattern_adoption_dismissed', true );
+	if ( ! is_array( $existing ) ) {
+		$existing = array();
+	}
+	$key = $pattern_type . ':' . $fingerprint;
+	if ( in_array( $key, $existing, true ) ) {
+		return array( 'ok' => true, 'message' => 'Already dismissed (no-op).' );
+	}
+	$existing[] = $key;
+	update_post_meta( $post_id, '_snt_pattern_adoption_dismissed', $existing );
+
+	// Invalidate the user's scan transient so the next render reflects the dismissal.
+	$tkey = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
+	delete_transient( $tkey );
+
+	return array( 'ok' => true, 'message' => 'Dismissed.' );
+}
+
+/**
  * REST handler for /health/pattern-adoption-dismiss.
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-dismiss`
@@ -145,17 +193,7 @@ function snt_rest_pattern_adoption_dismiss( WP_REST_Request $request ) {
 	$fingerprint  = (string) $request->get_param( 'block_fingerprint' );
 	$pattern_type = (string) $request->get_param( 'pattern_type' );
 
-	$existing = (array) get_post_meta( $post_id, '_snt_pattern_adoption_dismissed', true );
-	if ( ! is_array( $existing ) ) { $existing = array(); }
-	$key = $pattern_type . ':' . $fingerprint;
-	if ( ! in_array( $key, $existing, true ) ) {
-		$existing[] = $key;
-		update_post_meta( $post_id, '_snt_pattern_adoption_dismissed', $existing );
-	}
-
-	// Invalidate the user's scan transient so the next render reflects the dismissal.
-	$tkey = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
-	delete_transient( $tkey );
+	snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprint );
 
 	return rest_ensure_response( array( 'ok' => true ) );
 }

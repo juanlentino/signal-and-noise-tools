@@ -27,7 +27,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/pattern-adoption-scan', array(
 		'label'               => 'Scan posts for v9.2.0 pattern-adoption opportunities',
-		'description'         => 'Walks every published post + page, identifying blocks that match the heuristic templates for signal-noise/pull-quote or signal-noise/steps-enumerated. Returns the candidate list. Caches result in option sn_pattern_adoption_last_scan; cache expires on next post save.',
+		'description'         => 'Walks every published post + page, identifying blocks that match the heuristic templates for signal-noise/pull-quote or signal-noise/steps-enumerated. Returns the candidate list. Caches the result in a user-scoped transient (`snt_pattern_adoption_candidates_<user_id>`).',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_pattern_adoption_scan',
@@ -55,15 +55,25 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/pattern-adoption-dismiss', array(
 		'label'               => 'Dismiss a pattern-adoption candidate',
-		'description'         => 'Adds a candidate fingerprint to the dismissal list (option sn_pattern_adoption_dismissed) so it doesn\'t reappear on subsequent scans. Idempotent — dismissing the same fingerprint twice is a no-op.',
+		'description'         => 'Marks a scanned candidate as dismissed by appending its `pattern_type:block_fingerprint` key to the target post\'s `_snt_pattern_adoption_dismissed` meta — the same store the scanner filters against — so it doesn\'t reappear on subsequent scans. Idempotent — dismissing the same candidate twice is a no-op.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_pattern_adoption_dismiss',
 		'input_schema'        => array(
 			'type'                 => 'object',
-			'required'             => array( 'fingerprint' ),
+			'required'             => array( 'post_id', 'pattern_type', 'block_fingerprint' ),
 			'properties'           => array(
-				'fingerprint' => array(
+				'post_id'           => array(
+					'type'        => 'integer',
+					'description' => 'ID of the post the candidate belongs to.',
+					'minimum'     => 1,
+				),
+				'pattern_type'      => array(
+					'type'        => 'string',
+					'description' => 'Pattern slug from pattern-adoption-scan output (e.g. pull-quote, steps-enumerated).',
+					'minLength'   => 1,
+				),
+				'block_fingerprint' => array(
 					'type'        => 'string',
 					'description' => 'Block fingerprint from pattern-adoption-scan output.',
 					'minLength'   => 1,
@@ -91,7 +101,9 @@ add_action( 'wp_abilities_api_init', function() {
 /**
  * Ability execute_callback for signal-noise/pattern-adoption-scan.
  *
- * Delegates to snt_pattern_adoption_run_scan() in inc/pattern-adoption-detect.php.
+ * Delegates to snt_pattern_adoption_run_scan() in inc/pattern-adoption-detect.php,
+ * which returns an ENVELOPE: { candidates, counts, scanned_at }. We surface
+ * only the candidate list + its count to match the output_schema.
  *
  * @param mixed $input Ignored.
  * @return array{ok:bool,candidates:array,count:int}
@@ -100,37 +112,32 @@ function snt_ability_pattern_adoption_scan( $input ) {
 	if ( ! function_exists( 'snt_pattern_adoption_run_scan' ) ) {
 		return array( 'ok' => false, 'candidates' => array(), 'count' => 0 );
 	}
-	$candidates = snt_pattern_adoption_run_scan();
-	if ( ! is_array( $candidates ) ) {
-		$candidates = array();
-	}
+	$result     = snt_pattern_adoption_run_scan();
+	$candidates = ( is_array( $result ) && isset( $result['candidates'] ) && is_array( $result['candidates'] ) )
+		? $result['candidates']
+		: array();
 	return array( 'ok' => true, 'candidates' => $candidates, 'count' => count( $candidates ) );
 }
 
 /**
  * Ability execute_callback for signal-noise/pattern-adoption-dismiss.
  *
- * Mutates option sn_pattern_adoption_dismissed (array of fingerprints).
- * Idempotent — in_array() check before append.
+ * Delegates to snt_pattern_adoption_dismiss_impl() (inc/pattern-adoption-admin.php),
+ * which writes the `pattern_type:block_fingerprint` key into the post's
+ * `_snt_pattern_adoption_dismissed` meta — the real store the scanner reads.
+ * Idempotent.
  *
- * @param array $input { fingerprint: string }
+ * @param array $input { post_id: int, pattern_type: string, block_fingerprint: string }
  * @return array{ok:bool,message:string}
  */
 function snt_ability_pattern_adoption_dismiss( $input ) {
-	$fp = isset( $input['fingerprint'] ) ? (string) $input['fingerprint'] : '';
-	if ( '' === $fp ) {
-		return array( 'ok' => false, 'message' => 'Missing fingerprint.' );
+	$post_id      = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+	$pattern_type = isset( $input['pattern_type'] ) ? (string) $input['pattern_type'] : '';
+	$fingerprint  = isset( $input['block_fingerprint'] ) ? (string) $input['block_fingerprint'] : '';
+
+	if ( ! function_exists( 'snt_pattern_adoption_dismiss_impl' ) ) {
+		return array( 'ok' => false, 'message' => 'Pattern-adoption module not loaded.' );
 	}
 
-	$dismissed = get_option( 'sn_pattern_adoption_dismissed', array() );
-	if ( ! is_array( $dismissed ) ) {
-		$dismissed = array();
-	}
-	if ( in_array( $fp, $dismissed, true ) ) {
-		return array( 'ok' => true, 'message' => 'Already dismissed (no-op).' );
-	}
-	$dismissed[] = $fp;
-	update_option( 'sn_pattern_adoption_dismissed', $dismissed, false );
-
-	return array( 'ok' => true, 'message' => 'Dismissed.' );
+	return snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprint );
 }
