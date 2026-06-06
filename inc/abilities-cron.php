@@ -215,6 +215,45 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/run-cron-event', array(
+		'label'               => 'Run a scheduled cron event now',
+		'description'         => 'Synchronously dispatches the named cron event by calling do_action() on its hook. DESTRUCTIVE — runs the hook callbacks immediately. Refuses SN-internal hooks (sn_*) for safety; use the dedicated abilities for those.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_run_cron_event',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'hook' ),
+			'properties'           => array(
+				'hook' => array(
+					'type'        => 'string',
+					'description' => 'WP cron hook name to dispatch.',
+					'minLength'   => 1,
+				),
+				'args' => array(
+					'type'        => 'array',
+					'description' => 'Args to pass to do_action(). Default: empty array.',
+					'default'     => array(),
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'message' => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				'idempotent'  => false,
+			),
+		),
+	) );
 } );
 
 /**
@@ -274,4 +313,35 @@ function snt_ability_unschedule_cron_event( $input ) {
 	$hook = isset( $input['hook'] ) ? (string) $input['hook'] : '';
 	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
 	return snt_cron_unschedule_event_impl( $hook, $args );
+}
+
+/**
+ * Ability execute_callback for signal-noise/run-cron-event.
+ *
+ * Refuses to dispatch SN-namespaced hooks (sn_*) — those have dedicated
+ * abilities (purge-all-caches, force-check-updates, etc.) with proper
+ * input schemas. This generic runner exists for WP-native + 3rd-party hooks.
+ *
+ * @param array $input { hook: string, args?: array }
+ * @return array{ok:bool,message:string}|WP_Error
+ */
+function snt_ability_run_cron_event( $input ) {
+	$hook = isset( $input['hook'] ) ? sanitize_key( $input['hook'] ) : '';
+	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
+
+	if ( '' === $hook ) {
+		return new WP_Error( 'snt_invalid_hook', 'Missing or empty hook name.', array( 'status' => 422 ) );
+	}
+
+	if ( str_starts_with( $hook, 'sn_' ) ) {
+		return new WP_Error(
+			'snt_sn_hook_refused',
+			'SN-internal hooks (sn_*) are not dispatchable via this ability — use the dedicated abilities for those actions.',
+			array( 'status' => 422 )
+		);
+	}
+
+	do_action_ref_array( $hook, $args );
+
+	return array( 'ok' => true, 'message' => sprintf( 'Dispatched %s.', $hook ) );
 }
