@@ -3,10 +3,10 @@
  * Signal & Noise Tools — Abilities API category registrations.
  *
  * Extracted from inc/abilities-registration.php by the v4.1.3 split
- * (audit B-11). Registers the 5 SN-owned ability categories on the
+ * (audit B-11). Registers the SN-owned ability categories on the
  * `wp_abilities_api_categories_init` action so subsequent ability
  * registrations (in the per-feature inc/abilities-*.php files) can
- * cite a registered category.
+ * cite a registered category. (5 since v4.1.3; `tools` added v4.6.0.)
  *
  * Per upstream source, the registry checks `wp_has_ability_category()`
  * and silently bails on `wp_register_ability()` if the category isn't
@@ -68,6 +68,17 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		wp_register_ability_category( 'ai-generation', array(
 			'label'       => 'AI Generation',
 			'description' => 'AI Client-backed content generation (meta descriptions, OG card titles, excerpts).',
+		) );
+	}
+
+	// v4.6.0: 'tools' backs the deterministic/structural site-tool abilities —
+	// the 4 block-migrations abilities and the 2 pattern-adoption abilities
+	// cite it. Without this registration the registry's wp_has_ability_category()
+	// check silently bails on those wp_register_ability() calls in real WP.
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'tools' ) ) {
+		wp_register_ability_category( 'tools', array(
+			'label'       => 'Tools',
+			'description' => 'Structural/deterministic site tools — block migrations, pattern adoption.',
 		) );
 	}
 } );
