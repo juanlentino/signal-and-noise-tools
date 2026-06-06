@@ -271,6 +271,13 @@ function sn_rest_full_reset( WP_REST_Request $request ) {
  * cache. Returns whatever the SWR layer has (possibly stale, possibly
  * empty if the very first cron warmup hasn't landed yet). Never
  * triggers a network call.
+ *
+ * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-stats`
+ *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-stats/run).
+ *             This back-compat route will be removed in v5.0.0+.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_stats( WP_REST_Request $request ) {
 	if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
@@ -289,6 +296,13 @@ function sn_rest_plausible_stats( WP_REST_Request $request ) {
 /**
  * GET /plausible/realtime — read-only accessor for the realtime cache.
  * Same SWR semantics as /stats.
+ *
+ * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-realtime`
+ *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-realtime/run).
+ *             This back-compat route will be removed in v5.0.0+.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_realtime( WP_REST_Request $request ) {
 	if ( ! function_exists( 'sn_plausible_realtime' ) ) {
@@ -307,6 +321,13 @@ function sn_rest_plausible_realtime( WP_REST_Request $request ) {
  * button in the Plausible admin tab. The synchronous-by-design
  * exception to the SWR-everywhere rule: an admin clicked "test",
  * they're waiting on a real-network result, not a cached one.
+ *
+ * @deprecated since 4.6.0 — prefer the `signal-noise/test-plausible-connection`
+ *             ability (via /wp-abilities/v1/abilities/signal-noise/test-plausible-connection/run).
+ *             This back-compat route will be removed in v5.0.0+.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_test( WP_REST_Request $request ) {
 	if ( ! function_exists( 'sn_plausible_config' ) || ! function_exists( 'sn_plausible_api' ) ) {
@@ -348,6 +369,13 @@ function sn_rest_plausible_test( WP_REST_Request $request ) {
  * Returns the impl's array payload as a WP_REST_Response.
  *
  * @since plugin v3.0.0
+ *
+ * @deprecated since 4.6.0 — prefer the `signal-noise/run-cron-event`
+ *             ability (via /wp-abilities/v1/abilities/signal-noise/run-cron-event/run).
+ *             This back-compat route will be removed in v5.0.0+.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response|WP_Error
  */
 function snt_rest_cron_run( WP_REST_Request $request ) {
 	if ( ! function_exists( 'snt_cron_run_event_impl' ) ) {

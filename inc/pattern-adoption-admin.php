@@ -131,28 +131,39 @@ function snt_pattern_adoption_render_opportunities_section() {
  * REST endpoint — dismiss.
  * ════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * REST handler for /health/pattern-adoption-dismiss.
+ *
+ * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-dismiss`
+ *             ability. This back-compat route will be removed in v5.0.0+.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function snt_rest_pattern_adoption_dismiss( WP_REST_Request $request ) {
+	$post_id      = (int) $request->get_param( 'post_id' );
+	$fingerprint  = (string) $request->get_param( 'block_fingerprint' );
+	$pattern_type = (string) $request->get_param( 'pattern_type' );
+
+	$existing = (array) get_post_meta( $post_id, '_snt_pattern_adoption_dismissed', true );
+	if ( ! is_array( $existing ) ) { $existing = array(); }
+	$key = $pattern_type . ':' . $fingerprint;
+	if ( ! in_array( $key, $existing, true ) ) {
+		$existing[] = $key;
+		update_post_meta( $post_id, '_snt_pattern_adoption_dismissed', $existing );
+	}
+
+	// Invalidate the user's scan transient so the next render reflects the dismissal.
+	$tkey = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
+	delete_transient( $tkey );
+
+	return rest_ensure_response( array( 'ok' => true ) );
+}
+
 add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/health/pattern-adoption-dismiss', array(
 		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			$post_id      = (int) $request->get_param( 'post_id' );
-			$fingerprint  = (string) $request->get_param( 'block_fingerprint' );
-			$pattern_type = (string) $request->get_param( 'pattern_type' );
-
-			$existing = (array) get_post_meta( $post_id, '_snt_pattern_adoption_dismissed', true );
-			if ( ! is_array( $existing ) ) { $existing = array(); }
-			$key = $pattern_type . ':' . $fingerprint;
-			if ( ! in_array( $key, $existing, true ) ) {
-				$existing[] = $key;
-				update_post_meta( $post_id, '_snt_pattern_adoption_dismissed', $existing );
-			}
-
-			// Invalidate the user's scan transient so the next render reflects the dismissal.
-			$tkey = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
-			delete_transient( $tkey );
-
-			return rest_ensure_response( array( 'ok' => true ) );
-		},
+		'callback'            => 'snt_rest_pattern_adoption_dismiss',
 		'permission_callback' => function( WP_REST_Request $request ) {
 			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
 		},
