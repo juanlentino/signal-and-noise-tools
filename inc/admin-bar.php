@@ -69,7 +69,53 @@ function sn_admin_bar_items() {
 			// Only shown when CF is configured.
 			'guard'  => 'sn_cf_is_configured',
 		),
+		'sn-quick-regen-og-card' => array(
+			'action' => 'sn_quick_regen_og_card',
+			'label'  => '⟳ Regen OG Card',
+			// CONTEXTUAL — only shown when a single post is in context
+			// (admin post-edit screen or front-end singular). The render
+			// guard resolves the post ID; the item carries it to the JS so
+			// the AJAX request knows which post to act on.
+			'guard'  => 'sn_admin_bar_contextual_post_id',
+		),
 );
+}
+
+/**
+ * Resolve the post ID for the contextual "Regen OG Card" item, or 0 when
+ * there is no single post in context. Used as both the menu guard (a
+ * positive ID means "show the item") and the source of the post ID the JS
+ * forwards to the AJAX handler.
+ *
+ * Contexts that resolve a post ID:
+ *   - Admin post-edit screen: get_current_screen()->base === 'post' with a
+ *     numeric ?post= in the query (Classic editor + block editor both load
+ *     post.php?post=ID).
+ *   - Front-end singular view: is_singular() → get_queried_object_id().
+ *
+ * @return int Post ID > 0 when in context, else 0.
+ */
+function sn_admin_bar_contextual_post_id() {
+	if ( is_admin() ) {
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return 0;
+		}
+		$screen = get_current_screen();
+		if ( ! $screen || 'post' !== $screen->base ) {
+			return 0;
+		}
+		// Nonce check is not appropriate here: this is a read-only render
+		// guard inspecting the current admin URL, not a state change. The
+		// resolved ID is re-validated (existence + edit cap) in the handler.
+		$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return $post_id > 0 ? $post_id : 0;
+	}
+
+	if ( function_exists( 'is_singular' ) && is_singular() ) {
+		return (int) get_queried_object_id();
+	}
+
+	return 0;
 }
 
 /**
@@ -93,7 +139,12 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 	) );
 
 	foreach ( sn_admin_bar_items() as $node_id => $item ) {
-		// Conditional items (e.g., Cloudflare only when configured).
+		// Conditional items (e.g., Cloudflare only when configured, or the
+		// contextual Regen OG Card which is only shown for a single post).
+		// A guard that returns falsy hides the item. The post ID a contextual
+		// guard resolves is carried to the JS via the script config (see
+		// sn_admin_bar_print_script) rather than a DOM attribute — WP core's
+		// admin bar renderer doesn't pass arbitrary data-* attrs through.
 		if ( ! empty( $item['guard'] ) && is_callable( $item['guard'] ) && ! call_user_func( $item['guard'] ) ) {
 			continue;
 		}
@@ -137,6 +188,7 @@ add_action( 'init', function() {
 		'sn_quick_purge_caches'       => 'sn_handle_quick_purge_caches',
 		'sn_quick_clear_overrides'    => 'sn_handle_quick_clear_overrides',
 		'sn_quick_cf_purge'           => 'sn_handle_quick_cf_purge',
+		'sn_quick_regen_og_card'      => 'sn_handle_quick_regen_og_card',
 );
 	foreach ( $handlers as $action => $callback ) {
 		add_action( 'wp_ajax_' . $action, $callback );
@@ -186,6 +238,36 @@ function sn_handle_quick_scan_patterns() {
 			1 === $count ? '' : 's'
 		),
 	) );
+}
+
+function sn_handle_quick_regen_og_card() {
+	check_ajax_referer( 'sn_quick_regen_og_card' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
+	}
+	// Nonce verified above by check_ajax_referer.
+	$post_id = isset( $_POST['post_id'] ) ? (int) $_POST['post_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	if ( $post_id <= 0 || ! get_post( $post_id ) ) {
+		wp_send_json_error( array( 'message' => 'No post in context.' ), 400 );
+	}
+	// Per-post capability — manage_options alone is not enough to regen a
+	// card for an arbitrary post; the user must be able to edit THIS post.
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		wp_send_json_error( array( 'message' => 'You cannot edit this post.' ), 403 );
+	}
+	// Same work the signal-noise/regenerate-og-card ability does: its
+	// execute_callback (snt_ability_regenerate_og_card) calls
+	// sn_generate_og_card( $post_id ) (returns bool). Call the same impl so
+	// the admin-bar action and the ability stay behaviorally identical.
+	if ( ! function_exists( 'sn_generate_og_card' ) ) {
+		wp_send_json_error( array( 'message' => 'OG card generator not available.' ), 500 );
+	}
+	if ( ! sn_generate_og_card( $post_id ) ) {
+		wp_send_json_error( array(
+			'message' => 'OG card regeneration failed (check that GD + theme fonts are available).',
+		), 500 );
+	}
+	wp_send_json_success( array( 'message' => 'OG card regenerated for this post.' ) );
 }
 
 function sn_handle_quick_purge_caches() {
@@ -260,13 +342,24 @@ function sn_admin_bar_print_script() {
 
 	$nonces = array();
 	foreach ( sn_admin_bar_items() as $node_id => $item ) {
-		if ( ! empty( $item['guard'] ) && is_callable( $item['guard'] ) && ! call_user_func( $item['guard'] ) ) {
-			continue;
+		$guard_value = null;
+		if ( ! empty( $item['guard'] ) && is_callable( $item['guard'] ) ) {
+			$guard_value = call_user_func( $item['guard'] );
+			if ( ! $guard_value ) {
+				continue;
+			}
 		}
-		$nonces[ $node_id ] = array(
+		$node = array(
 			'action' => $item['action'],
 			'nonce'  => wp_create_nonce( $item['action'] ),
 		);
+		// A guard that returns a positive int (e.g. the contextual
+		// sn_admin_bar_contextual_post_id) supplies the post_id the JS
+		// forwards to admin-ajax for this item. Param-less items omit it.
+		if ( is_int( $guard_value ) && $guard_value > 0 ) {
+			$node['postId'] = $guard_value;
+		}
+		$nonces[ $node_id ] = $node;
 	}
 
 	$config = array(
@@ -296,6 +389,11 @@ function sn_admin_bar_print_script() {
 				const body = new URLSearchParams();
 				body.set('action', meta.action);
 				body.set('_ajax_nonce', meta.nonce);
+				// Optional contextual param (e.g. Regen OG Card carries the
+				// post ID resolved server-side). Param-less items skip it.
+				if (typeof meta.postId === 'number' && meta.postId > 0) {
+					body.set('post_id', String(meta.postId));
+				}
 
 				fetch(cfg.ajaxUrl, {
 					method: 'POST',
