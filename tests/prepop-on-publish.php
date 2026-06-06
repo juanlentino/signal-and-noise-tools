@@ -18,8 +18,21 @@ $GLOBALS['__test_updated']    = array();
 $GLOBALS['__ai_available']    = true;
 
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
-if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
-if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } }
+$GLOBALS['__test_filters'] = array();
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $tag, $cb, $priority = 10, $args = 1 ) { $GLOBALS['__test_filters'][ $tag ][] = $cb; return true; }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $tag, $value ) {
+		if ( ! empty( $GLOBALS['__test_filters'][ $tag ] ) ) {
+			foreach ( $GLOBALS['__test_filters'][ $tag ] as $cb ) { $value = call_user_func( $cb, $value ); }
+		}
+		return $value;
+	}
+}
+// The prepop trigger gates on this const (NOT the webhook filter) — see the
+// decoupling regression test below.
+if ( ! defined( 'SN_POST_SETTINGS_POST_TYPES' ) ) { define( 'SN_POST_SETTINGS_POST_TYPES', array( 'post', 'page' ) ); }
 if ( ! function_exists( 'get_post_meta' ) ) {
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__test_post_meta'][ $id ][ $key ] ?? ( $single ? '' : array() ); }
 }
@@ -32,8 +45,17 @@ if ( ! function_exists( 'delete_post_meta' ) ) {
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) { return $GLOBALS['__test_posts'][ $id ] ?? null; }
 }
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error { public $code; public function __construct( $code = '', $m = '', $d = array() ) { $this->code = $code; } }
+}
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return $t instanceof WP_Error; } }
 if ( ! function_exists( 'wp_update_post' ) ) {
-	function wp_update_post( $arr ) { $GLOBALS['__test_updated'][] = $arr; if ( isset( $arr['post_excerpt'], $GLOBALS['__test_posts'][ $arr['ID'] ] ) ) { $GLOBALS['__test_posts'][ $arr['ID'] ]->post_excerpt = $arr['post_excerpt']; } return $arr['ID']; }
+	function wp_update_post( $arr, $wp_error = false ) {
+		if ( ! empty( $GLOBALS['__wp_update_fails'] ) ) { return $wp_error ? new WP_Error( 'fail' ) : 0; }
+		$GLOBALS['__test_updated'][] = $arr;
+		if ( isset( $arr['post_excerpt'], $GLOBALS['__test_posts'][ $arr['ID'] ] ) ) { $GLOBALS['__test_posts'][ $arr['ID'] ]->post_excerpt = $arr['post_excerpt']; }
+		return $arr['ID'];
+	}
 }
 if ( ! function_exists( 'wp_schedule_single_event' ) ) {
 	function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['__test_scheduled'][] = array( 'hook' => $hook, 'args' => $args ); return true; }
@@ -63,6 +85,7 @@ if ( ! function_exists( 'snt_ai_og_card_title_impl' ) ) {
 }
 
 require_once __DIR__ . '/../inc/ai-prepopulate.php';
+require_once __DIR__ . '/../inc/ai-prepopulate-notice.php';
 
 $pass = 0; $fail = 0;
 function pp_true( $c, $msg ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $msg\n"; } else { $fail++; echo "  FAIL: $msg\n"; } }
@@ -72,7 +95,7 @@ function pp_post( $id, $status, $words = 200, $excerpt = '' ) {
 	$p->post_content = str_repeat( 'word ', $words ); $p->post_excerpt = $excerpt;
 	$GLOBALS['__test_posts'][ $id ] = $p; return $p;
 }
-function pp_reset() { $GLOBALS['__test_scheduled'] = array(); $GLOBALS['__test_post_meta'] = array(); $GLOBALS['__test_updated'] = array(); $GLOBALS['__concise_seen'] = array(); $GLOBALS['__ai_available'] = true; }
+function pp_reset() { $GLOBALS['__test_scheduled'] = array(); $GLOBALS['__test_post_meta'] = array(); $GLOBALS['__test_updated'] = array(); $GLOBALS['__concise_seen'] = array(); $GLOBALS['__ai_available'] = true; $GLOBALS['__test_filters'] = array(); $GLOBALS['__wp_update_fails'] = false; }
 
 // ── Trigger guard ──
 pp_reset(); $p = pp_post( 10, 'publish' );
@@ -92,6 +115,15 @@ pp_eq( 0, count( $GLOBALS['__test_scheduled'] ), 'publish->publish re-save does 
 pp_reset(); $p = pp_post( 13, 'publish' ); $p->post_type = 'attachment';
 snt_prepop_on_transition( 'publish', 'draft', $p );
 pp_eq( 0, count( $GLOBALS['__test_scheduled'] ), 'non-post/page type does NOT schedule' );
+
+// ── Regression: trigger is decoupled from the webhooks filter ──
+pp_reset();
+add_filter( 'sn_webhook_post_types', function ( $types ) { $types[] = 'product'; return $types; } );
+$p = new stdClass(); $p->ID = 14; $p->post_status = 'publish'; $p->post_type = 'product';
+$p->post_content = str_repeat( 'word ', 200 ); $p->post_excerpt = '';
+$GLOBALS['__test_posts'][14] = $p;
+snt_prepop_on_transition( 'publish', 'draft', $p );
+pp_eq( 0, count( $GLOBALS['__test_scheduled'] ), 'a CPT added to sn_webhook_post_types does NOT schedule prepop (gate uses SN_POST_SETTINGS_POST_TYPES, not the webhook filter)' );
 
 // ── Engine: fills empty fields, sets sentinels, passes concise ──
 pp_reset(); pp_post( 20, 'publish', 200, '' );
@@ -123,6 +155,12 @@ pp_eq( '', get_post_meta( 22, '_sn_meta_description', true ), 'AI unavailable �
 pp_reset(); pp_post( 23, 'publish', 10, '' );
 snt_run_prepop( 23 );
 pp_eq( '', get_post_meta( 23, '_sn_meta_description', true ), 'content under min words → no generation' );
+
+// ── Engine: excerpt write failure does NOT set the sentinel ──
+pp_reset(); pp_post( 24, 'publish', 200, '' ); $GLOBALS['__wp_update_fails'] = true;
+snt_run_prepop( 24 );
+pp_eq( '', get_post_meta( 24, '_sn_autogen_excerpt', true ), 'excerpt sentinel NOT set when wp_update_post fails' );
+pp_eq( '1', get_post_meta( 24, '_sn_autogen_meta_description', true ), 'meta-desc still set even when excerpt write fails' );
 
 // ── Notice render ──
 pp_reset();
