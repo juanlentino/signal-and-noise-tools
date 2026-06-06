@@ -218,5 +218,45 @@ add_filter( 'sn_gh_latest_theme_tag_result', function( $tag ) {
 $result = apply_filters( 'sn_gh_latest_theme_tag_result', null );
 cs_true( is_null( $result ), '4.4: listener can return null on failure case' );
 
+// ─── Contract 5: deploy-history Breeze rollover dispatch (v4.8.1, gotcha #28) ──
+// inc/deploy-history.php, on a real version change, rolls over Breeze's HTML
+// page cache via `apply_filters( 'sn_purge_all_caches_result', 0, $args )` with
+// $args['template_overrides'] === false (preserves Site Editor DB overrides).
+// We assert the contract shape — the exact dispatch the $dirty branch emits —
+// without requiring deploy-history.php (which would pull in WP bootstrap deps),
+// per this file's docblock rationale for Contract 1.
+echo "\nContract 5: deploy-history Breeze rollover dispatch (gotcha #28)\n";
+$GLOBALS['__test_filters'] = array();
+
+// 5a. With a listener registered, the rollover dispatch fires and forwards
+// the correct $args. Spy records what it received.
+$GLOBALS['__c5_seen'] = null;
+add_filter( 'sn_purge_all_caches_result', function( $count, $args ) {
+	$GLOBALS['__c5_seen'] = $args;
+	return 11; // simulate "11 cache entries purged"
+}, 10, 2 );
+
+// Dispatch EXACTLY as the $dirty branch does.
+$ret = null;
+if ( has_filter( 'sn_purge_all_caches_result' ) ) {
+	$ret = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+}
+
+cs_true( null !== $GLOBALS['__c5_seen'], '5.1: rollover listener fired' );
+cs_true( is_array( $GLOBALS['__c5_seen'] ) && array_key_exists( 'template_overrides', $GLOBALS['__c5_seen'] ), '5.2: $args carries template_overrides key' );
+cs_eq( false, $GLOBALS['__c5_seen']['template_overrides'] ?? null, '5.3: template_overrides === false (preserves Site Editor DB overrides)' );
+cs_true( is_int( $ret ), '5.4: dispatch return is cast to int' );
+cs_eq( 11, $ret, '5.5: int return reflects the listener result' );
+
+// 5b. No listener registered → has_filter() guard prevents any dispatch (no fatal).
+$GLOBALS['__test_filters'] = array();
+$GLOBALS['__c5_seen']      = null;
+$ret2                      = 'unset';
+if ( has_filter( 'sn_purge_all_caches_result' ) ) {
+	$ret2 = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+}
+cs_eq( 'unset', $ret2, '5.6: no listener → has_filter() guard skips dispatch (no fatal, no call)' );
+cs_true( null === $GLOBALS['__c5_seen'], '5.7: no listener → spy never invoked' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

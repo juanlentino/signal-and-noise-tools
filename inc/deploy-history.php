@@ -384,6 +384,14 @@ function snt_deploy_history_version_check() {
 	if ( $dirty ) {
 		// autoload=true → small footprint, accessed per admin request.
 		update_option( SNT_DEPLOY_HISTORY_SENTINEL_OPTION, $sentinel, true );
+
+		// v4.8.1: on a real version change, roll over Breeze's HTML page cache
+		// (holds inlined critical CSS) — theme gotcha #28. Listener lives in the
+		// theme (template-maintenance.php); template_overrides=false preserves
+		// Site Editor DB overrides (matches the dashboard "Purge All Caches").
+		if ( has_filter( 'sn_purge_all_caches_result' ) ) {
+			(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+		}
 	}
 }
 add_action( 'admin_init', 'snt_deploy_history_version_check' );
