@@ -83,8 +83,8 @@ add_action( 'wp_abilities_api_init', function() {
 	) );
 
 	wp_register_ability( 'signal-noise/test-plausible-connection', array(
-		'label'               => 'Test Plausible API connection',
-		'description'         => 'Pings the Plausible API with the configured token. Returns ok/error for setup diagnostics. Read-only; no side effects.',
+		'label'               => 'Report Plausible API health',
+		'description'         => 'Reports the health of the most recent Plausible fetch: ok when a cached realtime value is present and no error was recorded, otherwise the last recorded error message. Does NOT perform a live ping — it reads the cached value (`sn_plausible_realtime()`) and the last-error transient (`sn_plausible_last_error()`). Read-only; no side effects.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_test_plausible_connection',
@@ -143,8 +143,11 @@ function snt_ability_get_plausible_realtime( $input ) {
 /**
  * Ability execute_callback for signal-noise/test-plausible-connection.
  *
- * Uses sn_plausible_last_error() — the existing inc/plausible-api.php helper
- * that captures the most recent API error transient.
+ * Reports the health of the most recent fetch rather than performing a live
+ * ping: sn_plausible_realtime() returns the CACHED realtime count (never a
+ * network call — see its docblock), and sn_plausible_last_error() returns
+ * the most recent recorded API-error transient. "Healthy" = a cached value
+ * is present AND no error is on record; otherwise the recorded error message.
  *
  * @param mixed $input Ignored.
  * @return array{ok:bool,message:string}
@@ -153,12 +156,12 @@ function snt_ability_test_plausible_connection( $input ) {
 	if ( ! function_exists( 'sn_plausible_realtime' ) || ! function_exists( 'sn_plausible_last_error' ) ) {
 		return array( 'ok' => false, 'message' => 'Plausible module not loaded.' );
 	}
-	// Force a fresh call to surface API health.
+	// Read the cached realtime value + the last recorded error (no live ping).
 	$res = sn_plausible_realtime();
 	$err = sn_plausible_last_error();
 	if ( is_int( $res ) && empty( $err ) ) {
-		return array( 'ok' => true, 'message' => 'Plausible API reachable.' );
+		return array( 'ok' => true, 'message' => 'Plausible last fetch healthy (cached value present, no recorded error).' );
 	}
-	$msg = is_array( $err ) && ! empty( $err['message'] ) ? $err['message'] : 'Unknown error.';
+	$msg = is_array( $err ) && ! empty( $err['message'] ) ? $err['message'] : 'No cached value and no recorded error — no fetch has succeeded yet.';
 	return array( 'ok' => false, 'message' => $msg );
 }
