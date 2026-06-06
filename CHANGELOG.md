@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.7.0] - 2026-06-06 — Admin-bar expansion — 3 quick-action items
+
+**Released:** 2026-06-06.
+
+**Headline:** Three new one-click quick actions land in the existing grandfathered S&N admin-bar dropdown — Force Update Check, Scan Pattern Adoption, and a contextual Regen OG Card. Each wraps the same impl its matching Ability calls, so the admin-bar shortcut and the Ability stay behaviorally identical. Iterating an existing grandfathered surface (not a new surface), per the no-new-admin-surfaces carve-out.
+
+### Added
+
+- **↺ Force Update Check** (`inc/admin-bar.php`). One-click bust of the GitHub tag caches + WP's `update_themes` / `update_plugins` transients, so a freshly-pushed tag shows up under Dashboard › Updates without waiting for the next cron poll. Calls `snt_cmd_impl_force_check()` — the same impl the `signal-noise/force-check-updates` ability uses. No guard (always shown to `manage_options` users). Toast: "Update check forced — see Dashboard › Updates."
+- **⌕ Scan Pattern Adoption** (`inc/admin-bar.php`). Triggers a walk of every post/page for v9.2.0 pattern candidates via `snt_pattern_adoption_run_scan()`, then reports the **candidate count** in the toast (counts `$result['candidates']`, not the 3-key scan envelope). No guard. Toast: "Pattern scan complete — N candidate(s)."
+- **⟳ Regen OG Card** (`inc/admin-bar.php`). **Contextual** — only appears when a single post is in context (admin post-edit screen with `?post=`, or a front-end singular view). Regenerates the social-share card for that post via `sn_generate_og_card()` — the same impl the `signal-noise/regenerate-og-card` ability uses. The resolved post ID is plumbed to the AJAX request server-side; the handler re-validates it (post exists + per-post `edit_post` capability) before regenerating. Toast: "OG card regenerated for this post."
+
+### Security
+
+- The contextual Regen handler cap-gates the post ID with a per-post `edit_post` check, not just `manage_options` — a site admin cannot regen a card for a post they lack edit rights to. The post ID is re-validated server-side (existence + capability) rather than trusted from the request.
+
 ## [4.6.0] - 2026-06-05 — Prep minor for v5.0.0 — 6 new abilities + WP 7.0 pre-warning + legacy REST deprecation annotations
 
 **Released:** 2026-06-05.
