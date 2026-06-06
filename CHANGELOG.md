@@ -20,11 +20,22 @@ All notable changes to Signal & Noise Tools are documented here.
 
 - **`signal-noise/get-plausible-stats` ability** (`inc/abilities-plausible.php`). Returns the Plausible dashboard breakdown. Replaces the `GET /signal-noise/v1/plausible/stats` REST route for AI agents and automation.
 - **`signal-noise/get-plausible-realtime` ability** (`inc/abilities-plausible.php`). Returns the current realtime visitor count.
-- **`signal-noise/test-plausible-connection` ability** (`inc/abilities-plausible.php`). Pings the Plausible API for setup diagnostics.
+- **`signal-noise/test-plausible-connection` ability** (`inc/abilities-plausible.php`). Reports the health of the most recent Plausible fetch (cached realtime value + last-recorded-error transient) for setup diagnostics — does not perform a live ping.
 - **`signal-noise/run-cron-event` ability** (`inc/abilities-cron.php`). Synchronously dispatches a cron event by hook name. Refuses SN-internal `sn_*` hooks (use the dedicated abilities for those — `purge-all-caches`, `force-check-updates`, etc.).
 - **`signal-noise/pattern-adoption-scan` ability** (`inc/abilities-pattern-adoption.php`). Walks every post/page for v9.2.0 pattern candidates. Replaces `POST /signal-noise/v1/health/pattern-adoption-scan`.
-- **`signal-noise/pattern-adoption-dismiss` ability** (`inc/abilities-pattern-adoption.php`). Dismisses a candidate fingerprint. Idempotent.
+- **`signal-noise/pattern-adoption-dismiss` ability** (`inc/abilities-pattern-adoption.php`). Dismisses a scanned candidate by writing its `pattern_type:block_fingerprint` key into the post's `_snt_pattern_adoption_dismissed` meta — the same store the scanner reads. Requires `post_id` + `pattern_type` + `block_fingerprint`. Idempotent.
 - **WP 7.0 pre-warning admin notice** (`inc/admin-notice-wp-version.php`). Dismissible notice on every wp-admin page when WP < 7.0. Persists dismissal via user-meta. Self-contained file — will be deleted in v5.0.0.
+
+### Fixed
+
+Adversarial pre-ship review of the new v4.6.0 abilities surfaced six behavioral defects (registration-shape tests had passed them):
+
+- **`run-cron-event` was a strictly weaker dispatcher** — it called `do_action_ref_array()` directly, bypassing the proven `snt_cron_run_event_impl()` (`inc/cron-dashboard.php`). It returned `ok:true` for orphan hooks with no handlers, had no `Throwable` catch (a throwing callback would fatal), no `DOING_CRON` spoof, and no last-fired/history tracking — and `sanitize_key()` mangled mixed-case/namespaced hook names so they never matched. Now delegates to the impl (matching hook names verbatim) and only adds the `sn_*` pre-filter. (`inc/abilities-cron.php`)
+- **`pattern-adoption-dismiss` wrote a DEAD store** — it appended to the option `sn_pattern_adoption_dismissed`, which nothing reads. The scanner reads per-post meta `_snt_pattern_adoption_dismissed` (array of `pattern_type:fingerprint` keys), so dismissals had no effect. Extracted a shared `snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprint )` (`inc/pattern-adoption-admin.php`); the REST route and the ability now both call it. Ability input is now `post_id` + `pattern_type` + `block_fingerprint` (was a bare `fingerprint`). (`inc/abilities-pattern-adoption.php`, `inc/pattern-adoption-admin.php`)
+- **`pattern-adoption-scan` returned the wrong shape** — `snt_pattern_adoption_run_scan()` returns an envelope `{candidates, counts, scanned_at}`; the ability treated the whole envelope as the candidate list, so `count` was always 3 (the envelope key count). Now reads `result['candidates']`. Description also corrected — it cited a non-existent option `sn_pattern_adoption_last_scan`; the scan actually caches in a user-scoped transient. (`inc/abilities-pattern-adoption.php`)
+- **The `'tools'` ability category was registered NOWHERE** — the 2 pattern-adoption abilities and the 4 block-migrations abilities all cite `category => 'tools'`, but the registry silently bails on `wp_register_ability()` when the category isn't registered, so all 6 would have failed to register in real WP. Added a guarded `tools` registration. (`inc/abilities-categories.php`)
+- **`test-plausible-connection` overstated its behavior** — label/description/comment claimed it "pings the Plausible API" / "forces a fresh call", but `sn_plausible_realtime()` only reads a cached transient (never a network call). Softened to accurately report the health of the most recent fetch via the cached value + `sn_plausible_last_error()`. (`inc/abilities-plausible.php`)
+- **`tests/legacy-deprecation.php` banner detection could false-credit** — the preceding-window scan didn't stop at the close of an earlier block comment, so a neighboring `@deprecated` banner could satisfy a function whose own docblock omitted it. The window now breaks at the previous `*/`. (`tests/legacy-deprecation.php`)
 
 ### Deprecated
 
@@ -36,7 +47,7 @@ PHPdoc-level annotations only — no runtime warnings yet. Runtime `_deprecated_
 
 **Total abilities registered:** 40 (was 34 at v4.5.8).
 
-**Tests:** 1,074 assertions across 32 suites (excludes the WP-only `contracts-smoke.php`) — adds 6 new-ability registration assertions to `tests/abilities-integration.php`, the new `tests/wp-version-admin-notice.php` (4 assertions across the WP-version/dismissal/capability matrix), and extends `tests/legacy-deprecation.php` from 4 to 10 covered handlers.
+**Tests:** 1,098 assertions across 33 suites (excludes the WP-only `contracts-smoke.php`) — adds 6 new-ability registration assertions to `tests/abilities-integration.php`, the new `tests/wp-version-admin-notice.php` (4 assertions across the WP-version/dismissal/capability matrix), extends `tests/legacy-deprecation.php` from 4 to 10 covered handlers (and hardens its banner detection), and adds the new `tests/abilities-behavior-v460.php` (24 BEHAVIORAL assertions exercising the adversarial-review fixes: run-cron-event delegation incl. orphan/throwing/mixed-case paths, dismiss writing the real post-meta store + leaving the dead option untouched, and scan returning the real candidate count).
 
 ## [4.5.8] - 2026-06-05 — Post-ship audit fix: restore admin table top-inset
 

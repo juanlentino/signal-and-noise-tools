@@ -79,6 +79,25 @@ foreach ( $checks as $entry ) {
 	if ( false !== $boundary ) {
 		$preceding = substr( $preceding, $boundary );
 	}
+	// Also break the window at the LAST `*/` before the function — the close
+	// of any preceding block comment. The docblock that documents THIS
+	// function is the one whose `*/` we keep below (we look only at the text
+	// after the last comment-close that is NOT this function's own docblock).
+	// Without this, a neighboring `@deprecated` banner above an EARLIER
+	// comment could false-credit a function whose own docblock omits it.
+	$last_close = strrpos( $preceding, '*/' );
+	if ( false !== $last_close ) {
+		// Everything from the last `*/` onward is THIS function's docblock-close
+		// + signature gap. Search for an earlier block-comment close so we can
+		// confine the @deprecated scan to this function's own docblock only.
+		$before_this_doc = substr( $preceding, 0, $last_close );
+		$prev_close      = strrpos( $before_this_doc, '*/' );
+		if ( false !== $prev_close ) {
+			// Start the window just after the previous comment's close, so a
+			// banner sitting above an earlier comment can't bleed in.
+			$preceding = substr( $preceding, $prev_close + 2 );
+		}
+	}
 	$body      = substr( $src, $pos, 400 );
 	$has_phpdoc  = false !== strpos( $preceding, '@deprecated' );
 	$has_runtime = false !== strpos( $body, '_deprecated_function(' );
