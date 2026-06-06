@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.6.0] - 2026-06-05 — Prep minor for v5.0.0 — 6 new abilities + WP 7.0 pre-warning + legacy REST deprecation annotations
+
+**Released:** 2026-06-05.
+
+**Headline:** v4.6.0 is the prep-minor cycle for v5.0.0 + theme v10.0.0 paired-major event. Three additive workstreams: (1) close gaps in the Abilities API surface by registering 6 abilities that the existing REST routes had no Ability replacement for, (2) warn admins that v5.0.0 will require WordPress 7.0 via a dismissible admin notice, (3) annotate the legacy REST handlers with `@deprecated since 4.6.0` PHPdoc so v5.0.0 can promote to runtime warnings and v6.0.0 can remove.
+
+**v5.0.0 plan** (per `docs/superpowers/specs/2026-05-27-v5-and-v10-paired-cycle-design.md`):
+- HARD-raise `Requires at least: 7.0`. Plugin will refuse to install on WP < 7.0.
+- REMOVE the 4 `@deprecated since 2.5.0` REST routes (`/ai/generate-meta-description`, `/ai/generate-excerpt`, `/ai/generate-og-card-title`, `/cmd/<action>`).
+- REMOVE the 6 REST routes deprecated in this v4.6.0 cycle (`/plausible/stats`, `/plausible/realtime`, `/plausible/test`, `/cron/run`, `/health/pattern-adoption-scan`, `/health/pattern-adoption-dismiss`) — all have Ability replacements.
+- REMOVE the orphaned `sn_login_rewrites_flushed` option.
+- DROP pre-7.0 compat code (`snt_ai_is_available()` simplifies; native breadcrumbs fallback removed; etc.).
+- PROMOTE `@deprecated` PHPdoc on the non-Ability surface to `_deprecated_function()` runtime warnings. Removal scheduled for v6.0.0.
+
+### New
+
+- **`signal-noise/get-plausible-stats` ability** (`inc/abilities-plausible.php`). Returns the Plausible dashboard breakdown. Replaces the `GET /signal-noise/v1/plausible/stats` REST route for AI agents and automation.
+- **`signal-noise/get-plausible-realtime` ability** (`inc/abilities-plausible.php`). Returns the current realtime visitor count.
+- **`signal-noise/test-plausible-connection` ability** (`inc/abilities-plausible.php`). Pings the Plausible API for setup diagnostics.
+- **`signal-noise/run-cron-event` ability** (`inc/abilities-cron.php`). Synchronously dispatches a cron event by hook name. Refuses SN-internal `sn_*` hooks (use the dedicated abilities for those — `purge-all-caches`, `force-check-updates`, etc.).
+- **`signal-noise/pattern-adoption-scan` ability** (`inc/abilities-pattern-adoption.php`). Walks every post/page for v9.2.0 pattern candidates. Replaces `POST /signal-noise/v1/health/pattern-adoption-scan`.
+- **`signal-noise/pattern-adoption-dismiss` ability** (`inc/abilities-pattern-adoption.php`). Dismisses a candidate fingerprint. Idempotent.
+- **WP 7.0 pre-warning admin notice** (`inc/admin-notice-wp-version.php`). Dismissible notice on every wp-admin page when WP < 7.0. Persists dismissal via user-meta. Self-contained file — will be deleted in v5.0.0.
+
+### Deprecated
+
+PHPdoc-level annotations only — no runtime warnings yet. Runtime `_deprecated_function()` promotion lands in v5.0.0; removal in v5.0.0+.
+
+- `sn_rest_plausible_stats`, `sn_rest_plausible_realtime`, `sn_rest_plausible_test` in `inc/rest-api.php` → use the corresponding `signal-noise/get-plausible-*` / `signal-noise/test-plausible-connection` abilities.
+- `snt_rest_cron_run` in `inc/rest-api.php` → use `signal-noise/run-cron-event`.
+- `snt_rest_pattern_adoption_scan` (in `inc/pattern-adoption-detect.php`) + `snt_rest_pattern_adoption_dismiss` (in `inc/pattern-adoption-admin.php`) → use the corresponding `signal-noise/pattern-adoption-*` abilities.
+
+**Total abilities registered:** 40 (was 34 at v4.5.8).
+
+**Tests:** [TBD count] assertions across [TBD count] suites — Task 7 covers the new ability assertions + admin notice test.
+
 ## [4.5.8] - 2026-06-05 — Post-ship audit fix: restore admin table top-inset
 
 **Released:** 2026-06-05.
