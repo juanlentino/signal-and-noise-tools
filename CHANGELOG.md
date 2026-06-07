@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.10.1] - 2026-06-07 — Webhook: post.deleted fires once per deletion
+
+### Fixed
+- **`post.deleted` no longer double-fires, nor fires for never-published posts.** The permanent-delete trigger (`before_delete_post` → `sn_webhook_on_delete()`) now gates on `post_status === 'publish'`, so it fires exactly once per logical deletion. Two bugs in the v4.10.0 webhook-lifecycle work are fixed:
+  - **Trash → empty-trash double-fire (HIGH).** Trashing a published post fires `post.deleted` from the `publish→trash` transition; later emptying the trash hit `before_delete_post` on the already-`trash` row and re-fired `post.deleted` with a *different* `delivery_id`, so receivers couldn't dedupe. Purging an already-`trash` row is now suppressed.
+  - **Never-published rows firing spuriously (MED).** Drafts, pending/private/future posts, and — most visibly — `auto-draft` rows that WordPress core's `wp_delete_auto_drafts()` cron force-deletes daily fired `post.deleted` despite never having fired `post.published`. (`auto-draft` is a post *status* on a `post_type=post`/`page` row, so the post-type gate never excluded it.) These now fire nothing.
+  - A direct force-delete of a still-`publish` post (e.g. `EMPTY_TRASH_DAYS` off) still fires exactly once.
+- Corrected two docblocks in [inc/webhooks.php](inc/webhooks.php) that wrongly claimed the post-type gate excludes auto-drafts — the gate excludes revisions/attachments/nav-items by *type*; auto-drafts are excluded by the new `post_status` guard. Expanded [tests/webhooks.php](tests/webhooks.php) coverage across publish/trash/draft/auto-draft/revision/attachment delete cases plus a full publish→trash→purge lifecycle assertion (exactly one `post.deleted`).
+
+### Security
+- **Audit-log CSV export neutralizes spreadsheet formula injection.** A username (the only user-controllable field in the export) that begins with a formula trigger — `=`, `+`, `-`, `@`, or a leading tab/CR — is now prefixed with a single quote so Excel/Google Sheets render it as literal text instead of evaluating it. The export ability is REST-reachable, so this is defense-in-depth.
+
+### Cleanup
+- The `WP_Ability` test stub now mirrors the **real** `WP_Ability::execute()` error contract (`ability_invalid_permissions` on permission denial, `ability_invalid_input` on bad input) instead of the REST layer's `rest_forbidden`/`rest_invalid_param`. Verified against WordPress/abilities-api; the ability permission/validation tests now assert what production actually returns. Test-only — no behaviour change.
+- The privacy module ([inc/privacy-exporters.php](inc/privacy-exporters.php)) now uses the canonical `signal-noise-tools` i18n text domain, matching the rest of the plugin (i18n remains a documented non-goal; cosmetic).
+
 ## [4.10.0] - 2026-06-07 — Webhooks, privacy & perf
 
 **Headline:** Six additive surfaces across three tracks — the webhook pipeline grows from publish-only to the full post lifecycle with per-webhook event selection; the plugin wires into WordPress's native privacy tooling (exporter, eraser, suggested policy text) so the only PII it stores can be exported and erased on request; the audit log gains a CSV/JSON export; and the site can opt into Speculation Rules prerendering for perceived-instant navigation. No new admin-bar node or dashboard widget; everything lands where admins already look.

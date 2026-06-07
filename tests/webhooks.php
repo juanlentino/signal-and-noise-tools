@@ -458,7 +458,10 @@ wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'attachment delete → 0
 $GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
 sn_webhook_create( array( 'name' => 'lc', 'url' => 'https://lc.example', 'enabled' => '1', 'events' => array_keys( sn_webhook_events() ) ) );
 $GLOBALS['__test_scheduled_events'] = array();
-$lc_trash = (object) array( 'ID' => 205, 'post_type' => 'post', 'post_status' => 'trash' );
+$lc_trash = (object) array(
+	'ID' => 205, 'post_type' => 'post', 'post_status' => 'trash', 'post_title' => 'LC 205',
+	'post_name' => 'lc-205', 'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00',
+);
 sn_webhook_on_transition( 'trash', 'publish', $lc_trash );           // publish→trash → post.deleted #1
 $lc_purge = (object) array(
 	'ID' => 205, 'post_status' => 'trash', 'post_title' => 'LC 205', 'post_name' => 'lc-205',
