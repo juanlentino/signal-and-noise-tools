@@ -74,7 +74,29 @@ function sn_audit_export_build_json( array $view ) {
  * @return void
  */
 function sn_audit_export_fputcsv( $stream, array $fields ) {
-	fputcsv( $stream, $fields, ',', '"', '' );
+	fputcsv( $stream, array_map( 'sn_audit_export_csv_cell', $fields ), ',', '"', '' );
+}
+
+/**
+ * Neutralize spreadsheet formula injection in a CSV cell.
+ *
+ * A cell whose first character is one Excel/Google Sheets treats as a formula
+ * trigger ( = + - @, or a leading TAB / CR ) is prefixed with a single quote so
+ * the spreadsheet renders it as literal text instead of evaluating it (e.g. a
+ * username `=HYPERLINK(...)` or `=cmd|...`). Usernames are the user-controllable
+ * field in this export and the export ability is REST-reachable, so this is
+ * defense-in-depth even though numeric counters/dates never trigger it.
+ *
+ * @since 4.10.0
+ * @param mixed $value Cell value.
+ * @return string Safe cell value.
+ */
+function sn_audit_export_csv_cell( $value ) {
+	$value = (string) $value;
+	if ( '' !== $value && false !== strpos( "=+-@\t\r", $value[0] ) ) {
+		return "'" . $value;
+	}
+	return $value;
 }
 
 /**

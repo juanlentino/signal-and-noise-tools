@@ -171,6 +171,28 @@ assertTrue( false !== strpos( $csv, '"Last, First"' ), 'CSV quotes the comma-con
 $has_unquoted = ( false !== strpos( $csv, 'Last, First' ) ) && ( false === strpos( $csv, '"Last, First"' ) );
 assertTrue( ! $has_unquoted, 'CSV does not emit the comma username unquoted' );
 
+// CSV / spreadsheet formula injection: a username beginning with =, +, -, or @
+// (a formula trigger in Excel/Sheets) must be neutralized with a leading single
+// quote so it renders as text, not evaluated. The username is the user-
+// controllable field and the export ability is REST-reachable.
+$inj_view = array(
+	'days'            => 30,
+	'counters'        => array(),
+	'login_successes' => array(
+		array( 'ts' => 1, 'user' => '=1+1',     'formatted' => 'f1' ),
+		array( 'ts' => 2, 'user' => '+phone',   'formatted' => 'f2' ),
+		array( 'ts' => 3, 'user' => '-cmd',     'formatted' => 'f3' ),
+		array( 'ts' => 4, 'user' => '@at',      'formatted' => 'f4' ),
+		array( 'ts' => 5, 'user' => 'safeuser', 'formatted' => 'f5' ),
+	),
+);
+$inj_csv = sn_audit_export_build_csv( $inj_view );
+assertTrue( false !== strpos( $inj_csv, "'=1+1" ),     'CSV neutralizes a leading = (formula trigger)' );
+assertTrue( false !== strpos( $inj_csv, "'+phone" ),   'CSV neutralizes a leading +' );
+assertTrue( false !== strpos( $inj_csv, "'-cmd" ),     'CSV neutralizes a leading -' );
+assertTrue( false !== strpos( $inj_csv, "'@at" ),      'CSV neutralizes a leading @' );
+assertTrue( false === strpos( $inj_csv, "'safeuser" ), 'CSV does not prefix a safe username (no over-quoting)' );
+
 // Section ordering: # counters appears before # login_successes.
 assertTrue( strpos( $csv, '# counters' ) < strpos( $csv, '# login_successes' ), 'CSV counters section precedes login_successes section' );
 
