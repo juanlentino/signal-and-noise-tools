@@ -196,6 +196,7 @@ require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/audit-log.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
+require_once SNT_PATH . 'inc/privacy-exporters.php'; // v4.10.0: GDPR exporter/eraser + suggested privacy policy text
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;
