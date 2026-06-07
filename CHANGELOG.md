@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.8.1] - 2026-06-06 — Track A SEO/structured-data + ops/a11y patch
+
+**Headline:** A 9-item patch bundle that enriches the site's structured data, leans out the sitemap, makes social cards accessible, and adds two performance/a11y niceties. No new admin UI — all additive calibration.
+
+### Fixed
+- **Breeze HTML cache now rolls over automatically on deploy.** When a new plugin or theme version is detected, the inlined critical CSS held in Breeze's HTML page cache is purged — no more stale above-the-fold styles after an update. Site Editor template overrides are preserved.
+
+### Improvements
+- **Richer JSON-LD.** Article schema now carries reading time, word count, keywords, and section; the Person schema gains an author image (doubling as the publisher logo); the /notes CollectionPage enumerates its recent posts as an ItemList; and the WebSite schema emits a SearchAction pointing at on-site search, so Google can surface a sitelinks search box.
+- **Accessible social cards.** Open Graph and Twitter image tags now include alt text (featured-image alt → page title → site name).
+- **Leaner sitemap.** The author sitemap and the tag/category term-archive sitemaps are dropped from the index — a single-author Notes site doesn't need them, and the term archives are thin/duplicate-y.
+- **Conditional-GET on RSS feeds.** Feeds now answer `If-Modified-Since`/`If-None-Match` with a `304 Not Modified` when unchanged, saving bandwidth and crawl budget for well-behaved feed readers.
+- **Accessible Identity-tab table of contents.** The "Jump to" TOC on the Identity & SEO tab now highlights the section you're viewing as you scroll (`aria-current`), with graceful fallback where unsupported.
+
 ## [4.8.0] - 2026-06-06 — Post-editor cleanup + AI prepopulation
 
 ### New
