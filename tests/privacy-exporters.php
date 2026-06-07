@@ -240,5 +240,52 @@ pv_eq( true, $er_none['done'], 'eraser done=true for unknown email' );
 $after_none = get_option( SN_AUDIT_OPTION );
 pv_eq( 3, count( $after_none['login_success'] ), 'eraser unknown-email no-op leaves all 3 rows' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * ITEM B — suggested Privacy Policy text
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// Action registered.
+pv_true( in_array( 'sn_register_privacy_policy_content', $GLOBALS['__actions']['admin_init'] ?? array(), true ),
+	'privacy-policy-content registered on admin_init' );
+
+// Provide the wrapper WP would supply (delegates to the captured class).
+function wp_add_privacy_policy_content( $plugin_name, $policy_text ) {
+	WP_Privacy_Policy_Content::add( $plugin_name, $policy_text );
+}
+
+// Live retention int (45) flows into the copy; no webhooks configured.
+$GLOBALS['__privacy_content'] = array();
+$GLOBALS['__settings']['audit.retention_days'] = 45;
+$GLOBALS['__webhooks_all']                      = array();
+
+sn_register_privacy_policy_content();
+
+pv_eq( 1, count( $GLOBALS['__privacy_content'] ), 'privacy content added exactly once' );
+$entry = $GLOBALS['__privacy_content'][0];
+pv_eq( 'Signal & Noise Tools', $entry['plugin_name'], 'privacy content registered under the plugin name' );
+pv_true( false !== strpos( $entry['policy_text'], '45' ), 'policy text contains the live retention int (45)' );
+pv_true( false !== strpos( $entry['policy_text'], 'salted' ), "policy text mentions 'salted' IP hashing" );
+pv_true( false !== strpos( $entry['policy_text'], 'cookieless' ), "policy text mentions Plausible 'cookieless'" );
+pv_true( false === strpos( $entry['policy_text'], 'webhook' ) && false === strpos( $entry['policy_text'], 'endpoint' ),
+	'webhook sentence ABSENT when no webhooks configured' );
+
+// With a webhook configured, the webhook sentence appears.
+$GLOBALS['__privacy_content'] = array();
+$GLOBALS['__webhooks_all']    = array(
+	array( 'id' => 'wh1', 'name' => 'Zap', 'url' => 'https://example.com/hook', 'enabled' => true ),
+);
+sn_register_privacy_policy_content();
+$entry2 = $GLOBALS['__privacy_content'][0];
+pv_true( false !== stripos( $entry2['policy_text'], 'webhook' ), 'webhook sentence PRESENT when a webhook is configured' );
+
+// Retention int is escaped (esc_html applied) — value still present after escaping.
+pv_true( false !== strpos( $entry2['policy_text'], '45' ), 'retention int present in webhook-configured copy too' );
+
+// function_exists guard: when wp_add_privacy_policy_content is undefined, no fatal.
+// We can't un-define the function we declared, so assert the guard exists in source.
+$mod_src = file_get_contents( __DIR__ . '/../inc/privacy-exporters.php' );
+pv_true( false !== strpos( $mod_src, "function_exists( 'wp_add_privacy_policy_content' )" ),
+	'module guards wp_add_privacy_policy_content with function_exists (no fatal when undefined)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

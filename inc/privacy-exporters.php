@@ -202,3 +202,58 @@ function sn_privacy_erase_login_audit( $email, $page = 1 ) {
 		'done'           => true,
 	);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Suggested Privacy Policy content.
+ *
+ * Surfaced in wp-admin under Settings → Privacy → "Privacy Policy Guide" /
+ * the Suggested Privacy Policy Content postbox when editing the policy page.
+ * Describes the privacy-relevant data this plugin actually handles so the
+ * site owner can fold accurate copy into their published policy.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Register suggested Privacy Policy text describing the plugin's data handling.
+ *
+ * Guarded by function_exists so the plugin never fatals on a WP build where
+ * wp_add_privacy_policy_content() is unavailable.
+ *
+ * The webhook sentence is included ONLY when at least one webhook is
+ * configured — a site with no webhooks sends nothing to third parties, so the
+ * copy stays accurate.
+ */
+function sn_register_privacy_policy_content() {
+	if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
+		return;
+	}
+
+	$retention = (int) sn_setting( 'audit.retention_days', 90 );
+
+	$sentences = array();
+
+	// (a) Login audit.
+	$sentences[] = sprintf(
+		/* translators: %s: audit-log retention in days. */
+		__( 'This site keeps a security audit log of successful sign-ins, recording the timestamp and account username for up to %s days, after which entries are automatically deleted.', 'signal-and-noise-tools' ),
+		esc_html( (string) $retention )
+	);
+	$sentences[] = __( 'It also keeps daily aggregate counts of failed sign-in attempts and not-found login/admin requests. These counts are not tied to any individual.', 'signal-and-noise-tools' );
+	$sentences[] = __( 'To estimate unique sources of suspicious activity, IP addresses are converted to salted, one-way hashes that expire within 25 hours; raw IP addresses are never stored long-term and the hashes cannot be reversed.', 'signal-and-noise-tools' );
+
+	// (b) Webhooks — only when at least one is configured.
+	$webhooks = function_exists( 'sn_webhooks_all' ) ? sn_webhooks_all() : array();
+	if ( ! empty( $webhooks ) ) {
+		$sentences[] = __( 'When content is published, this site may send a signed webhook notification — including the post title, URL, author, and time — to the third-party endpoints you have configured.', 'signal-and-noise-tools' );
+	}
+
+	// (c) Plausible analytics.
+	$sentences[] = __( 'If Plausible Analytics is enabled, it collects aggregate, cookieless usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-and-noise-tools' );
+
+	$content = implode( "\n\n", $sentences );
+
+	wp_add_privacy_policy_content(
+		'Signal & Noise Tools',
+		wp_kses_post( wpautop( $content ) )
+	);
+}
+add_action( 'admin_init', 'sn_register_privacy_policy_content' );
