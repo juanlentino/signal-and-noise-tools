@@ -51,6 +51,8 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Recommendation snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Recommendation marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
+		'insights_draft_stale'      => array( 'error', 'That recommendation is no longer in the latest scan. Run a fresh scan and try again.' ),
+		'insights_draft_failed'     => array( 'error', 'Could not create the draft. Check that the Notes content surfaces are seeded, then try again.' ),
 		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),
 		'pattern_adoption_scanned'  => array( 'success', 'Scan complete.' ),
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
@@ -78,6 +80,25 @@ function sn_admin_flash_to_notice( $flash ) {
 	}
 
 	// Live-data codes — message computed from current state at render time.
+	// v4.11.0 (T5): the Insights "Create draft" success notice links to the
+	// new draft's editor. The edit link (which carries a nonce) is stashed in
+	// a per-user transient by sn_handle_insights_create_draft(); read it back
+	// here, then clear it so the notice fires exactly once.
+	if ( 'insights_draft_created' === $flash && function_exists( 'sn_insights_draft_result_key' ) ) {
+		$stash = get_transient( sn_insights_draft_result_key() );
+		delete_transient( sn_insights_draft_result_key() );
+		$edit_link = ( is_array( $stash ) && ! empty( $stash['edit_link'] ) ) ? (string) $stash['edit_link'] : '';
+		if ( '' !== $edit_link ) {
+			return array(
+				'success',
+				'Draft created from this recommendation. <a href="' . esc_url( $edit_link ) . '">Edit it &rarr;</a>',
+			);
+		}
+		// Draft was created but the edit link didn't survive (transient miss) —
+		// still report success without the link rather than swallowing it.
+		return array( 'success', 'Draft created from this recommendation. Find it under Posts &rarr; Drafts.' );
+	}
+
 	if ( 'login_saved' === $flash ) {
 		$slug_now  = sn_setting( 'login.slug', 'sn-login' );
 		$login_url = home_url( '/' . $slug_now );

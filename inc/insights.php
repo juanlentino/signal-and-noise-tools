@@ -508,6 +508,95 @@ function snt_insights_last_scan() {
 }
 
 /**
+ * Find a single cached recommendation by its stable id.
+ *
+ * Reads the last scan (snt_insights_last_scan) and returns the matching
+ * recommendations[] entry. A cache miss / expired transient — or an id that
+ * isn't in the current scan — yields null. Used by the "Create draft" action
+ * so the handler operates on the SAME rec the user saw, with zero new AI calls.
+ *
+ * @param string $rec_id The recommendation id (rec_*).
+ * @return array|null The matching recommendation, or null.
+ * @since 4.11.0
+ */
+function snt_insights_find_rec( $rec_id ) {
+	$rec_id = (string) $rec_id;
+	if ( '' === $rec_id ) {
+		return null;
+	}
+	$last = snt_insights_last_scan();
+	if ( ! is_array( $last ) || empty( $last['recommendations'] ) || ! is_array( $last['recommendations'] ) ) {
+		return null;
+	}
+	foreach ( $last['recommendations'] as $rec ) {
+		if ( is_array( $rec ) && isset( $rec['id'] ) && (string) $rec['id'] === $rec_id ) {
+			return $rec;
+		}
+	}
+	return null;
+}
+
+/**
+ * Build the $postarr for a draft seeded from a recommendation.
+ *
+ * Pure: no DB writes, so the shape is unit-testable. The draft is a Notes-
+ * category `post` in `draft` status, titled from the rec, with the rationale
+ * wrapped as a single valid serialized `wp:paragraph` block. The Notes term
+ * is resolved by slug (SN_NOTES_CATEGORY_SLUG, owned by content-surfaces.php);
+ * when the constant or the term is absent (unseeded), post_category is omitted
+ * so the insert still succeeds (lands in the default category).
+ *
+ * @param array $rec A recommendation (as returned by snt_insights_find_rec).
+ * @return array A $postarr suitable for wp_insert_post().
+ * @since 4.11.0
+ */
+function snt_insights_build_draft_postarr( $rec ) {
+	$rec   = is_array( $rec ) ? $rec : array();
+	$title = isset( $rec['title'] ) ? trim( (string) $rec['title'] ) : '';
+	if ( '' === $title ) {
+		$title = 'Untitled note';
+	}
+	$rationale = isset( $rec['rationale'] ) ? trim( (string) $rec['rationale'] ) : '';
+
+	// Rationale → one valid serialized wp:paragraph block. The inner <p> text
+	// is escaped (esc_html) exactly as the block editor would store it; an
+	// empty rationale still yields a well-formed empty paragraph block.
+	$paragraph = '<!-- wp:paragraph -->' . "\n"
+		. '<p>' . esc_html( $rationale ) . '</p>' . "\n"
+		. '<!-- /wp:paragraph -->';
+
+	$postarr = array(
+		'post_title'   => $title,
+		'post_content' => $paragraph,
+		'post_status'  => 'draft',
+		'post_type'    => 'post',
+	);
+
+	// Resolve the Notes category id; skip cleanly if unseeded.
+	if ( defined( 'SN_NOTES_CATEGORY_SLUG' ) && function_exists( 'get_term_by' ) ) {
+		$term = get_term_by( 'slug', SN_NOTES_CATEGORY_SLUG, 'category' );
+		if ( $term && isset( $term->term_id ) && (int) $term->term_id > 0 ) {
+			$postarr['post_category'] = array( (int) $term->term_id );
+		}
+	}
+
+	return $postarr;
+}
+
+/**
+ * Seed a draft Note from a recommendation. Zero new AI calls — the rec text
+ * is already in the cached scan.
+ *
+ * @param array $rec A recommendation (as returned by snt_insights_find_rec).
+ * @return int|WP_Error The new draft post id, or the wp_insert_post WP_Error.
+ * @since 4.11.0
+ */
+function snt_insights_create_draft_from_rec( $rec ) {
+	$postarr = snt_insights_build_draft_postarr( $rec );
+	return wp_insert_post( $postarr, true );
+}
+
+/**
  * Returns true if the weekly cron is opted in.
  */
 function snt_insights_weekly_cron_enabled() {

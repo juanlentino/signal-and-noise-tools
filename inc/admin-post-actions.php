@@ -320,3 +320,65 @@ function sn_handle_release_notes_draft( $post ) {
 	);
 	return 'release_notes_drafted';
 }
+
+/**
+ * v4.11.0 (T5): seed a draft Note from a cached Insights recommendation.
+ *
+ * Zero new AI calls — the rec text is already in the cached scan. Resolves the
+ * SAME rec the user saw (snt_insights_find_rec) so a stale/expired cache fails
+ * cleanly instead of fabricating a draft. On success it marks the rec done and
+ * stashes the new draft's edit link in a short per-user transient; the
+ * dispatcher PRG-redirects (Option A), so sn_admin_flash_to_notice() reads the
+ * link back to render the "edit it" notice. The dispatcher itself is untouched.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_insights_create_draft( $post ) {
+	if ( ! function_exists( 'snt_insights_find_rec' ) || ! function_exists( 'snt_insights_create_draft_from_rec' ) ) {
+		return 'insights_draft_failed';
+	}
+
+	$rec_id = isset( $post['rec_id'] ) ? sanitize_text_field( wp_unslash( $post['rec_id'] ) ) : '';
+	$rec    = snt_insights_find_rec( $rec_id );
+	if ( ! is_array( $rec ) ) {
+		// Cache miss / expired / unknown id — nothing to seed from.
+		return 'insights_draft_stale';
+	}
+
+	$new_id = snt_insights_create_draft_from_rec( $rec );
+	if ( is_wp_error( $new_id ) || ! $new_id ) {
+		return 'insights_draft_failed';
+	}
+
+	// Mark the rec done so it greys out on the next render.
+	if ( function_exists( 'snt_insights_mark_done' ) ) {
+		snt_insights_mark_done( $rec_id );
+	}
+
+	// Stash the edit link for the success notice. get_edit_post_link() carries
+	// a nonce, so it must NOT ride the redirect query string — a per-user
+	// transient is the safe carrier (mirrors the release-notes pattern).
+	$edit_link = get_edit_post_link( (int) $new_id, 'raw' );
+	set_transient(
+		sn_insights_draft_result_key(),
+		array(
+			'post_id'   => (int) $new_id,
+			'edit_link' => is_string( $edit_link ) ? $edit_link : '',
+		),
+		5 * MINUTE_IN_SECONDS
+	);
+
+	return 'insights_draft_created';
+}
+
+/**
+ * Per-user transient key carrying the "Create draft" result (the new draft's
+ * id + edit link) across the dispatcher's PRG redirect. Per-user so concurrent
+ * admins don't clobber each other's notice.
+ *
+ * @return string
+ */
+function sn_insights_draft_result_key() {
+	return 'sn_insights_draft_result_' . get_current_user_id();
+}

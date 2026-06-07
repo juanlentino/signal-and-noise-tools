@@ -148,6 +148,12 @@ function snt_insights_render_recommendations_section( $last ) {
 		echo '<form method="post" class="sn-fieldset-actions sn-fieldset-actions--inline">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
+		// v4.11.0 (T5): write_about recs can seed a Notes draft in one click —
+		// zero new AI calls (the rationale becomes the draft body). The clicked
+		// button's sn_action wins, so it shares this card's nonce + rec_id form.
+		if ( 'write_about' === $rec['type'] ) {
+			echo '<button type="submit" name="sn_action" value="insights_create_draft" class="button button-small button-primary">Create draft</button> ';
+		}
 		if ( ! $is_done ) {
 			echo '<button type="submit" name="sn_action" value="insights_mark_done" class="button button-small">Mark done</button> ';
 		}

@@ -18,6 +18,10 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 }
 
 define( 'ABSPATH', '/' );
+// Owned by inc/content-surfaces.php at runtime; that module isn't loaded in
+// this harness, so define the slug here for the Create-draft Notes-category
+// resolution (snt_insights_build_draft_postarr).
+if ( ! defined( 'SN_NOTES_CATEGORY_SLUG' ) ) { define( 'SN_NOTES_CATEGORY_SLUG', 'notes' ); }
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS',  86400 );
 define( 'WEEK_IN_SECONDS', 604800 );
@@ -68,6 +72,9 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 }
 if ( ! function_exists( 'sanitize_text_field' ) ) {
 	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; }
+}
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
 }
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook ) {
@@ -257,6 +264,29 @@ if ( ! function_exists( 'snt_ai_extract_post_text' ) ) {
 		$raw = strip_shortcodes( $raw );
 		$raw = wp_strip_all_tags( $raw );
 		return (string) wp_trim_words( $raw, max( 50, (int) $words ), '' );
+	}
+}
+
+// ─── Notes-category + draft-insert stubs (Create-draft, v4.11.0) ─────
+// inc/insights.php resolves the Notes category via get_term_by('slug', …)
+// guarded by defined(SN_NOTES_CATEGORY_SLUG); content-surfaces.php (which
+// owns that constant) is NOT loaded here, so the impl must tolerate both
+// the seeded and unseeded states. These stubs let the tests drive each.
+if ( ! function_exists( 'get_term_by' ) ) {
+	function get_term_by( $field, $value, $taxonomy ) {
+		if ( isset( $GLOBALS['__test_terms'][ $taxonomy ][ $field ][ $value ] ) ) {
+			return (object) $GLOBALS['__test_terms'][ $taxonomy ][ $field ][ $value ];
+		}
+		return false;
+	}
+}
+if ( ! function_exists( 'wp_insert_post' ) ) {
+	function wp_insert_post( $postarr, $wp_error = false ) {
+		$GLOBALS['__test_inserted_post'] = $postarr;
+		if ( isset( $GLOBALS['__test_insert_error'] ) && $wp_error ) {
+			return $GLOBALS['__test_insert_error'];
+		}
+		return isset( $GLOBALS['__test_insert_id'] ) ? (int) $GLOBALS['__test_insert_id'] : 1234;
 	}
 }
 
@@ -763,6 +793,88 @@ $sys = snt_insights_system_instruction();
 ins_true( false !== stripos( $sys, 'excerpt' ), 'system instruction mentions excerpt' );
 // Output shape unchanged — still asks for exactly 5 recs.
 ins_true( false !== strpos( $sys, 'exactly 5 recommendations' ), 'still asks for exactly 5 recs (shape intact)' );
+
+// ─── Test 35: find_rec hit — returns the matching recommendation ─────
+echo "\nTest 35: snt_insights_find_rec() returns the matching rec\n";
+$GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] = array(
+	'scanned_at'      => 111,
+	'recommendations' => array(
+		array( 'id' => 'rec_one', 'type' => 'write_about', 'title' => 'First',  'rationale' => 'r1', 'evidence_pills' => array(), 'target' => null ),
+		array( 'id' => 'rec_two', 'type' => 'update_post', 'title' => 'Second', 'rationale' => 'r2', 'evidence_pills' => array(), 'target' => null ),
+	),
+);
+$hit = snt_insights_find_rec( 'rec_two' );
+ins_true( is_array( $hit ), 'find_rec returns array on hit' );
+ins_eq( 'rec_two', $hit['id'], 'matched rec id' );
+ins_eq( 'Second', $hit['title'], 'matched rec title' );
+
+// ─── Test 36: find_rec miss — unknown id returns null ────────────────
+echo "\nTest 36: snt_insights_find_rec() returns null for an unknown id\n";
+ins_eq( null, snt_insights_find_rec( 'rec_missing' ), 'unknown id → null' );
+ins_eq( null, snt_insights_find_rec( '' ),            'empty id → null' );
+
+// ─── Test 37: find_rec expired/no-cache → null ───────────────────────
+echo "\nTest 37: snt_insights_find_rec() returns null when no scan is cached\n";
+$GLOBALS['__test_transients'] = array();  // cache miss / expired
+ins_eq( null, snt_insights_find_rec( 'rec_one' ), 'no cache → null' );
+
+// ─── Test 38: build_draft_postarr — shape + valid block body ─────────
+echo "\nTest 38: snt_insights_build_draft_postarr() — draft shape + Notes cat + valid wp:paragraph\n";
+$GLOBALS['__test_terms'] = array(
+	'category' => array( 'slug' => array( 'notes' => array( 'term_id' => 7, 'slug' => 'notes' ) ) ),
+);
+$rec = array(
+	'id'        => 'rec_synths',
+	'type'      => 'write_about',
+	'title'     => 'Write about modular synths',
+	'rationale' => 'Your modular-synth notes average 4x traffic; you have not published one in 6 months.',
+);
+$postarr = snt_insights_build_draft_postarr( $rec );
+ins_true( is_array( $postarr ), 'build_draft_postarr returns array' );
+ins_eq( 'draft', $postarr['post_status'], 'post_status = draft' );
+ins_eq( 'post',  $postarr['post_type'],   'post_type = post' );
+ins_eq( 'Write about modular synths', $postarr['post_title'], 'title from rec' );
+ins_true( isset( $postarr['post_category'] ) && in_array( 7, $postarr['post_category'], true ), 'Notes category id (7) assigned' );
+// Body must be a VALID, round-trippable wp:paragraph block.
+$body = $postarr['post_content'];
+ins_true( false !== strpos( $body, '<!-- wp:paragraph -->' ),  'opening paragraph block comment present' );
+ins_true( false !== strpos( $body, '<!-- /wp:paragraph -->' ), 'closing paragraph block comment present' );
+ins_true( preg_match( '/<!-- wp:paragraph -->\s*<p>.*<\/p>\s*<!-- \/wp:paragraph -->/s', $body ) === 1, 'block wraps a <p>…</p> (valid serialized shape)' );
+ins_true( false !== strpos( $body, 'modular-synth notes average 4x traffic' ), 'rationale text is in the body' );
+
+// ─── Test 39: build_draft_postarr — unseeded Notes cat is skipped ────
+echo "\nTest 39: build_draft_postarr() omits post_category when Notes is unseeded\n";
+$GLOBALS['__test_terms'] = array();  // get_term_by → false
+$postarr = snt_insights_build_draft_postarr( $rec );
+ins_true( ! isset( $postarr['post_category'] ) || array() === $postarr['post_category'], 'no Notes term → post_category omitted/empty' );
+ins_eq( 'draft', $postarr['post_status'], 'still a draft when category is unseeded' );
+
+// ─── Test 40: build_draft_postarr — title falls back when rec has none ─
+echo "\nTest 40: build_draft_postarr() supplies a fallback title for a title-less rec\n";
+$no_title = array( 'id' => 'rec_x', 'type' => 'write_about', 'title' => '', 'rationale' => 'Some rationale.' );
+$postarr  = snt_insights_build_draft_postarr( $no_title );
+ins_true( is_string( $postarr['post_title'] ) && '' !== $postarr['post_title'], 'fallback title is non-empty' );
+
+// ─── Test 41: create_draft_from_rec — inserts + returns the new id ───
+echo "\nTest 41: snt_insights_create_draft_from_rec() returns the inserted post id\n";
+$GLOBALS['__test_terms'] = array(
+	'category' => array( 'slug' => array( 'notes' => array( 'term_id' => 7, 'slug' => 'notes' ) ) ),
+);
+$GLOBALS['__test_insert_id'] = 555;
+unset( $GLOBALS['__test_insert_error'], $GLOBALS['__test_inserted_post'] );
+$new_id = snt_insights_create_draft_from_rec( $rec );
+ins_eq( 555, $new_id, 'returns wp_insert_post id' );
+ins_true( is_array( $GLOBALS['__test_inserted_post'] ), 'wp_insert_post received a postarr' );
+ins_eq( 'draft', $GLOBALS['__test_inserted_post']['post_status'], 'inserted as draft' );
+ins_true( in_array( 7, $GLOBALS['__test_inserted_post']['post_category'], true ), 'inserted with Notes category' );
+
+// ─── Test 42: create_draft_from_rec — propagates a WP_Error ──────────
+echo "\nTest 42: snt_insights_create_draft_from_rec() propagates wp_insert_post WP_Error\n";
+$GLOBALS['__test_insert_error'] = new WP_Error( 'db_insert_error', 'insert failed' );
+$res = snt_insights_create_draft_from_rec( $rec );
+ins_true( $res instanceof WP_Error, 'WP_Error propagated' );
+ins_eq( 'db_insert_error', $res->code, 'error code preserved' );
+unset( $GLOBALS['__test_insert_error'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

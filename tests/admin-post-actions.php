@@ -37,6 +37,34 @@ function wp_unslash( $v ) { return $v; }
 function add_action( $hook, $cb = null, $p = 10, $a = 1 ) {}
 function apply_filters( $hook, $value, ...$args ) { return $value; }
 
+// ─── Stubs for the Insights "Create draft" handler (T5) ──────────────
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+class PA_WP_Error {
+	public $code; public $message;
+	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
+	public function get_error_message() { return $this->message; }
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $v ) { return $v instanceof PA_WP_Error; }
+}
+$GLOBALS['__transients'] = array();
+function set_transient( $k, $v, $exp = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
+function get_transient( $k ) { return isset( $GLOBALS['__transients'][ $k ] ) ? $GLOBALS['__transients'][ $k ] : false; }
+function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+function get_current_user_id() { return 9; }
+function get_edit_post_link( $id, $context = 'display' ) {
+	return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit';
+}
+// Insights impl shims — drive hit/miss + insert success/error per test.
+function snt_insights_find_rec( $rec_id ) {
+	return isset( $GLOBALS['__test_recs'][ $rec_id ] ) ? $GLOBALS['__test_recs'][ $rec_id ] : null;
+}
+function snt_insights_create_draft_from_rec( $rec ) {
+	if ( isset( $GLOBALS['__test_draft_error'] ) ) { return $GLOBALS['__test_draft_error']; }
+	return isset( $GLOBALS['__test_draft_id'] ) ? (int) $GLOBALS['__test_draft_id'] : 0;
+}
+function snt_insights_mark_done( $rec_id ) { $GLOBALS['__test_marked_done'][] = $rec_id; }
+
 require_once __DIR__ . '/../inc/settings.php';
 require_once __DIR__ . '/../inc/admin-post-actions.php';
 require_once __DIR__ . '/../inc/admin-post-handler.php';
@@ -98,9 +126,36 @@ pa_reset_store();
 pa_eq( 'monitoring_saved', sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://kuma.example/api/push/x' ) ), 'https url → monitoring_saved' );
 pa_eq( 'https://kuma.example/api/push/x', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'https url persisted' );
 
+echo "\nTest: sn_handle_insights_create_draft() — stale rec, success, insert error\n";
+$GLOBALS['__transients']     = array();
+$GLOBALS['__test_recs']      = array();
+$GLOBALS['__test_marked_done'] = array();
+unset( $GLOBALS['__test_draft_error'], $GLOBALS['__test_draft_id'] );
+
+// Stale / unknown id → error flash, nothing inserted, nothing marked done.
+pa_eq( 'insights_draft_stale', sn_handle_insights_create_draft( array( 'rec_id' => 'gone' ) ), 'unknown rec → insights_draft_stale' );
+pa_eq( array(), $GLOBALS['__test_marked_done'], 'stale path does NOT mark anything done' );
+
+// Success path → draft created, rec marked done, edit link stashed in transient.
+$GLOBALS['__test_recs']['rec_ok'] = array( 'id' => 'rec_ok', 'type' => 'write_about', 'title' => 'T', 'rationale' => 'r' );
+$GLOBALS['__test_draft_id']       = 777;
+pa_eq( 'insights_draft_created', sn_handle_insights_create_draft( array( 'rec_id' => 'rec_ok' ) ), 'valid rec → insights_draft_created' );
+pa_eq( true, in_array( 'rec_ok', $GLOBALS['__test_marked_done'], true ), 'rec marked done on success' );
+$stash = get_transient( sn_insights_draft_result_key() );
+pa_eq( true, is_array( $stash ), 'result transient stashed' );
+pa_eq( 777, $stash['post_id'], 'transient carries the new draft id' );
+pa_eq( true, false !== strpos( $stash['edit_link'], 'post=777' ), 'transient carries the edit link' );
+
+// Insert error → failure flash, NOT marked done.
+$GLOBALS['__test_marked_done'] = array();
+$GLOBALS['__test_draft_error'] = new PA_WP_Error( 'db_insert_error', 'boom' );
+pa_eq( 'insights_draft_failed', sn_handle_insights_create_draft( array( 'rec_id' => 'rec_ok' ) ), 'insert WP_Error → insights_draft_failed' );
+pa_eq( array(), $GLOBALS['__test_marked_done'], 'failed insert does NOT mark done' );
+unset( $GLOBALS['__test_draft_error'] );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 25, count( $map ), 'map has 25 actions' );
+pa_eq( 26, count( $map ), 'map has 26 actions' );
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
