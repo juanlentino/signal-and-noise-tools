@@ -20,8 +20,8 @@
  *     + run-cron-event (v4.6.0).
  *   - inc/abilities-insights.php              — 2 abilities: Content Opportunity
  *     Advisor scan + last-result.
- *   - inc/abilities-audit.php                 — 4 abilities: login-hardening
- *     audit log read + prune.
+ *   - inc/abilities-audit.php                 — 5 abilities: login-hardening
+ *     audit log read + prune + CSV/JSON export.
  *   - inc/abilities-block-migrations.php      — 4 abilities: block-migration
  *     scan/suggest/apply/dismiss ('tools' category).
  *   - inc/abilities-ai-post-editor.php       — 3 abilities: meta-description,
@@ -35,7 +35,7 @@
  *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
  *     scan + dismiss (structural 'tools' category, v4.6.0).
  *
- * Total: 41 abilities + 5 categories. Each feature file owns its
+ * Total: 42 abilities + 5 categories. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *

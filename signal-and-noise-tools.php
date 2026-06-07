@@ -195,6 +195,7 @@ require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/audit-log.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
+require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;

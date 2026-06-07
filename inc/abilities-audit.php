@@ -2,11 +2,15 @@
 /**
  * Signal & Noise Tools — Abilities API: login hardening audit log.
  *
- * Four abilities wrapping the v3.8.3 audit-log module:
+ * Five abilities wrapping the v3.8.3 audit-log module:
  *   - signal-noise/get-audit-summary          (read-only hero summary)
  *   - signal-noise/get-audit-counters         (per-day event counters)
  *   - signal-noise/get-audit-login-successes  (recent successful logins)
+ *   - signal-noise/export-audit-log           (read-only — CSV/JSON export)
  *   - signal-noise/run-audit-prune            (destructive — drops old data)
+ *
+ * The export-audit-log execute callback (snt_ability_export_audit_log) lives
+ * in inc/audit-log-export.php alongside the pure builders + download handler.
  *
  * Extracted from inc/abilities-registration.php by the v4.1.3 split (B-11).
  *
@@ -110,6 +114,39 @@ add_action( 'wp_abilities_api_init', function() {
 			'annotations'  => array(
 				'destructive' => false,
 				'idempotent'  => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/export-audit-log', array(
+		'label'               => 'Export login-audit log',
+		'description'         => 'Returns the full login-audit log (per-day counters + successful-login rows over the retention window) as a downloadable CSV or JSON payload. NOTE: the payload contains plaintext usernames. Read-only.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_export_audit_log',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
+				'format' => array(
+					'type'    => 'string',
+					'enum'    => array( 'json', 'csv' ),
+					'default' => 'json',
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'format'  => array( 'type' => 'string', 'enum' => array( 'json', 'csv' ) ),
+				'content' => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'   => true,
+				'idempotent' => true,
 			),
 		),
 	) );

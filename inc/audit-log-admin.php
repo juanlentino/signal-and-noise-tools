@@ -195,6 +195,25 @@ function snt_audit_log_render_prune_form() {
 	echo '<p class="sn-prose">Manually run the daily prune now. Drops counter buckets and login_success rows older than ' . esc_html( $retention_days ) . ' days, plus polls LLA for new lockouts.</p>';
 	echo '<p><button type="submit" class="button">Prune now</button></p>';
 	echo '</form>';
+
+	// v4.10.0: download the audit log (counters + login successes) as CSV/JSON.
+	// Nonce-protected admin-post.php GET links — NOT a form POST, so they never
+	// clobber the PRG save handler. The payload includes plaintext usernames.
+	$export_json_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=sn_audit_export&format=json' ),
+		'sn_audit_export',
+		'sn_audit_export_nonce'
+	);
+	$export_csv_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=sn_audit_export&format=csv' ),
+		'sn_audit_export',
+		'sn_audit_export_nonce'
+	);
+	echo '<p class="sn-prose">Download the audit log (per-day counters + successful-login rows over the retention window). The export contains plaintext usernames.</p>';
+	echo '<p>';
+	echo '<a class="button" href="' . esc_url( $export_json_url ) . '">Export JSON</a> ';
+	echo '<a class="button" href="' . esc_url( $export_csv_url ) . '">Export CSV</a>';
+	echo '</p>';
 }
 
 /**
