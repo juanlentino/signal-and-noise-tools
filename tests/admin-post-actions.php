@@ -90,7 +90,7 @@ pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'token persisted' );
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 22, count( $map ), 'map has 22 actions' );
+pa_eq( 23, count( $map ), 'map has 23 actions' );
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

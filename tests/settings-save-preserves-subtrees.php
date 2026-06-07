@@ -56,10 +56,19 @@ function assertEq( $expected, $actual, $label ) {
     }
 }
 
+// v4.9.0: the monitoring subtree (Uptime Kuma heartbeat) must deep-merge from
+// defaults on a fresh install (migration-free) and survive an Identity save.
+sn_setting_reset_cache();
+assertEq( false, sn_setting( 'monitoring.uptime_kuma_enabled', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_enabled defaults to false (deep-merge)' );
+assertEq( '', sn_setting( 'monitoring.uptime_kuma_push_url', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_push_url defaults to empty string (deep-merge)' );
+
 // 1. Configure cross-tab settings the Identity form does NOT touch:
-//    audit retention (Security tab) + a custom login slug (Login tab).
+//    audit retention (Security tab) + a custom login slug (Login tab) +
+//    the monitoring heartbeat (Webhooks tab).
 sn_setting_update( 'audit.retention_days', 30 );
 sn_setting_update( 'login.slug', 'my-secret-login' );
+sn_setting_update( 'monitoring.uptime_kuma_enabled', true );
+sn_setting_update( 'monitoring.uptime_kuma_push_url', 'https://kuma.example.com/api/push/abc' );
 sn_setting_reset_cache();
 
 // Sanity: they're set before the Identity save.
@@ -77,6 +86,8 @@ sn_setting_reset_cache();
 assertEq( 'New Site Name', sn_setting( 'identity.site_name', '' ), 'Identity save persisted its own field' );
 assertEq( 'my-secret-login', sn_setting( 'login.slug', 'sn-login' ), 'login.slug survives an Identity save (existing v1.9.0 guard)' );
 assertEq( 30, (int) sn_setting( 'audit.retention_days', 90 ), 'audit.retention_days survives an Identity save (v4.5.2 fix)' );
+assertEq( true, sn_setting( 'monitoring.uptime_kuma_enabled', false ), 'monitoring.uptime_kuma_enabled survives an Identity save (v4.9.0 guard)' );
+assertEq( 'https://kuma.example.com/api/push/abc', sn_setting( 'monitoring.uptime_kuma_push_url', '' ), 'monitoring.uptime_kuma_push_url survives an Identity save (v4.9.0 guard)' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -59,6 +59,13 @@ function sn_settings_defaults() {
 		'audit' => array(
 			'retention_days' => 90,
 		),
+		// v4.9.0 (T4): opt-in Uptime Kuma push heartbeat. Default OFF so the
+		// feature is dormant on every existing install (migration-free — the
+		// array_replace_recursive deep-merge in sn_setting() fills these in).
+		'monitoring' => array(
+			'uptime_kuma_push_url' => '',
+			'uptime_kuma_enabled'  => false,
+		),
 		'seo_copy' => array(
 			'home_title'             => '',
 			'home_description'       => '',
@@ -241,6 +248,14 @@ function sn_settings_save( $raw ) {
 	$existing_settings = (array) get_option( SN_SETTINGS_OPTION, array() );
 	if ( isset( $existing_settings['audit'] ) && is_array( $existing_settings['audit'] ) ) {
 		$sanitized['audit'] = $existing_settings['audit'];
+	}
+
+	// v4.9.0 (T4): preserve the monitoring subtree (Uptime Kuma heartbeat),
+	// configured on the Webhooks tab via sn_setting_update('monitoring.*', …),
+	// NOT in this Identity-tab form payload. Same whole-option-replace hazard
+	// as the audit subtree above.
+	if ( isset( $existing_settings['monitoring'] ) && is_array( $existing_settings['monitoring'] ) ) {
+		$sanitized['monitoring'] = $existing_settings['monitoring'];
 	}
 
 	$sanitized['seo_copy'] = array(

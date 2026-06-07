@@ -50,6 +50,7 @@ function sn_admin_post_handlers() {
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'pattern_adoption_scan'      => 'sn_handle_pattern_adoption_scan',
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
+		'monitoring_save'            => 'sn_handle_monitoring_save',
 	);
 }
 

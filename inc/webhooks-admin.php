@@ -117,7 +117,8 @@ function sn_webhooks_render_admin_tab() {
 			echo '<details class="sn-prose snt-mb-1">';
 			echo '<summary>Recent deliveries (' . count( $log ) . ')</summary>';
 			echo '<div class="snt-scroll-table">';
-			echo '<table class="widefat striped snt-table-log"><thead><tr>';
+			// data-webhook-id: target for the v4.9.0 Heartbeat live-refresh JS (T5).
+			echo '<table class="widefat striped snt-table-log" data-webhook-id="' . esc_attr( $wh['id'] ) . '"><thead><tr>';
 			echo '<th scope="col">Fired at</th>';
 			echo '<th scope="col">Attempt</th>';
 			echo '<th scope="col">HTTP</th>';
@@ -167,6 +168,40 @@ function sn_webhooks_render_admin_tab() {
 	echo '<button type="submit" name="sn_action" value="webhook_add" class="button button-primary">Add webhook</button>';
 	echo '</div>';
 
+	echo '</div>'; // .sn-fieldset
+	echo '</form>';
+
+	// ── UPTIME MONITORING (v4.9.0, T4) ──
+	$kuma_enabled = (bool) sn_setting( 'monitoring.uptime_kuma_enabled', false );
+	$kuma_url     = (string) sn_setting( 'monitoring.uptime_kuma_push_url', '' );
+
+	echo '<form method="post">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Uptime monitoring</h2>';
+	echo '<p class="sn-fieldset-intro">Push a heartbeat every 5 minutes to an <a href="https://github.com/louislam/uptime-kuma" target="_blank" rel="noopener noreferrer">Uptime Kuma</a> push monitor. If WP-Cron stops firing (or the site goes down), Kuma stops receiving the heartbeat and flips the monitor to DOWN.</p>';
+
+	echo '<div class="sn-field sn-field-w-lg">';
+	echo '<label class="sn-field-label" for="kuma_push_url">Push monitor URL</label>';
+	echo '<input type="url" id="kuma_push_url" name="uptime_kuma_push_url" value="' . esc_attr( $kuma_url ) . '" placeholder="https://kuma.example.com/api/push/&lt;token&gt;" class="sn-mono">';
+	echo '<p class="sn-field-helper">The <code>Push</code>-type monitor URL from your Kuma instance. <code>status=up</code> is appended automatically. Must be <code>https://</code>.</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label">Status</label>';
+	echo '<label><input type="checkbox" name="uptime_kuma_enabled" value="1"' . checked( $kuma_enabled, true, false ) . '> Enabled — send a heartbeat every 5 minutes</label>';
+	echo '</div>';
+
+	// Last-ping status line (read-only).
+	$last_ping = get_transient( 'sn_uptime_last_ping' );
+	if ( is_array( $last_ping ) && ! empty( $last_ping['ts'] ) ) {
+		$pill = ! empty( $last_ping['ok'] ) ? 'sn-pill--ok' : 'sn-pill--warn';
+		echo '<p class="sn-field-helper">Last heartbeat: ' . esc_html( wp_date( 'Y-m-d H:i:s', (int) $last_ping['ts'] ) ) . ' <span class="sn-pill ' . esc_attr( $pill ) . '">HTTP ' . esc_html( (string) ( $last_ping['code'] ?? 0 ) ) . '</span></p>';
+	}
+
+	echo '<div class="sn-fieldset-actions">';
+	echo '<button type="submit" name="sn_action" value="monitoring_save" class="button button-primary">Save monitoring</button>';
+	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 

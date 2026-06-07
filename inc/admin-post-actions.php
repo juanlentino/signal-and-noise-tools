@@ -232,3 +232,26 @@ function sn_handle_block_migrations_scan( $post ) {
 	}
 	return 'block_migrations_scanned';
 }
+
+/**
+ * v4.9.0 (T4): save the Uptime Kuma heartbeat settings from the Webhooks tab.
+ * Writes through sn_setting_update('monitoring.*', …) then reconciles the
+ * cron schedule immediately so toggling on/off takes effect without waiting
+ * for the next init.
+ */
+function sn_handle_monitoring_save( $post ) {
+	$enabled = ! empty( $post['uptime_kuma_enabled'] );
+	$url     = isset( $post['uptime_kuma_push_url'] )
+		? esc_url_raw( trim( (string) wp_unslash( $post['uptime_kuma_push_url'] ) ) )
+		: '';
+
+	sn_setting_update( 'monitoring.uptime_kuma_enabled', $enabled );
+	sn_setting_update( 'monitoring.uptime_kuma_push_url', $url );
+
+	// Apply the schedule change now (the init-time reconciler already ran).
+	if ( function_exists( 'sn_uptime_heartbeat_schedule' ) ) {
+		sn_uptime_heartbeat_schedule();
+	}
+
+	return 'monitoring_saved';
+}

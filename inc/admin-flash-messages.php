@@ -56,6 +56,7 @@ function sn_admin_flash_messages() {
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
 		'audit_retention_saved'     => array( 'success', 'Audit retention saved.' ),
 		'audit_retention_unchanged' => array( 'info', 'Audit retention unchanged.' ),
+		'monitoring_saved'          => array( 'success', 'Uptime monitoring settings saved.' ),
 	);
 }
 
