@@ -79,7 +79,7 @@ function sn_privacy_match_login_rows( $blob, $user_login ) {
  */
 function sn_privacy_register_exporter( $exporters ) {
 	$exporters['signal-noise-tools'] = array(
-		'exporter_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-and-noise-tools' ),
+		'exporter_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-noise-tools' ),
 		'callback'               => 'sn_privacy_export_login_audit',
 	);
 	return $exporters;
@@ -114,15 +114,15 @@ function sn_privacy_export_login_audit( $email, $page = 1 ) {
 		$ts   = isset( $row['ts'] ) ? (int) $row['ts'] : 0;
 		$data[] = array(
 			'group_id'    => 'sn-login-audit',
-			'group_label' => __( 'Signal & Noise login audit', 'signal-and-noise-tools' ),
+			'group_label' => __( 'Signal & Noise login audit', 'signal-noise-tools' ),
 			'item_id'     => 'sn-login-audit-' . $i,
 			'data'        => array(
 				array(
-					'name'  => __( 'Login timestamp', 'signal-and-noise-tools' ),
+					'name'  => __( 'Login timestamp', 'signal-noise-tools' ),
 					'value' => wp_date( 'Y-m-d H:i:s', $ts ),
 				),
 				array(
-					'name'  => __( 'Username', 'signal-and-noise-tools' ),
+					'name'  => __( 'Username', 'signal-noise-tools' ),
 					'value' => isset( $row['user'] ) ? (string) $row['user'] : '',
 				),
 			),
@@ -147,7 +147,7 @@ function sn_privacy_export_login_audit( $email, $page = 1 ) {
  */
 function sn_privacy_register_eraser( $erasers ) {
 	$erasers['signal-noise-tools'] = array(
-		'eraser_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-and-noise-tools' ),
+		'eraser_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-noise-tools' ),
 		'callback'             => 'sn_privacy_erase_login_audit',
 	);
 	return $erasers;
@@ -190,7 +190,7 @@ function sn_privacy_erase_login_audit( $email, $page = 1 ) {
 		update_option( SN_AUDIT_OPTION, $blob, true );
 		$messages[] = sprintf(
 			/* translators: %d: number of login-audit rows removed. */
-			__( 'Removed %d Signal & Noise login-audit record(s).', 'signal-and-noise-tools' ),
+			__( 'Removed %d Signal & Noise login-audit record(s).', 'signal-noise-tools' ),
 			count( $matched )
 		);
 	}
@@ -234,20 +234,20 @@ function sn_register_privacy_policy_content() {
 	// (a) Login audit.
 	$sentences[] = sprintf(
 		/* translators: %s: audit-log retention in days. */
-		__( 'This site keeps a security audit log of successful sign-ins, recording the timestamp and account username for up to %s days, after which entries are automatically deleted.', 'signal-and-noise-tools' ),
+		__( 'This site keeps a security audit log of successful sign-ins, recording the timestamp and account username for up to %s days, after which entries are automatically deleted.', 'signal-noise-tools' ),
 		esc_html( (string) $retention )
 	);
-	$sentences[] = __( 'It also keeps daily aggregate counts of failed sign-in attempts and not-found login/admin requests. These counts are not tied to any individual.', 'signal-and-noise-tools' );
-	$sentences[] = __( 'To estimate unique sources of suspicious activity, IP addresses are converted to salted, one-way hashes that expire within 25 hours; raw IP addresses are never stored long-term and the hashes cannot be reversed.', 'signal-and-noise-tools' );
+	$sentences[] = __( 'It also keeps daily aggregate counts of failed sign-in attempts and not-found login/admin requests. These counts are not tied to any individual.', 'signal-noise-tools' );
+	$sentences[] = __( 'To estimate unique sources of suspicious activity, IP addresses are converted to salted, one-way hashes that expire within 25 hours; raw IP addresses are never stored long-term and the hashes cannot be reversed.', 'signal-noise-tools' );
 
 	// (b) Webhooks — only when at least one is configured.
 	$webhooks = function_exists( 'sn_webhooks_all' ) ? sn_webhooks_all() : array();
 	if ( ! empty( $webhooks ) ) {
-		$sentences[] = __( 'When content is published, this site may send a signed webhook notification — including the post title, URL, author, and time — to the third-party endpoints you have configured.', 'signal-and-noise-tools' );
+		$sentences[] = __( 'When content is published, this site may send a signed webhook notification — including the post title, URL, author, and time — to the third-party endpoints you have configured.', 'signal-noise-tools' );
 	}
 
 	// (c) Plausible analytics.
-	$sentences[] = __( 'If Plausible Analytics is enabled, it collects aggregate, cookieless usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-and-noise-tools' );
+	$sentences[] = __( 'If Plausible Analytics is enabled, it collects aggregate, cookieless usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-noise-tools' );
 
 	$content = implode( "\n\n", $sentences );
 
