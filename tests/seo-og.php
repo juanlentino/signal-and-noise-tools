@@ -29,6 +29,7 @@ $GLOBALS['__og'] = array(
 	'thumb_id'    => 0,
 	'alt'         => '',
 	'site_name'   => 'Signal & Noise',
+	'post_title'  => 'Some Title', // bare queried-object title (no site suffix)
 );
 
 // ─── WP stubs ─────────────────────────────────────────────────────────
@@ -53,6 +54,17 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 if ( ! function_exists( 'get_post_thumbnail_id' ) ) {
 	function get_post_thumbnail_id( $post = null ) {
 		return (int) $GLOBALS['__og']['thumb_id'];
+	}
+}
+if ( ! function_exists( 'get_the_title' ) ) {
+	// Returns the BARE post title (no " — Site Name" suffix), as WP does.
+	function get_the_title( $post = null ) {
+		return (string) $GLOBALS['__og']['post_title'];
+	}
+}
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+	function wp_strip_all_tags( $s ) {
+		return trim( preg_replace( '/<[^>]*>/', '', (string) $s ) );
 	}
 }
 if ( ! function_exists( 'get_post_meta' ) ) {
@@ -144,10 +156,25 @@ $GLOBALS['__og']['thumb_id'] = 42;
 $GLOBALS['__og']['alt']      = '   ';
 og_eq( 'Some Title', sn_seo_og_image_alt( 'Some Title' ), 'whitespace-only featured alt → falls back to $title' );
 
-// 3. Empty title (and no usable featured alt) → returns site name.
-$GLOBALS['__og']['thumb_id'] = 0;
-$GLOBALS['__og']['alt']      = '';
-og_eq( 'Signal & Noise', sn_seo_og_image_alt( '' ), 'empty title → falls back to site name' );
+// 3. Empty title + empty bare post title (and no usable featured alt) →
+// returns site name. On singular the helper now reads the bare queried-object
+// title, so we blank that too to exercise the final site-name fallback.
+$GLOBALS['__og']['thumb_id']   = 0;
+$GLOBALS['__og']['alt']        = '';
+$GLOBALS['__og']['post_title'] = '';
+og_eq( 'Signal & Noise', sn_seo_og_image_alt( '' ), 'empty title + empty bare post title → falls back to site name' );
+$GLOBALS['__og']['post_title'] = 'Some Title'; // restore
+
+// 3b. REGRESSION (v4.8.1 adversarial fix 3): on a singular view with an empty
+// featured alt, the helper must fall back to the BARE post title — NOT the
+// passed $title, which carries the " — Site Name" suffix from
+// sn_seo_meta_for_current_view(). Image alt should describe the image/subject,
+// not the SERP title string.
+$GLOBALS['__og']['is_singular'] = true;
+$GLOBALS['__og']['thumb_id']    = 0;
+$GLOBALS['__og']['alt']         = '';
+$GLOBALS['__og']['post_title']  = 'Some Title';
+og_eq( 'Some Title', sn_seo_og_image_alt( 'Some Title — Site' ), 'singular empty alt → bare post title, suffix stripped (NOT "Some Title — Site")' );
 
 // 4. Non-singular view → skips featured lookup, uses $title.
 $GLOBALS['__og']['is_singular'] = false;

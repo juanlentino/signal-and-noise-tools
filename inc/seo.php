@@ -279,7 +279,14 @@ function sn_seo_og_image_alt( $title ) {
 		}
 	}
 	if ( '' === $alt ) {
-		$alt = (string) $title;
+		// v4.8.1: on singular, use the BARE post title — image alt should
+		// describe the subject, not the SERP title string. $title here carries
+		// the " — Site Name" suffix from sn_seo_meta_for_current_view(); the
+		// bare get_the_title() does not. Non-singular views (front page, blog
+		// index) have no single queried post, so keep the passed $title.
+		$alt = is_singular()
+			? wp_strip_all_tags( get_the_title( get_queried_object() ) )
+			: (string) $title;
 	}
 	if ( '' === $alt ) {
 		$alt = (string) sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
