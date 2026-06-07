@@ -223,7 +223,7 @@ function sn_theme_options_page() {
 
 	// ════════════════════════════════════════
 	// TAB: TOOLS (v3.8.1+: sub-tabs)
-	// Sub-tabs: reading-time, links, block-migrations
+	// Sub-tabs: reading-time, links, block-migrations, performance
 	// ════════════════════════════════════════
 	} elseif ( 'tools' === $active_tab ) {
 
@@ -235,6 +235,8 @@ function sn_theme_options_page() {
 			sn_admin_render_section( 'block-migrations', function() {
 				do_action( 'sn_admin_block_migrations_tab' );
 			} );
+		} elseif ( 'performance' === $active_sub ) {
+			sn_admin_render_section( 'performance', 'sn_admin_render_performance_section' );
 		} else {
 			// Default sub-tab: 'reading-time'
 			sn_admin_render_section( 'reading-time', function() {

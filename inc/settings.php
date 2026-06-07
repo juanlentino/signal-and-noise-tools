@@ -59,6 +59,12 @@ function sn_settings_defaults() {
 		'audit' => array(
 			'retention_days' => 90,
 		),
+		// v4.10.0 (T6): opt-in Speculation Rules tuning. Default ON so the
+		// prerender/moderate config applies on every install (migration-free —
+		// the array_replace_recursive deep-merge in sn_setting() fills this in).
+		'perf' => array(
+			'speculative_loading' => true,
+		),
 		// v4.9.0 (T4): opt-in Uptime Kuma push heartbeat. Default OFF so the
 		// feature is dormant on every existing install (migration-free — the
 		// array_replace_recursive deep-merge in sn_setting() fills these in).
@@ -256,6 +262,14 @@ function sn_settings_save( $raw ) {
 	// as the audit subtree above.
 	if ( isset( $existing_settings['monitoring'] ) && is_array( $existing_settings['monitoring'] ) ) {
 		$sanitized['monitoring'] = $existing_settings['monitoring'];
+	}
+
+	// v4.10.0 (T6): preserve the perf subtree (Speculation Rules toggle),
+	// configured on the Tools tab via sn_setting_update('perf.*', …), NOT in
+	// this Identity-tab form payload. Same whole-option-replace hazard as the
+	// audit/monitoring subtrees above.
+	if ( isset( $existing_settings['perf'] ) && is_array( $existing_settings['perf'] ) ) {
+		$sanitized['perf'] = $existing_settings['perf'];
 	}
 
 	$sanitized['seo_copy'] = array(

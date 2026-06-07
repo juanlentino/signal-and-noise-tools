@@ -85,6 +85,7 @@ require_once SNT_PATH . 'inc/admin-post-actions.php';
 require_once SNT_PATH . 'inc/admin-forms/identity-and-seo.php';
 require_once SNT_PATH . 'inc/admin-forms/login.php';
 require_once SNT_PATH . 'inc/admin-forms/links.php';
+require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools → Performance (Speculation Rules toggle)
 require_once SNT_PATH . 'inc/rest-api.php';
 
 /**
@@ -197,6 +198,7 @@ require_once SNT_PATH . 'inc/audit-log.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
 require_once SNT_PATH . 'inc/privacy-exporters.php'; // v4.10.0: GDPR exporter/eraser + suggested privacy policy text
+require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: opt-in Speculation Rules tuning (prerender/moderate)
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;

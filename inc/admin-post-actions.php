@@ -269,3 +269,14 @@ function sn_handle_monitoring_save( $post ) {
 
 	return 'monitoring_saved';
 }
+
+/**
+ * v4.10.0 (T6): save the Speculation Rules toggle from the Tools → Performance
+ * sub-tab. Writes the boolean through sn_setting_update('perf.speculative_loading',
+ * …); the wp_speculation_rules_configuration filter reads it on the next page load.
+ */
+function sn_handle_perf_save( $post ) {
+	$enabled = ! empty( $post['speculative_loading'] );
+	sn_setting_update( 'perf.speculative_loading', $enabled );
+	return 'perf_saved';
+}

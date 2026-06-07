@@ -105,6 +105,7 @@ function sn_admin_top_tabs() {
 				'reading-time'     => array( 'label' => 'Reading Time' ),
 				'links'            => array( 'label' => 'Links' ),
 				'block-migrations' => array( 'label' => 'Block Migrations' ),
+				'performance'      => array( 'label' => 'Performance' ),
 			),
 		),
 	);
