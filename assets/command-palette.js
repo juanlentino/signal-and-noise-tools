@@ -45,6 +45,41 @@
 
 	var cfg = window.sntCommandPalette || {};
 	var dashboardUrl = cfg.dashboardUrl || '/wp-admin/admin.php?page=sn-theme-options';
+	var newNoteUrl = cfg.newNoteUrl || '/wp-admin/post-new.php';
+	var tabs = Array.isArray( cfg.tabs ) ? cfg.tabs : [];
+	var notesCategoryId = parseInt( cfg.notesCategoryId, 10 ) || 0;
+
+	// Entity-decode REST title.rendered (get_the_title() runs the_title →
+	// HTML-entity-encoded). wp.htmlEntities.decodeEntities is the canonical
+	// WP helper (@wordpress/html-entities, a hard dependency of this script).
+	// The map fallback covers only the handful of named entities the_title
+	// emits, in case the dep is ever stripped — labels are passed as plain
+	// text to registerCommand so no markup ever renders.
+	var ENTITY_FALLBACK = {
+		'&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+		'&#039;': "'", '&#39;': "'", '&#8217;': '’', '&#8216;': '‘',
+		'&#8220;': '“', '&#8221;': '”', '&#8211;': '–', '&#8212;': '—',
+		'&nbsp;': ' ', '&hellip;': '…',
+	};
+	function decodeText( html ) {
+		var s = html == null ? '' : String( html );
+		if ( wp.htmlEntities && typeof wp.htmlEntities.decodeEntities === 'function' ) {
+			return wp.htmlEntities.decodeEntities( s );
+		}
+		return s.replace( /&[a-z#0-9]+;/gi, function( m ) {
+			return Object.prototype.hasOwnProperty.call( ENTITY_FALLBACK, m ) ? ENTITY_FALLBACK[ m ] : m;
+		} );
+	}
+
+	// Close the palette (if open) then hard-navigate. Used by the New-Note,
+	// tab-jump, and recent-Notes commands — these are plain navigations, not
+	// ability calls, so they bypass the run()/executeAbility() machinery.
+	function navigateTo( url, close ) {
+		if ( typeof close === 'function' ) {
+			close();
+		}
+		window.location.assign( url );
+	}
 
 	// Dashicon as React element via wp.element.createElement (no JSX build step).
 	function dashicon( name ) {
@@ -259,10 +294,70 @@
 		label: __( 'SN: Open Signal & Noise settings', 'signal-noise-tools' ),
 		icon: dashicon( 'admin-settings' ),
 		callback: function( args ) {
-			if ( typeof args.close === 'function' ) {
-				args.close();
-			}
-			window.location.assign( dashboardUrl );
+			navigateTo( dashboardUrl, args.close );
 		},
 	} );
+
+	// ─── v4.11.0: editor-flavored navigation commands ────────────────
+
+	// New Note → the post editor (Notes are the default post type).
+	dispatch.registerCommand( {
+		name: 'signal-noise/new-note',
+		label: __( 'SN: New Note', 'signal-noise-tools' ),
+		icon: dashicon( 'edit' ),
+		callback: function( args ) {
+			navigateTo( newNoteUrl, args.close );
+		},
+	} );
+
+	// Six "Go to <Tab>" jumps, one per top-level admin tab (from the PHP SSOT).
+	// The payload is {label,url}; derive a stable command-name slug from the
+	// ?page= value (falling back to the index) so names stay clean.
+	tabs.forEach( function( tab, i ) {
+		if ( ! tab || ! tab.url ) {
+			return;
+		}
+		var pageMatch = tab.url.match( /[?&]page=([^&]+)/ );
+		var slug = pageMatch ? pageMatch[ 1 ] : String( i );
+		var label = decodeText( tab.label || tab.url );
+		dispatch.registerCommand( {
+			name: 'signal-noise/goto-' + slug,
+			label: __( 'SN: Go to ', 'signal-noise-tools' ) + label,
+			icon: dashicon( 'menu' ),
+			callback: function( args ) {
+				navigateTo( tab.url, args.close );
+			},
+		} );
+	} );
+
+	// Up to 5 most-recent Notes → edit screen. ONE apiFetch; commands register
+	// after it resolves. status=any so drafts/private Notes show (admin-gated).
+	if ( notesCategoryId > 0 ) {
+		wp.apiFetch( {
+			path: '/wp/v2/posts?categories=' + notesCategoryId + '&per_page=5&status=any',
+		} ).then( function( posts ) {
+			if ( ! Array.isArray( posts ) ) {
+				return;
+			}
+			posts.forEach( function( post ) {
+				if ( ! post || ! post.id ) {
+					return;
+				}
+				var rendered = post.title && post.title.rendered ? post.title.rendered : '';
+				var title = decodeText( rendered ) || __( '(no title)', 'signal-noise-tools' );
+				var editUrl = '/wp-admin/post.php?post=' + post.id + '&action=edit';
+				dispatch.registerCommand( {
+					name: 'signal-noise/edit-note-' + post.id,
+					label: __( 'SN: Edit Note — ', 'signal-noise-tools' ) + title,
+					icon: dashicon( 'admin-page' ),
+					callback: function( args ) {
+						navigateTo( editUrl, args.close );
+					},
+				} );
+			} );
+		} ).catch( function( err ) {
+			// eslint-disable-next-line no-console
+			console.error( '[SN] recent-Notes fetch error:', err );
+		} );
+	}
 } )();

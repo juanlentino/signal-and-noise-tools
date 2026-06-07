@@ -45,14 +45,47 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'snt-command-palette',
 		plugins_url( 'assets/command-palette.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-commands', 'wp-data', 'wp-i18n', 'wp-api-fetch', 'wp-element' ),
+		array( 'wp-commands', 'wp-data', 'wp-i18n', 'wp-api-fetch', 'wp-element', 'wp-html-entities' ),
 		SNT_VERSION,
 		true
 	);
 
+	// v4.11.0: editor-flavored navigation entries.
+	//
+	// Tabs are built from sn_admin_top_tabs() (the single source of truth in
+	// inc/admin-tabs-data.php) so the palette's "Go to <Tab>" commands stay in
+	// lockstep with the admin IA. Each tab page is a standard admin.php?page=
+	// menu screen.
+	$tabs = array();
+	if ( function_exists( 'sn_admin_top_tabs' ) ) {
+		foreach ( sn_admin_top_tabs() as $tab ) {
+			if ( empty( $tab['slug'] ) ) {
+				continue;
+			}
+			$tabs[] = array(
+				'label' => isset( $tab['label'] ) ? (string) $tab['label'] : (string) $tab['slug'],
+				'url'   => admin_url( 'admin.php?page=' . $tab['slug'] ),
+			);
+		}
+	}
+
+	// Resolve the Notes category id so the JS can fetch the 5 most-recent Notes
+	// in ONE apiFetch. 0 when the category is unseeded (fresh install) — the JS
+	// then skips the recent-Notes commands entirely.
+	$notes_category_id = 0;
+	if ( defined( 'SN_NOTES_CATEGORY_SLUG' ) && function_exists( 'get_term_by' ) ) {
+		$term = get_term_by( 'slug', SN_NOTES_CATEGORY_SLUG, 'category' );
+		if ( $term && isset( $term->term_id ) ) {
+			$notes_category_id = (int) $term->term_id;
+		}
+	}
+
 	wp_localize_script( 'snt-command-palette', 'sntCommandPalette', array(
-		'restNamespace' => 'signal-noise/v1',
-		'dashboardUrl'  => admin_url( 'admin.php?page=sn-theme-options' ),
+		'restNamespace'   => 'signal-noise/v1',
+		'dashboardUrl'    => admin_url( 'admin.php?page=sn-theme-options' ),
+		'newNoteUrl'      => admin_url( 'post-new.php' ),
+		'tabs'            => $tabs,
+		'notesCategoryId' => $notes_category_id,
 	) );
 
 	wp_enqueue_script( 'snt-command-palette' );
