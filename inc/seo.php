@@ -472,6 +472,38 @@ add_action( 'template_redirect', function() {
 }, 10 );
 
 /**
+ * Compute the ETag for an RSS feed request, unique per feed.
+ *
+ * Pure function (CLI-testable). The ETag must vary per FEED, not just per build
+ * timestamp: two distinct feeds (e.g. /feed/ and /notes/feed/) can share a
+ * build timestamp, and an ETag built from the timestamp alone would collide —
+ * a reader caching one feed could get a 304 false-positive against the other.
+ *
+ * We fold a stable feed identity into the hash:
+ *   - WP_Term       (taxonomy/term archive feed) → "{taxonomy}:{term_id}"
+ *   - WP_Post_Type  (post-type archive feed)      → "{post_type}:{name}"
+ *   - anything else (main /feed/)                  → "" (empty identity)
+ *
+ * Inputs are ONLY the build timestamp + feed identity — nothing
+ * request-varying — so the ETag is STABLE for a given feed across requests
+ * (a strong validator the client can match on If-None-Match).
+ *
+ * @since 4.8.1
+ * @param string $last_modified_http RFC-1123 feed build date (the Last-Modified value).
+ * @param mixed  $queried_object     get_queried_object() for the request (WP_Term|WP_Post_Type|null).
+ * @return string Quoted strong ETag.
+ */
+function sn_seo_feed_etag( $last_modified_http, $queried_object ) {
+	$feed_id = '';
+	if ( $queried_object instanceof WP_Term ) {
+		$feed_id = $queried_object->taxonomy . ':' . $queried_object->term_id;
+	} elseif ( $queried_object instanceof WP_Post_Type ) {
+		$feed_id = 'post_type:' . $queried_object->name;
+	}
+	return '"' . md5( $last_modified_http . '|' . $feed_id ) . '"';
+}
+
+/**
  * Decide the conditional-GET response for an RSS feed request.
  *
  * Pure function (no header/exit side effects) so the decision logic is
@@ -540,7 +572,10 @@ add_action( 'template_redirect', function() {
 	}
 
 	$last_modified_http = gmdate( 'D, d M Y H:i:s', $ts ) . ' GMT';
-	$etag               = '"' . md5( $last_modified_http ) . '"';
+	// v4.8.1: fold feed identity into the ETag so two feeds sharing a build
+	// timestamp (e.g. /feed/ and /notes/feed/) don't collide on the same
+	// validator. See sn_seo_feed_etag().
+	$etag               = sn_seo_feed_etag( $last_modified_http, get_queried_object() );
 
 	$ims = isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ? wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) : '';
 	$inm = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) : '';

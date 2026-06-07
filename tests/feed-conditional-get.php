@@ -77,6 +77,21 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 	function get_queried_object() { return null; }
 }
 
+// Real class names so sn_seo_feed_etag()'s `instanceof WP_Term` /
+// `instanceof WP_Post_Type` checks resolve. Minimal — only the props the
+// helper reads (term_id/taxonomy, name).
+if ( ! class_exists( 'WP_Term' ) ) {
+	class WP_Term {
+		public $term_id;
+		public $taxonomy;
+	}
+}
+if ( ! class_exists( 'WP_Post_Type' ) ) {
+	class WP_Post_Type {
+		public $name;
+	}
+}
+
 require_once __DIR__ . '/../inc/seo.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -130,6 +145,51 @@ fc_eq( $etag, $r['headers']['ETag'] ?? null, '200 (no conditionals) carries ETag
 
 // 5. modified_gmt = 0 → null (can't compute a validator).
 fc_eq( null, sn_seo_feed_conditional_response( 0, '', '', $etag ), 'modified_gmt = 0 → null' );
+
+// ─── Per-feed ETag uniqueness (v4.8.1 adversarial fix 4) ──────────────
+// The wrapper previously built $etag from md5($last_modified_http) ALONE, so
+// two different feeds (e.g. /feed/ and /notes/feed/) that share a build
+// timestamp collided on an identical ETag — a 304 false-positive across feeds.
+// sn_seo_feed_etag() folds feed identity in: taxonomy:term_id for a WP_Term,
+// post_type:name for a WP_Post_Type, '' for the main feed.
+echo "\nPer-feed ETag uniqueness (sn_seo_feed_etag)\n";
+fc_true( function_exists( 'sn_seo_feed_etag' ), 'sn_seo_feed_etag() is defined' );
+
+$lm = gmdate( 'D, d M Y H:i:s', $modified ) . ' GMT';
+
+// Two distinct taxonomy-term feeds sharing the SAME build timestamp.
+$term_a            = new WP_Term();
+$term_a->term_id  = 7;
+$term_a->taxonomy = 'category';
+$term_b            = new WP_Term();
+$term_b->term_id  = 12;
+$term_b->taxonomy = 'category';
+
+$etag_a = sn_seo_feed_etag( $lm, $term_a );
+$etag_b = sn_seo_feed_etag( $lm, $term_b );
+fc_true( $etag_a !== $etag_b, 'two different terms, same timestamp → DIFFERENT ETags' );
+
+// A post-type feed and the main feed also differ from each other + the terms.
+$pt        = new WP_Post_Type();
+$pt->name  = 'post';
+$etag_pt   = sn_seo_feed_etag( $lm, $pt );
+$etag_main = sn_seo_feed_etag( $lm, null );
+fc_true( $etag_pt !== $etag_main, 'post-type feed vs main feed → DIFFERENT ETags' );
+fc_true( $etag_pt !== $etag_a && $etag_main !== $etag_a, 'post-type + main differ from a term feed' );
+
+// Same identity + same timestamp → STABLE ETag (no request-varying input).
+$term_a2            = new WP_Term();
+$term_a2->term_id  = 7;
+$term_a2->taxonomy = 'category';
+fc_eq( $etag_a, sn_seo_feed_etag( $lm, $term_a2 ), 'same term + same timestamp → STABLE ETag across requests' );
+fc_eq( $etag_main, sn_seo_feed_etag( $lm, null ), 'main feed ETag is stable across requests' );
+
+// A different timestamp changes the ETag for the same feed (validator still tracks builds).
+$lm2 = gmdate( 'D, d M Y H:i:s', $modified + 3600 ) . ' GMT';
+fc_true( $etag_a !== sn_seo_feed_etag( $lm2, $term_a ), 'same term, different timestamp → different ETag (still validates builds)' );
+
+// ETag is a quoted strong validator.
+fc_true( '"' === $etag_a[0] && '"' === substr( $etag_a, -1 ), 'ETag is double-quoted (strong validator)' );
 
 // ─── Action registration ──────────────────────────────────────────────
 echo "\nAction registration: feed conditional-GET runs after RSS tracking (priority > 1)\n";
