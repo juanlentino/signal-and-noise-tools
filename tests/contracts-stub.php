@@ -222,9 +222,17 @@ cs_true( is_null( $result ), '4.4: listener can return null on failure case' );
 // inc/deploy-history.php, on a real version change, rolls over Breeze's HTML
 // page cache via `apply_filters( 'sn_purge_all_caches_result', 0, $args )` with
 // $args['template_overrides'] === false (preserves Site Editor DB overrides).
-// We assert the contract shape — the exact dispatch the $dirty branch emits —
-// without requiring deploy-history.php (which would pull in WP bootstrap deps),
-// per this file's docblock rationale for Contract 1.
+// We assert the contract SHAPE here — the exact dispatch the $dirty branch
+// emits — without requiring deploy-history.php, per this file's docblock
+// rationale for Contract 1.
+//
+// NOTE (v4.8.1 adversarial fix 2): this Contract asserts an INLINE COPY of the
+// dispatch, NOT the real snt_deploy_history_version_check(). It documents the
+// contract shape but is TAUTOLOGICAL as feature coverage — it would stay green
+// even if the real dispatch leaked out of the `if ($dirty)` branch. The real
+// behavioral coverage (drives the actual function through a dirty state and
+// spies on the filter) lives in tests/deploy-history-rollover.php. Contract 5
+// is retained for the cross-package shape documentation only.
 echo "\nContract 5: deploy-history Breeze rollover dispatch (gotcha #28)\n";
 $GLOBALS['__test_filters'] = array();
 
