@@ -43,6 +43,10 @@ define( 'SN_HEALTH_CACHE_KEY',     'sn_health_last_scan' );
 define( 'SN_HEALTH_CACHE_TTL',     DAY_IN_SECONDS );
 define( 'SN_HEALTH_STALE_MONTHS',  12 );
 define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
+// v4.9.0 (T1): Cloudflare security-header drift probe caches for 6h. The
+// transient holds the array of MISSING header names; an empty array means the
+// edge delivered all 5 delegated headers on the last probe.
+define( 'SN_HEALTH_CF_HEADERS_TTL', 6 * HOUR_IN_SECONDS );
 // v4.1.1 (B-10): cap candidates per post in drift-detection. AI max_tokens=600
 // budgets for ~25 verdicts; truncation mid-JSON would drop the post silently.
 define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 );
@@ -81,6 +85,7 @@ function sn_health_run_scan() {
 			'broken_links'        => sn_health_check_broken_links(),
 			'stale_posts'         => sn_health_check_stale_posts(),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
+			'cf_security_headers' => sn_health_check_cf_security_headers(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -628,6 +633,115 @@ function sn_health_check_drift_time_phrases() {
 				'context_snippet' => $context,
 			);
 		}
+	}
+
+	return sn_health_pack_check( $label, $findings, $fix_hint );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * CHECK 6: Cloudflare security-header drift (v4.9.0, T1)
+ *
+ * The 5 delegated headers (CSP / HSTS / X-Content-Type-Options /
+ * X-Frame-Options / Referrer-Policy) are emitted at the Cloudflare edge
+ * via a Transform Rule / Managed Headers — NOT by WordPress. If the rule
+ * is dropped or misconfigured, the site silently loses its security
+ * posture with no signal anywhere in wp-admin. This check fires ONE
+ * HEAD request at home_url and asserts each header is present, surfacing
+ * any absence as a finding.
+ *
+ * Probe result (the array of MISSING header names) caches for 6h in the
+ * `sn_health_cf_headers_probe` transient. On a WP_Error probe we return a
+ * probe-failed note WITHOUT caching, so the next scan re-attempts (the
+ * edge being unreachable is a transient state, not a finding).
+ *
+ * Detection-only — NOT in $suggest_supported_checks (no AI-fix column;
+ * the fix is a CF dashboard change, not a post mutation).
+ *
+ * @since 4.9.0
+ * @return array { count, findings, label, fix_hint }
+ */
+function sn_health_check_cf_security_headers() {
+	$label    = 'Cloudflare security headers';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress. A missing header means the edge rule was dropped or misconfigured — verify it in the Cloudflare dashboard.';
+
+	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
+	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
+		return sn_health_pack_check( $label, array(), $fix_hint );
+	}
+
+	$expected = array(
+		'content-security-policy',
+		'strict-transport-security',
+		'x-content-type-options',
+		'x-frame-options',
+		'referrer-policy',
+	);
+
+	$cache_key = 'sn_health_cf_headers_probe';
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		// Cached array IS the list of missing header names.
+		$missing = $cached;
+	} else {
+		$home = home_url( '/' );
+		$resp = wp_remote_head( $home, array(
+			'timeout'     => 5,
+			'redirection' => 2,
+			'sslverify'   => true,
+			'headers'     => array(
+				'User-Agent' => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' header-drift-check',
+			),
+		) );
+
+		if ( is_wp_error( $resp ) ) {
+			// Edge unreachable — do NOT cache; self-heal on the next scan.
+			return sn_health_pack_check(
+				$label,
+				array(),
+				'Header probe failed (' . $resp->get_error_message() . ') — the edge was unreachable. The check will retry on the next scan.'
+			);
+		}
+
+		// wp_remote_retrieve_headers() returns a CaseInsensitiveDictionary on
+		// live WP and a plain array under test. Normalize either to a
+		// lower-cased associative array of present header names.
+		$raw     = wp_remote_retrieve_headers( $resp );
+		$present = array();
+		if ( is_object( $raw ) ) {
+			$raw = (array) $raw;
+			// A CaseInsensitiveDictionary casts to its inner ->data property,
+			// which (array) flattens to that single member when public.
+			if ( count( $raw ) === 1 && isset( $raw['data'] ) && is_array( $raw['data'] ) ) {
+				$raw = $raw['data'];
+			}
+		}
+		if ( is_array( $raw ) ) {
+			foreach ( $raw as $name => $value ) {
+				$present[ strtolower( (string) $name ) ] = true;
+			}
+		}
+
+		$missing = array();
+		foreach ( $expected as $header ) {
+			if ( ! isset( $present[ $header ] ) ) {
+				$missing[] = $header;
+			}
+		}
+
+		set_transient( $cache_key, $missing, SN_HEALTH_CF_HEADERS_TTL );
+	}
+
+	$findings = array();
+	$home_url = home_url( '/' );
+	foreach ( $missing as $header ) {
+		$findings[] = array(
+			'subject_type'  => 'security_header',
+			'subject_id'    => 0,
+			'subject_url'   => $home_url,
+			'subject_label' => $header,
+			'edit_url'      => '',
+			'note'          => 'Expected at the Cloudflare edge but absent — verify the CF Transform Rule / Managed Headers.',
+		);
 	}
 
 	return sn_health_pack_check( $label, $findings, $fix_hint );
