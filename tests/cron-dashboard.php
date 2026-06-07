@@ -40,6 +40,13 @@ function add_action( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {
 	// No-op for module load; specific tests can override via globals.
 }
 
+// v4.9.0: cron-dashboard.php now registers a Site Health filter + REST route
+// at module scope (Task 2). These stubs let the module load under the harness.
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route() {} }
+if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://x/wp-json/' . ltrim( $p, '/' ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+
 function _get_cron_array() {
 	return $GLOBALS['__test_cron_array'];
 }

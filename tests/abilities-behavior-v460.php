@@ -74,6 +74,11 @@ if ( ! function_exists( 'has_action' ) ) {
 		return ! empty( $GLOBALS['__test_actions'][ $tag ] );
 	}
 }
+// v4.9.0: cron-dashboard.php registers a Site Health filter + REST route at
+// module scope (Task 2). Stub the registration helpers so the module loads.
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route() {} }
+if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://x/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'do_action_ref_array' ) ) {
 	function do_action_ref_array( $tag, $args ) {
 		if ( empty( $GLOBALS['__test_actions'][ $tag ] ) ) {

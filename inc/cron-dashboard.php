@@ -404,3 +404,142 @@ function snt_cron_summary_for_localize() {
 		'orphans'  => $orphans,
 	);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Native WordPress Site Health async test (v4.9.0, Task 2)
+ *
+ * Tools → Site Health → Status runs an async test against the SN cron
+ * pipeline. Core fetches the REST route below and renders the returned
+ * envelope. This surfaces SN cron health where site admins already look
+ * for it (native WP), without a bespoke SN widget.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/**
+ * The full set of cron hooks the pipeline owns, including the cron-history
+ * prune hook (defined in inc/cron-history.php). Kept separate from
+ * snt_cron_sn_owned_hooks() (which the dashboard uses to pin rows) so the
+ * Site Health test can include the history-prune hook without changing the
+ * dashboard's ordering set.
+ */
+function snt_cron_site_health_hooks() {
+	$hooks = snt_cron_sn_owned_hooks();
+	if ( defined( 'SNT_CRON_HISTORY_CRON_HOOK' ) ) {
+		$hooks[] = SNT_CRON_HISTORY_CRON_HOOK;
+	}
+	return array_values( array_unique( $hooks ) );
+}
+
+/**
+ * Resolve a hook's recurrence interval in seconds (for staleness math).
+ * Returns 0 when the schedule is unknown.
+ */
+function snt_cron_interval_seconds( $hook ) {
+	if ( ! function_exists( 'wp_get_schedule' ) || ! function_exists( 'wp_get_schedules' ) ) {
+		return 0;
+	}
+	$slug = wp_get_schedule( $hook );
+	if ( ! $slug ) {
+		return 0;
+	}
+	$schedules = wp_get_schedules();
+	return isset( $schedules[ $slug ]['interval'] ) ? (int) $schedules[ $slug ]['interval'] : 0;
+}
+
+/**
+ * Build the Site Health result envelope for the SN cron pipeline.
+ *
+ * status:
+ *   - 'good'        : every hook scheduled, none stale, cron not silently off
+ *   - 'recommended' : any unscheduled / stale (>2× interval) / cron disabled
+ *                     without a declared system-cron replacement
+ *
+ * "Silently disabled" = DISABLE_WP_CRON is true AND no system cron has been
+ * declared via the sn_cron_system_cron_configured filter (defaults false).
+ *
+ * @since 4.9.0
+ * @return array
+ */
+function snt_cron_site_health_result() {
+	$hooks   = snt_cron_site_health_hooks();
+	$now     = time();
+	$issues  = array();
+	$lines   = array();
+
+	foreach ( $hooks as $hook ) {
+		$next       = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( $hook ) : false;
+		$last_fired = snt_cron_last_fired_for( $hook );
+		$interval   = snt_cron_interval_seconds( $hook );
+
+		$next_label = ( false !== $next && is_numeric( $next ) )
+			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-noise-tools' ), human_time_diff( $now, (int) $next ) )
+			: __( 'NOT scheduled', 'signal-noise-tools' );
+
+		$last_label = ( null !== $last_fired )
+			? sprintf( /* translators: %s: human time diff. */ __( 'last fired %s ago', 'signal-noise-tools' ), human_time_diff( (int) $last_fired, $now ) )
+			: __( 'never fired', 'signal-noise-tools' );
+
+		if ( false === $next || ! is_numeric( $next ) ) {
+			$issues[] = $hook;
+		} elseif ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) > ( 2 * $interval ) ) {
+			// Fired but the last firing is older than 2× the recurrence — stale.
+			$issues[] = $hook;
+		}
+
+		$lines[] = esc_html( $hook ) . ' — ' . esc_html( $next_label ) . '; ' . esc_html( $last_label );
+	}
+
+	$cron_silently_disabled = ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON )
+		&& ! apply_filters( 'sn_cron_system_cron_configured', false );
+
+	$status = ( empty( $issues ) && ! $cron_silently_disabled ) ? 'good' : 'recommended';
+
+	$description = '<p>' . wp_kses_post( implode( '<br>', $lines ) ) . '</p>';
+	if ( $cron_silently_disabled ) {
+		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-noise-tools' ) . '</p>';
+	}
+
+	$cron_tab_url = admin_url( 'admin.php?page=sn-automation&tab=cron' );
+
+	return array(
+		'label'       => __( 'Signal & Noise cron pipeline', 'signal-noise-tools' ),
+		'status'      => $status,
+		'badge'       => array(
+			'label' => __( 'Performance', 'signal-noise-tools' ),
+			'color' => 'blue',
+		),
+		'description' => $description,
+		'actions'     => '<p><a href="' . esc_url( $cron_tab_url ) . '">' . esc_html__( 'Open the Cron tab', 'signal-noise-tools' ) . '</a></p>',
+		'test'        => 'sn_cron_pipeline',
+	);
+}
+
+/**
+ * Register the async Site Health test.
+ */
+add_filter( 'site_status_tests', 'snt_cron_register_site_health_test' );
+function snt_cron_register_site_health_test( $tests ) {
+	$tests['async']['sn_cron_pipeline'] = array(
+		'label'    => __( 'Signal & Noise cron pipeline', 'signal-noise-tools' ),
+		'test'     => rest_url( 'signal-noise/v1/site-health/cron' ),
+		'has_rest' => true,
+	);
+	return $tests;
+}
+
+/**
+ * REST endpoint the async test polls. manage_options-gated.
+ */
+add_action( 'rest_api_init', 'snt_cron_register_site_health_route' );
+function snt_cron_register_site_health_route() {
+	register_rest_route( 'signal-noise/v1', '/site-health/cron', array(
+		'methods'             => 'GET',
+		'callback'            => 'snt_cron_site_health_rest',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+	) );
+}
+
+function snt_cron_site_health_rest() {
+	return snt_cron_site_health_result();
+}
