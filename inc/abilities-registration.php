@@ -12,8 +12,9 @@
  *     _delete_attachment) that replace the inline closure pattern.
  *   - inc/abilities-categories.php           — 5 category registrations on
  *     `wp_abilities_api_categories_init` (idempotent vs. theme).
- *   - inc/abilities-system.php                — 7 abilities: cache/template
- *     overrides + force-check-updates + deploy status + list-abilities.
+ *   - inc/abilities-system.php                — 8 abilities: cache/template
+ *     overrides + force-check-updates + deploy status + list-abilities
+ *     + draft-release-notes (v4.11.0).
  *   - inc/abilities-content.php               — 2 abilities: OG card regen
  *     + RSS feed activity stats.
  *   - inc/abilities-cron.php                  — 5 abilities: WP-Cron dashboard
@@ -35,7 +36,7 @@
  *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
  *     scan + dismiss (structural 'tools' category, v4.6.0).
  *
- * Total: 42 abilities + 5 categories. Each feature file owns its
+ * Total: 43 abilities + 5 categories. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *

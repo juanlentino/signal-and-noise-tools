@@ -106,6 +106,10 @@ function sn_admin_top_tabs() {
 				'links'            => array( 'label' => 'Links' ),
 				'block-migrations' => array( 'label' => 'Block Migrations' ),
 				'performance'      => array( 'label' => 'Performance' ),
+				// v4.11.0 (T4): AI release-notes drafter. 5th Tools sub-tab -
+				// keep in-page tab count == submenu count (desktop-mode
+				// horizontal-submenu rule).
+				'release-notes'    => array( 'label' => 'Release Notes' ),
 			),
 		),
 	);

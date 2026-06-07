@@ -2,8 +2,8 @@
 /**
  * Signal & Noise Tools — Abilities API: system maintenance + deploy state.
  *
- * Seven abilities covering cache/template/update housekeeping plus the
- * deploy-status + ability-catalogue diagnostics:
+ * Eight abilities covering cache/template/update housekeeping plus the
+ * deploy-status + ability-catalogue + release-notes diagnostics:
  *   - signal-noise/purge-all-caches         (destructive, idempotent)
  *   - signal-noise/clear-template-overrides (destructive, idempotent)
  *   - signal-noise/list-template-overrides  (readonly, idempotent)
@@ -11,6 +11,7 @@
  *   - signal-noise/force-check-updates       (idempotent — clears update transients)
  *   - signal-noise/get-deploy-status         (readonly, idempotent)
  *   - signal-noise/list-abilities            (readonly, idempotent — registry catalogue)
+ *   - signal-noise/draft-release-notes       (readonly, NOT idempotent — AI draft)
  *
  * Categories: maintenance / diagnostics / updates. File grouping is by
  * feature (system housekeeping) rather than category so related impls
@@ -254,6 +255,43 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	// v4.11.0 (T4): AI release-notes drafter. readonly (writes nothing) but
+	// NOT idempotent - a generative call returns different prose each time, so
+	// do not copy `idempotent => true` from the neighbors above.
+	wp_register_ability( 'signal-noise/draft-release-notes', array(
+		'label'               => 'Draft release notes from a change log',
+		'description'         => 'Turns a pasted CHANGELOG delta (or a few bullets of what changed) into Mimestream-style, human-readable release notes (New / Improvements / Fixed sections) via the WP AI Client. Returns markdown; writes nothing. One on-demand AI call; input is hard-capped at ~4000 chars.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_draft_release_notes',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'changelog_delta' ),
+			'properties'           => array(
+				'changelog_delta' => array(
+					'type'        => 'string',
+					'description' => 'Raw change log delta / notes describing what changed in this version.',
+					'minLength'   => 1,
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'       => array( 'type' => 'boolean' ),
+				'markdown' => array( 'type' => 'string', 'description' => 'The drafted release notes in GitHub-flavored markdown.' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'   => true,
+				'idempotent' => false,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/list-template-overrides', array(
 		'label'               => 'List database template overrides',
 		'description'         => 'Returns the slugs and post types of any wp_template / wp_template_part / wp_navigation rows currently overriding theme files. Read-only inspection before the destructive clear-template-overrides.',
@@ -454,5 +492,26 @@ function snt_ability_list_template_overrides() {
 		'ok'    => true,
 		'count' => count( $items ),
 		'items' => $items,
+	);
+}
+
+/**
+ * Ability execute callback: signal-noise/draft-release-notes.
+ * Thin wrapper around snt_release_notes_draft_impl(); wraps the markdown string
+ * into the { ok, markdown } output shape (or passes a WP_Error through).
+ * @since 4.11.0
+ */
+function snt_ability_draft_release_notes( $input ) {
+	if ( ! function_exists( 'snt_release_notes_draft_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Release-notes drafter helper unavailable.', array( 'status' => 500 ) );
+	}
+	$delta  = is_array( $input ) && isset( $input['changelog_delta'] ) ? (string) $input['changelog_delta'] : '';
+	$result = snt_release_notes_draft_impl( $delta );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	return array(
+		'ok'       => true,
+		'markdown' => (string) $result,
 	);
 }

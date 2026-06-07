@@ -223,7 +223,7 @@ function sn_theme_options_page() {
 
 	// ════════════════════════════════════════
 	// TAB: TOOLS (v3.8.1+: sub-tabs)
-	// Sub-tabs: reading-time, links, block-migrations, performance
+	// Sub-tabs: reading-time, links, block-migrations, performance, release-notes
 	// ════════════════════════════════════════
 	} elseif ( 'tools' === $active_tab ) {
 
@@ -237,6 +237,9 @@ function sn_theme_options_page() {
 			} );
 		} elseif ( 'performance' === $active_sub ) {
 			sn_admin_render_section( 'performance', 'sn_admin_render_performance_section' );
+		} elseif ( 'release-notes' === $active_sub ) {
+			// v4.11.0 (T4): AI release-notes drafter.
+			sn_admin_render_section( 'release-notes', 'sn_admin_render_release_notes_section' );
 		} else {
 			// Default sub-tab: 'reading-time'
 			sn_admin_render_section( 'reading-time', function() {

@@ -100,7 +100,7 @@ pa_eq( 'https://kuma.example/api/push/x', sn_setting( 'monitoring.uptime_kuma_pu
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 24, count( $map ), 'map has 24 actions' );
+pa_eq( 25, count( $map ), 'map has 25 actions' );
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

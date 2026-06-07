@@ -52,6 +52,7 @@ function sn_admin_post_handlers() {
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
 		'monitoring_save'            => 'sn_handle_monitoring_save',
 		'perf_save'                  => 'sn_handle_perf_save',
+		'release_notes_draft'        => 'sn_handle_release_notes_draft',
 	);
 }
 

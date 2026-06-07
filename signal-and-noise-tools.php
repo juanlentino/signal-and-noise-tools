@@ -86,6 +86,7 @@ require_once SNT_PATH . 'inc/admin-forms/identity-and-seo.php';
 require_once SNT_PATH . 'inc/admin-forms/login.php';
 require_once SNT_PATH . 'inc/admin-forms/links.php';
 require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools → Performance (Speculation Rules toggle)
+require_once SNT_PATH . 'inc/admin-forms/release-notes.php'; // v4.11.0 (T4): Tools → Release Notes (AI drafter)
 require_once SNT_PATH . 'inc/rest-api.php';
 
 /**
@@ -166,6 +167,7 @@ require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
 require_once __DIR__ . '/inc/ai-prepopulate.php';
 require_once __DIR__ . '/inc/ai-prepopulate-notice.php';
+require_once __DIR__ . '/inc/release-notes-draft.php'; // v4.11.0 (T4): AI release-notes drafter impl + ability wrapper
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';
 require_once __DIR__ . '/inc/pattern-adoption-apply.php';
