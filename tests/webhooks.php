@@ -409,18 +409,43 @@ sn_webhook_on_transition( 'trash', 'publish', $p200t );
 wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'publish→trash → exactly 1 enqueue (no double-fire)' );
 wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'trash event is post.deleted (not unpublished)' );
 
-// ─── Test 17: before_delete_post → post.deleted ───────────────────────
+// ─── Test 17: before_delete_post → post.deleted (publish rows only) ────
 echo "\nTest 17: sn_webhook_on_delete (permanent delete)\n";
+// Direct force-delete of a still-PUBLISHED post (never trashed) → 1 post.deleted.
 $GLOBALS['__test_scheduled_events'] = array();
-$del_post = (object) array(
+$del_pub = (object) array(
+	'ID' => 200, 'post_status' => 'publish', 'post_title' => 'Pub 200', 'post_name' => 'pub-200',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 200, $del_pub );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'force-delete of a published post → 1 enqueue' );
+wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'before_delete event is post.deleted' );
+wh_eq( 'Pub 200', $GLOBALS['__test_scheduled_events'][0]['args'][3]['title'], 'delete snapshot has the title' );
+// Emptying the trash hits an already-'trash' row — but the publish→trash transition
+// already fired post.deleted, so on_delete must NOT double-fire (T1-001).
+$GLOBALS['__test_scheduled_events'] = array();
+$del_trash = (object) array(
 	'ID' => 200, 'post_status' => 'trash', 'post_title' => 'Pub 200', 'post_name' => 'pub-200',
 	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
 );
-sn_webhook_on_delete( 200, $del_post );
-wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'permanent delete → 1 enqueue for an all-events webhook' );
-wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'before_delete event is post.deleted' );
-wh_eq( 'Pub 200', $GLOBALS['__test_scheduled_events'][0]['args'][3]['title'], 'delete snapshot has the title' );
-// Revisions and disallowed types are skipped.
+sn_webhook_on_delete( 200, $del_trash );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'empty-trash of an already-trash row → 0 (no double-fire)' );
+// Never-published content permanently deleted → 0 (no public subscriber saw it) (T1-002).
+$GLOBALS['__test_scheduled_events'] = array();
+$del_draft = (object) array(
+	'ID' => 203, 'post_status' => 'draft', 'post_title' => 'Draft 203', 'post_name' => 'draft-203',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 203, $del_draft );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'force-delete of a never-published draft → 0 enqueues' );
+$GLOBALS['__test_scheduled_events'] = array();
+$del_auto = (object) array(
+	'ID' => 204, 'post_status' => 'auto-draft', 'post_title' => '', 'post_name' => '',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 204, $del_auto );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'auto-draft GC delete → 0 enqueues' );
+// Revisions and disallowed types are skipped (gates before the status check).
 $GLOBALS['__test_scheduled_events'] = array();
 $rev = (object) array( 'ID' => 201, 'post_type' => 'revision', 'post_status' => 'inherit' );
 sn_webhook_on_delete( 201, $rev );
@@ -429,6 +454,18 @@ $GLOBALS['__test_scheduled_events'] = array();
 $att = (object) array( 'ID' => 202, 'post_type' => 'attachment', 'post_status' => 'inherit' );
 sn_webhook_on_delete( 202, $att );
 wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'attachment delete → 0 enqueues (not in post_types gate)' );
+// Full lifecycle: publish → trash → empty-trash fires post.deleted EXACTLY ONCE.
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+sn_webhook_create( array( 'name' => 'lc', 'url' => 'https://lc.example', 'enabled' => '1', 'events' => array_keys( sn_webhook_events() ) ) );
+$GLOBALS['__test_scheduled_events'] = array();
+$lc_trash = (object) array( 'ID' => 205, 'post_type' => 'post', 'post_status' => 'trash' );
+sn_webhook_on_transition( 'trash', 'publish', $lc_trash );           // publish→trash → post.deleted #1
+$lc_purge = (object) array(
+	'ID' => 205, 'post_status' => 'trash', 'post_title' => 'LC 205', 'post_name' => 'lc-205',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 205, $lc_purge );                              // empty-trash → suppressed
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'lifecycle publish→trash→purge → exactly 1 post.deleted' );
 
 // ─── Test 18: widened enqueue arg order (v4.10.0) ─────────────────────
 echo "\nTest 18: sn_webhook_enqueue arg order\n";
@@ -474,6 +511,55 @@ $bc_body = json_decode( (string) $GLOBALS['__wh_last_post']['args']['body'], tru
 wh_eq( 100, $bc_body['post']['id'], 'legacy 4-arg dispatch resolved the right post id (100)' );
 wh_eq( 'post.published', $bc_body['event'], 'legacy 4-arg dispatch defaults to post.published' );
 wh_eq( 'del_oldcron', $bc_body['delivery_id'], 'legacy delivery_id (4th arg) preserved' );
+
+// ─── Test 20: auto-draft permanent delete fires NOTHING ───────────────
+// WordPress core's wp_delete_auto_drafts() cron force-deletes every
+// post_status='auto-draft' row older than 7 days via wp_delete_post($id, true),
+// firing before_delete_post → sn_webhook_on_delete daily. 'auto-draft' is a post
+// STATUS, not a post_type: these rows are post_type='post'/'page', so the
+// post-type gate does NOT exclude them. Without an explicit status guard they
+// spray a spurious post.deleted for posts that never had a public existence.
+echo "\nTest 20: sn_webhook_on_delete skips auto-draft status\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+sn_webhook_create( array( 'name' => 'all20', 'url' => 'https://all20.example', 'enabled' => '1', 'events' => array_keys( sn_webhook_events() ) ) );
+$GLOBALS['__test_scheduled_events'] = array();
+$auto_draft = (object) array(
+	'ID' => 400, 'post_status' => 'auto-draft', 'post_title' => 'Auto Draft',
+	'post_name' => '', 'post_author' => 1, 'post_date_gmt' => '2026-05-01 00:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 400, $auto_draft );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'auto-draft permanent delete → 0 enqueues (never-published; must not fire post.deleted)' );
+// Guard against over-suppression: a real published post still fires post.deleted.
+$GLOBALS['__test_scheduled_events'] = array();
+$real_del = (object) array(
+	'ID' => 401, 'post_status' => 'publish', 'post_title' => 'Real', 'post_name' => 'real',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-01 00:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 401, $real_del );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'published-post permanent delete → 1 enqueue (fix does not over-suppress real posts)' );
+
+// ─── Test 21: trash → purge fires post.deleted EXACTLY ONCE (contract) ────
+// A published post that is trashed and later purged hits two hooks, but is ONE
+// logical deletion: the publish→trash transition fires post.deleted, and the
+// permanent before_delete_post then sees an already-'trash' row and stays silent
+// (the two deliveries would carry different delivery_ids, so receivers could not
+// dedupe). This pins the single-fire contract so the double-fire can't regress.
+echo "\nTest 21: trash → purge fires post.deleted exactly once (contract)\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+sn_webhook_create( array( 'name' => 'all21', 'url' => 'https://all21.example', 'enabled' => '1', 'events' => array_keys( sn_webhook_events() ) ) );
+$GLOBALS['__test_scheduled_events'] = array();
+// Step 1 — publish → trash (soft delete) fires post.deleted once.
+$p_trash = (object) array(
+	'ID' => 500, 'post_type' => 'post', 'post_status' => 'trash', 'post_title' => 'Gone',
+	'post_name' => 'gone', 'post_author' => 1, 'post_date_gmt' => '2026-05-01 00:00:00',
+);
+sn_webhook_on_transition( 'trash', 'publish', $p_trash );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'step 1: publish→trash fires post.deleted once' );
+wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'step 1 event is post.deleted' );
+// Step 2 — purge the already-trashed row (permanent delete) must NOT re-fire.
+sn_webhook_on_delete( 500, $p_trash );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'step 2: purging the already-trashed row does not re-fire (still 1)' );
+wh_eq( 500, $GLOBALS['__test_scheduled_events'][0]['args'][2], 'the single post.deleted carries the post id' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

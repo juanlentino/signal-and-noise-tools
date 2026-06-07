@@ -504,7 +504,10 @@ add_action( SN_WEBHOOK_DISPATCH_HOOK, 'sn_webhook_dispatch', 10, 6 );
 
 /**
  * The post types eligible for webhook events. Filterable; defaults to
- * post + page (skips auto-drafts, revisions, attachments, nav menu items).
+ * post + page. The type gate excludes revisions, attachments, and
+ * nav-menu-items (each a distinct post_type). It does NOT exclude
+ * auto-drafts — 'auto-draft' is a post STATUS on a post_type='post'/'page'
+ * row — those are excluded by the status guard in sn_webhook_on_delete().
  *
  * @since 4.10.0 extracted so every trigger branch shares one gate.
  * @return string[]
@@ -585,15 +588,23 @@ function sn_webhook_on_transition( $new_status, $old_status, $post ) {
 add_action( 'transition_post_status', 'sn_webhook_on_transition', 10, 3 );
 
 /**
- * Permanent-deletion trigger: before_delete_post fires only from
- * wp_delete_post() (not wp_trash_post()), so it covers force-deletes,
- * EMPTY_TRASH_DAYS-off sites, and purging an already-trashed post. Build
- * the snapshot NOW — by dispatch the row is gone. Revisions/auto-drafts
- * are excluded by the post-type gate (the snapshot ignores them too).
+ * Permanent-deletion trigger: before_delete_post fires from wp_delete_post()
+ * (not wp_trash_post()), covering force-deletes and EMPTY_TRASH_DAYS-off sites.
+ * Build the snapshot NOW — by dispatch the row is gone.
+ *
+ * Fires post.deleted ONLY for a row that is still 'publish' at deletion time.
+ * This deliberately suppresses two non-events: (1) emptying the trash, where the
+ * row is already 'trash' and the publish→trash transition already fired
+ * post.deleted (re-firing would double-deliver with a different delivery_id, so
+ * receivers could not dedupe); (2) never-public rows (draft/pending/private/
+ * future, and auto-draft garbage collection via wp_delete_auto_drafts()) that
+ * never fired post.published. A direct force-delete of a live published post
+ * still fires exactly once. Revisions/autosaves are excluded via
+ * wp_is_post_revision(); other post types via the type gate.
  *
  * @since 4.10.0
- * @param int     $post_id
- * @param WP_Post $post
+ * @param int          $post_id
+ * @param WP_Post|null $post
  */
 function sn_webhook_on_delete( $post_id, $post = null ) {
 	if ( ! $post ) {
@@ -606,6 +617,9 @@ function sn_webhook_on_delete( $post_id, $post = null ) {
 		return;
 	}
 	if ( ! in_array( $post->post_type, sn_webhook_allowed_post_types(), true ) ) {
+		return;
+	}
+	if ( 'publish' !== ( isset( $post->post_status ) ? $post->post_status : '' ) ) {
 		return;
 	}
 	sn_webhook_fan_out( 'post.deleted', (int) $post_id, sn_webhook_snapshot_post( $post ) );
