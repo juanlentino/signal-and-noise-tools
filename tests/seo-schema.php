@@ -251,6 +251,22 @@ ss_true( ! isset( $person3['image'] ), 'Person.image absent when og + site-icon 
 // sameAs/jobTitle/knowsAbout untouched.
 ss_true( isset( $person3['sameAs'] ) && isset( $person3['jobTitle'] ) && isset( $person3['knowsAbout'] ), 'sameAs/jobTitle/knowsAbout untouched' );
 
+// REGRESSION (v4.8.1 adversarial fix 1): Person is the cross-URL-stable
+// author+publisher entity. Its image must NOT vary per-post. The
+// sn_og_image_url filter is per-post by design (og-card-generator returns the
+// article's featured image/card on singular views), so Person.image must read
+// the configured value DIRECTLY and bypass that filter. Register a hostile
+// per-post filter and assert the stable configured value still wins.
+echo "\nT3 regression: Person.image bypasses per-post sn_og_image_url filter\n";
+$GLOBALS['__ss']['settings']  = array( 'og.default_image_url' => 'https://example.com/og.png' );
+$GLOBALS['__ss']['site_icon'] = '';
+$GLOBALS['__ss']['og_filter'] = function ( $value ) {
+	return 'https://x/post-99.png';
+};
+$person4 = sn_schema_person();
+ss_eq( 'https://example.com/og.png', $person4['image']['url'] ?? null, 'Person.image.url stays stable (configured value), NOT the per-post filtered url' );
+$GLOBALS['__ss']['og_filter'] = null;
+
 // ─── T4: CollectionPage ItemList ─────────────────────────────────────
 echo "\nT4: CollectionPage mainEntity ItemList\n";
 $GLOBALS['__ss']['is_home'] = true;

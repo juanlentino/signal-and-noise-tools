@@ -69,10 +69,17 @@ function sn_schema_person() {
 		),
 	);
 
-	// v4.8.1: author image as an ImageObject. Prefer the configured OG image
-	// (same source as the OG meta tag), fall back to the site icon. The fixed
-	// @id doubles as the publisher logo reference for any future @id consumer.
-	$img = (string) apply_filters( 'sn_og_image_url', sn_setting( 'og.default_image_url', '' ) );
+	// v4.8.1: author image as an ImageObject. Read the configured OG image
+	// DIRECTLY (no sn_og_image_url filter) — Person is the cross-URL-stable
+	// author+publisher entity (@id-referenced by WebSite.publisher and
+	// Article.author/publisher), so its image must NOT vary per article. The
+	// sn_og_image_url filter is per-post by design (og-card-generator.php
+	// returns the article's featured image/card on singular views); applying it
+	// here would leak the current post's image onto the stable Person entity.
+	// Article.image elsewhere KEEPS that per-post filter — only Person bypasses
+	// it. Fall back to the site icon; the fixed @id doubles as the publisher
+	// logo reference for any future @id consumer.
+	$img = (string) sn_setting( 'og.default_image_url', '' );
 	if ( '' === $img && function_exists( 'get_site_icon_url' ) ) {
 		$img = (string) get_site_icon_url( 512 );
 	}
