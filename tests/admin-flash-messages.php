@@ -44,6 +44,7 @@ fm_eq( array( 'success', 'Identity settings saved.' ), sn_admin_flash_to_notice(
 fm_eq( array( 'info', 'No changes to save.' ), sn_admin_flash_to_notice( 'identity_unchanged' ), 'identity_unchanged' );
 fm_eq( array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' ), sn_admin_flash_to_notice( 'cf_purged_unconfigured' ), 'cf_purged_unconfigured keeps warning severity' );
 fm_eq( array( 'success', 'Block migration scan complete.' ), sn_admin_flash_to_notice( 'block_migrations_scanned' ), 'block_migrations_scanned' );
+fm_eq( array( 'error', 'Uptime Kuma push URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ), sn_admin_flash_to_notice( 'monitoring_url_not_https' ), 'monitoring_url_not_https → error (Fix C)' );
 
 echo "\nTest 2: count-prefixed codes parse the trailing int\n";
 fm_eq( array( 'success', '12 database override(s) cleared. Site is reading from theme files.' ), sn_admin_flash_to_notice( 'cleared_12' ), 'cleared_12' );

@@ -87,7 +87,10 @@ function sn_uptime_heartbeat_worker() {
 	if ( ! $enabled || '' === $url ) {
 		return;
 	}
-	if ( ! wp_http_validate_url( $url ) ) {
+	// T4 (Fix C): defence in depth. The save handler rejects non-https, but a
+	// URL persisted before that guard (or via a direct sn_setting_update) must
+	// not leak the monitor token over plaintext http.
+	if ( ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) ) {
 		return;
 	}
 

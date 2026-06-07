@@ -88,6 +88,12 @@ function set_transient( $key, $value, $exp = 0 ) {
 	return true;
 }
 
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
+
 if ( ! function_exists( 'add_query_arg' ) ) {
 	function add_query_arg( $key, $value, $url ) {
 		$sep = ( false === strpos( $url, '?' ) ) ? '?' : '&';
@@ -200,6 +206,16 @@ $GLOBALS['__test_settings'] = array(
 );
 sn_uptime_heartbeat_worker();
 uh_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'invalid url → no GET' );
+
+// ─── Test 8: worker rejects http:// scheme → 0 GET (Fix C) ───────────
+echo "\nTest 8: worker http:// url → no GET (scheme guard, token must not go plaintext)\n";
+uh_reset();
+$GLOBALS['__test_settings'] = array(
+	'monitoring.uptime_kuma_enabled'  => true,
+	'monitoring.uptime_kuma_push_url' => 'http://kuma.example.com/api/push/abc123',
+);
+sn_uptime_heartbeat_worker();
+uh_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'http url → no GET (https-only worker guard)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

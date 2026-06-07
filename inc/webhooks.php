@@ -83,7 +83,10 @@ function sn_webhook_create( $input ) {
 	if ( '' === $name ) {
 		return new WP_Error( 'sn_webhook_invalid_name', 'Name is required.' );
 	}
-	if ( '' === $url || ! wp_http_validate_url( $url ) ) {
+	// T4 (Fix C): the error copy promises "https://" but the check accepted any
+	// scheme wp_http_validate_url() allows (http included), leaking the signed
+	// payload over plaintext. Enforce https to match the contract.
+	if ( '' === $url || ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) ) {
 		return new WP_Error( 'sn_webhook_invalid_url', 'A valid https:// URL is required.' );
 	}
 
@@ -119,7 +122,10 @@ function sn_webhook_update( $id, $input ) {
 		}
 		if ( isset( $input['url'] ) ) {
 			$candidate = esc_url_raw( trim( (string) $input['url'] ) );
-			if ( '' !== $candidate && wp_http_validate_url( $candidate ) ) {
+			// T4 (Fix C): only accept https updates — an http candidate is
+			// ignored (the existing URL is preserved), mirroring create's
+			// https-only contract.
+			if ( '' !== $candidate && wp_http_validate_url( $candidate ) && 'https' === wp_parse_url( $candidate, PHP_URL_SCHEME ) ) {
 				$wh['url'] = $candidate;
 			}
 		}

@@ -47,6 +47,11 @@ if ( ! function_exists( 'wp_http_validate_url' ) ) {
 		return is_string( $u ) && preg_match( '#^https?://#', $u ) === 1 ? $u : false;
 	}
 }
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
 if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 }
@@ -147,6 +152,11 @@ wh_eq( 'sn_webhook_invalid_name', $res->code, 'invalid_name code' );
 $res = sn_webhook_create( array( 'name' => 'x', 'url' => 'not-a-url' ) );
 wh_true( $res instanceof WP_Error, 'invalid URL rejected' );
 wh_eq( 'sn_webhook_invalid_url', $res->code, 'invalid_url code' );
+// Fix C: an http:// URL is rejected — the error copy promises https:// and the
+// signed payload must not travel over plaintext.
+$res = sn_webhook_create( array( 'name' => 'x', 'url' => 'http://insecure.example/hook' ) );
+wh_true( $res instanceof WP_Error, 'http:// URL rejected on create' );
+wh_eq( 'sn_webhook_invalid_url', $res->code, 'http create → invalid_url code (https-only)' );
 
 // ─── Test 4: update + secret rotation ────────────────────────────────
 echo "\nTest 4: sn_webhook_update\n";
@@ -157,6 +167,13 @@ wh_eq( $old_secret, $updated['secret'], 'secret unchanged without rotate flag' )
 $updated = sn_webhook_update( $created['id'], array( 'rotate_secret' => '1' ) );
 wh_true( $updated['secret'] !== $old_secret, 'secret changes with rotate_secret=1' );
 wh_eq( 48, strlen( $updated['secret'] ), 'rotated secret is still 48 chars' );
+// Fix C: an http:// update is ignored — the existing https URL is preserved.
+$prev_url = $updated['url'];
+$updated  = sn_webhook_update( $created['id'], array( 'url' => 'http://insecure.example/hook' ) );
+wh_eq( $prev_url, $updated['url'], 'http:// update ignored — https URL preserved (https-only contract)' );
+// And a valid https update DOES apply.
+$updated = sn_webhook_update( $created['id'], array( 'url' => 'https://new.example/hook' ) );
+wh_eq( 'https://new.example/hook', $updated['url'], 'https:// update applied' );
 
 // ─── Test 5: delete ──────────────────────────────────────────────────
 echo "\nTest 5: sn_webhook_delete\n";

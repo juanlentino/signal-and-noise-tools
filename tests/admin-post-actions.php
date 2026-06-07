@@ -88,6 +88,16 @@ pa_eq( 'pl_unchanged', sn_handle_pl_save( array( 'sn_pl_token' => '' ) ), 'empty
 pa_eq( 'pl_saved', sn_handle_pl_save( array( 'sn_pl_token' => 'real-new-token' ) ), 'real token → pl_saved' );
 pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'token persisted' );
 
+echo "\nTest: sn_handle_monitoring_save() enforces https (Fix C)\n";
+pa_reset_store();
+// http:// push URL → rejected, cleared, error flash.
+pa_eq( 'monitoring_url_not_https', sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'http://kuma.example/api/push/x' ) ), 'http url → monitoring_url_not_https' );
+pa_eq( '', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'rejected http url cleared (not persisted)' );
+// https:// push URL → saved.
+pa_reset_store();
+pa_eq( 'monitoring_saved', sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://kuma.example/api/push/x' ) ), 'https url → monitoring_saved' );
+pa_eq( 'https://kuma.example/api/push/x', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'https url persisted' );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
 pa_eq( 23, count( $map ), 'map has 23 actions' );

@@ -245,6 +245,20 @@ function sn_handle_monitoring_save( $post ) {
 		? esc_url_raw( trim( (string) wp_unslash( $post['uptime_kuma_push_url'] ) ) )
 		: '';
 
+	// T4 (Fix C): enforce https on the push URL, matching the UI's "Must be
+	// https://" hint. esc_url_raw permits http/ftp/etc.; an http push URL would
+	// leak the monitor token over the wire. Reject + clear + flash an error.
+	$had = ( '' !== $url );
+	if ( $had && 0 !== stripos( $url, 'https://' ) ) {
+		$url = '';
+		sn_setting_update( 'monitoring.uptime_kuma_enabled', $enabled );
+		sn_setting_update( 'monitoring.uptime_kuma_push_url', $url );
+		if ( function_exists( 'sn_uptime_heartbeat_schedule' ) ) {
+			sn_uptime_heartbeat_schedule();
+		}
+		return 'monitoring_url_not_https';
+	}
+
 	sn_setting_update( 'monitoring.uptime_kuma_enabled', $enabled );
 	sn_setting_update( 'monitoring.uptime_kuma_push_url', $url );
 
