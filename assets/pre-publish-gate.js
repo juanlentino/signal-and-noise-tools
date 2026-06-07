@@ -6,7 +6,7 @@
  * published. Advisory only — it never calls lockPostSaving, so the author
  * can publish regardless. 100% client-side; makes ZERO AI / network calls.
  *
- * Checks (computed live from wp.data.select('core/editor')):
+ * Checks (computed reactively via wp.data.useSelect on core/editor):
  *   - noindex left ON          → post & page
  *   - empty SN meta description → post & page
  *   - zero tags                → post only
@@ -44,10 +44,10 @@
 		return;
 	}
 
-	// Compute the advisory warning strings from the live editor store.
-	// Returns a (possibly empty) array of plain strings.
-	function computeWarnings() {
-		var editor = wp.data.select( 'core/editor' );
+	// Compute the advisory warning strings from an editor-store selector.
+	// Returns a (possibly empty) array of plain strings. Takes the selected
+	// `core/editor` store object so the caller can subscribe via useSelect.
+	function computeWarnings( editor ) {
 		if ( ! editor ) {
 			return [];
 		}
@@ -80,7 +80,15 @@
 	}
 
 	function render() {
-		var warnings = computeWarnings();
+		// useSelect SUBSCRIBES this component to core/editor so the advisory
+		// list recomputes as the author edits meta/tags. A bare wp.data.select()
+		// would run ONCE at editor mount and go stale: PluginArea only re-renders
+		// plugins on plugin-registry changes, never on store changes (verified
+		// vs gutenberg trunk packages/plugins/.../plugin-area). render() is
+		// mounted by PluginArea as a function component, so this hook is valid.
+		var warnings = wp.data.useSelect( function( select ) {
+			return computeWarnings( select( 'core/editor' ) );
+		}, [] );
 
 		var body;
 		if ( warnings.length === 0 ) {
