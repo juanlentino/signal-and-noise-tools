@@ -201,10 +201,62 @@ if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 }
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) {
+		// Rich fixture objects (with post_content / post_excerpt) take
+		// precedence — used by the body-grounding excerpt tests.
+		if ( isset( $GLOBALS['__test_post_objects'][ $id ] ) ) {
+			return (object) $GLOBALS['__test_post_objects'][ $id ];
+		}
 		if ( ! empty( $GLOBALS['__test_posts_exist'][ $id ] ) ) {
 			return (object) array( 'ID' => $id, 'post_status' => 'publish' );
 		}
 		return null;
+	}
+}
+
+// ─── Body-grounding helper stubs (mirror WP core semantics) ──────────
+if ( ! function_exists( 'strip_shortcodes' ) ) {
+	// Strip [shortcode] … [/shortcode] and self-closing [shortcode] tokens.
+	function strip_shortcodes( $content ) {
+		return preg_replace( '/\[\/?[^\]]*\]/', '', (string) $content );
+	}
+}
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+	function wp_strip_all_tags( $string, $remove_breaks = false ) {
+		$string = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $string );
+		$string = strip_tags( $string );
+		if ( $remove_breaks ) {
+			$string = preg_replace( '/[\r\n\t ]+/', ' ', $string );
+		}
+		return trim( $string );
+	}
+}
+if ( ! function_exists( 'wp_trim_words' ) ) {
+	// Mirror core: split on whitespace, slice to $num_words, append $more.
+	function wp_trim_words( $text, $num_words = 55, $more = null ) {
+		$text  = trim( (string) $text );
+		$words = preg_split( '/[\n\r\t ]+/', $text, -1, PREG_SPLIT_NO_EMPTY );
+		$sep   = ( null === $more ) ? ' …' : $more;
+		if ( count( $words ) > $num_words ) {
+			$words = array_slice( $words, 0, $num_words );
+			return implode( ' ', $words ) . $sep;
+		}
+		return implode( ' ', $words );
+	}
+}
+
+// snt_ai_extract_post_text is normally in ai-bootstrap.php; replicate its
+// observable contract here (shortcode + tag strip, word-capped, no
+// ellipsis, floor of 50 words) so the body-grounding fallback is exercised.
+if ( ! function_exists( 'snt_ai_extract_post_text' ) ) {
+	function snt_ai_extract_post_text( $post_id, $words = 1000 ) {
+		$post = get_post( (int) $post_id );
+		if ( ! $post ) {
+			return '';
+		}
+		$raw = isset( $post->post_content ) ? $post->post_content : '';
+		$raw = strip_shortcodes( $raw );
+		$raw = wp_strip_all_tags( $raw );
+		return (string) wp_trim_words( $raw, max( 50, (int) $words ), '' );
 	}
 }
 
@@ -570,6 +622,147 @@ echo "\nTest 27: unschedule_weekly_cron\n";
 $GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] = time() + 86400;
 snt_insights_unschedule_weekly_cron();
 ins_true( ! isset( $GLOBALS['__test_scheduled'][ SN_INSIGHTS_CRON_HOOK ] ), 'cron unscheduled' );
+
+// ─── Test 28: body-grounding constants defined ───────────────────────
+echo "\nTest 28: body-grounding constants\n";
+ins_true( defined( 'SN_INSIGHTS_EXCERPT_CAP' ),         'SN_INSIGHTS_EXCERPT_CAP defined' );
+ins_true( defined( 'SN_INSIGHTS_EXCERPT_WORDS' ),       'SN_INSIGHTS_EXCERPT_WORDS defined' );
+ins_true( defined( 'SN_INSIGHTS_EXCERPT_TOTAL_CHARS' ), 'SN_INSIGHTS_EXCERPT_TOTAL_CHARS defined' );
+ins_eq( 25,    SN_INSIGHTS_EXCERPT_CAP,         'excerpt cap = 25' );
+ins_eq( 120,   SN_INSIGHTS_EXCERPT_WORDS,       'excerpt words = 120' );
+ins_eq( 60000, SN_INSIGHTS_EXCERPT_TOTAL_CHARS, 'excerpt total chars = 60000' );
+
+// Helper: reset all the per-test fixture globals the excerpt tests touch.
+function ins_reset_excerpt_fixtures() {
+	$GLOBALS['__test_plausible']     = array( 'aggregate' => array(), 'pages' => array(), 'sources' => array() );
+	$GLOBALS['__test_post_objects']  = array();
+	$GLOBALS['__test_posts_exist']   = array();
+	$GLOBALS['__test_webhooks']      = array();
+	$GLOBALS['__test_webhook_logs']  = array();
+	$GLOBALS['__test_cron_history']  = array();
+}
+
+// ─── Test 29: top-25 carry excerpt, post #26 does not ────────────────
+echo "\nTest 29: only the first 25 posts (by sort) carry an excerpt\n";
+ins_reset_excerpt_fixtures();
+$rows = array();
+$objs = array();
+// 30 posts, distinct publish ages so the days_since_publish ASC tiebreak
+// (all views_7d=0) makes the youngest post sort first deterministically.
+for ( $i = 1; $i <= 30; $i++ ) {
+	$age = $i;  // post 1 = youngest (1 day), post 30 = oldest (30 days)
+	$rows[] = array( 'ID' => $i, 'post_title' => "P{$i}", 'post_name' => "p{$i}", 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - $age * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - $age * DAY_IN_SECONDS ) );
+	$objs[ $i ] = array( 'ID' => $i, 'post_status' => 'publish', 'post_excerpt' => '', 'post_content' => "Body text for post {$i} with several words to extract." );
+}
+$GLOBALS['wpdb']->rows          = $rows;
+$GLOBALS['__test_post_objects'] = $objs;
+$signals = snt_insights_collect_signals();
+ins_eq( 30, count( $signals['posts'] ), '30 posts collected' );
+// First 25 (sorted) carry a non-empty excerpt; the rest do not.
+$with_excerpt = 0;
+$without      = 0;
+foreach ( $signals['posts'] as $idx => $p ) {
+	if ( $idx < 25 ) {
+		ins_true( isset( $p['excerpt'] ) && '' !== $p['excerpt'], "post #" . ( $idx + 1 ) . " carries an excerpt" );
+		$with_excerpt++;
+	} else {
+		ins_true( ! isset( $p['excerpt'] ), "post #" . ( $idx + 1 ) . " (>25) carries NO excerpt key" );
+		$without++;
+	}
+}
+ins_eq( 25, $with_excerpt, 'exactly 25 posts carry an excerpt' );
+ins_eq( 5,  $without,      '5 posts (26-30) carry no excerpt' );
+
+// ─── Test 30: post_excerpt preferred; whitespace-only falls back ─────
+echo "\nTest 30: author post_excerpt preferred; whitespace-only falls back to body\n";
+ins_reset_excerpt_fixtures();
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'Has excerpt',       'post_name' => 'a', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ) ),
+	array( 'ID' => 2, 'post_title' => 'Whitespace excerpt', 'post_name' => 'b', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ) ),
+);
+$GLOBALS['__test_post_objects'] = array(
+	1 => array( 'ID' => 1, 'post_status' => 'publish', 'post_excerpt' => 'Curated author summary.', 'post_content' => 'Different body content that should be IGNORED when an author excerpt exists.' ),
+	2 => array( 'ID' => 2, 'post_status' => 'publish', 'post_excerpt' => "   \n\t  ", 'post_content' => 'Body fallback text because the author excerpt is whitespace only.' ),
+);
+$signals = snt_insights_collect_signals();
+// posts[0] is the youngest (ID 1), posts[1] is ID 2.
+ins_eq( 'Curated author summary.', $signals['posts'][0]['excerpt'], 'author post_excerpt used verbatim' );
+ins_true( false === strpos( $signals['posts'][0]['excerpt'], 'IGNORED' ), 'body NOT used when author excerpt present' );
+ins_eq( 'Body fallback text because the author excerpt is whitespace only.', $signals['posts'][1]['excerpt'], 'whitespace-only excerpt → body fallback' );
+
+// ─── Test 31: body-derived excerpt respects the 120-word cap ─────────
+echo "\nTest 31: body-derived excerpt is capped at SN_INSIGHTS_EXCERPT_WORDS words\n";
+ins_reset_excerpt_fixtures();
+$long_body = implode( ' ', array_fill( 0, 400, 'word' ) );  // 400 words
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'Long body', 'post_name' => 'long', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ) ),
+);
+$GLOBALS['__test_post_objects'] = array(
+	1 => array( 'ID' => 1, 'post_status' => 'publish', 'post_excerpt' => '', 'post_content' => $long_body ),
+);
+$signals = snt_insights_collect_signals();
+$word_count = count( preg_split( '/\s+/', trim( $signals['posts'][0]['excerpt'] ), -1, PREG_SPLIT_NO_EMPTY ) );
+ins_eq( SN_INSIGHTS_EXCERPT_WORDS, $word_count, 'excerpt truncated to exactly 120 words' );
+ins_true( false === strpos( $signals['posts'][0]['excerpt'], '…' ), 'no ellipsis appended' );
+
+// ─── Test 32: running total-chars ceiling truncates the excerpt set ──
+echo "\nTest 32: total-chars ceiling stops attaching excerpts mid-set\n";
+ins_reset_excerpt_fixtures();
+// Each author excerpt is ~5000 chars; 25 posts × 5000 = 125000 > 60000 cap.
+// So only the first ~12-13 posts should carry an excerpt before the
+// running total trips the ceiling.
+$big_excerpt = str_repeat( 'lorem ipsum dolor ', 280 );  // ~5040 chars
+ins_true( strlen( $big_excerpt ) > 4000, 'fixture excerpt is large (>4000 chars)' );
+$rows = array();
+$objs = array();
+for ( $i = 1; $i <= 25; $i++ ) {
+	$rows[] = array( 'ID' => $i, 'post_title' => "P{$i}", 'post_name' => "p{$i}", 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - $i * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - $i * DAY_IN_SECONDS ) );
+	$objs[ $i ] = array( 'ID' => $i, 'post_status' => 'publish', 'post_excerpt' => $big_excerpt, 'post_content' => 'unused' );
+}
+$GLOBALS['wpdb']->rows          = $rows;
+$GLOBALS['__test_post_objects'] = $objs;
+$signals = snt_insights_collect_signals();
+$attached = 0;
+$total_chars = 0;
+foreach ( $signals['posts'] as $p ) {
+	if ( isset( $p['excerpt'] ) ) {
+		$attached++;
+		$total_chars += strlen( $p['excerpt'] );
+	}
+}
+ins_true( $attached > 0,  'at least one excerpt attached' );
+ins_true( $attached < 25, 'ceiling stopped the set before all 25 got excerpts' );
+// The running total may slightly overshoot on the entry that trips the
+// ceiling (we attach then check) but must stay within one excerpt of the cap.
+ins_true( $total_chars <= SN_INSIGHTS_EXCERPT_TOTAL_CHARS + strlen( $big_excerpt ), 'total excerpt chars bounded by the ceiling (+1 entry overshoot)' );
+
+// ─── Test 33: excerpts_count surfaced in signal_summary ──────────────
+echo "\nTest 33: run_scan signal_summary carries excerpts_count\n";
+ins_reset_excerpt_fixtures();
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_response']  = $valid_json;  // 5 valid recs (from Test 10)
+$GLOBALS['wpdb']->rows = array(
+	array( 'ID' => 1, 'post_title' => 'One', 'post_name' => 'one', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 1 * DAY_IN_SECONDS ) ),
+	array( 'ID' => 2, 'post_title' => 'Two', 'post_name' => 'two', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ) ),
+);
+$GLOBALS['__test_post_objects'] = array(
+	1 => array( 'ID' => 1, 'post_status' => 'publish', 'post_excerpt' => 'Summary one.', 'post_content' => 'body' ),
+	2 => array( 'ID' => 2, 'post_status' => 'publish', 'post_excerpt' => 'Summary two.', 'post_content' => 'body' ),
+);
+// parse_response validates target post_id=1 exists.
+$GLOBALS['__test_posts_exist'] = array( 1 => true );
+$result = snt_insights_run_scan( true );
+ins_true( is_array( $result ), 'run_scan returns array' );
+ins_true( isset( $result['signal_summary']['excerpts_count'] ), 'excerpts_count present in signal_summary' );
+ins_eq( 2, $result['signal_summary']['excerpts_count'], 'two excerpts attached → count = 2' );
+
+// ─── Test 34: system instruction mentions the content excerpt ────────
+echo "\nTest 34: system instruction notes the excerpt grounding\n";
+$sys = snt_insights_system_instruction();
+ins_true( false !== stripos( $sys, 'excerpt' ), 'system instruction mentions excerpt' );
+// Output shape unchanged — still asks for exactly 5 recs.
+ins_true( false !== strpos( $sys, 'exactly 5 recommendations' ), 'still asks for exactly 5 recs (shape intact)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

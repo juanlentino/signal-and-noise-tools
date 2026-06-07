@@ -35,6 +35,13 @@ define( 'SN_INSIGHTS_STATE_LIST_CAP',    200 );  // FIFO cap per state list
 define( 'SN_INSIGHTS_SNOOZE_DAYS',       30 );
 define( 'SN_INSIGHTS_MIN_VALID_RECS',    3 );    // below this → scan failed
 
+// ── Body-grounding (v4.11.0): attach bounded content excerpts to the
+// top posts so the advisor reasons about substance, not just metadata.
+// Zero new AI calls — these ride along in the existing weekly prompt.
+define( 'SN_INSIGHTS_EXCERPT_CAP',         25 );    // attach to at most the top-N posts
+define( 'SN_INSIGHTS_EXCERPT_WORDS',       120 );   // per-excerpt word cap
+define( 'SN_INSIGHTS_EXCERPT_TOTAL_CHARS', 60000 ); // hard backstop on the combined excerpt payload
+
 /**
  * Aggregate all SN-owned signals into one dict for the AI prompt.
  *
@@ -150,6 +157,34 @@ function snt_insights_collect_signals() {
 	// Cap at top N.
 	$out['posts'] = array_slice( $posts, 0, SN_INSIGHTS_POST_CAP );
 
+	// ── 3b. Body-grounding: attach a bounded content excerpt to the
+	// highest-priority posts so the advisor reasons about substance, not
+	// just metadata. Source preference: the author's curated post_excerpt
+	// (whitespace-only treated as empty) → fall back to a word-capped
+	// body extract. Two-layer cap: per-excerpt word cap AND a running
+	// total-chars ceiling. Zero new AI calls — these ride the weekly
+	// prompt that's already being sent.
+	$excerpt_chars = 0;
+	$limit = min( SN_INSIGHTS_EXCERPT_CAP, count( $out['posts'] ) );
+	for ( $i = 0; $i < $limit; $i++ ) {
+		if ( $excerpt_chars >= SN_INSIGHTS_EXCERPT_TOTAL_CHARS ) {
+			break;
+		}
+		$pid  = (int) $out['posts'][ $i ]['id'];
+		$post = get_post( $pid );
+		$excerpt = '';
+		if ( $post && isset( $post->post_excerpt ) && '' !== trim( (string) $post->post_excerpt ) ) {
+			$excerpt = trim( (string) $post->post_excerpt );
+		} elseif ( function_exists( 'snt_ai_extract_post_text' ) ) {
+			$excerpt = snt_ai_extract_post_text( $pid, SN_INSIGHTS_EXCERPT_WORDS );
+		}
+		if ( '' === $excerpt ) {
+			continue;
+		}
+		$out['posts'][ $i ]['excerpt'] = $excerpt;
+		$excerpt_chars += strlen( $excerpt );
+	}
+
 	// ── 4. Webhook summary ──
 	$wh_count_active = 0;
 	$wh_summary = array();
@@ -241,7 +276,7 @@ function snt_insights_call_ai( $signals ) {
  */
 function snt_insights_system_instruction() {
 	return <<<INSTRUCTIONS
-You are a content strategist analyzing a personal site's data. You will receive a JSON blob with: site identity, 7-day Plausible analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals.
+You are a content strategist analyzing a personal site's data. You will receive a JSON blob with: site identity, 7-day Plausible analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals. The highest-priority posts include an "excerpt" field carrying a content excerpt — use it to ground recommendations in what a post is actually about.
 
 Return ONLY a JSON array of exactly 5 recommendations. Each must be an object:
 
@@ -454,6 +489,7 @@ function snt_insights_run_scan( $force = false ) {
 		'recommendations' => $parsed,
 		'signal_summary'  => array(
 			'posts_count'    => count( $signals['posts'] ),
+			'excerpts_count' => count( array_filter( $signals['posts'], function( $p ) { return isset( $p['excerpt'] ) && '' !== $p['excerpt']; } ) ),
 			'webhooks_count' => isset( $signals['webhooks']['total_active'] ) ? (int) $signals['webhooks']['total_active'] : 0,
 			'cron_hooks_seen' => count( $signals['cron_freshness'] ),
 		),
