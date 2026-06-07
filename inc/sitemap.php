@@ -93,3 +93,21 @@ add_filter( 'wp_sitemaps_posts_query_args', function( $args, $post_type ) {
 
 	return $args;
 }, 10, 2 );
+
+// v4.8.1: a single-author Notes site needs no author sitemap, and tag/category
+// term-archives are thin/duplicate-y — drop them from the sitemap index.
+add_filter(
+	'wp_sitemaps_add_provider',
+	function ( $provider, $name ) {
+		return ( 'users' === $name ) ? false : $provider;
+	},
+	10,
+	2
+);
+add_filter(
+	'wp_sitemaps_taxonomies',
+	function ( $taxonomies ) {
+		unset( $taxonomies['post_tag'], $taxonomies['category'] );
+		return $taxonomies;
+	}
+);
