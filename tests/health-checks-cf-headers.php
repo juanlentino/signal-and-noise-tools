@@ -97,22 +97,28 @@ class WP_Error {
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
-// A minimal CaseInsensitiveDictionary stand-in to exercise the (array) cast +
-// lower-casing the impl must perform on live WP. Casting it to array yields
-// its public ->data property keyed by ORIGINAL (possibly mixed) case.
+// A faithful CaseInsensitiveDictionary stand-in matching the REAL
+// WpOrg\Requests shape: $data is PROTECTED (so a (array) cast mangles the key
+// to "\0*\0data" and never unwraps), keys are lower-cased on set, and the
+// public getAll() returns the already-lower-cased data. This makes the test
+// FALSIFYING: the old (array)-cast impl reports all-missing against it; only
+// the getAll()-based impl reads the headers correctly.
 class SN_Test_CI_Dictionary implements ArrayAccess, IteratorAggregate {
-	public $data = array();
-	public function __construct( $arr ) { $this->data = $arr; }
+	protected $data = array();
+	public function __construct( $arr ) {
+		foreach ( $arr as $k => $v ) { $this->offsetSet( $k, $v ); }
+	}
 	#[\ReturnTypeWillChange]
 	public function offsetExists( $offset ) { return isset( $this->data[ strtolower( $offset ) ] ); }
 	#[\ReturnTypeWillChange]
 	public function offsetGet( $offset ) { return $this->data[ strtolower( $offset ) ] ?? null; }
 	#[\ReturnTypeWillChange]
-	public function offsetSet( $offset, $value ) { $this->data[ $offset ] = $value; }
+	public function offsetSet( $offset, $value ) { $this->data[ strtolower( (string) $offset ) ] = $value; }
 	#[\ReturnTypeWillChange]
-	public function offsetUnset( $offset ) { unset( $this->data[ $offset ] ); }
+	public function offsetUnset( $offset ) { unset( $this->data[ strtolower( $offset ) ] ); }
 	#[\ReturnTypeWillChange]
 	public function getIterator() { return new ArrayIterator( $this->data ); }
+	public function getAll() { return $this->data; }
 }
 
 // Minimal $wpdb stub — the CF check does no DB work, but loading
@@ -203,6 +209,12 @@ $GLOBALS['__test_head_response'] = array( 'response' => array( 'code' => 200 ), 
 $check = sn_health_check_cf_security_headers();
 cf_eq( 1, $check['count'], 'mixed-case dict: only x-frame-options missing → 1 finding' );
 cf_eq( 'x-frame-options', $check['findings'][0]['subject_label'], 'normalized lookup found the present 4 despite mixed case' );
+// FALSIFICATION: assert the present-set actually contains a real header name —
+// the old (array)-cast impl mangled the protected $data to "\0*\0data" and saw
+// ZERO real headers, so it would flag CSP (and all 5) as missing here.
+$mixed_labels = array_column( $check['findings'], 'subject_label' );
+cf_true( ! in_array( 'content-security-policy', $mixed_labels, true ), 'CSP recognized as PRESENT from the protected-data dict (would FAIL against the (array)-cast impl)' );
+cf_true( ! in_array( 'referrer-policy', $mixed_labels, true ), 'referrer-policy recognized as present from the protected-data dict' );
 
 // ─── Test 5: cache hit short-circuits wp_remote_head ─────────────────
 echo "\nTest 5: cache hit → wp_remote_head NOT called\n";
@@ -222,6 +234,39 @@ $check = sn_health_check_cf_security_headers();
 cf_eq( 0, $check['count'], 'WP_Error → 0 findings' );
 cf_eq( 1, $GLOBALS['__test_head_calls'], 'probe attempted once' );
 cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_headers_probe'] ), 'transient NOT written on WP_Error (self-heals next scan)' );
+
+// ─── Test 7: edge bypass (none present, no cf-ray/server) → advisory ──
+echo "\nTest 7: probe hit origin directly (no headers, no cf-ray) → 0 findings + advisory, NOT cached\n";
+cf_reset();
+$GLOBALS['__test_head_response'] = array(
+	'response' => array( 'code' => 200 ),
+	'headers'  => array( 'content-type' => 'text/html', 'x-powered-by' => 'PHP' ), // none of the 5, no cf-ray, no server:cloudflare
+);
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'edge bypass → 0 findings (no false positives)' );
+cf_true( false !== stripos( $check['fix_hint'], 'origin directly' ), 'advisory note mentions hitting the origin directly' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_headers_probe'] ), 'degenerate result NOT cached (re-attempts next scan)' );
+
+// ─── Test 8: confirmed edge (cf-ray present, 4/5) → edge path still works
+echo "\nTest 8: confirmed edge (cf-ray present) with 1 missing → 1 finding (edge path intact)\n";
+cf_reset();
+$edge4 = $all5; unset( $edge4['x-frame-options'] );
+$edge4['cf-ray'] = '8a1b2c3d4e5f-EWR';
+$GLOBALS['__test_head_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => $edge4 );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'confirmed edge, 1 missing → 1 finding' );
+cf_eq( 'x-frame-options', $check['findings'][0]['subject_label'], 'edge finding label correct' );
+cf_true( isset( $GLOBALS['__test_transients']['sn_health_cf_headers_probe'] ), 'edge result IS cached' );
+
+// ─── Test 9: server:cloudflare (no cf-ray) but all 5 absent → edge confirmed, 5 findings
+echo "\nTest 9: server:cloudflare edge, all 5 absent → 5 findings (NOT suppressed)\n";
+cf_reset();
+$GLOBALS['__test_head_response'] = array(
+	'response' => array( 'code' => 200 ),
+	'headers'  => array( 'server' => 'cloudflare', 'content-type' => 'text/html' ),
+);
+$check = sn_health_check_cf_security_headers();
+cf_eq( 5, $check['count'], 'edge confirmed via server:cloudflare → all 5 genuinely-missing flagged' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
