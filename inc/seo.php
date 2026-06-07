@@ -463,3 +463,99 @@ add_action( 'template_redirect', function() {
 		}
 	}
 }, 10 );
+
+/**
+ * Decide the conditional-GET response for an RSS feed request.
+ *
+ * Pure function (no header/exit side effects) so the decision logic is
+ * CLI-testable. Returns:
+ *   - null                        when there's no usable validator ($modified_gmt 0)
+ *   - array( 'status' => 304 )    when the client's validator is still fresh
+ *   - array( 'status' => 200,
+ *            'headers' => [...] ) otherwise (Last-Modified + ETag to emit)
+ *
+ * ETag takes precedence over If-Modified-Since (a strong validator match is
+ * definitive). IMS uses >= so an exactly-equal timestamp is treated as fresh.
+ *
+ * @since 4.8.1
+ * @param int    $modified_gmt      Feed build timestamp (Unix, GMT). 0 = unknown.
+ * @param string $if_modified_since Raw HTTP_IF_MODIFIED_SINCE value ('' if none).
+ * @param string $if_none_match     Raw HTTP_IF_NONE_MATCH value ('' if none).
+ * @param string $etag              The computed ETag (quoted) for this feed.
+ * @return array|null
+ */
+function sn_seo_feed_conditional_response( $modified_gmt, $if_modified_since, $if_none_match, $etag ) {
+	if ( ! $modified_gmt ) {
+		return null;
+	}
+	if ( $if_none_match && trim( $if_none_match ) === $etag ) {
+		return array( 'status' => 304 );
+	}
+	if ( $if_modified_since && strtotime( $if_modified_since ) >= $modified_gmt ) {
+		return array( 'status' => 304 );
+	}
+	$http = gmdate( 'D, d M Y H:i:s', $modified_gmt ) . ' GMT';
+	return array(
+		'status'  => 200,
+		'headers' => array(
+			'Last-Modified' => $http,
+			'ETag'          => $etag,
+		),
+	);
+}
+
+/**
+ * Conditional-GET (Last-Modified + ETag + 304) for RSS feeds.
+ *
+ * Mirrors the singular handler above but for feed requests, so well-behaved
+ * feed readers (and Google's feed crawler) can skip re-downloading an
+ * unchanged feed — saving bandwidth + crawl budget.
+ *
+ * Hooked at priority 10 so it runs AFTER sn_rss_tracker_capture (priority 1):
+ * the tracker must record the hit before we short-circuit with a 304/exit.
+ * Gated dormant while TSF is active (it owns feed headers then). Uses
+ * get_feed_build_date() so category feeds like /notes/feed/ get an accurate
+ * per-feed timestamp.
+ *
+ * Added in v4.8.1.
+ */
+add_action( 'template_redirect', function() {
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+	if ( ! is_feed() ) {
+		return;
+	}
+
+	$ts = (int) get_feed_build_date( 'U' );
+	if ( ! $ts ) {
+		return;
+	}
+
+	$last_modified_http = gmdate( 'D, d M Y H:i:s', $ts ) . ' GMT';
+	$etag               = '"' . md5( $last_modified_http ) . '"';
+
+	$ims = isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ? wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) : '';
+	$inm = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) : '';
+
+	$response = sn_seo_feed_conditional_response( $ts, (string) $ims, (string) $inm, $etag );
+	if ( null === $response ) {
+		return;
+	}
+
+	if ( 304 === $response['status'] ) {
+		// SERVER_PROTOCOL allowlist — same CRLF-injection defense as the
+		// singular handler above (a manipulated value would prefix the
+		// status line, enabling response splitting).
+		$raw_protocol = isset( $_SERVER['SERVER_PROTOCOL'] ) ? wp_unslash( $_SERVER['SERVER_PROTOCOL'] ) : '';
+		$protocol     = in_array( $raw_protocol, array( 'HTTP/1.0', 'HTTP/1.1', 'HTTP/2', 'HTTP/2.0', 'HTTP/3' ), true )
+			? $raw_protocol
+			: 'HTTP/1.1';
+		header( $protocol . ' 304 Not Modified', true, 304 );
+		exit;
+	}
+
+	foreach ( $response['headers'] as $name => $value ) {
+		header( $name . ': ' . $value );
+	}
+}, 10 );
