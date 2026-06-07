@@ -514,13 +514,19 @@ if ( ! class_exists( 'WP_Ability' ) ) {
 				$allowed = call_user_func( $this->config['permission_callback'], $input );
 				if ( is_wp_error( $allowed ) ) { return $allowed; }
 				if ( ! $allowed ) {
-					return new WP_Error( 'rest_forbidden', 'Sorry, you are not allowed to do that.', array( 'status' => 403 ) );
+					// Mirror the REAL WP_Ability::execute() permission-denial contract
+					// (code 'ability_invalid_permissions', no 'status' data), not the
+					// REST layer's 'ability_invalid_permissions'/403 (which these direct ->execute()
+					// calls never hit). Verified vs WordPress/abilities-api trunk.
+					return new WP_Error( 'ability_invalid_permissions', 'Ability does not have necessary permission.' );
 				}
 			}
 			if ( isset( $this->config['input_schema']['required'] ) ) {
 				foreach ( (array) $this->config['input_schema']['required'] as $required_key ) {
 					if ( ! is_array( $input ) || ! isset( $input[ $required_key ] ) ) {
-						return new WP_Error( 'rest_invalid_param', "Missing required: $required_key", array( 'status' => 400 ) );
+						// Real WP_Ability::validate_input() wraps rest_validate_value_from_schema
+						// failures in code 'ability_invalid_input' (NOT 'ability_invalid_input').
+						return new WP_Error( 'ability_invalid_input', "Ability has invalid input. Reason: Missing required: $required_key" );
 					}
 				}
 			}
@@ -528,7 +534,7 @@ if ( ! class_exists( 'WP_Ability' ) ) {
 				foreach ( $this->config['input_schema']['properties'] as $key => $schema ) {
 					if ( isset( $schema['enum'] ) && isset( $input[ $key ] ) ) {
 						if ( ! in_array( $input[ $key ], $schema['enum'], true ) ) {
-							return new WP_Error( 'rest_invalid_param', "Invalid enum for $key", array( 'status' => 400 ) );
+							return new WP_Error( 'ability_invalid_input', "Ability has invalid input. Reason: Invalid enum for $key" );
 						}
 					}
 				}
@@ -716,7 +722,7 @@ foreach ( $denied_diagnostics as $slug ) {
 	$args = 'signal-noise/get-cron-history' === $slug ? array( 'hook' => 'x' ) : array();
 	$res  = wp_get_ability( $slug )->execute( $args );
 	ap_true( is_wp_error( $res ), "$slug: subscriber denied" );
-	ap_eq( 'rest_forbidden', $res->get_error_code(), "$slug: rest_forbidden code" );
+	ap_eq( 'ability_invalid_permissions', $res->get_error_code(), "$slug: permission-denial code" );
 }
 
 ap_reset_caps();
@@ -730,7 +736,7 @@ echo "\nCategory: read/diagnostics — required + enum validation\n";
 // get-cron-event: missing hook
 $res = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array( 'args_signature' => 'abc' ) );
 ap_true( is_wp_error( $res ), 'get-cron-event: missing hook → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'get-cron-event: code is rest_invalid_param' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'get-cron-event: code is invalid-input' );
 
 // get-cron-event: missing args_signature
 $res = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array( 'hook' => 'x' ) );
@@ -788,7 +794,7 @@ $denied_destructive = array(
 foreach ( $denied_destructive as $slug ) {
 	$res = wp_get_ability( $slug )->execute( array() );
 	ap_true( is_wp_error( $res ), "$slug: subscriber denied" );
-	ap_eq( 'rest_forbidden', $res->get_error_code(), "$slug: rest_forbidden code" );
+	ap_eq( 'ability_invalid_permissions', $res->get_error_code(), "$slug: permission-denial code" );
 }
 
 ap_reset_caps();
@@ -824,13 +830,13 @@ ap_reset_caps();
 // Missing required post_id
 $res = wp_get_ability( 'signal-noise/regenerate-og-card' )->execute( array() );
 ap_true( is_wp_error( $res ), 'regenerate-og-card: missing post_id → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'regenerate-og-card: rest_invalid_param' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'regenerate-og-card: invalid-input' );
 
 // edit_post denied
 $GLOBALS['__test_edit_post_ok'] = false;
 $res = wp_get_ability( 'signal-noise/regenerate-og-card' )->execute( array( 'post_id' => 200 ) );
 ap_true( is_wp_error( $res ), 'regenerate-og-card: edit_post denied → WP_Error' );
-ap_eq( 'rest_forbidden', $res->get_error_code(), 'regenerate-og-card: rest_forbidden' );
+ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'regenerate-og-card: permission-denial' );
 
 // Happy path (edit_post allowed)
 $GLOBALS['__test_edit_post_ok'] = true;
@@ -884,7 +890,7 @@ $denied_ai = array(
 foreach ( $denied_ai as $slug ) {
 	$res = wp_get_ability( $slug )->execute( array( 'post_id' => 200 ) );
 	ap_true( is_wp_error( $res ), "$slug: edit_post denied" );
-	ap_eq( 'rest_forbidden', $res->get_error_code(), "$slug: rest_forbidden code" );
+	ap_eq( 'ability_invalid_permissions', $res->get_error_code(), "$slug: permission-denial code" );
 }
 $GLOBALS['__test_edit_post_ok'] = true;
 
@@ -892,7 +898,7 @@ $GLOBALS['__test_edit_post_ok'] = true;
 foreach ( $denied_ai as $slug ) {
 	$res = wp_get_ability( $slug )->execute( array() );
 	ap_true( is_wp_error( $res ), "$slug: missing post_id → WP_Error" );
-	ap_eq( 'rest_invalid_param', $res->get_error_code(), "$slug: rest_invalid_param code" );
+	ap_eq( 'ability_invalid_input', $res->get_error_code(), "$slug: invalid-input code" );
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -914,7 +920,7 @@ ap_true( isset( $out['filename'] ), 'ai-alt-suggest: filename key present' );
 $GLOBALS['__test_edit_post_ok'] = false;
 $res = wp_get_ability( 'signal-noise/ai-alt-suggest' )->execute( array( 'attachment_id' => 1234 ) );
 ap_true( is_wp_error( $res ), 'ai-alt-suggest: edit_post denied → WP_Error' );
-ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-alt-suggest: rest_forbidden code' );
+ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'ai-alt-suggest: permission-denial code' );
 $GLOBALS['__test_edit_post_ok'] = true;
 
 // ── ai-alt-apply — happy path ───────────────────────────────────────
@@ -925,7 +931,7 @@ ap_eq( 'A red barn at dusk.', $out['written_alt'], 'ai-alt-apply: written_alt ec
 // ── ai-alt-apply — missing alt_text → schema validation ─────────────
 $res = wp_get_ability( 'signal-noise/ai-alt-apply' )->execute( array( 'attachment_id' => 1234 ) );
 ap_true( is_wp_error( $res ), 'ai-alt-apply: missing alt_text → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-alt-apply: rest_invalid_param code' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'ai-alt-apply: invalid-input code' );
 
 // ── ai-drift-suggest — happy path ───────────────────────────────────
 $drift_input = array(
@@ -941,7 +947,7 @@ ap_eq( 32, strlen( $out['fingerprint'] ), 'ai-drift-suggest: fingerprint is md5 
 // ── ai-drift-suggest — missing required field ───────────────────────
 $res = wp_get_ability( 'signal-noise/ai-drift-suggest' )->execute( array( 'post_id' => 200 ) );
 ap_true( is_wp_error( $res ), 'ai-drift-suggest: missing phrase → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-drift-suggest: rest_invalid_param code' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'ai-drift-suggest: invalid-input code' );
 
 // ── ai-drift-apply — happy path ─────────────────────────────────────
 // v4.1.1: context_snippet is now required (used by the impl to resolve raw
@@ -969,7 +975,7 @@ $missing_ctx_input = $apply_input;
 unset( $missing_ctx_input['context_snippet'] );
 $res = wp_get_ability( 'signal-noise/ai-drift-apply' )->execute( $missing_ctx_input );
 ap_true( is_wp_error( $res ), 'ai-drift-apply: missing context_snippet → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-drift-apply: rest_invalid_param code (v4.1.1 schema)' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'ai-drift-apply: invalid-input code (v4.1.1 schema)' );
 
 // ── ai-alt-inline-suggest — happy path ──────────────────────────────
 $inline_input = array(
@@ -984,13 +990,13 @@ ap_eq( true, $out['ok'], 'ai-alt-inline-suggest: ok=true' );
 $GLOBALS['__test_edit_post_ok'] = false;
 $res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( $inline_input );
 ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: edit_post denied → WP_Error' );
-ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-alt-inline-suggest: rest_forbidden code' );
+ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'ai-alt-inline-suggest: permission-denial code' );
 $GLOBALS['__test_edit_post_ok'] = true;
 
 // ── ai-alt-inline-suggest — missing required field ──────────────────
 $res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( array( 'post_id' => 200 ) );
 ap_true( is_wp_error( $res ), 'ai-alt-inline-suggest: missing image_src → WP_Error' );
-ap_eq( 'rest_invalid_param', $res->get_error_code(), 'ai-alt-inline-suggest: rest_invalid_param code' );
+ap_eq( 'ability_invalid_input', $res->get_error_code(), 'ai-alt-inline-suggest: invalid-input code' );
 
 // ── ai-alt-inline-suggest — img not in post ─────────────────────────
 $res = wp_get_ability( 'signal-noise/ai-alt-inline-suggest' )->execute( array(
@@ -1042,7 +1048,7 @@ ap_eq( 1234, $out['attachment_id'], 'ai-orphan-apply: attachment_id echo' );
 $GLOBALS['__test_delete_post_ok'] = false;
 $res = wp_get_ability( 'signal-noise/ai-orphan-apply' )->execute( array( 'attachment_id' => 1234 ) );
 ap_true( is_wp_error( $res ), 'ai-orphan-apply: delete_post denied → WP_Error' );
-ap_eq( 'rest_forbidden', $res->get_error_code(), 'ai-orphan-apply: rest_forbidden code' );
+ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'ai-orphan-apply: permission-denial code' );
 $GLOBALS['__test_delete_post_ok'] = true;
 
 // ── ai-orphan-apply — vanished mid-flight (attachment_id 9999) ─────
@@ -1160,7 +1166,7 @@ ap_eq( array(), $none['items'], 'list-abilities: namespace=nonexistent returns e
 $GLOBALS['__test_user_caps'] = array( 'read' => true );
 $res = wp_get_ability( 'signal-noise/list-abilities' )->execute( array() );
 ap_true( is_wp_error( $res ), 'list-abilities: subscriber denied' );
-ap_eq( 'rest_forbidden', $res->get_error_code(), 'list-abilities: rest_forbidden code' );
+ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'list-abilities: permission-denial code' );
 ap_reset_caps();
 
 echo "\nResult: $pass passed, $fail failed.\n";
