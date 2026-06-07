@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.9.0] - 2026-06-06 — Site Health & observability
+
+**Headline:** Five additive observability surfaces that lift the plugin's most operational subsystems into native, self-checking WordPress surfaces — Site Health checks, an Info panel, an opt-in uptime heartbeat, and live-refreshing admin tables. No new dashboard widget or admin-bar node; everything lands where admins already look.
+
+### New
+- **Cloudflare security-header drift detection.** A new SN Health check fires one 6-hour-cached HEAD probe at the home URL and flags any of the five edge-delivered security headers (CSP, HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy) that have gone missing — so a dropped Cloudflare Transform Rule no longer silently strips the site's security posture. Self-heals if the edge is briefly unreachable.
+- **Native Site Health test for the cron pipeline.** Tools → Site Health → Status now runs an async test against the Signal & Noise cron pipeline: every SN-owned hook (including the cron-history prune) is checked for being scheduled, not stale, and not silently disabled (DISABLE_WP_CRON without a declared system cron). Deep-links to the Cron tab.
+- **SN operational state in Site Health → Info.** A "Signal & Noise Tools" panel surfaces plugin/theme versions, update state, DB-override count, per-hook cron state, cron-history table presence, external-API rate state, AI availability, webhook counts, and cache state. Integration-adjacent fields are marked private (excluded from the copy-to-clipboard export).
+- **Opt-in Uptime Kuma heartbeat.** Configure a Kuma push-monitor URL on the Webhooks tab and the plugin sends a `status=up` heartbeat every 5 minutes. If WP-Cron stops firing or the site goes down, Kuma stops receiving it and flips the monitor to DOWN — external "is it alive + is cron working" monitoring with no inbound surface. Default off; SSRF-hardened (URL validation + no redirects, mirroring the webhook posture).
+- **Live-refreshing cron + webhook tables.** The Cron tab's last-fired cells and the Webhooks tab's delivery logs now update in place via the WordPress Heartbeat API — no page reload. The server only does work for the tables actually on screen and only for admins.
+
 ## [4.8.1] - 2026-06-06 — Track A SEO/structured-data + ops/a11y patch
 
 **Headline:** A 9-item patch bundle that enriches the site's structured data, leans out the sitemap, makes social cards accessible, and adds two performance/a11y niceties. No new admin UI — all additive calibration.
