@@ -179,5 +179,18 @@ $GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
 $res = snt_cron_site_health_result();
 ch_eq( 'good', $res['status'], 'declaring system cron via filter keeps status good' );
 
+// ─── Test 6: scheduled but last-fired older than 2x interval → recommended ──
+// Isolates the staleness branch: all hooks scheduled in the future, DISABLE_WP_CRON
+// (defined true in Test 4) neutralized by declaring system cron, so only one hook's
+// stale last-fired can downgrade the status.
+echo "\nTest 6: stale hook (fired > 2x interval ago) → recommended\n";
+ch_all_healthy();
+$GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
+$stale_hook = SN_RSS_TRACKER_CRON_HOOK;
+$GLOBALS['__test_schedule_for'][ $stale_hook ] = 'daily'; // interval 86400 → 2× = 172800
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $stale_hook ) ] = time() - 3 * DAY_IN_SECONDS;
+$res = snt_cron_site_health_result();
+ch_eq( 'recommended', $res['status'], 'stale hook (>2x interval) downgrades to recommended' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
