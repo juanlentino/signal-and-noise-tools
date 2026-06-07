@@ -10,8 +10,11 @@
  *                    mainEntityOfPage. (BlogPosting would also be fine
  *                    but Article is the broader supertype.)
  *
+ * SearchAction: WebSite emits a SearchAction targeting the on-site search at
+ * `/notes/?s=` (theme v9.8.0 Notes-scoped search) so Google can surface a
+ * sitelinks search box. (Pre-v4.8.1 this was skipped — there was no search route.)
+ *
  * Skipped vs The SEO Framework's emission:
- *   - SearchAction — site has no /search/{term} route.
  *   - WebPage on non-post singulars — marginal value, omit.
  *
  * NOTE: BreadcrumbList JSON-LD IS emitted from here (sn_schema_breadcrumb_list
@@ -48,7 +51,7 @@ function sn_schema_person() {
 	$same_as = (array) apply_filters( 'sn_schema_same_as', sn_schema_default_same_as() );
 	$name    = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
 
-	return array(
+	$person = array(
 		'@type'      => 'Person',
 		'@id'        => $home . '#/schema/Person',
 		'name'       => $name,
@@ -65,6 +68,23 @@ function sn_schema_person() {
 			)
 		),
 	);
+
+	// v4.8.1: author image as an ImageObject. Prefer the configured OG image
+	// (same source as the OG meta tag), fall back to the site icon. The fixed
+	// @id doubles as the publisher logo reference for any future @id consumer.
+	$img = (string) apply_filters( 'sn_og_image_url', sn_setting( 'og.default_image_url', '' ) );
+	if ( '' === $img && function_exists( 'get_site_icon_url' ) ) {
+		$img = (string) get_site_icon_url( 512 );
+	}
+	if ( '' !== $img ) {
+		$person['image'] = array(
+			'@type' => 'ImageObject',
+			'@id'   => $home . '#/schema/PersonImage',
+			'url'   => $img,
+		);
+	}
+
+	return $person;
 }
 
 /**
@@ -74,7 +94,7 @@ function sn_schema_website() {
 	$home   = home_url( '/' );
 	$locale = sn_setting( 'identity.locale', 'en_US' );
 
-	return array(
+	$schema = array(
 		'@type'       => 'WebSite',
 		'@id'         => $home . '#/schema/WebSite',
 		'url'         => $home,
@@ -85,6 +105,19 @@ function sn_schema_website() {
 			'@id' => $home . '#/schema/Person',
 		),
 	);
+
+	// v4.8.1: on-site search at /notes/?s= (theme v9.8.0 Notes-scoped search).
+	// The SearchAction lets Google surface a sitelinks search box for the site.
+	$schema['potentialAction'] = array(
+		'@type'       => 'SearchAction',
+		'target'      => array(
+			'@type'       => 'EntryPoint',
+			'urlTemplate' => home_url( '/notes/' ) . '?s={search_term_string}',
+		),
+		'query-input' => 'required name=search_term_string',
+	);
+
+	return $schema;
 }
 
 /**
@@ -167,6 +200,33 @@ function sn_schema_article() {
 		);
 	}
 
+	// v4.8.1: structured-data enrichment. Each addition is guarded so a
+	// missing source leaves the key absent rather than emitting an empty value.
+
+	// wordCount — strip shortcodes + tags before counting words.
+	$word_count = str_word_count( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) );
+	if ( $word_count > 0 ) {
+		$article['wordCount'] = $word_count;
+	}
+
+	// timeRequired — ISO-8601 duration from the cached reading time. Reuse the
+	// theme/plugin reading-time helper; do NOT recompute.
+	if ( function_exists( 'sn_get_reading_time' ) ) {
+		$article['timeRequired'] = 'PT' . (int) sn_get_reading_time( $post ) . 'M';
+	}
+
+	// keywords — comma-joined post_tag names.
+	$tags = wp_get_post_terms( $post->ID, 'post_tag', array( 'fields' => 'names' ) );
+	if ( is_array( $tags ) && ! empty( $tags ) && ! is_wp_error( $tags ) ) {
+		$article['keywords'] = implode( ', ', $tags );
+	}
+
+	// articleSection — first category name.
+	$cats = wp_get_post_terms( $post->ID, 'category', array( 'fields' => 'names' ) );
+	if ( is_array( $cats ) && ! empty( $cats ) && ! is_wp_error( $cats ) ) {
+		$article['articleSection'] = (string) $cats[0];
+	}
+
 	return $article;
 }
 
@@ -224,7 +284,7 @@ function sn_schema_collection_page() {
 	$url  = home_url( '/notes/' );
 	$name = sn_setting( 'seo_copy.notes_title', 'Notes' );
 
-	return array(
+	$schema = array(
 		'@type'      => 'CollectionPage',
 		'@id'        => $url,
 		'url'        => $url,
@@ -237,6 +297,41 @@ function sn_schema_collection_page() {
 			'@id' => $url . '#breadcrumb',
 		),
 	);
+
+	// v4.8.1: enumerate the most recent published Notes as an ItemList so the
+	// CollectionPage carries its contents (better SERP understanding of /notes).
+	$recent = get_posts(
+		array(
+			'post_type'      => 'post',
+			'post_status'    => 'publish',
+			'posts_per_page' => 10,
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			'no_found_rows'  => true,
+			'suppress_filters' => false,
+		)
+	);
+
+	$elements = array();
+	$position = 1;
+	foreach ( (array) $recent as $recent_post ) {
+		$elements[] = array(
+			'@type'    => 'ListItem',
+			'position' => $position,
+			'url'      => get_permalink( $recent_post ),
+			'name'     => wp_strip_all_tags( get_the_title( $recent_post ) ),
+		);
+		++$position;
+	}
+
+	if ( ! empty( $elements ) ) {
+		$schema['mainEntity'] = array(
+			'@type'           => 'ItemList',
+			'itemListElement' => $elements,
+		);
+	}
+
+	return $schema;
 }
 
 /**
