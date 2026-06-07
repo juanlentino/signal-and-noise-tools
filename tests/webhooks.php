@@ -96,6 +96,15 @@ if ( ! function_exists( 'get_the_title' ) ) {
 if ( ! function_exists( 'get_permalink' ) ) {
 	function get_permalink( $p ) { return is_object( $p ) ? "https://juanlentino.com/?p={$p->ID}" : ''; }
 }
+if ( ! function_exists( 'wp_is_post_revision' ) ) {
+	function wp_is_post_revision( $p ) {
+		$post = is_object( $p ) ? $p : get_post( $p );
+		return is_object( $post ) && 'revision' === $post->post_type ? (int) $post->ID : false;
+	}
+}
+if ( ! function_exists( 'wp_is_post_autosave' ) ) {
+	function wp_is_post_autosave( $p ) { return false; }
+}
 
 class WP_Error {
 	public $code; public $message;
@@ -229,28 +238,42 @@ wh_eq( null, sn_webhook_build_post_published_payload( 101, 'del_d' ), 'draft pos
 wh_eq( null, sn_webhook_build_post_published_payload( 99999, 'del_z' ), 'unknown post → null' );
 
 // ─── Test 8: transition handler enqueues for enabled webhooks ─────────
+// v4.10.0: widened cron-arg order is [ webhook_id, event, post_id, snapshot, attempt, delivery_id ].
 echo "\nTest 8: sn_webhook_on_transition enqueue logic\n";
 $GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
 $enabled = sn_webhook_create( array( 'name' => 'on',  'url' => 'https://on.example',  'enabled' => '1' ) );
 $disabled = sn_webhook_create( array( 'name' => 'off', 'url' => 'https://off.example', 'enabled' => false ) );
 $GLOBALS['__test_scheduled_events'] = array();
 $post = (object) array( 'ID' => 200, 'post_type' => 'post', 'post_status' => 'publish' );
+$GLOBALS['__test_posts'][200] = (object) array(
+	'ID'            => 200,
+	'post_status'   => 'publish',
+	'post_title'    => 'Pub 200',
+	'post_name'     => 'pub-200',
+	'post_author'   => 1,
+	'post_date_gmt' => '2026-05-20 12:00:00',
+	'post_type'     => 'post',
+);
 sn_webhook_on_transition( 'publish', 'draft', $post );
 wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'one enqueue (enabled only — disabled skipped)' );
 wh_eq( SN_WEBHOOK_DISPATCH_HOOK, $GLOBALS['__test_scheduled_events'][0]['hook'], 'dispatch hook scheduled' );
-wh_eq( $enabled['id'], $GLOBALS['__test_scheduled_events'][0]['args'][0], 'enqueue carries the enabled webhook id' );
-wh_eq( 200, $GLOBALS['__test_scheduled_events'][0]['args'][1], 'enqueue carries the post id' );
-wh_eq( 1, $GLOBALS['__test_scheduled_events'][0]['args'][2], 'attempt starts at 1' );
+wh_eq( $enabled['id'], $GLOBALS['__test_scheduled_events'][0]['args'][0], 'enqueue carries the enabled webhook id (arg 0)' );
+wh_eq( 'post.published', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'enqueue carries the event (arg 1)' );
+wh_eq( 200, $GLOBALS['__test_scheduled_events'][0]['args'][2], 'enqueue carries the post id (arg 2)' );
+wh_true( is_array( $GLOBALS['__test_scheduled_events'][0]['args'][3] ), 'snapshot arg is an array (arg 3)' );
+wh_eq( 1, $GLOBALS['__test_scheduled_events'][0]['args'][4], 'attempt starts at 1 (arg 4)' );
 
 // ─── Test 9: transition handler skips non-publish transitions ─────────
 echo "\nTest 9: sn_webhook_on_transition guard\n";
 $GLOBALS['__test_scheduled_events'] = array();
-sn_webhook_on_transition( 'publish', 'publish', $post ); // already published
-wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→publish (meta edit) does not enqueue' );
-sn_webhook_on_transition( 'draft', 'publish', $post );   // unpublishing
-wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→draft does not enqueue' );
-sn_webhook_on_transition( 'trash', 'publish', $post );
-wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→trash does not enqueue' );
+sn_webhook_on_transition( 'publish', 'publish', $post ); // re-save while published → post.updated (publish-only default = 0)
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→publish does not enqueue for publish-only webhooks' );
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'draft', 'publish', $post );   // unpublishing → post.unpublished (publish-only = 0)
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→draft does not enqueue for publish-only webhooks' );
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'trash', 'publish', $post );   // trashed → post.deleted (publish-only = 0)
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish→trash does not enqueue for publish-only webhooks' );
 
 // ─── Test 10: transition handler respects allowed post types ──────────
 echo "\nTest 10: sn_webhook_on_transition skips non-post/non-page types\n";
@@ -258,6 +281,199 @@ $GLOBALS['__test_scheduled_events'] = array();
 $attachment = (object) array( 'ID' => 300, 'post_type' => 'attachment', 'post_status' => 'publish' );
 sn_webhook_on_transition( 'publish', 'inherit', $attachment );
 wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'attachment publish does NOT enqueue' );
+
+// ─── Test 11: event registry (v4.10.0) ───────────────────────────────
+echo "\nTest 11: sn_webhook_events registry\n";
+$events = sn_webhook_events();
+wh_eq( 4, count( $events ), 'registry has 4 events' );
+wh_eq(
+	array( 'post.published', 'post.updated', 'post.unpublished', 'post.deleted' ),
+	array_keys( $events ),
+	'registry keys are in canonical order'
+);
+wh_true( is_string( $events['post.published'] ) && '' !== $events['post.published'], 'each event has a label' );
+
+// ─── Test 12: sn_webhook_event_enabled ───────────────────────────────
+echo "\nTest 12: sn_webhook_event_enabled back-compat + explicit\n";
+// Back-compat: unset events → only post.published is enabled.
+$legacy = array( 'id' => 'wh_legacy', 'enabled' => true );
+wh_eq( true,  sn_webhook_event_enabled( $legacy, 'post.published' ), 'legacy (no events key) → post.published enabled' );
+wh_eq( false, sn_webhook_event_enabled( $legacy, 'post.updated' ),   'legacy (no events key) → post.updated NOT enabled' );
+// Explicit opt-in list.
+$multi = array( 'id' => 'wh_multi', 'enabled' => true, 'events' => array( 'post.updated', 'post.deleted' ) );
+wh_eq( true,  sn_webhook_event_enabled( $multi, 'post.updated' ),   'explicit list → post.updated enabled' );
+wh_eq( true,  sn_webhook_event_enabled( $multi, 'post.deleted' ),   'explicit list → post.deleted enabled' );
+wh_eq( false, sn_webhook_event_enabled( $multi, 'post.published' ), 'explicit list without published → NOT enabled' );
+wh_eq( false, sn_webhook_event_enabled( $multi, 'bogus.event' ),    'unlisted event rejected' );
+
+// ─── Test 13: events sanitizer in create/update (v4.10.0) ─────────────
+echo "\nTest 13: events[] sanitizer\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+$ev1 = sn_webhook_create( array( 'name' => 'ev1', 'url' => 'https://ev1.example', 'events' => array( 'post.updated', 'bogus' ) ) );
+wh_eq( array( 'post.updated' ), $ev1['events'], 'create drops bogus event, keeps post.updated' );
+$ev2 = sn_webhook_create( array( 'name' => 'ev2', 'url' => 'https://ev2.example' ) );
+wh_eq( array( 'post.published' ), $ev2['events'], 'create with no events defaults to [post.published]' );
+$ev3 = sn_webhook_create( array( 'name' => 'ev3', 'url' => 'https://ev3.example', 'events' => array( 'nope', 'still-nope' ) ) );
+wh_eq( array( 'post.published' ), $ev3['events'], 'create with only-invalid events defaults to [post.published]' );
+$ev1u = sn_webhook_update( $ev1['id'], array( 'events' => array( 'post.deleted', 'post.published', 'xyz' ) ) );
+wh_eq( array( 'post.published', 'post.deleted' ), $ev1u['events'], 'update sanitizes + preserves canonical order' );
+$ev1e = sn_webhook_update( $ev1['id'], array( 'events' => array() ) );
+wh_eq( array( 'post.published' ), $ev1e['events'], 'update with empty events defaults to [post.published]' );
+
+// ─── Test 14: generalized payload builder (v4.10.0) ───────────────────
+echo "\nTest 14: sn_webhook_build_payload\n";
+// publish/updated resolve via get_post() (require publish).
+$body_pub = sn_webhook_build_payload( 'post.published', 100, 'del_p', array() );
+wh_true( is_string( $body_pub ), 'post.published builds a body from get_post()' );
+$d = json_decode( $body_pub, true );
+wh_eq( 'post.published', $d['event'], 'post.published event field' );
+$body_upd = sn_webhook_build_payload( 'post.updated', 100, 'del_u', array() );
+$d = json_decode( $body_upd, true );
+wh_eq( 'post.updated', $d['event'], 'post.updated event field' );
+wh_eq( 100, $d['post']['id'], 'post.updated resolves the live post' );
+// updated/published on a non-publish post → null (must still be published).
+wh_eq( null, sn_webhook_build_payload( 'post.updated', 101, 'del_x', array() ), 'post.updated on a draft → null' );
+// Snapshot path: post may be gone at dispatch — build from $snapshot, NOT get_post().
+$snap = array( 'id' => 555, 'title' => 'Gone Post', 'slug' => 'gone-post', 'url' => 'https://juanlentino.com/gone-post', 'type' => 'post', 'author_id' => 7 );
+$body_del = sn_webhook_build_payload( 'post.deleted', 555, 'del_d', $snap );
+wh_true( is_string( $body_del ), 'post.deleted builds a body from the snapshot' );
+$d = json_decode( $body_del, true );
+wh_eq( 'post.deleted', $d['event'], 'post.deleted event field' );
+wh_eq( 555, $d['post']['id'], 'snapshot id used' );
+wh_eq( 'Gone Post', $d['post']['title'], 'snapshot title used' );
+wh_eq( 'https://juanlentino.com/gone-post', $d['post']['url'], 'snapshot url used' );
+wh_eq( 'gone-post', $d['post']['slug'], 'snapshot slug used' );
+$body_unp = sn_webhook_build_payload( 'post.unpublished', 555, 'del_un', $snap );
+$d = json_decode( $body_unp, true );
+wh_eq( 'post.unpublished', $d['event'], 'post.unpublished event field' );
+wh_eq( 'Gone Post', $d['post']['title'], 'unpublished snapshot title used' );
+// Legacy shim still delegates.
+$shim = sn_webhook_build_post_published_payload( 100, 'del_shim' );
+$d = json_decode( $shim, true );
+wh_eq( 'post.published', $d['event'], 'legacy shim still builds post.published' );
+
+// ─── Test 15: fan-out by subscribed events (v4.10.0) ──────────────────
+echo "\nTest 15: fan-out — events list gates the enqueue\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+// A webhook subscribed ONLY to post.updated.
+$upd_only = sn_webhook_create( array( 'name' => 'upd', 'url' => 'https://upd.example', 'enabled' => '1', 'events' => array( 'post.updated' ) ) );
+$GLOBALS['__test_posts'][201] = (object) array(
+	'ID' => 201, 'post_status' => 'publish', 'post_title' => 'P201', 'post_name' => 'p201',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+$p201 = (object) array( 'ID' => 201, 'post_type' => 'post', 'post_status' => 'publish' );
+// First publish (draft→publish): post.updated subscriber → 0 enqueues.
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'publish', 'draft', $p201 );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'post.updated subscriber: first publish → 0 enqueues' );
+// Re-save while published (publish→publish): post.updated subscriber → 1 enqueue, event=post.updated.
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'publish', 'publish', $p201 );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'post.updated subscriber: publish→publish → 1 enqueue' );
+wh_eq( 'post.updated', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'enqueued event is post.updated' );
+
+// A default (publish-only, unset events) webhook.
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+$pub_default = sn_webhook_create( array( 'name' => 'pub', 'url' => 'https://pub.example', 'enabled' => '1' ) );
+// Strip events to simulate a pre-v4.10.0 stored webhook (no events key at all).
+$all = sn_webhooks_all();
+unset( $all[0]['events'] );
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = $all;
+// First publish: default → 1 enqueue, event=post.published.
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'publish', 'draft', $p201 );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'publish-only default: first publish → 1 enqueue' );
+wh_eq( 'post.published', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'enqueued event is post.published' );
+// Re-save while published: default → 0 enqueues (not subscribed to post.updated).
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_on_transition( 'publish', 'publish', $p201 );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'publish-only default: publish→publish → 0 enqueues' );
+
+// ─── Test 16: unpublish + trash branches (snapshot) ───────────────────
+echo "\nTest 16: post.unpublished / post.deleted triggers + snapshot\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+$all_events = sn_webhook_create( array( 'name' => 'all', 'url' => 'https://all.example', 'enabled' => '1', 'events' => array_keys( sn_webhook_events() ) ) );
+// publish→draft → post.unpublished, with a real snapshot.
+$GLOBALS['__test_scheduled_events'] = array();
+$p200 = (object) array( 'ID' => 200, 'post_type' => 'post', 'post_status' => 'draft' );
+sn_webhook_on_transition( 'draft', 'publish', $p200 );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'publish→draft → 1 enqueue for an all-events webhook' );
+wh_eq( 'post.unpublished', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'event is post.unpublished' );
+$snap_arg = $GLOBALS['__test_scheduled_events'][0]['args'][3];
+wh_eq( 'Pub 200', $snap_arg['title'], 'unpublish snapshot captured title at trigger time' );
+wh_true( false !== strpos( (string) $snap_arg['url'], '200' ), 'unpublish snapshot captured url' );
+// publish→trash → post.deleted ONLY (not also unpublished — no double-fire).
+$GLOBALS['__test_scheduled_events'] = array();
+$p200t = (object) array( 'ID' => 200, 'post_type' => 'post', 'post_status' => 'trash' );
+sn_webhook_on_transition( 'trash', 'publish', $p200t );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'publish→trash → exactly 1 enqueue (no double-fire)' );
+wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'trash event is post.deleted (not unpublished)' );
+
+// ─── Test 17: before_delete_post → post.deleted ───────────────────────
+echo "\nTest 17: sn_webhook_on_delete (permanent delete)\n";
+$GLOBALS['__test_scheduled_events'] = array();
+$del_post = (object) array(
+	'ID' => 200, 'post_status' => 'trash', 'post_title' => 'Pub 200', 'post_name' => 'pub-200',
+	'post_author' => 1, 'post_date_gmt' => '2026-05-20 12:00:00', 'post_type' => 'post',
+);
+sn_webhook_on_delete( 200, $del_post );
+wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'permanent delete → 1 enqueue for an all-events webhook' );
+wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'before_delete event is post.deleted' );
+wh_eq( 'Pub 200', $GLOBALS['__test_scheduled_events'][0]['args'][3]['title'], 'delete snapshot has the title' );
+// Revisions and disallowed types are skipped.
+$GLOBALS['__test_scheduled_events'] = array();
+$rev = (object) array( 'ID' => 201, 'post_type' => 'revision', 'post_status' => 'inherit' );
+sn_webhook_on_delete( 201, $rev );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'revision delete → 0 enqueues' );
+$GLOBALS['__test_scheduled_events'] = array();
+$att = (object) array( 'ID' => 202, 'post_type' => 'attachment', 'post_status' => 'inherit' );
+sn_webhook_on_delete( 202, $att );
+wh_eq( 0, count( $GLOBALS['__test_scheduled_events'] ), 'attachment delete → 0 enqueues (not in post_types gate)' );
+
+// ─── Test 18: widened enqueue arg order (v4.10.0) ─────────────────────
+echo "\nTest 18: sn_webhook_enqueue arg order\n";
+$GLOBALS['__test_scheduled_events'] = array();
+sn_webhook_enqueue( 'wh_x', 'post.deleted', 42, array( 'id' => 42, 'title' => 'T' ), 2, 'del_fixed' );
+$args = $GLOBALS['__test_scheduled_events'][0]['args'];
+wh_eq( 'wh_x', $args[0], 'arg0 = webhook_id' );
+wh_eq( 'post.deleted', $args[1], 'arg1 = event' );
+wh_eq( 42, $args[2], 'arg2 = post_id' );
+wh_eq( array( 'id' => 42, 'title' => 'T' ), $args[3], 'arg3 = snapshot' );
+wh_eq( 2, $args[4], 'arg4 = attempt' );
+wh_eq( 'del_fixed', $args[5], 'arg5 = delivery_id' );
+
+// ─── Test 19: in-flight back-compat — 4-arg dispatch still works ──────
+// An OLD cron event scheduled before this deploy carries [webhook_id, post_id,
+// attempt, delivery_id] and calls sn_webhook_dispatch() with 4 positional args.
+// The widened signature MUST default $event/$snapshot so it does NOT fatal.
+echo "\nTest 19: in-flight OLD 4-arg dispatch back-compat\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+$bc = sn_webhook_create( array( 'name' => 'bc', 'url' => 'https://bc.example', 'enabled' => '1' ) );
+$GLOBALS['__test_posts'][100]->post_status = 'publish'; // ensure resolvable
+// Define a wp_remote_post stub so dispatch records without real I/O.
+$GLOBALS['__wh_last_post'] = null;
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = array() ) {
+		$GLOBALS['__wh_last_post'] = array( 'url' => $url, 'args' => $args );
+		return array( 'response' => array( 'code' => 200 ), 'body' => 'OK' );
+	}
+	function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? $r['response']['code'] : 0; }
+	function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? $r['body'] : ''; }
+}
+$GLOBALS['__test_options'][ SN_WEBHOOKS_LOG_PREFIX . $bc['id'] ] = array();
+// Call with EXACTLY 4 args in the OLD order [webhook_id, post_id, attempt, delivery_id].
+// The widened sig's 2nd param is now $event; an old event passes a numeric post_id
+// there. Dispatch must detect the legacy shape, remap, and still deliver the post.
+$GLOBALS['__wh_last_post'] = null;
+$before = count( sn_webhook_log_read( $bc['id'] ) );
+sn_webhook_dispatch( $bc['id'], 100, 1, 'del_oldcron' );
+$after = count( sn_webhook_log_read( $bc['id'] ) );
+wh_eq( $before + 1, $after, '4-arg dispatch records a delivery (no fatal)' );
+wh_true( is_array( $GLOBALS['__wh_last_post'] ), '4-arg dispatch actually POSTed (legacy shape remapped, not dropped)' );
+$bc_body = json_decode( (string) $GLOBALS['__wh_last_post']['args']['body'], true );
+wh_eq( 100, $bc_body['post']['id'], 'legacy 4-arg dispatch resolved the right post id (100)' );
+wh_eq( 'post.published', $bc_body['event'], 'legacy 4-arg dispatch defaults to post.published' );
+wh_eq( 'del_oldcron', $bc_body['delivery_id'], 'legacy delivery_id (4th arg) preserved' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

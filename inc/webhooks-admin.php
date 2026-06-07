@@ -29,7 +29,7 @@ function sn_webhooks_render_admin_tab() {
 	$new_id   = isset( $_GET['new_id'] ) ? sanitize_text_field( wp_unslash( $_GET['new_id'] ) ) : '';
 
 	// ── INTRO ──
-	echo '<p class="sn-prose">POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) when a post or page is published. Each delivery is HMAC-SHA256 signed; receivers should verify the <code>X-SN-Signature</code> header before acting.</p>';
+	echo '<p class="sn-prose">POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events — published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the <code>X-SN-Signature</code> header before acting.</p>';
 
 	// ── STATUS BOX ──
 	$enabled_count = 0;
@@ -45,7 +45,7 @@ function sn_webhooks_render_admin_tab() {
 		echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">' . esc_html( $total ) . ' webhook' . ( 1 === $total ? '' : 's' ) . ' configured</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $enabled_count ) . ' enabled, ' . esc_html( $total - $enabled_count ) . ' disabled. Deliveries fire on <code>transition_post_status</code> when a post or page transitions to <code>publish</code>.</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $enabled_count ) . ' enabled, ' . esc_html( $total - $enabled_count ) . ' disabled. Deliveries fire on each webhook&rsquo;s subscribed post/page events (published, updated, unpublished, deleted).</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $enabled_count > 0 ? 'Active' : 'Inactive' ) . '</span>';
 		echo '</div>';
@@ -87,7 +87,17 @@ function sn_webhooks_render_admin_tab() {
 		// Enabled
 		echo '<div class="sn-field">';
 		echo '<label class="sn-field-label">Status</label>';
-		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled — deliveries fire on publish</label>';
+		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled — deliveries fire on the events below</label>';
+		echo '</div>';
+
+		// Events — per-webhook subscription. Default (no events key) = post.published only.
+		$selected = isset( $wh['events'] ) ? (array) $wh['events'] : array( 'post.published' );
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label">Events</label>';
+		foreach ( sn_webhook_events() as $event_key => $event_label ) {
+			echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( in_array( $event_key, $selected, true ), true, false ) . '> <code>' . esc_html( $event_key ) . '</code> — ' . esc_html( $event_label ) . '</label>';
+		}
+		echo '<p class="sn-field-helper">Pick which post-lifecycle events POST to this endpoint. If none are ticked, <code>post.published</code> is used.</p>';
 		echo '</div>';
 
 		// Secret
@@ -161,7 +171,17 @@ function sn_webhooks_render_admin_tab() {
 	echo '</div>';
 
 	echo '<div class="sn-field">';
-	echo '<label><input type="checkbox" name="enabled" value="1" checked> Start dispatching on publish immediately</label>';
+	echo '<label class="sn-field-label">Events</label>';
+	foreach ( sn_webhook_events() as $event_key => $event_label ) {
+		// post.published pre-checked; the others opt-in.
+		$default_checked = ( 'post.published' === $event_key );
+		echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( $default_checked, true, false ) . '> <code>' . esc_html( $event_key ) . '</code> — ' . esc_html( $event_label ) . '</label>';
+	}
+	echo '<p class="sn-field-helper">If none are ticked, <code>post.published</code> is used.</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field">';
+	echo '<label><input type="checkbox" name="enabled" value="1" checked> Start dispatching immediately</label>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -208,7 +228,7 @@ function sn_webhooks_render_admin_tab() {
 	// ── PAYLOAD REFERENCE ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Payload reference</h2>';
-	echo '<p class="sn-fieldset-intro">Every delivery is a POST with these headers and a JSON body:</p>';
+	echo '<p class="sn-fieldset-intro">Every delivery is a POST with these headers and a JSON body. The <code>X-SN-Event</code> header and the body&rsquo;s <code>event</code> field are one of <code>post.published</code>, <code>post.updated</code>, <code>post.unpublished</code>, or <code>post.deleted</code>. For unpublished/deleted events the <code>post</code> block is a snapshot captured at trigger time (the post may already be gone).</p>';
 	echo '<pre class="sn-mono snt-pre-payload">POST &lt;your URL&gt; HTTP/1.1
 Content-Type: application/json
 X-SN-Event: post.published

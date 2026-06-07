@@ -37,6 +37,46 @@ define( 'SN_WEBHOOK_RETRY_DELAY', 5 * MINUTE_IN_SECONDS );
 define( 'SN_WEBHOOK_LOG_CAP',     20 );
 
 /**
+ * The post-lifecycle events a webhook can subscribe to.
+ *
+ * Ordered assoc: event key → human label. Order is canonical (used for
+ * checkbox rendering + sanitizer ordering). `post.published` is the
+ * original (and back-compat default) event; the other three were added
+ * in v4.10.0.
+ *
+ * @since 4.10.0
+ * @return array<string,string>
+ */
+function sn_webhook_events() {
+	return array(
+		'post.published'   => 'Published (first publish)',
+		'post.updated'     => 'Updated (re-saved while published)',
+		'post.unpublished' => 'Unpublished (publish → draft/pending/private)',
+		'post.deleted'     => 'Deleted (trashed or permanently removed)',
+	);
+}
+
+/**
+ * Is a webhook subscribed to a given event?
+ *
+ * Back-compat: a webhook with no `events` key (every webhook created
+ * before v4.10.0) is treated as subscribed to `post.published` only —
+ * exactly the pre-v4.10.0 behaviour. A webhook with an explicit `events`
+ * array is subscribed to precisely those events.
+ *
+ * @since 4.10.0
+ * @param array  $webhook Webhook config.
+ * @param string $event   Event key (see sn_webhook_events()).
+ * @return bool
+ */
+function sn_webhook_event_enabled( $webhook, $event ) {
+	if ( ! isset( $webhook['events'] ) ) {
+		return 'post.published' === $event;
+	}
+	return in_array( $event, (array) $webhook['events'], true );
+}
+
+/**
  * Read all webhook configs.
  *
  * @return array Array of webhook entries (may be empty).
@@ -76,6 +116,26 @@ function sn_webhook_generate_secret() {
  * @param array $input Sanitized form input.
  * @return array|WP_Error
  */
+/**
+ * Sanitize a submitted `events[]` list against the registry.
+ *
+ * Drops any value not in sn_webhook_events(), preserves the registry's
+ * canonical order, and falls back to `['post.published']` when the result
+ * is empty — so a webhook always subscribes to at least one event.
+ *
+ * @since 4.10.0
+ * @param mixed $input Raw `events` input (expected array of strings).
+ * @return string[]
+ */
+function sn_webhook_sanitize_events( $input ) {
+	$valid   = array_keys( sn_webhook_events() );
+	$cleaned = array_values( array_intersect( $valid, (array) $input ) );
+	if ( empty( $cleaned ) ) {
+		$cleaned = array( 'post.published' );
+	}
+	return $cleaned;
+}
+
 function sn_webhook_create( $input ) {
 	$name = isset( $input['name'] ) ? trim( (string) $input['name'] ) : '';
 	$url  = isset( $input['url'] ) ? esc_url_raw( trim( (string) $input['url'] ) ) : '';
@@ -96,6 +156,7 @@ function sn_webhook_create( $input ) {
 		'url'        => $url,
 		'secret'     => sn_webhook_generate_secret(),
 		'enabled'    => ! empty( $input['enabled'] ),
+		'events'     => sn_webhook_sanitize_events( isset( $input['events'] ) ? $input['events'] : array() ),
 		'created_at' => time(),
 	);
 
@@ -131,6 +192,9 @@ function sn_webhook_update( $id, $input ) {
 		}
 		if ( array_key_exists( 'enabled', $input ) ) {
 			$wh['enabled'] = ! empty( $input['enabled'] );
+		}
+		if ( array_key_exists( 'events', $input ) ) {
+			$wh['events'] = sn_webhook_sanitize_events( $input['events'] );
 		}
 		if ( ! empty( $input['rotate_secret'] ) ) {
 			$wh['secret'] = sn_webhook_generate_secret();
@@ -176,23 +240,47 @@ function sn_webhook_compute_signature( $secret, $body ) {
 }
 
 /**
- * Build the JSON payload for a post-published event.
+ * Build the JSON payload for any webhook event.
  *
- * @param int    $post_id
+ * Two resolution paths:
+ *  - `post.published` / `post.updated`: resolve the live post via
+ *    get_post() and REQUIRE it to still be `publish` (a re-save that
+ *    bounced out of publish before dispatch shouldn't fire). Returns
+ *    null if it can't be resolved as a published post.
+ *  - `post.unpublished` / `post.deleted`: the post may be gone (or no
+ *    longer published) by dispatch time, so build from the $snapshot
+ *    captured at TRIGGER time. Returns null if the snapshot is empty.
+ *
+ * @since 4.10.0 generalized from sn_webhook_build_post_published_payload().
+ * @param string $event        Event key (see sn_webhook_events()).
+ * @param int    $post_id      Post ID.
  * @param string $delivery_id  Unique-per-attempt id for receiver dedupe.
- * @return string|null         JSON-encoded body, or null if post can't be resolved.
+ * @param array  $snapshot     Trigger-time snapshot (id/title/slug/url/type/author_id)
+ *                             for unpublish/delete events.
+ * @return string|null         JSON-encoded body, or null if it can't be built.
  */
-function sn_webhook_build_post_published_payload( $post_id, $delivery_id ) {
-	$post = get_post( $post_id );
-	if ( ! $post || 'publish' !== $post->post_status ) {
-		return null;
-	}
-	$payload = array(
-		'event'        => 'post.published',
-		'delivery_id'  => $delivery_id,
-		'delivered_at' => time(),
-		'site'         => home_url( '/' ),
-		'post'         => array(
+function sn_webhook_build_payload( $event, $post_id, $delivery_id, $snapshot = array() ) {
+	$snapshot_event = ( 'post.unpublished' === $event || 'post.deleted' === $event );
+
+	if ( $snapshot_event ) {
+		if ( empty( $snapshot ) || ! is_array( $snapshot ) ) {
+			return null;
+		}
+		$post_block = array(
+			'id'           => (int) ( $snapshot['id'] ?? $post_id ),
+			'title'        => (string) ( $snapshot['title'] ?? '' ),
+			'slug'         => (string) ( $snapshot['slug'] ?? '' ),
+			'url'          => (string) ( $snapshot['url'] ?? '' ),
+			'author_id'    => (int) ( $snapshot['author_id'] ?? 0 ),
+			'published_at' => isset( $snapshot['published_at'] ) ? (int) $snapshot['published_at'] : null,
+			'type'         => (string) ( $snapshot['type'] ?? '' ),
+		);
+	} else {
+		$post = get_post( $post_id );
+		if ( ! $post || 'publish' !== $post->post_status ) {
+			return null;
+		}
+		$post_block = array(
 			'id'           => (int) $post->ID,
 			'title'        => get_the_title( $post ),
 			'slug'         => $post->post_name,
@@ -200,9 +288,50 @@ function sn_webhook_build_post_published_payload( $post_id, $delivery_id ) {
 			'author_id'    => (int) $post->post_author,
 			'published_at' => strtotime( $post->post_date_gmt . ' UTC' ),
 			'type'         => $post->post_type,
-		),
+		);
+	}
+
+	$payload = array(
+		'event'        => $event,
+		'delivery_id'  => $delivery_id,
+		'delivered_at' => time(),
+		'site'         => home_url( '/' ),
+		'post'         => $post_block,
 	);
 	return wp_json_encode( $payload );
+}
+
+/**
+ * Back-compat shim: delegate to sn_webhook_build_payload() for the
+ * original post-published event. Retained for any external caller +
+ * the legacy 4-arg cron path.
+ *
+ * @param int    $post_id
+ * @param string $delivery_id
+ * @return string|null
+ */
+function sn_webhook_build_post_published_payload( $post_id, $delivery_id ) {
+	return sn_webhook_build_payload( 'post.published', $post_id, $delivery_id );
+}
+
+/**
+ * Snapshot a post's identity at TRIGGER time, for events whose post may
+ * be gone (or no longer published) by dispatch time.
+ *
+ * @since 4.10.0
+ * @param WP_Post|object $post
+ * @return array
+ */
+function sn_webhook_snapshot_post( $post ) {
+	return array(
+		'id'           => (int) $post->ID,
+		'title'        => get_the_title( $post ),
+		'slug'         => isset( $post->post_name ) ? $post->post_name : '',
+		'url'          => get_permalink( $post ),
+		'author_id'    => isset( $post->post_author ) ? (int) $post->post_author : 0,
+		'published_at' => isset( $post->post_date_gmt ) ? strtotime( $post->post_date_gmt . ' UTC' ) : null,
+		'type'         => isset( $post->post_type ) ? $post->post_type : '',
+	);
 }
 
 /**
@@ -227,10 +356,20 @@ function sn_webhook_log_read( $webhook_id ) {
 /**
  * Enqueue a webhook dispatch as a one-off WP-Cron event.
  *
- * Args: [ webhook_id, post_id, attempt, delivery_id ]. Attempt is
- * 1-indexed; retries increment it.
+ * Args (v4.10.0 order): [ webhook_id, event, post_id, snapshot, attempt,
+ * delivery_id ]. Attempt is 1-indexed; retries increment it. `$snapshot`
+ * carries the trigger-time post identity for unpublish/delete events
+ * whose post may be gone by dispatch.
+ *
+ * @since 4.10.0 widened from ( webhook_id, post_id, attempt, delivery_id ).
+ * @param string $webhook_id
+ * @param string $event       Event key (see sn_webhook_events()).
+ * @param int    $post_id
+ * @param array  $snapshot
+ * @param int    $attempt
+ * @param string $delivery_id
  */
-function sn_webhook_enqueue( $webhook_id, $post_id, $attempt = 1, $delivery_id = null ) {
+function sn_webhook_enqueue( $webhook_id, $event = 'post.published', $post_id = 0, $snapshot = array(), $attempt = 1, $delivery_id = null ) {
 	if ( ! $delivery_id ) {
 		$delivery_id = 'del_' . wp_generate_password( 16, false, false );
 	}
@@ -240,7 +379,7 @@ function sn_webhook_enqueue( $webhook_id, $post_id, $attempt = 1, $delivery_id =
 	wp_schedule_single_event(
 		time(),
 		SN_WEBHOOK_DISPATCH_HOOK,
-		array( $webhook_id, (int) $post_id, (int) $attempt, $delivery_id )
+		array( $webhook_id, (string) $event, (int) $post_id, (array) $snapshot, (int) $attempt, $delivery_id )
 	);
 }
 
@@ -253,12 +392,38 @@ function sn_webhook_enqueue( $webhook_id, $post_id, $attempt = 1, $delivery_id =
  * with attempt+1, up to SN_WEBHOOK_MAX_RETRIES. 4xx responses are
  * treated as receiver-side rejections (no retry).
  *
+ * Defensive defaults ($event='post.published', $snapshot=[]) keep
+ * in-flight OLD 4-arg cron events from before this deploy alive: an
+ * install can't observe its own deploy, so events scheduled by the
+ * pre-v4.10.0 enqueue (arg order [webhook_id, post_id, attempt,
+ * delivery_id]) still fire here. The legacy shape is detected by a
+ * numeric 2nd arg (the old post_id sits where $event now is) and remapped
+ * so the right post is delivered, not just "no fatal".
+ *
+ * @since 4.10.0 widened from ( webhook_id, post_id, attempt, delivery_id ).
  * @param string $webhook_id
+ * @param string $event       Event key (see sn_webhook_events()).
  * @param int    $post_id
+ * @param array  $snapshot    Trigger-time snapshot for unpublish/delete.
  * @param int    $attempt
  * @param string $delivery_id
  */
-function sn_webhook_dispatch( $webhook_id, $post_id, $attempt, $delivery_id ) {
+function sn_webhook_dispatch( $webhook_id, $event = 'post.published', $post_id = 0, $snapshot = array(), $attempt = 1, $delivery_id = null ) {
+	// In-flight back-compat: a pre-v4.10.0 cron event passes
+	// [webhook_id, post_id, attempt, delivery_id]. Those land as
+	// ($event=post_id, $post_id=attempt, $snapshot=delivery_id). Detect by
+	// a non-event 2nd arg and remap to the new positions.
+	if ( ! is_string( $event ) || ! array_key_exists( $event, sn_webhook_events() ) ) {
+		$legacy_post_id     = (int) $event;
+		$legacy_attempt     = is_scalar( $post_id ) ? (int) $post_id : 1;
+		$legacy_delivery_id = is_string( $snapshot ) ? $snapshot : null;
+		$event       = 'post.published';
+		$post_id     = $legacy_post_id;
+		$attempt     = $legacy_attempt;
+		$delivery_id = $legacy_delivery_id;
+		$snapshot    = array();
+	}
+
 	$attempt = max( 1, (int) $attempt );
 	$webhook = sn_webhook_find( $webhook_id );
 	if ( ! $webhook || empty( $webhook['enabled'] ) ) {
@@ -266,7 +431,7 @@ function sn_webhook_dispatch( $webhook_id, $post_id, $attempt, $delivery_id ) {
 		return;
 	}
 
-	$body = sn_webhook_build_post_published_payload( (int) $post_id, $delivery_id );
+	$body = sn_webhook_build_payload( $event, (int) $post_id, $delivery_id, (array) $snapshot );
 	if ( null === $body ) {
 		sn_webhook_log_record( $webhook_id, array(
 			'delivery_id'      => $delivery_id,
@@ -296,7 +461,7 @@ function sn_webhook_dispatch( $webhook_id, $post_id, $attempt, $delivery_id ) {
 			'Accept'            => 'application/json',
 			'User-Agent'        => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' webhook',
 			'X-SN-Signature'    => $signature,
-			'X-SN-Event'        => 'post.published',
+			'X-SN-Event'        => $event,
 			'X-SN-Delivery'     => $delivery_id,
 			'X-SN-Attempt'      => (string) $attempt,
 		),
@@ -331,32 +496,118 @@ function sn_webhook_dispatch( $webhook_id, $post_id, $attempt, $delivery_id ) {
 		wp_schedule_single_event(
 			time() + SN_WEBHOOK_RETRY_DELAY,
 			SN_WEBHOOK_DISPATCH_HOOK,
-			array( $webhook_id, (int) $post_id, $attempt + 1, $delivery_id )
+			array( $webhook_id, (string) $event, (int) $post_id, (array) $snapshot, $attempt + 1, $delivery_id )
 		);
 	}
 }
-add_action( SN_WEBHOOK_DISPATCH_HOOK, 'sn_webhook_dispatch', 10, 4 );
+add_action( SN_WEBHOOK_DISPATCH_HOOK, 'sn_webhook_dispatch', 10, 6 );
 
 /**
- * The trigger: transition_post_status with the (publish-now &&
- * not-already-published) guard. This is the canonical pattern —
- * `publish_post` alone fires too eagerly on already-published meta
- * updates.
+ * The post types eligible for webhook events. Filterable; defaults to
+ * post + page (skips auto-drafts, revisions, attachments, nav menu items).
+ *
+ * @since 4.10.0 extracted so every trigger branch shares one gate.
+ * @return string[]
  */
-function sn_webhook_on_transition( $new_status, $old_status, $post ) {
-	if ( 'publish' !== $new_status || 'publish' === $old_status ) {
-		return;
-	}
-	// Skip auto-drafts, revisions, attachments, nav-menu-item, etc.
-	$allowed_types = apply_filters( 'sn_webhook_post_types', array( 'post', 'page' ) );
-	if ( ! in_array( $post->post_type, $allowed_types, true ) ) {
-		return;
-	}
+function sn_webhook_allowed_post_types() {
+	return apply_filters( 'sn_webhook_post_types', array( 'post', 'page' ) );
+}
+
+/**
+ * Fan a single event out to every enabled webhook subscribed to it.
+ *
+ * @since 4.10.0
+ * @param string $event    Event key (see sn_webhook_events()).
+ * @param int    $post_id
+ * @param array  $snapshot Trigger-time snapshot for unpublish/delete events.
+ */
+function sn_webhook_fan_out( $event, $post_id, $snapshot = array() ) {
 	foreach ( sn_webhooks_all() as $wh ) {
 		if ( empty( $wh['enabled'] ) ) {
 			continue;
 		}
-		sn_webhook_enqueue( $wh['id'], (int) $post->ID );
+		if ( ! sn_webhook_event_enabled( $wh, $event ) ) {
+			continue;
+		}
+		sn_webhook_enqueue( $wh['id'], $event, (int) $post_id, $snapshot );
+	}
+}
+
+/**
+ * The trigger: transition_post_status, branched by lifecycle event.
+ *
+ *  - non-publish → publish (old ≠ publish): post.published (first publish)
+ *  - publish → publish:                     post.updated (re-saved live)
+ *  - publish → draft/pending/private:       post.unpublished (snapshot)
+ *  - publish → trash:                       post.deleted (snapshot) ONLY —
+ *    trashing a published post is one event, not unpublished + deleted.
+ *
+ * `transition_post_status` is the canonical hook here — `publish_post`
+ * alone fires too eagerly on already-published meta updates. Permanent
+ * deletion does NOT pass through here (no transition); see
+ * sn_webhook_on_delete().
+ *
+ * @param string  $new_status
+ * @param string  $old_status
+ * @param WP_Post $post
+ */
+function sn_webhook_on_transition( $new_status, $old_status, $post ) {
+	if ( ! in_array( $post->post_type, sn_webhook_allowed_post_types(), true ) ) {
+		return;
+	}
+
+	if ( 'publish' === $new_status && 'publish' !== $old_status ) {
+		// First publish.
+		sn_webhook_fan_out( 'post.published', (int) $post->ID );
+		return;
+	}
+
+	if ( 'publish' === $old_status ) {
+		if ( 'publish' === $new_status ) {
+			// Re-saved while published.
+			sn_webhook_fan_out( 'post.updated', (int) $post->ID );
+			return;
+		}
+		if ( 'trash' === $new_status ) {
+			// Trashed: treat as deleted ONLY (no double-fire with unpublished).
+			$live = get_post( $post->ID );
+			sn_webhook_fan_out( 'post.deleted', (int) $post->ID, sn_webhook_snapshot_post( $live ? $live : $post ) );
+			return;
+		}
+		if ( in_array( $new_status, array( 'draft', 'pending', 'private' ), true ) ) {
+			// Unpublished: snapshot now — the live post may bounce again before dispatch.
+			$live = get_post( $post->ID );
+			sn_webhook_fan_out( 'post.unpublished', (int) $post->ID, sn_webhook_snapshot_post( $live ? $live : $post ) );
+			return;
+		}
 	}
 }
 add_action( 'transition_post_status', 'sn_webhook_on_transition', 10, 3 );
+
+/**
+ * Permanent-deletion trigger: before_delete_post fires only from
+ * wp_delete_post() (not wp_trash_post()), so it covers force-deletes,
+ * EMPTY_TRASH_DAYS-off sites, and purging an already-trashed post. Build
+ * the snapshot NOW — by dispatch the row is gone. Revisions/auto-drafts
+ * are excluded by the post-type gate (the snapshot ignores them too).
+ *
+ * @since 4.10.0
+ * @param int     $post_id
+ * @param WP_Post $post
+ */
+function sn_webhook_on_delete( $post_id, $post = null ) {
+	if ( ! $post ) {
+		$post = get_post( $post_id );
+	}
+	if ( ! $post ) {
+		return;
+	}
+	if ( wp_is_post_revision( $post ) ) {
+		return;
+	}
+	if ( ! in_array( $post->post_type, sn_webhook_allowed_post_types(), true ) ) {
+		return;
+	}
+	sn_webhook_fan_out( 'post.deleted', (int) $post_id, sn_webhook_snapshot_post( $post ) );
+}
+add_action( 'before_delete_post', 'sn_webhook_on_delete', 10, 2 );
