@@ -117,7 +117,10 @@ function snt_release_notes_cap_input( $text, $max ) {
 		return trim( $text );
 	}
 
-	$slice = substr( $text, 0, $max );
+	// mb_strcut bounds by BYTES without splitting a multibyte char (the cap is
+	// a token-budget guard, so a byte ceiling is what we want); plain substr is
+	// the fallback when mbstring is unavailable.
+	$slice = function_exists( 'mb_strcut' ) ? mb_strcut( $text, 0, $max ) : substr( $text, 0, $max );
 	$last  = strrpos( $slice, ' ' );
 	if ( false === $last ) {
 		// No space within the cap — fall back to a hard cut.

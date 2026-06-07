@@ -151,7 +151,7 @@ function snt_insights_render_recommendations_section( $last ) {
 		// v4.11.0 (T5): write_about recs can seed a Notes draft in one click —
 		// zero new AI calls (the rationale becomes the draft body). The clicked
 		// button's sn_action wins, so it shares this card's nonce + rec_id form.
-		if ( 'write_about' === $rec['type'] ) {
+		if ( 'write_about' === $rec['type'] && ! $is_done ) {
 			echo '<button type="submit" name="sn_action" value="insights_create_draft" class="button button-small button-primary">Create draft</button> ';
 		}
 		if ( ! $is_done ) {

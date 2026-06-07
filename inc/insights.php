@@ -181,6 +181,15 @@ function snt_insights_collect_signals() {
 		if ( '' === $excerpt ) {
 			continue;
 		}
+		// Bound this excerpt to the remaining total-chars budget. The author
+		// post_excerpt branch is otherwise verbatim (uncapped), so a single
+		// pathologically-long excerpt can't blow the prompt token budget; this
+		// also removes the loop-top check's one-excerpt overshoot. mb_strcut
+		// keeps the byte ceiling without splitting a multibyte char.
+		$remaining = SN_INSIGHTS_EXCERPT_TOTAL_CHARS - $excerpt_chars;
+		if ( strlen( $excerpt ) > $remaining ) {
+			$excerpt = function_exists( 'mb_strcut' ) ? mb_strcut( $excerpt, 0, $remaining ) : substr( $excerpt, 0, $remaining );
+		}
 		$out['posts'][ $i ]['excerpt'] = $excerpt;
 		$excerpt_chars += strlen( $excerpt );
 	}

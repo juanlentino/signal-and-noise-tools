@@ -762,9 +762,10 @@ foreach ( $signals['posts'] as $p ) {
 }
 ins_true( $attached > 0,  'at least one excerpt attached' );
 ins_true( $attached < 25, 'ceiling stopped the set before all 25 got excerpts' );
-// The running total may slightly overshoot on the entry that trips the
-// ceiling (we attach then check) but must stay within one excerpt of the cap.
-ins_true( $total_chars <= SN_INSIGHTS_EXCERPT_TOTAL_CHARS + strlen( $big_excerpt ), 'total excerpt chars bounded by the ceiling (+1 entry overshoot)' );
+// FX2: the entry that trips the ceiling is truncated to the remaining budget,
+// so the running total is bounded EXACTLY by the ceiling — no one-excerpt
+// overshoot (this assertion fails against the pre-FX2 code).
+ins_true( $total_chars <= SN_INSIGHTS_EXCERPT_TOTAL_CHARS, 'total excerpt chars bounded EXACTLY by the ceiling (no overshoot)' );
 
 // ─── Test 33: excerpts_count surfaced in signal_summary ──────────────
 echo "\nTest 33: run_scan signal_summary carries excerpts_count\n";
