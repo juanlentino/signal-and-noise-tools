@@ -259,6 +259,35 @@ add_filter( 'document_title_parts', function( $parts ) {
 }, 10, 1 );
 
 /**
+ * Resolve the alt text for og:image:alt / twitter:image:alt.
+ *
+ * Fallback chain (v4.8.1): the featured image's _wp_attachment_image_alt on
+ * singular views → the page $title → the configured site name. Extracted as a
+ * named, side-effect-free helper so the chain is CLI-testable independent of
+ * the wp_head emission (which can't be exercised headlessly).
+ *
+ * @since 4.8.1
+ * @param string $title The OG/Twitter title for the current view.
+ * @return string Alt text (may still be empty if every source is empty).
+ */
+function sn_seo_og_image_alt( $title ) {
+	$alt = '';
+	if ( is_singular() ) {
+		$pid = get_post_thumbnail_id( get_queried_object() );
+		if ( $pid ) {
+			$alt = trim( (string) get_post_meta( $pid, '_wp_attachment_image_alt', true ) );
+		}
+	}
+	if ( '' === $alt ) {
+		$alt = (string) $title;
+	}
+	if ( '' === $alt ) {
+		$alt = (string) sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
+	}
+	return $alt;
+}
+
+/**
  * Open Graph + Twitter card meta.
  *
  * Emitted on the front page and any singular post/page (including the
@@ -313,6 +342,12 @@ add_action( 'wp_head', function() {
 		echo '<meta property="og:image:height" content="' . (int) ( $dims[1] ?? 630 ) . '">' . "\n";
 		echo '<meta name="twitter:card" content="summary_large_image">' . "\n";
 		echo '<meta name="twitter:image" content="' . esc_url( $og_image ) . '">' . "\n";
+		// v4.8.1: accessible alt text for the social card image.
+		$alt = sn_seo_og_image_alt( $title );
+		if ( '' !== $alt ) {
+			echo '<meta property="og:image:alt" content="' . esc_attr( $alt ) . '">' . "\n";
+			echo '<meta name="twitter:image:alt" content="' . esc_attr( $alt ) . '">' . "\n";
+		}
 	} else {
 		echo '<meta name="twitter:card" content="summary">' . "\n";
 	}
