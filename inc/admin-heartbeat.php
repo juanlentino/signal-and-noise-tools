@@ -65,7 +65,17 @@ function snt_admin_heartbeat_received( $response, $data ) {
 			if ( is_array( $rows ) && count( $rows ) > 20 ) {
 				$rows = array_slice( $rows, -20 );
 			}
-			$logs[ $id ] = is_array( $rows ) ? $rows : array();
+			$rows = is_array( $rows ) ? $rows : array();
+			// T5 (Fix D): attach a site-TZ formatted timestamp per row, mirroring
+			// the cron path's 'formatted' field. Without it the JS fell back to a
+			// browser-local format from the raw epoch — inconsistent with the
+			// server-rendered (and cron live-refresh) cells.
+			foreach ( $rows as $i => $row ) {
+				$rows[ $i ]['fired_at_formatted'] = empty( $row['fired_at'] )
+					? ''
+					: wp_date( 'Y-m-d H:i:s', (int) $row['fired_at'] );
+			}
+			$logs[ $id ] = $rows;
 		}
 		$response['sn_webhook_logs'] = $logs;
 	}

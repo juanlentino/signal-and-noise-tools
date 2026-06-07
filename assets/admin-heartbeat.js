@@ -130,7 +130,9 @@
 
 	function buildWebhookRow( entry ) {
 		var tr = document.createElement( 'tr' );
-		appendCell( tr, formatTs( entry.fired_at ) );
+		// Fix D (T5): prefer the server's site-TZ formatted string (mirrors the
+		// cron path); fall back to the browser-local format only if absent.
+		appendCell( tr, entry.fired_at_formatted ? entry.fired_at_formatted : formatTs( entry.fired_at ) );
 		appendCell( tr, String( entry.attempt != null ? entry.attempt : '' ) );
 		appendCell( tr, String( entry.response_code != null ? entry.response_code : '' ) );
 

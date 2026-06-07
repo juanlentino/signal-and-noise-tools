@@ -137,6 +137,11 @@ $logs = $resp['sn_webhook_logs'];
 hb_true( isset( $logs['wh_a'] ) && isset( $logs['wh_b'] ), 'both fixture webhook ids keyed' );
 hb_eq( 200, $logs['wh_a'][0]['response_code'], 'wh_a log row carries response_code' );
 hb_eq( 500, $logs['wh_b'][0]['response_code'], 'wh_b log row carries response_code' );
+// Fix D (T5): every row carries a non-empty site-TZ formatted timestamp,
+// mirroring the cron path's 'formatted' field.
+hb_true( isset( $logs['wh_a'][0]['fired_at_formatted'] ) && '' !== $logs['wh_a'][0]['fired_at_formatted'], 'wh_a row carries non-empty fired_at_formatted' );
+hb_true( isset( $logs['wh_b'][0]['fired_at_formatted'] ) && '' !== $logs['wh_b'][0]['fired_at_formatted'], 'wh_b row carries non-empty fired_at_formatted' );
+hb_eq( gmdate( 'Y-m-d H:i:s', 1717600000 ), $logs['wh_a'][0]['fired_at_formatted'], 'wh_a fired_at_formatted matches the epoch (site-TZ formatter)' );
 
 // ─── Test 5: ['cron','webhooks'] → both keys ─────────────────────────
 echo "\nTest 5: ['cron','webhooks'] → both keys present\n";
