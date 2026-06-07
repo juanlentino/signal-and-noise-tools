@@ -2,14 +2,15 @@
 /**
  * Signal & Noise Tools — Abilities API: system maintenance + deploy state.
  *
- * Six abilities covering cache/template/update housekeeping plus the
- * deploy-status diagnostic:
+ * Seven abilities covering cache/template/update housekeeping plus the
+ * deploy-status + ability-catalogue diagnostics:
  *   - signal-noise/purge-all-caches         (destructive, idempotent)
  *   - signal-noise/clear-template-overrides (destructive, idempotent)
  *   - signal-noise/list-template-overrides  (readonly, idempotent)
  *   - signal-noise/full-reset                (destructive, idempotent — overrides + caches)
  *   - signal-noise/force-check-updates       (idempotent — clears update transients)
  *   - signal-noise/get-deploy-status         (readonly, idempotent)
+ *   - signal-noise/list-abilities            (readonly, idempotent — registry catalogue)
  *
  * Categories: maintenance / diagnostics / updates. File grouping is by
  * feature (system housekeeping) rather than category so related impls
@@ -201,6 +202,58 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	wp_register_ability( 'signal-noise/list-abilities', array(
+		'label'               => 'List registered abilities',
+		'description'         => 'Returns the catalogue of every ability registered on this site (name, label, description, category, namespace, annotations). Optionally filter by namespace. Read-only self-discovery for AI callers — useful for "what can you do here?".',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_list_abilities',
+		'input_schema'        => array(
+			// v2.5.4: see purge-all-caches comment — null accepted because
+			// readonly abilities (GET) receive null when caller omits ?input=.
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
+				'namespace' => array(
+					'type'        => 'string',
+					'description' => 'Restrict the catalogue to abilities whose name is prefixed with this namespace (the segment before the slash, e.g. "signal-noise").',
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'         => array( 'type' => 'boolean' ),
+				'count'      => array( 'type' => 'integer' ),
+				'namespaces' => array(
+					'type'        => 'object',
+					'description' => 'Per-namespace ability tally.',
+				),
+				'items'      => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'name'        => array( 'type' => 'string' ),
+							'label'       => array( 'type' => 'string' ),
+							'description' => array( 'type' => 'string' ),
+							'category'    => array( 'type' => 'string' ),
+							'namespace'   => array( 'type' => 'string' ),
+							'annotations' => array( 'type' => 'object' ),
+						),
+					),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'   => true,
+				'idempotent' => true,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/list-template-overrides', array(
 		'label'               => 'List database template overrides',
 		'description'         => 'Returns the slugs and post types of any wp_template / wp_template_part / wp_navigation rows currently overriding theme files. Read-only inspection before the destructive clear-template-overrides.',
@@ -315,6 +368,67 @@ function snt_ability_full_reset() {
 		return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
 	}
 	return snt_cmd_impl_full_reset();
+}
+
+/**
+ * Ability execute callback: signal-noise/list-abilities.
+ *
+ * Iterates the GLOBAL abilities registry (every plugin/theme, not just S&N)
+ * and returns a self-discovery catalogue. Namespace is derived from the
+ * segment before the first slash in each ability name; annotation flags come
+ * straight from the ability's get_meta()['annotations'].
+ *
+ * @since 4.10.0
+ * @param array|null $input Optional. { namespace?: string }.
+ * @return array|WP_Error
+ */
+function snt_ability_list_abilities( $input = null ) {
+	if ( ! function_exists( 'wp_get_abilities' ) ) {
+		return new WP_Error( 'snt_abilities_unavailable', 'Abilities API not available (WordPress 7.0+ required).', array( 'status' => 500 ) );
+	}
+
+	$filter_namespace = '';
+	if ( is_array( $input ) && isset( $input['namespace'] ) ) {
+		$filter_namespace = (string) $input['namespace'];
+	}
+
+	$items      = array();
+	$namespaces = array();
+
+	foreach ( wp_get_abilities() as $ability ) {
+		$name      = $ability->get_name();
+		$slash     = strpos( $name, '/' );
+		$namespace = false === $slash ? '' : substr( $name, 0, $slash );
+
+		if ( '' !== $filter_namespace && $namespace !== $filter_namespace ) {
+			continue;
+		}
+
+		$meta        = $ability->get_meta();
+		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+
+		$items[] = array(
+			'name'        => $name,
+			'label'       => $ability->get_label(),
+			'description' => $ability->get_description(),
+			'category'    => $ability->get_category(),
+			'namespace'   => $namespace,
+			'annotations' => array(
+				'readonly'    => isset( $annotations['readonly'] ) ? $annotations['readonly'] : null,
+				'destructive' => isset( $annotations['destructive'] ) ? $annotations['destructive'] : null,
+				'idempotent'  => isset( $annotations['idempotent'] ) ? $annotations['idempotent'] : null,
+			),
+		);
+
+		$namespaces[ $namespace ] = ( $namespaces[ $namespace ] ?? 0 ) + 1;
+	}
+
+	return array(
+		'ok'         => true,
+		'count'      => count( $items ),
+		'namespaces' => $namespaces,
+		'items'      => $items,
+	);
 }
 
 /**

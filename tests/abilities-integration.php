@@ -484,6 +484,31 @@ if ( ! class_exists( 'WP_Ability' ) ) {
 			$this->name   = $name;
 			$this->config = $config;
 		}
+		// v4.10.0: additive getters mirroring the real WP_Ability accessors
+		// (WordPress/abilities-api class-wp-ability.php). list-abilities reads
+		// the registry through these, so the stub must reproduce their real
+		// shapes — especially get_meta(), which always merges 'annotations'
+		// over the readonly/destructive/idempotent => null defaults.
+		public function get_name() { return (string) $this->name; }
+		public function get_label() { return (string) ( $this->config['label'] ?? '' ); }
+		public function get_description() { return (string) ( $this->config['description'] ?? '' ); }
+		public function get_category() { return (string) ( $this->config['category'] ?? '' ); }
+		public function get_meta() {
+			$meta = isset( $this->config['meta'] ) && is_array( $this->config['meta'] ) ? $this->config['meta'] : array();
+			$default_annotations = array(
+				'readonly'    => null,
+				'destructive' => null,
+				'idempotent'  => null,
+			);
+			$meta['annotations'] = array_merge(
+				$default_annotations,
+				isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array()
+			);
+			if ( ! isset( $meta['show_in_rest'] ) ) {
+				$meta['show_in_rest'] = false;
+			}
+			return $meta;
+		}
 		public function execute( $input = null ) {
 			if ( isset( $this->config['permission_callback'] ) ) {
 				$allowed = call_user_func( $this->config['permission_callback'], $input );
@@ -518,6 +543,18 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 			return null;
 		}
 		return new WP_Ability( $name, $GLOBALS['__test_registered_abilities'][ $name ] );
+	}
+}
+// v4.10.0: global registry accessor — mirrors WordPress/abilities-api
+// wp_get_abilities() which returns a name => WP_Ability map (the underlying
+// registry's $registered_abilities, keyed by name). list-abilities iterates it.
+if ( ! function_exists( 'wp_get_abilities' ) ) {
+	function wp_get_abilities() {
+		$out = array();
+		foreach ( $GLOBALS['__test_registered_abilities'] as $name => $config ) {
+			$out[ $name ] = new WP_Ability( $name, $config );
+		}
+		return $out;
 	}
 }
 
@@ -1058,6 +1095,73 @@ $v460_new = array(
 foreach ( $v460_new as $slug ) {
 	ap_true( null !== wp_get_ability( $slug ), "v4.6.0: ability registered: $slug" );
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * v4.10.0 — list-abilities read-only meta-ability
+ *
+ * Iterates the GLOBAL wp_get_abilities() registry, deriving namespace +
+ * annotation flags via the real getter surface (get_name/get_category/
+ * get_meta). Behavioral, not registration-shape: we execute() it and
+ * inspect the emitted catalogue.
+ * ════════════════════════════════════════════════════════════════════ */
+
+echo "\n[v4.10.0] list-abilities meta-ability:\n";
+
+ap_reset_caps();
+
+// Registered + reachable.
+ap_true( null !== wp_get_ability( 'signal-noise/list-abilities' ), 'v4.10.0: list-abilities registered' );
+
+$plugin_ability_count = count( $GLOBALS['__test_registered_abilities'] );
+
+// Happy path: execute with empty input → catalogue of every registered ability.
+$out = wp_get_ability( 'signal-noise/list-abilities' )->execute( array() );
+ap_true( is_array( $out ) && isset( $out['ok'], $out['count'], $out['namespaces'], $out['items'] ), 'list-abilities: required keys present' );
+ap_eq( true, $out['ok'], 'list-abilities: ok=true' );
+ap_eq( $plugin_ability_count, $out['count'], 'list-abilities: count matches registry size' );
+ap_true( $out['count'] >= count( $expected_abilities ), 'list-abilities: count >= plugin baseline' );
+ap_eq( $out['count'], count( $out['items'] ), 'list-abilities: items length == count' );
+
+// Result includes list-abilities itself (it iterates the live registry).
+$item_names = array_map( function( $it ) { return $it['name']; }, $out['items'] );
+ap_true( in_array( 'signal-noise/list-abilities', $item_names, true ), 'list-abilities: catalogue includes itself' );
+
+// Every item carries the signal-noise namespace + the descriptive fields.
+$all_sn_namespace = true;
+$item_index       = array();
+foreach ( $out['items'] as $it ) {
+	if ( 'signal-noise' !== $it['namespace'] ) { $all_sn_namespace = false; }
+	ap_true( isset( $it['name'], $it['label'], $it['category'], $it['namespace'], $it['annotations'] ), 'list-abilities: item ' . $it['name'] . ' has full shape' );
+	$item_index[ $it['name'] ] = $it;
+}
+ap_true( $all_sn_namespace, 'list-abilities: every item namespace === signal-noise' );
+
+// Annotation booleans surfaced from get_meta()['annotations'].
+ap_eq( true, $item_index['signal-noise/purge-all-caches']['annotations']['destructive'], 'list-abilities: purge-all-caches destructive=true' );
+ap_eq( true, $item_index['signal-noise/get-deploy-status']['annotations']['readonly'], 'list-abilities: get-deploy-status readonly=true' );
+ap_eq( true, $item_index['signal-noise/list-abilities']['annotations']['readonly'], 'list-abilities: list-abilities self readonly=true' );
+// A purge ability has no readonly annotation set → null (the real default).
+ap_true( null === $item_index['signal-noise/purge-all-caches']['annotations']['readonly'], 'list-abilities: unset annotation is null not absent' );
+
+// Namespace tally matches the catalogue.
+ap_true( isset( $out['namespaces']['signal-noise'] ), 'list-abilities: namespaces tally has signal-noise' );
+ap_eq( $out['count'], $out['namespaces']['signal-noise'], 'list-abilities: signal-noise tally == count (all SN here)' );
+
+// Namespace filter — known.
+$filtered = wp_get_ability( 'signal-noise/list-abilities' )->execute( array( 'namespace' => 'signal-noise' ) );
+ap_eq( $plugin_ability_count, $filtered['count'], 'list-abilities: namespace=signal-noise returns all' );
+
+// Namespace filter — unknown → 0.
+$none = wp_get_ability( 'signal-noise/list-abilities' )->execute( array( 'namespace' => 'nonexistent' ) );
+ap_eq( 0, $none['count'], 'list-abilities: namespace=nonexistent returns count 0' );
+ap_eq( array(), $none['items'], 'list-abilities: namespace=nonexistent returns empty items' );
+
+// Capability denial.
+$GLOBALS['__test_user_caps'] = array( 'read' => true );
+$res = wp_get_ability( 'signal-noise/list-abilities' )->execute( array() );
+ap_true( is_wp_error( $res ), 'list-abilities: subscriber denied' );
+ap_eq( 'rest_forbidden', $res->get_error_code(), 'list-abilities: rest_forbidden code' );
+ap_reset_caps();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
