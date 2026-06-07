@@ -82,6 +82,36 @@ function snt_deploy_status_for( $package ) {
 }
 
 /**
+ * Post types treated as DB overrides on the Dashboard. Single source of
+ * truth so the override-count helper + the diagnostics list query stay in
+ * sync.
+ *
+ * @since 4.9.0
+ * @return array<string>
+ */
+function snt_dashboard_override_post_types() {
+	return array( 'wp_template', 'wp_template_part', 'wp_navigation' );
+}
+
+/**
+ * Count of DB template/navigation overrides. Delegates to the same
+ * post-type set the Dashboard's diagnostics list queries. Used by both the
+ * Site Health Info panel (Task 3) and exposable elsewhere.
+ *
+ * @since 4.9.0
+ * @return int
+ */
+function snt_dashboard_override_count() {
+	$ids = get_posts( array(
+		'post_type'      => snt_dashboard_override_post_types(),
+		'posts_per_page' => -1,
+		'post_status'    => 'any',
+		'fields'         => 'ids',
+	) );
+	return is_array( $ids ) ? count( $ids ) : 0;
+}
+
+/**
  * Render the full Dashboard tab content. Hooked at priority 10 (default)
  * because we now OWN the entire Dashboard tab; nothing else listens.
  */
@@ -103,7 +133,7 @@ function snt_dashboard_tab_render() {
 		? snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 5 )
 		: array();
 	$overrides = get_posts( array(
-		'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
+		'post_type'      => snt_dashboard_override_post_types(),
 		'posts_per_page' => -1,
 		'post_status'    => 'any',
 	) );
@@ -493,3 +523,139 @@ add_action( 'admin_post_sn_force_update_check', function() {
 	wp_safe_redirect( admin_url( 'update-core.php?force-check=1' ) );
 	exit;
 } );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * SITE HEALTH > INFO panel (v4.9.0, Task 3)
+ *
+ * Surfaces SN operational state in Tools → Site Health → Info under a
+ * "Signal & Noise Tools" panel. Every field is read from an EXISTING
+ * getter — no new computation. Integration-adjacent fields (API rate
+ * state, AI availability, cron internals) are marked private => true so
+ * they're excluded from the "Copy site info to clipboard" export.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+add_filter( 'debug_information', 'snt_dashboard_debug_information' );
+
+/**
+ * @since 4.9.0
+ * @param array $info Core's accumulated debug-info panels.
+ * @return array
+ */
+function snt_dashboard_debug_information( $info ) {
+	$fields = array();
+
+	// Plugin + theme versions (public).
+	$fields['plugin_version'] = array(
+		'label' => __( 'Plugin version', 'signal-noise-tools' ),
+		'value' => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
+	);
+	$fields['theme_version'] = array(
+		'label' => __( 'Signal & Noise theme version', 'signal-noise-tools' ),
+		'value' => (string) wp_get_theme( 'signal-and-noise' )->get( 'Version' ),
+	);
+
+	// Plugin update state (public).
+	if ( function_exists( 'snt_deploy_status_for' ) ) {
+		$plugin = snt_deploy_status_for( 'plugin' );
+		$fields['plugin_update_state'] = array(
+			'label' => __( 'Plugin update state', 'signal-noise-tools' ),
+			'value' => isset( $plugin['state'] ) ? (string) $plugin['state'] : 'unknown',
+		);
+	}
+
+	// DB override count (public).
+	$fields['db_overrides'] = array(
+		'label' => __( 'Database template/navigation overrides', 'signal-noise-tools' ),
+		'value' => snt_dashboard_override_count(),
+	);
+
+	// Cron pipeline summary (private — internal hook names).
+	$cron_lines = array();
+	$hooks      = function_exists( 'snt_cron_sn_owned_hooks' ) ? snt_cron_sn_owned_hooks() : array();
+	foreach ( $hooks as $hook ) {
+		$next       = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( $hook ) : false;
+		$last_fired = function_exists( 'snt_cron_last_fired_for' ) ? snt_cron_last_fired_for( $hook ) : null;
+		$sched      = ( false !== $next && is_numeric( $next ) ) ? __( 'scheduled', 'signal-noise-tools' ) : __( 'NOT scheduled', 'signal-noise-tools' );
+		$fired      = ( null !== $last_fired )
+			? sprintf( /* translators: %s: human time diff. */ __( 'fired %s ago', 'signal-noise-tools' ), human_time_diff( (int) $last_fired, time() ) )
+			: __( 'never', 'signal-noise-tools' );
+		$cron_lines[] = $hook . ': ' . $sched . ', ' . $fired;
+	}
+	$fields['cron_pipeline'] = array(
+		'label'   => __( 'Cron pipeline', 'signal-noise-tools' ),
+		'value'   => $cron_lines ? implode( ' | ', $cron_lines ) : __( 'no SN-owned hooks', 'signal-noise-tools' ),
+		'private' => true,
+	);
+
+	// Cron-history table present? (private).
+	$fields['cron_history_table'] = array(
+		'label'   => __( 'Cron history table installed', 'signal-noise-tools' ),
+		'value'   => ( defined( 'SNT_CRON_HISTORY_DB_VERSION_OPT' ) && get_option( SNT_CRON_HISTORY_DB_VERSION_OPT ) )
+			? __( 'yes', 'signal-noise-tools' )
+			: __( 'no', 'signal-noise-tools' ),
+		'private' => true,
+	);
+
+	// External-API rate state (private — integration-adjacent).
+	if ( function_exists( 'snt_rate_limit_all_statuses' ) ) {
+		$rate_lines = array();
+		foreach ( snt_rate_limit_all_statuses() as $host => $row ) {
+			$snapshot  = isset( $row['snapshot'] ) ? $row['snapshot'] : array();
+			$state     = function_exists( 'snt_rate_limit_state' ) ? snt_rate_limit_state( $snapshot ) : 'unknown';
+			$label     = isset( $row['label'] ) ? (string) $row['label'] : (string) $host;
+			$rate_lines[] = $label . ': ' . $state;
+		}
+		$fields['api_rate_state'] = array(
+			'label'   => __( 'External API rate state', 'signal-noise-tools' ),
+			'value'   => $rate_lines ? implode( ', ', $rate_lines ) : __( 'none', 'signal-noise-tools' ),
+			'private' => true,
+		);
+	}
+
+	// AI availability (private).
+	if ( function_exists( 'snt_ai_is_available' ) ) {
+		$fields['ai_available'] = array(
+			'label'   => __( 'AI provider available', 'signal-noise-tools' ),
+			'value'   => snt_ai_is_available() ? __( 'yes', 'signal-noise-tools' ) : __( 'no', 'signal-noise-tools' ),
+			'private' => true,
+		);
+	}
+
+	// Webhooks count (public — counts only, no URLs/secrets).
+	if ( function_exists( 'sn_webhooks_all' ) ) {
+		$all     = sn_webhooks_all();
+		$total   = is_array( $all ) ? count( $all ) : 0;
+		$enabled = 0;
+		if ( is_array( $all ) ) {
+			foreach ( $all as $wh ) {
+				if ( ! empty( $wh['enabled'] ) ) { $enabled++; }
+			}
+		}
+		$fields['webhooks'] = array(
+			'label' => __( 'Webhooks (total / enabled)', 'signal-noise-tools' ),
+			'value' => sprintf( '%d / %d', $total, $enabled ),
+		);
+	}
+
+	// Cache state — health-scan + Plausible transient presence/age (private).
+	$cache_bits = array();
+	$health = get_transient( defined( 'SN_HEALTH_CACHE_KEY' ) ? SN_HEALTH_CACHE_KEY : 'sn_health_last_scan' );
+	if ( is_array( $health ) && ! empty( $health['scanned_at'] ) ) {
+		$cache_bits[] = 'health-scan: ' . human_time_diff( (int) $health['scanned_at'], time() ) . ' ago';
+	} else {
+		$cache_bits[] = 'health-scan: none';
+	}
+	$fields['cache_state'] = array(
+		'label'   => __( 'Cache state', 'signal-noise-tools' ),
+		'value'   => implode( '; ', $cache_bits ),
+		'private' => true,
+	);
+
+	$info['signal-noise-tools'] = array(
+		'label'       => __( 'Signal & Noise Tools', 'signal-noise-tools' ),
+		'description' => __( 'Operational state for the Signal & Noise Tools plugin (versions, cron pipeline, integrations, caches).', 'signal-noise-tools' ),
+		'fields'      => $fields,
+	);
+
+	return $info;
+}
