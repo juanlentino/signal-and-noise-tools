@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.11.0] - 2026-06-07 — Editor UX + frugal AI
+
+**Headline:** Four additive surfaces that smooth the publishing path and one that makes the weekly advisor smarter for free. The editor grows a pre-publish mistake gate; the ⌘K command palette learns to create Notes and jump around; the Tools tab gains an AI release-notes drafter; and Insights recommendations can spawn a draft in one click. The weekly advisor now reads the actual post bodies it talks about — same model, same per-run cost, sharper output. No new admin-bar node or dashboard widget; everything lands where you already work.
+
+### New
+- **Pre-publish advisory gate.** A `PluginPrePublishPanel` in the editor checks a post before it goes live and surfaces non-blocking warnings for the three mistakes that are expensive to catch after publish: the post is set to `noindex`, the meta description is empty, or the post has no tags. Advisory only — it never blocks the publish button; it just makes the oversight visible at the moment it matters. Wired in [inc/pre-publish-gate.php](inc/pre-publish-gate.php) + [assets/pre-publish-gate.js](assets/pre-publish-gate.js), reading the existing `_sn_noindex` and `_sn_meta_description` post meta.
+- **Expanded ⌘K command palette.** The WordPress 7.0 command palette ([inc/command-palette.php](inc/command-palette.php) + [assets/command-palette.js](assets/command-palette.js)) gains three navigation conveniences: **New Note** (jump straight into a fresh Note draft), **tab-jumps** to each Signal & Noise admin tab, and your **recent Notes** as direct-open commands. All client-side — no new server work per keystroke.
+- **AI release-notes drafter.** A new Tools sub-tab turns a pasted commit/change delta into Mimestream-style categorized release notes (New / Improvements / Fixed …) via one on-demand, input-capped AI call. Also exposed as a read-only ability for AI callers ([inc/abilities-system.php](inc/abilities-system.php)). Lives in [inc/release-notes-draft.php](inc/release-notes-draft.php) + [inc/admin-forms/release-notes.php](inc/admin-forms/release-notes.php); bumps the registered ability count to 43.
+- **Insights "Create draft."** The weekly advisor's `write_about` recommendation cards gain a one-click **Create draft** button that seeds a Notes draft pre-filled from the cached recommendation — title plus a valid `wp:paragraph` block body — and marks the recommendation done. The success notice links straight to the new draft's editor. Wired through the shared admin-post dispatcher ([inc/admin-post-actions.php](inc/admin-post-actions.php), [inc/insights-admin.php](inc/insights-admin.php)) so it PRG-redirects cleanly back to the Insights tab.
+
+### Improvements
+- **The weekly advisor is now content-aware.** Insights recommendations are grounded in the actual post bodies — the advisor reads a bounded, word-capped excerpt from each of the top-25 candidate posts instead of reasoning from titles and metadata alone. Same model, same single per-run AI call, no added cost; the recommendations are simply better-informed. ([inc/insights.php](inc/insights.php))
+
 ## [4.10.1] - 2026-06-07 — Webhook: post.deleted fires once per deletion
 
 ### Fixed
