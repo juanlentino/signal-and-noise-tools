@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.10.0] - 2026-06-07 — Webhooks, privacy & perf
+
+**Headline:** Six additive surfaces across three tracks — the webhook pipeline grows from publish-only to the full post lifecycle with per-webhook event selection; the plugin wires into WordPress's native privacy tooling (exporter, eraser, suggested policy text) so the only PII it stores can be exported and erased on request; the audit log gains a CSV/JSON export; and the site can opt into Speculation Rules prerendering for perceived-instant navigation. No new admin-bar node or dashboard widget; everything lands where admins already look.
+
+### New
+- **Webhooks for the full post lifecycle.** Webhooks now fire on `post.updated`, `post.unpublished`, and `post.deleted` in addition to `post.published`, each over the same HMAC-SHA256-signed pipeline. Every webhook subscribes to the events you choose (existing webhooks keep firing on publish only — `post.published` is the default when no events are ticked). The `X-SN-Event` header and the body's `event` field carry the event name; for unpublished/deleted events the `post` block is a snapshot captured at trigger time, since the post may already be gone by delivery.
+- **`signal-noise/list-abilities` ability** (`inc/abilities-system.php`). A read-only meta-ability that returns the catalogue of every ability registered on the site — name, label, description, category, namespace, and annotations — optionally filtered by namespace. Self-discovery for AI callers asking "what can you do here?".
+- **Privacy personal-data exporter + eraser** (`inc/privacy-exporters.php`). The plugin now plugs into Tools → Export / Erase Personal Data. The only persisted per-person PII it holds is the plaintext username on each successful-login row of the audit log; a privacy request keyed off a user's email resolves to that username and either exports or removes the matching rows. Aggregate counters and the salted, expiring IP hashes carry no individual PII and are out of scope.
+- **Suggested Privacy Policy text** (`inc/privacy-exporters.php`). Settings → Privacy now surfaces accurate, copy-ready policy language describing exactly what the plugin handles — the login audit and its retention window, the cookieless aggregate counters, the one-way IP hashing, and (only when at least one webhook is configured) the content sent to third-party webhook endpoints, plus a Plausible note when analytics is enabled.
+- **Audit-log CSV/JSON export** (`inc/audit-log-export.php`). The Audit tab gains a nonce-protected download (CSV or JSON) of the retention-clamped login-audit data — counters plus successful-login rows. The same payload is available programmatically via the new `signal-noise/export-audit-log` ability. Both surfaces are gated on `manage_options`.
+- **Opt-in Speculation Rules prerendering** (`inc/speculation-rules.php`). A Performance sub-tab toggle opts the site into WordPress 7.0's native Speculation Rules with a `prerender` / `moderate` profile — for a mostly-static notes site the perceived-instant navigation is a clean win. The custom login slug and `/contact/*` are excluded from prerendering (core already excludes `/wp-admin/*`, `wp-*.php`, and query-string URLs); unticking the toggle disables speculative loading outright.
+
 ## [4.9.0] - 2026-06-06 — Site Health & observability
 
 **Headline:** Five additive observability surfaces that lift the plugin's most operational subsystems into native, self-checking WordPress surfaces — Site Health checks, an Info panel, an opt-in uptime heartbeat, and live-refreshing admin tables. No new dashboard widget or admin-bar node; everything lands where admins already look.
