@@ -56,6 +56,17 @@ if ( ! function_exists( 'add_menu_page' ) ) {
 if ( ! function_exists( 'add_submenu_page' ) ) {
 	function add_submenu_page() { return ''; }
 }
+// Escaping stubs — needed by sn_admin_render_toc()'s output (Test 9).
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $s ) {
+		return str_replace( array( '&', '"', "'", '<', '>' ), array( '&amp;', '&quot;', '&#039;', '&lt;', '&gt;' ), (string) $s );
+	}
+}
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) {
+		return str_replace( array( '&', '"', "'", '<', '>' ), array( '&amp;', '&quot;', '&#039;', '&lt;', '&gt;' ), (string) $s );
+	}
+}
 
 // Anything required for top-level constants in admin-page.php.
 if ( ! defined( 'SNT_PATH' ) ) {
@@ -201,6 +212,39 @@ foreach ( sn_admin_top_tabs() as $p ) {
 	);
 }
 tabs_assert_eq( '', sn_admin_page_subtitle_for_tab( 'nonexistent-tab' ), 'unknown tab returns empty string' );
+
+// ─── Test 9: sn_admin_render_toc() selector contract (v4.8.1, T8) ─────
+// The Identity-tab scroll-spy JS (assets/admin.js initTocScrollSpy) selects
+// `.sn-toc a[href^="#sn-sec-"]` and observes `#sn-sec-<slug>` targets. This
+// guards the markup contract that selector depends on: the TOC renders a
+// `.sn-toc` nav with one `<a href="#sn-sec-<slug>">` per sub_section, and the
+// slugs match what sn_admin_render_section() emits as section ids.
+echo "\nTest 9: sn_admin_render_toc() emits the .sn-toc + #sn-sec-<slug> selector contract\n";
+ob_start();
+sn_admin_render_toc( 'site', 'identity-and-seo' );
+$toc_html = ob_get_clean();
+
+tabs_assert_true( false !== strpos( $toc_html, 'class="sn-toc"' ), 'TOC nav carries class="sn-toc" (JS root selector)' );
+
+// One <a href="#sn-sec-<slug>"> per sub_section of site/identity-and-seo.
+$sub_sections = array();
+foreach ( sn_admin_top_tabs() as $top ) {
+	if ( 'site' === $top['tab'] ) {
+		$sub_sections = array_keys( $top['sub_tabs']['identity-and-seo']['sub_sections'] );
+		break;
+	}
+}
+tabs_assert_true( count( $sub_sections ) > 0, 'site/identity-and-seo defines sub_sections (fixture sanity)' );
+
+$anchor_count = preg_match_all( '/<a href="#sn-sec-[a-z0-9\-]+"/', $toc_html );
+tabs_assert_eq( count( $sub_sections ), $anchor_count, 'one #sn-sec-<slug> anchor per sub_section' );
+
+foreach ( $sub_sections as $slug ) {
+	tabs_assert_true(
+		false !== strpos( $toc_html, 'href="#sn-sec-' . $slug . '"' ),
+		"anchor present for sub_section '$slug' (matches #sn-sec-$slug observe target)"
+	);
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
