@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.13.1] - 2026-06-08 — Fix: masked credential save corrupted Plausible & Cloudflare tokens
+
+**Headline:** Saving the **Monitoring → Stats (Plausible)** or **Cloudflare** tab *without* re-typing the token — i.e. re-submitting the obscured `••••XXXX` value the field renders — no longer overwrites the stored credential with the literal placeholder. v4.13.0 fixed this for the new Music credential handler; the two older handlers were never back-ported, and this closes that gap.
+
+### Fixed
+- **`sn_handle_pl_save` / `sn_handle_cf_save` masked-placeholder detection** ([inc/admin-post-actions.php](inc/admin-post-actions.php)) — both detected the obscured value with `'••••' !== substr( $new_token, 0, 4 )`. A bullet (`•`, U+2022) is **3 bytes** in UTF-8, so `substr( $v, 0, 4 )` returns 4 *bytes* (one bullet + the first byte of the next), which never equals the 12-byte string `'••••'`. The masked-skip branch therefore never fired: re-saving either tab without re-typing the token persisted the literal `••••XXXX` string **over the real token**, corrupting the credential (Plausible stats / Cloudflare cache purge then silently fail until the admin re-pastes the real value). Both now use `0 !== strpos( $new_token, '••••' )`, exactly mirroring the correct v4.13.0 `sn_music_save_cred` helper in the same file. The non-masked Cloudflare **zone id** field was already correct (plain `'' !== $new_zone`) and is unchanged. Covered by new masked-placeholder regression assertions in [tests/admin-post-actions.php](tests/admin-post-actions.php) for both handlers (mirrors the existing `sn_handle_music_save` masked-skip test).
+
 ## [4.13.0] - 2026-06-08 — Music Identity (discography sync + schema)
 
 **Headline:** The plugin now models Juan's discography as a single source of truth and keeps it current with zero touch. A daily WP-Cron job mirrors his verified **Muso.AI** producer credits, enriches each release with **Spotify** album media, caches it in one non-autoloaded option, emits `MusicAlbum` JSON-LD on `/music`, and feeds the companion theme's release-timeline shortcode (Signal & Noise v9.13.0) through a standalone-safe filter. Pages serve entirely from the cache — **no request-time API calls**. The breakthrough: Muso's credits are read from its **unauthenticated public endpoint**, so there is **no Muso credential** to store or rotate; Spotify (optional, client-credentials) only resolves each album for the embed. Companion to theme v9.13.0.

@@ -114,6 +114,25 @@ pa_reset_store();
 pa_eq( 'identity_saved', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'first save → identity_saved' );
 pa_eq( 'identity_unchanged', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'identical re-save → identity_unchanged' );
 
+echo "\nTest: sn_handle_cf_save() unlocked — masked-skip does NOT clobber the token\n";
+// MUST run before the constant-lock test below define()s SN_CLOUDFLARE_API_TOKEN /
+// SN_CLOUDFLARE_ZONE_ID — once defined, cf_save's unlocked branch is locked out
+// for the rest of this process (define() is irreversible).
+define( 'SN_CF_TOKEN_OPT', 'sn_cf_token' );
+define( 'SN_CF_ZONE_OPT', 'sn_cf_zone' );
+pa_reset_store();
+pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'real-cf-token', 'sn_cf_zone' => 'zone-abc' ) ), 'fresh token + zone → cf_saved' );
+pa_eq( 'real-cf-token', get_option( 'sn_cf_token' ), 'cf token persisted' );
+pa_eq( 'zone-abc', get_option( 'sn_cf_zone' ), 'cf zone persisted' );
+// Re-submit the MASKED token placeholder (••••XXXX). cf_save always returns
+// 'cf_saved' (no changed-tracking), so the meaningful check is that the stored
+// token is NOT overwritten with the literal bullets (the substr-byte bug).
+sn_handle_cf_save( array( 'sn_cf_token' => '••••oken', 'sn_cf_zone' => 'zone-abc' ) );
+pa_eq( 'real-cf-token', get_option( 'sn_cf_token' ), 'masked re-submit does NOT clobber the cf token' );
+// 'clear' deletes the token option.
+pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'clear' ) ), "'clear' → cf_saved" );
+pa_eq( false, array_key_exists( 'sn_cf_token', $GLOBALS['__options'] ), 'cf token deleted on clear' );
+
 echo "\nTest: sn_handle_cf_save() honors constant locks\n";
 define( 'SN_CLOUDFLARE_API_TOKEN', 'locked-tok' );
 define( 'SN_CLOUDFLARE_ZONE_ID', 'locked-zone' );
@@ -130,6 +149,10 @@ pa_eq( false, array_key_exists( 'sn_pl_token', $GLOBALS['__options'] ), 'token o
 pa_eq( 'pl_unchanged', sn_handle_pl_save( array( 'sn_pl_token' => '' ) ), 'empty → pl_unchanged' );
 pa_eq( 'pl_saved', sn_handle_pl_save( array( 'sn_pl_token' => 'real-new-token' ) ), 'real token → pl_saved' );
 pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'token persisted' );
+// Re-submit the MASKED placeholder (••••XXXX) → leave the stored token alone.
+// (Before v4.13.1, the byte-truncating substr check persisted the literal bullets.)
+pa_eq( 'pl_unchanged', sn_handle_pl_save( array( 'sn_pl_token' => '••••oken' ) ), 'masked placeholder → pl_unchanged' );
+pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'masked re-submit does NOT clobber the stored token' );
 
 echo "\nTest: sn_handle_monitoring_save() enforces https (Fix C)\n";
 pa_reset_store();

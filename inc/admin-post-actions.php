@@ -65,7 +65,7 @@ function sn_handle_pl_save( $post ) {
 		delete_option( SN_PLAUSIBLE_TOKEN_OPT );
 		sn_pl_admin_invalidate_caches();
 		return 'pl_cleared';
-	} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
+	} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
 		update_option( SN_PLAUSIBLE_TOKEN_OPT, $new_token, false ); // not autoloaded
 		sn_pl_admin_invalidate_caches();
 		return 'pl_saved';
@@ -92,7 +92,7 @@ function sn_handle_cf_save( $post ) {
 		$new_token = isset( $post['sn_cf_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_token'] ) ) : '';
 		if ( 'clear' === $new_token ) {
 			delete_option( SN_CF_TOKEN_OPT );
-		} elseif ( '' !== $new_token && '••••' !== substr( $new_token, 0, 4 ) ) {
+		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
 			update_option( SN_CF_TOKEN_OPT, $new_token, false ); // not autoloaded
 		}
 	}
