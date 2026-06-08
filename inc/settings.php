@@ -53,6 +53,18 @@ function sn_settings_defaults() {
 			'card_width'        => 1200,
 			'card_height'       => 630,
 		),
+		// v4.12.0: front-end render knobs the companion theme reads via filters.
+		// Non-secret; autoloaded inside sn_settings. Defaults == the theme's
+		// own hardcoded defaults, so the theme is unchanged when unset.
+		'theme' => array(
+			'related_count'          => 3,
+			'palette_recent_count'   => 8,
+			'palette_enabled'        => true,
+			'json_feed_items'        => 20,
+			'updated_threshold_days' => 14,
+			'reading_wpm'            => 225,
+			'ai_model'               => 'claude-sonnet-4-6',
+		),
 		'login' => array(
 			'slug' => 'sn-login',
 		),
