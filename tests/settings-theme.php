@@ -117,5 +117,45 @@ foreach ( $field_names as $fn ) {
 ok( empty( $missing ), 'form: emits all 7 field inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
 ok( strpos( $form, 'value="claude-opus-4-8"' ) !== false, 'form: renders an option per allowlisted model' );
 
+// ── P5: theme-filter callbacks (the cross-package contract) ──────────
+require __DIR__ . '/../inc/theme-filters.php';
+
+// Configured value flows through (sn_setting_update busts the static cache).
+sn_setting_update( 'theme.related_count', 7 );
+ok( (int) sn_tf_related_count( 3 ) === 7, 'filter: related_count returns configured 7' );
+
+// Fallback to the theme-supplied default when unset (direct unset + cache reset).
+unset( $GLOBALS['__options']['sn_settings']['theme']['related_count'] );
+sn_setting_reset_cache();
+ok( (int) sn_tf_related_count( 3 ) === 3, 'filter: related_count falls back to supplied default' );
+
+// Defense-in-depth: a hand-edited out-of-range option is clamped on the way out.
+$GLOBALS['__options']['sn_settings']['theme']['related_count'] = 99;
+sn_setting_reset_cache();
+ok( (int) sn_tf_related_count( 3 ) === 12, 'filter: related_count clamps a tampered value to max 12' );
+
+// Each remaining numeric/bool callback honors its configured value.
+sn_setting_update( 'theme.palette_recent_count', 4 );
+ok( (int) sn_tf_palette_recent_count( 8 ) === 4, 'filter: palette_recent_count returns configured 4' );
+sn_setting_update( 'theme.json_feed_items', 5 );
+ok( (int) sn_tf_json_feed_items( 20 ) === 5, 'filter: json_feed_items returns configured 5' );
+sn_setting_update( 'theme.updated_threshold_days', 30 );
+ok( (int) sn_tf_updated_threshold( 14 ) === 30, 'filter: updated_threshold returns configured 30' );
+sn_setting_update( 'theme.reading_wpm', 250 );
+ok( (int) sn_tf_reading_wpm( 225 ) === 250, 'filter: reading_wpm returns configured 250' );
+
+sn_setting_update( 'theme.palette_enabled', false );
+ok( sn_tf_palette_enabled( true ) === false, 'filter: palette_enabled returns configured false' );
+unset( $GLOBALS['__options']['sn_settings']['theme']['palette_enabled'] );
+sn_setting_reset_cache();
+ok( sn_tf_palette_enabled( true ) === true, 'filter: palette_enabled falls back to supplied default true' );
+
+// ai_model: configured allowlisted id flows; an off-list stored id falls back to $d.
+sn_setting_update( 'theme.ai_model', 'claude-opus-4-8' );
+ok( sn_tf_ai_model( 'claude-sonnet-4-6' ) === 'claude-opus-4-8', 'filter: ai_model returns configured id' );
+$GLOBALS['__options']['sn_settings']['theme']['ai_model'] = 'off-list-tampered';
+sn_setting_reset_cache();
+ok( sn_tf_ai_model( 'claude-sonnet-4-6' ) === 'claude-sonnet-4-6', 'filter: ai_model rejects a tampered off-list id → supplied default' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
