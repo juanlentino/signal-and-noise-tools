@@ -282,6 +282,54 @@ function sn_handle_perf_save( $post ) {
 }
 
 /**
+ * v4.12.0: the AI text-generation model allowlist (single source for the
+ * Front-End form's <select> AND the save handler's validation). Keys are the
+ * model ids passed to the snt_ai_model_preference filter; values are UI labels.
+ *
+ * Ids are the alias form (no date suffix), verified Active against the
+ * claude-api model catalog: Sonnet 4.6 (current pin), Opus 4.8 (most capable),
+ * Haiku 4.5 (fastest/cheapest). Loaded unconditionally at bootstrap, so it is
+ * available on the front end too (sn_tf_ai_model() calls it during AI requests).
+ *
+ * @return array<string,string>
+ */
+function sn_theme_ai_models() {
+	return array(
+		'claude-sonnet-4-6' => 'Claude Sonnet 4.6 (balanced — default)',
+		'claude-opus-4-8'   => 'Claude Opus 4.8 (most capable)',
+		'claude-haiku-4-5'  => 'Claude Haiku 4.5 (fastest, cheapest)',
+	);
+}
+
+/**
+ * v4.12.0: persist the Front-End settings form (Tools → Front-End sub-tab).
+ *
+ * Sparse writes via sn_setting_update() so the sibling sn_settings subtrees are
+ * never clobbered (same whole-option-replace hazard the audit/monitoring/perf
+ * handlers avoid). Ints are clamped to the same bounds the theme-filter
+ * callbacks enforce; the model select is VALIDATED against the allowlist
+ * (validation > sanitization) and falls back to the current value (then the
+ * first allowlisted id) when an off-list id is posted.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_save_theme( $post ) {
+	$ok  = sn_setting_update( 'theme.related_count', max( 1, min( 12, (int) ( $post['theme_related_count'] ?? 3 ) ) ) );
+	$ok &= sn_setting_update( 'theme.palette_recent_count', max( 0, min( 20, (int) ( $post['theme_palette_recent_count'] ?? 8 ) ) ) );
+	$ok &= sn_setting_update( 'theme.palette_enabled', ! empty( $post['theme_palette_enabled'] ) );
+	$ok &= sn_setting_update( 'theme.json_feed_items', max( 1, min( 50, (int) ( $post['theme_json_feed_items'] ?? 20 ) ) ) );
+	$ok &= sn_setting_update( 'theme.updated_threshold_days', max( 1, min( 90, (int) ( $post['theme_updated_threshold_days'] ?? 14 ) ) ) );
+	$ok &= sn_setting_update( 'theme.reading_wpm', max( 100, min( 400, (int) ( $post['theme_reading_wpm'] ?? 225 ) ) ) );
+
+	$allowed = array_keys( sn_theme_ai_models() );
+	$model   = isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '';
+	$ok     &= sn_setting_update( 'theme.ai_model', in_array( $model, $allowed, true ) ? $model : (string) sn_setting( 'theme.ai_model', $allowed[0] ) );
+
+	return $ok ? 'theme_saved' : 'theme_unchanged';
+}
+
+/**
  * v4.11.0 (T4): draft Mimestream-style release notes from a pasted CHANGELOG
  * delta. The dispatcher PRG-redirects, so the generated markdown (or the AI
  * error message) is stashed in a short per-user transient that

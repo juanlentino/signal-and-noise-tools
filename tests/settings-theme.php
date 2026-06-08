@@ -49,5 +49,38 @@ ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_d
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
 ok( $d['theme']['ai_model'] === 'claude-sonnet-4-6', 'defaults: ai_model claude-sonnet-4-6' );
 
+// ── P2: AI-model allowlist + save handler (clamps + validation) ──────
+require __DIR__ . '/../inc/admin-post-actions.php';
+
+$models = sn_theme_ai_models();
+ok( ! empty( $models ) && array_key_exists( 'claude-sonnet-4-6', $models ), 'ai models: list non-empty + contains default' );
+ok( array_key_exists( 'claude-opus-4-8', $models ) && array_key_exists( 'claude-haiku-4-5', $models ), 'ai models: includes opus-4-8 + haiku-4-5 (alias ids)' );
+
+// Out-of-range ints clamp; off-list model rejected; checkbox present → true.
+sn_handle_save_theme( array(
+	'theme_related_count'          => '99',
+	'theme_palette_recent_count'   => '-3',
+	'theme_json_feed_items'        => '0',
+	'theme_palette_enabled'        => '1',
+	'theme_ai_model'               => 'totally-fake-model',
+	'theme_updated_threshold_days' => '500',
+	'theme_reading_wpm'            => '5',
+) );
+ok( (int) sn_setting( 'theme.related_count' ) === 12, 'save: related_count clamps to max 12' );
+ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recent_count clamps to min 0' );
+ok( (int) sn_setting( 'theme.json_feed_items' ) === 1, 'save: json_feed_items clamps to min 1' );
+ok( (int) sn_setting( 'theme.updated_threshold_days' ) === 90, 'save: updated_threshold clamps to max 90' );
+ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps to min 100' );
+ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-4-6', 'save: off-list ai_model rejected → keeps default' );
+ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
+
+// Checkbox absent/empty → false; on-list model accepted.
+sn_handle_save_theme( array(
+	'theme_palette_enabled' => '',
+	'theme_ai_model'        => 'claude-opus-4-8',
+) );
+ok( sn_setting( 'theme.palette_enabled' ) === false, 'save: palette_enabled false when checkbox absent/empty' );
+ok( sn_setting( 'theme.ai_model' ) === 'claude-opus-4-8', 'save: on-list ai_model accepted' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
