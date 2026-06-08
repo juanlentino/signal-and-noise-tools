@@ -182,6 +182,9 @@ require_once __DIR__ . '/inc/abilities-block-migrations.php';
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identity — normalized release store (cron is sole writer)
+require_once __DIR__ . '/inc/muso-api.php';            // v4.13.0: Music Identity — Muso public credits client + album grouper
+require_once __DIR__ . '/inc/spotify-api.php';         // v4.13.0: Music Identity — Spotify album resolver (track id → album)
+require_once __DIR__ . '/inc/discography-sync.php';    // v4.13.0: Music Identity — cron sync orchestrator + sn_discography_entries filter
 require_once __DIR__ . '/inc/seo-schema-music.php';    // v4.13.0: Music Identity — MusicAlbum/MusicRecording JSON-LD on /music
 require_once __DIR__ . '/inc/post-settings.php';
 require_once __DIR__ . '/inc/sitemap.php';
