@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.13.0] - 2026-06-08 — Music Identity (discography sync + schema)
+
+**Headline:** The plugin now models Juan's discography as a single source of truth and keeps it current with zero touch. A daily WP-Cron job mirrors his verified **Muso.AI** producer credits, enriches each release with **Spotify** album media, caches it in one non-autoloaded option, emits `MusicAlbum` JSON-LD on `/music`, and feeds the companion theme's release-timeline shortcode (Signal & Noise v9.13.0) through a standalone-safe filter. Pages serve entirely from the cache — **no request-time API calls**. The breakthrough: Muso's credits are read from its **unauthenticated public endpoint**, so there is **no Muso credential** to store or rotate; Spotify (optional, client-credentials) only resolves each album for the embed. Companion to theme v9.13.0.
+
+### New
+- **Muso.AI public credits client** ([inc/muso-api.php](inc/muso-api.php)) — paginates the unauthenticated `api2.muso.ai` credits endpoint (no `x-api-key`), fails closed on any page error, and groups the flat track-credits into albums by `album.id` (deduped role union, primary artist, full release date, Muso artwork, a representative track Spotify id). Same-title different-id releases stay distinct.
+- **Spotify album resolver** ([inc/spotify-api.php](inc/spotify-api.php)) — client-credentials token (cached until expiry) + `GET /v1/tracks/{id}` → the album it belongs to (id, url, `album_type`, artwork, release date), so the embed plays the album and the schema `@type` stays consistent. Fails soft to Muso-only when unconfigured or unmatched.
+- **Cron sync orchestrator** ([inc/discography-sync.php](inc/discography-sync.php)) — Muso albums × Spotify resolution → the normalized store, sorted year-descending; daily WP-Cron (scheduled on `init` with an idempotency guard); exposes the store via the standalone-safe `sn_discography_entries` filter the theme reads.
+- **Normalized discography store** ([inc/discography-store.php](inc/discography-store.php)) — one source-agnostic, non-autoloaded option (cron is the sole writer) read by the schema emitter, theme display, and admin status.
+- **`MusicAlbum` / `MusicRecording` JSON-LD** ([inc/seo-schema-music.php](inc/seo-schema-music.php)) — per-release nodes on `/music` with Juan as schema.org **`producer`** (a reference to the existing canonical Person `@id`, not a MusicGroup), the primary artist as `byArtist`, a precise `datePublished`, and Spotify + Muso deep links in `sameAs`.
+- **Monitoring → Music admin sub-tab** ([inc/admin-forms/music.php](inc/admin-forms/music.php)) — sync status (last run, release count, last error), masked + constant-lockable Spotify credentials, the Muso profile id (no credential — it's in the public URL), and a **Sync now** button.
+
+### Reliability & Security
+- **Last-good on failure.** A Muso error or empty result preserves the prior cached discography (the `/music` page never blanks); a Spotify failure drops only that album to Muso-only (artwork kept, no embed).
+- **No request-time API calls.** Every network call is confined to the cron worker and the admin "Sync now"; pages render from the cache.
+- **Credentials.** Spotify id/secret are non-autoloaded, masked, and lockable via `SN_SPOTIFY_CLIENT_ID` / `SN_SPOTIFY_CLIENT_SECRET`; the Muso profile id is lockable via `SN_MUSO_PROFILE_ID`. No Muso credential exists.
+
+### Fixed
+- **Masked-credential save no longer clobbers the stored value.** The new credential handler detects the obscured placeholder with `0 === strpos($v, '••••')` rather than the byte-truncating `substr($v, 0, 4)` (a bullet is 3 bytes), so re-saving the Music tab without re-typing keeps the existing secret instead of persisting literal bullets.
+
+### Notes
+- **One-time `/music` placement (manual):** edit the Music page in wp-admin and replace the hand-curated Spotify-embed blocks in the page **content** with a Shortcode block containing `[sn_discography]`. The page header and the Muso CTA live in the theme template, so the page content should hold only the shortcode. Until the first sync runs (or "Sync now" is clicked), the timeline is empty and the page falls back to its existing content — nothing breaks.
+
 ## [4.12.0] - 2026-06-08 — Front-End settings tab
 
 **Headline:** The plugin now owns seven front-end "render knobs" that were previously hardcoded in the theme — related-notes count, command-palette recent-count and on/off kill-switch, JSON-feed item count, the "Updated" badge threshold, reading-time WPM, and the AI model. A new **Tools → Front-End** sub-tab edits them; they reach the theme through a standalone-safe filter contract, so defaults match the theme's own and nothing changes until you opt in. Companion to theme v9.12.0, which exposed the matching filter hooks. No new admin-bar node or dashboard widget.
