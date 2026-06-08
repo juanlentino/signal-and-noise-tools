@@ -63,6 +63,8 @@ function sn_admin_flash_messages() {
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		'release_notes_failed'      => array( 'error', 'Could not draft release notes. See the detail below, or check that an AI provider is configured under Settings &rarr; Connectors.' ),
+		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
+		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
 	);
 }
 
