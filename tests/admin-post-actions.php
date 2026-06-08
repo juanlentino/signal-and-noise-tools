@@ -155,7 +155,7 @@ unset( $GLOBALS['__test_draft_error'] );
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 26, count( $map ), 'map has 26 actions' );
+pa_eq( 27, count( $map ), 'map has 27 actions' ); // v4.12.0: + save_theme
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
