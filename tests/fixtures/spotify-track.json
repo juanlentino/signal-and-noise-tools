@@ -1,0 +1,31 @@
+{
+  "album": {
+    "album_type": "album",
+    "total_tracks": 12,
+    "id": "7aB9cD2eF4gH6iJ8kL0mN1",
+    "name": "ARGIRIA",
+    "release_date": "2025-04-18",
+    "release_date_precision": "day",
+    "external_urls": { "spotify": "https://open.spotify.com/album/7aB9cD2eF4gH6iJ8kL0mN1" },
+    "href": "https://api.spotify.com/v1/albums/7aB9cD2eF4gH6iJ8kL0mN1",
+    "uri": "spotify:album:7aB9cD2eF4gH6iJ8kL0mN1",
+    "images": [
+      { "height": 640, "url": "https://i.scdn.co/image/ab67616d0000b27337cece3027c19db0becf5a81", "width": 640 },
+      { "height": 300, "url": "https://i.scdn.co/image/ab67616d00001e0237cece3027c19db0becf5a81", "width": 300 },
+      { "height": 64, "url": "https://i.scdn.co/image/ab67616d0000485137cece3027c19db0becf5a81", "width": 64 }
+    ],
+    "artists": [
+      { "id": "0aBc1dEf2gH3iJk4lMn5oP", "name": "Cande Schulman", "external_urls": { "spotify": "https://open.spotify.com/artist/0aBc1dEf2gH3iJk4lMn5oP" } }
+    ]
+  },
+  "artists": [
+    { "id": "0aBc1dEf2gH3iJk4lMn5oP", "name": "Cande Schulman", "external_urls": { "spotify": "https://open.spotify.com/artist/0aBc1dEf2gH3iJk4lMn5oP" } }
+  ],
+  "id": "6MuumbyTsu4CLaniAN0lBW",
+  "name": "Cuando Haga Frío",
+  "duration_ms": 211000,
+  "popularity": 7,
+  "preview_url": "https://p.scdn.co/mp3-preview/7ec8cb06a740c668231aa59dc82a3714a7067a77",
+  "external_urls": { "spotify": "https://open.spotify.com/track/6MuumbyTsu4CLaniAN0lBW" },
+  "external_ids": { "isrc": "ARF652500123" }
+}
