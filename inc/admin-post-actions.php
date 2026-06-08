@@ -481,6 +481,17 @@ function sn_music_save_cred( $post, $field, $opt, $const, $changed ) {
  * @return string Flash code.
  */
 function sn_handle_music_save( $post ) {
+	// v4.14.0: featured-release URL — validate BEFORE any write so a bad paste
+	// errors cleanly instead of partially saving the other fields.
+	$raw_featured    = isset( $post['sn_music_featured'] ) ? trim( (string) wp_unslash( $post['sn_music_featured'] ) ) : '';
+	$featured_parsed = null;
+	if ( '' !== $raw_featured && 'clear' !== $raw_featured ) {
+		$featured_parsed = function_exists( 'sn_music_featured_parse' ) ? sn_music_featured_parse( $raw_featured ) : null;
+		if ( ! $featured_parsed ) {
+			return 'music_featured_invalid';
+		}
+	}
+
 	$changed = false;
 	$changed = sn_music_save_cred( $post, 'sn_spotify_id', SN_SPOTIFY_ID_OPT, 'SN_SPOTIFY_CLIENT_ID', $changed );
 	$changed = sn_music_save_cred( $post, 'sn_spotify_secret', SN_SPOTIFY_SECRET_OPT, 'SN_SPOTIFY_CLIENT_SECRET', $changed );
@@ -492,6 +503,16 @@ function sn_handle_music_save( $post ) {
 			delete_option( SN_MUSO_PROFILE_OPT );
 			$changed = true;
 		} elseif ( '' !== $pid && update_option( SN_MUSO_PROFILE_OPT, $pid, false ) ) {
+			$changed = true;
+		}
+	}
+
+	// Featured release — apply (validated above).
+	if ( defined( 'SN_MUSIC_FEATURED_OPT' ) ) {
+		if ( 'clear' === $raw_featured ) {
+			delete_option( SN_MUSIC_FEATURED_OPT );
+			$changed = true;
+		} elseif ( is_array( $featured_parsed ) && update_option( SN_MUSIC_FEATURED_OPT, $featured_parsed, false ) ) {
 			$changed = true;
 		}
 	}

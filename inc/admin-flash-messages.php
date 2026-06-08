@@ -69,6 +69,7 @@ function sn_admin_flash_messages() {
 		'music_unchanged'           => array( 'info', 'No changes to save.' ),
 		'music_synced'              => array( 'success', 'Discography synced from Muso.AI + Spotify. The <code>/music</code> timeline and schema now reflect the latest credits.' ),
 		'music_sync_failed'         => array( 'error', 'Sync failed &mdash; the previous discography was kept (no blank page). See the status panel below for the error.' ),
+		'music_featured_invalid'    => array( 'error', 'That doesn&rsquo;t look like a Spotify link. Paste a track, album, or playlist URL (e.g. <code>https://open.spotify.com/album/&hellip;</code>) or <code>spotify:</code> URI.' ),
 	);
 }
 

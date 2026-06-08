@@ -71,6 +71,11 @@ function snt_insights_mark_done( $rec_id ) { $GLOBALS['__test_marked_done'][] = 
 require_once __DIR__ . '/../inc/muso-api.php';
 require_once __DIR__ . '/../inc/spotify-api.php';
 
+// v4.14.0: featured-release parser + constant (for sn_handle_music_save). The
+// test guard suppresses the module's add_filter registration on require.
+define( 'SN_MUSIC_FEATURED_TEST', true );
+require_once __DIR__ . '/../inc/music-featured.php';
+
 // Stub the sync orchestrator so sn_handle_music_sync() is testable without the
 // Muso/Spotify network path (tests/discography-sync.php covers the real sync).
 $GLOBALS['__music_sync_result'] = true;
@@ -224,6 +229,27 @@ pa_eq( 'music_synced', sn_handle_music_sync( array() ), 'successful sync → mus
 pa_eq( 1, $GLOBALS['__music_sync_calls'], 'sync handler invokes sn_discography_run_sync once' );
 $GLOBALS['__music_sync_result'] = false;
 pa_eq( 'music_sync_failed', sn_handle_music_sync( array() ), 'failed sync (last-good kept) → music_sync_failed' );
+
+echo "\nTest: sn_handle_music_save() — featured release (v4.14.0)\n";
+pa_reset_store();
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_music_featured' => 'https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa' ) ), 'valid featured URL → music_saved' );
+$feat = get_option( SN_MUSIC_FEATURED_OPT );
+pa_eq( 'album', is_array( $feat ) ? $feat['type'] : '', 'featured type parsed + stored' );
+pa_eq( '4m2880jivSbbyEGAKfITCa', is_array( $feat ) ? $feat['id'] : '', 'featured id parsed + stored' );
+
+// Invalid URL → error flash, nothing written.
+pa_reset_store();
+pa_eq( 'music_featured_invalid', sn_handle_music_save( array( 'sn_music_featured' => 'not a spotify link' ) ), 'invalid featured URL → music_featured_invalid' );
+pa_eq( false, array_key_exists( SN_MUSIC_FEATURED_OPT, $GLOBALS['__options'] ), 'invalid featured: nothing stored' );
+
+// 'clear' removes the featured option.
+$GLOBALS['__options'][ SN_MUSIC_FEATURED_OPT ] = array( 'type' => 'track', 'id' => '6MuumbyTsu4CLaniAN0lBW' );
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_music_featured' => 'clear' ) ), "'clear' featured → music_saved" );
+pa_eq( false, array_key_exists( SN_MUSIC_FEATURED_OPT, $GLOBALS['__options'] ), 'featured cleared' );
+
+// Re-submitting the same featured (the round-tripped open URL) → unchanged.
+$GLOBALS['__options'][ SN_MUSIC_FEATURED_OPT ] = array( 'type' => 'album', 'id' => '4m2880jivSbbyEGAKfITCa' );
+pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_music_featured' => 'https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa' ) ), 'same featured re-submitted → music_unchanged' );
 
 echo "\nTest: sn_handle_music_save() honors the Spotify secret constant lock\n";
 define( 'SN_SPOTIFY_CLIENT_SECRET', 'locked-secret' );

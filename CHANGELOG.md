@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.0] - 2026-06-08 — Featured release (settings-driven /music hero)
+
+**Headline:** The "press play" player at the top of `/music` is now set from **Monitoring → Music** instead of hand-edited into the page. Paste any Spotify track, album, or playlist link in the new **Featured release** field; the plugin parses it and exposes it over the standalone-safe `sn_music_featured` filter the theme's `[sn_music_featured]` shortcode (Signal & Noise v9.15.0) renders. Companion to theme v9.15.0.
+
+### New
+- **Featured-release setting** ([inc/music-featured.php](inc/music-featured.php) + [inc/admin-forms/music.php](inc/admin-forms/music.php)) — a "Featured release" field under Monitoring → Music. `sn_music_featured_parse()` accepts the full range of Spotify links (track / album / playlist / episode / show / artist), including the `/intl-xx/` locale path, the `?si=…` tracking query, and the `spotify:type:id` URI form; it rejects non-Spotify and malformed input with a clear error. The parsed `{type,id}` is stored and answered over the `sn_music_featured` filter as a ready `embed_url` (the plugin owns URL construction). Type `clear` to remove it.
+
+### Notes
+- Mirrors the discography filter contract: the plugin owns the data + the `add_filter`; the theme reads `apply_filters('sn_music_featured', array())` and renders nothing when the setting is empty or the plugin is absent. No new admin action (handled within the existing `music_save`), so the dispatch map is unchanged.
+
 ## [4.13.1] - 2026-06-08 — Fix: masked credential save corrupted Plausible & Cloudflare tokens
 
 **Headline:** Saving the **Monitoring → Stats (Plausible)** or **Cloudflare** tab *without* re-typing the token — i.e. re-submitting the obscured `••••XXXX` value the field renders — no longer overwrites the stored credential with the literal placeholder. v4.13.0 fixed this for the new Music credential handler; the two older handlers were never back-ported, and this closes that gap.

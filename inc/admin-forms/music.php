@@ -52,6 +52,8 @@ function sn_admin_render_music_section() {
 	$secret_opt    = (string) get_option( SN_SPOTIFY_SECRET_OPT, '' );
 	$spotify_on    = (bool) sn_spotify_config();
 	$profile_id    = sn_muso_profile_id();
+	$featured      = function_exists( 'sn_music_featured_get' ) ? sn_music_featured_get() : array();
+	$featured_url  = ! empty( $featured['open_url'] ) ? (string) $featured['open_url'] : '';
 
 	echo '<p class="sn-prose">A zero-touch on-site discography. A daily WP-Cron job mirrors Juan&rsquo;s verified <strong>Muso.AI</strong> producer credits (no credential &mdash; the public credits endpoint), enriches each release with <strong>Spotify</strong> album media, caches it, emits <code>MusicAlbum</code> schema, and renders the <code>/music</code> timeline. Pages serve entirely from the cache &mdash; no request-time API calls.</p>';
 
@@ -125,11 +127,22 @@ function sn_admin_render_music_section() {
 		echo '<p class="sn-field-helper">Type <code>clear</code> to revert to the default profile.</p>';
 	}
 	echo '</div>';
+	echo '</div>'; // .sn-fieldset (Muso profile)
+
+	// ── Featured release (v4.14.0): the one "press play" player on /music. ──
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Featured release</h2>';
+	echo '<p class="sn-fieldset-intro">The single &ldquo;press play&rdquo; player at the top of <code>/music</code>. Paste any Spotify track, album, or playlist link; type <code>clear</code> to remove it. Renders through the theme&rsquo;s <code>[sn_music_featured]</code> shortcode.</p>';
+	echo '<div class="sn-field sn-field-w-lg">';
+	echo '<label class="sn-field-label" for="sn_music_featured">Spotify URL</label>';
+	echo '<input type="text" id="sn_music_featured" name="sn_music_featured" value="' . esc_attr( $featured_url ) . '" placeholder="https://open.spotify.com/album/&hellip;" class="sn-mono" autocomplete="off">';
+	echo '<p class="sn-field-helper">' . ( $featured ? 'Currently featuring a <strong>' . esc_html( $featured['type'] ) . '</strong>.' : 'No featured release set yet.' ) . '</p>';
+	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="music_save" class="button button-primary">Save settings</button>';
 	echo '</div>';
-	echo '</div>'; // .sn-fieldset
+	echo '</div>'; // .sn-fieldset (Featured)
 	echo '</form>';
 
 	// ── SYNC NOW ──
