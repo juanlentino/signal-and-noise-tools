@@ -181,6 +181,8 @@ require_once __DIR__ . '/inc/block-migrations-admin.php';
 require_once __DIR__ . '/inc/abilities-block-migrations.php';
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
+require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identity — normalized release store (cron is sole writer)
+require_once __DIR__ . '/inc/seo-schema-music.php';    // v4.13.0: Music Identity — MusicAlbum/MusicRecording JSON-LD on /music
 require_once __DIR__ . '/inc/post-settings.php';
 require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
