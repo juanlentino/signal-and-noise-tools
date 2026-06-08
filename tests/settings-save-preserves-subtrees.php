@@ -69,6 +69,12 @@ sn_setting_update( 'audit.retention_days', 30 );
 sn_setting_update( 'login.slug', 'my-secret-login' );
 sn_setting_update( 'monitoring.uptime_kuma_enabled', true );
 sn_setting_update( 'monitoring.uptime_kuma_push_url', 'https://kuma.example.com/api/push/abc' );
+// v4.12.0: the theme subtree (Tools → Front-End render knobs) is configured via
+// sn_setting_update('theme.*', …), NOT in the Identity form payload. Same
+// whole-option-replace hazard as audit/monitoring/perf above.
+sn_setting_update( 'theme.related_count', 9 );
+sn_setting_update( 'theme.palette_enabled', false );
+sn_setting_update( 'theme.ai_model', 'claude-opus-4-8' );
 sn_setting_reset_cache();
 
 // Sanity: they're set before the Identity save.
@@ -88,6 +94,9 @@ assertEq( 'my-secret-login', sn_setting( 'login.slug', 'sn-login' ), 'login.slug
 assertEq( 30, (int) sn_setting( 'audit.retention_days', 90 ), 'audit.retention_days survives an Identity save (v4.5.2 fix)' );
 assertEq( true, sn_setting( 'monitoring.uptime_kuma_enabled', false ), 'monitoring.uptime_kuma_enabled survives an Identity save (v4.9.0 guard)' );
 assertEq( 'https://kuma.example.com/api/push/abc', sn_setting( 'monitoring.uptime_kuma_push_url', '' ), 'monitoring.uptime_kuma_push_url survives an Identity save (v4.9.0 guard)' );
+assertEq( 9, (int) sn_setting( 'theme.related_count', 3 ), 'theme.related_count survives an Identity save (v4.12.0 guard)' );
+assertEq( false, sn_setting( 'theme.palette_enabled', true ), 'theme.palette_enabled survives an Identity save (v4.12.0 guard)' );
+assertEq( 'claude-opus-4-8', sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' ), 'theme.ai_model survives an Identity save (v4.12.0 guard)' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -284,6 +284,15 @@ function sn_settings_save( $raw ) {
 		$sanitized['perf'] = $existing_settings['perf'];
 	}
 
+	// v4.12.0: preserve the theme subtree (Tools -> Front-End render knobs),
+	// configured via sn_setting_update('theme.*', ...) by sn_handle_save_theme(),
+	// NOT in this Identity-tab form payload. Without this, saving Identity
+	// silently reverts every configured front-end knob to its default -- the same
+	// whole-option-replace hazard as the audit/monitoring/perf subtrees above.
+	if ( isset( $existing_settings['theme'] ) && is_array( $existing_settings['theme'] ) ) {
+		$sanitized['theme'] = $existing_settings['theme'];
+	}
+
 	$sanitized['seo_copy'] = array(
 		'home_title'             => sanitize_text_field( (string) ( $raw['seo_home_title'] ?? '' ) ),
 		'home_description'       => sanitize_textarea_field( (string) ( $raw['seo_home_description'] ?? '' ) ),
