@@ -93,6 +93,11 @@ function sn_admin_top_tabs() {
 				'health'    => array( 'label' => 'Health' ),
 				'plausible' => array( 'label' => 'Plausible' ),
 				'rss'       => array( 'label' => 'RSS' ),
+				// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync —
+				// an external-API integration with credentials + sync status,
+				// alongside Plausible. In-page sub-tab only (no new sidebar entry,
+				// so the desktop-mode 6-submenu = 6-top-tab invariant is intact).
+				'music'     => array( 'label' => 'Music' ),
 			),
 		),
 		array(

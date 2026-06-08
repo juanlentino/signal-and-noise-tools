@@ -55,6 +55,8 @@ function sn_admin_post_handlers() {
 		'perf_save'                  => 'sn_handle_perf_save',
 		'release_notes_draft'        => 'sn_handle_release_notes_draft',
 		'save_theme'                 => 'sn_handle_save_theme',
+		'music_save'                 => 'sn_handle_music_save',
+		'music_sync'                 => 'sn_handle_music_sync',
 	);
 }
 

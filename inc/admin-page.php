@@ -214,6 +214,9 @@ function sn_theme_options_page() {
 					echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
 				}
 			} );
+		} elseif ( 'music' === $active_sub ) {
+			// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync.
+			sn_admin_render_section( 'music', 'sn_admin_render_music_section' );
 		} else {
 			// Default sub-tab: 'insights'
 			sn_admin_render_section( 'insights', function() {

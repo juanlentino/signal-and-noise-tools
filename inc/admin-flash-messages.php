@@ -65,6 +65,10 @@ function sn_admin_flash_messages() {
 		'release_notes_failed'      => array( 'error', 'Could not draft release notes. See the detail below, or check that an AI provider is configured under Settings &rarr; Connectors.' ),
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
+		'music_saved'               => array( 'success', 'Music settings saved. Hit &ldquo;Sync now&rdquo; to refresh the discography with the new credentials.' ),
+		'music_unchanged'           => array( 'info', 'No changes to save.' ),
+		'music_synced'              => array( 'success', 'Discography synced from Muso.AI + Spotify. The <code>/music</code> timeline and schema now reflect the latest credits.' ),
+		'music_sync_failed'         => array( 'error', 'Sync failed &mdash; the previous discography was kept (no blank page). See the status panel below for the error.' ),
 	);
 }
 

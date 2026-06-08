@@ -65,6 +65,21 @@ function snt_insights_create_draft_from_rec( $rec ) {
 }
 function snt_insights_mark_done( $rec_id ) { $GLOBALS['__test_marked_done'][] = $rec_id; }
 
+// v4.13.0: real Music-Identity constants (SN_SPOTIFY_*_OPT, SN_MUSO_PROFILE_OPT)
+// + the real sn_spotify_invalidate_token() the save handler calls — bind the
+// handler tests to the ACTUAL constant values, never test-local copies.
+require_once __DIR__ . '/../inc/muso-api.php';
+require_once __DIR__ . '/../inc/spotify-api.php';
+
+// Stub the sync orchestrator so sn_handle_music_sync() is testable without the
+// Muso/Spotify network path (tests/discography-sync.php covers the real sync).
+$GLOBALS['__music_sync_result'] = true;
+$GLOBALS['__music_sync_calls']  = 0;
+function sn_discography_run_sync() {
+	$GLOBALS['__music_sync_calls']++;
+	return $GLOBALS['__music_sync_result'];
+}
+
 require_once __DIR__ . '/../inc/settings.php';
 require_once __DIR__ . '/../inc/admin-post-actions.php';
 require_once __DIR__ . '/../inc/admin-post-handler.php';
@@ -153,9 +168,49 @@ pa_eq( 'insights_draft_failed', sn_handle_insights_create_draft( array( 'rec_id'
 pa_eq( array(), $GLOBALS['__test_marked_done'], 'failed insert does NOT mark done' );
 unset( $GLOBALS['__test_draft_error'] );
 
+echo "\nTest: sn_handle_music_save() — masked creds + Muso profile (T6)\n";
+pa_reset_store();
+// Fresh Spotify creds + Muso profile id → saved + persisted.
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_spotify_id' => 'real-id', 'sn_spotify_secret' => 'real-secret', 'sn_muso_profile' => 'pid-123' ) ), 'fresh creds → music_saved' );
+pa_eq( 'real-id', get_option( SN_SPOTIFY_ID_OPT ), 'spotify client id persisted (non-autoloaded)' );
+pa_eq( 'real-secret', get_option( SN_SPOTIFY_SECRET_OPT ), 'spotify client secret persisted' );
+pa_eq( 'pid-123', get_option( SN_MUSO_PROFILE_OPT ), 'muso profile id persisted' );
+
+// Re-submit the MASKED placeholder (••••XXXX) with the same profile → nothing
+// changes, and the stored secret is NOT clobbered (the bug pl_save/cf_save have).
+pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_spotify_id' => '••••l-id', 'sn_spotify_secret' => '••••cret', 'sn_muso_profile' => 'pid-123' ) ), 'masked placeholders + same profile → music_unchanged' );
+pa_eq( 'real-secret', get_option( SN_SPOTIFY_SECRET_OPT ), 'masked re-submit does NOT clobber the secret' );
+pa_eq( 'real-id', get_option( SN_SPOTIFY_ID_OPT ), 'masked re-submit does NOT clobber the id' );
+
+// 'clear' removes the option.
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_spotify_secret' => 'clear' ) ), "'clear' → music_saved" );
+pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 'secret option deleted on clear' );
+
+// Changing the profile to a new value → music_saved.
+pa_reset_store();
+update_option( SN_MUSO_PROFILE_OPT, 'pid-old', false );
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_muso_profile' => 'pid-new' ) ), 'new profile id → music_saved' );
+pa_eq( 'pid-new', get_option( SN_MUSO_PROFILE_OPT ), 'profile id updated' );
+// Same profile re-submitted → music_unchanged.
+pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_muso_profile' => 'pid-new' ) ), 'identical profile, no cred change → music_unchanged' );
+
+echo "\nTest: sn_handle_music_sync() drives the sync orchestrator (T6)\n";
+$GLOBALS['__music_sync_calls']  = 0;
+$GLOBALS['__music_sync_result'] = true;
+pa_eq( 'music_synced', sn_handle_music_sync( array() ), 'successful sync → music_synced' );
+pa_eq( 1, $GLOBALS['__music_sync_calls'], 'sync handler invokes sn_discography_run_sync once' );
+$GLOBALS['__music_sync_result'] = false;
+pa_eq( 'music_sync_failed', sn_handle_music_sync( array() ), 'failed sync (last-good kept) → music_sync_failed' );
+
+echo "\nTest: sn_handle_music_save() honors the Spotify secret constant lock\n";
+define( 'SN_SPOTIFY_CLIENT_SECRET', 'locked-secret' );
+pa_reset_store();
+sn_handle_music_save( array( 'sn_spotify_secret' => 'attempt-override' ) );
+pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 'locked secret: no option written when constant is defined' );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 27, count( $map ), 'map has 27 actions' ); // v4.12.0: + save_theme
+pa_eq( 29, count( $map ), 'map has 29 actions' ); // v4.13.0: + music_save + music_sync
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
