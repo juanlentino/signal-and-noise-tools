@@ -242,8 +242,11 @@ function sn_muso_albums_from_credits( $items ) {
 				'muso_url'         => 'https://credits.muso.ai/album/' . $aid,
 				'type'             => '',
 				'spotify_track_id' => '',
+				'_count'           => 0,
 			);
 		}
+
+		++$albums[ $aid ]['_count']; // credited tracks on this album (dedup tiebreak).
 
 		// Union the credited roles for this track into the album's role set.
 		$credits = isset( $item['credits'] ) && is_array( $item['credits'] ) ? $item['credits'] : array();
@@ -274,5 +277,80 @@ function sn_muso_albums_from_credits( $items ) {
 		}
 	}
 
-	return array_values( $albums );
+	return sn_muso_dedupe_albums( array_values( $albums ) );
+}
+
+/**
+ * Collapse albums that share a normalized title + artist into one release.
+ *
+ * A producer's catalog can surface the SAME record under more than one Muso
+ * album id (e.g. a single + the full album, or a re-release). Grouping by
+ * album.id alone shows those as duplicate cards in the /music gallery. This
+ * merges title+artist twins into the FULLER release (most credited tracks),
+ * taking the union of roles and the EARLIEST release date; releases with
+ * distinct titles are left untouched. The internal `_count` tiebreak field is
+ * stripped on the way out. Untitled albums are never merged.
+ *
+ * @param array<int,array<string,mixed>> $albums Grouped album partials.
+ * @return array<int,array<string,mixed>> Deduped album partials.
+ */
+function sn_muso_dedupe_albums( $albums ) {
+	$reps   = array(); // normalized "title|artist" → index into $result
+	$result = array();
+	foreach ( $albums as $album ) {
+		$title = trim( (string) $album['title'] );
+		if ( '' === $title ) {
+			$result[] = $album; // never merge an untitled record.
+			continue;
+		}
+		$key = strtolower( $title ) . '|' . strtolower( trim( (string) $album['artist'] ) );
+		if ( ! isset( $reps[ $key ] ) ) {
+			$reps[ $key ] = count( $result );
+			$result[]     = $album;
+			continue;
+		}
+
+		$i   = $reps[ $key ];
+		$rep = $result[ $i ];
+
+		// Union roles.
+		foreach ( $album['roles'] as $role ) {
+			if ( ! in_array( $role, $rep['roles'], true ) ) {
+				$rep['roles'][] = $role;
+			}
+		}
+		// Earliest release date/year.
+		if ( '' !== $album['date'] && ( '' === $rep['date'] || $album['date'] < $rep['date'] ) ) {
+			$rep['date'] = $album['date'];
+			$rep['year'] = (int) $album['year'];
+		} elseif ( (int) $rep['year'] <= 0 && (int) $album['year'] > 0 ) {
+			$rep['year'] = (int) $album['year'];
+		}
+		// Prefer the fuller release (more credited tracks) for the identity +
+		// artwork + embed; otherwise just backfill anything the rep is missing.
+		if ( (int) $album['_count'] > (int) $rep['_count'] ) {
+			$rep['_count']           = $album['_count'];
+			$rep['id']               = $album['id'];
+			$rep['title']            = $album['title'];
+			$rep['muso_url']         = $album['muso_url'];
+			$rep['image']            = '' !== $album['image'] ? $album['image'] : $rep['image'];
+			$rep['spotify_track_id'] = '' !== $album['spotify_track_id'] ? $album['spotify_track_id'] : $rep['spotify_track_id'];
+		} else {
+			if ( '' === $rep['image'] && '' !== $album['image'] ) {
+				$rep['image'] = $album['image'];
+			}
+			if ( '' === $rep['spotify_track_id'] && '' !== $album['spotify_track_id'] ) {
+				$rep['spotify_track_id'] = $album['spotify_track_id'];
+			}
+		}
+		$result[ $i ] = $rep;
+	}
+
+	// Strip the internal tiebreak field.
+	foreach ( $result as &$album ) {
+		unset( $album['_count'] );
+	}
+	unset( $album );
+
+	return $result;
 }

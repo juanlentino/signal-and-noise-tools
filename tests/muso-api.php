@@ -182,7 +182,7 @@ ok( get_transient( 'sn_muso_last_error' ) === false, 'fetch: success clears the 
 $real    = json_decode( file_get_contents( __DIR__ . '/fixtures/muso-credits.json' ), true );
 $raw     = $real['data']['items'];
 $albums  = sn_muso_albums_from_credits( $raw );
-ok( is_array( $albums ) && count( $albums ) === 11, 'grouper: 60 track-credits collapse to 11 albums (by album.id)' );
+ok( is_array( $albums ) && count( $albums ) === 10, 'grouper: 60 credits → 10 distinct releases (11 album.ids; the Fin del Mundo pair deduped)' );
 
 // Index by Muso album id for targeted assertions.
 $by_id = array();
@@ -204,12 +204,28 @@ ok( is_array( $argiria['roles'] ?? null ) && ! empty( $argiria['roles'] ), 'grou
 // Roles are a DEDUPED union across that album's tracks.
 ok( count( $argiria['roles'] ) === count( array_unique( $argiria['roles'] ) ), 'grouper: roles union is deduped' );
 
-// Two distinct "Fin del Mundo" releases share a title but NOT an id → must stay
-// two separate entries (proves grouping keys on album.id, never the title slug).
-$fdm = array_filter( $albums, function ( $a ) {
-	return 'Fin del Mundo' === $a['title'];
-} );
-ok( count( $fdm ) === 2, 'grouper: same-title different-id albums stay distinct (keys on album.id)' );
+// Two Muso album records share title "Fin del Mundo" + artist Richter (a 1-track
+// 2008 single + a 10-track 2007 album) — the SAME record to a visitor. Dedup
+// collapses them to ONE: the fuller release (10-track album), the earliest year,
+// and the union of roles. Distinct TITLES (Transforma2 / Transformador / …) stay.
+$fdm = array_values(
+	array_filter(
+		$albums,
+		function ( $a ) {
+			return 'Fin del Mundo' === $a['title'];
+		}
+	)
+);
+ok( count( $fdm ) === 1, 'dedup: same title+artist albums collapse to ONE entry' );
+ok( (int) ( $fdm[0]['year'] ?? 0 ) === 2007, 'dedup: keeps the earliest year (2007 album, not the 2008 single)' );
+ok( ( $fdm[0]['id'] ?? '' ) === '4a4e36ed-1dcc-4c36-bf9c-affd39dd57c4', 'dedup: keeps the fuller release id (the 10-track album)' );
+$keys = array_map(
+	function ( $a ) {
+		return strtolower( $a['title'] . '|' . $a['artist'] );
+	},
+	$albums
+);
+ok( count( $keys ) === count( array_unique( $keys ) ), 'dedup: no two entries share a title+artist' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

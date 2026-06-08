@@ -9,6 +9,9 @@ All notable changes to Signal & Noise Tools are documented here.
 ### New
 - **Featured-release setting** ([inc/music-featured.php](inc/music-featured.php) + [inc/admin-forms/music.php](inc/admin-forms/music.php)) — a "Featured release" field under Monitoring → Music. `sn_music_featured_parse()` accepts the full range of Spotify links (track / album / playlist / episode / show / artist), including the `/intl-xx/` locale path, the `?si=…` tracking query, and the `spotify:type:id` URI form; it rejects non-Spotify and malformed input with a clear error. The parsed `{type,id}` is stored and answered over the `sn_music_featured` filter as a ready `embed_url` (the plugin owns URL construction). Type `clear` to remove it.
 
+### Fixed
+- **Duplicate releases in the /music gallery.** A record that Muso surfaces under more than one album id (e.g. a single + the full album, or a re-release — Juan's catalog had "Fin del Mundo" twice) showed as two cards. `sn_muso_albums_from_credits()` now collapses albums sharing a normalized **title + artist** into one release — keeping the fuller release (most credited tracks), the union of roles, and the earliest release date — after the by-`album.id` grouping. Distinct titles (e.g. Transforma2 / Transformador) are untouched. Cleans the gallery, the count, and the `MusicAlbum` schema alike (60 credits → 10 distinct releases).
+
 ### Notes
 - Mirrors the discography filter contract: the plugin owns the data + the `add_filter`; the theme reads `apply_filters('sn_music_featured', array())` and renders nothing when the setting is empty or the plugin is absent. No new admin action (handled within the existing `music_save`), so the dispatch map is unchanged.
 
