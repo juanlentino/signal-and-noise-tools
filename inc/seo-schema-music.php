@@ -124,7 +124,7 @@ function sn_music_schema_jsonld() {
 	);
 
 	return '<script type="application/ld+json">'
-		. wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+		. wp_json_encode( $payload, JSON_UNESCAPED_UNICODE )
 		. '</script>' . "\n";
 }
 
@@ -140,8 +140,10 @@ add_action(
 			return;
 		}
 		// sn_music_schema_jsonld() returns a pre-encoded, structurally-safe
-		// ld+json script. wp_json_encode escapes the JSON contents; the store's
-		// string fields were sanitized on write (sn_discography_normalize_entry).
+		// ld+json script: wp_json_encode (WITHOUT JSON_UNESCAPED_SLASHES) escapes
+		// "/" to "\/" so a literal "</script>" in any field cannot break out of the
+		// script element, and title/artist are tag-sanitized on write
+		// (sn_discography_normalize_entry). Defense in depth.
 		echo sn_music_schema_jsonld(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	},
 	5

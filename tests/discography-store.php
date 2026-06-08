@@ -29,7 +29,7 @@ function update_option( $name, $value, $autoload = null ) {
 	return true;
 }
 if ( ! function_exists( 'sanitize_text_field' ) ) {
-	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : ''; }
+	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; }
 }
 if ( ! function_exists( 'esc_url_raw' ) ) {
 	function esc_url_raw( $url ) { return is_string( $url ) ? trim( $url ) : ''; }
@@ -66,6 +66,11 @@ sn_discography_set( array(
 $s = sn_discography_get();
 ok( $s['entries'][0]['title'] === 'New' && $s['count'] === 2, 'set: sorts year desc + counts' );
 ok( $s['last_synced'] === 1700000000, 'set: records sync ts' );
+
+// ── XSS hardening: untrusted external title/artist are tag-sanitized ──
+$hostile = sn_discography_normalize_entry( array( 'title' => '</script><b>boom', 'artist' => 'A <i>x</i>' ) );
+ok( strpos( $hostile['title'], '<' ) === false && strpos( $hostile['title'], '>' ) === false, 'normalize: title tag-stripped (no </script> breakout)' );
+ok( strpos( $hostile['artist'], '<' ) === false, 'normalize: artist tag-stripped' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

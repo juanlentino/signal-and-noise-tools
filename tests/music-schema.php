@@ -140,6 +140,14 @@ $payload2 = json_decode( $inner2, true );
 $node2    = $payload2['@graph'][0] ?? array();
 ok( ( $node2['@type'] ?? null ) === 'MusicRecording', 'node: track type → MusicRecording' );
 
+// ── XSS defense: slashes escaped so a </script> in data can't break out ─
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'AC/DC Tribute', 'artist' => 'X', 'year' => 2020,
+) ) ), 1700000000, '' );
+$json3 = sn_music_schema_jsonld();
+ok( strpos( $json3, 'AC\\/DC' ) !== false, 'emit: forward slashes escaped (\\/) — JSON-LD script-breakout safe' );
+ok( strpos( $json3, '"AC/DC' ) === false, 'emit: no raw unescaped slash in output' );
+
 // ── empty store → emits nothing ──────────────────────────────────────
 $GLOBALS['__options'] = array();
 ok( sn_music_schema_jsonld() === '', 'emit: empty store → emits nothing' );

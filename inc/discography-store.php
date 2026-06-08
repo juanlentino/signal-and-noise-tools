@@ -68,8 +68,8 @@ function sn_discography_entry_defaults() {
  */
 function sn_discography_normalize_entry( $raw ) {
 	$e           = array_merge( sn_discography_entry_defaults(), is_array( $raw ) ? $raw : array() );
-	$e['title']  = trim( (string) $e['title'] );
-	$e['artist'] = trim( (string) $e['artist'] );
+	$e['title']  = sanitize_text_field( (string) $e['title'] );
+	$e['artist'] = sanitize_text_field( (string) $e['artist'] );
 	$e['year']   = (int) $e['year'];
 	$e['roles']  = array_values( array_filter( array_map( 'trim', (array) $e['roles'] ) ) );
 	foreach ( array( 'image', 'spotify_url', 'muso_url' ) as $u ) {
