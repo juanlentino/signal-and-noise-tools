@@ -32,6 +32,22 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'wp_unslash' ) ) {
 	function wp_unslash( $s ) { return $s; }
 }
+// Render-helper stubs for the P4 front-end form smoke test.
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $a = -1, $n = '_wpnonce', $r = true, $e = true ) { echo '<input type="hidden" name="_wpnonce" value="x">'; }
+}
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $echo = true ) { $r = ( (string) $checked === (string) $current ) ? " checked='checked'" : ''; if ( $echo ) { echo $r; } return $r; }
+}
+if ( ! function_exists( 'selected' ) ) {
+	function selected( $selected, $current = true, $echo = true ) { $r = ( (string) $selected === (string) $current ) ? " selected='selected'" : ''; if ( $echo ) { echo $r; } return $r; }
+}
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -81,6 +97,25 @@ sn_handle_save_theme( array(
 ) );
 ok( sn_setting( 'theme.palette_enabled' ) === false, 'save: palette_enabled false when checkbox absent/empty' );
 ok( sn_setting( 'theme.ai_model' ) === 'claude-opus-4-8', 'save: on-list ai_model accepted' );
+
+// ── P4: front-end form renders without fatal + emits every field ─────
+require __DIR__ . '/../inc/admin-forms/front-end.php';
+ob_start();
+sn_admin_render_front_end_form();
+$form = ob_get_clean();
+ok( strpos( $form, 'name="sn_action" value="save_theme"' ) !== false, 'form: posts the save_theme action' );
+$field_names = array(
+	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
+	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_ai_model',
+);
+$missing = array();
+foreach ( $field_names as $fn ) {
+	if ( strpos( $form, 'name="' . $fn . '"' ) === false ) {
+		$missing[] = $fn;
+	}
+}
+ok( empty( $missing ), 'form: emits all 7 field inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
+ok( strpos( $form, 'value="claude-opus-4-8"' ) !== false, 'form: renders an option per allowlisted model' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

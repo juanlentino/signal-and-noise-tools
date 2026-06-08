@@ -110,6 +110,8 @@ function sn_admin_top_tabs() {
 				// keep in-page tab count == submenu count (desktop-mode
 				// horizontal-submenu rule).
 				'release-notes'    => array( 'label' => 'Release Notes' ),
+				// v4.12.0: front-end render knobs (theme filter values).
+				'front-end'        => array( 'label' => 'Front-End' ),
 			),
 		),
 	);

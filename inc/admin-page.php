@@ -223,7 +223,7 @@ function sn_theme_options_page() {
 
 	// ════════════════════════════════════════
 	// TAB: TOOLS (v3.8.1+: sub-tabs)
-	// Sub-tabs: reading-time, links, block-migrations, performance, release-notes
+	// Sub-tabs: reading-time, links, block-migrations, performance, release-notes, front-end
 	// ════════════════════════════════════════
 	} elseif ( 'tools' === $active_tab ) {
 
@@ -240,6 +240,9 @@ function sn_theme_options_page() {
 		} elseif ( 'release-notes' === $active_sub ) {
 			// v4.11.0 (T4): AI release-notes drafter.
 			sn_admin_render_section( 'release-notes', 'sn_admin_render_release_notes_section' );
+		} elseif ( 'front-end' === $active_sub ) {
+			// v4.12.0: front-end render knobs (theme filter values).
+			sn_admin_render_section( 'front-end', 'sn_admin_render_front_end_form' );
 		} else {
 			// Default sub-tab: 'reading-time'
 			sn_admin_render_section( 'reading-time', function() {
