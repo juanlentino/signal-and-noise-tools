@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.12.0] - 2026-06-08 — Front-End settings tab
+
+**Headline:** The plugin now owns seven front-end "render knobs" that were previously hardcoded in the theme — related-notes count, command-palette recent-count and on/off kill-switch, JSON-feed item count, the "Updated" badge threshold, reading-time WPM, and the AI model. A new **Tools → Front-End** sub-tab edits them; they reach the theme through a standalone-safe filter contract, so defaults match the theme's own and nothing changes until you opt in. Companion to theme v9.12.0, which exposed the matching filter hooks. No new admin-bar node or dashboard widget.
+
+### New
+- **Tools → Front-End settings sub-tab.** A new bundled form ([inc/admin-forms/front-end.php](inc/admin-forms/front-end.php)) edits seven render knobs stored in a `theme` subtree of the `sn_settings` option, saved through the shared admin-post dispatcher (`save_theme` → `sn_handle_save_theme`, [inc/admin-post-actions.php](inc/admin-post-actions.php)):
+  - **Related notes shown** (1–12, default 3)
+  - **Command-palette recent notes** (0–20, default 8)
+  - **Reader command palette** enable/disable kill-switch (default on) — off hides the ⌘K trigger and skips the palette's JS/CSS
+  - **JSON feed items** (1–50, default 20)
+  - **"Updated" badge after** N days (1–90, default 14)
+  - **Reading speed** in WPM (100–400, default 225)
+  - **AI model** select — Sonnet 4.6 (default) / Opus 4.8 / Haiku 4.5, validated against an allowlist
+- **Cross-package filter contract.** [inc/theme-filters.php](inc/theme-filters.php) registers seven `add_filter` callbacks (`sn_related_count`, `sn_palette_recent_count`, `sn_palette_enabled`, `sn_json_feed_items`, `sn_updated_date_threshold_days`, `sn_reading_time_wpm`, `snt_ai_model_preference`) that supply the configured value, clamped on the way out (defense-in-depth against a hand-edited option) and falling back to the theme-supplied default when unset. The theme's defaults equal the plugin's, so the site renders identically whether or not this plugin is active. Loaded on the front end (unconditional bootstrap require).
+
+### Fixed
+- **Front-end settings no longer revert to defaults when you save the Identity tab.** `sn_settings_save()` does a whole-option replace with only the Identity-form keys, re-including the `audit`/`monitoring`/`perf` subtrees — but the new `theme` subtree was missed, so saving Identity after configuring any Front-End knob silently reset them all to defaults (confirmed repro: a configured related-count of 9 reverted to 3). The `theme` subtree is now preserved alongside the others. ([inc/settings.php](inc/settings.php))
+
 ## [4.11.0] - 2026-06-07 — Editor UX + frugal AI
 
 **Headline:** Four additive surfaces that smooth the publishing path and one that makes the weekly advisor smarter for free. The editor grows a pre-publish mistake gate; the ⌘K command palette learns to create Notes and jump around; the Tools tab gains an AI release-notes drafter; and Insights recommendations can spawn a draft in one click. The weekly advisor now reads the actual post bodies it talks about — same model, same per-run cost, sharper output. No new admin-bar node or dashboard widget; everything lands where you already work.
