@@ -64,6 +64,10 @@ function sn_discography_merge_spotify( $album, $resolution ) {
 	if ( 0 === (int) ( $album['year'] ?? 0 ) && $sp_year > 0 ) {
 		$album['year'] = $sp_year;
 	}
+	$sp_date = (string) ( $resolution['date'] ?? '' );
+	if ( '' === (string) ( $album['date'] ?? '' ) && '' !== $sp_date ) {
+		$album['date'] = $sp_date;
+	}
 	$sp_image = (string) ( $resolution['image'] ?? '' );
 	if ( '' === (string) ( $album['image'] ?? '' ) && '' !== $sp_image ) {
 		$album['image'] = $sp_image;

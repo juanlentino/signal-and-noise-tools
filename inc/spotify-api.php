@@ -195,10 +195,10 @@ function sn_spotify_album_for_track( $track_spotify_id ) {
 	if ( ! empty( $album['images'][0]['url'] ) ) {
 		$image = (string) $album['images'][0]['url'];
 	}
-	$year = 0;
-	if ( ! empty( $album['release_date'] ) ) {
-		$year = (int) substr( (string) $album['release_date'], 0, 4 );
-	}
+	// Spotify's release_date precision varies (YYYY / YYYY-MM / YYYY-MM-DD per
+	// release_date_precision); pass the full value through and derive the year.
+	$date = ! empty( $album['release_date'] ) ? (string) $album['release_date'] : '';
+	$year = '' !== $date ? (int) substr( $date, 0, 4 ) : 0;
 
 	return array(
 		'spotify_id'  => $album_id,
@@ -206,6 +206,7 @@ function sn_spotify_album_for_track( $track_spotify_id ) {
 		'type'        => $type,
 		'image'       => $image,
 		'year'        => $year,
+		'date'        => $date,
 	);
 }
 

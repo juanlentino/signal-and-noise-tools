@@ -70,8 +70,16 @@ function sn_music_schema_node( $entry ) {
 		),
 	);
 
+	// datePublished: prefer the full release date (YYYY-MM-DD) we carry from
+	// Muso/Spotify — schema.org Date + Google's structured-data tooling resolve
+	// a precise date far better than a bare year. Fall back to the year string
+	// (a valid reduced-precision ISO 8601 date) only when no full date is known.
+	// Never fabricate a day (e.g. "-01-01") — that asserts precision we lack.
+	$date = (string) ( $entry['date'] ?? '' );
 	$year = (int) ( $entry['year'] ?? 0 );
-	if ( $year > 0 ) {
+	if ( '' !== $date ) {
+		$node['datePublished'] = $date;
+	} elseif ( $year > 0 ) {
 		$node['datePublished'] = (string) $year;
 	}
 

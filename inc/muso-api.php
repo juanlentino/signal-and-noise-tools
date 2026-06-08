@@ -237,6 +237,7 @@ function sn_muso_albums_from_credits( $items ) {
 				'artist'           => $artist,
 				'roles'            => array(),
 				'year'             => 0,
+				'date'             => '',
 				'image'            => $image,
 				'muso_url'         => 'https://credits.muso.ai/album/' . $aid,
 				'type'             => '',
@@ -253,11 +254,14 @@ function sn_muso_albums_from_credits( $items ) {
 			}
 		}
 
-		// Earliest non-empty release year wins (tracks on a release share it,
-		// but be defensive against per-track variance / reissue dates).
-		$year = (int) substr( (string) ( $item['releaseDate'] ?? '' ), 0, 4 );
-		if ( $year > 0 && ( 0 === $albums[ $aid ]['year'] || $year < $albums[ $aid ]['year'] ) ) {
-			$albums[ $aid ]['year'] = $year;
+		// Earliest non-empty release date wins (tracks on a release share it, but
+		// be defensive against per-track variance / reissue dates). The FULL
+		// YYYY-MM-DD is kept for a precise schema datePublished; the year is
+		// derived from it. Lexical compare of YYYY-MM-DD == chronological.
+		$rd = (string) ( $item['releaseDate'] ?? '' );
+		if ( '' !== $rd && ( '' === $albums[ $aid ]['date'] || $rd < $albums[ $aid ]['date'] ) ) {
+			$albums[ $aid ]['date'] = $rd;
+			$albums[ $aid ]['year'] = (int) substr( $rd, 0, 4 );
 		}
 
 		// First track that exposes a Spotify id resolves the album for the embed.

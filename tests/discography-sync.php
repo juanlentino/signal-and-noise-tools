@@ -105,14 +105,14 @@ echo "Discography sync orchestrator suite — plugin v4.13.0\n\n";
 //   B — Muso artwork + NO Spotify match           → kept, Muso-only, no embed
 //   C — NO Muso artwork + a Spotify match         → Spotify artwork fallback
 $GLOBALS['__muso']['albums'] = array(
-	array( 'id' => 'al-A', 'title' => 'Album A', 'artist' => 'X', 'roles' => array( 'Producer' ), 'year' => 2024, 'image' => 'https://muso/A.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-A', 'type' => '', 'spotify_track_id' => 'tA' ),
-	array( 'id' => 'al-B', 'title' => 'Album B', 'artist' => 'Y', 'roles' => array( 'Mixing' ), 'year' => 2005, 'image' => 'https://muso/B.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-B', 'type' => '', 'spotify_track_id' => 'tB' ),
-	array( 'id' => 'al-C', 'title' => 'Album C', 'artist' => 'Z', 'roles' => array( 'Engineer' ), 'year' => 2018, 'image' => '', 'muso_url' => 'https://credits.muso.ai/album/al-C', 'type' => '', 'spotify_track_id' => 'tC' ),
+	array( 'id' => 'al-A', 'title' => 'Album A', 'artist' => 'X', 'roles' => array( 'Producer' ), 'year' => 2024, 'date' => '2024-03-01', 'image' => 'https://muso/A.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-A', 'type' => '', 'spotify_track_id' => 'tA' ),
+	array( 'id' => 'al-B', 'title' => 'Album B', 'artist' => 'Y', 'roles' => array( 'Mixing' ), 'year' => 2005, 'date' => '2005-11-20', 'image' => 'https://muso/B.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-B', 'type' => '', 'spotify_track_id' => 'tB' ),
+	array( 'id' => 'al-C', 'title' => 'Album C', 'artist' => 'Z', 'roles' => array( 'Engineer' ), 'year' => 2018, 'date' => '', 'image' => '', 'muso_url' => 'https://credits.muso.ai/album/al-C', 'type' => '', 'spotify_track_id' => 'tC' ),
 );
 $GLOBALS['__muso']['return'] = array( array( 'stub' => true ) ); // non-empty raw items
 $GLOBALS['__sp'] = array(
-	'tA' => array( 'spotify_id' => 'spA', 'spotify_url' => 'https://open.spotify.com/album/spA', 'type' => 'single', 'image' => 'https://scdn/A.jpg', 'year' => 2024 ),
-	'tC' => array( 'spotify_id' => 'spC', 'spotify_url' => 'https://open.spotify.com/album/spC', 'type' => 'album', 'image' => 'https://scdn/C.jpg', 'year' => 2018 ),
+	'tA' => array( 'spotify_id' => 'spA', 'spotify_url' => 'https://open.spotify.com/album/spA', 'type' => 'single', 'image' => 'https://scdn/A.jpg', 'year' => 2024, 'date' => '2024-03-01' ),
+	'tC' => array( 'spotify_id' => 'spC', 'spotify_url' => 'https://open.spotify.com/album/spC', 'type' => 'album', 'image' => 'https://scdn/C.jpg', 'year' => 2018, 'date' => '2018-07-07' ),
 	// 'tB' intentionally absent → null (no match).
 );
 
@@ -143,6 +143,10 @@ ok( ( $e['al-B']['image'] ?? '' ) === 'https://muso/B.jpg', 'B: unmatched album 
 
 // C: matched, no Muso art → Spotify artwork fallback.
 ok( ( $e['al-C']['image'] ?? '' ) === 'https://scdn/C.jpg', 'C: Spotify artwork fills empty Muso image' );
+
+// Full release date: Muso date preferred (A); Spotify date fills when Muso empty (C).
+ok( ( $e['al-A']['date'] ?? '' ) === '2024-03-01', 'A: Muso full date preferred for datePublished' );
+ok( ( $e['al-C']['date'] ?? '' ) === '2018-07-07', 'C: Spotify date fills when Muso date empty' );
 
 // Internal-only field must never leak into the store.
 ok( ! isset( $e['al-A']['spotify_track_id'] ), 'store: internal spotify_track_id stripped before persist' );

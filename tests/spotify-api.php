@@ -135,6 +135,7 @@ ok( ( $album['spotify_id'] ?? '' ) === '7aB9cD2eF4gH6iJ8kL0mN1', 'album: spotify
 ok( strpos( (string) ( $album['spotify_url'] ?? '' ), '/album/7aB9cD2eF4gH6iJ8kL0mN1' ) !== false, 'album: spotify_url is the album open.spotify.com link' );
 ok( ( $album['type'] ?? '' ) === 'album', 'album: type from album.album_type' );
 ok( (int) ( $album['year'] ?? 0 ) === 2025, 'album: year parsed from album.release_date' );
+ok( ( $album['date'] ?? '' ) === '2025-04-18', 'album: full album.release_date preserved' );
 ok( strpos( (string) ( $album['image'] ?? '' ), 'i.scdn.co' ) !== false, 'album: image from album.images[0].url' );
 
 // ── FAIL SOFT: 404 → null (album just keeps its Muso-only fields) ────

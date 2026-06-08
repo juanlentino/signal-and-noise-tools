@@ -195,6 +195,7 @@ $argiria = $by_id['3a543960-ce8e-467a-b066-ac70d48ffc60'] ?? array();
 ok( ( $argiria['title'] ?? '' ) === 'ARGIRIA', 'grouper: album title from album.title' );
 ok( ( $argiria['artist'] ?? '' ) === 'Cande Schulman', 'grouper: artist from artists[0].name' );
 ok( (int) ( $argiria['year'] ?? 0 ) === 2025, 'grouper: year parsed from releaseDate' );
+ok( ( $argiria['date'] ?? '' ) === '2025-04-18', 'grouper: captures the FULL release date (YYYY-MM-DD), not just the year' );
 ok( strpos( (string) ( $argiria['image'] ?? '' ), 'i.scdn.co' ) !== false, 'grouper: image from Muso album.avatarUrl_640_640' );
 ok( strpos( (string) ( $argiria['muso_url'] ?? '' ), '3a543960-ce8e-467a-b066-ac70d48ffc60' ) !== false, 'grouper: muso_url deep-links the album id' );
 ok( ! empty( $argiria['spotify_track_id'] ), 'grouper: carries a representative track spotifyId for album resolution' );

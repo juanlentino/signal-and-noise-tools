@@ -49,6 +49,7 @@ function sn_discography_entry_defaults() {
 		'artist'      => '',
 		'roles'       => array(),
 		'year'        => 0,
+		'date'        => '',
 		'type'        => 'album',
 		'image'       => '',
 		'spotify_id'  => '',
@@ -75,8 +76,13 @@ function sn_discography_normalize_entry( $raw ) {
 	foreach ( array( 'image', 'spotify_url', 'muso_url' ) as $u ) {
 		$e[ $u ] = esc_url_raw( (string) $e[ $u ] );
 	}
-	foreach ( array( 'id', 'spotify_id', 'isrc', 'upc', 'type' ) as $k ) {
+	foreach ( array( 'id', 'spotify_id', 'isrc', 'upc', 'type', 'date' ) as $k ) {
 		$e[ $k ] = sanitize_text_field( (string) $e[ $k ] );
+	}
+	// Keep year + date consistent: derive the year from the full date when only
+	// the date is supplied (the date is the authoritative, fuller value).
+	if ( 0 === $e['year'] && '' !== $e['date'] ) {
+		$e['year'] = (int) substr( $e['date'], 0, 4 );
 	}
 	if ( '' === $e['id'] ) {
 		$e['id'] = '' !== $e['isrc'] ? $e['isrc'] : ( '' !== $e['upc'] ? $e['upc'] : sanitize_title( $e['title'] . '-' . $e['artist'] ) );

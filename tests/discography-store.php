@@ -58,6 +58,13 @@ ok( $e['title'] === 'Hit' && $e['artist'] === 'X' && $e['year'] === 2019, 'norma
 ok( $e['roles'] === array( 'Producer' ), 'normalize: scalar role → array' );
 ok( $e['id'] !== '', 'normalize: derives a stable id when none given' );
 
+// ── Full release date preserved; year derived from it when absent ─────
+$d = sn_discography_normalize_entry( array( 'title' => 'X', 'date' => '2019-04-18' ) );
+ok( $d['date'] === '2019-04-18', 'normalize: keeps the full release date (YYYY-MM-DD)' );
+ok( $d['year'] === 2019, 'normalize: derives year from date when year is absent' );
+$d2 = sn_discography_normalize_entry( array( 'title' => 'X', 'year' => 2020, 'date' => '' ) );
+ok( $d2['date'] === '' && $d2['year'] === 2020, 'normalize: year-only entry keeps empty date (honest reduced precision)' );
+
 // ── Set sorts by year desc + recomputes meta ─────────────────────────
 sn_discography_set( array(
 	sn_discography_normalize_entry( array( 'title' => 'Old', 'artist' => 'A', 'year' => 2005 ) ),

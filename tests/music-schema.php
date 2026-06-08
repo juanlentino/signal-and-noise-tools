@@ -90,6 +90,7 @@ sn_discography_set( array(
 		'artist'      => 'The Field',
 		'roles'       => array( 'Producer', 'Mixing' ),
 		'year'        => 2021,
+		'date'        => '2021-09-03',
 		'type'        => 'album',
 		'image'       => 'https://i.scdn.co/image/abc.jpg',
 		'spotify_url' => 'https://open.spotify.com/album/xyz',
@@ -120,7 +121,7 @@ $expected_pid = home_url( '/' ) . '#/schema/Person';
 ok( ( $node['producer']['@id'] ?? null ) === $expected_pid, 'node: producer.@id === canonical Person @id' );
 ok( ! isset( $node['producer']['@type'] ) || $node['producer']['@type'] !== 'MusicGroup', 'node: producer is a Person ref, NOT a MusicGroup' );
 
-ok( (string) ( $node['datePublished'] ?? null ) === '2021', 'node: datePublished === year' );
+ok( (string) ( $node['datePublished'] ?? null ) === '2021-09-03', 'node: datePublished === full release date (YYYY-MM-DD, not year-only)' );
 ok( ( $node['image'] ?? null ) === 'https://i.scdn.co/image/abc.jpg', 'node: image from entry' );
 ok( in_array( 'https://open.spotify.com/album/xyz', (array) ( $node['sameAs'] ?? array() ), true ), 'node: sameAs includes spotify_url' );
 ok( in_array( 'https://credits.muso.ai/album/123', (array) ( $node['sameAs'] ?? array() ), true ), 'node: sameAs includes muso_url' );
@@ -147,6 +148,14 @@ sn_discography_set( array( sn_discography_normalize_entry( array(
 $json3 = sn_music_schema_jsonld();
 ok( strpos( $json3, 'AC\\/DC' ) !== false, 'emit: forward slashes escaped (\\/) — JSON-LD script-breakout safe' );
 ok( strpos( $json3, '"AC/DC' ) === false, 'emit: no raw unescaped slash in output' );
+
+// ── datePublished: honest reduced precision when only a year is known ─
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'Year Only', 'artist' => 'A', 'year' => 1999, // no 'date'
+) ) ), 1700000000, '' );
+$jy   = sn_music_schema_jsonld();
+$ny   = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', $jy ), true )['@graph'][0];
+ok( (string) ( $ny['datePublished'] ?? '' ) === '1999', 'node: year-only entry → datePublished === year (no fabricated -01-01)' );
 
 // ── empty store → emits nothing ──────────────────────────────────────
 $GLOBALS['__options'] = array();
