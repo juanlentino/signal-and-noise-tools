@@ -56,8 +56,9 @@ function set_transient( $key, $value, $expiration = 0 ) {
 // wp_remote_head + wp_remote_get + helpers — tests inject responses via globals.
 $GLOBALS['__test_http_responses']     = array();
 $GLOBALS['__test_http_responses_get'] = array();
-function wp_remote_head( $url, $args = array() ) { return sn_test_remote( $url, 'HEAD' ); }
-function wp_remote_get( $url, $args = array() )  { return sn_test_remote( $url, 'GET' ); }
+$GLOBALS['__test_http_last_args'] = array();
+function wp_remote_head( $url, $args = array() ) { $GLOBALS['__test_http_last_args']['HEAD'] = $args; return sn_test_remote( $url, 'HEAD' ); }
+function wp_remote_get( $url, $args = array() )  { $GLOBALS['__test_http_last_args']['GET'] = $args; return sn_test_remote( $url, 'GET' ); }
 function sn_test_remote( $url, $method ) {
 	if ( 'GET' === $method && isset( $GLOBALS['__test_http_responses_get'][ $url ] ) ) {
 		return $GLOBALS['__test_http_responses_get'][ $url ];
@@ -462,6 +463,18 @@ hc_true( $pos_b > strpos( $dup_content, 'recently shipped' ), 'gutenberg disambi
 // Phrase not present → -1.
 $gone = snt_ai_drift_locate_in_raw( "<p>nothing here</p>", 'recently', 'we recently shipped' );
 hc_eq( -1, $gone, 'gutenberg locator: returns -1 when phrase absent (drift signal)' );
+
+// ─── v4.14.2: broken-link probe must NOT follow redirects ─────────────
+// The host filter validates only the first hop; following a same-host open
+// redirect to 169.254.169.254 was a (LOW) SSRF vector. Assert redirection=0
+// on both the HEAD probe and the HEAD→GET (405) fallback.
+echo "\nTest: broken-link probe redirection hardening\n";
+$GLOBALS['__test_http_last_args'] = array();
+sn_health_link_status( 'https://juanlentino.com/redir-probe-head' );
+hc_eq( 0, $GLOBALS['__test_http_last_args']['HEAD']['redirection'] ?? -1, 'broken-link HEAD probe sets redirection=0 (no SSRF-via-redirect)' );
+$GLOBALS['__test_http_responses']['https://juanlentino.com/redir-probe-405'] = array( 'response' => array( 'code' => 405 ) );
+sn_health_link_status( 'https://juanlentino.com/redir-probe-405' );
+hc_eq( 0, $GLOBALS['__test_http_last_args']['GET']['redirection'] ?? -1, 'HEAD→GET (405) fallback also sets redirection=0' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

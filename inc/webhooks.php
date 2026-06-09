@@ -8,7 +8,7 @@
  * failure (network or HTTP 5xx), each delayed by 5 minutes.
  *
  * Storage:
- *   - sn_webhooks (autoload=true): array of webhook configs
+ *   - sn_webhooks (autoload=false): array of webhook configs
  *     { id, name, url, secret, enabled, created_at }
  *   - sn_webhook_log_<webhook_id> (autoload=false): rolling
  *     20-entry deliveries array per webhook
@@ -166,7 +166,7 @@ function sn_webhook_create( $input ) {
 
 	$all = sn_webhooks_all();
 	$all[] = $entry;
-	update_option( SN_WEBHOOKS_OPTION, $all );
+	update_option( SN_WEBHOOKS_OPTION, $all, false );
 
 	return $entry;
 }
@@ -210,7 +210,7 @@ function sn_webhook_update( $id, $input ) {
 	if ( null === $updated ) {
 		return new WP_Error( 'sn_webhook_not_found', 'Webhook not found.' );
 	}
-	update_option( SN_WEBHOOKS_OPTION, $all );
+	update_option( SN_WEBHOOKS_OPTION, $all, false );
 	return $updated;
 }
 
@@ -228,10 +228,33 @@ function sn_webhook_delete( $id ) {
 	if ( ! $removed ) {
 		return new WP_Error( 'sn_webhook_not_found', 'Webhook not found.' );
 	}
-	update_option( SN_WEBHOOKS_OPTION, $kept );
+	update_option( SN_WEBHOOKS_OPTION, $kept, false );
 	delete_option( SN_WEBHOOKS_LOG_PREFIX . $id );
 	return true;
 }
+
+/**
+ * One-time migration (v4.14.2): pull the sn_webhooks config option out of the
+ * autoload set. It holds per-webhook HMAC signing secrets but is read only in
+ * admin/cron contexts (sn_webhooks_all), so autoloading it placed every secret
+ * into the alloptions cache on EVERY front-end request — needless at-rest
+ * exposure. New writes already pass autoload=false; this re-saves an existing
+ * option once. Gated by admin_init + a sentinel (install-time hooks can't
+ * self-observe — see the v4.1.5 lesson) and uses the canonical WP 6.4+ API.
+ *
+ * @since 4.14.2
+ * @return void
+ */
+function sn_webhooks_migrate_autoload() {
+	if ( get_option( 'sn_webhooks_autoload_migrated' ) ) {
+		return;
+	}
+	if ( false !== get_option( SN_WEBHOOKS_OPTION, false ) && function_exists( 'wp_set_option_autoload' ) ) {
+		wp_set_option_autoload( SN_WEBHOOKS_OPTION, false );
+	}
+	update_option( 'sn_webhooks_autoload_migrated', 1, false );
+}
+add_action( 'admin_init', 'sn_webhooks_migrate_autoload' );
 
 /**
  * Compute the HMAC-SHA256 signature for a payload.

@@ -358,7 +358,11 @@ function sn_health_link_status( $url ) {
 
 	$resp = wp_remote_head( $url, array(
 		'timeout'     => SN_HEALTH_LINK_TIMEOUT,
-		'redirection' => 5,
+		// v4.14.2: do not follow redirects. The host filter validates only the
+		// FIRST hop, so a same-host open redirect to 169.254.169.254 was followed
+		// to the cloud-metadata service (LOW SSRF). 0 = the link's own status is
+		// terminal — matches the v4.14.1 outbound-hardening peers.
+		'redirection' => 0,
 		'sslverify'   => true,
 		'headers'     => array( 'User-Agent' => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' health-check' ),
 	) );
@@ -369,7 +373,7 @@ function sn_health_link_status( $url ) {
 		$code   = (int) wp_remote_retrieve_response_code( $resp );
 		// Some sites reject HEAD with 405; retry with GET in that case.
 		if ( 405 === $code || 501 === $code ) {
-			$resp2 = wp_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 5 ) );
+			$resp2 = wp_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 0 ) );
 			$code  = is_wp_error( $resp2 ) ? 0 : (int) wp_remote_retrieve_response_code( $resp2 );
 		}
 		$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );

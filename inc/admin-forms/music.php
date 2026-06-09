@@ -26,8 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string Masked value for the field, or ''.
  */
 function sn_music_mask( $value ) {
-	$value = (string) $value;
-	return '' === $value ? '' : '••••' . substr( $value, -4 );
+	// Delegates to the shared length-aware mask (v4.14.2) so a short secret
+	// never renders in cleartext. Kept as a named wrapper for existing callers.
+	return sn_mask_secret( $value );
 }
 
 /**

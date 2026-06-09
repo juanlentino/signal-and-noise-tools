@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.2] - 2026-06-09 — Security back-audit hardening (4 LOW + JSON-LD encoder)
+
+**Headline:** A whole-codebase security back-audit (the same pass that produced the theme's IDOR fix) surfaced four LOW, bounded hardening gaps where one module had drifted from a convention applied correctly everywhere else, plus a defense-in-depth gap in the JSON-LD encoder. None is independently exploitable without a second precondition; each is closed by matching the plugin's own established pattern.
+
+### Fixed
+
+- **Broken-link health probe no longer follows redirects** ([inc/health-checks.php](inc/health-checks.php)) — `sn_health_link_status()` validated only the *first* hop against the site host, then `wp_remote_head`/`wp_remote_get` followed up to 5 redirects. A same-host open redirect to `169.254.169.254` would have been followed to the cloud-metadata service (blind/limited SSRF, admin-triggered). Both calls now set `redirection => 0`, matching the v4.14.1 outbound-hardening peers.
+- **Webhook HMAC signing secrets are no longer autoloaded** ([inc/webhooks.php](inc/webhooks.php)) — the `sn_webhooks` config option (which holds each webhook's 48-char signing secret) was written with the default `autoload=true`, loading every secret into the alloptions cache on **every** front-end request, though it is only read admin/cron-side. New writes now pass `autoload=false`, and a one-time `admin_init` migration (sentinel-guarded, WP 6.4+ `wp_set_option_autoload`) re-saves an existing option non-autoloaded.
+- **Length-aware credential mask** ([inc/settings.php](inc/settings.php) `sn_mask_secret()`) — the masked field render `'••••' . substr( $v, -4 )` returned the **whole** value for a stored secret of 4 chars or fewer (a short or mis-pasted key rendered in cleartext). A new shared, length-aware mask renders a fixed all-bullet placeholder for secrets ≤ 8 chars (no value, no length leak) and last-4 for longer ones. Routed through all four credential fields — Music, Cloudflare, Plausible, Webhooks ([inc/admin-forms/music.php](inc/admin-forms/music.php), [inc/cloudflare-purge.php](inc/cloudflare-purge.php), [inc/plausible-admin.php](inc/plausible-admin.php), [inc/webhooks-admin.php](inc/webhooks-admin.php)). The leading bullets are preserved so the masked-save guards keep working.
+- **Login-hide allowlist matches the path, not the query string** ([inc/login-hide.php](inc/login-hide.php)) — both the `plugins_loaded` intercept and the `wp_loaded` handler matched their public-endpoint allowlist (`/feed`, `/wp-json/`, …) with `strpos()` over the **entire** `REQUEST_URI`, so `/wp-admin/?x=/feed` matched `/feed` in the query string and skipped the unauthenticated-`/wp-admin` decoy-404 (confirming the install is WordPress; not an auth bypass — core still enforces auth). Extracted a shared `sn_login_request_is_allowlisted()` that matches the parsed **path** only; the two allowlists can no longer drift.
+
+### Improvements
+
+- **JSON-LD encoder hardened with `JSON_HEX_TAG`** ([inc/seo-schema.php](inc/seo-schema.php)) — the site-wide `@graph` was encoded without `JSON_HEX_TAG`. WordPress core sanitizes term names at storage, so the back-audit's term-name `</script>` breakout was **not** reachable (downgraded from MEDIUM to defense-in-depth), but the `@graph` also carries admin-set identity fields that aren't term-sanitized. `JSON_HEX_TAG` escapes `<`/`>` so no string field can break out of the `<script>` block — behaviorally transparent to JSON-LD consumers and consistent with the Command Palette encoder.
+
+### Tests
+
+- New [tests/credential-mask.php](tests/credential-mask.php) (16 assertions) pins the length-aware mask (RED-verified against the old logic). Extended [tests/login-intercept.php](tests/login-intercept.php) (+6: query-string bypass closed, real paths still allowlisted), [tests/webhooks.php](tests/webhooks.php) (+5: `autoload=false` on writes + the idempotent migration), [tests/health-checks.php](tests/health-checks.php) (+2: `redirection=0` on probe + fallback), [tests/seo-schema.php](tests/seo-schema.php) (+3: no `</script>` survives, value round-trips). Full plugin sweep: 62 suites, 0 failures; PHPCS security ruleset falsification-verified.
+
+### Docs
+
+- See the theme repo's [docs/superpowers/audits/2026-06-09-security-back-audit.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/audits/2026-06-09-security-back-audit.md) for the full audit (this batch = the 4 LOW + JSON-LD items; the MEDIUM IDOR was fixed in the theme as v9.15.3).
+
+> **Why PATCH:** security/defense-in-depth hardening that matches existing conventions — no new capability, no public-API or settings-schema change, no required user action beyond installing (the autoload migration is automatic + idempotent).
+
 ## [4.14.1] - 2026-06-09 — Harden outbound URL validation (SSRF)
 
 **Headline:** Two outbound modules consumed an admin/option-set host and dispatched a server-side request *without* the URL validation the plugin's own `inc/webhooks.php` + `inc/uptime-heartbeat.php` already apply. A whole-codebase security back-audit surfaced the consistency gap; this closes it. Low severity (the dangerous host is admin-controlled), but real, and now consistent with the established pattern.

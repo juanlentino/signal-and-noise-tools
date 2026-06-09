@@ -230,7 +230,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// This callback is render-only.
 	$token            = sn_cf_get_token();
 	$zone             = sn_cf_get_zone();
-	$token_obscured   = '' === $token ? '' : '••••' . substr( $token, -4 );
+	$token_obscured   = sn_mask_secret( $token );
 	$token_const_set  = defined( 'SN_CLOUDFLARE_API_TOKEN' );
 	$zone_const_set   = defined( 'SN_CLOUDFLARE_ZONE_ID' );
 	$both_locked      = $token_const_set && $zone_const_set;

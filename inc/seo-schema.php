@@ -465,5 +465,9 @@ add_action( 'wp_head', function() {
 		'@graph'   => $graph,
 	);
 
-	echo '<script type="application/ld+json">' . wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>' . "\n";
+	// JSON_HEX_TAG escapes < and > to < / > so a literal </script> in
+	// any string field (e.g. an admin-set identity field — term names are already
+	// core-sanitized) can never break out of the <script> block. Behaviorally
+	// transparent to JSON-LD consumers; matches command-palette.php's encoder.
+	echo '<script type="application/ld+json">' . wp_json_encode( $payload, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>' . "\n";
 }, 5 );

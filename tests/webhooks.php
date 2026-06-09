@@ -70,12 +70,20 @@ $GLOBALS['__test_options'] = array();
 function get_option( $key, $default = false ) {
 	return isset( $GLOBALS['__test_options'][ $key ] ) ? $GLOBALS['__test_options'][ $key ] : $default;
 }
+$GLOBALS['__test_option_autoload'] = array();
 function update_option( $key, $value, $autoload = null ) {
-	$GLOBALS['__test_options'][ $key ] = $value;
+	$GLOBALS['__test_options'][ $key ]          = $value;
+	$GLOBALS['__test_option_autoload'][ $key ] = $autoload;
 	return true;
 }
 function delete_option( $key ) {
 	unset( $GLOBALS['__test_options'][ $key ] );
+	return true;
+}
+// v4.14.2: capture the canonical WP 6.4+ autoload-flip API the migration uses.
+$GLOBALS['__wsoa_calls'] = array();
+function wp_set_option_autoload( $option, $autoload ) {
+	$GLOBALS['__wsoa_calls'][] = array( $option, $autoload );
 	return true;
 }
 
@@ -150,6 +158,7 @@ wh_true( 0 === strpos( $created['id'], 'wh_' ), 'id has wh_ prefix' );
 wh_eq( 48, strlen( $created['secret'] ), 'secret is 48 chars' );
 wh_eq( true, $created['enabled'], 'enabled flag set' );
 wh_eq( 'https://n8n.example/webhook/x', $created['url'], 'url echoed' );
+wh_eq( false, $GLOBALS['__test_option_autoload'][ SN_WEBHOOKS_OPTION ] ?? null, 'create stores sn_webhooks non-autoloaded (HMAC secrets out of the alloptions cache)' );
 $found = sn_webhook_find( $created['id'] );
 wh_eq( $created['id'], $found['id'], 'find returns the created webhook' );
 
@@ -563,6 +572,18 @@ wh_eq( 'post.deleted', $GLOBALS['__test_scheduled_events'][0]['args'][1], 'step 
 sn_webhook_on_delete( 500, $p_trash );
 wh_eq( 1, count( $GLOBALS['__test_scheduled_events'] ), 'step 2: purging the already-trashed row does not re-fire (still 1)' );
 wh_eq( 500, $GLOBALS['__test_scheduled_events'][0]['args'][2], 'the single post.deleted carries the post id' );
+
+// ─── Test: autoload migration (v4.14.2) ──────────────────────────────
+echo "\nTest: sn_webhooks_migrate_autoload\n";
+$GLOBALS['__wsoa_calls'] = array();
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array( array( 'id' => 'wh_x', 'secret' => 'sekret' ) );
+unset( $GLOBALS['__test_options']['sn_webhooks_autoload_migrated'] );
+sn_webhooks_migrate_autoload();
+wh_eq( 1, count( $GLOBALS['__wsoa_calls'] ), 'migration calls wp_set_option_autoload once' );
+wh_eq( array( SN_WEBHOOKS_OPTION, false ), $GLOBALS['__wsoa_calls'][0] ?? null, 'migration sets sn_webhooks autoload=false' );
+wh_eq( 1, $GLOBALS['__test_options']['sn_webhooks_autoload_migrated'] ?? null, 'migration sets the sentinel' );
+sn_webhooks_migrate_autoload();
+wh_eq( 1, count( $GLOBALS['__wsoa_calls'] ), 'migration is idempotent (sentinel guards the 2nd run)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

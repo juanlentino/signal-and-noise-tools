@@ -303,8 +303,16 @@ ss_eq( 'required name=search_term_string', $site['potentialAction']['query-input
 $json = wp_json_encode_test( $site );
 ss_true( false !== strpos( $json, '{search_term_string}' ), '{search_term_string} survives JSON_UNESCAPED_SLASHES encoding' );
 
+// v4.14.2: JSON_HEX_TAG prevents a </script> breakout from any string field
+// (e.g. an admin-set identity field). Behaviorally transparent to JSON-LD.
+$breakout = wp_json_encode_test( array( 'name' => 'Evil</script><script>alert(1)</script>' ) );
+ss_true( false === strpos( $breakout, '<' ), 'JSON_HEX_TAG escapes < so a string field cannot break out of <script>' );
+ss_true( false === strpos( $breakout, '</script>' ), 'no literal </script> survives in the encoded JSON-LD' );
+ss_eq( 'Evil</script><script>alert(1)</script>', json_decode( $breakout, true )['name'] ?? null, 'the escaped value round-trips intact via json_decode (transparent to JSON-LD consumers)' );
+
 function wp_json_encode_test( $data ) {
-	return json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+	// Mirrors inc/seo-schema.php's JSON-LD emitter (v4.14.2 added JSON_HEX_TAG).
+	return json_encode( $data, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";

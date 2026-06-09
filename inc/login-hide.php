@@ -148,6 +148,36 @@ add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
  * /wp-json/, /feed) short-circuit BEFORE any state is set, so those
  * requests are never touched.
  */
+/**
+ * True if the request targets an always-public endpoint the login-hide 404
+ * layer must never touch (admin-ajax, async-upload, wp-cron, REST, feeds).
+ *
+ * v4.14.2: matches against the URL PATH ONLY. The previous strpos() ran over
+ * the whole REQUEST_URI including the query string, so `/wp-admin/?x=/feed`
+ * matched the `/feed` needle and skipped the unauth-/wp-admin decoy-404,
+ * confirming the install is WordPress where the bare path would 404. Parsing
+ * the path closes that bypass without changing which real paths are
+ * allowlisted (a `/feed` in the query no longer counts; a real `/feed` path
+ * still does). Shared by the plugins_loaded intercept and the wp_loaded
+ * handler so the two allowlists can't drift.
+ *
+ * @since 4.14.2
+ * @param string $request_uri Raw (unslashed) REQUEST_URI.
+ * @return bool
+ */
+function sn_login_request_is_allowlisted( $request_uri ) {
+	$path = (string) wp_parse_url( (string) $request_uri, PHP_URL_PATH );
+	if ( '' === $path ) {
+		return false;
+	}
+	foreach ( array( 'admin-ajax.php', 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' ) as $needle ) {
+		if ( strpos( $path, $needle ) !== false ) {
+			return true;
+		}
+	}
+	return false;
+}
+
 function sn_login_intercept_request() {
 	if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
 		return;
@@ -156,13 +186,8 @@ function sn_login_intercept_request() {
 	$request_uri = (string) wp_unslash( $_SERVER['REQUEST_URI'] );
 
 	// Allowlist (must check FIRST so wp_loaded never touches these requests).
-	if ( strpos( $request_uri, 'admin-ajax.php' ) !== false ) {
+	if ( sn_login_request_is_allowlisted( $request_uri ) ) {
 		return;
-	}
-	foreach ( array( 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' ) as $needle ) {
-		if ( strpos( $request_uri, $needle ) !== false ) {
-			return;
-		}
 	}
 
 	// /wp-login.php direct access → flag for the 404 path in wp_loaded.
@@ -260,11 +285,10 @@ function sn_login_handle_request() {
 	// fall through to here. Without this guard, /wp-admin/admin-ajax.php
 	// (and async-upload, wp-cron, /wp-json/, /feed) would get 404-ed for
 	// unauthenticated requests even though they must remain publicly reachable
-	// (e.g. wp_ajax_nopriv_* handlers, REST API, feed readers).
-	foreach ( array( 'admin-ajax.php', 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' ) as $needle ) {
-		if ( strpos( $request_uri, $needle ) !== false ) {
-			return;
-		}
+	// (e.g. wp_ajax_nopriv_* handlers, REST API, feed readers). Shared helper
+	// (v4.14.2) matches the PATH only — see sn_login_request_is_allowlisted.
+	if ( sn_login_request_is_allowlisted( $request_uri ) ) {
+		return;
 	}
 
 	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {

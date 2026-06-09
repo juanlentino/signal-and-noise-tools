@@ -132,7 +132,7 @@ add_action( 'sn_admin_plausible_tab', function() {
 		echo '</div>';
 	} else {
 		echo '<p class="sn-fieldset-intro">Stored as a non-autoloaded option, so the token isn&rsquo;t in memory on every request.</p>';
-		$token_obscured = '' === $option_token ? '' : '••••' . esc_attr( substr( $option_token, -4 ) );
+		$token_obscured = sn_mask_secret( $option_token );
 		echo '<div class="sn-field sn-field-w-lg">';
 		echo '<label class="sn-field-label" for="sn_pl_token">Token</label>';
 		echo '<input type="text" id="sn_pl_token" name="sn_pl_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh key to update; type ‘clear’ to remove" class="sn-mono">';
