@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.1] - 2026-06-09 — Harden outbound URL validation (SSRF)
+
+**Headline:** Two outbound modules consumed an admin/option-set host and dispatched a server-side request *without* the URL validation the plugin's own `inc/webhooks.php` + `inc/uptime-heartbeat.php` already apply. A whole-codebase security back-audit surfaced the consistency gap; this closes it. Low severity (the dangerous host is admin-controlled), but real, and now consistent with the established pattern.
+
+### Fixed
+
+- **Plausible Stats client SSRF / token-exfil** ([inc/plausible-api.php](inc/plausible-api.php)) — `sn_plausible_config()` built the API base from the admin-set `self_hosted_domain` with no validation, then `sn_plausible_api()` sent the **Stats API Bearer token** in the `Authorization` header to it. Now validates with `wp_http_validate_url()`, requires `https`, explicitly rejects the `169.254.0.0/16` link-local / cloud-metadata range (which `wp_http_validate_url()` omits), and the fetch sets `redirection => 0` (no redirect-to-internal). Invalid → falls back to the public `plausible.io` default. **Non-breaking:** any valid public-https self-hosted instance is unaffected.
+- **RSS-tracker SSRF on a public trigger** ([inc/rss-plausible-tracker.php](inc/rss-plausible-tracker.php)) — `sn_rss_tracker_send_plausible()` POSTed to the admin-set `plausible_url` (validated with `esc_url_raw` only) on **unauthenticated public `/notes/feed/` hits**, forwarding the requester's User-Agent + `X-Forwarded-For`. Now applies the same `wp_http_validate_url()` + `https` + `169.254.0.0/16` + `redirection => 0` guard and skips the send if it fails (best-effort tracker; the DB row is the source of truth). **Non-breaking** for a valid https endpoint.
+- **Same `169.254.0.0/16` block extended to the peer outbound modules** ([inc/webhooks.php](inc/webhooks.php) create + update paths, [inc/uptime-heartbeat.php](inc/uptime-heartbeat.php)) — they already had `wp_http_validate_url()` + https + `redirection => 0` but inherited WP core's link-local omission. **All four outbound modules now validate identically** (the consistency the audit was really about).
+- `inc/cloudflare-purge.php` was reviewed and needs no change — its host is the constant `SN_CF_API_BASE` (`api.cloudflare.com`), not option-controlled.
+
+### Tests
+
+- **[tests/ssrf-url-validation.php](tests/ssrf-url-validation.php)** — 13 assertions: cloud-metadata (169.254) blocked by the explicit guard, RFC-1918 blocked via `wp_http_validate_url`, non-https rejected, empty rejected, `redirection => 0` set, and **valid public-https hosts pass unchanged** (the non-breaking guarantee). Plugin suite 62 → 63 files, 0 failures; phpcs (security ruleset) clean + falsification-verified; adversarially re-reviewed for bypasses (IPv6/decimal/octal/userinfo/redirect all blocked or delegated to WP core).
+
+> **Known residual (accepted, deliberate non-goal):** the explicit block matches the literal dotted-quad metadata IP — the realistic admin-typo / social-engineering case. Decimal/octal IP encodings and DNS-rebinding rely on WP core's resolve-time IP checks; fully closing them would add a per-call DNS lookup (a real perf cost on admin pageviews + feed hits, plus the validate-vs-fetch rebinding window) for a threat no operator realistically triggers. Not worth it. All four outbound modules now share the same guard.
+
 ## [4.14.0] - 2026-06-08 — Featured release (settings-driven /music hero)
 
 **Headline:** The "press play" player at the top of `/music` is now set from **Monitoring → Music** instead of hand-edited into the page. Paste any Spotify track, album, or playlist link in the new **Featured release** field; the plugin parses it and exposes it over the standalone-safe `sn_music_featured` filter the theme's `[sn_music_featured]` shortcode (Signal & Noise v9.15.0) renders. Companion to theme v9.15.0.

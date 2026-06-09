@@ -123,10 +123,29 @@ function sn_rss_tracker_client_ip() {
  * bot detection and geo lookup function correctly.
  */
 function sn_rss_tracker_send_plausible( $settings, $feed_url, $ua, $ua_hash, $client_ip ) {
-	wp_remote_post( $settings['plausible_url'], array(
-		'timeout'  => 2,
-		'blocking' => false,
-		'headers'  => array(
+	$endpoint = (string) ( $settings['plausible_url'] ?? '' );
+	// SSRF guard: this fires on UNauthenticated public feed hits and forwards the
+	// requester's User-Agent + X-Forwarded-For. Validate the admin-set endpoint
+	// like inc/webhooks.php does — https only, plus anything wp_http_validate_url()
+	// rejects (RFC-1918, loopback, IPv6, userinfo), plus the 169.254.0.0/16
+	// link-local range it omits (cloud metadata) — so a mis-set endpoint can't
+	// turn every feed request into a server-side request to an internal host
+	// carrying partly requester-controlled headers. Best-effort tracker (the DB
+	// row is the source of truth) → skip on failure.
+	if ( '' === $endpoint
+		|| ! wp_http_validate_url( $endpoint )
+		|| 'https' !== wp_parse_url( $endpoint, PHP_URL_SCHEME )
+		|| 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $endpoint, PHP_URL_HOST ) )
+	) {
+		return;
+	}
+	wp_remote_post( $endpoint, array(
+		'timeout'     => 2,
+		'blocking'    => false,
+		// Don't follow a redirect off the validated host (redirect-to-internal
+		// SSRF bypass) — matches inc/webhooks.php + inc/uptime-heartbeat.php.
+		'redirection' => 0,
+		'headers'     => array(
 			'Content-Type'    => 'application/json',
 			'User-Agent'      => $ua,
 			'X-Forwarded-For' => $client_ip,
