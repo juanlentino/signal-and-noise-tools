@@ -146,7 +146,11 @@ function sn_webhook_create( $input ) {
 	// T4 (Fix C): the error copy promises "https://" but the check accepted any
 	// scheme wp_http_validate_url() allows (http included), leaking the signed
 	// payload over plaintext. Enforce https to match the contract.
-	if ( '' === $url || ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) ) {
+	// wp_http_validate_url() omits 169.254.0.0/16 (link-local / cloud metadata);
+	// reject it explicitly, consistent with inc/plausible-api.php + inc/rss-
+	// plausible-tracker.php. (redirection=0 on the send already blocks the
+	// redirect-to-metadata case; this covers a directly-configured metadata host.)
+	if ( '' === $url || ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $url, PHP_URL_HOST ) ) ) {
 		return new WP_Error( 'sn_webhook_invalid_url', 'A valid https:// URL is required.' );
 	}
 
@@ -186,7 +190,7 @@ function sn_webhook_update( $id, $input ) {
 			// T4 (Fix C): only accept https updates — an http candidate is
 			// ignored (the existing URL is preserved), mirroring create's
 			// https-only contract.
-			if ( '' !== $candidate && wp_http_validate_url( $candidate ) && 'https' === wp_parse_url( $candidate, PHP_URL_SCHEME ) ) {
+			if ( '' !== $candidate && wp_http_validate_url( $candidate ) && 'https' === wp_parse_url( $candidate, PHP_URL_SCHEME ) && 1 !== preg_match( '#^169\.254\.#', (string) wp_parse_url( $candidate, PHP_URL_HOST ) ) ) {
 				$wh['url'] = $candidate;
 			}
 		}
