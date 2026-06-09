@@ -107,7 +107,7 @@ function sn_webhooks_render_admin_tab() {
 			echo '<input type="text" readonly value="' . esc_attr( $wh['secret'] ) . '" class="sn-mono snt-input-highlight">';
 			echo '<p class="sn-field-helper"><strong>Copy this now</strong> — it will not be shown again. Receivers compute <code>HMAC_SHA256(secret, raw_body)</code> and compare against the <code>X-SN-Signature</code> header.</p>';
 		} else {
-			echo '<input type="text" readonly value="' . esc_attr( '••••' . substr( $wh['secret'], -4 ) ) . '" class="sn-mono" disabled>';
+			echo '<input type="text" readonly value="' . esc_attr( sn_mask_secret( $wh['secret'] ) ) . '" class="sn-mono" disabled>';
 			echo '<p class="sn-field-helper">Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).</p>';
 			echo '<label class="snt-checkbox-row"><input type="checkbox" name="rotate_secret" value="1"> Rotate secret on save</label>';
 		}

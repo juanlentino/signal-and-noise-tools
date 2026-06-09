@@ -28,6 +28,31 @@ const SN_SETTINGS_MIGRATED_FLAG = 'sn_settings_migrated_v1';
 const SN_LEGACY_HOST            = 'juanlentino.com';
 
 /**
+ * Length-aware mask for a stored credential rendered into an admin field.
+ *
+ * Long secrets show the last 4 chars (an affordance to recognize which key is
+ * configured); short or empty secrets must NOT round-trip in cleartext —
+ * `substr( $v, -4 )` on a value of 4 chars or fewer returns the WHOLE secret.
+ * Secrets of 8 chars or fewer therefore get a fixed all-bullet placeholder that
+ * leaks neither the value nor its exact length. Both branches keep a leading
+ * '••••' so the masked-save guards (which detect an untouched field by its
+ * leading bullets) keep working unchanged.
+ *
+ * Shared by the Music, Cloudflare, Plausible, and Webhooks credential fields.
+ *
+ * @since 4.14.2
+ * @param string $value Stored credential (raw).
+ * @return string Masked value for the field, or '' for an empty secret.
+ */
+function sn_mask_secret( $value ) {
+	$value = (string) $value;
+	if ( '' === $value ) {
+		return '';
+	}
+	return strlen( $value ) <= 8 ? '••••••••' : '••••' . substr( $value, -4 );
+}
+
+/**
  * Full settings schema with generic defaults.
  *
  * Defaults are intentionally NOT site-specific. The juanlentino.com

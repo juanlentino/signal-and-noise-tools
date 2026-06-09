@@ -186,5 +186,15 @@ foreach ( $GLOBALS['__actions']['wp_loaded'] ?? array() as $action ) {
 }
 assertEq( true, $wp_loaded_registered, 'wp_loaded handler registered' );
 
+// === Test 15: allowlist matches PATH only — query-string bypass closed (v4.14.2) ===
+// `/wp-admin/?x=/feed` must NOT be allowlisted by the `/feed` needle appearing
+// in the query string (that bypassed the unauth-/wp-admin decoy-404).
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/?x=/feed' ), '/wp-admin/?x=/feed is NOT allowlisted (query-string /feed bypass closed)' );
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/?redirect=/wp-json/' ), '/wp-admin/?...=/wp-json/ in query is NOT allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '/wp-admin/admin-ajax.php?action=heartbeat' ), 'real admin-ajax.php PATH is still allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '/wp-json/wp/v2/posts' ), 'real /wp-json/ PATH is still allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '/blog/feed/' ), 'real /feed PATH is still allowlisted' );
+assertEq( false, sn_login_request_is_allowlisted( '/notes/some-post' ), 'unrelated path is NOT allowlisted' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
