@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.5] - 2026-06-09 — Close `[sn_reading_time slug]` existence oracle
+
+**Headline:** Same INFO/existence-oracle class as the v4.14.2/v4.14.4 login-hide cluster, in a different surface. The `[sn_reading_time slug="..."]` shortcode resolved its slug with `get_page_by_path()` — which carries **no `post_status` filter** — and returned a real "N min read" for *any* resolvable post, including drafts, private, pending, future, and trashed ones. Chained to the theme's REST-reachable `signal-and-noise/get-reading-time-for-slug` ability (gated only by the blanket `read` cap that every subscriber-and-up holds), this turned the shortcode into an **existence oracle**: a logged-in subscriber could distinguish "slug exists as a non-public post" (real minutes returned) from "slug does not exist" (the theme falls back to its 5-min default). A weak length-proxy, but still a leak of existence/private-content metadata. Not an auth bypass — core still enforces edit/read auth on the posts themselves. This patch folds the non-public case onto the same empty-return path as a missing slug so the two responses are indistinguishable.
+
+### Security
+
+- **`[sn_reading_time]` slug resolver now gated by `is_post_publicly_viewable()`** ([inc/reading-time.php](inc/reading-time.php)). After `get_page_by_path()` resolves the attacker-controlled `slug`, the handler now checks `is_post_publicly_viewable( $post )` (core since WP 5.7; the plugin floors at 6.4 / tested to 7.0) and returns `''` for any non-public post — the identical response a non-existent slug already produced. Drafts, private, pending, future, and trashed posts are now indistinguishable from "not found" through this surface, closing the oracle. The no-args (current-post) form is unchanged — that path operates on a post already access-gated by the main query, and is never reached through the REST ability. Mirrors the theme-side T2-oracle hardening cluster (`get-active-template-structure`) that added the same `is_post_publicly_viewable` guard.
+
+### Tests
+
+- **Regression suite** ([tests/reading-time-shortcode-oracle.php](tests/reading-time-shortcode-oracle.php)). Asserts that draft, private, pending, and future slugs each return the *same* empty result as a non-existent slug, and that a genuinely published slug still returns its real "N min read" (the guard must not over-block). The `get_page_by_path()` stub faithfully returns posts of any status by slug — exactly as WP core does — so the fixture actually exercises the oracle rather than asserting a tautology. Verified RED against the pre-fix handler (4 leaks surfaced) → GREEN after the guard (8/8 passing). Joins the standalone `tests/*.php` CI sweep.
+
 ## [4.14.4] - 2026-06-09 — Delta-audit hardening: login-hide path-substring smuggle
 
 **Headline:** A delta security audit of the v4.14.1→v4.14.3 / theme v9.15.2→v9.15.4 fix changes (the surface the original back-audit never saw, because it ran *pre-fix*) found that the v4.14.2 login-hide fix left a sibling. v4.14.2 narrowed the allowlist match from the whole `REQUEST_URI` to the parsed path (closing `/wp-admin/?x=/feed`), but kept a **substring** test, so a needle appearing as a non-terminal path segment under `/wp-admin` (`/wp-admin/feed`, `/wp-admin/<x>/admin-ajax.php`, `/wp-admin/<x>/wp-json/<y>`) still skipped the unauthenticated-`/wp-admin` decoy-404. Same INFO/existence-oracle class as v4.14.2 — not an auth bypass; core still enforces auth on `/wp-admin`.
