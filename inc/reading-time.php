@@ -127,8 +127,13 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
  *
  * Returns empty string when the slug-targeted post doesn't exist
  * (e.g., during the brief window after a deploy but before seed
- * migrations have run). The empty fallback is visually graceful enough
- * — the migration window is short and self-heals.
+ * migrations have run) OR when it resolves to a non-public post
+ * (draft/private/pending/future/trash). The non-public case is
+ * deliberately folded onto the same empty return as "not found" so the
+ * slug-targeted shortcode can't be used as an existence oracle for
+ * unpublished content (see the is_post_publicly_viewable guard below).
+ * The empty fallback is visually graceful enough — the migration window
+ * is short and self-heals.
  *
  * Format is filterable via `sn_reading_time_format`. The default uses
  * "{minutes} min read"; pass "{minutes}-minute read" for the long form.
@@ -140,7 +145,18 @@ add_shortcode( 'sn_reading_time', function( $atts ) {
 
 	if ( '' !== $atts['slug'] ) {
 		$post = get_page_by_path( $atts['slug'] );
-		if ( ! $post ) {
+		// get_page_by_path() resolves a post by name with NO post_status
+		// filter — drafts, private, pending, future, and trashed posts all
+		// come back. Combined with the theme's REST-reachable
+		// `signal-and-noise/get-reading-time-for-slug` ability (gated only by
+		// the blanket `read` cap), returning a real reading time here for a
+		// non-public post turns this shortcode into an existence oracle: a
+		// subscriber could distinguish "slug exists as a non-public post"
+		// (real minutes) from "slug does not exist" (theme's 5-min fallback).
+		// Collapse the non-public case onto the same empty-return path as a
+		// missing slug so the two are indistinguishable. Mirrors the
+		// theme-side get-active-template-structure oracle hardening.
+		if ( ! $post || ! is_post_publicly_viewable( $post ) ) {
 			return '';
 		}
 	} else {
