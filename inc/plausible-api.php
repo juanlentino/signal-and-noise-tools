@@ -105,6 +105,21 @@ function sn_plausible_config() {
 	if ( '' !== $self_host && ! preg_match( '#^https?://#i', $self_host ) ) {
 		$self_host = 'https://' . $self_host;
 	}
+	// SSRF guard: sn_plausible_api() sends the Stats API Bearer token in the
+	// Authorization header to whatever host $base resolves to. Validate the
+	// admin-set self-hosted URL like inc/webhooks.php + inc/uptime-heartbeat.php
+	// do — https only, plus anything wp_http_validate_url() rejects (RFC-1918,
+	// loopback, IPv6, userinfo). wp_http_validate_url() does NOT cover the
+	// 169.254.0.0/16 link-local range (AWS/GCP/Azure cloud metadata at
+	// 169.254.169.254), so reject that explicitly here. Invalid → fall back to
+	// the public default rather than dispatch the token to it.
+	if ( '' !== $self_host
+		&& ( ! wp_http_validate_url( $self_host )
+			|| 'https' !== wp_parse_url( $self_host, PHP_URL_SCHEME )
+			|| 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $self_host, PHP_URL_HOST ) ) )
+	) {
+		$self_host = '';
+	}
 	$base = '' !== $self_host ? rtrim( $self_host, '/' ) : 'https://plausible.io';
 	return array( 'domain' => $domain, 'token' => $token, 'base' => $base );
 }
@@ -162,8 +177,12 @@ function sn_plausible_api( $path, $query, $cfg, $expect_json = true ) {
 	$url   = $cfg['base'] . '/api/v1/stats/' . ltrim( $path, '/' ) . '?' . http_build_query( $query );
 
 	$response = wp_remote_get( $url, array(
-		'headers' => array( 'Authorization' => 'Bearer ' . $cfg['token'] ),
-		'timeout' => 6,
+		'headers'     => array( 'Authorization' => 'Bearer ' . $cfg['token'] ),
+		'timeout'     => 6,
+		// Don't follow a redirect off the validated host — closes the
+		// redirect-to-internal SSRF bypass (matches inc/webhooks.php +
+		// inc/uptime-heartbeat.php), so the Bearer token stays on $base.
+		'redirection' => 0,
 	) );
 
 	if ( is_wp_error( $response ) ) {
