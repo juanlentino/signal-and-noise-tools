@@ -149,33 +149,95 @@ add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
  * requests are never touched.
  */
 /**
+ * Resolve the request PATH for the login-hide checks.
+ *
+ * v4.14.4: collapses a leading `//` (network-path) form first. wp_parse_url
+ * treats `//wp-admin/x` as host=`wp-admin`, path=`/x`, so a request the
+ * webserver still resolves to /wp-admin (after its own slash-merge) would dodge
+ * the path-anchored checks below. ltrim+single-slash is idempotent for the
+ * normal single-slash paths, so this only affects the `//`-smuggle case.
+ *
+ * @since 4.14.4
+ * @param string $request_uri Raw (unslashed) REQUEST_URI.
+ * @return string Normalized path (may be '' if unparseable).
+ */
+function sn_login_request_path( $request_uri ) {
+	$request_uri = '/' . ltrim( (string) $request_uri, '/' );
+	return (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+}
+
+/**
  * True if the request targets an always-public endpoint the login-hide 404
  * layer must never touch (admin-ajax, async-upload, wp-cron, REST, feeds).
  *
- * v4.14.2: matches against the URL PATH ONLY. The previous strpos() ran over
- * the whole REQUEST_URI including the query string, so `/wp-admin/?x=/feed`
- * matched the `/feed` needle and skipped the unauth-/wp-admin decoy-404,
- * confirming the install is WordPress where the bare path would 404. Parsing
- * the path closes that bypass without changing which real paths are
- * allowlisted (a `/feed` in the query no longer counts; a real `/feed` path
- * still does). Shared by the plugins_loaded intercept and the wp_loaded
- * handler so the two allowlists can't drift.
+ * v4.14.2 narrowed the match from the whole REQUEST_URI to the PATH, closing the
+ * query-string smuggle (`/wp-admin/?x=/feed`). v4.14.4 anchors each needle to
+ * its real path SHAPE instead of an anywhere-substring test: the previous
+ * `strpos($path, $needle)` still allowlisted a needle appearing as a non-terminal
+ * path segment under /wp-admin (`/wp-admin/feed`, `/wp-admin/<x>/admin-ajax.php`,
+ * `/wp-admin/<x>/wp-json/<y>`), skipping the unauth-/wp-admin decoy-404. Nothing
+ * under /wp-admin except admin-ajax/async-upload is a real public endpoint, so
+ * everything else there now falls through to the decoy. Real endpoints —
+ * including subdirectory installs and the `//` form of a genuine request — are
+ * unchanged. Shared by the plugins_loaded intercept and the wp_loaded handler
+ * so the two allowlists can't drift.
  *
  * @since 4.14.2
  * @param string $request_uri Raw (unslashed) REQUEST_URI.
  * @return bool
  */
 function sn_login_request_is_allowlisted( $request_uri ) {
-	$path = (string) wp_parse_url( (string) $request_uri, PHP_URL_PATH );
+	$path = sn_login_request_path( $request_uri );
 	if ( '' === $path ) {
 		return false;
 	}
-	foreach ( array( 'admin-ajax.php', 'async-upload.php', 'wp-cron.php', '/wp-json/', '/feed' ) as $needle ) {
-		if ( strpos( $path, $needle ) !== false ) {
-			return true;
-		}
+
+	// The only genuinely-public endpoints UNDER /wp-admin/, matched as a trailing
+	// path segment so a fake /wp-admin sub-path cannot smuggle the needle.
+	if ( str_ends_with( $path, '/wp-admin/admin-ajax.php' )
+		|| str_ends_with( $path, '/wp-admin/async-upload.php' ) ) {
+		return true;
+	}
+
+	// Anything else under /wp-admin is never a real public endpoint — fall
+	// through so the unauth-/wp-admin decoy-404 handles it.
+	if ( '/wp-admin' === $path || str_starts_with( $path, '/wp-admin/' ) ) {
+		return false;
+	}
+
+	// Public endpoints OUTSIDE /wp-admin: wp-cron, the REST API tree, feeds.
+	if ( str_ends_with( $path, '/wp-cron.php' ) ) {
+		return true;
+	}
+	if ( '/wp-json' === $path || false !== strpos( $path, '/wp-json/' ) ) {
+		return true;
+	}
+	if ( '/feed' === $path || str_ends_with( $path, '/feed' ) || str_ends_with( $path, '/feed/' ) ) {
+		return true;
 	}
 	return false;
+}
+
+/**
+ * True if the request targets /wp-admin, for the unauthenticated decoy-404.
+ *
+ * v4.14.4: anchors on the //-normalized PATH with a segment boundary instead of
+ * a raw `strpos($request_uri, '/wp-admin') === 0` on REQUEST_URI. The raw check
+ * left two gaps: (1) `//wp-admin/...` (network-path form) put `/wp-admin` at
+ * offset 1, so the decoy never fired even though the webserver still resolved it
+ * to wp-admin — confirming the install is WordPress; (2) `/wp-administrator`
+ * (and any `/wp-admin<x>` page) matched the bare prefix and got falsely 404-ed.
+ * Parsing the normalized path and requiring an exact `/wp-admin` or a
+ * `/wp-admin/` segment closes both. Shares sn_login_request_path() with the
+ * allowlist so the two checks normalize identically.
+ *
+ * @since 4.14.4
+ * @param string $request_uri Raw (unslashed) REQUEST_URI.
+ * @return bool
+ */
+function sn_login_request_targets_wp_admin( $request_uri ) {
+	$path = sn_login_request_path( $request_uri );
+	return '/wp-admin' === $path || str_starts_with( $path, '/wp-admin/' );
 }
 
 function sn_login_intercept_request() {
@@ -291,7 +353,7 @@ function sn_login_handle_request() {
 		return;
 	}
 
-	if ( strpos( $request_uri, '/wp-admin' ) === 0 && ! is_user_logged_in() ) {
+	if ( sn_login_request_targets_wp_admin( $request_uri ) && ! is_user_logged_in() ) {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
 			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 		}

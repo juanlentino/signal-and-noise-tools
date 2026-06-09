@@ -196,5 +196,40 @@ assertEq( true,  sn_login_request_is_allowlisted( '/wp-json/wp/v2/posts' ), 'rea
 assertEq( true,  sn_login_request_is_allowlisted( '/blog/feed/' ), 'real /feed PATH is still allowlisted' );
 assertEq( false, sn_login_request_is_allowlisted( '/notes/some-post' ), 'unrelated path is NOT allowlisted' );
 
+// === Test 16: path-substring smuggle siblings closed (v4.14.4) ===
+// v4.14.2 narrowed the match to the PATH but kept a substring test, so a needle
+// appearing as a NON-terminal path segment under /wp-admin still allowlisted the
+// request and skipped the unauth-/wp-admin decoy-404. Anchor each needle to its
+// real path shape: nothing under /wp-admin except admin-ajax/async-upload is a
+// real public endpoint.
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/feed' ),                   '/wp-admin/feed is NOT allowlisted (path-substring /feed smuggle closed)' );
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/feed/anything' ),          '/wp-admin/feed/anything is NOT allowlisted' );
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/network/admin-ajax.php' ), '/wp-admin/<fake>/admin-ajax.php is NOT allowlisted (non-terminal admin-ajax smuggle closed)' );
+assertEq( false, sn_login_request_is_allowlisted( '/wp-admin/x/wp-json/y' ),            '/wp-admin/.../wp-json/... is NOT allowlisted' );
+// Real public endpoints still allowlisted — incl. subdirectory installs and the
+// // network-path form of a genuine admin-ajax request.
+assertEq( true,  sn_login_request_is_allowlisted( '/wp-admin/admin-ajax.php' ),         'real /wp-admin/admin-ajax.php still allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '/blog/wp-admin/admin-ajax.php' ),    'subdirectory-install admin-ajax.php still allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '//wp-admin/admin-ajax.php' ),        '//-prefixed real admin-ajax.php still allowlisted (leading slashes normalized)' );
+assertEq( true,  sn_login_request_is_allowlisted( '/wp-cron.php?doing_wp_cron=1' ),     '/wp-cron.php still allowlisted' );
+assertEq( true,  sn_login_request_is_allowlisted( '/category/news/feed/' ),             'real trailing /feed/ still allowlisted' );
+
+// === Test 17: unauth-/wp-admin decoy decision is path-anchored (v4.14.4) ===
+// Branch-3 of the wp_loaded handler previously decided "is this an unauth
+// /wp-admin request?" with strpos($request_uri,'/wp-admin')===0 on the RAW URI,
+// so a `//wp-admin/...` network-path form (the webserver still serves wp-admin
+// after merging slashes) had '/wp-admin' at offset 1 and dodged the decoy; and
+// `/wp-administrator` falsely matched the prefix. sn_login_request_targets_wp_admin()
+// anchors on the //-normalized PATH with a segment boundary.
+assertEq( true,  sn_login_request_targets_wp_admin( '/wp-admin' ),          '/wp-admin targets wp-admin' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/wp-admin/' ),         '/wp-admin/ targets wp-admin' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/wp-admin/edit.php' ), '/wp-admin/edit.php targets wp-admin' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/wp-admin/?x=1' ),     '/wp-admin/?x=1 targets wp-admin (query ignored)' );
+assertEq( true,  sn_login_request_targets_wp_admin( '//wp-admin/' ),        '//wp-admin/ targets wp-admin (network-path decoy-evasion closed)' );
+assertEq( true,  sn_login_request_targets_wp_admin( '///wp-admin/x' ),      '///wp-admin/x targets wp-admin (multi-slash normalized)' );
+assertEq( false, sn_login_request_targets_wp_admin( '/notes/x' ),           '/notes/x does NOT target wp-admin' );
+assertEq( false, sn_login_request_targets_wp_admin( '/wp-administrator' ),  '/wp-administrator does NOT target wp-admin (segment-anchored, not prefix-substring)' );
+assertEq( false, sn_login_request_targets_wp_admin( '//notes/x' ),          '//notes/x does NOT target wp-admin' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
