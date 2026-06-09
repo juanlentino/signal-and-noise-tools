@@ -79,5 +79,14 @@ $hostile = sn_discography_normalize_entry( array( 'title' => '</script><b>boom',
 ok( strpos( $hostile['title'], '<' ) === false && strpos( $hostile['title'], '>' ) === false, 'normalize: title tag-stripped (no </script> breakout)' );
 ok( strpos( $hostile['artist'], '<' ) === false, 'normalize: artist tag-stripped' );
 
+// ── v4.14.3: roles[] are tag-sanitized on write too (parity with title/artist).
+// Muso credit-role strings are external/untrusted; a future unescaped consumer
+// must not inherit a stored payload.
+$hostile_roles = sn_discography_normalize_entry( array( 'title' => 'X', 'artist' => 'A', 'roles' => array( 'Producer', '<img src=x onerror=alert(1)>Mixer' ) ) );
+ok( count( $hostile_roles['roles'] ) === 2, 'normalize: roles preserved as array' );
+$joined_roles = implode( '|', $hostile_roles['roles'] );
+ok( strpos( $joined_roles, '<' ) === false && strpos( $joined_roles, '>' ) === false, 'normalize: roles[] tag-stripped (parity with title/artist)' );
+ok( in_array( 'Producer', $hostile_roles['roles'], true ), 'normalize: clean role text preserved' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
