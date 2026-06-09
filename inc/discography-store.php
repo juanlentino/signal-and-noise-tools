@@ -72,7 +72,11 @@ function sn_discography_normalize_entry( $raw ) {
 	$e['title']  = sanitize_text_field( (string) $e['title'] );
 	$e['artist'] = sanitize_text_field( (string) $e['artist'] );
 	$e['year']   = (int) $e['year'];
-	$e['roles']  = array_values( array_filter( array_map( 'trim', (array) $e['roles'] ) ) );
+	// v4.14.3: sanitize each role like title/artist (was trim-only). Muso credit
+	// roles are external/untrusted; tag-strip at the boundary so a future
+	// unescaped consumer can't inherit a stored payload. array_filter drops
+	// roles that sanitize to ''.
+	$e['roles']  = array_values( array_filter( array_map( static fn( $r ) => sanitize_text_field( (string) $r ), (array) $e['roles'] ) ) );
 	foreach ( array( 'image', 'spotify_url', 'muso_url' ) as $u ) {
 		$e[ $u ] = esc_url_raw( (string) $e[ $u ] );
 	}

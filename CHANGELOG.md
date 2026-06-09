@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.3] - 2026-06-09 — Back-audit INFO hardening (defense-in-depth)
+
+**Headline:** The two plugin-side INFO/defense-in-depth items from the 2026-06-09 security back-audit. Neither is a live exploit — both close a boundary gap so a *future* unescaped consumer can't inherit a problem.
+
+### Improvements
+
+- **Discography `roles[]` are tag-sanitized on write** ([inc/discography-store.php](inc/discography-store.php)) — `sn_discography_normalize_entry()` sanitized `title`/`artist`/`id`/etc. with `sanitize_text_field` but `roles[]` were `trim`-only. Muso credit-role strings are external/untrusted; they're now tag-stripped at the store boundary like every sibling field. No live sink today (render escapes them, JS reads `textContent`, roles never enter the JSON-LD) — this is parity hardening against a future consumer. Regression test added to [tests/discography-store.php](tests/discography-store.php).
+- **Plausible widget footer wraps `$status` in `wp_kses_post`** ([inc/plausible-widget.php](inc/plausible-widget.php)) — the footer echoed an internally-built `$status` (one branch carries an intentional `<em>`) without a wrapper. `wp_kses_post` keeps the `<em>` while stripping anything dangerous — behavior-neutral on today's internal values, defense-in-depth if a future edit ever feeds user/API data into `$status`.
+
+> **Why PATCH:** defense-in-depth hardening, no behavioral change on real input, no new capability, no public-API or settings-schema change, no required user action beyond installing.
+
 ## [4.14.2] - 2026-06-09 — Security back-audit hardening (4 LOW + JSON-LD encoder)
 
 **Headline:** A whole-codebase security back-audit (the same pass that produced the theme's IDOR fix) surfaced four LOW, bounded hardening gaps where one module had drifted from a convention applied correctly everywhere else, plus a defense-in-depth gap in the JSON-LD encoder. None is independently exploitable without a second precondition; each is closed by matching the plugin's own established pattern.

@@ -219,5 +219,9 @@ function sn_pl_footer( $data, $period_label ) {
 	$status  = $fetched > 0
 		? 'cached ' . esc_html( human_time_diff( $fetched, time() ) ) . ' ago'
 		: '<em>refreshing in background — reload in a moment</em>';
-	echo '<p class="sn-pl-foot">' . esc_html( $period_label ) . ' · ' . $status . ' · <a href="' . esc_url( $dash ) . '">Open dashboard →</a></p>';
+	// $status is internally built (one branch carries an intentional <em>), so
+	// wp_kses_post — not esc_html — is the right wrapper: it keeps the <em> while
+	// stripping anything dangerous. Behavior-neutral today; defense-in-depth if a
+	// future edit ever feeds user/API data into $status. (v4.14.3 hardening.)
+	echo '<p class="sn-pl-foot">' . esc_html( $period_label ) . ' · ' . wp_kses_post( $status ) . ' · <a href="' . esc_url( $dash ) . '">Open dashboard →</a></p>';
 }
