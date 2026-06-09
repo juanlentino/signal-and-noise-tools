@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [4.14.4] - 2026-06-09 — Delta-audit hardening: login-hide path-substring smuggle
+
+**Headline:** A delta security audit of the v4.14.1→v4.14.3 / theme v9.15.2→v9.15.4 fix changes (the surface the original back-audit never saw, because it ran *pre-fix*) found that the v4.14.2 login-hide fix left a sibling. v4.14.2 narrowed the allowlist match from the whole `REQUEST_URI` to the parsed path (closing `/wp-admin/?x=/feed`), but kept a **substring** test, so a needle appearing as a non-terminal path segment under `/wp-admin` (`/wp-admin/feed`, `/wp-admin/<x>/admin-ajax.php`, `/wp-admin/<x>/wp-json/<y>`) still skipped the unauthenticated-`/wp-admin` decoy-404. Same INFO/existence-oracle class as v4.14.2 — not an auth bypass; core still enforces auth on `/wp-admin`.
+
+### Improvements
+
+- **Login-hide allowlist anchors each needle to its real path shape** ([inc/login-hide.php](inc/login-hide.php)) — `sn_login_request_is_allowlisted()` no longer uses an anywhere-substring test. The only genuinely-public endpoints under `/wp-admin/` are `admin-ajax.php` and `async-upload.php` (matched as a trailing path segment); **anything else under `/wp-admin` is never a real public endpoint** and now falls through to the decoy-404. `wp-cron.php`, the REST tree (`/wp-json/`), and feeds (`/feed`, `/feed/`) are matched outside `/wp-admin`. Real endpoints — including subdirectory installs and the `//` network-path form — are unchanged.
+- **The decoy-404 decision is path-anchored, not a raw `strpos`** ([inc/login-hide.php](inc/login-hide.php)) — Branch-3 of the `wp_loaded` handler decided "is this an unauthenticated `/wp-admin` request?" with `strpos($request_uri, '/wp-admin') === 0` on the raw URI. That left `//wp-admin/...` (the webserver still resolves it to wp-admin after merging slashes, but `/wp-admin` sat at offset 1) skipping the decoy, and falsely 404-ed any `/wp-administrator` page that merely shares the prefix. A new `sn_login_request_targets_wp_admin()` anchors on the `//`-normalized path with a segment boundary (shared normalizer `sn_login_request_path()` with the allowlist), closing both.
+
+### Tests
+
+- Extended [tests/login-intercept.php](tests/login-intercept.php) (+13): the four `/wp-admin/<needle>` path-substring smuggles are now NOT allowlisted (RED-verified against v4.14.3); real endpoints incl. subdirectory + `//` forms still are; and the decoy decision is path/segment-anchored (`//wp-admin/` targets wp-admin, `/wp-administrator` does not). Full plugin sweep: 63 suites, 0 failures; PHPCS security ruleset falsification-verified.
+
+### Docs
+
+- See the theme repo's [docs/superpowers/audits/2026-06-09-delta-audit.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/superpowers/audits/2026-06-09-delta-audit.md) for the delta-audit report (this item = the login-hide sibling; the reading-time existence-oracle sibling was fixed in the theme as v9.15.5).
+
+> **Why PATCH:** defense-in-depth hardening of the existing login-hide obscurity layer — no auth-model change, no new capability, no public-API or settings-schema change, no required user action beyond installing. Real public endpoints and legitimate `/wp-admin` access are unaffected.
+
 ## [4.14.3] - 2026-06-09 — Back-audit INFO hardening (defense-in-depth)
 
 **Headline:** The two plugin-side INFO/defense-in-depth items from the 2026-06-09 security back-audit. Neither is a live exploit — both close a boundary gap so a *future* unescaped consumer can't inherit a problem.
