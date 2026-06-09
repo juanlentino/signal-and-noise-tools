@@ -12,6 +12,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+      id-token: write   # claude-code-action requests an OIDC token; without this the job fails before reviewing
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
