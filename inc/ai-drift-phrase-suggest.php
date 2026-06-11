@@ -31,8 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // v4.2.0 PROMPT DESIGN (D-09): paired with inc/health-checks.php's
 // SNT_AI_DRIFT_SYSTEM detection prompt. This prompt generates replacement
-// suggestions for positions identified by the detection pass. See spec
-// at docs/superpowers/specs/2026-05-25-v4.0.0-ai-health-suggest-apply-design.md.
+// suggestions for positions identified by the detection pass.
 const SNT_AI_DRIFT_SUGGEST_SYSTEM = 'Replace a time-relative phrase with a temporally-explicit equivalent. ' .
 	'Given the original phrase, the surrounding context, the post\'s last-modified date, and today\'s date, ' .
 	'output ONLY the replacement phrase. Rules: ' .

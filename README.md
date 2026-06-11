@@ -1,49 +1,45 @@
 # Signal & Noise Tools
 
-Companion plugin for the [Signal & Noise theme](https://github.com/juanlentino/signal-and-noise). Holds the operational tooling that lives outside theme presentation: REST surface, Plausible integration, Cloudflare purge, security headers, admin UI.
+Companion plugin to the [**Signal & Noise** theme](https://github.com/juanlentino/signal-and-noise) for [juanlentino.com](https://juanlentino.com). It holds the operational tooling that doesn't belong in a presentation theme — SEO, security, analytics, admin surfaces, and AI-assisted editorial helpers — so the theme stays focused on design and the plugin owns behaviour.
 
-## Status
+Built on WordPress 7.0's Abilities API and AI Client: it both registers the site's capabilities for AI agents and ships in-editor AI helpers (alt text, meta descriptions, excerpts, brand-voice checks) that call the site owner's configured model provider.
 
-Phase 1 of a 4-phase split from the theme repo. See the theme's `docs/superpowers/specs/2026-05-15-companion-plugin-phase-1-design.md` for the full architecture spec.
+<!-- screenshot placeholder — admin UI (Appearance → Signal & Noise) -->
+<!-- ![Signal & Noise Tools admin](docs/screenshot.png) -->
 
-## Installation (Phase 1, manual)
+## What it does
 
-**Order matters.** The companion theme (Signal & Noise) must be at v8.2.0+ before this plugin can load. v8.2.0 is the theme release that deleted the 9 module files from the theme's `inc/`; without that deletion, both packages declare the same function names and PHP fatals. Since v1.0.1, the plugin's bootstrap detects this situation and bails out with an admin notice instead of fataling — but the maintainer still needs to ship the theme update to actually use the plugin.
-
-1. Update the Signal & Noise theme to v8.2.0+ (WP admin → Dashboard → Updates → click *Update* on the theme tile, or visit `…/wp-admin/update-core.php?force-check=1` to surface it faster).
-2. Download a release zip from this repo's *Releases* tab (or `https://github.com/juanlentino/signal-and-noise-tools/archive/refs/tags/v1.0.1.zip`).
-3. WP admin → Plugins → Add New → Upload Plugin → choose the zip → Install Now → Activate.
-4. If WP unzips to `wp-content/plugins/signal-and-noise-tools-1.0.1/` (with the version suffix), rename via SFTP to `wp-content/plugins/signal-and-noise-tools/`.
-
-Phase 2 will add a GitHub-poll self-updater that handles install/update automatically and removes the manual zip step.
+- **SEO** — meta descriptions, canonical handling, Open Graph, and cache excludes (replaces a third-party SEO plugin)
+- **Security** — HTTP security headers, login hardening / custom login slug, WP hardening
+- **Analytics** — self-hosted Plausible Stats API client with a stale-while-revalidate cache and grandfathered dashboard widgets
+- **Edge cache** — automatic Cloudflare purge on save / theme update
+- **Admin UI** — a tabbed settings surface, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
+- **AI-assisted editorial** — alt text, meta description, excerpt, OG title, brand-voice alignment, and content-opportunity suggestions, each an opt-in suggest-and-apply surface
+- **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 ## Cross-package contracts
 
-This plugin coordinates with the theme via WP hooks.
+The plugin coordinates with the theme through WordPress hooks rather than shared code:
 
 | Hook | Direction | Purpose |
 | --- | --- | --- |
-| `sn_purge_all_caches_result` | Plugin → Theme | Trigger theme's cache-purge function, get count back |
-| `sn_self_heal_force_run_result` | Plugin → Theme | Trigger theme's template self-heal, get result array back |
-| `sn_updater_branch` | Plugin → Theme | Read the theme updater's tracked branch |
-| `sn_updater_force_check` | Plugin → Theme | Force the theme updater to re-poll GitHub |
-| `sn_updater_clear_error` | Plugin → Theme | Dismiss the theme updater's error notice |
+| `sn_purge_all_caches_result` | Plugin → Theme | Trigger the theme's cache purge, return a count |
+| `sn_self_heal_force_run_result` | Plugin → Theme | Trigger the theme's template self-heal |
+| `sn_updater_branch` / `sn_updater_force_check` | Plugin → Theme | Read / re-poll the theme updater |
 
-## Modules in this plugin
+## Requirements
 
-| Module | What it does |
-| --- | --- |
-| `inc/seo.php` | Meta description filter, Breeze cache excludes |
-| `inc/security-headers.php` | HTTP security headers + WP hardening |
-| `inc/cloudflare-purge.php` | Auto-purge CF edge cache on save_post / theme update |
-| `inc/plausible-api.php` | Plausible Stats API client + SWR cache |
-| `inc/plausible-admin.php` | Plausible settings tab |
-| `inc/plausible-widget.php` | Dashboard Plausible widgets (snapshot + realtime + pages + sources) |
-| `inc/admin-bar.php` | Top-bar quick-action dropdown |
-| `inc/admin-page.php` | *Appearance → Signal & Noise* options page |
-| `inc/rest-api.php` | `signal-noise/v1` REST surface |
-| `inc/rss-plausible-tracker.php` | RSS subscriber tracking via Plausible + `wp_rss_feed_log` table (added v1.1.0, migrated from theme MU plugin) |
+- WordPress 7.0+ · PHP 8.0+
+- The **Signal & Noise** theme at v8.2.0+ (the release that moved these modules out of the theme; the plugin shows an admin notice rather than fataling if the theme is older)
+
+## Install
+
+Distributed via GitHub releases. Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
 
 ## License
 
-GPL-2.0-or-later — same as the theme.
+[GPL-2.0-or-later](LICENSE).
+
+---
+
+<sub>Built for [juanlentino.com](https://juanlentino.com). Full release history in [CHANGELOG.md](CHANGELOG.md).</sub>

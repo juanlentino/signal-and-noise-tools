@@ -105,9 +105,6 @@
 	// Native WP `.notice` classes are universally styled in wp-admin. Auto-
 	// dismiss after 6s. Click the × to dismiss earlier. Multiple notices stack.
 	function showToast( text, kind ) {
-		// eslint-disable-next-line no-console
-		console.log( '[SN]', text );
-
 		var notice = document.createElement( 'div' );
 		notice.className = 'notice notice-' + ( kind === 'err' ? 'error' : 'success' ) + ' is-dismissible';
 		notice.setAttribute( 'role', 'alert' );
@@ -192,19 +189,12 @@
 	}
 
 	// Generic runner: close palette → execute → DOM notice with result.
-	// v2.5.1 added console.log checkpoints at each step so failures inside the
-	// promise chain are visible in browser console (the previous silent-on-failure
-	// path made the v2.5.0 snackbar bug invisible to the user).
 	function run( label, name, annotations, input, close, onSuccess ) {
-		// eslint-disable-next-line no-console
-		console.log( '[SN] command clicked:', name );
 		if ( typeof close === 'function' ) {
 			close();
 		}
 		executeAbility( name, annotations, input )
 			.then( function( res ) {
-				// eslint-disable-next-line no-console
-				console.log( '[SN] ability response:', name, res );
 				if ( typeof onSuccess === 'function' ) {
 					onSuccess( res, label );
 				} else {
