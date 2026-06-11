@@ -91,6 +91,10 @@ function sn_admin_top_tabs() {
 			'sub_tabs' => array(
 				'insights'  => array( 'label' => 'Insights' ),
 				'health'    => array( 'label' => 'Health' ),
+				// v5.0.1 (P3): first-party edge analytics dashboard. Placed
+				// before Plausible — it's the new-replaces-old surface; the
+				// Plausible sub-tab is removed at the creds-gated cutover.
+				'analytics' => array( 'label' => 'Analytics' ),
 				'plausible' => array( 'label' => 'Plausible' ),
 				'rss'       => array( 'label' => 'RSS' ),
 				// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync —
