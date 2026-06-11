@@ -100,17 +100,19 @@
 	</rule>
 
 	<!--
-		PreparedSQL: scoped-EXCLUDED only in the two custom-table files + the
-		insights reader. Those tables (wp_snt_cron_history, wp_rss_feed_log) have
-		no WP API wrapper, so the table NAME must be interpolated ($wpdb->prefix .
-		CONSTANT — never user input; identifiers cannot be bound by prepare()).
-		Every VALUE is bound (%d/%s) or integer-clamped. Hand-verified in the
-		v4.5.1 security audit. The sniff stays ACTIVE everywhere else.
+		PreparedSQL: scoped-EXCLUDED only in the three custom-table files + the
+		insights reader. Those tables (wp_snt_cron_history, wp_rss_feed_log,
+		wp_sn_analytics_daily) have no WP API wrapper, so the table NAME must be
+		interpolated ($wpdb->prefix . CONSTANT — never user input; identifiers
+		cannot be bound by prepare()). Every VALUE is bound (%d/%s/%f) or
+		integer-clamped. Hand-verified in the v4.5.1 security audit + the v5.0.1
+		analytics-rollup add. The sniff stays ACTIVE everywhere else.
 	-->
 	<rule ref="WordPress.DB.PreparedSQL">
 		<exclude-pattern>*/inc/cron-history.php</exclude-pattern>
 		<exclude-pattern>*/inc/rss-plausible-tracker.php</exclude-pattern>
 		<exclude-pattern>*/inc/insights.php</exclude-pattern>
+		<exclude-pattern>*/inc/analytics-rollup.php</exclude-pattern>
 	</rule>
 
 	<!--

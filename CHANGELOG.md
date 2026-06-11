@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — First-party edge analytics: data layer (P2)
+
+**Headline:** The plugin-side data layer for the first-party, cookieless edge-analytics pipeline (theme beacon → Cloudflare Worker → Analytics Engine → this rollup → widgets/insights/front-end). Internal plumbing only — no user-visible surface yet, and fully dormant (no writes, no errors) until the Cloudflare Analytics-Read credentials (`SN_CF_ANALYTICS_TOKEN` + `SN_CF_ACCOUNT_ID`) are defined in `wp-config.php`. P3/P4 will re-point the dashboard widgets, insights, and a front-end `[sn_popular]` block onto this source and retire the Plausible dependency.
+
+### New
+
+- **`wp_sn_analytics_daily` rollup table + daily Analytics Engine rollup** ([inc/analytics-rollup.php](inc/analytics-rollup.php)). A durable per-day-per-path aggregate (`views` / `visits` / `scroll_avg` / `time_avg`, unique on `(day, path)`) rolled up from Cloudflare Analytics Engine via the P1 read-client, so history survives AE's ~90-day retention and the render path never blocks on a network call. Uses event-type-correct conditional aggregation (`sumIf`/`avgIf`) — pageviews from `pv` events, scroll depth from `sc`, dwell from `tm` — matching the edge worker's sparse-by-event-type write schema; a naive `avg()` would have been systematically skewed by the zero-padded rows. The trailing-window lower bound is floored to a day boundary (`toStartOfDay(now() - INTERVAL N DAY)`) so re-rolls are genuinely idempotent and never demote a previously-complete day to a partial slice.
+- **Stale-while-revalidate refresh** — an `admin_init` warmer schedules a non-blocking background rollup when the aggregate is older than 15 minutes, plus a daily recurring backstop on a **distinct** cron hook (sharing one hook would have left `wp_next_scheduled()` permanently truthy and silently neutered the on-demand warmer). Mirrors the proven `inc/plausible-api.php` SWR pattern.
+- **`sn_analytics_daily_range( $from, $to )`** read accessor for downstream surfaces — newest-day-first, type-normalized rows.
+- **AE SQL read-client wired into the loader** ([inc/analytics-api.php](inc/analytics-api.php)) — the P1 read-client (`sn_analytics_query()` / `sn_analytics_config()`) shipped on disk but unwired; it is now `require_once`'d immediately before its first consumer.
+
+### Tests
+
+- **`tests/analytics-rollup.php` (67 assertions)** covering the schema + SQL builders, the batched `INSERT … ON DUPLICATE KEY UPDATE` (full ordered VALUES tuple, every refreshed column, and value normalization — negative clamp, 2-dp rounding, 190-char path truncation), `run_rollup` orchestration (success / unconfigured / empty-result / AE-failure paths), `daily_range`, the warmer's scheduling decisions, and the daily backstop. Hardened against a false-green pass via a placeholder-type-aware `$wpdb` stub and production-SQL-clause assertions, then mutation-verified: wrong-column-binding, `%f→%d` truncation, dropped-metric, un-floored-window, broken-bound, and flipped-sort regressions each turn the suite red.
+
 ## [5.0.0] - 2026-06-10 — Modernization major: WP 7.0 floor + dead-route removal
 
 **Headline:** A pure modernization major — no new features, only real SemVer breaks. v5.0.0 raises the WordPress floor to 7.0, removes the long-deprecated gen-1 AI REST routes (their Ability replacements have been the live path since v2.5.0), promotes the gen-2 routes to runtime deprecation warnings (removal targets v6.0.0), and clears a DB orphan plus the WP<7.0 pre-warning notice.
