@@ -208,3 +208,53 @@ function sn_analytics_dims_run_rollup() {
 		sn_analytics_dims_upsert( $all );
 	}
 }
+
+/**
+ * Read accessor: top values for ONE dimension across an inclusive [$from,$to]
+ * day range, filtered to a single class (default human), ordered by views.
+ *
+ * @param string $dim   'referrer' | 'country' | 'device'.
+ * @param string $from  Inclusive start day, YYYY-MM-DD.
+ * @param string $to    Inclusive end day, YYYY-MM-DD.
+ * @param string $class Traffic class (default 'human').
+ * @param int    $limit Max rows (1..500).
+ * @return array<int, array{value:string, views:int, visits:int}>
+ */
+function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
+	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
+		return array();
+	}
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+	$limit = max( 1, min( 500, (int) $limit ) );
+
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DIMS_TABLE;
+
+	$results = $wpdb->get_results( $wpdb->prepare(
+		"SELECT value, SUM(views) AS views, SUM(visits) AS visits
+		 FROM {$table}
+		 WHERE day >= %s AND day <= %s AND dim = %s AND class = %s
+		 GROUP BY value
+		 ORDER BY views DESC
+		 LIMIT %d",
+		(string) $from,
+		(string) $to,
+		$dim,
+		$class,
+		$limit
+	), ARRAY_A );
+
+	$out = array();
+	if ( is_array( $results ) ) {
+		foreach ( $results as $r ) {
+			$out[] = array(
+				'value'  => (string) $r['value'],
+				'views'  => (int) $r['views'],
+				'visits' => (int) $r['visits'],
+			);
+		}
+	}
+	return $out;
+}

@@ -171,5 +171,33 @@ $GLOBALS['__ad_config_present'] = false;
 sn_analytics_dims_run_rollup();
 ok( count( $GLOBALS['__ad_query_calls'] ) === 0, 'run: no AE query when unconfigured' );
 
+echo "\nGroup: top_dimension accessor\n";
+ad_reset();
+$GLOBALS['wpdb']->rows['wp_sn_analytics_dims'] = array(
+	array( 'day' => '2026-06-11', 'dim' => 'referrer', 'value' => 'a.com', 'class' => 'human', 'views' => 100, 'visits' => 40 ),
+	array( 'day' => '2026-06-10', 'dim' => 'referrer', 'value' => 'a.com', 'class' => 'human', 'views' => 50,  'visits' => 20 ),
+	array( 'day' => '2026-06-11', 'dim' => 'referrer', 'value' => 'b.com', 'class' => 'human', 'views' => 200, 'visits' => 70 ),
+	array( 'day' => '2026-06-11', 'dim' => 'referrer', 'value' => 'spam',  'class' => 'bot',   'views' => 999, 'visits' => 1 ),
+	array( 'day' => '2026-06-11', 'dim' => 'country',  'value' => 'US',    'class' => 'human', 'views' => 300, 'visits' => 90 ),
+);
+$ref = sn_analytics_top_dimension( 'referrer', '2026-06-01', '2026-06-12' ); // default human
+ok( count( $ref ) === 2, 'top_dimension: human referrers only (bot excluded), grouped across days' );
+ok( $ref[0]['value'] === 'b.com' && $ref[0]['views'] === 200, 'top_dimension: ordered by views desc' );
+$acom = array_values( array_filter( $ref, function ( $r ) { return $r['value'] === 'a.com'; } ) );
+ok( $acom[0]['views'] === 150, 'top_dimension: sums views across the day range' );
+ok( is_int( $ref[0]['views'] ) && is_int( $ref[0]['visits'] ), 'top_dimension: counts normalized to int' );
+$range_sql = end( $GLOBALS['wpdb']->queries );
+ok( strpos( $range_sql, "dim = 'referrer'" ) !== false && strpos( $range_sql, "class = 'human'" ) !== false, 'top_dimension: SQL filters dim + class' );
+ok( strpos( $range_sql, 'GROUP BY value' ) !== false && strpos( $range_sql, 'ORDER BY views DESC' ) !== false, 'top_dimension: groups by value, orders by views' );
+ok( strpos( $range_sql, 'day >= ' ) !== false && strpos( $range_sql, 'day <= ' ) !== false,
+	'top_dimension: SQL applies BOTH the lower and upper day bound' );
+sn_analytics_top_dimension( 'referrer', '2026-06-01', '2026-06-12', 'human', 9999 );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), 'LIMIT 500' ) !== false,
+	'top_dimension: limit clamps to 500 max' );
+ok( strpos( $range_sql, 'LIMIT' ) !== false, 'top_dimension: applies a LIMIT' );
+ok( sn_analytics_top_dimension( 'martian', '2026-06-01', '2026-06-12' ) === array(), 'top_dimension: unknown dim → empty array, no query' );
+$bots = sn_analytics_top_dimension( 'referrer', '2026-06-01', '2026-06-12', 'bot' );
+ok( count( $bots ) === 1 && $bots[0]['value'] === 'spam', 'top_dimension: explicit class returns that bucket' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
