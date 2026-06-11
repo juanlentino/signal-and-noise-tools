@@ -171,6 +171,23 @@ class AR_Stub_wpdb {
 				return (string) $r['day'] <= $to;
 			} ) );
 		}
+		if ( preg_match( "/class = '([^']*)'/", $sql, $cm ) ) {
+			$cls  = $cm[1];
+			$rows = array_values( array_filter( $rows, function ( $r ) use ( $cls ) {
+				return (string) ( $r['class'] ?? 'human' ) === $cls;
+			} ) );
+		}
+		// GROUP BY class → return per-class SUM(views)/SUM(visits) rows.
+		if ( stripos( $sql, 'GROUP BY class' ) !== false ) {
+			$agg = array();
+			foreach ( $rows as $r ) {
+				$c = (string) ( $r['class'] ?? 'human' );
+				if ( ! isset( $agg[ $c ] ) ) { $agg[ $c ] = array( 'class' => $c, 'views' => 0, 'visits' => 0 ); }
+				$agg[ $c ]['views']  += (int) $r['views'];
+				$agg[ $c ]['visits'] += (int) $r['visits'];
+			}
+			return array_values( $agg );
+		}
 		usort( $rows, function ( $a, $b ) {
 			$cmp = strcmp( (string) $b['day'], (string) $a['day'] );
 			return 0 !== $cmp ? $cmp : ( (int) $b['views'] - (int) $a['views'] );
@@ -374,17 +391,22 @@ ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) === false, 'run_rollup: AE fa
 echo "\nGroup: daily_range\n";
 ar_reset();
 $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
-	array( 'id' => 1, 'day' => '2026-06-09', 'path' => '/',        'views' => '10', 'visits' => '8',  'scroll_avg' => '33.3', 'time_avg' => '2000' ),
-	array( 'id' => 2, 'day' => '2026-06-11', 'path' => '/notes/a', 'views' => '42', 'visits' => '30', 'scroll_avg' => '58.5', 'time_avg' => '12345' ),
-	array( 'id' => 3, 'day' => '2026-06-05', 'path' => '/old',     'views' => '5',  'visits' => '5',  'scroll_avg' => '20',   'time_avg' => '900' ),
-	array( 'id' => 4, 'day' => '2026-06-20', 'path' => '/future',  'views' => '99', 'visits' => '50', 'scroll_avg' => '70',   'time_avg' => '8000' ), // AFTER `to` — makes the upper bound load-bearing
+	array( 'id' => 1, 'day' => '2026-06-09', 'path' => '/',        'class' => 'human', 'views' => '10', 'visits' => '8',  'scroll_avg' => '33.3', 'time_avg' => '2000' ),
+	array( 'id' => 2, 'day' => '2026-06-11', 'path' => '/notes/a', 'class' => 'human', 'views' => '42', 'visits' => '30', 'scroll_avg' => '58.5', 'time_avg' => '12345' ),
+	array( 'id' => 3, 'day' => '2026-06-11', 'path' => '/notes/a', 'class' => 'bot',   'views' => '500','visits' => '5',  'scroll_avg' => '0',    'time_avg' => '0' ),
 );
-$out = sn_analytics_daily_range( '2026-06-08', '2026-06-12' );
-ok( is_array( $out ) && count( $out ) === 2, 'daily_range: filters to rows within [from, to] (both bounds load-bearing)' );
-ok( ( $out[0]['day'] ?? '' ) === '2026-06-11', 'daily_range: newest day first' );
-ok( is_int( $out[0]['views'] ?? null ) && $out[0]['views'] === 42, 'daily_range: views normalized to int' );
-ok( is_float( $out[0]['scroll_avg'] ?? null ), 'daily_range: scroll_avg normalized to float' );
-ok( ( $out[0]['path'] ?? '' ) === '/notes/a', 'daily_range: path preserved' );
+$human = sn_analytics_daily_range( '2026-06-08', '2026-06-12' ); // default class = human
+ok( count( $human ) === 2, 'daily_range: defaults to human, excludes the bot row' );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), "class = 'human'" ) !== false, 'daily_range: SQL filters class = human by default' );
+
+$bots = sn_analytics_daily_range( '2026-06-08', '2026-06-12', 'bot' );
+ok( count( $bots ) === 1 && $bots[0]['views'] === 500, 'daily_range: explicit class returns that bucket' );
+
+// human[0] is the 2026-06-11 /notes/a row (newest day, highest views in the human bucket).
+ok( ( $human[0]['day'] ?? '' ) === '2026-06-11', 'daily_range: newest day first' );
+ok( is_int( $human[0]['views'] ?? null ) && $human[0]['views'] === 42, 'daily_range: views normalized to int' );
+ok( is_float( $human[0]['scroll_avg'] ?? null ), 'daily_range: scroll_avg normalized to float' );
+ok( ( $human[0]['path'] ?? '' ) === '/notes/a', 'daily_range: path preserved' );
 // Pin the PRODUCTION SQL clauses (not the stub's reimplemented filter), so a
 // broken upper bound or flipped sort can't ship green through the stub.
 $range_sql = end( $GLOBALS['wpdb']->queries );
@@ -392,6 +414,19 @@ ok( strpos( $range_sql, 'day >= ' ) !== false && strpos( $range_sql, 'day <= ' )
 	'daily_range: SQL applies BOTH the lower and upper day bound' );
 ok( strpos( $range_sql, 'ORDER BY day DESC' ) !== false,
 	'daily_range: SQL orders newest day first' );
+
+// ── class totals accessor ─────────────────────────────────────────────────────
+echo "\nGroup: class totals\n";
+ar_reset();
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'human',   'views' => '40', 'visits' => '30', 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'bot',     'views' => '500','visits' => '5',  'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'suspect', 'views' => '12', 'visits' => '4',  'scroll_avg' => 0, 'time_avg' => 0 ),
+);
+$tot = sn_analytics_class_totals( '2026-06-08', '2026-06-12' );
+ok( ( $tot['human']['views'] ?? null ) === 40, 'class_totals: human views summed' );
+ok( ( $tot['bot']['views'] ?? null ) === 500, 'class_totals: bot views summed' );
+ok( ( $tot['suspect']['visits'] ?? null ) === 4, 'class_totals: suspect visits summed' );
 
 // ── SWR warmer scheduling decision ────────────────────────────────────────────
 echo "\nGroup: warmer\n";

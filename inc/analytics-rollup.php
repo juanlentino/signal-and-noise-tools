@@ -291,23 +291,29 @@ add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );
 
 /**
  * Read accessor for downstream surfaces: rolled-up rows for an inclusive
- * [$from, $to] day range, newest day first, type-normalized for the JSON layer.
+ * [$from, $to] day range filtered to a single traffic class (default 'human'),
+ * newest day first, type-normalized for the JSON layer.
  *
- * @param string $from Inclusive start day, YYYY-MM-DD.
- * @param string $to   Inclusive end day, YYYY-MM-DD.
- * @return array<int, array{day:string,path:string,views:int,visits:int,scroll_avg:float,time_avg:float}>
+ * @param string $from  Inclusive start day, YYYY-MM-DD.
+ * @param string $to    Inclusive end day, YYYY-MM-DD.
+ * @param string $class Traffic class to return: 'human' | 'suspect' | 'bot'. Defaults to 'human'.
+ * @return array<int, array{day:string,path:string,class:string,views:int,visits:int,scroll_avg:float,time_avg:float}>
  */
-function sn_analytics_daily_range( $from, $to ) {
+function sn_analytics_daily_range( $from, $to, $class = 'human' ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
 
 	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT day, path, views, visits, scroll_avg, time_avg
+		"SELECT day, path, class, views, visits, scroll_avg, time_avg
 		 FROM {$table}
-		 WHERE day >= %s AND day <= %s
+		 WHERE day >= %s AND day <= %s AND class = %s
 		 ORDER BY day DESC, views DESC",
 		(string) $from,
-		(string) $to
+		(string) $to,
+		$class
 	), ARRAY_A );
 
 	if ( ! is_array( $results ) ) {
@@ -319,11 +325,45 @@ function sn_analytics_daily_range( $from, $to ) {
 		$out[] = array(
 			'day'        => (string) $r['day'],
 			'path'       => (string) $r['path'],
+			'class'      => (string) $r['class'],
 			'views'      => (int) $r['views'],
 			'visits'     => (int) $r['visits'],
 			'scroll_avg' => (float) $r['scroll_avg'],
 			'time_avg'   => (float) $r['time_avg'],
 		);
+	}
+	return $out;
+}
+
+/**
+ * Per-class view/visit totals across a day range — feeds the "N automated
+ * filtered" separation line. Returns a map keyed by class.
+ *
+ * @param string $from Inclusive start day, YYYY-MM-DD.
+ * @param string $to   Inclusive end day, YYYY-MM-DD.
+ * @return array<string, array{views:int, visits:int}>
+ */
+function sn_analytics_class_totals( $from, $to ) {
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+
+	$results = $wpdb->get_results( $wpdb->prepare(
+		"SELECT class, SUM(views) AS views, SUM(visits) AS visits
+		 FROM {$table}
+		 WHERE day >= %s AND day <= %s
+		 GROUP BY class",
+		(string) $from,
+		(string) $to
+	), ARRAY_A );
+
+	$out = array();
+	if ( is_array( $results ) ) {
+		foreach ( $results as $r ) {
+			$out[ (string) $r['class'] ] = array(
+				'views'  => (int) $r['views'],
+				'visits' => (int) $r['visits'],
+			);
+		}
 	}
 	return $out;
 }
