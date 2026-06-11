@@ -84,6 +84,7 @@ const SN_ANALYTICS_ROLLUP_WINDOW_DAYS  = 7;                            // traili
 const SN_ANALYTICS_ROLLUP_FRESH_KEY    = 'sn_analytics_rollup_fresh';
 const SN_ANALYTICS_ROLLUP_TTL          = 15 * MINUTE_IN_SECONDS;  // freshness target for the admin warmer
 const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness stamp outlives the TTL
+const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
 
 /**
  * dbDelta CREATE TABLE for the daily aggregate.
@@ -208,14 +209,19 @@ function sn_analytics_rollup_upsert( $rows ) {
 		if ( ! is_array( $r ) ) {
 			continue;
 		}
-		$day  = isset( $r['day'] ) ? trim( (string) $r['day'] ) : '';
-		$path = isset( $r['path'] ) ? (string) $r['path'] : '';
+		$day   = isset( $r['day'] ) ? trim( (string) $r['day'] ) : '';
+		$path  = isset( $r['path'] ) ? (string) $r['path'] : '';
+		$class = isset( $r['class'] ) && '' !== (string) $r['class'] ? (string) $r['class'] : 'human';
 		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || '' === $path ) {
 			continue;
 		}
+		if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+			continue; // defensive: never store an unexpected class
+		}
 		$clean[] = array(
 			'day'        => $day,
-			'path'       => substr( $path, 0, 190 ),
+			'path'       => substr( $path, 0, 180 ),
+			'class'      => $class,
 			'views'      => max( 0, (int) round( (float) ( $r['views'] ?? 0 ) ) ),
 			'visits'     => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
 			'scroll_avg' => round( (float) ( $r['scroll_avg'] ?? 0 ), 2 ),
@@ -234,10 +240,10 @@ function sn_analytics_rollup_upsert( $rows ) {
 		$placeholders = array();
 		$values       = array();
 		foreach ( $chunk as $c ) {
-			$placeholders[] = '(%s, %s, %d, %d, %f, %f)';
-			array_push( $values, $c['day'], $c['path'], $c['views'], $c['visits'], $c['scroll_avg'], $c['time_avg'] );
+			$placeholders[] = '(%s, %s, %s, %d, %d, %f, %f)';
+			array_push( $values, $c['day'], $c['path'], $c['class'], $c['views'], $c['visits'], $c['scroll_avg'], $c['time_avg'] );
 		}
-		$sql = "INSERT INTO {$table} (day, path, views, visits, scroll_avg, time_avg) VALUES "
+		$sql = "INSERT INTO {$table} (day, path, class, views, visits, scroll_avg, time_avg) VALUES "
 			. implode( ', ', $placeholders )
 			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits), scroll_avg=VALUES(scroll_avg), time_avg=VALUES(time_avg)';
 

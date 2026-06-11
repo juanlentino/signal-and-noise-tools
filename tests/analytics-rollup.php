@@ -258,8 +258,8 @@ ok( preg_match( "/INTERVAL '1' DAY/", $zero ) === 1, 'rollup-sql: a non-positive
 echo "\nGroup: upsert\n";
 ar_reset();
 $rows = array(
-	array( 'day' => '2026-06-11', 'path' => '/notes/a', 'views' => '42', 'visits' => '30', 'scroll_avg' => '58.5', 'time_avg' => '12345' ),
-	array( 'day' => '2026-06-11', 'path' => '/',        'views' => 100,  'visits' => 80,   'scroll_avg' => 40,     'time_avg' => 5000 ),
+	array( 'day' => '2026-06-11', 'path' => '/notes/a', 'class' => 'human', 'views' => '42', 'visits' => '30', 'scroll_avg' => '58.5', 'time_avg' => '12345' ),
+	array( 'day' => '2026-06-11', 'path' => '/',        'class' => 'bot',   'views' => 100,  'visits' => 80,   'scroll_avg' => 40,     'time_avg' => 5000 ),
 );
 $n = sn_analytics_rollup_upsert( $rows );
 ok( 2 === $n, 'upsert: returns the number of rows written' );
@@ -270,8 +270,8 @@ ok( stripos( $q, 'INSERT INTO wp_sn_analytics_daily' ) !== false, 'upsert: INSER
 ok( stripos( $q, 'ON DUPLICATE KEY UPDATE' ) !== false, 'upsert: uses ON DUPLICATE KEY UPDATE' );
 // Full VALUES tuple in EXACT column order — distinct sentinels pin both
 // position and per-column type binding (catches swapped columns + %f→%d).
-ok( strpos( $q, "'2026-06-11', '/notes/a', 42, 30, 58.5, 12345" ) !== false,
-	'upsert: row binds (day, path, views, visits, scroll_avg, time_avg) in that exact order + type' );
+ok( strpos( $q, "'2026-06-11', '/notes/a', 'human', 42, 30, 58.5, 12345" ) !== false,
+	'upsert: binds (day, path, class, views, visits, scroll_avg, time_avg) in exact order' );
 // Every metric column is refreshed on conflict, not just views — this is the
 // recomputed-partial-day self-correction guarantee.
 foreach ( array( 'views', 'visits', 'scroll_avg', 'time_avg' ) as $col ) {
@@ -295,17 +295,31 @@ ok( 0 === sn_analytics_rollup_upsert( array() ), 'upsert: empty input returns 0'
 ok( count( $GLOBALS['wpdb']->queries ) === 0, 'upsert: empty input issues no query' );
 
 // Value normalization: negative views/visits clamp to 0, averages round to 2dp,
-// and an over-long path truncates to 190 chars.
+// and an over-long path truncates to 180 chars.
 ar_reset();
 $long_path = '/' . str_repeat( 'a', 250 );
 sn_analytics_rollup_upsert( array(
 	array( 'day' => '2026-06-11', 'path' => $long_path, 'views' => -5, 'visits' => -1, 'scroll_avg' => '58.567', 'time_avg' => '12345.6789' ),
 ) );
 $qn = $GLOBALS['wpdb']->queries[0];
-ok( strpos( $qn, "'/" . str_repeat( 'a', 189 ) . "'" ) !== false && strpos( $qn, str_repeat( 'a', 191 ) ) === false,
-	'upsert: path truncated to 190 chars' );
+ok( strpos( $qn, "'/" . str_repeat( 'a', 179 ) . "'" ) !== false && strpos( $qn, str_repeat( 'a', 181 ) ) === false,
+	'upsert: path truncated to 180 chars' );
 ok( strpos( $qn, ', 0, 0, 58.57, 12345.68' ) !== false,
 	'upsert: negative counts clamp to 0; averages round to 2 decimals' );
+
+// Unknown class is rejected (never stored; defensive allow-list).
+ar_reset();
+$n = sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-06-11', 'path' => '/x', 'class' => 'martian', 'views' => 1, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+) );
+ok( 0 === $n, 'upsert: a row with an unknown class is skipped' );
+
+// Missing class defaults to human.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-06-11', 'path' => '/x', 'views' => 1, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+) );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'/x', 'human'" ) !== false, 'upsert: a row with no class defaults to human' );
 
 // A failed $wpdb->query() (false) must NOT be counted as written.
 ar_reset();
