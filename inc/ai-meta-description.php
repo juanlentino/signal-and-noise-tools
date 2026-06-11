@@ -75,39 +75,6 @@ function snt_ai_truncate_meta_description( $text, $max = 155 ) {
 	return rtrim( $cut, " \t\n\r\0\x0B.,;:" );
 }
 
-/* ════════════════════════════════════════════════════════════════════════
- * REST ENDPOINT — signal-noise/v1/ai/generate-meta-description
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/generate-meta-description', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_ai_meta_desc_rest_handler',
-		'permission_callback' => 'snt_ai_meta_desc_rest_permission',
-		'args'                => array(
-			'post_id' => array(
-				'required'          => true,
-				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => function( $value ) {
-					return is_numeric( $value ) && (int) $value > 0;
-				},
-			),
-		),
-	) );
-} );
-
-/**
- * Per-request capability check. Caller must have edit_post for THIS post
- * (not just manage_options at large — anyone editing a post should be
- * able to generate AI meta descriptions for it, but not for posts they
- * can't otherwise touch).
- */
-function snt_ai_meta_desc_rest_permission( WP_REST_Request $request ) {
-	$post_id = (int) $request->get_param( 'post_id' );
-	return current_user_can( 'edit_post', $post_id );
-}
-
 /**
  * Generate a meta description for a post via the WP AI Client.
  *
@@ -158,22 +125,6 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
 		'description' => $description,
 		'length'      => strlen( $description ),
 	);
-}
-
-/**
- * @deprecated since 2.5.0 — prefer
- *   POST /wp-abilities/v1/signal-noise/ai-generate-meta-description/run
- * via the WP Abilities REST surface. This endpoint stays wired for
- * back-compat with v1.16.0+ JS clients on installs running pre-v2.5.0.
- */
-function snt_ai_meta_desc_rest_handler( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/ai-generate-meta-description/run' );
-	$post_id = (int) $request->get_param( 'post_id' );
-	$result  = snt_ai_meta_desc_impl( $post_id );
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	return rest_ensure_response( $result );
 }
 
 /* ════════════════════════════════════════════════════════════════════════

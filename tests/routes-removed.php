@@ -29,6 +29,7 @@ function rr_check( $cond, $msg ) {
 // Each entry: [ source file, the register_rest_route route-path string that must be ABSENT ].
 $removed = array(
 	array( 'inc/ai-excerpt.php', "'/ai/generate-excerpt'" ),
+	array( 'inc/ai-meta-description.php', "'/ai/generate-meta-description'" ),
 );
 
 foreach ( $removed as $r ) {
