@@ -192,7 +192,6 @@ require_once __DIR__ . '/inc/post-settings.php';
 require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/abilities-registration.php';
-require_once SNT_PATH . 'inc/admin-notice-wp-version.php';  // v4.6.0: WP 7.0 pre-warning
 require_once __DIR__ . '/inc/command-palette.php';
 require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-publish advisory gate (client-side, no AI)
 require_once SNT_PATH . 'inc/cron-dashboard.php';
