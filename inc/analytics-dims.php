@@ -78,3 +78,133 @@ function sn_analytics_dims_maybe_install() {
 }
 // NOTE: wired into the plugin loader (signal-and-noise-tools.php) in a later task; until then this module is loaded only by its CLI test.
 add_action( 'init', 'sn_analytics_dims_maybe_install' );
+
+/**
+ * AE SQL aggregating the trailing $days into per-day-per-value-per-class rows
+ * for ONE dimension. Returns '' for an unknown dim (caller issues no query).
+ * $days is integer-cast + floored (defence in depth — callers pass a constant).
+ *
+ * @param string $dim  One of array_keys( SN_ANALYTICS_DIM_COLUMNS ).
+ * @param int    $days Trailing window in days.
+ * @return string AE SQL, or '' if $dim is unknown.
+ */
+function sn_analytics_dims_rollup_sql( $dim, $days ) {
+	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
+		return '';
+	}
+	$col  = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
+	$days = max( 1, (int) $days );
+
+	return implode( ' ', array(
+		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"{$col} AS value,",
+		'blob7 AS class,',
+		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
+		'count(DISTINCT index1) AS visits',
+		'FROM ' . SN_ANALYTICS_DATASET,
+		"WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		'GROUP BY day, value, class',
+		'ORDER BY day DESC, views DESC',
+	) );
+}
+
+/**
+ * UPSERT dimension rows (each carrying day/dim/value/class/views/visits) into
+ * the dims table. Malformed rows are skipped: a YYYY-MM-DD day, a known dim, and
+ * a known class are required. A blank value becomes '(direct)' for referrer /
+ * '(unknown)' otherwise; values truncate to 160 chars. Batched per 100.
+ *
+ * @param array $rows
+ * @return int Rows written.
+ */
+function sn_analytics_dims_upsert( $rows ) {
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		return 0;
+	}
+
+	$clean = array();
+	foreach ( $rows as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$day   = isset( $r['day'] ) ? trim( (string) $r['day'] ) : '';
+		$dim   = isset( $r['dim'] ) ? (string) $r['dim'] : '';
+		$class = isset( $r['class'] ) && '' !== (string) $r['class'] ? (string) $r['class'] : 'human';
+		$value = isset( $r['value'] ) ? trim( (string) $r['value'] ) : '';
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) {
+			continue;
+		}
+		if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) || ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+			continue;
+		}
+		if ( '' === $value ) {
+			$value = ( 'referrer' === $dim ) ? '(direct)' : '(unknown)';
+		}
+		$clean[] = array(
+			'day'    => $day,
+			'dim'    => $dim,
+			'value'  => substr( $value, 0, 160 ),
+			'class'  => $class,
+			'views'  => max( 0, (int) round( (float) ( $r['views'] ?? 0 ) ) ),
+			'visits' => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
+		);
+	}
+	if ( empty( $clean ) ) {
+		return 0;
+	}
+
+	global $wpdb;
+	$table   = $wpdb->prefix . SN_ANALYTICS_DIMS_TABLE;
+	$written = 0;
+
+	foreach ( array_chunk( $clean, 100 ) as $chunk ) {
+		$placeholders = array();
+		$values       = array();
+		foreach ( $chunk as $c ) {
+			$placeholders[] = '(%s, %s, %s, %s, %d, %d)';
+			array_push( $values, $c['day'], $c['dim'], $c['value'], $c['class'], $c['views'], $c['visits'] );
+		}
+		$sql = "INSERT INTO {$table} (day, dim, value, class, views, visits) VALUES "
+			. implode( ', ', $placeholders )
+			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits)';
+
+		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		if ( false !== $result ) {
+			$written += count( $chunk );
+		}
+	}
+
+	return $written;
+}
+
+/**
+ * Roll all three dimensions: one AE query per dim, tag each row with its dim,
+ * merge, and UPSERT in one batch. Called from sn_analytics_run_rollup(). No-ops
+ * when AE isn't configured; a per-dim query failure (null) is skipped, not fatal.
+ */
+function sn_analytics_dims_run_rollup() {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! function_exists( 'sn_analytics_query' ) ) {
+		return;
+	}
+	if ( ! sn_analytics_config() ) {
+		return;
+	}
+
+	$all = array();
+	foreach ( array_keys( SN_ANALYTICS_DIM_COLUMNS ) as $dim ) {
+		$rows = sn_analytics_query( sn_analytics_dims_rollup_sql( $dim, SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+		if ( ! is_array( $rows ) ) {
+			continue;
+		}
+		foreach ( $rows as $row ) {
+			if ( is_array( $row ) ) {
+				$row['dim'] = $dim;
+				$all[]      = $row;
+			}
+		}
+	}
+
+	if ( ! empty( $all ) ) {
+		sn_analytics_dims_upsert( $all );
+	}
+}

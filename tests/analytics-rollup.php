@@ -198,6 +198,10 @@ class AR_Stub_wpdb {
 
 $GLOBALS['wpdb'] = new AR_Stub_wpdb();
 
+// P3 wire: run_rollup must drive the dims roll when the function exists.
+$GLOBALS['__ar_dims_called'] = 0;
+function sn_analytics_dims_run_rollup() { $GLOBALS['__ar_dims_called']++; }
+
 // ── Load the module under test ───────────────────────────────────────────────
 require_once __DIR__ . '/../inc/analytics-rollup.php';
 
@@ -226,6 +230,7 @@ function ar_reset() {
 	$GLOBALS['__ar_config_present']    = true;
 	$GLOBALS['__ar_dbdelta_calls']     = array();
 	$GLOBALS['__ar_query_fail']        = false;
+	$GLOBALS['__ar_dims_called']       = 0;
 	$GLOBALS['wpdb']                   = new AR_Stub_wpdb();
 }
 
@@ -357,6 +362,7 @@ sn_analytics_run_rollup();
 ok( count( $GLOBALS['__ar_query_calls'] ) === 1, 'run_rollup: issues exactly one AE query' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run_rollup: upserts the returned rows' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) !== false, 'run_rollup: stamps the freshness transient on success' );
+ok( $GLOBALS['__ar_dims_called'] === 1, 'run_rollup: drives the dims roll on a configured success' );
 
 // Not configured → AE query returns null → no upsert, no fresh stamp.
 ar_reset();
@@ -365,6 +371,7 @@ $GLOBALS['__ar_query_return']   = null;
 sn_analytics_run_rollup();
 ok( count( $GLOBALS['wpdb']->queries ) === 0, 'run_rollup: no upsert when AE is not configured' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) === false, 'run_rollup: no freshness stamp when unconfigured' );
+ok( $GLOBALS['__ar_dims_called'] === 0, 'run_rollup: skips the dims roll when unconfigured' );
 
 // Configured but AE returns an empty set → no upsert, but still stamps fresh
 // (a successful "nothing happened today" must not re-fire every 15 min).

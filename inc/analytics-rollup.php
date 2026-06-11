@@ -284,6 +284,12 @@ function sn_analytics_run_rollup() {
 		sn_analytics_rollup_upsert( $rows );
 	}
 
+	// P3: roll the referrer/country/device breakdowns in the same pass (their
+	// own AE queries). Guarded so a half-wired install never fatals the cron.
+	if ( function_exists( 'sn_analytics_dims_run_rollup' ) ) {
+		sn_analytics_dims_run_rollup();
+	}
+
 	set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
 }
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
