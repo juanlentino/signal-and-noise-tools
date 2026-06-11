@@ -274,12 +274,13 @@ function sn_rest_full_reset( WP_REST_Request $request ) {
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-stats`
  *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-stats/run).
- *             This back-compat route will be removed in v5.0.0+.
+ *             This back-compat route will be removed in v6.0.0.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_stats( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/get-plausible-stats/run' );
 	if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
 		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
 	}
@@ -299,12 +300,13 @@ function sn_rest_plausible_stats( WP_REST_Request $request ) {
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-realtime`
  *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-realtime/run).
- *             This back-compat route will be removed in v5.0.0+.
+ *             This back-compat route will be removed in v6.0.0.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_realtime( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/get-plausible-realtime/run' );
 	if ( ! function_exists( 'sn_plausible_realtime' ) ) {
 		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
 	}
@@ -324,12 +326,13 @@ function sn_rest_plausible_realtime( WP_REST_Request $request ) {
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/test-plausible-connection`
  *             ability (via /wp-abilities/v1/abilities/signal-noise/test-plausible-connection/run).
- *             This back-compat route will be removed in v5.0.0+.
+ *             This back-compat route will be removed in v6.0.0.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
 function sn_rest_plausible_test( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/test-plausible-connection/run' );
 	if ( ! function_exists( 'sn_plausible_config' ) || ! function_exists( 'sn_plausible_api' ) ) {
 		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
 	}
@@ -372,12 +375,13 @@ function sn_rest_plausible_test( WP_REST_Request $request ) {
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/run-cron-event`
  *             ability (via /wp-abilities/v1/abilities/signal-noise/run-cron-event/run).
- *             This back-compat route will be removed in v5.0.0+.
+ *             This back-compat route will be removed in v6.0.0.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
 function snt_rest_cron_run( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/run-cron-event/run' );
 	if ( ! function_exists( 'snt_cron_run_event_impl' ) ) {
 		return new WP_Error(
 			'snt_cron_unavailable',

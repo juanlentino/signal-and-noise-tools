@@ -183,12 +183,13 @@ function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprin
  * REST handler for /health/pattern-adoption-dismiss.
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-dismiss`
- *             ability. This back-compat route will be removed in v5.0.0+.
+ *             ability. This back-compat route will be removed in v6.0.0.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
 function snt_rest_pattern_adoption_dismiss( WP_REST_Request $request ) {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/pattern-adoption-dismiss/run' );
 	$post_id      = (int) $request->get_param( 'post_id' );
 	$fingerprint  = (string) $request->get_param( 'block_fingerprint' );
 	$pattern_type = (string) $request->get_param( 'pattern_type' );

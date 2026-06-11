@@ -70,33 +70,6 @@ const SNT_AI_EXCERPT_SYSTEM_CONCISE = 'Generate a WordPress excerpt for a publis
 
 const SNT_AI_EXCERPT_MAX_TOKENS_CONCISE = 120;
 
-/* ════════════════════════════════════════════════════════════════════════
- * REST ENDPOINT
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/generate-excerpt', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_ai_excerpt_rest_handler',
-		'permission_callback' => 'snt_ai_excerpt_rest_permission',
-		'args'                => array(
-			'post_id' => array(
-				'required'          => true,
-				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => function( $value ) {
-					return is_numeric( $value ) && (int) $value > 0;
-				},
-			),
-		),
-	) );
-} );
-
-function snt_ai_excerpt_rest_permission( WP_REST_Request $request ) {
-	$post_id = (int) $request->get_param( 'post_id' );
-	return current_user_can( 'edit_post', $post_id );
-}
-
 /**
  * Generate a 2-3 sentence post excerpt via the WP AI Client.
  *
@@ -145,22 +118,6 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 	);
 }
 
-/**
- * @deprecated since 2.5.0 — prefer
- *   POST /wp-abilities/v1/signal-noise/ai-generate-excerpt/run
- * via the WP Abilities REST surface. This endpoint stays wired for
- * back-compat with v2.4.0+ JS clients on installs running pre-v2.5.0.
- */
-function snt_ai_excerpt_rest_handler( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/ai-generate-excerpt/run' );
-	$post_id = (int) $request->get_param( 'post_id' );
-	$result  = snt_ai_excerpt_impl( $post_id );
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	return rest_ensure_response( $result );
-}
-
 /* ════════════════════════════════════════════════════════════════════════
  * META-BOX UI INJECTION
  * ════════════════════════════════════════════════════════════════════════ */
@@ -186,7 +143,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	);
 
 	wp_localize_script( 'snt-ai-excerpt', 'sntAiExcerpt', array(
-		'restPath'      => '/signal-noise/v1/ai/generate-excerpt',
 		'metaBoxClass'  => 'sn-post-settings',
 	) );
 

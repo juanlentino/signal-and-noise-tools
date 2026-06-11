@@ -190,7 +190,7 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	// mirror the values in the plugin file header for consistency with
 	// what the View Details modal renders (plugins_api filter below).
 	$plugin_data->tested       = '7.0';
-	$plugin_data->requires     = '6.4';
+	$plugin_data->requires     = '7.0';
 	$plugin_data->requires_php = '8.0';
 
 	if ( version_compare( $latest_version, $current_version, '>' ) ) {
@@ -334,7 +334,7 @@ add_filter( 'plugins_api', function( $result, $action, $args ) {
 	$info->author            = '<a href="https://juanlentino.com">Juan Lentino</a>';
 	$info->author_profile    = 'https://juanlentino.com';
 	$info->homepage          = $repo_url;
-	$info->requires          = '6.4';
+	$info->requires          = '7.0';
 	$info->tested            = '7.0';
 	$info->requires_php      = '8.0';
 	$info->download_link     = $latest_tag ? $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip' : '';

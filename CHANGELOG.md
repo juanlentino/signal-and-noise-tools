@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [5.0.0] - 2026-06-10 — Modernization major: WP 7.0 floor + dead-route removal
+
+**Headline:** A pure modernization major — no new features, only real SemVer breaks. v5.0.0 raises the WordPress floor to 7.0, removes the long-deprecated gen-1 AI REST routes (their Ability replacements have been the live path since v2.5.0), promotes the gen-2 routes to runtime deprecation warnings (removal targets v6.0.0), and clears a DB orphan plus the WP<7.0 pre-warning notice.
+
+### Removed
+
+- **WordPress < 7.0 is no longer supported** — `Requires at least: 7.0` (mirrored in the self-updater's View-Details values). Installs on older WP can no longer update.
+- **3 deprecated AI REST routes** (`@deprecated since 2.5.0`): `POST /signal-noise/v1/ai/generate-excerpt`, `/ai/generate-meta-description`, `/ai/generate-og-card-title`, and their permission callbacks + handlers. Use the Abilities run surface instead — `/wp-abilities/v1/abilities/signal-noise/ai-generate-{excerpt,meta-description,og-card-title}/run` — which the in-product JS clients already call. The shared `*_impl()` functions, constants, and the publish-time auto-prepopulation engine are **unchanged**.
+- **Orphan option** `sn_login_rewrites_flushed` (orphaned since v4.2.1 when login routing moved off `add_rewrite_rule`) — deleted once via a sentinel-gated `admin_init` migration.
+- **The WP<7.0 pre-warning admin notice** (`inc/admin-notice-wp-version.php`) — its job is done now that 7.0 is the floor.
+
+### Changed
+
+- **6 gen-2 REST routes now emit runtime deprecation warnings** (`@deprecated since 4.6.0`): Plausible stats/realtime/test, run-cron-event, pattern-adoption scan/dismiss. They still work; prefer their Abilities. A `_deprecated_function()` now fires under `WP_DEBUG`; **removal targets v6.0.0.**
+
+### Deferred
+
+- **The `/cmd/<action>` desktop-mode REST route stays deprecated, not removed.** Removing it cleanly requires migrating 4 desktop-mode widget JS clients (`desktop-mode.js`, `desktop-mode-widget{,-actions,-rss}.js`) from `/cmd/*` to the Abilities run surface — only the command palette is migrated — and that desktop-mode UI can't be automatically verified. So the widget flip + route removal are a focused, **live-verifiable follow-up**, not blind work inside this major. The route continues to fire its runtime deprecation warning.
+
+> **Why MAJOR:** removed public REST routes + a WordPress-floor raise are SemVer breaking changes requiring user action. Per the project's cap-drop rule, this is warranted by real breaks, not counter math. New guard tests: `manifest-floor`, `routes-removed`, `gen2-runtime-warnings`, `orphan-option-migration`. Full plugin suite green; PHPCS security ruleset falsification-verified.
+
 ## [4.14.5] - 2026-06-09 — Close `[sn_reading_time slug]` existence oracle
 
 **Headline:** Same INFO/existence-oracle class as the v4.14.2/v4.14.4 login-hide cluster, in a different surface. The `[sn_reading_time slug="..."]` shortcode resolved its slug with `get_page_by_path()` — which carries **no `post_status` filter** — and returned a real "N min read" for *any* resolvable post, including drafts, private, pending, future, and trashed ones. Chained to the theme's REST-reachable `signal-and-noise/get-reading-time-for-slug` ability (gated only by the blanket `read` cap that every subscriber-and-up holds), this turned the shortcode into an **existence oracle**: a logged-in subscriber could distinguish "slug exists as a non-public post" (real minutes returned) from "slug does not exist" (the theme falls back to its 5-min default). A weak length-proxy, but still a leak of existence/private-content metadata. Not an auth bypass — core still enforces edit/read auth on the posts themselves. This patch folds the non-public case onto the same empty-return path as a missing slug so the two responses are indistinguishable.

@@ -179,11 +179,12 @@ function snt_pattern_adoption_last_scan() {
  * REST handler for /health/pattern-adoption-scan.
  *
  * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-scan`
- *             ability. This back-compat route will be removed in v5.0.0+.
+ *             ability. This back-compat route will be removed in v6.0.0.
  *
  * @return WP_REST_Response
  */
 function snt_rest_pattern_adoption_scan() {
+	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/pattern-adoption-scan/run' );
 	$result = snt_pattern_adoption_run_scan();
 	return rest_ensure_response( $result );
 }

@@ -69,32 +69,6 @@ add_filter( 'sn_og_card_title', function( $default, $post_id ) {
 	return ( '' !== $override ) ? $override : $default;
 }, 10, 2 );
 
-/* ════════════════════════════════════════════════════════════════════════
- * REST ENDPOINT — signal-noise/v1/ai/generate-og-card-title
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/generate-og-card-title', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_ai_og_card_title_rest_handler',
-		'permission_callback' => 'snt_ai_og_card_title_rest_permission',
-		'args'                => array(
-			'post_id' => array(
-				'required'          => true,
-				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => function( $value ) {
-					return is_numeric( $value ) && (int) $value > 0;
-				},
-			),
-		),
-	) );
-} );
-
-function snt_ai_og_card_title_rest_permission( WP_REST_Request $request ) {
-	$post_id = (int) $request->get_param( 'post_id' );
-	return current_user_can( 'edit_post', $post_id );
-}
 
 /**
  * Generate an OG card title via the WP AI Client + persist + regenerate card.
@@ -172,21 +146,6 @@ function snt_ai_og_card_title_impl( $post_id ) {
 	);
 }
 
-/**
- * @deprecated since 2.5.0 — prefer
- *   POST /wp-abilities/v1/signal-noise/ai-generate-og-card-title/run
- * via the WP Abilities REST surface. This endpoint stays wired for
- * back-compat with v2.3.0+ JS clients on installs running pre-v2.5.0.
- */
-function snt_ai_og_card_title_rest_handler( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '2.5.0', 'wp-abilities/v1/abilities/signal-noise/ai-generate-og-card-title/run' );
-	$post_id = (int) $request->get_param( 'post_id' );
-	$result  = snt_ai_og_card_title_impl( $post_id );
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	return rest_ensure_response( $result );
-}
 
 /* ════════════════════════════════════════════════════════════════════════
  * META-BOX UI INJECTION
@@ -213,7 +172,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	);
 
 	wp_localize_script( 'snt-ai-og-card-title', 'sntAiOgCardTitle', array(
-		'restPath' => '/signal-noise/v1/ai/generate-og-card-title',
 		'targetId' => 'sn_og_card_title',
 	) );
 

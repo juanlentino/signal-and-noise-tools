@@ -38,9 +38,9 @@
  * sentinel-desync symptoms, but the underlying architectural dependency
  * on the rewrite engine was the root cause of fragility. v4.2.1 removes
  * the rewrite-rule path entirely. The orphan `sn_login_rewrites_flushed`
- * option may linger in the DB for sites that ran v1.5.0–v4.2.0 — it's
- * harmless (a single autoloaded string), and any future SN cleanup can
- * remove it via `delete_option()`.
+ * option lingered in the DB for sites that ran v1.5.0–v4.2.0; v5.0.0 removes
+ * it via the one-time sn_migrate_remove_orphan_options() migration
+ * (inc/migrate-orphan-options.php).
  *
  * Added in v1.5.0 (Phase 8 absorption, 2026-05-16).
  * Refactored in v4.2.1 (2026-05-26) to the wps-hide-login intercept
