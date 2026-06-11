@@ -162,7 +162,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	);
 
 	wp_localize_script( 'snt-ai-meta-description', 'sntAiMetaDesc', array(
-		'restPath' => '/signal-noise/v1/ai/generate-meta-description',
 		'targetId' => 'sn_meta_description', // matches inc/post-settings.php:146
 	) );
 

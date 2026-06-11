@@ -172,7 +172,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	);
 
 	wp_localize_script( 'snt-ai-og-card-title', 'sntAiOgCardTitle', array(
-		'restPath' => '/signal-noise/v1/ai/generate-og-card-title',
 		'targetId' => 'sn_og_card_title',
 	) );
 

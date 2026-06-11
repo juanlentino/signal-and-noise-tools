@@ -143,7 +143,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	);
 
 	wp_localize_script( 'snt-ai-excerpt', 'sntAiExcerpt', array(
-		'restPath'      => '/signal-noise/v1/ai/generate-excerpt',
 		'metaBoxClass'  => 'sn-post-settings',
 	) );
 

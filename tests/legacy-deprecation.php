@@ -4,12 +4,13 @@
  * keep their `@deprecated` PHPdoc annotation across future edits. Static grep
  * — no WP load.
  *
- * Covers 10 handlers:
- *   - 4 since-2.5.0 handlers (AI post-editor + desktop-mode command) — these
- *     also carry runtime `_deprecated_function()` calls.
+ * Covers 7 handlers (after the v5.0.0 gen-1 removals):
+ *   - 1 since-2.5.0 handler: the desktop-mode `/cmd` command
+ *     (`snt_desktop_cmd_handler`) — carries a runtime `_deprecated_function()`
+ *     call; its removal is deferred until the desktop-mode widgets migrate.
  *   - 6 since-4.6.0 handlers (Plausible × 3, cron-run, pattern-adoption
- *     scan/dismiss) — PHPdoc-level `@deprecated` only; runtime
- *     `_deprecated_function()` promotion is scheduled for v5.0.0.
+ *     scan/dismiss) — promoted to runtime `_deprecated_function()` in v5.0.0
+ *     (see tests/gen2-runtime-warnings.php); removal targets v6.0.0.
  *
  * The assertion checks each named function for deprecation evidence in
  * EITHER form:
