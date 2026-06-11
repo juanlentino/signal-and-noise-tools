@@ -35,7 +35,6 @@ $plugin_root = dirname( __DIR__ );
 // be unique.
 $checks = array(
 	array( 'inc/ai-meta-description.php',       'snt_ai_meta_desc_rest_handler' ),
-	array( 'inc/ai-excerpt.php',                'snt_ai_excerpt_rest_handler' ),
 	array( 'inc/ai-og-card-title.php',          'snt_ai_og_card_title_rest_handler' ),
 	array( 'inc/desktop-mode-integration.php',  'snt_desktop_cmd_handler' ),
 	array( 'inc/rest-api.php',                  'sn_rest_plausible_stats' ),
@@ -48,7 +47,7 @@ $checks = array(
 
 $pass = 0; $fail = 0;
 
-echo "Legacy deprecation annotation guard — plugin v4.6.0 (10 handlers)\n\n";
+echo 'Legacy deprecation annotation guard (' . count( $checks ) . " handlers)\n\n";
 
 foreach ( $checks as $entry ) {
 	$rel_path      = $entry[0];
