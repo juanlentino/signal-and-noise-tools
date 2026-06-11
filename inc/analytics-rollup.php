@@ -70,8 +70,8 @@ const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
 const SN_ANALYTICS_DAILY_DB_VERSION     = '1';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
-/** The Analytics Engine dataset the edge worker writes to (wrangler.toml). */
-const SN_ANALYTICS_DATASET = 'sn_pageviews';
+// SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
+// read-client inc/analytics-api.php, which the loader requires before this file.
 
 // Two distinct hooks, same callback. The warmer schedules SINGLE events on the
 // on-demand hook (which clears after firing, so wp_next_scheduled() reads false

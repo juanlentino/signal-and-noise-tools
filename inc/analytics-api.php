@@ -53,6 +53,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The Analytics Engine dataset the edge worker writes to (wrangler.toml binding
+ * SN_AE → dataset "sn_pageviews"). The shared SQL FROM target for every
+ * downstream consumer (inc/analytics-rollup.php, inc/analytics-realtime.php),
+ * housed here on the read-client so consumers depend on it, not on each other.
+ */
+const SN_ANALYTICS_DATASET = 'sn_pageviews';
+
+/**
  * Transient key for the last Analytics Engine API error.
  */
 const SN_ANALYTICS_ERR_KEY = 'sn_analytics_last_error';

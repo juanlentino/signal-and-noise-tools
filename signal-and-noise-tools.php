@@ -74,6 +74,7 @@ require_once SNT_PATH . 'inc/plausible-widget.php';
 // read-client; analytics-rollup.php (its first consumer) must load after it.
 require_once SNT_PATH . 'inc/analytics-api.php';
 require_once SNT_PATH . 'inc/analytics-rollup.php';
+require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/admin-bar.php';
 require_once SNT_PATH . 'inc/admin-page.php';
 // Admin UI — split out of the former 1,468-line inc/admin-page.php in v4.5.4.

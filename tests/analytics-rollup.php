@@ -30,6 +30,9 @@ define( 'ABSPATH', '/' );
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
+// Defined by inc/analytics-api.php in production (the read-client owns it); this
+// fixture doesn't load that file, so provide it for the rollup SQL builder.
+define( 'SN_ANALYTICS_DATASET', 'sn_pageviews' );
 if ( ! defined( 'OBJECT' )   ) { define( 'OBJECT',   'OBJECT' ); }
 if ( ! defined( 'ARRAY_A' )  ) { define( 'ARRAY_A',  'ARRAY_A' ); }
 
