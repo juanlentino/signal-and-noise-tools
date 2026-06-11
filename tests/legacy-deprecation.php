@@ -34,7 +34,6 @@ $plugin_root = dirname( __DIR__ );
 // handlers live in the same file (inc/rest-api.php) and array keys must
 // be unique.
 $checks = array(
-	array( 'inc/ai-og-card-title.php',          'snt_ai_og_card_title_rest_handler' ),
 	array( 'inc/desktop-mode-integration.php',  'snt_desktop_cmd_handler' ),
 	array( 'inc/rest-api.php',                  'sn_rest_plausible_stats' ),
 	array( 'inc/rest-api.php',                  'sn_rest_plausible_realtime' ),

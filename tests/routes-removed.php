@@ -30,6 +30,7 @@ function rr_check( $cond, $msg ) {
 $removed = array(
 	array( 'inc/ai-excerpt.php', "'/ai/generate-excerpt'" ),
 	array( 'inc/ai-meta-description.php', "'/ai/generate-meta-description'" ),
+	array( 'inc/ai-og-card-title.php', "'/ai/generate-og-card-title'" ),
 );
 
 foreach ( $removed as $r ) {
