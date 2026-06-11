@@ -168,6 +168,7 @@ function sn_analytics_rollup_sql( $days ) {
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		'blob2 AS path,',
+		'blob7 AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
 		'count(DISTINCT index1) AS visits,',
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
@@ -180,7 +181,7 @@ function sn_analytics_rollup_sql( $days ) {
 		// would clobber its previously-complete row — silently corrupting the
 		// durable forever-table. Flooring keeps every re-roll genuinely idempotent.
 		"WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
-		'GROUP BY day, path',
+		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );
 }

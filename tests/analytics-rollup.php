@@ -242,10 +242,11 @@ ok( strpos( $sql, "avgIf(double1, blob1 = 'sc')" ) !== false, 'rollup-sql: scrol
 ok( strpos( $sql, "avgIf(double2, blob1 = 'tm')" ) !== false, 'rollup-sql: time_avg = avgIf(double2, tm)' );
 ok( strpos( $sql, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false, 'rollup-sql: day-bucket via toStartOfDay+formatDateTime' );
 ok( strpos( $sql, 'blob2 AS path' ) !== false, 'rollup-sql: path = blob2' );
+ok( strpos( $sql, 'blob7 AS class' ) !== false, 'rollup-sql: selects blob7 AS class' );
 ok( preg_match( "/INTERVAL '7' DAY/", $sql ) === 1, 'rollup-sql: window uses the $days arg' );
 ok( strpos( $sql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false,
 	'rollup-sql: window lower bound is floored to a day boundary (oldest bucket is a complete day)' );
-ok( strpos( $sql, 'GROUP BY day, path' ) !== false, 'rollup-sql: groups by day + path' );
+ok( strpos( $sql, 'GROUP BY day, path, class' ) !== false, 'rollup-sql: groups by day, path AND class' );
 // Injection guard — $days must be integer-cast, never interpolated raw.
 $evil = sn_analytics_rollup_sql( "7; DROP TABLE x" );
 ok( strpos( $evil, 'DROP TABLE' ) === false && preg_match( "/INTERVAL '7' DAY/", $evil ) === 1,
