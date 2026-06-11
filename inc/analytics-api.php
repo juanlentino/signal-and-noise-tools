@@ -21,6 +21,9 @@
  *   blob4  = country       ISO-3166 alpha-2
  *   blob5  = device        'mobile' | 'tablet' | 'desktop'
  *   blob6  = host          e.g. 'juanlentino.com'
+ *   blob7  = traffic_class ('human' | 'suspect' | 'bot') — server-side
+ *            classification from the edge worker (UA + data-center ASN + CF
+ *            bot score). Default consumer view filters blob7 = 'human'.
  *
  *   double1 = scroll_pct   0–100 (scroll depth percentage)
  *   double2 = time_ms      dwell time in milliseconds
