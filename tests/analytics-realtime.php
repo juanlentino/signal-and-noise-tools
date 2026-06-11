@@ -105,6 +105,8 @@ $sql = sn_analytics_realtime_sql();
 ok( strpos( $sql, 'count(DISTINCT index1) AS visitors' ) !== false, 'sql: counts distinct visitor hashes' );
 ok( strpos( $sql, 'FROM sn_pageviews' ) !== false, 'sql: FROM the dataset' );
 ok( preg_match( "/INTERVAL '5' MINUTE/", $sql ) === 1, 'sql: 5-minute "now" window' );
+ok( strpos( $sql, 'blob7 AS class' ) !== false, 'sql: selects the class' );
+ok( strpos( $sql, 'GROUP BY class' ) !== false, 'sql: groups visitors by class' );
 
 // ── Accessor ──────────────────────────────────────────────────────────────────
 echo "\nGroup: accessor\n";
@@ -112,65 +114,56 @@ rt_reset();
 ok( sn_analytics_realtime() === null, 'accessor: null when never warmed' );
 
 rt_reset();
-set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'value' => 7, 'fetched' => time() ), 0 );
-ok( sn_analytics_realtime() === 7, 'accessor: returns the cached int count' );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 7, 'bot' => 50 ), 'fetched' => time() ), 0 );
+ok( sn_analytics_realtime() === 7, 'accessor: defaults to the human count' );
+ok( sn_analytics_realtime( 'bot' ) === 50, 'accessor: explicit class returns that count' );
+ok( sn_analytics_realtime( 'suspect' ) === 0, 'accessor: a class with no hits returns 0' );
 
 rt_reset();
-set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'value' => 0, 'fetched' => time() ), 0 );
-ok( sn_analytics_realtime() === 0, 'accessor: a warmed ZERO is returned as 0, not null' );
-
-rt_reset();
-set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'value' => '7', 'fetched' => time() ), 0 );
-ok( sn_analytics_realtime() === null, 'accessor: null when cached value is not a real int' );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 0 ), 'fetched' => time() ), 0 );
+ok( sn_analytics_realtime() === 0, 'accessor: a warmed zero is 0, not null' );
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 echo "\nGroup: refresh\n";
 rt_reset();
 $GLOBALS['__rt_config_present'] = true;
-$GLOBALS['__rt_query_return']   = array( array( 'visitors' => 7 ) );
+$GLOBALS['__rt_query_return']   = array(
+	array( 'class' => 'human', 'visitors' => 7 ),
+	array( 'class' => 'bot',   'visitors' => 50 ),
+);
 sn_analytics_realtime_refresh();
 ok( count( $GLOBALS['__rt_query_calls'] ) === 1, 'refresh: issues one AE query' );
 $c = get_transient( SN_ANALYTICS_REALTIME_KEY );
-ok( is_array( $c ) && ( $c['value'] ?? null ) === 7, 'refresh: caches the visitor count' );
+ok( is_array( $c ) && ( $c['counts']['human'] ?? null ) === 7, 'refresh: caches per-class human count' );
+ok( ( $c['counts']['bot'] ?? null ) === 50, 'refresh: caches per-class bot count' );
 ok( isset( $c['fetched'] ) && is_int( $c['fetched'] ), 'refresh: stamps a fetched timestamp' );
 
-// A real zero is cached (distinct from "no data").
 rt_reset();
-$GLOBALS['__rt_query_return'] = array( array( 'visitors' => 0 ) );
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 0 ) );
 sn_analytics_realtime_refresh();
-ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['value'] ?? null ) === 0, 'refresh: caches a real zero' );
-
-// String/negative coercion → clamped non-negative int.
-rt_reset();
-$GLOBALS['__rt_query_return'] = array( array( 'visitors' => '42' ) );
-sn_analytics_realtime_refresh();
-ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['value'] ?? null ) === 42, 'refresh: coerces a numeric string to int' );
+ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['counts']['human'] ?? null ) === 0, 'refresh: caches a real zero' );
 
 rt_reset();
-$GLOBALS['__rt_query_return'] = array( array( 'visitors' => -3 ) );
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => '42' ) );
 sn_analytics_realtime_refresh();
-ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['value'] ?? null ) === 0, 'refresh: clamps a negative count to 0' );
+ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['counts']['human'] ?? null ) === 42, 'refresh: coerces numeric string to int' );
 
-// Unconfigured → no query, no write.
 rt_reset();
-$GLOBALS['__rt_config_present'] = false;
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => -3 ) );
 sn_analytics_realtime_refresh();
-ok( count( $GLOBALS['__rt_query_calls'] ) === 0, 'refresh: no query when unconfigured' );
-ok( get_transient( SN_ANALYTICS_REALTIME_KEY ) === false, 'refresh: no cache write when unconfigured' );
+ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['counts']['human'] ?? null ) === 0, 'refresh: clamps negative to 0' );
 
-// Query failure (null) → no poison write; a prior value survives.
 rt_reset();
-set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'value' => 9, 'fetched' => time() - 60 ), 0 );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 9 ), 'fetched' => time() - 60 ), 0 );
 $GLOBALS['__rt_config_present'] = true;
 $GLOBALS['__rt_query_return']   = null;
 sn_analytics_realtime_refresh();
-ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['value'] ?? null ) === 9, 'refresh: AE failure leaves the prior value intact (no null poison)' );
+ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['counts']['human'] ?? null ) === 9, 'refresh: AE failure leaves prior counts intact' );
 
-// Malformed row (no visitors key) → no write.
 rt_reset();
 $GLOBALS['__rt_query_return'] = array( array( 'wrong' => 1 ) );
 sn_analytics_realtime_refresh();
-ok( get_transient( SN_ANALYTICS_REALTIME_KEY ) === false, 'refresh: malformed AE row (no visitors key) → no write' );
+ok( get_transient( SN_ANALYTICS_REALTIME_KEY ) === false, 'refresh: malformed AE rows → no write' );
 
 // ── Warmer ────────────────────────────────────────────────────────────────────
 echo "\nGroup: warmer\n";
