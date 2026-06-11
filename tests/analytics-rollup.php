@@ -221,12 +221,15 @@ $schema = sn_analytics_daily_schema_sql();
 ok( is_string( $schema ) && '' !== $schema, 'schema: returns a non-empty string' );
 ok( strpos( $schema, 'wp_sn_analytics_daily' ) !== false, 'schema: targets the prefixed table name' );
 ok( strpos( $schema, 'PRIMARY KEY  (id)' ) !== false, 'schema: PRIMARY KEY has the dbDelta two-space form' );
-ok( strpos( $schema, 'UNIQUE KEY' ) !== false && preg_match( '/UNIQUE KEY\s+\w+\s*\(\s*day\s*,\s*path\s*\)/', $schema ),
-	'schema: UNIQUE KEY on (day, path)' );
+ok( strpos( $schema, 'UNIQUE KEY' ) !== false, 'schema: declares a UNIQUE KEY' );
 foreach ( array( 'day', 'path', 'views', 'visits', 'scroll_avg', 'time_avg' ) as $col ) {
 	ok( preg_match( '/\b' . $col . '\b/', $schema ) === 1, "schema: declares the $col column" );
 }
 ok( strpos( $schema, 'utf8mb4' ) !== false, 'schema: includes the charset collate' );
+ok( preg_match( '/\bclass\b/', $schema ) === 1, 'schema: declares the class column' );
+ok( preg_match( '/UNIQUE KEY\s+\w+\s*\(\s*day\s*,\s*path\s*,\s*class\s*\)/', $schema ),
+	'schema: UNIQUE KEY is now (day, path, class)' );
+ok( strpos( $schema, 'VARCHAR(180)' ) !== false, 'schema: path shrunk to 180 so the 3-col key fits 767 bytes' );
 
 // ── Rollup SQL builder ────────────────────────────────────────────────────────
 echo "\nGroup: rollup SQL builder\n";
@@ -435,6 +438,21 @@ ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 0, 'maybe_install: current version → no dbDelta' );
+ok( SN_ANALYTICS_DAILY_DB_VERSION === '2', 'db version is 2 (class dimension added)' );
+
+// Upgrading from v1 drops the old table (dbDelta cannot rotate the unique key)
+// then recreates. The stub records the DROP via query().
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '1' );
+sn_analytics_daily_maybe_install();
+$dropped = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'DROP TABLE IF EXISTS wp_sn_analytics_daily' ) !== false ) { $dropped = true; }
+}
+ok( $dropped, 'maybe_install: v1→v2 drops the old table before recreating' );
+ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: v1→v2 runs dbDelta to recreate' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '2', 'maybe_install: stamps db version 2' );
+
 // Option absent → install runs dbDelta with the schema + stamps the version.
 ar_reset();
 sn_analytics_daily_maybe_install();

@@ -67,7 +67,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
-const SN_ANALYTICS_DAILY_DB_VERSION     = '1';
+const SN_ANALYTICS_DAILY_DB_VERSION     = '2';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
 // SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
@@ -89,9 +89,9 @@ const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness s
  * dbDelta CREATE TABLE for the daily aggregate.
  *
  * Pure builder (no DB / no upgrade.php require) so it's unit-testable. `day` is
- * DATE; `path` is VARCHAR(190) — the utf8mb4-indexable max, matching the cron-
- * history table — so the UNIQUE(day, path) key fits InnoDB's 767-byte prefix.
- * Paths longer than 190 chars are truncated at write time (rare on this site).
+ * DATE; `path` is VARCHAR(180) and `class` VARCHAR(10), so the composite
+ * UNIQUE(day, path, class) key is 763 bytes — inside InnoDB's 767-byte prefix.
+ * Paths longer than 180 chars are truncated at write time (rare on this site).
  *
  * @return string CREATE TABLE statement.
  */
@@ -103,13 +103,14 @@ function sn_analytics_daily_schema_sql() {
 	return "CREATE TABLE {$table} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		day DATE NOT NULL,
-		path VARCHAR(190) NOT NULL,
+		path VARCHAR(180) NOT NULL,
+		class VARCHAR(10) NOT NULL DEFAULT 'human',
 		views INT UNSIGNED NOT NULL DEFAULT 0,
 		visits INT UNSIGNED NOT NULL DEFAULT 0,
 		scroll_avg FLOAT NOT NULL DEFAULT 0,
 		time_avg FLOAT NOT NULL DEFAULT 0,
 		PRIMARY KEY  (id),
-		UNIQUE KEY day_path (day, path)
+		UNIQUE KEY day_path_class (day, path, class)
 	) {$charset};";
 }
 
@@ -117,10 +118,25 @@ function sn_analytics_daily_schema_sql() {
  * Create/upgrade the table. The function_exists('dbDelta') guard keeps install
  * unit-testable (a stubbed dbDelta skips the upgrade.php require) and is correct
  * production behaviour — don't re-require a file core may already have loaded.
+ *
+ * v1→v2 migration: dbDelta only ADDs columns and indexes — it cannot rotate a
+ * UNIQUE KEY (it would leave the old (day, path) key in place). The table is
+ * dormant (never populated before the analytics worker deploys), so drop +
+ * recreate is safe and leaves no orphaned index. The DROP is gated on the option
+ * being present AND stale so a first install (option absent) goes straight to
+ * dbDelta without a spurious DROP.
  */
 function sn_analytics_daily_install() {
 	if ( ! function_exists( 'dbDelta' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+	}
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	// dbDelta only ADDS — it can't rotate a UNIQUE KEY. The table is dormant
+	// (never populated before the worker deploys), so drop + recreate is safe
+	// and avoids leaving the old (day, path) key in place.
+	if ( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) && get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) !== SN_ANALYTICS_DAILY_DB_VERSION ) {
+		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 	}
 	dbDelta( sn_analytics_daily_schema_sql() );
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
