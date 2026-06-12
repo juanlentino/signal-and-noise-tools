@@ -74,6 +74,10 @@ function sn_admin_flash_messages() {
 		'indexnow_key_regenerated'  => array( 'success', 'IndexNow key regenerated &mdash; search engines re-verify on the next submission.' ),
 		'indexnow_pinged'           => array( 'success', 'Recent content queued for IndexNow submission.' ),
 		'indexnow_disabled'         => array( 'error', 'Enable IndexNow first, then run the backfill.' ),
+		'analytics_saved'             => array( 'success', 'Analytics credentials updated. Dashboard data refreshes within ~15 minutes.' ),
+		'analytics_unchanged'         => array( 'info', 'No changes to save.' ),
+		'analytics_locked'            => array( 'error', 'Analytics credentials are locked by the <code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> constants in wp-config.php — remove them to edit here.' ),
+		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured — set the account ID and read token first.' ),
 	);
 }
 
@@ -124,6 +128,14 @@ function sn_admin_flash_to_notice( $flash ) {
 		$err    = sn_plausible_last_error();
 		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
 		return array( 'error', '&#10005; API call failed &mdash; ' . $detail );
+	}
+	if ( 'analytics_test_ok' === $flash ) {
+		return array( 'success', '&#10003; Analytics API reachable — credentials valid.' );
+	}
+	if ( 'analytics_test_err' === $flash ) {
+		$err    = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
+		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( (string) $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
+		return array( 'error', '&#10005; Analytics API call failed &mdash; ' . $detail );
 	}
 
 	// Count-prefixed codes — parse the trailing int into the message template.

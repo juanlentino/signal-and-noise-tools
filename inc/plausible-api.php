@@ -336,7 +336,7 @@ add_action( SN_PLAUSIBLE_REFRESH_REALTIME_HOOK, 'sn_plausible_refresh_realtime' 
  * the admin response is already on its way to the browser.
  *
  * Capability gate matches the widget registration in
- * inc/plausible-widget.php so we don't warm caches for users who can
+ * inc/analytics-widget.php so we don't warm caches for users who can
  * never see the widgets anyway.
  */
 function sn_plausible_warm_caches() {

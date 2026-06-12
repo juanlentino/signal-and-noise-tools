@@ -73,8 +73,10 @@ function snt_insights_collect_signals() {
 	// Build a quick {relative-permalink-path => views_7d} map for the
 	// post-list join. The Plausible breakdown endpoint returns rows
 	// shaped { page: "/notes/my-slug", visitors: <int> } — visitors is a
-	// SCALAR, not nested under .value (that's the aggregate shape, see
-	// inc/plausible-widget.php:105 vs :183). Joining by relative path
+	// SCALAR, not nested under .value (that's the aggregate/prop shape).
+	// For the canonical data-shape reference see sn_plausible_dashboard_data()
+	// in inc/plausible-api.php, which demonstrates both the scalar (breakdown)
+	// and the aggregate (.value) shapes. Joining by relative path
 	// (not slug) makes the match work for any permalink structure,
 	// including nested permalinks like /notes/<slug>/.
 	$views_map = array();

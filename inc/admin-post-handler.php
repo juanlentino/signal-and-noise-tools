@@ -60,6 +60,8 @@ function sn_admin_post_handlers() {
 		'indexnow_save'              => 'sn_handle_indexnow_save',
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
+		'analytics_save'             => 'sn_handle_analytics_save',
+		'analytics_test'             => 'sn_handle_analytics_test',
 	);
 }
 
