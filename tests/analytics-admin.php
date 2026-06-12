@@ -26,6 +26,29 @@ function wp_unslash( $v ) { return $v; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
 function current_user_can( $c ) { return true; }
 
+// Option store seam for the settings form.
+$GLOBALS['__aa_opts'] = array();
+function get_option( $k, $default = false ) { return array_key_exists( $k, $GLOBALS['__aa_opts'] ) ? $GLOBALS['__aa_opts'][ $k ] : $default; }
+function update_option( $k, $v, $autoload = true ) { $GLOBALS['__aa_opts'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['__aa_opts'][ $k ] ); return true; }
+
+// Option-name constants (mirrors inc/analytics-api.php Task S1 additions).
+if ( ! defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ) { define( 'SN_CF_ANALYTICS_TOKEN_OPT', 'sn_cf_analytics_token' ); }
+if ( ! defined( 'SN_CF_ACCOUNT_ID_OPT' ) )      { define( 'SN_CF_ACCOUNT_ID_OPT', 'sn_cf_account_id' ); }
+
+// wp_nonce_field stub.
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" />'; }
+}
+
+// sn_mask_secret stub (matches inc/settings.php behaviour).
+if ( ! function_exists( 'sn_mask_secret' ) ) {
+	function sn_mask_secret( $v ) {
+		$v = (string) $v;
+		return '' === $v ? '' : ( strlen( $v ) <= 8 ? '••••••••' : '••••' . substr( $v, -4 ) );
+	}
+}
+
 // AE config seam — toggled per test.
 $GLOBALS['__aa_config'] = true;
 function sn_analytics_config() { return $GLOBALS['__aa_config'] ? array( 'account_id' => 'a', 'token' => 't' ) : null; }
@@ -105,6 +128,43 @@ echo "\nGroup: class segmented control\n";
 $GLOBALS['__aa']['paths'] = array();
 $html = capture( 'snt_analytics_render_admin_tab' );
 ok( substr_count( $html, 'sn-an-seg' ) >= 1 && strpos( $html, 'Human' ) !== false && strpos( $html, 'Bot' ) !== false, 'render: class segmented control rendered' );
+
+echo "\nGroup: settings render\n";
+
+// --- UNCONFIGURED: config seam off, no options set.
+$GLOBALS['__aa_config'] = false;
+$GLOBALS['__aa_opts']   = array();
+$html = capture( 'snt_analytics_render_admin_tab' );
+ok( strpos( $html, 'name="sn_cf_account_id"' ) !== false, 'settings render: unconfigured has account_id input' );
+ok( strpos( $html, 'name="sn_cf_analytics_token"' ) !== false, 'settings render: unconfigured has analytics_token input' );
+ok( strpos( $html, 'value="analytics_save"' ) !== false, 'settings render: unconfigured has analytics_save submit' );
+ok( strpos( $html, 'value="analytics_test"' ) !== false, 'settings render: unconfigured has analytics_test submit' );
+ok( strpos( $html, 'wrangler' ) !== false, 'settings render: unconfigured shows Worker-setup wrangler command' );
+ok( strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings render: unconfigured shows SN_PX_TOKEN reference' );
+ok( strpos( $html, 'value="analytics_test"' ) !== false && strpos( $html, 'disabled' ) !== false, 'render: Test button disabled when unconfigured' );
+
+// --- CONFIGURED: config truthy + sample data → dashboard + collapsed settings wrapper.
+$GLOBALS['__aa_config']          = true;
+$GLOBALS['__aa_error']           = null;
+$GLOBALS['__aa']['realtime']     = 3;
+$GLOBALS['__aa']['totals']       = array( 'views' => 50, 'visits' => 20, 'scroll_avg' => 50.0, 'time_avg' => 60.0 );
+$GLOBALS['__aa']['class_totals'] = array( 'human' => array( 'views' => 50, 'visits' => 20 ), 'bot' => array( 'views' => 0, 'visits' => 0 ), 'suspect' => array( 'views' => 0, 'visits' => 0 ) );
+$GLOBALS['__aa']['series']       = array();
+$GLOBALS['__aa']['paths']        = array( array( 'path' => '/x', 'views' => 10, 'visits' => 5, 'scroll_avg' => 50.0, 'time_avg' => 30.0 ) );
+$GLOBALS['__aa']['dim']          = array();
+$html = capture( 'snt_analytics_render_admin_tab' );
+ok( strpos( $html, 'sn-an-cards' ) !== false, 'settings render: configured shows dashboard cards' );
+ok( strpos( $html, '<details' ) !== false, 'settings render: configured wraps settings in <details>' );
+ok( strpos( $html, 'value="analytics_save"' ) !== false, 'settings render: configured still exposes analytics_save form inside details' );
+
+// --- ESCAPING: stored account value with <script> must not appear raw.
+$GLOBALS['__aa_config'] = false;
+$GLOBALS['__aa_opts']   = array( SN_CF_ACCOUNT_ID_OPT => 'acct"<script>' );
+$html = capture( 'snt_analytics_render_admin_tab' );
+ok( strpos( $html, '<script>' ) === false, 'settings render: account_id with <script> is escaped — no raw <script> in output' );
+
+// Reset opts.
+$GLOBALS['__aa_opts'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

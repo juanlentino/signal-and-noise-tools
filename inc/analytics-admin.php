@@ -65,9 +65,10 @@ function snt_analytics_render_admin_tab() {
 	$range = snt_analytics_resolve_range( isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7' );
 	$class = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
 
-	// Config gate: creds are wp-config constants, so there's no form — just status.
+	// Config gate: show the settings form (+ empty notice) when unconfigured.
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		snt_analytics_render_empty( 'unconfigured' );
+		snt_analytics_render_settings();
 		return;
 	}
 
@@ -101,6 +102,10 @@ function snt_analytics_render_admin_tab() {
 	if ( empty( $paths ) && (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
 	}
+
+	echo '<details class="sn-an-settings-wrap"><summary class="sn-an-seg-summary">Settings &amp; Worker setup</summary>';
+	snt_analytics_render_settings();
+	echo '</details>';
 }
 add_action( 'sn_admin_analytics_tab', 'snt_analytics_render_admin_tab' );
 
@@ -138,23 +143,33 @@ function snt_analytics_styles() {
 	.sn-an-table tr:last-child td{border-bottom:0;}
 	.sn-an-empty{color:#646970;font-style:italic;font-size:13px;margin-top:16px;}
 	@media (max-width:782px){.sn-an-cards{grid-template-columns:repeat(2,1fr);}.sn-an-grid{grid-template-columns:1fr;}}
+	.sn-an-settings{max-width:640px;}
+	.sn-an-settings-help{color:#646970;font-size:13px;margin:.25rem 0 1rem;}
+	.sn-an-worker{margin-top:16px;border:1px solid #dcdcde;border-radius:6px;padding:10px 14px;background:#fff;}
+	.sn-an-worker summary{cursor:pointer;font-weight:600;font-size:13px;color:#1d2327;}
+	.sn-an-steps{margin:10px 0 0;padding-left:20px;font-size:13px;color:#1d2327;}
+	.sn-an-steps li{margin:6px 0;}
+	.sn-an-pre{background:#f6f7f7;border:1px solid #e0e0e0;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre;overflow:auto;}
+	.sn-an-worker[open] summary{margin-bottom:6px;}
+	.sn-an-settings-wrap{margin-top:20px;border-top:1px solid #dcdcde;padding-top:14px;}
+	.sn-an-seg-summary{cursor:pointer;font-weight:600;font-size:13px;color:#1d2327;}
 	</style>
 	<?php
 }
 
 /**
- * Config/empty state. Creds are wp-config constants, so this explains what to
- * set rather than offering a form.
+ * Unconfigured notice shown above the settings form when creds are missing.
+ * Points users to the form rendered immediately after this notice, and mentions
+ * the wp-config-constant alternative for those who prefer it.
  *
  * @param string $reason 'unconfigured'.
  */
 function snt_analytics_render_empty( $reason ) {
 	snt_analytics_styles();
 	echo '<div class="notice notice-info notice-alt inline"><p><strong>Analytics isn\'t receiving data yet.</strong> ';
-	echo 'Deploy the edge worker, then add the read credentials to <code>wp-config.php</code>:</p>';
-	echo '<pre class="sn-pl-config-snippet" style="background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.85em;">';
-	echo "define( 'SN_CF_ANALYTICS_TOKEN', '…' );\ndefine( 'SN_CF_ACCOUNT_ID', '…' );";
-	echo '</pre></div>';
+	echo 'Add your Cloudflare read credentials below to connect the dashboard. You can also set ';
+	echo '<code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> in <code>wp-config.php</code> ';
+	echo '(see <em>Cloudflare Worker setup</em> below).</p></div>';
 }
 
 /**
