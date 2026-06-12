@@ -167,3 +167,63 @@ function sn_indexnow_submit( $urls ) {
 	update_option( SN_INDEXNOW_RESULT_OPT, $result, false );
 }
 add_action( SN_INDEXNOW_CRON_HOOK, 'sn_indexnow_submit' );
+
+/**
+ * The URL set to submit when a published post/page changes: its permalink
+ * plus the /notes/ listing (which re-orders on any note change).
+ */
+function sn_indexnow_urls_for_post( $post_or_id ) {
+	return array( get_permalink( $post_or_id ), home_url( '/notes/' ) );
+}
+
+/**
+ * Publish + update — a draft→publish or an edit of an already-published post.
+ * Mirrors inc/cloudflare-purge.php's wp_after_insert_post handler.
+ */
+function sn_indexnow_on_insert( $post_id, $post, $update, $post_before ) {
+	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+		return;
+	}
+	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		return;
+	}
+	if ( 'publish' !== $post->post_status ) {
+		return;
+	}
+	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $post_id ) );
+}
+add_action( 'wp_after_insert_post', 'sn_indexnow_on_insert', 30, 4 );
+
+/**
+ * Unpublish / trash — publish → any non-public status. transition_post_status
+ * ALSO fires on same-status saves (a plain edit is publish→publish); the
+ * precise `old==='publish' && new!=='publish'` condition excludes that, so a
+ * normal edit never reaches here — that path is owned by sn_indexnow_on_insert.
+ * draft→publish is also excluded (old≠publish) → no overlap.
+ */
+function sn_indexnow_on_transition( $new_status, $old_status, $post ) {
+	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		return;
+	}
+	if ( 'publish' !== $old_status || 'publish' === $new_status ) {
+		return;
+	}
+	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $post ) );
+}
+add_action( 'transition_post_status', 'sn_indexnow_on_transition', 10, 3 );
+
+/**
+ * Hard delete — permanent removal (force-delete / empty-trash) of a published
+ * post. before_delete_post does NOT fire on trashing (that's a transition);
+ * get_permalink() is still resolvable here.
+ */
+function sn_indexnow_on_delete( $post_id, $post ) {
+	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		return;
+	}
+	if ( 'publish' !== $post->post_status ) {
+		return;
+	}
+	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $post ) );
+}
+add_action( 'before_delete_post', 'sn_indexnow_on_delete', 10, 2 );

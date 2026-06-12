@@ -45,6 +45,10 @@ function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? ( $r['
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 class WP_Error { private $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
 function wp_json_encode( $d ) { return json_encode( $d ); }
+function get_permalink( $p ) { $id = is_object( $p ) ? $p->ID : $p; return 'https://example.com/notes/p' . $id . '/'; }
+function wp_is_post_revision( $id ) { return ! empty( $GLOBALS['__is_revision'] ); }
+function wp_is_post_autosave( $id ) { return ! empty( $GLOBALS['__is_autosave'] ); }
+function sn_in_test_post( $type, $status ) { $p = new stdClass(); $p->ID = 7; $p->post_type = $type; $p->post_status = $status; return $p; }
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -118,6 +122,56 @@ sn_indexnow_submit( array( 'https://example.com/notes/x/' ) );
 $err = get_option( SN_INDEXNOW_RESULT_OPT );
 ok( 'boom' === $err['error'] && 0 === $err['code'], 'submit: WP_Error stores the message + code 0' );
 $GLOBALS['__remote_post_return'] = null; // restore default 200 for any later calls
+
+// ── Lifecycle: wp_after_insert_post (publish + update) ──────────────
+$GLOBALS['__settings']['indexnow.enabled'] = true;
+$GLOBALS['__options'][ SN_INDEXNOW_KEY_OPT ] = $k3;
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'publish' ), true, null );
+ok( 1 === count( $GLOBALS['__scheduled'] ), 'insert: published post enqueues' );
+ok( in_array( 'https://example.com/notes/p7/', $GLOBALS['__scheduled'][0]['args'][0], true ), 'insert: submits the post permalink' );
+ok( in_array( 'https://example.com/notes/', $GLOBALS['__scheduled'][0]['args'][0], true ), 'insert: also submits the /notes/ listing' );
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'draft' ), false, null );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: draft does NOT enqueue' );
+
+$GLOBALS['__is_revision'] = true;
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'publish' ), true, null );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a revision does NOT enqueue' );
+$GLOBALS['__is_revision'] = false;
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'attachment', 'publish' ), true, null );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a non post/page type does NOT enqueue' );
+
+// ── Lifecycle: transition_post_status (unpublish/trash ONLY) ────────
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_transition( 'draft', 'publish', sn_in_test_post( 'post', 'draft' ) );
+ok( 1 === count( $GLOBALS['__scheduled'] ), 'transition: publish→draft (unpublish) enqueues' );
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_transition( 'trash', 'publish', sn_in_test_post( 'post', 'trash' ) );
+ok( 1 === count( $GLOBALS['__scheduled'] ), 'transition: publish→trash enqueues' );
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_transition( 'publish', 'publish', sn_in_test_post( 'post', 'publish' ) );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'transition: publish→publish (plain edit) does NOT enqueue (owned by insert)' );
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_transition( 'publish', 'draft', sn_in_test_post( 'post', 'publish' ) );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'transition: draft→publish does NOT enqueue here (owned by insert)' );
+
+// ── Lifecycle: before_delete_post (hard delete) ─────────────────────
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_delete( 7, sn_in_test_post( 'post', 'publish' ) );
+ok( 1 === count( $GLOBALS['__scheduled'] ), 'delete: hard-deleting a published post enqueues' );
+
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_delete( 7, sn_in_test_post( 'post', 'draft' ) );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'delete: deleting a never-published post does NOT enqueue' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
