@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [5.1.0] - 2026-06-12 — IndexNow + /notes paged SEO controls
+
+**Headline:** Two SEO additions. **IndexNow** (Automation → IndexNow) pushes changed URLs to participating search engines (Bing, Yandex, Seznam, Naver — *not* Google) on publish / update / unpublish / delete, so they re-crawl within minutes instead of days; the verification key file is served virtually, so there's no upload step. Plus the plugin half of `/notes` pagination **Release 2**: a **Notes-per-page** render knob and a **paged self-canonical** so `/notes/?paged=N` no longer collapses onto page 1. Every WP-core primitive was handbook-verified before build; full plugin suite green; PHPCS security-ruleset falsification-verified; shipped through a build → multi-lens adversarial-review → fix cycle.
+
+### New
+
+- **IndexNow submission** (Automation → IndexNow). On publish, content update, unpublish, and permanent delete of a post or page, the changed URL (plus the `/notes/` listing) is POSTed to `api.indexnow.org` so participating engines re-crawl promptly. **Turnkey** — the plugin auto-generates the key and serves `/<key>.txt` itself via a `plugins_loaded` request intercept (the proven [inc/login-hide.php](inc/login-hide.php) pattern, not a rewrite rule), so you only flip the Enable toggle. Submission is deferred to a single WP-Cron event (zero publish-request latency) that makes a blocking POST and logs the HTTP result + a confirmation notice. Includes a one-shot **"Submit recent content now"** backfill and a key **Regenerate**. New [inc/indexnow.php](inc/indexnow.php) + [inc/admin-forms/indexnow.php](inc/admin-forms/indexnow.php); three non-overlapping lifecycle hooks (`wp_after_insert_post` publish/update, `transition_post_status` unpublish/trash, `before_delete_post` hard-delete) with the same-status-save guard so a plain edit never double-submits. `tests/indexnow.php` (45 assertions). Google isn't an IndexNow participant — the existing `/wp-sitemap.xml` already covers it.
+- **Notes-per-page render knob** (Tools → Front-End). New `theme.notes_per_page` setting (default 20, clamped 1–100) hooks the theme's `sn_notes_per_page` filter, so the `/notes` index page size is configurable. `/notes` pagination Release 2 (R1 shipped in theme v9.6.0). Reuses the existing front-end-render-knobs surface — no new sub-tab, no new save handler.
+
+### Improvements
+
+- **`/notes/?paged=N` now self-canonicals** instead of collapsing to `/notes/` (which was a duplicate-content signal). `sn_seo_meta_for_current_view()`'s Notes branch appends `?paged=N` for N>1, flowing to both `<link rel="canonical">` and `og:url`. Reliable for the non-front `/notes` Page (WP only reassigns `paged`→`page` for the static front page), with a defensive `$_GET` fallback. New `tests/seo-notes-paged-canonical.php`. Pairs with theme **v10.2.0**'s paged `<title>` suffix.
+
 ## [5.0.0] - 2026-06-10 — Modernization major: WP 7.0 floor + dead-route removal
 
 **Headline:** A pure modernization major — no new features, only real SemVer breaks. v5.0.0 raises the WordPress floor to 7.0, removes the long-deprecated gen-1 AI REST routes (their Ability replacements have been the live path since v2.5.0), promotes the gen-2 routes to runtime deprecation warnings (removal targets v6.0.0), and clears a DB orphan plus the WP<7.0 pre-warning notice.
