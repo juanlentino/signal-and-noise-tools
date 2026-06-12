@@ -3,7 +3,7 @@
  * Signal & Noise — Plausible admin tab.
  *
  * Manages the Stats API key used by inc/plausible-api.php to power the
- * four dashboard widgets in inc/plausible-widget.php. Storage mirrors
+ * four dashboard widgets in inc/analytics-widget.php. Storage mirrors
  * the Cloudflare-token pattern in inc/cloudflare-purge.php:
  *
  *   - Constant SN_PLAUSIBLE_STATS_TOKEN in wp-config.php  (preferred)

@@ -69,7 +69,7 @@ require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/plausible-api.php';
 require_once SNT_PATH . 'inc/plausible-admin.php';
-require_once SNT_PATH . 'inc/plausible-widget.php';
+require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
 require_once SNT_PATH . 'inc/analytics-api.php';

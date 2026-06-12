@@ -76,7 +76,6 @@
 		<exclude-pattern>*/inc/admin-tab-dashboard.php</exclude-pattern>
 		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
-		<exclude-pattern>*/inc/plausible-widget.php</exclude-pattern>
 		<exclude-pattern>*/inc/cloudflare-purge.php</exclude-pattern>
 	</rule>
 

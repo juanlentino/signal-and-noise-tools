@@ -1,8 +1,8 @@
 <?php
 /**
- * Tests for the re-pointed dashboard widgets (inc/plausible-widget.php now reads
- * the first-party analytics accessors, not Plausible).
- * Run: php tests/plausible-widget-analytics.php
+ * Tests for the re-pointed dashboard widgets (inc/analytics-widget.php reads
+ * the first-party analytics accessors).
+ * Run: php tests/analytics-widget.php
  * @since plugin v5.0.1
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -27,7 +27,7 @@ function sn_analytics_realtime( $class = 'human' ) { return $GLOBALS['__pw']['re
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__pw']['paths']; }
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__pw']['refs']; }
 
-require_once __DIR__ . '/../inc/plausible-widget.php';
+require_once __DIR__ . '/../inc/analytics-widget.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
@@ -41,17 +41,17 @@ $GLOBALS['__pw']['totals']   = array( 'views' => 1204, 'visits' => 389, 'scroll_
 $GLOBALS['__pw']['realtime'] = 7;
 $GLOBALS['__pw']['paths']    = array( array( 'path' => '/notes/x', 'views' => 412, 'visits' => 158, 'scroll_avg' => 71.0, 'time_avg' => 150000.0 ) );
 $GLOBALS['__pw']['refs']     = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
-$snap = cap( 'sn_pl_widget_snapshot' );
+$snap = cap( 'sn_aw_snapshot' );
 ok( strpos( $snap, '1,204' ) !== false, 'snapshot: shows analytics views' );
 ok( strpos( $snap, '62%' ) !== false, 'snapshot: avg scroll rendered as percent' );
 ok( strpos( $snap, '1m 48s' ) !== false, 'snapshot: avg time converted ms→s (108000ms → 1m 48s)' );
-ok( strpos( cap( 'sn_pl_widget_realtime' ), '<div class="sn-pl-big">7</div>' ) !== false, 'realtime: shows the visitor count in the big-number element (not CSS/footer 7s)' );
-ok( strpos( cap( 'sn_pl_widget_pages' ), '/notes/x' ) !== false, 'pages: shows top path from new source' );
-ok( strpos( cap( 'sn_pl_widget_sources' ), 'news.ycombinator.com' ) !== false, 'sources: shows top referrer from dims' );
+ok( strpos( cap( 'sn_aw_realtime' ), '<div class="sn-aw-big">7</div>' ) !== false, 'realtime: shows the visitor count in the big-number element (not CSS/footer 7s)' );
+ok( strpos( cap( 'sn_aw_pages' ), '/notes/x' ) !== false, 'pages: shows top path from new source' );
+ok( strpos( cap( 'sn_aw_sources' ), 'news.ycombinator.com' ) !== false, 'sources: shows top referrer from dims' );
 
 echo "\nGroup: unconfigured shows config empty state\n";
 $GLOBALS['__pw_config'] = false;
-$html = cap( 'sn_pl_widget_snapshot' );
+$html = cap( 'sn_aw_snapshot' );
 ok( stripos( $html, 'SN_CF_ANALYTICS_TOKEN' ) !== false || stripos( $html, 'not configured' ) !== false, 'snapshot: unconfigured → config copy' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
