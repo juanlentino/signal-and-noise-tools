@@ -53,10 +53,10 @@
  *   - sn_analytics_rollup_schedule() (init) registers a daily recurring backstop
  *     so the rollup still happens on days nobody opens wp-admin.
  *
- * Dormant until configured: with no SN_CF_ANALYTICS_TOKEN / SN_CF_ACCOUNT_ID in
- * wp-config, sn_analytics_query() returns null and run_rollup() no-ops — the
- * empty table is created but never written, exactly like the Plausible widgets
- * stay blank until their token lands.
+ * Dormant until AE is configured (via the wp-config constants OR the admin settings
+ * options) — sn_analytics_config() returns null and run_rollup() no-ops. The empty
+ * table is created but never written, exactly like the Plausible widgets stay blank
+ * until their token lands.
  *
  * @package SignalNoiseTools
  * @since 5.0.1

@@ -4,12 +4,15 @@
  *
  * Library module (P2 data layer). Exposes two public surfaces:
  *
- *   sn_analytics_config()        — resolves account_id + token from wp-config
- *                                   constants; returns null when not configured.
+ *   sn_analytics_config()        — resolves account_id + token via constant >
+ *                                   option fallback; returns null when not
+ *                                   configured.
  *   sn_analytics_query( $sql )   — POSTs a SQL query to the AE SQL API and
  *                                   returns the decoded `data` array, or null
  *                                   on any failure (error captured in transient).
  *   sn_analytics_last_error()    — reads the last captured error, if any.
+ *   sn_analytics_probe()         — lightweight credential check for the admin
+ *                                   "Test connection" button.
  *
  * ── Analytics Engine dataset contract (for downstream rollup queries) ────────
  *
@@ -69,27 +72,45 @@ const SN_ANALYTICS_DATASET = 'sn_pageviews';
 const SN_ANALYTICS_ERR_KEY = 'sn_analytics_last_error';
 
 /**
- * Resolve account_id + token from wp-config constants.
+ * Admin-saved fallback options (used only when the wp-config constant is absent).
+ * The read token is saved non-autoloaded by the settings-save handler; the account
+ * ID is an identifier, not a secret. The constant always wins, so wp-config can
+ * still lock the value.
+ */
+const SN_CF_ANALYTICS_TOKEN_OPT = 'sn_cf_analytics_token';
+const SN_CF_ACCOUNT_ID_OPT      = 'sn_cf_account_id';
+
+/**
+ * Resolve account_id + token via constant > option fallback.
  *
  * Config resolution (mirrors inc/plausible-api.php and inc/cloudflare-purge.php):
  *
  *   SN_CF_ANALYTICS_TOKEN  — Account Analytics Read token (read-only, file-based
  *                             in wp-config.php). Obtain from Cloudflare dashboard →
  *                             My Profile → API Tokens → "Account Analytics Read".
+ *                             When defined and non-empty, always takes precedence
+ *                             over the admin-saved option.
  *   SN_CF_ACCOUNT_ID       — 32-char Cloudflare account ID. Found in the Cloudflare
  *                             dashboard URL: dash.cloudflare.com/<account_id>/.
+ *                             When defined and non-empty, always takes precedence
+ *                             over the admin-saved option.
  *
- * Both must be non-empty strings for a non-null return. No option fallback is
- * provided: this credential is read-only and belongs in wp-config, not the admin UI.
+ * Fallback: when a constant is absent or empty, the corresponding wp-admin option
+ * (SN_CF_ANALYTICS_TOKEN_OPT / SN_CF_ACCOUNT_ID_OPT) is read instead.
+ *
+ * Both must resolve to non-empty strings for a non-null return.
  *
  * @return array{account_id: string, token: string}|null
  */
 function sn_analytics_config() {
-	if ( ! defined( 'SN_CF_ANALYTICS_TOKEN' ) || ! defined( 'SN_CF_ACCOUNT_ID' ) ) {
-		return null;
-	}
-	$token      = (string) SN_CF_ANALYTICS_TOKEN;
-	$account_id = (string) SN_CF_ACCOUNT_ID;
+	$token = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
+		? (string) SN_CF_ANALYTICS_TOKEN
+		: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
+
+	$account_id = ( defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID )
+		? (string) SN_CF_ACCOUNT_ID
+		: (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
+
 	if ( '' === $token || '' === $account_id ) {
 		return null;
 	}
@@ -185,4 +206,17 @@ function sn_analytics_query( $sql ) {
 	delete_transient( SN_ANALYTICS_ERR_KEY );
 
 	return $decoded['data'] ?? null;
+}
+
+/**
+ * Lightweight credential check for the admin "Test connection" button: runs a
+ * trivial dataset query and reports whether AE returned a well-formed result.
+ * Returns false when unconfigured or on any transport/auth/parse failure (the
+ * specific error is captured by sn_analytics_query() into the error transient).
+ *
+ * @return bool
+ */
+function sn_analytics_probe() {
+	$sql = 'SELECT count(*) AS n FROM ' . SN_ANALYTICS_DATASET . " WHERE timestamp >= now() - INTERVAL '1' HOUR";
+	return is_array( sn_analytics_query( $sql ) );
 }
