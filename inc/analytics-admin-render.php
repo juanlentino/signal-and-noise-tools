@@ -35,7 +35,7 @@ function snt_analytics_fmt_time( $ms ) {
  * @param string $class Active class.
  */
 function snt_analytics_render_controls( $range, $class ) {
-	$base = admin_url( 'admin.php?page=sn-monitoring&tab=monitoring&sub=analytics' );
+	$base = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' );
 	echo '<div class="sn-an-controls">';
 
 	echo '<span class="sn-an-seg">';

@@ -129,6 +129,23 @@ $GLOBALS['__aa']['paths'] = array();
 $html = capture( 'snt_analytics_render_admin_tab' );
 ok( substr_count( $html, 'sn-an-seg' ) >= 1 && strpos( $html, 'Human' ) !== false && strpos( $html, 'Bot' ) !== false, 'render: class segmented control rendered' );
 
+echo "\nGroup: controls URL uses page=sn-theme-options (POST-dispatcher regression guard)\n";
+// Regression guard: control links MUST use page=sn-theme-options so the SN
+// admin POST dispatcher (inc/admin-post-handler.php) accepts them. Using
+// page=sn-monitoring causes a silent no-op on Save/Test because sn-monitoring
+// is not in sn_admin_pages() — the exact bug fixed in this commit.
+$GLOBALS['__aa_config'] = true;
+$GLOBALS['__aa_error']  = null;
+$GLOBALS['__aa']['realtime']     = 1;
+$GLOBALS['__aa']['totals']       = array( 'views' => 10, 'visits' => 5, 'scroll_avg' => 50.0, 'time_avg' => 30.0 );
+$GLOBALS['__aa']['class_totals'] = array( 'human' => array( 'views' => 10, 'visits' => 5 ), 'bot' => array( 'views' => 0, 'visits' => 0 ), 'suspect' => array( 'views' => 0, 'visits' => 0 ) );
+$GLOBALS['__aa']['series']       = array();
+$GLOBALS['__aa']['paths']        = array();
+$GLOBALS['__aa']['dim']          = array();
+$html = capture( 'snt_analytics_render_admin_tab' );
+ok( strpos( $html, 'page=sn-theme-options' ) !== false, 'controls: at least one link uses page=sn-theme-options' );
+ok( strpos( $html, 'page=sn-monitoring' ) === false, 'controls: no link uses the wrong page=sn-monitoring slug' );
+
 echo "\nGroup: settings render\n";
 
 // --- UNCONFIGURED: config seam off, no options set.
