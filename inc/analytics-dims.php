@@ -24,10 +24,25 @@ const SN_ANALYTICS_DIMS_DB_VERSION     = '1';
 const SN_ANALYTICS_DIMS_DB_VERSION_OPT = 'sn_analytics_dims_db_version';
 
 // The dimensions this table aggregates, mapped to their AE blob columns.
+// blob3/4/5 ship since v5.0.1; blob8–15 are the edge dimensions added by the
+// analytics worker v1.1.0 (browser/os via UA parse, the rest from request.cf).
+// The map is the single wiring point: sn_analytics_dims_run_rollup() iterates
+// every key (one AE query per dim) and sn_analytics_top_dimension() is
+// dim-agnostic, so a new entry here lights up both the rollup and the read path.
+// The dims table keys on (day, dim, value, class), so new dims add rows, not
+// columns — no schema or DB-version change.
 const SN_ANALYTICS_DIM_COLUMNS = array(
 	'referrer' => 'blob3',
 	'country'  => 'blob4',
 	'device'   => 'blob5',
+	'browser'  => 'blob8',
+	'os'       => 'blob9',
+	'region'   => 'blob10',
+	'city'     => 'blob11',
+	'network'  => 'blob12',
+	'colo'     => 'blob13',
+	'protocol' => 'blob14',
+	'tls'      => 'blob15',
 );
 
 /**

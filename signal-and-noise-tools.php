@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, Plausible integration, security headers, Cloudflare purge, admin UI, RSS Plausible tracker. Self-updater migrates in Phase 2.
- * Version:     5.3.0
+ * Version:     5.4.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -76,9 +76,12 @@ require_once SNT_PATH . 'inc/analytics-api.php';
 require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
-require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device breakdowns
+require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
+require_once SNT_PATH . 'inc/analytics-buckets.php'; // derived: hour-of-day heatmap + scroll/time distributions
+require_once SNT_PATH . 'inc/analytics-derived.php'; // PHP-only derived: referrer categories, deltas, bot breakdown
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
-require_once SNT_PATH . 'inc/analytics-admin.php';  // Monitoring → Analytics tab
+require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
+require_once SNT_PATH . 'inc/analytics-dashboard-page.php'; // WP Dashboard → Analytics read-only page
 require_once SNT_PATH . 'inc/admin-bar.php';
 require_once SNT_PATH . 'inc/admin-page.php';
 // Admin UI — split out of the former 1,468-line inc/admin-page.php in v4.5.4.

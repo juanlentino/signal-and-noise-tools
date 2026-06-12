@@ -56,66 +56,132 @@ function snt_analytics_range_dates( $days, $now = null ) {
 }
 
 /**
- * Render the Analytics dashboard (hooked at sn_admin_dashboard_extras, priority 5
- * — leads the plugin Dashboard tab since v5.3.0; was Monitoring → Analytics).
+ * The settings page the dashboard's "Configure →" link points at (and where the
+ * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
+ * route so the form POST hits the allow-listed admin-post handler.
  */
-function snt_analytics_render_admin_tab() {
-	snt_analytics_styles();
+function snt_analytics_settings_url() {
+	return admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' );
+}
 
-	// v5.3.0: section heading — this view now leads the Dashboard tab.
-	echo '<h2 class="sn-section-h">Analytics</h2>';
+/**
+ * Render the comprehensive READ-ONLY analytics dashboard (v5.4.0). Lives on the
+ * native WP Dashboard → Analytics page (inc/analytics-dashboard-page.php); the
+ * credential settings are split out to Monitoring → Analytics
+ * (snt_analytics_render_settings_section). No <h1>/<h2> heading or settings form
+ * here — the page chrome owns the title, and the read view carries no form.
+ *
+ * Sections: controls + separation + delta cards + trend, then Top content,
+ * Technology, Geography & network, Engagement (heatmap + distributions), and
+ * Traffic quality. Every dimension/derived panel renders its own empty state
+ * until the edge data accrues (worker v1.1.0 — no backfill).
+ */
+function snt_analytics_render_dashboard() {
+	snt_analytics_styles();
 
 	// Read-only display params — sanitized + whitelisted (no nonce: not state-changing).
 	$range = snt_analytics_resolve_range( isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7' );
 	$class = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
 
-	// Config gate: show the settings form (+ empty notice) when unconfigured.
+	// Config gate: empty notice + a link to the settings page (the form lives there now).
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		snt_analytics_render_empty( 'unconfigured' );
-		snt_analytics_render_settings();
+		echo '<p><a class="button button-primary" href="' . esc_url( snt_analytics_settings_url() ) . '">Configure analytics &rarr;</a></p>';
 		return;
 	}
 
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 
+	// Core aggregates.
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
 	$series       = sn_analytics_daily_series( $from, $to, $class );
 	$paths        = sn_analytics_top_paths( $from, $to, $class, 25 );
-	$referrers    = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
-	$countries    = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
-	$devices      = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
+	$deltas       = sn_analytics_period_deltas( $from, $to, $class );
 
-	// AE error diagnostic (admins only), shown above the data.
+	// Dimension breakdowns (the 11 dims — 3 original + 8 edge).
+	$referrers = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
+	$countries = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
+	$devices   = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
+	$browsers  = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
+	$os        = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
+	$cities    = sn_analytics_top_dimension( 'city', $from, $to, $class, 10 );
+	$regions   = sn_analytics_top_dimension( 'region', $from, $to, $class, 10 );
+	$networks  = sn_analytics_top_dimension( 'network', $from, $to, $class, 10 );
+	$colos     = sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 );
+	$protocols = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
+	$tls       = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
+
+	// Derived views.
+	$ref_cats    = sn_analytics_referrer_categories( $from, $to, $class );
+	$heatmap     = sn_analytics_hour_dow_grid( $from, $to, $class );
+	$scroll_dist = sn_analytics_distribution( 'scroll', $from, $to, $class );
+	$time_dist   = sn_analytics_distribution( 'time', $from, $to, $class );
+	$bot         = sn_analytics_bot_breakdown( $from, $to );
+
+	// AE error diagnostic (admins only), above the data.
 	snt_analytics_render_error();
 
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
+	snt_analytics_render_cards( $now, $totals, $deltas );
 	snt_analytics_render_trend( $series );
-	snt_analytics_render_cards( $now, $totals );
 
+	echo '<h2 class="sn-section-h">Top content</h2>';
 	echo '<div class="sn-an-grid">';
 	snt_analytics_render_paths_table( $paths );
 	snt_analytics_render_dim_table( 'Top sources', $referrers, 'No referrers in this range.' );
-	snt_analytics_render_dim_table( 'Top countries', $countries, 'No country data in this range.' );
-	snt_analytics_render_dim_table( 'Devices', $devices, 'No device data in this range.' );
+	snt_analytics_render_referrer_categories( $ref_cats );
+	snt_analytics_render_dim_table( 'Countries', $countries, 'No country data in this range.' );
 	echo '</div>';
+
+	echo '<h2 class="sn-section-h">Technology</h2>';
+	echo '<div class="sn-an-grid">';
+	snt_analytics_render_dim_table( 'Browsers', $browsers, 'No browser data in this range yet.' );
+	snt_analytics_render_dim_table( 'Operating systems', $os, 'No OS data in this range yet.' );
+	snt_analytics_render_dim_table( 'Devices', $devices, 'No device data in this range.' );
+	snt_analytics_render_dim_table( 'Protocols', $protocols, 'No protocol data in this range yet.' );
+	snt_analytics_render_dim_table( 'TLS versions', $tls, 'No TLS data in this range yet.' );
+	echo '</div>';
+
+	echo '<h2 class="sn-section-h">Geography &amp; network</h2>';
+	echo '<div class="sn-an-grid">';
+	snt_analytics_render_dim_table( 'Cities', $cities, 'No city data in this range yet.' );
+	snt_analytics_render_dim_table( 'Regions', $regions, 'No region data in this range yet.' );
+	snt_analytics_render_dim_table( 'Networks', $networks, 'No network data in this range yet.' );
+	snt_analytics_render_dim_table( 'Edge locations', $colos, 'No edge-location data in this range yet.' );
+	echo '</div>';
+
+	echo '<h2 class="sn-section-h">Engagement</h2>';
+	snt_analytics_render_heatmap( $heatmap );
+	echo '<div class="sn-an-grid">';
+	snt_analytics_render_distribution( 'Scroll depth', $scroll_dist );
+	snt_analytics_render_distribution( 'Time on page', $time_dist );
+	echo '</div>';
+
+	echo '<h2 class="sn-section-h">Traffic quality</h2>';
+	snt_analytics_render_bot_breakdown( $bot );
 
 	// Empty hint when configured but the tables are still dormant.
 	if ( empty( $paths ) && (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
 	}
-
-	echo '<details class="sn-an-settings-wrap"><summary class="sn-an-seg-summary">Settings &amp; Worker setup</summary>';
-	snt_analytics_render_settings();
-	echo '</details>';
 }
-// v5.3.0: the analytics dashboard now LEADS the plugin Dashboard tab (moved out
-// of Monitoring → Analytics). Priority 5 renders it above the operational state
-// grid (snt_dashboard_tab_render, priority 10). The renderer is location-agnostic
-// (reads rollup accessors; controls derive their URL from the current request).
-add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render_admin_tab', 5 );
+
+/**
+ * The Monitoring → Analytics settings section: the credential form + Worker
+ * setup console (snt_analytics_render_settings), prefixed with a backlink to the
+ * read-only dashboard. The form posts on the page=sn-theme-options route (the
+ * Monitoring sub-tab nav guarantees that slug), so the existing admin-post
+ * handler processes analytics_save/analytics_test unchanged.
+ */
+function snt_analytics_render_settings_section() {
+	snt_analytics_styles();
+	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>.</p>';
+	echo '<p><a class="button" href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
+	snt_analytics_render_settings();
+}
 
 /**
  * Inline CSS — native wp-admin palette only (no theme fonts/colors).
@@ -159,8 +225,33 @@ function snt_analytics_styles() {
 	.sn-an-steps li{margin:6px 0;}
 	.sn-an-pre{background:#f6f7f7;border:1px solid #e0e0e0;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre;overflow:auto;}
 	.sn-an-worker[open] summary{margin-bottom:6px;}
-	.sn-an-settings-wrap{margin-top:20px;border-top:1px solid #dcdcde;padding-top:14px;}
-	.sn-an-seg-summary{cursor:pointer;font-weight:600;font-size:13px;color:#1d2327;}
+	/* v5.4.0 — period deltas, referrer categories, distributions, heatmap, quality. */
+	.sn-an-delta{font-size:0.72em;font-weight:600;margin-left:5px;white-space:nowrap;}
+	.sn-an-delta--up{color:#0a7c2f;}
+	.sn-an-delta--down{color:#b32d2e;}
+	.sn-an-delta--flat{color:#646970;}
+	.sn-an-refcats-bars{display:flex;flex-direction:column;gap:8px;}
+	.sn-an-refcat-h{display:flex;justify-content:space-between;font-size:13px;color:#1d2327;margin-bottom:3px;}
+	.sn-an-refcat-bar{height:8px;background:#f0f0f1;border-radius:4px;overflow:hidden;}
+	.sn-an-refcat-bar span{display:block;height:100%;background:#2271b1;border-radius:4px;}
+	.sn-an-dist-bars{display:flex;flex-direction:column;gap:7px;}
+	.sn-an-dist-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+	.sn-an-dist-l{flex:0 0 72px;color:#646970;}
+	.sn-an-dist-bar{flex:1;height:10px;background:#f0f0f1;border-radius:5px;overflow:hidden;}
+	.sn-an-dist-bar span{display:block;height:100%;background:#2271b1;border-radius:5px;}
+	.sn-an-dist-n{flex:0 0 auto;}
+	.sn-an-heatmap{display:flex;flex-direction:column;gap:3px;overflow-x:auto;}
+	.sn-an-hm-row{display:flex;align-items:center;gap:3px;}
+	.sn-an-hm-day{flex:0 0 32px;font-size:11px;color:#646970;}
+	.sn-an-hm-cell{flex:1;min-width:9px;height:14px;background:#f0f0f1;border-radius:2px;}
+	.sn-an-quality-bar{display:flex;height:16px;border-radius:4px;overflow:hidden;margin:0 0 8px;background:#f0f0f1;}
+	.sn-an-q{display:block;height:100%;}
+	.sn-an-q--human{background:#2271b1;}
+	.sn-an-q--suspect{background:#dba617;}
+	.sn-an-q--bot{background:#d63638;}
+	.sn-an-q-legend{font-size:12px;color:#646970;margin:0 0 10px;}
+	.sn-an-q-key{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px;}
+	.sn-an-subh{font-size:12px;color:#646970;margin:10px 0 4px;}
 	</style>
 	<?php
 }

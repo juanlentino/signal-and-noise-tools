@@ -107,24 +107,48 @@ function snt_analytics_render_trend( $series ) {
 }
 
 /**
- * The 5 stat cards: Now, Views, Visits, Avg scroll, Avg time.
+ * Echo a period-over-period delta badge (▲/▼/■ + signed pct). pct null → "new"
+ * (prev window was empty). No-op when no delta is supplied. Echoes (rather than
+ * returns) so the escaping is at the point of output (phpcs-visible).
+ *
+ * @param array|null $delta {pct:?int, dir:string}
+ */
+function snt_analytics_render_delta_badge( $delta ) {
+	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
+		return;
+	}
+	$dir   = (string) $delta['dir'];
+	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
+	$pct   = $delta['pct'] ?? null;
+	$text  = ( null === $pct )
+		? ( 'up' === $dir ? 'new' : '—' )
+		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
+	echo ' <span class="sn-an-delta sn-an-delta--' . esc_attr( $dir ) . '">' . esc_html( $arrow . ' ' . $text ) . '</span>';
+}
+
+/**
+ * The 5 stat cards: Now, Views, Visits, Avg scroll, Avg time. Views/Visits/Avg
+ * scroll/Avg time carry a period-over-period delta badge when $deltas is given
+ * (keyed views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
  *
  * @param int|null $now    Realtime visitor count.
  * @param array    $totals {views,visits,scroll_avg,time_avg}
+ * @param array    $deltas {views,visits,scroll_avg,time_avg} => {pct,dir}
  */
-function snt_analytics_render_cards( $now, $totals ) {
+function snt_analytics_render_cards( $now, $totals, $deltas = array() ) {
 	$cards = array(
-		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '' ),
-		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '' ),
+		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '', 'delta' => null ),
+		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['views'] ?? null ),
 		array(
 			'l' => 'Visits',
 			'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ),
 			// Page-weighted sum: a visitor viewing N pages in a session counts N times because the
 			// rollup is keyed per-path. "Now" is always truly distinct (realtime query).
 			'title' => "Page-weighted: a visitor viewing N pages counts N times. 'Now' shows true distinct visitors.",
+			'delta' => $deltas['visits'] ?? null,
 		),
-		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '' ),
-		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '' ),
+		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '', 'delta' => $deltas['scroll_avg'] ?? null ),
+		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['time_avg'] ?? null ),
 	);
 	echo '<div class="sn-an-cards">';
 	foreach ( $cards as $c ) {
@@ -133,7 +157,154 @@ function snt_analytics_render_cards( $now, $totals ) {
 		} else {
 			echo '<div class="sn-an-card">';
 		}
-		echo '<div class="n">' . esc_html( $c['n'] ) . '</div><div class="l">' . esc_html( $c['l'] ) . '</div></div>';
+		echo '<div class="n">' . esc_html( $c['n'] ) . '</div>';
+		echo '<div class="l">' . esc_html( $c['l'] );
+		if ( ! empty( $c['delta'] ) ) {
+			snt_analytics_render_delta_badge( $c['delta'] );
+		}
+		echo '</div></div>';
+	}
+	echo '</div>';
+}
+
+/**
+ * Referrer-source category panel: Search / Social / Direct / Other as labelled
+ * percentage bars (folded from the referrer dimension in inc/analytics-derived.php).
+ *
+ * @param array $cats [{category,label,views,visits}]
+ */
+function snt_analytics_render_referrer_categories( $cats ) {
+	echo '<div class="sn-an-panel sn-an-refcats"><h3>Traffic sources</h3>';
+	$total = 0;
+	foreach ( (array) $cats as $c ) {
+		$total += (int) ( $c['views'] ?? 0 );
+	}
+	if ( $total <= 0 ) {
+		echo '<p class="sn-an-empty">No referrer data in this range yet.</p></div>';
+		return;
+	}
+	echo '<div class="sn-an-refcats-bars">';
+	foreach ( (array) $cats as $c ) {
+		$v   = (int) ( $c['views'] ?? 0 );
+		$pct = (int) round( $v / $total * 100 );
+		echo '<div class="sn-an-refcat">';
+		echo '<div class="sn-an-refcat-h"><span>' . esc_html( (string) ( $c['label'] ?? '' ) ) . '</span>'
+			. '<span class="num">' . esc_html( number_format_i18n( $v ) . ' · ' . $pct . '%' ) . '</span></div>';
+		echo '<div class="sn-an-refcat-bar"><span style="width:' . esc_attr( max( 1, $pct ) ) . '%"></span></div>';
+		echo '</div>';
+	}
+	echo '</div></div>';
+}
+
+/**
+ * Distribution panel (scroll-depth or time-on-page bands) as horizontal bars
+ * scaled to the peak band. Bands come pre-ordered + zero-filled from
+ * sn_analytics_distribution().
+ *
+ * @param string $title
+ * @param array  $rows  [{label,views}]
+ */
+function snt_analytics_render_distribution( $title, $rows ) {
+	echo '<div class="sn-an-panel sn-an-dist"><h3>' . esc_html( $title ) . '</h3>';
+	$max = 0;
+	foreach ( (array) $rows as $r ) {
+		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
+	}
+	if ( $max <= 0 ) {
+		echo '<p class="sn-an-empty">No ' . esc_html( strtolower( $title ) ) . ' data in this range yet.</p></div>';
+		return;
+	}
+	echo '<div class="sn-an-dist-bars">';
+	foreach ( (array) $rows as $r ) {
+		$v   = (int) ( $r['views'] ?? 0 );
+		$pct = (int) round( $v / $max * 100 );
+		echo '<div class="sn-an-dist-row">';
+		echo '<span class="sn-an-dist-l">' . esc_html( (string) ( $r['label'] ?? '' ) ) . '</span>';
+		echo '<span class="sn-an-dist-bar"><span style="width:' . esc_attr( max( 1, $pct ) ) . '%"></span></span>';
+		echo '<span class="sn-an-dist-n num">' . esc_html( number_format_i18n( $v ) ) . '</span>';
+		echo '</div>';
+	}
+	echo '</div></div>';
+}
+
+/**
+ * Hour-of-day × day-of-week heatmap (CSS grid, cell alpha = intensity). The grid
+ * + peak come from sn_analytics_hour_dow_grid(); UTC because AE timestamps are UTC.
+ *
+ * @param array $heatmap {grid:array<int,array<int,int>>, max:int}
+ */
+function snt_analytics_render_heatmap( $heatmap ) {
+	$grid = ( isset( $heatmap['grid'] ) && is_array( $heatmap['grid'] ) ) ? $heatmap['grid'] : array();
+	$max  = (int) ( $heatmap['max'] ?? 0 );
+	echo '<div class="sn-an-panel sn-an-heatmap-panel"><h3>Activity by hour (UTC)</h3>';
+	if ( $max <= 0 || empty( $grid ) ) {
+		echo '<p class="sn-an-empty">No hourly data in this range yet.</p></div>';
+		return;
+	}
+	$days = array( 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' );
+	echo '<div class="sn-an-heatmap" role="img" aria-label="' . esc_attr__( 'Visits by hour of day and day of week', 'signal-and-noise-tools' ) . '">';
+	foreach ( $days as $dow => $label ) {
+		echo '<div class="sn-an-hm-row"><span class="sn-an-hm-day">' . esc_html( $label ) . '</span>';
+		for ( $h = 0; $h < 24; $h++ ) {
+			$v     = isset( $grid[ $dow ][ $h ] ) ? (int) $grid[ $dow ][ $h ] : 0;
+			$hh    = str_pad( (string) $h, 2, '0', STR_PAD_LEFT );
+			$title = $label . ' ' . $hh . ':00 · ' . number_format_i18n( $v ) . ' views';
+			// $max > 0 is guaranteed here (the panel returns early on an empty grid).
+			if ( $v > 0 ) {
+				$alpha = max( 0.12, round( $v / $max, 2 ) );
+				echo '<span class="sn-an-hm-cell" style="background:rgba(34,113,177,' . esc_attr( $alpha ) . ')" title="' . esc_attr( $title ) . '"></span>';
+			} else {
+				echo '<span class="sn-an-hm-cell" title="' . esc_attr( $title ) . '"></span>';
+			}
+		}
+		echo '</div>';
+	}
+	echo '</div></div>';
+}
+
+/**
+ * Traffic-quality panel: a stacked human/suspect/bot bar + the top bot networks
+ * (the new edge ASN dimension filtered to class='bot'). Data from
+ * sn_analytics_bot_breakdown().
+ *
+ * @param array $bb {totals:{human,suspect,bot,total}, top_bot_networks:[{value,views,visits}]}
+ */
+function snt_analytics_render_bot_breakdown( $bb ) {
+	$t       = ( isset( $bb['totals'] ) && is_array( $bb['totals'] ) ) ? $bb['totals'] : array();
+	$human   = (int) ( $t['human'] ?? 0 );
+	$suspect = (int) ( $t['suspect'] ?? 0 );
+	$bot     = (int) ( $t['bot'] ?? 0 );
+	$total   = (int) ( $t['total'] ?? ( $human + $suspect + $bot ) );
+
+	echo '<div class="sn-an-panel sn-an-botbreak"><h3>Traffic quality</h3>';
+	if ( $total <= 0 ) {
+		echo '<p class="sn-an-empty">No traffic recorded in this range yet.</p></div>';
+		return;
+	}
+	echo '<div class="sn-an-quality-bar">';
+	foreach ( array( 'human' => $human, 'suspect' => $suspect, 'bot' => $bot ) as $cls => $v ) {
+		if ( $v <= 0 ) {
+			continue;
+		}
+		$pct = round( $v / $total * 100, 1 );
+		echo '<span class="sn-an-q sn-an-q--' . esc_attr( $cls ) . '" style="width:' . esc_attr( $pct ) . '%" '
+			. 'title="' . esc_attr( ucfirst( $cls ) . ': ' . number_format_i18n( $v ) . ' (' . $pct . '%)' ) . '"></span>';
+	}
+	echo '</div>';
+	echo '<p class="sn-an-q-legend">';
+	echo '<span class="sn-an-q-key sn-an-q--human"></span> Human ' . esc_html( number_format_i18n( $human ) );
+	echo ' · <span class="sn-an-q-key sn-an-q--suspect"></span> Suspect ' . esc_html( number_format_i18n( $suspect ) );
+	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> Bot ' . esc_html( number_format_i18n( $bot ) );
+	echo '</p>';
+
+	$nets = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
+	if ( ! empty( $nets ) ) {
+		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table"><tbody>';
+		foreach ( $nets as $n ) {
+			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
+				. '<td class="num">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 	echo '</div>';
 }

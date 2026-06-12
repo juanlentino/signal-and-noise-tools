@@ -290,6 +290,12 @@ function sn_analytics_run_rollup() {
 		sn_analytics_dims_run_rollup();
 	}
 
+	// v5.4.0: roll the derived views (hour-of-day heatmap + scroll/time
+	// distributions) in the same pass — their own AE queries, same guard.
+	if ( function_exists( 'sn_analytics_buckets_run_rollup' ) ) {
+		sn_analytics_buckets_run_rollup();
+	}
+
 	set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
 }
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
