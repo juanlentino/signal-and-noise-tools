@@ -16,6 +16,7 @@ All notable changes to Signal & Noise Tools are documented here.
 - **AE SQL read-client wired into the loader** ([inc/analytics-api.php](inc/analytics-api.php)) — the P1 read-client (`sn_analytics_query()` / `sn_analytics_config()`) shipped on disk but unwired; it is now `require_once`'d immediately before its consumers.
 - **Analytics dashboard (Monitoring → Analytics).** A native wp-admin first-party analytics surface: visitors-now, range totals, a daily trend, and top pages (with scroll/time engagement) / sources / countries / devices breakdowns — with a human/suspect/bot class control and an "N automated filtered" line. 7/30/90-day windows. Reads only the durable rollup tables, so it never blocks a render; dormant until the Cloudflare worker + read credentials are configured.
 - **Referrer/country/device breakdown rollup** (`wp_sn_analytics_dims`), aggregated in the same daily cron from the existing AE blobs — no edge-worker change.
+- **In-admin analytics credentials.** The Analytics tab now configures the Cloudflare read token + account ID directly (wp-config constants still override and lock the fields), with a "Test connection" button and a guided Cloudflare Worker-setup panel — no wp-config edit required to get the dashboard reading data.
 
 ### Improvements
 
