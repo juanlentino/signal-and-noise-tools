@@ -537,3 +537,78 @@ function sn_handle_music_sync( $post ) {
 	}
 	return sn_discography_run_sync() ? 'music_synced' : 'music_sync_failed';
 }
+
+/**
+ * S2 (P2 analytics data layer): save the Cloudflare Analytics Engine credentials
+ * from the Analytics settings form.
+ *
+ * Two fields:
+ *   sn_cf_account_id       — plain identifier (not a secret), change-detected.
+ *   sn_cf_analytics_token  — secret token; masked field; a '••••…' placeholder
+ *                             means "no edit" and is silently skipped so the stored
+ *                             value is never clobbered by the placeholder text.
+ *
+ * Both are constant-lockable: when SN_CF_ANALYTICS_TOKEN AND SN_CF_ACCOUNT_ID are
+ * both defined and non-empty in wp-config.php, admin edits are rejected entirely.
+ * When only one is locked, that field is skipped and the other may still be saved.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code: 'analytics_saved' | 'analytics_unchanged' | 'analytics_locked'.
+ */
+function sn_handle_analytics_save( $post ) {
+	$token_locked = defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN;
+	$acct_locked  = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID;
+	if ( $token_locked && $acct_locked ) {
+		return 'analytics_locked';
+	}
+
+	$changed = false;
+
+	// Account ID — identifier, not a secret: plain text, change-detected.
+	if ( ! $acct_locked && isset( $post['sn_cf_account_id'] ) ) {
+		$acct = sanitize_text_field( wp_unslash( $post['sn_cf_account_id'] ) );
+		if ( 'clear' === $acct ) {
+			if ( '' !== (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' ) ) {
+				delete_option( SN_CF_ACCOUNT_ID_OPT );
+				$changed = true;
+			}
+		} elseif ( '' !== $acct && $acct !== (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' ) ) {
+			update_option( SN_CF_ACCOUNT_ID_OPT, $acct, false );
+			$changed = true;
+		}
+	}
+
+	// Token — secret: masked field, ignore an un-edited '••••…' placeholder.
+	if ( ! $token_locked ) {
+		$new_token = isset( $post['sn_cf_analytics_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_analytics_token'] ) ) : '';
+		if ( 'clear' === $new_token ) {
+			if ( '' !== (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' ) ) {
+				delete_option( SN_CF_ANALYTICS_TOKEN_OPT );
+				$changed = true;
+			}
+		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
+			update_option( SN_CF_ANALYTICS_TOKEN_OPT, $new_token, false );
+			$changed = true;
+		}
+	}
+
+	return $changed ? 'analytics_saved' : 'analytics_unchanged';
+}
+
+/**
+ * S2 (P2 analytics data layer): test the Cloudflare Analytics Engine credentials
+ * via a lightweight probe query (admin "Test connection" button).
+ *
+ * Dispatches through the sn_analytics_config() / sn_analytics_probe() seam so
+ * both functions are replaceable in unit tests without network access.
+ *
+ * @param array $post Raw $_POST (unused; kept for dispatcher contract).
+ * @return string Flash code: 'analytics_test_unconfigured' | 'analytics_test_ok' | 'analytics_test_err'.
+ */
+function sn_handle_analytics_test( $post ) {
+	if ( ! sn_analytics_config() ) {
+		return 'analytics_test_unconfigured';
+	}
+	delete_transient( SN_ANALYTICS_ERR_KEY ); // force-fresh: show THIS test's result, not a stale failure
+	return sn_analytics_probe() ? 'analytics_test_ok' : 'analytics_test_err';
+}

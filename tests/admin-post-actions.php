@@ -257,9 +257,108 @@ pa_reset_store();
 sn_handle_music_save( array( 'sn_spotify_secret' => 'attempt-override' ) );
 pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 'locked secret: no option written when constant is defined' );
 
+// ─── Analytics credential handlers (S2) ──────────────────────────────────────
+// Define the option-name constants (mirrors analytics-api.php). Done here (not
+// via require_once of analytics-api.php) because the real module uses
+// wp_remote_post which isn't available in this CLI harness.
+if ( ! defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ) { define( 'SN_CF_ANALYTICS_TOKEN_OPT', 'sn_cf_analytics_token' ); }
+if ( ! defined( 'SN_CF_ACCOUNT_ID_OPT' ) )      { define( 'SN_CF_ACCOUNT_ID_OPT', 'sn_cf_account_id' ); }
+// SN_ANALYTICS_ERR_KEY is a class const in analytics-api.php (not required in this
+// harness); define an equivalent so sn_handle_analytics_test()'s delete_transient()
+// call resolves without a PHP fatal.
+if ( ! defined( 'SN_ANALYTICS_ERR_KEY' ) )       { define( 'SN_ANALYTICS_ERR_KEY', 'sn_analytics_last_error' ); }
+
+// sn_mask_secret is referenced in flash-messages but not needed inside
+// the handler; it's already absent from this harness and that's fine.
+
+// Seam functions — toggled via $GLOBALS so each test controls their return value.
+// The real implementations are in inc/analytics-api.php; these thin stubs let the
+// handler run in the CLI test environment without network access.
+if ( ! function_exists( 'sn_analytics_config' ) ) {
+	function sn_analytics_config() {
+		return isset( $GLOBALS['__analytics_config'] ) ? $GLOBALS['__analytics_config'] : null;
+	}
+}
+if ( ! function_exists( 'sn_analytics_probe' ) ) {
+	function sn_analytics_probe() {
+		return isset( $GLOBALS['__analytics_probe'] ) ? (bool) $GLOBALS['__analytics_probe'] : false;
+	}
+}
+
+echo "\nTest: sn_handle_analytics_save() — fresh credentials\n";
+pa_reset_store();
+pa_eq(
+	'analytics_saved',
+	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'acct123', 'sn_cf_analytics_token' => 'tok-abc' ) ),
+	'fresh creds → analytics_saved'
+);
+pa_eq( 'acct123',  get_option( SN_CF_ACCOUNT_ID_OPT ),      'account id persisted' );
+pa_eq( 'tok-abc',  get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'token persisted' );
+
+echo "\nTest: sn_handle_analytics_save() — masked token (unchanged) re-submit\n";
+// Store a known token, then re-submit the masked placeholder.
+// The stored token must NOT be clobbered and the flash must be 'analytics_unchanged'.
+$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'real-stored-token';
+$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ]      = 'acct123';
+pa_eq(
+	'analytics_unchanged',
+	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'acct123', 'sn_cf_analytics_token' => '••••-abc' ) ),
+	'masked placeholder + same account → analytics_unchanged'
+);
+pa_eq( 'real-stored-token', get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'masked re-submit does NOT clobber the stored token' );
+
+echo "\nTest: sn_handle_analytics_save() — 'clear' token\n";
+pa_reset_store();
+$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'tok-to-clear';
+pa_eq(
+	'analytics_saved',
+	sn_handle_analytics_save( array( 'sn_cf_analytics_token' => 'clear' ) ),
+	"'clear' token → analytics_saved"
+);
+pa_eq( false, array_key_exists( SN_CF_ANALYTICS_TOKEN_OPT, $GLOBALS['__options'] ), 'token option deleted on clear' );
+
+echo "\nTest: sn_handle_analytics_save() — 'clear' account id\n";
+pa_reset_store();
+$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ] = 'acct-to-clear';
+pa_eq(
+	'analytics_saved',
+	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'clear' ) ),
+	"'clear' account id → analytics_saved"
+);
+pa_eq( false, array_key_exists( SN_CF_ACCOUNT_ID_OPT, $GLOBALS['__options'] ), 'account id option deleted on clear' );
+
+echo "\nTest: sn_handle_analytics_test() — unconfigured, ok, err\n";
+$GLOBALS['__analytics_config'] = null;
+pa_eq( 'analytics_test_unconfigured', sn_handle_analytics_test( array() ), 'null config → analytics_test_unconfigured' );
+$GLOBALS['__analytics_config'] = array( 'account_id' => 'acct', 'token' => 'tok' );
+$GLOBALS['__analytics_probe']  = true;
+pa_eq( 'analytics_test_ok', sn_handle_analytics_test( array() ), 'probe ok → analytics_test_ok' );
+$GLOBALS['__analytics_probe'] = false;
+pa_eq( 'analytics_test_err', sn_handle_analytics_test( array() ), 'probe err → analytics_test_err' );
+
+echo "\nTest: sn_handle_analytics_save() — account changed + token masked in one submit\n";
+// account CHANGED + token MASKED in one submit → saved; account written, token untouched.
+$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ]      = 'old-acct';
+$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'real-stored-token';
+pa_eq( 'analytics_saved', sn_handle_analytics_save( array( 'sn_cf_account_id' => 'new-acct', 'sn_cf_analytics_token' => '••••oken' ) ), 'account changed + masked token → analytics_saved' );
+pa_eq( 'new-acct', get_option( SN_CF_ACCOUNT_ID_OPT ), 'account id updated' );
+pa_eq( 'real-stored-token', get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'masked token NOT clobbered when account changes' );
+
+// Constant-locked test LAST — define() is permanent in-process.
+echo "\nTest: sn_handle_analytics_save() — both creds constant-locked\n";
+define( 'SN_CF_ANALYTICS_TOKEN', 'x' );
+define( 'SN_CF_ACCOUNT_ID', 'y' );
+pa_reset_store();
+pa_eq(
+	'analytics_locked',
+	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'attempt', 'sn_cf_analytics_token' => 'attempt' ) ),
+	'both constants defined → analytics_locked'
+);
+pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants are defined (locked)' );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 29, count( $map ), 'map has 29 actions' ); // v4.13.0: + music_save + music_sync
+pa_eq( 31, count( $map ), 'map has 31 actions' ); // S2: + analytics_save + analytics_test
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
