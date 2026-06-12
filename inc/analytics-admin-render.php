@@ -107,15 +107,26 @@ function snt_analytics_render_trend( $series ) {
  */
 function snt_analytics_render_cards( $now, $totals ) {
 	$cards = array(
-		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ) ),
-		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ) ),
-		array( 'l' => 'Visits',     'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ) ),
-		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%' ),
-		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ) ),
+		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '' ),
+		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '' ),
+		array(
+			'l' => 'Visits',
+			'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ),
+			// Page-weighted sum: a visitor viewing N pages in a session counts N times because the
+			// rollup is keyed per-path. "Now" is always truly distinct (realtime query).
+			'title' => "Page-weighted: a visitor viewing N pages counts N times. 'Now' shows true distinct visitors.",
+		),
+		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '' ),
+		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '' ),
 	);
 	echo '<div class="sn-an-cards">';
 	foreach ( $cards as $c ) {
-		echo '<div class="sn-an-card"><div class="n">' . esc_html( $c['n'] ) . '</div><div class="l">' . esc_html( $c['l'] ) . '</div></div>';
+		if ( '' !== $c['title'] ) {
+			echo '<div class="sn-an-card" title="' . esc_attr( $c['title'] ) . '">';
+		} else {
+			echo '<div class="sn-an-card">';
+		}
+		echo '<div class="n">' . esc_html( $c['n'] ) . '</div><div class="l">' . esc_html( $c['l'] ) . '</div></div>';
 	}
 	echo '</div>';
 }

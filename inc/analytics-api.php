@@ -2,7 +2,7 @@
 /**
  * Signal & Noise — Cloudflare Analytics Engine SQL read-client.
  *
- * Library module (P2 data layer). Exposes two public surfaces:
+ * Library module (P2 data layer). Exposes four public surfaces:
  *
  *   sn_analytics_config()        — resolves account_id + token via constant >
  *                                   option fallback; returns null when not
@@ -22,7 +22,7 @@
  *   blob2  = path          e.g. '/notes/my-note'
  *   blob3  = referrer_host e.g. 'twitter.com'
  *   blob4  = country       ISO-3166 alpha-2
- *   blob5  = device        'mobile' | 'tablet' | 'desktop'
+ *   blob5  = device        'mobile' | 'desktop' | '' (iPad → mobile; no 'tablet' emitted)
  *   blob6  = host          e.g. 'juanlentino.com'
  *   blob7  = traffic_class ('human' | 'suspect' | 'bot') — server-side
  *            classification from the edge worker (UA + data-center ASN + CF
@@ -30,7 +30,7 @@
  *
  *   double1 = scroll_pct   0–100 (scroll depth percentage)
  *   double2 = time_ms      dwell time in milliseconds
- *   double3 = bot_score    0–99 (CF bot management score)
+ *   double3 = bot_score    -1 sentinel when CF Bot Management is absent (else ~1–99)
  *
  *   index1  = visitor_day_hash   SHA-256(IP + date) for approx-unique counting
  *

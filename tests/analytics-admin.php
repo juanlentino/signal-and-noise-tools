@@ -113,7 +113,7 @@ $GLOBALS['__aa']['dim']          = array( array( 'value' => 'news.ycombinator.co
 $html = capture( 'snt_analytics_render_admin_tab' );
 ok( strpos( $html, '1,204' ) !== false, 'render: views stat card formatted' );
 ok( strpos( $html, '<div class="n">7</div>' ) !== false, 'render: visitors-now card shows 7 (pinned to the card, not the 7d range label)' );
-ok( stripos( $html, 'automated filtered' ) !== false && strpos( $html, '312' ) !== false, 'render: separation line counts automated (268 bot + 44 suspect = 312)' );
+ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'render: separation line total + bot + suspect counts (full-phrase pin)' );
 ok( strpos( $html, '/notes/x' ) !== false, 'render: top path row present' );
 ok( strpos( $html, 'news.ycombinator.com' ) !== false, 'render: top source row present' );
 ok( substr_count( $html, 'sn-an-panel' ) === 4, 'render: four breakdown panels (pages/sources/countries/devices)' );

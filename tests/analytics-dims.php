@@ -191,6 +191,15 @@ ok( strpos( $range_sql, "dim = 'referrer'" ) !== false && strpos( $range_sql, "c
 ok( strpos( $range_sql, 'GROUP BY value' ) !== false && strpos( $range_sql, 'ORDER BY views DESC' ) !== false, 'top_dimension: groups by value, orders by views' );
 ok( strpos( $range_sql, 'day >= ' ) !== false && strpos( $range_sql, 'day <= ' ) !== false,
 	'top_dimension: SQL applies BOTH the lower and upper day bound' );
+// SUM(col) AS alias mapping: a SUM(visits) AS views swap must fail.
+ok(
+	preg_match( '/SUM\(\s*views\s*\)\s+AS\s+views/i', $range_sql ) === 1,
+	'top_dimension: SUM(views) AS views — alias mapping correct'
+);
+ok(
+	preg_match( '/SUM\(\s*visits\s*\)\s+AS\s+visits/i', $range_sql ) === 1,
+	'top_dimension: SUM(visits) AS visits — alias mapping correct'
+);
 sn_analytics_top_dimension( 'referrer', '2026-06-01', '2026-06-12', 'human', 9999 );
 ok( strpos( end( $GLOBALS['wpdb']->queries ), 'LIMIT 500' ) !== false,
 	'top_dimension: limit clamps to 500 max' );

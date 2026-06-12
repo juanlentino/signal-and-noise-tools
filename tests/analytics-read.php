@@ -96,6 +96,24 @@ ok( abs( $a['time_avg'] - 210.0 ) < 0.01, 'top_paths: time_avg views-weighted ((
 ok( is_float( $a['scroll_avg'] ) && is_int( $a['views'] ), 'top_paths: types normalized' );
 $sql = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql, 'GROUP BY path' ) !== false && strpos( $sql, 'ORDER BY views DESC' ) !== false, 'top_paths: SQL groups by path, orders by views' );
+// SQL-shape pins: a plain AVG() regression must not slip through green.
+ok(
+	strpos( $sql, 'scroll_avg * views' ) !== false && strpos( $sql, 'NULLIF(SUM(views)' ) !== false,
+	'top_paths: SQL uses views-weighted scroll expression (not AVG)'
+);
+ok(
+	strpos( $sql, 'time_avg' ) !== false && strpos( $sql, '* views' ) !== false,
+	'top_paths: SQL uses views-weighted time expression (not AVG)'
+);
+// SUM(col) AS alias mapping: a SUM(visits) AS views swap must fail.
+ok(
+	preg_match( '/SUM\(\s*views\s*\)\s+AS\s+views/i', $sql ) === 1,
+	'top_paths: SUM(views) AS views — alias mapping correct'
+);
+ok(
+	preg_match( '/SUM\(\s*visits\s*\)\s+AS\s+visits/i', $sql ) === 1,
+	'top_paths: SUM(visits) AS visits — alias mapping correct'
+);
 
 echo "\nGroup: range_totals\n";
 $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = $fixture;
@@ -103,6 +121,24 @@ $rt = sn_analytics_range_totals( '2026-06-01', '2026-06-12' );
 ok( $rt['views'] === 700 && $rt['visits'] === 180, 'range_totals: sums human views/visits (excludes bot)' );
 ok( abs( $rt['scroll_avg'] - 64.2857 ) < 0.01, 'range_totals: scroll_avg views-weighted ((60*100+80*300+50*300)/700≈64.29)' );
 ok( is_int( $rt['views'] ) && is_float( $rt['scroll_avg'] ), 'range_totals: types normalized' );
+$sql = end( $GLOBALS['wpdb']->queries );
+// SQL-shape pins for range_totals (previously had NO SQL assertion).
+ok(
+	strpos( $sql, 'scroll_avg * views' ) !== false && strpos( $sql, 'NULLIF(SUM(views)' ) !== false,
+	'range_totals: SQL uses views-weighted scroll expression (not AVG)'
+);
+ok(
+	strpos( $sql, 'time_avg' ) !== false && strpos( $sql, '* views' ) !== false,
+	'range_totals: SQL uses views-weighted time expression (not AVG)'
+);
+ok(
+	preg_match( '/SUM\(\s*views\s*\)\s+AS\s+views/i', $sql ) === 1,
+	'range_totals: SUM(views) AS views — alias mapping correct'
+);
+ok(
+	preg_match( '/SUM\(\s*visits\s*\)\s+AS\s+visits/i', $sql ) === 1,
+	'range_totals: SUM(visits) AS visits — alias mapping correct'
+);
 
 echo "\nGroup: daily_series\n";
 $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = $fixture;
@@ -112,6 +148,14 @@ ok( $ds[0]['day'] === '2026-06-10' && $ds[1]['day'] === '2026-06-11', 'daily_ser
 ok( $ds[1]['views'] === 600, 'daily_series: 2026-06-11 human views = 300(/a)+300(/b)' );
 $sql = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql, 'GROUP BY day' ) !== false && strpos( $sql, 'ORDER BY day ASC' ) !== false, 'daily_series: SQL groups by day ascending' );
+ok(
+	preg_match( '/SUM\(\s*views\s*\)\s+AS\s+views/i', $sql ) === 1,
+	'daily_series: SUM(views) AS views — alias mapping correct'
+);
+ok(
+	preg_match( '/SUM\(\s*visits\s*\)\s+AS\s+visits/i', $sql ) === 1,
+	'daily_series: SUM(visits) AS visits — alias mapping correct'
+);
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

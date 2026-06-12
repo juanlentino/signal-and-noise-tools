@@ -296,9 +296,16 @@ add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
 add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );
 
 /**
- * Read accessor for downstream surfaces: rolled-up rows for an inclusive
- * [$from, $to] day range filtered to a single traffic class (default 'human'),
- * newest day first, type-normalized for the JSON layer.
+ * General-purpose read accessor: rolled-up rows for an inclusive [$from, $to]
+ * day range filtered to a single traffic class (default 'human'), newest day
+ * first, type-normalized for the JSON layer.
+ *
+ * Reserved for future/downstream use. The shipped dashboard surfaces (stat cards,
+ * trend strip, top pages) use the purpose-built accessors in inc/analytics-read.php
+ * (sn_analytics_range_totals / sn_analytics_daily_series / sn_analytics_top_paths)
+ * rather than this function, because those accessors apply views-weighted aggregation
+ * and per-field type normalization suited to their specific render contracts.
+ * The class-separation line is fed by sn_analytics_class_totals().
  *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
