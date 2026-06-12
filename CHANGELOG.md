@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [5.5.0] - 2026-06-12 — Tabbed Analytics dashboard
+
+**Headline:** The Dashboard → Analytics page is now **tabbed** — the long single-scroll of dimension breakdowns is grouped behind a WP-native tab strip (**Content · Technology · Geography · Engagement · Quality**), with the headline metrics kept persistently in view above it.
+
+### Improvements
+
+- **Tabbed views** ([inc/analytics-admin.php](inc/analytics-admin.php)). The at-a-glance header — range/class controls, the human/suspect/bot separation line, the five delta stat cards, and the trend strip — stays pinned above a `.nav-tab-wrapper`; the detailed panels live under one of five tabs. The active tab is a whitelisted `?sn_view=` URL param (`snt_analytics_resolve_view()`, default `content`), and each tab link preserves the current `sn_range`/`sn_class`, so switching tabs keeps your window + class filter.
+- **Lazy per-tab data fetch.** Each view fetches **only its own** rollup queries (e.g. the Technology tab reads browser/OS/device/protocol/TLS; Geography reads city/region/network/colo) instead of every dimension on every load — so the change is genuinely lighter per render, not just CSS show/hide. Server-side (no JS), so it works in the desktop-mode portal and stays covered by the standalone test suite.
+- Drops the per-section `<h2>` headings (the tab label is the section name) for a more compact page.
+
+> **Why MINOR:** a user-visible navigation capability on the analytics dashboard. No public API, REST route, Ability, or settings-schema change; no data-layer change (the same accessors, just grouped + lazily called). Full plugin suite green (80 suites / 2544 assertions); PHPCS exit 0 (EscapeOutput caught + fixed an inlined `aria-current` during the build, confirming the sniff is live on this file).
+
 ## [5.4.0] - 2026-06-12 — Comprehensive analytics: WP Dashboard page + every edge dimension + derived views
 
 **Headline:** First-party analytics graduates into a **comprehensive read-only dashboard under the native WordPress Dashboard menu** (sidebar: Home · Updates · **Analytics**) showing everything the edge can capture — 8 new dimensions (browser, OS, city, region, network/ASN, edge location, HTTP protocol, TLS version) on top of the existing pages/sources/countries/devices — plus derived views: an hour-of-day activity heatmap, scroll-depth and time-on-page distributions, referrer-source categories, period-over-period deltas on the stat cards, and a traffic-quality breakdown with the top bot networks. Credentials move to a settings-only **Monitoring → Analytics** sub-tab; the v5.3.0 placement on the plugin Dashboard tab is reverted.

@@ -5,7 +5,9 @@
  * Native wp-admin surface (no theme vocabulary) for the first-party edge
  * analytics. Reads only the durable rollup accessors (never AE) so it never
  * blocks; shows a config/empty state until the Cloudflare creds + worker land.
- * Renders: separation line → trend → stat cards → 2×2 breakdown grid.
+ * v5.5.0: a persistent header (controls → separation → delta cards → trend) over
+ * a WP-native tab strip (Content · Technology · Geography · Engagement · Quality);
+ * each tab lazily fetches only its own panels' data.
  *
  * @package SignalNoiseTools
  * @since 5.0.1
@@ -39,6 +41,58 @@ function snt_analytics_resolve_class( $raw ) {
 	return in_array( $c, SN_ANALYTICS_CLASSES, true ) ? $c : 'human';
 }
 
+// The tabbed views of the read-only dashboard, in display order (slug → label).
+// The detailed dimension/derived panels live under one of these; the headline
+// (controls + delta cards + trend) is persistent above the tabs.
+const SN_ANALYTICS_VIEWS = array(
+	'content'    => 'Content',
+	'technology' => 'Technology',
+	'geography'  => 'Geography',
+	'engagement' => 'Engagement',
+	'quality'    => 'Quality',
+);
+
+/**
+ * Whitelist the ?sn_view GET value to a known tab; default 'content'.
+ *
+ * @param mixed $raw
+ * @return string
+ */
+function snt_analytics_resolve_view( $raw ) {
+	$v = (string) $raw;
+	return isset( SN_ANALYTICS_VIEWS[ $v ] ) ? $v : 'content';
+}
+
+/**
+ * Render the WP-native tab strip for the dashboard views. Each tab link is the
+ * current page with sn_view set + the active sn_range/sn_class preserved, so
+ * switching tabs keeps the window + class filter. Mirrors the SN top-tab nav
+ * (`.nav-tab-wrapper`/`.nav-tab`) for native styling.
+ *
+ * @param string $active Active view slug.
+ * @param int    $range  Active range (preserved across tabs).
+ * @param string $class  Active class (preserved across tabs).
+ */
+function snt_analytics_render_view_tabs( $active, $range, $class ) {
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class' ), add_query_arg( array() ) );
+	if ( '' === (string) $base ) {
+		$base = admin_url( 'index.php?page=sn-analytics' );
+	}
+	echo '<nav class="nav-tab-wrapper sn-an-view-tabs" aria-label="Analytics views">';
+	foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
+		$url   = add_query_arg( array( 'sn_view' => $slug, 'sn_range' => $range, 'sn_class' => $class ), $base );
+		$is_on = ( $slug === $active );
+		// aria-current inlined (not a pre-built $aria var) so the escaping stays
+		// at the point of output and EscapeOutput can verify it.
+		if ( $is_on ) {
+			echo '<a class="nav-tab nav-tab-active" href="' . esc_url( $url ) . '" aria-current="page">' . esc_html( $label ) . '</a>';
+		} else {
+			echo '<a class="nav-tab" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
+		}
+	}
+	echo '</nav>';
+}
+
 /**
  * Inclusive [$from,$to] YYYY-MM-DD window of $days ending on the anchor day.
  * UTC (gmdate) to align with AE's toStartOfDay() buckets. $now is injectable
@@ -65,16 +119,17 @@ function snt_analytics_settings_url() {
 }
 
 /**
- * Render the comprehensive READ-ONLY analytics dashboard (v5.4.0). Lives on the
- * native WP Dashboard → Analytics page (inc/analytics-dashboard-page.php); the
- * credential settings are split out to Monitoring → Analytics
- * (snt_analytics_render_settings_section). No <h1>/<h2> heading or settings form
- * here — the page chrome owns the title, and the read view carries no form.
+ * Render the comprehensive READ-ONLY analytics dashboard. Lives on the native WP
+ * Dashboard → Analytics page (inc/analytics-dashboard-page.php); the credential
+ * settings are split out to Monitoring → Analytics
+ * (snt_analytics_render_settings_section). No <h1> heading or settings form here
+ * — the page chrome owns the title, and the read view carries no form.
  *
- * Sections: controls + separation + delta cards + trend, then Top content,
- * Technology, Geography & network, Engagement (heatmap + distributions), and
- * Traffic quality. Every dimension/derived panel renders its own empty state
- * until the edge data accrues (worker v1.1.0 — no backfill).
+ * v5.5.0 layout: a persistent header (controls + separation + delta cards +
+ * trend) above a WP-native tab strip (Content · Technology · Geography ·
+ * Engagement · Quality). The active tab (?sn_view=, whitelisted) lazily fetches
+ * ONLY its own panels' data. Every dimension/derived panel renders its own empty
+ * state until the edge data accrues (worker v1.1.0 — no backfill).
  */
 function snt_analytics_render_dashboard() {
 	snt_analytics_styles();
@@ -82,6 +137,7 @@ function snt_analytics_render_dashboard() {
 	// Read-only display params — sanitized + whitelisted (no nonce: not state-changing).
 	$range = snt_analytics_resolve_range( isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7' );
 	$class = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
+	$view  = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
@@ -92,79 +148,71 @@ function snt_analytics_render_dashboard() {
 
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 
-	// Core aggregates.
+	// ── Persistent header (every tab): the at-a-glance headline. Always fetched.
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
 	$series       = sn_analytics_daily_series( $from, $to, $class );
-	$paths        = sn_analytics_top_paths( $from, $to, $class, 25 );
 	$deltas       = sn_analytics_period_deltas( $from, $to, $class );
 
-	// Dimension breakdowns (the 11 dims — 3 original + 8 edge).
-	$referrers = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
-	$countries = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
-	$devices   = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
-	$browsers  = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
-	$os        = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
-	$cities    = sn_analytics_top_dimension( 'city', $from, $to, $class, 10 );
-	$regions   = sn_analytics_top_dimension( 'region', $from, $to, $class, 10 );
-	$networks  = sn_analytics_top_dimension( 'network', $from, $to, $class, 10 );
-	$colos     = sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 );
-	$protocols = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
-	$tls       = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
-
-	// Derived views.
-	$ref_cats    = sn_analytics_referrer_categories( $from, $to, $class );
-	$heatmap     = sn_analytics_hour_dow_grid( $from, $to, $class );
-	$scroll_dist = sn_analytics_distribution( 'scroll', $from, $to, $class );
-	$time_dist   = sn_analytics_distribution( 'time', $from, $to, $class );
-	$bot         = sn_analytics_bot_breakdown( $from, $to );
-
-	// AE error diagnostic (admins only), above the data.
-	snt_analytics_render_error();
-
+	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
 	snt_analytics_render_cards( $now, $totals, $deltas );
 	snt_analytics_render_trend( $series );
 
-	echo '<h2 class="sn-section-h">Top content</h2>';
-	echo '<div class="sn-an-grid">';
-	snt_analytics_render_paths_table( $paths );
-	snt_analytics_render_dim_table( 'Top sources', $referrers, 'No referrers in this range.' );
-	snt_analytics_render_referrer_categories( $ref_cats );
-	snt_analytics_render_dim_table( 'Countries', $countries, 'No country data in this range.' );
+	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
+	// so a tab switch is a lighter query set, not just CSS show/hide.
+	snt_analytics_render_view_tabs( $view, $range, $class );
+
+	echo '<div class="sn-an-view">';
+	switch ( $view ) {
+		case 'technology':
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_dim_table( 'Browsers', sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 ), 'No browser data in this range yet.' );
+			snt_analytics_render_dim_table( 'Operating systems', sn_analytics_top_dimension( 'os', $from, $to, $class, 10 ), 'No OS data in this range yet.' );
+			snt_analytics_render_dim_table( 'Devices', sn_analytics_top_dimension( 'device', $from, $to, $class, 10 ), 'No device data in this range.' );
+			snt_analytics_render_dim_table( 'Protocols', sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 ), 'No protocol data in this range yet.' );
+			snt_analytics_render_dim_table( 'TLS versions', sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 ), 'No TLS data in this range yet.' );
+			echo '</div>';
+			break;
+
+		case 'geography':
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.' );
+			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.' );
+			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.' );
+			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.' );
+			echo '</div>';
+			break;
+
+		case 'engagement':
+			snt_analytics_render_heatmap( sn_analytics_hour_dow_grid( $from, $to, $class ) );
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_distribution( 'Scroll depth', sn_analytics_distribution( 'scroll', $from, $to, $class ) );
+			snt_analytics_render_distribution( 'Time on page', sn_analytics_distribution( 'time', $from, $to, $class ) );
+			echo '</div>';
+			break;
+
+		case 'quality':
+			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
+			break;
+
+		case 'content':
+		default:
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
+			snt_analytics_render_dim_table( 'Top sources', sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 ), 'No referrers in this range.' );
+			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
+			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
+			echo '</div>';
+			break;
+	}
 	echo '</div>';
 
-	echo '<h2 class="sn-section-h">Technology</h2>';
-	echo '<div class="sn-an-grid">';
-	snt_analytics_render_dim_table( 'Browsers', $browsers, 'No browser data in this range yet.' );
-	snt_analytics_render_dim_table( 'Operating systems', $os, 'No OS data in this range yet.' );
-	snt_analytics_render_dim_table( 'Devices', $devices, 'No device data in this range.' );
-	snt_analytics_render_dim_table( 'Protocols', $protocols, 'No protocol data in this range yet.' );
-	snt_analytics_render_dim_table( 'TLS versions', $tls, 'No TLS data in this range yet.' );
-	echo '</div>';
-
-	echo '<h2 class="sn-section-h">Geography &amp; network</h2>';
-	echo '<div class="sn-an-grid">';
-	snt_analytics_render_dim_table( 'Cities', $cities, 'No city data in this range yet.' );
-	snt_analytics_render_dim_table( 'Regions', $regions, 'No region data in this range yet.' );
-	snt_analytics_render_dim_table( 'Networks', $networks, 'No network data in this range yet.' );
-	snt_analytics_render_dim_table( 'Edge locations', $colos, 'No edge-location data in this range yet.' );
-	echo '</div>';
-
-	echo '<h2 class="sn-section-h">Engagement</h2>';
-	snt_analytics_render_heatmap( $heatmap );
-	echo '<div class="sn-an-grid">';
-	snt_analytics_render_distribution( 'Scroll depth', $scroll_dist );
-	snt_analytics_render_distribution( 'Time on page', $time_dist );
-	echo '</div>';
-
-	echo '<h2 class="sn-section-h">Traffic quality</h2>';
-	snt_analytics_render_bot_breakdown( $bot );
-
-	// Empty hint when configured but the tables are still dormant.
-	if ( empty( $paths ) && (int) ( $totals['views'] ?? 0 ) === 0 ) {
+	// Empty hint when configured but the tables are still dormant — keyed on the
+	// always-fetched totals, so it shows on whichever tab you land on first.
+	if ( (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
 	}
 }
@@ -252,6 +300,9 @@ function snt_analytics_styles() {
 	.sn-an-q-legend{font-size:12px;color:#646970;margin:0 0 10px;}
 	.sn-an-q-key{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px;}
 	.sn-an-subh{font-size:12px;color:#646970;margin:10px 0 4px;}
+	/* v5.5.0 — tabbed views. The nav strip is WP-native (.nav-tab-wrapper). */
+	.sn-an-view-tabs{margin:18px 0 0;}
+	.sn-an-view{margin-top:16px;}
 	</style>
 	<?php
 }

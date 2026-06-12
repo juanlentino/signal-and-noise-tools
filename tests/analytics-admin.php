@@ -34,7 +34,7 @@ function remove_query_arg( $keys, $url ) {
 	foreach ( (array) $keys as $k ) { unset( $q[ $k ] ); }
 	return $q ? $parts[0] . '?' . http_build_query( $q ) : $parts[0];
 }
-$_SERVER['REQUEST_URI'] = '/wp-admin/admin.php?page=sn-theme-options&tab=dashboard';
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 function wp_unslash( $v ) { return $v; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
 function current_user_can( $c ) { return true; }
@@ -120,6 +120,9 @@ ok( snt_analytics_resolve_range( '999' ) === 7, 'resolve_range: out-of-list → 
 ok( snt_analytics_resolve_range( "7); DROP" ) === 7, 'resolve_range: junk → default 7' );
 ok( snt_analytics_resolve_class( 'bot' ) === 'bot', 'resolve_class: bot allowed' );
 ok( snt_analytics_resolve_class( 'martian' ) === 'human', 'resolve_class: unknown → human' );
+ok( snt_analytics_resolve_view( 'technology' ) === 'technology', 'resolve_view: known view allowed' );
+ok( snt_analytics_resolve_view( 'martian' ) === 'content', 'resolve_view: unknown → content default' );
+ok( snt_analytics_resolve_view( '' ) === 'content', 'resolve_view: empty → content default' );
 
 echo "\nGroup: date math\n";
 list( $from, $to ) = snt_analytics_range_dates( 7, gmmktime( 0, 0, 0, 6, 11, 2026 ) );
@@ -153,23 +156,68 @@ echo "\nGroup: dashboard — period-over-period deltas on cards\n";
 ok( substr_count( $html, 'sn-an-delta' ) >= 2, 'dashboard: delta indicators on the stat cards' );
 ok( strpos( $html, 'sn-an-delta--up' ) !== false && strpos( $html, 'sn-an-delta--down' ) !== false, 'dashboard: up + down delta directions rendered' );
 
-echo "\nGroup: dashboard — all dimension panels\n";
-foreach ( array( 'Top pages', 'Top sources', 'Countries', 'Devices', 'Browsers', 'Operating systems', 'Cities', 'Regions', 'Networks', 'Edge locations', 'Protocols', 'TLS' ) as $panel ) {
-	ok( strpos( $html, $panel ) !== false, "dashboard: '$panel' panel present" );
+echo "\nGroup: dashboard — view tab nav\n";
+$_GET['sn_view'] = 'content';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'nav-tab-wrapper' ) !== false, 'tabs: WP-native nav-tab-wrapper present' );
+foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' ) as $v ) {
+	ok( strpos( $html, 'sn_view=' . $v ) !== false, "tabs: link to '$v' view present" );
+}
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
+ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
+
+echo "\nGroup: dashboard — persistent header on every tab\n";
+foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' ) as $v ) {
+	$_GET['sn_view'] = $v;
+	$h = capture( 'snt_analytics_render_dashboard' );
+	ok(
+		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) === 2,
+		"header: controls + delta cards + trend persist on the '$v' tab"
+	);
 }
 
-echo "\nGroup: dashboard — derived views\n";
-ok( strpos( $html, 'sn-an-heatmap' ) !== false, 'dashboard: hour×dow heatmap rendered' );
-ok( strpos( $html, 'sn-an-dist' ) !== false && strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' ) !== false, 'dashboard: scroll + time distributions rendered' );
-ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'dashboard: referrer categories rendered' );
-ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'dashboard: bot breakdown + top bot ASN rendered' );
+echo "\nGroup: dashboard — Content view (default)\n";
+$_GET['sn_view'] = 'content';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false && strpos( $html, 'Countries' ) !== false, 'content: pages/sources/countries panels' );
+ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'content: referrer categories' );
+ok( strpos( $html, '>Browsers<' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'content: technology/engagement panels NOT in this view (lazy per-tab render)' );
 
-echo "\nGroup: dashboard — controls slug + escaping\n";
-ok( strpos( $html, 'page=sn-theme-options' ) !== false, 'dashboard: controls use page=sn-theme-options' );
-ok( strpos( $html, 'page=sn-monitoring' ) === false, 'dashboard: no link uses the wrong page=sn-monitoring slug' );
+echo "\nGroup: dashboard — Technology view\n";
+$_GET['sn_view'] = 'technology';
+$html = capture( 'snt_analytics_render_dashboard' );
+foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' ) as $p ) {
+	ok( strpos( $html, $p ) !== false, "technology: '$p' panel present" );
+}
+ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === false, 'technology: content/geography panels NOT in this view' );
+
+echo "\nGroup: dashboard — Geography view\n";
+$_GET['sn_view'] = 'geography';
+$html = capture( 'snt_analytics_render_dashboard' );
+foreach ( array( 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
+	ok( strpos( $html, $p ) !== false, "geography: '$p' panel present" );
+}
+
+echo "\nGroup: dashboard — Engagement view\n";
+$_GET['sn_view'] = 'engagement';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn-an-heatmap' ) !== false, 'engagement: hour×dow heatmap rendered' );
+ok( strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' ) !== false, 'engagement: scroll + time distributions' );
+
+echo "\nGroup: dashboard — Quality view\n";
+$_GET['sn_view'] = 'quality';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
+
+echo "\nGroup: dashboard — view param whitelist + escaping\n";
+$_GET['sn_view'] = '../../etc/passwd';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'Top pages' ) !== false, 'view: junk sn_view falls back to content (default)' );
+$_GET['sn_view'] = 'content';
 $GLOBALS['__aa']['paths'] = array( array( 'path' => '/x"<script>', 'views' => 1, 'visits' => 1, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '<script>' ) === false, 'dashboard: path output escaped (no raw <script>)' );
+unset( $_GET['sn_view'] );
 
 echo "\nGroup: dashboard — unconfigured shows empty + Configure link, NOT the form\n";
 $GLOBALS['__aa_config'] = false;
