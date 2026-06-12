@@ -117,6 +117,13 @@ function sn_settings_defaults() {
 			'provenance_title'       => '',
 			'provenance_description' => '',
 		),
+		// v5.1.0: IndexNow submission toggle. Default OFF (dormant until the
+		// owner enables it on Automation → IndexNow). Migration-free via the
+		// array_replace_recursive deep-merge in sn_setting(). The key itself
+		// lives in its own sn_indexnow_key option (not here).
+		'indexnow' => array(
+			'enabled' => false,
+		),
 	);
 }
 
@@ -316,6 +323,14 @@ function sn_settings_save( $raw ) {
 	// whole-option-replace hazard as the audit/monitoring/perf subtrees above.
 	if ( isset( $existing_settings['theme'] ) && is_array( $existing_settings['theme'] ) ) {
 		$sanitized['theme'] = $existing_settings['theme'];
+	}
+
+	// v5.1.0: preserve the indexnow subtree (Automation → IndexNow enable
+	// toggle), configured via sn_setting_update('indexnow.enabled', …), NOT in
+	// this Identity-tab form payload. Same whole-option-replace hazard as the
+	// audit/monitoring/perf/theme subtrees above.
+	if ( isset( $existing_settings['indexnow'] ) && is_array( $existing_settings['indexnow'] ) ) {
+		$sanitized['indexnow'] = $existing_settings['indexnow'];
 	}
 
 	$sanitized['seo_copy'] = array(

@@ -75,6 +75,7 @@ sn_setting_update( 'monitoring.uptime_kuma_push_url', 'https://kuma.example.com/
 sn_setting_update( 'theme.related_count', 9 );
 sn_setting_update( 'theme.palette_enabled', false );
 sn_setting_update( 'theme.ai_model', 'claude-opus-4-8' );
+sn_setting_update( 'indexnow.enabled', true );
 sn_setting_reset_cache();
 
 // Sanity: they're set before the Identity save.
@@ -97,6 +98,7 @@ assertEq( 'https://kuma.example.com/api/push/abc', sn_setting( 'monitoring.uptim
 assertEq( 9, (int) sn_setting( 'theme.related_count', 3 ), 'theme.related_count survives an Identity save (v4.12.0 guard)' );
 assertEq( false, sn_setting( 'theme.palette_enabled', true ), 'theme.palette_enabled survives an Identity save (v4.12.0 guard)' );
 assertEq( 'claude-opus-4-8', sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' ), 'theme.ai_model survives an Identity save (v4.12.0 guard)' );
+assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled survives an Identity save (v5.1.0 guard)' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
