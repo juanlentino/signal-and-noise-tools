@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
- * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, Plausible integration, security headers, Cloudflare purge, admin UI, RSS Plausible tracker. Self-updater migrates in Phase 2.
- * Version:     5.5.0
+ * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
+ * Version:     6.0.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -67,8 +67,6 @@ require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
-require_once SNT_PATH . 'inc/plausible-api.php';
-require_once SNT_PATH . 'inc/plausible-admin.php';
 require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
@@ -79,6 +77,7 @@ require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dash
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-buckets.php'; // derived: hour-of-day heatmap + scroll/time distributions
 require_once SNT_PATH . 'inc/analytics-derived.php'; // PHP-only derived: referrer categories, deltas, bot breakdown
+require_once SNT_PATH . 'inc/analytics-import.php'; // one-time Plausible-CSV → first-party rollup back-fill
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
 require_once SNT_PATH . 'inc/analytics-dashboard-page.php'; // WP Dashboard → Analytics read-only page

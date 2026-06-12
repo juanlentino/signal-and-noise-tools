@@ -31,12 +31,10 @@
  *     Suggest+Apply (alt text, drift phrases, inline alt, orphan media).
  *   - inc/abilities-ai-pattern-adoption.php  — 2 abilities: pattern-adoption
  *     Suggest+Apply (pull-quote + steps-enumerated). Added v4.3.0.
- *   - inc/abilities-plausible.php             — 3 abilities: Plausible stats,
- *     realtime, connection test (v4.6.0).
  *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
  *     scan + dismiss (structural 'tools' category, v4.6.0).
  *
- * Total: 43 abilities + 5 categories. Each feature file owns its
+ * Total: 40 abilities + 5 categories. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *
@@ -64,5 +62,4 @@ require_once __DIR__ . '/abilities-audit.php';
 require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
-require_once __DIR__ . '/abilities-plausible.php';  // v4.6.0: 3 Plausible abilities
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 2 abilities (scan + dismiss)

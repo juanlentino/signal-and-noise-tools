@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.0.0] - 2026-06-12 — Retire Plausible + import its history
+
+**Headline:** Plausible is **fully retired** — the first-party edge analytics has been the stats source since v5.2.0, so the deprecated Plausible Stats-API surface (REST routes, Abilities, admin sub-tab, rate-limit tracking) is removed per the v5.0.0→v6.0.0 deprecation ladder. To make that lossless, this release ships a **one-time CSV import tool** that back-fills your Plausible history into the first-party rollup before it's gone.
+
+> **Breaking (SemVer MAJOR):** removes the public REST routes `signal-noise/v1/plausible/{stats,realtime,test}` and the Abilities `signal-noise/get-plausible-stats`, `get-plausible-realtime`, `test-plausible-connection` (40 abilities now, was 43). `?page=sn-plausible` / `?tab=plausible` deep links no longer redirect (they fall through to the dashboard). **Operator action:** if you set `SN_PLAUSIBLE_STATS_TOKEN` in `wp-config.php`, remove it (now inert). The `rss-plausible-tracker` MU-plugin / RSS subscriber tracking is **unaffected** — it never used the Stats API.
+
+### New
+
+- **Import history from Plausible (one-time CSV)** ([inc/analytics-import.php](inc/analytics-import.php)). A panel under **Monitoring → Analytics** with a file input per Plausible export (Pages, Sources, Locations, Devices, Browsers, Operating systems). It parses + normalizes + idempotently back-fills the first-party rollup tables: `pages` → the daily path rollup (views, visits, scroll/time — Plausible's seconds converted to the rollup's milliseconds); `sources`/`locations`/`devices`/`browsers`/`operating_systems` → the referrer/country/device/browser/OS dimensions. Labels are normalized into the first-party vocabulary (`Microsoft Edge` → `Edge`, `Mac` → `macOS`, `Desktop` → `desktop`) so historical + live data merge into one bucket. Re-importing is safe (idempotent upserts); uploads are validated (genuine upload, ≤5 MB, CSV). The hour heatmap, scroll/time distributions, and network/edge/protocol/TLS dimensions can't be back-filled (no Plausible source) and start fresh from the worker.
+
+### Removed
+
+- **The Plausible Stats-API integration** — `inc/plausible-api.php`, `inc/plausible-admin.php`, `inc/abilities-plausible.php`; the 3 `/plausible/*` REST routes + callbacks; the 3 Plausible Abilities; the `pl_save`/`pl_test` admin-post handlers + their flash codes; the **Monitoring → Plausible** settings sub-tab; the `sn-plausible` legacy slug + redirect; the `sn-cmd-nav-plausible` command-palette entry (PHP + JS); and the `plausible.io` rate-limit row. The two Plausible refresh cron hooks are dropped from the SN-owned set (now RSS-only).
+
+### Changed
+
+- **Insights now reads first-party analytics.** The Content Opportunity Advisor's traffic signal (and the per-post `views_7d` join) was repointed from the retired `sn_plausible_dashboard_data()` to `sn_analytics_top_paths()` / `sn_analytics_range_totals()` / the referrer dimension — same `{aggregate, pages, sources}` prompt shape, now first-party. (This was an *unguarded* call to a function being deleted; the prior test stubbed it, masking the break — the suite now exercises the real first-party wiring.)
+
+### Cleanup
+
+- A one-time orphan-options pass ([inc/migrate-orphan-options.php](inc/migrate-orphan-options.php)) deletes the leftover `sn_plausible_stats_token` option + Plausible transients and clears the two dead cron events (gated by `sn_plausible_orphans_removed_v6`). The plugin Description docblock drops "Plausible integration"; the privacy-policy suggestion text now describes the first-party cookieless analytics.
+
+> **Why MAJOR:** removed public REST routes + Abilities + a settings surface + legacy-URL behavior — user-action-visible breaking changes, exactly what the deprecation ladder targeted. Bundled with the import tool so the migration is lossless. Full suite green (81 suites / 2535 assertions); PHPCS exit 0 (the central-dispatcher NonceVerification exclusion extended to the `$_FILES` import handler; EscapeOutput + the AE dialect guard still falsification-verified).
+
 ## [5.5.0] - 2026-06-12 — Tabbed Analytics dashboard
 
 **Headline:** The Dashboard → Analytics page is now **tabbed** — the long single-scroll of dimension breakdowns is grouped behind a WP-native tab strip (**Content · Technology · Geography · Engagement · Quality**), with the headline metrics kept persistently in view above it.

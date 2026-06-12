@@ -33,8 +33,6 @@ function sn_admin_post_handlers() {
 		'full_reset'                 => 'sn_handle_full_reset',
 		'save_identity'              => 'sn_handle_save_identity',
 		'save_login'                 => 'sn_handle_save_login',
-		'pl_save'                    => 'sn_handle_pl_save',
-		'pl_test'                    => 'sn_handle_pl_test',
 		'cf_save'                    => 'sn_handle_cf_save',
 		'cf_purge_now'               => 'sn_handle_cf_purge_now',
 		'apply_reading_time_cleanup' => 'sn_handle_apply_reading_time_cleanup',
@@ -62,6 +60,7 @@ function sn_admin_post_handlers() {
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
 		'analytics_save'             => 'sn_handle_analytics_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
+		'analytics_import'           => 'sn_handle_analytics_import',
 	);
 }
 

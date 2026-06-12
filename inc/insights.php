@@ -2,7 +2,7 @@
 /**
  * Signal & Noise Tools — Insights Tab + Content Opportunity Advisor.
  *
- * Cross-system AI synthesis: combines Plausible analytics + WP publish
+ * Cross-system AI synthesis: combines first-party analytics + WP publish
  * history + webhook delivery patterns + cron firings + site identity
  * into a single AI call that returns 5 actionable recommendations per
  * scan ("write_about", "update_post", "cadence_change",
@@ -50,7 +50,7 @@ define( 'SN_INSIGHTS_EXCERPT_TOTAL_CHARS', 60000 ); // hard backstop on the comb
 function snt_insights_collect_signals() {
 	$out = array(
 		'site'           => array(),
-		'plausible'      => array(),
+		'analytics'      => array(),
 		'posts'          => array(),
 		'webhooks'       => array(),
 		'cron_freshness' => array(),
@@ -66,27 +66,32 @@ function snt_insights_collect_signals() {
 		'home_url'    => home_url( '/' ),
 	);
 
-	// ── 2. Plausible — pass through whatever the cache has ──
-	$pl = sn_plausible_dashboard_data();
-	$out['plausible'] = is_array( $pl ) ? $pl : array();
+	// ── 2. Analytics — first-party 7-day traffic (was Plausible until v6.0.0) ──
+	// Read the durable rollup accessors (human class), shaped like the old
+	// dashboard_data ({aggregate, pages, sources}) so the prompt + the post-list
+	// views_7d join keep working without the retired Plausible client.
+	$an_to    = gmdate( 'Y-m-d' );
+	$an_from  = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ); // inclusive 7-day window
+	$an_pages = function_exists( 'sn_analytics_top_paths' ) ? sn_analytics_top_paths( $an_from, $an_to, 'human', 100 ) : array();
+	$an_pages = is_array( $an_pages ) ? $an_pages : array();
+	$out['analytics'] = array(
+		'aggregate' => function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $an_from, $an_to, 'human' ) : array(),
+		'pages'     => $an_pages,
+		'sources'   => function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'referrer', $an_from, $an_to, 'human', 20 ) : array(),
+	);
 
-	// Build a quick {relative-permalink-path => views_7d} map for the
-	// post-list join. The Plausible breakdown endpoint returns rows
-	// shaped { page: "/notes/my-slug", visitors: <int> } — visitors is a
-	// SCALAR, not nested under .value (that's the aggregate/prop shape).
-	// For the canonical data-shape reference see sn_plausible_dashboard_data()
-	// in inc/plausible-api.php, which demonstrates both the scalar (breakdown)
-	// and the aggregate (.value) shapes. Joining by relative path
-	// (not slug) makes the match work for any permalink structure,
-	// including nested permalinks like /notes/<slug>/.
+	// Build a quick {relative-permalink-path => views_7d} map for the post-list
+	// join. The first-party top_paths rows are shaped { path: "/notes/my-slug",
+	// views: <int>, … }. Joining by relative path (not slug) makes the match work
+	// for any permalink structure, including nested permalinks like /notes/<slug>/.
 	$views_map = array();
-	if ( ! empty( $out['plausible']['pages'] ) && is_array( $out['plausible']['pages'] ) ) {
-		foreach ( $out['plausible']['pages'] as $row ) {
-			$page = isset( $row['page'] ) ? trim( (string) $row['page'], '/' ) : '';
-			$visitors = isset( $row['visitors'] ) ? (int) $row['visitors'] : 0;
-			if ( '' !== $page ) {
-				$views_map[ $page ] = $visitors;
-			}
+	foreach ( $an_pages as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$path = isset( $row['path'] ) ? trim( (string) $row['path'], '/' ) : '';
+		if ( '' !== $path ) {
+			$views_map[ $path ] = (int) ( $row['views'] ?? 0 );
 		}
 	}
 
@@ -287,7 +292,7 @@ function snt_insights_call_ai( $signals ) {
  */
 function snt_insights_system_instruction() {
 	return <<<INSTRUCTIONS
-You are a content strategist analyzing a personal site's data. You will receive a JSON blob with: site identity, 7-day Plausible analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals. The highest-priority posts include an "excerpt" field carrying a content excerpt — use it to ground recommendations in what a post is actually about.
+You are a content strategist analyzing a personal site's data. You will receive a JSON blob with: site identity, 7-day first-party analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals. The highest-priority posts include an "excerpt" field carrying a content excerpt — use it to ground recommendations in what a post is actually about.
 
 Return ONLY a JSON array of exactly 5 recommendations. Each must be an object:
 

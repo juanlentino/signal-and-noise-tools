@@ -246,8 +246,8 @@ function sn_register_privacy_policy_content() {
 		$sentences[] = __( 'When content is published, this site may send a signed webhook notification — including the post title, URL, author, and time — to the third-party endpoints you have configured.', 'signal-noise-tools' );
 	}
 
-	// (c) Plausible analytics.
-	$sentences[] = __( 'If Plausible Analytics is enabled, it collects aggregate, cookieless usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-noise-tools' );
+	// (c) First-party analytics.
+	$sentences[] = __( 'This site uses its own cookieless analytics to collect aggregate usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-noise-tools' );
 
 	$content = implode( "\n\n", $sentences );
 

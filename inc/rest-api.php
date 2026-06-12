@@ -31,16 +31,6 @@
  *                                                  The "after a bad deploy"
  *                                                  panic button.
  *
- *   GET  signal-noise/v1/plausible/stats         — 7-day batched cache
- *                                                  (visitors, pageviews,
- *                                                  bounce, duration,
- *                                                  top pages, top
- *                                                  sources). Read-only.
- *   GET  signal-noise/v1/plausible/realtime      — current visitor count.
- *   POST signal-noise/v1/plausible/test          — fire a synchronous
- *                                                  Stats API call and
- *                                                  return the outcome.
- *
  * Auth model: every endpoint's permission_callback gates on
  * current_user_can( 'manage_options' ). Cookie-authenticated admins
  * pass automatically; external clients need a WordPress Application
@@ -114,26 +104,6 @@ add_action( 'rest_api_init', function() {
 		'methods'             => WP_REST_Server::CREATABLE,
 		'permission_callback' => 'sn_rest_can_manage',
 		'callback'            => 'sn_rest_full_reset',
-	) );
-
-	// ── Plausible read endpoints (GET, idempotent) ───────────────────
-
-	register_rest_route( SN_REST_NAMESPACE, '/plausible/stats', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'sn_rest_can_manage',
-		'callback'            => 'sn_rest_plausible_stats',
-	) );
-
-	register_rest_route( SN_REST_NAMESPACE, '/plausible/realtime', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'sn_rest_can_manage',
-		'callback'            => 'sn_rest_plausible_realtime',
-	) );
-
-	register_rest_route( SN_REST_NAMESPACE, '/plausible/test', array(
-		'methods'             => WP_REST_Server::CREATABLE,
-		'permission_callback' => 'sn_rest_can_manage',
-		'callback'            => 'sn_rest_plausible_test',
 	) );
 
 	// ── Cron Dashboard endpoint (POST, mutating) ─────────────────────
@@ -262,102 +232,6 @@ function sn_rest_full_reset( WP_REST_Request $request ) {
 		array(
 			'purged'   => $purged,
 			'overrides' => $overrides,
-		)
-	);
-}
-
-/**
- * GET /plausible/stats — read-only accessor for the 7-day batched
- * cache. Returns whatever the SWR layer has (possibly stale, possibly
- * empty if the very first cron warmup hasn't landed yet). Never
- * triggers a network call.
- *
- * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-stats`
- *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-stats/run).
- *             This back-compat route will be removed in v6.0.0.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
-function sn_rest_plausible_stats( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/get-plausible-stats/run' );
-	if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
-		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
-	}
-	$data = sn_plausible_dashboard_data();
-	if ( null === $data ) {
-		return new WP_Error( 'sn_plausible_unconfigured', 'Plausible is not configured (missing domain or token).', array( 'status' => 503 ) );
-	}
-	return sn_rest_ok(
-		'Plausible 7-day stats.',
-		$data
-	);
-}
-
-/**
- * GET /plausible/realtime — read-only accessor for the realtime cache.
- * Same SWR semantics as /stats.
- *
- * @deprecated since 4.6.0 — prefer the `signal-noise/get-plausible-realtime`
- *             ability (via /wp-abilities/v1/abilities/signal-noise/get-plausible-realtime/run).
- *             This back-compat route will be removed in v6.0.0.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
-function sn_rest_plausible_realtime( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/get-plausible-realtime/run' );
-	if ( ! function_exists( 'sn_plausible_realtime' ) ) {
-		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
-	}
-	$value = sn_plausible_realtime();
-	return sn_rest_ok(
-		'Plausible realtime visitors.',
-		array( 'visitors' => $value )
-	);
-}
-
-/**
- * POST /plausible/test — fire a synchronous 7-day aggregate call to
- * the Stats API and return the outcome. Mirrors the "Test Connection"
- * button in the Plausible admin tab. The synchronous-by-design
- * exception to the SWR-everywhere rule: an admin clicked "test",
- * they're waiting on a real-network result, not a cached one.
- *
- * @deprecated since 4.6.0 — prefer the `signal-noise/test-plausible-connection`
- *             ability (via /wp-abilities/v1/abilities/signal-noise/test-plausible-connection/run).
- *             This back-compat route will be removed in v6.0.0.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
-function sn_rest_plausible_test( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/test-plausible-connection/run' );
-	if ( ! function_exists( 'sn_plausible_config' ) || ! function_exists( 'sn_plausible_api' ) ) {
-		return new WP_Error( 'sn_rest_unavailable', 'Plausible module not loaded.', array( 'status' => 500 ) );
-	}
-	$cfg = sn_plausible_config();
-	if ( ! $cfg ) {
-		return new WP_Error( 'sn_plausible_unconfigured', 'Plausible is not configured (missing domain or token).', array( 'status' => 503 ) );
-	}
-	delete_transient( SN_PLAUSIBLE_ERR_KEY );
-	$result = sn_plausible_api( 'aggregate', array( 'period' => '7d', 'metrics' => 'visitors' ), $cfg );
-	if ( is_array( $result ) ) {
-		$visitors = (int) ( $result['visitors']['value'] ?? 0 );
-		return sn_rest_ok(
-			/* translators: %d: number of visitors in the last 7 days. */
-			sprintf( 'Plausible API call succeeded — %d visitor(s) in last 7 days.', $visitors ),
-			array( 'visitors_7d' => $visitors )
-		);
-	}
-	$err     = function_exists( 'sn_plausible_last_error' ) ? sn_plausible_last_error() : null;
-	$status  = $err && isset( $err['code'] ) && (int) $err['code'] >= 400 ? (int) $err['code'] : 502;
-	return new WP_Error(
-		'sn_plausible_test_failed',
-		'Plausible API call failed.',
-		array(
-			'status'      => $status,
-			'last_error'  => $err,
 		)
 	);
 }

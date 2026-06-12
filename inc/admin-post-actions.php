@@ -54,36 +54,6 @@ function sn_handle_save_login( $post ) {
 	return $ok ? 'login_saved' : 'login_failed';
 }
 
-function sn_handle_pl_save( $post ) {
-	// Constant-locked field: short-circuit the save so admin edits can't
-	// override wp-config. Matches the locked-field-disabled pattern on Login.
-	if ( defined( 'SN_PLAUSIBLE_STATS_TOKEN' ) && SN_PLAUSIBLE_STATS_TOKEN ) {
-		return 'pl_locked';
-	}
-	$new_token = isset( $post['sn_pl_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_pl_token'] ) ) : '';
-	if ( 'clear' === $new_token ) {
-		delete_option( SN_PLAUSIBLE_TOKEN_OPT );
-		sn_pl_admin_invalidate_caches();
-		return 'pl_cleared';
-	} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
-		update_option( SN_PLAUSIBLE_TOKEN_OPT, $new_token, false ); // not autoloaded
-		sn_pl_admin_invalidate_caches();
-		return 'pl_saved';
-	}
-	// Empty submission with the obscured placeholder = leave alone.
-	return 'pl_unchanged';
-}
-
-function sn_handle_pl_test( $post ) {
-	$cfg = sn_plausible_config();
-	if ( ! $cfg ) {
-		return 'pl_test_unconfigured';
-	}
-	delete_transient( SN_PLAUSIBLE_ERR_KEY ); // force-fresh
-	$result = sn_plausible_api( 'aggregate', array( 'period' => '7d', 'metrics' => 'visitors' ), $cfg );
-	return is_array( $result ) ? 'pl_test_ok' : 'pl_test_err';
-}
-
 function sn_handle_cf_save( $post ) {
 	$token_const = defined( 'SN_CLOUDFLARE_API_TOKEN' );
 	$zone_const  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
@@ -653,4 +623,47 @@ function sn_handle_analytics_test( $post ) {
 	}
 	delete_transient( SN_ANALYTICS_ERR_KEY ); // force-fresh: show THIS test's result, not a stale failure
 	return sn_analytics_probe() ? 'analytics_test_ok' : 'analytics_test_err';
+}
+
+/**
+ * One-time import of Plausible CSV exports into the first-party rollup tables
+ * (v6.0.0). Validates each uploaded file (genuine upload, ≤5MB, no upload error),
+ * hands the temp paths to sn_analytics_import_run() (which parses, maps, and
+ * idempotently upserts), and stashes the count report in a short transient the
+ * settings section renders once. Payload is in $_FILES, not $_POST.
+ *
+ * @param array $post Raw $_POST (unused; kept for dispatcher contract).
+ * @return string Flash code: 'analytics_imported' | 'analytics_import_empty' | 'analytics_import_err'.
+ */
+function sn_handle_analytics_import( $post ) {
+	if ( ! function_exists( 'sn_analytics_import_run' ) || ! function_exists( 'sn_analytics_import_types' ) ) {
+		return 'analytics_import_err';
+	}
+
+	$files = array();
+	foreach ( array_keys( sn_analytics_import_types() ) as $type ) {
+		$field = 'sn_import_' . $type;
+		if ( ! isset( $_FILES[ $field ] ) || ! is_array( $_FILES[ $field ] ) ) {
+			continue;
+		}
+		$err = isset( $_FILES[ $field ]['error'] ) ? (int) $_FILES[ $field ]['error'] : UPLOAD_ERR_NO_FILE;
+		if ( UPLOAD_ERR_OK !== $err ) {
+			continue;
+		}
+		// tmp_name is a server-generated path; sanitize for the linter, then validate
+		// it's a genuine upload with is_uploaded_file(). size is int-cast.
+		$tmp  = isset( $_FILES[ $field ]['tmp_name'] ) ? sanitize_text_field( wp_unslash( $_FILES[ $field ]['tmp_name'] ) ) : '';
+		$size = isset( $_FILES[ $field ]['size'] ) ? (int) $_FILES[ $field ]['size'] : 0;
+		if ( '' !== $tmp && is_uploaded_file( $tmp ) && $size > 0 && $size <= 5 * 1024 * 1024 ) {
+			$files[ $type ] = $tmp;
+		}
+	}
+
+	if ( empty( $files ) ) {
+		return 'analytics_import_empty';
+	}
+
+	$report = sn_analytics_import_run( $files );
+	set_transient( 'sn_analytics_import_report', $report, 5 * MINUTE_IN_SECONDS );
+	return 'analytics_imported';
 }

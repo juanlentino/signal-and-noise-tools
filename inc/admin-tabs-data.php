@@ -99,12 +99,11 @@ function sn_admin_top_tabs() {
 				// page=sn-theme-options route (sn_admin_render_sub_tabs hardcodes that
 				// slug) so sn_handle_admin_post() accepts analytics_save/_test unchanged.
 				'analytics' => array( 'label' => 'Analytics' ),
-				'plausible' => array( 'label' => 'Plausible' ),
 				'rss'       => array( 'label' => 'RSS' ),
 				// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync —
-				// an external-API integration with credentials + sync status,
-				// alongside Plausible. In-page sub-tab only (no new sidebar entry,
-				// so the desktop-mode 6-submenu = 6-top-tab invariant is intact).
+				// an external-API integration with credentials + sync status.
+				// In-page sub-tab only (no new sidebar entry, so the
+				// desktop-mode 6-submenu = 6-top-tab invariant is intact).
 				'music'     => array( 'label' => 'Music' ),
 			),
 		),

@@ -33,3 +33,39 @@ function sn_migrate_remove_orphan_options() {
 	update_option( 'sn_orphan_options_removed_v5', 1, false );
 }
 add_action( 'admin_init', 'sn_migrate_remove_orphan_options' );
+
+/**
+ * Delete the Plausible Stats-API orphans once (v6.0.0).
+ *
+ * v6.0.0 retires the Plausible Stats-API integration (first-party edge
+ * analytics replaced it as the stats source since v5.2.0). The deleted
+ * inc/plausible-api.php left behind:
+ *   - option    `sn_plausible_stats_token`  (admin-saved Stats API token)
+ *   - transient `sn_plausible_dashboard_v4` (7-day batched SWR cache)
+ *   - transient `sn_plausible_realtime_v3`  (realtime visitor SWR cache)
+ *   - transient `sn_plausible_last_error`   (last API error diagnostic)
+ *   - scheduled hooks `sn_plausible_refresh_dashboard` + `_realtime`
+ *     (now have no registered handler — their callbacks are gone).
+ *
+ * Keys are hardcoded here on purpose: the constants that named them
+ * (SN_PLAUSIBLE_*) were defined in the now-deleted module, so they no
+ * longer exist at runtime. Verified against the deleted plausible-api.php.
+ *
+ * Operators with `SN_PLAUSIBLE_STATS_TOKEN` defined in wp-config.php can
+ * remove that constant — nothing reads it anymore.
+ *
+ * @since 6.0.0
+ */
+function sn_migrate_remove_plausible_orphans() {
+	if ( get_option( 'sn_plausible_orphans_removed_v6' ) ) {
+		return;
+	}
+	delete_option( 'sn_plausible_stats_token' );
+	delete_transient( 'sn_plausible_dashboard_v4' );
+	delete_transient( 'sn_plausible_realtime_v3' );
+	delete_transient( 'sn_plausible_last_error' );
+	wp_clear_scheduled_hook( 'sn_plausible_refresh_dashboard' );
+	wp_clear_scheduled_hook( 'sn_plausible_refresh_realtime' );
+	update_option( 'sn_plausible_orphans_removed_v6', 1, false );
+}
+add_action( 'admin_init', 'sn_migrate_remove_plausible_orphans' );

@@ -229,6 +229,9 @@ function snt_analytics_render_settings_section() {
 	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>.</p>';
 	echo '<p><a class="button" href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
 	snt_analytics_render_settings();
+	if ( function_exists( 'snt_analytics_render_import' ) ) {
+		snt_analytics_render_import();
+	}
 }
 
 /**

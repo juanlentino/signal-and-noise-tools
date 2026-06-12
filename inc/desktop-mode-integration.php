@@ -112,7 +112,6 @@ add_action( 'admin_enqueue_scripts', function() {
 			'cloudflare'   => admin_url( 'admin.php?page=sn-cloudflare' ),
 			'cron'         => admin_url( 'admin.php?page=sn-cron' ),
 			'insights'     => admin_url( 'admin.php?page=sn-insights' ),
-			'plausible'    => admin_url( 'admin.php?page=sn-plausible' ),
 			'rss'          => admin_url( 'admin.php?page=sn-rss' ),
 			'reading_time' => admin_url( 'admin.php?page=sn-reading-time' ),
 		),
@@ -140,7 +139,6 @@ add_action( 'admin_enqueue_scripts', function() {
 		array( 'slug' => 'sn-cmd-nav-identity',     'label' => 'SN: Open Identity',     'description' => 'Site name, social profiles, OG cards, SEO copy.',  'icon' => 'dashicons-id' ),
 		array( 'slug' => 'sn-cmd-nav-login',        'label' => 'SN: Open Login',        'description' => 'Custom login URL + emergency unlock.',             'icon' => 'dashicons-lock' ),
 		array( 'slug' => 'sn-cmd-nav-cloudflare',   'label' => 'SN: Open Cloudflare',   'description' => 'CF API token + zone + auto-purge config.',         'icon' => 'dashicons-cloud' ),
-		array( 'slug' => 'sn-cmd-nav-plausible',    'label' => 'SN: Open Plausible',    'description' => 'Stats API key for dashboard widgets.',             'icon' => 'dashicons-chart-line' ),
 		array( 'slug' => 'sn-cmd-nav-rss',          'label' => 'SN: Open RSS',          'description' => 'Subscriber tracking + recent feed requests.',      'icon' => 'dashicons-rss' ),
 		array( 'slug' => 'sn-cmd-nav-reading-time', 'label' => 'SN: Open Reading Time', 'description' => 'Legacy reading-time-string cleanup tool.',         'icon' => 'dashicons-clock' ),
 

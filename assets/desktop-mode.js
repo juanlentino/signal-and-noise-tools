@@ -170,7 +170,6 @@
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity',     aiCallable: true, run: function() { navigate( pages.identity ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login',        aiCallable: true, run: function() { navigate( pages.login ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare',   aiCallable: true, run: function() { navigate( pages.cloudflare ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-plausible',    aiCallable: true, run: function() { navigate( pages.plausible ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss',          aiCallable: true, run: function() { navigate( pages.rss ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', aiCallable: true, run: function() { navigate( pages.reading_time ); } } );
 

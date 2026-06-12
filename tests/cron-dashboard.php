@@ -143,8 +143,8 @@ function assert_true( $cond, $msg ) {
 
 // ─── Test 1: snt_cron_is_sn_owned ───────────────────────────────────
 echo "\nTest 1: snt_cron_is_sn_owned\n";
-assert_true( snt_cron_is_sn_owned( 'sn_plausible_refresh_dashboard' ), 'SN-owned dashboard hook recognized' );
 assert_true( snt_cron_is_sn_owned( 'sn_rss_tracker_daily_prune' ), 'SN-owned RSS hook recognized' );
+assert_eq( false, snt_cron_is_sn_owned( 'sn_plausible_refresh_dashboard' ), 'v6.0.0: retired Plausible hook is no longer SN-owned' );
 assert_eq( false, snt_cron_is_sn_owned( 'wp_version_check' ), 'WP core hook is not SN-owned' );
 assert_eq( false, snt_cron_is_sn_owned( '' ), 'Empty string is not SN-owned' );
 
@@ -259,11 +259,9 @@ assert_eq( 'snt_cron_invalid_hook', $res->code, 'invalid-hook error code' );
 
 // ─── Test 14: SN-owned refusal (the critical safety check) ───────────
 echo "\nTest 14: snt_cron_unschedule_event_impl refuses SN-owned hooks (v3.1.0)\n";
-$res = snt_cron_unschedule_event_impl( 'sn_plausible_refresh_dashboard' );
+$res = snt_cron_unschedule_event_impl( 'sn_rss_tracker_daily_prune' );
 assert_true( $res instanceof WP_Error, 'SN-owned hook returns WP_Error' );
 assert_eq( 'snt_cron_sn_owned_refused', $res->code, 'sn-owned-refused error code' );
-$res = snt_cron_unschedule_event_impl( 'sn_rss_tracker_daily_prune' );
-assert_eq( 'snt_cron_sn_owned_refused', $res->code, 'SN RSS hook also refused' );
 
 // ─── Test 15: successful unschedule (cleared > 0) ────────────────────
 echo "\nTest 15: snt_cron_unschedule_event_impl clears scheduled events (v3.1.0)\n";

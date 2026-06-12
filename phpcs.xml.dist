@@ -49,11 +49,14 @@
 		check_admin_referer('sn_theme_options_nonce') ONCE before routing via the
 		action→callback map to per-action handlers in inc/admin-post-actions.php.
 		PHPCS can't follow that cross-function flow, so it flags every downstream
-		$_POST/$_GET read as "no nonce" — but the nonce IS verified. The split kept
-		the single shared-nonce design (one check before dispatch), so the
-		cross-function limitation — and this exclusion — remain by design.
+		$_POST/$_GET/$_FILES read as "no nonce" — but the nonce IS verified. The
+		split kept the single shared-nonce design (one check before dispatch), so
+		the cross-function limitation — and this exclusion — remain by design. The
+		whole NonceVerification sniff (both .Recommended for reads and .Missing for
+		writes, e.g. the v6.0.0 $_FILES CSV-import handler) is silenced for this
+		reason.
 	-->
-	<rule ref="WordPress.Security.NonceVerification.Recommended">
+	<rule ref="WordPress.Security.NonceVerification">
 		<severity>0</severity>
 	</rule>
 
