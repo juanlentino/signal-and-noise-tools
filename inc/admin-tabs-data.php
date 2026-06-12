@@ -31,7 +31,7 @@ function sn_admin_top_tabs() {
 			'tab'      => 'dashboard',
 			'label'    => 'Dashboard',
 			'title'    => 'Signal & Noise — Dashboard',
-			'subtitle' => 'Traffic analytics, status overview, and maintenance actions.',
+			'subtitle' => 'Status overview and maintenance actions.',
 			'sub_tabs' => array(),  // landing page, no sub-tabs
 		),
 		array(
@@ -88,13 +88,17 @@ function sn_admin_top_tabs() {
 			'tab'      => 'monitoring',
 			'label'    => 'Monitoring',
 			'title'    => 'Signal & Noise — Monitoring',
-			'subtitle' => 'Insights, content health, RSS subscribers.',
+			'subtitle' => 'Insights, content health, analytics, RSS subscribers.',
 			'sub_tabs' => array(
 				'insights'  => array( 'label' => 'Insights' ),
 				'health'    => array( 'label' => 'Health' ),
-				// v5.3.0: the first-party analytics dashboard moved to the
-				// Dashboard tab (it leads the landing page now). Plausible stays
-				// here until the creds-gated cutover (P4) retires it.
+				// v5.4.0: Analytics returns as a SETTINGS-ONLY sub-tab (creds + Test
+				// connection + Worker setup). The comprehensive READ-ONLY dashboard
+				// now lives under the native WP Dashboard menu (Dashboard → Analytics,
+				// inc/analytics-dashboard-page.php). This sub-tab's form posts on the
+				// page=sn-theme-options route (sn_admin_render_sub_tabs hardcodes that
+				// slug) so sn_handle_admin_post() accepts analytics_save/_test unchanged.
+				'analytics' => array( 'label' => 'Analytics' ),
 				'plausible' => array( 'label' => 'Plausible' ),
 				'rss'       => array( 'label' => 'RSS' ),
 				// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync —

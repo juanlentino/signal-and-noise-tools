@@ -121,6 +121,16 @@ $sql = sn_analytics_dims_rollup_sql( 'referrer', 7 );
 ok( strpos( $sql, 'blob3 AS value' ) !== false, 'dims-sql: referrer → blob3 AS value' );
 ok( sn_analytics_dims_rollup_sql( 'country', 7 ) && strpos( sn_analytics_dims_rollup_sql( 'country', 7 ), 'blob4 AS value' ) !== false, 'dims-sql: country → blob4' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'device', 7 ), 'blob5 AS value' ) !== false, 'dims-sql: device → blob5' );
+// v5.4.0: the 8 new edge dimensions (blob8–15, captured by worker v1.1.0).
+ok( strpos( sn_analytics_dims_rollup_sql( 'browser', 7 ),  'blob8 AS value' )  !== false, 'dims-sql: browser → blob8' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'os', 7 ),       'blob9 AS value' )  !== false, 'dims-sql: os → blob9' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'region', 7 ),   'blob10 AS value' ) !== false, 'dims-sql: region → blob10' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'city', 7 ),     'blob11 AS value' ) !== false, 'dims-sql: city → blob11' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'network', 7 ),  'blob12 AS value' ) !== false, 'dims-sql: network → blob12' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'colo', 7 ),     'blob13 AS value' ) !== false, 'dims-sql: colo → blob13' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'protocol', 7 ), 'blob14 AS value' ) !== false, 'dims-sql: protocol → blob14' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'tls', 7 ),      'blob15 AS value' ) !== false, 'dims-sql: tls → blob15' );
+ok( count( SN_ANALYTICS_DIM_COLUMNS ) === 11, 'dims-sql: 11 dimensions registered (3 original + 8 edge)' );
 ok( strpos( $sql, 'blob7 AS class' ) !== false, 'dims-sql: selects class' );
 // v5.3.0: pv-filtered window lets both aggregates use AE's documented forms
 // (sum() + count(DISTINCT <column>)). AE rejects count(*)/count(DISTINCT <expr>).
@@ -165,10 +175,11 @@ $GLOBALS['__ad_config_present'] = true;
 // Each of the 3 dim queries returns one row; run should issue 3 queries + 1 upsert.
 $GLOBALS['__ad_query_return'] = array( array( 'day' => '2026-06-11', 'value' => 'x', 'class' => 'human', 'views' => 3, 'visits' => 2 ) );
 sn_analytics_dims_run_rollup();
-ok( count( $GLOBALS['__ad_query_calls'] ) === 3, 'run: one AE query per dimension (referrer/country/device)' );
+ok( count( $GLOBALS['__ad_query_calls'] ) === count( SN_ANALYTICS_DIM_COLUMNS ), 'run: one AE query per dimension (all ' . count( SN_ANALYTICS_DIM_COLUMNS ) . ')' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run: one batched upsert for all dims' );
 $uq = $GLOBALS['wpdb']->queries[0];
-ok( substr_count( $uq, "'referrer'" ) === 1 && substr_count( $uq, "'country'" ) === 1 && substr_count( $uq, "'device'" ) === 1, 'run: tags each row with its dim' );
+ok( substr_count( $uq, "'referrer'" ) === 1 && substr_count( $uq, "'country'" ) === 1 && substr_count( $uq, "'device'" ) === 1, 'run: tags each original row with its dim' );
+ok( substr_count( $uq, "'browser'" ) === 1 && substr_count( $uq, "'network'" ) === 1 && substr_count( $uq, "'tls'" ) === 1, 'run: tags each new edge dim too' );
 // Not configured → no queries.
 ad_reset();
 $GLOBALS['__ad_config_present'] = false;

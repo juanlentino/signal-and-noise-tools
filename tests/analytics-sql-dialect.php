@@ -61,7 +61,10 @@ function dialect_bad_count_distinct( $code ) {
 }
 
 $dir   = dirname( __DIR__ ) . '/inc';
-$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php' );
+// v5.4.0: analytics-buckets.php joins the scanned set — this list is HARDCODED
+// (NOT an auto-glob of inc/analytics-*.php), so every new AE SQL builder file
+// must be added here or its dialect conformance ships unguarded.
+$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php' );
 
 echo "Group: AE SQL dialect — no count() with arguments\n";
 foreach ( $files as $f ) {
@@ -83,6 +86,13 @@ dq( strpos( $rollup, 'count(DISTINCT index1)' ) !== false, 'rollup: count(DISTIN
 $dims = dialect_code_only( file_get_contents( "$dir/analytics-dims.php" ) );
 dq( strpos( $dims, 'count(DISTINCT index1)' ) !== false, 'dims: count(DISTINCT index1) (plain column)' );
 dq( strpos( $dims, "WHERE blob1 = 'pv'" ) !== false, 'dims: pv-filtered window enables plain sum()/count(DISTINCT col)' );
+
+echo "\nGroup: derived buckets use only the proven primitives (no toHour/quantile)\n";
+$buckets = dialect_code_only( file_get_contents( "$dir/analytics-buckets.php" ) );
+dq( strpos( $buckets, "formatDateTime(timestamp, '%H')" ) !== false, 'buckets: hour-of-day via formatDateTime %H (the proven primitive)' );
+dq( strpos( $buckets, 'toHour(' ) === false && strpos( $buckets, 'toDayOfWeek(' ) === false, 'buckets: avoids the unvalidated toHour()/toDayOfWeek()' );
+dq( strpos( $buckets, 'quantile' ) === false, 'buckets: distributions via sum(if()) — no unvalidated quantile*()' );
+dq( strpos( $buckets, 'sum(if(' ) !== false, 'buckets: distribution bands use the documented sum(if()) form' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

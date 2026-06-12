@@ -124,7 +124,7 @@ function sn_aw_realtime() {
 	$n = sn_analytics_realtime( 'human' );
 	echo '<div class="sn-aw-big-l">Visitors right now</div>';
 	echo '<div class="sn-aw-big">' . esc_html( null === $n ? '—' : number_format_i18n( (int) $n ) ) . '</div>';
-	echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ) ) . '">Open Analytics →</a></p>';
+	echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
 }
 
 function sn_aw_pages() {
@@ -171,11 +171,11 @@ function sn_aw_kv_list( $rows, $empty ) {
 }
 
 /**
- * Footer linking to the analytics dashboard — now on the Dashboard tab (v5.3.0;
- * replaces the Plausible dashboard link).
+ * Footer linking to the analytics dashboard — the native WP Dashboard → Analytics
+ * page (v5.4.0; was the plugin Dashboard tab in v5.3.0).
  */
 function sn_aw_footer() {
-	echo '<p class="sn-aw-foot">7d · first-party · <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ) ) . '">Open Analytics →</a></p>';
+	echo '<p class="sn-aw-foot">7d · first-party · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
 }
 
 function sn_aw_stat( $label, $value ) {

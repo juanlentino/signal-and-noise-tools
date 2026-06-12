@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [5.4.0] - 2026-06-12 — Comprehensive analytics: WP Dashboard page + every edge dimension + derived views
+
+**Headline:** First-party analytics graduates into a **comprehensive read-only dashboard under the native WordPress Dashboard menu** (sidebar: Home · Updates · **Analytics**) showing everything the edge can capture — 8 new dimensions (browser, OS, city, region, network/ASN, edge location, HTTP protocol, TLS version) on top of the existing pages/sources/countries/devices — plus derived views: an hour-of-day activity heatmap, scroll-depth and time-on-page distributions, referrer-source categories, period-over-period deltas on the stat cards, and a traffic-quality breakdown with the top bot networks. Credentials move to a settings-only **Monitoring → Analytics** sub-tab; the v5.3.0 placement on the plugin Dashboard tab is reverted.
+
+> Paired with **analytics worker v1.1.0**, which extends the Analytics Engine write contract from 7 to 15 blobs (browser/OS via a lightweight UA parse; region/city/asOrganization/colo/httpProtocol/tlsVersion straight from `request.cf`). Positionally backward-compatible — old rows simply have empty blob8+. There is **no backfill** (AE only captures `request.cf` at write time), so the new dimension/derived panels render their empty state until data accrues from the worker deploy forward.
+
+### New
+
+- **Dashboard → Analytics page** ([inc/analytics-dashboard-page.php](inc/analytics-dashboard-page.php)). A native `add_dashboard_page()` surface (the callback re-checks `current_user_can` because the menu capability gates visibility only, not the directly-reachable URL) wrapping the comprehensive read-only view in `.wrap`/`<h1>` and resolving `?sn_flash` so a settings save can redirect here with feedback. Its hook suffix is appended to `sn_admin_page_hooks()` so the SN admin assets enqueue on it.
+- **8 new edge dimensions** ([inc/analytics-dims.php](inc/analytics-dims.php)). `browser`→blob8, `os`→blob9, `region`→blob10, `city`→blob11, `network`→blob12, `colo`→blob13, `protocol`→blob14, `tls`→blob15 join `SN_ANALYTICS_DIM_COLUMNS` — the single wiring point that drives both the rollup (one AE query per dim) and the dim-agnostic read accessor, so each new entry lights up a full panel with no rollup/read code change and no schema bump (the dims table already keys on `(day, dim, value, class)`).
+- **Hour-of-day heatmap + scroll/time distributions** ([inc/analytics-buckets.php](inc/analytics-buckets.php)). A new `wp_sn_analytics_buckets` table (`day, metric, bucket, class`) rolled in the same cron pass. Hour-of-day is derived via `formatDateTime(timestamp,'%H')` and the distributions via `sum(if(...))` — the AE primitives the v5.3.0 dims rollup already proves work — rather than the unvalidated `toHour()`/`quantile*()` the design first sketched, so the live-dialect risk collapses to near zero; a failed query degrades to an empty panel, never a fatal. Day-of-week is computed at read time from each row's UTC day.
+- **PHP-only derived views** ([inc/analytics-derived.php](inc/analytics-derived.php)) — no AE query, no dialect risk: **referrer categories** (search/social/direct/other, folded from the referrer dimension), **period-over-period deltas** (current window vs the immediately-preceding window of equal length, ▲/▼ on the stat cards), and a **traffic-quality breakdown** (human/suspect/bot split + the top bot ASNs from the new `network` dimension filtered to `class='bot'`).
+
+### Improvements
+
+- **Settings / dashboard split.** Credentials (account ID + read token, Test connection, Worker-setup console) move to a settings-only **Monitoring → Analytics** sub-tab; the comprehensive read view lives on the Dashboard page. Because the read view carries no form, it never touches the page-slug-gated admin-post handler — and the settings form rides the existing `page=sn-theme-options` route the Monitoring sub-tab nav already produces, so `analytics_save`/`analytics_test` work unchanged with no wiring hacks.
+- **Dimension panels are sectioned** — Top content, Technology, Geography & network, Engagement, and Traffic quality — rather than a flat grid, so "everything CF can give" stays scannable.
+- The four dashboard-home widgets' "Open Analytics →" links now point at the WP Dashboard → Analytics page.
+
+### Changed
+
+- **Reverted the v5.3.0 Dashboard-tab placement.** The plugin Dashboard tab returns to operational status (its `sn_admin_dashboard_extras` priority-5 analytics hook is removed; its subtitle reverts to "Status overview and maintenance actions."). The analytics renderer is factored into `snt_analytics_render_dashboard()` (read view) + `snt_analytics_render_settings_section()` (creds form + a "View dashboard →" backlink).
+
+> **Why MINOR:** new user-visible capability (a Dashboard-menu analytics page, 8 dimension panels, 5 derived views) plus an IA refinement. No public API, REST route, or Ability removed/renamed; no settings-schema change (the new `wp_sn_analytics_buckets` table is additive and dormant until data accrues; the dims table is unchanged). The `analytics-sql-dialect.php` guard's hardcoded file list was extended to cover the new AE builder. Full plugin suite green; PHPCS security-ruleset + dialect-guard falsification-verified; paired worker v1.1.0 ships 50 Vitest assertions.
+
 ## [5.3.0] - 2026-06-12 — Analytics on the Dashboard tab + AE SQL dialect fix
 
 **Headline:** The first-party analytics dashboard now **leads the Dashboard tab** — the comprehensive view (visitors-now, range totals, daily trend, top pages/sources/countries/devices, with the human/suspect/bot control) is the first thing you see, instead of being tucked under Monitoring → Analytics. Plus a fix for the Cloudflare Analytics Engine SQL dialect that returned HTTP 422 once the read credentials went live.
