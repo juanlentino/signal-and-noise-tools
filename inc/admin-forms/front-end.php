@@ -30,6 +30,7 @@ function sn_admin_render_front_end_form() {
 	$jfeed   = (int) sn_setting( 'theme.json_feed_items', 20 );
 	$uthr    = (int) sn_setting( 'theme.updated_threshold_days', 14 );
 	$wpm     = (int) sn_setting( 'theme.reading_wpm', 225 );
+	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
 	$model   = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' );
 
 	echo '<form method="post">';
@@ -73,6 +74,12 @@ function sn_admin_render_front_end_form() {
 	echo '<label class="sn-field-label" for="sn_theme_reading_wpm">Reading speed (words/min)</label>';
 	echo '<input type="number" min="100" max="400" id="sn_theme_reading_wpm" name="theme_reading_wpm" value="' . esc_attr( $wpm ) . '">';
 	echo '<p class="sn-field-helper">Words per minute used to estimate reading time (100&ndash;400).</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_theme_notes_per_page">Notes per page</label>';
+	echo '<input type="number" min="1" max="100" id="sn_theme_notes_per_page" name="theme_notes_per_page" value="' . esc_attr( $nperp ) . '">';
+	echo '<p class="sn-field-helper">How many notes per page on the <code>/notes</code> index (1&ndash;100). Pagination appears once published notes exceed this.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-md">';

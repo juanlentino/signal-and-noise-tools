@@ -64,6 +64,7 @@ ok( $d['theme']['json_feed_items'] === 20, 'defaults: json_feed_items 20' );
 ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_days 14' );
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
 ok( $d['theme']['ai_model'] === 'claude-sonnet-4-6', 'defaults: ai_model claude-sonnet-4-6' );
+ok( $d['theme']['notes_per_page'] === 20, 'defaults: notes_per_page 20' );
 
 // ── P2: AI-model allowlist + save handler (clamps + validation) ──────
 require __DIR__ . '/../inc/admin-post-actions.php';
@@ -81,6 +82,7 @@ sn_handle_save_theme( array(
 	'theme_ai_model'               => 'totally-fake-model',
 	'theme_updated_threshold_days' => '500',
 	'theme_reading_wpm'            => '5',
+	'theme_notes_per_page'         => '500',
 ) );
 ok( (int) sn_setting( 'theme.related_count' ) === 12, 'save: related_count clamps to max 12' );
 ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recent_count clamps to min 0' );
@@ -89,6 +91,7 @@ ok( (int) sn_setting( 'theme.updated_threshold_days' ) === 90, 'save: updated_th
 ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps to min 100' );
 ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-4-6', 'save: off-list ai_model rejected → keeps default' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
+ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
 
 // Checkbox absent/empty → false; on-list model accepted.
 sn_handle_save_theme( array(
@@ -107,6 +110,7 @@ ok( strpos( $form, 'name="sn_action" value="save_theme"' ) !== false, 'form: pos
 $field_names = array(
 	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
 	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_ai_model',
+	'theme_notes_per_page',
 );
 $missing = array();
 foreach ( $field_names as $fn ) {
@@ -114,7 +118,7 @@ foreach ( $field_names as $fn ) {
 		$missing[] = $fn;
 	}
 }
-ok( empty( $missing ), 'form: emits all 7 field inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
+ok( empty( $missing ), 'form: emits all 8 field inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
 ok( strpos( $form, 'value="claude-opus-4-8"' ) !== false, 'form: renders an option per allowlisted model' );
 
 // ── P5: theme-filter callbacks (the cross-package contract) ──────────
@@ -143,6 +147,15 @@ sn_setting_update( 'theme.updated_threshold_days', 30 );
 ok( (int) sn_tf_updated_threshold( 14 ) === 30, 'filter: updated_threshold returns configured 30' );
 sn_setting_update( 'theme.reading_wpm', 250 );
 ok( (int) sn_tf_reading_wpm( 225 ) === 250, 'filter: reading_wpm returns configured 250' );
+
+sn_setting_update( 'theme.notes_per_page', 12 );
+ok( (int) sn_tf_notes_per_page( 20 ) === 12, 'filter: notes_per_page returns configured 12' );
+unset( $GLOBALS['__options']['sn_settings']['theme']['notes_per_page'] );
+sn_setting_reset_cache();
+ok( (int) sn_tf_notes_per_page( 20 ) === 20, 'filter: notes_per_page falls back to supplied default' );
+$GLOBALS['__options']['sn_settings']['theme']['notes_per_page'] = 999;
+sn_setting_reset_cache();
+ok( (int) sn_tf_notes_per_page( 20 ) === 100, 'filter: notes_per_page clamps a tampered value to max 100' );
 
 sn_setting_update( 'theme.palette_enabled', false );
 ok( sn_tf_palette_enabled( true ) === false, 'filter: palette_enabled returns configured false' );

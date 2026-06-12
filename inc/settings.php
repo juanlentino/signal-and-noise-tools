@@ -88,6 +88,7 @@ function sn_settings_defaults() {
 			'json_feed_items'        => 20,
 			'updated_threshold_days' => 14,
 			'reading_wpm'            => 225,
+			'notes_per_page'         => 20,
 			'ai_model'               => 'claude-sonnet-4-6',
 		),
 		'login' => array(

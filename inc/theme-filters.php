@@ -73,6 +73,14 @@ function sn_tf_reading_wpm( $d ) {
 }
 
 /**
+ * Filter: /notes index page size. The theme applies apply_filters('sn_notes_per_page', 20);
+ * we supply the configured value, clamped [1,100] (defense-in-depth vs a tampered option).
+ */
+function sn_tf_notes_per_page( $default ) {
+	return max( 1, min( 100, (int) sn_setting( 'theme.notes_per_page', $default ) ) );
+}
+
+/**
  * Validate the configured AI model against the allowlist; fall back to the
  * supplied default when the stored id is off-list (a hand-edited option, or a
  * model that was removed from sn_theme_ai_models() after being configured).
@@ -94,5 +102,6 @@ if ( ! defined( 'SN_THEME_FILTERS_TEST' ) || ! SN_THEME_FILTERS_TEST ) {
 	add_filter( 'sn_json_feed_items', 'sn_tf_json_feed_items' );
 	add_filter( 'sn_updated_date_threshold_days', 'sn_tf_updated_threshold' );
 	add_filter( 'sn_reading_time_wpm', 'sn_tf_reading_wpm' );
+	add_filter( 'sn_notes_per_page', 'sn_tf_notes_per_page' );
 	add_filter( 'snt_ai_model_preference', 'sn_tf_ai_model' );
 }
