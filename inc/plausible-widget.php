@@ -1,22 +1,21 @@
 <?php
 /**
- * Signal & Noise — Plausible dashboard widget set.
+ * Signal & Noise — first-party analytics dashboard widgets.
  *
- * Registers four discrete dashboard widgets, each surfacing one slice of
- * Plausible Stats API data:
+ * Registers four discrete WP dashboard-home widgets that read data from
+ * the first-party analytics rollup tables via the sn_analytics_* accessors:
  *
- *   - sn_plausible_snapshot — 7-day aggregate (visitors, pageviews,
- *                              bounce rate, average visit duration)
- *   - sn_plausible_realtime — visitors right now (30-sec cache, distinct
- *                              from the 5-min batched cache the others use)
- *   - sn_plausible_pages    — top 7 pages, last 7 days
- *   - sn_plausible_sources  — top 7 referrers, last 7 days
+ *   - sn_plausible_snapshot — 7-day aggregate (Views, Visits, Avg scroll %,
+ *                              Avg time on page)
+ *   - sn_plausible_realtime — visitors right now (last 5 min)
+ *   - sn_plausible_pages    — top 7 pages by views, last 7 days
+ *   - sn_plausible_sources  — top 7 referrers by views, last 7 days
  *
- * Why four widgets instead of one big panel: WP dashboard widgets are
- * draggable + per-user hideable via Screen Options, so admins can
- * arrange / hide them independently. The shared cache in
- * inc/plausible-api.php means four widgets cost one batched API fetch
- * every 5 min, not four.
+ * Widget IDs are intentionally kept as sn_plausible_* to preserve any
+ * per-user dashboard-layout preferences; the rename to sn_analytics_*
+ * is deferred to the Plausible cutover milestone.
+ *
+ * Requires SN_CF_ANALYTICS_TOKEN + SN_CF_ACCOUNT_ID in wp-config.php.
  *
  * @package SignalNoise
  * @since 7.2.1
@@ -30,10 +29,10 @@ add_action( 'wp_dashboard_setup', function() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Plausible — Last 7 days',     'sn_pl_widget_snapshot' );
-	wp_add_dashboard_widget( 'sn_plausible_realtime', 'Plausible — Right now',       'sn_pl_widget_realtime' );
-	wp_add_dashboard_widget( 'sn_plausible_pages',    'Plausible — Top pages (7d)',  'sn_pl_widget_pages' );
-	wp_add_dashboard_widget( 'sn_plausible_sources',  'Plausible — Top sources (7d)', 'sn_pl_widget_sources' );
+	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Analytics — Last 7 days',      'sn_pl_widget_snapshot' );
+	wp_add_dashboard_widget( 'sn_plausible_realtime', 'Analytics — Right now',        'sn_pl_widget_realtime' );
+	wp_add_dashboard_widget( 'sn_plausible_pages',    'Analytics — Top pages (7d)',   'sn_pl_widget_pages' );
+	wp_add_dashboard_widget( 'sn_plausible_sources',  'Analytics — Top sources (7d)', 'sn_pl_widget_sources' );
 } );
 
 /**
@@ -64,129 +63,116 @@ function sn_pl_styles() {
 	.sn-pl-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
 	.sn-pl-err{color:#d63638;font-size:0.9em;margin:0;}
 	.sn-pl-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
-	.sn-pl-diagnostic{margin-top:12px;}
-	.sn-pl-diagnostic code{word-break:break-all;}
-	.sn-pl-diagnostic-msg{color:#646970;font-size:0.85em;}
 	</style>
 	<?php
 }
 
 /**
- * Shared "Plausible not configured" copy. Renders inside the widget body
- * with a single line + a code snippet showing the wp-config line to add.
+ * Shared analytics not-configured copy. Renders inside the widget body
+ * with a single line + a code snippet showing the wp-config constants to add.
  * Extracted in v1.14.0 (was duplicated across snapshot + realtime widgets).
  */
 function sn_pl_render_not_configured() {
-	echo '<p class="sn-pl-err">Plausible not configured. Set domain in <em>Settings → Plausible Analytics</em>, then create a Stats API key (<em>Plausible → Settings → API Keys</em>) and add to <code>wp-config.php</code>:</p>';
-	echo '<pre class="sn-pl-config-snippet">define( \'SN_PLAUSIBLE_STATS_TOKEN\', \'plnt_…\' );</pre>';
+	echo '<p class="sn-pl-err">Analytics not configured. Deploy the edge worker, then add the read credentials to <code>wp-config.php</code>:</p>';
+	echo '<pre class="sn-pl-config-snippet">define( \'SN_CF_ANALYTICS_TOKEN\', \'…\' );' . "\n" . 'define( \'SN_CF_ACCOUNT_ID\', \'…\' );</pre>';
 }
 
 /**
- * Common preamble: ensure styles are printed and resolve the batched
- * dataset (or print an error and return null).
+ * Inclusive last-7-days UTC window for the widgets: [from, to] YYYY-MM-DD.
+ */
+function sn_pl_window7() {
+	$now = time();
+	return array( gmdate( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now ) );
+}
+
+/**
+ * Preamble: print styles, gate on analytics config. Returns true when data may
+ * be read, false (after printing the config copy) otherwise.
  */
 function sn_pl_preamble() {
 	sn_pl_styles();
-	$data = sn_plausible_dashboard_data();
-	if ( ! $data ) {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		sn_pl_render_not_configured();
-		return null;
+		return false;
 	}
-	return $data;
+	return true;
 }
 
 function sn_pl_widget_snapshot() {
-	$data = sn_pl_preamble();
-	if ( ! $data ) {
+	if ( ! sn_pl_preamble() ) {
 		return;
 	}
-	$a = $data['aggregate'];
+	list( $from, $to ) = sn_pl_window7();
+	$t = sn_analytics_range_totals( $from, $to, 'human' );
 	echo '<div class="sn-pl-grid">';
-	sn_pl_stat( 'Visitors',  $a['visitors']['value']  ?? null );
-	sn_pl_stat( 'Pageviews', $a['pageviews']['value'] ?? null );
-	sn_pl_stat( 'Bounce',    isset( $a['bounce_rate']['value'] ) ? $a['bounce_rate']['value'] . '%' : null );
-	sn_pl_stat( 'Avg time',  isset( $a['visit_duration']['value'] ) ? sn_pl_duration( $a['visit_duration']['value'] ) : null );
+	sn_pl_stat( 'Views',      $t['views'] ?? null );
+	sn_pl_stat( 'Visits',     $t['visits'] ?? null );
+	sn_pl_stat( 'Avg scroll', isset( $t['scroll_avg'] ) ? (int) round( (float) $t['scroll_avg'] ) . '%' : null );
+	sn_pl_stat( 'Avg time',   isset( $t['time_avg'] ) ? sn_pl_duration( (int) round( (float) $t['time_avg'] / 1000 ) ) : null );
 	echo '</div>';
-	sn_pl_footer( $data, '7d' );
-	// Diagnostic only on the snapshot widget — one place is enough; the
-	// other three panels are downstream of the same API + cache.
-	sn_pl_render_diagnostic();
-}
-
-/**
- * Render the most recent API error inline, gated to admins only. When
- * the snapshot widget shows "—" everywhere, this is what tells the
- * maintainer whether they're looking at a bad URL, a bad token, a
- * scope mismatch, or a network blip.
- */
-function sn_pl_render_diagnostic() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	if ( ! function_exists( 'sn_plausible_last_error' ) ) {
-		return;
-	}
-	$err = sn_plausible_last_error();
-	if ( ! $err ) {
-		return;
-	}
-	$code_label = $err['code'] > 0 ? ( 'HTTP ' . (int) $err['code'] ) : 'Network error';
-	// WP-native notice (alt + inline = no box-shadow, no margin, fits inside the widget body).
-	echo '<div class="notice notice-error notice-alt inline sn-pl-diagnostic">';
-	echo '<p><strong>API call failed.</strong> ' . esc_html( $code_label ) . ' from <code>' . esc_html( $err['url'] ) . '</code>';
-	if ( ! empty( $err['message'] ) ) {
-		echo '<br><span class="sn-pl-diagnostic-msg">' . esc_html( $err['message'] ) . '</span>';
-	}
-	echo '</p></div>';
+	sn_pl_analytics_footer();
 }
 
 function sn_pl_widget_realtime() {
 	sn_pl_styles();
-	$cfg = sn_plausible_config();
-	if ( ! $cfg ) {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		sn_pl_render_not_configured();
 		return;
 	}
-	$n = sn_plausible_realtime();
+	$n = sn_analytics_realtime( 'human' );
 	echo '<div class="sn-pl-big-l">Visitors right now</div>';
 	echo '<div class="sn-pl-big">' . esc_html( null === $n ? '—' : number_format_i18n( (int) $n ) ) . '</div>';
-	$dash = admin_url( 'index.php?page=plausible_analytics_statistics' );
-	echo '<p class="sn-pl-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( $dash ) . '">Open dashboard →</a></p>';
+	echo '<p class="sn-pl-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'admin.php?page=sn-monitoring&tab=monitoring&sub=analytics' ) ) . '">Open Analytics →</a></p>';
 }
 
 function sn_pl_widget_pages() {
-	$data = sn_pl_preamble();
-	if ( ! $data ) {
+	if ( ! sn_pl_preamble() ) {
 		return;
 	}
-	sn_pl_breakdown( $data['pages'], 'page', 'No traffic in the last 7 days.' );
-	sn_pl_footer( $data, '7d' );
+	list( $from, $to ) = sn_pl_window7();
+	$rows = array_map( function ( $r ) {
+		return array( 'k' => $r['path'], 'v' => $r['views'] );
+	}, sn_analytics_top_paths( $from, $to, 'human', 7 ) );
+	sn_pl_kv_list( $rows, 'No page views in the last 7 days.' );
+	sn_pl_analytics_footer();
 }
 
 function sn_pl_widget_sources() {
-	$data = sn_pl_preamble();
-	if ( ! $data ) {
+	if ( ! sn_pl_preamble() ) {
 		return;
 	}
-	sn_pl_breakdown( $data['sources'], 'source', 'No referrers tracked in the last 7 days.', 'Direct / None' );
-	sn_pl_footer( $data, '7d' );
+	list( $from, $to ) = sn_pl_window7();
+	$rows = array_map( function ( $r ) {
+		return array( 'k' => $r['value'], 'v' => $r['views'] );
+	}, sn_analytics_top_dimension( 'referrer', $from, $to, 'human', 7 ) );
+	sn_pl_kv_list( $rows, 'No referrers in the last 7 days.' );
+	sn_pl_analytics_footer();
 }
 
-function sn_pl_breakdown( $rows, $key, $empty_msg, $blank_label = '' ) {
+/**
+ * Shared key/value list (replaces the Plausible-shaped sn_pl_breakdown).
+ *
+ * @param array  $rows  [{k,v}]
+ * @param string $empty
+ */
+function sn_pl_kv_list( $rows, $empty ) {
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-pl-empty">' . esc_html( $empty_msg ) . '</p>';
+		echo '<p class="sn-pl-empty">' . esc_html( $empty ) . '</p>';
 		return;
 	}
 	echo '<ul class="sn-pl-list">';
 	foreach ( $rows as $row ) {
-		$k = (string) ( $row[ $key ] ?? '' );
-		$v = (int)    ( $row['visitors'] ?? 0 );
-		if ( '' === $k && '' !== $blank_label ) {
-			$k = $blank_label;
-		}
-		echo '<li><span class="k">' . esc_html( $k ) . '</span><span class="v">' . esc_html( number_format_i18n( $v ) ) . '</span></li>';
+		echo '<li><span class="k">' . esc_html( (string) $row['k'] ) . '</span><span class="v">'
+			. esc_html( number_format_i18n( (int) $row['v'] ) ) . '</span></li>';
 	}
 	echo '</ul>';
+}
+
+/**
+ * Footer linking to the Analytics tab (replaces the Plausible dashboard link).
+ */
+function sn_pl_analytics_footer() {
+	echo '<p class="sn-pl-foot">7d · first-party · <a href="' . esc_url( admin_url( 'admin.php?page=sn-monitoring&tab=monitoring&sub=analytics' ) ) . '">Open Analytics →</a></p>';
 }
 
 function sn_pl_stat( $label, $value ) {
@@ -204,24 +190,4 @@ function sn_pl_duration( $seconds ) {
 	$m = (int) floor( $seconds / 60 );
 	$s = $seconds % 60;
 	return $m . 'm ' . str_pad( (string) $s, 2, '0', STR_PAD_LEFT ) . 's';
-}
-
-function sn_pl_footer( $data, $period_label ) {
-	// Internal admin link — the Plausible plugin's embedded stats page.
-	// User is already authenticated in /wp-admin/, so no target=_blank
-	// (it's an in-app navigation, not a hop to plausible.io).
-	$dash    = admin_url( 'index.php?page=plausible_analytics_statistics' );
-	$fetched = (int) ( $data['fetched'] ?? 0 );
-	// fetched=0 means the SWR background refresh hasn't landed yet
-	// (first-ever pageview after install / cache flush). Distinguish
-	// this from real cached data so the footer doesn't print
-	// "cached 56 years ago" off a 1970-epoch timestamp.
-	$status  = $fetched > 0
-		? 'cached ' . esc_html( human_time_diff( $fetched, time() ) ) . ' ago'
-		: '<em>refreshing in background — reload in a moment</em>';
-	// $status is internally built (one branch carries an intentional <em>), so
-	// wp_kses_post — not esc_html — is the right wrapper: it keeps the <em> while
-	// stripping anything dangerous. Behavior-neutral today; defense-in-depth if a
-	// future edit ever feeds user/API data into $status. (v4.14.3 hardening.)
-	echo '<p class="sn-pl-foot">' . esc_html( $period_label ) . ' · ' . wp_kses_post( $status ) . ' · <a href="' . esc_url( $dash ) . '">Open dashboard →</a></p>';
 }
