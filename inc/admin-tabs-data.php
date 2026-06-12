@@ -31,7 +31,7 @@ function sn_admin_top_tabs() {
 			'tab'      => 'dashboard',
 			'label'    => 'Dashboard',
 			'title'    => 'Signal & Noise — Dashboard',
-			'subtitle' => 'Status overview and maintenance actions.',
+			'subtitle' => 'Traffic analytics, status overview, and maintenance actions.',
 			'sub_tabs' => array(),  // landing page, no sub-tabs
 		),
 		array(
@@ -88,14 +88,13 @@ function sn_admin_top_tabs() {
 			'tab'      => 'monitoring',
 			'label'    => 'Monitoring',
 			'title'    => 'Signal & Noise — Monitoring',
-			'subtitle' => 'Insights, content health, analytics, RSS subscribers.',
+			'subtitle' => 'Insights, content health, RSS subscribers.',
 			'sub_tabs' => array(
 				'insights'  => array( 'label' => 'Insights' ),
 				'health'    => array( 'label' => 'Health' ),
-				// v5.0.1 (P3): first-party edge analytics dashboard. Placed
-				// before Plausible — it's the new-replaces-old surface; the
-				// Plausible sub-tab is removed at the creds-gated cutover.
-				'analytics' => array( 'label' => 'Analytics' ),
+				// v5.3.0: the first-party analytics dashboard moved to the
+				// Dashboard tab (it leads the landing page now). Plausible stays
+				// here until the creds-gated cutover (P4) retires it.
 				'plausible' => array( 'label' => 'Plausible' ),
 				'rss'       => array( 'label' => 'RSS' ),
 				// v4.13.0 (Music Identity): Muso.AI + Spotify discography sync —

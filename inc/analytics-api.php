@@ -217,6 +217,8 @@ function sn_analytics_query( $sql ) {
  * @return bool
  */
 function sn_analytics_probe() {
-	$sql = 'SELECT count(*) AS n FROM ' . SN_ANALYTICS_DATASET . " WHERE timestamp >= now() - INTERVAL '1' HOUR";
+	// AE SQL: count() takes ZERO arguments (count(*)/count(col) → HTTP 422
+	// "COUNT() function must have 0 arguments"). Row count is count() with no args.
+	$sql = 'SELECT count() AS n FROM ' . SN_ANALYTICS_DATASET . " WHERE timestamp >= now() - INTERVAL '1' HOUR";
 	return is_array( sn_analytics_query( $sql ) );
 }

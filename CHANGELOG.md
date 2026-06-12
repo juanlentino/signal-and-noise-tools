@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [5.3.0] - 2026-06-12 — Analytics on the Dashboard tab + AE SQL dialect fix
+
+**Headline:** The first-party analytics dashboard now **leads the Dashboard tab** — the comprehensive view (visitors-now, range totals, daily trend, top pages/sources/countries/devices, with the human/suspect/bot control) is the first thing you see, instead of being tucked under Monitoring → Analytics. Plus a fix for the Cloudflare Analytics Engine SQL dialect that returned HTTP 422 once the read credentials went live.
+
+### Fixed
+
+- **AE SQL `count()` dialect (HTTP 422).** Analytics Engine's `count()` takes **zero** arguments — the connection probe's `count(*)` returned `422 "COUNT() function must have 0 arguments"`, blanking the dashboard once credentials were configured. The probe now uses `count()`, and the dimensions rollup drops the undocumented `count(DISTINCT if(blob1='pv', …))` for a pv-filtered window with AE's documented plain-column forms `sum(_sample_interval)` + `count(DISTINCT index1)` (semantically identical). Shape-asserting unit tests run on stubbed transports and never executed the SQL, so this shipped green — a new `tests/analytics-sql-dialect.php` static guard now scans every AE SQL builder so the dialect class fails CI.
+
+### Improvements
+
+- **Analytics moved to the Dashboard tab.** The comprehensive analytics view now renders as the lead section of the plugin Dashboard tab (above the site-state / deploys / maintenance grid). The renderer is location-agnostic — its range/class controls derive their URL from the current request rather than a hardcoded Monitoring path — so the move is a clean re-hook. The redundant **Monitoring → Analytics** sub-tab is removed.
+
+> **Why MINOR:** a user-visible IA change (analytics relocated + surfaced on the Dashboard landing) bundled with a runtime fix. No public API, REST route, Ability, or settings-schema change — the removed Monitoring sub-tab is internal admin navigation; the data, accessors, and the four home widgets are unchanged. Full plugin suite green (77 suites / 2400 assertions); PHPCS security-ruleset falsification-verified.
+
 ## [5.2.0] - 2026-06-12 — First-party edge analytics: data layer + dashboard
 
 **Headline:** The plugin-side data layer and wp-admin dashboard surface for the first-party, cookieless edge-analytics pipeline (theme beacon → Cloudflare Worker → Analytics Engine → this rollup → dashboard/widgets/insights/front-end). The P2 plumbing (rollup table, realtime tier, bot classification) is fully dormant until the Cloudflare Analytics-Read credentials (`SN_CF_ANALYTICS_TOKEN` + `SN_CF_ACCOUNT_ID`) are defined in `wp-config.php`; P3 adds a native analytics dashboard (Monitoring → Analytics) and re-points the four home-screen dashboard widgets onto the first-party source. P4 will add an `[sn_popular]` front-end block and retire the remaining Plausible dependency.

@@ -35,7 +35,14 @@ function snt_analytics_fmt_time( $ms ) {
  * @param string $class Active class.
  */
 function snt_analytics_render_controls( $range, $class ) {
-	$base = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' );
+	// Context-aware base: preserve the CURRENT route so the controls work wherever
+	// this view is hooked. v5.3.0 moved the analytics dashboard onto the Dashboard
+	// tab; deriving the base from the request (vs. a hardcoded Monitoring path)
+	// keeps the 7/30/90 + class links on whatever page is rendering them.
+	$base = remove_query_arg( array( 'sn_range', 'sn_class' ), add_query_arg( array() ) );
+	if ( '' === (string) $base ) {
+		$base = admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' );
+	}
 	echo '<div class="sn-an-controls">';
 
 	echo '<span class="sn-an-seg">';
