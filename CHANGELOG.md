@@ -2,9 +2,9 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — First-party edge analytics: data layer (P2)
+## [Unreleased] — First-party edge analytics: data layer + dashboard (P2 + P3)
 
-**Headline:** The plugin-side data layer for the first-party, cookieless edge-analytics pipeline (theme beacon → Cloudflare Worker → Analytics Engine → this rollup → widgets/insights/front-end). Internal plumbing only — no user-visible surface yet, and fully dormant (no writes, no errors) until the Cloudflare Analytics-Read credentials (`SN_CF_ANALYTICS_TOKEN` + `SN_CF_ACCOUNT_ID`) are defined in `wp-config.php`. P3/P4 will re-point the dashboard widgets, insights, and a front-end `[sn_popular]` block onto this source and retire the Plausible dependency.
+**Headline:** The plugin-side data layer and wp-admin dashboard surface for the first-party, cookieless edge-analytics pipeline (theme beacon → Cloudflare Worker → Analytics Engine → this rollup → dashboard/widgets/insights/front-end). The P2 plumbing (rollup table, realtime tier, bot classification) is fully dormant until the Cloudflare Analytics-Read credentials (`SN_CF_ANALYTICS_TOKEN` + `SN_CF_ACCOUNT_ID`) are defined in `wp-config.php`; P3 adds a native analytics dashboard (Monitoring → Analytics) and re-points the four home-screen dashboard widgets onto the first-party source. P4 will add an `[sn_popular]` front-end block and retire the remaining Plausible dependency.
 
 ### New
 
@@ -14,6 +14,12 @@ All notable changes to Signal & Noise Tools are documented here.
 - **`sn_analytics_daily_range( $from, $to, $class = 'human' )`** read accessor (human-default) for downstream surfaces — newest-day-first, type-normalized rows — plus **`sn_analytics_class_totals( $from, $to )`** for the per-class totals that feed the "N automated filtered" line.
 - **"Visitors now" realtime tier** ([inc/analytics-realtime.php](inc/analytics-realtime.php)). Per-class current-visitors counts — distinct visitor-day hashes active in the last 5 minutes — read from a 30-second-fresh transient warmed by a non-blocking `admin_init` single-event. No table and no recurring cron (a "now" number only matters while the dashboard is open), single-event-only so it can't hit the warmer-vs-recurring hook collision, and it never poisons its cache on an AE failure. Mirrors the `inc/plausible-api.php` realtime half.
 - **AE SQL read-client wired into the loader** ([inc/analytics-api.php](inc/analytics-api.php)) — the P1 read-client (`sn_analytics_query()` / `sn_analytics_config()`) shipped on disk but unwired; it is now `require_once`'d immediately before its consumers.
+- **Analytics dashboard (Monitoring → Analytics).** A native wp-admin first-party analytics surface: visitors-now, range totals, a daily trend, and top pages (with scroll/time engagement) / sources / countries / devices breakdowns — with a human/suspect/bot class control and an "N automated filtered" line. 7/30/90-day windows. Reads only the durable rollup tables, so it never blocks a render; dormant until the Cloudflare worker + read credentials are configured.
+- **Referrer/country/device breakdown rollup** (`wp_sn_analytics_dims`), aggregated in the same daily cron from the existing AE blobs — no edge-worker change.
+
+### Improvements
+
+- The four dashboard-home widgets now read the first-party analytics source instead of Plausible (snapshot, visitors-now, top pages, top sources), with a clear "configure analytics" empty state.
 
 ### Changed
 
