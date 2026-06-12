@@ -21,7 +21,19 @@ function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
-function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
+function add_query_arg( $args, $url = null ) {
+	if ( null === $url ) { $url = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/wp-admin/admin.php?page=sn-theme-options&tab=dashboard'; }
+	$sep = ( strpos( (string) $url, '?' ) !== false ) ? '&' : '?';
+	return $url . $sep . http_build_query( $args );
+}
+function remove_query_arg( $keys, $url ) {
+	$parts = explode( '?', (string) $url, 2 );
+	if ( ! isset( $parts[1] ) ) { return $url; }
+	parse_str( $parts[1], $q );
+	foreach ( (array) $keys as $k ) { unset( $q[ $k ] ); }
+	return $q ? $parts[0] . '?' . http_build_query( $q ) : $parts[0];
+}
+$_SERVER['REQUEST_URI'] = '/wp-admin/admin.php?page=sn-theme-options&tab=dashboard';
 function wp_unslash( $v ) { return $v; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
 function current_user_can( $c ) { return true; }

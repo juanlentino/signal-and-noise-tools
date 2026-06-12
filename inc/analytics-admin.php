@@ -56,10 +56,14 @@ function snt_analytics_range_dates( $days, $now = null ) {
 }
 
 /**
- * Render the Analytics tab body (hooked at sn_admin_analytics_tab).
+ * Render the Analytics dashboard (hooked at sn_admin_dashboard_extras, priority 5
+ * — leads the plugin Dashboard tab since v5.3.0; was Monitoring → Analytics).
  */
 function snt_analytics_render_admin_tab() {
 	snt_analytics_styles();
+
+	// v5.3.0: section heading — this view now leads the Dashboard tab.
+	echo '<h2 class="sn-section-h">Analytics</h2>';
 
 	// Read-only display params — sanitized + whitelisted (no nonce: not state-changing).
 	$range = snt_analytics_resolve_range( isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7' );
@@ -107,7 +111,11 @@ function snt_analytics_render_admin_tab() {
 	snt_analytics_render_settings();
 	echo '</details>';
 }
-add_action( 'sn_admin_analytics_tab', 'snt_analytics_render_admin_tab' );
+// v5.3.0: the analytics dashboard now LEADS the plugin Dashboard tab (moved out
+// of Monitoring → Analytics). Priority 5 renders it above the operational state
+// grid (snt_dashboard_tab_render, priority 10). The renderer is location-agnostic
+// (reads rollup accessors; controls derive their URL from the current request).
+add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render_admin_tab', 5 );
 
 /**
  * Inline CSS — native wp-admin palette only (no theme fonts/colors).

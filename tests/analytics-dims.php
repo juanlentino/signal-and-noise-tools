@@ -122,8 +122,12 @@ ok( strpos( $sql, 'blob3 AS value' ) !== false, 'dims-sql: referrer → blob3 AS
 ok( sn_analytics_dims_rollup_sql( 'country', 7 ) && strpos( sn_analytics_dims_rollup_sql( 'country', 7 ), 'blob4 AS value' ) !== false, 'dims-sql: country → blob4' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'device', 7 ), 'blob5 AS value' ) !== false, 'dims-sql: device → blob5' );
 ok( strpos( $sql, 'blob7 AS class' ) !== false, 'dims-sql: selects class' );
-ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'pv')" ) !== false, 'dims-sql: views from pv only' );
-ok( strpos( $sql, "count(DISTINCT if(blob1 = 'pv', index1, NULL))" ) !== false, 'dims-sql: visits = distinct visitor-day hashes scoped to pv (no referrer (direct) over-count)' );
+// v5.3.0: pv-filtered window lets both aggregates use AE's documented forms
+// (sum() + count(DISTINCT <column>)). AE rejects count(*)/count(DISTINCT <expr>).
+ok( strpos( $sql, "WHERE blob1 = 'pv'" ) !== false, 'dims-sql: window filtered to pv events' );
+ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'dims-sql: views = sample-corrected sum over pv window' );
+ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'dims-sql: visits = distinct visitor-day hashes (plain-column DISTINCT)' );
+ok( strpos( $sql, 'count(*)' ) === false && strpos( $sql, 'count(DISTINCT if' ) === false, 'dims-sql: avoids AE-invalid count(*) / count(DISTINCT <expr>)' );
 ok( strpos( $sql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'dims-sql: floored trailing window' );
 ok( strpos( $sql, 'GROUP BY day, value, class' ) !== false, 'dims-sql: groups by day, value, class' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'referrer', '7; DROP TABLE x' ), 'DROP TABLE' ) === false, 'dims-sql: $days integer-cast (no injection)' );

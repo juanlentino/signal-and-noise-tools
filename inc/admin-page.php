@@ -193,7 +193,7 @@ function sn_theme_options_page() {
 
 	// ════════════════════════════════════════
 	// TAB: MONITORING (v3.8.1+: sub-tabs)
-	// Sub-tabs: insights, health, analytics, plausible, rss, music
+	// Sub-tabs: insights, health, plausible, rss, music (analytics moved to Dashboard tab in v5.3.0)
 	// ════════════════════════════════════════
 	} elseif ( 'monitoring' === $active_tab ) {
 
@@ -202,10 +202,6 @@ function sn_theme_options_page() {
 		if ( 'health' === $active_sub ) {
 			sn_admin_render_section( 'health', function() {
 				do_action( 'sn_admin_health_tab' );
-			} );
-		} elseif ( 'analytics' === $active_sub ) {
-			sn_admin_render_section( 'analytics', function() {
-				do_action( 'sn_admin_analytics_tab' );
 			} );
 		} elseif ( 'plausible' === $active_sub ) {
 			sn_admin_render_section( 'plausible', function() {

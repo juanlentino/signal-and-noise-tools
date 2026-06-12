@@ -95,14 +95,21 @@ function sn_analytics_dims_rollup_sql( $dim, $days ) {
 	$col  = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
 	$days = max( 1, (int) $days );
 
+	// pv-only window: dimensions describe pageviews, so filtering to `pv` events
+	// in the WHERE lets both aggregates use AE's documented forms — sum() over the
+	// (now exclusively pv) sample interval, and count(DISTINCT <column>) on a bare
+	// column. AE rejects count(DISTINCT <expression>) (the prior count(DISTINCT
+	// if(...)) was undocumented) and count(*)/count(<arg>) ("COUNT() function must
+	// have 0 arguments"); both are avoided here. Semantically identical to the
+	// prior sumIf(pv)+count(DISTINCT if(pv)) form.
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		"{$col} AS value,",
 		'blob7 AS class,',
-		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
-		"count(DISTINCT if(blob1 = 'pv', index1, NULL)) AS visits",
+		'sum(_sample_interval) AS views,',
+		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
 		'GROUP BY day, value, class',
 		'ORDER BY day DESC, views DESC',
 	) );
