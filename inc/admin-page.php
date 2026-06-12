@@ -182,6 +182,8 @@ function sn_theme_options_page() {
 			sn_admin_render_section( 'cron', function() {
 				do_action( 'sn_admin_cron_tab' );
 			} );
+		} elseif ( 'indexnow' === $active_sub ) {
+			sn_admin_render_section( 'indexnow', 'sn_admin_render_indexnow_section' );
 		} else {
 			// Default sub-tab: 'webhooks'
 			sn_admin_render_section( 'webhooks', function() {

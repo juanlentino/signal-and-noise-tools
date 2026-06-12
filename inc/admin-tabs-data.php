@@ -78,8 +78,9 @@ function sn_admin_top_tabs() {
 			'title'    => 'Signal & Noise — Automation',
 			'subtitle' => 'Webhooks and scheduled jobs.',
 			'sub_tabs' => array(
-				'webhooks' => array( 'label' => 'Webhooks' ),
-				'cron'     => array( 'label' => 'Cron' ),
+				'webhooks'  => array( 'label' => 'Webhooks' ),
+				'cron'      => array( 'label' => 'Cron' ),
+				'indexnow'  => array( 'label' => 'IndexNow' ),
 			),
 		),
 		array(

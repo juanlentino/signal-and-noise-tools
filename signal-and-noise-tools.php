@@ -89,6 +89,7 @@ require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools →
 require_once SNT_PATH . 'inc/admin-forms/release-notes.php'; // v4.11.0 (T4): Tools → Release Notes (AI drafter)
 require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Tools → Front-End (theme render knobs)
 require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Monitoring → Music (Spotify creds + Muso profile + Sync now)
+require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
 require_once SNT_PATH . 'inc/rest-api.php';
 

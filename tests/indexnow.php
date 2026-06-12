@@ -50,6 +50,15 @@ function wp_is_post_revision( $id ) { return ! empty( $GLOBALS['__is_revision'] 
 function wp_is_post_autosave( $id ) { return ! empty( $GLOBALS['__is_autosave'] ); }
 function sn_in_test_post( $type, $status ) { $p = new stdClass(); $p->ID = 7; $p->post_type = $type; $p->post_status = $status; return $p; }
 
+function sn_setting_update( $path, $value ) { $GLOBALS['__settings'][ $path ] = $value; return true; }
+function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_url( $s ) { return (string) $s; }
+function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce" value="x">'; }
+function checked( $a, $b = true, $e = true ) { $r = ( (string) $a === (string) $b ) ? " checked" : ''; if ( $e ) { echo $r; } return $r; }
+function current_user_can( $c ) { return true; }
+function human_time_diff( $a, $b = 0 ) { return '1 min'; }
+
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -172,6 +181,32 @@ ok( 1 === count( $GLOBALS['__scheduled'] ), 'delete: hard-deleting a published p
 $GLOBALS['__scheduled'] = array();
 sn_indexnow_on_delete( 7, sn_in_test_post( 'post', 'draft' ) );
 ok( 0 === count( $GLOBALS['__scheduled'] ), 'delete: deleting a never-published post does NOT enqueue' );
+
+// ── Save handler: enable mints a key; toggle persists ───────────────
+$GLOBALS['__settings'] = array();
+$GLOBALS['__options']  = array();
+require_once __DIR__ . '/../inc/admin-post-actions.php'; // pulls in sn_handle_indexnow_* (and siblings)
+$flash = sn_handle_indexnow_save( array( 'indexnow_enabled' => '1' ) );
+ok( 'indexnow_saved' === $flash, 'save: returns the saved flash' );
+ok( true === sn_setting( 'indexnow.enabled', false ), 'save: enabled persisted' );
+ok( '' !== sn_indexnow_get_key(), 'save: enabling mints a key' );
+
+$flash = sn_handle_indexnow_save( array() ); // checkbox absent
+ok( false === sn_setting( 'indexnow.enabled', true ), 'save: absent checkbox → disabled' );
+
+$old = sn_indexnow_get_key();
+sn_handle_indexnow_regenerate( array() );
+ok( sn_indexnow_get_key() !== $old, 'regenerate: mints a new key' );
+
+// ── Render: section emits the enable field + key URL without fatal ──
+require_once __DIR__ . '/../inc/admin-forms/indexnow.php';
+$GLOBALS['__settings']['indexnow.enabled'] = true;
+ob_start();
+sn_admin_render_indexnow_section();
+$html = ob_get_clean();
+ok( strpos( $html, 'name="indexnow_enabled"' ) !== false, 'render: emits the enable toggle' );
+ok( strpos( $html, 'value="indexnow_save"' ) !== false, 'render: emits the save action' );
+ok( strpos( $html, sn_indexnow_get_key() . '.txt' ) !== false, 'render: shows the key-file URL' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
