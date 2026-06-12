@@ -259,7 +259,7 @@ pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 29, count( $map ), 'map has 29 actions' ); // v4.13.0: + music_save + music_sync
+pa_eq( 32, count( $map ), 'map has 32 actions' ); // v5.1.0: + indexnow_save + indexnow_regenerate + indexnow_ping_now
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
