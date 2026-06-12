@@ -45,6 +45,21 @@ add_filter( 'the_seo_framework_meta_generator_pools', function( $pools ) {
  * (set by the editor when publishing).
  */
 /**
+ * The current /notes listing page number (≥1). Reads the main-query 'paged'
+ * var — reliable for a non-front Page like /notes/ (WP only reassigns
+ * paged→page for the static front page) — with a raw $_GET fallback as
+ * defensive belt-and-suspenders for the documented is_page('notes') routing
+ * ambiguity. v5.1.0.
+ */
+function sn_seo_current_paged() {
+	$paged = (int) get_query_var( 'paged' );
+	if ( $paged < 1 && isset( $_GET['paged'] ) ) {
+		$paged = (int) $_GET['paged']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only public page-number, no state change
+	}
+	return max( 1, $paged );
+}
+
+/**
  * Resolve the active page's effective title + description for SEO meta.
  * Returns [ $title, $description, $url ] — any field may be empty string.
  *
@@ -65,6 +80,12 @@ function sn_seo_meta_for_current_view() {
 		$title       = sn_setting( 'seo_copy.notes_title', '' );
 		$description = sn_setting( 'seo_copy.notes_description', '' );
 		$url         = home_url( '/notes/' );
+		// v5.1.0: paged pages self-canonical (do NOT collapse to /notes/).
+		// Flows to both <link rel="canonical"> and og:url, which read $url.
+		$paged = sn_seo_current_paged();
+		if ( $paged > 1 ) {
+			$url = add_query_arg( 'paged', $paged, $url );
+		}
 	} elseif ( is_page( 'provenance' ) ) {
 		$title       = sn_setting( 'seo_copy.provenance_title', '' );
 		$description = sn_setting( 'seo_copy.provenance_description', '' );
