@@ -100,7 +100,7 @@ function sn_analytics_dims_rollup_sql( $dim, $days ) {
 		"{$col} AS value,",
 		'blob7 AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
-		'count(DISTINCT index1) AS visits',
+		"count(DISTINCT if(blob1 = 'pv', index1, NULL)) AS visits",
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
 		'GROUP BY day, value, class',
