@@ -94,13 +94,16 @@ add_action( 'plugins_loaded', function() {
 	if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
 		return;
 	}
-	$key = sn_indexnow_key_for_request( (string) wp_unslash( $_SERVER['REQUEST_URI'] ) );
+	$key = sn_indexnow_key_for_request( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) );
 	if ( '' === $key ) {
 		return;
 	}
 	header( 'Content-Type: text/plain; charset=utf-8' );
 	header( 'X-Robots-Tag: noindex' );
-	echo $key; // raw key — a text/plain body, no markup to escape
+	// $key is internally-generated [a-f0-9] hex (validated by the regex +
+	// hash_equals in sn_indexnow_key_for_request); esc_html is a no-op here
+	// but keeps the security sniff satisfied without a suppression.
+	echo esc_html( $key );
 	exit;
 }, 2 );
 
