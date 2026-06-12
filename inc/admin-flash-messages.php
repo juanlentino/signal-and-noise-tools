@@ -32,11 +32,6 @@ function sn_admin_flash_messages() {
 		'identity_unchanged'        => array( 'info', 'No changes to save.' ),
 		'login_empty'               => array( 'error', 'Login slug cannot be empty.' ),
 		'login_failed'              => array( 'error', 'Login slug save failed.' ),
-		'pl_saved'                  => array( 'success', 'Stats API key saved. Caches purged — widgets refresh on next dashboard view.' ),
-		'pl_cleared'                => array( 'success', 'Stats API key cleared. Caches purged.' ),
-		'pl_unchanged'              => array( 'info', 'No changes to save.' ),
-		'pl_locked'                 => array( 'error', 'Token is locked by the SN_PLAUSIBLE_STATS_TOKEN constant — remove the constant in wp-config.php to edit here.' ),
-		'pl_test_unconfigured'      => array( 'error', 'Plausible not fully configured (missing domain or token).' ),
 		'cf_saved'                  => array( 'success', 'Cloudflare settings saved.' ),
 		'cf_purged_ok'              => array( 'success', 'Cloudflare zone purge dispatched.' ),
 		'cf_purged_unconfigured'    => array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' ),
@@ -78,6 +73,9 @@ function sn_admin_flash_messages() {
 		'analytics_unchanged'         => array( 'info', 'No changes to save.' ),
 		'analytics_locked'            => array( 'error', 'Analytics credentials are locked by the <code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> constants in wp-config.php — remove them to edit here.' ),
 		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured — set the account ID and read token first.' ),
+		'analytics_imported'          => array( 'success', 'Plausible history imported — summary below.' ),
+		'analytics_import_empty'      => array( 'warning', 'No CSV files were selected to import.' ),
+		'analytics_import_err'        => array( 'error', 'Import failed — the importer is unavailable.' ),
 	);
 }
 
@@ -118,16 +116,6 @@ function sn_admin_flash_to_notice( $flash ) {
 		$slug_now  = sn_setting( 'login.slug', 'sn-login' );
 		$login_url = home_url( '/' . $slug_now );
 		return array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
-	}
-	if ( 'pl_test_ok' === $flash ) {
-		$cached   = get_transient( SN_PLAUSIBLE_BATCH_KEY );
-		$visitors = is_array( $cached ) && isset( $cached['data']['visitors']['value'] ) ? (int) $cached['data']['visitors']['value'] : 0;
-		return array( 'success', '&#10003; API call succeeded — ' . number_format_i18n( $visitors ) . ' visitor(s) in last 7 days.' );
-	}
-	if ( 'pl_test_err' === $flash ) {
-		$err    = sn_plausible_last_error();
-		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
-		return array( 'error', '&#10005; API call failed &mdash; ' . $detail );
 	}
 	if ( 'analytics_test_ok' === $flash ) {
 		return array( 'success', '&#10003; Analytics API reachable — credentials valid.' );

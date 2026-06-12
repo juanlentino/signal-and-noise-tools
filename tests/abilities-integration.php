@@ -343,7 +343,7 @@ if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 		$GLOBALS['__test_cron_events_call_count']++;
 		$events = array(
 			array(
-				'hook'           => 'sn_plausible_refresh',
+				'hook'           => 'sn_analytics_rollup',
 				'args_signature' => md5( serialize( array() ) ),
 				'next_run_ts'    => 1900000000,
 				'schedule'       => 'hourly',
@@ -373,9 +373,9 @@ if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 }
 if ( ! function_exists( 'snt_cron_get_event_impl' ) ) {
 	function snt_cron_get_event_impl( $hook, $args_signature ) {
-		if ( 'sn_plausible_refresh' === $hook ) {
+		if ( 'sn_analytics_rollup' === $hook ) {
 			return array(
-				'hook'           => 'sn_plausible_refresh',
+				'hook'           => 'sn_analytics_rollup',
 				'args_signature' => $args_signature,
 				'next_run_ts'    => 1900000000,
 				'schedule'       => 'hourly',
@@ -407,7 +407,7 @@ if ( ! function_exists( 'snt_cron_history_for_hook' ) ) {
 }
 if ( ! function_exists( 'snt_cron_unschedule_event_impl' ) ) {
 	function snt_cron_unschedule_event_impl( $hook, $args = array() ) {
-		if ( in_array( $hook, array( 'sn_plausible_refresh', 'snt_rss_prune', 'snt_deploy_webhook' ), true ) ) {
+		if ( in_array( $hook, array( 'sn_analytics_rollup', 'snt_rss_prune', 'snt_deploy_webhook' ), true ) ) {
 			return new WP_Error( 'sn_owned', 'Refusing to unschedule an SN-owned hook.', array( 'status' => 400 ) );
 		}
 		return array(
@@ -665,7 +665,7 @@ ap_eq( 12, $out['data']['windows']['1']['total'], 'get-rss-stats: 24h total' );
 // list-cron-events (no input)
 $out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array() );
 ap_true( is_array( $out ) && count( $out ) === 2, 'list-cron-events: returns 2 events without filter' );
-ap_eq( 'sn_plausible_refresh', $out[0]['hook'], 'list-cron-events: first hook' );
+ap_eq( 'sn_analytics_rollup', $out[0]['hook'], 'list-cron-events: first hook' );
 
 // list-cron-events with sn_only=true
 $out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array( 'sn_only' => true ) );
@@ -674,11 +674,11 @@ ap_eq( true, $out[0]['is_sn_owned'], 'list-cron-events: filtered event is_sn_own
 
 // get-cron-event (happy path)
 $out = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array(
-	'hook'           => 'sn_plausible_refresh',
+	'hook'           => 'sn_analytics_rollup',
 	'args_signature' => md5( serialize( array() ) ),
 ) );
 ap_true( is_array( $out ) && isset( $out['hook'] ), 'get-cron-event: returns array for known hook' );
-ap_eq( 'sn_plausible_refresh', $out['hook'], 'get-cron-event: hook echoed' );
+ap_eq( 'sn_analytics_rollup', $out['hook'], 'get-cron-event: hook echoed' );
 
 // get-cron-event (unknown hook → null)
 $out = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array(
@@ -688,7 +688,7 @@ $out = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array(
 ap_true( null === $out, 'get-cron-event: unknown hook returns null per schema' );
 
 // get-cron-history
-$out = wp_get_ability( 'signal-noise/get-cron-history' )->execute( array( 'hook' => 'sn_plausible_refresh' ) );
+$out = wp_get_ability( 'signal-noise/get-cron-history' )->execute( array( 'hook' => 'sn_analytics_rollup' ) );
 ap_true( is_array( $out ) && count( $out ) === 1, 'get-cron-history: 1 history row' );
 ap_eq( true, $out[0]['success'], 'get-cron-history: success=true' );
 
@@ -809,7 +809,7 @@ ap_eq( true, $out['success'], 'unschedule-cron-event: success=true for non-SN ho
 
 // unschedule-cron-event — refuses SN-owned hook
 $res = wp_get_ability( 'signal-noise/unschedule-cron-event' )->execute( array(
-	'hook' => 'sn_plausible_refresh',
+	'hook' => 'sn_analytics_rollup',
 	'args' => array(),
 ) );
 ap_true( is_wp_error( $res ), 'unschedule-cron-event: refuses SN-owned hook' );
@@ -1087,12 +1087,9 @@ ap_eq( 'ai-generation', $apply_ability['category'], 'v4.3.0: pattern-adoption-ap
 ap_true( isset( $apply_ability['input_schema']['properties']['replacement_markup'] ), 'v4.3.0: pattern-adoption-apply input has replacement_markup' );
 
 // ─── v4.6.0 NEW ABILITIES ─────────────────────────────────────────────
-echo "\n[v4.6.0] new abilities (Plausible × 3, run-cron-event, pattern-adoption-scan/dismiss):\n";
+echo "\n[v4.6.0] new abilities (run-cron-event, pattern-adoption-scan/dismiss; Plausible × 3 removed in v6.0.0):\n";
 
 $v460_new = array(
-	'signal-noise/get-plausible-stats',
-	'signal-noise/get-plausible-realtime',
-	'signal-noise/test-plausible-connection',
 	'signal-noise/run-cron-event',
 	'signal-noise/pattern-adoption-scan',
 	'signal-noise/pattern-adoption-dismiss',

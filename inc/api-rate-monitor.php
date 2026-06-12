@@ -9,7 +9,6 @@
  * Tracked hosts (auto-detected from response URL):
  *   - api.github.com           (GitHub REST API + GHA Actions API)
  *   - api.cloudflare.com       (CF zone purge + management)
- *   - plausible.io             (Plausible stats API)
  *
  * Why http_response and not a counter we maintain ourselves: the server's
  * rate-limit headers are the source of truth. Our counter would drift if
@@ -58,12 +57,6 @@ function snt_rate_limit_hosts() {
 			'limit'     => 'x-ratelimit-limit',
 			'reset'     => 'x-ratelimit-reset',
 			'label'     => 'Cloudflare API',
-		),
-		'plausible.io' => array(
-			'remaining' => 'x-ratelimit-remaining-minute',
-			'limit'     => 'x-ratelimit-limit-minute',
-			'reset'     => 'x-ratelimit-reset',
-			'label'     => 'Plausible API',
 		),
 	);
 }
@@ -203,7 +196,7 @@ function snt_rate_limit_maybe_warn( $host, $snapshot ) {
 		"This is the daily-throttled warning. You will not receive another email for this host for 24h, even if remaining drops further.\n\n" .
 		"Mitigation:\n" .
 		"  - GitHub: define SNT_GITHUB_TOKEN in wp-config.php to raise the 60/h unauthenticated limit to 5000/h.\n" .
-		"  - Plausible/Cloudflare: investigate which caller is spending the budget; the deploy widget's API limits section shows recent activity.\n",
+		"  - Cloudflare: investigate which caller is spending the budget; the deploy widget's API limits section shows recent activity.\n",
 		$snapshot['label'],
 		$host,
 		(int) $snapshot['remaining'],

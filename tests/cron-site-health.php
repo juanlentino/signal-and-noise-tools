@@ -29,8 +29,7 @@ define( 'HOUR_IN_SECONDS', 3600 );
 define( 'MINUTE_IN_SECONDS', 60 );
 
 // SN-owned hook constants (define so snt_cron_sn_owned_hooks resolves them).
-define( 'SN_PLAUSIBLE_REFRESH_BATCH_HOOK',    'sn_plausible_refresh_dashboard' );
-define( 'SN_PLAUSIBLE_REFRESH_REALTIME_HOOK', 'sn_plausible_refresh_realtime' );
+// v6.0.0: Plausible refresh hooks retired — RSS tracker is the sole SN-owned cron hook.
 define( 'SN_RSS_TRACKER_CRON_HOOK',           'sn_rss_tracker_daily_prune' );
 define( 'SNT_CRON_HISTORY_CRON_HOOK',         'snt_cron_history_prune' );
 

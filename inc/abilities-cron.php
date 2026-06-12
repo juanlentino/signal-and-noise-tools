@@ -29,7 +29,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-cron-events', array(
 		'label'               => 'List Cron Events',
-		'description'         => 'Returns all scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the 3 SN-owned hooks (Plausible refresh, RSS prune, deploy webhook).',
+		'description'         => 'Returns all scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the SN-owned hooks (e.g. the RSS subscriber-prune hook).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_list_cron_events',
@@ -39,7 +39,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'sn_only' => array(
 					'type'        => 'boolean',
 					'default'     => false,
-					'description' => 'If true, filter to the 3 SN-owned hooks only.',
+					'description' => 'If true, filter to the SN-owned hooks only.',
 				),
 			),
 			'additionalProperties' => false,
@@ -85,7 +85,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'string',
 					'description' => 'The cron hook name.',
 					'minLength'   => 1,
-					'examples'    => array( 'sn_plausible_refresh_dashboard', 'sn_rss_tracker_daily_prune', 'wp_scheduled_delete' ),
+					'examples'    => array( 'sn_analytics_rollup_daily', 'sn_rss_tracker_daily_prune', 'wp_scheduled_delete' ),
 				),
 				'args_signature' => array(
 					'type'        => 'string',
@@ -134,7 +134,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'string',
 					'description' => 'The cron hook name to look up history for.',
 					'minLength'   => 1,
-					'examples'    => array( 'sn_plausible_refresh_dashboard', 'sn_rss_tracker_daily_prune' ),
+					'examples'    => array( 'sn_analytics_rollup_daily', 'sn_rss_tracker_daily_prune' ),
 				),
 				'limit' => array(
 					'type'        => 'integer',
@@ -175,7 +175,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/unschedule-cron-event', array(
 		'label'               => 'Unschedule cron event',
-		'description'         => 'Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. SN-owned hooks (Plausible refresh, RSS prune) are refused with a clear error. The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.',
+		'description'         => 'Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. SN-owned hooks (e.g. the RSS subscriber-prune hook) are refused with a clear error. The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_unschedule_cron_event',

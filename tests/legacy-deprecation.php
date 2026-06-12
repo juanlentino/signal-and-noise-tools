@@ -4,24 +4,25 @@
  * keep their `@deprecated` PHPdoc annotation across future edits. Static grep
  * — no WP load.
  *
- * Covers 7 handlers (after the v5.0.0 gen-1 removals):
+ * Covers 4 handlers (after the v5.0.0 gen-1 removals + the v6.0.0 Plausible
+ * Stats-API removal):
  *   - 1 since-2.5.0 handler: the desktop-mode `/cmd` command
  *     (`snt_desktop_cmd_handler`) — carries a runtime `_deprecated_function()`
  *     call; its removal is deferred until the desktop-mode widgets migrate.
- *   - 6 since-4.6.0 handlers (Plausible × 3, cron-run, pattern-adoption
- *     scan/dismiss) — promoted to runtime `_deprecated_function()` in v5.0.0
- *     (see tests/gen2-runtime-warnings.php); removal targets v6.0.0.
+ *   - 3 since-4.6.0 handlers (cron-run, pattern-adoption scan/dismiss) —
+ *     promoted to runtime `_deprecated_function()` in v5.0.0
+ *     (see tests/gen2-runtime-warnings.php).
  *
  * The assertion checks each named function for deprecation evidence in
  * EITHER form:
  *   - `@deprecated` PHPdoc in the docblock above the function, OR
  *   - a runtime `_deprecated_function()` call in the function body.
- * All 10 handlers carry at least one; the 6 since-4.6.0 handlers carry the
- * PHPdoc form, the 4 since-2.5.0 handlers carry both (the `snt_desktop_cmd_handler`
+ * All 4 handlers carry at least one; the 3 since-4.6.0 handlers carry the
+ * PHPdoc form, the since-2.5.0 handler carries both (the `snt_desktop_cmd_handler`
  * `@deprecated` lives in a file-section banner, not its own docblock, so the
  * runtime-call form is what guards it).
  *
- * @since plugin v4.5.0 (extended to 10 handlers in v4.6.0)
+ * @since plugin v4.5.0 (extended in v4.6.0; Plausible handlers removed in v6.0.0)
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
@@ -31,14 +32,10 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 
 $plugin_root = dirname( __DIR__ );
 
-// List-of-arrays (not file-keyed map) because four of the since-4.6.0
-// handlers live in the same file (inc/rest-api.php) and array keys must
-// be unique.
+// List-of-arrays (not file-keyed map) to keep a stable shape; entries are
+// unique by (file, function).
 $checks = array(
 	array( 'inc/desktop-mode-integration.php',  'snt_desktop_cmd_handler' ),
-	array( 'inc/rest-api.php',                  'sn_rest_plausible_stats' ),
-	array( 'inc/rest-api.php',                  'sn_rest_plausible_realtime' ),
-	array( 'inc/rest-api.php',                  'sn_rest_plausible_test' ),
 	array( 'inc/rest-api.php',                  'snt_rest_cron_run' ),
 	array( 'inc/pattern-adoption-detect.php',   'snt_rest_pattern_adoption_scan' ),
 	array( 'inc/pattern-adoption-admin.php',    'snt_rest_pattern_adoption_dismiss' ),

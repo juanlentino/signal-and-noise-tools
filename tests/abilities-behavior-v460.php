@@ -224,7 +224,7 @@ $r = snt_ability_run_cron_event( array( 'hook' => '' ) );
 bx_true( is_wp_error( $r ) && 'snt_invalid_hook' === $r->get_error_code(), 'A.1: empty hook → snt_invalid_hook WP_Error' );
 
 // A.2 — sn_* hook → refused (ability-level pre-filter, never reaches impl).
-$r = snt_ability_run_cron_event( array( 'hook' => 'sn_plausible_refresh' ) );
+$r = snt_ability_run_cron_event( array( 'hook' => 'sn_rss_tracker_daily_prune' ) );
 bx_true( is_wp_error( $r ) && 'snt_sn_hook_refused' === $r->get_error_code(), 'A.2: sn_* hook → snt_sn_hook_refused WP_Error' );
 
 // A.3 — ORPHAN hook (no callbacks) → impl's has_action() guard returns WP_Error.

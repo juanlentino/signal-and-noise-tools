@@ -145,20 +145,6 @@ pa_reset_store();
 pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'attempt', 'sn_cf_zone' => 'attempt' ) ), 'returns cf_saved' );
 pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants are defined (locked)' );
 
-echo "\nTest: sn_handle_pl_save() branches\n";
-define( 'SN_PLAUSIBLE_TOKEN_OPT', 'sn_pl_token' );
-function sn_pl_admin_invalidate_caches() {}
-$GLOBALS['__options'] = array( 'sn_pl_token' => 'old' );
-pa_eq( 'pl_cleared', sn_handle_pl_save( array( 'sn_pl_token' => 'clear' ) ), "'clear' → pl_cleared" );
-pa_eq( false, array_key_exists( 'sn_pl_token', $GLOBALS['__options'] ), 'token option deleted' );
-pa_eq( 'pl_unchanged', sn_handle_pl_save( array( 'sn_pl_token' => '' ) ), 'empty → pl_unchanged' );
-pa_eq( 'pl_saved', sn_handle_pl_save( array( 'sn_pl_token' => 'real-new-token' ) ), 'real token → pl_saved' );
-pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'token persisted' );
-// Re-submit the MASKED placeholder (••••XXXX) → leave the stored token alone.
-// (Before v4.13.1, the byte-truncating substr check persisted the literal bullets.)
-pa_eq( 'pl_unchanged', sn_handle_pl_save( array( 'sn_pl_token' => '••••oken' ) ), 'masked placeholder → pl_unchanged' );
-pa_eq( 'real-new-token', get_option( 'sn_pl_token' ), 'masked re-submit does NOT clobber the stored token' );
-
 echo "\nTest: sn_handle_monitoring_save() enforces https (Fix C)\n";
 pa_reset_store();
 // http:// push URL → rejected, cleared, error flash.
@@ -358,7 +344,7 @@ pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants ar
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 34, count( $map ), 'map has 34 actions' ); // v5.1.0: +3 indexnow (save/regenerate/ping_now) · v5.2.0: +2 analytics (save/test)
+pa_eq( 33, count( $map ), 'map has 33 actions' ); // v5.1.0: +3 indexnow (save/regenerate/ping_now) · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import, −2 plausible (pl_save/pl_test)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

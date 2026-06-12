@@ -3,9 +3,10 @@
  * v5.0.0 guard: the gen-2 (`@deprecated since 4.6.0`) REST handlers now fire a
  * RUNTIME `_deprecated_function()` warning, not just a docblock `@deprecated`.
  *
- * These 6 routes keep working in v5.0.0 (their Ability replacements are the
- * preferred path); promoting them to runtime warnings schedules removal for
- * v6.0.0. Static source check (no WP load).
+ * These routes keep working (their Ability replacements are the preferred
+ * path); promoting them to runtime warnings schedules removal. The 3
+ * Plausible Stats-API handlers were removed in v6.0.0, leaving cron-run +
+ * pattern-adoption scan/dismiss. Static source check (no WP load).
  *
  * @since 5.0.0
  */
@@ -20,9 +21,6 @@ $pass = 0;
 $fail = 0;
 
 $handlers = array(
-	array( 'inc/rest-api.php',                'sn_rest_plausible_stats' ),
-	array( 'inc/rest-api.php',                'sn_rest_plausible_realtime' ),
-	array( 'inc/rest-api.php',                'sn_rest_plausible_test' ),
 	array( 'inc/rest-api.php',                'snt_rest_cron_run' ),
 	array( 'inc/pattern-adoption-detect.php', 'snt_rest_pattern_adoption_scan' ),
 	array( 'inc/pattern-adoption-admin.php',  'snt_rest_pattern_adoption_dismiss' ),

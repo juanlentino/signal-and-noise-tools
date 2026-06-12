@@ -159,7 +159,9 @@ echo "Theme ability launcher commands suite — plugin v3.7.4\n";
 // $commands array (4 maintenance + 7 nav + 2 version + 2 cron + 1 insights),
 // plus 12 new theme-ability launcher commands = 28. v3.8.3 added 2 audit-log
 // commands (sn-cmd-audit-summary + sn-cmd-audit-recent-logins) bringing the
-// existing-baseline to 18 and the total to 30.
+// existing-baseline to 18 and the total to 30. v6.0.0 retired the Plausible
+// nav command (sn-cmd-nav-plausible), dropping the nav set to 6, the
+// existing-baseline to 17, and the total to 29.
 //
 // Note: v3.7.4 strips the original plan's extra fields (ability, render_mode,
 // input_fields, ai_callable) — they're discarded by desktop_mode_register_command()
@@ -167,7 +169,7 @@ echo "Theme ability launcher commands suite — plugin v3.7.4\n";
 // dispatch lands in v3.8.0 via desktop_mode_register_ai_tool() + an
 // Anthropic provider (desktop_mode_register_ai_provider()).
 echo "\nTest 1: total command count\n";
-tac_eq( 30, count( $GLOBALS['__test_commands_registered'] ), '18 existing + 12 new = 30 commands' );
+tac_eq( 29, count( $GLOBALS['__test_commands_registered'] ), '17 existing + 12 new = 29 commands' );
 
 // ─── Test 2: new launcher slugs registered ──────────────────────────
 echo "\nTest 2: new command slugs registered\n";

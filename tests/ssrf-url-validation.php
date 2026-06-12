@@ -2,17 +2,18 @@
 /**
  * Standalone tests for the outbound-URL SSRF guard (v4.14.1).
  *
- * Two outbound modules consumed an admin/option-set host and dispatched a
+ * An outbound module consumed an admin/option-set host and dispatched a
  * wp_remote_* request WITHOUT the wp_http_validate_url() guard that the
  * codebase's own inc/webhooks.php (x4) + inc/uptime-heartbeat.php (x2) already
- * apply. This locks them to the same pattern: https-only + wp_http_validate_url()
+ * apply. This locks it to the same pattern: https-only + wp_http_validate_url()
  * (which rejects reserved/internal IPs), so:
- *   - sn_plausible_config(): an internal / non-https self_hosted_domain falls
- *     back to the public default instead of sending the Stats Bearer token to it.
  *   - sn_rss_tracker_send_plausible(): an internal / non-https endpoint is skipped
  *     instead of POSTed to (this fires on UNauthenticated public feed hits and
  *     forwards the requester's UA + X-Forwarded-For).
  * Valid public https hosts are unaffected (non-breaking).
+ *
+ * v6.0.0: the Plausible Stats-API half (sn_plausible_config) was removed with
+ * inc/plausible-api.php. Only the RSS-tracker SSRF guard remains.
  *
  * Run: php tests/ssrf-url-validation.php
  *
@@ -92,43 +93,9 @@ if ( ! function_exists( 'wp_remote_post' ) ) {
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $e = 0 ) { return true; } }
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return false; } }
 
-require __DIR__ . '/../inc/plausible-api.php';
 require __DIR__ . '/../inc/rss-plausible-tracker.php';
 
-// ── Fix 1: sn_plausible_config() SSRF guard on self_hosted_domain ────────
-function set_plausible_self_host( $host ) {
-	$GLOBALS['__opt']['plausible_analytics_settings'] = array(
-		'domain_name'        => 'example.com',
-		'api_token'          => 'secret-stats-token',
-		'self_hosted_domain' => $host,
-	);
-}
-
-set_plausible_self_host( 'https://169.254.169.254' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.io', 'plausible: cloud-metadata 169.254 self-host → blocked by explicit link-local guard (no Bearer-token exfil)' );
-
-set_plausible_self_host( 'https://10.0.0.5' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.io', 'plausible: RFC-1918 self-host → rejected via wp_http_validate_url → default' );
-
-set_plausible_self_host( 'http://plausible.example.com' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.io', 'plausible: non-https self-host → falls back (token only over https)' );
-
-set_plausible_self_host( 'https://plausible.example.com' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.example.com', 'plausible: valid https self-host → used (NON-BREAKING)' );
-
-set_plausible_self_host( 'plausible.example.com' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.example.com', 'plausible: bare hostname → https prepended + validated + used (non-breaking)' );
-
-set_plausible_self_host( '' );
-$cfg = sn_plausible_config();
-ok( $cfg['base'] === 'https://plausible.io', 'plausible: empty self-host → public default (unchanged)' );
-
-// ── Fix 2: sn_rss_tracker_send_plausible() SSRF guard on plausible_url ───
+// ── sn_rss_tracker_send_plausible() SSRF guard on plausible_url ──────────
 function rss_send( $url ) {
 	$GLOBALS['__post_calls'] = array();
 	sn_rss_tracker_send_plausible(

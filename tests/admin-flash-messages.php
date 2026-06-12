@@ -16,18 +16,15 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 }
 
 define( 'ABSPATH', '/' );
-define( 'SN_PLAUSIBLE_BATCH_KEY', 'sn_pl_batch' );
 
 $GLOBALS['__settings']  = array( 'login.slug' => 'secret-door' );
 $GLOBALS['__transient'] = false;
-$GLOBALS['__pl_error']  = null;
 
 function sn_setting( $path, $default = null ) { return $GLOBALS['__settings'][ $path ] ?? $default; }
 function home_url( $path = '' ) { return 'https://example.test' . $path; }
 function esc_url( $s ) { return $s; }
 function esc_html( $s ) { return $s; }
 function get_transient( $k ) { return $GLOBALS['__transient']; }
-function sn_plausible_last_error() { return $GLOBALS['__pl_error']; }
 function number_format_i18n( $n ) { return (string) $n; }
 
 require_once __DIR__ . '/../inc/admin-flash-messages.php';
@@ -66,24 +63,13 @@ $login = sn_admin_flash_to_notice( 'login_saved' );
 fm_eq( 'success', $login[0], 'login_saved severity' );
 fm_eq( true, false !== strpos( $login[1], 'https://example.test/secret-door' ), 'login_saved embeds current slug URL' );
 
-$GLOBALS['__transient'] = array( 'data' => array( 'visitors' => array( 'value' => 1234 ) ) );
-$ok = sn_admin_flash_to_notice( 'pl_test_ok' );
-fm_eq( 'success', $ok[0], 'pl_test_ok severity' );
-fm_eq( true, false !== strpos( $ok[1], '1234 visitor(s)' ), 'pl_test_ok embeds visitor count from transient' );
-
-$GLOBALS['__pl_error'] = array( 'code' => 503, 'message' => 'upstream down' );
-$err = sn_admin_flash_to_notice( 'pl_test_err' );
-fm_eq( 'error', $err[0], 'pl_test_err severity' );
-fm_eq( true, false !== strpos( $err[1], 'HTTP 503' ), 'pl_test_err embeds error code' );
-
 echo "\nTest 5: unknown code returns null (renders no notice)\n";
 fm_eq( null, sn_admin_flash_to_notice( 'totally_unknown_code' ), 'unknown → null' );
 fm_eq( null, sn_admin_flash_to_notice( '' ), 'empty → null' );
 
 echo "\nTest 6: coordination guard — every exact code the dispatcher emits resolves\n";
 $emitted = array(
-	'identity_saved','identity_unchanged','login_empty','login_failed','pl_saved','pl_cleared',
-	'pl_unchanged','pl_locked','pl_test_unconfigured','cf_saved','cf_purged_ok','cf_purged_unconfigured',
+	'identity_saved','identity_unchanged','login_empty','login_failed','cf_saved','cf_purged_ok','cf_purged_unconfigured',
 	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed',
 	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned',
 	'pattern_adoption_scanned','block_migrations_scanned','audit_retention_saved','audit_retention_unchanged',

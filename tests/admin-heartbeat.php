@@ -29,8 +29,6 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SNT_VERSION', '4.9.0' );
-define( 'SN_PLAUSIBLE_REFRESH_BATCH_HOOK',    'sn_plausible_refresh_dashboard' );
-define( 'SN_PLAUSIBLE_REFRESH_REALTIME_HOOK', 'sn_plausible_refresh_realtime' );
 define( 'SN_RSS_TRACKER_CRON_HOOK',           'sn_rss_tracker_daily_prune' );
 
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
@@ -52,7 +50,7 @@ if ( ! function_exists( 'wp_date' ) ) {
 // SN-owned hook list + last-fired (injectable).
 if ( ! function_exists( 'snt_cron_sn_owned_hooks' ) ) {
 	function snt_cron_sn_owned_hooks() {
-		return array( SN_PLAUSIBLE_REFRESH_BATCH_HOOK, SN_PLAUSIBLE_REFRESH_REALTIME_HOOK, SN_RSS_TRACKER_CRON_HOOK );
+		return array( SN_RSS_TRACKER_CRON_HOOK ); // v6.0.0: RSS-only after Plausible retirement.
 	}
 }
 $GLOBALS['__test_last_fired'] = array();
@@ -90,9 +88,7 @@ function hb_true( $c, $msg ) {
 
 // Fixtures.
 $GLOBALS['__test_last_fired'] = array(
-	SN_PLAUSIBLE_REFRESH_BATCH_HOOK    => 1717600000,
-	SN_PLAUSIBLE_REFRESH_REALTIME_HOOK => 1717600300,
-	SN_RSS_TRACKER_CRON_HOOK           => null, // never fired
+	SN_RSS_TRACKER_CRON_HOOK => 1717600000,
 );
 $GLOBALS['__test_webhooks'] = array(
 	array( 'id' => 'wh_a', 'name' => 'A', 'enabled' => true ),
@@ -123,10 +119,10 @@ $resp = snt_admin_heartbeat_received( array(), array( 'sn_heartbeat' => array( '
 hb_true( isset( $resp['sn_cron_last_fired'] ), 'sn_cron_last_fired key present' );
 hb_true( ! isset( $resp['sn_webhook_logs'] ), 'sn_webhook_logs NOT present (only cron requested)' );
 $map = $resp['sn_cron_last_fired'];
-hb_true( isset( $map[ SN_PLAUSIBLE_REFRESH_BATCH_HOOK ] ), 'batch hook present in map' );
-hb_eq( 1717600000, $map[ SN_PLAUSIBLE_REFRESH_BATCH_HOOK ]['ts'], 'batch hook ts correct' );
-hb_true( isset( $map[ SN_PLAUSIBLE_REFRESH_BATCH_HOOK ]['formatted'] ), 'batch hook has formatted label' );
-hb_eq( null, $map[ SN_RSS_TRACKER_CRON_HOOK ]['ts'], 'never-fired hook → ts null' );
+hb_true( isset( $map[ SN_RSS_TRACKER_CRON_HOOK ] ), 'RSS hook present in map' );
+hb_eq( 1717600000, $map[ SN_RSS_TRACKER_CRON_HOOK ]['ts'], 'RSS hook ts correct' );
+hb_true( isset( $map[ SN_RSS_TRACKER_CRON_HOOK ]['formatted'] ), 'RSS hook has formatted label' );
+hb_true( ! isset( $map['sn_plausible_refresh_dashboard'] ), 'v6.0.0: retired Plausible hook absent from map' );
 
 // ─── Test 4: ['webhooks'] → sn_webhook_logs keyed by both ids ────────
 echo "\nTest 4: ['webhooks'] → sn_webhook_logs keyed by both ids\n";

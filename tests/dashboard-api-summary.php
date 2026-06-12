@@ -4,11 +4,11 @@
  * (inc/admin-tab-dashboard.php) — the Dashboard "External APIs" line.
  *
  * Locks the v4.5.5 contract: a tracked host is rendered ONLY when it has a
- * real rate-limit snapshot. Hosts that never report (Cloudflare uses a
- * non-standard `Ratelimit` header the monitor doesn't parse; Plausible emits
- * no rate-limit headers at all) must NOT appear as a permanent "—" — they're
- * simply omitted. GitHub, which does report, still shows. Self-healing: if a
- * host ever starts reporting, it appears automatically.
+ * real rate-limit snapshot. A host that never reports (Cloudflare uses a
+ * non-standard `Ratelimit` header the monitor doesn't parse) must NOT appear
+ * as a permanent "—" — it's simply omitted. GitHub, which does report, still
+ * shows. Self-healing: if a host ever starts reporting, it appears
+ * automatically.
  *
  * Run: php tests/dashboard-api-summary.php
  *
@@ -63,17 +63,15 @@ $snap = function ( $remaining, $limit, $label ) {
     return array( 'remaining' => $remaining, 'limit' => $limit, 'reset_at' => 0, 'fetched_at' => 100, 'label' => $label );
 };
 
-// ── Case 1: GitHub reports; CF + Plausible have no snapshot ──
+// ── Case 1: GitHub reports; CF has no snapshot ──
 $html = render_with( array(
     'api.github.com'     => array( 'label' => 'GitHub API',     'snapshot' => $snap( 4998, 5000, 'GitHub API' ) ),
     'api.cloudflare.com' => array( 'label' => 'Cloudflare API', 'snapshot' => null ),
-    'plausible.io'       => array( 'label' => 'Plausible API',  'snapshot' => null ),
 ) );
 
 ok( strpos( $html, 'GitHub API' ) !== false,        'reporting host (GitHub) is shown' );
 ok( strpos( $html, '4,998' ) !== false,             'GitHub remaining count rendered' );
 ok( strpos( $html, 'Cloudflare API' ) === false,    'non-reporting Cloudflare is OMITTED (not shown as —)' );
-ok( strpos( $html, 'Plausible API' ) === false,     'non-reporting Plausible is OMITTED (not shown as —)' );
 ok( strpos( $html, '—' ) === false,                 'no em-dash placeholder anywhere' );
 ok( strpos( $html, 'External APIs' ) !== false,     'section heading still rendered' );
 ok( strpos( $html, 'Refresh now' ) !== false,       'Refresh link still rendered' );

@@ -33,17 +33,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * pin SN-owned events at the top of the dashboard table.
  *
  * v4.1.1 (D-05): switched to constant references so a hook rename in
- * plausible-api.php or rss-plausible-tracker.php auto-propagates. The
- * plugin bootstrap requires those files before cron-dashboard.php so the
- * constants are always defined at call time. The defensive `defined()`
- * fallback to the legacy string keeps this resilient if a constant ever
- * vanishes (e.g., partial deploy).
+ * rss-plausible-tracker.php auto-propagates. The plugin bootstrap requires
+ * that file before cron-dashboard.php so the constant is always defined at
+ * call time. The defensive `defined()` fallback to the legacy string keeps
+ * this resilient if a constant ever vanishes (e.g., partial deploy).
  */
 function snt_cron_sn_owned_hooks() {
 	return array(
-		defined( 'SN_PLAUSIBLE_REFRESH_BATCH_HOOK' )    ? SN_PLAUSIBLE_REFRESH_BATCH_HOOK    : 'sn_plausible_refresh_dashboard',
-		defined( 'SN_PLAUSIBLE_REFRESH_REALTIME_HOOK' ) ? SN_PLAUSIBLE_REFRESH_REALTIME_HOOK : 'sn_plausible_refresh_realtime',
-		defined( 'SN_RSS_TRACKER_CRON_HOOK' )           ? SN_RSS_TRACKER_CRON_HOOK           : 'sn_rss_tracker_daily_prune',
+		defined( 'SN_RSS_TRACKER_CRON_HOOK' ) ? SN_RSS_TRACKER_CRON_HOOK : 'sn_rss_tracker_daily_prune',
 	);
 }
 
@@ -358,7 +355,7 @@ function snt_cron_unschedule_event_impl( $hook, $args = array() ) {
 	if ( snt_cron_is_sn_owned( $hook ) ) {
 		return new WP_Error(
 			'snt_cron_sn_owned_refused',
-			sprintf( 'Refusing to unschedule "%s": this hook is registered by Signal & Noise itself and unscheduling it would silently break dashboard refreshes or RSS tracking. Disable the owning module (Plausible, RSS) from the admin instead.', $hook ),
+			sprintf( 'Refusing to unschedule "%s": this hook is registered by Signal & Noise itself and unscheduling it would silently break dashboard refreshes or RSS tracking. Disable the owning module (RSS) from the admin instead.', $hook ),
 			array( 'status' => 400 )
 		);
 	}

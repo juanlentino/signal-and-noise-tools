@@ -1,6 +1,7 @@
 <?php
 /**
  * v5.0.0 guard: the gen-1 `@deprecated since 2.5.0` REST routes are REMOVED.
+ * Extended in v6.0.0 with the 3 Plausible Stats-API read routes.
  *
  * Static source check that each removed route's `register_rest_route(...)`
  * call string is gone from its file. The live Ability replacements
@@ -31,6 +32,10 @@ $removed = array(
 	array( 'inc/ai-excerpt.php', "'/ai/generate-excerpt'" ),
 	array( 'inc/ai-meta-description.php', "'/ai/generate-meta-description'" ),
 	array( 'inc/ai-og-card-title.php', "'/ai/generate-og-card-title'" ),
+	// v6.0.0: the 3 Plausible Stats-API read routes removed with inc/plausible-api.php.
+	array( 'inc/rest-api.php', "'/plausible/stats'" ),
+	array( 'inc/rest-api.php', "'/plausible/realtime'" ),
+	array( 'inc/rest-api.php', "'/plausible/test'" ),
 );
 
 foreach ( $removed as $r ) {

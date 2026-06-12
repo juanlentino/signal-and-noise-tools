@@ -265,7 +265,7 @@ $entry = $GLOBALS['__privacy_content'][0];
 pv_eq( 'Signal & Noise Tools', $entry['plugin_name'], 'privacy content registered under the plugin name' );
 pv_true( false !== strpos( $entry['policy_text'], '45' ), 'policy text contains the live retention int (45)' );
 pv_true( false !== strpos( $entry['policy_text'], 'salted' ), "policy text mentions 'salted' IP hashing" );
-pv_true( false !== strpos( $entry['policy_text'], 'cookieless' ), "policy text mentions Plausible 'cookieless'" );
+pv_true( false !== strpos( $entry['policy_text'], 'cookieless' ), "policy text mentions first-party 'cookieless' analytics" );
 pv_true( false === strpos( $entry['policy_text'], 'webhook' ) && false === strpos( $entry['policy_text'], 'endpoint' ),
 	'webhook sentence ABSENT when no webhooks configured' );
 

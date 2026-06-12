@@ -172,9 +172,20 @@ if ( ! function_exists( 'wp_get_post_terms' ) ) {
 			: array();
 	}
 }
-if ( ! function_exists( 'sn_plausible_dashboard_data' ) ) {
-	function sn_plausible_dashboard_data() {
-		return isset( $GLOBALS['__test_plausible'] ) ? $GLOBALS['__test_plausible'] : null;
+// v6.0.0: insights reads the first-party rollup accessors (Plausible retired).
+if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
+	function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
+		return isset( $GLOBALS['__test_an_pages'] ) ? $GLOBALS['__test_an_pages'] : array();
+	}
+}
+if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
+	function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
+		return isset( $GLOBALS['__test_an_totals'] ) ? $GLOBALS['__test_an_totals'] : array();
+	}
+}
+if ( ! function_exists( 'sn_analytics_top_dimension' ) ) {
+	function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
+		return isset( $GLOBALS['__test_an_sources'] ) ? $GLOBALS['__test_an_sources'] : array();
 	}
 }
 if ( ! function_exists( 'get_bloginfo' ) ) {
@@ -320,7 +331,7 @@ $GLOBALS['__test_sn_settings'] = array(
 	'identity.job_title'        => 'Music Producer',
 );
 $GLOBALS['wpdb']->rows  = array();
-$GLOBALS['__test_plausible'] = array( 'aggregate' => array(), 'pages' => array(), 'sources' => array() );
+$GLOBALS['__test_an_pages'] = array();
 $signals = snt_insights_collect_signals();
 ins_true( is_array( $signals ), 'returns array' );
 ins_eq( 'Juan Lentino', $signals['site']['name'], 'site.name' );
@@ -328,7 +339,7 @@ ins_eq( 'Music Producer', $signals['site']['job_title'], 'site.job_title' );
 ins_eq( 'https://juanlentino.com/', $signals['site']['home_url'], 'site.home_url' );
 
 // ─── Test 3: post list shape + sort by views_7d ──────────────────────
-echo "\nTest 3: posts sorted by views_7d desc — realistic Plausible shape + nested permalink join\n";
+echo "\nTest 3: posts sorted by views_7d desc — first-party top_paths shape + nested permalink join\n";
 $GLOBALS['wpdb']->rows = array(
 	array( 'ID' => 1, 'post_title' => 'Low traffic',  'post_name' => 'low',  'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ),
 	array( 'ID' => 2, 'post_title' => 'High traffic', 'post_name' => 'high', 'post_status' => 'publish', 'post_type' => 'post', 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() - 10 * DAY_IN_SECONDS ), 'post_modified_gmt' => gmdate( 'Y-m-d H:i:s', time() - 5  * DAY_IN_SECONDS ) ),
@@ -338,19 +349,15 @@ $GLOBALS['__test_permalinks'] = array(
 	1 => 'https://juanlentino.com/notes/low/',
 	2 => 'https://juanlentino.com/notes/high/',
 );
-// Realistic Plausible breakdown shape: visitors is SCALAR int, not nested.
-$GLOBALS['__test_plausible'] = array(
-	'aggregate' => array( 'visitors' => array( 'value' => 1000 ) ),
-	'pages'     => array(
-		array( 'page' => '/notes/high', 'visitors' => 500 ),
-		array( 'page' => '/notes/low',  'visitors' => 10 ),
-	),
-	'sources'   => array(),
+// First-party top_paths shape: { path, views } rows.
+$GLOBALS['__test_an_pages'] = array(
+	array( 'path' => '/notes/high', 'views' => 500 ),
+	array( 'path' => '/notes/low',  'views' => 10 ),
 );
 $signals = snt_insights_collect_signals();
 ins_eq( 2, count( $signals['posts'] ), 'two posts' );
 ins_eq( 2, $signals['posts'][0]['id'], 'highest-traffic post first' );
-ins_eq( 500, $signals['posts'][0]['views_7d'], 'views_7d matched from Plausible (scalar visitors + nested permalink path)' );
+ins_eq( 500, $signals['posts'][0]['views_7d'], 'views_7d matched from first-party top_paths (path + views + nested permalink)' );
 ins_eq( 10,  $signals['posts'][1]['views_7d'], 'low-traffic post also matched (proves both join entries land)' );
 ins_eq( 'post', $signals['posts'][0]['type'], 'post.type' );
 
@@ -364,13 +371,9 @@ $GLOBALS['__test_permalinks'] = array(
 	10 => 'https://juanlentino.com/notes/newer/',
 	11 => 'https://juanlentino.com/notes/older/',
 );
-$GLOBALS['__test_plausible'] = array(
-	'aggregate' => array( 'visitors' => array( 'value' => 1000 ) ),
-	'pages'     => array(
-		array( 'page' => '/notes/newer', 'visitors' => 100 ),
-		array( 'page' => '/notes/older', 'visitors' => 100 ),
-	),
-	'sources'   => array(),
+$GLOBALS['__test_an_pages'] = array(
+	array( 'path' => '/notes/newer', 'views' => 100 ),
+	array( 'path' => '/notes/older', 'views' => 100 ),
 );
 $signals = snt_insights_collect_signals();
 // Comparator returns $a['days_since_publish'] - $b['days_since_publish']
@@ -427,12 +430,12 @@ ins_true( $wh['last_attempt_ago_seconds'] >= 3600 - 1, 'last_attempt computed' )
 // ─── Test 7: cron freshness ──────────────────────────────────────────
 echo "\nTest 7: cron_freshness — last_fired + last_24h_count\n";
 $GLOBALS['__test_cron_history'] = array(
-	array( 'hook' => 'sn_plausible_refresh_dashboard', 'last_fired_ts' => time() - 240,   'fires_24h' => 288 ),
+	array( 'hook' => 'sn_analytics_rollup_daily', 'last_fired_ts' => time() - 240,   'fires_24h' => 288 ),
 	array( 'hook' => 'sn_rss_tracker_daily_prune',     'last_fired_ts' => time() - 43200, 'fires_24h' => 1 ),
 );
 $signals = snt_insights_collect_signals();
-ins_true( isset( $signals['cron_freshness']['sn_plausible_refresh_dashboard'] ), 'plausible cron present' );
-$cron = $signals['cron_freshness']['sn_plausible_refresh_dashboard'];
+ins_true( isset( $signals['cron_freshness']['sn_analytics_rollup_daily'] ), 'analytics cron present' );
+$cron = $signals['cron_freshness']['sn_analytics_rollup_daily'];
 ins_eq( 4, $cron['last_fired_ago_minutes'], '240s ≈ 4min' );
 ins_eq( 288, $cron['last_24h_count'], '288 fires/24h echoed' );
 
@@ -664,7 +667,7 @@ ins_eq( 60000, SN_INSIGHTS_EXCERPT_TOTAL_CHARS, 'excerpt total chars = 60000' );
 
 // Helper: reset all the per-test fixture globals the excerpt tests touch.
 function ins_reset_excerpt_fixtures() {
-	$GLOBALS['__test_plausible']     = array( 'aggregate' => array(), 'pages' => array(), 'sources' => array() );
+	$GLOBALS['__test_an_pages']      = array();
 	$GLOBALS['__test_post_objects']  = array();
 	$GLOBALS['__test_posts_exist']   = array();
 	$GLOBALS['__test_webhooks']      = array();

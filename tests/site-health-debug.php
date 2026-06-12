@@ -29,8 +29,6 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'SNT_VERSION', '4.9.0' );
 define( 'SNT_CRON_HISTORY_DB_VERSION_OPT', 'snt_cron_history_db_version' );
 define( 'SNT_CRON_HISTORY_CRON_HOOK',      'snt_cron_history_prune' );
-define( 'SN_PLAUSIBLE_REFRESH_BATCH_HOOK',    'sn_plausible_refresh_dashboard' );
-define( 'SN_PLAUSIBLE_REFRESH_REALTIME_HOOK', 'sn_plausible_refresh_realtime' );
 define( 'SN_RSS_TRACKER_CRON_HOOK',           'sn_rss_tracker_daily_prune' );
 
 // Avoid loading the heavy renderer file: it pulls many module helpers. We
@@ -109,7 +107,7 @@ function wp_next_scheduled( $hook, $args = array() ) {
 // cron-dashboard helpers the panel delegates to.
 if ( ! function_exists( 'snt_cron_sn_owned_hooks' ) ) {
 	function snt_cron_sn_owned_hooks() {
-		return array( SN_PLAUSIBLE_REFRESH_BATCH_HOOK, SN_PLAUSIBLE_REFRESH_REALTIME_HOOK, SN_RSS_TRACKER_CRON_HOOK );
+		return array( SN_RSS_TRACKER_CRON_HOOK ); // v6.0.0: RSS-only after Plausible retirement.
 	}
 }
 if ( ! function_exists( 'snt_cron_last_fired_for' ) ) {
@@ -163,10 +161,8 @@ function sh_field_value( $fields, $key ) {
 	return isset( $fields[ $key ] ) ? $fields[ $key ]['value'] : null;
 }
 
-// Prime cron fixtures: 2 of 3 SN hooks scheduled, all fired 1h ago.
-$GLOBALS['__test_next_scheduled'][ SN_PLAUSIBLE_REFRESH_BATCH_HOOK ]    = time() + HOUR_IN_SECONDS;
-$GLOBALS['__test_next_scheduled'][ SN_PLAUSIBLE_REFRESH_REALTIME_HOOK ] = time() + HOUR_IN_SECONDS;
-// SN_RSS_TRACKER_CRON_HOOK intentionally NOT scheduled.
+// Prime cron fixtures: the sole SN hook (RSS) is intentionally NOT scheduled,
+// so the panel reflects an unscheduled SN-owned hook. All fired 1h ago.
 foreach ( snt_cron_sn_owned_hooks() as $h ) {
 	$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $h ) ] = time() - HOUR_IN_SECONDS;
 }

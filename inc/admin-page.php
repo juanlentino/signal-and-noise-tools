@@ -193,7 +193,7 @@ function sn_theme_options_page() {
 
 	// ════════════════════════════════════════
 	// TAB: MONITORING (v3.8.1+: sub-tabs)
-	// Sub-tabs: insights, health, analytics, plausible, rss, music
+	// Sub-tabs: insights, health, analytics, rss, music
 	// (v5.4.0: analytics is settings-only here; the read-only dashboard is at
 	//  Dashboard → Analytics.)
 	// ════════════════════════════════════════
@@ -210,10 +210,6 @@ function sn_theme_options_page() {
 			// comprehensive read-only dashboard lives at Dashboard → Analytics;
 			// this section just configures the credentials it reads with.
 			sn_admin_render_section( 'analytics', 'snt_analytics_render_settings_section' );
-		} elseif ( 'plausible' === $active_sub ) {
-			sn_admin_render_section( 'plausible', function() {
-				do_action( 'sn_admin_plausible_tab' );
-			} );
 		} elseif ( 'rss' === $active_sub ) {
 			sn_admin_render_section( 'rss', function() {
 				if ( has_action( 'sn_admin_rss_tab' ) ) {
