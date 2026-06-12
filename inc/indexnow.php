@@ -103,3 +103,67 @@ add_action( 'plugins_loaded', function() {
 	echo $key; // raw key — a text/plain body, no markup to escape
 	exit;
 }, 2 );
+
+/**
+ * De-dupe + sanity-filter the given URLs and schedule a single deferred
+ * submission. Keeps only same-host https URLs (IndexNow 422s on host
+ * mismatch; the list is self-derived from home_url so this is data hygiene,
+ * not SSRF — the endpoint is a fixed constant). WP-Cron de-dupes identical
+ * (hook, serialized-args) within ~10 min → natural debounce when several
+ * lifecycle hooks fire on one save.
+ */
+function sn_indexnow_enqueue( $urls ) {
+	if ( ! sn_indexnow_is_enabled() || '' === sn_indexnow_get_key() ) {
+		return;
+	}
+	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$clean = array();
+	foreach ( (array) $urls as $url ) {
+		$url = (string) $url;
+		if ( '' === $url
+			|| 'https' !== wp_parse_url( $url, PHP_URL_SCHEME )
+			|| wp_parse_url( $url, PHP_URL_HOST ) !== $host ) {
+			continue;
+		}
+		$clean[ $url ] = $url; // de-dupe by value
+	}
+	if ( empty( $clean ) ) {
+		return;
+	}
+	// Numerically-indexed args so the callback receives $urls positionally
+	// (PHP 8+ forwards string keys as named params → fatal mismatch).
+	wp_schedule_single_event( time(), SN_INDEXNOW_CRON_HOOK, array( array_values( $clean ) ) );
+}
+
+/**
+ * Cron callback: POST the URL list to IndexNow (blocking, so the response
+ * code can be logged) and record the outcome for the admin panel.
+ */
+function sn_indexnow_submit( $urls ) {
+	$urls = array_values( array_filter( array_map( 'strval', (array) $urls ) ) );
+	$key  = sn_indexnow_get_key();
+	if ( empty( $urls ) || '' === $key ) {
+		return;
+	}
+	$response = wp_remote_post( SN_INDEXNOW_ENDPOINT, array(
+		'headers'   => array( 'Content-Type' => 'application/json; charset=utf-8' ),
+		'body'      => wp_json_encode( array(
+			'host'        => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
+			'key'         => $key,
+			'keyLocation' => sn_indexnow_key_url(),
+			'urlList'     => $urls,
+		) ),
+		'timeout'   => 10,
+		'blocking'  => true,
+		'sslverify' => true,
+	) );
+
+	$result = array( 'time' => time(), 'count' => count( $urls ), 'code' => 0, 'error' => '' );
+	if ( is_wp_error( $response ) ) {
+		$result['error'] = $response->get_error_message();
+	} else {
+		$result['code'] = (int) wp_remote_retrieve_response_code( $response );
+	}
+	update_option( SN_INDEXNOW_RESULT_OPT, $result, false );
+}
+add_action( SN_INDEXNOW_CRON_HOOK, 'sn_indexnow_submit' );
