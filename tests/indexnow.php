@@ -46,5 +46,19 @@ $k3 = sn_indexnow_regenerate_key();
 ok( $k3 !== $k1 && 1 === preg_match( '/^[a-f0-9]{32}$/', $k3 ), 'key: regenerate mints a different valid key' );
 ok( sn_indexnow_key_url() === 'https://example.com/' . $k3 . '.txt', 'key: key_url is home-root /<key>.txt' );
 
+// ── Key-file serving decision (pure, no header/exit) ────────────────
+$GLOBALS['__options'][ SN_INDEXNOW_KEY_OPT ] = $k3; // current key (from regenerate above)
+$GLOBALS['__settings']['indexnow.enabled']   = true;
+ok( $k3 === sn_indexnow_key_for_request( '/' . $k3 . '.txt' ), 'serve: matching /<key>.txt yields the key' );
+ok( $k3 === sn_indexnow_key_for_request( '/' . $k3 . '.txt?foo=bar' ), 'serve: query string is ignored' );
+ok( '' === sn_indexnow_key_for_request( '/deadbeefdeadbeef.txt' ), 'serve: a different valid-shaped key is refused' );
+ok( '' === sn_indexnow_key_for_request( '/notes/' ), 'serve: a normal path is ignored' );
+$GLOBALS['__settings']['indexnow.enabled'] = false;
+ok( '' === sn_indexnow_key_for_request( '/' . $k3 . '.txt' ), 'serve: disabled → not served even on the right path' );
+$GLOBALS['__settings']['indexnow.enabled'] = true;
+$GLOBALS['__options'][ SN_INDEXNOW_KEY_OPT ] = '';
+ok( '' === sn_indexnow_key_for_request( '/aaaaaaaa.txt' ), 'serve: no stored key → nothing served' );
+$GLOBALS['__options'][ SN_INDEXNOW_KEY_OPT ] = $k3; // restore for later tasks
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -62,3 +62,44 @@ function sn_indexnow_key_url() {
 	$key = sn_indexnow_get_key();
 	return '' === $key ? '' : home_url( '/' . $key . '.txt' );
 }
+
+/**
+ * Decide whether a request path should serve the key file. Returns the key to
+ * emit, or '' if the path isn't the key file / IndexNow is off / no key stored.
+ * Pure + side-effect-free so it's CLI-testable independent of header()/exit.
+ * A strict regex pre-check means the option is only read when the path LOOKS
+ * like a key file (no per-request get_option on normal traffic); hash_equals()
+ * is constant-time and means no other *.txt is ever served.
+ */
+function sn_indexnow_key_for_request( $request_uri ) {
+	$path = '/' . ltrim( (string) strtok( (string) $request_uri, '?' ), '/' );
+	if ( 1 !== preg_match( '#^/([a-f0-9]{8,128})\.txt$#', $path, $m ) ) {
+		return '';
+	}
+	if ( ! sn_indexnow_is_enabled() ) {
+		return '';
+	}
+	$key = sn_indexnow_get_key();
+	if ( '' === $key || ! hash_equals( $key, $m[1] ) ) {
+		return '';
+	}
+	return $key;
+}
+
+/**
+ * Serve /<key>.txt before WP routes the request (so a path with no rewrite
+ * rule won't 404). Mirrors inc/login-hide.php's plugins_loaded intercept.
+ */
+add_action( 'plugins_loaded', function() {
+	if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
+		return;
+	}
+	$key = sn_indexnow_key_for_request( (string) wp_unslash( $_SERVER['REQUEST_URI'] ) );
+	if ( '' === $key ) {
+		return;
+	}
+	header( 'Content-Type: text/plain; charset=utf-8' );
+	header( 'X-Robots-Tag: noindex' );
+	echo $key; // raw key — a text/plain body, no markup to escape
+	exit;
+}, 2 );
