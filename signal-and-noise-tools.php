@@ -191,6 +191,7 @@ require_once __DIR__ . '/inc/music-featured.php';      // v4.14.0: settings-driv
 require_once __DIR__ . '/inc/post-settings.php';
 require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
+require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
 require_once __DIR__ . '/inc/command-palette.php';
