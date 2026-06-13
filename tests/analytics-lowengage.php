@@ -46,10 +46,15 @@ class LE_Stub_wpdb {
 			foreach ( $agg as $a ) {
 				$scroll = $a['views'] ? $a['sw'] / $a['views'] : 0;
 				$time   = $a['views'] ? $a['tw'] / $a['views'] : 0;
-				// Apply HAVING filter from the SQL (min views, low scroll, low time).
-				if ( $a['views'] >= SN_ANALYTICS_LOWENGAGE_MIN_VIEWS
-					&& $scroll < SN_ANALYTICS_LOWENGAGE_SCROLL
-					&& $time   < SN_ANALYTICS_LOWENGAGE_TIME_MS ) {
+				// Parse the real HAVING thresholds from the prepared SQL so a transposed
+				// param order or flipped predicate is actually caught (no hardcoded consts).
+				$min_views  = preg_match( '/views\s*>=\s*(\d+)/i', $sql, $mv ) ? (int) $mv[1] : 0;
+				$scroll_max = preg_match( '/scroll_avg\s*<\s*(\d+)/i', $sql, $sm ) ? (int) $sm[1] : PHP_INT_MAX;
+				$time_max   = preg_match( '/time_avg\s*<\s*(\d+)/i', $sql, $tmx ) ? (int) $tmx[1] : PHP_INT_MAX;
+				// Apply HAVING filter using parsed thresholds, not hardcoded constants.
+				if ( $a['views'] >= $min_views
+					&& $scroll < $scroll_max
+					&& $time   < $time_max ) {
 					$out[] = array( 'path' => $a['path'], 'views' => $a['views'], 'visits' => $a['visits'],
 						'scroll_avg' => $scroll, 'time_avg' => $time );
 				}
