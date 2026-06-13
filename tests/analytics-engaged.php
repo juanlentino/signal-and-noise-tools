@@ -18,8 +18,12 @@ function sn_analytics_buckets_metrics() {
 		array( 'label' => '3m+',    'lo' => 180000, 'hi' => null ),
 	) ) );
 }
-$GLOBALS['__dist'] = array();
-function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) { return $GLOBALS['__dist']; }
+$GLOBALS['__dist']    = array();
+$GLOBALS['__dist_by'] = array();
+function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) {
+	if ( isset( $GLOBALS['__dist_by'][ $f ] ) ) { return $GLOBALS['__dist_by'][ $f ]; }
+	return $GLOBALS['__dist'];
+}
 require __DIR__ . '/../inc/analytics-derived.php';
 
 $pass = 0; $fail = 0;
@@ -46,6 +50,17 @@ $d = sn_analytics_engaged_rate_delta( '2026-06-06', '2026-06-12', 'human' );
 ok( $d['current'] === 50 && $d['previous'] === 50, 'current & previous computed' );
 ok( $d['dir'] === 'flat', 'equal windows → flat' );
 ok( array_key_exists( 'pct', $d ), 'delta exposes pct key' );
+
+echo "\nGroup: engaged_rate_delta null-prior\n";
+$GLOBALS['__dist']    = array();                                  // default (prior window) = no data
+$GLOBALS['__dist_by'] = array( '2026-06-06' => array(            // current window from-date
+	array( 'label' => '0–10s', 'views' => 50 ),
+	array( 'label' => '10–30s', 'views' => 50 ),
+) );
+$dn = sn_analytics_engaged_rate_delta( '2026-06-06', '2026-06-12', 'human' );
+ok( $dn['current'] === 50, 'current window computed (50%)' );
+ok( $dn['previous'] === null, 'prior window with no data → previous is null (not 0)' );
+ok( $dn['dir'] === 'flat' && $dn['pct'] === null, 'null prior → flat, NO fabricated up-arrow' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

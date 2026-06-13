@@ -173,7 +173,11 @@ function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
 	$cur = sn_analytics_engaged_rate( $from, $to, $class );
 	list( $pf, $pt ) = sn_analytics_prior_window( $from, $to );
 	$prev = sn_analytics_engaged_rate( $pf, $pt, $class );
-	$d    = sn_analytics_delta( (int) $cur, (int) $prev );
+	if ( null === $cur || null === $prev ) {
+		$d = array( 'pct' => null, 'dir' => 'flat' );
+	} else {
+		$d = sn_analytics_delta( $cur, $prev );
+	}
 	return array(
 		'current'  => $cur,
 		'previous' => $prev,
