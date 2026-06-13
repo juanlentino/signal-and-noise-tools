@@ -441,6 +441,28 @@ function snt_analytics_render_worker_setup() {
 }
 
 /**
+ * "Pages losing readers" panel: pages with meaningful traffic but weak
+ * engagement (low scroll AND low dwell). Data from sn_analytics_low_engagement_paths().
+ *
+ * @param array $rows [{path,views,scroll_avg,time_avg}]
+ */
+function snt_analytics_render_lowengage( $rows ) {
+	echo '<div class="sn-an-panel"><h3>Pages losing readers</h3>';
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-an-empty">No low-engagement pages in this range — readers are sticking around.</p></div>';
+		return;
+	}
+	echo '<table class="sn-an-table"><thead><tr><th>Page</th><th class="num">Views</th><th class="num">Scroll</th><th class="num">Time</th></tr></thead><tbody>';
+	foreach ( $rows as $r ) {
+		echo '<tr><td>' . esc_html( (string) $r['path'] ) . '</td>'
+			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
+			. '<td class="num">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td></tr>';
+	}
+	echo '</tbody></table></div>';
+}
+
+/**
  * One-time Plausible-history import panel (v6.0.0). A multipart form with one
  * optional file input per supported CSV export, plus a one-shot summary of the
  * last import (read from a short transient). Posts sn_action=analytics_import on

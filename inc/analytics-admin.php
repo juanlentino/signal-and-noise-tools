@@ -225,6 +225,7 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_dim_table( 'Top sources', sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 ), 'No referrers in this range.' );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
+			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
 			echo '</div>';
 			break;
 	}
