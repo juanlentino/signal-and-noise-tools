@@ -38,7 +38,12 @@ ok( strpos( $html, 'sn_range=365' ) !== false, '365 link present' );
 ok( strpos( $html, 'sn_range=all' ) !== false, 'all link present' );
 $html_all = capture_controls( 'all', 'human' );
 ok( substr_count( $html_all, 'is-active' ) >= 1, 'All selected marks an active control' );
-ok( strpos( $html_all, 'is-active' ) !== false, 'active class emitted for All' );
+// Negative: when a numeric range is active, the All button must NOT carry is-active.
+$html_90 = capture_controls( 90, 'human' );
+ok( substr_count( $html_90, 'is-active' ) === 2, '90d active: exactly 2 is-active marks (range + class)' );
+ok( strpos( $html_90, 'is-active" href="' ) !== false && strpos( $html_90, 'sn_range=all' ) !== false
+	&& false === (bool) preg_match( '/is-active[^"]*"[^>]*sn_range=all/', $html_90 ),
+	'All button is NOT is-active when numeric range is selected' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

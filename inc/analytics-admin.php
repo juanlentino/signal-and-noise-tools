@@ -72,9 +72,9 @@ function snt_analytics_resolve_view( $raw ) {
  * switching tabs keeps the window + class filter. Mirrors the SN top-tab nav
  * (`.nav-tab-wrapper`/`.nav-tab`) for native styling.
  *
- * @param string $active Active view slug.
- * @param int    $range  Active range (preserved across tabs).
- * @param string $class  Active class (preserved across tabs).
+ * @param string     $active Active view slug.
+ * @param int|string $range  Active range in days or 'all'.
+ * @param string     $class  Active class (preserved across tabs).
  */
 function snt_analytics_render_view_tabs( $active, $range, $class ) {
 	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class' ), add_query_arg( array() ) );

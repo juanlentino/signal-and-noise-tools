@@ -31,8 +31,8 @@ function snt_analytics_fmt_time( $ms ) {
 /**
  * Range picker + class segmented control (GET links preserving the route).
  *
- * @param int    $range Active window.
- * @param string $class Active class.
+ * @param int|string $range Active window (int days or 'all').
+ * @param string     $class Active class.
  */
 function snt_analytics_render_controls( $range, $class ) {
 	// Context-aware base: preserve the CURRENT route so the controls work wherever
@@ -45,6 +45,7 @@ function snt_analytics_render_controls( $range, $class ) {
 	}
 	echo '<div class="sn-an-controls">';
 
+	// Must stay in sync with SN_ANALYTICS_RANGES; the $r . 'd' fallback fires only for unlabelled entries.
 	$range_labels = array( 7 => '7d', 30 => '30d', 90 => '90d', 365 => '1y' );
 	echo '<span class="sn-an-seg">';
 	foreach ( SN_ANALYTICS_RANGES as $r ) {
