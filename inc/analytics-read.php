@@ -100,6 +100,32 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
 }
 
 /**
+ * Pick a time-bucket granularity for a window length.
+ * Ranges ≤90d render daily; longer ranges roll up to ISO weeks so the trend
+ * strip stays legible (≤~52 bars/year) and fast.
+ *
+ * @param int $days
+ * @return string 'day' | 'week'
+ */
+function sn_analytics_granularity( $days ) {
+	return ( (int) $days > 90 ) ? 'week' : 'day';
+}
+
+/**
+ * SQL expression that maps a `day` DATE to its bucket key.
+ * Week granularity floors to the ISO Monday (WEEKDAY: Mon=0). The returned
+ * fragment is a fixed literal — never user data — so it is safe to interpolate.
+ *
+ * @param string $granularity 'day' | 'week'
+ * @return string
+ */
+function sn_analytics_bucket_expr( $granularity ) {
+	return ( 'week' === $granularity )
+		? 'DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)'
+		: 'day';
+}
+
+/**
  * Per-day views/visits for one class, ascending — the trend strip.
  *
  * @return array<int, array{day:string, views:int, visits:int}>
