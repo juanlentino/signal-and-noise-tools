@@ -161,3 +161,22 @@ function sn_analytics_daily_series( $from, $to, $class = 'human' ) {
 	}
 	return $out;
 }
+
+/**
+ * Earliest day present in the durable rollup — the lower bound for the
+ * "All-time" range. Cached for an hour (the table only grows by one day/run).
+ *
+ * @return string Y-m-d (today if the table is empty).
+ */
+function sn_analytics_min_day() {
+	$cached = get_transient( 'sn_analytics_min_day' );
+	if ( is_string( $cached ) && '' !== $cached ) {
+		return $cached;
+	}
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	$min   = $wpdb->get_var( "SELECT MIN(day) FROM {$table}" );
+	$min   = ( is_string( $min ) && '' !== $min ) ? $min : gmdate( 'Y-m-d' );
+	set_transient( 'sn_analytics_min_day', $min, HOUR_IN_SECONDS );
+	return $min;
+}
