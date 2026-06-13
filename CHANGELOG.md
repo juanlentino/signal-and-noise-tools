@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.3.0] - 2026-06-13 — Events tab + geography reunification
+
+### New
+- **Events tab** — the analytics dashboard now surfaces custom events: a top-events leaderboard (event → events/visitors) plus an event-property breakdown with click-to-filter drill-down. (Custom events are not segmented by traffic class; the dashboard notes this.) Built on the v6.2.0 custom-events data layer.
+
+### Improvements
+- **Reunited geography** — the Countries table moved from the Content tab into Geography, above Cities, so all geographic breakdowns live in one tab.
+- **Trend sparklines across all dimension tables** — Operating systems, Devices, Protocols, TLS versions, Countries, Cities, Regions, Networks, and Edge locations tables now show per-row trend sparklines, matching the existing Browsers/Sources behaviour.
+
 ## [6.2.0] - 2026-06-13 — Import historical custom events
 
 ### New

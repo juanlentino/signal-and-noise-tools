@@ -106,8 +106,14 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 42; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 42, 'previous' => 40, 'pct' => 5, 'dir' => 'up' ); }
 function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
-function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
+function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) {
+	$out = array();
+	foreach ( (array) $vals as $v ) { $out[ (string) $v ] = array( array( 'day' => '2026-06-11', 'views' => 3 ) ); }
+	return $out;
+}
 function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 'day' => '2026-06-11', 'bot_pct' => 30, 'total' => 80 ) ); }
+function sn_analytics_top_events( $f, $t, $l = 25 ) { return $GLOBALS['__aa']['events'] ?? array(); }
+function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $GLOBALS['__aa']['event_props'] ?? array(); }
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
@@ -146,6 +152,8 @@ function aa_fill_data() {
 	$GLOBALS['__aa']['series']       = array( array( 'day' => '2026-06-10', 'views' => 100, 'visits' => 40 ), array( 'day' => '2026-06-11', 'views' => 300, 'visits' => 90 ) );
 	$GLOBALS['__aa']['paths']        = array( array( 'path' => '/notes/x', 'views' => 412, 'visits' => 158, 'scroll_avg' => 71.0, 'time_avg' => 150.0 ) );
 	$GLOBALS['__aa']['dim']          = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
+	$GLOBALS['__aa']['events']      = array( array( 'name' => 'signup', 'events' => 120, 'visitors' => 90 ) );
+	$GLOBALS['__aa']['event_props'] = array( array( 'property' => 'utm_source', 'value' => 'hn', 'events' => 50, 'visitors' => 40 ) );
 }
 
 echo "\nGroup: dashboard — core render\n";
@@ -167,14 +175,14 @@ echo "\nGroup: dashboard — view tab nav\n";
 $_GET['sn_view'] = 'content';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'nav-tab-wrapper' ) !== false, 'tabs: WP-native nav-tab-wrapper present' );
-foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' ) as $v ) {
+foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	ok( strpos( $html, 'sn_view=' . $v ) !== false, "tabs: link to '$v' view present" );
 }
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 
 echo "\nGroup: dashboard — persistent header on every tab\n";
-foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' ) as $v ) {
+foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
@@ -186,7 +194,8 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' )
 echo "\nGroup: dashboard — Content view (default)\n";
 $_GET['sn_view'] = 'content';
 $html = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false && strpos( $html, 'Countries' ) !== false, 'content: pages/sources/countries panels' );
+ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false, 'content: pages/sources panels' );
+ok( strpos( $html, '>Countries<' ) === false, 'content: Countries panel relocated OUT of Content' );
 ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'content: referrer categories' );
 ok( strpos( $html, '>Browsers<' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'content: technology/engagement panels NOT in this view (lazy per-tab render)' );
 
@@ -197,13 +206,15 @@ foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' 
 	ok( strpos( $html, $p ) !== false, "technology: '$p' panel present" );
 }
 ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === false, 'technology: content/geography panels NOT in this view' );
+ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column rendered on OS/devices tables' );
 
 echo "\nGroup: dashboard — Geography view\n";
 $_GET['sn_view'] = 'geography';
 $html = capture( 'snt_analytics_render_dashboard' );
-foreach ( array( 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
+foreach ( array( 'Countries', 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
 	ok( strpos( $html, $p ) !== false, "geography: '$p' panel present" );
 }
+ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Countries renders first (above Cities)' );
 
 echo "\nGroup: dashboard — Engagement view\n";
 $_GET['sn_view'] = 'engagement';
@@ -216,6 +227,21 @@ $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
 ok( strpos( $html, 'sn-an-trend--bot' ) !== false, 'quality tab renders the bot-share trend when data present' );
+
+echo "\nGroup: dashboard — Events view (new tab)\n";
+$_GET['sn_view'] = 'events';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn_view=events' ) !== false, 'events: tab link present in nav' );
+ok( strpos( $html, 'Custom events' ) !== false && strpos( $html, 'signup' ) !== false, 'events: leaderboard rendered' );
+ok( strpos( $html, 'Event properties' ) !== false && strpos( $html, 'utm_source' ) !== false, 'events: property breakdown rendered' );
+ok( stripos( $html, 'not segmented by' ) !== false, 'events: class-inert note present' );
+ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'events: other tabs panels NOT in this view' );
+// Event-property drill-down via ?sn_event_prop reload.
+$_GET['sn_event_prop'] = 'utm_source';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false, 'events: drill-down filters to one property' );
+unset( $_GET['sn_event_prop'] );
+$_GET['sn_view'] = 'content';
 
 echo "\nGroup: dashboard — view param whitelist + escaping\n";
 $_GET['sn_view'] = '../../etc/passwd';

@@ -6,7 +6,7 @@
  * analytics. Reads only the durable rollup accessors (never AE) so it never
  * blocks; shows a config/empty state until the Cloudflare creds + worker land.
  * v5.5.0: a persistent header (controls → separation → delta cards → trend) over
- * a WP-native tab strip (Content · Technology · Geography · Engagement · Quality);
+ * a WP-native tab strip (Content · Technology · Geography · Engagement · Quality · Events);
  * each tab lazily fetches only its own panels' data.
  *
  * @package SignalNoiseTools
@@ -53,6 +53,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'geography'  => 'Geography',
 	'engagement' => 'Engagement',
 	'quality'    => 'Quality',
+	'events'     => 'Events',
 );
 
 /**
@@ -136,7 +137,7 @@ function snt_analytics_settings_url() {
  *
  * v5.5.0 layout: a persistent header (controls + separation + delta cards +
  * trend) above a WP-native tab strip (Content · Technology · Geography ·
- * Engagement · Quality). The active tab (?sn_view=, whitelisted) lazily fetches
+ * Engagement · Quality · Events). The active tab (?sn_view=, whitelisted) lazily fetches
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
  *
@@ -193,19 +194,47 @@ function snt_analytics_render_dashboard() {
 			$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
 			$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
 			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser );
-			snt_analytics_render_dim_table( 'Operating systems', sn_analytics_top_dimension( 'os', $from, $to, $class, 10 ), 'No OS data in this range yet.' );
-			snt_analytics_render_dim_table( 'Devices', sn_analytics_top_dimension( 'device', $from, $to, $class, 10 ), 'No device data in this range.' );
-			snt_analytics_render_dim_table( 'Protocols', sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 ), 'No protocol data in this range yet.' );
-			snt_analytics_render_dim_table( 'TLS versions', sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 ), 'No TLS data in this range yet.' );
+			$os_rows = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
+			$os_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $os_rows );
+			$os_ser  = sn_analytics_dimension_series( 'os', $os_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Operating systems', $os_rows, 'No OS data in this range yet.', $os_ser );
+			$dev_rows = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
+			$dev_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $dev_rows );
+			$dev_ser  = sn_analytics_dimension_series( 'device', $dev_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Devices', $dev_rows, 'No device data in this range.', $dev_ser );
+			$pro_rows = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
+			$pro_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $pro_rows );
+			$pro_ser  = sn_analytics_dimension_series( 'protocol', $pro_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Protocols', $pro_rows, 'No protocol data in this range yet.', $pro_ser );
+			$tls_rows = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
+			$tls_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $tls_rows );
+			$tls_ser  = sn_analytics_dimension_series( 'tls', $tls_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'TLS versions', $tls_rows, 'No TLS data in this range yet.', $tls_ser );
 			echo '</div>';
 			break;
 
 		case 'geography':
 			echo '<div class="sn-an-grid">';
-			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.' );
-			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.' );
-			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.' );
-			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.' );
+			$cou_rows = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
+			$cou_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $cou_rows );
+			$cou_ser  = sn_analytics_dimension_series( 'country', $cou_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Countries', $cou_rows, 'No country data in this range.', $cou_ser );
+			$cit_rows = sn_analytics_top_dimension( 'city', $from, $to, $class, 10 );
+			$cit_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $cit_rows );
+			$cit_ser  = sn_analytics_dimension_series( 'city', $cit_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Cities', $cit_rows, 'No city data in this range yet.', $cit_ser );
+			$reg_rows = sn_analytics_top_dimension( 'region', $from, $to, $class, 10 );
+			$reg_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $reg_rows );
+			$reg_ser  = sn_analytics_dimension_series( 'region', $reg_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Regions', $reg_rows, 'No region data in this range yet.', $reg_ser );
+			$net_rows = sn_analytics_top_dimension( 'network', $from, $to, $class, 10 );
+			$net_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $net_rows );
+			$net_ser  = sn_analytics_dimension_series( 'network', $net_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Networks', $net_rows, 'No network data in this range yet.', $net_ser );
+			$colo_rows = sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 );
+			$colo_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $colo_rows );
+			$colo_ser  = sn_analytics_dimension_series( 'colo', $colo_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Edge locations', $colo_rows, 'No edge-location data in this range yet.', $colo_ser );
 			echo '</div>';
 			break;
 
@@ -222,6 +251,17 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
 			break;
 
+		case 'events':
+			// Custom events carry no traffic-class dimension (from/to only), so the
+			// global Human/Suspect/Bot control is inert here — say so explicitly.
+			echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
+			$ev_prop = isset( $_GET['sn_event_prop'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_event_prop'] ) ) : '';
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_events_table( sn_analytics_top_events( $from, $to, 25 ) );
+			snt_analytics_render_event_props_table( sn_analytics_top_event_props( $from, $to, $ev_prop, 50 ), $ev_prop );
+			echo '</div>';
+			break;
+
 		case 'content':
 		default:
 			echo '<div class="sn-an-grid">';
@@ -231,7 +271,6 @@ function snt_analytics_render_dashboard() {
 			$ref_ser  = sn_analytics_dimension_series( 'referrer', $ref_vals, $from, $to, $class, $granularity );
 			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
-			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
 			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
 			echo '</div>';
 			break;
