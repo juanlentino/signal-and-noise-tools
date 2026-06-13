@@ -248,13 +248,13 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
  * @param array $cats [{category,label,views,visits}]
  */
 function snt_analytics_render_referrer_categories( $cats ) {
-	echo '<div class="sn-an-panel sn-an-refcats"><h3>Traffic sources</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Traffic sources', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-refcats">';
 	$total = 0;
 	foreach ( (array) $cats as $c ) {
 		$total += (int) ( $c['views'] ?? 0 );
 	}
 	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty">No referrer data in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No referrer data in this range yet.</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-refcats-bars">';
@@ -267,7 +267,7 @@ function snt_analytics_render_referrer_categories( $cats ) {
 		echo '<div class="sn-an-refcat-bar"><span style="width:' . esc_attr( max( 1, $pct ) ) . '%"></span></div>';
 		echo '</div>';
 	}
-	echo '</div></div>';
+	echo '</div></div></div></div>';
 }
 
 /**
@@ -279,13 +279,13 @@ function snt_analytics_render_referrer_categories( $cats ) {
  * @param array  $rows  [{label,views}]
  */
 function snt_analytics_render_distribution( $title, $rows ) {
-	echo '<div class="sn-an-panel sn-an-dist"><h3>' . esc_html( $title ) . '</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-dist">';
 	$max = 0;
 	foreach ( (array) $rows as $r ) {
 		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
 	}
 	if ( $max <= 0 ) {
-		echo '<p class="sn-an-empty">No ' . esc_html( strtolower( $title ) ) . ' data in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No ' . esc_html( strtolower( $title ) ) . ' data in this range yet.</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-dist-bars">';
@@ -298,7 +298,7 @@ function snt_analytics_render_distribution( $title, $rows ) {
 		echo '<span class="sn-an-dist-n num">' . esc_html( number_format_i18n( $v ) ) . '</span>';
 		echo '</div>';
 	}
-	echo '</div></div>';
+	echo '</div></div></div></div>';
 }
 
 /**
@@ -310,9 +310,9 @@ function snt_analytics_render_distribution( $title, $rows ) {
 function snt_analytics_render_heatmap( $heatmap ) {
 	$grid = ( isset( $heatmap['grid'] ) && is_array( $heatmap['grid'] ) ) ? $heatmap['grid'] : array();
 	$max  = (int) ( $heatmap['max'] ?? 0 );
-	echo '<div class="sn-an-panel sn-an-heatmap-panel"><h3>Activity by hour (UTC)</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Activity by hour (UTC)', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-heatmap-panel">';
 	if ( $max <= 0 || empty( $grid ) ) {
-		echo '<p class="sn-an-empty">No hourly data in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No hourly data in this range yet.</p></div></div></div>';
 		return;
 	}
 	$days = array( 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' );
@@ -333,7 +333,7 @@ function snt_analytics_render_heatmap( $heatmap ) {
 		}
 		echo '</div>';
 	}
-	echo '</div></div>';
+	echo '</div></div></div></div>';
 }
 
 /**
@@ -350,9 +350,9 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	$bot     = (int) ( $t['bot'] ?? 0 );
 	$total   = (int) ( $t['total'] ?? ( $human + $suspect + $bot ) );
 
-	echo '<div class="sn-an-panel sn-an-botbreak"><h3>Traffic quality</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Traffic quality', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-botbreak">';
 	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty">No traffic recorded in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No traffic recorded in this range yet.</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-quality-bar">';
@@ -373,14 +373,14 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 
 	$nets = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
 	if ( ! empty( $nets ) ) {
-		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table"><tbody>';
+		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table wp-list-table widefat striped"><tbody>';
 		foreach ( $nets as $n ) {
 			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
 				. '<td class="num">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}
-	echo '</div>';
+	echo '</div></div></div>';
 }
 
 /**
@@ -389,20 +389,28 @@ function snt_analytics_render_bot_breakdown( $bb ) {
  * @param array $paths [{path,views,visits,scroll_avg,time_avg}]
  */
 function snt_analytics_render_paths_table( $paths ) {
-	echo '<div class="sn-an-panel"><h3>Top pages</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Top pages', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	if ( empty( $paths ) ) {
-		echo '<p class="sn-an-empty">No page views in this range.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No page views in this range.</p></div></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr><th>Path</th><th class="num">Views</th><th class="num">Visits</th><th class="num">Scroll</th><th class="num">Time</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+		. '<th scope="col" class="manage-column column-primary">Path</th>'
+		. '<th scope="col" class="manage-column num">Views</th>'
+		. '<th scope="col" class="manage-column num">Visits</th>'
+		. '<th scope="col" class="manage-column num">Scroll</th>'
+		. '<th scope="col" class="manage-column num">Time</th>'
+		. '</tr></thead><tbody>';
 	foreach ( $paths as $r ) {
-		echo '<tr><td>' . esc_html( (string) $r['path'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
-			. '<td class="num">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td></tr>';
+		echo '<tr>'
+			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
+			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
+			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
+			. '</tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
@@ -416,25 +424,28 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param array  $series Optional value-keyed series map for sparklines.
  */
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array() ) {
-	echo '<div class="sn-an-panel"><h3>' . esc_html( $title ) . '</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside inside-flush">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty">' . esc_html( $empty ) . '</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 	$has_spark = ! empty( $series );
-	echo '<table class="sn-an-table"><thead><tr><th>' . esc_html( $title ) . '</th>'
-		. ( $has_spark ? '<th>Trend</th>' : '' )
-		. '<th class="num">Views</th><th class="num">Visits</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
+	if ( $has_spark ) {
+		echo '<th scope="col" class="manage-column">Trend</th>';
+	}
+	echo '<th scope="col" class="manage-column num">Views</th><th scope="col" class="manage-column num">Visits</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$v = (string) $r['value'];
-		echo '<tr><td>' . esc_html( $v ) . '</td>';
+		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '"><strong>' . esc_html( $v ) . '</strong></td>';
 		if ( $has_spark ) {
 			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup (hardcoded classes; bar height esc_attr'd inside the helper).
 		}
-		echo '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
+		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>';
+		echo '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
@@ -529,19 +540,26 @@ function snt_analytics_render_worker_setup() {
  * @param array $rows [{path,views,scroll_avg,time_avg}]
  */
 function snt_analytics_render_lowengage( $rows ) {
-	echo '<div class="sn-an-panel"><h3>Pages losing readers</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Pages losing readers', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty">No low-engagement pages in this range — readers are sticking around.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No low-engagement pages in this range — readers are sticking around.</p></div></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr><th>Page</th><th class="num">Views</th><th class="num">Scroll</th><th class="num">Time</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+		. '<th scope="col" class="manage-column column-primary">Page</th>'
+		. '<th scope="col" class="manage-column num">Views</th>'
+		. '<th scope="col" class="manage-column num">Scroll</th>'
+		. '<th scope="col" class="manage-column num">Time</th>'
+		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td>' . esc_html( (string) $r['path'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
-			. '<td class="num">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td></tr>';
+		echo '<tr>'
+			. '<td class="column-primary" data-colname="Page"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
+			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
+			. '</tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
@@ -553,17 +571,17 @@ function snt_analytics_render_lowengage( $rows ) {
  */
 function snt_analytics_render_bot_trend( $rows ) {
 	if ( empty( $rows ) ) {
-		echo '<div class="sn-an-panel"><h3>Bot share over time</h3><p class="sn-an-empty">No traffic recorded in this range yet.</p></div>';
+		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><p class="sn-an-empty" style="padding:0 12px 12px">No traffic recorded in this range yet.</p></div></div>';
 		return;
 	}
-	echo '<div class="sn-an-panel"><h3>Bot share over time</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	echo '<div class="sn-an-trend sn-an-trend--bot" role="img" aria-label="' . esc_attr( 'Bot share trend' ) . '">';
 	foreach ( $rows as $r ) {
 		$pct = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
 		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
 			. esc_attr( ( $r['day'] ?? '' ) . ': ' . $pct . '% bot' ) . '"></span>';
 	}
-	echo '</div></div>';
+	echo '</div></div></div>';
 }
 
 /**
@@ -627,18 +645,24 @@ function snt_analytics_render_import() {
  * @param array $rows [{name,events,visitors}]
  */
 function snt_analytics_render_events_table( $rows ) {
-	echo '<div class="sn-an-panel"><h3>Custom events</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Custom events', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty">No custom events in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No custom events in this range yet.</p></div></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr><th>Event</th><th class="num">Events</th><th class="num">Visitors</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+		. '<th scope="col" class="manage-column column-primary">Event</th>'
+		. '<th scope="col" class="manage-column num">Events</th>'
+		. '<th scope="col" class="manage-column num">Visitors</th>'
+		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td>' . esc_html( (string) $r['name'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td></tr>';
+		echo '<tr>'
+			. '<td class="column-primary" data-colname="Event"><strong>' . esc_html( (string) $r['name'] ) . '</strong></td>'
+			. '<td class="num" data-colname="Events">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
+			. '<td class="num" data-colname="Visitors">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td>'
+			. '</tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
@@ -655,21 +679,24 @@ function snt_analytics_render_events_table( $rows ) {
  */
 function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	$filtered = ( '' !== (string) $active_prop );
-	echo '<div class="sn-an-panel"><h3>Event properties</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Event properties', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
-		echo '<p class="sn-an-subh">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
+		echo '<p class="sn-an-subh" style="padding:0 12px 8px">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
 			. '<a href="' . esc_url( $clear ) . '">Clear</a></p>';
 	}
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty">No event properties in this range yet.</p></div>';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No event properties in this range yet.</p></div></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	if ( ! $filtered ) {
-		echo '<th>Property</th>';
+		echo '<th scope="col" class="manage-column">Property</th>';
 	}
-	echo '<th>Value</th><th class="num">Events</th><th class="num">Visitors</th></tr></thead><tbody>';
+	echo '<th scope="col" class="manage-column column-primary">Value</th>'
+		. '<th scope="col" class="manage-column num">Events</th>'
+		. '<th scope="col" class="manage-column num">Visitors</th>'
+		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>';
 		if ( ! $filtered ) {
@@ -677,11 +704,12 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 			$url  = add_query_arg( array( 'sn_event_prop' => $prop ) );
 			echo '<td><a href="' . esc_url( $url ) . '">' . esc_html( $prop ) . '</a></td>';
 		}
-		echo '<td>' . esc_html( (string) $r['value'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td></tr>';
+		echo '<td class="column-primary" data-colname="Value">' . esc_html( (string) $r['value'] ) . '</td>'
+			. '<td class="num" data-colname="Events">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
+			. '<td class="num" data-colname="Visitors">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td>'
+			. '</tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
