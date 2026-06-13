@@ -6,7 +6,7 @@
  * analytics. Reads only the durable rollup accessors (never AE) so it never
  * blocks; shows a config/empty state until the Cloudflare creds + worker land.
  * v5.5.0: a persistent header (controls → separation → delta cards → trend) over
- * a WP-native tab strip (Content · Technology · Geography · Engagement · Quality);
+ * a WP-native tab strip (Content · Technology · Geography · Engagement · Quality · Events);
  * each tab lazily fetches only its own panels' data.
  *
  * @package SignalNoiseTools
@@ -53,6 +53,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'geography'  => 'Geography',
 	'engagement' => 'Engagement',
 	'quality'    => 'Quality',
+	'events'     => 'Events',
 );
 
 /**
@@ -136,7 +137,7 @@ function snt_analytics_settings_url() {
  *
  * v5.5.0 layout: a persistent header (controls + separation + delta cards +
  * trend) above a WP-native tab strip (Content · Technology · Geography ·
- * Engagement · Quality). The active tab (?sn_view=, whitelisted) lazily fetches
+ * Engagement · Quality · Events). The active tab (?sn_view=, whitelisted) lazily fetches
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
  *
@@ -220,6 +221,17 @@ function snt_analytics_render_dashboard() {
 		case 'quality':
 			snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
 			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
+			break;
+
+		case 'events':
+			// Custom events carry no traffic-class dimension (from/to only), so the
+			// global Human/Suspect/Bot control is inert here — say so explicitly.
+			echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
+			$ev_prop = isset( $_GET['sn_event_prop'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_event_prop'] ) ) : '';
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_events_table( sn_analytics_top_events( $from, $to, 25 ) );
+			snt_analytics_render_event_props_table( sn_analytics_top_event_props( $from, $to, $ev_prop, 50 ), $ev_prop );
+			echo '</div>';
 			break;
 
 		case 'content':
