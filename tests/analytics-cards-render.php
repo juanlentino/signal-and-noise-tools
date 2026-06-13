@@ -32,5 +32,8 @@ ok( strpos( $h, '42%' ) !== false, 'engaged value rendered as percent' );
 ob_start(); snt_analytics_render_cards( 3, $totals, array(), null ); $h2 = ob_get_clean();
 ok( strpos( $h2, 'Engaged' ) === false, 'no engaged card when null' );
 
+ob_start(); snt_analytics_render_cards( 3, $totals, array(), array( 'current' => null ) ); $h3 = ob_get_clean();
+ok( strpos( $h3, 'Engaged' ) === false, "array('current'=>null) (all-range, no timed data) hides the card" );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

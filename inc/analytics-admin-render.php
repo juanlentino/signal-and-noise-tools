@@ -145,7 +145,12 @@ function snt_analytics_render_delta_badge( $delta ) {
  * @param int|null   $now     Realtime visitor count.
  * @param array      $totals  {views,visits,scroll_avg,time_avg}
  * @param array      $deltas  {views,visits,scroll_avg,time_avg} => {pct,dir}
- * @param array|null $engaged {current:int, pct:?int, dir:string} or null to omit the card.
+ * @param array{current:?int,previous?:?int,pct?:?int,dir?:string}|null $engaged Engaged-rate data,
+ *                                                                                or null to omit the card.
+ *                                                                                Card is also hidden when
+ *                                                                                current is null (e.g.
+ *                                                                                all-time range with no
+ *                                                                                timed-session data).
  */
 function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null ) {
 	$cards = array(
