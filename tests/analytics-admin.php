@@ -171,6 +171,10 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
 ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );
 ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation line' );
+ok( strpos( $html, 'notice notice-info inline' ) !== false, 'controls: separation wrapped in native notice-info inline' );
+ok( strpos( $html, 'sn-toolbar' ) !== false, 'controls: native toolbar wrapper present' );
+ok( strpos( $html, 'button-group' ) !== false, 'controls: button-group pill rows present' );
+ok( strpos( $html, 'button button-small' ) !== false, 'controls: pills use button button-small class' );
 ok( strpos( $html, '/notes/x' ) !== false, 'dashboard: top path row present' );
 ok( strpos( $html, 'sn-kpi-row' ) !== false, 'cards: fused KPI strip rendered' );
 ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promoted' );
@@ -204,7 +208,7 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && strpos( $h, 'sn-spark' ) !== false,
+		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-toolbar' ) !== false && strpos( $h, 'sn-spark' ) !== false,
 		"header: controls + KPI strip + trend persist on the '$v' tab"
 	);
 }

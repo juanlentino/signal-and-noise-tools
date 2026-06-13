@@ -43,40 +43,57 @@ function snt_analytics_render_controls( $range, $class ) {
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' );
 	}
-	echo '<div class="sn-an-controls">';
 
+	// Range pills — GET links styled as .button .button-small (zero JS; active state server-set).
 	// Must stay in sync with SN_ANALYTICS_RANGES; the $r . 'd' fallback fires only for unlabelled entries.
 	$range_labels = array( 7 => '7d', 30 => '30d', 90 => '90d', 365 => '1y' );
-	echo '<span class="sn-an-seg">';
+	echo '<div class="sn-toolbar">';
+	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
+	echo '<span class="sn-control-label">' . esc_html__( 'Range', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="button-group">';
 	foreach ( SN_ANALYTICS_RANGES as $r ) {
-		$url    = add_query_arg( array( 'sn_range' => $r, 'sn_class' => $class ), $base );
-		$active = ( (string) $r === (string) $range ) ? 'is-active' : '';
-		$label  = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
-		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
+		$url      = add_query_arg( array( 'sn_range' => $r, 'sn_class' => $class ), $base );
+		$is_active = ( (string) $r === (string) $range );
+		$label    = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
+		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
+			. ( $is_active ? ' aria-pressed="true"' : '' )
+			. ' href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 	}
 	$url_all    = add_query_arg( array( 'sn_range' => 'all', 'sn_class' => $class ), $base );
-	$active_all = ( 'all' === (string) $range ) ? 'is-active' : '';
-	echo '<a class="' . esc_attr( $active_all ) . '" href="' . esc_url( $url_all ) . '">' . esc_html__( 'All', 'signal-and-noise-tools' ) . '</a>';
-	echo '</span>';
+	$active_all = ( 'all' === (string) $range );
+	echo '<a class="button button-small' . ( $active_all ? ' active' : '' ) . '"'
+		. ( $active_all ? ' aria-pressed="true"' : '' )
+		. ' href="' . esc_url( $url_all ) . '">' . esc_html__( 'All', 'signal-and-noise-tools' ) . '</a>';
+	echo '</span></div>';
 
-	$labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
-	echo '<span class="sn-an-seg">';
-	foreach ( $labels as $key => $label ) {
-		$url    = add_query_arg( array( 'sn_range' => $range, 'sn_class' => $key ), $base );
-		$active = ( $key === $class ) ? 'is-active' : '';
-		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
+	// Class pills.
+	$class_labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
+	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Traffic class', 'signal-and-noise-tools' ) . '">';
+	echo '<span class="sn-control-label">' . esc_html__( 'Class', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="button-group">';
+	foreach ( $class_labels as $key => $label ) {
+		$url      = add_query_arg( array( 'sn_range' => $range, 'sn_class' => $key ), $base );
+		$is_active = ( $key === $class );
+		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
+			. ( $is_active ? ' aria-pressed="true"' : '' )
+			. ' href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 	}
-	echo '</span>';
+	echo '</span></div>';
 
-	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+	echo '<span class="sn-toolbar-spacer"></span>';
+
+	// Export — POST form with button-secondary pills.
+	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Export', 'signal-and-noise-tools' ) . '">';
+	echo '<span class="sn-control-label">' . esc_html__( 'Export', 'signal-and-noise-tools' ) . '</span>';
+	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="display:inline">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="page" value="sn-theme-options">';
 	echo '<input type="hidden" name="sn_action" value="analytics_export">';
 	echo '<input type="hidden" name="sn_range" value="' . esc_attr( (string) $range ) . '">';
 	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
-	echo '<button type="submit" name="format" value="csv" class="button-link">Export CSV</button>';
-	echo '<button type="submit" name="format" value="json" class="button-link">JSON</button>';
-	echo '</form>';
+	echo '<button type="submit" name="format" value="csv" class="button button-secondary button-small">CSV</button> ';
+	echo '<button type="submit" name="format" value="json" class="button button-secondary button-small">JSON</button>';
+	echo '</form></div>';
 
 	echo '</div>';
 }
@@ -91,13 +108,14 @@ function snt_analytics_render_separation( $class_totals, $class ) {
 	$bot     = (int) ( $class_totals['bot']['views'] ?? 0 );
 	$suspect = (int) ( $class_totals['suspect']['views'] ?? 0 );
 	$auto    = $bot + $suspect;
-	echo '<p class="sn-an-sep">Showing <strong>' . esc_html( $class ) . '</strong> traffic';
+	echo '<div class="notice notice-info inline"><p>';
+	echo 'Showing <strong>' . esc_html( $class ) . '</strong> traffic';
 	if ( $auto > 0 ) {
 		echo ' · ' . esc_html( number_format_i18n( $auto ) ) . ' automated filtered ('
 			. esc_html( number_format_i18n( $bot ) ) . ' bot · '
 			. esc_html( number_format_i18n( $suspect ) ) . ' suspect)';
 	}
-	echo '</p>';
+	echo '</p></div>';
 }
 
 /**
