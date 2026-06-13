@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.1] - 2026-06-13 — Analytics dashboard renders reliably
+
+### Fixed
+- **Analytics dashboard could appear unstyled or misaligned on the live site** — its layout styles now load as a normal cached stylesheet in the page `<head>`, the way WordPress expects, instead of being written into the page body. A body-injected stylesheet can be dropped before it reaches the browser (by a CDN/security layer, or a strict content-security policy), which left the dashboard looking "weird": stat cards stacked into a tall column and oversized empty boxes. Same design — delivered reliably.
+
+> **Why PATCH:** internal CSS-delivery fix + refactor (inline `<style>` → enqueued external stylesheet). No new capability, no behaviour change where the styles were already loading.
+
 ## [6.5.0] - 2026-06-13 — Analytics dashboard redesign
 
 ### Improvements
