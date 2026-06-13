@@ -427,7 +427,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
  * @param array $paths [{path,views,visits,scroll_avg,time_avg}]
  */
 function snt_analytics_render_paths_table( $paths ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Top pages', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Top pages', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $paths ) ) {
 		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No page views in this range.</p></div></div>';
 		return;
@@ -462,7 +462,7 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param array  $series Optional value-keyed series map for sparklines.
  */
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array() ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
 		return;
@@ -578,7 +578,7 @@ function snt_analytics_render_worker_setup() {
  * @param array $rows [{path,views,scroll_avg,time_avg}]
  */
 function snt_analytics_render_lowengage( $rows ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Pages losing readers', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Pages losing readers', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No low-engagement pages in this range — readers are sticking around.</p></div></div>';
 		return;
@@ -683,7 +683,7 @@ function snt_analytics_render_import() {
  * @param array $rows [{name,events,visitors}]
  */
 function snt_analytics_render_events_table( $rows ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Custom events', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Custom events', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No custom events in this range yet.</p></div></div>';
 		return;
@@ -717,7 +717,7 @@ function snt_analytics_render_events_table( $rows ) {
  */
 function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	$filtered = ( '' !== (string) $active_prop );
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Event properties', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Event properties', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
 		echo '<p class="sn-an-subh" style="padding:0 12px 8px">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '

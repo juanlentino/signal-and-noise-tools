@@ -16,7 +16,16 @@
 
 /* ── postbox / widefat tweaks ───────────────────────────────────────────── */
 .postbox .inside.inside-flush { padding: 0; }
+/* Table panels keep the native widget side gutter (mirrors core .postbox .inside
+   0 12px 12px) — the flush full-bleed treatment is reserved for the KPI strip,
+   the trend chart, and the map, where edge-to-edge is intentional. Tables read
+   tight against the box without it. v6.5.3. */
+.postbox .inside.sn-an-table-inside { padding: 0 12px 14px; }
 .widefat .num { text-align: right; }
+/* Slightly roomier widefat cells than core's 8px/10px so columns breathe on a
+   wide dashboard, and the first/last cells clear the table border comfortably. */
+.sn-an-table-inside .widefat td,
+.sn-an-table-inside .widefat th { padding: 8px 12px; }
 
 /* ── toolbar row: title-inline controls ─────────────────────────────────── */
 .sn-toolbar {
@@ -199,8 +208,9 @@
 /* panel/table inner wrappers (referrer-cats, distribution, heatmap, bot-breakdown) */
 .sn-an-panel { padding: 14px; }
 .sn-an-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.sn-an-table th { text-align: left; color: #646970; font-weight: 400; border-bottom: 1px solid #f0f0f1; padding: 5px 0; }
-.sn-an-table td { border-bottom: 1px solid #f0f0f1; padding: 5px 0; color: #1d2327; }
+.sn-an-table th { text-align: left; color: #646970; font-weight: 400; border-bottom: 1px solid #f0f0f1; padding: 6px 10px 6px 0; }
+.sn-an-table td { border-bottom: 1px solid #f0f0f1; padding: 6px 10px 6px 0; color: #1d2327; }
+.sn-an-table th:last-child, .sn-an-table td:last-child { padding-right: 0; }
 .sn-an-table td.num, .sn-an-table th.num { text-align: right; font-variant-numeric: tabular-nums; color: #646970; }
 .sn-an-table tr:last-child td { border-bottom: 0; }
 @media (max-width: 782px) {
