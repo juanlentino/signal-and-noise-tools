@@ -33,5 +33,19 @@ $json = sn_analytics_export_json( $rows );
 ok( json_decode( $json, true ) === $rows, 'JSON round-trips the rows' );
 ok( sn_analytics_export_csv( array() ) === '', 'empty rows → empty CSV' );
 
+echo "\nGroup: csv formula-injection guard\n";
+$evil = array(
+	array( 'path' => '=HYPERLINK("http://evil/x")', 'views' => 1, 'visits' => 1 ),
+	array( 'path' => '+1+1',  'views' => 1, 'visits' => 1 ),
+	array( 'path' => '@SUM(A1)', 'views' => 1, 'visits' => 1 ),
+	array( 'path' => '/normal', 'views' => 1, 'visits' => 1 ),
+);
+$out = sn_analytics_export_csv( $evil );
+ok( strpos( $out, "'=HYPERLINK" ) !== false, 'leading = is apostrophe-guarded' );
+ok( strpos( $out, "'+1+1" ) !== false, 'leading + is guarded' );
+ok( strpos( $out, "'@SUM" ) !== false, 'leading @ is guarded' );
+ok( strpos( $out, '/normal' ) !== false && strpos( $out, "'/normal" ) === false, 'benign path is NOT prefixed' );
+ok( sn_analytics_csv_escape_cell( '-5' ) === "'-5" && sn_analytics_csv_escape_cell( 'safe' ) === 'safe', 'helper: guards leading -, leaves safe text' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

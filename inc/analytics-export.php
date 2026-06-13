@@ -11,6 +11,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Neutralize spreadsheet formula injection: a cell beginning with a formula
+ * trigger ( = + - @ ) or a leading tab/CR is prefixed with an apostrophe so
+ * Excel/Sheets treat it as a text literal. Cell values originate from
+ * visitor-controlled data (e.g. request paths), so this is required, not cosmetic.
+ *
+ * @param scalar $value
+ * @return string
+ */
+function sn_analytics_csv_escape_cell( $value ) {
+	$s = (string) $value;
+	if ( '' !== $s && in_array( $s[0], array( '=', '+', '-', '@', "\t", "\r" ), true ) ) {
+		return "'" . $s;
+	}
+	return $s;
+}
+
+/**
  * RFC-4180 CSV from a list of associative rows (header = first row's keys).
  *
  * @param array<int, array<string, scalar>> $rows
@@ -28,7 +45,7 @@ function sn_analytics_export_csv( $rows ) {
 	foreach ( $rows as $r ) {
 		$line = array();
 		foreach ( $keys as $k ) {
-			$line[] = $r[ $k ] ?? '';
+			$line[] = sn_analytics_csv_escape_cell( $r[ $k ] ?? '' );
 		}
 		fputcsv( $fh, $line, ',', '"', '' );
 	}
