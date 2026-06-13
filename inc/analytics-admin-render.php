@@ -68,6 +68,16 @@ function snt_analytics_render_controls( $range, $class ) {
 	}
 	echo '</span>';
 
+	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="page" value="sn-theme-options">';
+	echo '<input type="hidden" name="sn_action" value="analytics_export">';
+	echo '<input type="hidden" name="sn_range" value="' . esc_attr( (string) $range ) . '">';
+	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
+	echo '<button type="submit" name="format" value="csv" class="button-link">Export CSV</button>';
+	echo '<button type="submit" name="format" value="json" class="button-link">JSON</button>';
+	echo '</form>';
+
 	echo '</div>';
 }
 

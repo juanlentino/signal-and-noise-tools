@@ -12,6 +12,7 @@ define( 'SN_ANALYTICS_RANGES', array( 7, 30, 90, 365 ) );
 function add_query_arg( $args, $base = '' ) { return $base . '?' . http_build_query( $args ); }
 function remove_query_arg( $keys, $url = '' ) { return $url; }
 function admin_url( $p = '' ) { return 'https://x/wp-admin/' . $p; }
+function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" value="testnonce">'; }
 function esc_attr( $s ) { return $s; }
 function esc_url( $s ) { return $s; }
 function esc_html( $s ) { return $s; }
