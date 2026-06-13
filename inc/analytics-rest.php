@@ -68,6 +68,18 @@ add_action( 'rest_api_init', function () {
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_distribution',
 	) );
+
+	register_rest_route( $ns, '/analytics/events', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'sn_analytics_rest_can_read',
+		'callback'            => 'sn_analytics_rest_events',
+	) );
+
+	register_rest_route( $ns, '/analytics/event-props', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'sn_analytics_rest_can_read',
+		'callback'            => 'sn_analytics_rest_event_props',
+	) );
 } );
 
 // ── Shared window resolver ────────────────────────────────────────────────────
@@ -138,4 +150,31 @@ function sn_analytics_rest_dimension( $request ) {
 function sn_analytics_rest_distribution( $request ) {
 	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
 	return sn_analytics_distribution( (string) $request->get_param( 'metric' ), $from, $to, $class );
+}
+
+/**
+ * GET /analytics/events
+ * Returns the top custom events (name → events/visitors) for the requested window.
+ * Events have no class dimension; $from/$to are the only filters applied.
+ *
+ * @param WP_REST_Request $request
+ * @return array
+ */
+function sn_analytics_rest_events( $request ) {
+	list( $from, $to ) = sn_analytics_rest_window( $request );
+	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
+}
+
+/**
+ * GET /analytics/event-props
+ * Returns the top property→value breakdown for a custom event property.
+ * Optional ?property= param filters to a specific property name.
+ *
+ * @param WP_REST_Request $request
+ * @return array
+ */
+function sn_analytics_rest_event_props( $request ) {
+	list( $from, $to ) = sn_analytics_rest_window( $request );
+	$property = (string) $request->get_param( 'property' );
+	return function_exists( 'sn_analytics_top_event_props' ) ? sn_analytics_top_event_props( $from, $to, $property, 200 ) : array();
 }

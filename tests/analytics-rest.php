@@ -29,6 +29,9 @@ function sn_analytics_granularity( $d ) { return ( (int) $d > 90 ) ? 'week' : 'd
 function snt_analytics_resolve_range( $r ) { return 'all' === (string) $r ? 'all' : ( (int) $r ?: 30 ); }
 function snt_analytics_resolve_class( $c ) { return $c ?: 'human'; }
 function snt_analytics_range_dates( $r, $n = null ) { return array( '2026-06-01', '2026-06-12' ); }
+// event-accessor stubs (sentinel values to verify passthrough):
+function sn_analytics_top_events( $f, $t, $l = 25 ) { return array( array( 'name' => 'pageview', 'events' => 42, 'visitors' => 17 ) ); }
+function sn_analytics_top_event_props( $f, $t, $property = '', $l = 50 ) { return array( array( 'property' => $property, 'value' => 'blog', 'events' => 5, 'visitors' => 3 ) ); }
 
 $pass = 0; $fail = 0;
 function ok( $cond, $msg ) { global $pass, $fail; if ( $cond ) { $pass++; echo "  ok: $msg\n"; } else { $fail++; echo "  FAIL: $msg\n"; } }
@@ -50,6 +53,21 @@ ok( isset( $resp['views'] ) && $resp['views'] === 7, 'summary callback returns d
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/series'] ), 'series route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/dimension/(?P<dim>[a-z]+)'] ), 'dimension route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/distribution/(?P<metric>[a-z]+)'] ), 'distribution route registered' );
+
+echo "\nGroup: events routes\n";
+ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/events'] ), 'events route registered' );
+$ev_args = $GLOBALS['__routes']['signal-noise/v1/analytics/events'];
+ok( isset( $ev_args['methods'] ) && $ev_args['methods'] === 'GET', 'events route is GET (READABLE)' );
+ok( isset( $ev_args['permission_callback'] ) && $ev_args['permission_callback'] === 'sn_analytics_rest_can_read', 'events permission_callback is sn_analytics_rest_can_read' );
+$ev_resp = sn_analytics_rest_events( new WP_REST_Request( array( 'range' => 30 ) ) );
+ok( is_array( $ev_resp ) && isset( $ev_resp[0]['name'] ) && $ev_resp[0]['name'] === 'pageview', 'events callback returns accessor data' );
+
+ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/event-props'] ), 'event-props route registered' );
+$ep_args = $GLOBALS['__routes']['signal-noise/v1/analytics/event-props'];
+ok( isset( $ep_args['methods'] ) && $ep_args['methods'] === 'GET', 'event-props route is GET (READABLE)' );
+ok( isset( $ep_args['permission_callback'] ) && $ep_args['permission_callback'] === 'sn_analytics_rest_can_read', 'event-props permission_callback is sn_analytics_rest_can_read' );
+$ep_resp = sn_analytics_rest_event_props( new WP_REST_Request( array( 'range' => 30, 'property' => 'page' ) ) );
+ok( is_array( $ep_resp ) && isset( $ep_resp[0]['property'] ) && $ep_resp[0]['property'] === 'page', 'event-props callback passes property param through' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
