@@ -31,8 +31,8 @@ function snt_analytics_fmt_time( $ms ) {
 /**
  * Range picker + class segmented control (GET links preserving the route).
  *
- * @param int    $range Active window.
- * @param string $class Active class.
+ * @param int|string $range Active window (int days or 'all').
+ * @param string     $class Active class.
  */
 function snt_analytics_render_controls( $range, $class ) {
 	// Context-aware base: preserve the CURRENT route so the controls work wherever
@@ -45,12 +45,18 @@ function snt_analytics_render_controls( $range, $class ) {
 	}
 	echo '<div class="sn-an-controls">';
 
+	// Must stay in sync with SN_ANALYTICS_RANGES; the $r . 'd' fallback fires only for unlabelled entries.
+	$range_labels = array( 7 => '7d', 30 => '30d', 90 => '90d', 365 => '1y' );
 	echo '<span class="sn-an-seg">';
 	foreach ( SN_ANALYTICS_RANGES as $r ) {
 		$url    = add_query_arg( array( 'sn_range' => $r, 'sn_class' => $class ), $base );
-		$active = ( (int) $r === (int) $range ) ? 'is-active' : '';
-		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $r . 'd' ) . '</a>';
+		$active = ( (string) $r === (string) $range ) ? 'is-active' : '';
+		$label  = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
+		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 	}
+	$url_all    = add_query_arg( array( 'sn_range' => 'all', 'sn_class' => $class ), $base );
+	$active_all = ( 'all' === (string) $range ) ? 'is-active' : '';
+	echo '<a class="' . esc_attr( $active_all ) . '" href="' . esc_url( $url_all ) . '">' . esc_html__( 'All', 'signal-and-noise-tools' ) . '</a>';
 	echo '</span>';
 
 	$labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
@@ -61,6 +67,16 @@ function snt_analytics_render_controls( $range, $class ) {
 		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 	}
 	echo '</span>';
+
+	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="page" value="sn-theme-options">';
+	echo '<input type="hidden" name="sn_action" value="analytics_export">';
+	echo '<input type="hidden" name="sn_range" value="' . esc_attr( (string) $range ) . '">';
+	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
+	echo '<button type="submit" name="format" value="csv" class="button-link">Export CSV</button>';
+	echo '<button type="submit" name="format" value="json" class="button-link">JSON</button>';
+	echo '</form>';
 
 	echo '</div>';
 }
@@ -85,11 +101,12 @@ function snt_analytics_render_separation( $class_totals, $class ) {
 }
 
 /**
- * Bar strip of per-day views (heights relative to the series max).
+ * Bar strip of per-day/per-week views (heights relative to the series max).
  *
- * @param array $series [{day,views,visits}] ascending.
+ * @param array  $series      [{day,views,visits}] ascending.
+ * @param string $granularity 'day' (default) or 'week' — controls the aria-label.
  */
-function snt_analytics_render_trend( $series ) {
+function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	if ( empty( $series ) ) {
 		return;
 	}
@@ -97,7 +114,10 @@ function snt_analytics_render_trend( $series ) {
 	foreach ( $series as $row ) {
 		$max = max( $max, (int) $row['views'] );
 	}
-	echo '<div class="sn-an-trend" role="img" aria-label="' . esc_attr__( 'Daily views trend', 'signal-and-noise-tools' ) . '">';
+	$aria = ( 'week' === $granularity )
+		? __( 'Weekly views trend', 'signal-and-noise-tools' )
+		: __( 'Daily views trend', 'signal-and-noise-tools' );
+	echo '<div class="sn-an-trend" role="img" aria-label="' . esc_attr( $aria ) . '">';
 	foreach ( $series as $row ) {
 		$pct = (int) round( ( (int) $row['views'] / $max ) * 100 );
 		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
@@ -127,15 +147,22 @@ function snt_analytics_render_delta_badge( $delta ) {
 }
 
 /**
- * The 5 stat cards: Now, Views, Visits, Avg scroll, Avg time. Views/Visits/Avg
- * scroll/Avg time carry a period-over-period delta badge when $deltas is given
- * (keyed views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
+ * The 5 stat cards (6 when engaged rate is available): Now, Views, Visits,
+ * Avg scroll, Avg time, and optionally Engaged. Views/Visits/Avg scroll/Avg
+ * time carry a period-over-period delta badge when $deltas is given (keyed
+ * views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
  *
- * @param int|null $now    Realtime visitor count.
- * @param array    $totals {views,visits,scroll_avg,time_avg}
- * @param array    $deltas {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param int|null   $now     Realtime visitor count.
+ * @param array      $totals  {views,visits,scroll_avg,time_avg}
+ * @param array      $deltas  {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param array{current:?int,previous?:?int,pct?:?int,dir?:string}|null $engaged Engaged-rate data,
+ *                                                                                or null to omit the card.
+ *                                                                                Card is also hidden when
+ *                                                                                current is null (e.g.
+ *                                                                                all-time range with no
+ *                                                                                timed-session data).
  */
-function snt_analytics_render_cards( $now, $totals, $deltas = array() ) {
+function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null ) {
 	$cards = array(
 		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '', 'delta' => null ),
 		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['views'] ?? null ),
@@ -150,6 +177,14 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array() ) {
 		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '', 'delta' => $deltas['scroll_avg'] ?? null ),
 		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['time_avg'] ?? null ),
 	);
+	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
+		$cards[] = array(
+			'l'     => 'Engaged',
+			'n'     => (int) $engaged['current'] . '%',
+			'title' => 'Share of timed pageviews lasting ≥10s.',
+			'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ),
+		);
+	}
 	echo '<div class="sn-an-cards">';
 	foreach ( $cards as $c ) {
 		if ( '' !== $c['title'] ) {
@@ -332,25 +367,58 @@ function snt_analytics_render_paths_table( $paths ) {
 }
 
 /**
- * A dimension breakdown panel (value + views + visits).
+ * A dimension breakdown panel (value + views + visits), with optional per-row
+ * trend sparklines. Pass $series as a value→[{day,views}] map to activate them;
+ * omit (or pass an empty array) for the original back-compatible layout.
  *
  * @param string $title
- * @param array  $rows  [{value,views,visits}]
- * @param string $empty Empty-state copy.
+ * @param array  $rows   [{value,views,visits}]
+ * @param string $empty  Empty-state copy.
+ * @param array  $series Optional value-keyed series map for sparklines.
  */
-function snt_analytics_render_dim_table( $title, $rows, $empty ) {
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array() ) {
 	echo '<div class="sn-an-panel"><h3>' . esc_html( $title ) . '</h3>';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty">' . esc_html( $empty ) . '</p></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr><th>' . esc_html( $title ) . '</th><th class="num">Views</th><th class="num">Visits</th></tr></thead><tbody>';
+	$has_spark = ! empty( $series );
+	echo '<table class="sn-an-table"><thead><tr><th>' . esc_html( $title ) . '</th>'
+		. ( $has_spark ? '<th>Trend</th>' : '' )
+		. '<th class="num">Views</th><th class="num">Visits</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td>' . esc_html( (string) $r['value'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+		$v = (string) $r['value'];
+		echo '<tr><td>' . esc_html( $v ) . '</td>';
+		if ( $has_spark ) {
+			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup (hardcoded classes; bar height esc_attr'd inside the helper).
+		}
+		echo '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
+}
+
+/**
+ * Inline micro-sparkline (returns a string so it can sit in a table cell).
+ * Mirrors the trend strip's bar math.
+ *
+ * @param array $series [{day:string, views:int}]
+ * @return string HTML
+ */
+function snt_analytics_sparkline( $series ) {
+	if ( empty( $series ) ) {
+		return '<span class="sn-an-spark sn-an-spark--empty"></span>';
+	}
+	$max = 1;
+	foreach ( $series as $row ) {
+		$max = max( $max, (int) $row['views'] );
+	}
+	$out = '<span class="sn-an-spark">';
+	foreach ( $series as $row ) {
+		$pct  = (int) round( ( (int) $row['views'] / $max ) * 100 );
+		$out .= '<span class="b" style="height:' . esc_attr( max( 2, $pct ) ) . '%"></span>';
+	}
+	return $out . '</span>';
 }
 
 /**
@@ -413,6 +481,50 @@ function snt_analytics_render_worker_setup() {
 	echo '<li><strong>Theme beacon</strong>: set <code>SN_BEACON_TOKEN</code> in <code>wp-config.php</code> to the SAME value as the Worker\'s <code>SN_PX_TOKEN</code> so the front-end beacon is accepted.</li>';
 	echo '<li>Hit <strong>Test connection</strong> above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.</li>';
 	echo '</ol></details>';
+}
+
+/**
+ * "Pages losing readers" panel: pages with meaningful traffic but weak
+ * engagement (low scroll AND low dwell). Data from sn_analytics_low_engagement_paths().
+ *
+ * @param array $rows [{path,views,scroll_avg,time_avg}]
+ */
+function snt_analytics_render_lowengage( $rows ) {
+	echo '<div class="sn-an-panel"><h3>Pages losing readers</h3>';
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-an-empty">No low-engagement pages in this range — readers are sticking around.</p></div>';
+		return;
+	}
+	echo '<table class="sn-an-table"><thead><tr><th>Page</th><th class="num">Views</th><th class="num">Scroll</th><th class="num">Time</th></tr></thead><tbody>';
+	foreach ( $rows as $r ) {
+		echo '<tr><td>' . esc_html( (string) $r['path'] ) . '</td>'
+			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
+			. '<td class="num">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td></tr>';
+	}
+	echo '</tbody></table></div>';
+}
+
+/**
+ * Bot-share trend panel: a bar chart of per-bucket bot% over the window.
+ * Data from sn_analytics_class_series() (durable — no AE). Lives on the
+ * Quality tab above the breakdown panel.
+ *
+ * @param array $rows [{day:string, bot_pct:int, total:int, bot:int}]
+ */
+function snt_analytics_render_bot_trend( $rows ) {
+	if ( empty( $rows ) ) {
+		echo '<div class="sn-an-panel"><h3>Bot share over time</h3><p class="sn-an-empty">No traffic recorded in this range yet.</p></div>';
+		return;
+	}
+	echo '<div class="sn-an-panel"><h3>Bot share over time</h3>';
+	echo '<div class="sn-an-trend sn-an-trend--bot" role="img" aria-label="' . esc_attr( 'Bot share trend' ) . '">';
+	foreach ( $rows as $r ) {
+		$pct = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
+		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
+			. esc_attr( ( $r['day'] ?? '' ) . ': ' . $pct . '% bot' ) . '"></span>';
+	}
+	echo '</div></div>';
 }
 
 /**

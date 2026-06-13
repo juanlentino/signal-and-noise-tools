@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.0.0
+ * Version:     6.1.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -103,6 +103,7 @@ require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Monitor
 require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
 require_once SNT_PATH . 'inc/rest-api.php';
+require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
 
 /**
  * Pre-flight guard #2: detect the MU-plugin twin of the RSS tracker.
@@ -205,6 +206,7 @@ require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/abilities-registration.php';
+require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
 require_once __DIR__ . '/inc/command-palette.php';
 require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-publish advisory gate (client-side, no AI)

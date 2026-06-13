@@ -626,6 +626,47 @@ function sn_handle_analytics_test( $post ) {
 }
 
 /**
+ * v6.1.0: stream a CSV or JSON download of the current analytics range/class.
+ *
+ * This handler intentionally does NOT return a flash code — it streams a file
+ * download and calls exit(), so the dispatcher's PRG redirect never runs.
+ *
+ * Load-order note: inc/analytics-read.php (sn_analytics_top_paths) and
+ * inc/analytics-admin.php (snt_analytics_resolve_range / snt_analytics_resolve_class /
+ * snt_analytics_range_dates) are both loaded unconditionally via require_once in
+ * signal-and-noise-tools.php before any WordPress hook fires, so they are always
+ * available at admin_init. inc/analytics-export.php (the formatters) is a new
+ * file not yet in the bootstrap — require_once it here on first use.
+ *
+ * @param array $post Raw $_POST.
+ * @return void (exits after streaming the download)
+ */
+function sn_handle_analytics_export( $post ) {
+	if ( ! function_exists( 'sn_analytics_export_csv' ) ) {
+		require_once __DIR__ . '/analytics-export.php';
+	}
+
+	$range = isset( $post['sn_range'] ) ? snt_analytics_resolve_range( sanitize_text_field( wp_unslash( $post['sn_range'] ) ) ) : 30;
+	$class = isset( $post['sn_class'] ) ? snt_analytics_resolve_class( sanitize_text_field( wp_unslash( $post['sn_class'] ) ) ) : 'human';
+	$fmt   = ( isset( $post['format'] ) && 'json' === $post['format'] ) ? 'json' : 'csv';
+	list( $from, $to ) = snt_analytics_range_dates( $range );
+
+	$rows  = sn_analytics_top_paths( $from, $to, $class, 500 );
+	$fname = 'sn-analytics-' . $from . '_' . $to . '-' . $class . '.' . $fmt;
+
+	if ( 'json' === $fmt ) {
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $fname . '"' );
+		echo sn_analytics_export_json( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput -- file download, not HTML
+	} else {
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $fname . '"' );
+		echo sn_analytics_export_csv( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput -- file download, not HTML
+	}
+	exit;
+}
+
+/**
  * One-time import of Plausible CSV exports into the first-party rollup tables
  * (v6.0.0). Validates each uploaded file (genuine upload, ≤5MB, no upload error),
  * hands the temp paths to sn_analytics_import_run() (which parses, maps, and

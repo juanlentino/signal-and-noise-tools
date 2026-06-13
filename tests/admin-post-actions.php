@@ -344,7 +344,7 @@ pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants ar
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 33, count( $map ), 'map has 33 actions' ); // v5.1.0: +3 indexnow (save/regenerate/ping_now) · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import, −2 plausible (pl_save/pl_test)
+pa_eq( 34, count( $map ), 'map has 34 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

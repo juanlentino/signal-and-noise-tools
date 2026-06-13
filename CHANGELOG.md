@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.1.0] - 2026-06-12 — Long-range analytics + expansion
+
+**Headline:** The analytics dashboard now reaches back a **full year** (and **All-time**), and gains five new read-side surfaces — an engaged-reader rate, a "pages losing readers" panel, per-dimension trend sparklines, a bot-share-over-time trend, and a CSV/JSON export plus a read-only `/analytics` REST + Abilities surface. Everything reads the **durable rollup tables** (never live Cloudflare), so long ranges aren't bound by Analytics Engine's ~90-day retention and the whole release carries zero live-AE risk.
+
+### New
+
+- **1-year and All-time date ranges.** The range control gains **1y** (365 days) and **All** (since the first rolled day) alongside 7d/30d/90d. Ranges over 90 days auto-aggregate the trend strip to **weekly** buckets (ISO Monday floor) so a year stays legible (≤~52 bars) and fast. All-time uses `MIN(day)` from the forever-table. ([inc/analytics-read.php](inc/analytics-read.php), [inc/analytics-admin.php](inc/analytics-admin.php))
+- **Engaged-reader rate.** A new header stat card showing the share of timed pageviews lasting **≥10s** (a GA4-style single-signal engagement metric), with a period-over-period delta. Derived from the existing time-distribution buckets — no new data collected. ([inc/analytics-derived.php](inc/analytics-derived.php))
+- **"Pages losing readers" panel** on the Content tab — pages with real traffic but low scroll **and** low dwell, so thin content surfaces at a glance. ([inc/analytics-read.php](inc/analytics-read.php))
+- **Per-dimension trend sparklines.** The Top sources and Browsers tables now show an inline sparkline of each value's trend over the window, fetched in a single batched query (no N+1). ([inc/analytics-admin-render.php](inc/analytics-admin-render.php))
+- **Bot-share-over-time trend** on the (previously thin) Quality tab — bot % per bucket across the window, from the durable rollup. ([inc/analytics-admin-render.php](inc/analytics-admin-render.php))
+- **Analytics export.** "Export CSV" / "JSON" buttons in the dashboard controls download the current range/class. The CSV is hardened against spreadsheet **formula injection** (cells beginning `= + - @` or a control char are apostrophe-guarded), since path data is visitor-influenced. ([inc/analytics-export.php](inc/analytics-export.php))
+- **Read-only programmatic surface.** New `GET signal-noise/v1/analytics/{summary,series,dimension/{dim},distribution/{metric}}` REST routes and a `signal-noise/get-analytics-summary` Ability — `manage_options`-gated, non-mutating — for programmatic and AI-agent reads. ([inc/analytics-rest.php](inc/analytics-rest.php), [inc/abilities-analytics.php](inc/abilities-analytics.php))
+
+### Improvements
+
+- Period-over-period delta badges are **suppressed for the All-time range** (there is no prior window to compare against), rather than showing a meaningless "new".
+
+### Fixed
+
+- The engaged-rate delta no longer **fabricates a direction** ("▲ up") when a comparison window has no data — a null window now reads as flat with no percentage.
+
+### Security
+
+- **CSV export formula injection** prevented at the formatter ([inc/analytics-export.php](inc/analytics-export.php)) — visitor-controlled path strings can no longer execute as spreadsheet formulas when an admin opens an export.
+
+> **Why MINOR (6.0.0 → 6.1.0):** every entry is new user-visible capability — new ranges, panels, an export, and a new public REST/Abilities read surface — built entirely over the durable rollup tables. No public API removed/renamed, no settings-schema migration, no operator action required. The one new Cloudflare AE query (bot-score *distribution*) is deferred to v6.2.0 so this release stays AE-risk-free. AE's `sumIf`/`avgIf` combinators used by the existing rollup were confirmed supported against Cloudflare's aggregate-functions reference during this cycle.
+
 ## [6.0.0] - 2026-06-12 — Retire Plausible + import its history
 
 **Headline:** Plausible is **fully retired** — the first-party edge analytics has been the stats source since v5.2.0, so the deprecated Plausible Stats-API surface (REST routes, Abilities, admin sub-tab, rate-limit tracking) is removed per the v5.0.0→v6.0.0 deprecation ladder. To make that lossless, this release ships a **one-time CSV import tool** that back-fills your Plausible history into the first-party rollup before it's gone.

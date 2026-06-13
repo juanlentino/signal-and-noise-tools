@@ -17,15 +17,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_ANALYTICS_RANGES = array( 7, 30, 90 );
+const SN_ANALYTICS_RANGES = array( 7, 30, 90, 365 );
 
 /**
  * Whitelist the ?sn_range GET value to a supported window; default 7.
  *
  * @param mixed $raw
- * @return int 7 | 30 | 90
+ * @return int|string 7 | 30 | 90 | 365 | 'all'
  */
 function snt_analytics_resolve_range( $raw ) {
+	if ( 'all' === (string) $raw ) {
+		return 'all';
+	}
 	$n = (int) $raw;
 	return in_array( $n, SN_ANALYTICS_RANGES, true ) ? $n : 7;
 }
@@ -69,9 +72,9 @@ function snt_analytics_resolve_view( $raw ) {
  * switching tabs keeps the window + class filter. Mirrors the SN top-tab nav
  * (`.nav-tab-wrapper`/`.nav-tab`) for native styling.
  *
- * @param string $active Active view slug.
- * @param int    $range  Active range (preserved across tabs).
- * @param string $class  Active class (preserved across tabs).
+ * @param string     $active Active view slug.
+ * @param int|string $range  Active range in days or 'all'.
+ * @param string     $class  Active class (preserved across tabs).
  */
 function snt_analytics_render_view_tabs( $active, $range, $class ) {
 	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class' ), add_query_arg( array() ) );
@@ -94,18 +97,24 @@ function snt_analytics_render_view_tabs( $active, $range, $class ) {
 }
 
 /**
- * Inclusive [$from,$to] YYYY-MM-DD window of $days ending on the anchor day.
+ * Inclusive [$from,$to] YYYY-MM-DD window ending on the anchor day.
  * UTC (gmdate) to align with AE's toStartOfDay() buckets. $now is injectable
- * for deterministic tests.
+ * for deterministic tests. When $range is 'all', $from is the earliest day in
+ * the rollup table (via sn_analytics_min_day()).
  *
- * @param int      $days
- * @param int|null $now Unix timestamp anchor (defaults to now).
+ * @param int|string $range Days as int (7|30|90|365) or 'all'.
+ * @param int|null   $now   Unix timestamp anchor (defaults to now).
  * @return array{0:string,1:string} [$from, $to]
  */
-function snt_analytics_range_dates( $days, $now = null ) {
-	$now  = ( null === $now ) ? time() : (int) $now;
-	$to   = gmdate( 'Y-m-d', $now );
-	$from = gmdate( 'Y-m-d', $now - ( max( 1, (int) $days ) - 1 ) * DAY_IN_SECONDS );
+function snt_analytics_range_dates( $range, $now = null ) {
+	$now = ( null === $now ) ? time() : (int) $now;
+	$to  = gmdate( 'Y-m-d', $now );
+	if ( 'all' === $range ) {
+		$from = function_exists( 'sn_analytics_min_day' ) ? sn_analytics_min_day() : $to;
+		return array( $from, $to );
+	}
+	$days = max( 1, (int) $range );
+	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
 	return array( $from, $to );
 }
 
@@ -130,6 +139,9 @@ function snt_analytics_settings_url() {
  * Engagement · Quality). The active tab (?sn_view=, whitelisted) lazily fetches
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
+ *
+ * Note: period-over-period deltas are suppressed for the 'all' range. Trend
+ * granularity is daily for windows ≤90 days, weekly beyond.
  */
 function snt_analytics_render_dashboard() {
 	snt_analytics_styles();
@@ -148,18 +160,26 @@ function snt_analytics_render_dashboard() {
 
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 
+	$gran_days   = ( 'all' === $range )
+		? ( (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1 )
+		: (int) $range;
+	$granularity = sn_analytics_granularity( $gran_days );
+
 	// ── Persistent header (every tab): the at-a-glance headline. Always fetched.
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
-	$series       = sn_analytics_daily_series( $from, $to, $class );
-	$deltas       = sn_analytics_period_deltas( $from, $to, $class );
+	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
+	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
+	$engaged      = ( 'all' === $range )
+		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
+		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
 	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
-	snt_analytics_render_cards( $now, $totals, $deltas );
-	snt_analytics_render_trend( $series );
+	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
+	snt_analytics_render_trend( $series, $granularity );
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
 	// so a tab switch is a lighter query set, not just CSS show/hide.
@@ -169,7 +189,10 @@ function snt_analytics_render_dashboard() {
 	switch ( $view ) {
 		case 'technology':
 			echo '<div class="sn-an-grid">';
-			snt_analytics_render_dim_table( 'Browsers', sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 ), 'No browser data in this range yet.' );
+			$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
+			$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
+			$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser );
 			snt_analytics_render_dim_table( 'Operating systems', sn_analytics_top_dimension( 'os', $from, $to, $class, 10 ), 'No OS data in this range yet.' );
 			snt_analytics_render_dim_table( 'Devices', sn_analytics_top_dimension( 'device', $from, $to, $class, 10 ), 'No device data in this range.' );
 			snt_analytics_render_dim_table( 'Protocols', sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 ), 'No protocol data in this range yet.' );
@@ -195,6 +218,7 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'quality':
+			snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
 			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
 			break;
 
@@ -202,9 +226,13 @@ function snt_analytics_render_dashboard() {
 		default:
 			echo '<div class="sn-an-grid">';
 			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
-			snt_analytics_render_dim_table( 'Top sources', sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 ), 'No referrers in this range.' );
+			$ref_rows = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
+			$ref_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $ref_rows );
+			$ref_ser  = sn_analytics_dimension_series( 'referrer', $ref_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
+			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
 			echo '</div>';
 			break;
 	}
@@ -306,6 +334,12 @@ function snt_analytics_styles() {
 	/* v5.5.0 — tabbed views. The nav strip is WP-native (.nav-tab-wrapper). */
 	.sn-an-view-tabs{margin:18px 0 0;}
 	.sn-an-view{margin-top:16px;}
+	/* v6.1.0 — per-dimension trend sparklines in dim tables. */
+	.sn-an-spark{display:inline-flex;align-items:flex-end;gap:1px;height:1.1em;}
+	.sn-an-spark .b{width:2px;background:currentColor;opacity:.45;}
+	.sn-an-spark--empty{opacity:.2;}
+	/* v6.1.0 — bot-share trend modifier (slightly muted to distinguish from views trend). */
+	.sn-an-trend--bot .bar{opacity:.7;}
 	</style>
 	<?php
 }

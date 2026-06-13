@@ -18,6 +18,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
+function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
@@ -64,7 +65,8 @@ $GLOBALS['__aa'] = array( 'realtime' => null, 'totals' => array(), 'class_totals
 function sn_analytics_realtime( $class = 'human' ) { return $GLOBALS['__aa']['realtime']; }
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__aa']['totals']; }
 function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__aa']['class_totals']; }
-function sn_analytics_daily_series( $from, $to, $class = 'human' ) { return $GLOBALS['__aa']['series']; }
+function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { return $GLOBALS['__aa']['series']; }
+function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['paths']; }
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 
@@ -101,6 +103,11 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		'top_bot_networks' => array( array( 'value' => 'Amazon.com, Inc.', 'views' => 180, 'visits' => 8 ) ),
 	);
 }
+function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 42; }
+function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 42, 'previous' => 40, 'pct' => 5, 'dir' => 'up' ); }
+function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
+function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
+function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 'day' => '2026-06-11', 'bot_pct' => 30, 'total' => 80 ) ); }
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
@@ -171,7 +178,7 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' )
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) === 2,
+		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) >= 2,
 		"header: controls + delta cards + trend persist on the '$v' tab"
 	);
 }
@@ -208,6 +215,7 @@ echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
+ok( strpos( $html, 'sn-an-trend--bot' ) !== false, 'quality tab renders the bot-share trend when data present' );
 
 echo "\nGroup: dashboard — view param whitelist + escaping\n";
 $_GET['sn_view'] = '../../etc/passwd';

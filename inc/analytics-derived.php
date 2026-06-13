@@ -122,6 +122,71 @@ function sn_analytics_delta( $cur, $prev ) {
 }
 
 /**
+ * The window immediately preceding [from,to], same length. Used for
+ * period-over-period comparisons.
+ *
+ * @return array{0:string,1:string} [prior_from, prior_to]
+ */
+function sn_analytics_prior_window( $from, $to ) {
+	$from_ts = strtotime( $from . ' 00:00:00 UTC' );
+	$to_ts   = strtotime( $to . ' 00:00:00 UTC' );
+	$days    = ( $from_ts && $to_ts ) ? ( (int) floor( ( $to_ts - $from_ts ) / DAY_IN_SECONDS ) + 1 ) : 1;
+	$pto     = $from_ts - DAY_IN_SECONDS;
+	$pfrom   = $pto - ( max( 1, $days ) - 1 ) * DAY_IN_SECONDS;
+	return array( gmdate( 'Y-m-d', $pfrom ), gmdate( 'Y-m-d', $pto ) );
+}
+
+const SN_ANALYTICS_ENGAGED_TIME_MS = 10000; // ≥10s = an "engaged" pageview (GA4-style)
+
+/**
+ * Engaged-pageview rate: % of timed pageviews lasting ≥10s, from the time
+ * distribution buckets. Single-signal by design — an "≥10s OR scrolled>50%"
+ * union would need a per-visitor join the marginal buckets cannot express.
+ *
+ * @return int|null 0–100, or null when there are no timed pageviews.
+ */
+function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) {
+	$dist  = function_exists( 'sn_analytics_distribution' ) ? sn_analytics_distribution( 'time', $from, $to, $class ) : array();
+	$bands = sn_analytics_buckets_metrics()['time']['buckets'] ?? array();
+	$total = 0;
+	$eng   = 0;
+	foreach ( (array) $dist as $i => $b ) {
+		$v      = (int) ( $b['views'] ?? 0 );
+		$total += $v;
+		if ( isset( $bands[ $i ]['lo'] ) && (int) $bands[ $i ]['lo'] >= SN_ANALYTICS_ENGAGED_TIME_MS ) {
+			$eng += $v;
+		}
+	}
+	if ( $total <= 0 ) {
+		return null;
+	}
+	return (int) round( $eng / $total * 100 );
+}
+
+/**
+ * Period-over-period delta for the engaged-pageview rate, shaped like
+ * sn_analytics_period_deltas() entries so it renders with the same badge.
+ *
+ * @return array{current:?int, previous:?int, pct:?int, dir:string}
+ */
+function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
+	$cur = sn_analytics_engaged_rate( $from, $to, $class );
+	list( $pf, $pt ) = sn_analytics_prior_window( $from, $to );
+	$prev = sn_analytics_engaged_rate( $pf, $pt, $class );
+	if ( null === $cur || null === $prev ) {
+		$d = array( 'pct' => null, 'dir' => 'flat' );
+	} else {
+		$d = sn_analytics_delta( $cur, $prev );
+	}
+	return array(
+		'current'  => $cur,
+		'previous' => $prev,
+		'pct'      => $d['pct'],
+		'dir'      => $d['dir'],
+	);
+}
+
+/**
  * Period-over-period deltas: the current [$from,$to] window vs the immediately-
  * preceding window of equal length, for views / visits / scroll_avg / time_avg.
  *
@@ -135,14 +200,9 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
 		? sn_analytics_range_totals( $from, $to, $class )
 		: array();
 
-	$from_ts = strtotime( $from . ' 00:00:00 UTC' );
-	$to_ts   = strtotime( $to . ' 00:00:00 UTC' );
-	$days    = ( $from_ts && $to_ts ) ? ( (int) floor( ( $to_ts - $from_ts ) / DAY_IN_SECONDS ) + 1 ) : 1;
-
-	$prior_to_ts   = $from_ts - DAY_IN_SECONDS;
-	$prior_from_ts = $prior_to_ts - ( max( 1, $days ) - 1 ) * DAY_IN_SECONDS;
-	$prev          = function_exists( 'sn_analytics_range_totals' )
-		? sn_analytics_range_totals( gmdate( 'Y-m-d', $prior_from_ts ), gmdate( 'Y-m-d', $prior_to_ts ), $class )
+	list( $prior_from, $prior_to ) = sn_analytics_prior_window( $from, $to );
+	$prev = function_exists( 'sn_analytics_range_totals' )
+		? sn_analytics_range_totals( $prior_from, $prior_to, $class )
 		: array();
 
 	$int_metrics = array( 'views', 'visits' );
