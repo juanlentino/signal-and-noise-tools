@@ -115,9 +115,9 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 		$max = max( $max, (int) $row['views'] );
 	}
 	$aria = ( 'week' === $granularity )
-		? esc_attr__( 'Weekly views trend', 'signal-and-noise-tools' )
-		: esc_attr__( 'Daily views trend', 'signal-and-noise-tools' );
-	echo '<div class="sn-an-trend" role="img" aria-label="' . $aria . '">';
+		? __( 'Weekly views trend', 'signal-and-noise-tools' )
+		: __( 'Daily views trend', 'signal-and-noise-tools' );
+	echo '<div class="sn-an-trend" role="img" aria-label="' . esc_attr( $aria ) . '">';
 	foreach ( $series as $row ) {
 		$pct = (int) round( ( (int) $row['views'] / $max ) * 100 );
 		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
@@ -390,7 +390,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		$v = (string) $r['value'];
 		echo '<tr><td>' . esc_html( $v ) . '</td>';
 		if ( $has_spark ) {
-			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>';
+			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup (hardcoded classes; bar height esc_attr'd inside the helper).
 		}
 		echo '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';

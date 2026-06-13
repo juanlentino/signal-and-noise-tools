@@ -9,6 +9,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 define( 'SN_ANALYTICS_RANGES', array( 7, 30, 90, 365 ) );
 
+function __( $s, $d = '' ) { return $s; }
 function esc_attr( $s ) { return $s; }
 function esc_attr__( $s, $d = '' ) { return $s; }
 function esc_html( $s ) { return $s; }

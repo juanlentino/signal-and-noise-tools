@@ -18,6 +18,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
+function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
