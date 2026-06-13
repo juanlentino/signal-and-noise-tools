@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## 6.3.0 — 2026-06-13
+## [6.3.0] - 2026-06-13 — Events tab + geography reunification
 
 ### New
 - **Events tab** — the analytics dashboard now surfaces custom events: a top-events leaderboard (event → events/visitors) plus an event-property breakdown with click-to-filter drill-down. (Custom events are not segmented by traffic class; the dashboard notes this.) Built on the v6.2.0 custom-events data layer.
