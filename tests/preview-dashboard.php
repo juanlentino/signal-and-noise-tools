@@ -1,8 +1,10 @@
 <?php
 /**
- * DEV preview: render snt_analytics_render_dashboard() with stub data to an HTML
- * file for visual comparison against the approved mockup. NOT a pass/fail test.
- * Run: php tests/preview-dashboard.php  → writes /tmp/sn-dashboard-preview.html
+ * Render smoke test + dev preview: renders snt_analytics_render_dashboard() with
+ * stub data, asserts the native-component markers, and writes the HTML to
+ * /tmp/sn-dashboard-preview.html for visual comparison against the approved mockup.
+ * Emits a "Result: N passed, M failed." line so it participates in the CI sweep.
+ * Run: php tests/preview-dashboard.php [view]  → writes /tmp/sn-dashboard-preview.html
  * Pass a tab name as the first argument to preview a specific view, e.g.:
  *   php tests/preview-dashboard.php geography
  * @since plugin v6.5.0
@@ -168,15 +170,40 @@ $GLOBALS['__aa']['dim'] = array(
 $GLOBALS['__aa']['events']      = array( array( 'name' => 'signup', 'events' => 120, 'visitors' => 90 ), array( 'name' => 'share', 'events' => 45, 'visitors' => 35 ) );
 $GLOBALS['__aa']['event_props'] = array( array( 'property' => 'utm_source', 'value' => 'hn', 'events' => 50, 'visitors' => 40 ) );
 
-$_GET['sn_view'] = isset( $argv[1] ) ? $argv[1] : 'geography';
+// Render a given tab to a string (captures the dashboard body).
+function snt_preview_render( $view ) {
+	$_GET['sn_view'] = $view;
+	ob_start();
+	snt_analytics_render_dashboard();
+	return (string) ob_get_clean();
+}
 
-ob_start();
-echo '<!DOCTYPE html><html><head><meta charset="utf-8">';
-// dev-only: approximate core admin CSS for the preview (never shipped).
-echo '<link rel="stylesheet" href="https://s.w.org/wp-admin/css/common.css">';
-echo '</head><body class="wp-admin wp-core-ui" style="background:#f0f0f1">';
-echo '<div class="wrap"><h1>Analytics</h1>';
-snt_analytics_render_dashboard();
-echo '</div></body></html>';
-file_put_contents( '/tmp/sn-dashboard-preview.html', ob_get_clean() );
-echo "wrote /tmp/sn-dashboard-preview.html (view: " . $_GET['sn_view'] . " — open in browser)\n";
+$pass = 0; $fail = 0;
+function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
+
+echo "Analytics dashboard render smoke (native dense redesign)\n\n";
+
+$geo = snt_preview_render( 'geography' );
+ok( strpos( $geo, 'class="postbox' ) !== false, 'native postbox cards present' );
+ok( strpos( $geo, 'sn-kpi-row' ) !== false, 'fused KPI strip present' );
+ok( strpos( $geo, 'sn-spark' ) !== false || strpos( $geo, '<polyline' ) !== false, 'SVG sparkline present' );
+ok( strpos( $geo, 'sn-geo-split' ) !== false, 'geography map↔countries split present' );
+ok( strpos( $geo, 'wp-list-table widefat' ) !== false, 'native widefat tables present' );
+ok( strpos( $geo, 'button button-secondary' ) !== false, 'export buttons present (not text links)' );
+ok( strpos( $geo, 'handlediv' ) === false, 'no JS collapse toggles shipped' );
+
+$content = snt_preview_render( 'content' );
+ok( strpos( $content, '/notes/x' ) !== false, 'content tab: top pages rendered' );
+
+// Write the visual preview file (CLI arg picks the tab; default geography) for browser comparison.
+$view = isset( $argv[1] ) ? (string) $argv[1] : 'geography';
+$html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+	// dev-only: approximate core admin CSS for the standalone preview (never shipped).
+	. '<link rel="stylesheet" href="https://s.w.org/wp-admin/css/common.css">'
+	. '</head><body class="wp-admin wp-core-ui" style="background:#f0f0f1">'
+	. '<div class="wrap"><h1>Analytics</h1>' . snt_preview_render( $view ) . '</div></body></html>';
+file_put_contents( '/tmp/sn-dashboard-preview.html', $html );
+echo "\nWrote /tmp/sn-dashboard-preview.html (view: " . $view . ")\n";
+
+echo "\nResult: $pass passed, $fail failed.\n";
+exit( $fail > 0 ? 1 : 0 );
