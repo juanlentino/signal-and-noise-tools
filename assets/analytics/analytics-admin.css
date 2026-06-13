@@ -15,6 +15,13 @@
  */
 
 /* ── postbox / widefat tweaks ───────────────────────────────────────────── */
+/* Panel TITLE gutter. This page registers its postboxes outside the metabox
+   context (#poststuff / #dashboard-widgets), so core's .hndle padding never
+   applies and every title ("Overview", "Top pages", …) hugged the box edge at
+   1px while the content below sat at ~14px. Restore the native widget header
+   gutter so titles line up with the KPI labels / panel content / table borders.
+   v6.5.4. */
+.postbox > .postbox-header > .hndle { padding: 10px 14px; margin: 0; }
 .postbox .inside.inside-flush { padding: 0; }
 /* Table panels keep the native widget side gutter (mirrors core .postbox .inside
    0 12px 12px) — the flush full-bleed treatment is reserved for the KPI strip,

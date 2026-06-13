@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.4] - 2026-06-13 — Analytics panel titles align with their content
+
+### Fixed
+- **Panel titles ("Overview", "Top pages", "Top sources", etc.) no longer hug the left edge.** Because this dashboard registers its panels outside WordPress's metabox context, the core header padding never applied and every title sat 1px from the edge while the content below it was indented. The titles now get the native widget gutter so they line up with the stats and table content. Applies to every panel across the dashboard.
+
+> **Why PATCH:** a one-rule CSS alignment fix for the panel headers. No new capability, no behaviour change.
+
 ## [6.5.3] - 2026-06-13 — Analytics table spacing
 
 ### Fixed
