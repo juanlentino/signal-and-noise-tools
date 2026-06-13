@@ -157,5 +157,14 @@ ok(
 	'daily_series: SUM(visits) AS visits — alias mapping correct'
 );
 
+echo "\nGroup: daily_series weekly granularity\n";
+$ws = sn_analytics_daily_series( '2026-03-01', '2026-06-12', 'human', 'week' );
+$sql = end( $GLOBALS['wpdb']->queries );
+ok( strpos( $sql, 'DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false, 'weekly: SQL floors day to ISO Monday' );
+ok( strpos( $sql, 'GROUP BY DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false, 'weekly: groups by the week-floor expression' );
+sn_analytics_daily_series( '2026-06-01', '2026-06-12' );
+$sql2 = end( $GLOBALS['wpdb']->queries );
+ok( strpos( $sql2, 'GROUP BY day' ) !== false && strpos( $sql2, 'DATE_SUB' ) === false, 'day granularity: unchanged GROUP BY day' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

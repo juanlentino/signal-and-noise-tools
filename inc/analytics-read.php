@@ -126,23 +126,28 @@ function sn_analytics_bucket_expr( $granularity ) {
 }
 
 /**
- * Per-day views/visits for one class, ascending — the trend strip.
+ * Per-day (or per-week) views/visits for one class, ascending — the trend strip.
  *
+ * @param string $granularity 'day' | 'week'  Week granularity floors each day
+ *                             to the ISO Monday (DATE_SUB … WEEKDAY) so weekly
+ *                             bars line up naturally. Use sn_analytics_granularity()
+ *                             to pick the right value for a given date range.
  * @return array<int, array{day:string, views:int, visits:int}>
  */
-function sn_analytics_daily_series( $from, $to, $class = 'human' ) {
+function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 		$class = 'human';
 	}
+	$expr = sn_analytics_bucket_expr( $granularity );
 
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
 	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT day, SUM(views) AS views, SUM(visits) AS visits
+		"SELECT {$expr} AS day, SUM(views) AS views, SUM(visits) AS visits
 		 FROM {$table}
 		 WHERE day >= %s AND day <= %s AND class = %s
-		 GROUP BY day
+		 GROUP BY {$expr}
 		 ORDER BY day ASC",
 		(string) $from,
 		(string) $to,
