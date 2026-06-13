@@ -210,11 +210,15 @@ ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column ren
 
 echo "\nGroup: dashboard — Geography view\n";
 $_GET['sn_view'] = 'geography';
+$GLOBALS['__aa']['dim'] = array( array( 'value' => 'US', 'views' => 312, 'visits' => 98 ) );
 $html = capture( 'snt_analytics_render_dashboard' );
 foreach ( array( 'Countries', 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
 	ok( strpos( $html, $p ) !== false, "geography: '$p' panel present" );
 }
 ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Countries renders first (above Cities)' );
+ok( strpos( $html, 'sn-an-choropleth' ) !== false, 'geography: choropleth panel rendered' );
+ok( strpos( $html, 'sn-an-choropleth' ) < strpos( $html, '>Countries<' ), 'geography: choropleth renders before the Countries table' );
+$GLOBALS['__aa']['dim'] = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
 
 echo "\nGroup: dashboard — Engagement view\n";
 $_GET['sn_view'] = 'engagement';

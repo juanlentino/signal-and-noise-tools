@@ -214,6 +214,7 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'geography':
+			snt_analytics_render_choropleth( 'Countries map', sn_analytics_top_dimension( 'country', $from, $to, $class, 250 ), 'No country data in this range yet.' );
 			echo '<div class="sn-an-grid">';
 			$cou_rows = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
 			$cou_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $cou_rows );
@@ -379,6 +380,10 @@ function snt_analytics_styles() {
 	.sn-an-spark--empty{opacity:.2;}
 	/* v6.1.0 — bot-share trend modifier (slightly muted to distinguish from views trend). */
 	.sn-an-trend--bot .bar{opacity:.7;}
+	/* v6.4.0 — choropleth map panel on the Geography tab. */
+	.sn-an-choropleth-map{margin-top:4px;}
+	.sn-an-choropleth-map svg{width:100%;height:auto;display:block;}
+	.sn-an-choropleth-map path{stroke:#fff;stroke-width:0.3;}
 	</style>
 	<?php
 }
