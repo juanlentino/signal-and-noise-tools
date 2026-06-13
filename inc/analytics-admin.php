@@ -171,11 +171,14 @@ function snt_analytics_render_dashboard() {
 	$now          = sn_analytics_realtime( $class );
 	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
 	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
+	$engaged      = ( 'all' === $range )
+		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
+		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
 	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
-	snt_analytics_render_cards( $now, $totals, $deltas );
+	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
 	snt_analytics_render_trend( $series, $granularity );
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,

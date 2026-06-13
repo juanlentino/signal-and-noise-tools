@@ -137,15 +137,17 @@ function snt_analytics_render_delta_badge( $delta ) {
 }
 
 /**
- * The 5 stat cards: Now, Views, Visits, Avg scroll, Avg time. Views/Visits/Avg
- * scroll/Avg time carry a period-over-period delta badge when $deltas is given
- * (keyed views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
+ * The 5 stat cards (6 when engaged rate is available): Now, Views, Visits,
+ * Avg scroll, Avg time, and optionally Engaged. Views/Visits/Avg scroll/Avg
+ * time carry a period-over-period delta badge when $deltas is given (keyed
+ * views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
  *
- * @param int|null $now    Realtime visitor count.
- * @param array    $totals {views,visits,scroll_avg,time_avg}
- * @param array    $deltas {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param int|null   $now     Realtime visitor count.
+ * @param array      $totals  {views,visits,scroll_avg,time_avg}
+ * @param array      $deltas  {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param array|null $engaged {current:int, pct:?int, dir:string} or null to omit the card.
  */
-function snt_analytics_render_cards( $now, $totals, $deltas = array() ) {
+function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null ) {
 	$cards = array(
 		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '', 'delta' => null ),
 		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['views'] ?? null ),
@@ -160,6 +162,14 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array() ) {
 		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '', 'delta' => $deltas['scroll_avg'] ?? null ),
 		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['time_avg'] ?? null ),
 	);
+	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
+		$cards[] = array(
+			'l'     => 'Engaged',
+			'n'     => (int) $engaged['current'] . '%',
+			'title' => 'Share of timed pageviews lasting ≥10s.',
+			'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ),
+		);
+	}
 	echo '<div class="sn-an-cards">';
 	foreach ( $cards as $c ) {
 		if ( '' !== $c['title'] ) {
