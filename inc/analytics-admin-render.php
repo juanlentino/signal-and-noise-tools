@@ -556,6 +556,12 @@ function snt_analytics_render_import() {
 			}
 			echo ' · ' . esc_html( implode( ' · ', $bits ) );
 		}
+		if ( ! empty( $report['events'] ) ) {
+			echo ' · custom events: ' . esc_html( number_format_i18n( (int) $report['events'] ) );
+		}
+		if ( ! empty( $report['event_props'] ) ) {
+			echo ' · custom props: ' . esc_html( number_format_i18n( (int) $report['event_props'] ) );
+		}
 		echo '.</p></div>';
 	}
 

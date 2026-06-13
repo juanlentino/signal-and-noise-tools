@@ -25,5 +25,14 @@ ok( ! empty( $a['meta']['annotations']['idempotent'] ), 'marked idempotent' );
 ok( is_string( $a['permission_callback'] ) && $a['permission_callback'] !== '', 'has a permission callback' );
 ok( $a['permission_callback'] === 'snt_ability_perm_manage_options', 'permission_callback is the shared manage_options guard' );
 ok( isset( $a['execute_callback'] ), 'has an execute callback' );
+
+echo "\nGroup: get-analytics-events ability\n";
+ok( isset( $GLOBALS['__ab']['signal-noise/get-analytics-events'] ), 'events ability registered' );
+$ae = $GLOBALS['__ab']['signal-noise/get-analytics-events'];
+ok( ! empty( $ae['meta']['show_in_rest'] ), 'events ability exposed in REST' );
+ok( empty( $ae['meta']['annotations']['destructive'] ), 'events ability: read-only (not destructive)' );
+ok( ! empty( $ae['meta']['annotations']['idempotent'] ), 'events ability: marked idempotent' );
+ok( isset( $ae['permission_callback'] ) && $ae['permission_callback'] === 'snt_ability_perm_manage_options', 'events ability permission_callback is snt_ability_perm_manage_options' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

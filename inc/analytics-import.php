@@ -39,6 +39,8 @@ function sn_analytics_import_types() {
 		'devices'           => 'Devices',
 		'browsers'          => 'Browsers',
 		'operating_systems' => 'Operating systems',
+		'custom_events'     => 'Custom events (historical, from Plausible)',
+		'custom_props'      => 'Custom properties (historical, from Plausible)',
 	);
 }
 
@@ -206,6 +208,71 @@ function sn_analytics_import_dim_rows( $rows, $dim, $col, $norm = null ) {
 }
 
 /**
+ * Map Plausible custom_events CSV rows into sn_analytics_events upsert-ready rows.
+ *
+ * CSV shape: date, name, link_url, path, visitors, events
+ * link_url and path are empty in aggregate exports — they are ignored here.
+ * Rows with a blank date or blank name are skipped. Multiple rows sharing the
+ * same (date, name) — e.g. different link_url/path variants of the same event
+ * name — are aggregated by summing visitors and events.
+ *
+ * @param array $rows Parsed CSV rows.
+ * @return array Upsert-ready events rows: [{day, name, visitors, events}].
+ */
+function sn_analytics_import_events_rows( $rows ) {
+	$agg = array();
+	foreach ( (array) $rows as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$day  = isset( $r['date'] ) ? trim( (string) $r['date'] ) : '';
+		$name = isset( $r['name'] ) ? trim( (string) $r['name'] ) : '';
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || '' === $name ) {
+			continue;
+		}
+		$key = $day . '||' . $name;
+		if ( ! isset( $agg[ $key ] ) ) {
+			$agg[ $key ] = array( 'day' => $day, 'name' => $name, 'visitors' => 0, 'events' => 0 );
+		}
+		$agg[ $key ]['visitors'] += max( 0, (int) ( $r['visitors'] ?? 0 ) );
+		$agg[ $key ]['events']   += max( 0, (int) ( $r['events'] ?? 0 ) );
+	}
+	return array_values( $agg );
+}
+
+/**
+ * Map Plausible custom_props CSV rows into sn_analytics_event_props upsert-ready rows.
+ *
+ * CSV shape: date, property, value, visitors, events
+ * Rows with a blank date or blank property are skipped. Rows sharing the same
+ * (date, property, value) are aggregated.
+ *
+ * @param array $rows Parsed CSV rows.
+ * @return array Upsert-ready event_props rows: [{day, property, value, visitors, events}].
+ */
+function sn_analytics_import_event_props_rows( $rows ) {
+	$agg = array();
+	foreach ( (array) $rows as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$day      = isset( $r['date'] ) ? trim( (string) $r['date'] ) : '';
+		$property = isset( $r['property'] ) ? trim( (string) $r['property'] ) : '';
+		$value    = isset( $r['value'] ) ? trim( (string) $r['value'] ) : '';
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || '' === $property ) {
+			continue;
+		}
+		$key = $day . '||' . $property . '||' . $value;
+		if ( ! isset( $agg[ $key ] ) ) {
+			$agg[ $key ] = array( 'day' => $day, 'property' => $property, 'value' => $value, 'visitors' => 0, 'events' => 0 );
+		}
+		$agg[ $key ]['visitors'] += max( 0, (int) ( $r['visitors'] ?? 0 ) );
+		$agg[ $key ]['events']   += max( 0, (int) ( $r['events'] ?? 0 ) );
+	}
+	return array_values( $agg );
+}
+
+/**
  * Map parsed rows of a known CSV $type to upsert-ready rows.
  *
  * @param string $type
@@ -215,6 +282,12 @@ function sn_analytics_import_dim_rows( $rows, $dim, $col, $norm = null ) {
 function sn_analytics_import_map( $type, $rows ) {
 	if ( 'pages' === $type ) {
 		return array( 'table' => 'daily', 'rows' => sn_analytics_import_pages_rows( $rows ) );
+	}
+	if ( 'custom_events' === $type ) {
+		return array( 'table' => 'events', 'rows' => sn_analytics_import_events_rows( $rows ) );
+	}
+	if ( 'custom_props' === $type ) {
+		return array( 'table' => 'event_props', 'rows' => sn_analytics_import_event_props_rows( $rows ) );
 	}
 	// type => [dim, value column, normalizer].
 	$cfg = array(
@@ -240,7 +313,7 @@ function sn_analytics_import_map( $type, $rows ) {
  * @return array{daily:int, dims:array<string,int>, skipped:array<string,string>}
  */
 function sn_analytics_import_run( $files ) {
-	$report = array( 'daily' => 0, 'dims' => array(), 'skipped' => array() );
+	$report = array( 'daily' => 0, 'dims' => array(), 'events' => 0, 'event_props' => 0, 'skipped' => array() );
 	if ( ! is_array( $files ) ) {
 		return $report;
 	}
@@ -264,6 +337,14 @@ function sn_analytics_import_run( $files ) {
 			if ( ! empty( $mapped['rows'] ) && function_exists( 'sn_analytics_dims_upsert' ) ) {
 				$dim                    = $mapped['dim'];
 				$report['dims'][ $dim ] = ( $report['dims'][ $dim ] ?? 0 ) + (int) sn_analytics_dims_upsert( $mapped['rows'] );
+			}
+		} elseif ( 'events' === $mapped['table'] ) {
+			if ( ! empty( $mapped['rows'] ) && function_exists( 'sn_analytics_events_upsert' ) ) {
+				$report['events'] += (int) sn_analytics_events_upsert( $mapped['rows'] );
+			}
+		} elseif ( 'event_props' === $mapped['table'] ) {
+			if ( ! empty( $mapped['rows'] ) && function_exists( 'sn_analytics_event_props_upsert' ) ) {
+				$report['event_props'] += (int) sn_analytics_event_props_upsert( $mapped['rows'] );
 			}
 		} else {
 			$report['skipped'][ $type ] = 'unknown_type';
