@@ -101,7 +101,9 @@ function snt_analytics_render_separation( $class_totals, $class ) {
 }
 
 /**
- * Bar strip of per-day/per-week views (heights relative to the series max).
+ * Slim SVG sparkline trend (polyline + area fill + last-point dot + axis labels).
+ * Replaces the old chunky bar strip. Inside a native .postbox (no collapse toggle).
+ * All injected SVG coords are numeric/esc_attr'd; static SVG chrome is phpcs-clean.
  *
  * @param array  $series      [{day,views,visits}] ascending.
  * @param string $granularity 'day' (default) or 'week' — controls the aria-label.
@@ -110,20 +112,52 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	if ( empty( $series ) ) {
 		return;
 	}
-	$max = 1;
-	foreach ( $series as $row ) {
-		$max = max( $max, (int) $row['views'] );
+	$n    = count( $series );
+	$max  = 1;
+	foreach ( $series as $r ) {
+		$max = max( $max, (int) $r['views'] );
+	}
+	$w    = 600.0;
+	$h    = 84.0;
+	$top  = 8.0;
+	$base = 78.0;
+	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
+	$pts  = array();
+	foreach ( array_values( $series ) as $i => $r ) {
+		$x     = round( $i * $step, 1 );
+		$y     = round( $base - ( (int) $r['views'] / $max ) * ( $base - $top ), 1 );
+		$pts[] = $x . ',' . $y;
+	}
+	$line     = implode( ' ', $pts );
+	$last     = explode( ',', end( $pts ) );
+	$peak     = 0;
+	$peak_day = '';
+	foreach ( $series as $r ) {
+		if ( (int) $r['views'] >= $peak ) {
+			$peak     = (int) $r['views'];
+			$peak_day = (string) $r['day'];
+		}
 	}
 	$aria = ( 'week' === $granularity )
 		? __( 'Weekly views trend', 'signal-and-noise-tools' )
 		: __( 'Daily views trend', 'signal-and-noise-tools' );
-	echo '<div class="sn-an-trend" role="img" aria-label="' . esc_attr( $aria ) . '">';
-	foreach ( $series as $row ) {
-		$pct = (int) round( ( (int) $row['views'] / $max ) * 100 );
-		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
-			. esc_attr( $row['day'] . ': ' . number_format_i18n( (int) $row['views'] ) . ' views' ) . '"></span>';
-	}
-	echo '</div>';
+
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Daily views', 'signal-and-noise-tools' ) . '</span></h2></div>';
+	echo '<div class="inside inside-flush sn-trend-inside">';
+	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Views per day', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
+	echo '<div class="sn-spark-wrap">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
+	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( $aria ) . '">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
+	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.18"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
+	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1"/>';
+	echo '<polygon points="0,78 ' . esc_attr( $line ) . ' 600,78" fill="url(#snSparkFill)"/>';
+	echo '<polyline points="' . esc_attr( $line ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+	echo '<circle cx="' . esc_attr( $last[0] ) . '" cy="' . esc_attr( $last[1] ) . '" r="3.5" fill="#2271b1" stroke="#fff" stroke-width="1.5"/>';
+	echo '</svg></div>';
+	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
+	echo '</div></div>';
 }
 
 /**

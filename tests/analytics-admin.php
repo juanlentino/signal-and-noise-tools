@@ -182,12 +182,20 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 
+echo "\nGroup: dashboard — trend: SVG sparkline\n";
+aa_fill_data();
+$_GET['sn_view'] = 'content';
+$html_trend = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_trend, 'sn-spark' ) !== false && strpos( $html_trend, '<svg' ) !== false, 'trend: SVG sparkline rendered' );
+ok( strpos( $html_trend, '<polyline' ) !== false || strpos( $html_trend, '<path' ) !== false, 'trend: line path present' );
+ok( strpos( $html_trend, 'class="bar"' ) === false, 'trend: old chunky bars gone' );
+
 echo "\nGroup: dashboard — persistent header on every tab\n";
 foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && strpos( $h, 'sn-an-trend' ) !== false,
+		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && strpos( $h, 'sn-spark' ) !== false,
 		"header: controls + KPI strip + trend persist on the '$v' tab"
 	);
 }
