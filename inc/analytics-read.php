@@ -167,6 +167,49 @@ function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity =
 	return $out;
 }
 
+/**
+ * Per-bucket view series for a set of dimension values, in ONE batched query
+ * (avoids an N+1 across table rows). Returns value => [{day,views}, …].
+ *
+ * @param string   $dim
+ * @param string[] $values      already-trusted top-N dimension values
+ * @param string   $granularity 'day' | 'week'
+ * @return array<string, array<int, array{day:string, views:int}>>
+ */
+function sn_analytics_dimension_series( $dim, $values, $from, $to, $class = 'human', $granularity = 'day' ) {
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+	$values = array_values( array_filter( (array) $values, 'is_string' ) );
+	if ( empty( $values ) ) {
+		return array();
+	}
+	$expr = sn_analytics_bucket_expr( $granularity );
+
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DIMS_TABLE;
+
+	$in_ph   = implode( ',', array_fill( 0, count( $values ), '%s' ) );
+	$args    = array_merge( array( (string) $from, (string) $to, $dim, $class ), $values );
+	$results = $wpdb->get_results( $wpdb->prepare(
+		"SELECT {$expr} AS day, value, SUM(views) AS views
+		 FROM {$table}
+		 WHERE day >= %s AND day <= %s AND dim = %s AND class = %s AND value IN ({$in_ph})
+		 GROUP BY {$expr}, value
+		 ORDER BY day ASC",
+		$args
+	), ARRAY_A );
+
+	$map = array();
+	if ( is_array( $results ) ) {
+		foreach ( $results as $r ) {
+			$v         = (string) $r['value'];
+			$map[ $v ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
+		}
+	}
+	return $map;
+}
+
 const SN_ANALYTICS_LOWENGAGE_SCROLL    = 25;     // page-weighted scroll % below this …
 const SN_ANALYTICS_LOWENGAGE_TIME_MS   = 10000;  // … AND time below this (ms) …
 const SN_ANALYTICS_LOWENGAGE_MIN_VIEWS = 20;     // … on pages with at least this many views.
