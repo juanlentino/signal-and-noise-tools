@@ -65,7 +65,7 @@ function sn_analytics_realtime( $class = 'human' ) { return $GLOBALS['__aa']['re
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__aa']['totals']; }
 function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__aa']['class_totals']; }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { return $GLOBALS['__aa']['series']; }
-function sn_analytics_granularity( $days ) { return $days >= 60 ? 'week' : 'day'; }
+function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['paths']; }
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 

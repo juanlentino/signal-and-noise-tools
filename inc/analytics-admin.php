@@ -139,6 +139,9 @@ function snt_analytics_settings_url() {
  * Engagement · Quality). The active tab (?sn_view=, whitelisted) lazily fetches
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
+ *
+ * Note: period-over-period deltas are suppressed for the 'all' range. Trend
+ * granularity is daily for windows ≤90 days, weekly beyond.
  */
 function snt_analytics_render_dashboard() {
 	snt_analytics_styles();
