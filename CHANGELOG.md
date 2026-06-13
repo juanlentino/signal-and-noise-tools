@@ -2,6 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.4.1] - 2026-06-13 — Choropleth sizing fix
+
+### Fixed
+- **Country map was rendering far too large** — the world map now caps at a sensible width instead of stretching full-bleed across the dashboard. Same map, proportional size.
+
 ## [6.4.0] - 2026-06-13 — Country choropleth
 
 ### New
