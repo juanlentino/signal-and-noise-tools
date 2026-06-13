@@ -104,8 +104,7 @@ function sn_analytics_events_maybe_install() {
 		sn_analytics_events_install();
 	}
 }
-// NOTE: wired into the plugin loader (signal-and-noise-tools.php) in a later task;
-// until then this module is loaded only by its CLI test.
+// Installed/version-gated on init; required from the plugin bootstrap (signal-and-noise-tools.php).
 add_action( 'init', 'sn_analytics_events_maybe_install' );
 
 /**

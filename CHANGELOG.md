@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.2.0] - 2026-06-13 — Import historical custom events
+
+### New
+- **Import your Plausible custom-event history.** Two new one-time CSV importers under Monitoring → Analytics consume Plausible's `custom_events` and `custom_props` exports into durable first-party tables (`wp_sn_analytics_events`, `wp_sn_analytics_event_props`), so the named events (e.g. `engagement`, `RSS Feed Request`) and properties (e.g. `author`, `user_logged_in`) you tracked in Plausible aren't lost when it's retired. Idempotent (re-import safe); the import summary reports the row counts.
+- **Read-only programmatic access:** `GET signal-noise/v1/analytics/events` + `/analytics/event-props` REST routes and a `signal-noise/get-analytics-summary`-style `signal-noise/get-analytics-events` Ability (`manage_options`-gated) expose the imported data for tooling/AI.
+
+### Notes
+- **Data-layer only — no dashboard panel yet.** The analytics dashboard is due for an information-architecture redesign; rather than bolt another panel onto it, this release lands the import + data + read surface, and the custom-events *display* will be designed into that redesign. The imported data is queryable now via the REST routes / Ability.
+- **Historical snapshot:** this imports the Plausible-era data only; the first-party beacon does not (yet) emit custom events, so no new custom events accrue going forward (that's a separate future arc).
+
+Why MINOR: new user-visible capability (import + read API), no breaking change, no schema migration of existing tables. Ships before bot-score distribution, which rolls to v6.3.0.
+
 ## [6.1.0] - 2026-06-12 — Long-range analytics + expansion
 
 **Headline:** The analytics dashboard now reaches back a **full year** (and **All-time**), and gains five new read-side surfaces — an engaged-reader rate, a "pages losing readers" panel, per-dimension trend sparklines, a bot-share-over-time trend, and a CSV/JSON export plus a read-only `/analytics` REST + Abilities surface. Everything reads the **durable rollup tables** (never live Cloudflare), so long ranges aren't bound by Analytics Engine's ~90-day retention and the whole release carries zero live-AE risk.
