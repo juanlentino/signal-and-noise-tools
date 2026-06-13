@@ -80,7 +80,7 @@ add_action( 'rest_api_init', function () {
  * @return array{ 0: string, 1: string, 2: string, 3: int|string }  [ $from, $to, $class, $range ]
  */
 function sn_analytics_rest_window( $request ) {
-	$range = snt_analytics_resolve_range( $request->get_param( 'range' ) );
+	$range = snt_analytics_resolve_range( $request->get_param( 'range' ) ?? 30 );
 	$class = snt_analytics_resolve_class( $request->get_param( 'class' ) );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 	return array( $from, $to, $class, $range );

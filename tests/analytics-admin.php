@@ -107,7 +107,7 @@ function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 42; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 42, 'previous' => 40, 'pct' => 5, 'dir' => 'up' ); }
 function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
 function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
-function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array(); }
+function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 'day' => '2026-06-11', 'bot_pct' => 30, 'total' => 80 ) ); }
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
@@ -178,7 +178,7 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality' )
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) === 2,
+		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) >= 2,
 		"header: controls + delta cards + trend persist on the '$v' tab"
 	);
 }
@@ -215,6 +215,7 @@ echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
+ok( strpos( $html, 'sn-an-trend--bot' ) !== false, 'quality tab renders the bot-share trend when data present' );
 
 echo "\nGroup: dashboard — view param whitelist + escaping\n";
 $_GET['sn_view'] = '../../etc/passwd';
