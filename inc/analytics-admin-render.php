@@ -136,18 +136,35 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 		$max = max( $max, (int) $r['views'] );
 	}
 	$w    = 600.0;
-	$h    = 84.0;
 	$top  = 8.0;
 	$base = 78.0;
 	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
-	$pts  = array();
+	$px   = array();
+	$py   = array();
 	foreach ( array_values( $series ) as $i => $r ) {
-		$x     = round( $i * $step, 1 );
-		$y     = round( $base - ( (int) $r['views'] / $max ) * ( $base - $top ), 1 );
-		$pts[] = $x . ',' . $y;
+		$px[] = round( $i * $step, 2 );
+		$py[] = round( $base - ( (int) $r['views'] / $max ) * ( $base - $top ), 2 );
 	}
-	$line     = implode( ' ', $pts );
-	$last     = explode( ',', end( $pts ) );
+
+	// Catmull-Rom → cubic-bézier smoothing (tension 1/6): the daily trend reads as a
+	// curve, not an angular zig-zag. Control-point Y is clamped to [top,base] so a
+	// spiky series can't overshoot the chart box. Pure function of the plotted points.
+	$line_d = 'M ' . $px[0] . ',' . $py[0];
+	for ( $i = 0; $i < $n - 1; $i++ ) {
+		$p0x = $px[ max( $i - 1, 0 ) ];
+		$p0y = $py[ max( $i - 1, 0 ) ];
+		$p3x = $px[ min( $i + 2, $n - 1 ) ];
+		$p3y = $py[ min( $i + 2, $n - 1 ) ];
+		$c1x = round( $px[ $i ] + ( $px[ $i + 1 ] - $p0x ) / 6, 2 );
+		$c1y = round( min( $base, max( $top, $py[ $i ] + ( $py[ $i + 1 ] - $p0y ) / 6 ) ), 2 );
+		$c2x = round( $px[ $i + 1 ] - ( $p3x - $px[ $i ] ) / 6, 2 );
+		$c2y = round( min( $base, max( $top, $py[ $i + 1 ] - ( $p3y - $py[ $i ] ) / 6 ) ), 2 );
+		$line_d .= ' C ' . $c1x . ',' . $c1y . ' ' . $c2x . ',' . $c2y . ' ' . $px[ $i + 1 ] . ',' . $py[ $i + 1 ];
+	}
+	$last_x = $px[ $n - 1 ];
+	$last_y = $py[ $n - 1 ];
+	// Area = the smooth line dropped to the baseline and closed.
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 	$peak     = 0;
 	$peak_day = '';
 	foreach ( $series as $r ) {
@@ -160,22 +177,23 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 		? __( 'Weekly views trend', 'signal-and-noise-tools' )
 		: __( 'Daily views trend', 'signal-and-noise-tools' );
 
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Daily views', 'signal-and-noise-tools' ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-trend-inside">';
+	// Body-only trend band (v6.5.2): rendered inside the fused Overview panel,
+	// directly below the KPI strip — no separate postbox/header.
+	echo '<div class="sn-overview-trend">';
 	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Views per day', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
 	echo '<div class="sn-spark-wrap">';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
 	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( $aria ) . '">';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
-	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.18"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
-	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1"/>';
-	echo '<polygon points="0,78 ' . esc_attr( $line ) . ' 600,78" fill="url(#snSparkFill)"/>';
-	echo '<polyline points="' . esc_attr( $line ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-	echo '<circle cx="' . esc_attr( $last[0] ) . '" cy="' . esc_attr( $last[1] ) . '" r="3.5" fill="#2271b1" stroke="#fff" stroke-width="1.5"/>';
+	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
+	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
+	// non-scaling-stroke keeps the line a crisp 2px regardless of the horizontal stretch (preserveAspectRatio=none).
+	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
 	echo '</svg></div>';
 	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
-	echo '</div></div>';
+	echo '</div>';
 }
 
 /**
@@ -241,8 +259,10 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
 		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-kpi-strip"><div class="sn-kpi-row">';
+	// Body-only (no postbox wrapper): render_dashboard fuses this KPI strip and the
+	// trend chart into a single "Overview" panel (v6.5.2) so the sparkline is the
+	// panel's footer rather than a lonely half-empty box.
+	echo '<div class="sn-kpi-row">';
 	foreach ( $cards as $c ) {
 		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
 		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
@@ -256,7 +276,7 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 		}
 		echo '</div>';
 	}
-	echo '</div></div></div>';
+	echo '</div>';
 }
 
 /**

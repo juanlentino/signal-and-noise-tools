@@ -138,8 +138,10 @@ echo "Group: styles — CSS contract (external stylesheet)\n";
 $css_path       = __DIR__ . '/../assets/analytics/analytics-admin.css';
 $snt_styles_css = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
 ok( '' !== $snt_styles_css, 'styles: analytics-admin.css exists and is non-empty (enqueued, not inline)' );
-ok( strpos( $snt_styles_css, '.sn-kpi-row' ) !== false && strpos( $snt_styles_css, 'grid-template-columns: 1.25fr' ) !== false,
-	'styles: fused KPI strip grid rule present (the layout the live page must receive)' );
+ok( strpos( $snt_styles_css, '.sn-kpi-row' ) !== false
+	&& preg_match( '/\.sn-kpi-row\s*\{[^}]*display:\s*grid/s', $snt_styles_css ) === 1
+	&& preg_match( '/\.sn-kpi-row\s*\{[^}]*grid-template-columns:/s', $snt_styles_css ) === 1,
+	'styles: fused KPI strip is a CSS grid (the layout the live page must receive)' );
 ok( strpos( $snt_styles_css, '.sn-map-figure svg' ) !== false,
 	'styles: .sn-map-figure svg responsive rule present (constrains vendored 2000px SVG inside its column)' );
 ok( strpos( $snt_styles_css, 'max-width:720px' ) === false && strpos( $snt_styles_css, 'max-width: 720px' ) === false,
@@ -209,13 +211,27 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 
-echo "\nGroup: dashboard — trend: SVG sparkline\n";
+echo "\nGroup: dashboard — trend: smooth SVG area chart (v6.5.2)\n";
 aa_fill_data();
 $_GET['sn_view'] = 'content';
 $html_trend = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html_trend, 'sn-spark' ) !== false && strpos( $html_trend, '<svg' ) !== false, 'trend: SVG sparkline rendered' );
-ok( strpos( $html_trend, '<polyline' ) !== false || strpos( $html_trend, '<path' ) !== false, 'trend: line path present' );
+ok( strpos( $html_trend, '<path' ) !== false, 'trend: SVG path present' );
+ok( strpos( $html_trend, '<polyline' ) === false && preg_match( '/<path d="M [\d.]+,[\d.]+ C /', $html_trend ) === 1,
+	'trend: line is a smoothed bézier path (C commands), not an angular polyline' );
+ok( strpos( $html_trend, 'vector-effect="non-scaling-stroke"' ) !== false,
+	'trend: non-scaling-stroke keeps the line crisp under the full-width stretch' );
 ok( strpos( $html_trend, 'class="bar"' ) === false, 'trend: old chunky bars gone' );
+
+echo "\nGroup: dashboard — fused Overview panel (KPIs + trend in ONE postbox)\n";
+ok( strpos( $html_trend, 'postbox sn-overview' ) !== false, 'overview: single fused .sn-overview postbox present' );
+ok( strpos( $html_trend, 'sn-overview-trend' ) !== false, 'overview: trend band rendered inside the panel (no separate box)' );
+// The KPI strip and the trend band share one .inside — the trend follows the KPI row.
+$kpi_pos   = strpos( $html_trend, 'sn-kpi-row' );
+$trend_pos = strpos( $html_trend, 'sn-overview-trend' );
+ok( false !== $kpi_pos && false !== $trend_pos && $kpi_pos < $trend_pos,
+	'overview: KPI strip precedes the trend band within the fused panel' );
+ok( strpos( $html_trend, '>Daily views<' ) === false, 'overview: redundant standalone "Daily views" header removed' );
 
 echo "\nGroup: dashboard — persistent header on every tab\n";
 foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {

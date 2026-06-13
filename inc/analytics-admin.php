@@ -177,8 +177,15 @@ function snt_analytics_render_dashboard() {
 	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
+
+	// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
+	// (was two half-empty postboxes). render_cards / render_trend now emit body-only
+	// markup; the postbox chrome lives here so the chart reads as the panel's footer.
+	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
+	echo '<div class="inside inside-flush sn-overview-inside">';
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
 	snt_analytics_render_trend( $series, $granularity );
+	echo '</div></div>';
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
 	// so a tab switch is a lighter query set, not just CSS show/hide.
