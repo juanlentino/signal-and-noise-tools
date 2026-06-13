@@ -122,6 +122,21 @@ function sn_analytics_delta( $cur, $prev ) {
 }
 
 /**
+ * The window immediately preceding [from,to], same length. Used for
+ * period-over-period comparisons.
+ *
+ * @return array{0:string,1:string} [prior_from, prior_to]
+ */
+function sn_analytics_prior_window( $from, $to ) {
+	$from_ts = strtotime( $from . ' 00:00:00 UTC' );
+	$to_ts   = strtotime( $to . ' 00:00:00 UTC' );
+	$days    = ( $from_ts && $to_ts ) ? ( (int) floor( ( $to_ts - $from_ts ) / DAY_IN_SECONDS ) + 1 ) : 1;
+	$pto     = $from_ts - DAY_IN_SECONDS;
+	$pfrom   = $pto - ( max( 1, $days ) - 1 ) * DAY_IN_SECONDS;
+	return array( gmdate( 'Y-m-d', $pfrom ), gmdate( 'Y-m-d', $pto ) );
+}
+
+/**
  * Period-over-period deltas: the current [$from,$to] window vs the immediately-
  * preceding window of equal length, for views / visits / scroll_avg / time_avg.
  *
@@ -135,14 +150,9 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
 		? sn_analytics_range_totals( $from, $to, $class )
 		: array();
 
-	$from_ts = strtotime( $from . ' 00:00:00 UTC' );
-	$to_ts   = strtotime( $to . ' 00:00:00 UTC' );
-	$days    = ( $from_ts && $to_ts ) ? ( (int) floor( ( $to_ts - $from_ts ) / DAY_IN_SECONDS ) + 1 ) : 1;
-
-	$prior_to_ts   = $from_ts - DAY_IN_SECONDS;
-	$prior_from_ts = $prior_to_ts - ( max( 1, $days ) - 1 ) * DAY_IN_SECONDS;
-	$prev          = function_exists( 'sn_analytics_range_totals' )
-		? sn_analytics_range_totals( gmdate( 'Y-m-d', $prior_from_ts ), gmdate( 'Y-m-d', $prior_to_ts ), $class )
+	list( $prior_from, $prior_to ) = sn_analytics_prior_window( $from, $to );
+	$prev = function_exists( 'sn_analytics_range_totals' )
+		? sn_analytics_range_totals( $prior_from, $prior_to, $class )
 		: array();
 
 	$int_metrics = array( 'views', 'visits' );
