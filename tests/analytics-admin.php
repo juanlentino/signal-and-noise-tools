@@ -190,7 +190,8 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 echo "\nGroup: dashboard — Content view (default)\n";
 $_GET['sn_view'] = 'content';
 $html = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false && strpos( $html, 'Countries' ) !== false, 'content: pages/sources/countries panels' );
+ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false, 'content: pages/sources panels' );
+ok( strpos( $html, '>Countries<' ) === false, 'content: Countries panel relocated OUT of Content' );
 ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'content: referrer categories' );
 ok( strpos( $html, '>Browsers<' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'content: technology/engagement panels NOT in this view (lazy per-tab render)' );
 
@@ -205,9 +206,10 @@ ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === fals
 echo "\nGroup: dashboard — Geography view\n";
 $_GET['sn_view'] = 'geography';
 $html = capture( 'snt_analytics_render_dashboard' );
-foreach ( array( 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
+foreach ( array( 'Countries', 'Cities', 'Regions', 'Networks', 'Edge locations' ) as $p ) {
 	ok( strpos( $html, $p ) !== false, "geography: '$p' panel present" );
 }
+ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Countries renders first (above Cities)' );
 
 echo "\nGroup: dashboard — Engagement view\n";
 $_GET['sn_view'] = 'engagement';
