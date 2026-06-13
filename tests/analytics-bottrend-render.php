@@ -10,6 +10,10 @@ define( 'ABSPATH', '/' );
 
 function esc_html( $s ) { return $s; }
 function esc_attr( $s ) { return $s; }
+function esc_html__( $s, $d = '' ) { return $s; }
+function esc_attr__( $s, $d = '' ) { return $s; }
+function __( $s, $d = '' ) { return $s; }
+function number_format_i18n( $n ) { return (string) (int) $n; }
 
 require __DIR__ . '/../inc/analytics-admin-render.php';
 

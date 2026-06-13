@@ -450,7 +450,7 @@ function snt_analytics_styles() {
 	.sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
 	.sn-an-sep { color: #646970; font-size: 13px; margin: 0 0 14px; }
 
-	/* ── bespoke viz (still rendered by current panel fns; cleaned in Task 8) ─ */
+	/* ── bespoke viz (inline bar/heatmap panels; no native equivalent) ─────── */
 	.sn-an-delta { font-size: 0.72em; font-weight: 600; margin-left: 5px; white-space: nowrap; }
 	.sn-an-delta--up   { color: #0a7c2f; }
 	.sn-an-delta--down { color: #b32d2e; }
@@ -481,33 +481,19 @@ function snt_analytics_styles() {
 	.sn-an-spark { display: inline-flex; align-items: flex-end; gap: 1px; height: 1.1em; }
 	.sn-an-spark .b { width: 2px; background: currentColor; opacity: .45; }
 	.sn-an-spark--empty { opacity: .2; }
-	/* bot-share trend bar modifier */
+	/* bot-share trend bars (quality tab render_bot_trend) */
 	.sn-an-trend--bot .bar { opacity: .7; }
-	/* old trend bars — still emitted until Task 4 replaces snt_analytics_render_trend() */
 	.sn-an-trend { display: flex; align-items: flex-end; gap: 3px; height: 48px; margin: 0 0 18px; }
 	.sn-an-trend .bar { flex: 1; background: #2271b1; min-height: 2px; border-radius: 2px 2px 0 0; }
-	/* old card grid — still emitted until Task 3 replaces snt_analytics_render_cards() */
-	.sn-an-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; margin: 0 0 20px; }
-	.sn-an-card { border: 1px solid #dcdcde; border-radius: 6px; padding: 12px; background: #fff; }
-	.sn-an-card .n { font-size: 1.5rem; font-weight: 600; color: #1d2327; line-height: 1.1; font-variant-numeric: tabular-nums; }
-	.sn-an-card .l { font-size: 0.8em; color: #646970; margin-top: 3px; }
-	/* old controls/seg — still emitted until Task 7 replaces render_controls() */
-	.sn-an-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 4px 0 14px; }
-	.sn-an-seg { display: inline-flex; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; }
-	.sn-an-seg a { padding: 4px 12px; font-size: 13px; text-decoration: none; color: #2271b1; background: #fff; border-right: 1px solid #c3c4c7; }
-	.sn-an-seg a:last-child { border-right: 0; }
-	.sn-an-seg a.is-active { background: #2271b1; color: #fff; }
-	/* old panel/table styles — still emitted until Task 5 migrates render fns */
-	.sn-an-panel { border: 1px solid #dcdcde; border-radius: 6px; padding: 14px; background: #fff; }
-	.sn-an-panel h3 { margin: 0 0 8px; font-size: 13px; color: #1d2327; }
+	/* panel/table inner wrappers (referrer-cats, distribution, heatmap, bot-breakdown) */
+	.sn-an-panel { padding: 14px; }
 	.sn-an-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 	.sn-an-table th { text-align: left; color: #646970; font-weight: 400; border-bottom: 1px solid #f0f0f1; padding: 5px 0; }
 	.sn-an-table td { border-bottom: 1px solid #f0f0f1; padding: 5px 0; color: #1d2327; }
 	.sn-an-table td.num, .sn-an-table th.num { text-align: right; font-variant-numeric: tabular-nums; color: #646970; }
 	.sn-an-table tr:last-child td { border-bottom: 0; }
 	@media (max-width: 782px) {
-		.sn-an-cards { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
-		.sn-an-grid  { grid-template-columns: 1fr; }
+		.sn-an-grid { grid-template-columns: 1fr; }
 	}
 
 	/* ── settings surface (Monitoring → Analytics creds form) ───────────────── */
