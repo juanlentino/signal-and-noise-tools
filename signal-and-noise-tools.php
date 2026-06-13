@@ -206,6 +206,7 @@ require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/abilities-registration.php';
+require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
 require_once __DIR__ . '/inc/command-palette.php';
 require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-publish advisory gate (client-side, no AI)
