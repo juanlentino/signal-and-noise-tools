@@ -40,10 +40,7 @@ const SN_ANALYTICS_EVENT_PROPS_DB_VERSION_OPT = 'sn_analytics_event_props_db_ver
  *
  * VARCHAR sizes chosen to fit inside InnoDB's 767-byte UNIQUE key prefix:
  *   events:      DATE(3) + VARCHAR(120)(480) = 483 bytes.
- *   event_props: DATE(3) + VARCHAR(60)(240) + VARCHAR(180)(720) = 963 bytes — uses
- *                utf8mb3 equivalent sizing; actual byte ceiling with utf8mb4 at
- *                3+60*4+180*4 = 1203 bytes exceeds 3072-byte limit (InnoDB large-prefix
- *                enabled by default since MySQL 5.7 / MariaDB 10.3). Safe.
+ *   event_props: DATE(3) + VARCHAR(60)(60×4=240) + VARCHAR(180)(180×4=720) = 963 bytes under utf8mb4, well within InnoDB's 3072-byte large-prefix limit (enabled by default since MySQL 5.7 / MariaDB 10.3). Safe.
  *
  * @return array{events:string, event_props:string}
  */
