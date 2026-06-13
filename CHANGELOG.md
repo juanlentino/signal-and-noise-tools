@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.4.2] - 2026-06-13 — Dashboard layout polish
+
+### Improvements
+- **KPI cards now sit on a single row** — the stat strip (Now / Views / Visits / Avg scroll / Avg time / Engaged) no longer wraps the 6th card onto its own line.
+
+### Fixed
+- **Country map panel was mostly empty space** — the map panel now hugs the map as a tidy card instead of stranding a capped map in a full-width box.
+
 ## [6.4.1] - 2026-06-13 — Choropleth sizing fix
 
 ### Fixed

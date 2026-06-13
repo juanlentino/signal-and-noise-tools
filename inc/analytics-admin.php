@@ -322,7 +322,7 @@ function snt_analytics_styles() {
 	.sn-an-sep{color:#646970;font-size:13px;margin:0 0 14px;}
 	.sn-an-trend{display:flex;align-items:flex-end;gap:3px;height:48px;margin:0 0 18px;}
 	.sn-an-trend .bar{flex:1;background:#2271b1;min-height:2px;border-radius:2px 2px 0 0;}
-	.sn-an-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 20px;}
+	.sn-an-cards{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:12px;margin:0 0 20px;}
 	.sn-an-card{border:1px solid #dcdcde;border-radius:6px;padding:12px;background:#fff;}
 	.sn-an-card .n{font-size:1.5rem;font-weight:600;color:#1d2327;line-height:1.1;font-variant-numeric:tabular-nums;}
 	.sn-an-card .l{font-size:0.8em;color:#646970;margin-top:3px;}
@@ -335,7 +335,7 @@ function snt_analytics_styles() {
 	.sn-an-table td.num,.sn-an-table th.num{text-align:right;font-variant-numeric:tabular-nums;color:#646970;}
 	.sn-an-table tr:last-child td{border-bottom:0;}
 	.sn-an-empty{color:#646970;font-style:italic;font-size:13px;margin-top:16px;}
-	@media (max-width:782px){.sn-an-cards{grid-template-columns:repeat(2,1fr);}.sn-an-grid{grid-template-columns:1fr;}}
+	@media (max-width:782px){.sn-an-cards{grid-auto-flow:row;grid-template-columns:repeat(2,1fr);}.sn-an-grid{grid-template-columns:1fr;}}
 	.sn-an-settings{max-width:640px;}
 	.sn-an-settings-help{color:#646970;font-size:13px;margin:.25rem 0 1rem;}
 	.sn-an-worker{margin-top:16px;border:1px solid #dcdcde;border-radius:6px;padding:10px 14px;background:#fff;}
@@ -380,9 +380,11 @@ function snt_analytics_styles() {
 	.sn-an-spark--empty{opacity:.2;}
 	/* v6.1.0 — bot-share trend modifier (slightly muted to distinguish from views trend). */
 	.sn-an-trend--bot .bar{opacity:.7;}
-	/* v6.4.0 — choropleth map panel on the Geography tab. v6.4.1 — cap width so the
-	   2:1 world map is a proportional headline visual, not full-bleed across the dashboard. */
-	.sn-an-choropleth-map{margin-top:4px;max-width:720px;}
+	/* v6.4.0 — choropleth map panel on the Geography tab. v6.4.2 — cap the whole PANEL
+	   (not just the map) so the panel hugs the 2:1 map as a tidy card instead of a small
+	   map stranded in a full-width box. */
+	.sn-an-choropleth{max-width:720px;}
+	.sn-an-choropleth-map{margin-top:4px;}
 	.sn-an-choropleth-map svg{width:100%;max-width:100%;height:auto;display:block;}
 	.sn-an-choropleth-map path{stroke:#fff;stroke-width:0.3;}
 	</style>
