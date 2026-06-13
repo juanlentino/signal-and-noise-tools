@@ -45,12 +45,17 @@ function snt_analytics_render_controls( $range, $class ) {
 	}
 	echo '<div class="sn-an-controls">';
 
+	$range_labels = array( 7 => '7d', 30 => '30d', 90 => '90d', 365 => '1y' );
 	echo '<span class="sn-an-seg">';
 	foreach ( SN_ANALYTICS_RANGES as $r ) {
 		$url    = add_query_arg( array( 'sn_range' => $r, 'sn_class' => $class ), $base );
-		$active = ( (int) $r === (int) $range ) ? 'is-active' : '';
-		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $r . 'd' ) . '</a>';
+		$active = ( (string) $r === (string) $range ) ? 'is-active' : '';
+		$label  = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
+		echo '<a class="' . esc_attr( $active ) . '" href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 	}
+	$url_all    = add_query_arg( array( 'sn_range' => 'all', 'sn_class' => $class ), $base );
+	$active_all = ( 'all' === (string) $range ) ? 'is-active' : '';
+	echo '<a class="' . esc_attr( $active_all ) . '" href="' . esc_url( $url_all ) . '">' . esc_html__( 'All', 'signal-and-noise-tools' ) . '</a>';
 	echo '</span>';
 
 	$labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
