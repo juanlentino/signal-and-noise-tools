@@ -17,15 +17,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_ANALYTICS_RANGES = array( 7, 30, 90 );
+const SN_ANALYTICS_RANGES = array( 7, 30, 90, 365 );
 
 /**
  * Whitelist the ?sn_range GET value to a supported window; default 7.
  *
  * @param mixed $raw
- * @return int 7 | 30 | 90
+ * @return int|string 7 | 30 | 90 | 365 | 'all'
  */
 function snt_analytics_resolve_range( $raw ) {
+	if ( 'all' === (string) $raw ) {
+		return 'all';
+	}
 	$n = (int) $raw;
 	return in_array( $n, SN_ANALYTICS_RANGES, true ) ? $n : 7;
 }
@@ -94,18 +97,24 @@ function snt_analytics_render_view_tabs( $active, $range, $class ) {
 }
 
 /**
- * Inclusive [$from,$to] YYYY-MM-DD window of $days ending on the anchor day.
+ * Inclusive [$from,$to] YYYY-MM-DD window ending on the anchor day.
  * UTC (gmdate) to align with AE's toStartOfDay() buckets. $now is injectable
- * for deterministic tests.
+ * for deterministic tests. When $range is 'all', $from is the earliest day in
+ * the rollup table (via sn_analytics_min_day()).
  *
- * @param int      $days
- * @param int|null $now Unix timestamp anchor (defaults to now).
+ * @param int|string $range Days as int (7|30|90|365) or 'all'.
+ * @param int|null   $now   Unix timestamp anchor (defaults to now).
  * @return array{0:string,1:string} [$from, $to]
  */
-function snt_analytics_range_dates( $days, $now = null ) {
-	$now  = ( null === $now ) ? time() : (int) $now;
-	$to   = gmdate( 'Y-m-d', $now );
-	$from = gmdate( 'Y-m-d', $now - ( max( 1, (int) $days ) - 1 ) * DAY_IN_SECONDS );
+function snt_analytics_range_dates( $range, $now = null ) {
+	$now = ( null === $now ) ? time() : (int) $now;
+	$to  = gmdate( 'Y-m-d', $now );
+	if ( 'all' === $range ) {
+		$from = function_exists( 'sn_analytics_min_day' ) ? sn_analytics_min_day() : $to;
+		return array( $from, $to );
+	}
+	$days = max( 1, (int) $range );
+	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
 	return array( $from, $to );
 }
 
