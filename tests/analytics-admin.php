@@ -106,7 +106,11 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 42; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 42, 'previous' => 40, 'pct' => 5, 'dir' => 'up' ); }
 function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
-function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
+function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) {
+	$out = array();
+	foreach ( (array) $vals as $v ) { $out[ (string) $v ] = array( array( 'day' => '2026-06-11', 'views' => 3 ) ); }
+	return $out;
+}
 function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 'day' => '2026-06-11', 'bot_pct' => 30, 'total' => 80 ) ); }
 function sn_analytics_top_events( $f, $t, $l = 25 ) { return $GLOBALS['__aa']['events'] ?? array(); }
 function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $GLOBALS['__aa']['event_props'] ?? array(); }
@@ -202,6 +206,7 @@ foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' 
 	ok( strpos( $html, $p ) !== false, "technology: '$p' panel present" );
 }
 ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === false, 'technology: content/geography panels NOT in this view' );
+ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column rendered on OS/devices tables' );
 
 echo "\nGroup: dashboard — Geography view\n";
 $_GET['sn_view'] = 'geography';
