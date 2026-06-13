@@ -283,3 +283,50 @@ function sn_analytics_min_day() {
 	set_transient( 'sn_analytics_min_day', $min, HOUR_IN_SECONDS );
 	return $min;
 }
+
+/**
+ * Per-bucket bot share over the window (durable — no AE). Sums views across all
+ * classes per bucket and exposes bot_pct for the Quality-tab trend line.
+ *
+ * @param string $from        YYYY-MM-DD start of window (inclusive).
+ * @param string $to          YYYY-MM-DD end of window (inclusive).
+ * @param string $granularity 'day' | 'week'
+ * @return array<int, array{day:string, total:int, bot:int, bot_pct:int}>
+ */
+function sn_analytics_class_series( $from, $to, $granularity = 'day' ) {
+	$expr = sn_analytics_bucket_expr( $granularity );
+
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+
+	$results = $wpdb->get_results( $wpdb->prepare(
+		"SELECT {$expr} AS day, class, SUM(views) AS views
+		 FROM {$table}
+		 WHERE day >= %s AND day <= %s
+		 GROUP BY {$expr}, class
+		 ORDER BY day ASC",
+		(string) $from,
+		(string) $to
+	), ARRAY_A );
+
+	$acc = array();
+	if ( is_array( $results ) ) {
+		foreach ( $results as $r ) {
+			$d = (string) $r['day'];
+			if ( ! isset( $acc[ $d ] ) ) {
+				$acc[ $d ] = array( 'day' => $d, 'total' => 0, 'bot' => 0 );
+			}
+			$v                  = (int) $r['views'];
+			$acc[ $d ]['total'] += $v;
+			if ( 'bot' === (string) $r['class'] ) {
+				$acc[ $d ]['bot'] += $v;
+			}
+		}
+	}
+	$out = array();
+	foreach ( $acc as $row ) {
+		$row['bot_pct'] = ( $row['total'] > 0 ) ? (int) round( $row['bot'] / $row['total'] * 100 ) : 0;
+		$out[]          = $row;
+	}
+	return $out;
+}
