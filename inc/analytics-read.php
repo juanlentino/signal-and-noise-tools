@@ -167,6 +167,61 @@ function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity =
 	return $out;
 }
 
+const SN_ANALYTICS_LOWENGAGE_SCROLL    = 25;     // page-weighted scroll % below this …
+const SN_ANALYTICS_LOWENGAGE_TIME_MS   = 10000;  // … AND time below this (ms) …
+const SN_ANALYTICS_LOWENGAGE_MIN_VIEWS = 20;     // … on pages with at least this many views.
+
+/**
+ * Pages with real traffic but weak engagement (low scroll AND low dwell) —
+ * "pages losing readers". Page-weighted averages match range_totals/top_paths.
+ *
+ * @return array<int, array{path:string, views:int, scroll_avg:float, time_avg:float}>
+ */
+function sn_analytics_low_engagement_paths( $from, $to, $class = 'human', $limit = 15 ) {
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+	$limit = max( 1, min( 200, (int) $limit ) );
+
+	global $wpdb;
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+
+	$results = $wpdb->get_results( $wpdb->prepare(
+		"SELECT path,
+		        SUM(views) AS views,
+		        SUM(scroll_avg * views) / NULLIF(SUM(views), 0) AS scroll_avg,
+		        SUM(time_avg  * views) / NULLIF(SUM(views), 0) AS time_avg
+		 FROM {$table}
+		 WHERE day >= %s AND day <= %s AND class = %s
+		 GROUP BY path
+		 HAVING views >= %d
+		        AND scroll_avg < %d
+		        AND time_avg  < %d
+		 ORDER BY views DESC
+		 LIMIT %d",
+		(string) $from,
+		(string) $to,
+		$class,
+		SN_ANALYTICS_LOWENGAGE_MIN_VIEWS,
+		SN_ANALYTICS_LOWENGAGE_SCROLL,
+		SN_ANALYTICS_LOWENGAGE_TIME_MS,
+		$limit
+	), ARRAY_A );
+
+	$out = array();
+	if ( is_array( $results ) ) {
+		foreach ( $results as $r ) {
+			$out[] = array(
+				'path'       => (string) $r['path'],
+				'views'      => (int) $r['views'],
+				'scroll_avg' => (float) $r['scroll_avg'],
+				'time_avg'   => (float) $r['time_avg'],
+			);
+		}
+	}
+	return $out;
+}
+
 /**
  * Earliest day present in the durable rollup — the lower bound for the
  * "All-time" range. Cached for an hour (the table only grows by one day/run).
