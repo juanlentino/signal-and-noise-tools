@@ -59,6 +59,10 @@ ok( sn_analytics_min_day() === '2026-05-08', 'returns MIN(day) from the table' )
 ok( strpos( end( $GLOBALS['wpdb']->queries ), 'MIN(day)' ) !== false, 'SQL uses MIN(day)' );
 ok( get_transient( 'sn_analytics_min_day' ) === '2026-05-08', 'caches the result in a transient' );
 
+$count_before = count( $GLOBALS['wpdb']->queries );
+ok( sn_analytics_min_day() === '2026-05-08', 'cache hit: returns cached value' );
+ok( count( $GLOBALS['wpdb']->queries ) === $count_before, 'cache hit: no DB query issued' );
+
 $GLOBALS['__t'] = array();
 $GLOBALS['wpdb']->var = null;
 ok( sn_analytics_min_day() === gmdate( 'Y-m-d' ), 'empty table falls back to today' );

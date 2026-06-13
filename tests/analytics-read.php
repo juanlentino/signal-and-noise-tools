@@ -158,6 +158,7 @@ ok(
 );
 
 echo "\nGroup: daily_series weekly granularity\n";
+// Stub returns no rows for this expression-based GROUP BY; these are SQL-shape assertions only.
 $ws = sn_analytics_daily_series( '2026-03-01', '2026-06-12', 'human', 'week' );
 $sql = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql, 'DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false, 'weekly: SQL floors day to ISO Monday' );
