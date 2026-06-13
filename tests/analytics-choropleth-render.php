@@ -48,6 +48,12 @@ $lc = snt_analytics_recolor_world_svg( $FIX, array( 'us' => 50 ), array() );
 ok( fix_alpha( $lc, 'US' ) !== null, 'recolor: lowercase input "us" still shades the US path (uppercase join)' );
 $xss = snt_analytics_recolor_world_svg( $FIX, array( 'US' => 5 ), array( 'US' => 'X"<script>' ) );
 ok( strpos( $xss, '<script>' ) === false, 'recolor: injected country name is escaped in the title' );
+$dn = snt_analytics_recolor_world_svg(
+	'<svg><path id="US" data-name="United States" d="m1,1 z" style="fill:#f2f2f2" /></svg>',
+	array( 'US' => 7 ),
+	array()
+);
+ok( strpos( $dn, '<title>United States — 7 views</title>' ) !== false, "recolor: falls back to the SVG path's data-name when no name is passed" );
 
 echo "\nGroup: orchestrator empty-state (no file needed)\n";
 $empty = capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.' ); } );
@@ -58,6 +64,7 @@ echo "\nGroup: orchestrator with the real vendored asset\n";
 $real = capture( function () { snt_analytics_render_choropleth( 'Countries map', array( array( 'value' => 'US', 'views' => 100, 'visits' => 40 ) ), 'No country data.' ); } );
 ok( strpos( $real, 'role="img"' ) !== false && strpos( $real, 'aria-label' ) !== false, 'render: accessible panel (role=img + aria-label)' );
 ok( strpos( $real, '<svg' ) !== false && strpos( $real, 'rgba(34,113,177' ) !== false, 'render: real SVG loaded + US recolored' );
+ok( strpos( $real, 'United States' ) !== false, 'render: tooltip uses the country name (data-name) from the asset, not the bare ISO code' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

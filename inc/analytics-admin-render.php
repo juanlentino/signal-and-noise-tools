@@ -707,7 +707,12 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
 		$path = preg_replace( '/fill:\s*#[0-9a-fA-F]{3,6}/', 'fill:' . $fill, $path, 1 );
 
 		// Inject a <title> (esc'd) and convert the self-closing /> to <path>…</path>.
+		// Label precedence: caller-supplied name → the SVG path's own data-name
+		// (SimpleMaps ships data-name="United States" etc.) → the bare ISO code.
 		$label = isset( $upper_names[ $iso ] ) ? $upper_names[ $iso ] : $iso;
+		if ( ! isset( $upper_names[ $iso ] ) && preg_match( '/\bdata-name="([^"]*)"/', $path, $nm ) && '' !== $nm[1] ) {
+			$label = $nm[1];
+		}
 		$title = $v > 0 ? ( $label . ' — ' . number_format_i18n( $v ) . ' views' ) : $label;
 		$path  = preg_replace( '/\s*\/>$/', '><title>' . esc_html( $title ) . '</title></path>', $path );
 
