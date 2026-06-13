@@ -147,59 +147,64 @@ function snt_analytics_render_delta_badge( $delta ) {
 }
 
 /**
- * The 5 stat cards (6 when engaged rate is available): Now, Views, Visits,
- * Avg scroll, Avg time, and optionally Engaged. Views/Visits/Avg scroll/Avg
- * time carry a period-over-period delta badge when $deltas is given (keyed
- * views/visits/scroll_avg/time_avg). "Now" never gets one (it's instant).
+ * Echo a period-over-period delta badge in the new KPI strip style (▲/▼/■ + signed pct).
+ * pct null → "new" (prev window was empty). No-op when no valid delta is supplied.
  *
- * @param int|null   $now     Realtime visitor count.
+ * @param array|null $delta {pct:?int, dir:string}
+ */
+function snt_analytics_render_delta_badge_kpi( $delta ) {
+	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
+		return;
+	}
+	$dir   = (string) $delta['dir'];
+	$cls   = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );
+	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
+	$pct   = $delta['pct'] ?? null;
+	$text  = ( null === $pct )
+		? ( 'up' === $dir ? 'new' : '—' )
+		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
+	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
+}
+
+/**
+ * Fused dense KPI strip: Views + Visits (promoted), Now, Avg scroll, Avg time,
+ * and optionally Engaged. Views/Visits/Avg scroll/Avg time carry a
+ * period-over-period delta badge when $deltas is given. "Now" is always live.
+ * Wraps in a native .postbox (no collapse toggle — clean static header).
+ *
+ * @param int|null   $now     Realtime visitor count (null = not available).
  * @param array      $totals  {views,visits,scroll_avg,time_avg}
  * @param array      $deltas  {views,visits,scroll_avg,time_avg} => {pct,dir}
  * @param array{current:?int,previous?:?int,pct?:?int,dir?:string}|null $engaged Engaged-rate data,
  *                                                                                or null to omit the card.
- *                                                                                Card is also hidden when
- *                                                                                current is null (e.g.
- *                                                                                all-time range with no
- *                                                                                timed-session data).
  */
 function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null ) {
 	$cards = array(
-		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'title' => '', 'delta' => null ),
-		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['views'] ?? null ),
-		array(
-			'l' => 'Visits',
-			'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ),
-			// Page-weighted sum: a visitor viewing N pages in a session counts N times because the
-			// rollup is keyed per-path. "Now" is always truly distinct (realtime query).
-			'title' => "Page-weighted: a visitor viewing N pages counts N times. 'Now' shows true distinct visitors.",
-			'delta' => $deltas['visits'] ?? null,
-		),
-		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'title' => '', 'delta' => $deltas['scroll_avg'] ?? null ),
-		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'title' => '', 'delta' => $deltas['time_avg'] ?? null ),
+		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ),  'delta' => $deltas['views'] ?? null,      'promoted' => true ),
+		array( 'l' => 'Visits',     'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ), 'delta' => $deltas['visits'] ?? null,     'promoted' => true ),
+		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true ),
+		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'delta' => $deltas['scroll_avg'] ?? null ),
+		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'delta' => $deltas['time_avg'] ?? null ),
 	);
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
-		$cards[] = array(
-			'l'     => 'Engaged',
-			'n'     => (int) $engaged['current'] . '%',
-			'title' => 'Share of timed pageviews lasting ≥10s.',
-			'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ),
-		);
+		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}
-	echo '<div class="sn-an-cards">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
+	echo '<div class="inside inside-flush sn-kpi-strip"><div class="sn-kpi-row">';
 	foreach ( $cards as $c ) {
-		if ( '' !== $c['title'] ) {
-			echo '<div class="sn-an-card" title="' . esc_attr( $c['title'] ) . '">';
+		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
+		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
+		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
+		if ( ! empty( $c['live'] ) ) {
+			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
+		} elseif ( ! empty( $c['delta'] ) ) {
+			snt_analytics_render_delta_badge_kpi( $c['delta'] );
 		} else {
-			echo '<div class="sn-an-card">';
+			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'no change', 'signal-and-noise-tools' ) . '</span>';
 		}
-		echo '<div class="n">' . esc_html( $c['n'] ) . '</div>';
-		echo '<div class="l">' . esc_html( $c['l'] );
-		if ( ! empty( $c['delta'] ) ) {
-			snt_analytics_render_delta_badge( $c['delta'] );
-		}
-		echo '</div></div>';
+		echo '</div>';
 	}
-	echo '</div>';
+	echo '</div></div></div>';
 }
 
 /**

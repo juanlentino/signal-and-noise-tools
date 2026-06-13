@@ -160,16 +160,17 @@ echo "\nGroup: dashboard — core render\n";
 aa_fill_data();
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
-ok( strpos( $html, '<div class="n">7</div>' ) !== false, 'dashboard: visitors-now card shows 7' );
+ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );
 ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation line' );
 ok( strpos( $html, '/notes/x' ) !== false, 'dashboard: top path row present' );
-ok( substr_count( $html, 'sn-an-trend' ) === 1 && substr_count( $html, 'class="bar"' ) === 2, 'dashboard: trend strip one bar per day' );
+ok( strpos( $html, 'sn-kpi-row' ) !== false, 'cards: fused KPI strip rendered' );
+ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promoted' );
+ok( strpos( $html, '<div class="n">7</div>' ) === false, 'cards: old .n markup gone' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only — NO settings form embedded (split)' );
 ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only — NO save button (split)' );
 
 echo "\nGroup: dashboard — period-over-period deltas on cards\n";
-ok( substr_count( $html, 'sn-an-delta' ) >= 2, 'dashboard: delta indicators on the stat cards' );
-ok( strpos( $html, 'sn-an-delta--up' ) !== false && strpos( $html, 'sn-an-delta--down' ) !== false, 'dashboard: up + down delta directions rendered' );
+ok( strpos( $html, 'sn-delta-down' ) !== false && strpos( $html, 'sn-delta-up' ) !== false, 'cards: up + down deltas' );
 
 echo "\nGroup: dashboard — view tab nav\n";
 $_GET['sn_view'] = 'content';
@@ -186,8 +187,8 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) >= 2,
-		"header: controls + delta cards + trend persist on the '$v' tab"
+		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && strpos( $h, 'sn-an-trend' ) !== false,
+		"header: controls + KPI strip + trend persist on the '$v' tab"
 	);
 }
 

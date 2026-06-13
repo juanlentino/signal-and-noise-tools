@@ -10,6 +10,8 @@ define( 'ABSPATH', '/' );
 
 function esc_html( $s ) { return $s; }
 function esc_attr( $s ) { return $s; }
+function esc_html__( $s, $d = null ) { return (string) $s; }
+function esc_attr__( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return (string) (int) $n; }
 // snt_analytics_fmt_time and snt_analytics_render_delta_badge are defined in the render file itself — no stubs needed.
 
