@@ -2,6 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.4.0] - 2026-06-13 — Country choropleth
+
+### New
+- **World map on the Geography tab** — the analytics dashboard now shades a world map by views per country (quantile tiers, hover for exact counts), above the existing Countries table. Inline SVG, no JavaScript. Built on the durable country dimension; map artwork by SimpleMaps.com (MIT).
+
 ## [6.3.0] - 2026-06-13 — Events tab + geography reunification
 
 ### New
