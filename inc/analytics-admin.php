@@ -380,9 +380,10 @@ function snt_analytics_styles() {
 	.sn-an-spark--empty{opacity:.2;}
 	/* v6.1.0 — bot-share trend modifier (slightly muted to distinguish from views trend). */
 	.sn-an-trend--bot .bar{opacity:.7;}
-	/* v6.4.0 — choropleth map panel on the Geography tab. */
-	.sn-an-choropleth-map{margin-top:4px;}
-	.sn-an-choropleth-map svg{width:100%;height:auto;display:block;}
+	/* v6.4.0 — choropleth map panel on the Geography tab. v6.4.1 — cap width so the
+	   2:1 world map is a proportional headline visual, not full-bleed across the dashboard. */
+	.sn-an-choropleth-map{margin-top:4px;max-width:720px;}
+	.sn-an-choropleth-map svg{width:100%;max-width:100%;height:auto;display:block;}
 	.sn-an-choropleth-map path{stroke:#fff;stroke-width:0.3;}
 	</style>
 	<?php
