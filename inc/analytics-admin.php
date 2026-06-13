@@ -157,18 +157,23 @@ function snt_analytics_render_dashboard() {
 
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 
+	$gran_days   = ( 'all' === $range )
+		? ( (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1 )
+		: (int) $range;
+	$granularity = sn_analytics_granularity( $gran_days );
+
 	// ── Persistent header (every tab): the at-a-glance headline. Always fetched.
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
-	$series       = sn_analytics_daily_series( $from, $to, $class );
-	$deltas       = sn_analytics_period_deltas( $from, $to, $class );
+	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
+	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
 
 	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
 	snt_analytics_render_controls( $range, $class );
 	snt_analytics_render_separation( $class_totals, $class );
 	snt_analytics_render_cards( $now, $totals, $deltas );
-	snt_analytics_render_trend( $series );
+	snt_analytics_render_trend( $series, $granularity );
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
 	// so a tab switch is a lighter query set, not just CSS show/hide.

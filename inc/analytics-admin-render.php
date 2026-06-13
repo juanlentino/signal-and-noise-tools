@@ -91,11 +91,12 @@ function snt_analytics_render_separation( $class_totals, $class ) {
 }
 
 /**
- * Bar strip of per-day views (heights relative to the series max).
+ * Bar strip of per-day/per-week views (heights relative to the series max).
  *
- * @param array $series [{day,views,visits}] ascending.
+ * @param array  $series      [{day,views,visits}] ascending.
+ * @param string $granularity 'day' (default) or 'week' — controls the aria-label.
  */
-function snt_analytics_render_trend( $series ) {
+function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	if ( empty( $series ) ) {
 		return;
 	}
@@ -103,7 +104,10 @@ function snt_analytics_render_trend( $series ) {
 	foreach ( $series as $row ) {
 		$max = max( $max, (int) $row['views'] );
 	}
-	echo '<div class="sn-an-trend" role="img" aria-label="' . esc_attr__( 'Daily views trend', 'signal-and-noise-tools' ) . '">';
+	$aria = ( 'week' === $granularity )
+		? esc_attr__( 'Weekly views trend', 'signal-and-noise-tools' )
+		: esc_attr__( 'Daily views trend', 'signal-and-noise-tools' );
+	echo '<div class="sn-an-trend" role="img" aria-label="' . $aria . '">';
 	foreach ( $series as $row ) {
 		$pct = (int) round( ( (int) $row['views'] / $max ) * 100 );
 		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
