@@ -127,7 +127,16 @@ function capture( $cb ) { ob_start(); $cb(); return preg_replace( '!<style>.*?</
 
 echo "Analytics admin (dashboard + settings split)\n\n";
 
-echo "Group: range + class resolution\n";
+// Capture the inline <style> output BEFORE anything else calls snt_analytics_styles()
+// (which has a static guard and emits only once per process).
+echo "Group: styles — CSS contract\n";
+ob_start(); snt_analytics_styles(); $snt_styles_css = (string) ob_get_clean();
+ok( strpos( $snt_styles_css, 'sn-an-choropleth' ) === false || strpos( $snt_styles_css, 'max-width:720px' ) === false,
+	'styles: .sn-an-choropleth max-width:720px cap removed (no longer constrains map column)' );
+ok( strpos( $snt_styles_css, '.sn-map-figure svg' ) !== false,
+	'styles: .sn-map-figure svg responsive rule present (constrains vendored 2000px SVG inside its column)' );
+
+echo "\nGroup: range + class resolution\n";
 ok( snt_analytics_resolve_range( '30' ) === 30, 'resolve_range: 30 → 30' );
 ok( snt_analytics_resolve_range( '999' ) === 7, 'resolve_range: out-of-list → default 7' );
 ok( snt_analytics_resolve_range( "7); DROP" ) === 7, 'resolve_range: junk → default 7' );
@@ -232,6 +241,8 @@ ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Co
 ok( strpos( $html, 'sn-an-choropleth' ) !== false, 'geography: choropleth panel rendered' );
 ok( strpos( $html, 'sn-an-choropleth' ) < strpos( $html, '>Countries<' ), 'geography: choropleth renders before the Countries table' );
 ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'geography: country/city tables use native widefat class' );
+ok( strpos( $html, 'sn-geo-split' ) !== false, 'geography: map+countries split layout wrapper present' );
+ok( strpos( $html, 'sn-geo-tiles' ) !== false, 'geography: tiles grid (cities/regions/networks/edge) present' );
 $GLOBALS['__aa']['dim'] = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
 
 echo "\nGroup: dashboard — Engagement view\n";

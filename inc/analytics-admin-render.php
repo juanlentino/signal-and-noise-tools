@@ -808,8 +808,6 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 		$views[ $iso ] = (int) ( $r['views'] ?? 0 );
 	}
 
-	echo '<div class="sn-an-panel sn-an-choropleth"><h3>' . esc_html( $title ) . '</h3>';
-
 	$has_data = false;
 	foreach ( $views as $v ) {
 		if ( $v > 0 ) {
@@ -817,14 +815,31 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 			break;
 		}
 	}
-	$svg = $has_data ? snt_analytics_choropleth_svg() : '';
-	if ( ! $has_data || '' === $svg ) {
-		echo '<p class="sn-an-empty">' . esc_html( $empty ) . '</p></div>';
+
+	echo '<div class="sn-an-choropleth postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div>';
+	echo '<div class="inside inside-flush sn-map-inside">';
+
+	if ( ! $has_data ) {
+		echo '<p class="sn-an-empty" style="padding:12px">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 
-	echo '<div class="sn-an-choropleth-map" role="img" aria-label="' . esc_attr( 'World map shaded by views per country' ) . '">';
+	$svg = snt_analytics_choropleth_svg();
+	if ( '' === $svg ) {
+		echo '<p class="sn-an-empty" style="padding:12px">' . esc_html( $empty ) . '</p></div></div>';
+		return;
+	}
+
+	echo '<figure class="sn-map-figure">';
+	echo '<div role="img" aria-label="' . esc_attr( __( 'World map shaded by views per country', 'signal-and-noise-tools' ) ) . '">';
 	echo snt_analytics_recolor_world_svg( $svg, $views, $names ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: vendored static SVG + numeric fills + esc_html'd <title>s.
+	echo '</div></figure>';
+	echo '<div class="sn-map-legend" aria-hidden="true">';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#dde7f1;"></span> ' . esc_html__( 'Low', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#9ec0e0;"></span> ' . esc_html__( 'Medium', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#2271b1;"></span> ' . esc_html__( 'High', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item" style="margin-left:auto;color:#787c82;">' . esc_html__( 'Views by country', 'signal-and-noise-tools' ) . '</span>';
+	echo '</div>';
 	echo '</div></div>';
 }
 

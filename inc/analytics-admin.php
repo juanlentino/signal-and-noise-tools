@@ -214,29 +214,17 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'geography':
-			snt_analytics_render_choropleth( 'Countries map', sn_analytics_top_dimension( 'country', $from, $to, $class, 250 ), 'No country data in this range yet.' );
-			echo '<div class="sn-an-grid">';
-			$cou_rows = sn_analytics_top_dimension( 'country', $from, $to, $class, 10 );
-			$cou_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $cou_rows );
-			$cou_ser  = sn_analytics_dimension_series( 'country', $cou_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Countries', $cou_rows, 'No country data in this range.', $cou_ser );
-			$cit_rows = sn_analytics_top_dimension( 'city', $from, $to, $class, 10 );
-			$cit_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $cit_rows );
-			$cit_ser  = sn_analytics_dimension_series( 'city', $cit_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Cities', $cit_rows, 'No city data in this range yet.', $cit_ser );
-			$reg_rows = sn_analytics_top_dimension( 'region', $from, $to, $class, 10 );
-			$reg_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $reg_rows );
-			$reg_ser  = sn_analytics_dimension_series( 'region', $reg_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Regions', $reg_rows, 'No region data in this range yet.', $reg_ser );
-			$net_rows = sn_analytics_top_dimension( 'network', $from, $to, $class, 10 );
-			$net_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $net_rows );
-			$net_ser  = sn_analytics_dimension_series( 'network', $net_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Networks', $net_rows, 'No network data in this range yet.', $net_ser );
-			$colo_rows = sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 );
-			$colo_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $colo_rows );
-			$colo_ser  = sn_analytics_dimension_series( 'colo', $colo_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Edge locations', $colo_rows, 'No edge-location data in this range yet.', $colo_ser );
+			echo '<div class="sn-geo">';
+			echo '<div class="sn-geo-split">';
+			snt_analytics_render_choropleth( 'World map', sn_analytics_top_dimension( 'country', $from, $to, $class, 250 ), 'No country data in this range yet.' );
+			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
 			echo '</div>';
+			echo '<div class="sn-geo-tiles" style="margin-top:20px">';
+			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.' );
+			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.' );
+			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.' );
+			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.' );
+			echo '</div></div>';
 			break;
 
 		case 'engagement':
@@ -418,6 +406,8 @@ function snt_analytics_styles() {
 	}
 	.sn-map-inside  { padding: 0; }
 	.sn-map-figure  { margin: 0; padding: 10px; }
+	.sn-map-figure svg { width: 100%; height: auto; display: block; } /* constrain the vendored 2000px-wide SVG inside its column */
+	.sn-map-figure svg path { stroke: #fff; stroke-width: 0.3; } /* restore country-border fidelity lost when wrapper changed from .sn-an-choropleth-map to figure */
 	.sn-map-svg     { display: block; width: 100%; height: auto; }
 	.sn-map-legend {
 		display: flex;
@@ -493,11 +483,6 @@ function snt_analytics_styles() {
 	.sn-an-spark--empty { opacity: .2; }
 	/* bot-share trend bar modifier */
 	.sn-an-trend--bot .bar { opacity: .7; }
-	/* choropleth panel — still used until Task 6 restructures geography */
-	.sn-an-choropleth { max-width: 720px; }
-	.sn-an-choropleth-map { margin-top: 4px; }
-	.sn-an-choropleth-map svg { width: 100%; max-width: 100%; height: auto; display: block; }
-	.sn-an-choropleth-map path { stroke: #fff; stroke-width: 0.3; }
 	/* old trend bars — still emitted until Task 4 replaces snt_analytics_render_trend() */
 	.sn-an-trend { display: flex; align-items: flex-end; gap: 3px; height: 48px; margin: 0 0 18px; }
 	.sn-an-trend .bar { flex: 1; background: #2271b1; min-height: 2px; border-radius: 2px 2px 0 0; }
