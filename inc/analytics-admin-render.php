@@ -357,25 +357,58 @@ function snt_analytics_render_paths_table( $paths ) {
 }
 
 /**
- * A dimension breakdown panel (value + views + visits).
+ * A dimension breakdown panel (value + views + visits), with optional per-row
+ * trend sparklines. Pass $series as a value→[{day,views}] map to activate them;
+ * omit (or pass an empty array) for the original back-compatible layout.
  *
  * @param string $title
- * @param array  $rows  [{value,views,visits}]
- * @param string $empty Empty-state copy.
+ * @param array  $rows   [{value,views,visits}]
+ * @param string $empty  Empty-state copy.
+ * @param array  $series Optional value-keyed series map for sparklines.
  */
-function snt_analytics_render_dim_table( $title, $rows, $empty ) {
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array() ) {
 	echo '<div class="sn-an-panel"><h3>' . esc_html( $title ) . '</h3>';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty">' . esc_html( $empty ) . '</p></div>';
 		return;
 	}
-	echo '<table class="sn-an-table"><thead><tr><th>' . esc_html( $title ) . '</th><th class="num">Views</th><th class="num">Visits</th></tr></thead><tbody>';
+	$has_spark = ! empty( $series );
+	echo '<table class="sn-an-table"><thead><tr><th>' . esc_html( $title ) . '</th>'
+		. ( $has_spark ? '<th>Trend</th>' : '' )
+		. '<th class="num">Views</th><th class="num">Visits</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td>' . esc_html( (string) $r['value'] ) . '</td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+		$v = (string) $r['value'];
+		echo '<tr><td>' . esc_html( $v ) . '</td>';
+		if ( $has_spark ) {
+			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>';
+		}
+		echo '<td class="num">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
+}
+
+/**
+ * Inline micro-sparkline (returns a string so it can sit in a table cell).
+ * Mirrors the trend strip's bar math.
+ *
+ * @param array $series [{day:string, views:int}]
+ * @return string HTML
+ */
+function snt_analytics_sparkline( $series ) {
+	if ( empty( $series ) ) {
+		return '<span class="sn-an-spark sn-an-spark--empty"></span>';
+	}
+	$max = 1;
+	foreach ( $series as $row ) {
+		$max = max( $max, (int) $row['views'] );
+	}
+	$out = '<span class="sn-an-spark">';
+	foreach ( $series as $row ) {
+		$pct  = (int) round( ( (int) $row['views'] / $max ) * 100 );
+		$out .= '<span class="b" style="height:' . esc_attr( max( 2, $pct ) ) . '%"></span>';
+	}
+	return $out . '</span>';
 }
 
 /**

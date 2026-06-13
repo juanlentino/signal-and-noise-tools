@@ -189,7 +189,10 @@ function snt_analytics_render_dashboard() {
 	switch ( $view ) {
 		case 'technology':
 			echo '<div class="sn-an-grid">';
-			snt_analytics_render_dim_table( 'Browsers', sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 ), 'No browser data in this range yet.' );
+			$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
+			$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
+			$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser );
 			snt_analytics_render_dim_table( 'Operating systems', sn_analytics_top_dimension( 'os', $from, $to, $class, 10 ), 'No OS data in this range yet.' );
 			snt_analytics_render_dim_table( 'Devices', sn_analytics_top_dimension( 'device', $from, $to, $class, 10 ), 'No device data in this range.' );
 			snt_analytics_render_dim_table( 'Protocols', sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 ), 'No protocol data in this range yet.' );
@@ -222,7 +225,10 @@ function snt_analytics_render_dashboard() {
 		default:
 			echo '<div class="sn-an-grid">';
 			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
-			snt_analytics_render_dim_table( 'Top sources', sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 ), 'No referrers in this range.' );
+			$ref_rows = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
+			$ref_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $ref_rows );
+			$ref_ser  = sn_analytics_dimension_series( 'referrer', $ref_vals, $from, $to, $class, $granularity );
+			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
 			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
@@ -327,6 +333,10 @@ function snt_analytics_styles() {
 	/* v5.5.0 — tabbed views. The nav strip is WP-native (.nav-tab-wrapper). */
 	.sn-an-view-tabs{margin:18px 0 0;}
 	.sn-an-view{margin-top:16px;}
+	/* v6.1.0 — per-dimension trend sparklines in dim tables. */
+	.sn-an-spark{display:inline-flex;align-items:flex-end;gap:1px;height:1.1em;}
+	.sn-an-spark .b{width:2px;background:currentColor;opacity:.45;}
+	.sn-an-spark--empty{opacity:.2;}
 	</style>
 	<?php
 }
