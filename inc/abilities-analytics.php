@@ -6,6 +6,8 @@
  * Abilities registered:
  *   - signal-noise/get-analytics-summary  — range totals (views, visits,
  *                                           scroll_avg, time_avg)
+ *   - signal-noise/get-analytics-events   — top custom events (name →
+ *                                           events/visitors) for a window
  *
  * Permission: snt_ability_perm_manage_options (manage_options cap).
  * Execution delegates to the same read accessors the dashboard uses.
@@ -22,6 +24,32 @@ add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
+
+	wp_register_ability( 'signal-noise/get-analytics-events', array(
+		'label'               => 'Get custom events',
+		'description'         => 'Returns top custom events (name → events/visitors) for a window. Read-only; historical Plausible-imported data.',
+		'category'            => 'analytics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'sn_ability_get_analytics_events',
+		'input_schema'        => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(
+				'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'  => 'array',
+			'items' => array( 'type' => 'object' ),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
 
 	wp_register_ability( 'signal-noise/get-analytics-summary', array(
 		'label'               => 'Get analytics summary',
@@ -71,4 +99,18 @@ function sn_ability_get_analytics_summary( $input ) {
 	$class = snt_analytics_resolve_class( $input['class'] ?? 'human' );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 	return sn_analytics_range_totals( $from, $to, $class );
+}
+
+/**
+ * Execute callback for signal-noise/get-analytics-events.
+ * Resolves window from input, delegates to sn_analytics_top_events().
+ *
+ * @param array|null $input  Optional. { range?: int|string }.
+ * @return array             Array of { name: string, events: int, visitors: int }.
+ */
+function sn_ability_get_analytics_events( $input ) {
+	$input = is_array( $input ) ? $input : array();
+	$range = snt_analytics_resolve_range( $input['range'] ?? 30 );
+	list( $from, $to ) = snt_analytics_range_dates( $range );
+	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
 }
