@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.2] - 2026-06-13 — Analytics dashboard design polish
+
+### Improvements
+- **Fused the Overview stats and the daily-views chart into one panel.** Previously two tall, half-empty boxes; now a single dense panel where the trend chart is the footer of the stat strip — no more lonely sparkline stranded in whitespace.
+- **The trend is now a smooth area chart** (curved, with a soft gradient fill) instead of an angular line, and it reads clearly even on low-traffic days. The line stays crisp at any width.
+- **Stronger hierarchy:** Views and Visits are now the visual anchors (larger, heavier), with the supporting metrics sized to match their role. Numbers align on tabular figures.
+
+> **Why PATCH:** visual design refinement of the existing Analytics dashboard — no new capability, no data or behaviour change. Stays 100% native wp-admin (enqueued stylesheet, semantic markup, accessible chart).
+
 ## [6.5.1] - 2026-06-13 — Analytics dashboard renders reliably
 
 ### Fixed
