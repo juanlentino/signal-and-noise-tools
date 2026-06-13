@@ -496,6 +496,28 @@ function snt_analytics_render_lowengage( $rows ) {
 }
 
 /**
+ * Bot-share trend panel: a bar chart of per-bucket bot% over the window.
+ * Data from sn_analytics_class_series() (durable — no AE). Lives on the
+ * Quality tab above the breakdown panel.
+ *
+ * @param array $rows [{day:string, bot_pct:int, total:int, bot:int}]
+ */
+function snt_analytics_render_bot_trend( $rows ) {
+	if ( empty( $rows ) ) {
+		echo '<div class="sn-an-panel"><h3>Bot share over time</h3><p class="sn-an-empty">No traffic recorded in this range yet.</p></div>';
+		return;
+	}
+	echo '<div class="sn-an-panel"><h3>Bot share over time</h3>';
+	echo '<div class="sn-an-trend sn-an-trend--bot" role="img" aria-label="' . esc_attr( 'Bot share trend' ) . '">';
+	foreach ( $rows as $r ) {
+		$pct = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
+		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
+			. esc_attr( ( $r['day'] ?? '' ) . ': ' . $pct . '% bot' ) . '"></span>';
+	}
+	echo '</div></div>';
+}
+
+/**
  * One-time Plausible-history import panel (v6.0.0). A multipart form with one
  * optional file input per supported CSV export, plus a one-shot summary of the
  * last import (read from a short transient). Posts sn_action=analytics_import on

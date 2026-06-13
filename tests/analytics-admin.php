@@ -106,6 +106,7 @@ function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 42; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 42, 'previous' => 40, 'pct' => 5, 'dir' => 'up' ); }
 function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
 function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
+function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array(); }
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';

@@ -218,6 +218,7 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'quality':
+			snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
 			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
 			break;
 
@@ -337,6 +338,8 @@ function snt_analytics_styles() {
 	.sn-an-spark{display:inline-flex;align-items:flex-end;gap:1px;height:1.1em;}
 	.sn-an-spark .b{width:2px;background:currentColor;opacity:.45;}
 	.sn-an-spark--empty{opacity:.2;}
+	/* v6.1.0 — bot-share trend modifier (slightly muted to distinguish from views trend). */
+	.sn-an-trend--bot .bar{opacity:.7;}
 	</style>
 	<?php
 }
