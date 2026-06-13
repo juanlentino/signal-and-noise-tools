@@ -11,6 +11,8 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function __( $s, $d = null ) { return (string) $s; }
+function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
@@ -65,6 +67,8 @@ $real = capture( function () { snt_analytics_render_choropleth( 'Countries map',
 ok( strpos( $real, 'role="img"' ) !== false && strpos( $real, 'aria-label' ) !== false, 'render: accessible panel (role=img + aria-label)' );
 ok( strpos( $real, '<svg' ) !== false && strpos( $real, 'rgba(34,113,177' ) !== false, 'render: real SVG loaded + US recolored' );
 ok( strpos( $real, 'United States' ) !== false, 'render: tooltip uses the country name (data-name) from the asset, not the bare ISO code' );
+ok( strpos( $real, 'sn-map-legend' ) !== false, 'render: legend strip (Low/Med/High swatches) present' );
+ok( strpos( $real, 'postbox' ) !== false, 'render: choropleth wrapped in native postbox' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

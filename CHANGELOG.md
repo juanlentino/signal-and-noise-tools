@@ -2,6 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.0] - 2026-06-13 — Analytics dashboard redesign
+
+### Improvements
+- **Redesigned the Analytics dashboard** in native WordPress admin style: a denser single-row stat strip, a slim daily-views sparkline, and a Geography view where the world map sits beside the Countries table. Built entirely from core admin components (postboxes, list tables) so it feels like part of WordPress.
+
 ## [6.4.2] - 2026-06-13 — Dashboard layout polish
 
 ### Improvements

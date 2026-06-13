@@ -9,6 +9,10 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 
 function esc_html( $s ) { return $s; }
+function esc_attr( $s ) { return $s; }
+function esc_html__( $s, $d = '' ) { return $s; }
+function esc_attr__( $s, $d = '' ) { return $s; }
+function __( $s, $d = '' ) { return $s; }
 function number_format_i18n( $n ) { return (string) (int) $n; }
 // snt_analytics_fmt_time is defined in analytics-admin-render.php itself — no stub needed.
 

@@ -127,7 +127,16 @@ function capture( $cb ) { ob_start(); $cb(); return preg_replace( '!<style>.*?</
 
 echo "Analytics admin (dashboard + settings split)\n\n";
 
-echo "Group: range + class resolution\n";
+// Capture the inline <style> output BEFORE anything else calls snt_analytics_styles()
+// (which has a static guard and emits only once per process).
+echo "Group: styles — CSS contract\n";
+ob_start(); snt_analytics_styles(); $snt_styles_css = (string) ob_get_clean();
+ok( strpos( $snt_styles_css, 'sn-an-choropleth' ) === false || strpos( $snt_styles_css, 'max-width:720px' ) === false,
+	'styles: .sn-an-choropleth max-width:720px cap removed (no longer constrains map column)' );
+ok( strpos( $snt_styles_css, '.sn-map-figure svg' ) !== false,
+	'styles: .sn-map-figure svg responsive rule present (constrains vendored 2000px SVG inside its column)' );
+
+echo "\nGroup: range + class resolution\n";
 ok( snt_analytics_resolve_range( '30' ) === 30, 'resolve_range: 30 → 30' );
 ok( snt_analytics_resolve_range( '999' ) === 7, 'resolve_range: out-of-list → default 7' );
 ok( snt_analytics_resolve_range( "7); DROP" ) === 7, 'resolve_range: junk → default 7' );
@@ -160,16 +169,21 @@ echo "\nGroup: dashboard — core render\n";
 aa_fill_data();
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
-ok( strpos( $html, '<div class="n">7</div>' ) !== false, 'dashboard: visitors-now card shows 7' );
+ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );
 ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation line' );
+ok( strpos( $html, 'notice notice-info inline' ) !== false, 'controls: separation wrapped in native notice-info inline' );
+ok( strpos( $html, 'sn-toolbar' ) !== false, 'controls: native toolbar wrapper present' );
+ok( strpos( $html, 'button-group' ) !== false, 'controls: button-group pill rows present' );
+ok( strpos( $html, 'button button-small' ) !== false, 'controls: pills use button button-small class' );
 ok( strpos( $html, '/notes/x' ) !== false, 'dashboard: top path row present' );
-ok( substr_count( $html, 'sn-an-trend' ) === 1 && substr_count( $html, 'class="bar"' ) === 2, 'dashboard: trend strip one bar per day' );
+ok( strpos( $html, 'sn-kpi-row' ) !== false, 'cards: fused KPI strip rendered' );
+ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promoted' );
+ok( strpos( $html, '<div class="n">7</div>' ) === false, 'cards: old .n markup gone' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only — NO settings form embedded (split)' );
 ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only — NO save button (split)' );
 
 echo "\nGroup: dashboard — period-over-period deltas on cards\n";
-ok( substr_count( $html, 'sn-an-delta' ) >= 2, 'dashboard: delta indicators on the stat cards' );
-ok( strpos( $html, 'sn-an-delta--up' ) !== false && strpos( $html, 'sn-an-delta--down' ) !== false, 'dashboard: up + down delta directions rendered' );
+ok( strpos( $html, 'sn-delta-down' ) !== false && strpos( $html, 'sn-delta-up' ) !== false, 'cards: up + down deltas' );
 
 echo "\nGroup: dashboard — view tab nav\n";
 $_GET['sn_view'] = 'content';
@@ -181,13 +195,21 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 
+echo "\nGroup: dashboard — trend: SVG sparkline\n";
+aa_fill_data();
+$_GET['sn_view'] = 'content';
+$html_trend = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_trend, 'sn-spark' ) !== false && strpos( $html_trend, '<svg' ) !== false, 'trend: SVG sparkline rendered' );
+ok( strpos( $html_trend, '<polyline' ) !== false || strpos( $html_trend, '<path' ) !== false, 'trend: line path present' );
+ok( strpos( $html_trend, 'class="bar"' ) === false, 'trend: old chunky bars gone' );
+
 echo "\nGroup: dashboard — persistent header on every tab\n";
 foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
 	ok(
-		strpos( $h, 'sn-an-cards' ) !== false && strpos( $h, 'sn-an-controls' ) !== false && substr_count( $h, 'class="bar"' ) >= 2,
-		"header: controls + delta cards + trend persist on the '$v' tab"
+		strpos( $h, 'sn-kpi-row' ) !== false && strpos( $h, 'sn-toolbar' ) !== false && strpos( $h, 'sn-spark' ) !== false,
+		"header: controls + KPI strip + trend persist on the '$v' tab"
 	);
 }
 
@@ -198,6 +220,9 @@ ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !==
 ok( strpos( $html, '>Countries<' ) === false, 'content: Countries panel relocated OUT of Content' );
 ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'content: referrer categories' );
 ok( strpos( $html, '>Browsers<' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'content: technology/engagement panels NOT in this view (lazy per-tab render)' );
+ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'content: dimension/path tables use native widefat class' );
+ok( strpos( $html, 'postbox' ) !== false, 'content: panels wrapped in native postbox' );
+ok( strpos( $html, 'class="sn-an-panel"' ) === false, 'content: old bare sn-an-panel wrapper gone (migrated to postbox)' );
 
 echo "\nGroup: dashboard — Technology view\n";
 $_GET['sn_view'] = 'technology';
@@ -207,6 +232,7 @@ foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' 
 }
 ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === false, 'technology: content/geography panels NOT in this view' );
 ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column rendered on OS/devices tables' );
+ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'technology: dimension tables use native widefat class' );
 
 echo "\nGroup: dashboard — Geography view\n";
 $_GET['sn_view'] = 'geography';
@@ -218,6 +244,9 @@ foreach ( array( 'Countries', 'Cities', 'Regions', 'Networks', 'Edge locations' 
 ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Countries renders first (above Cities)' );
 ok( strpos( $html, 'sn-an-choropleth' ) !== false, 'geography: choropleth panel rendered' );
 ok( strpos( $html, 'sn-an-choropleth' ) < strpos( $html, '>Countries<' ), 'geography: choropleth renders before the Countries table' );
+ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'geography: country/city tables use native widefat class' );
+ok( strpos( $html, 'sn-geo-split' ) !== false, 'geography: map+countries split layout wrapper present' );
+ok( strpos( $html, 'sn-geo-tiles' ) !== false, 'geography: tiles grid (cities/regions/networks/edge) present' );
 $GLOBALS['__aa']['dim'] = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
 
 echo "\nGroup: dashboard — Engagement view\n";
@@ -225,12 +254,14 @@ $_GET['sn_view'] = 'engagement';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-heatmap' ) !== false, 'engagement: hour×dow heatmap rendered' );
 ok( strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' ) !== false, 'engagement: scroll + time distributions' );
+ok( strpos( $html, 'postbox' ) !== false, 'engagement: panels wrapped in native postbox' );
 
 echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
 ok( strpos( $html, 'sn-an-trend--bot' ) !== false, 'quality tab renders the bot-share trend when data present' );
+ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native postbox' );
 
 echo "\nGroup: dashboard — Events view (new tab)\n";
 $_GET['sn_view'] = 'events';

@@ -14,6 +14,9 @@ define( 'ABSPATH', '/' );
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
+function esc_html__( $s, $d = '' ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_attr__( $s, $d = '' ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function __( $s, $d = '' ) { return $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 $_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics&sn_view=events&sn_range=30&sn_class=human';
 function add_query_arg( $args, $url = null ) {
@@ -59,7 +62,7 @@ $props = array(
 );
 $html = capture( function () use ( $props ) { snt_analytics_render_event_props_table( $props, '' ); } );
 ok( strpos( $html, 'Event properties' ) !== false, 'props: panel heading' );
-ok( strpos( $html, '<th>Property</th>' ) !== false, 'props(unfiltered): Property column shown' );
+ok( strpos( $html, '>Property<' ) !== false, 'props(unfiltered): Property column shown' );
 ok( strpos( $html, 'sn_event_prop=utm_source' ) !== false, 'props(unfiltered): property is a drill-down link' );
 ok( strpos( $html, 'utm_source' ) !== false && strpos( $html, 'hn' ) !== false, 'props: property + value rendered' );
 
