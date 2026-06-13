@@ -233,6 +233,20 @@ ok( false !== $kpi_pos && false !== $trend_pos && $kpi_pos < $trend_pos,
 	'overview: KPI strip precedes the trend band within the fused panel' );
 ok( strpos( $html_trend, '>Daily views<' ) === false, 'overview: redundant standalone "Daily views" header removed' );
 
+echo "\nGroup: table panels keep the native widget gutter (not flush) (v6.5.3)\n";
+$_GET['sn_view'] = 'content';
+$html_tbl = capture( 'snt_analytics_render_dashboard' );
+// The widefat data tables must sit in a padded .inside (native widget gutter), not
+// the full-bleed .inside-flush the KPI strip / chart / map use — otherwise the text
+// hugs the box edges.
+ok( strpos( $html_tbl, 'Top pages</span></h2></div><div class="inside sn-an-table-inside"' ) !== false,
+	'tables: Top pages panel uses the padded .sn-an-table-inside (not flush)' );
+ok( strpos( $html_tbl, 'inside sn-an-table-inside' ) !== false,
+	'tables: padded table-inside wrapper present on the Content view' );
+$css_pad = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
+ok( preg_match( '/\.sn-an-table-inside\s*\{[^}]*padding:/s', $css_pad ) === 1,
+	'tables: .sn-an-table-inside defines an explicit side gutter (version-robust, not core-dependent)' );
+
 echo "\nGroup: dashboard — persistent header on every tab\n";
 foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	$_GET['sn_view'] = $v;

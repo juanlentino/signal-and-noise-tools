@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.3] - 2026-06-13 — Analytics table spacing
+
+### Fixed
+- **Table text no longer hugs the panel edges.** The data tables (Top pages, Top sources, Countries, and the rest) now sit in the standard WordPress widget gutter instead of running flush to the box edge — so column headers and rows have proper breathing room, the way native wp-admin tables do. The full-bleed treatment is kept only where it's intentional: the stat strip, the trend chart, and the world map.
+
+> **Why PATCH:** spacing fix aligning the Analytics tables with native wp-admin widget padding conventions. No new capability, no behaviour change.
+
 ## [6.5.2] - 2026-06-13 — Analytics dashboard design polish
 
 ### Improvements
