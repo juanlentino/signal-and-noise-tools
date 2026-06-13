@@ -1,0 +1,216 @@
+/*
+ * Signal & Noise — Analytics dashboard dense layout (wp-admin native).
+ *
+ * Enqueued via inc/admin-menu.php (admin_enqueue_scripts) on the SN admin pages,
+ * NOT echoed inline. An external, cache-busted stylesheet loads in <head> (correct
+ * cascade, no FOUC), survives a `style-src 'self'` CSP, and can't be tripped by an
+ * output-buffering / once-guard quirk the way the old inline <style> echo could —
+ * which is why the live dashboard could render unstyled. See the WordPress Plugin
+ * Handbook, "Including CSS & JavaScript".
+ *
+ * WP admin native palette: #1d2327 text · #646970 muted · #2271b1 link ·
+ * #dcdcde hairline · #d63638 error. wp-admin already ships .postbox, .widefat,
+ * .nav-tab, .button, .notice core CSS — this file adds ONLY the custom dense-layout
+ * rules those core classes don't provide.
+ */
+
+/* ── postbox / widefat tweaks ───────────────────────────────────────────── */
+.postbox .inside.inside-flush { padding: 0; }
+.widefat .num { text-align: right; }
+
+/* ── toolbar row: title-inline controls ─────────────────────────────────── */
+.sn-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 16px;
+	margin: 6px 0 4px;
+}
+.sn-toolbar .sn-control-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.sn-control-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #646970;
+	font-weight: 600;
+}
+.sn-toolbar-spacer { flex: 1 1 auto; }
+
+/* ── dense fused KPI strip ──────────────────────────────────────────────── */
+.sn-kpi-strip { padding: 0; }
+.sn-kpi-row {
+	display: grid;
+	grid-template-columns: 1.25fr 1.25fr 1fr 1fr 1fr 1fr;
+	border-top: 1px solid #dcdcde;
+}
+.sn-kpi {
+	padding: 12px 14px;
+	border-right: 1px solid #dcdcde;
+	border-bottom: 1px solid #dcdcde;
+	min-width: 0;
+}
+.sn-kpi:last-child { border-right: none; }
+.sn-kpi-promoted { background: #fbfbfc; }
+.sn-kpi-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #646970;
+	font-weight: 600;
+	margin: 0 0 4px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.sn-kpi-value {
+	font-size: 24px;
+	font-weight: 400;
+	color: #1d2327;
+	line-height: 1.1;
+	margin: 0;
+}
+.sn-kpi-promoted .sn-kpi-value { font-size: 28px; }
+.sn-kpi-delta {
+	display: inline-block;
+	margin-top: 5px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+.sn-delta-down { color: #d63638; }
+.sn-delta-up   { color: #00a32a; }
+.sn-delta-flat { color: #646970; font-weight: 400; }
+.sn-delta-arrow { font-size: 11px; vertical-align: middle; }
+
+/* ── slim sparkline trend ───────────────────────────────────────────────── */
+.sn-trend-inside { padding: 0; }
+.sn-trend-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	padding: 10px 12px 6px;
+}
+.sn-trend-head .sn-trend-title { font-size: 12px; color: #646970; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.sn-trend-head .sn-trend-meta  { font-size: 12px; color: #646970; }
+.sn-spark-wrap { padding: 0 6px 8px; }
+.sn-spark { display: block; width: 100%; height: 84px; }
+.sn-spark-axis {
+	display: flex;
+	justify-content: space-between;
+	padding: 2px 12px 8px;
+	font-size: 11px;
+	color: #787c82;
+}
+
+/* ── geography: map + countries side-by-side ────────────────────────────── */
+.sn-geo-split {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+	gap: 20px;
+	align-items: stretch;
+}
+.sn-map-inside  { padding: 0; }
+.sn-map-figure  { margin: 0; padding: 10px; }
+.sn-map-figure svg { width: 100%; height: auto; display: block; } /* constrain the vendored 2000px-wide SVG inside its column */
+.sn-map-figure svg path { stroke: #fff; stroke-width: 0.3; } /* restore country-border fidelity lost when wrapper changed from .sn-an-choropleth-map to figure */
+.sn-map-svg     { display: block; width: 100%; height: auto; }
+.sn-map-legend {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 4px 12px 10px;
+	font-size: 11px;
+	color: #646970;
+	flex-wrap: wrap;
+}
+.sn-legend-item   { display: inline-flex; align-items: center; gap: 5px; }
+.sn-legend-swatch { width: 14px; height: 12px; display: inline-block; border: 1px solid #c3c4c7; }
+
+/* ── tiled geo tables below the split ───────────────────────────────────── */
+.sn-geo-tiles {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 20px;
+}
+
+/* ── responsive collapse ─────────────────────────────────────────────────── */
+@media screen and (max-width: 1100px) {
+	.sn-kpi-row { grid-template-columns: repeat(3, 1fr); }
+	.sn-kpi:nth-child(3n) { border-right: none; }
+}
+@media screen and (max-width: 860px) {
+	.sn-geo-split  { grid-template-columns: 1fr; }
+	.sn-geo-tiles  { grid-template-columns: 1fr; }
+}
+@media screen and (max-width: 600px) {
+	.sn-kpi-row { grid-template-columns: repeat(2, 1fr); }
+	.sn-kpi:nth-child(3n) { border-right: 1px solid #dcdcde; }
+	.sn-kpi:nth-child(2n) { border-right: none; }
+}
+
+/* ── layout helpers still consumed by current render fns ────────────────── */
+.sn-an-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.sn-an-view-tabs { margin: 18px 0 0; }
+.sn-an-view { margin-top: 16px; }
+.sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
+.sn-an-sep { color: #646970; font-size: 13px; margin: 0 0 14px; }
+
+/* ── bespoke viz (inline bar/heatmap panels; no native equivalent) ─────── */
+.sn-an-delta { font-size: 0.72em; font-weight: 600; margin-left: 5px; white-space: nowrap; }
+.sn-an-delta--up   { color: #0a7c2f; }
+.sn-an-delta--down { color: #b32d2e; }
+.sn-an-delta--flat { color: #646970; }
+.sn-an-refcats-bars { display: flex; flex-direction: column; gap: 8px; }
+.sn-an-refcat-h { display: flex; justify-content: space-between; font-size: 13px; color: #1d2327; margin-bottom: 3px; }
+.sn-an-refcat-bar { height: 8px; background: #f0f0f1; border-radius: 4px; overflow: hidden; }
+.sn-an-refcat-bar span { display: block; height: 100%; background: #2271b1; border-radius: 4px; }
+.sn-an-dist-bars { display: flex; flex-direction: column; gap: 7px; }
+.sn-an-dist-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.sn-an-dist-l { flex: 0 0 72px; color: #646970; }
+.sn-an-dist-bar { flex: 1; height: 10px; background: #f0f0f1; border-radius: 5px; overflow: hidden; }
+.sn-an-dist-bar span { display: block; height: 100%; background: #2271b1; border-radius: 5px; }
+.sn-an-dist-n { flex: 0 0 auto; }
+.sn-an-heatmap { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.sn-an-hm-row { display: flex; align-items: center; gap: 3px; }
+.sn-an-hm-day { flex: 0 0 32px; font-size: 11px; color: #646970; }
+.sn-an-hm-cell { flex: 1; min-width: 9px; height: 14px; background: #f0f0f1; border-radius: 2px; }
+.sn-an-quality-bar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; margin: 0 0 8px; background: #f0f0f1; }
+.sn-an-q { display: block; height: 100%; }
+.sn-an-q--human   { background: #2271b1; }
+.sn-an-q--suspect { background: #dba617; }
+.sn-an-q--bot     { background: #d63638; }
+.sn-an-q-legend { font-size: 12px; color: #646970; margin: 0 0 10px; }
+.sn-an-q-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 2px; }
+.sn-an-subh { font-size: 12px; color: #646970; margin: 10px 0 4px; }
+/* per-dimension inline sparkline bars (dim tables) */
+.sn-an-spark { display: inline-flex; align-items: flex-end; gap: 1px; height: 1.1em; }
+.sn-an-spark .b { width: 2px; background: currentColor; opacity: .45; }
+.sn-an-spark--empty { opacity: .2; }
+/* bot-share trend bars (quality tab render_bot_trend) */
+.sn-an-trend--bot .bar { opacity: .7; }
+.sn-an-trend { display: flex; align-items: flex-end; gap: 3px; height: 48px; margin: 0 0 18px; }
+.sn-an-trend .bar { flex: 1; background: #2271b1; min-height: 2px; border-radius: 2px 2px 0 0; }
+/* panel/table inner wrappers (referrer-cats, distribution, heatmap, bot-breakdown) */
+.sn-an-panel { padding: 14px; }
+.sn-an-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sn-an-table th { text-align: left; color: #646970; font-weight: 400; border-bottom: 1px solid #f0f0f1; padding: 5px 0; }
+.sn-an-table td { border-bottom: 1px solid #f0f0f1; padding: 5px 0; color: #1d2327; }
+.sn-an-table td.num, .sn-an-table th.num { text-align: right; font-variant-numeric: tabular-nums; color: #646970; }
+.sn-an-table tr:last-child td { border-bottom: 0; }
+@media (max-width: 782px) {
+	.sn-an-grid { grid-template-columns: 1fr; }
+}
+
+/* ── settings surface (Monitoring → Analytics creds form) ───────────────── */
+.sn-an-settings { max-width: 640px; }
+.sn-an-settings-help { color: #646970; font-size: 13px; margin: .25rem 0 1rem; }
+.sn-an-worker { margin-top: 16px; border: 1px solid #dcdcde; border-radius: 6px; padding: 10px 14px; background: #fff; }
+.sn-an-worker summary { cursor: pointer; font-weight: 600; font-size: 13px; color: #1d2327; }
+.sn-an-steps { margin: 10px 0 0; padding-left: 20px; font-size: 13px; color: #1d2327; }
+.sn-an-steps li { margin: 6px 0; }
+.sn-an-pre { background: #f6f7f7; border: 1px solid #e0e0e0; padding: 8px 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre; overflow: auto; }
+.sn-an-worker[open] summary { margin-bottom: 6px; }

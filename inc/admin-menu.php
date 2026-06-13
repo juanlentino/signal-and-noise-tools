@@ -94,6 +94,19 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		array(),
 		SNT_VERSION
 	);
+	// v6.5.1: the dense Analytics dashboard layout (formerly an inline <style>
+	// echoed mid-body by snt_analytics_styles(), which could render unstyled on the
+	// live page — a body-injected <style> is subject to edge/cache HTML rewriting and
+	// a strict CSP, and the old once-guard was fragile). Loaded as a proper external,
+	// cache-busted stylesheet in <head>. Depends on sn-admin so it cascades after it.
+	// Scoped to .sn-an-*/.sn-kpi-*/.sn-geo-* classes that only appear on the analytics
+	// surfaces, so loading it on every SN admin page is harmless.
+	wp_enqueue_style(
+		'sn-analytics-admin',
+		SNT_URL . 'assets/analytics/analytics-admin.css',
+		array( 'sn-admin' ),
+		SNT_VERSION
+	);
 	wp_enqueue_script(
 		'sn-admin',
 		SNT_URL . 'assets/admin.js',

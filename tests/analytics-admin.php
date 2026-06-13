@@ -120,21 +120,30 @@ require_once __DIR__ . '/../inc/analytics-admin.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
-// Strip the inline <style> block so structural assertions (class names, counts)
-// see markup only — snt_analytics_styles() prints once per process (static
-// guard), so which capture() carries the CSS is call-order-dependent noise.
+// Strip any <style> block so structural assertions (class names, counts) see markup
+// only. As of v6.5.1 the dense layout CSS is an external enqueued stylesheet, so the
+// dashboard body emits no <style>; this strip now only removes the world-map SVG's
+// internal <style> on the geography view (defensive — keeps assertions markup-pure).
 function capture( $cb ) { ob_start(); $cb(); return preg_replace( '!<style>.*?</style>!s', '', (string) ob_get_clean() ); }
 
 echo "Analytics admin (dashboard + settings split)\n\n";
 
-// Capture the inline <style> output BEFORE anything else calls snt_analytics_styles()
-// (which has a static guard and emits only once per process).
-echo "Group: styles — CSS contract\n";
-ob_start(); snt_analytics_styles(); $snt_styles_css = (string) ob_get_clean();
-ok( strpos( $snt_styles_css, 'sn-an-choropleth' ) === false || strpos( $snt_styles_css, 'max-width:720px' ) === false,
-	'styles: .sn-an-choropleth max-width:720px cap removed (no longer constrains map column)' );
+// v6.5.1: the dense layout CSS is now an EXTERNAL, enqueued stylesheet
+// (assets/analytics/analytics-admin.css), not an inline <style> echoed mid-body by
+// snt_analytics_styles() — a body-injected <style> could be dropped on the live page
+// (edge/cache HTML rewriting, strict CSP, fragile once-guard), rendering it unstyled.
+// The contract is now asserted against the file; the render-body check below confirms
+// no inline <style> is emitted. See inc/admin-menu.php for the wp_enqueue_style wiring.
+echo "Group: styles — CSS contract (external stylesheet)\n";
+$css_path       = __DIR__ . '/../assets/analytics/analytics-admin.css';
+$snt_styles_css = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
+ok( '' !== $snt_styles_css, 'styles: analytics-admin.css exists and is non-empty (enqueued, not inline)' );
+ok( strpos( $snt_styles_css, '.sn-kpi-row' ) !== false && strpos( $snt_styles_css, 'grid-template-columns: 1.25fr' ) !== false,
+	'styles: fused KPI strip grid rule present (the layout the live page must receive)' );
 ok( strpos( $snt_styles_css, '.sn-map-figure svg' ) !== false,
 	'styles: .sn-map-figure svg responsive rule present (constrains vendored 2000px SVG inside its column)' );
+ok( strpos( $snt_styles_css, 'max-width:720px' ) === false && strpos( $snt_styles_css, 'max-width: 720px' ) === false,
+	'styles: .sn-an-choropleth max-width:720px cap removed (no longer constrains map column)' );
 
 echo "\nGroup: range + class resolution\n";
 ok( snt_analytics_resolve_range( '30' ) === 30, 'resolve_range: 30 → 30' );
@@ -167,6 +176,11 @@ function aa_fill_data() {
 
 echo "\nGroup: dashboard — core render\n";
 aa_fill_data();
+// Raw (unstripped) body: the default 'content' view renders no choropleth SVG, so
+// ANY <style> here would be the regressed inline echo. The CSS must come from the
+// enqueued external stylesheet, never the body.
+ob_start(); snt_analytics_render_dashboard(); $raw_body = (string) ob_get_clean();
+ok( strpos( $raw_body, '<style' ) === false, 'dashboard: no inline <style> echoed in body (CSS is enqueued externally)' );
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
 ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );

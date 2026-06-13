@@ -196,10 +196,16 @@ $content = snt_preview_render( 'content' );
 ok( strpos( $content, '/notes/x' ) !== false, 'content tab: top pages rendered' );
 
 // Write the visual preview file (CLI arg picks the tab; default geography) for browser comparison.
-$view = isset( $argv[1] ) ? (string) $argv[1] : 'geography';
+// v6.5.1: the dense layout CSS is now an external enqueued stylesheet, not an inline
+// <style> echoed by the render path. Embed the asset file's CSS here (exactly what the
+// live page loads via wp_enqueue_style) so the standalone preview stays faithful.
+$css_file = __DIR__ . '/../assets/analytics/analytics-admin.css';
+$css      = is_file( $css_file ) ? (string) file_get_contents( $css_file ) : '';
+$view     = isset( $argv[1] ) ? (string) $argv[1] : 'geography';
 $html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
 	// dev-only: approximate core admin CSS for the standalone preview (never shipped).
 	. '<link rel="stylesheet" href="https://s.w.org/wp-admin/css/common.css">'
+	. '<style>' . $css . '</style>'
 	. '</head><body class="wp-admin wp-core-ui" style="background:#f0f0f1">'
 	. '<div class="wrap"><h1>Analytics</h1>' . snt_preview_render( $view ) . '</div></body></html>';
 file_put_contents( '/tmp/sn-dashboard-preview.html', $html );
