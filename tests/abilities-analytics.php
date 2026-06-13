@@ -23,6 +23,7 @@ ok( ! empty( $a['meta']['show_in_rest'] ), 'exposed in REST' );
 ok( empty( $a['meta']['annotations']['destructive'] ), 'read-only: not destructive' );
 ok( ! empty( $a['meta']['annotations']['idempotent'] ), 'marked idempotent' );
 ok( is_string( $a['permission_callback'] ) && $a['permission_callback'] !== '', 'has a permission callback' );
+ok( $a['permission_callback'] === 'snt_ability_perm_manage_options', 'permission_callback is the shared manage_options guard' );
 ok( isset( $a['execute_callback'] ), 'has an execute callback' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

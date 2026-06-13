@@ -77,13 +77,13 @@ add_action( 'rest_api_init', function () {
  * Mirrors the logic the dashboard uses so REST and UI see the same data.
  *
  * @param WP_REST_Request $request
- * @return array{ 0: string, 1: string, 2: string }  [ $from, $to, $class ]
+ * @return array{ 0: string, 1: string, 2: string, 3: int|string }  [ $from, $to, $class, $range ]
  */
 function sn_analytics_rest_window( $request ) {
 	$range = snt_analytics_resolve_range( $request->get_param( 'range' ) );
 	$class = snt_analytics_resolve_class( $request->get_param( 'class' ) );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
-	return array( $from, $to, $class );
+	return array( $from, $to, $class, $range );
 }
 
 // ── Route callbacks ───────────────────────────────────────────────────────────
@@ -108,8 +108,11 @@ function sn_analytics_rest_summary( $request ) {
  * @return array
  */
 function sn_analytics_rest_series( $request ) {
-	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
-	$gran = sn_analytics_granularity( (int) snt_analytics_resolve_range( $request->get_param( 'range' ) ) );
+	list( $from, $to, $class, $range ) = sn_analytics_rest_window( $request );
+	$days = ( 'all' === $range )
+		? ( (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1 )
+		: (int) $range;
+	$gran = sn_analytics_granularity( $days );
 	return sn_analytics_daily_series( $from, $to, $class, $gran );
 }
 

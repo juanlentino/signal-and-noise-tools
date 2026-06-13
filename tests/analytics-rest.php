@@ -9,6 +9,7 @@
  */
 define( 'ABSPATH', '/' );
 define( 'SN_REST_NAMESPACE', 'signal-noise/v1' );
+define( 'DAY_IN_SECONDS', 86400 );
 class WP_REST_Server { const READABLE = 'GET'; const CREATABLE = 'POST'; }
 class WP_Error { public $d; public function __construct( $c = '', $m = '', $d = array() ) { $this->d = $d; } }
 class WP_REST_Request { private $p; public function __construct( $p = array() ) { $this->p = $p; } public function get_param( $k ) { return $this->p[ $k ] ?? null; } }
