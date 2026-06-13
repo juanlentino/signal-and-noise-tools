@@ -77,6 +77,8 @@ $sql  = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql, 'HAVING' ) !== false, 'uses HAVING to filter on aggregates' );
 ok( strpos( $sql, 'scroll_avg * views' ) !== false, 'weights scroll by views (consistent with range_totals)' );
 ok( (int) SN_ANALYTICS_LOWENGAGE_MIN_VIEWS > 0, 'min-views threshold constant defined' );
+ok( count( $rows ) === 1, 'HAVING filter: only the low-engagement path returns' );
+ok( isset( $rows[0]['path'] ) && $rows[0]['path'] === '/bouncy', 'HAVING filter: /bouncy survives, /skip-me excluded' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
