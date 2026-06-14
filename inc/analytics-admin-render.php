@@ -145,7 +145,7 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '' ) {
 	echo '</div>';
 	echo '<form class="sn-an-custom-form" method="get" action="' . esc_url( $action ) . '">';
 	foreach ( $hidden as $hk => $hv ) {
-		if ( in_array( $hk, array( 'page', 'sn_view' ), true ) ) {
+		if ( in_array( $hk, array( 'page', 'tab', 'sn_view' ), true ) ) {
 			echo '<input type="hidden" name="' . esc_attr( $hk ) . '" value="' . esc_attr( (string) $hv ) . '">';
 		}
 	}
