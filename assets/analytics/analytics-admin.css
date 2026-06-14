@@ -36,7 +36,7 @@
    the trend chart, and the map, where edge-to-edge is intentional. Tables read
    tight against the box without it. v6.5.3. */
 .postbox .inside.sn-an-table-inside { padding: 0 12px 14px; }
-.widefat .num { text-align: right; }
+.widefat .num { text-align: right; font-variant-numeric: tabular-nums; }
 /* Slightly roomier widefat cells than core's 8px/10px so columns breathe on a
    wide dashboard, and the first/last cells clear the table border comfortably. */
 .sn-an-table-inside .widefat td,
@@ -108,6 +108,7 @@
 	color: #1d2327;
 	line-height: 1.1;
 	margin: 0;
+	font-variant-numeric: tabular-nums;
 }
 .sn-kpi-promoted .sn-kpi-value { font-size: 32px; font-weight: 500; letter-spacing: -0.01em; }
 .sn-kpi-delta {
@@ -166,6 +167,15 @@
 }
 .sn-legend-item   { display: inline-flex; align-items: center; gap: 5px; }
 .sn-legend-swatch { width: 14px; height: 12px; display: inline-block; border: 1px solid #c3c4c7; }
+/* Legend tiers derived from the SAME rgba(34,113,177,α) ramp the choropleth fills
+   use (α 0.15→0.90), so the swatches match the map. Replaces hardcoded hex that
+   did not composite to the real fills (refinement audit D6). */
+.sn-legend-swatch--low    { background: rgba( 34, 113, 177, 0.15 ); }
+.sn-legend-swatch--medium { background: rgba( 34, 113, 177, 0.53 ); }
+.sn-legend-swatch--high   { background: rgba( 34, 113, 177, 0.90 ); }
+.sn-legend-item--meta     { margin-left: auto; color: #646970; }
+/* Export form stays inline in the toolbar flex row (was an inline style attr). */
+.sn-an-export { display: inline; }
 
 /* ── tiled geo tables below the split ───────────────────────────────────── */
 .sn-geo-tiles {
@@ -194,6 +204,10 @@
 .sn-an-view-tabs { margin: 18px 0 0; }
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
+/* Empty-state inside a full-bleed (.inside-flush / .sn-map-inside) panel needs the
+   native side gutter the table panels get for free. Replaces 15 repeated inline
+   style="padding:…" attributes (refinement audit D2/E6). */
+.sn-an-empty--panel { padding: 0 12px 12px; }
 .sn-an-sep { color: #646970; font-size: 13px; margin: 0 0 14px; }
 /* Full-width section intro inside .sn-an-grid: spans both columns so the note
    reads as a header (not an orphaned cell) and the panels below it pair up. */
@@ -226,6 +240,7 @@
 .sn-an-q-legend { font-size: 12px; color: #646970; margin: 0 0 10px; }
 .sn-an-q-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 2px; }
 .sn-an-subh { font-size: 12px; color: #646970; margin: 10px 0 4px; }
+.sn-an-subh--panel { padding: 0 12px 8px; }
 /* per-dimension inline sparkline (dim tables) — tiny smooth SVG mini-area */
 .sn-an-spark { display: inline-block; width: 72px; height: 18px; vertical-align: middle; }
 .sn-an-spark svg { display: block; width: 100%; height: 100%; }
@@ -233,7 +248,7 @@
 /* bot-share trend (quality tab) — smooth SVG line + area, red accent (reuses the
    .sn-trend-head / .sn-spark-wrap / .sn-spark-axis chrome from the Overview chart) */
 .sn-an-bot-trend { margin: 0 0 18px; }
-.sn-an-bot-spark { display: block; width: 100%; height: 72px; }
+.sn-an-bot-spark { display: block; width: 100%; height: 104px; }
 /* panel/table inner wrappers (referrer-cats, distribution, heatmap, bot-breakdown) */
 .sn-an-panel { padding: 14px; }
 .sn-an-table { width: 100%; border-collapse: collapse; font-size: 13px; }

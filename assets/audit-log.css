@@ -21,12 +21,13 @@
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: #50575e;
+	color: #646970;
+	font-weight: 600;
 }
 
 .sn-audit-card-value {
 	font-size: 22px;            /* v3.8.6: tighter for viewport-fit (was 28px) */
-	font-weight: 600;
+	font-weight: 500;          /* match the dashboard state-card hero value (refinement audit D7) */
 	color: #1d2327;
 	line-height: 1.1;
 }

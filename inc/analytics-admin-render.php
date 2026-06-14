@@ -105,7 +105,7 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '' ) {
 	// Export — POST form with button-secondary pills.
 	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Export', 'signal-and-noise-tools' ) . '">';
 	echo '<span class="sn-control-label">' . esc_html__( 'Export', 'signal-and-noise-tools' ) . '</span>';
-	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="display:inline">';
+	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="page" value="sn-theme-options">';
 	echo '<input type="hidden" name="sn_action" value="analytics_export">';
@@ -370,7 +370,7 @@ function snt_analytics_render_referrer_categories( $cats ) {
 		$total += (int) ( $c['views'] ?? 0 );
 	}
 	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No referrer data in this range yet.</p></div></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No referrer data in this range yet.</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-refcats-bars">';
@@ -402,7 +402,7 @@ function snt_analytics_render_distribution( $title, $rows, $empty_msg = '' ) {
 	}
 	if ( $max <= 0 ) {
 		$msg = ( '' !== $empty_msg ) ? $empty_msg : 'No ' . strtolower( $title ) . ' data in this range yet.';
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $msg ) . '</p></div></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $msg ) . '</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-dist-bars">';
@@ -429,7 +429,7 @@ function snt_analytics_render_heatmap( $heatmap ) {
 	$max  = (int) ( $heatmap['max'] ?? 0 );
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Activity by hour (UTC)', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-heatmap-panel">';
 	if ( $max <= 0 || empty( $grid ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No hourly data in this range yet.</p></div></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No hourly data in this range yet.</p></div></div></div>';
 		return;
 	}
 	$days = array( 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' );
@@ -491,7 +491,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Traffic quality', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-botbreak">';
 	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No traffic recorded in this range yet.</p></div></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No traffic recorded in this range yet.</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-quality-bar">';
@@ -530,7 +530,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 function snt_analytics_render_paths_table( $paths ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Top pages', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $paths ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No page views in this range.</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No page views in this range.</p></div></div>';
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
@@ -565,7 +565,7 @@ function snt_analytics_render_paths_table( $paths ) {
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '' ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 	$has_spark = ! empty( $series );
@@ -660,7 +660,7 @@ function snt_analytics_render_settings() {
 
 	echo '<form method="post" class="sn-an-settings">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<h3>Credentials</h3>';
+	echo '<h3 class="sn-fieldset-h">Credentials</h3>';
 	echo '<p class="sn-an-settings-help">Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (<code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code>) overrides these and locks the field.</p>';
 
 	// Account ID.
@@ -715,7 +715,7 @@ function snt_analytics_render_worker_setup() {
 function snt_analytics_render_lowengage( $rows ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Pages losing readers', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No low-engagement pages in this range — readers are sticking around.</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No low-engagement pages in this range — readers are sticking around.</p></div></div>';
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
@@ -746,7 +746,7 @@ function snt_analytics_render_lowengage( $rows ) {
  */
 function snt_analytics_render_bot_trend( $rows ) {
 	if ( empty( $rows ) ) {
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><p class="sn-an-empty" style="padding:0 12px 12px">No traffic recorded in this range yet.</p></div></div>';
+		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><p class="sn-an-empty sn-an-empty--panel">No traffic recorded in this range yet.</p></div></div>';
 		return;
 	}
 	$n    = count( $rows );
@@ -856,7 +856,7 @@ function snt_analytics_render_import() {
 function snt_analytics_render_events_table( $rows ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Custom events', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No custom events in this range yet.</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No custom events in this range yet.</p></div></div>';
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
@@ -901,7 +901,7 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
@@ -936,11 +936,11 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Event properties', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
-		echo '<p class="sn-an-subh" style="padding:0 12px 8px">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
+		echo '<p class="sn-an-subh sn-an-subh--panel">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
 			. '<a href="' . esc_url( $clear ) . '">Clear</a></p>';
 	}
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No event properties in this range yet.</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No event properties in this range yet.</p></div></div>';
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
@@ -1074,13 +1074,13 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 	echo '<div class="inside inside-flush sn-map-inside">';
 
 	if ( ! $has_data ) {
-		echo '<p class="sn-an-empty" style="padding:12px">' . esc_html( $empty ) . '</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 
 	$svg = snt_analytics_choropleth_svg();
 	if ( '' === $svg ) {
-		echo '<p class="sn-an-empty" style="padding:12px">' . esc_html( $empty ) . '</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
 		return;
 	}
 
@@ -1089,10 +1089,10 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 	echo snt_analytics_recolor_world_svg( $svg, $views, $names ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: vendored static SVG + numeric fills + esc_html'd <title>s.
 	echo '</div></figure>';
 	echo '<div class="sn-map-legend" aria-hidden="true">';
-	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#dde7f1;"></span> ' . esc_html__( 'Low', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#9ec0e0;"></span> ' . esc_html__( 'Medium', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-legend-item"><span class="sn-legend-swatch" style="background:#2271b1;"></span> ' . esc_html__( 'High', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-legend-item" style="margin-left:auto;color:#787c82;">' . esc_html__( 'Views by country', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch sn-legend-swatch--low"></span> ' . esc_html__( 'Low', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch sn-legend-swatch--medium"></span> ' . esc_html__( 'Medium', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item"><span class="sn-legend-swatch sn-legend-swatch--high"></span> ' . esc_html__( 'High', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-legend-item sn-legend-item--meta">' . esc_html__( 'Views by country', 'signal-and-noise-tools' ) . '</span>';
 	echo '</div>';
 	echo '</div></div>';
 }
@@ -1172,11 +1172,11 @@ function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' )
 	echo '<div class="postbox sn-an-drill"><div class="postbox-header"><h2 class="hndle"><span>'
 		. esc_html( 'Top pages · ' . $label . ' = ' . (string) $value ) . '</span></h2></div>'
 		. '<div class="inside sn-an-table-inside">';
-	echo '<p class="sn-an-subh" style="padding:0 12px 8px"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
+	echo '<p class="sn-an-subh sn-an-subh--panel"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
 		. ( '' !== $note ? ' · <span class="sn-an-foot">' . esc_html( $note ) . '</span>' : '' ) . '</p>';
 
 	if ( ! is_array( $rows ) || empty( $rows ) ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No pages for this segment in this range (or it needs live Analytics Engine data).</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No pages for this segment in this range (or it needs live Analytics Engine data).</p></div></div>';
 		return;
 	}
 

@@ -14,7 +14,7 @@
  * NOT on any other admin screen.
  *
  * Run: php tests/analytics-widget-enqueue.php
- * @since plugin v6.11.3
+ * @since plugin v6.11.5
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 

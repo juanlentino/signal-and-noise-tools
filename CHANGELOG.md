@@ -2,15 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.11.3] - 2026-06-14 — Dashboard-widget CSS is now an enqueued stylesheet
+## [6.11.5] - 2026-06-14 — Dashboard-widget CSS is now an enqueued stylesheet
 
 **Headline:** the four "Analytics — …" dashboard-home widgets load their CSS from a proper enqueued stylesheet instead of an inline `<style>` echoed mid-body — closing the last inline-CSS surface that could render an admin page unstyled (refinement-audit item E5).
 
 ### Changed
 
-- **Widget CSS moved out of `sn_aw_styles()` into [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css).** The `.sn-aw-*` rules that style the four dashboard widgets (Last 7 days, Right now, Top pages, Top sources) were previously printed as an inline `<style>` block mid-body by the first widget to render, guarded by a static "printed once" flag. They are now a normal external stylesheet, registered on `admin_enqueue_scripts` and gated to the Dashboard home screen (`index.php`), cache-busted by `SNT_VERSION` — mirroring the analytics dashboard's CSS, which moved external for the same reason in v6.5.1. A body-injected `<style>` is subject to edge/cache HTML rewriting and a strict `style-src 'self'` CSP, and the once-guard was fragile; an external stylesheet in `<head>` cascades correctly, survives the CSP, and can't be dropped — the same class of bug that left the analytics dashboard rendering unstyled. The widget markup and output are byte-for-byte unchanged. [inc/analytics-widget.php](inc/analytics-widget.php)
+- **Widget CSS moved out of `sn_aw_styles()` into [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css).** The `.sn-aw-*` rules that style the four dashboard widgets (Last 7 days, Right now, Top pages, Top sources) were previously printed as an inline `<style>` block mid-body by the first widget to render, guarded by a static "printed once" flag. They are now a normal external stylesheet, registered on `admin_enqueue_scripts` and gated to the Dashboard home screen (`index.php`), cache-busted by `SNT_VERSION` — mirroring the analytics dashboard's CSS, which moved external for the same reason in v6.5.1. A body-injected `<style>` is subject to edge/cache HTML rewriting and a strict `style-src 'self'` CSP, and the once-guard was fragile; an external stylesheet in `<head>` cascades correctly, survives the CSP, and can't be dropped — the same class of bug that left the analytics dashboard rendering unstyled. The widget markup and rendered output are unchanged (the moved rules carry forward v6.11.3's `font-variant-numeric: tabular-nums` on the stat/big numbers). [inc/analytics-widget.php](inc/analytics-widget.php)
 
 > **Why PATCH:** internal asset-delivery refactor — the widgets render identically; no new features, no markup change, no schema change.
+
+## [6.11.4] - 2026-06-14 — Audit-log tables adopt analytics panel chrome
+
+**Headline:** The two Audit-log data tables now render in native WP `.postbox` panels, matching the Analytics tab's table treatment (refinement audit, item D8).
+
+### Changed
+
+- **Audit-log tables wrapped in `.postbox` chrome.** The counter timeline and recent-successful-logins tables previously sat under bare `<h2 class="sn-fieldset-h">` headings with no panel frame, reading as orphans next to the Analytics tab's framed panels. Both now use the same shell every comparable analytics table uses — `<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>…</span></h2></div><div class="inside sn-an-table-inside">…</div></div>`. Because `analytics-admin.css` is enqueued on all SN admin pages, the v6.11.1 `:has()` title-gutter rule now aligns the audit titles over their first data column too, and the empty-logins state moves inside the panel as a `.sn-an-empty.sn-an-empty--panel` line (the analytics pattern). The existing `.snt-scroll-table` wrapper stays nested, so the 30-row timeline keeps its 50vh sticky-header internal scroll. [inc/audit-log-admin.php](inc/audit-log-admin.php)
+
+### Improvements
+
+- **Scroll-table hugs the panel gutter.** New `.sn-an-table-inside .snt-scroll-table { margin-bottom: 0 }` rule drops the wrapper's 12px bottom margin when it lives inside an analytics-style panel, so the bordered scroll box sits flush against the panel's 14px bottom gutter exactly like an analytics `.widefat` — no doubled spacing. [assets/admin.css](assets/admin.css)
+
+> **Why PATCH:** presentation-only restructure of two existing admin tables to match an existing panel pattern — no new features, no schema change, no behavioural shift requiring user action.
+
+## [6.11.3] - 2026-06-14 — Admin consistency & dataviz polish
+
+**Headline:** Native-component consistency + dataviz polish on the analytics and audit-log admin surfaces (refinement audit, Clusters D + E).
+
+### Fixed
+
+- **Audit-log retention form layout.** `.sn-fieldset-actions` sat on the `<form>` itself, making the heading, label, input, and Save button all right-aligned flex children (the stacked form collapsed into one row). The button is now wrapped in its own `.sn-fieldset-actions` div, matching the health-checks / insights pattern. [inc/audit-log-admin.php](inc/audit-log-admin.php)
+- **Choropleth legend swatches now match the map.** They were hardcoded hex that didn't composite to the actual `rgba(34,113,177,α)` fills; derived from the same ramp (0.15 / 0.53 / 0.90). The "Views by country" meta label also moves off the failing `#787c82` (4.2:1) to `#646970`. [inc/analytics-admin-render.php](inc/analytics-admin-render.php)
+
+### Improvements
+
+- **Inline styles → enqueued classes.** 15 repeated `style="padding:…"` empty-state attributes, the export form's `style="display:inline"`, and the legend swatch/meta inline colours all move to CSS classes (`.sn-an-empty--panel`, `.sn-an-subh--panel`, `.sn-an-export`, `.sn-legend-*`), per the project's enqueue-not-inline discipline. The choropleth empty-state padding aligns to the `0 12px 12px` convention.
+- **Tabular numerals** on the analytics data-table number cells (`.widefat .num`), the KPI strip values (`.sn-kpi-value`), and the dashboard-widget stat/big numbers — digits stop jittering between loads.
+- **Sparkline trends share one height** — the Quality-tab bot-trend (72px) now matches the Overview trend (104px) on the same `viewBox`, so the chart floor lands at the same visual position.
+- **Card consistency:** the audit-log card label moves to the canonical `#646970` + `font-weight:600` (was off-palette `#50575e`, no weight); its hero-value weight aligns to the dashboard card (600→500); `.sn-badge` uses an explicit 11px (was `0.72em` ≈ 9.4px); the bare `<h3>Credentials</h3>` gains `.sn-fieldset-h`.
+
+> **Why PATCH:** presentation consistency + one layout fix to existing admin surfaces — no new features, no schema change.
 
 ## [6.11.2] - 2026-06-14 — Admin accessibility pass
 

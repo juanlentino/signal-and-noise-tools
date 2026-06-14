@@ -126,7 +126,7 @@
 	display: inline-block;
 	padding: 1px 6px;
 	border-radius: 3px;
-	font-size: 0.72em;
+	font-size: 11px;
 	font-weight: 600;
 	line-height: 1.4;
 	background: rgba(0,0,0,0.07);
@@ -1091,6 +1091,15 @@
 	top: 0;
 	background: #f0f0f1;        /* WP-admin native thead bg */
 	z-index: 1;
+}
+
+/* v6.11.4 (D8): when a scroll-table is nested inside an Analytics-style table
+   panel (.postbox > .inside.sn-an-table-inside — the Audit-log tab adopts this
+   chrome to match Analytics), drop the wrapper's own bottom margin so the
+   bordered scroll box hugs the panel's 14px bottom gutter, exactly like an
+   Analytics .widefat does, instead of stacking 12px margin + 14px padding. */
+.sn-an-table-inside .snt-scroll-table {
+	margin-bottom: 0;
 }
 
 /* ─── v4.1.2 (U-03): Modal + confirm + suggest/verdict panel styles ──────
