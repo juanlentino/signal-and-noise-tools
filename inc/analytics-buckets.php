@@ -12,6 +12,7 @@
  *   metric='hour'    bucket='00'..'23'        — pv counts per hour-of-day
  *   metric='scroll'  bucket='b0'..'b3'        — pageviews per scroll-depth band
  *   metric='time'    bucket='b0'..'b4'        — pageviews per time-on-page band
+ *   metric='botscore' bucket='b0'..'b2'       — pageviews per CF bot-score band (1–99)
  *
  * Fed by the SAME rollup cron as dims (one extra AE query per metric — no new
  * hook). Every builder uses ONLY the AE primitives v5.3.0 already proves work:
@@ -70,6 +71,21 @@ function sn_analytics_buckets_metrics() {
 				array( 'label' => '30–60s', 'lo' => 30000,  'hi' => 60000 ),
 				array( 'label' => '1–3m',   'lo' => 60000,  'hi' => 180000 ),
 				array( 'label' => '3m+',    'lo' => 180000, 'hi' => null ),
+			),
+		),
+		'botscore' => array(
+			'event'   => 'pv',
+			'col'     => 'double3',
+			'label'   => 'Bot confidence',
+			// double3 is Cloudflare's bot-management score (1–99), or -1 when Bot
+			// Management is absent on the zone. lo=1 on the first band excludes the
+			// -1/0 sentinels, so only real scores are bucketed. This is the FIRST
+			// query of double3 + the first blob1='pv' distribution — a new AE query
+			// (live-validation gated). It reuses dist_sql's proven sum(if()) form.
+			'buckets' => array(
+				array( 'label' => '1–30',  'lo' => 1,  'hi' => 31 ),
+				array( 'label' => '31–60', 'lo' => 31, 'hi' => 61 ),
+				array( 'label' => '61–99', 'lo' => 61, 'hi' => null ),
 			),
 		),
 	);
@@ -365,11 +381,11 @@ function sn_analytics_hour_dow_grid( $from, $to, $class = 'human' ) {
 }
 
 /**
- * Read accessor: the distribution for one metric ('scroll' | 'time') as an
+ * Read accessor: the distribution for one metric ('scroll' | 'time' | 'botscore') as an
  * ordered, zero-filled [{label, views}] list (bands the config defines but the
  * data lacks still appear, at 0). Maps the stored bX key → the config label.
  *
- * @param string $metric 'scroll' | 'time'.
+ * @param string $metric 'scroll' | 'time' | 'botscore'.
  * @param string $from   Inclusive start day, YYYY-MM-DD.
  * @param string $to     Inclusive end day, YYYY-MM-DD.
  * @param string $class  Traffic class (default 'human').

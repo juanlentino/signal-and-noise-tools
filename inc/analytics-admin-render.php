@@ -335,14 +335,15 @@ function snt_analytics_render_referrer_categories( $cats ) {
  * @param string $title
  * @param array  $rows  [{label,views}]
  */
-function snt_analytics_render_distribution( $title, $rows ) {
+function snt_analytics_render_distribution( $title, $rows, $empty_msg = '' ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-dist">';
 	$max = 0;
 	foreach ( (array) $rows as $r ) {
 		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
 	}
 	if ( $max <= 0 ) {
-		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No ' . esc_html( strtolower( $title ) ) . ' data in this range yet.</p></div></div></div>';
+		$msg = ( '' !== $empty_msg ) ? $empty_msg : 'No ' . strtolower( $title ) . ' data in this range yet.';
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $msg ) . '</p></div></div></div>';
 		return;
 	}
 	echo '<div class="sn-an-dist-bars">';

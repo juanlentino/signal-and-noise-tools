@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.6.0] - 2026-06-13 — Bot-confidence distribution
+
+### New
+- **Bot confidence panel** on the analytics Quality tab — the distribution of Cloudflare's bot-management score (1–99) across three bands (1–30 / 31–60 / 61–99), so you can see how confidently automated traffic is being classified. Reads the `double3` score the edge worker already records; sites without Cloudflare Bot Management show a clear empty-state.
+
+### Internal
+- Adds a `botscore` metric to the generic buckets rollup — the first query of `double3` and the first `blob1='pv'` distribution. Reuses the proven `sum(if())` builder; the `-1`/0 sentinels are excluded by the band floor (lo=1). A failed botscore query degrades to an empty panel and never affects the scroll/time rollup.
+
+> **Why MINOR:** a new user-visible panel, no breaking change. It introduces a new Cloudflare Analytics Engine query — validated live against the dataset before tagging (the v5.3.0 `count()`-422 lesson).
+
 ## [6.5.5] - 2026-06-13 — Smooth sparkline + bot-share trend
 
 ### Improvements

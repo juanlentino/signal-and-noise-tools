@@ -43,6 +43,9 @@ function sn_analytics_query( $sql ) {
 	if ( strpos( $sql, 'double2' ) !== false ) { // time
 		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 3, 'b1' => 6, 'b2' => 9, 'b3' => 12, 'b4' => 15 ) );
 	}
+	if ( strpos( $sql, 'double3' ) !== false ) { // botscore
+		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 30, 'b1' => 15, 'b2' => 5 ) );
+	}
 	return array();
 }
 
@@ -144,6 +147,19 @@ ok( strpos( $time, 'double2' ) !== false && strpos( $time, 'AS b4' ) !== false, 
 ok( strpos( $time, 'sum(if(double2 >= 180000, _sample_interval, 0)) AS b4' ) !== false, 'dist-sql(time): open-ended top bucket (>= only, no upper bound)' );
 ok( strpos( sn_analytics_buckets_dist_sql( 'sc', 'double1', $cfg['scroll']['buckets'], '7; DROP' ), 'DROP' ) === false, 'dist-sql: $days integer-cast (no injection)' );
 
+echo "\nGroup: botscore metric (double3 bot-confidence bands)\n";
+$bs = $cfg['botscore'] ?? null;
+ok( is_array( $bs ), 'botscore: metric registered' );
+ok( $bs && $bs['event'] === 'pv', 'botscore: reads pageview (pv) events' );
+ok( $bs && $bs['col'] === 'double3', 'botscore: reads double3 (Cloudflare bot score)' );
+ok( $bs && count( $bs['buckets'] ) === 3, 'botscore: three confidence bands' );
+ok( $bs && (int) $bs['buckets'][0]['lo'] === 1, 'botscore: lowest band starts at 1 (excludes the -1/0 sentinels)' );
+$bsql = sn_analytics_buckets_dist_sql( 'pv', 'double3', $bs['buckets'], 7 );
+ok( strpos( $bsql, "WHERE blob1 = 'pv'" ) !== false, 'botscore-sql: filters to pageview events' );
+ok( strpos( $bsql, 'sum(if(double3 >= 1 AND double3 < 31, _sample_interval, 0)) AS b0' ) !== false, 'botscore-sql: band 0 = 1–30 via sum(if())' );
+ok( strpos( $bsql, 'sum(if(double3 >= 61, _sample_interval, 0)) AS b2' ) !== false, 'botscore-sql: open top band 61–99' );
+ok( strpos( $bsql, 'count(' ) === false, 'botscore-sql: no count() (dialect-safe)' );
+
 echo "\nGroup: metrics config\n";
 ok( count( $cfg['scroll']['buckets'] ) === 4, 'config: scroll has 4 buckets' );
 ok( count( $cfg['time']['buckets'] ) === 5, 'config: time has 5 buckets' );
@@ -171,12 +187,13 @@ ok( 0 === sn_analytics_buckets_upsert( array( array( 'day' => '2026-06-11', 'met
 echo "\nGroup: run_rollup (melts dist wide rows into per-bucket rows)\n";
 ab_reset();
 sn_analytics_buckets_run_rollup();
-ok( count( $GLOBALS['__ab_query_calls'] ) === 3, 'run: 3 AE queries (hour + scroll + time)' );
+ok( count( $GLOBALS['__ab_query_calls'] ) === 4, 'run: 4 AE queries (hour + scroll + time + botscore)' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run: one batched upsert' );
 $uq = $GLOBALS['wpdb']->queries[0];
 ok( substr_count( $uq, "'hour'" ) === 1, 'run: one hour row from the hour query fixture' );
 ok( substr_count( $uq, "'scroll'" ) === 4, 'run: scroll wide-row melted into 4 bucket rows' );
 ok( substr_count( $uq, "'time'" ) === 5, 'run: time wide-row melted into 5 bucket rows' );
+ok( substr_count( $uq, "'botscore'" ) === 3, 'run: botscore wide-row melted into 3 bucket rows' );
 ok( strpos( $uq, "'scroll', 'b3', 'human', 40" ) !== false, 'run: melt maps b3 column → bucket b3 with its count' );
 ab_reset();
 $GLOBALS['__ab_config_present'] = false;
@@ -217,6 +234,17 @@ ok( (int) $dist[3]['views'] === 40, 'distribution: top bucket value carried thro
 ok( (int) $dist[1]['views'] === 0, 'distribution: empty buckets zero-filled (not dropped)' );
 $dq = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $dq, "metric = 'scroll'" ) !== false, 'distribution: SQL filters metric' );
+
+echo "\nGroup: botscore distribution accessor\n";
+ab_reset();
+$GLOBALS['wpdb']->rows['wp_sn_analytics_buckets'] = array(
+	array( 'day' => '2026-06-11', 'metric' => 'botscore', 'bucket' => 'b0', 'class' => 'human', 'views' => 30 ),
+	array( 'day' => '2026-06-11', 'metric' => 'botscore', 'bucket' => 'b2', 'class' => 'human', 'views' => 9 ),
+);
+$bsd = sn_analytics_distribution( 'botscore', '2026-06-01', '2026-06-30', 'human' );
+ok( count( $bsd ) === 3, 'distribution(botscore): one entry per configured band (zero-filled)' );
+ok( (int) $bsd[0]['views'] === 30 && (int) $bsd[2]['views'] === 9, 'distribution(botscore): band values carried; middle band zero-filled' );
+ok( (int) $bsd[1]['views'] === 0, 'distribution(botscore): empty middle band zero-filled (not dropped)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
