@@ -56,6 +56,17 @@
 }
 .sn-toolbar-spacer { flex: 1 1 auto; }
 
+/* ── date-range presets + custom window (collapsible, below the pill toolbar) ── */
+.sn-an-daterange { margin: 4px 0 2px; font-size: 13px; }
+.sn-an-daterange > summary { cursor: pointer; color: #2271b1; font-weight: 600; list-style: none; display: inline-block; }
+.sn-an-daterange > summary::-webkit-details-marker { display: none; }
+.sn-an-daterange > summary::before { content: "▸ "; color: #646970; }
+.sn-an-daterange[open] > summary::before { content: "▾ "; }
+.sn-an-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.sn-an-custom-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.sn-an-custom-form label { color: #646970; display: inline-flex; align-items: center; gap: 4px; }
+.sn-an-custom-form input[type="date"] { font-size: 13px; }
+
 /* ── dense fused KPI strip ──────────────────────────────────────────────── */
 /* v6.5.2: KPI strip + trend chart fused into one "Overview" panel. */
 .sn-overview-inside { padding: 0; }
