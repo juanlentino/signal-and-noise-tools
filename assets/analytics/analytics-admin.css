@@ -244,3 +244,11 @@
 .sn-an-steps li { margin: 6px 0; }
 .sn-an-pre { background: #f6f7f7; border: 1px solid #e0e0e0; padding: 8px 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre; overflow: auto; }
 .sn-an-worker[open] summary { margin-bottom: 6px; }
+
+/* Engagement percentiles — 3-stat chips (p50/p75/p90). v6.8.0 */
+.sn-an-pctl-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.sn-an-pctl-chip { flex: 1 1 0; min-width: 80px; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; }
+.sn-an-pctl-k { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #646970; }
+.sn-an-pctl-v { font-size: 22px; font-weight: 600; line-height: 1.1; color: #1d2327; font-variant-numeric: tabular-nums; }
+.sn-an-pctl .sn-an-empty { margin: 0; }
+.sn-an-foot { margin: 10px 0 0; font-size: 11px; color: #8c8f94; }
