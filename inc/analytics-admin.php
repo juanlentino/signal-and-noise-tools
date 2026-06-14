@@ -305,29 +305,40 @@ function snt_analytics_render_dashboard() {
 	snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 
 	echo '<div class="sn-an-view">';
+
+	// Cross-tab drill-down: ?sn_drill=<dim>:<value> → "Top pages where <dim>=<value>"
+	// (on-demand AE, whitelisted + cached). Rendered atop whatever view is active.
+	$sn_drill = isset( $_GET['sn_drill'] ) ? sn_analytics_drilldown_parse( sanitize_text_field( wp_unslash( $_GET['sn_drill'] ) ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET filter on an admin report, no state change.
+	if ( null !== $sn_drill ) {
+		$drill_note = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
+			? '(reflects the last ~90 days — Analytics Engine raw retention)'
+			: '';
+		snt_analytics_render_drilldown_panel( $sn_drill[0], $sn_drill[1], sn_analytics_drilldown( $sn_drill[0], $sn_drill[1], $from, $to, $class ), $drill_note );
+	}
+
 	switch ( $view ) {
 		case 'technology':
 			echo '<div class="sn-an-grid">';
 			$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
 			$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
 			$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser );
+			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser, 'browser' );
 			$os_rows = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
 			$os_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $os_rows );
 			$os_ser  = sn_analytics_dimension_series( 'os', $os_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Operating systems', $os_rows, 'No OS data in this range yet.', $os_ser );
+			snt_analytics_render_dim_table( 'Operating systems', $os_rows, 'No OS data in this range yet.', $os_ser, 'os' );
 			$dev_rows = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
 			$dev_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $dev_rows );
 			$dev_ser  = sn_analytics_dimension_series( 'device', $dev_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Devices', $dev_rows, 'No device data in this range.', $dev_ser );
+			snt_analytics_render_dim_table( 'Devices', $dev_rows, 'No device data in this range.', $dev_ser, 'device' );
 			$pro_rows = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
 			$pro_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $pro_rows );
 			$pro_ser  = sn_analytics_dimension_series( 'protocol', $pro_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Protocols', $pro_rows, 'No protocol data in this range yet.', $pro_ser );
+			snt_analytics_render_dim_table( 'Protocols', $pro_rows, 'No protocol data in this range yet.', $pro_ser, 'protocol' );
 			$tls_rows = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
 			$tls_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $tls_rows );
 			$tls_ser  = sn_analytics_dimension_series( 'tls', $tls_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'TLS versions', $tls_rows, 'No TLS data in this range yet.', $tls_ser );
+			snt_analytics_render_dim_table( 'TLS versions', $tls_rows, 'No TLS data in this range yet.', $tls_ser, 'tls' );
 			echo '</div>';
 			break;
 
@@ -335,13 +346,13 @@ function snt_analytics_render_dashboard() {
 			echo '<div class="sn-geo">';
 			echo '<div class="sn-geo-split">';
 			snt_analytics_render_choropleth( 'World map', sn_analytics_top_dimension( 'country', $from, $to, $class, 250 ), 'No country data in this range yet.' );
-			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.' );
+			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.', array(), 'country' );
 			echo '</div>';
 			echo '<div class="sn-geo-tiles" style="margin-top:20px">';
-			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.' );
-			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.' );
-			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.' );
-			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.' );
+			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.', array(), 'city' );
+			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.', array(), 'region' );
+			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.', array(), 'network' );
+			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.', array(), 'colo' );
 			echo '</div></div>';
 			break;
 
@@ -389,7 +400,7 @@ function snt_analytics_render_dashboard() {
 			$ref_rows = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
 			$ref_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $ref_rows );
 			$ref_ser  = sn_analytics_dimension_series( 'referrer', $ref_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser );
+			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer' );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
 			echo '</div>';

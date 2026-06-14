@@ -94,6 +94,8 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 	if ( 'scroll' === $metric ) { return array( array( 'label' => 'p50', 'value' => 63.0 ), array( 'label' => 'p75', 'value' => 84.0 ), array( 'label' => 'p90', 'value' => 95.0 ) ); }
 	return array( array( 'label' => 'p50', 'value' => 38000.0 ), array( 'label' => 'p75', 'value' => 72000.0 ), array( 'label' => 'p90', 'value' => 220000.0 ) );
 }
+function sn_analytics_drilldown_parse( $raw ) { $p = strpos( (string) $raw, ':' ); return ( false === $p || 0 === $p ) ? null : array( substr( $raw, 0, $p ), substr( $raw, $p + 1 ) ); }
+function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) { return array( array( 'path' => '/x', 'views' => 9, 'visits' => 5 ) ); }
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 	return array(
 		array( 'category' => 'search', 'label' => 'Search', 'views' => 120, 'visits' => 70 ),
@@ -311,6 +313,14 @@ ok( strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' )
 ok( strpos( $html, 'postbox' ) !== false, 'engagement: panels wrapped in native postbox' );
 ok( strpos( $html, 'Scroll depth — percentiles' ) !== false && strpos( $html, 'Time on page — percentiles' ) !== false, 'engagement: scroll + time percentile panels' );
 ok( strpos( $html, 'sn-an-pctl-chip' ) !== false && strpos( $html, '63%' ) !== false, 'engagement: percentile chips render with values' );
+
+echo "\nGroup: dashboard — drill-down\n";
+$_GET['sn_view']  = 'geography';
+$_GET['sn_drill'] = 'country:US';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders atop the view when ?sn_drill set' );
+ok( strpos( $html, 'sn_drill=country%3A' ) !== false, 'drill: Countries table values are drill links (colon URL-encoded by add_query_arg)' );
+unset( $_GET['sn_drill'] );
 
 echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';
