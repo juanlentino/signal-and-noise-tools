@@ -17,7 +17,7 @@ define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 // Transient seam.
 $GLOBALS['__pc_trans'] = array();
 function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__pc_trans'] ) ? $GLOBALS['__pc_trans'][ $k ] : false; }
-function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__pc_trans'][ $k ] = $v; return true; }
+function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__pc_trans'][ $k ] = $v; $GLOBALS['__pc_last_ttl'] = $ttl; return true; }
 function delete_transient( $k ) { unset( $GLOBALS['__pc_trans'][ $k ] ); return true; }
 
 // AE read-client seam. Default: a well-formed one-row result. Tests flip
@@ -36,6 +36,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m
 function pc_reset() {
 	$GLOBALS['__pc_trans']        = array();
 	$GLOBALS['__pc_query_calls']  = array();
+	$GLOBALS['__pc_last_ttl']     = null;
 	$GLOBALS['__pc_query_result'] = array( array( 'p50' => 63.0, 'p75' => 84.0, 'p90' => 95.0 ) );
 }
 
@@ -77,6 +78,7 @@ ok( is_array( $r ) && count( $r ) === 3, 'accessor: returns 3 rows' );
 ok( $r[0]['label'] === 'p50' && (float) $r[0]['value'] === 63.0, 'accessor: p50 value parsed' );
 ok( $r[2]['label'] === 'p90' && (float) $r[2]['value'] === 95.0, 'accessor: p90 value parsed' );
 ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: one AE query on cold cache' );
+ok( $GLOBALS['__pc_last_ttl'] === SN_ANALYTICS_ROLLUP_TTL, 'accessor: success cached for the full rollup TTL' );
 // Second identical call → cache hit, no new query.
 $r2 = sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' );
 ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: cache hit issues no second query' );
@@ -88,6 +90,7 @@ $GLOBALS['__pc_query_result'] = null; // AE failure / unconfigured
 $f = sn_analytics_percentiles( 'time', '2026-06-01', '2026-06-30', 'human' );
 ok( null === $f, 'accessor: AE null → returns null (empty-state trigger)' );
 ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: failure issued one query' );
+ok( $GLOBALS['__pc_last_ttl'] === 5 * 60 && $GLOBALS['__pc_last_ttl'] < SN_ANALYTICS_ROLLUP_TTL, 'accessor: failure cached for a SHORT TTL (5m < rollup TTL), not the full window' );
 $f2 = sn_analytics_percentiles( 'time', '2026-06-01', '2026-06-30', 'human' );
 ok( null === $f2 && count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: failure cached → no retry storm' );
 
@@ -99,6 +102,16 @@ ok( count( $GLOBALS['__pc_query_calls'] ) === 0, 'accessor: guarded inputs never
 pc_reset();
 sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'martian' );
 ok( strpos( $GLOBALS['__pc_query_calls'][0], "blob7 = 'human'" ) !== false, 'accessor: unknown class coerced to human in the query' );
+
+echo "\nGroup: cache key separates metric / window / class (no bleed)\n";
+pc_reset();
+sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' ); // 1
+sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'bot' );   // 2 — distinct class
+sn_analytics_percentiles( 'scroll', '2026-07-01', '2026-07-31', 'human' ); // 3 — distinct window
+sn_analytics_percentiles( 'time', '2026-06-01', '2026-06-30', 'human' );   // 4 — distinct metric
+ok( count( $GLOBALS['__pc_query_calls'] ) === 4, 'cache key: distinct metric/window/class each MISS (no cross-key bleed)' );
+sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' ); // repeat #1 → hit
+ok( count( $GLOBALS['__pc_query_calls'] ) === 4, 'cache key: repeat of a primed key HITs (no extra query)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

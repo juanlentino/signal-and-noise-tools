@@ -97,7 +97,15 @@ dq( strpos( $buckets, 'sum(if(' ) !== false, 'buckets: distribution bands use th
 echo "\nGroup: percentiles use the AE-whitelisted weighted quantile form\n";
 $pctl = dialect_code_only( file_get_contents( "$dir/analytics-percentiles.php" ) );
 dq( strpos( $pctl, 'quantileExactWeighted(' ) !== false, 'percentiles: uses quantileExactWeighted (AE-whitelisted)' );
-dq( preg_match( '/quantileExactWeighted\(\s*0?\.\d+\s*\)\s*\(/', $pctl ) === 1, 'percentiles: parametric level form quantileExactWeighted(q)(value, weight)' );
+// Each of the three levels must be the PARAMETRIC, VALUE-FIRST weighted form
+// quantileExactWeighted(q)(<col>, _sample_interval). Asserting per-level (not just
+// "one parametric call exists") catches a regression that flips a single column to
+// the flat/arg-reversed quantileExactWeighted(_sample_interval, <col>) — the exact
+// form that 422s. (Mutation-falsified: reversing any one column trips this.)
+foreach ( array( '0.5', '0.75', '0.9' ) as $q ) {
+	dq( preg_match( '/quantileExactWeighted\(' . preg_quote( $q, '/' ) . '\)\([^,)]+, _sample_interval\)/', $pctl ) === 1, "percentiles: $q is parametric value-first quantileExactWeighted($q)(col, _sample_interval)" );
+}
+dq( preg_match( '/quantileExactWeighted\s*\(\s*_sample_interval/', $pctl ) === 0, 'percentiles: weight is NEVER the first arg (no flat/arg-reversed form)' );
 dq( strpos( $pctl, '_sample_interval' ) !== false, 'percentiles: weighted by _sample_interval (sampling-correct)' );
 dq( strpos( $pctl, 'quantileWeighted(' ) === false, 'percentiles: not the flat quantileWeighted alias' );
 dq( strpos( $pctl, 'toDateTime(' ) !== false, 'percentiles: explicit date-bounded window (not trailing INTERVAL)' );
