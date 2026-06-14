@@ -22,6 +22,14 @@
    gutter so titles line up with the KPI labels / panel content / table borders.
    v6.5.4. */
 .postbox > .postbox-header > .hndle { padding: 10px 14px; margin: 0; }
+/* Table panels: shift the title from the 14px frame rail to 25px so it sits
+   directly above the first column's DATA rather than the table's left border.
+   Keyed off the table panels' own .sn-an-table-inside wrapper via :has(), so the
+   non-table panels (KPI strip, trend, map, distributions) keep the 14px
+   content-rail alignment. Measured: closes a consistent 11px title↔data gap
+   (title 14→25 = inside 12 + widefat border 1 + cell 12). :has() is baseline in
+   every browser at the WP 7.0 floor. v6.11.1. */
+.postbox:has( > .inside.sn-an-table-inside ) > .postbox-header > .hndle { padding-left: 25px; }
 .postbox .inside.inside-flush { padding: 0; }
 /* Table panels keep the native widget side gutter (mirrors core .postbox .inside
    0 12px 12px) — the flush full-bleed treatment is reserved for the KPI strip,

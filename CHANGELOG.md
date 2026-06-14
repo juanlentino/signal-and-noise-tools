@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.1] - 2026-06-14 — Analytics table titles align over their data
+
+### Improvements
+- **Analytics table-panel titles now sit directly above the first column's data**, not over the table's left border. The titles on every table panel — Top pages, the dimension tables (Countries, Cities, Regions, Networks…), Custom events, Entry/Exit pages, Event properties, and the drill-down — shift 11px to land on the same rail as the row text. Non-table panels (the KPI strip, trend chart, map, distributions) keep their content-rail alignment. One CSS rule, keyed off the table panels' own `.sn-an-table-inside` wrapper via `:has()`; measured before/after in a headless browser (11px gap → 0).
+
+> **Why PATCH:** presentation-only consistency refinement — no markup, behavior, or schema change.
+
 ## [6.11.0] - 2026-06-14 — Dashboard snapshot: Engaged + Filtered
 
 ### New
