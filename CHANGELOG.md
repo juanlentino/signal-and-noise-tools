@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.4] - 2026-06-14 — Audit-log tables adopt analytics panel chrome
+
+**Headline:** The two Audit-log data tables now render in native WP `.postbox` panels, matching the Analytics tab's table treatment (refinement audit, item D8).
+
+### Changed
+
+- **Audit-log tables wrapped in `.postbox` chrome.** The counter timeline and recent-successful-logins tables previously sat under bare `<h2 class="sn-fieldset-h">` headings with no panel frame, reading as orphans next to the Analytics tab's framed panels. Both now use the same shell every comparable analytics table uses — `<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>…</span></h2></div><div class="inside sn-an-table-inside">…</div></div>`. Because `analytics-admin.css` is enqueued on all SN admin pages, the v6.11.1 `:has()` title-gutter rule now aligns the audit titles over their first data column too, and the empty-logins state moves inside the panel as a `.sn-an-empty.sn-an-empty--panel` line (the analytics pattern). The existing `.snt-scroll-table` wrapper stays nested, so the 30-row timeline keeps its 50vh sticky-header internal scroll. [inc/audit-log-admin.php](inc/audit-log-admin.php)
+
+### Improvements
+
+- **Scroll-table hugs the panel gutter.** New `.sn-an-table-inside .snt-scroll-table { margin-bottom: 0 }` rule drops the wrapper's 12px bottom margin when it lives inside an analytics-style panel, so the bordered scroll box sits flush against the panel's 14px bottom gutter exactly like an analytics `.widefat` — no doubled spacing. [assets/admin.css](assets/admin.css)
+
+> **Why PATCH:** presentation-only restructure of two existing admin tables to match an existing panel pattern — no new features, no schema change, no behavioural shift requiring user action.
+
 ## [6.11.3] - 2026-06-14 — Admin consistency & dataviz polish
 
 **Headline:** Native-component consistency + dataviz polish on the analytics and audit-log admin surfaces (refinement audit, Clusters D + E).

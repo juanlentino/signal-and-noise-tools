@@ -114,7 +114,11 @@ function snt_audit_log_render_hero( $summary ) {
  * Render the day-bucketed counter timeline table.
  */
 function snt_audit_log_render_counter_table( $counters ) {
-	echo '<h2 class="sn-fieldset-h">Counter timeline (last 30 days)</h2>';
+	// Native .postbox panel chrome (matches the Analytics tab's table panels —
+	// refinement-audit D8). The .snt-scroll-table wrapper stays nested so the
+	// 30-row timeline keeps its sticky-header internal scroll; .sn-an-table-inside
+	// supplies the panel gutter and title-over-data alignment shared with Analytics.
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>Counter timeline (last 30 days)</span></h2></div><div class="inside sn-an-table-inside">';
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-timeline">';
 	echo '<thead><tr>';
@@ -142,16 +146,20 @@ function snt_audit_log_render_counter_table( $counters ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
-	echo '</div>';
+	echo '</div>';        // .snt-scroll-table
+	echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
 }
 
 /**
  * Render the recent successful logins table.
  */
 function snt_audit_log_render_logins_table( $logins ) {
-	echo '<h2 class="sn-fieldset-h">Recent successful logins (last 30 days)</h2>';
+	// Native .postbox panel chrome to match the Analytics tab (D8). The empty
+	// state renders inside the panel — mirrors the Analytics .sn-an-empty pattern.
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>Recent successful logins (last 30 days)</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $logins ) ) {
-		echo '<p class="sn-prose">No successful logins recorded in this window.</p>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">No successful logins recorded in this window.</p>';
+		echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
 		return;
 	}
 	echo '<div class="snt-scroll-table">';
@@ -166,7 +174,8 @@ function snt_audit_log_render_logins_table( $logins ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
-	echo '</div>';
+	echo '</div>';        // .snt-scroll-table
+	echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
 }
 
 /**
