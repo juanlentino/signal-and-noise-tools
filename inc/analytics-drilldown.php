@@ -79,3 +79,83 @@ function sn_analytics_drilldown_sql( $dim, $value, $from, $to, $class ) {
 		'ORDER BY views DESC',
 	) );
 }
+
+/**
+ * Cross-tab drill-down: top pages for one parent dimension value over [from,to]
+ * for a class. WHITELISTS the value against the current durable top-N (so a
+ * crafted value is rejected before any AE call), then transient-caches a single
+ * on-demand AE query (5-min TTL; failures negative-cached). Returns the top-15
+ * [{path,views,visits}] sorted by views desc, or NULL on reject / failure /
+ * unconfigured AE / bad input — the panel shows an empty-state on null.
+ *
+ * @param string $dim   A SN_ANALYTICS_DIM_COLUMNS key.
+ * @param string $value Clicked parent value (untrusted).
+ * @param string $from  YYYY-MM-DD.
+ * @param string $to    YYYY-MM-DD.
+ * @param string $class Traffic class (default 'human').
+ * @return array<int, array{path:string, views:int, visits:int}>|null
+ */
+function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
+	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
+		return null;
+	}
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
+		return null;
+	}
+	$value = (string) $value;
+	if ( '' === $value || strlen( $value ) > 256 || preg_match( '/[\x00-\x1f]/', $value ) ) {
+		return null;
+	}
+	if ( ! function_exists( 'sn_analytics_top_dimension' ) ) {
+		return null;
+	}
+
+	// Whitelist: the value MUST be a current durable top-N member for this dim.
+	$known = false;
+	foreach ( (array) sn_analytics_top_dimension( $dim, $from, $to, $class, 500 ) as $r ) {
+		if ( isset( $r['value'] ) && (string) $r['value'] === $value ) {
+			$known = true;
+			break;
+		}
+	}
+	if ( ! $known ) {
+		return null;
+	}
+
+	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class );
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return is_array( $cached ) ? $cached : null;
+	}
+	if ( ! function_exists( 'sn_analytics_query' ) ) {
+		return null;
+	}
+
+	$res = sn_analytics_query( sn_analytics_drilldown_sql( $dim, $value, $from, $to, $class ) );
+	if ( ! is_array( $res ) ) {
+		set_transient( $cache_key, '', 5 * 60 );
+		return null;
+	}
+
+	$rows = array();
+	foreach ( $res as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$rows[] = array(
+			'path'   => (string) ( $r['path'] ?? '' ),
+			'views'  => (int) ( $r['views'] ?? 0 ),
+			'visits' => (int) ( $r['visits'] ?? 0 ),
+		);
+	}
+	usort( $rows, static function ( $a, $b ) {
+		return $b['views'] <=> $a['views'];
+	} );
+	$rows = array_slice( $rows, 0, 15 );
+
+	set_transient( $cache_key, $rows, 5 * 60 );
+	return $rows;
+}

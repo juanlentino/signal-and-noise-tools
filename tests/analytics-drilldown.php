@@ -79,5 +79,44 @@ ok( strpos( $ev, "blob11 = 'O\\'Hare'" ) !== false, 'sql: single-quote in value 
 ok( strpos( sn_analytics_drilldown_sql( 'country', "US", '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
 ok( strpos( sn_analytics_drilldown_sql( 'country', 'US', "2026'; DROP", '2026-06-30', 'human' ), 'DROP' ) === false, 'sql: from re-validated YMD' );
 
+echo "\nGroup: accessor — whitelist gates AE\n";
+dd_reset();
+$r = sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+ok( is_array( $r ) && count( $r ) === 2, 'accessor: returns rows for a top-N value' );
+ok( $r[0]['path'] === '/a' && $r[0]['views'] === 20, 'accessor: PHP-sorted by views desc' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 1, 'accessor: one AE query for a valid value' );
+dd_reset();
+ok( null === sn_analytics_drilldown( 'country', "ZZ' OR 1=1", '2026-06-01', '2026-06-30', 'human' ), 'accessor: value NOT in top-N → null' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 0, 'accessor: rejected value never reaches AE (injection guard)' );
+
+echo "\nGroup: accessor — top-15 slice\n";
+dd_reset();
+$many = array();
+for ( $i = 0; $i < 30; $i++ ) { $many[] = array( 'path' => "/p$i", 'views' => $i, 'visits' => 1 ); }
+$GLOBALS['__dd_query_result'] = $many;
+$GLOBALS['__dd_top'] = array( array( 'value' => 'US', 'views' => 9 ) );
+$r = sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+ok( count( $r ) === 15, 'accessor: slices to top 15' );
+ok( $r[0]['views'] === 29, 'accessor: highest-views page first' );
+
+echo "\nGroup: accessor — caching + failure\n";
+dd_reset();
+sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 1, 'accessor: cache hit issues no second query' );
+ok( $GLOBALS['__dd_last_ttl'] === 5 * 60, 'accessor: 5-minute cache TTL' );
+dd_reset();
+$GLOBALS['__dd_query_result'] = null;
+ok( null === sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' ), 'accessor: AE null → null (empty-state)' );
+$c = sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+ok( null === $c && count( $GLOBALS['__dd_query_calls'] ) === 1, 'accessor: failure negative-cached (no retry storm)' );
+
+echo "\nGroup: accessor — input guards\n";
+dd_reset();
+ok( null === sn_analytics_drilldown( 'martian', 'x', '2026-06-01', '2026-06-30', 'human' ), 'accessor: unknown dim → null' );
+ok( null === sn_analytics_drilldown( 'country', 'US', 'bad', '2026-06-30', 'human' ), 'accessor: bad from → null' );
+ok( null === sn_analytics_drilldown( 'country', str_repeat( 'x', 300 ), '2026-06-01', '2026-06-30', 'human' ), 'accessor: over-long value → null' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 0, 'accessor: guarded inputs never hit AE' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
