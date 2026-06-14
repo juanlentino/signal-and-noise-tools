@@ -52,9 +52,9 @@ function sn_aw_styles() {
 	/* WP admin native styling — no theme fonts, WP palette only.
 	   #1d2327 primary text · #646970 muted · #2271b1 link · #f0f0f1 hairline · #d63638 error. */
 	.sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
-	.sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;}
+	.sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;font-variant-numeric:tabular-nums;}
 	.sn-aw-stat-l{font-size:0.85em;color:#646970;margin-top:2px;}
-	.sn-aw-big{font-size:2.5rem;font-weight:600;color:#1d2327;text-align:center;line-height:1;padding:8px 0 4px;}
+	.sn-aw-big{font-size:2.5rem;font-weight:600;color:#1d2327;text-align:center;line-height:1;padding:8px 0 4px;font-variant-numeric:tabular-nums;}
 	.sn-aw-big-l{font-size:0.85em;color:#646970;text-align:center;}
 	.sn-aw-list{list-style:none;margin:0;padding:0;font-size:0.875em;}
 	.sn-aw-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f1;gap:10px;}
