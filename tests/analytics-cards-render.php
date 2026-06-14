@@ -57,6 +57,10 @@ $sb = snt_analytics_sparkline( array( array( 'day' => 'd', 'views' => 1 ), array
 preg_match( '/id="(sn-spark-fill-\d+)"/', $sa, $ma );
 preg_match( '/id="(sn-spark-fill-\d+)"/', $sb, $mb );
 ok( ! empty( $ma[1] ) && ! empty( $mb[1] ) && $ma[1] !== $mb[1], 'sparkline: gradient id is unique per call (no dup-id collision)' );
+// A single-bucket dimension (one data point) must still show a visible mark — the old
+// bar sparkline drew one full-height bar, so a bare-moveto (invisible) SVG would regress.
+$s1 = snt_analytics_sparkline( array( array( 'day' => 'd', 'views' => 5 ) ) );
+ok( strpos( $s1, '<svg' ) !== false && strpos( $s1, ' C ' ) !== false, 'sparkline: single point renders a visible flat line (not an invisible bare moveto)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -182,7 +182,6 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	// Smooth line via the shared helper (clamped Catmull-Rom → bézier).
 	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
 	$last_x = $px[ $n - 1 ];
-	$last_y = $py[ $n - 1 ];
 	// Area = the smooth line dropped to the baseline and closed.
 	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 	$peak     = 0;
@@ -498,7 +497,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		$v = (string) $r['value'];
 		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '"><strong>' . esc_html( $v ) . '</strong></td>';
 		if ( $has_spark ) {
-			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup (hardcoded classes; bar height esc_attr'd inside the helper).
+			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: an SVG with esc_attr'd path d + a per-call gradient id minted by the helper.
 		}
 		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>';
 		echo '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
@@ -536,8 +535,16 @@ function snt_analytics_sparkline( $series ) {
 		$px[] = round( $i * $step, 2 );
 		$py[] = round( $base - ( (int) $row['views'] / $max ) * ( $base - $top ), 2 );
 	}
+	// A single data point smooths to a bare moveto (invisible). Pad it to a flat
+	// full-width line so a one-bucket dimension still shows a mark — the old bar
+	// sparkline drew a single full-height bar; don't regress to nothing.
+	if ( count( $px ) < 2 ) {
+		$px = array( 0.0, $w );
+		$py = array( $py[0], $py[0] );
+	}
 	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ $n - 1 ] . ',' . $base . ' Z';
+	$last_x = $px[ count( $px ) - 1 ];
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 
 	$out  = '<span class="sn-an-spark">';
 	$out .= '<svg viewBox="0 0 72 18" preserveAspectRatio="none" aria-hidden="true">';
@@ -671,11 +678,16 @@ function snt_analytics_render_bot_trend( $rows ) {
 		$px[] = round( $i * $step, 2 );
 		$py[] = round( $base - ( $pct / $scale ) * ( $base - $top ), 2 );
 	}
+	// A single day smooths to a bare moveto (invisible); pad to a flat full-width line.
+	if ( count( $px ) < 2 ) {
+		$px = array( 0.0, $w );
+		$py = array( $py[0], $py[0] );
+	}
 	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ $n - 1 ] . ',' . $base . ' Z';
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ count( $px ) - 1 ] . ',' . $base . ' Z';
 	$first  = (string) ( $rows[0]['day'] ?? '' );
 	$last   = (string) ( end( $rows )['day'] ?? '' );
-	$meta   = 'peak ' . (int) $peak . '% bot';
+	$meta   = sprintf( /* translators: %s peak bot percentage */ __( 'peak %s%% bot', 'signal-and-noise-tools' ), number_format_i18n( (int) $peak ) );
 
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	echo '<div class="sn-an-bot-trend">';

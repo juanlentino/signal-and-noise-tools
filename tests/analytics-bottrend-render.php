@@ -38,5 +38,10 @@ ok( preg_match( '/d="M [\d.]+,[\d.]+ C /', $h ) === 1, 'smooth bézier line (sca
 ob_start(); snt_analytics_render_bot_trend( array() ); $e = ob_get_clean();
 ok( stripos( $e, 'No traffic recorded' ) !== false, 'empty input → empty state' );
 
+// A single day of data must still draw a visible (flat) line, not an invisible bare moveto.
+ob_start(); snt_analytics_render_bot_trend( array( array( 'day' => '2026-06-11', 'bot_pct' => 12, 'total' => 40 ) ) ); $h1 = ob_get_clean();
+ok( strpos( $h1, ' C ' ) !== false, 'single day → visible flat line' );
+ok( strpos( $h1, 'peak 12% bot' ) !== false, 'single day → peak labelled (i18n-wrapped)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
