@@ -1,0 +1,33 @@
+/*
+ * Signal & Noise — dashboard-home analytics widgets (wp-admin native).
+ *
+ * Styles the four "Analytics — …" WP Dashboard widgets registered in
+ * inc/analytics-widget.php (Last 7 days, Right now, Top pages, Top sources).
+ *
+ * Enqueued via inc/analytics-widget.php (admin_enqueue_scripts) on the Dashboard
+ * home screen (index.php) ONLY, cache-busted by SNT_VERSION — NOT echoed inline.
+ * An external stylesheet loads in <head> (correct cascade, no FOUC), survives a
+ * `style-src 'self'` CSP, and can't be tripped by an output-buffering / once-guard
+ * quirk the way the old inline <style> echo (sn_aw_styles()) could — which is the
+ * class of bug that left the live admin rendering unstyled (fixed for the analytics
+ * dashboard in v6.5.1; the same fix applied to these widgets here). See the
+ * WordPress Plugin Handbook, "Including CSS & JavaScript".
+ *
+ * WP admin native palette: #1d2327 text · #646970 muted · #2271b1 link ·
+ * #f0f0f1 hairline · #d63638 error.
+ */
+
+.sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
+.sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;}
+.sn-aw-stat-l{font-size:0.85em;color:#646970;margin-top:2px;}
+.sn-aw-big{font-size:2.5rem;font-weight:600;color:#1d2327;text-align:center;line-height:1;padding:8px 0 4px;}
+.sn-aw-big-l{font-size:0.85em;color:#646970;text-align:center;}
+.sn-aw-list{list-style:none;margin:0;padding:0;font-size:0.875em;}
+.sn-aw-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f1;gap:10px;}
+.sn-aw-list li:last-child{border-bottom:0;}
+.sn-aw-list .k{color:#1d2327;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sn-aw-list .v{color:#646970;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.sn-aw-foot{margin:12px 0 0;font-size:0.85em;color:#646970;}
+.sn-aw-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
+.sn-aw-err{color:#d63638;font-size:0.9em;margin:0;}
+.sn-aw-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}

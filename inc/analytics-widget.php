@@ -38,36 +38,32 @@ add_action( 'wp_dashboard_setup', function() {
 } );
 
 /**
- * Inline CSS, printed once per pageload (the first widget that renders
- * triggers it; subsequent calls are no-ops via the static guard).
+ * Enqueue the dashboard-widget stylesheet, scoped to the Dashboard home screen.
+ *
+ * Mirrors the analytics-admin.css enqueue (inc/admin-menu.php): an external,
+ * SNT_VERSION-cache-busted stylesheet loaded in <head>. Replaces the former
+ * inline <style> echoed mid-body by sn_aw_styles(), which could render the four
+ * widgets UNSTYLED on the live page — a body-injected <style> is subject to
+ * edge/cache HTML rewriting and a strict `style-src 'self'` CSP, and the old
+ * once-guard was fragile (the v6.5.0-class bug fixed for the analytics dashboard
+ * in v6.5.1; same fix applied here). Gated to index.php because the .sn-aw-*
+ * rules only appear in these dashboard-home widgets; loading them on any other
+ * admin screen would be dead weight.
+ *
+ * @param string $hook Current admin page hook suffix.
  */
-function sn_aw_styles() {
-	static $printed = false;
-	if ( $printed ) {
+function sn_aw_enqueue_styles( $hook ) {
+	if ( 'index.php' !== $hook ) {
 		return;
 	}
-	$printed = true;
-	?>
-	<style>
-	/* WP admin native styling — no theme fonts, WP palette only.
-	   #1d2327 primary text · #646970 muted · #2271b1 link · #f0f0f1 hairline · #d63638 error. */
-	.sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
-	.sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;}
-	.sn-aw-stat-l{font-size:0.85em;color:#646970;margin-top:2px;}
-	.sn-aw-big{font-size:2.5rem;font-weight:600;color:#1d2327;text-align:center;line-height:1;padding:8px 0 4px;}
-	.sn-aw-big-l{font-size:0.85em;color:#646970;text-align:center;}
-	.sn-aw-list{list-style:none;margin:0;padding:0;font-size:0.875em;}
-	.sn-aw-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f1;gap:10px;}
-	.sn-aw-list li:last-child{border-bottom:0;}
-	.sn-aw-list .k{color:#1d2327;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-	.sn-aw-list .v{color:#646970;flex-shrink:0;font-variant-numeric:tabular-nums;}
-	.sn-aw-foot{margin:12px 0 0;font-size:0.85em;color:#646970;}
-	.sn-aw-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
-	.sn-aw-err{color:#d63638;font-size:0.9em;margin:0;}
-	.sn-aw-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
-	</style>
-	<?php
+	wp_enqueue_style(
+		'sn-analytics-widget',
+		SNT_URL . 'assets/analytics/analytics-widget.css',
+		array(),
+		SNT_VERSION
+	);
 }
+add_action( 'admin_enqueue_scripts', 'sn_aw_enqueue_styles' );
 
 /**
  * Shared analytics not-configured copy. Renders inside the widget body
@@ -88,11 +84,11 @@ function sn_aw_window7() {
 }
 
 /**
- * Preamble: print styles, gate on analytics config. Returns true when data may
- * be read, false (after printing the config copy) otherwise.
+ * Preamble: gate on analytics config. Returns true when data may be read, false
+ * (after printing the config copy) otherwise. Widget styling is enqueued
+ * separately via sn_aw_enqueue_styles() (admin_enqueue_scripts), not printed here.
  */
 function sn_aw_preamble() {
-	sn_aw_styles();
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		sn_aw_not_configured();
 		return false;
@@ -126,7 +122,6 @@ function sn_aw_snapshot() {
 }
 
 function sn_aw_realtime() {
-	sn_aw_styles();
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		sn_aw_not_configured();
 		return;

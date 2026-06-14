@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.3] - 2026-06-14 — Dashboard-widget CSS is now an enqueued stylesheet
+
+**Headline:** the four "Analytics — …" dashboard-home widgets load their CSS from a proper enqueued stylesheet instead of an inline `<style>` echoed mid-body — closing the last inline-CSS surface that could render an admin page unstyled (refinement-audit item E5).
+
+### Changed
+
+- **Widget CSS moved out of `sn_aw_styles()` into [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css).** The `.sn-aw-*` rules that style the four dashboard widgets (Last 7 days, Right now, Top pages, Top sources) were previously printed as an inline `<style>` block mid-body by the first widget to render, guarded by a static "printed once" flag. They are now a normal external stylesheet, registered on `admin_enqueue_scripts` and gated to the Dashboard home screen (`index.php`), cache-busted by `SNT_VERSION` — mirroring the analytics dashboard's CSS, which moved external for the same reason in v6.5.1. A body-injected `<style>` is subject to edge/cache HTML rewriting and a strict `style-src 'self'` CSP, and the once-guard was fragile; an external stylesheet in `<head>` cascades correctly, survives the CSP, and can't be dropped — the same class of bug that left the analytics dashboard rendering unstyled. The widget markup and output are byte-for-byte unchanged. [inc/analytics-widget.php](inc/analytics-widget.php)
+
+> **Why PATCH:** internal asset-delivery refactor — the widgets render identically; no new features, no markup change, no schema change.
+
 ## [6.11.2] - 2026-06-14 — Admin accessibility pass
 
 **Headline:** WCAG fixes on the analytics + audit-log admin surfaces from the comprehensive audit — contrast and screen-reader semantics.
