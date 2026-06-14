@@ -119,6 +119,46 @@ function snt_analytics_range_dates( $range, $now = null ) {
 	return array( $from, $to );
 }
 
+/** True iff $s is a real YYYY-MM-DD date (format + checkdate). */
+function snt_analytics_is_ymd( $s ) {
+	if ( 1 !== preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', (string) $s, $m ) ) {
+		return false;
+	}
+	return checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
+}
+
+/**
+ * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
+ * injectable for deterministic tests.
+ *
+ * @param string   $preset 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
+ * @param int|null $now    Unix anchor.
+ * @return array{0:string,1:string}
+ */
+function snt_analytics_preset_dates( $preset, $now = null ) {
+	$now   = ( null === $now ) ? time() : (int) $now;
+	$today = gmdate( 'Y-m-d', $now );
+	$y     = (int) gmdate( 'Y', $now );
+	$mo    = (int) gmdate( 'n', $now );
+	switch ( (string) $preset ) {
+		case 'ytd':
+			return array( sprintf( '%04d-01-01', $y ), $today );
+		case 'prev-year':
+			return array( sprintf( '%04d-01-01', $y - 1 ), sprintf( '%04d-12-31', $y - 1 ) );
+		case 'last-month':
+			$end = gmmktime( 0, 0, 0, $mo, 1, $y ) - DAY_IN_SECONDS; // last day of the prior month
+			return array( gmdate( 'Y-m-01', $end ), gmdate( 'Y-m-d', $end ) );
+		case 'last-quarter':
+			$cur_q_first = ( (int) ceil( $mo / 3 ) - 1 ) * 3 + 1;                          // 1|4|7|10
+			$end         = gmmktime( 0, 0, 0, $cur_q_first, 1, $y ) - DAY_IN_SECONDS;       // last day of the prior quarter
+			$pe_y        = (int) gmdate( 'Y', $end );
+			$pe_q_first  = ( (int) ceil( (int) gmdate( 'n', $end ) / 3 ) - 1 ) * 3 + 1;
+			return array( sprintf( '%04d-%02d-01', $pe_y, $pe_q_first ), gmdate( 'Y-m-d', $end ) );
+		default:
+			return array( $today, $today );
+	}
+}
+
 /**
  * The settings page the dashboard's "Configure →" link points at (and where the
  * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
