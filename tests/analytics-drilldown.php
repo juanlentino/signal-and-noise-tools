@@ -118,5 +118,17 @@ ok( null === sn_analytics_drilldown( 'country', 'US', 'bad', '2026-06-30', 'huma
 ok( null === sn_analytics_drilldown( 'country', str_repeat( 'x', 300 ), '2026-06-01', '2026-06-30', 'human' ), 'accessor: over-long value → null' );
 ok( count( $GLOBALS['__dd_query_calls'] ) === 0, 'accessor: guarded inputs never hit AE' );
 
+echo "\nGroup: accessor — cache key distinguishes values (not a constant key)\n";
+dd_reset();
+sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-30', 'human' );
+sn_analytics_drilldown( 'country', "O'Hare", '2026-06-01', '2026-06-30', 'human' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 2, 'cache key: a different value MISSES (distinct keys, not a constant)' );
+
+echo "\nGroup: accessor → builder — escaping survives end-to-end\n";
+dd_reset();
+sn_analytics_drilldown( 'city', "O'Hare", '2026-06-01', '2026-06-30', 'human' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 1, 'accessor: quote-bearing top-N value passes the whitelist' );
+ok( strpos( $GLOBALS['__dd_query_calls'][0], "blob11 = 'O\\'Hare'" ) !== false, 'accessor→builder: the quote is escaped in the issued SQL (not just in the builder unit test)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

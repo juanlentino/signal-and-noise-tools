@@ -78,7 +78,10 @@ function snt_analytics_resolve_view( $raw ) {
  * @param string     $class  Active class (preserved across tabs).
  */
 function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $to = '' ) {
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to' ), add_query_arg( array() ) );
+	// sn_drill is stripped too: a drill is scoped to the view that owns the dim, so
+	// switching tabs clears it rather than carrying a stale "Country = US" onto a tab
+	// with no Country table (the panel render is also dim/view-gated as a backstop).
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill' ), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}
@@ -307,9 +310,16 @@ function snt_analytics_render_dashboard() {
 	echo '<div class="sn-an-view">';
 
 	// Cross-tab drill-down: ?sn_drill=<dim>:<value> → "Top pages where <dim>=<value>"
-	// (on-demand AE, whitelisted + cached). Rendered atop whatever view is active.
+	// (on-demand AE, whitelisted + cached). The panel renders ONLY on the view that
+	// owns the drilled dim — so a stale drill carried onto another tab shows nothing
+	// (no orphan panel above a view with no such table).
+	$sn_drill_dims = array(
+		'technology' => array( 'browser', 'os', 'device', 'protocol', 'tls' ),
+		'geography'  => array( 'country', 'city', 'region', 'network', 'colo' ),
+		'content'    => array( 'referrer' ),
+	);
 	$sn_drill = isset( $_GET['sn_drill'] ) ? sn_analytics_drilldown_parse( sanitize_text_field( wp_unslash( $_GET['sn_drill'] ) ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET filter on an admin report, no state change.
-	if ( null !== $sn_drill ) {
+	if ( null !== $sn_drill && in_array( $sn_drill[0], $sn_drill_dims[ $view ] ?? array(), true ) ) {
 		$drill_note = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
 			? '(reflects the last ~90 days — Analytics Engine raw retention)'
 			: '';

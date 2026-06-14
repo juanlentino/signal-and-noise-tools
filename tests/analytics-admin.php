@@ -94,7 +94,16 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 	if ( 'scroll' === $metric ) { return array( array( 'label' => 'p50', 'value' => 63.0 ), array( 'label' => 'p75', 'value' => 84.0 ), array( 'label' => 'p90', 'value' => 95.0 ) ); }
 	return array( array( 'label' => 'p50', 'value' => 38000.0 ), array( 'label' => 'p75', 'value' => 72000.0 ), array( 'label' => 'p90', 'value' => 220000.0 ) );
 }
-function sn_analytics_drilldown_parse( $raw ) { $p = strpos( (string) $raw, ':' ); return ( false === $p || 0 === $p ) ? null : array( substr( $raw, 0, $p ), substr( $raw, $p + 1 ) ); }
+// Faithful to the real contract: reject no-colon, empty value, and unknown dim
+// (so the negative assertions below can't be masked by an over-permissive stub).
+function sn_analytics_drilldown_parse( $raw ) {
+	$p = strpos( (string) $raw, ':' );
+	if ( false === $p || 0 === $p ) { return null; }
+	$dim = substr( $raw, 0, $p ); $val = substr( $raw, $p + 1 );
+	$known = array( 'referrer', 'country', 'device', 'browser', 'os', 'region', 'city', 'network', 'colo', 'protocol', 'tls' );
+	if ( '' === $val || ! in_array( $dim, $known, true ) ) { return null; }
+	return array( $dim, $val );
+}
 function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) { return array( array( 'path' => '/x', 'views' => 9, 'visits' => 5 ) ); }
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 	return array(
@@ -318,8 +327,20 @@ echo "\nGroup: dashboard — drill-down\n";
 $_GET['sn_view']  = 'geography';
 $_GET['sn_drill'] = 'country:US';
 $html = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders atop the view when ?sn_drill set' );
+ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders on the view that owns the dim' );
 ok( strpos( $html, 'sn_drill=country%3A' ) !== false, 'drill: Countries table values are drill links (colon URL-encoded by add_query_arg)' );
+ok( strpos( $html, 'sn_view=technology' ) !== false && strpos( explode( '</nav>', $html )[0], 'sn_drill' ) === false, 'drill: tab links do NOT carry sn_drill (cleared on tab switch)' );
+// View-gate: a valid drill whose dim is NOT on the active view shows NO panel.
+$_GET['sn_view'] = 'technology';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn-an-drill' ) === false, 'drill: no orphan panel on a view that does not own the dim (country on technology)' );
+// Invalid drill tokens parse to null → no panel.
+foreach ( array( 'martian:x', 'country:', 'garbage' ) as $bad ) {
+	$_GET['sn_view'] = 'geography';
+	$_GET['sn_drill'] = $bad;
+	$h = capture( 'snt_analytics_render_dashboard' );
+	ok( strpos( $h, 'sn-an-drill' ) === false, "drill: invalid token '$bad' renders no panel" );
+}
 unset( $_GET['sn_drill'] );
 
 echo "\nGroup: dashboard — Quality view\n";
