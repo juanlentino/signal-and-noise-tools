@@ -76,6 +76,7 @@ require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors
+require_once SNT_PATH . 'inc/analytics-events-rollup.php'; // v6.10.0: live ce/cp rollups feeding the events tables
 require_once SNT_PATH . 'inc/analytics-buckets.php'; // derived: hour-of-day heatmap + scroll/time distributions
 require_once SNT_PATH . 'inc/analytics-percentiles.php'; // on-demand scroll/time percentiles (p50/p75/p90)
 require_once SNT_PATH . 'inc/analytics-drilldown.php'; // on-demand cross-tab dimension drill-down

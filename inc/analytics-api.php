@@ -27,6 +27,9 @@
  *   blob7  = traffic_class ('human' | 'suspect' | 'bot') — server-side
  *            classification from the edge worker (UA + data-center ASN + CF
  *            bot score). Default consumer view filters blob7 = 'human'.
+ *   blob16 = custom-event name     (worker v1.2.0; only on blob1='ce' rows; '' otherwise)
+ *   blob17 = custom-event property (only on blob1='cp' rows; '' otherwise)
+ *   blob18 = custom-event value    (only on blob1='cp' rows; '' otherwise)
  *
  *   double1 = scroll_pct   0–100 (scroll depth percentage)
  *   double2 = time_ms      dwell time in milliseconds

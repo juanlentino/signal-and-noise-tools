@@ -302,6 +302,12 @@ function sn_analytics_run_rollup() {
 		sn_analytics_pageroles_run_rollup();
 	}
 
+	// v6.10.0: roll live custom events (ce → events, cp → event_props) in the
+	// same pass — their own AE queries, same function_exists guard. No new cron.
+	if ( function_exists( 'sn_analytics_events_run_rollup' ) ) {
+		sn_analytics_events_run_rollup();
+	}
+
 	set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
 }
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
