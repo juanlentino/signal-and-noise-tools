@@ -75,3 +75,57 @@ function sn_analytics_percentiles_sql( $event, $col, $from, $to, $class ) {
 		"AND timestamp <= toDateTime('{$to} 23:59:59')",
 	) );
 }
+
+/**
+ * On-demand percentiles for one metric over [from,to] for a class. Checks a short
+ * transient cache; on a miss issues ONE AE query and caches the result (a failure
+ * is cached briefly so a broken config isn't re-hit every render). Returns an
+ * ordered [{label,value}] list (p50/p75/p90) or NULL on any failure / unconfigured
+ * AE / bad input — the renderer shows an empty-state on null.
+ *
+ * @param string $metric 'scroll'|'time'.
+ * @param string $from   Inclusive start day, YYYY-MM-DD.
+ * @param string $to     Inclusive end day, YYYY-MM-DD.
+ * @param string $class  Traffic class (default 'human').
+ * @return array<int, array{label:string, value:float}>|null
+ */
+function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
+	$metrics = sn_analytics_percentiles_metrics();
+	if ( ! isset( $metrics[ $metric ] ) ) {
+		return null;
+	}
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
+		return null;
+	}
+
+	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class );
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return is_array( $cached ) ? $cached : null; // '' sentinel → cached failure.
+	}
+
+	if ( ! function_exists( 'sn_analytics_query' ) ) {
+		return null;
+	}
+
+	$m   = $metrics[ $metric ];
+	$res = sn_analytics_query( sn_analytics_percentiles_sql( $m['event'], $m['col'], $from, $to, $class ) );
+	$ttl = defined( 'SN_ANALYTICS_ROLLUP_TTL' ) ? SN_ANALYTICS_ROLLUP_TTL : ( 15 * 60 );
+
+	if ( ! is_array( $res ) || ! isset( $res[0] ) || ! is_array( $res[0] ) ) {
+		set_transient( $cache_key, '', 5 * 60 ); // brief negative cache
+		return null;
+	}
+
+	$row = $res[0];
+	$out = array(
+		array( 'label' => 'p50', 'value' => (float) ( $row['p50'] ?? 0 ) ),
+		array( 'label' => 'p75', 'value' => (float) ( $row['p75'] ?? 0 ) ),
+		array( 'label' => 'p90', 'value' => (float) ( $row['p90'] ?? 0 ) ),
+	);
+	set_transient( $cache_key, $out, $ttl );
+	return $out;
+}

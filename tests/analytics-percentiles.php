@@ -70,5 +70,35 @@ ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', "2026-06-01'; DROP", 
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'martian' ), "blob7 = 'human'" ) !== false, 'sql: unknown class → human' );
 
+echo "\nGroup: read accessor — success shape + caching\n";
+pc_reset();
+$r = sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' );
+ok( is_array( $r ) && count( $r ) === 3, 'accessor: returns 3 rows' );
+ok( $r[0]['label'] === 'p50' && (float) $r[0]['value'] === 63.0, 'accessor: p50 value parsed' );
+ok( $r[2]['label'] === 'p90' && (float) $r[2]['value'] === 95.0, 'accessor: p90 value parsed' );
+ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: one AE query on cold cache' );
+// Second identical call → cache hit, no new query.
+$r2 = sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' );
+ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: cache hit issues no second query' );
+ok( $r2 === $r, 'accessor: cached value identical' );
+
+echo "\nGroup: read accessor — failure degrades to null (cached briefly)\n";
+pc_reset();
+$GLOBALS['__pc_query_result'] = null; // AE failure / unconfigured
+$f = sn_analytics_percentiles( 'time', '2026-06-01', '2026-06-30', 'human' );
+ok( null === $f, 'accessor: AE null → returns null (empty-state trigger)' );
+ok( count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: failure issued one query' );
+$f2 = sn_analytics_percentiles( 'time', '2026-06-01', '2026-06-30', 'human' );
+ok( null === $f2 && count( $GLOBALS['__pc_query_calls'] ) === 1, 'accessor: failure cached → no retry storm' );
+
+echo "\nGroup: read accessor — input guards\n";
+pc_reset();
+ok( null === sn_analytics_percentiles( 'martian', '2026-06-01', '2026-06-30', 'human' ), 'accessor: unknown metric → null' );
+ok( null === sn_analytics_percentiles( 'scroll', 'bad-date', '2026-06-30', 'human' ), 'accessor: invalid from → null' );
+ok( count( $GLOBALS['__pc_query_calls'] ) === 0, 'accessor: guarded inputs never hit AE' );
+pc_reset();
+sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'martian' );
+ok( strpos( $GLOBALS['__pc_query_calls'][0], "blob7 = 'human'" ) !== false, 'accessor: unknown class coerced to human in the query' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
