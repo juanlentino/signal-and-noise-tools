@@ -72,6 +72,21 @@ function sn_analytics_buckets_metrics() {
 				array( 'label' => '3m+',    'lo' => 180000, 'hi' => null ),
 			),
 		),
+		'botscore' => array(
+			'event'   => 'pv',
+			'col'     => 'double3',
+			'label'   => 'Bot confidence',
+			// double3 is Cloudflare's bot-management score (1–99), or -1 when Bot
+			// Management is absent on the zone. lo=1 on the first band excludes the
+			// -1/0 sentinels, so only real scores are bucketed. This is the FIRST
+			// query of double3 + the first blob1='pv' distribution — a new AE query
+			// (live-validation gated). It reuses dist_sql's proven sum(if()) form.
+			'buckets' => array(
+				array( 'label' => '1–30',  'lo' => 1,  'hi' => 31 ),
+				array( 'label' => '31–60', 'lo' => 31, 'hi' => 61 ),
+				array( 'label' => '61–99', 'lo' => 61, 'hi' => null ),
+			),
+		),
 	);
 }
 
