@@ -64,7 +64,7 @@ $dir   = dirname( __DIR__ ) . '/inc';
 // v5.4.0: analytics-buckets.php joins the scanned set — this list is HARDCODED
 // (NOT an auto-glob of inc/analytics-*.php), so every new AE SQL builder file
 // must be added here or its dialect conformance ships unguarded.
-$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php' );
+$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php', 'analytics-drilldown.php' );
 
 echo "Group: AE SQL dialect — no count() with arguments\n";
 foreach ( $files as $f ) {
@@ -109,6 +109,13 @@ dq( preg_match( '/quantileExactWeighted\s*\(\s*_sample_interval/', $pctl ) === 0
 dq( strpos( $pctl, '_sample_interval' ) !== false, 'percentiles: weighted by _sample_interval (sampling-correct)' );
 dq( strpos( $pctl, 'quantileWeighted(' ) === false, 'percentiles: not the flat quantileWeighted alias' );
 dq( strpos( $pctl, 'toDateTime(' ) !== false, 'percentiles: explicit date-bounded window (not trailing INTERVAL)' );
+
+echo "\nGroup: drill-down uses proven primitives, no LIMIT\n";
+$drill = dialect_code_only( file_get_contents( "$dir/analytics-drilldown.php" ) );
+dq( strpos( $drill, 'sum(_sample_interval)' ) !== false, 'drilldown: sample-corrected views' );
+dq( strpos( $drill, 'count(DISTINCT index1)' ) !== false, 'drilldown: visits via count(DISTINCT bare column)' );
+dq( preg_match( '/\bLIMIT\b/i', $drill ) === 0, 'drilldown: no LIMIT against AE (PHP-slices instead)' );
+dq( strpos( $drill, "{\$col} = '" ) !== false, 'drilldown: parameterised parent-col equality filter' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
