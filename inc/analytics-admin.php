@@ -243,6 +243,11 @@ function snt_analytics_render_dashboard() {
 		case 'quality':
 			snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
 			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
+			snt_analytics_render_distribution(
+				'Bot confidence',
+				sn_analytics_distribution( 'botscore', $from, $to, $class ),
+				'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).'
+			);
 			break;
 
 		case 'events':

@@ -87,6 +87,7 @@ function sn_analytics_hour_dow_grid( $from, $to, $class = 'human' ) {
 }
 function sn_analytics_distribution( $metric, $from, $to, $class = 'human' ) {
 	if ( 'scroll' === $metric ) { return array( array( 'label' => '0–25%', 'views' => 4 ), array( 'label' => '75–100%', 'views' => 40 ) ); }
+	if ( 'botscore' === $metric ) { return array( array( 'label' => '1–30', 'views' => 5 ), array( 'label' => '31–60', 'views' => 2 ), array( 'label' => '61–99', 'views' => 20 ) ); }
 	return array( array( 'label' => '0–10s', 'views' => 7 ), array( 'label' => '3m+', 'views' => 2 ) );
 }
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
@@ -310,6 +311,8 @@ $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
 ok( strpos( $html, 'sn-an-bot-trend' ) !== false, 'quality tab renders the bot-share trend when data present' );
+ok( strpos( $html, 'Bot confidence' ) !== false, 'quality: bot-confidence distribution panel rendered' );
+ok( strpos( $html, '1–30' ) !== false || strpos( $html, '61–99' ) !== false, 'quality: bot-confidence bands rendered' );
 ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native postbox' );
 
 echo "\nGroup: dashboard — Events view (new tab)\n";
