@@ -78,6 +78,7 @@ require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device +
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors
 require_once SNT_PATH . 'inc/analytics-buckets.php'; // derived: hour-of-day heatmap + scroll/time distributions
 require_once SNT_PATH . 'inc/analytics-percentiles.php'; // on-demand scroll/time percentiles (p50/p75/p90)
+require_once SNT_PATH . 'inc/analytics-drilldown.php'; // on-demand cross-tab dimension drill-down
 require_once SNT_PATH . 'inc/analytics-derived.php'; // PHP-only derived: referrer categories, deltas, bot breakdown
 require_once SNT_PATH . 'inc/analytics-import.php'; // one-time Plausible-CSV → first-party rollup back-fill
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
