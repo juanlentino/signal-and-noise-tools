@@ -118,7 +118,7 @@
 	line-height: 1.3;
 }
 .sn-delta-down { color: #d63638; }
-.sn-delta-up   { color: #00a32a; }
+.sn-delta-up   { color: #006b18; }
 .sn-delta-flat { color: #646970; font-weight: 400; }
 .sn-delta-arrow { font-size: 11px; vertical-align: middle; }
 
@@ -139,7 +139,7 @@
 	justify-content: space-between;
 	padding: 0 14px 12px;
 	font-size: 11px;
-	color: #787c82;
+	color: #646970;
 	font-variant-numeric: tabular-nums;
 }
 
@@ -262,7 +262,7 @@
 .sn-an-pctl-k { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #646970; }
 .sn-an-pctl-v { font-size: 22px; font-weight: 600; line-height: 1.1; color: #1d2327; font-variant-numeric: tabular-nums; }
 .sn-an-pctl .sn-an-empty { margin: 0; }
-.sn-an-foot { margin: 10px 0 0; font-size: 11px; color: #8c8f94; }
+.sn-an-foot { margin: 10px 0 0; font-size: 11px; color: #646970; }
 
 /* Cross-tab drill-down panel. v6.9.0 */
 .sn-an-drill { border-left: 3px solid var(--wp-admin-theme-color, #2271b1); }

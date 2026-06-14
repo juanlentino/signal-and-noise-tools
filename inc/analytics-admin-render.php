@@ -433,7 +433,7 @@ function snt_analytics_render_heatmap( $heatmap ) {
 		return;
 	}
 	$days = array( 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' );
-	echo '<div class="sn-an-heatmap" role="img" aria-label="' . esc_attr__( 'Visits by hour of day and day of week', 'signal-and-noise-tools' ) . '">';
+	echo '<div class="sn-an-heatmap" aria-hidden="true">';
 	foreach ( $days as $dow => $label ) {
 		echo '<div class="sn-an-hm-row"><span class="sn-an-hm-day">' . esc_html( $label ) . '</span>';
 		for ( $h = 0; $h < 24; $h++ ) {
@@ -450,7 +450,29 @@ function snt_analytics_render_heatmap( $heatmap ) {
 		}
 		echo '</div>';
 	}
-	echo '</div></div></div></div>';
+	echo '</div>'; // close .sn-an-heatmap (decorative; aria-hidden)
+
+	// Accessible companion: a visually-hidden data table carrying the same grid,
+	// with day row headers + hour column headers. The visual grid above is
+	// aria-hidden, so AT users get this structured table instead of an opaque image.
+	echo '<table class="screen-reader-text"><caption>'
+		. esc_html__( 'Visits by hour of day (UTC) and day of week', 'signal-and-noise-tools' ) . '</caption>';
+	echo '<thead><tr><th scope="col">' . esc_html__( 'Day', 'signal-and-noise-tools' ) . '</th>';
+	for ( $h = 0; $h < 24; $h++ ) {
+		echo '<th scope="col">' . esc_html( str_pad( (string) $h, 2, '0', STR_PAD_LEFT ) . ':00' ) . '</th>';
+	}
+	echo '</tr></thead><tbody>';
+	foreach ( $days as $dow => $label ) {
+		echo '<tr><th scope="row">' . esc_html( $label ) . '</th>';
+		for ( $h = 0; $h < 24; $h++ ) {
+			$cv = isset( $grid[ $dow ][ $h ] ) ? (int) $grid[ $dow ][ $h ] : 0;
+			echo '<td>' . esc_html( number_format_i18n( $cv ) ) . '</td>';
+		}
+		echo '</tr>';
+	}
+	echo '</tbody></table>';
+
+	echo '</div></div></div>'; // close .sn-an-panel, .inside, .postbox
 }
 
 /**
@@ -490,7 +512,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 
 	$nets = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
 	if ( ! empty( $nets ) ) {
-		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table wp-list-table widefat striped"><tbody>';
+		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table wp-list-table widefat striped"><thead><tr><th scope="col">Network</th><th scope="col" class="num">Views</th></tr></thead><tbody>';
 		foreach ( $nets as $n ) {
 			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
 				. '<td class="num">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';

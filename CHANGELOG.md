@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.2] - 2026-06-14 — Admin accessibility pass
+
+**Headline:** WCAG fixes on the analytics + audit-log admin surfaces from the comprehensive audit — contrast and screen-reader semantics.
+
+### Fixed
+
+- **Contrast (WCAG AA).** The KPI delta-up green (was 3.35:1), spark-axis date labels (4.20:1), percentile footnotes (3.24:1), and the audit-log empty-row text (2.33:1 — the worst) all failed AA on white. Darkened to passing tokens: `#006b18` (6.74:1) for the up-delta, `#646970` (5.53:1) for the muted greys. Ratios computed before/after. [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css), [assets/audit-log.css](assets/audit-log.css)
+- **The activity heatmap is now screen-reader accessible.** The 7×24 grid exposed its data only through mouse-tooltip `title=` text (not reliably announced, and `role="img"` collapsed it to one opaque label). It now ships a visually-hidden companion `<table>` with day row-headers + hour column-headers carrying the same counts; the decorative visual grid is `aria-hidden`. [inc/analytics-admin-render.php](inc/analytics-admin-render.php)
+- **Table headers carry `scope`.** The audit-log timeline + logins tables emitted bare `<th>` (the analytics tables already used `scope="col"`); now consistent. The "Top bot networks" table gained a `<thead>` (it had opened straight into `<tbody>`). [inc/audit-log-admin.php](inc/audit-log-admin.php), [inc/analytics-admin-render.php](inc/analytics-admin-render.php)
+
+> **Why PATCH:** accessibility-conformance fixes to existing admin surfaces — no new features, no schema change.
+
 ## [6.11.1] - 2026-06-14 — Analytics table titles align over their data
 
 ### Improvements
