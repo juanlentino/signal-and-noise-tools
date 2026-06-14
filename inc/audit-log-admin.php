@@ -118,13 +118,13 @@ function snt_audit_log_render_counter_table( $counters ) {
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-timeline">';
 	echo '<thead><tr>';
-	echo '<th>Date</th>';
-	echo '<th>Failed</th>';
-	echo '<th>Login 404</th>';
-	echo '<th>Admin 404</th>';
-	echo '<th>Lockouts</th>';
-	echo '<th>Pwd reset</th>';
-	echo '<th>Unique IPs</th>';
+	echo '<th scope="col">Date</th>';
+	echo '<th scope="col">Failed</th>';
+	echo '<th scope="col">Login 404</th>';
+	echo '<th scope="col">Admin 404</th>';
+	echo '<th scope="col">Lockouts</th>';
+	echo '<th scope="col">Pwd reset</th>';
+	echo '<th scope="col">Unique IPs</th>';
 	echo '</tr></thead>';
 	echo '<tbody>';
 	foreach ( $counters as $row ) {
@@ -156,7 +156,7 @@ function snt_audit_log_render_logins_table( $logins ) {
 	}
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-logins">';
-	echo '<thead><tr><th>Timestamp</th><th>User</th></tr></thead>';
+	echo '<thead><tr><th scope="col">Timestamp</th><th scope="col">User</th></tr></thead>';
 	echo '<tbody>';
 	foreach ( $logins as $row ) {
 		echo '<tr>';

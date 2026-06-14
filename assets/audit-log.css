@@ -52,7 +52,8 @@
 }
 
 .sn-audit-row-empty {
-	color: #a7aaad;
+	color: #646970;
+	font-style: italic;
 }
 
 @media (max-width: 960px) {
