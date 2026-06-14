@@ -641,9 +641,11 @@ function snt_analytics_render_lowengage( $rows ) {
 }
 
 /**
- * Bot-share trend panel: a bar chart of per-bucket bot% over the window.
- * Data from sn_analytics_class_series() (durable — no AE). Lives on the
- * Quality tab above the breakdown panel.
+ * Bot-share trend panel: a smooth SVG line + gradient area of per-bucket bot% over
+ * the window, scaled to the peak with the absolute peak labelled. Red accent to match
+ * the bot segment of the Quality-tab stacked bar. Data from sn_analytics_class_series()
+ * (durable — no AE). Mirrors snt_analytics_render_trend()'s SVG treatment via the
+ * shared smooth-path helper; only one renders per page so a fixed gradient id is safe.
  *
  * @param array $rows [{day:string, bot_pct:int, total:int, bot:int}]
  */
@@ -652,13 +654,42 @@ function snt_analytics_render_bot_trend( $rows ) {
 		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush"><p class="sn-an-empty" style="padding:0 12px 12px">No traffic recorded in this range yet.</p></div></div>';
 		return;
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
-	echo '<div class="sn-an-trend sn-an-trend--bot" role="img" aria-label="' . esc_attr( 'Bot share trend' ) . '">';
+	$n    = count( $rows );
+	$peak = 0;
 	foreach ( $rows as $r ) {
-		$pct = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
-		echo '<span class="bar" style="height:' . esc_attr( max( 2, $pct ) ) . '%" title="'
-			. esc_attr( ( $r['day'] ?? '' ) . ': ' . $pct . '% bot' ) . '"></span>';
+		$peak = max( $peak, (int) ( $r['bot_pct'] ?? 0 ) );
 	}
+	$scale = max( 1, $peak ); // scale-to-peak so a typically-low rate is readable; absolute peak is labelled.
+	$w     = 600.0;
+	$top   = 8.0;
+	$base  = 78.0;
+	$step  = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
+	$px    = array();
+	$py    = array();
+	foreach ( array_values( $rows ) as $i => $r ) {
+		$pct  = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
+		$px[] = round( $i * $step, 2 );
+		$py[] = round( $base - ( $pct / $scale ) * ( $base - $top ), 2 );
+	}
+	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ $n - 1 ] . ',' . $base . ' Z';
+	$first  = (string) ( $rows[0]['day'] ?? '' );
+	$last   = (string) ( end( $rows )['day'] ?? '' );
+	$meta   = 'peak ' . (int) $peak . '% bot';
+
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Bot share over time', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	echo '<div class="sn-an-bot-trend">';
+	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Bot share', 'signal-and-noise-tools' ) . '</span><span class="sn-trend-meta">' . esc_html( $meta ) . '</span></div>';
+	echo '<div class="sn-spark-wrap">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
+	echo '<svg class="sn-an-bot-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr__( 'Bot share trend', 'signal-and-noise-tools' ) . '">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
+	echo '<defs><linearGradient id="snBotTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d63638" stop-opacity="0.16"/><stop offset="55%" stop-color="#d63638" stop-opacity="0.04"/><stop offset="100%" stop-color="#d63638" stop-opacity="0"/></linearGradient></defs>';
+	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snBotTrendFill)" stroke="none"/>';
+	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#d63638" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+	echo '</svg></div>';
+	echo '<div class="sn-spark-axis"><span>' . esc_html( $first ) . '</span><span>' . esc_html( $last ) . '</span></div>';
 	echo '</div></div></div>';
 }
 
