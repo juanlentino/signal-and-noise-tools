@@ -50,5 +50,21 @@ ok( strpos( $h, 'Weekly views trend' ) !== false, 'weekly granularity → weekly
 ob_start(); snt_analytics_render_trend( $series ); $h2 = ob_get_clean();
 ok( strpos( $h2, 'Daily views trend' ) !== false, 'default → daily aria-label' );
 
+echo "\nGroup: trend characterization (golden — behaviour-preserving after the smooth-path helper extraction)\n";
+// Golden captured from the v6.5.4 output for views [100,300,200] (max=300, top=8, base=78).
+// The smooth-path helper extraction MUST keep these path strings byte-identical.
+$golden_series = array(
+	array( 'day' => '2026-06-09', 'views' => 100 ),
+	array( 'day' => '2026-06-10', 'views' => 300 ),
+	array( 'day' => '2026-06-11', 'views' => 200 ),
+);
+ob_start(); snt_analytics_render_trend( $golden_series, 'day' ); $g = ob_get_clean();
+ok( strpos( $g, 'd="M 0,54.67 C 50,46.89 200,11.89 300,8 C 400,8 550,27.44 600,31.33"' ) !== false,
+	'line path d unchanged by the helper extraction (golden)' );
+ok( strpos( $g, 'd="M 0,78 L 0,54.67 C 50,46.89 200,11.89 300,8 C 400,8 550,27.44 600,31.33 L 600,78 Z"' ) !== false,
+	'area path d unchanged (golden)' );
+ok( strpos( $g, 'vector-effect="non-scaling-stroke"' ) !== false, 'non-scaling-stroke preserved' );
+ok( strpos( $g, 'peak 300' ) !== false, 'peak meta preserved' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -20,7 +20,7 @@ require __DIR__ . '/../inc/analytics-admin-render.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
-echo "\nGroup: bot_trend render\n";
+echo "\nGroup: bot_trend render — smooth SVG chart (red, peak-labelled)\n";
 
 $rows = array(
 	array( 'day' => '2026-06-10', 'bot_pct' => 10, 'total' => 50 ),
@@ -28,10 +28,20 @@ $rows = array(
 );
 ob_start(); snt_analytics_render_bot_trend( $rows ); $h = ob_get_clean();
 ok( strpos( $h, 'Bot share over time' ) !== false, 'heading present' );
-ok( strpos( $h, 'height:30%' ) !== false, 'bar height reflects bot_pct' );
+ok( strpos( $h, 'sn-an-bot-trend' ) !== false, 'wrapper class present' );
+ok( strpos( $h, '<svg' ) !== false && strpos( $h, '<path' ) !== false, 'smooth SVG path (not bars)' );
+ok( strpos( $h, 'class="bar"' ) === false, 'old chunky bars gone' );
+ok( strpos( $h, '#d63638' ) !== false, 'red accent (matches the bot quality-bar segment)' );
+ok( strpos( $h, 'peak 30% bot' ) !== false, 'peak labelled with the absolute max bot %' );
+ok( preg_match( '/d="M [\d.]+,[\d.]+ C /', $h ) === 1, 'smooth bézier line (scaled to peak)' );
 
 ob_start(); snt_analytics_render_bot_trend( array() ); $e = ob_get_clean();
-ok( strpos( $e, 'sn-an-empty' ) !== false || $e === '', 'empty input → empty state or nothing' );
+ok( stripos( $e, 'No traffic recorded' ) !== false, 'empty input → empty state' );
+
+// A single day of data must still draw a visible (flat) line, not an invisible bare moveto.
+ob_start(); snt_analytics_render_bot_trend( array( array( 'day' => '2026-06-11', 'bot_pct' => 12, 'total' => 40 ) ) ); $h1 = ob_get_clean();
+ok( strpos( $h1, ' C ' ) !== false, 'single day → visible flat line' );
+ok( strpos( $h1, 'peak 12% bot' ) !== false, 'single day → peak labelled (i18n-wrapped)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -309,7 +309,7 @@ echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
-ok( strpos( $html, 'sn-an-trend--bot' ) !== false, 'quality tab renders the bot-share trend when data present' );
+ok( strpos( $html, 'sn-an-bot-trend' ) !== false, 'quality tab renders the bot-share trend when data present' );
 ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native postbox' );
 
 echo "\nGroup: dashboard — Events view (new tab)\n";

@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.5.5] - 2026-06-13 — Smooth sparkline + bot-share trend
+
+### Improvements
+- **Inline trend sparklines** in the dimension tables (Top sources, Browsers, Operating systems, Devices, Protocols, TLS) are now smooth mini-area charts instead of grey tick bars — the same curve treatment as the main Overview chart. A single-data-point dimension renders as a flat line rather than disappearing.
+- **Bot share over time** on the Quality tab is now a smooth red line + area scaled to its peak (with the peak % labelled), replacing the chunky blue bars. The line is readable even when the bot rate is low, and is colour-matched to the bot segment of the traffic-quality bar.
+
+### Internal
+- Extracted the trend smoothing into a shared `snt_analytics_smooth_path()` helper — one Catmull-Rom implementation now backs the Overview chart, the inline sparkline, and the bot-share trend. The Overview chart refactor is behaviour-preserving and golden-pinned, and the bot-share peak label is internationalised to match its sibling.
+
+> **Why PATCH:** presentation polish on existing panels — no new capability, no schema/SQL/REST change.
+
 ## [6.5.4] - 2026-06-13 — Analytics panel titles align with their content
 
 ### Fixed

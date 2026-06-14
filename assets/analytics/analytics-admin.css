@@ -204,14 +204,14 @@
 .sn-an-q-legend { font-size: 12px; color: #646970; margin: 0 0 10px; }
 .sn-an-q-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 2px; }
 .sn-an-subh { font-size: 12px; color: #646970; margin: 10px 0 4px; }
-/* per-dimension inline sparkline bars (dim tables) */
-.sn-an-spark { display: inline-flex; align-items: flex-end; gap: 1px; height: 1.1em; }
-.sn-an-spark .b { width: 2px; background: currentColor; opacity: .45; }
+/* per-dimension inline sparkline (dim tables) — tiny smooth SVG mini-area */
+.sn-an-spark { display: inline-block; width: 72px; height: 18px; vertical-align: middle; }
+.sn-an-spark svg { display: block; width: 100%; height: 100%; }
 .sn-an-spark--empty { opacity: .2; }
-/* bot-share trend bars (quality tab render_bot_trend) */
-.sn-an-trend--bot .bar { opacity: .7; }
-.sn-an-trend { display: flex; align-items: flex-end; gap: 3px; height: 48px; margin: 0 0 18px; }
-.sn-an-trend .bar { flex: 1; background: #2271b1; min-height: 2px; border-radius: 2px 2px 0 0; }
+/* bot-share trend (quality tab) — smooth SVG line + area, red accent (reuses the
+   .sn-trend-head / .sn-spark-wrap / .sn-spark-axis chrome from the Overview chart) */
+.sn-an-bot-trend { margin: 0 0 18px; }
+.sn-an-bot-spark { display: block; width: 100%; height: 72px; }
 /* panel/table inner wrappers (referrer-cats, distribution, heatmap, bot-breakdown) */
 .sn-an-panel { padding: 14px; }
 .sn-an-table { width: 100%; border-collapse: collapse; font-size: 13px; }

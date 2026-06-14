@@ -37,5 +37,30 @@ ok( strpos( $h2, 'Engaged' ) === false, 'no engaged card when null' );
 ob_start(); snt_analytics_render_cards( 3, $totals, array(), array( 'current' => null ) ); $h3 = ob_get_clean();
 ok( strpos( $h3, 'Engaged' ) === false, "array('current'=>null) (all-range, no timed data) hides the card" );
 
+echo "\nGroup: inline sparkline — smooth SVG mini-area\n";
+$sp = snt_analytics_sparkline( array(
+	array( 'day' => '2026-06-09', 'views' => 3 ),
+	array( 'day' => '2026-06-10', 'views' => 9 ),
+	array( 'day' => '2026-06-11', 'views' => 5 ),
+) );
+ok( strpos( $sp, 'sn-an-spark' ) !== false, 'sparkline: keeps the .sn-an-spark wrapper class' );
+ok( strpos( $sp, '<svg' ) !== false && strpos( $sp, '<path' ) !== false, 'sparkline: renders an SVG path (not bars)' );
+ok( strpos( $sp, 'class="b"' ) === false, 'sparkline: old grey tick bars gone' );
+ok( preg_match( '/d="M [\d.]+,[\d.]+ C /', $sp ) === 1, 'sparkline: smooth bézier line' );
+$se = snt_analytics_sparkline( array() );
+ok( strpos( $se, 'sn-an-spark--empty' ) !== false, 'sparkline: empty-state class preserved' );
+ok( strpos( $se, '<svg' ) === false, 'sparkline: empty-state has no SVG' );
+// Many sparklines render per page (one per dim-table row × several tables) — the
+// gradient id MUST be unique per call or duplicate ids break fill resolution.
+$sa = snt_analytics_sparkline( array( array( 'day' => 'd', 'views' => 1 ), array( 'day' => 'e', 'views' => 2 ) ) );
+$sb = snt_analytics_sparkline( array( array( 'day' => 'd', 'views' => 1 ), array( 'day' => 'e', 'views' => 2 ) ) );
+preg_match( '/id="(sn-spark-fill-\d+)"/', $sa, $ma );
+preg_match( '/id="(sn-spark-fill-\d+)"/', $sb, $mb );
+ok( ! empty( $ma[1] ) && ! empty( $mb[1] ) && $ma[1] !== $mb[1], 'sparkline: gradient id is unique per call (no dup-id collision)' );
+// A single-bucket dimension (one data point) must still show a visible mark — the old
+// bar sparkline drew one full-height bar, so a bare-moveto (invisible) SVG would regress.
+$s1 = snt_analytics_sparkline( array( array( 'day' => 'd', 'views' => 5 ) ) );
+ok( strpos( $s1, '<svg' ) !== false && strpos( $s1, ' C ' ) !== false, 'sparkline: single point renders a visible flat line (not an invisible bare moveto)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
