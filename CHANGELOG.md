@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.0] - 2026-06-14 — Dashboard snapshot: Engaged + Filtered
+
+### New
+- **Two more stats on the "Analytics — Last 7 days" dashboard widget.** The snapshot grid grows from four tiles to six — a clean 2×3, no layout change — adding **Engaged** (the share of human pageviews that crossed the engaged-time threshold: the attention *signal*) and **Filtered** (the suspect + bot pageviews the edge classifier caught and excluded: the *noise*). The two numbers that name the project, at a glance. Both are cheap durable-table reads (no extra Analytics Engine call), and both degrade to an em-dash before any rollup data exists — while a *measured* zero ("classified traffic, zero noise") renders honestly as `0`.
+
+> **Why MINOR:** new user-visible data on an existing widget, additive — no breaking change, no schema change.
+
 ## [6.10.1] - 2026-06-14 — Entry/exit layout fix
 
 ### Fixed

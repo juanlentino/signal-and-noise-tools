@@ -6,7 +6,7 @@
  * the first-party analytics rollup tables via the sn_analytics_* accessors:
  *
  *   - sn_plausible_snapshot — 7-day aggregate (Views, Visits, Avg scroll %,
- *                              Avg time on page)
+ *                              Avg time on page, Engaged %, Filtered)
  *   - sn_plausible_realtime — visitors right now (last 5 min)
  *   - sn_plausible_pages    — top 7 pages by views, last 7 days
  *   - sn_plausible_sources  — top 7 referrers by views, last 7 days
@@ -111,6 +111,16 @@ function sn_aw_snapshot() {
 	sn_aw_stat( 'Visits',     $t['visits'] ?? null );
 	sn_aw_stat( 'Avg scroll', isset( $t['scroll_avg'] ) ? (int) round( (float) $t['scroll_avg'] ) . '%' : null );
 	sn_aw_stat( 'Avg time',   isset( $t['time_avg'] ) ? sn_aw_duration( (int) round( (float) $t['time_avg'] / 1000 ) ) : null );
+	// Engaged = signal: share of human pageviews that crossed the engaged-time threshold
+	// (int 0–100, or null when no time-distribution data exists yet → renders em-dash).
+	$eng = function_exists( 'sn_analytics_engaged_rate' ) ? sn_analytics_engaged_rate( $from, $to, 'human' ) : null;
+	sn_aw_stat( 'Engaged', null === $eng ? null : $eng . '%' );
+	// Filtered = noise: suspect + bot pageviews the edge classifier caught and excluded.
+	// Empty class_totals (no rollups in window) → null → em-dash; a measured 0 is honest
+	// ("classified traffic, zero noise") and intentionally renders 0, not em-dash.
+	$ct       = function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array();
+	$filtered = empty( $ct ) ? null : (int) ( ( $ct['suspect']['views'] ?? 0 ) + ( $ct['bot']['views'] ?? 0 ) );
+	sn_aw_stat( 'Filtered', $filtered );
 	echo '</div>';
 	sn_aw_footer();
 }
