@@ -179,21 +179,8 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 		$py[] = round( $base - ( (int) $r['views'] / $max ) * ( $base - $top ), 2 );
 	}
 
-	// Catmull-Rom → cubic-bézier smoothing (tension 1/6): the daily trend reads as a
-	// curve, not an angular zig-zag. Control-point Y is clamped to [top,base] so a
-	// spiky series can't overshoot the chart box. Pure function of the plotted points.
-	$line_d = 'M ' . $px[0] . ',' . $py[0];
-	for ( $i = 0; $i < $n - 1; $i++ ) {
-		$p0x = $px[ max( $i - 1, 0 ) ];
-		$p0y = $py[ max( $i - 1, 0 ) ];
-		$p3x = $px[ min( $i + 2, $n - 1 ) ];
-		$p3y = $py[ min( $i + 2, $n - 1 ) ];
-		$c1x = round( $px[ $i ] + ( $px[ $i + 1 ] - $p0x ) / 6, 2 );
-		$c1y = round( min( $base, max( $top, $py[ $i ] + ( $py[ $i + 1 ] - $p0y ) / 6 ) ), 2 );
-		$c2x = round( $px[ $i + 1 ] - ( $p3x - $px[ $i ] ) / 6, 2 );
-		$c2y = round( min( $base, max( $top, $py[ $i + 1 ] - ( $p3y - $py[ $i ] ) / 6 ) ), 2 );
-		$line_d .= ' C ' . $c1x . ',' . $c1y . ' ' . $c2x . ',' . $c2y . ' ' . $px[ $i + 1 ] . ',' . $py[ $i + 1 ];
-	}
+	// Smooth line via the shared helper (clamped Catmull-Rom → bézier).
+	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
 	$last_x = $px[ $n - 1 ];
 	$last_y = $py[ $n - 1 ];
 	// Area = the smooth line dropped to the baseline and closed.
