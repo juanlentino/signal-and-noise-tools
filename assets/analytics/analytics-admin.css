@@ -252,3 +252,7 @@
 .sn-an-pctl-v { font-size: 22px; font-weight: 600; line-height: 1.1; color: #1d2327; font-variant-numeric: tabular-nums; }
 .sn-an-pctl .sn-an-empty { margin: 0; }
 .sn-an-foot { margin: 10px 0 0; font-size: 11px; color: #8c8f94; }
+
+/* Cross-tab drill-down panel. v6.9.0 */
+.sn-an-drill { border-left: 3px solid var(--wp-admin-theme-color, #2271b1); }
+.sn-an-drill .sn-an-subh { font-size: 13px; color: #50575e; }

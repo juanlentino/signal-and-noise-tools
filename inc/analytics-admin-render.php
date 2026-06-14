@@ -540,7 +540,7 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param string $empty  Empty-state copy.
  * @param array  $series Optional value-keyed series map for sparklines.
  */
-function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array() ) {
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '' ) {
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
@@ -555,7 +555,13 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 	echo '<th scope="col" class="manage-column num">Views</th><th scope="col" class="manage-column num">Visits</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$v = (string) $r['value'];
-		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '"><strong>' . esc_html( $v ) . '</strong></td>';
+		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '">';
+		if ( '' !== $drill_dim ) {
+			echo '<a href="' . esc_url( add_query_arg( array( 'sn_drill' => $drill_dim . ':' . $v ) ) ) . '"><strong>' . esc_html( $v ) . '</strong></a>';
+		} else {
+			echo '<strong>' . esc_html( $v ) . '</strong>';
+		}
+		echo '</td>';
 		if ( $has_spark ) {
 			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: an SVG with esc_attr'd path d + a per-call gradient id minted by the helper.
 		}
@@ -1074,4 +1080,47 @@ function snt_analytics_render_percentiles( $title, $rows, $format = 'pct', $empt
 		echo '<p class="sn-an-foot">' . esc_html( $note ) . '</p>';
 	}
 	echo '</div></div></div>';
+}
+
+/**
+ * Render the cross-tab drill-down panel: "Top pages · <DimLabel> = <value>" with
+ * a Clear link, populated by sn_analytics_drilldown(). $rows null/empty → empty
+ * state (rejected value / no data / unconfigured AE). Native wp-admin, no brutalist.
+ *
+ * @param string                                                    $dim   A SN_ANALYTICS_DIM_COLUMNS key (for the label).
+ * @param string                                                    $value The drilled value.
+ * @param array<int,array{path:string,views:int,visits:int}>|null   $rows  Top pages, or null.
+ * @param string                                                    $note  Optional footnote (e.g. retention caveat).
+ * @return void
+ */
+function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' ) {
+	$labels = array(
+		'referrer' => 'Referrer', 'country' => 'Country', 'device' => 'Device', 'browser' => 'Browser',
+		'os' => 'OS', 'region' => 'Region', 'city' => 'City', 'network' => 'Network',
+		'colo' => 'Edge location', 'protocol' => 'Protocol', 'tls' => 'TLS',
+	);
+	$label = isset( $labels[ $dim ] ) ? $labels[ $dim ] : ucfirst( (string) $dim );
+	$clear = remove_query_arg( 'sn_drill', add_query_arg( array() ) );
+
+	echo '<div class="postbox sn-an-drill"><div class="postbox-header"><h2 class="hndle"><span>'
+		. esc_html( 'Top pages · ' . $label . ' = ' . (string) $value ) . '</span></h2></div>'
+		. '<div class="inside sn-an-table-inside">';
+	echo '<p class="sn-an-subh" style="padding:0 12px 8px"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
+		. ( '' !== $note ? ' · <span class="sn-an-foot">' . esc_html( $note ) . '</span>' : '' ) . '</p>';
+
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">No pages for this segment in this range (or it needs live Analytics Engine data).</p></div></div>';
+		return;
+	}
+
+	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+		. '<th scope="col" class="manage-column column-primary">Page</th>'
+		. '<th scope="col" class="manage-column num">Views</th>'
+		. '<th scope="col" class="manage-column num">Visits</th></tr></thead><tbody>';
+	foreach ( $rows as $r ) {
+		echo '<tr><td class="column-primary" data-colname="Page">' . esc_html( (string) ( $r['path'] ?? '' ) ) . '</td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>'
+			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) ( $r['visits'] ?? 0 ) ) ) . '</td></tr>';
+	}
+	echo '</tbody></table></div></div>';
 }
