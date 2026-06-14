@@ -160,6 +160,77 @@ function snt_analytics_preset_dates( $preset, $now = null ) {
 }
 
 /**
+ * Validate + clamp a user custom window. Rejects malformed dates (→ null), swaps a
+ * reversed pair, clamps `to`/`from` to today, and `from` to sn_analytics_min_day()
+ * when available. Returns [$from,$to] or null (caller falls back to the default).
+ *
+ * @param string   $from_raw
+ * @param string   $to_raw
+ * @param int|null $now Unix anchor.
+ * @return array{0:string,1:string}|null
+ */
+function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) {
+	$now   = ( null === $now ) ? time() : (int) $now;
+	$today = gmdate( 'Y-m-d', $now );
+	$from  = trim( (string) $from_raw );
+	$to    = trim( (string) $to_raw );
+	if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) ) {
+		return null;
+	}
+	if ( $from > $to ) { // ISO YYYY-MM-DD sorts lexically
+		$tmp = $from; $from = $to; $to = $tmp;
+	}
+	if ( $to > $today ) {
+		$to = $today;
+	}
+	if ( $from > $today ) {
+		$from = $today;
+	}
+	if ( function_exists( 'sn_analytics_min_day' ) ) {
+		$min = sn_analytics_min_day();
+		if ( snt_analytics_is_ymd( $min ) && $from < $min ) {
+			$from = $min;
+		}
+	}
+	if ( $from > $to ) {
+		return null;
+	}
+	return array( $from, $to );
+}
+
+/**
+ * Single resolver for the dashboard/export window. Returns [$range_token,$from,$to]
+ * — $range_token is the scalar used for URL/display (7|30|90|365|'all'|preset|'custom'),
+ * $from/$to the concrete inclusive window. Presets + custom resolve here; int/'all'
+ * delegate to the unchanged resolve_range + range_dates.
+ *
+ * @param mixed    $range_raw
+ * @param string   $from_raw
+ * @param string   $to_raw
+ * @param int|null $now
+ * @return array{0:int|string,1:string,2:string}
+ */
+function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '', $now = null ) {
+	$range_raw = (string) $range_raw;
+	$presets   = array( 'ytd', 'last-month', 'last-quarter', 'prev-year' );
+	if ( in_array( $range_raw, $presets, true ) ) {
+		list( $from, $to ) = snt_analytics_preset_dates( $range_raw, $now );
+		return array( $range_raw, $from, $to );
+	}
+	if ( 'custom' === $range_raw ) {
+		$win = snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now );
+		if ( null !== $win ) {
+			return array( 'custom', $win[0], $win[1] );
+		}
+		$range = 7;
+	} else {
+		$range = snt_analytics_resolve_range( $range_raw );
+	}
+	list( $from, $to ) = snt_analytics_range_dates( $range, $now );
+	return array( $range, $from, $to );
+}
+
+/**
  * The settings page the dashboard's "Configure →" link points at (and where the
  * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
  * route so the form POST hits the allow-listed admin-post handler.
