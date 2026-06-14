@@ -23,6 +23,8 @@ ok( strpos( $e, 'Needs Cloudflare Bot Management enabled.' ) !== false, 'custom 
 // Default empty message preserved (2-arg back-compat).
 ob_start(); snt_analytics_render_distribution( 'Scroll depth', array() ); $d = ob_get_clean();
 ok( strpos( $d, 'No scroll depth data in this range yet.' ) !== false, 'default empty message unchanged (2-arg callers)' );
+ok( strpos( $d, 'sn-an-empty--panel' ) !== false, 'empty-state uses the extracted padding class (refinement audit D2)' );
+ok( strpos( $d, 'style="padding' ) === false, 'no inline padding style remains on the empty-state' );
 // Bars render when data present (custom msg ignored).
 ob_start(); snt_analytics_render_distribution( 'Bot confidence', array( array( 'label' => '61–99', 'views' => 9 ) ), 'x' ); $h = ob_get_clean();
 ok( strpos( $h, '61–99' ) !== false && strpos( $h, 'sn-an-dist-bar' ) !== false, 'renders bands when data present' );

@@ -225,14 +225,14 @@ function snt_audit_log_render_prune_form() {
 function snt_audit_log_render_retention_form() {
 	$retention = (int) sn_setting( 'audit.retention_days', 90 );
 
-	echo '<form method="post" class="sn-fieldset sn-fieldset-actions">';
+	echo '<form method="post" class="sn-fieldset">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="audit_save_retention">';
 	echo '<h2 class="sn-fieldset-h">Retention</h2>';
 	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
 	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';
 	echo '<p class="sn-field-helper">How long to keep counter buckets and <code>login_success</code> rows. Range 7–365. Daily cron prune enforces this.</p>';
-	echo '<button type="submit" class="button button-primary">Save retention</button>';
+	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save retention</button></div>';
 	echo '</form>';
 }
 

@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.11.3] - 2026-06-14 — Admin consistency & dataviz polish
+
+**Headline:** Native-component consistency + dataviz polish on the analytics and audit-log admin surfaces (refinement audit, Clusters D + E).
+
+### Fixed
+
+- **Audit-log retention form layout.** `.sn-fieldset-actions` sat on the `<form>` itself, making the heading, label, input, and Save button all right-aligned flex children (the stacked form collapsed into one row). The button is now wrapped in its own `.sn-fieldset-actions` div, matching the health-checks / insights pattern. [inc/audit-log-admin.php](inc/audit-log-admin.php)
+- **Choropleth legend swatches now match the map.** They were hardcoded hex that didn't composite to the actual `rgba(34,113,177,α)` fills; derived from the same ramp (0.15 / 0.53 / 0.90). The "Views by country" meta label also moves off the failing `#787c82` (4.2:1) to `#646970`. [inc/analytics-admin-render.php](inc/analytics-admin-render.php)
+
+### Improvements
+
+- **Inline styles → enqueued classes.** 15 repeated `style="padding:…"` empty-state attributes, the export form's `style="display:inline"`, and the legend swatch/meta inline colours all move to CSS classes (`.sn-an-empty--panel`, `.sn-an-subh--panel`, `.sn-an-export`, `.sn-legend-*`), per the project's enqueue-not-inline discipline. The choropleth empty-state padding aligns to the `0 12px 12px` convention.
+- **Tabular numerals** on the analytics data-table number cells (`.widefat .num`), the KPI strip values (`.sn-kpi-value`), and the dashboard-widget stat/big numbers — digits stop jittering between loads.
+- **Sparkline trends share one height** — the Quality-tab bot-trend (72px) now matches the Overview trend (104px) on the same `viewBox`, so the chart floor lands at the same visual position.
+- **Card consistency:** the audit-log card label moves to the canonical `#646970` + `font-weight:600` (was off-palette `#50575e`, no weight); its hero-value weight aligns to the dashboard card (600→500); `.sn-badge` uses an explicit 11px (was `0.72em` ≈ 9.4px); the bare `<h3>Credentials</h3>` gains `.sn-fieldset-h`.
+
+> **Why PATCH:** presentation consistency + one layout fix to existing admin surfaces — no new features, no schema change.
+
 ## [6.11.2] - 2026-06-14 — Admin accessibility pass
 
 **Headline:** WCAG fixes on the analytics + audit-log admin surfaces from the comprehensive audit — contrast and screen-reader semantics.
