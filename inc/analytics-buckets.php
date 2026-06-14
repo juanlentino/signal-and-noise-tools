@@ -12,6 +12,7 @@
  *   metric='hour'    bucket='00'..'23'        — pv counts per hour-of-day
  *   metric='scroll'  bucket='b0'..'b3'        — pageviews per scroll-depth band
  *   metric='time'    bucket='b0'..'b4'        — pageviews per time-on-page band
+ *   metric='botscore' bucket='b0'..'b2'       — pageviews per CF bot-score band (1–99)
  *
  * Fed by the SAME rollup cron as dims (one extra AE query per metric — no new
  * hook). Every builder uses ONLY the AE primitives v5.3.0 already proves work:
@@ -380,11 +381,11 @@ function sn_analytics_hour_dow_grid( $from, $to, $class = 'human' ) {
 }
 
 /**
- * Read accessor: the distribution for one metric ('scroll' | 'time') as an
+ * Read accessor: the distribution for one metric ('scroll' | 'time' | 'botscore') as an
  * ordered, zero-filled [{label, views}] list (bands the config defines but the
  * data lacks still appear, at 0). Maps the stored bX key → the config label.
  *
- * @param string $metric 'scroll' | 'time'.
+ * @param string $metric 'scroll' | 'time' | 'botscore'.
  * @param string $from   Inclusive start day, YYYY-MM-DD.
  * @param string $to     Inclusive end day, YYYY-MM-DD.
  * @param string $class  Traffic class (default 'human').
