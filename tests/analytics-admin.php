@@ -142,6 +142,11 @@ ok( strpos( $snt_styles_css, '.sn-kpi-row' ) !== false
 	&& preg_match( '/\.sn-kpi-row\s*\{[^}]*display:\s*grid/s', $snt_styles_css ) === 1
 	&& preg_match( '/\.sn-kpi-row\s*\{[^}]*grid-template-columns:/s', $snt_styles_css ) === 1,
 	'styles: fused KPI strip is a CSS grid (the layout the live page must receive)' );
+// v6.5.4: this page registers postboxes outside the metabox context, so core's
+// .hndle padding never applies and panel titles hugged the box edge at 1px. The
+// stylesheet must restore the header gutter so titles align with the content rail.
+ok( preg_match( '/\.postbox[^{]*\.hndle\s*\{[^}]*padding:\s*[1-9]/s', $snt_styles_css ) === 1,
+	'styles: postbox header title (.hndle) has an explicit padding gutter (titles do not hug the edge)' );
 ok( strpos( $snt_styles_css, '.sn-map-figure svg' ) !== false,
 	'styles: .sn-map-figure svg responsive rule present (constrains vendored 2000px SVG inside its column)' );
 ok( strpos( $snt_styles_css, 'max-width:720px' ) === false && strpos( $snt_styles_css, 'max-width: 720px' ) === false,
