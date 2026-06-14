@@ -646,10 +646,12 @@ function sn_handle_analytics_export( $post ) {
 		require_once __DIR__ . '/analytics-export.php';
 	}
 
-	$range = isset( $post['sn_range'] ) ? snt_analytics_resolve_range( sanitize_text_field( wp_unslash( $post['sn_range'] ) ) ) : 30;
-	$class = isset( $post['sn_class'] ) ? snt_analytics_resolve_class( sanitize_text_field( wp_unslash( $post['sn_class'] ) ) ) : 'human';
-	$fmt   = ( isset( $post['format'] ) && 'json' === $post['format'] ) ? 'json' : 'csv';
-	list( $from, $to ) = snt_analytics_range_dates( $range );
+	$range_raw = isset( $post['sn_range'] ) ? sanitize_text_field( wp_unslash( $post['sn_range'] ) ) : '30';
+	$from_raw  = isset( $post['sn_from'] ) ? sanitize_text_field( wp_unslash( $post['sn_from'] ) ) : '';
+	$to_raw    = isset( $post['sn_to'] ) ? sanitize_text_field( wp_unslash( $post['sn_to'] ) ) : '';
+	$class     = isset( $post['sn_class'] ) ? snt_analytics_resolve_class( sanitize_text_field( wp_unslash( $post['sn_class'] ) ) ) : 'human';
+	$fmt       = ( isset( $post['format'] ) && 'json' === $post['format'] ) ? 'json' : 'csv';
+	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
 
 	$rows  = sn_analytics_top_paths( $from, $to, $class, 500 );
 	$fname = 'sn-analytics-' . $from . '_' . $to . '-' . $class . '.' . $fmt;
