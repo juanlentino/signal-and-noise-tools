@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.9.0] - 2026-06-14 — Dimension drill-down
+
+### New
+- **Drill-down on the analytics dashboard.** Click any dimension value — a country, referrer, browser, network, city… — to see the **top pages that segment viewed** ("Top pages where Country = US"). Works across the Technology, Geography, and Content tabs; a Clear link (or switching tabs) returns to the full view. Zero JavaScript, mirroring the existing event-property drill-down.
+
+### Internal
+- New `inc/analytics-drilldown.php`: an on-demand, sample-weighted cross-tab Cloudflare Analytics Engine query (`WHERE <dim>=<value> GROUP BY page`) that the durable rollup tables structurally cannot answer (they hold no cross-tab). The clicked value is whitelisted against the current top-N before any query (and escaped) — the first user-derived value this subsystem sends to AE. Transient-cached (5 min), graceful (any failure → empty-state), and scoped to the view that owns the dimension. Reuses the v6.8.0 on-demand-AE pattern; only already-proven AE primitives (no `LIMIT` — results are PHP-sorted/sliced). Guarded by the SQL-dialect scanner; validated live against the dataset (safe empty-state on a 422).
+
+> **Why MINOR:** a new user-visible capability (drill-down), additive — no breaking change, no schema change.
+
 ## [6.8.0] - 2026-06-14 — Scroll & time percentiles
 
 ### New
