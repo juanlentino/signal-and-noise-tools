@@ -90,6 +90,10 @@ function sn_analytics_distribution( $metric, $from, $to, $class = 'human' ) {
 	if ( 'botscore' === $metric ) { return array( array( 'label' => '1–30', 'views' => 5 ), array( 'label' => '31–60', 'views' => 2 ), array( 'label' => '61–99', 'views' => 20 ) ); }
 	return array( array( 'label' => '0–10s', 'views' => 7 ), array( 'label' => '3m+', 'views' => 2 ) );
 }
+function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
+	if ( 'scroll' === $metric ) { return array( array( 'label' => 'p50', 'value' => 63.0 ), array( 'label' => 'p75', 'value' => 84.0 ), array( 'label' => 'p90', 'value' => 95.0 ) ); }
+	return array( array( 'label' => 'p50', 'value' => 38000.0 ), array( 'label' => 'p75', 'value' => 72000.0 ), array( 'label' => 'p90', 'value' => 220000.0 ) );
+}
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 	return array(
 		array( 'category' => 'search', 'label' => 'Search', 'views' => 120, 'visits' => 70 ),
@@ -305,6 +309,8 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-heatmap' ) !== false, 'engagement: hour×dow heatmap rendered' );
 ok( strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' ) !== false, 'engagement: scroll + time distributions' );
 ok( strpos( $html, 'postbox' ) !== false, 'engagement: panels wrapped in native postbox' );
+ok( strpos( $html, 'Scroll depth — percentiles' ) !== false && strpos( $html, 'Time on page — percentiles' ) !== false, 'engagement: scroll + time percentile panels' );
+ok( strpos( $html, 'sn-an-pctl-chip' ) !== false && strpos( $html, '63%' ) !== false, 'engagement: percentile chips render with values' );
 
 echo "\nGroup: dashboard — Quality view\n";
 $_GET['sn_view'] = 'quality';

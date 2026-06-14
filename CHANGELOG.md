@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.8.0] - 2026-06-14 — Scroll & time percentiles
+
+### New
+- **Percentile chips on the Engagement tab.** Beside the scroll-depth and time-on-page distributions, new p50 / p75 / p90 panels give the single-number headline the bars can't — "half your readers scroll past 63%", "90% spend under 3m40s". Computed live for whatever date window you've selected (including the custom ranges and presets) and the current traffic class. Sites without live Analytics Engine show a clear empty-state.
+
+### Internal
+- New `inc/analytics-percentiles.php`: a sample-weighted `quantileExactWeighted` Analytics Engine query over the exact resolved `[from,to]` window, transient-cached (~15 min, with a short negative-cache so a transient failure isn't retried every render) and graceful. Because percentiles are not additive across days, they are queried on demand rather than stored in a rollup table — which also makes them honor arbitrary custom windows for free. The new AE SQL forms (parametric value-first weighted quantile + explicit `toDateTime()` bounds) are guarded by the SQL-dialect scanner and validated live against the dataset before tagging (the v5.3.0 `count()`-422 lesson).
+
+> **Why MINOR:** a new user-visible capability (percentile panels), additive — no breaking change, no schema change.
+
 ## [6.7.0] - 2026-06-13 — Custom date range + presets
 
 ### New

@@ -1038,3 +1038,40 @@ function snt_analytics_choropleth_svg() {
 	}
 	return $svg;
 }
+
+/**
+ * Render a 3-stat percentile panel (p50/p75/p90) for one metric. Native wp-admin
+ * .postbox shell mirroring snt_analytics_render_distribution. $rows is the
+ * [{label,value}] list from sn_analytics_percentiles() — null/empty shows the
+ * empty-state (the on-demand AE query failed or AE is unconfigured), never fatal.
+ *
+ * @param string                                          $title     Panel title.
+ * @param array<int,array{label:string,value:float}>|null $rows      Percentile rows.
+ * @param string                                          $format    'pct' (integer %) | 'time' (ms → fmt_time).
+ * @param string                                          $empty_msg Optional empty-state copy.
+ * @param string                                          $note      Optional footnote (e.g. retention caveat).
+ * @return void
+ */
+function snt_analytics_render_percentiles( $title, $rows, $format = 'pct', $empty_msg = '', $note = '' ) {
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside inside-flush"><div class="sn-an-panel sn-an-pctl">';
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		$msg = ( '' !== $empty_msg ) ? $empty_msg : 'No ' . strtolower( $title ) . ' data in this range yet.';
+		echo '<p class="sn-an-empty">' . esc_html( $msg ) . '</p></div></div></div>';
+		return;
+	}
+	echo '<div class="sn-an-pctl-row">';
+	foreach ( $rows as $r ) {
+		$label = strtoupper( (string) ( $r['label'] ?? '' ) );
+		$value = (float) ( $r['value'] ?? 0 );
+		$disp  = ( 'time' === $format ) ? snt_analytics_fmt_time( $value ) : ( (int) round( $value ) . '%' );
+		echo '<div class="sn-an-pctl-chip">';
+		echo '<span class="sn-an-pctl-k">' . esc_html( $label ) . '</span>';
+		echo '<span class="sn-an-pctl-v num">' . esc_html( $disp ) . '</span>';
+		echo '</div>';
+	}
+	echo '</div>';
+	if ( '' !== $note ) {
+		echo '<p class="sn-an-foot">' . esc_html( $note ) . '</p>';
+	}
+	echo '</div></div></div>';
+}

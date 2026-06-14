@@ -64,7 +64,7 @@ $dir   = dirname( __DIR__ ) . '/inc';
 // v5.4.0: analytics-buckets.php joins the scanned set — this list is HARDCODED
 // (NOT an auto-glob of inc/analytics-*.php), so every new AE SQL builder file
 // must be added here or its dialect conformance ships unguarded.
-$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php' );
+$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php' );
 
 echo "Group: AE SQL dialect — no count() with arguments\n";
 foreach ( $files as $f ) {
@@ -93,6 +93,22 @@ dq( strpos( $buckets, "formatDateTime(timestamp, '%H')" ) !== false, 'buckets: h
 dq( strpos( $buckets, 'toHour(' ) === false && strpos( $buckets, 'toDayOfWeek(' ) === false, 'buckets: avoids the unvalidated toHour()/toDayOfWeek()' );
 dq( strpos( $buckets, 'quantile' ) === false, 'buckets: distributions via sum(if()) — no unvalidated quantile*()' );
 dq( strpos( $buckets, 'sum(if(' ) !== false, 'buckets: distribution bands use the documented sum(if()) form' );
+
+echo "\nGroup: percentiles use the AE-whitelisted weighted quantile form\n";
+$pctl = dialect_code_only( file_get_contents( "$dir/analytics-percentiles.php" ) );
+dq( strpos( $pctl, 'quantileExactWeighted(' ) !== false, 'percentiles: uses quantileExactWeighted (AE-whitelisted)' );
+// Each of the three levels must be the PARAMETRIC, VALUE-FIRST weighted form
+// quantileExactWeighted(q)(<col>, _sample_interval). Asserting per-level (not just
+// "one parametric call exists") catches a regression that flips a single column to
+// the flat/arg-reversed quantileExactWeighted(_sample_interval, <col>) — the exact
+// form that 422s. (Mutation-falsified: reversing any one column trips this.)
+foreach ( array( '0.5', '0.75', '0.9' ) as $q ) {
+	dq( preg_match( '/quantileExactWeighted\(' . preg_quote( $q, '/' ) . '\)\([^,)]+, _sample_interval\)/', $pctl ) === 1, "percentiles: $q is parametric value-first quantileExactWeighted($q)(col, _sample_interval)" );
+}
+dq( preg_match( '/quantileExactWeighted\s*\(\s*_sample_interval/', $pctl ) === 0, 'percentiles: weight is NEVER the first arg (no flat/arg-reversed form)' );
+dq( strpos( $pctl, '_sample_interval' ) !== false, 'percentiles: weighted by _sample_interval (sampling-correct)' );
+dq( strpos( $pctl, 'quantileWeighted(' ) === false, 'percentiles: not the flat quantileWeighted alias' );
+dq( strpos( $pctl, 'toDateTime(' ) !== false, 'percentiles: explicit date-bounded window (not trailing INTERVAL)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
