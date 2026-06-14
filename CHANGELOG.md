@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.7.0] - 2026-06-13 — Custom date range + presets
+
+### New
+- **Custom date range + presets** on the analytics dashboard. Below the 7d/30d/90d/1y/All pills, a "Custom range" panel adds four one-click presets — **Year to date**, **Last month**, **Last quarter**, **Previous year** — plus two date pickers for any arbitrary from/to window. The chosen window flows through every tab, the traffic-class filter, and CSV/JSON export, and the trend automatically switches to weekly buckets past 90 days. Zero JavaScript; the existing fixed ranges are unchanged.
+
+### Internal
+- Range resolution unifies into one `snt_analytics_resolve_window()` that handles presets + a validated/clamped custom window and delegates the fixed/All path to the unchanged resolver — no new Analytics Engine query, no schema change (durable rollup reads only). Granularity now derives from the resolved window length for every range.
+
+> **Why MINOR:** a new user-visible capability (custom + preset ranges), additive — no breaking change to the existing range control.
+
 ## [6.6.0] - 2026-06-13 — Bot-confidence distribution
 
 ### New

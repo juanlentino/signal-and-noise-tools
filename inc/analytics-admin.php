@@ -77,14 +77,14 @@ function snt_analytics_resolve_view( $raw ) {
  * @param int|string $range  Active range in days or 'all'.
  * @param string     $class  Active class (preserved across tabs).
  */
-function snt_analytics_render_view_tabs( $active, $range, $class ) {
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class' ), add_query_arg( array() ) );
+function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $to = '' ) {
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to' ), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}
 	echo '<nav class="nav-tab-wrapper sn-an-view-tabs" aria-label="Analytics views">';
 	foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
-		$url   = add_query_arg( array( 'sn_view' => $slug, 'sn_range' => $range, 'sn_class' => $class ), $base );
+		$url   = add_query_arg( array( 'sn_view' => $slug ) + snt_analytics_window_args( $range, $class, $from, $to ), $base );
 		$is_on = ( $slug === $active );
 		// aria-current inlined (not a pre-built $aria var) so the escaping stays
 		// at the point of output and EscapeOutput can verify it.
@@ -119,6 +119,117 @@ function snt_analytics_range_dates( $range, $now = null ) {
 	return array( $from, $to );
 }
 
+/** True iff $s is a real YYYY-MM-DD date (format + checkdate). */
+function snt_analytics_is_ymd( $s ) {
+	if ( 1 !== preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', (string) $s, $m ) ) {
+		return false;
+	}
+	return checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
+}
+
+/**
+ * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
+ * injectable for deterministic tests.
+ *
+ * @param string   $preset 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
+ * @param int|null $now    Unix anchor.
+ * @return array{0:string,1:string}
+ */
+function snt_analytics_preset_dates( $preset, $now = null ) {
+	$now   = ( null === $now ) ? time() : (int) $now;
+	$today = gmdate( 'Y-m-d', $now );
+	$y     = (int) gmdate( 'Y', $now );
+	$mo    = (int) gmdate( 'n', $now );
+	switch ( (string) $preset ) {
+		case 'ytd':
+			return array( sprintf( '%04d-01-01', $y ), $today );
+		case 'prev-year':
+			return array( sprintf( '%04d-01-01', $y - 1 ), sprintf( '%04d-12-31', $y - 1 ) );
+		case 'last-month':
+			$end = gmmktime( 0, 0, 0, $mo, 1, $y ) - DAY_IN_SECONDS; // last day of the prior month
+			return array( gmdate( 'Y-m-01', $end ), gmdate( 'Y-m-d', $end ) );
+		case 'last-quarter':
+			$cur_q_first = ( (int) ceil( $mo / 3 ) - 1 ) * 3 + 1;                          // 1|4|7|10
+			$end         = gmmktime( 0, 0, 0, $cur_q_first, 1, $y ) - DAY_IN_SECONDS;       // last day of the prior quarter
+			$pe_y        = (int) gmdate( 'Y', $end );
+			$pe_q_first  = ( (int) ceil( (int) gmdate( 'n', $end ) / 3 ) - 1 ) * 3 + 1;
+			return array( sprintf( '%04d-%02d-01', $pe_y, $pe_q_first ), gmdate( 'Y-m-d', $end ) );
+		default:
+			return array( $today, $today );
+	}
+}
+
+/**
+ * Validate + clamp a user custom window. Rejects malformed dates (→ null), swaps a
+ * reversed pair, clamps `to`/`from` to today, and `from` to sn_analytics_min_day()
+ * when available. Returns [$from,$to] or null (caller falls back to the default).
+ *
+ * @param string   $from_raw
+ * @param string   $to_raw
+ * @param int|null $now Unix anchor.
+ * @return array{0:string,1:string}|null
+ */
+function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) {
+	$now   = ( null === $now ) ? time() : (int) $now;
+	$today = gmdate( 'Y-m-d', $now );
+	$from  = trim( (string) $from_raw );
+	$to    = trim( (string) $to_raw );
+	if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) ) {
+		return null;
+	}
+	if ( $from > $to ) { // ISO YYYY-MM-DD sorts lexically
+		$tmp = $from; $from = $to; $to = $tmp;
+	}
+	if ( $to > $today ) {
+		$to = $today;
+	}
+	if ( $from > $today ) {
+		$from = $today;
+	}
+	if ( function_exists( 'sn_analytics_min_day' ) ) {
+		$min = sn_analytics_min_day();
+		if ( snt_analytics_is_ymd( $min ) && $from < $min ) {
+			$from = $min;
+		}
+	}
+	if ( $from > $to ) {
+		return null;
+	}
+	return array( $from, $to );
+}
+
+/**
+ * Single resolver for the dashboard/export window. Returns [$range_token,$from,$to]
+ * — $range_token is the scalar used for URL/display (7|30|90|365|'all'|preset|'custom'),
+ * $from/$to the concrete inclusive window. Presets + custom resolve here; int/'all'
+ * delegate to the unchanged resolve_range + range_dates.
+ *
+ * @param mixed    $range_raw
+ * @param string   $from_raw
+ * @param string   $to_raw
+ * @param int|null $now
+ * @return array{0:int|string,1:string,2:string}
+ */
+function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '', $now = null ) {
+	$range_raw = (string) $range_raw;
+	$presets   = array( 'ytd', 'last-month', 'last-quarter', 'prev-year' );
+	if ( in_array( $range_raw, $presets, true ) ) {
+		list( $from, $to ) = snt_analytics_preset_dates( $range_raw, $now );
+		return array( $range_raw, $from, $to );
+	}
+	if ( 'custom' === $range_raw ) {
+		$win = snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now );
+		if ( null !== $win ) {
+			return array( 'custom', $win[0], $win[1] );
+		}
+		$range = 7;
+	} else {
+		$range = snt_analytics_resolve_range( $range_raw );
+	}
+	list( $from, $to ) = snt_analytics_range_dates( $range, $now );
+	return array( $range, $from, $to );
+}
+
 /**
  * The settings page the dashboard's "Configure →" link points at (and where the
  * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
@@ -146,9 +257,11 @@ function snt_analytics_settings_url() {
  */
 function snt_analytics_render_dashboard() {
 	// Read-only display params — sanitized + whitelisted (no nonce: not state-changing).
-	$range = snt_analytics_resolve_range( isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7' );
-	$class = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
-	$view  = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
+	$range_raw = isset( $_GET['sn_range'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_range'] ) ) : '7';
+	$from_raw  = isset( $_GET['sn_from'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_from'] ) ) : '';
+	$to_raw    = isset( $_GET['sn_to'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_to'] ) ) : '';
+	$class     = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
+	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
@@ -157,11 +270,11 @@ function snt_analytics_render_dashboard() {
 		return;
 	}
 
-	list( $from, $to ) = snt_analytics_range_dates( $range );
+	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
 
-	$gran_days   = ( 'all' === $range )
-		? ( (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1 )
-		: (int) $range;
+	// Granularity from the resolved window day-count — works for every range incl.
+	// presets/custom, and is behaviour-identical to the old (int)$range for fixed ranges.
+	$gran_days   = (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1;
 	$granularity = sn_analytics_granularity( $gran_days );
 
 	// ── Persistent header (every tab): the at-a-glance headline. Always fetched.
@@ -175,7 +288,7 @@ function snt_analytics_render_dashboard() {
 		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
 	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
-	snt_analytics_render_controls( $range, $class );
+	snt_analytics_render_controls( $range, $class, $from, $to );
 	snt_analytics_render_separation( $class_totals, $class );
 
 	// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
@@ -189,7 +302,7 @@ function snt_analytics_render_dashboard() {
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
 	// so a tab switch is a lighter query set, not just CSS show/hide.
-	snt_analytics_render_view_tabs( $view, $range, $class );
+	snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 
 	echo '<div class="sn-an-view">';
 	switch ( $view ) {

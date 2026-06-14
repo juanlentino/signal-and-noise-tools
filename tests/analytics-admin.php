@@ -368,5 +368,24 @@ $GLOBALS['__aa_opts'] = array();
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
 
+echo "\nGroup: dashboard — date-range presets + custom window\n";
+aa_fill_data();
+$_GET['sn_view'] = 'content';
+$_GET['sn_range'] = 'ytd';
+$h = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $h, 'sn-an-daterange' ) !== false, 'date-range: custom/preset disclosure present' );
+ok( strpos( $h, 'Year to date' ) !== false && strpos( $h, 'Previous year' ) !== false, 'date-range: preset links rendered' );
+ok( strpos( $h, 'sn_range=ytd' ) !== false, 'date-range: YTD preset is a GET link' );
+$_GET['sn_range'] = 'custom';
+$_GET['sn_from']  = '2026-05-20';
+$_GET['sn_to']    = '2026-06-10';
+$h = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $h, 'type="date"' ) !== false && strpos( $h, 'name="sn_from"' ) !== false, 'date-range: custom form has date inputs' );
+ok( strpos( $h, 'value="custom"' ) !== false, 'date-range: custom form posts sn_range=custom' );
+ok( strpos( $h, 'value="2026-05-20"' ) !== false, 'date-range: custom from prefilled into the date input' );
+unset( $_GET['sn_from'], $_GET['sn_to'] );
+$_GET['sn_range'] = '7';
+$_GET['sn_view']  = 'content';
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
