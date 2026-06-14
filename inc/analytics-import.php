@@ -41,6 +41,8 @@ function sn_analytics_import_types() {
 		'operating_systems' => 'Operating systems',
 		'custom_events'     => 'Custom events (historical, from Plausible)',
 		'custom_props'      => 'Custom properties (historical, from Plausible)',
+		'entry_pages'       => 'Entry pages (historical, from Plausible)',
+		'exit_pages'        => 'Exit pages (historical, from Plausible)',
 	);
 }
 
@@ -273,6 +275,73 @@ function sn_analytics_import_event_props_rows( $rows ) {
 }
 
 /**
+ * Map a Plausible entry-pages CSV into wp_sn_analytics_page_roles rows tagged
+ * role='entry'. Real columns: date, entry_page, visitors, entrances,
+ * visit_duration, bounces, pageviews. views<-pageviews, visits<-visitors.
+ * Admin/login paths are skipped (they never fire the beacon). Bad date / blank
+ * path rows degrade gracefully (skipped, not fatal).
+ *
+ * @param array $rows Parsed CSV rows.
+ * @return array Upsert-ready page-role rows: [{day, role, path, views, visits}].
+ */
+function sn_analytics_import_entry_pages_rows( $rows ) {
+	return sn_analytics_import_pageroles_rows( $rows, 'entry', 'entry_page' );
+}
+
+/**
+ * Map a Plausible exit-pages CSV into wp_sn_analytics_page_roles rows tagged
+ * role='exit'. Same shape as entry but the path column is exit_page.
+ *
+ * @param array $rows Parsed CSV rows.
+ * @return array Upsert-ready page-role rows: [{day, role, path, views, visits}].
+ */
+function sn_analytics_import_exit_pages_rows( $rows ) {
+	return sn_analytics_import_pageroles_rows( $rows, 'exit', 'exit_page' );
+}
+
+/**
+ * Shared mapper for entry/exit-page CSVs. Pulls the path from $path_col, tags
+ * each row with $role, and applies the same skip rules as the pages mapper
+ * (bad date, blank path, /wp-admin, /wp-login.php).
+ *
+ * @param array  $rows     Parsed CSV rows.
+ * @param string $role     'entry' | 'exit'.
+ * @param string $path_col CSV column holding the path (entry_page | exit_page).
+ * @return array Upsert-ready page-role rows.
+ */
+function sn_analytics_import_pageroles_rows( $rows, $role, $path_col ) {
+	$out = array();
+	foreach ( (array) $rows as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		$day  = isset( $r['date'] ) ? trim( (string) $r['date'] ) : '';
+		$path = isset( $r[ $path_col ] ) ? trim( (string) $r[ $path_col ] ) : '';
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || '' === $path ) {
+			continue;
+		}
+		if ( 0 === strpos( $path, '/wp-admin' ) || 0 === strpos( $path, '/wp-login.php' ) ) {
+			continue;
+		}
+		// Real Plausible export columns (verified against ~/Downloads/juanlentino_com_20260611/):
+		//   entry: date, entry_page, visitors, entrances, visit_duration, bounces, pageviews
+		//   exit:  date, exit_page,  visitors, visit_duration, exits, bounces, pageviews
+		// views<-pageviews (matches the live rollup's sum(_sample_interval) pageview count),
+		// visits<-visitors (matches count(DISTINCT index1)). entrances/exits/duration/bounces ignored.
+		$visitors = max( 0, (int) ( $r['visitors'] ?? 0 ) );
+		$views    = max( 0, (int) ( $r['pageviews'] ?? 0 ) );
+		$out[] = array(
+			'day'    => $day,
+			'role'   => $role,
+			'path'   => $path,
+			'views'  => $views,
+			'visits' => $visitors,
+		);
+	}
+	return $out;
+}
+
+/**
  * Map parsed rows of a known CSV $type to upsert-ready rows.
  *
  * @param string $type
@@ -288,6 +357,12 @@ function sn_analytics_import_map( $type, $rows ) {
 	}
 	if ( 'custom_props' === $type ) {
 		return array( 'table' => 'event_props', 'rows' => sn_analytics_import_event_props_rows( $rows ) );
+	}
+	if ( 'entry_pages' === $type ) {
+		return array( 'table' => 'pageroles', 'rows' => sn_analytics_import_entry_pages_rows( $rows ) );
+	}
+	if ( 'exit_pages' === $type ) {
+		return array( 'table' => 'pageroles', 'rows' => sn_analytics_import_exit_pages_rows( $rows ) );
 	}
 	// type => [dim, value column, normalizer].
 	$cfg = array(
@@ -313,7 +388,7 @@ function sn_analytics_import_map( $type, $rows ) {
  * @return array{daily:int, dims:array<string,int>, skipped:array<string,string>}
  */
 function sn_analytics_import_run( $files ) {
-	$report = array( 'daily' => 0, 'dims' => array(), 'events' => 0, 'event_props' => 0, 'skipped' => array() );
+	$report = array( 'daily' => 0, 'dims' => array(), 'events' => 0, 'event_props' => 0, 'pageroles' => 0, 'skipped' => array() );
 	if ( ! is_array( $files ) ) {
 		return $report;
 	}
@@ -345,6 +420,10 @@ function sn_analytics_import_run( $files ) {
 		} elseif ( 'event_props' === $mapped['table'] ) {
 			if ( ! empty( $mapped['rows'] ) && function_exists( 'sn_analytics_event_props_upsert' ) ) {
 				$report['event_props'] += (int) sn_analytics_event_props_upsert( $mapped['rows'] );
+			}
+		} elseif ( 'pageroles' === $mapped['table'] ) {
+			if ( ! empty( $mapped['rows'] ) && function_exists( 'sn_analytics_pageroles_upsert' ) ) {
+				$report['pageroles'] += (int) sn_analytics_pageroles_upsert( $mapped['rows'] );
 			}
 		} else {
 			$report['skipped'][ $type ] = 'unknown_type';

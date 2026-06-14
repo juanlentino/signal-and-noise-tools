@@ -853,6 +853,51 @@ function snt_analytics_render_events_table( $rows ) {
 }
 
 /**
+ * Entry/exit pages panel (path · views · visits). $role drives the title and
+ * captions: 'entry' = landing pages (arrivals from search/links/direct, merged
+ * live + historical); 'exit' = last-page-of-visit (historical only — true live
+ * exit awaits the deferred session model). Human-only: no traffic-class control
+ * applies here, consistent with the human-only Plausible history.
+ *
+ * Clones snt_analytics_render_paths_table()'s WP-native markup (.postbox +
+ * .inside.sn-an-table-inside + .wp-list-table.widefat.striped). Reuses existing
+ * CSS — no new stylesheet rule needed.
+ *
+ * @param array  $rows [{path,views,visits}]
+ * @param string $role 'entry' | 'exit'.
+ */
+function snt_analytics_render_pageroles_table( $rows, $role ) {
+	$is_exit = ( 'exit' === $role );
+	$title   = $is_exit ? __( 'Exit pages', 'signal-and-noise-tools' ) : __( 'Entry pages', 'signal-and-noise-tools' );
+	$caption = $is_exit
+		? __( 'Where visits ended (historical) — live exit pages await the session model.', 'signal-and-noise-tools' )
+		: __( 'Where visits began — arrivals from search, links, or direct.', 'signal-and-noise-tools' );
+	$empty   = $is_exit
+		? __( 'No exit pages in this range yet.', 'signal-and-noise-tools' )
+		: __( 'No entry pages in this range yet.', 'signal-and-noise-tools' );
+
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
+	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-an-empty" style="padding:0 12px 12px">' . esc_html( $empty ) . '</p></div></div>';
+		return;
+	}
+	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+		. '<th scope="col" class="manage-column column-primary">Path</th>'
+		. '<th scope="col" class="manage-column num">Views</th>'
+		. '<th scope="col" class="manage-column num">Visits</th>'
+		. '</tr></thead><tbody>';
+	foreach ( $rows as $r ) {
+		echo '<tr>'
+			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
+			. '</tr>';
+	}
+	echo '</tbody></table></div></div>';
+}
+
+/**
  * Custom-event property breakdown (property · value → events / visitors) with a
  * Lane-A drill-down: each property is a link to ?sn_event_prop=<name> (a server
  * reload that filters this panel to one property). Durable read

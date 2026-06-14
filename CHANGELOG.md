@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.10.0] - 2026-06-14 — Entry/exit pages + live custom events
+
+### New
+- **Entry pages** on the analytics Content tab — landing pages derived from referrer data (external or direct arrivals), merged live (a daily Analytics Engine rollup into the new `wp_sn_analytics_page_roles` table) with imported Plausible history. Human-only (the traffic-class control does not apply, matching the Events tab).
+- **Exit pages (historical)** on the Content tab — last-page-of-visit, back-filled from Plausible CSV. True *live* exit is deferred: it requires a session identifier, which would break the cookieless design.
+- **Live custom-event capture** — `SN_BEACON.event(name, props)` (theme v10.4.0) flows through the edge worker (v1.2.0) as `ce`/`cp` Analytics Engine rows; two daily rollups (`ce` → event names, `cp` → property/value pairs) feed the existing `wp_sn_analytics_events` + `wp_sn_analytics_event_props` tables and the Events tab, merged with the v6.2.0 Plausible history. Per-day caps (top 100 names, top 200 property/value) bound table growth.
+- **Plausible CSV import** now accepts `Entry pages` and `Exit pages` exports (`date, entry_page|exit_page, …, pageviews` → views←pageviews, visits←visitors).
+
+### Internal
+- New `inc/analytics-pageroles.php` (durable entry/exit table + entry rollup) and `inc/analytics-events-rollup.php` (ce/cp rollups). Both ride the existing rollup cron — no new cron. New AE SQL is guarded by the dialect scanner; any query failure degrades to an empty-state. The AE dataset contract docblock documents `blob16` (event name) / `blob17` (property) / `blob18` (value).
+
+> **Why MINOR:** new user-visible reports + a new live-capture capability, additive — no breaking change, no settings-schema migration.
+
 ## [6.9.0] - 2026-06-14 — Dimension drill-down
 
 ### New
