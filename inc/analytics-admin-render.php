@@ -507,8 +507,10 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 }
 
 /**
- * Inline micro-sparkline (returns a string so it can sit in a table cell).
- * Mirrors the trend strip's bar math.
+ * Inline micro-sparkline (returns a string so it can sit in a table cell). A tiny
+ * smooth-line SVG mini-area mirroring the Overview chart's treatment via the shared
+ * smooth-path helper. A static counter mints a unique gradient id per call so the
+ * many sparklines on one page don't collide on a duplicate <linearGradient> id.
  *
  * @param array $series [{day:string, views:int}]
  * @return string HTML
@@ -517,16 +519,34 @@ function snt_analytics_sparkline( $series ) {
 	if ( empty( $series ) ) {
 		return '<span class="sn-an-spark sn-an-spark--empty"></span>';
 	}
-	$max = 1;
+	static $uid = 0;
+	$gid  = 'sn-spark-fill-' . ( ++$uid );
+	$n    = count( $series );
+	$max  = 1;
 	foreach ( $series as $row ) {
 		$max = max( $max, (int) $row['views'] );
 	}
-	$out = '<span class="sn-an-spark">';
-	foreach ( $series as $row ) {
-		$pct  = (int) round( ( (int) $row['views'] / $max ) * 100 );
-		$out .= '<span class="b" style="height:' . esc_attr( max( 2, $pct ) ) . '%"></span>';
+	$w    = 72.0;
+	$top  = 2.0;
+	$base = 16.0;
+	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
+	$px   = array();
+	$py   = array();
+	foreach ( array_values( $series ) as $i => $row ) {
+		$px[] = round( $i * $step, 2 );
+		$py[] = round( $base - ( (int) $row['views'] / $max ) * ( $base - $top ), 2 );
 	}
-	return $out . '</span>';
+	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ $n - 1 ] . ',' . $base . ' Z';
+
+	$out  = '<span class="sn-an-spark">';
+	$out .= '<svg viewBox="0 0 72 18" preserveAspectRatio="none" aria-hidden="true">';
+	$out .= '<defs><linearGradient id="' . esc_attr( $gid ) . '" x1="0" y1="0" x2="0" y2="1">';
+	$out .= '<stop offset="0%" stop-color="#2271b1" stop-opacity="0.18"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
+	$out .= '<path d="' . esc_attr( $area_d ) . '" fill="url(#' . esc_attr( $gid ) . ')" stroke="none"/>';
+	$out .= '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+	$out .= '</svg></span>';
+	return $out;
 }
 
 /**
