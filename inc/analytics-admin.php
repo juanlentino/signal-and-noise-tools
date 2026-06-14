@@ -351,6 +351,14 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_distribution( 'Scroll depth', sn_analytics_distribution( 'scroll', $from, $to, $class ) );
 			snt_analytics_render_distribution( 'Time on page', sn_analytics_distribution( 'time', $from, $to, $class ) );
 			echo '</div>';
+			$pctl_note  = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
+				? '(reflects the last ~90 days — Analytics Engine raw retention)'
+				: '';
+			$pctl_empty = 'Percentiles need live Analytics Engine data for this window.';
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_percentiles( 'Scroll depth — percentiles', sn_analytics_percentiles( 'scroll', $from, $to, $class ), 'pct', $pctl_empty, $pctl_note );
+			snt_analytics_render_percentiles( 'Time on page — percentiles', sn_analytics_percentiles( 'time', $from, $to, $class ), 'time', $pctl_empty, $pctl_note );
+			echo '</div>';
 			break;
 
 		case 'quality':
