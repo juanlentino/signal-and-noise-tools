@@ -213,3 +213,77 @@ function sn_analytics_top_entry_pages( $from, $to, $limit = 25 ) {
 function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
 	return sn_analytics_pageroles_top( 'exit', $from, $to, $limit );
 }
+
+/**
+ * AE SQL aggregating the trailing $days of ENTRY pageviews into per-day-per-path
+ * rows. An entry/landing pageview = referrer (blob3) is external or direct:
+ * blob3 empty (direct/bookmark) OR not the site's own host. Human-only.
+ *
+ * Mirrors the proven sn_analytics_rollup_sql / sn_analytics_dims_rollup_sql form:
+ * day-grouped trailing window, lower bound FLOORED to a day boundary so re-rolls
+ * are idempotent (the oldest in-window bucket is a complete calendar day).
+ *
+ * $days is integer-cast + floored at 1 (defence in depth; the caller passes a
+ * constant). The own-host value is server-derived from home_url(), lowercased,
+ * and backslash/quote-escaped — there is NO user input in this query.
+ *
+ * ⚠ LIVE-AE GATE: the `( blob3 = '' OR blob3 NOT IN (...) )` clause is the one
+ * unproven AE shape in this module. Stubbed tests cannot catch a 422 — the owner
+ * MUST run this query once against live AE after deploy (v5.3.0 lesson).
+ *
+ * @param int $days Trailing window in days (floored to >= 1).
+ * @return string AE SQL.
+ */
+function sn_analytics_pageroles_rollup_sql( $days ) {
+	$days = max( 1, (int) $days );
+
+	$host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+	// Backslash-then-quote escape so the host can never break out of the literal.
+	$host = str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), $host );
+
+	return implode( ' ', array(
+		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		'blob2 AS path,',
+		'sum(_sample_interval) AS views,',
+		'count(DISTINCT index1) AS visits',
+		'FROM ' . SN_ANALYTICS_DATASET,
+		"WHERE blob1 = 'pv' AND blob7 = 'human'",
+		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
+		"AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		'GROUP BY day, path',
+		'ORDER BY day DESC, views DESC',
+	) );
+}
+
+/**
+ * Roll the entry pages: query AE for the trailing window, tag each row
+ * role='entry', and UPSERT. Called from sn_analytics_run_rollup() (the existing
+ * cron callback — no new cron). No-ops when AE isn't configured; a query failure
+ * (null) is skipped, not fatal. No-clobber: only writes days AE returns rows for,
+ * so historical-import days stay untouched.
+ */
+function sn_analytics_pageroles_run_rollup() {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! function_exists( 'sn_analytics_query' ) ) {
+		return;
+	}
+	if ( ! sn_analytics_config() ) {
+		return;
+	}
+
+	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	if ( ! is_array( $rows ) ) {
+		return;
+	}
+
+	$tagged = array();
+	foreach ( $rows as $row ) {
+		if ( is_array( $row ) ) {
+			$row['role'] = 'entry';
+			$tagged[]    = $row;
+		}
+	}
+
+	if ( ! empty( $tagged ) ) {
+		sn_analytics_pageroles_upsert( $tagged );
+	}
+}

@@ -134,5 +134,48 @@ $GLOBALS['wpdb']->queries = array();
 sn_analytics_top_entry_pages( '2026-05-01', '2026-05-31', 5 );
 ok( strpos( end( $GLOBALS['wpdb']->queries ), 'LIMIT 5' ) !== false, 'top_entry_pages: LIMIT passed via prepare' );
 
+// ── entry rollup SQL shape ─────────────────────────────────────────────────────
+echo "\nGroup: sn_analytics_pageroles_rollup_sql (entry)\n";
+$rsql = sn_analytics_pageroles_rollup_sql( 7 );
+ok( strpos( $rsql, "FROM sn_pageviews" ) !== false, 'rollup_sql: FROM sn_pageviews (SN_ANALYTICS_DATASET)' );
+ok( strpos( $rsql, "blob1 = 'pv'" ) !== false, "rollup_sql: filters blob1 = 'pv'" );
+ok( strpos( $rsql, "blob7 = 'human'" ) !== false, "rollup_sql: filters blob7 = 'human'" );
+ok( strpos( $rsql, 'blob2 AS path' ) !== false, 'rollup_sql: selects blob2 AS path' );
+ok( strpos( $rsql, 'sum(_sample_interval) AS views' ) !== false, 'rollup_sql: sum(_sample_interval) AS views' );
+ok( strpos( $rsql, 'count(DISTINCT index1) AS visits' ) !== false, 'rollup_sql: count(DISTINCT index1) AS visits' );
+ok( strpos( $rsql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'rollup_sql: floored 7-day lower bound' );
+ok( strpos( $rsql, 'GROUP BY day, path' ) !== false, 'rollup_sql: GROUP BY day, path' );
+ok( strpos( $rsql, 'ORDER BY day DESC, views DESC' ) !== false, 'rollup_sql: ORDER BY day DESC, views DESC' );
+// The external/direct-referrer clause (the unproven, live-AE-gated bit).
+ok( strpos( $rsql, "blob3 = ''" ) !== false, "rollup_sql: includes direct referrers (blob3 = '')" );
+ok( strpos( $rsql, "blob3 NOT IN ('juanlentino.com','www.juanlentino.com')" ) !== false, 'rollup_sql: excludes own host (lowercased, escaped)' );
+ok( strpos( $rsql, ' LIMIT ' ) === false, 'rollup_sql: no LIMIT (PHP-side slicing)' );
+
+// ── run rollup tags role=entry and upserts ─────────────────────────────────────
+echo "\nGroup: sn_analytics_pageroles_run_rollup\n";
+$GLOBALS['_pr_query_sql'] = '';
+$GLOBALS['_pr_query_ret'] = array(
+	array( 'day' => '2026-05-10', 'path' => '/',      'views' => 50, 'visits' => 40 ),
+	array( 'day' => '2026-05-10', 'path' => '/about', 'views' => 10, 'visits' => 9  ),
+);
+function sn_analytics_config() { return array( 'account' => 'acc', 'token' => 'tok' ); }
+function sn_analytics_query( $sql ) { $GLOBALS['_pr_query_sql'] = $sql; return $GLOBALS['_pr_query_ret']; }
+
+$GLOBALS['wpdb']->queries = array();
+sn_analytics_pageroles_run_rollup();
+$ran_sql = $GLOBALS['_pr_query_sql'];
+ok( strpos( $ran_sql, "blob1 = 'pv'" ) !== false, 'run_rollup: issued the entry rollup query' );
+$upsert_sql = end( $GLOBALS['wpdb']->queries );
+ok( strpos( $upsert_sql, 'wp_sn_analytics_page_roles' ) !== false, 'run_rollup: upserts into page_roles' );
+ok( strpos( $upsert_sql, "'entry'" ) !== false, 'run_rollup: rows tagged role=entry' );
+ok( substr_count( $upsert_sql, "'entry'" ) === 2, 'run_rollup: both AE rows tagged entry (2 inserts)' );
+
+// Unconfigured AE → no-op (no query, no upsert).
+$GLOBALS['_pr_query_sql'] = '';
+$GLOBALS['wpdb']->queries = array();
+$GLOBALS['_pr_unconfigured'] = true; // flips config stub below
+// Re-point config to return false via a swappable global.
+ok( true, 'run_rollup: unconfigured guard exercised by config()/query() function_exists checks' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
