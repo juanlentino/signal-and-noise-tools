@@ -2,6 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.10.1] - 2026-06-14 — Entry/exit layout fix
+
+### Fixed
+- **Content-tab layout:** the entry/exit section's note now spans the full grid width (a hairline section divider) so the Entry and Exit panels pair in one row instead of scattering — the note was being placed as a loose grid cell (orphaned, with a void beside it) and the two panels landed in different columns. CSS-only + one class change; no behavior change.
+
 ## [6.10.0] - 2026-06-14 — Entry/exit pages + live custom events
 
 ### New

@@ -418,7 +418,7 @@ function snt_analytics_render_dashboard() {
 			// consistent with the human-only Plausible history. Entry = live AE
 			// rollup + historical import merged; exit = historical only.
 			if ( function_exists( 'snt_analytics_render_pageroles_table' ) && function_exists( 'sn_analytics_top_entry_pages' ) ) {
-				echo '<p class="sn-an-sep">Entry &amp; exit pages are <strong>not segmented by traffic class</strong> (human only).</p>';
+				echo '<p class="sn-an-sep sn-an-sep--full">Entry &amp; exit pages are <strong>not segmented by traffic class</strong> (human only).</p>';
 				snt_analytics_render_pageroles_table( sn_analytics_top_entry_pages( $from, $to, 25 ), 'entry' );
 				snt_analytics_render_pageroles_table( sn_analytics_top_exit_pages( $from, $to, 25 ), 'exit' );
 			}

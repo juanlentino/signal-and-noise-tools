@@ -187,6 +187,9 @@
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
 .sn-an-sep { color: #646970; font-size: 13px; margin: 0 0 14px; }
+/* Full-width section intro inside .sn-an-grid: spans both columns so the note
+   reads as a header (not an orphaned cell) and the panels below it pair up. */
+.sn-an-sep--full { grid-column: 1 / -1; margin: 4px 0 0; padding-top: 14px; border-top: 1px solid #dcdcde; }
 
 /* ── bespoke viz (inline bar/heatmap panels; no native equivalent) ─────── */
 .sn-an-delta { font-size: 0.72em; font-weight: 600; margin-left: 5px; white-space: nowrap; }
