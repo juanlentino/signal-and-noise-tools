@@ -128,14 +128,16 @@ function sn_rss_tracker_send_plausible( $settings, $feed_url, $ua, $ua_hash, $cl
 	// requester's User-Agent + X-Forwarded-For. Validate the admin-set endpoint
 	// like inc/webhooks.php does — https only, plus anything wp_http_validate_url()
 	// rejects (RFC-1918, loopback, IPv6, userinfo), plus the 169.254.0.0/16
-	// link-local range it omits (cloud metadata) — so a mis-set endpoint can't
+	// link-local range it omits (cloud metadata) via the shared sn_ssrf_host_blocked()
+	// (v6.13.1), which RESOLVES the host first so the encoded-IP bypasses (decimal
+	// http://2852039166/, hex/octal) of the metadata IP are caught too — so a mis-set endpoint can't
 	// turn every feed request into a server-side request to an internal host
 	// carrying partly requester-controlled headers. Best-effort tracker (the DB
 	// row is the source of truth) → skip on failure.
 	if ( '' === $endpoint
 		|| ! wp_http_validate_url( $endpoint )
 		|| 'https' !== wp_parse_url( $endpoint, PHP_URL_SCHEME )
-		|| 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $endpoint, PHP_URL_HOST ) )
+		|| sn_ssrf_host_blocked( wp_parse_url( $endpoint, PHP_URL_HOST ) )
 	) {
 		return;
 	}

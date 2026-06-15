@@ -15,6 +15,12 @@
  * v6.0.0: the Plausible Stats-API half (sn_plausible_config) was removed with
  * inc/plausible-api.php. Only the RSS-tracker SSRF guard remains.
  *
+ * v6.13.2: the literal `^169\.254\.` host match was replaced by the shared
+ * sn_ssrf_host_blocked() (inc/ssrf-guard.php) — which RESOLVES the host first, so
+ * the encoded-IPv4 forms of the metadata IP (decimal/hex/octal) that bypassed the
+ * string match are now blocked too. These cases run through the deterministic
+ * resolver seam below (offline) and FAIL against the old preg_match guard.
+ *
  * Run: php tests/ssrf-url-validation.php
  *
  * @since plugin v4.14.1
@@ -93,6 +99,28 @@ if ( ! function_exists( 'wp_remote_post' ) ) {
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $e = 0 ) { return true; } }
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return false; } }
 
+// Deterministic resolver seam for the shared SSRF guard (v6.13.2). Literal IPs
+// pass through filter_var; the encoded forms of 169.254.169.254 map to it
+// offline (exactly what gethostbyname does for inet_aton-style hosts, but with
+// no DNS); a hostname models "resolves to RFC-1918" and one host is
+// unresolvable; everything else → public so the non-breaking case stays green.
+// Defined BEFORE inc/ssrf-guard.php so its function_exists guard keeps this one.
+// Mirrors the seam in tests/webhooks.php + tests/health-external-links.php.
+function sn_ssrf_resolve_host( $host ) {
+	if ( filter_var( $host, FILTER_VALIDATE_IP ) ) { return $host; }
+	$map = array(
+		'2852039166'              => '169.254.169.254', // decimal-encoded metadata IP
+		'0xa9.0xfe.0xa9.0xfe'     => '169.254.169.254', // dotted-hex (lower)
+		'0xA9.0xFE.0xA9.0xFE'     => '169.254.169.254', // dotted-hex as parse_url returns it
+		'0251.0376.0251.0376'     => '169.254.169.254', // dotted-octal-encoded
+		'blocked-private.example' => '10.0.0.5',         // hostname → RFC-1918
+		'unresolvable.example'    => '',                 // fail-closed case
+	);
+	if ( array_key_exists( $host, $map ) ) { return $map[ $host ]; }
+	return '93.184.216.34'; // any other host → public (keeps the non-breaking test green)
+}
+require __DIR__ . '/../inc/ssrf-guard.php';
+
 require __DIR__ . '/../inc/rss-plausible-tracker.php';
 
 // ── sn_rss_tracker_send_plausible() SSRF guard on plausible_url ──────────
@@ -106,7 +134,20 @@ function rss_send( $url ) {
 }
 
 ok( rss_send( 'https://127.0.0.1/api/event' ) === 0, 'rss: loopback https endpoint → POST skipped (no SSRF on public feed hit)' );
-ok( rss_send( 'https://169.254.169.254/api/event' ) === 0, 'rss: cloud-metadata 169.254 endpoint → POST skipped (explicit link-local guard)' );
+ok( rss_send( 'https://169.254.169.254/api/event' ) === 0, 'rss: cloud-metadata 169.254 endpoint → POST skipped (shared host-guard)' );
+
+// ── The bypass class (v6.13.2): EVERY encoded form of 169.254.169.254 must be ──
+// blocked. The previous literal `^169\.254\.` preg_match matched only the first,
+// dotted form — the decimal/hex/octal variants slipped through and POSTed the
+// feed requester's UA + X-Forwarded-For to the cloud-metadata endpoint. The
+// resolver seam maps each encoded host to 169.254.169.254 offline; the REAL
+// range-check in sn_ssrf_host_blocked() then blocks it. These FAIL the old guard.
+ok( rss_send( 'https://2852039166/api/event' ) === 0, 'rss: decimal-encoded 169.254.169.254 endpoint → POST skipped (beats the ^169\.254\. bypass)' );
+ok( rss_send( 'https://0xA9.0xFE.0xA9.0xFE/api/event' ) === 0, 'rss: dotted-hex-encoded 169.254.169.254 endpoint → POST skipped' );
+ok( rss_send( 'https://0251.0376.0251.0376/api/event' ) === 0, 'rss: dotted-octal-encoded 169.254.169.254 endpoint → POST skipped' );
+ok( rss_send( 'https://blocked-private.example/api/event' ) === 0, 'rss: hostname resolving to RFC-1918 (10.0.0.5) → POST skipped' );
+ok( rss_send( 'https://unresolvable.example/api/event' ) === 0, 'rss: unresolvable host → POST skipped (fail closed)' );
+
 ok( rss_send( 'http://plausible.example.com/api/event' ) === 0, 'rss: non-https endpoint → POST skipped' );
 ok( rss_send( '' ) === 0, 'rss: empty endpoint → POST skipped' );
 $n = rss_send( 'https://plausible.example.com/api/event' );

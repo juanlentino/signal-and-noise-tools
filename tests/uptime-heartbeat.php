@@ -10,6 +10,14 @@
  *   - worker: enabled + valid url → ONE GET with redirection === 0 (SSRF)
  *   - worker: re-reads disabled state → 0 GET (drop if toggled off mid-flight)
  *   - worker: invalid url → 0 GET (wp_http_validate_url rejects)
+ *   - worker: every encoded form of 169.254.169.254 → 0 GET (v6.13.2 shared guard)
+ *   - worker: legitimate public https push URL → 1 GET (non-breaking)
+ *
+ * v6.13.2: the literal `^169\.254\.` host match was replaced by the shared
+ * sn_ssrf_host_blocked() (inc/ssrf-guard.php). It RESOLVES the host first, so the
+ * encoded-IPv4 forms of the metadata IP (decimal/hex/octal) that bypassed the
+ * string match are now blocked. The deterministic resolver seam below maps each
+ * encoded host offline; these cases FAIL against the old preg_match guard.
  *
  * Run: php tests/uptime-heartbeat.php
  *
@@ -106,6 +114,28 @@ class WP_Error {
 	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
+
+// Deterministic resolver seam for the shared SSRF guard (v6.13.2). Literal IPs
+// pass through filter_var; the encoded forms of 169.254.169.254 map to it offline
+// (what gethostbyname does for inet_aton-style numeric hosts, no DNS); a hostname
+// models "resolves to RFC-1918" and one host is unresolvable; everything else →
+// public so the existing kuma.example.com cases stay green. Defined BEFORE
+// inc/ssrf-guard.php so its function_exists guard keeps this one (mirrors the
+// seam in tests/webhooks.php).
+function sn_ssrf_resolve_host( $host ) {
+	if ( filter_var( $host, FILTER_VALIDATE_IP ) ) { return $host; }
+	$map = array(
+		'2852039166'              => '169.254.169.254', // decimal-encoded metadata IP
+		'0xa9.0xfe.0xa9.0xfe'     => '169.254.169.254', // dotted-hex (lower)
+		'0xA9.0xFE.0xA9.0xFE'     => '169.254.169.254', // dotted-hex as parse_url returns it
+		'0251.0376.0251.0376'     => '169.254.169.254', // dotted-octal-encoded
+		'blocked-private.example' => '10.0.0.5',         // hostname → RFC-1918
+		'unresolvable.example'    => '',                 // fail-closed case
+	);
+	if ( array_key_exists( $host, $map ) ) { return $map[ $host ]; }
+	return '93.184.216.34'; // any other host → public (keeps the valid-url tests green)
+}
+require_once __DIR__ . '/../inc/ssrf-guard.php';
 
 require_once __DIR__ . '/../inc/uptime-heartbeat.php';
 
@@ -216,6 +246,41 @@ $GLOBALS['__test_settings'] = array(
 );
 sn_uptime_heartbeat_worker();
 uh_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'http url → no GET (https-only worker guard)' );
+
+// ─── Test 9: worker blocks every encoded form of the metadata IP (v6.13.2) ──
+// The previous literal `^169\.254\.` host match caught only the dotted form; the
+// decimal/hex/octal IPv4 encodings of 169.254.169.254 slipped through and the
+// worker GET-ed the metadata endpoint (push-monitor token over the wire). The
+// shared sn_ssrf_host_blocked() RESOLVES the host first (seam above), so every
+// encoded form is now blocked. These cases FAIL against the old preg_match guard.
+echo "\nTest 9: worker blocks encoded-IP forms of 169.254.169.254 → no GET (v6.13.2)\n";
+$encoded_push_hosts = array(
+	'https://169.254.169.254/api/push/abc123'      => 'literal 169.254.169.254 (cloud metadata)',
+	'https://2852039166/api/push/abc123'           => 'decimal-encoded 169.254.169.254 (the bypass)',
+	'https://0xA9.0xFE.0xA9.0xFE/api/push/abc123'  => 'dotted-hex-encoded 169.254.169.254',
+	'https://0251.0376.0251.0376/api/push/abc123'  => 'dotted-octal-encoded 169.254.169.254',
+	'https://blocked-private.example/api/push/abc' => 'hostname resolving to RFC-1918 (10.0.0.5)',
+	'https://unresolvable.example/api/push/abc'    => 'unresolvable host (fail closed)',
+);
+foreach ( $encoded_push_hosts as $push_url => $desc ) {
+	uh_reset();
+	$GLOBALS['__test_settings'] = array(
+		'monitoring.uptime_kuma_enabled'  => true,
+		'monitoring.uptime_kuma_push_url' => $push_url,
+	);
+	sn_uptime_heartbeat_worker();
+	uh_eq( 0, count( $GLOBALS['__test_get_calls'] ), "blocked → no GET: $desc" );
+}
+
+// ─── Test 10: NON-BREAKING — a legitimate public https push URL still fires ──
+echo "\nTest 10: worker still fires for a legitimate public https push URL (non-breaking)\n";
+uh_reset();
+$GLOBALS['__test_settings'] = array(
+	'monitoring.uptime_kuma_enabled'  => true,
+	'monitoring.uptime_kuma_push_url' => 'https://kuma.example.com/api/push/abc123',
+);
+sn_uptime_heartbeat_worker();
+uh_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'public https push URL → one GET (guard does not over-block)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

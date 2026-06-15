@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.13.2] - 2026-06-14 — Shared SSRF host-guard reaches the last two outbound modules
+
+**Headline:** Routes the **uptime heartbeat** and the **RSS Plausible tracker** through the same resolve-then-range-check guard the webhook validator adopted in v6.13.1 — closing the identical encoded-IP metadata bypass in the project's two remaining literal `^169\.254\.` host checks.
+
+### Fixed
+
+- **SSRF: encoded-IP bypass of the metadata-host block in two more outbound modules.** `sn_uptime_heartbeat_worker()` and `sn_rss_tracker_send_plausible()` still guarded their `wp_remote_*` call with a literal `preg_match( '#^169\.254\.#', host )` — the check v6.13.1 already replaced for webhooks. Alternate IPv4 encodings of `169.254.169.254` — decimal `http://2852039166/`, hex `http://0xA9.0xFE.0xA9.0xFE/`, octal `http://0251.0376.0251.0376/` — all fail that string match, yet `gethostbyname()` resolves each to `169.254.169.254`, and `wp_http_validate_url()` does not cover `169.254.0.0/16`. Both call sites now call the shared `sn_ssrf_host_blocked()`, which **resolves the host first** (collapsing every encoded form to a dotted-quad) then range-checks the resolved IP — also blocking loopback, RFC-1918, reserved (0/8, 240/4, …), CGNAT (100.64.0.0/10), and IPv6 private/reserved ranges, and failing closed on an unresolvable host. The RSS tracker is the higher-reachability of the two: `sn_rss_tracker_send_plausible()` fires on **unauthenticated public feed hits** and forwards the requester's `User-Agent` + `X-Forwarded-For`, so a mis-set endpoint there would turn every feed request into a server-side request to an internal host carrying partly requester-controlled headers. The existing https-only enforcement and `redirection=0` on the send are unchanged. [inc/uptime-heartbeat.php](inc/uptime-heartbeat.php), [inc/rss-plausible-tracker.php](inc/rss-plausible-tracker.php)
+
+### Changed
+
+- **`inc/ssrf-guard.php` now loads before its earliest consumer.** The shared guard's `require_once` sat in the webhooks group near the end of the bootstrap, *after* the RSS tracker (which is required much earlier). It moves up to just before the RSS-tracker pre-flight block, so all four consumers — RSS tracker, webhooks, uptime heartbeat, and the link-rot check — see `sn_ssrf_host_blocked()` defined at require time. No runtime behaviour change (every consumer calls the guard from a hook that fires after the full require chain); this is a structural correctness fix so a future require-time caller can't fatal. [signal-and-noise-tools.php](signal-and-noise-tools.php)
+
+### Tests
+
+- Extended [tests/ssrf-url-validation.php](tests/ssrf-url-validation.php) and [tests/uptime-heartbeat.php](tests/uptime-heartbeat.php) with the encoded-IP bypass class via the deterministic `sn_ssrf_resolve_host()` seam (decimal/hex/octal forms → `169.254.169.254` offline, a hostname → RFC-1918, one unresolvable host → fail-closed, plus a public-host non-breaking case). Each new case FAILS against the old `preg_match` guard and passes against the shared one — the RED that proved the bypass before the fix landed.
+
+> **Why PATCH:** security hardening of the same vuln class fixed in v6.13.1, plus a bootstrap load-order correctness fix — no new user-visible capability, no breaking change, no settings-schema migration. Legitimate (public, resolvable) endpoints are unaffected; only internal / encoded-internal / unresolvable hosts are newly rejected.
+
 ## [6.13.1] - 2026-06-14 — Shared SSRF host-guard (encoded-IP metadata hardening)
 
 **Headline:** The webhook URL validator now blocks the cloud-metadata IP `169.254.169.254` in **every** form — including the decimal/hex/octal IPv4 encodings that slipped past the old literal `^169\.254\.` string match — by routing both webhook call sites through one shared, resolve-then-range-check guard extracted from the v6.13.0 link-rot check.

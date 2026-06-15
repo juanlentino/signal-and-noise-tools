@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.13.1
+ * Version:     6.13.2
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -109,6 +109,13 @@ require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automatio
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
+
+// Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
+// metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:
+// rss-plausible-tracker (just below), webhooks, uptime-heartbeat, and
+// health-external-links all call sn_ssrf_host_blocked(). (v6.13.2: moved up from
+// the webhooks group so the earliest consumer, rss-plausible-tracker, is covered.)
+require_once SNT_PATH . 'inc/ssrf-guard.php';
 
 /**
  * Pre-flight guard #2: detect the MU-plugin twin of the RSS tracker.
@@ -218,7 +225,6 @@ require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-
 require_once SNT_PATH . 'inc/cron-dashboard.php';
 require_once SNT_PATH . 'inc/cron-history.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
-require_once SNT_PATH . 'inc/ssrf-guard.php';      // shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP metadata bypasses) — consumed by webhooks + health-external-links
 require_once SNT_PATH . 'inc/webhooks.php';
 require_once SNT_PATH . 'inc/webhooks-admin.php';
 require_once SNT_PATH . 'inc/uptime-heartbeat.php';
