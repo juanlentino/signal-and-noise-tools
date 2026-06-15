@@ -390,21 +390,63 @@ add_action( 'wp_head', function() {
 		echo '<meta name="twitter:creator" content="' . esc_attr( $twitter_handle ) . '">' . "\n";
 	}
 
-	// Article published/modified times on singular posts.
+	// Article OG metadata on singular posts (published/modified/author/section/tag).
 	if ( $is_article ) {
 		$post = get_queried_object();
 		if ( $post ) {
-			$published = get_post_time( 'c', true, $post );
-			$modified  = get_post_modified_time( 'c', true, $post );
-			if ( $published ) {
-				echo '<meta property="article:published_time" content="' . esc_attr( $published ) . '">' . "\n";
-			}
-			if ( $modified ) {
-				echo '<meta property="article:modified_time" content="' . esc_attr( $modified ) . '">' . "\n";
-			}
+			sn_seo_article_meta( $post );
 		}
 	}
 }, 3 );
+
+/**
+ * Emit the article:* Open Graph metadata for a single post. Named (not inline
+ * in the wp_head closure) so it is unit-testable — mirrors why
+ * sn_seo_og_image_alt() was extracted.
+ *
+ * article:author points at the site identity URL (home_url('/')), which is
+ * exactly Person.url and the entity Article.author/@id resolves to in the
+ * JSON-LD (inc/seo-schema.php) — so the OG profile pointer and the structured
+ * data agree. Filterable via sn_og_article_author_url for a future dedicated
+ * profile route. article:section + article:tag mirror the JSON-LD's
+ * articleSection (first category) + keywords (post tags) EXACTLY — same source
+ * terms, but emitted as one repeated <meta> per tag per the OGP spec (the
+ * JSON-LD comma-joins them; OG must not).
+ *
+ * @param WP_Post|object $post The queried single post.
+ */
+function sn_seo_article_meta( $post ) {
+	$published = get_post_time( 'c', true, $post );
+	$modified  = get_post_modified_time( 'c', true, $post );
+	if ( $published ) {
+		echo '<meta property="article:published_time" content="' . esc_attr( $published ) . '">' . "\n";
+	}
+	if ( $modified ) {
+		echo '<meta property="article:modified_time" content="' . esc_attr( $modified ) . '">' . "\n";
+	}
+
+	// article:author → the canonical site identity (= JSON-LD Person.url / author @id).
+	$author_url = (string) apply_filters( 'sn_og_article_author_url', home_url( '/' ), $post );
+	if ( '' !== $author_url ) {
+		echo '<meta property="article:author" content="' . esc_url( $author_url ) . '">' . "\n";
+	}
+
+	// article:section → first category name (mirrors JSON-LD articleSection; no
+	// Yoast/custom primary logic exists — plain $cats[0], matched exactly).
+	$cats = wp_get_post_terms( $post->ID, 'category', array( 'fields' => 'names' ) );
+	if ( is_array( $cats ) && ! is_wp_error( $cats ) && ! empty( $cats ) ) {
+		echo '<meta property="article:section" content="' . esc_attr( (string) $cats[0] ) . '">' . "\n";
+	}
+
+	// article:tag → one <meta> per post tag (mirrors JSON-LD keywords, but
+	// repeated metas per OGP, NOT a single comma-joined value).
+	$tags = wp_get_post_terms( $post->ID, 'post_tag', array( 'fields' => 'names' ) );
+	if ( is_array( $tags ) && ! is_wp_error( $tags ) && ! empty( $tags ) ) {
+		foreach ( $tags as $tag_name ) {
+			echo '<meta property="article:tag" content="' . esc_attr( (string) $tag_name ) . '">' . "\n";
+		}
+	}
+}
 
 /**
  * Analytics: Delay Google Tag (gtag.js) until first user interaction.

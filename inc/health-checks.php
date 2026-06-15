@@ -83,6 +83,7 @@ function sn_health_run_scan() {
 			'missing_alt'         => sn_health_check_missing_alt(),
 			'orphaned_media'      => sn_health_check_orphaned_media(),
 			'broken_links'        => sn_health_check_broken_links(),
+			'external_links'      => sn_health_check_external_links(),
 			'stale_posts'         => sn_health_check_stale_posts(),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
