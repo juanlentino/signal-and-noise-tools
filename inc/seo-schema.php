@@ -91,7 +91,50 @@ function sn_schema_person() {
 		);
 	}
 
+	// Credentials graph (occupation / education / awards / memberships / worksFor).
+	// Filterable code-config — these facts are stable and verbatim from /about + /resume,
+	// so they live in a filter default, not a settings-tab field (no admin UI to drift,
+	// no sn_settings_save clobber surface).
+	$person = array_merge( $person, sn_schema_person_credentials() );
+
 	return $person;
+}
+
+/**
+ * Stable identity credentials merged into the Person node, sourced verbatim from
+ * the live /about + /resume copy. Filterable so the owner can override without code.
+ *
+ * @return array<string,mixed> hasOccupation / alumniOf / award / memberOf / worksFor
+ */
+function sn_schema_person_credentials() {
+	return (array) apply_filters(
+		'sn_schema_person_credentials',
+		array(
+			'hasOccupation' => array(
+				array( '@type' => 'Occupation', 'name' => 'Music Producer' ),
+				array( '@type' => 'Occupation', 'name' => 'Audio Engineer' ),
+				array( '@type' => 'Occupation', 'name' => 'Creative Strategist' ),
+			),
+			'alumniOf'      => array(
+				array( '@type' => 'CollegeOrUniversity', 'name' => 'Full Sail University' ),
+				array( '@type' => 'CollegeOrUniversity', 'name' => 'Westcliff University' ),
+			),
+			'award'         => array(
+				'Valedictorian, Full Sail University',
+				'Advanced Achiever Award, Full Sail University',
+			),
+			'memberOf'      => array(
+				array( '@type' => 'Organization', 'name' => 'The Recording Academy' ),
+				array( '@type' => 'Organization', 'name' => 'The Latin Recording Academy' ),
+			),
+			'worksFor'      => array(
+				'@type'        => 'Organization',
+				'name'         => 'Panacea',
+				'description'  => 'Recording studio',
+				'foundingDate' => '2015',
+			),
+		)
+	);
 }
 
 /**
@@ -274,7 +317,63 @@ function sn_schema_webpage() {
 		$webpage['description'] = $description;
 	}
 
+	// Identity pages (about / resume / services) are ProfilePages whose mainEntity is
+	// the Person — so search + answer engines read them as "the page about this person"
+	// rather than a generic WebPage (additions A1). Filterable slug list.
+	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services' ) );
+	$slug          = isset( $post->post_name ) ? (string) $post->post_name : '';
+	if ( in_array( $slug, $profile_slugs, true ) ) {
+		$webpage['@type']      = 'ProfilePage';
+		$webpage['mainEntity'] = array( '@id' => home_url( '/' ) . '#/schema/Person' );
+	}
+
 	return $webpage;
+}
+
+/**
+ * ProfessionalService + OfferCatalog for the /services hire-me page. Provider is
+ * @id-referenced to the Person so the offerings attach to the same entity (additions
+ * A2). Returns null off /services. Offerings filterable; sourced from the live page.
+ *
+ * @return array<string,mixed>|null
+ */
+function sn_schema_professional_service() {
+	if ( ! is_page( 'services' ) ) {
+		return null;
+	}
+	$home      = home_url( '/' );
+	$offerings = array_values( (array) apply_filters(
+		'sn_schema_service_offerings',
+		array(
+			'Production',
+			'Mixing',
+			'Songwriting',
+			'Mastering',
+			'Operations & AI Strategy',
+			'Artist & Producer Development',
+		)
+	) );
+	$items = array();
+	foreach ( $offerings as $i => $name ) {
+		$items[] = array(
+			'@type'       => 'Offer',
+			'position'    => $i + 1,
+			'itemOffered' => array( '@type' => 'Service', 'name' => (string) $name ),
+		);
+	}
+	$queried = get_queried_object();
+	return array(
+		'@type'           => 'ProfessionalService',
+		'@id'             => $home . '#/schema/ProfessionalService',
+		'name'            => sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ),
+		'url'             => $queried ? get_permalink( $queried ) : $home . 'services/',
+		'provider'        => array( '@id' => $home . '#/schema/Person' ),
+		'hasOfferCatalog' => array(
+			'@type'           => 'OfferCatalog',
+			'name'            => 'Services',
+			'itemListElement' => $items,
+		),
+	);
 }
 
 /**
@@ -452,6 +551,11 @@ add_action( 'wp_head', function() {
 		$collection = sn_schema_collection_page();
 		if ( $collection ) {
 			$graph[] = $collection;
+		}
+
+		$service = sn_schema_professional_service();
+		if ( $service ) {
+			$graph[] = $service;
 		}
 
 		$breadcrumb = sn_schema_breadcrumb_list();

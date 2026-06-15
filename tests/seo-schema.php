@@ -315,5 +315,48 @@ function wp_json_encode_test( $data ) {
 	return json_encode( $data, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 }
 
+// ─── T6: Person credentials (occupation / education / awards / memberships / worksFor) ───
+echo "\nT6: Person credentials graph\n";
+$GLOBALS['__ss']['settings'] = array();
+$pc          = sn_schema_person();
+$occupations = array_map( function ( $o ) { return $o['name'] ?? ''; }, (array) ( $pc['hasOccupation'] ?? array() ) );
+ss_true( in_array( 'Music Producer', $occupations, true ), 'hasOccupation includes Music Producer' );
+ss_true( in_array( 'Audio Engineer', $occupations, true ), 'hasOccupation includes Audio Engineer' );
+ss_eq( 'CollegeOrUniversity', $pc['alumniOf'][0]['@type'] ?? null, 'alumniOf entries are CollegeOrUniversity' );
+ss_eq( 'Full Sail University', $pc['alumniOf'][0]['name'] ?? null, 'alumniOf includes Full Sail University' );
+ss_eq( 'Westcliff University', $pc['alumniOf'][1]['name'] ?? null, 'alumniOf includes Westcliff University' );
+ss_true( in_array( 'Valedictorian, Full Sail University', (array) ( $pc['award'] ?? array() ), true ), 'award includes Full Sail valedictorian' );
+ss_eq( 'The Recording Academy', $pc['memberOf'][0]['name'] ?? null, 'memberOf includes The Recording Academy' );
+ss_eq( 'The Latin Recording Academy', $pc['memberOf'][1]['name'] ?? null, 'memberOf includes The Latin Recording Academy' );
+ss_eq( 'Panacea', $pc['worksFor']['name'] ?? null, 'worksFor === Panacea' );
+ss_eq( '2015', $pc['worksFor']['foundingDate'] ?? null, 'worksFor.foundingDate === 2015' );
+
+// ─── T7: ProfilePage on identity pages (mainEntity → Person) ───
+echo "\nT7: ProfilePage on identity pages\n";
+$GLOBALS['__ss']['is_singular_post'] = true;
+$GLOBALS['__ss']['is_page']          = true;
+$GLOBALS['__ss']['queried']          = (object) array( 'ID' => 9, 'post_title' => 'About', 'post_name' => 'about' );
+$pp = sn_schema_webpage();
+ss_eq( 'ProfilePage', $pp['@type'] ?? null, 'about → @type ProfilePage' );
+ss_eq( 'https://example.com/#/schema/Person', $pp['mainEntity']['@id'] ?? null, 'ProfilePage.mainEntity → Person @id' );
+$GLOBALS['__ss']['queried'] = (object) array( 'ID' => 10, 'post_title' => 'Random', 'post_name' => 'random-page' );
+$wpg = sn_schema_webpage();
+ss_eq( 'WebPage', $wpg['@type'] ?? null, 'non-identity page stays WebPage' );
+ss_true( ! isset( $wpg['mainEntity'] ), 'non-identity page has no mainEntity' );
+
+// ─── T8: ProfessionalService + OfferCatalog on /services ───
+echo "\nT8: ProfessionalService + OfferCatalog on /services\n";
+$GLOBALS['__ss']['is_page'] = true; // is_page('services') stub honors this flag
+$GLOBALS['__ss']['queried'] = (object) array( 'ID' => 11, 'post_title' => 'Services', 'post_name' => 'services' );
+$svc = sn_schema_professional_service();
+ss_eq( 'ProfessionalService', $svc['@type'] ?? null, '@type === ProfessionalService' );
+ss_eq( 'https://example.com/#/schema/Person', $svc['provider']['@id'] ?? null, 'provider → Person @id' );
+ss_eq( 'OfferCatalog', $svc['hasOfferCatalog']['@type'] ?? null, 'hasOfferCatalog.@type === OfferCatalog' );
+ss_true( count( (array) ( $svc['hasOfferCatalog']['itemListElement'] ?? array() ) ) === 6, 'catalog lists all 6 offerings' );
+ss_eq( 'Production', $svc['hasOfferCatalog']['itemListElement'][0]['itemOffered']['name'] ?? null, 'first offer === Production' );
+ss_eq( 'Service', $svc['hasOfferCatalog']['itemListElement'][0]['itemOffered']['@type'] ?? null, 'offer.itemOffered.@type === Service' );
+$GLOBALS['__ss']['is_page'] = false;
+ss_eq( null, sn_schema_professional_service(), 'not on /services → null (no ProfessionalService node)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
