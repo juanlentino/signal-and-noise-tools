@@ -57,6 +57,25 @@ function sn_discography_entry_defaults() {
 		'muso_url'    => '',
 		'isrc'        => '',
 		'upc'         => '',
+		'tracks'      => array(), // B1: per-track liner notes (see sn_discography_normalize_track).
+	);
+}
+
+/**
+ * Normalize one per-track liner-notes record: sanitize the title + per-track
+ * roles, escape the preview URL, scalar the Spotify id. Mirrors the entry-level
+ * boundary sanitization so a future unescaped consumer can't inherit a payload.
+ *
+ * @param mixed $raw Raw track data.
+ * @return array{title:string,roles:array<int,string>,preview_url:string,spotify_id:string}
+ */
+function sn_discography_normalize_track( $raw ) {
+	$t = is_array( $raw ) ? $raw : array();
+	return array(
+		'title'       => sanitize_text_field( (string) ( $t['title'] ?? '' ) ),
+		'roles'       => array_values( array_filter( array_map( static fn( $r ) => sanitize_text_field( (string) $r ), (array) ( $t['roles'] ?? array() ) ) ) ),
+		'preview_url' => esc_url_raw( (string) ( $t['preview_url'] ?? '' ) ),
+		'spotify_id'  => sanitize_text_field( (string) ( $t['spotify_id'] ?? '' ) ),
 	);
 }
 
@@ -91,6 +110,15 @@ function sn_discography_normalize_entry( $raw ) {
 	if ( '' === $e['id'] ) {
 		$e['id'] = '' !== $e['isrc'] ? $e['isrc'] : ( '' !== $e['upc'] ? $e['upc'] : sanitize_title( $e['title'] . '-' . $e['artist'] ) );
 	}
+	// B1: normalize + sanitize each liner-notes track; drop any that lose their title.
+	$e['tracks'] = array_values(
+		array_filter(
+			array_map( 'sn_discography_normalize_track', (array) $e['tracks'] ),
+			static function ( $t ) {
+				return '' !== $t['title'];
+			}
+		)
+	);
 	return $e;
 }
 

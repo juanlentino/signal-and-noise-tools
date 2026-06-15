@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.14.0] - 2026-06-15 — Liner-notes data: per-track credits + previews in the discography store (B1, plugin half)
+
+**Headline:** The discography sync now keeps the per-track liner-notes data Muso already returns — track titles, per-recording role credits, and 30-sec preview URLs — instead of discarding it at album-grouping. This is the data foundation for the theme's expandable liner-notes UI (theme v10.8.0).
+
+### New
+
+- **Per-track `tracks[]` on every store entry (B1).** The Muso credits response carries, per track, a title, that track's own `credits[]`, a `previewUrl` (a working `p.scdn.co/mp3-preview/` 30-sec MP3), and a Spotify id — but the grouper previously kept only the *album-level union* of roles and one representative track id, dropping the rest. `sn_muso_albums_from_credits()` now also collects a keyed per-track map (title + that track's credits + preview_url + spotify_id), `sn_muso_dedupe_albums()` merges those maps when collapsing title+artist twins, and the entry stores a flat `tracks[]` in Muso's credit order. No new API call — the data was already in the response. [inc/muso-api.php](inc/muso-api.php)
+- **`sn_discography_normalize_track()` + `tracks` in the entry schema.** Each track is sanitized at the write boundary (title + per-track roles tag-stripped, preview URL `esc_url_raw`'d, Spotify id scalared); a track that loses its title is dropped. Old stored entries forward-fill an empty `tracks[]` until the next sync, so the cross-package `sn_discography_entries` contract stays backward-compatible (the theme treats `tracks[]` as optional). [inc/discography-store.php](inc/discography-store.php)
+
+> **Why MINOR:** additive store field + sync enrichment; no public-API removal, no settings-schema change, no user action required (a re-sync populates `tracks[]` on existing entries; absent until then, with graceful empty-array fallback). The theme consumes it in v10.8.0.
+
 ## [6.13.2] - 2026-06-14 — Shared SSRF host-guard reaches the last two outbound modules
 
 **Headline:** Routes the **uptime heartbeat** and the **RSS Plausible tracker** through the same resolve-then-range-check guard the webhook validator adopted in v6.13.1 — closing the identical encoded-IP metadata bypass in the project's two remaining literal `^169\.254\.` host checks.

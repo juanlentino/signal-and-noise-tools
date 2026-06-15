@@ -105,7 +105,7 @@ echo "Discography sync orchestrator suite — plugin v4.13.0\n\n";
 //   B — Muso artwork + NO Spotify match           → kept, Muso-only, no embed
 //   C — NO Muso artwork + a Spotify match         → Spotify artwork fallback
 $GLOBALS['__muso']['albums'] = array(
-	array( 'id' => 'al-A', 'title' => 'Album A', 'artist' => 'X', 'roles' => array( 'Producer' ), 'year' => 2024, 'date' => '2024-03-01', 'image' => 'https://muso/A.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-A', 'type' => '', 'spotify_track_id' => 'tA' ),
+	array( 'id' => 'al-A', 'title' => 'Album A', 'artist' => 'X', 'roles' => array( 'Producer' ), 'year' => 2024, 'date' => '2024-03-01', 'image' => 'https://muso/A.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-A', 'type' => '', 'spotify_track_id' => 'tA', 'tracks' => array( array( 'title' => 'Track One', 'roles' => array( 'Producer' ), 'preview_url' => 'https://p.scdn.co/mp3-preview/aa', 'spotify_id' => 'tk1' ) ) ),
 	array( 'id' => 'al-B', 'title' => 'Album B', 'artist' => 'Y', 'roles' => array( 'Mixing' ), 'year' => 2005, 'date' => '2005-11-20', 'image' => 'https://muso/B.jpg', 'muso_url' => 'https://credits.muso.ai/album/al-B', 'type' => '', 'spotify_track_id' => 'tB' ),
 	array( 'id' => 'al-C', 'title' => 'Album C', 'artist' => 'Z', 'roles' => array( 'Engineer' ), 'year' => 2018, 'date' => '', 'image' => '', 'muso_url' => 'https://credits.muso.ai/album/al-C', 'type' => '', 'spotify_track_id' => 'tC' ),
 );
@@ -150,6 +150,10 @@ ok( ( $e['al-C']['date'] ?? '' ) === '2018-07-07', 'C: Spotify date fills when M
 
 // Internal-only field must never leak into the store.
 ok( ! isset( $e['al-A']['spotify_track_id'] ), 'store: internal spotify_track_id stripped before persist' );
+
+// B1: per-album tracks[] survive the sync + are normalized into the store.
+ok( ! empty( $e['al-A']['tracks'] ) && $e['al-A']['tracks'][0]['title'] === 'Track One', 'A: liner-notes tracks[] survive the sync + normalize' );
+ok( ( $e['al-B']['tracks'] ?? null ) === array(), 'B: an album with no tracks gets an empty tracks[] (back-compat)' );
 
 // Sorted year-desc (store contract): 2024 (A), 2018 (C), 2005 (B).
 ok( $store['entries'][0]['id'] === 'al-A' && $store['entries'][2]['id'] === 'al-B', 'sync: entries sorted year-desc by the store' );
