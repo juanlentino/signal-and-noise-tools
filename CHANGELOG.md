@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.13.0] - 2026-06-14 — Article OG completeness + external link-rot check
+
+**Headline:** Completes the `article:` Open Graph metadata (author/section/tag, at parity with the JSON-LD) and adds a 7th Content Health check that watches cited external links for rot — the cluster-3 companion to the theme's v10.5.0 head + craft work.
+
+### New
+
+- **`article:author` Open Graph tag** on single posts (A3 plugin half — pairs with the theme's `rel="me"` links). Points at the site identity URL (`home_url('/')`), which is exactly the JSON-LD `Person.url` and the entity `Article.author` `@id` resolves to — so the OG profile pointer and the structured data agree. Filterable via `sn_og_article_author_url` for a future dedicated profile route. [inc/seo.php](inc/seo.php)
+- **`article:section` + `article:tag` Open Graph tags** on single posts, mirroring the JSON-LD's `articleSection` (first category) and `keywords` (post tags) EXACTLY — same source terms, emitted as one repeated `<meta>` per tag per the OGP spec (the JSON-LD comma-joins; OG must not). [inc/seo.php](inc/seo.php)
+- **External link-rot Health check (D1)** — a 7th check in the Content Health scan. The internal broken-links check deliberately drops off-host links, so cited external sources rot unwatched; this check extracts and HEAD-probes them, flagging 4xx/5xx/network failures. SSRF-hardened for off-host probing — `wp_http_validate_url` + scheme allowlist + an explicit `169.254.0.0/16` block (which `wp_http_validate_url` omits) + `wp_safe_remote_*` with `redirection=0` — bounded by a per-run network-probe cap and cached per-URL under a separate key prefix. [inc/health-external-links.php](inc/health-external-links.php)
+
+### Improvements
+
+- **`article:*` OG emission extracted to a testable `sn_seo_article_meta()` helper** (mirrors why `sn_seo_og_image_alt()` was extracted) — which also brings the previously-untested `article:published_time`/`article:modified_time` emission under test. [inc/seo.php](inc/seo.php)
+
+> **Why MINOR:** new user-visible OG metadata + a new Health check — additive, no breaking change, no settings-schema migration, no user action required. Reuses existing infra (the SEO head emitter, the Content Health scan, the SSRF-hardened probe pattern).
+
 ## [6.12.0] - 2026-06-14 — Structured-data identity (ProfilePage, credentials, services)
 
 **Headline:** Makes the site's real credentials machine-readable — the facts already in the /about, /resume, and /services prose now live in the JSON-LD `@graph` for search + answer engines.

@@ -121,6 +121,33 @@ if ( ! function_exists( 'the_seo_framework' ) ) {
 	// Intentionally NOT defined so seo.php's TSF-dormant branches are live.
 }
 
+// ─── Article-meta stubs (sn_seo_article_meta) ─────────────────────────
+$GLOBALS['__art'] = array(
+	'published' => '2026-06-10T09:00:00+00:00',
+	'modified'  => '2026-06-12T10:00:00+00:00',
+	'terms'     => array( 'category' => array( 'Analysis', 'Secondary' ), 'post_tag' => array( 'provenance', 'audio' ) ),
+);
+if ( ! class_exists( 'WP_Error_Stub' ) ) {
+	class WP_Error_Stub {}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $x ) { return $x instanceof WP_Error_Stub; }
+}
+if ( ! function_exists( 'home_url' ) ) {
+	function home_url( $path = '' ) { return 'https://example.test' . $path; }
+}
+if ( ! function_exists( 'get_post_time' ) ) {
+	function get_post_time( $format, $gmt, $post ) { return $GLOBALS['__art']['published']; }
+}
+if ( ! function_exists( 'get_post_modified_time' ) ) {
+	function get_post_modified_time( $format, $gmt, $post ) { return $GLOBALS['__art']['modified']; }
+}
+if ( ! function_exists( 'wp_get_post_terms' ) ) {
+	function wp_get_post_terms( $id, $taxonomy, $args = array() ) {
+		return $GLOBALS['__art']['terms'][ $taxonomy ] ?? array();
+	}
+}
+
 require_once __DIR__ . '/../inc/seo.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -186,6 +213,38 @@ og_eq( 'Home Title', sn_seo_og_image_alt( 'Home Title' ), 'non-singular → feat
 $alt_with_quote = sn_seo_og_image_alt( 'He said "hi"' );
 og_eq( 'He said "hi"', $alt_with_quote, 'helper returns raw alt (escaping happens at emit)' );
 og_true( false !== strpos( esc_attr( $alt_with_quote ), '&quot;' ), 'esc_attr( alt ) escapes the double-quote for the meta attribute' );
+
+// ─── sn_seo_article_meta() — A3 article:author + richer article:section/tag ───
+og_true( function_exists( 'sn_seo_article_meta' ), 'sn_seo_article_meta() is defined' );
+
+$post = (object) array( 'ID' => 7 );
+
+// Full set: published + modified + author + section + tags.
+ob_start();
+sn_seo_article_meta( $post );
+$out = ob_get_clean();
+og_true( strpos( $out, '<meta property="article:published_time" content="2026-06-10T09:00:00+00:00">' ) !== false, 'emits article:published_time' );
+og_true( strpos( $out, '<meta property="article:modified_time" content="2026-06-12T10:00:00+00:00">' ) !== false, 'emits article:modified_time' );
+og_true( strpos( $out, '<meta property="article:author" content="https://example.test/">' ) !== false, 'A3: article:author = home_url("/") (matches JSON-LD Person.url/@id)' );
+og_true( strpos( $out, '<meta property="article:section" content="Analysis">' ) !== false, 'article:section = FIRST category only (mirrors JSON-LD articleSection)' );
+og_true( strpos( $out, 'content="Secondary"' ) === false, 'article:section does NOT emit the second category' );
+og_eq( 2, substr_count( $out, '<meta property="article:tag"' ), 'article:tag = one repeated meta per tag (not comma-joined)' );
+og_true( strpos( $out, '<meta property="article:tag" content="provenance">' ) !== false && strpos( $out, '<meta property="article:tag" content="audio">' ) !== false, 'both tags emitted' );
+
+// Robustness: WP_Error from wp_get_post_terms → no section/tag, no fatal (triple guard).
+$GLOBALS['__art']['terms'] = array( 'category' => new WP_Error_Stub(), 'post_tag' => new WP_Error_Stub() );
+ob_start();
+sn_seo_article_meta( $post );
+$out2 = ob_get_clean();
+og_true( strpos( $out2, 'article:section' ) === false && strpos( $out2, 'article:tag' ) === false, 'WP_Error terms degrade to no section/tag (no fatal)' );
+og_true( strpos( $out2, '<meta property="article:author"' ) !== false, 'author still emits when terms error (independent)' );
+
+// Empty terms → no section/tag.
+$GLOBALS['__art']['terms'] = array( 'category' => array(), 'post_tag' => array() );
+ob_start();
+sn_seo_article_meta( $post );
+$out3 = ob_get_clean();
+og_true( strpos( $out3, 'article:section' ) === false && strpos( $out3, 'article:tag' ) === false, 'empty terms → no section/tag' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
