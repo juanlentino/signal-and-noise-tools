@@ -88,5 +88,23 @@ $joined_roles = implode( '|', $hostile_roles['roles'] );
 ok( strpos( $joined_roles, '<' ) === false && strpos( $joined_roles, '>' ) === false, 'normalize: roles[] tag-stripped (parity with title/artist)' );
 ok( in_array( 'Producer', $hostile_roles['roles'], true ), 'normalize: clean role text preserved' );
 
+// ── B1: per-track liner notes are normalized + escaped ───────────────
+ok( function_exists( 'sn_discography_normalize_track' ), 'tracks: sn_discography_normalize_track() defined' );
+$with_tracks = sn_discography_normalize_entry( array(
+	'title'  => 'Rec',
+	'artist' => 'A',
+	'tracks' => array(
+		array( 'title' => ' Song One ', 'roles' => array( 'Mixing', '<b>x</b>' ), 'preview_url' => 'https://p.scdn.co/mp3-preview/abc', 'spotify_id' => 'sid1' ),
+		array( 'title' => '', 'roles' => array( 'Producer' ) ), // no title → dropped
+	),
+) );
+ok( count( $with_tracks['tracks'] ) === 1, 'tracks: a record with no title is dropped' );
+ok( $with_tracks['tracks'][0]['title'] === 'Song One', 'tracks: title trimmed' );
+ok( strpos( implode( '|', $with_tracks['tracks'][0]['roles'] ), '<' ) === false, 'tracks: per-track roles tag-stripped (parity with album roles)' );
+ok( $with_tracks['tracks'][0]['preview_url'] === 'https://p.scdn.co/mp3-preview/abc', 'tracks: preview_url preserved' );
+ok( $with_tracks['tracks'][0]['spotify_id'] === 'sid1', 'tracks: spotify_id preserved' );
+$no_tracks = sn_discography_normalize_entry( array( 'title' => 'X' ) );
+ok( $no_tracks['tracks'] === array(), 'tracks: entry without tracks defaults to empty tracks[] (back-compat)' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

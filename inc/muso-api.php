@@ -242,6 +242,7 @@ function sn_muso_albums_from_credits( $items ) {
 				'muso_url'         => 'https://credits.muso.ai/album/' . $aid,
 				'type'             => '',
 				'spotify_track_id' => '',
+				'_tracks'          => array(), // keyed map → liner-notes tracks[] (see below).
 				'_count'           => 0,
 			);
 		}
@@ -267,12 +268,38 @@ function sn_muso_albums_from_credits( $items ) {
 			$albums[ $aid ]['year'] = (int) substr( $rd, 0, 4 );
 		}
 
+		$track = isset( $item['track'] ) && is_array( $item['track'] ) ? $item['track'] : array();
+
 		// First track that exposes a Spotify id resolves the album for the embed.
 		if ( '' === $albums[ $aid ]['spotify_track_id'] ) {
-			$track = isset( $item['track'] ) && is_array( $item['track'] ) ? $item['track'] : array();
-			$sid   = (string) ( $track['spotifyId'] ?? '' );
+			$sid = (string) ( $track['spotifyId'] ?? '' );
 			if ( '' !== $sid ) {
 				$albums[ $aid ]['spotify_track_id'] = $sid;
+			}
+		}
+
+		// B1 liner notes: keep the per-track record (title + THIS track's credits
+		// + 30-sec preview + Spotify id). The album-level `roles` above is only the
+		// union; here the per-recording credits are preserved. Keyed by the track's
+		// Spotify id (or title) so a track recurring across credit rows merges its
+		// roles instead of duplicating. Converted to a list in dedupe cleanup.
+		$ttitle = trim( (string) ( $track['title'] ?? '' ) );
+		if ( '' !== $ttitle ) {
+			$tsid = (string) ( $track['spotifyId'] ?? '' );
+			$tkey = '' !== $tsid ? 'sp:' . $tsid : 'ti:' . strtolower( $ttitle );
+			if ( ! isset( $albums[ $aid ]['_tracks'][ $tkey ] ) ) {
+				$albums[ $aid ]['_tracks'][ $tkey ] = array(
+					'title'       => $ttitle,
+					'roles'       => array(),
+					'preview_url' => (string) ( $track['previewUrl'] ?? '' ),
+					'spotify_id'  => $tsid,
+				);
+			}
+			foreach ( $credits as $role ) {
+				$role = trim( (string) $role );
+				if ( '' !== $role && ! in_array( $role, $albums[ $aid ]['_tracks'][ $tkey ]['roles'], true ) ) {
+					$albums[ $aid ]['_tracks'][ $tkey ]['roles'][] = $role;
+				}
 			}
 		}
 	}
@@ -319,6 +346,19 @@ function sn_muso_dedupe_albums( $albums ) {
 				$rep['roles'][] = $role;
 			}
 		}
+		// Merge the per-track liner-notes maps (union a track's roles on collision)
+		// so a twin's tracks are carried over, not dropped.
+		foreach ( (array) ( $album['_tracks'] ?? array() ) as $tk => $tv ) {
+			if ( ! isset( $rep['_tracks'][ $tk ] ) ) {
+				$rep['_tracks'][ $tk ] = $tv;
+			} else {
+				foreach ( (array) ( $tv['roles'] ?? array() ) as $r ) {
+					if ( ! in_array( $r, $rep['_tracks'][ $tk ]['roles'], true ) ) {
+						$rep['_tracks'][ $tk ]['roles'][] = $r;
+					}
+				}
+			}
+		}
 		// Earliest release date/year.
 		if ( '' !== $album['date'] && ( '' === $rep['date'] || $album['date'] < $rep['date'] ) ) {
 			$rep['date'] = $album['date'];
@@ -346,9 +386,11 @@ function sn_muso_dedupe_albums( $albums ) {
 		$result[ $i ] = $rep;
 	}
 
-	// Strip the internal tiebreak field.
+	// Strip the internal tiebreak field; flatten the keyed track map into the
+	// ordered tracks[] list the store persists (Muso's credit order is kept).
 	foreach ( $result as &$album ) {
-		unset( $album['_count'] );
+		$album['tracks'] = array_values( (array) ( $album['_tracks'] ?? array() ) );
+		unset( $album['_count'], $album['_tracks'] );
 	}
 	unset( $album );
 

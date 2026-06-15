@@ -227,5 +227,33 @@ $keys = array_map(
 );
 ok( count( $keys ) === count( array_unique( $keys ) ), 'dedup: no two entries share a title+artist' );
 
+// ── B1: per-track liner notes (tracks[] built from the real fixture) ──
+ok( is_array( $argiria['tracks'] ?? null ) && ! empty( $argiria['tracks'] ), 'tracks: ARGIRIA carries a non-empty tracks[]' );
+ok( count( $argiria['tracks'] ) === 12, 'tracks: ARGIRIA keeps its 12 distinct tracks' );
+$t0 = $argiria['tracks'][0];
+ok( isset( $t0['title'], $t0['roles'], $t0['preview_url'], $t0['spotify_id'] ), 'tracks: each record has title/roles/preview_url/spotify_id' );
+
+// A named track with its exact PER-TRACK credits + preview + id.
+$chf = null;
+foreach ( $argiria['tracks'] as $t ) {
+	if ( 'Cuando Haga Frío' === $t['title'] ) { $chf = $t; break; }
+}
+ok( null !== $chf, 'tracks: a named track (Cuando Haga Frío) is present' );
+ok( $chf['roles'] === array( 'Mastering', 'Engineer' ), 'tracks: roles are the TRACK credits, not the flattened album union' );
+ok( strpos( (string) $chf['preview_url'], 'p.scdn.co/mp3-preview' ) !== false, 'tracks: carries the 30-sec preview URL (cookieless <audio> source)' );
+ok( $chf['spotify_id'] === '6MuumbyTsu4CLaniAN0lBW', 'tracks: carries the per-track Spotify id' );
+
+// Per-track granularity proven across releases: "Moment of Supreme Clarity"
+// (Juan's own single) credits Composer/Synthesizer — a richer set than ARGIRIA's
+// tracks — so tracks[] preserves credits PER recording.
+$mosc = $by_id['d24dbe47-4857-45fc-9b0b-97fb2b6ea61f'] ?? array();
+ok( ! empty( $mosc['tracks'] ) && in_array( 'Composer', $mosc['tracks'][0]['roles'], true ), 'tracks: a distinct release keeps its own per-track credits (Composer)' );
+
+// Dedup MERGES tracks (never drops them): the collapsed Fin del Mundo entry keeps tracks.
+ok( ! empty( $fdm[0]['tracks'] ), 'tracks: survive the title+artist dedup merge (carried over, not lost)' );
+
+// The internal keyed map never leaks into the partial entry.
+ok( ! isset( $argiria['_tracks'] ), 'tracks: internal _tracks map stripped (only the flat tracks[] persists)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
