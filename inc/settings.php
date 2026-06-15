@@ -68,6 +68,11 @@ function sn_settings_defaults() {
 			'site_description' => get_bloginfo( 'description' ),
 			'person_name'      => get_bloginfo( 'name' ),
 			'locale'           => 'en_US',
+			// v6.17.0 (D5): owner-edited availability line surfaced in the
+			// Contact/Services hero (theme's [sn_availability] shortcode). Empty
+			// = hidden. Lives in the identity subtree (written by the Identity
+			// form), so no preserve block is needed.
+			'availability'     => '',
 		),
 		'social' => array(
 			'twitter_handle' => '',
@@ -259,6 +264,9 @@ function sn_settings_save( $raw ) {
 		'job_title'        => sanitize_text_field( (string) ( $raw['identity_job_title'] ?? '' ) ),
 		'knows_about'      => $knows_about_clean,
 		'locale'           => sanitize_text_field( (string) ( $raw['identity_locale'] ?? 'en_US' ) ),
+		// v6.17.0 (D5): availability line. Part of the Identity form payload, so
+		// it persists directly with the rest of the identity subtree.
+		'availability'     => sanitize_text_field( (string) ( $raw['identity_availability'] ?? '' ) ),
 	);
 
 	$same_as_raw   = (array) ( $raw['social_same_as'] ?? array() );

@@ -62,6 +62,11 @@ sn_setting_reset_cache();
 assertEq( false, sn_setting( 'monitoring.uptime_kuma_enabled', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_enabled defaults to false (deep-merge)' );
 assertEq( '', sn_setting( 'monitoring.uptime_kuma_push_url', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_push_url defaults to empty string (deep-merge)' );
 
+// D5 (v6.17.0): the availability line lives IN the identity subtree (written by
+// the Identity form itself), so it defaults to empty and round-trips directly —
+// no separate preserve block needed (it's never a cross-tab orphan).
+assertEq( '', sn_setting( 'identity.availability', 'SENTINEL' ), 'fresh install: identity.availability defaults to empty string' );
+
 // 1. Configure cross-tab settings the Identity form does NOT touch:
 //    audit retention (Security tab) + a custom login slug (Login tab) +
 //    the monitoring heartbeat (Webhooks tab).
@@ -99,6 +104,18 @@ assertEq( 9, (int) sn_setting( 'theme.related_count', 3 ), 'theme.related_count 
 assertEq( false, sn_setting( 'theme.palette_enabled', true ), 'theme.palette_enabled survives an Identity save (v4.12.0 guard)' );
 assertEq( 'claude-opus-4-8', sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' ), 'theme.ai_model survives an Identity save (v4.12.0 guard)' );
 assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled survives an Identity save (v5.1.0 guard)' );
+
+// D5 (v6.17.0): a second Identity save carrying the availability field persists
+// it directly, and the cross-tab subtrees still survive (availability didn't
+// disturb the preserve blocks).
+sn_settings_save( array(
+	'identity_site_name'    => 'New Site Name',
+	'identity_availability' => 'Available for select mixing work',
+) );
+sn_setting_reset_cache();
+assertEq( 'Available for select mixing work', sn_setting( 'identity.availability', '' ), 'identity.availability round-trips through sn_settings_save' );
+assertEq( 'my-secret-login', sn_setting( 'login.slug', 'sn-login' ), 'login.slug still survives after availability added' );
+assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled still survives after availability added' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

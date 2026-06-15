@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.17.0] - 2026-06-15 — Availability line + WebSub feed push (D5 + D4, plugin half)
+
+**Headline:** Two indie-web wins. An owner-edited **availability line** (Identity settings) the theme surfaces in the `/contact` + `/services` heroes, and **WebSub** — the push counterpart to IndexNow — that notifies a hub on publish so feed readers get your new posts instantly instead of polling.
+
+### New
+
+- **Availability line setting (D5).** A new `identity.availability` field on the Site → Identity & SEO form: a short owner-edited status string ("Available for select mixing work"). Empty = hidden. It lives in the `identity` subtree written by the Identity form itself, so it round-trips directly — no cross-tab preserve block needed. The theme renders it via its `[sn_availability]` shortcode (theme v10.9.0). [inc/settings.php](inc/settings.php), [inc/admin-forms/identity-and-seo.php](inc/admin-forms/identity-and-seo.php)
+- **WebSub publisher ping (D4).** On publish / update / unpublish / delete of a post, the plugin notifies a WebSub (PubSubHubbub) hub that the feed changed, so the hub re-fetches and pushes to subscribed readers — the push counterpart to IndexNow's search-engine ping. Default hub is the public `https://pubsubhubbub.appspot.com/`, overridable via the `sn_websub_hub` filter (the same filter the theme's feed advertisement reads, keeping advertised-hub and pinged-hub in sync). Deferred to a single WP-Cron event (zero publish latency, ~10-min dedupe like IndexNow); scoped to post_type `post` (only posts appear in the feed). The filterable hub host is resolved through the shared resolve-then-range-check SSRF guard and fails closed; `wp_safe_remote_post` + `redirection=0`. Disable via the `sn_websub_enabled` filter (default true). [inc/websub.php](inc/websub.php)
+
+> **Why MINOR:** two additive user-visible capabilities; no public-API removal, no settings-schema migration (the availability key deep-merges from defaults), no user action required. WebSub defaults on with the public hub the owner approved; both halves are filter-controllable.
+
 ## [6.16.0] - 2026-06-15 — Auto-derived featured player: /music is never headerless (B4)
 
 **Headline:** When the owner hasn't pinned a featured release, the single &ldquo;press play&rdquo; player at the top of `/music` now auto-derives from the discography — the newest release with a playable Spotify album — so the page always opens with a hero. A manual pick still wins; the fallback is zero-touch.
