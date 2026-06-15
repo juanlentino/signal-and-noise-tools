@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.15.0] - 2026-06-15 — Machine-readable tracklists: MusicAlbum track[] + numTracks (B3)
+
+**Headline:** The `/music` JSON-LD now describes each album's tracklist — `numTracks` + a `track[]` of `MusicRecording` nodes (name + per-track Spotify deep link, in order) — built from the per-track data B1 added to the store. Makes the discography's tracks comprehensible to search engines and AI, the structured-data counterpart to the v10.8.0 visible liner notes.
+
+### New
+
+- **MusicAlbum tracklist in structured data (B3).** `sn_music_schema_node()` now emits `numTracks` and a `track[]` array of `MusicRecording` nodes (each `name` + a `url` deep-linking the track's Spotify id when known; array order is the tracklist order) for `MusicAlbum` entries that carry `tracks[]`. Scoped to `MusicAlbum` only — a `MusicRecording` (single) has no `track` property, so it gets none. Omitted entirely for entries with no `tracks[]` (old/un-synced releases), so nothing empty is asserted; no request-time API calls (reads the cached store). [inc/seo-schema-music.php](inc/seo-schema-music.php)
+
+> **Why MINOR:** additive structured-data fields on the existing `/music` graph; no API removal, no schema-store migration, no user action. Per-track ISRC (`MusicRecording.isrcCode`) and a canonical Spotify-sourced track order are deferred — they'd need a Spotify `GET /v1/albums/{id}` call the store doesn't make today. UPC remains unobtainable.
+
 ## [6.14.0] - 2026-06-15 — Liner-notes data: per-track credits + previews in the discography store (B1, plugin half)
 
 **Headline:** The discography sync now keeps the per-track liner-notes data Muso already returns — track titles, per-recording role credits, and 30-sec preview URLs — instead of discarding it at album-grouping. This is the data foundation for the theme's expandable liner-notes UI (theme v10.8.0).

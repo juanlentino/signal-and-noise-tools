@@ -157,6 +157,40 @@ $jy   = sn_music_schema_jsonld();
 $ny   = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', $jy ), true )['@graph'][0];
 ok( (string) ( $ny['datePublished'] ?? '' ) === '1999', 'node: year-only entry → datePublished === year (no fabricated -01-01)' );
 
+// ── B3: tracklist (numTracks + track[] of MusicRecording on a MusicAlbum) ──
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title'  => 'Tracked Album',
+	'artist' => 'A',
+	'year'   => 2024,
+	'type'   => 'album',
+	'tracks' => array(
+		array( 'title' => 'First',  'roles' => array( 'Producer' ), 'preview_url' => 'https://p.scdn.co/mp3-preview/1', 'spotify_id' => 'tid1' ),
+		array( 'title' => 'Second', 'roles' => array( 'Mixing' ),   'preview_url' => '',                                 'spotify_id' => '' ),
+	),
+) ) ), 1700000000, '' );
+$nt = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
+ok( (int) ( $nt['numTracks'] ?? 0 ) === 2, 'B3: numTracks === count(tracks)' );
+ok( is_array( $nt['track'] ?? null ) && count( $nt['track'] ) === 2, 'B3: track[] carries one node per track' );
+ok( ( $nt['track'][0]['@type'] ?? '' ) === 'MusicRecording', 'B3: each track is a MusicRecording' );
+ok( ( $nt['track'][0]['name'] ?? '' ) === 'First', 'B3: track name from title (array order = tracklist order)' );
+ok( ( $nt['track'][0]['url'] ?? '' ) === 'https://open.spotify.com/track/tid1', 'B3: track url deep-links the per-track Spotify id' );
+ok( ! isset( $nt['track'][1]['url'] ), 'B3: a track with no spotify_id omits url (no fabricated link)' );
+
+// A MusicRecording (single) gets NO tracklist — `track` is not a property of that type.
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'Single', 'artist' => 'A', 'year' => 2020, 'type' => 'track',
+	'tracks' => array( array( 'title' => 'Single', 'spotify_id' => 's1' ) ),
+) ) ), 1700000000, '' );
+$ns = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
+ok( ! isset( $ns['track'] ) && ! isset( $ns['numTracks'] ), 'B3: a MusicRecording single carries no track/numTracks (invalid on that type)' );
+
+// An album with no tracks[] (old/un-synced entry) emits no tracklist (back-compat).
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'No Tracks', 'artist' => 'A', 'year' => 2018, 'type' => 'album',
+) ) ), 1700000000, '' );
+$nn = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
+ok( ! isset( $nn['track'] ) && ! isset( $nn['numTracks'] ), 'B3: a tracksless album omits the tracklist (no empty array asserted)' );
+
 // ── empty store → emits nothing ──────────────────────────────────────
 $GLOBALS['__options'] = array();
 ok( sn_music_schema_jsonld() === '', 'emit: empty store → emits nothing' );

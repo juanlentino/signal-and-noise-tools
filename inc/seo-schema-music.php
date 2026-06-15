@@ -100,6 +100,39 @@ function sn_music_schema_node( $entry ) {
 		$node['sameAs'] = $same_as;
 	}
 
+	// B3: tracklist. Only a MusicAlbum carries `track`/`numTracks` — a
+	// MusicRecording (a single) has no track property, so it gets none. Built
+	// from the stored per-track liner-notes data (plugin v6.14.0+); array order
+	// is the tracklist order. Per-track ISRC is deferred (not in the store —
+	// it would need a Spotify album fetch). Omitted entirely when an entry has
+	// no tracks[] (old/un-synced entries), so nothing empty is asserted.
+	if ( 'MusicAlbum' === $node['@type'] ) {
+		$track_nodes = array();
+		$tracks      = isset( $entry['tracks'] ) && is_array( $entry['tracks'] ) ? $entry['tracks'] : array();
+		foreach ( $tracks as $track ) {
+			if ( ! is_array( $track ) ) {
+				continue;
+			}
+			$t_name = (string) ( $track['title'] ?? '' );
+			if ( '' === $t_name ) {
+				continue;
+			}
+			$t_node = array(
+				'@type' => 'MusicRecording',
+				'name'  => $t_name,
+			);
+			$t_sid = (string) ( $track['spotify_id'] ?? '' );
+			if ( '' !== $t_sid ) {
+				$t_node['url'] = 'https://open.spotify.com/track/' . $t_sid;
+			}
+			$track_nodes[] = $t_node;
+		}
+		if ( ! empty( $track_nodes ) ) {
+			$node['numTracks'] = count( $track_nodes );
+			$node['track']     = $track_nodes;
+		}
+	}
+
 	return $node;
 }
 
