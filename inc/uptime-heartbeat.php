@@ -91,8 +91,12 @@ function sn_uptime_heartbeat_worker() {
 	// URL persisted before that guard (or via a direct sn_setting_update) must
 	// not leak the monitor token over plaintext http.
 	// wp_http_validate_url() omits 169.254.0.0/16 (link-local / cloud metadata);
-	// reject it explicitly, consistent with the other outbound modules.
-	if ( ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $url, PHP_URL_HOST ) ) ) {
+	// sn_ssrf_host_blocked() (v6.13.1) covers it — and, unlike the prior literal
+	// `^169\.254\.` match, RESOLVES the host first so the encoded-IP bypasses
+	// (decimal http://2852039166/, hex/octal) of the metadata IP are caught too,
+	// plus loopback/RFC-1918/CGNAT/IPv6 ranges, failing closed on unresolvable.
+	// (redirection=0 on the send still blocks the redirect-to-metadata case.)
+	if ( ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || sn_ssrf_host_blocked( wp_parse_url( $url, PHP_URL_HOST ) ) ) {
 		return;
 	}
 
