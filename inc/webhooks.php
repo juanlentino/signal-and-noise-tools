@@ -147,10 +147,13 @@ function sn_webhook_create( $input ) {
 	// scheme wp_http_validate_url() allows (http included), leaking the signed
 	// payload over plaintext. Enforce https to match the contract.
 	// wp_http_validate_url() omits 169.254.0.0/16 (link-local / cloud metadata);
-	// reject it explicitly, consistent with inc/plausible-api.php + inc/rss-
-	// plausible-tracker.php. (redirection=0 on the send already blocks the
-	// redirect-to-metadata case; this covers a directly-configured metadata host.)
-	if ( '' === $url || ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || 1 === preg_match( '#^169\.254\.#', (string) wp_parse_url( $url, PHP_URL_HOST ) ) ) {
+	// sn_ssrf_host_blocked() (v6.13.1) covers it — and, unlike the prior literal
+	// `^169\.254\.` match, RESOLVES the host first so the encoded-IP bypasses
+	// (decimal http://2852039166/, hex/octal) of the metadata IP are caught too,
+	// plus loopback/RFC-1918/CGNAT/IPv6 ranges, failing closed on unresolvable.
+	// (redirection=0 on the send still blocks the redirect-to-metadata case; this
+	// covers a directly-configured internal host.)
+	if ( '' === $url || ! wp_http_validate_url( $url ) || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || sn_ssrf_host_blocked( wp_parse_url( $url, PHP_URL_HOST ) ) ) {
 		return new WP_Error( 'sn_webhook_invalid_url', 'A valid https:// URL is required.' );
 	}
 
@@ -189,8 +192,10 @@ function sn_webhook_update( $id, $input ) {
 			$candidate = esc_url_raw( trim( (string) $input['url'] ) );
 			// T4 (Fix C): only accept https updates — an http candidate is
 			// ignored (the existing URL is preserved), mirroring create's
-			// https-only contract.
-			if ( '' !== $candidate && wp_http_validate_url( $candidate ) && 'https' === wp_parse_url( $candidate, PHP_URL_SCHEME ) && 1 !== preg_match( '#^169\.254\.#', (string) wp_parse_url( $candidate, PHP_URL_HOST ) ) ) {
+			// https-only contract. sn_ssrf_host_blocked() (v6.13.1) applies the
+			// same resolve-then-range-check guard as create, so an encoded-IP
+			// metadata candidate is rejected (existing URL preserved) here too.
+			if ( '' !== $candidate && wp_http_validate_url( $candidate ) && 'https' === wp_parse_url( $candidate, PHP_URL_SCHEME ) && ! sn_ssrf_host_blocked( wp_parse_url( $candidate, PHP_URL_HOST ) ) ) {
 				$wh['url'] = $candidate;
 			}
 		}

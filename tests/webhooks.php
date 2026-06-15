@@ -42,9 +42,23 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'esc_url_raw' ) ) {
 	function esc_url_raw( $u ) { return is_string( $u ) ? $u : ''; }
 }
+// FAITHFUL wp_http_validate_url: mirror WP core — require http/https + host and
+// reject the loopback / RFC-1918 ranges WP rejects, but NOT 169.254.0.0/16 (WP
+// core genuinely omits link-local). The 169.254 / encoded-IP blocking is the
+// plugin's OWN sn_ssrf_host_blocked() guard, so this stub must not fake it or
+// the metadata cases would give false assurance. (Same faithful stub as
+// tests/ssrf-url-validation.php + tests/health-external-links.php.)
 if ( ! function_exists( 'wp_http_validate_url' ) ) {
 	function wp_http_validate_url( $u ) {
-		return is_string( $u ) && preg_match( '#^https?://#', $u ) === 1 ? $u : false;
+		if ( ! is_string( $u ) || '' === $u ) { return false; }
+		$p = parse_url( $u );
+		if ( ! is_array( $p ) || empty( $p['scheme'] ) || empty( $p['host'] ) ) { return false; }
+		if ( ! in_array( strtolower( $p['scheme'] ), array( 'http', 'https' ), true ) ) { return false; }
+		$host = strtolower( $p['host'] );
+		foreach ( array( '127.', '10.', '192.168.', '172.16.', '0.', 'localhost' ) as $bad ) {
+			if ( $host === $bad || 0 === strpos( $host, $bad ) ) { return false; }
+		}
+		return $u; // NOTE: 169.254.x intentionally NOT rejected — WP core doesn't.
 	}
 }
 if ( ! function_exists( 'wp_parse_url' ) ) {
@@ -120,6 +134,27 @@ class WP_Error {
 	public function get_error_message() { return $this->message; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
+
+// Deterministic resolver seam for the shared SSRF guard. Literal IPs pass
+// through filter_var; the encoded forms of 169.254.169.254 map to it (exactly
+// what real gethostbyname does, but offline); a couple of explicit hosts model
+// "resolves to private" and "does not resolve"; everything else resolves to a
+// public IP so the existing CRUD tests (all using *.example hosts) stay green.
+// Defined BEFORE inc/ssrf-guard.php so its function_exists guard keeps this one.
+function sn_ssrf_resolve_host( $host ) {
+	if ( filter_var( $host, FILTER_VALIDATE_IP ) ) { return $host; }
+	$map = array(
+		'2852039166'          => '169.254.169.254', // decimal-encoded metadata IP
+		'0xa9.0xfe.0xa9.0xfe' => '169.254.169.254', // dotted-hex (parse_url lowercases? no — guard map both cases)
+		'0xA9.0xFE.0xA9.0xFE' => '169.254.169.254', // dotted-hex as parse_url returns it
+		'0251.0376.0251.0376' => '169.254.169.254', // dotted-octal-encoded
+		'blocked-private.example' => '10.0.0.5',     // hostname resolving to RFC-1918
+		'unresolvable.example'    => '',             // fail-closed case
+	);
+	if ( array_key_exists( $host, $map ) ) { return $map[ $host ]; }
+	return '93.184.216.34'; // any other hostname → public (keeps CRUD tests green)
+}
+require_once __DIR__ . '/../inc/ssrf-guard.php';
 
 require_once __DIR__ . '/../inc/webhooks.php';
 
@@ -584,6 +619,42 @@ wh_eq( array( SN_WEBHOOKS_OPTION, false ), $GLOBALS['__wsoa_calls'][0] ?? null, 
 wh_eq( 1, $GLOBALS['__test_options']['sn_webhooks_autoload_migrated'] ?? null, 'migration sets the sentinel' );
 sn_webhooks_migrate_autoload();
 wh_eq( 1, count( $GLOBALS['__wsoa_calls'] ), 'migration is idempotent (sentinel guards the 2nd run)' );
+
+// ─── Test 22: SSRF host-guard at create + update (v6.13.1) ────────────
+// Webhook URLs are owner-configured, but the guard must still block the
+// cloud-metadata IP 169.254.169.254 in EVERY form — including the encoded
+// IPv4 variants the previous literal `^169\.254\.` match let through. The
+// resolver seam (sn_ssrf_resolve_host, above) maps each encoded form to
+// 169.254.169.254 offline; the REAL range-check in sn_ssrf_host_blocked()
+// then blocks it. These cases FAIL against the old preg_match guard.
+echo "\nTest 22: SSRF host-guard blocks metadata IP at create + update\n";
+$GLOBALS['__test_options'][ SN_WEBHOOKS_OPTION ] = array();
+$ssrf_cases = array(
+	'https://169.254.169.254/latest/meta-data/' => 'literal 169.254.169.254',
+	'https://2852039166/latest/meta-data/'      => 'decimal-encoded 169.254.169.254 (the bypass)',
+	'https://0xA9.0xFE.0xA9.0xFE/'              => 'dotted-hex-encoded 169.254.169.254',
+	'https://0251.0376.0251.0376/'             => 'dotted-octal-encoded 169.254.169.254',
+	'https://blocked-private.example/hook'      => 'hostname resolving to RFC-1918 (10.0.0.5)',
+	'https://unresolvable.example/hook'         => 'unresolvable host (fail closed)',
+);
+foreach ( $ssrf_cases as $url => $desc ) {
+	$res = sn_webhook_create( array( 'name' => 'ssrf', 'url' => $url ) );
+	wh_true( $res instanceof WP_Error, "create rejects $desc" );
+	if ( $res instanceof WP_Error ) {
+		wh_eq( 'sn_webhook_invalid_url', $res->code, "create $desc → invalid_url code" );
+	}
+}
+// NON-BREAKING: a legitimate public https host still creates fine.
+$ssrf_ok = sn_webhook_create( array( 'name' => 'ok', 'url' => 'https://hooks.public.example/x', 'enabled' => '1' ) );
+wh_true( is_array( $ssrf_ok ), 'create accepts a legitimate public https webhook (non-breaking)' );
+// Update call site: an encoded-metadata candidate is IGNORED — the existing
+// https URL is preserved (mirrors the https-only ignore path).
+$prev_ssrf_url = $ssrf_ok['url'];
+$upd_ssrf      = sn_webhook_update( $ssrf_ok['id'], array( 'url' => 'https://2852039166/latest/meta-data/' ) );
+wh_eq( $prev_ssrf_url, $upd_ssrf['url'], 'update ignores an encoded-metadata candidate (https URL preserved)' );
+// And a valid public https update still applies (guard does not over-block).
+$upd_ssrf = sn_webhook_update( $ssrf_ok['id'], array( 'url' => 'https://hooks2.public.example/y' ) );
+wh_eq( 'https://hooks2.public.example/y', $upd_ssrf['url'], 'update applies a legitimate public https candidate' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
