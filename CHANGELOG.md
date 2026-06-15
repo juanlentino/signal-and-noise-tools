@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.12.0] - 2026-06-14 — Structured-data identity (ProfilePage, credentials, services)
+
+**Headline:** Makes the site's real credentials machine-readable — the facts already in the /about, /resume, and /services prose now live in the JSON-LD `@graph` for search + answer engines.
+
+### New
+
+- **Person credentials graph.** The Person node now emits `hasOccupation` (Music Producer / Audio Engineer / Creative Strategist), `alumniOf` (Full Sail University, Westcliff University), `award` (Full Sail valedictorian + Advanced Achiever), `memberOf` (The Recording Academy + The Latin Recording Academy), and `worksFor` (Panacea, `foundingDate` 2015) — sourced verbatim from the live /about + /resume copy, via a filterable code-config (`sn_schema_person_credentials`), so there's no settings field to drift or clobber.
+- **ProfilePage** on /about, /resume, /services — these declare `@type: ProfilePage` with `mainEntity` → the Person `@id`, so engines read them as "the page about this person" rather than a generic WebPage. Slug list filterable (`sn_schema_profile_page_slugs`).
+- **ProfessionalService + OfferCatalog** on /services — the six offerings (Production, Mixing, Songwriting, Mastering, Operations & AI Strategy, Artist & Producer Development) emit as an `OfferCatalog` provided by the Person `@id`, so "what does Juan Lentino do / can I hire him for mastering" resolves in rich results + LLM answers. Offerings filterable (`sn_schema_service_offerings`). [inc/seo-schema.php](inc/seo-schema.php)
+
+> **Why MINOR:** new machine-readable capability (structured data), additive — no breaking change, no schema migration, no visual change.
+
 ## [6.11.5] - 2026-06-14 — Dashboard-widget CSS is now an enqueued stylesheet
 
 **Headline:** the four "Analytics — …" dashboard-home widgets load their CSS from a proper enqueued stylesheet instead of an inline `<style>` echoed mid-body — closing the last inline-CSS surface that could render an admin page unstyled (refinement-audit item E5).
