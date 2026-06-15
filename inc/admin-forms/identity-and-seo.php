@@ -49,6 +49,14 @@ function sn_admin_render_identity_and_seo_form() {
 		echo '<p class="sn-field-helper">Emitted as <code>jobTitle</code> on the Person schema. Single short phrase.</p>';
 		echo '</div>';
 
+		// v6.17.0 (D5): availability line surfaced in the /contact + /services
+		// heroes (theme's [sn_availability] shortcode). Empty = hidden.
+		echo '<div class="sn-field sn-field-w-xl">';
+		echo '<label class="sn-field-label" for="sn_identity_availability">Availability line</label>';
+		echo '<input type="text" id="sn_identity_availability" name="identity_availability" value="' . esc_attr( (string) sn_setting( 'identity.availability', '' ) ) . '" placeholder="Available for select mixing work">';
+		echo '<p class="sn-field-helper">A short status line surfaced in the <code>/contact</code> and <code>/services</code> page heroes. Leave empty to hide it.</p>';
+		echo '</div>';
+
 		echo '<div class="sn-field sn-field-w-xl">';
 		echo '<label class="sn-field-label" for="sn_identity_knows_about">Knows about</label>';
 		$knows_about_value = (array) sn_setting(
