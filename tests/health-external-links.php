@@ -40,10 +40,11 @@ $GLOBALS['__ext'] = array(
 class WP_Error_Stub {}
 function is_wp_error( $x ) { return $x instanceof WP_Error_Stub; }
 
-// Deterministic resolver seam (the module guards sn_extlink_resolve_host with
-// function_exists). Literal IPs pass through filter_var; hostnames + encoded-IP
-// forms resolve via this map. Encoded host 2852039166 → 169.254.169.254 mirrors
-// real gethostbyname so the encoded-IP SSRF case is genuinely exercised.
+// Deterministic resolver seam for the SHARED guard (v6.13.1: inc/ssrf-guard.php
+// guards sn_ssrf_resolve_host with function_exists). Literal IPs pass through
+// filter_var; hostnames + encoded-IP forms resolve via this map. Encoded host
+// 2852039166 → 169.254.169.254 mirrors real gethostbyname so the encoded-IP
+// SSRF case is genuinely exercised through the shared guard the module now uses.
 $GLOBALS['__resolve'] = array(
 	'good.example'       => '93.184.216.34',
 	'gone.example'       => '93.184.216.34',
@@ -54,7 +55,7 @@ $GLOBALS['__resolve'] = array(
 	'rot.example'        => '93.184.216.34',
 	'2852039166'         => '169.254.169.254',
 );
-function sn_extlink_resolve_host( $host ) {
+function sn_ssrf_resolve_host( $host ) {
 	if ( filter_var( $host, FILTER_VALIDATE_IP ) ) { return $host; }
 	return $GLOBALS['__resolve'][ $host ] ?? '';
 }
@@ -95,6 +96,7 @@ $GLOBALS['wpdb'] = new class {
 	public function get_results( $sql, $output = null ) { return $GLOBALS['__ext']['rows']; }
 };
 
+require __DIR__ . '/../inc/ssrf-guard.php'; // shared SSRF guard (sn_ssrf_host_blocked) — resolver seam above overrides its lookup
 require __DIR__ . '/../inc/health-external-links.php';
 
 // ─── 1. Extractor: keep off-host http/https, drop same-host/relative/non-http ───

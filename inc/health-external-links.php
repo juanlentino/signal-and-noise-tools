@@ -10,9 +10,11 @@
  * SSRF HARDENING. Unlike the internal probe (which trusts same-host links and
  * skips validation), every off-host URL is validated BEFORE the request:
  *   - wp_http_validate_url() — blocks loopback + RFC-1918 + bad schemes;
- *   - an explicit 169.254.0.0/16 block — link-local / cloud-metadata, which
- *     wp_http_validate_url() does NOT cover (the same gap documented in
- *     inc/webhooks.php);
+ *   - sn_ssrf_host_blocked() (inc/ssrf-guard.php) — resolves the host first, so
+ *     it catches link-local / cloud-metadata (169.254/16, which
+ *     wp_http_validate_url() omits) INCLUDING its encoded-IP forms, plus CGNAT +
+ *     IPv6, failing closed on unresolvable. This is the shared guard webhooks
+ *     uses too (extracted from this module in v6.13.1);
  *   - wp_safe_remote_* + redirection=0 — the host filter only validates the
  *     first hop, so following a redirect could reach a blocked host.
  * Probes are bounded (SN_HEALTH_EXTLINK_MAX_PROBES network calls per run) and
@@ -37,56 +39,11 @@ if ( ! defined( 'SN_HEALTH_EXTLINK_TIME_BUDGET' ) ) {
 	define( 'SN_HEALTH_EXTLINK_TIME_BUDGET', 20 ); // seconds of cumulative probing
 }
 
-/**
- * Resolve a host to an IPv4 address for range-checking. gethostbyname()
- * normalises NUMERIC-encoded hosts (decimal/hex/octal) — the bypass a literal
- * "169.254." string match misses — and resolves real hostnames; it returns the
- * input unchanged on failure, in which case we return '' (caller fails closed).
- * Guarded so tests can inject a deterministic resolver.
- *
- * @param string $host
- * @return string Dotted-quad IPv4, or '' if unresolvable.
- */
-if ( ! function_exists( 'sn_extlink_resolve_host' ) ) {
-	function sn_extlink_resolve_host( $host ) {
-		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
-			return $host;
-		}
-		$ip = gethostbyname( (string) $host );
-		return filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '';
-	}
-}
-
-/**
- * Is this host in a range we must never probe (SSRF)? Resolves the host first
- * (catching encoded-IP bypasses), then rejects link-local (169.254/16),
- * loopback, RFC-1918, reserved (0/8, etc.), IPv6 private/reserved (via PHP's
- * filter flags), and CGNAT (100.64/10, which the filter flags omit). Fails
- * CLOSED: an unresolvable host is blocked.
- *
- * @param string $host
- * @return bool True if the host must be skipped.
- */
-function sn_extlink_host_blocked( $host ) {
-	if ( '' === (string) $host ) {
-		return true;
-	}
-	$ip = sn_extlink_resolve_host( $host );
-	if ( '' === $ip ) {
-		return true; // unresolvable → fail closed
-	}
-	// Blocks 169.254/16 + 127/8 + 0/8 + 240/4 (reserved) and 10/8 + 172.16/12 +
-	// 192.168/16 + fc00::/7 + fe80::/10 + ::1 (private). filter_var returns the
-	// IP when it is PUBLIC, false otherwise.
-	if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
-		return true;
-	}
-	// CGNAT 100.64.0.0/10 — not covered by PHP's reserved-range filter.
-	if ( 1 === preg_match( '#^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.#', $ip ) ) {
-		return true;
-	}
-	return false;
-}
+// The SSRF host-guard (resolve-then-range-check, blocking link-local +
+// loopback + RFC-1918 + reserved + CGNAT + IPv6 + encoded-IP bypasses, failing
+// closed on unresolvable) lives in inc/ssrf-guard.php as sn_ssrf_host_blocked()
+// since v6.13.1 — extracted from this D1 implementation so webhooks + link-rot +
+// any future outbound module share ONE audited guard. This module just calls it.
 
 /**
  * Pull <a href> URLs that point OFF this host (the inverse of
@@ -139,7 +96,7 @@ function sn_health_external_link_status( $url ) {
 	if ( '' === (string) $url
 		|| ! wp_http_validate_url( $url )
 		|| ! in_array( strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) ), array( 'http', 'https' ), true )
-		|| sn_extlink_host_blocked( $host )
+		|| sn_ssrf_host_blocked( $host )
 	) {
 		return array( 'ok' => true, 'code' => 0, 'skipped' => true, 'cached' => false );
 	}

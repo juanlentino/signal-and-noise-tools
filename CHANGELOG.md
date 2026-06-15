@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.13.1] - 2026-06-14 — Shared SSRF host-guard (encoded-IP metadata hardening)
+
+**Headline:** The webhook URL validator now blocks the cloud-metadata IP `169.254.169.254` in **every** form — including the decimal/hex/octal IPv4 encodings that slipped past the old literal `^169\.254\.` string match — by routing both webhook call sites through one shared, resolve-then-range-check guard extracted from the v6.13.0 link-rot check.
+
+### Fixed
+
+- **SSRF: encoded-IP bypass of the webhook metadata-host block.** `sn_webhook_create()` and `sn_webhook_update()` validated the configured URL with a literal `preg_match( '#^169\.254\.#', host )` check. Alternate IPv4 encodings of `169.254.169.254` — decimal `http://2852039166/`, hex `http://0xA9.0xFE.0xA9.0xFE/`, octal `http://0251.0376.0251.0376/` — all fail that string match, yet `gethostbyname()` resolves each to `169.254.169.254`, and `wp_http_validate_url()` does not cover `169.254.0.0/16`. Both call sites now call `sn_ssrf_host_blocked()`, which **resolves the host first** (collapsing every encoded form to a dotted-quad) then range-checks the resolved IP — also blocking loopback, RFC-1918, reserved (0/8, 240/4, …), CGNAT (100.64.0.0/10), and IPv6 private/reserved ranges, and failing closed on an unresolvable host. Webhook URLs are owner-configured (lower reachability than the link-rot check, which probes post-content URLs), so this is proactive hardening of the same vuln class — not an emergency. The existing https-only enforcement and `redirection=0` on the send are unchanged. [inc/webhooks.php](inc/webhooks.php)
+
+### Changed
+
+- **Extracted the SSRF host-guard into a shared `inc/ssrf-guard.php`.** The resolve-then-range-check logic (`sn_ssrf_resolve_host()` + `sn_ssrf_host_blocked()`) that shipped inside the v6.13.0 external link-rot check (D1) is now a standalone, dependency-free module, so webhooks, link-rot, and any future outbound module share **one** audited implementation. `inc/health-external-links.php` was refactored to call the shared guard, removing its now-duplicate local `sn_extlink_resolve_host()` / `sn_extlink_host_blocked()`. No behaviour change to the link-rot check. [inc/ssrf-guard.php](inc/ssrf-guard.php), [inc/health-external-links.php](inc/health-external-links.php)
+
+> **Why PATCH:** security hardening plus an internal refactor — no new user-visible capability, no breaking change, no settings-schema migration. Legitimate (public, resolvable) webhook URLs are unaffected; only internal / encoded-internal / unresolvable hosts are newly rejected.
+
 ## [6.13.0] - 2026-06-14 — Article OG completeness + external link-rot check
 
 **Headline:** Completes the `article:` Open Graph metadata (author/section/tag, at parity with the JSON-LD) and adds a 7th Content Health check that watches cited external links for rot — the cluster-3 companion to the theme's v10.5.0 head + craft work.

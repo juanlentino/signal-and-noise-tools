@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.13.0
+ * Version:     6.13.1
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -218,6 +218,7 @@ require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-
 require_once SNT_PATH . 'inc/cron-dashboard.php';
 require_once SNT_PATH . 'inc/cron-history.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
+require_once SNT_PATH . 'inc/ssrf-guard.php';      // shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP metadata bypasses) — consumed by webhooks + health-external-links
 require_once SNT_PATH . 'inc/webhooks.php';
 require_once SNT_PATH . 'inc/webhooks-admin.php';
 require_once SNT_PATH . 'inc/uptime-heartbeat.php';
