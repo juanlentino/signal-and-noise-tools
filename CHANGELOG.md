@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.16.0] - 2026-06-15 — Auto-derived featured player: /music is never headerless (B4)
+
+**Headline:** When the owner hasn't pinned a featured release, the single &ldquo;press play&rdquo; player at the top of `/music` now auto-derives from the discography — the newest release with a playable Spotify album — so the page always opens with a hero. A manual pick still wins; the fallback is zero-touch.
+
+### New
+
+- **Auto-derived featured release (B4).** `sn_music_featured_filter()` — the cross-package `sn_music_featured` filter the theme's `[sn_music_featured]` shortcode reads — now falls back to `sn_music_featured_derive()` when the owner's manual setting is empty: it walks the year-descending discography store and returns the newest entry with a playable Spotify album id (or a parseable `spotify_url`), built into a ready embed record. The manual setting stays authoritative; the embed type is always `album` (a discography `spotify_id` is a Spotify album id, not a track/playlist); the derived record is flagged `auto => true` for debuggability. Standalone-safe — an absent store function, an empty store, or no playable entry yields no hero (no fatal). [inc/music-featured.php](inc/music-featured.php)
+- **`sn_music_featured_autoderive` opt-out filter.** Return `false` to disable the fallback and keep `/music` headerless when no release is pinned. [inc/music-featured.php](inc/music-featured.php)
+
+### Improvements
+
+- **Honest &ldquo;Featured release&rdquo; admin copy.** The Monitoring → Music field now states that leaving it empty auto-features the newest release, so a hero the owner didn't explicitly set isn't surprising. [inc/admin-forms/music.php](inc/admin-forms/music.php)
+
+### Cleanup
+
+- **`sn_music_featured_get()` is now explicitly manual-only.** The admin pre-fill field reads it, so the auto-derived value must never leak in (else it would render as if the owner set it, and re-saving would persist it). URL construction is factored into a shared `sn_music_featured_record()` carrying the `auto` provenance flag, used by both the manual accessor and the derive path. [inc/music-featured.php](inc/music-featured.php)
+
+> **Why MINOR:** a new user-visible capability (the `/music` hero now self-populates when unset) added additively — no public-API removal, no settings-schema change, no user action required. The owner's manual setting behaves exactly as before. A re-sync is not required: the derive reads the existing cached store.
+
 ## [6.15.0] - 2026-06-15 — Machine-readable tracklists: MusicAlbum track[] + numTracks (B3)
 
 **Headline:** The `/music` JSON-LD now describes each album's tracklist — `numTracks` + a `track[]` of `MusicRecording` nodes (name + per-track Spotify deep link, in order) — built from the per-track data B1 added to the store. Makes the discography's tracks comprehensible to search engines and AI, the structured-data counterpart to the v10.8.0 visible liner notes.

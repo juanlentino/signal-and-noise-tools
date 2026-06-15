@@ -133,11 +133,11 @@ function sn_admin_render_music_section() {
 	// ── Featured release (v4.14.0): the one "press play" player on /music. ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Featured release</h2>';
-	echo '<p class="sn-fieldset-intro">The single &ldquo;press play&rdquo; player at the top of <code>/music</code>. Paste any Spotify track, album, or playlist link; type <code>clear</code> to remove it. Renders through the theme&rsquo;s <code>[sn_music_featured]</code> shortcode.</p>';
+	echo '<p class="sn-fieldset-intro">The single &ldquo;press play&rdquo; player at the top of <code>/music</code>. Paste any Spotify track, album, or playlist link; type <code>clear</code> to remove it. <strong>Leave it empty and <code>/music</code> auto-features your newest release</strong> &mdash; so the page is never headerless. Renders through the theme&rsquo;s <code>[sn_music_featured]</code> shortcode.</p>';
 	echo '<div class="sn-field sn-field-w-lg">';
 	echo '<label class="sn-field-label" for="sn_music_featured">Spotify URL</label>';
 	echo '<input type="text" id="sn_music_featured" name="sn_music_featured" value="' . esc_attr( $featured_url ) . '" placeholder="https://open.spotify.com/album/&hellip;" class="sn-mono" autocomplete="off">';
-	echo '<p class="sn-field-helper">' . ( $featured ? 'Currently featuring a <strong>' . esc_html( $featured['type'] ) . '</strong>.' : 'No featured release set yet.' ) . '</p>';
+	echo '<p class="sn-field-helper">' . ( $featured ? 'Currently featuring a <strong>' . esc_html( $featured['type'] ) . '</strong>.' : 'No manual pick &mdash; <code>/music</code> auto-features your newest release.' ) . '</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
