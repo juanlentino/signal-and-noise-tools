@@ -104,5 +104,17 @@ sn_admin_render_active_tab( 'monitoring', 'nope' );
 ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:insights', 'action:sn_admin_insights_tab' ),
 	'route monitoring/<unknown> → first leaf (insights)' );
 
+// ── POST page allowlist is registry-derived (Task 5) ──
+// sn_admin_pages() (legacy slugs) stubbed minimal; admin-post-handler.php
+// registers on admin_init at load — add_action() is already no-op'd above.
+if ( ! function_exists( 'sn_admin_pages' ) ) {
+	function sn_admin_pages() { return array( array( 'slug' => 'sn-theme-options' ) ); }
+}
+require __DIR__ . '/../inc/admin-post-handler.php';
+$allow = sn_admin_post_allowed_pages();
+ok( in_array( 'sn-theme-options', $allow, true ), 'allowlist includes the canonical slug' );
+ok( in_array( 'sn-monitoring', $allow, true ), 'allowlist includes a registry top-tab slug (sn-monitoring)' );
+ok( ! in_array( 'sn-not-a-page', $allow, true ), 'allowlist rejects an unknown slug' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
