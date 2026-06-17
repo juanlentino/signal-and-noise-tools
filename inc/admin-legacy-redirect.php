@@ -94,6 +94,104 @@ function sn_admin_legacy_redirect_map() {
 }
 
 /**
+ * Phase-2 IA (v6.18.0): leaves whose PARENT tab changed. Keyed '<oldtab>/<oldsub>'
+ * → canonical new { tab, sub }. The legacy redirect map handles pre-v3.8 FLAT slugs
+ * (?tab=cloudflare); this handles post-v3.8 CANONICAL bookmarks
+ * (?tab=site&sub=cloudflare) whose parent tab still exists but no longer owns the
+ * leaf. Consumed by sn_admin_canonical_destination().
+ *
+ * @since 6.18.0
+ * @return array<string,array{tab:string,sub:string}>
+ */
+function sn_admin_subtab_moves() {
+	return array(
+		'site/cloudflare'     => array( 'tab' => 'connections', 'sub' => 'cloudflare' ),
+		'automation/webhooks' => array( 'tab' => 'connections', 'sub' => 'webhooks' ),
+		'automation/cron'     => array( 'tab' => 'connections', 'sub' => 'cron' ),
+		'automation/indexnow' => array( 'tab' => 'connections', 'sub' => 'indexnow' ),
+		'tools/reading-time'  => array( 'tab' => 'content', 'sub' => 'reading-time' ),
+		'tools/performance'   => array( 'tab' => 'content', 'sub' => 'performance' ),
+		'tools/front-end'     => array( 'tab' => 'content', 'sub' => 'front-end' ),
+		'monitoring/music'    => array( 'tab' => 'content', 'sub' => 'music' ),
+		'monitoring/rss'      => array( 'tab' => 'content', 'sub' => 'rss' ),
+	);
+}
+
+/**
+ * Resolve where a requested (tab, sub) should canonically land after the v6.18.0
+ * IA reshuffle. PURE — no side effects (the GET 301 wrapper and the POST PRG both
+ * consume this so a moved leaf lands identically either way).
+ *
+ * Precedence: (1) a leaf that changed parent tab; (2) a current top tab → null
+ * (already canonical, caller passes through verbatim); (3) a pre-v3.8 legacy tab
+ * slug → its mapped destination. Returns null when no redirect is needed.
+ *
+ * @since 6.18.0
+ * @param string $requested_tab
+ * @param string $requested_sub
+ * @return array{tab:string,sub:?string,anchor:?string}|null
+ */
+function sn_admin_canonical_destination( $requested_tab, $requested_sub = '' ) {
+	$top_tabs = array_column( sn_admin_top_tabs(), 'tab' );
+
+	// 1. A leaf whose parent tab changed (post-v3.8 canonical bookmark).
+	if ( '' !== (string) $requested_sub ) {
+		$moves = sn_admin_subtab_moves();
+		$key   = $requested_tab . '/' . $requested_sub;
+		if ( isset( $moves[ $key ] ) ) {
+			return array( 'tab' => $moves[ $key ]['tab'], 'sub' => $moves[ $key ]['sub'], 'anchor' => null );
+		}
+	}
+
+	// 2. Already a current top tab — no redirect; caller keeps tab + sub verbatim.
+	if ( in_array( $requested_tab, $top_tabs, true ) ) {
+		return null;
+	}
+
+	// 3. Pre-v3.8 legacy tab slug → mapped destination.
+	$map = sn_admin_legacy_redirect_map();
+	if ( isset( $map[ $requested_tab ] ) ) {
+		return array(
+			'tab'    => $map[ $requested_tab ]['tab'],
+			'sub'    => $map[ $requested_tab ]['sub'],
+			'anchor' => $map[ $requested_tab ]['anchor'],
+		);
+	}
+
+	return null;
+}
+
+/**
+ * The PRG (Post/Redirect/Get) target for a save posted from (requested_tab,
+ * requested_sub). PURE — the GET 301 and this POST resolver share
+ * sn_admin_canonical_destination() so a save lands on the same canonical sub-tab a
+ * bookmark would. A moved leaf / legacy slug is rewritten; a current top tab passes
+ * through with its sub preserved; an unknown tab falls back to dashboard (matching
+ * pre-refactor behaviour). Extracted so the wiring is unit-testable
+ * (sn_handle_admin_post itself ends in header()+exit and can't be driven by a fixture).
+ *
+ * @since 6.18.0
+ * @param string $requested_tab
+ * @param string $requested_sub
+ * @return array{tab:string,sub:?string,anchor:?string}
+ */
+function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
+	$dest = sn_admin_canonical_destination( $requested_tab, $requested_sub );
+	if ( null !== $dest ) {
+		return array(
+			'tab'    => $dest['tab'],
+			'sub'    => ! empty( $dest['sub'] ) ? $dest['sub'] : null,
+			'anchor' => ! empty( $dest['anchor'] ) ? $dest['anchor'] : null,
+		);
+	}
+	$top_tabs = array_column( sn_admin_top_tabs(), 'tab' );
+	if ( in_array( $requested_tab, $top_tabs, true ) ) {
+		return array( 'tab' => $requested_tab, 'sub' => ( '' !== (string) $requested_sub ? $requested_sub : null ), 'anchor' => null );
+	}
+	return array( 'tab' => 'dashboard', 'sub' => null, 'anchor' => null );
+}
+
+/**
  * If the current request has a legacy ?tab=<slug> OR is on a legacy
  * ?page=sn-<slug> URL whose tab is no longer top-level, 301-redirect
  * to the canonical destination + URL fragment.
@@ -109,47 +207,37 @@ function sn_admin_legacy_redirect_map() {
  * @since 3.8.0
  */
 function sn_admin_maybe_redirect_legacy() {
-	$top_tabs = array_column( sn_admin_top_tabs(), 'tab' );
-	$map      = sn_admin_legacy_redirect_map();
-
-	// Source 1: explicit ?tab=<slug>
+	// Source 1: explicit ?tab=<slug> (+ ?sub=<leaf> for moved-leaf bookmarks).
 	$requested_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+	$requested_sub = isset( $_GET['sub'] ) ? sanitize_text_field( wp_unslash( $_GET['sub'] ) ) : '';
 
-	// Source 2: derive from ?page=sn-<slug>
+	// Source 2: derive the tab from ?page=sn-<slug> when ?tab= is absent.
 	if ( ! $requested_tab && isset( $_GET['page'] ) ) {
-		$current_slug  = sanitize_text_field( wp_unslash( $_GET['page'] ) );
-		// sn_admin_page_tab_for_slug() returns the tab name for a given
-		// legacy page slug; v3.8.0+ also recognizes new top-tab slugs
-		// (sn-site, sn-security, etc.) and returns their canonical tab.
-		$requested_tab = sn_admin_page_tab_for_slug( $current_slug );
+		// sn_admin_page_tab_for_slug() maps legacy + retired page slugs to a tab name
+		// (sn-automation → automation → connections via the redirect map).
+		$requested_tab = sn_admin_page_tab_for_slug( sanitize_text_field( wp_unslash( $_GET['page'] ) ) );
 	}
 
 	if ( ! $requested_tab ) {
-		return;  // No tab in URL; default dispatcher will use 'dashboard'.
+		return;  // No tab in URL; the dispatcher defaults to 'dashboard'.
 	}
 
-	// If the requested tab is already a NEW top tab, nothing to redirect.
-	if ( in_array( $requested_tab, $top_tabs, true ) ) {
+	// v6.18.0: one resolver for GET 301 + POST PRG. null = already canonical.
+	$dest = sn_admin_canonical_destination( $requested_tab, $requested_sub );
+	if ( null === $dest ) {
 		return;
 	}
 
-	// If it's a legacy slug, look up canonical destination.
-	if ( ! isset( $map[ $requested_tab ] ) ) {
-		return;  // Unknown slug; let the dispatcher fall through to dashboard.
+	$url = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $dest['tab'] ) );
+	if ( ! empty( $dest['sub'] ) ) {
+		$url .= '&sub=' . rawurlencode( $dest['sub'] );
+	}
+	if ( ! empty( $dest['anchor'] ) ) {
+		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
 	}
 
-	$canonical = $map[ $requested_tab ];
-	$url       = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $canonical['tab'] ) );
-	// v3.8.1: include &sub= query arg for sub-tab routing
-	if ( ! empty( $canonical['sub'] ) ) {
-		$url .= '&sub=' . rawurlencode( $canonical['sub'] );
-	}
-	if ( ! empty( $canonical['anchor'] ) ) {
-		$url .= '#sn-sec-' . rawurlencode( $canonical['anchor'] );
-	}
-
-	// Raw header() because wp_safe_redirect() strips the fragment.
-	// Same-host admin URL, no user input in destination → safe.
+	// Raw header() because wp_safe_redirect() strips the fragment. Same-host admin
+	// URL built from a fixed allow-listed destination, no user input → safe.
 	header( 'Location: ' . $url, true, 301 );
 	exit;
 }
@@ -176,6 +264,12 @@ function sn_admin_page_tab_for_slug( $slug ) {
 		if ( $page['slug'] === $slug ) {
 			return $page['tab'];
 		}
+	}
+	// v6.18.0: retired top-tab slugs (Phase 2 IA) resolve to their old tab name so
+	// the redirect map can 301 them to the new home (sn-automation → automation → connections).
+	$retired = array( 'sn-automation' => 'automation' );
+	if ( isset( $retired[ $slug ] ) ) {
+		return $retired[ $slug ];
 	}
 	return 'dashboard';
 }
