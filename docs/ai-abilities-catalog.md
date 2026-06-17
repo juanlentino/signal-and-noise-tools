@@ -2,6 +2,8 @@
 
 This is the canonical reference for the 29 Signal & Noise WordPress 7.0 Abilities (12 theme + 17 plugin) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and future AI tool harvesters. When [WordPress/desktop-mode PR #240](https://github.com/WordPress/desktop-mode/pull/240) lands the Agents framework with step 3's Abilities-as-tools bridge, every entry below auto-promotes to an LLM-callable tool with its `input_schema` becoming the function signature. Verified against the actual registrations in [theme abilities](https://github.com/juanlentino/signal-and-noise/blob/main/inc/abilities-registration.php) + [plugin abilities](https://github.com/juanlentino/signal-and-noise-tools/blob/main/inc/abilities-registration.php). Last verified against theme v9.1.2 + plugin v3.7.4.
 
+> **⚠️ Stale — not a complete list.** Last verified against plugin **v3.7.4** (current: v6.19.3). It documents 17 plugin abilities, but the plugin now registers roughly **42**. The **live registry is the source of truth** — run the `signal-noise/list-abilities` ability or read `inc/abilities-*.php`. Treat this file as prose context, not a version-accurate or exhaustive catalog.
+
 ## Quick reference
 
 | Slug | Category | Capability | Input | One-line description |
