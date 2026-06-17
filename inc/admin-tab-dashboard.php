@@ -167,6 +167,9 @@ function snt_dashboard_tab_render() {
 	);
 	echo '</section>';
 
+	// ── 1b. WAYFINDING ── home hub: jump into the 7-tab IA (registry-derived, v6.19.0)
+	snt_dashboard_render_wayfinding();
+
 	// ── 2. RECENT DEPLOYS ── clean list
 	echo '<h2 class="sn-section-h">Recent deploys</h2>';
 	if ( empty( $runs ) ) {
@@ -274,6 +277,49 @@ function snt_dashboard_render_state_card( $label, $value, $meta ) {
 	echo '<p class="sn-state-card__label">' . esc_html( $label ) . '</p>';
 	echo '<p class="sn-state-card__value">' . esc_html( $value ) . '</p>';
 	echo '<p class="sn-state-card__meta">' . wp_kses_post( $meta ) . '</p>';
+	echo '</div>';
+}
+
+/**
+ * Wayfinding grid (admin refactor Phase 4) — turns the Dashboard landing tab into a
+ * home hub. One native .sn-card per top tab (minus Dashboard itself), each linking to
+ * ?page=<slug> with the tab's label + its registry `subtitle` as the "what's here"
+ * blurb. REGISTRY-DERIVED from sn_admin_top_tabs(): it auto-reflects the v6.18.0
+ * 7-tab IA + the sn-content / sn-connections slugs with no second list to maintain.
+ * Server-rendered, no JS, native components only.
+ *
+ * @return void
+ */
+function snt_dashboard_render_wayfinding() {
+	$tabs = function_exists( 'sn_admin_top_tabs' ) ? sn_admin_top_tabs() : array();
+	if ( empty( $tabs ) ) {
+		return;
+	}
+
+	echo '<h2 class="sn-section-h">Jump to</h2>';
+	echo '<div class="sn-card-grid">';
+	foreach ( $tabs as $tab ) {
+		// Skip the Dashboard's own card — you're already here.
+		if ( 'dashboard' === ( $tab['tab'] ?? '' ) ) {
+			continue;
+		}
+		$slug = isset( $tab['slug'] ) ? (string) $tab['slug'] : '';
+		if ( '' === $slug ) {
+			continue;
+		}
+		$label = isset( $tab['label'] ) && '' !== $tab['label'] ? (string) $tab['label'] : $slug;
+		$desc  = isset( $tab['subtitle'] ) ? (string) $tab['subtitle'] : '';
+		$url   = admin_url( 'admin.php?page=' . rawurlencode( $slug ) );
+
+		echo '<div class="sn-card">';
+		echo '<strong>' . esc_html( $label ) . '</strong>';
+		if ( '' !== $desc ) {
+			echo '<p class="sn-helper">' . esc_html( $desc ) . '</p>';
+		}
+		echo '<a class="button" href="' . esc_url( $url ) . '">'
+			. esc_html( sprintf( 'Open %s', $label ) ) . ' &rarr;</a>';
+		echo '</div>';
+	}
 	echo '</div>';
 }
 
