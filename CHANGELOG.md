@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.17.1] - 2026-06-17 — Admin render registry (refactor Phase 1, behaviour-preserving)
+
+**Headline:** The admin settings screen now dispatches rendering through a data-driven registry instead of a 130-line hand-written `switch` — invisible to the user, but it's the foundation for the upcoming admin IA + consistency + dashboard work. No settings, surfaces, or output change.
+
+### Changed
+
+- **Registry-driven admin render dispatch.** Each tab/sub-tab in `sn_admin_top_tabs()` now declares a `render` function; a single dispatcher (`sn_admin_render_active_tab()`, [inc/admin-dispatch.php](inc/admin-dispatch.php)) reads the active tab/sub-tab and renders the sub-tab nav, the in-page TOC (where applicable), and the active leaf — replacing the `if/elseif` chain in `sn_theme_options_page()` ([inc/admin-page.php](inc/admin-page.php)). The do_action-backed arms moved to named wrapper functions ([inc/admin-render-sections.php](inc/admin-render-sections.php)) so every leaf's renderer is a real, `function_exists`-verifiable name. Byte-identical output, guarded by a new contract+routing test ([tests/admin-registry.php](tests/admin-registry.php), 36 assertions) plus the unchanged render-smoke oracle. [inc/admin-tabs-data.php](inc/admin-tabs-data.php)
+- **POST page allowlist is registry-derived.** `sn_handle_admin_post()` now accepts a page if it's in the canonical/legacy slugs *or* the registry's top-tab slugs (`sn_admin_post_allowed_pages()`), so a tab added in a later phase is allowed automatically — closing the second-list-to-forget trap. [inc/admin-post-handler.php](inc/admin-post-handler.php)
+
+> **Why PATCH:** internal refactor only — no user-visible change, no settings-schema change, no public-API removal (`sn_theme_options_page()` and every section renderer are preserved). Phase 1 of a planned 4-phase admin refactor (IA · consistency · dashboard follow).
+
 ## [6.17.0] - 2026-06-15 — Availability line + WebSub feed push (D5 + D4, plugin half)
 
 **Headline:** Two indie-web wins. An owner-edited **availability line** (Identity settings) the theme surfaces in the `/contact` + `/services` heroes, and **WebSub** — the push counterpart to IndexNow — that notifies a hub on publish so feed readers get your new posts instantly instead of polling.
