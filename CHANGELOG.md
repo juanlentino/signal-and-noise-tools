@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.19.1] - 2026-06-17 — Dashboard declutter (refactor Phase 3)
+
+**Headline:** Removes the v6.19.0 "Jump to" wayfinding grid — it duplicated navigation already present in the top tab bar *and* the WP sidebar submenu, adding visual weight without adding a way to get anywhere new. The Dashboard's at-a-glance status (Site-state + External-APIs + RSS) is now grouped at the top, above the activity and action sections.
+
+### Removed
+
+- **Wayfinding grid on the Dashboard tab** (`snt_dashboard_render_wayfinding()`, added in v6.19.0). It was a third, bulkier copy of the same six tab links already in the in-page tab bar and the sidebar. [inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)
+
+### Improved
+
+- **Tighter information hierarchy on the Dashboard tab.** The External-APIs rate-limit and RSS-activity status summaries moved up to sit directly beneath the Site-state grid, so the top of the page reads as one complete "where things stand" block — then Recent deploys (activity), then Maintenance (actions), then Diagnostics. No new card or pill styles; reuses the existing native treatment. Guarded by a new render-order test ([tests/dashboard-layout.php](tests/dashboard-layout.php), 7 assertions).
+
+> **Why PATCH:** UX/consistency polish of an existing surface — reverts an internal v6.19.0 render helper and reorders sections. No public-API removal, no settings-schema change, no new capability. Phase 3 of the admin refactor (consistency standard), scoped to the Dashboard tab.
+
 ## [6.19.0] - 2026-06-17 — Dashboard as home: wayfinding grid (refactor Phase 4)
 
 **Headline:** The plugin's Dashboard landing tab gains a **"Jump to" wayfinding grid** — a native card per top tab linking straight into the reorganized 7-tab IA, so the home tab is a place you navigate *from*, not just a status readout. The capstone to the v6.18.0 IA restructure.
