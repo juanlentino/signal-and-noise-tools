@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.19.2] - 2026-06-17 — Consolidate the analytics dashboard widgets (4 → 2)
+
+**Headline:** The plugin's four separate WP-dashboard analytics widgets are merged into two — **Analytics — Overview** (Right now + the 7-day KPI grid) and **Analytics — Top content** (top pages + top sources) — cutting the plugin's footprint on the WordPress home from four scattered boxes to two intentional ones.
+
+### Improved
+
+- **Four analytics dashboard widgets consolidated into two.** "Analytics — Overview" pairs the live visitor count with the 7-day KPI tiles; "Analytics — Top content" pairs the top-pages and top-sources lists. Each section carries a small subhead and the two merged widgets show a single "Open Analytics →" footer instead of four. The four render functions are retained as composable sub-renderers (a new `$standalone` flag drops the inner footer/label when composed), so all existing per-tile behaviour — Engaged/Filtered signal-vs-noise, em-dash vs measured-zero — is unchanged. Reuses the existing `.sn-aw-*` styles (one new `.sn-aw-subhead` rule). [inc/analytics-widget.php](inc/analytics-widget.php), [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css)
+- **Dashboard layout preserved.** The two merged widgets reuse two existing widget IDs (`sn_plausible_snapshot` → Overview, `sn_plausible_pages` → Top content) so their saved positions on the dashboard stick; the two dropped IDs orphan harmlessly. Still gated on `view_stats`/`manage_options`. Guarded by [tests/analytics-widget.php](tests/analytics-widget.php) (now 24 assertions, incl. registration count + single-footer render-smoke).
+
+> **Why PATCH:** consolidation of existing widgets — no *new* dashboard widgets (count goes 4 → 2, honoring the standing no-new-widgets line), no new capability, no settings-schema change, no public-API removal. The AI Capabilities / AI Status widgets are WP core / the `ai` plugin, not ours, and are untouched.
+
 ## [6.19.1] - 2026-06-17 — Dashboard declutter (refactor Phase 3)
 
 **Headline:** Removes the v6.19.0 "Jump to" wayfinding grid — it duplicated navigation already present in the top tab bar *and* the WP sidebar submenu, adding visual weight without adding a way to get anywhere new. The Dashboard's at-a-glance status (Site-state + External-APIs + RSS) is now grouped at the top, above the activity and action sections.
