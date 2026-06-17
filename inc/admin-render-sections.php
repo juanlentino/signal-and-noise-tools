@@ -1,0 +1,68 @@
+<?php
+/**
+ * Signal & Noise — admin leaf render wrappers.
+ *
+ * One named render function per do_action-backed / composite admin sub-tab, so
+ * the registry (sn_admin_top_tabs) can reference render functions by NAME and a
+ * contract test can verify each exists. Each wrapper reproduces, verbatim, the
+ * arm previously inlined in inc/admin-page.php's switch (Phase 1 of the admin
+ * refactor — behaviour-preserving). Phase 3 normalizes these to the shared
+ * section standard.
+ *
+ * @package SignalNoiseTools
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/** Dashboard landing (no sub-tabs): the hero/cards/diagnostics hook. */
+function sn_admin_render_dashboard() {
+	do_action( 'sn_admin_dashboard_extras' );
+}
+
+/** Site → Cloudflare. */
+function sn_admin_render_cloudflare_section() {
+	sn_admin_render_section( 'cloudflare', function () { do_action( 'sn_admin_cloudflare_tab' ); } );
+}
+
+/** Automation → Cron. */
+function sn_admin_render_cron_section() {
+	sn_admin_render_section( 'cron', function () { do_action( 'sn_admin_cron_tab' ); } );
+}
+
+/** Automation → Webhooks. */
+function sn_admin_render_webhooks_section() {
+	sn_admin_render_section( 'webhooks', function () { do_action( 'sn_admin_webhooks_tab' ); } );
+}
+
+/** Monitoring → Health. */
+function sn_admin_render_health_section() {
+	sn_admin_render_section( 'health', function () { do_action( 'sn_admin_health_tab' ); } );
+}
+
+/** Monitoring → Insights. */
+function sn_admin_render_insights_section() {
+	sn_admin_render_section( 'insights', function () { do_action( 'sn_admin_insights_tab' ); } );
+}
+
+/** Tools → Reading Time. */
+function sn_admin_render_reading_time_section() {
+	sn_admin_render_section( 'reading-time', function () { do_action( 'sn_admin_reading_time_tab' ); } );
+}
+
+/** Tools → Block Migrations. */
+function sn_admin_render_block_migrations_section() {
+	sn_admin_render_section( 'block-migrations', function () { do_action( 'sn_admin_block_migrations_tab' ); } );
+}
+
+/** Monitoring → RSS (with the not-installed fallback notice, verbatim). */
+function sn_admin_render_rss_section() {
+	sn_admin_render_section( 'rss', function () {
+		if ( has_action( 'sn_admin_rss_tab' ) ) {
+			do_action( 'sn_admin_rss_tab' );
+		} else {
+			echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
+			echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
+		}
+	} );
+}
