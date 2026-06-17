@@ -80,15 +80,16 @@ function sn_admin_legacy_redirect_map() {
 		'social'       => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'social' ),       // v3.8.1: previously inner section, now redirectable
 		'open-graph'   => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'open-graph' ),   // v3.8.1
 		'seo-copy'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'seo-copy' ),     // v3.8.1
-		'cloudflare'   => array( 'tab' => 'site',       'sub' => 'cloudflare',        'anchor' => null ),
-		'login'        => array( 'tab' => 'security',   'sub' => 'login',             'anchor' => null ),
-		'webhooks'     => array( 'tab' => 'automation', 'sub' => 'webhooks',          'anchor' => null ),
-		'cron'         => array( 'tab' => 'automation', 'sub' => 'cron',              'anchor' => null ),
-		'insights'     => array( 'tab' => 'monitoring', 'sub' => 'insights',          'anchor' => null ),
-		'health'       => array( 'tab' => 'monitoring', 'sub' => 'health',            'anchor' => null ),
-		'rss'          => array( 'tab' => 'monitoring', 'sub' => 'rss',               'anchor' => null ),
-		'reading-time' => array( 'tab' => 'tools',      'sub' => 'reading-time',      'anchor' => null ),
-		'links'        => array( 'tab' => 'tools',      'sub' => 'links',             'anchor' => null ),
+		'cloudflare'   => array( 'tab' => 'connections', 'sub' => 'cloudflare',        'anchor' => null ),  // v6.18.0: Site → Connections
+		'login'        => array( 'tab' => 'security',    'sub' => 'login',             'anchor' => null ),
+		'webhooks'     => array( 'tab' => 'connections', 'sub' => 'webhooks',          'anchor' => null ),  // v6.18.0: Automation → Connections
+		'cron'         => array( 'tab' => 'connections', 'sub' => 'cron',              'anchor' => null ),  // v6.18.0
+		'insights'     => array( 'tab' => 'monitoring',  'sub' => 'insights',          'anchor' => null ),
+		'health'       => array( 'tab' => 'monitoring',  'sub' => 'health',            'anchor' => null ),
+		'rss'          => array( 'tab' => 'content',     'sub' => 'rss',               'anchor' => null ),  // v6.18.0: Monitoring → Content
+		'reading-time' => array( 'tab' => 'content',     'sub' => 'reading-time',      'anchor' => null ),  // v6.18.0: Tools → Content
+		'links'        => array( 'tab' => 'tools',       'sub' => 'links',             'anchor' => null ),
+		'automation'   => array( 'tab' => 'connections', 'sub' => null,                'anchor' => null ),  // v6.18.0: retired top tab → Connections
 	);
 }
 

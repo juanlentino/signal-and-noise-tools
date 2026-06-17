@@ -174,7 +174,7 @@ foreach ( $tabs as $legacy_tab ) {
 }
 // v3.0.0 regression spot-check: Cron's redirect is still wired.
 tabs_assert_true( isset( $map['cron'] ), "'cron' has a legacy redirect entry (v3.0.0 regression guard)" );
-tabs_assert_eq( 'automation', $map['cron']['tab'], "'cron' redirects to 'automation' (Cron is now a sub-tab)" );
+tabs_assert_eq( 'connections', $map['cron']['tab'], "'cron' redirects to 'connections' (Cron moved under Connections in v6.18.0)" );
 tabs_assert_eq( 'cron', $map['cron']['sub'], "'cron' redirects to sub-tab 'cron'" );
 
 // ─── Test 7: sn_admin_page_tab_for_slug round-trip ────────────────────

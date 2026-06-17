@@ -73,6 +73,25 @@ foreach ( $tabs as $top ) {
 	}
 }
 
+// ── Phase-2 IA structure (v6.18.0) ──
+$by_tab = array();
+foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ] = $t; }
+ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connections', 'monitoring', 'security', 'tools' ),
+	'7 top tabs in IA order' );
+ok( ( $by_tab['site']['label'] ?? '' ) === 'Identity & SEO', "site relabelled 'Identity & SEO'" );
+ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo' ),
+	'site holds only identity-and-seo (cloudflare moved out)' );
+ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'reading-time', 'performance', 'music', 'rss' ),
+	'content leaves: front-end, reading-time, performance, music, rss' );
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'cron' ),
+	'connections leaves: cloudflare, webhooks, indexnow, cron' );
+ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
+	'monitoring leaves: analytics, insights, health' );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),
+	'tools leaves: block-migrations, release-notes, links (links last)' );
+ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'audit-log' ),
+	'security leaves unchanged: login, audit-log' );
+
 // ── Dispatcher routing (Task 3) ──
 // identity-and-seo: sub-tab nav + TOC + the form, NO section wrapper.
 $GLOBALS['__calls'] = array();
@@ -80,17 +99,17 @@ sn_admin_render_active_tab( 'site', 'identity-and-seo' );
 ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'toc:site/identity-and-seo', 'form:identity' ),
 	'route site/identity-and-seo → nav + toc + form (no section wrapper)' );
 
-// cloudflare: sub-tab nav + section-wrapped do_action.
+// connections/cloudflare: sub-tab nav + section-wrapped do_action.
 $GLOBALS['__calls'] = array();
-sn_admin_render_active_tab( 'site', 'cloudflare' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'section:cloudflare', 'action:sn_admin_cloudflare_tab' ),
-	'route site/cloudflare → nav + section(cloudflare) + hook' );
+sn_admin_render_active_tab( 'connections', 'cloudflare' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:connections', 'section:cloudflare', 'action:sn_admin_cloudflare_tab' ),
+	'route connections/cloudflare → nav + section(cloudflare) + hook' );
 
-// music: function-backed leaf — section-wrapped, then the renderer fires.
+// content/music: function-backed leaf — section-wrapped, then the renderer fires.
 $GLOBALS['__calls'] = array();
-sn_admin_render_active_tab( 'monitoring', 'music' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:music', 'fn:sn_admin_render_music_section' ),
-	'route monitoring/music → nav + section(music) + music renderer' );
+sn_admin_render_active_tab( 'content', 'music' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:content', 'section:music', 'fn:sn_admin_render_music_section' ),
+	'route content/music → nav + section(music) + music renderer' );
 
 // dashboard: no sub-tab nav, tab-level render only.
 $GLOBALS['__calls'] = array();
@@ -98,11 +117,11 @@ sn_admin_render_active_tab( 'dashboard', '' );
 ok( $GLOBALS['__calls'] === array( 'action:sn_admin_dashboard_extras' ),
 	'route dashboard → tab render only (no sub-tab nav)' );
 
-// unknown sub falls back to the first leaf (insights), section-wrapped.
+// unknown sub falls back to the first leaf — monitoring's first leaf is now analytics.
 $GLOBALS['__calls'] = array();
 sn_admin_render_active_tab( 'monitoring', 'nope' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:insights', 'action:sn_admin_insights_tab' ),
-	'route monitoring/<unknown> → first leaf (insights)' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:analytics', 'fn:snt_analytics_render_settings_section' ),
+	'route monitoring/<unknown> → first leaf (analytics)' );
 
 // ── POST page allowlist is registry-derived (Task 5) ──
 // sn_admin_pages() (legacy slugs) stubbed minimal; admin-post-handler.php
@@ -114,6 +133,8 @@ require __DIR__ . '/../inc/admin-post-handler.php';
 $allow = sn_admin_post_allowed_pages();
 ok( in_array( 'sn-theme-options', $allow, true ), 'allowlist includes the canonical slug' );
 ok( in_array( 'sn-monitoring', $allow, true ), 'allowlist includes a registry top-tab slug (sn-monitoring)' );
+ok( in_array( 'sn-content', $allow, true ), 'allowlist includes the new sn-content slug' );
+ok( in_array( 'sn-connections', $allow, true ), 'allowlist includes the new sn-connections slug' );
 ok( ! in_array( 'sn-not-a-page', $allow, true ), 'allowlist rejects an unknown slug' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
