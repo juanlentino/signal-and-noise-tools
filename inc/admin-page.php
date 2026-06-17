@@ -41,9 +41,7 @@ function sn_theme_options_page() {
 	// Must run BEFORE any output so headers can still be sent.
 	sn_admin_maybe_redirect_legacy();
 
-	$theme         = wp_get_theme( 'signal-and-noise' );
-	$local_version = $theme->get( 'Version' );
-	$notices       = array();
+	$notices    = array();
 	$valid_tabs = sn_admin_page_valid_tabs();
 
 	// Dispatch order: (1) explicit ?tab=… in URL (v1.8.x legacy deep links;
@@ -90,8 +88,7 @@ function sn_theme_options_page() {
 	// always empty string on current installs. Existing leftover DB data is
 	// harmless; no migration needed.
 
-	$overrides = get_posts( array( 'post_type' => array( 'wp_template', 'wp_template_part', 'wp_navigation' ), 'posts_per_page' => -1, 'post_status' => 'any' ) );
-	$base_url  = admin_url( 'admin.php?page=sn-theme-options' );
+	$base_url = admin_url( 'admin.php?page=sn-theme-options' );
 
 	// ── PAGE SHELL ──
 	echo '<div class="wrap">';
