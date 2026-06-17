@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.19.4] - 2026-06-17 — Identity & SEO: the "Jump to" list becomes section tabs
+
+**Headline:** The Identity & SEO tab's four sections (Identity / Social / Open Graph / SEO Copy) now read as **tabs** — visually identical to the sub-tab row every other top tab uses — instead of the lone "Jump to" anchor list. Clicking a tab shows that section and hides the rest; without JavaScript the tabs degrade to in-page jump links with every section visible. The single **Save Identity Settings** button still saves all four sections together: this is presentation only, not a change to how settings are stored.
+
+### Improved
+
+- **Identity & SEO sections presented as tabs (visual parity with the other tabs).** The composite leaf's in-page navigation was the one place in the admin still using the "Jump to" `.sn-toc` list while every other multi-section tab used the `.sn-sub-tabs` pill row. `sn_admin_render_toc()` is renamed to **`sn_admin_render_section_tabs()`** and now emits that same pill nav (`.sn-sub-tabs.sn-section-tabs`) over the four `#sn-sec-*` sections, first tab marked active. [inc/admin-tabs.php](inc/admin-tabs.php), [inc/admin-dispatch.php](inc/admin-dispatch.php).
+- **One-section-at-a-time switching, progressively enhanced.** `assets/admin.js` replaces the TOC scroll-spy with `initSectionTabs()`: it upgrades the anchor nav into a WAI-ARIA tablist (roving `tabindex`, ArrowLeft/Right + Home/End, `role="tab"`/`"tabpanel"` + `aria-controls`/`aria-labelledby`), hides inactive panels via the `[hidden]` attribute, and opens the panel named by `location.hash` when present. No build step, no jQuery — same vanilla IIFE as before. The single save bar and its dirty-tracking are untouched. [assets/admin.js](assets/admin.js), [assets/admin.css](assets/admin.css).
+
+### Changed
+
+- **`sn_admin_render_toc()` → `sn_admin_render_section_tabs()`** (plugin-internal render helper; no public REST/Abilities surface). The dispatcher and its two contract/markup tests move with it.
+
+> **Why PATCH:** UX/consistency polish of an existing surface — the four sections, their single form, and the `sn_action=save_identity → sn_settings_save` save path are all unchanged; only the in-page navigation is restyled and JS-switched. No new capability, no settings-schema change, no public-API removal (the renamed helper is internal). Guarded by [tests/admin-tabs.php](tests/admin-tabs.php) (Test 9 markup contract + a new Test 10 verifying every tab target resolves to a form panel) and [tests/admin-registry.php](tests/admin-registry.php) (dispatcher call-order).
+
 ## [6.19.3] - 2026-06-17 — Login-hide: anchor the wp-login block branch to the request path
 
 **Headline:** The custom-login (`/sn-login`) intercept's "block direct `/wp-login.php`" branch now matches the parsed request **path** ending in `/wp-login.php`, instead of substring-scanning the raw `REQUEST_URI`. This closes a latent false-404: a legitimate custom-slug request whose **query string** carried the literal `wp-login.php` (e.g. `?redirect_to=wp-login.php?checkemail=registered`) was 404'd before the serve-form match. Surfaced while verifying coexistence with the WordPress **Two Factor** plugin, whose backup-method links and core's round-tripped `redirect_to` defaults can carry that substring.

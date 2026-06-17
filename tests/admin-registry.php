@@ -18,7 +18,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $GLOBALS['__calls'] = array();
 function sn_admin_render_section( $slug, $cb ) { $GLOBALS['__calls'][] = "section:$slug"; call_user_func( $cb ); }
 function sn_admin_render_sub_tabs( $tab, $sub ) { $GLOBALS['__calls'][] = "subtabs:$tab"; }
-function sn_admin_render_toc( $tab, $sub ) { $GLOBALS['__calls'][] = "toc:$tab/$sub"; }
+function sn_admin_render_section_tabs( $tab, $sub ) { $GLOBALS['__calls'][] = "sectiontabs:$tab/$sub"; }
 function do_action( $tag ) { $GLOBALS['__calls'][] = "action:$tag"; }
 function has_action( $tag ) { return true; }
 function sn_admin_render_identity_and_seo_form() { $GLOBALS['__calls'][] = 'form:identity'; }
@@ -93,11 +93,11 @@ ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'audit-log
 	'security leaves unchanged: login, audit-log' );
 
 // ── Dispatcher routing (Task 3) ──
-// identity-and-seo: sub-tab nav + TOC + the form, NO section wrapper.
+// identity-and-seo: sub-tab nav + in-form section tabs + the form, NO section wrapper.
 $GLOBALS['__calls'] = array();
 sn_admin_render_active_tab( 'site', 'identity-and-seo' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'toc:site/identity-and-seo', 'form:identity' ),
-	'route site/identity-and-seo → nav + toc + form (no section wrapper)' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'sectiontabs:site/identity-and-seo', 'form:identity' ),
+	'route site/identity-and-seo → nav + section tabs + form (no section wrapper)' );
 
 // connections/cloudflare: sub-tab nav + section-wrapped do_action.
 $GLOBALS['__calls'] = array();

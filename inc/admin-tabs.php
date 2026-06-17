@@ -15,23 +15,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Render the in-page TOC for a multi-section sub-tab (e.g., Identity & SEO
- * with its 4 inner sections: Identity / Social / Open Graph / SEO Copy).
+ * Render the in-form section tabs for a multi-section sub-tab (e.g., Identity &
+ * SEO with its 4 inner sections: Identity / Social / Open Graph / SEO Copy).
  *
  * Reads sub-sections from sn_admin_top_tabs()'s nested
  * sub_tabs[<sub>]['sub_sections']. No-op if the sub-tab has no inner
  * sub_sections defined.
  *
- * Generates: <nav class="sn-toc" aria-label="..."><a href="#sn-sec-X">…</a></nav>
+ * Renders the SAME pill nav as the cross-page sub-tab row (.sn-sub-tabs) so a
+ * composite leaf reads identically to the other top tabs — but the links are
+ * in-page anchors, not page navigations, because the 4 sections share one
+ * <form> and one Save button. assets/admin.js initSectionTabs() progressively
+ * enhances this into a panel switcher (show one section at a time, ARIA
+ * tablist, arrow-key nav); without JS the anchors degrade to jump links with
+ * every section visible (the pre-v6.19.4 behaviour). The first tab carries
+ * is-active to match the JS default-open panel.
  *
- * v3.8.1 change: now scoped to a specific sub-tab (not the whole top tab),
- * since v3.8.0's flat top-level sub_sections moved into sub_tabs in v3.8.1.
+ * Generates: <nav class="sn-sub-tabs sn-section-tabs" aria-label="...">
+ *              <a class="sn-sub-tab is-active" href="#sn-sec-X">…</a>…</nav>
  *
- * @since 3.8.0  (3.8.1 added $sub_tab_slug parameter for sub-tabs IA)
+ * v6.19.4 change: was sn_admin_render_toc() emitting a "Jump to" .sn-toc list;
+ * restyled to in-form tabs for visual parity with the other tabs' sub-tab nav.
+ *
+ * @since 3.8.0  (3.8.1 added $sub_tab_slug; 6.19.4 renamed + restyled to tabs)
  * @param string $tab_slug      The top-tab slug (e.g., 'site').
  * @param string $sub_tab_slug  The sub-tab slug (e.g., 'identity-and-seo').
  */
-function sn_admin_render_toc( $tab_slug, $sub_tab_slug ) {
+function sn_admin_render_section_tabs( $tab_slug, $sub_tab_slug ) {
 	foreach ( sn_admin_top_tabs() as $top ) {
 		if ( $top['tab'] !== $tab_slug ) {
 			continue;
@@ -40,10 +50,12 @@ function sn_admin_render_toc( $tab_slug, $sub_tab_slug ) {
 		if ( ! is_array( $sub_tab ) || empty( $sub_tab['sub_sections'] ) ) {
 			return;
 		}
-		echo '<nav class="sn-toc" aria-label="' . esc_attr( $sub_tab['label'] . ' sections' ) . '">';
-		echo '<span class="sn-toc-label">Jump to</span>';
+		echo '<nav class="sn-sub-tabs sn-section-tabs" aria-label="' . esc_attr( $sub_tab['label'] . ' sections' ) . '">';
+		$first = true;
 		foreach ( $sub_tab['sub_sections'] as $sub_slug => $sub ) {
-			echo '<a href="#sn-sec-' . esc_attr( $sub_slug ) . '">' . esc_html( $sub['label'] ) . '</a>';
+			$class = 'sn-sub-tab' . ( $first ? ' is-active' : '' );
+			echo '<a class="' . esc_attr( $class ) . '" href="#sn-sec-' . esc_attr( $sub_slug ) . '">' . esc_html( $sub['label'] ) . '</a>';
+			$first = false;
 		}
 		echo '</nav>';
 		return;

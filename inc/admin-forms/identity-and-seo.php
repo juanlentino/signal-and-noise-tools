@@ -5,8 +5,8 @@
  * Renders the bundled 4-section form (Identity / Social / Open Graph / SEO Copy)
  * saved by a single "Save Identity Settings" button (sn_action=save_identity →
  * sn_handle_save_identity → sn_settings_save). The 4 sections are emitted via
- * sn_admin_render_section() so the anchor wrappers + TOC links keep working.
- * Extracted verbatim from inc/admin-page.php in v4.5.4.
+ * sn_admin_render_section() so the #sn-sec-<slug> anchor wrappers the section
+ * tabs target keep working. Extracted verbatim from inc/admin-page.php in v4.5.4.
  *
  * @package SignalNoiseTools
  */
@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Emit the full Identity & SEO form (wrapper + 4 sections + savebar). The
- * caller renders the in-page TOC (sn_admin_render_toc) before this.
+ * caller renders the in-form section tabs (sn_admin_render_section_tabs) before
+ * this; assets/admin.js then wires them to show one section at a time.
  */
 function sn_admin_render_identity_and_seo_form() {
 	echo '<form method="post" class="sn-identity-form">';

@@ -148,55 +148,27 @@
 	background: #fffbcc;
 }
 
-/* ─── Identity tab — TOC ────────────────────────── */
+/* ─── Identity & SEO — in-form section tabs (v6.19.4) ──────────────
+   The composite leaf reuses the cross-page sub-tab pills (.sn-sub-tabs /
+   .sn-sub-tab) for visual parity with the other top tabs; .sn-section-tabs
+   only adds the bits the in-form, JS-switched variant needs. The nav inherits
+   .sn-sub-tabs' sticky positioning (top: 32px) — no cross-page sub-tab row
+   sits above it (the site tab has a single sub-tab, so that nav is hidden).
+   assets/admin.js initSectionTabs() upgrades these anchors into an ARIA
+   tablist and hides the inactive panels. Replaced the "Jump to" .sn-toc list. */
 
-.sn-toc {
-	background: var(--sn-surface);
-	border: 1px solid var(--sn-border);
-	border-radius: var(--sn-radius);
-	padding: var(--sn-space-3) var(--sn-space-4);
-	margin: 0 0 var(--sn-space-5);
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--sn-space-2) var(--sn-space-4);
-	font-size: 0.9em;
-	/* v3.8.6: sticky below sub-tab nav (32px admin bar + ~48px sub-tab nav row).
-	   z-index slightly below sub-tabs so the layering reads correctly. */
-	position: sticky;
-	top: 80px;
-	z-index: 9;
+/* The shared .sn-sub-tab:focus rule clears box-shadow, so give the tablist a
+   clear keyboard focus ring (WCAG 2.4.7). */
+.sn-section-tabs .sn-sub-tab:focus-visible {
+	outline: 2px solid var(--sn-link);
+	outline-offset: 1px;
 }
 
-.sn-toc-label {
-	color: var(--sn-text-muted);
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	font-size: 0.78em;
-	margin-right: var(--sn-space-2);
-	align-self: center;
-}
-
-.sn-toc a {
-	color: var(--sn-link);
-	text-decoration: none;
-	padding: 2px 0;
-	border-bottom: 1px solid transparent;
-	transition: border-color 0.12s ease;
-}
-
-.sn-toc a:hover,
-.sn-toc a:focus {
-	border-bottom-color: var(--sn-link);
-	outline: none;
-}
-
-/* v4.8.1: scroll-spy active state. The JS sets aria-current="true" on the
-   link whose section is currently in view (WCAG 4.1.2-A). */
-.sn-toc a[aria-current="true"] {
-	color: var(--sn-text);
-	font-weight: 600;
-	border-bottom-color: var(--sn-link);
+/* JS hides the non-active section panels via the [hidden] attribute (the
+   single source of truth). Without JS every panel stays visible and the tabs
+   act as in-page jump links. */
+.sn-identity-form .sn-fieldset[hidden] {
+	display: none;
 }
 
 /* Pull the section anchor target out from under the WP admin top bar

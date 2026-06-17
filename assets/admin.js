@@ -5,27 +5,32 @@
  * Pure vanilla JS, no jQuery, no build step. Keeps the zero-build-
  * pipeline architecture of the rest of the plugin.
  *
- * Two responsibilities — both scoped to the Identity tab via
- * `.sn-identity-form`:
+ * Responsibilities:
  *
- *   1. dirty-tracking on the sticky save bar
+ *   1. section tabs (composite leaves like Identity & SEO)
+ *      — turns the `.sn-section-tabs` in-form anchor nav into a one-panel-at-
+ *        a-time switcher (WAI-ARIA tabs pattern). Progressive enhancement:
+ *        without JS the anchors degrade to in-page jump links with every
+ *        section visible. Independent of the form below.
+ *
+ *   2. dirty-tracking on the sticky save bar (scoped to `.sn-identity-form`)
  *      — snapshots all input values on load; on any change, compares
  *        current vs initial; updates the save bar hint to show
  *        "N unsaved change(s)" or "No unsaved changes"
  *
- *   2. "+ Add another profile URL" button
+ *   3. "+ Add another profile URL" button (scoped to `.sn-identity-form`)
  *      — clones the existing input template into a new row above the
  *        button. Submission still works as social_same_as[] array.
  *
- * Added in v1.9.6 (2026-05-16).
+ * Added in v1.9.6 (2026-05-16); section tabs replaced the TOC scroll-spy in v6.19.4.
  */
 ( function () {
 	'use strict';
 
 	document.addEventListener( 'DOMContentLoaded', function () {
-		// TOC scroll-spy is independent of the Identity form — run it first
-		// so it works on any tab that renders a .sn-toc nav.
-		initTocScrollSpy();
+		// Section tabs are independent of the Identity form — run first so the
+		// switcher works on any composite leaf that renders a .sn-section-tabs nav.
+		initSectionTabs();
 
 		var form = document.querySelector( '.sn-identity-form' );
 		if ( ! form ) {
@@ -37,82 +42,106 @@
 	} );
 
 	/**
-	 * Scroll-spy: mark the TOC link for the section currently in view with
-	 * aria-current="true" (WCAG 4.1.2-A, PA-03). Vanilla, no build step.
+	 * Section tabs: turn the in-form `.sn-section-tabs` anchor nav into a
+	 * one-panel-at-a-time switcher (WAI-ARIA tabs pattern). Vanilla, no build.
 	 *
-	 * Selects `.sn-toc a[href^="#sn-sec-"]`, observes each `#sn-sec-<slug>`
-	 * target with IntersectionObserver, and sets aria-current on the topmost
-	 * intersecting section's link (removing it from the others). Graceful
-	 * no-op when there's no .sn-toc or IntersectionObserver is unavailable.
+	 * The server renders the nav as plain in-page anchors (`<a href="#sn-sec-X">`)
+	 * over the `.sn-fieldset` panels, so without JS they degrade to jump links
+	 * with every section visible (the pre-v6.19.4 behaviour). With JS we hide all
+	 * but the active panel, upgrade nav + panels to role="tablist"/"tabpanel",
+	 * and wire click + Left/Right/Home/End keyboard navigation (roving tabindex).
+	 *
+	 * No-op when there's no `.sn-section-tabs` nav or fewer than 2 resolvable
+	 * tab→panel pairs (nothing to switch between).
 	 */
-	function initTocScrollSpy() {
-		var toc = document.querySelector( '.sn-toc' );
-		if ( ! toc || typeof window.IntersectionObserver === 'undefined' ) {
+	function initSectionTabs() {
+		var nav = document.querySelector( '.sn-section-tabs' );
+		if ( ! nav ) {
 			return;
 		}
 
-		var links = Array.prototype.slice.call(
-			toc.querySelectorAll( 'a[href^="#sn-sec-"]' )
-		);
-		if ( ! links.length ) {
-			return;
-		}
-
-		// Map each section id → its TOC link, and collect observe targets.
-		var linkById = {};
-		var targets = [];
-		links.forEach( function ( link ) {
-			var id = link.getAttribute( 'href' ).slice( 1 ); // drop leading '#'
-			var target = document.getElementById( id );
-			if ( target ) {
-				linkById[ id ] = link;
-				targets.push( target );
+		// Pair each tab with its panel; skip any tab whose panel is missing.
+		var tabs = [];
+		var panels = [];
+		Array.prototype.slice.call(
+			nav.querySelectorAll( 'a[href^="#sn-sec-"]' )
+		).forEach( function ( tab ) {
+			var panel = document.getElementById( tab.getAttribute( 'href' ).slice( 1 ) );
+			if ( panel ) {
+				tabs.push( tab );
+				panels.push( panel );
 			}
 		} );
-		if ( ! targets.length ) {
-			return;
+		if ( tabs.length < 2 ) {
+			return; // nothing to switch between
 		}
 
-		var setActive = function ( id ) {
-			links.forEach( function ( link ) {
-				if ( link === linkById[ id ] ) {
-					link.setAttribute( 'aria-current', 'true' );
+		// Upgrade the nav + panels to the WAI-ARIA tabs pattern.
+		nav.setAttribute( 'role', 'tablist' );
+		tabs.forEach( function ( tab, i ) {
+			var panel = panels[ i ];
+			var tabId = 'sn-tab-' + panel.id.replace( /^sn-sec-/, '' );
+			tab.setAttribute( 'role', 'tab' );
+			tab.setAttribute( 'id', tabId );
+			tab.setAttribute( 'aria-controls', panel.id );
+			panel.setAttribute( 'role', 'tabpanel' );
+			panel.setAttribute( 'aria-labelledby', tabId );
+			panel.setAttribute( 'tabindex', '0' );
+		} );
+
+		var activate = function ( index, focusTab ) {
+			tabs.forEach( function ( tab, i ) {
+				var isActive = ( i === index );
+				if ( isActive ) {
+					tab.classList.add( 'is-active' );
 				} else {
-					link.removeAttribute( 'aria-current' );
+					tab.classList.remove( 'is-active' );
 				}
+				tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
+				tab.setAttribute( 'tabindex', isActive ? '0' : '-1' );
+				panels[ i ].hidden = ! isActive;
 			} );
+			if ( focusTab ) {
+				tabs[ index ].focus();
+			}
 		};
 
-		// First paint: mark the first link active until the observer fires.
-		setActive( links[ 0 ].getAttribute( 'href' ).slice( 1 ) );
-
-		// Click gives immediate feedback (don't wait for the scroll observer).
-		links.forEach( function ( link ) {
-			link.addEventListener( 'click', function () {
-				setActive( link.getAttribute( 'href' ).slice( 1 ) );
+		tabs.forEach( function ( tab, i ) {
+			tab.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				activate( i, false );
+			} );
+			tab.addEventListener( 'keydown', function ( e ) {
+				var next;
+				switch ( e.key ) {
+					case 'ArrowRight':
+						next = ( i + 1 ) % tabs.length;
+						break;
+					case 'ArrowLeft':
+						next = ( i - 1 + tabs.length ) % tabs.length;
+						break;
+					case 'Home':
+						next = 0;
+						break;
+					case 'End':
+						next = tabs.length - 1;
+						break;
+					default:
+						return;
+				}
+				e.preventDefault();
+				activate( next, true );
 			} );
 		} );
 
-		var visible = {};
-		var observer = new window.IntersectionObserver(
-			function ( entries ) {
-				entries.forEach( function ( entry ) {
-					visible[ entry.target.id ] = entry.isIntersecting;
-				} );
-				// Pick the topmost section currently intersecting, in DOM order.
-				for ( var i = 0; i < targets.length; i++ ) {
-					if ( visible[ targets[ i ].id ] ) {
-						setActive( targets[ i ].id );
-						break;
-					}
-				}
-			},
-			{ rootMargin: '-40% 0px -55% 0px' }
-		);
-
-		targets.forEach( function ( target ) {
-			observer.observe( target );
+		// Open the panel named by location.hash when it matches a tab, else first.
+		var initial = 0;
+		tabs.forEach( function ( tab, i ) {
+			if ( tab.getAttribute( 'href' ) === window.location.hash ) {
+				initial = i;
+			}
 		} );
+		activate( initial, false );
 	}
 
 	/**
