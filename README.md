@@ -11,9 +11,10 @@ Built on WordPress 7.0's Abilities API and AI Client: it both registers the site
 
 - **SEO** — meta descriptions, canonical handling, Open Graph, and cache excludes (replaces a third-party SEO plugin)
 - **Security** — HTTP security headers, login hardening / custom login slug, WP hardening
-- **Analytics** — self-hosted Plausible Stats API client with a stale-while-revalidate cache and grandfathered dashboard widgets
+- **Analytics** — first-party, cookieless edge analytics: a Cloudflare Worker collects pageviews into Cloudflare Analytics Engine, server-side SQL rollups aggregate them into durable tables, and a server-rendered dashboard reads them (a legacy Plausible Stats client + its widgets remain grandfathered)
 - **Edge cache** — automatic Cloudflare purge on save / theme update
-- **Admin UI** — a tabbed settings surface, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
+- **Music / discography** — a daily sync mirrors Muso.AI verified producer credits + Spotify album media into a cached store, exposed to the theme's `/music` page (role-filtered discography grid + featured player) via filters
+- **Admin UI** — seven intent-coherent tabs (Dashboard, Identity & SEO, Content, Connections, Monitoring, Security, Tools) plus the analytics dashboard, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
 - **AI-assisted editorial** — alt text, meta description, excerpt, OG title, brand-voice alignment, and content-opportunity suggestions, each an opt-in suggest-and-apply surface
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
@@ -26,6 +27,10 @@ The plugin coordinates with the theme through WordPress hooks rather than shared
 | `sn_purge_all_caches_result` | Plugin → Theme | Trigger the theme's cache purge, return a count |
 | `sn_self_heal_force_run_result` | Plugin → Theme | Trigger the theme's template self-heal |
 | `sn_updater_branch` / `sn_updater_force_check` | Plugin → Theme | Read / re-poll the theme updater |
+| `sn_discography_entries` | Plugin → Theme | Supply the synced Muso.AI + Spotify discography; theme renders the `[sn_discography]` grid |
+| `sn_music_featured` | Plugin → Theme | Supply the featured Spotify embed config for the `/music` hero (`[sn_music_featured]`) |
+| `sn_websub_hub` | Plugin ↔ Theme | Shared hub value — the theme advertises it in feeds, the plugin pings it on publish |
+| `identity.availability` (setting) | Plugin → Theme | Availability string the theme surfaces via `[sn_availability]` on `/contact` + `/services` |
 
 ## Requirements
 
