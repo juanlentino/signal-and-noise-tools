@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.18.0] - 2026-06-17 — Admin IA restructure: 7 intent-coherent tabs (refactor Phase 2)
+
+**Headline:** The admin settings screen is regrouped from 6 intent-mixed tabs into **7 coherent ones** — Dashboard · Identity & SEO · Content · Connections · Monitoring · Security · Tools. Cloudflare joins Webhooks/IndexNow/Cron under **Connections**; Music + RSS join Front-End/Reading Time/Performance under **Content**; Monitoring becomes observability-only (Analytics/Insights/Health); the Tools junk-drawer is trimmed to Block Migrations/Release Notes/Links. Every old bookmark still lands in the right place.
+
+### Changed
+
+- **Information architecture: 6 → 7 top tabs**, regrouped by user intent in `sn_admin_top_tabs()` ([inc/admin-tabs-data.php](inc/admin-tabs-data.php)). "Site" is relabelled **Identity & SEO** (slug `sn-site` unchanged); **Content** (`sn-content`) and **Connections** (`sn-connections`) are new; the `sn-automation` tab is retired into Connections. Because the registry is the single source of truth, the in-page top-tab nav, the WP sidebar submenu, render dispatch, the POST allowlist, the command palette, and the desktop-mode dock all follow automatically (the desktop-mode submenu-count == top-tab-count invariant holds at 7 == 7). Five leaves change parent tab: Cloudflare (→ Connections); Webhooks/IndexNow/Cron (→ Connections); Reading Time/Performance/Front-End (→ Content); Music/RSS (→ Content).
+
+### Added
+
+- **Sub-aware URL redirect layer** so no bookmark mis-routes after the reshuffle. A pure resolver `sn_admin_canonical_destination()` ([inc/admin-legacy-redirect.php](inc/admin-legacy-redirect.php)) — shared by the GET 301 (`sn_admin_maybe_redirect_legacy()`) and the POST save-redirect (`sn_admin_post_redirect_target()` via `sn_handle_admin_post()`) — routes every stale URL to its new home: pre-v3.8 flat slugs (`?tab=cloudflare`, `?page=sn-cloudflare`), the retired `?page=sn-automation` page slug, and the post-v3.8 canonical `?tab=<top>&sub=<leaf>` form for a leaf that changed parent tab (`sn_admin_subtab_moves()`). Behaviourally tested ([tests/admin-ia-redirect.php](tests/admin-ia-redirect.php)) for every moved leaf, already-canonical no-op (loop-safety), legacy slug, and the POST PRG glue.
+
+### Removed
+
+- Dead `get_posts( posts_per_page => -1 )` template-override scan in `sn_theme_options_page()` that ran on **every** SN admin pageview and was never read, plus two unused version locals. [inc/admin-page.php](inc/admin-page.php)
+
+> **Why MINOR:** user-visible reorganization of the admin surface (new tab structure + two new page slugs), additive and fully back-compatible — every old admin URL 301s/302s to its new home via the redirect layer. No settings-schema change (no `sn_settings` subtree moved; preserve-block discipline untouched), no public-API removal (`sn_admin_top_tabs()`, every render function, and every save handler are preserved). Phase 2 of the 4-phase admin refactor (Phase 1 registry shipped in 6.17.1; consistency + dashboard-as-home follow).
+
 ## [6.17.1] - 2026-06-17 — Admin render registry (refactor Phase 1, behaviour-preserving)
 
 **Headline:** The admin settings screen now dispatches rendering through a data-driven registry instead of a 130-line hand-written `switch` — invisible to the user, but it's the foundation for the upcoming admin IA + consistency + dashboard work. No settings, surfaces, or output change.

@@ -495,7 +495,7 @@ function snt_cron_site_health_result() {
 		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-noise-tools' ) . '</p>';
 	}
 
-	$cron_tab_url = admin_url( 'admin.php?page=sn-automation&tab=cron' );
+	$cron_tab_url = admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' );
 
 	return array(
 		'label'       => __( 'Signal & Noise cron pipeline', 'signal-noise-tools' ),
