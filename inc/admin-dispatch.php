@@ -32,10 +32,10 @@ function sn_admin_tab_entry( $tab_slug ) {
 
 /**
  * Generic, registry-driven render dispatcher. Renders the sub-tab nav, the
- * in-page TOC when the active sub-tab has sub_sections, and the active leaf's
- * declared render fn — wrapping function/do_action leaves in
+ * in-form section tabs when the active sub-tab has sub_sections, and the active
+ * leaf's declared render fn — wrapping function/do_action leaves in
  * sn_admin_render_section(), but NOT the composite identity-and-seo leaf (which
- * owns its TOC + form, matching pre-refactor behaviour). A landing tab with no
+ * owns its section tabs + form, matching pre-refactor behaviour). A landing tab with no
  * sub_tabs (Dashboard) calls its tab-level render directly. An unknown sub-tab
  * falls back to the first leaf (parity with the old switch defaults).
  *
@@ -67,10 +67,11 @@ function sn_admin_render_active_tab( $active_tab, $active_sub ) {
 		return;
 	}
 
-	// Composite leaf (its own TOC + form, e.g. identity-and-seo): render the TOC
-	// then call the leaf render bare — no section wrapper (pre-refactor parity).
+	// Composite leaf (its own section tabs + form, e.g. identity-and-seo): render
+	// the section tabs then call the leaf render bare — no section wrapper
+	// (pre-refactor parity; the 4 sections share one form/Save).
 	if ( ! empty( $leaf['sub_sections'] ) ) {
-		sn_admin_render_toc( $active_tab, $leaf_slug );
+		sn_admin_render_section_tabs( $active_tab, $leaf_slug );
 		call_user_func( $render );
 		return;
 	}

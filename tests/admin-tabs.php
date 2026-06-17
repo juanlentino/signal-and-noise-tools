@@ -56,7 +56,7 @@ if ( ! function_exists( 'add_menu_page' ) ) {
 if ( ! function_exists( 'add_submenu_page' ) ) {
 	function add_submenu_page() { return ''; }
 }
-// Escaping stubs — needed by sn_admin_render_toc()'s output (Test 9).
+// Escaping stubs — needed by sn_admin_render_section_tabs()'s output (Test 9).
 if ( ! function_exists( 'esc_attr' ) ) {
 	function esc_attr( $s ) {
 		return str_replace( array( '&', '"', "'", '<', '>' ), array( '&amp;', '&quot;', '&#039;', '&lt;', '&gt;' ), (string) $s );
@@ -213,20 +213,26 @@ foreach ( sn_admin_top_tabs() as $p ) {
 }
 tabs_assert_eq( '', sn_admin_page_subtitle_for_tab( 'nonexistent-tab' ), 'unknown tab returns empty string' );
 
-// ─── Test 9: sn_admin_render_toc() selector contract (v4.8.1, T8) ─────
-// The Identity-tab scroll-spy JS (assets/admin.js initTocScrollSpy) selects
-// `.sn-toc a[href^="#sn-sec-"]` and observes `#sn-sec-<slug>` targets. This
-// guards the markup contract that selector depends on: the TOC renders a
-// `.sn-toc` nav with one `<a href="#sn-sec-<slug>">` per sub_section, and the
-// slugs match what sn_admin_render_section() emits as section ids.
-echo "\nTest 9: sn_admin_render_toc() emits the .sn-toc + #sn-sec-<slug> selector contract\n";
+// ─── Test 9: sn_admin_render_section_tabs() selector contract (v6.19.4) ─────
+// The composite Identity & SEO leaf renders its 4 sub-sections as in-form
+// section tabs (visually identical to the cross-page sub-tab nav the other top
+// tabs use), enhanced by assets/admin.js initSectionTabs() into a JS panel
+// switcher. Without JS the anchors degrade to in-page jump links (all panels
+// visible). This guards the markup contract the JS depends on: a
+// `.sn-sub-tabs.sn-section-tabs` nav with one `<a class="sn-sub-tab"
+// href="#sn-sec-<slug>">` per sub_section, the first one marked is-active, and
+// slugs matching what sn_admin_render_section() emits as section ids.
+echo "\nTest 9: sn_admin_render_section_tabs() emits the .sn-section-tabs + #sn-sec-<slug> selector contract\n";
 ob_start();
-sn_admin_render_toc( 'site', 'identity-and-seo' );
-$toc_html = ob_get_clean();
+sn_admin_render_section_tabs( 'site', 'identity-and-seo' );
+$nav_html = ob_get_clean();
 
-tabs_assert_true( false !== strpos( $toc_html, 'class="sn-toc"' ), 'TOC nav carries class="sn-toc" (JS root selector)' );
+// Reuses .sn-sub-tabs (visual parity with the cross-page sub-tab nav) plus the
+// .sn-section-tabs hook the JS enhancer targets.
+tabs_assert_true( false !== strpos( $nav_html, 'class="sn-sub-tabs sn-section-tabs"' ), 'nav carries class="sn-sub-tabs sn-section-tabs" (visual parity + JS root selector)' );
+tabs_assert_true( false === strpos( $nav_html, 'sn-toc' ), 'old .sn-toc "Jump to" markup is gone' );
 
-// One <a href="#sn-sec-<slug>"> per sub_section of site/identity-and-seo.
+// One <a class="sn-sub-tab" href="#sn-sec-<slug>"> per sub_section of site/identity-and-seo.
 $sub_sections = array();
 foreach ( sn_admin_top_tabs() as $top ) {
 	if ( 'site' === $top['tab'] ) {
@@ -236,13 +242,52 @@ foreach ( sn_admin_top_tabs() as $top ) {
 }
 tabs_assert_true( count( $sub_sections ) > 0, 'site/identity-and-seo defines sub_sections (fixture sanity)' );
 
-$anchor_count = preg_match_all( '/<a href="#sn-sec-[a-z0-9\-]+"/', $toc_html );
-tabs_assert_eq( count( $sub_sections ), $anchor_count, 'one #sn-sec-<slug> anchor per sub_section' );
+$tab_count = preg_match_all( '/<a class="sn-sub-tab[^"]*" href="#sn-sec-[a-z0-9\-]+"/', $nav_html );
+tabs_assert_eq( count( $sub_sections ), $tab_count, 'one .sn-sub-tab anchor per sub_section' );
 
 foreach ( $sub_sections as $slug ) {
 	tabs_assert_true(
-		false !== strpos( $toc_html, 'href="#sn-sec-' . $slug . '"' ),
-		"anchor present for sub_section '$slug' (matches #sn-sec-$slug observe target)"
+		false !== strpos( $nav_html, 'href="#sn-sec-' . $slug . '"' ),
+		"tab present for sub_section '$slug' (matches #sn-sec-$slug panel target)"
+	);
+}
+
+// The first tab is the default-active panel (matches the JS initial state).
+$first_slug = $sub_sections[0];
+tabs_assert_true(
+	false !== strpos( $nav_html, '<a class="sn-sub-tab is-active" href="#sn-sec-' . $first_slug . '"' ),
+	"first tab '$first_slug' carries is-active (default-open panel)"
+);
+
+// ─── Test 10: section tabs ↔ form panels wiring (v6.19.4) ─────────────
+// The load-bearing invariant of the in-form tabs: every tab the nav emits
+// (href="#sn-sec-<slug>") must have a matching panel (id="sn-sec-<slug>") in
+// the rendered form, or assets/admin.js initSectionTabs() silently drops that
+// tab. The nav derives slugs from sub_sections data; the form passes literal
+// slugs to sn_admin_render_section() — this guards the two against drifting.
+echo "\nTest 10: every section tab has a matching form panel (#sn-sec-<slug>)\n";
+
+// Minimal stubs for the form render (beyond esc_attr/esc_html stubbed above).
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1, $b = '_wpnonce', $c = true, $d = true ) {} }
+if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $key, $default = '' ) { return $default; } }
+if ( ! function_exists( 'esc_textarea' ) ) { function esc_textarea( $s ) { return esc_html( $s ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
+require_once __DIR__ . '/../inc/admin-forms/identity-and-seo.php';
+
+ob_start();
+sn_admin_render_section_tabs( 'site', 'identity-and-seo' );
+$nav_for_wiring = ob_get_clean();
+ob_start();
+sn_admin_render_identity_and_seo_form();
+$form_html = ob_get_clean();
+
+preg_match_all( '/href="#(sn-sec-[a-z0-9\-]+)"/', $nav_for_wiring, $m );
+$tab_targets = $m[1];
+tabs_assert_true( count( $tab_targets ) > 0, 'nav emits at least one #sn-sec target (sanity)' );
+foreach ( $tab_targets as $target ) {
+	tabs_assert_true(
+		false !== strpos( $form_html, 'id="' . $target . '"' ),
+		"tab target #$target resolves to a panel id in the rendered form"
 	);
 }
 
