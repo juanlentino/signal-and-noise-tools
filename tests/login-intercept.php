@@ -231,5 +231,45 @@ assertEq( false, sn_login_request_targets_wp_admin( '/notes/x' ),           '/no
 assertEq( false, sn_login_request_targets_wp_admin( '/wp-administrator' ),  '/wp-administrator does NOT target wp-admin (segment-anchored, not prefix-substring)' );
 assertEq( false, sn_login_request_targets_wp_admin( '//notes/x' ),          '//notes/x does NOT target wp-admin' );
 
+// === Test 18: block branch is PATH-anchored — query-string 'wp-login.php' must NOT 404 the slug (v6.19.3) ===
+// The block branch previously did strpos($request_uri,'wp-login.php') on the RAW
+// REQUEST_URI (path+query), so a custom-slug request whose query carried a
+// redirect_to=...wp-login.php... value tripped block_wp_login and 404'd BEFORE the
+// serve_form path match. The WordPress Two Factor plugin's backup-method links
+// (Two_Factor_Core::login_url with redirect_to) and core's own round-tripped
+// redirect_to defaults ('wp-login.php?checkemail=registered' etc.) carry exactly that
+// substring. Anchor on the parsed PATH ending in /wp-login.php, mirroring the v4.14.2
+// allowlist PATH-anchoring; shares sn_login_request_path().
+resetIntercept();
+$_SERVER['REQUEST_URI'] = '/backend?action=validate_2fa&redirect_to=wp-login.php%3Fcheckemail%3Dregistered';
+sn_login_intercept_request();
+assertEq( true, ! empty( $GLOBALS['sn_login_serve_form'] ),     'slug + query-string wp-login.php → serve_form (not the 404 block branch)' );
+assertEq( true, empty( $GLOBALS['sn_login_block_wp_login'] ),   'slug + query-string wp-login.php → does NOT set block_wp_login' );
+
+// A frontend URL with 'wp-login.php' as a NON-terminal substring must also not block.
+resetIntercept();
+$_SERVER['REQUEST_URI'] = '/notes/why-i-renamed-wp-login.php-and-you-should-too';
+sn_login_intercept_request();
+assertEq( true, empty( $GLOBALS['sn_login_block_wp_login'] ),   'frontend path containing wp-login.php (non-terminal) does NOT block' );
+
+// === Test 19: genuine direct /wp-login.php access STILL blocks (protection preserved) ===
+resetIntercept();
+$_SERVER['REQUEST_URI'] = '/wp-login.php?action=lostpassword&error=expiredkey';
+sn_login_intercept_request();
+assertEq( true, ! empty( $GLOBALS['sn_login_block_wp_login'] ), '/wp-login.php?... (direct, with query) still blocks' );
+assertEq( true, empty( $GLOBALS['sn_login_serve_form'] ),       '/wp-login.php?... does NOT serve_form' );
+
+// Subdirectory-install direct access still blocks (path ENDS in /wp-login.php).
+resetIntercept();
+$_SERVER['REQUEST_URI'] = '/blog/wp-login.php';
+sn_login_intercept_request();
+assertEq( true, ! empty( $GLOBALS['sn_login_block_wp_login'] ), '/blog/wp-login.php (subdir install) still blocks' );
+
+// // network-path form of a genuine /wp-login.php still blocks (normalized).
+resetIntercept();
+$_SERVER['REQUEST_URI'] = '//wp-login.php';
+sn_login_intercept_request();
+assertEq( true, ! empty( $GLOBALS['sn_login_block_wp_login'] ), '//wp-login.php (network-path form) still blocks (leading slashes normalized)' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
