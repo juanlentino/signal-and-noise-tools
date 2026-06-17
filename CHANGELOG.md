@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.19.3] - 2026-06-17 — Login-hide: anchor the wp-login block branch to the request path
+
+**Headline:** The custom-login (`/sn-login`) intercept's "block direct `/wp-login.php`" branch now matches the parsed request **path** ending in `/wp-login.php`, instead of substring-scanning the raw `REQUEST_URI`. This closes a latent false-404: a legitimate custom-slug request whose **query string** carried the literal `wp-login.php` (e.g. `?redirect_to=wp-login.php?checkemail=registered`) was 404'd before the serve-form match. Surfaced while verifying coexistence with the WordPress **Two Factor** plugin, whose backup-method links and core's round-tripped `redirect_to` defaults can carry that substring.
+
+### Fixed
+
+- **`/sn-login` no longer 404s when the query string contains `wp-login.php`.** `sn_login_intercept_request()` block branch changed from `strpos( $request_uri, 'wp-login.php' )` (matched the needle *anywhere*, including a query-string value) to `str_ends_with( sn_login_request_path( $request_uri ), '/wp-login.php' )` — the same PATH-anchoring the allowlist adopted in v4.14.2, sharing the same `sn_login_request_path()` normaliser so the two checks can't drift. Genuine direct `/wp-login.php` access (incl. with a query, subdirectory installs, and the `//wp-login.php` network-path form) still blocks. [inc/login-hide.php](inc/login-hide.php). Guarded by 5 new assertions in [tests/login-intercept.php](tests/login-intercept.php) (50 total): query-string `wp-login.php` → serve_form; non-terminal `wp-login.php` substring in a frontend path → no block; direct/subdir/`//`-form `/wp-login.php` → still block.
+
+> **Why PATCH:** correctness/security-hardening of an existing routing branch — no new capability, no settings-schema change, no public-API removal. Behaviour for genuine direct `/wp-login.php` access is unchanged; only the query-string false-404 is removed. Not reachable in the normal 2FA flow (the 2FA POST carries `redirect_to` in the body, which this branch never inspects), so it is a latent fix rather than a live break.
+
 ## [6.19.2] - 2026-06-17 — Consolidate the analytics dashboard widgets (4 → 2)
 
 **Headline:** The plugin's four separate WP-dashboard analytics widgets are merged into two — **Analytics — Overview** (Right now + the 7-day KPI grid) and **Analytics — Top content** (top pages + top sources) — cutting the plugin's footprint on the WordPress home from four scattered boxes to two intentional ones.

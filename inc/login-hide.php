@@ -256,7 +256,21 @@ function sn_login_intercept_request() {
 	// `is_admin()` is false during plugins_loaded for non-admin requests,
 	// but we still gate to avoid touching legit admin-area wp-login calls
 	// (none exist in core, but plugins might).
-	if ( strpos( $request_uri, 'wp-login.php' ) !== false && ! is_admin() ) {
+	//
+	// v6.19.3: anchor on the parsed PATH ending in /wp-login.php, NOT a
+	// substring of the raw REQUEST_URI. The old `strpos( $request_uri,
+	// 'wp-login.php' )` matched the needle anywhere — including in a
+	// query-string VALUE like `?redirect_to=wp-login.php...` — so a genuine
+	// custom-slug request carrying such a value tripped this 404 branch and
+	// returned BEFORE the serve_form path match below. Reachable via the
+	// WordPress Two Factor plugin's backup-method links (Two_Factor_Core::
+	// login_url() puts redirect_to in the query string) and core's own
+	// round-tripped redirect_to defaults ('wp-login.php?checkemail=...').
+	// This mirrors the v4.14.2 allowlist PATH-anchoring (the allowlist was
+	// hardened to match PATH-only; this branch kept the raw-URI substring
+	// test — the same query-string smuggle, re-opened on the block side) and
+	// shares sn_login_request_path() so the two normalize identically.
+	if ( str_ends_with( sn_login_request_path( $request_uri ), '/wp-login.php' ) && ! is_admin() ) {
 		$GLOBALS['sn_login_block_wp_login'] = true;
 		return;
 	}
