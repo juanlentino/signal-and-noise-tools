@@ -104,7 +104,7 @@ function sn_admin_render_music_section() {
 	// ── CREDENTIALS FORM ──
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="tab" value="monitoring">';
+	echo '<input type="hidden" name="tab" value="content">';
 	echo '<input type="hidden" name="sub" value="music">';
 
 	echo '<div class="sn-fieldset">';
@@ -149,7 +149,7 @@ function sn_admin_render_music_section() {
 	// ── SYNC NOW ──
 	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="tab" value="monitoring">';
+	echo '<input type="hidden" name="tab" value="content">';
 	echo '<input type="hidden" name="sub" value="music">';
 	echo '<strong>Sync now</strong>';
 	echo '<p class="sn-helper">Runs the full Muso &rarr; Spotify &rarr; store pass immediately. Keeps the last-good discography if a source fails.</p>';

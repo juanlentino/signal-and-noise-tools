@@ -43,7 +43,7 @@ function sn_admin_render_indexnow_section() {
 	echo '</tbody></table></div>';
 
 	// ── ENABLE FORM ──
-	echo '<form method="post"><input type="hidden" name="tab" value="automation"><input type="hidden" name="sub" value="indexnow">';
+	echo '<form method="post"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="indexnow_save">';
 	echo '<div class="sn-field"><label class="sn-field-label">IndexNow</label>';
@@ -51,7 +51,7 @@ function sn_admin_render_indexnow_section() {
 	echo '<div class="sn-savebar"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
 
 	// ── ACTIONS (regenerate + backfill) ──
-	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="automation"><input type="hidden" name="sub" value="indexnow">';
+	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
 	echo '<button type="submit" name="sn_action" value="indexnow_ping_now" class="button">Submit recent content now</button> ';

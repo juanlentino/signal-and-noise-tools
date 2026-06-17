@@ -120,28 +120,18 @@ function sn_handle_admin_post() {
 	$anchor = '';
 	if ( isset( $_REQUEST['tab'] ) ) {
 		$requested_tab = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
-		$map           = sn_admin_legacy_redirect_map();
-		$top_tabs      = array_column( sn_admin_top_tabs(), 'tab' );
+		$requested_sub = isset( $_REQUEST['sub'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['sub'] ) ) : '';
 
-		if ( in_array( $requested_tab, $top_tabs, true ) ) {
-			// Already a canonical top tab; pass through.
-			$redirect_args['tab'] = $requested_tab;
-			// v3.8.1+: preserve &sub= from the request (set by sub-tab forms).
-			if ( isset( $_REQUEST['sub'] ) ) {
-				$redirect_args['sub'] = sanitize_text_field( wp_unslash( $_REQUEST['sub'] ) );
-			}
-		} elseif ( isset( $map[ $requested_tab ] ) ) {
-			// Legacy slug; rewrite to canonical destination.
-			$redirect_args['tab'] = $map[ $requested_tab ]['tab'];
-			if ( ! empty( $map[ $requested_tab ]['sub'] ) ) {
-				$redirect_args['sub'] = $map[ $requested_tab ]['sub'];
-			}
-			if ( ! empty( $map[ $requested_tab ]['anchor'] ) ) {
-				$anchor = '#sn-sec-' . rawurlencode( $map[ $requested_tab ]['anchor'] );
-			}
-		} else {
-			// Unknown slug; fall back to dashboard.
-			$redirect_args['tab'] = 'dashboard';
+		// v6.18.0: GET 301 + POST PRG share one resolver. A moved leaf (or legacy
+		// slug) is rewritten to its canonical home; a current top tab passes through
+		// with its sub preserved; an unknown tab falls back to dashboard.
+		$target               = sn_admin_post_redirect_target( $requested_tab, $requested_sub );
+		$redirect_args['tab'] = $target['tab'];
+		if ( ! empty( $target['sub'] ) ) {
+			$redirect_args['sub'] = $target['sub'];
+		}
+		if ( ! empty( $target['anchor'] ) ) {
+			$anchor = '#sn-sec-' . rawurlencode( $target['anchor'] );
 		}
 	}
 

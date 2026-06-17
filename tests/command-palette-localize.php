@@ -74,10 +74,11 @@ if ( ! function_exists( 'sn_admin_top_tabs' ) ) {
 	function sn_admin_top_tabs() {
 		return array(
 			array( 'slug' => 'sn-theme-options', 'label' => 'Dashboard' ),
-			array( 'slug' => 'sn-site',          'label' => 'Site' ),
-			array( 'slug' => 'sn-security',      'label' => 'Security' ),
-			array( 'slug' => 'sn-automation',    'label' => 'Automation' ),
+			array( 'slug' => 'sn-site',          'label' => 'Identity & SEO' ),
+			array( 'slug' => 'sn-content',       'label' => 'Content' ),
+			array( 'slug' => 'sn-connections',   'label' => 'Connections' ),
 			array( 'slug' => 'sn-monitoring',    'label' => 'Monitoring' ),
+			array( 'slug' => 'sn-security',      'label' => 'Security' ),
 			array( 'slug' => 'sn-tools',         'label' => 'Tools' ),
 		);
 	}
@@ -131,15 +132,16 @@ cpl_true( is_int( $data['notesCategoryId'] ?? null ), 'notesCategoryId is an int
 // ─── Test 2: tabs array mirrors the SSOT ────────────────────────────────
 echo "\nTest 2: tabs array mirrors sn_admin_top_tabs()\n";
 cpl_true( isset( $data['tabs'] ) && is_array( $data['tabs'] ), 'tabs is an array' );
-cpl_eq( 6, is_array( $data['tabs'] ?? null ) ? count( $data['tabs'] ) : -1, 'six tabs (one per top-level tab)' );
+cpl_eq( 7, is_array( $data['tabs'] ?? null ) ? count( $data['tabs'] ) : -1, 'seven tabs (one per top-level tab)' );
 
 $expected = array(
-	array( 'label' => 'Dashboard',  'url' => 'https://example.test/wp-admin/admin.php?page=sn-theme-options' ),
-	array( 'label' => 'Site',       'url' => 'https://example.test/wp-admin/admin.php?page=sn-site' ),
-	array( 'label' => 'Security',   'url' => 'https://example.test/wp-admin/admin.php?page=sn-security' ),
-	array( 'label' => 'Automation', 'url' => 'https://example.test/wp-admin/admin.php?page=sn-automation' ),
-	array( 'label' => 'Monitoring', 'url' => 'https://example.test/wp-admin/admin.php?page=sn-monitoring' ),
-	array( 'label' => 'Tools',      'url' => 'https://example.test/wp-admin/admin.php?page=sn-tools' ),
+	array( 'label' => 'Dashboard',      'url' => 'https://example.test/wp-admin/admin.php?page=sn-theme-options' ),
+	array( 'label' => 'Identity & SEO', 'url' => 'https://example.test/wp-admin/admin.php?page=sn-site' ),
+	array( 'label' => 'Content',        'url' => 'https://example.test/wp-admin/admin.php?page=sn-content' ),
+	array( 'label' => 'Connections',    'url' => 'https://example.test/wp-admin/admin.php?page=sn-connections' ),
+	array( 'label' => 'Monitoring',     'url' => 'https://example.test/wp-admin/admin.php?page=sn-monitoring' ),
+	array( 'label' => 'Security',       'url' => 'https://example.test/wp-admin/admin.php?page=sn-security' ),
+	array( 'label' => 'Tools',          'url' => 'https://example.test/wp-admin/admin.php?page=sn-tools' ),
 );
 cpl_eq( $expected, $data['tabs'] ?? null, 'tabs label+url mirror the SSOT in order' );
 

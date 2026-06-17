@@ -154,7 +154,7 @@ foreach ( array( 'label', 'status', 'badge', 'description', 'actions', 'test' ) 
 }
 ch_true( is_array( $res['badge'] ) && isset( $res['badge']['color'] ), 'badge.color set' );
 ch_eq( 'sn_cron_pipeline', $res['test'], "test === 'sn_cron_pipeline'" );
-ch_true( false !== strpos( (string) $res['actions'], 'sn-automation' ), 'actions link to the Cron tab' );
+ch_true( false !== strpos( (string) $res['actions'], 'tab=connections' ), 'actions link to the Cron sub-tab under Connections' );
 
 // ─── Test 3: one hook unscheduled → recommended ──────────────────────
 echo "\nTest 3: one unscheduled hook → recommended\n";
