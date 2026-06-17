@@ -94,6 +94,7 @@ require_once SNT_PATH . 'inc/admin-page.php';
 require_once SNT_PATH . 'inc/admin-tabs-data.php';
 require_once SNT_PATH . 'inc/admin-tabs.php';
 require_once SNT_PATH . 'inc/admin-render-sections.php'; // admin refactor Phase 1: named leaf render wrappers
+require_once SNT_PATH . 'inc/admin-dispatch.php';        // admin refactor Phase 1: registry-driven render dispatcher
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-menu.php';
 require_once SNT_PATH . 'inc/admin-flash-messages.php';

@@ -45,6 +45,7 @@ function sn_admin_render_front_end_form() { $GLOBALS['__calls'][] = 'fn:sn_admin
 // The dispatcher lives in its own inc/admin-dispatch.php (required from Task 3 on).
 require __DIR__ . '/../inc/admin-tabs-data.php';
 require __DIR__ . '/../inc/admin-render-sections.php';
+require __DIR__ . '/../inc/admin-dispatch.php'; // dispatcher (own file so the helper stubs above don't collide with admin-tabs.php)
 
 echo "Admin registry suite — Phase 1\n\n";
 
@@ -71,6 +72,37 @@ foreach ( $tabs as $top ) {
 			"leaf '{$top['tab']}/$slug' names an existing render fn: " . ( $sub['render'] ?? '(missing)' ) );
 	}
 }
+
+// ── Dispatcher routing (Task 3) ──
+// identity-and-seo: sub-tab nav + TOC + the form, NO section wrapper.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'site', 'identity-and-seo' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'toc:site/identity-and-seo', 'form:identity' ),
+	'route site/identity-and-seo → nav + toc + form (no section wrapper)' );
+
+// cloudflare: sub-tab nav + section-wrapped do_action.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'site', 'cloudflare' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'section:cloudflare', 'action:sn_admin_cloudflare_tab' ),
+	'route site/cloudflare → nav + section(cloudflare) + hook' );
+
+// music: function-backed leaf — section-wrapped, then the renderer fires.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'monitoring', 'music' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:music', 'fn:sn_admin_render_music_section' ),
+	'route monitoring/music → nav + section(music) + music renderer' );
+
+// dashboard: no sub-tab nav, tab-level render only.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'dashboard', '' );
+ok( $GLOBALS['__calls'] === array( 'action:sn_admin_dashboard_extras' ),
+	'route dashboard → tab render only (no sub-tab nav)' );
+
+// unknown sub falls back to the first leaf (insights), section-wrapped.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'monitoring', 'nope' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:monitoring', 'section:insights', 'action:sn_admin_insights_tab' ),
+	'route monitoring/<unknown> → first leaf (insights)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
