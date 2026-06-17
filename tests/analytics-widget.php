@@ -9,7 +9,10 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 
 define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
-if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
+$GLOBALS['__actions'] = array();
+if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $c; } }
+$GLOBALS['__widgets'] = array();
+function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( 'title' => $title, 'cb' => $cb ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
@@ -54,6 +57,40 @@ ok( strpos( $snap, '>41</div><div class="sn-aw-stat-l">Filtered<' ) !== false, '
 ok( strpos( cap( 'sn_aw_realtime' ), '<div class="sn-aw-big">7</div>' ) !== false, 'realtime: shows the visitor count in the big-number element (not CSS/footer 7s)' );
 ok( strpos( cap( 'sn_aw_pages' ), '/notes/x' ) !== false, 'pages: shows top path from new source' );
 ok( strpos( cap( 'sn_aw_sources' ), 'news.ycombinator.com' ) !== false, 'sources: shows top referrer from dims' );
+
+echo "\nGroup: consolidated into 2 widgets (Overview + Top content)\n";
+// Fire the captured wp_dashboard_setup callback to record what gets registered.
+$GLOBALS['__widgets'] = array();
+foreach ( $GLOBALS['__actions']['wp_dashboard_setup'] ?? array() as $cb ) { $cb(); }
+ok( count( $GLOBALS['__widgets'] ) === 2, 'exactly 2 dashboard widgets registered (was 4)' );
+ok( isset( $GLOBALS['__widgets']['sn_plausible_snapshot'] )
+	&& 'Analytics — Overview' === $GLOBALS['__widgets']['sn_plausible_snapshot']['title']
+	&& 'sn_aw_overview' === $GLOBALS['__widgets']['sn_plausible_snapshot']['cb'],
+	'Overview reuses the sn_plausible_snapshot id (layout preserved) + renders sn_aw_overview' );
+ok( isset( $GLOBALS['__widgets']['sn_plausible_pages'] )
+	&& 'Analytics — Top content' === $GLOBALS['__widgets']['sn_plausible_pages']['title']
+	&& 'sn_aw_top_content' === $GLOBALS['__widgets']['sn_plausible_pages']['cb'],
+	'Top content reuses the sn_plausible_pages id + renders sn_aw_top_content' );
+ok( ! isset( $GLOBALS['__widgets']['sn_plausible_realtime'] ) && ! isset( $GLOBALS['__widgets']['sn_plausible_sources'] ),
+	'old realtime + sources widget ids no longer registered (orphaned, harmless)' );
+
+echo "\nGroup: consolidated render-smoke (configured)\n";
+$GLOBALS['__pw_config']      = true;
+$GLOBALS['__pw']['totals']   = array( 'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 108000.0 );
+$GLOBALS['__pw']['realtime'] = 7;
+$GLOBALS['__pw']['paths']    = array( array( 'path' => '/notes/x', 'views' => 412 ) );
+$GLOBALS['__pw']['refs']     = array( array( 'value' => 'news.ycombinator.com', 'views' => 312 ) );
+$GLOBALS['__pw']['engaged']  = 74;
+$GLOBALS['__pw']['classes']  = array( 'human' => array( 'views' => 1163 ), 'suspect' => array( 'views' => 18 ), 'bot' => array( 'views' => 23 ) );
+$ov = cap( 'sn_aw_overview' );
+ok( strpos( $ov, 'Right now' ) !== false && strpos( $ov, 'Last 7 days' ) !== false, 'overview: Right now + Last 7 days subheads' );
+ok( strpos( $ov, '<div class="sn-aw-big">7</div>' ) !== false, 'overview: shows the realtime count' );
+ok( strpos( $ov, '1,204' ) !== false, 'overview: shows the 7-day KPI views' );
+ok( substr_count( $ov, 'Open Analytics' ) === 1, 'overview: exactly ONE Open-Analytics footer link (no double footer)' );
+$tc = cap( 'sn_aw_top_content' );
+ok( strpos( $tc, 'Top pages' ) !== false && strpos( $tc, 'Top sources' ) !== false, 'top content: Top pages + Top sources subheads' );
+ok( strpos( $tc, '/notes/x' ) !== false && strpos( $tc, 'news.ycombinator.com' ) !== false, 'top content: shows top path + top referrer' );
+ok( substr_count( $tc, 'Open Analytics' ) === 1, 'top content: exactly ONE Open-Analytics footer link' );
 
 echo "\nGroup: measured zero renders 0 (not em-dash)\n";
 $GLOBALS['__pw_config']     = true;

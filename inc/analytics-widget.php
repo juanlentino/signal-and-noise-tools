@@ -29,12 +29,13 @@ add_action( 'wp_dashboard_setup', function() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	// Widget IDs intentionally keep the sn_plausible_* prefix to preserve users'
-	// existing dashboard layout/visibility meta. The file + functions are analytics-named.
-	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Analytics — Last 7 days',      'sn_aw_snapshot' );
-	wp_add_dashboard_widget( 'sn_plausible_realtime', 'Analytics — Right now',        'sn_aw_realtime' );
-	wp_add_dashboard_widget( 'sn_plausible_pages',    'Analytics — Top pages (7d)',   'sn_aw_pages' );
-	wp_add_dashboard_widget( 'sn_plausible_sources',  'Analytics — Top sources (7d)', 'sn_aw_sources' );
+	// v6.19.2: consolidated 4 widgets → 2 (Overview = Right now + 7-day KPIs; Top
+	// content = top pages + sources) to cut dashboard clutter. Widget IDs intentionally
+	// keep the sn_plausible_* prefix to preserve users' existing dashboard layout/
+	// visibility meta — the two retained IDs anchor the merged widgets; the two dropped
+	// IDs (sn_plausible_realtime / sn_plausible_sources) orphan harmlessly.
+	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Analytics — Overview',    'sn_aw_overview' );
+	wp_add_dashboard_widget( 'sn_plausible_pages',    'Analytics — Top content', 'sn_aw_top_content' );
 } );
 
 /**
@@ -96,7 +97,13 @@ function sn_aw_preamble() {
 	return true;
 }
 
-function sn_aw_snapshot() {
+// v6.19.2: the four functions below are now SUB-RENDERERS composed by the two
+// registered widgets (sn_aw_overview / sn_aw_top_content). $standalone = true keeps
+// their original self-contained output (footer link, and the realtime label) so their
+// behaviour + tests are unchanged; the composed widgets pass false to drop the inner
+// footer/label and emit a single shared footer.
+
+function sn_aw_snapshot( $standalone = true ) {
 	if ( ! sn_aw_preamble() ) {
 		return;
 	}
@@ -118,21 +125,29 @@ function sn_aw_snapshot() {
 	$filtered = empty( $ct ) ? null : (int) ( ( $ct['suspect']['views'] ?? 0 ) + ( $ct['bot']['views'] ?? 0 ) );
 	sn_aw_stat( 'Filtered', $filtered );
 	echo '</div>';
-	sn_aw_footer();
+	if ( $standalone ) {
+		sn_aw_footer();
+	}
 }
 
-function sn_aw_realtime() {
+function sn_aw_realtime( $standalone = true ) {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		sn_aw_not_configured();
 		return;
 	}
 	$n = sn_analytics_realtime( 'human' );
-	echo '<div class="sn-aw-big-l">Visitors right now</div>';
+	if ( $standalone ) {
+		echo '<div class="sn-aw-big-l">Visitors right now</div>';
+	}
 	echo '<div class="sn-aw-big">' . esc_html( null === $n ? '—' : number_format_i18n( (int) $n ) ) . '</div>';
-	echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
+	if ( $standalone ) {
+		echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
+	} else {
+		echo '<p class="sn-aw-foot">Visitors · last 5 min · refreshes every 30 s</p>';
+	}
 }
 
-function sn_aw_pages() {
+function sn_aw_pages( $standalone = true ) {
 	if ( ! sn_aw_preamble() ) {
 		return;
 	}
@@ -141,10 +156,12 @@ function sn_aw_pages() {
 		return array( 'k' => $r['path'], 'v' => $r['views'] );
 	}, sn_analytics_top_paths( $from, $to, 'human', 7 ) );
 	sn_aw_kv_list( $rows, 'No page views in the last 7 days.' );
-	sn_aw_footer();
+	if ( $standalone ) {
+		sn_aw_footer();
+	}
 }
 
-function sn_aw_sources() {
+function sn_aw_sources( $standalone = true ) {
 	if ( ! sn_aw_preamble() ) {
 		return;
 	}
@@ -153,6 +170,39 @@ function sn_aw_sources() {
 		return array( 'k' => $r['value'], 'v' => $r['views'] );
 	}, sn_analytics_top_dimension( 'referrer', $from, $to, 'human', 7 ) );
 	sn_aw_kv_list( $rows, 'No referrers in the last 7 days.' );
+	if ( $standalone ) {
+		sn_aw_footer();
+	}
+}
+
+/**
+ * Widget 1 (v6.19.2): "Analytics — Overview" — Right now + last-7-days KPIs.
+ * Composes the realtime + snapshot sub-renderers under one config gate and one
+ * shared footer (each section gets a .sn-aw-subhead label).
+ */
+function sn_aw_overview() {
+	if ( ! sn_aw_preamble() ) {
+		return;
+	}
+	echo '<div class="sn-aw-subhead">Right now</div>';
+	sn_aw_realtime( false );
+	echo '<div class="sn-aw-subhead">Last 7 days</div>';
+	sn_aw_snapshot( false );
+	sn_aw_footer();
+}
+
+/**
+ * Widget 2 (v6.19.2): "Analytics — Top content" — top pages + top sources (7d).
+ * Composes the pages + sources sub-renderers under one config gate + shared footer.
+ */
+function sn_aw_top_content() {
+	if ( ! sn_aw_preamble() ) {
+		return;
+	}
+	echo '<div class="sn-aw-subhead">Top pages</div>';
+	sn_aw_pages( false );
+	echo '<div class="sn-aw-subhead">Top sources</div>';
+	sn_aw_sources( false );
 	sn_aw_footer();
 }
 

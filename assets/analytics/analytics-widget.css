@@ -1,8 +1,10 @@
 /*
  * Signal & Noise — dashboard-home analytics widgets (wp-admin native).
  *
- * Styles the four "Analytics — …" WP Dashboard widgets registered in
- * inc/analytics-widget.php (Last 7 days, Right now, Top pages, Top sources).
+ * Styles the two "Analytics — …" WP Dashboard widgets registered in
+ * inc/analytics-widget.php (Overview = Right now + last-7-days KPIs; Top content =
+ * top pages + top sources). Consolidated from four widgets in v6.19.2; the .sn-aw-*
+ * section classes are reused, with .sn-aw-subhead labelling each section.
  *
  * Enqueued via inc/analytics-widget.php (admin_enqueue_scripts) on the Dashboard
  * home screen (index.php) ONLY, cache-busted by SNT_VERSION — NOT echoed inline.
@@ -17,6 +19,8 @@
  * #f0f0f1 hairline · #d63638 error.
  */
 
+.sn-aw-subhead{font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#646970;margin:16px 0 8px;}
+.sn-aw-subhead:first-child{margin-top:0;}
 .sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
 .sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;font-variant-numeric:tabular-nums;}
 .sn-aw-stat-l{font-size:0.85em;color:#646970;margin-top:2px;}
