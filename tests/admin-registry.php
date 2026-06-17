@@ -57,5 +57,20 @@ foreach ( array(
 	ok( function_exists( $fn ), "wrapper $fn() is defined" );
 }
 
+// ── Every leaf names an existing render function (Task 2) ──
+$tabs = sn_admin_top_tabs();
+foreach ( $tabs as $top ) {
+	$subs = is_array( $top['sub_tabs'] ?? null ) ? $top['sub_tabs'] : array();
+	if ( empty( $subs ) ) {
+		ok( isset( $top['render'] ) && function_exists( $top['render'] ),
+			"tab '{$top['tab']}' (no sub-tabs) names an existing render fn" );
+		continue;
+	}
+	foreach ( $subs as $slug => $sub ) {
+		ok( isset( $sub['render'] ) && function_exists( $sub['render'] ),
+			"leaf '{$top['tab']}/$slug' names an existing render fn: " . ( $sub['render'] ?? '(missing)' ) );
+	}
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
