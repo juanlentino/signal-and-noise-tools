@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.19.0] - 2026-06-17 — Dashboard as home: wayfinding grid (refactor Phase 4)
+
+**Headline:** The plugin's Dashboard landing tab gains a **"Jump to" wayfinding grid** — a native card per top tab linking straight into the reorganized 7-tab IA, so the home tab is a place you navigate *from*, not just a status readout. The capstone to the v6.18.0 IA restructure.
+
+### Added
+
+- **Wayfinding grid on the Dashboard tab.** A new "Jump to" section renders one native `.sn-card` per top tab (minus Dashboard itself) — each with the tab's label, its registry `subtitle` as a one-line "what's here" blurb, and an "Open …" button linking to `?page=<slug>`. It is **registry-derived** from `sn_admin_top_tabs()`, so it auto-reflects the 7-tab IA and the new `sn-content` / `sn-connections` slugs with no second list to maintain. Server-rendered, no JS, reuses the existing native `.sn-card-grid` vocabulary (no new CSS). Sits right below the Site-state grid. [inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php), guarded by [tests/dashboard-wayfinding.php](tests/dashboard-wayfinding.php) (19 assertions, registry-derived card count).
+
+> **Why MINOR:** a new user-visible capability (dashboard navigation into every admin surface). No settings-schema change, no public-API removal. Phase 4 of the 4-phase admin refactor (Phase 1 registry v6.17.1; Phase 2 IA restructure v6.18.0; Phase 3 consistency standard still to come). The dashboard's status cards + maintenance quick-actions already shipped in earlier versions, so this completes "Dashboard-as-home" with the missing navigational layer.
+
 ## [6.18.0] - 2026-06-17 — Admin IA restructure: 7 intent-coherent tabs (refactor Phase 2)
 
 **Headline:** The admin settings screen is regrouped from 6 intent-mixed tabs into **7 coherent ones** — Dashboard · Identity & SEO · Content · Connections · Monitoring · Security · Tools. Cloudflare joins Webhooks/IndexNow/Cron under **Connections**; Music + RSS join Front-End/Reading Time/Performance under **Content**; Monitoring becomes observability-only (Analytics/Insights/Health); the Tools junk-drawer is trimmed to Block Migrations/Release Notes/Links. Every old bookmark still lands in the right place.
