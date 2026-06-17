@@ -67,6 +67,20 @@ function sn_admin_post_handlers() {
 
 add_action( 'admin_init', 'sn_handle_admin_post' );
 
+/**
+ * Pages on which an SN admin POST is accepted: the canonical + legacy slugs
+ * (sn_admin_pages) UNION the current registry top-tab slugs (sn_admin_top_tabs),
+ * so a tab added in a later phase is allowed automatically — no second list to
+ * forget (the v3.0.2 / slug-allowlist trap). admin refactor Phase 1.
+ *
+ * @return string[]
+ */
+function sn_admin_post_allowed_pages() {
+	$legacy   = function_exists( 'sn_admin_pages' ) ? array_column( sn_admin_pages(), 'slug' ) : array();
+	$registry = function_exists( 'sn_admin_top_tabs' ) ? array_column( sn_admin_top_tabs(), 'slug' ) : array();
+	return array_values( array_unique( array_merge( $legacy, $registry ) ) );
+}
+
 function sn_handle_admin_post() {
 	if ( ! isset( $_POST['sn_action'] ) ) {
 		return;
@@ -78,7 +92,7 @@ function sn_handle_admin_post() {
 	// Only process for our admin pages — guards against the handler firing for
 	// an unrelated $_POST that happens to carry sn_action.
 	$current_page = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
-	$our_slugs    = array_column( sn_admin_pages(), 'slug' );
+	$our_slugs    = sn_admin_post_allowed_pages();
 	if ( ! in_array( $current_page, $our_slugs, true ) ) {
 		return;
 	}
