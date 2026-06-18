@@ -181,6 +181,19 @@ ok( ( $body['n'] ?? '' ) === 'RSS Feed Request', 'rss: payload event name (n) = 
 ok( ( $body['u'] ?? '' ) === '/notes/feed/', 'rss: payload path (u) = the feed path' );
 ok( ( $body['srv'] ?? null ) === 1, 'rss: payload carries srv:1 (server-trusted → human in the rollup)' );
 ok( ! isset( $GLOBALS['__post_calls'][0]['args']['headers']['X-Forwarded-For'] ), 'rss: no X-Forwarded-For forwarded (worker derives its own edge context)' );
+ok( ! isset( $body['sk'] ), 'rss: no sk (private server token) when none configured — back-compat: worker trusts srv:1 on the public token alone' );
+
+// Two-key hardening (v6.22.0): when a PRIVATE server token is configured
+// (SN_SRV_TOKEN / the sn_server_token filter — NEVER in the public theme JS),
+// the payload carries it as `sk` so the Worker can require it before trusting
+// srv:1 as 'human'. The shared public token alone (in the page source) then no
+// longer suffices to forge a human-classed server event.
+ok( function_exists( 'sn_rss_tracker_server_token' ), 'rss: sn_rss_tracker_server_token() helper is defined' );
+add_filter( 'sn_server_token', function () { return 'srv-secret-xyz'; } );
+$n2    = rss_send( 'https://collector.example.com/_sn/px' );
+$body2 = json_decode( $GLOBALS['__post_calls'][0]['args']['body'] ?? '{}', true );
+ok( $n2 === 1 && ( $body2['sk'] ?? '' ) === 'srv-secret-xyz', 'rss: payload carries the private server token (sk) when configured' );
+ok( ( $body2['k'] ?? '' ) === 'test-token' && ( $body2['srv'] ?? null ) === 1, 'rss: sk is ADDITIVE — k + srv:1 are unchanged alongside it' );
 
 // Token gate: without the shared token, never POST (don't send unauthenticated).
 add_filter( 'sn_beacon_token', function () { return ''; } );
