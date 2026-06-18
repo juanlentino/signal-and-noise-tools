@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.22.1] - 2026-06-18 — "Re-check now" for the edge-Worker version card
+
+**Headline:** The Monitoring → Analytics "Edge worker" card reads the Worker's version through a 10-minute SWR cache. Because Worker deploys happen **out-of-band** from wp-admin, the card could show the *previous* version for up to 10 minutes after a deploy — with no way to refresh it. The `sn_worker_version_get($force)` bypass seam existed (v6.21.0) but was never wired to any UI; this completes it with a nonce-protected **"Re-check now"** link that probes the Worker live and refreshes the cache on demand.
+
+### Fixed
+
+- **The edge-Worker version card can now be refreshed on demand.** Added a nonce-gated "Re-check now" control (`sn_worker_version_recheck_requested()` / `sn_worker_version_recheck_url()`) that passes `$force=true` to the existing SWR getter, bypassing the cached value. The card render was refactored from early-returns to `if/elseif/else` so the control always shows, in every state. Without the trigger, the SWR cache behaves exactly as before. [inc/worker-version.php](inc/worker-version.php).
+
+> **Why PATCH:** completes an incomplete feature — the force-bypass seam shipped in v6.21.0 but had no UI, so the card was "not fully working" after a deploy. No schema change, no new product capability beyond finishing the card; the cache/probe/SSRF behavior is unchanged. RED→GREEN in [tests/worker-version.php](tests/worker-version.php) (Group G, +9): nonce gate (valid/invalid), the link is rendered + nonce-protected, and the live-incident case — a warm cache holding the OLD version while the endpoint serves the NEW one — is bypassed by a valid re-check. 128 suites green, WPCS falsified-clean.
+
 ## [6.22.0] - 2026-06-18 — Two-key server-event auth: a private `SN_SRV_TOKEN`
 
 **Headline:** Optional hardening for the RSS feed-request tracker's first-party analytics. Server events carry `srv:1` so the Worker counts them as **human** (server hits come from the host's datacenter ASN, which the Worker would otherwise tag `suspect` and drop from the human-only rollup). Until now that trust rode on the **shared** `SN_BEACON_TOKEN` — which is also embedded in the public theme JS, so anyone reading the page source could forge a "human" server event. When you define a **private** `SN_SRV_TOKEN` (never exposed in any client-delivered page), the tracker now sends it as `sk`, and the paired Worker (**v1.5.0**) requires it before honoring `srv:1`. Leave `SN_SRV_TOKEN` unset and behavior is unchanged.
