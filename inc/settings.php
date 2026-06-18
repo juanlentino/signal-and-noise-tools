@@ -130,6 +130,15 @@ function sn_settings_defaults() {
 		'indexnow' => array(
 			'enabled' => false,
 		),
+		// v6.20.2: weekly Insights digest cron opt-in. Default OFF (dormant
+		// until the owner enables it on the Insights tab). Migration-free via
+		// the array_replace_recursive deep-merge in sn_setting(). Written via
+		// sn_setting_update('insights.weekly_cron_enabled', …) by
+		// sn_handle_save_insights_settings() — NOT in the Identity form payload,
+		// so it also needs a preserve block in sn_settings_save() below.
+		'insights' => array(
+			'weekly_cron_enabled' => false,
+		),
 	);
 }
 
@@ -340,6 +349,17 @@ function sn_settings_save( $raw ) {
 	// audit/monitoring/perf/theme subtrees above.
 	if ( isset( $existing_settings['indexnow'] ) && is_array( $existing_settings['indexnow'] ) ) {
 		$sanitized['indexnow'] = $existing_settings['indexnow'];
+	}
+
+	// v6.20.2: preserve the insights subtree (Insights tab → weekly-digest cron
+	// opt-in), configured via sn_setting_update('insights.weekly_cron_enabled', …)
+	// by sn_handle_save_insights_settings(), NOT in this Identity-tab form payload.
+	// Without this, saving Identity silently reverts a configured weekly-cron
+	// opt-in back to its default OFF — the same whole-option-replace hazard as the
+	// audit/monitoring/perf/theme/indexnow subtrees above, and the reason the
+	// user's cron preference would diverge from the actually-scheduled event.
+	if ( isset( $existing_settings['insights'] ) && is_array( $existing_settings['insights'] ) ) {
+		$sanitized['insights'] = $existing_settings['insights'];
 	}
 
 	$sanitized['seo_copy'] = array(
