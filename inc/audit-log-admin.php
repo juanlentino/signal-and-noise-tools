@@ -227,7 +227,7 @@ function snt_audit_log_render_prune_form() {
 
 /**
  * Render the retention-days form on the Audit log tab. Mirrors the
- * RSS tracker retention pattern (inc/rss-plausible-tracker.php:493).
+ * RSS tracker retention pattern (inc/rss-feed-tracker.php:493).
  *
  * @since 4.2.0
  */

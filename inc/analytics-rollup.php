@@ -145,7 +145,7 @@ function sn_analytics_daily_install() {
 
 /**
  * One autoloaded-option compare per request; install only runs on the delta.
- * Matches the cron-history / rss-plausible-tracker install-once pattern.
+ * Matches the cron-history / rss-feed-tracker install-once pattern.
  */
 function sn_analytics_daily_maybe_install() {
 	if ( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) !== SN_ANALYTICS_DAILY_DB_VERSION ) {

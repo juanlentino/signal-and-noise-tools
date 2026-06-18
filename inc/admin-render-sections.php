@@ -59,12 +59,13 @@ function sn_admin_render_block_migrations_section() {
 	do_action( 'sn_admin_block_migrations_tab' );
 }
 
-/** Monitoring → RSS (with the not-installed fallback notice, verbatim). */
+/** Content → RSS. The tracker module (inc/rss-feed-tracker.php) is always
+ *  loaded by the bootstrap, so it always hooks sn_admin_rss_tab; the guard is
+ *  a defensive no-op fallback should the module ever be filtered out. */
 function sn_admin_render_rss_section() {
 	if ( has_action( 'sn_admin_rss_tab' ) ) {
 		do_action( 'sn_admin_rss_tab' );
 	} else {
-		echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS subscriber tracker not installed.</strong></p>';
-		echo '<p>Copy <code>mu-plugins/rss-plausible-tracker.php</code> from the theme repo to <code>wp-content/mu-plugins/</code> on this host. MU plugins activate automatically — no further action needed.</p></div>';
+		echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS feed-request tracker not loaded.</strong></p></div>';
 	}
 }

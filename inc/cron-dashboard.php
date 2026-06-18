@@ -33,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * pin SN-owned events at the top of the dashboard table.
  *
  * v4.1.1 (D-05): switched to constant references so a hook rename in
- * rss-plausible-tracker.php auto-propagates. The plugin bootstrap requires
+ * rss-feed-tracker.php auto-propagates. The plugin bootstrap requires
  * that file before cron-dashboard.php so the constant is always defined at
  * call time. The defensive `defined()` fallback to the legacy string keeps
  * this resilient if a constant ever vanishes (e.g., partial deploy).
