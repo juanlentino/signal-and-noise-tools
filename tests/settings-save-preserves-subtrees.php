@@ -61,6 +61,7 @@ function assertEq( $expected, $actual, $label ) {
 sn_setting_reset_cache();
 assertEq( false, sn_setting( 'monitoring.uptime_kuma_enabled', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_enabled defaults to false (deep-merge)' );
 assertEq( '', sn_setting( 'monitoring.uptime_kuma_push_url', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_push_url defaults to empty string (deep-merge)' );
+assertEq( false, sn_setting( 'insights.weekly_cron_enabled', 'SENTINEL' ), 'fresh install: insights.weekly_cron_enabled defaults to false (deep-merge)' );
 
 // D5 (v6.17.0): the availability line lives IN the identity subtree (written by
 // the Identity form itself), so it defaults to empty and round-trips directly —
@@ -81,6 +82,10 @@ sn_setting_update( 'theme.related_count', 9 );
 sn_setting_update( 'theme.palette_enabled', false );
 sn_setting_update( 'theme.ai_model', 'claude-opus-4-8' );
 sn_setting_update( 'indexnow.enabled', true );
+// vX: the insights subtree (Insights tab → weekly-cron opt-in) is written via
+// sn_setting_update('insights.weekly_cron_enabled', …) by sn_handle_save_insights_settings(),
+// NOT in the Identity form payload. Same whole-option-replace hazard.
+sn_setting_update( 'insights.weekly_cron_enabled', true );
 sn_setting_reset_cache();
 
 // Sanity: they're set before the Identity save.
@@ -104,6 +109,7 @@ assertEq( 9, (int) sn_setting( 'theme.related_count', 3 ), 'theme.related_count 
 assertEq( false, sn_setting( 'theme.palette_enabled', true ), 'theme.palette_enabled survives an Identity save (v4.12.0 guard)' );
 assertEq( 'claude-opus-4-8', sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' ), 'theme.ai_model survives an Identity save (v4.12.0 guard)' );
 assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled survives an Identity save (v5.1.0 guard)' );
+assertEq( true, sn_setting( 'insights.weekly_cron_enabled', false ), 'insights.weekly_cron_enabled survives an Identity save (insights-preserve guard)' );
 
 // D5 (v6.17.0): a second Identity save carrying the availability field persists
 // it directly, and the cross-tab subtrees still survive (availability didn't
@@ -116,6 +122,7 @@ sn_setting_reset_cache();
 assertEq( 'Available for select mixing work', sn_setting( 'identity.availability', '' ), 'identity.availability round-trips through sn_settings_save' );
 assertEq( 'my-secret-login', sn_setting( 'login.slug', 'sn-login' ), 'login.slug still survives after availability added' );
 assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled still survives after availability added' );
+assertEq( true, sn_setting( 'insights.weekly_cron_enabled', false ), 'insights.weekly_cron_enabled still survives after availability added' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

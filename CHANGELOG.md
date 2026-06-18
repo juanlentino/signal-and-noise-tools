@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.20.2] - 2026-06-17 — Stop the Identity save from clobbering the Insights weekly-cron opt-in
+
+**Headline:** Fixes a settings-persistence bug: enabling the **Insights → weekly-digest cron** and later saving the **Identity** tab silently reverted the opt-in to OFF. `sn_settings_save()` does a whole-option replace, and the `insights` subtree — written on a different tab via `sn_setting_update('insights.weekly_cron_enabled', …)` — was the one subtree missing a preserve block, so it was dropped on every Identity save. This also diverged the stored preference from the actually-scheduled cron event (the schedule stayed until the Insights handler ran again). Same whole-option-replace hazard already guarded for `login`/`audit`/`monitoring`/`perf`/`theme`/`indexnow`.
+
+### Fixed
+
+- **`insights` subtree now preserved across an Identity-tab save.** Added the preserve block in `sn_settings_save()` ([inc/settings.php](inc/settings.php)) and a first-class `insights` entry in `sn_settings_defaults()` (default OFF, dormant, migration-free via the `array_replace_recursive` deep-merge — matching its `monitoring`/`indexnow` siblings). The weekly-cron opt-in survives saving any other settings tab.
+
+> **Why PATCH:** a persistence bugfix; no new capability, no settings-schema break (the `insights` subtree already existed at runtime — this makes it a declared default and stops it being clobbered, so existing stored values are unaffected). Locked by [tests/settings-save-preserves-subtrees.php](tests/settings-save-preserves-subtrees.php) (RED→GREEN: +3 assertions — fresh-install default, survives an Identity save, survives a second save). Full local suite green, WPCS clean.
+
 ## [6.20.1] - 2026-06-17 — Rename the RSS tracker file; drop the dead MU-migration guard
 
 **Headline:** Now that Plausible is gone from the RSS tracker's behavior (v6.20.0), the misnamed `inc/rss-plausible-tracker.php` is renamed to **`inc/rss-feed-tracker.php`**, and the **dead v1.1.0 MU-plugin migration guard** that was the last thing forcing the "plausible" name into live code is removed. Pure rename + dead-code cleanup — no behavior change. Function names (`sn_rss_tracker_*`), option keys, the `rss_feed_log` table, and the cron hook are all unchanged.
