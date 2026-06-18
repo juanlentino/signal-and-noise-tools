@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.22.0] - 2026-06-18 — Two-key server-event auth: a private `SN_SRV_TOKEN`
+
+**Headline:** Optional hardening for the RSS feed-request tracker's first-party analytics. Server events carry `srv:1` so the Worker counts them as **human** (server hits come from the host's datacenter ASN, which the Worker would otherwise tag `suspect` and drop from the human-only rollup). Until now that trust rode on the **shared** `SN_BEACON_TOKEN` — which is also embedded in the public theme JS, so anyone reading the page source could forge a "human" server event. When you define a **private** `SN_SRV_TOKEN` (never exposed in any client-delivered page), the tracker now sends it as `sk`, and the paired Worker (**v1.5.0**) requires it before honoring `srv:1`. Leave `SN_SRV_TOKEN` unset and behavior is unchanged.
+
+### New
+
+- **`SN_SRV_TOKEN` (optional) → sent as `sk` on the RSS collector event.** New `sn_rss_tracker_server_token()` helper (reads the `SN_SRV_TOKEN` wp-config constant + the `sn_server_token` filter); `sn_rss_tracker_send_event()` adds `sk` to the payload only when it's non-empty. Additive — `k` (shared token) and `srv:1` are unchanged. [inc/rss-feed-tracker.php](inc/rss-feed-tracker.php).
+
+> **Companion worker release:** [signal-and-noise-analytics-worker **v1.5.0**] — `handleBeacon()` trusts `srv:1` as `human` only when `env.SN_SRV_TOKEN` matches the payload's `sk` (constant-time compare). When the worker's `SN_SRV_TOKEN` secret is **unset**, it keeps the legacy public-token-only behavior — so there is **no breakage window** regardless of deploy order. **Activation runbook (safe order):** (1) `define('SN_SRV_TOKEN', '<random>')` in `wp-config.php` + install this plugin (it starts sending `sk`; the worker still trusts on the public token, nothing breaks); (2) `wrangler secret put SN_SRV_TOKEN` with the **same** value + `npm run deploy` the worker. After step 2 the public token alone can no longer forge a human server hit.
+
+> **Why MINOR:** new opt-in capability (a configurable private server token + `sn_server_token` filter); no schema change, no break — unset `SN_SRV_TOKEN` is byte-for-byte the prior behavior. Locked by [tests/ssrf-url-validation.php](tests/ssrf-url-validation.php) (RED→GREEN: `sk` present when configured, absent otherwise, additive to `k`/`srv`). 128 suites green, WPCS falsified-clean.
+
 ## [6.21.0] - 2026-06-17 — Edge-Worker version in Monitoring → Analytics
 
 **Headline:** The **deployed version of the analytics collector Worker** now shows in **Monitoring → Analytics**, above the "Cloudflare Worker setup" console — so the full version story (theme + plugin + edge Worker) is visible in wp-admin without curling the edge by hand. The value is read **live** from the Worker's `GET /_sn/version` endpoint and never hardcoded, so it always reflects what's actually deployed.

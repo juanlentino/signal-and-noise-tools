@@ -77,6 +77,22 @@ function sn_rss_tracker_token() {
 }
 
 /**
+ * The PRIVATE server token (`SN_SRV_TOKEN`), sent as `sk` so the Worker can
+ * require it before trusting `srv:1` as a human hit. Unlike SN_BEACON_TOKEN
+ * (which is embedded in the public theme JS), this never appears in any
+ * client-delivered page — so a hostile client holding only the public token
+ * cannot forge a human-classed server event. Empty when unset → the Worker
+ * falls back to public-token-only trust (migration-safe; see worker v1.5.0).
+ *
+ * @since 6.22.0
+ * @return string
+ */
+function sn_rss_tracker_server_token() {
+	$token = defined( 'SN_SRV_TOKEN' ) ? (string) SN_SRV_TOKEN : '';
+	return (string) apply_filters( 'sn_server_token', $token );
+}
+
+/**
  * Bot detection. Matches search crawlers, preview-card bots, and uptime
  * monitors — never aggregators (Feedly, NewsBlur, Inoreader, etc.) since
  * those are the requests we want to count. An earlier revision used
@@ -129,6 +145,20 @@ function sn_rss_tracker_send_event( $settings, $feed_path ) {
 	) {
 		return;
 	}
+	$payload = array(
+		'k'   => $token,
+		'e'   => 'ce',
+		'n'   => (string) $settings['event_name'],
+		'u'   => $feed_path,
+		'srv' => 1,
+	);
+	// Two-key hardening (v6.22.0): include the PRIVATE server token (sk) when
+	// configured, so the Worker can require it before trusting srv:1 as 'human'.
+	// Absent → the Worker falls back to public-token-only trust (migration-safe).
+	$server_token = sn_rss_tracker_server_token();
+	if ( '' !== $server_token ) {
+		$payload['sk'] = $server_token;
+	}
 	wp_remote_post( $endpoint, array(
 		'timeout'     => 2,
 		'blocking'    => false,
@@ -136,13 +166,7 @@ function sn_rss_tracker_send_event( $settings, $feed_path ) {
 		// SSRF bypass) — matches inc/webhooks.php + inc/uptime-heartbeat.php.
 		'redirection' => 0,
 		'headers'     => array( 'Content-Type' => 'application/json' ),
-		'body'        => wp_json_encode( array(
-			'k'   => $token,
-			'e'   => 'ce',
-			'n'   => (string) $settings['event_name'],
-			'u'   => $feed_path,
-			'srv' => 1,
-		) ),
+		'body'        => wp_json_encode( $payload ),
 	) );
 }
 
