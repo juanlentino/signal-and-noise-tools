@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.20.2
+ * Version:     6.21.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -124,6 +124,13 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // guard was removed in v6.20.1 — the migration completed at theme v8.2.1 and the
 // plugin's own copy is demonstrably the live one.)
 require_once SNT_PATH . 'inc/rss-feed-tracker.php';
+
+// Analytics edge-Worker version readout (Monitoring → Analytics). Derives the
+// Worker's /_sn/version URL from the collector base above (rss-feed-tracker's
+// collector_url) and routes the probe through the shared SSRF guard, so it
+// must load AFTER both — and before the Phase-3 guard, since its render
+// consumer (inc/analytics-admin-render.php) is in this always-loaded prefix.
+require_once SNT_PATH . 'inc/worker-version.php';
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //

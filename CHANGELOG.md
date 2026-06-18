@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.21.0] - 2026-06-17 — Edge-Worker version in Monitoring → Analytics
+
+**Headline:** The **deployed version of the analytics collector Worker** now shows in **Monitoring → Analytics**, above the "Cloudflare Worker setup" console — so the full version story (theme + plugin + edge Worker) is visible in wp-admin without curling the edge by hand. The value is read **live** from the Worker's `GET /_sn/version` endpoint and never hardcoded, so it always reflects what's actually deployed.
+
+> **Companion worker:** [signal-and-noise-analytics-worker v1.4.0](https://github.com/juanlentino/signal-and-noise-tools) exposes the read-only `GET /_sn/version` route this reads. **The Worker must be deployed (`npm run deploy`) for a version to appear** — until then the card degrades gracefully to "Worker version unknown" with a deploy hint (no error, no blank). The endpoint takes no token and exposes nothing secret (worker name, semver, and the Cloudflare version id/tag/timestamp from the `[version_metadata]` binding).
+
+### New
+
+- **Edge-Worker version readout** ([inc/worker-version.php](inc/worker-version.php)). A native wp-admin card in the Monitoring → Analytics settings section shows the Worker name, semver (`v1.4.0`), Cloudflare version id/tag, and deploy timestamp. The `/_sn/version` URL is **derived from the same admin-configured collector base** the RSS tracker / front-end beacon use (`collector_url`, default `home_url('/_sn/px')`) — rebuilt from that base's origin (scheme + host + port), so pointing the collector at the Worker's `*.workers.dev` URL (the origin→edge hairpin escape hatch) is followed automatically with no second URL to maintain.
+
+### Security
+
+- The derived probe URL is influenced by an admin-set option, so it goes through the **same outbound gate as every other probe** in the plugin: `https`-only + `wp_http_validate_url()` + the shared `sn_ssrf_host_blocked()` (resolve-then-range-check, which catches the encoded-IP cloud-metadata bypasses a literal string match misses) + `redirection=0`. Read-only `GET`, `manage_options`-gated render, **SWR-cached in a transient** (10 min on success, 2 min on failure) with a separate last-good fallback so a settings-page load never blocks on a cold/slow edge and a transient blip still shows the last-known version.
+
+> **Why MINOR:** a new user-visible capability (Worker version surfaced in the admin) with no settings-schema change and no public REST/Abilities-surface change — the new functions are plugin-internal, and the feature degrades safely when the Worker isn't reachable. Guarded by [tests/worker-version.php](tests/worker-version.php) (75 assertions): URL origin-rebuild, response parse + **sanitization of a dirty field**, the full SSRF/scheme gate (every encoded metadata-IP form + plain-`http` + unresolvable host → 0 GET, falsified), the SWR cache (miss/hit/force + failure-keeps-last-good + corrupt-transient re-probe), and the **render path** — the `manage_options` gate, the three-state branch (live / stale / unknown), and behavioral `esc_html` of an injected XSS payload (all falsified by mutation). 128 suites green, WPCS clean (falsified — the new module is scanned; an injected `echo $_GET` trips `EscapeOutput`).
+
 ## [6.20.2] - 2026-06-17 — Stop the Identity save from clobbering the Insights weekly-cron opt-in
 
 **Headline:** Fixes a settings-persistence bug: enabling the **Insights → weekly-digest cron** and later saving the **Identity** tab silently reverted the opt-in to OFF. `sn_settings_save()` does a whole-option replace, and the `insights` subtree — written on a different tab via `sn_setting_update('insights.weekly_cron_enabled', …)` — was the one subtree missing a preserve block, so it was dropped on every Identity save. This also diverged the stored preference from the actually-scheduled cron event (the schedule stayed until the Insights handler ran again). Same whole-option-replace hazard already guarded for `login`/`audit`/`monitoring`/`perf`/`theme`/`indexnow`.
