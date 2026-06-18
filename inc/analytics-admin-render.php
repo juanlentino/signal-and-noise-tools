@@ -689,6 +689,13 @@ function snt_analytics_render_settings() {
 	}
 	echo '</form>';
 
+	// The deployed edge-Worker version, read live from /_sn/version (guarded +
+	// SWR-cached). Sits above the manual setup steps — "what's live" before
+	// "how to deploy it".
+	if ( function_exists( 'sn_worker_version_render_card' ) ) {
+		sn_worker_version_render_card();
+	}
+
 	snt_analytics_render_worker_setup();
 }
 
