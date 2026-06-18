@@ -1,12 +1,21 @@
 <?php
 /**
- * RSS Plausible Tracker — companion plugin module.
+ * RSS feed-request tracker — companion plugin module.
  *
- * Fires a server-side Plausible event on every non-bot RSS feed request
- * and logs each request to `wp_rss_feed_log` as a fallback trend source
- * if Plausible is unreachable. Renders a 30-day count widget on the WP
+ * Logs every non-bot RSS feed request to `wp_rss_feed_log` (the source of
+ * truth for the widget + activity tab) and fires a first-party "RSS Feed
+ * Request" custom event to the SN collector (the Cloudflare Worker's
+ * `/_sn/px`) so feed traffic surfaces in Analytics → Events alongside the
+ * rest of the first-party analytics. Renders a 30-day count widget on the WP
  * admin dashboard and a full settings/stats tab under
  * Appearance → Signal & Noise → RSS.
+ *
+ * v6.20.0: repointed from Plausible (`/api/event`) to the first-party
+ * collector, finishing the Plausible retirement begun in v6.0.0. The event
+ * keeps the name "RSS Feed Request" so it continues the series imported from
+ * Plausible. (The file name keeps its historical `rss-plausible-tracker`
+ * slug — the bootstrap, the legacy MU-plugin conflict notice, and several
+ * cross-references depend on it.)
  *
  * Migration history: originally shipped as `mu-plugins/rss-plausible-tracker.php`
  * in the Signal & Noise theme repo (v1.2.0 of the MU plugin). Moved to the
@@ -37,16 +46,15 @@ const SN_RSS_TRACKER_ACTION_PURGE   = 'purge_log';
 const SN_RSS_TRACKER_ACTION_RESET   = 'reset_defaults';
 
 /**
- * Default settings. Host-specific values (Plausible URL, domain) live here
- * as fallbacks so a fresh install on a different host still works before
- * anyone visits the settings tab — admins can override per-host via the
- * UI without code changes.
+ * Default settings. The collector URL defaults to this site's own first-party
+ * endpoint (the Cloudflare Worker route `/_sn/px`), so a fresh install works
+ * before anyone visits the settings tab — admins can override per-host via the
+ * UI (e.g. to a workers.dev URL if the origin doesn't hairpin to the edge).
  */
 function sn_rss_tracker_defaults() {
 	return array(
 		'enabled'            => true,
-		'plausible_url'      => 'https://analytics.juanlentino.com/api/event',
-		'plausible_domain'   => 'juanlentino.com',
+		'collector_url'      => home_url( '/_sn/px' ),
 		'event_name'         => 'RSS Feed Request',
 		'log_retention_days' => 90,
 	);
@@ -58,20 +66,14 @@ function sn_rss_tracker_settings() {
 }
 
 /**
- * Build the Plausible dashboard deep-link from the *currently configured*
- * endpoint. Earlier revisions hardcoded the host here too, which meant
- * the "Open in Plausible" link kept pointing at the original host even
- * after the admin moved the endpoint to a different one. parse_url'ing
- * the configured event endpoint guarantees the link tracks the setting.
+ * The shared collector token. Same source as the theme's front-end beacon
+ * (the SN_BEACON_TOKEN wp-config constant + the sn_beacon_token filter) so the
+ * plugin, the browser beacon, and the Worker (SN_PX_TOKEN) all agree. Empty
+ * when unset → the tracker skips the collector POST (the local log still runs).
  */
-function sn_rss_tracker_plausible_dashboard_url( $settings ) {
-	$parts = wp_parse_url( $settings['plausible_url'] );
-	if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
-		return '';
-	}
-	return $parts['scheme'] . '://' . $parts['host']
-		. '/' . rawurlencode( $settings['plausible_domain'] )
-		. '?f=is,goal,' . rawurlencode( $settings['event_name'] );
+function sn_rss_tracker_token() {
+	$token = defined( 'SN_BEACON_TOKEN' ) ? (string) SN_BEACON_TOKEN : '';
+	return (string) apply_filters( 'sn_beacon_token', $token );
 }
 
 /**
@@ -96,44 +98,30 @@ function sn_rss_tracker_hash_ua( $ua ) {
 }
 
 /**
- * Best-effort client IP. Trusts Cloudflare's CF-Connecting-IP first
- * (juanlentino.com is fronted by Cloudflare; that header is set by the
- * edge), falls back to X-Forwarded-For's first hop, then REMOTE_ADDR.
- * Forwarded to Plausible for geo lookup; never persisted locally.
+ * Fire-and-forget POST of an "RSS Feed Request" custom event to the first-party
+ * collector (the Worker's `/_sn/px`), replacing the legacy Plausible POST. The
+ * `srv:1` flag tells the Worker to trust this as a real (human) hit — server
+ * events come from the WP host's datacenter ASN, which the Worker's classifier
+ * would otherwise tag 'suspect' and the human-only events rollup would drop.
+ * Authenticated with the shared SN_BEACON_TOKEN. Non-blocking + 2s timeout so
+ * the feed response is never delayed. The local `wp_rss_feed_log` row is the
+ * source of truth, so a collector outage loses nothing.
+ *
+ * @param array  $settings   Tracker settings (collector_url, event_name).
+ * @param string $feed_path  The feed request path (query already stripped).
  */
-function sn_rss_tracker_client_ip() {
-	foreach ( array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR' ) as $key ) {
-		if ( empty( $_SERVER[ $key ] ) ) {
-			continue;
-		}
-		$value = (string) wp_unslash( $_SERVER[ $key ] );
-		$ip    = trim( explode( ',', $value )[0] );
-		if ( '' !== $ip && false !== filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return $ip;
-		}
+function sn_rss_tracker_send_event( $settings, $feed_path ) {
+	$token = sn_rss_tracker_token();
+	if ( '' === $token ) {
+		return; // no shared token configured → don't POST unauthenticated.
 	}
-	return '0.0.0.0';
-}
-
-/**
- * Fire-and-forget POST to Plausible. Non-blocking + 2s timeout means the
- * feed response itself is never delayed by analytics — at worst a
- * Plausible outage adds a sub-millisecond syscall to spawn the request.
- * Forwards the original client UA and IP so Plausible's own server-side
- * bot detection and geo lookup function correctly.
- */
-function sn_rss_tracker_send_plausible( $settings, $feed_url, $ua, $ua_hash, $client_ip ) {
-	$endpoint = (string) ( $settings['plausible_url'] ?? '' );
-	// SSRF guard: this fires on UNauthenticated public feed hits and forwards the
-	// requester's User-Agent + X-Forwarded-For. Validate the admin-set endpoint
-	// like inc/webhooks.php does — https only, plus anything wp_http_validate_url()
-	// rejects (RFC-1918, loopback, IPv6, userinfo), plus the 169.254.0.0/16
-	// link-local range it omits (cloud metadata) via the shared sn_ssrf_host_blocked()
-	// (v6.13.1), which RESOLVES the host first so the encoded-IP bypasses (decimal
-	// http://2852039166/, hex/octal) of the metadata IP are caught too — so a mis-set endpoint can't
-	// turn every feed request into a server-side request to an internal host
-	// carrying partly requester-controlled headers. Best-effort tracker (the DB
-	// row is the source of truth) → skip on failure.
+	$endpoint = (string) ( $settings['collector_url'] ?? '' );
+	// SSRF guard: collector_url is admin-settable, so validate like the other
+	// outbound modules — https only, plus wp_http_validate_url() (RFC-1918,
+	// loopback, IPv6, userinfo) plus the shared sn_ssrf_host_blocked(), which
+	// RESOLVES the host first so the encoded-IP metadata bypasses (decimal/hex/
+	// octal of 169.254.169.254) are caught. Default is this site's own /_sn/px
+	// on the public, Cloudflare-fronted domain.
 	if ( '' === $endpoint
 		|| ! wp_http_validate_url( $endpoint )
 		|| 'https' !== wp_parse_url( $endpoint, PHP_URL_SCHEME )
@@ -147,26 +135,23 @@ function sn_rss_tracker_send_plausible( $settings, $feed_url, $ua, $ua_hash, $cl
 		// Don't follow a redirect off the validated host (redirect-to-internal
 		// SSRF bypass) — matches inc/webhooks.php + inc/uptime-heartbeat.php.
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'    => 'application/json',
-			'User-Agent'      => $ua,
-			'X-Forwarded-For' => $client_ip,
-		),
-		'body'     => wp_json_encode( array(
-			'name'   => $settings['event_name'],
-			'url'    => $feed_url,
-			'domain' => $settings['plausible_domain'],
-			'props'  => array( 'ua_hash' => $ua_hash ),
+		'headers'     => array( 'Content-Type' => 'application/json' ),
+		'body'        => wp_json_encode( array(
+			'k'   => $token,
+			'e'   => 'ce',
+			'n'   => (string) $settings['event_name'],
+			'u'   => $feed_path,
+			'srv' => 1,
 		) ),
 	) );
 }
 
 /**
- * Local fallback log. Plausible is the primary destination but the DB
- * row is the source of truth for the widget + activity tab so a
- * Plausible outage doesn't blank the trend data. Insert failures go to
- * the PHP error log — silent loss here would defeat the whole point of
- * having a fallback in the first place.
+ * Local log — the source of truth for the widget + activity tab. The
+ * first-party collector event is best-effort on top of this, so a collector
+ * outage (or the edge not hairpinning) never blanks the trend data. Insert
+ * failures go to the PHP error log — silent loss here would defeat the whole
+ * point of the local table.
  */
 function sn_rss_tracker_log_request( $feed_url, $ua_hash ) {
 	global $wpdb;
@@ -204,15 +189,15 @@ function sn_rss_tracker_capture() {
 	// REQUEST_URI is attacker-controlled; strip the query string so we
 	// don't log arbitrary user-supplied parameters to wp_rss_feed_log.
 	// Real RSS aggregators never use query strings on /feed/ URLs, so
-	// the trimmed value is what we want for unique-feed bucketing in
-	// Plausible anyway.
+	// the trimmed value is what we want for unique-feed bucketing anyway.
 	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '/feed/';
 	$request_uri = strtok( $request_uri, '?' );
 	$feed_url    = home_url( $request_uri );
 	$ua_hash     = sn_rss_tracker_hash_ua( $ua );
 
 	sn_rss_tracker_log_request( $feed_url, $ua_hash );
-	sn_rss_tracker_send_plausible( $settings, $feed_url, $ua, $ua_hash, sn_rss_tracker_client_ip() );
+	// Local log stores the full URL; the collector event takes the path.
+	sn_rss_tracker_send_event( $settings, $request_uri );
 }
 add_action( 'template_redirect', 'sn_rss_tracker_capture', 1 );
 
@@ -381,8 +366,7 @@ function sn_rss_tracker_handle_form() {
 		$defaults = sn_rss_tracker_defaults();
 		$new      = array(
 			'enabled'            => ! empty( $_POST['enabled'] ),
-			'plausible_url'      => esc_url_raw( wp_unslash( $_POST['plausible_url'] ?? $defaults['plausible_url'] ) ),
-			'plausible_domain'   => sanitize_text_field( wp_unslash( $_POST['plausible_domain'] ?? $defaults['plausible_domain'] ) ),
+			'collector_url'      => esc_url_raw( wp_unslash( $_POST['collector_url'] ?? $defaults['collector_url'] ) ),
 			'event_name'         => sanitize_text_field( wp_unslash( $_POST['event_name'] ?? $defaults['event_name'] ) ),
 			'log_retention_days' => max( 7, min( 365, (int) wp_unslash( $_POST['log_retention_days'] ?? $defaults['log_retention_days'] ) ) ),
 		);
@@ -450,7 +434,7 @@ function sn_rss_tracker_render_flash( $flash ) {
 	}
 }
 
-function sn_rss_tracker_render_stats( $stats, $dashboard_url ) {
+function sn_rss_tracker_render_stats( $stats ) {
 	echo '<h2 class="sn-section-h">Activity</h2>';
 	echo '<div class="sn-rss-activity">';
 	foreach ( array( 1 => '24 hours', 7 => '7 days', 30 => '30 days' ) as $days => $label ) {
@@ -464,11 +448,7 @@ function sn_rss_tracker_render_stats( $stats, $dashboard_url ) {
 	echo '</div>';
 
 	if ( ! empty( $stats['most_recent'] ) ) {
-		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC';
-		if ( '' !== $dashboard_url ) {
-			echo ' &middot; <a href="' . esc_url( $dashboard_url ) . '" target="_blank" rel="noopener">Open in Plausible &rarr;</a>';
-		}
-		echo '</p>';
+		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC</p>';
 	} else {
 		echo '<p class="sn-rss-meta"><em>No feed requests logged yet.</em></p>';
 	}
@@ -488,25 +468,19 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">';
 	echo '<input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking';
 	echo '</label>';
-	echo '<p class="sn-field-helper">When off, the plugin still loads but skips all DB writes and Plausible POSTs.</p>';
+	echo '<p class="sn-field-helper">When off, the plugin still loads but skips all DB writes and collector POSTs.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label" for="sn_rss_plausible_url">Plausible event endpoint</label>';
-	echo '<input type="url" id="sn_rss_plausible_url" name="plausible_url" class="large-text sn-mono" value="' . esc_attr( $settings['plausible_url'] ) . '" required>';
-	echo '<p class="sn-field-helper">Full URL of your Plausible CE <code>/api/event</code> endpoint.</p>';
-	echo '</div>';
-
-	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label" for="sn_rss_plausible_domain">Plausible site domain</label>';
-	echo '<input type="text" id="sn_rss_plausible_domain" name="plausible_domain" class="large-text" value="' . esc_attr( $settings['plausible_domain'] ) . '" required>';
-	echo '<p class="sn-field-helper">The <code>domain</code> field as configured in your Plausible site settings — usually the bare hostname.</p>';
+	echo '<label class="sn-field-label" for="sn_rss_collector_url">Collector endpoint</label>';
+	echo '<input type="url" id="sn_rss_collector_url" name="collector_url" class="large-text sn-mono" value="' . esc_attr( $settings['collector_url'] ) . '" required>';
+	echo '<p class="sn-field-helper">First-party analytics collector — the Cloudflare Worker\'s <code>/_sn/px</code> route. Defaults to this site\'s own endpoint; authenticated with the shared <code>SN_BEACON_TOKEN</code> (set in <code>wp-config.php</code>). If the WordPress host can\'t reach the site domain through the edge, point this at the Worker\'s <code>*.workers.dev</code> URL.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_rss_event_name">Event name</label>';
 	echo '<input type="text" id="sn_rss_event_name" name="event_name" class="large-text" value="' . esc_attr( $settings['event_name'] ) . '" required>';
-	echo '<p class="sn-field-helper">Custom event name sent to Plausible. Configure a matching goal in Plausible to surface it in the dashboard.</p>';
+	echo '<p class="sn-field-helper">Custom event name recorded in first-party analytics — surfaces under Analytics &rarr; Events. Kept as <code>RSS Feed Request</code> to continue the series imported from Plausible.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
@@ -552,7 +526,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<p class="sn-field-helper">Delete rows older than the threshold below. Plausible events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
+	echo '<p class="sn-field-helper">Delete rows older than the threshold below. First-party collector events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
 	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
@@ -569,11 +543,10 @@ function sn_rss_tracker_render_admin_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	$settings      = sn_rss_tracker_settings();
-	$stats         = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
-	$recent        = sn_rss_tracker_recent( 20 );
-	$dashboard_url = sn_rss_tracker_plausible_dashboard_url( $settings );
-	$flash         = isset( $_GET['sn_rss_ok'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_rss_ok'] ) ) : '';
+	$settings = sn_rss_tracker_settings();
+	$stats    = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
+	$recent   = sn_rss_tracker_recent( 20 );
+	$flash    = isset( $_GET['sn_rss_ok'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_rss_ok'] ) ) : '';
 
 	sn_rss_tracker_render_flash( $flash );
 
@@ -581,7 +554,7 @@ function sn_rss_tracker_render_admin_tab() {
 	// form one row). Below, 2-col content-driven split via .sn-2col:
 	// wide left for the table-heavy Recent column, narrow right for
 	// the form+maintenance config column. Stacks at <960px.
-	sn_rss_tracker_render_stats( $stats, $dashboard_url );
+	sn_rss_tracker_render_stats( $stats );
 
 	echo '<div class="sn-2col">';
 

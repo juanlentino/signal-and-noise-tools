@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.20.0] - 2026-06-17 — RSS feed tracking: Plausible → first-party collector
+
+**Headline:** The RSS feed-request tracker no longer POSTs to **Plausible** — it now sends a first-party **"RSS Feed Request"** custom event to the SN collector (the Cloudflare Worker's `/_sn/px`), so feed traffic surfaces in **Analytics → Events** alongside the rest of the first-party analytics. This finishes the Plausible retirement begun in v6.0.0 (the tracker had survived it because it used Plausible's event-ingestion endpoint, not the removed Stats API). The local `wp_rss_feed_log` table remains the source of truth, so the table view and the Dashboard RSS-activity widget are unchanged.
+
+> **Companion worker release:** [signal-and-noise-analytics-worker v1.3.0](https://github.com/juanlentino/signal-and-noise-tools) — `handleBeacon()` now treats a token-authenticated beacon carrying `srv:1` as `trafficClass='human'`. **This worker must be deployed (`npm run deploy`) for RSS events to appear in the Events tab** — without it, server-origin events are classified `'suspect'` (the WordPress host's datacenter ASN) and the human-only events rollup drops them. The worker change touches only the `/_sn/px` handler, not the routes that serve feeds.
+
+### New
+
+- **RSS feed requests now flow into first-party analytics.** `sn_rss_tracker_send_event()` (renamed from `sn_rss_tracker_send_plausible()`) POSTs `{k, e:'ce', n:'RSS Feed Request', u:<feed path>, srv:1}` to the collector, authenticated with the shared `SN_BEACON_TOKEN` (the same constant the theme's front-end beacon and the Worker's `SN_PX_TOKEN` use, read via `sn_rss_tracker_token()`). The event name is kept as `RSS Feed Request` so it continues the series imported from Plausible in v6.0.0. [inc/rss-plausible-tracker.php](inc/rss-plausible-tracker.php).
+
+### Changed
+
+- **Settings: "Plausible event endpoint" + "Plausible site domain" → a single "Collector endpoint"** (`collector_url`, default `home_url('/_sn/px')`). The "Event name" + "Log retention" fields are unchanged. Existing installs keep their `enabled` / `event_name` / `log_retention_days`; the obsolete Plausible URL/domain are dropped and the collector defaults to this site's own endpoint — no user action needed (set `SN_BEACON_TOKEN` in `wp-config.php` if it isn't already). [inc/rss-plausible-tracker.php](inc/rss-plausible-tracker.php).
+- **No requester headers forwarded.** The old Plausible POST forwarded the feed reader's `User-Agent` + `X-Forwarded-For` (geo/bot for Plausible's server-side detection). The Worker derives its own edge context, so those are dropped — which also shrinks the SSRF surface on this UNauthenticated-public-feed-hit path. The `https`-only + `wp_http_validate_url()` + shared `sn_ssrf_host_blocked()` guard on the admin-set endpoint is unchanged.
+
+### Removed
+
+- **The "Open in Plausible →" link** on the RSS tab and its `sn_rss_tracker_plausible_dashboard_url()` helper; the now-unused `sn_rss_tracker_client_ip()` helper.
+
+> **Why MINOR:** new user-visible capability (RSS in the first-party Events tab) + a clean repoint of an existing feature with sensible defaults. Not MAJOR: the kept settings are preserved, the new `collector_url` defaults work out of the box, and no public REST/Abilities surface changed (the renamed `send_*`/`token` helpers are plugin-internal). Guarded by [tests/ssrf-url-validation.php](tests/ssrf-url-validation.php) (SSRF guard on the collector endpoint + the full first-party payload shape + a token-gate "never POST unauthenticated" case). 127 suites green, WPCS clean.
+
 ## [6.19.4] - 2026-06-17 — Identity & SEO: the "Jump to" list becomes section tabs
 
 **Headline:** The Identity & SEO tab's four sections (Identity / Social / Open Graph / SEO Copy) now read as **tabs** — visually identical to the sub-tab row every other top tab uses — instead of the lone "Jump to" anchor list. Clicking a tab shows that section and hides the rest; without JavaScript the tabs degrade to in-page jump links with every section visible. The single **Save Identity Settings** button still saves all four sections together: this is presentation only, not a change to how settings are stored.

@@ -7,9 +7,10 @@
  * codebase's own inc/webhooks.php (x4) + inc/uptime-heartbeat.php (x2) already
  * apply. This locks it to the same pattern: https-only + wp_http_validate_url()
  * (which rejects reserved/internal IPs), so:
- *   - sn_rss_tracker_send_plausible(): an internal / non-https endpoint is skipped
- *     instead of POSTed to (this fires on UNauthenticated public feed hits and
- *     forwards the requester's UA + X-Forwarded-For).
+ *   - sn_rss_tracker_send_event(): an internal / non-https endpoint is skipped
+ *     instead of POSTed to (this fires on UNauthenticated public feed hits).
+ *     v6.20.0 repointed this from Plausible to the first-party collector
+ *     (/_sn/px); the guard on the admin-set endpoint is unchanged.
  * Valid public https hosts are unaffected (non-breaking).
  *
  * v6.0.0: the Plausible Stats-API half (sn_plausible_config) was removed with
@@ -51,9 +52,25 @@ function ok( $c, $m ) {
 }
 
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
-if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+// Functional filter registry so the sn_beacon_token filter path (the token gate)
+// is testable rather than a no-op.
+$GLOBALS['__filters'] = array();
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook, $cb, $priority = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value ) {
+		foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value ); }
+		return $value;
+	}
+}
+if ( ! function_exists( 'home_url' ) ) { function home_url( $path = '' ) { return 'https://juanlentino.com' . $path; } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $o = 0, $depth = 512 ) { return json_encode( $d, $o, $depth ); } }
+
+// Shared beacon token — same SN_BEACON_TOKEN the theme front-end beacon and the
+// Cloudflare Worker (SN_PX_TOKEN) use. Required for the tracker to authenticate.
+define( 'SN_BEACON_TOKEN', 'test-token' );
 
 // Option store (sn_plausible_config reads get_option twice).
 $GLOBALS['__opt'] = array();
@@ -123,12 +140,12 @@ require __DIR__ . '/../inc/ssrf-guard.php';
 
 require __DIR__ . '/../inc/rss-plausible-tracker.php';
 
-// ── sn_rss_tracker_send_plausible() SSRF guard on plausible_url ──────────
+// ── sn_rss_tracker_send_event() SSRF guard on collector_url ──────────────
 function rss_send( $url ) {
 	$GLOBALS['__post_calls'] = array();
-	sn_rss_tracker_send_plausible(
-		array( 'plausible_url' => $url, 'event_name' => 'pageview', 'plausible_domain' => 'example.com' ),
-		'https://example.com/notes/feed/', 'curl/8', 'abc123', '203.0.113.7'
+	sn_rss_tracker_send_event(
+		array( 'collector_url' => $url, 'event_name' => 'RSS Feed Request' ),
+		'/notes/feed/'
 	);
 	return count( $GLOBALS['__post_calls'] );
 }
@@ -148,12 +165,26 @@ ok( rss_send( 'https://0251.0376.0251.0376/api/event' ) === 0, 'rss: dotted-octa
 ok( rss_send( 'https://blocked-private.example/api/event' ) === 0, 'rss: hostname resolving to RFC-1918 (10.0.0.5) → POST skipped' );
 ok( rss_send( 'https://unresolvable.example/api/event' ) === 0, 'rss: unresolvable host → POST skipped (fail closed)' );
 
-ok( rss_send( 'http://plausible.example.com/api/event' ) === 0, 'rss: non-https endpoint → POST skipped' );
+ok( rss_send( 'http://collector.example.com/_sn/px' ) === 0, 'rss: non-https endpoint → POST skipped' );
 ok( rss_send( '' ) === 0, 'rss: empty endpoint → POST skipped' );
-$n = rss_send( 'https://plausible.example.com/api/event' );
+$n = rss_send( 'https://collector.example.com/_sn/px' );
 ok( $n === 1, 'rss: valid https endpoint → POST sent (NON-BREAKING)' );
-ok( $n === 1 && $GLOBALS['__post_calls'][0]['url'] === 'https://plausible.example.com/api/event', 'rss: POST dispatched to the validated endpoint' );
+ok( $n === 1 && $GLOBALS['__post_calls'][0]['url'] === 'https://collector.example.com/_sn/px', 'rss: POST dispatched to the validated collector endpoint' );
 ok( $n === 1 && ( $GLOBALS['__post_calls'][0]['args']['redirection'] ?? null ) === 0, 'rss: POST sets redirection=0 (no redirect-to-internal bypass)' );
+
+// First-party payload shape: a token-authenticated 'ce' custom event carrying
+// srv:1 (so the worker counts it as human — the events rollup is human-only).
+$body = json_decode( $GLOBALS['__post_calls'][0]['args']['body'] ?? '{}', true );
+ok( ( $body['k'] ?? '' ) === 'test-token', 'rss: payload carries the shared beacon token (k)' );
+ok( ( $body['e'] ?? '' ) === 'ce', "rss: payload is a custom event (e='ce')" );
+ok( ( $body['n'] ?? '' ) === 'RSS Feed Request', 'rss: payload event name (n) = configured event_name' );
+ok( ( $body['u'] ?? '' ) === '/notes/feed/', 'rss: payload path (u) = the feed path' );
+ok( ( $body['srv'] ?? null ) === 1, 'rss: payload carries srv:1 (server-trusted → human in the rollup)' );
+ok( ! isset( $GLOBALS['__post_calls'][0]['args']['headers']['X-Forwarded-For'] ), 'rss: no X-Forwarded-For forwarded (worker derives its own edge context)' );
+
+// Token gate: without the shared token, never POST (don't send unauthenticated).
+add_filter( 'sn_beacon_token', function () { return ''; } );
+ok( rss_send( 'https://collector.example.com/_sn/px' ) === 0, 'rss: no shared token → POST skipped (never send unauthenticated)' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
