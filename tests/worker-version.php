@@ -38,6 +38,7 @@ $GLOBALS['__test_transient_ttls'] = array();
 $GLOBALS['__test_options']        = array();
 $GLOBALS['__test_can']            = true;
 $GLOBALS['__test_tracker_nonarray'] = false;
+$GLOBALS['__test_nonce_valid']      = true;   // wp_verify_nonce stub return
 
 // ── WP function stubs ─────────────────────────────────────────────────
 function sn_rss_tracker_settings() {
@@ -137,6 +138,27 @@ function human_time_diff( $from, $to = 0 ) {
 	return '2 days';
 }
 
+// Re-check control stubs (the force-bypass UI wiring).
+function wp_unslash( $v ) {
+	return $v;
+}
+function wp_verify_nonce( $nonce, $action = -1 ) {
+	return ! empty( $GLOBALS['__test_nonce_valid'] ) ? 1 : false;
+}
+function wp_nonce_url( $url, $action = -1 ) {
+	return $url . ( false !== strpos( $url, '?' ) ? '&' : '?' ) . '_wpnonce=testnonce';
+}
+function add_query_arg( $args, $url ) {
+	$sep = false !== strpos( $url, '?' ) ? '&' : '?';
+	return $url . $sep . http_build_query( $args );
+}
+function admin_url( $path = '' ) {
+	return 'https://home.example/wp-admin/' . ltrim( (string) $path, '/' );
+}
+function esc_url( $u ) {
+	return htmlspecialchars( (string) $u, ENT_QUOTES );
+}
+
 // Deterministic resolver seam for the shared SSRF guard — defined BEFORE
 // inc/ssrf-guard.php so its function_exists() guard keeps THIS one (mirrors
 // tests/uptime-heartbeat.php + tests/webhooks.php). Literal IPs pass through
@@ -195,6 +217,8 @@ function wv_reset() {
 	$GLOBALS['__test_options']          = array();
 	$GLOBALS['__test_can']              = true;
 	$GLOBALS['__test_tracker_nonarray'] = false;
+	$GLOBALS['__test_nonce_valid']      = true;
+	unset( $_GET['sn_worker_recheck'], $_GET['_wpnonce'] );
 }
 
 // A valid /_sn/version success body the worker would emit.
@@ -481,6 +505,75 @@ wv_true( false === strpos( $html, '<script>alert(1)</script>' ), 'XSS in version
 wv_true( false !== strpos( $html, '&lt;script&gt;' ), 'XSS in version → appears esc_html-encoded' );
 wv_true( false === strpos( $html, '<img' ), 'XSS in cf_version_id → raw <img NOT present (escaped)' );
 wv_true( false !== strpos( $html, '&lt;img', 0 ), 'XSS in cf_version_id → appears esc_html-encoded' );
+
+// ─── Group G: re-check control — the force-bypass UI wiring ────────────
+echo "\nGroup G: recheck_requested + render_card force wiring + button\n";
+
+wv_true( function_exists( 'sn_worker_version_recheck_requested' ), 'recheck helper is defined' );
+
+// No param → no force.
+wv_reset();
+wv_true( ! sn_worker_version_recheck_requested(), 'no recheck param → false' );
+
+// Param present but BAD nonce → no force (a CSRF / stale-link can't bypass).
+wv_reset();
+$_GET['sn_worker_recheck'] = '1';
+$_GET['_wpnonce']          = 'x';
+$GLOBALS['__test_nonce_valid'] = false;
+wv_true( ! sn_worker_version_recheck_requested(), 'recheck param + bad nonce → false' );
+
+// Param + VALID nonce → force.
+wv_reset();
+$_GET['sn_worker_recheck'] = '1';
+$_GET['_wpnonce']          = 'good';
+$GLOBALS['__test_nonce_valid'] = true;
+wv_true( sn_worker_version_recheck_requested(), 'recheck param + valid nonce → true' );
+
+// The card always offers a nonce-protected "Re-check now" link.
+wv_reset();
+$GLOBALS['__test_collector'] = 'https://kuma.example.com/_sn/px';
+$GLOBALS['__test_http']      = wv_ok_http( '1.4.0' );
+ob_start();
+sn_worker_version_render_card();
+$html = ob_get_clean();
+wv_true( false !== strpos( $html, 'Re-check now' ), 'render_card shows a "Re-check now" control' );
+wv_true( false !== strpos( $html, 'sn_worker_recheck' ), 'the re-check link carries the cache-bypass trigger' );
+wv_true( false !== strpos( $html, '_wpnonce' ), 'the re-check link is nonce-protected' );
+
+// THE money case (reproduces the live incident): a WARM cache holds the OLD
+// version while the endpoint is already serving the NEW one. A valid re-check
+// must bypass the cache and show the fresh version.
+wv_reset();
+$_GET['sn_worker_recheck'] = '1';
+$_GET['_wpnonce']          = 'good';
+$GLOBALS['__test_collector'] = 'https://kuma.example.com/_sn/px';
+$GLOBALS['__test_transients'][ SN_WORKER_VERSION_TRANSIENT ] = array(
+	'ok'         => true,
+	'data'       => array( 'worker' => 'sn-analytics', 'version' => '1.4.1' ),
+	'fetched_at' => time(),
+	'url'        => 'https://kuma.example.com/_sn/version',
+);
+$GLOBALS['__test_http'] = wv_ok_http( '1.5.0' );
+ob_start();
+sn_worker_version_render_card();
+$html = ob_get_clean();
+wv_true( false !== strpos( $html, 'v1.5.0' ), 'valid re-check bypasses the warm cache → shows the freshly-probed version' );
+wv_true( false === strpos( $html, 'v1.4.1' ), 're-check does NOT show the stale cached version' );
+
+// Without the re-check trigger, the warm cache is still served (SWR intact).
+wv_reset();
+$GLOBALS['__test_collector'] = 'https://kuma.example.com/_sn/px';
+$GLOBALS['__test_transients'][ SN_WORKER_VERSION_TRANSIENT ] = array(
+	'ok'         => true,
+	'data'       => array( 'worker' => 'sn-analytics', 'version' => '1.4.1' ),
+	'fetched_at' => time(),
+	'url'        => 'https://kuma.example.com/_sn/version',
+);
+$GLOBALS['__test_http'] = wv_ok_http( '1.5.0' );
+ob_start();
+sn_worker_version_render_card();
+$html = ob_get_clean();
+wv_true( false !== strpos( $html, 'v1.4.1' ), 'no trigger → warm cache still served (SWR unchanged)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -324,10 +324,52 @@ function sn_worker_version_render_data( $result, $stale ) {
 }
 
 /**
+ * Whether the admin requested an explicit "Re-check now" — a nonce-verified
+ * cache-bypass so the card probes the Worker live. Needed because Worker deploys
+ * are out-of-band from wp-admin, so the 10-min SWR cache would otherwise show a
+ * stale version until it expires. Read-only side effect (re-probe + cache
+ * refresh); the caller enforces manage_options.
+ *
+ * @since 6.22.1
+ * @return bool
+ */
+function sn_worker_version_recheck_requested() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence flag only; the nonce is verified on the very next line before any effect.
+	if ( empty( $_GET['sn_worker_recheck'] ) ) {
+		return false;
+	}
+	$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+	return (bool) wp_verify_nonce( $nonce, 'sn_worker_recheck' );
+}
+
+/**
+ * The nonce-protected "Re-check now" URL — the same Monitoring → Analytics screen
+ * with the cache-bypass trigger appended.
+ *
+ * @since 6.22.1
+ * @return string
+ */
+function sn_worker_version_recheck_url() {
+	return wp_nonce_url(
+		add_query_arg(
+			array(
+				'page'              => 'sn-theme-options',
+				'tab'               => 'monitoring',
+				'sn_worker_recheck' => '1',
+			),
+			admin_url( 'admin.php' )
+		),
+		'sn_worker_recheck'
+	);
+}
+
+/**
  * Render the edge-Worker version status card into the Monitoring → Analytics
  * settings section. Native wp-admin chrome (no theme vocabulary). Three states:
  * live (info), last-known after a transient failure (warning), and
- * never-reached (warning). Admin-only; read-only — no form, no nonce.
+ * never-reached (warning), plus a nonce-protected "Re-check now" link that
+ * bypasses the SWR cache (Worker deploys are out-of-band from wp-admin, so the
+ * card would otherwise lag a deploy by up to its 10-min TTL). Admin-only.
  *
  * @since 6.21.0
  */
@@ -336,7 +378,7 @@ function sn_worker_version_render_card() {
 		return;
 	}
 
-	$result    = sn_worker_version_get();
+	$result    = sn_worker_version_get( sn_worker_version_recheck_requested() );
 	$last_good = get_option( SN_WORKER_VERSION_LASTGOOD, array() );
 
 	echo '<h3 class="sn-fieldset-h">Edge worker</h3>';
@@ -344,19 +386,19 @@ function sn_worker_version_render_card() {
 
 	if ( ! empty( $result['ok'] ) ) {
 		sn_worker_version_render_data( $result, false );
-		return;
-	}
-
-	if ( is_array( $last_good ) && ! empty( $last_good['ok'] ) ) {
+	} elseif ( is_array( $last_good ) && ! empty( $last_good['ok'] ) ) {
 		sn_worker_version_render_data( $last_good, true );
-		return;
+	} else {
+		echo '<div class="notice notice-warning notice-alt inline"><p>';
+		echo '<strong>Worker version unknown.</strong> Couldn\'t reach the <code>/_sn/version</code> endpoint';
+		if ( ! empty( $result['url'] ) ) {
+			echo ' at <code class="sn-mono">' . esc_html( (string) $result['url'] ) . '</code>';
+		}
+		echo '. The Worker may not be deployed yet (it needs worker <strong>v1.4.0+</strong>), or this host can\'t reach it &mdash; point the <em>Collector endpoint</em> (Content &rarr; RSS) at the Worker\'s <code>*.workers.dev</code> URL if the origin doesn\'t hairpin to the edge.';
+		echo '</p></div>';
 	}
 
-	echo '<div class="notice notice-warning notice-alt inline"><p>';
-	echo '<strong>Worker version unknown.</strong> Couldn\'t reach the <code>/_sn/version</code> endpoint';
-	if ( ! empty( $result['url'] ) ) {
-		echo ' at <code class="sn-mono">' . esc_html( (string) $result['url'] ) . '</code>';
-	}
-	echo '. The Worker may not be deployed yet (it needs worker <strong>v1.4.0+</strong>), or this host can\'t reach it &mdash; point the <em>Collector endpoint</em> (Content &rarr; RSS) at the Worker\'s <code>*.workers.dev</code> URL if the origin doesn\'t hairpin to the edge.';
-	echo '</p></div>';
+	// Explicit re-check — Worker deploys happen outside wp-admin, so the 10-min
+	// SWR cache can show a stale version until it expires. This link probes live.
+	echo '<p><a href="' . esc_url( sn_worker_version_recheck_url() ) . '" class="button button-secondary">Re-check now</a></p>';
 }
