@@ -71,7 +71,7 @@ function snt_cron_history_install() {
 
 /**
  * One autoloaded-option compare per request, install-once cost on the
- * delta. Matches the rss-plausible-tracker pattern.
+ * delta. Matches the rss-feed-tracker pattern.
  */
 function snt_cron_history_maybe_install() {
 	if ( get_option( SNT_CRON_HISTORY_DB_VERSION_OPT ) !== SNT_CRON_HISTORY_DB_VERSION ) {
@@ -231,7 +231,7 @@ function & snt_cron_history_starts_ref() {
  */
 function snt_cron_history_prune() {
 	global $wpdb;
-	// Partial-restore guard, same shape as rss-plausible-tracker.
+	// Partial-restore guard, same shape as rss-feed-tracker.
 	snt_cron_history_maybe_install();
 
 	$table = $wpdb->prefix . SNT_CRON_HISTORY_TABLE;

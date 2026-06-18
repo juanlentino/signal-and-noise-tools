@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.20.1] - 2026-06-17 — Rename the RSS tracker file; drop the dead MU-migration guard
+
+**Headline:** Now that Plausible is gone from the RSS tracker's behavior (v6.20.0), the misnamed `inc/rss-plausible-tracker.php` is renamed to **`inc/rss-feed-tracker.php`**, and the **dead v1.1.0 MU-plugin migration guard** that was the last thing forcing the "plausible" name into live code is removed. Pure rename + dead-code cleanup — no behavior change. Function names (`sn_rss_tracker_*`), option keys, the `rss_feed_log` table, and the cron hook are all unchanged.
+
+### Removed
+
+- **The v1.1.0 "MU-twin" redeclare guard** in [signal-and-noise-tools.php](signal-and-noise-tools.php) (`file_exists( WPMU_PLUGIN_DIR . '/rss-plausible-tracker.php' )` → defer + admin notice). The migration it protected completed long ago: the theme dropped `mu-plugins/rss-plausible-tracker.php` at v8.2.1 (now v10.10.1), and the plugin's own copy is demonstrably the live one (v6.20.0's RSS changes took effect — impossible if the guard were deferring to an MU file). The module is now required unconditionally. The stale "copy the MU plugin" not-installed notice in [inc/admin-render-sections.php](inc/admin-render-sections.php) is simplified to a generic defensive fallback.
+
+### Changed
+
+- **`inc/rss-plausible-tracker.php` → `inc/rss-feed-tracker.php`** (`git mv`, history preserved). Updated: the bootstrap `require_once`, the two `phpcs.xml.dist` `<exclude-pattern>` entries (the `InputNotSanitized` + `PreparedSQL` accepted-pattern suppressions are path-keyed — a rename detaches them), the two test `require` paths ([tests/bot-detection.php](tests/bot-detection.php), [tests/ssrf-url-validation.php](tests/ssrf-url-validation.php)), the RSS-tab subtitle in [inc/admin-legacy-redirect.php](inc/admin-legacy-redirect.php), and cross-reference comments in cron-history / cron-dashboard / analytics-rollup / audit-log-admin. Historical mentions in the module docblock + CHANGELOG are kept (they document the rename).
+
+> **Why PATCH:** rename + dead-code removal; no new capability, no settings-schema change, no public-API change (the renamed file's functions/constants are identical and were already plugin-internal). 127 suites green, WPCS clean (falsified — the renamed file is still scanned; only the two accepted-pattern sniffs remain suppressed).
+
 ## [6.20.0] - 2026-06-17 — RSS feed tracking: Plausible → first-party collector
 
 **Headline:** The RSS feed-request tracker no longer POSTs to **Plausible** — it now sends a first-party **"RSS Feed Request"** custom event to the SN collector (the Cloudflare Worker's `/_sn/px`), so feed traffic surfaces in **Analytics → Events** alongside the rest of the first-party analytics. This finishes the Plausible retirement begun in v6.0.0 (the tracker had survived it because it used Plausible's event-ingestion endpoint, not the removed Stats API). The local `wp_rss_feed_log` table remains the source of truth, so the table view and the Dashboard RSS-activity widget are unchanged.

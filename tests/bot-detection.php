@@ -33,7 +33,7 @@ define( 'ABSPATH', '/' );
 // One trivial stub is all we need to load the file for function access.
 function add_action() {}
 
-require_once __DIR__ . '/../inc/rss-plausible-tracker.php';
+require_once __DIR__ . '/../inc/rss-feed-tracker.php';
 
 /**
  * Fixtures: [ short_name, user_agent, expected_is_bot ].

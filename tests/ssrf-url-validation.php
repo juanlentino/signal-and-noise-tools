@@ -138,7 +138,7 @@ function sn_ssrf_resolve_host( $host ) {
 }
 require __DIR__ . '/../inc/ssrf-guard.php';
 
-require __DIR__ . '/../inc/rss-plausible-tracker.php';
+require __DIR__ . '/../inc/rss-feed-tracker.php';
 
 // ── sn_rss_tracker_send_event() SSRF guard on collector_url ──────────────
 function rss_send( $url ) {
