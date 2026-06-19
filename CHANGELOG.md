@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.26.0] - 2026-06-19 — Traffic & edge: server-side Cloudflare zone analytics
+
+**Headline:** A new **"Traffic & edge"** view in Monitoring → Analytics, reading the Cloudflare **GraphQL Analytics API** for what actually hit the edge — the half of reality the JS beacon structurally can't see: non-JS / bot / RSS / curl traffic, cache-hit ratio, bandwidth, status codes, and WAF threats. Server-to-server (zero client cost), cookieless. The headline reconciliation contrasts edge pageviews against the beacon's human pageviews to surface the **% machine traffic** the beacon never recorded. This is Lever 1 of the CF-analytics-headroom program (worker-side bot/`request.cf` signals + field CWV follow in later releases).
+
+### New
+
+- **`inc/edge-analytics.php` — GraphQL zone client.** `sn_edge_query()` (the GraphQL twin of `sn_analytics_query()`: `wp_remote_post`, Bearer auth, auto-injected `zoneTag`, decodes `data.viewer.zones[0]`, returns null on transport error / non-200 / the GraphQL HTTP-200-with-`errors[]` soft-fail / empty zones — never fatal) + the three query builders. Two correctness models: `httpRequests1dGroups` is **exact** (pre-aggregated, ~1y retention, `date_geq/leq`); `firewallEventsAdaptiveGroups` + `httpRequestsAdaptiveGroups` are **sampled** (`datetime_geq`, 24h on Free) and every count is `× avg.sampleInterval` (`sn_edge_corrected()`).
+- **`inc/edge-rollup.php` — durable storage + daily cron.** Two dbDelta tables (`sn_edge_daily` exact daily totals + `sn_edge_dims` country/colo/threat breakdowns) and a daily `sn_edge_rollup_cron` that re-pulls the trailing ~13 months of exact 1dGroups (first run back-fills; idempotent overwrite) plus the last 24h of the sampled datasets. Read accessors + the **beacon reconciliation** (`sn_edge_machine_split()`: edge pageviews − beacon human pageviews → machine traffic, clamped ≥0).
+- **`inc/edge-admin.php` — the "Traffic & edge" view** (a 7th `sn_view` in the Analytics page; not a new widget, not new nav). KPI headline (edge requests · human pageviews · **machine %** · cache-hit % · bandwidth · errors · threats), the daily request trend (shared chart), a status-code breakdown, and per-colo / per-country / threat tables. Reuses the native `.sn-kpi-row` / postbox / table treatments — no new visual vocabulary. Dormant (configure note) until credentials are present.
+
+### Config
+
+- **Reuses `SN_CF_ANALYTICS_TOKEN`** (add *Zone Analytics:Read* to it in the Cloudflare dashboard) + the zone ID already stored for cache purge. `api.cloudflare.com` is a fixed trusted host (no SSRF surface). The view stays dormant until both are present, so the release is inert until you opt in.
+
+> **Why MINOR:** a new user-visible analytics capability + three new read modules; no settings-schema change, no breaking change, and entirely dormant until configured. The fold/rollup adds two owned tables (no migration of existing data). RED→GREEN: new [tests/edge-analytics.php](tests/edge-analytics.php) (+32), [tests/edge-rollup.php](tests/edge-rollup.php) (+38), [tests/edge-admin.php](tests/edge-admin.php) (+19). 134 suites green (3780 asserts); WPCS falsified-clean (PreparedSQL scoped-excluded for the new custom-table file, security sniffs confirmed still active there). ⚠ The GraphQL field set can't be unit-tested against the live schema — verify once post-deploy (the project's standard LIVE-GATE; graceful null-on-error keeps a mismatch non-fatal).
+
 ## [6.25.0] - 2026-06-19 — Top sources: brand grouping + self-referral fold + drillable widget
 
 **Headline:** "Top sources" was showing `juanlentino.com` (your own domain, an edge-cache self-referral) as a *separate* line from `(direct)`, plus `www.`-fragmented and multi-host providers as distinct rows. They now fold to one canonical source each — self-referrals into **Direct**, `www.x`/`x` merged, and provider hosts grouped to a brand (Google, Facebook, LinkedIn, X, …). The fix is a pure **read-time** fold over the existing rollup data, so it corrects historical data the instant the plugin updates — no re-ingest, no cron wait, no worker redeploy. The companion **worker** v1.6.0 additionally canonicalizes the raw `blob3` at ingest (forward hygiene); the plugin is correct with or without it.
