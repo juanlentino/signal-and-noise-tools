@@ -18,6 +18,11 @@ define( 'SN_ANALYTICS_DIM_COLUMNS', array(
 	'colo' => 'blob13', 'protocol' => 'blob14', 'tls' => 'blob15',
 ) );
 
+// WP seams the canonical-source mapper (used by the referrer drill) touches.
+function home_url( $path = '' ) { return 'https://juanlentino.com' . $path; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
+function apply_filters( $tag, $value ) { return $value; }
+
 // Transient seam (records TTL for assertions).
 $GLOBALS['__dd_trans'] = array();
 function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__dd_trans'] ) ? $GLOBALS['__dd_trans'][ $k ] : false; }
@@ -36,6 +41,7 @@ $GLOBALS['__dd_query_result'] = array(
 );
 function sn_analytics_query( $sql ) { $GLOBALS['__dd_query_calls'][] = $sql; return $GLOBALS['__dd_query_result']; }
 
+require_once __DIR__ . '/../inc/analytics-sources.php'; // referrer drill resolves a brand label → member hosts
 require_once __DIR__ . '/../inc/analytics-drilldown.php';
 
 $pass = 0; $fail = 0;
@@ -65,7 +71,7 @@ $sql = sn_analytics_drilldown_sql( 'country', 'US', '2026-06-01', '2026-06-30', 
 ok( strpos( $sql, 'SELECT blob2 AS path,' ) !== false, 'sql: selects path (blob2) as the child' );
 ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'sql: sample-corrected views' );
 ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'sql: visits via count(DISTINCT bare column)' );
-ok( strpos( $sql, "WHERE blob1 = 'pv' AND blob4 = 'US' AND blob7 = 'human'" ) !== false, 'sql: pv + parent col=value + class filters' );
+ok( strpos( $sql, "WHERE blob1 = 'pv' AND blob4 IN ('US') AND blob7 = 'human'" ) !== false, 'sql: pv + parent col IN (value) + class filters' );
 ok( strpos( $sql, "timestamp >= toDateTime('2026-06-01 00:00:00')" ) !== false, 'sql: lower date bound' );
 ok( strpos( $sql, "timestamp <= toDateTime('2026-06-30 23:59:59')" ) !== false, 'sql: upper date bound' );
 ok( strpos( $sql, 'GROUP BY path' ) !== false && strpos( $sql, 'ORDER BY views DESC' ) !== false, 'sql: group + order' );
@@ -75,7 +81,10 @@ ok( '' === sn_analytics_drilldown_sql( 'martian', 'x', '2026-06-01', '2026-06-30
 
 echo "\nGroup: SQL builder injection-safety\n";
 $ev = sn_analytics_drilldown_sql( 'city', "O'Hare", '2026-06-01', '2026-06-30', 'human' );
-ok( strpos( $ev, "blob11 = 'O\\'Hare'" ) !== false, 'sql: single-quote in value is escaped for the AE literal' );
+ok( strpos( $ev, "blob11 IN ('O\\'Hare')" ) !== false, 'sql: single-quote in value is escaped for the AE literal' );
+$multi = sn_analytics_drilldown_sql( 'referrer', array( 'google.com', 'news.google.com' ), '2026-06-01', '2026-06-30', 'human' );
+ok( strpos( $multi, "blob3 IN ('google.com', 'news.google.com')" ) !== false, 'sql: referrer drill emits a multi-host IN set (brand → member hosts)' );
+ok( '' === sn_analytics_drilldown_sql( 'referrer', array(), '2026-06-01', '2026-06-30', 'human' ), 'sql: empty value set → empty SQL' );
 ok( strpos( sn_analytics_drilldown_sql( 'country', "US", '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
 ok( strpos( sn_analytics_drilldown_sql( 'country', 'US', "2026'; DROP", '2026-06-30', 'human' ), 'DROP' ) === false, 'sql: from re-validated YMD' );
 
@@ -128,7 +137,28 @@ echo "\nGroup: accessor → builder — escaping survives end-to-end\n";
 dd_reset();
 sn_analytics_drilldown( 'city', "O'Hare", '2026-06-01', '2026-06-30', 'human' );
 ok( count( $GLOBALS['__dd_query_calls'] ) === 1, 'accessor: quote-bearing top-N value passes the whitelist' );
-ok( strpos( $GLOBALS['__dd_query_calls'][0], "blob11 = 'O\\'Hare'" ) !== false, 'accessor→builder: the quote is escaped in the issued SQL (not just in the builder unit test)' );
+ok( strpos( $GLOBALS['__dd_query_calls'][0], "blob11 IN ('O\\'Hare')" ) !== false, 'accessor→builder: the quote is escaped in the issued SQL (not just in the builder unit test)' );
+
+echo "\nGroup: referrer drill is brand-aware (label → member hosts → IN)\n";
+dd_reset();
+// The whitelist source for the referrer dim is the folded top-sources, which read
+// the raw referrer top-N. Seed raw hosts that fold to brands.
+$GLOBALS['__dd_top'] = array(
+	array( 'value' => 'www.google.com',  'views' => 100, 'visits' => 60 ),
+	array( 'value' => 'news.google.com', 'views' => 20,  'visits' => 10 ),
+	array( 'value' => 'juanlentino.com', 'views' => 200, 'visits' => 120 ), // self-referral → (direct)
+);
+$rg = sn_analytics_drilldown( 'referrer', 'Google', '2026-06-01', '2026-06-30', 'human' );
+ok( is_array( $rg ) && count( $GLOBALS['__dd_query_calls'] ) === 1, 'referrer: a known brand label resolves + queries AE once' );
+ok( strpos( $GLOBALS['__dd_query_calls'][0], "blob3 IN ('www.google.com', 'news.google.com')" ) !== false, 'referrer: brand label → its member hosts as an IN set' );
+dd_reset();
+$GLOBALS['__dd_top'] = array(
+	array( 'value' => 'juanlentino.com', 'views' => 200, 'visits' => 120 ),
+	array( 'value' => '(direct)',        'views' => 40,  'visits' => 20 ),
+);
+ok( null === sn_analytics_drilldown( 'referrer', '(direct)', '2026-06-01', '2026-06-30', 'human' ), 'referrer: (direct) has no member hosts → null (not drillable)' );
+ok( null === sn_analytics_drilldown( 'referrer', 'Nope', '2026-06-01', '2026-06-30', 'human' ), 'referrer: a label not in current top sources → null (whitelist)' );
+ok( count( $GLOBALS['__dd_query_calls'] ) === 0, 'referrer: non-resolvable labels never reach AE' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

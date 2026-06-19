@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.25.0] - 2026-06-19 — Top sources: brand grouping + self-referral fold + drillable widget
+
+**Headline:** "Top sources" was showing `juanlentino.com` (your own domain, an edge-cache self-referral) as a *separate* line from `(direct)`, plus `www.`-fragmented and multi-host providers as distinct rows. They now fold to one canonical source each — self-referrals into **Direct**, `www.x`/`x` merged, and provider hosts grouped to a brand (Google, Facebook, LinkedIn, X, …). The fix is a pure **read-time** fold over the existing rollup data, so it corrects historical data the instant the plugin updates — no re-ingest, no cron wait, no worker redeploy. The companion **worker** v1.6.0 additionally canonicalizes the raw `blob3` at ingest (forward hygiene); the plugin is correct with or without it.
+
+### New
+
+- **`inc/analytics-sources.php` — canonical traffic-source mapper.** One ordered brand-rule table is the single source of truth for both the "Top sources" label and the Search/Social/Direct/Other category split: `sn_analytics_referrer_category()` now delegates to it, so the two vocabularies can never drift. `sn_analytics_top_sources()` folds the raw referrer top-N by canonical label (recording each label's raw member hosts for the drill), `sn_analytics_top_sources_series()` sums each label's sparkline across its member hosts, and `sn_analytics_source_hosts()` resolves a clicked brand back to its hosts.
+- **The dashboard "Top sources" widget is now drillable.** Each branded source deep-links into Monitoring → Analytics drilled to that source ("Top pages where source = X"), reusing the existing whitelisted drill-down. `(direct)` carries no member hosts, so it renders as plain text (not a dead link). `sn_aw_kv_list()` gained an optional per-row `href` (backward-compatible — Top pages stays plain).
+
+### Changed
+
+- **Self-referrals fold into Direct.** `juanlentino.com` / `www.juanlentino.com` (own host, derived from `home_url()`, mirroring the pageroles AE exclusion; filterable via `sn_analytics_self_hosts`) no longer appear as their own source — they aggregate into `(direct)`, matching every analytics convention's referral-exclusion of the own domain.
+- **`www.` and multi-host fragmentation collapse.** A single leading `www.` is stripped and provider hosts group to a brand, so `www.facebook.com` + `m.facebook.com` read as one **Facebook**, `google.com` + `news.google.com` + the Gmail app-uri as one **Google**, etc. Unknown hosts still show their bare host.
+- **The referrer drill-down is brand-aware.** `sn_analytics_drilldown_sql()` now emits a `blob3 IN (…)` set (the same proven shape as `sn_analytics_pageroles_rollup_sql`) so clicking a brand drills *all* its member hosts at once; the clicked label is whitelisted against the current top sources before any AE call. Single-value dims are unchanged in behaviour (`IN ('x')` ≡ `= 'x'`).
+
+> **Why MINOR:** a new user-visible capability (brand-grouped, drillable sources) + a new read accessor module; no settings-schema change and no breaking change — `sn_analytics_drilldown_sql()` is internal and still accepts a single string value, and every fold degrades gracefully (an install with no self-host or unknown hosts behaves as before). The fold is read-only over existing rollup rows, so no migration. RED→GREEN: new [tests/analytics-sources.php](tests/analytics-sources.php) (+48), plus updated [tests/analytics-derived.php](tests/analytics-derived.php) (self-referral → Direct), [tests/analytics-widget.php](tests/analytics-widget.php) (brand label + drill link), [tests/analytics-drilldown.php](tests/analytics-drilldown.php) (brand → member-host `IN` set, `(direct)`/unknown rejected) and [tests/analytics-sql-dialect.php](tests/analytics-sql-dialect.php). 131 suites green (3685 asserts), WPCS falsified-clean.
+
 ## [6.24.0] - 2026-06-19 — Machine-readable full pass (structured data + meta)
 
 **Headline:** A comprehensive structured-data / social-meta hardening pass, driven by a live audit of juanlentino.com. Fixes one real bug (every page declared `og:image:width=1000` for cards that are actually **1200×630** — social unfurlers letterbox/misscale on the wrong number) and adds the precise, data-already-exists enrichments that strengthen the entity graph. Several items expose filters the companion **theme** populates (route descriptions + the postless `/about/uses` route), so this release is the plugin half of a coordinated theme + plugin pair; each degrades gracefully without the other.

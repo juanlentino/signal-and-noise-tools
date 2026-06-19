@@ -166,9 +166,18 @@ function sn_aw_sources( $standalone = true ) {
 		return;
 	}
 	list( $from, $to ) = sn_aw_window7();
+	// Brand-folded sources (self-referrals + www + multi-host providers collapsed).
+	// A source with member hosts deep-links into the full Analytics page drilled to
+	// that source ("Top pages where source = X"); (direct) has no hosts → plain text.
 	$rows = array_map( function ( $r ) {
-		return array( 'k' => $r['value'], 'v' => $r['views'] );
-	}, sn_analytics_top_dimension( 'referrer', $from, $to, 'human', 7 ) );
+		$href = ! empty( $r['hosts'] )
+			? add_query_arg(
+				array( 'page' => 'sn-analytics', 'sn_view' => 'content', 'sn_drill' => 'referrer:' . $r['value'] ),
+				admin_url( 'index.php' )
+			)
+			: '';
+		return array( 'k' => $r['value'], 'v' => $r['views'], 'href' => $href );
+	}, sn_analytics_top_sources( $from, $to, 'human', 7 ) );
 	sn_aw_kv_list( $rows, 'No referrers in the last 7 days.' );
 	if ( $standalone ) {
 		sn_aw_footer();
@@ -207,9 +216,12 @@ function sn_aw_top_content() {
 }
 
 /**
- * Shared key/value list for a [{k,v}] set of rows.
+ * Shared key/value list for a [{k,v}] set of rows. A row may carry an optional
+ * 'href' — when present and non-empty the key renders as a link (used by Top
+ * sources to deep-link into the Analytics drill-down); rows without it stay plain
+ * text (Top pages), so the signature is backward-compatible.
  *
- * @param array  $rows  [{k,v}]
+ * @param array  $rows  [{k, v, href?}]
  * @param string $empty
  */
 function sn_aw_kv_list( $rows, $empty ) {
@@ -219,8 +231,13 @@ function sn_aw_kv_list( $rows, $empty ) {
 	}
 	echo '<ul class="sn-aw-list">';
 	foreach ( $rows as $row ) {
-		echo '<li><span class="k">' . esc_html( (string) $row['k'] ) . '</span><span class="v">'
-			. esc_html( number_format_i18n( (int) $row['v'] ) ) . '</span></li>';
+		echo '<li><span class="k">';
+		if ( ! empty( $row['href'] ) ) {
+			echo '<a href="' . esc_url( (string) $row['href'] ) . '">' . esc_html( (string) $row['k'] ) . '</a>';
+		} else {
+			echo esc_html( (string) $row['k'] );
+		}
+		echo '</span><span class="v">' . esc_html( number_format_i18n( (int) $row['v'] ) ) . '</span></li>';
 	}
 	echo '</ul>';
 }

@@ -22,41 +22,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Classify a referrer HOST into a source category. Hosts only (no paths), so
- * short ambiguous shorteners (t.co, x.com) match exactly to avoid substring
- * false-positives (e.g. "first.co"); branded hosts match as substrings so
- * subdomains (mobile.twitter.com) still resolve. The dims layer stores an empty
- * referrer as the '(direct)' sentinel.
+ * Classify a referrer HOST into a source category. Delegates to the canonical
+ * source mapper (inc/analytics-sources.php) so the brand vocabulary used by "Top
+ * sources" and the Search/Social/Direct/Other category split can never drift:
+ * host → canonical label → category. Self-referrals + empty/sentinel resolve to
+ * '(direct)' → 'direct'; a known brand carries its category; an unknown host is
+ * 'other'.
  *
  * @param string $host Referrer host (or '(direct)' / '(unknown)' sentinel).
  * @return string 'search' | 'social' | 'direct' | 'other'
  */
 function sn_analytics_referrer_category( $host ) {
-	$h = strtolower( trim( (string) $host ) );
-	if ( '' === $h || '(direct)' === $h || '(unknown)' === $h ) {
-		return 'direct';
+	if ( ! function_exists( 'sn_analytics_canonical_source' ) ) {
+		return 'other';
 	}
-
-	$exact_social = array( 't.co', 'x.com', 'lnkd.in', 'fb.me', 'youtu.be', 'redd.it', 't.me', 'buff.ly', 'dlvr.it' );
-	if ( in_array( $h, $exact_social, true ) ) {
-		return 'social';
-	}
-
-	$search = array( 'google.', 'bing.', 'duckduckgo', 'yahoo.', 'yandex.', 'baidu.', 'ecosia.', 'startpage.', 'search.brave', 'qwant.', 'searx.' );
-	foreach ( $search as $p ) {
-		if ( strpos( $h, $p ) !== false ) {
-			return 'search';
-		}
-	}
-
-	$social = array( 'twitter.com', 'facebook.', 'instagram.', 'linkedin.', 'reddit.', 'ycombinator', 'lobste.rs', 'mastodon', 'bsky.', 'bluesky', 'threads.net', 'youtube.', 'tiktok.', 'pinterest.', 'telegram', 'substack.com', 'medium.com' );
-	foreach ( $social as $p ) {
-		if ( strpos( $h, $p ) !== false ) {
-			return 'social';
-		}
-	}
-
-	return 'other';
+	return sn_analytics_source_category_of_label( sn_analytics_canonical_source( $host ) );
 }
 
 /**

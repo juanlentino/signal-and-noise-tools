@@ -12,6 +12,11 @@ define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 
+// WP seams the canonical-source mapper (delegated to by the categorizer) touches.
+function home_url( $path = '' ) { return 'https://juanlentino.com' . $path; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
+function apply_filters( $tag, $value ) { return $value; }
+
 // Accessor seams the derived layer composes.
 $GLOBALS['__de_dim']    = array();   // referrer rows (and network rows for the bot test)
 $GLOBALS['__de_totals'] = array();   // keyed "$from|$to" → totals
@@ -29,6 +34,7 @@ function sn_analytics_class_totals( $from, $to ) {
 	return $GLOBALS['__de_class'];
 }
 
+require_once __DIR__ . '/../inc/analytics-sources.php'; // categorizer delegates to the canonical-source mapper
 require_once __DIR__ . '/../inc/analytics-derived.php';
 
 $pass = 0; $fail = 0;
@@ -45,6 +51,8 @@ ok( sn_analytics_referrer_category( 'old.reddit.com' ) === 'social', 'category: 
 ok( sn_analytics_referrer_category( '(direct)' ) === 'direct', 'category: (direct) sentinel → direct' );
 ok( sn_analytics_referrer_category( '' ) === 'direct', 'category: empty host → direct' );
 ok( sn_analytics_referrer_category( 'example.com' ) === 'other', 'category: unknown host → other' );
+ok( sn_analytics_referrer_category( 'juanlentino.com' ) === 'direct', 'category: self-referral → direct (not other)' );
+ok( sn_analytics_referrer_category( 'www.juanlentino.com' ) === 'direct', 'category: www self-referral → direct' );
 
 echo "\nGroup: referrer categories aggregation\n";
 $GLOBALS['__de_dim']['referrer|human'] = array(
