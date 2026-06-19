@@ -54,6 +54,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'engagement' => 'Engagement',
 	'quality'    => 'Quality',
 	'events'     => 'Events',
+	'edge'       => 'Traffic & edge',
 );
 
 /**
@@ -364,6 +365,12 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.', array(), 'network' );
 			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.', array(), 'colo' );
 			echo '</div></div>';
+			break;
+
+		case 'edge':
+			// Server-side Cloudflare edge analytics (GraphQL) — not class-segmented
+			// and not drillable (no per-page AE join); its own dormant gate.
+			snt_edge_render_view( $from, $to );
 			break;
 
 		case 'engagement':
