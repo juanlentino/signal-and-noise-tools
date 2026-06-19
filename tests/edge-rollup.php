@@ -151,7 +151,8 @@ $GLOBALS['__edge_data']['firewallEventsAdaptiveGroups'] = array( 'firewallEvents
 	array( 'count' => 5, 'avg' => array( 'sampleInterval' => 10 ), 'dimensions' => array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1', 'clientCountryName' => 'CN' ) ),
 ) );
 $GLOBALS['__edge_data']['httpRequestsAdaptiveGroups'] = array( 'httpRequestsAdaptiveGroups' => array(
-	array( 'count' => 30, 'avg' => array( 'sampleInterval' => 1 ), 'sum' => array( 'edgeResponseBytes' => 100000 ), 'dimensions' => array( 'coloCode' => 'IAD' ) ),
+	// sampleInterval 2 so BOTH the count (15→30) and the bytes (50000→100000) prove sampling correction.
+	array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'sum' => array( 'edgeResponseBytes' => 50000 ), 'dimensions' => array( 'coloCode' => 'IAD' ) ),
 ) );
 sn_edge_run_rollup( '2026-06-19' );
 ok( count( $GLOBALS['__edge_calls'] ) === 3, 'run: issues 3 GraphQL queries (daily + firewall + colo)' );
@@ -159,7 +160,7 @@ $all_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 50, 40, 10" ) !== false, 'run: daily row parsed — status map bucketed 2xx/3xx/4xx/5xx' );
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
 ok( strpos( $all_sql, "'2026-06-19', 'threat', 'block', 50" ) !== false, 'run: firewall sampling-corrected (5×10=50), attributed to today' );
-ok( strpos( $all_sql, "'2026-06-19', 'colo', 'IAD', 30" ) !== false, 'run: colo dims (corrected ×1), today' );
+ok( strpos( $all_sql, "'2026-06-19', 'colo', 'IAD', 30, 100000" ) !== false, 'run: colo dims sampling-corrected — BOTH requests (15×2=30) AND bytes (50000×2=100000)' );
 // Dormant.
 eo_reset(); $GLOBALS['__edge_config'] = null;
 sn_edge_run_rollup( '2026-06-19' );
