@@ -689,6 +689,11 @@ function snt_analytics_render_settings() {
 	}
 	echo '</form>';
 
+	// v6.23.0: the "Exclude my own visits" role allow-list is a primary analytics
+	// setting, so it sits with the credentials — above the edge-Worker readout and
+	// the one-time setup/import reference below.
+	snt_analytics_render_exclusion();
+
 	// The deployed edge-Worker version, read live from /_sn/version (guarded +
 	// SWR-cached). Sits above the manual setup steps — "what's live" before
 	// "how to deploy it".
@@ -697,6 +702,47 @@ function snt_analytics_render_settings() {
 	}
 
 	snt_analytics_render_worker_setup();
+}
+
+/**
+ * The Monitoring → Analytics "Exclude my own visits" card — a Plausible-style
+ * role allow-list. Ticking a role stops the front-end beacon for its logged-in
+ * users (the sn_beacon_enabled filter in inc/beacon-owner-exclusion.php suppresses
+ * the pixel). Native wp-admin styling; one <form> POSTing analytics_exclude_save.
+ *
+ * @since 6.23.0
+ */
+function snt_analytics_render_exclusion() {
+	$roles    = function_exists( 'sn_beacon_excludable_roles' ) ? sn_beacon_excludable_roles() : array();
+	$excluded = (array) sn_setting( 'analytics.exclude_roles', array() );
+
+	echo '<form method="post" class="sn-an-settings sn-an-exclude">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Stop counting logged-in users in the selected roles. The front-end beacon is never printed for them, so nothing reaches the collector. Cookieless and forward-only — visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
+
+	if ( empty( $roles ) ) {
+		echo '<p class="sn-an-empty">' . esc_html__( 'No roles available on this site.', 'signal-and-noise-tools' ) . '</p></form>';
+		return;
+	}
+
+	echo '<fieldset>';
+	foreach ( $roles as $slug => $name ) {
+		$id = 'sn_exclude_role_' . $slug;
+		echo '<label for="' . esc_attr( $id ) . '"><input type="checkbox" id="' . esc_attr( $id ) . '" name="sn_exclude_roles[]" value="' . esc_attr( $slug ) . '"' . checked( in_array( $slug, $excluded, true ), true, false ) . '> ' . esc_html( $name ) . ' <code>' . esc_html( $slug ) . '</code></label><br>';
+	}
+	echo '</fieldset>';
+
+	if ( function_exists( 'sn_beacon_owner_current_user_excluded' ) && sn_beacon_owner_current_user_excluded() ) {
+		echo '<p class="sn-an-status"><strong>' . esc_html__( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) . '</strong></p>';
+	} else {
+		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
+	}
+
+	echo '<p class="sn-an-settings-help"><strong>' . esc_html__( 'Requires a logged-in cache bypass.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'This site serves cached HTML from the CDN, so for the exclusion to run, logged-in requests must miss the edge cache — add a Cloudflare rule to bypass cache when the request carries a wordpress_logged_in_ cookie. Otherwise a cached page still carries the beacon.', 'signal-and-noise-tools' ) . '</p>';
+
+	echo '<p><button type="submit" name="sn_action" value="analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
 }
 
 /**

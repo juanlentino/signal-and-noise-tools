@@ -626,6 +626,30 @@ function sn_handle_analytics_test( $post ) {
 }
 
 /**
+ * v6.23.0: save the "Exclude my own visits" role allow-list (Monitoring →
+ * Analytics). Sanitizes the submitted role slugs against the real role list
+ * (sn_beacon_sanitize_exclude_roles) and persists them to the analytics subtree.
+ * The theme's sn_beacon_enabled filter (inc/beacon-owner-exclusion.php) reads
+ * this to suppress the front-end beacon for logged-in users in those roles.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code: 'analytics_exclude_saved' | 'analytics_exclude_unchanged'.
+ */
+function sn_handle_analytics_exclude_save( $post ) {
+	$raw = isset( $post['sn_exclude_roles'] ) ? wp_unslash( $post['sn_exclude_roles'] ) : array();
+	$new = sn_beacon_sanitize_exclude_roles( $raw );
+	sort( $new );
+
+	$prior = (array) sn_setting( 'analytics.exclude_roles', array() );
+	sort( $prior );
+
+	if ( $new === $prior ) {
+		return 'analytics_exclude_unchanged';
+	}
+	return sn_setting_update( 'analytics.exclude_roles', $new ) ? 'analytics_exclude_saved' : 'analytics_exclude_unchanged';
+}
+
+/**
  * v6.1.0: stream a CSV or JSON download of the current analytics range/class.
  *
  * This handler intentionally does NOT return a flash code — it streams a file

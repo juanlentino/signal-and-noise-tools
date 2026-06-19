@@ -56,6 +56,8 @@ function sn_admin_flash_messages() {
 		'monitoring_saved'          => array( 'success', 'Uptime monitoring settings saved.' ),
 		'monitoring_url_not_https'  => array( 'error', 'Uptime Kuma push URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ),
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
+		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
+		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		'release_notes_failed'      => array( 'error', 'Could not draft release notes. See the detail below, or check that an AI provider is configured under Settings &rarr; Connectors.' ),
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),

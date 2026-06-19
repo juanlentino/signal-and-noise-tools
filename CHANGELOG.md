@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.23.0] - 2026-06-19 — Exclude my own visits (Plausible-style role exclusion)
+
+**Headline:** A new **Monitoring → Analytics → "Exclude my own visits"** card stops counting logged-in users in the roles you tick (default: none — dormant until you opt in). It mirrors Plausible's "exclude user roles" setting: when a logged-in user holds an excluded role, the companion theme's front-end beacon is **never printed** for that request (via the theme's existing `sn_beacon_enabled` filter), so nothing reaches the edge collector. **Cookieless** (reads WordPress's existing auth session; sets nothing new) and **forward-only** (visits already recorded are unaffected). No theme or Worker code change — the theme already exposes the filter.
+
+### New
+
+- **Owner/role analytics exclusion** ([inc/beacon-owner-exclusion.php](inc/beacon-owner-exclusion.php)). Hooks `sn_beacon_enabled` and returns `false` when `wp_get_current_user()` holds any role in the new `sn_settings['analytics']['exclude_roles']` subtree. A native wp-admin card renders one checkbox per role (configured roles pre-checked) plus a live "you are currently {excluded|counted}" status line. Saved via the `analytics_exclude_save` admin-post action ([inc/admin-post-actions.php](inc/admin-post-actions.php)); submitted slugs are allow-listed against the real role list.
+
+### Operational
+
+- **Requires a logged-in CDN cache bypass to take effect.** juanlentino.com serves **edge-cached HTML to everyone** (verified: `cf-cache-status: HIT` on every front-end route, no APO, origin `no-store` overridden by a Cache-Everything rule), and the `wordpress_logged_in_*` cookie does **not** currently bypass it. A server-side role gate only runs on requests WordPress renders per-user, so for this to work you must add a Cloudflare **Cache Rule: bypass cache when `http.cookie contains "wordpress_logged_in_"`**. The settings card states this inline. On a one-person site the bypass affects only your own browsing; until the rule exists, the exclusion silently no-ops on cache hits.
+
+> **Why MINOR:** new user-visible capability (a settings panel + a behaviour toggle). The `analytics.exclude_roles` subtree is migration-free (empty default — a non-empty default would resurface via `array_replace_recursive`'s index-keyed merge, making "exclude nobody" un-storable) and dormant until opted into, so existing installs are byte-for-byte unchanged. The new `analytics` subtree carries a **preserve block** in `sn_settings_save()` (the whole-option-replace clobber that has bitten this repo 4×) with a regression assertion in the same change. RED→GREEN across [tests/beacon-owner-exclusion.php](tests/beacon-owner-exclusion.php) (predicate / filter / status / role helpers), [tests/analytics-exclusion-render.php](tests/analytics-exclusion-render.php) (card markup + escaping), [tests/admin-post-actions.php](tests/admin-post-actions.php) (handler behaviour + 35-action map), and [tests/settings-save-preserves-subtrees.php](tests/settings-save-preserves-subtrees.php) (subtree preservation). 130 suites green, WPCS falsified-clean (security ruleset confirmed firing on an injected `EscapeOutput`/`InputNotSanitized` probe).
+
 ## [6.22.1] - 2026-06-18 — "Re-check now" for the edge-Worker version card
 
 **Headline:** The Monitoring → Analytics "Edge worker" card reads the Worker's version through a 10-minute SWR cache. Because Worker deploys happen **out-of-band** from wp-admin, the card could show the *previous* version for up to 10 minutes after a deploy — with no way to refresh it. The `sn_worker_version_get($force)` bypass seam existed (v6.21.0) but was never wired to any UI; this completes it with a nonce-protected **"Re-check now"** link that probes the Worker live and refreshes the cache on demand.
