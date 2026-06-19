@@ -191,6 +191,27 @@ sn_discography_set( array( sn_discography_normalize_entry( array(
 $nn = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
 ok( ! isset( $nn['track'] ) && ! isset( $nn['numTracks'] ), 'B3: a tracksless album omits the tracklist (no empty array asserted)' );
 
+// ── v6.24.0: ISRC (recording) + UPC (album) catalog identifiers ──────
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'ID Single', 'artist' => 'A', 'year' => 2021, 'type' => 'track', 'isrc' => 'USABC2100001',
+) ) ), 1700000000, '' );
+$ids = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
+ok( 'USABC2100001' === ( $ids['isrcCode'] ?? null ), 'v6.24.0: MusicRecording carries isrcCode from the stored ISRC' );
+ok( ! isset( $ids['identifier'] ), 'v6.24.0: a single with no UPC emits no identifier' );
+
+sn_discography_set( array( sn_discography_normalize_entry( array(
+	'title' => 'ID Album', 'artist' => 'A', 'year' => 2021, 'type' => 'album', 'upc' => '00602445000010',
+) ) ), 1700000000, '' );
+$ida = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', sn_music_schema_jsonld() ), true )['@graph'][0];
+ok(
+	isset( $ida['identifier'] )
+	&& 'PropertyValue' === ( $ida['identifier']['@type'] ?? null )
+	&& 'UPC' === ( $ida['identifier']['propertyID'] ?? null )
+	&& '00602445000010' === ( $ida['identifier']['value'] ?? null ),
+	'v6.24.0: MusicAlbum carries a UPC PropertyValue identifier'
+);
+ok( ! isset( $ida['isrcCode'] ), 'v6.24.0: an album does not get isrcCode (recording-only property)' );
+
 // ── empty store → emits nothing ──────────────────────────────────────
 $GLOBALS['__options'] = array();
 ok( sn_music_schema_jsonld() === '', 'emit: empty store → emits nothing' );

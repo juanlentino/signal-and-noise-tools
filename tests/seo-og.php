@@ -246,5 +246,18 @@ sn_seo_article_meta( $post );
 $out3 = ob_get_clean();
 og_true( strpos( $out3, 'article:section' ) === false && strpos( $out3, 'article:tag' ) === false, 'empty terms → no section/tag' );
 
+// ─── v6.24.0: sn_seo_image_dimensions() — declare the image's ACTUAL size ──
+// Generated /sn-og/ cards resolve to the generator's constant with NO filesystem
+// read (the live bug: cards are 1200 wide but the stored setting declared 1000).
+if ( ! defined( 'SN_OG_DIRNAME' ) ) { define( 'SN_OG_DIRNAME', 'sn-og' ); }
+if ( ! defined( 'SN_OG_WIDTH' ) )   { define( 'SN_OG_WIDTH', 1200 ); }
+if ( ! defined( 'SN_OG_HEIGHT' ) )  { define( 'SN_OG_HEIGHT', 630 ); }
+if ( ! function_exists( 'content_url' ) ) {
+	function content_url( $path = '' ) { return 'https://example.test/wp-content' . $path; }
+}
+og_eq( array( 1200, 630 ), sn_seo_image_dimensions( 'https://example.test/wp-content/uploads/sn-og/post-383.png?v=9' ), 'generated /sn-og/ card → generator constant 1200x630 (cache-buster ignored)' );
+og_eq( null, sn_seo_image_dimensions( 'https://images.example.org/remote.png' ), 'remote (non-local) image → null (caller falls back, never guesses a size)' );
+og_eq( '', sn_seo_local_image_path( 'https://images.example.org/remote.png' ), 'off-site URL maps to no local path' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
