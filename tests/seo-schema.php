@@ -279,9 +279,16 @@ ss_eq( 'ItemList', $coll['mainEntity']['@type'] ?? null, 'mainEntity.@type === I
 ss_eq( 3, isset( $coll['mainEntity']['itemListElement'] ) ? count( $coll['mainEntity']['itemListElement'] ) : 0, 'itemListElement has 3 entries' );
 ss_eq( 1, $coll['mainEntity']['itemListElement'][0]['position'] ?? null, 'first position === 1' );
 ss_eq( 3, $coll['mainEntity']['itemListElement'][2]['position'] ?? null, 'third position === 3' );
+// v6.24.0: each ListItem wraps an Article node carrying the SAME @id the
+// single-note page mints (<permalink>#article), so Google reconciles the list
+// with the full Article entities across pages instead of reading a bare URL list.
 $elem0 = $coll['mainEntity']['itemListElement'][0] ?? array();
-ss_true( ! empty( $elem0['url'] ) && ! empty( $elem0['name'] ), 'each ListItem has url + name' );
-ss_eq( 'First', $coll['mainEntity']['itemListElement'][0]['name'] ?? null, 'first name === stripped title' );
+$item0 = $elem0['item'] ?? array();
+ss_eq( 'Article', $item0['@type'] ?? null, 'each ListItem.item is an Article node' );
+ss_true( false !== strpos( (string) ( $item0['@id'] ?? '' ), '#article' ), 'item.@id carries the #article anchor (reconciles with the single-page Article)' );
+ss_true( ! empty( $item0['url'] ) && ! empty( $item0['headline'] ), 'item has url + headline' );
+ss_eq( 'First', $item0['headline'] ?? null, 'first headline === stripped title' );
+ss_true( ! empty( $item0['datePublished'] ), 'item carries datePublished' );
 
 // empty get_posts → mainEntity absent.
 $GLOBALS['__ss']['recent_posts'] = array();
@@ -357,6 +364,52 @@ ss_eq( 'Production', $svc['hasOfferCatalog']['itemListElement'][0]['itemOffered'
 ss_eq( 'Service', $svc['hasOfferCatalog']['itemListElement'][0]['itemOffered']['@type'] ?? null, 'offer.itemOffered.@type === Service' );
 $GLOBALS['__ss']['is_page'] = false;
 ss_eq( null, sn_schema_professional_service(), 'not on /services → null (no ProfessionalService node)' );
+
+// ─── v6.24.0: theme virtual-route WebPage + breadcrumb (sn_seo_route_meta) ──
+$GLOBALS['__ss']['is_singular_post'] = false;
+$GLOBALS['__ss']['is_home']          = false;
+$GLOBALS['__ss']['is_page']          = false;
+$GLOBALS['__ss']['is_front_page']    = false;
+$GLOBALS['__route_meta'] = null;
+$GLOBALS['__img_dims']   = null;
+if ( ! function_exists( 'sn_seo_route_meta' ) ) {
+	function sn_seo_route_meta() { return $GLOBALS['__route_meta']; }
+}
+if ( ! function_exists( 'sn_seo_image_dimensions' ) ) {
+	function sn_seo_image_dimensions( $url ) { return $GLOBALS['__img_dims']; }
+}
+
+$GLOBALS['__route_meta'] = array(
+	'title'       => 'Uses — Juan Lentino',
+	'description' => 'The hardware and software behind the work.',
+	'url'         => 'https://example.com/about/uses',
+	'breadcrumb'  => array(
+		array( 'name' => 'About', 'url' => 'https://example.com/about/' ),
+		array( 'name' => 'Uses',  'url' => 'https://example.com/about/uses' ),
+	),
+);
+$rw = sn_schema_webpage();
+ss_eq( 'WebPage', $rw['@type'] ?? null, 'route: WebPage built from sn_seo_route_meta' );
+ss_eq( 'https://example.com/about/uses', $rw['@id'] ?? null, 'route: WebPage @id === route url' );
+ss_eq( 'https://example.com/#/schema/WebSite', $rw['isPartOf']['@id'] ?? null, 'route: WebPage isPartOf → WebSite @id (connected graph)' );
+ss_eq( 'The hardware and software behind the work.', $rw['description'] ?? null, 'route: WebPage carries the route description' );
+$rb = sn_schema_breadcrumb_list();
+ss_eq( 'BreadcrumbList', $rb['@type'] ?? null, 'route: BreadcrumbList built from route trail' );
+ss_eq( 3, count( (array) ( $rb['itemListElement'] ?? array() ) ), 'route: trail is Home → About → Uses (3 items)' );
+ss_eq( 'Uses', $rb['itemListElement'][2]['name'] ?? null, 'route: last crumb name === Uses' );
+ss_eq( 'https://example.com/about/uses#breadcrumb', $rb['@id'] ?? null, 'route: breadcrumb @id anchors on the route url' );
+$GLOBALS['__route_meta'] = null;
+ss_eq( null, sn_schema_webpage(), 'no route + not singular → WebPage null (unchanged)' );
+
+// ─── v6.24.0: Person.image declares real dimensions when measurable ──
+$GLOBALS['__ss']['settings']['og.default_image_url'] = 'https://example.com/wp-content/uploads/logo.png';
+$GLOBALS['__img_dims'] = array( 512, 512 );
+$pimg = sn_schema_person();
+ss_eq( 512, $pimg['image']['width'] ?? null, 'Person.image width set when measurable' );
+ss_eq( 512, $pimg['image']['height'] ?? null, 'Person.image height set when measurable' );
+$GLOBALS['__img_dims'] = null;
+$pimg2 = sn_schema_person();
+ss_true( isset( $pimg2['image'] ) && ! isset( $pimg2['image']['width'] ), 'Person.image omits dimensions when size unknown (never guesses)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

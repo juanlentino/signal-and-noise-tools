@@ -100,6 +100,25 @@ function sn_music_schema_node( $entry ) {
 		$node['sameAs'] = $same_as;
 	}
 
+	// v6.24.0: precise catalog identifiers carried from Muso/Spotify (and used
+	// as the entry id in inc/discography-store.php). isrcCode is a native
+	// MusicRecording property; an album's UPC has no native MusicAlbum property,
+	// so it rides the schema.org-blessed PropertyValue identifier mechanism.
+	// These reconcile a release into Google's Knowledge Graph against
+	// MusicBrainz / streaming catalogs. Omitted when absent (never blank).
+	$isrc = (string) ( $entry['isrc'] ?? '' );
+	$upc  = (string) ( $entry['upc'] ?? '' );
+	if ( 'MusicRecording' === $node['@type'] && '' !== $isrc ) {
+		$node['isrcCode'] = $isrc;
+	}
+	if ( '' !== $upc ) {
+		$node['identifier'] = array(
+			'@type'      => 'PropertyValue',
+			'propertyID' => 'UPC',
+			'value'      => $upc,
+		);
+	}
+
 	// B3: tracklist. Only a MusicAlbum carries `track`/`numTracks` — a
 	// MusicRecording (a single) has no track property, so it gets none. Built
 	// from the stored per-track liner-notes data (plugin v6.14.0+); array order

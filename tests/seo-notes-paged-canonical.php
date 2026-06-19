@@ -31,6 +31,12 @@ function remove_action() {}
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
+// v6.24.0: seo.php now consults the sn_seo_route_meta / sn_seo_singular_description
+// filters — passthrough so no theme route is matched (returns the default).
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value, ...$args ) { return $value; }
+}
+
 require __DIR__ . '/../inc/seo.php';
 
 // ── sn_seo_current_paged(): query var, then $_GET fallback, floor 1 ──

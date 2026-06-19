@@ -67,7 +67,37 @@ function sn_seo_current_paged() {
  * generic excerpt fallback so the index pages get curated copy instead
  * of WP's auto-excerpt of an empty Page body.
  */
+/**
+ * Meta for a theme-owned route that isn't a real WP query (postless virtual
+ * routes like /about/uses). The companion theme returns an array
+ * [ 'title' => …, 'description' => …, 'url' => …, 'breadcrumb' => [ … ] ] for
+ * its own routes, or null to defer to the core WP conditionals below. Memoized
+ * per request — the filter runs once even though several emitters consult it.
+ *
+ * @since 6.24.0
+ * @return array<string,mixed>|null
+ */
+function sn_seo_route_meta() {
+	static $cached = false;
+	if ( false === $cached ) {
+		$meta   = apply_filters( 'sn_seo_route_meta', null );
+		$cached = is_array( $meta ) ? $meta : null;
+	}
+	return $cached;
+}
+
 function sn_seo_meta_for_current_view() {
+	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
+	// title/description/url since WP has no post for it. Takes precedence.
+	$route = sn_seo_route_meta();
+	if ( null !== $route ) {
+		return array(
+			(string) ( $route['title'] ?? '' ),
+			(string) ( $route['description'] ?? '' ),
+			(string) ( $route['url'] ?? '' ),
+		);
+	}
+
 	$title       = '';
 	$description = '';
 	$url         = '';
@@ -103,6 +133,13 @@ function sn_seo_meta_for_current_view() {
 				$description = $override;
 			} elseif ( ! empty( $post->post_excerpt ) ) {
 				$description = wp_strip_all_tags( $post->post_excerpt );
+			}
+			// v6.24.0: template-driven Pages (e.g. /about, /contact, /colophon,
+			// /music) carry no excerpt — the content lives in a theme template,
+			// not post_content — so they'd ship with no description. The companion
+			// theme supplies one per route via this filter (it owns the copy).
+			if ( '' === $description ) {
+				$description = (string) apply_filters( 'sn_seo_singular_description', '', $post );
 			}
 		}
 		$url = $post ? get_permalink( $post ) : '';
@@ -316,6 +353,61 @@ function sn_seo_og_image_alt( $title ) {
 }
 
 /**
+ * Map a same-host upload URL to its filesystem path, or '' if not local.
+ *
+ * Strips a query string (cache-buster) first. Only resolves URLs under
+ * content_url() so an off-site image never triggers a filesystem read.
+ *
+ * @since 6.24.0
+ * @param string $url Image URL (may carry ?v=… cache-buster).
+ * @return string Absolute path, or '' when the URL isn't a local upload.
+ */
+function sn_seo_local_image_path( $url ) {
+	$url = strtok( (string) $url, '?' );
+	$base_url = content_url();
+	$base_dir = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR : '';
+	if ( '' === $base_dir || 0 !== strpos( $url, $base_url ) ) {
+		return '';
+	}
+	return $base_dir . substr( $url, strlen( $base_url ) );
+}
+
+/**
+ * Actual pixel dimensions of an og:image / Person.image URL, or null if unknown.
+ *
+ * Generated /sn-og/ cards are a known constant (SN_OG_WIDTH×SN_OG_HEIGHT) — no
+ * filesystem hit. Other local uploads are measured with getimagesize() (cached
+ * per request). Returns null for remote/unreadable images so callers can fall
+ * back rather than declaring a wrong size — the live bug this fixes was every
+ * page declaring og:image:width=1000 for cards that are actually 1200 wide.
+ *
+ * @since 6.24.0
+ * @param string $url Image URL.
+ * @return array{0:int,1:int}|null [width, height] or null.
+ */
+function sn_seo_image_dimensions( $url ) {
+	$url = (string) $url;
+	if ( defined( 'SN_OG_DIRNAME' ) && defined( 'SN_OG_WIDTH' ) && defined( 'SN_OG_HEIGHT' )
+		&& false !== strpos( $url, '/' . SN_OG_DIRNAME . '/' ) ) {
+		return array( (int) SN_OG_WIDTH, (int) SN_OG_HEIGHT );
+	}
+	static $cache = array();
+	if ( array_key_exists( $url, $cache ) ) {
+		return $cache[ $url ];
+	}
+	$dims = null;
+	$path = sn_seo_local_image_path( $url );
+	if ( '' !== $path && is_readable( $path ) ) {
+		$size = @getimagesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a corrupt/odd file must degrade to null, not warn.
+		if ( is_array( $size ) && (int) $size[0] > 0 && (int) $size[1] > 0 ) {
+			$dims = array( (int) $size[0], (int) $size[1] );
+		}
+	}
+	$cache[ $url ] = $dims;
+	return $dims;
+}
+
+/**
  * Open Graph + Twitter card meta.
  *
  * Emitted on the front page and any singular post/page (including the
@@ -325,7 +417,8 @@ function sn_seo_og_image_alt( $title ) {
  * touching theme code.
  */
 add_action( 'wp_head', function() {
-	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
+	// v6.24.0: also emit on theme-owned virtual routes (sn_seo_route_meta).
+	if ( ! is_front_page() && ! is_home() && ! is_singular() && null === sn_seo_route_meta() ) {
 		return;
 	}
 
@@ -355,11 +448,15 @@ add_action( 'wp_head', function() {
 	$site_name = sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
 	echo '<meta property="og:site_name" content="' . esc_attr( $site_name ) . '">' . "\n";
 	if ( $og_image ) {
-		// Dimensions filterable; defaults match our generated /sn-og/ cards (1200x630).
-		// Site-icon fallback would be 512x512 but the discrepancy is harmless for crawlers.
-		$dims = (array) apply_filters(
+		// v6.24.0: declare the image's ACTUAL pixel size. Generated /sn-og/ cards
+		// resolve to the generator's constant; other local uploads are measured.
+		// Falls back to the og.card_* setting only when the size can't be read —
+		// previously the setting was used unconditionally and drifted (cards are
+		// 1200 wide but the stored setting declared 1000). Still filterable.
+		$measured = sn_seo_image_dimensions( $og_image );
+		$dims     = (array) apply_filters(
 			'sn_og_image_dimensions',
-			array(
+			null !== $measured ? $measured : array(
 				sn_setting( 'og.card_width', 1200 ),
 				sn_setting( 'og.card_height', 630 ),
 			),

@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.24.0] - 2026-06-19 — Machine-readable full pass (structured data + meta)
+
+**Headline:** A comprehensive structured-data / social-meta hardening pass, driven by a live audit of juanlentino.com. Fixes one real bug (every page declared `og:image:width=1000` for cards that are actually **1200×630** — social unfurlers letterbox/misscale on the wrong number) and adds the precise, data-already-exists enrichments that strengthen the entity graph. Several items expose filters the companion **theme** populates (route descriptions + the postless `/about/uses` route), so this release is the plugin half of a coordinated theme + plugin pair; each degrades gracefully without the other.
+
+### Fixed
+
+- **`og:image` now declares the image's ACTUAL pixel size.** New `sn_seo_image_dimensions()` ([inc/seo.php](inc/seo.php)) resolves generated `/sn-og/` cards to the generator's `SN_OG_WIDTH×SN_OG_HEIGHT` constant (no filesystem hit) and measures other local uploads with `getimagesize()`, falling back to the `og.card_*` setting only when the size is unreadable. Previously the (drift-prone) setting was used unconditionally and mis-declared 1000 for 1200-wide cards. Still filterable via `sn_og_image_dimensions`.
+
+### New
+
+- **`/notes` CollectionPage entries are now `Article` `@id` nodes**, not a bare URL list ([inc/seo-schema.php](inc/seo-schema.php)). Each `ListItem` wraps `{@type:Article, @id:<permalink>#article, url, headline, datePublished}` — the SAME `@id` the single-note page mints — so Google reconciles the list with the full Article entities across pages.
+- **Music schema carries catalog identifiers** ([inc/seo-schema-music.php](inc/seo-schema-music.php)): `isrcCode` on a `MusicRecording` and a `PropertyValue` UPC `identifier` on a `MusicAlbum`, read from the ISRC/UPC already stored in the discography. These reconcile a release into Google's Knowledge Graph against MusicBrainz / streaming catalogs.
+- **`Person.image` declares real dimensions** when measurable (matching `Article.image`), omitted rather than guessed when unknown.
+- **Theme-owned route meta hooks.** `sn_seo_meta_for_current_view()` now consults two filters the theme populates: `sn_seo_route_meta` (full title/description/url/breadcrumb for postless virtual routes like `/about/uses`, which previously emitted **zero** og/canonical/description/JSON-LD) and `sn_seo_singular_description` (a description for template-driven Pages — `/about`, `/contact`, `/colophon`, `/music` — which carry no excerpt and shipped with no description). The og emitter + the JSON-LD `@graph` (Person + WebSite + a route `WebPage` + `BreadcrumbList`) now fire for these routes, connected by `@id`.
+
+> **Why MINOR:** new user-visible structured-data capabilities + two new public filters (`sn_seo_route_meta`, `sn_seo_singular_description`); no schema migration, no breaking change — every addition is gated/omitted when its data is absent, so an install without the companion-theme hooks behaves exactly as before. RED→GREEN across [tests/seo-schema.php](tests/seo-schema.php) (+17: ItemList Article typing, route WebPage + breadcrumb, Person.image dims), [tests/seo-og.php](tests/seo-og.php) (+3: `sn_seo_image_dimensions`), and [tests/music-schema.php](tests/music-schema.php) (+4: ISRC/UPC). 131 suites green, WPCS falsified-clean.
+
 ## [6.23.0] - 2026-06-19 — Exclude my own visits (Plausible-style role exclusion)
 
 **Headline:** A new **Monitoring → Analytics → "Exclude my own visits"** card stops counting logged-in users in the roles you tick (default: none — dormant until you opt in). It mirrors Plausible's "exclude user roles" setting: when a logged-in user holds an excluded role, the companion theme's front-end beacon is **never printed** for that request (via the theme's existing `sn_beacon_enabled` filter), so nothing reaches the edge collector. **Cookieless** (reads WordPress's existing auth session; sets nothing new) and **forward-only** (visits already recorded are unaffected). No theme or Worker code change — the theme already exposes the filter.

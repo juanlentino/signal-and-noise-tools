@@ -89,6 +89,13 @@ function sn_schema_person() {
 			'@id'   => $home . '#/schema/PersonImage',
 			'url'   => $img,
 		);
+		// v6.24.0: declare real pixel dimensions when measurable (matches the
+		// Article.image treatment) — omitted rather than guessed when unknown.
+		$person_dims = function_exists( 'sn_seo_image_dimensions' ) ? sn_seo_image_dimensions( $img ) : null;
+		if ( null !== $person_dims ) {
+			$person['image']['width']  = $person_dims[0];
+			$person['image']['height'] = $person_dims[1];
+		}
 	}
 
 	// Credentials graph (occupation / education / awards / memberships / worksFor).
@@ -281,12 +288,45 @@ function sn_schema_article() {
 }
 
 /**
+ * The current theme-owned virtual route's meta, or null. Thin wrapper around
+ * seo.php's sn_seo_route_meta() so the schema layer degrades gracefully when
+ * loaded without seo.php (CLI test isolation). v6.24.0.
+ *
+ * @return array<string,mixed>|null
+ */
+function sn_schema_route_meta() {
+	return function_exists( 'sn_seo_route_meta' ) ? sn_seo_route_meta() : null;
+}
+
+/**
  * Build the WebPage schema for the current singular view.
  * Returns null if not on a singular (caller should use CollectionPage or skip).
  *
  * Added in v2.0.0 (Phase 13 TSF cutover).
  */
 function sn_schema_webpage() {
+	// v6.24.0: theme-owned virtual route (e.g. /about/uses) — build a WebPage
+	// from the route meta, connected to the WebSite/breadcrumb by @id like the
+	// singular branch below.
+	$route = sn_schema_route_meta();
+	if ( null !== $route && '' !== (string) ( $route['url'] ?? '' ) ) {
+		$url     = (string) $route['url'];
+		$webpage = array(
+			'@type'      => 'WebPage',
+			'@id'        => $url,
+			'url'        => $url,
+			'name'       => (string) ( $route['title'] ?? '' ),
+			'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
+			'isPartOf'   => array( '@id' => home_url( '/' ) . '#/schema/WebSite' ),
+			'breadcrumb' => array( '@id' => $url . '#breadcrumb' ),
+		);
+		$desc = (string) ( $route['description'] ?? '' );
+		if ( '' !== $desc ) {
+			$webpage['description'] = $desc;
+		}
+		return $webpage;
+	}
+
 	if ( ! is_singular() ) {
 		return null;
 	}
@@ -421,11 +461,22 @@ function sn_schema_collection_page() {
 	$elements = array();
 	$position = 1;
 	foreach ( (array) $recent as $recent_post ) {
+		$permalink = get_permalink( $recent_post );
+		// v6.24.0: each entry is an Article node carrying the SAME @id the
+		// single-note page mints (`<permalink>#article`), so Google reconciles
+		// the list contents with the full Article entities across pages instead
+		// of reading a bare URL list. headline+datePublished keep the inline
+		// node useful without duplicating the full single-page payload.
 		$elements[] = array(
 			'@type'    => 'ListItem',
 			'position' => $position,
-			'url'      => get_permalink( $recent_post ),
-			'name'     => wp_strip_all_tags( get_the_title( $recent_post ) ),
+			'item'     => array(
+				'@type'         => 'Article',
+				'@id'           => $permalink . '#article',
+				'url'           => $permalink,
+				'headline'      => wp_strip_all_tags( get_the_title( $recent_post ) ),
+				'datePublished' => get_post_time( 'c', true, $recent_post ),
+			),
 		);
 		++$position;
 	}
@@ -469,6 +520,33 @@ function sn_schema_breadcrumb_list() {
 
 	$position = 2;
 	$base_id  = '';
+
+	// v6.24.0: theme-owned virtual route supplies its own trail (Home → … →
+	// current) as [ 'name' => …, 'url' => … ] pairs.
+	$route = sn_schema_route_meta();
+	if ( null !== $route ) {
+		$base_id = (string) ( $route['url'] ?? '' );
+		$crumbs  = ( isset( $route['breadcrumb'] ) && is_array( $route['breadcrumb'] ) ) ? $route['breadcrumb'] : array();
+		foreach ( $crumbs as $crumb ) {
+			if ( ! is_array( $crumb ) || '' === (string) ( $crumb['url'] ?? '' ) ) {
+				continue;
+			}
+			$items[] = array(
+				'@type'    => 'ListItem',
+				'position' => $position++,
+				'item'     => (string) $crumb['url'],
+				'name'     => (string) ( $crumb['name'] ?? '' ),
+			);
+		}
+		if ( '' === $base_id || count( $items ) < 2 ) {
+			return null;
+		}
+		return array(
+			'@type'           => 'BreadcrumbList',
+			'@id'             => $base_id . '#breadcrumb',
+			'itemListElement' => $items,
+		);
+	}
 
 	if ( is_singular() ) {
 		$post    = get_queried_object();
@@ -523,8 +601,9 @@ function sn_schema_breadcrumb_list() {
  * disjoint scripts).
  */
 add_action( 'wp_head', function() {
-	// Only emit on front page, /notes, /provenance, and any singular content.
-	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
+	// Only emit on front page, /notes, /provenance, any singular content, and
+	// theme-owned virtual routes that supply sn_seo_route_meta (v6.24.0).
+	if ( ! is_front_page() && ! is_home() && ! is_singular() && null === sn_schema_route_meta() ) {
 		return;
 	}
 
