@@ -139,6 +139,18 @@ function sn_settings_defaults() {
 		'insights' => array(
 			'weekly_cron_enabled' => false,
 		),
+		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
+		// own visits"). exclude_roles lists role slugs whose logged-in users are
+		// NOT counted — the theme's sn_beacon_enabled filter suppresses the
+		// front-end pixel for them. Default EMPTY (dormant): a non-empty default
+		// would resurface via array_replace_recursive's index-keyed merge, making
+		// "exclude nobody" impossible to store. Written via
+		// sn_setting_update('analytics.exclude_roles', …) by
+		// sn_handle_analytics_exclude_save() — NOT in the Identity form payload,
+		// so it also needs a preserve block in sn_settings_save() below.
+		'analytics' => array(
+			'exclude_roles' => array(),
+		),
 	);
 }
 
@@ -360,6 +372,16 @@ function sn_settings_save( $raw ) {
 	// user's cron preference would diverge from the actually-scheduled event.
 	if ( isset( $existing_settings['insights'] ) && is_array( $existing_settings['insights'] ) ) {
 		$sanitized['insights'] = $existing_settings['insights'];
+	}
+
+	// v6.23.0: preserve the analytics subtree (Monitoring → Analytics → "Exclude
+	// my own visits"), configured via sn_setting_update('analytics.exclude_roles',
+	// …) by sn_handle_analytics_exclude_save(), NOT in this Identity-tab form
+	// payload. Same whole-option-replace hazard as the audit/monitoring/perf/
+	// theme/indexnow/insights subtrees above — without this, saving Identity
+	// silently re-counts the owner by reverting exclude_roles to the empty default.
+	if ( isset( $existing_settings['analytics'] ) && is_array( $existing_settings['analytics'] ) ) {
+		$sanitized['analytics'] = $existing_settings['analytics'];
 	}
 
 	$sanitized['seo_copy'] = array(

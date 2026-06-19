@@ -87,6 +87,23 @@ function sn_discography_run_sync() {
 
 require_once __DIR__ . '/../inc/settings.php';
 require_once __DIR__ . '/../inc/admin-post-actions.php';
+
+// v6.23.0: sn_handle_analytics_exclude_save() sanitizes via the owner-exclusion
+// module. The module registers an sn_beacon_enabled filter at load — stub
+// add_filter; wp_roles + sanitize_key back the role allow-list. (The filter +
+// status fns aren't exercised here; only the sanitizer feeds the handler.)
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $h, $cb, $p = 10, $a = 1 ) {} }
+if ( ! function_exists( 'sanitize_key' ) ) { function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', (string) $k ) ); } }
+if ( ! function_exists( 'wp_roles' ) ) {
+	function wp_roles() {
+		return (object) array( 'roles' => array(
+			'administrator' => array( 'name' => 'Administrator' ),
+			'editor'        => array( 'name' => 'Editor' ),
+		) );
+	}
+}
+require_once __DIR__ . '/../inc/beacon-owner-exclusion.php';
+
 require_once __DIR__ . '/../inc/admin-post-handler.php';
 
 $pass = 0; $fail = 0;
@@ -342,9 +359,18 @@ pa_eq(
 );
 pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants are defined (locked)' );
 
+echo "\nTest: sn_handle_analytics_exclude_save (v6.23.0 owner/role exclusion)\n";
+$GLOBALS['__options']['sn_settings'] = array();
+sn_setting_reset_cache();
+pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array( 'sn_exclude_roles' => array( 'administrator', 'bogus_role' ) ) ), 'exclude-save: returns saved flash on change' );
+pa_eq( array( 'administrator' ), sn_setting( 'analytics.exclude_roles', array() ), 'exclude-save: persists only valid (sanitized) roles' );
+pa_eq( 'analytics_exclude_unchanged', sn_handle_analytics_exclude_save( array( 'sn_exclude_roles' => array( 'administrator' ) ) ), 'exclude-save: identical set returns unchanged flash' );
+pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array() ), 'exclude-save: no checkboxes clears the set' );
+pa_eq( array(), sn_setting( 'analytics.exclude_roles', 'SENTINEL' ), 'exclude-save: cleared set persists as empty array' );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 34, count( $map ), 'map has 34 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export
+pa_eq( 35, count( $map ), 'map has 35 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

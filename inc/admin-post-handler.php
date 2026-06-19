@@ -59,6 +59,7 @@ function sn_admin_post_handlers() {
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
 		'analytics_save'             => 'sn_handle_analytics_save',
+		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_import'           => 'sn_handle_analytics_import',
 		'analytics_export'           => 'sn_handle_analytics_export',

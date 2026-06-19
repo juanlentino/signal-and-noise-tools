@@ -21,6 +21,12 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
+// v6.23.0: snt_analytics_render_settings_section() now also renders the "Exclude
+// my own visits" card, which reads sn_setting('analytics.exclude_roles'). Stub it
+// (the card's full markup is covered by tests/analytics-exclusion-render.php; with
+// no role list available here it renders its empty state and the creds-form
+// assertions below are unaffected).
+if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $path, $default = null ) { return $default; } }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
 function add_query_arg( $args, $url = null ) {

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.22.1
+ * Version:     6.23.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -64,6 +64,7 @@ if ( 'signal-and-noise' === $snt_stylesheet
 
 // Module includes.
 require_once SNT_PATH . 'inc/settings.php';
+require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
