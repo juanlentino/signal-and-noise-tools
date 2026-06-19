@@ -44,20 +44,24 @@ function sn_analytics_drilldown_parse( $raw ) {
 }
 
 /**
- * AE SQL: top pages (blob2) for one parent dimension value over [from,to], for a
- * class. All-proven primitives: sum(_sample_interval), count(DISTINCT index1),
- * WHERE blob=const equality, GROUP BY, ORDER BY. NO LIMIT (unproven vs AE — the
- * accessor PHP-sorts+slices). The value is single-quote/backslash-escaped for the
- * AE string literal (defence-in-depth; the accessor also whitelists it).
+ * AE SQL: top pages (blob2) for one or more parent dimension values over
+ * [from,to], for a class. All-proven primitives: sum(_sample_interval),
+ * count(DISTINCT index1), `IN (...)` set membership (the same shape proven by
+ * sn_analytics_pageroles_rollup_sql), GROUP BY, ORDER BY. NO LIMIT (unproven vs AE
+ * — the accessor PHP-sorts+slices). Each value is single-quote/backslash-escaped
+ * for the AE string literal (defence-in-depth; the accessor also whitelists them).
  *
- * @param string $dim   A SN_ANALYTICS_DIM_COLUMNS key.
- * @param string $value Parent value (already whitelisted by the accessor).
- * @param string $from  YYYY-MM-DD.
- * @param string $to    YYYY-MM-DD.
- * @param string $class Traffic class.
- * @return string AE SQL, or '' for an unknown dim.
+ * Most dims pass a single value; the referrer dim passes the member hosts of a
+ * brand-folded source (so "Google" drills google.com + news.google.com + …).
+ *
+ * @param string                 $dim    A SN_ANALYTICS_DIM_COLUMNS key.
+ * @param string|array<int,string> $values Parent value(s) (already whitelisted).
+ * @param string                 $from   YYYY-MM-DD.
+ * @param string                 $to     YYYY-MM-DD.
+ * @param string                 $class  Traffic class.
+ * @return string AE SQL, or '' for an unknown dim / empty value set.
  */
-function sn_analytics_drilldown_sql( $dim, $value, $from, $to, $class ) {
+function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return '';
 	}
@@ -65,14 +69,22 @@ function sn_analytics_drilldown_sql( $dim, $value, $from, $to, $class ) {
 	$class = in_array( $class, SN_ANALYTICS_CLASSES, true ) ? $class : 'human';
 	$from  = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '1970-01-01';
 	$to    = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ? (string) $to : '1970-01-01';
-	$val   = str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), (string) $value );
+
+	$escaped = array();
+	foreach ( (array) $values as $v ) {
+		$escaped[] = "'" . str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), (string) $v ) . "'";
+	}
+	if ( empty( $escaped ) ) {
+		return '';
+	}
+	$in = implode( ', ', $escaped );
 
 	return implode( ' ', array(
 		'SELECT blob2 AS path,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND {$col} = '{$val}' AND blob7 = '{$class}'",
+		"WHERE blob1 = 'pv' AND {$col} IN ({$in}) AND blob7 = '{$class}'",
 		"AND timestamp >= toDateTime('{$from} 00:00:00')",
 		"AND timestamp <= toDateTime('{$to} 23:59:59')",
 		'GROUP BY path',
@@ -113,16 +125,31 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 		return null;
 	}
 
-	// Whitelist: the value MUST be a current durable top-N member for this dim.
-	$known = false;
-	foreach ( (array) sn_analytics_top_dimension( $dim, $from, $to, $class, 500 ) as $r ) {
-		if ( isset( $r['value'] ) && (string) $r['value'] === $value ) {
-			$known = true;
-			break;
+	// Resolve the clicked parent to the raw column value(s) to query, AND whitelist
+	// it in the same step (no AE call for a value not in the current top-N).
+	if ( 'referrer' === $dim ) {
+		// $value is a canonical SOURCE LABEL (e.g. "Google"); resolve to its member
+		// hosts. Only a current top-source label with ≥1 member host resolves — so
+		// '(direct)' and any crafted label return [] → rejected. This is the whitelist.
+		$query_values = function_exists( 'sn_analytics_source_hosts' )
+			? sn_analytics_source_hosts( $value, $from, $to, $class )
+			: array();
+		if ( empty( $query_values ) ) {
+			return null;
 		}
-	}
-	if ( ! $known ) {
-		return null;
+	} else {
+		// Whitelist: the value MUST be a current durable top-N member for this dim.
+		$known = false;
+		foreach ( (array) sn_analytics_top_dimension( $dim, $from, $to, $class, 500 ) as $r ) {
+			if ( isset( $r['value'] ) && (string) $r['value'] === $value ) {
+				$known = true;
+				break;
+			}
+		}
+		if ( ! $known ) {
+			return null;
+		}
+		$query_values = array( $value );
 	}
 
 	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class );
@@ -134,7 +161,7 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 		return null;
 	}
 
-	$res = sn_analytics_query( sn_analytics_drilldown_sql( $dim, $value, $from, $to, $class ) );
+	$res = sn_analytics_query( sn_analytics_drilldown_sql( $dim, $query_values, $from, $to, $class ) );
 	if ( ! is_array( $res ) ) {
 		set_transient( $cache_key, '', 5 * 60 );
 		return null;

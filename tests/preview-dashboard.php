@@ -125,6 +125,12 @@ function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 
 function sn_analytics_top_events( $f, $t, $l = 25 ) { return $GLOBALS['__aa']['events']; }
 function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $GLOBALS['__aa']['event_props']; }
 
+// Canonical-source mapper (the content view's Top sources fold) — real module
+// over the stubbed read accessors; its WP-seam calls are function_exists-guarded.
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
+require_once __DIR__ . '/../inc/analytics-sources.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
 

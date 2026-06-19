@@ -115,7 +115,7 @@ $drill = dialect_code_only( file_get_contents( "$dir/analytics-drilldown.php" ) 
 dq( strpos( $drill, 'sum(_sample_interval)' ) !== false, 'drilldown: sample-corrected views' );
 dq( strpos( $drill, 'count(DISTINCT index1)' ) !== false, 'drilldown: visits via count(DISTINCT bare column)' );
 dq( preg_match( '/\bLIMIT\b/i', $drill ) === 0, 'drilldown: no LIMIT against AE (PHP-slices instead)' );
-dq( strpos( $drill, "{\$col} = '" ) !== false, 'drilldown: parameterised parent-col equality filter' );
+dq( strpos( $drill, '{$col} IN (' ) !== false, 'drilldown: parent-col IN-set filter (proven shape; a brand drills its member hosts)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -407,9 +407,12 @@ function snt_analytics_render_dashboard() {
 		default:
 			echo '<div class="sn-an-grid">';
 			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
-			$ref_rows = sn_analytics_top_dimension( 'referrer', $from, $to, $class, 10 );
-			$ref_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $ref_rows );
-			$ref_ser  = sn_analytics_dimension_series( 'referrer', $ref_vals, $from, $to, $class, $granularity );
+			// Brand-folded sources (self-referrals + www + multi-host providers
+			// collapsed); the sparkline series is summed across each label's member
+			// hosts, and the drill token carries the canonical label (resolved back
+			// to its member hosts by the brand-aware referrer drill-down).
+			$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
+			$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
 			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer' );
 			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );

@@ -20,6 +20,11 @@ function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
 function current_user_can( $c ) { return true; }
 function human_time_diff( $a, $b = 0 ) { return '2 mins'; }
 function wp_kses_post( $s ) { return $s; }
+function add_query_arg( $args, $url = '' ) { return (string) $url . ( strpos( (string) $url, '?' ) !== false ? '&' : '?' ) . http_build_query( (array) $args ); }
+// Seams the canonical-source mapper (used by sn_aw_sources) touches.
+function home_url( $path = '' ) { return 'https://juanlentino.com' . $path; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
+function apply_filters( $tag, $value ) { return $value; }
 
 // First-party analytics seam.
 $GLOBALS['__pw_config'] = true;
@@ -32,6 +37,7 @@ function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit 
 function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) { return $GLOBALS['__pw']['engaged']; }
 function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__pw']['classes']; }
 
+require_once __DIR__ . '/../inc/analytics-sources.php'; // sn_aw_sources folds raw referrers → canonical sources
 require_once __DIR__ . '/../inc/analytics-widget.php';
 
 $pass = 0; $fail = 0;
@@ -56,7 +62,9 @@ ok( strpos( $snap, '>74%</div><div class="sn-aw-stat-l">Engaged<' ) !== false, '
 ok( strpos( $snap, '>41</div><div class="sn-aw-stat-l">Filtered<' ) !== false, 'snapshot: Filtered tile sums suspect(18)+bot(23)=41 noise pageviews' );
 ok( strpos( cap( 'sn_aw_realtime' ), '<div class="sn-aw-big">7</div>' ) !== false, 'realtime: shows the visitor count in the big-number element (not CSS/footer 7s)' );
 ok( strpos( cap( 'sn_aw_pages' ), '/notes/x' ) !== false, 'pages: shows top path from new source' );
-ok( strpos( cap( 'sn_aw_sources' ), 'news.ycombinator.com' ) !== false, 'sources: shows top referrer from dims' );
+$src_html = cap( 'sn_aw_sources' );
+ok( strpos( $src_html, 'Hacker News' ) !== false, 'sources: raw host folds to its brand label (news.ycombinator.com → Hacker News)' );
+ok( strpos( $src_html, 'sn_drill=referrer' ) !== false, 'sources: a branded source renders as a drill link into the Analytics page' );
 
 echo "\nGroup: consolidated into 2 widgets (Overview + Top content)\n";
 // Fire the captured wp_dashboard_setup callback to record what gets registered.
@@ -89,7 +97,7 @@ ok( strpos( $ov, '1,204' ) !== false, 'overview: shows the 7-day KPI views' );
 ok( substr_count( $ov, 'Open Analytics' ) === 1, 'overview: exactly ONE Open-Analytics footer link (no double footer)' );
 $tc = cap( 'sn_aw_top_content' );
 ok( strpos( $tc, 'Top pages' ) !== false && strpos( $tc, 'Top sources' ) !== false, 'top content: Top pages + Top sources subheads' );
-ok( strpos( $tc, '/notes/x' ) !== false && strpos( $tc, 'news.ycombinator.com' ) !== false, 'top content: shows top path + top referrer' );
+ok( strpos( $tc, '/notes/x' ) !== false && strpos( $tc, 'Hacker News' ) !== false, 'top content: shows top path + folded top source' );
 ok( substr_count( $tc, 'Open Analytics' ) === 1, 'top content: exactly ONE Open-Analytics footer link' );
 
 echo "\nGroup: measured zero renders 0 (not em-dash)\n";
