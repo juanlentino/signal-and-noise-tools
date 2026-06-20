@@ -393,6 +393,16 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_percentiles( 'Scroll depth — percentiles', sn_analytics_percentiles( 'scroll', $from, $to, $class ), 'pct', $pctl_empty, $pctl_note );
 			snt_analytics_render_percentiles( 'Time on page — percentiles', sn_analytics_percentiles( 'time', $from, $to, $class ), 'time', $pctl_empty, $pctl_note );
 			echo '</div>';
+			// v6.28.0: field Core Web Vitals — real-user LCP/INP/CLS in Google's
+			// good/needs-work/poor bands (worker v1.8.0 / theme beacon v10.14.0).
+			// Empty until those ship + traffic flows.
+			$cwv_empty = 'No field Core Web Vitals yet — needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.';
+			echo '<p class="sn-an-sep sn-an-sep--full">Field Core Web Vitals — what real visitors experienced (vs the synthetic Lighthouse lab score).</p>';
+			echo '<div class="sn-an-grid">';
+			snt_analytics_render_distribution( 'LCP (field)', sn_analytics_distribution( 'lcp', $from, $to, $class ), $cwv_empty );
+			snt_analytics_render_distribution( 'INP (field)', sn_analytics_distribution( 'inp', $from, $to, $class ), $cwv_empty );
+			snt_analytics_render_distribution( 'CLS (field)', sn_analytics_distribution( 'cls', $from, $to, $class ), $cwv_empty );
+			echo '</div>';
 			break;
 
 		case 'quality':

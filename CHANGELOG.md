@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.28.0] - 2026-06-19 — Field Core Web Vitals panel (real-user LCP/INP/CLS)
+
+**Headline:** Surfaces the **field Core Web Vitals** the theme beacon (v10.14.0) now measures and the worker (v1.8.0) now stores — real-user LCP/INP/CLS in Google's good / needs-improvement / poor bands, in the Engagement view. This is the plugin half of **Lever 4 (final)** of the CF-analytics-headroom program; the dashboard now shows what visitors actually experience (CrUX-style), not just the synthetic Lighthouse lab score.
+
+### New
+
+- **Three CWV buckets metrics** ([inc/analytics-buckets.php](inc/analytics-buckets.php)): `lcp`/`inp`/`cls`, each reading its **own event** (`vl`/`vi`/`vc`) over the shared `double7` value slot. Because each metric is isolated by event type (not by sharing a double), it reuses the entire buckets rollup/distribution machinery with no new code path — and the bands run from `lo=0` with **no sentinel**, so a perfect **CLS=0** (zero-layout-shift) page correctly counts as Good. Bands are Google's thresholds, so each distribution reads directly as "% of page-loads in each CWV band".
+- **"Field Core Web Vitals" panel** in the Engagement view ([inc/analytics-admin.php](inc/analytics-admin.php)): LCP / INP / CLS distributions beside the scroll/time/RTT views, with a one-line "what real visitors experienced (vs the synthetic Lighthouse lab score)" framing.
+
+> **Why MINOR:** three new user-visible distributions reusing the existing buckets rollup + render; no schema migration (the buckets table already keys on (metric, bucket, class)) and no breaking change. Empty until the theme v10.14.0 beacon + worker v1.8.0 ship and traffic flows (graceful empty-states). RED→GREEN: [tests/analytics-buckets.php](tests/analytics-buckets.php) (+CWV metrics: vl/vi/vc → double7, 3 Google bands each, event-isolated stub dispatch, 8th rollup query, CLS=0-as-Good). 134 suites green (3809 asserts), WPCS clean.
+
 ## [6.27.0] - 2026-06-19 — Visitor timezone + connection-RTT (request.cf enrichment surfaced)
 
 **Headline:** Surfaces the new per-hit signals the **worker v1.7.0** now captures into spare Analytics Engine slots: a **Time zones** breakdown (the visitor's IANA timezone — a finer "when/where my audience reads" signal than country) in Geography, and a **Connection RTT** distribution (TCP round-trip latency) in Engagement. This is the plugin half of the bundled Levers 2+3 of the CF-analytics-headroom program.

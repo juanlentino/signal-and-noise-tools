@@ -105,6 +105,42 @@ function sn_analytics_buckets_metrics() {
 				array( 'label' => '500ms+',    'lo' => 500, 'hi' => null ),
 			),
 		),
+		// Field Core Web Vitals (v6.28.0). Each metric is its OWN event (vl/vi/vc,
+		// sent by the theme beacon v10.14.0 via web-vitals), all carrying the value in
+		// double7 (worker v1.8.0). The event filter isolates each metric, so the bands
+		// run from lo=0 with NO sentinel — CLS=0 (a perfect, zero-shift page) counts as
+		// Good. Bands are Google's good / needs-improvement / poor thresholds, so the
+		// distribution reads directly as "% of page-loads in each CWV band".
+		'lcp' => array(
+			'event'   => 'vl',
+			'col'     => 'double7',
+			'label'   => 'LCP (field)',
+			'buckets' => array(
+				array( 'label' => 'Good (<2.5s)',       'lo' => 0,    'hi' => 2500 ),
+				array( 'label' => 'Needs work (2.5–4s)', 'lo' => 2500, 'hi' => 4000 ),
+				array( 'label' => 'Poor (>4s)',          'lo' => 4000, 'hi' => null ),
+			),
+		),
+		'inp' => array(
+			'event'   => 'vi',
+			'col'     => 'double7',
+			'label'   => 'INP (field)',
+			'buckets' => array(
+				array( 'label' => 'Good (<200ms)',         'lo' => 0,   'hi' => 200 ),
+				array( 'label' => 'Needs work (200–500ms)', 'lo' => 200, 'hi' => 500 ),
+				array( 'label' => 'Poor (>500ms)',          'lo' => 500, 'hi' => null ),
+			),
+		),
+		'cls' => array(
+			'event'   => 'vc',
+			'col'     => 'double7', // CLS ×1000 (0.10 → 100), so it stores as an integer
+			'label'   => 'CLS (field)',
+			'buckets' => array(
+				array( 'label' => 'Good (<0.10)',        'lo' => 0,   'hi' => 100 ),
+				array( 'label' => 'Needs work (0.10–0.25)', 'lo' => 100, 'hi' => 250 ),
+				array( 'label' => 'Poor (>0.25)',         'lo' => 250, 'hi' => null ),
+			),
+		),
 	);
 }
 
