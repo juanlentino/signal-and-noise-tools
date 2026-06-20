@@ -482,7 +482,12 @@ function snt_dashboard_render_rss_summary() {
 	$w7d     = $windows[7]  ?? array( 'total' => 0, 'uniques' => 0 );
 	$w30d    = $windows[30] ?? array( 'total' => 0, 'uniques' => 0 );
 
-	$rss_url = admin_url( 'admin.php?page=sn-rss' );
+	// v6.30.1: the standalone `page=sn-rss` slug isn't registered (every SN
+	// admin surface lives under page=sn-theme-options&tab=…), so the old link
+	// hit WP's "not allowed to access this page" guard. Point straight at the
+	// canonical Content → RSS sub-section (RSS moved here from Monitoring in
+	// v6.18.0), mirroring tab=connections&sub=cron / tab=monitoring&sub=analytics.
+	$rss_url = admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=rss' );
 
 	echo '<h2 class="sn-section-h">RSS feed activity</h2>';
 	echo '<p class="sn-api-summary">';

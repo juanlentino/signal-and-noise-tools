@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.30.1] - 2026-06-20 — Fix the dashboard "Open RSS tab" link (dead slug → wp_die)
+
+**Headline:** The "Open RSS tab" link in the Dashboard's RSS-feed-activity row pointed at `admin.php?page=sn-rss` — a standalone slug that isn't registered (every SN admin surface lives under `page=sn-theme-options&tab=…`), so clicking it hit WordPress's "Sorry, you are not allowed to access this page" guard. It now links straight to the canonical **Content → RSS** sub-section (where RSS moved from Monitoring in v6.18.0).
+
+### Fixed
+
+- **"Open RSS tab" link** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)): `snt_dashboard_render_rss_summary()` now builds `admin.php?page=sn-theme-options&tab=content&sub=rss`, mirroring the working `tab=connections&sub=cron` / `tab=monitoring&sub=analytics` links — no longer relying on the legacy `?page=sn-<slug>` redirect, which wasn't catching `sn-rss`.
+
+> **Why PATCH:** a broken-link bugfix; no new capability, no settings/schema change. RED→GREEN: new [tests/dashboard-rss-summary.php](tests/dashboard-rss-summary.php) renders the widget and asserts the canonical Content → RSS href + the absence of the dead `page=sn-rss` slug — falsified by restoring the old slug (2 reds). 136 suites green (3871 asserts), WPCS clean.
+
 ## [6.30.0] - 2026-06-20 — Weekly digest narration (AI "what happened this week")
 
 **Headline:** A new read-only **weekly digest** on the Insights tab — a plain-language summary of what happened this week (what people read, where they came from, how it changed versus the prior week) as a second output mode on the existing Insights pipeline. Where the Content Opportunity Advisor says *what to do* (5 structured recommendations), the digest says *what happened* (prose). Reuses the shared Sonnet-pinned AI wrapper, a 7-day cache, and an opt-in weekly cron (default OFF). Cookieless and inert until you generate one. ~$0.01/digest.
