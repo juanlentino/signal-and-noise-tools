@@ -23,11 +23,21 @@ if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return 
 $GLOBALS['__test_ai_builder_recorded_calls'] = array();
 $GLOBALS['__test_ai_builder_supports_text']  = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'A generated sentence.';
+// v6.29.0: the wrapper now calls generate_text_result(). A null TokenUsage
+// here exercises the "provider didn't populate usage → recorder no-ops"
+// path, so this concise-param fixture needs no get_option stubs.
+class CpAiResult {
+	private $t;
+	public function __construct( $t ) { $this->t = (string) $t; }
+	public function toText() { return $this->t; }
+	public function getTokenUsage() { return null; }
+}
 class TestAiBuilder {
 	public function __call( $name, $args ) {
 		$GLOBALS['__test_ai_builder_recorded_calls'][] = array( 'name' => $name, 'args' => $args );
 		if ( 'is_supported_for_text_generation' === $name ) { return (bool) $GLOBALS['__test_ai_builder_supports_text']; }
 		if ( 'generate_text' === $name ) { return $GLOBALS['__test_ai_builder_generate_returns']; }
+		if ( 'generate_text_result' === $name ) { return new CpAiResult( $GLOBALS['__test_ai_builder_generate_returns'] ); }
 		return $this;
 	}
 }

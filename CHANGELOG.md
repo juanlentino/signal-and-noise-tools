@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.29.0] - 2026-06-20 — AI token-usage observability (per-call spend trending)
+
+**Headline:** The shared AI wrapper now records every call's token usage so AI spend is trendable in the plugin's own data — no longer dependent on the WordPress/ai plugin's off-by-default "AI Request Logs" experiment or the provider console. The prior `->generate_text()` returned a bare string and the SDK discarded the `TokenUsage` metadata internally; the wrapper now reads `->generate_text_result()` and persists prompt/completion/total tokens per call. Inert observability — no behavioural change to any of the 8 AI features, no new UI.
+
+### New
+
+- **`sn_ai_usage_log` capped FIFO option (last 200 calls)** + `snt_ai_record_usage()` ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): each `snt_ai_generate_with_constraints()` call logs `{ts, feature, model, prompt, completion, total}`. Recorded even when the body validates empty (the call still spent prompt tokens), and skipped only when the provider returns a `WP_Error` (no result object). Every `TokenUsage` accessor is `is_callable()`-guarded — a connector that doesn't populate usage degrades to a no-op, never a fatal.
+- **`snt_ai_usage_summary( $days = 30 )` accessor** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): aggregates calls + prompt/completion/total over a trailing window with a `by_feature` breakdown, ready for a future Monitoring → Analytics readout. Optional 4th `$feature` arg on the wrapper lets callers self-tag (defaults to `generic`; all existing callers unchanged).
+
+### Changed
+
+- **Shared wrapper reads `->generate_text_result()` instead of `->generate_text()`** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): the body is extracted via `$result->toText()` — the same trimmed string every caller already consumed (alt-text, alt-inline, excerpt, meta-description, OG title, drift-phrase, orphan, insights, release-notes, health) — with the existing quote-strip + empty-guard intact. `TokenUsage` carries no cache-read/write fields, so the log is prompt/completion/total only.
+
+> **Why MINOR:** new internal capability (spend observability) with zero behavioural change to existing AI features and no schema migration (a new `autoload=false` option). RED→GREEN: [tests/ai-bootstrap.php](tests/ai-bootstrap.php) (+usage recorded on the happy path with the exact token split, feature label + `generic` default, empty-body-still-logs, provider-`WP_Error`-logs-nothing, `snt_ai_usage_summary` aggregation + `by_feature` + day-window, FIFO cap; call-path assertions updated to `generate_text_result`) — falsified by neutering the recorder (9 reds). [tests/ai-concise-param.php](tests/ai-concise-param.php) updated for the new call path. 134 suites green, WPCS falsified-clean.
+
 ## [6.28.0] - 2026-06-19 — Field Core Web Vitals panel (real-user LCP/INP/CLS)
 
 **Headline:** Surfaces the **field Core Web Vitals** the theme beacon (v10.14.0) now measures and the worker (v1.8.0) now stores — real-user LCP/INP/CLS in Google's good / needs-improvement / poor bands, in the Engagement view. This is the plugin half of **Lever 4 (final)** of the CF-analytics-headroom program; the dashboard now shows what visitors actually experience (CrUX-style), not just the synthetic Lighthouse lab score.

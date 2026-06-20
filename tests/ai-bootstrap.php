@@ -78,6 +78,25 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 	function is_wp_error( $v ) { return $v instanceof WP_Error; }
 }
 
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+	define( 'DAY_IN_SECONDS', 86400 );
+}
+
+// In-memory options store backing get_option/update_option for the v6.29.0
+// usage-log assertions. Reset per block via fixture_reset().
+$GLOBALS['__test_options'] = array();
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $name, $default = false ) {
+		return $GLOBALS['__test_options'][ $name ] ?? $default;
+	}
+}
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $name, $value, $autoload = null ) {
+		$GLOBALS['__test_options'][ $name ] = $value;
+		return true;
+	}
+}
+
 // ─── AI client mock ──────────────────────────────────────────────────
 //
 // Control flags + recorded state. Tests reset these between blocks so
@@ -95,6 +114,47 @@ $GLOBALS['__test_ai_builder_supports_text']      = true;
 $GLOBALS['__test_ai_builder_generate_returns']   = 'mock response';
 $GLOBALS['__test_ai_builder_returns_non_object'] = false;
 $GLOBALS['__test_ai_builder_recorded_calls']     = array();
+// v6.29.0: TokenUsage the mock result reports via getTokenUsage().
+$GLOBALS['__test_ai_result_usage'] = array(
+	'prompt'     => 120,
+	'completion' => 40,
+	'total'      => 160,
+);
+
+/**
+ * Mock TokenUsage DTO — mirrors wp-ai-client's TokenUsage accessors
+ * (getPromptTokens / getCompletionTokens / getTotalTokens) that
+ * snt_ai_record_usage() reads. These are real PascalCase camel methods on
+ * the live DTO (NOT __call-routed), so they are declared as real methods.
+ */
+class TestTokenUsage {
+	private $p;
+	private $c;
+	private $t;
+	public function __construct( $p, $c, $t ) {
+		$this->p = (int) $p;
+		$this->c = (int) $c;
+		$this->t = (int) $t;
+	}
+	public function getPromptTokens()     { return $this->p; }
+	public function getCompletionTokens() { return $this->c; }
+	public function getTotalTokens()      { return $this->t; }
+}
+
+/**
+ * Mock GenerativeAiResult — what generate_text_result() returns. Carries the
+ * body (toText) + usage (getTokenUsage), the two accessors the wrapper reads.
+ */
+class TestAiResult {
+	private $text;
+	private $usage;
+	public function __construct( $text, $usage ) {
+		$this->text  = (string) $text;
+		$this->usage = $usage;
+	}
+	public function toText()        { return $this->text; }
+	public function getTokenUsage() { return $this->usage; }
+}
 
 /**
  * Mock builder that mirrors wp-ai-client's Prompt_Builder dispatch.
@@ -132,6 +192,21 @@ class TestAiBuilder {
 		}
 		if ( 'generate_text' === $name ) {
 			return $GLOBALS['__test_ai_builder_generate_returns'] ?? '';
+		}
+		if ( 'generate_text_result' === $name ) {
+			// v6.29.0: the wrapper now calls generate_text_result(). When the
+			// fixture's generate_returns is a WP_Error, surface it (provider
+			// error path → no result object → no usage). Otherwise wrap the
+			// body + usage in a result object the wrapper reads.
+			$ret = $GLOBALS['__test_ai_builder_generate_returns'] ?? '';
+			if ( $ret instanceof WP_Error ) {
+				return $ret;
+			}
+			$u     = $GLOBALS['__test_ai_result_usage'] ?? null;
+			$usage = is_array( $u )
+				? new TestTokenUsage( $u['prompt'] ?? 0, $u['completion'] ?? 0, $u['total'] ?? 0 )
+				: null;
+			return new TestAiResult( (string) $ret, $usage );
 		}
 		// Fluent chain — return self so using_*() calls compose.
 		return $this;
@@ -197,6 +272,12 @@ function fixture_reset() {
 	$GLOBALS['__test_ai_builder_returns_non_object'] = false;
 	$GLOBALS['__test_ai_builder_recorded_calls']     = array();
 	$GLOBALS['__test_filters']                       = array();
+	$GLOBALS['__test_ai_result_usage']               = array(
+		'prompt'     => 120,
+		'completion' => 40,
+		'total'      => 160,
+	);
+	$GLOBALS['__test_options'] = array();
 }
 
 /**
@@ -363,7 +444,7 @@ hc_eq( 502, isset( $data['status'] ) ? $data['status'] : null,
 echo "\nTest 11: snt_ai_generate_with_constraints — builder throws in chain\n";
 fixture_reset();
 $GLOBALS['__test_ai_builder_supports_text']  = true;
-$GLOBALS['__test_ai_builder_throws_on_method'] = 'generate_text';
+$GLOBALS['__test_ai_builder_throws_on_method'] = 'generate_text_result';
 $result = snt_ai_generate_with_constraints( 'p', 's' );
 hc_true( is_wp_error( $result ), 'Throwable in chain → WP_Error' );
 hc_eq( 'snt_ai_runtime_error', $result->get_error_code(),
@@ -371,7 +452,7 @@ hc_eq( 'snt_ai_runtime_error', $result->get_error_code(),
 $data = $result->get_error_data();
 hc_eq( 500, isset( $data['status'] ) ? $data['status'] : null,
 	'runtime error status is 500' );
-hc_true( false !== strpos( $result->get_error_message(), 'fixture: generate_text throws' ),
+hc_true( false !== strpos( $result->get_error_message(), 'fixture: generate_text_result throws' ),
 	'error message embeds the underlying Throwable message' );
 
 // ─── Test 12: Sonnet model preference IS applied (v3.7.2 lock-in) ────
@@ -391,11 +472,11 @@ snt_ai_generate_with_constraints( 'p', 's' );
 hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-4-6' ) ),
 	'builder chain recorded using_model_preference(claude-sonnet-4-6)' );
 $pref_idx = fixture_first_call_index( 'using_model_preference' );
-$gen_idx  = fixture_first_call_index( 'generate_text' );
+$gen_idx  = fixture_first_call_index( 'generate_text_result' );
 hc_true( $pref_idx >= 0, 'using_model_preference was called' );
-hc_true( $gen_idx >= 0, 'generate_text was called' );
+hc_true( $gen_idx >= 0, 'generate_text_result was called' );
 hc_true( $pref_idx < $gen_idx,
-	'using_model_preference precedes generate_text (so the pin actually takes effect)' );
+	'using_model_preference precedes generate_text_result (so the pin actually takes effect)' );
 
 // ─── Test 13: snt_ai_model_preference filter override ────────────────
 echo "\nTest 13: snt_ai_generate_with_constraints — model filter override\n";
@@ -454,6 +535,86 @@ $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 snt_ai_generate_with_constraints( 'user prompt', 'be brief and factual', 128 );
 hc_true( fixture_recorded_call_matches( 'using_system_instruction', array( 'be brief and factual' ) ),
 	'using_system_instruction recorded with caller-provided string' );
+
+// ─── Test 16: usage recorded on happy path (v6.29.0) ─────────────────
+echo "\nTest 16: snt_ai_generate_with_constraints — records token usage\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = 'a body';
+$GLOBALS['__test_ai_result_usage']             = array(
+	'prompt'     => 1500,
+	'completion' => 400,
+	'total'      => 1900,
+);
+$out = snt_ai_generate_with_constraints( 'p', 's', 512, 'insights_narration' );
+hc_eq( 'a body', $out, 'body still returned via toText()' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 1, count( $log ), 'one usage entry recorded' );
+hc_eq( 1500, $log[0]['prompt'] ?? null, 'prompt tokens recorded' );
+hc_eq( 400, $log[0]['completion'] ?? null, 'completion tokens recorded' );
+hc_eq( 1900, $log[0]['total'] ?? null, 'total tokens recorded' );
+hc_eq( 'insights_narration', $log[0]['feature'] ?? null, 'feature label recorded' );
+hc_eq( 'claude-sonnet-4-6', $log[0]['model'] ?? null, 'requested model preference recorded' );
+
+// ─── Test 17: feature label defaults to 'generic' ───────────────────
+echo "\nTest 17: snt_ai_generate_with_constraints — feature defaults to 'generic'\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = 'x';
+snt_ai_generate_with_constraints( 'p', 's' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 'generic', $log[0]['feature'] ?? null, 'untagged call logs as generic' );
+
+// ─── Test 18: empty body still records usage (tokens were spent) ─────
+echo "\nTest 18: snt_ai_generate_with_constraints — empty body still logs usage\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = '   '; // trims to empty → WP_Error 502
+$res = snt_ai_generate_with_constraints( 'p', 's', 256, 'excerpt' );
+hc_true( is_wp_error( $res ), 'empty body still returns WP_Error (unchanged)' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 1, count( $log ), 'usage recorded anyway — the call consumed prompt tokens' );
+
+// ─── Test 19: provider WP_Error result → no usage recorded ──────────
+echo "\nTest 19: snt_ai_generate_with_constraints — provider WP_Error logs no usage\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = new WP_Error( 'provider_oops', 'rate limit', array( 'status' => 429 ) );
+$res = snt_ai_generate_with_constraints( 'p', 's' );
+hc_true( is_wp_error( $res ), 'provider error propagates' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 0, count( $log ), 'no usage entry when there is no result object' );
+
+// ─── Test 20: snt_ai_usage_summary aggregation + by_feature + window ──
+echo "\nTest 20: snt_ai_usage_summary — aggregation, by_feature, day window\n";
+fixture_reset();
+$now = time();
+$GLOBALS['__test_options'][ SN_AI_USAGE_LOG_OPT ] = array(
+	array( 'ts' => $now - 100,                   'feature' => 'insights',           'model' => 'm', 'prompt' => 100, 'completion' => 50, 'total' => 150 ),
+	array( 'ts' => $now - 200,                   'feature' => 'insights_narration', 'model' => 'm', 'prompt' => 200, 'completion' => 60, 'total' => 260 ),
+	array( 'ts' => $now - 100 * DAY_IN_SECONDS,  'feature' => 'insights',           'model' => 'm', 'prompt' => 999, 'completion' => 99, 'total' => 1098 ), // outside 30d
+);
+$sum = snt_ai_usage_summary( 30 );
+hc_eq( 2, $sum['calls'], 'only in-window calls counted (old 100-day entry excluded)' );
+hc_eq( 410, $sum['total'], 'in-window totals summed (150 + 260)' );
+hc_eq( 300, $sum['prompt'], 'in-window prompt summed (100 + 200)' );
+hc_eq( 150, $sum['by_feature']['insights']['total'] ?? null, 'by_feature insights total (in-window only)' );
+hc_eq( 260, $sum['by_feature']['insights_narration']['total'] ?? null, 'by_feature narration total' );
+hc_eq( 1, $sum['by_feature']['insights']['calls'] ?? null, 'out-of-window insights entry excluded from by_feature' );
+
+// ─── Test 21: usage log capped FIFO at SN_AI_USAGE_LOG_CAP ───────────
+echo "\nTest 21: usage log capped at SN_AI_USAGE_LOG_CAP (FIFO)\n";
+fixture_reset();
+$big = array();
+for ( $i = 0; $i < SN_AI_USAGE_LOG_CAP + 25; $i++ ) {
+	$big[] = array( 'ts' => time(), 'feature' => 'f', 'model' => 'm', 'prompt' => 1, 'completion' => 1, 'total' => 2 );
+}
+$GLOBALS['__test_options'][ SN_AI_USAGE_LOG_OPT ] = $big;
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = 'one more';
+snt_ai_generate_with_constraints( 'p', 's', 64, 'f' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( SN_AI_USAGE_LOG_CAP, count( $log ), 'log capped at SN_AI_USAGE_LOG_CAP after append' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
