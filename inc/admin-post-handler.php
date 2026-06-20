@@ -45,6 +45,7 @@ function sn_admin_post_handlers() {
 		'insights_snooze'            => 'sn_handle_insights_snooze',
 		'insights_mark_done'         => 'sn_handle_insights_mark_done',
 		'insights_create_draft'      => 'sn_handle_insights_create_draft',
+		'narration_run'              => 'sn_handle_narration_run',
 		'save_insights_settings'     => 'sn_handle_save_insights_settings',
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'pattern_adoption_scan'      => 'sn_handle_pattern_adoption_scan',

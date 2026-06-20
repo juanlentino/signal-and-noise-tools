@@ -75,6 +75,9 @@ function snt_insights_render_admin_tab() {
 	echo '</div>';
 	echo '</form>';
 
+	// ── WEEKLY DIGEST (narration, v6.30.0) — read-only prose, above the recs ──
+	snt_insights_render_narration_section( $ai_ready );
+
 	// ── RECOMMENDATIONS (rendered by Task 12) ──
 	snt_insights_render_recommendations_section( $last );
 
@@ -167,6 +170,49 @@ function snt_insights_render_recommendations_section( $last ) {
 }
 
 /**
+ * Renders the weekly digest (narration) card — read-only prose + a Generate
+ * button. v6.30.0. Native WP styling (no brutalist treatment in admin), all
+ * dynamic output escaped, cookieless (prose only describes aggregate counts).
+ *
+ * @param bool $ai_ready Whether the AI client is configured.
+ */
+function snt_insights_render_narration_section( $ai_ready ) {
+	$narration = function_exists( 'snt_narration_last' ) ? snt_narration_last() : null;
+
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">Weekly digest';
+	echo ' <span class="sn-pill sn-pill--' . esc_attr( $narration ? 'ok' : 'warn' ) . '">' . esc_html( $narration ? 'Generated' : 'Not generated' ) . '</span>';
+	echo '</h2>';
+	echo '<p class="sn-fieldset-intro">A plain-language summary of what happened this week — what people read, where they came from, and how it changed versus the prior week. One AI call; cached 7 days.</p>';
+
+	if ( $narration ) {
+		echo '<p class="sn-status-box-title">' . esc_html( (string) $narration['headline'] ) . '</p>';
+		foreach ( (array) $narration['paragraphs'] as $p ) {
+			echo '<p class="sn-prose">' . esc_html( (string) $p ) . '</p>';
+		}
+		if ( ! empty( $narration['highlights'] ) ) {
+			echo '<p>';
+			foreach ( (array) $narration['highlights'] as $h ) {
+				echo '<span class="sn-pill sn-pill--spaced">' . esc_html( (string) $h ) . '</span>';
+			}
+			echo '</p>';
+		}
+		echo '<p class="sn-field-helper">Generated ' . esc_html( human_time_diff( (int) $narration['generated_at'], time() ) ) . ' ago &middot; in ' . esc_html( (string) (int) $narration['elapsed_ms'] ) . 'ms.</p>';
+	} else {
+		echo '<p class="sn-fieldset-intro">No digest yet. Click <strong>Generate digest</strong> to create one (~$0.01).</p>';
+	}
+
+	echo '<form method="post" class="sn-fieldset-actions">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<button type="submit" name="sn_action" value="narration_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( $narration ? 'Regenerate digest' : 'Generate digest' ) . '</button>';
+	if ( $narration ) {
+		echo ' <label class="sn-ml-auto"><input type="checkbox" name="force" value="1"> Force fresh (ignore cache)</label>';
+	}
+	echo '</form>';
+	echo '</div>';
+}
+
+/**
  * Renders the weekly-cron settings section.
  */
 function snt_insights_render_settings_section() {
@@ -179,6 +225,10 @@ function snt_insights_render_settings_section() {
 	echo '<p class="sn-fieldset-intro">A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.</p>';
 	echo '<div class="sn-field">';
 	echo '<label><input type="checkbox" name="insights_weekly_cron" value="1"' . checked( $enabled, true, false ) . '> Run a weekly scan automatically</label>';
+	echo '</div>';
+	$narration_enabled = function_exists( 'snt_narration_enabled' ) && snt_narration_enabled();
+	echo '<div class="sn-field">';
+	echo '<label><input type="checkbox" name="insights_narration" value="1"' . checked( $narration_enabled, true, false ) . '> Generate a weekly digest automatically</label>';
 	echo '</div>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="save_insights_settings" class="button button-primary">Save settings</button>';
