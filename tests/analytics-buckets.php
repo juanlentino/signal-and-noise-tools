@@ -49,6 +49,10 @@ function sn_analytics_query( $sql ) {
 	if ( strpos( $sql, 'double4' ) !== false ) { // rtt (v6.27.0)
 		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 2, 'b1' => 8, 'b2' => 20, 'b3' => 6, 'b4' => 1 ) );
 	}
+	// CWV (v6.28.0) — lcp/inp/cls all share double7, so dispatch by EVENT (blob1).
+	if ( strpos( $sql, "blob1 = 'vl'" ) !== false ) { return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 70, 'b1' => 20, 'b2' => 10 ) ); }
+	if ( strpos( $sql, "blob1 = 'vi'" ) !== false ) { return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 85, 'b1' => 10, 'b2' => 5 ) ); }
+	if ( strpos( $sql, "blob1 = 'vc'" ) !== false ) { return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 90, 'b1' => 7, 'b2' => 3 ) ); }
 	return array();
 }
 
@@ -175,6 +179,22 @@ ok( strpos( $rsql, 'sum(if(double4 >= 1 AND double4 < 50, _sample_interval, 0)) 
 ok( strpos( $rsql, 'sum(if(double4 >= 500, _sample_interval, 0)) AS b4' ) !== false, 'rtt-sql: open top band 500ms+' );
 ok( strpos( $rsql, 'count(' ) === false, 'rtt-sql: no count() (dialect-safe)' );
 
+echo "\nGroup: field Core Web Vitals metrics (vl/vi/vc → double7, v6.28.0)\n";
+foreach ( array( 'lcp' => 'vl', 'inp' => 'vi', 'cls' => 'vc' ) as $metric => $event ) {
+	$m = $cfg[ $metric ] ?? null;
+	ok( is_array( $m ), "$metric: metric registered" );
+	ok( $m && $m['event'] === $event, "$metric: reads the $event event (isolates this CWV metric)" );
+	ok( $m && $m['col'] === 'double7', "$metric: reads double7 (shared CWV value slot)" );
+	ok( $m && count( $m['buckets'] ) === 3, "$metric: three good/needs-work/poor bands" );
+	ok( $m && (int) $m['buckets'][0]['lo'] === 0, "$metric: first band starts at 0 (event-isolated; CLS=0 counts as Good, no sentinel)" );
+}
+// LCP band SQL = Google thresholds (good <2500), filtered to the vl event.
+$lsql = sn_analytics_buckets_dist_sql( $cfg['lcp']['event'], $cfg['lcp']['col'], $cfg['lcp']['buckets'], 7 );
+ok( strpos( $lsql, "WHERE blob1 = 'vl'" ) !== false, 'lcp-sql: filtered to the vl (LCP) event' );
+ok( strpos( $lsql, 'sum(if(double7 >= 0 AND double7 < 2500, _sample_interval, 0)) AS b0' ) !== false, 'lcp-sql: Good band = 0–2500ms' );
+$csql = sn_analytics_buckets_dist_sql( $cfg['cls']['event'], $cfg['cls']['col'], $cfg['cls']['buckets'], 7 );
+ok( strpos( $csql, "WHERE blob1 = 'vc'" ) !== false && strpos( $csql, 'double7 >= 0 AND double7 < 100' ) !== false, 'cls-sql: vc event, Good band <0.10 (×1000=100) incl. CLS=0' );
+
 echo "\nGroup: metrics config\n";
 ok( count( $cfg['scroll']['buckets'] ) === 4, 'config: scroll has 4 buckets' );
 ok( count( $cfg['time']['buckets'] ) === 5, 'config: time has 5 buckets' );
@@ -202,7 +222,7 @@ ok( 0 === sn_analytics_buckets_upsert( array( array( 'day' => '2026-06-11', 'met
 echo "\nGroup: run_rollup (melts dist wide rows into per-bucket rows)\n";
 ab_reset();
 sn_analytics_buckets_run_rollup();
-ok( count( $GLOBALS['__ab_query_calls'] ) === 5, 'run: 5 AE queries (hour + scroll + time + botscore + rtt)' );
+ok( count( $GLOBALS['__ab_query_calls'] ) === 8, 'run: 8 AE queries (hour + scroll + time + botscore + rtt + lcp + inp + cls)' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run: one batched upsert' );
 $uq = $GLOBALS['wpdb']->queries[0];
 ok( substr_count( $uq, "'hour'" ) === 1, 'run: one hour row from the hour query fixture' );
@@ -210,6 +230,7 @@ ok( substr_count( $uq, "'scroll'" ) === 4, 'run: scroll wide-row melted into 4 b
 ok( substr_count( $uq, "'time'" ) === 5, 'run: time wide-row melted into 5 bucket rows' );
 ok( substr_count( $uq, "'botscore'" ) === 3, 'run: botscore wide-row melted into 3 bucket rows' );
 ok( substr_count( $uq, "'rtt'" ) === 5, 'run: rtt wide-row melted into 5 bucket rows' );
+ok( substr_count( $uq, "'lcp'" ) === 3 && substr_count( $uq, "'inp'" ) === 3 && substr_count( $uq, "'cls'" ) === 3, 'run: each CWV metric melted into 3 good/NI/poor bucket rows' );
 ok( strpos( $uq, "'scroll', 'b3', 'human', 40" ) !== false, 'run: melt maps b3 column → bucket b3 with its count' );
 ab_reset();
 $GLOBALS['__ab_config_present'] = false;
