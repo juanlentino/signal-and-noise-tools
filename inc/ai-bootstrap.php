@@ -38,6 +38,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Per-call AI token-usage observability (v6.29.0).
+ *
+ * snt_ai_generate_with_constraints() records every call's token usage to a
+ * capped FIFO option so AI spend is trendable in SN's own data — without
+ * depending on the WordPress/ai plugin's off-by-default "AI Request Logs"
+ * experiment or the provider console. Token counts only: the wp-ai-client
+ * TokenUsage DTO exposes no cache-read/write breakdown.
+ */
+define( 'SN_AI_USAGE_LOG_OPT', 'sn_ai_usage_log' );
+define( 'SN_AI_USAGE_LOG_CAP', 200 );
+
+/**
  * Is the WP AI Client wired up with at least one provider that can
  * generate text on this install?
  *
@@ -169,9 +181,11 @@ function snt_ai_require_text_generation() {
  *                                    used temperature/top_p to control.
  * @param int    $max_tokens          Output cap. Default 256. For meta descriptions ~150
  *                                    is enough; for longer-form output bump higher.
+ * @param string $feature             Optional feature label for the usage log
+ *                                    (e.g. 'insights', 'insights_narration'). Default 'generic'.
  * @return string|WP_Error            Generated text or WP_Error on failure.
  */
-function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256 ) {
+function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic' ) {
 	if ( ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
@@ -212,7 +226,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 			->using_model_preference( (string) $model_preference )
 			->using_system_instruction( (string) $system_instruction )
 			->using_max_tokens( $max_tokens )
-			->generate_text();
+			->generate_text_result();
 	} catch ( \Throwable $e ) {
 		// Defense in depth — the WP wrapper already converts SDK exceptions
 		// to WP_Error, but a misconfigured provider or PHP runtime error
@@ -228,7 +242,15 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 		return $result;
 	}
 
-	$text = trim( (string) $result );
+	// v6.29.0: capture token usage BEFORE extracting the body. The prior
+	// ->generate_text() returned a bare string and the SDK discarded
+	// TokenUsage internally; ->generate_text_result() preserves it. Record
+	// here — even an empty body still consumed prompt tokens, so spend is
+	// logged regardless of whether the body validates below.
+	snt_ai_record_usage( $feature, (string) $model_preference, $result );
+
+	$body = ( is_object( $result ) && is_callable( array( $result, 'toText' ) ) ) ? (string) $result->toText() : '';
+	$text = trim( $body );
 	if ( '' === $text ) {
 		return new WP_Error(
 			'snt_ai_empty_response',
@@ -250,6 +272,96 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	$text = trim( $text, "\"'" );
 
 	return $text;
+}
+
+/**
+ * Record one AI call's token usage to the capped FIFO log option.
+ *
+ * Reads the TokenUsage DTO off the GenerativeAiResult — the metadata that
+ * the prior ->generate_text() path discarded inside the SDK. Every accessor
+ * is is_callable()-guarded so a provider/connector that doesn't populate
+ * usage degrades to a no-op rather than fataling. `model` is the requested
+ * preference string (accurate for cost attribution and avoids depending on
+ * the unverified ModelMetadata accessor).
+ *
+ * @param string $feature Feature label (e.g. 'insights', 'insights_narration').
+ * @param string $model   Requested model preference string.
+ * @param mixed  $result  GenerativeAiResult from generate_text_result().
+ * @return void
+ *
+ * @since 6.29.0
+ */
+function snt_ai_record_usage( $feature, $model, $result ) {
+	if ( ! is_object( $result ) || ! is_callable( array( $result, 'getTokenUsage' ) ) ) {
+		return;
+	}
+	$usage = $result->getTokenUsage();
+	if ( ! is_object( $usage ) ) {
+		return;
+	}
+
+	$prompt_t     = is_callable( array( $usage, 'getPromptTokens' ) ) ? (int) $usage->getPromptTokens() : 0;
+	$completion_t = is_callable( array( $usage, 'getCompletionTokens' ) ) ? (int) $usage->getCompletionTokens() : 0;
+	$total_t      = is_callable( array( $usage, 'getTotalTokens' ) ) ? (int) $usage->getTotalTokens() : ( $prompt_t + $completion_t );
+
+	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
+	$log[] = array(
+		'ts'         => time(),
+		'feature'    => (string) $feature,
+		'model'      => (string) $model,
+		'prompt'     => $prompt_t,
+		'completion' => $completion_t,
+		'total'      => $total_t,
+	);
+	if ( count( $log ) > SN_AI_USAGE_LOG_CAP ) {
+		$log = array_slice( $log, -SN_AI_USAGE_LOG_CAP );
+	}
+	update_option( SN_AI_USAGE_LOG_OPT, $log, false );
+}
+
+/**
+ * Summarize recorded AI token usage over the trailing $days window.
+ *
+ * @param int $days Trailing window in days. Default 30.
+ * @return array { calls, prompt, completion, total, by_feature: { <feature> => { calls, total } } }
+ *
+ * @since 6.29.0
+ */
+function snt_ai_usage_summary( $days = 30 ) {
+	$out = array(
+		'calls'      => 0,
+		'prompt'     => 0,
+		'completion' => 0,
+		'total'      => 0,
+		'by_feature' => array(),
+	);
+	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+	if ( ! is_array( $log ) ) {
+		return $out;
+	}
+	$cutoff = time() - ( max( 1, (int) $days ) * DAY_IN_SECONDS );
+	foreach ( $log as $entry ) {
+		if ( ! is_array( $entry ) || (int) ( $entry['ts'] ?? 0 ) < $cutoff ) {
+			continue;
+		}
+		++$out['calls'];
+		$out['prompt']     += (int) ( $entry['prompt'] ?? 0 );
+		$out['completion'] += (int) ( $entry['completion'] ?? 0 );
+		$out['total']      += (int) ( $entry['total'] ?? 0 );
+		$f = (string) ( $entry['feature'] ?? 'generic' );
+		if ( ! isset( $out['by_feature'][ $f ] ) ) {
+			$out['by_feature'][ $f ] = array(
+				'calls' => 0,
+				'total' => 0,
+			);
+		}
+		++$out['by_feature'][ $f ]['calls'];
+		$out['by_feature'][ $f ]['total'] += (int) ( $entry['total'] ?? 0 );
+	}
+	return $out;
 }
 
 /**
