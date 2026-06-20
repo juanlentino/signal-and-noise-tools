@@ -161,6 +161,15 @@ function sn_handle_insights_mark_done( $post ) {
 	return 'insights_done';
 }
 
+function sn_handle_narration_run( $post ) {
+	if ( function_exists( 'snt_narration_run' ) ) {
+		$force  = ! empty( $post['force'] );
+		$result = snt_narration_run( $force );
+		return is_wp_error( $result ) ? 'narration_failed' : 'narration_generated';
+	}
+	return 'narration_failed';
+}
+
 function sn_handle_save_insights_settings( $post ) {
 	// v4.2.0 (D-06): write via sn_setting_update() — busts the per-request
 	// cache so the cron sync below reads back the new value.
@@ -177,6 +186,15 @@ function sn_handle_save_insights_settings( $post ) {
 			snt_insights_unschedule_weekly_cron();
 		}
 	}
+
+	// v6.30.0: weekly digest-narration opt-in rides the same Settings form.
+	$narration = ! empty( $post['insights_narration'] );
+	sn_setting_update( 'insights.narration_enabled', $narration );
+	if ( function_exists( 'snt_narration_maybe_schedule_cron' ) ) {
+		// Self-healing: schedules when on+unscheduled, unschedules when off+scheduled.
+		snt_narration_maybe_schedule_cron();
+	}
+
 	return 'insights_settings_saved';
 }
 

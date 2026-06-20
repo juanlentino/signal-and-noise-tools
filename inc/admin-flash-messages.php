@@ -46,6 +46,8 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Recommendation snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Recommendation marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
+		'narration_generated'       => array( 'success', 'Weekly digest generated.' ),
+		'narration_failed'          => array( 'error', 'Could not generate the digest. Check that an AI provider is configured under Settings → Connectors.' ),
 		'insights_draft_stale'      => array( 'error', 'That recommendation is no longer in the latest scan. Run a fresh scan and try again.' ),
 		'insights_draft_failed'     => array( 'error', 'Could not create the draft. Check that the Notes content surfaces are seeded, then try again.' ),
 		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),

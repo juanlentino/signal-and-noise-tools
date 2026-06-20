@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.30.0] - 2026-06-20 — Weekly digest narration (AI "what happened this week")
+
+**Headline:** A new read-only **weekly digest** on the Insights tab — a plain-language summary of what happened this week (what people read, where they came from, how it changed versus the prior week) as a second output mode on the existing Insights pipeline. Where the Content Opportunity Advisor says *what to do* (5 structured recommendations), the digest says *what happened* (prose). Reuses the shared Sonnet-pinned AI wrapper, a 7-day cache, and an opt-in weekly cron (default OFF). Cookieless and inert until you generate one. ~$0.01/digest.
+
+### New
+
+- **`inc/insights-narration.php`** — the digest pipeline: a compact 7-day signal projection (totals + period-over-period deltas + engaged-rate delta + top-10 paths/sources/events + a graceful edge machine-split), a prose system instruction returning `{headline, paragraphs[], highlights[]}`, a fence-stripping JSON parse, a `sn_insights_narration` 7-day transient cache, and a self-healing weekly cron (`sn_insights_narration_weekly`, opt-in `insights.narration_enabled`, default OFF). Each call is tagged `insights_narration` in the v6.29.0 usage log.
+- **Weekly digest card** on the Insights tab ([inc/insights-admin.php](inc/insights-admin.php)): headline + paragraphs + highlight pills + a "Generate digest" button, plus a "Generate a weekly digest automatically" toggle in the existing Settings section. Native wp-admin styling, all output escaped, rendered above the recommendations. No new dashboard widget, no admin-bar node.
+- **`narration_run` admin-post action** ([inc/admin-post-handler.php](inc/admin-post-handler.php), [inc/admin-post-actions.php](inc/admin-post-actions.php)) + `narration_generated` / `narration_failed` flash messages.
+
+### Changed
+
+- **`insights` settings subtree gains `narration_enabled`** (default OFF) ([inc/settings.php](inc/settings.php)); the existing whole-subtree preserve block in `sn_settings_save()` already covers it. The Settings form's single Save now persists both the recs-cron and digest-cron opt-ins.
+
+> **Why MINOR:** new user-visible capability reusing the Insights data layer + cache/cron skeleton; no schema migration (a declared default under an already-preserved subtree) and no breaking change. **Cookieless:** the compact payload carries only aggregate counts, and the system instruction forbids inferring sessions / journeys / new-vs-returning. Empty + inert until generated (graceful when the AI client or edge analytics aren't configured). RED→GREEN: [tests/insights-narration.php](tests/insights-narration.php) (parse valid / fenced / invalid / missing-headline / empty-body / caps, cookieless-guard present, graceful machine-block omission, `run()` cache + force-bypass + `insights_narration` tag + `max_tokens=512`, parse-failure-not-cached, self-healing cron) — falsified by neutering the cache write (2 reds). [tests/admin-post-actions.php](tests/admin-post-actions.php) handler-map count 35→36 + `narration_run` callable. 135 suites green (3866 asserts), WPCS falsified-clean.
+
 ## [6.29.0] - 2026-06-20 — AI token-usage observability (per-call spend trending)
 
 **Headline:** The shared AI wrapper now records every call's token usage so AI spend is trendable in the plugin's own data — no longer dependent on the WordPress/ai plugin's off-by-default "AI Request Logs" experiment or the provider console. The prior `->generate_text()` returned a bare string and the SDK discarded the `TokenUsage` metadata internally; the wrapper now reads `->generate_text_result()` and persists prompt/completion/total tokens per call. Inert observability — no behavioural change to any of the 8 AI features, no new UI.
