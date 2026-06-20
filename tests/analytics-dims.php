@@ -130,7 +130,8 @@ ok( strpos( sn_analytics_dims_rollup_sql( 'network', 7 ),  'blob12 AS value' ) !
 ok( strpos( sn_analytics_dims_rollup_sql( 'colo', 7 ),     'blob13 AS value' ) !== false, 'dims-sql: colo → blob13' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'protocol', 7 ), 'blob14 AS value' ) !== false, 'dims-sql: protocol → blob14' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'tls', 7 ),      'blob15 AS value' ) !== false, 'dims-sql: tls → blob15' );
-ok( count( SN_ANALYTICS_DIM_COLUMNS ) === 11, 'dims-sql: 11 dimensions registered (3 original + 8 edge)' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'timezone', 7 ), 'blob19 AS value' ) !== false, 'dims-sql: timezone → blob19 (v6.27.0)' );
+ok( count( SN_ANALYTICS_DIM_COLUMNS ) === 12, 'dims-sql: 12 dimensions registered (3 original + 8 edge + timezone)' );
 ok( strpos( $sql, 'blob7 AS class' ) !== false, 'dims-sql: selects class' );
 // v5.3.0: pv-filtered window lets both aggregates use AE's documented forms
 // (sum() + count(DISTINCT <column>)). AE rejects count(*)/count(DISTINCT <expr>).

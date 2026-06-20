@@ -316,7 +316,7 @@ function snt_analytics_render_dashboard() {
 	// (no orphan panel above a view with no such table).
 	$sn_drill_dims = array(
 		'technology' => array( 'browser', 'os', 'device', 'protocol', 'tls' ),
-		'geography'  => array( 'country', 'city', 'region', 'network', 'colo' ),
+		'geography'  => array( 'country', 'city', 'region', 'network', 'colo', 'timezone' ),
 		'content'    => array( 'referrer' ),
 	);
 	$sn_drill = isset( $_GET['sn_drill'] ) ? sn_analytics_drilldown_parse( sanitize_text_field( wp_unslash( $_GET['sn_drill'] ) ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET filter on an admin report, no state change.
@@ -364,6 +364,9 @@ function snt_analytics_render_dashboard() {
 			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.', array(), 'region' );
 			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.', array(), 'network' );
 			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.', array(), 'colo' );
+			// v6.27.0: visitor IANA timezone (worker v1.7.0, blob19) — the "when/where
+			// my audience reads" signal, finer than country. Empty until the worker ships.
+			snt_analytics_render_dim_table( 'Time zones', sn_analytics_top_dimension( 'timezone', $from, $to, $class, 10 ), 'No timezone data yet (needs worker v1.7.0 + traffic).', array(), 'timezone' );
 			echo '</div></div>';
 			break;
 
@@ -378,6 +381,9 @@ function snt_analytics_render_dashboard() {
 			echo '<div class="sn-an-grid">';
 			snt_analytics_render_distribution( 'Scroll depth', sn_analytics_distribution( 'scroll', $from, $to, $class ) );
 			snt_analytics_render_distribution( 'Time on page', sn_analytics_distribution( 'time', $from, $to, $class ) );
+			// v6.27.0: connection RTT (worker v1.7.0, double4 = clientTcpRtt). TCP-only —
+			// HTTP/3 / QUIC requests carry no RTT, so the distribution measures HTTP/1–2.
+			snt_analytics_render_distribution( 'Connection RTT', sn_analytics_distribution( 'rtt', $from, $to, $class ), 'No TCP round-trips in this range — HTTP/3 connections carry no RTT, so only HTTP/1–2 visitors are measured (needs worker v1.7.0 + traffic).' );
 			echo '</div>';
 			$pctl_note  = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
 				? '(reflects the last ~90 days — Analytics Engine raw retention)'

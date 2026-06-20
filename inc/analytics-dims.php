@@ -43,6 +43,7 @@ const SN_ANALYTICS_DIM_COLUMNS = array(
 	'colo'     => 'blob13',
 	'protocol' => 'blob14',
 	'tls'      => 'blob15',
+	'timezone' => 'blob19', // v6.27.0: visitor IANA timezone (worker v1.7.0)
 );
 
 /**

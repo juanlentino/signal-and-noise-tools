@@ -46,6 +46,9 @@ function sn_analytics_query( $sql ) {
 	if ( strpos( $sql, 'double3' ) !== false ) { // botscore
 		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 30, 'b1' => 15, 'b2' => 5 ) );
 	}
+	if ( strpos( $sql, 'double4' ) !== false ) { // rtt (v6.27.0)
+		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 2, 'b1' => 8, 'b2' => 20, 'b3' => 6, 'b4' => 1 ) );
+	}
 	return array();
 }
 
@@ -160,6 +163,18 @@ ok( strpos( $bsql, 'sum(if(double3 >= 1 AND double3 < 31, _sample_interval, 0)) 
 ok( strpos( $bsql, 'sum(if(double3 >= 61, _sample_interval, 0)) AS b2' ) !== false, 'botscore-sql: open top band 61–99' );
 ok( strpos( $bsql, 'count(' ) === false, 'botscore-sql: no count() (dialect-safe)' );
 
+echo "\nGroup: rtt metric (double4 connection-RTT bands, v6.27.0)\n";
+$rtt = $cfg['rtt'] ?? null;
+ok( is_array( $rtt ), 'rtt: metric registered' );
+ok( $rtt && $rtt['event'] === 'pv', 'rtt: reads pageview (pv) events' );
+ok( $rtt && $rtt['col'] === 'double4', 'rtt: reads double4 (clientTcpRtt ms)' );
+ok( $rtt && count( $rtt['buckets'] ) === 5, 'rtt: five latency bands' );
+ok( $rtt && (int) $rtt['buckets'][0]['lo'] === 1, 'rtt: lowest band starts at 1 (excludes the 0 = absent/HTTP-3 sentinel)' );
+$rsql = sn_analytics_buckets_dist_sql( 'pv', 'double4', $rtt['buckets'], 7 );
+ok( strpos( $rsql, 'sum(if(double4 >= 1 AND double4 < 50, _sample_interval, 0)) AS b0' ) !== false, 'rtt-sql: band 0 = 1–50ms via sum(if())' );
+ok( strpos( $rsql, 'sum(if(double4 >= 500, _sample_interval, 0)) AS b4' ) !== false, 'rtt-sql: open top band 500ms+' );
+ok( strpos( $rsql, 'count(' ) === false, 'rtt-sql: no count() (dialect-safe)' );
+
 echo "\nGroup: metrics config\n";
 ok( count( $cfg['scroll']['buckets'] ) === 4, 'config: scroll has 4 buckets' );
 ok( count( $cfg['time']['buckets'] ) === 5, 'config: time has 5 buckets' );
@@ -187,13 +202,14 @@ ok( 0 === sn_analytics_buckets_upsert( array( array( 'day' => '2026-06-11', 'met
 echo "\nGroup: run_rollup (melts dist wide rows into per-bucket rows)\n";
 ab_reset();
 sn_analytics_buckets_run_rollup();
-ok( count( $GLOBALS['__ab_query_calls'] ) === 4, 'run: 4 AE queries (hour + scroll + time + botscore)' );
+ok( count( $GLOBALS['__ab_query_calls'] ) === 5, 'run: 5 AE queries (hour + scroll + time + botscore + rtt)' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run: one batched upsert' );
 $uq = $GLOBALS['wpdb']->queries[0];
 ok( substr_count( $uq, "'hour'" ) === 1, 'run: one hour row from the hour query fixture' );
 ok( substr_count( $uq, "'scroll'" ) === 4, 'run: scroll wide-row melted into 4 bucket rows' );
 ok( substr_count( $uq, "'time'" ) === 5, 'run: time wide-row melted into 5 bucket rows' );
 ok( substr_count( $uq, "'botscore'" ) === 3, 'run: botscore wide-row melted into 3 bucket rows' );
+ok( substr_count( $uq, "'rtt'" ) === 5, 'run: rtt wide-row melted into 5 bucket rows' );
 ok( strpos( $uq, "'scroll', 'b3', 'human', 40" ) !== false, 'run: melt maps b3 column → bucket b3 with its count' );
 ab_reset();
 $GLOBALS['__ab_config_present'] = false;
