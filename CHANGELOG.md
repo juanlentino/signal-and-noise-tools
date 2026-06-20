@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.27.0] - 2026-06-19 — Visitor timezone + connection-RTT (request.cf enrichment surfaced)
+
+**Headline:** Surfaces the new per-hit signals the **worker v1.7.0** now captures into spare Analytics Engine slots: a **Time zones** breakdown (the visitor's IANA timezone — a finer "when/where my audience reads" signal than country) in Geography, and a **Connection RTT** distribution (TCP round-trip latency) in Engagement. This is the plugin half of the bundled Levers 2+3 of the CF-analytics-headroom program.
+
+### New
+
+- **"Time zones" dimension** ([inc/analytics-dims.php](inc/analytics-dims.php)): `timezone` → `blob19` added to `SN_ANALYTICS_DIM_COLUMNS`, so it rolls + reads + drills through the *existing* dims machinery with no new code path. Rendered as a dim-table in the Geography view (and drillable: "top pages where timezone = …").
+- **"Connection RTT" distribution** ([inc/analytics-buckets.php](inc/analytics-buckets.php)): a new `rtt` buckets metric on `double4` (`clientTcpRtt` ms) — bands 1–50 / 50–100 / 100–200 / 200–500 / 500ms+. The first band starts at `lo=1` so the `0`-sentinel (absent RTT) is excluded; **HTTP/3 / QUIC requests carry no TCP RTT, so the distribution is TCP-only by construction** (an explicit empty-state note says so). Rendered in the Engagement view beside scroll/time.
+
+### Notes
+
+- **Lever 2 (a free per-request bot flag) was dropped — it doesn't exist on Free/Pro.** `cf.client.bot` / `botManagement.*` are Enterprise-Bot-Management-only; the all-plans `cf.verified_bot_category` is a WAF/rules field, not readable from `request.cf`. Datacenter/bot detection is already served by the worker's UA + datacenter-ASN classifier and the existing `network` (asOrganization) dim, so no classification change was made.
+- **The lat/long visitor pin-map is deferred** (worker v1.7.0 captures `latitude`/`longitude` into doubles so the data accrues forward): gridding coordinates needs an AE expression I can't dialect-verify offline, and a dot-map overlaps the existing country choropleth + city/region tables. A follow-up can add it without losing history.
+
+> **Why MINOR:** two new user-visible analytics dimensions reusing existing rollup/render machinery; no schema migration (the dims/buckets tables already key on (dim/metric, …), so new values add rows, not columns) and no breaking change. Empty until the worker v1.7.0 deploys + traffic flows (graceful empty-states). RED→GREEN: [tests/analytics-dims.php](tests/analytics-dims.php) (+timezone→blob19, 12 dims), [tests/analytics-buckets.php](tests/analytics-buckets.php) (+rtt metric: double4, 5 bands, lo=1, 5th rollup query). 134 suites green (3790 asserts), WPCS clean.
+
 ## [6.26.0] - 2026-06-19 — Traffic & edge: server-side Cloudflare zone analytics
 
 **Headline:** A new **"Traffic & edge"** view in Monitoring → Analytics, reading the Cloudflare **GraphQL Analytics API** for what actually hit the edge — the half of reality the JS beacon structurally can't see: non-JS / bot / RSS / curl traffic, cache-hit ratio, bandwidth, status codes, and WAF threats. Server-to-server (zero client cost), cookieless. The headline reconciliation contrasts edge pageviews against the beacon's human pageviews to surface the **% machine traffic** the beacon never recorded. This is Lever 1 of the CF-analytics-headroom program (worker-side bot/`request.cf` signals + field CWV follow in later releases).

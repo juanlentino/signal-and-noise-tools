@@ -88,6 +88,23 @@ function sn_analytics_buckets_metrics() {
 				array( 'label' => '61–99', 'lo' => 61, 'hi' => null ),
 			),
 		),
+		'rtt' => array(
+			'event'   => 'pv',
+			'col'     => 'double4',
+			'label'   => 'Connection RTT',
+			// double4 = clientTcpRtt (ms), captured by worker v1.7.0. It is 0 when
+			// absent — HTTP/3 / QUIC requests carry no TCP RTT — so lo=1 on the first
+			// band excludes the 0-sentinel and only real TCP round-trips are bucketed
+			// (the distribution is TCP-only by construction). Reuses the proven sum(if())
+			// form; live-validation gated like botscore.
+			'buckets' => array(
+				array( 'label' => '1–50ms',    'lo' => 1,   'hi' => 50 ),
+				array( 'label' => '50–100ms',  'lo' => 50,  'hi' => 100 ),
+				array( 'label' => '100–200ms', 'lo' => 100, 'hi' => 200 ),
+				array( 'label' => '200–500ms', 'lo' => 200, 'hi' => 500 ),
+				array( 'label' => '500ms+',    'lo' => 500, 'hi' => null ),
+			),
+		),
 	);
 }
 
