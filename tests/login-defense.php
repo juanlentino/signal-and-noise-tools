@@ -91,5 +91,20 @@ $h = sn_login_defense_headline();
 ok( $h['blocked'] === 4 && $h['block_rate'] === 40 && $h['top_network'] === 'BadNet', 'headline: blocked/rate/top-network' );
 ok( isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: cached in transient' );
 
+// --- D1: Security panel is status-only (no decisions KPI; links to analytics) -
+function esc_html( $s ) { return (string) $s; }
+function esc_html__( $s, $d = null ) { return (string) $s; }
+function esc_url( $s ) { return (string) $s; }
+function admin_url( $p ) { return '/wp-admin/' . $p; }
+function __( $s, $d = null ) { return (string) $s; }
+function number_format_i18n( $n ) { return (string) $n; }
+function wp_http_validate_url( $u ) { return false; } // -> status null, no network call
+ob_start();
+sn_login_defense_render();
+$panel = ob_get_clean();
+ok( strpos( $panel, 'Login decisions' ) === false, 'panel no longer renders the decisions KPI list' );
+ok( strpos( $panel, 'tab=monitoring&sub=login-defense' ) !== false, 'panel links to the Monitoring analytics view' );
+ok( strpos( $panel, 'FireHOL' ) !== false, 'panel keeps the FireHOL/Spamhaus attribution' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

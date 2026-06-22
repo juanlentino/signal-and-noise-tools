@@ -179,37 +179,16 @@ function sn_login_defense_attribution() {
 }
 
 /**
- * Render the read-only panel. Wired as the Security > Login defense sub-tab render
- * callback in inc/admin-tabs-data.php. Native wp-admin markup; all output escaped.
+ * Render the read-only Security > Login defense STATUS panel: denylist size +
+ * last refresh + attribution + a link to the Monitoring analytics view. The
+ * attack analytics moved to the dashboard widget + the Monitoring view, so this
+ * panel no longer duplicates a KPI strip. Native wp-admin markup; all output escaped.
  */
 function sn_login_defense_render() {
-	$cfg = function_exists( 'sn_analytics_config' ) ? sn_analytics_config() : null;
-
 	echo '<div class="sn-status-box">';
 
-	if ( ! $cfg ) {
-		echo '<p class="notice notice-warning">'
-			. esc_html__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense data.', 'signal-and-noise-tools' )
-			. '</p>';
-	} else {
-		$rows = function_exists( 'sn_analytics_query' )
-			? sn_analytics_query( sn_login_defense_decisions_sql( 7 ) )
-			: null;
-		echo '<h3>' . esc_html__( 'Login decisions (7 days)', 'signal-and-noise-tools' ) . '</h3>';
-		if ( is_array( $rows ) && $rows ) {
-			echo '<ul>';
-			foreach ( $rows as $r ) {
-				echo '<li><span class="sn-pill">' . esc_html( (string) ( $r['decision'] ?? '' ) ) . '</span> '
-					. esc_html( number_format_i18n( (float) ( $r['hits'] ?? 0 ) ) ) . '</li>';
-			}
-			echo '</ul>';
-		} else {
-			echo '<p>' . esc_html__( 'No decisions recorded yet.', 'signal-and-noise-tools' ) . '</p>';
-		}
-	}
-
 	$status = sn_login_defense_status();
-	if ( $status ) {
+	if ( is_array( $status ) ) {
 		echo '<p>' . esc_html(
 			sprintf(
 				/* translators: 1: number of denylist ranges, 2: ISO timestamp */
@@ -218,8 +197,12 @@ function sn_login_defense_render() {
 				(string) ( $status['compiledAt'] ?? '?' )
 			)
 		) . '</p>';
+	} else {
+		echo '<p>' . esc_html__( 'Login guard status unavailable (the Worker is not reachable or not deployed yet).', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
+	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=login-defense' ) ) . '">'
+		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div>';
 }
