@@ -178,4 +178,32 @@ function sn_login_defense_view_render() {
 			$ctry
 		)
 	);
+
+	// CF edge door-knock pressure: the loud /wp-login.php + /xmlrpc.php doors the
+	// masked-login worker never sees. Independently edge-gated; reached only when AE
+	// config is present (the view precondition above). Glance only — the full
+	// breakdown lives in Analytics → Traffic & edge.
+	if ( function_exists( 'sn_edge_config' ) && sn_edge_config() && function_exists( 'sn_edge_top_dim' ) ) {
+		$to_d   = gmdate( 'Y-m-d' );
+		$from_d = gmdate( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS );
+		$total  = 0;
+		foreach ( sn_edge_top_dim( 'atk_door', $from_d, $to_d, 20 ) as $r ) {
+			$total += (int) ( $r['requests'] ?? 0 );
+		}
+		$ctry_e = sn_edge_top_dim( 'atk_country', $from_d, $to_d, 1 );
+		$net_e  = sn_edge_top_dim( 'atk_asn', $from_d, $to_d, 1 );
+		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+		echo '<p>' . esc_html( number_format_i18n( $total ) ) . ' '
+			. esc_html__( 'hits on /wp-login.php + /xmlrpc.php', 'signal-and-noise-tools' );
+		if ( ! empty( $ctry_e[0]['value'] ) ) {
+			echo ' &middot; ' . esc_html__( 'top country', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $ctry_e[0]['value'] );
+		}
+		if ( ! empty( $net_e[0]['value'] ) ) {
+			echo ' &middot; ' . esc_html__( 'top network', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $net_e[0]['value'] );
+		}
+		echo '</p>';
+		echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=edge' ) ) . '">'
+			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
+		echo '</div></div>';
+	}
 }

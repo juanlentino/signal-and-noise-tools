@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.35.0] - 2026-06-22 — /wp-login.php door-knock pressure (CF edge)
+
+**Headline:** The attacker pressure against /wp-login.php, /xmlrpc.php, and the generic 4xx probe surface — which the masked-login worker never sees — is now surfaced from Cloudflare's zone GraphQL (`httpRequestsAdaptiveGroups`): a glance in the **Login defense** dashboard view and a full breakdown in **Traffic & edge**. No new Worker, no new table, no Analytics Engine budget. It reuses the existing edge stack (and inherits the v6.34.0 retention-aware adaptive window automatically).
+
+> **Why MINOR:** new user-visible observability capability across two views. Additive only — no removed/renamed API, no schema migration (the new `atk_*` breakdowns are rows in the existing `wp_sn_edge_dims` table).
+
+### New
+
+- **Attack-surface pressure query + rollup** ([inc/edge-analytics.php](inc/edge-analytics.php), [inc/edge-rollup.php](inc/edge-rollup.php)): `sn_edge_attack_query()` pulls two aliased `httpRequestsAdaptiveGroups` selections — `doors` (the named login paths by country / ASN / status / method) and `probes` (the top 4xx non-content scan paths). The daily rollup marginalizes the door rows into `atk_door` / `atk_country` / `atk_asn` / `atk_status` / `atk_method` and the probes into `atk_path` in `wp_sn_edge_dims` (sampling-corrected). No DB-version bump.
+- **Login defense glance** ([inc/login-defense-analytics.php](inc/login-defense-analytics.php)): a "Door-knock pressure (CF edge)" panel below the worker decisions — total hits + top attacker country + network + a link to the full breakdown. Independently edge-gated, dormant until the edge token + zone are configured.
+- **Traffic & edge detail** ([inc/edge-admin.php](inc/edge-admin.php)): an "Attack-surface pressure" section — per-door totals, status + method mix, top attacker countries + networks, and the top-probed-paths (4xx) recon table.
+
 ## [6.34.1] - 2026-06-22 — Login defense view matches the analytics dashboard styling
 
 **Headline:** The Login defense dashboard view now uses the exact same visual chrome as the other analytics views. Its KPI strip + blocked-trend are wrapped in the shared `.postbox.sn-overview` "Overview" panel, the trend gets the gradient area band (not a bare line), the KPI cards get the delta sub-line, and the attacker tables move to the shared `.postbox` + `.wp-list-table` treatment. The view was rendering its KPIs, trend, and tables bare, so it looked unstyled next to Content / Technology / Geography / etc.

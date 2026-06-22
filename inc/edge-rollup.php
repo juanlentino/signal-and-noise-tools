@@ -247,6 +247,47 @@ function sn_edge_run_rollup( $today = null ) {
 		}
 	}
 
+	// 4. Attack-surface pressure (httpRequestsAdaptiveGroups, aliased doors+probes) —
+	// sampled, trailing snapshot → today. Marginalize the 5-dim door rows into atk_* keys.
+	$zone = sn_edge_query( sn_edge_attack_query(), array( 'from' => $since ) );
+	if ( is_array( $zone ) ) {
+		$marg = array(); // dim => value => corrected sum
+		foreach ( (array) ( $zone['doors'] ?? array() ) as $g ) {
+			$req = sn_edge_corrected( $g );
+			$d   = is_array( $g['dimensions'] ?? null ) ? $g['dimensions'] : array();
+			$asn = (string) ( $d['clientASNDescription'] ?? '' );
+			if ( '' === $asn ) {
+				$an  = (string) ( $d['clientAsn'] ?? '' );
+				$asn = '' !== $an ? 'AS' . $an : '';
+			}
+			$pairs = array(
+				'atk_door'    => (string) ( $d['clientRequestPath'] ?? '' ),
+				'atk_country' => (string) ( $d['clientCountryName'] ?? '' ),
+				'atk_asn'     => $asn,
+				'atk_status'  => (string) ( $d['edgeResponseStatus'] ?? '' ),
+				'atk_method'  => (string) ( $d['clientRequestHTTPMethodName'] ?? '' ),
+			);
+			foreach ( $pairs as $dim => $val ) {
+				if ( '' === $val ) {
+					continue;
+				}
+				$marg[ $dim ][ $val ] = ( $marg[ $dim ][ $val ] ?? 0 ) + $req;
+			}
+		}
+		foreach ( (array) ( $zone['probes'] ?? array() ) as $g ) {
+			$path = (string) ( $g['dimensions']['clientRequestPath'] ?? '' );
+			if ( '' === $path ) {
+				continue;
+			}
+			$marg['atk_path'][ $path ] = ( $marg['atk_path'][ $path ] ?? 0 ) + sn_edge_corrected( $g );
+		}
+		foreach ( $marg as $dim => $vals ) {
+			foreach ( $vals as $val => $req ) {
+				$dim_rows[] = array( 'day' => $today, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
+			}
+		}
+	}
+
 	if ( ! empty( $daily_rows ) ) {
 		sn_edge_daily_upsert( $daily_rows );
 	}

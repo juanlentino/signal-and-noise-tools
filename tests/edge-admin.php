@@ -28,6 +28,12 @@ function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
 		'colo'    => array( array( 'value' => 'IAD', 'requests' => 900, 'bytes' => 5000000 ) ),
 		'country' => array( array( 'value' => 'US', 'requests' => 1200, 'bytes' => 6000000 ) ),
 		'threat'  => array( array( 'value' => 'block', 'requests' => 50, 'bytes' => 0 ) ),
+		'atk_door'    => array( array( 'value' => '/wp-login.php', 'requests' => 8400, 'bytes' => 0 ) ),
+		'atk_country' => array( array( 'value' => 'CN', 'requests' => 5000, 'bytes' => 0 ) ),
+		'atk_asn'     => array( array( 'value' => 'DIGITALOCEAN-ASN', 'requests' => 3000, 'bytes' => 0 ) ),
+		'atk_status'  => array( array( 'value' => '404', 'requests' => 8000, 'bytes' => 0 ) ),
+		'atk_method'  => array( array( 'value' => 'POST', 'requests' => 7000, 'bytes' => 0 ) ),
+		'atk_path'    => array( array( 'value' => '/.env', 'requests' => 1200, 'bytes' => 0 ) ),
 	);
 	return $map[ $dim ] ?? array();
 }
@@ -80,6 +86,15 @@ ok( stripos( $html, 'retain' ) !== false || stripos( $html, 'Cloudflare' ) !== f
 $GLOBALS['__ec_retention_days'] = 0;
 $html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
 ok( stripos( $html, 'retains this node' ) === false, 'retention: unknown (0) → no retention clause rendered' );
+
+echo "\nGroup: attack-surface pressure section\n";
+$GLOBALS['__ec_config'] = array( 'token' => 't', 'zone' => 'z' );
+$html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
+ok( strpos( $html, 'Attack-surface pressure' ) !== false, 'attack: section title present' );
+ok( strpos( $html, '/wp-login.php' ) !== false, 'attack: login door listed' );
+ok( strpos( $html, 'DIGITALOCEAN-ASN' ) !== false, 'attack: top attacker network listed' );
+ok( strpos( $html, '/.env' ) !== false, 'attack: top probed path listed' );
+ok( strpos( $html, 'POST' ) !== false, 'attack: method mix listed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
