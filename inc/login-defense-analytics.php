@@ -20,16 +20,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_login_defense_render_kpi_cards( $k ) {
 	$cards = array(
-		array( 'l' => __( 'Checked (7d)', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['checked'] ?? 0 ) ), 'promoted' => true ),
-		array( 'l' => __( 'Blocked', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['blocked'] ?? 0 ) ), 'promoted' => true ),
-		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%' ),
-		array( 'l' => __( 'Networks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['networks'] ?? 0 ) ) ),
+		array( 'l' => __( 'Checked (7d)', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['checked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'seen', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Blocked', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['blocked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'denied', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%', 'sub' => __( 'of checks', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Networks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['networks'] ?? 0 ) ), 'sub' => __( 'distinct', 'signal-and-noise-tools' ) ),
 	);
 	echo '<div class="sn-kpi-row">';
 	foreach ( $cards as $c ) {
 		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
 		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
 		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
+		// Flat delta slot — login KPIs have no period-over-period delta; the slot keeps
+		// the card structure identical to snt_analytics_render_cards() (a labelled sub-line).
+		echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( $c['sub'] ) . '</span>';
 		echo '</div>';
 	}
 	echo '</div>';
@@ -69,6 +72,9 @@ function sn_login_defense_render_trend_chart( $series ) {
 		foreach ( $px as $i => $x ) { $pts[] = $x . ',' . $py[ $i ]; }
 		$line_d = 'M ' . implode( ' L ', $pts );
 	}
+	// Area = the line dropped to the baseline and closed (parity with snt_analytics_render_trend).
+	$last_x = $px[ $n - 1 ];
+	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 
 	echo '<div class="sn-overview-trend">';
 	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Blocked per day', 'signal-and-noise-tools' ) . '</span>';
@@ -76,7 +82,10 @@ function sn_login_defense_render_trend_chart( $series ) {
 	echo '<div class="sn-spark-wrap">';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- coords esc_attr'd, static SVG chrome.
 	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( __( 'Daily blocked trend', 'signal-and-noise-tools' ) ) . '">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG gradient def, no dynamic values.
+	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
 	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
 	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
 	echo '</svg></div>';
 	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
@@ -87,18 +96,19 @@ function sn_login_defense_render_trend_chart( $series ) {
  * Ranked top-N table (attacker networks / countries). $rows = [{k,v}].
  */
 function sn_login_defense_render_top_table( $title, $col, $rows ) {
-	echo '<div class="sn-an-card"><h3>' . esc_html( $title ) . '</h3>';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( ! $rows ) {
-		echo '<p class="sn-an-empty">' . esc_html__( 'No blocks recorded yet.', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No blocks recorded yet.', 'signal-and-noise-tools' ) . '</p></div></div>';
 		return;
 	}
-	echo '<table class="sn-an-table widefat striped"><thead><tr><th>' . esc_html( $col )
-		. '</th><th>' . esc_html__( 'Blocked', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $col ) . '</th>';
+	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Blocked', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td>' . esc_html( (string) ( $r['k'] ?? '' ) ) . '</td><td>'
-			. esc_html( number_format_i18n( (int) ( $r['v'] ?? 0 ) ) ) . '</td></tr>';
+		echo '<tr><td class="column-primary"><strong>' . esc_html( (string) ( $r['k'] ?? '' ) ) . '</strong></td>'
+			. '<td class="num">' . esc_html( number_format_i18n( (int) ( $r['v'] ?? 0 ) ) ) . '</td></tr>';
 	}
-	echo '</tbody></table></div>';
+	echo '</tbody></table></div></div>';
 }
 
 /**
@@ -134,8 +144,14 @@ function sn_login_defense_view_render() {
 	$kpis             = sn_login_defense_kpis_from_rows( $dec );
 	$net              = sn_analytics_query( sn_login_defense_networks_sql( $days ) ) ?: array();
 	$kpis['networks'] = (int) ( $net[0]['networks'] ?? 0 );
+
+	// Fuse the KPI strip + blocked-trend into ONE "Overview" postbox, identical to the
+	// shared dashboard chrome (render_dashboard wraps the other views' cards+trend this way).
+	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
+	echo '<div class="inside inside-flush sn-overview-inside">';
 	sn_login_defense_render_kpi_cards( $kpis );
 	sn_login_defense_render_trend_chart( sn_login_defense_trend_series( sn_analytics_query( sn_login_defense_trend_sql( $days ) ) ?: array() ) );
+	echo '</div></div>';
 
 	echo '<p class="sn-an-breakdown">';
 	foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $d ) {

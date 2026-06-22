@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.34.1] - 2026-06-22 — Login defense view matches the analytics dashboard styling
+
+**Headline:** The Login defense dashboard view now uses the exact same visual chrome as the other analytics views. Its KPI strip + blocked-trend are wrapped in the shared `.postbox.sn-overview` "Overview" panel, the trend gets the gradient area band (not a bare line), the KPI cards get the delta sub-line, and the attacker tables move to the shared `.postbox` + `.wp-list-table` treatment. The view was rendering its KPIs, trend, and tables bare, so it looked unstyled next to Content / Technology / Geography / etc.
+
+> **Why PATCH:** presentation-only consistency fix — login-renderer markup aligned to the shared analytics vocabulary, no new capability, no data or API change. The shared renderers are untouched (zero risk to the other views).
+
+### Fixed
+
+- **Overview panel** ([inc/login-defense-analytics.php](inc/login-defense-analytics.php)): the KPI cards + blocked-trend are fused into one `.postbox.sn-overview` panel (matching `snt_analytics_render_dashboard`'s wrapper for the other views) instead of floating bare.
+- **Trend band**: the blocked-per-day sparkline now renders the `snSparkFill` gradient area under the line, identical to `snt_analytics_render_trend`.
+- **KPI cards**: each card now carries the `.sn-kpi-delta` sub-line (`seen` / `denied` / `of checks` / `distinct`) so the card structure matches the shared cards.
+- **Attacker tables**: top networks / countries move from the ad-hoc `.sn-an-card` / `.sn-an-table` to the shared `.postbox` + `<h2 class="hndle">` + `.wp-list-table widefat striped` chrome used by every other dimension table.
+
 ## [6.34.0] - 2026-06-22 — Edge-analytics retention is now discovered, not assumed
 
 **Headline:** The edge-analytics layer no longer hardcodes the belief that `httpRequestsAdaptiveGroups` has "24h retention on Free." Cloudflare publishes no fixed Free-plan number for that node — retention is per-node/per-plan and only knowable at runtime — so a new settings-node probe reads the dataset's real `notOlderThan` (in seconds) off the GraphQL `settings` node, surfaces it in the **Traffic & edge** view ("Cloudflare retains this node for N days"), and clamps the daily rollup's adaptive snapshot window to what the node actually retains instead of a blind `DAY_IN_SECONDS`.
