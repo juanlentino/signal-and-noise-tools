@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.33.0] - 2026-06-22 — Login defense analytics promoted to an Analytics dashboard view
+
+**Headline:** The login-defense deep-dive (attack KPIs, daily blocked-trend, decision breakdown, top attacker networks and countries) is now a first-class **Login defense** tab in the read-only Analytics dashboard (Dashboard → Analytics), beside Content / Technology / Geography / … / Traffic & edge, instead of being buried in the Monitoring settings sub-tab. It keeps its own 7/30/90-day range control.
+
+> **Why MINOR:** new user-visible dashboard view (a new capability). The removed Monitoring sub-tab URL is internal admin navigation, not a public API or settings-schema change, so it is not a breaking change.
+
+### New
+
+- **Analytics dashboard → Login defense view** ([inc/analytics-admin.php](inc/analytics-admin.php), [inc/login-defense-analytics.php](inc/login-defense-analytics.php)): `login-defense` joins `SN_ANALYTICS_VIEWS` and is dispatched by `snt_analytics_render_dashboard()`, reusing the existing `sn_login_defense_view_render()` wholesale (no new rendering code).
+
+### Changed
+
+- **The shared pageview header is now per-view** ([inc/analytics-admin.php](inc/analytics-admin.php)): a new `snt_analytics_view_owns_chrome()` predicate lets a view opt out of the dashboard's pageview Overview header (KPI cards + trend + traffic-class controls). The Login defense view owns its chrome, so attack stats no longer sit under an irrelevant pageview header (`edge` and the other six views are unchanged). The post-switch empty hint is gated on the same predicate so the chrome-owning view never reads the now-unset pageview totals.
+- The login-defense **dashboard widget** and the **Security → Login defense** status panel now link to the new dashboard view ([inc/login-defense-widget.php](inc/login-defense-widget.php), [inc/login-defense.php](inc/login-defense.php)). Tab links also strip the view's private `sn_lg_range` param so it does not leak onto sibling tabs.
+
+### Removed
+
+- The **Monitoring → Login defense** settings sub-tab ([inc/admin-tabs-data.php](inc/admin-tabs-data.php)): its deep-dive view moved to the Analytics dashboard. The **Security → Login defense** status panel is unchanged.
+
 ## [6.32.1] - 2026-06-22 — Surface the sn-login-guard worker version in the status panel
 
 **Headline:** The Security → Login defense status panel now shows the deployed **`sn-login-guard` worker version + deploy time** (read from the status probe it already runs), mirroring how the Analytics tab surfaces the `sn-analytics` worker version. The status block was extracted into a testable `sn_login_defense_render_status()`.
