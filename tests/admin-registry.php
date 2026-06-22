@@ -31,6 +31,7 @@ function add_action() {} // admin-post-handler.php registers on admin_init at lo
 // Function-backed section renderers referenced by the registry (stubbed present,
 // each records its own call so routing assertions can see which fired).
 function sn_admin_render_login_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_login_section'; }
+function sn_login_defense_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_render'; }
 function snt_audit_log_render_tab() { $GLOBALS['__calls'][] = 'fn:snt_audit_log_render_tab'; }
 function sn_admin_render_indexnow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_indexnow_section'; }
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
@@ -89,8 +90,8 @@ ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'ins
 	'monitoring leaves: analytics, insights, health' );
 ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),
 	'tools leaves: block-migrations, release-notes, links (links last)' );
-ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'audit-log' ),
-	'security leaves unchanged: login, audit-log' );
+ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),
+	'security leaves: login, login-defense, audit-log' );
 
 // ── Dispatcher routing (Task 3) ──
 // identity-and-seo: sub-tab nav + in-form section tabs + the form, NO section wrapper.

@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.31.0] - 2026-06-22 — Login defense panel (reads the sn-login-guard edge Worker)
+
+**Headline:** A new read-only **Security → Login defense** sub-tab surfaces the companion `sn-login-guard` Cloudflare Worker, which blocks known-bad IPs (FireHOL level1 denylist) at the masked `/sn-login` door and logs every decision to a separate `sn_login_guard` Analytics Engine dataset. This is the owned, cookieless, no-vendor replacement for LLAR's cross-network IP reputation (defense-in-depth post-passkey, not a security necessity). The panel is dormant and graceful until the Worker is deployed and Cloudflare Analytics is connected.
+
+### Added
+
+- **Login defense panel** ([inc/login-defense.php](inc/login-defense.php)): reads login decisions from the `sn_login_guard` AE dataset (de-sampled via `sum(_sample_interval)`, the AE `count()`-dialect rule) and probes the Worker's `/_sn/login-guard/status` endpoint (SSRF-guarded, via the shared `inc/ssrf-guard.php`) for denylist size + last refresh. Reuses the existing Cloudflare Analytics credentials (`sn_analytics_config()`/`sn_analytics_query()`) and the `worker-version.php` collector-origin derivation. Shows FireHOL/Spamhaus attribution (license requirement). Native wp-admin markup, all output escaped.
+- Registered as a sub-tab under Security in [inc/admin-tabs-data.php](inc/admin-tabs-data.php); loaded after its dependencies in [signal-and-noise-tools.php](signal-and-noise-tools.php). CLI fixture in [tests/login-defense.php](tests/login-defense.php); the admin-registry contract test pins the new Security leaf.
+
 ## [6.30.1] - 2026-06-20 — Fix the dashboard "Open RSS tab" link (dead slug → wp_die)
 
 **Headline:** The "Open RSS tab" link in the Dashboard's RSS-feed-activity row pointed at `admin.php?page=sn-rss` — a standalone slug that isn't registered (every SN admin surface lives under `page=sn-theme-options&tab=…`), so clicking it hit WordPress's "Sorry, you are not allowed to access this page" guard. It now links straight to the canonical **Content → RSS** sub-section (where RSS moved from Monitoring in v6.18.0).

@@ -125,7 +125,8 @@ function sn_admin_top_tabs() {
 			'title'    => 'Signal & Noise — Security',
 			'subtitle' => 'Custom login URL and the admin audit log.',
 			'sub_tabs' => array(
-				'login'     => array( 'label' => 'Login URL', 'render' => 'sn_admin_render_login_section' ),
+				'login'         => array( 'label' => 'Login URL', 'render' => 'sn_admin_render_login_section' ),
+				'login-defense' => array( 'label' => 'Login defense', 'render' => 'sn_login_defense_render' ),
 				// v3.8.3: audit-log sub-tab. Adding the 2nd sub-tab automatically
 				// reveals the sub-tab nav row (sn_admin_render_sub_tabs() hides at count<2).
 				'audit-log' => array( 'label' => 'Audit log', 'render' => 'snt_audit_log_render_tab' ),
