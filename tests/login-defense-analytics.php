@@ -33,11 +33,14 @@ sn_login_defense_render_kpi_cards( array( 'checked' => 100, 'blocked' => 30, 'bl
 $h = ob_get_clean();
 ok( strpos( $h, 'sn-kpi' ) !== false && strpos( $h, '30%' ) !== false && strpos( $h, 'Block rate' ) !== false,
 	'KPI cards render login labels + values' );
+ok( strpos( $h, 'sn-kpi-delta' ) !== false, 'KPI cards include the delta slot (parity with the shared cards)' );
 
 // --- B1: trend ---------------------------------------------------------------
 ob_start();
 sn_login_defense_render_trend_chart( array( array( 'day' => '2026-06-20', 'views' => 5 ), array( 'day' => '2026-06-21', 'views' => 9 ) ) );
-ok( strpos( ob_get_clean(), '<svg' ) !== false, 'trend renders an SVG sparkline' );
+$tr = ob_get_clean();
+ok( strpos( $tr, '<svg' ) !== false, 'trend renders an SVG sparkline' );
+ok( strpos( $tr, 'snSparkFill' ) !== false && strpos( $tr, 'fill="url(#snSparkFill)"' ) !== false, 'trend has the gradient area fill (parity with the shared trend)' );
 ob_start();
 sn_login_defense_render_trend_chart( array() );
 ok( ob_get_clean() === '', 'trend with no data renders nothing' );
@@ -48,6 +51,8 @@ sn_login_defense_render_top_table( 'Top networks', 'Network', array( array( 'k' 
 $tb = ob_get_clean();
 ok( strpos( $tb, 'BadNet' ) !== false && strpos( $tb, 'Top networks' ) !== false && strpos( $tb, '<table' ) !== false,
 	'top table renders rows + caption' );
+ok( strpos( $tb, 'postbox' ) !== false && strpos( $tb, 'wp-list-table' ) !== false && strpos( $tb, 'hndle' ) !== false,
+	'top table uses the shared postbox + wp-list-table chrome' );
 ob_start();
 sn_login_defense_render_top_table( 'Top networks', 'Network', array() );
 ok( strpos( ob_get_clean(), 'No' ) !== false, 'top table empty-state' );
@@ -66,6 +71,7 @@ sn_login_defense_view_render();
 $v = ob_get_clean();
 ok( strpos( $v, 'sn-kpi' ) !== false && strpos( $v, 'Top attacker networks' ) !== false,
 	'view configured renders KPIs + threat tables (no fatal)' );
+ok( strpos( $v, 'postbox sn-overview' ) !== false, 'view wraps KPIs + trend in the shared Overview postbox' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
