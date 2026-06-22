@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.32.1] - 2026-06-22 — Surface the sn-login-guard worker version in the status panel
+
+**Headline:** The Security → Login defense status panel now shows the deployed **`sn-login-guard` worker version + deploy time** (read from the status probe it already runs), mirroring how the Analytics tab surfaces the `sn-analytics` worker version. The status block was extracted into a testable `sn_login_defense_render_status()`.
+
+> **Why PATCH:** small surfacing of already-probed data in an existing panel, no new capability or settings change.
+
+### Improvements
+
+- **Worker version in the Login defense panel** ([inc/login-defense.php](inc/login-defense.php)): `sn_login_defense_render_status()` renders `Worker: sn-login-guard vX.Y.Z (deployed …)` above the denylist line, from the same `/_sn/login-guard/status` probe (which already returns `version` / `deployed_at`). Parity with the `inc/worker-version.php` analytics worker-version card.
+
 ## [6.32.0] - 2026-06-22 — Login defense analytics (dashboard widget + Monitoring view)
 
 **Headline:** The `sn_login_guard` decision log is now a real, threat-intel-forward analytics surface across three distinct places: a **dashboard widget** (the at-a-glance "blocked today / block rate / top attacker network" on the WP home dashboard), the **Security → Login defense** panel reshaped to operational **status only** (denylist size + refresh + attribution, no duplicate KPIs), and a new **Monitoring → Login defense** view with KPI cards, a daily blocked-trend sparkline, the decision breakdown, and top blocked ASNs + countries. All read-only; enforcement stays at the edge.
