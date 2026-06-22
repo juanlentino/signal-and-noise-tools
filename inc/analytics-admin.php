@@ -55,6 +55,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'quality'    => 'Quality',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
+	'login-defense' => 'Login defense',
 );
 
 /**
@@ -66,6 +67,22 @@ const SN_ANALYTICS_VIEWS = array(
 function snt_analytics_resolve_view( $raw ) {
 	$v = (string) $raw;
 	return isset( SN_ANALYTICS_VIEWS[ $v ] ) ? $v : 'content';
+}
+
+// Views that render their own complete chrome (own KPI cards, trend, range control)
+// and therefore opt OUT of the shared pageview header. login-defense ONLY — 'edge'
+// deliberately keeps the shared header it ships today (changing it would be a regression).
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
+
+/**
+ * True iff $view brings its own chrome, so the shared pageview header (controls +
+ * Overview postbox + the post-switch empty hint) is suppressed for it.
+ *
+ * @param string $view
+ * @return bool
+ */
+function snt_analytics_view_owns_chrome( $view ) {
+	return in_array( (string) $view, SN_ANALYTICS_OWNS_CHROME, true );
 }
 
 /**

@@ -436,5 +436,13 @@ unset( $_GET['sn_from'], $_GET['sn_to'] );
 $_GET['sn_range'] = '7';
 $_GET['sn_view']  = 'content';
 
+echo "\nGroup: login-defense view registration + owns-chrome predicate\n";
+ok( snt_analytics_resolve_view( 'login-defense' ) === 'login-defense', 'resolve_view: login-defense is a registered view' );
+ok( isset( SN_ANALYTICS_VIEWS['login-defense'] ) && SN_ANALYTICS_VIEWS['login-defense'] === 'Login defense', 'registry: login-defense => Login defense' );
+ok( snt_analytics_view_owns_chrome( 'login-defense' ) === true, 'owns_chrome: login-defense owns its chrome' );
+ok( snt_analytics_view_owns_chrome( 'content' ) === false, 'owns_chrome: content uses shared chrome' );
+ok( snt_analytics_view_owns_chrome( 'edge' ) === false, 'owns_chrome: edge keeps shared chrome (no regression)' );
+ok( snt_analytics_view_owns_chrome( 'martian' ) === false, 'owns_chrome: unknown view -> false' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
