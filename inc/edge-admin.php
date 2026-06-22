@@ -98,16 +98,18 @@ function snt_edge_render_view( $from, $to ) {
 	// Attack-surface pressure — the loud doors (/wp-login.php, /xmlrpc.php) + the
 	// generic 4xx probe surface, from the edge GraphQL (the masked-login worker never
 	// sees these). All atk_* rows store bytes=0, so render with $with_bytes=false.
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
-	echo '<p class="sn-an-sep">' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly — the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
+	// Full-width labelled divider (matches the other sections in this view, e.g. the
+	// engagement CWV intro) instead of wrapping the dim grid in an extra .postbox. The
+	// nested postbox header rendered oversized next to the un-nested dim-card headers.
 	echo '<div class="sn-an-grid">';
+	echo '<p class="sn-an-sep sn-an-sep--full"><strong>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly — the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
 	snt_edge_render_dim( 'Login doors', sn_edge_top_dim( 'atk_door', $from, $to, 10 ), 'No login-door hits in this range yet.', false );
 	snt_edge_render_dim( 'Door status codes', sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );
 	snt_edge_render_dim( 'Door methods', sn_edge_top_dim( 'atk_method', $from, $to, 10 ), 'No door method data yet.', false );
 	snt_edge_render_dim( 'Attacker countries', sn_edge_top_dim( 'atk_country', $from, $to, 10 ), 'No attacker-country data yet.', false );
 	snt_edge_render_dim( 'Attacker networks', sn_edge_top_dim( 'atk_asn', $from, $to, 10 ), 'No attacker-network data yet.', false );
 	snt_edge_render_dim( 'Top probed paths (4xx)', sn_edge_top_dim( 'atk_path', $from, $to, 25 ), 'No probe scans recorded yet.', false );
-	echo '</div></div></div>';
+	echo '</div>';
 }
 
 /**
