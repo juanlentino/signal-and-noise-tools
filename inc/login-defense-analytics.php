@@ -102,10 +102,10 @@ function sn_login_defense_render_top_table( $title, $col, $rows ) {
 }
 
 /**
- * The Monitoring -> Login defense sub-tab. Dormant-gated (mirrors
+ * The Analytics-dashboard Login defense view. Dormant-gated (mirrors
  * snt_edge_render_view); own inline range control (own URL param, generic date
  * math); assembles KPIs + trend + decision breakdown + threat tables.
- * Wired as the 'login-defense' Monitoring sub-tab render callback.
+ * Registered in SN_ANALYTICS_VIEWS and dispatched by snt_analytics_render_dashboard().
  */
 function sn_login_defense_view_render() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {

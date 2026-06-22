@@ -1,7 +1,7 @@
 <?php
 /**
  * Login defense dashboard widget: at-a-glance attack stats on the WP home
- * dashboard + a link to the full Monitoring -> Login defense view. Owner-requested
+ * dashboard + a link to the full Analytics-dashboard Login defense view. Owner-requested
  * (the sanctioned exception to the no-new-widgets line). Mirrors the grandfathered
  * inc/analytics-widget.php registration. Read-only.
  *
