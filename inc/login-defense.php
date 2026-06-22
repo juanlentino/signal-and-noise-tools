@@ -179,28 +179,45 @@ function sn_login_defense_attribution() {
 }
 
 /**
- * Render the read-only Security > Login defense STATUS panel: denylist size +
- * last refresh + attribution + a link to the Monitoring analytics view. The
- * attack analytics moved to the dashboard widget + the Monitoring view, so this
- * panel no longer duplicates a KPI strip. Native wp-admin markup; all output escaped.
+ * Render the worker status block from a probed status array: deployed worker
+ * version + deploy time (parity with the analytics worker-version card), then
+ * denylist size + last refresh. Extracted from the panel for testability.
+ */
+function sn_login_defense_render_status( $status ) {
+	if ( ! is_array( $status ) ) {
+		echo '<p>' . esc_html__( 'Login guard status unavailable (the Worker is not reachable or not deployed yet).', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+	$ver = (string) ( $status['version'] ?? '' );
+	if ( '' !== $ver ) {
+		echo '<p>' . esc_html(
+			sprintf(
+				/* translators: 1: worker version, 2: deploy timestamp */
+				__( 'Worker: sn-login-guard v%1$s (deployed %2$s).', 'signal-and-noise-tools' ),
+				$ver,
+				(string) ( $status['deployed_at'] ?? '?' )
+			)
+		) . '</p>';
+	}
+	echo '<p>' . esc_html(
+		sprintf(
+			/* translators: 1: number of denylist ranges, 2: ISO timestamp */
+			__( 'Denylist: %1$s ranges, updated %2$s.', 'signal-and-noise-tools' ),
+			number_format_i18n( (int) ( $status['denylistCount'] ?? 0 ) ),
+			(string) ( $status['compiledAt'] ?? '?' )
+		)
+	) . '</p>';
+}
+
+/**
+ * Render the read-only Security > Login defense STATUS panel: worker version +
+ * denylist size + last refresh + attribution + a link to the Monitoring analytics
+ * view. The attack analytics live in the dashboard widget + the Monitoring view,
+ * so this panel does not duplicate a KPI strip. Native wp-admin markup; escaped.
  */
 function sn_login_defense_render() {
 	echo '<div class="sn-status-box">';
-
-	$status = sn_login_defense_status();
-	if ( is_array( $status ) ) {
-		echo '<p>' . esc_html(
-			sprintf(
-				/* translators: 1: number of denylist ranges, 2: ISO timestamp */
-				__( 'Denylist: %1$s ranges, updated %2$s.', 'signal-and-noise-tools' ),
-				number_format_i18n( (int) ( $status['denylistCount'] ?? 0 ) ),
-				(string) ( $status['compiledAt'] ?? '?' )
-			)
-		) . '</p>';
-	} else {
-		echo '<p>' . esc_html__( 'Login guard status unavailable (the Worker is not reachable or not deployed yet).', 'signal-and-noise-tools' ) . '</p>';
-	}
-
+	sn_login_defense_render_status( sn_login_defense_status() );
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
 	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';

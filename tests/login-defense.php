@@ -106,5 +106,15 @@ ok( strpos( $panel, 'Login decisions' ) === false, 'panel no longer renders the 
 ok( strpos( $panel, 'tab=monitoring&sub=login-defense' ) !== false, 'panel links to the Monitoring analytics view' );
 ok( strpos( $panel, 'FireHOL' ) !== false, 'panel keeps the FireHOL/Spamhaus attribution' );
 
+// --- worker version surfaced in the status panel (parity with analytics) -----
+ob_start();
+sn_login_defense_render_status( array( 'version' => '1.0.1', 'denylistCount' => 4553, 'compiledAt' => '2026-06-22T16:07Z', 'deployed_at' => '2026-06-22T17:15Z' ) );
+$st = ob_get_clean();
+ok( strpos( $st, 'v1.0.1' ) !== false && strpos( $st, '17:15' ) !== false, 'status renders the worker version + deployed-at' );
+ok( strpos( $st, 'Denylist: 4553' ) !== false, 'status keeps the denylist line' );
+ob_start();
+sn_login_defense_render_status( null );
+ok( strpos( ob_get_clean(), 'unavailable' ) !== false, 'status null -> unavailable line' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
