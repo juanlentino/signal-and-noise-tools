@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.32.0] - 2026-06-22 — Login defense analytics (dashboard widget + Monitoring view)
+
+**Headline:** The `sn_login_guard` decision log is now a real, threat-intel-forward analytics surface across three distinct places: a **dashboard widget** (the at-a-glance "blocked today / block rate / top attacker network" on the WP home dashboard), the **Security → Login defense** panel reshaped to operational **status only** (denylist size + refresh + attribution, no duplicate KPIs), and a new **Monitoring → Login defense** view with KPI cards, a daily blocked-trend sparkline, the decision breakdown, and top blocked ASNs + countries. All read-only; enforcement stays at the edge.
+
+> **Why MINOR:** new user-visible capability (a dashboard widget + a Monitoring analytics view), no removed/renamed public API or settings-schema change.
+
+### New
+
+- **Dashboard widget** ([inc/login-defense-widget.php](inc/login-defense-widget.php)): owner-requested glance (the sanctioned exception to the no-new-widgets convention), mirroring the grandfathered `inc/analytics-widget.php` registration + capability gate. Links to the full view.
+- **Monitoring → Login defense view** ([inc/login-defense-analytics.php](inc/login-defense-analytics.php)): a peer sub-tab under Monitoring (its own range control, dormant-gated). KPI cards, daily blocked-trend sparkline, decision breakdown, and top attacker networks/countries. Reuses the `.sn-kpi` / `.sn-spark` vocabulary with login-appropriate labels (the shared pageview renderers hardcode pageview semantics). The "who's attacking" metric is **distinct attacker networks (ASNs)** via `count(DISTINCT blob4)`, which is honest across any range, rather than a hashed-IP count that would over-count across days.
+- New AE query builders + KPI/trend derivation + a short-transient headline shared by the widget and view ([inc/login-defense.php](inc/login-defense.php)).
+
+### Changed
+
+- **Security → Login defense panel** ([inc/login-defense.php](inc/login-defense.php)) reshaped to status-only (denylist size/refresh + attribution + a link to the new view); the attack KPIs moved to the widget + the Monitoring view so the surfaces do not duplicate.
+
 ## [6.31.0] - 2026-06-22 — Login defense panel (reads the sn-login-guard edge Worker)
 
 **Headline:** A new read-only **Security → Login defense** sub-tab surfaces the companion `sn-login-guard` Cloudflare Worker, which blocks known-bad IPs (FireHOL level1 denylist) at the masked `/sn-login` door and logs every decision to a separate `sn_login_guard` Analytics Engine dataset. This is the owned, cookieless, no-vendor replacement for LLAR's cross-network IP reputation (defense-in-depth post-passkey, not a security necessity). The panel is dormant and graceful until the Worker is deployed and Cloudflare Analytics is connected.

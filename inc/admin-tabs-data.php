@@ -116,6 +116,7 @@ function sn_admin_top_tabs() {
 				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section' ),
 				'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section' ),
 				'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section' ),
+				'login-defense' => array( 'label' => 'Login defense', 'render' => 'sn_login_defense_view_render' ),
 			),
 		),
 		array(

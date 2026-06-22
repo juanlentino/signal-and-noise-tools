@@ -32,6 +32,7 @@ function add_action() {} // admin-post-handler.php registers on admin_init at lo
 // each records its own call so routing assertions can see which fired).
 function sn_admin_render_login_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_login_section'; }
 function sn_login_defense_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_render'; }
+function sn_login_defense_view_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_view_render'; }
 function snt_audit_log_render_tab() { $GLOBALS['__calls'][] = 'fn:snt_audit_log_render_tab'; }
 function sn_admin_render_indexnow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_indexnow_section'; }
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
@@ -86,8 +87,8 @@ ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'readin
 	'content leaves: front-end, reading-time, performance, music, rss' );
 ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'cron' ),
 	'connections leaves: cloudflare, webhooks, indexnow, cron' );
-ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
-	'monitoring leaves: analytics, insights, health' );
+ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health', 'login-defense' ),
+	'monitoring leaves: analytics, insights, health, login-defense' );
 ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),
 	'tools leaves: block-migrations, release-notes, links (links last)' );
 ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.31.0
+ * Version:     6.32.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -141,6 +141,10 @@ require_once SNT_PATH . 'inc/worker-version.php';
 // sn-login-guard Worker status. Loads after analytics-api + ssrf-guard +
 // worker-version (all its dependencies).
 require_once SNT_PATH . 'inc/login-defense.php';
+// Login defense analytics: Monitoring -> Login defense view + renderers (reads
+// the same query builders); and the dashboard widget (owner-requested glance).
+require_once SNT_PATH . 'inc/login-defense-analytics.php';
+require_once SNT_PATH . 'inc/login-defense-widget.php';
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //
