@@ -41,6 +41,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLO
 function sn_edge_daily_query() { return 'httpRequests1dGroups'; }
 function sn_edge_firewall_query() { return 'firewallEventsAdaptiveGroups'; }
 function sn_edge_colo_query() { return 'httpRequestsAdaptiveGroups'; }
+function sn_edge_attack_query() { return 'ATTACK_QUERY'; } // unique sentinel (NOT 'httpRequestsAdaptiveGroups' which collides with colo).
 function sn_edge_corrected( $row ) { $si = max( 1.0, (float) ( $row['avg']['sampleInterval'] ?? 1 ) ); return (int) round( (int) ( $row['count'] ?? 0 ) * $si ); }
 // Discovered adaptive retention (settings-node notOlderThan), seconds or null — drives the window clamp.
 function sn_edge_adaptive_retention() { return $GLOBALS['__edge_retention'] ?? null; }
@@ -164,8 +165,18 @@ $GLOBALS['__edge_data']['httpRequestsAdaptiveGroups'] = array( 'httpRequestsAdap
 	// sampleInterval 2 so BOTH the count (15→30) and the bytes (50000→100000) prove sampling correction.
 	array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'sum' => array( 'edgeResponseBytes' => 50000 ), 'dimensions' => array( 'coloCode' => 'IAD' ) ),
 ) );
+$GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
+	'doors' => array(
+		// two US /wp-login.php rows so the MARGINAL must SUM across rows (15→30 + 10→20 = 50).
+		array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => 'DIGITALOCEAN-ASN', 'clientAsn' => 14061, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'POST' ) ),
+		array( 'count' => 10, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => '', 'clientAsn' => 9009, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'GET' ) ),
+	),
+	'probes' => array(
+		array( 'count' => 7, 'avg' => array( 'sampleInterval' => 3 ), 'dimensions' => array( 'clientRequestPath' => '/.env', 'edgeResponseStatus' => 404 ) ),
+	),
+);
 sn_edge_run_rollup( '2026-06-19' );
-ok( count( $GLOBALS['__edge_calls'] ) === 3, 'run: issues 3 GraphQL queries (daily + firewall + colo)' );
+ok( count( $GLOBALS['__edge_calls'] ) === 4, 'run: issues 4 GraphQL queries (daily + firewall + colo + attack)' );
 $all_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 50, 40, 10" ) !== false, 'run: daily row parsed — status map bucketed 2xx/3xx/4xx/5xx' );
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
@@ -174,6 +185,16 @@ ok( strpos( $all_sql, "'2026-06-19', 'colo', 'IAD', 30, 100000" ) !== false, 'ru
 // Adaptive window: no retention discovered (null) → a trailing 24h snapshot (today−86400).
 ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window defaults to a trailing 24h (today−86400)' );
 ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: both adaptive datasets share the one trailing window' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_door', '/wp-login.php', 50" ) !== false, 'run: atk_door marginal SUMS both rows (30+20=50), sampling-corrected' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_country', 'US', 50" ) !== false, 'run: atk_country marginal sums across rows (50)' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_asn', 'DIGITALOCEAN-ASN', 30" ) !== false, 'run: atk_asn uses clientASNDescription' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_asn', 'AS9009', 20" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_method', 'POST', 30" ) !== false, 'run: atk_method POST (credential attempts)' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_status', '404', 50" ) !== false, 'run: atk_status marginal' );
+ok( strpos( $all_sql, "'2026-06-19', 'atk_path', '/.env', 21" ) !== false, 'run: atk_path probe sampling-corrected (7×3=21)' );
+$before = count( $GLOBALS['wpdb']->queries );
+sn_edge_run_rollup( '2026-06-19' );
+ok( strpos( implode( "\n", array_slice( $GLOBALS['wpdb']->queries, $before ) ), "'atk_door', '/wp-login.php', 50" ) !== false, 'run: same-day re-run re-emits 50 (ON DUPLICATE overwrite, not 100)' );
 // Dormant.
 eo_reset(); $GLOBALS['__edge_config'] = null;
 sn_edge_run_rollup( '2026-06-19' );

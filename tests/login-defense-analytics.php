@@ -18,6 +18,20 @@ function __( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return (string) $n; }
 function add_query_arg( $a, $u = '' ) { return '?' . http_build_query( (array) $a ); }
 function remove_query_arg( $a, $u = '' ) { return '/base'; }
+function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+
+// Edge glance seams (the glance below the worker decisions reads these).
+$GLOBALS['__edge_cfg'] = null;
+function sn_edge_config() { return $GLOBALS['__edge_cfg']; }
+function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
+	$map = array(
+		'atk_door'    => array( array( 'value' => '/wp-login.php', 'requests' => 8400, 'bytes' => 0 ) ),
+		'atk_country' => array( array( 'value' => 'CN', 'requests' => 5000, 'bytes' => 0 ) ),
+		'atk_asn'     => array( array( 'value' => 'DIGITALOCEAN-ASN', 'requests' => 3000, 'bytes' => 0 ) ),
+	);
+	return $map[ $dim ] ?? array();
+}
 
 $GLOBALS['__cfg'] = null;
 $GLOBALS['__q']   = array();
@@ -72,6 +86,23 @@ $v = ob_get_clean();
 ok( strpos( $v, 'sn-kpi' ) !== false && strpos( $v, 'Top attacker networks' ) !== false,
 	'view configured renders KPIs + threat tables (no fatal)' );
 ok( strpos( $v, 'postbox sn-overview' ) !== false, 'view wraps KPIs + trend in the shared Overview postbox' );
+
+// --- B4: CF edge door-knock glance ------------------------------------------
+$GLOBALS['__cfg']      = array( 'account_id' => 'x', 'token' => 'y' ); // AE configured (view precondition)
+$GLOBALS['__edge_cfg'] = null; // edge NOT configured → glance dormant
+ob_start();
+sn_login_defense_view_render();
+$ng = ob_get_clean();
+ok( strpos( $ng, 'Door-knock pressure' ) === false, 'glance: dormant when sn_edge_config() returns null (no glance, no fatal)' );
+
+$GLOBALS['__edge_cfg'] = array( 'token' => 't', 'zone' => 'z' ); // edge configured → glance renders
+ob_start();
+sn_login_defense_view_render();
+$g = ob_get_clean();
+ok( strpos( $g, 'Door-knock pressure' ) !== false, 'glance: renders when edge configured' );
+ok( strpos( $g, '8,400' ) !== false || strpos( $g, '8400' ) !== false, 'glance: total door-knock pressure (8400)' );
+ok( strpos( $g, 'CN' ) !== false && strpos( $g, 'DIGITALOCEAN-ASN' ) !== false, 'glance: top country + network' );
+ok( strpos( $g, 'page=sn-analytics&sn_view=edge' ) !== false, 'glance: links to the Traffic & edge breakdown' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

@@ -162,6 +162,25 @@ function sn_edge_colo_query() {
 }
 
 /**
+ * Attack-surface pressure (httpRequestsAdaptiveGroups, two aliased selections in one
+ * document) over the trailing window. `doors` = the named login doors broken down by
+ * country / ASN / status / method; `probes` = the top 4xx non-content paths (the
+ * generic scan surface). Adaptive → SAMPLED: callers sn_edge_corrected() each row.
+ *
+ * @return string GraphQL document.
+ */
+function sn_edge_attack_query() {
+	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{datetime_geq:$from,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'count avg{sampleInterval}'
+		. 'dimensions{clientRequestPath clientCountryName clientASNDescription clientAsn edgeResponseStatus clientRequestHTTPMethodName}}'
+		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{datetime_geq:$from,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'count avg{sampleInterval}'
+		. 'dimensions{clientRequestPath edgeResponseStatus}}'
+		. '}}}';
+}
+
+/**
  * Settings-node probe: the zone's per-dataset query limits, including notOlderThan —
  * how far back (seconds) the adaptive dataset can actually be read. Cloudflare's
  * settings node carries every dataset as a sub-field; we probe ONLY

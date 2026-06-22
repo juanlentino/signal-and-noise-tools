@@ -102,6 +102,19 @@ ok( strpos( $colo, 'httpRequestsAdaptiveGroups' ) !== false, 'colo: uses httpReq
 ok( strpos( $colo, 'coloCode' ) !== false, 'colo: groups by coloCode' );
 ok( strpos( $colo, 'sampleInterval' ) !== false, 'colo: sampleInterval (adaptive)' );
 
+echo "\nGroup: attack-surface query (doors + probes)\n";
+$atk = sn_edge_attack_query();
+ok( strpos( $atk, 'doors:httpRequestsAdaptiveGroups' ) !== false, 'attack: doors alias on httpRequestsAdaptiveGroups' );
+ok( strpos( $atk, 'probes:httpRequestsAdaptiveGroups' ) !== false, 'attack: probes alias on httpRequestsAdaptiveGroups' );
+ok( strpos( $atk, 'clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]' ) !== false, 'attack: doors filter the named login paths' );
+ok( strpos( $atk, 'clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]' ) !== false, 'attack: probes exclude the named doors' );
+ok( strpos( $atk, 'edgeResponseStatus_geq:400' ) !== false && strpos( $atk, 'edgeResponseStatus_leq:499' ) !== false, 'attack: probes are the 4xx scan surface' );
+foreach ( array( 'clientRequestPath', 'clientCountryName', 'clientASNDescription', 'clientAsn', 'edgeResponseStatus', 'clientRequestHTTPMethodName' ) as $d ) {
+	ok( strpos( $atk, $d ) !== false, "attack: door dimension '$d'" );
+}
+ok( strpos( $atk, 'sampleInterval' ) !== false, 'attack: adaptive → sampleInterval present' );
+ok( strpos( $atk, '$from:Time!' ) !== false, 'attack: trailing-window Time variable' );
+
 echo "\nGroup: sampling correction (adaptive count × sampleInterval)\n";
 ok( sn_edge_corrected( array( 'count' => 12, 'avg' => array( 'sampleInterval' => 10 ) ) ) === 120, 'corrected: 12 × 10 = 120' );
 ok( sn_edge_corrected( array( 'count' => 5 ) ) === 5, 'corrected: missing sampleInterval defaults to ×1' );
