@@ -219,7 +219,7 @@ function sn_login_defense_render() {
 	echo '<div class="sn-status-box">';
 	sn_login_defense_render_status( sn_login_defense_status() );
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
-	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=login-defense' ) ) . '">'
+	echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div>';
 }
