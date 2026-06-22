@@ -55,6 +55,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'quality'    => 'Quality',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
+	'login-defense' => 'Login defense',
 );
 
 /**
@@ -66,6 +67,22 @@ const SN_ANALYTICS_VIEWS = array(
 function snt_analytics_resolve_view( $raw ) {
 	$v = (string) $raw;
 	return isset( SN_ANALYTICS_VIEWS[ $v ] ) ? $v : 'content';
+}
+
+// Views that render their own complete chrome (own KPI cards, trend, range control)
+// and therefore opt OUT of the shared pageview header. login-defense ONLY — 'edge'
+// deliberately keeps the shared header it ships today (changing it would be a regression).
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
+
+/**
+ * True iff $view brings its own chrome, so the shared pageview header (controls +
+ * Overview postbox + the post-switch empty hint) is suppressed for it.
+ *
+ * @param string $view
+ * @return bool
+ */
+function snt_analytics_view_owns_chrome( $view ) {
+	return in_array( (string) $view, SN_ANALYTICS_OWNS_CHROME, true );
 }
 
 /**
@@ -82,7 +99,7 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 	// sn_drill is stripped too: a drill is scoped to the view that owns the dim, so
 	// switching tabs clears it rather than carrying a stale "Country = US" onto a tab
 	// with no Country table (the panel render is also dim/view-gated as a backstop).
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill' ), add_query_arg( array() ) );
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_lg_range' ), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}
@@ -281,28 +298,39 @@ function snt_analytics_render_dashboard() {
 	$gran_days   = (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1;
 	$granularity = sn_analytics_granularity( $gran_days );
 
-	// ── Persistent header (every tab): the at-a-glance headline. Always fetched.
-	$totals       = sn_analytics_range_totals( $from, $to, $class );
-	$class_totals = sn_analytics_class_totals( $from, $to );
-	$now          = sn_analytics_realtime( $class );
-	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
-	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
-	$engaged      = ( 'all' === $range )
-		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
-		: sn_analytics_engaged_rate_delta( $from, $to, $class );
+	// Views that own their chrome (login-defense) skip the shared pageview header
+	// entirely — they bring their own KPI cards, trend, and range control and would
+	// otherwise stack pageview stats above their own. Computed once; gates the three
+	// pageview-only regions below (fetches, header render, post-switch empty hint).
+	$owns_chrome = snt_analytics_view_owns_chrome( $view );
 
-	snt_analytics_render_error(); // AE diagnostic (admins only), above the data.
-	snt_analytics_render_controls( $range, $class, $from, $to );
-	snt_analytics_render_separation( $class_totals, $class );
+	// ── Persistent header (shared-chrome tabs only): the at-a-glance headline.
+	if ( ! $owns_chrome ) {
+		$totals       = sn_analytics_range_totals( $from, $to, $class );
+		$class_totals = sn_analytics_class_totals( $from, $to );
+		$now          = sn_analytics_realtime( $class );
+		$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
+		$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
+		$engaged      = ( 'all' === $range )
+			? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
+			: sn_analytics_engaged_rate_delta( $from, $to, $class );
+	}
 
-	// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
-	// (was two half-empty postboxes). render_cards / render_trend now emit body-only
-	// markup; the postbox chrome lives here so the chart reads as the panel's footer.
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-overview-inside">';
-	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
-	snt_analytics_render_trend( $series, $granularity );
-	echo '</div></div>';
+	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
+
+	if ( ! $owns_chrome ) {
+		snt_analytics_render_controls( $range, $class, $from, $to );
+		snt_analytics_render_separation( $class_totals, $class );
+
+		// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
+		// (was two half-empty postboxes). render_cards / render_trend now emit body-only
+		// markup; the postbox chrome lives here so the chart reads as the panel's footer.
+		echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
+		echo '<div class="inside inside-flush sn-overview-inside">';
+		snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
+		snt_analytics_render_trend( $series, $granularity );
+		echo '</div></div>';
+	}
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
 	// so a tab switch is a lighter query set, not just CSS show/hide.
@@ -426,6 +454,10 @@ function snt_analytics_render_dashboard() {
 			echo '</div>';
 			break;
 
+		case 'login-defense':
+			sn_login_defense_view_render();
+			break;
+
 		case 'content':
 		default:
 			echo '<div class="sn-an-grid">';
@@ -454,8 +486,10 @@ function snt_analytics_render_dashboard() {
 	echo '</div>';
 
 	// Empty hint when configured but the tables are still dormant — keyed on the
-	// always-fetched totals, so it shows on whichever tab you land on first.
-	if ( (int) ( $totals['views'] ?? 0 ) === 0 ) {
+	// always-fetched totals, so it shows on whichever tab you land on first. Gated on
+	// ! $owns_chrome: $totals is unset for chrome-owning views (login-defense brings
+	// its own empty states), so reading it there would warn + show a false notice.
+	if ( ! $owns_chrome && (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
 	}
 }

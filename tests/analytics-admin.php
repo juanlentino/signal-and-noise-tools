@@ -436,5 +436,51 @@ unset( $_GET['sn_from'], $_GET['sn_to'] );
 $_GET['sn_range'] = '7';
 $_GET['sn_view']  = 'content';
 
+echo "\nGroup: login-defense view registration + owns-chrome predicate\n";
+ok( snt_analytics_resolve_view( 'login-defense' ) === 'login-defense', 'resolve_view: login-defense is a registered view' );
+ok( isset( SN_ANALYTICS_VIEWS['login-defense'] ) && SN_ANALYTICS_VIEWS['login-defense'] === 'Login defense', 'registry: login-defense => Login defense' );
+ok( snt_analytics_view_owns_chrome( 'login-defense' ) === true, 'owns_chrome: login-defense owns its chrome' );
+ok( snt_analytics_view_owns_chrome( 'content' ) === false, 'owns_chrome: content uses shared chrome' );
+ok( snt_analytics_view_owns_chrome( 'edge' ) === false, 'owns_chrome: edge keeps shared chrome (no regression)' );
+ok( snt_analytics_view_owns_chrome( 'martian' ) === false, 'owns_chrome: unknown view -> false' );
+
+echo "\nGroup: login-defense dashboard dispatch + chrome suppression\n";
+// Stub the login renderer so this isolates the DASHBOARD's routing + chrome
+// suppression (the code that changed) from the login renderer (covered by
+// tests/login-defense-analytics.php) and avoids loading its AE query layer.
+if ( ! function_exists( 'sn_login_defense_view_render' ) ) {
+	function sn_login_defense_view_render() { echo '<div class="sn-lg-view">LOGIN-DEFENSE-VIEW</div>'; }
+}
+aa_fill_data();
+$_GET['sn_view'] = 'login-defense';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'LOGIN-DEFENSE-VIEW' ) !== false, 'dispatch: switch routes sn_view=login-defense to the login renderer' );
+ok( strpos( $html, 'sn-overview' ) === false, 'chrome: pageview Overview postbox SUPPRESSED on the login view' );
+ok( strpos( $html, 'sn_view=login-defense' ) !== false, 'tabs: login-defense tab present in nav' );
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab (login-defense)' );
+// Sanity: content view still shows the shared Overview chrome.
+$_GET['sn_view'] = 'content';
+ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'sn-overview' ) !== false, 'chrome: content view still renders the shared Overview' );
+// render_error stays always-on even for a chrome-owning view (note: $err must be an array to fire).
+$_GET['sn_view']       = 'login-defense';
+$GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom' );
+ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ) !== false, 'render_error: AE diagnostic still fires on the login view' );
+$GLOBALS['__aa_error'] = null;
+$_GET['sn_view']       = 'content';
+
+echo "\nGroup: tab-URL hygiene\n";
+$prev_uri = $_SERVER['REQUEST_URI'];
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics&sn_lg_range=30';
+$_GET['sn_view'] = 'content';
+// Isolate just the view-tab <nav> element: the shared controls (range/class pills)
+// also preserve URL params and render before it, so "everything before </nav>" is
+// too broad. Only the tab links matter here.
+$full   = capture( 'snt_analytics_render_dashboard' );
+$navpos = strpos( $full, 'sn-an-view-tabs' );
+$navend = strpos( $full, '</nav>', $navpos );
+$nav    = substr( $full, $navpos, $navend - $navpos );
+ok( strpos( $nav, 'sn_lg_range' ) === false, 'tabs: sn_lg_range stripped from tab links (login range does not leak onto sibling tabs)' );
+$_SERVER['REQUEST_URI'] = $prev_uri;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

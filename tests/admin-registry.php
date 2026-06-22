@@ -87,8 +87,8 @@ ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'readin
 	'content leaves: front-end, reading-time, performance, music, rss' );
 ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'cron' ),
 	'connections leaves: cloudflare, webhooks, indexnow, cron' );
-ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health', 'login-defense' ),
-	'monitoring leaves: analytics, insights, health, login-defense' );
+ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
+	'monitoring leaves: analytics, insights, health (login-defense moved to the Analytics dashboard)' );
 ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),
 	'tools leaves: block-migrations, release-notes, links (links last)' );
 ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),

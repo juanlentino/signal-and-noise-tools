@@ -1,7 +1,7 @@
 <?php
 /**
  * Login defense dashboard widget: at-a-glance attack stats on the WP home
- * dashboard + a link to the full Monitoring -> Login defense view. Owner-requested
+ * dashboard + a link to the full Analytics-dashboard Login defense view. Owner-requested
  * (the sanctioned exception to the no-new-widgets line). Mirrors the grandfathered
  * inc/analytics-widget.php registration. Read-only.
  *
@@ -44,6 +44,6 @@ function sn_login_defense_widget_render() {
 			. ' <strong>' . esc_html( $h['top_network'] ) . '</strong></li>';
 	}
 	echo '</ul>';
-	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=login-defense' ) ) . '">'
+	echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 }

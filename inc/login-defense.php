@@ -108,8 +108,8 @@ function sn_login_defense_trend_series( $rows ) {
 
 /**
  * Cached at-a-glance headline (checked/blocked/block_rate + top network) shared
- * by the dashboard widget and the Monitoring view. Short transient so opening
- * both surfaces does not double-hit Analytics Engine.
+ * by the dashboard widget and the Analytics-dashboard Login defense view. Short
+ * transient so opening both surfaces does not double-hit Analytics Engine.
  */
 function sn_login_defense_headline() {
 	$cached = get_transient( 'sn_lg_headline' );
@@ -211,15 +211,15 @@ function sn_login_defense_render_status( $status ) {
 
 /**
  * Render the read-only Security > Login defense STATUS panel: worker version +
- * denylist size + last refresh + attribution + a link to the Monitoring analytics
- * view. The attack analytics live in the dashboard widget + the Monitoring view,
- * so this panel does not duplicate a KPI strip. Native wp-admin markup; escaped.
+ * denylist size + last refresh + attribution + a link to the Analytics-dashboard
+ * Login defense view. The attack analytics live in the dashboard widget + that
+ * view, so this panel does not duplicate a KPI strip. Native wp-admin markup; escaped.
  */
 function sn_login_defense_render() {
 	echo '<div class="sn-status-box">';
 	sn_login_defense_render_status( sn_login_defense_status() );
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
-	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=login-defense' ) ) . '">'
+	echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div>';
 }
