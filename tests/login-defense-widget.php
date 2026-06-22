@@ -31,6 +31,8 @@ ok(
 	&& strpos( $w, 'BadNet' ) !== false && strpos( $w, 'View login defense' ) !== false,
 	'widget shows blocked/rate/top-network + link'
 );
+ok( strpos( $w, 'page=sn-analytics&sn_view=login-defense' ) !== false, 'widget links to the Analytics dashboard login-defense view' );
+ok( strpos( $w, 'tab=monitoring&sub=login-defense' ) === false, 'widget no longer links to the old Monitoring sub-tab' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
