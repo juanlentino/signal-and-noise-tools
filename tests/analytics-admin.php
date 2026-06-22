@@ -468,5 +468,19 @@ ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
 
+echo "\nGroup: tab-URL hygiene\n";
+$prev_uri = $_SERVER['REQUEST_URI'];
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics&sn_lg_range=30';
+$_GET['sn_view'] = 'content';
+// Isolate just the view-tab <nav> element: the shared controls (range/class pills)
+// also preserve URL params and render before it, so "everything before </nav>" is
+// too broad. Only the tab links matter here.
+$full   = capture( 'snt_analytics_render_dashboard' );
+$navpos = strpos( $full, 'sn-an-view-tabs' );
+$navend = strpos( $full, '</nav>', $navpos );
+$nav    = substr( $full, $navpos, $navend - $navpos );
+ok( strpos( $nav, 'sn_lg_range' ) === false, 'tabs: sn_lg_range stripped from tab links (login range does not leak onto sibling tabs)' );
+$_SERVER['REQUEST_URI'] = $prev_uri;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

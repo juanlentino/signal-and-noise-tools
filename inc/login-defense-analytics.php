@@ -1,6 +1,7 @@
 <?php
 /**
- * Login defense analytics: the Monitoring -> Login defense sub-tab view + its
+ * Login defense analytics: the Analytics-dashboard Login defense view (registered
+ * in SN_ANALYTICS_VIEWS, dispatched by snt_analytics_render_dashboard) + its
  * login-specific renderers. Reads the sn_login_guard AE dataset via the query
  * builders in inc/login-defense.php. Reuses the existing .sn-kpi / .sn-spark CSS
  * vocabulary but with login-appropriate labels (the shared analytics renderers

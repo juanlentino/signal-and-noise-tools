@@ -99,7 +99,7 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 	// sn_drill is stripped too: a drill is scoped to the view that owns the dim, so
 	// switching tabs clears it rather than carrying a stale "Country = US" onto a tab
 	// with no Country table (the panel render is also dim/view-gated as a backstop).
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill' ), add_query_arg( array() ) );
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_lg_range' ), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}

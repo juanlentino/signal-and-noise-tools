@@ -1,6 +1,6 @@
 <?php
 /**
- * CLI fixture for the login-defense Monitoring view + renderers.
+ * CLI fixture for the login-defense Analytics-dashboard view + renderers.
  * Standalone, no WP bootstrap, global-stub style (mirrors tests/login-defense.php).
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
