@@ -330,6 +330,10 @@ function snt_analytics_render_dashboard() {
 		snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
 		snt_analytics_render_trend( $series, $granularity );
 		echo '</div></div>';
+	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
+		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
+		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
+		sn_login_defense_render_header();
 	}
 
 	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
@@ -455,7 +459,7 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'login-defense':
-			sn_login_defense_view_render();
+			sn_login_defense_render_body();
 			break;
 
 		case 'content':
