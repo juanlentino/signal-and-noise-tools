@@ -11,8 +11,11 @@
  * Two query families, two correctness models:
  *   - httpRequests1dGroups   — pre-aggregated, EXACT, ~1y retention, date-filtered.
  *                              The durable daily rollup workhorse. NO sampling.
- *   - *AdaptiveGroups        — adaptively SAMPLED, 24h window on Free, datetime-
- *                              filtered, flexible dimensions. Every count MUST be
+ *   - *AdaptiveGroups        — adaptively SAMPLED, datetime-filtered, flexible
+ *                              dimensions, with a SHORT per-node retention. Cloudflare
+ *                              publishes no fixed Free-tier number for it; the real
+ *                              window is discovered at runtime from the settings node
+ *                              (sn_edge_adaptive_retention). Every count MUST be
  *                              multiplied by avg.sampleInterval (sn_edge_corrected).
  *
  * Reuses the SN_CF_ANALYTICS_TOKEN (owner adds "Zone Analytics:Read") + the zone id
@@ -22,7 +25,7 @@
  *
  * ⚠ LIVE GATE: GraphQL field names (esp. the httpRequests1dGroups sum set) cannot be
  * unit-tested against the real schema; the owner verifies once post-deploy. The
- * settings-availability probe + graceful null-on-error keep a mismatch non-fatal.
+ * settings-node retention probe + graceful null-on-error keep a mismatch non-fatal.
  *
  * @package SignalNoiseTools
  * @since 6.26.0
@@ -33,6 +36,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_EDGE_GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
+
+// Adaptive-dataset retention probe (settings-node notOlderThan), SWR-cached like the
+// worker-version probe: a transient guards the network, a separate last-good option
+// survives transient eviction. Retention is near-static, so the OK TTL is long.
+const SN_EDGE_RETENTION_TRANSIENT = 'sn_edge_retention_probe';
+const SN_EDGE_RETENTION_LASTGOOD  = 'sn_edge_adaptive_retention'; // last-known notOlderThan (seconds).
+const SN_EDGE_RETENTION_TTL_OK    = 604800; // 7 days — retention rarely changes.
+const SN_EDGE_RETENTION_TTL_FAIL  = 21600;  // 6 hours — re-probe sooner after a miss.
 
 /**
  * Resolve credentials: the analytics token (constant-precedence over option, same
@@ -122,7 +133,9 @@ function sn_edge_daily_query() {
 /**
  * WAF / threats (firewallEventsAdaptiveGroups) over the trailing window — by action
  * / rule / source / country. Adaptive → SAMPLED: callers must sn_edge_corrected()
- * each row's count. 24h retention on Free, so the cron must poll at least daily.
+ * each row's count. Retention is per-node, not a fixed Free-tier window (discovered
+ * via the settings node — sn_edge_adaptive_retention); the cron polls daily to keep
+ * a fresh "today" snapshot, NOT to beat a 24h deadline.
  *
  * @return string GraphQL document.
  */
@@ -135,8 +148,9 @@ function sn_edge_firewall_query() {
 
 /**
  * Per-colo (edge POP) breakdown (httpRequestsAdaptiveGroups) over the trailing
- * window. Adaptive → SAMPLED: sn_edge_corrected() each row. 24h on Free → a current
- * snapshot, not a long trend.
+ * window. Adaptive → SAMPLED: sn_edge_corrected() each row. The trailing window is a
+ * daily snapshot (its width is clamped to the node's discovered retention, not an
+ * assumed 24h) → a current snapshot, not a long trend.
  *
  * @return string GraphQL document.
  */
@@ -145,6 +159,23 @@ function sn_edge_colo_query() {
 		. 'httpRequestsAdaptiveGroups(limit:200,filter:{datetime_geq:$from},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}sum{edgeResponseBytes}'
 		. 'dimensions{coloCode}}}}}';
+}
+
+/**
+ * Settings-node probe: the zone's per-dataset query limits, including notOlderThan —
+ * how far back (seconds) the adaptive dataset can actually be read. Cloudflare's
+ * settings node carries every dataset as a sub-field; we probe ONLY
+ * httpRequestsAdaptiveGroups (the colo snapshot's dataset) because GraphQL fails the
+ * WHOLE query on a single unknown field — one node keeps the live-gate blast radius
+ * minimal. notOlderThan/maxDuration are integer seconds. See
+ * https://developers.cloudflare.com/analytics/graphql-api/features/discovery/settings/
+ *
+ * @since 6.34.0
+ * @return string GraphQL document.
+ */
+function sn_edge_settings_query() {
+	return 'query($zone:string!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'settings{httpRequestsAdaptiveGroups{enabled notOlderThan maxDuration}}}}}';
 }
 
 /**
@@ -162,4 +193,68 @@ function sn_edge_corrected( $row ) {
 		$si = 1;
 	}
 	return (int) round( $count * $si );
+}
+
+/**
+ * Discover the REAL retention window (seconds) for the sampled adaptive datasets by
+ * reading httpRequestsAdaptiveGroups.notOlderThan off the GraphQL settings node —
+ * there is no documented fixed Free-tier number, so the only honest source is the
+ * runtime value. SWR-cached exactly like sn_worker_version_get(): a transient guards
+ * the network (a SHORT TTL after a miss so we retry sooner), and a separate last-good
+ * option survives transient eviction so a momentary blip never blanks the figure.
+ * Dormant when unconfigured (returns null, writes nothing) — matching the layer.
+ *
+ * @since 6.34.0
+ * @param bool $force Bypass the transient and probe live (cache-control seam).
+ * @return int|null notOlderThan in seconds, or null when unknown/unconfigured.
+ */
+function sn_edge_adaptive_retention( $force = false ) {
+	if ( ! sn_edge_config() ) {
+		return null; // dormant — no probe, no cache write.
+	}
+	if ( ! $force ) {
+		$cached = get_transient( SN_EDGE_RETENTION_TRANSIENT );
+		if ( is_array( $cached ) ) {
+			return isset( $cached['seconds'] ) ? (int) $cached['seconds'] : null;
+		}
+	}
+
+	$seconds = null;
+	$zone    = sn_edge_query( sn_edge_settings_query() );
+	if ( is_array( $zone ) ) {
+		$node = $zone['settings']['httpRequestsAdaptiveGroups'] ?? null;
+		if ( is_array( $node ) && (int) ( $node['notOlderThan'] ?? 0 ) > 0 ) {
+			$seconds = (int) $node['notOlderThan'];
+		}
+	}
+
+	$ok = ( null !== $seconds );
+	if ( $ok ) {
+		update_option( SN_EDGE_RETENTION_LASTGOOD, $seconds, false );
+		$resolved = $seconds;
+	} else {
+		// Probe failed: fall back to the last-known-good (never overwritten by a
+		// failure), else null. Cache the RESOLVED value so a warm read agrees with
+		// this cold one instead of flickering to null inside the fail window.
+		$last     = (int) get_option( SN_EDGE_RETENTION_LASTGOOD, 0 );
+		$resolved = $last > 0 ? $last : null;
+	}
+	set_transient(
+		SN_EDGE_RETENTION_TRANSIENT,
+		array( 'seconds' => $resolved ),
+		$ok ? SN_EDGE_RETENTION_TTL_OK : SN_EDGE_RETENTION_TTL_FAIL
+	);
+	return $resolved;
+}
+
+/**
+ * The discovered adaptive-dataset retention expressed as whole days, for display.
+ * 0 when unknown or dormant (never negative, never fatal).
+ *
+ * @since 6.34.0
+ * @return int
+ */
+function sn_edge_adaptive_retention_days() {
+	$seconds = (int) sn_edge_adaptive_retention();
+	return $seconds > 0 ? (int) floor( $seconds / 86400 ) : 0; // 86400 = seconds per day.
 }

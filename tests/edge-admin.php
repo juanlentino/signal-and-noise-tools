@@ -13,6 +13,7 @@ function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function __( $s, $d = null ) { return $s; }
+function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function size_format( $bytes, $dec = 0 ) { return round( $bytes / 1048576, $dec ) . ' MB'; } // crude MB for the test
 
@@ -32,6 +33,8 @@ function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
 }
 $GLOBALS['__trend_calls'] = array();
 function snt_analytics_render_trend( $series, $g = 'day' ) { $GLOBALS['__trend_calls'][] = $series; echo '<div class="sn-trend"></div>'; }
+$GLOBALS['__ec_retention_days'] = 0; // discovered adaptive retention (days); 0 = unknown.
+function sn_edge_adaptive_retention_days() { return (int) $GLOBALS['__ec_retention_days']; }
 
 require_once __DIR__ . '/../inc/edge-admin.php';
 
@@ -67,6 +70,16 @@ ok( strpos( $html, 'IAD' ) !== false, 'tables: per-colo (edge POP) breakdown' );
 ok( strpos( $html, 'block' ) !== false, 'tables: threats breakdown' );
 ok( stripos( $html, 'Requests' ) !== false && stripos( $html, 'Bandwidth' ) !== false, 'tables: edge dim columns are Requests + Bandwidth (not Views/Visits)' );
 ok( stripos( $html, '4xx' ) !== false || stripos( $html, 'Errors' ) !== false, 'status: surfaces an error/status breakdown for monitoring' );
+
+echo "\nGroup: discovered-retention caption (surfaced from the settings-node probe)\n";
+$GLOBALS['__ec_retention_days'] = 31;
+$html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
+ok( strpos( $html, '31' ) !== false && stripos( $html, 'days' ) !== false, 'retention: surfaces the discovered window (31 days) when known' );
+ok( stripos( $html, 'retain' ) !== false || stripos( $html, 'Cloudflare' ) !== false, 'retention: frames it as the node retention, not a beacon figure' );
+// Unknown (0) → the caption is omitted entirely (graceful, no "0 days" noise).
+$GLOBALS['__ec_retention_days'] = 0;
+$html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
+ok( stripos( $html, 'retains this node' ) === false, 'retention: unknown (0) → no retention clause rendered' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

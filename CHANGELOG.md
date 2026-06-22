@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.34.0] - 2026-06-22 — Edge-analytics retention is now discovered, not assumed
+
+**Headline:** The edge-analytics layer no longer hardcodes the belief that `httpRequestsAdaptiveGroups` has "24h retention on Free." Cloudflare publishes no fixed Free-plan number for that node — retention is per-node/per-plan and only knowable at runtime — so a new settings-node probe reads the dataset's real `notOlderThan` (in seconds) off the GraphQL `settings` node, surfaces it in the **Traffic & edge** view ("Cloudflare retains this node for N days"), and clamps the daily rollup's adaptive snapshot window to what the node actually retains instead of a blind `DAY_IN_SECONDS`.
+
+> **Why MINOR:** adds a new user-visible capability (the discovered-retention readout) plus additive public helpers, with no API removal, settings-schema change, or behavioural shift requiring user action. The probe is SWR-cached and stays fully dormant until the GraphQL client is configured, exactly like the rest of the edge layer.
+
+### New
+
+- **Settings-node retention probe** ([inc/edge-analytics.php](inc/edge-analytics.php)): `sn_edge_settings_query()` builds `viewer{zones{settings{httpRequestsAdaptiveGroups{enabled notOlderThan maxDuration}}}}` (per the [Cloudflare discovery/settings docs](https://developers.cloudflare.com/analytics/graphql-api/features/discovery/settings/)); `sn_edge_adaptive_retention()` runs it and returns the real retention in seconds. It probes **one** node deliberately — GraphQL fails the whole query on a single unknown field, so a one-node probe keeps the live-gate blast radius minimal — and SWR-caches the result exactly like `sn_worker_version_get()` (a transient guards the network with a short fail-TTL; a separate last-good option survives transient eviction). `sn_edge_adaptive_retention_days()` formats it for display.
+- **Discovered retention surfaced** in the Traffic & edge view ([inc/edge-admin.php](inc/edge-admin.php)): a one-line caption notes the node's real retention window when known; omitted entirely while unknown/dormant (no "0 days" noise). Reuses the existing `.sn-an-sep` treatment — no new widget or visual vocabulary.
+
+### Changed
+
+- **The daily rollup's adaptive window now derives from discovered retention** ([inc/edge-rollup.php](inc/edge-rollup.php)): `sn_edge_run_rollup()` clamps the trailing adaptive snapshot to `min(24h, notOlderThan)` instead of an unconditional `DAY_IN_SECONDS`, so it never requests a window wider than the dataset retains. On the common case (retention ≥ 24h) this is a no-op; the daily-snapshot intent is preserved (the window is never *widened* past 24h, which would over-attribute older sampled traffic to "today").
+
+### Fixed
+
+- **Corrected the false "24h retention on Free" comments** in [inc/edge-analytics.php](inc/edge-analytics.php) (×3) and [inc/edge-rollup.php](inc/edge-rollup.php) (×3): these asserted a Cloudflare guarantee that does not exist. They now describe retention as a per-node value discovered at runtime, and reframe the daily cron cadence as snapshot freshness rather than beating a (nonexistent) 24h deadline.
+
 ## [6.33.0] - 2026-06-22 — Login defense analytics promoted to an Analytics dashboard view
 
 **Headline:** The login-defense deep-dive (attack KPIs, daily blocked-trend, decision breakdown, top attacker networks and countries) is now a first-class **Login defense** tab in the read-only Analytics dashboard (Dashboard → Analytics), beside Content / Technology / Geography / … / Traffic & edge, instead of being buried in the Monitoring settings sub-tab. It keeps its own 7/30/90-day range control.

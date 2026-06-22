@@ -13,10 +13,14 @@ define( 'ABSPATH', '/' );
 define( 'SN_CF_ANALYTICS_TOKEN_OPT', 'sn_cf_analytics_token' );
 define( 'SN_CF_ZONE_OPT', 'sn_cf_zone_id' );
 
-// WP HTTP + option seams.
-$GLOBALS['__opt']  = array();
-$GLOBALS['__http'] = array( 'code' => 200, 'body' => '{}', 'wp_error' => false, 'last_args' => null );
+// WP HTTP + option + transient seams.
+$GLOBALS['__opt']       = array();
+$GLOBALS['__transient'] = array();
+$GLOBALS['__http']      = array( 'code' => 200, 'body' => '{}', 'wp_error' => false, 'last_args' => null );
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
+function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__transient'] ) ? $GLOBALS['__transient'][ $k ] : false; }
+function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transient'][ $k ] = $v; return true; }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function is_wp_error( $v ) { return ( $v instanceof WP_Error ) || ( is_array( $v ) && ! empty( $v['__is_wp_error'] ) ); }
 function wp_remote_post( $url, $args = array() ) {
@@ -102,6 +106,56 @@ echo "\nGroup: sampling correction (adaptive count × sampleInterval)\n";
 ok( sn_edge_corrected( array( 'count' => 12, 'avg' => array( 'sampleInterval' => 10 ) ) ) === 120, 'corrected: 12 × 10 = 120' );
 ok( sn_edge_corrected( array( 'count' => 5 ) ) === 5, 'corrected: missing sampleInterval defaults to ×1' );
 ok( sn_edge_corrected( array( 'count' => 7, 'avg' => array( 'sampleInterval' => 0 ) ) ) === 7, 'corrected: sampleInterval < 1 floored to ×1 (no zeroing)' );
+
+echo "\nGroup: settings-node retention probe query builder\n";
+$settings = sn_edge_settings_query();
+ok( strpos( $settings, 'settings{' ) !== false, 'settings: queries the zone settings node' );
+ok( strpos( $settings, 'httpRequestsAdaptiveGroups' ) !== false, 'settings: probes the httpRequestsAdaptiveGroups dataset' );
+ok( strpos( $settings, 'notOlderThan' ) !== false, 'settings: reads notOlderThan (the real retention window)' );
+ok( strpos( $settings, 'firewallEventsAdaptiveGroups' ) === false, 'settings: probes ONE node only (a single bad field would error the whole query)' );
+
+echo "\nGroup: sn_edge_adaptive_retention — discovers real notOlderThan, SWR-cached\n";
+$GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'tok123', SN_CF_ZONE_OPT => 'zone456' );
+$GLOBALS['__transient'] = array();
+$GLOBALS['__http']['wp_error'] = false;
+$GLOBALS['__http']['code']     = 200;
+// notOlderThan: 2678400s = 31 days — NOT the assumed 24h, proving the probe corrects the guess.
+$GLOBALS['__http']['body'] = json_encode( array( 'data' => array( 'viewer' => array( 'zones' => array(
+	array( 'settings' => array( 'httpRequestsAdaptiveGroups' => array( 'enabled' => true, 'notOlderThan' => 2678400, 'maxDuration' => 259200 ) ) ),
+) ) ) ) );
+ok( sn_edge_adaptive_retention() === 2678400, 'retention: returns the discovered notOlderThan in seconds (31d, not 24h)' );
+ok( (int) get_option( SN_EDGE_RETENTION_LASTGOOD ) === 2678400, 'retention: persists last-known-good to an option (survives transient eviction)' );
+ok( is_array( get_transient( SN_EDGE_RETENTION_TRANSIENT ) ), 'retention: SWR-caches the probe result in a transient' );
+// Warm cache: a changed body is NOT re-fetched (served from the transient).
+$GLOBALS['__http']['body'] = json_encode( array( 'data' => array( 'viewer' => array( 'zones' => array(
+	array( 'settings' => array( 'httpRequestsAdaptiveGroups' => array( 'notOlderThan' => 999 ) ) ),
+) ) ) ) );
+ok( sn_edge_adaptive_retention() === 2678400, 'retention: warm transient served WITHOUT re-probing' );
+ok( sn_edge_adaptive_retention( true ) === 999, 'retention: $force=true bypasses the cache and re-probes live' );
+
+echo "\nGroup: retention probe — failure falls back to last-known-good (never blanks)\n";
+$GLOBALS['__transient'] = array();
+$GLOBALS['__http']['body'] = json_encode( array( 'data' => null, 'errors' => array( array( 'message' => 'unknown field' ) ) ) );
+ok( sn_edge_adaptive_retention( true ) === 999, 'retention: probe error → returns the last-known-good option (999 from above)' );
+ok( sn_edge_adaptive_retention() === 999, 'retention: warm read after a failed probe agrees with the cold read (no null flicker)' );
+
+echo "\nGroup: retention probe — dormant when unconfigured (no network, no cache write)\n";
+$GLOBALS['__opt'] = array();
+$GLOBALS['__transient'] = array();
+$GLOBALS['__http']['last_url'] = null;
+ok( null === sn_edge_adaptive_retention() && null === $GLOBALS['__http']['last_url'], 'retention: unconfigured → null with NO network call' );
+ok( empty( $GLOBALS['__transient'] ), 'retention: unconfigured → no transient written (truly dormant)' );
+
+echo "\nGroup: sn_edge_adaptive_retention_days — discovered retention as whole days\n";
+$GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'tok123', SN_CF_ZONE_OPT => 'zone456' );
+$GLOBALS['__transient'] = array();
+$GLOBALS['__http']['body'] = json_encode( array( 'data' => array( 'viewer' => array( 'zones' => array(
+	array( 'settings' => array( 'httpRequestsAdaptiveGroups' => array( 'notOlderThan' => 2678400 ) ) ),
+) ) ) ) );
+ok( sn_edge_adaptive_retention_days() === 31, 'retention_days: 2678400s → 31 days' );
+$GLOBALS['__opt'] = array();
+$GLOBALS['__transient'] = array();
+ok( sn_edge_adaptive_retention_days() === 0, 'retention_days: dormant/unknown → 0 (not a negative or fatal)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

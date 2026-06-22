@@ -42,6 +42,8 @@ function sn_edge_daily_query() { return 'httpRequests1dGroups'; }
 function sn_edge_firewall_query() { return 'firewallEventsAdaptiveGroups'; }
 function sn_edge_colo_query() { return 'httpRequestsAdaptiveGroups'; }
 function sn_edge_corrected( $row ) { $si = max( 1.0, (float) ( $row['avg']['sampleInterval'] ?? 1 ) ); return (int) round( (int) ( $row['count'] ?? 0 ) * $si ); }
+// Discovered adaptive retention (settings-node notOlderThan), seconds or null — drives the window clamp.
+function sn_edge_adaptive_retention() { return $GLOBALS['__edge_retention'] ?? null; }
 
 class Edge_Stub_wpdb {
 	public $prefix = 'wp_';
@@ -85,8 +87,16 @@ function eo_reset() {
 	$GLOBALS['__eo'] = array(); $GLOBALS['__dbdelta'] = array();
 	$GLOBALS['__edge_config'] = array( 'token' => 't', 'zone' => 'z' );
 	$GLOBALS['__edge_data'] = array(); $GLOBALS['__edge_calls'] = array();
+	$GLOBALS['__edge_retention'] = null;
 	$GLOBALS['__beacon_human'] = array( 'views' => 0 );
 	$GLOBALS['wpdb'] = new Edge_Stub_wpdb();
+}
+/** The `from` window arg the rollup sent for a given adaptive dataset query. */
+function edge_from( $dataset ) {
+	foreach ( $GLOBALS['__edge_calls'] as $c ) {
+		if ( (string) $c['query'] === $dataset ) { return $c['vars']['from'] ?? null; }
+	}
+	return null;
 }
 
 echo "Edge rollup — tables, daily GraphQL rollup, read + reconciliation\n\n";
@@ -161,10 +171,24 @@ ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 5
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
 ok( strpos( $all_sql, "'2026-06-19', 'threat', 'block', 50" ) !== false, 'run: firewall sampling-corrected (5×10=50), attributed to today' );
 ok( strpos( $all_sql, "'2026-06-19', 'colo', 'IAD', 30, 100000" ) !== false, 'run: colo dims sampling-corrected — BOTH requests (15×2=30) AND bytes (50000×2=100000)' );
+// Adaptive window: no retention discovered (null) → a trailing 24h snapshot (today−86400).
+ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window defaults to a trailing 24h (today−86400)' );
+ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: both adaptive datasets share the one trailing window' );
 // Dormant.
 eo_reset(); $GLOBALS['__edge_config'] = null;
 sn_edge_run_rollup( '2026-06-19' );
 ok( count( $GLOBALS['__edge_calls'] ) === 0 && count( $GLOBALS['wpdb']->queries ) === 0, 'run: unconfigured → no query, no write' );
+
+echo "\nGroup: adaptive window derives from discovered retention (not a hardcoded 24h)\n";
+eo_reset();
+$GLOBALS['__edge_retention'] = 3600; // 1h < 24h → the snapshot must shrink to what the node actually retains.
+sn_edge_run_rollup( '2026-06-19' );
+ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T23:00:00Z', 'run: window clamps to retention when retention < 24h (today−3600)' );
+ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T23:00:00Z', 'run: clamp applies to both adaptive pulls' );
+eo_reset();
+$GLOBALS['__edge_retention'] = 2678400; // 31d ≥ 24h → no clamp; the daily snapshot stays 24h (no over-wide window).
+sn_edge_run_rollup( '2026-06-19' );
+ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: retention ≥ 24h leaves the 24h snapshot intact (never widens past the daily intent)' );
 
 echo "\nGroup: range_totals + derived cache-hit% / error%\n";
 eo_reset();

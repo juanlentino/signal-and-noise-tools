@@ -55,6 +55,21 @@ function snt_edge_render_view( $from, $to ) {
 	);
 	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Traffic & edge', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
 	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals — every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
+	// Surface the REAL adaptive-dataset retention (discovered from the settings node,
+	// not the old "24h on Free" guess). Omitted entirely until the probe knows it.
+	$ret_days = function_exists( 'sn_edge_adaptive_retention_days' ) ? (int) sn_edge_adaptive_retention_days() : 0;
+	if ( $ret_days > 0 ) {
+		echo '<p class="sn-an-sep">' . esc_html( sprintf(
+			/* translators: %d: days Cloudflare retains the sampled adaptive dataset, discovered from the GraphQL settings node. */
+			_n(
+				'Adaptive snapshots (edge locations, threats) reflect a trailing 24h; Cloudflare retains this node for %d day on the current plan.',
+				'Adaptive snapshots (edge locations, threats) reflect a trailing 24h; Cloudflare retains this node for %d days on the current plan.',
+				$ret_days,
+				'signal-and-noise-tools'
+			),
+			$ret_days
+		) ) . '</p>';
+	}
 	echo '<div class="sn-kpi-row">';
 	foreach ( $cards as $c ) {
 		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
