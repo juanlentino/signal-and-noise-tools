@@ -10,9 +10,10 @@
  *     plus today's sampled colo + threat detail.
  *
  * A daily WP-Cron poll re-pulls the trailing ~13 months of 1dGroups (exact,
- * idempotent overwrite — the first run back-fills) and the last 24h of the two
- * adaptive datasets (sampling-corrected, attributed to "today"). Dormant until the
- * GraphQL client is configured; a failed query is skipped, never fatal.
+ * idempotent overwrite — the first run back-fills) and a trailing adaptive snapshot
+ * (24h by default, clamped to the node's discovered retention) of the two adaptive
+ * datasets (sampling-corrected, attributed to "today"). Dormant until the GraphQL
+ * client is configured; a failed query is skipped, never fatal.
  *
  * @package SignalNoiseTools
  * @since 6.26.0
@@ -157,8 +158,9 @@ function sn_edge_status_bucket( $status ) {
 }
 
 /**
- * Daily rollup: pull the exact 1dGroups window + the 24h adaptive datasets, parse,
- * and upsert. Dormant when unconfigured; per-dataset failure (null) is skipped.
+ * Daily rollup: pull the exact 1dGroups window + the trailing adaptive snapshot
+ * (24h, clamped to the node's discovered retention), parse, and upsert. Dormant when
+ * unconfigured; per-dataset failure (null) is skipped.
  *
  * @param string|null $today YYYY-MM-DD reference day (defaults to now, UTC).
  */
@@ -169,7 +171,18 @@ function sn_edge_run_rollup( $today = null ) {
 	$today = $today && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $today ) ? (string) $today : gmdate( 'Y-m-d' );
 	$today_ts = strtotime( $today . ' 00:00:00 UTC' );
 	$from_day = gmdate( 'Y-m-d', $today_ts - SN_EDGE_BACKFILL_DAYS * DAY_IN_SECONDS );
-	$since    = gmdate( 'Y-m-d\TH:i:s\Z', $today_ts - DAY_IN_SECONDS ); // 24h adaptive window.
+
+	// Adaptive snapshot width: a trailing 24h by default, but never wider than the
+	// dataset's REAL retention — discovered at runtime from the settings node's
+	// notOlderThan (Cloudflare publishes no fixed Free-tier number). On the common
+	// case (retention ≥ 24h) this is a no-op; it only shrinks the window if a node
+	// happens to retain less than a day, so we never request data it cannot return.
+	$window    = DAY_IN_SECONDS;
+	$retention = function_exists( 'sn_edge_adaptive_retention' ) ? sn_edge_adaptive_retention() : null;
+	if ( is_int( $retention ) && $retention > 0 && $retention < $window ) {
+		$window = $retention;
+	}
+	$since = gmdate( 'Y-m-d\TH:i:s\Z', $today_ts - $window );
 
 	$daily_rows = array();
 	$dim_rows   = array();
@@ -209,7 +222,7 @@ function sn_edge_run_rollup( $today = null ) {
 		}
 	}
 
-	// 2. Threats (firewallEventsAdaptiveGroups) — sampled, last 24h → today.
+	// 2. Threats (firewallEventsAdaptiveGroups) — sampled, trailing snapshot → today.
 	$zone = sn_edge_query( sn_edge_firewall_query(), array( 'from' => $since ) );
 	if ( is_array( $zone ) && is_array( $zone['firewallEventsAdaptiveGroups'] ?? null ) ) {
 		foreach ( $zone['firewallEventsAdaptiveGroups'] as $g ) {
@@ -221,7 +234,7 @@ function sn_edge_run_rollup( $today = null ) {
 		}
 	}
 
-	// 3. Per-colo (httpRequestsAdaptiveGroups) — sampled, last 24h → today.
+	// 3. Per-colo (httpRequestsAdaptiveGroups) — sampled, trailing snapshot → today.
 	$zone = sn_edge_query( sn_edge_colo_query(), array( 'from' => $since ) );
 	if ( is_array( $zone ) && is_array( $zone['httpRequestsAdaptiveGroups'] ?? null ) ) {
 		foreach ( $zone['httpRequestsAdaptiveGroups'] as $g ) {
