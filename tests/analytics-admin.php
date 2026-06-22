@@ -444,5 +444,29 @@ ok( snt_analytics_view_owns_chrome( 'content' ) === false, 'owns_chrome: content
 ok( snt_analytics_view_owns_chrome( 'edge' ) === false, 'owns_chrome: edge keeps shared chrome (no regression)' );
 ok( snt_analytics_view_owns_chrome( 'martian' ) === false, 'owns_chrome: unknown view -> false' );
 
+echo "\nGroup: login-defense dashboard dispatch + chrome suppression\n";
+// Stub the login renderer so this isolates the DASHBOARD's routing + chrome
+// suppression (the code that changed) from the login renderer (covered by
+// tests/login-defense-analytics.php) and avoids loading its AE query layer.
+if ( ! function_exists( 'sn_login_defense_view_render' ) ) {
+	function sn_login_defense_view_render() { echo '<div class="sn-lg-view">LOGIN-DEFENSE-VIEW</div>'; }
+}
+aa_fill_data();
+$_GET['sn_view'] = 'login-defense';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'LOGIN-DEFENSE-VIEW' ) !== false, 'dispatch: switch routes sn_view=login-defense to the login renderer' );
+ok( strpos( $html, 'sn-overview' ) === false, 'chrome: pageview Overview postbox SUPPRESSED on the login view' );
+ok( strpos( $html, 'sn_view=login-defense' ) !== false, 'tabs: login-defense tab present in nav' );
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab (login-defense)' );
+// Sanity: content view still shows the shared Overview chrome.
+$_GET['sn_view'] = 'content';
+ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'sn-overview' ) !== false, 'chrome: content view still renders the shared Overview' );
+// render_error stays always-on even for a chrome-owning view (note: $err must be an array to fire).
+$_GET['sn_view']       = 'login-defense';
+$GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom' );
+ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ) !== false, 'render_error: AE diagnostic still fires on the login view' );
+$GLOBALS['__aa_error'] = null;
+$_GET['sn_view']       = 'content';
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
