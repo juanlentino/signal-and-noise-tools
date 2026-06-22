@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.35.1] - 2026-06-22 — Login defense matches the analytics frame (no tab-bar jump)
+
+**Headline:** The Login defense dashboard view now renders its range control + Overview ABOVE the tab bar (the shared header slot) and its attacker tables + edge glance BELOW it, exactly like the 7 pageview views. It was the only view rendering everything below the tabs, so the tab bar relocated on every switch to/from Login defense. The login range control also adopts the shared range-pill markup, so the widget is visually identical, not just same-position.
+
+> **Why PATCH:** layout/structure consistency refactor of an existing view. No new capability, no API/REST/Ability change, no settings-schema change, no data change. `sn_login_defense_view_render()` is preserved as a thin wrapper, so every caller and the standalone test are unaffected.
+
+### Changed
+
+- **Frame parity** ([inc/analytics-admin.php](inc/analytics-admin.php), [inc/login-defense-analytics.php](inc/login-defense-analytics.php)): `sn_login_defense_view_render()` is split into `sn_login_defense_render_header()` (range control + Overview + breakdown pills) and `sn_login_defense_render_body()` (attacker tables + edge glance). `snt_analytics_render_dashboard()` dispatches the header into the shared header slot ABOVE the tabs and the switch renders the body BELOW, so the tab bar sits in one fixed position on every view.
+- **1:1 range control** ([inc/login-defense-analytics.php](inc/login-defense-analytics.php)): the login range pills now use the shared `.button-group` of `.button.button-small` with the active state on the `active` class (matching `snt_analytics_render_controls`), instead of the ad-hoc `.button-primary` links. It stays 7/30/90 with no class segmentation — both honest differences from the pageview control (the login AE dataset retains ~90 days and is not class-segmented).
+
 ## [6.35.0] - 2026-06-22 — /wp-login.php door-knock pressure (CF edge)
 
 **Headline:** The attacker pressure against /wp-login.php, /xmlrpc.php, and the generic 4xx probe surface — which the masked-login worker never sees — is now surfaced from Cloudflare's zone GraphQL (`httpRequestsAdaptiveGroups`): a glance in the **Login defense** dashboard view and a full breakdown in **Traffic & edge**. No new Worker, no new table, no Analytics Engine budget. It reuses the existing edge stack (and inherits the v6.34.0 retention-aware adaptive window automatically).
