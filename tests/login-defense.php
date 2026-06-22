@@ -45,5 +45,51 @@ ok(
 	'attribution credits both FireHOL and Spamhaus (license requirement)'
 );
 
+// --- A1: new query builders --------------------------------------------------
+$c = sn_login_defense_top_country_sql( 30, 10 );
+ok( strpos( $c, 'blob3 AS country' ) !== false && strpos( $c, "blob2 = 'block'" ) !== false
+	&& strpos( $c, 'sum(_sample_interval)' ) !== false && strpos( $c, 'LIMIT 10' ) !== false,
+	'top-country SQL: blob3, blocked-only, de-sampled, limited' );
+
+$t = sn_login_defense_trend_sql( 7 );
+ok( strpos( $t, "sum(if(blob2 = 'block', _sample_interval, 0)) AS blocked" ) !== false
+	&& strpos( $t, "sum(if(blob2 = 'pass', _sample_interval, 0)) AS passed" ) !== false
+	&& strpos( $t, 'GROUP BY day' ) !== false && strpos( $t, 'ORDER BY day' ) !== false,
+	'trend SQL: conditional block/pass sums, grouped + ordered by day' );
+
+$nq = sn_login_defense_networks_sql( 30 );
+ok( strpos( $nq, 'count(DISTINCT blob4)' ) !== false && strpos( $nq, "blob2 = 'block'" ) !== false
+	&& strpos( $nq, 'count(*)' ) === false,
+	'networks SQL: count(DISTINCT blob4), blocked-only, no count(*)' );
+
+// --- A2: derivation ----------------------------------------------------------
+$k = sn_login_defense_kpis_from_rows( array(
+	array( 'decision' => 'block', 'hits' => 30 ),
+	array( 'decision' => 'pass', 'hits' => 70 ),
+	array( 'decision' => 'bypass', 'hits' => 0 ),
+) );
+ok( $k['checked'] === 100 && $k['blocked'] === 30 && $k['block_rate'] === 30, 'KPIs: checked=100, blocked=30, rate=30%' );
+ok( sn_login_defense_kpis_from_rows( array() )['block_rate'] === 0, 'KPIs: empty -> 0% (no divide-by-zero)' );
+
+$series = sn_login_defense_trend_series( array(
+	array( 'day' => '2026-06-20', 'blocked' => 5, 'passed' => 1 ),
+	array( 'day' => '2026-06-21', 'blocked' => 9, 'passed' => 2 ),
+) );
+ok( $series[0]['day'] === '2026-06-20' && $series[1]['views'] === 9, 'trend series: ascending, views = blocked count' );
+
+// --- A3: cached headline -----------------------------------------------------
+$GLOBALS['__lg_q'] = array(
+	array( array( 'decision' => 'block', 'hits' => 4 ), array( 'decision' => 'pass', 'hits' => 6 ) ),
+	array( array( 'asorg' => 'BadNet', 'hits' => 4 ) ),
+);
+function sn_analytics_config() { return array( 'account_id' => 'x', 'token' => 'y' ); }
+function sn_analytics_query( $sql ) { return array_shift( $GLOBALS['__lg_q'] ); }
+$GLOBALS['__t'] = array();
+function get_transient( $k ) { return $GLOBALS['__t'][ $k ] ?? false; }
+function set_transient( $k, $v, $ttl ) { $GLOBALS['__t'][ $k ] = $v; return true; }
+$h = sn_login_defense_headline();
+ok( $h['blocked'] === 4 && $h['block_rate'] === 40 && $h['top_network'] === 'BadNet', 'headline: blocked/rate/top-network' );
+ok( isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: cached in transient' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

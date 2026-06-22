@@ -41,6 +41,98 @@ function sn_login_defense_top_asn_sql( $days = 30, $limit = 10 ) {
 }
 
 /**
+ * AE SQL for the top blocked countries over the last N days.
+ */
+function sn_login_defense_top_country_sql( $days = 30, $limit = 10 ) {
+	$d = (int) $days;
+	$l = (int) $limit;
+	return 'SELECT blob3 AS country, sum(_sample_interval) AS hits '
+		. 'FROM ' . SN_LG_DATASET . ' '
+		. "WHERE blob2 = 'block' AND timestamp > now() - INTERVAL '" . $d . "' DAY "
+		. 'GROUP BY blob3 ORDER BY hits DESC LIMIT ' . $l;
+}
+
+/**
+ * AE SQL for the daily blocked-vs-passed trend. Conditional sum(if(...)) is the
+ * proven AE pattern (see inc/analytics-buckets.php); the day bucket mirrors the
+ * pageview trend's formatDateTime(toStartOfDay(...)).
+ */
+function sn_login_defense_trend_sql( $days = 7 ) {
+	$d = (int) $days;
+	return "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
+		. "sum(if(blob2 = 'block', _sample_interval, 0)) AS blocked, "
+		. "sum(if(blob2 = 'pass', _sample_interval, 0)) AS passed "
+		. 'FROM ' . SN_LG_DATASET . ' '
+		. "WHERE timestamp > now() - INTERVAL '" . $d . "' DAY "
+		. 'GROUP BY day ORDER BY day';
+}
+
+/**
+ * AE SQL for the count of DISTINCT attacking networks (ASNs) over N days.
+ * Stable across any range (ASN does not rotate), unlike a hashed-IP count which
+ * would over-count across days. count(DISTINCT <bare column>) is valid AE dialect.
+ */
+function sn_login_defense_networks_sql( $days = 30 ) {
+	$d = (int) $days;
+	return 'SELECT count(DISTINCT blob4) AS networks '
+		. 'FROM ' . SN_LG_DATASET . ' '
+		. "WHERE blob2 = 'block' AND timestamp > now() - INTERVAL '" . $d . "' DAY";
+}
+
+/**
+ * Reduce decisions rows ([{decision,hits}]) to checked/blocked/block_rate + the
+ * raw per-decision breakdown. Guards divide-by-zero on the block rate.
+ */
+function sn_login_defense_kpis_from_rows( $rows ) {
+	$by = array();
+	foreach ( (array) $rows as $r ) {
+		$by[ (string) ( $r['decision'] ?? '' ) ] = (int) ( $r['hits'] ?? 0 );
+	}
+	$blocked = $by['block'] ?? 0;
+	$checked = $blocked + ( $by['pass'] ?? 0 );
+	$rate    = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
+	return array( 'checked' => $checked, 'blocked' => $blocked, 'block_rate' => $rate, 'breakdown' => $by );
+}
+
+/**
+ * Map the trend AE rows ([{day,blocked,passed}], already ascending) to the
+ * sparkline series shape ([{day,views}]) where views = the blocked count.
+ */
+function sn_login_defense_trend_series( $rows ) {
+	$out = array();
+	foreach ( (array) $rows as $r ) {
+		$out[] = array( 'day' => (string) ( $r['day'] ?? '' ), 'views' => (int) ( $r['blocked'] ?? 0 ) );
+	}
+	return $out;
+}
+
+/**
+ * Cached at-a-glance headline (checked/blocked/block_rate + top network) shared
+ * by the dashboard widget and the Monitoring view. Short transient so opening
+ * both surfaces does not double-hit Analytics Engine.
+ */
+function sn_login_defense_headline() {
+	$cached = get_transient( 'sn_lg_headline' );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		return array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+	}
+	$kpis = sn_login_defense_kpis_from_rows( sn_analytics_query( sn_login_defense_decisions_sql( 7 ) ) ?: array() );
+	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( 7, 1 ) ) ?: array();
+	$out  = array(
+		'configured'  => true,
+		'checked'     => $kpis['checked'],
+		'blocked'     => $kpis['blocked'],
+		'block_rate'  => $kpis['block_rate'],
+		'top_network' => (string) ( $asn[0]['asorg'] ?? '' ),
+	);
+	set_transient( 'sn_lg_headline', $out, 600 );
+	return $out;
+}
+
+/**
  * Derive the Worker status URL from the configured collector origin (hairpin-safe),
  * mirroring sn_worker_version_endpoint_url().
  */
