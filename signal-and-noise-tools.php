@@ -141,6 +141,10 @@ require_once SNT_PATH . 'inc/worker-version.php';
 // sn-login-guard Worker status. Loads after analytics-api + ssrf-guard +
 // worker-version (all its dependencies).
 require_once SNT_PATH . 'inc/login-defense.php';
+// Login defense analytics: Monitoring -> Login defense view + renderers (reads
+// the same query builders); and the dashboard widget (owner-requested glance).
+require_once SNT_PATH . 'inc/login-defense-analytics.php';
+require_once SNT_PATH . 'inc/login-defense-widget.php';
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //
