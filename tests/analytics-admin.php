@@ -448,14 +448,24 @@ echo "\nGroup: login-defense dashboard dispatch + chrome suppression\n";
 // Stub the login renderer so this isolates the DASHBOARD's routing + chrome
 // suppression (the code that changed) from the login renderer (covered by
 // tests/login-defense-analytics.php) and avoids loading its AE query layer.
-if ( ! function_exists( 'sn_login_defense_view_render' ) ) {
-	function sn_login_defense_view_render() { echo '<div class="sn-lg-view">LOGIN-DEFENSE-VIEW</div>'; }
+if ( ! function_exists( 'sn_login_defense_render_header' ) ) {
+	function sn_login_defense_render_header() { echo '<div class="sn-lg-header">LOGIN-DEFENSE-HEADER</div>'; }
+}
+if ( ! function_exists( 'sn_login_defense_render_body' ) ) {
+	function sn_login_defense_render_body() { echo '<div class="sn-lg-body">LOGIN-DEFENSE-BODY</div>'; }
 }
 aa_fill_data();
 $_GET['sn_view'] = 'login-defense';
 $html = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $html, 'LOGIN-DEFENSE-VIEW' ) !== false, 'dispatch: switch routes sn_view=login-defense to the login renderer' );
-ok( strpos( $html, 'sn-overview' ) === false, 'chrome: pageview Overview postbox SUPPRESSED on the login view' );
+$pos_tabs   = strpos( $html, 'nav-tab-wrapper' );
+$pos_header = strpos( $html, 'LOGIN-DEFENSE-HEADER' );
+$pos_body   = strpos( $html, 'LOGIN-DEFENSE-BODY' );
+ok( $pos_header !== false && $pos_tabs !== false && $pos_header < $pos_tabs,
+	'frame: login header renders ABOVE the tab bar (same slot as the pageview chrome)' );
+ok( $pos_body !== false && $pos_tabs !== false && $pos_body > $pos_tabs,
+	'frame: login body renders BELOW the tab bar' );
+ok( strpos( $html, 'Showing <strong>' ) === false,
+	'chrome: pageview separation notice SUPPRESSED on the login view' );
 ok( strpos( $html, 'sn_view=login-defense' ) !== false, 'tabs: login-defense tab present in nav' );
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab (login-defense)' );
 // Sanity: content view still shows the shared Overview chrome.

@@ -95,6 +95,15 @@ ok( strpos( $html, '/wp-login.php' ) !== false, 'attack: login door listed' );
 ok( strpos( $html, 'DIGITALOCEAN-ASN' ) !== false, 'attack: top attacker network listed' );
 ok( strpos( $html, '/.env' ) !== false, 'attack: top probed path listed' );
 ok( strpos( $html, 'POST' ) !== false, 'attack: method mix listed' );
+// Frame consistency: the section is a full-width sep divider inside the dim grid
+// (like every other section), NOT a nested .postbox whose .hndle header rendered
+// oversized vs the un-nested dim cards. v6.35.1.
+ok( strpos( $html, '<strong>Attack-surface pressure</strong>' ) !== false,
+	'attack: section title renders as a full-width sep divider' );
+ok( strpos( $html, '<span>Attack-surface pressure</span>' ) === false,
+	'attack: section title is no longer a nested postbox header (the oversized .hndle)' );
+ok( strpos( $html, 'sn-an-sep--full' ) !== false,
+	'attack: section intro uses the shared full-width divider class' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

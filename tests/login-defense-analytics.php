@@ -13,6 +13,7 @@ function ok( $c, $m ) { global $fails, $passes; if ( $c ) { echo "PASS: $m\n"; $
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return (string) $n; }
@@ -103,6 +104,39 @@ ok( strpos( $g, 'Door-knock pressure' ) !== false, 'glance: renders when edge co
 ok( strpos( $g, '8,400' ) !== false || strpos( $g, '8400' ) !== false, 'glance: total door-knock pressure (8400)' );
 ok( strpos( $g, 'CN' ) !== false && strpos( $g, 'DIGITALOCEAN-ASN' ) !== false, 'glance: top country + network' );
 ok( strpos( $g, 'page=sn-analytics&sn_view=edge' ) !== false, 'glance: links to the Traffic & edge breakdown' );
+
+// --- Frame parity: header / body split --------------------------------------
+$GLOBALS['__cfg']      = array( 'account_id' => 'x', 'token' => 'y' );
+$GLOBALS['__edge_cfg'] = null; // glance dormant — body emits tables only
+$GLOBALS['__q']        = array( array( 'decision' => 'block', 'hits' => 3 ), array( 'decision' => 'pass', 'hits' => 7 ) );
+
+ob_start();
+sn_login_defense_render_header();
+$hd = ob_get_clean();
+ok( strpos( $hd, 'button-group' ) !== false && strpos( $hd, 'button button-small' ) !== false && strpos( $hd, 'button-small active' ) !== false,
+	'header: range control uses the shared pill markup (button-group + button-small + active)' );
+ok( strpos( $hd, 'postbox sn-overview' ) !== false && strpos( $hd, 'sn-an-breakdown' ) !== false,
+	'header: renders the Overview postbox + breakdown pills' );
+ok( strpos( $hd, 'Top attacker networks' ) === false,
+	'header: does NOT render the attacker tables (body-only)' );
+
+ob_start();
+sn_login_defense_render_body();
+$bd = ob_get_clean();
+ok( strpos( $bd, 'Top attacker networks' ) !== false && strpos( $bd, 'Top attacker countries' ) !== false,
+	'body: renders the attacker tables' );
+ok( strpos( $bd, 'postbox sn-overview' ) === false,
+	'body: does NOT render the Overview postbox (header-only)' );
+
+// Wrapper dormant: exactly ONE "Connect" notice (no double-emit from header+body).
+$GLOBALS['__cfg'] = null;
+ob_start();
+sn_login_defense_view_render();
+$dz = ob_get_clean();
+ok( substr_count( $dz, 'sn-an-empty' ) === 1,
+	'wrapper dormant: the Connect-CF notice is emitted exactly once (header only; body silent)' );
+ok( strpos( $dz, 'Connect Cloudflare Analytics' ) !== false,
+	'wrapper dormant: still shows the Connect-CF notice' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

@@ -112,12 +112,29 @@ function sn_login_defense_render_top_table( $title, $col, $rows ) {
 }
 
 /**
- * The Analytics-dashboard Login defense view. Dormant-gated (mirrors
- * snt_edge_render_view); own inline range control (own URL param, generic date
- * math); assembles KPIs + trend + decision breakdown + threat tables.
- * Registered in SN_ANALYTICS_VIEWS and dispatched by snt_analytics_render_dashboard().
+ * Resolve the login range (7/30/90, default 7) from the GET param. Shared by the
+ * header (range control + decisions/networks/trend queries) and the body (ASN /
+ * country / edge-glance queries) so the clamp lives in one place.
  */
-function sn_login_defense_view_render() {
+function sn_login_defense_resolve_days() {
+	$allowed = array( 7, 30, 90 );
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display range, no state change.
+	$days = isset( $_GET['sn_lg_range'] ) ? (int) $_GET['sn_lg_range'] : 7;
+	return in_array( $days, $allowed, true ) ? $days : 7;
+}
+
+/**
+ * Login defense ABOVE-the-tabs chrome: the dormant gate (the ONLY emitter of the
+ * "Connect Cloudflare Analytics" notice) + the 1:1 range control + the Overview
+ * postbox (KPIs + trend) + the decision breakdown pills. Dispatched into the
+ * shared header slot by snt_analytics_render_dashboard() so the tab bar sits in
+ * the same position as on the pageview views (frame parity, no jump).
+ *
+ * Runs the three header queries: decisions (-> KPIs + breakdown), networks
+ * (-> the 4th KPI card), and trend. The body owns its own (ASN/country/glance)
+ * queries, so nothing is double-fetched.
+ */
+function sn_login_defense_render_header() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		echo '<div class="postbox"><div class="inside"><p class="sn-an-empty">'
 			. esc_html__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.', 'signal-and-noise-tools' )
@@ -125,20 +142,27 @@ function sn_login_defense_view_render() {
 		return;
 	}
 
+	$days    = sn_login_defense_resolve_days();
 	$allowed = array( 7, 30, 90 );
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display range, no state change.
-	$days = isset( $_GET['sn_lg_range'] ) ? (int) $_GET['sn_lg_range'] : 7;
-	if ( ! in_array( $days, $allowed, true ) ) {
-		$days = 7;
-	}
 
+	// 1:1 range control: the FULL shared range-pill markup (snt_analytics_render_controls,
+	// analytics-admin-render.php:70-87) minus the class pills + 365/all/custom options
+	// (login AE retains ~90d and is not class-segmented -- those would render empty/false).
+	// Active marker is the `active` class (NOT button-primary): the shared CSS targets
+	// .button.button-small.active. Base = remove only sn_lg_range (preserves sn_view).
 	$base = remove_query_arg( array( 'sn_lg_range' ) );
 	echo '<div class="sn-toolbar">';
+	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
+	echo '<span class="sn-control-label">' . esc_html__( 'Range', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="button-group">';
 	foreach ( $allowed as $r ) {
-		$cls = ( $r === $days ) ? 'button button-primary' : 'button';
-		echo '<a class="' . esc_attr( $cls ) . '" href="' . esc_url( add_query_arg( array( 'sn_lg_range' => $r ), $base ) ) . '">' . (int) $r . 'd</a> ';
+		$is_active = ( $r === $days );
+		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
+			. ( $is_active ? ' aria-pressed="true"' : '' )
+			. ' href="' . esc_url( add_query_arg( array( 'sn_lg_range' => $r ), $base ) ) . '">'
+			. esc_html( (int) $r . 'd' ) . '</a>';
 	}
-	echo '</div>';
+	echo '</span></div></div>';
 
 	$dec              = sn_analytics_query( sn_login_defense_decisions_sql( $days ) ) ?: array();
 	$kpis             = sn_login_defense_kpis_from_rows( $dec );
@@ -159,6 +183,21 @@ function sn_login_defense_view_render() {
 			. esc_html( number_format_i18n( (int) ( $kpis['breakdown'][ $d ] ?? 0 ) ) ) . '</span> ';
 	}
 	echo '</p>';
+}
+
+/**
+ * Login defense BELOW-the-tabs content: the two attacker top-tables + the CF edge
+ * door-knock glance. Dispatched by the switch case. Guards config SILENTLY (no
+ * output) so the wrapper path never doubles the dormant notice the header emits.
+ * In the dashboard it is only reached when configured (the dashboard's outer
+ * config gate returns earlier).
+ */
+function sn_login_defense_render_body() {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		return;
+	}
+
+	$days = sn_login_defense_resolve_days();
 
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( $days, 10 ) ) ?: array();
 	$ctry = sn_analytics_query( sn_login_defense_top_country_sql( $days, 10 ) ) ?: array();
@@ -206,4 +245,16 @@ function sn_login_defense_view_render() {
 			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 		echo '</div></div>';
 	}
+}
+
+/**
+ * Thin wrapper preserving the single direct entry point (tests/login-defense-analytics.php
+ * + any other caller): the header then the body. Standalone output is the header's
+ * dormant notice exactly once when unconfigured, or the full view when configured.
+ * Registered in SN_ANALYTICS_VIEWS; the dashboard dispatches header + body separately
+ * (header above the tabs, body below) so this wrapper is NOT the dashboard path.
+ */
+function sn_login_defense_view_render() {
+	sn_login_defense_render_header();
+	sn_login_defense_render_body();
 }
