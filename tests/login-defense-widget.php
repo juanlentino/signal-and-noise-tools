@@ -34,5 +34,14 @@ ok(
 ok( strpos( $w, 'page=sn-analytics&sn_view=login-defense' ) !== false, 'widget links to the Analytics dashboard login-defense view' );
 ok( strpos( $w, 'tab=monitoring&sub=login-defense' ) === false, 'widget no longer links to the old Monitoring sub-tab' );
 
+// v6.38.0: the widget now reuses the analytics widgets' .sn-aw-* visual vocabulary
+// (the shared analytics-widget.css is already enqueued on the Dashboard home screen)
+// instead of the unstyled bare-<ul> .sn-lg-widget it shipped with.
+ok( strpos( $w, 'sn-aw-grid' ) !== false, 'blocked + block-rate render in the shared .sn-aw-grid KPI grid' );
+ok( strpos( $w, '<div class="sn-aw-stat-n">4</div>' ) !== false, 'blocked count renders as an .sn-aw-stat tile (parity with the analytics widgets)' );
+ok( strpos( $w, '<div class="sn-aw-stat-n">40%</div>' ) !== false, 'block rate renders as an .sn-aw-stat tile' );
+ok( strpos( $w, 'sn-aw-foot' ) !== false, 'top-network + link use the shared .sn-aw-foot footer treatment' );
+ok( strpos( $w, 'sn-lg-widget' ) === false, 'the unstyled .sn-lg-widget bare-<ul> class is gone' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

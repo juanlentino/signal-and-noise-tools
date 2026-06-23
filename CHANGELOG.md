@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.38.0] - 2026-06-23 — Dashboard widget polish: trend deltas + login-defense styling
+
+**Headline:** The "Analytics — Overview" dashboard widget now shows **week-over-week direction** next to each trended KPI (Views, Visits, Avg scroll, Avg time, Engaged): a small ▲/▼ badge with the signed percent, reusing the comparison the Analytics page already computes, so the box answers "up or down this week?" at a glance instead of showing six context-free numbers. Separately, the **Login defense** widget, which had shipped unstyled (a bare bulleted list beside the two polished analytics widgets), now reuses the same `.sn-aw-*` visual vocabulary so the three Dashboard boxes read as one design system.
+
+> **Why MINOR:** new user-visible capability (the Overview widget gains period-over-period delta badges). Additive: no removed or renamed API, no settings-schema change. The badges degrade gracefully (no badge) when no prior window exists, and stay dormant with the rest of the widget until Cloudflare analytics is configured.
+
+### New
+
+- **Week-over-week delta badges on the Overview widget** ([inc/analytics-widget.php](inc/analytics-widget.php)): `sn_aw_stat()` takes an optional delta and a new `sn_aw_delta_badge()` renders ▲/▼/■ + signed pct, mirroring the page badge semantics (`snt_analytics_render_delta_badge`), including "new" for a brand-new metric with no prior window. `sn_aw_snapshot()` wires `sn_analytics_period_deltas()` + `sn_analytics_engaged_rate_delta()` onto Views/Visits/Avg-scroll/Avg-time/Engaged. Filtered has no delta accessor and stays plain. Every delta call is `function_exists`-gated, so the KPIs render exactly as before when the derived module is absent.
+
+### Fixed
+
+- **Login defense widget is no longer unstyled** ([inc/login-defense-widget.php](inc/login-defense-widget.php)): it shipped emitting `<ul class="sn-lg-widget">` with no matching CSS anywhere in the plugin, so it rendered as a bare browser-default bulleted list beside the two crisply-styled analytics widgets on the same Dashboard screen. It now renders blocked + block rate as a two-up `.sn-aw-grid` of `.sn-aw-stat` tiles and the top-network + link in `.sn-aw-foot`, reusing the `analytics-widget.css` that is already enqueued on that screen. No new stylesheet.
+
+### Changed
+
+- **`analytics-widget.php` docblock corrected** ([inc/analytics-widget.php](inc/analytics-widget.php)): the file header had drifted about 14 versions. It described "four discrete widgets" with Plausible-era IDs and a "deferred to the Plausible cutover" rationale, while only two first-party widgets have registered since v6.19.2. Rewritten to describe the two widgets and their first-party data source; the duplicated orphaned-ID note is folded into one authoritative statement; `@package` normalized to `signal-and-noise-tools`.
+- **Delta-badge styling** ([assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css)): `.sn-aw-delta` (plus up/down/flat modifiers) added in the native wp-admin palette (#0a7c2f up, #b32d2e down, #646970 flat).
+
 ## [6.37.1] - 2026-06-23 — AI tag suggester aims for 3-4 tags
 
 **Headline:** The AI tag suggester was returning too few tags (often one), because the prompt only asked for "the tags relevant to this post" with no target. It now aims for the **3 to 4 most relevant** tags (more for longer or wide-ranging Notes, fewer only when the existing vocabulary genuinely has fewer that fit), while still refusing to pad with tags that do not clearly apply. Still constrained to your existing vocabulary.

@@ -2,23 +2,25 @@
 /**
  * Signal & Noise — first-party analytics dashboard widgets.
  *
- * Registers four discrete WP dashboard-home widgets that read data from
- * the first-party analytics rollup tables via the sn_analytics_* accessors:
+ * Registers two WP dashboard-home widgets that read the first-party analytics
+ * rollups via the sn_analytics_* accessors (the Plausible retirement completed in
+ * the v6.0.0 / v6.20.0 arc; "Plausible" survives only in the widget IDs, see below):
  *
- *   - sn_plausible_snapshot — 7-day aggregate (Views, Visits, Avg scroll %,
- *                              Avg time on page, Engaged %, Filtered)
- *   - sn_plausible_realtime — visitors right now (last 5 min)
- *   - sn_plausible_pages    — top 7 pages by views, last 7 days
- *   - sn_plausible_sources  — top 7 referrers by views, last 7 days
+ *   - "Analytics — Overview"    (sn_aw_overview)    — visitors right now (last 5 min)
+ *       plus the last-7-days KPIs (Views, Visits, Avg scroll %, Avg time, Engaged %,
+ *       Filtered), each trended KPI carrying a week-over-week delta badge (v6.38.0).
+ *   - "Analytics — Top content" (sn_aw_top_content) — top 7 pages + top 7 sources, 7d.
  *
- * Widget IDs are intentionally kept as sn_plausible_* to preserve any
- * per-user dashboard-layout preferences; the rename to sn_analytics_*
- * is deferred to the Plausible cutover milestone.
+ * History: four discrete widgets were consolidated to these two in v6.19.2 to cut
+ * dashboard clutter. The widget IDs are intentionally kept as sn_plausible_snapshot
+ * / sn_plausible_pages — NOT renamed — so existing per-user dashboard layout and
+ * visibility meta survive; the two retired IDs (sn_plausible_realtime /
+ * sn_plausible_sources) orphan harmlessly (WP simply stops rendering them).
  *
- * Requires SN_CF_ANALYTICS_TOKEN + SN_CF_ACCOUNT_ID in wp-config.php.
+ * Requires SN_CF_ANALYTICS_TOKEN + SN_CF_ACCOUNT_ID in wp-config.php; renders a
+ * config empty-state otherwise.
  *
- * @package SignalNoise
- * @since 7.2.1
+ * @package signal-and-noise-tools
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -29,11 +31,8 @@ add_action( 'wp_dashboard_setup', function() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	// v6.19.2: consolidated 4 widgets → 2 (Overview = Right now + 7-day KPIs; Top
-	// content = top pages + sources) to cut dashboard clutter. Widget IDs intentionally
-	// keep the sn_plausible_* prefix to preserve users' existing dashboard layout/
-	// visibility meta — the two retained IDs anchor the merged widgets; the two dropped
-	// IDs (sn_plausible_realtime / sn_plausible_sources) orphan harmlessly.
+	// Two consolidated widgets; IDs kept as sn_plausible_* to preserve per-user
+	// dashboard layout/visibility meta (full history + retired IDs in the file docblock).
 	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Analytics — Overview',    'sn_aw_overview' );
 	wp_add_dashboard_widget( 'sn_plausible_pages',    'Analytics — Top content', 'sn_aw_top_content' );
 } );
@@ -109,15 +108,20 @@ function sn_aw_snapshot( $standalone = true ) {
 	}
 	list( $from, $to ) = sn_aw_window7();
 	$t = sn_analytics_range_totals( $from, $to, 'human' );
+	// Week-over-week deltas for the four trended KPIs, gated on the derived accessor
+	// existing (mirrors the engaged/class_totals guards below). When the derived
+	// module is absent the KPIs render exactly as before — no badge.
+	$d = function_exists( 'sn_analytics_period_deltas' ) ? sn_analytics_period_deltas( $from, $to, 'human' ) : array();
 	echo '<div class="sn-aw-grid">';
-	sn_aw_stat( 'Views',      $t['views'] ?? null );
-	sn_aw_stat( 'Visits',     $t['visits'] ?? null );
-	sn_aw_stat( 'Avg scroll', isset( $t['scroll_avg'] ) ? (int) round( (float) $t['scroll_avg'] ) . '%' : null );
-	sn_aw_stat( 'Avg time',   isset( $t['time_avg'] ) ? sn_aw_duration( (int) round( (float) $t['time_avg'] / 1000 ) ) : null );
+	sn_aw_stat( 'Views',      $t['views'] ?? null,  $d['views'] ?? null );
+	sn_aw_stat( 'Visits',     $t['visits'] ?? null, $d['visits'] ?? null );
+	sn_aw_stat( 'Avg scroll', isset( $t['scroll_avg'] ) ? (int) round( (float) $t['scroll_avg'] ) . '%' : null, $d['scroll_avg'] ?? null );
+	sn_aw_stat( 'Avg time',   isset( $t['time_avg'] ) ? sn_aw_duration( (int) round( (float) $t['time_avg'] / 1000 ) ) : null, $d['time_avg'] ?? null );
 	// Engaged = signal: share of human pageviews that crossed the engaged-time threshold
 	// (int 0–100, or null when no time-distribution data exists yet → renders em-dash).
-	$eng = function_exists( 'sn_analytics_engaged_rate' ) ? sn_analytics_engaged_rate( $from, $to, 'human' ) : null;
-	sn_aw_stat( 'Engaged', null === $eng ? null : $eng . '%' );
+	$eng   = function_exists( 'sn_analytics_engaged_rate' ) ? sn_analytics_engaged_rate( $from, $to, 'human' ) : null;
+	$eng_d = function_exists( 'sn_analytics_engaged_rate_delta' ) ? sn_analytics_engaged_rate_delta( $from, $to, 'human' ) : null;
+	sn_aw_stat( 'Engaged', null === $eng ? null : $eng . '%', $eng_d );
 	// Filtered = noise: suspect + bot pageviews the edge classifier caught and excluded.
 	// Empty class_totals (no rollups in window) → null → em-dash; a measured 0 is honest
 	// ("classified traffic, zero noise") and intentionally renders 0, not em-dash.
@@ -250,11 +254,36 @@ function sn_aw_footer() {
 	echo '<p class="sn-aw-foot">7d · first-party · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
 }
 
-function sn_aw_stat( $label, $value ) {
+function sn_aw_stat( $label, $value, $delta = null ) {
 	$display = ( null === $value || '' === $value )
 		? '—'
 		: ( is_numeric( $value ) ? number_format_i18n( (float) $value ) : (string) $value );
-	echo '<div class="sn-aw-stat"><div class="sn-aw-stat-n">' . esc_html( $display ) . '</div><div class="sn-aw-stat-l">' . esc_html( $label ) . '</div></div>';
+	echo '<div class="sn-aw-stat"><div class="sn-aw-stat-n">' . esc_html( $display ) . '</div><div class="sn-aw-stat-l">' . esc_html( $label );
+	sn_aw_delta_badge( $delta );
+	echo '</div></div>';
+}
+
+/**
+ * Period-over-period delta badge (▲/▼/■ + signed pct) appended inside a stat's
+ * label cell. Mirrors the Analytics page badge (snt_analytics_render_delta_badge)
+ * but emits the widget-scoped .sn-aw-delta class so it is styled by the
+ * already-enqueued analytics-widget.css, not the page stylesheet. No-op for a
+ * null/invalid delta, so a KPI with no comparison renders exactly as before. pct
+ * null (prior window empty) → "new" (up) or em-dash, matching the page semantics.
+ *
+ * @param array|null $delta {pct:?int, dir:string} where dir ∈ up|down|flat.
+ */
+function sn_aw_delta_badge( $delta ) {
+	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
+		return;
+	}
+	$dir   = (string) $delta['dir'];
+	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
+	$pct   = $delta['pct'] ?? null;
+	$text  = ( null === $pct )
+		? ( 'up' === $dir ? 'new' : '—' )
+		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
+	echo ' <span class="sn-aw-delta sn-aw-delta--' . esc_attr( $dir ) . '">' . esc_html( $arrow . ' ' . $text ) . '</span>';
 }
 
 function sn_aw_duration( $seconds ) {
