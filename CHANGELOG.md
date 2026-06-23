@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.39.1] - 2026-06-23 — AI abilities: contract accuracy + ai/ai coexistence policy
+
+**Headline:** An audit of the AI-powered abilities found the surface healthy (no security issues; the `method_exists`→`is_callable` fix is intact and regression-tested), but several **Abilities-API annotations lied about runtime behavior** — which misleads an autonomous agent/MCP caller. This corrects them, drops a dead input, completes a schema, and documents the deliberate coexistence with the official `ai/ai` plugin.
+
+> **Why PATCH:** corrections to existing ability metadata + documentation. No new capability, no API removal that a caller relied on (the dropped `concise` input was already ignored), no schema migration.
+
+### Fixed
+
+- **Generative + mutating abilities are no longer annotated `idempotent`** ([inc/abilities-ai-post-editor.php](inc/abilities-ai-post-editor.php), [inc/abilities-ai-health.php](inc/abilities-ai-health.php), [inc/abilities-insights.php](inc/abilities-insights.php)): `ai-generate-meta-description`, `ai-generate-og-card-title`, `ai-generate-excerpt`, `ai-alt-apply`, `ai-drift-apply`, `ai-orphan-apply`, and `run-insights-scan` are now `idempotent => false`. A generative call returns different output on retry, and the fingerprint-gated applies return 409 on replay, so a retrying agent must not treat them as no-ops. `ai-generate-excerpt` also gains `readonly => true` (returns text only). Mirrors the `draft-release-notes` precedent.
+- **Dead `concise` input removed from `ai-generate-og-card-title`** ([inc/abilities-ai-post-editor.php](inc/abilities-ai-post-editor.php)): the wrapper and impl never read it (OG titles have no `*_CONCISE` variant), so declaring it was a contract that misled a caller. Meta-description and excerpt keep `concise` (their impls honor it).
+- **Insights output schemas declare `signal_summary`** ([inc/abilities-insights.php](inc/abilities-insights.php)): both `run-insights-scan` and `get-insights` return a `signal_summary` object (post/excerpt/webhook/cron counts) that the schemas omitted.
+
+### Changed
+
+- **`ai/ai` coexistence policy documented** ([inc/ai-ai-dedupe.php](inc/ai-ai-dedupe.php)): SN's alt-text (Health-audit-driven, site-wide a11y remediation) and tag-suggest (constrained to existing vocabulary, tag hygiene) deliberately **complement** the official `ai/ai` plugin's editor alt-text and generative classification rather than duplicate them — they occupy different surfaces and do different jobs, so both stay enabled. The header now states this so a future reader does not mistake the coexistence for an un-deduped oversight.
+
 ## [6.39.0] - 2026-06-23 — Posts: a per-Note lifecycle analytics view
 
 **Headline:** A new **Posts** tab in the Analytics dashboard, built around the one axis no other view covers: each post over its own lifetime, compared to your other posts. It answers "did my latest Note land?" with an **age-aligned** verdict (its views-at-current-age vs the median of your last ~10 Notes *at the same age*), a lifecycle trajectory drawn against that median band, a catalog leaderboard (lifetime views + views-per-day-of-life + a hit/median/dud shape), launch velocity, and an evergreen-vs-spike breakdown. Deliberately **non-overlapping**: it does not re-slice referrers (Content), countries (Geography), devices (Technology) or engagement (Engagement) for a single post — those stay where they live. Every figure reads from the durable per-path rollup (no Analytics Engine, no sampling).

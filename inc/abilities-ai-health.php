@@ -108,7 +108,9 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			'annotations'  => array(
 				'destructive' => true,
-				'idempotent'  => true,
+				// Fingerprint-gated mutation: a replay no longer matches the stored
+				// fingerprint and returns 409, so a retry is not a no-op.
+				'idempotent'  => false,
 			),
 		),
 	) );
@@ -180,7 +182,9 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			'annotations'  => array(
 				'destructive' => true,
-				'idempotent'  => true,
+				// Fingerprint-gated mutation: a replay no longer matches the stored
+				// fingerprint and returns 409, so a retry is not a no-op.
+				'idempotent'  => false,
 			),
 		),
 	) );
@@ -296,7 +300,9 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			'annotations'  => array(
 				'destructive' => true,
-				'idempotent'  => true,
+				// Fingerprint-gated mutation: a replay no longer matches the stored
+				// fingerprint and returns 409, so a retry is not a no-op.
+				'idempotent'  => false,
 			),
 		),
 	) );

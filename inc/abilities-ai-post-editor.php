@@ -60,8 +60,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			// Generative + mutates _sn_meta_description: each call yields a
+			// different value, so a retry is NOT a no-op (see draft-release-notes).
 			'annotations'  => array(
-				'idempotent' => true,
+				'idempotent' => false,
 			),
 		),
 	) );
@@ -82,11 +84,10 @@ add_action( 'wp_abilities_api_init', function() {
 					'minimum'     => 1,
 					'examples'    => array( 42, 1023 ),
 				),
-				'concise' => array(
-					'type'        => 'boolean',
-					'default'     => false,
-					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
-				),
+				// No `concise` input: unlike meta-desc/excerpt there is no
+				// *_SYSTEM_CONCISE variant for OG titles (already capped at 60
+				// tokens), so the wrapper + impl never read it. Declaring it would
+				// be a dead contract that misleads an agent caller.
 			),
 			'additionalProperties' => false,
 		),
@@ -102,8 +103,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			// Generative + mutates _sn_og_card_title AND regenerates the PNG: a
+			// retry produces a different title and rewrites the card. Not idempotent.
 			'annotations'  => array(
-				'idempotent' => true,
+				'idempotent' => false,
 			),
 		),
 	) );
@@ -143,8 +146,12 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			// Returns text only (caller writes post_excerpt) → readonly; but it is
+			// generative, so a retry returns different prose → not idempotent.
+			// Mirrors the draft-release-notes precedent exactly.
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'   => true,
+				'idempotent' => false,
 			),
 		),
 	) );

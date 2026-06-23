@@ -47,6 +47,15 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties' => array(
 				'scanned_at'      => array( 'type' => 'integer' ),
 				'elapsed_ms'      => array( 'type' => 'integer' ),
+				'signal_summary'  => array(
+					'type'       => 'object',
+					'properties' => array(
+						'posts_count'     => array( 'type' => 'integer' ),
+						'excerpts_count'  => array( 'type' => 'integer' ),
+						'webhooks_count'  => array( 'type' => 'integer' ),
+						'cron_hooks_seen' => array( 'type' => 'integer' ),
+					),
+				),
 				'recommendations' => array(
 					'type'  => 'array',
 					'items' => array(
@@ -66,7 +75,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'meta'                => array(
 			'show_in_rest' => true,
 			'annotations'  => array(
-				'idempotent'      => true,
+				// force=true re-runs a generative cross-system scan and rewrites the
+				// cache, so a retry returns different prose → not idempotent.
+				'idempotent'      => false,
 				'open_world_hint' => false,
 			),
 		),
@@ -88,6 +99,7 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties' => array(
 				'scanned_at'      => array( 'type' => array( 'integer', 'null' ) ),
 				'elapsed_ms'      => array( 'type' => array( 'integer', 'null' ) ),
+				'signal_summary'  => array( 'type' => array( 'object', 'null' ) ),
 				'recommendations' => array( 'type' => 'array' ),
 			),
 		),
