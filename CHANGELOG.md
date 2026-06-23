@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.37.1] - 2026-06-23 — AI tag suggester aims for 3-4 tags
+
+**Headline:** The AI tag suggester was returning too few tags (often one), because the prompt only asked for "the tags relevant to this post" with no target. It now aims for the **3 to 4 most relevant** tags (more for longer or wide-ranging Notes, fewer only when the existing vocabulary genuinely has fewer that fit), while still refusing to pad with tags that do not clearly apply. Still constrained to your existing vocabulary.
+
+> **Why PATCH:** prompt calibration of the v6.37.0 suggester, no API/schema change.
+
+### Changed
+
+- **Suggester target count** ([inc/ai-tag-suggest.php](inc/ai-tag-suggest.php)): the system instruction now directs the model to choose the 3-4 most relevant existing tags (content-scaled), with an explicit no-padding guard so a thin match still returns only what genuinely applies.
+
 ## [6.37.0] - 2026-06-23 — AI tag suggestion + unused-tag cleanup
 
 **Headline:** Content > Tags gains two "tag hygiene" tools. An AI pass reads your untagged Notes and suggests relevant tags **chosen only from your existing vocabulary** (it never invents new tags, so it can't re-create the near-dupes the merge tool fixes); you review the suggestions as checkboxes and apply the ones you want. And an "Unused tags" section deletes `post_tag` terms that have zero posts (the cleanup WordPress core has no bulk tool for). Both are human-in-loop and recorded to the tag-operations history.
