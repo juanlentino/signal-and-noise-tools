@@ -38,8 +38,11 @@ function sn_admin_render_tag_cleanup_section() {
 	// Read-only GET preview -> confirm panel (no mutation).
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview render, no state change.
 	if ( ! empty( $_GET['sn_tag_preview'] ) ) {
+		// sn_tag_from arrives as an array (the cluster checkboxes + manual picker use
+		// name="sn_tag_from[]"). Parse the array (absint each); a comma-string would
+		// collapse to empty under sanitize_text_field, which yielded "Nothing to merge".
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only.
-		$from = array_filter( array_map( 'intval', explode( ',', sanitize_text_field( wp_unslash( $_GET['sn_tag_from'] ?? '' ) ) ) ) );
+		$from = isset( $_GET['sn_tag_from'] ) ? array_filter( array_map( 'absint', (array) wp_unslash( $_GET['sn_tag_from'] ) ) ) : array();
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only.
 		$into = isset( $_GET['sn_tag_into'] ) ? (int) sanitize_text_field( wp_unslash( $_GET['sn_tag_into'] ) ) : 0;
 		$pv   = function_exists( 'sn_tag_merge_preview' ) ? sn_tag_merge_preview( $from, $into ) : null;
