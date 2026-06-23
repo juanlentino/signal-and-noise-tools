@@ -34,6 +34,20 @@ function get_terms( $a = array() ) { return $GLOBALS['__alltags']; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 class WP_Error {}
 
+// AI + cleanup seams.
+$GLOBALS['__ai']       = false;
+$GLOBALS['__transient'] = false;
+$GLOBALS['__untagged']  = array();
+$GLOBALS['__unused']    = array();
+function snt_ai_is_available() { return $GLOBALS['__ai']; }
+function get_transient( $k ) { return $GLOBALS['__transient']; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transient'] = $v; return true; }
+function delete_transient( $k ) { $GLOBALS['__transient'] = false; return true; }
+function get_current_user_id() { return 1; }
+function sn_tag_untagged_notes( $l = 20 ) { return $GLOBALS['__untagged']; }
+function sn_tag_find_unused() { return $GLOBALS['__unused']; }
+function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; }
+
 require __DIR__ . '/../inc/tag-consolidation-admin.php';
 
 // empty state
@@ -80,6 +94,30 @@ $GLOBALS['__cap'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'permission' ) !== false, 'render: cap gate blocks non-managers' );
 $GLOBALS['__cap'] = true;
+
+// --- AI section ---------------------------------------------------------------
+$GLOBALS['__clusters'] = array(); $GLOBALS['__hist'] = array();
+$GLOBALS['__ai'] = false;
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'Connect an AI provider' ) !== false, 'AI: dormant note when no provider configured' );
+
+$GLOBALS['__ai'] = true; $GLOBALS['__transient'] = false;
+$GLOBALS['__untagged'] = array( array( 'id' => 7, 'title' => 'Untagged Note' ) );
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'Suggest tags' ) !== false && strpos( $h, 'value="tag_ai_suggest"' ) !== false, 'AI: Suggest button when available + untagged Notes present' );
+
+$GLOBALS['__transient'] = array( array( 'post_id' => 7, 'title' => 'Untagged Note', 'suggested' => array( array( 'term_id' => 2, 'name' => 'Jazz', 'slug' => 'jazz' ) ) ) );
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'Untagged Note' ) !== false && strpos( $h, 'name="assign[7][]"' ) !== false && stripos( $h, 'Apply selected' ) !== false, 'AI: review form renders Note + suggested-tag checkbox + Apply' );
+$GLOBALS['__transient'] = false;
+
+// --- Unused section ------------------------------------------------------------
+$GLOBALS['__unused'] = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'Unused tags' ) !== false && strpos( $h, 'name="sn_tag_unused[]"' ) !== false && strpos( $h, 'value="tag_prune_unused"' ) !== false, 'Unused: lists count-0 tags + Delete control' );
+$GLOBALS['__unused'] = array();
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
