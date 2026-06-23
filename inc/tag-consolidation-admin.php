@@ -62,6 +62,8 @@ function sn_admin_render_tag_cleanup_section() {
 	}
 
 	sn_admin_tag_render_manual_picker();
+	sn_admin_tag_render_ai_section();
+	sn_admin_tag_render_unused_section();
 	sn_admin_tag_render_recent_merges();
 }
 
@@ -169,15 +171,92 @@ function sn_admin_tag_render_recent_merges() {
 	if ( ! is_array( $hist ) || ! $hist ) {
 		return;
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Recent merges', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside"><ul class="ul-disc">';
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Recent tag operations', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside"><ul class="ul-disc">';
 	foreach ( array_slice( $hist, 0, 10 ) as $h ) {
-		echo '<li>' . esc_html( sprintf(
-			/* translators: 1: source slugs, 2: canonical slug, 3: post count */
-			__( '%1$s into "%2$s" (%3$d posts)', 'signal-and-noise-tools' ),
-			implode( ', ', array_map( 'strval', (array) ( $h['from'] ?? array() ) ) ),
-			(string) ( $h['into'] ?? '' ),
-			(int) ( $h['posts'] ?? 0 )
-		) ) . '</li>';
+		$slugs = implode( ', ', array_map( 'strval', (array) ( $h['from'] ?? array() ) ) );
+		if ( 'prune' === ( $h['op'] ?? 'merge' ) ) {
+			$line = sprintf( /* translators: %s: deleted tag slugs */ __( 'deleted unused: %s', 'signal-and-noise-tools' ), $slugs );
+		} else {
+			$line = sprintf(
+				/* translators: 1: source slugs, 2: canonical slug, 3: post count */
+				__( '%1$s into "%2$s" (%3$d posts)', 'signal-and-noise-tools' ),
+				$slugs,
+				(string) ( $h['into'] ?? '' ),
+				(int) ( $h['posts'] ?? 0 )
+			);
+		}
+		echo '<li>' . esc_html( $line ) . '</li>';
 	}
 	echo '</ul></div></div>';
+}
+
+/**
+ * AI section: suggest existing tags for untagged Notes (Suggest -> review -> Apply).
+ * Dormant when no AI provider is configured.
+ *
+ * @return void
+ */
+function sn_admin_tag_render_ai_section() {
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'AI: suggest tags for untagged Notes', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+		echo '<p>' . esc_html__( 'Connect an AI provider (Settings > Connectors) to suggest tags.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		return;
+	}
+
+	$suggestions = function_exists( 'get_transient' ) ? get_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() ) : false;
+	if ( is_array( $suggestions ) && $suggestions ) {
+		echo '<p>' . esc_html__( 'Review the AI suggestions, then apply the ones you want. Suggestions are limited to your existing tags.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<input type="hidden" name="sn_action" value="tag_ai_apply">';
+		foreach ( $suggestions as $s ) {
+			$pid = (int) ( $s['post_id'] ?? 0 );
+			if ( ! $pid || empty( $s['suggested'] ) ) {
+				continue;
+			}
+			echo '<p><strong>' . esc_html( (string) ( $s['title'] ?? ( '#' . $pid ) ) ) . '</strong><br>';
+			foreach ( $s['suggested'] as $tag ) {
+				echo '<label style="margin-right:12px"><input type="checkbox" name="assign[' . esc_attr( $pid ) . '][]" value="' . esc_attr( (int) $tag['term_id'] ) . '" checked> ' . esc_html( (string) $tag['name'] ) . '</label>';
+			}
+			echo '</p>';
+		}
+		echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Apply selected', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '</form></div></div>';
+		return;
+	}
+
+	$untagged = function_exists( 'sn_tag_untagged_notes' ) ? sn_tag_untagged_notes( 20 ) : array();
+	if ( ! $untagged ) {
+		echo '<p>' . esc_html__( 'Every published Note has at least one tag. Nothing to suggest.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		return;
+	}
+	echo '<p>' . esc_html( sprintf( /* translators: %d: count */ _n( '%d untagged Note.', '%d untagged Notes.', count( $untagged ), 'signal-and-noise-tools' ), count( $untagged ) ) ) . ' '
+		. esc_html__( 'Runs on demand on your AI key; up to 20 per click.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="tag_ai_suggest">';
+	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Suggest tags', 'signal-and-noise-tools' ) . '</button>';
+	echo '</form></div></div>';
+}
+
+/**
+ * Unused-tag cleanup: list count-0 post_tag terms; delete the selected.
+ *
+ * @return void
+ */
+function sn_admin_tag_render_unused_section() {
+	$unused = function_exists( 'sn_tag_find_unused' ) ? sn_tag_find_unused() : array();
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Unused tags', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	if ( ! $unused ) {
+		echo '<p>' . esc_html__( 'No unused tags.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		return;
+	}
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '" onsubmit="return confirm(\'Delete the selected unused tags?\');">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="tag_prune_unused"><p>';
+	foreach ( $unused as $t ) {
+		echo '<label style="display:block"><input type="checkbox" name="sn_tag_unused[]" value="' . esc_attr( (int) $t['term_id'] ) . '" checked> <strong>' . esc_html( (string) $t['name'] ) . '</strong> <code>' . esc_html( (string) $t['slug'] ) . '</code></label>';
+	}
+	echo '</p><p><button type="submit" class="button button-secondary">' . esc_html__( 'Delete selected', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form></div></div>';
 }

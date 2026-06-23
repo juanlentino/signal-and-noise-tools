@@ -107,5 +107,24 @@ $bad = sn_tag_merge( array( 10, 999 ), 12 );
 ok( is_wp_error( $bad ) && empty( $GLOBALS['__setcalls'] ) && empty( $GLOBALS['__deleted'] ),
 	'merge: bad id aborts with WP_Error and zero mutation' );
 
+// --- unused tags -------------------------------------------------------------
+$GLOBALS['__terms'] = array(
+	10 => (object) array( 'term_id' => 10, 'name' => 'Used', 'slug' => 'used', 'count' => 3, 'taxonomy' => 'post_tag' ),
+	11 => (object) array( 'term_id' => 11, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0, 'taxonomy' => 'post_tag' ),
+	12 => (object) array( 'term_id' => 12, 'name' => 'AlsoEmpty', 'slug' => 'also-empty', 'count' => 0, 'taxonomy' => 'post_tag' ),
+);
+$un = sn_tag_find_unused();
+ok( count( $un ) === 2 && $un[0]['count'] === 0, 'unused: only count-0 terms (Empty + AlsoEmpty)' );
+
+$GLOBALS['__opts'] = array(); $GLOBALS['__deleted'] = array();
+$res = sn_tag_delete_unused( array( 11, 12 ) );
+ok( ! is_wp_error( $res ) && $res['count'] === 2 && in_array( 11, $GLOBALS['__deleted'], true ), 'unused: deletes both count-0 terms' );
+$hist = get_option( 'sn_tag_merge_history', array() );
+ok( count( $hist ) === 1 && ( $hist[0]['op'] ?? '' ) === 'prune', 'unused: records a prune history entry' );
+
+$GLOBALS['__deleted'] = array();
+$bad = sn_tag_delete_unused( array( 10 ) ); // count 3
+ok( is_wp_error( $bad ) && empty( $GLOBALS['__deleted'] ), 'unused: refuses a non-empty term (zero deletion)' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

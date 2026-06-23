@@ -290,7 +290,7 @@ function sn_tag_merge( array $from_ids, $into_id ) {
  * @param int    $posts     Posts moved.
  * @return void
  */
-function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts ) {
+function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts, $op = 'merge' ) {
 	$hist = get_option( SN_TAG_MERGE_HISTORY_OPT, array() );
 	if ( ! is_array( $hist ) ) {
 		$hist = array();
@@ -298,6 +298,7 @@ function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts ) {
 	array_unshift(
 		$hist,
 		array(
+			'op'    => (string) $op,
 			'from'  => array_values( array_map( 'strval', $old_slugs ) ),
 			'into'  => (string) $into_slug,
 			'posts' => (int) $posts,
@@ -309,4 +310,76 @@ function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts ) {
 		$hist = array_slice( $hist, 0, SN_TAG_MERGE_HISTORY_MAX );
 	}
 	update_option( SN_TAG_MERGE_HISTORY_OPT, $hist );
+}
+
+/**
+ * Published Notes (posts) carrying no post_tag, up to $limit. [{id,title}].
+ *
+ * @param int $limit Max posts.
+ * @return array
+ */
+function sn_tag_untagged_notes( $limit = 20 ) {
+	$posts = get_posts(
+		array(
+			'post_type'   => 'post',
+			'post_status' => 'publish',
+			'numberposts' => (int) $limit,
+			'tax_query'   => array( array( 'taxonomy' => 'post_tag', 'operator' => 'NOT EXISTS' ) ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- admin maintenance list, not a front-end query.
+		)
+	);
+	$out = array();
+	foreach ( (array) $posts as $p ) {
+		$out[] = array( 'id' => (int) $p->ID, 'title' => (string) get_the_title( $p->ID ) );
+	}
+	return $out;
+}
+
+/**
+ * post_tag terms with zero posts. [{term_id,name,slug,count}].
+ *
+ * @return array
+ */
+function sn_tag_find_unused() {
+	$terms = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+	$out   = array();
+	foreach ( (array) $terms as $t ) {
+		if ( 0 === (int) $t->count ) {
+			$out[] = array( 'term_id' => (int) $t->term_id, 'name' => (string) $t->name, 'slug' => (string) $t->slug, 'count' => 0 );
+		}
+	}
+	usort(
+		$out,
+		function ( $a, $b ) {
+			return strcmp( $a['name'], $b['name'] );
+		}
+	);
+	return $out;
+}
+
+/**
+ * Delete count-0 post_tag terms. Validates each is a real, EMPTY term first (a
+ * non-empty / unknown id aborts with WP_Error, zero deletion). Records a prune
+ * history entry.
+ *
+ * @param array $ids Term ids.
+ * @return array|WP_Error { deleted:[slugs], count:int }
+ */
+function sn_tag_delete_unused( array $ids ) {
+	$ids = array_values( array_unique( array_map( 'intval', $ids ) ) );
+	if ( ! $ids ) {
+		return new WP_Error( 'sn_tag_empty', __( 'No tags selected.', 'signal-and-noise-tools' ) );
+	}
+	$slugs = array();
+	foreach ( $ids as $id ) {
+		$t = get_term( $id, 'post_tag' );
+		if ( ! $t || is_wp_error( $t ) || ( isset( $t->taxonomy ) && 'post_tag' !== $t->taxonomy ) || 0 !== (int) $t->count ) {
+			return new WP_Error( 'sn_tag_not_unused', __( 'A selected tag is not an empty tag.', 'signal-and-noise-tools' ) );
+		}
+		$slugs[] = (string) $t->slug;
+	}
+	foreach ( $ids as $id ) {
+		wp_delete_term( $id, 'post_tag' );
+	}
+	sn_tag_merge_history_record( $slugs, '', 0, 'prune' );
+	return array( 'deleted' => $slugs, 'count' => count( $slugs ) );
 }

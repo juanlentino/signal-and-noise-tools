@@ -545,6 +545,68 @@ function sn_handle_tag_merge( $post ) {
 }
 
 /**
+ * Run the AI tag-suggestion pass over untagged Notes; store the results in a
+ * per-user transient for review. Returns a flash code.
+ *
+ * @param array $post Raw $_POST.
+ * @return string
+ */
+function sn_handle_tag_ai_suggest( $post ) {
+	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
+		return 'tag_ai_unavailable';
+	}
+	if ( ! function_exists( 'sn_tag_untagged_notes' ) || ! function_exists( 'snt_ai_tag_suggest_impl' ) ) {
+		return 'tag_ai_none';
+	}
+	$results = array();
+	foreach ( sn_tag_untagged_notes( 20 ) as $note ) {
+		$out = snt_ai_tag_suggest_impl( (int) $note['id'] );
+		if ( ! is_wp_error( $out ) && ! empty( $out['suggested'] ) ) {
+			$out['title'] = (string) $note['title'];
+			$results[]    = $out;
+		}
+	}
+	if ( ! $results ) {
+		return 'tag_ai_none';
+	}
+	set_transient( 'sn_tag_ai_suggestions_' . get_current_user_id(), $results, HOUR_IN_SECONDS );
+	return 'tag_ai_suggested';
+}
+
+/**
+ * Apply the AI tag suggestions the owner checked. Reads assign[post_id][] = term_id.
+ *
+ * @param array $post Raw $_POST.
+ * @return string
+ */
+function sn_handle_tag_ai_apply( $post ) {
+	$assign = isset( $post['assign'] ) && is_array( $post['assign'] ) ? wp_unslash( $post['assign'] ) : array();
+	foreach ( $assign as $pid => $term_ids ) {
+		$ids = array_filter( array_map( 'absint', (array) $term_ids ) );
+		if ( $ids ) {
+			wp_set_object_terms( (int) $pid, $ids, 'post_tag', true );
+		}
+	}
+	delete_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() );
+	return 'tag_ai_applied';
+}
+
+/**
+ * Delete the selected unused (count-0) tags. Reads sn_tag_unused[] = term_id.
+ *
+ * @param array $post Raw $_POST.
+ * @return string
+ */
+function sn_handle_tag_prune_unused( $post ) {
+	$ids = isset( $post['sn_tag_unused'] ) ? array_filter( array_map( 'absint', (array) wp_unslash( $post['sn_tag_unused'] ) ) ) : array();
+	if ( ! $ids || ! function_exists( 'sn_tag_delete_unused' ) ) {
+		return 'tag_prune_error';
+	}
+	$res = sn_tag_delete_unused( $ids );
+	return is_wp_error( $res ) ? 'tag_prune_error' : 'tag_pruned';
+}
+
+/**
  * v5.1.0: save the IndexNow enable toggle. Enabling mints a key on first use
  * (so /<key>.txt resolves immediately). The key lives in its own non-autoloaded
  * option; the toggle in sn_settings.indexnow.enabled.
