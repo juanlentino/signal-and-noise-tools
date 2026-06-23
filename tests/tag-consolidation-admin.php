@@ -18,6 +18,7 @@ function wp_nonce_field( $a = '', $n = '', $r = true, $e = true ) { $f = '<input
 function current_user_can( $c ) { return $GLOBALS['__cap'] ?? true; }
 function wp_unslash( $s ) { return $s; }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
+function absint( $n ) { return abs( (int) $n ); }
 
 // Logic seams the admin calls.
 $GLOBALS['__clusters'] = array();
@@ -25,7 +26,9 @@ $GLOBALS['__preview']  = null;
 $GLOBALS['__hist']     = array();
 $GLOBALS['__alltags']  = array();
 function sn_tag_find_duplicate_clusters() { return $GLOBALS['__clusters']; }
-function sn_tag_merge_preview( $f, $i ) { return $GLOBALS['__preview']; }
+// Input-aware: mirrors the real validate (empty/invalid $from -> WP_Error), so the
+// render's $_GET parse is actually exercised (a blind stub hid the array-vs-string bug).
+function sn_tag_merge_preview( $f, $i ) { return ( is_array( $f ) && $f && $i ) ? $GLOBALS['__preview'] : new WP_Error(); }
 function get_option( $k, $d = false ) { return $k === 'sn_tag_merge_history' ? $GLOBALS['__hist'] : $d; }
 function get_terms( $a = array() ) { return $GLOBALS['__alltags']; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
@@ -55,13 +58,16 @@ ok( strpos( $h, 'postbox' ) !== false, 'render: uses native postbox chrome' );
 ok( strpos( $h, 'Preview merge' ) !== false, 'render: a Preview merge control per cluster' );
 
 // GET preview -> confirm panel (no mutation; reads $_GET)
-$_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = '10,11'; $_GET['sn_tag_into'] = '12';
+// The cluster card + manual picker submit sn_tag_from as an ARRAY (name="sn_tag_from[]"),
+// NOT a comma string. The render must parse that array shape.
+$_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10', '11' ); $_GET['sn_tag_into'] = '12';
 $GLOBALS['__preview'] = array( 'from' => array( array( 'id' => 10, 'name' => 'AI-Generated Music', 'slug' => 'ai-generated-music', 'count' => 5 ), array( 'id' => 11, 'name' => 'AI Generated Music', 'slug' => 'ai-generated-music-2', 'count' => 2 ) ), 'into' => array( 'id' => 12, 'name' => 'Music', 'slug' => 'music' ), 'posts_affected' => 3 );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, '3' ) !== false && stripos( $h, 'Confirm merge' ) !== false, 'preview: confirm panel shows affected count + Confirm merge button' );
+ok( strpos( $h, '3' ) !== false && stripos( $h, 'Confirm merge' ) !== false, 'preview: array sn_tag_from[] parses -> confirm panel shows count + Confirm merge (regression: was "Nothing to merge")' );
 ok( strpos( $h, 'value="tag_merge"' ) !== false && strpos( $h, 'sn_action' ) !== false, 'preview: confirm posts the tag_merge action through the dispatcher' );
 ok( strpos( $h, '_wpnonce' ) !== false, 'preview: confirm form carries a nonce' );
 ok( strpos( $h, 'page=sn-content' ) !== false && strpos( $h, 'tab=content' ) !== false, 'preview: confirm form posts back to the sn-content page (dispatcher contract)' );
+ok( strpos( $h, 'name="sn_tag_from" value="10,11"' ) !== false, 'preview: confirm hidden field round-trips the ids as a comma string for the POST handler' );
 unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
 
 // recent merges
