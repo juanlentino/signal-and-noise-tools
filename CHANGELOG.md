@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.39.0] - 2026-06-23 — Posts: a per-Note lifecycle analytics view
+
+**Headline:** A new **Posts** tab in the Analytics dashboard, built around the one axis no other view covers: each post over its own lifetime, compared to your other posts. It answers "did my latest Note land?" with an **age-aligned** verdict (its views-at-current-age vs the median of your last ~10 Notes *at the same age*), a lifecycle trajectory drawn against that median band, a catalog leaderboard (lifetime views + views-per-day-of-life + a hit/median/dud shape), launch velocity, and an evergreen-vs-spike breakdown. Deliberately **non-overlapping**: it does not re-slice referrers (Content), countries (Geography), devices (Technology) or engagement (Engagement) for a single post — those stay where they live. Every figure reads from the durable per-path rollup (no Analytics Engine, no sampling).
+
+> **Why MINOR:** new user-visible capability (a whole analytics view). Additive: no removed or renamed API, no settings-schema change. The view degrades gracefully (per-post "no data yet", never a divide-by-zero) and is dormant until analytics is configured and posts have rollup data.
+
+### New
+
+- **Posts lifecycle view** ([inc/analytics-posts.php](inc/analytics-posts.php) + [inc/analytics-posts-admin.php](inc/analytics-posts-admin.php)): registered as `?sn_view=posts` ("Posts", after Content). Data layer adds two `WHERE path = %s` durable-rollup accessors (`sn_analytics_path_daily_series`, `sn_analytics_path_lifetime`) plus the pure age-alignment math (cumulative-by-day-of-life, cohort median baseline, launch velocity, evergreen/spike decay, rank) and a transient-cached bundle. Render reuses the native vocabulary 1:1 — the hero clones the `.sn-kpi` cards, the trajectory reuses `snt_analytics_smooth_path` (subject line + baseline band), the leaderboard reuses the `.wp-list-table` chrome, velocity/decay reuse `snt_analytics_render_distribution`. No new CSS vocabulary.
+
+### Changed
+
+- **Analytics view registry** ([inc/analytics-admin.php](inc/analytics-admin.php)): `SN_ANALYTICS_VIEWS` gains `posts => Posts`; a `case 'posts'` renders the view. Not added to `SN_ANALYTICS_OWNS_CHROME`, so the shared controls/class-pills/Overview/tabs render above it like every other view.
+- **Lint scope** ([phpcs.xml.dist](phpcs.xml.dist)): `inc/analytics-posts.php` joins the custom-table files scoped-excluded from `WordPress.DB.PreparedSQL` (the accepted `$wpdb->prefix . CONST` table-name pattern; values stay prepared). Exclusion is sniff-scoped — security sniffs (EscapeOutput, etc.) remain active and were falsified.
+
 ## [6.38.0] - 2026-06-23 — Dashboard widget polish: trend deltas + login-defense styling
 
 **Headline:** The "Analytics — Overview" dashboard widget now shows **week-over-week direction** next to each trended KPI (Views, Visits, Avg scroll, Avg time, Engaged): a small ▲/▼ badge with the signed percent, reusing the comparison the Analytics page already computes, so the box answers "up or down this week?" at a glance instead of showing six context-free numbers. Separately, the **Login defense** widget, which had shipped unstyled (a bare bulleted list beside the two polished analytics widgets), now reuses the same `.sn-aw-*` visual vocabulary so the three Dashboard boxes read as one design system.

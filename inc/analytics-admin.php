@@ -49,6 +49,7 @@ function snt_analytics_resolve_class( $raw ) {
 // (controls + delta cards + trend) is persistent above the tabs.
 const SN_ANALYTICS_VIEWS = array(
 	'content'    => 'Content',
+	'posts'      => 'Posts',
 	'technology' => 'Technology',
 	'geography'  => 'Geography',
 	'engagement' => 'Engagement',
@@ -360,6 +361,12 @@ function snt_analytics_render_dashboard() {
 	}
 
 	switch ( $view ) {
+		case 'posts':
+			// Post-lifecycle view: hero + trajectory + catalog + velocity/decay.
+			// Manages its own layout (hero/trajectory full-width, then a grid).
+			snt_analytics_render_posts_view( sn_analytics_posts_bundle() );
+			break;
+
 		case 'technology':
 			echo '<div class="sn-an-grid">';
 			$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
