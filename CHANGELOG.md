@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.37.0] - 2026-06-23 — AI tag suggestion + unused-tag cleanup
+
+**Headline:** Content > Tags gains two "tag hygiene" tools. An AI pass reads your untagged Notes and suggests relevant tags **chosen only from your existing vocabulary** (it never invents new tags, so it can't re-create the near-dupes the merge tool fixes); you review the suggestions as checkboxes and apply the ones you want. And an "Unused tags" section deletes `post_tag` terms that have zero posts (the cleanup WordPress core has no bulk tool for). Both are human-in-loop and recorded to the tag-operations history.
+
+> **Why MINOR:** new user-visible capability (AI tag suggestion + unused-tag cleanup) + two new Abilities. Additive — no removed/renamed API, no settings-schema migration (the suggestions transient is ephemeral; reuses `sn_tag_merge_history`). The AI half is dormant until an AI provider is configured.
+
+### New
+
+- **AI tag suggestion** ([inc/ai-tag-suggest.php](inc/ai-tag-suggest.php)): `snt_ai_tag_suggest_impl()` prompts the AI with a Note's content + your existing tag list and constrains the result **twice** (the prompt forbids inventing tags, and the parser drops any returned name that does not match a real term via `sn_tag_normalize_key`). On-demand only, bounded to 20 untagged Notes per click, runs on your AI key. Wraps the shared `snt_ai_generate_with_constraints` helper; dormant when no provider is configured.
+- **Content > Tags AI + cleanup sections** ([inc/tag-consolidation-admin.php](inc/tag-consolidation-admin.php)): a "Suggest tags for untagged Notes" pass (Suggest → review → Apply, stored in a 1h transient) and an "Unused tags" delete list. Commits through the existing admin-post dispatcher.
+- **Unused-tag cleanup** ([inc/tag-consolidation.php](inc/tag-consolidation.php)): `sn_tag_find_unused()` / `sn_tag_delete_unused()` (refuses to delete a tag with posts; records a prune entry). The Recent-merges panel becomes "Recent tag operations" (merge + prune).
+- **`signal-noise/suggest-tags`** (readonly) + **`signal-noise/prune-unused-tags`** (destructive) Abilities ([inc/abilities-content.php](inc/abilities-content.php)).
+
 ## [6.36.1] - 2026-06-22 — Fix: tag-merge preview "Nothing to merge"
 
 **Headline:** Clicking "Preview merge" on a duplicate-tag cluster reported "Nothing to merge (the selected tags are no longer valid)" even for valid tags. The cluster checkboxes and the manual picker submit the source tags as an array (`name="sn_tag_from[]"`), but the preview reader parsed that value as a comma-separated string — and `sanitize_text_field()` on an array returns an empty string, collapsing the selection to nothing. The reader now parses the array. v6.36.0 shipped the feature unusable for this path; this restores it.
