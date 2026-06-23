@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.39.2] - 2026-06-23 — Non-AI abilities: run-path verb accuracy + dismiss permission parity
+
+**Headline:** The companion audit to v6.39.1, covering the 29 non-AI abilities (system / cron / audit / content / block-migrations / pattern-adoption / analytics) and their parallel REST + admin-post surfaces. The surface is **uniformly permission-gated and fail-closed by construction** — every ability and all 36 REST routes carry a real `permission_callback`, there is no `__return_true`, and the Abilities API throws at registration if a callback is missing; every `edit_post` ability reads the same `post_id` its permission helper checks (no IDOR); the destructive impls enforce their advertised guards (cron `sn_*` refusal, `has_action` preflight, defense-in-depth cap re-checks); and the CSV export already neutralizes formula injection. **No security issues found.** Two annotation gaps and one cross-surface permission inconsistency remained — corrected here. New `tests/non-ai-abilities-contract.php` (12 assertions); full sweep 148 suites / 4150 assertions green; phpcs clean (security sniffs falsified).
+
+> **Why PATCH:** corrections to existing ability metadata plus one permission-callback parity fix. No new capability, no API removal, no schema migration. The dismiss permission change relaxes nothing a caller relied on — it aligns the ability with its already-shipped REST twin and only ever acts on posts the caller can already edit.
+
+### Fixed
+
+- **Five read-only abilities now declare `readonly => true`** ([inc/abilities-audit.php](inc/abilities-audit.php), [inc/abilities-analytics.php](inc/abilities-analytics.php)): `get-audit-summary`, `get-audit-counters`, `get-audit-login-successes`, `get-analytics-events`, and `get-analytics-summary` were annotated `destructive => false` instead of `readonly => true` despite being pure reads (verified — their impls contain no writes). The Abilities-API run controller derives the required HTTP verb from these annotations (`readonly` → GET, `destructive && idempotent` → DELETE, else POST), so the omission forced these reads onto POST and 405'd the semantically-correct GET — inconsistent with their siblings `export-audit-log` / `get-deploy-status` / `get-rss-stats` / `list-*`, which correctly map to GET. Same class as the v6.39.1 corrections.
+- **`block-migrations-suggest` now declares `readonly => true`** ([inc/abilities-block-migrations.php](inc/abilities-block-migrations.php)): its description states "Does NOT write" (verified), but the annotation omitted `readonly`, forcing it onto POST. Its sibling `block-migrations-scan` correctly stays non-readonly because it caches a per-user transient.
+
+### Changed
+
+- **`pattern-adoption-dismiss` ability gates per-resource `edit_post`** ([inc/abilities-pattern-adoption.php](inc/abilities-pattern-adoption.php)): it was `manage_options` (admin-only) while its REST twin `/health/pattern-adoption-dismiss` and its structural sibling `block-migrations-dismiss` both gate `edit_post` on the target `post_id`. The execute callback already reads `$input['post_id']` (the exact field the `edit_post` helper checks), so this aligns all three surfaces with no privilege escalation — an editor who can edit a post can dismiss its candidates via the ability, matching the REST route they could already reach.
+
 ## [6.39.1] - 2026-06-23 — AI abilities: contract accuracy + ai/ai coexistence policy
 
 **Headline:** An audit of the AI-powered abilities found the surface healthy (no security issues; the `method_exists`→`is_callable` fix is intact and regression-tested), but several **Abilities-API annotations lied about runtime behavior** — which misleads an autonomous agent/MCP caller. This corrects them, drops a dead input, completes a schema, and documents the deliberate coexistence with the official `ai/ai` plugin.

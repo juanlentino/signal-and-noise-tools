@@ -57,7 +57,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Dismiss a pattern-adoption candidate',
 		'description'         => 'Marks a scanned candidate as dismissed by appending its `pattern_type:block_fingerprint` key to the target post\'s `_snt_pattern_adoption_dismissed` meta — the same store the scanner filters against — so it doesn\'t reappear on subsequent scans. Idempotent — dismissing the same candidate twice is a no-op.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_pattern_adoption_dismiss',
 		'input_schema'        => array(
 			'type'                 => 'object',
