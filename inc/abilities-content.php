@@ -161,6 +161,59 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/suggest-tags', array(
+		'label'               => 'Suggest tags for a post',
+		'description'         => 'Reads a post and suggests relevant tags chosen ONLY from the existing post_tag vocabulary (never invents tags). Read-only: returns suggestions to apply, does not assign anything.',
+		'category'            => 'content',
+		'permission_callback' => 'snt_ability_perm_edit_post',
+		'execute_callback'    => 'snt_ability_suggest_tags',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id' ),
+			'properties'           => array(
+				'post_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'The post to suggest tags for.' ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'        => array( 'type' => 'boolean' ),
+				'post_id'   => array( 'type' => 'integer' ),
+				'suggested' => array( 'type' => 'array' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => true ),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/prune-unused-tags', array(
+		'label'               => 'Delete unused (zero-post) tags',
+		'description'         => 'Deletes every post_tag term that has zero posts. Destructive. Use to clear tag cruft after merges/imports.',
+		'category'            => 'content',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_prune_unused_tags',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'deleted' => array( 'type' => 'array' ),
+				'count'   => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'destructive' => true, 'idempotent' => false ),
+		),
+	) );
 } );
 
 /**
@@ -233,4 +286,38 @@ function snt_ability_merge_tags( $input ) {
 		return array( 'ok' => false, 'posts_moved' => 0, 'into_slug' => $into_slug, 'message' => $res->get_error_message() );
 	}
 	return array( 'ok' => true, 'posts_moved' => (int) $res['posts_moved'], 'into_slug' => (string) $res['into_slug'], 'message' => 'Merged.' );
+}
+
+/**
+ * Ability execute: suggest existing tags for a post.
+ *
+ * @param array $input { post_id:int }.
+ * @return array|WP_Error
+ */
+function snt_ability_suggest_tags( $input ) {
+	$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+	if ( ! $post_id || ! function_exists( 'snt_ai_tag_suggest_impl' ) ) {
+		return new WP_Error( 'snt_tag_suggest_unavailable', 'Tag suggestion is unavailable.', array( 'status' => 400 ) );
+	}
+	return snt_ai_tag_suggest_impl( $post_id );
+}
+
+/**
+ * Ability execute: delete all zero-post tags.
+ *
+ * @return array|WP_Error
+ */
+function snt_ability_prune_unused_tags() {
+	if ( ! function_exists( 'sn_tag_find_unused' ) || ! function_exists( 'sn_tag_delete_unused' ) ) {
+		return new WP_Error( 'snt_tag_prune_unavailable', 'Tag pruning is unavailable.', array( 'status' => 500 ) );
+	}
+	$ids = array_map( function ( $r ) { return (int) $r['term_id']; }, sn_tag_find_unused() );
+	if ( ! $ids ) {
+		return array( 'ok' => true, 'deleted' => array(), 'count' => 0 );
+	}
+	$res = sn_tag_delete_unused( $ids );
+	if ( is_wp_error( $res ) ) {
+		return $res;
+	}
+	return array( 'ok' => true, 'deleted' => $res['deleted'], 'count' => $res['count'] );
 }
