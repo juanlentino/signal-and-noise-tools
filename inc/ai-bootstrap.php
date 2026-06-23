@@ -82,25 +82,77 @@ define( 'SN_AI_USAGE_LOG_CAP', 200 );
  * @return bool
  */
 function snt_ai_can_text_generate() {
+	$cache = &snt_ai_availability_cache();
+	if ( null !== $cache ) {
+		return $cache;
+	}
+
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-		return false;
+		$cache = false;
+		return $cache;
 	}
 
 	try {
 		$builder = wp_ai_client_prompt( 'check' );
 		if ( ! is_object( $builder ) ) {
-			return false;
+			$cache = false;
+			return $cache;
 		}
-		return (bool) $builder->is_supported_for_text_generation();
+		$cache = (bool) $builder->is_supported_for_text_generation();
+		return $cache;
 	} catch ( \Throwable $e ) {
 		// v3.7.6: server-log surfacing per v3.7.1 lesson. The bug-of-record
 		// for SN AI features (6 months of silently no-op'ing in v2.5.0–v3.7.0)
 		// was a silent guard. Even though this catch returns false correctly
 		// from the v3.7.1 fix, runtime exceptions deserve a log trail so future
 		// regressions surface in PHP error log instead of vanishing.
+		//
+		// v6.39.2: caching the false below means this catch (and its error_log)
+		// fires AT MOST ONCE per request even on a persistently broken provider,
+		// where pre-cache it spammed the log on all 15-23 admin call sites.
 		error_log( 'snt_ai_can_text_generate exception: ' . $e->getMessage() );
-		return false;
+		$cache = false;
+		return $cache;
 	}
+}
+
+/**
+ * Request-static storage for the AI availability check (v6.39.2 PERF).
+ *
+ * Returned BY REFERENCE so both snt_ai_can_text_generate() (which writes the
+ * memoized bool) and snt_ai_reset_availability_cache() (which clears it) share
+ * one slot without a global. `null` = not yet derived; `true`/`false` = derived.
+ *
+ * Availability is genuinely request-stable in production (provider/connector
+ * config does not change inside a single PHP request), so a parameterless
+ * request-static is correct. The only reason it needs a reset at all is the
+ * standalone test harness, which toggles provider state between assertion
+ * blocks in one process — see tests/ai-bootstrap.php::fixture_reset().
+ *
+ * @return bool|null Reference to the cache slot.
+ *
+ * @since 6.39.2
+ */
+function &snt_ai_availability_cache() {
+	static $cache = null;
+	return $cache;
+}
+
+/**
+ * Clear the request-static AI availability cache, forcing the next
+ * snt_ai_can_text_generate() call to re-derive from the provider.
+ *
+ * Production has no need to call this (availability is request-stable). It
+ * exists for the test harness, and as an escape hatch if a future feature
+ * legitimately changes provider config mid-request (it would call this after).
+ *
+ * @return void
+ *
+ * @since 6.39.2
+ */
+function snt_ai_reset_availability_cache() {
+	$cache = &snt_ai_availability_cache();
+	$cache = null;
 }
 
 /**
@@ -280,9 +332,14 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
  * Reads the TokenUsage DTO off the GenerativeAiResult — the metadata that
  * the prior ->generate_text() path discarded inside the SDK. Every accessor
  * is is_callable()-guarded so a provider/connector that doesn't populate
- * usage degrades to a no-op rather than fataling. `model` is the requested
- * preference string (accurate for cost attribution and avoids depending on
- * the unverified ModelMetadata accessor).
+ * usage degrades to a no-op rather than fataling.
+ *
+ * Two model fields are stored: `model` is the requested preference string
+ * (kept as the cost-summary key for backward-compat), and `served_model`
+ * (v6.39.2) is the model the provider ACTUALLY served — read via the now-
+ * verified GenerativeAiResult::getModelMetadata()->getId() accessor — so
+ * attribution survives a provider substituting a model. `served_model`
+ * degrades to '' when the accessor is absent.
  *
  * @param string $feature Feature label (e.g. 'insights', 'insights_narration').
  * @param string $model   Requested model preference string.
@@ -304,17 +361,34 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 	$completion_t = is_callable( array( $usage, 'getCompletionTokens' ) ) ? (int) $usage->getCompletionTokens() : 0;
 	$total_t      = is_callable( array( $usage, 'getTotalTokens' ) ) ? (int) $usage->getTotalTokens() : ( $prompt_t + $completion_t );
 
+	// v6.39.2: also record the model the provider ACTUALLY served, so cost
+	// attribution survives a provider substituting a different model than the
+	// pinned `$model` preference (e.g. Sonnet requested, a fallback served). The
+	// requested `model` field stays as-is for backward-compat with the usage
+	// summary; `served_model` is additive. Every hop is is_callable-guarded —
+	// an older SDK / a provider that doesn't populate ModelMetadata degrades to
+	// '' rather than fataling. Accessor verified against php-ai-client trunk:
+	// GenerativeAiResult::getModelMetadata(): ModelMetadata → getId(): string.
+	$served_model = '';
+	if ( is_callable( array( $result, 'getModelMetadata' ) ) ) {
+		$meta = $result->getModelMetadata();
+		if ( is_object( $meta ) && is_callable( array( $meta, 'getId' ) ) ) {
+			$served_model = (string) $meta->getId();
+		}
+	}
+
 	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
 	if ( ! is_array( $log ) ) {
 		$log = array();
 	}
 	$log[] = array(
-		'ts'         => time(),
-		'feature'    => (string) $feature,
-		'model'      => (string) $model,
-		'prompt'     => $prompt_t,
-		'completion' => $completion_t,
-		'total'      => $total_t,
+		'ts'           => time(),
+		'feature'      => (string) $feature,
+		'model'        => (string) $model,
+		'served_model' => $served_model,
+		'prompt'       => $prompt_t,
+		'completion'   => $completion_t,
+		'total'        => $total_t,
 	);
 	if ( count( $log ) > SN_AI_USAGE_LOG_CAP ) {
 		$log = array_slice( $log, -SN_AI_USAGE_LOG_CAP );
@@ -372,9 +446,18 @@ function snt_ai_usage_summary( $days = 30 ) {
  * tag suggestion tasks — quality plateaus well before context-window
  * limits, but token cost scales linearly.
  *
+ * SECURITY: the returned text is UNTRUSTED. It is author-supplied post body
+ * content that becomes the user-content half of an AI prompt — a post could
+ * embed prompt-injection text ("ignore your instructions and …"). This helper
+ * only strips markup/shortcodes for token economy; it does NOT neutralize
+ * injection. Containment is the CALLER's responsibility, via a system_instruction
+ * that frames this as data, not commands (see snt_insights_system_instruction()
+ * for the pattern: an explicit untrusted-DATA delimiter the model is told never
+ * to obey). Treat any string from here as you would any external input.
+ *
  * @param int $post_id  Post ID.
  * @param int $words    Word cap. Default 1000.
- * @return string       Plain-text excerpt, trimmed.
+ * @return string       Plain-text excerpt, trimmed (UNTRUSTED — see note above).
  */
 function snt_ai_extract_post_text( $post_id, $words = 1000 ) {
 	$post = get_post( (int) $post_id );

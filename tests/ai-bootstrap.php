@@ -114,12 +114,20 @@ $GLOBALS['__test_ai_builder_supports_text']      = true;
 $GLOBALS['__test_ai_builder_generate_returns']   = 'mock response';
 $GLOBALS['__test_ai_builder_returns_non_object'] = false;
 $GLOBALS['__test_ai_builder_recorded_calls']     = array();
+// v6.39.2: count builder constructions so the memoization tests can assert
+// that snt_ai_can_text_generate() rebuilds the wp_ai_client_prompt('check')
+// builder (and re-runs the support check / error_log) at most ONCE per request.
+$GLOBALS['__test_ai_builder_construct_count']     = 0;
 // v6.29.0: TokenUsage the mock result reports via getTokenUsage().
 $GLOBALS['__test_ai_result_usage'] = array(
 	'prompt'     => 120,
 	'completion' => 40,
 	'total'      => 160,
 );
+// v6.39.2: the served model id the result reports via getModelMetadata()->getId().
+// Defaults to the requested pin; tests set it to a DIFFERENT id to simulate the
+// provider substituting a model (the case cost-attribution needs to survive).
+$GLOBALS['__test_ai_served_model'] = 'claude-sonnet-4-6';
 
 /**
  * Mock TokenUsage DTO — mirrors wp-ai-client's TokenUsage accessors
@@ -142,17 +150,45 @@ class TestTokenUsage {
 }
 
 /**
+ * Mock ModelMetadata DTO — mirrors php-ai-client's
+ * Providers\Models\DTO\ModelMetadata::getId(): string (verified against
+ * WordPress/php-ai-client trunk), the served-model accessor that
+ * snt_ai_record_usage() reads for cost attribution under provider
+ * model substitution.
+ */
+class TestModelMetadata {
+	private $id;
+	public function __construct( $id ) { $this->id = (string) $id; }
+	public function getId() { return $this->id; }
+}
+
+/**
  * Mock GenerativeAiResult — what generate_text_result() returns. Carries the
- * body (toText) + usage (getTokenUsage), the two accessors the wrapper reads.
+ * body (toText), usage (getTokenUsage), and served-model (getModelMetadata),
+ * the three accessors the wrapper reads.
  */
 class TestAiResult {
 	private $text;
 	private $usage;
-	public function __construct( $text, $usage ) {
-		$this->text  = (string) $text;
-		$this->usage = $usage;
+	private $served_model;
+	public function __construct( $text, $usage, $served_model = '' ) {
+		$this->text         = (string) $text;
+		$this->usage        = $usage;
+		$this->served_model = (string) $served_model;
 	}
 	public function toText()        { return $this->text; }
+	public function getTokenUsage() { return $this->usage; }
+	public function getModelMetadata() { return new TestModelMetadata( $this->served_model ); }
+}
+
+/**
+ * Mock result that lacks getModelMetadata() — models an older SDK / a provider
+ * that doesn't populate model metadata. snt_ai_record_usage() must degrade to
+ * an empty served_model rather than fatal (is_callable guard).
+ */
+class TestAiResultNoModelMeta {
+	private $usage;
+	public function __construct( $usage ) { $this->usage = $usage; }
 	public function getTokenUsage() { return $this->usage; }
 }
 
@@ -170,6 +206,7 @@ class TestAiResult {
  */
 class TestAiBuilder {
 	public function __construct() {
+		++$GLOBALS['__test_ai_builder_construct_count'];
 		if ( ! empty( $GLOBALS['__test_ai_builder_throws_on_construct'] ) ) {
 			throw new \RuntimeException( 'fixture: construct throws' );
 		}
@@ -206,7 +243,7 @@ class TestAiBuilder {
 			$usage = is_array( $u )
 				? new TestTokenUsage( $u['prompt'] ?? 0, $u['completion'] ?? 0, $u['total'] ?? 0 )
 				: null;
-			return new TestAiResult( (string) $ret, $usage );
+			return new TestAiResult( (string) $ret, $usage, (string) ( $GLOBALS['__test_ai_served_model'] ?? '' ) );
 		}
 		// Fluent chain — return self so using_*() calls compose.
 		return $this;
@@ -271,12 +308,21 @@ function fixture_reset() {
 	$GLOBALS['__test_ai_builder_generate_returns']   = 'mock response';
 	$GLOBALS['__test_ai_builder_returns_non_object'] = false;
 	$GLOBALS['__test_ai_builder_recorded_calls']     = array();
+	$GLOBALS['__test_ai_builder_construct_count']     = 0;
 	$GLOBALS['__test_filters']                       = array();
+	// v6.39.2: clear the request-static availability cache between blocks, or the
+	// first block's memoized result would poison every later toggle of
+	// __test_ai_builder_supports_text. function_exists guard lets the RED run
+	// (before the reset helper is implemented) still complete + emit a summary.
+	if ( function_exists( 'snt_ai_reset_availability_cache' ) ) {
+		snt_ai_reset_availability_cache();
+	}
 	$GLOBALS['__test_ai_result_usage']               = array(
 		'prompt'     => 120,
 		'completion' => 40,
 		'total'      => 160,
 	);
+	$GLOBALS['__test_ai_served_model'] = 'claude-sonnet-4-6';
 	$GLOBALS['__test_options'] = array();
 }
 
@@ -615,6 +661,72 @@ $GLOBALS['__test_ai_builder_generate_returns'] = 'one more';
 snt_ai_generate_with_constraints( 'p', 's', 64, 'f' );
 $log = get_option( SN_AI_USAGE_LOG_OPT, array() );
 hc_eq( SN_AI_USAGE_LOG_CAP, count( $log ), 'log capped at SN_AI_USAGE_LOG_CAP after append' );
+
+// ─── Test 22: availability is memoized within a request (v6.39.2 PERF) ─
+//
+// snt_ai_can_text_generate() runs on 15-23 admin call sites per page load.
+// Pre-v6.39.2 each call rebuilt a wp_ai_client_prompt('check') builder and
+// re-ran the support check. Memoizing collapses that to one build per request.
+// We prove it by counting builder constructions across two calls.
+echo "\nTest 22: snt_ai_can_text_generate memoizes within a request\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text'] = true;
+hc_eq( true, snt_ai_can_text_generate(), 'first call returns true' );
+hc_eq( true, snt_ai_can_text_generate(), 'second call returns true (from cache)' );
+hc_eq( 1, $GLOBALS['__test_ai_builder_construct_count'],
+	'builder constructed exactly once across two calls (memoized, not re-derived)' );
+
+// ─── Test 23: snt_ai_reset_availability_cache forces a fresh re-check ──
+//
+// The cache is request-static; only an explicit reset re-derives it. The
+// test harness depends on this to toggle provider state between blocks.
+echo "\nTest 23: snt_ai_reset_availability_cache re-derives the value\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text'] = true;
+hc_eq( true, snt_ai_can_text_generate(), 'cached true on first derive' );
+$GLOBALS['__test_ai_builder_supports_text'] = false; // provider drops mid-request (only reachable in test)
+hc_eq( true, snt_ai_can_text_generate(), 'still true — value is memoized, not re-derived' );
+snt_ai_reset_availability_cache();
+hc_eq( false, snt_ai_can_text_generate(), 'after reset, re-derives to false' );
+
+// ─── Test 24: catch path runs once → error_log fires at most once ─────
+//
+// When the support check throws, the catch logs once and caches false.
+// Subsequent calls return the cached false WITHOUT re-entering the try (so
+// no error_log spam on a broken provider). construct_count is the proxy:
+// one construction = one catch = at most one error_log.
+echo "\nTest 24: broken-provider catch path runs once (no error_log spam)\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_throws_on_method'] = 'is_supported_for_text_generation';
+hc_eq( false, snt_ai_can_text_generate(), 'support-check throw → false' );
+hc_eq( false, snt_ai_can_text_generate(), 'second call still false (cached, no re-throw)' );
+hc_eq( 1, $GLOBALS['__test_ai_builder_construct_count'],
+	'builder constructed once → catch + error_log ran at most once per request' );
+
+// ─── Test 25: served model recorded; requested pin preserved (v6.39.2) ─
+//
+// Cost attribution must survive a provider substituting a different model
+// than the pinned preference. We record BOTH: 'model' (requested) stays the
+// pin for backward-compat with snt_ai_usage_summary; 'served_model' carries
+// what the provider actually billed (getModelMetadata()->getId()).
+echo "\nTest 25: snt_ai_record_usage records served model under substitution\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text'] = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = 'body';
+$GLOBALS['__test_ai_served_model'] = 'claude-haiku-4-5'; // provider served Haiku despite the Sonnet pin
+snt_ai_generate_with_constraints( 'p', 's', 256, 'tag_suggest' );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 'claude-sonnet-4-6', $log[0]['model'] ?? null, 'requested model pin preserved in model field' );
+hc_eq( 'claude-haiku-4-5', $log[0]['served_model'] ?? null, 'served model recorded from getModelMetadata()->getId()' );
+
+// ─── Test 26: served-model accessor missing → degrades, no fatal ──────
+echo "\nTest 26: snt_ai_record_usage degrades when getModelMetadata is absent\n";
+fixture_reset();
+$res_no_meta = new TestAiResultNoModelMeta( new TestTokenUsage( 10, 5, 15 ) );
+snt_ai_record_usage( 'generic', 'claude-sonnet-4-6', $res_no_meta );
+$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+hc_eq( 1, count( $log ), 'usage still recorded when model metadata is unavailable' );
+hc_eq( '', $log[0]['served_model'] ?? null, 'served_model degrades to empty string (is_callable guard)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
