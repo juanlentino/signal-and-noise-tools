@@ -34,6 +34,11 @@ function sn_release_notes_result_key() {
  * @since 4.11.0
  */
 function sn_admin_render_release_notes_section() {
+	// v6.39.2: gate the drafter on AI availability, mirroring Insights' Run
+	// Analysis button — a click with no provider configured would POST a request
+	// that just errors. Disable the button + explain the setup instead.
+	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
+
 	$stash  = get_transient( sn_release_notes_result_key() );
 	$result = '';
 	$error  = '';
@@ -59,8 +64,12 @@ function sn_admin_render_release_notes_section() {
 	echo '<p class="sn-field-helper">Don\'t worry about formatting — paste your CHANGELOG bullets or a quick brain-dump. Anything over ~4,000 characters is trimmed before the call.</p>';
 	echo '</div>';
 
+	if ( ! $ai_ready ) {
+		echo '<p class="sn-field-helper sn-text--err"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
+	}
+
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" class="button button-primary">Draft release notes</button>';
+	echo '<button type="submit" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>Draft release notes</button>';
 	echo '</div>';
 
 	echo '</form>';

@@ -71,16 +71,48 @@ add_filter( 'sn_og_card_title', function( $default, $post_id ) {
 
 
 /**
- * Generate an OG card title via the WP AI Client + persist + regenerate card.
+ * USER-facing entry: generate an OG card title for a post the caller may edit.
  *
- * Pure function called by both the (@deprecated since 2.5.0) REST handler
- * AND the signal-noise/ai-generate-og-card-title ability execute callback.
+ * Called by the (@deprecated since 2.5.0) REST handler AND the
+ * signal-noise/ai-generate-og-card-title ability execute callback — both of
+ * which already gate on edit_post upstream (REST permission_callback / ability
+ * cap). v6.39.2 adds an internal per-post cap check as defense-in-depth so the
+ * impl can never write meta / regenerate a card for a post the current user
+ * cannot edit, regardless of how it is reached.
+ *
+ * WP-Cron prepop must NOT use this entry — cron has no logged-in user, so the
+ * cap check would reject it. The prepop engine calls snt_ai_og_card_title_write()
+ * (the no-cap writer below) directly. See inc/ai-prepopulate.php.
  *
  * @param int $post_id
  * @return array{ok:bool,title:string,length:int,card_regenerated:bool,card_url:?string}|WP_Error
  * @since v2.5.0
  */
 function snt_ai_og_card_title_impl( $post_id ) {
+	if ( ! current_user_can( 'edit_post', (int) $post_id ) ) {
+		return new WP_Error(
+			'snt_ai_og_card_title_forbidden',
+			__( 'You cannot edit this post.', 'signal-noise-tools' ),
+			array( 'status' => 403 )
+		);
+	}
+	return snt_ai_og_card_title_write( $post_id );
+}
+
+/**
+ * No-cap internal writer: generate an OG card title via the WP AI Client +
+ * persist the override meta + regenerate the card PNG.
+ *
+ * Gates ONLY on AI availability — NOT on any capability — so the WP-Cron
+ * prepopulation path (snt_run_prepop(), which runs with no logged-in user)
+ * can fill an empty OG card title. User-facing callers go through
+ * snt_ai_og_card_title_impl() instead, which adds the edit_post cap.
+ *
+ * @param int $post_id
+ * @return array{ok:bool,title:string,length:int,card_regenerated:bool,card_url:?string}|WP_Error
+ * @since v6.39.2
+ */
+function snt_ai_og_card_title_write( $post_id ) {
 	// v4.1.1 (D-03): shared AI-gate helper.
 	$gate = snt_ai_require_text_generation();
 	if ( $gate ) { return $gate; }

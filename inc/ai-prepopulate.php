@@ -7,10 +7,12 @@
  * empty fields only (never overwrites manual content). Deferred via
  * wp_schedule_single_event so the publish request isn't blocked by AI latency.
  *
- * Calls the SN *_impl() functions DIRECTLY, not the ability wrappers: the
+ * Calls the SN engine functions DIRECTLY, not the ability wrappers: the
  * abilities check current_user_can('edit_post'), but WP-Cron has no logged-in
- * user, so the ability layer would reject prepop. The impls gate only on AI
- * availability.
+ * user, so the ability layer would reject prepop. The meta-description and
+ * excerpt impls gate only on AI availability. The OG card title is reached via
+ * snt_ai_og_card_title_write() — its no-cap writer — because the matching
+ * *_impl() entry now adds an edit_post cap check (v6.39.2) that cron would fail.
  *
  * The excerpt's wp_update_post() re-fires save_post, but sn_post_settings_save()
  * returns on a missing nonce before any meta write (cron has no $_POST), so it
@@ -31,6 +33,32 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 if ( ! defined( 'SNT_PREPOP_MIN_WORDS' ) ) {
 	define( 'SNT_PREPOP_MIN_WORDS', 50 );
+}
+
+/**
+ * Max random jitter (seconds) added to the prepop schedule time. A bulk
+ * publish (e.g. an import) transitions many posts at once; without jitter
+ * every prepop event fires on the same cron tick and hits the provider in
+ * lockstep. Spreading them over a window smooths the load. Filterable.
+ *
+ * @since 6.39.2
+ */
+if ( ! defined( 'SNT_PREPOP_SCHEDULE_JITTER_MAX' ) ) {
+	define( 'SNT_PREPOP_SCHEDULE_JITTER_MAX', 300 );
+}
+
+/**
+ * Daily ceiling on total AI calls before AUTO-prepop yields. Auto-prepop is
+ * the unattended path — a bulk publish could otherwise fire up to 3 AI calls
+ * per post unbounded. When the trailing-24h call count (across all features,
+ * via snt_ai_usage_summary) is at/over this, prepop skips silently for the
+ * post; manual/attended AI actions are user-initiated and never gated here.
+ * Filterable.
+ *
+ * @since 6.39.2
+ */
+if ( ! defined( 'SNT_PREPOP_DAILY_CALL_CEILING' ) ) {
+	define( 'SNT_PREPOP_DAILY_CALL_CEILING', 100 );
 }
 
 /**
@@ -55,7 +83,11 @@ function snt_prepop_on_transition( $new_status, $old_status, $post ) {
 	if ( ! in_array( $post->post_type, SN_POST_SETTINGS_POST_TYPES, true ) ) {
 		return;
 	}
-	wp_schedule_single_event( time(), 'snt_prepop_event', array( (int) $post->ID ) );
+	// v6.39.2: jitter the schedule so a bulk publish doesn't fire every prepop
+	// event on the same cron tick (provider lockstep).
+	$jitter = (int) apply_filters( 'snt_prepop_schedule_jitter_max', SNT_PREPOP_SCHEDULE_JITTER_MAX );
+	$delay  = ( $jitter > 0 && function_exists( 'wp_rand' ) ) ? (int) wp_rand( 0, $jitter ) : 0;
+	wp_schedule_single_event( time() + $delay, 'snt_prepop_event', array( (int) $post->ID ) );
 }
 add_action( 'transition_post_status', 'snt_prepop_on_transition', 10, 3 );
 
@@ -75,6 +107,20 @@ function snt_run_prepop( $post_id ) {
 		return;
 	}
 
+	// v6.39.2 cost guard: auto-prepop yields once the day's total AI spend is
+	// already high, so an unattended bulk publish can't run up an unbounded
+	// number of calls (up to 3 per post). Reuses the usage log via
+	// snt_ai_usage_summary; manual AI actions are not gated here.
+	if ( function_exists( 'snt_ai_usage_summary' ) ) {
+		$ceiling = (int) apply_filters( 'snt_prepop_daily_call_ceiling', SNT_PREPOP_DAILY_CALL_CEILING );
+		if ( $ceiling > 0 ) {
+			$today = snt_ai_usage_summary( 1 );
+			if ( is_array( $today ) && (int) ( $today['calls'] ?? 0 ) >= $ceiling ) {
+				return;
+			}
+		}
+	}
+
 	$min   = (int) apply_filters( 'snt_prepop_min_words', SNT_PREPOP_MIN_WORDS );
 	$words = str_word_count( wp_strip_all_tags( (string) $post->post_content ) );
 	if ( $words < $min ) {
@@ -91,10 +137,12 @@ function snt_run_prepop( $post_id ) {
 		}
 	}
 
-	// 2. OG card title (impl self-persists the meta + rebuilds the PNG).
+	// 2. OG card title (writer self-persists the meta + rebuilds the PNG).
+	//    v6.39.2: call the no-cap WRITER, not the *_impl entry — the impl now
+	//    adds an edit_post cap check that WP-Cron (no logged-in user) would fail.
 	if ( '' === (string) get_post_meta( $post_id, '_sn_og_card_title', true )
-		&& function_exists( 'snt_ai_og_card_title_impl' ) ) {
-		$res = snt_ai_og_card_title_impl( $post_id );
+		&& function_exists( 'snt_ai_og_card_title_write' ) ) {
+		$res = snt_ai_og_card_title_write( $post_id );
 		if ( is_array( $res ) && ! empty( $res['title'] ) ) {
 			update_post_meta( $post_id, '_sn_autogen_og_card_title', '1' );
 		}

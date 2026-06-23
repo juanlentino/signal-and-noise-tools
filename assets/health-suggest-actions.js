@@ -978,7 +978,12 @@
 		if ( ! section ) { return; }
 
 		var buttons = section.querySelectorAll( '[data-snt-suggest]:not([disabled])' );
-		var total   = buttons.length;
+		// v6.39.2: hard-cap the batch so one click can't fire dozens of AI calls.
+		// The cap rides on a data attribute the PHP renderer emits (label already
+		// shows min(count, cap)); fall back to 50 if it's somehow absent.
+		var cap   = parseInt( btn.dataset.sntSuggestAllMax, 10 );
+		if ( ! ( cap > 0 ) ) { cap = 50; }
+		var total = Math.min( buttons.length, cap );
 		if ( 0 === total ) {
 			btn.textContent = __( 'All already suggested', 'signal-noise-tools' );
 			btn.disabled = true;

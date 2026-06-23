@@ -576,17 +576,65 @@ function sn_handle_tag_ai_suggest( $post ) {
 /**
  * Apply the AI tag suggestions the owner checked. Reads assign[post_id][] = term_id.
  *
+ * SECURITY (v6.39.2): the POSTed assign map is fully attacker-controllable, so
+ * it is NOT trusted directly. The cached suggestion transient written by
+ * sn_handle_tag_ai_suggest() is the authoritative allow-list — a (post,term)
+ * pair is applied ONLY when:
+ *   1. SN proposed that exact term for that exact post in this user's last scan,
+ *   2. the post is an editable Note (post_type 'post' — the only type the
+ *      suggester scans; never a page/CPT/attachment), and
+ *   3. the current user can edit_post that specific post (per-resource cap, not
+ *      a blanket manage_options — the dispatcher already checked the nonce).
+ * Submitted term ids are intersected with the suggested set for that post, so a
+ * forged term riding alongside a legitimate one is dropped, not applied.
+ *
  * @param array $post Raw $_POST.
  * @return string
  */
 function sn_handle_tag_ai_apply( $post ) {
 	$assign = isset( $post['assign'] ) && is_array( $post['assign'] ) ? wp_unslash( $post['assign'] ) : array();
-	foreach ( $assign as $pid => $term_ids ) {
-		$ids = array_filter( array_map( 'absint', (array) $term_ids ) );
-		if ( $ids ) {
-			wp_set_object_terms( (int) $pid, $ids, 'post_tag', true );
+
+	// Build the allow-list: post_id => set of suggested term_ids.
+	$cache   = get_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() );
+	$allowed = array();
+	if ( is_array( $cache ) ) {
+		foreach ( $cache as $row ) {
+			if ( ! is_array( $row ) || empty( $row['suggested'] ) || ! is_array( $row['suggested'] ) ) {
+				continue;
+			}
+			$pid = (int) ( $row['post_id'] ?? 0 );
+			if ( $pid <= 0 ) {
+				continue;
+			}
+			foreach ( $row['suggested'] as $s ) {
+				$tid = (int) ( is_array( $s ) ? ( $s['term_id'] ?? 0 ) : 0 );
+				if ( $tid > 0 ) {
+					$allowed[ $pid ][ $tid ] = true;
+				}
+			}
 		}
 	}
+
+	foreach ( $assign as $pid => $term_ids ) {
+		$pid = (int) $pid;
+		if ( $pid <= 0 || empty( $allowed[ $pid ] ) ) {
+			continue; // never suggested for this post.
+		}
+		if ( 'post' !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) {
+			continue; // not an editable Note for this user.
+		}
+		$ids = array();
+		foreach ( (array) $term_ids as $tid ) {
+			$tid = (int) $tid;
+			if ( $tid > 0 && isset( $allowed[ $pid ][ $tid ] ) ) {
+				$ids[ $tid ] = $tid; // intersect with the suggested set; dedupe.
+			}
+		}
+		if ( $ids ) {
+			wp_set_object_terms( $pid, array_values( $ids ), 'post_tag', true );
+		}
+	}
+
 	delete_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() );
 	return 'tag_ai_applied';
 }

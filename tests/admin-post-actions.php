@@ -368,6 +368,102 @@ pa_eq( 'analytics_exclude_unchanged', sn_handle_analytics_exclude_save( array( '
 pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array() ), 'exclude-save: no checkboxes clears the set' );
 pa_eq( array(), sn_setting( 'analytics.exclude_roles', 'SENTINEL' ), 'exclude-save: cleared set persists as empty array' );
 
+// ─── sn_handle_tag_ai_apply — transient allow-list enforcement (v6.39.2) ─
+//
+// The apply handler must NOT trust client-supplied (post,term) pairs. It must
+// load this user's cached suggestion transient and apply ONLY pairs that SN
+// actually proposed, on an editable Note (post_type 'post') the user can edit.
+$GLOBALS['__test_set_terms_calls'] = array();
+if ( ! function_exists( 'wp_set_object_terms' ) ) {
+	function wp_set_object_terms( $object_id, $terms, $taxonomy, $append = false ) {
+		$GLOBALS['__test_set_terms_calls'][] = array(
+			'post'  => (int) $object_id,
+			'terms' => array_values( array_map( 'intval', (array) $terms ) ),
+			'tax'   => $taxonomy,
+		);
+		return array_map( 'intval', (array) $terms );
+	}
+}
+$GLOBALS['__test_post_types'] = array();
+if ( ! function_exists( 'get_post_type' ) ) {
+	function get_post_type( $id ) {
+		return $GLOBALS['__test_post_types'][ (int) $id ] ?? 'post';
+	}
+}
+$GLOBALS['__test_caps'] = array();
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( $cap, $id = 0 ) {
+		$id = (int) $id;
+		return array_key_exists( $id, $GLOBALS['__test_caps'] ) ? (bool) $GLOBALS['__test_caps'][ $id ] : true;
+	}
+}
+if ( ! function_exists( 'absint' ) ) {
+	function absint( $v ) { return abs( (int) $v ); }
+}
+
+/** Build a suggestion-transient row matching snt_ai_tag_suggest_impl()'s shape. */
+function pa_sugg_row( $post_id, array $term_ids ) {
+	$suggested = array();
+	foreach ( $term_ids as $tid ) {
+		$suggested[] = array( 'term_id' => (int) $tid, 'name' => 'T' . $tid, 'slug' => 't' . $tid );
+	}
+	return array( 'ok' => true, 'post_id' => (int) $post_id, 'suggested' => $suggested, 'title' => 'Note ' . $post_id );
+}
+
+/** Did wp_set_object_terms get called for $pid, and with which term ids? */
+function pa_terms_for( $pid ) {
+	foreach ( $GLOBALS['__test_set_terms_calls'] as $c ) {
+		if ( $c['post'] === (int) $pid ) { return $c['terms']; }
+	}
+	return null;
+}
+
+echo "\nTest: sn_handle_tag_ai_apply() honors the suggestion transient allow-list\n";
+$tkey = 'sn_tag_ai_suggestions_' . get_current_user_id();
+
+// Happy path — both suggested terms applied to the suggested Note.
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_post_types']      = array();
+$GLOBALS['__test_caps']            = array();
+$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11, 12 ) ) );
+pa_eq( 'tag_ai_applied', sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11, 12 ) ) ) ), 'returns tag_ai_applied' );
+pa_eq( array( 11, 12 ), pa_terms_for( 101 ), 'both suggested terms applied to the Note' );
+pa_eq( false, isset( $GLOBALS['__transients'][ $tkey ] ), 'transient cleared after apply' );
+
+// Forged TERM — a term id that was never suggested for this post is dropped.
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11 ) ) );
+sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11, 99 ) ) ) );
+pa_eq( array( 11 ), pa_terms_for( 101 ), 'unsuggested term 99 intersected out; only 11 applied' );
+
+// Forged POST — a post id absent from the suggestions is rejected entirely.
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11 ) ) );
+sn_handle_tag_ai_apply( array( 'assign' => array( 202 => array( 11 ) ) ) );
+pa_eq( null, pa_terms_for( 202 ), 'post 202 (never suggested) gets no wp_set_object_terms call' );
+
+// Wrong POST TYPE — suggested post is not a Note (e.g. a page) → rejected.
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_post_types']      = array( 303 => 'page' );
+$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 303, array( 11 ) ) );
+sn_handle_tag_ai_apply( array( 'assign' => array( 303 => array( 11 ) ) ) );
+pa_eq( null, pa_terms_for( 303 ), 'non-Note (page) post rejected even though it was in the cache' );
+
+// No CAP — user cannot edit_post the target → rejected.
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_post_types']      = array();
+$GLOBALS['__test_caps']            = array( 404 => false );
+$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 404, array( 11 ) ) );
+sn_handle_tag_ai_apply( array( 'assign' => array( 404 => array( 11 ) ) ) );
+pa_eq( null, pa_terms_for( 404 ), 'edit_post denied → no wp_set_object_terms call' );
+
+// No transient at all — nothing is applied (can't validate → reject).
+$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_caps']            = array();
+unset( $GLOBALS['__transients'][ $tkey ] );
+sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11 ) ) ) );
+pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → nothing applied' );
+
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
 pa_eq( 40, count( $map ), 'map has 40 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused

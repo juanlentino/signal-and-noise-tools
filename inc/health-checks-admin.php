@@ -17,6 +17,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Hard cap on how many AI calls one "Suggest all" click may fire (v6.39.2).
+ * A section can list dozens of findings; without a cap, one click would
+ * sequentially fire one AI call per finding (cost + provider rate pressure).
+ * The button label shows min(count, this) and the JS honors the same ceiling.
+ */
+if ( ! defined( 'SNT_AI_SUGGEST_ALL_MAX' ) ) {
+	define( 'SNT_AI_SUGGEST_ALL_MAX', 50 );
+}
+
+/**
+ * Build the "Suggest all N" batch button markup, with N clamped to the cost
+ * cap so the label never promises more AI calls than the JS will fire. The
+ * cap is also emitted as a data attribute the JS reads to bound the batch.
+ *
+ * @param int $count Number of findings in the section.
+ * @return string Button HTML.
+ *
+ * @since 6.39.2
+ */
+function snt_health_suggest_all_button_html( $count ) {
+	$shown = min( (int) $count, SNT_AI_SUGGEST_ALL_MAX );
+	return '<button type="button" class="button button-small sn-ml-auto" data-snt-suggest-all="1" data-snt-suggest-all-max="' . esc_attr( SNT_AI_SUGGEST_ALL_MAX ) . '">'
+		. esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), $shown ) )
+		. '</button>';
+}
+
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
 
 function sn_health_render_admin_tab() {
@@ -83,7 +110,7 @@ function sn_health_render_admin_tab() {
 		$pill_kind = $check['count'] > 0 ? 'warn' : 'ok';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
 		if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) && (int) $check['count'] > 0 ) {
-			echo '<button type="button" class="button button-small sn-ml-auto" data-snt-suggest-all="1">' . esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), (int) $check['count'] ) ) . '</button>';
+			echo snt_health_suggest_all_button_html( (int) $check['count'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper returns escaped markup.
 		}
 		echo '</h2>';
 
