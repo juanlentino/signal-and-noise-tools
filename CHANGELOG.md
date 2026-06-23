@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.36.0] - 2026-06-22 — Notes tag consolidation
+
+**Headline:** A new Content > Tags tool consolidates near-duplicate Notes tags. It auto-detects string-similar dupes (case, hyphen/space, typos like "Muisc") into reviewable clusters, lets you merge a cluster or any two tags into one canonical tag (reassigning every post, deleting the dupes), 301-redirects the merged-away /notes/tag/ archives, and keeps a recent-merges list. Also exposed as the `signal-noise/merge-tags` Ability.
+
+> **Why MINOR:** new user-visible capability + a new Ability. Additive — no removed/renamed API, no settings-schema migration (the `sn_tag_redirects` / `sn_tag_merge_history` options are new and self-initializing). WordPress core has tag rename but no merge; this fills that gap inside the plugin.
+
+### New
+
+- **Tag consolidation** ([inc/tag-consolidation.php](inc/tag-consolidation.php)): duplicate-cluster detection (normalize + a conservative Damerau/OSA typo pass that catches transpositions like "Muisc") + a merge engine (append the canonical to each post, then `wp_delete_term` the dupes) + a capped merge history.
+- **Content > Tags sub-tab** ([inc/tag-consolidation-admin.php](inc/tag-consolidation-admin.php)): cluster cards with a canonical picker, a manual "merge any two" picker, a read-only preview, and a Recent merges list. Commits through the existing admin-post dispatcher (nonce + manage_options + PRG flash).
+- **Merged-tag redirects** ([inc/tag-consolidation-redirects.php](inc/tag-consolidation-redirects.php)): a 301 map that redirects `/notes/tag/<old>/` to the surviving tag's archive, chain-collapsed at write time.
+- **`signal-noise/merge-tags` Ability** ([inc/abilities-content.php](inc/abilities-content.php)): the agent-callable merge (from_slugs -> into_slug), non-idempotent + destructive.
+
 ## [6.35.1] - 2026-06-22 — Analytics dashboard view polish (login-defense frame + edge header sizing)
 
 **Headline:** The Login defense dashboard view now renders its range control + Overview ABOVE the tab bar (the shared header slot) and its attacker tables + edge glance BELOW it, exactly like the 7 pageview views. It was the only view rendering everything below the tabs, so the tab bar relocated on every switch to/from Login defense. The login range control also adopts the shared range-pill markup, so the widget is visually identical, not just same-position. Also fixes the Traffic & edge "Attack-surface pressure" tables, whose headers rendered oversized because the section was wrapped in an extra postbox the rest of the view does not use.

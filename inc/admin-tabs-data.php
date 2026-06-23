@@ -84,6 +84,7 @@ function sn_admin_top_tabs() {
 				// holds (7 == 7).
 				'music'        => array( 'label' => 'Music', 'render' => 'sn_admin_render_music_section' ),
 				'rss'          => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section' ),
+				'tags'         => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section' ),
 			),
 		),
 		array(
