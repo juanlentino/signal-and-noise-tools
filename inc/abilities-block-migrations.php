@@ -44,13 +44,22 @@ add_action( 'wp_abilities_api_init', function() {
 			'type'       => 'object',
 			'properties' => array(
 				'candidates' => array( 'type' => 'array' ),
-				'counts'     => array( 'type' => 'object' ),
+				'counts'     => array(
+					'type'       => 'object',
+					'properties' => array(
+						'heading_hierarchy_skip' => array( 'type' => 'integer' ),
+						'posts_affected'         => array( 'type' => 'integer' ),
+					),
+				),
 				'scanned_at' => array( 'type' => 'integer' ),
 			),
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array( 'idempotent' => true ),
+			'annotations'  => array(
+				'destructive' => false,
+				'idempotent'  => true,
+			),
 		),
 	) );
 

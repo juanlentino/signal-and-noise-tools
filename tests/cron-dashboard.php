@@ -144,9 +144,21 @@ function assert_true( $cond, $msg ) {
 // ─── Test 1: snt_cron_is_sn_owned ───────────────────────────────────
 echo "\nTest 1: snt_cron_is_sn_owned\n";
 assert_true( snt_cron_is_sn_owned( 'sn_rss_tracker_daily_prune' ), 'SN-owned RSS hook recognized' );
-assert_eq( false, snt_cron_is_sn_owned( 'sn_plausible_refresh_dashboard' ), 'v6.0.0: retired Plausible hook is no longer SN-owned' );
+assert_eq( false, snt_cron_is_sn_owned( 'sn_plausible_refresh_dashboard' ), 'v6.0.0: retired Plausible hook is no longer SN-owned (stays cleanable)' );
 assert_eq( false, snt_cron_is_sn_owned( 'wp_version_check' ), 'WP core hook is not SN-owned' );
 assert_eq( false, snt_cron_is_sn_owned( '' ), 'Empty string is not SN-owned' );
+// v6.39.5: the guard is now authoritative — EVERY active recurring SN hook is
+// refused, not just RSS (a docblock claimed this but the list omitted 8 of 9).
+// Retired hooks (sn_plausible_*, asserted above) stay cleanable.
+assert_true( snt_cron_is_sn_owned( 'sn_analytics_rollup_daily' ), 'analytics daily rollup is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_analytics_rollup' ), 'analytics on-demand warmer is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'snt_cron_history_prune' ), 'cron-history prune is SN-owned (snt_ prefix)' );
+assert_true( snt_cron_is_sn_owned( 'sn_audit_log_prune' ), 'audit-log prune is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_edge_rollup_cron' ), 'edge rollup is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_insights_weekly_scan' ), 'insights scan is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_insights_narration_weekly' ), 'insights narration is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_uptime_kuma_heartbeat' ), 'uptime heartbeat is SN-owned' );
+assert_true( snt_cron_is_sn_owned( 'sn_discography_cron' ), 'discography sync is SN-owned' );
 
 // ─── Test 2: last-fired round trip ───────────────────────────────────
 echo "\nTest 2: last-fired round trip\n";

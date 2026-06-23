@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.39.5] - 2026-06-23 — Non-AI abilities: honest cron guard + contract polish
+
+**Headline:** A non-AI abilities audit found the plugin surface sound (no IDOR — the per-resource permission helpers correctly check the cap on the specific id; no theme/plugin ability duplication). The one finding with teeth: `unschedule-cron-event`'s docblock claimed "Signal & Noise hooks are refused," but the guard list held only **1 of ~10** live SN hooks, so an admin could unschedule `sn_analytics_rollup_daily`, the audit/cron-history prune, edge rollup, insights, narration, uptime, or discography cron via the run-path (each self-heals at next init, but at the cost of a missed firing). The guard is now authoritative.
+
+> **Why PATCH:** correctness + contract hardening on existing abilities. No new capability, no API removed, no schema migration.
+
+### Fixed
+
+- **`unschedule-cron-event` refuses every LIVE SN hook** ([inc/cron-dashboard.php](inc/cron-dashboard.php)): `snt_cron_sn_owned_hooks()` now lists all ~10 active recurring SN hooks (constant-referenced, `defined()`-guarded), not just the RSS hook, so the ability's "SN-owned refused" promise is true. Kept as an explicit allow-list rather than an `sn_`/`snt_` prefix match on purpose: a prefix would wrongly refuse cleanup of *retired* SN hooks (e.g. the old `sn_plausible_*` events), which must stay removable. The ability description now names the protected set.
+- **`purge-all-caches` null-input guard** ([inc/abilities-system.php](inc/abilities-system.php)): the callback now `is_array()`-guards `$input` before indexing, suppressing a PHP 8 warning on the documented null-input run-path call.
+
+### Changed
+
+- **`block-migrations-scan` contract polish** ([inc/abilities-block-migrations.php](inc/abilities-block-migrations.php)): the `counts` output object now declares its `heading_hierarchy_skip` + `posts_affected` properties, and the annotations gain `destructive => false` to match the mirrored `pattern-adoption-scan`.
+
 ## [6.39.4] - 2026-06-23 — De-duplicate the alt-text prompt (one source of truth)
 
 **Headline:** The two alt-text abilities (`ai-alt-suggest` for media attachments, `ai-alt-inline-suggest` for inline `<img>` tags) are one capability split by image source, but each carried its own copy of the same alt-text rules in its system instruction. This extracts the shared rules into one constant both compose from, so a future "make alt text better" tweak is made once and cannot drift between the two prompts. Applies the "complement, do not duplicate" principle to SN's own internal duplication.
