@@ -120,6 +120,47 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/merge-tags', array(
+		'label'               => 'Merge duplicate post tags',
+		'description'         => 'Folds one or more source post tags into a canonical tag: reassigns every post to the canonical tag, deletes the sources, and 301-redirects the old /notes/tag/ archives. Destructive and not idempotent. Use to consolidate near-duplicate tags (e.g. "AI-Generated Music" + "AI Generated Music").',
+		'category'            => 'content',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_merge_tags',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'from_slugs', 'into_slug' ),
+			'properties'           => array(
+				'from_slugs' => array(
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
+					'minItems'    => 1,
+					'description' => 'Slugs of the source tags to fold in.',
+				),
+				'into_slug'  => array(
+					'type'        => 'string',
+					'description' => 'Slug of the canonical tag to keep.',
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'          => array( 'type' => 'boolean' ),
+				'posts_moved' => array( 'type' => 'integer' ),
+				'into_slug'   => array( 'type' => 'string' ),
+				'message'     => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent'  => false,
+				'destructive' => true,
+			),
+		),
+	) );
 } );
 
 /**
@@ -164,4 +205,32 @@ function snt_ability_get_rss_stats() {
 		return new WP_Error( 'snt_helper_unavailable', 'RSS-stats helper unavailable.', array( 'status' => 500 ) );
 	}
 	return snt_cmd_impl_rss_stats();
+}
+
+/**
+ * Execute callback for signal-noise/merge-tags. Resolves from/into slugs to post_tag
+ * term ids and merges (sn_tag_merge in inc/tag-consolidation.php).
+ *
+ * @param array $input { from_slugs:[string], into_slug:string }.
+ * @return array { ok, posts_moved, into_slug, message }.
+ */
+function snt_ability_merge_tags( $input ) {
+	$from_slugs = isset( $input['from_slugs'] ) ? (array) $input['from_slugs'] : array();
+	$into_slug  = isset( $input['into_slug'] ) ? (string) $input['into_slug'] : '';
+	$from_ids   = array();
+	foreach ( $from_slugs as $s ) {
+		$t = get_term_by( 'slug', (string) $s, 'post_tag' );
+		if ( $t ) {
+			$from_ids[] = (int) $t->term_id;
+		}
+	}
+	$into = get_term_by( 'slug', $into_slug, 'post_tag' );
+	if ( ! $into || ! $from_ids || ! function_exists( 'sn_tag_merge' ) ) {
+		return array( 'ok' => false, 'posts_moved' => 0, 'into_slug' => $into_slug, 'message' => 'Unknown tag slug(s).' );
+	}
+	$res = sn_tag_merge( $from_ids, (int) $into->term_id );
+	if ( is_wp_error( $res ) ) {
+		return array( 'ok' => false, 'posts_moved' => 0, 'into_slug' => $into_slug, 'message' => $res->get_error_message() );
+	}
+	return array( 'ok' => true, 'posts_moved' => (int) $res['posts_moved'], 'into_slug' => (string) $res['into_slug'], 'message' => 'Merged.' );
 }

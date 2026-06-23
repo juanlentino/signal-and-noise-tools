@@ -637,6 +637,15 @@ foreach ( $expected_abilities as $slug ) {
 }
 ap_eq( 17, count( $expected_abilities ), 'expecting 17 abilities total' );
 
+// v6.36.0: merge-tags ability (registration + config; the merge engine itself is
+// unit-tested in tests/tag-consolidation.php).
+echo "\nCategory: merge-tags ability (registration + config)\n";
+$mt = $GLOBALS['__test_registered_abilities']['signal-noise/merge-tags'] ?? null;
+ap_true( is_array( $mt ), 'merge-tags: registered' );
+ap_true( ( $mt['input_schema']['required'] ?? array() ) === array( 'from_slugs', 'into_slug' ), 'merge-tags: schema requires from_slugs + into_slug' );
+ap_eq( 'snt_ability_perm_manage_options', $mt['permission_callback'] ?? '', 'merge-tags: gated on manage_options' );
+ap_true( ( $mt['meta']['annotations']['idempotent'] ?? null ) === false && ( $mt['meta']['annotations']['destructive'] ?? null ) === true, 'merge-tags: non-idempotent + destructive' );
+
 // ════════════════════════════════════════════════════════════════════
 // Category: read/diagnostics abilities — happy path via execute()
 // ════════════════════════════════════════════════════════════════════
