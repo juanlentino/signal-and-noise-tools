@@ -85,7 +85,7 @@ function sn_tag_redirect_target( $uri ) {
  * @return void
  */
 function sn_tag_redirect_maybe() {
-	$uri    = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$uri    = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	$target = sn_tag_redirect_target( $uri );
 	if ( '' === $target ) {
 		return;
