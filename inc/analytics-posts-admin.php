@@ -1,0 +1,213 @@
+<?php
+/**
+ * Signal & Noise — Posts (lifecycle) analytics view RENDER layer.
+ *
+ * Strict 1:1 reuse of the dashboard's native vocabulary — the hero clones the
+ * .sn-kpi cards (like sn_login_defense_render_kpi_cards, NOT snt_analytics_render_cards
+ * whose contract is pageview-shaped), the trajectory reuses snt_analytics_smooth_path,
+ * the leaderboard reuses the .wp-list-table chrome, and velocity/decay reuse
+ * snt_analytics_render_distribution. NO new CSS vocabulary. Read-only.
+ *
+ * @package signal-and-noise-tools
+ * @since 6.39.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * The whole Posts view: hero + lifecycle trajectory + catalog leaderboard +
+ * launch-velocity + evergreen/spike bars. Null bundle (no published posts) → a
+ * single empty-state note.
+ *
+ * @param array|null $bundle From sn_analytics_posts_bundle().
+ */
+function snt_analytics_render_posts_view( $bundle ) {
+	if ( ! is_array( $bundle ) || empty( $bundle['subject'] ) ) {
+		echo '<p class="sn-an-empty sn-an-empty--panel">'
+			. esc_html__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
+			. '</p>';
+		return;
+	}
+
+	snt_analytics_render_post_hero( $bundle['subject'] );
+	snt_analytics_render_post_trajectory( $bundle['subject'], $bundle['leaderboard'] );
+
+	echo '<div class="sn-an-grid">';
+	snt_analytics_render_posts_leaderboard( $bundle['leaderboard'] );
+
+	// Launch velocity — each recent post's first-48h views, as shared distribution bars.
+	$vel = array();
+	foreach ( (array) $bundle['leaderboard'] as $r ) {
+		$vel[] = array( 'label' => (string) $r['title'], 'views' => (int) $r['velocity'] );
+	}
+	snt_analytics_render_distribution( __( 'Launch velocity (first 48h)', 'signal-and-noise-tools' ), $vel, __( 'No launch data yet.', 'signal-and-noise-tools' ) );
+
+	// Evergreen vs spike — how the catalog breaks down by decay shape.
+	$shape = array( 'evergreen' => 0, 'cooling' => 0, 'spike' => 0 );
+	foreach ( (array) $bundle['leaderboard'] as $r ) {
+		$d = (string) ( $r['decay'] ?? '' );
+		if ( isset( $shape[ $d ] ) ) {
+			++$shape[ $d ];
+		}
+	}
+	$decay_rows = array();
+	foreach ( $shape as $label => $count ) {
+		$decay_rows[] = array( 'label' => ucfirst( $label ), 'views' => $count );
+	}
+	snt_analytics_render_distribution( __( 'Evergreen vs spike', 'signal-and-noise-tools' ), $decay_rows, __( 'No shape data yet.', 'signal-and-noise-tools' ) );
+	echo '</div>';
+}
+
+/**
+ * "Did it land?" hero — the newest post's views-since-publish, its age-aligned
+ * verdict vs the cohort median, and its rank, in cloned .sn-kpi cards.
+ *
+ * @param array $subject From sn_analytics_posts_subject().
+ */
+function snt_analytics_render_post_hero( $subject ) {
+	$age = (int) $subject['age'];
+	$pub = ( 0 === $age )
+		? __( 'published today', 'signal-and-noise-tools' )
+		/* translators: %d: days since publish. */
+		: sprintf( _n( 'published %d day ago', 'published %d days ago', $age, 'signal-and-noise-tools' ), $age );
+
+	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>'
+		. esc_html__( 'Latest Note — did it land?', 'signal-and-noise-tools' )
+		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	echo '<p class="sn-posts-hero-h"><a href="' . esc_url( (string) $subject['permalink'] ) . '"><strong>'
+		. esc_html( (string) $subject['title'] ) . '</strong></a> · ' . esc_html( $pub ) . '</p>';
+
+	if ( empty( $subject['has_data'] ) ) {
+		echo '<p class="sn-an-empty sn-an-empty--panel">'
+			. esc_html__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
+			. '</p></div></div>';
+		return;
+	}
+
+	$d       = is_array( $subject['delta'] ) ? $subject['delta'] : array();
+	$dir     = in_array( $d['dir'] ?? 'flat', array( 'up', 'down', 'flat' ), true ) ? $d['dir'] : 'flat';
+	$pct     = $d['pct'] ?? null;
+	$verdict = ( null === $pct )
+		? ( 'up' === $dir ? __( 'new', 'signal-and-noise-tools' ) : '—' )
+		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
+	$descr = 'up' === $dir
+		? '▲ ' . __( 'above median', 'signal-and-noise-tools' )
+		: ( 'down' === $dir ? '▼ ' . __( 'below median', 'signal-and-noise-tools' ) : '■ ' . __( 'on par', 'signal-and-noise-tools' ) );
+	$rank = is_array( $subject['rank'] ) ? $subject['rank'] : array( 'rank' => 1, 'of' => 1 );
+
+	$age_sub = ( 0 === $age )
+		? __( 'so far today', 'signal-and-noise-tools' )
+		/* translators: %d: days since publish. */
+		: sprintf( _n( 'in %d day', 'in %d days', $age, 'signal-and-noise-tools' ), $age );
+
+	$cards = array(
+		array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['views'] ), 'promoted' => true, 'sub' => $age_sub, 'dir' => 'flat' ),
+		array( 'l' => __( 'vs your typical', 'signal-and-noise-tools' ), 'n' => $verdict, 'promoted' => true, 'sub' => $descr, 'dir' => $dir ),
+		/* translators: %d: total recent Notes compared. */
+		array( 'l' => __( 'Rank', 'signal-and-noise-tools' ), 'n' => '#' . (int) $rank['rank'], 'sub' => sprintf( __( 'of %d recent', 'signal-and-noise-tools' ), (int) $rank['of'] ), 'dir' => 'flat' ),
+		array( 'l' => __( 'Lifetime', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['lifetime'] ), 'sub' => __( 'all-time', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
+	);
+
+	echo '<div class="sn-kpi-row">';
+	foreach ( $cards as $c ) {
+		$cls = 'up' === $c['dir'] ? 'sn-delta-up' : ( 'down' === $c['dir'] ? 'sn-delta-down' : 'sn-delta-flat' );
+		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
+		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
+		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
+		echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '">' . esc_html( $c['sub'] ) . '</span>';
+		echo '</div>';
+	}
+	echo '</div></div></div>';
+}
+
+/**
+ * Lifecycle trajectory: the subject post's cumulative views by day-of-life,
+ * overlaid on the cohort's median trajectory at each age. Both curves built with
+ * the shared snt_analytics_smooth_path so the treatment is pixel-identical to
+ * every other trend on the page (subject #2271b1, baseline muted #646970).
+ *
+ * @param array $subject     Subject summary.
+ * @param array $leaderboard All recent-post rows (carry by_dol + age).
+ */
+function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
+	$age = max( 1, (int) $subject['age'] );
+
+	$subj = array();
+	$base = array();
+	for ( $dol = 0; $dol <= $age; $dol++ ) {
+		$subj[] = sn_analytics_posts_cumulative_at( $subject['by_dol'], $dol );
+		$cohort = array();
+		foreach ( (array) $leaderboard as $r ) {
+			if ( (int) $r['id'] !== (int) $subject['id'] && (int) $r['age'] >= $dol ) {
+				$cohort[] = sn_analytics_posts_cumulative_at( $r['by_dol'], $dol );
+			}
+		}
+		$base[] = sn_analytics_median( $cohort );
+	}
+
+	$max = 1.0;
+	foreach ( array_merge( $subj, $base ) as $v ) {
+		$max = max( $max, (float) $v );
+	}
+	$n    = $age + 1;
+	$w    = 600.0;
+	$top  = 8.0;
+	$bse  = 78.0;
+	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
+	$plot = function ( $cum ) use ( $step, $top, $bse, $max ) {
+		$px = array();
+		$py = array();
+		foreach ( array_values( $cum ) as $i => $v ) {
+			$px[] = round( $i * $step, 2 );
+			$py[] = round( $bse - ( (float) $v / $max ) * ( $bse - $top ), 2 );
+		}
+		return snt_analytics_smooth_path( $px, $py, $top, $bse );
+	};
+	$base_d = $plot( $base );
+	$subj_d = $plot( $subj );
+
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
+		. esc_html__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' )
+		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	echo '<svg viewBox="0 0 600 86" preserveAspectRatio="none" role="img" class="sn-an-spark" style="width:100%;height:120px">';
+	echo '<path d="' . esc_attr( $base_d ) . '" fill="none" stroke="#646970" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
+	echo '<path d="' . esc_attr( $subj_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+	echo '</svg>';
+	echo '<p class="sn-an-foot">'
+		. esc_html__( 'Blue: this Note. Grey dashed: the median of your recent Notes at the same day of life.', 'signal-and-noise-tools' )
+		. '</p></div></div>';
+}
+
+/**
+ * Catalog leaderboard — recent posts by lifetime views + views-per-day-of-life,
+ * with each post's decay shape. Bespoke columns over the shared .wp-list-table
+ * chrome (login-defense pattern: reuse the CSS, not the fixed-column helper).
+ *
+ * @param array $rows Leaderboard rows.
+ */
+function snt_analytics_render_posts_leaderboard( $rows ) {
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
+		. esc_html__( 'Your catalog', 'signal-and-noise-tools' )
+		. '</span></h2></div><div class="inside sn-an-table-inside">';
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No posts yet.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		return;
+	}
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Lifetime views', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Per day', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="manage-column">' . esc_html__( 'Shape', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	foreach ( (array) $rows as $r ) {
+		$decay = (string) ( $r['decay'] ?? '' );
+		echo '<tr><td class="column-primary" data-colname="Post"><a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>'
+			. esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span></td>';
+		echo '<td class="num" data-colname="Lifetime views">' . esc_html( number_format_i18n( (int) $r['lifetime'] ) ) . '</td>';
+		echo '<td class="num" data-colname="Per day">' . esc_html( number_format_i18n( (float) $r['per_day'] ) ) . '</td>';
+		echo '<td data-colname="Shape">' . ( '' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">—</span>' ) . '</td>';
+		echo '</tr>';
+	}
+	echo '</tbody></table></div></div>';
+}

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.38.0
+ * Version:     6.39.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -86,6 +86,8 @@ require_once SNT_PATH . 'inc/analytics-pageroles.php'; // v6.10.0: durable entry
 require_once SNT_PATH . 'inc/analytics-derived.php'; // PHP-only derived: referrer categories, deltas, bot breakdown
 require_once SNT_PATH . 'inc/analytics-import.php'; // one-time Plausible-CSV → first-party rollup back-fill
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
+require_once SNT_PATH . 'inc/analytics-posts.php';       // v6.39.0: post-lifecycle data layer (durable per-path rollup)
+require_once SNT_PATH . 'inc/analytics-posts-admin.php'; // v6.39.0: Posts view render (reuses admin-render helpers)
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
 require_once SNT_PATH . 'inc/edge-analytics.php';  // v6.26.0: Cloudflare GraphQL zone-analytics client (edge traffic)
 require_once SNT_PATH . 'inc/edge-rollup.php';     // v6.26.0: edge daily/dims tables + daily GraphQL rollup cron

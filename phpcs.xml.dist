@@ -122,6 +122,7 @@
 		<exclude-pattern>*/inc/analytics-rollup.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-dims.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-read.php</exclude-pattern>
+		<exclude-pattern>*/inc/analytics-posts.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-buckets.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-events.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-pageroles.php</exclude-pattern>
