@@ -44,7 +44,7 @@ function snt_ai_tag_suggest_impl( $post_id ) {
 	foreach ( $terms as $t ) {
 		$names[] = (string) $t->name;
 	}
-	$system = 'You tag blog posts. From ONLY the provided tag list, return the tags relevant to this post as a JSON array of exact strings copied from the list. Return [] if none fit. Never invent tags or return any string not in the list.';
+	$system = 'You tag blog posts. From ONLY the provided tag list, choose the tags that genuinely apply to this post and return them as a JSON array of exact strings copied from the list. Aim for the 3 to 4 most relevant tags (more for longer or wide-ranging posts; fewer only when the list genuinely has fewer that fit). Do not pad with tags that do not clearly apply. Return [] only if none fit. Never invent tags or return any string not in the list.';
 	$prompt = "Available tags (choose only from these):\n- " . implode( "\n- ", $names ) . "\n\nPost title: " . $title . "\n\nPost content:\n" . $body;
 
 	$raw = snt_ai_generate_with_constraints( $prompt, $system, SN_AI_TAG_MAX_TOKENS, 'tag_suggest' );
