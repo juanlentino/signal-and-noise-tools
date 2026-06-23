@@ -36,6 +36,32 @@ if ( ! defined( 'SNT_PREPOP_MIN_WORDS' ) ) {
 }
 
 /**
+ * Max random jitter (seconds) added to the prepop schedule time. A bulk
+ * publish (e.g. an import) transitions many posts at once; without jitter
+ * every prepop event fires on the same cron tick and hits the provider in
+ * lockstep. Spreading them over a window smooths the load. Filterable.
+ *
+ * @since 6.39.2
+ */
+if ( ! defined( 'SNT_PREPOP_SCHEDULE_JITTER_MAX' ) ) {
+	define( 'SNT_PREPOP_SCHEDULE_JITTER_MAX', 300 );
+}
+
+/**
+ * Daily ceiling on total AI calls before AUTO-prepop yields. Auto-prepop is
+ * the unattended path — a bulk publish could otherwise fire up to 3 AI calls
+ * per post unbounded. When the trailing-24h call count (across all features,
+ * via snt_ai_usage_summary) is at/over this, prepop skips silently for the
+ * post; manual/attended AI actions are user-initiated and never gated here.
+ * Filterable.
+ *
+ * @since 6.39.2
+ */
+if ( ! defined( 'SNT_PREPOP_DAILY_CALL_CEILING' ) ) {
+	define( 'SNT_PREPOP_DAILY_CALL_CEILING', 100 );
+}
+
+/**
  * Schedule prepop on the first transition into publish/scheduled.
  *
  * Fires only when ENTERING a public/scheduled state from a non-public one
@@ -57,7 +83,11 @@ function snt_prepop_on_transition( $new_status, $old_status, $post ) {
 	if ( ! in_array( $post->post_type, SN_POST_SETTINGS_POST_TYPES, true ) ) {
 		return;
 	}
-	wp_schedule_single_event( time(), 'snt_prepop_event', array( (int) $post->ID ) );
+	// v6.39.2: jitter the schedule so a bulk publish doesn't fire every prepop
+	// event on the same cron tick (provider lockstep).
+	$jitter = (int) apply_filters( 'snt_prepop_schedule_jitter_max', SNT_PREPOP_SCHEDULE_JITTER_MAX );
+	$delay  = ( $jitter > 0 && function_exists( 'wp_rand' ) ) ? (int) wp_rand( 0, $jitter ) : 0;
+	wp_schedule_single_event( time() + $delay, 'snt_prepop_event', array( (int) $post->ID ) );
 }
 add_action( 'transition_post_status', 'snt_prepop_on_transition', 10, 3 );
 
@@ -75,6 +105,20 @@ function snt_run_prepop( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post || ! in_array( $post->post_status, array( 'publish', 'future' ), true ) ) {
 		return;
+	}
+
+	// v6.39.2 cost guard: auto-prepop yields once the day's total AI spend is
+	// already high, so an unattended bulk publish can't run up an unbounded
+	// number of calls (up to 3 per post). Reuses the usage log via
+	// snt_ai_usage_summary; manual AI actions are not gated here.
+	if ( function_exists( 'snt_ai_usage_summary' ) ) {
+		$ceiling = (int) apply_filters( 'snt_prepop_daily_call_ceiling', SNT_PREPOP_DAILY_CALL_CEILING );
+		if ( $ceiling > 0 ) {
+			$today = snt_ai_usage_summary( 1 );
+			if ( is_array( $today ) && (int) ( $today['calls'] ?? 0 ) >= $ceiling ) {
+				return;
+			}
+		}
 	}
 
 	$min   = (int) apply_filters( 'snt_prepop_min_words', SNT_PREPOP_MIN_WORDS );
