@@ -17,7 +17,7 @@ $GLOBALS['__gate']      = null;   // null = available; WP_Error = not
 $GLOBALS['__ai_out']    = '[]';
 $GLOBALS['__ai_prompt'] = '';
 function snt_ai_require_text_generation() { return $GLOBALS['__gate']; }
-function snt_ai_generate_with_constraints( $prompt, $sys, $max = 256, $feat = 'generic' ) { $GLOBALS['__ai_prompt'] = $prompt; return $GLOBALS['__ai_out']; }
+function snt_ai_generate_with_constraints( $prompt, $sys, $max = 256, $feat = 'generic' ) { $GLOBALS['__ai_prompt'] = $prompt; $GLOBALS['__ai_system'] = $sys; return $GLOBALS['__ai_out']; }
 function snt_ai_extract_post_text( $id, $words = 400 ) { return $GLOBALS['__body'] ?? 'a post about jazz music'; }
 function get_the_title( $id = 0 ) { return $GLOBALS['__title'] ?? 'Jazz piece'; }
 
@@ -44,6 +44,7 @@ $GLOBALS['__ai_out'] = '["jazz","AI Generated Music"]';
 $r = snt_ai_tag_suggest_impl( 7 );
 ok( ! is_wp_error( $r ) && $r['ok'] === true, 'impl: ok' );
 ok( count( $r['suggested'] ) === 2 && strpos( $GLOBALS['__ai_prompt'], 'Jazz' ) !== false, 'impl: 2 suggested + prompt carries the vocabulary' );
+ok( strpos( $GLOBALS['__ai_system'], '3 to 4' ) !== false && stripos( $GLOBALS['__ai_system'], 'most relevant' ) !== false, 'impl: system instruction targets the 3-4 most relevant tags' );
 
 // already-assigned excluded
 $GLOBALS['__assigned'] = array( 1 ); // post already has Jazz
