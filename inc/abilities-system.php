@@ -336,7 +336,9 @@ add_action( 'wp_abilities_api_init', function() {
  * Execute callback for signal-noise/purge-all-caches.
  */
 function snt_ability_purge_all_caches( $input ) {
-	$include_overrides = ! empty( $input['include_template_overrides'] );
+	// $input is null when the run-path is called with no ?input= (the schema
+	// permits 'null'); guard before indexing so PHP 8 does not warn on null.
+	$include_overrides = is_array( $input ) && ! empty( $input['include_template_overrides'] );
 
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Cache helper unavailable — theme module not loaded.', array( 'status' => 500 ) );

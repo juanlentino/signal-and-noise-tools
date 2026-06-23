@@ -29,19 +29,42 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Hook names owned by this plugin. Used by snt_cron_is_sn_owned() to
- * pin SN-owned events at the top of the dashboard table.
+ * Every ACTIVE recurring/scheduled hook this plugin owns. Used by
+ * snt_cron_is_sn_owned() to (a) pin SN events at the top of the dashboard table
+ * and (b) refuse unschedule-cron-event for any of them — unscheduling a live SN
+ * hook would silently break a rollup / prune / tracker / heartbeat (each
+ * self-heals at the next init guard but costs one firing).
  *
- * v4.1.1 (D-05): switched to constant references so a hook rename in
- * rss-feed-tracker.php auto-propagates. The plugin bootstrap requires
- * that file before cron-dashboard.php so the constant is always defined at
- * call time. The defensive `defined()` fallback to the legacy string keeps
- * this resilient if a constant ever vanishes (e.g., partial deploy).
+ * RETIRED hooks (e.g. the old sn_plausible_* events) are intentionally NOT listed
+ * so leftover orphans stay cleanable via the unschedule ability — that is the
+ * whole point of cron cleanup. This is why the guard is an explicit allow-list of
+ * live hooks, not an sn_/snt_ prefix match (a prefix would wrongly refuse
+ * cleanup of a retired SN hook).
+ *
+ * Constant references (defined()-guarded with a literal fallback for partial-
+ * deploy resilience) so a hook rename in its owning module auto-propagates.
+ * v6.39.5 (audit fix): expanded from the RSS hook alone to all ~10 live SN hooks;
+ * the prior single-entry list made the unschedule guard's "SN-owned refused"
+ * docblock false for 9 of 10 hooks. ADD any new recurring SN hook here.
  */
 function snt_cron_sn_owned_hooks() {
-	return array(
-		defined( 'SN_RSS_TRACKER_CRON_HOOK' ) ? SN_RSS_TRACKER_CRON_HOOK : 'sn_rss_tracker_daily_prune',
+	$owned = array(
+		array( 'SN_RSS_TRACKER_CRON_HOOK',      'sn_rss_tracker_daily_prune' ),
+		array( 'SN_ANALYTICS_ROLLUP_HOOK',      'sn_analytics_rollup' ),
+		array( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK', 'sn_analytics_rollup_daily' ),
+		array( 'SN_AUDIT_PRUNE_HOOK',           'sn_audit_log_prune' ),
+		array( 'SNT_CRON_HISTORY_CRON_HOOK',    'snt_cron_history_prune' ),
+		array( 'SN_DISCOGRAPHY_CRON_HOOK',      'sn_discography_cron' ),
+		array( 'SN_NARRATION_CRON_HOOK',        'sn_insights_narration_weekly' ),
+		array( 'SN_EDGE_ROLLUP_HOOK',           'sn_edge_rollup_cron' ),
+		array( 'SN_UPTIME_HEARTBEAT_HOOK',      'sn_uptime_kuma_heartbeat' ),
+		array( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan' ),
 	);
+	$hooks = array();
+	foreach ( $owned as $pair ) {
+		$hooks[] = defined( $pair[0] ) ? constant( $pair[0] ) : $pair[1];
+	}
+	return array_values( array_unique( $hooks ) );
 }
 
 function snt_cron_is_sn_owned( $hook ) {
