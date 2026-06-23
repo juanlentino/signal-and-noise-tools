@@ -6,6 +6,12 @@
  * top pages + top sources). Consolidated from four widgets in v6.19.2; the .sn-aw-*
  * section classes are reused, with .sn-aw-subhead labelling each section.
  *
+ * Also styles the "Login defense" widget (inc/login-defense-widget.php), which
+ * renders on this same Dashboard home screen and reuses .sn-aw-grid / .sn-aw-stat /
+ * .sn-aw-foot instead of carrying its own stylesheet — so the three boxes read as
+ * one design system. And the v6.38.0 .sn-aw-delta week-over-week badge appended to
+ * the Overview KPIs (▲/▼/■ + signed pct).
+ *
  * Enqueued via inc/analytics-widget.php (admin_enqueue_scripts) on the Dashboard
  * home screen (index.php) ONLY, cache-busted by SNT_VERSION — NOT echoed inline.
  * An external stylesheet loads in <head> (correct cascade, no FOUC), survives a
@@ -16,7 +22,7 @@
  * WordPress Plugin Handbook, "Including CSS & JavaScript".
  *
  * WP admin native palette: #1d2327 text · #646970 muted · #2271b1 link ·
- * #f0f0f1 hairline · #d63638 error.
+ * #f0f0f1 hairline · #d63638 error · #0a7c2f up · #b32d2e down.
  */
 
 .sn-aw-subhead{font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#646970;margin:16px 0 8px;}
@@ -24,6 +30,10 @@
 .sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
 .sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:#1d2327;line-height:1.1;font-variant-numeric:tabular-nums;}
 .sn-aw-stat-l{font-size:0.85em;color:#646970;margin-top:2px;}
+.sn-aw-delta{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:4px;}
+.sn-aw-delta--up{color:#0a7c2f;}
+.sn-aw-delta--down{color:#b32d2e;}
+.sn-aw-delta--flat{color:#646970;font-weight:400;}
 .sn-aw-big{font-size:2.5rem;font-weight:600;color:#1d2327;text-align:center;line-height:1;padding:8px 0 4px;font-variant-numeric:tabular-nums;}
 .sn-aw-big-l{font-size:0.85em;color:#646970;text-align:center;}
 .sn-aw-list{list-style:none;margin:0;padding:0;font-size:0.875em;}
