@@ -79,5 +79,33 @@ ok( $pv['posts_affected'] === 3 && $pv['into']['id'] === 12 && count( $pv['from'
 	'preview: counts 3 distinct affected posts, no mutation' );
 ok( empty( $GLOBALS['__setcalls'] ) && empty( $GLOBALS['__deleted'] ), 'preview: mutated nothing' );
 
+// --- merge (mutation) --------------------------------------------------------
+$GLOBALS['__terms'] = array(
+	10 => (object) array( 'term_id' => 10, 'name' => 'AI-Generated Music', 'slug' => 'ai-generated-music', 'count' => 5, 'taxonomy' => 'post_tag' ),
+	11 => (object) array( 'term_id' => 11, 'name' => 'AI Generated Music', 'slug' => 'ai-generated-music-2', 'count' => 2, 'taxonomy' => 'post_tag' ),
+	12 => (object) array( 'term_id' => 12, 'name' => 'Music', 'slug' => 'music', 'count' => 9, 'taxonomy' => 'post_tag' ),
+);
+$GLOBALS['__objects'] = array( 10 => array( 100, 101 ), 11 => array( 101, 102 ) );
+$GLOBALS['__setcalls'] = array(); $GLOBALS['__deleted'] = array(); $GLOBALS['__opts'] = array();
+$res = sn_tag_merge( array( 10, 11 ), 12 );
+ok( ! is_wp_error( $res ), 'merge: returns success (not WP_Error)' );
+ok( in_array( 12, $GLOBALS['__setcalls'][0][1], true ) && true === $GLOBALS['__setcalls'][0][3],
+	'merge: appends canonical (12) to affected posts (append=true)' );
+ok( in_array( 10, $GLOBALS['__deleted'], true ) && in_array( 11, $GLOBALS['__deleted'], true ),
+	'merge: deletes both source terms' );
+ok( $res['posts_moved'] === 3 && $res['into_slug'] === 'music', 'merge: reports 3 posts moved into music' );
+$map = get_option( 'sn_tag_redirects', array() );
+ok( ( $map['ai-generated-music'] ?? '' ) === 'music' && ( $map['ai-generated-music-2'] ?? '' ) === 'music',
+	'merge: writes old-slug -> canonical redirect map for both' );
+$hist = get_option( 'sn_tag_merge_history', array() );
+ok( count( $hist ) === 1 && (int) $hist[0]['posts'] === 3 && $hist[0]['into'] === 'music',
+	'merge: records one history entry (3 posts, into music)' );
+
+// fail-closed on a bad id (no mutation): 10 was deleted above; 999 never existed.
+$GLOBALS['__setcalls'] = array(); $GLOBALS['__deleted'] = array();
+$bad = sn_tag_merge( array( 10, 999 ), 12 );
+ok( is_wp_error( $bad ) && empty( $GLOBALS['__setcalls'] ) && empty( $GLOBALS['__deleted'] ),
+	'merge: bad id aborts with WP_Error and zero mutation' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

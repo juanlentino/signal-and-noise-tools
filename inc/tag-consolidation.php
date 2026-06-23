@@ -241,3 +241,72 @@ function sn_tag_validate_merge( array $from_ids, $into_id ) {
 	}
 	return true;
 }
+
+/**
+ * Merge source tags into a canonical tag: append the canonical to every post that
+ * carries any source tag (so no post is left tagless), then delete the source terms
+ * (wp_delete_term detaches them from all posts). Records the old-slug -> canonical
+ * redirect map and a history entry. Validates everything first; a bad id aborts with
+ * zero mutation.
+ *
+ * @param array $from_ids Source term ids.
+ * @param int   $into_id  Canonical term id.
+ * @return array|WP_Error { merged:[old_slugs], into_slug, posts_moved:int }
+ */
+function sn_tag_merge( array $from_ids, $into_id ) {
+	$into_id  = (int) $into_id;
+	$from_ids = array_values( array_unique( array_map( 'intval', $from_ids ) ) );
+	$err      = sn_tag_validate_merge( $from_ids, $into_id );
+	if ( is_wp_error( $err ) ) {
+		return $err;
+	}
+
+	$into        = get_term( $into_id, 'post_tag' );
+	$into_slug   = (string) $into->slug;
+	$old_slugs   = array();
+	$moved_posts = array();
+
+	foreach ( $from_ids as $id ) {
+		$t           = get_term( $id, 'post_tag' );
+		$old_slugs[] = (string) $t->slug;
+		foreach ( (array) get_objects_in_term( $id, 'post_tag' ) as $post_id ) {
+			wp_set_object_terms( (int) $post_id, array( $into_id ), 'post_tag', true );
+			$moved_posts[ (int) $post_id ] = true;
+		}
+		wp_delete_term( $id, 'post_tag' );
+	}
+
+	sn_tag_redirects_record( $old_slugs, $into_slug );
+	sn_tag_merge_history_record( $old_slugs, $into_slug, count( $moved_posts ) );
+
+	return array( 'merged' => $old_slugs, 'into_slug' => $into_slug, 'posts_moved' => count( $moved_posts ) );
+}
+
+/**
+ * Append a merge to the capped-FIFO history option (the domain-appropriate "audit").
+ *
+ * @param array  $old_slugs Merged-away slugs.
+ * @param string $into_slug Canonical slug.
+ * @param int    $posts     Posts moved.
+ * @return void
+ */
+function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts ) {
+	$hist = get_option( SN_TAG_MERGE_HISTORY_OPT, array() );
+	if ( ! is_array( $hist ) ) {
+		$hist = array();
+	}
+	array_unshift(
+		$hist,
+		array(
+			'from'  => array_values( array_map( 'strval', $old_slugs ) ),
+			'into'  => (string) $into_slug,
+			'posts' => (int) $posts,
+			'user'  => (int) get_current_user_id(),
+			'ts'    => time(),
+		)
+	);
+	if ( count( $hist ) > SN_TAG_MERGE_HISTORY_MAX ) {
+		$hist = array_slice( $hist, 0, SN_TAG_MERGE_HISTORY_MAX );
+	}
+	update_option( SN_TAG_MERGE_HISTORY_OPT, $hist );
+}
