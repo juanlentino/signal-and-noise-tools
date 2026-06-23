@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.36.1] - 2026-06-22 — Fix: tag-merge preview "Nothing to merge"
+
+**Headline:** Clicking "Preview merge" on a duplicate-tag cluster reported "Nothing to merge (the selected tags are no longer valid)" even for valid tags. The cluster checkboxes and the manual picker submit the source tags as an array (`name="sn_tag_from[]"`), but the preview reader parsed that value as a comma-separated string — and `sanitize_text_field()` on an array returns an empty string, collapsing the selection to nothing. The reader now parses the array. v6.36.0 shipped the feature unusable for this path; this restores it.
+
+> **Why PATCH:** bug fix to v6.36.0, no API/schema change.
+
+### Fixed
+
+- **Tag-merge preview parses the array field** ([inc/tag-consolidation-admin.php](inc/tag-consolidation-admin.php)): `sn_tag_from[]` (a PHP array from the checkbox/select fields) is read with `array_map( 'absint', (array) wp_unslash( ... ) )` instead of `explode( ',', sanitize_text_field( ... ) )`. The admin test now feeds the real array shape with an input-aware preview stub (the previous blind stub hid the marshalling bug).
+
 ## [6.36.0] - 2026-06-22 — Notes tag consolidation
 
 **Headline:** A new Content > Tags tool consolidates near-duplicate Notes tags. It auto-detects string-similar dupes (case, hyphen/space, typos like "Muisc") into reviewable clusters, lets you merge a cluster or any two tags into one canonical tag (reassigning every post, deleting the dupes), 301-redirects the merged-away /notes/tag/ archives, and keeps a recent-merges list. Also exposed as the `signal-noise/merge-tags` Ability.
