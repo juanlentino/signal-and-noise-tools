@@ -191,6 +191,7 @@ require_once __DIR__ . '/inc/ai-alt-text-suggest.php';
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
+require_once __DIR__ . '/inc/ai-tag-suggest.php';
 require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
