@@ -32,12 +32,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Composes from the shared SNT_AI_ALT_BASE_RULES (owned by the primary
+// inc/ai-alt-text-suggest.php, which loads first) + this surface's own framing:
+// the image is an inline <img> referenced by URL with no attachment record, so
+// the context is the surrounding paragraph + the URL filename.
 const SNT_AI_ALT_INLINE_SUGGEST_SYSTEM = 'Generate descriptive alt text for an image referenced by URL in a post body. ' .
 	'Output 80-125 characters. Describe the image factually based on the surrounding paragraph context + the URL filename. ' .
-	'No "image of" / "picture of" / "photo of" preamble. ' .
-	'No alt="" (empty) suggestions — if there is not enough context for a useful description, ' .
-	'output only the literal marker: ALT_INSUFFICIENT_CONTEXT. ' .
-	'Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
+	SNT_AI_ALT_BASE_RULES;
 
 const SNT_AI_ALT_INLINE_SUGGEST_MAX_TOKENS    = 80;
 const SNT_AI_ALT_INLINE_SUGGEST_CONTEXT_CHARS = 500;

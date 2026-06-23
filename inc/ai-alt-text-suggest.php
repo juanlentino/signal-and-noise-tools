@@ -29,12 +29,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AI_ALT_SUGGEST_SYSTEM = 'Generate descriptive alt text for an image. ' .
-	'Output 80-125 characters. Describe the image factually, not the page it appears on. ' .
-	'No "image of" / "picture of" / "photo of" preamble. ' .
+// Shared alt-text rules common to BOTH alt abilities (attachment + inline-<img>).
+// Owned here in the primary alt file (loaded first in signal-and-noise-tools.php)
+// so the guidance lives in ONE place and cannot drift between the two prompts —
+// inc/ai-alt-inline-suggest.php composes its system instruction from this base.
+// The two abilities are one capability split by image SOURCE, not two policies.
+const SNT_AI_ALT_BASE_RULES = 'No "image of" / "picture of" / "photo of" preamble. ' .
 	'No alt="" (empty) suggestions — if there is not enough context for a useful description, ' .
 	'output only the literal marker: ALT_INSUFFICIENT_CONTEXT. ' .
 	'Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
+
+const SNT_AI_ALT_SUGGEST_SYSTEM = 'Generate descriptive alt text for an image. ' .
+	'Output 80-125 characters. Describe the image factually, not the page it appears on. ' .
+	SNT_AI_ALT_BASE_RULES;
 
 const SNT_AI_ALT_SUGGEST_MAX_TOKENS = 80;
 const SNT_AI_ALT_APPLY_MAX_LENGTH   = 250;

@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.39.4] - 2026-06-23 — De-duplicate the alt-text prompt (one source of truth)
+
+**Headline:** The two alt-text abilities (`ai-alt-suggest` for media attachments, `ai-alt-inline-suggest` for inline `<img>` tags) are one capability split by image source, but each carried its own copy of the same alt-text rules in its system instruction. This extracts the shared rules into one constant both compose from, so a future "make alt text better" tweak is made once and cannot drift between the two prompts. Applies the "complement, do not duplicate" principle to SN's own internal duplication.
+
+> **Why PATCH:** behavior-preserving refactor. A regression test pins both full system instructions byte-for-byte to their v6.39.3 values, so there is zero prompt change. No API, schema, or capability change.
+
+### Changed
+
+- **Shared alt-text prompt base** ([inc/ai-alt-text-suggest.php](inc/ai-alt-text-suggest.php), [inc/ai-alt-inline-suggest.php](inc/ai-alt-inline-suggest.php)): the common rules (no "image of" preamble, no empty-alt suggestions, the `ALT_INSUFFICIENT_CONTEXT` marker, output-only) now live in `SNT_AI_ALT_BASE_RULES`, owned by the primary `ai-alt-text-suggest.php`. Both `SNT_AI_ALT_SUGGEST_SYSTEM` and `SNT_AI_ALT_INLINE_SUGGEST_SYSTEM` compose from it, each adding only its source-specific framing. The two alt files now load primary-first in the bootstrap so the base is defined before the sibling references it.
+
 ## [6.39.3] - 2026-06-23 — AI write-path hardening: perf, security, cost
 
 **Headline:** The deferred behavioral half of the AI-abilities audit (the contract half shipped in v6.39.1; the parallel non-AI abilities audit shipped in v6.39.2). Eight MEDIUM/LOW hardenings of the AI surface — a memoized availability check, four write-path security guards, and three cost ceilings. None were exploitable today under the single-author model; this is defense-in-depth plus real spend/latency reduction, all behind TDD.
