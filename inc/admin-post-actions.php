@@ -528,6 +528,23 @@ function sn_handle_music_sync( $post ) {
 }
 
 /**
+ * Commit a tag merge (POSTed from the Content > Tags confirm panel). The central
+ * dispatcher already verified the nonce + manage_options. Returns a ?sn_flash code.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_tag_merge( $post ) {
+	$from = array_filter( array_map( 'intval', explode( ',', isset( $post['sn_tag_from'] ) ? sanitize_text_field( wp_unslash( $post['sn_tag_from'] ) ) : '' ) ) );
+	$into = isset( $post['sn_tag_into'] ) ? (int) $post['sn_tag_into'] : 0;
+	if ( ! $from || ! $into || ! function_exists( 'sn_tag_merge' ) ) {
+		return 'tag_merge_error';
+	}
+	$res = sn_tag_merge( $from, $into );
+	return is_wp_error( $res ) ? 'tag_merge_error' : 'tag_merge_ok';
+}
+
+/**
  * v5.1.0: save the IndexNow enable toggle. Enabling mints a key on first use
  * (so /<key>.txt resolves immediately). The key lives in its own non-autoloaded
  * option; the toggle in sn_settings.indexnow.enabled.

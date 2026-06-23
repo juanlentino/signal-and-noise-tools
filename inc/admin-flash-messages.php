@@ -30,6 +30,8 @@ function sn_admin_flash_messages() {
 	return array(
 		'identity_saved'            => array( 'success', 'Identity settings saved.' ),
 		'identity_unchanged'        => array( 'info', 'No changes to save.' ),
+		'tag_merge_ok'              => array( 'success', 'Tags merged.' ),
+		'tag_merge_error'           => array( 'error', 'Tag merge failed — one or more tags were no longer valid.' ),
 		'login_empty'               => array( 'error', 'Login slug cannot be empty.' ),
 		'login_failed'              => array( 'error', 'Login slug save failed.' ),
 		'cf_saved'                  => array( 'success', 'Cloudflare settings saved.' ),

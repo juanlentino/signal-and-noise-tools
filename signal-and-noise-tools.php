@@ -173,6 +173,9 @@ unset( $sn_phase3_theme_dir, $sn_phase3_retired, $sn_phase3_legacy_file );
 require_once __DIR__ . '/inc/content-rendering-helpers.php';
 require_once __DIR__ . '/inc/content-surfaces.php';
 require_once __DIR__ . '/inc/content-migrations.php';
+require_once __DIR__ . '/inc/tag-consolidation.php';
+require_once __DIR__ . '/inc/tag-consolidation-redirects.php'; // front end too (301 handler)
+require_once __DIR__ . '/inc/tag-consolidation-admin.php';
 require_once __DIR__ . '/inc/og-card-generator.php';
 require_once __DIR__ . '/inc/reading-time.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';
