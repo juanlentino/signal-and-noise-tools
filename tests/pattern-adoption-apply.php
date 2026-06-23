@@ -73,6 +73,17 @@ if ( ! function_exists( 'rest_ensure_response' ) ) {
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $domain = '' ) { return $s; }
 }
+// Input-aware wp_kses_post model: actually strips <script> + inline event
+// handlers (a no-op stub would make the XSS wiring test a false-green). The
+// real wp_kses_post allows post-content tags; for this fixture only the
+// stripping behavior matters.
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $html ) {
+		$html = preg_replace( '#<script\b[^>]*>.*?</script>#is', '', (string) $html );
+		$html = preg_replace( '#\son\w+\s*=\s*("[^"]*"|\'[^\']*\')#i', '', $html );
+		return (string) $html;
+	}
+}
 
 // Minimal stub so the REST callback's type-hint resolves at file load.
 if ( ! class_exists( 'WP_REST_Request' ) ) {
@@ -247,6 +258,52 @@ $result = snt_ai_pattern_adoption_apply_impl( 308, $fp, $replacement, 'pull-quot
 pa_true( is_wp_error( $result ), 'Test 8.1: result is WP_Error' );
 pa_eq( 'snt_pattern_adoption_write_failed', $result->get_error_code(), 'Test 8.2: error code = write_failed' );
 unset( $GLOBALS['__test_force_wp_error'] );
+
+// ─── Test 9: replacement markup is sanitized before write (v6.39.2) ──
+//
+// replacement_markup can be user-edited in the modal, so it is untrusted. The
+// apply path must run the replacement block's inner HTML through wp_kses_post
+// (block-aware: sanitize the parsed node's HTML, NOT the raw serialized string,
+// which would strip the <!-- wp --> delimiters) before persisting. A <script>
+// in the replacement must never reach post_content.
+echo "\nTest 9: replacement_markup <script> is stripped before wp_update_post\n";
+$GLOBALS['__test_posts']      = array();
+$GLOBALS['__test_wp_updates'] = array();
+_taa_post( 309, array( $source_block ) );
+$fp = md5( serialize_block( $source_block ) );
+$xss_replacement = json_encode( array( array(
+	'blockName'   => 'core/pullquote',
+	'attrs'       => array(),
+	'innerBlocks' => array(),
+	'innerHTML'   => '<figure class="wp-block-pullquote"><blockquote>Pull.<script>alert(document.cookie)</script></blockquote></figure>',
+) ) );
+$result = snt_ai_pattern_adoption_apply_impl( 309, $fp, $xss_replacement, 'pull-quote' );
+pa_true( is_array( $result ), 'Test 9.1: apply still succeeds with sanitizable markup' );
+$new_content = $GLOBALS['__test_wp_updates'][0]['post_content'];
+pa_true( false === strpos( $new_content, '<script' ), 'Test 9.2: <script> stripped from persisted content' );
+pa_true( false === strpos( $new_content, 'alert(document.cookie)' ), 'Test 9.3: script payload gone' );
+pa_true( false !== strpos( $new_content, 'Pull.' ), 'Test 9.4: legitimate block text preserved' );
+pa_true( false !== strpos( $new_content, 'wp-block-pullquote' ), 'Test 9.5: legitimate block markup preserved' );
+
+// Nested innerBlocks are sanitized recursively.
+echo "\nTest 10: nested innerBlocks markup is sanitized recursively\n";
+$GLOBALS['__test_posts']      = array();
+$GLOBALS['__test_wp_updates'] = array();
+_taa_post( 310, array( $source_block ) );
+$fp = md5( serialize_block( $source_block ) );
+$nested_xss = json_encode( array( array(
+	'blockName'   => 'core/group',
+	'attrs'       => array(),
+	'innerBlocks' => array(
+		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>ok<script>steal()</script></p>' ),
+	),
+	'innerHTML'   => '<div class="wp-block-group"></div>',
+) ) );
+$result = snt_ai_pattern_adoption_apply_impl( 310, $fp, $nested_xss, 'pull-quote' );
+pa_true( is_array( $result ), 'Test 10.1: nested apply succeeds' );
+$new_content = $GLOBALS['__test_wp_updates'][0]['post_content'];
+pa_true( false === strpos( $new_content, 'steal()' ), 'Test 10.2: nested <script> payload stripped' );
+pa_true( false !== strpos( $new_content, 'ok' ), 'Test 10.3: nested legitimate text preserved' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

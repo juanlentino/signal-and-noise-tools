@@ -80,8 +80,10 @@ if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
 if ( ! function_exists( 'snt_ai_excerpt_impl' ) ) {
 	function snt_ai_excerpt_impl( $id, $concise = false ) { $GLOBALS['__concise_seen']['excerpt'] = $concise; return array( 'ok' => true, 'excerpt' => 'Generated excerpt.', 'length' => 18, 'words' => 2 ); }
 }
-if ( ! function_exists( 'snt_ai_og_card_title_impl' ) ) {
-	function snt_ai_og_card_title_impl( $id ) { $GLOBALS['__test_post_meta'][ $id ]['_sn_og_card_title'] = 'Gen Title'; return array( 'ok' => true, 'title' => 'Gen Title', 'length' => 9, 'card_regenerated' => true, 'card_url' => 'https://x/c.png' ); }
+// v6.39.2: prepop now calls the no-cap WRITER (cron has no logged-in user; the
+// *_impl entry gained an edit_post cap check that cron would fail).
+if ( ! function_exists( 'snt_ai_og_card_title_write' ) ) {
+	function snt_ai_og_card_title_write( $id ) { $GLOBALS['__test_post_meta'][ $id ]['_sn_og_card_title'] = 'Gen Title'; return array( 'ok' => true, 'title' => 'Gen Title', 'length' => 9, 'card_regenerated' => true, 'card_url' => 'https://x/c.png' ); }
 }
 
 require_once __DIR__ . '/../inc/ai-prepopulate.php';

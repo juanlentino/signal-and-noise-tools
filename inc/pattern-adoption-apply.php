@@ -98,6 +98,18 @@ function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $repl
 		);
 	}
 
+	// v6.39.2 SECURITY: replacement_markup is untrusted (it can be user-edited
+	// in the modal before apply). Sanitize the parsed block node's inner HTML
+	// through wp_kses_post BEFORE it is spliced + serialized into post_content,
+	// so a <script>/onerror payload can't be stored (front-end stored-XSS).
+	// We sanitize the PARSED node's HTML rather than wp_kses_post()'ing the raw
+	// serialized markup, because wp_kses strips HTML comments — and block
+	// delimiters (<!-- wp:… -->) ARE HTML comments, so a raw-string pass would
+	// destroy the block and trip the named-block guard above. serialize_blocks()
+	// rebuilds the delimiters from blockName + attrs, so sanitizing innerHTML /
+	// innerContent (recursively) is both safe and block-correct.
+	$replacement_node = snt_pattern_adoption_sanitize_block_node( $replacement_node );
+
 	$found = false;
 	snt_pattern_adoption_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );
 
@@ -156,6 +168,41 @@ function snt_pattern_adoption_replace_in_tree( &$tree, $fingerprint, $replacemen
 			snt_pattern_adoption_replace_in_tree( $block['innerBlocks'], $fingerprint, $replacement_node, $found );
 		}
 	}
+}
+
+/**
+ * Return a copy of a parsed block node with its inner HTML run through
+ * wp_kses_post, recursively for nested innerBlocks. Pure: the input node is
+ * not mutated (PHP arrays are value types). Both innerHTML and each string
+ * segment of innerContent are sanitized so the two stay consistent for
+ * serialize_block(); block delimiters/attrs are untouched (the serializer
+ * regenerates them).
+ *
+ * @param array $node Parsed block node.
+ * @return array Sanitized node.
+ *
+ * @since 6.39.2
+ */
+function snt_pattern_adoption_sanitize_block_node( $node ) {
+	if ( ! is_array( $node ) ) {
+		return $node;
+	}
+	if ( isset( $node['innerHTML'] ) && is_string( $node['innerHTML'] ) ) {
+		$node['innerHTML'] = wp_kses_post( $node['innerHTML'] );
+	}
+	if ( ! empty( $node['innerContent'] ) && is_array( $node['innerContent'] ) ) {
+		foreach ( $node['innerContent'] as $i => $chunk ) {
+			if ( is_string( $chunk ) ) {
+				$node['innerContent'][ $i ] = wp_kses_post( $chunk );
+			}
+		}
+	}
+	if ( ! empty( $node['innerBlocks'] ) && is_array( $node['innerBlocks'] ) ) {
+		foreach ( $node['innerBlocks'] as $i => $child ) {
+			$node['innerBlocks'][ $i ] = snt_pattern_adoption_sanitize_block_node( $child );
+		}
+	}
+	return $node;
 }
 
 /* ════════════════════════════════════════════════════════════════════════

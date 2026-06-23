@@ -7,10 +7,12 @@
  * empty fields only (never overwrites manual content). Deferred via
  * wp_schedule_single_event so the publish request isn't blocked by AI latency.
  *
- * Calls the SN *_impl() functions DIRECTLY, not the ability wrappers: the
+ * Calls the SN engine functions DIRECTLY, not the ability wrappers: the
  * abilities check current_user_can('edit_post'), but WP-Cron has no logged-in
- * user, so the ability layer would reject prepop. The impls gate only on AI
- * availability.
+ * user, so the ability layer would reject prepop. The meta-description and
+ * excerpt impls gate only on AI availability. The OG card title is reached via
+ * snt_ai_og_card_title_write() — its no-cap writer — because the matching
+ * *_impl() entry now adds an edit_post cap check (v6.39.2) that cron would fail.
  *
  * The excerpt's wp_update_post() re-fires save_post, but sn_post_settings_save()
  * returns on a missing nonce before any meta write (cron has no $_POST), so it
@@ -91,10 +93,12 @@ function snt_run_prepop( $post_id ) {
 		}
 	}
 
-	// 2. OG card title (impl self-persists the meta + rebuilds the PNG).
+	// 2. OG card title (writer self-persists the meta + rebuilds the PNG).
+	//    v6.39.2: call the no-cap WRITER, not the *_impl entry — the impl now
+	//    adds an edit_post cap check that WP-Cron (no logged-in user) would fail.
 	if ( '' === (string) get_post_meta( $post_id, '_sn_og_card_title', true )
-		&& function_exists( 'snt_ai_og_card_title_impl' ) ) {
-		$res = snt_ai_og_card_title_impl( $post_id );
+		&& function_exists( 'snt_ai_og_card_title_write' ) ) {
+		$res = snt_ai_og_card_title_write( $post_id );
 		if ( is_array( $res ) && ! empty( $res['title'] ) ) {
 			update_post_meta( $post_id, '_sn_autogen_og_card_title', '1' );
 		}
