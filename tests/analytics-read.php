@@ -50,11 +50,20 @@ class RD_Stub_wpdb {
 			usort( $out, function ( $x, $y ) { return (int) $y['views'] - (int) $x['views']; } );
 			return $out;
 		}
-		// GROUP BY day → per-day series.
-		if ( stripos( $sql, 'GROUP BY day' ) !== false ) {
+		// GROUP BY day  → per-day series.
+		// GROUP BY DATE_SUB(day, INTERVAL WEEKDAY(day) DAY) → per-week series, each bucket keyed
+		// to its ISO-Monday floor. Production SELECTs "{$expr} AS day" in both cases, so both
+		// return day-keyed rows; the mock mirrors that (a totals fall-through would lack 'day').
+		$is_week = stripos( $sql, 'DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false;
+		if ( $is_week || stripos( $sql, 'GROUP BY day' ) !== false ) {
 			$agg = array();
 			foreach ( $rows as $r ) {
 				$d = (string) $r['day'];
+				if ( $is_week ) {
+					$ts  = (int) strtotime( $d . ' 00:00:00 UTC' );
+					$dow = (int) gmdate( 'N', $ts ); // 1=Mon … 7=Sun
+					$d   = gmdate( 'Y-m-d', $ts - ( $dow - 1 ) * 86400 ); // floor to ISO Monday
+				}
 				if ( ! isset( $agg[ $d ] ) ) { $agg[ $d ] = array( 'day' => $d, 'views' => 0, 'visits' => 0 ); }
 				$agg[ $d ]['views']  += (int) $r['views'];
 				$agg[ $d ]['visits'] += (int) $r['visits'];
@@ -158,11 +167,24 @@ ok(
 );
 
 echo "\nGroup: daily_series weekly granularity\n";
-// Stub returns no rows for this expression-based GROUP BY; these are SQL-shape assertions only.
-$ws = sn_analytics_daily_series( '2026-03-01', '2026-06-12', 'human', 'week' );
+// Audit INFO-1: production SELECTs "{$expr} AS day", so week rows ARE day-keyed. The mock now
+// emulates the week-floor GROUP BY (floors each row to its ISO-Monday bucket) instead of falling
+// through to the no-GROUP-BY totals row — which lacked a 'day' key, so sn_analytics_daily_series()
+// built '' from the undefined source and tripped an "Undefined array key \"day\"" notice.
+$GLOBALS['__warnings'] = array();
+set_error_handler( function ( $errno, $errstr ) {
+	$GLOBALS['__warnings'][] = $errstr;
+	return true; // swallow: assert on the captured set, not on stderr
+}, E_WARNING | E_NOTICE );
+$ws  = sn_analytics_daily_series( '2026-03-01', '2026-06-12', 'human', 'week' );
+restore_error_handler();
 $sql = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql, 'DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false, 'weekly: SQL floors day to ISO Monday' );
 ok( strpos( $sql, 'GROUP BY DATE_SUB(day, INTERVAL WEEKDAY(day) DAY)' ) !== false, 'weekly: groups by the week-floor expression' );
+ok( count( array_filter( $GLOBALS['__warnings'], function ( $w ) { return stripos( $w, 'Undefined array key' ) !== false; } ) ) === 0,
+    'weekly: no "Undefined array key" warning during the week aggregation' );
+ok( ! empty( $ws ) && ! empty( $ws[0]['day'] ) && (int) gmdate( 'N', (int) strtotime( $ws[0]['day'] . ' 00:00:00 UTC' ) ) === 1,
+    'weekly: each bucket day floors to an ISO Monday' );
 sn_analytics_daily_series( '2026-06-01', '2026-06-12' );
 $sql2 = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql2, 'GROUP BY day' ) !== false && strpos( $sql2, 'DATE_SUB' ) === false, 'day granularity: unchanged GROUP BY day' );
