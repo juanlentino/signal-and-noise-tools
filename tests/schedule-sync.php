@@ -43,9 +43,12 @@ if ( ! defined( 'ARRAY_N' ) )  { define( 'ARRAY_N', 'ARRAY_N' ); }
 // ─── WP function stubs ────────────────────────────────────────────────
 // Engine-side stubs (mirror tests/schedule-engine.php).
 if ( ! function_exists( 'add_action' ) )    { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
+if ( ! function_exists( 'add_filter' ) )    { function add_filter( $h, $c = null, $p = 10, $a = 1 ) {} }
 if ( ! function_exists( 'get_option' ) )    { function get_option( $k, $d = false ) { return $GLOBALS['__test_options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = false ) { $GLOBALS['__test_options'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'dbDelta' ) )       { function dbDelta( $sql ) { $GLOBALS['__test_dbdelta'][] = $sql; return array(); } }
+if ( ! function_exists( '__' ) )            { function __( $t, $d = null ) { return $t; } }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) )     { define( 'MINUTE_IN_SECONDS', 60 ); }
 
 // Sync-side stubs. All record-only or input-aware; values are driven by the
 // globals the test sets per case so the same handler is exercised under
