@@ -78,5 +78,12 @@ $editor_script = isset( $meta['editorScript'] ) ? $meta['editorScript'] : null;
 ok( is_string( $editor_script ) && '' !== $editor_script, 'meta: editorScript is a non-empty string handle' );
 ok( is_string( $editor_script ) && 0 !== strpos( $editor_script, 'file:' ), "meta: editorScript is a registered handle, NOT a file: path" );
 
+// editorStyle wires the editor-only badge + gated-region CSS. Unlike a script, a
+// CSS file: reference needs no .asset.php sidecar, so it loads buildless and WP
+// auto-enqueues it in the block editor only (never on the front end). Guard that
+// the wiring exists so the polish cannot silently regress to an unstyled badge.
+$editor_style = isset( $meta['editorStyle'] ) ? $meta['editorStyle'] : null;
+ok( is_string( $editor_style ) && '' !== $editor_style, 'meta: editorStyle is a non-empty string' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

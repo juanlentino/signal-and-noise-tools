@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.40.1] - 2026-06-26 — Style the scheduled block's editor badge + gated-region cue
+
+**Headline:** The `signal-noise/scheduled` block shipped its editor-only cue, the "Scheduled" window badge plus the block wrapper, as unstyled plain text because block.json declared no `editorStyle`. This adds a small editor stylesheet so the badge reads as a native wp-admin status pill (muted neutrals, the wp-admin accent, a dashicons clock glyph) and the gated region gets a quiet dashed left rail so the author can see the date-gated boundary, which the front end never ships. Purely additive editor CSS: no front-end impact and no behavior change.
+
+> **Why PATCH:** editor-only cosmetic polish. The two styled classes (`.sn-scheduled`, `.sn-scheduled__badge`) are applied only by `edit()`; `save()` still returns just `InnerBlocks.Content` with no wrapper, so neither the classes nor the stylesheet reach the served HTML. No new capability, no removed or renamed public API, no settings-schema change. `SNT_VERSION` continues to derive from the docblock.
+
+### New
+
+- **Editor stylesheet for the scheduled block** ([blocks/scheduled/editor.css](blocks/scheduled/editor.css)): styles the editor-only `.sn-scheduled__badge` as an understated wp-admin status pill (11px text, neutral border and surface, muted text, a `::before` dashicons clock affordance in the wp-admin accent) and gives the `.sn-scheduled` wrapper a faint dashed left rail with a touch of padding so the date-gated region is legible while editing. Wired via `editorStyle: "file:./editor.css"` in [blocks/scheduled/block.json](blocks/scheduled/block.json): unlike a script, a CSS `file:` reference needs no `.asset.php` sidecar, so it loads buildless and WordPress auto-enqueues it in the block editor only, never on the front end. A new `schedule-block-meta` assertion pins the `editorStyle` wiring so it cannot silently regress to an unstyled badge.
+
 ## [6.40.0] - 2026-06-26 — Scheduled content subsystem (Phase 1)
 
 **Headline:** A cache-coherent way to flip hand-authored content on and off on a date. The new `signal-noise/scheduled` block wraps a fragment inside an already-published page and reveals or withholds it on each un-cached render, gated by an optional from/until window. Because the site is fronted by Cloudflare Cache-Everything, a class or `display:none` baked into the cached HTML would freeze at cache-fill time and leak to everyone, so the gate lives in a dynamic block's server render and each window edge fires a surgical Cloudflare purge of only the affected URLs. A Connections, Scheduled admin list folds the fragment queue together with WordPress posts and pages in native `future` status, with Run-now and Re-purge controls per row.

@@ -14,5 +14,6 @@
 		"scheduleId": { "type": "string", "default": "" }
 	},
 	"supports": { "html": false },
-	"editorScript": "signal-noise-scheduled-editor"
+	"editorScript": "signal-noise-scheduled-editor",
+	"editorStyle": "file:./editor.css"
 }
