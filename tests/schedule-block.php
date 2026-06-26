@@ -51,9 +51,11 @@ if ( ! function_exists( 'current_time' ) ) {
 	}
 }
 
-// schedule-engine.php registers an init action via add_action and runs a
-// version-gated install on require; stub the two it touches at include time.
+// schedule-engine.php registers init/fire/reconcile actions via add_action, a
+// cron_schedules filter via add_filter, and runs a version-gated install on
+// require; stub the hook registrars + option fns it touches at include time.
 if ( ! function_exists( 'add_action' ) )    { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
+if ( ! function_exists( 'add_filter' ) )    { function add_filter( $h, $c = null, $p = 10, $a = 1 ) {} }
 if ( ! function_exists( 'get_option' ) )    { function get_option( $k, $d = false ) { return $GLOBALS['__test_options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = false ) { $GLOBALS['__test_options'][ $k ] = $v; return true; } }
 
