@@ -82,7 +82,7 @@ function ok( $cond, $msg ) {
 
 /**
  * Set the stubbed UTC-now to a fixed instant. gmmktime builds a UTC Unix
- * timestamp regardless of the server's default timezone — the same basis the
+ * timestamp regardless of the server's default timezone, the same basis the
  * gate parses its string boundaries against.
  */
 function set_now_utc( $ts ) {

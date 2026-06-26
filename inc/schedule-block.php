@@ -27,7 +27,7 @@
  * attribute arrives EMPTY server-side (a known trap in this codebase), so the
  * window data is carried as plain comment-JSON attributes instead.
  *
- * UTC-now is obtained through current_time( 'timestamp', true ) — a WordPress
+ * UTC-now is obtained through current_time( 'timestamp', true ), a WordPress
  * function (not bare PHP time()) so tests can stub it, and the `true`/GMT flag so
  * the integer it returns is a UTC Unix timestamp, matching the basis the gate
  * parses its UTC string boundaries against.
