@@ -36,13 +36,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * The cron hook fired at each window boundary. Its handler (the flip + purge)
- * ships in Task 6; this module only arms / clears events on this hook. Defined
- * here as the single source of truth for the hook name so the sync and the
- * future handler can never drift.
- */
-const SN_SCHEDULE_FIRE_HOOK = 'sn_schedule_fire';
+// The cron hook this module arms / clears, SN_SCHEDULE_FIRE_HOOK, is defined in
+// inc/schedule-engine.php (the foundational file, required before this one in
+// the bootstrap). It lives there because Task 6's fire handler also ships in
+// schedule-engine.php and add_action's on the constant at file load, BEFORE
+// this module is required; defining it here would leave that earlier reference
+// undefined (a PHP 8 fatal). One source of truth, next to the fire handler.
 
 /**
  * Post statuses for which mirroring makes no sense. An auto-draft is an empty
@@ -62,16 +61,16 @@ function sn_schedule_skip_statuses() {
  * queue and (re)arm their boundary cron events.
  *
  * Guards (conservative, each an early return):
- *   - autosave  : wp_is_post_autosave() — an autosave is not an authored save;
+ *   - autosave  : wp_is_post_autosave(). An autosave is not an authored save;
  *                 acting on it would churn the queue on every keystroke-driven
  *                 autosave tick.
- *   - revision  : wp_is_post_revision() — a revision is a historical copy, not
+ *   - revision  : wp_is_post_revision(). A revision is a historical copy, not
  *                 the live post; its blocks must not register their own rows.
- *   - capability: ! current_user_can( 'edit_post', $post_id ) — save_post can
+ *   - capability: ! current_user_can( 'edit_post', $post_id ). save_post can
  *                 fire for a user without edit rights (e.g. a crafted REST
  *                 write); a queue mutation is an edit, so it is gated on the
  *                 same cap the editor enforces.
- *   - status    : auto-draft / trash / inherit — see sn_schedule_skip_statuses().
+ *   - status    : auto-draft / trash / inherit (see sn_schedule_skip_statuses()).
  *
  * The handler is hooked with 2 args so $post is available without a second
  * get_post() round-trip; $post->post_content is the source the blocks are
@@ -166,8 +165,8 @@ function sn_schedule_sync_post( $post_id, $post = null ) {
 	sn_schedule_delete_missing( $post_id, $keep_ids );
 
 	// (Re)arm the boundary cron for every surviving fragment row. Reading the
-	// rows back from the queue (rather than from $blocks) gives us the row id —
-	// the cron event's payload — and the canonical normalized datetimes.
+	// rows back from the queue (rather than from $blocks) gives us the row id
+	// (the cron event's payload) and the canonical normalized datetimes.
 	sn_schedule_arm_post_crons( $post_id );
 }
 
@@ -274,14 +273,14 @@ function sn_schedule_clear_removed_crons( $post_id, array $keep_ids ) {
  * ends_at), keyed on the row id so the fire handler (Task 6) can look the row up.
  * Each boundary's event is cleared first (wp_clear_scheduled_hook) so a re-save
  * after a date edit re-arms cleanly rather than stacking a second event for the
- * same row — the clear is by row id, which removes BOTH that row's prior
+ * same row: the clear is by row id, which removes BOTH that row's prior
  * boundary events at once, and we then re-arm the current boundaries.
  *
  * Past boundaries are NOT pre-filtered out: we arm every non-null boundary,
  * including ones already in the past. WP-Cron fires a past-due single event on
  * its next run, and Task 6's reconcile tick repairs any boundary that was
  * missed entirely (e.g. while WP-Cron was idle). Arming all boundaries is the
- * simpler, safer choice — pruning past boundaries here would be a second place
+ * simpler, safer choice: pruning past boundaries here would be a second place
  * that has to agree with the reconcile about what "past" means, and getting it
  * wrong would silently skip a purge. The reconcile owns "did this boundary
  * already happen"; the sync just declares the boundaries.

@@ -76,7 +76,7 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 if ( ! function_exists( 'parse_blocks' ) ) {
 	// INPUT-AWARE: keyed on the post_content string the handler passes in, so a
 	// handler that fails to read $post->post_content (or reads the wrong field)
-	// gets an empty tree and writes no rows — a real divergence, not a free pass.
+	// gets an empty tree and writes no rows: a real divergence, not a free pass.
 	function parse_blocks( $content ) {
 		return $GLOBALS['__test_blocks'][ $content ] ?? array();
 	}

@@ -41,6 +41,17 @@ const SN_SCHEDULES_DB_VERSION      = '1';
 const SN_SCHEDULES_DB_VERSION_OPT  = 'sn_schedules_db_version';
 
 /**
+ * The cron hook fired at each window boundary. The save_post sync (Task 5) arms
+ * and clears events on this hook; the flip + Cloudflare purge handler (Task 6)
+ * registers against it. It lives in this foundational file, required first in
+ * the bootstrap, so the constant is defined before either consumer references
+ * it: the sync module references it, and Task 6's fire handler (which ships in
+ * THIS file) will add_action on it at file load. One source of truth for the
+ * hook name; no second definition.
+ */
+const SN_SCHEDULE_FIRE_HOOK        = 'sn_schedule_fire';
+
+/**
  * dbDelta CREATE TABLE statement for wp_sn_schedules.
  *
  * Constrained columns use VARCHAR (not ENUM) so dbDelta is idempotent: a
