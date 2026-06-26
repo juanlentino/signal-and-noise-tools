@@ -217,6 +217,16 @@ class SS_Stub_wpdb {
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $id ) {
 				return (int) $r['id'] === $id;
 			} ) );
+		} elseif ( preg_match( "/WHERE\s+schedule_id\s*=\s*'([^']*)'\s+AND\s+target_ref\s*=\s*'([^']*)'/i", $query, $cm ) ) {
+			// Composite upsert lookup: schedule_id AND target_ref. Matched before
+			// the schedule_id-only branch so the same schedule_id on two posts
+			// resolves to two distinct rows (the cross-post collision fix).
+			$sid  = $cm[1];
+			$ref  = $cm[2];
+			$rows = array_values( array_filter( $rows, function ( $r ) use ( $sid, $ref ) {
+				return (string) $r['schedule_id'] === $sid
+					&& (string) ( $r['target_ref'] ?? '' ) === $ref;
+			} ) );
 		} elseif ( preg_match( "/WHERE\s+schedule_id\s*=\s*'([^']*)'/i", $query, $sm ) ) {
 			$sid  = $sm[1];
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $sid ) {
@@ -598,6 +608,102 @@ ss_reset();
 $GLOBALS['__test_blocks'][ $g ] = array( ss_block( 'g-1', '2026-07-01T00:00:00', '' ) );
 sn_schedule_sync_post( 500, ss_post( 500, $g, 'trash' ) );
 ok( count( ss_rows_for( 500 ) ) === 0, 'trash status: no rows written' );
+
+// ─── Group: cross-post scheduleId collision (composite-key regression) ─
+// The headline regression guard. A Scheduled block COPIED into a second post
+// carries the SAME scheduleId. Each post's save_post upsert must produce its
+// OWN row (keyed on schedule_id + target_ref), so post A is NOT clobbered by
+// post B's save: each row keeps its own target_ref + purge_urls (its surgical
+// purge URL list).
+echo "\nGroup: cross-post same-scheduleId collision -> two rows, no clobber\n";
+ss_reset();
+$GLOBALS['wpdb']->rows[ $table ] = array();
+
+// Post 600 saves a block with scheduleId 'dup'.
+$content_a = 'POST-600-CONTENT';
+$GLOBALS['__test_blocks'][ $content_a ] = array(
+	ss_block( 'dup', '2026-07-01T00:00:00', '2026-08-01T00:00:00' ),
+);
+sn_schedule_sync_post( 600, ss_post( 600, $content_a ) );
+
+// Post 601 (a DIFFERENT post) saves a block with the SAME scheduleId 'dup'
+// (the block was copied across). Its permalink differs, so its purge_urls
+// differ too.
+$content_b = 'POST-601-CONTENT';
+$GLOBALS['__test_blocks'][ $content_b ] = array(
+	ss_block( 'dup', '2026-09-01T00:00:00', '2026-10-01T00:00:00' ),
+);
+sn_schedule_sync_post( 601, ss_post( 601, $content_b ) );
+
+$rows_a = ss_rows_for( 600 );
+$rows_b = ss_rows_for( 601 );
+ok( count( $rows_a ) === 1, 'collision: post 600 still has its own one row after post 601 saved' );
+ok( count( $rows_b ) === 1, 'collision: post 601 has its own one row' );
+ok( count( sn_schedule_all() ) === 2, 'collision: TWO distinct rows total for the shared scheduleId (one per post)' );
+
+$row_a = $rows_a[0];
+$row_b = $rows_b[0];
+ok( (int) $row_a['id'] !== (int) $row_b['id'], 'collision: the two posts have DISTINCT row ids' );
+ok( $row_a['target_ref'] === '600', 'collision: post 600 row keeps target_ref 600 (NOT clobbered to 601)' );
+ok( $row_b['target_ref'] === '601', 'collision: post 601 row carries target_ref 601' );
+ok( $row_a['purge_urls'] === wp_json_encode( array( get_permalink( 600 ) ) ), 'collision: post 600 keeps its OWN purge_urls (surgical purge intact)' );
+ok( $row_b['purge_urls'] === wp_json_encode( array( get_permalink( 601 ) ) ), 'collision: post 601 carries its own purge_urls' );
+// Post 600 retains its own window boundaries, not post 601's.
+ok( $row_a['starts_at'] === '2026-07-01 00:00:00' && $row_a['ends_at'] === '2026-08-01 00:00:00', 'collision: post 600 keeps its own window boundaries' );
+
+// ─── Group: orphan cleanup on permanent delete (before_delete_post) ───
+// A permanently-deleted post must leave NO orphaned schedule rows or armed
+// cron events. The before_delete_post handler clears every fragment row's cron
+// (by row id) then deletes the rows.
+echo "\nGroup: before_delete_post orphan cleanup\n";
+ss_reset();
+$GLOBALS['wpdb']->rows[ $table ] = array();
+
+// Post 900 with N=3 fragment rows (two windowed, one boundary-less).
+$content_d = 'POST-900-CONTENT';
+$GLOBALS['__test_blocks'][ $content_d ] = array(
+	ss_block( 'd-1', '2026-07-01T00:00:00', '2026-08-01T00:00:00' ),
+	ss_block( 'd-2', '2026-09-01T00:00:00', '' ),
+	ss_block( 'd-3', '', '2026-10-01T00:00:00' ),
+);
+sn_schedule_sync_post( 900, ss_post( 900, $content_d ) );
+
+// An unrelated post 901 row that must survive the delete.
+$content_e = 'POST-901-CONTENT';
+$GLOBALS['__test_blocks'][ $content_e ] = array(
+	ss_block( 'e-1', '2026-07-01T00:00:00', '' ),
+);
+sn_schedule_sync_post( 901, ss_post( 901, $content_e ) );
+
+$rows_900 = ss_rows_for( 900 );
+ok( count( $rows_900 ) === 3, 'orphan precondition: post 900 has 3 fragment rows' );
+$ids_900 = array_map( function ( $r ) { return (int) $r['id']; }, $rows_900 );
+sort( $ids_900 );
+
+// Reset recorders so we observe ONLY the delete handler's cron clears.
+$GLOBALS['__test_cleared']   = array();
+$GLOBALS['__test_scheduled'] = array();
+
+sn_schedule_before_delete_post( 900 );
+
+// All 3 of post 900's rows are gone; post 901 survives.
+ok( count( ss_rows_for( 900 ) ) === 0, 'orphan: all 3 fragment rows for the deleted post are gone' );
+ok( count( ss_rows_for( 901 ) ) === 1, 'orphan: the unrelated post 901 row is untouched' );
+
+// Each of post 900's row ids must have had its cron explicitly cleared.
+$cleared_ids = array();
+foreach ( $GLOBALS['__test_cleared'] as $c ) {
+	if ( 'sn_schedule_fire' === $c['hook'] && is_array( $c['args'] ) && isset( $c['args'][0] ) ) {
+		$cleared_ids[] = (int) $c['args'][0];
+	}
+}
+$cleared_ids = array_values( array_unique( $cleared_ids ) );
+sort( $cleared_ids );
+ok( $cleared_ids === $ids_900, 'orphan: wp_clear_scheduled_hook called with EACH of the deleted rows ids' );
+
+// Falsify-guard: post 901's row id must NOT have been cleared.
+$row_901_id = (int) ss_rows_for( 901 )[0]['id'];
+ok( ! in_array( $row_901_id, $cleared_ids, true ), 'orphan: the surviving post 901 row id was NOT cleared' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

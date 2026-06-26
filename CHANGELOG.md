@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.40.2] - 2026-06-26 — Scheduled-content hardening (composite-key idempotency + orphan cleanup)
+
+**Headline:** Two content-safe edge cases in the scheduled-content subsystem, found in a post-ship audit. First, a Scheduled block copied into a SECOND post carried the same `scheduleId`, and because upsert idempotency was keyed on `scheduleId` alone, the second post's save would find and overwrite the FIRST post's queue row, so the first post silently lost its own `target_ref` and surgical purge URL list. Idempotency is now keyed on the `(scheduleId, target_ref)` pair, so the same block on two posts resolves to two distinct rows. Second, permanently deleting a post (not trashing it) left its `wp_sn_schedules` rows and their armed cron events orphaned; a new `before_delete_post` handler now clears those rows' crons and deletes the rows. No schema change, no front-end impact, no behavior change for the common single-post case.
+
+> **Why PATCH:** two bugfixes to an internal subsystem. The upsert lookup adds a `target_ref` clause to a `SELECT` it already ran; the delete handler reuses two existing sweep primitives. No new capability, no removed or renamed public API, no settings-schema change, no schema/version bump (the existing `schedule_id` + `target_ref(191)` indexes already cover the composite lookup). `SNT_VERSION` continues to derive from the docblock.
+
+### Fixed
+
+- **Cross-post `scheduleId` collision** ([inc/schedule-engine.php](inc/schedule-engine.php)): `sn_schedule_upsert` now keys its in-place-update lookup on `schedule_id = %s AND target_ref = %s`, not `schedule_id` alone. A Scheduled block copied to a different post (same `scheduleId`, different post id) becomes its own row instead of overwriting the original post's row, so each post keeps its own `target_ref` and `purge_urls`. The empty-`schedule_id` table-canonical branch is unchanged (each such insert is still its own row). A new composite-key test group asserts that same-`scheduleId` plus same-`target_ref` stays one row while same-`scheduleId` plus different-`target_ref` makes two, and the sync test adds a two-post collision regression proving post A is not clobbered by post B's save.
+- **Orphan cleanup on permanent post delete** ([inc/schedule-sync.php](inc/schedule-sync.php)): a new `sn_schedule_before_delete_post` handler, hooked on `before_delete_post`, clears the cron events of every fragment row for the deleted post (via `sn_schedule_clear_removed_crons` with an empty keep-list) and then deletes those rows (via `sn_schedule_delete_all_fragments`). A trashed post is unaffected (`before_delete_post` only fires on a real, permanent delete), so trashed-then-restored posts still re-sync on their next save. A new test asserts all of the post's rows are gone and each row id had its cron cleared, while an unrelated post's row survives.
+
 ## [6.40.1] - 2026-06-26 — Style the scheduled block's editor badge + gated-region cue
 
 **Headline:** The `signal-noise/scheduled` block shipped its editor-only cue, the "Scheduled" window badge plus the block wrapper, as unstyled plain text because block.json declared no `editorStyle`. This adds a small editor stylesheet so the badge reads as a native wp-admin status pill (muted neutrals, the wp-admin accent, a dashicons clock glyph) and the gated region gets a quiet dashed left rail so the author can see the date-gated boundary, which the front end never ships. Purely additive editor CSS: no front-end impact and no behavior change.
