@@ -329,6 +329,9 @@ ok( count( $GLOBALS['wpdb']->rows[ $table ] ) === 3, 'upsert: three rows total (
 // ─── Group: get / all round-trip ──────────────────────────────────────
 echo "\nGroup: sn_schedule_get / sn_schedule_all\n";
 ok( sn_schedule_get( 999999 ) === null, 'get: unknown id returns null' );
+// Guard paths: non-positive ids are rejected without touching the DB.
+ok( sn_schedule_get( 0 ) === null, 'get: id 0 returns null (guard)' );
+ok( sn_schedule_get( -1 ) === null, 'get: id -1 returns null (guard)' );
 $got = sn_schedule_get( $id1 );
 ok( is_array( $got ) && $got['schedule_id'] === 'uuid-abc', 'get: returns the row as an assoc array' );
 ok( isset( $got['id'] ) && (int) $got['id'] === $id1, 'get: row carries its id' );
@@ -345,6 +348,9 @@ ok( sn_schedule_delete( $id3 ) === true, 'delete: existing id returns true' );
 ok( sn_schedule_get( $id3 ) === null, 'delete: deleted row is gone' );
 ok( count( sn_schedule_all() ) === 2, 'delete: row count drops to 2' );
 ok( sn_schedule_delete( 999999 ) === false, 'delete: unknown id returns false' );
+// Guard paths: non-positive ids are rejected without touching the DB.
+ok( sn_schedule_delete( 0 ) === false, 'delete: id 0 returns false (guard)' );
+ok( sn_schedule_delete( -1 ) === false, 'delete: id -1 returns false (guard)' );
 
 // ─── Group: delete_missing filtering ──────────────────────────────────
 echo "\nGroup: sn_schedule_delete_missing\n";

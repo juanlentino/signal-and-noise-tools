@@ -159,7 +159,8 @@ function sn_schedules_normalize_row( array $row ) {
  * An empty schedule_id is table-canonical and always inserts a fresh row.
  *
  * @param array $row Row data keyed by column name. Unknown keys are dropped.
- * @return int The row id (newly inserted or the existing one that was updated).
+ * @return int The row id (inserted or the existing one updated). Returns 0 on
+ *             insert failure (a falsy $wpdb->insert_id).
  */
 function sn_schedule_upsert( array $row ) {
 	global $wpdb;
@@ -223,6 +224,9 @@ function sn_schedule_all() {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_SCHEDULES_TABLE;
 
+	// Bare interpolation: $table is a constant and there are no values to bind.
+	// Matches inc/cron-history.php:246; do NOT wrap in $wpdb->prepare() (WP 6.2+
+	// flags a placeholder-free prepare() via _doing_it_wrong).
 	$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY id ASC", ARRAY_A );
 
 	return is_array( $rows ) ? $rows : array();
@@ -271,17 +275,8 @@ function sn_schedule_delete_missing( $post_id, array $keep_ids ) {
 
 	$post_ref = (string) $post_id;
 
-	// Empty keep set: delete every fragment row for this post.
-	if ( empty( $keep_ids ) ) {
-		$deleted = $wpdb->query( $wpdb->prepare(
-			"DELETE FROM {$table} WHERE target_type = %s AND target_ref = %s",
-			'fragment',
-			$post_ref
-		) );
-		return is_int( $deleted ) ? $deleted : 0;
-	}
-
-	// Normalize the keep list to unique, non-empty strings.
+	// Normalize the keep list to unique, non-empty strings. An empty input, or
+	// one whose entries were all empty, collapses to the purge-all path.
 	$keep = array();
 	foreach ( $keep_ids as $kid ) {
 		$kid = (string) $kid;
@@ -291,15 +286,9 @@ function sn_schedule_delete_missing( $post_id, array $keep_ids ) {
 	}
 	$keep = array_keys( $keep );
 
-	// If the keep list collapsed to nothing (all entries were empty), this is
-	// equivalent to the empty-keep purge above.
+	// Empty keep set: delete every fragment row for this post (one query path).
 	if ( empty( $keep ) ) {
-		$deleted = $wpdb->query( $wpdb->prepare(
-			"DELETE FROM {$table} WHERE target_type = %s AND target_ref = %s",
-			'fragment',
-			$post_ref
-		) );
-		return is_int( $deleted ) ? $deleted : 0;
+		return sn_schedule_delete_all_fragments( $post_ref );
 	}
 
 	// Build the NOT IN (...) placeholder list. Every value is bound via
@@ -310,6 +299,27 @@ function sn_schedule_delete_missing( $post_id, array $keep_ids ) {
 	$deleted = $wpdb->query( $wpdb->prepare(
 		"DELETE FROM {$table} WHERE target_type = %s AND target_ref = %s AND schedule_id NOT IN ( {$placeholders} )",
 		$args
+	) );
+
+	return is_int( $deleted ) ? $deleted : 0;
+}
+
+/**
+ * Delete every fragment row for a post (the empty-keep-set path of
+ * sn_schedule_delete_missing). Factored out so there is exactly one copy of
+ * this query.
+ *
+ * @param string $post_ref The post id stored in target_ref.
+ * @return int Count of rows deleted.
+ */
+function sn_schedule_delete_all_fragments( $post_ref ) {
+	global $wpdb;
+	$table = $wpdb->prefix . SN_SCHEDULES_TABLE;
+
+	$deleted = $wpdb->query( $wpdb->prepare(
+		"DELETE FROM {$table} WHERE target_type = %s AND target_ref = %s",
+		'fragment',
+		(string) $post_ref
 	) );
 
 	return is_int( $deleted ) ? $deleted : 0;
