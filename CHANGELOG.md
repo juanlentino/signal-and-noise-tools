@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.40.0] - 2026-06-26: Scheduled content subsystem (Phase 1)
+
+**Headline:** A cache-coherent way to flip hand-authored content on and off on a date. The new `signal-noise/scheduled` block wraps a fragment inside an already-published page and reveals or withholds it on each un-cached render, gated by an optional from/until window. Because the site is fronted by Cloudflare Cache-Everything, a class or `display:none` baked into the cached HTML would freeze at cache-fill time and leak to everyone, so the gate lives in a dynamic block's server render and each window edge fires a surgical Cloudflare purge of only the affected URLs. A Connections, Scheduled admin list folds the fragment queue together with WordPress posts and pages in native `future` status, with Run-now and Re-purge controls per row.
+
+> **Why MINOR:** a new user-visible capability (a new block, a new admin surface, a new queue table) added additively. No public API removed or renamed, no settings-schema migration, no behavioral shift requiring user action. `SNT_VERSION` continues to derive from the docblock `Version` header via `get_file_data`, so no version constant was touched.
+
+### New
+
+- **`signal-noise/scheduled` window-gated block** ([inc/schedule-block.php](inc/schedule-block.php), [inc/schedule-engine.php](inc/schedule-engine.php)): a dynamic block that gates its inner content on a UTC from/until window evaluated at render time, the only cache-coherent place to decide visibility under Cloudflare Cache-Everything. The pure gate (no globals, no I/O) lives in the engine so it is trivially testable; the block render callback and buildless editor registration wrap it.
+- **Edge-cache-coherent boundary purge** ([inc/schedule-engine.php](inc/schedule-engine.php), [inc/schedule-cache.php](inc/schedule-cache.php)): a `wp_sn_schedules` queue table mirrors each block's window (keyed on the block's scheduleId via `save_post`), and a boundary cron fires at each window edge to purge only the affected post URLs. The purge is a single named seam, `sn_schedule_purge_urls`, wrapping the existing `sn_cf_purge_urls` (de-dupe plus 30-URL chunking reused, not rebuilt) so the fire path never calls Cloudflare directly. A reconcile pass re-arms drifted or missed boundaries.
+- **Connections, Scheduled admin status list** ([inc/schedule-admin.php](inc/schedule-admin.php), [inc/schedule-pages.php](inc/schedule-pages.php)): a native `.wp-list-table` that folds the fragment queue (queued, active, done, error per row, with the window) together with WordPress posts and pages in `future` status (native-scheduled to auto-publish), surfaced read-only via `sn_schedule_future_posts()`. Two per-row ops, Run-now (fire a boundary immediately) and Re-purge (re-issue the surgical Cloudflare purge), route through the existing admin-post dispatcher.
+
 ## [6.39.5] - 2026-06-23 — Non-AI abilities: honest cron guard + contract polish
 
 **Headline:** A non-AI abilities audit found the plugin surface sound (no IDOR — the per-resource permission helpers correctly check the cap on the specific id; no theme/plugin ability duplication). The one finding with teeth: `unschedule-cron-event`'s docblock claimed "Signal & Noise hooks are refused," but the guard list held only **1 of ~10** live SN hooks, so an admin could unschedule `sn_analytics_rollup_daily`, the audit/cron-history prune, edge rollup, insights, narration, uptime, or discography cron via the run-path (each self-heals at next init, but at the cost of a missed firing). The guard is now authoritative.
