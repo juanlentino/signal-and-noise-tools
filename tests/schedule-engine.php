@@ -145,8 +145,14 @@ class SE_Stub_wpdb {
 	/**
 	 * Crude SELECT executor covering the shapes the engine emits:
 	 *   SELECT ... FROM <t> WHERE id = <n>
+	 *   SELECT ... FROM <t> WHERE schedule_id = '<sid>' AND target_ref = '<ref>' ...
 	 *   SELECT ... FROM <t> WHERE schedule_id = '<sid>' ...
 	 *   SELECT ... FROM <t>            (all rows)
+	 *
+	 * The composite schedule_id + target_ref branch is checked BEFORE the
+	 * schedule_id-only branch so the upsert's composite-key lookup is matched
+	 * faithfully: a stub that ignored the target_ref clause would match on
+	 * schedule_id alone and silently pass the cross-post collision test.
 	 */
 	private function select_rows( $query ) {
 		if ( ! preg_match( '/FROM\s+(\S+)/i', $query, $tm ) ) {
@@ -159,6 +165,13 @@ class SE_Stub_wpdb {
 			$id   = (int) $im[1];
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $id ) {
 				return (int) $r['id'] === $id;
+			} ) );
+		} elseif ( preg_match( "/WHERE\s+schedule_id\s*=\s*'([^']*)'\s+AND\s+target_ref\s*=\s*'([^']*)'/i", $query, $cm ) ) {
+			$sid  = $cm[1];
+			$ref  = $cm[2];
+			$rows = array_values( array_filter( $rows, function ( $r ) use ( $sid, $ref ) {
+				return (string) $r['schedule_id'] === $sid
+					&& (string) ( $r['target_ref'] ?? '' ) === $ref;
 			} ) );
 		} elseif ( preg_match( "/WHERE\s+schedule_id\s*=\s*'([^']*)'/i", $query, $sm ) ) {
 			$sid  = $sm[1];
@@ -328,6 +341,60 @@ $id4 = sn_schedule_upsert( array(
 ) );
 ok( $id3 !== $id4 && $id3 > 0 && $id4 > 0, 'upsert: empty schedule_id rows are never coalesced (two distinct ids)' );
 ok( count( $GLOBALS['wpdb']->rows[ $table ] ) === 3, 'upsert: three rows total (1 uuid + 2 empty-sid)' );
+
+// ─── Group: composite-key idempotency (schedule_id, target_ref) ───────
+// A scheduleId copied to a DIFFERENT post must NOT clobber the first post's
+// row: idempotency is keyed on the (schedule_id, target_ref) PAIR, so the same
+// schedule_id under two target_refs is two rows. Same schedule_id + SAME
+// target_ref still coalesces to one row.
+echo "\nGroup: sn_schedule_upsert composite key (schedule_id, target_ref)\n";
+// Snapshot the 3-row fixture the later get/all/delete groups depend on, run the
+// composite-key assertions against a scratch table, then restore. This keeps the
+// group self-contained without renumbering the downstream fixtures.
+$ck_saved_rows = $GLOBALS['wpdb']->rows[ $table ];
+$GLOBALS['wpdb']->rows[ $table ] = array();
+
+// Same schedule_id + SAME target_ref, upserted twice: still ONE row.
+$ck1 = sn_schedule_upsert( array(
+	'schedule_id' => 'shared-uuid',
+	'target_type' => 'fragment',
+	'target_ref'  => '700',
+	'action'      => 'reveal',
+	'purge_urls'  => '["https://example.com/?p=700"]',
+) );
+$ck1b = sn_schedule_upsert( array(
+	'schedule_id' => 'shared-uuid',
+	'target_type' => 'fragment',
+	'target_ref'  => '700',
+	'action'      => 'hide',
+	'purge_urls'  => '["https://example.com/?p=700"]',
+) );
+ok( $ck1b === $ck1, 'composite: same schedule_id + same target_ref returns the SAME id (idempotent)' );
+ok( count( $GLOBALS['wpdb']->rows[ $table ] ) === 1, 'composite: same schedule_id + same target_ref stays ONE row' );
+$ck1_row = sn_schedule_get( $ck1 );
+ok( is_array( $ck1_row ) && $ck1_row['action'] === 'hide', 'composite: the one row was UPDATED in place (action now hide)' );
+
+// Same schedule_id + DIFFERENT target_ref: a SECOND, distinct row (the fix).
+$ck2 = sn_schedule_upsert( array(
+	'schedule_id' => 'shared-uuid',
+	'target_type' => 'fragment',
+	'target_ref'  => '800',
+	'action'      => 'reveal',
+	'purge_urls'  => '["https://example.com/?p=800"]',
+) );
+ok( $ck2 !== $ck1 && $ck2 > 0, 'composite: same schedule_id + different target_ref creates a SECOND distinct row' );
+ok( count( $GLOBALS['wpdb']->rows[ $table ] ) === 2, 'composite: now exactly two rows (one per target_ref)' );
+
+// Post 700's row must be untouched by post 800's upsert (no clobber).
+$ck1_after = sn_schedule_get( $ck1 );
+ok( is_array( $ck1_after ) && $ck1_after['target_ref'] === '700', 'composite: post 700 row keeps its own target_ref (not clobbered)' );
+ok( $ck1_after['purge_urls'] === '["https://example.com/?p=700"]', 'composite: post 700 row keeps its own purge_urls (surgical purge preserved)' );
+$ck2_row = sn_schedule_get( $ck2 );
+ok( is_array( $ck2_row ) && $ck2_row['target_ref'] === '800', 'composite: post 800 row carries its own target_ref' );
+ok( $ck2_row['purge_urls'] === '["https://example.com/?p=800"]', 'composite: post 800 row carries its own purge_urls' );
+
+// Restore the 3-row fixture for the downstream get/all/delete groups.
+$GLOBALS['wpdb']->rows[ $table ] = $ck_saved_rows;
 
 // ─── Group: get / all round-trip ──────────────────────────────────────
 echo "\nGroup: sn_schedule_get / sn_schedule_all\n";

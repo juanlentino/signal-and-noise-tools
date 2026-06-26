@@ -176,8 +176,17 @@ function sn_schedules_normalize_row( array $row ) {
 
 /**
  * Insert a schedule row, OR update the existing row that carries the same
- * non-empty schedule_id (idempotent: the same schedule_id twice is ONE row).
- * An empty schedule_id is table-canonical and always inserts a fresh row.
+ * non-empty schedule_id AND the same target_ref (idempotent on the
+ * (schedule_id, target_ref) PAIR: the same scheduleId on the SAME post is ONE
+ * row). An empty schedule_id is table-canonical and always inserts a fresh row.
+ *
+ * Why the PAIR, not schedule_id alone: a Scheduled block copied into a DIFFERENT
+ * post carries the same scheduleId. Keying idempotency on schedule_id alone would
+ * make the second post's save_post upsert find (and overwrite the target_ref /
+ * purge_urls of) the FIRST post's row, so the first post would silently lose its
+ * surgical purge. Adding target_ref to the match makes the same scheduleId under
+ * two posts resolve to two distinct rows. The existing schedule_id + target_ref(191)
+ * indexes both cover this lookup; no composite index or schema bump is needed.
  *
  * @param array $row Row data keyed by column name. Unknown keys are dropped.
  * @return int The row id (inserted or the existing one updated). Returns 0 on
@@ -190,12 +199,16 @@ function sn_schedule_upsert( array $row ) {
 	$data                = sn_schedules_normalize_row( $row );
 	$data['updated']     = gmdate( 'Y-m-d H:i:s' );
 	$schedule_id         = isset( $data['schedule_id'] ) ? (string) $data['schedule_id'] : '';
+	$target_ref          = isset( $data['target_ref'] ) ? (string) $data['target_ref'] : '';
 
-	// Non-empty schedule_id: update in place if a row already exists.
+	// Non-empty schedule_id: update in place if a row with the same
+	// (schedule_id, target_ref) already exists. The pair scopes idempotency to a
+	// single post, so the same scheduleId on another post never clobbers this one.
 	if ( '' !== $schedule_id ) {
 		$existing_id = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM {$table} WHERE schedule_id = %s LIMIT 1",
-			$schedule_id
+			"SELECT id FROM {$table} WHERE schedule_id = %s AND target_ref = %s LIMIT 1",
+			$schedule_id,
+			$target_ref
 		) );
 
 		if ( null !== $existing_id ) {

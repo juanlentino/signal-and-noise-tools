@@ -319,9 +319,53 @@ function sn_schedule_arm_post_crons( $post_id ) {
 	}
 }
 
-// Hook on save_post with 2 args so $post is available. Skipped under the
-// contract-test constant so the test can require this file without registering a
-// live hook. Goes live when the plugin bootstrap require's this module (Task 9).
+/**
+ * before_delete_post handler: when a post is PERMANENTLY deleted (not trashed),
+ * sweep its fragment rows and the cron events armed for them so neither dangles.
+ *
+ * A trashed post keeps its rows (the gate still withholds the content and a
+ * restore re-syncs on the next save). But a permanent delete removes the post
+ * for good, leaving its wp_sn_schedules rows + their armed single events with no
+ * post behind them: the rows become un-addressable orphans and each armed event
+ * would fire against a row whose post no longer exists. This handler closes that
+ * gap by reusing the same two save_post reconciliation primitives, in the same
+ * order the sync uses them:
+ *
+ *   1. sn_schedule_clear_removed_crons( $post_id, array() ) clears the cron of
+ *      EVERY fragment row for the post: an empty keep-list means no scheduleId
+ *      survives the sweep, so the helper clears each fragment row's hook by row
+ *      id. It MUST run first, while the rows still exist, because it reads them
+ *      to recover the ids (delete cannot, it works by WHERE clause).
+ *   2. sn_schedule_delete_all_fragments( (string) $post_id ) then deletes those
+ *      rows.
+ *
+ * Guard: before_delete_post fires only on a real, permanent delete (WP does not
+ * fire it for a trash), so no autosave/revision guard is needed here; an
+ * id-sanity guard is kept so a bogus id is a no-op.
+ *
+ * @param int $post_id The post being permanently deleted.
+ * @return void
+ */
+function sn_schedule_before_delete_post( $post_id ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 ) {
+		return;
+	}
+
+	// Clear every fragment row's cron BEFORE deleting the rows: the empty
+	// keep-list marks all of this post's fragment rows as "removed", so each one's
+	// hook is cleared by row id while the rows are still readable.
+	sn_schedule_clear_removed_crons( $post_id, array() );
+
+	// Then delete every fragment row for the post.
+	sn_schedule_delete_all_fragments( (string) $post_id );
+}
+
+// Hook on save_post with 2 args so $post is available, and on before_delete_post
+// for orphan cleanup. Both are skipped under the contract-test constant so the
+// test can require this file without registering live hooks against the stubbed
+// add_action. They go live when the plugin bootstrap require's this module.
 if ( ! defined( 'SN_SCHEDULE_SYNC_TEST' ) || ! SN_SCHEDULE_SYNC_TEST ) {
 	add_action( 'save_post', 'sn_schedule_sync_post', 10, 2 );
+	add_action( 'before_delete_post', 'sn_schedule_before_delete_post', 10, 1 );
 }
