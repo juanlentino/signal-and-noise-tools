@@ -32,9 +32,12 @@
  * the integer it returns is a UTC Unix timestamp, matching the basis the gate
  * parses its UTC string boundaries against.
  *
- * NOT yet registered with register_block_type and NOT yet required from the
- * plugin bootstrap: block.json + the editor and the registration land in later
- * tasks. This file defines the testable render-callback function only.
+ * The block.json metadata, the buildless editor script, and the
+ * register_block_type wiring all live in this file too (Task 4). They are hooked
+ * on init but stay DORMANT until the plugin bootstrap require's this file in the
+ * final task, the same dormant pattern the rest of this subsystem follows. The
+ * init hooks are skipped under SN_SCHEDULE_BLOCK_TEST so the contract test can
+ * require this file without triggering WP registration side effects.
  *
  * @package SignalNoiseTools
  * @since 6.40.0
@@ -86,4 +89,51 @@ function sn_scheduled_block_render( array $attrs, $content ) {
 	// so there is no display:none leak and no view-source / scraper exposure
 	// before the window opens.
 	return '';
+}
+
+/**
+ * Register the buildless editor script for the sn/scheduled block.
+ *
+ * editorScript in block.json is the manually-registered handle string
+ * 'signal-noise-scheduled-editor', NOT a file: path. A file: path in a no-build
+ * repo loads with EMPTY deps (there is no .asset.php sidecar) and throws
+ * 'wp is undefined'. Registering the handle here with explicit deps is the
+ * proven pattern from the sibling theme's inc/blocks-register.php.
+ *
+ * The asset URL derives from SNT_URL (plugin_dir_url, with a trailing slash) and
+ * the version from SNT_VERSION (read from the plugin docblock at bootstrap), both
+ * defined in signal-and-noise-tools.php. The cache-buster therefore tracks every
+ * plugin release with no second source of truth.
+ */
+function sn_scheduled_register_editor_script() {
+	wp_register_script(
+		'signal-noise-scheduled-editor',
+		SNT_URL . 'blocks/scheduled/editor.js',
+		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components' ),
+		SNT_VERSION,
+		true
+	);
+}
+
+/**
+ * Register the sn/scheduled dynamic block from its blocks/scheduled directory.
+ *
+ * The block.json metadata is read from disk and composed with the PHP
+ * render_callback supplied here (block.json carries no `render` key; the
+ * callback is passed as a register_block_type arg). The callback gates the
+ * inner-block content on the UTC window, returning it verbatim when open and the
+ * empty string when closed.
+ */
+function sn_scheduled_register_block() {
+	register_block_type(
+		SNT_PATH . 'blocks/scheduled',
+		array( 'render_callback' => 'sn_scheduled_block_render' )
+	);
+}
+
+// Hook on init (the theme registers its blocks on init too). Skipped under the
+// contract-test constant so tests can require this file without WP side effects.
+if ( ! defined( 'SN_SCHEDULE_BLOCK_TEST' ) || ! SN_SCHEDULE_BLOCK_TEST ) {
+	add_action( 'init', 'sn_scheduled_register_editor_script' );
+	add_action( 'init', 'sn_scheduled_register_block' );
 }
