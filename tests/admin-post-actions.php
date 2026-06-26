@@ -105,6 +105,14 @@ if ( ! function_exists( 'wp_roles' ) ) {
 require_once __DIR__ . '/../inc/beacon-owner-exclusion.php';
 
 require_once __DIR__ . '/../inc/admin-post-handler.php';
+// Task 8: the schedule_run_now / schedule_repurge map entries point at handler
+// bodies that live in inc/schedule-admin.php (kept there to keep the subsystem
+// cohesive). Require it so the map's "every handler is callable" assertion can
+// resolve them, the same pattern as requiring admin-post-actions.php above for
+// its own handlers. The file registers no hooks at load and guards its
+// sn_schedule_* dependencies with function_exists, so requiring it in isolation
+// is safe.
+require_once __DIR__ . '/../inc/schedule-admin.php';
 
 $pass = 0; $fail = 0;
 function pa_eq( $e, $a, $msg ) {
@@ -466,7 +474,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 40, count( $map ), 'map has 40 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused
+pa_eq( 42, count( $map ), 'map has 42 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

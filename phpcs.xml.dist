@@ -106,14 +106,19 @@
 		insights/analytics readers. Those tables (wp_snt_cron_history,
 		wp_rss_feed_log, wp_sn_analytics_daily, wp_sn_analytics_dims,
 		wp_sn_analytics_buckets, wp_sn_analytics_events, wp_sn_analytics_event_props,
-		wp_sn_analytics_page_roles, wp_sn_edge_daily, wp_sn_edge_dims)
+		wp_sn_analytics_page_roles, wp_sn_edge_daily, wp_sn_edge_dims, wp_sn_schedules)
 		have no WP API wrapper, so the table NAME must be
 		interpolated ($wpdb->prefix . CONSTANT — never user input; identifiers
 		cannot be bound by prepare()). Every VALUE is bound (%d/%s/%f) or
-		integer-clamped. Hand-verified in the v4.5.1 security audit + the v5.0.1
-		analytics-rollup/dims/read add + the v5.4.0 analytics-buckets add + the
-		v6.2.0 analytics-events add + the v6.10.0 analytics-pageroles add + the
-		v6.26.0 edge-rollup add. The sniff stays ACTIVE everywhere else.
+		integer-clamped. schedule-engine.php's delete_missing also interpolates a
+		count-derived `%s, %s, ...` placeholder string into prepare() for the
+		NOT IN (...) list — the placeholders are generated from the keep-list
+		LENGTH only (never from its contents), and every keep value is bound as a
+		%s arg, so no value reaches the query unprepared. Hand-verified in the
+		v4.5.1 security audit + the v5.0.1 analytics-rollup/dims/read add + the
+		v5.4.0 analytics-buckets add + the v6.2.0 analytics-events add + the
+		v6.10.0 analytics-pageroles add + the v6.26.0 edge-rollup add + the
+		v6.40.0 schedule-engine add. The sniff stays ACTIVE everywhere else.
 	-->
 	<rule ref="WordPress.DB.PreparedSQL">
 		<exclude-pattern>*/inc/cron-history.php</exclude-pattern>
@@ -127,6 +132,7 @@
 		<exclude-pattern>*/inc/analytics-events.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-pageroles.php</exclude-pattern>
 		<exclude-pattern>*/inc/edge-rollup.php</exclude-pattern>
+		<exclude-pattern>*/inc/schedule-engine.php</exclude-pattern>
 	</rule>
 
 	<!--

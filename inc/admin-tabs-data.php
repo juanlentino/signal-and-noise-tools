@@ -92,14 +92,19 @@ function sn_admin_top_tabs() {
 			'tab'      => 'connections',
 			'label'    => 'Connections',
 			'title'    => 'Signal & Noise — Connections',
-			'subtitle' => 'Cloudflare edge cache, outbound webhooks, IndexNow, and scheduled jobs.',
+			'subtitle' => 'Cloudflare edge cache, outbound webhooks, IndexNow, scheduled jobs, and scheduled content.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
 				// Automation tab (v6.18.0).
-				'cloudflare' => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section' ),
-				'webhooks'   => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section' ),
-				'indexnow'   => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section' ),
-				'cron'       => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section' ),
+				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section' ),
+				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section' ),
+				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section' ),
+				'cron'              => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section' ),
+				// Scheduled-content status list (Task 8): the read-mostly union of
+				// signal-noise/scheduled fragment rows + native future posts. A sub-tab
+				// only (no sidebar submenu), so the desktop-mode 7-top-tab invariant
+				// holds. Render fn is defined in inc/schedule-admin.php.
+				'scheduled-content' => array( 'label' => 'Scheduled', 'render' => 'sn_admin_render_scheduled_content_section' ),
 			),
 		),
 		array(

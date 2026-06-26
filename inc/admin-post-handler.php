@@ -68,6 +68,10 @@ function sn_admin_post_handlers() {
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_import'           => 'sn_handle_analytics_import',
 		'analytics_export'           => 'sn_handle_analytics_export',
+		// Scheduled-content ops (Task 8). Handler bodies live in
+		// inc/schedule-admin.php to keep the subsystem cohesive.
+		'schedule_run_now'           => 'sn_handle_schedule_run_now',
+		'schedule_repurge'           => 'sn_handle_schedule_repurge',
 	);
 }
 

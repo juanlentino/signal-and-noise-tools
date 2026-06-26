@@ -88,6 +88,9 @@ function sn_admin_flash_messages() {
 		'analytics_imported'          => array( 'success', 'Plausible history imported — summary below.' ),
 		'analytics_import_empty'      => array( 'warning', 'No CSV files were selected to import.' ),
 		'analytics_import_err'        => array( 'error', 'Import failed — the importer is unavailable.' ),
+		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
+		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
+		'schedule_invalid'            => array( 'error', 'That scheduled-content row was not found.' ),
 	);
 }
 

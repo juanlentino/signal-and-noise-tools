@@ -1,0 +1,18 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "signal-noise/scheduled",
+	"title": "Scheduled",
+	"category": "design",
+	"icon": "clock",
+	"description": "Reveals its inner blocks only inside a UTC date window. Before the window the content is withheld from the served HTML entirely (no view-source leak); after it closes the content disappears again. The window is enforced server-side on every uncached render, so it stays correct behind a full-page cache.",
+	"keywords": ["schedule", "scheduled", "embargo", "date", "window"],
+	"textdomain": "signal-noise-tools",
+	"attributes": {
+		"from": { "type": "string", "default": "" },
+		"until": { "type": "string", "default": "" },
+		"scheduleId": { "type": "string", "default": "" }
+	},
+	"supports": { "html": false },
+	"editorScript": "signal-noise-scheduled-editor"
+}

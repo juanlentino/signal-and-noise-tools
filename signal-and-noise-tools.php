@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.39.5
+ * Version:     6.40.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -68,6 +68,21 @@ require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
+// Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
+// pages flipped on/off on a date, with a surgical Cloudflare purge at each
+// window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn
+// (sn_cf_purge_urls) the cache seam wraps already exists. Order is
+// dependency-sensible: the engine defines the row accessors, UTC gate, fire +
+// reconcile handlers, cron registration, and the fire/reconcile hook constants
+// first; the cache seam, block, save_post sync, page adapter, and admin surface
+// follow. (Cross-calls all happen at runtime inside hooks, so exact order is
+// not load-critical, only sensible.)
+require_once SNT_PATH . 'inc/schedule-engine.php';
+require_once SNT_PATH . 'inc/schedule-cache.php';
+require_once SNT_PATH . 'inc/schedule-block.php';
+require_once SNT_PATH . 'inc/schedule-sync.php';
+require_once SNT_PATH . 'inc/schedule-pages.php';
+require_once SNT_PATH . 'inc/schedule-admin.php';
 require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
