@@ -383,5 +383,64 @@ ok( ! in_array( 'f1', $final_sids, true ) && ! in_array( 'f3', $final_sids, true
 ok( in_array( 'g1', $final_sids, true ), 'delete_missing: post 200 row STILL untouched after empty-keep purge' );
 ok( in_array( '', $final_sids, true ), 'delete_missing: page row STILL untouched after empty-keep purge' );
 
+// ─── Group: sn_schedule_is_open window gate (pure) ────────────────────
+echo "\nGroup: sn_schedule_is_open\n";
+
+// Fixed UTC instants used across the boundary cases. gmmktime builds the
+// Unix timestamp in UTC regardless of the server timezone, which is exactly
+// what the gate parses its string boundaries against.
+$from_str = '2026-07-01 00:00:00';
+$until_str = '2026-08-01 00:00:00';
+$from_ts  = gmmktime( 0, 0, 0, 7, 1, 2026 );  // 2026-07-01 00:00:00 UTC
+$until_ts = gmmktime( 0, 0, 0, 8, 1, 2026 );  // 2026-08-01 00:00:00 UTC
+
+// now < from => closed (before the window opens).
+ok( sn_schedule_is_open( $from_str, $until_str, $from_ts - 1 ) === false, 'is_open: now < from is closed' );
+// now == from => open (inclusive start).
+ok( sn_schedule_is_open( $from_str, $until_str, $from_ts ) === true, 'is_open: now == from is open (inclusive start)' );
+// from < now < until => open.
+ok( sn_schedule_is_open( $from_str, $until_str, $from_ts + 1 ) === true, 'is_open: from < now < until is open' );
+// now == until => closed (exclusive end).
+ok( sn_schedule_is_open( $from_str, $until_str, $until_ts ) === false, 'is_open: now == until is closed (exclusive end)' );
+// now > until => closed.
+ok( sn_schedule_is_open( $from_str, $until_str, $until_ts + 1 ) === false, 'is_open: now > until is closed' );
+
+// from null/empty => open from the start; only until bounds.
+ok( sn_schedule_is_open( null, $until_str, $from_ts - 100000 ) === true, 'is_open: null from is unbounded start (open before until)' );
+ok( sn_schedule_is_open( '', $until_str, $from_ts - 100000 ) === true, 'is_open: empty from is unbounded start (treated as null)' );
+ok( sn_schedule_is_open( null, $until_str, $until_ts ) === false, 'is_open: null from still respects exclusive until' );
+
+// until null/empty => open forever; only from bounds.
+ok( sn_schedule_is_open( $from_str, null, $until_ts + 100000 ) === true, 'is_open: null until is unbounded end (open after from)' );
+ok( sn_schedule_is_open( $from_str, '', $until_ts + 100000 ) === true, 'is_open: empty until is unbounded end (treated as null)' );
+ok( sn_schedule_is_open( $from_str, null, $from_ts - 1 ) === false, 'is_open: null until still respects inclusive from' );
+
+// both null/empty => always open.
+ok( sn_schedule_is_open( null, null, 0 ) === true, 'is_open: both null is always open (epoch)' );
+ok( sn_schedule_is_open( '', '', 4102444800 ) === true, 'is_open: both empty is always open (far future)' );
+
+// UTC boundary exactness: the string boundary parsed explicitly as UTC must
+// equal the matching Unix timestamp built by strtotime(... UTC) too.
+$from_ts_strtotime = strtotime( $from_str . ' UTC' );
+ok( $from_ts_strtotime === $from_ts, 'is_open: fixture sanity — gmmktime matches strtotime(... UTC)' );
+ok( sn_schedule_is_open( $from_str, null, $from_ts_strtotime ) === true, 'is_open: exact UTC instant lands on the inclusive boundary' );
+
+// Unparseable-boundary policy: an unparseable from is "not yet open" (closed);
+// an unparseable until is "no end" (unbounded).
+ok( sn_schedule_is_open( 'not-a-date', null, 4102444800 ) === false, 'is_open: unparseable from is closed (fail-safe)' );
+ok( sn_schedule_is_open( null, 'not-a-date', 0 ) === true, 'is_open: unparseable until is treated as no end' );
+
+// Regression guard: the result must NOT depend on the server default timezone.
+// Set a deliberately non-UTC default tz and assert the boundary still lands on
+// the same UTC instant. A bare strtotime($s) (server-tz parse) would shift the
+// boundary by the offset and flip these assertions.
+$saved_tz = date_default_timezone_get(); // capture BEFORE mutating (the setter returns bool).
+date_default_timezone_set( 'America/New_York' );
+ok( sn_schedule_is_open( $from_str, $until_str, $from_ts ) === true, 'is_open: tz-regression — inclusive start holds under non-UTC default tz' );
+ok( sn_schedule_is_open( $from_str, $until_str, $from_ts - 1 ) === false, 'is_open: tz-regression — pre-start still closed under non-UTC default tz' );
+ok( sn_schedule_is_open( $from_str, $until_str, $until_ts ) === false, 'is_open: tz-regression — exclusive end holds under non-UTC default tz' );
+// Restore the original default tz so later code is unaffected.
+date_default_timezone_set( $saved_tz );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

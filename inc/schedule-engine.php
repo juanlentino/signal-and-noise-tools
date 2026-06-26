@@ -324,3 +324,66 @@ function sn_schedule_delete_all_fragments( $post_ref ) {
 
 	return is_int( $deleted ) ? $deleted : 0;
 }
+
+/**
+ * The pure window gate for a scheduled fragment: is the half-open interval
+ * [from, until) open at the instant $now_utc?
+ *
+ * This is a side-effect-free predicate (no DB, no WP calls, no globals) so it
+ * is independently testable and reusable by the render gate (Task 3), the
+ * fire/purge handler, and the admin surface. The render callback asks this one
+ * question to decide whether to emit a fragment's content.
+ *
+ * Semantics: a HALF-OPEN interval. The start is INCLUSIVE and the end is
+ * EXCLUSIVE, so a fragment that opens at T and a fragment that closes at T do
+ * not both claim the instant T. Open iff:
+ *   ( from is null/empty OR now_utc >= from_ts ) AND
+ *   ( until is null/empty OR now_utc <  until_ts ).
+ * An absent boundary is unbounded on that side: a null/empty $from opens from
+ * the start of time, a null/empty $until never closes, and both absent is
+ * always open.
+ *
+ * Timezone safety: $from / $until are stored as UTC datetime strings (the
+ * table's DATETIME columns hold UTC), so they are parsed EXPLICITLY as UTC via
+ * strtotime( $s . ' UTC' ). A bare strtotime( $s ) would parse against the
+ * server's default timezone and shift the boundary by that offset, which is
+ * why it is avoided here.
+ *
+ * Unparseable-boundary policy (fail safe): a non-empty $from that cannot be
+ * parsed is treated as "not yet open" (the gate stays CLOSED) so a malformed
+ * start can never leak content early. A non-empty $until that cannot be parsed
+ * is treated as "no end" (unbounded), matching the null/empty case so a
+ * malformed end does not accidentally hide already-open content.
+ *
+ * @param string|null $from    UTC datetime in MySQL `Y-m-d H:i:s` form, or null,
+ *                             or '' (empty string is treated the same as null).
+ * @param string|null $until   UTC datetime in MySQL `Y-m-d H:i:s` form, or null,
+ *                             or '' (empty string is treated the same as null).
+ * @param int         $now_utc The current instant as a Unix timestamp (UTC seconds).
+ * @return bool True when the window is open at $now_utc, false otherwise.
+ */
+function sn_schedule_is_open( $from, $until, $now_utc ) {
+	$now_utc = (int) $now_utc;
+
+	// Start boundary: unbounded when null/empty. When a non-empty value fails
+	// to parse, fail safe to CLOSED (treat as a start that has not arrived).
+	$from = (string) $from;
+	if ( '' !== $from ) {
+		$from_ts = strtotime( $from . ' UTC' );
+		if ( false === $from_ts || $now_utc < $from_ts ) {
+			return false;
+		}
+	}
+
+	// End boundary: unbounded when null/empty. When a non-empty value fails to
+	// parse, treat it as no end (unbounded), so it does not gate the window.
+	$until = (string) $until;
+	if ( '' !== $until ) {
+		$until_ts = strtotime( $until . ' UTC' );
+		if ( false !== $until_ts && $now_utc >= $until_ts ) {
+			return false;
+		}
+	}
+
+	return true;
+}
