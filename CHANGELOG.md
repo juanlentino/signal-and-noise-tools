@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.40.0] - 2026-06-26: Scheduled content subsystem (Phase 1)
+## [6.40.0] - 2026-06-26 — Scheduled content subsystem (Phase 1)
 
 **Headline:** A cache-coherent way to flip hand-authored content on and off on a date. The new `signal-noise/scheduled` block wraps a fragment inside an already-published page and reveals or withholds it on each un-cached render, gated by an optional from/until window. Because the site is fronted by Cloudflare Cache-Everything, a class or `display:none` baked into the cached HTML would freeze at cache-fill time and leak to everyone, so the gate lives in a dynamic block's server render and each window edge fires a surgical Cloudflare purge of only the affected URLs. A Connections, Scheduled admin list folds the fragment queue together with WordPress posts and pages in native `future` status, with Run-now and Re-purge controls per row.
 
