@@ -637,6 +637,67 @@
 	min-width: 0; /* lets internal tables shrink instead of overflowing */
 }
 
+/* ─── Two-column shell: capped main + fixed rail (v6.42.0) ────────────────
+   The asymmetric answer to the .sn-2col problem above. That fluid split was
+   collapsed to one column in v3.8.5 because two fluid columns both stayed
+   cramped at every viewport. Here the main keeps its 820px cap (minmax lets
+   it shrink gracefully when space is tight) and the rail is a FIXED 300px
+   lane, so the rail can never starve the main. Used by sub-tabs with a
+   passive read-only readout (status / metrics / spend) that wastes 820px
+   when stacked. Emitted by sn_admin_shell_open/_rail/_close (admin-shell.php). */
+.sn-shell {
+	display: grid;
+	grid-template-columns: minmax(0, 820px) 300px;
+	gap: 24px;
+	align-items: start;
+}
+.sn-shell__main {
+	min-width: 0; /* let internal widefat tables shrink, not overflow */
+}
+.sn-shell__rail {
+	position: sticky;
+	/* Clear BOTH the 32px admin bar and the sticky .sn-sub-tabs strip
+	   (sticky top:32px, ~38px tall, z-index:10) present on every sub-tab
+	   page, so the pinned rail does not slide under it on scroll. */
+	top: 72px;
+	align-self: start;
+}
+.sn-shell__rail:empty {
+	display: none; /* defensive: never render an empty 300px lane */
+}
+/* Rail widgets fill the 300px lane; their 820px cap is moot here. The status
+   box stacks its pill under the text instead of a cramped side-by-side row. */
+.sn-shell__rail .sn-fieldset {
+	max-width: none;
+}
+.sn-shell__rail .sn-status-box {
+	max-width: none;
+	flex-direction: column;
+	align-items: flex-start;
+}
+/* Narrow rail: stack form-table label over value, not a cramped 2-up. */
+.sn-shell__rail .form-table th,
+.sn-shell__rail .form-table td {
+	display: block;
+	width: auto;
+	padding: 4px 8px;
+}
+/* Below the combined width, drop to one column — the rail stacks under the
+   main column (DOM order), un-stickied. Also covers the Desktop Mode portal,
+   where the sub-tab submenu is a horizontal top-nav and width is tight.
+   Math: 820 main + 24 gap + 300 rail = 1144px of CONTENT; at a 1200px
+   viewport the wp-admin content area is ~1010px (minus the 160px menu +
+   padding), so the capped main shrinks gracefully (minmax) rather than
+   cramping, and collapses to one column below this breakpoint. */
+@media (max-width: 1200px) {
+	.sn-shell {
+		grid-template-columns: 1fr;
+	}
+	.sn-shell__rail {
+		position: static;
+	}
+}
+
 /* ─── Mono font utility ──────────────────────────────────────────────────
    System mono stack. Replaces the inline
      style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"

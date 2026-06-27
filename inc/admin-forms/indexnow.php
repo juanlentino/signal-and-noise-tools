@@ -23,24 +23,10 @@ function sn_admin_render_indexnow_section() {
 	$key_url = sn_indexnow_key_url();
 	$result  = (array) get_option( SN_INDEXNOW_RESULT_OPT, array() );
 
+	sn_admin_shell_open();
+
+	// ── MAIN: intro + enable toggle + maintenance actions ──
 	echo '<p class="sn-prose">Pushes changed URLs to <strong>IndexNow</strong> (Bing, Yandex, Seznam, Naver&hellip; &mdash; not Google) on publish, update, and removal so they re-crawl within minutes. The verification key file is served automatically &mdash; no upload needed.</p>';
-
-	// ── STATUS ──
-	if ( ! $enabled ) {
-		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable below to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
-	} elseif ( ! empty( $result['error'] ) ) {
-		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body"><code>' . esc_html( (string) $result['error'] ) . '</code></p></div><span class="sn-pill sn-pill--err">Error</span></div>';
-	} else {
-		echo '<div class="sn-status-box"><div><p class="sn-status-box-title">Active</p><p class="sn-status-box-body">Changed URLs are submitted automatically.</p></div><span class="sn-pill sn-pill--ok">On</span></div>';
-	}
-
-	// ── STATUS TABLE ──
-	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Status</h2><table class="form-table sn-status-table sn-status-table--full"><tbody>';
-	echo '<tr><th>Key file</th><td>' . ( '' !== $key_url ? '<a href="' . esc_url( $key_url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $key_url ) . '</code></a>' : '<em>not generated yet</em>' ) . '</td></tr>';
-	if ( ! empty( $result['time'] ) ) {
-		echo '<tr><th>Last submission</th><td>' . esc_html( human_time_diff( (int) $result['time'], time() ) ) . ' ago &mdash; HTTP ' . (int) ( $result['code'] ?? 0 ) . ', ' . (int) ( $result['count'] ?? 0 ) . ' URL(s)</td></tr>';
-	}
-	echo '</tbody></table></div>';
 
 	// ── ENABLE FORM ──
 	echo '<form method="post"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
@@ -56,4 +42,26 @@ function sn_admin_render_indexnow_section() {
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
 	echo '<button type="submit" name="sn_action" value="indexnow_ping_now" class="button">Submit recent content now</button> ';
 	echo '<button type="submit" name="sn_action" value="indexnow_regenerate" class="button">Regenerate key</button></form>';
+
+	// ── RAIL: status pill + status table (v6.42.0) ──
+	sn_admin_shell_rail( 'IndexNow status' );
+
+	// ── STATUS ──
+	if ( ! $enabled ) {
+		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable it in the main column to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
+	} elseif ( ! empty( $result['error'] ) ) {
+		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body"><code>' . esc_html( (string) $result['error'] ) . '</code></p></div><span class="sn-pill sn-pill--err">Error</span></div>';
+	} else {
+		echo '<div class="sn-status-box"><div><p class="sn-status-box-title">Active</p><p class="sn-status-box-body">Changed URLs are submitted automatically.</p></div><span class="sn-pill sn-pill--ok">On</span></div>';
+	}
+
+	// ── STATUS TABLE ──
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Status</h2><table class="form-table sn-status-table sn-status-table--full"><tbody>';
+	echo '<tr><th>Key file</th><td>' . ( '' !== $key_url ? '<a href="' . esc_url( $key_url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $key_url ) . '</code></a>' : '<em>not generated yet</em>' ) . '</td></tr>';
+	if ( ! empty( $result['time'] ) ) {
+		echo '<tr><th>Last submission</th><td>' . esc_html( human_time_diff( (int) $result['time'], time() ) ) . ' ago &mdash; HTTP ' . (int) ( $result['code'] ?? 0 ) . ', ' . (int) ( $result['count'] ?? 0 ) . ' URL(s)</td></tr>';
+	}
+	echo '</tbody></table></div>';
+
+	sn_admin_shell_close();
 }

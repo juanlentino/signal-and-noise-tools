@@ -199,6 +199,7 @@ sn_handle_indexnow_regenerate( array() );
 ok( sn_indexnow_get_key() !== $old, 'regenerate: mints a new key' );
 
 // ── Render: section emits the enable field + key URL without fatal ──
+require_once __DIR__ . '/../inc/admin-shell.php'; // v6.42.0: render now uses the two-column shell
 require_once __DIR__ . '/../inc/admin-forms/indexnow.php';
 $GLOBALS['__settings']['indexnow.enabled'] = true;
 ob_start();

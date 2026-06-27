@@ -65,6 +65,7 @@ require __DIR__ . '/../inc/settings.php';   // sn_mask_secret() — music.php's 
 require __DIR__ . '/../inc/discography-store.php';
 require __DIR__ . '/../inc/muso-api.php';
 require __DIR__ . '/../inc/spotify-api.php';
+require __DIR__ . '/../inc/admin-shell.php'; // v6.42.0: render now uses the two-column shell
 require __DIR__ . '/../inc/admin-forms/music.php';
 
 $pass = 0; $fail = 0;

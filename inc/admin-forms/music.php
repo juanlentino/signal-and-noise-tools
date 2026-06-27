@@ -56,6 +56,9 @@ function sn_admin_render_music_section() {
 	$featured      = function_exists( 'sn_music_featured_get' ) ? sn_music_featured_get() : array();
 	$featured_url  = ! empty( $featured['open_url'] ) ? (string) $featured['open_url'] : '';
 
+	sn_admin_shell_open();
+
+	// ── MAIN: intro + status hero + credential/featured forms ──
 	echo '<p class="sn-prose">A zero-touch on-site discography. A daily WP-Cron job mirrors Juan&rsquo;s verified <strong>Muso.AI</strong> producer credits (no credential &mdash; the public credits endpoint), enriches each release with <strong>Spotify</strong> album media, caches it, emits <code>MusicAlbum</code> schema, and renders the <code>/music</code> timeline. Pages serve entirely from the cache &mdash; no request-time API calls.</p>';
 
 	// ── STATUS BOX ──
@@ -68,7 +71,7 @@ function sn_admin_render_music_section() {
 	} elseif ( $count > 0 && '' !== $last_error ) {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div><p class="sn-status-box-title">Showing last-good data</p>';
-		echo '<p class="sn-status-box-body">' . (int) $count . ' release(s) still cached, but the last sync failed. The page never blanks &mdash; fix the error below and re-sync.</p></div>';
+		echo '<p class="sn-status-box-body">' . (int) $count . ' release(s) still cached, but the last sync failed. The page never blanks &mdash; check the error and re-sync from the status panel on the right (below on narrow screens).</p></div>';
 		echo '<span class="sn-pill sn-pill--warn">Stale</span>';
 		echo '</div>';
 	} elseif ( '' !== $last_error ) {
@@ -80,26 +83,10 @@ function sn_admin_render_music_section() {
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div><p class="sn-status-box-title">Not yet synced</p>';
-		echo '<p class="sn-status-box-body">Hit &ldquo;Sync now&rdquo; to populate the discography. The daily cron will keep it fresh after that.</p></div>';
+		echo '<p class="sn-status-box-body">Hit &ldquo;Sync now&rdquo; in the status panel on the right (below on narrow screens) to populate the discography. The daily cron will keep it fresh after that.</p></div>';
 		echo '<span class="sn-pill sn-pill--warn">Pending</span>';
 		echo '</div>';
 	}
-
-	// ── STATUS DETAILS ──
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">Status</h2>';
-	echo '<table class="form-table sn-status-table sn-status-table--full"><tbody>';
-	echo '<tr><th>Last sync</th><td>' . ( $synced > 0 ? esc_html( human_time_diff( $synced, time() ) ) . ' ago' : '<em>never</em>' ) . '</td></tr>';
-	echo '<tr><th>Releases cached</th><td>' . (int) $count . '</td></tr>';
-	echo '<tr><th>Data source</th><td>Muso.AI profile <code>' . esc_html( $profile_id ) . '</code> <span class="sn-pill sn-pill--ok">no credential</span></td></tr>';
-	echo '<tr><th>Spotify media</th><td>' . ( $spotify_on
-		? '<span class="sn-pill sn-pill--ok">Configured</span> &mdash; album embeds + artwork enrichment active'
-		: '<span class="sn-pill sn-pill--warn">Not configured</span> &mdash; Muso artwork only, no embeds (optional)' ) . '</td></tr>';
-	if ( '' !== $last_error ) {
-		echo '<tr><th>Last error</th><td><code>' . esc_html( $last_error ) . '</code></td></tr>';
-	}
-	echo '</tbody></table>';
-	echo '</div>';
 
 	// ── CREDENTIALS FORM ──
 	echo '<form method="post">';
@@ -146,6 +133,25 @@ function sn_admin_render_music_section() {
 	echo '</div>'; // .sn-fieldset (Featured)
 	echo '</form>';
 
+	// ── RAIL: sync status detail + Sync-now (v6.42.0) ──
+	sn_admin_shell_rail( 'Sync status' );
+
+	// ── STATUS DETAILS ──
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Status</h2>';
+	echo '<table class="form-table sn-status-table sn-status-table--full"><tbody>';
+	echo '<tr><th>Last sync</th><td>' . ( $synced > 0 ? esc_html( human_time_diff( $synced, time() ) ) . ' ago' : '<em>never</em>' ) . '</td></tr>';
+	echo '<tr><th>Releases cached</th><td>' . (int) $count . '</td></tr>';
+	echo '<tr><th>Data source</th><td>Muso.AI profile <code>' . esc_html( $profile_id ) . '</code> <span class="sn-pill sn-pill--ok">no credential</span></td></tr>';
+	echo '<tr><th>Spotify media</th><td>' . ( $spotify_on
+		? '<span class="sn-pill sn-pill--ok">Configured</span> &mdash; album embeds + artwork enrichment active'
+		: '<span class="sn-pill sn-pill--warn">Not configured</span> &mdash; Muso artwork only, no embeds (optional)' ) . '</td></tr>';
+	if ( '' !== $last_error ) {
+		echo '<tr><th>Last error</th><td><code>' . esc_html( $last_error ) . '</code></td></tr>';
+	}
+	echo '</tbody></table>';
+	echo '</div>';
+
 	// ── SYNC NOW ──
 	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -155,6 +161,8 @@ function sn_admin_render_music_section() {
 	echo '<p class="sn-helper">Runs the full Muso &rarr; Spotify &rarr; store pass immediately. Keeps the last-good discography if a source fails.</p>';
 	echo '<button type="submit" name="sn_action" value="music_sync" class="button">Sync now</button>';
 	echo '</form>';
+
+	sn_admin_shell_close();
 }
 
 /**
