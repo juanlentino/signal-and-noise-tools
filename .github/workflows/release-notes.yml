@@ -7,11 +7,12 @@ on:
       tag:
         description: 'Existing tag to (re)draft notes for, e.g. v9.15.2'
         required: true
-permissions:
-  contents: write
+permissions: {}
 jobs:
   draft:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Resolve tag
         id: tag
@@ -22,10 +23,11 @@ jobs:
           TAG="${INPUT_TAG:-$REF_NAME}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 1
+          persist-credentials: false
       - name: Extract CHANGELOG entry
         id: extract
         env:

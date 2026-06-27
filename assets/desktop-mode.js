@@ -70,8 +70,19 @@
 	 * behavior as clicking a wp-admin link.
 	 */
 	function navigate( url ) {
-		if ( url ) {
-			window.location.href = url;
+		if ( ! url ) {
+			return;
+		}
+		// Defense-in-depth: every caller passes a server-localized admin_url()
+		// value, but resolve + same-origin-check the target anyway, so a future
+		// caller can't turn this into an open-redirect or a javascript: sink.
+		try {
+			var dest = new URL( url, window.location.origin );
+			if ( dest.origin === window.location.origin ) {
+				window.location.href = dest.href;
+			}
+		} catch ( e ) {
+			// Malformed URL — refuse to navigate.
 		}
 	}
 
