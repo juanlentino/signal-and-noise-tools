@@ -81,8 +81,83 @@ function snt_insights_render_admin_tab() {
 	// ── RECOMMENDATIONS (rendered by Task 12) ──
 	snt_insights_render_recommendations_section( $last );
 
+	// ── AI USAGE & SPEND (v6.41.0) — plugin-scoped tokens + estimated cost ──
+	snt_insights_render_usage_section();
+
 	// ── SETTINGS section (rendered by Task 12) ──
 	snt_insights_render_settings_section();
+}
+
+/**
+ * Read-only "AI usage & spend" section: token usage + estimated USD cost for
+ * the plugin's OWN AI features, from the recorded usage log
+ * (snt_ai_usage_summary). This is the plugin-scoped, cost-annotated complement
+ * to WordPress's native AI Request Logs (Settings → AI), which hold the full
+ * per-request log of all AI Connector traffic. Cost is a list-price estimate
+ * derived from the real recorded token counts.
+ *
+ * @since 6.41.0
+ */
+function snt_insights_render_usage_section() {
+	if ( ! function_exists( 'snt_ai_usage_summary' ) ) {
+		return;
+	}
+	$s30 = snt_ai_usage_summary( 30 );
+	$s7  = snt_ai_usage_summary( 7 );
+
+	// Format a USD estimate: cents precision, with a sub-cent floor so a tiny
+	// real spend never reads as a misleading "$0.00".
+	$fmt_cost = static function ( $c ) {
+		$c = (float) $c;
+		if ( $c > 0 && $c < 0.005 ) {
+			return '<$0.01';
+		}
+		return '$' . number_format_i18n( $c, 2 );
+	};
+	$plural = static function ( $n ) {
+		return 1 === (int) $n ? '' : 's';
+	};
+
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">AI usage &amp; spend</h2>';
+	echo '<p class="sn-fieldset-intro">Estimated spend for this plugin&rsquo;s own AI features (Insights, meta descriptions, OG titles, alt text, tag suggestions&hellip;), computed from the tokens each call recorded, at Anthropic list pricing. The full per-request log of all AI&nbsp;Connector traffic lives in <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings &rarr; AI</a> &rarr; AI&nbsp;Request&nbsp;Logs.</p>';
+
+	echo '<p class="sn-status-box-body"><strong>Last 30 days:</strong> '
+		. esc_html( number_format_i18n( (int) $s30['calls'] ) ) . ' call' . esc_html( $plural( $s30['calls'] ) ) . ', '
+		. esc_html( number_format_i18n( (int) $s30['total'] ) ) . ' tokens, est. '
+		. esc_html( $fmt_cost( $s30['cost'] ) ) . '. &nbsp; <strong>Last 7 days:</strong> '
+		. esc_html( number_format_i18n( (int) $s7['total'] ) ) . ' tokens, est. '
+		. esc_html( $fmt_cost( $s7['cost'] ) ) . '.</p>';
+
+	if ( ! empty( $s30['by_feature'] ) ) {
+		$rows = $s30['by_feature'];
+		uasort(
+			$rows,
+			static function ( $a, $b ) {
+				return ( (float) ( $b['cost'] ?? 0 ) ) <=> ( (float) ( $a['cost'] ?? 0 ) );
+			}
+		);
+		echo '<table class="widefat striped"><thead><tr><th>Feature</th><th>Calls</th><th>Tokens</th><th>Est. cost</th></tr></thead><tbody>';
+		foreach ( $rows as $feature => $row ) {
+			echo '<tr><td>' . esc_html( $feature ) . '</td><td>'
+				. esc_html( number_format_i18n( (int) $row['calls'] ) ) . '</td><td>'
+				. esc_html( number_format_i18n( (int) $row['total'] ) ) . '</td><td>'
+				. esc_html( $fmt_cost( $row['cost'] ?? 0 ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+	} else {
+		echo '<p class="sn-field-helper">No AI calls recorded in the trailing window yet.</p>';
+	}
+
+	echo '<p class="sn-field-helper">List-price estimate &mdash; excludes prompt-cache and batch discounts; <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings &rarr; AI</a> holds the authoritative per-request record.</p>';
+	if ( (int) $s30['cost_unpriced_calls'] > 0 ) {
+		echo '<p class="sn-field-helper">' . esc_html( number_format_i18n( (int) $s30['cost_unpriced_calls'] ) ) . ' call' . esc_html( $plural( $s30['cost_unpriced_calls'] ) ) . ' used a model with no list price on file &mdash; tokens are counted but excluded from the dollar figure.</p>';
+	}
+	if ( defined( 'SN_AI_USAGE_LOG_CAP' ) && (int) $s30['window_start'] > 0 ) {
+		echo '<p class="sn-field-helper">The usage log keeps the last ' . esc_html( number_format_i18n( SN_AI_USAGE_LOG_CAP ) ) . ' calls (oldest retained: ' . esc_html( wp_date( 'Y-m-d', (int) $s30['window_start'] ) ) . ').</p>';
+	}
+
+	echo '</div>';
 }
 
 /**

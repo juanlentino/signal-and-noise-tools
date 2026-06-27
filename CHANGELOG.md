@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.41.0] - 2026-06-27 — AI usage & spend readout (tokens + estimated cost)
+
+**Headline:** The Insights tab gains an **AI usage & spend** section showing token usage and estimated USD cost for the plugin's *own* AI features (Insights, meta descriptions, OG titles, alt text, tag suggestions, …) over the trailing 7 and 30 days, with a per-feature breakdown. The tokens are the real counts the plugin already records per call (`snt_ai_record_usage`); the cost is computed from those exact tokens at Anthropic list pricing, keyed on the *served* model so a provider substitution prices correctly. It's a deliberate complement to — not a duplicate of — WordPress's native AI Request Logs (Settings → AI), which the section links to for the full per-request log of all AI Connector traffic.
+
+> **Why MINOR:** a new user-visible capability (the spend readout). No breaking change: `snt_ai_usage_summary()` only *adds* keys (`cost`, `cost_unpriced_calls`, `window_start`, per-feature `cost`) — the existing `calls`/`prompt`/`completion`/`total` shape the prepopulate daily-ceiling depends on is untouched. `SNT_VERSION` continues to derive from the docblock.
+
+### New
+
+- **AI usage & spend section** ([inc/insights-admin.php](inc/insights-admin.php)): `snt_insights_render_usage_section()` renders 7-/30-day calls, tokens, and estimated cost plus a per-feature table, sorted by cost. Honest about its limits: the dollar figure is a list-price estimate that excludes prompt-cache and batch discounts (it points to Settings → AI for the authoritative per-request record), discloses any calls on unpriced models (tokens counted, dollars excluded), and notes the usage log's 200-call retention window with the oldest retained date.
+- **Cost helpers** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): `snt_ai_model_pricing()` — a documented, `snt_ai_model_pricing`-filterable map of Anthropic list rates (USD per 1M input/output tokens) — and `snt_ai_estimate_cost( $model, $prompt, $completion )`, which returns 0.0 for an unpriced model rather than fabricating a rate.
+
+### Improvements
+
+- **`snt_ai_usage_summary()`** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)) now also accumulates estimated `cost` (total and per-feature), counts `cost_unpriced_calls`, and reports `window_start` (oldest counted entry). Pricing is computed on the served model, falling back to the requested model preference when the served model is blank. The rate map is hoisted once per call so the prepopulate path (`snt_ai_usage_summary( 1 )` on save) doesn't re-run the pricing filter per log entry.
+
 ## [6.40.3] - 2026-06-27 — Aikido SAST hardening (desktop-mode nav guard + CI supply-chain)
 
 **Headline:** Closes the findings from an Aikido SAST scan. The headline one — a flagged "XSS via `window.location.href`" in the desktop-mode admin-navigation helper — is a false positive in practice (every caller passes a server-localized `admin_url()` value, never user input), but the helper now confirms its target is same-origin before navigating, so a future caller can't turn it into an open-redirect or a `javascript:` sink. The rest hardens CI: third-party Actions are pinned to commit SHAs, the release-notes workflow drops to least-privilege permissions, and every checkout stops persisting `GITHUB_TOKEN`. No front-end impact and no behavior change for the existing navigation commands.

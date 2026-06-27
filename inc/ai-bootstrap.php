@@ -397,43 +397,136 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 }
 
 /**
- * Summarize recorded AI token usage over the trailing $days window.
+ * Per-model list pricing (USD per 1M tokens) for estimating AI spend from the
+ * token counts snt_ai_record_usage() already logs.
+ *
+ * Rates are Anthropic's published list prices
+ * (https://platform.claude.com/docs/en/about-claude/pricing) — UPDATE this map
+ * when Anthropic changes pricing. Keyed by model ID, matched against each
+ * call's SERVED model (falling back to the requested preference). The estimate
+ * is list-price based: it does NOT reflect prompt-cache or batch discounts, so
+ * it is a close upper bound on real spend, not the billed figure. The WordPress
+ * AI Request Logs (Settings → AI) and the provider Console hold the
+ * authoritative per-request record.
+ *
+ * Filterable via `snt_ai_model_pricing` so a deployment can override or extend
+ * rates without editing the plugin.
+ *
+ * @since 6.41.0
+ * @return array<string, array{in: float, out: float}> Rates per 1M tokens.
+ */
+function snt_ai_model_pricing() {
+	$rates = array(
+		'claude-opus-4-8'   => array( 'in' => 5.0, 'out' => 25.0 ),
+		'claude-opus-4-7'   => array( 'in' => 5.0, 'out' => 25.0 ),
+		'claude-opus-4-6'   => array( 'in' => 5.0, 'out' => 25.0 ),
+		'claude-opus-4-5'   => array( 'in' => 5.0, 'out' => 25.0 ),
+		'claude-sonnet-4-6' => array( 'in' => 3.0, 'out' => 15.0 ),
+		'claude-sonnet-4-5' => array( 'in' => 3.0, 'out' => 15.0 ),
+		'claude-haiku-4-5'  => array( 'in' => 1.0, 'out' => 5.0 ),
+		'claude-fable-5'    => array( 'in' => 10.0, 'out' => 50.0 ),
+	);
+	return apply_filters( 'snt_ai_model_pricing', $rates );
+}
+
+/**
+ * Estimate the USD cost of one AI call from its token split + model.
+ *
+ * Returns 0.0 for a model absent from snt_ai_model_pricing() — an unpriced
+ * model contributes no dollar estimate rather than a fabricated one. Callers
+ * that need to disclose unpriced volume count those calls separately (see
+ * snt_ai_usage_summary()'s `cost_unpriced_calls`).
+ *
+ * @since 6.41.0
+ * @param string $model      Model ID (served model preferred).
+ * @param int    $prompt     Prompt/input tokens.
+ * @param int    $completion Completion/output tokens.
+ * @return float USD cost (0.0 when the model is unpriced).
+ */
+function snt_ai_estimate_cost( $model, $prompt, $completion ) {
+	$rates = snt_ai_model_pricing();
+	$key   = (string) $model;
+	if ( ! isset( $rates[ $key ]['in'], $rates[ $key ]['out'] ) ) {
+		return 0.0;
+	}
+	return ( (int) $prompt * (float) $rates[ $key ]['in']
+		+ (int) $completion * (float) $rates[ $key ]['out'] ) / 1000000.0;
+}
+
+/**
+ * Summarize recorded AI token usage (and estimated cost) over the trailing
+ * $days window.
  *
  * @param int $days Trailing window in days. Default 30.
- * @return array { calls, prompt, completion, total, by_feature: { <feature> => { calls, total } } }
+ * @return array {
+ *   calls, prompt, completion, total (ints),
+ *   cost (float, USD list-price estimate), cost_unpriced_calls (int),
+ *   window_start (int, oldest counted entry timestamp; 0 when none),
+ *   by_feature: { <feature> => { calls, total, cost } }
+ * }
  *
  * @since 6.29.0
+ * @since 6.41.0 Adds `cost`, `cost_unpriced_calls`, `window_start`, and a per-feature `cost`.
  */
 function snt_ai_usage_summary( $days = 30 ) {
 	$out = array(
-		'calls'      => 0,
-		'prompt'     => 0,
-		'completion' => 0,
-		'total'      => 0,
-		'by_feature' => array(),
+		'calls'               => 0,
+		'prompt'              => 0,
+		'completion'          => 0,
+		'total'               => 0,
+		'cost'                => 0.0,
+		'cost_unpriced_calls' => 0,
+		'window_start'        => 0,
+		'by_feature'          => array(),
 	);
 	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
 	if ( ! is_array( $log ) ) {
 		return $out;
 	}
+	// Hoist the rate map once — snt_ai_usage_summary( 1 ) runs on the prepop
+	// path, so we avoid re-running the `snt_ai_model_pricing` filter per entry.
+	$rates  = snt_ai_model_pricing();
 	$cutoff = time() - ( max( 1, (int) $days ) * DAY_IN_SECONDS );
 	foreach ( $log as $entry ) {
 		if ( ! is_array( $entry ) || (int) ( $entry['ts'] ?? 0 ) < $cutoff ) {
 			continue;
 		}
 		++$out['calls'];
-		$out['prompt']     += (int) ( $entry['prompt'] ?? 0 );
-		$out['completion'] += (int) ( $entry['completion'] ?? 0 );
+		$ts = (int) ( $entry['ts'] ?? 0 );
+		if ( 0 === $out['window_start'] || $ts < $out['window_start'] ) {
+			$out['window_start'] = $ts;
+		}
+		$prompt_t     = (int) ( $entry['prompt'] ?? 0 );
+		$completion_t = (int) ( $entry['completion'] ?? 0 );
+		$out['prompt']     += $prompt_t;
+		$out['completion'] += $completion_t;
 		$out['total']      += (int) ( $entry['total'] ?? 0 );
 		$f = (string) ( $entry['feature'] ?? 'generic' );
 		if ( ! isset( $out['by_feature'][ $f ] ) ) {
 			$out['by_feature'][ $f ] = array(
 				'calls' => 0,
 				'total' => 0,
+				'cost'  => 0.0,
 			);
 		}
 		++$out['by_feature'][ $f ]['calls'];
 		$out['by_feature'][ $f ]['total'] += (int) ( $entry['total'] ?? 0 );
+
+		// v6.41.0: price on the SERVED model so a provider substitution prices
+		// correctly; fall back to the requested `model` when served is blank
+		// (older entries, or a provider that didn't populate model metadata).
+		$pmodel = (string) ( $entry['served_model'] ?? '' );
+		if ( '' === $pmodel ) {
+			$pmodel = (string) ( $entry['model'] ?? '' );
+		}
+		if ( isset( $rates[ $pmodel ]['in'], $rates[ $pmodel ]['out'] ) ) {
+			$c = ( $prompt_t * (float) $rates[ $pmodel ]['in']
+				+ $completion_t * (float) $rates[ $pmodel ]['out'] ) / 1000000.0;
+			$out['cost']                     += $c;
+			$out['by_feature'][ $f ]['cost'] += $c;
+		} else {
+			++$out['cost_unpriced_calls'];
+		}
 	}
 	return $out;
 }
