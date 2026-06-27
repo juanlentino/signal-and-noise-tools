@@ -728,5 +728,63 @@ $log = get_option( SN_AI_USAGE_LOG_OPT, array() );
 hc_eq( 1, count( $log ), 'usage still recorded when model metadata is unavailable' );
 hc_eq( '', $log[0]['served_model'] ?? null, 'served_model degrades to empty string (is_callable guard)' );
 
+// ─── Test 27: snt_ai_model_pricing — known rates + filterable ────────
+echo "\nTest 27: snt_ai_model_pricing — list rates\n";
+fixture_reset();
+$pricing = snt_ai_model_pricing();
+hc_true( isset( $pricing['claude-sonnet-4-6'] ), 'pricing map includes claude-sonnet-4-6' );
+hc_eq( 3.0, $pricing['claude-sonnet-4-6']['in'] ?? null, 'sonnet-4-6 input rate is $3/MTok' );
+hc_eq( 15.0, $pricing['claude-sonnet-4-6']['out'] ?? null, 'sonnet-4-6 output rate is $15/MTok' );
+hc_eq( 1.0, $pricing['claude-haiku-4-5']['in'] ?? null, 'haiku-4-5 input rate is $1/MTok' );
+
+// ─── Test 28: snt_ai_estimate_cost — token math + unknown model ──────
+echo "\nTest 28: snt_ai_estimate_cost — per-call cost\n";
+fixture_reset();
+// sonnet: 1000*$3/M + 500*$15/M = (3000 + 7500)/1e6 = 0.0105
+hc_true( abs( snt_ai_estimate_cost( 'claude-sonnet-4-6', 1000, 500 ) - 0.0105 ) < 1e-9, 'sonnet cost = $0.0105 for 1000 prompt + 500 completion' );
+// haiku: 1000*$1/M + 1000*$5/M = (1000 + 5000)/1e6 = 0.006
+hc_true( abs( snt_ai_estimate_cost( 'claude-haiku-4-5', 1000, 1000 ) - 0.006 ) < 1e-9, 'haiku cost = $0.006 for 1000 prompt + 1000 completion' );
+hc_eq( 0.0, snt_ai_estimate_cost( 'some-unknown-model', 1000, 500 ), 'unknown model returns $0.00 (no fabricated rate)' );
+
+// ─── Test 29: snt_ai_usage_summary — cost accumulation, shape kept ───
+echo "\nTest 29: snt_ai_usage_summary — adds cost, preserves contract\n";
+fixture_reset();
+$now = time();
+update_option(
+	SN_AI_USAGE_LOG_OPT,
+	array(
+		// served_model drives pricing (sonnet): 1000 + 500 = $0.0105
+		array( 'ts' => $now - 100, 'feature' => 'insights', 'model' => 'claude-sonnet-4-6', 'served_model' => 'claude-sonnet-4-6', 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
+		// served_model EMPTY → falls back to `model` (haiku): 2000 + 1000 = $0.007
+		array( 'ts' => $now - 50, 'feature' => 'meta', 'model' => 'claude-haiku-4-5', 'served_model' => '', 'prompt' => 2000, 'completion' => 1000, 'total' => 3000 ),
+		// unknown served_model → unpriced (excluded from $, counted separately)
+		array( 'ts' => $now - 25, 'feature' => 'meta', 'model' => 'mystery', 'served_model' => 'mystery', 'prompt' => 100, 'completion' => 50, 'total' => 150 ),
+	)
+);
+$sum = snt_ai_usage_summary( 30 );
+// Existing shape preserved — the prepop daily-ceiling reads ['calls'].
+hc_eq( 3, $sum['calls'] ?? null, 'calls unchanged (prepop contract)' );
+hc_eq( 3100, $sum['prompt'] ?? null, 'prompt tokens summed (1000+2000+100)' );
+hc_eq( 1550, $sum['completion'] ?? null, 'completion tokens summed (500+1000+50)' );
+hc_eq( 4650, $sum['total'] ?? null, 'total tokens summed' );
+// NEW: cost = 0.0105 (sonnet served) + 0.007 (haiku via model fallback) = 0.0175
+hc_true( abs( ( $sum['cost'] ?? -1 ) - 0.0175 ) < 1e-9, 'cost accumulates with served_model + model fallback = $0.0175' );
+hc_eq( 1, $sum['cost_unpriced_calls'] ?? null, 'one unpriced (unknown-model) call flagged' );
+hc_true( abs( ( $sum['by_feature']['insights']['cost'] ?? -1 ) - 0.0105 ) < 1e-9, 'per-feature cost recorded for insights' );
+hc_eq( $now - 100, $sum['window_start'] ?? null, 'window_start = oldest counted entry timestamp' );
+
+// ─── Test 30: cost respects the snt_ai_model_pricing filter ──────────
+echo "\nTest 30: snt_ai_model_pricing filter override\n";
+fixture_reset();
+add_filter(
+	'snt_ai_model_pricing',
+	function ( $rates ) {
+		$rates['claude-sonnet-4-6'] = array( 'in' => 10.0, 'out' => 10.0 );
+		return $rates;
+	}
+);
+// 1000*$10/M + 1000*$10/M = 0.02
+hc_true( abs( snt_ai_estimate_cost( 'claude-sonnet-4-6', 1000, 1000 ) - 0.02 ) < 1e-9, 'filter override changes the applied rate' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
