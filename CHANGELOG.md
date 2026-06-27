@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.40.3] - 2026-06-27 — Aikido SAST hardening (desktop-mode nav guard + CI supply-chain)
+
+**Headline:** Closes the findings from an Aikido SAST scan. The headline one — a flagged "XSS via `window.location.href`" in the desktop-mode admin-navigation helper — is a false positive in practice (every caller passes a server-localized `admin_url()` value, never user input), but the helper now confirms its target is same-origin before navigating, so a future caller can't turn it into an open-redirect or a `javascript:` sink. The rest hardens CI: third-party Actions are pinned to commit SHAs, the release-notes workflow drops to least-privilege permissions, and every checkout stops persisting `GITHUB_TOKEN`. No front-end impact and no behavior change for the existing navigation commands.
+
+> **Why PATCH:** one defensive guard on an admin-only JS helper (no live vulnerability, no user-visible behavior change) plus CI-only workflow hardening. No new capability, no removed or renamed public API, no settings-schema change. `SNT_VERSION` continues to derive from the docblock.
+
+### Improvements
+
+- **Same-origin guard on the desktop-mode navigation helper** ([assets/desktop-mode.js](assets/desktop-mode.js)): `navigate()` now resolves its argument with `new URL( url, location.origin )` and only assigns `window.location.href` when the result is same-origin, refusing cross-origin redirects and `javascript:` URLs. Every existing caller passes a hardcoded `pages.*` value that PHP localizes from `admin_url()`, so behavior is unchanged; the guard is defense-in-depth against a future caller and clears the SAST finding.
+
+### Cleanup
+
+- **CI supply-chain hardening** (`.github/workflows/`): pinned `shivammathur/setup-php@v2` to its commit SHA (`f3e473d…`, 2.37.2) and the remaining `actions/checkout@v4` to the SHA the repo already trusts; set `release-notes.yml` to `permissions: {}` with `contents: write` scoped to the one job that needs it; added `persist-credentials: false` to every checkout (none push via git). No effect on the shipped plugin.
+
 ## [6.40.2] - 2026-06-26 — Scheduled-content hardening (composite-key idempotency + orphan cleanup)
 
 **Headline:** Two content-safe edge cases in the scheduled-content subsystem, found in a post-ship audit. First, a Scheduled block copied into a SECOND post carried the same `scheduleId`, and because upsert idempotency was keyed on `scheduleId` alone, the second post's save would find and overwrite the FIRST post's queue row, so the first post silently lost its own `target_ref` and surgical purge URL list. Idempotency is now keyed on the `(scheduleId, target_ref)` pair, so the same block on two posts resolves to two distinct rows. Second, permanently deleting a post (not trashing it) left its `wp_sn_schedules` rows and their armed cron events orphaned; a new `before_delete_post` handler now clears those rows' crons and deletes the rows. No schema change, no front-end impact, no behavior change for the common single-post case.
