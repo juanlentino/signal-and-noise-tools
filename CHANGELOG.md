@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.42.0] - 2026-06-27 — Two-column admin shell: passive readouts move to a right rail
+
+**Headline:** A reusable two-column layout primitive (`sn_admin_shell`) puts each admin sub-tab's passive readouts (status, metrics, spend) in a fixed 300px right rail beside the capped main column, reclaiming the horizontal space the single-column stack left empty. Applied to four sub-tabs: **Insights** (the AI usage &amp; spend box, scan status, and automation settings move to the rail, so the main column opens directly on Run Analysis + recommendations), **Health** (scan status to the rail, finding tables stay full-width in main), **IndexNow** (status box + status table to the rail, controls stay in main), and **Music** (sync status detail + Sync-now to the rail, status hero + credential forms stay in main). The rail is sticky on wide viewports and stacks below the main column, preserving reading order, under 1200px and in Desktop Mode.
+
+> **Why MINOR:** a new user-visible capability (the two-column layout and the rail surfacing) with no breaking change. `sn_admin_shell_*` is additive, no public API is removed or renamed, and there is no settings-schema change. The four sub-tabs render the same content, reorganized. `SNT_VERSION` continues to derive from the docblock.
+
+### New
+
+- **`sn_admin_shell` layout primitive** ([inc/admin-shell.php](inc/admin-shell.php)): three echo-style helpers (`sn_admin_shell_open()` / `sn_admin_shell_rail()` / `sn_admin_shell_close()`) emitting a CSS-grid main+rail shell. The main column keeps the established 820px content cap; the rail is a fixed 300px lane. Deliberately asymmetric: the earlier fluid `.sn-2col` split was collapsed to a single column in v3.8.5 because two fluid columns both stayed cramped, so a fixed rail beside a capped main is the corrective. About 54 lines of scoped CSS in [assets/admin.css](assets/admin.css), reusing existing `sn-*` tokens; collapses to one column under `@media (max-width: 1200px)`, where the rail un-stickies and stacks below the main column.
+
+### Improvements
+
+- **Insights tab** ([inc/insights-admin.php](inc/insights-admin.php)): the scan status box, the AI usage &amp; spend readout, and the weekly-cron settings move into the right rail; the main column leads with Run Analysis, the weekly digest, and the recommendation cards. New `snt_insights_render_status_section()` extracted from the tab body.
+- **Health, IndexNow, and Music sub-tabs** ([inc/health-checks-admin.php](inc/health-checks-admin.php), [inc/admin-forms/indexnow.php](inc/admin-forms/indexnow.php), [inc/admin-forms/music.php](inc/admin-forms/music.php)): passive status readouts move to the rail; primary controls and full-width finding/credential surfaces stay in the main column. Status-box copy now orients the reader to the rail consistently across all four surfaces.
+- **Render-contract test coverage**: five new suites lock the main/rail split per surface, including the no-scan/empty-state and alternate status branches plus the Health early-return balance guard. Placement assertions are gated on `is_int()` so a missing rail fails genuinely rather than passing on a `strpos` false-to-zero coercion.
+
 ## [6.41.0] - 2026-06-27 — AI usage & spend readout (tokens + estimated cost)
 
 **Headline:** The Insights tab gains an **AI usage & spend** section showing token usage and estimated USD cost for the plugin's *own* AI features (Insights, meta descriptions, OG titles, alt text, tag suggestions, …) over the trailing 7 and 30 days, with a per-feature breakdown. The tokens are the real counts the plugin already records per call (`snt_ai_record_usage`); the cost is computed from those exact tokens at Anthropic list pricing, keyed on the *served* model so a provider substitution prices correctly. It's a deliberate complement to — not a duplicate of — WordPress's native AI Request Logs (Settings → AI), which the section links to for the full per-request log of all AI Connector traffic.

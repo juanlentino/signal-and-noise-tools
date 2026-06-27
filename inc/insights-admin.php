@@ -28,34 +28,10 @@ function snt_insights_render_admin_tab() {
 	$last = function_exists( 'snt_insights_last_scan' ) ? snt_insights_last_scan() : null;
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 
-	// ── INTRO ──
+	sn_admin_shell_open();
+
+	// ── MAIN COLUMN: the scan workflow (configure -> run -> review) ──
 	echo '<p class="sn-prose">Cross-system synthesis: combines your Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable recommendations per scan. One AI call per scan; results cached 7 days.</p>';
-
-	// ── STATUS BOX ──
-	if ( $last ) {
-		$state = snt_insights_state_read();
-		$active = snt_insights_filter_active( $last['recommendations'] );
-		$active_count = count( $active );
-		$dismissed_count = count( $state['dismissed_ids'] );
-		$done_count = count( $state['done_ids'] );
-
-		$pill = $active_count > 0 ? 'ok' : 'warn';
-		echo '<div class="sn-status-box' . ( 'ok' === $pill ? '' : ' sn-status-box--warn' ) . '">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last['scanned_at'], time() ) ) . ' ago</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $active_count ) . ' active &middot; ' . esc_html( $dismissed_count ) . ' dismissed &middot; ' . esc_html( $done_count ) . ' done · scan ran in ' . esc_html( (int) $last['elapsed_ms'] ) . 'ms · cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + SN_INSIGHTS_CACHE_TTL ) ) . '.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $active_count > 0 ? 'Recommendations ready' : 'All caught up' ) . '</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">No scan run yet</p>';
-		echo '<p class="sn-status-box-body">Click <strong>Run Analysis</strong> below to populate recommendations. ~$0.01 per scan; 7-day cache.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
-		echo '</div>';
-	}
 
 	// ── RUN ANALYSIS form ──
 	echo '<form method="post">';
@@ -75,17 +51,58 @@ function snt_insights_render_admin_tab() {
 	echo '</div>';
 	echo '</form>';
 
-	// ── WEEKLY DIGEST (narration, v6.30.0) — read-only prose, above the recs ──
+	// ── WEEKLY DIGEST (narration, v6.30.0) — read-only prose + Generate ──
 	snt_insights_render_narration_section( $ai_ready );
 
-	// ── RECOMMENDATIONS (rendered by Task 12) ──
+	// ── RECOMMENDATIONS cards (rendered by Task 12) ──
 	snt_insights_render_recommendations_section( $last );
 
-	// ── AI USAGE & SPEND (v6.41.0) — plugin-scoped tokens + estimated cost ──
+	// ── RIGHT RAIL: passive readouts + automation (v6.42.0) ──
+	// The scan status, the AI spend readout, and the weekly-cron settings are
+	// reference/config, not the scan workflow — they move to the rail so the
+	// main column opens directly on Run Analysis + recommendations.
+	sn_admin_shell_rail( 'Scan status, AI spend, and automation' );
+	snt_insights_render_status_section( $last );
 	snt_insights_render_usage_section();
-
-	// ── SETTINGS section (rendered by Task 12) ──
 	snt_insights_render_settings_section();
+
+	sn_admin_shell_close();
+}
+
+/**
+ * Renders the compact scan-status box (rail tenant): last-scan age, the
+ * active/dismissed/done counts, and a state pill — or a prompt to run the
+ * first scan. Extracted from the tab body in v6.42.0 when the status moved
+ * into the right rail.
+ *
+ * @param array|null $last The last scan record, or null when none has run.
+ * @return void
+ */
+function snt_insights_render_status_section( $last ) {
+	if ( $last ) {
+		$state           = snt_insights_state_read();
+		$active          = snt_insights_filter_active( $last['recommendations'] );
+		$active_count    = count( $active );
+		$dismissed_count = count( $state['dismissed_ids'] );
+		$done_count      = count( $state['done_ids'] );
+
+		$pill = $active_count > 0 ? 'ok' : 'warn';
+		echo '<div class="sn-status-box' . ( 'ok' === $pill ? '' : ' sn-status-box--warn' ) . '">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last['scanned_at'], time() ) ) . ' ago</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $active_count ) . ' active &middot; ' . esc_html( $dismissed_count ) . ' dismissed &middot; ' . esc_html( $done_count ) . ' done · scan ran in ' . esc_html( (int) $last['elapsed_ms'] ) . 'ms · cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + SN_INSIGHTS_CACHE_TTL ) ) . '.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $active_count > 0 ? 'Recommendations ready' : 'All caught up' ) . '</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">No scan run yet</p>';
+		echo '<p class="sn-status-box-body">Click <strong>Run Analysis</strong> in the main column to populate recommendations. ~$0.01 per scan; 7-day cache.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+	}
 }
 
 /**

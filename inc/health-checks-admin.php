@@ -56,35 +56,10 @@ function sn_health_render_admin_tab() {
 
 	$last_scan = sn_health_last_scan();
 
-	// ── INTRO ──
-	echo '<p class="sn-prose">Scans your post and attachment graph. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Results cache for 24 hours.</p>';
+	sn_admin_shell_open();
 
-	// ── STATUS BOX + RUN BUTTON ──
-	if ( $last_scan ) {
-		$total_findings = 0;
-		foreach ( $last_scan['checks'] as $check ) {
-			$total_findings += (int) $check['count'];
-		}
-		$pill_kind = $total_findings > 0 ? 'warn' : 'ok';
-		echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last_scan['scanned_at'], time() ) ) . ' ago</p>';
-		// v4.1.1 (B-05): dynamic check count. Hardcoded "4 checks" was wrong
-		// since v3.7.0 added drift_time_phrases as check #5.
-		$check_count = is_array( $last_scan['checks'] ?? null ) ? count( $last_scan['checks'] ) : 0;
-		echo '<p class="sn-status-box-body">' . esc_html( $total_findings ) . ' total finding' . ( 1 === $total_findings ? '' : 's' ) . ' across ' . esc_html( $check_count ) . ' checks · scan ran in ' . esc_html( (int) $last_scan['elapsed_ms'] ) . 'ms. Results cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last_scan['scanned_at'] + DAY_IN_SECONDS ) ) . '.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $total_findings > 0 ? 'Issues found' : 'All clear' ) . '</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">No scan has run yet</p>';
-		echo '<p class="sn-status-box-body">Click <strong>Run scan</strong> below to populate findings. The scan reads only — no edits.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
-		echo '</div>';
-	}
+	// ── MAIN: intro + run-scan control + per-check finding tables ──
+	echo '<p class="sn-prose">Scans your post and attachment graph. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Results cache for 24 hours.</p>';
 
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -98,6 +73,16 @@ function sn_health_render_admin_tab() {
 	echo '</form>';
 
 	if ( ! $last_scan ) {
+		// ── RAIL: no-scan status (v6.42.0) ──
+		sn_admin_shell_rail( 'Scan status' );
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">No scan has run yet</p>';
+		echo '<p class="sn-status-box-body">Click <strong>Run scan</strong> in the main column to populate findings. The scan reads only — no edits.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+		sn_admin_shell_close();
 		return;
 	}
 
@@ -173,6 +158,25 @@ function sn_health_render_admin_tab() {
 	if ( function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
 		snt_pattern_adoption_render_opportunities_section();
 	}
+
+	// ── RAIL: scan status box (v6.42.0) ──
+	sn_admin_shell_rail( 'Scan status' );
+	$total_findings = 0;
+	foreach ( $last_scan['checks'] as $check ) {
+		$total_findings += (int) $check['count'];
+	}
+	$pill_kind = $total_findings > 0 ? 'warn' : 'ok';
+	echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
+	echo '<div>';
+	echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last_scan['scanned_at'], time() ) ) . ' ago</p>';
+	// v4.1.1 (B-05): dynamic check count. Hardcoded "4 checks" was wrong
+	// since v3.7.0 added drift_time_phrases as check #5.
+	$check_count = is_array( $last_scan['checks'] ?? null ) ? count( $last_scan['checks'] ) : 0;
+	echo '<p class="sn-status-box-body">' . esc_html( $total_findings ) . ' total finding' . ( 1 === $total_findings ? '' : 's' ) . ' across ' . esc_html( $check_count ) . ' checks · scan ran in ' . esc_html( (int) $last_scan['elapsed_ms'] ) . 'ms. Results cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last_scan['scanned_at'] + DAY_IN_SECONDS ) ) . '.</p>';
+	echo '</div>';
+	echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $total_findings > 0 ? 'Issues found' : 'All clear' ) . '</span>';
+	echo '</div>';
+	sn_admin_shell_close();
 } // end function sn_health_render_admin_tab
 
 /**
