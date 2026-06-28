@@ -415,8 +415,8 @@ function sn_health_check_broken_links() {
 	// Probe each unique URL.
 	foreach ( $url_to_posts as $url => $usages ) {
 		$status = sn_health_link_status( $url );
-		if ( $status['ok'] ) {
-			continue;
+		if ( ! empty( $status['skipped'] ) || $status['ok'] ) {
+			continue; // healthy, or a live page behind a bot challenge (not broken)
 		}
 		$findings[] = array(
 			'subject_type'  => 'internal_link',
@@ -460,8 +460,12 @@ function sn_health_extract_internal_links( $content, $site_host ) {
 }
 
 /**
- * 24h-cached HEAD probe. Returns { ok: bool, code: int }.
- * Network errors are encoded as code = 0 + ok = false.
+ * 24h-cached HEAD probe. Returns { ok: bool, code: int, skipped?: bool, reason?: string }.
+ * Network errors are encoded as code = 0 + ok = false. A bot-challenge
+ * interstitial (a 403/503 carrying `cf-mitigated: challenge`, e.g. a same-host
+ * path behind Cloudflare) is a LIVE page gating bots, not a broken link, so it is
+ * marked skipped — the same treatment the external link-rot probe gives a
+ * challenged citation (see sn_health_is_bot_challenge() in health-probe-classify.php).
  */
 function sn_health_link_status( $url ) {
 	$cache_key = 'sn_health_link_' . md5( $url );
@@ -484,13 +488,28 @@ function sn_health_link_status( $url ) {
 	if ( is_wp_error( $resp ) ) {
 		$result = array( 'ok' => false, 'code' => 0 );
 	} else {
+		$final  = $resp;
 		$code   = (int) wp_remote_retrieve_response_code( $resp );
 		// Some sites reject HEAD with 405; retry with GET in that case.
 		if ( 405 === $code || 501 === $code ) {
 			$resp2 = wp_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 0 ) );
-			$code  = is_wp_error( $resp2 ) ? 0 : (int) wp_remote_retrieve_response_code( $resp2 );
+			if ( is_wp_error( $resp2 ) ) {
+				$final = null;
+				$code  = 0;
+			} else {
+				$final = $resp2;
+				$code  = (int) wp_remote_retrieve_response_code( $resp2 );
+			}
 		}
-		$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+		$headers = $final ? wp_remote_retrieve_headers( $final ) : array();
+		if ( sn_health_is_bot_challenge( $code, $headers ) ) {
+			// A live page behind a Cloudflare bot challenge — gating automated
+			// clients, not a dead link. Mark unverifiable (skipped) instead of
+			// flagging it; mirrors the external link-rot probe.
+			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
+		} else {
+			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+		}
 	}
 
 	set_transient( $cache_key, $result, SN_HEALTH_LINK_CACHE_TTL );

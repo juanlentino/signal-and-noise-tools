@@ -40,19 +40,6 @@ $GLOBALS['__ext'] = array(
 class WP_Error_Stub {}
 function is_wp_error( $x ) { return $x instanceof WP_Error_Stub; }
 
-// Faithful stand-in for WP's WpOrg\Requests\Utility\CaseInsensitiveDictionary
-// (what wp_remote_retrieve_headers() returns in production): ArrayAccess with
-// case-insensitive keys. Lets the bot-challenge classifier be tested through the
-// SAME shape it sees on the live site, not just a plain array.
-class SN_CI_Headers implements ArrayAccess {
-	private $d = array();
-	public function __construct( $a ) { foreach ( $a as $k => $v ) { $this->d[ strtolower( (string) $k ) ] = $v; } }
-	public function offsetExists( $k ): bool { return isset( $this->d[ strtolower( (string) $k ) ] ); }
-	public function offsetGet( $k ): mixed { return $this->d[ strtolower( (string) $k ) ] ?? null; }
-	public function offsetSet( $k, $v ): void { $this->d[ strtolower( (string) $k ) ] = $v; }
-	public function offsetUnset( $k ): void { unset( $this->d[ strtolower( (string) $k ) ] ); }
-}
-
 // Deterministic resolver seam for the SHARED guard (v6.13.1: inc/ssrf-guard.php
 // guards sn_ssrf_resolve_host with function_exists). Literal IPs pass through
 // filter_var; hostnames + encoded-IP forms resolve via this map. Encoded host
@@ -113,6 +100,7 @@ $GLOBALS['wpdb'] = new class {
 };
 
 require __DIR__ . '/../inc/ssrf-guard.php'; // shared SSRF guard (sn_ssrf_host_blocked) — resolver seam above overrides its lookup
+require __DIR__ . '/../inc/health-probe-classify.php'; // shared bot-challenge classifier (sn_health_is_bot_challenge) — unit-tested in tests/health-probe-classify.php
 require __DIR__ . '/../inc/health-external-links.php';
 
 // ─── 1. Extractor: keep off-host http/https, drop same-host/relative/non-http ───
@@ -176,27 +164,10 @@ ok( false === $s['ok'] && 503 === $s['code'] && ! empty( $s['cached'] ), 'cache 
 // 2h. Separate cache-key prefix (must NOT collide with the internal probe's 'sn_health_link_').
 ok( isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://good.example/a' )] ), 'external probe caches under the sn_extlink_ prefix (not sn_health_link_)' );
 
-// ─── 2i. Bot-challenge classifier (v6.48.3): a Cloudflare challenge interstitial
-// is a LIVE page gated against bots, NOT link rot. The classifier keys on
-// Cloudflare's purpose-built `cf-mitigated: challenge` header, which CF sets only
-// on responses IT generated — so an origin 4xx merely passed THROUGH Cloudflare
-// is never masked. Probe codes are restricted to the challenge-bearing ones
-// (403/503) so a genuine 404/410 stays "rot" even if a stray header appears. ───
-$has_helper = function_exists( 'sn_health_is_bot_challenge' );
-ok( $has_helper, 'sn_health_is_bot_challenge() defined' );
-ok( $has_helper && true  === sn_health_is_bot_challenge( 403, array( 'cf-mitigated' => 'challenge' ) ), '403 + cf-mitigated:challenge → bot challenge (not rot)' );
-ok( $has_helper && true  === sn_health_is_bot_challenge( 503, array( 'cf-mitigated' => 'challenge' ) ), '503 + cf-mitigated:challenge → bot challenge (legacy IUAM)' );
-ok( $has_helper && true  === sn_health_is_bot_challenge( 403, array( 'CF-Mitigated' => 'Challenge' ) ), 'header name + value match is case-insensitive' );
-ok( $has_helper && false === sn_health_is_bot_challenge( 403, array( 'server' => 'cloudflare' ) ), 'plain CF 403 WITHOUT cf-mitigated → still rot (no over-suppression of real 403s)' );
-ok( $has_helper && false === sn_health_is_bot_challenge( 404, array( 'cf-mitigated' => 'challenge' ) ), '404 stays real rot even with a challenge header (code allowlist 403/503)' );
-ok( $has_helper && false === sn_health_is_bot_challenge( 200, array() ), 'healthy 200 → not a challenge' );
-
-// 2i-prod. The production path: wp_remote_retrieve_headers() returns a
-// CaseInsensitiveDictionary (ArrayAccess, case-insensitive keys), NOT a plain
-// array. A faithful stand-in exercises the instanceof-ArrayAccess branch the
-// array cases above never reach (closes the coverage gap a review flagged).
-ok( $has_helper && true  === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'CF-Mitigated' => 'challenge' ) ) ), 'detects a challenge through a CaseInsensitiveDictionary-style ArrayAccess bag (the real WP path)' );
-ok( $has_helper && false === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'server' => 'cloudflare', 'cf-ray' => 'abc' ) ) ), 'ArrayAccess bag without cf-mitigated → still rot (not a challenge)' );
+// The bot-challenge CLASSIFIER unit tests (sn_health_is_bot_challenge, incl. the
+// ArrayAccess/CaseInsensitiveDictionary production path) live in their own suite,
+// tests/health-probe-classify.php. Here we test only this module's INTEGRATION
+// with it: that a challenged probe is folded into the skip bucket.
 
 // ─── 2j. Status function folds a CF challenge into the SSRF-skip bucket ───
 $GLOBALS['__resolve']['ssrn.example'] = '93.184.216.34';
