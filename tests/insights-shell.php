@@ -120,14 +120,16 @@ ish_assert( false !== $grid_at && false !== $rec_at && $grid_at < $rec_at, 'reco
 // the grid must open AFTER Run Analysis, not wrap it.
 ish_assert( false !== $grid_at && false !== $run_at && $run_at < $grid_at, 'Run Analysis renders before (outside) the recommendation grid' );
 
-// Readouts in RAIL (after the rail marker).
+// v6.45.0: AI usage & spend is a WIDE 4-column table, so it moved to the MAIN
+// column (before the rail marker) — the asymmetric rail holds only compact
+// readouts. Status box + automation settings remain in the rail.
 $usage_at = strpos( $html, 'AI usage' );
 $status_at = strpos( $html, 'Last scan' );
 $settings_at = strpos( $html, 'Run a weekly scan automatically' );
 // is_int( $rail_at ) gates against a false (missing-rail) spurious pass:
 // strpos returns false when the aside is absent, and `$x > false` coerces
 // to `$x > 0`, which any positive offset satisfies.
-ish_assert( is_int( $rail_at ) && false !== $usage_at && $usage_at > $rail_at, 'AI usage & spend sits in the rail' );
+ish_assert( is_int( $rail_at ) && false !== $usage_at && $usage_at < $rail_at, 'AI usage & spend (a wide table) sits in the MAIN column' );
 ish_assert( is_int( $rail_at ) && false !== $status_at && $status_at > $rail_at, 'scan status box sits in the rail' );
 ish_assert( is_int( $rail_at ) && false !== $settings_at && $settings_at > $rail_at, 'automation settings sit in the rail' );
 

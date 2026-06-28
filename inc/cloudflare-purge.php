@@ -239,32 +239,11 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 
 	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with — without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
 
-	// ── MODULE STATUS BOX ──
-	if ( $is_configured ) {
-		$last_line = '';
-		if ( ! empty( $last_purge['time'] ) ) {
-			$ago       = human_time_diff( (int) $last_purge['time'], time() );
-			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : ( (int) ( $last_purge['count'] ?? 0 ) ) . ' URL(s)';
-			$last_line = ' Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ').';
-		}
-		echo '<div class="sn-status-box">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">Configured — auto-purge active</p>';
-		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--ok">Active</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">Not configured</p>';
-		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID below to activate.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
-		echo '</div>';
-	}
+	// Phase 3 (v6.45.0): full-width two-column shell — credentials (the work) in
+	// the main column, the module status + manual-purge action in the rail.
+	sn_admin_shell_open();
 
-	// ── CREDENTIALS FIELDSET ──
+	// ── MAIN: CREDENTIALS FIELDSET ──
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 
@@ -305,13 +284,40 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
+	// ── RAIL: module status + manual purge action ──
+	sn_admin_shell_rail( 'Cache status' );
+
+	if ( $is_configured ) {
+		$last_line = '';
+		if ( ! empty( $last_purge['time'] ) ) {
+			$ago       = human_time_diff( (int) $last_purge['time'], time() );
+			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : ( (int) ( $last_purge['count'] ?? 0 ) ) . ' URL(s)';
+			$last_line = ' Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ').';
+		}
+		echo '<div class="sn-status-box">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Configured — auto-purge active</p>';
+		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--ok">Active</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Not configured</p>';
+		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID in the main column to activate.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+	}
+
 	// ── MANUAL PURGE ACTION CARD ──
-	echo '<div class="sn-card-grid">';
 	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<strong>Purge Everything Now</strong>';
 	echo '<p class="sn-helper">Clears the entire Cloudflare zone cache. Use after manual edits to global elements.</p>';
 	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge Cloudflare</button>';
 	echo '</form>';
-	echo '</div>';
+
+	sn_admin_shell_close();
 } );

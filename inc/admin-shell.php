@@ -1,13 +1,14 @@
 <?php
 /**
- * Signal & Noise Tools — two-column admin shell (full-width equal columns).
+ * Signal & Noise Tools — two-column admin shell (full-width, asymmetric).
  *
- * A reusable layout primitive for admin sub-tabs that pair a work column
- * (forms, primary actions) with a secondary readout column (status box,
- * metrics, spend). Both columns share the FULL content width equally — the
- * same auto-fit treatment as .sn-2up on the Analytics tab — and collapse to
- * one column (DOM order, so the readout reads after the main) when the content
- * area is narrow.
+ * A reusable layout primitive for admin sub-tabs that pair a primary work column
+ * (forms, primary actions) with a narrower secondary readout column (status box,
+ * compact metrics). Full-width, asymmetric ~62/38 — WordPress's own normal/side
+ * dashboard proportion (main wider than side), collapsing to one column (DOM
+ * order, so the readout reads after the main) when the content area is narrow.
+ * RULE: wide content (data tables) belongs in the MAIN column — the narrower
+ * side holds only compact readouts/status.
  *
  * Echo-style, deliberately. Every SN admin renderer echoes its markup
  * inline (escaped at each output sink), so the shell is emitted as three
@@ -17,11 +18,10 @@
  * EscapeOutput; the only dynamic value is the rail's aria-label, which is
  * esc_attr()'d.
  *
- * Full-width since v6.44.1. It was a capped 820px main + a fixed 300px sticky
- * rail (v6.42.0), which left the layout left-aligned with dead space on a real
- * monitor and squeezed the rail so its tables wrapped their headers. The grid
- * lives in assets/admin.css (.sn-shell); the function names keep "rail" for the
- * second column for backward compatibility, though it is now an equal column.
+ * Full-width since v6.44.1; asymmetric since v6.45.0 (was a capped 820px main +
+ * fixed 300px rail in v6.42.0, then equal columns in v6.44.1). The grid lives in
+ * assets/admin.css (.sn-shell); the function names keep "rail" for the second
+ * column for backward compatibility.
  *
  * Usage (the caller gates current_user_can BEFORE opening the shell):
  *

@@ -57,13 +57,16 @@ function snt_insights_render_admin_tab() {
 	// ── RECOMMENDATIONS cards (rendered by Task 12) ──
 	snt_insights_render_recommendations_section( $last );
 
-	// ── RIGHT RAIL: passive readouts + automation (v6.42.0) ──
-	// The scan status, the AI spend readout, and the weekly-cron settings are
-	// reference/config, not the scan workflow — they move to the rail so the
-	// main column opens directly on Run Analysis + recommendations.
-	sn_admin_shell_rail( 'Scan status, AI spend, and automation' );
-	snt_insights_render_status_section( $last );
+	// ── AI USAGE & SPEND — a wide four-column table, so it belongs in the MAIN
+	// column (v6.45.0: moved out of the asymmetric rail, where a wide table would
+	// wrap its headers; the narrower side holds only compact readouts). ──
 	snt_insights_render_usage_section();
+
+	// ── RIGHT RAIL: compact passive readouts + automation ──
+	// The scan status and the weekly-cron settings are compact reference/config,
+	// so they sit in the narrower side; the main opens on the scan workflow.
+	sn_admin_shell_rail( 'Scan status and automation' );
+	snt_insights_render_status_section( $last );
 	snt_insights_render_settings_section();
 
 	sn_admin_shell_close();

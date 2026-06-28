@@ -31,7 +31,9 @@ function sn_webhooks_render_admin_tab() {
 	// ── INTRO ──
 	echo '<p class="sn-prose">POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events — published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the <code>X-SN-Signature</code> header before acting.</p>';
 
-	// ── STATUS BOX ──
+	// Phase 3 (v6.45.0): full-width two-column shell — the webhook editor + add +
+	// uptime forms (the work) in the main column; the at-a-glance status and the
+	// payload reference in the rail.
 	$enabled_count = 0;
 	foreach ( $webhooks as $wh ) {
 		if ( ! empty( $wh['enabled'] ) ) {
@@ -40,26 +42,9 @@ function sn_webhooks_render_admin_tab() {
 	}
 	$total = count( $webhooks );
 
-	if ( $total > 0 ) {
-		$pill_kind = $enabled_count > 0 ? 'ok' : 'warn';
-		echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">' . esc_html( $total ) . ' webhook' . ( 1 === $total ? '' : 's' ) . ' configured</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $enabled_count ) . ' enabled, ' . esc_html( $total - $enabled_count ) . ' disabled. Deliveries fire on each webhook&rsquo;s subscribed post/page events (published, updated, unpublished, deleted).</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $enabled_count > 0 ? 'Active' : 'Inactive' ) . '</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">No webhooks configured</p>';
-		echo '<p class="sn-status-box-body">Add one below to start receiving signed post-publish notifications at your own endpoint.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
-		echo '</div>';
-	}
+	sn_admin_shell_open();
 
-	// ── EXISTING WEBHOOKS — one fieldset per entry ──
+	// ── MAIN: EXISTING WEBHOOKS — one fieldset per entry ──
 	foreach ( $webhooks as $wh ) {
 		$is_new = ( $new_id === $wh['id'] );
 
@@ -225,6 +210,28 @@ function sn_webhooks_render_admin_tab() {
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
+	// ── RAIL: at-a-glance status + payload reference ──
+	sn_admin_shell_rail( 'Status & reference' );
+
+	if ( $total > 0 ) {
+		$pill_kind = $enabled_count > 0 ? 'ok' : 'warn';
+		echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">' . esc_html( $total ) . ' webhook' . ( 1 === $total ? '' : 's' ) . ' configured</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $enabled_count ) . ' enabled, ' . esc_html( $total - $enabled_count ) . ' disabled. Deliveries fire on each webhook&rsquo;s subscribed post/page events (published, updated, unpublished, deleted).</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $enabled_count > 0 ? 'Active' : 'Inactive' ) . '</span>';
+		echo '</div>';
+	} else {
+		echo '<div class="sn-status-box sn-status-box--warn">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">No webhooks configured</p>';
+		echo '<p class="sn-status-box-body">Add one in the main column to start receiving signed post-publish notifications at your own endpoint.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+	}
+
 	// ── PAYLOAD REFERENCE ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Payload reference</h2>';
@@ -254,4 +261,6 @@ User-Agent: SignalNoiseTools/' . esc_html( defined( 'SNT_VERSION' ) ? SNT_VERSIO
 }</pre>';
 	echo '<p class="sn-field-helper">Receivers should verify <code>X-SN-Signature</code> before trusting the body. Failures (network or HTTP 5xx) retry up to 3 times with 5-minute backoff; HTTP 4xx is a hard rejection.</p>';
 	echo '</div>';
+
+	sn_admin_shell_close();
 }

@@ -102,14 +102,15 @@ $escaped = ob_get_clean();
 sh_assert( false === strpos( $escaped, 'a"b<c' ), 'raw unescaped label is not present' );
 sh_contains( $escaped, 'a&quot;b&lt;c', 'label is HTML-attribute escaped' );
 
-// ─── Test G: the shell grid is full-width (v6.44.1), not the old capped lane ──
-echo "\nTest G: full-width grid in admin.css\n";
+// ─── Test G: the shell grid is full-width + asymmetric (v6.45.0) ─────────────
+echo "\nTest G: full-width asymmetric grid in admin.css\n";
 $css   = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
 $start = strpos( $css, '.sn-shell {' );
 $end   = false !== $start ? strpos( $css, '}', $start ) : false;
 $block = ( false !== $start && false !== $end ) ? substr( $css, $start, $end - $start ) : '';
-sh_assert( false !== strpos( $block, 'auto-fit' ) && false !== strpos( $block, '1fr' ), 'the .sn-shell grid uses full-width auto-fit columns (like the Analytics .sn-2up)' );
+sh_assert( false !== strpos( $block, 'minmax(0,' ) && false !== strpos( $block, 'fr)' ), 'the .sn-shell grid is full-width and fluid (fr-based, no fixed cap)' );
 sh_assert( false === strpos( $block, '820px' ) && false === strpos( $block, '300px' ), 'the .sn-shell grid no longer caps the main at 820px / pins a 300px rail' );
+sh_assert( false !== strpos( $block, '1.7fr' ) && false !== strpos( $block, '1fr)' ), 'the .sn-shell grid is asymmetric — a wider 1.7fr main track beside a 1fr side (not forced-equal)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

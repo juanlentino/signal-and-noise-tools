@@ -97,17 +97,19 @@ function sn_admin_top_tabs() {
 			'subtitle' => 'Cloudflare edge cache, outbound webhooks, IndexNow, scheduled jobs, and scheduled content.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
-				// Automation tab (v6.18.0).
-				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section' ),
-				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section' ),
-				// 'wide': IndexNow uses the full-width two-column sn_admin_shell.
+				// Automation tab (v6.18.0). 'wide' (Phase 3, v6.45.0): all five
+				// Connections leaves use the full-width layout — Cloudflare/Webhooks lay
+				// out work + status/reference in the two-column sn_admin_shell; Cron and
+				// Scheduled lead with a glance hero over a full-width data table.
+				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section', 'wide' => true ),
+				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section', 'wide' => true ),
 				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section', 'wide' => true ),
-				'cron'              => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section' ),
+				'cron'              => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section', 'wide' => true ),
 				// Scheduled-content status list (Task 8): the read-mostly union of
 				// signal-noise/scheduled fragment rows + native future posts. A sub-tab
 				// only (no sidebar submenu), so the desktop-mode 7-top-tab invariant
 				// holds. Render fn is defined in inc/schedule-admin.php.
-				'scheduled-content' => array( 'label' => 'Scheduled', 'render' => 'sn_admin_render_scheduled_content_section' ),
+				'scheduled-content' => array( 'label' => 'Scheduled', 'render' => 'sn_admin_render_scheduled_content_section', 'wide' => true ),
 			),
 		),
 		array(
