@@ -780,6 +780,25 @@
 	margin-bottom: 0;
 }
 
+/* ─── Generic 2-up card row (v6.43.1) ────────────────────────────────────
+   For a wide leaf whose main column holds a couple of short cards (e.g.
+   IndexNow's settings + maintenance): lay them side by side to use the full
+   width instead of stacking left with empty space; collapses to one column
+   when the cards no longer fit. */
+.sn-2up {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: var(--sn-space-4);
+	align-items: start;
+}
+.sn-2up .sn-fieldset {
+	max-width: none;
+	margin-bottom: 0;
+}
+.sn-2up .sn-card--narrow {
+	max-width: none;
+}
+
 /* ─── Mono font utility ──────────────────────────────────────────────────
    System mono stack. Replaces the inline
      style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"

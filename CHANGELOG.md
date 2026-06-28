@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.43.1] - 2026-06-27 — Fix: IndexNow rendered a bare, unpanelled enable form at full width
+
+**Headline:** The v6.43.0 open-wide change made the four `sn_admin_shell` tabs full-width, but IndexNow's enable form was the one wide-leaf main-column block that never owned its own card (it had leaned on the old wrapper card). At full width with no wrapper card, its `.sn-savebar` (which carries a negative card-bleed margin meant for a card edge) overflowed into a stray full-width border and the tab read as empty and unfinished. The enable form is now a proper `.sn-fieldset` card, and the settings and maintenance cards lay out 2-up so the main column uses the full width.
+
+> **Why PATCH:** a visual regression fix for one tab plus a small layout helper. No new capability, no public API or settings-schema change. `SNT_VERSION` continues to derive from the docblock.
+
+### Fixed
+
+- **IndexNow enable form is now carded** ([inc/admin-forms/indexnow.php](inc/admin-forms/indexnow.php)): the enable toggle + Save sit in a `.sn-fieldset` card (heading + `.sn-fieldset-actions` footer) instead of a bare `.sn-savebar` that bled past the chrome-free `.sn-section` of a wide leaf. A new `.sn-2up` grid ([assets/admin.css](assets/admin.css)) lays the settings and maintenance cards side by side so the main column fills the width instead of stacking left with empty space; it collapses to one column when the cards no longer fit. (The other three wide leaves, Insights/Health/Music, already card their main content, so they were unaffected.)
+
 ## [6.43.0] - 2026-06-27 — Open-and-wide admin: full-width layout + first-glance Dashboard (Phase 1)
 
 **Headline:** The admin no longer strangles every tab to a narrow 820px column. The per-leaf wrapper now defaults to a readable capped card (unchanged for forms and prose) but lets full-width surfaces opt out, so the four shell tabs (Insights, Health, Music, IndexNow) finally use the width their two-column rail was designed for instead of being squeezed inside an 820px box. The **Dashboard** tab gains a first-glance status grid (theme, plugin, deploys, health, AI spend, cron, login, views), all from data the plugin already computes, plus a conditional attention strip and a two-column lower row. Insights recommendation cards now lay out 2-up. This is the first of a phased redesign; Monitoring, Connections, Identity & SEO, and Content follow, along with the wp-admin home widgets.
