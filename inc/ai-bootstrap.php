@@ -490,6 +490,14 @@ function snt_ai_model_pricing() {
 		'claude-sonnet-4-5' => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-haiku-4-5'  => array( 'in' => 1.0, 'out' => 5.0 ),
 		'claude-fable-5'    => array( 'in' => 10.0, 'out' => 50.0 ),
+		// v6.48.1: Google Gemini Flash rates (the v6.48.0 alt-text vision route
+		// uses gemini-2.5-flash-lite by default; flash listed too for a re-pin via
+		// the snt_ai_alt_text_model filter). Standard paid tier, text/image input
+		// (audio input is dearer but SN never sends audio); per 1M tokens, from
+		// Google's official pricing page (ai.google.dev/gemini-api/docs/pricing,
+		// verified 2026-06-28). Image input is billed at the text/image input rate.
+		'gemini-2.5-flash-lite' => array( 'in' => 0.10, 'out' => 0.40 ),
+		'gemini-2.5-flash'      => array( 'in' => 0.30, 'out' => 2.50 ),
 	);
 	return apply_filters( 'snt_ai_model_pricing', $rates );
 }
