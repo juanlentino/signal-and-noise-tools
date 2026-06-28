@@ -25,16 +25,20 @@ function sn_admin_render_indexnow_section() {
 
 	sn_admin_shell_open();
 
-	// ── MAIN: intro + enable toggle + maintenance actions ──
+	// ── MAIN: intro + a 2-up of [settings card] + [maintenance card] ──
 	echo '<p class="sn-prose">Pushes changed URLs to <strong>IndexNow</strong> (Bing, Yandex, Seznam, Naver&hellip; &mdash; not Google) on publish, update, and removal so they re-crawl within minutes. The verification key file is served automatically &mdash; no upload needed.</p>';
 
-	// ── ENABLE FORM ──
-	echo '<form method="post"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
+	echo '<div class="sn-2up">';
+
+	// ── ENABLE FORM (carded — IndexNow is a wide leaf, so the section wrapper
+	// provides no card; the form must own its chrome, or the .sn-savebar's
+	// negative card-bleed margin overflows the bare .sn-section). v6.43.1. ──
+	echo '<form method="post" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="indexnow_save">';
-	echo '<div class="sn-field"><label class="sn-field-label">IndexNow</label>';
-	echo '<label><input type="checkbox" name="indexnow_enabled" value="1"' . checked( $enabled, true, false ) . '> Notify search engines when content changes</label></div>';
-	echo '<div class="sn-savebar"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
+	echo '<h2 class="sn-fieldset-h">IndexNow</h2>';
+	echo '<div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1"' . checked( $enabled, true, false ) . '> Notify search engines when content changes</label></div>';
+	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
 
 	// ── ACTIONS (regenerate + backfill) ──
 	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
@@ -42,6 +46,8 @@ function sn_admin_render_indexnow_section() {
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
 	echo '<button type="submit" name="sn_action" value="indexnow_ping_now" class="button">Submit recent content now</button> ';
 	echo '<button type="submit" name="sn_action" value="indexnow_regenerate" class="button">Regenerate key</button></form>';
+
+	echo '</div>'; // .sn-2up
 
 	// ── RAIL: status pill + status table (v6.42.0) ──
 	sn_admin_shell_rail( 'IndexNow status' );
