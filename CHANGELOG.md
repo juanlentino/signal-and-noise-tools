@@ -2,7 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.44.0] - 2026-06-27 — Open-and-wide admin Phase 2: Monitoring + the home widgets
+## [6.44.1] - 2026-06-28 — Fix: the Monitoring shell tabs now use the full width (like Analytics)
+
+**Headline:** The **Insights**, **Music**, and **IndexNow** sub-tabs were still on the v6.42.0 two-column shell, which capped the work column at 820px and pinned a fixed 300px rail — so on a real monitor the whole layout sat left-aligned with a large empty zone on the right, and the rail was so narrow that the Insights **AI usage & spend** table wrapped its own headers ("Call s", "Toke ns"). The shell now uses full-width equal columns — the same treatment the redesigned Analytics tab already uses — so these tabs fill the page and the spend table has room to breathe.
+
+> **Why PATCH:** a CSS layout fix to the existing `.sn-shell` primitive (plus a docblock + a regression-lock test). No new capability, no public API or settings-schema change, no PHP behaviour change (the `sn_admin_shell_*` markup is unchanged — only the grid that styles it). `SNT_VERSION` continues to derive from the docblock.
+
+### Fixed
+
+- **Shell sub-tabs fill the full width** ([assets/admin.css](assets/admin.css)): `.sn-shell` changes from `minmax(0, 820px) 300px` (capped main + fixed rail, left-aligned with dead space) to `repeat(auto-fit, minmax(min(100%, 440px), 1fr))` — full-width equal columns that collapse to one (DOM order) when the content area is narrow. Fixes Insights, Music, and IndexNow at once; Health and Analytics were already full-width (v6.44.0).
+- **AI usage & spend table no longer wraps its headers**: with the second column now ~half the page instead of a 300px lane, the four-column spend table renders its "Calls / Tokens / Est. cost" headers on one line.
+
+### Changed
+
+- **`sn_admin_shell` is now a full-width two-column primitive** ([inc/admin-shell.php](inc/admin-shell.php), [assets/admin.css](assets/admin.css)): the second column ("rail" in the function names, kept for backward compatibility) is now an equal column rather than a pinned 300px sidebar; the narrow-rail overrides (sticky positioning, label-over-value form-table stacking, stacked status-box) are dropped since the column is wide. The long-string `overflow-wrap` guard is kept. PHP markup is unchanged, so every shell sub-tab updates from one grid change.
+
+
 
 **Headline:** Phase 2 of the open-and-wide redesign covers the **Monitoring** tab and the second "dashboard" surface — the wp-admin home widgets. **Analytics settings** stops being a single strangled column and lays out as a two-column grid (active settings — credentials + own-visit exclusion — beside the edge-worker reference). **Health** drops its two-column shell for a full-width layout that leads with a first-glance hero (findings, checks-passed, last-scan age), shows full-width finding tables for checks with issues, and collapses clean checks into a compact pass board. The three grandfathered home widgets are enriched in place (no new widget): **Login defense** surfaces its 7-day request denominator; **Analytics — Overview** gains the week-over-week delta its "Filtered" KPI was the lone one to lack, plus a 7-day views sparkline.
 
