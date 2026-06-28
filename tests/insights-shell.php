@@ -110,6 +110,16 @@ $rec_at = strpos( $html, 'Write about X' );
 ish_assert( false !== $run_at && $run_at < $rail_at, 'Run Analysis sits in the main column' );
 ish_assert( false !== $rec_at && $rec_at < $rail_at, 'recommendation card sits in the main column' );
 
+// Phase 1 widen: the recommendation cards are wrapped in a 2-up grid container
+// (the .sn-rec-grid) so they sit side-by-side at wide widths. The grid is in
+// the MAIN column (before the rail) and the recommendation card is INSIDE it.
+$grid_at = strpos( $html, 'sn-rec-grid' );
+ish_assert( false !== $grid_at && is_int( $rail_at ) && $grid_at < $rail_at, 'recommendation-card grid container is in the main column' );
+ish_assert( false !== $grid_at && false !== $rec_at && $grid_at < $rec_at, 'recommendation card renders inside the grid container' );
+// Run Analysis + Weekly digest stay full main-width (outside the rec grid):
+// the grid must open AFTER Run Analysis, not wrap it.
+ish_assert( false !== $grid_at && false !== $run_at && $run_at < $grid_at, 'Run Analysis renders before (outside) the recommendation grid' );
+
 // Readouts in RAIL (after the rail marker).
 $usage_at = strpos( $html, 'AI usage' );
 $status_at = strpos( $html, 'Last scan' );

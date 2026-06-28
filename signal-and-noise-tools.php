@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.42.0
+ * Version:     6.43.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -118,6 +118,7 @@ require_once SNT_PATH . 'inc/admin-tabs.php';
 require_once SNT_PATH . 'inc/admin-render-sections.php'; // admin refactor Phase 1: named leaf render wrappers
 require_once SNT_PATH . 'inc/admin-dispatch.php';        // admin refactor Phase 1: registry-driven render dispatcher
 require_once SNT_PATH . 'inc/admin-shell.php';           // v6.42.0: two-column main+rail layout primitive
+require_once SNT_PATH . 'inc/admin-glance.php';          // Phase 1 redesign: reusable first-glance stat-card grid
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-menu.php';
 require_once SNT_PATH . 'inc/admin-flash-messages.php';

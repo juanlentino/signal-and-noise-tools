@@ -7,13 +7,21 @@
  * Override details + Actions card grid that previously rendered inline
  * in admin-page.php were absorbed into this file in v1.14.0.
  *
- * Composition (top to bottom):
- *   1. SITE STATE        — 4-card hero grid (theme, plugin, deploys, health)
- *   2. RECENT DEPLOYS    — clean list of last 5 GHA workflow runs (merged)
- *   3. MAINTENANCE       — 3-card action grid (Full Reset / Clear Overrides /
- *                          Purge Caches). Forms POST to sn_handle_admin_post()
+ * Composition (top to bottom), after the Phase 1 "open and wide" redesign:
+ *   1. GLANCE GRID       — full-width first-glance hero (theme/plugin versions,
+ *                          deploys, health findings, AI spend 30d, cron, login
+ *                          blocks, views 7d). Built by snt_dashboard_glance_cards()
+ *                          from existing accessors only; absent sources are
+ *                          omitted. Rendered via sn_admin_glance_grid().
+ *   2. ATTENTION STRIP   — one bg-warning row, shown only when something is off
+ *                          (health findings, DB overrides, cron orphans, stale
+ *                          scan, failed deploy), linking to the relevant tab.
+ *   3. STATUS SUMMARIES  — External-API + RSS single-line summaries.
+ *   4. LOWER ROW         — two columns (.sn-dash-cols): Recent deploys (last 5
+ *                          merged GHA runs) on the left, Maintenance 3-card
+ *                          action grid on the right. Collapses to one column on
+ *                          narrow viewports. Forms POST to sn_handle_admin_post()
  *                          via the existing sn_theme_options_nonce.
- *   4. EXTERNAL APIs     — single-line summary + inline "Refresh now" link
  *   5. DIAGNOSTICS       — collapsible override-detail list (only renders
  *                          when there ARE overrides)
  *
@@ -114,6 +122,13 @@ function snt_dashboard_override_count() {
 /**
  * Render the full Dashboard tab content. Hooked at priority 10 (default)
  * because we now OWN the entire Dashboard tab; nothing else listens.
+ *
+ * Phase 1 "open and wide" redesign: the tab now opens with a first-glance
+ * GLANCE GRID (sourced only from accessors the plugin already computes), then a
+ * CONDITIONAL attention strip (shown only when something is off), then the
+ * External-API / RSS summaries, then a two-column lower row (Recent deploys +
+ * Maintenance), and finally the deep diagnostics <details>. This is a
+ * render-layer reorganization — no data-layer change.
  */
 add_action( 'sn_admin_dashboard_extras', 'snt_dashboard_tab_render' );
 
@@ -139,37 +154,20 @@ function snt_dashboard_tab_render() {
 	) );
 	$last_deploy_ago = snt_dashboard_last_deploy_label( $runs );
 
-	// ── 1. SITE STATE ── hero grid (4 cards)
-	echo '<section class="sn-state-grid" aria-label="Site state">';
-	snt_dashboard_render_state_card(
-		'Theme',
-		$theme['current'] ?: '—',
-		snt_dashboard_state_meta( $theme )
-	);
-	snt_dashboard_render_state_card(
-		'Plugin',
-		$plugin['current'] ?: '—',
-		snt_dashboard_state_meta( $plugin )
-	);
-	snt_dashboard_render_state_card(
-		'Deploys',
-		$last_deploy_ago,
-		count( $runs ) > 0
-			? sprintf( '%d in last 24h', snt_dashboard_count_recent_runs( $runs, DAY_IN_SECONDS ) )
-			: 'no recent runs'
-	);
-	snt_dashboard_render_state_card(
-		'Health',
-		count( $overrides ) > 0
-			? sprintf( '%d override%s', count( $overrides ), count( $overrides ) === 1 ? '' : 's' )
-			: 'clean',
-		count( $overrides ) > 0 ? 'reading from database' : 'no alerts'
-	);
-	echo '</section>';
+	// ── 1. FIRST-GLANCE GRID ── full-width hero (versions, deploys, health,
+	// AI spend, cron, login blocks, views), built only from accessors that
+	// actually exist on this install.
+	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
+	if ( ! empty( $cards ) ) {
+		echo '<section aria-label="Site at a glance">';
+		sn_admin_glance_grid( $cards );
+		echo '</section>';
+	}
 
-	// ── 1b. STATUS SUMMARY ── external-API + RSS health, grouped with the state grid
-	// at the top (v6.19.1: relocated up from below Maintenance, and the redundant
-	// wayfinding grid removed — the top tab bar + sidebar already cover navigation).
+	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
+	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
+
+	// ── 3. STATUS SUMMARY ── external-API + RSS health (single-line scannable).
 	if ( function_exists( 'snt_rate_limit_all_statuses' ) ) {
 		snt_dashboard_render_api_summary();
 	}
@@ -177,7 +175,12 @@ function snt_dashboard_tab_render() {
 		snt_dashboard_render_rss_summary();
 	}
 
-	// ── 2. RECENT DEPLOYS ── clean list
+	// ── 4. LOWER ROW ── Recent deploys (wider) + Maintenance, two columns
+	// that collapse to one on narrow viewports (.sn-dash-cols).
+	echo '<div class="sn-dash-cols">';
+
+	// Left: Recent deploys.
+	echo '<div class="sn-dash-cols__main">';
 	echo '<h2 class="sn-section-h">Recent deploys</h2>';
 	if ( empty( $runs ) ) {
 		echo '<p class="description"><em>No recent runs (or GitHub API unreachable).</em></p>';
@@ -188,12 +191,14 @@ function snt_dashboard_tab_render() {
 		}
 		echo '</ul>';
 	}
+	echo '</div>'; // .sn-dash-cols__main
 
-	// ── 3. MAINTENANCE ── 3-card action grid (unchanged from pre-v1.13.0)
+	// Right: Maintenance 3-card action grid (unchanged actions).
+	echo '<div class="sn-dash-cols__side">';
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<div class="sn-card-grid">';
+	echo '<div class="sn-card-grid sn-card-grid--dash">';
 
 	// v4.1.6 (U-13): button hierarchy matches action gravity.
 	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
@@ -248,12 +253,16 @@ function snt_dashboard_tab_render() {
 	echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">Check Now</a>';
 	echo '</div>';
 
-	echo '</div>';
+	echo '</div>'; // .sn-card-grid--dash
 	echo '</form>';
+	echo '</div>'; // .sn-dash-cols__side
+	echo '</div>'; // .sn-dash-cols
 
-	// ── DIAGNOSTICS ── only when there's anything to show
+	// ── DIAGNOSTICS ── only when there's anything to show (full-width, below
+	// the two-column row). The override count surfaces in the attention strip
+	// above; this stays for deep inspection.
 	if ( ! empty( $overrides ) ) {
-		echo '<h2 class="sn-section-h">Diagnostics</h2>';
+		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
 		echo '<details class="sn-override-details" open>';
 		echo '<summary>' . esc_html( sprintf( '%d database override%s — click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
 		echo '<ul>';
@@ -266,28 +275,278 @@ function snt_dashboard_tab_render() {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
- * RENDER HELPERS
+ * GLANCE GRID + ATTENTION STRIP (Phase 1 redesign)
  * ════════════════════════════════════════════════════════════════════════ */
 
-function snt_dashboard_render_state_card( $label, $value, $meta ) {
-	echo '<div class="sn-state-card">';
-	echo '<p class="sn-state-card__label">' . esc_html( $label ) . '</p>';
-	echo '<p class="sn-state-card__value">' . esc_html( $value ) . '</p>';
-	echo '<p class="sn-state-card__meta">' . wp_kses_post( $meta ) . '</p>';
-	echo '</div>';
+/**
+ * Build the first-glance card list for sn_admin_glance_grid().
+ *
+ * Every card is sourced ONLY from data the plugin already computes, and every
+ * non-version accessor is function_exists / config guarded: when a source is
+ * genuinely absent the card is OMITTED (never fabricated). Theme + Plugin
+ * version cards always render (their accessors live in this file). The pill on
+ * each card reuses the existing .sn-pill ok/warn/err vocabulary.
+ *
+ * @since 6.43.0
+ * @param array  $theme           snt_deploy_status_for('theme') struct.
+ * @param array  $plugin          snt_deploy_status_for('plugin') struct.
+ * @param array  $runs            Merged deploy runs (for the Deploys card).
+ * @param string $last_deploy_ago Pre-formatted "14m ago" / "—" label.
+ * @return array<int,array<string,mixed>> Cards for sn_admin_glance_grid().
+ */
+function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) {
+	$cards = array();
+
+	// ── Theme + Plugin version + update state (always available). ──
+	$cards[] = snt_dashboard_version_card( 'Theme', $theme );
+	$cards[] = snt_dashboard_version_card( 'Plugin', $plugin );
+
+	// ── Deploys: last age + count in 24h. ──
+	$count_24h = snt_dashboard_count_recent_runs( (array) $runs, DAY_IN_SECONDS );
+	$cards[]   = array(
+		'label'     => 'Deploys',
+		'value'     => (string) $last_deploy_ago,
+		'meta_html' => esc_html(
+			empty( $runs )
+				? 'no recent runs'
+				: sprintf( '%d in last 24h', (int) $count_24h )
+		),
+	);
+
+	// ── Health: total findings + scan age. ──
+	if ( function_exists( 'sn_health_last_scan' ) ) {
+		$scan = sn_health_last_scan();
+		if ( is_array( $scan ) ) {
+			$findings = 0;
+			foreach ( (array) ( $scan['checks'] ?? array() ) as $check ) {
+				$findings += (int) ( $check['count'] ?? 0 );
+			}
+			$age  = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
+			$cards[] = array(
+				'label'     => 'Health',
+				'value'     => sprintf( '%d finding%s', $findings, 1 === $findings ? '' : 's' ),
+				'pill'      => array(
+					'kind' => $findings > 0 ? 'warn' : 'ok',
+					'text' => $findings > 0 ? 'issues found' : 'all clear',
+				),
+				'meta_html' => esc_html( 'scanned ' . $age ),
+			);
+		} else {
+			$cards[] = array(
+				'label'     => 'Health',
+				'value'     => 'no scan',
+				'pill'      => array( 'kind' => 'warn', 'text' => 'run a scan' ),
+			);
+		}
+	}
+
+	// ── AI spend 30d: cost + calls. ──
+	if ( function_exists( 'snt_ai_usage_summary' ) ) {
+		$s30   = snt_ai_usage_summary( 30 );
+		$calls = (int) ( $s30['calls'] ?? 0 );
+		$cost  = (float) ( $s30['cost'] ?? 0 );
+		$cards[] = array(
+			'label'     => 'AI spend 30d',
+			'value'     => snt_dashboard_fmt_cost( $cost ),
+			'meta_html' => esc_html( sprintf( '%s call%s', number_format_i18n( $calls ), 1 === $calls ? '' : 's' ) ),
+		);
+	}
+
+	// ── Cron: scheduled event count + orphan flag. ──
+	if ( function_exists( 'snt_cron_summary_for_localize' ) ) {
+		$cron    = snt_cron_summary_for_localize();
+		$total   = (int) ( $cron['total'] ?? 0 );
+		$orphans = (int) ( $cron['orphans'] ?? 0 );
+		$cards[] = array(
+			'label'     => 'Cron',
+			'value'     => sprintf( '%d event%s', $total, 1 === $total ? '' : 's' ),
+			'pill'      => $orphans > 0
+				? array( 'kind' => 'warn', 'text' => sprintf( '%d orphan%s', $orphans, 1 === $orphans ? '' : 's' ) )
+				: array( 'kind' => 'ok', 'text' => 'healthy' ),
+		);
+	}
+
+	// ── Login blocks (7d): the same source as the login-defense widget. ──
+	if ( function_exists( 'sn_login_defense_headline' ) ) {
+		$lg = sn_login_defense_headline();
+		if ( is_array( $lg ) && ! empty( $lg['configured'] ) ) {
+			$blocked = (int) ( $lg['blocked'] ?? 0 );
+			$cards[] = array(
+				'label'     => 'Login blocks 7d',
+				'value'     => number_format_i18n( $blocked ),
+				'meta_html' => esc_html( sprintf( '%d%% block rate', (int) ( $lg['block_rate'] ?? 0 ) ) ),
+			);
+		}
+	}
+
+	// ── Views 7d + week-over-week delta (reuse the analytics delta accessor;
+	// do NOT recompute). ──
+	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config()
+		&& function_exists( 'sn_analytics_period_deltas' ) ) {
+		$from   = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
+		$to     = gmdate( 'Y-m-d', time() );
+		$deltas = sn_analytics_period_deltas( $from, $to, 'human' );
+		if ( is_array( $deltas ) && isset( $deltas['views'] ) ) {
+			$views = (int) ( $deltas['views']['current'] ?? 0 );
+			$cards[] = array(
+				'label'     => 'Views 7d',
+				'value'     => number_format_i18n( $views ),
+				'meta_html' => snt_dashboard_delta_badge_html( $deltas['views'] ),
+			);
+		}
+	}
+
+	return $cards;
 }
 
-/** State card "meta" text — small label below the value. Includes a pill for version states. */
-function snt_dashboard_state_meta( $pkg ) {
-	switch ( $pkg['state'] ) {
-		case 'ok':
-			return '<span class="sn-pill sn-pill--ok">up to date</span>';
-		case 'available':
-			return '<span class="sn-pill sn-pill--warn">v' . esc_html( $pkg['latest'] ) . ' available</span>';
-		default:
-			return '<span class="sn-pill sn-pill--err">unknown</span>';
+/**
+ * One version glance card (Theme / Plugin), reusing the version-state pill.
+ *
+ * @param string $label 'Theme' | 'Plugin'.
+ * @param array  $pkg   snt_deploy_status_for() struct.
+ * @return array A glance card.
+ */
+function snt_dashboard_version_card( $label, $pkg ) {
+	$pill = array( 'kind' => 'err', 'text' => 'unknown' );
+	if ( 'ok' === ( $pkg['state'] ?? '' ) ) {
+		$pill = array( 'kind' => 'ok', 'text' => 'up to date' );
+	} elseif ( 'available' === ( $pkg['state'] ?? '' ) ) {
+		$pill = array( 'kind' => 'warn', 'text' => 'v' . (string) ( $pkg['latest'] ?? '' ) . ' available' );
 	}
+	return array(
+		'label' => $label,
+		'value' => ( $pkg['current'] ?? '' ) ?: '—',
+		'pill'  => $pill,
+	);
 }
+
+/**
+ * Format a USD spend estimate with a sub-cent floor (mirrors the Insights tab).
+ *
+ * @param float $cost
+ * @return string
+ */
+function snt_dashboard_fmt_cost( $cost ) {
+	$cost = (float) $cost;
+	if ( $cost > 0 && $cost < 0.005 ) {
+		return '<$0.01';
+	}
+	return '$' . number_format_i18n( $cost, 2 );
+}
+
+/**
+ * Build a pre-escaped week-over-week delta badge from an analytics delta row
+ * ({dir, pct}). Returns kses-safe markup for the glance card meta line.
+ *
+ * @param array $delta {dir:string, pct:?int, current:int, previous:int}
+ * @return string Escaped badge markup, or empty string when no comparison.
+ */
+function snt_dashboard_delta_badge_html( $delta ) {
+	$dir = (string) ( $delta['dir'] ?? '' );
+	if ( '' === $dir ) {
+		return '';
+	}
+	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
+	$pct   = $delta['pct'] ?? null;
+	$text  = ( null === $pct ) ? 'flat' : ( ( $pct >= 0 ? '+' : '' ) . (int) $pct . '%' );
+	return '<span class="sn-glance-delta sn-glance-delta--' . esc_attr( $dir ) . '">'
+		. esc_html( $arrow . ' ' . $text . ' WoW' ) . '</span>';
+}
+
+/**
+ * Conditional attention strip: a single warning row, shown ONLY when something
+ * is off (health findings > 0, DB overrides > 0, cron orphans, stale health
+ * scan, or a failed recent deploy), with a link to the relevant tab. Replaces
+ * burying the override count in the bottom <details>.
+ *
+ * @since 6.43.0
+ * @param array $runs           Merged deploy runs (to detect a failed deploy).
+ * @param int   $override_count DB template/navigation override count.
+ * @return void
+ */
+function snt_dashboard_render_attention_strip( $runs, $override_count ) {
+	$items = array();
+
+	// Health findings + staleness.
+	if ( function_exists( 'sn_health_last_scan' ) ) {
+		$scan = sn_health_last_scan();
+		if ( is_array( $scan ) ) {
+			$findings = 0;
+			foreach ( (array) ( $scan['checks'] ?? array() ) as $check ) {
+				$findings += (int) ( $check['count'] ?? 0 );
+			}
+			if ( $findings > 0 ) {
+				$items[] = array(
+					'text' => sprintf( '%d health finding%s', $findings, 1 === $findings ? '' : 's' ),
+					'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
+				);
+			}
+			$ttl = defined( 'SN_HEALTH_CACHE_TTL' ) ? (int) SN_HEALTH_CACHE_TTL : DAY_IN_SECONDS;
+			if ( ! empty( $scan['scanned_at'] ) && ( time() - (int) $scan['scanned_at'] ) > $ttl ) {
+				$items[] = array(
+					'text' => 'health scan is stale',
+					'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
+				);
+			}
+		} else {
+			$items[] = array(
+				'text' => 'no health scan has run',
+				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
+			);
+		}
+	}
+
+	// DB overrides.
+	if ( (int) $override_count > 0 ) {
+		$items[] = array(
+			'text' => sprintf( '%d database override%s', (int) $override_count, 1 === (int) $override_count ? '' : 's' ),
+			'href' => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard#sn-dash-diagnostics' ),
+		);
+	}
+
+	// Cron orphans.
+	if ( function_exists( 'snt_cron_summary_for_localize' ) ) {
+		$cron = snt_cron_summary_for_localize();
+		if ( (int) ( $cron['orphans'] ?? 0 ) > 0 ) {
+			$items[] = array(
+				'text' => sprintf( '%d orphan cron event%s', (int) $cron['orphans'], 1 === (int) $cron['orphans'] ? '' : 's' ),
+				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' ),
+			);
+		}
+	}
+
+	// Failed recent deploy (any non-success conclusion on a completed run).
+	foreach ( (array) $runs as $run ) {
+		$status     = (string) ( $run['status'] ?? '' );
+		$conclusion = (string) ( $run['conclusion'] ?? '' );
+		if ( 'completed' === $status && '' !== $conclusion
+			&& ! in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
+			$items[] = array(
+				'text' => 'a recent deploy failed',
+				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ),
+			);
+			break;
+		}
+	}
+
+	if ( empty( $items ) ) {
+		return;
+	}
+
+	echo '<div class="notice notice-warning inline sn-attention-strip">';
+	echo '<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-noise-tools' ) . '</strong> ';
+	$links = array();
+	foreach ( $items as $item ) {
+		$links[] = '<a href="' . esc_url( $item['href'] ) . '">' . esc_html( $item['text'] ) . '</a>';
+	}
+	// $links entries are individually escaped above; the separator is static.
+	echo wp_kses_post( implode( ' &middot; ', $links ) );
+	echo '</p></div>';
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * RENDER HELPERS
+ * ════════════════════════════════════════════════════════════════════════ */
 
 /** "14m ago" / "—" for the Deploys card. */
 function snt_dashboard_last_deploy_label( $runs ) {

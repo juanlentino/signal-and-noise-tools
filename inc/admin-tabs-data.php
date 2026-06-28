@@ -82,7 +82,9 @@ function sn_admin_top_tabs() {
 				// not observability). Music stays an in-page sub-tab (no new sidebar
 				// entry) so the desktop-mode submenu-count == top-tab-count invariant
 				// holds (7 == 7).
-				'music'        => array( 'label' => 'Music', 'render' => 'sn_admin_render_music_section' ),
+				// 'wide': music uses the full-width two-column sn_admin_shell, so it
+				// opts out of the wrapper's default capped .sn-fieldset card.
+				'music'        => array( 'label' => 'Music', 'render' => 'sn_admin_render_music_section', 'wide' => true ),
 				'rss'          => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section' ),
 				'tags'         => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section' ),
 			),
@@ -98,7 +100,8 @@ function sn_admin_top_tabs() {
 				// Automation tab (v6.18.0).
 				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section' ),
 				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section' ),
-				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section' ),
+				// 'wide': IndexNow uses the full-width two-column sn_admin_shell.
+				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section', 'wide' => true ),
 				'cron'              => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section' ),
 				// Scheduled-content status list (Task 8): the read-mostly union of
 				// signal-noise/scheduled fragment rows + native future posts. A sub-tab
@@ -120,8 +123,11 @@ function sn_admin_top_tabs() {
 				// (sn_admin_render_sub_tabs hardcodes that slug) so sn_handle_admin_post()
 				// accepts analytics_save/_test unchanged. Now first leaf (v6.18.0).
 				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section' ),
-				'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section' ),
-				'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section' ),
+				// 'wide': both Insights and Health lay out with the full-width
+				// two-column sn_admin_shell, so they opt out of the wrapper's
+				// default capped .sn-fieldset card (which was squeezing the shell).
+				'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section', 'wide' => true ),
+				'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section', 'wide' => true ),
 			),
 		),
 		array(
