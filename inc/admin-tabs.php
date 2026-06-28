@@ -144,20 +144,36 @@ function sn_admin_resolve_active_sub( $tab_slug ) {
  * Render a sub-section wrapper with anchor target. The callback emits
  * the section's actual content (form fields, hook invocation, etc.).
  *
- * Wraps with .sn-fieldset (matching the existing Identity tab pattern)
- * so existing CSS at admin.css applies without changes. The anchor ID
- * is the structural commitment for the TOC links.
+ * DEFAULT-SAFE wrapper (Phase 1 "open and wide" redesign): by default this
+ * emits the capped .sn-fieldset card — byte-identical to the pre-redesign
+ * behaviour for EVERY leaf — because most leaves render bare content (a form,
+ * a status box, prose) and rely on this wrapper for their card. Stripping the
+ * card unconditionally would leave those leaves floating with no panel.
+ *
+ * Leaves that lay themselves out with the full-width two-column shell
+ * (sn_admin_shell — insights, health, music, indexnow) OPT IN to a bare,
+ * full-width .sn-section wrapper by passing $wide = true (driven from the
+ * registry's per-leaf 'wide' flag in admin-dispatch.php). For those, the capped
+ * card was actively squeezing the shell (the v6.42.0 squeeze); .sn-section frees
+ * it to use the full content width.
+ *
+ * The #sn-sec-<slug> anchor ID is retained in both modes — it is the structural
+ * commitment the in-form section-tabs / TOC links (sn_admin_render_section_tabs)
+ * target.
  *
  * For module-hook sub-sections (e.g., Cloudflare), the callback should
  * just `do_action('sn_admin_<slug>_tab')` — the hook listener will
  * emit its own heading + form inside this wrapper.
  *
- * @since 3.8.0
+ * @since 3.8.0  (Phase 1 redesign: added the opt-in $wide full-width mode)
  * @param string   $section_slug Anchor target (e.g., 'identity', 'cloudflare').
  * @param callable $callback     Emits the section body.
+ * @param bool     $wide         When true, emit a bare full-width .sn-section
+ *                               instead of the capped .sn-fieldset card.
  */
-function sn_admin_render_section( $section_slug, $callback ) {
-	echo '<div class="sn-fieldset" id="sn-sec-' . esc_attr( $section_slug ) . '">';
+function sn_admin_render_section( $section_slug, $callback, $wide = false ) {
+	$cls = $wide ? 'sn-section' : 'sn-fieldset';
+	echo '<div class="' . esc_attr( $cls ) . '" id="sn-sec-' . esc_attr( $section_slug ) . '">';
 	call_user_func( $callback );
 	echo '</div>';
 }

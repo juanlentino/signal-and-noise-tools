@@ -222,6 +222,69 @@
 	color: var(--sn-text);
 }
 
+/* ─── Section wrapper — full-width leaf container (Phase 1 redesign) ─────────
+   Emitted by sn_admin_render_section() around EVERY normal sub-tab leaf. It is
+   intentionally chrome-free: no border, no background, no max-width — just
+   bottom spacing for inter-section rhythm. The cap that used to live here moved
+   onto the inner .sn-fieldset cards (below), which leaves status panels, wide
+   .widefat tables, and the .sn-shell rail free to use the full content width.
+   scroll-margin-top keeps the #sn-sec-<slug> anchor clear of the sticky bars. */
+.sn-section {
+	display: block;
+	width: 100%;
+	margin: 0 0 var(--sn-space-5);
+	scroll-margin-top: 80px;
+}
+
+/* ─── First-glance stat-card grid (Phase 1 redesign) ────────────────────────
+   sn_admin_glance_grid() renders a row of compact at-a-glance stat cards
+   (label / value / optional pill or meta). auto-fit + minmax keeps it fluid:
+   as many cards per row as fit at >=150px each, wrapping (and collapsing to one
+   column on very narrow / Desktop Mode portal widths) without a media query.
+   Reuses the .sn-state-card visual vocabulary at a tighter density. */
+.sn-glance {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+	margin: 0 0 1.5em;
+}
+.sn-glance-card {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: 10px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-height: 76px;
+}
+.sn-glance-card__label {
+	color: var(--sn-text-muted);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	margin: 0;
+}
+.sn-glance-card__value {
+	font-size: 1.1rem;
+	font-weight: 500;
+	color: var(--sn-text);
+	margin: 0;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+.sn-glance-card__meta {
+	font-size: 0.82rem;
+	color: var(--sn-text-muted);
+	margin: 0;
+	line-height: 1.35;
+}
+/* The pill sits flush-left under the value; keep it from stretching full-width. */
+.sn-glance-card .sn-pill {
+	align-self: flex-start;
+}
+
 /* ─── Fieldset card (Identity, Login redesigned forms) ──────── */
 
 .sn-fieldset {
@@ -698,6 +761,25 @@
 	}
 }
 
+/* ─── Insights recommendation-card grid (Phase 1 widen) ──────────────────────
+   With the leaf wrapper cap removed the shell main column reaches its 820px
+   width, so the recommendation cards lay out 2-up at wide widths instead of
+   stacking. auto-fit + a 320px min keeps it responsive: two columns when the
+   main column is wide, one when it is not (narrow viewport / collapsed shell /
+   Desktop Mode portal). The cards' own .sn-fieldset 820px cap is moot inside a
+   grid track, so unset it here. Run Analysis + Weekly digest stay full
+   main-width (they are NOT inside this grid). */
+.sn-rec-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: var(--sn-space-4);
+	align-items: start;
+}
+.sn-rec-grid .sn-fieldset {
+	max-width: none;
+	margin-bottom: 0;
+}
+
 /* ─── Mono font utility ──────────────────────────────────────────────────
    System mono stack. Replaces the inline
      style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
@@ -821,6 +903,57 @@
 	.sn-deploy-row__duration,
 	.sn-deploy-row__link {
 		display: none;
+	}
+}
+
+/* ─── Glance-card delta badge (Phase 1) ──────────────────────────────────
+   The week-over-week badge on the Views glance card. Mirrors the analytics
+   widget's .sn-aw-delta direction colours at glance-card density. */
+.sn-glance-delta {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+.sn-glance-delta--up   { color: var(--sn-ok); }
+.sn-glance-delta--down { color: var(--sn-err); }
+.sn-glance-delta--flat { color: var(--sn-text-muted); }
+
+/* ─── Dashboard attention strip (Phase 1) ────────────────────────────────
+   One bg-warning row surfaced only when something is off (health findings,
+   DB overrides, cron orphans, stale scan, failed deploy). Uses the WP-native
+   .notice .notice-warning treatment; the inner links jump to the owning tab. */
+.sn-attention-strip {
+	margin: 0 0 1.5em;
+}
+.sn-attention-strip__lead {
+	margin: 0;
+}
+.sn-attention-strip a {
+	white-space: nowrap;
+}
+
+/* ─── Dashboard lower row: two columns (Phase 1) ─────────────────────────
+   Recent deploys (wider) beside the Maintenance action grid. Collapses to a
+   single column on narrower viewports (and in the Desktop Mode portal). The
+   maintenance grid gets a dashboard-scoped width bump so its action cards fill
+   the column instead of floating at the shared .sn-card 260px cap (which other
+   tabs still rely on). */
+.sn-dash-cols {
+	display: grid;
+	grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+.sn-dash-cols__main,
+.sn-dash-cols__side {
+	min-width: 0;
+}
+.sn-card-grid--dash .sn-card {
+	max-width: 340px;
+	flex: 1 1 220px;
+}
+@media (max-width: 1000px) {
+	.sn-dash-cols {
+		grid-template-columns: 1fr;
 	}
 }
 

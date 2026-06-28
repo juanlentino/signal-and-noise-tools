@@ -205,6 +205,12 @@ function snt_insights_render_recommendations_section( $last ) {
 	);
 	$done_ids_flip = array_flip( $state['done_ids'] );
 
+	// Phase 1 widen: with the leaf wrapper cap gone, the main column now reaches
+	// its 820px width, so the recommendation cards lay out 2-up at wide widths
+	// (the .sn-rec-grid auto-fit grid) instead of stacking at half-width. The
+	// Run Analysis + Weekly digest cards stay full main-width — only this
+	// recommendation-card loop is gridded.
+	echo '<div class="sn-rec-grid">';
 	foreach ( $active as $rec ) {
 		$id = (string) $rec['id'];
 		$is_done = isset( $done_ids_flip[ $id ] );
@@ -259,6 +265,7 @@ function snt_insights_render_recommendations_section( $last ) {
 
 		echo '</div>';
 	}
+	echo '</div>'; // .sn-rec-grid
 }
 
 /**

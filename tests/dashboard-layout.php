@@ -2,14 +2,14 @@
 /**
  * Render-order smoke test for the Dashboard tab (admin refactor Phase 3 declutter).
  *
- * Drives the full snt_dashboard_tab_render() with stubs and asserts the v6.19.1
- * layout contract: (1) the redundant wayfinding grid is GONE — it duplicated the
- * tab bar + sidebar; (2) the at-a-glance status (Site-state grid → External APIs →
- * RSS) is grouped at the TOP, above Recent deploys (activity) and Maintenance
- * (actions). Guards against the wayfinder returning and against the status
- * summaries drifting back below the action buttons.
+ * Drives the full snt_dashboard_tab_render() with stubs and asserts the layout
+ * contract: (1) the redundant wayfinding grid is GONE — it duplicated the tab
+ * bar + sidebar; (2) the at-a-glance hero (Phase 1: the .sn-glance grid →
+ * External APIs → RSS) is grouped at the TOP, above Recent deploys (activity)
+ * and Maintenance (actions). Guards against the wayfinder returning and against
+ * the status summaries drifting back below the action buttons.
  *
- * @since plugin v6.19.1
+ * @since plugin v6.19.1 (Phase 1 redesign: .sn-state-grid → .sn-glance hero)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
@@ -40,6 +40,7 @@ function snt_rate_limit_all_statuses() { return array(); }
 function sn_rss_tracker_window_stats_multi( $w ) { return array( 'windows' => array(), 'most_recent' => '' ); }
 
 require __DIR__ . '/../inc/admin-tabs-data.php';   // (only the removed wayfinder used this; harmless to load)
+require __DIR__ . '/../inc/admin-glance.php';      // Phase 1: the glance-grid helper the hero uses
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 $pass = 0; $fail = 0;
@@ -57,14 +58,14 @@ $html = ob_get_clean();
 ok( false === strpos( $html, 'Jump to' ), 'no "Jump to" wayfinding section in the rendered dashboard' );
 ok( false === strpos( $html, 'page=sn-content' ), 'no per-tab wayfinding links (page=sn-content absent)' );
 
-// ── Status is grouped at the top: state grid → External APIs → above deploys/maintenance ──
-$state   = strpos( $html, 'sn-state-grid' );
+// ── Status is grouped at the top: glance hero → External APIs → above deploys/maintenance ──
+$glance  = strpos( $html, 'sn-glance' );
 $api     = strpos( $html, 'External APIs' );
 $deploys = strpos( $html, 'Recent deploys' );
 $maint   = strpos( $html, 'Maintenance' );
 
-ok( false !== $state && false !== $api && false !== $deploys && false !== $maint, 'all four sections render (fixture sanity)' );
-ok( $state < $api, 'Site-state grid renders before the External APIs status line' );
+ok( false !== $glance && false !== $api && false !== $deploys && false !== $maint, 'all four sections render (fixture sanity)' );
+ok( $glance < $api, 'glance hero renders before the External APIs status line' );
 ok( $api < $deploys, 'External APIs status renders ABOVE Recent deploys (status grouped at top)' );
 ok( $api < $maint, 'External APIs status renders ABOVE Maintenance (no longer dangling below the actions)' );
 

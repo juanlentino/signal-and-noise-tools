@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.43.0] - 2026-06-27 — Open-and-wide admin: full-width layout + first-glance Dashboard (Phase 1)
+
+**Headline:** The admin no longer strangles every tab to a narrow 820px column. The per-leaf wrapper now defaults to a readable capped card (unchanged for forms and prose) but lets full-width surfaces opt out, so the four shell tabs (Insights, Health, Music, IndexNow) finally use the width their two-column rail was designed for instead of being squeezed inside an 820px box. The **Dashboard** tab gains a first-glance status grid (theme, plugin, deploys, health, AI spend, cron, login, views), all from data the plugin already computes, plus a conditional attention strip and a two-column lower row. Insights recommendation cards now lay out 2-up. This is the first of a phased redesign; Monitoring, Connections, Identity & SEO, and Content follow, along with the wp-admin home widgets.
+
+> **Why MINOR:** a new user-visible capability (the open-wide layout and the Dashboard glance grid) with no breaking change. `sn_admin_render_section()` gains an optional `$wide` parameter that defaults to false (the existing capped card, byte-identical for every untouched leaf); `sn_admin_glance_grid()` is additive. No public API removed or renamed, no settings-schema change. `SNT_VERSION` continues to derive from the docblock.
+
+### New
+
+- **Full-width leaf layout via an opt-in `$wide` wrapper** ([inc/admin-tabs.php](inc/admin-tabs.php), [inc/admin-dispatch.php](inc/admin-dispatch.php), [inc/admin-tabs-data.php](inc/admin-tabs-data.php)): `sn_admin_render_section()` defaults to the capped `.sn-fieldset` card (readable width for forms and prose, unchanged) and emits a bare full-width `.sn-section` when a leaf is marked `'wide' => true`. The four `sn_admin_shell` leaves (Insights, Health, Music, IndexNow) are marked wide, so their main+rail layout reaches full width. This is the default-safe correction to the 820px cap that was strangling every tab.
+- **`sn_admin_glance_grid()` first-glance helper** ([inc/admin-glance.php](inc/admin-glance.php)): a reusable responsive stat-card grid (`auto-fit, minmax(150px,1fr)`) with escaped label and value, an `ok|warn|err` pill allowlist, and `wp_kses_post` meta. WP-native, reuses `sn-*` tokens.
+- **Dashboard first-glance redesign** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)): a glance grid (theme and plugin version/status, last deploy, health findings + scan age, AI spend over 30 days, cron events + orphan flag, login blocks over 7 days, views over 7 days with a week-over-week delta), each sourced only from existing accessors and omitted when its source is absent; a conditional attention strip (health findings, database overrides, stale scan, cron orphans, failed deploy) linking to the owning tab; and a two-column lower row (Recent deploys and Maintenance).
+
+### Improvements
+
+- **Insights recommendation cards lay out 2-up** ([inc/insights-admin.php](inc/insights-admin.php)): with the width cap gone, the recommendation cards use a `.sn-rec-grid` auto-fit grid in the main column instead of stacking at half-width. The approved main/rail split, the sticky rail, and the 1200px collapse are unchanged.
+
+### Cleanup
+
+- Removed the now-dead `snt_dashboard_render_state_card()` and `snt_dashboard_state_meta()` ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)), superseded by the glance grid.
+
 ## [6.42.0] - 2026-06-27 — Two-column admin shell: passive readouts move to a right rail
 
 **Headline:** A reusable two-column layout primitive (`sn_admin_shell`) puts each admin sub-tab's passive readouts (status, metrics, spend) in a fixed 300px right rail beside the capped main column, reclaiming the horizontal space the single-column stack left empty. Applied to four sub-tabs: **Insights** (the AI usage &amp; spend box, scan status, and automation settings move to the rail, so the main column opens directly on Run Analysis + recommendations), **Health** (scan status to the rail, finding tables stay full-width in main), **IndexNow** (status box + status table to the rail, controls stay in main), and **Music** (sync status detail + Sync-now to the rail, status hero + credential forms stay in main). The rail is sticky on wide viewports and stacks below the main column, preserving reading order, under 1200px and in Desktop Mode.
