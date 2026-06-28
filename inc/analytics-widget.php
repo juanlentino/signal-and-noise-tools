@@ -127,8 +127,33 @@ function sn_aw_snapshot( $standalone = true ) {
 	// ("classified traffic, zero noise") and intentionally renders 0, not em-dash.
 	$ct       = function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array();
 	$filtered = empty( $ct ) ? null : (int) ( ( $ct['suspect']['views'] ?? 0 ) + ( $ct['bot']['views'] ?? 0 ) );
-	sn_aw_stat( 'Filtered', $filtered );
+	// v6.44.0: Filtered was the lone KPI without a week-over-week badge. Compute the
+	// prior-window noise total via the same accessor (no new data layer) and shape the
+	// delta like the others. Guarded so an absent module/empty prior renders as before.
+	$fd = null;
+	if ( null !== $filtered && function_exists( 'sn_analytics_prior_window' ) && function_exists( 'sn_analytics_delta' ) ) {
+		list( $pf, $pt ) = sn_analytics_prior_window( $from, $to );
+		$ctp = sn_analytics_class_totals( $pf, $pt );
+		if ( ! empty( $ctp ) ) {
+			$fp = (int) ( ( $ctp['suspect']['views'] ?? 0 ) + ( $ctp['bot']['views'] ?? 0 ) );
+			$fd = sn_analytics_delta( $filtered, $fp );
+		}
+	}
+	sn_aw_stat( 'Filtered', $filtered, $fd );
 	echo '</div>';
+	// v6.44.0: a 7-day views trend sparkline under the KPI strip — the same series
+	// accessor + shared SVG primitive used on the Analytics page (no new data layer).
+	// Guarded: when either is absent the widget renders exactly as before.
+	if ( function_exists( 'sn_analytics_daily_series' ) && function_exists( 'snt_analytics_sparkline' ) ) {
+		$series = sn_analytics_daily_series( $from, $to, 'human', 'day' );
+		if ( ! empty( $series ) ) {
+			echo '<div class="sn-aw-trend">';
+			// snt_analytics_sparkline returns pre-escaped SVG (coords esc_attr'd, chrome static).
+			echo snt_analytics_sparkline( $series ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped SVG from the shared helper.
+			echo '<span class="sn-aw-trend-l">7-day views</span>';
+			echo '</div>';
+		}
+	}
 	if ( $standalone ) {
 		sn_aw_footer();
 	}

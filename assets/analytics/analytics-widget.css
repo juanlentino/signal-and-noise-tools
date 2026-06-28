@@ -42,6 +42,15 @@
 .sn-aw-list .k{color:#1d2327;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sn-aw-list .v{color:#646970;flex-shrink:0;font-variant-numeric:tabular-nums;}
 .sn-aw-foot{margin:12px 0 0;font-size:0.85em;color:#646970;}
+/* 7-day views sparkline (v6.44.0). Ports the .sn-an-spark primitive from
+ * analytics-admin.css (that stylesheet isn't loaded on the Dashboard home screen)
+ * and stretches it full-width inside the .sn-aw-trend wrapper. */
+.sn-an-spark{display:inline-block;width:72px;height:18px;vertical-align:middle;}
+.sn-an-spark svg{display:block;width:100%;height:100%;}
+.sn-an-spark--empty{opacity:.2;}
+.sn-aw-trend{display:flex;align-items:center;gap:8px;margin:12px 0 0;}
+.sn-aw-trend .sn-an-spark{flex:1;width:auto;height:32px;}
+.sn-aw-trend-l{flex-shrink:0;font-size:0.78em;color:#646970;font-variant-numeric:tabular-nums;}
 .sn-aw-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
 .sn-aw-err{color:#d63638;font-size:0.9em;margin:0;}
 .sn-aw-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}

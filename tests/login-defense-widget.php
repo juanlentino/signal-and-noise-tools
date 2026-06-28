@@ -43,5 +43,10 @@ ok( strpos( $w, '<div class="sn-aw-stat-n">40%</div>' ) !== false, 'block rate r
 ok( strpos( $w, 'sn-aw-foot' ) !== false, 'top-network + link use the shared .sn-aw-foot footer treatment' );
 ok( strpos( $w, 'sn-lg-widget' ) === false, 'the unstyled .sn-lg-widget bare-<ul> class is gone' );
 
+// v6.44.0: surface the 7d denominator (the returned-but-previously-ignored `checked`
+// total) so the block rate has volume context — 40% of 10 reads very differently
+// from 40% of 10,000.
+ok( strpos( $w, '4 of 10' ) !== false, 'foot surfaces the blocked-of-checked denominator (7d) using the returned checked total' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
