@@ -46,6 +46,68 @@ function snt_health_suggest_all_button_html( $count ) {
 
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
 
+/**
+ * Build the first-glance hero cards for the Health tab, sourced ONLY from the
+ * cached scan (no new accessor). Mirrors the dashboard's Health glance card
+ * (inc/admin-tab-dashboard.php). Three cards when a scan exists — total findings,
+ * checks-passed ratio, last-scan age — and a single "no scan" card otherwise.
+ *
+ * @param array|null $scan sn_health_last_scan() result.
+ * @return array<int,array<string,mixed>> Cards for sn_admin_glance_grid().
+ *
+ * @since 6.44.0
+ */
+function snt_health_glance_cards( $scan ) {
+	if ( ! is_array( $scan ) ) {
+		return array(
+			array(
+				'label' => 'Health',
+				'value' => 'no scan',
+				'pill'  => array( 'kind' => 'warn', 'text' => 'run a scan' ),
+			),
+		);
+	}
+
+	$checks      = is_array( $scan['checks'] ?? null ) ? $scan['checks'] : array();
+	$check_count = count( $checks );
+	$total       = 0;
+	$passed      = 0;
+	foreach ( $checks as $check ) {
+		$c      = (int) ( $check['count'] ?? 0 );
+		$total += $c;
+		if ( 0 === $c ) {
+			$passed++;
+		}
+	}
+	$all_clean = ( $check_count > 0 && $passed === $check_count );
+	$age       = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
+
+	return array(
+		array(
+			'label'     => 'Findings',
+			'value'     => sprintf( '%d finding%s', $total, 1 === $total ? '' : 's' ),
+			'pill'      => array(
+				'kind' => $total > 0 ? 'warn' : 'ok',
+				'text' => $total > 0 ? 'issues found' : 'all clear',
+			),
+			'meta_html' => esc_html( sprintf( 'across %d check%s', $check_count, 1 === $check_count ? '' : 's' ) ),
+		),
+		array(
+			'label' => 'Checks passed',
+			'value' => sprintf( '%d / %d', $passed, $check_count ),
+			'pill'  => array(
+				'kind' => $all_clean ? 'ok' : 'warn',
+				'text' => $all_clean ? 'clean' : 'review',
+			),
+		),
+		array(
+			'label'     => 'Last scan',
+			'value'     => $age,
+			'meta_html' => esc_html( sprintf( 'ran in %dms', (int) ( $scan['elapsed_ms'] ?? 0 ) ) ),
+		),
+	);
+}
+
 function sn_health_render_admin_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -56,16 +118,19 @@ function sn_health_render_admin_tab() {
 
 	$last_scan = sn_health_last_scan();
 
-	sn_admin_shell_open();
+	// ── First-glance hero (v6.44.0). Replaces the bare intro <p> + the v6.42.0
+	// rail status box: the headline numbers (findings, checks-passed, scan age)
+	// read better here than squeezed into a 300px rail. Full-width, no shell. ──
+	echo '<section aria-label="Health at a glance">';
+	sn_admin_glance_grid( snt_health_glance_cards( $last_scan ) );
+	echo '</section>';
 
-	// ── MAIN: intro + run-scan control + per-check finding tables ──
-	echo '<p class="sn-prose">Scans your post and attachment graph. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Results cache for 24 hours.</p>';
-
+	// ── Run-scan control. ──
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
-	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. Typical run: 1–10 seconds on a small site.</p>';
+	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Typical run: 1–10 seconds on a small site; results cache for 24 hours.</p>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
 	echo '</div>';
@@ -73,110 +138,105 @@ function sn_health_render_admin_tab() {
 	echo '</form>';
 
 	if ( ! $last_scan ) {
-		// ── RAIL: no-scan status (v6.42.0) ──
-		sn_admin_shell_rail( 'Scan status' );
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">No scan has run yet</p>';
-		echo '<p class="sn-status-box-body">Click <strong>Run scan</strong> in the main column to populate findings. The scan reads only — no edits.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
-		echo '</div>';
-		sn_admin_shell_close();
+		// The hero already shows the "no scan" card — nothing more to render.
 		return;
 	}
 
-	// ── ONE FIELDSET PER CHECK ──
+	// ── Split checks: with-findings get a full-width card + table; passing checks
+	// collapse into a compact pass board (was a full fieldset each just to say
+	// "No findings."). ──
+	$with_findings = array();
+	$passing       = array();
 	foreach ( $last_scan['checks'] as $key => $check ) {
-		echo '<div class="sn-fieldset">';
-
-		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-		echo esc_html( $check['label'] );
-		$pill_kind = $check['count'] > 0 ? 'warn' : 'ok';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
-		if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) && (int) $check['count'] > 0 ) {
-			echo snt_health_suggest_all_button_html( (int) $check['count'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper returns escaped markup.
+		if ( (int) $check['count'] > 0 ) {
+			$with_findings[ $key ] = $check;
+		} else {
+			$passing[ $key ] = $check;
 		}
-		echo '</h2>';
+	}
 
-		if ( 0 === (int) $check['count'] ) {
-			echo '<p class="sn-fieldset-intro">No findings.</p>';
-			echo '</div>';
-			continue;
-		}
+	// ── Findings: one full-width card + table per check with issues. ──
+	if ( ! empty( $with_findings ) ) {
+		echo '<h2 class="sn-section-h">Findings</h2>';
+		foreach ( $with_findings as $key => $check ) {
+			echo '<div class="sn-fieldset">';
 
-		if ( ! empty( $check['fix_hint'] ) ) {
-			echo '<p class="sn-fieldset-intro">' . esc_html( $check['fix_hint'] ) . '</p>';
-		}
-
-		// Cap visible rows at 50.
-		$visible = array_slice( $check['findings'], 0, 50 );
-		$hidden  = count( $check['findings'] ) - count( $visible );
-
-		$show_ai_col = $ai_available && in_array( $key, $suggest_supported_checks, true );
-		echo '<div class="snt-scroll-table">';
-		echo '<table class="widefat striped snt-mt-half"><thead><tr>';
-		echo '<th scope="col" class="' . ( $show_ai_col ? 'snt-col-40' : 'snt-col-55' ) . '">Subject</th>';
-		echo '<th scope="col">Note</th>';
-		echo '<th scope="col" class="snt-col-90px">Action</th>';
-		if ( $show_ai_col ) {
-			echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
-		}
-		echo '</tr></thead><tbody>';
-
-		foreach ( $visible as $f ) {
-			echo '<tr>';
-			echo '<td><code>' . esc_html( (string) $f['subject_label'] ) . '</code>';
-			if ( ! empty( $f['subject_url'] ) ) {
-				echo '<br><small><a href="' . esc_url( $f['subject_url'] ) . '" target="_blank" rel="noopener">' . esc_html( (string) $f['subject_url'] ) . '</a></small>';
+			echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
+			echo esc_html( $check['label'] );
+			echo '<span class="sn-pill sn-pill--warn">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
+			if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) ) {
+				echo snt_health_suggest_all_button_html( (int) $check['count'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper returns escaped markup.
 			}
-			echo '</td>';
-			echo '<td>' . esc_html( (string) ( $f['note'] ?? '' ) ) . '</td>';
-			echo '<td>';
-			if ( ! empty( $f['edit_url'] ) ) {
-				echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">Edit</a>';
+			echo '</h2>';
+
+			if ( ! empty( $check['fix_hint'] ) ) {
+				echo '<p class="sn-fieldset-intro">' . esc_html( $check['fix_hint'] ) . '</p>';
 			}
-			echo '</td>';
+
+			// Cap visible rows at 50.
+			$visible = array_slice( $check['findings'], 0, 50 );
+			$hidden  = count( $check['findings'] ) - count( $visible );
+
+			$show_ai_col = $ai_available && in_array( $key, $suggest_supported_checks, true );
+			echo '<div class="snt-scroll-table">';
+			echo '<table class="widefat striped snt-mt-half"><thead><tr>';
+			echo '<th scope="col" class="' . ( $show_ai_col ? 'snt-col-40' : 'snt-col-55' ) . '">Subject</th>';
+			echo '<th scope="col">Note</th>';
+			echo '<th scope="col" class="snt-col-90px">Action</th>';
 			if ( $show_ai_col ) {
-				echo '<td>';
-				echo sn_health_render_suggest_cell( $key, $f );
-				echo '</td>';
+				echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
 			}
-			echo '</tr>';
-		}
-		echo '</tbody></table>';
-		echo '</div>';
+			echo '</tr></thead><tbody>';
 
-		if ( $hidden > 0 ) {
-			echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings — re-run scan after fixing the top batch.</p>';
-		}
+			foreach ( $visible as $f ) {
+				echo '<tr>';
+				echo '<td><code>' . esc_html( (string) $f['subject_label'] ) . '</code>';
+				if ( ! empty( $f['subject_url'] ) ) {
+					echo '<br><small><a href="' . esc_url( $f['subject_url'] ) . '" target="_blank" rel="noopener">' . esc_html( (string) $f['subject_url'] ) . '</a></small>';
+				}
+				echo '</td>';
+				echo '<td>' . esc_html( (string) ( $f['note'] ?? '' ) ) . '</td>';
+				echo '<td>';
+				if ( ! empty( $f['edit_url'] ) ) {
+					echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">Edit</a>';
+				}
+				echo '</td>';
+				if ( $show_ai_col ) {
+					echo '<td>';
+					echo sn_health_render_suggest_cell( $key, $f );
+					echo '</td>';
+				}
+				echo '</tr>';
+			}
+			echo '</tbody></table>';
+			echo '</div>';
 
-		echo '</div>'; // .sn-fieldset
-	} // end foreach ( $last_scan['checks'] as $key => $check )
+			if ( $hidden > 0 ) {
+				echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings — re-run scan after fixing the top batch.</p>';
+			}
+
+			echo '</div>'; // .sn-fieldset
+		}
+	}
+
+	// ── Passing checks: compact ✓ pass board (reuses the glance-grid vocabulary). ──
+	if ( ! empty( $passing ) ) {
+		echo '<h2 class="sn-section-h">Passing checks</h2>';
+		$pass_cards = array();
+		foreach ( $passing as $check ) {
+			$pass_cards[] = array(
+				'label' => (string) $check['label'],
+				'value' => 'clear',
+				'pill'  => array( 'kind' => 'ok', 'text' => 'pass' ),
+			);
+		}
+		sn_admin_glance_grid( $pass_cards );
+	}
 
 	// v4.3.0: Opportunities sub-section (pattern-adoption Suggest+Apply).
 	if ( function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
 		snt_pattern_adoption_render_opportunities_section();
 	}
-
-	// ── RAIL: scan status box (v6.42.0) ──
-	sn_admin_shell_rail( 'Scan status' );
-	$total_findings = 0;
-	foreach ( $last_scan['checks'] as $check ) {
-		$total_findings += (int) $check['count'];
-	}
-	$pill_kind = $total_findings > 0 ? 'warn' : 'ok';
-	echo '<div class="sn-status-box' . ( 'ok' === $pill_kind ? '' : ' sn-status-box--warn' ) . '">';
-	echo '<div>';
-	echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last_scan['scanned_at'], time() ) ) . ' ago</p>';
-	// v4.1.1 (B-05): dynamic check count. Hardcoded "4 checks" was wrong
-	// since v3.7.0 added drift_time_phrases as check #5.
-	$check_count = is_array( $last_scan['checks'] ?? null ) ? count( $last_scan['checks'] ) : 0;
-	echo '<p class="sn-status-box-body">' . esc_html( $total_findings ) . ' total finding' . ( 1 === $total_findings ? '' : 's' ) . ' across ' . esc_html( $check_count ) . ' checks · scan ran in ' . esc_html( (int) $last_scan['elapsed_ms'] ) . 'ms. Results cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last_scan['scanned_at'] + DAY_IN_SECONDS ) ) . '.</p>';
-	echo '</div>';
-	echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( $total_findings > 0 ? 'Issues found' : 'All clear' ) . '</span>';
-	echo '</div>';
-	sn_admin_shell_close();
 } // end function sn_health_render_admin_tab
 
 /**
