@@ -918,9 +918,11 @@ function snt_dashboard_debug_information( $info ) {
 		);
 	}
 
-	// Cache state — health-scan + Plausible transient presence/age (private).
+	// Cache state — health-scan presence/age (private).
 	$cache_bits = array();
-	$health = get_transient( defined( 'SN_HEALTH_CACHE_KEY' ) ? SN_HEALTH_CACHE_KEY : 'sn_health_last_scan' );
+	// v6.47.2: read through the accessor (a durable option since v6.47.2), not a
+	// direct get_transient — the scan no longer lives in a transient.
+	$health = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
 	if ( is_array( $health ) && ! empty( $health['scanned_at'] ) ) {
 		$cache_bits[] = 'health-scan: ' . human_time_diff( (int) $health['scanned_at'], time() ) . ' ago';
 	} else {

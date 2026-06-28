@@ -36,7 +36,20 @@ function plugins_url( $path = '', $plugin = '' ) { return SNT_URL . ltrim( (stri
 // Menu registration stubs: return deterministic hook suffixes.
 function add_menu_page( $pt, $mt, $cap, $slug, $cb = null, $icon = '', $pos = null ) { return 'toplevel_page_' . $slug; }
 function add_submenu_page( $parent, $pt, $mt, $cap, $slug, $cb = null ) { return $parent . '_page_' . $slug; }
-function sn_admin_top_tabs() { return array( array( 'title' => 'Monitoring', 'label' => 'Monitoring', 'slug' => 'sn-monitoring' ) ); }
+
+// v6.47.2: the Suggest+Apply JS enqueue resolves the active top-tab + sub-tab the
+// SAME way the page dispatcher does (sn_admin_page_tab_for_slug /
+// sn_admin_resolve_active_sub) so it tracks the IA. Load the REAL registry +
+// resolvers here (instead of stubbing sn_admin_top_tabs) so the enqueue regression
+// is pinned to the live sub-tab slugs. The bug it guards: the IA moved Health to
+// `tab=monitoring&sub=health`, but the old guard checked `'health' === $_GET['tab']`,
+// so the script was never enqueued and every Suggest button was dead.
+function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : ''; }
+function wp_unslash( $v ) { return $v; }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+require __DIR__ . '/../inc/admin-tabs-data.php';
+require __DIR__ . '/../inc/admin-tabs.php';
+require __DIR__ . '/../inc/admin-legacy-redirect.php';
 
 require __DIR__ . '/../inc/admin-menu.php';
 
@@ -66,6 +79,35 @@ ok( ( $st['ver'] ?? null ) === SNT_VERSION, 'enqueue: cache-busted by SNT_VERSIO
 $GLOBALS['__styles'] = array();
 foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] as $cb ) { $cb( 'edit.php' ); }
 ok( ! isset( $GLOBALS['__styles']['sn-analytics-admin'] ), 'enqueue: NOT loaded on a non-SN admin page (scoped guard)' );
+
+// ── v6.47.2 regression: the shared Suggest+Apply JS (snt-health-suggest-actions)
+// must load on exactly the leaves that render data-snt-suggest buttons —
+// Monitoring → Health and Tools → Block Migrations — addressed by the ACTUAL IA
+// URL shape (tab + sub), not a stale `?tab=` guess. Fire the real enqueue callback
+// with the real routing params for each case. ──
+echo "\nSuggest+Apply JS enqueue tracks the live IA (tab + sub), not a stale ?tab= guess\n";
+
+// Fire admin_enqueue_scripts for a simulated request ($get becomes $_GET) on an
+// SN page hook; return whether snt-health-suggest-actions was enqueued.
+function sn_fire_suggest_enqueue( $get ) {
+	$GLOBALS['__scripts'] = array();
+	$_GET                 = $get;
+	$hooks                = sn_admin_page_hooks();
+	$hook                 = (string) $hooks[0];
+	foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] as $cb ) { $cb( $hook ); }
+	return isset( $GLOBALS['__scripts']['snt-health-suggest-actions'] );
+}
+
+ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'monitoring', 'sub' => 'health' ) ),
+	'Monitoring → Health (tab=monitoring&sub=health) enqueues snt-health-suggest-actions [the reported bug]' );
+ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-monitoring', 'sub' => 'health' ) ),
+	'Monitoring → Health via the sidebar slug (page=sn-monitoring, no ?tab=) also enqueues it' );
+ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'tools', 'sub' => 'block-migrations' ) ),
+	'Tools → Block Migrations (tab=tools&sub=block-migrations) enqueues it' );
+ok( ! sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'monitoring', 'sub' => 'analytics' ) ),
+	'Monitoring → Analytics does NOT enqueue it (no Suggest buttons on that leaf)' );
+ok( ! sn_fire_suggest_enqueue( array( 'tab' => 'health' ) ),
+	'the stale legacy assumption (tab=health) does NOT enqueue it (guard tracks the real IA, not ?tab=)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

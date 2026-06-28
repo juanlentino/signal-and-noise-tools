@@ -130,7 +130,7 @@ function sn_health_render_admin_tab() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
-	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Typical run: 1–10 seconds on a small site; results cache for 24 hours.</p>';
+	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Typical run: 1–10 seconds on a small site; results persist until you re-run the scan.</p>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
 	echo '</div>';
