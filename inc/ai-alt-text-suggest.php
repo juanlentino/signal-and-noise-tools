@@ -108,6 +108,21 @@ function snt_ai_alt_resolve_image_file( $attachment_id ) {
 		$path = $original;
 	}
 
+	// v6.48.2: never inline an OVERSIZED file. base64-encoding a multi-MB image to
+	// send to the provider can exhaust PHP's memory_limit — an UNCATCHABLE fatal
+	// (it bypasses the seam's try/catch and surfaces as the WordPress "critical
+	// error" page on that one image) — and it exceeds the provider's inline-image
+	// cap. The sized variants resolved above are small; this only bites the
+	// fall-back-to-original case for a huge original. Over the cap → degrade to
+	// text-only (return no image) rather than risk the fatal. Filterable.
+	if ( '' !== $path ) {
+		$bytes = @filesize( $path );
+		$cap   = (int) apply_filters( 'snt_ai_alt_image_max_bytes', 5 * 1024 * 1024 );
+		if ( false === $bytes || $bytes > $cap ) {
+			$path = '';
+		}
+	}
+
 	return array(
 		'path' => $path,
 		'mime' => ( '' !== $path ) ? $mime : '',

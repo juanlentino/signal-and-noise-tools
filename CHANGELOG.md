@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.48.2] - 2026-06-28: Stop the Health scan over-flagging orphans, and guard the vision encode against oversized images
+
+**Headline:** Two Health-tab fixes. The orphaned-media check was flagging real, in-use images as orphans because it only searched published post bodies for the image's original filename, while Gutenberg references images by their ID class and sized URL (and the logo/site icon live in options). And the new vision alt-text could hit an out-of-memory fatal (the "critical error" page) on a single oversized image when base64-encoding it for the model.
+
+> **Why PATCH:** two bug fixes, no public API removed or renamed, no settings-schema change. Detection logic is extracted to a testable `sn_health_attachment_is_referenced()`; the vision resolver gains a filterable size cap. Regressions added (`tests/health-orphan-detection.php`, plus a cap assertion in `tests/ai-alt-vision-context.php`); full sweep 179 suites green. `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **Orphaned-media scan no longer flags in-use images** ([inc/health-checks.php](inc/health-checks.php)): the v4.x check searched only PUBLISHED post bodies for the image's ORIGINAL basename (`photo.jpg`). But the block editor references an image by its ID class (`class="wp-image-<id>"`) and by its SIZED URL (`photo-1024x576.jpg`) — neither contains the original filename — and the site logo / site icon live in `theme_mods`/options, never a post body. So block-inserted, non-full-size images and the logo all read as orphans. An image is now treated as referenced if it is a featured image, the site logo or site icon, referenced by its `wp-image-<id>` class, by its original or any generated-size filename in any non-trash post body (posts, pages, edited FSE templates), or in post meta (OG-image / custom fields). The check is conservative by design: when unsure it counts the image as used, because a missed orphan is harmless but a false orphan risks a wrong deletion.
+- **Vision alt-text no longer risks an out-of-memory fatal on a large image** ([inc/ai-alt-text-suggest.php](inc/ai-alt-text-suggest.php)): the resolver prefers a downscaled variant, but on the fall-back-to-original path a multi-megabyte original could exhaust PHP's `memory_limit` when base64-encoded for the provider — an uncaught fatal that surfaces as the WordPress "critical error" page on that one image, and one that also exceeds the provider's inline-image cap. The resolver now skips any file over a cap (default 5 MB, filterable via `snt_ai_alt_image_max_bytes`) and degrades to text-only rather than risk the fatal. (If a "critical error" persists on a specific image after this, the PHP error log will name a different cause.)
+
 ## [6.48.1] - 2026-06-28: Price the Gemini Flash models in the AI cost readout
 
 **Headline:** v6.48.0 shipped the Gemini vision calls "unpriced" in the AI usage and spend readout (no fabricated rate). This adds Google's official Gemini 2.5 Flash-Lite and Flash rates, so the alt-text vision calls now carry an estimated cost instead of landing in "unpriced calls."

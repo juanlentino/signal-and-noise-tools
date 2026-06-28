@@ -60,6 +60,14 @@ if ( ! function_exists( 'wp_get_attachment_image_url' ) ) {
 }
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $tag, $value ) {
+		if ( 'snt_ai_alt_image_max_bytes' === $tag && isset( $GLOBALS['__alt_img_cap'] ) ) {
+			return $GLOBALS['__alt_img_cap'];
+		}
+		return $value;
+	}
+}
 if ( ! function_exists( 'strip_shortcodes' ) ) { function strip_shortcodes( $s ) { return $s; } }
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( preg_replace( '/<[^>]*>/', '', (string) $s ) ); } }
 
@@ -146,6 +154,15 @@ $GLOBALS['__mime'][103] = 'application/pdf';          // ...but NOT an image
 $rp = snt_ai_alt_resolve_image_file( 103 );
 vc_eq( '', $rp['path'], 'resolver refuses a non-image attachment (PDF) — never base64-inlines it to the vision model' );
 vc_eq( '', $rp['mime'], 'resolver returns empty mime for a non-image attachment' );
+
+// ─── Resolver: OVERSIZED image → empty (degrade to text-only, avoid the OOM fatal) ───
+$GLOBALS['__attached_file'][100] = $orig_path;       // readable, image/jpeg
+$GLOBALS['__intermediate']['100:large'] = array( 'file' => 'photo-1024x576.jpg' );
+$GLOBALS['__mime'][100] = 'image/jpeg';
+$GLOBALS['__alt_img_cap'] = 3;                        // 3-byte cap; the temp file is larger
+$ro = snt_ai_alt_resolve_image_file( 100 );
+vc_eq( '', $ro['path'], 'resolver skips an image over the size cap (degrades to text-only; guards against the OOM fatal)' );
+unset( $GLOBALS['__alt_img_cap'] );
 
 // ─── Attachment impl: passes feature=alt-text + resolved image to the seam ───
 $GLOBALS['__attached_file'][100] = $orig_path;
