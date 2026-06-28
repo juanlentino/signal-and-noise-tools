@@ -40,6 +40,19 @@ $GLOBALS['__ext'] = array(
 class WP_Error_Stub {}
 function is_wp_error( $x ) { return $x instanceof WP_Error_Stub; }
 
+// Faithful stand-in for WP's WpOrg\Requests\Utility\CaseInsensitiveDictionary
+// (what wp_remote_retrieve_headers() returns in production): ArrayAccess with
+// case-insensitive keys. Lets the bot-challenge classifier be tested through the
+// SAME shape it sees on the live site, not just a plain array.
+class SN_CI_Headers implements ArrayAccess {
+	private $d = array();
+	public function __construct( $a ) { foreach ( $a as $k => $v ) { $this->d[ strtolower( (string) $k ) ] = $v; } }
+	public function offsetExists( $k ): bool { return isset( $this->d[ strtolower( (string) $k ) ] ); }
+	public function offsetGet( $k ): mixed { return $this->d[ strtolower( (string) $k ) ] ?? null; }
+	public function offsetSet( $k, $v ): void { $this->d[ strtolower( (string) $k ) ] = $v; }
+	public function offsetUnset( $k ): void { unset( $this->d[ strtolower( (string) $k ) ] ); }
+}
+
 // Deterministic resolver seam for the SHARED guard (v6.13.1: inc/ssrf-guard.php
 // guards sn_ssrf_resolve_host with function_exists). Literal IPs pass through
 // filter_var; hostnames + encoded-IP forms resolve via this map. Encoded host
@@ -84,6 +97,9 @@ function wp_safe_remote_get( $url, $args = array() ) {
 	return 'ERR' === $r ? new WP_Error_Stub() : array( 'response' => $r );
 }
 function wp_remote_retrieve_response_code( $resp ) { return is_array( $resp ) ? (int) ( $resp['response']['code'] ?? 0 ) : 0; }
+// Headers ride inside the stubbed response array (http[url]['headers']); mirrors
+// wp_remote_retrieve_headers() returning the response's header bag.
+function wp_remote_retrieve_headers( $resp ) { return is_array( $resp ) ? ( $resp['response']['headers'] ?? array() ) : array(); }
 function get_transient( $k ) { return $GLOBALS['__ext']['transient'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__ext']['transient'][ $k ] = $v; return true; }
 function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
@@ -160,6 +176,49 @@ ok( false === $s['ok'] && 503 === $s['code'] && ! empty( $s['cached'] ), 'cache 
 // 2h. Separate cache-key prefix (must NOT collide with the internal probe's 'sn_health_link_').
 ok( isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://good.example/a' )] ), 'external probe caches under the sn_extlink_ prefix (not sn_health_link_)' );
 
+// ─── 2i. Bot-challenge classifier (v6.48.3): a Cloudflare challenge interstitial
+// is a LIVE page gated against bots, NOT link rot. The classifier keys on
+// Cloudflare's purpose-built `cf-mitigated: challenge` header, which CF sets only
+// on responses IT generated — so an origin 4xx merely passed THROUGH Cloudflare
+// is never masked. Probe codes are restricted to the challenge-bearing ones
+// (403/503) so a genuine 404/410 stays "rot" even if a stray header appears. ───
+$has_helper = function_exists( 'sn_health_is_bot_challenge' );
+ok( $has_helper, 'sn_health_is_bot_challenge() defined' );
+ok( $has_helper && true  === sn_health_is_bot_challenge( 403, array( 'cf-mitigated' => 'challenge' ) ), '403 + cf-mitigated:challenge → bot challenge (not rot)' );
+ok( $has_helper && true  === sn_health_is_bot_challenge( 503, array( 'cf-mitigated' => 'challenge' ) ), '503 + cf-mitigated:challenge → bot challenge (legacy IUAM)' );
+ok( $has_helper && true  === sn_health_is_bot_challenge( 403, array( 'CF-Mitigated' => 'Challenge' ) ), 'header name + value match is case-insensitive' );
+ok( $has_helper && false === sn_health_is_bot_challenge( 403, array( 'server' => 'cloudflare' ) ), 'plain CF 403 WITHOUT cf-mitigated → still rot (no over-suppression of real 403s)' );
+ok( $has_helper && false === sn_health_is_bot_challenge( 404, array( 'cf-mitigated' => 'challenge' ) ), '404 stays real rot even with a challenge header (code allowlist 403/503)' );
+ok( $has_helper && false === sn_health_is_bot_challenge( 200, array() ), 'healthy 200 → not a challenge' );
+
+// 2i-prod. The production path: wp_remote_retrieve_headers() returns a
+// CaseInsensitiveDictionary (ArrayAccess, case-insensitive keys), NOT a plain
+// array. A faithful stand-in exercises the instanceof-ArrayAccess branch the
+// array cases above never reach (closes the coverage gap a review flagged).
+ok( $has_helper && true  === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'CF-Mitigated' => 'challenge' ) ) ), 'detects a challenge through a CaseInsensitiveDictionary-style ArrayAccess bag (the real WP path)' );
+ok( $has_helper && false === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'server' => 'cloudflare', 'cf-ray' => 'abc' ) ) ), 'ArrayAccess bag without cf-mitigated → still rot (not a challenge)' );
+
+// ─── 2j. Status function folds a CF challenge into the SSRF-skip bucket ───
+$GLOBALS['__resolve']['ssrn.example'] = '93.184.216.34';
+$GLOBALS['__ext']['transient'] = array(); // ensure uncached
+$GLOBALS['__ext']['http']['https://ssrn.example/paper'] = array( 'code' => 403, 'headers' => array( 'cf-mitigated' => 'challenge', 'server' => 'cloudflare' ) );
+$s = sn_health_external_link_status( 'https://ssrn.example/paper' );
+ok( ! empty( $s['skipped'] ), 'CF-challenged 403 is SKIPPED, not rotted' );
+ok( ( $s['reason'] ?? '' ) === 'bot_challenge', 'skip reason is bot_challenge' );
+ok( true === $s['ok'], 'CF-challenged link is treated as ok (produces no finding)' );
+ok( 403 === $s['code'], 'challenge code is preserved' );
+ok( ! empty( $s['probed'] ), 'the discovery probe is a real network call (counts toward the budget)' );
+$s2 = sn_health_external_link_status( 'https://ssrn.example/paper' );
+ok( ! empty( $s2['cached'] ) && ! empty( $s2['skipped'] ), 'bot-challenge result is cached (one probe per TTL, not re-probed every scan)' );
+ok( empty( $s2['probed'] ), 'a cache hit is NOT counted as a new network probe' );
+
+// A plain 403 with NO Cloudflare challenge header must STILL rot (guards against
+// the lazy "just ignore every 403" fix).
+$GLOBALS['__resolve']['forbidden.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://forbidden.example/x'] = array( 'code' => 403, 'headers' => array() );
+$s = sn_health_external_link_status( 'https://forbidden.example/x' );
+ok( false === $s['ok'] && empty( $s['skipped'] ) && 403 === $s['code'], 'plain 403 (no cf-mitigated) is STILL flagged as rot' );
+
 // ─── 3. The check: report rotted external links, skip good/SSRF-unsafe ───
 ok( function_exists( 'sn_health_check_external_links' ), 'sn_health_check_external_links() defined' );
 $GLOBALS['__ext']['transient'] = array(); // clear cache
@@ -188,6 +247,24 @@ for ( $i = 1; $i <= SN_HEALTH_EXTLINK_MAX_PROBES + 3; $i++ ) {
 $GLOBALS['__ext']['rows'] = array( array( 'ID' => 20, 'post_title' => 'Caps', 'post_content' => $cap_content ) );
 sn_health_check_external_links();
 ok( count( $GLOBALS['__ext']['head_args'] ) === SN_HEALTH_EXTLINK_MAX_PROBES, 'per-run cap bounds network probes to SN_HEALTH_EXTLINK_MAX_PROBES (' . SN_HEALTH_EXTLINK_MAX_PROBES . ')' );
+
+// ─── 3c. Regression for the SSRN false-positive (v6.48.3): a post citing a
+// Cloudflare-challenged source (403 + cf-mitigated:challenge) plus a genuinely
+// dead link (404). Only the dead link is flagged; the challenged citation is
+// not. This is the exact Health-tab scenario the user reported. ───
+$GLOBALS['__ext']['transient'] = array();
+$GLOBALS['__ext']['head_args'] = array();
+$GLOBALS['__resolve']['papers.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http'] = array(
+	'https://papers.example/cf'  => array( 'code' => 403, 'headers' => array( 'cf-mitigated' => 'challenge', 'server' => 'cloudflare' ) ),
+	'https://rot.example/dead'   => array( 'code' => 404 ),
+);
+$GLOBALS['__ext']['rows'] = array(
+	array( 'ID' => 31, 'post_title' => 'On Provenance', 'post_content' => '<a href="https://papers.example/cf">cited source</a> <a href="https://rot.example/dead">dead source</a>' ),
+);
+$res = sn_health_check_external_links();
+ok( 1 === $res['count'], 'CF-challenged citation is NOT flagged; only the genuinely dead 404 is (reproduces the SSRN false positive)' );
+ok( 1 === count( $res['findings'] ) && strpos( $res['findings'][0]['subject_url'], 'rot.example' ) !== false, 'the single finding is the dead link, not the bot-protected one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
