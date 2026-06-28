@@ -360,9 +360,13 @@ add_action( 'sn_admin_reading_time_tab', function() {
 	$report      = $preview ? sn_find_legacy_reading_time() : array();
 	$report_n    = count( $report );
 
-	echo '<p class="sn-prose">Word count ÷ ' . (int) SN_READING_TIME_DEFAULT_WPM . ' WPM, cached in <code>_sn_reading_time_minutes</code> post meta and rebuilt on save. The cleanup tool below scans for hand-typed strings like "8-minute read" left over from before the shortcode existed.</p>';
+	// Phase 4b: full-width two-column shell — the cleanup tool + its (wide)
+	// matches table live in MAIN; a compact "how it works" readout in the rail.
+	// HARD shell contract: never return between open() and close(), so the old
+	// clean-state early return below is now an elseif branch.
+	sn_admin_shell_open();
 
-	// ── TOOL FIELDSET ──
+	// ── TOOL FIELDSET (main) ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Legacy string cleanup</h2>';
 	echo '<p class="sn-fieldset-intro">Scan posts + pages for hand-typed reading-time strings; review the matches; apply the cleanup. The shortcode produces fresh values automatically — this tool only removes the legacy ones.</p>';
@@ -403,19 +407,16 @@ add_action( 'sn_admin_reading_time_tab', function() {
 	echo '</div>'; // .sn-card-grid
 	echo '</div>'; // .sn-fieldset
 
-	// ── PREVIEW RESULTS ──
-	if ( $preview ) {
-		if ( 0 === $report_n ) {
-			echo '<div class="sn-status-box">';
-			echo '<div>';
-			echo '<p class="sn-status-box-title">Clean</p>';
-			echo '<p class="sn-status-box-body">No legacy reading-time strings found in any post, page, excerpt, or post meta.</p>';
-			echo '</div>';
-			echo '<span class="sn-pill sn-pill--ok">All clean</span>';
-			echo '</div>';
-			return;
-		}
-
+	// ── PREVIEW RESULTS (main) ──
+	if ( $preview && 0 === $report_n ) {
+		echo '<div class="sn-status-box">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Clean</p>';
+		echo '<p class="sn-status-box-body">No legacy reading-time strings found in any post, page, excerpt, or post meta.</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--ok">All clean</span>';
+		echo '</div>';
+	} elseif ( $preview ) {
 		echo '<div class="sn-fieldset">';
 		echo '<h2 class="sn-fieldset-h">Matches (' . (int) $report_n . ')</h2>';
 		echo '<p class="sn-fieldset-intro">Each row shows where a legacy string lives. The Apply action above removes all of them.</p>';
@@ -439,4 +440,13 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		echo '</tbody></table>';
 		echo '</div>'; // .sn-fieldset
 	}
+
+	// ── Rail: how reading time is computed (the old leading prose, now a readout). ──
+	sn_admin_shell_rail( 'Reading time' );
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">How it works</h2>';
+	echo '<p class="sn-field-helper">Word count ÷ ' . (int) SN_READING_TIME_DEFAULT_WPM . ' WPM, cached in <code>_sn_reading_time_minutes</code> post meta and rebuilt on every save.</p>';
+	echo '<p class="sn-field-helper">The cleanup tool to the left scans for hand-typed strings like &ldquo;8-minute read&rdquo; left over from before the shortcode existed. The <code>[sn_reading_time]</code> shortcode produces fresh values automatically.</p>';
+	echo '</div>';
+	sn_admin_shell_close();
 } );

@@ -25,6 +25,37 @@ function sn_admin_tag_page_url() {
 }
 
 /**
+ * First-glance hero cards for the Tags sub-tab: total tags, duplicate clusters,
+ * and unused tags. Pure — takes the already-fetched data, returns the card array
+ * for sn_admin_glance_grid(). Mirrors snt_cron_glance_cards().
+ *
+ * @param array $clusters Duplicate-tag clusters.
+ * @param array $unused   Count-0 post_tag terms.
+ * @param int   $total    Total post_tag term count.
+ * @return array<int,array<string,mixed>>
+ */
+function snt_tags_glance_cards( $clusters, $unused, $total ) {
+	$cl = is_array( $clusters ) ? count( $clusters ) : 0;
+	$un = is_array( $unused ) ? count( $unused ) : 0;
+	return array(
+		array(
+			'label' => 'Tags total',
+			'value' => number_format_i18n( (int) $total ),
+		),
+		array(
+			'label' => 'Duplicate clusters',
+			'value' => number_format_i18n( $cl ),
+			'pill'  => $cl > 0 ? array( 'kind' => 'warn', 'text' => 'review' ) : array( 'kind' => 'ok', 'text' => 'clean' ),
+		),
+		array(
+			'label' => 'Unused tags',
+			'value' => number_format_i18n( $un ),
+			'pill'  => $un > 0 ? array( 'kind' => 'warn', 'text' => 'prune' ) : array( 'kind' => 'ok', 'text' => 'clean' ),
+		),
+	);
+}
+
+/**
  * Render the Content > Tags sub-tab.
  *
  * @return void
@@ -51,6 +82,17 @@ function sn_admin_render_tag_cleanup_section() {
 	}
 
 	$clusters = function_exists( 'sn_tag_find_duplicate_clusters' ) ? sn_tag_find_duplicate_clusters() : array();
+
+	// Phase 4b: a first-glance hero leads the full-width list view (mirrors the
+	// Cron glance-over-table pattern). Counts only — sourced from existing accessors.
+	$unused_tags = function_exists( 'sn_tag_find_unused' ) ? sn_tag_find_unused() : array();
+	$total_tags  = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false, 'fields' => 'count' ) );
+	$total_tags  = is_array( $total_tags ) ? count( $total_tags ) : ( is_numeric( $total_tags ) ? (int) $total_tags : 0 );
+	if ( function_exists( 'sn_admin_glance_grid' ) ) {
+		echo '<section aria-label="Tags at a glance">';
+		sn_admin_glance_grid( snt_tags_glance_cards( $clusters, $unused_tags, $total_tags ) );
+		echo '</section>';
+	}
 
 	if ( ! $clusters ) {
 		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Duplicate tags', 'signal-and-noise-tools' ) . '</span></h2></div>';
