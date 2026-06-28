@@ -764,6 +764,11 @@ hc_true( isset( $pricing['claude-sonnet-4-6'] ), 'pricing map includes claude-so
 hc_eq( 3.0, $pricing['claude-sonnet-4-6']['in'] ?? null, 'sonnet-4-6 input rate is $3/MTok' );
 hc_eq( 15.0, $pricing['claude-sonnet-4-6']['out'] ?? null, 'sonnet-4-6 output rate is $15/MTok' );
 hc_eq( 1.0, $pricing['claude-haiku-4-5']['in'] ?? null, 'haiku-4-5 input rate is $1/MTok' );
+// v6.48.1: Gemini Flash rates (the alt-text vision route's models).
+hc_eq( 0.10, $pricing['gemini-2.5-flash-lite']['in'] ?? null, 'gemini-2.5-flash-lite input rate is $0.10/MTok' );
+hc_eq( 0.40, $pricing['gemini-2.5-flash-lite']['out'] ?? null, 'gemini-2.5-flash-lite output rate is $0.40/MTok' );
+hc_eq( 0.30, $pricing['gemini-2.5-flash']['in'] ?? null, 'gemini-2.5-flash input rate is $0.30/MTok' );
+hc_eq( 2.50, $pricing['gemini-2.5-flash']['out'] ?? null, 'gemini-2.5-flash output rate is $2.50/MTok' );
 
 // ─── Test 28: snt_ai_estimate_cost — token math + unknown model ──────
 echo "\nTest 28: snt_ai_estimate_cost — per-call cost\n";
@@ -772,6 +777,8 @@ fixture_reset();
 hc_true( abs( snt_ai_estimate_cost( 'claude-sonnet-4-6', 1000, 500 ) - 0.0105 ) < 1e-9, 'sonnet cost = $0.0105 for 1000 prompt + 500 completion' );
 // haiku: 1000*$1/M + 1000*$5/M = (1000 + 5000)/1e6 = 0.006
 hc_true( abs( snt_ai_estimate_cost( 'claude-haiku-4-5', 1000, 1000 ) - 0.006 ) < 1e-9, 'haiku cost = $0.006 for 1000 prompt + 1000 completion' );
+// gemini-2.5-flash-lite: 1000*$0.10/M + 1000*$0.40/M = (100 + 400)/1e6 = 0.0005
+hc_true( abs( snt_ai_estimate_cost( 'gemini-2.5-flash-lite', 1000, 1000 ) - 0.0005 ) < 1e-9, 'flash-lite cost = $0.0005 for 1000 prompt + 1000 completion' );
 hc_eq( 0.0, snt_ai_estimate_cost( 'some-unknown-model', 1000, 500 ), 'unknown model returns $0.00 (no fabricated rate)' );
 
 // ─── Test 29: snt_ai_usage_summary — cost accumulation, shape kept ───

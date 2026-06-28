@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.48.1] - 2026-06-28: Price the Gemini Flash models in the AI cost readout
+
+**Headline:** v6.48.0 shipped the Gemini vision calls "unpriced" in the AI usage and spend readout (no fabricated rate). This adds Google's official Gemini 2.5 Flash-Lite and Flash rates, so the alt-text vision calls now carry an estimated cost instead of landing in "unpriced calls."
+
+> **Why PATCH:** pricing-table calibration, no behavior change. `snt_ai_model_pricing()` gains two rate entries (verified against Google's official pricing page on 2026-06-28); `snt_ai_estimate_cost()` and the usage summary already consume the map. Test assertions added.
+
+### Improvements
+
+- **Gemini Flash rates added to the cost readout** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): `gemini-2.5-flash-lite` ($0.10 input / $0.40 output per 1M tokens) and `gemini-2.5-flash` ($0.30 / $2.50), from Google's pricing page (standard paid tier, text/image input; image input is billed at the input-token rate, so vision cost is captured automatically). The v6.48.0 alt-text vision calls were counting in `cost_unpriced_calls`; they now carry an estimated cost. Both rates stay filterable via `snt_ai_model_pricing`.
+
 ## [6.48.0] - 2026-06-28: Alt-text Suggest now looks at the image (vision via Gemini Flash)
 
 **Headline:** The Health "Suggest" feature for missing alt text used to guess from the filename, title, and caption alone, so images with generic names (production-min.png) and no caption came back with "not enough context, no suggestion." It now sends the actual image to a vision model (Gemini 2.5 Flash-Lite) and describes what is in the picture. The text metadata stays as supplementary context to pin proper nouns the image cannot show. Only alt-text routes to Gemini; every other AI feature stays on Claude Sonnet.
