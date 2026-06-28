@@ -7,8 +7,13 @@
  * byte-identical rules suffix that was copy-pasted in two files. The refactor
  * extracts SNT_AI_ALT_BASE_RULES (defined in the primary ai-alt-text-suggest.php,
  * which now loads first) and composes both constants from it. This test pins the
- * EXACT pre-refactor strings so the change is proven behavior-preserving (zero
- * prompt drift) AND asserts the rules now live in one place.
+ * EXACT system-instruction strings AND asserts the rules live in one place.
+ *
+ * v6.48.0: alt-text went vision (the actual image is sent to a multimodal model).
+ * The leading task framing was rewritten ("describe the ATTACHED image, text as
+ * supplement"); the shared SNT_AI_ALT_BASE_RULES suffix is unchanged. The pinned
+ * strings below were updated to the new wording — a deliberate change, so this
+ * test still guards against UNINTENDED drift from the v6.48.0 baseline.
  *
  * Run: php tests/ai-alt-prompt-shared.php
  * @since plugin v6.39.4
@@ -24,16 +29,19 @@ require_once __DIR__ . '/../inc/ai-alt-inline-suggest.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
-// The KNOWN-GOOD strings as shipped through v6.39.3 (source of truth for the
-// regression — the refactor must reproduce these byte-for-byte).
-$expect_attach = 'Generate descriptive alt text for an image. Output 80-125 characters. Describe the image factually, not the page it appears on. No "image of" / "picture of" / "photo of" preamble. No alt="" (empty) suggestions — if there is not enough context for a useful description, output only the literal marker: ALT_INSUFFICIENT_CONTEXT. Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
-$expect_inline = 'Generate descriptive alt text for an image referenced by URL in a post body. Output 80-125 characters. Describe the image factually based on the surrounding paragraph context + the URL filename. No "image of" / "picture of" / "photo of" preamble. No alt="" (empty) suggestions — if there is not enough context for a useful description, output only the literal marker: ALT_INSUFFICIENT_CONTEXT. Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
+// The KNOWN-GOOD strings as of the v6.48.0 vision rewrite (alt-text now sends the
+// actual image to a multimodal model). The shared SNT_AI_ALT_BASE_RULES suffix
+// (no-preamble / no-empty / ALT_INSUFFICIENT_CONTEXT marker / output-only) is
+// UNCHANGED — only the leading task framing moved from "describe an image" /
+// "describe by URL + context" to "describe the ATTACHED image, text as supplement".
+$expect_attach = 'Generate descriptive alt text for the attached image. Output 80-125 characters. Describe what is visible in the image factually, not the page it appears on; use any provided text context only to disambiguate names or specifics you cannot see. No "image of" / "picture of" / "photo of" preamble. No alt="" (empty) suggestions — if there is not enough context for a useful description, output only the literal marker: ALT_INSUFFICIENT_CONTEXT. Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
+$expect_inline = 'Generate descriptive alt text for an inline image in a post body. Output 80-125 characters. Describe what is visible in the attached image when one is present; otherwise describe it factually from the surrounding paragraph context + the URL filename. No "image of" / "picture of" / "photo of" preamble. No alt="" (empty) suggestions — if there is not enough context for a useful description, output only the literal marker: ALT_INSUFFICIENT_CONTEXT. Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
 
-echo "Alt-text prompt DRY refactor (behavior-preserving)\n\n";
+echo "Alt-text prompt pins (v6.48.0 vision wording)\n\n";
 
-echo "Group: full system instructions are unchanged (no prompt drift)\n";
-ok( SNT_AI_ALT_SUGGEST_SYSTEM === $expect_attach, 'attachment alt prompt is byte-identical to v6.39.3' );
-ok( SNT_AI_ALT_INLINE_SUGGEST_SYSTEM === $expect_inline, 'inline alt prompt is byte-identical to v6.39.3' );
+echo "Group: full system instructions match the pinned v6.48.0 vision strings\n";
+ok( SNT_AI_ALT_SUGGEST_SYSTEM === $expect_attach, 'attachment alt prompt is byte-identical to the v6.48.0 vision pin' );
+ok( SNT_AI_ALT_INLINE_SUGGEST_SYSTEM === $expect_inline, 'inline alt prompt is byte-identical to the v6.48.0 vision pin' );
 
 echo "\nGroup: the shared rules now live in ONE place\n";
 $base = defined( 'SNT_AI_ALT_BASE_RULES' ) ? SNT_AI_ALT_BASE_RULES : '';

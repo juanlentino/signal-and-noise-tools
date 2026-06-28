@@ -235,9 +235,21 @@ function snt_ai_require_text_generation() {
  *                                    is enough; for longer-form output bump higher.
  * @param string $feature             Optional feature label for the usage log
  *                                    (e.g. 'insights', 'insights_narration'). Default 'generic'.
+ *                                    ALSO routes the model: passed to the
+ *                                    snt_ai_model_preference filter so a feature
+ *                                    can use a different model (e.g. 'alt-text'
+ *                                    → a vision-capable Gemini model). @since 6.48.0.
+ * @param string $image_path          Optional ABSOLUTE local path to an image to
+ *                                    attach for vision (multimodal input). When
+ *                                    readable, base64-inlined via ->with_file().
+ *                                    Pass a LOCAL PATH, never a URL (CF-safe).
+ *                                    Empty = text-only (byte-identical to before).
+ *                                    @since 6.48.0.
+ * @param string $image_mime          MIME type of $image_path (e.g. 'image/jpeg').
+ *                                    Required alongside $image_path. @since 6.48.0.
  * @return string|WP_Error            Generated text or WP_Error on failure.
  */
-function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic' ) {
+function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '' ) {
 	if ( ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
@@ -271,14 +283,31 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	 *
 	 * @since 3.7.2
 	 */
-	$model_preference = apply_filters( 'snt_ai_model_preference', 'claude-sonnet-4-6', $prompt, $system_instruction );
+	// v6.48.0: $feature is now passed to the filter (4th arg) so callers can route
+	// per feature, e.g. alt-text → a vision-capable Gemini model (see the default
+	// route registered below in snt_ai_register_alt_text_model_route). Existing
+	// single-arg filters keep working — the extra arg is ignored by them.
+	$model_preference = apply_filters( 'snt_ai_model_preference', 'claude-sonnet-4-6', $prompt, $system_instruction, $feature );
+
+	// v6.48.0: optional image input (vision). When a readable local image path +
+	// mime are supplied, attach it via the wp-ai-client builder's ->with_file()
+	// (snake_case, __call-routed to PromptBuilder::withFile(), which base64-inlines
+	// a local file). Pass the LOCAL PATH, never a URL: this site is behind
+	// Cloudflare with Cache-Everything HTML + possible challenge pages, so a
+	// provider-side URL fetch could land on a challenge/interstitial and corrupt
+	// the image (memory reference_cf_challenge_cache_poisoning_static_assets). The
+	// text-only path stays byte-identical to pre-v6.48.0 when no image is passed.
+	$has_image = ( '' !== (string) $image_path && '' !== (string) $image_mime && is_readable( (string) $image_path ) );
 
 	try {
-		$result = wp_ai_client_prompt( (string) $prompt )
+		$builder = wp_ai_client_prompt( (string) $prompt )
 			->using_model_preference( (string) $model_preference )
 			->using_system_instruction( (string) $system_instruction )
-			->using_max_tokens( $max_tokens )
-			->generate_text_result();
+			->using_max_tokens( $max_tokens );
+		if ( $has_image ) {
+			$builder = $builder->with_file( (string) $image_path, (string) $image_mime );
+		}
+		$result = $builder->generate_text_result();
 	} catch ( \Throwable $e ) {
 		// Defense in depth — the WP wrapper already converts SDK exceptions
 		// to WP_Error, but a misconfigured provider or PHP runtime error
@@ -325,6 +354,42 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 
 	return $text;
 }
+
+/**
+ * v6.48.0: route the 'alt-text' feature to a vision-capable Gemini Flash model.
+ *
+ * Registered as a default `snt_ai_model_preference` filter so the routing lives
+ * in the repo, not in a deployment-time filter. Alt text is fundamentally about
+ * describing what is IN the image, so it goes to a multimodal model (which also
+ * receives the attached image via ->with_file() in the seam above); every other
+ * feature stays on the pinned Claude Sonnet text model. The Gemini id is itself
+ * filterable via `snt_ai_alt_text_model` so the owner can re-pin (e.g. to
+ * gemini-2.5-flash) with NO release — the WP AI Client resolves Gemini ids LIVE
+ * from Google's API, so the exact resolvable id depends on the configured provider
+ * + key/region. Default = gemini-2.5-flash-lite (Google's cheapest multimodal
+ * Flash, ideal for bulk alt-text). Registered with accepted_args=4 so the callback
+ * receives $feature.
+ *
+ * Registered via a named function (not a bare add_filter at file scope) so the
+ * test harness can re-register it after it clears its filter registry between
+ * blocks.
+ *
+ * @since 6.48.0
+ */
+function snt_ai_register_alt_text_model_route() {
+	add_filter(
+		'snt_ai_model_preference',
+		function ( $model, $prompt, $system_instruction, $feature = 'generic' ) {
+			if ( 'alt-text' === $feature ) {
+				return (string) apply_filters( 'snt_ai_alt_text_model', 'gemini-2.5-flash-lite' );
+			}
+			return $model;
+		},
+		10,
+		4
+	);
+}
+snt_ai_register_alt_text_model_route();
 
 /**
  * Record one AI call's token usage to the capped FIFO log option.

@@ -39,12 +39,80 @@ const SNT_AI_ALT_BASE_RULES = 'No "image of" / "picture of" / "photo of" preambl
 	'output only the literal marker: ALT_INSUFFICIENT_CONTEXT. ' .
 	'Output ONLY the alt text or the marker — no quotes, no preamble, no markdown.';
 
-const SNT_AI_ALT_SUGGEST_SYSTEM = 'Generate descriptive alt text for an image. ' .
-	'Output 80-125 characters. Describe the image factually, not the page it appears on. ' .
+// v6.48.0: vision. The attached image (when present) is the primary subject; the
+// text context (title/caption/filename) is supplementary disambiguation only.
+// SNT_AI_ALT_BASE_RULES already carries the ALT_INSUFFICIENT_CONTEXT marker rule +
+// the no-preamble / no-quotes output contract, so it is NOT repeated here.
+const SNT_AI_ALT_SUGGEST_SYSTEM = 'Generate descriptive alt text for the attached image. ' .
+	'Output 80-125 characters. Describe what is visible in the image factually, not the page it appears on; use any provided text context only to disambiguate names or specifics you cannot see. ' .
 	SNT_AI_ALT_BASE_RULES;
 
 const SNT_AI_ALT_SUGGEST_MAX_TOKENS = 80;
 const SNT_AI_ALT_APPLY_MAX_LENGTH   = 250;
+
+/**
+ * v6.48.0: resolve a DOWNSCALED LOCAL image file for an attachment, for vision.
+ *
+ * Returns ['path' => absolute readable path, 'mime' => normalized mime], or empty
+ * strings when the attachment has no readable local image (id <= 0, broken file,
+ * etc.). Prefers a sized-down variant (large → medium_large → medium) to bound
+ * vision token cost + stay within provider image-size caps, falling back to the
+ * full-res original. The ABSOLUTE path is rebuilt from dirname(get_attached_file())
+ * + basename — image_get_intermediate_size()'s own 'path' key is RELATIVE to the
+ * uploads basedir (a core trap). Legacy 'image/jpg' is normalized to 'image/jpeg'.
+ * Returns a LOCAL path only — callers pass it to ->with_file(), which base64-inlines
+ * it, so the provider never fetches a URL (Cloudflare-challenge-safe).
+ *
+ * Shared by the attachment-alt impl and the inline-<img> impl (which first maps its
+ * URL to a local attachment id via attachment_url_to_postid()).
+ *
+ * @param int $attachment_id
+ * @return array{path:string,mime:string}
+ *
+ * @since 6.48.0
+ */
+function snt_ai_alt_resolve_image_file( $attachment_id ) {
+	$attachment_id = (int) $attachment_id;
+	if ( $attachment_id <= 0 ) {
+		return array( 'path' => '', 'mime' => '' );
+	}
+
+	// v6.48.0: only ever resolve an IMAGE attachment — never base64-inline a
+	// non-image media file (PDF/doc/etc.) to the vision model. The attachment impl
+	// pre-checks this, but the inline-<img> impl (and any future caller) relies on
+	// this guard, so it lives in the shared resolver. Legacy 'image/jpg' normalizes
+	// to the canonical 'image/jpeg'.
+	$mime = (string) get_post_mime_type( $attachment_id );
+	if ( 'image/jpg' === $mime ) {
+		$mime = 'image/jpeg';
+	}
+	if ( 0 !== strpos( $mime, 'image/' ) ) {
+		return array( 'path' => '', 'mime' => '' );
+	}
+
+	$original = (string) get_attached_file( $attachment_id );
+	$path     = '';
+	foreach ( array( 'large', 'medium_large', 'medium' ) as $size ) {
+		$intermediate = image_get_intermediate_size( $attachment_id, $size );
+		if ( is_array( $intermediate ) && ! empty( $intermediate['file'] ) && '' !== $original ) {
+			// Rebuild the ABSOLUTE path: the sized variant lives in the same dir as
+			// the original. ($intermediate['path'] is RELATIVE to uploads — do NOT use it.)
+			$candidate = dirname( $original ) . '/' . basename( (string) $intermediate['file'] );
+			if ( is_readable( $candidate ) ) {
+				$path = $candidate;
+				break;
+			}
+		}
+	}
+	if ( '' === $path && '' !== $original && is_readable( $original ) ) {
+		$path = $original;
+	}
+
+	return array(
+		'path' => $path,
+		'mime' => ( '' !== $path ) ? $mime : '',
+	);
+}
 
 /**
  * Pure impl: generate alt text suggestion for an image attachment.
@@ -122,19 +190,40 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 		$referencing_post_title ? "Used in post: $referencing_post_title" : '',
 	) );
 
-	if ( empty( $context_parts ) ) {
+	// v6.48.0: attach a DOWNSCALED LOCAL copy of the image for vision. The
+	// 'alt-text' feature tag (passed to the seam below) routes this call to a
+	// multimodal model (Gemini Flash) that describes what is actually in the
+	// picture; the text context above stays as supplementary disambiguation.
+	$image      = snt_ai_alt_resolve_image_file( $attachment_id );
+	$image_path = $image['path'];
+	$image_mime = $image['mime'];
+	// is_readable() mirrors the seam's own guard (snt_ai_generate_with_constraints)
+	// so the empty-context bail + minimal-prompt path here can't disagree with
+	// whether the seam will actually attach the image.
+	$has_image  = ( '' !== $image_path && '' !== $image_mime && is_readable( $image_path ) );
+
+	// With vision the IMAGE is the primary context, so only bail when there is
+	// NEITHER usable text context NOR a readable image to describe.
+	if ( empty( $context_parts ) && ! $has_image ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'No context available — attachment has no title, caption, filename, or referencing posts.', 'signal-noise-tools' ),
+			__( 'No context available — attachment has no readable image, title, caption, filename, or referencing posts.', 'signal-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
 
 	$prompt = implode( "\n", $context_parts );
+	if ( '' === $prompt ) {
+		// Image-only (no text metadata): give the model a minimal user turn.
+		$prompt = 'Describe the attached image for alt text.';
+	}
 	$result = snt_ai_generate_with_constraints(
 		$prompt,
 		SNT_AI_ALT_SUGGEST_SYSTEM,
-		SNT_AI_ALT_SUGGEST_MAX_TOKENS
+		SNT_AI_ALT_SUGGEST_MAX_TOKENS,
+		'alt-text',
+		$image_path,
+		$image_mime
 	);
 
 	if ( is_wp_error( $result ) ) {

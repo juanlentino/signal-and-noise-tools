@@ -849,5 +849,60 @@ if ( ! function_exists( 'snt_register_status_script' ) ) {
 	hc_true( ! empty( $reg['in_footer'] ), 'snt-status registered to load in the footer' );
 }
 
+// ─── Test 32: vision image attach + alt-text → Gemini routing (v6.48.0) ──
+//
+// snt_ai_generate_with_constraints() gained an optional image (path+mime),
+// attached via the builder's ->with_file() when readable; and $feature is now
+// passed to the snt_ai_model_preference filter so 'alt-text' routes to a vision
+// model. The TestAiBuilder __call records ->with_file() with no mock change (it
+// returns $this for any fluent call). fixture_reset() clears the filter registry,
+// so re-register the route via snt_ai_register_alt_text_model_route() each block.
+echo "\nTest 32: vision image attach + alt-text → Gemini routing\n";
+
+function ai_saw_with_file() {
+	foreach ( $GLOBALS['__test_ai_builder_recorded_calls'] as $c ) {
+		if ( 'with_file' === $c['name'] ) { return true; }
+	}
+	return false;
+}
+
+$vimg = sys_get_temp_dir() . '/snt_seam_' . getmypid() . '.jpg';
+file_put_contents( $vimg, 'IMG-BYTES' );
+
+// Vision path: readable image + feature 'alt-text'.
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
+hc_true( fixture_recorded_call_matches( 'with_file', array( $vimg, 'image/jpeg' ) ),
+	'vision path: builder recorded with_file(path, mime)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite' ) ),
+	'feature alt-text routes using_model_preference → gemini-2.5-flash-lite' );
+
+// Text-only path: no image → ZERO with_file calls, default Sonnet model unchanged.
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 80, 'generic' );
+hc_eq( false, ai_saw_with_file(), 'text path: zero with_file calls (text-only path byte-identical)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-4-6' ) ),
+	'feature generic stays on claude-sonnet-4-6' );
+
+// Unreadable image path: ignored (is_readable guard), still routes to Gemini.
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', '/no/such/img.jpg', 'image/jpeg' );
+hc_eq( false, ai_saw_with_file(), 'unreadable image: no with_file attached (is_readable guard)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite' ) ),
+	'alt-text still routes to Gemini even when the image is unreadable (degrades to text-only)' );
+
+// snt_ai_alt_text_model filter re-pins the alt-text model with no release.
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+add_filter( 'snt_ai_alt_text_model', function () { return 'gemini-2.5-flash'; } );
+snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash' ) ),
+	'snt_ai_alt_text_model filter re-pins the alt-text model (gemini-2.5-flash)' );
+
+@unlink( $vimg );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

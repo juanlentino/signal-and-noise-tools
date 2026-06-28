@@ -36,8 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 // inc/ai-alt-text-suggest.php, which loads first) + this surface's own framing:
 // the image is an inline <img> referenced by URL with no attachment record, so
 // the context is the surrounding paragraph + the URL filename.
-const SNT_AI_ALT_INLINE_SUGGEST_SYSTEM = 'Generate descriptive alt text for an image referenced by URL in a post body. ' .
-	'Output 80-125 characters. Describe the image factually based on the surrounding paragraph context + the URL filename. ' .
+const SNT_AI_ALT_INLINE_SUGGEST_SYSTEM = 'Generate descriptive alt text for an inline image in a post body. ' .
+	'Output 80-125 characters. Describe what is visible in the attached image when one is present; otherwise describe it factually from the surrounding paragraph context + the URL filename. ' .
 	SNT_AI_ALT_BASE_RULES;
 
 const SNT_AI_ALT_INLINE_SUGGEST_MAX_TOKENS    = 80;
@@ -160,11 +160,31 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 		"Context: $context",
 	) );
 
+	// v6.48.0: if the inline <img> URL resolves to a LOCAL media-library
+	// attachment, attach a downscaled copy for vision (shared resolver). An
+	// EXTERNAL or unresolvable URL stays text-only — we NEVER hand the raw URL to
+	// the provider (the SDK would forward it as a remote reference and a
+	// provider-side fetch could land on a Cloudflare challenge and corrupt it).
+	// The 'alt-text' feature tag routes to the Gemini vision model either way.
+	$image_path = '';
+	$image_mime = '';
+	if ( function_exists( 'snt_ai_alt_resolve_image_file' ) && function_exists( 'attachment_url_to_postid' ) ) {
+		$inline_attachment_id = (int) attachment_url_to_postid( $image_src );
+		if ( $inline_attachment_id > 0 ) {
+			$image      = snt_ai_alt_resolve_image_file( $inline_attachment_id );
+			$image_path = $image['path'];
+			$image_mime = $image['mime'];
+		}
+	}
+
 	$prompt = implode( "\n", $context_parts );
 	$result = snt_ai_generate_with_constraints(
 		$prompt,
 		SNT_AI_ALT_INLINE_SUGGEST_SYSTEM,
-		SNT_AI_ALT_INLINE_SUGGEST_MAX_TOKENS
+		SNT_AI_ALT_INLINE_SUGGEST_MAX_TOKENS,
+		'alt-text',
+		$image_path,
+		$image_mime
 	);
 
 	if ( is_wp_error( $result ) ) {
