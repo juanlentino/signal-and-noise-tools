@@ -48,6 +48,15 @@ function sn_login_defense_widget_render() {
 	echo '<div class="sn-aw-stat"><div class="sn-aw-stat-n">' . esc_html( (int) $h['block_rate'] . '%' ) . '</div>'
 		. '<div class="sn-aw-stat-l">' . esc_html__( 'Block rate', 'signal-and-noise-tools' ) . '</div></div>';
 	echo '</div>';
+	// v6.44.0: surface the denominator (the returned-but-previously-ignored `checked`
+	// total) so the block rate has volume context — 40% of 10 reads very differently
+	// from 40% of 10,000. Forward-only 7d window, same source as the tiles above.
+	echo '<p class="sn-aw-foot">' . esc_html( sprintf(
+		/* translators: 1: blocked count, 2: total requests checked */
+		__( '%1$s of %2$s requests blocked (7d)', 'signal-and-noise-tools' ),
+		number_format_i18n( (int) $h['blocked'] ),
+		number_format_i18n( (int) ( $h['checked'] ?? 0 ) )
+	) ) . '</p>';
 	if ( '' !== (string) $h['top_network'] ) {
 		echo '<p class="sn-aw-foot">' . esc_html__( 'Top network:', 'signal-and-noise-tools' )
 			. ' <strong>' . esc_html( $h['top_network'] ) . '</strong></p>';

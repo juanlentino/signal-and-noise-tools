@@ -807,6 +807,11 @@
 .sn-2up .sn-card--narrow {
 	max-width: none;
 }
+/* v6.44.0: WP's .regular-text is a fixed ~25em; keep it from overflowing a narrow
+   .sn-2up column (e.g. the analytics settings credentials inputs). */
+.sn-2up .regular-text {
+	max-width: 100%;
+}
 
 /* ─── Mono font utility ──────────────────────────────────────────────────
    System mono stack. Replaces the inline

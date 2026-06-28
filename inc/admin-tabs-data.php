@@ -119,10 +119,13 @@ function sn_admin_top_tabs() {
 			'sub_tabs' => array(
 				// Analytics SETTINGS-ONLY sub-tab (creds + Test connection + Worker
 				// setup); the read-only dashboard lives under the native WP Dashboard
-				// menu. Its form posts on the page=sn-theme-options route
+				// menu. Its forms post on the page=sn-theme-options route
 				// (sn_admin_render_sub_tabs hardcodes that slug) so sn_handle_admin_post()
 				// accepts analytics_save/_test unchanged. Now first leaf (v6.18.0).
-				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section' ),
+				// 'wide' (v6.44.0): lays out as an open-and-wide .sn-2up two-column grid
+				// (active settings | edge-worker reference); each column owns its own
+				// .sn-fieldset, so it opts out of the wrapper's default capped card.
+				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section', 'wide' => true ),
 				// 'wide': both Insights and Health lay out with the full-width
 				// two-column sn_admin_shell, so they opt out of the wrapper's
 				// default capped .sn-fieldset card (which was squeezing the shell).

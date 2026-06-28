@@ -14,6 +14,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $
 $GLOBALS['__widgets'] = array();
 function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( 'title' => $title, 'cb' => $cb ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
@@ -36,6 +37,16 @@ function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { r
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__pw']['refs']; }
 function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) { return $GLOBALS['__pw']['engaged']; }
 function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__pw']['classes']; }
+// v6.44.0 enrichment seams: the Filtered WoW delta + the 7-day views sparkline.
+// Guarded by function_exists in the widget, so the stubs gate whether they render.
+function sn_analytics_prior_window( $from, $to ) { return array( '2019-12-25', '2019-12-31' ); }
+function sn_analytics_delta( $cur, $prev ) {
+	if ( (float) $prev <= 0 ) { return array( 'pct' => null, 'dir' => $cur > 0 ? 'up' : 'flat' ); }
+	$pct = (int) round( ( $cur - $prev ) / $prev * 100 );
+	return array( 'pct' => $pct, 'dir' => $cur > $prev ? 'up' : ( $cur < $prev ? 'down' : 'flat' ) );
+}
+function sn_analytics_daily_series( $from, $to, $class = 'human', $g = 'day' ) { return $GLOBALS['__pw']['series'] ?? array(); }
+function snt_analytics_sparkline( $series ) { return '<span class="sn-an-spark"><svg viewBox="0 0 72 18"></svg></span>'; }
 
 require_once __DIR__ . '/../inc/analytics-sources.php'; // sn_aw_sources folds raw referrers → canonical sources
 require_once __DIR__ . '/../inc/analytics-widget.php';
@@ -54,12 +65,17 @@ $GLOBALS['__pw']['paths']    = array( array( 'path' => '/notes/x', 'views' => 41
 $GLOBALS['__pw']['refs']     = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
 $GLOBALS['__pw']['engaged']  = 74;
 $GLOBALS['__pw']['classes']  = array( 'human' => array( 'views' => 1163, 'visits' => 370 ), 'suspect' => array( 'views' => 18, 'visits' => 9 ), 'bot' => array( 'views' => 23, 'visits' => 10 ) );
+$GLOBALS['__pw']['series']   = array( array( 'day' => '2020-01-01', 'views' => 100 ), array( 'day' => '2020-01-02', 'views' => 140 ) );
 $snap = cap( 'sn_aw_snapshot' );
 ok( strpos( $snap, '1,204' ) !== false, 'snapshot: shows analytics views' );
 ok( strpos( $snap, '62%' ) !== false, 'snapshot: avg scroll rendered as percent' );
 ok( strpos( $snap, '1m 48s' ) !== false, 'snapshot: avg time converted ms→s (108000ms → 1m 48s)' );
 ok( strpos( $snap, '>74%</div><div class="sn-aw-stat-l">Engaged<' ) !== false, 'snapshot: Engaged tile pairs 74% with the Engaged label' );
-ok( strpos( $snap, '>41</div><div class="sn-aw-stat-l">Filtered<' ) !== false, 'snapshot: Filtered tile sums suspect(18)+bot(23)=41 noise pageviews' );
+// v6.44.0: Filtered now carries a WoW delta badge like the other five KPIs, so the
+// label is followed by the .sn-aw-delta span rather than closing immediately.
+ok( strpos( $snap, '>41</div><div class="sn-aw-stat-l">Filtered' ) !== false, 'snapshot: Filtered tile sums suspect(18)+bot(23)=41 noise pageviews' );
+ok( strpos( $snap, 'Filtered <span class="sn-aw-delta' ) !== false, 'snapshot: Filtered now carries a week-over-week delta badge (KPI parity)' );
+ok( strpos( $snap, 'sn-aw-trend' ) !== false && strpos( $snap, 'sn-an-spark' ) !== false, 'snapshot: renders a 7-day views sparkline under the KPI grid' );
 ok( strpos( cap( 'sn_aw_realtime' ), '<div class="sn-aw-big">7</div>' ) !== false, 'realtime: shows the visitor count in the big-number element (not CSS/footer 7s)' );
 ok( strpos( cap( 'sn_aw_pages' ), '/notes/x' ) !== false, 'pages: shows top path from new source' );
 $src_html = cap( 'sn_aw_sources' );
@@ -106,7 +122,7 @@ $GLOBALS['__pw']['engaged'] = 0;
 $GLOBALS['__pw']['classes'] = array( 'human' => array( 'views' => 500, 'visits' => 200 ) );
 $z = cap( 'sn_aw_snapshot' );
 ok( strpos( $z, '>0%</div><div class="sn-aw-stat-l">Engaged<' ) !== false, 'snapshot: genuine 0% engaged renders 0% (signal measured, not missing)' );
-ok( strpos( $z, '>0</div><div class="sn-aw-stat-l">Filtered<' ) !== false, 'snapshot: classified traffic with zero noise renders Filtered 0 (not em-dash)' );
+ok( strpos( $z, '>0</div><div class="sn-aw-stat-l">Filtered' ) !== false, 'snapshot: classified traffic with zero noise renders Filtered 0 (not em-dash)' );
 
 echo "\nGroup: no rollup data degrades to em-dash\n";
 $GLOBALS['__pw_config']     = true;

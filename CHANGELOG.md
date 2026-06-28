@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.44.0] - 2026-06-27 — Open-and-wide admin Phase 2: Monitoring + the home widgets
+
+**Headline:** Phase 2 of the open-and-wide redesign covers the **Monitoring** tab and the second "dashboard" surface — the wp-admin home widgets. **Analytics settings** stops being a single strangled column and lays out as a two-column grid (active settings — credentials + own-visit exclusion — beside the edge-worker reference). **Health** drops its two-column shell for a full-width layout that leads with a first-glance hero (findings, checks-passed, last-scan age), shows full-width finding tables for checks with issues, and collapses clean checks into a compact pass board. The three grandfathered home widgets are enriched in place (no new widget): **Login defense** surfaces its 7-day request denominator; **Analytics — Overview** gains the week-over-week delta its "Filtered" KPI was the lone one to lack, plus a 7-day views sparkline.
+
+> **Why MINOR:** new user-visible capabilities (the Health first-glance hero, the 7-day sparkline, the two-column Analytics layout) with no breaking change. Internally, the single-caller render helper `snt_analytics_render_settings()` was decomposed into `snt_analytics_render_credentials()` (an internal render helper, not a public API — no hook/REST/Ability/integration consumes it), the `analytics` leaf is marked `'wide'`, and Health stops calling the `sn_admin_shell` primitive. No public API removed or renamed, no settings-schema change, no WP-floor change. `SNT_VERSION` continues to derive from the docblock.
+
+### New
+
+- **Health first-glance hero** ([inc/health-checks-admin.php](inc/health-checks-admin.php)): a new `snt_health_glance_cards()` builds an at-a-glance stat grid (total findings + pill, checks-passed ratio, last-scan age) via the shared `sn_admin_glance_grid()`, sourced only from `sn_health_last_scan()` — mirroring the Dashboard's Health card. It leads the tab and absorbs what the old scan-status rail showed.
+- **7-day views sparkline on Analytics — Overview** ([inc/analytics-widget.php](inc/analytics-widget.php), [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css)): a trend line under the KPI strip, built from the existing `sn_analytics_daily_series()` accessor and the shared `snt_analytics_sparkline()` SVG primitive (the `.sn-an-spark` rules are ported into the widget stylesheet, which is the only one loaded on the Dashboard home screen).
+
+### Improvements
+
+- **Analytics settings is two-column** ([inc/analytics-admin.php](inc/analytics-admin.php), [inc/analytics-admin-render.php](inc/analytics-admin-render.php), [inc/admin-tabs-data.php](inc/admin-tabs-data.php)): the `analytics` leaf is marked `'wide'` and lays out as a `.sn-2up` grid — a left card for the active settings (credentials + "Exclude my own visits") and a right card for the edge-worker reference (live version, one-time Worker setup, Plausible CSV import). Each column owns its own `.sn-fieldset` (the wide-leaf card-ownership rule). The credentials form was factored into `snt_analytics_render_credentials()` so the two columns compose independently; every form keeps its own nonce + `sn_action` button, so saves/tests/exclusion/import are unchanged.
+- **Health is full-width** ([inc/health-checks-admin.php](inc/health-checks-admin.php)): the v6.42.0 two-column shell is gone (its 820px main cap fought full-width tables and its rail just duplicated the hero). Finding tables now span the full width under a "Findings" heading; clean checks collapse from one fieldset each into a compact "Passing checks" pass board. All data, the AI-suggest cells, the 50-row cap, and the opportunities section are preserved.
+- **Login defense surfaces the 7-day denominator** ([inc/login-defense-widget.php](inc/login-defense-widget.php)): a "{blocked} of {checked} requests blocked (7d)" line gives the block rate volume context, using the `checked` total the headline already returned but the widget ignored.
+- **"Filtered" KPI gains its week-over-week delta** ([inc/analytics-widget.php](inc/analytics-widget.php)): the noise KPI on Analytics — Overview was the only one of six without a WoW badge; it now computes the prior-window noise total via the same `sn_analytics_class_totals()` accessor (no new data layer) and renders the badge like its siblings.
+
+### Changed
+
+- **Internal: `snt_analytics_render_settings()` → `snt_analytics_render_credentials()`** ([inc/analytics-admin-render.php](inc/analytics-admin-render.php)): the former composite render helper (a single internal caller, no direct test, not part of any public contract) was split so the credentials form can live in its own settings-section column. The other parts (exclusion, worker readout, worker setup) are now composed directly by the settings section.
+
 ## [6.43.2] - 2026-06-27 — Fix: long key-file URL overflowed the IndexNow status rail
 
 **Headline:** The IndexNow key-file URL (and any other long unbreakable string, such as a Music sync error) ran past the right edge of the ~300px status rail card instead of wrapping inside it. The rail's table cells now wrap long content.

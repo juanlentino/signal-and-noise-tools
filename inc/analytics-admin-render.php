@@ -645,13 +645,16 @@ function snt_analytics_sparkline( $series ) {
 }
 
 /**
- * Settings form + Cloudflare Worker setup console. Doubles as the unconfigured
- * empty-state and lives inside a <details> once data is flowing. Read creds are
- * option-backed with wp-config-constant precedence (a locked field when the
- * constant is set). The Worker deploy itself is a manual CF step — documented,
- * not automated.
+ * The read-credentials form: Account ID + Account Analytics Read token, with
+ * wp-config-constant precedence (a locked field when the constant is set) and the
+ * Save / Test-connection actions. Extracted from the former composite
+ * snt_analytics_render_settings() in v6.44.0 so the open-and-wide settings section
+ * can place it in its own column (the active-settings card) independent of the
+ * edge-worker reference column.
+ *
+ * @since 6.44.0 (was inline in snt_analytics_render_settings since 3.x)
  */
-function snt_analytics_render_settings() {
+function snt_analytics_render_credentials() {
 	$token_locked = defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN;
 	$acct_locked  = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID;
 	$acct_opt     = (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
@@ -688,20 +691,6 @@ function snt_analytics_render_settings() {
 		echo '<button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>Test connection</button></p>';
 	}
 	echo '</form>';
-
-	// v6.23.0: the "Exclude my own visits" role allow-list is a primary analytics
-	// setting, so it sits with the credentials — above the edge-Worker readout and
-	// the one-time setup/import reference below.
-	snt_analytics_render_exclusion();
-
-	// The deployed edge-Worker version, read live from /_sn/version (guarded +
-	// SWR-cached). Sits above the manual setup steps — "what's live" before
-	// "how to deploy it".
-	if ( function_exists( 'sn_worker_version_render_card' ) ) {
-		sn_worker_version_render_card();
-	}
-
-	snt_analytics_render_worker_setup();
 }
 
 /**
