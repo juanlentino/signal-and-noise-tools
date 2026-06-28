@@ -19,9 +19,11 @@ function add_action( $h, $cb ) {}
 
 require __DIR__ . '/../inc/login-defense-widget.php';
 
-// Configured headline -> widget shows numbers + link.
+// Configured headline -> widget shows numbers + link. Global-driven so the
+// dormant state can be exercised too (v6.47.0).
+$GLOBALS['__ld_headline'] = array( 'configured' => true, 'checked' => 10, 'blocked' => 4, 'block_rate' => 40, 'top_network' => 'BadNet' );
 function sn_login_defense_headline() {
-	return array( 'configured' => true, 'checked' => 10, 'blocked' => 4, 'block_rate' => 40, 'top_network' => 'BadNet' );
+	return $GLOBALS['__ld_headline'];
 }
 ob_start();
 sn_login_defense_widget_render();
@@ -47,6 +49,16 @@ ok( strpos( $w, 'sn-lg-widget' ) === false, 'the unstyled .sn-lg-widget bare-<ul
 // total) so the block rate has volume context — 40% of 10 reads very differently
 // from 40% of 10,000.
 ok( strpos( $w, '4 of 10' ) !== false, 'foot surfaces the blocked-of-checked denominator (7d) using the returned checked total' );
+
+// v6.47.0 (audit #5/#12): the dormant state adopts the analytics widgets' styled
+// .sn-aw-err treatment (not a bare <p>) and points at the same edge-worker
+// prerequisite, so all three home widgets read as one design system when CF is off.
+$GLOBALS['__ld_headline'] = array( 'configured' => false );
+ob_start();
+sn_login_defense_widget_render();
+$empty = ob_get_clean();
+ok( strpos( $empty, 'sn-aw-err' ) !== false, 'dormant state uses the styled .sn-aw-err class (parity with the analytics widgets)' );
+ok( strpos( $empty, 'edge worker' ) !== false, 'dormant copy points at the shared edge-worker prerequisite' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

@@ -604,15 +604,32 @@ function snt_dashboard_run_glyph( $run, $base_class ) {
 	$status     = (string) ( $run['status'] ?? '' );
 	$conclusion = (string) ( $run['conclusion'] ?? '' );
 	if ( 'in_progress' === $status || 'queued' === $status ) {
-		return '<span class="' . esc_attr( $base_class . 'warn' ) . '" title="' . esc_attr__( 'Running', 'signal-noise-tools' ) . '">&middot;</span>';
+		return snt_dashboard_run_glyph_html( $base_class . 'warn', '&middot;', __( 'Running', 'signal-noise-tools' ) );
 	}
 	if ( 'success' === $conclusion ) {
-		return '<span class="' . esc_attr( $base_class . 'ok' ) . '" title="' . esc_attr__( 'Success', 'signal-noise-tools' ) . '">&#x2713;</span>';
+		return snt_dashboard_run_glyph_html( $base_class . 'ok', '&#x2713;', __( 'Success', 'signal-noise-tools' ) );
 	}
 	if ( 'cancelled' === $conclusion || 'skipped' === $conclusion ) {
-		return '<span class="' . esc_attr( $base_class . 'warn' ) . '" title="' . esc_attr( ucfirst( $conclusion ) ) . '">&#x2298;</span>';
+		return snt_dashboard_run_glyph_html( $base_class . 'warn', '&#x2298;', ucfirst( $conclusion ) );
 	}
-	return '<span class="' . esc_attr( $base_class . 'err' ) . '" title="' . esc_attr( $conclusion ?: 'unknown' ) . '">&#x2717;</span>';
+	return snt_dashboard_run_glyph_html( $base_class . 'err', '&#x2717;', $conclusion ? $conclusion : 'unknown' );
+}
+
+/**
+ * Build a deploy-status glyph span. v6.47.0: the glyph is aria-hidden and the
+ * status word is carried in a visually-hidden .screen-reader-text label (plus
+ * the title for sighted hover), so AT announces the status instead of a bare,
+ * inconsistently-read glyph. $glyph is a hardcoded entity (never user data).
+ *
+ * @param string $class HTML class.
+ * @param string $glyph HTML entity for the status glyph.
+ * @param string $label Status word.
+ * @return string
+ */
+function snt_dashboard_run_glyph_html( $class, $glyph, $label ) {
+	return '<span class="' . esc_attr( $class ) . '" title="' . esc_attr( $label ) . '">'
+		. '<span aria-hidden="true">' . $glyph . '</span>'
+		. '<span class="screen-reader-text">' . esc_html( $label ) . '</span></span>';
 }
 
 function snt_dashboard_short_repo( $repo ) {

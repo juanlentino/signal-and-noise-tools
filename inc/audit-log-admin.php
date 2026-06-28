@@ -65,49 +65,65 @@ function snt_audit_log_render_tab() {
 }
 
 /**
- * Render the 4-card hero grid.
+ * Build the 4 first-glance hero cards for sn_admin_glance_grid(). Pure — takes
+ * the summary, returns the card array. Mirrors snt_cron_glance_cards(). Rising
+ * 7-day attack volume reads as 'warn' (bad), falling/steady as 'ok'.
+ *
+ * @param array $summary snt_audit_get_summary_impl() result.
+ * @return array<int,array<string,mixed>>
  */
-function snt_audit_log_render_hero( $summary ) {
-	$delta_class = '';
-	$delta_sign  = '';
-	if ( $summary['last_7d_vs_prior']['pct_delta'] > 0 ) {
-		$delta_class = 'sn-trend-up';
-		$delta_sign  = '+';
-	} elseif ( $summary['last_7d_vs_prior']['pct_delta'] < 0 ) {
-		$delta_class = 'sn-trend-down';
+function snt_audit_log_glance_cards( $summary ) {
+	$pct   = (int) $summary['last_7d_vs_prior']['pct_delta'];
+	$cur   = (int) $summary['last_7d_vs_prior']['current'];
+	$prior = (int) $summary['last_7d_vs_prior']['prior'];
+	$locks = (int) $summary['lla']['active_lockouts'];
+
+	if ( $pct > 0 ) {
+		$trend_pill = array( 'kind' => 'warn', 'text' => 'rising' );
+	} elseif ( $pct < 0 ) {
+		$trend_pill = array( 'kind' => 'ok', 'text' => 'easing' );
+	} else {
+		$trend_pill = array( 'kind' => 'ok', 'text' => 'steady' );
 	}
 
-	echo '<div class="sn-audit-state-grid">';
+	return array(
+		array(
+			'label'     => 'Last 24h',
+			'value'     => number_format_i18n( (int) $summary['last_24h']['all_total'] ),
+			'meta_html' => esc_html( (int) $summary['last_24h']['failed_total'] . ' failed · ' . (int) $summary['last_24h']['recon_total'] . ' recon' ),
+		),
+		array(
+			'label'     => 'Last 7d trend',
+			'value'     => ( $pct > 0 ? '+' : '' ) . $pct . '%',
+			'meta_html' => esc_html( $cur . ' vs ' . $prior . ' prior' ),
+			'pill'      => $trend_pill,
+		),
+		array(
+			'label'     => 'Unique IPs (24h)',
+			'value'     => number_format_i18n( (int) $summary['unique_attackers_24h'] ),
+			'meta_html' => 'hashed, not stored',
+		),
+		array(
+			'label'     => 'LLA status',
+			'value'     => number_format_i18n( $locks ),
+			'meta_html' => 'active lockouts',
+			'pill'      => $locks > 0 ? array( 'kind' => 'warn', 'text' => 'locked' ) : array( 'kind' => 'ok', 'text' => 'clear' ),
+		),
+	);
+}
 
-	// Card 1: Last 24h.
-	echo '<div class="sn-audit-card">';
-	echo '<span class="sn-audit-card-label">Last 24h</span>';
-	echo '<span class="sn-audit-card-value">' . (int) $summary['last_24h']['all_total'] . '</span>';
-	echo '<span class="sn-audit-card-sub">' . (int) $summary['last_24h']['failed_total'] . ' failed · ' . (int) $summary['last_24h']['recon_total'] . ' recon</span>';
-	echo '</div>';
-
-	// Card 2: 7d vs prior 7d.
-	echo '<div class="sn-audit-card">';
-	echo '<span class="sn-audit-card-label">Last 7d trend</span>';
-	echo '<span class="sn-audit-card-value ' . esc_attr( $delta_class ) . '">' . esc_html( $delta_sign . $summary['last_7d_vs_prior']['pct_delta'] . '%' ) . '</span>';
-	echo '<span class="sn-audit-card-sub">' . (int) $summary['last_7d_vs_prior']['current'] . ' vs ' . (int) $summary['last_7d_vs_prior']['prior'] . '</span>';
-	echo '</div>';
-
-	// Card 3: Unique attackers 24h.
-	echo '<div class="sn-audit-card">';
-	echo '<span class="sn-audit-card-label">Unique IPs (24h)</span>';
-	echo '<span class="sn-audit-card-value">' . (int) $summary['unique_attackers_24h'] . '</span>';
-	echo '<span class="sn-audit-card-sub">hashed, not stored</span>';
-	echo '</div>';
-
-	// Card 4: LLA status.
-	echo '<div class="sn-audit-card">';
-	echo '<span class="sn-audit-card-label">LLA status</span>';
-	echo '<span class="sn-audit-card-value">' . (int) $summary['lla']['active_lockouts'] . '</span>';
-	echo '<span class="sn-audit-card-sub">active lockouts</span>';
-	echo '</div>';
-
-	echo '</div>';
+/**
+ * Render the 4-card first-glance hero via the shared token-driven glance grid
+ * (v6.47.0 — converged off the bespoke .sn-audit-card vocabulary onto
+ * sn_admin_glance_grid, matching Dashboard / Cron / Health / Tags).
+ */
+function snt_audit_log_render_hero( $summary ) {
+	if ( ! function_exists( 'sn_admin_glance_grid' ) ) {
+		return;
+	}
+	echo '<section aria-label="Audit log at a glance">';
+	sn_admin_glance_grid( snt_audit_log_glance_cards( $summary ) );
+	echo '</section>';
 }
 
 /**
@@ -196,6 +212,9 @@ function snt_audit_log_render_lla_card( $lla ) {
  * Render the "Prune now" form.
  */
 function snt_audit_log_render_prune_form() {
+	// v6.47.0: own a .sn-fieldset card so the block doesn't float bare now the
+	// leaf is 'wide' (bare .sn-section). Mirrors the retention form's chrome.
+	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -223,6 +242,7 @@ function snt_audit_log_render_prune_form() {
 	echo '<a class="button" href="' . esc_url( $export_json_url ) . '">Export JSON</a> ';
 	echo '<a class="button" href="' . esc_url( $export_csv_url ) . '">Export CSV</a>';
 	echo '</p>';
+	echo '</div>'; // .sn-fieldset
 }
 
 /**

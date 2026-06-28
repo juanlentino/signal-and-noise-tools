@@ -458,18 +458,35 @@ function sn_rss_tracker_render_flash( $flash ) {
 	}
 }
 
+/**
+ * First-glance activity cards for sn_admin_glance_grid(). Pure — takes the
+ * window stats, returns the card array (total → value, uniques → meta). v6.47.0:
+ * converged off the bespoke .sn-rss-activity-card vocabulary onto the shared
+ * token-driven glance grid, matching Cron / Health / Tags / Audit-log.
+ *
+ * @param array $stats sn_rss_tracker_window_stats_multi() result.
+ * @return array<int,array<string,mixed>>
+ */
+function snt_rss_glance_cards( $stats ) {
+	$cards = array();
+	foreach ( array( 1 => '24 hours', 7 => '7 days', 30 => '30 days' ) as $days => $label ) {
+		$w       = $stats['windows'][ $days ] ?? array( 'total' => 0, 'uniques' => 0 );
+		$cards[] = array(
+			'label'     => $label,
+			'value'     => number_format_i18n( $w['total'] ),
+			'meta_html' => esc_html( number_format_i18n( $w['uniques'] ) . ' unique' ),
+		);
+	}
+	return $cards;
+}
+
 function sn_rss_tracker_render_stats( $stats ) {
 	echo '<h2 class="sn-section-h">Activity</h2>';
-	echo '<div class="sn-rss-activity">';
-	foreach ( array( 1 => '24 hours', 7 => '7 days', 30 => '30 days' ) as $days => $label ) {
-		$w = $stats['windows'][ $days ] ?? array( 'total' => 0, 'uniques' => 0 );
-		echo '<div class="sn-rss-activity-card">';
-		echo '<p class="sn-rss-activity-card__label">' . esc_html( $label ) . '</p>';
-		echo '<p class="sn-rss-activity-card__value">' . esc_html( number_format_i18n( $w['total'] ) ) . '</p>';
-		echo '<p class="sn-rss-activity-card__sub">' . esc_html( number_format_i18n( $w['uniques'] ) ) . ' unique</p>';
-		echo '</div>';
+	if ( function_exists( 'sn_admin_glance_grid' ) ) {
+		echo '<section aria-label="RSS activity at a glance">';
+		sn_admin_glance_grid( snt_rss_glance_cards( $stats ) );
+		echo '</section>';
 	}
-	echo '</div>';
 
 	if ( ! empty( $stats['most_recent'] ) ) {
 		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC</p>';

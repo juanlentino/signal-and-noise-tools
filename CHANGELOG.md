@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.47.0] - 2026-06-28 — Admin polish: post-audit accessibility, consistency, and the Security tab goes wide
+
+**Headline:** A read-only audit of every admin surface after the open-and-wide rollout surfaced a polish tail (21 verified findings, mostly small). This ships them: the **Security → Audit log** finishes the full-width rollout (the one tab the redesign skipped); the **RSS** and **Audit-log** stat heroes converge onto the shared glance grid (no more one-off card styles); several real **accessibility** gaps close (a missing keyboard focus ring on the cross-page sub-tab nav, screen-reader announcements for the admin-bar toast and deploy-status glyphs, a sub-AA delta colour); plus a round of consistency + token cleanup. No behaviour changes beyond layout/markup.
+
+> **Why MINOR:** one new user-visible capability (the Audit-log tab now uses the full width — a glance hero over its 7-column timeline table) plus accessibility/consistency hardening; no breaking change (no public API removed or renamed, no settings-schema change, no form-handling change). New pure helpers `snt_audit_log_glance_cards()` / `snt_rss_glance_cards()` / `snt_dashboard_run_glyph_html()`; the `audit-log` leaf gains `'wide' => true`. `SNT_VERSION` derives from the docblock.
+
+### Accessibility
+
+- **Keyboard focus ring on the cross-page sub-tab nav** ([assets/admin.css](assets/admin.css)): the `.sn-sub-tab:focus` rule cleared WordPress's native ring with no replacement, leaving the primary in-page navigation (Content / Connections / Monitoring / Security) with no visible focus indicator. Added a `:focus-visible` outline (WCAG 2.4.7).
+- **Admin-bar toast announced to screen readers** ([inc/admin-bar.php](inc/admin-bar.php)): the quick-action toast — the sole feedback for every action — now carries `role="status"` (success) / `role="alert"` (error) so assistive tech announces it (WCAG 4.1.3).
+- **Deploy-status glyphs get screen-reader labels** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)): the Dashboard "Recent deploys" status glyphs were conveyed only via a `title` on a non-interactive span; they now pair an `aria-hidden` glyph with a visually-hidden `.screen-reader-text` label (`snt_dashboard_run_glyph_html()`).
+- **URL-preview focus ring** ([assets/admin.css](assets/admin.css)): the login-URL preview link relied on a near-invisible border shift for keyboard focus; added a `:focus-visible` ring (and raised the add-row ring to a self-passing value).
+- **AA-passing delta colour** ([assets/admin.css](assets/admin.css)): the glance delta "up" colour moved from `--sn-ok` (#00a32a, 3.35:1) to #0a7c2f (5.33:1) — the value the dashboard-widget and analytics-page deltas already use, so the identical up/down semantic renders identically everywhere.
+
+### Improvements
+
+- **Security → Audit log is full-width** ([inc/admin-tabs-data.php](inc/admin-tabs-data.php), [inc/audit-log-admin.php](inc/audit-log-admin.php)): the leaf is marked `'wide'` and its hero converges onto `sn_admin_glance_grid()` (the bespoke `.sn-audit-card` vocabulary is gone, [assets/audit-log.css](assets/audit-log.css)), so the 4-card glance + 7-column counter-timeline table use the full page width like Cron/Scheduled/Tags. The Maintenance block is carded so it doesn't float at full width. Login URL (a short form) and Login defense (a status box) stay readably capped — neither earns full width.
+- **RSS activity hero converges onto the glance grid** ([inc/rss-feed-tracker.php](inc/rss-feed-tracker.php), [assets/admin.css](assets/admin.css)): `snt_rss_glance_cards()` feeds `sn_admin_glance_grid()`; the one-off `.sn-rss-activity-card` styling is removed, so RSS reads like every other Content-tab hero.
+- **Health findings use the full width** ([inc/health-checks-admin.php](inc/health-checks-admin.php), [assets/admin.css](assets/admin.css)): the per-finding cards (wide 4-column tables) uncap via a scoped `.sn-health-findings` wrapper; the short "Run scan" form keeps its readable cap.
+- **Login-defense widget dormant state matches its siblings** ([inc/login-defense-widget.php](inc/login-defense-widget.php)): the "not configured" state now uses the styled `.sn-aw-err` treatment and points at the same edge-worker prerequisite as the two analytics widgets, so all three home widgets read as one design system when Cloudflare Analytics is disconnected.
+- **Prepop notice density** ([assets/admin.css](assets/admin.css)): the AI-prepop dormant notice in the post meta box is scoped to the field-stack density (core `.notice` chrome is tuned for full-page notices).
+
+### Cleanup
+
+- **Token discipline in the card blocks** ([assets/admin.css](assets/admin.css)): the deploy-list, API-summary, and link-card blocks reference the `--sn-*` palette tokens instead of hardcoded hexes (zero visual change — each hex equals its token).
+- **Stale comments** ([assets/admin.css](assets/admin.css)): removed references to a deleted file + a never-shipped "v1.9.0 pass", and to non-existent `.sn-2col--main/--side` modifiers.
+
+### Notes
+
+- This bundles the verified findings from the post-rollout admin-surface audit (a 5-lane read-only sweep, each finding independently re-verified). The `.sn-state-*` dead-CSS finding shipped separately as v6.46.1 (#104). One LOW finding is deferred: the admin-bar dropdown's decorative glyphs remain in the accessible name — the clean fix needs an `innerHTML` restore that conflicts with the file's deliberate no-`innerHTML` safety design (and the commit-time security hook), disproportionate for an owner-only surface. TDD: new [tests/admin-polish-v647.php](tests/admin-polish-v647.php) + extended [tests/login-defense-widget.php](tests/login-defense-widget.php). Full sweep 176 suites / 0 failed; phpcs falsified-clean.
+
 ## [6.46.1] - 2026-06-28 — Cleanup: remove the dead `.sn-state-card` / `.sn-state-grid` Dashboard-hero CSS
 
 **Headline:** The Dashboard's v1.13.0-era "Site state" hero (`.sn-state-grid` + `.sn-state-card*`) was migrated to the `.sn-glance` vocabulary in the v6.19.1 Phase 1 redesign, but its CSS lingered in [assets/admin.css](assets/admin.css) as dead rules nothing rendered. Those rules — and the comments that referenced the class — are now gone. Verified dead first: zero `.sn-state-grid` / `.sn-state-card` usages in `inc/` or `assets/*.js` (only CSS definitions plus prose comments), so this is a pure dead-code deletion with no visible change.
