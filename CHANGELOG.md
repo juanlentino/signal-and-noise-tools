@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.45.0] - 2026-06-28 — Open-and-wide admin Phase 3: the Connections tab + an asymmetric shell
+
+**Headline:** Phase 3 makes the **Connections** tab full-width, and corrects the two-column shell to WordPress's own **asymmetric** proportion. **Cloudflare** and **Webhooks** now lay out as primary-work-left / status-and-reference-right; **Cron** and **Scheduled** lead with a first-glance hero (event/orphan counts; scheduled totals) over a full-width data table. The shared `sn_admin_shell` shifts from forced-equal columns (v6.44.1) to ~62/38 (the WP normal/side ratio) — and, doing that correctly, the Insights **AI usage & spend** table (a wide 4-column table that wrapped its headers in a narrow rail) moves into the main column, where wide content belongs.
+
+> **Why MINOR:** new user-visible capabilities (full-width Connections + the Cron/Scheduled glance heroes) with no breaking change. New internal render helpers `snt_cron_glance_cards()` / `snt_schedule_glance_cards()`; the four Connections leaves gain `'wide' => true`; `.sn-shell` becomes asymmetric. No public API removed or renamed, no settings-schema change, no form-handling change (custom `$_POST` + nonces + `sn_action` + PRG untouched). `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **Cron glance hero** ([inc/cron-dashboard-admin.php](inc/cron-dashboard-admin.php)): `snt_cron_glance_cards()` builds an at-a-glance grid — scheduled-event count, Signal & Noise–owned count, and an orphan count (events with no handler, pilled warn) — over the now-full-width events table.
+- **Scheduled-content glance hero** ([inc/schedule-admin.php](inc/schedule-admin.php)): `snt_schedule_glance_cards()` shows total awaiting / fragment count / future-post count over the full-width table (skipped on the empty path).
+
+### Improvements
+
+- **Connections is full-width** ([inc/admin-tabs-data.php](inc/admin-tabs-data.php)): all five leaves are marked `'wide'`. **Cloudflare** ([inc/cloudflare-purge.php](inc/cloudflare-purge.php)) and **Webhooks** ([inc/webhooks-admin.php](inc/webhooks-admin.php)) lay out in the two-column `sn_admin_shell` — the work forms in the main column, the status box + (webhooks) the payload reference in the rail. **Cron** and **Scheduled** render their data tables at full width under the new glance heroes.
+- **The two-column shell is asymmetric** ([assets/admin.css](assets/admin.css), [inc/admin-shell.php](inc/admin-shell.php)): `.sn-shell` changes from equal auto-fit columns (v6.44.1) to `minmax(0, 1.7fr) minmax(0, 1fr)` (~62/38) — WordPress's own normal/side dashboard proportion (primary wider than secondary) — collapsing to one column below 1100px.
+- **Insights AI usage & spend moved to the main column** ([inc/insights-admin.php](inc/insights-admin.php)): the wide four-column spend table now sits in the main column (where wide content belongs at the asymmetric ratio) instead of the narrower rail, which kept the compact scan-status box + automation settings. This is the corollary of the asymmetric shell — wide tables don't belong in the narrow side.
+
 ## [6.44.1] - 2026-06-28 — Fix: the Monitoring shell tabs now use the full width (like Analytics)
 
 **Headline:** The **Insights**, **Music**, and **IndexNow** sub-tabs were still on the v6.42.0 two-column shell, which capped the work column at 820px and pinned a fixed 300px rail — so on a real monitor the whole layout sat left-aligned with a large empty zone on the right, and the rail was so narrow that the Insights **AI usage & spend** table wrapped its own headers ("Call s", "Toke ns"). The shell now uses full-width equal columns — the same treatment the redesigned Analytics tab already uses — so these tabs fill the page and the spend table has room to breathe.
