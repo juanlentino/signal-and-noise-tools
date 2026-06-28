@@ -110,7 +110,7 @@ $end   = false !== $start ? strpos( $css, '}', $start ) : false;
 $block = ( false !== $start && false !== $end ) ? substr( $css, $start, $end - $start ) : '';
 sh_assert( false !== strpos( $block, 'minmax(0,' ) && false !== strpos( $block, 'fr)' ), 'the .sn-shell grid is full-width and fluid (fr-based, no fixed cap)' );
 sh_assert( false === strpos( $block, '820px' ) && false === strpos( $block, '300px' ), 'the .sn-shell grid no longer caps the main at 820px / pins a 300px rail' );
-sh_assert( false !== strpos( $block, '1.7fr' ) || ( false === strpos( $block, 'auto-fit' ) ), 'the .sn-shell grid is asymmetric (main wider than side), not forced-equal auto-fit' );
+sh_assert( false !== strpos( $block, '1.7fr' ) && false !== strpos( $block, '1fr)' ), 'the .sn-shell grid is asymmetric — a wider 1.7fr main track beside a 1fr side (not forced-equal)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
