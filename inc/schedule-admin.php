@@ -53,13 +53,55 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @return void
  */
+/**
+ * First-glance hero cards for the Scheduled-content tab: total awaiting, the
+ * fragment (reveal/hide block) count, and the native future-post count. Pure —
+ * sourced from the already-fetched lists, no extra query.
+ *
+ * @param array $fragments sn_schedule_all() rows.
+ * @param array $posts     sn_schedule_future_posts() rows.
+ * @return array<int,array<string,mixed>> Cards for sn_admin_glance_grid().
+ *
+ * @since 6.45.0
+ */
+function snt_schedule_glance_cards( $fragments, $posts ) {
+	$frag = is_array( $fragments ) ? count( $fragments ) : 0;
+	$post = is_array( $posts ) ? count( $posts ) : 0;
+	return array(
+		array(
+			'label'     => 'Scheduled',
+			'value'     => (string) ( $frag + $post ),
+			'meta_html' => esc_html( 'awaiting transition' ),
+		),
+		array(
+			'label'     => 'Fragments',
+			'value'     => (string) $frag,
+			'meta_html' => esc_html( 'reveal / hide blocks' ),
+		),
+		array(
+			'label'     => 'Future posts',
+			'value'     => (string) $post,
+			'meta_html' => esc_html( 'auto-publish' ),
+		),
+	);
+}
+
 function sn_admin_render_scheduled_content_section() {
 	$fragments = function_exists( 'sn_schedule_all' ) ? sn_schedule_all() : array();
 	$posts     = function_exists( 'sn_schedule_future_posts' ) ? sn_schedule_future_posts() : array();
+	$total     = count( $fragments ) + count( $posts );
+
+	// Glance hero (v6.45.0): total / fragments / future posts — first-glance over
+	// the full-width table (the leaf is marked 'wide'). Only when there is content;
+	// the empty path keeps its friendly empty row below.
+	if ( $total > 0 && function_exists( 'sn_admin_glance_grid' ) ) {
+		echo '<section aria-label="Scheduled content at a glance">';
+		sn_admin_glance_grid( snt_schedule_glance_cards( $fragments, $posts ) );
+		echo '</section>';
+	}
 
 	echo '<p class="sn-field-helper">' . esc_html__( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-noise-tools' ) . '</p>';
 
-	$total = count( $fragments ) + count( $posts );
 	if ( 0 === $total ) {
 		echo '<table class="wp-list-table widefat striped"><tbody><tr><td>'
 			. esc_html__( 'No scheduled content. Add a signal-noise/scheduled block to a page, or schedule a post for the future, and it will appear here.', 'signal-noise-tools' )

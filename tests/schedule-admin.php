@@ -178,6 +178,7 @@ if ( ! function_exists( 'sn_admin_top_tabs' ) ) {
 }
 
 // ─── Load the unit under test ─────────────────────────────────────────────────
+require __DIR__ . '/../inc/admin-glance.php'; // v6.45.0: the scheduled tab leads with a glance hero
 require __DIR__ . '/../inc/schedule-admin.php';
 require __DIR__ . '/../inc/admin-post-handler.php';
 
@@ -212,6 +213,7 @@ ob_start();
 sn_admin_render_scheduled_content_section();
 $html = ob_get_clean();
 
+ok( false !== strpos( $html, '<div class="sn-glance">' ), 'v6.45.0: leads with a first-glance hero when there is content' );
 ok( false !== strpos( $html, 'wp-list-table' ), 'render emits a .wp-list-table' );
 ok( false !== strpos( $html, 'widefat' ) && false !== strpos( $html, 'striped' ), 'table is widefat striped (native wp-admin)' );
 // Fragment row: linked to its target_ref post id editor (42), labelled Fragment.
@@ -236,6 +238,7 @@ ob_start();
 sn_admin_render_scheduled_content_section();
 $empty = ob_get_clean();
 ok( false !== stripos( $empty, 'No scheduled content' ), 'empty state shows a friendly "No scheduled content" row' );
+ok( false === strpos( $empty, 'sn-glance' ), 'empty state shows no glance hero (nothing to glance)' );
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 2: output is ESCAPED. A <script> post title is esc_html'd, never raw.
