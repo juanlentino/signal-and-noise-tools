@@ -1,12 +1,13 @@
 <?php
 /**
- * Signal & Noise Tools — two-column admin shell (capped main + fixed rail).
+ * Signal & Noise Tools — two-column admin shell (full-width equal columns).
  *
- * A reusable layout primitive for admin sub-tabs that carry a passive,
- * read-only readout (status box, metrics, spend) which wastes the full
- * 820px content width when stacked. It moves that readout into a fixed
- * 300px sticky right rail beside the capped main column, reclaiming the
- * horizontal space the single-column stack left empty.
+ * A reusable layout primitive for admin sub-tabs that pair a work column
+ * (forms, primary actions) with a secondary readout column (status box,
+ * metrics, spend). Both columns share the FULL content width equally — the
+ * same auto-fit treatment as .sn-2up on the Analytics tab — and collapse to
+ * one column (DOM order, so the readout reads after the main) when the content
+ * area is narrow.
  *
  * Echo-style, deliberately. Every SN admin renderer echoes its markup
  * inline (escaped at each output sink), so the shell is emitted as three
@@ -16,11 +17,11 @@
  * EscapeOutput; the only dynamic value is the rail's aria-label, which is
  * esc_attr()'d.
  *
- * The asymmetry (a FIXED rail beside a fluid-CAPPED main) is intentional.
- * The earlier fluid two-column .sn-2col split was collapsed to a single
- * column in v3.8.5 because two fluid columns both stayed cramped at every
- * viewport. A fixed rail can never starve the main, and the main keeps the
- * exact 820px cap every other tab already uses.
+ * Full-width since v6.44.1. It was a capped 820px main + a fixed 300px sticky
+ * rail (v6.42.0), which left the layout left-aligned with dead space on a real
+ * monitor and squeezed the rail so its tables wrapped their headers. The grid
+ * lives in assets/admin.css (.sn-shell); the function names keep "rail" for the
+ * second column for backward compatibility, though it is now an equal column.
  *
  * Usage (the caller gates current_user_can BEFORE opening the shell):
  *
