@@ -700,19 +700,19 @@
 	min-width: 0; /* lets internal tables shrink instead of overflowing */
 }
 
-/* ─── Two-column shell: full-width equal columns (v6.44.1) ────────────────
-   The work column + its secondary readout column, using the FULL content width
-   — the same auto-fit equal-column treatment as .sn-2up on the Analytics tab.
-   Was a capped 820px main + a FIXED 300px rail (v6.42.0), which left the layout
-   left-aligned with ~800px of dead space on a real monitor and squeezed the
-   rail so its tables (the Insights AI-spend table) wrapped their headers. Now
-   both columns share the width equally and collapse to one (DOM order, so the
-   rail reads after the main) when the content area is narrow. Emitted by
-   sn_admin_shell_open/_rail/_close (admin-shell.php); "rail" is now an equal
-   column, not a pinned sidebar. */
+/* ─── Two-column shell: full-width, asymmetric (v6.45.0) ──────────────────────
+   The primary work column + a narrower secondary readout column, using the FULL
+   content width — WordPress's own normal/side dashboard proportion (main wider
+   than side), NOT a forced 50/50. History: a capped 820px main + a FIXED 300px
+   rail (v6.42.0) left the layout left-aligned with dead space; then equal
+   columns (v6.44.1). Asymmetric is the correct proportion — primary ~62%,
+   secondary ~38%. RULE: wide content (data tables) lives in the MAIN column,
+   never the narrower side (which holds compact readouts/status only). Collapses
+   to one column (DOM order, so the side reads after the main) when the content
+   area is narrow. Emitted by sn_admin_shell_open/_rail/_close (admin-shell.php). */
 .sn-shell {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+	grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
 	gap: 24px;
 	align-items: start;
 }
@@ -736,6 +736,14 @@
 .sn-shell__rail .widefat th,
 .sn-shell__rail .widefat td {
 	overflow-wrap: anywhere;
+}
+/* Below the comfortable two-column width, drop to one column — the side stacks
+   under the main (DOM order). Covers laptops, narrow viewports, and the Desktop
+   Mode portal where the sub-tab submenu is a horizontal top-nav and width is tight. */
+@media (max-width: 1100px) {
+	.sn-shell {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* ─── Insights recommendation-card grid (Phase 1 widen) ──────────────────────
