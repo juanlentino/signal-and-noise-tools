@@ -577,17 +577,24 @@ function snt_ai_extract_post_text( $post_id, $words = 1000 ) {
  * Registration only (NOT enqueue) — callers declare 'snt-status' in their
  * deps array and WP chains the load. Registering here in ai-bootstrap (which
  * is required early in the plugin bootstrap, before any AI feature file)
- * guarantees the handle exists at the time the 4 consumer scripts enqueue.
+ * guarantees the handle exists at the time the consumer scripts enqueue.
  *
- * Gated on snt_ai_is_available() because all 4 consumers are AI features —
- * no point registering a util whose only consumers won't load.
+ * MUST be unconditional. health-suggest-actions.js — one of the consumers that
+ * declares 'snt-status' as a dep — is enqueued UNCONDITIONALLY on the Health +
+ * Tools tabs (since v4.5.2), because it also drives the NON-AI pattern-adoption
+ * and block-migration Suggest buttons, which render with no AI gate. If
+ * 'snt-status' is missing, WP_Dependencies::all_deps() silently DROPS the whole
+ * dependent script (the handle is never queued → never printed → every Suggest
+ * button is dead with no console error). The pre-v6.47.x gate on
+ * snt_ai_is_available() therefore left those buttons inert on any no-AI /
+ * broken-provider / WP<7.0 install — the same dead-button class v4.5.1 fixed at
+ * the enqueue layer but not at the dependency layer. Registration != enqueue:
+ * a registered-but-unenqueued handle is never output, so registering it on
+ * every admin page is free.
  *
  * @since 4.1.6
  */
-add_action( 'admin_enqueue_scripts', function() {
-	if ( ! snt_ai_is_available() ) {
-		return;
-	}
+function snt_register_status_script() {
 	wp_register_script(
 		'snt-status',
 		plugins_url( 'assets/snt-status.js', SNT_PATH . 'signal-and-noise-tools.php' ),
@@ -595,4 +602,5 @@ add_action( 'admin_enqueue_scripts', function() {
 		SNT_VERSION,
 		true
 	);
-} );
+}
+add_action( 'admin_enqueue_scripts', 'snt_register_status_script' );

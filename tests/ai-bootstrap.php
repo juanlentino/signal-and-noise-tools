@@ -271,6 +271,34 @@ if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 	}
 }
 
+// ─── Script-registration stubs (Test 31: snt-status dep regression) ──
+// snt_register_status_script() calls wp_register_script()/plugins_url() with
+// the SNT_PATH + SNT_VERSION constants; stub them so the registration runs
+// outside WordPress. wp_register_script records into a global the test reads.
+if ( ! defined( 'SNT_PATH' ) ) {
+	define( 'SNT_PATH', '/tmp/snt/' );
+}
+if ( ! defined( 'SNT_VERSION' ) ) {
+	define( 'SNT_VERSION', 'test' );
+}
+if ( ! function_exists( 'plugins_url' ) ) {
+	function plugins_url( $path = '', $plugin = '' ) {
+		return 'https://example.test/' . ltrim( (string) $path, '/' );
+	}
+}
+$GLOBALS['__test_registered_scripts'] = array();
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( $handle, $src = '', $deps = array(), $ver = false, $in_footer = false ) {
+		$GLOBALS['__test_registered_scripts'][ $handle ] = array(
+			'src'       => $src,
+			'deps'      => $deps,
+			'ver'       => $ver,
+			'in_footer' => $in_footer,
+		);
+		return true;
+	}
+}
+
 require_once __DIR__ . '/../inc/ai-bootstrap.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -785,6 +813,41 @@ add_filter(
 );
 // 1000*$10/M + 1000*$10/M = 0.02
 hc_true( abs( snt_ai_estimate_cost( 'claude-sonnet-4-6', 1000, 1000 ) - 0.02 ) < 1e-9, 'filter override changes the applied rate' );
+
+// ─── Test 31: snt-status registers UNCONDITIONALLY (dead-Suggest-button regression) ──
+//
+// Root cause of the "Health Suggest buttons do nothing" report (2026-06-28):
+// assets/health-suggest-actions.js is enqueued UNCONDITIONALLY on the Health +
+// Tools tabs (it also serves the non-AI pattern-adoption + block-migration Suggest
+// buttons), and it hard-declares 'snt-status' in its deps array. WordPress'
+// WP_Dependencies::all_deps() silently DROPS a script whose declared dep is not
+// registered (the handle is never added to to_do → never printed) — killing every
+// Suggest button with no console error. The pre-fix registration was gated on
+// snt_ai_is_available(), so on any no-AI / broken-provider / WP<7.0 install the dep
+// vanished and the whole script never loaded. Registration MUST be unconditional:
+// registration != enqueue, so a registered-but-unenqueued handle is never output
+// and there is no cost to always registering it. This test fails if the AI gate is
+// ever reintroduced (AI is forced unavailable in the fixture below).
+echo "\nTest 31: snt-status registers unconditionally (regardless of AI availability)\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_returns_non_object'] = true; // force snt_ai_is_available() === false
+if ( function_exists( 'snt_ai_reset_availability_cache' ) ) {
+	snt_ai_reset_availability_cache();
+}
+hc_eq( false, snt_ai_is_available(), 'precondition: AI is unavailable in this fixture' );
+if ( ! function_exists( 'snt_register_status_script' ) ) {
+	hc_true( false, 'snt_register_status_script() must exist as a named, directly-callable function' );
+} else {
+	$GLOBALS['__test_registered_scripts'] = array();
+	snt_register_status_script();
+	hc_true(
+		isset( $GLOBALS['__test_registered_scripts']['snt-status'] ),
+		'snt-status is registered even though AI is unavailable (no AI gate on registration)'
+	);
+	$reg = $GLOBALS['__test_registered_scripts']['snt-status'] ?? array();
+	hc_eq( array(), $reg['deps'] ?? null, 'snt-status registered with an empty deps array' );
+	hc_true( ! empty( $reg['in_footer'] ), 'snt-status registered to load in the footer' );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

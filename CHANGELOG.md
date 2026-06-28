@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.47.1] - 2026-06-28: Fix the dead Health/Tools "Suggest" buttons when no AI provider is configured
+
+**Headline:** On any install where an AI text-generation provider is not configured (or is unreachable), every "Suggest" button under Monitoring (Health and Tools) was silently inert: clicking did nothing, with no error and nothing in the browser console. The shared Suggest+Apply script (`assets/health-suggest-actions.js`) declares the small `snt-status` helper as a hard dependency, but `snt-status` was registered only when AI was available. That script is enqueued unconditionally (it also drives the AI-independent pattern-adoption and block-migration Suggest buttons), so on a no-AI install WordPress saw a missing dependency and dropped the entire script before printing it. The fix registers `snt-status` unconditionally, restoring the load.
+
+> **Why PATCH:** a pure bug fix (a dead feature comes back to life). No public API removed or renamed, no settings-schema change, no behaviour change for installs that already had AI configured. The closure that registered `snt-status` is extracted to a named `snt_register_status_script()` so the no-gate contract is directly unit-testable (a new regression in [tests/ai-bootstrap.php](tests/ai-bootstrap.php) forces AI unavailable and asserts the handle still registers; the suite reports 91 passed, 0 failed). `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **Suggest buttons no longer require a configured AI provider to load** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): `snt-status` (the shared `window.sntSetStatus` helper) now registers on every admin page, not only when `snt_ai_is_available()` is true. `assets/health-suggest-actions.js` is enqueued unconditionally on the Health and Tools tabs because it also serves the AI-independent pattern-adoption and block-migration Suggest buttons. Declaring `snt-status` as a dependency therefore made WordPress' `WP_Dependencies::all_deps()` drop the whole script (never queued, never printed) whenever the dependency was missing, killing every Suggest button with no console error. Registration is not enqueue: a registered-but-unenqueued handle is never output, so always registering it is free. This completes the v4.5.1 "dead Suggest button" fix, which made the enqueue unconditional but left the dependency conditionally registered.
+
 ## [6.47.0] - 2026-06-28 — Admin polish: post-audit accessibility, consistency, and the Security tab goes wide
 
 **Headline:** A read-only audit of every admin surface after the open-and-wide rollout surfaced a polish tail (21 verified findings, mostly small). This ships them: the **Security → Audit log** finishes the full-width rollout (the one tab the redesign skipped); the **RSS** and **Audit-log** stat heroes converge onto the shared glance grid (no more one-off card styles); several real **accessibility** gaps close (a missing keyboard focus ring on the cross-page sub-tab nav, screen-reader announcements for the admin-bar toast and deploy-status glyphs, a sub-AA delta colour); plus a round of consistency + token cleanup. No behaviour changes beyond layout/markup.
