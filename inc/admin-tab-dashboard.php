@@ -28,7 +28,7 @@
  * Design principles (per memory: feedback_no_brutalist_in_admin_ui.md):
  *   - WP-admin native (.button, .notice, .widefat, .form-table where it fits)
  *   - .sn-* classes for composition patterns that don't have a WP-native
- *     equivalent (.sn-state-grid, .sn-deploy-list, .sn-api-summary)
+ *     equivalent (.sn-glance, .sn-deploy-list, .sn-api-summary)
  *   - NO inline styles — all promoted to assets/admin.css
  *   - NO brutalist treatment (uppercase labels OK in muted secondary text,
  *     but no Bebas-feel display type, no display mono)

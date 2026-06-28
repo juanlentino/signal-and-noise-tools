@@ -52,8 +52,8 @@ $two_col = ( false !== strpos( $tc_block, '1.7fr' ) ) || ( false !== strpos( $tc
 ct_assert( $two_col, '.sn-2col is a real two-column grid (not the old always-stacked 1fr)' );
 // And it must still collapse to one column on narrow viewports. Scope to the
 // SECOND .sn-2col rule (the one inside the media query) — a whole-file strpos
-// for 'grid-template-columns: 1fr' is tautological (it matches the .sn-shell /
-// .sn-state-grid collapses elsewhere in the file, so it would pass even if the
+// for 'grid-template-columns: 1fr' is tautological (it matches the .sn-shell
+// collapse elsewhere in the file, so it would pass even if the
 // .sn-2col collapse were deleted).
 $tc2       = strrpos( $css, '.sn-2col {' );
 $tc2_block = ( false !== $tc2 && $tc2 !== $tc ) ? substr( $css, $tc2, strpos( $css, '}', $tc2 ) - $tc2 ) : '';

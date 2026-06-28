@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.46.1] - 2026-06-28 — Cleanup: remove the dead `.sn-state-card` / `.sn-state-grid` Dashboard-hero CSS
+
+**Headline:** The Dashboard's v1.13.0-era "Site state" hero (`.sn-state-grid` + `.sn-state-card*`) was migrated to the `.sn-glance` vocabulary in the v6.19.1 Phase 1 redesign, but its CSS lingered in [assets/admin.css](assets/admin.css) as dead rules nothing rendered. Those rules — and the comments that referenced the class — are now gone. Verified dead first: zero `.sn-state-grid` / `.sn-state-card` usages in `inc/` or `assets/*.js` (only CSS definitions plus prose comments), so this is a pure dead-code deletion with no visible change.
+
+> **Why PATCH:** dead-code / consistency cleanup only — removed CSS that nothing rendered, plus three comment corrections. No public API, settings-schema, or behaviour change; `SNT_VERSION` derives from the docblock.
+
+### Cleanup
+
+- **Dead Dashboard-hero CSS removed** ([assets/admin.css](assets/admin.css)): deleted `.sn-state-grid` (and its two `@media` collapse blocks), `.sn-state-card`, and `.sn-state-card__{label,value,meta}` — the legacy 4-card "Site state" hero, superseded by `.sn-glance` / `.sn-glance-card` in the v6.19.1 Phase 1 redesign. The surviving `.sn-glance` block's comment no longer claims to "reuse the `.sn-state-card` vocabulary" (those rules are now self-contained). This resolves the `.sn-state-card` half of the long-deferred audit finding **U-12** (`.sn-audit-card` ↔ `.sn-state-card` duplication): with `.sn-state-card` removed, there is nothing left to deduplicate. (`.sn-audit-state-grid` — the audit-log table, a different class — is untouched.)
+- **Stale class references fixed** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php), [tests/content-tab-layout.php](tests/content-tab-layout.php)): the Dashboard docblock's example-class list now cites `.sn-glance` (not the removed `.sn-state-grid`), and the content-tab-layout test comment drops its `.sn-state-grid` example (the surviving `.sn-shell` collapse makes the same point). The historical `@since` migration note in [tests/dashboard-layout.php](tests/dashboard-layout.php) is intentionally left as-is — it documents the migration.
+
 ## [6.46.0] - 2026-06-28 — Open-and-wide Phase 4b: the Content tab (the last chunk)
 
 **Headline:** The final open-and-wide chunk makes every **Content** sub-tab use the full content width — completing the redesign across all six top tabs. **Front-End** lays its eight render knobs out as a responsive field grid (like Identity); **Reading Time** and **Performance** move into the two-column shell (the cleanup tool / the speculation toggle in the main column, a "how it works" / status readout in the rail); **RSS** finally gets its activity hero + two columns (Recent requests beside Settings) at full width; **Tags** leads with a first-glance hero (total / duplicate clusters / unused) over its full-width postbox tables. Each leaf earns its width with real two-column or wide-table content — a lone toggle gets a paired readout, never a bare stretch.
