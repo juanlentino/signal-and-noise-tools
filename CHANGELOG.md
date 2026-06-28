@@ -2,7 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.48.2] - 2026-06-28: Stop the Health scan over-flagging orphans, and guard the vision encode against oversized images
+## [6.48.3] - 2026-06-28: Stop the External-link-rot scan from flagging Cloudflare-challenged citations as dead
+
+**Headline:** The Health tab's "External link rot" check was reporting live academic sources (SSRN papers, behind Cloudflare) as rotted. Cloudflare answers an automated HEAD/GET probe with an `HTTP 403` bot-challenge interstitial, and the scanner classified anything outside `200–399` as rot. It now reads the response headers: a `403/503` carrying Cloudflare's `cf-mitigated: challenge` is a live page gating bots, not a dead link, so it is skipped (like a private/link-local URL) instead of flagged.
+
+> **Why PATCH:** a classifier bug fix, no public API removed or renamed, no settings-schema change. Detection is extracted to a testable `sn_health_is_bot_challenge()` that keys on Cloudflare's purpose-built `cf-mitigated` header (so an origin 4xx merely passed *through* Cloudflare still rots correctly, and a genuine `404`/`410` is never silenced). A bot-challenge result is cached like any probe (one network call per TTL) and now correctly counts against the per-run probe budget. Regression tests added to `tests/health-external-links.php` (incl. the exact reported scenario and a `plain-403-still-rots` guard); full sweep 179 suites green; `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **External-link-rot scan no longer flags Cloudflare-challenged sources as dead** ([inc/health-external-links.php](inc/health-external-links.php)): the probe classified `ok` purely on the status code (`200–399`), so a Cloudflare bot challenge (`HTTP 403` + `cf-mitigated: challenge`, served to any non-browser client by gated hosts like SSRN) landed in the "rotted" bucket — a false positive, since a human in a browser solves the challenge and reaches the page. `sn_health_external_link_status()` now inspects the response headers via a new `sn_health_is_bot_challenge()` classifier and treats a challenge interstitial as unverifiable (skipped, not flagged), the same path already used for private/link-local URLs. Detection keys on Cloudflare's `cf-mitigated` header and is constrained to the challenge-bearing codes (`403`/`503`), so a real `404`/`410`, or an origin `403` passed straight through Cloudflare without that header, still surfaces as rot. The fix-hint copy now states that bot-challenged URLs are skipped.
 
 **Headline:** Two Health-tab fixes. The orphaned-media check was flagging real, in-use images as orphans because it only searched published post bodies for the image's original filename, while Gutenberg references images by their ID class and sized URL (and the logo/site icon live in options). And the new vision alt-text could hit an out-of-memory fatal (the "critical error" page) on a single oversized image when base64-encoding it for the model.
 

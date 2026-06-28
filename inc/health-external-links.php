@@ -5,7 +5,11 @@
  * A 7th check for the Content Health scan (inc/health-checks.php). The internal
  * broken-links check (sn_health_check_broken_links) deliberately DROPS off-host
  * links — so cited external sources rot unwatched. This check extracts the
- * off-host links and HEAD-probes them, flagging 4xx/5xx/network failures.
+ * off-host links and HEAD-probes them, flagging 4xx/5xx/network failures. A
+ * bot-challenge interstitial (a 403/503 carrying `cf-mitigated: challenge`, e.g.
+ * Cloudflare-gated academic hosts like SSRN) is treated as unverifiable rather
+ * than rot — the page is live, the edge is gating automated clients. See
+ * sn_health_is_bot_challenge().
  *
  * SSRF HARDENING. Unlike the internal probe (which trusts same-host links and
  * skips validation), every off-host URL is validated BEFORE the request:
@@ -83,10 +87,49 @@ function sn_health_extract_external_links( $content, $site_host ) {
 }
 
 /**
+ * Is a probe response a bot-challenge interstitial rather than link rot?
+ *
+ * A live page gated behind a challenge (Cloudflare Managed Challenge / Turnstile)
+ * answers an automated HEAD/GET with a 4xx/5xx + a JS interstitial — the resource
+ * is NOT gone, the edge is gating non-browser clients. Flagging it as "rot" is a
+ * false positive: a human in a browser solves the challenge and reaches the page.
+ *
+ * Detection keys on Cloudflare's purpose-built `cf-mitigated` header, which CF
+ * emits ONLY on responses it generated itself, with the value `challenge` for an
+ * interstitial. That disambiguates a CF-issued challenge from an origin 4xx merely
+ * passed THROUGH Cloudflare — so this never masks a genuinely forbidden or removed
+ * origin resource (those carry no cf-mitigated header). The status is constrained
+ * to the challenge-bearing codes (403 managed/Turnstile, 503 legacy IUAM) so a real
+ * 404/410 stays "rot" even if a stray header ever appeared.
+ *
+ * @param int   $code    HTTP status code from the probe.
+ * @param mixed $headers Response header bag (array or WP CaseInsensitiveDictionary).
+ * @return bool True when the response is a bot challenge (treat as unverifiable).
+ */
+function sn_health_is_bot_challenge( $code, $headers ) {
+	if ( 403 !== (int) $code && 503 !== (int) $code ) {
+		return false;
+	}
+	$mitigated = '';
+	if ( is_array( $headers ) ) {
+		foreach ( $headers as $name => $value ) {
+			if ( 'cf-mitigated' === strtolower( (string) $name ) ) {
+				$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
+				break;
+			}
+		}
+	} elseif ( $headers instanceof ArrayAccess && isset( $headers['cf-mitigated'] ) ) {
+		$value     = $headers['cf-mitigated']; // WP's CaseInsensitiveDictionary resolves the key case-insensitively.
+		$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
+	}
+	return false !== strpos( strtolower( trim( $mitigated ) ), 'challenge' );
+}
+
+/**
  * SSRF-guarded, cached HEAD probe of an EXTERNAL URL.
  *
  * @param string $url
- * @return array{ok:bool,code:int,skipped?:bool,cached?:bool}
+ * @return array{ok:bool,code:int,skipped?:bool,reason?:string,cached?:bool,probed?:bool}
  */
 function sn_health_external_link_status( $url ) {
 	// Full SSRF guard (see file docblock). URLs that fail it are unverifiable,
@@ -119,17 +162,37 @@ function sn_health_external_link_status( $url ) {
 	if ( is_wp_error( $resp ) ) {
 		$result = array( 'ok' => false, 'code' => 0 );
 	} else {
-		$code = (int) wp_remote_retrieve_response_code( $resp );
+		$final = $resp;
+		$code  = (int) wp_remote_retrieve_response_code( $resp );
 		// Some hosts reject HEAD (405/501) — retry with GET, still no redirects.
 		if ( 405 === $code || 501 === $code ) {
 			$resp2 = wp_safe_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 0, 'sslverify' => true ) );
-			$code  = is_wp_error( $resp2 ) ? 0 : (int) wp_remote_retrieve_response_code( $resp2 );
+			if ( is_wp_error( $resp2 ) ) {
+				$final = null;
+				$code  = 0;
+			} else {
+				$final = $resp2;
+				$code  = (int) wp_remote_retrieve_response_code( $resp2 );
+			}
 		}
-		$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+		$headers = $final ? wp_remote_retrieve_headers( $final ) : array();
+		if ( sn_health_is_bot_challenge( $code, $headers ) ) {
+			// A live page behind a Cloudflare (or equivalent) bot challenge: the
+			// resource exists, the edge is gating automated clients. Treat as
+			// unverifiable (like an SSRF skip) rather than rotted — flagging it
+			// would be a false positive, since a human in a browser reaches it.
+			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
+		} else {
+			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+		}
 	}
 
+	// Cache the probe outcome (incl. a bot-challenge skip, so it costs one probe
+	// per TTL, not one per scan). 'probed'/'cached' are per-call and set AFTER the
+	// write so they never persist — a later cache hit must not look like a probe.
 	set_transient( $cache_key, $result, SN_HEALTH_LINK_CACHE_TTL );
 	$result['cached'] = false;
+	$result['probed'] = true; // this call performed a live network request
 	return $result;
 }
 
@@ -143,7 +206,7 @@ function sn_health_check_external_links() {
 	global $wpdb;
 
 	$label     = 'External link rot';
-	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local) URLs are skipped.';
+	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local) or bot-challenged (e.g. Cloudflare-gated) URLs are skipped, not flagged — a 403 challenge means the page is live but gating automated probes, not rotted.';
 	$findings  = array();
 	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $site_host ) {
@@ -186,8 +249,8 @@ function sn_health_check_external_links() {
 			continue;
 		}
 		$status = sn_health_external_link_status( $url );
-		if ( empty( $status['cached'] ) && empty( $status['skipped'] ) ) {
-			$network_probes++;
+		if ( ! empty( $status['probed'] ) ) {
+			$network_probes++; // a live HEAD/GET ran (incl. a bot-challenge discovery)
 		}
 		if ( ! empty( $status['skipped'] ) || $status['ok'] ) {
 			continue;
