@@ -139,9 +139,9 @@ function sn_admin_top_tabs() {
 				// (active settings | edge-worker reference); each column owns its own
 				// .sn-fieldset, so it opts out of the wrapper's default capped card.
 				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section', 'wide' => true ),
-				// 'wide': both Insights and Health lay out with the full-width
-				// two-column sn_admin_shell, so they opt out of the wrapper's
-				// default capped .sn-fieldset card (which was squeezing the shell).
+				// 'wide': Insights uses the full-width two-column sn_admin_shell;
+				// Health uses a full-width glance hero + findings cards (it dropped the
+				// shell in v6.44.0). Both opt out of the wrapper's default capped card.
 				'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section', 'wide' => true ),
 				'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section', 'wide' => true ),
 			),
@@ -157,7 +157,13 @@ function sn_admin_top_tabs() {
 				'login-defense' => array( 'label' => 'Login defense', 'render' => 'sn_login_defense_render' ),
 				// v3.8.3: audit-log sub-tab. Adding the 2nd sub-tab automatically
 				// reveals the sub-tab nav row (sn_admin_render_sub_tabs() hides at count<2).
-				'audit-log' => array( 'label' => 'Audit log', 'render' => 'snt_audit_log_render_tab' ),
+				// 'wide' (v6.47.0): the audit log leads with a 4-card glance hero over a
+				// 7-column counter-timeline table — it earns full width via the wide table
+				// (like Cron/Scheduled/Tags). It self-chromes (.postbox panels + glance
+				// grid), so it opts out of the wrapper's default capped card. Login URL (a
+				// short form) and Login defense (a status box) stay capped — neither earns
+				// full width.
+				'audit-log' => array( 'label' => 'Audit log', 'render' => 'snt_audit_log_render_tab', 'wide' => true ),
 			),
 		),
 		array(

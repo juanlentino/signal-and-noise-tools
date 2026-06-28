@@ -39,7 +39,11 @@ function sn_login_defense_widget_register() {
 function sn_login_defense_widget_render() {
 	$h = function_exists( 'sn_login_defense_headline' ) ? sn_login_defense_headline() : array( 'configured' => false );
 	if ( empty( $h['configured'] ) ) {
-		echo '<p>' . esc_html__( 'Connect Cloudflare Analytics to see login defense stats.', 'signal-and-noise-tools' ) . '</p>';
+		// v6.47.0: match the two sibling analytics widgets' dormant treatment —
+		// the styled .sn-aw-err class (not a bare <p>) and the same prerequisite
+		// (the edge worker), so all three boxes read as one design system + tell
+		// one story when Cloudflare Analytics is disconnected.
+		echo '<p class="sn-aw-err">' . esc_html__( 'Login defense stats need the Cloudflare analytics edge worker connected — see the Analytics widgets above for setup.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 	echo '<div class="sn-aw-grid">';

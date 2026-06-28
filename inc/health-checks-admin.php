@@ -158,6 +158,10 @@ function sn_health_render_admin_tab() {
 	// ── Findings: one full-width card + table per check with issues. ──
 	if ( ! empty( $with_findings ) ) {
 		echo '<h2 class="sn-section-h">Findings</h2>';
+		// v6.47.0: scope a full-width uncap to the findings cards only (NOT the
+		// short scan form above), so the wide 4-column finding tables use the page
+		// width instead of staying 820px-capped with dead space beside them.
+		echo '<div class="sn-health-findings">';
 		foreach ( $with_findings as $key => $check ) {
 			echo '<div class="sn-fieldset">';
 
@@ -217,6 +221,7 @@ function sn_health_render_admin_tab() {
 
 			echo '</div>'; // .sn-fieldset
 		}
+		echo '</div>'; // .sn-health-findings
 	}
 
 	// ── Passing checks: compact ✓ pass board (reuses the glance-grid vocabulary). ──

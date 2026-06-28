@@ -6,9 +6,10 @@
  * spacing, and status colors. Component classes replace the inline
  * style strings that used to live in inc/admin-page.php.
  *
- * Other tab modules (cloudflare-purge.php, plausible-admin.php,
- * reading-time.php) still use inline styles — those win on specificity
- * for now. The v1.9.0 component pass will refactor them too.
+ * Most inline-style strings have been promoted to .sn-* component classes
+ * across the v4.4.3 + v9.x consolidation rounds (see the blocks lower in this
+ * file). A few legacy tab modules (e.g. cloudflare-purge.php, reading-time.php)
+ * still carry a handful of inline styles that win on specificity.
  *
  * Added in v1.8.1 (2026-05-16).
  */
@@ -408,6 +409,15 @@
 	grid-column: 1 / -1;
 }
 
+/* ─── Health findings: full-width cards (v6.47.0) ────────────────────────────
+   The Health leaf is 'wide' (bare .sn-section). Its per-finding cards hold wide
+   4-column tables that were staying 820px-capped (.sn-fieldset) with dead space
+   beside them. Uncap ONLY the findings cards (wrapped in .sn-health-findings) —
+   the short "Run scan" form above keeps its readable cap. */
+.sn-health-findings .sn-fieldset {
+	max-width: none;
+}
+
 /* ─── sameAs URL list ────────────────────────────────────────── */
 
 .sn-sameas {
@@ -480,6 +490,13 @@
 	border-color: var(--sn-border);
 	color: var(--sn-link);
 	outline: none;
+}
+
+/* Keyboard focus needs a real ring (the border shift alone is ~1.6:1 — below the
+   3:1 non-text minimum). Matches .sn-section-tabs / .sn-add-row-btn. */
+.sn-url-preview:focus-visible {
+	outline: 2px solid var(--sn-link);
+	outline-offset: 1px;
 }
 
 /* ─── Callout (constants / emergency unlock docs) ───────────── */
@@ -600,9 +617,11 @@
 }
 
 .sn-add-row-btn:focus-visible {
-	/* 0.65 opacity gives ≈3:1 contrast against white — WCAG 2.1 1.4.11
-	   non-text contrast minimum for UI components. */
-	box-shadow: 0 0 0 2px rgba(34,113,177,0.65);
+	/* Solid --sn-link ring (#2271b1 = 5.17:1 on white) clears the WCAG 2.1
+	   1.4.11 3:1 non-text minimum on its own (the prior 0.65-alpha tint was
+	   only 2.70:1 composited; the solid border saved it, but make the ring
+	   itself pass). */
+	box-shadow: 0 0 0 2px var(--sn-link);
 }
 
 .sn-add-row-btn::before {
@@ -700,6 +719,15 @@
 	line-height: 1.4;
 }
 
+/* v6.47.0: the AI-prepop dormant notice reuses core .notice chrome (defensible,
+   WP-native) but core's heavy 4px left border + full-page margins read too dense
+   above the flat .sn-field stack in this ~280px side meta box. Soften it to the
+   field-stack density. */
+#sn_post_settings .sn-prepop-notice {
+	margin: 0 0 var(--sn-space-3);
+	border-left-width: 1px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    v1.14.0 — Admin UI unified pattern
    ═══════════════════════════════════════════════════════════════════════
@@ -715,9 +743,8 @@
    invented heading levels. */
 
 /* ─── Generic 2-column layout (formerly .sn-rss-grid) ────────────────────
-   Used by: RSS tab (Recent + Settings), potentially others.
-   Content-driven width via .sn-2col--main / .sn-2col--side modifiers
-   on the children (instead of arithmetic ratios). */
+   Used by: RSS tab (Recent + Settings). The children (.sn-2col__col) are sized
+   by the grid track ratios below, not by per-child modifier classes. */
 /* History: v3.8.5 forced this to always-stack (single column) because the 2-col
    layout was cramped at the old 820px-capped width — the right column hit its
    minimum and the left was too tight for the table. Phase 4b (v6.46.0) marks the
@@ -877,22 +904,22 @@
 .sn-deploy-row__status--err  { color: var(--sn-err, #8b1a1a); }
 .sn-deploy-row__status--warn { color: var(--sn-warn, #6e4d00); }
 .sn-deploy-row__repo {
-	color: #646970;
+	color: var(--sn-text-muted, #646970);
 	font-size: 12px;
 }
 .sn-deploy-row__ref {
-	color: #1d2327;
+	color: var(--sn-text, #1d2327);
 }
 .sn-deploy-row__duration,
 .sn-deploy-row__when {
-	color: #646970;
+	color: var(--sn-text-muted, #646970);
 	font-size: 12px;
 	text-align: right;
 }
 .sn-deploy-row__link {
 	text-align: right;
 	text-decoration: none;
-	color: #2271b1;
+	color: var(--sn-link, #2271b1);
 }
 @media (max-width: 782px) {
 	.sn-deploy-row {
@@ -905,14 +932,17 @@
 }
 
 /* ─── Glance-card delta badge (Phase 1) ──────────────────────────────────
-   The week-over-week badge on the Views glance card. Mirrors the analytics
-   widget's .sn-aw-delta direction colours at glance-card density. */
+   The week-over-week badge on the Views glance card. Uses the SAME up/down
+   direction colours as the dashboard-widget badge (.sn-aw-delta) and the
+   analytics-page badge — #0a7c2f / #b32d2e — so the identical up/down semantic
+   renders identically wherever it appears. These also clear WCAG AA for text
+   at this size (5.33:1 / ~5.9:1), where the old --sn-ok #00a32a was only 3.35:1. */
 .sn-glance-delta {
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
 }
-.sn-glance-delta--up   { color: var(--sn-ok); }
-.sn-glance-delta--down { color: var(--sn-err); }
+.sn-glance-delta--up   { color: #0a7c2f; }
+.sn-glance-delta--down { color: #b32d2e; }
 .sn-glance-delta--flat { color: var(--sn-text-muted); }
 
 /* ─── Dashboard attention strip (Phase 1) ────────────────────────────────
@@ -965,7 +995,7 @@
 	border: 1px solid #e0e0e0;
 	border-radius: 4px;
 	font-size: 13px;
-	color: #1d2327;
+	color: var(--sn-text, #1d2327);
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px 14px;
@@ -982,7 +1012,7 @@
 	color: var(--sn-warn, #6e4d00);
 }
 .sn-api-summary__sep {
-	color: #c3c4c7;
+	color: var(--sn-border, #c3c4c7);
 }
 
 /* ─── Override details (Dashboard diagnostics) ───────────────────────────
@@ -1013,8 +1043,8 @@
 }
 .sn-link-card {
 	position: relative;
-	background: #fff;
-	border: 1px solid #c3c4c7;
+	background: var(--sn-surface, #fff);
+	border: 1px solid var(--sn-border, #c3c4c7);
 	border-radius: 4px;
 	padding: 14px 16px;
 	transition: border-color 0.12s ease, box-shadow 0.12s ease;
@@ -1025,7 +1055,7 @@
 }
 .sn-link-card__label {
 	display: block;
-	color: #646970;
+	color: var(--sn-text-muted, #646970);
 	font-size: 0.72rem;
 	font-weight: 600;
 	letter-spacing: 0.04em;
@@ -1034,13 +1064,13 @@
 }
 .sn-link-card__title {
 	display: block;
-	color: #1d2327;
+	color: var(--sn-text, #1d2327);
 	font-size: 0.95rem;
 	font-weight: 500;
 	margin-bottom: 2px;
 }
 .sn-link-card__host {
-	color: #2271b1;
+	color: var(--sn-link, #2271b1);
 	font-size: 0.82rem;
 }
 .sn-link-card__link {
@@ -1052,43 +1082,10 @@
 }
 
 /* ─── RSS tab tweaks ─────────────────────────────────────────────────────
-   Activity row is full-width above; recent + settings below in .sn-2col.
-   Settings form loses .form-table chrome in favor of stacked .sn-field. */
-.sn-rss-activity {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	margin: 0 0 1em;
-}
-.sn-rss-activity-card {
-	flex: 1 1 160px;
-	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	padding: 14px 18px;
-	min-width: 160px;
-}
-.sn-rss-activity-card__label {
-	margin: 0;
-	color: #646970;
-	font-size: 0.72rem;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-}
-.sn-rss-activity-card__value {
-	font-size: 1.8rem;
-	font-weight: 500;
-	margin: 4px 0 2px;
-	line-height: 1;
-	color: #1d2327;
-	font-variant-numeric: tabular-nums;
-}
-.sn-rss-activity-card__sub {
-	margin: 0;
-	color: #646970;
-	font-size: 0.82rem;
-}
+   Activity hero renders via sn_admin_glance_grid() (.sn-glance) since v6.47.0;
+   recent + settings below in .sn-2col. Settings form loses .form-table chrome
+   in favor of stacked .sn-field. (The bespoke .sn-rss-activity card vocabulary
+   was removed in v6.47.0 — converged onto the shared glance grid.) */
 .sn-rss-recent {
 	margin: 0;
 }
@@ -1176,6 +1173,15 @@
 	background: rgba( 255, 255, 255, 0.7 );
 	text-decoration: none;
 	box-shadow: none;
+}
+
+/* The :focus rule above clears WP's native box-shadow ring, so keyboard users
+   on the cross-page sub-tab nav (Content / Connections / Monitoring / Security)
+   had NO visible focus indicator (WCAG 2.4.7). Restore one — mirrors the
+   in-form section-tabs rule. --sn-link #2271b1 = 5.17:1 on white. */
+.sn-sub-tab:focus-visible {
+	outline: 2px solid var(--sn-link);
+	outline-offset: 1px;
 }
 
 .sn-sub-tab.is-active {

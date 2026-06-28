@@ -425,6 +425,9 @@ function sn_admin_bar_print_script() {
 			const el = document.createElement('div');
 			// textContent — never innerHTML — so a future bug in the
 			// server response can't lead to XSS.
+			// v6.47.0: announce the toast to assistive tech (sole feedback for
+			// each action). success -> polite 'status', error -> 'alert'. WCAG 4.1.3.
+			el.setAttribute('role', success ? 'status' : 'alert');
 			el.textContent = message;
 			el.style.cssText = [
 				'position:fixed',
