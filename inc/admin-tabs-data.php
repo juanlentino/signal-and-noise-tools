@@ -74,19 +74,30 @@ function sn_admin_top_tabs() {
 			'label'    => 'Content',
 			'title'    => 'Signal & Noise — Content',
 			'subtitle' => 'Front-end rendering, reading time, performance, music discography, and RSS subscribers.',
+			// 'wide' (Phase 4b, v6.46.0): the LAST open-wide chunk — every Content
+			// leaf now uses the full content width, each earning it with real
+			// two-column or wide-table content (never a bare-stretched lone form):
+			//   front-end  → a .sn-front-end-form auto-fit FIELD grid (8-field form,
+			//                like Identity Phase 4a — the fields become the columns);
+			//   reading-time / performance → the two-column sn_admin_shell (work +
+			//                a status/reference readout — a 1-toggle form earns width
+			//                only by adding a 2nd column, not by bare-stretching);
+			//   rss        → its activity hero + asymmetric .sn-2col (Recent table |
+			//                settings), unlocked now the leaf is full width;
+			//   tags       → a glance hero over full-width postbox cards/tables;
+			//   music      → already the full-width shell (since v6.42.0).
+			// All opt out of the wrapper's default capped .sn-fieldset card and own
+			// their own chrome. Music stays an in-page sub-tab (no new sidebar entry)
+			// so the desktop-mode submenu-count == top-tab-count invariant holds.
 			'sub_tabs' => array(
-				'front-end'    => array( 'label' => 'Front-End', 'render' => 'sn_admin_render_front_end_form' ),
-				'reading-time' => array( 'label' => 'Reading Time', 'render' => 'sn_admin_render_reading_time_section' ),
-				'performance'  => array( 'label' => 'Performance', 'render' => 'sn_admin_render_performance_section' ),
+				'front-end'    => array( 'label' => 'Front-End', 'render' => 'sn_admin_render_front_end_form', 'wide' => true ),
+				'reading-time' => array( 'label' => 'Reading Time', 'render' => 'sn_admin_render_reading_time_section', 'wide' => true ),
+				'performance'  => array( 'label' => 'Performance', 'render' => 'sn_admin_render_performance_section', 'wide' => true ),
 				// Music + RSS moved here from Monitoring in v6.18.0 (content surfaces,
-				// not observability). Music stays an in-page sub-tab (no new sidebar
-				// entry) so the desktop-mode submenu-count == top-tab-count invariant
-				// holds (7 == 7).
-				// 'wide': music uses the full-width two-column sn_admin_shell, so it
-				// opts out of the wrapper's default capped .sn-fieldset card.
+				// not observability).
 				'music'        => array( 'label' => 'Music', 'render' => 'sn_admin_render_music_section', 'wide' => true ),
-				'rss'          => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section' ),
-				'tags'         => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section' ),
+				'rss'          => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section', 'wide' => true ),
+				'tags'         => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section', 'wide' => true ),
 			),
 		),
 		array(

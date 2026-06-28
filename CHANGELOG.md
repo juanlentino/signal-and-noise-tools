@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.46.0] - 2026-06-28 — Open-and-wide Phase 4b: the Content tab (the last chunk)
+
+**Headline:** The final open-and-wide chunk makes every **Content** sub-tab use the full content width — completing the redesign across all six top tabs. **Front-End** lays its eight render knobs out as a responsive field grid (like Identity); **Reading Time** and **Performance** move into the two-column shell (the cleanup tool / the speculation toggle in the main column, a "how it works" / status readout in the rail); **RSS** finally gets its activity hero + two columns (Recent requests beside Settings) at full width; **Tags** leads with a first-glance hero (total / duplicate clusters / unused) over its full-width postbox tables. Each leaf earns its width with real two-column or wide-table content — a lone toggle gets a paired readout, never a bare stretch.
+
+> **Why MINOR:** new user-visible capabilities (the full-width Content layouts + the Tags glance hero) with no breaking change. The five Content leaves gain `'wide' => true`; a new pure helper `snt_tags_glance_cards()`; Front-End gets a `.sn-front-end-form` field grid; Performance + Reading Time adopt the existing `sn_admin_shell`; `.sn-2col` is restored to a two-column grid (it was deliberately always-stacked at the old capped width). No public API removed or renamed, no settings-schema change, no form-handling change (custom `$_POST` + nonces + `sn_action` + PRG untouched). `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **Tags first-glance hero** ([inc/tag-consolidation-admin.php](inc/tag-consolidation-admin.php)): `snt_tags_glance_cards()` builds an at-a-glance grid — total tags, duplicate clusters (pilled warn when any), unused tags (pilled warn when any) — over the now-full-width postbox cards/tables, via the shared `sn_admin_glance_grid()`. Rendered on the list view only (the merge-confirm panel stays focused). Mirrors the Cron glance-over-table pattern.
+
+### Improvements
+
+- **Front-End fills the width** ([inc/admin-forms/front-end.php](inc/admin-forms/front-end.php), [assets/admin.css](assets/admin.css)): the eight-knob form gains a `.sn-front-end-form` hook + a self-owned `.sn-fieldset` card (so it owns its chrome once the leaf is `'wide'` and loses the wrapper card), and its fields lay out in a responsive auto-fit grid — comma-grouped with Identity's Phase 4a treatment so a lone multi-field form earns width by making its fields the columns.
+- **Reading Time + Performance use the two-column shell** ([inc/reading-time.php](inc/reading-time.php), [inc/admin-forms/performance.php](inc/admin-forms/performance.php)): the cleanup tool + its (wide) matches table / the speculation-rules toggle live in the main column; a compact readout (the reading-time formula + cache key / the active prerender profile + exclusions + browser support) in the rail. Reading Time's clean-state early return became an `elseif` to honor the shell's no-early-return contract.
+- **RSS is full-width two-column** ([inc/admin-tabs-data.php](inc/admin-tabs-data.php), [assets/admin.css](assets/admin.css)): the leaf is marked `'wide'` and `.sn-2col` is restored from always-stacked (`1fr`, forced at the old capped width) to the asymmetric `minmax(0, 1.7fr) minmax(0, 1fr)` proportion — the wide Recent-requests table beside the narrower Settings/Maintenance column, collapsing to one column below 1100px. No PHP change.
+- **Tags is full-width** ([inc/admin-tabs-data.php](inc/admin-tabs-data.php)): the leaf is marked `'wide'`, so its native postbox cards + the cluster/unused tables use the full page width under the new glance hero.
+
+### Notes
+
+- Completes the open-and-wide rollout begun in v6.43.0 (Dashboard / Phase 1) through Monitoring (v6.44.x), Connections (v6.45.0), and Identity & SEO (v6.45.1). All six top tabs are now full-width-consistent. TDD: new [tests/content-tab-layout.php](tests/content-tab-layout.php) (registry `'wide'` flags + the field-grid / `.sn-2col` CSS locks), [tests/front-end-form.php](tests/front-end-form.php), [tests/performance-admin.php](tests/performance-admin.php), [tests/reading-time-admin.php](tests/reading-time-admin.php) (all three shell paths stay balanced), and extended [tests/tag-consolidation-admin.php](tests/tag-consolidation-admin.php).
+
 ## [6.45.1] - 2026-06-28 — Open-and-wide: Identity & SEO form fills the width (2-up fields)
 
 **Headline:** The **Identity & SEO** form (Identity / Social / Open Graph / SEO Copy) was a stack of 820px-capped section cards, left-aligned with dead space on a real monitor. Its section cards now go full-width and lay their fields into responsive columns — two-up on a laptop, more on a wide monitor, one when narrow — so the form fills the width instead of stranding half of it. A lone form has no readout column to pair with, so it earns full width by making its fields the columns (not by stretching single inputs).

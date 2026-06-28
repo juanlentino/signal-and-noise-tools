@@ -33,10 +33,15 @@ function sn_admin_render_front_end_form() {
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
 	$model   = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' );
 
-	echo '<form method="post">';
+	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="save_theme">';
 
+	// Phase 4b: this leaf is 'wide' (bare .sn-section, no wrapper card), so the
+	// form owns its own .sn-fieldset. The field-grid CSS (.sn-front-end-form
+	// .sn-fieldset) lays the eight render knobs out in auto-fit columns; the
+	// heading + intro span all columns. Mirrors the Identity Phase 4a treatment.
+	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Front-End</h2>';
 	echo '<p class="sn-fieldset-intro">Render knobs the companion theme reads via filters. Defaults match the theme&rsquo;s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request.</p>';
 
@@ -92,9 +97,16 @@ function sn_admin_render_front_end_form() {
 	echo '<p class="sn-field-helper">Model used for AI-assisted features (alt text, drafts, insights).</p>';
 	echo '</div>';
 
-	echo '<div class="sn-savebar">';
-	echo '<p class="sn-savebar-hint">Changes apply on the next front-end request. Live site re-renders automatically.</p>';
+	// Wide leaf → no wrapper card → the save row must be a card-owned
+	// .sn-fieldset-actions INSIDE the .sn-fieldset, NOT a bare .sn-savebar: the
+	// savebar's negative card-bleed margin overflows the zero-padding bare
+	// .sn-section (the v6.43.1 IndexNow regression). Matches Performance +
+	// IndexNow. CSS spans it across the field grid via grid-column: 1 / -1.
+	echo '<div class="sn-fieldset-actions">';
+	echo '<p class="sn-fieldset-actions-hint">Changes apply on the next front-end request. Live site re-renders automatically.</p>';
 	echo '<button type="submit" class="button button-primary">Save front-end settings</button>';
 	echo '</div>';
+	echo '</div>'; // .sn-fieldset
+
 	echo '</form>';
 }

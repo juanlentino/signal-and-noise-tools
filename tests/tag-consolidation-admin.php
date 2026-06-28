@@ -11,6 +11,7 @@ function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
+function wp_kses_post( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return $s; }
 function number_format_i18n( $n ) { return (string) $n; }
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
@@ -48,6 +49,7 @@ function sn_tag_untagged_notes( $l = 20 ) { return $GLOBALS['__untagged']; }
 function sn_tag_find_unused() { return $GLOBALS['__unused']; }
 function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; }
 
+require __DIR__ . '/../inc/admin-glance.php';        // sn_admin_glance_grid (the first-glance hero)
 require __DIR__ . '/../inc/tag-consolidation-admin.php';
 
 // empty state
@@ -70,6 +72,9 @@ ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'AI-Generated Music' ) !== false && strpos( $h, 'AI Generated Music' ) !== false, 'render: cluster lists both member tags' );
 ok( strpos( $h, 'postbox' ) !== false, 'render: uses native postbox chrome' );
 ok( strpos( $h, 'Preview merge' ) !== false, 'render: a Preview merge control per cluster' );
+// Phase 4b: first-glance hero (counts) leads the full-width list view.
+ok( strpos( $h, 'class="sn-glance"' ) !== false, 'glance: first-glance hero renders on the list view' );
+ok( strpos( $h, 'Duplicate clusters' ) !== false && strpos( $h, 'Unused tags' ) !== false && strpos( $h, 'Tags total' ) !== false, 'glance: hero shows duplicate-cluster / unused / total counts' );
 
 // GET preview -> confirm panel (no mutation; reads $_GET)
 // The cluster card + manual picker submit sn_tag_from as an ARRAY (name="sn_tag_from[]"),
@@ -82,6 +87,7 @@ ok( strpos( $h, 'value="tag_merge"' ) !== false && strpos( $h, 'sn_action' ) !==
 ok( strpos( $h, '_wpnonce' ) !== false, 'preview: confirm form carries a nonce' );
 ok( strpos( $h, 'page=sn-content' ) !== false && strpos( $h, 'tab=content' ) !== false, 'preview: confirm form posts back to the sn-content page (dispatcher contract)' );
 ok( strpos( $h, 'name="sn_tag_from" value="10,11"' ) !== false, 'preview: confirm hidden field round-trips the ids as a comma string for the POST handler' );
+ok( strpos( $h, 'class="sn-glance"' ) === false, 'preview: the confirm panel stays focused — no glance hero on the confirm view' );
 unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
 
 // recent merges
