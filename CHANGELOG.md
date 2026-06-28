@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.45.1] - 2026-06-28 — Open-and-wide: Identity & SEO form fills the width (2-up fields)
+
+**Headline:** The **Identity & SEO** form (Identity / Social / Open Graph / SEO Copy) was a stack of 820px-capped section cards, left-aligned with dead space on a real monitor. Its section cards now go full-width and lay their fields into responsive columns — two-up on a laptop, more on a wide monitor, one when narrow — so the form fills the width instead of stranding half of it. A lone form has no readout column to pair with, so it earns full width by making its fields the columns (not by stretching single inputs).
+
+> **Why PATCH:** a CSS-only layout change (`.sn-identity-form .sn-fieldset` becomes a full-width auto-fit grid; the section heading + intro span all columns). No PHP/markup change — the form still emits the same four sections + the single Save button, and inputs keep their semantic widths (large fields fill a cell, small ones like locale stay small) because `.sn-field input` was already `width:100%` capped by `.sn-field-w-*`. No public API, settings-schema, or form-handling change. `SNT_VERSION` derives from the docblock.
+
+### Improvements
+
+- **Identity & SEO is full-width** ([assets/admin.css](assets/admin.css)): `.sn-identity-form .sn-fieldset` uncaps from 820px and becomes `repeat(auto-fit, minmax(min(100%, 360px), 1fr))`, with the `.sn-fieldset-h` heading + `.sn-fieldset-intro` spanning all columns. The four sub-sections (navigated by the in-form section tabs) each lay their fields out multi-column. Continues the open-and-wide rollout (Dashboard / Monitoring / Connections shipped in v6.43–v6.45). TDD: new [tests/identity-seo-form.php](tests/identity-seo-form.php) locks the render (4 sections + one save button) and the full-width grid CSS.
+
 ## [6.45.0] - 2026-06-28 — Open-and-wide admin Phase 3: the Connections tab + an asymmetric shell
 
 **Headline:** Phase 3 makes the **Connections** tab full-width, and corrects the two-column shell to WordPress's own **asymmetric** proportion. **Cloudflare** and **Webhooks** now lay out as primary-work-left / status-and-reference-right; **Cron** and **Scheduled** lead with a first-glance hero (event/orphan counts; scheduled totals) over a full-width data table. The shared `sn_admin_shell` shifts from forced-equal columns (v6.44.1) to ~62/38 (the WP normal/side ratio) — and, doing that correctly, the Insights **AI usage & spend** table (a wide 4-column table that wrapped its headers in a narrow rail) moves into the main column, where wide content belongs.

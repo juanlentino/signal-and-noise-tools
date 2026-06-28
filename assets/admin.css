@@ -369,7 +369,32 @@
 .sn-field-w-lg input,
 .sn-field-w-lg textarea { max-width: 580px; }   /* URL, single-line description */
 .sn-field-w-xl input,
-.sn-field-w-xl textarea { max-width: 720px; }   /* multi-line descriptions */
+.sn-field-w-xl textarea { max-width: 720px; }
+
+/* ─── Identity & SEO form: open-and-wide 2-up field layout (v6.46.0, Phase 4) ──
+   The composite Identity / Social / Open Graph / SEO Copy form was a stack of
+   820px-capped section cards, left-aligned with dead space. A lone form has no
+   readout column to pair with, so it earns full width by making its FIELDS the
+   columns: each section card goes full-width and lays its fields into auto-fit
+   columns (2-up on a laptop, more on a wide monitor, one when narrow). The
+   section heading + intro span all columns. Inputs already fill their cell
+   (.sn-field input is width:100% capped by .sn-field-w-*), so large fields fill
+   the cell and small ones (locale, handle) stay small — no per-field overrides. */
+.sn-identity-form .sn-fieldset {
+	max-width: none;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+	gap: var(--sn-space-3) var(--sn-space-5);
+	align-items: start;
+}
+.sn-identity-form .sn-fieldset > .sn-fieldset-h,
+.sn-identity-form .sn-fieldset > .sn-fieldset-intro {
+	grid-column: 1 / -1;
+}
+.sn-identity-form .sn-fieldset .sn-field {
+	margin-bottom: 0;
+	min-width: 0;
+}   /* multi-line descriptions */
 
 /* ─── sameAs URL list ────────────────────────────────────────── */
 
