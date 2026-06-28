@@ -39,7 +39,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v6.47.2: the scan result is stored in a DURABLE option (autoload=no), not a
+// transient. On a site with a persistent object cache (e.g. Breeze/Redis on
+// Cloudways), transients live in the object cache, so the cache flush a caching
+// plugin fires on a plugin update wiped the last scan — the owner had to re-run
+// it after every update. An option is a real wp_options row that survives object-
+// cache flushes, so the scan now persists until the next manual run. The KEY name
+// is unchanged (it does not collide: a transient was stored under the
+// `_transient_`-prefixed option, never this bare key).
 define( 'SN_HEALTH_CACHE_KEY',     'sn_health_last_scan' );
+// No longer a hard expiry (the option never auto-expires). Retained as the
+// "scan is stale" DISPLAY threshold: the Dashboard attention strip flags a scan
+// older than this so the user knows to re-run (inc/admin-tab-dashboard.php).
 define( 'SN_HEALTH_CACHE_TTL',     DAY_IN_SECONDS );
 define( 'SN_HEALTH_STALE_MONTHS',  12 );
 define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
@@ -91,13 +102,27 @@ function sn_health_run_scan() {
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
 
-	set_transient( SN_HEALTH_CACHE_KEY, $result, SN_HEALTH_CACHE_TTL );
+	sn_health_store_scan( $result );
 	return $result;
 }
 
+/**
+ * Persist a scan result durably.
+ *
+ * v6.47.2: an autoload=no option (not a transient) so the scan survives the
+ * object-cache flush a caching plugin fires on a plugin update. autoload=no keeps
+ * it out of the per-request alloptions load — it is only read on the Health tab
+ * and the Dashboard, both manage_options admin screens.
+ *
+ * @param array $result The sn_health_run_scan() result.
+ */
+function sn_health_store_scan( $result ) {
+	update_option( SN_HEALTH_CACHE_KEY, $result, false );
+}
+
 function sn_health_last_scan() {
-	$cached = get_transient( SN_HEALTH_CACHE_KEY );
-	return is_array( $cached ) ? $cached : null;
+	$stored = get_option( SN_HEALTH_CACHE_KEY );
+	return is_array( $stored ) ? $stored : null;
 }
 
 /* ─────────────────────────────────────────────────────────────────────

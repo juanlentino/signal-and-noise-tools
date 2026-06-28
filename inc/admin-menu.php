@@ -127,47 +127,53 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		true
 	);
 
-	// Health Suggest+Apply JS — enqueued on the Health tab UNCONDITIONALLY as
-	// of v4.5.2. The AI-fix column (missing_alt / drift / orphan Suggest
-	// buttons) self-gates on snt_ai_is_available() at RENDER time in
-	// inc/health-checks-admin.php — but the Opportunities sub-section
-	// (pattern-adoption) renders its Suggest/Dismiss buttons with NO AI gate
-	// (pure structural detection), and they use this same shared JS. Gating the
-	// ENQUEUE on snt_ai_is_available() therefore left those buttons DEAD whenever
-	// no AI provider was configured — the same dead-button class v4.5.1 fixed for
-	// the Tools tab below. The JS is inert when no buttons are present, so loading
-	// it unconditionally is safe.
-	// Tab param is canonical post-redirect: ?page=sn-monitoring&tab=health.
-	if ( isset( $_GET['tab'] ) && 'health' === $_GET['tab'] ) {
-		wp_enqueue_script(
-			'snt-health-suggest-actions',
-			plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-			array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
-			SNT_VERSION,
-			true
-		);
-		if ( function_exists( 'wp_set_script_translations' ) ) {
-			wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
+	// Health/Tools Suggest+Apply JS (assets/health-suggest-actions.js) — enqueued
+	// UNCONDITIONALLY (no AI gate) on exactly the two leaves that render
+	// data-snt-suggest buttons: Monitoring → Health (the AI alt/drift/orphan column
+	// self-gates on snt_ai_is_available() at RENDER time in health-checks-admin.php,
+	// but the Opportunities pattern-adoption sub-section renders its Suggest/Dismiss
+	// buttons with NO AI gate) and Tools → Block Migrations (pure structural
+	// detection, no AI). The JS is inert when no buttons are present, so loading it
+	// on those leaves regardless of AI is correct and safe.
+	//
+	// v6.47.2 (the dead-Suggest-button fix): resolve the active top-tab + sub-tab
+	// the SAME way the page dispatcher does (sn_theme_options_page() via
+	// sn_admin_page_tab_for_slug() + sn_admin_resolve_active_sub()) instead of the
+	// old hard-coded `'health' === $_GET['tab']` / `'tools' === $_GET['tab']`
+	// guards. The v6.x IA moved Health UNDER Monitoring (tab=monitoring &
+	// sub=health) and Block Migrations under Tools (tab=tools & sub=block-migrations);
+	// the old Health guard checked the wrong query var (the real Health URL has
+	// tab=monitoring, with `health` in $_GET['sub']), so the script was NEVER
+	// enqueued and EVERY Suggest button was dead with no console error — on any
+	// site, AI configured or not. Mirroring the dispatcher keeps this guard correct
+	// as the IA evolves. (Tools kept working pre-fix only because `tab=tools` still
+	// happened to match.)
+	if ( function_exists( 'sn_admin_resolve_active_sub' ) ) {
+		if ( isset( $_GET['tab'] ) ) {
+			$active_tab = sanitize_text_field( wp_unslash( $_GET['tab'] ) );
+		} elseif ( function_exists( 'sn_admin_page_tab_for_slug' ) ) {
+			$current_slug = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'sn-theme-options';
+			$active_tab   = sn_admin_page_tab_for_slug( $current_slug );
+		} else {
+			$active_tab = '';
 		}
-	}
+		$active_sub = sn_admin_resolve_active_sub( $active_tab );
 
-	// v4.5.1: enqueue health-suggest-actions.js on the Tools tab too. The
-	// Block Migrations sub-tab (introduced in v4.5.0) reuses the same
-	// shared Suggest+Apply JS. No AI gate — block-migrations is pure
-	// structural detection (no AI calls anywhere in the impl).
-	// Tab param is canonical post-redirect: ?page=sn-monitoring&tab=tools.
-	if ( isset( $_GET['tab'] ) && 'tools' === $_GET['tab'] ) {
-		wp_enqueue_script(
-			'snt-health-suggest-actions',
-			plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-			array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
-			SNT_VERSION,
-			true
-		);
-		if ( function_exists( 'wp_set_script_translations' ) ) {
-			wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
+		$needs_suggest_js = ( 'monitoring' === $active_tab && 'health' === $active_sub )
+			|| ( 'tools' === $active_tab && 'block-migrations' === $active_sub );
+
+		if ( $needs_suggest_js ) {
+			wp_enqueue_script(
+				'snt-health-suggest-actions',
+				plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+				// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
+				array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
+				SNT_VERSION,
+				true
+			);
+			if ( function_exists( 'wp_set_script_translations' ) ) {
+				wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
+			}
 		}
 	}
 } );
