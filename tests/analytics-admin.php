@@ -414,6 +414,18 @@ $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, '<script>' ) === false, 'settings: stored account_id with <script> is escaped' );
 $GLOBALS['__aa_opts'] = array();
 
+echo "\nGroup: settings section — open-and-wide 2-column layout (Phase 2, v6.44.0)\n";
+$GLOBALS['__aa_config'] = false;
+$GLOBALS['__aa_opts']   = array();
+$html = capture( 'snt_analytics_render_settings_section' );
+ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a .sn-2up two-column grid' );
+ok( substr_count( $html, 'class="sn-fieldset"' ) === 2, 'settings: exactly two real .sn-fieldset cards (wide leaf owns its own chrome)' );
+$acct_at = strpos( $html, 'name="sn_cf_account_id"' );
+$wrng_at = strpos( $html, 'wrangler' );
+ok( false !== $acct_at && false !== $wrng_at && $acct_at < $wrng_at, 'settings: credentials (left card) precede the edge-worker reference (right card)' );
+$reg = file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' );
+ok( (bool) preg_match( "/'analytics'\\s*=>\\s*array\\([^\\n]*'wide'\\s*=>\\s*true/", $reg ), 'registry: the analytics leaf is marked wide (opts out of the wrapper cap)' );
+
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
 

@@ -506,19 +506,45 @@ function snt_analytics_render_dashboard() {
 }
 
 /**
- * The Monitoring → Analytics settings section: the credential form + Worker
- * setup console (snt_analytics_render_settings), prefixed with a backlink to the
- * read-only dashboard. The form posts on the page=sn-theme-options route (the
- * Monitoring sub-tab nav guarantees that slug), so the existing admin-post
- * handler processes analytics_save/analytics_test unchanged.
+ * The Monitoring → Analytics settings section. Open-and-wide Phase 2 (v6.44.0):
+ * a `.sn-2up` two-column layout that splits the active settings (credentials +
+ * own-visit exclusion) from the read-only edge-worker reference (live version,
+ * one-time Worker setup, Plausible CSV import). The `analytics` leaf is marked
+ * `'wide' => true` in inc/admin-tabs-data.php, so the wrapper emits a bare
+ * `.sn-section` and each column owns its own `.sn-fieldset` chrome here (the
+ * wide-leaf card-ownership rule). The forms post on the page=sn-theme-options
+ * route (the Monitoring sub-tab nav guarantees that slug), so the existing
+ * admin-post handler processes analytics_save / _test / _exclude_save / _import
+ * unchanged — each <form> keeps its own nonce + sn_action button.
  */
 function snt_analytics_render_settings_section() {
-	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>.</p>';
-	echo '<p><a class="button" href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
-	snt_analytics_render_settings();
+	echo '<div class="sn-2up">';
+
+	// ── Left: active settings (credentials + own-visit exclusion). ──
+	echo '<div class="sn-fieldset">';
+	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>. <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
+	snt_analytics_render_credentials();
+	// The "Exclude my own visits" role allow-list is a primary analytics setting,
+	// so it sits with the credentials in the active-settings column (v6.23.0).
+	if ( function_exists( 'snt_analytics_render_exclusion' ) ) {
+		snt_analytics_render_exclusion();
+	}
+	echo '</div>';
+
+	// ── Right: edge-worker reference (what's live → how to deploy → one-time import). ──
+	echo '<div class="sn-fieldset">';
+	// The deployed edge-Worker version, read live from /_sn/version (guarded +
+	// SWR-cached) — "what's live" above the manual setup steps.
+	if ( function_exists( 'sn_worker_version_render_card' ) ) {
+		sn_worker_version_render_card();
+	}
+	snt_analytics_render_worker_setup();
 	if ( function_exists( 'snt_analytics_render_import' ) ) {
 		snt_analytics_render_import();
 	}
+	echo '</div>';
+
+	echo '</div>'; // .sn-2up
 }
 
 /**
