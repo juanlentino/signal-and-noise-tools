@@ -744,6 +744,15 @@
 	display: block;
 	width: auto;
 	padding: 4px 8px;
+	/* v6.43.2: long unbreakable strings (the IndexNow key-file URL, a Music
+	   sync error) must wrap inside the ~300px rail instead of overflowing the
+	   card. overflow-wrap is inherited, so the <code>/<a> inside wrap too. */
+	overflow-wrap: anywhere;
+}
+/* Same guard for the Insights AI-usage widefat that lives in the rail. */
+.sn-shell__rail .widefat th,
+.sn-shell__rail .widefat td {
+	overflow-wrap: anywhere;
 }
 /* Below the combined width, drop to one column — the rail stacks under the
    main column (DOM order), un-stickied. Also covers the Desktop Mode portal,

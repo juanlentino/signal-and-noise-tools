@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.43.2] - 2026-06-27 — Fix: long key-file URL overflowed the IndexNow status rail
+
+**Headline:** The IndexNow key-file URL (and any other long unbreakable string, such as a Music sync error) ran past the right edge of the ~300px status rail card instead of wrapping inside it. The rail's table cells now wrap long content.
+
+> **Why PATCH:** a CSS containment fix (two `overflow-wrap` declarations). No code, public API, or settings-schema change. `SNT_VERSION` continues to derive from the docblock.
+
+### Fixed
+
+- **Rail tables wrap long content** ([assets/admin.css](assets/admin.css)): `.sn-shell__rail` `.form-table` and `.widefat` cells get `overflow-wrap: anywhere`, so the IndexNow key-file URL, a Music sync-error string, or any long value wraps inside the rail card instead of overflowing past its right edge. (overflow-wrap is inherited, so the `<code>`/`<a>` inside the cell wrap too.)
+
 ## [6.43.1] - 2026-06-27 — Fix: IndexNow rendered a bare, unpanelled enable form at full width
 
 **Headline:** The v6.43.0 open-wide change made the four `sn_admin_shell` tabs full-width, but IndexNow's enable form was the one wide-leaf main-column block that never owned its own card (it had leaned on the old wrapper card). At full width with no wrapper card, its `.sn-savebar` (which carries a negative card-bleed margin meant for a card edge) overflowed into a stray full-width border and the tab read as empty and unfinished. The enable form is now a proper `.sn-fieldset` card, and the settings and maintenance cards lay out 2-up so the main column uses the full width.
