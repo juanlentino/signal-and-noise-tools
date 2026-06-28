@@ -241,7 +241,7 @@
    (label / value / optional pill or meta). auto-fit + minmax keeps it fluid:
    as many cards per row as fit at >=150px each, wrapping (and collapsing to one
    column on very narrow / Desktop Mode portal widths) without a media query.
-   Reuses the .sn-state-card visual vocabulary at a tighter density. */
+   Visual vocabulary (surface, border, label/value type) is self-contained. */
 .sn-glance {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -848,59 +848,6 @@
 	margin: 0;
 	max-width: none;
 	width: 100%;
-}
-
-/* ─── Dashboard hero: 4-card state grid ──────────────────────────────────
-   Replaces the legacy 3-row Status table on the Dashboard tab.
-   Each card answers one glanceable question (theme version, plugin
-   version, deploys, health). Reflows to 2x2 on narrower screens. */
-.sn-state-grid {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-	margin: 0 0 1.5em;
-}
-@media (max-width: 1100px) {
-	.sn-state-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
-@media (max-width: 600px) {
-	.sn-state-grid {
-		grid-template-columns: 1fr;
-	}
-}
-.sn-state-card {
-	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	padding: 10px 12px;          /* v3.8.6: tighter for viewport-fit (was 14px 16px) */
-	display: flex;
-	flex-direction: column;
-	gap: 4px;                    /* v3.8.6: tighter gap (was 6px) */
-	min-height: 76px;            /* v3.8.6: tighter min-height (was 96px) */
-}
-.sn-state-card__label {
-	color: #646970;
-	font-size: 0.72rem;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	margin: 0;
-}
-.sn-state-card__value {
-	font-size: 1.2rem;           /* v3.8.6: tighter (was 1.4rem ≈ 22.4px → now ≈ 19.2px) */
-	font-weight: 500;
-	color: #1d2327;
-	margin: 0;
-	line-height: 1.2;
-	font-variant-numeric: tabular-nums;
-}
-.sn-state-card__meta {
-	font-size: 0.82rem;
-	color: #646970;
-	margin: 0;
-	line-height: 1.35;
 }
 
 /* ─── Deploy list ────────────────────────────────────────────────────────
