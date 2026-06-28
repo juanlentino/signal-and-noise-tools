@@ -74,6 +74,8 @@ function wp_remote_retrieve_response_code( $resp ) {
 	}
 	return 0;
 }
+// Real-WP shape: headers sit at the top level of the response array.
+function wp_remote_retrieve_headers( $resp ) { return is_array( $resp ) ? ( $resp['headers'] ?? array() ) : array(); }
 
 class WP_Error { public $code; public $message; public $data; public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; } public function get_error_code() { return $this->code; } public function get_error_message() { return $this->message; } public function get_error_data() { return $this->data; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
@@ -118,6 +120,7 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 }
 
+require_once __DIR__ . '/../inc/health-probe-classify.php'; // shared bot-challenge classifier the internal probe now consults
 require_once __DIR__ . '/../inc/health-checks.php';
 
 // snt_ai_can_text_generate stub for orphan-suggest gate.
@@ -259,6 +262,31 @@ $GLOBALS['__test_http_responses']['https://juanlentino.com/oops'] = new WP_Error
 $err = sn_health_link_status( 'https://juanlentino.com/oops' );
 hc_eq( false, $err['ok'], 'WP_Error → ok=false' );
 hc_eq( 0, $err['code'], 'WP_Error → code=0' );
+
+// ─── Test 3b: bot-challenge skip (v6.48.4) ────────────────────────────
+// A same-host link behind a Cloudflare challenge (403 + cf-mitigated:challenge)
+// is a LIVE page gating bots, not a broken link. sn_health_link_status must mark
+// it skipped (not ok=false) so sn_health_check_broken_links won't flag it — the
+// same treatment the external link-rot probe gives a challenged citation.
+echo "\nTest 3b: bot-challenge skip\n";
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_http_responses']['https://juanlentino.com/cf-gated'] = array(
+	'response' => array( 'code' => 403 ),
+	'headers'  => array( 'cf-mitigated' => 'challenge' ),
+);
+$ch = sn_health_link_status( 'https://juanlentino.com/cf-gated' );
+hc_eq( true, ! empty( $ch['skipped'] ), 'CF-challenged same-host link → skipped (not flagged broken)' );
+hc_eq( 403, $ch['code'], 'challenge code preserved on the skip result' );
+
+// A bare 403 with no challenge header is STILL broken (guards "ignore all 403s").
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_http_responses']['https://juanlentino.com/forbidden'] = array(
+	'response' => array( 'code' => 403 ),
+	'headers'  => array(),
+);
+$fb = sn_health_link_status( 'https://juanlentino.com/forbidden' );
+hc_eq( false, $fb['ok'], 'plain 403 (no cf-mitigated) → ok=false (still broken)' );
+hc_eq( true, empty( $fb['skipped'] ), 'plain 403 is NOT skipped' );
 
 // ─── Test 4: pack_check envelope ──────────────────────────────────────
 echo "\nTest 4: sn_health_pack_check\n";

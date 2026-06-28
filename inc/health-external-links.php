@@ -86,44 +86,9 @@ function sn_health_extract_external_links( $content, $site_host ) {
 	return array_keys( $out );
 }
 
-/**
- * Is a probe response a bot-challenge interstitial rather than link rot?
- *
- * A live page gated behind a challenge (Cloudflare Managed Challenge / Turnstile)
- * answers an automated HEAD/GET with a 4xx/5xx + a JS interstitial — the resource
- * is NOT gone, the edge is gating non-browser clients. Flagging it as "rot" is a
- * false positive: a human in a browser solves the challenge and reaches the page.
- *
- * Detection keys on Cloudflare's purpose-built `cf-mitigated` header, which CF
- * emits ONLY on responses it generated itself, with the value `challenge` for an
- * interstitial. That disambiguates a CF-issued challenge from an origin 4xx merely
- * passed THROUGH Cloudflare — so this never masks a genuinely forbidden or removed
- * origin resource (those carry no cf-mitigated header). The status is constrained
- * to the challenge-bearing codes (403 managed/Turnstile, 503 legacy IUAM) so a real
- * 404/410 stays "rot" even if a stray header ever appeared.
- *
- * @param int   $code    HTTP status code from the probe.
- * @param mixed $headers Response header bag (array or WP CaseInsensitiveDictionary).
- * @return bool True when the response is a bot challenge (treat as unverifiable).
- */
-function sn_health_is_bot_challenge( $code, $headers ) {
-	if ( 403 !== (int) $code && 503 !== (int) $code ) {
-		return false;
-	}
-	$mitigated = '';
-	if ( is_array( $headers ) ) {
-		foreach ( $headers as $name => $value ) {
-			if ( 'cf-mitigated' === strtolower( (string) $name ) ) {
-				$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
-				break;
-			}
-		}
-	} elseif ( $headers instanceof ArrayAccess && isset( $headers['cf-mitigated'] ) ) {
-		$value     = $headers['cf-mitigated']; // WP's CaseInsensitiveDictionary resolves the key case-insensitively.
-		$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
-	}
-	return false !== strpos( strtolower( trim( $mitigated ) ), 'challenge' );
-}
+// The bot-challenge classifier (sn_health_is_bot_challenge) lives in the shared
+// inc/health-probe-classify.php so the internal broken-links probe and this
+// external link-rot probe agree on what a Cloudflare challenge looks like.
 
 /**
  * SSRF-guarded, cached HEAD probe of an EXTERNAL URL.

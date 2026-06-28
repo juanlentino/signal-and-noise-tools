@@ -2,7 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.48.3] - 2026-06-28: Stop the External-link-rot scan from flagging Cloudflare-challenged citations as dead
+## [6.48.4] - 2026-06-28: Apply the same Cloudflare-challenge skip to the internal broken-links check, via a shared classifier
+
+**Headline:** Follow-up to v6.48.3. The bot-challenge detection now lives in a shared module both Health probes consult, and the **internal broken-links** check uses it too — so a same-host link behind a Cloudflare challenge is treated as a live, bot-gated page rather than a broken link, exactly like the external link-rot check. Not an active false positive today (the site's own pages serve `200` from edge cache), but the two probes now agree by construction instead of by coincidence.
+
+> **Why PATCH:** consistency hardening + a refactor, no public API removed or renamed, no settings-schema change. `sn_health_is_bot_challenge()` is extracted unchanged from `inc/health-external-links.php` into a new dependency-free `inc/health-probe-classify.php` (loaded before `inc/health-checks.php`), eliminating a would-be circular dependency between the two health modules. `sn_health_link_status()` now reads response headers and folds a challenge into a `skipped` result the broken-links loop ignores. Classifier unit tests move to their own suite (`tests/health-probe-classify.php`); an internal-probe regression and a `plain-403-still-broken` guard are added to `tests/health-checks.php`. Full sweep green; `SNT_VERSION` derives from the docblock.
+
+### Changed
+
+- **Bot-challenge detection extracted to a shared module** ([inc/health-probe-classify.php](inc/health-probe-classify.php)): `sn_health_is_bot_challenge()` moves out of the external-links module into a small, dependency-free file loaded before `inc/health-checks.php`. Both health probes now call the one classifier, so they cannot drift, and the core health module no longer has to reach into the external-links submodule for it (which would have been a circular dependency).
+
+### Fixed
+
+- **Internal broken-links check no longer treats a Cloudflare-challenged same-host link as broken** ([inc/health-checks.php](inc/health-checks.php)): `sn_health_link_status()` classified `ok` purely on the status code, so a `403`/`503` bot-challenge interstitial (a live page gating automated clients) would have been reported as a broken internal link. It now inspects the response headers via the shared `sn_health_is_bot_challenge()` and marks a challenge `skipped`, which `sn_health_check_broken_links()` ignores — the same treatment the external link-rot check already gives challenged citations. A bare `403`/`404` with no `cf-mitigated: challenge` header still surfaces as broken.
 
 **Headline:** The Health tab's "External link rot" check was reporting live academic sources (SSRN papers, behind Cloudflare) as rotted. Cloudflare answers an automated HEAD/GET probe with an `HTTP 403` bot-challenge interstitial, and the scanner classified anything outside `200–399` as rot. It now reads the response headers: a `403/503` carrying Cloudflare's `cf-mitigated: challenge` is a live page gating bots, not a dead link, so it is skipped (like a private/link-local URL) instead of flagged.
 
