@@ -74,6 +74,27 @@ ok( 2 === count( $f ), 'analytics down + login-guard down → two findings' );
 $f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 0, 'compiledAt' => $old ), $NOW, $STALE );
 ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'EMPTY' ), 'empty+old → single EMPTY finding (count checked before age)' );
 
+// ── 1b. Analytics worker self-reported config (worker v1.9.0+): a reachable-but-
+// misconfigured worker is the silent-data-loss alert. ──
+$healthyLg = array( 'denylistCount' => 4586, 'compiledAt' => $fresh );
+
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array( 'px_token_set' => true, 'ae_bound' => true, 'salt_seed_set' => true ) );
+ok( 0 === count( $f ), 'reachable analytics + all config wired → no finding' );
+
+$f = sn_health_edge_worker_findings( true, 'https://x/_sn/version', $healthyLg, $NOW, $STALE, array( 'px_token_set' => false, 'ae_bound' => true ) );
+ok( 1 === count( $f ) && 'sn-analytics' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'MISCONFIGURED' ) && false !== strpos( $f[0]['note'], 'SN_PX_TOKEN' ), 'px_token_set=false → MISCONFIGURED finding naming SN_PX_TOKEN' );
+
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array( 'px_token_set' => true, 'ae_bound' => false ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'SN_AE' ), 'ae_bound=false → MISCONFIGURED finding naming SN_AE' );
+
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array() );
+ok( 0 === count( $f ), 'empty config (older worker, unknown) → NO finding (no false positive)' );
+
+// Misconfig is NOT evaluated when the worker is UNREACHABLE — the unreachable
+// finding takes precedence (the elseif), and config cannot be trusted anyway.
+$f = sn_health_edge_worker_findings( false, 'u', $healthyLg, $NOW, $STALE, array( 'px_token_set' => false ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'not reachable' ) && false === strpos( $f[0]['note'], 'MISCONFIGURED' ), 'unreachable analytics → reachability finding only, not misconfig' );
+
 // ── 2. I/O wrapper ──
 ok( function_exists( 'sn_health_check_edge_workers' ), 'sn_health_check_edge_workers() defined' );
 

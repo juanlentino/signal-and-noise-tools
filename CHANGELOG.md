@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.50.0] - 2026-06-29: Health scan alerts when the analytics worker is deployed but misconfigured (silent data-loss)
+
+**Headline:** Pairs with analytics worker v1.9.0, which now reports a presence-only `config` map on `/_sn/version` (whether each binding/secret is wired — never the values). The edge-worker Health check (the 8th check, v6.49.0) now reads it: a worker that is *reachable but misconfigured* — an unset `SN_PX_TOKEN` silently rejecting every beacon, or a missing `SN_AE` binding writing nothing — is the single biggest silent-data-loss mode, and it was previously invisible (you'd notice the dataset went empty days later). It is now a Health finding.
+
+> **Why MINOR:** a new user-visible alert (a new finding type on the existing `edge_workers` check), no public API removed/renamed and no settings-schema change. `sn_worker_version_parse_response()` passes the `config` object through as a strict bool map (absent on older workers → empty array → no false positive); `sn_health_edge_worker_findings()` gains an optional `$analytics_config` arg and flags `px_token_set:false` / `ae_bound:false` only when the worker is reachable (an unreachable worker reports the reachability finding instead — config can't be trusted). Pure-function logic, fully tested. New assertions in `tests/health-edge-workers.php` (5) + `tests/worker-version.php` (6); full sweep 181 suites green; `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **Misconfigured-analytics-worker alert** ([inc/health-edge-workers.php](inc/health-edge-workers.php), [inc/worker-version.php](inc/worker-version.php)): the edge-worker Health check now surfaces the analytics worker's self-reported config. If the worker is deployed and reachable but reports `px_token_set:false` (every beacon rejected → zero data) or `ae_bound:false` (nothing written), the scan flags it by name with the fix (set the missing secret/binding and re-deploy). Secret-safe — the worker only ever exposes presence booleans, never the values. Older workers that don't report `config` yield no finding (no false positive). This turns a multi-day "why did analytics go empty" hunt into a one-scan diagnosis.
+
 ## [6.49.0] - 2026-06-28: Health scan now alerts on edge-worker reachability and a stale login-guard denylist
 
 **Headline:** Companion to the worker refinements (analytics v1.8.1, login-guard v1.1.0). The two owned Cloudflare Workers were already surfaced for *display* (the analytics version card, the Login-defense panel + dashboard view), but nothing *alerted* when one went unreachable or — the security-relevant one — when the login-guard denylist went **stale** because its daily refresh cron stalled, silently leaving the edge on an outdated blocklist. The login-guard worker now logs that failure (v1.1.0 `console.warn`), but nobody watches the tail; this folds the signal into the Health scan as an 8th check.

@@ -120,6 +120,16 @@ function sn_worker_version_parse_response( $code, $body ) {
 	$clean = static function ( $value ) {
 		return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : '';
 	};
+	// config (worker v1.9.0+): presence-only booleans whether each binding/secret is
+	// wired. Pass it through as a strict bool map so the edge-worker Health check can
+	// alert on a data-loss misconfiguration (e.g. px_token_set=false silently rejects
+	// every beacon). Absent on older workers → empty array, treated as "unknown".
+	$config = array();
+	if ( isset( $json['config'] ) && is_array( $json['config'] ) ) {
+		foreach ( $json['config'] as $key => $value ) {
+			$config[ sanitize_key( (string) $key ) ] = (bool) $value;
+		}
+	}
 	return array(
 		'ok'    => true,
 		'data'  => array(
@@ -128,6 +138,7 @@ function sn_worker_version_parse_response( $code, $body ) {
 			'cf_version_id'  => $clean( $json['cf_version_id'] ?? '' ),
 			'cf_version_tag' => $clean( $json['cf_version_tag'] ?? '' ),
 			'deployed_at'    => $clean( $json['deployed_at'] ?? '' ),
+			'config'         => $config,
 		),
 		'error' => '',
 	);
