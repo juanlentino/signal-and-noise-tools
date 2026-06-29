@@ -98,6 +98,7 @@ function sn_health_run_scan() {
 			'stale_posts'         => sn_health_check_stale_posts(),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
+			'edge_workers'        => sn_health_check_edge_workers(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );

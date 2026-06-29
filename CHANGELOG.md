@@ -2,7 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [6.48.4] - 2026-06-28: Apply the same Cloudflare-challenge skip to the internal broken-links check, via a shared classifier
+## [6.49.0] - 2026-06-28: Health scan now alerts on edge-worker reachability and a stale login-guard denylist
+
+**Headline:** Companion to the worker refinements (analytics v1.8.1, login-guard v1.1.0). The two owned Cloudflare Workers were already surfaced for *display* (the analytics version card, the Login-defense panel + dashboard view), but nothing *alerted* when one went unreachable or — the security-relevant one — when the login-guard denylist went **stale** because its daily refresh cron stalled, silently leaving the edge on an outdated blocklist. The login-guard worker now logs that failure (v1.1.0 `console.warn`), but nobody watches the tail; this folds the signal into the Health scan as an 8th check.
+
+> **Why MINOR:** a new user-visible capability (an 8th Content-Health check), no public API removed or renamed and no settings-schema change. It adds NO new outbound primitive — analytics reachability reuses the SWR-cached `sn_worker_version_get()`, and the login-guard status reuses the SSRF-guarded `sn_login_defense_status()` (cached here so a scan never re-hits the edge; a failure is never cached, so an unreachable edge self-heals next scan). Reachability/staleness logic is extracted to a pure, exhaustively-tested `sn_health_edge_worker_findings()`; the freshness path is tested against the real status-endpoint timestamp format (millis/micros + `Z`). New suite `tests/health-edge-workers.php` (16 assertions); full sweep 181 suites green; `SNT_VERSION` derives from the docblock. The theme beacon needed no change — it already sends the worker's full event vocabulary (`pv/sc/tm/ce/vl/vi/vc`) and is fire-and-forget with no retry, so the new analytics rate-limit can't trigger a retry storm.
+
+### New
+
+- **Edge-worker Health check** ([inc/health-edge-workers.php](inc/health-edge-workers.php)): an 8th check in Monitoring → Health that flags (a) the analytics or login-guard Worker being unreachable from this host (advisory — re-run to rule out a transient blip / hairpin issue), (b) an **empty** login-guard denylist (the edge is blocking nothing), and (c) a **stale** denylist (last refreshed more than `SN_HEALTH_DENYLIST_STALE_DAYS`, default 3, filterable via `sn_health_denylist_stale_secs` — the daily cron has stalled). Detection-only, like the Cloudflare-security-headers check: the fix is a re-deploy or cron repair, not a post mutation, so it carries no AI-suggest column. Skips cleanly (no false positives) when no collector endpoint is configured. Disable the whole check via the `sn_health_edge_workers_check_enabled` filter.
 
 **Headline:** Follow-up to v6.48.3. The bot-challenge detection now lives in a shared module both Health probes consult, and the **internal broken-links** check uses it too — so a same-host link behind a Cloudflare challenge is treated as a live, bot-gated page rather than a broken link, exactly like the external link-rot check. Not an active false positive today (the site's own pages serve `200` from edge cache), but the two probes now agree by construction instead of by coincidence.
 
