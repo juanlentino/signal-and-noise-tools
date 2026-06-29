@@ -42,14 +42,15 @@ const SN_HEALTH_EDGE_LG_TTL       = 6 * HOUR_IN_SECONDS;
  * ops action, not a post edit).
  *
  * @since 6.49.0
- * @param bool       $analytics_ok  Whether the analytics /_sn/version probe succeeded.
- * @param string     $analytics_url The probed analytics endpoint (for the finding subject).
- * @param array|null $lg            Parsed login-guard status JSON, or null when unreachable.
- * @param int        $now           Current unix time.
- * @param int        $stale_secs    Age past which the denylist is "stale".
+ * @param bool       $analytics_ok     Whether the analytics /_sn/version probe succeeded.
+ * @param string     $analytics_url    The probed analytics endpoint (for the finding subject).
+ * @param array|null $lg               Parsed login-guard status JSON, or null when unreachable.
+ * @param int        $now              Current unix time.
+ * @param int        $stale_secs       Age past which the denylist is "stale".
+ * @param array      $analytics_config Presence-only config booleans from /_sn/version (worker v1.9.0+); empty when unknown.
  * @return array[] Finding rows.
  */
-function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs ) {
+function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array() ) {
 	$findings = array();
 	$mk       = static function ( $label, $url, $note ) {
 		return array(
@@ -68,6 +69,25 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 			$analytics_url,
 			'Analytics collector worker is not reachable at its /_sn/version endpoint — it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to rule out a transient blip.'
 		);
+	} elseif ( is_array( $analytics_config ) && ! empty( $analytics_config ) ) {
+		// Worker is reachable but self-reports a DATA-LOSS misconfiguration. These two
+		// keys are the silent-zero-data modes: an unset token rejects every beacon; a
+		// missing AE binding throws on write (now fails open, but writes nothing). The
+		// readout is presence-only (never the secret), so this is a safe, high-signal alert.
+		$broken = array();
+		if ( isset( $analytics_config['px_token_set'] ) && ! $analytics_config['px_token_set'] ) {
+			$broken[] = 'SN_PX_TOKEN is unset (every beacon is rejected — data drops to zero)';
+		}
+		if ( isset( $analytics_config['ae_bound'] ) && ! $analytics_config['ae_bound'] ) {
+			$broken[] = 'the SN_AE Analytics Engine binding is missing (nothing is written)';
+		}
+		if ( ! empty( $broken ) ) {
+			$findings[] = $mk(
+				'sn-analytics',
+				$analytics_url,
+				'Analytics worker is deployed but MISCONFIGURED: ' . implode( '; ', $broken ) . '. Set the missing secret/binding and re-deploy (`npm run deploy`); /_sn/version reports the current config.'
+			);
+		}
 	}
 
 	if ( ! is_array( $lg ) ) {
@@ -131,10 +151,14 @@ function sn_health_check_edge_workers() {
 		);
 	}
 
-	// Analytics reachability — reuse the SWR-cached version probe (no new request).
-	$analytics     = function_exists( 'sn_worker_version_get' ) ? sn_worker_version_get() : array();
-	$analytics_ok  = is_array( $analytics ) && ! empty( $analytics['ok'] );
-	$analytics_url = is_array( $analytics ) ? (string) ( $analytics['url'] ?? $endpoint ) : $endpoint;
+	// Analytics reachability + self-reported config — reuse the SWR-cached version
+	// probe (no new request). config is the presence-only bool map from worker v1.9.0+.
+	$analytics        = function_exists( 'sn_worker_version_get' ) ? sn_worker_version_get() : array();
+	$analytics_ok     = is_array( $analytics ) && ! empty( $analytics['ok'] );
+	$analytics_url    = is_array( $analytics ) ? (string) ( $analytics['url'] ?? $endpoint ) : $endpoint;
+	$analytics_config = is_array( $analytics ) && isset( $analytics['data']['config'] ) && is_array( $analytics['data']['config'] )
+		? $analytics['data']['config']
+		: array();
 
 	// Login-guard status — cache the probe so a scan does not re-hit the edge.
 	// Never cache a failure (null), so an unreachable edge self-heals next scan.
@@ -150,7 +174,7 @@ function sn_health_check_edge_workers() {
 	}
 
 	$stale_secs = (int) apply_filters( 'sn_health_denylist_stale_secs', SN_HEALTH_DENYLIST_STALE_DAYS * DAY_IN_SECONDS );
-	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs );
+	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs, $analytics_config );
 
 	return sn_health_pack_check( $label, $findings, $fix_hint );
 }

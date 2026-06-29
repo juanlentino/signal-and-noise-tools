@@ -76,6 +76,9 @@ function sanitize_text_field( $s ) {
 	$s = preg_replace( '/[\r\n\t ]+/', ' ', $s );
 	return trim( $s );
 }
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', (string) $k ) ); }
+}
 $GLOBALS['__test_get_calls'] = array();
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__test_get_calls'][] = array(
@@ -283,6 +286,21 @@ $r = sn_worker_version_parse_response( 200, $valid );
 wv_true( $r['ok'], '200 + valid JSON → ok' );
 wv_eq( '1.4.0', $r['data']['version'], 'version parsed' );
 wv_eq( 'uuid-1', $r['data']['cf_version_id'], 'cf_version_id parsed' );
+
+// config (worker v1.9.0+): pass through as a strict bool map; absent → empty array.
+$withCfg = json_encode( array(
+	'worker'  => 'sn-analytics',
+	'version' => '1.9.0',
+	'config'  => array( 'px_token_set' => true, 'ae_bound' => false, 'salt_seed_set' => 1, 'rate_limiter_bound' => 0 ),
+) );
+$r = sn_worker_version_parse_response( 200, $withCfg );
+wv_true( is_array( $r['data']['config'] ), 'config parsed as an array' );
+wv_true( true === $r['data']['config']['px_token_set'], 'config booleans are strict bools (true)' );
+wv_true( false === $r['data']['config']['ae_bound'], 'config booleans are strict bools (false)' );
+wv_true( true === $r['data']['config']['salt_seed_set'], 'truthy 1 coerces to true' );
+wv_true( false === $r['data']['config']['rate_limiter_bound'], 'falsy 0 coerces to false' );
+$r = sn_worker_version_parse_response( 200, $valid );
+wv_true( is_array( $r['data']['config'] ) && 0 === count( $r['data']['config'] ), 'no config key (older worker) → empty array, no crash' );
 
 $nulls = json_encode(
 	array(
