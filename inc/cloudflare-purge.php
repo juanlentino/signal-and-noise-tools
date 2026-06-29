@@ -216,10 +216,10 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
  * zone ID and trigger a manual full-zone purge.
  *
  * Hooked to the dedicated `sn_admin_cloudflare_tab` action emitted by
- * inc/admin-page.php when the user selects the Cloudflare tab. Pre-
- * v7.0.x this UI was on the Dashboard tab via `sn_admin_dashboard_extras`,
- * but the Dashboard grew unwieldy as features accumulated; splitting
- * subsystems into their own tabs is the v7.0.x reorg.
+ * inc/admin-page.php when the user selects the Cloudflare tab. This UI
+ * was once a card on the Dashboard tab via `sn_admin_dashboard_extras`,
+ * moved to its own tab as the Dashboard grew unwieldy and each subsystem
+ * earned a dedicated tab.
  */
 add_action( 'sn_admin_cloudflare_tab', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {

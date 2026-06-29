@@ -342,9 +342,9 @@ function sn_apply_legacy_reading_time_cleanup() {
 /**
  * Render the Reading Time admin UI on its dedicated tab. Hooked to
  * `sn_admin_reading_time_tab` emitted by inc/admin-page.php when the
- * user selects the Reading Time tab. Pre-v7.0.x this was a card on
- * the Dashboard tab via `sn_admin_dashboard_extras` — moved out as
- * part of the Dashboard-grew-too-big reorg.
+ * user selects the Reading Time tab. This was once a card on the
+ * Dashboard tab via `sn_admin_dashboard_extras`, moved to its own tab
+ * as the Dashboard grew too big to hold every subsystem.
  */
 add_action( 'sn_admin_reading_time_tab', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
