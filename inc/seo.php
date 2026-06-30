@@ -3,7 +3,6 @@
  * Signal & Noise — SEO + analytics delivery.
  *
  * - Meta description on front page and singular posts
- * - Google Tag (gtag.js) delayed until first user interaction
  * - Breeze excludes so our perf-critical bundles aren't re-ordered by
  *   the Breeze cache plugin
  *
@@ -544,20 +543,6 @@ function sn_seo_article_meta( $post ) {
 		}
 	}
 }
-
-/**
- * Analytics: Delay Google Tag (gtag.js) until first user interaction.
- * Eliminates 147 KiB from initial page load. Analytics still fires for
- * any user who scrolls, clicks, or touches — only bots and instant
- * bounces are missed, which aren't useful data anyway.
- */
-add_action( 'wp_head', function() {
-	?>
-	<script>
-	(function(){var d=!1;function g(){if(!d){d=!0;var s=document.createElement('script');s.src='https://www.googletagmanager.com/gtag/js?id=GT-NMC3GVL';s.async=!0;document.head.appendChild(s);s.onload=function(){window.dataLayer=window.dataLayer||[];function t(){dataLayer.push(arguments)}t('js',new Date());t('config','GT-NMC3GVL')}}}['scroll','click','touchstart','keydown'].forEach(function(e){document.addEventListener(e,g,{once:!0,passive:!0})});setTimeout(g,5000)})();
-	</script>
-	<?php
-}, 10 );
 
 /**
  * Prevent Breeze from deferring the block navigation script.

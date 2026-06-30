@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.53.0] - 2026-06-30: Decommission the stray Google Tag (privacy-policy truth) + a filterable robots.txt AI-crawler policy
+
+**Headline:** Two related Batch A changes. (1) **Removed the `gtag.js` (GT-NMC3GVL) injection** from `inc/seo.php`. The site has run first-party cookieless analytics (the analytics-worker) for some time, so the Google Tag was redundant — and worse, it directly contradicted the plugin's own published privacy text, which states the site "stores no personal data and performs no cross-site tracking" (`inc/privacy-exporters.php`). gtag.js sets Google cookies and does cross-site tracking, so the page behaviour falsified the policy and violated the project's cookieless principle. A repo-wide sweep confirmed nothing reads `dataLayer`/`gtag`, so this is a clean deletion. (2) **Added a filterable robots.txt AI-crawler policy** (`inc/robots-txt.php`) via the `robots_txt` filter: an explicit, auditable per-agent allow/deny posture for GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot, and peers (default allow, consistent with the AEO direction — llms.txt, IndexNow, sitemaps), plus an idempotent `Sitemap:` pointer. This is the crawler-control complement to the theme's new `/llms.txt` (theme v10.19.0). Flip any agent with the `snt_robots_ai_agents` filter.
+
+> **Why MINOR:** a new user-visible capability (the robots.txt AI-crawler policy + filter seam) alongside the gtag removal. The gtag removal is a behavioural change but requires no user action — analytics continues via the first-party worker. No public ability slug or REST route removed/renamed, no settings-schema migration, no WP-floor change; not the reserved v7.0.0 break. Full standalone sweep green; phpcs security ruleset clean (falsified); `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **robots.txt AI-crawler policy** ([inc/robots-txt.php](inc/robots-txt.php)): hooks the `robots_txt` filter (priority 20) to append an explicit, filterable per-AI-crawler allow/deny block plus a deduplicated `Sitemap: /wp-sitemap.xml` line. Default posture allows the major answer-engine agents (GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, Claude-User, PerplexityBot, Google-Extended, Applebot-Extended, CCBot); the `snt_robots_ai_agents` filter flips any agent to `disallow`. Non-public sites (`blog_public=0`) pass through untouched. `tests/robots-txt.php` (11 assertions), including a regression guard that the masked login slug is **never** leaked into the public robots.txt.
+
+### Removed
+
+- **`gtag.js` (Google Tag GT-NMC3GVL) injection** ([inc/seo.php](inc/seo.php)): the deferred-until-interaction Google Tag `wp_head` script is gone. It duplicated the first-party cookieless analytics already in place and contradicted the site's published cookieless privacy posture. Repo-wide sweep confirmed no remaining `dataLayer`/`gtag` reader; the SEO module's file-header bullet and the Breeze exclusion filters (unrelated — navigation script + critical CSS) are otherwise untouched.
+
 ## [6.52.0] - 2026-06-30: Claude Sonnet 5 is the new default AI model and a picker option; the model preference carries a Sonnet 4.6 safety net, and the settings picker no longer overrides the alt-text vision route
 
 **Headline:** Claude Sonnet 5 (`claude-sonnet-5`) shipped after the prior model catalog was written, so it was neither the default nor selectable. It is now the default text-generation model for all Signal & Noise AI features and the first option in the Front-End settings model picker (joining Sonnet 4.6, Opus 4.8, and Haiku 4.5). The model preference passed to the WP AI Client is now a two-entry list: the resolved or chosen model first, then Sonnet 4.6 as a known-good safety net, so a just-released id the provider's cached `/v1/models` has not surfaced yet degrades to Sonnet 4.6 instead of falling through to the provider's most-capable (and most expensive) default. The AI cost readout prices Sonnet 5 at its standard list rate ($3 input / $15 output per MTok).
