@@ -213,6 +213,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/pattern-adoption-apply', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/pattern-adoption-apply', 'signal-noise/pattern-adoption-apply' );
 			$result = snt_ai_pattern_adoption_apply_impl(
 				(int)    $request->get_param( 'post_id' ),
 				(string) $request->get_param( 'block_fingerprint' ),

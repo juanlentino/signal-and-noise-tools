@@ -178,6 +178,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-suggest', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-suggest', 'signal-noise/block-migrations-suggest' );
 			$result = snt_block_migrations_suggest_impl(
 				(int)    $request->get_param( 'post_id' ),
 				(string) $request->get_param( 'block_fingerprint' ),

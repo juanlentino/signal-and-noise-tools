@@ -184,6 +184,7 @@ add_action( 'rest_api_init', function() {
  * Mirrors the "Purge All Caches" button in the admin Dashboard tab.
  */
 function sn_rest_purge_cache( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/purge-cache', 'signal-noise/purge-all-caches' );
 	// Dispatched via sn_purge_all_caches_result filter contract — theme
 	// module template-maintenance.php owns the implementation.
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
@@ -198,6 +199,7 @@ function sn_rest_purge_cache( WP_REST_Request $request ) {
  * overrides. Site reverts to reading templates from theme files.
  */
 function sn_rest_clear_overrides( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/clear-overrides', 'signal-noise/clear-template-overrides' );
 	// Dispatched via sn_clear_template_overrides_result filter contract
 	// — theme module template-maintenance.php owns the implementation.
 	if ( ! has_filter( 'sn_clear_template_overrides_result' ) ) {
@@ -216,6 +218,7 @@ function sn_rest_clear_overrides( WP_REST_Request $request ) {
  * "I just deployed and something's wrong" panic button.
  */
 function sn_rest_full_reset( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/full-reset', 'signal-noise/full-reset' );
 	// Step 1: purge all caches (including object cache, transients, Breeze, Cloudflare).
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
 		return new WP_Error( 'sn_rest_unavailable', 'Cache purge module not loaded.', array( 'status' => 500 ) );
@@ -329,6 +332,7 @@ function snt_rest_cron_history( WP_REST_Request $request ) {
  * @since plugin v3.6.0
  */
 function snt_rest_insights_run( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/insights/run', 'signal-noise/run-insights-scan' );
 	if ( ! function_exists( 'snt_insights_run_scan' ) ) {
 		return new WP_Error(
 			'snt_insights_unavailable',
@@ -349,6 +353,7 @@ function snt_rest_insights_run( WP_REST_Request $request ) {
  * @since plugin v3.6.0
  */
 function snt_rest_insights_last( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/insights/last', 'signal-noise/get-insights' );
 	if ( ! function_exists( 'snt_insights_last_scan' ) ) {
 		return new WP_Error(
 			'snt_insights_unavailable',

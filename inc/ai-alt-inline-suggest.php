@@ -218,6 +218,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/alt-inline-suggest', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/alt-inline-suggest', 'signal-noise/ai-alt-inline-suggest' );
 			$result = snt_ai_alt_inline_suggest_impl(
 				(int) $request->get_param( 'post_id' ),
 				(string) $request->get_param( 'image_src' )

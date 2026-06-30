@@ -108,6 +108,7 @@ function sn_analytics_rest_window( $request ) {
  * @return array
  */
 function sn_analytics_rest_summary( $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/analytics/summary', 'signal-noise/get-analytics-summary' );
 	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
 	return sn_analytics_range_totals( $from, $to, $class );
 }
@@ -161,6 +162,7 @@ function sn_analytics_rest_distribution( $request ) {
  * @return array
  */
 function sn_analytics_rest_events( $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/analytics/events', 'signal-noise/get-analytics-events' );
 	list( $from, $to ) = sn_analytics_rest_window( $request );
 	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
 }

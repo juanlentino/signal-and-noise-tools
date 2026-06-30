@@ -383,6 +383,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/drift-suggest', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/drift-suggest', 'signal-noise/ai-drift-suggest' );
 			$result = snt_ai_drift_suggest_impl(
 				(int) $request->get_param( 'post_id' ),
 				(string) $request->get_param( 'phrase' ),
@@ -406,6 +407,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/drift-apply', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/drift-apply', 'signal-noise/ai-drift-apply' );
 			$result = snt_ai_drift_apply_impl(
 				(int) $request->get_param( 'post_id' ),
 				(string) $request->get_param( 'phrase' ),
