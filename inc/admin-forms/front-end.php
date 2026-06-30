@@ -31,7 +31,7 @@ function sn_admin_render_front_end_form() {
 	$uthr    = (int) sn_setting( 'theme.updated_threshold_days', 14 );
 	$wpm     = (int) sn_setting( 'theme.reading_wpm', 225 );
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
-	$model   = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' );
+	$model   = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
 
 	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );

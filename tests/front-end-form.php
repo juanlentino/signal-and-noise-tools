@@ -24,7 +24,7 @@ if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $e = tr
 if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $e = true ) { $r = ( (string) $a === (string) $b ) ? ' selected' : ''; if ( $e ) { echo $r; } return $r; } }
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = '' ) { return $d; } }
-if ( ! function_exists( 'sn_theme_ai_models' ) ) { function sn_theme_ai_models() { return array( 'claude-sonnet-4-6' => 'Claude Sonnet 4.6' ); } }
+if ( ! function_exists( 'sn_theme_ai_models' ) ) { function sn_theme_ai_models() { return array( 'claude-sonnet-5' => 'Claude Sonnet 5' ); } }
 
 require_once __DIR__ . '/../inc/admin-forms/front-end.php';
 

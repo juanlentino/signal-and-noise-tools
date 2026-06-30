@@ -63,14 +63,14 @@ ok( $d['theme']['palette_enabled'] === true, 'defaults: palette_enabled true' );
 ok( $d['theme']['json_feed_items'] === 20, 'defaults: json_feed_items 20' );
 ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_days 14' );
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
-ok( $d['theme']['ai_model'] === 'claude-sonnet-4-6', 'defaults: ai_model claude-sonnet-4-6' );
+ok( $d['theme']['ai_model'] === 'claude-sonnet-5', 'defaults: ai_model claude-sonnet-5' );
 ok( $d['theme']['notes_per_page'] === 20, 'defaults: notes_per_page 20' );
 
 // ── P2: AI-model allowlist + save handler (clamps + validation) ──────
 require __DIR__ . '/../inc/admin-post-actions.php';
 
 $models = sn_theme_ai_models();
-ok( ! empty( $models ) && array_key_exists( 'claude-sonnet-4-6', $models ), 'ai models: list non-empty + contains default' );
+ok( ! empty( $models ) && array_key_exists( 'claude-sonnet-5', $models ) && array_key_exists( 'claude-sonnet-4-6', $models ), 'ai models: list non-empty + contains new default (sonnet-5) + previous (sonnet-4-6)' );
 ok( array_key_exists( 'claude-opus-4-8', $models ) && array_key_exists( 'claude-haiku-4-5', $models ), 'ai models: includes opus-4-8 + haiku-4-5 (alias ids)' );
 
 // Out-of-range ints clamp; off-list model rejected; checkbox present → true.
@@ -89,7 +89,7 @@ ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recen
 ok( (int) sn_setting( 'theme.json_feed_items' ) === 1, 'save: json_feed_items clamps to min 1' );
 ok( (int) sn_setting( 'theme.updated_threshold_days' ) === 90, 'save: updated_threshold clamps to max 90' );
 ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps to min 100' );
-ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-4-6', 'save: off-list ai_model rejected → keeps default' );
+ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save: off-list ai_model rejected → keeps default' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
 ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
 
@@ -169,6 +169,16 @@ ok( sn_tf_ai_model( 'claude-sonnet-4-6' ) === 'claude-opus-4-8', 'filter: ai_mod
 $GLOBALS['__options']['sn_settings']['theme']['ai_model'] = 'off-list-tampered';
 sn_setting_reset_cache();
 ok( sn_tf_ai_model( 'claude-sonnet-4-6' ) === 'claude-sonnet-4-6', 'filter: ai_model rejects a tampered off-list id → supplied default' );
+
+// v6.52.0: sn_tf_ai_model is now feature-aware (4-arg). The owner's text-model
+// dropdown choice must NOT clobber the alt-text vision route (both hook
+// snt_ai_model_preference @ pri 10, so order alone can't guarantee it). For the
+// 'alt-text' feature the filter returns the incoming value unchanged regardless
+// of theme.ai_model; every other feature still applies the configured id.
+sn_setting_update( 'theme.ai_model', 'claude-opus-4-8' );
+ok( sn_tf_ai_model( 'gemini-2.5-flash-lite', '', '', 'alt-text' ) === 'gemini-2.5-flash-lite', 'filter: alt-text feature passes the incoming model through unchanged (vision route not clobbered)' );
+ok( sn_tf_ai_model( 'claude-sonnet-5', '', '', 'generic' ) === 'claude-opus-4-8', 'filter: non-alt-text feature still applies the configured model' );
+ok( sn_tf_ai_model( 'claude-sonnet-5' ) === 'claude-opus-4-8', 'filter: legacy 1-arg call still applies the configured model (backward compatible)' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

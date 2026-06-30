@@ -94,7 +94,7 @@ function sn_settings_defaults() {
 			'updated_threshold_days' => 14,
 			'reading_wpm'            => 225,
 			'notes_per_page'         => 20,
-			'ai_model'               => 'claude-sonnet-4-6',
+			'ai_model'               => 'claude-sonnet-5',
 		),
 		'login' => array(
 			'slug' => 'sn-login',
