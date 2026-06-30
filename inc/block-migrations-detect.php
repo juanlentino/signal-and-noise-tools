@@ -170,6 +170,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-scan', array(
 		'methods'             => 'POST',
 		'callback'            => function() {
+			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-scan', 'signal-noise/block-migrations-scan' );
 			$result = snt_block_migrations_run_scan();
 			return rest_ensure_response( $result );
 		},

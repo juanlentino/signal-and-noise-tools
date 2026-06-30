@@ -20,6 +20,9 @@ function current_user_can( $c ) { return $GLOBALS['__cap']; }
 function rest_authorization_required_code() { return 401; }
 $GLOBALS['__rest_cb'] = null;
 function add_action( $h, $c = null, $p = 10, $a = 1 ) { if ( 'rest_api_init' === $h ) { $GLOBALS['__rest_cb'] = $c; } }
+// v6.54.0: the REST handlers now emit a deprecation notice (inc/rest-deprecations.php); stub it
+// no-op here — its behavior is asserted in tests/rest-deprecations.php, not this suite.
+function snt_rest_deprecated_notice( $route = '', $ability = '' ) {}
 // read-accessor + resolver stubs (production shapes):
 function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 7, 'visits' => 9, 'scroll_avg' => 50.0, 'time_avg' => 1000.0 ); }
 function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return array(); }

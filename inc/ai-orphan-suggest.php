@@ -206,6 +206,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/orphan-suggest', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/orphan-suggest', 'signal-noise/ai-orphan-suggest' );
 			$result = snt_ai_orphan_suggest_impl( (int) $request->get_param( 'attachment_id' ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 			return rest_ensure_response( $result );
@@ -226,6 +227,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/orphan-apply', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/orphan-apply', 'signal-noise/ai-orphan-apply' );
 			$result = snt_ai_orphan_apply_impl( (int) $request->get_param( 'attachment_id' ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 			return rest_ensure_response( $result );

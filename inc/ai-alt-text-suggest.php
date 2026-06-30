@@ -328,6 +328,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/alt-suggest', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/alt-suggest', 'signal-noise/ai-alt-suggest' );
 			$result = snt_ai_alt_suggest_impl( (int) $request->get_param( 'attachment_id' ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 			return rest_ensure_response( $result );
@@ -348,6 +349,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/ai/alt-apply', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/ai/alt-apply', 'signal-noise/ai-alt-apply' );
 			$result = snt_ai_alt_apply_impl(
 				(int) $request->get_param( 'attachment_id' ),
 				(string) $request->get_param( 'alt_text' )
