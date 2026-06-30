@@ -425,12 +425,12 @@ if ( ! function_exists( 'snt_insights_run_scan' ) ) {
 			'elapsed_ms'      => 1240,
 			'recommendations' => array(
 				array(
-					'id'             => 'rec-1',
-					'type'           => 'write_about',
-					'title'          => 'A topic to write about',
-					'rationale'      => 'High search velocity.',
-					'evidence_pills' => array(),
-					'target'         => null,
+					'id'            => 'q-1',
+					'question'      => 'An unexplored question worth developing?',
+					'adjacent_note' => 'the adjacent note',
+					'why_uncovered' => 'not addressed by existing notes',
+					'wall_check'    => 'research side, no product',
+					'target'        => null,
 				),
 			),
 		);

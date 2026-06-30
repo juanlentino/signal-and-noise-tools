@@ -55,16 +55,6 @@ function get_current_user_id() { return 9; }
 function get_edit_post_link( $id, $context = 'display' ) {
 	return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit';
 }
-// Insights impl shims — drive hit/miss + insert success/error per test.
-function snt_insights_find_rec( $rec_id ) {
-	return isset( $GLOBALS['__test_recs'][ $rec_id ] ) ? $GLOBALS['__test_recs'][ $rec_id ] : null;
-}
-function snt_insights_create_draft_from_rec( $rec ) {
-	if ( isset( $GLOBALS['__test_draft_error'] ) ) { return $GLOBALS['__test_draft_error']; }
-	return isset( $GLOBALS['__test_draft_id'] ) ? (int) $GLOBALS['__test_draft_id'] : 0;
-}
-function snt_insights_mark_done( $rec_id ) { $GLOBALS['__test_marked_done'][] = $rec_id; }
-
 // v4.13.0: real Music-Identity constants (SN_SPOTIFY_*_OPT, SN_MUSO_PROFILE_OPT)
 // + the real sn_spotify_invalidate_token() the save handler calls — bind the
 // handler tests to the ACTUAL constant values, never test-local copies.
@@ -179,33 +169,6 @@ pa_eq( '', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'rejected http url c
 pa_reset_store();
 pa_eq( 'monitoring_saved', sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://kuma.example/api/push/x' ) ), 'https url → monitoring_saved' );
 pa_eq( 'https://kuma.example/api/push/x', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'https url persisted' );
-
-echo "\nTest: sn_handle_insights_create_draft() — stale rec, success, insert error\n";
-$GLOBALS['__transients']     = array();
-$GLOBALS['__test_recs']      = array();
-$GLOBALS['__test_marked_done'] = array();
-unset( $GLOBALS['__test_draft_error'], $GLOBALS['__test_draft_id'] );
-
-// Stale / unknown id → error flash, nothing inserted, nothing marked done.
-pa_eq( 'insights_draft_stale', sn_handle_insights_create_draft( array( 'rec_id' => 'gone' ) ), 'unknown rec → insights_draft_stale' );
-pa_eq( array(), $GLOBALS['__test_marked_done'], 'stale path does NOT mark anything done' );
-
-// Success path → draft created, rec marked done, edit link stashed in transient.
-$GLOBALS['__test_recs']['rec_ok'] = array( 'id' => 'rec_ok', 'type' => 'write_about', 'title' => 'T', 'rationale' => 'r' );
-$GLOBALS['__test_draft_id']       = 777;
-pa_eq( 'insights_draft_created', sn_handle_insights_create_draft( array( 'rec_id' => 'rec_ok' ) ), 'valid rec → insights_draft_created' );
-pa_eq( true, in_array( 'rec_ok', $GLOBALS['__test_marked_done'], true ), 'rec marked done on success' );
-$stash = get_transient( sn_insights_draft_result_key() );
-pa_eq( true, is_array( $stash ), 'result transient stashed' );
-pa_eq( 777, $stash['post_id'], 'transient carries the new draft id' );
-pa_eq( true, false !== strpos( $stash['edit_link'], 'post=777' ), 'transient carries the edit link' );
-
-// Insert error → failure flash, NOT marked done.
-$GLOBALS['__test_marked_done'] = array();
-$GLOBALS['__test_draft_error'] = new PA_WP_Error( 'db_insert_error', 'boom' );
-pa_eq( 'insights_draft_failed', sn_handle_insights_create_draft( array( 'rec_id' => 'rec_ok' ) ), 'insert WP_Error → insights_draft_failed' );
-pa_eq( array(), $GLOBALS['__test_marked_done'], 'failed insert does NOT mark done' );
-unset( $GLOBALS['__test_draft_error'] );
 
 echo "\nTest: sn_handle_music_save() — masked creds + Muso profile (T6)\n";
 pa_reset_store();
@@ -474,7 +437,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 42, count( $map ), 'map has 42 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge
+pa_eq( 41, count( $map ), 'map has 41 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

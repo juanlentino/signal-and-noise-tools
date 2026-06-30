@@ -56,12 +56,12 @@ if ( ! function_exists( 'snt_insights_last_scan' ) ) {
 			'elapsed_ms'      => 1234,
 			'recommendations' => array(
 				array(
-					'id'             => 'r1',
-					'type'           => 'write_about',
-					'title'          => 'Write about X',
-					'rationale'      => 'Because Y.',
-					'evidence_pills' => array( '3 posts in 7 days' ),
-					'target'         => array(),
+					'id'            => 'r1',
+					'question'      => 'An unexplored question about X',
+					'adjacent_note' => 'the X note',
+					'why_uncovered' => 'the X note never asks this',
+					'wall_check'    => 'research side, names no product',
+					'target'        => array(),
 				),
 			),
 		);
@@ -106,7 +106,7 @@ ish_assert( false !== $rail_at, 'has a right rail' );
 
 // Workflow content in MAIN (before the rail marker).
 $run_at = strpos( $html, 'Run Analysis' );
-$rec_at = strpos( $html, 'Write about X' );
+$rec_at = strpos( $html, 'An unexplored question about X' );
 ish_assert( false !== $run_at && $run_at < $rail_at, 'Run Analysis sits in the main column' );
 ish_assert( false !== $rec_at && $rec_at < $rail_at, 'recommendation card sits in the main column' );
 

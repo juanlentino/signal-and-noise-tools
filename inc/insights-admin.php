@@ -31,14 +31,14 @@ function snt_insights_render_admin_tab() {
 	sn_admin_shell_open();
 
 	// ── MAIN COLUMN: the scan workflow (configure -> run -> review) ──
-	echo '<p class="sn-prose">Cross-system synthesis: combines your Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable recommendations per scan. One AI call per scan; results cached 7 days.</p>';
+	echo '<p class="sn-prose">Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.</p>';
 
 	// ── RUN ANALYSIS form ──
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run Analysis</h2>';
-	echo '<p class="sn-fieldset-intro">Single AI call per scan. Returns 5 recommendations across types: write_about, update_post, cadence_change, topic_double_down, topic_pivot. Re-runs within 7 days return the cached result unless you check "Force fresh scan".</p>';
+	echo '<p class="sn-fieldset-intro">Single AI call per scan. Returns zero or more unexplored open questions worth developing; "no angle worth a note right now" is a valid result. Re-runs within 7 days return the cached result unless you check "Force fresh scan".</p>';
 	if ( ! $ai_ready ) {
 		echo '<p class="sn-field-helper sn-text--err"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
 	}
@@ -181,89 +181,90 @@ function snt_insights_render_usage_section() {
 }
 
 /**
- * Renders the recommendations cards section.
+ * Renders the open-question cards section.
+ *
+ * "Recommend nothing" is a first-class outcome: when a scan ran but surfaced no
+ * question that clears the wall, we render an explicit "No angle worth a note
+ * right now" card rather than a blank space, so the empty result reads as the
+ * expected, deliberate output it is (not a failure or a missing render).
  */
 function snt_insights_render_recommendations_section( $last ) {
-	if ( ! $last || empty( $last['recommendations'] ) ) {
+	if ( ! $last ) {
+		// No scan has run yet; the rail status box already prompts to run one.
 		return;
 	}
 
-	$state = snt_insights_state_read();
-	$active = snt_insights_filter_active( $last['recommendations'] );
+	$recs = ( isset( $last['recommendations'] ) && is_array( $last['recommendations'] ) ) ? $last['recommendations'] : array();
 
-	if ( empty( $active ) ) {
+	// Scan ran, nothing to suggest. This is valid and expected, not an error.
+	if ( empty( $recs ) ) {
 		echo '<div class="sn-fieldset">';
-		echo '<h2 class="sn-fieldset-h">No active recommendations</h2>';
-		echo '<p class="sn-fieldset-intro">All recommendations from the last scan are either dismissed or snoozed. Run a fresh scan to get new ones.</p>';
+		echo '<h2 class="sn-fieldset-h">No angle worth a note right now</h2>';
+		echo '<p class="sn-fieldset-intro">The last scan found no unexplored question that clears the wall. That is an expected outcome, not a failure. Re-run after you publish or revise a note.</p>';
 		echo '</div>';
 		return;
 	}
 
-	$type_labels = array(
-		'write_about'        => 'Write About',
-		'update_post'        => 'Update Post',
-		'cadence_change'     => 'Cadence',
-		'topic_double_down'  => 'Double Down',
-		'topic_pivot'        => 'Pivot',
-	);
+	$state  = snt_insights_state_read();
+	$active = snt_insights_filter_active( $recs );
+
+	if ( empty( $active ) ) {
+		echo '<div class="sn-fieldset">';
+		echo '<h2 class="sn-fieldset-h">No active questions</h2>';
+		echo '<p class="sn-fieldset-intro">Every question from the last scan is dismissed or snoozed. Run a fresh scan to surface new ones.</p>';
+		echo '</div>';
+		return;
+	}
+
 	$done_ids_flip = array_flip( $state['done_ids'] );
 
-	// Phase 1 widen: with the leaf wrapper cap gone, the main column now reaches
-	// its 820px width, so the recommendation cards lay out 2-up at wide widths
-	// (the .sn-rec-grid auto-fit grid) instead of stacking at half-width. The
-	// Run Analysis + Weekly digest cards stay full main-width — only this
-	// recommendation-card loop is gridded.
+	// Phase 1 widen: with the leaf wrapper cap gone, the main column reaches its
+	// 820px width, so the question cards lay out 2-up at wide widths (the
+	// .sn-rec-grid auto-fit grid) instead of stacking at half-width. The Run
+	// Analysis + Weekly digest cards stay full main-width; only this card loop
+	// is gridded.
 	echo '<div class="sn-rec-grid">';
 	foreach ( $active as $rec ) {
-		$id = (string) $rec['id'];
+		$id      = (string) $rec['id'];
 		$is_done = isset( $done_ids_flip[ $id ] );
-		$type_label = isset( $type_labels[ $rec['type'] ] ) ? $type_labels[ $rec['type'] ] : $rec['type'];
 
 		echo '<div class="sn-fieldset' . ( $is_done ? ' sn-fieldset--muted' : '' ) . '">';
 		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-		echo esc_html( $rec['title'] );
-		echo ' <span class="sn-pill sn-pill--ok">' . esc_html( $type_label ) . '</span>';
+		echo esc_html( isset( $rec['question'] ) ? (string) $rec['question'] : '' );
+		echo ' <span class="sn-pill sn-pill--ok">Open question</span>';
 		if ( $is_done ) {
 			echo ' <span class="sn-pill sn-pill--done">done</span>';
 		}
 		echo '</h2>';
 
-		echo '<p class="sn-fieldset-intro">' . esc_html( $rec['rationale'] ) . '</p>';
-
-		// Evidence pills.
-		if ( ! empty( $rec['evidence_pills'] ) ) {
-			echo '<p>';
-			foreach ( (array) $rec['evidence_pills'] as $pill ) {
-				// v4.1.1 (U-14): evidence pills are data snippets ("3 posts in 7 days"),
-				// not status — use the base .sn-pill (neutral gray), not --ok (green).
-				// The semantic-ok color was misread by users as "all good."
-				echo '<span class="sn-pill sn-pill--spaced">' . esc_html( $pill ) . '</span>';
-			}
-			echo '</p>';
+		if ( ! empty( $rec['adjacent_note'] ) ) {
+			echo '<p class="sn-fieldset-intro"><strong>Extends:</strong> ' . esc_html( (string) $rec['adjacent_note'] ) . '</p>';
+		}
+		if ( ! empty( $rec['why_uncovered'] ) ) {
+			echo '<p class="sn-field-helper"><strong>Not yet covered:</strong> ' . esc_html( (string) $rec['why_uncovered'] ) . '</p>';
+		}
+		if ( ! empty( $rec['wall_check'] ) ) {
+			echo '<p class="sn-field-helper"><strong>Wall check:</strong> ' . esc_html( (string) $rec['wall_check'] ) . '</p>';
 		}
 
-		// Target link.
+		// Link the adjacent note when it is a specific existing post. This points
+		// at prior work to build on; it does not prescribe a new post to write.
 		if ( ! empty( $rec['target']['post_id'] ) ) {
 			$edit_url = admin_url( 'post.php?post=' . (int) $rec['target']['post_id'] . '&action=edit' );
-			echo '<p><a href="' . esc_url( $edit_url ) . '" class="button button-small">Open target post →</a></p>';
+			echo '<p><a href="' . esc_url( $edit_url ) . '" class="button button-small">Open adjacent note →</a></p>';
 		}
 
-		// Action buttons (form per card to share the nonce + carry rec_id).
+		// Triage actions only (mark done / snooze / dismiss). There is no
+		// "create draft" path: this advisor names questions, it does not seed posts.
 		echo '<form method="post" class="sn-fieldset-actions sn-fieldset-actions--inline">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
-		// v4.11.0 (T5): write_about recs can seed a Notes draft in one click —
-		// zero new AI calls (the rationale becomes the draft body). The clicked
-		// button's sn_action wins, so it shares this card's nonce + rec_id form.
-		if ( 'write_about' === $rec['type'] && ! $is_done ) {
-			echo '<button type="submit" name="sn_action" value="insights_create_draft" class="button button-small button-primary">Create draft</button> ';
-		}
 		if ( ! $is_done ) {
 			echo '<button type="submit" name="sn_action" value="insights_mark_done" class="button button-small">Mark done</button> ';
 		}
 		echo '<button type="submit" name="sn_action" value="insights_snooze" class="button button-small">Snooze 30d</button> ';
-		// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm attribute.
-		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this recommendation?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
+		// v4.1.1 (U-01): data-snt-confirm attribute (not inline onclick).
+		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
 		echo '</form>';
 
 		echo '</div>';
