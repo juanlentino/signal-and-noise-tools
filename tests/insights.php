@@ -18,10 +18,6 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 }
 
 define( 'ABSPATH', '/' );
-// Owned by inc/content-surfaces.php at runtime; that module isn't loaded in
-// this harness, so define the slug here for the Create-draft Notes-category
-// resolution (snt_insights_build_draft_postarr).
-if ( ! defined( 'SN_NOTES_CATEGORY_SLUG' ) ) { define( 'SN_NOTES_CATEGORY_SLUG', 'notes' ); }
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS',  86400 );
 define( 'WEEK_IN_SECONDS', 604800 );
@@ -278,29 +274,6 @@ if ( ! function_exists( 'snt_ai_extract_post_text' ) ) {
 	}
 }
 
-// ─── Notes-category + draft-insert stubs (Create-draft, v4.11.0) ─────
-// inc/insights.php resolves the Notes category via get_term_by('slug', …)
-// guarded by defined(SN_NOTES_CATEGORY_SLUG); content-surfaces.php (which
-// owns that constant) is NOT loaded here, so the impl must tolerate both
-// the seeded and unseeded states. These stubs let the tests drive each.
-if ( ! function_exists( 'get_term_by' ) ) {
-	function get_term_by( $field, $value, $taxonomy ) {
-		if ( isset( $GLOBALS['__test_terms'][ $taxonomy ][ $field ][ $value ] ) ) {
-			return (object) $GLOBALS['__test_terms'][ $taxonomy ][ $field ][ $value ];
-		}
-		return false;
-	}
-}
-if ( ! function_exists( 'wp_insert_post' ) ) {
-	function wp_insert_post( $postarr, $wp_error = false ) {
-		$GLOBALS['__test_inserted_post'] = $postarr;
-		if ( isset( $GLOBALS['__test_insert_error'] ) && $wp_error ) {
-			return $GLOBALS['__test_insert_error'];
-		}
-		return isset( $GLOBALS['__test_insert_id'] ) ? (int) $GLOBALS['__test_insert_id'] : 1234;
-	}
-}
-
 require_once __DIR__ . '/../inc/insights.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -448,9 +421,13 @@ $result = snt_insights_call_ai( $signals );
 $prompt = $GLOBALS['__test_ai_last_prompt'];
 $system = $GLOBALS['__test_ai_last_system'];
 ins_true( false !== strpos( $prompt, '"name":"Test"' ), 'signals JSON-encoded into prompt' );
-ins_true( false !== strpos( $system, 'content strategist' ), 'system mentions strategist' );
-ins_true( false !== strpos( $system, 'exactly 5 recommendations' ), 'system asks for 5 recs' );
-ins_true( false !== strpos( $system, 'write_about' ), 'system enumerates types' );
+ins_true( false !== stripos( $system, 'open question' ), 'system asks for open questions' );
+ins_true( false !== strpos( $system, '[]' ) && false !== stripos( $system, 'empty' ), 'system allows an empty array (recommend nothing)' );
+ins_true( false !== stripos( $system, 'value proposition' ), 'system states the value-prop exclusion' );
+ins_true( false !== stripos( $system, 'provenance' ), 'system reserves the provenance thesis' );
+ins_true( false !== stripos( $system, 'em dash' ), 'system forbids em dashes' );
+ins_true( false !== stripos( $system, 'not a content strategist' ), 'reframed away from content-strategist/calendar' );
+ins_true( false === strpos( $system, 'exactly 5' ), 'no fixed count of 5 (recommend-nothing is valid)' );
 ins_eq( 1500, $GLOBALS['__test_ai_last_max'], 'max_tokens = 1500' );
 
 // ─── Test 8b: untrusted-data delimiter + injection warning (v6.39.2) ─
@@ -480,75 +457,150 @@ $result = snt_insights_call_ai( array( 'site' => array() ) );
 ins_true( $result instanceof WP_Error, 'returns WP_Error when AI unavailable' );
 ins_eq( 'snt_insights_ai_unavailable', $result->code, 'error code' );
 
-// ─── Test 10: parse valid response (5 recs) ──────────────────────────
-echo "\nTest 10: parse_response — happy path\n";
+// ─── Test 10: parse valid response (open questions) ──────────────────
+echo "\nTest 10: parse_response — happy path (open-question shape)\n";
 $valid_json = '[
-  {"id":"rec_write_synths","type":"write_about","title":"Write about modular synths","rationale":"Your /notes/ posts on modular synths average 4x traffic; you haven\'t published one in 6 months.","evidence_pills":["+340% views","6mo since last"],"target":null},
-  {"id":"rec_update_old","type":"update_post","title":"Update post about ableton","rationale":"This post has 500 views/wk but was last modified 14 months ago.","evidence_pills":["500 views/wk","14mo old"],"target":{"post_id":1,"url":"https://x/"}},
-  {"id":"rec_cadence","type":"cadence_change","title":"Try publishing Tuesdays","rationale":"Posts published on Tuesdays outperform Fridays 3:1.","evidence_pills":["3:1 ratio"],"target":null},
-  {"id":"rec_dd","type":"topic_double_down","title":"More tutorials","rationale":"Tutorial-tagged posts get 2x the traffic of essays.","evidence_pills":["2x traffic"],"target":null},
-  {"id":"rec_pivot","type":"topic_pivot","title":"Skip jazz takes","rationale":"Jazz posts get 1/5 the average traffic.","evidence_pills":["20% of average"],"target":null}
+  {"id":"q_credit_trust","question":"How do listeners read a release credit list when no label vouches for it?","adjacent_note":"the over-detection note","why_uncovered":"that note covers false positives, not the reader-side trust cue","wall_check":"descriptive: asks how readers behave, not a product or value proposition","target":{"post_id":1,"url":"https://x/"}},
+  {"id":"q_substrate_decay","question":"What happens to a substrate claim once its source feed goes silent?","adjacent_note":"the as-substrate note","why_uncovered":"the note assumes a live feed and never treats the silent case","wall_check":"an open problem about decay, no answer asserted, no product","target":null}
 ]';
 $GLOBALS['__test_posts_exist'] = array( 1 => true );
 $recs = snt_insights_parse_response( $valid_json );
 ins_true( is_array( $recs ), 'returns array' );
-ins_eq( 5, count( $recs ), '5 recs parsed' );
-ins_eq( 'write_about', $recs[0]['type'], 'first rec type' );
+ins_eq( 2, count( $recs ), '2 clean questions parsed' );
+ins_true( false !== strpos( $recs[0]['question'], 'credit list' ), 'first question text preserved' );
+ins_true( isset( $recs[0]['adjacent_note'], $recs[0]['why_uncovered'], $recs[0]['wall_check'] ), 'all four open-question fields present' );
+ins_eq( 1, $recs[0]['target']['post_id'], 'target post_id carried when post exists' );
+ins_eq( null, $recs[1]['target'], 'target null when absent' );
 
 // ─── Test 11: markdown code fence stripping ──────────────────────────
 echo "\nTest 11: parse_response strips markdown fences\n";
 $fenced = "```json\n" . $valid_json . "\n```";
 $recs = snt_insights_parse_response( $fenced );
 ins_true( is_array( $recs ), 'returns array (fences stripped)' );
-ins_eq( 5, count( $recs ), '5 recs after fence strip' );
+ins_eq( 2, count( $recs ), '2 questions after fence strip' );
 
-// ─── Test 12: drops invalid entries (missing keys, bad type) ─────────
-echo "\nTest 12: parse_response drops invalid entries\n";
+// ─── Test 12: drops malformed entries (missing key, wrong type) ──────
+echo "\nTest 12: parse_response drops malformed entries\n";
 $mixed = '[
-  {"id":"rec_a","type":"write_about","title":"Valid 1","rationale":"r1","evidence_pills":[],"target":null},
-  {"type":"write_about","title":"Missing id"},
-  {"id":"rec_b","type":"bogus_type","title":"Bad type","rationale":"r","evidence_pills":[],"target":null},
-  {"id":"rec_c","type":"update_post","title":"Valid 2","rationale":"r2","evidence_pills":[],"target":null},
-  {"id":"rec_d","type":"cadence_change","title":"Valid 3","rationale":"r3","evidence_pills":[],"target":null}
+  {"id":"q_a","question":"A real open question about reader trust?","adjacent_note":"note A","why_uncovered":"gap A","wall_check":"research-side"},
+  {"question":"Missing id field","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"q_b","question":12345,"adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"q_c","question":"Another genuinely open question about decay?","adjacent_note":"note C","why_uncovered":"gap C","wall_check":"research-side"}
 ]';
 $recs = snt_insights_parse_response( $mixed );
 ins_true( is_array( $recs ), 'returns array' );
-ins_eq( 3, count( $recs ), 'only 3 valid (2 invalid dropped)' );
+ins_eq( 2, count( $recs ), 'only 2 valid (missing-id + non-string question dropped)' );
 
-// ─── Test 13: fewer than 3 valid → WP_Error ──────────────────────────
-echo "\nTest 13: parse_response returns WP_Error when < 3 valid\n";
-$too_few = '[
-  {"id":"rec_x","type":"write_about","title":"Only valid","rationale":"r","evidence_pills":[],"target":null},
-  {"missing":"keys"},
-  {"id":"y","type":"bogus","title":"t","rationale":"r","evidence_pills":[],"target":null}
-]';
-$res = snt_insights_parse_response( $too_few );
-ins_true( $res instanceof WP_Error, 'returns WP_Error' );
-ins_eq( 'snt_insights_too_few_valid', $res->code, 'error code' );
+// ─── Test 13: empty / all-dropped → empty array, NOT an error ────────
+// "Recommend nothing" is a first-class, expected outcome. A scan that yields
+// no question must return array(), never a WP_Error.
+echo "\nTest 13: parse_response treats 'recommend nothing' as valid (empty array)\n";
+$res = snt_insights_parse_response( '[]' );
+ins_true( is_array( $res ) && ! ( $res instanceof WP_Error ), 'empty input → empty array (not WP_Error)' );
+ins_eq( 0, count( $res ), 'zero recommendations is valid' );
+$all_bad = '[ {"missing":"keys"}, {"id":"x"} ]';
+$res = snt_insights_parse_response( $all_bad );
+ins_true( is_array( $res ) && ! ( $res instanceof WP_Error ), 'all-invalid → empty array (not WP_Error)' );
+ins_eq( 0, count( $res ), 'all-invalid collapses to zero, no synthesized minimum' );
 
-// ─── Test 14: target.post_id must reference real post ────────────────
+// ─── Test 13b: only malformed JSON is an error ───────────────────────
+echo "\nTest 13b: parse_response errors only on non-array JSON\n";
+$res = snt_insights_parse_response( 'not json at all' );
+ins_true( $res instanceof WP_Error, 'non-JSON → WP_Error' );
+ins_eq( 'snt_insights_invalid_json', $res->code, 'invalid-json error code' );
+
+// ─── Test 14: target.post_id must reference a real post ──────────────
 echo "\nTest 14: parse_response validates target.post_id\n";
 $with_bad_target = '[
-  {"id":"a","type":"update_post","title":"v1","rationale":"r","evidence_pills":[],"target":{"post_id":1,"url":"u"}},
-  {"id":"b","type":"update_post","title":"v2","rationale":"r","evidence_pills":[],"target":{"post_id":999999,"url":"u"}},
-  {"id":"c","type":"update_post","title":"v3","rationale":"r","evidence_pills":[],"target":null},
-  {"id":"d","type":"update_post","title":"v4","rationale":"r","evidence_pills":[],"target":null}
+  {"id":"a","question":"A clean open question about credits?","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side","target":{"post_id":1,"url":"u"}},
+  {"id":"b","question":"Another clean open question about feeds?","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side","target":{"post_id":999999,"url":"u"}}
 ]';
 $GLOBALS['__test_posts_exist'] = array( 1 => true );
 $recs = snt_insights_parse_response( $with_bad_target );
-ins_eq( 3, count( $recs ), 'invalid target dropped (post 999999 unknown)' );
+ins_eq( 1, count( $recs ), 'rec with unknown target post (999999) dropped' );
 
-// ─── Test 15: title length cap (80 chars) ────────────────────────────
-echo "\nTest 15: parse_response rejects titles > 80 chars\n";
-$long_title = str_repeat( 'x', 90 );
+// ─── Test 15: question length cap (200 chars) ────────────────────────
+echo "\nTest 15: parse_response rejects questions > 200 chars\n";
+$long_q = str_repeat( 'x', 210 );
 $with_long = '[
-  {"id":"a","type":"write_about","title":"' . $long_title . '","rationale":"r","evidence_pills":[],"target":null},
-  {"id":"b","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null},
-  {"id":"c","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null},
-  {"id":"d","type":"write_about","title":"ok","rationale":"r","evidence_pills":[],"target":null}
+  {"id":"a","question":"' . $long_q . '","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side"},
+  {"id":"b","question":"A reasonable-length open question?","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side"}
 ]';
 $recs = snt_insights_parse_response( $with_long );
-ins_eq( 3, count( $recs ), 'long title rejected' );
+ins_eq( 1, count( $recs ), 'over-length question rejected, normal one kept' );
+
+// ─── Test 15a: HARD WALL drops value-prop / commerce / answer / thesis ─
+echo "\nTest 15a: parse_response drops every walled recommendation\n";
+$walled = '[
+  {"id":"vp","question":"Build the system that solves credit ambiguity for listeners?","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"vp2","question":"How a tool that unlocks faster crediting fills the gap?","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"co","question":"What pricing would a royalty recovery product need?","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"co2","question":"How does the go-to-market for this platform reach customers?","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"ans","question":"The answer is that credits should be cryptographically signed.","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"th","question":"How does weighted identity replace institutional gatekeeping?","adjacent_note":"n","why_uncovered":"g","wall_check":"w"},
+  {"id":"th2","question":"Can provenance work without institutions vouching for it?","adjacent_note":"institutions note","why_uncovered":"g","wall_check":"w"}
+]';
+$recs = snt_insights_parse_response( $walled );
+ins_eq( 0, count( $recs ), 'all 7 walled recommendations dropped (none rewritten to pass)' );
+
+// blocked() reports the specific tripped category, and clears a clean rec.
+ins_eq( 'value_prop', snt_insights_recommendation_blocked( array( 'question' => 'A tool that solves X', 'adjacent_note' => '', 'why_uncovered' => '' ) ), 'value_prop category' );
+ins_eq( 'commerce',   snt_insights_recommendation_blocked( array( 'question' => 'What revenue model fits?', 'adjacent_note' => '', 'why_uncovered' => '' ) ), 'commerce category' );
+ins_eq( 'answer_announced', snt_insights_recommendation_blocked( array( 'question' => 'The answer is signed credits.', 'adjacent_note' => '', 'why_uncovered' => '' ) ), 'answer_announced category' );
+ins_eq( 'reserved_thesis', snt_insights_recommendation_blocked( array( 'question' => 'weighted identity and trust', 'adjacent_note' => '', 'why_uncovered' => '' ) ), 'reserved_thesis (weighted identity)' );
+ins_eq( 'reserved_thesis', snt_insights_recommendation_blocked( array( 'question' => 'provenance with no institution backing', 'adjacent_note' => '', 'why_uncovered' => '' ) ), 'reserved_thesis (provenance + institution)' );
+ins_eq( '', snt_insights_recommendation_blocked( array( 'question' => 'How do listeners read an unvouched credit list?', 'adjacent_note' => 'the over-detection note', 'why_uncovered' => 'reader side uncovered', 'wall_check' => 'not a product or value proposition' ) ), 'clean research question clears the wall' );
+// A clean question whose wall_check NAMES the forbidden categories to DENY them
+// (as honest attestations do) must NOT be dropped: negated spans are stripped
+// from wall_check before the scan, so the attestation does not self-trip.
+ins_eq( '', snt_insights_recommendation_blocked( array( 'question' => 'How do unvouched credits read to listeners?', 'adjacent_note' => 'over-detection note', 'why_uncovered' => 'reader side uncovered', 'wall_check' => 'this is not a product, has no revenue or pricing angle, and avoids the weighted-identity thesis' ) ), 'negated attestation vocabulary in wall_check does not self-trip the wall' );
+// ...but banned content SMUGGLED into wall_check WITHOUT a negation is still
+// caught (wall_check is rendered to the surface, so it cannot go unscanned).
+ins_eq( 'commerce', snt_insights_recommendation_blocked( array( 'question' => 'How do unvouched credits read to listeners?', 'adjacent_note' => 'note', 'why_uncovered' => 'uncovered', 'wall_check' => 'this becomes a SaaS product that monetizes royalty recovery' ) ), 'un-negated banned content smuggled into wall_check is blocked' );
+// bare "provenance" (without an authority/institution synonym) is a legitimate
+// research term, kept.
+ins_eq( '', snt_insights_recommendation_blocked( array( 'question' => 'How is provenance signalled on streaming pages?', 'adjacent_note' => 'provenance note', 'why_uncovered' => 'signalling uncovered' ) ), 'bare provenance (no institution synonym) is allowed' );
+
+// Paraphrase regressions: the wall must catch fluent restatements, not just the
+// literal trigger phrases (the wall is best-effort, but these obvious forms must
+// not slip). Each uses a clean wall_check so only the question drives the verdict.
+$wc_clean = 'stays on the research side';
+ins_eq( 'value_prop', snt_insights_recommendation_blocked( array( 'question' => 'A workflow that enables faster crediting for everyone?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'value_prop: noun-that-verb deliverable (workflow that enables)' );
+ins_eq( 'value_prop', snt_insights_recommendation_blocked( array( 'question' => 'How this closes the credit gap for session players?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'value_prop: gap-closing idiom with words between' );
+ins_eq( 'commerce', snt_insights_recommendation_blocked( array( 'question' => 'How would recovering unpaid mechanicals scale across catalogs?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'commerce: mechanicals / royalty recovery' );
+ins_eq( 'commerce', snt_insights_recommendation_blocked( array( 'question' => 'Would listeners pay for verified credit data?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'commerce: pay for' );
+ins_eq( 'commerce', snt_insights_recommendation_blocked( array( 'question' => 'Could a marketplace for credits index sessions?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'commerce: marketplace' );
+ins_eq( 'answer_announced', snt_insights_recommendation_blocked( array( 'question' => 'The takeaway: credits must be signed at the source.', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'answer: the takeaway (colon)' );
+ins_eq( 'answer_announced', snt_insights_recommendation_blocked( array( 'question' => 'We should adopt signed credits across the catalog.', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'answer: we should adopt' );
+ins_eq( 'reserved_thesis', snt_insights_recommendation_blocked( array( 'question' => 'How does a weighting of identity signals affect trust?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'thesis: weighting of identity (paraphrase)' );
+ins_eq( 'reserved_thesis', snt_insights_recommendation_blocked( array( 'question' => 'How does provenance survive when gatekeepers disappear?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'thesis: provenance + gatekeeper synonym' );
+ins_eq( 'reserved_thesis', snt_insights_recommendation_blocked( array( 'question' => 'Can self-certified provenance replace third-party bodies?', 'adjacent_note' => 'n', 'why_uncovered' => 'g', 'wall_check' => $wc_clean ) ), 'thesis: provenance + third-party / self-certified' );
+// And a genuine, fully-clean research question still passes after all the widening.
+ins_eq( '', snt_insights_recommendation_blocked( array( 'question' => 'What happens to a substrate claim once its source feed goes silent?', 'adjacent_note' => 'the as-substrate note', 'why_uncovered' => 'the note assumes a live feed', 'wall_check' => $wc_clean ) ), 'a genuinely open research question still clears the widened wall' );
+
+// ─── Test 15b: em/en dashes normalized out of every rendered field ───
+echo "\nTest 15b: parse_response strips em/en dashes (house style)\n";
+$dashed = '[
+  {"id":"q_dash","question":"How do credits read — to a casual listener — when unvouched?","adjacent_note":"the over–detection note","why_uncovered":"covers detection — not the reader cue","wall_check":"research side — no product"}
+]';
+$recs = snt_insights_parse_response( $dashed );
+ins_eq( 1, count( $recs ), 'dashed rec survives (dashes are normalized, not rejected)' );
+ins_true( false === strpos( $recs[0]['question'], "\xE2\x80\x94" ) && false === strpos( $recs[0]['question'], "\xE2\x80\x93" ), 'no em/en dash in question' );
+ins_true( false === strpos( $recs[0]['adjacent_note'], "\xE2\x80\x93" ), 'no en dash in adjacent_note' );
+ins_true( false === strpos( $recs[0]['why_uncovered'], "\xE2\x80\x94" ), 'no em dash in why_uncovered' );
+ins_true( false === strpos( $recs[0]['wall_check'], "\xE2\x80\x94" ), 'no em dash in wall_check' );
+// strip_dashes helper directly: every em-dash-like codepoint → comma, no dash left.
+ins_eq( 'a, b', snt_insights_strip_dashes( "a \xE2\x80\x94 b" ), 'spaced em dash (U+2014) -> comma' );
+ins_eq( 'a, b', snt_insights_strip_dashes( "a\xE2\x80\x93b" ), 'tight en dash (U+2013) -> comma' );
+ins_eq( 'a, b', snt_insights_strip_dashes( "a \xE2\x80\x95 b" ), 'horizontal bar (U+2015) -> comma' );
+ins_eq( 'a, b', snt_insights_strip_dashes( "a\xEF\xB9\x98b" ), 'small em dash (U+FE58) -> comma' );
+// Hyphen-like codepoints fold to ASCII hyphen, not a comma.
+ins_eq( 'a-b', snt_insights_strip_dashes( "a\xE2\x88\x92b" ), 'minus sign (U+2212) -> ASCII hyphen' );
+ins_eq( 'a-b', snt_insights_strip_dashes( "a\xE2\x80\x91b" ), 'non-breaking hyphen (U+2011) -> ASCII hyphen' );
+// A dash between digits is a numeric range, kept as a hyphen (not a comma).
+ins_eq( 'pages 10-20', snt_insights_strip_dashes( "pages 10\xE2\x80\x9320" ), 'numeric range (en dash between digits) -> hyphen' );
+ins_eq( 'plain-hyphen stays', snt_insights_strip_dashes( 'plain-hyphen stays' ), 'regular ASCII hyphen untouched' );
+ins_true( false === strpos( snt_insights_strip_dashes( "a \xE2\x80\x95 b" ), "\xE2\x80\x95" ), 'no horizontal bar survives' );
 
 // ─── Test 16: state read returns empty arrays by default ─────────────
 echo "\nTest 16: state read/write\n";
@@ -619,7 +671,7 @@ $GLOBALS['__test_posts_exist'] = array( 1 => true );
 $GLOBALS['wpdb']->rows = array();
 $result = snt_insights_run_scan();
 ins_true( is_array( $result ), 'run_scan returns array' );
-ins_eq( 5, count( $result['recommendations'] ), '5 recs cached' );
+ins_eq( 2, count( $result['recommendations'] ), '2 questions cached' );
 ins_true( isset( $result['scanned_at'] ), 'scanned_at set' );
 ins_true( ! empty( $GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] ), 'cache written' );
 
@@ -627,13 +679,27 @@ ins_true( ! empty( $GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] ), 'ca
 echo "\nTest 21: run_scan uses cache when present\n";
 $GLOBALS['__test_ai_response'] = '[]';  // would fail if called
 $cached = snt_insights_run_scan();
-ins_eq( 5, count( $cached['recommendations'] ), 'returns cached 5 recs (AI not re-called)' );
+ins_eq( 2, count( $cached['recommendations'] ), 'returns cached 2 questions (AI not re-called)' );
 
 // ─── Test 22: force=true bypasses cache ──────────────────────────────
 echo "\nTest 22: run_scan force=true bypasses cache\n";
 $GLOBALS['__test_ai_response'] = $valid_json;
 $forced = snt_insights_run_scan( true );
-ins_eq( 5, count( $forced['recommendations'] ), 'force re-ran scan' );
+ins_eq( 2, count( $forced['recommendations'] ), 'force re-ran scan' );
+
+// ─── Test 22b: run_scan stores an empty result (recommend nothing) ───
+// An empty array is a valid scan result and must be cached like any other,
+// so the advisor does not re-run the AI for 7 days just to learn "nothing"
+// again, and the surface can render the explicit empty state.
+echo "\nTest 22b: run_scan caches an empty 'recommend nothing' result\n";
+$GLOBALS['__test_transients']   = array();
+$GLOBALS['__test_ai_available'] = true;
+$GLOBALS['__test_ai_response']  = '[]';
+$GLOBALS['wpdb']->rows = array();
+$empty_scan = snt_insights_run_scan( true );
+ins_true( is_array( $empty_scan ) && ! ( $empty_scan instanceof WP_Error ), 'empty scan is a result, not an error' );
+ins_eq( 0, count( $empty_scan['recommendations'] ), 'zero recommendations cached' );
+ins_true( ! empty( $GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] ), 'empty result still cached' );
 
 // ─── Test 23: WP_Error from AI propagates ────────────────────────────
 echo "\nTest 23: AI failure returns WP_Error (cache untouched)\n";
@@ -815,90 +881,9 @@ ins_eq( 2, $result['signal_summary']['excerpts_count'], 'two excerpts attached �
 echo "\nTest 34: system instruction notes the excerpt grounding\n";
 $sys = snt_insights_system_instruction();
 ins_true( false !== stripos( $sys, 'excerpt' ), 'system instruction mentions excerpt' );
-// Output shape unchanged — still asks for exactly 5 recs.
-ins_true( false !== strpos( $sys, 'exactly 5 recommendations' ), 'still asks for exactly 5 recs (shape intact)' );
-
-// ─── Test 35: find_rec hit — returns the matching recommendation ─────
-echo "\nTest 35: snt_insights_find_rec() returns the matching rec\n";
-$GLOBALS['__test_transients'][ SN_INSIGHTS_CACHE_KEY ] = array(
-	'scanned_at'      => 111,
-	'recommendations' => array(
-		array( 'id' => 'rec_one', 'type' => 'write_about', 'title' => 'First',  'rationale' => 'r1', 'evidence_pills' => array(), 'target' => null ),
-		array( 'id' => 'rec_two', 'type' => 'update_post', 'title' => 'Second', 'rationale' => 'r2', 'evidence_pills' => array(), 'target' => null ),
-	),
-);
-$hit = snt_insights_find_rec( 'rec_two' );
-ins_true( is_array( $hit ), 'find_rec returns array on hit' );
-ins_eq( 'rec_two', $hit['id'], 'matched rec id' );
-ins_eq( 'Second', $hit['title'], 'matched rec title' );
-
-// ─── Test 36: find_rec miss — unknown id returns null ────────────────
-echo "\nTest 36: snt_insights_find_rec() returns null for an unknown id\n";
-ins_eq( null, snt_insights_find_rec( 'rec_missing' ), 'unknown id → null' );
-ins_eq( null, snt_insights_find_rec( '' ),            'empty id → null' );
-
-// ─── Test 37: find_rec expired/no-cache → null ───────────────────────
-echo "\nTest 37: snt_insights_find_rec() returns null when no scan is cached\n";
-$GLOBALS['__test_transients'] = array();  // cache miss / expired
-ins_eq( null, snt_insights_find_rec( 'rec_one' ), 'no cache → null' );
-
-// ─── Test 38: build_draft_postarr — shape + valid block body ─────────
-echo "\nTest 38: snt_insights_build_draft_postarr() — draft shape + Notes cat + valid wp:paragraph\n";
-$GLOBALS['__test_terms'] = array(
-	'category' => array( 'slug' => array( 'notes' => array( 'term_id' => 7, 'slug' => 'notes' ) ) ),
-);
-$rec = array(
-	'id'        => 'rec_synths',
-	'type'      => 'write_about',
-	'title'     => 'Write about modular synths',
-	'rationale' => 'Your modular-synth notes average 4x traffic; you have not published one in 6 months.',
-);
-$postarr = snt_insights_build_draft_postarr( $rec );
-ins_true( is_array( $postarr ), 'build_draft_postarr returns array' );
-ins_eq( 'draft', $postarr['post_status'], 'post_status = draft' );
-ins_eq( 'post',  $postarr['post_type'],   'post_type = post' );
-ins_eq( 'Write about modular synths', $postarr['post_title'], 'title from rec' );
-ins_true( isset( $postarr['post_category'] ) && in_array( 7, $postarr['post_category'], true ), 'Notes category id (7) assigned' );
-// Body must be a VALID, round-trippable wp:paragraph block.
-$body = $postarr['post_content'];
-ins_true( false !== strpos( $body, '<!-- wp:paragraph -->' ),  'opening paragraph block comment present' );
-ins_true( false !== strpos( $body, '<!-- /wp:paragraph -->' ), 'closing paragraph block comment present' );
-ins_true( preg_match( '/<!-- wp:paragraph -->\s*<p>.*<\/p>\s*<!-- \/wp:paragraph -->/s', $body ) === 1, 'block wraps a <p>…</p> (valid serialized shape)' );
-ins_true( false !== strpos( $body, 'modular-synth notes average 4x traffic' ), 'rationale text is in the body' );
-
-// ─── Test 39: build_draft_postarr — unseeded Notes cat is skipped ────
-echo "\nTest 39: build_draft_postarr() omits post_category when Notes is unseeded\n";
-$GLOBALS['__test_terms'] = array();  // get_term_by → false
-$postarr = snt_insights_build_draft_postarr( $rec );
-ins_true( ! isset( $postarr['post_category'] ) || array() === $postarr['post_category'], 'no Notes term → post_category omitted/empty' );
-ins_eq( 'draft', $postarr['post_status'], 'still a draft when category is unseeded' );
-
-// ─── Test 40: build_draft_postarr — title falls back when rec has none ─
-echo "\nTest 40: build_draft_postarr() supplies a fallback title for a title-less rec\n";
-$no_title = array( 'id' => 'rec_x', 'type' => 'write_about', 'title' => '', 'rationale' => 'Some rationale.' );
-$postarr  = snt_insights_build_draft_postarr( $no_title );
-ins_true( is_string( $postarr['post_title'] ) && '' !== $postarr['post_title'], 'fallback title is non-empty' );
-
-// ─── Test 41: create_draft_from_rec — inserts + returns the new id ───
-echo "\nTest 41: snt_insights_create_draft_from_rec() returns the inserted post id\n";
-$GLOBALS['__test_terms'] = array(
-	'category' => array( 'slug' => array( 'notes' => array( 'term_id' => 7, 'slug' => 'notes' ) ) ),
-);
-$GLOBALS['__test_insert_id'] = 555;
-unset( $GLOBALS['__test_insert_error'], $GLOBALS['__test_inserted_post'] );
-$new_id = snt_insights_create_draft_from_rec( $rec );
-ins_eq( 555, $new_id, 'returns wp_insert_post id' );
-ins_true( is_array( $GLOBALS['__test_inserted_post'] ), 'wp_insert_post received a postarr' );
-ins_eq( 'draft', $GLOBALS['__test_inserted_post']['post_status'], 'inserted as draft' );
-ins_true( in_array( 7, $GLOBALS['__test_inserted_post']['post_category'], true ), 'inserted with Notes category' );
-
-// ─── Test 42: create_draft_from_rec — propagates a WP_Error ──────────
-echo "\nTest 42: snt_insights_create_draft_from_rec() propagates wp_insert_post WP_Error\n";
-$GLOBALS['__test_insert_error'] = new WP_Error( 'db_insert_error', 'insert failed' );
-$res = snt_insights_create_draft_from_rec( $rec );
-ins_true( $res instanceof WP_Error, 'WP_Error propagated' );
-ins_eq( 'db_insert_error', $res->code, 'error code preserved' );
-unset( $GLOBALS['__test_insert_error'] );
+// New contract: surfaces open questions, recommend-nothing is valid, prescribes no posts.
+ins_true( false !== stripos( $sys, 'open question' ), 'system instruction asks for open questions' );
+ins_true( false !== stripos( $sys, 'content calendar' ), 'system instruction disclaims a content calendar' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

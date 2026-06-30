@@ -2,9 +2,9 @@
 /**
  * Signal & Noise Tools — Abilities API: insights.
  *
- * Two abilities exposing the Content Opportunity Advisor (cross-system
- * synthesis of Plausible analytics + publish history + webhook delivery
- * patterns + cron freshness, producing 5 actionable recommendations).
+ * Two abilities exposing the Open-Question Advisor (cross-system synthesis of
+ * Plausible analytics + publish history + webhook delivery patterns + cron
+ * freshness, surfacing zero or more unexplored open questions for the Notes).
  *
  *   - signal-noise/run-insights-scan  (triggers a fresh scan; cached 7d)
  *   - signal-noise/get-insights        (returns the cached result)
@@ -27,7 +27,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/run-insights-scan', array(
 		'label'               => 'Run Insights Synthesis Scan',
-		'description'         => 'Triggers a cross-system synthesis scan that combines Plausible analytics, publish history, webhook delivery patterns, and cron freshness into 5 actionable content recommendations. Cached for 7 days. Pass force=true to bypass the cache.',
+		'description'         => 'Triggers a cross-system synthesis scan that reads Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces zero or more unexplored open questions worth developing for the site\'s Notes. The recommendations array may be empty when nothing clears the bar (recommend nothing is a valid result). It does not prescribe posts. Cached for 7 days. Pass force=true to bypass the cache.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_run_insights_scan',
@@ -56,17 +56,18 @@ add_action( 'wp_abilities_api_init', function() {
 						'cron_hooks_seen' => array( 'type' => 'integer' ),
 					),
 				),
+				// May be empty: "recommend nothing" is a valid, expected result.
 				'recommendations' => array(
 					'type'  => 'array',
 					'items' => array(
 						'type'       => 'object',
 						'properties' => array(
-							'id'             => array( 'type' => 'string' ),
-							'type'           => array( 'type' => 'string', 'enum' => array( 'write_about', 'update_post', 'cadence_change', 'topic_double_down', 'topic_pivot' ) ),
-							'title'          => array( 'type' => 'string' ),
-							'rationale'      => array( 'type' => 'string' ),
-							'evidence_pills' => array( 'type' => 'array' ),
-							'target'         => array( 'type' => array( 'object', 'null' ) ),
+							'id'            => array( 'type' => 'string' ),
+							'question'      => array( 'type' => 'string', 'description' => 'An unexplored open question or facet worth developing.' ),
+							'adjacent_note' => array( 'type' => 'string', 'description' => 'Which existing note this extends or sits adjacent to.' ),
+							'why_uncovered' => array( 'type' => 'string', 'description' => 'Why the existing notes do not already cover this.' ),
+							'wall_check'    => array( 'type' => 'string', 'description' => 'Confirms the question stays on the research side (not a product, value prop, or the reserved thesis).' ),
+							'target'        => array( 'type' => array( 'object', 'null' ) ),
 						),
 					),
 				),
@@ -85,7 +86,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-insights', array(
 		'label'               => 'Get Last Insights Scan',
-		'description'         => 'Returns the cached result of the last synthesis scan (recommendations array + metadata). Returns null when no scan has run yet.',
+		'description'         => 'Returns the cached result of the last synthesis scan (open-questions array + metadata). The recommendations array may be empty (recommend nothing). Returns null when no scan has run yet.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_insights',
