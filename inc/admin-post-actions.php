@@ -275,15 +275,21 @@ function sn_handle_perf_save( $post ) {
  * model ids passed to the snt_ai_model_preference filter; values are UI labels.
  *
  * Ids are the alias form (no date suffix), verified Active against the
- * claude-api model catalog: Sonnet 4.6 (current pin), Opus 4.8 (most capable),
- * Haiku 4.5 (fastest/cheapest). Loaded unconditionally at bootstrap, so it is
- * available on the front end too (sn_tf_ai_model() calls it during AI requests).
+ * claude-api model catalog: Sonnet 5 (default), Sonnet 4.6 (previous), Opus 4.8
+ * (most capable), Haiku 4.5 (fastest/cheapest). v6.52.0: this stays a small
+ * hand-maintained list rather than a live enumeration. The WP AI Client exposes
+ * no public model-list helper (only an SDK-internal registry path that hits the
+ * network on admin render and is untestable in CI), so a curated allowlist keeps
+ * the picker priced, predictable, and testable. Loaded unconditionally at
+ * bootstrap, so it is available on the front end too (sn_tf_ai_model() calls it
+ * during AI requests).
  *
  * @return array<string,string>
  */
 function sn_theme_ai_models() {
 	return array(
-		'claude-sonnet-4-6' => 'Claude Sonnet 4.6 (balanced — default)',
+		'claude-sonnet-5'   => 'Claude Sonnet 5 (balanced, default)',
+		'claude-sonnet-4-6' => 'Claude Sonnet 4.6 (balanced, previous)',
 		'claude-opus-4-8'   => 'Claude Opus 4.8 (most capable)',
 		'claude-haiku-4-5'  => 'Claude Haiku 4.5 (fastest, cheapest)',
 	);

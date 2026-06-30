@@ -49,6 +49,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_AI_USAGE_LOG_OPT', 'sn_ai_usage_log' );
 define( 'SN_AI_USAGE_LOG_CAP', 200 );
 
+// v6.52.0: the preferred + safety-net text model for ALL SN AI generation.
+// SN_AI_DEFAULT_MODEL is the model SN pins by default; SN_AI_FALLBACK_MODEL is
+// appended as a SECOND preference so the variadic using_model_preference() has
+// a known-good Sonnet to fall to. This matters because the WP AI Client resolves
+// ids LIVE from the provider's /v1/models: if a just-released id is not yet in
+// the provider's cached list, an unguarded single pin would fall through to the
+// provider's most-capable default (Opus/Fable) — the exact expensive-model
+// surprise the pin exists to prevent. With the fallback it degrades to Sonnet
+// 4.6 instead. Both are alias ids (no date suffix). See snt_ai_model_pricing().
+define( 'SN_AI_DEFAULT_MODEL',  'claude-sonnet-5' );
+define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-4-6' );
+
 /**
  * Is the WP AI Client wired up with at least one provider that can
  * generate text on this install?
@@ -265,21 +277,23 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	 *
 	 * Why pin rather than let the AI Client pick:
 	 * - The Anthropic provider plugin defaults to the most-capable available
-	 *   model (currently `claude-opus-4-7`), which is ~5x the cost of Sonnet.
+	 *   model (the Fable/Opus tier), several times the cost of Sonnet.
 	 * - The v3.6.0 Insights plan budgeted ~$0.01/scan based on Sonnet pricing.
-	 *   Unpinned, Opus 4.7 was being used → ~$0.10/scan in production (verified
-	 *   via AI Request Logs 2026-05-21: single Insights call was 4.9K tokens
-	 *   at claude-opus-4-7 = ~$0.10).
+	 *   Unpinned, the most-capable model was being used → ~$0.10/scan in
+	 *   production (verified via AI Request Logs 2026-05-21: a single Insights
+	 *   call at the Opus tier was 4.9K tokens = ~$0.10).
 	 * - Pinning by string model ID (per usingModelPreference signature) lets
 	 *   the call still route through any provider that exposes the same model
 	 *   ID, so the pin is portable across provider changes.
 	 *
-	 * Filter `snt_ai_model_preference` lets callers override per-feature if
-	 * the quality differential ever justifies Opus for a specific surface.
+	 * Filter `snt_ai_model_preference` lets callers override per feature; the
+	 * Front-End settings tab feeds the owner's dropdown choice through it (see
+	 * sn_tf_ai_model in inc/theme-filters.php) and the alt-text route overrides
+	 * to a vision model below. The default is SN_AI_DEFAULT_MODEL.
 	 *
-	 * Per php-ai-client/src/Builders/PromptBuilder.php (line 288):
-	 * `usingModelPreference(...$preferredModels)` — accepts string IDs,
-	 * ModelInterface instances, or [providerId, modelId] tuples.
+	 * Per php-ai-client/src/Builders/PromptBuilder.php:
+	 * `usingModelPreference(...$preferredModels)` accepts a LIST — the provider
+	 * picks the first id it actually exposes — so we pass [resolved, fallback].
 	 *
 	 * @since 3.7.2
 	 */
@@ -287,7 +301,15 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// per feature, e.g. alt-text → a vision-capable Gemini model (see the default
 	// route registered below in snt_ai_register_alt_text_model_route). Existing
 	// single-arg filters keep working — the extra arg is ignored by them.
-	$model_preference = apply_filters( 'snt_ai_model_preference', 'claude-sonnet-4-6', $prompt, $system_instruction, $feature );
+	$model_preference = apply_filters( 'snt_ai_model_preference', SN_AI_DEFAULT_MODEL, $prompt, $system_instruction, $feature );
+
+	// v6.52.0: build the variadic preference LIST — the resolved model first, then
+	// SN_AI_FALLBACK_MODEL as a known-good Sonnet safety net (deduped so a pin that
+	// already equals the fallback stays a single id). using_model_preference()
+	// picks the first id the configured provider exposes, so a just-released id not
+	// yet in the provider's cached /v1/models list degrades to Sonnet 4.6 instead
+	// of falling through to the provider's most-capable (expensive) default.
+	$model_list = array_values( array_unique( array_filter( array( (string) $model_preference, SN_AI_FALLBACK_MODEL ) ) ) );
 
 	// v6.48.0: optional image input (vision). When a readable local image path +
 	// mime are supplied, attach it via the wp-ai-client builder's ->with_file()
@@ -301,7 +323,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 
 	try {
 		$builder = wp_ai_client_prompt( (string) $prompt )
-			->using_model_preference( (string) $model_preference )
+			->using_model_preference( ...$model_list )
 			->using_system_instruction( (string) $system_instruction )
 			->using_max_tokens( $max_tokens );
 		if ( $has_image ) {
@@ -486,6 +508,10 @@ function snt_ai_model_pricing() {
 		'claude-opus-4-7'   => array( 'in' => 5.0, 'out' => 25.0 ),
 		'claude-opus-4-6'   => array( 'in' => 5.0, 'out' => 25.0 ),
 		'claude-opus-4-5'   => array( 'in' => 5.0, 'out' => 25.0 ),
+		// v6.52.0: Claude Sonnet 5 at standard list ($3/$15 per MTok). The intro
+		// $2/$10 runs through 2026-08-31, but this readout is a durable list-price
+		// estimate that already disclaims discounts, so we hold the standard rate.
+		'claude-sonnet-5'   => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-sonnet-4-6' => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-sonnet-4-5' => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-haiku-4-5'  => array( 'in' => 1.0, 'out' => 5.0 ),

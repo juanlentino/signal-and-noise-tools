@@ -85,10 +85,26 @@ function sn_tf_notes_per_page( $default ) {
  * supplied default when the stored id is off-list (a hand-edited option, or a
  * model that was removed from sn_theme_ai_models() after being configured).
  *
- * @param string $d Theme/plugin-supplied default model id.
- * @return string An allowlisted model id.
+ * v6.52.0: feature-aware. The owner's text-model dropdown choice must NOT
+ * clobber the per-feature routes, e.g. the alt-text route pins a Gemini vision
+ * model. Both this filter and that route hook snt_ai_model_preference at
+ * priority 10, so registration order alone can't guarantee the route wins;
+ * instead this callback passes the 'alt-text' feature straight through. Every
+ * other feature applies the owner's configured (allowlisted) model. Registered
+ * with accepted_args = 4 so $feature is received.
+ *
+ * @param string $d       Incoming model id (the running filter value / default).
+ * @param string $prompt  Unused; present for the 4-arg filter signature.
+ * @param string $system  Unused; present for the 4-arg filter signature.
+ * @param string $feature The SN AI feature key (e.g. 'alt-text', 'generic').
+ * @return string An allowlisted model id, or $d unchanged for feature routes.
  */
-function sn_tf_ai_model( $d ) {
+function sn_tf_ai_model( $d, $prompt = '', $system = '', $feature = '' ) {
+	// Per-feature routes (alt-text → Gemini vision) own their model; never let
+	// the text-model dropdown choice override them.
+	if ( 'alt-text' === $feature ) {
+		return (string) $d;
+	}
 	$id = (string) sn_setting( 'theme.ai_model', $d );
 	return in_array( $id, array_keys( sn_theme_ai_models() ), true ) ? $id : (string) $d;
 }
@@ -103,5 +119,5 @@ if ( ! defined( 'SN_THEME_FILTERS_TEST' ) || ! SN_THEME_FILTERS_TEST ) {
 	add_filter( 'sn_updated_date_threshold_days', 'sn_tf_updated_threshold' );
 	add_filter( 'sn_reading_time_wpm', 'sn_tf_reading_wpm' );
 	add_filter( 'sn_notes_per_page', 'sn_tf_notes_per_page' );
-	add_filter( 'snt_ai_model_preference', 'sn_tf_ai_model' );
+	add_filter( 'snt_ai_model_preference', 'sn_tf_ai_model', 10, 4 );
 }
