@@ -531,8 +531,6 @@ function sn_schedule_fire( $row_id ) {
 	$end_ts   = sn_schedule_boundary_ts( $row['ends_at'] ?? null );
 	$status   = (string) ( $row['status'] ?? 'queued' );
 
-	$urls = (array) json_decode( (string) ( $row['purge_urls'] ?? '' ), true );
-
 	// Has the reveal boundary been reached? A null start means "open from the
 	// start of time", so a queued/error row with no start is already revealed.
 	$reveal_due = ( null === $start_ts || $now >= $start_ts );
@@ -543,9 +541,12 @@ function sn_schedule_fire( $row_id ) {
 	// net state is "now hidden". This single branch covers both the plain
 	// active->done hide AND the both-boundaries-past missed-event case (a queued
 	// row whose start AND end are both in the past advances straight to done),
-	// firing exactly ONE purge for the one fire call.
+	// firing exactly ONE purge for the one fire call. v7.3.0: purging goes
+	// through sn_schedule_fire_purge (inc/schedule-cache.php) — snapshot ∪
+	// current permalink for post fragments, zone escalation for reused
+	// containers — same TRUE=dispatched / FALSE=retry contract.
 	if ( $hide_due && in_array( $status, array( 'queued', 'active', 'error' ), true ) ) {
-		if ( sn_schedule_purge_urls( $urls ) ) {
+		if ( sn_schedule_fire_purge( $row ) ) {
 			sn_schedule_update_status( (int) $row['id'], 'done', $last_run );
 		} else {
 			sn_schedule_update_status( (int) $row['id'], 'error', $last_run );
@@ -556,7 +557,7 @@ function sn_schedule_fire( $row_id ) {
 	// REVEAL: the window has opened but not yet closed. Only a not-yet-active row
 	// (queued, or an error row retrying the reveal) transitions here.
 	if ( $reveal_due && in_array( $status, array( 'queued', 'error' ), true ) ) {
-		if ( sn_schedule_purge_urls( $urls ) ) {
+		if ( sn_schedule_fire_purge( $row ) ) {
 			sn_schedule_update_status( (int) $row['id'], 'active', $last_run );
 		} else {
 			sn_schedule_update_status( (int) $row['id'], 'error', $last_run );
