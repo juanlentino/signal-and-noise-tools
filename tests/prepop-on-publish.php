@@ -229,17 +229,9 @@ pp_eq( '', get_post_meta( 32, '_sn_autogen_meta_description', true ), 'save clea
 pp_eq( '', get_post_meta( 32, '_sn_autogen_excerpt', true ), 'save clears excerpt sentinel' );
 pp_eq( '', get_post_meta( 32, '_sn_autogen_og_card_title', true ), 'save clears og-title sentinel' );
 
-// ── Dismiss handler ──
-pp_reset(); $GLOBALS['__can_edit_post'] = true;
-$GLOBALS['__test_post_meta'][40]['_sn_autogen_meta_description'] = '1';
-$resp = snt_prepop_dismiss_rest_handler( new PP_Req( array( 'post_id' => 40 ) ) );
-pp_eq( '', get_post_meta( 40, '_sn_autogen_meta_description', true ), 'dismiss clears the sentinel' );
-pp_true( is_array( $resp ) && ! empty( $resp['ok'] ), 'dismiss returns ok' );
-
-pp_reset(); $GLOBALS['__can_edit_post'] = false;
-pp_true( false === snt_prepop_dismiss_rest_permission( new PP_Req( array( 'post_id' => 41 ) ) ), 'dismiss permission denied without edit_post' );
-pp_reset(); $GLOBALS['__can_edit_post'] = true;
-pp_true( true === snt_prepop_dismiss_rest_permission( new PP_Req( array( 'post_id' => 41 ) ) ), 'dismiss permission granted with edit_post' );
+// The /prepop/dismiss REST handler was REMOVED in v7.0.0 (replaced by the
+// signal-noise/prepop-dismiss Ability — see tests/abilities-prepop-dismiss.php,
+// which drives the same sn_prepop_clear_sentinels effect tested above).
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

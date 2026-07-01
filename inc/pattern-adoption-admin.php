@@ -8,10 +8,11 @@
  *   - "Scan for pattern opportunities" trigger button (POSTs to
  *     /signal-noise/v1/health/pattern-adoption-scan)
  *
- * Also registers the dismiss REST endpoint at POST
- * /signal-noise/v1/health/pattern-adoption-dismiss which appends a
- * fingerprint to the post's _snt_pattern_adoption_dismissed meta and
- * invalidates the current user's scan transient.
+ * Also houses the shared dismiss write (snt_pattern_adoption_dismiss_impl):
+ * appends a fingerprint to the post's _snt_pattern_adoption_dismissed meta
+ * and invalidates the current user's scan transient. It is called by the
+ * signal-noise/pattern-adoption-dismiss Ability run-path (the legacy REST
+ * route was removed in v7.0.0).
  *
  * @package SignalNoiseTools
  * @since 4.3.0
@@ -137,9 +138,9 @@ function snt_pattern_adoption_render_opportunities_section() {
  * reads in inc/pattern-adoption-detect.php) and invalidate the current
  * user's scan transient so the next render reflects the dismissal.
  *
- * The single source of truth for the dismiss write — both the REST route
- * (snt_rest_pattern_adoption_dismiss) and the Ability
- * (snt_ability_pattern_adoption_dismiss) call this so they can never drift.
+ * The single source of truth for the dismiss write — the Ability
+ * (snt_ability_pattern_adoption_dismiss) calls this. (The legacy REST route
+ * that also called it was removed in v7.0.0.)
  * Idempotent: dismissing the same key twice is a no-op.
  *
  * @param int    $post_id      Target post ID (> 0).
@@ -179,37 +180,8 @@ function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprin
 	return array( 'ok' => true, 'message' => 'Dismissed.' );
 }
 
-/**
- * REST handler for /health/pattern-adoption-dismiss.
- *
- * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-dismiss`
- *             ability. This back-compat route will be removed in v6.0.0.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response
- */
-function snt_rest_pattern_adoption_dismiss( WP_REST_Request $request ) {
-	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/pattern-adoption-dismiss/run' );
-	$post_id      = (int) $request->get_param( 'post_id' );
-	$fingerprint  = (string) $request->get_param( 'block_fingerprint' );
-	$pattern_type = (string) $request->get_param( 'pattern_type' );
-
-	snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprint );
-
-	return rest_ensure_response( array( 'ok' => true ) );
-}
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/health/pattern-adoption-dismiss', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_rest_pattern_adoption_dismiss',
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'           => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'block_fingerprint' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'pattern_type'      => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_key' ),
-		),
-	) );
-} );
+// v7.0.0: the /health/pattern-adoption-dismiss REST route and its handler
+// (snt_rest_pattern_adoption_dismiss) were removed — the dismiss write now
+// runs through the signal-noise/pattern-adoption-dismiss Abilities run-path,
+// which shares snt_pattern_adoption_dismiss_impl() above. The JS caller in
+// assets/health-suggest-actions.js migrated to callAbility() in v6.55.0.

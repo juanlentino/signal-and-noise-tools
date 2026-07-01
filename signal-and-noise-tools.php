@@ -67,7 +67,6 @@ require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
-require_once SNT_PATH . 'inc/rest-deprecations.php'; // v6.54.0: legacy REST route deprecation notices (Ability run-path migration hints)
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and

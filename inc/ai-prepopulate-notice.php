@@ -39,45 +39,8 @@ function sn_prepop_render_notice( $post ) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
- * DISMISS REST ROUTE + NOTICE JS
+ * NOTICE JS
  * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function () {
-	register_rest_route( 'signal-noise/v1', '/prepop/dismiss', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_prepop_dismiss_rest_handler',
-		'permission_callback' => 'snt_prepop_dismiss_rest_permission',
-		'args'                => array(
-			'post_id' => array(
-				'required'          => true,
-				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => function ( $value ) {
-					return is_numeric( $value ) && (int) $value > 0;
-				},
-			),
-		),
-	) );
-} );
-
-/**
- * @param WP_REST_Request $request
- * @return bool
- */
-function snt_prepop_dismiss_rest_permission( $request ) {
-	return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-}
-
-/**
- * @param WP_REST_Request $request
- * @return array
- */
-function snt_prepop_dismiss_rest_handler( $request ) {
-	snt_rest_deprecated_notice( '/signal-noise/v1/prepop/dismiss', 'signal-noise/prepop-dismiss', '6.56.0' );
-	$post_id = (int) $request->get_param( 'post_id' );
-	sn_prepop_clear_sentinels( $post_id );
-	return rest_ensure_response( array( 'ok' => true ) );
-}
 
 add_action( 'admin_enqueue_scripts', function ( $hook_suffix ) {
 	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {

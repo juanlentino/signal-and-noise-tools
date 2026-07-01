@@ -20,9 +20,6 @@ function current_user_can( $c ) { return $GLOBALS['__cap']; }
 function rest_authorization_required_code() { return 401; }
 $GLOBALS['__rest_cb'] = null;
 function add_action( $h, $c = null, $p = 10, $a = 1 ) { if ( 'rest_api_init' === $h ) { $GLOBALS['__rest_cb'] = $c; } }
-// v6.54.0: the REST handlers now emit a deprecation notice (inc/rest-deprecations.php); stub it
-// no-op here — its behavior is asserted in tests/rest-deprecations.php, not this suite.
-function snt_rest_deprecated_notice( $route = '', $ability = '' ) {}
 // read-accessor + resolver stubs (production shapes):
 function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 7, 'visits' => 9, 'scroll_avg' => 50.0, 'time_avg' => 1000.0 ); }
 function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return array(); }
@@ -42,29 +39,21 @@ function ok( $cond, $msg ) { global $pass, $fail; if ( $cond ) { $pass++; echo "
 require __DIR__ . '/../inc/analytics-rest.php';
 call_user_func( $GLOBALS['__rest_cb'] ); // fire the rest_api_init closure → registers routes
 
-echo "\nGroup: rest routes\n";
-ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/summary'] ), 'summary route registered' );
-$args = $GLOBALS['__routes']['signal-noise/v1/analytics/summary'];
-ok( $args['methods'] === 'GET', 'summary is a GET (READABLE) route' );
-ok( $args['permission_callback'] === 'sn_analytics_rest_can_read', 'permission_callback gates the route' );
+// v7.0.0: /analytics/summary + /analytics/events were REMOVED (replaced by the
+// get-analytics-summary / get-analytics-events Abilities). The read-only dimension
+// routes below have no Ability equivalent and are KEPT, as is the shared read gate.
+echo "\nGroup: rest routes (read-only dimensions)\n";
+ok( ! isset( $GLOBALS['__routes']['signal-noise/v1/analytics/summary'] ), 'summary route REMOVED in v7.0.0' );
 $GLOBALS['__cap'] = false;
-ok( sn_analytics_rest_can_read() instanceof WP_Error, 'denies without manage_options' );
+ok( sn_analytics_rest_can_read() instanceof WP_Error, 'shared read gate denies without manage_options' );
 $GLOBALS['__cap'] = true;
-ok( sn_analytics_rest_can_read() === true, 'allows with manage_options' );
-$resp = sn_analytics_rest_summary( new WP_REST_Request( array( 'range' => 30, 'class' => 'human' ) ) );
-ok( isset( $resp['views'] ) && $resp['views'] === 7, 'summary callback returns durable totals' );
+ok( sn_analytics_rest_can_read() === true, 'shared read gate allows with manage_options' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/series'] ), 'series route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/dimension/(?P<dim>[a-z]+)'] ), 'dimension route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/distribution/(?P<metric>[a-z]+)'] ), 'distribution route registered' );
 
-echo "\nGroup: events routes\n";
-ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/events'] ), 'events route registered' );
-$ev_args = $GLOBALS['__routes']['signal-noise/v1/analytics/events'];
-ok( isset( $ev_args['methods'] ) && $ev_args['methods'] === 'GET', 'events route is GET (READABLE)' );
-ok( isset( $ev_args['permission_callback'] ) && $ev_args['permission_callback'] === 'sn_analytics_rest_can_read', 'events permission_callback is sn_analytics_rest_can_read' );
-$ev_resp = sn_analytics_rest_events( new WP_REST_Request( array( 'range' => 30 ) ) );
-ok( is_array( $ev_resp ) && isset( $ev_resp[0]['name'] ) && $ev_resp[0]['name'] === 'pageview', 'events callback returns accessor data' );
-
+echo "\nGroup: events routes (event-props kept; /analytics/events removed in v7.0.0)\n";
+ok( ! isset( $GLOBALS['__routes']['signal-noise/v1/analytics/events'] ), 'events route REMOVED in v7.0.0' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/event-props'] ), 'event-props route registered' );
 $ep_args = $GLOBALS['__routes']['signal-noise/v1/analytics/event-props'];
 ok( isset( $ep_args['methods'] ) && $ep_args['methods'] === 'GET', 'event-props route is GET (READABLE)' );
