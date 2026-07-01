@@ -97,6 +97,7 @@ function sn_health_run_scan() {
 			'external_links'      => sn_health_check_external_links(),
 			'stale_posts'         => sn_health_check_stale_posts(),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
+			'color_drift'         => sn_health_check_color_drift(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 		),
@@ -779,6 +780,122 @@ function sn_health_check_drift_time_phrases() {
 		}
 	}
 
+	return sn_health_pack_check( $label, $findings, $fix_hint );
+}
+
+/**
+ * Normalize a CSS hex color: lowercase, 3-digit expanded to 6. '' for anything
+ * that is not a #hex color (named colors, rgb(), malformed).
+ *
+ * @param string $color Raw color token.
+ * @return string '#rrggbb' or ''.
+ */
+function sn_health_normalize_hex( $color ) {
+	$c = strtolower( trim( (string) $color ) );
+	if ( ! preg_match( '/^#([0-9a-f]{3}|[0-9a-f]{6})$/', $c, $m ) ) {
+		return '';
+	}
+	$h = $m[1];
+	if ( 3 === strlen( $h ) ) {
+		$h = $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2];
+	}
+	return '#' . $h;
+}
+
+/**
+ * The allowed palette as a normalized hex set, read DEFENSIVELY from
+ * wp_get_global_settings(): merged data presents either a FLAT entry list (the
+ * shape the theme's design-tokens ability reads) or an ORIGIN-KEYED array.
+ * When keyed, only theme+custom origins count — the theme sets
+ * defaultPalette:false, so core-default colors are drift here.
+ *
+ * @return array<string,true> Set keyed by '#rrggbb'.
+ */
+function sn_health_allowed_palette_hexes() {
+	if ( ! function_exists( 'wp_get_global_settings' ) ) {
+		return array();
+	}
+	$palette = wp_get_global_settings( array( 'color', 'palette' ) );
+	if ( ! is_array( $palette ) ) {
+		return array();
+	}
+	$entries = array();
+	if ( isset( $palette['theme'] ) || isset( $palette['custom'] ) || isset( $palette['default'] ) ) {
+		foreach ( array( 'theme', 'custom' ) as $origin ) {
+			if ( isset( $palette[ $origin ] ) && is_array( $palette[ $origin ] ) ) {
+				$entries = array_merge( $entries, $palette[ $origin ] );
+			}
+		}
+	} else {
+		$entries = $palette;
+	}
+	$allowed = array();
+	foreach ( $entries as $entry ) {
+		if ( is_array( $entry ) && isset( $entry['color'] ) ) {
+			$hex = sn_health_normalize_hex( (string) $entry['color'] );
+			if ( '' !== $hex ) {
+				$allowed[ $hex ] = true;
+			}
+		}
+	}
+	return $allowed;
+}
+
+/**
+ * Zero-AI color-drift check (v7.3.0, the v4.1.0-era "cheap zero-AI check"):
+ * published posts/pages whose content carries inline hex colors outside the
+ * theme palette. Read-only; the fix is editorial (use palette presets) or a
+ * deliberate theme.json addition.
+ *
+ * @return array Packed check (sn_health_pack_check shape).
+ */
+function sn_health_check_color_drift() {
+	$label    = 'Color drift';
+	$fix_hint = 'Replace inline hex colors with theme palette presets, or add the color to theme.json if it is genuinely part of the design system.';
+
+	$allowed = sn_health_allowed_palette_hexes();
+	if ( empty( $allowed ) ) {
+		return sn_health_pack_check( $label, array(), 'Theme palette unavailable — skipping (never flags everything on a missing palette). ' . $fix_hint );
+	}
+
+	global $wpdb;
+	$rows = $wpdb->get_results(
+		"SELECT ID, post_title, post_content
+		 FROM {$wpdb->posts}
+		 WHERE post_status = 'publish'
+		   AND post_type IN ('post','page')
+		   AND post_content REGEXP '#[0-9a-fA-F]{3}'
+		 LIMIT 500",
+		ARRAY_A
+	);
+	if ( ! is_array( $rows ) ) {
+		return sn_health_pack_check( $label, array(), $fix_hint );
+	}
+
+	$findings = array();
+	foreach ( $rows as $r ) {
+		if ( ! preg_match_all( '/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', (string) $r['post_content'], $m ) ) {
+			continue;
+		}
+		$offending = array();
+		foreach ( array_unique( $m[0] ) as $raw ) {
+			$hex = sn_health_normalize_hex( $raw );
+			if ( '' !== $hex && ! isset( $allowed[ $hex ] ) ) {
+				$offending[ $hex ] = true;
+			}
+		}
+		if ( empty( $offending ) ) {
+			continue;
+		}
+		$findings[] = array(
+			'subject_type'  => 'post',
+			'subject_id'    => (int) $r['ID'],
+			'subject_url'   => (string) get_permalink( (int) $r['ID'] ),
+			'subject_label' => (string) $r['post_title'],
+			'edit_url'      => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
+			'note'          => 'Off-palette inline colors: ' . implode( ', ', array_slice( array_keys( $offending ), 0, 8 ) ) . '.',
+		);
+	}
 	return sn_health_pack_check( $label, $findings, $fix_hint );
 }
 

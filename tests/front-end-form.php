@@ -25,6 +25,7 @@ if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $e = 
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = '' ) { return $d; } }
 if ( ! function_exists( 'sn_theme_ai_models' ) ) { function sn_theme_ai_models() { return array( 'claude-sonnet-5' => 'Claude Sonnet 5' ); } }
+if ( ! function_exists( 'sn_theme_ai_vision_models' ) ) { function sn_theme_ai_vision_models() { return array( 'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite' ); } }
 
 require_once __DIR__ . '/../inc/admin-forms/front-end.php';
 
@@ -37,6 +38,7 @@ fe_assert( false !== strpos( $h, 'class="sn-front-end-form"' ), 'form carries th
 fe_assert( 1 === substr_count( $h, 'class="sn-fieldset"' ), 'form body wrapped in exactly one real .sn-fieldset card (owns chrome at full width)' );
 fe_assert( false !== strpos( $h, 'name="sn_action" value="save_theme"' ), 'carries the save_theme action' );
 fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_ai_model"' ), 'first + last fields render (form body intact)' );
+fe_assert( false !== strpos( $h, 'name="theme_ai_alt_model"' ), 'v7.3.0: vision-model select renders' );
 
 // Wide-leaf card-ownership: the save row is a card-owned .sn-fieldset-actions,
 // NOT a bare .sn-savebar — whose negative card-bleed margin overflows the bare

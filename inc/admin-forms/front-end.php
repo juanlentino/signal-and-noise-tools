@@ -31,7 +31,8 @@ function sn_admin_render_front_end_form() {
 	$uthr    = (int) sn_setting( 'theme.updated_threshold_days', 14 );
 	$wpm     = (int) sn_setting( 'theme.reading_wpm', 225 );
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
-	$model   = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
+	$model     = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
+	$alt_model = (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' );
 
 	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -94,7 +95,17 @@ function sn_admin_render_front_end_form() {
 		echo '<option value="' . esc_attr( $id ) . '"' . selected( $model, $id, false ) . '>' . esc_html( $label ) . '</option>';
 	}
 	echo '</select>';
-	echo '<p class="sn-field-helper">Model used for AI-assisted features (alt text, drafts, insights).</p>';
+	echo '<p class="sn-field-helper">Model used for AI-assisted prose features (drafts, insights, meta descriptions).</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field sn-field-w-md">';
+	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">Vision model (alt text)</label>';
+	echo '<select id="sn_theme_ai_alt_model" name="theme_ai_alt_model">';
+	foreach ( sn_theme_ai_vision_models() as $id => $label ) {
+		echo '<option value="' . esc_attr( $id ) . '"' . selected( $alt_model, $id, false ) . '>' . esc_html( $label ) . '</option>';
+	}
+	echo '</select>';
+	echo '<p class="sn-field-helper">Model used to LOOK at images when suggesting alt text. The <code>snt_ai_alt_text_model</code> filter still overrides this for code-level pins.</p>';
 	echo '</div>';
 
 	// Wide leaf → no wrapper card → the save row must be a card-owned

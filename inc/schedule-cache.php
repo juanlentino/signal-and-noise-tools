@@ -71,3 +71,59 @@ function sn_schedule_purge_urls( array $urls ) {
 	// Pass through verbatim; sn_cf_purge_urls owns de-dupe + chunk-at-30.
 	return (bool) sn_cf_purge_urls( $urls );
 }
+
+/**
+ * Purge for a fire-handler boundary transition (v7.3.0) — escalate or union.
+ *
+ * Two shipped gaps this closes:
+ *  1. SLUG CHANGE: purge_urls is snapshotted at save (schedule-sync.php:129); a
+ *     later slug change left the row purging only the stale URL. Fragments now
+ *     purge the UNION of the snapshot and the host post's CURRENT permalink —
+ *     self-healing at every boundary, and the old URL (possibly edge-cached as
+ *     a redirect) still gets purged.
+ *  2. REUSED CONTAINERS: sync has no post-type gate, so a scheduled block in a
+ *     synced pattern (wp_block) or FSE template/part gets a row whose single
+ *     snapshot URL under-purges by construction (the real render surfaces are
+ *     unenumerable). Those hosts escalate to sn_cf_purge_everything() —
+ *     boundaries are rare, a zone purge is cheap and provably complete.
+ *
+ * Same return contract as sn_schedule_purge_urls: TRUE = dispatched,
+ * FALSE = unconfigured/nothing (the fire handler holds the row for retry).
+ *
+ * @param array $row A schedule row (target_type, target_ref, purge_urls).
+ * @return bool
+ */
+function sn_schedule_fire_purge( array $row ) {
+	$urls = (array) json_decode( (string) ( $row['purge_urls'] ?? '' ), true );
+
+	if ( 'fragment' === (string) ( $row['target_type'] ?? '' ) ) {
+		$host_id = (int) ( $row['target_ref'] ?? 0 );
+		$type    = $host_id > 0 ? (string) get_post_type( $host_id ) : '';
+
+		// Reused containers render on unenumerable URLs → zone purge.
+		$escalate = apply_filters(
+			'sn_schedule_escalate_post_types',
+			array( 'wp_block', 'wp_template', 'wp_template_part' )
+		);
+		if ( '' !== $type && in_array( $type, (array) $escalate, true ) ) {
+			if (
+				! function_exists( 'sn_cf_purge_everything' )
+				|| ! function_exists( 'sn_cf_is_configured' )
+				|| ! sn_cf_is_configured()
+			) {
+				return false;
+			}
+			return (bool) sn_cf_purge_everything();
+		}
+
+		// Slug-change self-heal: union with the CURRENT permalink.
+		if ( $host_id > 0 ) {
+			$current = (string) get_permalink( $host_id );
+			if ( '' !== $current ) {
+				$urls[] = $current;
+			}
+		}
+	}
+
+	return sn_schedule_purge_urls( array_values( array_unique( array_filter( $urls ) ) ) );
+}

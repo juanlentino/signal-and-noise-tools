@@ -64,6 +64,19 @@ if ( ! function_exists( 'sn_schedule_purge_urls' ) ) {
 	}
 }
 
+// v7.3.0: the fire handler now purges through sn_schedule_fire_purge (the
+// escalate-or-union helper, fully tested in tests/schedule-fire-purge.php).
+// Passthrough stub: records the row, forwards the snapshot to the existing
+// purge seam so every pre-existing success/failure fire case stays exercised.
+$GLOBALS['__fire_purge_rows'] = array();
+if ( ! function_exists( 'sn_schedule_fire_purge' ) ) {
+	function sn_schedule_fire_purge( array $row ) {
+		$GLOBALS['__fire_purge_rows'][] = $row;
+		$urls = (array) json_decode( (string) ( $row['purge_urls'] ?? '' ), true );
+		return sn_schedule_purge_urls( $urls );
+	}
+}
+
 // Record-only cron stubs for reconcile's re-arm. wp_next_scheduled consults a
 // per-test map keyed by the row id arg so "already scheduled" can be simulated.
 $GLOBALS['__armed']            = array(); // list of array( 'ts' => , 'id' => )
@@ -292,6 +305,7 @@ sn_schedule_fire( $id );
 $row = sn_schedule_get( $id );
 ok( count( $GLOBALS['__purge_calls'] ) === 1, 'reveal: purge dispatched exactly once' );
 ok( $GLOBALS['__purge_calls'][0] === $PURGE_URLS, 'reveal: purge received the row\'s EXACT purge_urls' );
+ok( ! empty( $GLOBALS['__fire_purge_rows'] ) && isset( $GLOBALS['__fire_purge_rows'][0]['target_type'] ), 'v7.3.0: fire handler passes the FULL row to sn_schedule_fire_purge' );
 ok( $row['status'] === 'active', 'reveal: status advanced queued -> active' );
 ok( ! empty( $row['last_run'] ), 'reveal: last_run stamped' );
 
