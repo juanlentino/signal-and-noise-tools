@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.3.0] - 2026-07-01: Scheduled purges self-heal + color drift + vision model picker
+
+**Headline:** Scheduled-content purges now survive slug changes and reused patterns, Health learns to spot off-palette colors, and the alt-text vision model gets a real picker.
+
+> **Why MINOR:** new user-visible capabilities (the color-drift Health check + the vision-model setting) alongside the purge fixes; no public API removed or changed.
+
+### New
+- Health check "Color drift" (zero-AI): flags published posts/pages carrying inline hex colors outside the theme palette (theme + custom origins; core defaults count as drift since the theme disables them). Read-only, with per-post edit links naming the offending colors.
+- Vision-model dropdown (Tools → Front-End): the alt-text image model is now a curated picker (Gemini 2.5 Flash-Lite default, Flash, Pro). The `snt_ai_alt_text_model` filter still wins for code-level pins.
+
+### Fixed
+- Scheduled-content boundary purges now purge the host post's CURRENT permalink in addition to the saved snapshot, so a slug change self-heals at the next boundary instead of leaving the new URL stale-cached.
+- A scheduled block inside a synced pattern or FSE template/part now escalates its boundary to a zone purge — its render surfaces are unenumerable, so per-URL purging under-purged by construction. Filterable via `sn_schedule_escalate_post_types`.
+
+### Notes
+- The `sn_active_scheduled_items()` read-API idea is closed as YAGNI: the shipped `signal-noise/scheduled` block covers in-content scheduling and no theme consumer exists.
+
 ## [7.2.2] - 2026-07-01: Digest and release-notes failures report the real error
 
 **Headline:** The last two AI surfaces still carrying the blanket "check that an AI provider is configured" copy now report what actually went wrong — the same fix class that turned the un-reproducible Insights bug (v7.0.1 → v7.1.1) into a confirmed truncation diagnosis.
