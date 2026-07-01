@@ -76,6 +76,31 @@ function snt_narration_collect_signals() {
 		}
 	}
 
+	// Field Core Web Vitals (v7.2.0) — durable bucket rows (worker v1.8.0 double7,
+	// rolled by inc/analytics-buckets.php). Same include-only-when-present contract
+	// as the machine block: no vitals rows in the window ⇒ no cwv key, so the
+	// prompt never narrates fictional vitals. Band order is Good/NI/Poor by map.
+	if ( function_exists( 'sn_analytics_distribution' ) ) {
+		$cwv = array();
+		foreach ( array( 'lcp', 'inp', 'cls' ) as $vital ) {
+			$dist  = sn_analytics_distribution( $vital, $from, $to, 'human' );
+			$total = 0;
+			foreach ( $dist as $band ) {
+				$total += (int) ( $band['views'] ?? 0 );
+			}
+			if ( $total > 0 ) {
+				$cwv[ $vital ] = array(
+					'samples'  => $total,
+					'good_pct' => (int) round( (int) ( $dist[0]['views'] ?? 0 ) / $total * 100 ),
+					'poor_pct' => (int) round( (int) ( $dist[2]['views'] ?? 0 ) / $total * 100 ),
+				);
+			}
+		}
+		if ( ! empty( $cwv ) ) {
+			$signals['cwv'] = $cwv;
+		}
+	}
+
 	return $signals;
 }
 

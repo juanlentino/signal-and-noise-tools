@@ -77,6 +77,36 @@ if ( ! function_exists( 'sn_edge_machine_split' ) ) {
 	}
 }
 
+// ── CWV distribution stub (durable buckets reader, v7.2.0). All-zero views ⇒ block omitted. ──
+$GLOBALS['__cwv_views'] = array( 'lcp' => array( 0, 0, 0 ), 'inp' => array( 0, 0, 0 ), 'cls' => array( 0, 0, 0 ) );
+if ( ! function_exists( 'sn_analytics_distribution' ) ) {
+	function sn_analytics_distribution( $metric, $f, $t, $c = 'human' ) {
+		$v = $GLOBALS['__cwv_views'][ $metric ] ?? array( 0, 0, 0 );
+		return array(
+			array( 'label' => 'Good',       'views' => $v[0] ),
+			array( 'label' => 'Needs work', 'views' => $v[1] ),
+			array( 'label' => 'Poor',       'views' => $v[2] ),
+		);
+	}
+}
+
+// ── login-guard + audit stubs (value-toggled, v7.2.0) ──
+$GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+if ( ! function_exists( 'sn_login_defense_headline' ) ) {
+	function sn_login_defense_headline() { return $GLOBALS['__lg_headline']; }
+}
+$GLOBALS['__lg_top_country'] = array();
+if ( ! function_exists( 'sn_login_defense_top_country_sql' ) ) {
+	function sn_login_defense_top_country_sql( $d = 30, $l = 10 ) { return 'SQL'; }
+}
+if ( ! function_exists( 'sn_analytics_query' ) ) {
+	function sn_analytics_query( $sql ) { return $GLOBALS['__lg_top_country']; }
+}
+$GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 0, 'prior' => 0, 'pct_delta' => 0 ) );
+if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
+	function snt_audit_get_summary_impl() { return $GLOBALS['__audit_summary']; }
+}
+
 // ── AI wrapper stub (records call count + tag; returns configurable response) ──
 $GLOBALS['__ai_calls']    = 0;
 $GLOBALS['__ai_response'] = '{"headline":"Views up 12% to 1,430","paragraphs":["Traffic rose this week.","/notes/x led with 420 views."],"highlights":["views +12% to 1,430","top source: Hacker News (210)"]}';
@@ -192,6 +222,19 @@ ok( false !== wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'idempotent — still
 $GLOBALS['__settings']['insights.narration_enabled'] = false;
 snt_narration_maybe_schedule_cron();
 ok( false === wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'unscheduled when toggled off' );
+
+// ── Test: cwv block (v7.2.0) — present with data, omitted without ──
+echo "\nTest: cwv signal block\n";
+$GLOBALS['__cwv_views'] = array( 'lcp' => array( 80, 15, 5 ), 'inp' => array( 90, 8, 2 ), 'cls' => array( 100, 0, 0 ) );
+$sig = snt_narration_collect_signals();
+ok( isset( $sig['cwv']['lcp'] ), 'cwv block present when vitals rows exist' );
+eq( 80, $sig['cwv']['lcp']['good_pct'] ?? -1, 'cwv lcp good_pct computed' );
+eq( 100, $sig['cwv']['lcp']['samples'] ?? -1, 'cwv lcp samples summed' );
+eq( 0, $sig['cwv']['cls']['poor_pct'] ?? -1, 'cwv cls poor_pct zero' );
+
+$GLOBALS['__cwv_views'] = array( 'lcp' => array( 0, 0, 0 ), 'inp' => array( 0, 0, 0 ), 'cls' => array( 0, 0, 0 ) );
+$sig = snt_narration_collect_signals();
+ok( ! isset( $sig['cwv'] ), 'cwv block omitted when zero vitals' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
