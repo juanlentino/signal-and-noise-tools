@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.5.0] - 2026-07-01: Now Page editor — /now content managed in the plugin
+
+**Headline:** Owner direction on the theme's new /now page: content should be edited in the plugin, not hardcoded in a theme data file. New Content → Now Page sub-tab: one plain-text document in a simple `## Label` / `- item` format, stored in a durable `autoload=no` option and fed to the theme through its designed seams (`sn_now_sections`, and `sn_now_updated` from theme v10.21.1 — the save-stamp accompanies the content so the page's "Updated" line stays honest automatically). Fallback discipline: an empty box clears the override (theme file content returns), and content that parses to zero sections is refused at save time AND guarded at the filter — a bad save can never blank the live /now page.
+
+> **Why MINOR:** a new admin surface + a new dispatcher action (net-new capability, no breaking change).
+
+### New
+- `inc/now-page.php`: tolerant section parser, durable option storage with automatic `updated` stamping, and the `sn_now_sections` / `sn_now_updated` theme-filter feed with the blank-page guard.
+- `inc/admin-forms/now-page.php`: Content → Now Page editor (capped card, live-status intro, format helper); `now_save` action in the dispatcher map (43 actions) + five flash codes.
+- Test suites: `tests/now-page.php` (parser / round-trip / filter fallback matrix); behavioral `now_save` cases in `tests/admin-post-actions.php`; registry tripwires updated.
+
 ## [7.4.0] - 2026-07-01: Unlinked mentions — zero-AI detection + AI Suggest / fingerprinted Apply
 
 **Headline:** New `unlinked_mentions` Health check finds published notes that mention another note's title in prose without linking to it — zero-AI at scan time, per-(source, target)-pair findings capped at 5 per source, boundary-aware `/notes/<slug>` matching so a link to `/notes/craft-two` never masks a missing link to `craft`. Each finding gets the Health tab's existing Suggest/Apply flow via two new abilities: `signal-noise/ai-link-suggest` (AI verdict link/skip/unsure + reason + the splice contract — anchor as it appears in prose, raw-content position, context snippet, md5 fingerprint, target permalink; verdict cached 30 days per source-modified) and `signal-noise/ai-link-apply` (fingerprint-gated splice wrapping the mention in an `<a>`, refusing anchors already inside a link and non-internal targets). Mirrors the drift-phrase machinery exactly, reusing its raw-position locator and fingerprint primitives.
