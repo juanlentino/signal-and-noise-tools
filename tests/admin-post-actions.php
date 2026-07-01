@@ -42,6 +42,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 class PA_WP_Error {
 	public $code; public $message;
 	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
+	public function get_error_code() { return $this->code; }
 	public function get_error_message() { return $this->message; }
 }
 if ( ! function_exists( 'is_wp_error' ) ) {
@@ -442,6 +443,58 @@ foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
 pa_eq( true, isset( $map['narration_run'] ) && is_callable( $map['narration_run'] ), 'narration_run handler registered + callable (v6.30.0)' );
+
+// ─── sn_handle_insights_run() — report the REAL failure (v7.0.1) ─────────────
+// The bug: EVERY WP_Error collapsed to 'insights_failed' → the flash registry's
+// blanket "check that an AI provider is configured" copy, even though AI was
+// configured + billing (the weekly digest, same transport, worked). The handler
+// must (a) record the real error, (b) send only the genuine ai-unavailable case
+// to the configure-AI copy, (c) surface every other (insights-specific) failure,
+// (d) clear the stale error after a successful scan.
+$GLOBALS['__insights_scan_result']  = null;
+$GLOBALS['__insights_stored_error'] = null;
+$GLOBALS['__insights_cleared']      = false;
+if ( ! function_exists( 'snt_insights_run_scan' ) ) {
+	function snt_insights_run_scan( $force = false ) {
+		$GLOBALS['__insights_scan_last_force'] = (bool) $force;
+		return $GLOBALS['__insights_scan_result'];
+	}
+}
+if ( ! function_exists( 'snt_insights_store_last_error' ) ) {
+	function snt_insights_store_last_error( $err ) {
+		$GLOBALS['__insights_stored_error'] = is_wp_error( $err )
+			? array( 'code' => $err->get_error_code(), 'message' => $err->get_error_message() )
+			: 'NON_ERROR';
+	}
+}
+if ( ! function_exists( 'snt_insights_clear_last_error' ) ) {
+	function snt_insights_clear_last_error() { $GLOBALS['__insights_cleared'] = true; }
+}
+
+echo "\nTest: sn_handle_insights_run() reports the REAL failure, not a blanket 'configure AI'\n";
+// Genuine AI-unavailable → the ONE case that keeps the configure-AI copy.
+$GLOBALS['__insights_stored_error'] = null;
+$GLOBALS['__insights_scan_result']  = new PA_WP_Error( 'snt_insights_ai_unavailable', 'AI client not available. Configure a provider in Settings.' );
+pa_eq( 'insights_ai_unavailable', sn_handle_insights_run( array() ), 'ai-unavailable error → insights_ai_unavailable (configure-AI copy is correct here)' );
+pa_eq( 'snt_insights_ai_unavailable', $GLOBALS['__insights_stored_error']['code'], 'the real error is stored for the surface' );
+
+// Downstream, insights-specific parse failure → insights_failed (surfaces the
+// real error), NOT the misleading "configure AI" copy.
+$GLOBALS['__insights_stored_error'] = null;
+$GLOBALS['__insights_scan_result']  = new PA_WP_Error( 'snt_insights_invalid_json', 'AI response was not valid JSON.' );
+pa_eq( 'insights_failed', sn_handle_insights_run( array() ), 'parse failure → insights_failed (real error, not blamed on AI config)' );
+pa_eq( 'snt_insights_invalid_json', $GLOBALS['__insights_stored_error']['code'], 'the real parse error is stored' );
+
+// Transport/runtime failure (shared AI client) → also insights_failed.
+$GLOBALS['__insights_scan_result'] = new PA_WP_Error( 'snt_ai_empty_response', 'AI returned an empty response.' );
+pa_eq( 'insights_failed', sn_handle_insights_run( array() ), 'empty-response transport error → insights_failed' );
+
+// Success → insights_scanned; the force flag is forwarded; any stale error clears.
+$GLOBALS['__insights_cleared']    = false;
+$GLOBALS['__insights_scan_result'] = array( 'scanned_at' => 1, 'recommendations' => array() );
+pa_eq( 'insights_scanned', sn_handle_insights_run( array( 'force' => '1' ) ), 'success → insights_scanned' );
+pa_eq( true, $GLOBALS['__insights_scan_last_force'], 'force flag forwarded to the scan' );
+pa_eq( true, $GLOBALS['__insights_cleared'], 'success clears any stale stored error' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

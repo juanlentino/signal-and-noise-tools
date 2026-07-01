@@ -27,6 +27,12 @@ function esc_html( $s ) { return $s; }
 function get_transient( $k ) { return $GLOBALS['__transient']; }
 function number_format_i18n( $n ) { return (string) $n; }
 
+// v7.0.1: the 'insights_failed' live-data notice reads the real stored scan
+// error via snt_insights_last_error() (defined in inc/insights.php, not loaded
+// here). Stub it so the resolver can surface the actual code + message.
+$GLOBALS['__insights_err'] = null;
+function snt_insights_last_error() { return $GLOBALS['__insights_err']; }
+
 require_once __DIR__ . '/../inc/admin-flash-messages.php';
 
 $pass = 0; $fail = 0;
@@ -67,10 +73,32 @@ echo "\nTest 5: unknown code returns null (renders no notice)\n";
 fm_eq( null, sn_admin_flash_to_notice( 'totally_unknown_code' ), 'unknown → null' );
 fm_eq( null, sn_admin_flash_to_notice( '' ), 'empty → null' );
 
+echo "\nTest 5a: insights_failed surfaces the REAL error, not a blanket 'configure AI' (v7.0.1)\n";
+// The bug: a downstream, insights-specific failure (parse error, transport
+// timeout, empty response) rendered the misleading "Check that an AI provider is
+// configured under Settings → Connectors." even though AI was configured + billing.
+$GLOBALS['__insights_err'] = array( 'code' => 'snt_insights_invalid_json', 'message' => 'AI response was not valid JSON.', 'at' => 123 );
+$note = sn_admin_flash_to_notice( 'insights_failed' );
+fm_eq( 'error', $note[0], 'insights_failed → error severity' );
+fm_eq( true, false !== strpos( $note[1], 'AI response was not valid JSON.' ), 'surfaces the REAL error message' );
+fm_eq( true, false !== strpos( $note[1], 'snt_insights_invalid_json' ), 'surfaces the REAL error code' );
+fm_eq( true, false !== stripos( $note[1], 'insights-specific' ), 'reframes as an insights-specific failure (AI is working)' );
+fm_eq( false, false !== strpos( $note[1], 'Check that an AI provider is configured' ), 'does NOT show the old misleading configure-AI copy' );
+// No diagnostic recorded → still an error notice, with a recover-and-retry hint.
+$GLOBALS['__insights_err'] = null;
+$note = sn_admin_flash_to_notice( 'insights_failed' );
+fm_eq( 'error', $note[0], 'insights_failed with no stored error → still an error notice' );
+fm_eq( true, false !== stripos( $note[1], 'no diagnostic' ), 'no-diagnostic branch explains the empty state' );
+
+echo "\nTest 5b: insights_ai_unavailable keeps the configure-AI copy (the one correct case)\n";
+$note = sn_admin_flash_to_notice( 'insights_ai_unavailable' );
+fm_eq( 'error', $note[0], 'insights_ai_unavailable → error severity' );
+fm_eq( true, false !== stripos( $note[1], 'Connectors' ), 'genuine ai-unavailable still points at Settings → Connectors' );
+
 echo "\nTest 6: coordination guard — every exact code the dispatcher emits resolves\n";
 $emitted = array(
 	'identity_saved','identity_unchanged','login_empty','login_failed','cf_saved','cf_purged_ok','cf_purged_unconfigured',
-	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed',
+	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed','insights_ai_unavailable',
 	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned',
 	'pattern_adoption_scanned','block_migrations_scanned','audit_retention_saved','audit_retention_unchanged',
 );
