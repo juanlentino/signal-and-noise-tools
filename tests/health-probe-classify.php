@@ -43,14 +43,31 @@ ok( function_exists( 'sn_health_is_bot_challenge' ), 'sn_health_is_bot_challenge
 ok( true  === sn_health_is_bot_challenge( 403, array( 'cf-mitigated' => 'challenge' ) ), '403 + cf-mitigated:challenge → bot challenge (not rot)' );
 ok( true  === sn_health_is_bot_challenge( 503, array( 'cf-mitigated' => 'challenge' ) ), '503 + cf-mitigated:challenge → bot challenge (legacy IUAM)' );
 ok( true  === sn_health_is_bot_challenge( 403, array( 'CF-Mitigated' => 'Challenge' ) ), 'header name + value match is case-insensitive' );
-ok( false === sn_health_is_bot_challenge( 403, array( 'server' => 'cloudflare' ) ), 'plain CF 403 WITHOUT cf-mitigated → still rot (no over-suppression of real 403s)' );
+ok( false === sn_health_is_bot_challenge( 403, array( 'server' => 'cloudflare' ) ), 'CF 403 WITHOUT cf-mitigated → NOT a challenge (it is a CF block; edge-gated detection handles it, see below)' );
 ok( false === sn_health_is_bot_challenge( 404, array( 'cf-mitigated' => 'challenge' ) ), '404 stays real rot even with a challenge header (code allowlist 403/503)' );
 ok( false === sn_health_is_bot_challenge( 200, array() ), 'healthy 200 → not a challenge' );
 ok( false === sn_health_is_bot_challenge( 403, array() ), 'bare 403, empty headers → still rot' );
 
 // ─── Production path: a CaseInsensitiveDictionary-style ArrayAccess bag ───
 ok( true  === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'CF-Mitigated' => 'challenge' ) ) ), 'detects a challenge through an ArrayAccess (CaseInsensitiveDictionary) bag — the real WP path' );
-ok( false === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'server' => 'cloudflare', 'cf-ray' => 'abc' ) ) ), 'ArrayAccess bag without cf-mitigated → still rot (not a challenge)' );
+ok( false === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'server' => 'cloudflare', 'cf-ray' => 'abc' ) ) ), 'ArrayAccess bag without cf-mitigated → not a challenge (a CF block; edge-gated below)' );
+
+// ─── sn_health_is_edge_gated(): a CF block / rate-limit is a LIVE page the edge
+// gates for automated clients, NOT rot. Cloudflare serves cf-ray on every
+// response + server:cloudflare; a block carries those but no cf-mitigated. HTTP
+// semantics: 403/429 = access-restricted, not "gone" (that is 404/410). A plain
+// non-CF 403 is left alone (the prior author's deliberate guard). ───
+ok( function_exists( 'sn_health_is_edge_gated' ), 'sn_health_is_edge_gated() defined' );
+ok( true  === sn_health_is_edge_gated( 403, array( 'cf-ray' => '8ab' ) ), 'CF block: 403 + cf-ray → edge-gated (live, not rot)' );
+ok( true  === sn_health_is_edge_gated( 403, array( 'server' => 'cloudflare' ) ), 'CF block: 403 + server:cloudflare → edge-gated' );
+ok( true  === sn_health_is_edge_gated( 429, array( 'cf-ray' => '8ab' ) ), 'CF rate-limit: 429 + cf-ray → edge-gated' );
+ok( false === sn_health_is_edge_gated( 403, array() ), 'plain 403 (no CF fingerprint) → NOT edge-gated (prior guard: still rot)' );
+ok( false === sn_health_is_edge_gated( 403, array( 'server' => 'nginx' ) ), 'non-CF 403 (server:nginx) → NOT edge-gated (still rot)' );
+ok( false === sn_health_is_edge_gated( 404, array( 'cf-ray' => '8ab' ) ), '404 behind CF → GONE, stays rot (edge-gated is 403/429 only)' );
+ok( false === sn_health_is_edge_gated( 410, array( 'cf-ray' => '8ab' ) ), '410 behind CF → GONE, stays rot' );
+ok( false === sn_health_is_edge_gated( 503, array( 'cf-ray' => '8ab' ) ), '503 behind CF (no cf-mitigated) → possible real outage, stays rot' );
+ok( false === sn_health_is_edge_gated( 200, array( 'cf-ray' => '8ab' ) ), 'healthy 200 behind CF → not edge-gated' );
+ok( true  === sn_health_is_edge_gated( 403, new SN_CI_Headers( array( 'CF-RAY' => '8ab' ) ) ), 'detects CF fingerprint through the ArrayAccess CaseInsensitiveDictionary (real WP path)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

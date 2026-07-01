@@ -147,6 +147,14 @@ function sn_health_external_link_status( $url ) {
 			// unverifiable (like an SSRF skip) rather than rotted — flagging it
 			// would be a false positive, since a human in a browser reaches it.
 			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
+		} elseif ( sn_health_is_edge_gated( $code, $headers ) ) {
+			// A live page the Cloudflare edge is BLOCKING or rate-limiting for this
+			// automated client (403/429 with a cf-ray but no cf-mitigated challenge
+			// — a WAF / Super-Bot-Fight-Mode "block", a separate enforcement from a
+			// challenge). The resource exists; a human in a browser reaches it.
+			// Unverifiable, not rot — same treatment as a challenge. A plain non-CF
+			// 403 still rots (the prior guard against blanket-ignoring every 403).
+			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
 		} else {
 			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
 		}

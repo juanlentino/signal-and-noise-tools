@@ -190,6 +190,27 @@ $GLOBALS['__ext']['http']['https://forbidden.example/x'] = array( 'code' => 403,
 $s = sn_health_external_link_status( 'https://forbidden.example/x' );
 ok( false === $s['ok'] && empty( $s['skipped'] ) && 403 === $s['code'], 'plain 403 (no cf-mitigated) is STILL flagged as rot' );
 
+// A Cloudflare BLOCK (403 + cf-ray, no cf-mitigated challenge) is a LIVE page the
+// edge gates for bots — the real-world false positive on CF-protected citations.
+// It must be SKIPPED (edge_gated), not rotted, WITHOUT loosening the plain-403 guard.
+$GLOBALS['__resolve']['cf-blocked.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://cf-blocked.example/y'] = array( 'code' => 403, 'headers' => array( 'cf-ray' => '8ab1234567890', 'server' => 'cloudflare' ) );
+$s = sn_health_external_link_status( 'https://cf-blocked.example/y' );
+ok( ! empty( $s['skipped'] ) && true === $s['ok'], 'CF block (403 + cf-ray) is SKIPPED as edge-gated, not rotted' );
+ok( 'edge_gated' === ( $s['reason'] ?? '' ), 'CF block carries the edge_gated reason' );
+
+// A CF-fronted 429 (rate limit) is likewise a live page, not rot.
+$GLOBALS['__resolve']['cf-limited.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://cf-limited.example/z'] = array( 'code' => 429, 'headers' => array( 'cf-ray' => '8ab9999' ) );
+$s = sn_health_external_link_status( 'https://cf-limited.example/z' );
+ok( ! empty( $s['skipped'] ) && true === $s['ok'], 'CF rate-limit (429 + cf-ray) is SKIPPED, not rotted' );
+
+// A CF-fronted 404 is genuinely GONE — edge-gating must NOT mask real rot.
+$GLOBALS['__resolve']['cf-gone.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://cf-gone.example/g'] = array( 'code' => 404, 'headers' => array( 'cf-ray' => '8ab404' ) );
+$s = sn_health_external_link_status( 'https://cf-gone.example/g' );
+ok( false === $s['ok'] && empty( $s['skipped'] ) && 404 === $s['code'], 'CF-fronted 404 still rots (edge-gating is 403/429 only, never masks GONE)' );
+
 // ─── 3. The check: report rotted external links, skip good/SSRF-unsafe ───
 ok( function_exists( 'sn_health_check_external_links' ), 'sn_health_check_external_links() defined' );
 $GLOBALS['__ext']['transient'] = array(); // clear cache
