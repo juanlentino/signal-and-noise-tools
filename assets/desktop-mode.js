@@ -26,7 +26,15 @@
 
 	var data = window.snDesktopData || {};
 	var pages = data.pages || {};
-	var restNs = ( data.restNamespace || 'signal-noise/v1' ) + '/cmd/';
+	// v6.55.0: the /cmd/<action> maintenance route is retired in favour of the
+	// per-command ability run-paths. Map each legacy action to its ability slug.
+	var ABILITY_BASE = '/wp-abilities/v1/abilities/signal-noise/';
+	var CMD_ABILITY = {
+		'force-check':     'force-check-updates',
+		'purge-caches':    'purge-all-caches',
+		'clear-overrides': 'clear-template-overrides',
+		'full-reset':      'full-reset',
+	};
 
 	/**
 	 * Toast helper. desktop-mode exposes wp.desktop.notify() per the
@@ -58,9 +66,11 @@
 			toast( 'wp.apiFetch unavailable — SN command cannot dispatch.', 'error' );
 			return Promise.reject( new Error( 'no apiFetch' ) );
 		}
+		var slug = CMD_ABILITY[ action ] || action;
 		return window.wp.apiFetch( {
-			path: '/' + restNs + action,
+			path:   ABILITY_BASE + slug + '/run',
 			method: 'POST',
+			data:   { input: {} },
 		} );
 	}
 
@@ -239,7 +249,11 @@
 				toast( 'wp.apiFetch unavailable.', 'error' );
 				return;
 			}
-			window.wp.apiFetch( { path: '/signal-noise/v1/audit/summary' } )
+			window.wp.apiFetch( {
+				path:   ABILITY_BASE + 'get-audit-summary/run',
+				method: 'POST',
+				data:   { input: {} },
+			} )
 				.then( function( s ) {
 					var msg = 'Last 24h: ' + ( s.last_24h.all_total || 0 ) + ' events (' +
 						( s.last_24h.failed_total || 0 ) + ' failed, ' +
@@ -264,7 +278,11 @@
 				toast( 'wp.apiFetch unavailable.', 'error' );
 				return;
 			}
-			window.wp.apiFetch( { path: '/signal-noise/v1/audit/login-successes?days=30' } )
+			window.wp.apiFetch( {
+				path:   ABILITY_BASE + 'get-audit-login-successes/run',
+				method: 'POST',
+				data:   { input: { days: 30 } },
+			} )
 				.then( function( rows ) {
 					if ( ! rows || ! rows.length ) {
 						toast( 'No successful logins in last 30 days.', 'info' );

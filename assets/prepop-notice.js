@@ -9,8 +9,11 @@
 ( function () {
 	'use strict';
 
+	// v6.55.0: dismiss dispatches via the signal-noise/prepop-dismiss ability
+	// run-path (localized restPath, run-path fallback). The request wraps the
+	// post id in { input } per the Abilities run contract.
 	var cfg = window.sntPrepopNotice || {};
-	var restPath = cfg.restPath || '/signal-noise/v1/prepop/dismiss';
+	var restPath = cfg.restPath || '/wp-abilities/v1/abilities/signal-noise/prepop-dismiss/run';
 
 	function getPostId( el ) {
 		var notice = el.closest( '.sn-prepop-notice' );
@@ -38,7 +41,7 @@
 			window.wp.apiFetch( {
 				path: restPath,
 				method: 'POST',
-				data: { post_id: postId },
+				data: { input: { post_id: postId } },
 			} ).catch( function () {
 				if ( notice ) {
 					notice.style.display = '';

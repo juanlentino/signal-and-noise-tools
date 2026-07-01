@@ -63,3 +63,4 @@ require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 2 abilities (scan + dismiss)
+require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)

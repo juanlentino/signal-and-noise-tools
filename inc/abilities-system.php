@@ -102,6 +102,10 @@ add_action( 'wp_abilities_api_init', function() {
 						'state'   => array( 'type' => 'string', 'enum' => array( 'ok', 'available', 'unknown' ) ),
 					),
 				),
+				'last_deploy' => array(
+					'type'        => 'string',
+					'description' => 'Relative time of the most recent deploy GHA run across both repos (e.g. "3 hours ago"); empty string if unknown. Added v6.55.0.',
+				),
 			),
 		),
 		'meta'                => array(
@@ -363,9 +367,27 @@ function snt_ability_get_deploy_status() {
 		return new WP_Error( 'snt_helper_unavailable', 'Deploy status helper unavailable.', array( 'status' => 500 ) );
 	}
 
+	// v6.55.0: fold in last_deploy (relative time of the most recent merged GHA
+	// run across both repos) so the desktop-mode deploy-status widget keeps its
+	// "Last deploy: … ago" line after migrating off the legacy /cmd/status route.
+	// snt_gh_recent_runs_merged is cache-backed (the widget's 60s cadence matches
+	// its TTL), so this stays cheap. Empty string when the runs helper is
+	// unavailable or has no data — same fallback the legacy handler used.
+	$last_deploy = '';
+	if ( function_exists( 'snt_gh_recent_runs_merged' ) ) {
+		$runs = snt_gh_recent_runs_merged( array( 'juanlentino/signal-and-noise', 'juanlentino/signal-and-noise-tools' ), 1 );
+		if ( ! empty( $runs[0]['created_at'] ) ) {
+			$t = strtotime( $runs[0]['created_at'] );
+			if ( $t ) {
+				$last_deploy = human_time_diff( $t, time() ) . ' ago';
+			}
+		}
+	}
+
 	return array(
-		'theme'  => snt_deploy_status_for( 'theme' ),
-		'plugin' => snt_deploy_status_for( 'plugin' ),
+		'theme'       => snt_deploy_status_for( 'theme' ),
+		'plugin'      => snt_deploy_status_for( 'plugin' ),
+		'last_deploy' => $last_deploy,
 	);
 }
 

@@ -169,6 +169,14 @@ if ( ! function_exists( 'snt_deploy_status_for' ) ) {
 		);
 	}
 }
+// v6.55.0: get-deploy-status now folds in last_deploy (relative time of the most
+// recent merged GHA run) so the desktop-mode status widget keeps that line after
+// migrating off /cmd/status. Stub returns one run; human_time_diff stub → '5 minutes'.
+if ( ! function_exists( 'snt_gh_recent_runs_merged' ) ) {
+	function snt_gh_recent_runs_merged( array $repos, $count = 5 ) {
+		return array( array( 'created_at' => '2026-06-30T12:00:00Z' ) );
+	}
+}
 $GLOBALS['__test_og_card_ok'] = true;
 if ( ! function_exists( 'sn_generate_og_card' ) ) {
 	function sn_generate_og_card( $post_id ) { return ! empty( $GLOBALS['__test_og_card_ok'] ); }
@@ -671,6 +679,8 @@ $out = wp_get_ability( 'signal-noise/get-deploy-status' )->execute( array() );
 ap_true( is_array( $out ) && isset( $out['theme'], $out['plugin'] ), 'get-deploy-status: theme + plugin keys present' );
 ap_eq( 'ok', $out['theme']['state'], 'get-deploy-status: theme state ok' );
 ap_eq( '3.7.4', $out['plugin']['current'], 'get-deploy-status: plugin current SNT_VERSION' );
+ap_true( is_array( $out ) && array_key_exists( 'last_deploy', $out ), 'get-deploy-status: last_deploy key present (v6.55.0 enrichment)' );
+ap_eq( '5 minutes ago', $out['last_deploy'], 'get-deploy-status: last_deploy computed from the most recent GHA run' );
 
 // list-template-overrides
 $out = wp_get_ability( 'signal-noise/list-template-overrides' )->execute( array() );
