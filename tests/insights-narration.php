@@ -23,6 +23,7 @@ class WP_Error {
 	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
 	public function get_error_code() { return $this->code; }
 	public function get_error_message() { return $this->message; }
+	public function get_error_data() { return $this->data; }
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d ) { return json_encode( $d ); } }
@@ -38,6 +39,7 @@ if ( ! function_exists( 'sn_setting' ) ) {
 $GLOBALS['__transients'] = array();
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; } }
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; } }
 
 // ── cron store ──
 $GLOBALS['__cron'] = array();
@@ -251,6 +253,20 @@ $GLOBALS['__lg_headline']   = array( 'configured' => false, 'checked' => 0, 'blo
 $GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 0, 'prior' => 0, 'pct_delta' => 0 ) );
 $sig = snt_narration_collect_signals();
 ok( ! isset( $sig['security'] ), 'security block omitted when quiet + unconfigured' );
+
+// ── Test: last-error store/read/clear helpers (v7.2.2, mirrors insights) ──
+echo "\nTest: narration last-error helpers\n";
+$err = new WP_Error( 'snt_narration_invalid_json', 'AI digest response was not valid JSON.', array( 'raw' => str_repeat( 'x', 500 ) ) );
+snt_narration_store_last_error( $err );
+$stored = snt_narration_last_error();
+ok( is_array( $stored ), 'store+read round-trip' );
+eq( 'snt_narration_invalid_json', $stored['code'] ?? '', 'code stored' );
+eq( 'AI digest response was not valid JSON.', $stored['message'] ?? '', 'message stored' );
+eq( 300, strlen( $stored['raw'] ?? '' ), 'raw captured, bounded to 300 chars' );
+snt_narration_store_last_error( 'not-an-error' );
+eq( 'snt_narration_invalid_json', ( snt_narration_last_error()['code'] ?? '' ), 'non-WP_Error input is ignored' );
+snt_narration_clear_last_error();
+ok( null === snt_narration_last_error(), 'clear removes the stored error' );
 
 // ── Test: instruction gains the two conditional rules (v7.2.0) ──
 echo "\nTest: instruction conditional rules\n";

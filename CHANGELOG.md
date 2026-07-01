@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.2.2] - 2026-07-01: Digest and release-notes failures report the real error
+
+**Headline:** The last two AI surfaces still carrying the blanket "check that an AI provider is configured" copy now report what actually went wrong — the same fix class that turned the un-reproducible Insights bug (v7.0.1 → v7.1.1) into a confirmed truncation diagnosis.
+
+> **Why PATCH:** error-reporting fix; no behavior, API, or schema change.
+
+### Fixed
+- Weekly digest (narration) failures now store the real `WP_Error` (code, message, and the model's raw output when a parse failure captures it) and the admin notice surfaces it. Only the genuine no-provider case shows the configure-AI copy (new `narration_ai_unavailable` code); every other failure reads as digest-specific with the actual diagnostic inline.
+- The release-notes failure notice no longer suggests checking AI provider configuration — its detail box below already shows the real error, and blaming setup was the same misdirection the Insights fix removed.
+
 ## [7.2.1] - 2026-07-01: Security-digest settings render as a proper card
 
 **Headline:** The v7.2.0 digest settings were echoed inside the Login defense status box, which is a flex row — so the heading, checkbox, and buttons rendered as squeezed columns beside the worker status. The section is now its own fieldset card below the box.

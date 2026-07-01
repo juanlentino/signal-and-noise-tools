@@ -184,12 +184,24 @@ function sn_handle_insights_mark_done( $post ) {
 }
 
 function sn_handle_narration_run( $post ) {
-	if ( function_exists( 'snt_narration_run' ) ) {
-		$force  = ! empty( $post['force'] );
-		$result = snt_narration_run( $force );
-		return is_wp_error( $result ) ? 'narration_failed' : 'narration_generated';
+	if ( ! function_exists( 'snt_narration_run' ) ) {
+		return 'narration_failed';
 	}
-	return 'narration_failed';
+	$force  = ! empty( $post['force'] );
+	$result = snt_narration_run( $force );
+	if ( is_wp_error( $result ) ) {
+		// v7.2.2: record the REAL error (the insights v7.0.1 pattern) so the
+		// notice can report it. Only the genuine no-provider code earns the
+		// configure-AI copy; a parse/transport/empty failure is digest-specific.
+		if ( function_exists( 'snt_narration_store_last_error' ) ) {
+			snt_narration_store_last_error( $result );
+		}
+		return 'snt_ai_unavailable' === $result->get_error_code() ? 'narration_ai_unavailable' : 'narration_failed';
+	}
+	if ( function_exists( 'snt_narration_clear_last_error' ) ) {
+		snt_narration_clear_last_error();
+	}
+	return 'narration_generated';
 }
 
 function sn_handle_save_insights_settings( $post ) {

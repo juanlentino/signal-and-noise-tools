@@ -496,5 +496,45 @@ pa_eq( 'insights_scanned', sn_handle_insights_run( array( 'force' => '1' ) ), 's
 pa_eq( true, $GLOBALS['__insights_scan_last_force'], 'force flag forwarded to the scan' );
 pa_eq( true, $GLOBALS['__insights_cleared'], 'success clears any stale stored error' );
 
+// ─── sn_handle_narration_run() — report the REAL failure (v7.2.2) ────────────
+// Same class as the insights v7.0.1 fix: EVERY WP_Error collapsed to
+// 'narration_failed' → the blanket configure-AI copy. The handler must store
+// the real error, route only the genuine ai-unavailable code to the
+// configure-AI copy, and clear the stale error on success.
+$GLOBALS['__narration_run_result']  = null;
+$GLOBALS['__narration_stored_error'] = null;
+$GLOBALS['__narration_cleared']      = false;
+if ( ! function_exists( 'snt_narration_run' ) ) {
+	function snt_narration_run( $force = false ) { return $GLOBALS['__narration_run_result']; }
+}
+if ( ! function_exists( 'snt_narration_store_last_error' ) ) {
+	function snt_narration_store_last_error( $err ) {
+		$GLOBALS['__narration_stored_error'] = is_wp_error( $err )
+			? array( 'code' => $err->get_error_code(), 'message' => $err->get_error_message() )
+			: 'NON_ERROR';
+	}
+}
+if ( ! function_exists( 'snt_narration_clear_last_error' ) ) {
+	function snt_narration_clear_last_error() { $GLOBALS['__narration_cleared'] = true; }
+}
+
+echo "\nTest: sn_handle_narration_run() reports the REAL failure, not a blanket 'configure AI'\n";
+$GLOBALS['__narration_run_result'] = new PA_WP_Error( 'snt_ai_unavailable', 'AI client not available.' );
+pa_eq( 'narration_ai_unavailable', sn_handle_narration_run( array() ), 'ai-unavailable → narration_ai_unavailable (configure-AI copy correct here)' );
+pa_eq( 'snt_ai_unavailable', $GLOBALS['__narration_stored_error']['code'], 'the real error is stored' );
+
+$GLOBALS['__narration_stored_error'] = null;
+$GLOBALS['__narration_run_result']   = new PA_WP_Error( 'snt_narration_invalid_json', 'AI digest response was not valid JSON.' );
+pa_eq( 'narration_failed', sn_handle_narration_run( array() ), 'parse failure → narration_failed (real error, not blamed on AI config)' );
+pa_eq( 'snt_narration_invalid_json', $GLOBALS['__narration_stored_error']['code'], 'the real parse error is stored' );
+
+$GLOBALS['__narration_run_result'] = new PA_WP_Error( 'snt_ai_empty_response', 'AI returned an empty response.' );
+pa_eq( 'narration_failed', sn_handle_narration_run( array() ), 'empty-response transport error → narration_failed' );
+
+$GLOBALS['__narration_cleared']    = false;
+$GLOBALS['__narration_run_result'] = array( 'generated_at' => 1, 'headline' => 'H', 'paragraphs' => array( 'p' ), 'highlights' => array() );
+pa_eq( 'narration_generated', sn_handle_narration_run( array( 'force' => '1' ) ), 'success → narration_generated' );
+pa_eq( true, $GLOBALS['__narration_cleared'], 'success clears any stale stored error' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

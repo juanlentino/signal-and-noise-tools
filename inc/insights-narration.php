@@ -26,6 +26,56 @@ define( 'SN_NARRATION_CACHE_KEY',  'sn_insights_narration' );
 define( 'SN_NARRATION_CACHE_TTL',  7 * DAY_IN_SECONDS );
 define( 'SN_NARRATION_CRON_HOOK',  'sn_insights_narration_weekly' );
 define( 'SN_NARRATION_MAX_TOKENS', 512 );
+// v7.2.2: ephemeral diagnostic — the code + message (+ bounded raw output) of
+// the most recent digest FAILURE, so the admin notice reports the REAL error
+// instead of the blanket "configure AI" copy. Mirrors SN_INSIGHTS_LAST_ERROR_KEY
+// (the v7.0.1 pattern that turned an un-reproducible Insights bug into a
+// confirmed truncation fix). Consumed by the next admin render; short TTL.
+define( 'SN_NARRATION_LAST_ERROR_KEY', 'sn_narration_last_error' );
+
+/**
+ * Record the most recent digest failure (code + message + bounded raw model
+ * output when the error carries it) for the admin notice. Non-errors ignored.
+ *
+ * @param WP_Error|mixed $err The failure from snt_narration_run().
+ * @return void
+ */
+function snt_narration_store_last_error( $err ) {
+	if ( ! is_wp_error( $err ) ) {
+		return;
+	}
+	$data = $err->get_error_data();
+	$raw  = ( is_array( $data ) && isset( $data['raw'] ) ) ? (string) $data['raw'] : '';
+	set_transient(
+		SN_NARRATION_LAST_ERROR_KEY,
+		array(
+			'code'    => (string) $err->get_error_code(),
+			'message' => (string) $err->get_error_message(),
+			'raw'     => substr( $raw, 0, 300 ),
+			'at'      => time(),
+		),
+		15 * 60
+	);
+}
+
+/**
+ * Read the stored digest failure, or null.
+ *
+ * @return array|null
+ */
+function snt_narration_last_error() {
+	$err = get_transient( SN_NARRATION_LAST_ERROR_KEY );
+	return is_array( $err ) ? $err : null;
+}
+
+/**
+ * Clear the stored digest failure (a successful run supersedes it).
+ *
+ * @return void
+ */
+function snt_narration_clear_last_error() {
+	delete_transient( SN_NARRATION_LAST_ERROR_KEY );
+}
 
 /**
  * Collect the compact 7-day signal projection for the digest prompt.
