@@ -130,6 +130,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-dismiss', array(
 		'methods'             => 'POST',
 		'callback'            => function( WP_REST_Request $request ) {
+			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-dismiss', 'signal-noise/block-migrations-dismiss', '6.56.0' );
 			$post_id        = (int) $request->get_param( 'post_id' );
 			$fingerprint    = (string) $request->get_param( 'block_fingerprint' );
 			$migration_type = (string) $request->get_param( 'migration_type' );

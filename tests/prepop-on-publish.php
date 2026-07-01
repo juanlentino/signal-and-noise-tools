@@ -79,6 +79,10 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( $cap, $id = 0 ) { return ! empty( $GLOBALS['__can_edit_post'] ); }
 }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $d ) { return $d; } }
+// v6.56.0: the dismiss REST handler now emits a deprecation notice (its JS caller
+// moved to the prepop-dismiss ability run-path in v6.55.0). Stub it no-op — this
+// suite drives the handler's dismiss effect, not the deprecation ladder.
+if ( ! function_exists( 'snt_rest_deprecated_notice' ) ) { function snt_rest_deprecated_notice( $route, $slug, $version = '6.54.0' ) {} }
 class PP_Req { private $p; public function __construct( $p ) { $this->p = $p; } public function get_param( $k ) { return $this->p[ $k ] ?? null; } }
 
 // AI availability + impls (stubbed — Task 2 covers impl behavior).

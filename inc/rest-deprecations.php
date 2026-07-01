@@ -31,11 +31,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param string $route        The legacy REST path, e.g. /signal-noise/v1/ai/alt-suggest.
  * @param string $ability_slug The replacement Ability slug, e.g. signal-noise/ai-alt-suggest.
+ * @param string $version      The plugin version the route was deprecated in. Defaults to
+ *                             6.54.0 (the original pass). v6.56.0 deprecates the routes whose
+ *                             JS callers were migrated to the run-path in v6.55.0, so those
+ *                             pass '6.56.0' to read the accurate version.
  */
-function snt_rest_deprecated_notice( $route, $ability_slug ) {
+function snt_rest_deprecated_notice( $route, $ability_slug, $version = '6.54.0' ) {
 	_deprecated_function(
 		esc_html( 'REST route ' . $route ),
-		'6.54.0',
+		esc_html( $version ),
 		esc_html( 'the Abilities run-path /wp-abilities/v1/abilities/' . $ability_slug . '/run' )
 	);
 }

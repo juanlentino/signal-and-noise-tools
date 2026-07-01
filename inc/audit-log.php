@@ -428,6 +428,7 @@ add_action( 'rest_api_init', function() {
 	register_rest_route( 'signal-noise/v1', '/audit/summary', array(
 		'methods'             => 'GET',
 		'callback'            => function() {
+			snt_rest_deprecated_notice( '/signal-noise/v1/audit/summary', 'signal-noise/get-audit-summary', '6.56.0' );
 			return new WP_REST_Response( snt_audit_get_summary_impl(), 200 );
 		},
 		'permission_callback' => $manage_options_cap,
@@ -455,6 +456,7 @@ add_action( 'rest_api_init', function() {
 		'methods'             => 'GET',
 		'callback'            => function( $request ) {
 			$days = (int) ( $request->get_param( 'days' ) ?: 30 );
+			snt_rest_deprecated_notice( '/signal-noise/v1/audit/login-successes', 'signal-noise/get-audit-login-successes', '6.56.0' );
 			return new WP_REST_Response( snt_audit_get_login_successes_impl( $days ), 200 );
 		},
 		'permission_callback' => $manage_options_cap,

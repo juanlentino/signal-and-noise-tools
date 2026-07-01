@@ -287,6 +287,7 @@ function snt_rest_cron_run( WP_REST_Request $request ) {
  * @since plugin v3.1.0
  */
 function snt_rest_cron_unschedule( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/cron/unschedule', 'signal-noise/unschedule-cron-event', '6.56.0' );
 	if ( ! function_exists( 'snt_cron_unschedule_event_impl' ) ) {
 		return new WP_Error(
 			'snt_cron_unavailable',
@@ -311,6 +312,7 @@ function snt_rest_cron_unschedule( WP_REST_Request $request ) {
  * @since plugin v3.2.0
  */
 function snt_rest_cron_history( WP_REST_Request $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/cron/history', 'signal-noise/get-cron-history', '6.56.0' );
 	if ( ! function_exists( 'snt_cron_history_for_hook' ) ) {
 		return new WP_Error(
 			'snt_cron_unavailable',
