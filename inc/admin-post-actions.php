@@ -256,6 +256,35 @@ function sn_handle_security_digest_save( $post ) {
 	return 'digest_saved';
 }
 
+/**
+ * v7.5.0: save (or clear) the /now page content (Content → Now Page).
+ * Whitespace-only input clears the override — /now reverts to the theme's
+ * built-in file content. sanitize_textarea_field per line keeps the document
+ * plain text (the theme escapes every item at the render sink anyway).
+ */
+function sn_handle_now_save( $post ) {
+	if ( ! function_exists( 'sn_now_page_save' ) ) {
+		return 'now_failed';
+	}
+	$raw = isset( $post['now_content'] ) ? (string) wp_unslash( $post['now_content'] ) : '';
+	// sanitize_textarea_field would collapse the newlines we parse on — run it
+	// per line instead (strips tags/control chars, keeps the line structure).
+	$lines = preg_split( '/\R/u', $raw );
+	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+
+	if ( '' === trim( $raw ) ) {
+		sn_now_page_save( '' );
+		return 'now_cleared';
+	}
+	if ( empty( sn_now_parse_sections( $raw ) ) ) {
+		// Refuse saves that would parse to nothing — the filter guard would
+		// keep the live page on theme content anyway, but a silent "saved"
+		// here would lie about what /now is rendering.
+		return 'now_unparseable';
+	}
+	return sn_now_page_save( $raw ) ? 'now_saved' : 'now_unchanged';
+}
+
 function sn_handle_pattern_adoption_scan( $post ) {
 	// v4.3.0: routes through the central dispatcher per the health_scan pattern.
 	if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {

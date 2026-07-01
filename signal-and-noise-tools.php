@@ -134,6 +134,8 @@ require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Tools �
 require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Monitoring → Music (Spotify creds + Muso profile + Sync now)
 require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
+require_once SNT_PATH . 'inc/now-page.php';                  // v7.5.0: /now content editor data layer + sn_now_sections/sn_now_updated feed
+require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content → Now Page editor form
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
 

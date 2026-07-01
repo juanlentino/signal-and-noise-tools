@@ -30,7 +30,7 @@ function update_option( $name, $value, $autoload = null ) {
 function delete_option( $name ) { unset( $GLOBALS['__options'][ $name ] ); return true; }
 function get_bloginfo( $what ) { return ''; }
 function sanitize_text_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; }
-function sanitize_textarea_field( $s ) { return is_string( $s ) ? trim( $s ) : ''; }
+function sanitize_textarea_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; } // v7.5.0: strip tags like real WP (the now_save tag-strip assertion depends on it)
 function sanitize_title( $s ) { return strtolower( trim( preg_replace( '~[^a-z0-9\-]+~i', '-', (string) $s ), '-' ) ); }
 function esc_url_raw( $s ) { return $s; }
 function wp_unslash( $v ) { return $v; }
@@ -438,7 +438,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 42, count( $map ), 'map has 42 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save
+pa_eq( 43, count( $map ), 'map has 43 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
@@ -535,6 +535,23 @@ $GLOBALS['__narration_cleared']    = false;
 $GLOBALS['__narration_run_result'] = array( 'generated_at' => 1, 'headline' => 'H', 'paragraphs' => array( 'p' ), 'highlights' => array() );
 pa_eq( 'narration_generated', sn_handle_narration_run( array( 'force' => '1' ) ), 'success → narration_generated' );
 pa_eq( true, $GLOBALS['__narration_cleared'], 'success clears any stale stored error' );
+
+// ── v7.5.0: now_save (/now page editor) ──────────────────────────────
+echo "\nTest: sn_handle_now_save\n";
+if ( ! defined( 'SN_NOW_PAGE_TEST' ) ) { define( 'SN_NOW_PAGE_TEST', true ); } // skip add_filter wiring
+require_once __DIR__ . '/../inc/now-page.php';
+
+pa_eq( 'now_saved', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'valid content → now_saved' );
+pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'content persisted + parseable' );
+pa_eq( 'now_unchanged', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'identical re-save → now_unchanged' );
+pa_eq( 'now_unparseable', sn_handle_now_save( array( 'now_content' => 'prose with no headers' ) ), 'zero-section content refused, not silently saved' );
+pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'refused save leaves the prior content intact' );
+pa_eq( 'now_cleared', sn_handle_now_save( array( 'now_content' => "  \n " ) ), 'whitespace-only → cleared' );
+pa_eq( 0, count( sn_now_page_sections() ), 'cleared → no stored sections (theme file content live again)' );
+// tag-stripping rides the per-line sanitize pass.
+sn_handle_now_save( array( 'now_content' => "## Hostile\n- <script>alert(1)</script>item" ) );
+pa_eq( false, strpos( (string) ( sn_now_page_get()['raw'] ?? '' ), '<script>' ), 'tags stripped from stored raw' );
+sn_handle_now_save( array( 'now_content' => '' ) ); // reset
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
