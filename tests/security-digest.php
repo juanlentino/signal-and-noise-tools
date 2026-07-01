@@ -212,5 +212,20 @@ $slug = sn_handle_security_digest_save( array( 'sn_digest_test' => '1' ) );
 ok( 'digest_test_failed' === $slug, 'handler: failed test-send returns error slug' );
 $GLOBALS['__mail_ok'] = true;
 
+// ── settings render: .sn-fieldset card structure (v7.2.1 — the status box is a
+// flex row; the digest section must be its own fieldset card, never a flex child) ──
+echo "\nTest: settings render structure\n";
+ob_start();
+snt_security_digest_render_settings();
+$out = ob_get_clean();
+ok( false !== strpos( $out, '<form method="post" class="sn-fieldset">' ), 'render: form IS the fieldset card' );
+ok( false !== strpos( $out, 'class="sn-fieldset-h"' ), 'render: fieldset heading class' );
+ok( false !== strpos( $out, 'class="sn-field-helper"' ), 'render: helper copy uses field-helper' );
+$actions = strpos( $out, 'class="sn-fieldset-actions"' );
+ok( false !== $actions, 'render: actions row present' );
+ok( false !== strpos( $out, 'button-primary', (int) $actions ), 'render: Save inside actions row' );
+ok( false !== strpos( $out, 'sn_digest_test', (int) $actions ), 'render: test-send inside actions row' );
+ok( false !== strpos( $out, 'name="sn_digest_enabled"' ), 'render: opt-in checkbox present' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
