@@ -176,7 +176,16 @@ class TestAiResult {
 		$this->usage        = $usage;
 		$this->served_model = (string) $served_model;
 	}
-	public function toText()        { return $this->text; }
+	public function toText() {
+		// v7.1.2: the real wp-ai-client toText() THROWS a RuntimeException ("No
+		// text content found in first candidate") when the model returns a result
+		// whose first candidate has no text part, instead of returning ''. Model
+		// that here so the wrapper's catch is exercised.
+		if ( ! empty( $GLOBALS['__test_ai_result_totext_throws'] ) ) {
+			throw new \RuntimeException( 'fixture: No text content found in first candidate' );
+		}
+		return $this->text;
+	}
 	public function getTokenUsage() { return $this->usage; }
 	public function getModelMetadata() { return new TestModelMetadata( $this->served_model ); }
 }
@@ -335,6 +344,7 @@ function fixture_reset() {
 	$GLOBALS['__test_ai_builder_supports_text']      = true;
 	$GLOBALS['__test_ai_builder_generate_returns']   = 'mock response';
 	$GLOBALS['__test_ai_builder_returns_non_object'] = false;
+	$GLOBALS['__test_ai_result_totext_throws']       = false;
 	$GLOBALS['__test_ai_builder_recorded_calls']     = array();
 	$GLOBALS['__test_ai_builder_construct_count']     = 0;
 	$GLOBALS['__test_filters']                       = array();
@@ -513,6 +523,25 @@ hc_eq( 'snt_ai_empty_response', $result->get_error_code(),
 $data = $result->get_error_data();
 hc_eq( 502, isset( $data['status'] ) ? $data['status'] : null,
 	'empty response error status is 502' );
+
+// ─── Test 10b: toText() THROWS (no-text candidate) → graceful WP_Error ──
+// v7.1.2 REGRESSION: the wp-ai-client's toText() throws RuntimeException ("No
+// text content found in first candidate") when the model returns a result with
+// no text part. That call was OUTSIDE the try/catch, so it fataled the whole
+// request live (a site crash on the Insights scan + Weekly digest). It must now
+// be caught and degrade to the same empty-response WP_Error, never a fatal.
+echo "\nTest 10b: snt_ai_generate_with_constraints — toText() throws (no-text candidate)\n";
+fixture_reset();
+$GLOBALS['__test_ai_builder_supports_text']    = true;
+$GLOBALS['__test_ai_builder_generate_returns'] = 'ignored, toText throws';
+$GLOBALS['__test_ai_result_totext_throws']     = true;
+$result = snt_ai_generate_with_constraints( 'p', 's' );
+hc_true( is_wp_error( $result ), 'toText() throwing → WP_Error (NOT an uncaught fatal)' );
+hc_eq( 'snt_ai_empty_response', $result->get_error_code(),
+	'no-text-candidate throw degrades to snt_ai_empty_response' );
+$data = $result->get_error_data();
+hc_eq( 502, isset( $data['status'] ) ? $data['status'] : null,
+	'caught-throw error status is 502' );
 
 // ─── Test 11: builder throws inside chain → WP_Error 500 ─────────────
 echo "\nTest 11: snt_ai_generate_with_constraints — builder throws in chain\n";
