@@ -34,6 +34,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_INSIGHTS_CACHE_KEY',         'sn_insights_last_scan_v2' );
 define( 'SN_INSIGHTS_CACHE_TTL',         7 * DAY_IN_SECONDS );
 define( 'SN_INSIGHTS_STATE_OPT',         'sn_insights_state' );
+// v7.0.1: ephemeral diagnostic — the code + message of the most recent scan
+// FAILURE, so the admin surface can report the REAL error instead of a blanket
+// "configure AI". Consumed by the very next admin render (Post/Redirect/Get),
+// so a short TTL is right; it is never durable state.
+define( 'SN_INSIGHTS_LAST_ERROR_KEY',    'sn_insights_last_error' );
 define( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan' );
 define( 'SN_INSIGHTS_POST_CAP',          100 );
 define( 'SN_INSIGHTS_POST_MAX_AGE_DAYS', 730 );  // 2 years
@@ -454,6 +459,27 @@ function snt_insights_recommendation_blocked( $rec ) {
 }
 
 /**
+ * Recover a JSON array from model output that wrapped it in prose. Returns the
+ * decoded array, or null when no bracketed array can be recovered. Called ONLY
+ * after a direct json_decode already failed, so it never changes the happy path:
+ * it takes the first "[" to the last "]" span and decodes that slice. A stray
+ * bracket with no valid array inside decodes to null and is reported as before.
+ *
+ * @param string $text Raw (fence-stripped) model text.
+ * @return array|null The recovered array, or null if none.
+ */
+function snt_insights_recover_json_array( $text ) {
+	$text  = (string) $text;
+	$start = strpos( $text, '[' );
+	$end   = strrpos( $text, ']' );
+	if ( false === $start || false === $end || $end <= $start ) {
+		return null;
+	}
+	$decoded = json_decode( substr( $text, $start, $end - $start + 1 ), true );
+	return is_array( $decoded ) ? $decoded : null;
+}
+
+/**
  * Parse + validate raw AI response into an array of open-question recommendations.
  *
  * Strips optional markdown code fences (defensive: the model sometimes wraps
@@ -477,6 +503,20 @@ function snt_insights_parse_response( $raw ) {
 	}
 
 	$decoded = json_decode( $text, true );
+
+	// v7.0.1: the model sometimes wraps the array in a sentence of prose
+	// ("Here are the open questions: [ ... ]  Hope this helps.") despite the
+	// system instruction, which makes the WHOLE string invalid JSON and used to
+	// surface a false snt_insights_invalid_json (mis-reported as "configure AI").
+	// Recovery runs ONLY after a direct decode already failed, so the happy path
+	// is byte-identical; genuinely non-JSON text (no bracketed array) still errors.
+	if ( ! is_array( $decoded ) ) {
+		$recovered = snt_insights_recover_json_array( $text );
+		if ( null !== $recovered ) {
+			$decoded = $recovered;
+		}
+	}
+
 	if ( ! is_array( $decoded ) ) {
 		return new WP_Error(
 			'snt_insights_invalid_json',
@@ -661,6 +701,54 @@ function snt_insights_run_scan( $force = false ) {
 
 	set_transient( SN_INSIGHTS_CACHE_KEY, $result, SN_INSIGHTS_CACHE_TTL );
 	return $result;
+}
+
+/**
+ * Persist the most recent scan FAILURE so the admin surface can report the real
+ * error (code + message) instead of a blanket "configure AI" catch-all. A short
+ * TTL is right: this is an ephemeral diagnostic consumed by the very next admin
+ * render (Post/Redirect/Get), not durable state. A non-WP_Error is a no-op, so
+ * the slot never holds anything but a genuine error.
+ *
+ * @param WP_Error $err The error returned by snt_insights_run_scan().
+ * @return void
+ * @since 7.0.1
+ */
+function snt_insights_store_last_error( $err ) {
+	if ( ! is_wp_error( $err ) ) {
+		return;
+	}
+	set_transient(
+		SN_INSIGHTS_LAST_ERROR_KEY,
+		array(
+			'code'    => (string) $err->get_error_code(),
+			'message' => (string) $err->get_error_message(),
+			'at'      => time(),
+		),
+		15 * MINUTE_IN_SECONDS
+	);
+}
+
+/**
+ * Read the stored last-scan error, or null when none is recorded.
+ *
+ * @return array{code:string,message:string,at:int}|null
+ * @since 7.0.1
+ */
+function snt_insights_last_error() {
+	$err = get_transient( SN_INSIGHTS_LAST_ERROR_KEY );
+	return is_array( $err ) ? $err : null;
+}
+
+/**
+ * Clear any stored last-scan error (called after a scan succeeds, so a stale
+ * failure never lingers on the surface).
+ *
+ * @return void
+ * @since 7.0.1
+ */
+function snt_insights_clear_last_error() {
+	delete_transient( SN_INSIGHTS_LAST_ERROR_KEY );
 }
 
 /**

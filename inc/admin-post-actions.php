@@ -129,12 +129,34 @@ function sn_handle_webhook_delete( $post ) {
 }
 
 function sn_handle_insights_run( $post ) {
-	if ( function_exists( 'snt_insights_run_scan' ) ) {
-		$force  = ! empty( $post['force'] );
-		$result = snt_insights_run_scan( $force );
-		return is_wp_error( $result ) ? 'insights_failed' : 'insights_scanned';
+	if ( ! function_exists( 'snt_insights_run_scan' ) ) {
+		return 'insights_failed';
 	}
-	return 'insights_failed';
+	$force  = ! empty( $post['force'] );
+	$result = snt_insights_run_scan( $force );
+
+	if ( is_wp_error( $result ) ) {
+		// v7.0.1: record the REAL error so the admin notice can report it. The
+		// old handler collapsed EVERY WP_Error to the blanket "configure an AI
+		// provider" copy, so a parse error, a transport timeout, or an empty
+		// response all read as "you haven't set up AI" even when AI is
+		// configured + billing (the weekly digest, same transport, works).
+		if ( function_exists( 'snt_insights_store_last_error' ) ) {
+			snt_insights_store_last_error( $result );
+		}
+		// Only a genuine "no AI provider configured" failure earns the
+		// configure-AI copy; every other (insights-specific) failure surfaces
+		// its real code + message via the 'insights_failed' live-data notice.
+		return 'snt_insights_ai_unavailable' === $result->get_error_code()
+			? 'insights_ai_unavailable'
+			: 'insights_failed';
+	}
+
+	// Success: drop any stale diagnostic from a prior failed run.
+	if ( function_exists( 'snt_insights_clear_last_error' ) ) {
+		snt_insights_clear_last_error();
+	}
+	return 'insights_scanned';
 }
 
 function sn_handle_insights_dismiss( $post ) {

@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.0.1] - 2026-07-01: Insights scan reports the real failure, not a blanket "configure AI"
+
+**Headline:** Monitoring → Insights → **Run Analysis** used to fail with a red *"Insights scan failed. Check that an AI provider is configured under Settings → Connectors."* even when AI was configured and billing (the Weekly digest, which uses the same provider and transport, generated fine). The handler collapsed **every** `WP_Error` into that one blanket copy, so a parse error, a transport timeout, or an empty model response all mis-read as a setup problem. The scan now reports the **real** error (code + message), reserves the configure-AI copy for the one genuine no-provider case, and recovers a JSON array the model wrapped in prose (a common cause of the false failure) instead of erroring on it.
+
+> **Why PATCH:** a bug fix plus defense-in-depth hardening — no new user-visible capability, no API/schema change. The admin error message and the parser get more accurate; the happy path is byte-identical (recovery only runs after a direct decode already failed). Full standalone sweep green (184 suites, 5013 assertions); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **Insights "Run Analysis" no longer blames AI configuration for downstream failures** ([inc/admin-post-actions.php](inc/admin-post-actions.php), [inc/admin-flash-messages.php](inc/admin-flash-messages.php)): `sn_handle_insights_run()` now records the actual scan `WP_Error` and routes only the genuine `snt_insights_ai_unavailable` code to the configure-AI notice (`insights_ai_unavailable`); every other failure (`snt_insights_invalid_json`, transport/runtime errors, `snt_ai_empty_response`) surfaces its real code + message through the new `insights_failed` live-data notice, which states plainly that AI is working and the failure is insights-specific. A successful scan clears the stored diagnostic. Mirrors the existing `analytics_test_err` live-error pattern.
+
+### Improvements
+
+- **Insights parser recovers a prose-wrapped JSON array** ([inc/insights.php](inc/insights.php)): the model sometimes wraps the array in a sentence ("Here are the open questions: [ … ]") despite the system instruction, which made the whole string invalid JSON and produced a false `snt_insights_invalid_json`. `snt_insights_parse_response()` now recovers the first `[ … ]` span when a direct decode fails; genuinely non-JSON output (no bracketed array) still errors as before, and the happy path is unchanged. New helpers `snt_insights_store_last_error()` / `snt_insights_last_error()` / `snt_insights_clear_last_error()` back the surfaced-error notice (ephemeral transient, 15-min TTL).
+
 ## [7.0.0] - 2026-07-01: The v7 major — legacy REST routes removed; S&N Health widget; the weekly digest + health scan go agent-readable
 
 **Headline:** The reserved v7.0.0 break lands: the **31** Ability-replaced legacy `/signal-noise/v1/…` REST routes — deprecated across v5.0.0–v6.56.0 and verified caller-free after the v6.55.0 JS→Abilities migration — are removed. Every one has a canonical `signal-noise/*` Ability replacement, so agents and the admin UI are unaffected; only a direct caller of a legacy path (there are none left) would break. Bundled with the break: a new **"S&N Health"** wp-admin dashboard widget, three new **Abilities** exposing the existing weekly analytics digest + the Content-Health scan to agents, and a fix for external link-rot false-flagging Cloudflare-protected citations.

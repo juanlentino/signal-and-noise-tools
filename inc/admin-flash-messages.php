@@ -49,7 +49,10 @@ function sn_admin_flash_messages() {
 		'wh_invalid'                => array( 'error', 'Could not add webhook — name and valid URL are required.' ),
 		'wh_not_found'              => array( 'error', 'Webhook not found.' ),
 		'insights_scanned'          => array( 'success', 'Insights scan complete. Open questions below (or none, if nothing cleared the bar).' ),
-		'insights_failed'           => array( 'error', 'Insights scan failed. Check that an AI provider is configured under Settings → Connectors.' ),
+		// v7.0.1: the genuine "no AI provider configured" case — the ONLY failure
+		// that earns the configure-AI copy. Every other scan failure resolves via
+		// the 'insights_failed' live-data branch below, which surfaces the REAL error.
+		'insights_ai_unavailable'   => array( 'error', 'Insights scan failed: no AI provider is configured. Enable AI under Settings → AI, then add a provider and key under Settings → Connectors.' ),
 		'insights_dismissed'        => array( 'success', 'Question dismissed.' ),
 		'insights_snoozed'          => array( 'success', 'Question snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
@@ -118,6 +121,26 @@ function sn_admin_flash_to_notice( $flash ) {
 		$err    = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
 		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( (string) $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
 		return array( 'error', '&#10005; Analytics API call failed &mdash; ' . $detail );
+	}
+	// v7.0.1: surface the REAL insights-scan error (code + message) recorded by
+	// sn_handle_insights_run(). The old blanket "check that an AI provider is
+	// configured" copy fired for EVERY failure — parse errors, transport timeouts,
+	// empty responses — even when AI was configured + billing (the weekly digest,
+	// same transport, worked). The genuine no-provider case is handled by the
+	// static 'insights_ai_unavailable' code above; this branch is everything else.
+	if ( 'insights_failed' === $flash ) {
+		$err = function_exists( 'snt_insights_last_error' ) ? snt_insights_last_error() : null;
+		if ( is_array( $err ) && ! empty( $err['message'] ) ) {
+			$detail = esc_html( substr( (string) $err['message'], 0, 300 ) );
+			if ( ! empty( $err['code'] ) ) {
+				$detail .= ' (<code>' . esc_html( (string) $err['code'] ) . '</code>)';
+			}
+			return array(
+				'error',
+				'Insights scan failed: ' . $detail . ' Your AI provider is configured and working (the weekly digest uses the same one), so this is an insights-specific failure, not a setup problem.',
+			);
+		}
+		return array( 'error', 'Insights scan failed, but no diagnostic was recorded. Re-run the scan; if it recurs, check the PHP error log.' );
 	}
 
 	// Count-prefixed codes — parse the trailing int into the message template.

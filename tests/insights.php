@@ -18,6 +18,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 }
 
 define( 'ABSPATH', '/' );
+define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS',  86400 );
 define( 'WEEK_IN_SECONDS', 604800 );
@@ -100,6 +101,7 @@ if ( ! function_exists( 'sn_setting' ) ) {
 class WP_Error {
 	public $code; public $message;
 	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
+	public function get_error_code() { return $this->code; }
 	public function get_error_message() { return $this->message; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
@@ -884,6 +886,47 @@ ins_true( false !== stripos( $sys, 'excerpt' ), 'system instruction mentions exc
 // New contract: surfaces open questions, recommend-nothing is valid, prescribes no posts.
 ins_true( false !== stripos( $sys, 'open question' ), 'system instruction asks for open questions' );
 ins_true( false !== stripos( $sys, 'content calendar' ), 'system instruction disclaims a content calendar' );
+
+// ─── Test 35: parse_response recovers a prose-wrapped JSON array ──────
+// v7.0.1: the model sometimes prefixes/suffixes the JSON array with a sentence
+// of prose ("Here are the open questions: [ ... ]  Hope this helps."), which
+// makes the whole string invalid JSON and produced a false snt_insights_invalid_json.
+// Recovery only runs AFTER a direct decode already failed, so the happy path is
+// untouched. Genuinely non-JSON text still errors (Test 13b below is preserved).
+echo "\nTest 35: parse_response recovers a JSON array wrapped in prose\n";
+$prose_wrapped = "Here are the open questions I found:\n" . $valid_json . "\nHope that helps!";
+$GLOBALS['__test_posts_exist'] = array( 1 => true );
+$recs = snt_insights_parse_response( $prose_wrapped );
+ins_true( is_array( $recs ) && ! ( $recs instanceof WP_Error ), 'prose-wrapped array recovered (not an error)' );
+ins_eq( 2, count( $recs ), 'both questions recovered from the prose-wrapped payload' );
+// A prose reply with a stray bracket but no valid array still errors.
+$no_array = 'I could not find anything worth noting [ this is not json.';
+$res = snt_insights_parse_response( $no_array );
+ins_true( $res instanceof WP_Error, 'stray-bracket prose (no valid array) still → WP_Error' );
+ins_eq( 'snt_insights_invalid_json', $res->code, 'unrecoverable prose keeps the invalid-json code' );
+// And pure prose with no brackets at all is still an error (Test 13b invariant).
+$res = snt_insights_parse_response( 'not json at all' );
+ins_true( $res instanceof WP_Error, 'pure prose with no array still → WP_Error (invariant preserved)' );
+
+// ─── Test 36: last-scan-error store / read / clear round-trip ─────────
+// v7.0.1: the admin surface reports the REAL scan failure instead of a blanket
+// "configure AI". snt_insights_store_last_error persists the WP_Error's
+// code+message; snt_insights_last_error reads it back; clear removes it. A
+// non-WP_Error is a no-op (never poisons the diagnostic slot).
+echo "\nTest 36: last-scan-error store / read / clear\n";
+$GLOBALS['__test_transients'] = array();
+ins_eq( null, snt_insights_last_error(), 'no stored error → null' );
+snt_insights_store_last_error( new WP_Error( 'snt_insights_invalid_json', 'AI response was not valid JSON.' ) );
+$stored = snt_insights_last_error();
+ins_true( is_array( $stored ), 'stored error read back as array' );
+ins_eq( 'snt_insights_invalid_json', $stored['code'], 'real error code persisted' );
+ins_eq( 'AI response was not valid JSON.', $stored['message'], 'real error message persisted' );
+ins_true( isset( $stored['at'] ) && $stored['at'] > 0, 'timestamp recorded' );
+snt_insights_store_last_error( 'not a wp_error' ); // no-op
+$still = snt_insights_last_error();
+ins_eq( 'snt_insights_invalid_json', $still['code'], 'non-WP_Error store is a no-op (prior error untouched)' );
+snt_insights_clear_last_error();
+ins_eq( null, snt_insights_last_error(), 'clear removes the stored error' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
