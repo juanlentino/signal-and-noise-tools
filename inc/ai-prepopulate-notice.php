@@ -73,6 +73,7 @@ function snt_prepop_dismiss_rest_permission( $request ) {
  * @return array
  */
 function snt_prepop_dismiss_rest_handler( $request ) {
+	snt_rest_deprecated_notice( '/signal-noise/v1/prepop/dismiss', 'signal-noise/prepop-dismiss', '6.56.0' );
 	$post_id = (int) $request->get_param( 'post_id' );
 	sn_prepop_clear_sentinels( $post_id );
 	return rest_ensure_response( array( 'ok' => true ) );

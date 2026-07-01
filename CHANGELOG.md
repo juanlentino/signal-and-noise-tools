@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [6.56.0] - 2026-07-01: Deprecation pass, part 2 — the 6 now-caller-free routes warn (the deprecate-now set is complete)
+
+**Headline:** The follow-through to v6.55.0. Now that every JS caller of the 9 previously-blocked legacy REST routes dispatches through the Abilities run-path, those routes are caller-free — so this pass marks the **6** of them that weren't already deprecated with `_deprecated_function()` pointing at their Abilities replacement: `cron/unschedule`, `cron/history`, `tools/block-migrations-dismiss`, `audit/summary`, `audit/login-successes`, and `prepop/dismiss`. (The other three — `cron/run`, `cmd/*`, `health/pattern-adoption-dismiss` — already carried markers from earlier versions; those had been firing on every real click until v6.55.0 migrated their callers away, which is what finally makes them honest.) With this, the entire deprecate-now set warns and its removal window is fully open — v7.0.0 removes the warned + caller-free routes. Production-silent (notices only fire under `WP_DEBUG`).
+
+> **Why MINOR:** a new deliberate runtime behaviour (deprecation notices on 6 more routes), mirroring the v6.54.0 pass. `snt_rest_deprecated_notice()` gains an optional `$version` argument (defaults to `6.54.0`; the 6 new markers pass `6.56.0` for an accurate deprecation version) — additive, the 21 existing two-arg calls are unchanged. No route is removed or renamed; the routes still function identically, they merely warn. No settings-schema change, no WP-floor change; not the reserved v7.0.0 break. Full standalone sweep green (184 suites); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **6 more legacy REST routes carry a deprecation notice**, each at the REST entry point pointing at its Abilities run-path: `cron/unschedule` → `unschedule-cron-event` + `cron/history` → `get-cron-history` ([inc/rest-api.php](inc/rest-api.php)); `tools/block-migrations-dismiss` → `block-migrations-dismiss` ([inc/block-migrations-admin.php](inc/block-migrations-admin.php)); `audit/summary` → `get-audit-summary` + `audit/login-successes` → `get-audit-login-successes` ([inc/audit-log.php](inc/audit-log.php)); `prepop/dismiss` → `prepop-dismiss` ([inc/ai-prepopulate-notice.php](inc/ai-prepopulate-notice.php)).
+
+### Changed
+
+- **`snt_rest_deprecated_notice()` takes an optional `$version`** ([inc/rest-deprecations.php](inc/rest-deprecations.php)): defaults to `6.54.0` (the original pass); the 6 new markers pass `6.56.0`. The `$version` is `esc_html`-guarded like the route + replacement strings.
+
+### Notes
+
+- **Placement (the load-bearing detail, unchanged from v6.54.0):** each notice sits at the REST entry point — never in the shared `snt_*_impl()` the Ability also calls, which must stay warning-free. `cron/unschedule`, `cron/history`, and `prepop/dismiss` mark inside their named handlers; `block-migrations-dismiss`, `audit/summary`, and `audit/login-successes` mark inside their route closures. `tests/rest-deprecations.php` (now 32 assertions, 27 helper-marked routes total) guards the counts + the closure placement, and a suite that drives the prepop dismiss handler (`tests/prepop-on-publish.php`) stubs the helper no-op.
+- **v7 status:** the deprecate-now set is now fully warned. Removal (`v7.0.0`) waits on the window elapsing plus the confirmed net-new (S&N Health widget, analytics narration, expanded Abilities).
+
 ## [6.55.0] - 2026-06-30: The 9 blocked legacy REST callers migrate to the Abilities run-path — clearing the last prerequisite for v7.0.0's removals
 
 **Headline:** The client-migration follow-up promised by v6.54.0. The 9 legacy REST routes that were *hard-blocked* from deprecation — each still had a live desktop-mode / cron-dashboard / health-suggest JS caller hitting the legacy `/signal-noise/v1/...` path — now have every caller dispatching through the WordPress Abilities run-path (`POST /wp-abilities/v1/abilities/signal-noise/<slug>/run`, args wrapped in `{ input }`). One route (`prepop/dismiss`) had no Ability at all, so this ships a new **`signal-noise/prepop-dismiss`** ability (delegating to the same `sn_prepop_clear_sentinels()` impl the route uses). The migration is behaviour-preserving: where an Ability's output was leaner than the UI needs, the Ability is *additively* enriched (`run-cron-event` now also returns `elapsed_ms` / `last_fired_formatted` / `error`; `get-deploy-status` now also returns `last_deploy`) rather than degrading the surface. With these callers gone, all 9 routes are now caller-free and can carry their deprecation markers in a follow-up minor, then be removed in v7.0.0.

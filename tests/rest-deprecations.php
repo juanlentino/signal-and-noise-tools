@@ -33,9 +33,18 @@ ok( $GLOBALS['__dep'][0][0] === 'REST route /signal-noise/v1/ai/alt-suggest', 'l
 ok( $GLOBALS['__dep'][0][1] === '6.54.0', 'versions the deprecation at 6.54.0' );
 ok( $GLOBALS['__dep'][0][2] === 'the Abilities run-path /wp-abilities/v1/abilities/signal-noise/ai-alt-suggest/run', 'points at the Abilities run-path replacement' );
 
+// v6.56.0: the version arg is parameterized (defaults to 6.54.0 for the original
+// pass) so the newly-deprecated caller-free routes read the accurate version.
+$GLOBALS['__dep'] = array();
+snt_rest_deprecated_notice( '/signal-noise/v1/cron/unschedule', 'signal-noise/unschedule-cron-event', '6.56.0' );
+ok( $GLOBALS['__dep'][0][1] === '6.56.0', 'accepts an explicit deprecation version (6.56.0 for the v6.55.0 caller-free routes)' );
+$GLOBALS['__dep'] = array();
+snt_rest_deprecated_notice( '/signal-noise/v1/x', 'signal-noise/y' );
+ok( $GLOBALS['__dep'][0][1] === '6.54.0', 'omitted version still defaults to 6.54.0 (the original pass)' );
+
 // --- Coverage + placement across the deprecate-now set ---
 $expected = array(
-	'rest-api.php'                 => 5, // purge-cache, clear-overrides, full-reset, insights/run, insights/last
+	'rest-api.php'                 => 7, // purge-cache, clear-overrides, full-reset, insights/run, insights/last + (v6.56.0) cron/unschedule, cron/history
 	'analytics-rest.php'           => 2, // analytics/summary, analytics/events
 	'ai-alt-text-suggest.php'      => 2, // alt-suggest, alt-apply
 	'ai-alt-inline-suggest.php'    => 1,
@@ -46,7 +55,9 @@ $expected = array(
 	'block-migrations-detect.php'  => 1, // block-migrations-scan
 	'block-migrations-suggest.php' => 1,
 	'block-migrations-apply.php'   => 1,
-	'audit-log.php'                => 2, // audit/counters, audit/prune
+	'block-migrations-admin.php'   => 1, // (v6.56.0) block-migrations-dismiss
+	'audit-log.php'                => 4, // audit/counters, audit/prune + (v6.56.0) audit/summary, audit/login-successes
+	'ai-prepopulate-notice.php'    => 1, // (v6.56.0) prepop/dismiss
 );
 
 // Files whose REST callback closures SHARE a snt_*_impl with the Ability: the
@@ -55,7 +66,7 @@ $closure_files = array(
 	'ai-alt-text-suggest.php', 'ai-alt-inline-suggest.php', 'ai-drift-phrase-suggest.php',
 	'ai-orphan-suggest.php', 'pattern-adoption-suggest.php', 'pattern-adoption-apply.php',
 	'block-migrations-detect.php', 'block-migrations-suggest.php', 'block-migrations-apply.php',
-	'audit-log.php',
+	'block-migrations-admin.php', 'audit-log.php',
 );
 
 $total = 0;
@@ -74,7 +85,7 @@ foreach ( $expected as $file => $n ) {
 		);
 	}
 }
-ok( $total === 21, "21 legacy routes carry a deprecation notice in total (found $total)" );
+ok( $total === 27, "27 legacy routes carry a helper deprecation notice in total (found $total)" );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
