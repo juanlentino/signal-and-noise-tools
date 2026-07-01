@@ -2,8 +2,8 @@
 /**
  * Signal & Noise Tools — Abilities API: AI Suggest+Apply for Health checks.
  *
- * Seven abilities backing the Health-tab AI-assisted fix flows shipped
- * across v4.0.0–v4.1.0:
+ * Nine abilities backing the Health-tab AI-assisted fix flows shipped
+ * across v4.0.0–v7.4.0:
  *   - signal-noise/ai-alt-suggest          (alt text for attachment; v4.0.0)
  *   - signal-noise/ai-alt-apply             (write _wp_attachment_image_alt; v4.0.0)
  *   - signal-noise/ai-drift-suggest         (time-phrase replacement; v4.0.0; raw-pos fix v4.1.1)
@@ -11,12 +11,15 @@
  *   - signal-noise/ai-alt-inline-suggest    (inline <img> alt; v4.0.2; no-apply variant)
  *   - signal-noise/ai-orphan-suggest        (delete/keep/unsure verdict; v4.1.0)
  *   - signal-noise/ai-orphan-apply          (force-delete attachment; v4.1.0)
+ *   - signal-noise/ai-link-suggest          (unlinked-mention verdict + splice contract; v7.4.0)
+ *   - signal-noise/ai-link-apply            (wrap mention in <a>; v7.4.0; fingerprint gated)
  *
  * All in the 'ai-generation' category. File-level grouping is by feature
  * (Health-tab Suggest+Apply UX) so a future reviewer reads one file to
- * cover all 7. Each impl wrapper delegates to its dedicated module in
+ * cover all 9. Each impl wrapper delegates to its dedicated module in
  * inc/ai-alt-text-suggest.php / inc/ai-drift-phrase-suggest.php /
- * inc/ai-alt-inline-suggest.php / inc/ai-orphan-suggest.php.
+ * inc/ai-alt-inline-suggest.php / inc/ai-orphan-suggest.php /
+ * inc/ai-link-suggest.php.
  *
  * Extracted from inc/abilities-registration.php by the v4.1.3 split (B-11).
  *
@@ -306,6 +309,82 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/ai-link-suggest', array(
+		'label'               => 'Suggest whether an unlinked mention should become a link',
+		'description'         => 'AI evaluates one (source, target) pair from the unlinked_mentions Health check: does the mention of the target note\'s title inside the source post really refer to that note? Returns verdict (link/skip/unsure) + reason + the splice contract (anchor as it appears in prose, raw-content position, context snippet, md5 fingerprint, target permalink). Verdict cached 30 days per (source, target, source-modified). Does NOT write.',
+		'category'            => 'ai-generation',
+		'permission_callback' => 'snt_ability_perm_edit_post',
+		'execute_callback'    => 'snt_ability_ai_link_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'target_id' ),
+			'properties'           => array(
+				'post_id'   => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Source post that contains the mention.', 'examples' => array( 42 ) ),
+				'target_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Published post being mentioned.', 'examples' => array( 7 ) ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'              => array( 'type' => 'boolean' ),
+				'verdict'         => array( 'type' => 'string', 'enum' => array( 'link', 'skip', 'unsure' ) ),
+				'reason'          => array( 'type' => 'string' ),
+				'anchor'          => array( 'type' => 'string', 'description' => 'The mention exactly as it appears in the prose — the text Apply wraps.' ),
+				'position'        => array( 'type' => 'integer', 'description' => 'RAW post_content byte offset (resolved via the drift locator).' ),
+				'context_snippet' => array( 'type' => 'string' ),
+				'fingerprint'     => array( 'type' => 'string', 'description' => 'md5 hash to echo back on apply.' ),
+				'post_id'         => array( 'type' => 'integer' ),
+				'target_id'       => array( 'type' => 'integer' ),
+				'target_url'      => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/ai-link-apply', array(
+		'label'               => 'Wrap an unlinked mention in an internal link',
+		'description'         => 'Replaces the anchor text in the source post\'s post_content with <a href="target_url">anchor</a>. The anchor\'s RAW-content position is resolved at apply time via the context_snippet (the drift v4.1.1 raw-vs-stripped lesson); refuses (400) when the anchor already sits inside an <a>; requires target_url to be same-host; gated on a fingerprint match against current post_content (409 on concurrent edit). Destructive — writes via wp_update_post().',
+		'category'            => 'ai-generation',
+		'permission_callback' => 'snt_ability_perm_edit_post',
+		'execute_callback'    => 'snt_ability_ai_link_apply',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'anchor', 'context_snippet', 'fingerprint', 'target_url' ),
+			'properties'           => array(
+				'post_id'         => array( 'type' => 'integer', 'minimum' => 1, 'examples' => array( 42 ) ),
+				'anchor'          => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 300, 'description' => 'Mention text exactly as it appears in raw post_content.', 'examples' => array( 'honesty has to be the cheap option' ) ),
+				'context_snippet' => array( 'type' => 'string', 'description' => '~200 stripped chars around the mention — disambiguates repeated anchors.' ),
+				'fingerprint'     => array( 'type' => 'string', 'minLength' => 32, 'maxLength' => 32, 'description' => 'md5 hash from the matching suggest call.' ),
+				'target_url'      => array( 'type' => 'string', 'minLength' => 1, 'description' => 'Internal permalink to link to (same-host enforced).', 'examples' => array( 'https://juanlentino.com/notes/cheap-option/' ) ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'         => array( 'type' => 'boolean' ),
+				'post_id'    => array( 'type' => 'integer' ),
+				'anchor'     => array( 'type' => 'string' ),
+				'target_url' => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'destructive' => true,
+				// Fingerprint-gated mutation: a replay no longer matches the stored
+				// fingerprint and returns 409, so a retry is not a no-op.
+				'idempotent'  => false,
+			),
+		),
+	) );
 } );
 
 /**
@@ -415,4 +494,39 @@ function snt_ability_ai_orphan_apply( $input ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Orphan-apply helper unavailable.', array( 'status' => 500 ) );
 	}
 	return snt_ai_orphan_apply_impl( (int) $input['attachment_id'] );
+}
+
+/**
+ * Execute callback for signal-noise/ai-link-suggest.
+ * Thin wrapper around snt_ai_link_suggest_impl().
+ *
+ * @since 7.4.0
+ */
+function snt_ability_ai_link_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_link_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Link-suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_link_suggest_impl(
+		(int) $input['post_id'],
+		(int) $input['target_id']
+	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-link-apply.
+ * Thin wrapper around snt_ai_link_apply_impl().
+ *
+ * @since 7.4.0
+ */
+function snt_ability_ai_link_apply( $input ) {
+	if ( ! function_exists( 'snt_ai_link_apply_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Link-apply helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_link_apply_impl(
+		(int) $input['post_id'],
+		(string) $input['anchor'],
+		(string) $input['context_snippet'],
+		(string) $input['fingerprint'],
+		(string) $input['target_url']
+	);
 }

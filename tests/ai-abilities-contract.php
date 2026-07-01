@@ -40,7 +40,7 @@ ok( ! array_key_exists( 'concise', in_props( 'signal-noise/ai-generate-og-card-t
 ok( array_key_exists( 'concise', in_props( 'signal-noise/ai-generate-meta-description' ) ), 'meta-description KEEPS concise (its impl honors it)' );
 
 echo "\nGroup: fingerprint-gated applies are NOT idempotent (409 on replay)\n";
-foreach ( array( 'ai-alt-apply', 'ai-drift-apply', 'ai-orphan-apply' ) as $a ) {
+foreach ( array( 'ai-alt-apply', 'ai-drift-apply', 'ai-orphan-apply', 'ai-link-apply' ) as $a ) {
 	$x = ann( 'signal-noise/' . $a );
 	ok( false === ( $x['idempotent'] ?? null ) && true === ( $x['destructive'] ?? null ), "$a: destructive true + idempotent false" );
 }
@@ -49,6 +49,16 @@ echo "\nGroup: insights schema declares signal_summary (impl returns it)\n";
 ok( false === ( ann( 'signal-noise/run-insights-scan' )['idempotent'] ?? null ), 'run-insights-scan: idempotent false (force re-runs a generative scan)' );
 ok( array_key_exists( 'signal_summary', out_props( 'signal-noise/run-insights-scan' ) ), 'run-insights-scan output_schema declares signal_summary' );
 ok( array_key_exists( 'signal_summary', out_props( 'signal-noise/get-insights' ) ), 'get-insights output_schema declares signal_summary' );
+
+echo "\nGroup: v7.4.0 unlinked-mention abilities\n";
+$ls = $GLOBALS['__ab']['signal-noise/ai-link-suggest'] ?? null;
+ok( is_array( $ls ), 'ai-link-suggest: registered' );
+ok( ( $ls['input_schema']['required'] ?? array() ) === array( 'post_id', 'target_id' ), 'ai-link-suggest: requires post_id + target_id' );
+ok( 'snt_ability_perm_edit_post' === ( $ls['permission_callback'] ?? '' ), 'ai-link-suggest: per-post edit permission' );
+ok( true === ( $ls['meta']['annotations']['idempotent'] ?? null ), 'ai-link-suggest: idempotent (read-only, cached verdict)' );
+$la = $GLOBALS['__ab']['signal-noise/ai-link-apply'] ?? null;
+ok( is_array( $la ), 'ai-link-apply: registered' );
+ok( ( $la['input_schema']['required'] ?? array() ) === array( 'post_id', 'anchor', 'context_snippet', 'fingerprint', 'target_url' ), 'ai-link-apply: full splice contract required' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
