@@ -76,6 +76,69 @@ function snt_narration_collect_signals() {
 		}
 	}
 
+	// Field Core Web Vitals (v7.2.0) — durable bucket rows (worker v1.8.0 double7,
+	// rolled by inc/analytics-buckets.php). Same include-only-when-present contract
+	// as the machine block: no vitals rows in the window ⇒ no cwv key, so the
+	// prompt never narrates fictional vitals. Band order is Good/NI/Poor by map.
+	if ( function_exists( 'sn_analytics_distribution' ) ) {
+		$cwv = array();
+		foreach ( array( 'lcp', 'inp', 'cls' ) as $vital ) {
+			$dist  = sn_analytics_distribution( $vital, $from, $to, 'human' );
+			$total = 0;
+			foreach ( $dist as $band ) {
+				$total += (int) ( $band['views'] ?? 0 );
+			}
+			if ( $total > 0 ) {
+				$cwv[ $vital ] = array(
+					'samples'  => $total,
+					'good_pct' => (int) round( (int) ( $dist[0]['views'] ?? 0 ) / $total * 100 ),
+					'poor_pct' => (int) round( (int) ( $dist[2]['views'] ?? 0 ) / $total * 100 ),
+				);
+			}
+		}
+		if ( ! empty( $cwv ) ) {
+			$signals['cwv'] = $cwv;
+		}
+	}
+
+	// Security activity (v7.2.0) — aggregate counts only (cookieless: no IPs, no
+	// identities). Guard side: the cached 7-day login-guard headline; audit side:
+	// the 7d-vs-prior audit-event totals. All-zero + unconfigured ⇒ no security
+	// key, so a quiet week is silence, not narrated zeros.
+	$security = array();
+	if ( function_exists( 'sn_login_defense_headline' ) ) {
+		$lg = sn_login_defense_headline();
+		if ( ! empty( $lg['configured'] ) && (int) ( $lg['checked'] ?? 0 ) > 0 ) {
+			$guard = array(
+				'checked'    => (int) ( $lg['checked'] ?? 0 ),
+				'blocked'    => (int) ( $lg['blocked'] ?? 0 ),
+				'block_rate' => (int) ( $lg['block_rate'] ?? 0 ),
+			);
+			if ( function_exists( 'sn_analytics_query' ) && function_exists( 'sn_login_defense_top_country_sql' ) ) {
+				$rows    = sn_analytics_query( sn_login_defense_top_country_sql( 7, 1 ) );
+				$country = is_array( $rows ) ? (string) ( $rows[0]['country'] ?? '' ) : '';
+				if ( '' !== $country ) {
+					$guard['top_country'] = $country;
+				}
+			}
+			$security['login_guard'] = $guard;
+		}
+	}
+	if ( function_exists( 'snt_audit_get_summary_impl' ) ) {
+		$audit = snt_audit_get_summary_impl();
+		$cur   = (int) ( $audit['last_7d_vs_prior']['current'] ?? 0 );
+		if ( $cur > 0 ) {
+			$security['audit'] = array(
+				'events_7d' => $cur,
+				'prior_7d'  => (int) ( $audit['last_7d_vs_prior']['prior'] ?? 0 ),
+				'pct_delta' => (int) ( $audit['last_7d_vs_prior']['pct_delta'] ?? 0 ),
+			);
+		}
+	}
+	if ( ! empty( $security ) ) {
+		$signals['security'] = $security;
+	}
+
 	return $signals;
 }
 
@@ -86,7 +149,7 @@ function snt_narration_collect_signals() {
  */
 function snt_narration_system_instruction() {
 	return <<<INSTRUCTIONS
-You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see.
+You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, a "cwv" block of field Core Web Vitals shares, and a "security" block of login-guard/audit aggregates.
 
 Write a short, plain digest of what happened this week. Return ONLY a JSON object:
 
@@ -100,6 +163,8 @@ Rules:
 - Cite specific numbers and week-over-week changes (e.g. "views up 12% to 1,430"). No vague claims, no marketing fluff, no exclamation marks.
 - Lead with the most important change. If traffic was flat, say so plainly.
 - Mention machine/bot traffic or blocked threats ONLY if the "machine" block is present in the data.
+- Mention page-experience / Core Web Vitals ONLY if the "cwv" block is present. good_pct/poor_pct are the share of page-loads in Google's Good/Poor band for that metric this window.
+- Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
 - COOKIELESS DATA — this site has no per-visitor identity. NEVER infer or mention sessions, user journeys, new-vs-returning visitors, funnels, or per-person paths. "visits" is a per-day visitor-count approximation, not a tracked identity, and cannot be followed across days. Describe only aggregate counts and rates.
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;

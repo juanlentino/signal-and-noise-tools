@@ -221,5 +221,8 @@ function sn_login_defense_render() {
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
 	echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
+	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
+		snt_security_digest_render_settings();
+	}
 	echo '</div>';
 }
