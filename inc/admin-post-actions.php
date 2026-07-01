@@ -227,6 +227,23 @@ function sn_handle_audit_save_retention( $post ) {
 	return $ok ? 'audit_retention_saved' : 'audit_retention_unchanged';
 }
 
+/**
+ * v7.2.0: save the weekly security-digest opt-in (Security → Login defense), or
+ * send a test digest when the test button submitted. Single-key write via
+ * sn_setting_update() (no whole-subtree replace), then immediate cron sync so
+ * the toggle takes effect without waiting for the next init.
+ */
+function sn_handle_security_digest_save( $post ) {
+	if ( isset( $post['sn_digest_test'] ) ) {
+		return snt_security_digest_send( true ) ? 'digest_test_sent' : 'digest_test_failed';
+	}
+	sn_setting_update( 'audit.digest_email_enabled', isset( $post['sn_digest_enabled'] ) );
+	if ( function_exists( 'snt_security_digest_maybe_schedule_cron' ) ) {
+		snt_security_digest_maybe_schedule_cron();
+	}
+	return 'digest_saved';
+}
+
 function sn_handle_pattern_adoption_scan( $post ) {
 	// v4.3.0: routes through the central dispatcher per the health_scan pattern.
 	if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {

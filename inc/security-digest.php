@@ -254,3 +254,44 @@ function snt_security_digest_weekly_cron_cb() {
 	snt_security_digest_send();
 }
 add_action( SN_SECURITY_DIGEST_CRON_HOOK, 'snt_security_digest_weekly_cron_cb' );
+
+/**
+ * Settings section for the Security → Login defense sub-tab: the opt-in toggle,
+ * last-sent/last-error readout, save + test-send buttons. Posts through the
+ * central dispatcher (sn_action=security_digest_save; nonce + caps + page
+ * allowlist enforced centrally by sn_handle_admin_post()).
+ *
+ * @return void
+ */
+function snt_security_digest_render_settings() {
+	$last_sent = (int) get_option( SN_SECURITY_DIGEST_LAST_SENT, 0 );
+	$last_err  = get_option( SN_SECURITY_DIGEST_LAST_ERROR );
+	echo '<h3>' . esc_html__( 'Weekly security digest', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<form method="post">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="security_digest_save" />';
+	echo '<p><label><input type="checkbox" name="sn_digest_enabled" value="1" ';
+	checked( snt_security_digest_enabled() );
+	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address (sends every week, including quiet weeks — the quiet email is the heartbeat).', 'signal-and-noise-tools' ) . '</label></p>';
+	if ( $last_sent > 0 ) {
+		echo '<p class="description">' . esc_html(
+			sprintf(
+				/* translators: %s: human time diff */
+				__( 'Last sent %s ago.', 'signal-and-noise-tools' ),
+				human_time_diff( $last_sent, time() )
+			)
+		) . '</p>';
+	}
+	if ( is_array( $last_err ) && ! empty( $last_err['message'] ) ) {
+		echo '<p class="description" style="color:#b32d2e;">' . esc_html(
+			sprintf(
+				/* translators: %s: error message */
+				__( 'Last send failed: %s', 'signal-and-noise-tools' ),
+				(string) $last_err['message']
+			)
+		) . '</p>';
+	}
+	echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
+	echo '<button type="submit" class="button" name="sn_digest_test" value="1">' . esc_html__( 'Send test digest', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
+}

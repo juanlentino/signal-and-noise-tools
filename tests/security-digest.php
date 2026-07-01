@@ -194,5 +194,23 @@ $GLOBALS['__settings']['audit.digest_email_enabled'] = false;
 snt_security_digest_maybe_schedule_cron();
 ok( false === wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'cron: unschedules when disabled' );
 
+// ── admin-post handler (plain function returning a flash slug, per dispatcher contract) ──
+echo "\nTest: admin-post handler\n";
+require __DIR__ . '/../inc/admin-post-actions.php';
+$GLOBALS['__settings']['audit.digest_email_enabled'] = false;
+$slug = sn_handle_security_digest_save( array( 'sn_digest_enabled' => '1' ) );
+ok( 'digest_saved' === $slug && true === $GLOBALS['__settings']['audit.digest_email_enabled'], 'handler: enables and returns saved slug' );
+ok( false !== wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'handler: enabling syncs the cron on' );
+$slug = sn_handle_security_digest_save( array() );
+ok( 'digest_saved' === $slug && false === $GLOBALS['__settings']['audit.digest_email_enabled'], 'handler: absent checkbox disables' );
+ok( false === wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'handler: disabling syncs the cron off' );
+$GLOBALS['__mail'] = array();
+$slug = sn_handle_security_digest_save( array( 'sn_digest_test' => '1' ) );
+ok( 'digest_test_sent' === $slug && 1 === count( $GLOBALS['__mail'] ), 'handler: test-send dispatches mail' );
+$GLOBALS['__mail_ok'] = false;
+$slug = sn_handle_security_digest_save( array( 'sn_digest_test' => '1' ) );
+ok( 'digest_test_failed' === $slug, 'handler: failed test-send returns error slug' );
+$GLOBALS['__mail_ok'] = true;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
