@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.0.0] - 2026-07-01: The v7 major — legacy REST routes removed; S&N Health widget; the weekly digest + health scan go agent-readable
+
+**Headline:** The reserved v7.0.0 break lands: the **31** Ability-replaced legacy `/signal-noise/v1/…` REST routes — deprecated across v5.0.0–v6.56.0 and verified caller-free after the v6.55.0 JS→Abilities migration — are removed. Every one has a canonical `signal-noise/*` Ability replacement, so agents and the admin UI are unaffected; only a direct caller of a legacy path (there are none left) would break. Bundled with the break: a new **"S&N Health"** wp-admin dashboard widget, three new **Abilities** exposing the existing weekly analytics digest + the Content-Health scan to agents, and a fix for external link-rot false-flagging Cloudflare-protected citations.
+
+> **Why MAJOR:** removed public API — 31 REST routes deleted (removed/renamed public API is a SemVer break). No settings-schema migration and no WP-floor change; the break is purely the route removal. Everything else (widget, abilities, CF-rot fix) is additive/fix and would be MINOR in isolation, but rides the major per the owner's "all net-new in v7.0.0" decision. Full standalone sweep green (184 suites, 4983 assertions); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### New
+
+- **"S&N Health" dashboard widget** ([inc/site-health-widget.php](inc/site-health-widget.php)): the latest Content-Health scan at a glance on the wp-admin home, beside the Analytics + Login-defense widgets. `manage_options`-only; reads the cached scan ONLY and never triggers one (zero added load on every login). Three states — no-scan, all-clear, and findings (KPI tiles + a ranked flagged-check list capped at 4 + an overflow footer). Reuses the analytics widgets' `.sn-aw-*` styling; no new CSS.
+- **Three new Abilities exposing existing surfaces to agents** — no logic duplicated: `signal-noise/get-narration` + `signal-noise/run-narration` ([inc/abilities-narration.php](inc/abilities-narration.php)) read / regenerate the existing weekly analytics digest (v6.30.0); `signal-noise/get-health-scan` ([inc/abilities-health.php](inc/abilities-health.php)) returns a read-only Content-Health summary (finding total + ranked flagged checks + passed/total tally), the agent equivalent of the new widget.
+
+### Improvements
+
+- **One shared finding-total accessor** ([inc/health-summary.php](inc/health-summary.php)): `sn_health_finding_total()` + `sn_health_flagged_checks()` are now the single source of truth across all four health-summary surfaces (the widget, the Dashboard-tab glance card + attention strip, and the Health-tab hero), which previously each summed the scan inline. Behaviour-identical; the Health-tab hero's convergence is characterization-tested.
+
+### Fixed
+
+- **External link-rot no longer false-flags Cloudflare-blocked links** ([inc/health-probe-classify.php](inc/health-probe-classify.php)): a Cloudflare WAF / Bot "block" (a `403`/`429` carrying a `cf-ray` but **no** `cf-mitigated: challenge`) is now recognized as a live-but-gated page (`edge_gated`, skipped) rather than rot — the same treatment a CF *challenge* already received. Grounded in Cloudflare's `cf-mitigated` docs (challenge-only header; a block is a separate enforcement) + HTTP semantics (RFC 9110: 403/429 = access-restricted, not "gone" — that is 404/410). A plain non-CF `403` still rots (the prior guard is intact); a CF-fronted `404`/`410` still rots. Applies to both the external link-rot probe and the internal broken-links probe (the shared classifier keeps the two aligned).
+
+### Removed
+
+- **The 31 Ability-replaced legacy REST routes** (removed public API — the SemVer break). Each has a `signal-noise/*` Abilities run-path replacement:
+  - `purge-cache`, `clear-overrides`, `full-reset`, `cron/run`, `cron/unschedule`, `cron/history`, `insights/run`, `insights/last` ([inc/rest-api.php](inc/rest-api.php))
+  - `audit/summary`, `audit/counters`, `audit/login-successes`, `audit/prune` ([inc/audit-log.php](inc/audit-log.php))
+  - `ai/alt-suggest`, `ai/alt-apply`, `ai/alt-inline-suggest`, `ai/drift-suggest`, `ai/drift-apply`, `ai/orphan-suggest`, `ai/orphan-apply`
+  - `ai/pattern-adoption-suggest`, `ai/pattern-adoption-apply`, `health/pattern-adoption-scan`, `health/pattern-adoption-dismiss`
+  - `tools/block-migrations-scan`, `tools/block-migrations-suggest`, `tools/block-migrations-apply`, `tools/block-migrations-dismiss`
+  - `analytics/summary`, `analytics/events` — the read-only `series` / `dimension` / `distribution` / `event-props` dimension routes have **no** Ability equivalent and are **kept**
+  - `prepop/dismiss` ([inc/ai-prepopulate-notice.php](inc/ai-prepopulate-notice.php)); `cmd/(action)` ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php))
+- **`inc/rest-deprecations.php`** (the `snt_rest_deprecated_notice()` helper) — zero callers once every deprecated route is gone.
+- Every shared `snt_*_impl()` the Abilities call is **preserved**; `/site-health/cron` and the three `/ai/generate-*` editor routes are **kept**.
+
+### Notes
+
+- **Migration:** any external automation still using a removed `/signal-noise/v1/…` path should call the equivalent `POST /wp-abilities/v1/abilities/signal-noise/<slug>/run` (args wrapped in `{ input }`). The admin UI and desktop-mode already migrated in v6.55.0.
+- **Tests:** the three deprecation-guard suites (`legacy-deprecation`, `gen2-runtime-warnings`, `rest-deprecations`) were removed with the routes they guarded; `analytics-rest` + `prepop-on-publish` dropped their removed-route assertions (the effects are covered by the ability tests).
+
 ## [6.56.0] - 2026-07-01: Deprecation pass, part 2 — the 6 now-caller-free routes warn (the deprecate-now set is complete)
 
 **Headline:** The follow-through to v6.55.0. Now that every JS caller of the 9 previously-blocked legacy REST routes dispatches through the Abilities run-path, those routes are caller-free — so this pass marks the **6** of them that weren't already deprecated with `_deprecated_function()` pointing at their Abilities replacement: `cron/unschedule`, `cron/history`, `tools/block-migrations-dismiss`, `audit/summary`, `audit/login-successes`, and `prepop/dismiss`. (The other three — `cron/run`, `cmd/*`, `health/pattern-adoption-dismiss` — already carried markers from earlier versions; those had been firing on every real click until v6.55.0 migrated their callers away, which is what finally makes them honest.) With this, the entire deprecate-now set warns and its removal window is fully open — v7.0.0 removes the warned + caller-free routes. Production-silent (notices only fire under `WP_DEBUG`).
