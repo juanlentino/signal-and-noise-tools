@@ -236,5 +236,21 @@ $GLOBALS['__cwv_views'] = array( 'lcp' => array( 0, 0, 0 ), 'inp' => array( 0, 0
 $sig = snt_narration_collect_signals();
 ok( ! isset( $sig['cwv'] ), 'cwv block omitted when zero vitals' );
 
+// ── Test: security block (v7.2.0) — present with activity, omitted when quiet/unconfigured ──
+echo "\nTest: security signal block\n";
+$GLOBALS['__lg_headline']    = array( 'configured' => true, 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet' );
+$GLOBALS['__lg_top_country'] = array( array( 'country' => 'CN', 'hits' => 300 ) );
+$GLOBALS['__audit_summary']  = array( 'last_7d_vs_prior' => array( 'current' => 37, 'prior' => 20, 'pct_delta' => 85 ) );
+$sig = snt_narration_collect_signals();
+ok( isset( $sig['security']['login_guard'] ), 'security block present when guard has activity' );
+eq( 412, $sig['security']['login_guard']['blocked'] ?? -1, 'security blocked count carried' );
+eq( 'CN', $sig['security']['login_guard']['top_country'] ?? '', 'security top country carried' );
+eq( 37, $sig['security']['audit']['events_7d'] ?? -1, 'security audit events carried' );
+
+$GLOBALS['__lg_headline']   = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+$GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 0, 'prior' => 0, 'pct_delta' => 0 ) );
+$sig = snt_narration_collect_signals();
+ok( ! isset( $sig['security'] ), 'security block omitted when quiet + unconfigured' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -101,6 +101,44 @@ function snt_narration_collect_signals() {
 		}
 	}
 
+	// Security activity (v7.2.0) — aggregate counts only (cookieless: no IPs, no
+	// identities). Guard side: the cached 7-day login-guard headline; audit side:
+	// the 7d-vs-prior audit-event totals. All-zero + unconfigured ⇒ no security
+	// key, so a quiet week is silence, not narrated zeros.
+	$security = array();
+	if ( function_exists( 'sn_login_defense_headline' ) ) {
+		$lg = sn_login_defense_headline();
+		if ( ! empty( $lg['configured'] ) && (int) ( $lg['checked'] ?? 0 ) > 0 ) {
+			$guard = array(
+				'checked'    => (int) ( $lg['checked'] ?? 0 ),
+				'blocked'    => (int) ( $lg['blocked'] ?? 0 ),
+				'block_rate' => (int) ( $lg['block_rate'] ?? 0 ),
+			);
+			if ( function_exists( 'sn_analytics_query' ) && function_exists( 'sn_login_defense_top_country_sql' ) ) {
+				$rows    = sn_analytics_query( sn_login_defense_top_country_sql( 7, 1 ) );
+				$country = is_array( $rows ) ? (string) ( $rows[0]['country'] ?? '' ) : '';
+				if ( '' !== $country ) {
+					$guard['top_country'] = $country;
+				}
+			}
+			$security['login_guard'] = $guard;
+		}
+	}
+	if ( function_exists( 'snt_audit_get_summary_impl' ) ) {
+		$audit = snt_audit_get_summary_impl();
+		$cur   = (int) ( $audit['last_7d_vs_prior']['current'] ?? 0 );
+		if ( $cur > 0 ) {
+			$security['audit'] = array(
+				'events_7d' => $cur,
+				'prior_7d'  => (int) ( $audit['last_7d_vs_prior']['prior'] ?? 0 ),
+				'pct_delta' => (int) ( $audit['last_7d_vs_prior']['pct_delta'] ?? 0 ),
+			);
+		}
+	}
+	if ( ! empty( $security ) ) {
+		$signals['security'] = $security;
+	}
+
 	return $signals;
 }
 
