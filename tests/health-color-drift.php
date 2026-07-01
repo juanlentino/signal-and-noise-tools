@@ -97,5 +97,23 @@ $check = sn_health_check_color_drift();
 ok( 0 === $check['count'], 'no palette: zero findings' );
 ok( false !== stripos( (string) $check['fix_hint'], 'unavailable' ), 'no palette: fix_hint says unavailable' );
 
+// ── v7.3.1: inline SVG figure colors are NOT drift (owner's real diagram case:
+// grayscale strokes + semantic Tailwind red/green inside embedded figures) ──
+echo "\nTest: SVG exclusion (v7.3.1)\n";
+$GLOBALS['__palette']   = array( array( 'slug' => 'void', 'color' => '#ffffff' ), array( 'slug' => 'bone', 'color' => '#000000' ) );
+$GLOBALS['__scan_rows'] = array(
+	// Off-palette hexes ONLY inside <svg> blocks (two figures) → clean.
+	array( 'ID' => 7, 'post_title' => 'Diagram note', 'post_content' => '<p>prose</p><svg viewBox="0 0 10 10"><rect fill="#dc2626"/><path stroke="#555555"/></svg><p>more</p><svg><circle fill="#16a34a" stroke="#bbbbbb"/></svg>' ),
+	// Off-palette hex OUTSIDE the svg → still flagged, and the note names ONLY the outside color.
+	array( 'ID' => 8, 'post_title' => 'Mixed note', 'post_content' => '<svg><rect fill="#dc2626"/></svg><p style="color:#ff8800">drifted prose</p>' ),
+	// Uppercase/self-closing svg variant with attributes → still excluded.
+	array( 'ID' => 9, 'post_title' => 'Attr svg', 'post_content' => '<SVG xmlns="http://www.w3.org/2000/svg" class="fig"><g fill="#888888"></g></SVG>' ),
+);
+$check = sn_health_check_color_drift();
+ok( 1 === $check['count'], 'svg-only colors are not drift; only the mixed post flags' );
+ok( 8 === ( $check['findings'][0]['subject_id'] ?? 0 ), 'the mixed post is the finding' );
+ok( false !== strpos( (string) $check['findings'][0]['note'], '#ff8800' ), 'note names the prose color' );
+ok( false === strpos( (string) $check['findings'][0]['note'], '#dc2626' ), 'note does NOT name the svg figure color' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
