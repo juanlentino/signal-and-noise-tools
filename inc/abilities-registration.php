@@ -58,9 +58,11 @@ require_once __DIR__ . '/abilities-system.php';
 require_once __DIR__ . '/abilities-content.php';
 require_once __DIR__ . '/abilities-cron.php';
 require_once __DIR__ . '/abilities-insights.php';
+require_once __DIR__ . '/abilities-narration.php';        // v7.0.0: 2 abilities (run + get the weekly analytics digest)
 require_once __DIR__ . '/abilities-audit.php';
 require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 2 abilities (scan + dismiss)
 require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)
+require_once __DIR__ . '/abilities-health.php';            // v7.0.0: 1 ability (read-only Content-Health scan summary)
