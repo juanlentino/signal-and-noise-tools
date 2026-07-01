@@ -61,7 +61,10 @@ function sn_admin_flash_messages() {
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
 		'narration_generated'       => array( 'success', 'Weekly digest generated.' ),
-		'narration_failed'          => array( 'error', 'Could not generate the digest. Check that an AI provider is configured under Settings → Connectors.' ),
+		// v7.2.2: the genuine "no AI provider" case — the ONLY failure that earns
+		// the configure-AI copy. Every other digest failure resolves via the
+		// 'narration_failed' live-data branch below (the insights v7.0.1 pattern).
+		'narration_ai_unavailable'  => array( 'error', 'Weekly digest failed: no AI provider is configured. Enable AI under Settings → AI, then add a provider and key under Settings → Connectors.' ),
 		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),
 		'pattern_adoption_scanned'  => array( 'success', 'Scan complete.' ),
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
@@ -73,7 +76,11 @@ function sn_admin_flash_messages() {
 		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
-		'release_notes_failed'      => array( 'error', 'Could not draft release notes. See the detail below, or check that an AI provider is configured under Settings &rarr; Connectors.' ),
+		// v7.2.2: dropped the "or check that an AI provider is configured" clause —
+		// the handler stores the real WP_Error and the box below shows it; blaming
+		// AI config for a drafting failure is the same misdirection the insights
+		// v7.0.1 fix removed.
+		'release_notes_failed'      => array( 'error', 'Could not draft release notes &mdash; the real error is shown in the box below.' ),
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
 		'music_saved'               => array( 'success', 'Music settings saved. Hit &ldquo;Sync now&rdquo; to refresh the discography with the new credentials.' ),
@@ -149,6 +156,24 @@ function sn_admin_flash_to_notice( $flash ) {
 			return array( 'error', $notice );
 		}
 		return array( 'error', 'Insights scan failed, but no diagnostic was recorded. Re-run the scan; if it recurs, check the PHP error log.' );
+	}
+	// v7.2.2: same treatment for the weekly digest — surface the REAL stored
+	// error (code + message + bounded raw output). The genuine no-provider case
+	// is the static 'narration_ai_unavailable' code above.
+	if ( 'narration_failed' === $flash ) {
+		$err = function_exists( 'snt_narration_last_error' ) ? snt_narration_last_error() : null;
+		if ( is_array( $err ) && ! empty( $err['message'] ) ) {
+			$detail = esc_html( substr( (string) $err['message'], 0, 300 ) );
+			if ( ! empty( $err['code'] ) ) {
+				$detail .= ' (<code>' . esc_html( (string) $err['code'] ) . '</code>)';
+			}
+			$notice = 'Weekly digest failed: ' . $detail . ' This is a digest-specific failure, not an AI setup problem.';
+			if ( ! empty( $err['raw'] ) ) {
+				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 400 ) ) . '</code>';
+			}
+			return array( 'error', $notice );
+		}
+		return array( 'error', 'Weekly digest failed, but no diagnostic was recorded. Re-run it; if it recurs, check the PHP error log.' );
 	}
 
 	// Count-prefixed codes — parse the trailing int into the message template.
