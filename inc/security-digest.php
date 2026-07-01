@@ -261,20 +261,26 @@ add_action( SN_SECURITY_DIGEST_CRON_HOOK, 'snt_security_digest_weekly_cron_cb' )
  * central dispatcher (sn_action=security_digest_save; nonce + caps + page
  * allowlist enforced centrally by sn_handle_admin_post()).
  *
+ * v7.2.1: rendered as its own `.sn-fieldset` card (the Retention-form pattern,
+ * inc/audit-log-admin.php) and mounted AFTER the status box — `.sn-status-box`
+ * is a flex row (assets/admin.css:445), so any child appended inside it becomes
+ * a squeezed column. Never render this inside the status box.
+ *
  * @return void
  */
 function snt_security_digest_render_settings() {
 	$last_sent = (int) get_option( SN_SECURITY_DIGEST_LAST_SENT, 0 );
 	$last_err  = get_option( SN_SECURITY_DIGEST_LAST_ERROR );
-	echo '<h3>' . esc_html__( 'Weekly security digest', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<form method="post">';
+	echo '<form method="post" class="sn-fieldset">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="security_digest_save" />';
-	echo '<p><label><input type="checkbox" name="sn_digest_enabled" value="1" ';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Weekly security digest', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<label><input type="checkbox" name="sn_digest_enabled" value="1" ';
 	checked( snt_security_digest_enabled() );
-	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address (sends every week, including quiet weeks — the quiet email is the heartbeat).', 'signal-and-noise-tools' ) . '</label></p>';
+	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address', 'signal-and-noise-tools' ) . '</label>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks — the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $last_sent > 0 ) {
-		echo '<p class="description">' . esc_html(
+		echo '<p class="sn-field-helper">' . esc_html(
 			sprintf(
 				/* translators: %s: human time diff */
 				__( 'Last sent %s ago.', 'signal-and-noise-tools' ),
@@ -283,7 +289,7 @@ function snt_security_digest_render_settings() {
 		) . '</p>';
 	}
 	if ( is_array( $last_err ) && ! empty( $last_err['message'] ) ) {
-		echo '<p class="description" style="color:#b32d2e;">' . esc_html(
+		echo '<p class="sn-field-helper" style="color:#b32d2e;">' . esc_html(
 			sprintf(
 				/* translators: %s: error message */
 				__( 'Last send failed: %s', 'signal-and-noise-tools' ),
@@ -291,7 +297,9 @@ function snt_security_digest_render_settings() {
 			)
 		) . '</p>';
 	}
-	echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
-	echo '<button type="submit" class="button" name="sn_digest_test" value="1">' . esc_html__( 'Send test digest', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<div class="sn-fieldset-actions">';
+	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
+	echo '<button type="submit" class="button" name="sn_digest_test" value="1">' . esc_html__( 'Send test digest', 'signal-and-noise-tools' ) . '</button>';
+	echo '</div>';
 	echo '</form>';
 }

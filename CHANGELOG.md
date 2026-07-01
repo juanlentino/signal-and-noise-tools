@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.2.1] - 2026-07-01: Security-digest settings render as a proper card
+
+**Headline:** The v7.2.0 digest settings were echoed inside the Login defense status box, which is a flex row — so the heading, checkbox, and buttons rendered as squeezed columns beside the worker status. The section is now its own fieldset card below the box.
+
+> **Why PATCH:** a visual fix to a just-shipped surface; no behavior, API, or schema change.
+
+### Fixed
+- The Weekly security digest settings (Security → Login defense) now render as their own `.sn-fieldset` card (the Retention-form pattern) mounted after the status box, with the Save and Send-test buttons on one actions row. Structure locked by new render tests; a code comment on both sides now warns that `.sn-status-box` is a flex row and must never receive appended children.
+
 ## [7.2.0] - 2026-07-01: Weekly security digest + narration sees vitals and security
 
 **Headline:** The weekly digest now covers page experience and security, and a new opt-in weekly security email keeps watch even when nothing happens.
