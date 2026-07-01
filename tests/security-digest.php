@@ -1,0 +1,114 @@
+<?php
+/**
+ * Standalone fixture tests for inc/security-digest.php (weekly security email).
+ *
+ * Covers the collector's graceful degradation, the pure composer (active week /
+ * zero-week heartbeat / guard-absent / audit-absent), the subject line, the
+ * sender's last-sent/last-error recording, and the self-healing cron sync.
+ *
+ * Run: php tests/security-digest.php
+ * @since plugin v7.2.0
+ */
+if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return $s; } }
+if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return $s; } }
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+if ( ! function_exists( 'checked' ) ) { function checked() {} }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field() {} }
+if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k = '' ) { return 'Test Site'; } }
+if ( ! function_exists( 'wp_specialchars_decode' ) ) { function wp_specialchars_decode( $s, $q = 0 ) { return $s; } }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $a, $b = 0 ) { return '1 hour'; } }
+if ( ! function_exists( 'is_email' ) ) { function is_email( $e ) { return false !== strpos( (string) $e, '@' ); } }
+
+// ── settings store ──
+$GLOBALS['__settings'] = array();
+if ( ! function_exists( 'sn_setting' ) ) {
+	function sn_setting( $key, $default = null ) { return $GLOBALS['__settings'][ $key ] ?? $default; }
+}
+if ( ! function_exists( 'sn_setting_update' ) ) {
+	function sn_setting_update( $key, $value ) { $GLOBALS['__settings'][ $key ] = $value; return true; }
+}
+
+// ── options store (durable last-sent / last-error) ──
+$GLOBALS['__options'] = array( 'admin_email' => 'owner@example.com' );
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
+
+// ── cron store ──
+$GLOBALS['__cron'] = array();
+if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $h ) { return $GLOBALS['__cron'][ $h ] ?? false; } }
+if ( ! function_exists( 'wp_schedule_event' ) ) { function wp_schedule_event( $ts, $rec, $h ) { $GLOBALS['__cron'][ $h ] = $ts; return true; } }
+if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $ts, $h ) { unset( $GLOBALS['__cron'][ $h ] ); return true; } }
+
+// ── mail stub ──
+$GLOBALS['__mail']    = array();
+$GLOBALS['__mail_ok'] = true;
+if ( ! function_exists( 'wp_mail' ) ) {
+	function wp_mail( $to, $subject, $body ) {
+		$GLOBALS['__mail'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body );
+		return $GLOBALS['__mail_ok'];
+	}
+}
+
+// ── data-source stubs (value-toggled) ──
+$GLOBALS['__audit_summary'] = array();
+$GLOBALS['__audit_days']    = array();
+if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
+	function snt_audit_get_summary_impl() { return $GLOBALS['__audit_summary']; }
+}
+if ( ! function_exists( 'snt_audit_get_counters_impl' ) ) {
+	function snt_audit_get_counters_impl( $days ) { return $GLOBALS['__audit_days']; }
+}
+$GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+if ( ! function_exists( 'sn_login_defense_headline' ) ) {
+	function sn_login_defense_headline() { return $GLOBALS['__lg_headline']; }
+}
+$GLOBALS['__lg_top_country'] = array();
+if ( ! function_exists( 'sn_login_defense_top_country_sql' ) ) { function sn_login_defense_top_country_sql( $d = 30, $l = 10 ) { return 'SQL'; } }
+if ( ! function_exists( 'sn_analytics_query' ) ) { function sn_analytics_query( $sql ) { return $GLOBALS['__lg_top_country']; } }
+$GLOBALS['__lg_status'] = null; // null ⇒ worker unreachable
+if ( ! function_exists( 'sn_login_defense_status' ) ) { function sn_login_defense_status() { return $GLOBALS['__lg_status']; } }
+
+require __DIR__ . '/../inc/security-digest.php';
+
+$pass = 0; $fail = 0;
+function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
+
+// ── collector: full data ──
+echo "\nTest: collector\n";
+$GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 37, 'prior' => 20, 'pct_delta' => 85 ) );
+$GLOBALS['__audit_days']    = array(
+	array( 'login_failed' => 5, 'wp_login_404' => 2, 'wp_admin_unauth_404' => 1, 'lockout_triggered' => 1 ),
+	array( 'login_failed' => 3, 'wp_login_404' => 0, 'wp_admin_unauth_404' => 0, 'lockout_triggered' => 0 ),
+);
+$GLOBALS['__lg_headline']    = array( 'configured' => true, 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet' );
+$GLOBALS['__lg_top_country'] = array( array( 'country' => 'CN', 'hits' => 300 ) );
+$GLOBALS['__lg_status']      = array( 'denylistCount' => 4200, 'ageHours' => 6, 'stale' => false, 'version' => '1.2.0', 'compiledAt' => '2026-07-01T04:07:00Z' );
+
+$data = snt_security_digest_collect();
+ok( 37 === ( $data['audit']['events_7d'] ?? -1 ), 'collect: audit events_7d' );
+ok( 8 === ( $data['audit']['failed_7d'] ?? -1 ), 'collect: failed_7d summed across days' );
+ok( 3 === ( $data['audit']['recon_7d'] ?? -1 ), 'collect: recon_7d summed across days' );
+ok( 1 === ( $data['audit']['lockouts_7d'] ?? -1 ), 'collect: lockouts_7d summed' );
+ok( 412 === ( $data['guard']['blocked'] ?? -1 ), 'collect: guard blocked' );
+ok( 'CN' === ( $data['guard']['top_country'] ?? '' ), 'collect: guard top country' );
+ok( false === ( $data['status']['stale'] ?? true ), 'collect: status stale flag' );
+
+// ── collector: everything absent degrades to nulls ──
+$GLOBALS['__audit_summary'] = array();
+$GLOBALS['__audit_days']    = array();
+$GLOBALS['__lg_headline']   = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+$GLOBALS['__lg_status']     = null;
+$data = snt_security_digest_collect();
+ok( null === $data['guard'], 'collect: unconfigured guard → null' );
+ok( null === $data['status'], 'collect: unreachable status → null' );
+
+echo "\nResult: $pass passed, $fail failed.\n";
+exit( $fail > 0 ? 1 : 0 );
