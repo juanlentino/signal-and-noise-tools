@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.4.0] - 2026-07-01: Unlinked mentions — zero-AI detection + AI Suggest / fingerprinted Apply
+
+**Headline:** New `unlinked_mentions` Health check finds published notes that mention another note's title in prose without linking to it — zero-AI at scan time, per-(source, target)-pair findings capped at 5 per source, boundary-aware `/notes/<slug>` matching so a link to `/notes/craft-two` never masks a missing link to `craft`. Each finding gets the Health tab's existing Suggest/Apply flow via two new abilities: `signal-noise/ai-link-suggest` (AI verdict link/skip/unsure + reason + the splice contract — anchor as it appears in prose, raw-content position, context snippet, md5 fingerprint, target permalink; verdict cached 30 days per source-modified) and `signal-noise/ai-link-apply` (fingerprint-gated splice wrapping the mention in an `<a>`, refusing anchors already inside a link and non-internal targets). Mirrors the drift-phrase machinery exactly, reusing its raw-position locator and fingerprint primitives.
+
+> **Why MINOR:** a new user-visible Health check plus two new abilities — net-new capability, no breaking change.
+
+### New
+- `unlinked_mentions` Health check (`sn_health_check_unlinked_mentions` + eligibility/boundary helpers in `inc/health-checks.php`); joins the scan map and the Health-tab findings table.
+- `inc/ai-link-suggest.php`: `snt_ai_link_suggest_impl` (cached AI verdict + splice coordinates, re-derived from the pair ids so stale findings degrade to a clean 409) and `snt_ai_link_apply_impl` (same-host-validated, fingerprint-gated `<a>` wrap via `wp_update_post`).
+- Abilities `signal-noise/ai-link-suggest` + `signal-noise/ai-link-apply` (`inc/abilities-ai-health.php`, now nine abilities), both on `snt_ability_perm_edit_post`.
+- Health-tab wiring: `unlinked_mentions` joins `$suggest_supported_checks`; the suggest cell emits the pair ids; `assets/health-suggest-actions.js` gains link/skip verdict panels + the "Link it" apply modal.
+- Test suites: `tests/health-unlinked-mentions.php`, `tests/ai-link-suggest.php`; contract additions in `tests/ai-abilities-contract.php` + `tests/health-checks-admin.php`.
+
 ## [7.3.1] - 2026-07-01: Color drift no longer flags SVG figure colors
 
 **Headline:** The owner's first live scan flagged three notes whose only "drift" was the deliberate stroke/fill colors inside their embedded SVG diagrams (grayscale tones plus semantic red/green). Figures are artwork, not text styling — the check now strips inline `<svg>` blocks before extracting hex colors.

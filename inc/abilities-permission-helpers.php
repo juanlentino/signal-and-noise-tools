@@ -47,7 +47,7 @@ function snt_ability_perm_manage_options() {
  *
  * Used by: regenerate-og-card, ai-generate-meta-description,
  * ai-generate-og-card-title, ai-generate-excerpt, ai-drift-suggest,
- * ai-drift-apply, ai-alt-inline-suggest.
+ * ai-drift-apply, ai-alt-inline-suggest, ai-link-suggest, ai-link-apply.
  *
  * @param array|null $input
  * @return bool

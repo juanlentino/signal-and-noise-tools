@@ -2,8 +2,9 @@
  * Signal & Noise Tools — Health Suggest+Apply actions.
  *
  * Shared click handlers for the Health admin tab's AI Suggest buttons.
- * Serves both check types (missing_alt, drift_time_phrases) via
- * data-attribute-driven dispatch — single module, no per-check JS.
+ * Serves every supported check type (missing_alt, drift_time_phrases,
+ * orphaned_media, pattern-adoption, block-migrations, unlinked_mentions)
+ * via data-attribute-driven dispatch — single module, no per-check JS.
  *
  * Enqueued on the SN admin page via inc/admin-page.php / settings hook
  * (only when snt_ai_is_available() returns true).
@@ -41,6 +42,7 @@
 		pattern_adoption_pull_quote:         { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
 		pattern_adoption_steps_enumerated:   { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
 		block_migrations_heading_skip:       { suggest: 'block-migrations-suggest',        apply: 'block-migrations-apply' },
+		unlinked_mentions:                   { suggest: 'ai-link-suggest',                 apply: 'ai-link-apply' },  // v7.4.0
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
@@ -399,6 +401,14 @@
 				renderError( cell, __( 'Missing attachment ID.', 'signal-noise-tools' ) );
 				return;
 			}
+		} else if ( 'unlinked_mentions' === checkType ) {
+			// v7.4.0: suggest re-derives everything server-side from the pair.
+			input.post_id   = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
+			input.target_id = parseInt( btn.getAttribute( 'data-target-id' ), 10 );
+			if ( ! input.post_id || ! input.target_id ) {
+				renderError( cell, __( 'Missing finding data.', 'signal-noise-tools' ) );
+				return;
+			}
 		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
 			// v4.4.3 (Bug-B2): pattern-adoption Suggest+Apply — data-attrs emitted
 			// by snt_pattern_adoption_render_opportunities_section() in
@@ -556,11 +566,68 @@
 		var actions = document.createElement( 'div' );
 		actions.className = 'snt-verdict-actions';
 
-		// `status` is only used by the delete branch (passed into onOrphanDeleteClick
-		// so async progress/errors can be surfaced inline). Declared here only because
-		// the delete branch closes over it; keep/unsure branches don't render it.
+		// `status` is used by the delete + link branches (passed into their apply
+		// handlers so async progress/errors can be surfaced inline). Declared here
+		// because those branches close over it; keep/skip/unsure don't render it.
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
+
+		if ( 'link' === res.verdict ) {
+			// v7.4.0: unlinked-mention link verdict — apply wraps the anchor.
+			headline.className = 'snt-verdict-headline snt-verdict-headline--ok';
+			headline.textContent = '✓ ' + __( 'Link recommended', 'signal-noise-tools' );
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+
+			var anchorEl = document.createElement( 'div' );
+			anchorEl.className = 'snt-verdict-reason';
+			anchorEl.textContent = '"' + ( res.anchor || '' ) + '" → ' + ( res.target_url || '' );
+			wrap.appendChild( anchorEl );
+
+			var linkBtn = document.createElement( 'button' );
+			linkBtn.type = 'button';
+			linkBtn.className = 'button button-primary button-small';
+			linkBtn.textContent = __( 'Link it', 'signal-noise-tools' );
+			linkBtn.addEventListener( 'click', function() {
+				onLinkApplyClick( cell, status, linkBtn, applyAbility, input, res );
+			} );
+			actions.appendChild( linkBtn );
+
+			var discardBtnLink = document.createElement( 'button' );
+			discardBtnLink.type = 'button';
+			discardBtnLink.className = 'button button-small';
+			discardBtnLink.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtnLink.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtnLink );
+
+			wrap.appendChild( actions );
+			wrap.appendChild( status );
+			cell.appendChild( wrap );
+			return;
+		}
+
+		if ( 'skip' === res.verdict ) {
+			// v7.4.0: coincidental phrase — no link warranted.
+			headline.className = 'snt-verdict-headline snt-verdict-headline--ok';
+			headline.textContent = '✓ ' + __( 'Skip — coincidental phrase, not a reference', 'signal-noise-tools' );
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+
+			var discardBtnSkip = document.createElement( 'button' );
+			discardBtnSkip.type = 'button';
+			discardBtnSkip.className = 'button button-small';
+			discardBtnSkip.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtnSkip.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtnSkip );
+
+			wrap.appendChild( actions );
+			cell.appendChild( wrap );
+			return;
+		}
 
 		if ( 'delete' === res.verdict ) {
 			headline.className = 'snt-verdict-headline snt-verdict-headline--err';
@@ -697,6 +764,68 @@
 		noteEl.textContent = __( 'If this attachment is used in a widget, customizer setting, or theme template, you will see a broken image on the site.', 'signal-noise-tools' );
 		afterNode.appendChild( noteEl );
 
+		return { before: beforeNode, after: afterNode };
+	}
+
+	/**
+	 * v7.4.0: Handle "Link it" for an unlinked-mention verdict=link row.
+	 * Modal shows the context (Before) and the anchor→target mapping (After);
+	 * Apply calls ai-link-apply with the suggest response's splice contract.
+	 */
+	function onLinkApplyClick( cell, status, linkBtn, applyAbility, input, res ) {
+		var modalContent = buildLinkApplyModalContent( res );
+		openApplyModal( {
+			title:             __( 'Insert internal link?', 'signal-noise-tools' ),
+			beforeNode:        modalContent.before,
+			afterNode:         modalContent.after,
+			originatingButton: linkBtn,
+			onApply:           function() { doLinkApply(); },
+			onCancel:          function() { /* no-op */ },
+		} );
+
+		function doLinkApply() {
+			linkBtn.disabled = true;
+			setStatus( status, __( 'Applying…', 'signal-noise-tools' ), 'info' );
+			callAbility( applyAbility, {
+				post_id:         input.post_id,
+				anchor:          res.anchor || '',
+				context_snippet: res.context_snippet || '',
+				fingerprint:     res.fingerprint || '',
+				target_url:      res.target_url || '',
+			} )
+				.then( function() {
+					renderApplied( cell );
+					var row = cell.closest( 'tr' );
+					if ( row ) { row.style.opacity = '0.5'; }
+				} )
+				.catch( function( err ) {
+					setStatus( status, __( 'Failed', 'signal-noise-tools' ) + ': ' + err.message, 'err' );
+					linkBtn.disabled = false;
+				} );
+		}
+	}
+
+	/**
+	 * v7.4.0: modal content for the link apply.
+	 * Before: the prose context around the mention.
+	 * After: anchor → target mapping + revision note.
+	 */
+	function buildLinkApplyModalContent( res ) {
+		var beforeNode = document.createElement( 'div' );
+		var ctx = document.createElement( 'p' );
+		ctx.className = 'snt-modal-caption';
+		ctx.textContent = res.context_snippet || '';
+		beforeNode.appendChild( ctx );
+
+		var afterNode = document.createElement( 'div' );
+		var linked = document.createElement( 'p' );
+		linked.className = 'snt-modal-filename';
+		linked.textContent = '"' + ( res.anchor || '' ) + '" → ' + ( res.target_url || '' );
+		afterNode.appendChild( linked );
+		var note = document.createElement( 'p' );
+		note.className = 'snt-modal-caption';
+		note.textContent = __( 'The mention is wrapped in a link in place. A WP revision is created automatically.', 'signal-noise-tools' );
+		afterNode.appendChild( note );
 		return { before: beforeNode, after: afterNode };
 	}
 
@@ -949,6 +1078,10 @@
 			btn.setAttribute( 'data-context', input.context_snippet );
 		} else if ( 'orphaned_media' === checkType ) {
 			btn.setAttribute( 'data-attachment-id', input.attachment_id );
+		} else if ( 'unlinked_mentions' === checkType ) {
+			// v7.4.0: re-build the pair button on Discard.
+			btn.setAttribute( 'data-post-id', input.post_id );
+			btn.setAttribute( 'data-target-id', input.target_id );
 		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
 			// v4.4.3 (Bug-B2): re-build pattern-adoption button on Discard.
 			btn.setAttribute( 'data-post-id', input.post_id );

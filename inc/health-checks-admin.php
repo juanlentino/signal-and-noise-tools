@@ -109,7 +109,7 @@ function sn_health_render_admin_tab() {
 	}
 
 	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
-	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated' );
+	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions' );
 
 	$last_scan = sn_health_last_scan();
 
@@ -125,7 +125,7 @@ function sn_health_render_admin_tab() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
-	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, and orphaned media when a provider is configured. Typical run: 1–10 seconds on a small site; results persist until you re-run the scan.</p>';
+	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, orphaned media, and unlinked mentions when a provider is configured. Typical run: 1–10 seconds on a small site; results persist until you re-run the scan.</p>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
 	echo '</div>';
@@ -286,6 +286,13 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 	} elseif ( 'orphaned_media' === $check_key ) {
 		$attrs['data-check']         = 'orphaned_media';
 		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+	} elseif ( 'unlinked_mentions' === $check_key ) {
+		// v7.4.0: one button per (source, target) pair. Suggest re-derives
+		// the mention server-side from the two ids — no scan payload rides
+		// the button, so a stale finding degrades to a clean 409.
+		$attrs['data-check']     = 'unlinked_mentions';
+		$attrs['data-post-id']   = (int) ( $finding['subject_id'] ?? 0 );
+		$attrs['data-target-id'] = (int) ( $finding['target_id'] ?? 0 );
 	} elseif ( 'pattern_adoption_pull_quote' === $check_key || 'pattern_adoption_steps_enumerated' === $check_key ) {
 		// v4.3.0: pattern-adoption opportunities — rendered by snt_pattern_adoption_render_opportunities_section,
 		// not by this generic suggest_cell helper. This branch exists so the existing $suggest_supported_checks

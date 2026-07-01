@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     7.3.1
+ * Version:     7.4.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -210,6 +210,7 @@ require_once __DIR__ . '/inc/ai-bootstrap.php';
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
+require_once __DIR__ . '/inc/ai-link-suggest.php'; // v7.4.0: unlinked-mention Suggest+Apply (mirrors drift machinery)
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
 require_once __DIR__ . '/inc/ai-tag-suggest.php';
