@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.2.0] - 2026-07-01: Weekly security digest + narration sees vitals and security
+
+**Headline:** The weekly digest now covers page experience and security, and a new opt-in weekly security email keeps watch even when nothing happens.
+
+> **Why MINOR:** a new user-visible capability (the security-digest email plus narration coverage); no public API removed or changed. Sourced from the 2026-07-01 portfolio feature-classification audit's moat gap analysis; the email is the LLAR assessment's one sanctioned build (A2, 2026-06-17).
+
+### New
+- Weekly security-digest email (opt-in, default OFF, Security → Login defense): failed logins, recon probes, lockouts, login-guard edge blocks, and denylist freshness for the last 7 days vs the prior 7. Deterministic (no AI in the path) and sends on quiet weeks too — the quiet email is the heartbeat. Includes a send-test button and a last-sent/last-error readout on the panel.
+
+### Improvements
+- The weekly AI narration digest now sees field Core Web Vitals (LCP/INP/CLS good/poor shares from the durable buckets) and security activity (login-guard blocks, audit-event trend) — each mentioned only when the data exists, mirroring the machine-traffic rule.
+
 ## [7.1.2] - 2026-07-01: Critical — an empty AI result no longer crashes the site
 
 **Headline:** A no-text AI response took the whole request down with a white-screen critical error (confirmed via the Cloudways PHP error log: `Uncaught WordPress\AiClient\Common\Exception\RuntimeException: No text content found in first candidate`). The wp-ai-client's `toText()` **throws** when the model returns a result whose first candidate has no text part (an empty / stopped / refused completion), rather than returning an empty string, and that call sat outside the guard that catches AI failures. It is now caught and degrades to the normal "empty response" error notice. Pre-existing (the `toText()` path dates to v6.29.0); surfaced now while exercising the Insights scan + Weekly digest.
