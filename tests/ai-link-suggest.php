@@ -136,5 +136,79 @@ $GLOBALS['__transients'] = array();
 $GLOBALS['__ai_response'] = '{"verdict":"banana","reason":"?"}';
 ok( 'unsure' === ( snt_ai_link_suggest_impl( 1, 2 )['verdict'] ?? '' ), 'out-of-enum verdict coerces to unsure' );
 
+echo "\nTest: snt_ai_link_apply_impl — happy path\n";
+$GLOBALS['__ai_response'] = '{"verdict":"link","reason":"r"}';
+$GLOBALS['__transients'] = array();
+$s = snt_ai_link_suggest_impl( 1, 2 );
+$out = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], $s['target_url'] );
+ok( is_array( $out ) && true === ( $out['ok'] ?? false ), 'apply returns ok' );
+$written = (string) ( $GLOBALS['__updated']['post_content'] ?? '' );
+ok( false !== strpos( $written, '<a href="https://x.test/notes/cheap-option/">honesty has to be the cheap option</a>' ), 'mention wrapped in the target link' );
+ok( 1 === substr_count( $written, '<a href="https://x.test/notes/cheap-option/">' ), 'exactly one link inserted' );
+ok( false !== strpos( $written, 'Preamble paragraph.' ), 'surrounding content untouched' );
+
+echo "\nTest: apply — multi-occurrence disambiguation via context\n";
+// The two occurrences need genuinely distinct 200-char neighborhoods —
+// the locator disambiguates by stripped-window similarity, so a fixture
+// where both windows cover the same short text cannot resolve (and the
+// shipped drift contract falls back to the first occurrence on a tie).
+mk_post( 5, 'Multi source', 'source-d',
+	'<p>First: honesty has to be the cheap option here, in a paragraph about pricing strategy and the long-term cost of dishonest work, which continues at length so the first occurrence owns a distinct neighborhood of words all its own.</p>' .
+	"\n" .
+	'<p>Entirely different closing thoughts about UNIQUE-MARKER trust and craft: honesty has to be the cheap option again, this time framed around reader trust and the compounding value of saying true things plainly and often.</p>' );
+$raw5   = $GLOBALS['__posts'][5]->post_content;
+// Derive the context the way suggest does: stripped window around the SECOND occurrence.
+$strip5 = wp_strip_all_tags( strip_shortcodes( $raw5 ) );
+$sec_s  = strpos( $strip5, 'honesty has to be the cheap option', strpos( $strip5, 'UNIQUE-MARKER' ) );
+$ctx    = trim( substr( $strip5, max( 0, $sec_s - 80 ), 200 ) );
+$second = strpos( $raw5, 'honesty has to be the cheap option', strpos( $raw5, 'UNIQUE-MARKER' ) );
+$fp     = snt_ai_drift_fingerprint( $raw5, 'honesty has to be the cheap option', $second );
+$out = snt_ai_link_apply_impl( 5, 'honesty has to be the cheap option', $ctx, $fp, 'https://x.test/notes/cheap-option/' );
+ok( is_array( $out ) && true === ( $out['ok'] ?? false ), 'second-occurrence apply succeeds' );
+$written = (string) $GLOBALS['__updated']['post_content'];
+ok( false !== strpos( $written, "First: honesty has to be the cheap option here" ), 'FIRST occurrence untouched' );
+ok( false !== strpos( $written, 'UNIQUE-MARKER trust and craft: <a href="https://x.test/notes/cheap-option/">honesty' ), 'SECOND occurrence (context match) wrapped' );
+
+echo "\nTest: apply guards\n";
+// already inside an <a> → 400.
+mk_post( 6, 'Linked source', 'source-e', '<p>see <a href="/elsewhere/">honesty has to be the cheap option</a></p>' );
+$raw6 = $GLOBALS['__posts'][6]->post_content;
+$p6   = strpos( $raw6, 'honesty' );
+$fp6  = snt_ai_drift_fingerprint( $raw6, 'honesty has to be the cheap option', $p6 );
+$e = snt_ai_link_apply_impl( 6, 'honesty has to be the cheap option', '', $fp6, 'https://x.test/notes/cheap-option/' );
+ok( 'snt_ai_link_already_linked' === $e->get_error_code() && 400 === ( $e->get_error_data()['status'] ?? 0 ), 'anchor inside existing <a> → 400' );
+
+// <aside> before the anchor must NOT trip the inside-anchor guard.
+mk_post( 7, 'Aside source', 'source-f', '<aside>note</aside><p>honesty has to be the cheap option</p>' );
+$raw7 = $GLOBALS['__posts'][7]->post_content;
+$p7   = strpos( $raw7, 'honesty' );
+ok( false === snt_ai_link_position_inside_anchor( $raw7, $p7 ), '<aside> does not read as an open <a> (tag-name boundary)' );
+
+// fingerprint mismatch → 409.
+$e = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], str_repeat( '0', 32 ), $s['target_url'] );
+ok( 'snt_ai_apply_conflict' === $e->get_error_code() && 409 === ( $e->get_error_data()['status'] ?? 0 ), 'fingerprint mismatch → 409' );
+
+// anchor gone → 409.
+$e = snt_ai_link_apply_impl( 4, 'honesty has to be the cheap option', '', $s['fingerprint'], $s['target_url'] );
+ok( 'snt_ai_apply_conflict' === $e->get_error_code(), 'anchor absent from content → 409' );
+
+// permission → 403.
+$GLOBALS['__can_edit'] = false;
+$e = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], $s['target_url'] );
+ok( 'snt_ai_capability' === $e->get_error_code(), 'edit_post denial → 403' );
+$GLOBALS['__can_edit'] = true;
+
+// cross-host target → 422; empty anchor → 422.
+$e = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], 'https://evil.example/phish' );
+ok( 'snt_ai_link_target_invalid' === $e->get_error_code(), 'cross-host target_url → 422' );
+$e = snt_ai_link_apply_impl( 1, '', '', $s['fingerprint'], $s['target_url'] );
+ok( 'snt_ai_anchor_invalid' === $e->get_error_code(), 'empty anchor → 422' );
+
+// wp_update_post failure → 500.
+$GLOBALS['__update_result'] = new WP_Error( 'db', 'boom' );
+$e = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], $s['target_url'] );
+ok( 'snt_ai_write_failed' === $e->get_error_code(), 'wp_update_post WP_Error → 500' );
+$GLOBALS['__update_result'] = 1;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
