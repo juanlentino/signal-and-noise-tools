@@ -270,11 +270,19 @@ function snt_cron_render_admin_tab() {
 			$args_json = '[]';
 		}
 		echo '<td>';
-		if ( $row['has_handler'] ) {
-			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
-		} else {
+		if ( ! $row['has_handler'] ) {
 			$disabled_title = esc_attr__( 'No handler registered', 'signal-noise-tools' );
 			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . $disabled_title . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+		} elseif ( str_starts_with( (string) $row['hook'], 'sn_' ) ) {
+			// v6.55.0: Run-now dispatches via the signal-noise/run-cron-event
+			// ability (run-path), which refuses sn_* hooks — Signal & Noise's own
+			// internal events fire on their own schedule and have dedicated
+			// abilities. Disable + explain instead of letting the click resolve to
+			// a refusal toast, mirroring the Unschedule gate below.
+			$sn_run_disabled_title = esc_attr__( 'Signal & Noise–internal event: dispatched on its own schedule, not manually runnable here', 'signal-noise-tools' );
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . $sn_run_disabled_title . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+		} else {
+			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
 		}
 		// v3.1.0: Unschedule button. SN-owned events refuse this op via
 		// the impl-layer guard, so disable the button + explain why

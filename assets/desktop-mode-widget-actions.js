@@ -2,10 +2,10 @@
  * Signal & Noise Tools — desktop-mode "Quick Actions" widget.
  *
  * Renders three buttons for the most-used maintenance operations.
- * Hits the existing /signal-noise/v1/cmd/{action} REST endpoints
- * (already auth + capability gated). Replaces the 3-click path of
- * S&N → Dashboard tab → Maintenance section with single-click access
- * from the desktop.
+ * Dispatches each via its ability run-path (v6.55.0; previously the
+ * /signal-noise/v1/cmd/{action} REST endpoints) — already auth + capability
+ * gated. Replaces the 3-click path of S&N → Dashboard tab → Maintenance
+ * section with single-click access from the desktop.
  *
  * Actions: Purge All Caches | Clear DB Overrides | Full Reset
  *
@@ -23,7 +23,13 @@
 	}
 
 	var data    = window.snDesktopData || {};
-	var restNs  = ( data.restNamespace || 'signal-noise/v1' ) + '/cmd/';
+	// v6.55.0: dispatch each maintenance action via its ability run-path.
+	var ABILITY_BASE = '/wp-abilities/v1/abilities/signal-noise/';
+	var CMD_ABILITY = {
+		'purge-caches':    'purge-all-caches',
+		'clear-overrides': 'clear-template-overrides',
+		'full-reset':      'full-reset',
+	};
 	var TOAST_MS = 3500;
 
 	function el( tag, opts ) {
@@ -69,8 +75,9 @@
 		button.style.opacity  = '0.55';
 
 		window.wp.apiFetch( {
-			path:   '/' + restNs + action,
+			path:   ABILITY_BASE + ( CMD_ABILITY[ action ] || action ) + '/run',
 			method: 'POST',
+			data:   { input: {} },
 		} )
 			.then( function( res ) {
 				var ok      = !! ( res && res.ok );

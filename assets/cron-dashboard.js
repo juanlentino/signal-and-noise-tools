@@ -141,12 +141,16 @@
 					}
 					btn.disabled = true;
 					btn.textContent = I.running;
+					// v6.55.0: dispatch via the run-cron-event ability run-path.
+					// The ability now additively returns ok/last_fired_formatted/
+					// elapsed_ms/error, so the inline cell update + toast are
+					// preserved. (res.ok replaces the legacy res.success.)
 					window.wp.apiFetch( {
-						path: '/signal-noise/v1/cron/run',
+						path: '/wp-abilities/v1/abilities/signal-noise/run-cron-event/run',
 						method: 'POST',
-						data: { hook: hook }
+						data: { input: { hook: hook } }
 					} ).then( function( res ) {
-						if ( res && res.success ) {
+						if ( res && res.ok ) {
 							// v3.0.1: use server-formatted timestamp (site
 							// timezone, matches the rest of the table) instead
 							// of client-side UTC toISOString.
@@ -204,11 +208,16 @@
 				}
 
 				var hook = tr.getAttribute( 'data-hook' );
+				// v6.55.0: read history via the get-cron-history ability run-path.
+				// GET query params → POST { input: { hook, limit } }. The ability's
+				// output_schema is a top-level array (get-cron-history returns the
+				// rows bare, no { history } wrapper), so pass res straight through.
 				window.wp.apiFetch( {
-					path: '/signal-noise/v1/cron/history?hook=' + encodeURIComponent( hook ) + '&limit=10',
-					method: 'GET'
+					path: '/wp-abilities/v1/abilities/signal-noise/get-cron-history/run',
+					method: 'POST',
+					data: { input: { hook: hook, limit: 10 } }
 				} ).then( function( res ) {
-					renderHistoryPanel( panel, ( res && res.history ) || [] );
+					renderHistoryPanel( panel, Array.isArray( res ) ? res : [] );
 				} ).catch( function( fetchErr ) {
 					while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
 					var msg = document.createElement( 'small' );
@@ -334,10 +343,13 @@
 					var runBtn = tr.querySelector( '.sn-cron-run-now' );
 					if ( runBtn ) { runBtn.disabled = true; }
 
+					// v6.55.0: unschedule via the unschedule-cron-event ability
+					// run-path. Output shape { success, hook, args, cleared } is
+					// unchanged from the legacy route (same shared impl).
 					window.wp.apiFetch( {
-						path: '/signal-noise/v1/cron/unschedule',
+						path: '/wp-abilities/v1/abilities/signal-noise/unschedule-cron-event/run',
 						method: 'POST',
-						data: { hook: hook, args: args }
+						data: { input: { hook: hook, args: args } }
 				} ).then( function( res ) {
 					if ( res && res.success ) {
 						if ( res.cleared > 0 ) {

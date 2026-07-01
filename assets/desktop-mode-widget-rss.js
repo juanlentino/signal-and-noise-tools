@@ -6,8 +6,9 @@
  * tab. This widget puts last-request-time + 24h / 7d / 30d unique
  * subscriber counts on the desktop at-a-glance.
  *
- * Data source: GET /signal-noise/v1/cmd/rss-stats — a new read-only
- * REST handler added in v2.1.0 that wraps sn_rss_tracker_window_stats_multi().
+ * Data source: the signal-noise/get-rss-stats ability run-path (v6.55.0;
+ * previously GET /signal-noise/v1/cmd/rss-stats). Wraps
+ * sn_rss_tracker_window_stats_multi().
  *
  * Polling: every 5 min (RSS counts don't change rapidly; far less
  * urgent than the deploy-status widget's 60s cadence).
@@ -25,7 +26,8 @@
 
 	var data        = window.snDesktopData || {};
 	var rssPageUrl  = ( data.pages && data.pages.rss ) || '';
-	var restNs      = ( data.restNamespace || 'signal-noise/v1' ) + '/cmd/';
+	// v6.55.0: read RSS activity via the get-rss-stats ability run-path.
+	var RSS_STATS_RUN_PATH = '/wp-abilities/v1/abilities/signal-noise/get-rss-stats/run';
 	var REFRESH_MS  = 5 * 60 * 1000;
 
 	function el( tag, opts ) {
@@ -125,7 +127,11 @@
 				renderError( container, 'wp.apiFetch unavailable' );
 				return;
 			}
-			window.wp.apiFetch( { path: '/' + restNs + 'rss-stats' } )
+			window.wp.apiFetch( {
+				path:   RSS_STATS_RUN_PATH,
+				method: 'POST',
+				data:   { input: {} },
+			} )
 				.then( function( res ) {
 					if ( res && res.data ) {
 						renderCard( container, res.data );

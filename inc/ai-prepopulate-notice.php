@@ -96,7 +96,9 @@ add_action( 'admin_enqueue_scripts', function ( $hook_suffix ) {
 		true
 	);
 	wp_localize_script( 'snt-prepop-notice', 'sntPrepopNotice', array(
-		'restPath' => '/signal-noise/v1/prepop/dismiss',
+		// v6.55.0: point the dismiss JS at the signal-noise/prepop-dismiss
+		// ability run-path so the legacy /prepop/dismiss route becomes caller-free.
+		'restPath' => '/wp-abilities/v1/abilities/signal-noise/prepop-dismiss/run',
 	) );
 	wp_enqueue_script( 'snt-prepop-notice' );
 } );

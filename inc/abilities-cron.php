@@ -242,8 +242,11 @@ add_action( 'wp_abilities_api_init', function() {
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
-				'ok'      => array( 'type' => 'boolean' ),
-				'message' => array( 'type' => 'string' ),
+				'ok'                   => array( 'type' => 'boolean' ),
+				'message'              => array( 'type' => 'string' ),
+				'elapsed_ms'           => array( 'type' => array( 'number', 'null' ), 'description' => 'Wall-clock dispatch time in ms; null on the WP_Error paths.' ),
+				'last_fired_formatted' => array( 'type' => array( 'string', 'null' ), 'description' => 'Server-formatted (site-timezone) last-fired timestamp for the dashboard cell; null if untracked.' ),
+				'error'                => array( 'type' => array( 'string', 'null' ), 'description' => 'Impl error message when a dispatched handler threw; null on success.' ),
 			),
 		),
 		'meta'                => array(
@@ -327,12 +330,17 @@ function snt_ability_unschedule_cron_event( $input ) {
  * with proper input schemas, so this generic runner refuses them.
  *
  * Hook names are matched VERBATIM (no sanitize_key — that would mangle
- * mixed-case/namespaced hooks). The impl's array return is collapsed to
- * the {ok,message} output_schema; the impl's WP_Error paths (orphan /
+ * mixed-case/namespaced hooks). The impl's WP_Error paths (orphan /
  * forbidden / invalid) pass through unchanged with their status + message.
  *
+ * v6.55.0: alongside the {ok,message} agent contract, the impl's dashboard
+ * fields (elapsed_ms, last_fired_formatted, error) are surfaced ADDITIVELY so
+ * the Cron-tab Run-now JS caller can dispatch via this run-path without losing
+ * its inline last-fired cell update + elapsed toast. Agent callers that only
+ * read {ok,message} are unaffected — the extra keys are nullable.
+ *
  * @param array $input { hook: string, args?: array }
- * @return array{ok:bool,message:string}|WP_Error
+ * @return array{ok:bool,message:string,elapsed_ms:?float,last_fired_formatted:?string,error:?string}|WP_Error
  */
 function snt_ability_run_cron_event( $input ) {
 	$hook = isset( $input['hook'] ) ? trim( (string) $input['hook'] ) : '';
@@ -361,9 +369,14 @@ function snt_ability_run_cron_event( $input ) {
 
 	$ok = ! empty( $r['success'] );
 	return array(
-		'ok'      => $ok,
-		'message' => $ok
+		'ok'                   => $ok,
+		'message'              => $ok
 			? sprintf( 'Dispatched %s.', $hook )
 			: ( 'Dispatch failed: ' . ( ! empty( $r['error'] ) ? $r['error'] : 'unknown error' ) ),
+		// Additive dashboard fields (see docblock). Nullable; agent callers
+		// reading only {ok,message} are unaffected.
+		'elapsed_ms'           => isset( $r['elapsed_ms'] ) ? $r['elapsed_ms'] : null,
+		'last_fired_formatted' => isset( $r['last_fired_formatted'] ) ? $r['last_fired_formatted'] : null,
+		'error'                => isset( $r['error'] ) ? $r['error'] : null,
 	);
 }

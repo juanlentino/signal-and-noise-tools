@@ -8,8 +8,9 @@
  * Renders a compact card with theme + plugin versions, last deploy time,
  * and a click target that opens the SN Dashboard.
  *
- * Fetches /signal-noise/v1/cmd/status (read-only, capability-gated) on
- * mount and every 60s thereafter (matches the GHA runs cache TTL).
+ * Fetches the signal-noise/get-deploy-status ability run-path (v6.55.0;
+ * previously /signal-noise/v1/cmd/status) on mount and every 60s thereafter
+ * (matches the GHA runs cache TTL).
  *
  * DOM-built via createElement + textContent (no innerHTML) — eliminates
  * the entire XSS-from-string-concat risk class. Inline styles are kept
@@ -27,7 +28,8 @@
 
 	var data = window.snDesktopData || {};
 	var dashboardUrl = ( data.pages && data.pages.dashboard ) || '';
-	var restNs = ( data.restNamespace || 'signal-noise/v1' ) + '/cmd/';
+	// v6.55.0: read deploy status via the get-deploy-status ability run-path.
+	var STATUS_RUN_PATH = '/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run';
 	var REFRESH_MS = 60 * 1000;
 
 	/**
@@ -135,10 +137,16 @@
 				renderError( container, 'wp.apiFetch unavailable' );
 				return;
 			}
-			window.wp.apiFetch( { path: '/' + restNs + 'status' } )
+			window.wp.apiFetch( {
+				path:   STATUS_RUN_PATH,
+				method: 'POST',
+				data:   { input: {} },
+			} )
 				.then( function( res ) {
-					if ( res && res.data ) {
-						renderCard( container, res.data );
+					// The ability returns { theme, plugin, last_deploy } at the root
+					// (no legacy { ok, data } envelope).
+					if ( res && res.theme ) {
+						renderCard( container, res );
 					}
 				} )
 				.catch( function( err ) {

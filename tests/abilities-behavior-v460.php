@@ -243,12 +243,20 @@ $r = snt_ability_run_cron_event( array( 'hook' => 'sntbx_registered_hook' ) );
 bx_true( is_array( $r ) && ! empty( $r['ok'] ), 'A.4: registered hook → ok:true' );
 bx_true( $GLOBALS['__ran_ok_hook'], 'A.4b: the registered callback actually fired' );
 
+// A.4c–e (v6.55.0): run-cron-event now ADDITIVELY surfaces the impl's dashboard
+// fields alongside {ok,message}, so the Cron-tab Run-now caller can move to the
+// run-path without losing its inline last-fired cell update + elapsed toast.
+bx_true( is_array( $r ) && array_key_exists( 'elapsed_ms', $r ) && is_numeric( $r['elapsed_ms'] ), 'A.4c: success surfaces numeric elapsed_ms' );
+bx_true( is_array( $r ) && array_key_exists( 'last_fired_formatted', $r ), 'A.4d: success surfaces last_fired_formatted key' );
+bx_true( is_array( $r ) && array_key_exists( 'error', $r ) && null === $r['error'], 'A.4e: success surfaces error:null' );
+
 // A.5 — THROWING callback → ok:false (impl Throwable catch), NOT a fatal.
 $GLOBALS['__test_actions'] = array();
 add_action( 'sntbx_throwing_hook', function() { throw new RuntimeException( 'boom from handler' ); } );
 $r = snt_ability_run_cron_event( array( 'hook' => 'sntbx_throwing_hook' ) );
 bx_true( is_array( $r ) && empty( $r['ok'] ), 'A.5: throwing callback → ok:false (no fatal)' );
 bx_true( is_array( $r ) && false !== strpos( (string) $r['message'], 'Dispatch failed' ), 'A.5b: message reports dispatch failure' );
+bx_true( is_array( $r ) && isset( $r['error'] ) && false !== strpos( (string) $r['error'], 'boom from handler' ), 'A.5c: failure surfaces the impl error message (dashboard toast source)' );
 
 // A.6 — mixed-case / namespaced hook NOT mangled (no sanitize_key).
 //        Register under the verbatim mixed-case name; the ability must match it.
