@@ -252,5 +252,11 @@ $GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 0
 $sig = snt_narration_collect_signals();
 ok( ! isset( $sig['security'] ), 'security block omitted when quiet + unconfigured' );
 
+// ── Test: instruction gains the two conditional rules (v7.2.0) ──
+echo "\nTest: instruction conditional rules\n";
+$instr = snt_narration_system_instruction();
+ok( false !== strpos( $instr, '"cwv" block is present' ), 'instruction has cwv conditional rule' );
+ok( false !== strpos( $instr, '"security" block is present' ), 'instruction has security conditional rule' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -149,7 +149,7 @@ function snt_narration_collect_signals() {
  */
 function snt_narration_system_instruction() {
 	return <<<INSTRUCTIONS
-You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see.
+You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, a "cwv" block of field Core Web Vitals shares, and a "security" block of login-guard/audit aggregates.
 
 Write a short, plain digest of what happened this week. Return ONLY a JSON object:
 
@@ -163,6 +163,8 @@ Rules:
 - Cite specific numbers and week-over-week changes (e.g. "views up 12% to 1,430"). No vague claims, no marketing fluff, no exclamation marks.
 - Lead with the most important change. If traffic was flat, say so plainly.
 - Mention machine/bot traffic or blocked threats ONLY if the "machine" block is present in the data.
+- Mention page-experience / Core Web Vitals ONLY if the "cwv" block is present. good_pct/poor_pct are the share of page-loads in Google's Good/Poor band for that metric this window.
+- Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
 - COOKIELESS DATA — this site has no per-visitor identity. NEVER infer or mention sessions, user journeys, new-vs-returning visitors, funnels, or per-person paths. "visits" is a per-day visitor-count approximation, not a tracked identity, and cannot be followed across days. Describe only aggregate counts and rates.
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
