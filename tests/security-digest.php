@@ -157,5 +157,42 @@ ok( '[Test Site] Weekly security digest: 412 blocked, 8 failed logins' === snt_s
 ok( 0 === strpos( snt_security_digest_subject( $active, true ), '[TEST] ' ), 'subject: test prefix' );
 ok( '[Test Site] Weekly security digest: 0 blocked, 0 failed logins' === snt_security_digest_subject( $bare ), 'subject: null sections read as zero' );
 
+// ── sender: success records last-sent, clears last-error ──
+echo "\nTest: sender\n";
+$GLOBALS['__mail'] = array();
+$GLOBALS['__mail_ok'] = true;
+$GLOBALS['__options'][ SN_SECURITY_DIGEST_LAST_ERROR ] = array( 'message' => 'old', 'at' => 1 );
+$ok = snt_security_digest_send();
+ok( true === $ok, 'send: returns true on success' );
+ok( 1 === count( $GLOBALS['__mail'] ), 'send: one mail dispatched' );
+ok( 'owner@example.com' === $GLOBALS['__mail'][0]['to'], 'send: to admin_email' );
+ok( is_int( get_option( SN_SECURITY_DIGEST_LAST_SENT ) ), 'send: last-sent recorded' );
+ok( false === get_option( SN_SECURITY_DIGEST_LAST_ERROR ), 'send: last-error cleared' );
+
+// ── sender: failure records last-error ──
+$GLOBALS['__mail_ok'] = false;
+$ok = snt_security_digest_send();
+ok( false === $ok, 'send: returns false on failure' );
+$err = get_option( SN_SECURITY_DIGEST_LAST_ERROR );
+ok( is_array( $err ) && isset( $err['at'] ), 'send: last-error recorded' );
+$GLOBALS['__mail_ok'] = true;
+
+// ── sender: test mode prefixes subject ──
+$GLOBALS['__mail'] = array();
+snt_security_digest_send( true );
+ok( 0 === strpos( $GLOBALS['__mail'][0]['subject'], '[TEST] ' ), 'send: test subject prefixed' );
+
+// ── cron self-healing sync ──
+echo "\nTest: cron sync\n";
+$GLOBALS['__settings']['audit.digest_email_enabled'] = true;
+$GLOBALS['__cron'] = array();
+snt_security_digest_maybe_schedule_cron();
+ok( false !== wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'cron: schedules when enabled+unscheduled' );
+snt_security_digest_maybe_schedule_cron();
+ok( 1 === count( $GLOBALS['__cron'] ), 'cron: idempotent when already scheduled' );
+$GLOBALS['__settings']['audit.digest_email_enabled'] = false;
+snt_security_digest_maybe_schedule_cron();
+ok( false === wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'cron: unschedules when disabled' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

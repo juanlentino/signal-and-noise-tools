@@ -199,3 +199,58 @@ function snt_security_digest_subject( $data, $test = false ) {
 	return ( $test ? '[TEST] ' : '' )
 		. sprintf( '[%s] Weekly security digest: %d blocked, %d failed logins', $site, $blocked, $failed );
 }
+
+/**
+ * Collect, compose, and send the digest to admin_email. Records a durable
+ * last-sent timestamp on success and a durable last-error on failure (options
+ * with autoload=no — transients are flush-volatile under the persistent object
+ * cache, and this is exactly the state we need to survive a cache flush).
+ *
+ * @param bool $test Test-send (subject prefixed, everything else identical).
+ * @return bool Sent.
+ */
+function snt_security_digest_send( $test = false ) {
+	$admin_email = (string) get_option( 'admin_email' );
+	if ( '' === $admin_email || ! is_email( $admin_email ) ) {
+		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => 'admin_email missing or invalid', 'at' => time() ), false );
+		return false;
+	}
+	$data = snt_security_digest_collect();
+	$sent = (bool) wp_mail( $admin_email, snt_security_digest_subject( $data, $test ), snt_security_digest_compose( $data ) );
+	if ( $sent ) {
+		update_option( SN_SECURITY_DIGEST_LAST_SENT, time(), false );
+		update_option( SN_SECURITY_DIGEST_LAST_ERROR, false, false );
+	} else {
+		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => 'wp_mail returned false', 'at' => time() ), false );
+	}
+	return $sent;
+}
+
+/**
+ * Self-healing weekly cron sync — the exact pattern of
+ * snt_narration_maybe_schedule_cron(): schedule when enabled+unscheduled,
+ * unschedule when disabled+scheduled; runs on init so a settings toggle takes
+ * effect on the next request without a dedicated save hook.
+ *
+ * @return void
+ */
+function snt_security_digest_maybe_schedule_cron() {
+	$on        = snt_security_digest_enabled();
+	$scheduled = wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK );
+	if ( $on && ! $scheduled ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'weekly', SN_SECURITY_DIGEST_CRON_HOOK );
+	} elseif ( ! $on && $scheduled ) {
+		wp_unschedule_event( $scheduled, SN_SECURITY_DIGEST_CRON_HOOK );
+	}
+}
+add_action( 'init', 'snt_security_digest_maybe_schedule_cron' );
+
+/**
+ * Cron handler: the real weekly send.
+ *
+ * @return void
+ */
+function snt_security_digest_weekly_cron_cb() {
+	snt_security_digest_send();
+}
+add_action( SN_SECURITY_DIGEST_CRON_HOOK, 'snt_security_digest_weekly_cron_cb' );
