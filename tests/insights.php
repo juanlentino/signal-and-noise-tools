@@ -99,10 +99,11 @@ if ( ! function_exists( 'sn_setting' ) ) {
 }
 
 class WP_Error {
-	public $code; public $message;
-	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
+	public $code; public $message; public $data;
+	public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; $this->data = $d; }
 	public function get_error_code() { return $this->code; }
 	public function get_error_message() { return $this->message; }
+	public function get_error_data() { return $this->data; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
@@ -907,6 +908,21 @@ ins_eq( 'snt_insights_invalid_json', $res->code, 'unrecoverable prose keeps the 
 // And pure prose with no brackets at all is still an error (Test 13b invariant).
 $res = snt_insights_parse_response( 'not json at all' );
 ins_true( $res instanceof WP_Error, 'pure prose with no array still → WP_Error (invariant preserved)' );
+// v7.1.0: recover a valid array that only failed to parse because of a TRAILING
+// COMMA — the single most common model JSON defect (`[{...},{...},]`). This is
+// the confirmed real-world failure surfaced by v7.0.1 (snt_insights_invalid_json).
+echo "\nTest 35b: parse_response repairs a trailing-comma JSON array\n";
+$trailing_comma = '[
+  {"id":"q_a","question":"A real open question about reader trust?","adjacent_note":"note A","why_uncovered":"gap A","wall_check":"research-side"},
+  {"id":"q_b","question":"Another genuinely open question about decay?","adjacent_note":"note B","why_uncovered":"gap B","wall_check":"research-side"},
+]';
+$recs = snt_insights_parse_response( $trailing_comma );
+ins_true( is_array( $recs ) && ! ( $recs instanceof WP_Error ), 'trailing-comma array repaired (not an error)' );
+ins_eq( 2, count( $recs ), 'both questions parsed after trailing-comma repair' );
+// A trailing comma inside an object too (`{...,}`).
+$trailing_obj_comma = '[{"id":"q_c","question":"A clean open question about feeds?","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side",}]';
+$recs = snt_insights_parse_response( $trailing_obj_comma );
+ins_true( is_array( $recs ) && 1 === count( $recs ), 'trailing comma inside an object is also repaired' );
 
 // ─── Test 36: last-scan-error store / read / clear round-trip ─────────
 // v7.0.1: the admin surface reports the REAL scan failure instead of a blanket
@@ -922,6 +938,18 @@ ins_true( is_array( $stored ), 'stored error read back as array' );
 ins_eq( 'snt_insights_invalid_json', $stored['code'], 'real error code persisted' );
 ins_eq( 'AI response was not valid JSON.', $stored['message'], 'real error message persisted' );
 ins_true( isset( $stored['at'] ) && $stored['at'] > 0, 'timestamp recorded' );
+// v7.1.0: capture the model's RAW output (from the WP_Error data) so the admin
+// notice can show exactly what came back — the definitive diagnostic.
+$GLOBALS['__test_transients'] = array();
+snt_insights_store_last_error( new WP_Error( 'snt_insights_invalid_json', 'AI response was not valid JSON.', array( 'raw' => 'Here are the questions: not really json' ) ) );
+$with_raw = snt_insights_last_error();
+ins_eq( 'Here are the questions: not really json', $with_raw['raw'], 'raw model output captured from the error data' );
+$GLOBALS['__test_transients'] = array();
+snt_insights_store_last_error( new WP_Error( 'snt_insights_invalid_json', 'msg' ) ); // no data
+$no_raw = snt_insights_last_error();
+ins_eq( '', $no_raw['raw'], 'raw is empty string when the error carries no data' );
+$GLOBALS['__test_transients'] = array();
+snt_insights_store_last_error( new WP_Error( 'snt_insights_invalid_json', 'AI response was not valid JSON.' ) );
 snt_insights_store_last_error( 'not a wp_error' ); // no-op
 $still = snt_insights_last_error();
 ins_eq( 'snt_insights_invalid_json', $still['code'], 'non-WP_Error store is a no-op (prior error untouched)' );

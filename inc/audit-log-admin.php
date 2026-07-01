@@ -42,26 +42,27 @@ function snt_audit_log_render_tab() {
 	$counters = snt_audit_get_counters_impl( 30 );
 	$logins   = snt_audit_get_login_successes_impl( 30 );
 
+	// v7.1.0: two-column sn_admin_shell, matching the other leaves (Insights /
+	// Health). Wide data (glance hero + the 7-column counter timeline + the
+	// logins table) belongs in the MAIN column; the passive readouts and config
+	// (LLA status, retention, maintenance + export) move to the narrower RAIL.
+	// Contract: no early return between shell_open() and shell_close().
+	sn_admin_shell_open();
+
+	// ── MAIN: intro + at-a-glance + the wide data tables ──
 	$retention_intro = (int) sn_setting( 'audit.retention_days', 90 );
 	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). ' . esc_html( $retention_intro ) . '-day retention. Hashed-IP unique-attacker count via ephemeral transient — no raw or hashed IPs are stored long-term.</p>';
-
-	// 1. Hero stat-cards.
 	snt_audit_log_render_hero( $summary );
-
-	// 2. Counter timeline table.
 	snt_audit_log_render_counter_table( $counters );
-
-	// 3. Recent successful logins.
 	snt_audit_log_render_logins_table( $logins );
 
-	// 4. LLA summary card (deep-link to LLA settings).
+	// ── RAIL: passive readouts + config ──
+	sn_admin_shell_rail( 'Audit status and maintenance' );
 	snt_audit_log_render_lla_card( $summary['lla'] );
-
-	// 5. Retention setting (v4.2.0).
 	snt_audit_log_render_retention_form();
-
-	// 6. Maintenance — Prune now button.
 	snt_audit_log_render_prune_form();
+
+	sn_admin_shell_close();
 }
 
 /**

@@ -475,8 +475,24 @@ function snt_insights_recover_json_array( $text ) {
 	if ( false === $start || false === $end || $end <= $start ) {
 		return null;
 	}
-	$decoded = json_decode( substr( $text, $start, $end - $start + 1 ), true );
-	return is_array( $decoded ) ? $decoded : null;
+	$slice   = substr( $text, $start, $end - $start + 1 );
+	$decoded = json_decode( $slice, true );
+	if ( is_array( $decoded ) ) {
+		return $decoded;
+	}
+	// v7.1.0: repair the single most common model JSON defect — a TRAILING COMMA
+	// before a closing ] or } (e.g. `[{...},{...},]`), which makes an otherwise
+	// valid array fail json_decode. This is the confirmed real-world failure the
+	// v7.0.1 surfacing exposed (snt_insights_invalid_json on a live run). Strip
+	// only the comma immediately preceding a closer, then retry once.
+	$repaired = preg_replace( '/,(\s*[\]}])/', '$1', $slice );
+	if ( is_string( $repaired ) && $repaired !== $slice ) {
+		$decoded = json_decode( $repaired, true );
+		if ( is_array( $decoded ) ) {
+			return $decoded;
+		}
+	}
+	return null;
 }
 
 /**
@@ -718,11 +734,18 @@ function snt_insights_store_last_error( $err ) {
 	if ( ! is_wp_error( $err ) ) {
 		return;
 	}
+	// v7.1.0: also capture the model's RAW output when the error carries it (the
+	// invalid-json error attaches `raw` = the first 500 chars of the response), so
+	// the admin notice can show exactly what came back — the definitive diagnostic
+	// for a parse failure. Bounded to 300 chars for the transient + the notice.
+	$data = $err->get_error_data();
+	$raw  = ( is_array( $data ) && isset( $data['raw'] ) ) ? (string) $data['raw'] : '';
 	set_transient(
 		SN_INSIGHTS_LAST_ERROR_KEY,
 		array(
 			'code'    => (string) $err->get_error_code(),
 			'message' => (string) $err->get_error_message(),
+			'raw'     => '' !== $raw ? substr( $raw, 0, 300 ) : '',
 			'at'      => time(),
 		),
 		15 * MINUTE_IN_SECONDS

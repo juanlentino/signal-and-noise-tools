@@ -54,3 +54,19 @@
 .sn-aw-empty{color:#646970;font-size:0.875em;font-style:italic;margin:0;}
 .sn-aw-err{color:#d63638;font-size:0.9em;margin:0;}
 .sn-aw-config-snippet{background:#f6f7f7;border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+
+/* "S&N Health" widget (inc/site-health-widget.php) — a state-colored status
+ * header shared by all three states (dormant / ok / warn), on the native
+ * wp-admin palette. The round glyph badge carries the state color; the headline
+ * inherits the default admin text (green on all-clear for a positive read). */
+.sn-hw-head{display:flex;align-items:flex-start;gap:12px;margin:2px 0 2px;}
+.sn-hw-ico{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.sn-hw-ico svg{width:19px;height:19px;display:block;fill:currentColor;}
+.sn-hw-head--ok .sn-hw-ico{background:#e5f3ea;color:#0a7c2f;}
+.sn-hw-head--warn .sn-hw-ico{background:#fcf0d6;color:#8a6100;}
+.sn-hw-head--dormant .sn-hw-ico{background:#f0f0f1;color:#646970;}
+.sn-hw-txt{min-width:0;}
+.sn-hw-h{font-size:1.05rem;font-weight:600;color:#1d2327;margin:0;line-height:1.25;}
+.sn-hw-head--ok .sn-hw-h{color:#0a7c2f;}
+.sn-hw-sub{font-size:0.85em;color:#646970;margin:2px 0 0;}
+.sn-hw-list{margin-top:14px;}

@@ -84,6 +84,16 @@ fm_eq( true, false !== strpos( $note[1], 'AI response was not valid JSON.' ), 's
 fm_eq( true, false !== strpos( $note[1], 'snt_insights_invalid_json' ), 'surfaces the REAL error code' );
 fm_eq( true, false !== stripos( $note[1], 'insights-specific' ), 'reframes as an insights-specific failure (AI is working)' );
 fm_eq( false, false !== strpos( $note[1], 'Check that an AI provider is configured' ), 'does NOT show the old misleading configure-AI copy' );
+// v7.1.0: when the stored error carries the model's raw output, surface it (the
+// definitive diagnostic — shows whether it was prose, a trailing comma, etc.).
+$GLOBALS['__insights_err'] = array( 'code' => 'snt_insights_invalid_json', 'message' => 'AI response was not valid JSON.', 'raw' => 'Here are some open questions: [ malformed', 'at' => 123 );
+$note = sn_admin_flash_to_notice( 'insights_failed' );
+fm_eq( true, false !== stripos( $note[1], 'model returned' ), 'surfaces a "model returned" preamble for the raw output' );
+fm_eq( true, false !== strpos( $note[1], 'Here are some open questions' ), 'surfaces the raw model output snippet' );
+// No raw → no "model returned" clause (the notice stays clean).
+$GLOBALS['__insights_err'] = array( 'code' => 'snt_ai_empty_response', 'message' => 'AI returned an empty response.', 'raw' => '', 'at' => 123 );
+$note = sn_admin_flash_to_notice( 'insights_failed' );
+fm_eq( false, false !== stripos( $note[1], 'model returned' ), 'no raw → no "model returned" clause' );
 // No diagnostic recorded → still an error notice, with a recover-and-retry hint.
 $GLOBALS['__insights_err'] = null;
 $note = sn_admin_flash_to_notice( 'insights_failed' );

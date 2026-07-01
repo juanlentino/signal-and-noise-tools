@@ -42,6 +42,22 @@ function sn_health_finding_total( $scan ) {
 }
 
 /**
+ * Total number of checks in a scan (regardless of findings). Lets a surface show
+ * a reassuring "M checks passed" (all-clear) or "F of M checks flagged" without
+ * re-deriving the denominator inline. Single source of truth, like its siblings.
+ *
+ * @param array|null $scan A sn_health_last_scan() array (or null / non-array).
+ * @return int Count of every check the scan ran (0 when there is no scan).
+ * @since 7.1.0
+ */
+function sn_health_check_total( $scan ) {
+	if ( ! is_array( $scan ) ) {
+		return 0;
+	}
+	return count( (array) ( $scan['checks'] ?? array() ) );
+}
+
+/**
  * The checks that have findings, ranked by count (descending).
  *
  * Equal counts keep their scan (definition) order — PHP 8's sort is stable.
