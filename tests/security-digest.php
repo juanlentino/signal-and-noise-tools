@@ -110,5 +110,52 @@ $data = snt_security_digest_collect();
 ok( null === $data['guard'], 'collect: unconfigured guard → null' );
 ok( null === $data['status'], 'collect: unreachable status → null' );
 
+// ── composer: active week ──
+echo "\nTest: composer\n";
+$active = array(
+	'window' => array( 'days' => 7 ),
+	'audit'  => array( 'events_7d' => 37, 'prior_7d' => 20, 'pct_delta' => 85, 'failed_7d' => 8, 'recon_7d' => 3, 'lockouts_7d' => 1 ),
+	'guard'  => array( 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet', 'top_country' => 'CN' ),
+	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
+);
+$body = snt_security_digest_compose( $active );
+ok( false !== strpos( $body, 'Failed logins: 8' ), 'compose: failed logins line' );
+ok( false !== strpos( $body, 'Blocked: 412' ), 'compose: guard blocked line' );
+ok( false !== strpos( $body, 'CN' ), 'compose: top country present' );
+ok( false !== strpos( $body, '4,200' ), 'compose: denylist freshness' );
+ok( false !== strpos( $body, '+85%' ), 'compose: trend delta' );
+ok( false === strpos( $body, 'Quiet week' ), 'compose: no heartbeat wording on active week' );
+
+// ── composer: zero week (heartbeat) ──
+$zero = array(
+	'window' => array( 'days' => 7 ),
+	'audit'  => array( 'events_7d' => 0, 'prior_7d' => 0, 'pct_delta' => 0, 'failed_7d' => 0, 'recon_7d' => 0, 'lockouts_7d' => 0 ),
+	'guard'  => array( 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'top_country' => '' ),
+	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
+);
+$body = snt_security_digest_compose( $zero );
+ok( false !== strpos( $body, 'Quiet week' ), 'compose: zero week says quiet' );
+ok( false !== strpos( $body, '4,200' ), 'compose: zero week still shows guard alive' );
+
+// ── composer: sections degrade to unavailable lines ──
+$bare = array( 'window' => array( 'days' => 7 ), 'audit' => null, 'guard' => null, 'status' => null );
+$body = snt_security_digest_compose( $bare );
+ok( false !== strpos( $body, 'Audit log: unavailable' ), 'compose: audit unavailable line' );
+ok( false !== strpos( $body, 'Login guard: not configured' ), 'compose: guard unavailable line' );
+ok( false !== strpos( $body, 'status unavailable' ), 'compose: status unavailable line' );
+
+// ── composer: stale guard warns ──
+$staleData = $active;
+$staleData['status']['stale'] = true;
+$staleData['status']['age_hours'] = 90;
+$body = snt_security_digest_compose( $staleData );
+ok( false !== strpos( $body, 'STALE' ), 'compose: stale denylist warns' );
+
+// ── subject ──
+echo "\nTest: subject\n";
+ok( '[Test Site] Weekly security digest: 412 blocked, 8 failed logins' === snt_security_digest_subject( $active ), 'subject: counts embedded' );
+ok( 0 === strpos( snt_security_digest_subject( $active, true ), '[TEST] ' ), 'subject: test prefix' );
+ok( '[Test Site] Weekly security digest: 0 blocked, 0 failed logins' === snt_security_digest_subject( $bare ), 'subject: null sections read as zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

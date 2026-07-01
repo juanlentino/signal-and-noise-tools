@@ -111,3 +111,91 @@ function snt_security_digest_collect() {
 
 	return $data;
 }
+
+/**
+ * Compose the plain-text digest body from collected data. PURE: data in, text
+ * out — no WP calls except i18n-safe number formatting. A null section renders
+ * one truthful "unavailable" line, never fictional zeros. A zero-activity week
+ * leads with the heartbeat line: silence is only trustworthy when explicit.
+ *
+ * @param array $data From snt_security_digest_collect().
+ * @return string
+ */
+function snt_security_digest_compose( $data ) {
+	$audit  = isset( $data['audit'] ) && is_array( $data['audit'] ) ? $data['audit'] : null;
+	$guard  = isset( $data['guard'] ) && is_array( $data['guard'] ) ? $data['guard'] : null;
+	$status = isset( $data['status'] ) && is_array( $data['status'] ) ? $data['status'] : null;
+
+	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] ) )
+		&& ( null === $guard || 0 === $guard['blocked'] );
+
+	$lines   = array();
+	$lines[] = 'Signal & Noise weekly security digest (last 7 days)';
+	$lines[] = str_repeat( '=', 51 );
+	$lines[] = '';
+	if ( $quiet ) {
+		$lines[] = 'Quiet week: no failed logins, no recon probes, no guard blocks.';
+		$lines[] = 'This email is the heartbeat — the pipeline is alive and watching.';
+		$lines[] = '';
+	}
+
+	// Audit section.
+	if ( null === $audit ) {
+		$lines[] = 'Audit log: unavailable (module not loaded).';
+	} else {
+		$sign    = $audit['pct_delta'] >= 0 ? '+' : '';
+		$lines[] = 'Site audit (WordPress layer)';
+		$lines[] = '  Failed logins: ' . number_format_i18n( $audit['failed_7d'] );
+		$lines[] = '  Recon probes (login/admin 404s): ' . number_format_i18n( $audit['recon_7d'] );
+		$lines[] = '  Lockouts: ' . number_format_i18n( $audit['lockouts_7d'] );
+		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )
+			. ' (prior 7d: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
+	}
+	$lines[] = '';
+
+	// Guard section.
+	if ( null === $guard ) {
+		$lines[] = 'Login guard: not configured (Analytics Engine credentials absent).';
+	} else {
+		$lines[] = 'Login guard (edge layer)';
+		$lines[] = '  Checked: ' . number_format_i18n( $guard['checked'] );
+		$lines[] = '  Blocked: ' . number_format_i18n( $guard['blocked'] ) . ' (' . $guard['block_rate'] . '% of checked)';
+		if ( '' !== $guard['top_network'] ) {
+			$lines[] = '  Top blocked network: ' . $guard['top_network'];
+		}
+		if ( '' !== $guard['top_country'] ) {
+			$lines[] = '  Top blocked country: ' . $guard['top_country'];
+		}
+	}
+	$lines[] = '';
+
+	// Freshness section.
+	if ( null === $status ) {
+		$lines[] = 'Guard denylist: status unavailable (worker unreachable from this host).';
+	} else {
+		$age     = null === $status['age_hours'] ? 'unknown age' : 'refreshed ' . $status['age_hours'] . 'h ago';
+		$lines[] = 'Guard denylist: ' . number_format_i18n( $status['denylist_count'] ) . ' ranges, ' . $age
+			. ( $status['stale'] ? ' — STALE (older than 48h or empty; check the worker cron)' : '' )
+			. ( '' !== $status['version'] ? ' (worker v' . $status['version'] . ')' : '' );
+	}
+	$lines[] = '';
+	$lines[] = 'Enforcement happens at the edge in real time; this digest is observability.';
+	$lines[] = 'Toggle it off under Security -> Login defense.';
+
+	return implode( "\n", $lines ) . "\n";
+}
+
+/**
+ * Digest subject line. Counts read as zero for null sections.
+ *
+ * @param array $data From snt_security_digest_collect().
+ * @param bool  $test Prefix with [TEST] for the test-send button.
+ * @return string
+ */
+function snt_security_digest_subject( $data, $test = false ) {
+	$blocked = isset( $data['guard']['blocked'] ) ? (int) $data['guard']['blocked'] : 0;
+	$failed  = isset( $data['audit']['failed_7d'] ) ? (int) $data['audit']['failed_7d'] : 0;
+	$site    = (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	return ( $test ? '[TEST] ' : '' )
+		. sprintf( '[%s] Weekly security digest: %d blocked, %d failed logins', $site, $blocked, $failed );
+}
