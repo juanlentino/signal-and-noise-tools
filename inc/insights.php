@@ -47,6 +47,12 @@ define( 'SN_INSIGHTS_SNOOZE_DAYS',       30 );
 // Upper bound on how many open questions a single scan surfaces. There is NO
 // lower bound: zero questions ("recommend nothing") is a valid, expected result.
 define( 'SN_INSIGHTS_REC_MAX',           3 );
+// v7.1.1: max OUTPUT tokens for the scan's AI call. Bumped from 1500 → 2048 after
+// a live run truncated mid-object (the model writes elaborate, multi-clause
+// questions and 1500 was too tight to finish 3 of them, so the JSON array never
+// closed → snt_insights_invalid_json). Well under the client's 4096 clamp;
+// output tokens bill only when generated, and a scan is a rare (manual/weekly) call.
+define( 'SN_INSIGHTS_MAX_TOKENS',        2048 );
 
 // ── Body-grounding (v4.11.0): attach bounded content excerpts to the
 // top posts so the advisor reasons about substance, not just metadata.
@@ -303,7 +309,7 @@ function snt_insights_call_ai( $signals ) {
 	// still receives the content, but is framed to analyze rather than obey it.
 	$prompt = "<<<SN_UNTRUSTED_DATA\n" . $json . "\nSN_UNTRUSTED_DATA>>>";
 
-	return snt_ai_generate_with_constraints( $prompt, $system, 1500 );
+	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS );
 }
 
 /**
@@ -471,27 +477,48 @@ function snt_insights_recommendation_blocked( $rec ) {
 function snt_insights_recover_json_array( $text ) {
 	$text  = (string) $text;
 	$start = strpos( $text, '[' );
-	$end   = strrpos( $text, ']' );
-	if ( false === $start || false === $end || $end <= $start ) {
-		return null;
+	if ( false === $start ) {
+		return null; // no array at all (pure prose).
 	}
-	$slice   = substr( $text, $start, $end - $start + 1 );
-	$decoded = json_decode( $slice, true );
-	if ( is_array( $decoded ) ) {
-		return $decoded;
-	}
-	// v7.1.0: repair the single most common model JSON defect — a TRAILING COMMA
-	// before a closing ] or } (e.g. `[{...},{...},]`), which makes an otherwise
-	// valid array fail json_decode. This is the confirmed real-world failure the
-	// v7.0.1 surfacing exposed (snt_insights_invalid_json on a live run). Strip
-	// only the comma immediately preceding a closer, then retry once.
-	$repaired = preg_replace( '/,(\s*[\]}])/', '$1', $slice );
-	if ( is_string( $repaired ) && $repaired !== $slice ) {
-		$decoded = json_decode( $repaired, true );
+
+	// Candidate 1: the first "[" to the last "]" span — a complete array that was
+	// only wrapped in prose ("Here are the questions: [ ... ]  Hope this helps.").
+	$end = strrpos( $text, ']' );
+	if ( false !== $end && $end > $start ) {
+		$slice   = substr( $text, $start, $end - $start + 1 );
+		$decoded = json_decode( $slice, true );
 		if ( is_array( $decoded ) ) {
 			return $decoded;
 		}
+		// v7.0.1: repair a TRAILING COMMA before a closer (`[{...},]`), which makes
+		// an otherwise-valid array fail json_decode. Retry once.
+		$repaired = preg_replace( '/,(\s*[\]}])/', '$1', $slice );
+		if ( is_string( $repaired ) && $repaired !== $slice ) {
+			$decoded = json_decode( $repaired, true );
+			if ( is_array( $decoded ) ) {
+				return $decoded;
+			}
+		}
 	}
+
+	// Candidate 2 (v7.1.1): salvage a TRUNCATED array. The model hit max_tokens
+	// mid-object, so the array never closed with a valid "]" (the confirmed live
+	// cause: `[ {...}, {...}, {"question":"...make c` cut off mid-string). Keep
+	// everything from the opening "[" through the LAST complete object close ("}"),
+	// drop the partial trailing object + any dangling comma, and re-close the
+	// array. Best-effort, only reached after the above failed, so it can only help.
+	$from_open  = substr( $text, $start );
+	$last_brace = strrpos( $from_open, '}' );
+	if ( false !== $last_brace ) {
+		$salvaged = substr( $from_open, 0, $last_brace + 1 );
+		$salvaged = preg_replace( '/,\s*$/', '', $salvaged ); // drop a dangling comma before the cut
+		$salvaged .= ']';
+		$decoded   = json_decode( $salvaged, true );
+		if ( is_array( $decoded ) && ! empty( $decoded ) ) {
+			return $decoded;
+		}
+	}
+
 	return null;
 }
 
@@ -745,7 +772,7 @@ function snt_insights_store_last_error( $err ) {
 		array(
 			'code'    => (string) $err->get_error_code(),
 			'message' => (string) $err->get_error_message(),
-			'raw'     => '' !== $raw ? substr( $raw, 0, 300 ) : '',
+			'raw'     => '' !== $raw ? substr( $raw, 0, 500 ) : '',
 			'at'      => time(),
 		),
 		15 * MINUTE_IN_SECONDS

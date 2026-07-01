@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.1.1] - 2026-07-01: Insights salvages a truncated scan response (the real cause)
+
+**Headline:** With v7.1.0's diagnostic in place, a live run showed the model's raw output: a **valid JSON array that never closed** (`[ { "id": …, "question": "…make c` — cut off mid-string). The model writes elaborate, multi-clause questions and the scan's `max_tokens` (1500) was too tight to finish three of them, so the response was truncated and failed to parse (`snt_insights_invalid_json`). This raises the output budget and, as a safety net, salvages the complete questions from a truncated array instead of failing the whole scan.
+
+> **Why PATCH:** a bug fix for the still-failing Insights scan (owner actively blocked — ships now rather than bundling). No API/schema change. Full standalone sweep green (185 suites, 5043 assertions); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **Insights scan salvages a truncated (max_tokens cutoff) response** ([inc/insights.php](inc/insights.php)): `snt_insights_recover_json_array()` now, as a third recovery step, keeps the complete question objects from a truncated array (everything through the last complete `}`), drops the partial trailing object, and re-closes the array — so a cutoff yields the questions that did complete instead of an error. Only runs after a direct decode + the v7.0.1 prose recovery + the v7.1.0 trailing-comma repair have all failed; a truncation before any complete object still errors (nothing to salvage). A first-object truncation and genuinely non-JSON output are unchanged.
+- **Roomier output budget for the scan** ([inc/insights.php](inc/insights.php)): `SN_INSIGHTS_MAX_TOKENS` (new, 2048, was a hardcoded 1500) gives the model headroom to finish three verbose questions before the client's 4096 clamp. Output tokens bill only when generated, and a scan is a rare (manual / weekly) call.
+
+### Improvements
+
+- **The failure notice shows more of the raw output** ([inc/insights.php](inc/insights.php), [inc/admin-flash-messages.php](inc/admin-flash-messages.php)): the captured `raw` snippet grew 300 → 500 chars and the notice shows 200 → 400, so if a scan still fails, *where* the response breaks is visible (a 200-char cut hid the truncation point).
+
 ## [7.1.0] - 2026-07-01: Insights scan actually parses again; audit-log two-column; a redesigned Health widget
 
 **Headline:** Three owner-directed items in one release. (1) The **real** Insights failure is fixed: v7.0.1 surfaced the true error (`snt_insights_invalid_json` — the model returned text that would not parse as a JSON array), and this release repairs the single most common cause (a **trailing comma**, e.g. `[{…},]`) and shows the model's raw output in the notice so any remaining defect is visible at a glance. (2) The **Security → Audit log** page moves to the two-column `sn_admin_shell` (data in the main column, status + config in the rail) like the other leaves. (3) The **S&N Health** dashboard widget is redesigned around a state-colored status header (a clear green "All clear", an amber findings header, a neutral dormant state) instead of a stray footer line.

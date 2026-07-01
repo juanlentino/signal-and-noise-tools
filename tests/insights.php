@@ -431,7 +431,8 @@ ins_true( false !== stripos( $system, 'provenance' ), 'system reserves the prove
 ins_true( false !== stripos( $system, 'em dash' ), 'system forbids em dashes' );
 ins_true( false !== stripos( $system, 'not a content strategist' ), 'reframed away from content-strategist/calendar' );
 ins_true( false === strpos( $system, 'exactly 5' ), 'no fixed count of 5 (recommend-nothing is valid)' );
-ins_eq( 1500, $GLOBALS['__test_ai_last_max'], 'max_tokens = 1500' );
+ins_true( defined( 'SN_INSIGHTS_MAX_TOKENS' ) && SN_INSIGHTS_MAX_TOKENS >= 2048, 'SN_INSIGHTS_MAX_TOKENS defined + roomy (>=2048, headroom so 3 verbose questions do not truncate)' );
+ins_eq( SN_INSIGHTS_MAX_TOKENS, $GLOBALS['__test_ai_last_max'], 'insights AI call uses SN_INSIGHTS_MAX_TOKENS' );
 
 // ─── Test 8b: untrusted-data delimiter + injection warning (v6.39.2) ─
 //
@@ -923,6 +924,24 @@ ins_eq( 2, count( $recs ), 'both questions parsed after trailing-comma repair' )
 $trailing_obj_comma = '[{"id":"q_c","question":"A clean open question about feeds?","adjacent_note":"n","why_uncovered":"g","wall_check":"research-side",}]';
 $recs = snt_insights_parse_response( $trailing_obj_comma );
 ins_true( is_array( $recs ) && 1 === count( $recs ), 'trailing comma inside an object is also repaired' );
+
+// v7.1.1: salvage a TRUNCATED array — the model hit max_tokens mid-object, so the
+// array never closed (no valid `]`). This is the CONFIRMED live cause (owner's
+// v7.1.0 re-run: `[ { "id":..., "question":"...make c` cut off mid-string). Keep
+// the complete objects, drop the partial trailing one, and re-close the array.
+echo "\nTest 35c: parse_response salvages a truncated (max_tokens cutoff) array\n";
+$truncated = '[
+  {"id":"q_a","question":"A real open question about reader trust?","adjacent_note":"note A","why_uncovered":"gap A","wall_check":"research-side"},
+  {"id":"q_b","question":"Another genuinely open question about decay?","adjacent_note":"note B","why_uncovered":"gap B","wall_check":"research-side"},
+  {"id":"q_c","question":"When a DAW, a sample marketplace, and an AI tool each sign their own layer of a track, what happens if two of those signatures make c';
+$recs = snt_insights_parse_response( $truncated );
+ins_true( is_array( $recs ) && ! ( $recs instanceof WP_Error ), 'truncated array salvaged (not an error)' );
+ins_eq( 2, count( $recs ), 'the two complete objects are kept; the truncated third is dropped' );
+ins_true( isset( $recs[0]['id'] ) && 'q_a' === $recs[0]['id'], 'first complete object survives' );
+// A first-object truncation (nothing complete to salvage) still errors.
+$truncated_first = '[ {"id":"q_x","question":"half a question that never fin';
+$res = snt_insights_parse_response( $truncated_first );
+ins_true( $res instanceof WP_Error, 'a truncation before ANY complete object still → WP_Error' );
 
 // ─── Test 36: last-scan-error store / read / clear round-trip ─────────
 // v7.0.1: the admin surface reports the REAL scan failure instead of a blanket
