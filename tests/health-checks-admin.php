@@ -98,5 +98,16 @@ $one = array( 'scanned_at' => time(), 'checks' => array( 'external_links' => arr
 $oc = snt_health_glance_cards( $one );
 hca_eq( '1 finding', $oc[0]['value'], 'singular "1 finding" (external rot counts as a finding)' );
 
+echo "\nTest: unlinked_mentions suggest wiring (v7.4.0)\n";
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+$src = file_get_contents( __DIR__ . '/../inc/health-checks-admin.php' );
+hca_true( false !== strpos( $src, "'unlinked_mentions'" ), 'unlinked_mentions joins $suggest_supported_checks' );
+$cell = sn_health_render_suggest_cell( 'unlinked_mentions', array( 'subject_id' => 12, 'target_id' => 34 ) );
+hca_true( false !== strpos( $cell, 'data-check="unlinked_mentions"' ), 'cell button carries the check key' );
+hca_true( false !== strpos( $cell, 'data-post-id="12"' ) && false !== strpos( $cell, 'data-target-id="34"' ), 'cell button carries source + target ids' );
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( false !== strpos( $js, 'unlinked_mentions:' ) && false !== strpos( $js, "'ai-link-suggest'" ) && false !== strpos( $js, "'ai-link-apply'" ), 'JS ABILITY_BY_CHECK routes unlinked_mentions to the link abilities' );
+hca_true( false !== strpos( $js, "'link' === res.verdict" ), 'JS verdict renderer has a link branch' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
