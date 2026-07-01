@@ -874,7 +874,15 @@ function sn_health_check_color_drift() {
 
 	$findings = array();
 	foreach ( $rows as $r ) {
-		if ( ! preg_match_all( '/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', (string) $r['post_content'], $m ) ) {
+		// v7.3.1: inline SVG figures are ARTWORK, not text styling — their
+		// fills/strokes (grayscale tones, semantic diagram red/green) are
+		// deliberate and flagged every diagram-carrying post as permanent
+		// drift (alarm fatigue). Strip <svg>…</svg> spans before extracting
+		// hexes so the check stays about prose/styling drift. Non-greedy per
+		// block; nested <svg> inside <svg> would leave the outer tail, which
+		// only risks a FLAGGED nested tail (never hides prose drift outside).
+		$content = (string) preg_replace( '#<svg\b[^>]*>.*?</svg\s*>#is', '', (string) $r['post_content'] );
+		if ( ! preg_match_all( '/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', $content, $m ) ) {
 			continue;
 		}
 		$offending = array();
