@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.1.2] - 2026-07-01: Critical — an empty AI result no longer crashes the site
+
+**Headline:** A no-text AI response took the whole request down with a white-screen critical error (confirmed via the Cloudways PHP error log: `Uncaught WordPress\AiClient\Common\Exception\RuntimeException: No text content found in first candidate`). The wp-ai-client's `toText()` **throws** when the model returns a result whose first candidate has no text part (an empty / stopped / refused completion), rather than returning an empty string, and that call sat outside the guard that catches AI failures. It is now caught and degrades to the normal "empty response" error notice. Pre-existing (the `toText()` path dates to v6.29.0); surfaced now while exercising the Insights scan + Weekly digest.
+
+> **Why PATCH (critical, ships now):** a fatal that crashes any page running an AI feature — the highest-priority class, shipped standalone rather than bundled. No API/schema change. Full standalone sweep green (185 suites, 5046 assertions); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **An empty AI result no longer fatals the request** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)): `snt_ai_generate_with_constraints()` now wraps `$result->toText()` in a `try/catch`, so a `RuntimeException` from a no-text candidate falls through to the existing `snt_ai_empty_response` `WP_Error` (HTTP 502) instead of an uncaught fatal. Every SN AI feature (Insights scan, Weekly digest, alt text, meta descriptions, titles) routes through this one helper, so the guard protects all of them. The empty-response message is reworded to name the real cause (the model produced no text) instead of misdirecting to provider configuration.
+
 ## [7.1.1] - 2026-07-01: Insights salvages a truncated scan response (the real cause)
 
 **Headline:** With v7.1.0's diagnostic in place, a live run showed the model's raw output: a **valid JSON array that never closed** (`[ { "id": …, "question": "…make c` — cut off mid-string). The model writes elaborate, multi-clause questions and the scan's `max_tokens` (1500) was too tight to finish three of them, so the response was truncated and failed to parse (`snt_insights_invalid_json`). This raises the output budget and, as a safety net, salvages the complete questions from a truncated array instead of failing the whole scan.

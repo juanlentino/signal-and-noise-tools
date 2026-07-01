@@ -352,12 +352,27 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// logged regardless of whether the body validates below.
 	snt_ai_record_usage( $feature, (string) $model_preference, $result );
 
-	$body = ( is_object( $result ) && is_callable( array( $result, 'toText' ) ) ) ? (string) $result->toText() : '';
+	// v7.1.2 CRITICAL: the wp-ai-client's toText() THROWS
+	// (WordPress\AiClient\Common\Exception\RuntimeException "No text content found
+	// in first candidate", GenerativeAiResult.php:197) when the model returns a
+	// result whose first candidate has no text part — an empty / stopped / refused
+	// / non-text completion — instead of returning ''. Called bare, that uncaught
+	// exception fataled the WHOLE request live (a critical-error page on the
+	// Insights scan + Weekly digest, confirmed via the Cloudways PHP error log).
+	// Catch it and fall through to the graceful empty-response WP_Error below, so
+	// a no-text result degrades to a normal error notice, never a site crash.
+	// Every SN AI feature (scan, digest, alt-text, meta, titles…) routes through
+	// this one helper, so the guard protects all of them.
+	try {
+		$body = ( is_object( $result ) && is_callable( array( $result, 'toText' ) ) ) ? (string) $result->toText() : '';
+	} catch ( \Throwable $e ) {
+		$body = '';
+	}
 	$text = trim( $body );
 	if ( '' === $text ) {
 		return new WP_Error(
 			'snt_ai_empty_response',
-			__( 'AI returned an empty response. Verify your provider is configured in Settings > Connectors.', 'signal-noise-tools' ),
+			__( 'AI returned an empty response (the model produced no text). Try again; if it recurs, the prompt may be hitting the model output limit.', 'signal-noise-tools' ),
 			array( 'status' => 502 )
 		);
 	}
