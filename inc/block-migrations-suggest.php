@@ -169,31 +169,3 @@ function snt_block_migrations_build_heading_promotion( $heading_block ) {
 
 	return serialize_block( $heading_block );
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — suggest dispatch.
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-suggest', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-suggest', 'signal-noise/block-migrations-suggest' );
-			$result = snt_block_migrations_suggest_impl(
-				(int)    $request->get_param( 'post_id' ),
-				(string) $request->get_param( 'block_fingerprint' ),
-				(string) $request->get_param( 'migration_type' )
-			);
-			if ( is_wp_error( $result ) ) { return $result; }
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'           => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'block_fingerprint' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'migration_type'    => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_key' ),
-		),
-	) );
-} );

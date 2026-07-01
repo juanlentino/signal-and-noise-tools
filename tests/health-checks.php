@@ -288,6 +288,20 @@ $fb = sn_health_link_status( 'https://juanlentino.com/forbidden' );
 hc_eq( false, $fb['ok'], 'plain 403 (no cf-mitigated) → ok=false (still broken)' );
 hc_eq( true, empty( $fb['skipped'] ), 'plain 403 is NOT skipped' );
 
+// ─── Test 3c: Cloudflare edge-gate skip (v7.0.0) ──────────────────────
+// juanlentino.com is fully CF-fronted. A CF BLOCK (403 + cf-ray, no
+// cf-mitigated challenge) on an internal probe is a live page the edge gates,
+// not a broken link — must be skipped so it isn't false-flagged as broken.
+echo "\nTest 3c: Cloudflare edge-gate skip\n";
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_http_responses']['https://juanlentino.com/cf-blocked'] = array(
+	'response' => array( 'code' => 403 ),
+	'headers'  => array( 'cf-ray' => '8ab1234', 'server' => 'cloudflare' ),
+);
+$eg = sn_health_link_status( 'https://juanlentino.com/cf-blocked' );
+hc_eq( true, ! empty( $eg['skipped'] ), 'CF block (403 + cf-ray) → skipped (not flagged broken)' );
+hc_eq( 'edge_gated', $eg['reason'] ?? '', 'edge_gated reason recorded' );
+
 // ─── Test 4: pack_check envelope ──────────────────────────────────────
 echo "\nTest 4: sn_health_pack_check\n";
 $packed = sn_health_pack_check( 'My check', array( array( 'x' => 1 ), array( 'x' => 2 ) ), 'fix it' );

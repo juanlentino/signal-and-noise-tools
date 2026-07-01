@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     6.56.0
+ * Version:     7.0.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -67,7 +67,6 @@ require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
-require_once SNT_PATH . 'inc/rest-deprecations.php'; // v6.54.0: legacy REST route deprecation notices (Ability run-path migration hints)
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
@@ -166,6 +165,7 @@ require_once SNT_PATH . 'inc/login-defense.php';
 // (reads the same query builders); and the dashboard widget (owner-requested glance).
 require_once SNT_PATH . 'inc/login-defense-analytics.php';
 require_once SNT_PATH . 'inc/login-defense-widget.php';
+require_once SNT_PATH . 'inc/site-health-widget.php'; // v7.0.0: "S&N Health" home dashboard widget (owner-approved 2nd widget exception)
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //
@@ -258,6 +258,7 @@ require_once SNT_PATH . 'inc/insights-narration.php';
 require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge classifier (used by both health probes below)
 require_once SNT_PATH . 'inc/health-checks.php';
+require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks) — glance card, attention strip, S&N Health widget
 require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th check — external link-rot (off-host cited sources)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-checks-admin.php';

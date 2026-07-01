@@ -508,6 +508,12 @@ function sn_health_link_status( $url ) {
 			// clients, not a dead link. Mark unverifiable (skipped) instead of
 			// flagging it; mirrors the external link-rot probe.
 			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
+		} elseif ( sn_health_is_edge_gated( $code, $headers ) ) {
+			// A live internal page the Cloudflare edge is blocking/rate-limiting this
+			// probe (403/429 + cf-ray, no cf-mitigated). juanlentino.com is fully
+			// CF-fronted, so a bare-403 probe would false-flag live pages as broken.
+			// Unverifiable, not broken; mirrors the external link-rot probe.
+			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
 		} else {
 			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
 		}

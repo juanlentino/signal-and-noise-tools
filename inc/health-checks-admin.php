@@ -70,16 +70,11 @@ function snt_health_glance_cards( $scan ) {
 
 	$checks      = is_array( $scan['checks'] ?? null ) ? $scan['checks'] : array();
 	$check_count = count( $checks );
-	$total       = 0;
-	$passed      = 0;
-	foreach ( $checks as $check ) {
-		$c      = (int) ( $check['count'] ?? 0 );
-		$total += $c;
-		if ( 0 === $c ) {
-			$passed++;
-		}
-	}
-	$all_clean = ( $check_count > 0 && $passed === $check_count );
+	// Shared accessors (inc/health-summary.php) so this hero, the Dashboard-tab
+	// glance card + attention strip, and the S&N Health widget never disagree.
+	$total       = sn_health_finding_total( $scan );
+	$passed      = $check_count - count( sn_health_flagged_checks( $scan ) );
+	$all_clean   = ( $check_count > 0 && $passed === $check_count );
 	$age       = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
 
 	return array(

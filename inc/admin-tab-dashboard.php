@@ -317,10 +317,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
-			$findings = 0;
-			foreach ( (array) ( $scan['checks'] ?? array() ) as $check ) {
-				$findings += (int) ( $check['count'] ?? 0 );
-			}
+			$findings = sn_health_finding_total( $scan );
 			$age  = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
 			$cards[] = array(
 				'label'     => 'Health',
@@ -471,10 +468,7 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
-			$findings = 0;
-			foreach ( (array) ( $scan['checks'] ?? array() ) as $check ) {
-				$findings += (int) ( $check['count'] ?? 0 );
-			}
+			$findings = sn_health_finding_total( $scan );
 			if ( $findings > 0 ) {
 				$items[] = array(
 					'text' => sprintf( '%d health finding%s', $findings, 1 === $findings ? '' : 's' ),

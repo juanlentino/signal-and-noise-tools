@@ -4,7 +4,6 @@
  * renders, for programmatic/AI consumers. manage_options-gated; never mutates.
  *
  * Routes (all GET, all under signal-noise/v1):
- *   GET /analytics/summary               — range totals (views, visits, scroll_avg, time_avg)
  *   GET /analytics/series                — daily/weekly time series
  *   GET /analytics/dimension/<dim>       — top-N for a dimension (page, referrer, country, device…)
  *   GET /analytics/distribution/<metric> — bucket distribution (scroll, time)
@@ -45,12 +44,6 @@ function sn_analytics_rest_can_read() {
 add_action( 'rest_api_init', function () {
 	$ns = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
 
-	register_rest_route( $ns, '/analytics/summary', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'sn_analytics_rest_can_read',
-		'callback'            => 'sn_analytics_rest_summary',
-	) );
-
 	register_rest_route( $ns, '/analytics/series', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
@@ -67,12 +60,6 @@ add_action( 'rest_api_init', function () {
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_distribution',
-	) );
-
-	register_rest_route( $ns, '/analytics/events', array(
-		'methods'             => WP_REST_Server::READABLE,
-		'permission_callback' => 'sn_analytics_rest_can_read',
-		'callback'            => 'sn_analytics_rest_events',
 	) );
 
 	register_rest_route( $ns, '/analytics/event-props', array(
@@ -99,19 +86,6 @@ function sn_analytics_rest_window( $request ) {
 }
 
 // ── Route callbacks ───────────────────────────────────────────────────────────
-
-/**
- * GET /analytics/summary
- * Returns views, visits, scroll_avg, time_avg for the requested window.
- *
- * @param WP_REST_Request $request
- * @return array
- */
-function sn_analytics_rest_summary( $request ) {
-	snt_rest_deprecated_notice( '/signal-noise/v1/analytics/summary', 'signal-noise/get-analytics-summary' );
-	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
-	return sn_analytics_range_totals( $from, $to, $class );
-}
 
 /**
  * GET /analytics/series
@@ -151,20 +125,6 @@ function sn_analytics_rest_dimension( $request ) {
 function sn_analytics_rest_distribution( $request ) {
 	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
 	return sn_analytics_distribution( (string) $request->get_param( 'metric' ), $from, $to, $class );
-}
-
-/**
- * GET /analytics/events
- * Returns the top custom events (name → events/visitors) for the requested window.
- * Events have no class dimension; $from/$to are the only filters applied.
- *
- * @param WP_REST_Request $request
- * @return array
- */
-function sn_analytics_rest_events( $request ) {
-	snt_rest_deprecated_notice( '/signal-noise/v1/analytics/events', 'signal-noise/get-analytics-events' );
-	list( $from, $to ) = sn_analytics_rest_window( $request );
-	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
 }
 
 /**

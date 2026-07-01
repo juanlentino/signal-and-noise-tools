@@ -170,31 +170,3 @@ function snt_pattern_adoption_last_scan() {
 	$val = get_transient( $key );
 	return is_array( $val ) ? $val : null;
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — scan trigger.
- * ════════════════════════════════════════════════════════════════════════ */
-
-/**
- * REST handler for /health/pattern-adoption-scan.
- *
- * @deprecated since 4.6.0 — prefer the `signal-noise/pattern-adoption-scan`
- *             ability. This back-compat route will be removed in v6.0.0.
- *
- * @return WP_REST_Response
- */
-function snt_rest_pattern_adoption_scan() {
-	_deprecated_function( __FUNCTION__, '5.0.0', 'wp-abilities/v1/abilities/signal-noise/pattern-adoption-scan/run' );
-	$result = snt_pattern_adoption_run_scan();
-	return rest_ensure_response( $result );
-}
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/health/pattern-adoption-scan', array(
-		'methods'             => 'POST',
-		'callback'            => 'snt_rest_pattern_adoption_scan',
-		'permission_callback' => function() {
-			return current_user_can( 'manage_options' );
-		},
-	) );
-} );

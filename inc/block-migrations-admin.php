@@ -8,11 +8,11 @@
  *   - Per-row buttons: [Suggest] (data-attrs trigger shared
  *     health-suggest-actions.js) + [Dismiss]
  *
- * Also registers the dismiss REST endpoint at
- * POST /signal-noise/v1/tools/block-migrations-dismiss as the primary
- * JS-client surface (the abilities API wrapper at
- * signal-noise/block-migrations-dismiss is the secondary path for AI
- * agents).
+ * The dismiss action runs through the signal-noise/block-migrations-dismiss
+ * Ability (see inc/abilities-block-migrations.php); the JS client dispatches
+ * it via the Abilities run-path. The legacy
+ * POST /signal-noise/v1/tools/block-migrations-dismiss REST route was removed
+ * in v7.0.0 after all callers migrated to the Ability.
  *
  * Mirrors inc/pattern-adoption-admin.php structurally.
  *
@@ -121,42 +121,6 @@ function snt_block_migrations_render_section() {
 
 	echo '</div>'; // .sn-fieldset
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — dismiss (back-compat surface for JS client).
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-dismiss', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-dismiss', 'signal-noise/block-migrations-dismiss', '6.56.0' );
-			$post_id        = (int) $request->get_param( 'post_id' );
-			$fingerprint    = (string) $request->get_param( 'block_fingerprint' );
-			$migration_type = (string) $request->get_param( 'migration_type' );
-
-			$existing = (array) get_post_meta( $post_id, '_snt_block_migrations_dismissed', true );
-			$key = $migration_type . ':' . $fingerprint;
-			if ( ! in_array( $key, $existing, true ) ) {
-				$existing[] = $key;
-				update_post_meta( $post_id, '_snt_block_migrations_dismissed', $existing );
-			}
-
-			$tkey = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
-			delete_transient( $tkey );
-
-			return rest_ensure_response( array( 'ok' => true ) );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'           => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'block_fingerprint' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'migration_type'    => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_key' ),
-		),
-	) );
-} );
 
 /*
  * Admin-post dispatcher branch for the scan trigger form lives in

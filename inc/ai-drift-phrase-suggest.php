@@ -354,81 +354,10 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 }
 
 /* ════════════════════════════════════════════════════════════════════════
- * REST endpoints — back-compat surface for non-JS callers (CI, wp-cli).
- * JS clients use the Abilities API REST surface via wp.apiFetch.
+ * v7.0.0: the /ai/drift-suggest + /ai/drift-apply back-compat REST routes
+ * were removed — both are served by the signal-noise/ai-drift-suggest and
+ * signal-noise/ai-drift-apply Abilities run-path (inc/abilities-ai-health.php),
+ * which call the snt_ai_drift_suggest_impl() / snt_ai_drift_apply_impl()
+ * impls above. The route-only snt_ai_drift_sanitize_prose() sanitizer went
+ * with them.
  * ════════════════════════════════════════════════════════════════════════ */
-
-/**
- * v4.1.1: minimal sanitizer for prose strings (phrase, context_snippet,
- * replacement). `sanitize_text_field` is too aggressive — it strips
- * sequences that decode to em-dashes / curly quotes / unusual whitespace
- * via its octet-removal step, which then breaks the byte-exact comparison
- * against raw post_content. We only need: strip HTML tags + clean invalid
- * UTF-8. Length/HTML validation happens inside the impl.
- *
- * @param mixed $val
- * @return string
- *
- * @since 4.1.1
- */
-function snt_ai_drift_sanitize_prose( $val ) {
-	$val = (string) $val;
-	if ( function_exists( 'wp_check_invalid_utf8' ) ) {
-		$val = wp_check_invalid_utf8( $val );
-	}
-	return function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $val ) : strip_tags( $val );
-}
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/drift-suggest', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/ai/drift-suggest', 'signal-noise/ai-drift-suggest' );
-			$result = snt_ai_drift_suggest_impl(
-				(int) $request->get_param( 'post_id' ),
-				(string) $request->get_param( 'phrase' ),
-				(int) $request->get_param( 'position' ),
-				(string) $request->get_param( 'context_snippet' )
-			);
-			if ( is_wp_error( $result ) ) { return $result; }
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'         => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'phrase'          => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
-			'position'        => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'context_snippet' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
-		),
-	) );
-
-	register_rest_route( 'signal-noise/v1', '/ai/drift-apply', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/ai/drift-apply', 'signal-noise/ai-drift-apply' );
-			$result = snt_ai_drift_apply_impl(
-				(int) $request->get_param( 'post_id' ),
-				(string) $request->get_param( 'phrase' ),
-				(int) $request->get_param( 'position' ),
-				(string) $request->get_param( 'replacement' ),
-				(string) $request->get_param( 'fingerprint' ),
-				(string) $request->get_param( 'context_snippet' )
-			);
-			if ( is_wp_error( $result ) ) { return $result; }
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'         => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'phrase'          => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
-			'position'        => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'replacement'     => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
-			'fingerprint'     => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'context_snippet' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'snt_ai_drift_sanitize_prose' ),
-		),
-	) );
-} );

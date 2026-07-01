@@ -250,32 +250,3 @@ function snt_pattern_adoption_build_steps_enumerated_markup( $list_block ) {
 
 	return $markup;
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — suggest dispatch (back-compat surface for CI/wp-cli).
- * JS clients use the Abilities API surface via wp.apiFetch.
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/pattern-adoption-suggest', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/ai/pattern-adoption-suggest', 'signal-noise/pattern-adoption-suggest' );
-			$result = snt_ai_pattern_adoption_suggest_impl(
-				(int)    $request->get_param( 'post_id' ),
-				(string) $request->get_param( 'block_fingerprint' ),
-				(string) $request->get_param( 'pattern_type' )
-			);
-			if ( is_wp_error( $result ) ) { return $result; }
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id'           => array( 'required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint' ),
-			'block_fingerprint' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-			'pattern_type'      => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_key' ),
-		),
-	) );
-} );

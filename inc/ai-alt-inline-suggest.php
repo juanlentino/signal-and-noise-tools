@@ -20,7 +20,6 @@
  *
  * Surface convention mirrors inc/ai-alt-text-suggest.php:
  *   - snt_ai_alt_inline_suggest_impl() is single source of truth
- *   - REST endpoint under /signal-noise/v1/ai/alt-inline-suggest wraps it
  *   - Abilities API (inc/abilities-registration.php) wraps it
  *   - JS calls the abilities REST URL via wp.apiFetch
  *
@@ -208,38 +207,3 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 		'image_src'  => $image_src,
 	);
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — back-compat surface for non-JS callers.
- * JS clients use the Abilities API REST surface via wp.apiFetch.
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/ai/alt-inline-suggest', array(
-		'methods'             => 'POST',
-		'callback'            => function( WP_REST_Request $request ) {
-			snt_rest_deprecated_notice( '/signal-noise/v1/ai/alt-inline-suggest', 'signal-noise/ai-alt-inline-suggest' );
-			$result = snt_ai_alt_inline_suggest_impl(
-				(int) $request->get_param( 'post_id' ),
-				(string) $request->get_param( 'image_src' )
-			);
-			if ( is_wp_error( $result ) ) { return $result; }
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function( WP_REST_Request $request ) {
-			return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
-		},
-		'args' => array(
-			'post_id' => array(
-				'required'          => true,
-				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-			),
-			'image_src' => array(
-				'required'          => true,
-				'type'              => 'string',
-				'sanitize_callback' => 'sanitize_text_field',
-			),
-		),
-	) );
-} );

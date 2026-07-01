@@ -161,21 +161,3 @@ function snt_block_migrations_last_scan() {
 	$val = get_transient( $key );
 	return is_array( $val ) ? $val : null;
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST endpoint — scan trigger.
- * ════════════════════════════════════════════════════════════════════════ */
-
-add_action( 'rest_api_init', function() {
-	register_rest_route( 'signal-noise/v1', '/tools/block-migrations-scan', array(
-		'methods'             => 'POST',
-		'callback'            => function() {
-			snt_rest_deprecated_notice( '/signal-noise/v1/tools/block-migrations-scan', 'signal-noise/block-migrations-scan' );
-			$result = snt_block_migrations_run_scan();
-			return rest_ensure_response( $result );
-		},
-		'permission_callback' => function() {
-			return current_user_can( 'manage_options' );
-		},
-	) );
-} );

@@ -57,3 +57,71 @@ function sn_health_is_bot_challenge( $code, $headers ) {
 	}
 	return false !== strpos( strtolower( trim( $mitigated ) ), 'challenge' );
 }
+
+/**
+ * Read a single header value from either a plain array or WP's ArrayAccess
+ * CaseInsensitiveDictionary (what wp_remote_retrieve_headers() returns live),
+ * case-insensitively. Returns '' when the header is absent.
+ *
+ * @param mixed  $headers Response header bag (array or CaseInsensitiveDictionary).
+ * @param string $name    Header name (any case).
+ * @return string The value (comma-joined if multi-valued), or ''.
+ */
+function sn_health_probe_header( $headers, $name ) {
+	$name = strtolower( (string) $name );
+	if ( is_array( $headers ) ) {
+		foreach ( $headers as $k => $v ) {
+			if ( strtolower( (string) $k ) === $name ) {
+				return is_array( $v ) ? implode( ',', $v ) : (string) $v;
+			}
+		}
+		return '';
+	}
+	if ( $headers instanceof ArrayAccess && isset( $headers[ $name ] ) ) {
+		$v = $headers[ $name ];
+		return is_array( $v ) ? implode( ',', $v ) : (string) $v;
+	}
+	return '';
+}
+
+/**
+ * Was a probe response served through the Cloudflare edge? CF stamps a `cf-ray`
+ * on every response it fronts and a `server: cloudflare`, so either is a reliable
+ * fingerprint (present on challenges, blocks, AND clean pass-throughs alike).
+ *
+ * @param mixed $headers Response header bag.
+ * @return bool True when the response came through Cloudflare.
+ */
+function sn_health_probe_is_cloudflare( $headers ) {
+	return '' !== trim( sn_health_probe_header( $headers, 'cf-ray' ) )
+		|| false !== stripos( sn_health_probe_header( $headers, 'server' ), 'cloudflare' );
+}
+
+/**
+ * Is a probe response a Cloudflare EDGE GATE (block / rate-limit) rather than a
+ * dead link? This is DISTINCT from a challenge (sn_health_is_bot_challenge): a WAF
+ * or Super-Bot-Fight-Mode "block" action, or a rate-limit, answers an automated
+ * client with a 403/429 that carries NO `cf-mitigated` header — so the challenge
+ * classifier misses it, yet the resource is LIVE and a human in a browser reaches
+ * it. Flagging it as rot is a false positive.
+ *
+ * Grounding: Cloudflare's `cf-mitigated: challenge` header is emitted ONLY on
+ * Challenge Pages (developers.cloudflare.com/cloudflare-challenges/.../detect-response);
+ * a "block" is a separate enforcement with no such header, and every CF-served
+ * response carries a `cf-ray`. HTTP semantics (RFC 9110): 403 = access forbidden
+ * and 429 = rate-limited — NEITHER means "gone" (that is 404 / 410). So this is
+ * constrained to 403/429 (a CF-fronted 404/410 still rots) AND requires a
+ * Cloudflare fingerprint — a plain non-CF 403 is deliberately left as rot, keeping
+ * the guard against blanket-ignoring every 403.
+ *
+ * @param int   $code    HTTP status code from the probe.
+ * @param mixed $headers Response header bag.
+ * @return bool True when a Cloudflare edge is gating an automated client.
+ */
+function sn_health_is_edge_gated( $code, $headers ) {
+	$code = (int) $code;
+	if ( 403 !== $code && 429 !== $code ) {
+		return false;
+	}
+	return sn_health_probe_is_cloudflare( $headers );
+}

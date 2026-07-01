@@ -58,6 +58,7 @@ $GLOBALS['__scan'] = array(
 );
 if ( ! function_exists( 'sn_health_last_scan' ) ) { function sn_health_last_scan() { return $GLOBALS['__scan']; } }
 
+require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-checks accessors the glance hero shares
 require_once __DIR__ . '/../inc/admin-glance.php';
 require_once __DIR__ . '/../inc/health-checks-admin.php';
 
