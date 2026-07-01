@@ -18,6 +18,7 @@ function ok( $c, $m ) { global $fails, $passes; if ( $c ) { echo "PASS: $m\n"; $
 // ── Leaf WP-function stubs (escapers mirror core semantics). ──
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return (string) $n; }
@@ -82,6 +83,12 @@ $rank = mk_scan( array(
 ) );
 ok( array_keys( sn_health_flagged_checks( $rank ) ) === array( 'b', 'c', 'a' ), 'flagged_checks: ranked by count desc regardless of input order' );
 
+// ═══ sn_health_check_total() (v7.1.0) ═══
+echo "\n-- accessor: sn_health_check_total --\n";
+ok( sn_health_check_total( null ) === 0, 'check_total: null scan -> 0' );
+ok( sn_health_check_total( array() ) === 0, 'check_total: no checks -> 0' );
+ok( sn_health_check_total( $scan3 ) === 3, 'check_total: counts every check regardless of findings (3)' );
+
 // ═══ registration gate ═══
 echo "\n-- registration gate --\n";
 $GLOBALS['__can'] = false; $GLOBALS['__widgets'] = array();
@@ -97,7 +104,8 @@ ok( isset( $GLOBALS['__widgets']['sn_site_health']['cb'] ) && $GLOBALS['__widget
 echo "\n-- render: no scan --\n";
 $GLOBALS['__opt'] = array();
 ob_start(); sn_site_health_widget_render(); $no = ob_get_clean();
-ok( strpos( $no, 'sn-aw-err' ) !== false, 'no-scan: dormant .sn-aw-err line' );
+ok( strpos( $no, 'sn-hw-head--dormant' ) !== false, 'no-scan: dormant status header (not an alarming error red)' );
+ok( stripos( $no, 'No scan yet' ) !== false, 'no-scan: "No scan yet" headline' );
 ok( strpos( $no, 'tab=monitoring&sub=health' ) !== false, 'no-scan: links to the Health tab' );
 ok( strpos( $no, 'sn-aw-grid' ) === false && strpos( $no, 'sn-aw-list' ) === false, 'no-scan: no tiles / findings list' );
 
@@ -108,7 +116,9 @@ $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
 	'external_links' => mk_check( 0, 'External link rot' ),
 ) );
 ob_start(); sn_site_health_widget_render(); $clear = ob_get_clean();
-ok( stripos( $clear, 'all clear' ) !== false, 'all-clear: calm positive line' );
+ok( strpos( $clear, 'sn-hw-head--ok' ) !== false, 'all-clear: green/ok status header' );
+ok( stripos( $clear, 'all clear' ) !== false, 'all-clear: calm positive headline' );
+ok( stripos( $clear, 'checks passed' ) !== false && strpos( $clear, '2' ) !== false, 'all-clear: reassuring "N checks passed" (2 checks)' );
 ok( stripos( $clear, 'scanned' ) !== false && strpos( $clear, '2 hours' ) !== false, 'all-clear: relative scan timestamp' );
 ok( strpos( $clear, 'sn-aw-grid' ) === false && strpos( $clear, 'sn-aw-list' ) === false, 'all-clear: no findings tiles/list' );
 
@@ -121,9 +131,9 @@ $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
 	'stale_posts'    => mk_check( 0, 'Stale posts (>12 months)' ),
 ) );
 ob_start(); sn_site_health_widget_render(); $f = ob_get_clean();
-ok( strpos( $f, 'sn-aw-grid' ) !== false, 'findings: KPI tiles present' );
-ok( strpos( $f, '<div class="sn-aw-stat-n">12</div>' ) !== false, 'findings: total-findings tile (3+7+2=12)' );
-ok( strpos( $f, '<div class="sn-aw-stat-n">3</div>' ) !== false, 'findings: checks-flagged tile (3 checks)' );
+ok( strpos( $f, 'sn-hw-head--warn' ) !== false, 'findings: warn status header' );
+ok( stripos( $f, '12 finding' ) !== false, 'findings: headline total (3+7+2=12 findings)' );
+ok( stripos( $f, '3 of 4' ) !== false, 'findings: subline "3 of 4 checks" flagged' );
 ok( strpos( $f, 'sn-aw-list' ) !== false, 'findings: ranked list present' );
 $p_broken = strpos( $f, 'Broken internal links' );
 $p_alt    = strpos( $f, 'Missing alt text' );

@@ -135,10 +135,13 @@ function sn_admin_flash_to_notice( $flash ) {
 			if ( ! empty( $err['code'] ) ) {
 				$detail .= ' (<code>' . esc_html( (string) $err['code'] ) . '</code>)';
 			}
-			return array(
-				'error',
-				'Insights scan failed: ' . $detail . ' Your AI provider is configured and working (the weekly digest uses the same one), so this is an insights-specific failure, not a setup problem.',
-			);
+			$notice = 'Insights scan failed: ' . $detail . ' Your AI provider is configured and working (the weekly digest uses the same one), so this is an insights-specific failure, not a setup problem.';
+			// v7.1.0: when the model's raw output was captured (a parse failure), show
+			// a bounded snippet so the exact defect is visible without log-diving.
+			if ( ! empty( $err['raw'] ) ) {
+				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 200 ) ) . '</code>';
+			}
+			return array( 'error', $notice );
 		}
 		return array( 'error', 'Insights scan failed, but no diagnostic was recorded. Re-run the scan; if it recurs, check the PHP error log.' );
 	}

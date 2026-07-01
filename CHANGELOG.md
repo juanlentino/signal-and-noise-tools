@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.1.0] - 2026-07-01: Insights scan actually parses again; audit-log two-column; a redesigned Health widget
+
+**Headline:** Three owner-directed items in one release. (1) The **real** Insights failure is fixed: v7.0.1 surfaced the true error (`snt_insights_invalid_json` — the model returned text that would not parse as a JSON array), and this release repairs the single most common cause (a **trailing comma**, e.g. `[{…},]`) and shows the model's raw output in the notice so any remaining defect is visible at a glance. (2) The **Security → Audit log** page moves to the two-column `sn_admin_shell` (data in the main column, status + config in the rail) like the other leaves. (3) The **S&N Health** dashboard widget is redesigned around a state-colored status header (a clear green "All clear", an amber findings header, a neutral dormant state) instead of a stray footer line.
+
+> **Why MINOR:** a bug fix bundled with two user-visible admin redesigns (audit-log layout, Health widget), matching how prior admin redesigns were versioned (v6.42.0 / v6.43.0 / v6.46.0). No API/schema change, no WP-floor change. Full standalone sweep green (185 suites, 5038 assertions); phpcs security ruleset clean (falsified against an injected `echo $_GET` violation); `SNT_VERSION` derives from the docblock.
+
+### Fixed
+
+- **Insights scan parses model output that has a trailing comma** ([inc/insights.php](inc/insights.php)): `snt_insights_recover_json_array()` now strips a trailing comma before a closing `]`/`}` and retries once, on top of the v7.0.1 prose-wrapped-array recovery. This is the confirmed real-world defect the v7.0.1 surfacing exposed on a live run. Recovery still runs only after a direct `json_decode` already failed, so the happy path is byte-identical; genuinely non-JSON output (no bracketed array) still errors.
+
+### Improvements
+
+- **The Insights failure notice shows the model's raw output** ([inc/insights.php](inc/insights.php), [inc/admin-flash-messages.php](inc/admin-flash-messages.php)): `snt_insights_store_last_error()` now captures the `raw` snippet the invalid-json error carries, and the `insights_failed` notice appends `The model returned: <code>…</code>` (bounded to 200 chars) — so the exact defect is visible without opening the PHP error log.
+- **Audit log → two-column `sn_admin_shell`** ([inc/audit-log-admin.php](inc/audit-log-admin.php)): the glance hero, the 7-column counter timeline, and the recent-logins table now sit in the main column; the LLA status card, retention setting, and maintenance (prune + export) move to the narrower rail — matching the Insights / Health leaves. No new CSS (the rail already hosts `.sn-fieldset` cards). New `tests/audit-log-shell.php` locks the main/rail placement.
+- **S&N Health widget redesign** ([inc/site-health-widget.php](inc/site-health-widget.php), [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css)): all three states now lead with a state-colored status header (round glyph badge + headline + subline) — a green "All clear / M checks passed", an amber "N findings across F of M checks", and a neutral "No scan yet" (no longer an alarming error red). New shared accessor `sn_health_check_total()` supplies the "M checks" denominator (single source of truth, like its siblings). Native wp-admin palette; styles in the already-enqueued widget sheet (no inline `<style>`); still read-only and never triggers a scan.
+
 ## [7.0.1] - 2026-07-01: Insights scan reports the real failure, not a blanket "configure AI"
 
 **Headline:** Monitoring → Insights → **Run Analysis** used to fail with a red *"Insights scan failed. Check that an AI provider is configured under Settings → Connectors."* even when AI was configured and billing (the Weekly digest, which uses the same provider and transport, generated fine). The handler collapsed **every** `WP_Error` into that one blanket copy, so a parse error, a transport timeout, or an empty model response all mis-read as a setup problem. The scan now reports the **real** error (code + message), reserves the configure-AI copy for the one genuine no-provider case, and recovers a JSON array the model wrapped in prose (a common cause of the false failure) instead of erroring on it.
