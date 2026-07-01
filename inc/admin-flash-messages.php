@@ -138,8 +138,10 @@ function sn_admin_flash_to_notice( $flash ) {
 			$notice = 'Insights scan failed: ' . $detail . ' Your AI provider is configured and working (the weekly digest uses the same one), so this is an insights-specific failure, not a setup problem.';
 			// v7.1.0: when the model's raw output was captured (a parse failure), show
 			// a bounded snippet so the exact defect is visible without log-diving.
+			// v7.1.1: widened 200 → 400 chars — a 200-char cut hid WHERE a truncated
+			// array actually ended, which is the diagnostic that matters most.
 			if ( ! empty( $err['raw'] ) ) {
-				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 200 ) ) . '</code>';
+				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 400 ) ) . '</code>';
 			}
 			return array( 'error', $notice );
 		}
