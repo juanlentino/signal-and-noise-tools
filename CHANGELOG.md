@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.3.1] - 2026-07-01: Color drift no longer flags SVG figure colors
+
+**Headline:** The owner's first live scan flagged three notes whose only "drift" was the deliberate stroke/fill colors inside their embedded SVG diagrams (grayscale tones plus semantic red/green). Figures are artwork, not text styling — the check now strips inline `<svg>` blocks before extracting hex colors.
+
+> **Why PATCH:** calibration of a just-shipped check; no behavior, API, or schema change beyond the narrowed detection.
+
+### Fixed
+- The Color drift Health check ignores hex colors inside inline `<svg>…</svg>` blocks, so diagram-carrying posts stop reading as permanent findings (alarm fatigue). Off-palette colors in prose or styling outside SVGs still flag, and the note names only those.
+
 ## [7.3.0] - 2026-07-01: Scheduled purges self-heal + color drift + vision model picker
 
 **Headline:** Scheduled-content purges now survive slug changes and reused patterns, Health learns to spot off-palette colors, and the alt-text vision model gets a real picker.
