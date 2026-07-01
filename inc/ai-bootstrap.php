@@ -418,7 +418,13 @@ function snt_ai_register_alt_text_model_route() {
 		'snt_ai_model_preference',
 		function ( $model, $prompt, $system_instruction, $feature = 'generic' ) {
 			if ( 'alt-text' === $feature ) {
-				return (string) apply_filters( 'snt_ai_alt_text_model', 'gemini-2.5-flash-lite' );
+				// v7.3.0: the settings dropdown (theme.ai_alt_model) feeds the
+				// DEFAULT; the snt_ai_alt_text_model filter still wins for
+				// code-level pins. Absent setting = the original pin.
+				$alt_default = function_exists( 'sn_setting' )
+					? (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' )
+					: 'gemini-2.5-flash-lite';
+				return (string) apply_filters( 'snt_ai_alt_text_model', $alt_default );
 			}
 			return $model;
 		},

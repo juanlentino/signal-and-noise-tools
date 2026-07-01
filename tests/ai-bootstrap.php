@@ -937,6 +937,26 @@ hc_true( fixture_recorded_call_matches( 'with_file', array( $vimg, 'image/jpeg' 
 hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
 	'feature alt-text routes using_model_preference → [gemini-2.5-flash-lite, fallback]' );
 
+// v7.3.0: the alt-text route default follows theme.ai_alt_model when set. The
+// suite has no sn_setting; define a store-backed stub here (later blocks read
+// the pinned default because the key is unset again below).
+$GLOBALS['__settings'] = array();
+if ( ! function_exists( 'sn_setting' ) ) {
+	function sn_setting( $key, $default = null ) { return $GLOBALS['__settings'][ $key ] ?? $default; }
+}
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+$GLOBALS['__settings']['theme.ai_alt_model'] = 'gemini-2.5-flash';
+snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-4-6' ) ),
+	'v7.3.0: alt-text default follows theme.ai_alt_model' );
+unset( $GLOBALS['__settings']['theme.ai_alt_model'] );
+fixture_reset();
+snt_ai_register_alt_text_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+	'v7.3.0: absent setting keeps the pinned default' );
+
 // Text-only path: no image → ZERO with_file calls, default Sonnet model unchanged.
 fixture_reset();
 snt_ai_register_alt_text_model_route();

@@ -347,6 +347,22 @@ function sn_theme_ai_models() {
 }
 
 /**
+ * Curated vision-capable model allowlist for the alt-text route (v7.3.0).
+ * Same contract as sn_theme_ai_models(): keys are wp-ai-client model ids
+ * (Gemini ids resolve live from the provider), values are UI labels. The
+ * default pin matches the ai-bootstrap alt-text route.
+ *
+ * @return array<string,string>
+ */
+function sn_theme_ai_vision_models() {
+	return array(
+		'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite (default — fast, cheap vision)',
+		'gemini-2.5-flash'      => 'Gemini 2.5 Flash (stronger vision)',
+		'gemini-2.5-pro'        => 'Gemini 2.5 Pro (strongest — slower, pricier)',
+	);
+}
+
+/**
  * v4.12.0: persist the Front-End settings form (Tools → Front-End sub-tab).
  *
  * Sparse writes via sn_setting_update() so the sibling sn_settings subtrees are
@@ -371,6 +387,12 @@ function sn_handle_save_theme( $post ) {
 	$allowed = array_keys( sn_theme_ai_models() );
 	$model   = isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '';
 	$ok     &= sn_setting_update( 'theme.ai_model', in_array( $model, $allowed, true ) ? $model : (string) sn_setting( 'theme.ai_model', $allowed[0] ) );
+
+	// v7.3.0: vision (alt-text) model — same validate-against-allowlist pattern;
+	// an off-list id keeps the current value (then the pinned default).
+	$vision_allowed = array_keys( sn_theme_ai_vision_models() );
+	$vision         = isset( $post['theme_ai_alt_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_alt_model'] ) ) : '';
+	$ok            &= sn_setting_update( 'theme.ai_alt_model', in_array( $vision, $vision_allowed, true ) ? $vision : (string) sn_setting( 'theme.ai_alt_model', $vision_allowed[0] ) );
 
 	return $ok ? 'theme_saved' : 'theme_unchanged';
 }

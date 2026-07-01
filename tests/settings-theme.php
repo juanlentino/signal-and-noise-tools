@@ -101,6 +101,14 @@ sn_handle_save_theme( array(
 ok( sn_setting( 'theme.palette_enabled' ) === false, 'save: palette_enabled false when checkbox absent/empty' );
 ok( sn_setting( 'theme.ai_model' ) === 'claude-opus-4-8', 'save: on-list ai_model accepted' );
 
+// ── v7.3.0: vision (alt-text) model — curated allowlist ─────────────
+$vmodels = sn_theme_ai_vision_models();
+ok( array_key_exists( 'gemini-2.5-flash-lite', $vmodels ), 'vision models: curated list carries the default pin' );
+sn_handle_save_theme( array( 'theme_ai_alt_model' => 'gemini-2.5-flash' ) );
+ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save: on-list vision model accepted' );
+sn_handle_save_theme( array( 'theme_ai_alt_model' => 'evil-model' ) );
+ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save: off-list vision model rejected (setting unchanged)' );
+
 // ── P4: front-end form renders without fatal + emits every field ─────
 require __DIR__ . '/../inc/admin-forms/front-end.php';
 ob_start();
@@ -110,7 +118,7 @@ ok( strpos( $form, 'name="sn_action" value="save_theme"' ) !== false, 'form: pos
 $field_names = array(
 	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
 	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_ai_model',
-	'theme_notes_per_page',
+	'theme_notes_per_page', 'theme_ai_alt_model',
 );
 $missing = array();
 foreach ( $field_names as $fn ) {
