@@ -72,6 +72,7 @@ function wp_get_theme( $s = null ) { return new class { public function get( $k 
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '6.42.0' ); }
 function apply_filters( $t, $v = null ) { return $v; }
 
+require_once __DIR__ . '/../inc/health-summary.php'; // real finding-total accessor the glance card + attention strip now share
 require_once __DIR__ . '/../inc/admin-glance.php';
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 

@@ -166,6 +166,7 @@ require_once SNT_PATH . 'inc/login-defense.php';
 // (reads the same query builders); and the dashboard widget (owner-requested glance).
 require_once SNT_PATH . 'inc/login-defense-analytics.php';
 require_once SNT_PATH . 'inc/login-defense-widget.php';
+require_once SNT_PATH . 'inc/site-health-widget.php'; // v7.0.0: "S&N Health" home dashboard widget (owner-approved 2nd widget exception)
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //
@@ -258,6 +259,7 @@ require_once SNT_PATH . 'inc/insights-narration.php';
 require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge classifier (used by both health probes below)
 require_once SNT_PATH . 'inc/health-checks.php';
+require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks) — glance card, attention strip, S&N Health widget
 require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th check — external link-rot (off-host cited sources)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-checks-admin.php';
