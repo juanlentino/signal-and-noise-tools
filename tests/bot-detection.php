@@ -82,6 +82,14 @@ $fixtures = array(
 	array( 'Go HTTP client',    'Go-http-client/1.1',                                                                                                      true ),
 	array( 'HTTPie',            'HTTPie/3.2.2',                                                                                                            true ),
 	array( 'Java',              'Java/17.0.9',                                                                                                             true ),
+
+	// ─── Fediverse fetchers (v8.1.3, ActivityPub adoption) — never count ─
+	array( 'Mastodon',          'http.rb/5.1.1 (Mastodon/4.2.10; +https://mastodon.social/)',                                                             true ),
+	array( 'http.rb',           'http.rb/5.2.0',                                                                                                           true ),
+	array( 'Pleroma',           'Pleroma 2.7.0; https://pleroma.example/users/juan',                                                                       true ),
+	array( 'Akkoma',            'Akkoma 3.13.2; https://akkoma.example',                                                                                   true ),
+	array( 'Misskey',           'Misskey/2024.5.0 (https://misskey.io/)',                                                                                  true ),
+	array( 'Friendica',         'Friendica (Yellow Archangel) 2024.03-1547; https://friendica.example',                                                    true ),
 );
 
 $pass = 0;

@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.3] - 2026-07-02: Fediverse fetcher UAs classified as bots
+
+**Headline:** ActivityPub adoption (theme-side arc) makes Mastodon-class servers fetch feed and post URLs server-to-server. Those fetchers are machine clients, not subscribers: the RSS tracker's bot classifier now recognizes Mastodon/http.rb, Pleroma, Akkoma, Misskey, and Friendica so federation traffic never pollutes subscriber counts.
+
+> **Why PATCH:** classifier calibration, no new capability, no API change.
+
+### Improvements
+- `sn_rss_tracker_is_bot()` recognizes fediverse fetcher user agents (Mastodon, generic http.rb, Pleroma, Akkoma, Misskey, Friendica); regression fixtures added in both directions (`tests/bot-detection.php`).
+
+### Fixed
+- Stale docblock path in `inc/rss-feed-tracker.php` (tests moved from mu-plugins/tests/ to tests/ in v1.1.0).
+
 ## [8.1.2] - 2026-07-02: Noise reduction — non-actionable verdicts leave the queue
 
 **Headline:** Owner rule from live UAT: a verdict with nothing to apply is noise, not a suggestion. Skip, unsure, and "link but no clean anchor" outcomes no longer render panels — the row collapses like an applied one, and the next scan drops the pair entirely. The AI also loses the option of recommending a link without an anchor: if it cannot copy a verbatim phrase from your prose, it must answer skip.

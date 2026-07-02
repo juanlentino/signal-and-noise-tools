@@ -99,13 +99,16 @@ function sn_rss_tracker_server_token() {
  * `fetch` as a substring catch-all and ended up filtering Feedly (UA
  * contains "FeedFetcher-Google") and NewsBlur ("Page Fetcher"). The
  * current pattern uses specific tool names; tests in
- * mu-plugins/tests/bot-detection.php enforce both directions.
+ * tests/bot-detection.php enforce both directions.
+ * v8.1.3 adds fediverse fetcher UAs (Mastodon/http.rb, Pleroma, Akkoma,
+ * Misskey, Friendica) — ActivityPub adoption makes these hit the feed and
+ * post URLs server-to-server; they are machine clients, never subscribers.
  */
 function sn_rss_tracker_is_bot( $ua ) {
 	if ( '' === $ua ) {
 		return true;
 	}
-	$pattern = '/bot|crawl|spider|slurp|mediapartners|googlebot|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|pinterestbot|applebot|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|seznambot|uptimerobot|pingdom|statuscake|sitelock|curl\/|wget\/|python-requests|go-http-client|httpie|java\//i';
+	$pattern = '/bot|crawl|spider|slurp|mediapartners|googlebot|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|pinterestbot|applebot|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|seznambot|uptimerobot|pingdom|statuscake|sitelock|mastodon|pleroma|akkoma|misskey|friendica|http\.rb\/|curl\/|wget\/|python-requests|go-http-client|httpie|java\//i';
 	return (bool) preg_match( $pattern, $ua );
 }
 
