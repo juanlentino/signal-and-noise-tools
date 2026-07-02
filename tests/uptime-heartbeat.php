@@ -2,7 +2,8 @@
 /**
  * Standalone fixture tests for inc/uptime-heartbeat.php (v4.9.0, Task 4).
  *
- * Opt-in Uptime Kuma push-monitor heartbeat:
+ * Opt-in push-monitor heartbeat (Better Stack heartbeat or Uptime Kuma
+ * push — same GET mechanism; keys keep the historical uptime_kuma_* names):
  *   - sn_uptime_cron_schedules adds 'sn_five_minutes' = 300s
  *   - sn_uptime_heartbeat_schedule: enabled + url + unscheduled → schedules once
  *   - disabled + scheduled → clears

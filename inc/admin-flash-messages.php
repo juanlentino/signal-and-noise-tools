@@ -85,7 +85,7 @@ function sn_admin_flash_messages() {
 		'audit_retention_saved'     => array( 'success', 'Audit retention saved.' ),
 		'audit_retention_unchanged' => array( 'info', 'Audit retention unchanged.' ),
 		'monitoring_saved'          => array( 'success', 'Uptime monitoring settings saved.' ),
-		'monitoring_url_not_https'  => array( 'error', 'Uptime Kuma push URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ),
+		'monitoring_url_not_https'  => array( 'error', 'Heartbeat URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ),
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
 		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),

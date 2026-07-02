@@ -13,10 +13,14 @@
  *     (sn_security_is_activitypub_request + the sn_security_author_enum_exempt
  *     filter) was removed when the owner declined the ActivityPub adoption
  *     entirely (2026-07-02, never re-propose). These guards keep it removed.
+ *   - registration priority (v8.1.6): the guard must register on
+ *     template_redirect at priority 9 so it runs BEFORE core's
+ *     redirect_canonical (priority 10), which otherwise 301s /?author=N
+ *     with the nicename leaked in the Location header first.
  *
  * Run: php tests/security-headers.php
  *
- * @since plugin v8.1.4 (suite), v8.1.5 (exemption removed)
+ * @since plugin v8.1.4 (suite), v8.1.5 (exemption removed), v8.1.6 (priority)
  */
 
 // SECURITY: Prevent web access. CLI / WP-CLI only.
@@ -27,7 +31,14 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 
 define( 'ABSPATH', '/' );
 
-if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+// Recording stub: the module registers its hooks at require time, so the
+// registrations land in this global for the priority assert (Test 6).
+$GLOBALS['__test_actions'] = array();
+if ( ! function_exists( 'add_action' ) ) {
+	function add_action( $hook = '', $callback = null, $priority = 10 ) {
+		$GLOBALS['__test_actions'][] = array( $hook, $callback, $priority );
+	}
+}
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
 $GLOBALS['__test_filters'] = array();
 if ( ! function_exists( 'apply_filters' ) ) {
@@ -86,6 +97,21 @@ sh_eq( false, function_exists( 'sn_security_is_activitypub_request' ), 'sn_secur
 $module_src = file_get_contents( __DIR__ . '/../inc/security-headers.php' );
 sh_eq( false, strpos( $module_src, 'sn_security_author_enum_exempt' ) !== false, 'sn_security_author_enum_exempt filter absent from the module' );
 sh_eq( false, stripos( $module_src, 'activitypub' ) !== false, 'no ActivityPub references remain in the module' );
+
+// ─── Test 6: guard registered at priority 9 (v8.1.6, audit LOW-1) ────
+// Core adds redirect_canonical to template_redirect at priority 10 before
+// any plugin loads, so at the same priority core wins by registration
+// order and leaks the author nicename in a 301 Location before the guard
+// runs. Priority 9 puts the guard first. Defense-in-depth on current
+// config (CF edge 404s /?author=N), but the registration is the contract.
+echo "\nTest 6: guard registered before core redirect_canonical\n";
+$enum_priority = null;
+foreach ( $GLOBALS['__test_actions'] as $reg ) {
+	if ( 'template_redirect' === $reg[0] && 'sn_security_author_enum_guard' === $reg[1] ) {
+		$enum_priority = $reg[2];
+	}
+}
+sh_eq( 9, $enum_priority, 'sn_security_author_enum_guard on template_redirect at priority 9' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

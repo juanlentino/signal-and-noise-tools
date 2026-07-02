@@ -368,7 +368,9 @@ function sn_handle_block_migrations_scan( $post ) {
 }
 
 /**
- * v4.9.0 (T4): save the Uptime Kuma heartbeat settings from the Webhooks tab.
+ * v4.9.0 (T4): save the uptime heartbeat settings from the Webhooks tab
+ * (Better Stack heartbeat or Uptime Kuma push — provider-neutral copy
+ * since v8.1.6; the uptime_kuma_* field/key names are historical, kept).
  * Writes through sn_setting_update('monitoring.*', …) then reconciles the
  * cron schedule immediately so toggling on/off takes effect without waiting
  * for the next init.

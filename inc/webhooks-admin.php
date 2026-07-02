@@ -176,7 +176,10 @@ function sn_webhooks_render_admin_tab() {
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
-	// ── UPTIME MONITORING (v4.9.0, T4) ──
+	// ── UPTIME MONITORING (v4.9.0, T4; provider-neutral copy since v8.1.6) ──
+	// The `uptime_kuma_*` setting keys and POST field names are historical
+	// and deliberately kept through the Better Stack migration — renaming
+	// keys is a settings-schema change (SemVer break without a migration).
 	$kuma_enabled = (bool) sn_setting( 'monitoring.uptime_kuma_enabled', false );
 	$kuma_url     = (string) sn_setting( 'monitoring.uptime_kuma_push_url', '' );
 
@@ -184,12 +187,12 @@ function sn_webhooks_render_admin_tab() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Uptime monitoring</h2>';
-	echo '<p class="sn-fieldset-intro">Push a heartbeat every 5 minutes to an <a href="https://github.com/louislam/uptime-kuma" target="_blank" rel="noopener noreferrer">Uptime Kuma</a> push monitor. If WP-Cron stops firing (or the site goes down), Kuma stops receiving the heartbeat and flips the monitor to DOWN.</p>';
+	echo '<p class="sn-fieldset-intro">Push a heartbeat every 5 minutes to an external heartbeat monitor — a <a href="https://betterstack.com/docs/uptime/cron-and-heartbeat-monitor/" target="_blank" rel="noopener noreferrer">Better Stack heartbeat</a> or an <a href="https://github.com/louislam/uptime-kuma" target="_blank" rel="noopener noreferrer">Uptime Kuma</a> push monitor. If WP-Cron stops firing (or the site goes down), the monitor stops receiving the heartbeat and raises an incident.</p>';
 
 	echo '<div class="sn-field sn-field-w-lg">';
-	echo '<label class="sn-field-label" for="kuma_push_url">Push monitor URL</label>';
-	echo '<input type="url" id="kuma_push_url" name="uptime_kuma_push_url" value="' . esc_attr( $kuma_url ) . '" placeholder="https://kuma.example.com/api/push/&lt;token&gt;" class="sn-mono">';
-	echo '<p class="sn-field-helper">The <code>Push</code>-type monitor URL from your Kuma instance. <code>status=up</code> is appended automatically. Must be <code>https://</code>.</p>';
+	echo '<label class="sn-field-label" for="kuma_push_url">Heartbeat URL</label>';
+	echo '<input type="url" id="kuma_push_url" name="uptime_kuma_push_url" value="' . esc_attr( $kuma_url ) . '" placeholder="https://uptime.betterstack.com/api/v1/heartbeat/&lt;token&gt;" class="sn-mono">';
+	echo '<p class="sn-field-helper">The heartbeat URL from your monitoring service (Better Stack heartbeat, or Uptime Kuma <code>Push</code> monitor). <code>status=up</code> is appended automatically — Kuma expects it, Better Stack ignores it. Must be <code>https://</code>.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
