@@ -90,15 +90,8 @@
 			btn.disabled = true;
 			setStatus( status, __( 'Generating…', 'signal-noise-tools' ), 'info' );
 
-			// v2.5.0+: route through the abilities REST API instead of the
-			// legacy /signal-noise/v1/ai/generate-meta-description endpoint.
-			// v2.5.2: URL fix — abilities route includes /abilities/ segment
-			// per the run-controller source. The abilities-api docs were wrong.
-			window.wp.apiFetch( {
-				path: '/wp-abilities/v1/abilities/signal-noise/ai-generate-meta-description/run',
-				method: 'POST',
-				data: { input: { post_id: postId } },
-			} )
+			// v7.7.2: via the shared runner (annotation-derived verb).
+			window.sntAbilityRun( 'ai-generate-meta-description', { post_id: postId } )
 				.then( function( res ) {
 					if ( ! res || ! res.description ) {
 						throw new Error( __( 'AI returned no description.', 'signal-noise-tools' ) );

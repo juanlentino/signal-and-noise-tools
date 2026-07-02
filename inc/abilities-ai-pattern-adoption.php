@@ -74,7 +74,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array( 'idempotent' => true ),
+			// v7.7.2: readonly added — this suggest is a deterministic preview
+			// generator that writes nothing (verb parity with its
+			// block-migrations-suggest mirror, which declared readonly in
+			// v6.39.2). readonly => the run controller requires GET.
+			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
 		),
 	) );
 

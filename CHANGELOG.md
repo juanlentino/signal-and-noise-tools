@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.7.2] - 2026-07-01: Fix — annotation-derived verbs for every ability call (the force-check 405 class)
+
+**Headline:** Installing v7.7.1 surfaced "Force-check: Read-only abilities require GET method." — the abilities run controller enforces the HTTP verb by annotation (readonly → GET, destructive+idempotent → DELETE, else POST) and 405s any mismatch. The v7.7.0 palette change POSTed the readonly `get-deploy-status` (trusting a stale v2.5.4-era comment instead of re-reading the controller), but the class is much older and wider: the v6.39.2 annotation-truthfulness fixes flipped required verbs out from under every hardcoded-POST JS caller, silently 405-ing ~10 surfaces since the WP 7.0 floor (desktop-mode purge/clear/full-reset buttons and audit + status + RSS widgets, cron history and unschedule, the block-migrations Suggest button, the editor's AI Excerpt button). Verified against core source: `validate_request_method` + `get_input_from_request` in `class-wp-rest-abilities-v1-run-controller.php` — GET/DELETE input is the RAW query param (a JSON `?input=` string fails object schemas), but PHP bracket syntax (`?input[key]=value`) parses to a real array and validates.
+
+The fix ends the class the same way v7.7.1 ended engine drift: one source of truth. New shared runner `window.sntAbilityRun( slug, input )` picks its verb from a map **localized from the server's own annotations at enqueue time**, so client verbs can never drift from registrations again. Every JS caller now passes a slug only; a guard test fails the build if `/wp-abilities/` appears in any other script.
+
+> **Why PATCH:** bug fix restoring existing surfaces; no new capability, no public API change (one annotation corrected to its truthful value).
+
+### Fixed
+- All ~10 verb-mismatched surfaces now dispatch with the controller-required verb: desktop-mode maintenance buttons (DELETE), audit/status/RSS widgets (GET), palette force-check (GET with `?input[force_refresh]=true`), cron history (GET) + unschedule (DELETE), block-migrations Suggest (GET), AI Excerpt editor button (GET — the ability is truthfully readonly: it returns text, the editor writes the field).
+- `pattern-adoption-suggest` gains `readonly: true` (deterministic preview generator, writes nothing) — verb parity with its `block-migrations-suggest` mirror, which got the same fix in v6.39.2 while this one was missed (the same mirror-drift class v7.7.1's engine killed for the apply pipelines).
+- Corrects the v7.7.0 CHANGELOG claim that the palette "deliberately" POSTed `get-deploy-status`: that reasoning was wrong against the live controller and produced the 405 banner.
+
+### New
+- `assets/snt-ability-run.js` + `inc/ability-run-client.php`: the shared runner, `snt_ability_verb()` (byte-for-byte mirror of the controller's `validate_request_method`), and `snt_ability_verb_map()` localized onto the script (priority 1 on `admin_enqueue_scripts` + `enqueue_block_editor_assets` so every consumer can depend on it).
+- `tests/ability-run-client.php` (31 assertions): verb derivation matrix (readonly precedence included), registry map building + foreign-namespace exclusion, hook wiring, and the transport guard (`/wp-abilities/` in no script but the runner; every consumer dispatches via `sntAbilityRun`; no JSON-string query input).
+
+### Improvements
+- 11 JS files migrated to the runner (command-palette, desktop-mode + 3 widgets, cron-dashboard, health-suggest-actions, ai-excerpt, ai-meta-description, ai-og-card-title, prepop-notice); `snt-ability-run` added to their script dependencies; the prepop `restPath` localization removed (slug-only call sites).
+- Known limitation, documented in the runner: bracket transport carries nested array values as strings, so unscheduling a cron event with non-string args no-matches (`cleared: 0`) instead of mis-targeting.
+
 ## [7.7.1] - 2026-07-01: Shared block-fingerprint engine — one pipeline behind both Suggest/Apply surfaces
 
 **Headline:** Session 2 of the consolidation arc: block-migrations and pattern-adoption had carried byte-identical find/replace walkers and near-identical fingerprint-validated apply pipelines since 4.3.0/4.5.0 (each file's docblock literally said "mirrors" the other). New `inc/block-fingerprint-engine.php` (`snt_block_fp_fingerprint/find/replace_in_tree/sanitize_node/apply`) is now the single implementation; both surfaces pass their error-code maps and shape their own success payloads, so every public WP_Error contract stays byte-identical (including pattern-adoption's historical quirk of reusing its invalid-type code for invalid markup). A third migration type now plugs in via one code map — the spec's trigger for a future ability-surface collapse. No ability/REST surface changes.

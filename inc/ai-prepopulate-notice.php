@@ -55,14 +55,14 @@ add_action( 'admin_enqueue_scripts', function ( $hook_suffix ) {
 	wp_register_script(
 		'snt-prepop-notice',
 		plugins_url( 'assets/prepop-notice.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch' ),
+		array( 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
 	wp_localize_script( 'snt-prepop-notice', 'sntPrepopNotice', array(
-		// v6.55.0: point the dismiss JS at the signal-noise/prepop-dismiss
-		// ability run-path so the legacy /prepop/dismiss route becomes caller-free.
-		'restPath' => '/wp-abilities/v1/abilities/signal-noise/prepop-dismiss/run',
+		// v7.7.2: restPath removed — the JS dispatches through the shared
+		// sntAbilityRun runner (slug-only; hardcoded run paths are guarded
+		// against by tests/ability-run-client.php).
 	) );
 	wp_enqueue_script( 'snt-prepop-notice' );
 } );

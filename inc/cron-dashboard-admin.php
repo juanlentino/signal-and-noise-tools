@@ -29,7 +29,7 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_register_script(
 		'sn-cron-dashboard',
 		plugins_url( 'assets/cron-dashboard.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'wp-data' ),
+		array( 'wp-api-fetch', 'wp-data', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);

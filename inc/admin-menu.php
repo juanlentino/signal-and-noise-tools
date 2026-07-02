@@ -167,7 +167,8 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 				'snt-health-suggest-actions',
 				plugins_url( 'assets/health-suggest-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 				// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-				array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
+				// v7.7.2: snt-ability-run provides window.sntAbilityRun (annotation-derived verbs).
+				array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ),
 				SNT_VERSION,
 				true
 			);
