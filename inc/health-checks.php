@@ -106,6 +106,7 @@ function sn_health_run_scan() {
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 			'color_drift'         => sn_health_check_color_drift(),
 			'unlinked_mentions'   => sn_health_check_unlinked_mentions(),
+			'link_opportunities'  => sn_health_check_link_opportunities(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 		),
