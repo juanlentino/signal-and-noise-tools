@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.0.1] - 2026-07-02: Health-tab all-clear redesign + /now //about/uses edge purge-on-save
+
+**Headline:** The Health tab's all-clear state stops triple-encoding good news — ten "label / clear / green pill" cards collapse into one passing strip ("All 10 checks passing" + check names as chips), the scan flash learns to say so ("all checks passing" instead of promising "findings below" over an empty screen), the hero's elapsed reads "22.2s" instead of "22206ms", and Run scan + Opportunities pair up side by side instead of stacking two capped cards on a wide tab. And the open cache chip closes: saving (or clearing) the /now and /about/uses editors now purges the live route from the Cloudflare edge, so logged-out visitors see the new content immediately instead of waiting out the TTL the owner never saw (logged-in cache bypass).
+
+> **Why PATCH:** presentation polish + a behavior fix (stale-edge-cache gap); no new public API, no schema change.
+
+### Improvements
+- **Health passing strip.** Passing checks collapse from one glance card each (label + "clear" value + green "pass" pill — the same fact three times, ×10 in the all-clear state) into a single full-width strip: a "N of M checks passing" / "All N checks passing" heading, one ok pill, and the check names as `.sn-badge` chips. Checks with findings keep their full cards + tables, untouched.
+- **Findings-aware scan flash.** `health_scan` now counts the fresh scan (`sn_health_finding_total()` on the runner's return) and emits the new `health_scanned_clean` code — "Scan complete — all checks passing." — when nothing was flagged; the existing "findings below" copy fires only when there are findings to point at.
+- **Humanized scan elapsed.** New `snt_health_format_elapsed()`: sub-second stays milliseconds ("412ms"), one second and up reads as seconds with one decimal ("22.2s" — the live scan was rendering "ran in 22206ms" in the hero meta). Boundary-tested at 999ms/1000ms.
+- **Paired action row.** Run scan and Opportunities sit side by side in a responsive `.sn-health-actions` grid (auto-fit collapses to one column on narrow / Desktop Mode widths) instead of stacking as two 820px-capped cards each stranding a dead right column; the run-scan intro is cut to one line. Opportunities stays gated behind a first health scan, as before.
+
+### Fixed
+- **/now + /about/uses purge-on-save.** The `now_save` / `uses_save` handlers persisted the option but never purged the Cloudflare edge, so logged-out visitors kept the stale page until TTL while the owner (riding the logged-in cache-bypass rule) saw fresh content. Every mutation that changes the live page — save or clear — now dispatches a targeted `sn_cf_purge_urls()` for both slash variants of the route (`/now` + `/now/`; the theme's matcher accepts either, so either may sit in the edge cache); refused (`*_unparseable`) and unchanged inputs do not purge. New shared `sn_content_route_purge()` helper, guarded for isolated test bootstraps and no-op when Cloudflare is unconfigured.
+
+### Cleanup
+- Test deltas: `tests/health-layout.php` re-pins the new order contract (hero → action row → findings → passing strip) + CSS backing; `tests/health-checks-admin.php` covers the elapsed formatter boundaries + hero meta; `tests/admin-flash-messages.php` adds the clean code to the coordination guard; `tests/admin-post-actions.php` asserts the exact purge URL sets at the CF seam (input-aware stub) and the clean/dirty flash split. Sweep: 198 suites, 5,469 asserts, 0 failed.
+
 ## [8.0.0] - 2026-07-01: MAJOR — the v7.7.0 deprecation ladder closes (9 abilities removed) + version swaps land
 
 **Headline:** The abilities-consolidation arc reaches its terminal step: the nine abilities deprecated in v7.7.0 are REMOVED (53 → 44 registered), the single-member `updates` category retires, and `inc/abilities-deprecations.php` is deleted — the same ladder shape the legacy REST routes walked (deprecate v6.54.0 → remove v7.0.0). Bundled per the majors rule (a break alone never justifies a major), scheduled-content Phase 3 ships its YAGNI-gated slice: **whole-page version swaps as a first-class operation** — the two-container pattern gets one-gesture authoring in the editor, a derived "Version swaps" section with an atomic Run-swap op in Content → Scheduled, and per-request purge coalescing so one boundary costs one Cloudflare call. Recurrence stays out (no trigger evidence — the design doc's own Phase 3 guard).

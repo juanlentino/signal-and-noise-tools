@@ -90,7 +90,12 @@ function sn_handle_health_scan( $post ) {
 	// v3.5.1: route through the central dispatcher per the established pattern.
 	// The impl module owns the work; this handler just dispatches + sets flash.
 	if ( function_exists( 'sn_health_run_scan' ) ) {
-		sn_health_run_scan();
+		$scan = sn_health_run_scan();
+		// v8.0.1: findings-aware flash. The runner returns the fresh scan, so
+		// the count is free here — a clean run must not promise "findings below".
+		if ( is_array( $scan ) && function_exists( 'sn_health_finding_total' ) && 0 === sn_health_finding_total( $scan ) ) {
+			return 'health_scanned_clean';
+		}
 	}
 	return 'health_scanned';
 }
@@ -257,10 +262,35 @@ function sn_handle_security_digest_save( $post ) {
 }
 
 /**
+ * v8.0.1: dispatch a targeted CF edge purge for a virtual content route.
+ *
+ * The /now + /uses editors persist the option, but the live HTML is edge-cached
+ * (Cache Everything) — logged-out visitors kept the stale page until TTL while
+ * the owner, riding the logged-in cache bypass, saw fresh content. Purge both
+ * slash variants: the theme's route matcher accepts /now and /now/, so either
+ * form may sit in the edge cache. Fire-and-forget via sn_cf_purge_urls, which
+ * already no-ops when Cloudflare is unconfigured. The function_exists guard
+ * covers isolated test bootstraps that load this module without
+ * inc/cloudflare-purge.php.
+ *
+ * @param string $path Route path, e.g. '/now' or '/about/uses'.
+ * @return bool Whether a purge request was dispatched.
+ */
+function sn_content_route_purge( $path ) {
+	if ( ! function_exists( 'sn_cf_purge_urls' ) ) {
+		return false;
+	}
+	$path = '/' . trim( (string) $path, '/' );
+	return (bool) sn_cf_purge_urls( array( home_url( $path ), home_url( $path . '/' ) ) );
+}
+
+/**
  * v7.5.0: save (or clear) the /now page content (Content → Now Page).
  * Whitespace-only input clears the override — /now reverts to the theme's
  * built-in file content. sanitize_textarea_field per line keeps the document
  * plain text (the theme escapes every item at the render sink anyway).
+ * v8.0.1: every mutation that changes the live page (save or clear) purges
+ * the route from the edge; refused/unchanged inputs do not.
  */
 function sn_handle_now_save( $post ) {
 	if ( ! function_exists( 'sn_now_page_save' ) ) {
@@ -273,7 +303,9 @@ function sn_handle_now_save( $post ) {
 	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
 
 	if ( '' === trim( $raw ) ) {
-		sn_now_page_save( '' );
+		if ( sn_now_page_save( '' ) ) {
+			sn_content_route_purge( '/now' );
+		}
 		return 'now_cleared';
 	}
 	if ( empty( sn_now_parse_sections( $raw ) ) ) {
@@ -282,13 +314,18 @@ function sn_handle_now_save( $post ) {
 		// here would lie about what /now is rendering.
 		return 'now_unparseable';
 	}
-	return sn_now_page_save( $raw ) ? 'now_saved' : 'now_unchanged';
+	if ( sn_now_page_save( $raw ) ) {
+		sn_content_route_purge( '/now' );
+		return 'now_saved';
+	}
+	return 'now_unchanged';
 }
 
 /**
  * v7.6.0: save (or clear) the /uses page content (Content → Uses Page).
  * Mirrors sn_handle_now_save — whitespace-only clears (theme file content
- * returns), zero-group content is refused rather than silently saved.
+ * returns), zero-group content is refused rather than silently saved, and
+ * (v8.0.1) live-page mutations purge /about/uses from the edge.
  */
 function sn_handle_uses_save( $post ) {
 	if ( ! function_exists( 'sn_uses_page_save' ) ) {
@@ -299,13 +336,19 @@ function sn_handle_uses_save( $post ) {
 	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
 
 	if ( '' === trim( $raw ) ) {
-		sn_uses_page_save( '' );
+		if ( sn_uses_page_save( '' ) ) {
+			sn_content_route_purge( '/about/uses' );
+		}
 		return 'uses_cleared';
 	}
 	if ( empty( sn_uses_parse_groups( $raw ) ) ) {
 		return 'uses_unparseable';
 	}
-	return sn_uses_page_save( $raw ) ? 'uses_saved' : 'uses_unchanged';
+	if ( sn_uses_page_save( $raw ) ) {
+		sn_content_route_purge( '/about/uses' );
+		return 'uses_saved';
+	}
+	return 'uses_unchanged';
 }
 
 function sn_handle_pattern_adoption_scan( $post ) {

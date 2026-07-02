@@ -47,6 +47,22 @@ function snt_health_suggest_all_button_html( $count ) {
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
 
 /**
+ * Humanize a scan-elapsed value: sub-second stays milliseconds ("412ms"),
+ * one second and up reads as seconds with one decimal ("22.2s"). The live
+ * content scan runs 20s+ and the raw "ran in 22206ms" was unreadable (v8.0.1).
+ *
+ * @param int $ms Elapsed milliseconds.
+ * @return string
+ */
+function snt_health_format_elapsed( $ms ) {
+	$ms = (int) $ms;
+	if ( $ms >= 1000 ) {
+		return sprintf( '%.1fs', $ms / 1000 );
+	}
+	return $ms . 'ms';
+}
+
+/**
  * Build the first-glance hero cards for the Health tab, sourced ONLY from the
  * cached scan (no new accessor). Mirrors the dashboard's Health glance card
  * (inc/admin-tab-dashboard.php). Three cards when a scan exists — total findings,
@@ -98,7 +114,7 @@ function snt_health_glance_cards( $scan ) {
 		array(
 			'label'     => 'Last scan',
 			'value'     => $age,
-			'meta_html' => esc_html( sprintf( 'ran in %dms', (int) ( $scan['elapsed_ms'] ?? 0 ) ) ),
+			'meta_html' => esc_html( 'ran in ' . snt_health_format_elapsed( $scan['elapsed_ms'] ?? 0 ) ),
 		),
 	);
 }
@@ -120,17 +136,27 @@ function sn_health_render_admin_tab() {
 	sn_admin_glance_grid( snt_health_glance_cards( $last_scan ) );
 	echo '</section>';
 
-	// ── Run-scan control. ──
+	// ── Action row (v8.0.1): Run scan + Opportunities side by side. The two
+	// cards used to stack, each 820px-capped on a wide tab — two dead right
+	// columns. Opportunities stays gated behind a first health scan (its old
+	// position at the end of the tab had the same gate via the early return). ──
+	echo '<div class="sn-health-actions">';
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
-	echo '<p class="sn-fieldset-intro">Sweeps post + attachment tables, follows internal links with HEAD probes (24h cached), and queries last-modified dates. AI-assisted fixes are available inline for missing alt text, time-phrase drift, orphaned media, and unlinked mentions when a provider is configured. Typical run: 1–10 seconds on a small site; results persist until you re-run the scan.</p>';
+	echo '<p class="sn-fieldset-intro">Sweeps posts, media, and links for content issues; AI-assisted fixes appear inline when a provider is configured. Results persist until the next scan.</p>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
+	// v4.3.0 Opportunities card (pattern-adoption Suggest+Apply), paired here
+	// since v8.0.1 (was the last section of the tab).
+	if ( $last_scan && function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
+		snt_pattern_adoption_render_opportunities_section();
+	}
+	echo '</div>'; // .sn-health-actions
 
 	if ( ! $last_scan ) {
 		// The hero already shows the "no scan" card — nothing more to render.
@@ -219,23 +245,27 @@ function sn_health_render_admin_tab() {
 		echo '</div>'; // .sn-health-findings
 	}
 
-	// ── Passing checks: compact ✓ pass board (reuses the glance-grid vocabulary). ──
+	// ── Passing checks: ONE strip (v8.0.1). The v6.44.0 pass board rendered a
+	// full card per clean check (label + "clear" + green pill = the same fact
+	// three times, ×10 in the all-clear state). One heading carries the count,
+	// one ok pill carries the color, and the check names collapse to chips. ──
 	if ( ! empty( $passing ) ) {
-		echo '<h2 class="sn-section-h">Passing checks</h2>';
-		$pass_cards = array();
+		$pass_count  = count( $passing );
+		$check_count = count( $last_scan['checks'] );
+		$heading     = ( $pass_count === $check_count )
+			? sprintf( 'All %d check%s passing', $pass_count, 1 === $pass_count ? '' : 's' )
+			: sprintf( '%d of %d checks passing', $pass_count, $check_count );
+		echo '<div class="sn-fieldset sn-health-passing">';
+		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
+		echo esc_html( $heading );
+		echo '<span class="sn-pill sn-pill--ok">pass</span>';
+		echo '</h2>';
+		echo '<p class="sn-health-passing__names">';
 		foreach ( $passing as $check ) {
-			$pass_cards[] = array(
-				'label' => (string) $check['label'],
-				'value' => 'clear',
-				'pill'  => array( 'kind' => 'ok', 'text' => 'pass' ),
-			);
+			echo '<span class="sn-badge">' . esc_html( (string) $check['label'] ) . '</span>';
 		}
-		sn_admin_glance_grid( $pass_cards );
-	}
-
-	// v4.3.0: Opportunities sub-section (pattern-adoption Suggest+Apply).
-	if ( function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
-		snt_pattern_adoption_render_opportunities_section();
+		echo '</p>';
+		echo '</div>'; // .sn-health-passing
 	}
 } // end function sn_health_render_admin_tab
 

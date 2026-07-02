@@ -536,6 +536,13 @@ $GLOBALS['__narration_run_result'] = array( 'generated_at' => 1, 'headline' => '
 pa_eq( 'narration_generated', sn_handle_narration_run( array( 'force' => '1' ) ), 'success → narration_generated' );
 pa_eq( true, $GLOBALS['__narration_cleared'], 'success clears any stale stored error' );
 
+// ── v8.0.1: capture the CF purge seam. Input-aware stub (records the exact
+// URL sets crossing the boundary, per the marshalling rule) — a boolean stub
+// would pass even if the handler purged the wrong route.
+$GLOBALS['__purged_url_sets'] = array();
+function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged_url_sets'][] = (array) $urls; return true; }
+function home_url( $path = '' ) { return 'https://example.test' . $path; }
+
 // ── v7.5.0: now_save (/now page editor) ──────────────────────────────
 echo "\nTest: sn_handle_now_save\n";
 if ( ! defined( 'SN_NOW_PAGE_TEST' ) ) { define( 'SN_NOW_PAGE_TEST', true ); } // skip add_filter wiring
@@ -543,11 +550,19 @@ require_once __DIR__ . '/../inc/now-page.php';
 
 pa_eq( 'now_saved', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'valid content → now_saved' );
 pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'content persisted + parseable' );
+// v8.0.1 purge-on-save: a successful save must purge the live route from the
+// edge (both slash variants — the theme's matcher accepts /now and /now/, so
+// either form may sit in the CF cache).
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid save → exactly one edge-purge dispatch' );
+pa_eq( array( 'https://example.test/now', 'https://example.test/now/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /now slash variants' );
 pa_eq( 'now_unchanged', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'identical re-save → now_unchanged' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged re-save → NO extra purge (live page did not change)' );
 pa_eq( 'now_unparseable', sn_handle_now_save( array( 'now_content' => 'prose with no headers' ) ), 'zero-section content refused, not silently saved' );
 pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'refused save leaves the prior content intact' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO purge (live page did not change)' );
 pa_eq( 'now_cleared', sn_handle_now_save( array( 'now_content' => "  \n " ) ), 'whitespace-only → cleared' );
 pa_eq( 0, count( sn_now_page_sections() ), 'cleared → no stored sections (theme file content live again)' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'clearing the override → purge (live page reverts to theme content)' );
 // tag-stripping rides the per-line sanitize pass.
 sn_handle_now_save( array( 'now_content' => "## Hostile\n- <script>alert(1)</script>item" ) );
 pa_eq( false, strpos( (string) ( sn_now_page_get()['raw'] ?? '' ), '<script>' ), 'tags stripped from stored raw' );
@@ -558,12 +573,30 @@ echo "\nTest: sn_handle_uses_save\n";
 if ( ! defined( 'SN_USES_PAGE_TEST' ) ) { define( 'SN_USES_PAGE_TEST', true ); } // skip add_filter wiring
 require_once __DIR__ . '/../inc/uses-page.php';
 
+$GLOBALS['__purged_url_sets'] = array(); // reset the capture for the uses route
 pa_eq( 'uses_saved', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'valid content → uses_saved' );
 pa_eq( 'SSL UF8', sn_uses_parse_groups( (string) ( sn_uses_page_get()['raw'] ?? '' ) )[0]['items'][0]['name'] ?? '', 'content persisted + name|note parsed' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid uses save → exactly one edge-purge dispatch' );
+pa_eq( array( 'https://example.test/about/uses', 'https://example.test/about/uses/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /about/uses slash variants' );
 pa_eq( 'uses_unchanged', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'identical re-save → uses_unchanged' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged uses re-save → NO extra purge' );
 pa_eq( 'uses_unparseable', sn_handle_uses_save( array( 'uses_content' => 'prose with no headers' ) ), 'zero-group content refused' );
 pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses_content' => " \n " ) ), 'whitespace-only → cleared' );
 pa_eq( null, sn_uses_page_get(), 'cleared → theme file content live again' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'clearing the uses override → purge' );
+
+// ── v8.0.1: health_scan flash splits on the finding count ─────────────
+echo "\nTest: sn_handle_health_scan findings-aware flash\n";
+require_once __DIR__ . '/../inc/health-summary.php'; // real sn_health_finding_total — the accessor the handler counts with
+$GLOBALS['__health_scan_result'] = array(
+	'scanned_at' => 1,
+	'elapsed_ms' => 5,
+	'checks'     => array( 'a' => array( 'count' => 0 ), 'b' => array( 'count' => 0 ) ),
+);
+function sn_health_run_scan() { return $GLOBALS['__health_scan_result']; }
+pa_eq( 'health_scanned_clean', sn_handle_health_scan( array() ), '0 findings → health_scanned_clean (not "findings below")' );
+$GLOBALS['__health_scan_result']['checks']['b']['count'] = 3;
+pa_eq( 'health_scanned', sn_handle_health_scan( array() ), 'findings present → health_scanned' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
