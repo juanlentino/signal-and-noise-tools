@@ -28,7 +28,9 @@
 	var pages = data.pages || {};
 	// v6.55.0: the /cmd/<action> maintenance route is retired in favour of the
 	// per-command ability run-paths. Map each legacy action to its ability slug.
-	var ABILITY_BASE = '/wp-abilities/v1/abilities/signal-noise/';
+	// v7.7.2: transport via window.sntAbilityRun (annotation-derived verbs;
+	// the old always-POST callRest 405'd every readonly/destructive+idempotent
+	// ability once the run controller enforced verbs).
 	var CMD_ABILITY = {
 		// v7.7.0: force-check + full-reset migrated to their consolidated
 		// replacements (force-check-updates / full-reset are deprecated,
@@ -72,16 +74,11 @@
 	 * wp-api-fetch dependency).
 	 */
 	function callRest( action ) {
-		if ( ! window.wp.apiFetch ) {
-			toast( 'wp.apiFetch unavailable — SN command cannot dispatch.', 'error' );
-			return Promise.reject( new Error( 'no apiFetch' ) );
+		if ( ! window.sntAbilityRun ) {
+			toast( 'sntAbilityRun unavailable — SN command cannot dispatch.', 'error' );
+			return Promise.reject( new Error( 'no sntAbilityRun' ) );
 		}
-		var slug = CMD_ABILITY[ action ] || action;
-		return window.wp.apiFetch( {
-			path:   ABILITY_BASE + slug + '/run',
-			method: 'POST',
-			data:   { input: CMD_INPUT[ action ] || {} },
-		} );
+		return window.sntAbilityRun( CMD_ABILITY[ action ] || action, CMD_INPUT[ action ] );
 	}
 
 	/**
@@ -262,17 +259,13 @@
 		slug: 'sn-cmd-audit-summary',
 		aiCallable: true,
 		run: function() {
-			if ( ! window.wp.apiFetch ) {
-				toast( 'wp.apiFetch unavailable.', 'error' );
+			if ( ! window.sntAbilityRun ) {
+				toast( 'sntAbilityRun unavailable.', 'error' );
 				return;
 			}
 			// v7.7.0: get-audit-summary is deprecated — same payload now rides
-			// under get-audit-log's `summary` key.
-			window.wp.apiFetch( {
-				path:   ABILITY_BASE + 'get-audit-log/run',
-				method: 'POST',
-				data:   { input: { view: 'summary' } },
-			} )
+			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
+			window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
 				.then( function( res ) {
 					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, lla: {} };
 					var msg = 'Last 24h: ' + ( s.last_24h.all_total || 0 ) + ' events (' +
@@ -294,17 +287,13 @@
 		slug: 'sn-cmd-audit-recent-logins',
 		aiCallable: true,
 		run: function() {
-			if ( ! window.wp.apiFetch ) {
-				toast( 'wp.apiFetch unavailable.', 'error' );
+			if ( ! window.sntAbilityRun ) {
+				toast( 'sntAbilityRun unavailable.', 'error' );
 				return;
 			}
 			// v7.7.0: get-audit-login-successes is deprecated — the rows now ride
-			// under get-audit-log's `logins` key.
-			window.wp.apiFetch( {
-				path:   ABILITY_BASE + 'get-audit-log/run',
-				method: 'POST',
-				data:   { input: { view: 'logins', days: 30 } },
-			} )
+			// under get-audit-log's `logins` key. v7.7.2: GET via the runner.
+			window.sntAbilityRun( 'get-audit-log', { view: 'logins', days: 30 } )
 				.then( function( res ) {
 					var rows = ( res && res.logins ) || [];
 					if ( ! rows || ! rows.length ) {

@@ -29,7 +29,6 @@
 	var data = window.snDesktopData || {};
 	var dashboardUrl = ( data.pages && data.pages.dashboard ) || '';
 	// v6.55.0: read deploy status via the get-deploy-status ability run-path.
-	var STATUS_RUN_PATH = '/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run';
 	var REFRESH_MS = 60 * 1000;
 
 	/**
@@ -133,15 +132,12 @@
 		renderLoading( container );
 
 		function refresh() {
-			if ( ! window.wp.apiFetch ) {
-				renderError( container, 'wp.apiFetch unavailable' );
+			if ( ! window.sntAbilityRun ) {
+				renderError( container, 'sntAbilityRun unavailable' );
 				return;
 			}
-			window.wp.apiFetch( {
-				path:   STATUS_RUN_PATH,
-				method: 'POST',
-				data:   { input: {} },
-			} )
+			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
+			window.sntAbilityRun( 'get-deploy-status' )
 				.then( function( res ) {
 					// The ability returns { theme, plugin, last_deploy } at the root
 					// (no legacy { ok, data } envelope).

@@ -113,14 +113,10 @@
 			btn.disabled = true;
 			setStatus( status, __( 'Generating…', 'signal-noise-tools' ), 'info' );
 
-			// v2.5.0+: route through the abilities REST API instead of the
-			// legacy /signal-noise/v1/ai/generate-excerpt endpoint.
-			// v2.5.2: URL fix — abilities route includes /abilities/ segment.
-			window.wp.apiFetch( {
-				path: '/wp-abilities/v1/abilities/signal-noise/ai-generate-excerpt/run',
-				method: 'POST',
-				data: { input: { post_id: postId } },
-			} )
+			// v7.7.2: via the shared runner — ai-generate-excerpt is annotated
+			// readonly (it returns text; the editor writes the field), so the
+			// controller requires GET; the old hardcoded POST 405'd.
+			window.sntAbilityRun( 'ai-generate-excerpt', { post_id: postId } )
 				.then( function( res ) {
 					if ( ! res || ! res.excerpt ) {
 						throw new Error( __( 'AI returned no excerpt.', 'signal-noise-tools' ) );

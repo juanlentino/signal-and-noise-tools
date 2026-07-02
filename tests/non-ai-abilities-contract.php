@@ -56,6 +56,16 @@ echo "\nGroup F2: block-migrations-suggest (does not write) declares readonly:tr
 $s = ann( 'signal-noise/block-migrations-suggest' );
 ok( true === ( $s['readonly'] ?? null ) && true === ( $s['idempotent'] ?? null ), 'block-migrations-suggest: readonly true + idempotent true' );
 
+echo "\nGroup F2b: pattern-adoption-suggest (deterministic, does not write) declares readonly:true\n";
+// v7.7.2: parity with its block-migrations sibling (F2). The two suggests are
+// mirrored deterministic preview generators; PA-suggest missing readonly:true
+// forced its callers to POST while BM-suggest demanded GET — the same
+// annotation drift class the shared engine killed for the apply pipelines.
+require_once __DIR__ . '/../inc/abilities-ai-pattern-adoption.php';
+foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
+$ps = ann( 'signal-noise/pattern-adoption-suggest' );
+ok( true === ( $ps['readonly'] ?? null ) && true === ( $ps['idempotent'] ?? null ), 'pattern-adoption-suggest: readonly true + idempotent true (verb parity with block-migrations-suggest)' );
+
 echo "\nGroup F3: pattern-adoption-dismiss gates per-resource edit_post (parity)\n";
 ok( 'snt_ability_perm_edit_post' === perm( 'signal-noise/pattern-adoption-dismiss' ), 'pattern-adoption-dismiss: permission_callback => snt_ability_perm_edit_post' );
 ok( 'snt_ability_perm_edit_post' === perm( 'signal-noise/block-migrations-dismiss' ), 'block-migrations-dismiss: permission_callback => snt_ability_perm_edit_post (unchanged sibling)' );

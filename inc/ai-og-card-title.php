@@ -198,7 +198,7 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'snt-ai-og-card-title',
 		plugins_url( 'assets/ai-og-card-title.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-		array( 'wp-api-fetch', 'wp-i18n', 'snt-status' ),
+		array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);

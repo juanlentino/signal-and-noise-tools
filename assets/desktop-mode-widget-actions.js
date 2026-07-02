@@ -24,7 +24,6 @@
 
 	var data    = window.snDesktopData || {};
 	// v6.55.0: dispatch each maintenance action via its ability run-path.
-	var ABILITY_BASE = '/wp-abilities/v1/abilities/signal-noise/';
 	var CMD_ABILITY = {
 		'purge-caches':    'purge-all-caches',
 		'clear-overrides': 'clear-template-overrides',
@@ -68,8 +67,8 @@
 	}
 
 	function runAction( widget, button, action, busyLabel, defaultMessage ) {
-		if ( ! window.wp.apiFetch ) {
-			toast( widget, 'wp.apiFetch unavailable', false );
+		if ( ! window.sntAbilityRun ) {
+			toast( widget, 'sntAbilityRun unavailable', false );
 			return;
 		}
 		if ( button.dataset.snBusy === '1' ) { return; }
@@ -79,11 +78,10 @@
 		button.textContent    = busyLabel;
 		button.style.opacity  = '0.55';
 
-		window.wp.apiFetch( {
-			path:   ABILITY_BASE + ( CMD_ABILITY[ action ] || action ) + '/run',
-			method: 'POST',
-			data:   { input: CMD_INPUT[ action ] || {} },
-		} )
+		// v7.7.2: annotation-derived verb via the shared runner (these
+		// destructive+idempotent maintenance abilities require DELETE; the old
+		// hardcoded POST 405'd).
+		window.sntAbilityRun( CMD_ABILITY[ action ] || action, CMD_INPUT[ action ] )
 			.then( function( res ) {
 				var ok      = !! ( res && res.ok );
 				var message = ( res && res.message ) ? res.message : defaultMessage;

@@ -145,11 +145,7 @@
 					// The ability now additively returns ok/last_fired_formatted/
 					// elapsed_ms/error, so the inline cell update + toast are
 					// preserved. (res.ok replaces the legacy res.success.)
-					window.wp.apiFetch( {
-						path: '/wp-abilities/v1/abilities/signal-noise/run-cron-event/run',
-						method: 'POST',
-						data: { input: { hook: hook } }
-					} ).then( function( res ) {
+					window.sntAbilityRun( 'run-cron-event', { hook: hook } ).then( function( res ) {
 						if ( res && res.ok ) {
 							// v3.0.1: use server-formatted timestamp (site
 							// timezone, matches the rest of the table) instead
@@ -212,11 +208,9 @@
 				// GET query params → POST { input: { hook, limit } }. The ability's
 				// output_schema is a top-level array (get-cron-history returns the
 				// rows bare, no { history } wrapper), so pass res straight through.
-				window.wp.apiFetch( {
-					path: '/wp-abilities/v1/abilities/signal-noise/get-cron-history/run',
-					method: 'POST',
-					data: { input: { hook: hook, limit: 10 } }
-				} ).then( function( res ) {
+				// v7.7.2: readonly ability → GET via the runner (the old POST
+				// 405'd; input rides as ?input[hook]=…&input[limit]=10).
+				window.sntAbilityRun( 'get-cron-history', { hook: hook, limit: 10 } ).then( function( res ) {
 					renderHistoryPanel( panel, Array.isArray( res ) ? res : [] );
 				} ).catch( function( fetchErr ) {
 					while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
@@ -346,11 +340,12 @@
 					// v6.55.0: unschedule via the unschedule-cron-event ability
 					// run-path. Output shape { success, hook, args, cleared } is
 					// unchanged from the legacy route (same shared impl).
-					window.wp.apiFetch( {
-						path: '/wp-abilities/v1/abilities/signal-noise/unschedule-cron-event/run',
-						method: 'POST',
-						data: { input: { hook: hook, args: args } }
-				} ).then( function( res ) {
+					// v7.7.2: destructive+idempotent → DELETE via the runner (the
+					// old POST 405'd). Bracket transport carries args values as
+					// strings; non-string cron args therefore no-match (cleared:0)
+					// rather than mis-target — acceptable for the orphan-cleanup
+					// use case this button serves.
+					window.sntAbilityRun( 'unschedule-cron-event', { hook: hook, args: args } ).then( function( res ) {
 					if ( res && res.success ) {
 						if ( res.cleared > 0 ) {
 							toast( fmtUnscheduled( hook, res.cleared ), 'success' );
