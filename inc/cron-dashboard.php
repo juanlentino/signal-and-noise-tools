@@ -462,16 +462,21 @@ function snt_cron_interval_seconds( $hook ) {
  *                     without a declared system-cron replacement
  *
  * "Silently disabled" = DISABLE_WP_CRON is true AND no system cron has been
- * declared via the sn_cron_system_cron_configured filter (defaults false).
+ * declared via the sn_cron_system_cron_configured filter (defaults false)
+ * AND no monitored hook has fired within 2× its recurrence. The last clause
+ * (v8.1.4) makes the warning evidence-based: recent firings prove a system
+ * cron IS running (e.g. the Cloudways wp-cron.php job), so an undeclared
+ * filter alone must not raise a false alarm.
  *
  * @since 4.9.0
  * @return array
  */
 function snt_cron_site_health_result() {
-	$hooks   = snt_cron_site_health_hooks();
-	$now     = time();
-	$issues  = array();
-	$lines   = array();
+	$hooks          = snt_cron_site_health_hooks();
+	$now            = time();
+	$issues         = array();
+	$lines          = array();
+	$fired_recently = false;
 
 	foreach ( $hooks as $hook ) {
 		$next       = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( $hook ) : false;
@@ -493,10 +498,16 @@ function snt_cron_site_health_result() {
 			$issues[] = $hook;
 		}
 
+		if ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) <= ( 2 * $interval ) ) {
+			// A recent firing is hard evidence the cron trigger works.
+			$fired_recently = true;
+		}
+
 		$lines[] = esc_html( $hook ) . ' — ' . esc_html( $next_label ) . '; ' . esc_html( $last_label );
 	}
 
 	$cron_silently_disabled = ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON )
+		&& ! $fired_recently
 		&& ! apply_filters( 'sn_cron_system_cron_configured', false );
 
 	$status = ( empty( $issues ) && ! $cron_silently_disabled ) ? 'good' : 'recommended';

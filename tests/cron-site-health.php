@@ -163,13 +163,25 @@ $GLOBALS['__test_next_scheduled'][ SN_RSS_TRACKER_CRON_HOOK ] = false;
 $res = snt_cron_site_health_result();
 ch_eq( 'recommended', $res['status'], 'unscheduled hook downgrades to recommended' );
 
-// ─── Test 4: DISABLE_WP_CRON true + filter false → recommended ───────
-echo "\nTest 4: DISABLE_WP_CRON without system cron → recommended\n";
+// ─── Test 4a: DISABLE_WP_CRON undeclared BUT hooks fire → good ───────
+// Evidence-based (v8.1.4): recent firings prove a system cron is running
+// even when nothing was declared via the filter — no false alarm.
+echo "\nTest 4a: DISABLE_WP_CRON undeclared but hooks fired recently → good\n";
 ch_all_healthy();
 define( 'DISABLE_WP_CRON', true );
 $GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => false );
 $res = snt_cron_site_health_result();
-ch_eq( 'recommended', $res['status'], 'silently-disabled cron downgrades to recommended' );
+ch_eq( 'good', $res['status'], 'recent firings are evidence a system cron runs' );
+ch_true( false === strpos( (string) $res['description'], 'no system cron has been declared' ), 'no silently-disabled warning when firing evidence exists' );
+
+// ─── Test 4b: DISABLE_WP_CRON undeclared and NOTHING fired → recommended ─
+echo "\nTest 4b: DISABLE_WP_CRON undeclared and no hook ever fired → recommended\n";
+ch_all_healthy();
+$GLOBALS['__test_options'] = array(); // wipe last-fired evidence; hooks stay scheduled.
+$GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => false );
+$res = snt_cron_site_health_result();
+ch_eq( 'recommended', $res['status'], 'no evidence + no declaration downgrades to recommended' );
+ch_true( false !== strpos( (string) $res['description'], 'no system cron has been declared' ), 'silently-disabled warning text present' );
 
 // ─── Test 5: DISABLE_WP_CRON true BUT system cron configured → good ──
 echo "\nTest 5: DISABLE_WP_CRON WITH declared system cron → good\n";
