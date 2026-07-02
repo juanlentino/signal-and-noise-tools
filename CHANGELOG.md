@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.2] - 2026-07-02: Noise reduction — non-actionable verdicts leave the queue
+
+**Headline:** Owner rule from live UAT: a verdict with nothing to apply is noise, not a suggestion. Skip, unsure, and "link but no clean anchor" outcomes no longer render panels — the row collapses like an applied one, and the next scan drops the pair entirely. The AI also loses the option of recommending a link without an anchor: if it cannot copy a verbatim phrase from your prose, it must answer skip.
+
+> **Why PATCH:** UX calibration of the just-shipped suggest surfaces; no new capability, no schema change.
+
+### Improvements
+- **JS: non-actionable verdicts collapse the row.** On the two link checks (`link_opportunities`, `unlinked_mentions`), skip / unsure / anchor-less link verdicts render a quiet "No link to apply — clears on next scan" line and fade the row, matching the applied-row treatment. The advice-only and skip panels are gone; only actionable "Link it" panels remain.
+- **Scan: judged pairs stay suppressed.** Both checks now consult the Suggest verdict cache at scan time: cached skip/unsure suppresses the pair; a cached link verdict survives only while its nomination still yields a usable splice contract (shared `snt_ai_pair_nomination_contract()`, mirroring Apply's guards). Cache keys carry the content-modified stamps, so editing either note re-nominates the pair naturally. Caveat: judgments live in transients, which an object-cache flush (e.g. a plugin update under Breeze/Redis) clears — suppressed rows can resurface until one Suggest All pass re-judges them, for cents.
+- **Mentions: structurally un-applyable pairs never nominate.** A mention split by inline markup or sitting inside an existing link to a third note can only ever produce an advice-only panel, so the scan now drops it up front, zero-AI.
+- **Prompt: anchor-less link verdicts folded into skip at the source.** The pair-suggest system prompt now forbids "link" without a verbatim anchor; the impl-side advice-only degrade remains only as the safety net for fabricated or since-edited nominations.
+
 ## [8.1.1] - 2026-07-02: Suggest hardening — the three failure shapes from the first live Link-opportunities run
 
 **Headline:** The owner's first Suggest-All pass over the new Link opportunities card surfaced three failure shapes; all three are fixed at their root. Suggest no longer offers "Link it" on a phrase that already sits inside a link (the AI judges stripped prose, so existing links are invisible to it; the impl now runs Apply's own guard up front and renders the advice-only panel instead). Model responses wrapped in prose or truncated no longer die as "unparseable verdict". And the undiagnosable "Unknown error." can no longer occur: transport errors are guaranteed a code-labeled message end to end.

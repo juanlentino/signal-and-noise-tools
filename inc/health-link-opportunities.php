@@ -102,6 +102,47 @@ function sn_health_pair_top_terms( $tf, $df, $total_docs ) {
 }
 
 /**
+ * Whether a candidate pair has already been JUDGED non-actionable.
+ *
+ * v8.1.2 (owner rule 2026-07-02: "the ones that don't suggest anything are
+ * noise"): the Suggest verdict cache doubles as the scan's memory. A cached
+ * skip/unsure means the AI already said no; a cached link whose nomination
+ * no longer yields a usable splice contract is advice-only — both suppress
+ * the pair. No cache (never judged, or either post edited since — the key
+ * carries BOTH modified stamps) keeps the pair nominated. Transients are
+ * flush-volatile under the object cache, so a plugin-update flush can
+ * resurrect suppressed pairs until one Suggest All pass re-judges them.
+ *
+ * @param array $src Source row (ID, post_content, post_modified_gmt).
+ * @param array $tgt Target row (ID, post_modified_gmt).
+ * @return bool True when the pair should be suppressed.
+ *
+ * @since 8.1.2
+ */
+function sn_health_pair_judged_noise( $src, $tgt ) {
+	if ( ! function_exists( 'get_transient' ) ) {
+		return false;
+	}
+	$key = 'sn_pair_verdict_' . md5(
+		(int) $src['ID'] . '|' . (int) $tgt['ID'] . '|'
+		. (string) ( $src['post_modified_gmt'] ?? '' ) . '|' . (string) ( $tgt['post_modified_gmt'] ?? '' )
+	);
+	$cached = get_transient( $key );
+	if ( ! is_array( $cached ) || ! isset( $cached['verdict'] ) ) {
+		return false;
+	}
+	if ( 'link' !== (string) $cached['verdict'] ) {
+		return true; // Judged skip/unsure: nothing to apply.
+	}
+	if ( ! function_exists( 'snt_ai_pair_nomination_contract' ) ) {
+		return false;
+	}
+	$raw      = (string) $src['post_content'];
+	$stripped = wp_strip_all_tags( strip_shortcodes( $raw ) );
+	return null === snt_ai_pair_nomination_contract( $raw, $stripped, (string) ( $cached['anchor'] ?? '' ) );
+}
+
+/**
  * Zero-AI link-opportunities check (v8.1.0): published note pairs that
  * should link but don't. One finding per unordered pair; the NEWER note is
  * the subject/source (the newer note references the older; the theme's
@@ -118,7 +159,7 @@ function sn_health_check_link_opportunities() {
 
 	global $wpdb;
 	$rows = $wpdb->get_results(
-		"SELECT ID, post_title, post_name, post_content
+		"SELECT ID, post_title, post_name, post_content, post_modified_gmt
 		 FROM {$wpdb->posts}
 		 WHERE post_status = 'publish'
 		   AND post_type = 'post'
@@ -197,6 +238,11 @@ function sn_health_check_link_opportunities() {
 		$src = $rows[ $pair['i'] ];
 		$tgt = $rows[ $pair['j'] ];
 		$sid = (int) $src['ID'];
+		// v8.1.2 owner rule: a pair already judged non-actionable is NOISE —
+		// suppress it before it consumes a cap slot or renders a row.
+		if ( sn_health_pair_judged_noise( $src, $tgt ) ) {
+			continue;
+		}
 		if ( ( $per_source[ $sid ] ?? 0 ) >= SN_HEALTH_PAIRS_MAX_PER_SOURCE ) {
 			continue;
 		}

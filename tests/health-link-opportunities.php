@@ -34,6 +34,10 @@ if ( ! function_exists( 'wp_get_post_terms' ) ) {
 	function wp_get_post_terms( $id, $tax = 'post_tag', $args = array() ) { return $GLOBALS['__tags'][ (int) $id ] ?? array(); }
 }
 
+// Transient stub (v8.1.2): the scan consults cached pair judgments.
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; } }
+
 // wpdb fake: returns the configured rows for the pairs scan.
 class SnPairsWpdb {
 	public $posts = 'wp_posts';
@@ -44,13 +48,16 @@ $GLOBALS['wpdb'] = new SnPairsWpdb();
 
 require_once __DIR__ . '/../inc/health-checks.php';            // pack_check + contains_note_link + mention_target_eligible
 require_once __DIR__ . '/../inc/health-summary.php';           // advisory tier list
+require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';  // locate + fingerprint (nomination validation)
+require_once __DIR__ . '/../inc/ai-link-suggest.php';          // inside-anchor guard + anchor max const
+require_once __DIR__ . '/../inc/ai-pair-suggest.php';          // snt_ai_pair_nomination_contract (v8.1.2 scan suppression)
 require_once __DIR__ . '/../inc/health-link-opportunities.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
 
-function mk_row( $id, $title, $name, $content ) {
-	return array( 'ID' => $id, 'post_title' => $title, 'post_name' => $name, 'post_content' => $content );
+function mk_row( $id, $title, $name, $content, $modified = '' ) {
+	return array( 'ID' => $id, 'post_title' => $title, 'post_name' => $name, 'post_content' => $content, 'post_modified_gmt' => $modified );
 }
 
 // Distinctive-prose builders. Four terms (compression, sidechain, saturation,
@@ -149,6 +156,32 @@ ok( 0 === (int) $check['count'] && 'Link opportunities' === $check['label'], 'em
 $GLOBALS['wpdb']->rows = array( mk_row( 1, 'Mixing Vocals Loud', 'mixing-vocals-loud', $audio_prose_a ) );
 $check = sn_health_check_link_opportunities();
 ok( 0 === (int) $check['count'], 'single post: zero findings' );
+
+echo "\nTest: v8.1.2 — cached non-actionable judgments suppress pairs at scan (owner noise rule)\n";
+function pair_key( $sid, $tid, $smod, $tmod ) { return 'sn_pair_verdict_' . md5( $sid . '|' . $tid . '|' . $smod . '|' . $tmod ); }
+$GLOBALS['wpdb']->rows = array(
+	mk_row( 1, 'Mixing Vocals Loud', 'mixing-vocals-loud', $audio_prose_a, '2026-07-01 10:00:00' ),
+	mk_row( 2, 'Console Craft', 'console-craft', $audio_prose_b, '2026-07-01 11:00:00' ),
+	mk_row( 3, 'Coffee Brewing Notes', 'coffee-brewing', $coffee_prose, '2026-07-01 12:00:00' ),
+	mk_row( 4, 'Sundry Observations', 'sundry', $generic_prose, '2026-07-01 13:00:00' ),
+);
+$GLOBALS['__tags'] = array();
+$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'cached skip verdict suppresses the pair' );
+$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'unsure', 'reason' => 'r', 'anchor' => '' ) );
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'cached unsure verdict suppresses the pair' );
+$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'compression' ) );
+$check = sn_health_check_link_opportunities();
+ok( 1 === (int) $check['count'], 'cached link verdict with a valid nomination KEEPS the pair' );
+$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'phrase appearing nowhere' ) );
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'cached link verdict whose nomination no longer validates suppresses (advice-only = noise)' );
+$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 09:59:59', '2026-07-01 11:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
+$check = sn_health_check_link_opportunities();
+ok( 1 === (int) $check['count'], 'stale-stamp judgment does NOT suppress (content changed => re-nominate)' );
+$GLOBALS['__transients'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

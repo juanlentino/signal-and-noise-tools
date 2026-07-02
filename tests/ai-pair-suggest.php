@@ -203,5 +203,16 @@ ok( is_array( $res ) && 'link' === ( $res['verdict'] ?? '' ) && true === ( $res[
 echo "\nTest: v8.1.1 — output budget raised for the three-field response\n";
 ok( defined( 'SNT_AI_PAIR_SUGGEST_MAX_TOKENS' ) && SNT_AI_PAIR_SUGGEST_MAX_TOKENS >= 300, 'pair budget >= 300 tokens (truncation headroom for verdict+reason+anchor)' );
 
+echo "\nTest: v8.1.2 — prompt forbids anchor-less link verdicts (no-anchor folds into skip)\n";
+ok( false !== strpos( SNT_AI_PAIR_SUGGEST_SYSTEM, 'return "skip" instead' ), 'system prompt folds no-anchor into skip (owner noise rule)' );
+
+echo "\nTest: v8.1.2 — snt_ai_pair_nomination_contract (shared validation, scan reuses it)\n";
+$craw = "<!-- wp:paragraph -->\n<p>Alpha beta.</p>\n<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n<p>Try the mixing console today.</p>\n<!-- /wp:paragraph -->";
+$cstr = wp_strip_all_tags( strip_shortcodes( $craw ) );
+$c = snt_ai_pair_nomination_contract( $craw, $cstr, 'the mixing console' );
+ok( is_array( $c ) && 32 === strlen( (string) ( $c['fingerprint'] ?? '' ) ) && ( $c['position'] ?? -1 ) === strpos( $craw, 'the mixing console' ), 'valid nomination yields the full splice contract' );
+ok( null === snt_ai_pair_nomination_contract( '<p>See <a href="/x">the phrase</a> now.</p>', 'See the phrase now.', 'the phrase' ), 'inside-anchor nomination yields null' );
+ok( null === snt_ai_pair_nomination_contract( '<p>abc def.</p>', 'abc def.', '' ), 'empty nomination yields null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
