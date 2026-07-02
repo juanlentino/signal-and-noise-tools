@@ -11,7 +11,9 @@
 	"attributes": {
 		"from": { "type": "string", "default": "" },
 		"until": { "type": "string", "default": "" },
-		"scheduleId": { "type": "string", "default": "" }
+		"scheduleId": { "type": "string", "default": "" },
+		"swapId": { "type": "string", "default": "" },
+		"swapRole": { "type": "string", "default": "" }
 	},
 	"supports": { "html": false },
 	"editorScript": "signal-noise-scheduled-editor",

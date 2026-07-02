@@ -181,6 +181,11 @@ if ( ! function_exists( 'sn_admin_top_tabs' ) ) {
 require __DIR__ . '/../inc/admin-glance.php'; // v6.45.0: the scheduled tab leads with a glance hero
 require __DIR__ . '/../inc/schedule-admin.php';
 require __DIR__ . '/../inc/admin-post-handler.php';
+// v8.0.0: version-swap pairing + atomic run (Group 5).
+$swap_module = __DIR__ . '/../inc/schedule-swap.php';
+if ( file_exists( $swap_module ) ) {
+	require $swap_module;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // GROUP 1: render folds BOTH sources, with the right Type labels.
@@ -306,6 +311,80 @@ $GLOBALS['__purge_called'] = 0;
 $flash = sn_handle_schedule_repurge( array() );
 ok( 0 === $GLOBALS['__purge_called'], 're-purge with no row_id does NOT call the purge seam' );
 ok( 'schedule_invalid' === $flash, 're-purge with no row_id returns schedule_invalid' );
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 5 (v8.0.0): version swaps — derived pair section + atomic run op.
+// ════════════════════════════════════════════════════════════════════════════
+$swap_rows = array(
+	array(
+		'id' => 21, 'schedule_id' => 'blk-old', 'target_type' => 'fragment',
+		'target_ref' => '42', 'action' => 'reveal',
+		'starts_at' => null, 'ends_at' => '2030-02-01 09:00:00',
+		'status' => 'active', 'last_run' => null,
+		'purge_urls' => '["https://example.test/launch/"]',
+	),
+	array(
+		'id' => 22, 'schedule_id' => 'blk-new', 'target_type' => 'fragment',
+		'target_ref' => '42', 'action' => 'reveal',
+		'starts_at' => '2030-02-01 09:00:00', 'ends_at' => null,
+		'status' => 'queued', 'last_run' => null,
+		'purge_urls' => '["https://example.test/launch/"]',
+	),
+);
+$GLOBALS['__schedule_all'] = $swap_rows;
+$GLOBALS['__future_posts'] = array();
+ob_start();
+sn_admin_render_scheduled_content_section();
+$swap_html = ob_get_clean();
+ok( false !== strpos( $swap_html, 'Version swaps' ), 'paired rows render a Version swaps section' );
+ok( false !== strpos( $swap_html, 'schedule_swap_run_now' ), 'swap section exposes the Run-swap op (sn_action=schedule_swap_run_now)' );
+ok( false !== strpos( $swap_html, 'name="hide_id" value="21"' ), 'swap op carries the hide row id' );
+ok( false !== strpos( $swap_html, 'name="show_id" value="22"' ), 'swap op carries the show row id' );
+ok( false !== strpos( $swap_html, '2030-02-01 09:00' ), 'swap section shows the (site-tz) swap instant' );
+
+// Unpaired rows render NO swap section.
+$GLOBALS['__schedule_all'] = array( $swap_rows[0] );
+ob_start();
+sn_admin_render_scheduled_content_section();
+$nopair_html = ob_get_clean();
+ok( false === strpos( $nopair_html, 'Version swaps' ), 'an unpaired row renders no Version swaps section' );
+
+// Handler is registered and defined.
+$handlers = sn_admin_post_handlers();
+ok( isset( $handlers['schedule_swap_run_now'] ) && function_exists( (string) $handlers['schedule_swap_run_now'] ),
+	'schedule_swap_run_now maps to a defined function (' . ( $handlers['schedule_swap_run_now'] ?? '?' ) . ')' );
+
+// Behaviour: a valid pair fires BOTH rows (hide first), returns the fired code.
+$GLOBALS['__rows'] = array( 21 => $swap_rows[0], 22 => $swap_rows[1] );
+$GLOBALS['__fired_ids'] = array();
+$flash = function_exists( 'sn_handle_schedule_swap_run_now' )
+	? sn_handle_schedule_swap_run_now( array( 'hide_id' => '21', 'show_id' => '22' ) )
+	: null;
+ok( $GLOBALS['__fired_ids'] === array( 21, 22 ), 'swap run fires hide (21) then show (22)' );
+ok( 'schedule_swap_fired' === $flash, 'swap run returns schedule_swap_fired' );
+
+// Behaviour: ids that are not a pair fire NOTHING and return the invalid code.
+$GLOBALS['__fired_ids'] = array();
+$flash = function_exists( 'sn_handle_schedule_swap_run_now' )
+	? sn_handle_schedule_swap_run_now( array( 'hide_id' => '22', 'show_id' => '21' ) )
+	: null;
+ok( $GLOBALS['__fired_ids'] === array(), 'reversed (non-pair) ids fire nothing' );
+ok( 'schedule_invalid' === $flash, 'reversed ids return schedule_invalid' );
+
+$GLOBALS['__fired_ids'] = array();
+$flash = function_exists( 'sn_handle_schedule_swap_run_now' )
+	? sn_handle_schedule_swap_run_now( array() )
+	: null;
+ok( $GLOBALS['__fired_ids'] === array(), 'missing ids fire nothing' );
+ok( 'schedule_invalid' === $flash, 'missing ids return schedule_invalid' );
+
+// The flash registry resolves the new code (severity success).
+if ( ! function_exists( 'sn_admin_flash_messages' ) ) {
+	require __DIR__ . '/../inc/admin-flash-messages.php';
+}
+$codes = sn_admin_flash_messages();
+ok( isset( $codes['schedule_swap_fired'] ) && 'success' === ( $codes['schedule_swap_fired'][0] ?? '' ),
+	'flash registry resolves schedule_swap_fired as a success notice' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

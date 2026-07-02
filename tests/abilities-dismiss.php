@@ -165,30 +165,13 @@ if ( function_exists( 'snt_ability_dismiss_candidate' ) ) {
 	t( false, 'C.3 unknown surface → WP_Error' );
 }
 
-// ════ shared-impl extraction + notice placement ══════════════════════
-echo "\nGroup D: shared impl + notice placement\n";
+// ════ shared-impl extraction + canonical silence ═════════════════════
+// (The v7.x Group D also executed the deprecated per-surface wrapper;
+// that surface was removed in v8.0.0 — tests/abilities-removals-v8.php
+// guards its absence.)
+echo "\nGroup D: shared impl + canonical silence\n";
 t( function_exists( 'snt_block_migrations_dismiss_impl' ), 'D.1 block-migrations dismiss logic extracted to a shared impl' );
 t_eq( 0, count( $GLOBALS['__dep_calls'] ), 'D.2 dismiss-candidate (canonical) never emits a deprecation notice' );
-
-$GLOBALS['__dep_calls'] = array();
-if ( function_exists( 'snt_ability_block_migrations_dismiss' ) ) {
-	$out = snt_ability_block_migrations_dismiss( array(
-		'post_id'           => 55,
-		'block_fingerprint' => $FP,
-		'migration_type'    => 'heading-hierarchy-skip',
-	) );
-	t( true === ( $out['ok'] ?? false ), 'D.3 OLD wrapper still functional (behavior preserved through v7.x)' );
-	$stored = (array) ( $GLOBALS['__meta'][55]['_snt_block_migrations_dismissed'] ?? array() );
-	t( in_array( 'heading-hierarchy-skip:' . $FP, $stored, true ), 'D.4 OLD wrapper writes the same shared store' );
-	t_eq( 1, count( $GLOBALS['__dep_calls'] ), 'D.5 OLD wrapper emits exactly one deprecation notice' );
-	$repl = $GLOBALS['__dep_calls'][0][2] ?? '';
-	t( false !== strpos( $repl, 'dismiss-candidate' ), 'D.6 notice points at dismiss-candidate' );
-} else {
-	t( false, 'D.3 OLD wrapper still functional' );
-	t( false, 'D.4 OLD wrapper writes the same shared store' );
-	t( false, 'D.5 OLD wrapper emits exactly one deprecation notice' );
-	t( false, 'D.6 notice points at dismiss-candidate' );
-}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

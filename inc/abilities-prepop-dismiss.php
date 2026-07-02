@@ -13,8 +13,9 @@
  * legacy route to the run-path, the last step before that route can carry a
  * deprecation marker and eventually be removed.
  *
- * Category 'tools' + per-post edit_post permission, mirroring the sibling
- * dismiss abilities (block-migrations-dismiss, pattern-adoption-dismiss).
+ * Category 'tools' + per-post edit_post permission, mirroring the unified
+ * dismiss-candidate sibling (which replaced the per-surface dismiss
+ * abilities in v8.0.0).
  *
  * @package SignalNoiseTools
  * @since 6.55.0

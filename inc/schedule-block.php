@@ -109,7 +109,9 @@ function sn_scheduled_register_editor_script() {
 	wp_register_script(
 		'signal-noise-scheduled-editor',
 		SNT_URL . 'blocks/scheduled/editor.js',
-		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components' ),
+		// wp-data added v8.0.0: the version-swap panel reads the block tree
+		// (partner lookup) and writes the partner's boundary via dispatch.
+		array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-data' ),
 		SNT_VERSION,
 		true
 	);

@@ -10,9 +10,11 @@
  *     (no callbacks) is rejected (impl's has_action() WP_Error), a registered
  *     hook dispatches ok:true, and a throwing callback yields ok:false (not a
  *     fatal — impl's Throwable catch).
- *   - pattern-adoption-dismiss: writes the `pattern_type:fingerprint` key into
- *     the `_snt_pattern_adoption_dismissed` POST-META (the real store the
- *     scanner reads), not the dead `sn_pattern_adoption_dismissed` option.
+ *   - dismiss-candidate (surface=pattern-adoption; the removed
+ *     pattern-adoption-dismiss wrapper's canonical replacement): writes the
+ *     `pattern_type:fingerprint` key into the `_snt_pattern_adoption_dismissed`
+ *     POST-META (the real store the scanner reads), not the dead
+ *     `sn_pattern_adoption_dismissed` option.
  *   - pattern-adoption-scan: reads the envelope's `candidates` list, so the
  *     returned count === N candidates (not 3 = count of envelope keys).
  *
@@ -169,15 +171,6 @@ if ( ! function_exists( 'snt_cron_history_record' ) ) {
 	}
 }
 
-// v7.7.0: pattern-adoption-dismiss is deprecated; its wrapper emits
-// snt_ability_deprecated_notice() (defined in inc/abilities-deprecations.php,
-// loaded by the orchestrator in production). This fixture requires the
-// ability file directly, so stub the helper — same move tests/analytics-rest.php
-// made for snt_rest_deprecated_notice in the v6.54.0 REST ladder.
-if ( ! function_exists( 'snt_ability_deprecated_notice' ) ) {
-	function snt_ability_deprecated_notice( $ability_slug, $replacement_hint ) {}
-}
-
 // ─── Load the SUTs ───────────────────────────────────────────────────
 // cron-dashboard.php provides snt_cron_run_event_impl (the real impl A delegates to).
 require_once __DIR__ . '/../inc/cron-dashboard.php';
@@ -189,6 +182,10 @@ require_once __DIR__ . '/../inc/pattern-adoption-admin.php';
 // then DEFINE the callback functions — which is what we drive.
 require_once __DIR__ . '/../inc/abilities-cron.php';
 require_once __DIR__ . '/../inc/abilities-pattern-adoption.php';
+// v8.0.0: the per-surface dismiss wrapper was removed with the deprecation
+// ladder; Test B drives the canonical signal-noise/dismiss-candidate
+// dispatcher instead (same real snt_pattern_adoption_dismiss_impl underneath).
+require_once __DIR__ . '/../inc/abilities-dismiss.php';
 
 // ─── Override snt_pattern_adoption_run_scan with a fixture envelope ───
 // abilities-pattern-adoption.php references it via function_exists(); we
@@ -276,17 +273,18 @@ $r = snt_ability_run_cron_event( array( 'hook' => 'MyPlugin\\Do_Thing' ) );
 bx_true( is_array( $r ) && ! empty( $r['ok'] ) && $GLOBALS['__ran_mixed'], 'A.6: mixed-case namespaced hook matched verbatim (no sanitize_key mangling)' );
 
 /* ════════════════════════════════════════════════════════════════════
- * FIX B — pattern-adoption-dismiss writes the REAL post-meta store
+ * FIX B — dismiss-candidate (pattern-adoption) writes the REAL post-meta store
  * ════════════════════════════════════════════════════════════════════ */
-echo "\nTest B: pattern-adoption-dismiss writes _snt_pattern_adoption_dismissed post-meta\n";
+echo "\nTest B: dismiss-candidate (pattern-adoption) writes _snt_pattern_adoption_dismissed post-meta\n";
 
 $GLOBALS['__test_post_meta'] = array();
 $GLOBALS['__test_options']   = array();
 $GLOBALS['__test_transients']['snt_pattern_adoption_candidates_1'] = array( 'stale' => true );
 
-$r = snt_ability_pattern_adoption_dismiss( array(
+$r = snt_ability_dismiss_candidate( array(
+	'surface'           => 'pattern-adoption',
 	'post_id'           => 42,
-	'pattern_type'      => 'pull-quote',
+	'candidate_type'    => 'pull-quote',
 	'block_fingerprint' => 'abc123',
 ) );
 bx_true( is_array( $r ) && ! empty( $r['ok'] ), 'B.1: dismiss returns ok:true' );
@@ -307,9 +305,10 @@ bx_true( ! isset( $GLOBALS['__test_transients']['snt_pattern_adoption_candidates
 //        element — pre-existing behavior the REST handler shares verbatim, so
 //        idempotency is "count unchanged", not "count == 1".)
 $count_before = count( (array) get_post_meta( 42, '_snt_pattern_adoption_dismissed', true ) );
-$r2 = snt_ability_pattern_adoption_dismiss( array(
+$r2 = snt_ability_dismiss_candidate( array(
+	'surface'           => 'pattern-adoption',
 	'post_id'           => 42,
-	'pattern_type'      => 'pull-quote',
+	'candidate_type'    => 'pull-quote',
 	'block_fingerprint' => 'abc123',
 ) );
 bx_true( is_array( $r2 ) && ! empty( $r2['ok'] ), 'B.5: repeat dismiss returns ok:true (no-op)' );
@@ -319,12 +318,12 @@ bx_true( in_array( 'pull-quote:abc123', $meta2, true ), 'B.5c: the dismissed key
 
 // B.6 — validation: missing pattern_type → ok:false, no write.
 $GLOBALS['__test_post_meta'] = array();
-$r3 = snt_ability_pattern_adoption_dismiss( array( 'post_id' => 7, 'pattern_type' => '', 'block_fingerprint' => 'x' ) );
+$r3 = snt_ability_dismiss_candidate( array( 'surface' => 'pattern-adoption', 'post_id' => 7, 'candidate_type' => '', 'block_fingerprint' => 'x' ) );
 bx_true( is_array( $r3 ) && empty( $r3['ok'] ), 'B.6: empty pattern_type → ok:false' );
 bx_true( ! isset( $GLOBALS['__test_post_meta'][7] ), 'B.6b: no post-meta written on invalid input' );
 
 // B.7 — validation: post_id <= 0 → ok:false.
-$r4 = snt_ability_pattern_adoption_dismiss( array( 'post_id' => 0, 'pattern_type' => 'pull-quote', 'block_fingerprint' => 'x' ) );
+$r4 = snt_ability_dismiss_candidate( array( 'surface' => 'pattern-adoption', 'post_id' => 0, 'candidate_type' => 'pull-quote', 'block_fingerprint' => 'x' ) );
 bx_true( is_array( $r4 ) && empty( $r4['ok'] ), 'B.7: post_id 0 → ok:false' );
 
 /* ════════════════════════════════════════════════════════════════════

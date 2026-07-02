@@ -19,17 +19,18 @@
  * EVERY integration is gated on function_exists() — the plugin behaves
  * identically when desktop-mode is inactive or uninstalled.
  *
- * REST endpoints (under signal-noise/v1/cmd/) back the maintenance
- * commands so they fire without page navigation:
- *   POST /cmd/force-check     — clear update transients
- *   POST /cmd/purge-caches    — fire sn_purge_all_caches_result filter
- *   POST /cmd/clear-overrides — fire sn_clear_template_overrides_result
- *   POST /cmd/full-reset      — clear overrides + purge in one shot
- *   GET  /cmd/status          — read-only: version + last deploy (widget)
+ * The maintenance commands fire without page navigation via the Abilities
+ * run-path (assets/desktop-commands.js run() → sntAbilityRun): purge-all-caches
+ * (bare, or {include_template_overrides:true} for the full-reset command),
+ * clear-template-overrides, and get-deploy-status {force_refresh:true} for
+ * force-check. The legacy signal-noise/v1/cmd/* REST routes were removed in
+ * v7.0.0; the deprecated per-command abilities (full-reset, force-check-updates)
+ * in v8.0.0. The local sn-cmd-* palette keys keep their names — they are
+ * labels, not ability slugs.
  *
- * All require manage_options. WP REST API handles _wpnonce verification
- * automatically when JS uses wp.apiFetch (which our scripts do via the
- * wp-api-fetch dependency).
+ * All the dispatched abilities require manage_options. WP REST API handles
+ * _wpnonce verification automatically when JS uses wp.apiFetch (which our
+ * scripts do via the wp-api-fetch dependency).
  *
  * @package SignalNoiseTools
  * @since 1.15.0
@@ -132,7 +133,7 @@ add_action( 'admin_enqueue_scripts', function() {
 		array( 'slug' => 'sn-cmd-force-check',     'label' => 'SN: Force-check updates',       'description' => 'Clear all GitHub + WordPress update transients.',           'icon' => 'dashicons-update' ),
 		array( 'slug' => 'sn-cmd-purge-caches',    'label' => 'SN: Purge all caches',          'description' => 'Object cache + Breeze + Varnish + Cloudflare.',           'icon' => 'dashicons-trash' ),
 		array( 'slug' => 'sn-cmd-clear-overrides', 'label' => 'SN: Clear template overrides',  'description' => 'Remove wp_template / wp_template_part / wp_navigation DB rows.', 'icon' => 'dashicons-editor-removeformatting' ),
-		// v7.7.0: the JS run() dispatches purge-all-caches {include_template_overrides:true} (full-reset ability deprecated).
+		// The JS run() dispatches purge-all-caches {include_template_overrides:true} (the full-reset ability was removed in v8.0.0).
 		array( 'slug' => 'sn-cmd-full-reset',      'label' => 'SN: Full reset',                'description' => 'Clear overrides AND purge every cache.',                  'icon' => 'dashicons-controls-repeat' ),
 
 		// Navigation (window.location).
@@ -401,15 +402,6 @@ function snt_cmd_impl_clear_overrides() {
 	return array(
 		'ok'      => true,
 		'message' => sprintf( '%d database override%s cleared.', $count, 1 === $count ? '' : 's' ),
-		'data'    => array( 'count' => $count ),
-	);
-}
-
-function snt_cmd_impl_full_reset() {
-	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array() );
-	return array(
-		'ok'      => true,
-		'message' => sprintf( 'Full reset: %d override%s cleared + all caches purged.', $count, 1 === $count ? '' : 's' ),
 		'data'    => array( 'count' => $count ),
 	);
 }

@@ -68,8 +68,57 @@ function sn_schedule_purge_urls( array $urls ) {
 		return false;
 	}
 
+	// v8.0.0: per-request coalescing. A version swap fires TWO rows at one
+	// boundary with the same URL set; the second dispatch would be redundant
+	// CF API work — the render gate is pure time, so one edge refetch after
+	// the boundary sees every flip. The key is order-insensitive (sorted) and
+	// only a SUCCESSFUL dispatch marks the memo, so a failed/unconfigured
+	// attempt stays retryable.
+	$sorted = array_map( 'strval', $urls );
+	sort( $sorted );
+	$key = md5( implode( "\n", $sorted ) );
+	if ( sn_schedule_purge_memo_seen( $key ) ) {
+		return true; // already dispatched this exact set in this request.
+	}
+
 	// Pass through verbatim; sn_cf_purge_urls owns de-dupe + chunk-at-30.
-	return (bool) sn_cf_purge_urls( $urls );
+	$dispatched = (bool) sn_cf_purge_urls( $urls );
+	if ( $dispatched ) {
+		sn_schedule_purge_memo_seen( $key, true );
+	}
+	return $dispatched;
+}
+
+/**
+ * Per-request purge memo backing the v8.0.0 coalescing above. One static
+ * store, three modes: seen($key) queries, seen($key, true) marks, and
+ * sn_schedule_purge_memo_reset() clears (tests + long-running CLI).
+ *
+ * @param string $key  Digest of the sorted URL set ('*zone*' for a zone purge).
+ * @param bool   $mark When true, record the key as dispatched.
+ * @return bool Whether the key was already recorded (query mode).
+ */
+function sn_schedule_purge_memo_seen( $key, $mark = false ) {
+	static $seen = array();
+	if ( '' === (string) $key ) {
+		$seen = array(); // reset sentinel from sn_schedule_purge_memo_reset().
+		return false;
+	}
+	if ( $mark ) {
+		$seen[ (string) $key ] = true;
+		return true;
+	}
+	return isset( $seen[ (string) $key ] );
+}
+
+/**
+ * Clear the per-request purge memo. Tests pin purge counts across cases with
+ * this; production requests never need it (the memo dies with the request).
+ *
+ * @return void
+ */
+function sn_schedule_purge_memo_reset() {
+	sn_schedule_purge_memo_seen( '' );
 }
 
 /**
@@ -113,7 +162,17 @@ function sn_schedule_fire_purge( array $row ) {
 			) {
 				return false;
 			}
-			return (bool) sn_cf_purge_everything();
+			// v8.0.0: coalesce repeat zone purges within one request (a
+			// reused-container version swap fires two rows at one boundary).
+			// A zone purge covers every URL, so one per request is complete.
+			if ( sn_schedule_purge_memo_seen( '*zone*' ) ) {
+				return true;
+			}
+			$dispatched = (bool) sn_cf_purge_everything();
+			if ( $dispatched ) {
+				sn_schedule_purge_memo_seen( '*zone*', true );
+			}
+			return $dispatched;
 		}
 
 		// Slug-change self-heal: union with the CURRENT permalink.

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     7.7.2
+ * Version:     8.0.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -80,6 +80,7 @@ require_once SNT_PATH . 'inc/cloudflare-purge.php';
 // not load-critical, only sensible.)
 require_once SNT_PATH . 'inc/schedule-engine.php';
 require_once SNT_PATH . 'inc/schedule-cache.php';
+require_once SNT_PATH . 'inc/schedule-swap.php';    // v8.0.0: version-swap pairing + atomic run
 require_once SNT_PATH . 'inc/schedule-block.php';
 require_once SNT_PATH . 'inc/schedule-sync.php';
 require_once SNT_PATH . 'inc/schedule-pages.php';

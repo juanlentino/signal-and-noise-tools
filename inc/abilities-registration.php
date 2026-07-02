@@ -12,31 +12,40 @@
  *     _delete_attachment) that replace the inline closure pattern.
  *   - inc/abilities-categories.php           — 5 category registrations on
  *     `wp_abilities_api_categories_init` (idempotent vs. theme).
- *   - inc/abilities-system.php                — 8 abilities: cache/template
- *     overrides + force-check-updates + deploy status + list-abilities
- *     + draft-release-notes (v4.11.0).
- *   - inc/abilities-content.php               — 2 abilities: OG card regen
- *     + RSS feed activity stats.
- *   - inc/abilities-cron.php                  — 5 abilities: WP-Cron dashboard
+ *   - inc/abilities-system.php                — 5 abilities: cache/template
+ *     overrides + deploy status + draft-release-notes (v4.11.0).
+ *   - inc/abilities-content.php               — 5 abilities: OG card regen,
+ *     RSS feed activity stats + content ops.
+ *   - inc/abilities-cron.php                  — 4 abilities: WP-Cron dashboard
  *     + run-cron-event (v4.6.0).
  *   - inc/abilities-insights.php              — 2 abilities: Content Opportunity
  *     Advisor scan + last-result.
- *   - inc/abilities-audit.php                 — 5 abilities: login-hardening
- *     audit log read + prune + CSV/JSON export.
- *   - inc/abilities-block-migrations.php      — 4 abilities: block-migration
- *     scan/suggest/apply/dismiss ('tools' category).
+ *   - inc/abilities-narration.php             — 2 abilities: weekly analytics
+ *     digest run + get (v7.0.0).
+ *   - inc/abilities-audit.php                 — 3 abilities: consolidated
+ *     audit-log read (view=summary|counters|logins) + prune + CSV/JSON export.
+ *   - inc/abilities-block-migrations.php      — 3 abilities: block-migration
+ *     scan/suggest/apply ('tools' category).
  *   - inc/abilities-ai-post-editor.php       — 3 abilities: meta-description,
  *     OG card title, excerpt (post-editor AI buttons).
- *   - inc/abilities-ai-health.php             — 7 abilities: Health-tab AI
+ *   - inc/abilities-ai-health.php             — 9 abilities: Health-tab AI
  *     Suggest+Apply (alt text, drift phrases, inline alt, orphan media).
  *   - inc/abilities-ai-pattern-adoption.php  — 2 abilities: pattern-adoption
  *     Suggest+Apply (pull-quote + steps-enumerated). Added v4.3.0.
- *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
- *     scan + dismiss (structural 'tools' category, v4.6.0).
+ *   - inc/abilities-pattern-adoption.php     — 1 ability: pattern-adoption
+ *     scan (structural 'tools' category, v4.6.0).
+ *   - inc/abilities-dismiss.php              — 1 ability: unified
+ *     dismiss-candidate (v7.7.0; the per-surface dismisses' replacement).
+ *   - inc/abilities-prepop-dismiss.php       — 1 ability (v6.55.0).
+ *   - inc/abilities-health.php               — 1 ability (v7.0.0).
+ *   (+ inc/abilities-analytics.php — 2 read-only analytics abilities —
+ *   required directly from signal-and-noise-tools.php, not this loader.)
  *
- * Total: 53 abilities + 6 categories (9 of them DEPRECATED 7.7.0, removal
- * v8.0.0 — the count drops to 44 when the ladder closes). See
- * inc/abilities-deprecations.php for the ladder + placement rule. Each feature file owns its
+ * Total: 44 abilities + 5 categories. The v7.7.0 deprecation ladder CLOSED in
+ * v8.0.0: the nine deprecated abilities, the `updates` category, and
+ * inc/abilities-deprecations.php were removed (see CHANGELOG v8.0.0 for the
+ * old → new mapping; tests/abilities-removals-v8.php guards the removal).
+ * Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *
@@ -55,7 +64,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/abilities-permission-helpers.php';
-require_once __DIR__ . '/abilities-deprecations.php';      // v7.7.0: snt_ability_deprecated_notice (must precede the files whose wrappers call it)
 require_once __DIR__ . '/abilities-categories.php';
 require_once __DIR__ . '/abilities-system.php';
 require_once __DIR__ . '/abilities-content.php';
@@ -66,7 +74,7 @@ require_once __DIR__ . '/abilities-audit.php';
 require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
-require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 2 abilities (scan + dismiss)
+require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 1 ability (scan; dismiss unified into dismiss-candidate)
 require_once __DIR__ . '/abilities-dismiss.php';           // v7.7.0: 1 ability (unified dismiss-candidate)
 require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)
 require_once __DIR__ . '/abilities-health.php';            // v7.0.0: 1 ability (read-only Content-Health scan summary)

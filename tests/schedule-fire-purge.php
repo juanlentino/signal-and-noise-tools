@@ -50,7 +50,10 @@ ok( true === sn_schedule_fire_purge( $row2 ), 'wp_block host: dispatch true' );
 ok( 1 === $GLOBALS['__purged_zone'], 'wp_block host: zone purge fired' );
 ok( null === $GLOBALS['__purged_urls'], 'wp_block host: per-URL purge NOT called' );
 
-// Template-part host escalates too.
+// Template-part host escalates too. (Reset the v8.0.0 per-request purge
+// memo: the prior wp_block case already zone-purged, and same-request
+// coalescing is exactly what the memo is FOR — each case wants isolation.)
+sn_schedule_purge_memo_reset();
 $GLOBALS['__post_types'] = array( 11 => 'wp_template_part' );
 $GLOBALS['__purged_zone'] = 0;
 sn_schedule_fire_purge( array( 'target_type' => 'fragment', 'target_ref' => '11', 'purge_urls' => '[]' ) );
@@ -68,6 +71,7 @@ sn_schedule_fire_purge( array( 'target_type' => 'page', 'target_ref' => 'x', 'pu
 ok( array( 'https://x.test/a/' ) === array_values( (array) $GLOBALS['__purged_urls'] ), 'non-fragment: snapshot passthrough' );
 
 // Deleted host post (get_post_type false): falls through to snapshot purge.
+sn_schedule_purge_memo_reset(); // isolate from earlier same-URL dispatches.
 $GLOBALS['__post_types'] = array(); $GLOBALS['__permalinks'] = array();
 $GLOBALS['__purged_urls'] = null;
 sn_schedule_fire_purge( $row );

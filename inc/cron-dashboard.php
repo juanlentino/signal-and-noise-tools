@@ -10,7 +10,7 @@
  *   - wp-admin form (Cron tab → Run-now button)
  *   - REST POST signal-noise/v1/cron/run
  *   - Abilities API: signal-noise/list-cron-events (hook/args_signature
- *     filters since v7.7.0; get-cron-event deprecated → removal v8.0.0)
+ *     filters since v7.7.0; they subsumed get-cron-event, removed v8.0.0)
  *   - desktop-mode ⌘K: sn-cmd-cron-health + sn-cmd-cron-list (read-only)
  *
  * All 4 surfaces converge on the snt_cron_*_impl() pure functions below.
@@ -216,21 +216,6 @@ function snt_cron_get_events_impl( $sn_only = false ) {
 	} );
 
 	return $rows;
-}
-
-/**
- * Single-event variant. Returns the row matching hook+signature, or
- * null if no match. Backs the DEPRECATED get-cron-event ability through
- * v7.x; the canonical path is list-cron-events' hook/args_signature filters
- * (which filter read-side and do not call this).
- */
-function snt_cron_get_event_impl( $hook, $args_signature ) {
-	foreach ( snt_cron_get_events_impl() as $row ) {
-		if ( $row['hook'] === $hook && $row['args_signature'] === $args_signature ) {
-			return $row;
-		}
-	}
-	return null;
 }
 
 /**

@@ -2,26 +2,25 @@
 /**
  * Signal & Noise Tools — Abilities API: system maintenance + deploy state.
  *
- * Eight abilities covering cache/template/update housekeeping plus the
+ * Five abilities covering cache/template/update housekeeping plus the
  * deploy-status + release-notes surfaces:
  *   - signal-noise/purge-all-caches         (destructive, idempotent; its
- *     include_template_overrides flag is the full-reset replacement)
+ *     include_template_overrides flag replaced the removed full-reset)
  *   - signal-noise/clear-template-overrides (destructive, idempotent)
  *   - signal-noise/list-template-overrides  (readonly, idempotent)
- *   - signal-noise/full-reset                (DEPRECATED 7.7.0 → purge-all-caches
- *     with include_template_overrides=true; removal v8.0.0)
- *   - signal-noise/force-check-updates       (DEPRECATED 7.7.0 → get-deploy-status
- *     with force_refresh=true; removal v8.0.0)
  *   - signal-noise/get-deploy-status         (readonly, idempotent; force_refresh
- *     clears the update transients first — subsumes force-check-updates)
- *   - signal-noise/list-abilities            (DEPRECATED 7.7.0 → core catalogue
- *     GET /wp-abilities/v1/abilities; removal v8.0.0)
+ *     clears the update transients first — replaced the removed
+ *     force-check-updates)
  *   - signal-noise/draft-release-notes       (readonly, NOT idempotent — AI draft;
  *     recategorized diagnostics → ai-generation in 7.7.0)
  *
- * Categories: maintenance / diagnostics / updates. File grouping is by
- * feature (system housekeeping) rather than category so related impls
- * stay co-located.
+ * v8.0.0 removed the three 7.7.0-deprecated abilities this file carried
+ * (full-reset, force-check-updates, list-abilities — the last replaced by
+ * the core catalogue GET /wp-abilities/v1/abilities).
+ *
+ * Categories: maintenance / diagnostics. File grouping is by feature
+ * (system housekeeping) rather than category so related impls stay
+ * co-located.
  *
  * Extracted from inc/abilities-registration.php by the v4.1.3 split (B-11).
  *
@@ -78,7 +77,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-deploy-status', array(
 		'label'               => 'Get theme + plugin deploy status',
-		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available. Pass force_refresh=true to clear the GitHub-tag + update_themes/update_plugins transients first so the answer is freshly fetched (replaces the deprecated force-check-updates ability; clears caches only, never user data). Read-only; safe to call anytime.',
+		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available. Pass force_refresh=true to clear the GitHub-tag + update_themes/update_plugins transients first so the answer is freshly fetched (replaces the removed force-check-updates ability; clears caches only, never user data). Read-only; safe to call anytime.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_deploy_status',
@@ -155,130 +154,6 @@ add_action( 'wp_abilities_api_init', function() {
 			'annotations' => array(
 				'destructive' => true,
 				'idempotent'  => true,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/force-check-updates', array(
-		'label'               => 'Force-check theme + plugin updates',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/get-deploy-status with force_refresh=true instead (clears the same transients, then returns the fresh status in one call). Clears the sn_gh_latest_* + update_themes + update_plugins site transients so the next admin page-load refetches fresh data from GitHub. No user data deleted.',
-		'category'            => 'updates',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_force_check_updates',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok'      => array( 'type' => 'boolean' ),
-				'message' => array( 'type' => 'string' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/get-deploy-status with force_refresh=true',
-			),
-			'annotations'  => array(
-				'idempotent' => true,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/full-reset', array(
-		'label'               => 'Full reset (clear overrides + purge all caches)',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/purge-all-caches with include_template_overrides=true instead (identical behavior: clears the template overrides AND purges every cache). Clears wp_template / wp_template_part / wp_navigation DB overrides AND purges every cache (object cache, Breeze, Varnish, Cloudflare).',
-		'category'            => 'maintenance',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_full_reset',
-		'input_schema'        => array(
-			// v2.5.4: see purge-all-caches comment.
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok'      => array( 'type' => 'boolean' ),
-				'message' => array( 'type' => 'string' ),
-				'data'    => array(
-					'type'       => 'object',
-					'properties' => array(
-						'count' => array( 'type' => 'integer' ),
-					),
-				),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/purge-all-caches with include_template_overrides=true',
-			),
-			'annotations'  => array(
-				'destructive' => true,
-				'idempotent'  => true,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/list-abilities', array(
-		'label'               => 'List registered abilities',
-		'description'         => 'DEPRECATED since 7.7.0 — use the WordPress core catalogue endpoint GET /wp-abilities/v1/abilities instead (same data plus schemas, with namespace/category filters and pagination). Returns the catalogue of every ability registered on this site (name, label, description, category, namespace, annotations). Optionally filter by namespace.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_list_abilities',
-		'input_schema'        => array(
-			// v2.5.4: see purge-all-caches comment — null accepted because
-			// readonly abilities (GET) receive null when caller omits ?input=.
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(
-				'namespace' => array(
-					'type'        => 'string',
-					'description' => 'Restrict the catalogue to abilities whose name is prefixed with this namespace (the segment before the slash, e.g. "signal-noise").',
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok'         => array( 'type' => 'boolean' ),
-				'count'      => array( 'type' => 'integer' ),
-				'namespaces' => array(
-					'type'        => 'object',
-					'description' => 'Per-namespace ability tally.',
-				),
-				'items'      => array(
-					'type'  => 'array',
-					'items' => array(
-						'type'       => 'object',
-						'properties' => array(
-							'name'        => array( 'type' => 'string' ),
-							'label'       => array( 'type' => 'string' ),
-							'description' => array( 'type' => 'string' ),
-							'category'    => array( 'type' => 'string' ),
-							'namespace'   => array( 'type' => 'string' ),
-							'annotations' => array( 'type' => 'object' ),
-						),
-					),
-				),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'the core catalogue endpoint GET /wp-abilities/v1/abilities',
-			),
-			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
 			),
 		),
 	) );
@@ -395,7 +270,7 @@ function snt_ability_get_deploy_status( $input = null ) {
 	}
 
 	// v7.7.0: force_refresh clears the GitHub-tag + WP update transients first
-	// (the deprecated force-check-updates ability's whole job), so one call
+	// (the removed force-check-updates ability's whole job), so one call
 	// both busts the caches and returns the freshly-fetched status.
 	if ( is_array( $input ) && ! empty( $input['force_refresh'] ) && function_exists( 'snt_cmd_impl_force_check' ) ) {
 		snt_cmd_impl_force_check();
@@ -439,97 +314,6 @@ function snt_ability_clear_template_overrides() {
 		'ok'      => true,
 		'count'   => $count,
 		'message' => sprintf( '%d database template override%s cleared.', $count, 1 === $count ? '' : 's' ),
-	);
-}
-
-/**
- * Ability execute callback: signal-noise/force-check-updates.
- * Thin wrapper around snt_cmd_impl_force_check().
- * @since 3.7.5
- * @deprecated 7.7.0 Use signal-noise/get-deploy-status with force_refresh=true.
- */
-function snt_ability_force_check_updates() {
-	snt_ability_deprecated_notice( 'signal-noise/force-check-updates', 'signal-noise/get-deploy-status with force_refresh=true' );
-	if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', 'Force-check helper unavailable.', array( 'status' => 500 ) );
-	}
-	return snt_cmd_impl_force_check();
-}
-
-/**
- * Ability execute callback: signal-noise/full-reset.
- * Thin wrapper around snt_cmd_impl_full_reset().
- * @since 3.7.5
- * @deprecated 7.7.0 Use signal-noise/purge-all-caches with include_template_overrides=true.
- */
-function snt_ability_full_reset() {
-	snt_ability_deprecated_notice( 'signal-noise/full-reset', 'signal-noise/purge-all-caches with include_template_overrides=true' );
-	if ( ! function_exists( 'snt_cmd_impl_full_reset' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
-	}
-	return snt_cmd_impl_full_reset();
-}
-
-/**
- * Ability execute callback: signal-noise/list-abilities.
- *
- * Iterates the GLOBAL abilities registry (every plugin/theme, not just S&N)
- * and returns a self-discovery catalogue. Namespace is derived from the
- * segment before the first slash in each ability name; annotation flags come
- * straight from the ability's get_meta()['annotations'].
- *
- * @since 4.10.0
- * @deprecated 7.7.0 Use the core catalogue endpoint GET /wp-abilities/v1/abilities.
- * @param array|null $input Optional. { namespace?: string }.
- * @return array|WP_Error
- */
-function snt_ability_list_abilities( $input = null ) {
-	snt_ability_deprecated_notice( 'signal-noise/list-abilities', 'the core catalogue endpoint GET /wp-abilities/v1/abilities' );
-	if ( ! function_exists( 'wp_get_abilities' ) ) {
-		return new WP_Error( 'snt_abilities_unavailable', 'Abilities API not available (WordPress 7.0+ required).', array( 'status' => 500 ) );
-	}
-
-	$filter_namespace = '';
-	if ( is_array( $input ) && isset( $input['namespace'] ) ) {
-		$filter_namespace = (string) $input['namespace'];
-	}
-
-	$items      = array();
-	$namespaces = array();
-
-	foreach ( wp_get_abilities() as $ability ) {
-		$name      = $ability->get_name();
-		$slash     = strpos( $name, '/' );
-		$namespace = false === $slash ? '' : substr( $name, 0, $slash );
-
-		if ( '' !== $filter_namespace && $namespace !== $filter_namespace ) {
-			continue;
-		}
-
-		$meta        = $ability->get_meta();
-		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-
-		$items[] = array(
-			'name'        => $name,
-			'label'       => $ability->get_label(),
-			'description' => $ability->get_description(),
-			'category'    => $ability->get_category(),
-			'namespace'   => $namespace,
-			'annotations' => array(
-				'readonly'    => isset( $annotations['readonly'] ) ? $annotations['readonly'] : null,
-				'destructive' => isset( $annotations['destructive'] ) ? $annotations['destructive'] : null,
-				'idempotent'  => isset( $annotations['idempotent'] ) ? $annotations['idempotent'] : null,
-			),
-		);
-
-		$namespaces[ $namespace ] = ( $namespaces[ $namespace ] ?? 0 ) + 1;
-	}
-
-	return array(
-		'ok'         => true,
-		'count'      => count( $items ),
-		'namespaces' => $namespaces,
-		'items'      => $items,
 	);
 }
 
