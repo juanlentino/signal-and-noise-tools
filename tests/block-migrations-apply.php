@@ -52,6 +52,17 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $domain = '' ) { return $s; }
 }
+// v7.7.1: the shared block-fingerprint engine sanitizes the replacement node
+// through wp_kses_post on BOTH surfaces (block-migrations previously skipped
+// the v6.39.2 fix pattern-adoption got). Input-aware model mirroring
+// tests/pattern-adoption-apply.php: strips <script> + inline on* handlers.
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $html ) {
+		$html = preg_replace( '#<script\b[^>]*>.*?</script>#is', '', (string) $html );
+		$html = preg_replace( '#\son\w+\s*=\s*("[^"]*"|\'[^\']*\')#i', '', (string) $html );
+		return $html;
+	}
+}
 if ( ! function_exists( 'register_rest_route' ) ) {
 	function register_rest_route() { return true; }
 }
@@ -88,6 +99,7 @@ function _bma_post( $id, $blocks_array ) {
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
+require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
 require_once __DIR__ . '/../inc/block-migrations-apply.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -166,6 +178,28 @@ _bma_post( 405, array(
 $result = snt_block_migrations_apply_impl( 405, 'fp', 'not valid block markup', 'heading-hierarchy-skip' );
 bma_true( is_wp_error( $result ), 'Test 6.1: returns WP_Error' );
 bma_eq( 'snt_block_migration_invalid_markup', $result->get_error_code(), 'Test 6.2: error = invalid_markup (422)' );
+
+// ─── Test 7: replacement markup sanitized before write (v7.7.1 parity) ─
+// pattern-adoption got this in v6.39.2; the shared engine now applies it to
+// block-migrations too. The replacement is user-editable in the modal, so a
+// <script>/onerror payload must never be spliced into post_content.
+echo "\nTest 7: replacement sanitized (stored-XSS parity with pattern-adoption)\n";
+$GLOBALS['__test_posts'] = array();
+$h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
+$fp       = md5( serialize_block( $h3_block ) );
+_bma_post( 406, array( $h3_block ) );
+$evil_markup = json_encode( array( array(
+	'blockName'    => 'core/heading',
+	'attrs'        => array(),
+	'innerBlocks'  => array(),
+	'innerHTML'    => '<h2 onclick="evil()">Section<script>alert(1)</script></h2>',
+	'innerContent' => array( '<h2 onclick="evil()">Section<script>alert(1)</script></h2>' ),
+) ) );
+$result = snt_block_migrations_apply_impl( 406, $fp, $evil_markup, 'heading-hierarchy-skip' );
+bma_true( is_array( $result ) && ! empty( $result['ok'] ), 'Test 7.1: apply succeeds' );
+bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, '<script' ) === false, 'Test 7.2: <script> stripped before write' );
+bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, 'onclick' ) === false, 'Test 7.3: inline handler stripped before write' );
+bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, 'Section' ) !== false, 'Test 7.4: legitimate content survives' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

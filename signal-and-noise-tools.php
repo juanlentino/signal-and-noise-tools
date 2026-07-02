@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     7.7.0
+ * Version:     7.7.1
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -224,6 +224,7 @@ require_once __DIR__ . '/inc/ai-ai-dedupe.php';
 require_once __DIR__ . '/inc/ai-prepopulate.php';
 require_once __DIR__ . '/inc/ai-prepopulate-notice.php';
 require_once __DIR__ . '/inc/release-notes-draft.php'; // v4.11.0 (T4): AI release-notes drafter impl + ability wrapper
+require_once __DIR__ . '/inc/block-fingerprint-engine.php'; // v7.7.1: shared fingerprint locate/replace/sanitize/apply engine behind both surfaces below.
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';
 require_once __DIR__ . '/inc/pattern-adoption-apply.php';

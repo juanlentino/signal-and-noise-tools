@@ -2,19 +2,16 @@
 /**
  * Signal & Noise Tools — Pattern-adoption apply impl.
  *
- * Fingerprint-validated structural-block replacement via the
- * parse_blocks ↔ serialize_blocks round-trip. Operates entirely on
+ * Fingerprint-validated structural-block replacement. Operates entirely on
  * block-tree nodes — no byte offsets — sidestepping the v4.1.1
- * raw-vs-stripped coordinate bug class that the drift-phrase impl
- * had to engineer around.
- *
- * Flow:
- *   1. Load post, parse_blocks($post->post_content)
- *   2. Walk tree, find block where md5(serialize_block($node)) === fingerprint
- *   3. If not found → snt_pattern_adoption_conflict (409)
- *   4. Mutate the matching node in place to the replacement parse result
- *   5. serialize_blocks($modified_tree) → new post_content
- *   6. wp_update_post(['ID'=>$id, 'post_content'=>$new], true)
+ * raw-vs-stripped coordinate bug class. Since v7.7.1 the pipeline
+ * (capability → type gate → parse → named-block guard → wp_kses_post
+ * sanitize → replace-by-fingerprint → serialize → wp_update_post) lives in
+ * the shared engine, inc/block-fingerprint-engine.php — this file passes the
+ * surface's error-code map (including the historical quirk that invalid
+ * markup reuses snt_pattern_adoption_invalid_pattern_type) and shapes the
+ * success payload. One v7.7.1 ordering change: capability now gates BEFORE
+ * the type check (403 wins over 422 for unauthorized callers).
  *
  * Acknowledged tradeoff (carries from v4.0.x): wp_update_post() triggers
  * downstream save-hook fanout (cache busts, revisions, save_post listeners).
@@ -49,91 +46,37 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 4.3.0
  */
 function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $replacement_markup, $pattern_type ) {
-	$post_id            = (int) $post_id;
-	$block_fingerprint  = (string) $block_fingerprint;
-	$replacement_markup = (string) $replacement_markup;
-	$pattern_type       = (string) $pattern_type;
+	$post_id      = (int) $post_id;
+	$pattern_type = (string) $pattern_type;
 
 	if ( ! defined( 'SNT_PATTERN_ADOPTION_VALID_TYPES' ) ) {
 		// Defensive — suggest module declares this. Fallback for test-isolation runs.
 		define( 'SNT_PATTERN_ADOPTION_VALID_TYPES', array( 'pull-quote', 'steps-enumerated' ) );
 	}
-	if ( ! in_array( $pattern_type, SNT_PATTERN_ADOPTION_VALID_TYPES, true ) ) {
-		return new WP_Error(
-			'snt_pattern_adoption_invalid_pattern_type',
-			__( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-noise-tools' ),
-			array( 'status' => 422 )
-		);
-	}
 
-	if ( ! current_user_can( 'edit_post', $post_id ) ) {
-		return new WP_Error(
-			'snt_pattern_adoption_capability',
-			__( 'You cannot edit this post.', 'signal-noise-tools' ),
-			array( 'status' => 403 )
-		);
-	}
-
-	$post = get_post( $post_id );
-	if ( ! $post ) {
-		return new WP_Error(
-			'snt_pattern_adoption_post_not_found',
-			__( 'Post not found.', 'signal-noise-tools' ),
-			array( 'status' => 404 )
-		);
-	}
-
-	$blocks           = parse_blocks( (string) $post->post_content );
-	$replacement      = parse_blocks( $replacement_markup );
-	$replacement_node = $replacement[0] ?? null;
-	// v4.5.2: require a NAMED block. parse_blocks() on non-block input (raw HTML,
-	// plain text, or garbage) returns a single node with blockName === null — a
-	// "freeform" classic block. The old guard accepted that (it IS a non-empty
-	// array) and spliced raw HTML into post_content instead of rejecting it.
-	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
-		return new WP_Error(
-			'snt_pattern_adoption_invalid_pattern_type',
-			__( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ),
-			array( 'status' => 422 )
-		);
-	}
-
-	// v6.39.2 SECURITY: replacement_markup is untrusted (it can be user-edited
-	// in the modal before apply). Sanitize the parsed block node's inner HTML
-	// through wp_kses_post BEFORE it is spliced + serialized into post_content,
-	// so a <script>/onerror payload can't be stored (front-end stored-XSS).
-	// We sanitize the PARSED node's HTML rather than wp_kses_post()'ing the raw
-	// serialized markup, because wp_kses strips HTML comments — and block
-	// delimiters (<!-- wp:… -->) ARE HTML comments, so a raw-string pass would
-	// destroy the block and trip the named-block guard above. serialize_blocks()
-	// rebuilds the delimiters from blockName + attrs, so sanitizing innerHTML /
-	// innerContent (recursively) is both safe and block-correct.
-	$replacement_node = snt_pattern_adoption_sanitize_block_node( $replacement_node );
-
-	$found = false;
-	snt_pattern_adoption_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );
-
-	if ( ! $found ) {
-		return new WP_Error(
-			'snt_pattern_adoption_conflict',
-			__( 'Block changed or removed since scan. Re-run scan.', 'signal-noise-tools' ),
-			array( 'status' => 409 )
-		);
-	}
-
-	$new_content = serialize_blocks( $blocks );
-
-	$result = wp_update_post( array(
-		'ID'           => $post_id,
-		'post_content' => $new_content,
-	), true );
+	$result = snt_block_fp_apply( array(
+		'post_id'            => $post_id,
+		'block_fingerprint'  => (string) $block_fingerprint,
+		'replacement_markup' => (string) $replacement_markup,
+		'type'               => $pattern_type,
+		'valid_types'        => SNT_PATTERN_ADOPTION_VALID_TYPES,
+		'error_codes'        => array(
+			'capability'     => 'snt_pattern_adoption_capability',
+			'invalid_type'   => 'snt_pattern_adoption_invalid_pattern_type',
+			'post_not_found' => 'snt_pattern_adoption_post_not_found',
+			// Historical quirk preserved: invalid markup reuses the
+			// invalid-pattern-type code (public contract since 4.5.2).
+			'invalid_markup' => 'snt_pattern_adoption_invalid_pattern_type',
+			'conflict'       => 'snt_pattern_adoption_conflict',
+			'write_failed'   => 'snt_pattern_adoption_write_failed',
+		),
+		'error_messages'     => array(
+			'invalid_type' => __( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-noise-tools' ),
+		),
+	) );
 
 	if ( is_wp_error( $result ) ) {
-		return new WP_Error(
-			'snt_pattern_adoption_write_failed',
-			sprintf( __( 'wp_update_post failed: %s', 'signal-noise-tools' ), $result->get_error_message() ),
-			array( 'status' => 500 )
-		);
+		return $result;
 	}
 
 	return array(
@@ -141,66 +84,4 @@ function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $repl
 		'post_id'               => $post_id,
 		'replaced_pattern_type' => $pattern_type,
 	);
-}
-
-/**
- * Recursive in-place mutator. Walks $tree, replaces the first block
- * whose md5(serialize_block) matches $fingerprint with $replacement_node.
- * Sets $found = true on success.
- *
- * @param array $tree             By reference.
- * @param string $fingerprint
- * @param array  $replacement_node
- * @param bool   $found           By reference.
- * @return void
- *
- * @since 4.3.0
- */
-function snt_pattern_adoption_replace_in_tree( &$tree, $fingerprint, $replacement_node, &$found ) {
-	foreach ( $tree as $i => &$block ) {
-		if ( $found ) { return; }
-		if ( md5( serialize_block( $block ) ) === $fingerprint ) {
-			$tree[ $i ] = $replacement_node;
-			$found = true;
-			return;
-		}
-		if ( ! empty( $block['innerBlocks'] ) ) {
-			snt_pattern_adoption_replace_in_tree( $block['innerBlocks'], $fingerprint, $replacement_node, $found );
-		}
-	}
-}
-
-/**
- * Return a copy of a parsed block node with its inner HTML run through
- * wp_kses_post, recursively for nested innerBlocks. Pure: the input node is
- * not mutated (PHP arrays are value types). Both innerHTML and each string
- * segment of innerContent are sanitized so the two stay consistent for
- * serialize_block(); block delimiters/attrs are untouched (the serializer
- * regenerates them).
- *
- * @param array $node Parsed block node.
- * @return array Sanitized node.
- *
- * @since 6.39.2
- */
-function snt_pattern_adoption_sanitize_block_node( $node ) {
-	if ( ! is_array( $node ) ) {
-		return $node;
-	}
-	if ( isset( $node['innerHTML'] ) && is_string( $node['innerHTML'] ) ) {
-		$node['innerHTML'] = wp_kses_post( $node['innerHTML'] );
-	}
-	if ( ! empty( $node['innerContent'] ) && is_array( $node['innerContent'] ) ) {
-		foreach ( $node['innerContent'] as $i => $chunk ) {
-			if ( is_string( $chunk ) ) {
-				$node['innerContent'][ $i ] = wp_kses_post( $chunk );
-			}
-		}
-	}
-	if ( ! empty( $node['innerBlocks'] ) && is_array( $node['innerBlocks'] ) ) {
-		foreach ( $node['innerBlocks'] as $i => $child ) {
-			$node['innerBlocks'][ $i ] = snt_pattern_adoption_sanitize_block_node( $child );
-		}
-	}
-	return $node;
 }

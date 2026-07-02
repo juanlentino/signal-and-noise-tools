@@ -6,7 +6,8 @@
  * candidate block in the post's parse_blocks() tree and synthesizes
  * replacement markup via deterministic block-tree mutation + serialize_block.
  *
- * NO AI. Mirrors inc/pattern-adoption-suggest.php structurally.
+ * NO AI. Shares the fingerprint locate primitive with pattern-adoption via
+ * inc/block-fingerprint-engine.php (v7.7.1).
  *
  * Migration types (extensible via SNT_BLOCK_MIGRATIONS_VALID_TYPES in
  * inc/block-migrations-detect.php):
@@ -63,7 +64,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	}
 
 	$blocks = parse_blocks( (string) $post->post_content );
-	$match  = snt_block_migrations_find_block( $blocks, $block_fingerprint );
+	$match  = snt_block_fp_find( $blocks, $block_fingerprint );
 
 	if ( null === $match ) {
 		return new WP_Error(
@@ -91,30 +92,6 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 		'post_id'           => $post_id,
 		'migration_type'    => $migration_type,
 	);
-}
-
-/**
- * Recursive search for a block matching $fingerprint.
- *
- * @param array  $tree
- * @param string $fingerprint
- * @return array|null  The matching block, or null.
- *
- * @since 4.5.0
- */
-function snt_block_migrations_find_block( $tree, $fingerprint ) {
-	foreach ( $tree as $block ) {
-		if ( md5( serialize_block( $block ) ) === $fingerprint ) {
-			return $block;
-		}
-		if ( ! empty( $block['innerBlocks'] ) ) {
-			$found = snt_block_migrations_find_block( $block['innerBlocks'], $fingerprint );
-			if ( null !== $found ) {
-				return $found;
-			}
-		}
-	}
-	return null;
 }
 
 /**
