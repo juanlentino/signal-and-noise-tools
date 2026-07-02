@@ -2,11 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [8.1.5] - 2026-07-02: Remove the ActivityPub exemption (adoption declined)
+## [8.1.5] - 2026-07-02: Remove the ActivityPub exemption (adoption declined) + config-aware cron pipeline check
 
-**Headline:** The owner declined the ActivityPub adoption entirely before anything federated, so the v8.1.4 exemption in the author-enum guard lost its referent the same day it shipped. It is removed, and removal-guard tests keep it removed. The guard's v8.1.4 structural improvements stay (named functions, decision/action split, test suite), as do the fediverse UA bot-classifiers from v8.1.3 (fediverse servers fetch pages for preview cards whenever anyone shares a URL, federation or not) and the evidence-based cron warning.
+**Headline:** Two same-day calibrations. The owner declined the ActivityPub adoption entirely before anything federated, so the v8.1.4 exemption in the author-enum guard lost its referent the same day it shipped: removed, with removal-guard tests keeping it removed. And the Site Health cron pipeline check learns feature gates: hooks whose features are configured off (narration, weekly insights scan, uptime heartbeat) are intentionally unscheduled and no longer downgrade Site Health or read as issues.
 
-> **Why PATCH:** dead-code removal restoring pre-exemption guard semantics; no API change.
+> **Why PATCH:** dead-code removal restoring pre-exemption guard semantics + health-check calibration; no API change.
+
+### Improvements
+- `snt_cron_site_health_result()` is config-aware via `snt_cron_hook_is_expected()`: unscheduled hooks of disabled features (narration, weekly insights scan, uptime heartbeat) no longer count as issues and are labeled "not scheduled (feature off)" in the panel. A genuinely missing schedule for an ENABLED feature still downgrades (regression-tested).
 
 ### Removed
 - `sn_security_is_activitypub_request()` and the `sn_security_author_enum_exempt` filter from the author-enum guard (`inc/security-headers.php`); the ActivityPub Query test stub (`tests/stubs/`). Removal guards added to `tests/security-headers.php` per the repo's removal-test idiom.

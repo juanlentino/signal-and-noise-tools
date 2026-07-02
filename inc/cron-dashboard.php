@@ -454,12 +454,48 @@ function snt_cron_interval_seconds( $hook ) {
 }
 
 /**
+ * Whether a hook is EXPECTED to be scheduled given its feature's config.
+ * Mirrors the owning modules' scheduling gates: narration and the weekly
+ * insights scan only schedule when enabled (inc/insights-narration.php,
+ * inc/insights.php), the uptime heartbeat only with monitoring enabled AND
+ * a push URL (inc/uptime-heartbeat.php). Config-off features leave their
+ * hooks unscheduled BY DESIGN and must not read as pipeline issues (the
+ * v8.1.2 noise rule). Unknown hooks default to expected; each gate is
+ * function_exists-guarded so a module rename fails safe — a real
+ * scheduling failure surfaces rather than hiding behind a missing gate.
+ *
+ * @since 8.1.5
+ * @param string $hook Hook name.
+ * @return bool True when the hook should be scheduled.
+ */
+function snt_cron_hook_is_expected( $hook ) {
+	$narration = defined( 'SN_NARRATION_CRON_HOOK' ) ? SN_NARRATION_CRON_HOOK : 'sn_insights_narration_weekly';
+	$insights  = defined( 'SN_INSIGHTS_CRON_HOOK' ) ? SN_INSIGHTS_CRON_HOOK : 'sn_insights_weekly_scan';
+	$heartbeat = defined( 'SN_UPTIME_HEARTBEAT_HOOK' ) ? SN_UPTIME_HEARTBEAT_HOOK : 'sn_uptime_kuma_heartbeat';
+
+	if ( $hook === $narration && function_exists( 'snt_narration_enabled' ) ) {
+		return (bool) snt_narration_enabled();
+	}
+	if ( $hook === $insights && function_exists( 'snt_insights_weekly_cron_enabled' ) ) {
+		return (bool) snt_insights_weekly_cron_enabled();
+	}
+	if ( $hook === $heartbeat && function_exists( 'sn_setting' ) ) {
+		return (bool) sn_setting( 'monitoring.uptime_kuma_enabled', false )
+			&& '' !== (string) sn_setting( 'monitoring.uptime_kuma_push_url', '' );
+	}
+	return true;
+}
+
+/**
  * Build the Site Health result envelope for the SN cron pipeline.
  *
  * status:
- *   - 'good'        : every hook scheduled, none stale, cron not silently off
- *   - 'recommended' : any unscheduled / stale (>2× interval) / cron disabled
- *                     without a declared system-cron replacement
+ *   - 'good'        : every EXPECTED hook scheduled, none stale, cron not
+ *                     silently off (config-off features are exempt — see
+ *                     snt_cron_hook_is_expected)
+ *   - 'recommended' : any expected-but-unscheduled / stale (>2× interval) /
+ *                     cron disabled without a declared system-cron
+ *                     replacement
  *
  * "Silently disabled" = DISABLE_WP_CRON is true AND no system cron has been
  * declared via the sn_cron_system_cron_configured filter (defaults false)
@@ -482,17 +518,20 @@ function snt_cron_site_health_result() {
 		$next       = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( $hook ) : false;
 		$last_fired = snt_cron_last_fired_for( $hook );
 		$interval   = snt_cron_interval_seconds( $hook );
+		$expected   = snt_cron_hook_is_expected( $hook );
 
 		$next_label = ( false !== $next && is_numeric( $next ) )
 			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-noise-tools' ), human_time_diff( $now, (int) $next ) )
-			: __( 'NOT scheduled', 'signal-noise-tools' );
+			: ( $expected ? __( 'NOT scheduled', 'signal-noise-tools' ) : __( 'not scheduled (feature off)', 'signal-noise-tools' ) );
 
 		$last_label = ( null !== $last_fired )
 			? sprintf( /* translators: %s: human time diff. */ __( 'last fired %s ago', 'signal-noise-tools' ), human_time_diff( (int) $last_fired, $now ) )
 			: __( 'never fired', 'signal-noise-tools' );
 
 		if ( false === $next || ! is_numeric( $next ) ) {
-			$issues[] = $hook;
+			if ( $expected ) {
+				$issues[] = $hook;
+			}
 		} elseif ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) > ( 2 * $interval ) ) {
 			// Fired but the last firing is older than 2× the recurrence — stale.
 			$issues[] = $hook;
