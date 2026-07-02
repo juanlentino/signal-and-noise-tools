@@ -59,6 +59,8 @@
  * @since 2.0.4 (split in 4.1.3)
  */
 
+// CI canary (sonnet-5 reviewer smoke test) — this PR is closed unmerged.
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
