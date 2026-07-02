@@ -93,10 +93,35 @@ hca_eq( 'ok', $cc[0]['pill']['kind'], 'all-clean Findings pill is ok' );
 hca_eq( '2 / 2', $cc[1]['value'], 'all-clean Checks-passed is 2 / 2' );
 hca_eq( 'ok', $cc[1]['pill']['kind'], 'all-clean Checks-passed pill is ok' );
 
-echo "\nTest: snt_health_glance_cards singular + external-rot counts\n";
+echo "\nTest: advisory tier in the hero (v8.0.4 — external rot re-tiered)\n";
+// Owner decision 2026-07-02: third-party link rot must not flip the hero off
+// "all clear". It surfaces as an advisory count in the Findings card meta;
+// the findings card below stays fully visible and actionable.
 $one = array( 'scanned_at' => time(), 'checks' => array( 'external_links' => array( 'count' => 1 ) ) );
 $oc = snt_health_glance_cards( $one );
-hca_eq( '1 finding', $oc[0]['value'], 'singular "1 finding" (external rot counts as a finding)' );
+hca_eq( '0 findings', $oc[0]['value'], 'external-rot-only scan reads 0 findings' );
+hca_eq( 'ok', $oc[0]['pill']['kind'], 'external-rot-only scan stays all-clear' );
+hca_true( false !== strpos( $oc[0]['meta_html'], '1 advisory' ), 'hero meta surfaces the singular advisory' );
+
+$adv = array( 'scanned_at' => time(), 'elapsed_ms' => 5, 'checks' => array(
+	'missing_alt'    => array( 'count' => 0 ),
+	'external_links' => array( 'count' => 3 ),
+) );
+$ac = snt_health_glance_cards( $adv );
+hca_eq( '0 findings', $ac[0]['value'], 'advisories alone leave the finding count at 0' );
+hca_true( false !== strpos( $ac[0]['meta_html'], '3 advisories' ), 'hero meta shows the plural advisory count' );
+// Checks-passed must agree with the strip's RAW split (a check carrying
+// advisories is not "passing"), while the pill keys off real findings.
+hca_eq( '1 / 2', $ac[1]['value'], 'checks-passed ratio uses the raw count split (advisory check is not passing)' );
+hca_eq( 'ok', $ac[1]['pill']['kind'], 'checks-passed pill stays ok when only advisories exist' );
+
+$mixed = array( 'scanned_at' => time(), 'checks' => array(
+	'missing_alt'    => array( 'count' => 2 ),
+	'external_links' => array( 'count' => 1 ),
+) );
+$mc = snt_health_glance_cards( $mixed );
+hca_eq( '2 findings', $mc[0]['value'], 'mixed scan counts only real findings' );
+hca_eq( 'warn', $mc[1]['pill']['kind'], 'real findings still drive the review pill' );
 
 // ── v8.0.1: elapsed humanizer — the live scan rendered "ran in 22206ms". ──
 echo "\nTest: snt_health_format_elapsed boundaries\n";

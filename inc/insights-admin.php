@@ -93,7 +93,7 @@ function snt_insights_render_status_section( $last ) {
 		echo '<div class="sn-status-box' . ( 'ok' === $pill ? '' : ' sn-status-box--warn' ) . '">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last['scanned_at'], time() ) ) . ' ago</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $active_count ) . ' active &middot; ' . esc_html( $dismissed_count ) . ' dismissed &middot; ' . esc_html( $done_count ) . ' done · scan ran in ' . esc_html( (int) $last['elapsed_ms'] ) . 'ms · cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + SN_INSIGHTS_CACHE_TTL ) ) . '.</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $active_count ) . ' active &middot; ' . esc_html( $dismissed_count ) . ' dismissed &middot; ' . esc_html( $done_count ) . ' done · scan ran in ' . esc_html( snt_health_format_elapsed( (int) $last['elapsed_ms'] ) ) . ' · cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + SN_INSIGHTS_CACHE_TTL ) ) . '.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $active_count > 0 ? 'Recommendations ready' : 'All caught up' ) . '</span>';
 		echo '</div>';
@@ -300,7 +300,7 @@ function snt_insights_render_narration_section( $ai_ready ) {
 			}
 			echo '</p>';
 		}
-		echo '<p class="sn-field-helper">Generated ' . esc_html( human_time_diff( (int) $narration['generated_at'], time() ) ) . ' ago &middot; in ' . esc_html( (string) (int) $narration['elapsed_ms'] ) . 'ms.</p>';
+		echo '<p class="sn-field-helper">Generated ' . esc_html( human_time_diff( (int) $narration['generated_at'], time() ) ) . ' ago &middot; in ' . esc_html( snt_health_format_elapsed( (int) $narration['elapsed_ms'] ) ) . '.</p>';
 	} else {
 		echo '<p class="sn-fieldset-intro">No digest yet. Click <strong>Generate digest</strong> to create one (~$0.01).</p>';
 	}

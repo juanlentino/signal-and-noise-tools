@@ -151,5 +151,13 @@ $runner_src = file_exists( $runner_js ) ? (string) file_get_contents( $runner_js
 t( false !== strpos( $runner_src, 'input[' ), 'D.3 runner bracket-encodes query input for GET/DELETE' );
 t( false === strpos( $runner_src, 'JSON.stringify( input )' ) && false === strpos( $runner_src, 'JSON.stringify(input)' ), 'D.4 runner never sends input as a JSON query string' );
 
+// v8.0.4: the v7.7.1 audit's noted fragility — the audit-summary toast used
+// pct_delta bare (every sibling field carries a || 0 fallback), so a
+// degenerate summary payload rendered "undefined%". Contract: the toast
+// derives a numeric pct with a fallback before concatenating the % sign.
+$dm_src = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' );
+t( false !== strpos( $dm_src, 'Number( s.last_7d_vs_prior.pct_delta ) || 0' ), 'D.5 audit-summary toast derives pct with a numeric fallback' );
+t( false === strpos( $dm_src, "s.last_7d_vs_prior.pct_delta + '%" ), 'D.6 no bare pct_delta concatenation remains (the undefined% path)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

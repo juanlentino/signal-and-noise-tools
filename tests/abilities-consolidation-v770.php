@@ -181,6 +181,12 @@ $out = snt_ability_list_cron_events( array( 'hook' => 'not_scheduled' ) );
 t( is_array( $out ) && 0 === count( $out ), 'C.7 no match → empty array, not an error' );
 snt_ability_list_cron_events( array( 'sn_only' => true ) );
 t_eq( true, $GLOBALS['__cron_sn_only'], 'C.8 sn_only passthrough unchanged' );
+// v8.0.4: the v7.7.1 audit's noted fragility — args_signature standalone
+// silently filtered ACROSS hooks though the description says "combined with
+// hook". Invalid parameter combinations are input errors, distinct from the
+// C.7 no-MATCH contract (which stays an empty array).
+$out = snt_ability_list_cron_events( array( 'args_signature' => 'sig1' ) );
+t( is_wp_error( $out ), 'C.9 args_signature without hook → WP_Error nudge, not a silent cross-hook filter' );
 
 // ════ get-deploy-status — force_refresh ══════════════════════════════
 echo "\nGroup D: get-deploy-status force_refresh\n";

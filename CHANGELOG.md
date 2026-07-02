@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.0.4] - 2026-07-02: Open-threads bundle — external rot re-tiered to advisory + the v8.0.x post-ship audit find + two v7.7.1 hardenings
+
+**Headline:** The open-threads sweep after the v8.0.1→v8.0.3 install. The owner's pending severity decision lands: **external link rot is now an ADVISORY, not a finding** — a third-party site 500-ing overnight no longer flips the hero, Dashboard card, Health widget, or agent-facing summaries off "all clear" (it self-clears when the remote host recovers), while the findings card on the Health tab stays fully visible and actionable and the hero meta reads "0 findings · N advisories". The post-ship audit's one find is fixed (two Insights surfaces still rendered raw "48213ms"-style elapsed), and the two fragilities noted-no-action by the v7.7.1 audit are hardened now that a session touched their neighborhoods.
+
+> **Why PATCH:** severity calibration + consistency fixes + defensive hardening; no new capability, no schema migration (the ability output gains one additive field).
+
+### Changed
+- **Advisory tier (owner decision 2026-07-02).** New `sn_health_advisory_checks()` (currently `external_links`) + `sn_health_advisory_total()` in the shared summary accessors; `sn_health_finding_total()` and `sn_health_flagged_checks()` now exclude advisory-tier checks, so every consumer (Health hero, Dashboard glance + attention strip, S&N Health widget, `get-health-scan` ability) calms down in one move. The Health tab still renders the external-rot findings card (the with-findings split stays raw, deliberately); the widget's attention list drops it (that widget answers "does anything need me"). The hero's "Checks passed" ratio now uses the raw count split so it always agrees with the passing strip (an advisory-carrying check is not "passing"), while its pill keys off real findings only.
+- `get-health-scan` ability output gains additive `advisory_total`; `finding_total` is now fault-tier only (schema description updated — agent-visible calibration, not a schema break).
+
+### Fixed
+- **Insights raw-ms elapsed (post-ship audit find).** The Insights rail status box ("scan ran in 48213ms") and the weekly-digest meta ("in 15500ms.") now use the shared humanizer ("48.2s" / "15.5s"). `snt_health_format_elapsed()` relocated from health-checks-admin.php to health-summary.php with the other shared projections.
+- **`undefined%` toast (v7.7.1 noted fragility).** The desktop-mode audit-summary toast used `pct_delta` bare while every sibling field carried a `|| 0` fallback — a degenerate summary payload rendered "undefined%". The pct now derives through a numeric fallback.
+
+### Improvements
+- **`args_signature` guard (v7.7.1 noted fragility).** `list-cron-events` with `args_signature` but no `hook` silently filtered across ALL hooks though the description says "combined with hook" — almost certainly a caller mistake. It now returns a `snt_cron_args_signature_requires_hook` input error (the no-MATCH contract is untouched: still an empty array, never an error); the ability description states the pairing.
+
+### Cleanup
+- Test deltas flip the old pinned contracts deliberately (the widget suite's "external rot counts as a finding" assert documented the OLD owner decision; the new one reverses it): `tests/site-health-widget.php` (advisory accessors + widget render), `tests/health-checks-admin.php` (hero advisory meta + raw passed split), `tests/abilities-health.php` (additive field + re-tiered totals), `tests/insights-shell.php` (humanized elapsed incl. a new digest-meta scenario), `tests/abilities-consolidation-v770.php` (C.9 guard), `tests/ability-run-client.php` (D.5/D.6 toast contract). Sweep: 198 suites, 5,522 asserts, 0 failed.
+- Gated threads stay gated on their documented triggers: scheduled-content recurrence (YAGNI), version-swap UAT (No 01.1 launch), migrations 10→5 collapse (third type), series wayfinding (first real series), worker lat/lon (dormant).
+
 ## [8.0.3] - 2026-07-02: Admin cohesion stage 2 — the "crisp console" token set
 
 **Headline:** Stage 2 of the admin cohesion pass closes the arc. The owner picked treatment B ("crisp console") off a three-way mockup comparison rendered on one leaf per archetype (Health / Webhooks / Identity & SEO), and this release implements exactly that token set in `assets/admin.css` — nothing else changes. Zero markup churn (that's what Stage 1 bought), zero navigation change: every top tab, sub-tab, and in-page section tab stays precisely as it was. The surface now reads as an operator's console: the hero numerals get real weight, every card shares one title-zone/body-zone anatomy via a hairline rule, pills square into chips, and data tables tighten.

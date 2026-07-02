@@ -269,11 +269,14 @@
 			window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
 				.then( function( res ) {
 					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, lla: {} };
+					// v8.0.4: pct through a numeric fallback like every sibling
+					// field — bare pct_delta rendered "undefined%" on a
+					// degenerate payload (the v7.7.1 audit's noted fragility).
+					var pct = Number( s.last_7d_vs_prior.pct_delta ) || 0;
 					var msg = 'Last 24h: ' + ( s.last_24h.all_total || 0 ) + ' events (' +
 						( s.last_24h.failed_total || 0 ) + ' failed, ' +
 						( s.last_24h.recon_total || 0 ) + ' recon). ' +
-						'7d trend: ' + ( s.last_7d_vs_prior.pct_delta >= 0 ? '+' : '' ) +
-						s.last_7d_vs_prior.pct_delta + '%. ' +
+						'7d trend: ' + ( pct >= 0 ? '+' : '' ) + pct + '%. ' +
 						'Unique IPs (24h): ' + ( s.unique_attackers_24h || 0 ) + '. ' +
 						'LLA lockouts: ' + ( s.lla.active_lockouts || 0 ) + '.';
 					toast( msg, 'info' );
