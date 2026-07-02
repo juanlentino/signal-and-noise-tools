@@ -70,7 +70,7 @@ $GLOBALS['__clusters'] = array( array(
 ) );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'AI-Generated Music' ) !== false && strpos( $h, 'AI Generated Music' ) !== false, 'render: cluster lists both member tags' );
-ok( strpos( $h, 'postbox' ) !== false, 'render: uses native postbox chrome' );
+ok( strpos( $h, '<div class="sn-fieldset">' ) !== false, 'render: cluster panels use the system fieldset chrome (v8.0.2 cohesion)' );
 ok( strpos( $h, 'Preview merge' ) !== false, 'render: a Preview merge control per cluster' );
 // Phase 4b: first-glance hero (counts) leads the full-width list view.
 ok( strpos( $h, 'class="sn-glance"' ) !== false, 'glance: first-glance hero renders on the list view' );
@@ -124,6 +124,30 @@ ok( strpos( $h, 'Unused tags' ) !== false && strpos( $h, 'name="sn_tag_unused[]"
 $GLOBALS['__unused'] = array();
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
+
+// --- v8.0.2 cohesion contract: system card vocabulary on every view -------------
+// Three captures cover all 7 panel sites: maximal list (clusters + history + AI
+// review + unused), the confirm view, and the empty list (the empty-dups panel).
+$GLOBALS['__clusters'] = array( array( 'key' => 'k', 'terms' => array( array( 'term_id' => 10, 'name' => 'A', 'slug' => 'a', 'count' => 1 ), array( 'term_id' => 11, 'name' => 'B', 'slug' => 'b', 'count' => 1 ) ), 'suggested' => 10 ) );
+$GLOBALS['__hist'] = array( array( 'from' => array( 'a' ), 'into' => 'b', 'posts' => 1, 'user' => 1, 'ts' => 1 ) );
+$GLOBALS['__ai'] = true;
+$GLOBALS['__transient'] = array( array( 'post_id' => 7, 'title' => 'N', 'suggested' => array( array( 'term_id' => 2, 'name' => 'Jazz', 'slug' => 'jazz' ) ) ) );
+$GLOBALS['__unused'] = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
+ob_start(); sn_admin_render_tag_cleanup_section(); $view_list = ob_get_clean();
+$_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10' ); $_GET['sn_tag_into'] = '12';
+$GLOBALS['__preview'] = array( 'from' => array( array( 'id' => 10, 'name' => 'A', 'slug' => 'a', 'count' => 1 ) ), 'into' => array( 'id' => 12, 'name' => 'B', 'slug' => 'b' ), 'posts_affected' => 1 );
+ob_start(); sn_admin_render_tag_cleanup_section(); $view_confirm = ob_get_clean();
+unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
+$GLOBALS['__clusters'] = array(); $GLOBALS['__transient'] = false; $GLOBALS['__unused'] = array();
+ob_start(); sn_admin_render_tag_cleanup_section(); $view_empty = ob_get_clean();
+foreach ( array( 'list view' => $view_list, 'confirm view' => $view_confirm, 'empty view' => $view_empty ) as $view => $out ) {
+	ok( strpos( $out, 'postbox' ) === false, "cohesion: $view has no native postbox chrome" );
+	ok( strpos( $out, 'style=' ) === false, "cohesion: $view has zero inline style attributes" );
+}
+ok( strpos( $view_list, '<div class="sn-fieldset">' ) !== false && strpos( $view_list, '<h2 class="sn-fieldset-h">' ) !== false, 'cohesion: list panels use .sn-fieldset + .sn-fieldset-h' );
+ok( strpos( $view_list, 'class="snt-label-inline"' ) !== false && strpos( $view_list, 'class="snt-label-block"' ) !== false, 'cohesion: checklist labels use the layout utilities' );
+$css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+ok( strpos( $css, '.snt-label-inline' ) !== false && strpos( $css, '.snt-label-block' ) !== false, 'cohesion: label utilities exist in admin.css' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

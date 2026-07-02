@@ -214,16 +214,19 @@ function sn_login_defense_render_status( $status ) {
  * denylist size + last refresh + attribution + a link to the Analytics-dashboard
  * Login defense view. The attack analytics live in the dashboard widget + that
  * view, so this panel does not duplicate a KPI strip. Native wp-admin markup; escaped.
+ *
+ * v8.0.2 (cohesion): the readout gets the system card chrome its digest sibling
+ * below already has. The fieldset wraps AROUND the .sn-status-box — the box is
+ * a flex row, so children echoed inside it render as a squeezed column (v7.2.1).
  */
 function sn_login_defense_render() {
-	echo '<div class="sn-status-box">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Login guard status</h2><div class="sn-status-box">';
 	sn_login_defense_render_status( sn_login_defense_status() );
 	echo '<p class="description">' . esc_html( sn_login_defense_attribution() ) . '</p>';
 	echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
-	echo '</div>';
-	// v7.2.1: the digest settings card mounts AFTER the status box — the box is a
-	// flex row, so anything echoed inside it renders as a squeezed column.
+	echo '</div></div>'; // .sn-status-box, .sn-fieldset
+	// v7.2.1: the digest settings card mounts AFTER the status card.
 	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
 		snt_security_digest_render_settings();
 	}

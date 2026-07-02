@@ -105,6 +105,11 @@ $panel = ob_get_clean();
 ok( strpos( $panel, 'Login decisions' ) === false, 'panel no longer renders the decisions KPI list' );
 ok( strpos( $panel, 'page=sn-analytics&sn_view=login-defense' ) !== false, 'panel links to the dashboard login-defense view' );
 ok( strpos( $panel, 'FireHOL' ) !== false, 'panel keeps the FireHOL/Spamhaus attribution' );
+// v8.0.2 cohesion: the status readout gets system card chrome. The wrapper sits
+// OUTSIDE the .sn-status-box flex row (children echoed inside it render as a
+// squeezed column — the v7.2.1 lesson).
+ok( strpos( $panel, '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Login guard status</h2><div class="sn-status-box">' ) !== false, 'status readout wrapped in a system card, fieldset AROUND the flex-row status box' );
+ok( strpos( $panel, 'postbox' ) === false && strpos( $panel, 'style=' ) === false, 'panel stays free of meta-box chrome and inline styles' );
 
 // --- worker version surfaced in the status panel (parity with analytics) -----
 ob_start();

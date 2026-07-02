@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Performance admin section (Tools tab → Performance sub-tab).
+ * Signal & Noise — Performance admin section (Content tab → Performance sub-tab).
  *
  * Renders the Speculation Rules toggle (sn_action=perf_save). When on, the site
  * opts into WP 7.0's native prerender/moderate speculative loading via the

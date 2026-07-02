@@ -298,6 +298,14 @@
 	scroll-margin-top: 80px;
 }
 
+/* ─── v8.0.2: opt-out width modifier ─────────────────────────────────────────
+   A .sn-fieldset that holds a wide data table earns the full content width
+   (the audit-log timeline is 7 columns). Same intent as the scoped
+   .sn-health-findings uncap, expressed as a reusable BEM modifier. */
+.sn-fieldset--wide {
+	max-width: none;
+}
+
 .sn-fieldset-h {
 	font-size: 1.15em;
 	font-weight: 600;
@@ -1083,12 +1091,12 @@
 	position: relative;
 	background: var(--sn-surface, #fff);
 	border: 1px solid var(--sn-border, #c3c4c7);
-	border-radius: 4px;
+	border-radius: var(--sn-radius); /* v8.0.2: token, was a literal 4px */
 	padding: 14px 16px;
 	transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .sn-link-card:hover {
-	border-color: #8c8f94;
+	border-color: var(--sn-text-muted); /* v8.0.2: token, was #8c8f94 */
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 .sn-link-card__label {
@@ -1682,6 +1690,14 @@
 /* Vertical-rhythm margin utilities. Each maps verbatim to a recurring
    inline margin-top/-bottom used on fieldsets, intros, <details>, scroll
    tables, and log tables. */
+/* v8.0.2: label-layout utilities — replace the last two inline style= attrs
+   in wp-admin markup (tag-consolidation AI + unused checklists). */
+.snt-label-inline {
+	margin-right: 12px;
+}
+.snt-label-block {
+	display: block;
+}
 .snt-mt-half {
 	margin-top: 0.5rem;
 }

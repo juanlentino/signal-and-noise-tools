@@ -5,7 +5,7 @@
  * The merge POSTs back to admin.php?page=sn-content&tab=content&sub=tags with
  * sn_action=tag_merge; the central admin_init dispatcher (inc/admin-post-handler.php)
  * verifies the nonce + manage_options, calls sn_handle_tag_merge, and PRG-redirects
- * with ?sn_flash. Native wp-admin styling only.
+ * with ?sn_flash. System .sn-fieldset card vocabulary (cohesion pass v8.0.2).
  *
  * @package signal-and-noise-tools
  */
@@ -95,8 +95,8 @@ function sn_admin_render_tag_cleanup_section() {
 	}
 
 	if ( ! $clusters ) {
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Duplicate tags', 'signal-and-noise-tools' ) . '</span></h2></div>';
-		echo '<div class="inside"><p>' . esc_html__( 'No duplicate tags detected.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Duplicate tags', 'signal-and-noise-tools' ) . '</h2>';
+		echo '<p>' . esc_html__( 'No duplicate tags detected.', 'signal-and-noise-tools' ) . '</p></div>';
 	} else {
 		foreach ( $clusters as $c ) {
 			sn_admin_tag_render_cluster( $c );
@@ -117,7 +117,7 @@ function sn_admin_render_tag_cleanup_section() {
  * @return void
  */
 function sn_admin_tag_render_cluster( $c ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Possible duplicates', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Possible duplicates', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	echo '<input type="hidden" name="page" value="sn-content"><input type="hidden" name="tab" value="content"><input type="hidden" name="sub" value="tags"><input type="hidden" name="sn_tag_preview" value="1">';
 	echo '<table class="wp-list-table widefat striped"><thead><tr><th>' . esc_html__( 'Canonical', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Merge?', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . '</th><th class="num">' . esc_html__( 'Posts', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
@@ -131,7 +131,7 @@ function sn_admin_tag_render_cluster( $c ) {
 	echo '</tbody></table>';
 	echo '<p><button type="submit" class="button button-secondary">' . esc_html__( 'Preview merge', 'signal-and-noise-tools' ) . '</button> ';
 	echo '<span class="description">' . esc_html__( 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).', 'signal-and-noise-tools' ) . '</span></p>';
-	echo '</form></div></div>';
+	echo '</form></div>';
 }
 
 /**
@@ -141,7 +141,7 @@ function sn_admin_tag_render_cluster( $c ) {
  */
 function sn_admin_tag_render_manual_picker() {
 	$tags = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Merge any two tags', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Merge any two tags', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	echo '<input type="hidden" name="page" value="sn-content"><input type="hidden" name="tab" value="content"><input type="hidden" name="sub" value="tags"><input type="hidden" name="sn_tag_preview" value="1">';
 	echo '<p>' . esc_html__( 'Fold', 'signal-and-noise-tools' ) . ' ';
@@ -149,7 +149,7 @@ function sn_admin_tag_render_manual_picker() {
 	echo esc_html__( 'into', 'signal-and-noise-tools' ) . ' ';
 	echo '<select name="sn_tag_into">' . sn_admin_tag_options( $tags ) . '</select> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options pre-escaped in sn_admin_tag_options.
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Preview merge', 'signal-and-noise-tools' ) . '</button></p>';
-	echo '</form></div></div>';
+	echo '</form></div>';
 }
 
 /**
@@ -176,7 +176,7 @@ function sn_admin_tag_options( $tags ) {
  * @return void
  */
 function sn_admin_tag_render_confirm( $pv, $from, $into ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! is_array( $pv ) || empty( $pv['from'] ) ) {
 		echo '<p>' . esc_html__( 'Nothing to merge (the selected tags are no longer valid).', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><a class="button" href="' . esc_url( sn_admin_tag_page_url() ) . '">' . esc_html__( 'Back', 'signal-and-noise-tools' ) . '</a></p></div></div>';
@@ -200,7 +200,7 @@ function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 	echo '<input type="hidden" name="sn_tag_into" value="' . esc_attr( (int) $into ) . '">';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</button> ';
 	echo '<a class="button" href="' . esc_url( sn_admin_tag_page_url() ) . '">' . esc_html__( 'Cancel', 'signal-and-noise-tools' ) . '</a>';
-	echo '</form></div></div>';
+	echo '</form></div>';
 }
 
 /**
@@ -213,7 +213,7 @@ function sn_admin_tag_render_recent_merges() {
 	if ( ! is_array( $hist ) || ! $hist ) {
 		return;
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Recent tag operations', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside"><ul class="ul-disc">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Recent tag operations', 'signal-and-noise-tools' ) . '</h2><ul class="ul-disc">';
 	foreach ( array_slice( $hist, 0, 10 ) as $h ) {
 		$slugs = implode( ', ', array_map( 'strval', (array) ( $h['from'] ?? array() ) ) );
 		if ( 'prune' === ( $h['op'] ?? 'merge' ) ) {
@@ -229,7 +229,7 @@ function sn_admin_tag_render_recent_merges() {
 		}
 		echo '<li>' . esc_html( $line ) . '</li>';
 	}
-	echo '</ul></div></div>';
+	echo '</ul></div>';
 }
 
 /**
@@ -239,9 +239,9 @@ function sn_admin_tag_render_recent_merges() {
  * @return void
  */
 function sn_admin_tag_render_ai_section() {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'AI: suggest tags for untagged Notes', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'AI: suggest tags for untagged Notes', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		echo '<p>' . esc_html__( 'Connect an AI provider (Settings > Connectors) to suggest tags.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		echo '<p>' . esc_html__( 'Connect an AI provider (Settings > Connectors) to suggest tags.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
 
@@ -258,18 +258,18 @@ function sn_admin_tag_render_ai_section() {
 			}
 			echo '<p><strong>' . esc_html( (string) ( $s['title'] ?? ( '#' . $pid ) ) ) . '</strong><br>';
 			foreach ( $s['suggested'] as $tag ) {
-				echo '<label style="margin-right:12px"><input type="checkbox" name="assign[' . esc_attr( $pid ) . '][]" value="' . esc_attr( (int) $tag['term_id'] ) . '" checked> ' . esc_html( (string) $tag['name'] ) . '</label>';
+				echo '<label class="snt-label-inline"><input type="checkbox" name="assign[' . esc_attr( $pid ) . '][]" value="' . esc_attr( (int) $tag['term_id'] ) . '" checked> ' . esc_html( (string) $tag['name'] ) . '</label>';
 			}
 			echo '</p>';
 		}
 		echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Apply selected', 'signal-and-noise-tools' ) . '</button></p>';
-		echo '</form></div></div>';
+		echo '</form></div>';
 		return;
 	}
 
 	$untagged = function_exists( 'sn_tag_untagged_notes' ) ? sn_tag_untagged_notes( 20 ) : array();
 	if ( ! $untagged ) {
-		echo '<p>' . esc_html__( 'Every published Note has at least one tag. Nothing to suggest.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		echo '<p>' . esc_html__( 'Every published Note has at least one tag. Nothing to suggest.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
 	echo '<p>' . esc_html( sprintf( /* translators: %d: count */ _n( '%d untagged Note.', '%d untagged Notes.', count( $untagged ), 'signal-and-noise-tools' ), count( $untagged ) ) ) . ' '
@@ -278,7 +278,7 @@ function sn_admin_tag_render_ai_section() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="tag_ai_suggest">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Suggest tags', 'signal-and-noise-tools' ) . '</button>';
-	echo '</form></div></div>';
+	echo '</form></div>';
 }
 
 /**
@@ -288,17 +288,17 @@ function sn_admin_tag_render_ai_section() {
  */
 function sn_admin_tag_render_unused_section() {
 	$unused = function_exists( 'sn_tag_find_unused' ) ? sn_tag_find_unused() : array();
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Unused tags', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Unused tags', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! $unused ) {
-		echo '<p>' . esc_html__( 'No unused tags.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		echo '<p>' . esc_html__( 'No unused tags.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
 	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '" onsubmit="return confirm(\'Delete the selected unused tags?\');">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="tag_prune_unused"><p>';
 	foreach ( $unused as $t ) {
-		echo '<label style="display:block"><input type="checkbox" name="sn_tag_unused[]" value="' . esc_attr( (int) $t['term_id'] ) . '" checked> <strong>' . esc_html( (string) $t['name'] ) . '</strong> <code>' . esc_html( (string) $t['slug'] ) . '</code></label>';
+		echo '<label class="snt-label-block"><input type="checkbox" name="sn_tag_unused[]" value="' . esc_attr( (int) $t['term_id'] ) . '" checked> <strong>' . esc_html( (string) $t['name'] ) . '</strong> <code>' . esc_html( (string) $t['slug'] ) . '</code></label>';
 	}
 	echo '</p><p><button type="submit" class="button button-secondary">' . esc_html__( 'Delete selected', 'signal-and-noise-tools' ) . '</button></p>';
-	echo '</form></div></div>';
+	echo '</form></div>';
 }
