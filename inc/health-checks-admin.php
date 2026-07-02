@@ -127,7 +127,7 @@ function sn_health_render_admin_tab() {
 	}
 
 	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
-	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions' );
+	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions', 'link_opportunities' );
 
 	$last_scan = sn_health_last_scan();
 
@@ -318,11 +318,12 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 	} elseif ( 'orphaned_media' === $check_key ) {
 		$attrs['data-check']         = 'orphaned_media';
 		$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
-	} elseif ( 'unlinked_mentions' === $check_key ) {
-		// v7.4.0: one button per (source, target) pair. Suggest re-derives
-		// the mention server-side from the two ids — no scan payload rides
-		// the button, so a stale finding degrades to a clean 409.
-		$attrs['data-check']     = 'unlinked_mentions';
+	} elseif ( 'unlinked_mentions' === $check_key || 'link_opportunities' === $check_key ) {
+		// v7.4.0 (mentions) / v8.1.0 (semantic pairs): one button per
+		// (source, target) pair. Suggest re-derives everything server-side
+		// from the two ids — no scan payload rides the button, so a stale
+		// finding degrades to a clean 409.
+		$attrs['data-check']     = $check_key;
 		$attrs['data-post-id']   = (int) ( $finding['subject_id'] ?? 0 );
 		$attrs['data-target-id'] = (int) ( $finding['target_id'] ?? 0 );
 	} elseif ( 'pattern_adoption_pull_quote' === $check_key || 'pattern_adoption_steps_enumerated' === $check_key ) {
