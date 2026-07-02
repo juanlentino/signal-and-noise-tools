@@ -118,7 +118,11 @@ function sn_now_page_save( $raw ) {
 		SN_NOW_PAGE_OPTION,
 		array(
 			'raw'     => $raw,
-			'updated' => gmdate( 'Y-m-d' ),
+			// v7.5.1: SITE-timezone date, not UTC. gmdate() stamped an owner
+			// save at 8pm US-Eastern July 1 as "July 2" on the live /now page.
+			// wp_date() uses the WP settings timezone (always defined on live
+			// WP 5.3+; the gmdate fallback only serves bare test harnesses).
+			'updated' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
 		),
 		false // autoload=no: admin-edited content read on /now renders + the editor only.
 	);

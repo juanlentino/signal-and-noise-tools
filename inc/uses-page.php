@@ -1,0 +1,157 @@
+<?php
+/**
+ * Signal & Noise Tools — /uses page content editor (data layer + theme feed).
+ *
+ * Owner direction 2026-07-01: /uses gets the same plugin-managed content
+ * behavior as /now. The theme's uses trio shipped (v10.10.0) with the
+ * `sn_uses_groups` filter explicitly documented as "the deferred-admin-UI
+ * seam — the companion plugin can supply the list later WITHOUT a theme
+ * change." This module finally feeds it, mirroring inc/now-page.php:
+ *
+ *   - durable autoload=no OPTION (sn_uses_page) holding the raw document +
+ *     a site-timezone save-stamp (wp_date — the v7.5.1 lesson, from day one);
+ *   - the SECTION grammar is shared with /now (sn_now_parse_sections);
+ *     /uses items are {name, note} pairs, split on the FIRST ` | `;
+ *   - a serializer so the admin editor can PREFILL from the theme's live
+ *     file groups instead of making the owner retype eleven items;
+ *   - the filter callback with the same fallback discipline: empty or
+ *     zero-group content NEVER replaces the theme's file content.
+ *
+ * Admin surface: Content → Uses Page (inc/admin-forms/uses-page.php);
+ * POST action `uses_save` (inc/admin-post-actions.php).
+ *
+ * Load order: requires inc/now-page.php first (shared parser) — both are
+ * required from signal-and-noise-tools.php in that order.
+ *
+ * @package SignalNoiseTools
+ * @since 7.6.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'SN_USES_PAGE_OPTION', 'sn_uses_page' );
+
+/**
+ * Parse the raw /uses document into the theme's group shape. Rides the /now
+ * section grammar, then maps each string item to a {name, note} pair split
+ * on the FIRST ` | ` (pipes after that stay in the note).
+ *
+ * @param string $raw Owner-edited document.
+ * @return array<int,array{label:string,items:array<int,array{name:string,note:string}>}>
+ */
+function sn_uses_parse_groups( $raw ) {
+	$groups = array();
+	foreach ( sn_now_parse_sections( $raw ) as $section ) {
+		$items = array();
+		foreach ( $section['items'] as $line ) {
+			$parts = explode( '|', $line, 2 );
+			$name  = trim( $parts[0] );
+			if ( '' === $name ) {
+				continue;
+			}
+			$items[] = array(
+				'name' => $name,
+				'note' => isset( $parts[1] ) ? trim( $parts[1] ) : '',
+			);
+		}
+		if ( ! empty( $items ) ) {
+			$groups[] = array( 'label' => $section['label'], 'items' => $items );
+		}
+	}
+	return $groups;
+}
+
+/**
+ * Serialize theme-shaped groups back into the editor's text format —
+ * parse(serialize(x)) === x for normalized groups. Used to prefill the
+ * editor with the theme's CURRENT file content on first open.
+ *
+ * @param array $groups Theme-shaped groups (sn_uses_groups() output).
+ * @return string
+ */
+function sn_uses_serialize_groups( $groups ) {
+	if ( ! is_array( $groups ) ) {
+		return '';
+	}
+	$out = array();
+	foreach ( $groups as $group ) {
+		if ( ! is_array( $group ) || '' === trim( (string) ( $group['label'] ?? '' ) ) || empty( $group['items'] ) ) {
+			continue;
+		}
+		$out[] = '## ' . trim( (string) $group['label'] );
+		foreach ( (array) $group['items'] as $item ) {
+			$name = trim( (string) ( is_array( $item ) ? ( $item['name'] ?? '' ) : $item ) );
+			if ( '' === $name ) {
+				continue;
+			}
+			$note  = is_array( $item ) ? trim( (string) ( $item['note'] ?? '' ) ) : '';
+			$out[] = '- ' . $name . ( '' !== $note ? ' | ' . $note : '' );
+		}
+		$out[] = '';
+	}
+	return empty( $out ) ? '' : implode( "\n", $out );
+}
+
+/**
+ * The stored /uses page, shape-validated. Null when nothing is saved (the
+ * theme's file content is live) or the stored value is hostile.
+ *
+ * @return array{raw:string,updated:string}|null
+ */
+function sn_uses_page_get() {
+	$stored = get_option( SN_USES_PAGE_OPTION );
+	if ( ! is_array( $stored ) || ! isset( $stored['raw'], $stored['updated'] ) ) {
+		return null;
+	}
+	return array(
+		'raw'     => (string) $stored['raw'],
+		'updated' => (string) $stored['updated'],
+	);
+}
+
+/**
+ * Save (or clear) the /uses document. Whitespace-only input deletes the
+ * option — /uses reverts to the theme's file content.
+ *
+ * @param string $raw Owner-edited document.
+ * @return bool True on a real change; false when re-saving identical content.
+ */
+function sn_uses_page_save( $raw ) {
+	$raw = (string) $raw;
+	if ( '' === trim( $raw ) ) {
+		return delete_option( SN_USES_PAGE_OPTION );
+	}
+	return update_option(
+		SN_USES_PAGE_OPTION,
+		array(
+			'raw'     => $raw,
+			// Site-timezone stamp (wp_date), never UTC — the v7.5.1 lesson.
+			'updated' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
+		),
+		false // autoload=no: read on /uses renders + the editor only.
+	);
+}
+
+/**
+ * sn_uses_groups theme filter: saved plugin content replaces the theme's
+ * file groups — ONLY when it parses to at least one group, so a bad save
+ * can never blank the live /uses page.
+ *
+ * @param array $d Theme-supplied groups (the file content).
+ * @return array
+ */
+function sn_tf_uses_groups( $d ) {
+	$page = sn_uses_page_get();
+	if ( ! $page ) {
+		return $d;
+	}
+	$groups = sn_uses_parse_groups( $page['raw'] );
+	return ! empty( $groups ) ? $groups : $d;
+}
+
+// Register against the theme's /uses seam. Skipped under the CLI test harness.
+if ( ! defined( 'SN_USES_PAGE_TEST' ) || ! SN_USES_PAGE_TEST ) {
+	add_filter( 'sn_uses_groups', 'sn_tf_uses_groups' );
+}

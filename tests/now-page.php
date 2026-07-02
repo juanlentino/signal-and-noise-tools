@@ -25,6 +25,9 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: 
 
 // ── WP stubs ──
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+// wp_date sentinel: a value gmdate can NEVER produce (fixed past date), so
+// the site-timezone assertion below can only pass through the wp_date path.
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $fmt, $ts = null ) { return '1999-12-31'; } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
@@ -57,6 +60,11 @@ ok( false === ( $GLOBALS['__last_autoload'] ?? true ), 'option stored autoload=n
 $page = sn_now_page_get();
 ok( is_array( $page ) && $raw === ( $page['raw'] ?? '' ), 'raw round-trips' );
 ok( 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $page['updated'] ?? '' ) ), 'save stamps updated as YYYY-MM-DD' );
+// v7.5.1: the stamp must be the SITE-timezone date (wp_date), not UTC —
+// gmdate() stamped the owner's July-1-evening US-Eastern save as "July 2".
+// The harness stubs wp_date with an impossible-for-gmdate sentinel; the
+// stored stamp must be it.
+ok( '1999-12-31' === ( $page['updated'] ?? '' ), 'stamp uses wp_date (site timezone), not gmdate/UTC' );
 ok( 3 === count( sn_now_page_sections() ), 'sn_now_page_sections() parses the stored raw' );
 
 // unchanged content re-save → false (drives the "no changes" flash) but keeps the stamp shape.

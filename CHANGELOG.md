@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.6.0] - 2026-07-01: Uses Page editor + site-timezone save stamps
+
+**Headline:** Owner direction: /uses gets the same plugin-managed content behavior as /now. New Content → Uses Page sub-tab feeding the theme's `sn_uses_groups` seam (shipped with the uses trio in theme v10.10.0, documented then as "the deferred-admin-UI seam" — finally fed). Same grammar as the Now editor with one addition: an optional `|` splits an item's name from its note (`- SSL UF8 | Advanced DAW controller`). On first open the editor PREFILLS with the theme's live file list (serializer round-trips the parser exactly), so the owner edits the current eleven items instead of retyping them. Same fallback discipline: empty clears, zero-group content is refused at save and guarded at the filter. Also fixes the /now updated stamp: `gmdate()` stamped a July-1-evening US-Eastern save as "July 2" on the live page — both editors now stamp with `wp_date()` (the site's configured timezone).
+
+> **Why MINOR:** a new admin surface + dispatcher action (net-new capability); the timezone fix rides along.
+
+### New
+- `inc/uses-page.php`: `sn_uses_parse_groups` (shares the /now section grammar; first-`|` name/note split), `sn_uses_serialize_groups` (exact parse/serialize round-trip for the prefill), durable `sn_uses_page` option, `sn_tf_uses_groups` filter feed with the blank-page guard.
+- `inc/admin-forms/uses-page.php`: Content → Uses Page editor (prefills from the theme's live list); `uses_save` in the dispatcher map (44 actions) + five flash codes.
+- Test suites: `tests/uses-page.php` (parser/serializer/round-trip/save/filter matrix); behavioral `uses_save` cases in `tests/admin-post-actions.php`; registry tripwires updated.
+
+### Fixed
+- /now (and /uses from day one) updated stamps use `wp_date()` — the site timezone — instead of `gmdate()`/UTC, which read as tomorrow for evening US-Eastern saves (`inc/now-page.php`). Re-save the Now page content once after updating to correct the stored stamp.
+
 ## [7.5.0] - 2026-07-01: Now Page editor — /now content managed in the plugin
 
 **Headline:** Owner direction on the theme's new /now page: content should be edited in the plugin, not hardcoded in a theme data file. New Content → Now Page sub-tab: one plain-text document in a simple `## Label` / `- item` format, stored in a durable `autoload=no` option and fed to the theme through its designed seams (`sn_now_sections`, and `sn_now_updated` from theme v10.21.1 — the save-stamp accompanies the content so the page's "Updated" line stays honest automatically). Fallback discipline: an empty box clears the override (theme file content returns), and content that parses to zero sections is refused at save time AND guarded at the filter — a bad save can never blank the live /now page.
