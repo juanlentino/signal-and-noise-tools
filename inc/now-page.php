@@ -1,0 +1,162 @@
+<?php
+/**
+ * Signal & Noise Tools — /now page content editor (data layer + theme feed).
+ *
+ * The theme's /now page (theme v10.21.0) renders sections from its data file
+ * but exposes two filters as the plugin seam: `sn_now_sections` (content) and
+ * `sn_now_updated` (the honesty date, v10.21.1). Owner direction 2026-07-01:
+ * /now content should be edited in the plugin admin, not hardcoded in a theme
+ * file release. This module is that editor's data layer:
+ *
+ *   - one durable autoload=no OPTION (sn_now_page) holding the owner's raw
+ *     plain-text document + the save-stamp (transients are flush-volatile
+ *     under Breeze/Redis, so durable owner content never rides a transient);
+ *   - a tolerant parser: `## Label` opens a section, every other non-empty
+ *     line is an item (leading `- ` / `* ` stripped);
+ *   - the two filter callbacks. Fallback discipline: content that is empty
+ *     or parses to zero sections NEVER replaces the theme's file content —
+ *     a bad save must not blank the live /now page.
+ *
+ * Admin surface: Content → Now Page (inc/admin-forms/now-page.php);
+ * POST action `now_save` (inc/admin-post-actions.php).
+ *
+ * @package SignalNoiseTools
+ * @since 7.5.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'SN_NOW_PAGE_OPTION', 'sn_now_page' );
+
+/**
+ * Parse the raw /now document into the theme's section shape.
+ *
+ * `## Label` (any 1-6 # run) opens a section; every other non-empty line is
+ * an item with a leading `- ` / `* ` bullet stripped. Items before the first
+ * header are dropped (the theme prunes label-less sections anyway); sections
+ * without items are dropped.
+ *
+ * @param string $raw Owner-edited document.
+ * @return array<int,array{label:string,items:array<int,string>}>
+ */
+function sn_now_parse_sections( $raw ) {
+	$sections = array();
+	$label    = '';
+	$items    = array();
+
+	$flush = static function () use ( &$sections, &$label, &$items ) {
+		if ( '' !== $label && ! empty( $items ) ) {
+			$sections[] = array( 'label' => $label, 'items' => $items );
+		}
+		$items = array();
+	};
+
+	foreach ( preg_split( '/\R/u', (string) $raw ) as $line ) {
+		$line = trim( (string) $line );
+		if ( '' === $line ) {
+			continue;
+		}
+		if ( preg_match( '/^#{1,6}\s+(.+)$/', $line, $m ) ) {
+			$flush();
+			$label = trim( $m[1] );
+			continue;
+		}
+		if ( '' === $label ) {
+			continue; // Item before any header — dropped.
+		}
+		$items[] = trim( preg_replace( '/^[-*]\s+/', '', $line ) );
+	}
+	$flush();
+
+	return $sections;
+}
+
+/**
+ * The stored /now page, shape-validated. Null when nothing is saved (the
+ * theme's file content is live) or the stored value is hostile.
+ *
+ * @return array{raw:string,updated:string}|null
+ */
+function sn_now_page_get() {
+	$stored = get_option( SN_NOW_PAGE_OPTION );
+	if ( ! is_array( $stored ) || ! isset( $stored['raw'], $stored['updated'] ) ) {
+		return null;
+	}
+	return array(
+		'raw'     => (string) $stored['raw'],
+		'updated' => (string) $stored['updated'],
+	);
+}
+
+/**
+ * The stored document parsed into sections ([] when nothing usable is saved).
+ *
+ * @return array<int,array{label:string,items:array<int,string>}>
+ */
+function sn_now_page_sections() {
+	$page = sn_now_page_get();
+	return $page ? sn_now_parse_sections( $page['raw'] ) : array();
+}
+
+/**
+ * Save (or clear) the /now document. Whitespace-only input deletes the
+ * option — the /now page reverts to the theme's file content. The updated
+ * stamp is set at save time (the theme renders it, so staleness is honest).
+ *
+ * @param string $raw Owner-edited document.
+ * @return bool True on a real change (update_option/delete_option semantics);
+ *              false when re-saving identical content.
+ */
+function sn_now_page_save( $raw ) {
+	$raw = (string) $raw;
+	if ( '' === trim( $raw ) ) {
+		return delete_option( SN_NOW_PAGE_OPTION );
+	}
+	return update_option(
+		SN_NOW_PAGE_OPTION,
+		array(
+			'raw'     => $raw,
+			'updated' => gmdate( 'Y-m-d' ),
+		),
+		false // autoload=no: admin-edited content read on /now renders + the editor only.
+	);
+}
+
+/**
+ * sn_now_sections theme filter: saved plugin content replaces the theme's
+ * file sections — but ONLY when it parses to at least one section, so a bad
+ * save can never blank the live page.
+ *
+ * @param array $d Theme-supplied sections (the file content).
+ * @return array
+ */
+function sn_tf_now_sections( $d ) {
+	$sections = sn_now_page_sections();
+	return ! empty( $sections ) ? $sections : $d;
+}
+
+/**
+ * sn_now_updated theme filter: the save-stamp accompanies the content — the
+ * date only overrides the theme's when the CONTENT override is live too.
+ *
+ * @param string $d Theme-supplied date.
+ * @return string
+ */
+function sn_tf_now_updated( $d ) {
+	$page = sn_now_page_get();
+	if ( $page && ! empty( sn_now_parse_sections( $page['raw'] ) ) ) {
+		return (string) $page['updated'];
+	}
+	return (string) $d;
+}
+
+// Register against the theme's /now seams. Skipped under the CLI test harness
+// (which exercises the callbacks directly). Sibling contract callbacks live in
+// inc/theme-filters.php; these stay here so the whole /now feature reads from
+// one file.
+if ( ! defined( 'SN_NOW_PAGE_TEST' ) || ! SN_NOW_PAGE_TEST ) {
+	add_filter( 'sn_now_sections', 'sn_tf_now_sections' );
+	add_filter( 'sn_now_updated', 'sn_tf_now_updated' );
+}
