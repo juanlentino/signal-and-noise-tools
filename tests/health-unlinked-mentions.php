@@ -42,13 +42,19 @@ class SnMentionsWpdb {
 }
 $GLOBALS['wpdb'] = new SnMentionsWpdb();
 
+// Transient stub (v8.1.2): the scan consults cached mention judgments.
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; } }
+
 require_once __DIR__ . '/../inc/health-checks.php';
+require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php'; // locate (v8.1.2 structural suppression)
+require_once __DIR__ . '/../inc/ai-link-suggest.php';         // inside-anchor guard (v8.1.2 structural suppression)
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
 
-function mk_row( $id, $title, $name, $content ) {
-	return array( 'ID' => $id, 'post_title' => $title, 'post_name' => $name, 'post_content' => $content );
+function mk_row( $id, $title, $name, $content, $modified = '' ) {
+	return array( 'ID' => $id, 'post_title' => $title, 'post_name' => $name, 'post_content' => $content, 'post_modified_gmt' => $modified );
 }
 
 // ── target eligibility ──
@@ -129,6 +135,37 @@ ok( 5 === $check['count'], 'per-source pair cap of 5 honored (6 eligible targets
 $GLOBALS['__scan_rows'] = array();
 $check = sn_health_check_unlinked_mentions();
 ok( 0 === $check['count'] && is_array( $check['findings'] ), 'empty corpus packs 0' );
+
+echo "\nTest: v8.1.2 — cached non-actionable judgments suppress mention pairs at scan\n";
+function link_key( $sid, $tid, $smod ) { return 'sn_link_verdict_' . md5( $sid . '|' . $tid . '|' . $smod ); }
+$GLOBALS['__scan_rows'] = array(
+	mk_row( 1, 'Source note', 'source-a', '<p>I said honesty has to be the cheap option and meant it.</p>', '2026-07-01 10:00:00' ),
+	mk_row( 2, 'Honesty has to be the cheap option', 'cheap-option', '<p>target</p>', '2026-07-01 11:00:00' ),
+);
+$GLOBALS['__transients'] = array();
+$check = sn_health_check_unlinked_mentions();
+ok( 1 === (int) $check['count'], 'unjudged mention pair still nominates (baseline)' );
+$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'cached skip verdict suppresses the mention pair' );
+$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'unsure', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'cached unsure verdict suppresses the mention pair' );
+$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 1 === (int) $check['count'], 'cached link verdict keeps the mention pair' );
+$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 09:59:59' ) => array( 'verdict' => 'skip', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 1 === (int) $check['count'], 'stale-stamp judgment does NOT suppress (content changed => re-nominate)' );
+
+echo "\nTest: v8.1.2 — structurally un-applyable mentions never nominate\n";
+$GLOBALS['__transients'] = array();
+$GLOBALS['__scan_rows'] = array(
+	mk_row( 1, 'Source note', 'source-a', '<p>See <a href="/notes/other">honesty has to be the cheap option</a> here.</p>', '2026-07-01 10:00:00' ),
+	mk_row( 2, 'Honesty has to be the cheap option', 'cheap-option', '<p>target</p>', '2026-07-01 11:00:00' ),
+);
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'mention inside an existing <a> never nominates (advice-only is noise, owner rule)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

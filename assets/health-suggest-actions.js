@@ -575,28 +575,19 @@
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
 
-		if ( 'link' === res.verdict && ! res.anchor ) {
-			// v8.1.0: advice-only — the verdict says link, but no verbatim
-			// anchor validated in the prose (fabricated / markup-split /
-			// none nominated). Offer the reasoning; the row's Edit link in
-			// the adjacent Action cell handles the manual insert. Never show
-			// "Link it" here: ai-link-apply 422s an empty anchor.
-			headline.className = 'snt-verdict-headline snt-verdict-headline--warn';
-			headline.textContent = '✓ ' + __( 'Link recommended — add it manually (no clean anchor found)', 'signal-noise-tools' );
-			wrap.appendChild( headline );
-			wrap.appendChild( reasonEl );
-
-			var discardBtnAdvice = document.createElement( 'button' );
-			discardBtnAdvice.type = 'button';
-			discardBtnAdvice.className = 'button button-small';
-			discardBtnAdvice.textContent = __( 'Discard', 'signal-noise-tools' );
-			discardBtnAdvice.addEventListener( 'click', function() {
-				resetCellToSuggestButton( cell, checkType, input, res );
-			} );
-			actions.appendChild( discardBtnAdvice );
-
-			wrap.appendChild( actions );
-			cell.appendChild( wrap );
+		// v8.1.2 owner rule: for the two link checks, a verdict with nothing to
+		// apply (skip, unsure, or link with no validated anchor) is NOISE, not
+		// a suggestion — collapse the row like an applied one instead of
+		// rendering a panel. The scan-side twin suppresses these pairs on the
+		// next scan via the cached verdict, so the row disappears entirely.
+		var isLinkCheck = ( 'unlinked_mentions' === checkType || 'link_opportunities' === checkType );
+		if ( isLinkCheck && ( 'skip' === res.verdict || 'unsure' === res.verdict || ( 'link' === res.verdict && ! res.anchor ) ) ) {
+			var noiseSpan = document.createElement( 'span' );
+			noiseSpan.className = 'snt-cell-applied';
+			noiseSpan.textContent = '— ' + __( 'No link to apply — clears on next scan', 'signal-noise-tools' );
+			cell.appendChild( noiseSpan );
+			var noiseRow = cell.closest( 'tr' );
+			if ( noiseRow ) { noiseRow.style.opacity = '0.5'; }
 			return;
 		}
 
@@ -636,26 +627,9 @@
 			return;
 		}
 
-		if ( 'skip' === res.verdict ) {
-			// v7.4.0: coincidental phrase — no link warranted.
-			headline.className = 'snt-verdict-headline snt-verdict-headline--ok';
-			headline.textContent = '✓ ' + __( 'Skip — coincidental phrase, not a reference', 'signal-noise-tools' );
-			wrap.appendChild( headline );
-			wrap.appendChild( reasonEl );
-
-			var discardBtnSkip = document.createElement( 'button' );
-			discardBtnSkip.type = 'button';
-			discardBtnSkip.className = 'button button-small';
-			discardBtnSkip.textContent = __( 'Discard', 'signal-noise-tools' );
-			discardBtnSkip.addEventListener( 'click', function() {
-				resetCellToSuggestButton( cell, checkType, input, res );
-			} );
-			actions.appendChild( discardBtnSkip );
-
-			wrap.appendChild( actions );
-			cell.appendChild( wrap );
-			return;
-		}
+		// (v8.1.2: the old dedicated 'skip' panel is gone — skip verdicts only
+		// come from the link checks, and the noise-collapse branch above now
+		// owns every non-actionable link-check verdict.)
 
 		if ( 'delete' === res.verdict ) {
 			headline.className = 'snt-verdict-headline snt-verdict-headline--err';

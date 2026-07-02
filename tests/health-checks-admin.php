@@ -156,6 +156,10 @@ hca_true( false !== strpos( $js, "'link_opportunities' === checkType" ), 'JS pai
 hca_true( false !== strpos( $js, "'link' === res.verdict && ! res.anchor" ), 'JS verdict renderer has the advice-only branch (empty anchor never offers Apply)' );
 hca_true( false !== strpos( $js, 'err.code' ), 'JS error fallback surfaces the error code when the message is empty (v8.1.1)' );
 
+echo "\nTest: JS noise collapse for non-actionable verdicts (v8.1.2)\n";
+hca_true( false !== strpos( $js, 'isLinkCheck' ), 'JS gates the noise collapse to the two link checks' );
+hca_true( false !== strpos( $js, 'No link to apply' ), 'JS collapses non-actionable link-check verdicts to a quiet row (owner noise rule)' );
+
 echo "\nTest: link_opportunities suggest cell (v8.1.0)\n";
 $cell = sn_health_render_suggest_cell( 'link_opportunities', array( 'subject_id' => 12, 'target_id' => 34 ) );
 hca_true( false !== strpos( $cell, 'data-check="link_opportunities"' ), 'cell carries the check key' );

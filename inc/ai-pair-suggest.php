@@ -44,7 +44,7 @@ const SNT_AI_PAIR_SUGGEST_SYSTEM = "You are an editor deciding whether one note 
 	"- \"link\" only when the source genuinely discusses the target's subject and a link would help the reader.\n" .
 	"- \"skip\" when the overlap is superficial (shared vocabulary, not shared subject).\n" .
 	"- \"unsure\" when the excerpts are too thin to judge.\n" .
-	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs — same casing, same punctuation. Never invent or paraphrase. Empty string when no phrase reads as a natural anchor.\n" .
+	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs — same casing, same punctuation. Never invent or paraphrase. If no phrase can be copied verbatim, do not use \"link\" — return \"skip\" instead.\n" .
 	"- Output JSON only. No markdown, no preamble.";
 
 // v8.1.1: 200 → 300. The three-field response (verdict + reason + anchor)
@@ -136,46 +136,71 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 
 	// Validate the nomination against CURRENT content. The impl, never the
 	// AI, decides applicability; any failure degrades to advice-only.
-	$anchor      = '';
-	$position    = -1;
-	$context     = '';
-	$fingerprint = '';
-	if ( 'link' === $verdict && '' !== $nomination
-		&& strlen( $nomination ) >= SNT_AI_PAIR_ANCHOR_MIN_LENGTH
-		&& strlen( $nomination ) <= SNT_AI_LINK_ANCHOR_MAX_LENGTH ) {
-		$pos = stripos( $stripped, $nomination );
-		if ( false !== $pos ) {
-			// The phrase AS IT APPEARS in prose (casing may differ from the
-			// nomination) — Apply locates THIS exact string in raw content.
-			$mention = substr( $stripped, $pos, strlen( $nomination ) );
-			$start   = max( 0, $pos - 80 );
-			$ctx     = trim( substr( $stripped, $start, 200 ) );
-			$raw_pos = snt_ai_drift_locate_in_raw( $raw, $mention, $ctx );
-			// v8.1.1: also refuse anchors inside an EXISTING <a> — the AI sees
-			// stripped prose (links invisible) and nominated an already-linked
-			// phrase live; apply's guard would 400 every such "Link it". Run
-			// apply's own check here so the offer is never made.
-			if ( -1 !== $raw_pos && ! snt_ai_link_position_inside_anchor( $raw, $raw_pos ) ) {
-				$anchor      = $mention;
-				$position    = $raw_pos;
-				$context     = $ctx;
-				$fingerprint = snt_ai_drift_fingerprint( $raw, $mention, $raw_pos );
-			}
-		}
-	}
+	$contract = ( 'link' === $verdict ) ? snt_ai_pair_nomination_contract( $raw, $stripped, $nomination ) : null;
 
 	return array(
 		'ok'              => true,
 		'verdict'         => $verdict,
 		'reason'          => $reason,
-		'anchor'          => $anchor,
-		'can_apply'       => '' !== $anchor,
-		'position'        => $position,
-		'context_snippet' => $context,
-		'fingerprint'     => $fingerprint,
+		'anchor'          => $contract ? $contract['anchor'] : '',
+		'can_apply'       => null !== $contract,
+		'position'        => $contract ? $contract['position'] : -1,
+		'context_snippet' => $contract ? $contract['context_snippet'] : '',
+		'fingerprint'     => $contract ? $contract['fingerprint'] : '',
 		'post_id'         => $source_id,
 		'target_id'       => $target_id,
 		'target_url'      => (string) get_permalink( $target ),
+	);
+}
+
+/**
+ * Validate an anchor nomination against CURRENT content and build the
+ * splice contract.
+ *
+ * v8.1.2: extracted from the impl so the SCAN can reuse it — a cached
+ * "link" judgment whose nomination no longer validates is advice-only,
+ * and advice-only is noise per the owner rule (2026-07-02); the check
+ * suppresses such pairs instead of re-nominating them.
+ *
+ * The chain mirrors apply's own guards: length bounds, present in
+ * stripped prose (the phrase AS IT APPEARS — casing may differ from the
+ * nomination), contiguous in raw content (drift v4.1.1 lesson), and NOT
+ * inside an existing <a> (the v8.1.1 live incident: the AI judges
+ * stripped prose, so existing links are invisible to it).
+ *
+ * @param string $raw        Raw post_content.
+ * @param string $stripped   wp_strip_all_tags'd + shortcode-stripped prose.
+ * @param string $nomination The AI's anchor nomination.
+ * @return array{anchor:string,position:int,context_snippet:string,fingerprint:string}|null
+ *         The splice contract, or null when the nomination is unusable.
+ *
+ * @since 8.1.2
+ */
+function snt_ai_pair_nomination_contract( $raw, $stripped, $nomination ) {
+	$raw        = (string) $raw;
+	$stripped   = (string) $stripped;
+	$nomination = (string) $nomination;
+	if ( '' === $nomination
+		|| strlen( $nomination ) < SNT_AI_PAIR_ANCHOR_MIN_LENGTH
+		|| strlen( $nomination ) > SNT_AI_LINK_ANCHOR_MAX_LENGTH ) {
+		return null;
+	}
+	$pos = stripos( $stripped, $nomination );
+	if ( false === $pos ) {
+		return null;
+	}
+	$mention = substr( $stripped, $pos, strlen( $nomination ) );
+	$start   = max( 0, $pos - 80 );
+	$ctx     = trim( substr( $stripped, $start, 200 ) );
+	$raw_pos = snt_ai_drift_locate_in_raw( $raw, $mention, $ctx );
+	if ( -1 === $raw_pos || snt_ai_link_position_inside_anchor( $raw, $raw_pos ) ) {
+		return null;
+	}
+	return array(
+		'anchor'          => $mention,
+		'position'        => $raw_pos,
+		'context_snippet' => $ctx,
+		'fingerprint'     => snt_ai_drift_fingerprint( $raw, $mention, $raw_pos ),
 	);
 }
 

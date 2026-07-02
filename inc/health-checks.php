@@ -979,7 +979,7 @@ function sn_health_check_unlinked_mentions() {
 
 	global $wpdb;
 	$rows = $wpdb->get_results(
-		"SELECT ID, post_title, post_name, post_content
+		"SELECT ID, post_title, post_name, post_content, post_modified_gmt
 		 FROM {$wpdb->posts}
 		 WHERE post_status = 'publish'
 		   AND post_type = 'post'
@@ -1025,6 +1025,29 @@ function sn_health_check_unlinked_mentions() {
 			$mention = substr( $stripped, $pos, strlen( $title ) );
 			$start   = max( 0, $pos - 80 );
 			$context = trim( substr( $stripped, $start, 200 ) );
+
+			// v8.1.2 owner rule: non-actionable pairs are NOISE, not findings.
+			// (a) STRUCTURAL: a mention that cannot be spliced — split by
+			// inline markup, or sitting inside an existing <a> to a third
+			// note — can only ever produce an advice-only panel. Suppress it
+			// without spending an AI call.
+			if ( function_exists( 'snt_ai_drift_locate_in_raw' ) && function_exists( 'snt_ai_link_position_inside_anchor' ) ) {
+				$raw_pos = snt_ai_drift_locate_in_raw( (string) $source['post_content'], $mention, $context );
+				if ( -1 === $raw_pos || snt_ai_link_position_inside_anchor( (string) $source['post_content'], $raw_pos ) ) {
+					continue;
+				}
+			}
+			// (b) JUDGED: the Suggest verdict cache doubles as the scan's
+			// memory — a cached skip/unsure means the AI already said no.
+			// The key carries the source's modified stamp, so an edit
+			// re-nominates naturally. Transients are flush-volatile; a
+			// flush resurrects pairs until one Suggest pass re-judges them.
+			if ( function_exists( 'get_transient' ) ) {
+				$judged = get_transient( 'sn_link_verdict_' . md5( (int) $source['ID'] . '|' . (int) $target['ID'] . '|' . (string) ( $source['post_modified_gmt'] ?? '' ) ) );
+				if ( is_array( $judged ) && isset( $judged['verdict'] ) && 'link' !== (string) $judged['verdict'] ) {
+					continue;
+				}
+			}
 
 			$findings[] = array(
 				'subject_type'    => 'post',
