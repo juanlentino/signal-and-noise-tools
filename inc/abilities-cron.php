@@ -30,7 +30,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-cron-events', array(
 		'label'               => 'List Cron Events',
-		'description'         => 'Returns scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the SN-owned hooks (e.g. the RSS subscriber-prune hook). Pass hook (and optionally args_signature) to narrow to a single hook\'s events — this replaces the removed get-cron-event ability; no match returns an empty array.',
+		'description'         => 'Returns scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the SN-owned hooks (e.g. the RSS subscriber-prune hook). Pass hook (and optionally args_signature, which requires hook) to narrow to a single hook\'s events — this replaces the removed get-cron-event ability; no match returns an empty array, but args_signature without hook is an input error.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_list_cron_events',
@@ -237,6 +237,17 @@ function snt_ability_list_cron_events( $input ) {
 	// the impl stays single-purpose; no match → empty array, never an error.
 	$hook = ( is_array( $input ) && isset( $input['hook'] ) ) ? (string) $input['hook'] : '';
 	$sig  = ( is_array( $input ) && isset( $input['args_signature'] ) ) ? (string) $input['args_signature'] : null;
+	// v8.0.4: args_signature narrows WITHIN a hook (as the description says).
+	// Standalone it silently filtered across ALL hooks — almost certainly a
+	// caller mistake, so it earns an input-error nudge (distinct from the
+	// no-MATCH contract above, which stays an empty array).
+	if ( null !== $sig && '' === $hook ) {
+		return new WP_Error(
+			'snt_cron_args_signature_requires_hook',
+			'args_signature narrows within a single hook — pass hook alongside it.',
+			array( 'status' => 400 )
+		);
+	}
 	if ( '' !== $hook || null !== $sig ) {
 		$events = array_values( array_filter( $events, function ( $row ) use ( $hook, $sig ) {
 			if ( '' !== $hook && ( ! isset( $row['hook'] ) || $row['hook'] !== $hook ) ) {

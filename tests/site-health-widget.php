@@ -67,15 +67,26 @@ $scan3 = mk_scan( array(
 	'external_links' => mk_check( 2, 'External link rot' ),
 	'stale_posts'    => mk_check( 0, 'Stale posts' ),
 ) );
-ok( sn_health_finding_total( $scan3 ) === 5, 'finding_total: sums every check count (3+2+0=5)' );
+// v8.0.4 owner re-tier: external link rot is an ADVISORY, not a finding —
+// third-party rot must not flip the site off "all clear" (it self-clears on
+// the next scan when the remote host recovers). The findings card on the
+// Health tab stays visible; only the alarm calculus changes.
+ok( sn_health_finding_total( $scan3 ) === 3, 'finding_total: sums every NON-advisory check count (3+0=3; external rot re-tiered)' );
 $only_ext = mk_scan( array( 'external_links' => mk_check( 4, 'External link rot' ) ) );
-ok( sn_health_finding_total( $only_ext ) === 4, 'finding_total: external link rot counts as a finding (parity with attention strip + Health tab)' );
+ok( sn_health_finding_total( $only_ext ) === 0, 'finding_total: external link rot alone leaves the site all-clear (advisory tier)' );
+
+// ═══ sn_health_advisory_checks() + sn_health_advisory_total() (v8.0.4) ═══
+echo "\n-- accessor: advisory tier --\n";
+ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links' ), 'advisory_checks: external_links is the (only) advisory-tier check' );
+ok( sn_health_advisory_total( null ) === 0, 'advisory_total: null scan -> 0' );
+ok( sn_health_advisory_total( $only_ext ) === 4, 'advisory_total: sums advisory-check counts' );
+ok( sn_health_advisory_total( $scan3 ) === 2, 'advisory_total: mixed scan counts only the advisory checks' );
 
 // ═══ sn_health_flagged_checks() ═══
 echo "\n-- accessor: sn_health_flagged_checks --\n";
 ok( sn_health_flagged_checks( null ) === array(), 'flagged_checks: null scan -> empty' );
 $flagged = sn_health_flagged_checks( $scan3 );
-ok( count( $flagged ) === 2, 'flagged_checks: only checks with count>0 (2 of 3)' );
+ok( count( $flagged ) === 1, 'flagged_checks: only NON-advisory checks with count>0 (1 of 3; external rot re-tiered)' );
 $rank = mk_scan( array(
 	'a' => mk_check( 1, 'A' ),
 	'b' => mk_check( 5, 'B' ),
@@ -132,13 +143,16 @@ $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
 ) );
 ob_start(); sn_site_health_widget_render(); $f = ob_get_clean();
 ok( strpos( $f, 'sn-hw-head--warn' ) !== false, 'findings: warn status header' );
-ok( stripos( $f, '12 finding' ) !== false, 'findings: headline total (3+7+2=12 findings)' );
-ok( stripos( $f, '3 of 4' ) !== false, 'findings: subline "3 of 4 checks" flagged' );
+// v8.0.4 advisory re-tier: external rot (2) is excluded from the widget's
+// alarm figures AND its attention list — the widget is the "does anything
+// need me" surface, and third-party rot does not.
+ok( stripos( $f, '10 finding' ) !== false, 'findings: headline total sums fault checks only (3+7=10)' );
+ok( stripos( $f, '2 of 4' ) !== false, 'findings: subline counts only fault-tier flagged checks (2 of 4)' );
 ok( strpos( $f, 'sn-aw-list' ) !== false, 'findings: ranked list present' );
 $p_broken = strpos( $f, 'Broken internal links' );
 $p_alt    = strpos( $f, 'Missing alt text' );
-$p_ext    = strpos( $f, 'External link rot' );
-ok( false !== $p_broken && false !== $p_alt && false !== $p_ext && $p_broken < $p_alt && $p_alt < $p_ext, 'findings: list ranked by count desc (7 -> 3 -> 2)' );
+ok( false !== $p_broken && false !== $p_alt && $p_broken < $p_alt, 'findings: list ranked by count desc (7 -> 3)' );
+ok( strpos( $f, 'External link rot' ) === false, 'findings: advisory-tier check stays OFF the widget attention list' );
 ok( strpos( $f, 'Stale posts' ) === false, 'findings: passing checks (count 0) excluded from the list' );
 ok( strpos( $f, 'sn-aw-foot' ) !== false && strpos( $f, 'tab=monitoring&sub=health' ) !== false, 'findings: footer link to the Health tab' );
 

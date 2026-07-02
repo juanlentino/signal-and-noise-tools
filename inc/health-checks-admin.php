@@ -46,21 +46,8 @@ function snt_health_suggest_all_button_html( $count ) {
 
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
 
-/**
- * Humanize a scan-elapsed value: sub-second stays milliseconds ("412ms"),
- * one second and up reads as seconds with one decimal ("22.2s"). The live
- * content scan runs 20s+ and the raw "ran in 22206ms" was unreadable (v8.0.1).
- *
- * @param int $ms Elapsed milliseconds.
- * @return string
- */
-function snt_health_format_elapsed( $ms ) {
-	$ms = (int) $ms;
-	if ( $ms >= 1000 ) {
-		return sprintf( '%.1fs', $ms / 1000 );
-	}
-	return $ms . 'ms';
-}
+// snt_health_format_elapsed() moved to inc/health-summary.php in v8.0.4
+// (Insights adopted it, so it lives with the other shared projections).
 
 /**
  * Build the first-glance hero cards for the Health tab, sourced ONLY from the
@@ -88,10 +75,25 @@ function snt_health_glance_cards( $scan ) {
 	$check_count = count( $checks );
 	// Shared accessors (inc/health-summary.php) so this hero, the Dashboard-tab
 	// glance card + attention strip, and the S&N Health widget never disagree.
-	$total       = sn_health_finding_total( $scan );
-	$passed      = $check_count - count( sn_health_flagged_checks( $scan ) );
-	$all_clean   = ( $check_count > 0 && $passed === $check_count );
-	$age       = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
+	$total    = sn_health_finding_total( $scan );
+	$advisory = sn_health_advisory_total( $scan );
+	// v8.0.4: the passed RATIO uses the RAW count split so it always agrees
+	// with the passing strip + findings section below (a check carrying
+	// advisories is not "passing"); the PILL keys off real findings only —
+	// advisories alone must not demand review.
+	$passed_raw = 0;
+	foreach ( $checks as $check ) {
+		if ( 0 === (int) ( $check['count'] ?? 0 ) ) {
+			$passed_raw++;
+		}
+	}
+	$needs_review = count( sn_health_flagged_checks( $scan ) ) > 0;
+	$age          = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
+
+	$findings_meta = sprintf( 'across %d check%s', $check_count, 1 === $check_count ? '' : 's' );
+	if ( $advisory > 0 ) {
+		$findings_meta .= sprintf( ' · %d advisor%s', $advisory, 1 === $advisory ? 'y' : 'ies' );
+	}
 
 	return array(
 		array(
@@ -101,14 +103,14 @@ function snt_health_glance_cards( $scan ) {
 				'kind' => $total > 0 ? 'warn' : 'ok',
 				'text' => $total > 0 ? 'issues found' : 'all clear',
 			),
-			'meta_html' => esc_html( sprintf( 'across %d check%s', $check_count, 1 === $check_count ? '' : 's' ) ),
+			'meta_html' => esc_html( $findings_meta ),
 		),
 		array(
 			'label' => 'Checks passed',
-			'value' => sprintf( '%d / %d', $passed, $check_count ),
+			'value' => sprintf( '%d / %d', $passed_raw, $check_count ),
 			'pill'  => array(
-				'kind' => $all_clean ? 'ok' : 'warn',
-				'text' => $all_clean ? 'clean' : 'review',
+				'kind' => $needs_review ? 'warn' : 'ok',
+				'text' => $needs_review ? 'review' : 'clean',
 			),
 		),
 		array(

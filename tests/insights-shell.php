@@ -69,12 +69,13 @@ if ( ! function_exists( 'snt_insights_last_scan' ) ) {
 }
 if ( ! function_exists( 'snt_insights_state_read' ) ) { function snt_insights_state_read() { return array( 'dismissed_ids' => array(), 'done_ids' => array() ); } }
 if ( ! function_exists( 'snt_insights_filter_active' ) ) { function snt_insights_filter_active( $recs ) { return $recs; } }
-if ( ! function_exists( 'snt_narration_last' ) ) { function snt_narration_last() { return null; } }
+if ( ! function_exists( 'snt_narration_last' ) ) { function snt_narration_last() { return $GLOBALS['__narration'] ?? null; } }
 if ( ! function_exists( 'snt_narration_enabled' ) ) { function snt_narration_enabled() { return false; } }
 if ( ! function_exists( 'snt_insights_weekly_cron_enabled' ) ) { function snt_insights_weekly_cron_enabled() { return false; } }
 
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/ai-bootstrap.php';
+require_once __DIR__ . '/../inc/health-summary.php'; // snt_health_format_elapsed (v8.0.4: the rail humanizes elapsed)
 require_once __DIR__ . '/../inc/insights-admin.php';
 
 // Populate the AI usage log so the spend section renders a real readout.
@@ -136,6 +137,12 @@ ish_assert( is_int( $rail_at ) && false !== $settings_at && $settings_at > $rail
 // Balanced shell (2 shell divs + N inner, but at least the aside closes).
 ish_assert( 1 === substr_count( $html, '<aside class="sn-shell__rail"' ) && 1 === substr_count( $html, '</aside>' ), 'rail aside is opened once and closed once' );
 
+// v8.0.4: the rail status box humanizes elapsed like the Health hero does —
+// the AI scan runs tens of seconds, and "ran in 48213ms" was the exact defect
+// class the owner flagged on Health in v8.0.1 (audit finding, this session).
+ish_assert( false !== strpos( $html, 'ran in 1.2s' ), 'scan elapsed reads humanized (1234ms → 1.2s)' );
+ish_assert( false === strpos( $html, '1234ms' ), 'no raw-millisecond elapsed remains' );
+
 // ─── Scenario B: no scan yet — empty-state status still in the rail ──
 echo "\nScenario B: no scan — empty-state status in rail, Run Analysis in main\n";
 $GLOBALS['__no_scan'] = true;
@@ -148,6 +155,23 @@ $run_b     = strpos( $html_b, 'Run Analysis' );
 ish_assert( is_int( $rail_b ) && false !== $noscan_at && $noscan_at > $rail_b, 'no-scan status sits in the rail' );
 ish_assert( is_int( $rail_b ) && false !== $run_b && $run_b < $rail_b, 'Run Analysis stays in the main column with no scan' );
 ish_assert( 1 === substr_count( $html_b, '<aside class="sn-shell__rail"' ) && 1 === substr_count( $html_b, '</aside>' ), 'rail aside balanced with no scan' );
+
+// ─── Scenario C: digest meta humanizes elapsed too (v8.0.4, same audit find) ──
+echo "\nScenario C: weekly-digest meta elapsed is humanized\n";
+$GLOBALS['__no_scan']   = false;
+$GLOBALS['__narration'] = array(
+	'generated_at' => time() - 7200,
+	'headline'     => 'A quiet week on the edge',
+	'paragraphs'   => array( 'One paragraph.' ),
+	'highlights'   => array(),
+	'elapsed_ms'   => 15500,
+);
+ob_start();
+snt_insights_render_admin_tab();
+$html_c = ob_get_clean();
+ish_assert( false !== strpos( $html_c, 'in 15.5s.' ), 'digest meta reads humanized (15500ms → 15.5s)' );
+ish_assert( false === strpos( $html_c, '15500ms' ), 'no raw-millisecond digest meta remains' );
+$GLOBALS['__narration'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

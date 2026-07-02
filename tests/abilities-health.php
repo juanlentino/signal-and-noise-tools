@@ -64,10 +64,14 @@ $GLOBALS['__scan'] = array(
 );
 $s = snt_ability_get_health_scan( null );
 ok( is_array( $s ), 'returns a summary object for a cached scan' );
-ok( 12 === $s['finding_total'], 'finding_total sums all checks (3+7+2=12), external rot included' );
-ok( 4 === $s['checks_total'] && $s['checks_total'] === $s['checks_passed'] + count( $s['flagged'] ), 'checks_total = flagged + passed (4 = 1 + 3)' );
-ok( 1 === $s['checks_passed'], 'one passing check (stale_posts count 0)' );
-ok( 3 === count( $s['flagged'] ), 'three flagged checks' );
+// v8.0.4 owner re-tier: external rot is an ADVISORY — excluded from
+// finding_total/flagged, surfaced additively as advisory_total.
+ok( 10 === $s['finding_total'], 'finding_total sums non-advisory checks (3+7=10; external rot re-tiered)' );
+ok( 2 === $s['advisory_total'], 'advisory_total carries the external-rot count additively' );
+ok( isset( $reg['output_schema']['properties']['advisory_total'] ), 'output schema declares advisory_total' );
+ok( 4 === $s['checks_total'] && $s['checks_total'] === $s['checks_passed'] + count( $s['flagged'] ), 'checks_total = flagged + passed (4 = 2 + 2)' );
+ok( 2 === $s['checks_passed'], 'two passing checks by the flagged split (stale_posts + advisory-tier external_links)' );
+ok( 2 === count( $s['flagged'] ), 'two flagged checks (advisory tier excluded)' );
 ok( 'broken_links' === $s['flagged'][0]['check'] && 7 === $s['flagged'][0]['count'], 'flagged ranked by count desc (broken_links=7 first)' );
 ok( 'Broken internal links' === $s['flagged'][0]['label'] && 'fix Broken internal links' === $s['flagged'][0]['fix_hint'], 'flagged carries label + fix_hint' );
 ok( 1700 === $s['scanned_at'] && 42 === $s['elapsed_ms'], 'metadata passed through' );

@@ -43,7 +43,13 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties' => array(
 				'scanned_at'    => array( 'type' => array( 'integer', 'null' ) ),
 				'elapsed_ms'    => array( 'type' => array( 'integer', 'null' ) ),
-				'finding_total' => array( 'type' => 'integer' ),
+				'finding_total' => array(
+					'type'        => 'integer',
+					'description' => 'Fault-tier findings only. Advisory-tier counts (external link rot) live in advisory_total since v8.0.4.',
+				),
+				// v8.0.4: additive — external link rot re-tiered to advisory
+				// (third-party rot must not flip the site off "all clear").
+				'advisory_total' => array( 'type' => 'integer' ),
 				'checks_total'  => array( 'type' => 'integer' ),
 				'checks_passed' => array( 'type' => 'integer' ),
 				'flagged'       => array(
@@ -99,11 +105,12 @@ function snt_ability_get_health_scan( $input ) {
 		);
 	}
 	return array(
-		'scanned_at'    => isset( $scan['scanned_at'] ) ? (int) $scan['scanned_at'] : null,
-		'elapsed_ms'    => isset( $scan['elapsed_ms'] ) ? (int) $scan['elapsed_ms'] : null,
-		'finding_total' => sn_health_finding_total( $scan ),
-		'checks_total'  => count( $checks ),
-		'checks_passed' => count( $checks ) - count( $flagged ),
-		'flagged'       => $flagged,
+		'scanned_at'     => isset( $scan['scanned_at'] ) ? (int) $scan['scanned_at'] : null,
+		'elapsed_ms'     => isset( $scan['elapsed_ms'] ) ? (int) $scan['elapsed_ms'] : null,
+		'finding_total'  => sn_health_finding_total( $scan ),
+		'advisory_total' => sn_health_advisory_total( $scan ),
+		'checks_total'   => count( $checks ),
+		'checks_passed'  => count( $checks ) - count( $flagged ),
+		'flagged'        => $flagged,
 	);
 }
