@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.5] - 2026-07-02: Remove the ActivityPub exemption (adoption declined)
+
+**Headline:** The owner declined the ActivityPub adoption entirely before anything federated, so the v8.1.4 exemption in the author-enum guard lost its referent the same day it shipped. It is removed, and removal-guard tests keep it removed. The guard's v8.1.4 structural improvements stay (named functions, decision/action split, test suite), as do the fediverse UA bot-classifiers from v8.1.3 (fediverse servers fetch pages for preview cards whenever anyone shares a URL, federation or not) and the evidence-based cron warning.
+
+> **Why PATCH:** dead-code removal restoring pre-exemption guard semantics; no API change.
+
+### Removed
+- `sn_security_is_activitypub_request()` and the `sn_security_author_enum_exempt` filter from the author-enum guard (`inc/security-headers.php`); the ActivityPub Query test stub (`tests/stubs/`). Removal guards added to `tests/security-headers.php` per the repo's removal-test idiom.
+
+### Cleanup
+- `inc/rss-feed-tracker.php` docblock: the fediverse-UA rationale reworded to its durable justification (preview-card fetchers), dropping the ActivityPub-adoption framing. Hook-order caveat (core `redirect_canonical` outruns the guard) documented in `inc/security-headers.php`.
+
 ## [8.1.4] - 2026-07-02: ActivityPub collisions — author-enum guard exemption + evidence-based cron warning
 
 **Headline:** Activating the official ActivityPub plugin surfaced two collisions with our own hardening. First, ActivityPub actor ids ARE author URLs (`/?author=N`), and the author-enumeration guard 301'd every actor fetch to home before the AP plugin could serve it (the "Author URL is not accessible" Site Health critical). AP-negotiated requests are now exempt; plain HTML enumeration probes stay blocked. Second, the cron pipeline check warned "no system cron has been declared" purely because a declaration filter was never set, while the same panel showed events firing on schedule. The warning is now evidence-based: recent firings suppress it.

@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone fixture tests for the author-enumeration guard in
- * inc/security-headers.php (v8.1.4: ActivityPub exemption).
+ * inc/security-headers.php.
  *
  * The guard's decision logic lives in sn_security_author_enum_should_redirect()
  * (split from the redirect+exit action so tests never cross exit). Covers:
@@ -9,15 +9,14 @@
  *   - logged-in user → no redirect
  *   - sn_security_block_author_enum filter false → no redirect
  *   - no author param → no redirect
- *   - sn_security_is_activitypub_request(): false without the AP plugin;
- *     tracks Query::is_activitypub_request() when the plugin is present
- *     (stub in tests/stubs/activitypub-query.php mirrors the real v9.0.2 API)
- *   - AP-negotiated /?author=N (an ActivityPub actor id) → exempt
- *   - plain /?author=N stays blocked even while the AP plugin is active
+ *   - REMOVAL GUARDS (v8.1.5): the v8.1.4 ActivityPub exemption
+ *     (sn_security_is_activitypub_request + the sn_security_author_enum_exempt
+ *     filter) was removed when the owner declined the ActivityPub adoption
+ *     entirely (2026-07-02, never re-propose). These guards keep it removed.
  *
  * Run: php tests/security-headers.php
  *
- * @since plugin v8.1.4
+ * @since plugin v8.1.4 (suite), v8.1.5 (exemption removed)
  */
 
 // SECURITY: Prevent web access. CLI / WP-CLI only.
@@ -58,7 +57,7 @@ function sh_eq( $e, $a, $msg ) {
 }
 
 // ─── Test 1: anonymous ?author=N → redirect ──────────────────────────
-echo "\nTest 1: anonymous /?author=N (no ActivityPub) redirects\n";
+echo "\nTest 1: anonymous /?author=N redirects\n";
 $_GET = array( 'author' => '616000' );
 $GLOBALS['__test_filters']   = array();
 $GLOBALS['__test_logged_in'] = false;
@@ -80,23 +79,13 @@ $GLOBALS['__test_filters'] = array();
 echo "\nTest 4: request without ?author is untouched\n";
 $_GET = array();
 sh_eq( false, sn_security_author_enum_should_redirect(), 'no author param means no redirect' );
-$_GET = array( 'author' => '616000' );
 
-// ─── Test 5: AP helper is false when the plugin is absent ────────────
-echo "\nTest 5: sn_security_is_activitypub_request without the AP plugin\n";
-sh_eq( false, sn_security_is_activitypub_request(), 'no \\Activitypub\\Query class means false (hardening unchanged)' );
-
-// ─── Test 6: AP-negotiated request is exempt ─────────────────────────
-echo "\nTest 6: ActivityPub-negotiated /?author=N is served, not redirected\n";
-require_once __DIR__ . '/stubs/activitypub-query.php';
-\Activitypub\Query::$is_activitypub_request = true;
-sh_eq( true, sn_security_is_activitypub_request(), 'helper tracks Query::is_activitypub_request()' );
-sh_eq( false, sn_security_author_enum_should_redirect(), 'AP actor fetch (?author=N id) passes through to the AP plugin' );
-
-// ─── Test 7: AP plugin present but NOT an AP request → still blocked ─
-echo "\nTest 7: plain /?author=N still blocked while the AP plugin is active\n";
-\Activitypub\Query::$is_activitypub_request = false;
-sh_eq( true, sn_security_author_enum_should_redirect(), 'HTML enumeration probes stay blocked' );
+// ─── Test 5: removal guards — the ActivityPub exemption stays gone ───
+echo "\nTest 5: v8.1.4 ActivityPub exemption removed (v8.1.5) and stays removed\n";
+sh_eq( false, function_exists( 'sn_security_is_activitypub_request' ), 'sn_security_is_activitypub_request() does not exist' );
+$module_src = file_get_contents( __DIR__ . '/../inc/security-headers.php' );
+sh_eq( false, strpos( $module_src, 'sn_security_author_enum_exempt' ) !== false, 'sn_security_author_enum_exempt filter absent from the module' );
+sh_eq( false, stripos( $module_src, 'activitypub' ) !== false, 'no ActivityPub references remain in the module' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
