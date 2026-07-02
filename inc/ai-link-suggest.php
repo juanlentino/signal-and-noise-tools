@@ -104,6 +104,13 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention is split by inline markup — link it manually in the editor.', 'signal-noise-tools' ), array( 'status' => 409 ) );
 	}
 
+	// v8.1.1: the mention can sit inside an EXISTING <a> to a third note —
+	// the AI judges stripped prose (links invisible), and apply refuses (400)
+	// anchors inside links. Run apply's own guard here so the UI never offers
+	// a "Link it" that is guaranteed to fail; the verdict still renders as
+	// advice-only (empty anchor, can_apply=false).
+	$inside_anchor = snt_ai_link_position_inside_anchor( $raw, $raw_position );
+
 	// Verdict cache: (source, target, source-modified) triple. Content change
 	// = new post_modified = new key, so fingerprints stay honest below.
 	$cache_key = 'sn_link_verdict_' . md5( $source_id . '|' . $target_id . '|' . (string) $source->post_modified_gmt );
@@ -128,9 +135,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 			return $result;
 		}
 
-		// Strip optional markdown fences (opener and/or closer, independently).
-		$text   = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( (string) $result ) ) );
-		$parsed = json_decode( $text, true );
+		$parsed = snt_ai_parse_verdict_json( (string) $result );
 		if ( ! is_array( $parsed ) || ! isset( $parsed['verdict'] ) ) {
 			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-noise-tools' ), array( 'status' => 500 ) );
 		}
@@ -140,18 +145,54 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 		set_transient( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason ), 30 * DAY_IN_SECONDS );
 	}
 
+	// v8.1.1: inside-anchor mentions degrade the splice contract to
+	// advice-only — verdict and reason stand, Apply is never offered.
 	return array(
 		'ok'              => true,
 		'verdict'         => $verdict,
 		'reason'          => $reason,
-		'anchor'          => $mention,
-		'position'        => $raw_position,
-		'context_snippet' => $context,
-		'fingerprint'     => snt_ai_drift_fingerprint( $raw, $mention, $raw_position ),
+		'anchor'          => $inside_anchor ? '' : $mention,
+		'can_apply'       => ! $inside_anchor,
+		'position'        => $inside_anchor ? -1 : $raw_position,
+		'context_snippet' => $inside_anchor ? '' : $context,
+		'fingerprint'     => $inside_anchor ? '' : snt_ai_drift_fingerprint( $raw, $mention, $raw_position ),
 		'post_id'         => $source_id,
 		'target_id'       => $target_id,
 		'target_url'      => (string) get_permalink( $target ),
 	);
+}
+
+/**
+ * Parse an AI verdict response into an array, defensively.
+ *
+ * v8.1.1, shared by ai-link-suggest + ai-pair-suggest. Handles the model
+ * output shapes seen live: markdown fences (opener and/or closer,
+ * independently) and prose preambles/trailers around the JSON object (the
+ * outermost brace span is retried before giving up). An unparseable
+ * response logs its head so the NEXT occurrence is diagnosable from the
+ * error log — the 2026-07-02 live "unparseable verdict" left no evidence.
+ *
+ * @param string $text Raw model output.
+ * @return array|null Decoded array, or null when nothing parses.
+ *
+ * @since 8.1.1
+ */
+function snt_ai_parse_verdict_json( $text ) {
+	$text   = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( (string) $text ) ) );
+	$parsed = json_decode( $text, true );
+	if ( is_array( $parsed ) ) {
+		return $parsed;
+	}
+	$start = strpos( $text, '{' );
+	$end   = strrpos( $text, '}' );
+	if ( false !== $start && false !== $end && $end > $start ) {
+		$parsed = json_decode( substr( $text, $start, $end - $start + 1 ), true );
+		if ( is_array( $parsed ) ) {
+			return $parsed;
+		}
+	}
+	error_log( 'snt_ai verdict unparseable (head): ' . substr( $text, 0, 200 ) );
+	return null;
 }
 
 /**

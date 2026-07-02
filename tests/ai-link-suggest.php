@@ -210,5 +210,29 @@ $e = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerp
 ok( 'snt_ai_write_failed' === $e->get_error_code(), 'wp_update_post WP_Error → 500' );
 $GLOBALS['__update_result'] = 1;
 
+echo "\nTest: v8.1.1 — mention already inside a link degrades to advice-only\n";
+// Same class as the pair-suggest live incident: a mention of the target's
+// title can sit inside an existing <a> to a THIRD note; apply would 400.
+mk_post( 20, 'Provenance At Every Layer', 'provenance-at-every-layer', '<p>target body</p>' );
+mk_post( 21, 'Quoting Source', 'quoting-source',
+	"<!-- wp:paragraph -->\n<p>Lead-in text here.</p>\n<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n<p>Last week I wrote <a href=\"/notes/another-note\">Provenance At Every Layer</a> as a follow-up.</p>\n<!-- /wp:paragraph -->" );
+$GLOBALS['__ai_response'] = '{"verdict":"link","reason":"Real reference."}';
+$res = snt_ai_link_suggest_impl( 21, 20 );
+ok( is_array( $res ) && 'link' === ( $res['verdict'] ?? '' ), 'verdict still computed on inside-anchor degrade' );
+ok( false === ( $res['can_apply'] ?? true ), 'mention inside an existing <a> => advice-only (apply would 400)' );
+ok( '' === ( $res['anchor'] ?? 'x' ) && -1 === ( $res['position'] ?? 0 ), 'anchor + position emptied when inside a link' );
+
+echo "\nTest: v8.1.1 — happy path gains can_apply true (additive)\n";
+$GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-03 00:00:00';
+$GLOBALS['__ai_response'] = '{"verdict":"link","reason":"Directly references the essay."}';
+$res = snt_ai_link_suggest_impl( 1, 2 );
+ok( true === ( $res['can_apply'] ?? false ) && '' !== ( $res['anchor'] ?? '' ), 'normal mention carries can_apply true + full splice contract' );
+
+echo "\nTest: v8.1.1 — prose-preamble JSON salvage (shared parser)\n";
+$GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-03 01:00:00';
+$GLOBALS['__ai_response'] = 'Sure! {"verdict":"skip","reason":"Coincidental."} Done.';
+$res = snt_ai_link_suggest_impl( 1, 2 );
+ok( is_array( $res ) && 'skip' === ( $res['verdict'] ?? '' ), 'preamble-wrapped JSON parses via brace salvage' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

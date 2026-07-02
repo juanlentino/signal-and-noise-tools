@@ -60,7 +60,12 @@
 	// which is readonly => GET).
 	function callAbility( abilitySlug, input ) {
 		return window.sntAbilityRun( abilitySlug, input ).catch( function( err ) {
-			var msg = ( err && err.message ) ? err.message : __( 'Unknown error.', 'signal-noise-tools' );
+			// v8.1.1: an empty-message REST error (an SDK error wrapped with no
+			// text) used to render as "Unknown error." — surface the error code
+			// so the failure is diagnosable from the UI.
+			var msg = ( err && err.message ) ? err.message
+				: ( err && err.code ) ? __( 'Error code:', 'signal-noise-tools' ) + ' ' + err.code
+				: __( 'Unknown error.', 'signal-noise-tools' );
 			throw new Error( msg );
 		} );
 	}

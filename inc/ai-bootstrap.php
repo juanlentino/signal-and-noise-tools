@@ -342,7 +342,10 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	}
 
 	if ( is_wp_error( $result ) ) {
-		return $result;
+		// v8.1.1: the WP wrapper's converted SDK errors can carry an EMPTY
+		// message (seen live 2026-07-02 as an undiagnosable "Unknown error."
+		// in the Health-tab JS). Guarantee a code-labeled message.
+		return snt_ai_error_with_message( $result );
 	}
 
 	// v6.29.0: capture token usage BEFORE extracting the body. The prior
@@ -390,6 +393,38 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	$text = trim( $text, "\"'" );
 
 	return $text;
+}
+
+/**
+ * Guarantee a transport WP_Error carries a human-readable message.
+ *
+ * v8.1.1: wp-ai-client converts SDK exceptions to WP_Error using the
+ * exception's message, which can be EMPTY (e.g. provider overload/rate-limit
+ * shapes). An empty message rides the REST error response to the admin JS,
+ * whose fallback rendered the undiagnosable "Unknown error." (live
+ * 2026-07-02, Suggest-All burst). Errors with text pass through untouched;
+ * empty ones get a code-labeled message and an error_log line for forensics.
+ *
+ * @param WP_Error $error The transport error.
+ * @return WP_Error Same instance, or a re-messaged copy (code + data kept).
+ *
+ * @since 8.1.1
+ */
+function snt_ai_error_with_message( $error ) {
+	if ( '' !== trim( (string) $error->get_error_message() ) ) {
+		return $error;
+	}
+	$code = (string) $error->get_error_code();
+	if ( '' === $code ) {
+		$code = 'snt_ai_transport_error';
+	}
+	error_log( 'snt_ai transport error with empty message, code: ' . $code );
+	$data = $error->get_error_data();
+	return new WP_Error(
+		$code,
+		sprintf( __( 'AI transport error (%s). Try again; if it recurs, check the provider status page.', 'signal-noise-tools' ), $code ),
+		is_array( $data ) && ! empty( $data ) ? $data : array( 'status' => 502 )
+	);
 }
 
 /**

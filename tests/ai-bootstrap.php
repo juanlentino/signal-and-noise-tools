@@ -983,5 +983,18 @@ hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini
 
 @unlink( $vimg );
 
+// ─── v8.1.1: snt_ai_error_with_message — empty-message transport errors ───
+// Live incident 2026-07-02: an SDK-wrapped WP_Error with an EMPTY message
+// reached the Health-tab JS as "Unknown error." — undiagnosable from the UI.
+// The seam guarantees every transport error carries a code-labeled message.
+echo "\nGroup: v8.1.1 empty-message transport error guard\n";
+$has_msg = new WP_Error( 'snt_x', 'real message', array( 'status' => 502 ) );
+hc_true( snt_ai_error_with_message( $has_msg ) === $has_msg, 'error with a message passes through untouched' );
+$empty_e  = new WP_Error( 'sdk_overloaded', '', array( 'status' => 529 ) );
+$wrapped  = snt_ai_error_with_message( $empty_e );
+hc_eq( 'sdk_overloaded', $wrapped->get_error_code(), 'empty-message wrap keeps the code' );
+hc_true( '' !== trim( (string) $wrapped->get_error_message() ), 'empty-message wrap guarantees a message' );
+hc_true( false !== strpos( (string) $wrapped->get_error_message(), 'sdk_overloaded' ), 'message names the code for diagnosability' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
