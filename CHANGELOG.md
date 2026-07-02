@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.1] - 2026-07-02: Suggest hardening — the three failure shapes from the first live Link-opportunities run
+
+**Headline:** The owner's first Suggest-All pass over the new Link opportunities card surfaced three failure shapes; all three are fixed at their root. Suggest no longer offers "Link it" on a phrase that already sits inside a link (the AI judges stripped prose, so existing links are invisible to it; the impl now runs Apply's own guard up front and renders the advice-only panel instead). Model responses wrapped in prose or truncated no longer die as "unparseable verdict". And the undiagnosable "Unknown error." can no longer occur: transport errors are guaranteed a code-labeled message end to end.
+
+> **Why PATCH:** fixes and hardening on the just-shipped v8.1.0 surface; one additive output field, no new capability.
+
+### Fixed
+- **Suggest-side inside-anchor guard (both link surfaces).** `snt_ai_pair_suggest_impl` and `snt_ai_link_suggest_impl` now run `snt_ai_link_position_inside_anchor()` — the exact guard Apply enforces — before offering a splice contract. An anchor or mention inside an existing `<a>` degrades to the advice-only panel (verdict + reason stand, `can_apply=false`), instead of a "Link it" that always failed with "The mention already sits inside a link." Root cause: the AI's excerpt is stripped prose, so it cannot see existing links; the impl owns that invariant.
+- **Verdict parsing hardened (shared `snt_ai_parse_verdict_json`).** Both impls now salvage JSON wrapped in prose preambles/trailers (outermost brace span retried after the fence strip), and the pair-suggest output budget rises 200 → 300 tokens (the three-field verdict + reason + anchor response truncated mid-JSON live). A genuinely unparseable response now logs its head to the error log, so the next occurrence is diagnosable instead of evidence-free.
+- **"Unknown error." eliminated.** New `snt_ai_error_with_message()` seam in the AI bootstrap: wp-ai-client's converted SDK errors can carry an empty message (seen live mid Suggest-All burst), which reached the admin JS as an undiagnosable fallback string. Empty-message transport errors now get a code-labeled message plus an error_log line, and the JS fallback surfaces the error code when a message is missing.
+
+### Improvements
+- `signal-noise/ai-link-suggest` output schema gains `can_apply` (additive), mirroring `ai-pair-suggest`, so agent consumers can distinguish an applyable splice contract from advice-only without probing the anchor field.
+
 ## [8.1.0] - 2026-07-02: Link opportunities — semantic pairing over the notes corpus (C2 approach C, the interlinking arc's last piece)
 
 **Headline:** The Health scan now nominates semantically related note pairs that should link, and AI Suggest picks the anchor from your own prose. Where `unlinked_mentions` (v7.4.0) catches literal title mentions, `link_opportunities` catches everything that misses: two notes covering the same subject with no link in either direction and no title mention. Candidates surface as advisories (the hero stays calm), and the AI can only point at prose that already exists — it never writes new text into a note.
