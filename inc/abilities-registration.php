@@ -34,7 +34,9 @@
  *   - inc/abilities-pattern-adoption.php     — 2 abilities: pattern-adoption
  *     scan + dismiss (structural 'tools' category, v4.6.0).
  *
- * Total: 40 abilities + 5 categories. Each feature file owns its
+ * Total: 53 abilities + 6 categories (9 of them DEPRECATED 7.7.0, removal
+ * v8.0.0 — the count drops to 44 when the ladder closes). See
+ * inc/abilities-deprecations.php for the ladder + placement rule. Each feature file owns its
  * `add_action( 'wp_abilities_api_init', ... )` registration block plus the
  * thin impl wrappers that delegate to the underlying module helpers.
  *
@@ -53,6 +55,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/abilities-permission-helpers.php';
+require_once __DIR__ . '/abilities-deprecations.php';      // v7.7.0: snt_ability_deprecated_notice (must precede the files whose wrappers call it)
 require_once __DIR__ . '/abilities-categories.php';
 require_once __DIR__ . '/abilities-system.php';
 require_once __DIR__ . '/abilities-content.php';
@@ -64,5 +67,6 @@ require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 2 abilities (scan + dismiss)
+require_once __DIR__ . '/abilities-dismiss.php';           // v7.7.0: 1 ability (unified dismiss-candidate)
 require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)
 require_once __DIR__ . '/abilities-health.php';            // v7.0.0: 1 ability (read-only Content-Health scan summary)

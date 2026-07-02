@@ -3,15 +3,21 @@
  * Signal & Noise Tools — Abilities API: system maintenance + deploy state.
  *
  * Eight abilities covering cache/template/update housekeeping plus the
- * deploy-status + ability-catalogue + release-notes diagnostics:
- *   - signal-noise/purge-all-caches         (destructive, idempotent)
+ * deploy-status + release-notes surfaces:
+ *   - signal-noise/purge-all-caches         (destructive, idempotent; its
+ *     include_template_overrides flag is the full-reset replacement)
  *   - signal-noise/clear-template-overrides (destructive, idempotent)
  *   - signal-noise/list-template-overrides  (readonly, idempotent)
- *   - signal-noise/full-reset                (destructive, idempotent — overrides + caches)
- *   - signal-noise/force-check-updates       (idempotent — clears update transients)
- *   - signal-noise/get-deploy-status         (readonly, idempotent)
- *   - signal-noise/list-abilities            (readonly, idempotent — registry catalogue)
- *   - signal-noise/draft-release-notes       (readonly, NOT idempotent — AI draft)
+ *   - signal-noise/full-reset                (DEPRECATED 7.7.0 → purge-all-caches
+ *     with include_template_overrides=true; removal v8.0.0)
+ *   - signal-noise/force-check-updates       (DEPRECATED 7.7.0 → get-deploy-status
+ *     with force_refresh=true; removal v8.0.0)
+ *   - signal-noise/get-deploy-status         (readonly, idempotent; force_refresh
+ *     clears the update transients first — subsumes force-check-updates)
+ *   - signal-noise/list-abilities            (DEPRECATED 7.7.0 → core catalogue
+ *     GET /wp-abilities/v1/abilities; removal v8.0.0)
+ *   - signal-noise/draft-release-notes       (readonly, NOT idempotent — AI draft;
+ *     recategorized diagnostics → ai-generation in 7.7.0)
  *
  * Categories: maintenance / diagnostics / updates. File grouping is by
  * feature (system housekeeping) rather than category so related impls
@@ -72,7 +78,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-deploy-status', array(
 		'label'               => 'Get theme + plugin deploy status',
-		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available. Read-only; safe to call anytime.',
+		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available. Pass force_refresh=true to clear the GitHub-tag + update_themes/update_plugins transients first so the answer is freshly fetched (replaces the deprecated force-check-updates ability; clears caches only, never user data). Read-only; safe to call anytime.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_deploy_status',
@@ -80,7 +86,13 @@ add_action( 'wp_abilities_api_init', function() {
 			// v2.5.4: see purge-all-caches comment — null accepted because
 			// readonly abilities (GET) receive null when caller omits ?input=.
 			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(),
+			'properties'           => array(
+				'force_refresh' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'Clear the sn_gh_latest_* + update transients before reading, forcing a fresh GitHub fetch.',
+				),
+			),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
@@ -149,7 +161,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/force-check-updates', array(
 		'label'               => 'Force-check theme + plugin updates',
-		'description'         => 'Clears the sn_gh_latest_* + update_themes + update_plugins site transients so the next admin page-load refetches fresh data from GitHub. No user data deleted.',
+		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/get-deploy-status with force_refresh=true instead (clears the same transients, then returns the fresh status in one call). Clears the sn_gh_latest_* + update_themes + update_plugins site transients so the next admin page-load refetches fresh data from GitHub. No user data deleted.',
 		'category'            => 'updates',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_force_check_updates',
@@ -167,6 +179,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'deprecated'   => array(
+				'since' => '7.7.0',
+				'use'   => 'signal-noise/get-deploy-status with force_refresh=true',
+			),
 			'annotations'  => array(
 				'idempotent' => true,
 			),
@@ -175,7 +191,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/full-reset', array(
 		'label'               => 'Full reset (clear overrides + purge all caches)',
-		'description'         => 'Clears wp_template / wp_template_part / wp_navigation DB overrides AND purges every cache (object cache, Breeze, Varnish, Cloudflare). Use after a theme/plugin update or when content appears stale.',
+		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/purge-all-caches with include_template_overrides=true instead (identical behavior: clears the template overrides AND purges every cache). Clears wp_template / wp_template_part / wp_navigation DB overrides AND purges every cache (object cache, Breeze, Varnish, Cloudflare).',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_full_reset',
@@ -200,6 +216,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'deprecated'   => array(
+				'since' => '7.7.0',
+				'use'   => 'signal-noise/purge-all-caches with include_template_overrides=true',
+			),
 			'annotations'  => array(
 				'destructive' => true,
 				'idempotent'  => true,
@@ -209,7 +229,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-abilities', array(
 		'label'               => 'List registered abilities',
-		'description'         => 'Returns the catalogue of every ability registered on this site (name, label, description, category, namespace, annotations). Optionally filter by namespace. Read-only self-discovery for AI callers — useful for "what can you do here?".',
+		'description'         => 'DEPRECATED since 7.7.0 — use the WordPress core catalogue endpoint GET /wp-abilities/v1/abilities instead (same data plus schemas, with namespace/category filters and pagination). Returns the catalogue of every ability registered on this site (name, label, description, category, namespace, annotations). Optionally filter by namespace.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_list_abilities',
@@ -252,6 +272,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'deprecated'   => array(
+				'since' => '7.7.0',
+				'use'   => 'the core catalogue endpoint GET /wp-abilities/v1/abilities',
+			),
 			'annotations'  => array(
 				'readonly'   => true,
 				'idempotent' => true,
@@ -265,7 +289,10 @@ add_action( 'wp_abilities_api_init', function() {
 	wp_register_ability( 'signal-noise/draft-release-notes', array(
 		'label'               => 'Draft release notes from a change log',
 		'description'         => 'Turns a pasted CHANGELOG delta (or a few bullets of what changed) into Mimestream-style, human-readable release notes (New / Improvements / Fixed sections) via the WP AI Client. Returns markdown; writes nothing. One on-demand AI call; input is hard-capped at ~4000 chars.',
-		'category'            => 'diagnostics',
+		// v7.7.0: recategorized diagnostics → ai-generation. It is a generative
+		// AI call, and agents discovering tools by category should find it with
+		// its AI siblings, not among the read-only diagnostics.
+		'category'            => 'ai-generation',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_draft_release_notes',
 		'input_schema'        => array(
@@ -362,9 +389,16 @@ function snt_ability_purge_all_caches( $input ) {
 /**
  * Execute callback for signal-noise/get-deploy-status.
  */
-function snt_ability_get_deploy_status() {
+function snt_ability_get_deploy_status( $input = null ) {
 	if ( ! function_exists( 'snt_deploy_status_for' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Deploy status helper unavailable.', array( 'status' => 500 ) );
+	}
+
+	// v7.7.0: force_refresh clears the GitHub-tag + WP update transients first
+	// (the deprecated force-check-updates ability's whole job), so one call
+	// both busts the caches and returns the freshly-fetched status.
+	if ( is_array( $input ) && ! empty( $input['force_refresh'] ) && function_exists( 'snt_cmd_impl_force_check' ) ) {
+		snt_cmd_impl_force_check();
 	}
 
 	// v6.55.0: fold in last_deploy (relative time of the most recent merged GHA
@@ -412,8 +446,10 @@ function snt_ability_clear_template_overrides() {
  * Ability execute callback: signal-noise/force-check-updates.
  * Thin wrapper around snt_cmd_impl_force_check().
  * @since 3.7.5
+ * @deprecated 7.7.0 Use signal-noise/get-deploy-status with force_refresh=true.
  */
 function snt_ability_force_check_updates() {
+	snt_ability_deprecated_notice( 'signal-noise/force-check-updates', 'signal-noise/get-deploy-status with force_refresh=true' );
 	if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Force-check helper unavailable.', array( 'status' => 500 ) );
 	}
@@ -424,8 +460,10 @@ function snt_ability_force_check_updates() {
  * Ability execute callback: signal-noise/full-reset.
  * Thin wrapper around snt_cmd_impl_full_reset().
  * @since 3.7.5
+ * @deprecated 7.7.0 Use signal-noise/purge-all-caches with include_template_overrides=true.
  */
 function snt_ability_full_reset() {
+	snt_ability_deprecated_notice( 'signal-noise/full-reset', 'signal-noise/purge-all-caches with include_template_overrides=true' );
 	if ( ! function_exists( 'snt_cmd_impl_full_reset' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Full-reset helper unavailable.', array( 'status' => 500 ) );
 	}
@@ -441,10 +479,12 @@ function snt_ability_full_reset() {
  * straight from the ability's get_meta()['annotations'].
  *
  * @since 4.10.0
+ * @deprecated 7.7.0 Use the core catalogue endpoint GET /wp-abilities/v1/abilities.
  * @param array|null $input Optional. { namespace?: string }.
  * @return array|WP_Error
  */
 function snt_ability_list_abilities( $input = null ) {
+	snt_ability_deprecated_notice( 'signal-noise/list-abilities', 'the core catalogue endpoint GET /wp-abilities/v1/abilities' );
 	if ( ! function_exists( 'wp_get_abilities' ) ) {
 		return new WP_Error( 'snt_abilities_unavailable', 'Abilities API not available (WordPress 7.0+ required).', array( 'status' => 500 ) );
 	}

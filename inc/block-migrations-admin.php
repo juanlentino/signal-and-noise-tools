@@ -8,11 +8,12 @@
  *   - Per-row buttons: [Suggest] (data-attrs trigger shared
  *     health-suggest-actions.js) + [Dismiss]
  *
- * The dismiss action runs through the signal-noise/block-migrations-dismiss
- * Ability (see inc/abilities-block-migrations.php); the JS client dispatches
- * it via the Abilities run-path. The legacy
- * POST /signal-noise/v1/tools/block-migrations-dismiss REST route was removed
- * in v7.0.0 after all callers migrated to the Ability.
+ * The dismiss action runs through the unified signal-noise/dismiss-candidate
+ * Ability with surface="block-migrations" (see inc/abilities-dismiss.php);
+ * the JS client dispatches it via the Abilities run-path. Ladder history:
+ * the legacy POST /signal-noise/v1/tools/block-migrations-dismiss REST route
+ * was removed in v7.0.0; the per-surface block-migrations-dismiss Ability was
+ * deprecated in v7.7.0 (removal v8.0.0).
  *
  * Mirrors inc/pattern-adoption-admin.php structurally.
  *

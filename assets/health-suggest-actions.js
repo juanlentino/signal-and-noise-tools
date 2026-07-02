@@ -1166,11 +1166,11 @@
 		btn.disabled = true;
 		btn.textContent = __( 'Dismissing…', 'signal-noise-tools' );
 
-		// v6.55.0: dispatch via the pattern-adoption-dismiss ability run-path
-		// (callAbility wraps args in { input } + re-throws Errors) so the legacy
-		// /health/pattern-adoption-dismiss route can be retired.
-		callAbility( 'pattern-adoption-dismiss', {
-			post_id: postId, block_fingerprint: fingerprint, pattern_type: patternType,
+		// v7.7.0: dispatch via the unified dismiss-candidate ability
+		// (pattern-adoption-dismiss is deprecated, removal v8.0.0); the
+		// pattern_type rides in candidate_type.
+		callAbility( 'dismiss-candidate', {
+			surface: 'pattern-adoption', post_id: postId, block_fingerprint: fingerprint, candidate_type: patternType,
 		} ).then( function() {
 			var row = btn.closest( 'tr' );
 			if ( row ) { row.remove(); }
@@ -1200,11 +1200,11 @@
 		btn.disabled = true;
 		btn.textContent = __( 'Dismissing…', 'signal-noise-tools' );
 
-		// v6.55.0: dispatch via the block-migrations-dismiss ability run-path
-		// (callAbility wraps args in { input } + re-throws Errors) so the legacy
-		// /tools/block-migrations-dismiss route can be retired.
-		callAbility( 'block-migrations-dismiss', {
-			post_id: postId, block_fingerprint: fingerprint, migration_type: migrationType,
+		// v7.7.0: dispatch via the unified dismiss-candidate ability
+		// (block-migrations-dismiss is deprecated, removal v8.0.0); the
+		// migration_type rides in candidate_type.
+		callAbility( 'dismiss-candidate', {
+			surface: 'block-migrations', post_id: postId, block_fingerprint: fingerprint, candidate_type: migrationType,
 		} ).then( function() {
 			var row = btn.closest( 'tr' );
 			if ( row ) { row.remove(); }

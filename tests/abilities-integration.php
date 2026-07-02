@@ -90,6 +90,19 @@ if ( ! function_exists( 'get_the_title' ) ) {
 if ( ! function_exists( 'human_time_diff' ) ) {
 	function human_time_diff( $from, $to ) { return '5 minutes'; }
 }
+// v7.7.0: the orchestrator now loads inc/abilities-deprecations.php, whose
+// snt_ability_deprecated_notice() calls _deprecated_function + esc_html when a
+// deprecated wrapper executes (full-reset, get-cron-event, … below). Record
+// the calls so behavior asserts can check the ladder without WP loaded.
+$GLOBALS['__test_deprecated_calls'] = array();
+if ( ! function_exists( '_deprecated_function' ) ) {
+	function _deprecated_function( $fn, $ver, $repl = '' ) {
+		$GLOBALS['__test_deprecated_calls'][] = array( $fn, $ver, $repl );
+	}
+}
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) { return $s; }
+}
 
 // ─── Capability stub ────────────────────────────────────────────────
 $GLOBALS['__test_user_caps']     = array(

@@ -200,9 +200,9 @@ function sn_handle_quick_force_update_check() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
 	}
-	// Same work the signal-noise/force-check-updates ability does: its
-	// execute_callback (snt_ability_force_check_updates) is a thin wrapper
-	// around snt_cmd_impl_force_check(), which busts the GitHub tag caches
+	// Same work signal-noise/get-deploy-status does with force_refresh=true
+	// (and the deprecated force-check-updates wrapper before it): both route
+	// through snt_cmd_impl_force_check(), which busts the GitHub tag caches
 	// + WP's update_themes/update_plugins transients. Call the same impl so
 	// the admin-bar action and the ability stay behaviorally identical.
 	if ( ! function_exists( 'snt_cmd_impl_force_check' ) ) {
