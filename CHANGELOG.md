@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.0.2] - 2026-07-02: Admin cohesion stage 1 — postbox retirement + token cleanup
+
+**Headline:** Stage 1 of the admin cohesion pass (owner-directed, spec 2026-07-02): every settings-page leaf now speaks the v6.42–6.47 design vocabulary. The Tags leaf's seven native meta-box panels become `.sn-fieldset` cards and its last two inline `style=` attributes become utilities; the Audit log's two data tables drop their cross-surface postbox mirror of the analytics dashboard for a new `.sn-fieldset--wide` card; the Login defense status readout gets the card chrome its digest sibling already had; the Links cards move their last hardcoded literals onto `--sn-*` tokens. The Stage 0 IA audit ran first and concluded NO tab reorganization is warranted (the v6.18.0 seven-tab IA holds; verdict table in the plan doc). Zero behavior change — render contracts, POST actions, and dispatcher slugs are untouched and test-pinned.
+
+> **Why PATCH:** presentation-only cohesion sweep; no behavior, API, or schema change.
+
+### Improvements
+- **Tags (Content → Tags):** all 7 `.postbox` panels → `.sn-fieldset` + `.sn-fieldset-h`; the AI-suggestions and unused-tags checkbox lists swap `style="margin-right:12px"` / `style="display:block"` for the new `.snt-label-inline` / `.snt-label-block` utilities. Settings-page markup is now 100% free of inline styles and meta-box chrome.
+- **Audit log (Security → Audit log):** the Counter-timeline and Recent-logins panels move from `.postbox` (a deliberate mirror of the out-of-scope analytics dashboard — in-page consistency wins) onto `.sn-fieldset .sn-fieldset--wide`, keeping the sticky-header scroll wrapper; the empty-logins state drops its dangling dependency on `analytics-admin.css` (`.sn-an-empty` → the plugin's own `.sn-prose`).
+- **Login defense (Security → Login defense):** the bare `.sn-status-box` readout is wrapped in a "Login guard status" `.sn-fieldset` — card AROUND the flex-row box (the v7.2.1 squeezed-column lesson), pairing it with the digest card below.
+- **New shared primitives:** `.sn-fieldset--wide` width modifier (wide data tables inside cards) + `.snt-label-inline` / `.snt-label-block` label-layout utilities.
+- **Links (Tools → Links):** `.sn-link-card` radius and hover color onto `var(--sn-radius)` / `var(--sn-text-muted)` (were literal `4px` / `#8c8f94`).
+
+### Cleanup
+- Stage 0 IA audit verdict recorded (no moves; Desktop-Mode 7-tab invariant untouched); stale `performance.php` docblock corrected ("Tools tab" → Content, stale since v6.18.0). Pill/badge usage verified status-vs-annotation clean across all touched leaves.
+- Test deltas pin the new contracts: `tests/tag-consolidation-admin.php` (three-view no-postbox/no-inline-style sweep), `tests/audit-log-shell.php` (wide-card panels + shell balance on the empty-logins branch), `tests/login-defense.php` (card-around-flex-row), `tests/admin-polish-v647.php` (link-card token lock). Sweep: 198 suites, 5,489 asserts, 0 failed.
+
 ## [8.0.1] - 2026-07-02: Health-tab all-clear redesign + /now //about/uses edge purge-on-save
 
 **Headline:** The Health tab's all-clear state stops triple-encoding good news — ten "label / clear / green pill" cards collapse into one passing strip ("All 10 checks passing" + check names as chips), the scan flash learns to say so ("all checks passing" instead of promising "findings below" over an empty screen), the hero's elapsed reads "22.2s" instead of "22206ms", and Run scan + Opportunities pair up side by side instead of stacking two capped cards on a wide tab. And the open cache chip closes: saving (or clearing) the /now and /about/uses editors now purges the live route from the Cloudflare edge, so logged-out visitors see the new content immediately instead of waiting out the TTL the owner never saw (logged-in cache bypass).
