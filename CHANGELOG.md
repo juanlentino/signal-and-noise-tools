@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.2.0] - 2026-07-02: In-admin Better Stack status panel
+
+**Headline:** The Better Stack monitor and heartbeat states, rendered natively inside wp-admin (owner-requested; no iframe, no embed, no public route — the public page stays Better Stack-hosted because a status page served by the site it reports on dies with the site). Two surfaces off one data layer: an "S&N Uptime" dashboard widget (the fourth sanctioned widget) and a "Better Stack status" panel in the Connections → Webhooks rail. Renders are zero-cost by contract — the admin prints an instant shell and the data loads async through a new readonly `signal-noise/uptime-status` ability (`sntAbilityRun`, the one JS transport), backed by a 90-second server-side snapshot transient over the Uptime API (monitors + heartbeats, Bearer auth). Failures are never cached, so a Better Stack blip clears on the next panel load.
+
+> **Why MINOR:** new user-visible capability (two admin surfaces + one new ability + a new setting); purely additive, no API or settings-schema change.
+
+### New
+- `inc/uptime-status.php`: Uptime API data layer — token resolution (`SN_BETTERSTACK_API_TOKEN` constant wins over the non-autoloaded `sn_betterstack_api_token` option), normalized monitor/heartbeat rows with an up/down/attention level map, 90s transient snapshot, and the `signal-noise/uptime-status` ability (diagnostics, readonly + idempotent, manage_options; `force_refresh` input bypasses the cache; `configured:false` is a prompt state, not an error).
+- `inc/uptime-status-widget.php` + `assets/uptime-status.js` + `assets/uptime-status.css`: the "S&N Uptime" dashboard widget and the shared async loader/styles. Same zero-remote-cost render discipline as the S&N Health widget, asserted by an HTTP-tripwire fixture. Unconfigured admins get a settings link instead of a dead box.
+- Better Stack API token field on the Uptime monitoring fieldset (Connections → Webhooks), mirroring the Cloudflare token idiom: obscured display (`sn_mask_secret`), paste a fresh value to update, literal `clear` to remove, constant-locked when set in wp-config; the raw token never renders. Saved by the existing `monitoring_save` action, independent of the push-URL https gate so a rejected URL never eats a pasted token; the snapshot transient drops on token change.
+
+### Improvements
+- Panel assets enqueue via the dispatcher-resolved tab+sub guard in `inc/admin-menu.php` (never a raw `$_GET['tab']` check) and only when a token is configured.
+
 ## [8.1.6] - 2026-07-02: Better Stack migration readiness + author-enum guard hook order
 
 **Headline:** The monitoring stack moves from self-hosted Uptime Kuma to Better Stack (arc 3). Plugin-side that is deliberately small: the heartbeat mechanism already speaks Better Stack (a plain GET to the heartbeat URL; the appended `status=up` is ignored), so the settings keys, POST field names, and cron hook stay untouched — only the admin copy goes provider-neutral. The bot classifier's coverage of both Better Stack probe UA generations (via the bare `bot` token) is now pinned in tests so a future pattern tightening cannot silently start counting probes as RSS subscribers. Plus one fold-in from the 2026-07-02 Opus diff audit: the author-enumeration guard now registers at `template_redirect` priority 9, ahead of core's `redirect_canonical` (priority 10), which previously 301'd `/?author=N` with the nicename in the Location header before the guard could run.

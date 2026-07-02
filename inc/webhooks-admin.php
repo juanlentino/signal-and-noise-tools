@@ -195,6 +195,13 @@ function sn_webhooks_render_admin_tab() {
 	echo '<p class="sn-field-helper">The heartbeat URL from your monitoring service (Better Stack heartbeat, or Uptime Kuma <code>Push</code> monitor). <code>status=up</code> is appended automatically — Kuma expects it, Better Stack ignores it. Must be <code>https://</code>.</p>';
 	echo '</div>';
 
+	// v8.2.0: Uptime API token — powers the in-admin status panel (the rail
+	// on this tab + the S&N Uptime dashboard widget). Saved by the same
+	// monitoring_save action; render + masking live in inc/uptime-status.php.
+	if ( function_exists( 'sn_uptime_status_token_field_html' ) ) {
+		echo sn_uptime_status_token_field_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+	}
+
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Status</label>';
 	echo '<label><input type="checkbox" name="uptime_kuma_enabled" value="1"' . checked( $kuma_enabled, true, false ) . '> Enabled — send a heartbeat every 5 minutes</label>';
@@ -232,6 +239,17 @@ function sn_webhooks_render_admin_tab() {
 		echo '<p class="sn-status-box-body">Add one in the main column to start receiving signed post-publish notifications at your own endpoint.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
+		echo '</div>';
+	}
+
+	// ── BETTER STACK STATUS (v8.2.0) ── async panel; renders only when a
+	// token is configured (unconfigured admins get the field helper above,
+	// not a dead box). Data loads via the signal-noise/uptime-status ability
+	// (assets/uptime-status.js) — this render costs nothing.
+	if ( function_exists( 'sn_uptime_status_configured' ) && sn_uptime_status_configured() ) {
+		echo '<div class="sn-fieldset">';
+		echo '<h2 class="sn-fieldset-h">Better Stack status</h2>';
+		echo sn_uptime_status_mount_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
 		echo '</div>';
 	}
 
