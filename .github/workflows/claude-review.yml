@@ -1,0 +1,33 @@
+name: Claude Review
+on:
+  pull_request:
+    paths:
+      - 'inc/**.php'
+      - '**/render.php'
+      - 'signal-and-noise-tools.php'
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      id-token: write   # claude-code-action requests an OIDC token; without this the job fails before reviewing
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 1
+      - id: prompt
+        run: |
+          {
+            echo 'content<<PROMPT_EOF'
+            cat .github/claude-review-prompt.md
+            echo 'PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+      - uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.prompt.outputs.content }}
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 30
