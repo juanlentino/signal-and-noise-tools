@@ -44,6 +44,7 @@ function sn_admin_render_front_end_form() { $GLOBALS['__calls'][] = 'fn:sn_admin
 function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_tag_cleanup_section'; }
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
 function sn_admin_render_now_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_now_section'; } // v7.5.0: Content → Now Page
+function sn_admin_render_uses_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_uses_section'; } // v7.6.0: Content → Uses Page
 
 // NB: we stub sn_admin_render_section/sub_tabs/toc above to record routing, so we
 // must NOT require inc/admin-tabs.php (it defines them for real → redeclare fatal).
@@ -86,8 +87,8 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 ok( ( $by_tab['site']['label'] ?? '' ) === 'Identity & SEO', "site relabelled 'Identity & SEO'" );
 ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo' ),
 	'site holds only identity-and-seo (cloudflare moved out)' );
-ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'reading-time', 'performance', 'music', 'rss', 'tags', 'now' ),
-	'content leaves: front-end, reading-time, performance, music, rss, tags, now (v7.5.0: /now page editor)' );
+ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'reading-time', 'performance', 'music', 'rss', 'tags', 'now', 'uses' ),
+	'content leaves: front-end, reading-time, performance, music, rss, tags, now, uses (v7.5.0 + v7.6.0 page editors)' );
 ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'cron', 'scheduled-content' ),
 	'connections leaves: cloudflare, webhooks, indexnow, cron, scheduled-content' );
 ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),

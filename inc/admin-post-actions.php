@@ -285,6 +285,29 @@ function sn_handle_now_save( $post ) {
 	return sn_now_page_save( $raw ) ? 'now_saved' : 'now_unchanged';
 }
 
+/**
+ * v7.6.0: save (or clear) the /uses page content (Content → Uses Page).
+ * Mirrors sn_handle_now_save — whitespace-only clears (theme file content
+ * returns), zero-group content is refused rather than silently saved.
+ */
+function sn_handle_uses_save( $post ) {
+	if ( ! function_exists( 'sn_uses_page_save' ) ) {
+		return 'uses_failed';
+	}
+	$raw   = isset( $post['uses_content'] ) ? (string) wp_unslash( $post['uses_content'] ) : '';
+	$lines = preg_split( '/\R/u', $raw );
+	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+
+	if ( '' === trim( $raw ) ) {
+		sn_uses_page_save( '' );
+		return 'uses_cleared';
+	}
+	if ( empty( sn_uses_parse_groups( $raw ) ) ) {
+		return 'uses_unparseable';
+	}
+	return sn_uses_page_save( $raw ) ? 'uses_saved' : 'uses_unchanged';
+}
+
 function sn_handle_pattern_adoption_scan( $post ) {
 	// v4.3.0: routes through the central dispatcher per the health_scan pattern.
 	if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {

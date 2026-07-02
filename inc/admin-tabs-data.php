@@ -98,11 +98,12 @@ function sn_admin_top_tabs() {
 				'music'        => array( 'label' => 'Music', 'render' => 'sn_admin_render_music_section', 'wide' => true ),
 				'rss'          => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section', 'wide' => true ),
 				'tags'         => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section', 'wide' => true ),
-				// v7.5.0: the theme's /now page content editor (owner: content
-				// lives in the plugin, not a hardcoded theme file). One capped
-				// textarea card — deliberately NOT wide (a lone form doesn't
-				// earn the full width; see the Phase-4b note above).
+				// v7.5.0/v7.6.0: the theme's /now + /uses page content editors
+				// (owner: content lives in the plugin, not hardcoded theme
+				// files). Capped textarea cards — deliberately NOT wide (a
+				// lone form doesn't earn the full width; Phase-4b note above).
 				'now'          => array( 'label' => 'Now Page', 'render' => 'sn_admin_render_now_section' ),
+				'uses'         => array( 'label' => 'Uses Page', 'render' => 'sn_admin_render_uses_section' ),
 			),
 		),
 		array(

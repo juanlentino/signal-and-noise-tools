@@ -438,7 +438,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 43, count( $map ), 'map has 43 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor)
+pa_eq( 44, count( $map ), 'map has 44 actions' ); // v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
@@ -552,6 +552,18 @@ pa_eq( 0, count( sn_now_page_sections() ), 'cleared → no stored sections (them
 sn_handle_now_save( array( 'now_content' => "## Hostile\n- <script>alert(1)</script>item" ) );
 pa_eq( false, strpos( (string) ( sn_now_page_get()['raw'] ?? '' ), '<script>' ), 'tags stripped from stored raw' );
 sn_handle_now_save( array( 'now_content' => '' ) ); // reset
+
+// ── v7.6.0: uses_save (/uses page editor) ────────────────────────────
+echo "\nTest: sn_handle_uses_save\n";
+if ( ! defined( 'SN_USES_PAGE_TEST' ) ) { define( 'SN_USES_PAGE_TEST', true ); } // skip add_filter wiring
+require_once __DIR__ . '/../inc/uses-page.php';
+
+pa_eq( 'uses_saved', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'valid content → uses_saved' );
+pa_eq( 'SSL UF8', sn_uses_parse_groups( (string) ( sn_uses_page_get()['raw'] ?? '' ) )[0]['items'][0]['name'] ?? '', 'content persisted + name|note parsed' );
+pa_eq( 'uses_unchanged', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'identical re-save → uses_unchanged' );
+pa_eq( 'uses_unparseable', sn_handle_uses_save( array( 'uses_content' => 'prose with no headers' ) ), 'zero-group content refused' );
+pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses_content' => " \n " ) ), 'whitespace-only → cleared' );
+pa_eq( null, sn_uses_page_get(), 'cleared → theme file content live again' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
