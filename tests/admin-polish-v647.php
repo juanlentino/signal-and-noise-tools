@@ -54,6 +54,33 @@ ap_ok( false !== strpos( $css, '.sn-url-preview:focus-visible' ), '#19 url-previ
 ap_ok( false === strpos( $css, 'sn-state-card' ), '#3 dead .sn-state-card vocabulary is gone (v6.46.1 #104)' );
 ap_ok( false === strpos( $css, 'border-color: #8c8f94' ), 'v8.0.2 link-card hover no longer hardcodes a hex (token cleanup)' );
 
+// ── Group: Stage 2 token contract (treatment B "crisp console", v8.0.3) ─────
+// Locks the exact token set the owner approved on the 3-archetype mockups.
+echo "\nGroup: Stage 2 token contract (treatment B, v8.0.3)\n";
+function ap_block( $css, $selector, $len = 260 ) {
+	$at = strpos( $css, $selector );
+	return false === $at ? '' : substr( $css, $at, $len );
+}
+ap_ok( false !== strpos( $css, '--sn-radius:      3px' ), 'S2: radius token is 3px' );
+$b = ap_block( $css, '.sn-glance {' );
+ap_ok( false !== strpos( $b, 'gap: 10px' ), 'S2: glance grid gap tightens to 10px' );
+$b = ap_block( $css, '.sn-glance-card {' );
+ap_ok( false !== strpos( $b, 'min-height: 70px' ) && false !== strpos( $b, 'gap: 3px' ), 'S2: glance card compacts (70px min-height, 3px gap)' );
+$b = ap_block( $css, '.sn-glance-card__label {' );
+ap_ok( false !== strpos( $b, 'font-size: 0.68rem' ), 'S2: glance label 0.68rem' );
+$b = ap_block( $css, '.sn-glance-card__value {' );
+ap_ok( false !== strpos( $b, 'font-size: 1.35rem' ) && false !== strpos( $b, 'font-weight: 600' ), 'S2: glance value 1.35rem/600 (the console numerals)' );
+$b = ap_block( $css, '.sn-fieldset {', 300 );
+ap_ok( false !== strpos( $b, 'padding: 16px 18px' ), 'S2: fieldset padding 16px 18px' );
+$b = ap_block( $css, '.sn-fieldset-h {' );
+ap_ok( false !== strpos( $b, 'font-size: 1em' ) && false !== strpos( $b, 'border-bottom: 1px solid #f0f0f1' ) && false !== strpos( $b, 'padding-bottom: 8px' ), 'S2: card headings get the hairline anatomy (1em + rule)' );
+$b = ap_block( $css, '.sn-pill {', 300 );
+ap_ok( false !== strpos( $b, 'border-radius: 4px' ), 'S2: pills square to 4px chips' );
+ap_ok( false === strpos( $css, 'border-radius: 999px' ), 'S2: no pill-round 999px remains' );
+ap_ok( false !== strpos( $css, '.widefat th,' ) && false !== strpos( $css, 'padding: 6px 10px' ), 'S2: data tables densify (6px 10px cells)' );
+$b = ap_block( $css, '.sn-health-actions {' );
+ap_ok( false !== strpos( $b, 'gap: 10px' ), 'S2: health action row gap matches the 10px rhythm' );
+
 // ── Group: registry wide flags (#2) ────────────────────────────────────────
 echo "\nGroup: registry — Security audit-log is wide; login/login-defense capped\n";
 require_once __DIR__ . '/../inc/admin-tabs-data.php';
