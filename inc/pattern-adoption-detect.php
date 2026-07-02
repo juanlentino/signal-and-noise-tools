@@ -80,7 +80,7 @@ function snt_pattern_adoption_walk_blocks( $tree, $post, $dismissed, &$candidate
 	foreach ( $tree as $idx => $block ) {
 		$pattern_type = snt_pattern_adoption_match_block_type( $block );
 		if ( null !== $pattern_type ) {
-			$fp        = md5( serialize_block( $block ) );
+			$fp        = snt_block_fp_fingerprint( $block );
 			$dismiss_k = $pattern_type . ':' . $fp;
 			if ( ! in_array( $dismiss_k, $dismissed, true ) ) {
 				$candidates[] = array(

@@ -68,7 +68,7 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
 	}
 
 	$blocks = parse_blocks( (string) $post->post_content );
-	$match  = snt_pattern_adoption_find_block( $blocks, $block_fingerprint );
+	$match  = snt_block_fp_find( $blocks, $block_fingerprint );
 
 	if ( null === $match ) {
 		return new WP_Error(
@@ -91,30 +91,6 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
 		'post_id'            => $post_id,
 		'pattern_type'       => $pattern_type,
 	);
-}
-
-/**
- * Recursive search for a block matching $fingerprint.
- *
- * @param array  $tree
- * @param string $fingerprint
- * @return array|null  The matching block, or null.
- *
- * @since 4.3.0
- */
-function snt_pattern_adoption_find_block( $tree, $fingerprint ) {
-	foreach ( $tree as $block ) {
-		if ( md5( serialize_block( $block ) ) === $fingerprint ) {
-			return $block;
-		}
-		if ( ! empty( $block['innerBlocks'] ) ) {
-			$found = snt_pattern_adoption_find_block( $block['innerBlocks'], $fingerprint );
-			if ( null !== $found ) {
-				return $found;
-			}
-		}
-	}
-	return null;
 }
 
 /**

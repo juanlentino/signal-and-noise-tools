@@ -2,17 +2,13 @@
 /**
  * Signal & Noise Tools — Block-migrations apply impl.
  *
- * Fingerprint-validated structural-block replacement via parse_blocks ↔
- * serialize_blocks round-trip. Mirrors inc/pattern-adoption-apply.php.
- *
- * Flow:
- *   1. Capability check (edit_post for $post_id)
- *   2. Load post, parse_blocks($post->post_content)
- *   3. Walk tree, find block where md5(serialize_block) === fingerprint
- *   4. If not found → snt_block_migration_conflict (409)
- *   5. Mutate matching node in place with replacement (parse_blocks($replacement_markup)[0])
- *   6. serialize_blocks($modified_tree) → new post_content
- *   7. wp_update_post() → revision created automatically
+ * Fingerprint-validated structural-block replacement. Since v7.7.1 the
+ * pipeline (capability → type gate → parse → named-block guard → sanitize →
+ * replace-by-fingerprint → serialize → wp_update_post) lives in the shared
+ * engine, inc/block-fingerprint-engine.php — this file passes the surface's
+ * error-code map and shapes the success payload. v7.7.1 also brings this
+ * surface the v6.39.2 wp_kses_post replacement sanitization that only
+ * pattern-adoption had (stored-XSS parity).
  *
  * @package SignalNoiseTools
  * @since 4.5.0
@@ -42,78 +38,34 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 4.5.0
  */
 function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replacement_markup, $migration_type ) {
-	$post_id            = (int) $post_id;
-	$block_fingerprint  = (string) $block_fingerprint;
-	$replacement_markup = (string) $replacement_markup;
-	$migration_type     = (string) $migration_type;
-
-	if ( ! current_user_can( 'edit_post', $post_id ) ) {
-		return new WP_Error(
-			'snt_block_migration_capability',
-			__( 'You cannot edit this post.', 'signal-noise-tools' ),
-			array( 'status' => 403 )
-		);
-	}
+	$post_id        = (int) $post_id;
+	$migration_type = (string) $migration_type;
 
 	if ( ! defined( 'SNT_BLOCK_MIGRATIONS_VALID_TYPES' ) ) {
 		define( 'SNT_BLOCK_MIGRATIONS_VALID_TYPES', array( 'heading-hierarchy-skip' ) );
 	}
-	if ( ! in_array( $migration_type, SNT_BLOCK_MIGRATIONS_VALID_TYPES, true ) ) {
-		return new WP_Error(
-			'snt_block_migration_invalid_type',
-			__( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-noise-tools' ),
-			array( 'status' => 422 )
-		);
-	}
 
-	$post = get_post( $post_id );
-	if ( ! $post ) {
-		return new WP_Error(
-			'snt_block_migration_post_not_found',
-			__( 'Post not found.', 'signal-noise-tools' ),
-			array( 'status' => 404 )
-		);
-	}
-
-	$blocks           = parse_blocks( (string) $post->post_content );
-	$replacement      = parse_blocks( $replacement_markup );
-	$replacement_node = $replacement[0] ?? null;
-
-	// v4.5.2: require a NAMED block. parse_blocks() on non-block input returns a
-	// single node with blockName === null (a "freeform" classic block); the old
-	// guard accepted it and spliced raw HTML into post_content.
-	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
-		return new WP_Error(
-			'snt_block_migration_invalid_markup',
-			__( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ),
-			array( 'status' => 422 )
-		);
-	}
-
-	$found = false;
-	snt_block_migrations_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );
-
-	if ( ! $found ) {
-		return new WP_Error(
-			'snt_block_migration_conflict',
-			__( 'Block changed or removed since scan. Re-run scan.', 'signal-noise-tools' ),
-			array( 'status' => 409 )
-		);
-	}
-
-	$new_content = serialize_blocks( $blocks );
-
-	$result = wp_update_post( array(
-		'ID'           => $post_id,
-		'post_content' => $new_content,
-	), true );
+	$result = snt_block_fp_apply( array(
+		'post_id'            => $post_id,
+		'block_fingerprint'  => (string) $block_fingerprint,
+		'replacement_markup' => (string) $replacement_markup,
+		'type'               => $migration_type,
+		'valid_types'        => SNT_BLOCK_MIGRATIONS_VALID_TYPES,
+		'error_codes'        => array(
+			'capability'     => 'snt_block_migration_capability',
+			'invalid_type'   => 'snt_block_migration_invalid_type',
+			'post_not_found' => 'snt_block_migration_post_not_found',
+			'invalid_markup' => 'snt_block_migration_invalid_markup',
+			'conflict'       => 'snt_block_migration_conflict',
+			'write_failed'   => 'snt_block_migration_write_failed',
+		),
+		'error_messages'     => array(
+			'invalid_type' => __( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-noise-tools' ),
+		),
+	) );
 
 	if ( is_wp_error( $result ) ) {
-		return new WP_Error(
-			'snt_block_migration_write_failed',
-			sprintf( __( 'wp_update_post failed: %s', 'signal-noise-tools' ), $result->get_error_message() ),
-			array( 'status' => 500 )
-		);
+		return $result;
 	}
 
 	return array(
@@ -121,30 +73,4 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 		'post_id'        => $post_id,
 		'migration_type' => $migration_type,
 	);
-}
-
-/**
- * Recursive in-place mutator. Walks $tree, replaces first block whose
- * md5(serialize_block) matches $fingerprint with $replacement_node.
- *
- * @param array  $tree              By reference.
- * @param string $fingerprint
- * @param array  $replacement_node
- * @param bool   $found             By reference.
- * @return void
- *
- * @since 4.5.0
- */
-function snt_block_migrations_replace_in_tree( &$tree, $fingerprint, $replacement_node, &$found ) {
-	foreach ( $tree as $i => &$block ) {
-		if ( $found ) { return; }
-		if ( md5( serialize_block( $block ) ) === $fingerprint ) {
-			$tree[ $i ] = $replacement_node;
-			$found = true;
-			return;
-		}
-		if ( ! empty( $block['innerBlocks'] ) ) {
-			snt_block_migrations_replace_in_tree( $block['innerBlocks'], $fingerprint, $replacement_node, $found );
-		}
-	}
 }

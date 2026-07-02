@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.7.1] - 2026-07-01: Shared block-fingerprint engine — one pipeline behind both Suggest/Apply surfaces
+
+**Headline:** Session 2 of the consolidation arc: block-migrations and pattern-adoption had carried byte-identical find/replace walkers and near-identical fingerprint-validated apply pipelines since 4.3.0/4.5.0 (each file's docblock literally said "mirrors" the other). New `inc/block-fingerprint-engine.php` (`snt_block_fp_fingerprint/find/replace_in_tree/sanitize_node/apply`) is now the single implementation; both surfaces pass their error-code maps and shape their own success payloads, so every public WP_Error contract stays byte-identical (including pattern-adoption's historical quirk of reusing its invalid-type code for invalid markup). A third migration type now plugs in via one code map — the spec's trigger for a future ability-surface collapse. No ability/REST surface changes.
+
+> **Why PATCH:** internal refactor + security-hardening parity; no new user-visible capability, no public API change.
+
+### Fixed
+- **Stored-XSS parity (security):** block-migrations apply never got the v6.39.2 `wp_kses_post` sanitization of the user-editable replacement markup that pattern-adoption got — a `<script>`/`onclick` payload edited into the apply modal could be spliced into `post_content`. The shared engine sanitizes the parsed replacement node on BOTH surfaces (parsed-node-level, not raw-string, because block delimiters are HTML comments and wp_kses would strip them — the v6.39.2 lesson, now encoded once).
+
+### Improvements
+- `inc/block-fingerprint-engine.php`: the five shared primitives + the parameterized apply pipeline; consumed by both apply impls, both suggest impls (locate), and both detectors (fingerprint line).
+- Capability now gates BEFORE the type check on both surfaces (pattern-adoption used to check type first): unauthorized callers get 403 instead of 422, disclosing strictly less.
+- ~180 lines of duplicated walker/pipeline code deleted across the four impl files.
+
+### Cleanup
+- Removed the per-surface duplicates: `snt_block_migrations_find_block`, `snt_pattern_adoption_find_block`, `snt_block_migrations_replace_in_tree`, `snt_pattern_adoption_replace_in_tree`, `snt_pattern_adoption_sanitize_block_node` (all file-local, zero external callers).
+- Test suites: new `tests/block-fingerprint-engine.php` (26 assertions, RED-first); `tests/block-migrations-apply.php` gains the sanitize-parity regression test (its two new asserts FAILED against the pre-engine code, proving the gap was real). Full sweep 196/196.
+
 ## [7.7.0] - 2026-07-01: Abilities consolidation — 4 canonical surfaces in, 9 deprecated (ladder step 1)
 
 **Headline:** The 2026-07-01 stack audit found the ability surface's real problem is ambiguity, not count: `full-reset` was byte-for-byte `purge-all-caches {include_template_overrides:true}`, three audit reads shared one store, `get-cron-event` required a signature only discoverable via `list-cron-events`, and `force-check-updates` was a transient-clear whose answer you read via `get-deploy-status` anyway. This release ships the consolidated surfaces ADDITIVELY and opens the deprecation window on the nine legacy names (removal in v8.0.0, same ladder shape as the v6.54.0 → v7.0.0 REST arc): each deprecated ability keeps full behavior, leads its description with a `DEPRECATED since 7.7.0 — use …` hint (the signal an LLM tool-caller actually reads), carries machine-readable `meta.deprecated {since, use}`, and emits `snt_ability_deprecated_notice()` at its execute wrapper only — never in the shared impls the canonical paths call. Every in-repo caller (⌘K palette, desktop-mode commands + widget, Health-tab dismiss buttons) now dispatches the canonical abilities.

@@ -95,6 +95,7 @@ function _ta_post( $id, $blocks_array ) {
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
+require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
 require_once __DIR__ . '/../inc/pattern-adoption-detect.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
