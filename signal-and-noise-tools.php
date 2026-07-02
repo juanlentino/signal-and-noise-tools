@@ -216,6 +216,7 @@ require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the sh
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/inc/ai-link-suggest.php'; // v7.4.0: unlinked-mention Suggest+Apply (mirrors drift machinery)
+require_once __DIR__ . '/inc/ai-pair-suggest.php'; // v8.1.0: semantic-pair Suggest (link_opportunities; Apply rides ai-link-apply)
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
 require_once __DIR__ . '/inc/ai-tag-suggest.php';
