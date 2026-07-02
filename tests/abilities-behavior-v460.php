@@ -169,6 +169,15 @@ if ( ! function_exists( 'snt_cron_history_record' ) ) {
 	}
 }
 
+// v7.7.0: pattern-adoption-dismiss is deprecated; its wrapper emits
+// snt_ability_deprecated_notice() (defined in inc/abilities-deprecations.php,
+// loaded by the orchestrator in production). This fixture requires the
+// ability file directly, so stub the helper — same move tests/analytics-rest.php
+// made for snt_rest_deprecated_notice in the v6.54.0 REST ladder.
+if ( ! function_exists( 'snt_ability_deprecated_notice' ) ) {
+	function snt_ability_deprecated_notice( $ability_slug, $replacement_hint ) {}
+}
+
 // ─── Load the SUTs ───────────────────────────────────────────────────
 // cron-dashboard.php provides snt_cron_run_event_impl (the real impl A delegates to).
 require_once __DIR__ . '/../inc/cron-dashboard.php';

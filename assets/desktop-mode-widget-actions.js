@@ -28,7 +28,12 @@
 	var CMD_ABILITY = {
 		'purge-caches':    'purge-all-caches',
 		'clear-overrides': 'clear-template-overrides',
-		'full-reset':      'full-reset',
+		// v7.7.0: full-reset is deprecated (removal v8.0.0) — same behavior is
+		// purge-all-caches with include_template_overrides (see CMD_INPUT).
+		'full-reset':      'purge-all-caches',
+	};
+	var CMD_INPUT = {
+		'full-reset': { include_template_overrides: true },
 	};
 	var TOAST_MS = 3500;
 
@@ -77,7 +82,7 @@
 		window.wp.apiFetch( {
 			path:   ABILITY_BASE + ( CMD_ABILITY[ action ] || action ) + '/run',
 			method: 'POST',
-			data:   { input: {} },
+			data:   { input: CMD_INPUT[ action ] || {} },
 		} )
 			.then( function( res ) {
 				var ok      = !! ( res && res.ok );

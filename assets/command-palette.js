@@ -243,16 +243,28 @@
 	} );
 
 	dispatch.registerCommand( {
+		// v7.7.0: dispatches get-deploy-status {force_refresh:true} — the
+		// force-check-updates ability is deprecated (removal v8.0.0). The
+		// command name/label keep the user-facing verb.
 		name: 'signal-noise/force-check-updates',
 		label: __( 'SN: Force-check updates', 'signal-noise-tools' ),
 		icon: dashicon( 'update' ),
 		callback: function( args ) {
 			run(
 				__( 'Force-check', 'signal-noise-tools' ),
-				'signal-noise/force-check-updates',
-				{ idempotent: true },  // not readonly (clears state); not destructive (no user data)
-				{},
-				args.close
+				'signal-noise/get-deploy-status',
+				// NOT marked readonly here on purpose: readonly → GET, and the
+				// run controller does not JSON-decode GET ?input=, so the
+				// force_refresh input must ride a POST body.
+				{ idempotent: true },
+				{ force_refresh: true },
+				args.close,
+				function( res, label ) {
+					var msg = ( res && res.theme && res.plugin )
+						? 'Theme ' + res.theme.current + ' (' + res.theme.state + '), plugin ' + res.plugin.current + ' (' + res.plugin.state + ').'
+						: __( 'Update check refreshed.', 'signal-noise-tools' );
+					showToast( label + ': ' + msg, 'ok' );
+				}
 			);
 		},
 	} );

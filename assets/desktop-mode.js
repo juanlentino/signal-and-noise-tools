@@ -30,10 +30,20 @@
 	// per-command ability run-paths. Map each legacy action to its ability slug.
 	var ABILITY_BASE = '/wp-abilities/v1/abilities/signal-noise/';
 	var CMD_ABILITY = {
-		'force-check':     'force-check-updates',
+		// v7.7.0: force-check + full-reset migrated to their consolidated
+		// replacements (force-check-updates / full-reset are deprecated,
+		// removal v8.0.0) — the behavior difference rides in CMD_INPUT.
+		'force-check':     'get-deploy-status',
 		'purge-caches':    'purge-all-caches',
 		'clear-overrides': 'clear-template-overrides',
-		'full-reset':      'full-reset',
+		'full-reset':      'purge-all-caches',
+	};
+	// Per-command input for the consolidated abilities. POST body input is
+	// JSON-decoded by the run controller (unlike GET ?input=), and callRest
+	// always POSTs, so this is safe for every command here.
+	var CMD_INPUT = {
+		'force-check': { force_refresh: true },
+		'full-reset':  { include_template_overrides: true },
 	};
 
 	/**
@@ -70,7 +80,7 @@
 		return window.wp.apiFetch( {
 			path:   ABILITY_BASE + slug + '/run',
 			method: 'POST',
-			data:   { input: {} },
+			data:   { input: CMD_INPUT[ action ] || {} },
 		} );
 	}
 
@@ -136,7 +146,14 @@
 		aiCallable: true, // v2.5.5: idempotent, clears transients only — safe.
 		run: function() {
 			callRest( 'force-check' )
-				.then( function( res ) { toast( res.message || 'Update caches cleared.' ); } )
+				// v7.7.0: get-deploy-status returns { theme, plugin, last_deploy }
+				// (no message field) — build the toast from the fresh states.
+				.then( function( res ) {
+					var detail = ( res && res.theme && res.plugin )
+						? ' Theme ' + res.theme.current + ' (' + res.theme.state + '), plugin ' + res.plugin.current + ' (' + res.plugin.state + ').'
+						: '';
+					toast( 'Update check refreshed.' + detail );
+				} )
 				.catch( function( err ) { toast( 'Force-check failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
@@ -249,12 +266,15 @@
 				toast( 'wp.apiFetch unavailable.', 'error' );
 				return;
 			}
+			// v7.7.0: get-audit-summary is deprecated — same payload now rides
+			// under get-audit-log's `summary` key.
 			window.wp.apiFetch( {
-				path:   ABILITY_BASE + 'get-audit-summary/run',
+				path:   ABILITY_BASE + 'get-audit-log/run',
 				method: 'POST',
-				data:   { input: {} },
+				data:   { input: { view: 'summary' } },
 			} )
-				.then( function( s ) {
+				.then( function( res ) {
+					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, lla: {} };
 					var msg = 'Last 24h: ' + ( s.last_24h.all_total || 0 ) + ' events (' +
 						( s.last_24h.failed_total || 0 ) + ' failed, ' +
 						( s.last_24h.recon_total || 0 ) + ' recon). ' +
@@ -278,12 +298,15 @@
 				toast( 'wp.apiFetch unavailable.', 'error' );
 				return;
 			}
+			// v7.7.0: get-audit-login-successes is deprecated — the rows now ride
+			// under get-audit-log's `logins` key.
 			window.wp.apiFetch( {
-				path:   ABILITY_BASE + 'get-audit-login-successes/run',
+				path:   ABILITY_BASE + 'get-audit-log/run',
 				method: 'POST',
-				data:   { input: { days: 30 } },
+				data:   { input: { view: 'logins', days: 30 } },
 			} )
-				.then( function( rows ) {
+				.then( function( res ) {
+					var rows = ( res && res.logins ) || [];
 					if ( ! rows || ! rows.length ) {
 						toast( 'No successful logins in last 30 days.', 'info' );
 						return;

@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [7.7.0] - 2026-07-01: Abilities consolidation — 4 canonical surfaces in, 9 deprecated (ladder step 1)
+
+**Headline:** The 2026-07-01 stack audit found the ability surface's real problem is ambiguity, not count: `full-reset` was byte-for-byte `purge-all-caches {include_template_overrides:true}`, three audit reads shared one store, `get-cron-event` required a signature only discoverable via `list-cron-events`, and `force-check-updates` was a transient-clear whose answer you read via `get-deploy-status` anyway. This release ships the consolidated surfaces ADDITIVELY and opens the deprecation window on the nine legacy names (removal in v8.0.0, same ladder shape as the v6.54.0 → v7.0.0 REST arc): each deprecated ability keeps full behavior, leads its description with a `DEPRECATED since 7.7.0 — use …` hint (the signal an LLM tool-caller actually reads), carries machine-readable `meta.deprecated {since, use}`, and emits `snt_ability_deprecated_notice()` at its execute wrapper only — never in the shared impls the canonical paths call. Every in-repo caller (⌘K palette, desktop-mode commands + widget, Health-tab dismiss buttons) now dispatches the canonical abilities.
+
+> **Why MINOR:** net-new ability surface + additive schema extensions; the nine deprecations preserve behavior (the break is deferred to v8.0.0).
+
+### New
+- `signal-noise/get-audit-log` — one audit read, `view=summary|counters|logins` (+ `days`); output echoes `view` and fills exactly one payload key, the other two are null (`inc/abilities-audit.php`).
+- `signal-noise/dismiss-candidate` — unified scan-candidate dismiss, `surface=block-migrations|pattern-adoption` with `candidate_type` carrying the migration/pattern type (`inc/abilities-dismiss.php`); the block-migrations dismiss logic extracted to a shared `snt_block_migrations_dismiss_impl()` both the new dispatcher and the deprecated wrapper call.
+- `signal-noise/list-cron-events` gains optional `hook` + `args_signature` filters (read-side, empty array on no match) — subsumes `get-cron-event`.
+- `signal-noise/get-deploy-status` gains `force_refresh` (clears the GitHub-tag + WP update transients before reading, then returns the fresh status in one call) — subsumes `force-check-updates`.
+- `inc/abilities-deprecations.php`: `snt_ability_deprecated_notice()` helper + the placement rule (entry-wrapper only), inherited from the v6.54.0 REST ladder.
+- Test suites: `tests/abilities-consolidation-v770.php` (33), `tests/abilities-dismiss.php` (21), `tests/abilities-deprecations.php` (63) — registration contracts, dispatch routing, behavior preservation, and a behavioral guard that canonical paths never emit a notice.
+
+### Deprecated
+- `full-reset` → `purge-all-caches {include_template_overrides:true}` · `get-audit-summary`/`get-audit-counters`/`get-audit-login-successes` → `get-audit-log` views · `get-cron-event` → `list-cron-events` filters · `force-check-updates` → `get-deploy-status {force_refresh:true}` · `block-migrations-dismiss`/`pattern-adoption-dismiss` → `dismiss-candidate` surfaces · `list-abilities` → core `GET /wp-abilities/v1/abilities` (the native catalogue returns the same data plus schemas with filters + pagination; our only addition was a caller-derivable namespace tally). All nine: behavior preserved through v7.x, removal v8.0.0.
+
+### Improvements
+- JS callers migrated to the canonical abilities: `assets/health-suggest-actions.js` (both dismiss buttons → `dismiss-candidate`), `assets/desktop-mode.js` (force-check → `get-deploy-status {force_refresh}` with a states toast, full-reset → `purge-all-caches {include_template_overrides}`, audit widgets → `get-audit-log` views), `assets/desktop-mode-widget-actions.js` (full-reset button → `purge-all-caches` + input map), `assets/command-palette.js` (force-check command POSTs `get-deploy-status {force_refresh}` — deliberately not marked readonly client-side, since GET `?input=` is not JSON-decoded by the run controller).
+- `draft-release-notes` recategorized `diagnostics` → `ai-generation` (it is a generative AI call; agents browsing by category now find it with its AI siblings).
+
+### Fixed
+- First dismiss of a block-migration candidate no longer stores a phantom empty-string element alongside the real key (`(array) get_post_meta()` on an unset key is `array('')` — latent since 4.5.0, harmless to the scanner's `in_array` check but wrong data; cleaned with the impl extraction).
+
 ## [7.6.0] - 2026-07-01: Uses Page editor + site-timezone save stamps
 
 **Headline:** Owner direction: /uses gets the same plugin-managed content behavior as /now. New Content → Uses Page sub-tab feeding the theme's `sn_uses_groups` seam (shipped with the uses trio in theme v10.10.0, documented then as "the deferred-admin-UI seam" — finally fed). Same grammar as the Now editor with one addition: an optional `|` splits an item's name from its note (`- SSL UF8 | Advanced DAW controller`). On first open the editor PREFILLS with the theme's live file list (serializer round-trips the parser exactly), so the owner edits the current eleven items instead of retyping them. Same fallback discipline: empty clears, zero-group content is refused at save and guarded at the filter. Also fixes the /now updated stamp: `gmdate()` stamped a July-1-evening US-Eastern save as "July 2" on the live page — both editors now stamp with `wp_date()` (the site's configured timezone).

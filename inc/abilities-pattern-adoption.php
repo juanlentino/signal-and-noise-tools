@@ -2,7 +2,9 @@
 /**
  * Signal & Noise Tools — Abilities API: pattern-adoption structural actions.
  *
- * Two abilities for the pattern-adoption Tools sub-tab (scan + dismiss).
+ * Two abilities for the pattern-adoption Tools sub-tab (scan + dismiss;
+ * dismiss is DEPRECATED 7.7.0 → dismiss-candidate surface=pattern-adoption,
+ * removal v8.0.0).
  * Separate from inc/abilities-ai-pattern-adoption.php (which holds the AI
  * suggest+apply pair) because these actions are deterministic structural
  * — category 'tools' rather than 'ai-generation'.
@@ -55,7 +57,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/pattern-adoption-dismiss', array(
 		'label'               => 'Dismiss a pattern-adoption candidate',
-		'description'         => 'Marks a scanned candidate as dismissed by appending its `pattern_type:block_fingerprint` key to the target post\'s `_snt_pattern_adoption_dismissed` meta — the same store the scanner filters against — so it doesn\'t reappear on subsequent scans. Idempotent — dismissing the same candidate twice is a no-op.',
+		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/dismiss-candidate with surface="pattern-adoption" instead (candidate_type carries the pattern_type). Marks a scanned candidate as dismissed by appending its `pattern_type:block_fingerprint` key to the target post\'s `_snt_pattern_adoption_dismissed` meta — the same store the scanner filters against — so it doesn\'t reappear on subsequent scans. Idempotent — dismissing the same candidate twice is a no-op.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_pattern_adoption_dismiss',
@@ -90,6 +92,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'deprecated'   => array(
+				'since' => '7.7.0',
+				'use'   => 'signal-noise/dismiss-candidate with surface="pattern-adoption"',
+			),
 			'annotations'  => array(
 				'destructive' => false,
 				'idempotent'  => true,
@@ -129,8 +135,11 @@ function snt_ability_pattern_adoption_scan( $input ) {
  *
  * @param array $input { post_id: int, pattern_type: string, block_fingerprint: string }
  * @return array{ok:bool,message:string}
+ *
+ * @deprecated 7.7.0 Use signal-noise/dismiss-candidate with surface="pattern-adoption".
  */
 function snt_ability_pattern_adoption_dismiss( $input ) {
+	snt_ability_deprecated_notice( 'signal-noise/pattern-adoption-dismiss', 'signal-noise/dismiss-candidate with surface="pattern-adoption"' );
 	$post_id      = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
 	$pattern_type = isset( $input['pattern_type'] ) ? (string) $input['pattern_type'] : '';
 	$fingerprint  = isset( $input['block_fingerprint'] ) ? (string) $input['block_fingerprint'] : '';

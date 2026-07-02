@@ -11,8 +11,9 @@
  * Also houses the shared dismiss write (snt_pattern_adoption_dismiss_impl):
  * appends a fingerprint to the post's _snt_pattern_adoption_dismissed meta
  * and invalidates the current user's scan transient. It is called by the
- * signal-noise/pattern-adoption-dismiss Ability run-path (the legacy REST
- * route was removed in v7.0.0).
+ * unified signal-noise/dismiss-candidate Ability (surface="pattern-adoption")
+ * and, through v7.x, by the deprecated pattern-adoption-dismiss wrapper (the
+ * legacy REST route was removed in v7.0.0).
  *
  * @package SignalNoiseTools
  * @since 4.3.0
@@ -181,7 +182,9 @@ function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprin
 }
 
 // v7.0.0: the /health/pattern-adoption-dismiss REST route and its handler
-// (snt_rest_pattern_adoption_dismiss) were removed — the dismiss write now
-// runs through the signal-noise/pattern-adoption-dismiss Abilities run-path,
-// which shares snt_pattern_adoption_dismiss_impl() above. The JS caller in
-// assets/health-suggest-actions.js migrated to callAbility() in v6.55.0.
+// (snt_rest_pattern_adoption_dismiss) were removed — the dismiss write runs
+// through the Abilities run-path, which shares
+// snt_pattern_adoption_dismiss_impl() above. v7.7.0: the canonical caller is
+// now signal-noise/dismiss-candidate (surface="pattern-adoption"); the JS in
+// assets/health-suggest-actions.js migrated to it (per-surface ability
+// deprecated, removal v8.0.0).
