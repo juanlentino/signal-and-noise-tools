@@ -176,5 +176,15 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 				wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
 			}
 		}
+
+		// v8.2.0: Better Stack status panel on Connections → Webhooks (the rail
+		// mount). Same dispatcher-mirroring guard as above — never a raw
+		// $_GET['tab'] check. The dashboard-widget surface enqueues these same
+		// handles from inc/uptime-status-widget.php (index.php gate).
+		if ( 'connections' === $active_tab && 'webhooks' === $active_sub
+			&& function_exists( 'sn_uptime_status_enqueue_assets' )
+			&& function_exists( 'sn_uptime_status_configured' ) && sn_uptime_status_configured() ) {
+			sn_uptime_status_enqueue_assets();
+		}
 	}
 } );

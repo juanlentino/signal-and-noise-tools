@@ -376,6 +376,29 @@ function sn_handle_block_migrations_scan( $post ) {
  * for the next init.
  */
 function sn_handle_monitoring_save( $post ) {
+	// v8.2.0: Better Stack API token (status panel). Handled FIRST and
+	// independently of the push-URL https gate so a rejected URL never eats
+	// a freshly pasted token. Cloudflare-token contract: obscured round-trip
+	// and empty field keep the stored value; only the literal 'clear'
+	// removes it. Constant-locked installs never reach this (the field is
+	// disabled and unnamed). Snapshot transient dropped on change so the
+	// panel never serves a stale token's data.
+	if ( ! defined( 'SN_BETTERSTACK_API_TOKEN' ) || ! SN_BETTERSTACK_API_TOKEN ) {
+		$token_opt = defined( 'SN_UPTIME_STATUS_TOKEN_OPT' ) ? SN_UPTIME_STATUS_TOKEN_OPT : 'sn_betterstack_api_token';
+		$new_token = isset( $post['sn_betterstack_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_betterstack_token'] ) ) : '';
+		if ( 'clear' === $new_token ) {
+			delete_option( $token_opt );
+			if ( function_exists( 'delete_transient' ) ) {
+				delete_transient( 'sn_uptime_status_snapshot' );
+			}
+		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
+			update_option( $token_opt, $new_token, false ); // not autoloaded
+			if ( function_exists( 'delete_transient' ) ) {
+				delete_transient( 'sn_uptime_status_snapshot' );
+			}
+		}
+	}
+
 	$enabled = ! empty( $post['uptime_kuma_enabled'] );
 	$url     = isset( $post['uptime_kuma_push_url'] )
 		? esc_url_raw( trim( (string) wp_unslash( $post['uptime_kuma_push_url'] ) ) )

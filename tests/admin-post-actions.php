@@ -171,6 +171,25 @@ pa_reset_store();
 pa_eq( 'monitoring_saved', sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://kuma.example/api/push/x' ) ), 'https url → monitoring_saved' );
 pa_eq( 'https://kuma.example/api/push/x', sn_setting( 'monitoring.uptime_kuma_push_url' ), 'https url persisted' );
 
+echo "\nTest: sn_handle_monitoring_save() Better Stack token field (v8.2.0)\n";
+// Mirrors the Cloudflare token contract: fresh value persists (non-autoloaded
+// option), the obscured round-trip and an empty field keep the existing
+// token, and only the literal 'clear' removes it.
+pa_reset_store();
+sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://x.example/hb', 'sn_betterstack_token' => 'fresh-token-1234567890' ) );
+pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'fresh token persisted' );
+sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://x.example/hb', 'sn_betterstack_token' => '••••7890' ) );
+pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'obscured round-trip keeps the existing token' );
+sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://x.example/hb', 'sn_betterstack_token' => '' ) );
+pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'empty field keeps the existing token' );
+sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'https://x.example/hb', 'sn_betterstack_token' => 'clear' ) );
+pa_eq( false, array_key_exists( 'sn_betterstack_api_token', $GLOBALS['__options'] ), "token removed on the literal 'clear'" );
+// Token handling is independent of the https gate: a rejected URL must not
+// eat a freshly pasted token.
+pa_reset_store();
+sn_handle_monitoring_save( array( 'uptime_kuma_enabled' => '1', 'uptime_kuma_push_url' => 'http://insecure.example/hb', 'sn_betterstack_token' => 'kept-despite-url-reject' ) );
+pa_eq( 'kept-despite-url-reject', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'token saved even when the push URL is rejected' );
+
 echo "\nTest: sn_handle_music_save() — masked creds + Muso profile (T6)\n";
 pa_reset_store();
 // Fresh Spotify creds + Muso profile id → saved + persisted.
