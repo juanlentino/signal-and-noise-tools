@@ -108,9 +108,11 @@ function sn_settings_defaults() {
 		'perf' => array(
 			'speculative_loading' => true,
 		),
-		// v4.9.0 (T4): opt-in Uptime Kuma push heartbeat. Default OFF so the
-		// feature is dormant on every existing install (migration-free — the
-		// array_replace_recursive deep-merge in sn_setting() fills these in).
+		// v4.9.0 (T4): opt-in push heartbeat (Better Stack heartbeat or Uptime
+		// Kuma push monitor since v8.1.6 — same GET mechanism). Default OFF so
+		// the feature is dormant on every existing install (migration-free —
+		// the array_replace_recursive deep-merge in sn_setting() fills these
+		// in). Key names are historical; renaming = schema change, so they stay.
 		'monitoring' => array(
 			'uptime_kuma_push_url' => '',
 			'uptime_kuma_enabled'  => false,

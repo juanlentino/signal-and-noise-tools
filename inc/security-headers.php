@@ -93,11 +93,14 @@ function sn_security_author_enum_should_redirect() {
  * keep the standard behaviour so the admin author-archive view still
  * works from inside the dashboard.
  *
- * Hook-order caveat (learned 2026-07-02): WP core registers
- * redirect_canonical on this same hook and priority BEFORE plugins load,
- * so a bare /?author=N is usually canonical-redirected (leaking the
- * nicename in Location) before this guard runs. Move the add_action to
- * priority 9 if strict enum-blocking ever matters again.
+ * Hook order (v8.1.6, audit LOW-1): registered at priority 9. WP core
+ * registers redirect_canonical on this same hook at priority 10 BEFORE
+ * plugins load, so at the default priority core wins by registration
+ * order and canonical-redirects a bare /?author=N (leaking the nicename
+ * in Location) before this guard runs. Priority 9 puts the guard first.
+ * Defense-in-depth on current config (the CF edge 404s /?author=N), but
+ * the registered priority is the contract — tests/security-headers.php
+ * asserts it.
  */
 function sn_security_author_enum_guard() {
 	if ( ! sn_security_author_enum_should_redirect() ) {
@@ -106,7 +109,7 @@ function sn_security_author_enum_guard() {
 	wp_safe_redirect( home_url( '/' ), 301 );
 	exit;
 }
-add_action( 'template_redirect', 'sn_security_author_enum_guard' );
+add_action( 'template_redirect', 'sn_security_author_enum_guard', 9 );
 
 /**
  * Lock down /wp-json/wp/v2/users for unauthenticated requests. The

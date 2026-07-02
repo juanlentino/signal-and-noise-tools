@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.6] - 2026-07-02: Better Stack migration readiness + author-enum guard hook order
+
+**Headline:** The monitoring stack moves from self-hosted Uptime Kuma to Better Stack (arc 3). Plugin-side that is deliberately small: the heartbeat mechanism already speaks Better Stack (a plain GET to the heartbeat URL; the appended `status=up` is ignored), so the settings keys, POST field names, and cron hook stay untouched — only the admin copy goes provider-neutral. The bot classifier's coverage of both Better Stack probe UA generations (via the bare `bot` token) is now pinned in tests so a future pattern tightening cannot silently start counting probes as RSS subscribers. Plus one fold-in from the 2026-07-02 Opus diff audit: the author-enumeration guard now registers at `template_redirect` priority 9, ahead of core's `redirect_canonical` (priority 10), which previously 301'd `/?author=N` with the nicename in the Location header before the guard could run.
+
+> **Why PATCH:** hardening calibration (hook priority), copy relabels, and test pins; no new capability, no API or settings-schema change (the `uptime_kuma_*` keys are deliberately kept — renaming them would be a schema break for zero functional gain).
+
+### Improvements
+- Uptime monitoring admin copy (Webhooks tab) is provider-neutral: "Heartbeat URL" field with Better Stack heartbeat + Uptime Kuma push both documented, Better Stack placeholder URL, and a note that `status=up` is appended (Kuma expects it, Better Stack ignores it). The not-https error flash drops the Kuma-specific phrasing.
+- `inc/uptime-heartbeat.php`, `inc/settings.php`, `inc/admin-post-actions.php` docblocks document the naming contract: `uptime_kuma_*` keys and the `sn_uptime_kuma_heartbeat` hook name are historical and kept (renaming keys = settings-schema break; renaming the hook orphans the scheduled cron event on live).
+
+### Fixed
+- `sn_security_author_enum_guard` registers at `template_redirect` priority 9 (was default 10) so it runs before core `redirect_canonical` and blocks `/?author=N` without the nicename-leaking canonical 301. Defense-in-depth on current config (the CF edge already 404s `/?author=N`); the registered priority is asserted by a new fixture (audit LOW-1, 2026-07-02 Opus diff audit).
+
+### Tests
+- `tests/bot-detection.php` pins both Better Stack probe UA generations ("Better Stack Better Uptime Bot …" current, "Better Uptime Bot …" legacy) as bots — coverage via the bare `bot` alternative is now deliberate, not incidental (falsified: a worker-style `bot/` token would flip these red).
+- `tests/security-headers.php` upgrades its `add_action` stub to record registrations and asserts the guard's priority-9 contract.
+
 ## [8.1.5] - 2026-07-02: Remove the ActivityPub exemption (adoption declined) + config-aware cron pipeline check
 
 **Headline:** Two same-day calibrations. The owner declined the ActivityPub adoption entirely before anything federated, so the v8.1.4 exemption in the author-enum guard lost its referent the same day it shipped: removed, with removal-guard tests keeping it removed. And the Site Health cron pipeline check learns feature gates: hooks whose features are configured off (narration, weekly insights scan, uptime heartbeat) are intentionally unscheduled and no longer downgrade Site Health or read as issues.

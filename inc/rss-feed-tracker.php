@@ -104,6 +104,10 @@ function sn_rss_tracker_server_token() {
  * Misskey, Friendica) — fediverse servers fetch pages and feeds
  * server-to-server (preview cards etc.) whenever anyone shares a URL;
  * machine clients, never subscribers.
+ * v8.1.6 (Better Stack migration): both Better Stack probe UA generations
+ * ("Better Stack Better Uptime Bot …" / "Better Uptime Bot …") are
+ * covered by the bare `bot` alternative — pinned in tests/bot-detection.php
+ * so that coverage is deliberate, not incidental.
  */
 function sn_rss_tracker_is_bot( $ua ) {
 	if ( '' === $ua ) {

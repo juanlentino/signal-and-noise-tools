@@ -1,16 +1,25 @@
 <?php
 /**
- * Signal & Noise Tools — Uptime Kuma push-monitor heartbeat (v4.9.0, T4).
+ * Signal & Noise Tools — push-monitor heartbeat (v4.9.0, T4).
  *
  * Opt-in. When enabled with a push URL, a namespaced 5-minute cron event
- * GETs the configured Uptime Kuma "push" monitor endpoint, appending
- * `status=up`. Uptime Kuma flips the monitor to DOWN when it stops
- * receiving the heartbeat — giving external "is the site alive + is
- * WP-Cron firing" monitoring with no inbound surface.
+ * GETs the configured heartbeat endpoint, appending `status=up`. Works
+ * with any GET-a-URL heartbeat consumer: a Better Stack heartbeat
+ * (`status=up` is ignored) or an Uptime Kuma push monitor (`status=up`
+ * is expected) raises an incident / flips to DOWN when the heartbeat
+ * goes silent — giving external "is the site alive + is WP-Cron firing"
+ * monitoring with no inbound surface.
  *
  * Settings (inc/settings.php, default OFF, migration-free deep-merge):
  *   monitoring.uptime_kuma_enabled   bool
  *   monitoring.uptime_kuma_push_url  string
+ *
+ * Naming (v8.1.6, Better Stack migration): the `uptime_kuma_*` setting
+ * keys and the `sn_uptime_kuma_heartbeat` hook name are historical and
+ * deliberately KEPT. Renaming the keys is a settings-schema change
+ * (SemVer break without a migration); renaming the hook orphans the
+ * already-scheduled cron event on live installs. Copy is provider-
+ * neutral; the wire mechanism is identical for both providers.
  *
  * Security posture (mirrors the webhook SSRF hardening):
  *   - wp_http_validate_url() before the request

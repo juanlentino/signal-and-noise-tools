@@ -52,7 +52,7 @@ fm_eq( array( 'success', 'Identity settings saved.' ), sn_admin_flash_to_notice(
 fm_eq( array( 'info', 'No changes to save.' ), sn_admin_flash_to_notice( 'identity_unchanged' ), 'identity_unchanged' );
 fm_eq( array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' ), sn_admin_flash_to_notice( 'cf_purged_unconfigured' ), 'cf_purged_unconfigured keeps warning severity' );
 fm_eq( array( 'success', 'Block migration scan complete.' ), sn_admin_flash_to_notice( 'block_migrations_scanned' ), 'block_migrations_scanned' );
-fm_eq( array( 'error', 'Uptime Kuma push URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ), sn_admin_flash_to_notice( 'monitoring_url_not_https' ), 'monitoring_url_not_https → error (Fix C)' );
+fm_eq( array( 'error', 'Heartbeat URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ), sn_admin_flash_to_notice( 'monitoring_url_not_https' ), 'monitoring_url_not_https → error (Fix C; provider-neutral copy since v8.1.6)' );
 fm_eq( array( 'success', 'IndexNow settings saved. Changed URLs are submitted to search engines automatically.' ), sn_admin_flash_to_notice( 'indexnow_saved' ), 'indexnow_saved (v5.1.0)' );
 fm_eq( 'error', sn_admin_flash_to_notice( 'indexnow_disabled' )[0], 'indexnow_disabled → error severity (backfill-while-off must surface feedback)' );
 fm_eq( array( 'success', 'Recent content queued for IndexNow submission.' ), sn_admin_flash_to_notice( 'indexnow_pinged' ), 'indexnow_pinged (v5.1.0)' );

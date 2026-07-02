@@ -83,6 +83,15 @@ $fixtures = array(
 	array( 'HTTPie',            'HTTPie/3.2.2',                                                                                                            true ),
 	array( 'Java',              'Java/17.0.9',                                                                                                             true ),
 
+	// ─── Better Stack probes (v8.1.6, BetterStack migration) — never count ─
+	// Both UA generations (betterstack.com/docs/uptime FAQ, verified
+	// 2026-07-02) contain "Bot", so the pattern's bare `bot` alternative
+	// covers them. These pins keep that coverage deliberate: a future
+	// "tighten the bot token" cleanup (e.g. the worker-style `bot\/`)
+	// would flip these fixtures red.
+	array( 'Better Stack (current)', 'Better Stack Better Uptime Bot Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', true ),
+	array( 'Better Uptime (legacy)', 'Better Uptime Bot Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',          true ),
+
 	// ─── Fediverse fetchers (v8.1.3, ActivityPub adoption) — never count ─
 	array( 'Mastodon',          'http.rb/5.1.1 (Mastodon/4.2.10; +https://mastodon.social/)',                                                             true ),
 	array( 'http.rb',           'http.rb/5.2.0',                                                                                                           true ),
