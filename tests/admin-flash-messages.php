@@ -114,12 +114,23 @@ echo "\nTest 6: coordination guard — every exact code the dispatcher emits res
 $emitted = array(
 	'identity_saved','identity_unchanged','login_empty','login_failed','cf_saved','cf_purged_ok','cf_purged_unconfigured',
 	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed','insights_ai_unavailable',
-	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned',
+	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned','health_scanned_clean',
 	'pattern_adoption_scanned','block_migrations_scanned','audit_retention_saved','audit_retention_unchanged',
 );
 foreach ( $emitted as $code ) {
 	fm_eq( true, null !== sn_admin_flash_to_notice( $code ), "resolver covers '$code'" );
 }
+
+echo "\nTest 6b: health scan flash is findings-aware (v8.0.1)\n";
+// The static 'health_scanned' copy said "findings below" even over a
+// 0-findings screen with nothing below it. The clean variant must exist
+// and say so; the dirty variant keeps pointing at the findings.
+$note = sn_admin_flash_to_notice( 'health_scanned_clean' );
+fm_eq( 'success', $note[0] ?? null, 'health_scanned_clean → success severity' );
+fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'all checks passing' ), 'clean copy says all checks passing' );
+fm_eq( false, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' ), 'clean copy does NOT promise findings below' );
+$note = sn_admin_flash_to_notice( 'health_scanned' );
+fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' ), 'dirty copy still points at the findings' );
 
 echo "\nTest 5b: narration_failed surfaces the REAL error (v7.2.2, mirrors 5a)\n";
 $GLOBALS['__narration_err'] = array( 'code' => 'snt_narration_invalid_json', 'message' => 'AI digest response was not valid JSON.', 'at' => 123 );

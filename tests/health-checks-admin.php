@@ -98,6 +98,20 @@ $one = array( 'scanned_at' => time(), 'checks' => array( 'external_links' => arr
 $oc = snt_health_glance_cards( $one );
 hca_eq( '1 finding', $oc[0]['value'], 'singular "1 finding" (external rot counts as a finding)' );
 
+// ── v8.0.1: elapsed humanizer — the live scan rendered "ran in 22206ms". ──
+echo "\nTest: snt_health_format_elapsed boundaries\n";
+hca_eq( '0ms', snt_health_format_elapsed( 0 ), '0 → 0ms' );
+hca_eq( '412ms', snt_health_format_elapsed( 412 ), 'sub-second stays milliseconds' );
+hca_eq( '999ms', snt_health_format_elapsed( 999 ), 'boundary: 999ms stays milliseconds' );
+hca_eq( '1.0s', snt_health_format_elapsed( 1000 ), 'boundary: 1000ms reads as 1.0s' );
+hca_eq( '22.2s', snt_health_format_elapsed( 22206 ), 'live-site case: 22206ms reads as 22.2s' );
+
+echo "\nTest: hero last-scan meta uses the humanized elapsed\n";
+hca_eq( 'ran in 900ms', $cards[2]['meta_html'], 'sub-second scan meta keeps the ms form' );
+$slow = array( 'scanned_at' => time(), 'elapsed_ms' => 22206, 'checks' => array( 'a' => array( 'count' => 0 ) ) );
+$sc = snt_health_glance_cards( $slow );
+hca_eq( 'ran in 22.2s', $sc[2]['meta_html'], 'multi-second scan meta reads in seconds' );
+
 echo "\nTest: unlinked_mentions suggest wiring (v7.4.0)\n";
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 $src = file_get_contents( __DIR__ . '/../inc/health-checks-admin.php' );

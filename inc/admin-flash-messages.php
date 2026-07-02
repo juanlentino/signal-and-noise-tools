@@ -76,6 +76,10 @@ function sn_admin_flash_messages() {
 		// 'narration_failed' live-data branch below (the insights v7.0.1 pattern).
 		'narration_ai_unavailable'  => array( 'error', 'Weekly digest failed: no AI provider is configured. Enable AI under Settings → AI, then add a provider and key under Settings → Connectors.' ),
 		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),
+		// v8.0.1: findings-aware split — the static copy above promised "findings
+		// below" even over a 0-findings screen. The scan handler counts the fresh
+		// result and emits the clean code when nothing was flagged.
+		'health_scanned_clean'      => array( 'success', 'Scan complete — all checks passing.' ),
 		'pattern_adoption_scanned'  => array( 'success', 'Scan complete.' ),
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
 		'audit_retention_saved'     => array( 'success', 'Audit retention saved.' ),

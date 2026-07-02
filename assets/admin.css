@@ -418,6 +418,36 @@
 	max-width: none;
 }
 
+/* ─── Health action row + passing strip (v8.0.1) ─────────────────────────────
+   Run scan + Opportunities pair up in one responsive grid row (auto-fit
+   collapses to a single column on narrow / Desktop Mode portal widths); both
+   cards uncap and equalize height inside the row. The passing strip replaces
+   the per-check pass-card grid: one full-width card, check names as .sn-badge
+   chips. margin:0 on the row's fieldsets also neutralizes the Opportunities
+   card's .snt-mt-2 (grid gap owns the rhythm here). */
+.sn-health-actions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+	gap: var(--sn-space-4);
+	align-items: stretch;
+	margin: 0 0 var(--sn-space-4);
+}
+.sn-health-actions .sn-fieldset {
+	max-width: none;
+	height: 100%;
+	margin: 0;
+	box-sizing: border-box;
+}
+.sn-health-passing {
+	max-width: none;
+}
+.sn-health-passing__names {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0.75em 0 0;
+}
+
 /* ─── sameAs URL list ────────────────────────────────────────── */
 
 .sn-sameas {
