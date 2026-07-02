@@ -15,6 +15,5 @@ docs/superpowers/
 
 # AI-assisted-dev tooling + internal working docs — kept local, excluded from the public repo
 CLAUDE.md
-.github/workflows/claude-review.yml
 docs/agent-guidelines/
 docs/upstream-monitoring.md
