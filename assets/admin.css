@@ -19,7 +19,7 @@
 	--sn-border:      #c3c4c7;
 	--sn-text:        #1d2327;
 	--sn-text-muted:  #646970;
-	--sn-radius:      4px;
+	--sn-radius:      3px; /* v8.0.3 (S2-B): crisp-console radius, was 4px */
 	--sn-space-1:     4px;
 	--sn-space-2:     8px;
 	--sn-space-3:     12px;
@@ -90,7 +90,7 @@
 	align-items: center;
 	gap: 6px;
 	padding: 2px 10px;
-	border-radius: 999px;
+	border-radius: 4px; /* v8.0.3 (S2-B): squared chip, was the 999px round pill */
 	font-size: 0.82em;
 	font-weight: 500;
 	background: rgba(0,0,0,0.04);
@@ -246,7 +246,7 @@
 .sn-glance {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-	gap: 12px;
+	gap: 10px; /* v8.0.3 (S2-B): tightened, was 12px */
 	margin: 0 0 1.5em;
 }
 .sn-glance-card {
@@ -256,20 +256,22 @@
 	padding: 10px 12px;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
-	min-height: 76px;
+	gap: 3px;        /* v8.0.3 (S2-B): was 4px */
+	min-height: 70px; /* v8.0.3 (S2-B): was 76px */
 }
 .sn-glance-card__label {
 	color: var(--sn-text-muted);
-	font-size: 0.72rem;
+	font-size: 0.68rem; /* v8.0.3 (S2-B): was 0.72rem */
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 	margin: 0;
 }
 .sn-glance-card__value {
-	font-size: 1.1rem;
-	font-weight: 500;
+	/* v8.0.3 (S2-B): the console numerals — was 1.1rem/500. The headline
+	   figures ARE the surface's content; they earn the weight. */
+	font-size: 1.35rem;
+	font-weight: 600;
 	color: var(--sn-text);
 	margin: 0;
 	line-height: 1.2;
@@ -292,7 +294,7 @@
 	background: var(--sn-surface);
 	border: 1px solid var(--sn-border);
 	border-radius: var(--sn-radius);
-	padding: var(--sn-space-5);
+	padding: 16px 18px; /* v8.0.3 (S2-B): console density, was var(--sn-space-5) */
 	margin: 0 0 var(--sn-space-4);
 	max-width: 820px;
 	scroll-margin-top: 80px;
@@ -306,10 +308,16 @@
 	max-width: none;
 }
 
+/* v8.0.3 (S2-B): every card heading gets the same anatomy — a compact 1em
+   title over a hairline rule (was a bare 1.15em). The rule separates the
+   title zone from the body zone on every card, the strongest cohesion cue
+   of the crisp-console treatment. */
 .sn-fieldset-h {
-	font-size: 1.15em;
+	font-size: 1em;
 	font-weight: 600;
 	margin: 16px 0 var(--sn-space-1);    /* v3.8.6: explicit top margin for inter-section rhythm */
+	padding-bottom: 8px;
+	border-bottom: 1px solid #f0f0f1;
 	color: var(--sn-text);
 	letter-spacing: 0.005em;
 }
@@ -436,7 +444,7 @@
 .sn-health-actions {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-	gap: var(--sn-space-4);
+	gap: 10px; /* v8.0.3 (S2-B): matches the glance-grid rhythm, was var(--sn-space-4) */
 	align-items: stretch;
 	margin: 0 0 var(--sn-space-4);
 }
@@ -1279,6 +1287,16 @@
    dashboard-admin (events), health-checks-admin (scan results), webhooks-
    admin (deliveries log), rss-plausible-tracker (recent requests).
 */
+/* v8.0.3 (S2-B): denser data tables. admin.css only enqueues on SN admin
+   screens (the sn_admin_page_hooks guard), so this tightens OUR widefat
+   tables without touching core list-table screens; wins over core's
+   equal-specificity cell padding by load order (plugin styles enqueue after
+   core). */
+.widefat th,
+.widefat td {
+	padding: 6px 10px;
+}
+
 .snt-scroll-table {
 	max-height: 50vh;
 	overflow-y: auto;

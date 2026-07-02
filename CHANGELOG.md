@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.0.3] - 2026-07-02: Admin cohesion stage 2 — the "crisp console" token set
+
+**Headline:** Stage 2 of the admin cohesion pass closes the arc. The owner picked treatment B ("crisp console") off a three-way mockup comparison rendered on one leaf per archetype (Health / Webhooks / Identity & SEO), and this release implements exactly that token set in `assets/admin.css` — nothing else changes. Zero markup churn (that's what Stage 1 bought), zero navigation change: every top tab, sub-tab, and in-page section tab stays precisely as it was. The surface now reads as an operator's console: the hero numerals get real weight, every card shares one title-zone/body-zone anatomy via a hairline rule, pills square into chips, and data tables tighten.
+
+> **Why PATCH:** presentation-only token change in one stylesheet; no behavior, API, markup, or navigation change.
+
+### Improvements
+- **Console numerals:** `.sn-glance-card__value` 1.1rem/500 → **1.35rem/600** (the headline figures are the surface's content; they earn the weight); label 0.72rem → 0.68rem; card min-height 76px → 70px; glance gap 12px → 10px.
+- **Card anatomy:** `.sn-fieldset-h` 1.15em → 1em with an 8px-padded `#f0f0f1` hairline rule — every card across all 24 leaves now shares the same title-zone/body-zone structure (the strongest cohesion cue of the treatment).
+- **Chips:** `.sn-pill` squares from the 999px round pill to a 4px chip (visually converging with `.sn-badge`); no 999px radius remains in the stylesheet.
+- **Density:** `--sn-radius` 4px → 3px; `.sn-fieldset` padding → 16px 18px; `.widefat` cells → 6px 10px (scoped to SN screens by the stylesheet's own enqueue guard, wins over core by load order); `.sn-health-actions` gap aligned to the 10px rhythm.
+
+### Cleanup
+- `tests/admin-polish-v647.php` gains the Stage 2 token contract (12 asserts locking the owner-approved values, including a "no 999px remains" tripwire). Sweep: 198 suites, 5,500 asserts, 0 failed.
+- Implementation verified pixel-for-pixel against the approved mockup: the plain post-change stylesheet renders identically to the treatment-B overlay.
+
 ## [8.0.2] - 2026-07-02: Admin cohesion stage 1 — postbox retirement + token cleanup
 
 **Headline:** Stage 1 of the admin cohesion pass (owner-directed, spec 2026-07-02): every settings-page leaf now speaks the v6.42–6.47 design vocabulary. The Tags leaf's seven native meta-box panels become `.sn-fieldset` cards and its last two inline `style=` attributes become utilities; the Audit log's two data tables drop their cross-surface postbox mirror of the analytics dashboard for a new `.sn-fieldset--wide` card; the Login defense status readout gets the card chrome its digest sibling already had; the Links cards move their last hardcoded literals onto `--sn-*` tokens. The Stage 0 IA audit ran first and concluded NO tab reorganization is warranted (the v6.18.0 seven-tab IA holds; verdict table in the plan doc). Zero behavior change — render contracts, POST actions, and dispatcher slugs are untouched and test-pinned.
