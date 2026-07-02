@@ -56,6 +56,7 @@ ok( is_array( $ls ), 'ai-link-suggest: registered' );
 ok( ( $ls['input_schema']['required'] ?? array() ) === array( 'post_id', 'target_id' ), 'ai-link-suggest: requires post_id + target_id' );
 ok( 'snt_ability_perm_edit_post' === ( $ls['permission_callback'] ?? '' ), 'ai-link-suggest: per-post edit permission' );
 ok( true === ( $ls['meta']['annotations']['idempotent'] ?? null ), 'ai-link-suggest: idempotent (read-only, cached verdict)' );
+ok( isset( $ls['output_schema']['properties']['can_apply'] ), 'ai-link-suggest: output schema declares can_apply (v8.1.1 additive)' );
 $la = $GLOBALS['__ab']['signal-noise/ai-link-apply'] ?? null;
 ok( is_array( $la ), 'ai-link-apply: registered' );
 ok( ( $la['input_schema']['required'] ?? array() ) === array( 'post_id', 'anchor', 'context_snippet', 'fingerprint', 'target_url' ), 'ai-link-apply: full splice contract required' );

@@ -154,6 +154,7 @@ $js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
 hca_true( false !== strpos( $js, 'link_opportunities:' ) && false !== strpos( $js, "'ai-pair-suggest'" ), 'JS ABILITY_BY_CHECK routes link_opportunities to ai-pair-suggest' );
 hca_true( false !== strpos( $js, "'link_opportunities' === checkType" ), 'JS pair-input dispatch covers link_opportunities' );
 hca_true( false !== strpos( $js, "'link' === res.verdict && ! res.anchor" ), 'JS verdict renderer has the advice-only branch (empty anchor never offers Apply)' );
+hca_true( false !== strpos( $js, 'err.code' ), 'JS error fallback surfaces the error code when the message is empty (v8.1.1)' );
 
 echo "\nTest: link_opportunities suggest cell (v8.1.0)\n";
 $cell = sn_health_render_suggest_cell( 'link_opportunities', array( 'subject_id' => 12, 'target_id' => 34 ) );

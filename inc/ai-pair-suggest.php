@@ -47,7 +47,9 @@ const SNT_AI_PAIR_SUGGEST_SYSTEM = "You are an editor deciding whether one note 
 	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs — same casing, same punctuation. Never invent or paraphrase. Empty string when no phrase reads as a natural anchor.\n" .
 	"- Output JSON only. No markdown, no preamble.";
 
-const SNT_AI_PAIR_SUGGEST_MAX_TOKENS   = 200;
+// v8.1.1: 200 → 300. The three-field response (verdict + reason + anchor)
+// truncated mid-JSON live at 200, surfacing as "unparseable verdict".
+const SNT_AI_PAIR_SUGGEST_MAX_TOKENS   = 300;
 const SNT_AI_PAIR_SOURCE_EXCERPT_CHARS = 1200;
 const SNT_AI_PAIR_TARGET_EXCERPT_CHARS = 600;
 const SNT_AI_PAIR_ANCHOR_MIN_LENGTH    = 3;
@@ -121,9 +123,7 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 			return $result;
 		}
 
-		// Strip optional markdown fences (opener and/or closer, independently).
-		$text   = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( (string) $result ) ) );
-		$parsed = json_decode( $text, true );
+		$parsed = snt_ai_parse_verdict_json( (string) $result );
 		if ( ! is_array( $parsed ) || ! isset( $parsed['verdict'] ) ) {
 			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-noise-tools' ), array( 'status' => 500 ) );
 		}
@@ -151,7 +151,11 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 			$start   = max( 0, $pos - 80 );
 			$ctx     = trim( substr( $stripped, $start, 200 ) );
 			$raw_pos = snt_ai_drift_locate_in_raw( $raw, $mention, $ctx );
-			if ( -1 !== $raw_pos ) {
+			// v8.1.1: also refuse anchors inside an EXISTING <a> — the AI sees
+			// stripped prose (links invisible) and nominated an already-linked
+			// phrase live; apply's guard would 400 every such "Link it". Run
+			// apply's own check here so the offer is never made.
+			if ( -1 !== $raw_pos && ! snt_ai_link_position_inside_anchor( $raw, $raw_pos ) ) {
 				$anchor      = $mention;
 				$position    = $raw_pos;
 				$context     = $ctx;

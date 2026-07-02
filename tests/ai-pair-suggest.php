@@ -181,5 +181,27 @@ $applied = snt_ai_link_apply_impl( $res['post_id'], $res['anchor'], $res['contex
 ok( is_array( $applied ) && true === ( $applied['ok'] ?? false ), 'apply accepts the pair-suggest splice contract' );
 ok( false !== strpos( (string) $GLOBALS['__updated']['post_content'], '<a href="https://x.test/notes/console-craft/">the mixing console</a>' ), 'anchor wrapped in the target link' );
 
+echo "\nTest: v8.1.1 — nominated anchor already inside a link degrades to advice-only\n";
+// Live incident 2026-07-02: the AI sees STRIPPED prose (links invisible), so
+// it can nominate a phrase that already sits inside an <a>; apply then 400s.
+// Suggest must run the same inside-anchor guard apply enforces.
+mk_post( 11, 'Linked Anchor Target', 'linked-anchor-target', '<p>target body</p>' );
+mk_post( 10, 'Linked Anchor Source', 'linked-anchor-source',
+	"<!-- wp:paragraph -->\n<p>Intro paragraph first.</p>\n<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n<p>See the <a href=\"/notes/some-other-note\">music provenance cluster</a> for context.</p>\n<!-- /wp:paragraph -->" );
+$GLOBALS['__ai_response'] = '{"verdict":"link","reason":"Related.","anchor":"music provenance cluster"}';
+$res = snt_ai_pair_suggest_impl( 10, 11 );
+ok( is_array( $res ) && 'link' === ( $res['verdict'] ?? '' ), 'verdict stands on inside-anchor degrade' );
+ok( false === ( $res['can_apply'] ?? true ), 'anchor inside an existing <a> => advice-only (apply would 400)' );
+ok( '' === ( $res['anchor'] ?? 'x' ) && -1 === ( $res['position'] ?? 0 ), 'anchor + position emptied when inside a link' );
+
+echo "\nTest: v8.1.1 — prose-preamble JSON salvage\n";
+$GLOBALS['__posts'][2]->post_modified_gmt = '2026-07-03 08:00:00';
+$GLOBALS['__ai_response'] = 'Here is my verdict: {"verdict":"link","reason":"Yes.","anchor":"the mixing console"} Hope that helps!';
+$res = snt_ai_pair_suggest_impl( 1, 2 );
+ok( is_array( $res ) && 'link' === ( $res['verdict'] ?? '' ) && true === ( $res['can_apply'] ?? false ), 'preamble-wrapped JSON parses via brace salvage' );
+
+echo "\nTest: v8.1.1 — output budget raised for the three-field response\n";
+ok( defined( 'SNT_AI_PAIR_SUGGEST_MAX_TOKENS' ) && SNT_AI_PAIR_SUGGEST_MAX_TOKENS >= 300, 'pair budget >= 300 tokens (truncation headroom for verdict+reason+anchor)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
