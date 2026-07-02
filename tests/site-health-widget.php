@@ -77,7 +77,11 @@ ok( sn_health_finding_total( $only_ext ) === 0, 'finding_total: external link ro
 
 // ═══ sn_health_advisory_checks() + sn_health_advisory_total() (v8.0.4) ═══
 echo "\n-- accessor: advisory tier --\n";
-ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links' ), 'advisory_checks: external_links is the (only) advisory-tier check' );
+// v8.1.0 DELIBERATE FLIP: this assert pinned external_links as the ONLY
+// advisory check (the v8.0.4 state). link_opportunities joins the tier in
+// v8.1.0 — semantic-pair candidates are opportunities, not rot, so they
+// must not flip the site off "all clear" either.
+ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links', 'link_opportunities' ), 'advisory_checks: external_links + link_opportunities are the advisory-tier checks' );
 ok( sn_health_advisory_total( null ) === 0, 'advisory_total: null scan -> 0' );
 ok( sn_health_advisory_total( $only_ext ) === 4, 'advisory_total: sums advisory-check counts' );
 ok( sn_health_advisory_total( $scan3 ) === 2, 'advisory_total: mixed scan counts only the advisory checks' );

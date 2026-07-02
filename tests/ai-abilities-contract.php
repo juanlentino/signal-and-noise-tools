@@ -60,5 +60,14 @@ $la = $GLOBALS['__ab']['signal-noise/ai-link-apply'] ?? null;
 ok( is_array( $la ), 'ai-link-apply: registered' );
 ok( ( $la['input_schema']['required'] ?? array() ) === array( 'post_id', 'anchor', 'context_snippet', 'fingerprint', 'target_url' ), 'ai-link-apply: full splice contract required' );
 
+echo "\nGroup: v8.1.0 semantic-pair suggest ability\n";
+$ps = $GLOBALS['__ab']['signal-noise/ai-pair-suggest'] ?? null;
+ok( is_array( $ps ), 'ai-pair-suggest: registered' );
+ok( ( $ps['input_schema']['required'] ?? array() ) === array( 'post_id', 'target_id' ), 'ai-pair-suggest: requires post_id + target_id' );
+ok( 'snt_ability_perm_edit_post' === ( $ps['permission_callback'] ?? '' ), 'ai-pair-suggest: per-post edit permission' );
+ok( true === ( $ps['meta']['annotations']['idempotent'] ?? null ), 'ai-pair-suggest: idempotent (cached verdict, no write)' );
+ok( isset( $ps['output_schema']['properties']['can_apply'] ), 'ai-pair-suggest: output schema declares can_apply' );
+ok( 'snt_ability_ai_pair_suggest' === ( $ps['execute_callback'] ?? '' ), 'ai-pair-suggest: execute callback wired' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

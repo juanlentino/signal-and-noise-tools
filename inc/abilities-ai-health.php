@@ -13,10 +13,11 @@
  *   - signal-noise/ai-orphan-apply          (force-delete attachment; v4.1.0)
  *   - signal-noise/ai-link-suggest          (unlinked-mention verdict + splice contract; v7.4.0)
  *   - signal-noise/ai-link-apply            (wrap mention in <a>; v7.4.0; fingerprint gated)
+ *   - signal-noise/ai-pair-suggest          (semantic-pair verdict + anchor nomination; v8.1.0; Apply rides ai-link-apply)
  *
  * All in the 'ai-generation' category. File-level grouping is by feature
  * (Health-tab Suggest+Apply UX) so a future reviewer reads one file to
- * cover all 9. Each impl wrapper delegates to its dedicated module in
+ * cover all 10. Each impl wrapper delegates to its dedicated module in
  * inc/ai-alt-text-suggest.php / inc/ai-drift-phrase-suggest.php /
  * inc/ai-alt-inline-suggest.php / inc/ai-orphan-suggest.php /
  * inc/ai-link-suggest.php.
@@ -385,6 +386,45 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/ai-pair-suggest', array(
+		'label'               => 'Suggest whether two related notes should link',
+		'description'         => 'AI evaluates one (source, target) pair from the link_opportunities Health check: does the source note genuinely discuss the target note\'s subject, and which existing phrase in the source prose should carry the link? Returns verdict (link/skip/unsure) + reason + the splice contract when a verbatim anchor validates (anchor, raw position, context snippet, md5 fingerprint, target permalink, can_apply=true). A nomination the impl cannot locate in the prose degrades to advice-only (can_apply=false). Verdict cached 30 days per (source, target, source-modified, target-modified). Apply rides the existing signal-noise/ai-link-apply. Does NOT write.',
+		'category'            => 'ai-generation',
+		'permission_callback' => 'snt_ability_perm_edit_post',
+		'execute_callback'    => 'snt_ability_ai_pair_suggest',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'post_id', 'target_id' ),
+			'properties'           => array(
+				'post_id'   => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Source post that would carry the link (the newer note).', 'examples' => array( 42 ) ),
+				'target_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Published post to link to.', 'examples' => array( 7 ) ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'              => array( 'type' => 'boolean' ),
+				'verdict'         => array( 'type' => 'string', 'enum' => array( 'link', 'skip', 'unsure' ) ),
+				'reason'          => array( 'type' => 'string' ),
+				'anchor'          => array( 'type' => 'string', 'description' => 'Validated verbatim phrase from the source prose — empty when advice-only.' ),
+				'can_apply'       => array( 'type' => 'boolean', 'description' => 'True when the anchor validated and the splice contract is usable via ai-link-apply.' ),
+				'position'        => array( 'type' => 'integer', 'description' => 'RAW post_content byte offset; -1 when advice-only.' ),
+				'context_snippet' => array( 'type' => 'string' ),
+				'fingerprint'     => array( 'type' => 'string', 'description' => 'md5 hash to echo back on apply; empty when advice-only.' ),
+				'post_id'         => array( 'type' => 'integer' ),
+				'target_id'       => array( 'type' => 'integer' ),
+				'target_url'      => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'idempotent' => true,
+			),
+		),
+	) );
 } );
 
 /**
@@ -529,4 +569,17 @@ function snt_ability_ai_link_apply( $input ) {
 		(string) $input['fingerprint'],
 		(string) $input['target_url']
 	);
+}
+
+/**
+ * Execute callback for signal-noise/ai-pair-suggest.
+ * Thin wrapper around snt_ai_pair_suggest_impl().
+ *
+ * @since 8.1.0
+ */
+function snt_ability_ai_pair_suggest( $input ) {
+	if ( ! function_exists( 'snt_ai_pair_suggest_impl' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', 'Pair-suggest helper unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_pair_suggest_impl( (int) $input['post_id'], (int) $input['target_id'] );
 }

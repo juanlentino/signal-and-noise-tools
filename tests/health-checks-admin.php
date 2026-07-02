@@ -21,6 +21,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $f, $t = 0 ) { return '5 minutes'; } }
 
 require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-checks accessors the glance hero shares
@@ -147,6 +148,19 @@ hca_true( false !== strpos( $cell, 'data-post-id="12"' ) && false !== strpos( $c
 $js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
 hca_true( false !== strpos( $js, 'unlinked_mentions:' ) && false !== strpos( $js, "'ai-link-suggest'" ) && false !== strpos( $js, "'ai-link-apply'" ), 'JS ABILITY_BY_CHECK routes unlinked_mentions to the link abilities' );
 hca_true( false !== strpos( $js, "'link' === res.verdict" ), 'JS verdict renderer has a link branch' );
+
+echo "\nTest: JS wiring for link_opportunities (v8.1.0)\n";
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( false !== strpos( $js, 'link_opportunities:' ) && false !== strpos( $js, "'ai-pair-suggest'" ), 'JS ABILITY_BY_CHECK routes link_opportunities to ai-pair-suggest' );
+hca_true( false !== strpos( $js, "'link_opportunities' === checkType" ), 'JS pair-input dispatch covers link_opportunities' );
+hca_true( false !== strpos( $js, "'link' === res.verdict && ! res.anchor" ), 'JS verdict renderer has the advice-only branch (empty anchor never offers Apply)' );
+
+echo "\nTest: link_opportunities suggest cell (v8.1.0)\n";
+$cell = sn_health_render_suggest_cell( 'link_opportunities', array( 'subject_id' => 12, 'target_id' => 34 ) );
+hca_true( false !== strpos( $cell, 'data-check="link_opportunities"' ), 'cell carries the check key' );
+hca_true( false !== strpos( $cell, 'data-post-id="12"' ), 'cell carries the source id' );
+hca_true( false !== strpos( $cell, 'data-target-id="34"' ), 'cell carries the target id' );
+hca_true( false !== strpos( $cell, 'data-snt-suggest="1"' ), 'cell is a live Suggest button' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

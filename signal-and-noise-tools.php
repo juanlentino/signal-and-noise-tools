@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     8.0.4
+ * Version:     8.1.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -216,6 +216,7 @@ require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the sh
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/inc/ai-link-suggest.php'; // v7.4.0: unlinked-mention Suggest+Apply (mirrors drift machinery)
+require_once __DIR__ . '/inc/ai-pair-suggest.php'; // v8.1.0: semantic-pair Suggest (link_opportunities; Apply rides ai-link-apply)
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
 require_once __DIR__ . '/inc/ai-tag-suggest.php';
@@ -268,6 +269,7 @@ require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge
 require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks) — glance card, attention strip, S&N Health widget
 require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th check — external link-rot (off-host cited sources)
+require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory check — semantic pairs that should link (C2 approach C)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/audit-log.php';

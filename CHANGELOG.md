@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.0] - 2026-07-02: Link opportunities — semantic pairing over the notes corpus (C2 approach C, the interlinking arc's last piece)
+
+**Headline:** The Health scan now nominates semantically related note pairs that should link, and AI Suggest picks the anchor from your own prose. Where `unlinked_mentions` (v7.4.0) catches literal title mentions, `link_opportunities` catches everything that misses: two notes covering the same subject with no link in either direction and no title mention. Candidates surface as advisories (the hero stays calm), and the AI can only point at prose that already exists — it never writes new text into a note.
+
+> **Why MINOR:** a new user-visible capability (new Health check + new ability); no existing surface changes shape.
+
+### New
+- **`link_opportunities` Health check (advisory tier).** A zero-AI candidate pass over published notes: shared tags plus lexical overlap of distinctive terms (lightweight TF-IDF, pure PHP), nominating pairs that cover related subjects with no link in either direction and no literal title mention. Title-mention pairs stay with `unlinked_mentions` — the skip rule mirrors that check's exact eligibility trigger, so the two checks partition the pair space with no gap and no double-report. One finding per pair (the newer note is the source; cited-by serves readers the reverse), ranked best-first, capped per source. Advisory tier: candidates read as "N advisories" and never touch `finding_total`.
+- **`signal-noise/ai-pair-suggest` ability.** AI judges one candidate pair (link / skip / unsure, plus a one-sentence reason) and nominates an anchor phrase that must already exist verbatim in the source prose. The impl — never the AI — validates the nomination (prose locate → raw offset via the drift locator → md5 fingerprint) and degrades to advice-only (`can_apply=false`) when it does not hold. Verdicts cache 30 days keyed on BOTH posts' modified stamps. **Apply rides the existing `signal-noise/ai-link-apply` unchanged** — nothing in the splice contract is mention-specific, so the new check ships with zero new write machinery.
+- **Health-tab wiring.** The existing Suggest/Apply column serves the new check (shared pair-button contract with `unlinked_mentions`); advice-only verdicts render the reasoning beside the row's Edit link instead of an Apply button (an empty anchor never offers "Link it").
+
 ## [8.0.4] - 2026-07-02: Open-threads bundle — external rot re-tiered to advisory + the v8.0.x post-ship audit find + two v7.7.1 hardenings
 
 **Headline:** The open-threads sweep after the v8.0.1→v8.0.3 install. The owner's pending severity decision lands: **external link rot is now an ADVISORY, not a finding** — a third-party site 500-ing overnight no longer flips the hero, Dashboard card, Health widget, or agent-facing summaries off "all clear" (it self-clears when the remote host recovers), while the findings card on the Health tab stays fully visible and actionable and the hero meta reads "0 findings · N advisories". The post-ship audit's one find is fixed (two Insights surfaces still rendered raw "48213ms"-style elapsed), and the two fragilities noted-no-action by the v7.7.1 audit are hardened now that a session touched their neighborhoods.

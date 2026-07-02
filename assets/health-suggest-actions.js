@@ -41,6 +41,7 @@
 		pattern_adoption_steps_enumerated:   { suggest: 'pattern-adoption-suggest',        apply: 'pattern-adoption-apply' },
 		block_migrations_heading_skip:       { suggest: 'block-migrations-suggest',        apply: 'block-migrations-apply' },
 		unlinked_mentions:                   { suggest: 'ai-link-suggest',                 apply: 'ai-link-apply' },  // v7.4.0
+		link_opportunities:                  { suggest: 'ai-pair-suggest',                 apply: 'ai-link-apply' },  // v8.1.0: apply REUSED
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
@@ -398,8 +399,8 @@
 				renderError( cell, __( 'Missing attachment ID.', 'signal-noise-tools' ) );
 				return;
 			}
-		} else if ( 'unlinked_mentions' === checkType ) {
-			// v7.4.0: suggest re-derives everything server-side from the pair.
+		} else if ( 'unlinked_mentions' === checkType || 'link_opportunities' === checkType ) {
+			// v7.4.0 / v8.1.0: suggest re-derives everything server-side from the pair.
 			input.post_id   = parseInt( btn.getAttribute( 'data-post-id' ), 10 );
 			input.target_id = parseInt( btn.getAttribute( 'data-target-id' ), 10 );
 			if ( ! input.post_id || ! input.target_id ) {
@@ -568,6 +569,31 @@
 		// because those branches close over it; keep/skip/unsure don't render it.
 		var status = document.createElement( 'span' );
 		status.className = 'snt-suggest-status';
+
+		if ( 'link' === res.verdict && ! res.anchor ) {
+			// v8.1.0: advice-only — the verdict says link, but no verbatim
+			// anchor validated in the prose (fabricated / markup-split /
+			// none nominated). Offer the reasoning; the row's Edit link in
+			// the adjacent Action cell handles the manual insert. Never show
+			// "Link it" here: ai-link-apply 422s an empty anchor.
+			headline.className = 'snt-verdict-headline snt-verdict-headline--warn';
+			headline.textContent = '✓ ' + __( 'Link recommended — add it manually (no clean anchor found)', 'signal-noise-tools' );
+			wrap.appendChild( headline );
+			wrap.appendChild( reasonEl );
+
+			var discardBtnAdvice = document.createElement( 'button' );
+			discardBtnAdvice.type = 'button';
+			discardBtnAdvice.className = 'button button-small';
+			discardBtnAdvice.textContent = __( 'Discard', 'signal-noise-tools' );
+			discardBtnAdvice.addEventListener( 'click', function() {
+				resetCellToSuggestButton( cell, checkType, input, res );
+			} );
+			actions.appendChild( discardBtnAdvice );
+
+			wrap.appendChild( actions );
+			cell.appendChild( wrap );
+			return;
+		}
 
 		if ( 'link' === res.verdict ) {
 			// v7.4.0: unlinked-mention link verdict — apply wraps the anchor.
@@ -1075,8 +1101,8 @@
 			btn.setAttribute( 'data-context', input.context_snippet );
 		} else if ( 'orphaned_media' === checkType ) {
 			btn.setAttribute( 'data-attachment-id', input.attachment_id );
-		} else if ( 'unlinked_mentions' === checkType ) {
-			// v7.4.0: re-build the pair button on Discard.
+		} else if ( 'unlinked_mentions' === checkType || 'link_opportunities' === checkType ) {
+			// v7.4.0 / v8.1.0: re-build the pair button on Discard.
 			btn.setAttribute( 'data-post-id', input.post_id );
 			btn.setAttribute( 'data-target-id', input.target_id );
 		} else if ( 'pattern_adoption_pull_quote' === checkType || 'pattern_adoption_steps_enumerated' === checkType ) {
