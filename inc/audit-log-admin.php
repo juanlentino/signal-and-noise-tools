@@ -131,11 +131,11 @@ function snt_audit_log_render_hero( $summary ) {
  * Render the day-bucketed counter timeline table.
  */
 function snt_audit_log_render_counter_table( $counters ) {
-	// Native .postbox panel chrome (matches the Analytics tab's table panels —
-	// refinement-audit D8). The .snt-scroll-table wrapper stays nested so the
-	// 30-row timeline keeps its sticky-header internal scroll; .sn-an-table-inside
-	// supplies the panel gutter and title-over-data alignment shared with Analytics.
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>Counter timeline (last 30 days)</span></h2></div><div class="inside sn-an-table-inside">';
+	// v8.0.2: system card + wide modifier (the 7-column timeline earned the
+	// leaf's 'wide' flag). The old analytics-dashboard postbox mirror (D8) was a
+	// cross-surface reference; in-page consistency wins. The .snt-scroll-table
+	// wrapper stays nested so the 30-row timeline keeps its sticky-header scroll.
+	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">Counter timeline (last 30 days)</h2>';
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-timeline">';
 	echo '<thead><tr>';
@@ -163,20 +163,22 @@ function snt_audit_log_render_counter_table( $counters ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
-	echo '</div>';        // .snt-scroll-table
-	echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
+	echo '</div>';   // .snt-scroll-table
+	echo '</div>';   // .sn-fieldset
 }
 
 /**
  * Render the recent successful logins table.
  */
 function snt_audit_log_render_logins_table( $logins ) {
-	// Native .postbox panel chrome to match the Analytics tab (D8). The empty
-	// state renders inside the panel — mirrors the Analytics .sn-an-empty pattern.
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>Recent successful logins (last 30 days)</span></h2></div><div class="inside sn-an-table-inside">';
+	// v8.0.2: system card (was a postbox mirroring the analytics dashboard). The
+	// empty state renders inside the card via the plugin's own .sn-prose — the
+	// old .sn-an-empty classes live in analytics-admin.css, a stylesheet this
+	// tab never owned.
+	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">Recent successful logins (last 30 days)</h2>';
 	if ( empty( $logins ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No successful logins recorded in this window.</p>';
-		echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
+		echo '<p class="sn-prose">No successful logins recorded in this window.</p>';
+		echo '</div>';  // .sn-fieldset
 		return;
 	}
 	echo '<div class="snt-scroll-table">';
@@ -191,8 +193,8 @@ function snt_audit_log_render_logins_table( $logins ) {
 	}
 	echo '</tbody>';
 	echo '</table>';
-	echo '</div>';        // .snt-scroll-table
-	echo '</div></div>';  // .inside.sn-an-table-inside, .postbox
+	echo '</div>';   // .snt-scroll-table
+	echo '</div>';   // .sn-fieldset
 }
 
 /**

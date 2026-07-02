@@ -50,8 +50,9 @@ function snt_audit_get_summary_impl() {
 function snt_audit_get_counters_impl( $days ) {
 	return array( array( 'date' => '2026-07-01', 'login_failed' => 2, 'wp_login_404' => 1, 'wp_admin_unauth_404' => 0, 'lockout_triggered' => 0, 'password_reset' => 0, 'unique_ips_count' => 3 ) );
 }
+$GLOBALS['__logins'] = array( array( 'formatted' => '2026-07-01 10:00:00', 'user' => 'admin' ) );
 function snt_audit_get_login_successes_impl( $days ) {
-	return array( array( 'formatted' => '2026-07-01 10:00:00', 'user' => 'admin' ) );
+	return $GLOBALS['__logins'];
 }
 
 require_once __DIR__ . '/../inc/admin-shell.php';    // real shell primitive
@@ -80,6 +81,23 @@ al_before( $html, 'sn-shell__rail', 'sn_audit_export', 'the export links are in 
 
 echo "\nGroup: shell is balanced (no early return between open and close)\n";
 al_ok( substr_count( $html, 'sn-shell__main' ) === 1 && substr_count( $html, 'sn-shell__rail' ) === 1, 'exactly one main + one rail (balanced)' );
+
+echo "\nGroup: v8.0.2 cohesion — table panels use the system card, not meta-box chrome\n";
+al_ok( false === strpos( $html, 'postbox' ), 'no native postbox chrome remains' );
+al_ok( false !== strpos( $html, '<div class="sn-fieldset sn-fieldset--wide">' ), 'table panels are wide fieldset cards' );
+al_ok( false === strpos( $html, 'sn-an-table-inside' ), 'analytics-dashboard gutter class no longer referenced' );
+al_ok( false === strpos( $html, 'sn-an-empty' ), 'no dangling dependency on the analytics stylesheet' );
+$css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+al_ok( false !== strpos( $css, '.sn-fieldset--wide' ), '.sn-fieldset--wide modifier exists in admin.css' );
+
+// Empty-logins branch: its early return must stay balanced with the new closers.
+$GLOBALS['__logins'] = array();
+ob_start();
+snt_audit_log_render_tab();
+$html_empty = ob_get_clean();
+al_ok( false !== strpos( $html_empty, 'No successful logins recorded' ), 'empty-logins state renders its message' );
+al_ok( false === strpos( $html_empty, 'postbox' ) && false === strpos( $html_empty, 'sn-an-empty' ), 'empty-logins state carries no postbox / analytics classes' );
+al_ok( substr_count( $html_empty, 'sn-shell__main' ) === 1 && substr_count( $html_empty, 'sn-shell__rail' ) === 1, 'empty-logins render stays shell-balanced' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
