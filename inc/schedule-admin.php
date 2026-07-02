@@ -100,6 +100,14 @@ function sn_admin_render_scheduled_content_section() {
 		echo '</section>';
 	}
 
+	// v8.0.0: version swaps — pairs DERIVED from the fragment rows (old
+	// container's until === new container's from, same host). Rendered above
+	// the flat table so the one-operation view leads; the underlying two rows
+	// stay listed below (they carry the per-row detail + individual ops).
+	if ( function_exists( 'sn_schedule_swap_pairs' ) ) {
+		sn_admin_render_schedule_swaps( sn_schedule_swap_pairs( $fragments ) );
+	}
+
 	echo '<p class="sn-field-helper">' . esc_html__( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-noise-tools' ) . '</p>';
 
 	if ( 0 === $total ) {
@@ -125,6 +133,86 @@ function sn_admin_render_scheduled_content_section() {
 	}
 	foreach ( $posts as $post ) {
 		sn_admin_render_schedule_future_post_row( $post );
+	}
+
+	echo '</tbody></table>';
+}
+
+/**
+ * Render the derived version-swap pairs as their own compact table (v8.0.0).
+ *
+ * Each pair is ONE operational unit: the old container hides and the new one
+ * reveals at the same instant, so the row shows the single swap time and a
+ * single "Run swap now" op (both fires; the per-request purge memo makes it
+ * one edge purge). Emits nothing when no pairs exist.
+ *
+ * @param array $pairs sn_schedule_swap_pairs() output.
+ * @return void
+ */
+function sn_admin_render_schedule_swaps( array $pairs ) {
+	if ( empty( $pairs ) ) {
+		return;
+	}
+
+	echo '<h3>' . esc_html__( 'Version swaps', 'signal-noise-tools' ) . '</h3>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-noise-tools' ) . '</p>';
+
+	echo '<table class="wp-list-table widefat striped">';
+	echo '<thead><tr>';
+	echo '<th scope="col">' . esc_html__( 'Target', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Swap at', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Status', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-noise-tools' ) . '</th>';
+	echo '</tr></thead><tbody>';
+
+	foreach ( $pairs as $pair ) {
+		$target_id = (int) ( $pair['target_ref'] ?? 0 );
+		$hide_id   = (int) ( $pair['hide']['id'] ?? 0 );
+		$show_id   = (int) ( $pair['show']['id'] ?? 0 );
+
+		echo '<tr>';
+
+		echo '<th scope="row">';
+		$edit_link = $target_id > 0 ? get_edit_post_link( $target_id ) : '';
+		if ( $target_id > 0 && is_string( $edit_link ) && '' !== $edit_link ) {
+			echo '<a href="' . esc_url( $edit_link ) . '">' . esc_html( get_the_title( $target_id ) ) . '</a>';
+			echo ' <small>#' . esc_html( (string) $target_id ) . '</small>';
+		} elseif ( $target_id > 0 ) {
+			echo esc_html( get_the_title( $target_id ) ) . ' <small>#' . esc_html( (string) $target_id ) . '</small>';
+		} else {
+			echo '<small>' . esc_html__( '(unlinked)', 'signal-noise-tools' ) . '</small>';
+		}
+		echo '</th>';
+
+		// The single swap instant, site-tz.
+		echo '<td>' . esc_html( sn_admin_schedule_fmt_gmt( $pair['swap_at'] ?? '' ) ) . '</td>';
+
+		// Pair status: old-side → new-side.
+		$hide_status = (string) ( $pair['hide']['status'] ?? 'queued' );
+		$show_status = (string) ( $pair['show']['status'] ?? 'queued' );
+		echo '<td>' . esc_html( $hide_status . ' → ' . $show_status ) . '</td>';
+
+		// Relative time to the swap instant (blank once past).
+		$next = sn_admin_schedule_next_transition( $pair['swap_at'] ?? null, null );
+		echo '<td>' . ( '' !== $next ? esc_html( $next ) : '&mdash;' ) . '</td>';
+
+		// One op: run the whole swap now.
+		echo '<td>';
+		if ( $hide_id > 0 && $show_id > 0 ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
+			wp_nonce_field( 'sn_theme_options_nonce' );
+			echo '<input type="hidden" name="sn_action" value="schedule_swap_run_now">';
+			echo '<input type="hidden" name="hide_id" value="' . esc_attr( (string) $hide_id ) . '">';
+			echo '<input type="hidden" name="show_id" value="' . esc_attr( (string) $show_id ) . '">';
+			echo '<button type="submit" class="button button-small">' . esc_html__( 'Run swap now', 'signal-noise-tools' ) . '</button>';
+			echo '</form>';
+		} else {
+			echo '<small>&mdash;</small>';
+		}
+		echo '</td>';
+
+		echo '</tr>';
 	}
 
 	echo '</tbody></table>';
@@ -374,4 +462,23 @@ function sn_handle_schedule_repurge( array $post ) {
 		sn_schedule_purge_urls( $urls );
 	}
 	return 'schedule_repurged';
+}
+
+/**
+ * Ops handler (v8.0.0): "Run swap now" force-fires BOTH sides of a version
+ * swap as one operation. The cap + nonce are enforced by sn_handle_admin_post()
+ * before this runs; sn_schedule_swap_run() re-validates that the two ids are a
+ * real pair (ids are attacker-shaped input) and refuses anything else without
+ * firing.
+ *
+ * @param array $post The raw $_POST from the dispatcher (hide_id, show_id).
+ * @return string An sn_flash code.
+ */
+function sn_handle_schedule_swap_run_now( array $post ) {
+	$hide_id = isset( $post['hide_id'] ) ? (int) $post['hide_id'] : 0;
+	$show_id = isset( $post['show_id'] ) ? (int) $post['show_id'] : 0;
+	if ( $hide_id <= 0 || $show_id <= 0 || ! function_exists( 'sn_schedule_swap_run' ) ) {
+		return 'schedule_invalid';
+	}
+	return sn_schedule_swap_run( $hide_id, $show_id ) ? 'schedule_swap_fired' : 'schedule_invalid';
 }

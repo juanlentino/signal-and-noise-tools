@@ -201,7 +201,7 @@ function sn_handle_quick_force_update_check() {
 		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
 	}
 	// Same work signal-noise/get-deploy-status does with force_refresh=true
-	// (and the deprecated force-check-updates wrapper before it): both route
+	// (and the removed force-check-updates wrapper before it): both route
 	// through snt_cmd_impl_force_check(), which busts the GitHub tag caches
 	// + WP's update_themes/update_plugins transients. Call the same impl so
 	// the admin-bar action and the ability stay behaviorally identical.

@@ -13,7 +13,7 @@
  * the JS client dispatches it via the Abilities run-path. Ladder history:
  * the legacy POST /signal-noise/v1/tools/block-migrations-dismiss REST route
  * was removed in v7.0.0; the per-surface block-migrations-dismiss Ability was
- * deprecated in v7.7.0 (removal v8.0.0).
+ * deprecated in v7.7.0 and removed in v8.0.0.
  *
  * Mirrors inc/pattern-adoption-admin.php structurally.
  *

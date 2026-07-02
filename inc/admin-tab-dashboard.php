@@ -237,7 +237,7 @@ function snt_dashboard_tab_render() {
 	//
 	// As a bonus, this is just an admin-bar-free version of the
 	// `signal-noise/get-deploy-status` ability's force_refresh path (Cmd+K;
-	// force-check-updates deprecated v7.7.0), reachable without depending on
+	// force-check-updates removed v8.0.0), reachable without depending on
 	// the ⌘K palette working.
 	// v2.5.3: re-use the existing sn_force_update_check admin-post handler
 	// (lower in this file) which clears both transients + redirects to

@@ -111,6 +111,7 @@ function sn_admin_flash_messages() {
 		'analytics_import_err'        => array( 'error', 'Import failed — the importer is unavailable.' ),
 		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
+		'schedule_swap_fired'         => array( 'success', 'Version swap fired &mdash; the old version hid, the new one revealed, one edge purge dispatched.' ),
 		'schedule_invalid'            => array( 'error', 'That scheduled-content row was not found.' ),
 	);
 }

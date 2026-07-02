@@ -2,12 +2,15 @@
 /**
  * Signal & Noise Tools — Abilities API: block-migrations Suggest+Apply.
  *
- * Four abilities backing the Tools-tab Block Migration tool (v4.5.0):
+ * Three abilities backing the Tools-tab Block Migration tool (v4.5.0):
  *   - signal-noise/block-migrations-scan      (full repository scan)
  *   - signal-noise/block-migrations-suggest   (deterministic transformation preview)
  *   - signal-noise/block-migrations-apply     (fingerprint-validated write)
- *   - signal-noise/block-migrations-dismiss   (DEPRECATED 7.7.0 → dismiss-candidate
- *     surface=block-migrations; removal v8.0.0)
+ *
+ * Dismissal is signal-noise/dismiss-candidate surface=block-migrations
+ * (inc/abilities-dismiss.php), which dispatches to this file's
+ * snt_block_migrations_dismiss_impl(). The per-surface dismiss ability
+ * was removed in v8.0.0.
  *
  * Category **'tools'** — NOT 'ai-generation'. These are pure structural
  * operations; no AI calls anywhere in the impl. AI agents discovering
@@ -135,41 +138,6 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
-	// ─── 4. Dismiss ─────────────────────────────────────────────────
-	wp_register_ability( 'signal-noise/block-migrations-dismiss', array(
-		'label'               => 'Dismiss a block-migration candidate',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/dismiss-candidate with surface="block-migrations" instead (candidate_type carries the migration_type). Appends the fingerprint to the post\'s _snt_block_migrations_dismissed meta. Subsequent scans exclude this candidate. Idempotent — re-dismissing the same fingerprint is a no-op.',
-		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_edit_post',
-		'execute_callback'    => 'snt_ability_block_migrations_dismiss',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'required'             => array( 'post_id', 'block_fingerprint', 'migration_type' ),
-			'properties'           => array(
-				'post_id'           => array( 'type' => 'integer', 'minimum' => 1 ),
-				'block_fingerprint' => array( 'type' => 'string', 'minLength' => 32, 'maxLength' => 32 ),
-				'migration_type'    => array(
-					'type' => 'string',
-					'enum' => array( 'heading-hierarchy-skip' ),
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok' => array( 'type' => 'boolean' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/dismiss-candidate with surface="block-migrations"',
-			),
-			'annotations'  => array( 'idempotent' => true ),
-		),
-	) );
 } );
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -275,27 +243,4 @@ function snt_block_migrations_dismiss_impl( $post_id, $fingerprint, $migration_t
 	delete_transient( $tkey );
 
 	return array( 'ok' => true, 'message' => __( 'Candidate dismissed.', 'signal-noise-tools' ) );
-}
-
-/**
- * Ability wrapper: dismisses a block-migration candidate.
- *
- * @param array $input  Validated against input_schema above.
- * @return array|WP_Error
- *
- * @since 4.5.0
- * @deprecated 7.7.0 Use signal-noise/dismiss-candidate with surface="block-migrations".
- */
-function snt_ability_block_migrations_dismiss( $input ) {
-	snt_ability_deprecated_notice( 'signal-noise/block-migrations-dismiss', 'signal-noise/dismiss-candidate with surface="block-migrations"' );
-	$result = snt_block_migrations_dismiss_impl(
-		(int)    ( $input['post_id'] ?? 0 ),
-		(string) ( $input['block_fingerprint'] ?? '' ),
-		(string) ( $input['migration_type'] ?? '' )
-	);
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	// Preserve the pre-7.7.0 output shape ({ ok } only) for the removal window.
-	return array( 'ok' => (bool) $result['ok'] );
 }

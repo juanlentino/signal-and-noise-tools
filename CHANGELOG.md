@@ -2,6 +2,49 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.0.0] - 2026-07-01: MAJOR — the v7.7.0 deprecation ladder closes (9 abilities removed) + version swaps land
+
+**Headline:** The abilities-consolidation arc reaches its terminal step: the nine abilities deprecated in v7.7.0 are REMOVED (53 → 44 registered), the single-member `updates` category retires, and `inc/abilities-deprecations.php` is deleted — the same ladder shape the legacy REST routes walked (deprecate v6.54.0 → remove v7.0.0). Bundled per the majors rule (a break alone never justifies a major), scheduled-content Phase 3 ships its YAGNI-gated slice: **whole-page version swaps as a first-class operation** — the two-container pattern gets one-gesture authoring in the editor, a derived "Version swaps" section with an atomic Run-swap op in Content → Scheduled, and per-request purge coalescing so one boundary costs one Cloudflare call. Recurrence stays out (no trigger evidence — the design doc's own Phase 3 guard).
+
+> **Why MAJOR:** removal of nine public abilities (the v7.7.0 deprecation ladder closing) — a real SemVer break, bundled with net-new capability per the majors rule.
+
+### Removed
+- The nine v7.7.0-deprecated abilities. Old → canonical replacement:
+
+| Removed (registered 53) | Replacement (registered 44 after) |
+|---|---|
+| `signal-noise/full-reset` | `purge-all-caches` `{include_template_overrides:true}` |
+| `signal-noise/get-audit-summary` | `get-audit-log` `{view:"summary"}` |
+| `signal-noise/get-audit-counters` | `get-audit-log` `{view:"counters"}` |
+| `signal-noise/get-audit-login-successes` | `get-audit-log` `{view:"logins"}` |
+| `signal-noise/get-cron-event` | `list-cron-events` `{hook, args_signature}` |
+| `signal-noise/force-check-updates` | `get-deploy-status` `{force_refresh:true}` |
+| `signal-noise/block-migrations-dismiss` | `dismiss-candidate` `{surface:"block-migrations"}` |
+| `signal-noise/pattern-adoption-dismiss` | `dismiss-candidate` `{surface:"pattern-adoption"}` |
+| `signal-noise/list-abilities` | core `GET /wp-abilities/v1/abilities` |
+
+- The `updates` ability category (its only member was force-check-updates); 5 categories remain.
+- `inc/abilities-deprecations.php` + its orchestrator require (the ladder's machinery; mirrors v7.0.0 deleting rest-deprecations.php). The placement rule survives in the docs + tests.
+- Orphaned impls with zero callers after the wrapper removals: `snt_cmd_impl_full_reset` (desktop-mode-integration) and `snt_cron_get_event_impl` (cron-dashboard).
+- `tests/abilities-deprecations.php` (its whole subject is gone) — succeeded by the removal guard below.
+- NOTE: the wp-admin AI Capabilities widget will show the registered count drop 53 → 44 — expected, not a bug. The desktop-mode/palette command KEYS named `full-reset`/`force-check-updates` are local identifiers, not ability slugs; they stay and dispatch the canonical replacements (as they have since v7.7.0).
+
+### New
+- **Version swaps (scheduled-content Phase 3, swap-scope only).** A whole-page version swap — old container gates off, new container gates on at one instant T — is now a first-class operation end to end:
+  - **Editor:** the `signal-noise/scheduled` block gains a "Version swap" panel — one click stamps the current container as the hide side and inserts its paired reveal container; a single "Swap at (UTC)" picker writes BOTH boundaries in lockstep (new `swapId`/`swapRole` attributes, block-JSON only — no schema change).
+  - **Admin (Content → Scheduled):** a "Version swaps" section lists pairs DERIVED from the queue rows by boundary equality (so hand-authored pre-v8 pairs surface too) with the single swap instant, pair status, and an atomic **Run swap now** op (`sn_handle_schedule_swap_run_now`, cap+nonce via the shared dispatcher, pair-validated server-side).
+  - **Engine:** `inc/schedule-swap.php` — `sn_schedule_swap_pairs()` (pure derivation) + `sn_schedule_swap_run()` (drives both rows through the real fire state machine).
+  - **One boundary, one purge:** a per-request purge memo in `sn_schedule_purge_urls` (+ the zone-escalation path) coalesces the second same-URL-set dispatch. Correct because the render gate is pure time: once T passes, a single edge refetch sees both flips.
+- `tests/abilities-removals-v8.php` (44 assertions): the removal guard — each removed slug unregistered, wrappers gone, `updates` category absent, ladder artifacts deleted, every canonical replacement registered AND behaviorally verified, zero `_deprecated_function` calls anywhere.
+- `tests/schedule-swap.php` (36 assertions): pair derivation matrix, purge-memo coalescing (order-insensitive key, failed dispatch never marks, reset), atomic swap run through the real engine + in-memory row store with the CF seam stubbed input-aware (one URL dispatch, hide→done, show→active), zone-purge coalescing for reused containers.
+
+### Improvements
+- `blocks/scheduled/editor.js` registers with `wp-data` (partner lookup + paired-boundary writes); the swap panel degrades gracefully when the partner container was removed.
+- Stale "deprecated (removal v8.0.0)" doc/comment tense corrected to "removed" across inc/ + assets; `inc/abilities-permission-helpers.php`'s used-by list and the orchestrator inventory now match the live 44-ability registry; the desktop-mode header no longer describes the v7.0.0-removed `/cmd/*` REST routes.
+
+### Changed
+- Test fixtures repointed at canonical surfaces: `abilities-dismiss.php` Group D trims the removed-wrapper cases; `abilities-integration.php` drives `list-cron-events` hook/args_signature filters through the real registry execute path (and drops the removed slugs from its baseline, 17 → 14); `non-ai-abilities-contract.php` F1/F3 assert `get-audit-log` + `dismiss-candidate` contracts; `abilities-behavior-v460.php` Test B drives `dismiss-candidate` (surface=pattern-adoption); `schedule-fire-purge.php` gains per-case purge-memo resets.
+
 ## [7.7.2] - 2026-07-01: Fix — annotation-derived verbs for every ability call (the force-check 405 class)
 
 **Headline:** Installing v7.7.1 surfaced "Force-check: Read-only abilities require GET method." — the abilities run controller enforces the HTTP verb by annotation (readonly → GET, destructive+idempotent → DELETE, else POST) and 405s any mismatch. The v7.7.0 palette change POSTed the readonly `get-deploy-status` (trusting a stale v2.5.4-era comment instead of re-reading the controller), but the class is much older and wider: the v6.39.2 annotation-truthfulness fixes flipped required verbs out from under every hardcoded-POST JS caller, silently 405-ing ~10 surfaces since the WP 7.0 floor (desktop-mode purge/clear/full-reset buttons and audit + status + RSS widgets, cron history and unschedule, the block-migrations Suggest button, the editor's AI Excerpt button). Verified against core source: `validate_request_method` + `get_input_from_request` in `class-wp-rest-abilities-v1-run-controller.php` — GET/DELETE input is the RAW query param (a JSON `?input=` string fails object schemas), but PHP bracket syntax (`?input[key]=value`) parses to a real array and validates.

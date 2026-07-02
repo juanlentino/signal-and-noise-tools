@@ -11,9 +11,10 @@
  * Also houses the shared dismiss write (snt_pattern_adoption_dismiss_impl):
  * appends a fingerprint to the post's _snt_pattern_adoption_dismissed meta
  * and invalidates the current user's scan transient. It is called by the
- * unified signal-noise/dismiss-candidate Ability (surface="pattern-adoption")
- * and, through v7.x, by the deprecated pattern-adoption-dismiss wrapper (the
- * legacy REST route was removed in v7.0.0).
+ * unified signal-noise/dismiss-candidate Ability (surface="pattern-adoption").
+ * Ladder history: the legacy REST route was removed in v7.0.0; the deprecated
+ * pattern-adoption-dismiss wrapper that also called it through v7.x was
+ * removed in v8.0.0.
  *
  * @package SignalNoiseTools
  * @since 4.3.0

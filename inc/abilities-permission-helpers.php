@@ -30,11 +30,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * `manage_options` capability — admin-only operations.
  *
- * Used by: purge-all-caches, clear-template-overrides, force-check-updates,
- * full-reset, list-template-overrides, get-rss-stats, get-deploy-status,
- * list-cron-events, get-cron-event, get-cron-history, run-insights-scan,
- * get-insights, unschedule-cron-event, get-audit-summary, get-audit-counters,
- * get-audit-login-successes, run-audit-prune.
+ * Used by: purge-all-caches, clear-template-overrides,
+ * list-template-overrides, get-rss-stats, get-deploy-status,
+ * list-cron-events, get-cron-history, run-insights-scan,
+ * get-insights, unschedule-cron-event, get-audit-log, run-audit-prune.
  *
  * @return bool
  */

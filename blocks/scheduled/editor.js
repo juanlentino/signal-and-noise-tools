@@ -1,4 +1,4 @@
-( function ( blocks, element, blockEditor, components ) {
+( function ( blocks, element, blockEditor, components, data ) {
 	'use strict';
 
 	// Buildless dynamic block: NO JSX, NO import, NO build step. Everything is
@@ -15,6 +15,7 @@
 	var InspectorControls = blockEditor.InspectorControls;
 	var PanelBody       = components.PanelBody;
 	var DateTimePicker  = components.DateTimePicker;
+	var Button          = components.Button;
 
 	// A stable id for the block instance so the save_post sync (Task 5) can
 	// address this fragment's queue row idempotently. Prefer the platform uuid;
@@ -38,6 +39,74 @@
 		return 'Scheduled · from ' + ( '' !== f ? f : 'always' ) + ' until ' + ( '' !== u ? u : 'forever' );
 	}
 
+	// ─── Version swap helpers (v8.0.0, scheduled-content Phase 3) ─────
+	// A swap = two sn/scheduled siblings sharing a swapId: the 'hide' block
+	// (current version, gates off at T via `until`) and the 'show' block (new
+	// version, gates on at T via `from`). swapId/swapRole live ONLY in the
+	// block JSON — the server derives pairs from the boundary equality the
+	// controls below keep in lockstep.
+
+	// Depth-first walk of the editor block tree for the partner clientId.
+	function findSwapPartner( blockList, swapId, ownClientId ) {
+		for ( var i = 0; i < blockList.length; i++ ) {
+			var b = blockList[ i ];
+			if (
+				'signal-noise/scheduled' === b.name &&
+				b.clientId !== ownClientId &&
+				b.attributes && b.attributes.swapId === swapId
+			) {
+				return b;
+			}
+			if ( b.innerBlocks && b.innerBlocks.length ) {
+				var hit = findSwapPartner( b.innerBlocks, swapId, ownClientId );
+				if ( hit ) {
+					return hit;
+				}
+			}
+		}
+		return null;
+	}
+
+	// One gesture: stamp THIS block as the current version (hides at T) and
+	// insert its paired new-version container (reveals at T) right after it.
+	function createVersionSwap( clientId, attributes, setAttributes ) {
+		var sel      = data.select( 'core/block-editor' );
+		var dispatch = data.dispatch( 'core/block-editor' );
+		var swapId   = makeScheduleId();
+		var swapAt   = ( attributes.until || '' ).trim();
+
+		setAttributes( { swapId: swapId, swapRole: 'hide' } );
+
+		var partner = blocks.createBlock( 'signal-noise/scheduled', {
+			scheduleId: makeScheduleId(),
+			swapId:     swapId,
+			swapRole:   'show',
+			from:       swapAt,
+			until:      ''
+		} );
+
+		var rootId = sel.getBlockRootClientId( clientId );
+		var index  = sel.getBlockIndex( clientId, rootId ) + 1;
+		dispatch.insertBlock( partner, index, rootId || undefined );
+	}
+
+	// The single swap-instant control: writes THIS block's boundary AND the
+	// partner's complementary boundary in one change, keeping the pair's
+	// boundaries equal (the server-side pairing predicate).
+	function setSwapInstant( value, props, partner ) {
+		var v        = value || '';
+		var dispatch = data.dispatch( 'core/block-editor' );
+		var mineIsHide = 'hide' === props.attributes.swapRole;
+
+		props.setAttributes( mineIsHide ? { until: v } : { from: v } );
+		if ( partner ) {
+			dispatch.updateBlockAttributes(
+				partner.clientId,
+				mineIsHide ? { from: v } : { until: v }
+			);
+		}
+	}
+
 	blocks.registerBlockType( 'signal-noise/scheduled', {
 		edit: function ( props ) {
 			var attributes   = props.attributes;
@@ -54,6 +123,47 @@
 
 			var blockProps = useBlockProps( { className: 'sn-scheduled' } );
 
+			// Version-swap pairing state (v8.0.0). The partner lookup runs on
+			// each render — the tree is in-memory and posts hold few scheduled
+			// blocks, so this stays cheap.
+			var isSwap  = '' !== ( attributes.swapId || '' ) && '' !== ( attributes.swapRole || '' );
+			var partner = null;
+			if ( isSwap ) {
+				partner = findSwapPartner(
+					data.select( 'core/block-editor' ).getBlocks(),
+					attributes.swapId,
+					props.clientId
+				);
+			}
+			var swapInstant = 'hide' === attributes.swapRole ? attributes.until : attributes.from;
+
+			var swapPanel;
+			if ( ! isSwap ) {
+				swapPanel = el( PanelBody, { title: 'Version swap', initialOpen: false },
+					el( 'p', null, 'Turn this container into a whole-page version swap: this content becomes the current version (hides at the swap time) and a paired container for the new version is inserted after it (reveals at the same instant).' ),
+					el( Button, {
+						variant: 'secondary',
+						onClick: function () { createVersionSwap( props.clientId, attributes, setAttributes ); }
+					}, 'Create version swap' )
+				);
+			} else {
+				swapPanel = el( PanelBody, { title: 'Version swap', initialOpen: true },
+					el( 'p', { className: 'sn-scheduled__badge' },
+						'hide' === attributes.swapRole
+							? 'Current version — hides at the swap time.'
+							: 'New version — reveals at the swap time.'
+					),
+					partner
+						? el( 'p', { style: { fontWeight: 600, margin: '12px 0 4px' } }, 'Swap at (UTC) — sets both containers' )
+						: el( 'p', null, 'Paired container not found in this post (removed?). The swap time below edits this block only.' ),
+					el( DateTimePicker, {
+						currentDate: swapInstant || null,
+						onChange: function ( value ) { setSwapInstant( value, props, partner ); },
+						is12Hour: false
+					} )
+				);
+			}
+
 			var inspector = el( InspectorControls, null,
 				el( PanelBody, { title: 'Schedule', initialOpen: true },
 					el( 'p', { className: 'sn-scheduled__badge' }, windowLabel( attributes.from, attributes.until ) ),
@@ -69,7 +179,8 @@
 						onChange: function ( value ) { setAttributes( { until: value || '' } ); },
 						is12Hour: false
 					} )
-				)
+				),
+				swapPanel
 			);
 
 			// The editor always renders the inner blocks plus an inline badge so
@@ -91,4 +202,4 @@
 			return el( InnerBlocks.Content );
 		}
 	} );
-} )( window.wp.blocks, window.wp.element, window.wp.blockEditor, window.wp.components );
+} )( window.wp.blocks, window.wp.element, window.wp.blockEditor, window.wp.components, window.wp.data );

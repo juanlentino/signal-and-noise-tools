@@ -56,14 +56,6 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		) );
 	}
 
-	// v2.5.0: 2 new categories ahead of registering 7 new abilities.
-	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'updates' ) ) {
-		wp_register_ability_category( 'updates', array(
-			'label'       => 'Updates',
-			'description' => 'Theme + plugin update detection + force-check.',
-		) );
-	}
-
 	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'ai-generation' ) ) {
 		wp_register_ability_category( 'ai-generation', array(
 			'label'       => 'AI Generation',

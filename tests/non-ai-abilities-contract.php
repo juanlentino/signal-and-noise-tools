@@ -7,10 +7,12 @@
  * else POST), so a pure read that omits `readonly:true` is forced to POST and
  * 405s on the semantically-correct GET. These assertions pin the corrected
  * contract:
- *   - F1: the five pure-read audit/analytics abilities declare readonly:true.
+ *   - F1: the pure-read audit/analytics abilities declare readonly:true
+ *         (get-audit-log since v8.0.0 — the three single-view reads it
+ *         replaced were removed with the deprecation ladder).
  *   - F2: block-migrations-suggest (does not write) declares readonly:true.
- *   - F3: pattern-adoption-dismiss gates per-resource edit_post (parity with
- *         its REST twin + the block-migrations-dismiss sibling), not blanket
+ *   - F3: dismiss-candidate gates per-resource edit_post (the contract the
+ *         two removed per-surface dismisses carried), not blanket
  *         manage_options.
  * Plus regression guards that the destructive abilities keep their (already
  * correct) annotations.
@@ -42,9 +44,7 @@ echo "Non-AI abilities contract accuracy\n\n";
 
 echo "Group F1: pure-read audit/analytics abilities declare readonly:true (=> GET)\n";
 foreach ( array(
-	'signal-noise/get-audit-summary',
-	'signal-noise/get-audit-counters',
-	'signal-noise/get-audit-login-successes',
+	'signal-noise/get-audit-log',
 	'signal-noise/get-analytics-events',
 	'signal-noise/get-analytics-summary',
 ) as $slug ) {
@@ -66,9 +66,13 @@ foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(
 $ps = ann( 'signal-noise/pattern-adoption-suggest' );
 ok( true === ( $ps['readonly'] ?? null ) && true === ( $ps['idempotent'] ?? null ), 'pattern-adoption-suggest: readonly true + idempotent true (verb parity with block-migrations-suggest)' );
 
-echo "\nGroup F3: pattern-adoption-dismiss gates per-resource edit_post (parity)\n";
-ok( 'snt_ability_perm_edit_post' === perm( 'signal-noise/pattern-adoption-dismiss' ), 'pattern-adoption-dismiss: permission_callback => snt_ability_perm_edit_post' );
-ok( 'snt_ability_perm_edit_post' === perm( 'signal-noise/block-migrations-dismiss' ), 'block-migrations-dismiss: permission_callback => snt_ability_perm_edit_post (unchanged sibling)' );
+echo "\nGroup F3: dismiss-candidate gates per-resource edit_post\n";
+// v8.0.0: the per-surface dismisses were removed; their per-resource
+// edit_post contract (never blanket manage_options — IDOR class) must
+// survive on the unified replacement.
+require_once __DIR__ . '/../inc/abilities-dismiss.php';
+foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
+ok( 'snt_ability_perm_edit_post' === perm( 'signal-noise/dismiss-candidate' ), 'dismiss-candidate: permission_callback => snt_ability_perm_edit_post' );
 
 echo "\nGroup: regression — destructive abilities keep correct annotations\n";
 foreach ( array(

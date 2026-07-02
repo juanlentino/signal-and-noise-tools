@@ -2,18 +2,12 @@
 /**
  * Signal & Noise Tools — Abilities API: login hardening audit log.
  *
- * Six abilities wrapping the v3.8.3 audit-log module:
- *   - signal-noise/get-audit-log              (read-only — view=summary|counters|logins;
- *     the v7.7.0 consolidation of the three single-view reads below)
- *   - signal-noise/get-audit-summary          (DEPRECATED 7.7.0 → get-audit-log view=summary)
- *   - signal-noise/get-audit-counters         (DEPRECATED 7.7.0 → get-audit-log view=counters)
- *   - signal-noise/get-audit-login-successes  (DEPRECATED 7.7.0 → get-audit-log view=logins)
- *   - signal-noise/export-audit-log           (read-only — CSV/JSON export)
- *   - signal-noise/run-audit-prune            (destructive — drops old data)
- *
- * The three deprecated reads keep full behavior through v7.x (removal v8.0.0)
- * and emit snt_ability_deprecated_notice() at their execute wrappers only —
- * never in the shared snt_audit_*_impl() helpers get-audit-log also calls.
+ * Three abilities wrapping the v3.8.3 audit-log module:
+ *   - signal-noise/get-audit-log    (read-only — view=summary|counters|logins;
+ *     the v7.7.0 consolidation of the three single-view reads, whose
+ *     deprecated wrappers were removed in v8.0.0)
+ *   - signal-noise/export-audit-log (read-only — CSV/JSON export)
+ *   - signal-noise/run-audit-prune  (destructive — drops old data)
  *
  * The export-audit-log execute callback (snt_ability_export_audit_log) lives
  * in inc/audit-log-export.php alongside the pure builders + download handler.
@@ -89,109 +83,6 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
-	wp_register_ability( 'signal-noise/get-audit-summary', array(
-		'label'               => 'Get audit log hero summary',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/get-audit-log with view="summary" instead (same payload under its summary key). Returns last-24h totals, 7-day trend vs. prior, unique attackers in 24h, and LLA lockout status. Read-only.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_get_audit_summary',
-		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'last_24h'             => array( 'type' => 'object' ),
-				'last_7d_vs_prior'     => array( 'type' => 'object' ),
-				'unique_attackers_24h' => array( 'type' => 'integer' ),
-				'lla'                  => array( 'type' => 'object' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/get-audit-log with view="summary"',
-			),
-			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/get-audit-counters', array(
-		'label'               => 'Get audit log counter timeline',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/get-audit-log with view="counters" instead (same payload under its counters key). Returns per-day event counters for the last N days (default 30, max 90). Read-only.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_get_audit_counters',
-		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(
-				'days' => array(
-					'type'    => 'integer',
-					'minimum' => 1,
-					'maximum' => 90,
-					'default' => 30,
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'  => 'array',
-			'items' => array( 'type' => 'object' ),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/get-audit-log with view="counters"',
-			),
-			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/get-audit-login-successes', array(
-		'label'               => 'Get recent successful logins',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/get-audit-log with view="logins" instead (same payload under its logins key). Returns recent per-event successful login records for the last N days (default 30, max 90). Each row: timestamp + username. No IP info. Read-only.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_get_audit_login_successes',
-		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(
-				'days' => array(
-					'type'    => 'integer',
-					'minimum' => 1,
-					'maximum' => 90,
-					'default' => 30,
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'  => 'array',
-			'items' => array( 'type' => 'object' ),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/get-audit-log with view="logins"',
-			),
-			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
-			),
-		),
-	) );
-
 	wp_register_ability( 'signal-noise/export-audit-log', array(
 		'label'               => 'Export login-audit log',
 		'description'         => 'Returns the full login-audit log (per-day counters + successful-login rows over the retention window) as a downloadable CSV or JSON payload. NOTE: the payload contains plaintext usernames. Read-only.',
@@ -257,9 +148,10 @@ add_action( 'wp_abilities_api_init', function() {
 /**
  * Execute callback for signal-noise/get-audit-log (v7.7.0 consolidated read).
  *
- * Routes the requested view to the same snt_audit_*_impl() helpers the three
- * deprecated single-view abilities wrap, and returns the payload under the
- * view's own key (the other two keys are null). The unknown-view guard is
+ * Routes the requested view to the snt_audit_*_impl() helpers (shared with the
+ * admin UI; the three deprecated single-view abilities that also wrapped them
+ * were removed in v8.0.0) and returns the payload under the view's own key
+ * (the other two keys are null). The unknown-view guard is
  * defense in depth — the input_schema enum already blocks it at the run
  * controller, but direct callers (tests, internal dispatch) bypass schemas.
  *
@@ -302,50 +194,6 @@ function snt_ability_get_audit_log( $input ) {
 	}
 
 	return new WP_Error( 'snt_audit_unknown_view', 'Unknown audit view.', array( 'status' => 422 ) );
-}
-
-/**
- * Execute callback for signal-noise/get-audit-summary.
- *
- * @since 3.8.3
- * @deprecated 7.7.0 Use signal-noise/get-audit-log with view="summary".
- */
-function snt_ability_get_audit_summary() {
-	snt_ability_deprecated_notice( 'signal-noise/get-audit-summary', 'signal-noise/get-audit-log with view="summary"' );
-	if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
-		return new WP_Error( 'snt_audit_unavailable', 'Audit log module not loaded.', array( 'status' => 500 ) );
-	}
-	return snt_audit_get_summary_impl();
-}
-
-/**
- * Execute callback for signal-noise/get-audit-counters.
- *
- * @since 3.8.3
- * @deprecated 7.7.0 Use signal-noise/get-audit-log with view="counters".
- */
-function snt_ability_get_audit_counters( $input ) {
-	snt_ability_deprecated_notice( 'signal-noise/get-audit-counters', 'signal-noise/get-audit-log with view="counters"' );
-	if ( ! function_exists( 'snt_audit_get_counters_impl' ) ) {
-		return new WP_Error( 'snt_audit_unavailable', 'Audit log module not loaded.', array( 'status' => 500 ) );
-	}
-	$days = isset( $input['days'] ) ? (int) $input['days'] : 30;
-	return snt_audit_get_counters_impl( $days );
-}
-
-/**
- * Execute callback for signal-noise/get-audit-login-successes.
- *
- * @since 3.8.3
- * @deprecated 7.7.0 Use signal-noise/get-audit-log with view="logins".
- */
-function snt_ability_get_audit_login_successes( $input ) {
-	snt_ability_deprecated_notice( 'signal-noise/get-audit-login-successes', 'signal-noise/get-audit-log with view="logins"' );
-	if ( ! function_exists( 'snt_audit_get_login_successes_impl' ) ) {
-		return new WP_Error( 'snt_audit_unavailable', 'Audit log module not loaded.', array( 'status' => 500 ) );
-	}
-	$days = isset( $input['days'] ) ? (int) $input['days'] : 30;
-	return snt_audit_get_login_successes_impl( $days );
 }
 
 /**

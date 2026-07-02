@@ -2,16 +2,14 @@
 /**
  * Signal & Noise Tools — Abilities API: WP-Cron event dashboard.
  *
- * Five abilities wrapping the v3.0.0 Cron Dashboard module:
+ * Four abilities wrapping the v3.0.0 Cron Dashboard module:
  *   - signal-noise/list-cron-events       (read; sn_only + hook/args_signature filters
- *     — the v7.7.0 filters subsume get-cron-event)
- *   - signal-noise/get-cron-event          (DEPRECATED 7.7.0 → list-cron-events filters;
- *     behavior preserved through v7.x, removal v8.0.0)
+ *     — the v7.7.0 filters subsumed get-cron-event, removed v8.0.0)
  *   - signal-noise/get-cron-history        (read; firing history from snt_cron_history)
  *   - signal-noise/run-cron-event          (destructive; refuses sn_* hooks)
  *   - signal-noise/unschedule-cron-event   (destructive; refuses SN-owned hooks)
  *
- * Categories: list/get/history are 'diagnostics'; unschedule is 'maintenance'.
+ * Categories: list/history are 'diagnostics'; unschedule is 'maintenance'.
  * File-level grouping is by feature (cron dashboard) rather than category so
  * the impl wrappers stay co-located with their registrations.
  *
@@ -32,7 +30,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-cron-events', array(
 		'label'               => 'List Cron Events',
-		'description'         => 'Returns scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the SN-owned hooks (e.g. the RSS subscriber-prune hook). Pass hook (and optionally args_signature) to narrow to a single hook\'s events — this replaces the deprecated get-cron-event ability; no match returns an empty array.',
+		'description'         => 'Returns scheduled WP-Cron events with next-run, recurrence, last-fired, args, has_handler flag, and is_sn_owned flag. Pass sn_only=true to filter to the SN-owned hooks (e.g. the RSS subscriber-prune hook). Pass hook (and optionally args_signature) to narrow to a single hook\'s events — this replaces the removed get-cron-event ability; no match returns an empty array.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_list_cron_events',
@@ -75,59 +73,6 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array(
-				'readonly'        => true,
-				'idempotent'      => true,
-				'open_world_hint' => false,
-			),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/get-cron-event', array(
-		'label'               => 'Get Cron Event Details',
-		'description'         => 'DEPRECATED since 7.7.0 — use signal-noise/list-cron-events with its hook + args_signature filters instead (returns the same row inside an array). Returns details for a single scheduled cron event identified by hook + args_signature. Returns null if no match. `args_signature` is the md5 hash returned by signal-noise/list-cron-events. Use that ability first to discover signatures.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_get_cron_event',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'required'             => array( 'hook', 'args_signature' ),
-			'properties'           => array(
-				'hook'           => array(
-					'type'        => 'string',
-					'description' => 'The cron hook name.',
-					'minLength'   => 1,
-					'examples'    => array( 'sn_analytics_rollup_daily', 'sn_rss_tracker_daily_prune', 'wp_scheduled_delete' ),
-				),
-				'args_signature' => array(
-					'type'        => 'string',
-					'description' => 'The md5 args signature from list-cron-events.',
-					'minLength'   => 1,
-					'examples'    => array( '', '3a8e965b27c4c1d4b8a9' ),
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
-				'hook'           => array( 'type' => 'string' ),
-				'args_signature' => array( 'type' => 'string' ),
-				'next_run_ts'    => array( 'type' => 'integer' ),
-				'schedule'       => array( 'type' => array( 'string', 'boolean' ) ),
-				'interval_s'     => array( 'type' => array( 'integer', 'null' ) ),
-				'args'           => array( 'type' => 'array' ),
-				'last_fired_ts'  => array( 'type' => array( 'integer', 'null' ) ),
-				'has_handler'    => array( 'type' => 'boolean' ),
-				'is_sn_owned'    => array( 'type' => 'boolean' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'deprecated'   => array(
-				'since' => '7.7.0',
-				'use'   => 'signal-noise/list-cron-events with hook + args_signature filters',
-			),
 			'annotations'  => array(
 				'readonly'        => true,
 				'idempotent'      => true,
@@ -287,8 +232,8 @@ function snt_ability_list_cron_events( $input ) {
 	$sn_only = is_array( $input ) && ! empty( $input['sn_only'] );
 	$events  = snt_cron_get_events_impl( $sn_only );
 
-	// v7.7.0: optional hook/args_signature narrowing (subsumes the deprecated
-	// get-cron-event ability). Filters apply read-side over the impl output so
+	// v7.7.0: optional hook/args_signature narrowing (subsumed the
+	// get-cron-event ability, removed v8.0.0). Filters apply read-side over the impl output so
 	// the impl stays single-purpose; no match → empty array, never an error.
 	$hook = ( is_array( $input ) && isset( $input['hook'] ) ) ? (string) $input['hook'] : '';
 	$sig  = ( is_array( $input ) && isset( $input['args_signature'] ) ) ? (string) $input['args_signature'] : null;
@@ -304,23 +249,6 @@ function snt_ability_list_cron_events( $input ) {
 		} ) );
 	}
 	return $events;
-}
-
-/**
- * Ability execute callback: signal-noise/get-cron-event.
- * Thin wrapper around snt_cron_get_event_impl().
- * @since 3.7.5
- * @deprecated 7.7.0 Use signal-noise/list-cron-events with hook + args_signature.
- */
-function snt_ability_get_cron_event( $input ) {
-	snt_ability_deprecated_notice( 'signal-noise/get-cron-event', 'signal-noise/list-cron-events with hook + args_signature filters' );
-	if ( ! function_exists( 'snt_cron_get_event_impl' ) ) {
-		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
-	}
-	return snt_cron_get_event_impl(
-		(string) $input['hook'],
-		(string) $input['args_signature']
-	);
 }
 
 /**
@@ -362,7 +290,7 @@ function snt_ability_unschedule_cron_event( $input ) {
  * check, has_action() orphan pre-flight (WP_Error snt_cron_no_handler),
  * DOING_CRON spoof, Throwable catch, last-fired tracking, and a history
  * record. This wrapper adds only the sn_* pre-filter — SN-namespaced hooks
- * have dedicated abilities (purge-all-caches, force-check-updates, etc.)
+ * have dedicated abilities (purge-all-caches, run-audit-prune, etc.)
  * with proper input schemas, so this generic runner refuses them.
  *
  * Hook names are matched VERBATIM (no sanitize_key — that would mangle

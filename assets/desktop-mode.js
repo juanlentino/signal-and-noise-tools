@@ -33,8 +33,9 @@
 	// ability once the run controller enforced verbs).
 	var CMD_ABILITY = {
 		// v7.7.0: force-check + full-reset migrated to their consolidated
-		// replacements (force-check-updates / full-reset are deprecated,
-		// removal v8.0.0) — the behavior difference rides in CMD_INPUT.
+		// replacements (the force-check-updates / full-reset abilities were
+		// removed in v8.0.0) — the behavior difference rides in CMD_INPUT.
+		// The left-hand keys are LOCAL command names, not ability slugs.
 		'force-check':     'get-deploy-status',
 		'purge-caches':    'purge-all-caches',
 		'clear-overrides': 'clear-template-overrides',
@@ -263,7 +264,7 @@
 				toast( 'sntAbilityRun unavailable.', 'error' );
 				return;
 			}
-			// v7.7.0: get-audit-summary is deprecated — same payload now rides
+			// v7.7.0/v8.0.0: get-audit-summary was removed — same payload rides
 			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
 			window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
 				.then( function( res ) {
@@ -291,7 +292,7 @@
 				toast( 'sntAbilityRun unavailable.', 'error' );
 				return;
 			}
-			// v7.7.0: get-audit-login-successes is deprecated — the rows now ride
+			// v7.7.0/v8.0.0: get-audit-login-successes was removed — the rows ride
 			// under get-audit-log's `logins` key. v7.7.2: GET via the runner.
 			window.sntAbilityRun( 'get-audit-log', { view: 'logins', days: 30 } )
 				.then( function( res ) {

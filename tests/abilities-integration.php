@@ -90,16 +90,6 @@ if ( ! function_exists( 'get_the_title' ) ) {
 if ( ! function_exists( 'human_time_diff' ) ) {
 	function human_time_diff( $from, $to ) { return '5 minutes'; }
 }
-// v7.7.0: the orchestrator now loads inc/abilities-deprecations.php, whose
-// snt_ability_deprecated_notice() calls _deprecated_function + esc_html when a
-// deprecated wrapper executes (full-reset, get-cron-event, … below). Record
-// the calls so behavior asserts can check the ladder without WP loaded.
-$GLOBALS['__test_deprecated_calls'] = array();
-if ( ! function_exists( '_deprecated_function' ) ) {
-	function _deprecated_function( $fn, $ver, $repl = '' ) {
-		$GLOBALS['__test_deprecated_calls'][] = array( $fn, $ver, $repl );
-	}
-}
 if ( ! function_exists( 'esc_html' ) ) {
 	function esc_html( $s ) { return $s; }
 }
@@ -506,10 +496,9 @@ if ( ! class_exists( 'WP_Ability' ) ) {
 			$this->config = $config;
 		}
 		// v4.10.0: additive getters mirroring the real WP_Ability accessors
-		// (WordPress/abilities-api class-wp-ability.php). list-abilities reads
-		// the registry through these, so the stub must reproduce their real
-		// shapes — especially get_meta(), which always merges 'annotations'
-		// over the readonly/destructive/idempotent => null defaults.
+		// (WordPress/abilities-api class-wp-ability.php) — get_meta() always
+		// merges 'annotations' over the readonly/destructive/idempotent =>
+		// null defaults, matching the real registry surface.
 		public function get_name() { return (string) $this->name; }
 		public function get_label() { return (string) ( $this->config['label'] ?? '' ); }
 		public function get_description() { return (string) ( $this->config['description'] ?? '' ); }
@@ -574,7 +563,7 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 }
 // v4.10.0: global registry accessor — mirrors WordPress/abilities-api
 // wp_get_abilities() which returns a name => WP_Ability map (the underlying
-// registry's $registered_abilities, keyed by name). list-abilities iterates it.
+// registry's $registered_abilities, keyed by name).
 if ( ! function_exists( 'wp_get_abilities' ) ) {
 	function wp_get_abilities() {
 		$out = array();
@@ -636,17 +625,16 @@ $expected_abilities = array(
 	'signal-noise/regenerate-og-card',
 	'signal-noise/get-deploy-status',
 	'signal-noise/clear-template-overrides',
-	// v2.5.0 additions (7).
-	'signal-noise/force-check-updates',
-	'signal-noise/full-reset',
+	// v2.5.0 additions (5 remaining — force-check-updates + full-reset
+	// removed v8.0.0 with the deprecation ladder).
 	'signal-noise/list-template-overrides',
 	'signal-noise/get-rss-stats',
 	'signal-noise/ai-generate-meta-description',
 	'signal-noise/ai-generate-og-card-title',
 	'signal-noise/ai-generate-excerpt',
-	// v3.0+ Cron Dashboard (5).
+	// v3.0+ Cron Dashboard (get-cron-event removed v8.0.0 — its semantics
+	// live on list-cron-events' hook/args_signature filters).
 	'signal-noise/list-cron-events',
-	'signal-noise/get-cron-event',
 	'signal-noise/get-cron-history',
 	'signal-noise/unschedule-cron-event',
 	// v3.6+ Insights (2).
@@ -656,7 +644,7 @@ $expected_abilities = array(
 foreach ( $expected_abilities as $slug ) {
 	ap_true( null !== wp_get_ability( $slug ), "ability registered: $slug" );
 }
-ap_eq( 17, count( $expected_abilities ), 'expecting 17 abilities total' );
+ap_eq( 14, count( $expected_abilities ), 'expecting 14 abilities in the v8.0.0 baseline' );
 
 // v6.36.0: merge-tags ability (registration + config; the merge engine itself is
 // unit-tested in tests/tag-consolidation.php).
@@ -716,20 +704,21 @@ $out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array( 'sn_on
 ap_eq( 1, count( $out ), 'list-cron-events: sn_only=true filters to 1' );
 ap_eq( true, $out[0]['is_sn_owned'], 'list-cron-events: filtered event is_sn_owned' );
 
-// get-cron-event (happy path)
-$out = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array(
+// list-cron-events hook+args_signature filters (the removed get-cron-event's
+// whole job, driven through the real registry execute path)
+$out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array(
 	'hook'           => 'sn_analytics_rollup',
 	'args_signature' => md5( serialize( array() ) ),
 ) );
-ap_true( is_array( $out ) && isset( $out['hook'] ), 'get-cron-event: returns array for known hook' );
-ap_eq( 'sn_analytics_rollup', $out['hook'], 'get-cron-event: hook echoed' );
+ap_true( is_array( $out ) && 1 === count( $out ), 'list-cron-events: hook+args_signature narrows to one event (get-cron-event semantics)' );
+ap_eq( 'sn_analytics_rollup', $out[0]['hook'], 'list-cron-events: filtered hook echoed' );
 
-// get-cron-event (unknown hook → null)
-$out = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array(
-	'hook'           => 'wp_version_check',
+// unknown hook filter → empty array (not an error, not null)
+$out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array(
+	'hook'           => 'snx_never_scheduled_hook',
 	'args_signature' => md5( serialize( array() ) ),
 ) );
-ap_true( null === $out, 'get-cron-event: unknown hook returns null per schema' );
+ap_true( is_array( $out ) && 0 === count( $out ), 'list-cron-events: unknown hook filter returns empty array' );
 
 // get-cron-history
 $out = wp_get_ability( 'signal-noise/get-cron-history' )->execute( array( 'hook' => 'sn_analytics_rollup' ) );
@@ -777,15 +766,6 @@ ap_reset_caps();
 
 echo "\nCategory: read/diagnostics — required + enum validation\n";
 
-// get-cron-event: missing hook
-$res = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array( 'args_signature' => 'abc' ) );
-ap_true( is_wp_error( $res ), 'get-cron-event: missing hook → WP_Error' );
-ap_eq( 'ability_invalid_input', $res->get_error_code(), 'get-cron-event: code is invalid-input' );
-
-// get-cron-event: missing args_signature
-$res = wp_get_ability( 'signal-noise/get-cron-event' )->execute( array( 'hook' => 'x' ) );
-ap_true( is_wp_error( $res ), 'get-cron-event: missing args_signature → WP_Error' );
-
 // get-cron-history: missing hook
 $res = wp_get_ability( 'signal-noise/get-cron-history' )->execute( array() );
 ap_true( is_wp_error( $res ), 'get-cron-history: missing hook → WP_Error' );
@@ -817,23 +797,12 @@ $out = wp_get_ability( 'signal-noise/clear-template-overrides' )->execute( array
 ap_true( is_array( $out ) && isset( $out['ok'], $out['count'], $out['message'] ), 'clear-template-overrides: required keys' );
 ap_eq( 2, $out['count'], 'clear-template-overrides: 2 cleared per filter' );
 
-// full-reset
-$out = wp_get_ability( 'signal-noise/full-reset' )->execute( array() );
-ap_true( is_array( $out ) && isset( $out['ok'], $out['message'], $out['data'] ), 'full-reset: required keys' );
-ap_eq( true, $out['ok'], 'full-reset: ok=true' );
-
-// force-check-updates
-$out = wp_get_ability( 'signal-noise/force-check-updates' )->execute( array() );
-ap_true( is_array( $out ) && isset( $out['ok'], $out['message'] ), 'force-check-updates: required keys' );
-
 // Capability denial — destructive ops all gated by manage_options.
 $GLOBALS['__test_user_caps'] = array( 'read' => true );
 
 $denied_destructive = array(
 	'signal-noise/purge-all-caches',
 	'signal-noise/clear-template-overrides',
-	'signal-noise/full-reset',
-	'signal-noise/force-check-updates',
 );
 foreach ( $denied_destructive as $slug ) {
 	$res = wp_get_ability( $slug )->execute( array() );
@@ -1131,84 +1100,21 @@ ap_eq( 'ai-generation', $apply_ability['category'], 'v4.3.0: pattern-adoption-ap
 ap_true( isset( $apply_ability['input_schema']['properties']['replacement_markup'] ), 'v4.3.0: pattern-adoption-apply input has replacement_markup' );
 
 // ─── v4.6.0 NEW ABILITIES ─────────────────────────────────────────────
-echo "\n[v4.6.0] new abilities (run-cron-event, pattern-adoption-scan/dismiss; Plausible × 3 removed in v6.0.0):\n";
+echo "\n[v4.6.0] new abilities (run-cron-event, pattern-adoption-scan; Plausible × 3 removed in v6.0.0; pattern-adoption-dismiss unified into dismiss-candidate, removed v8.0.0):\n";
 
 $v460_new = array(
 	'signal-noise/run-cron-event',
 	'signal-noise/pattern-adoption-scan',
-	'signal-noise/pattern-adoption-dismiss',
 );
 
 foreach ( $v460_new as $slug ) {
 	ap_true( null !== wp_get_ability( $slug ), "v4.6.0: ability registered: $slug" );
 }
 
-/* ════════════════════════════════════════════════════════════════════
- * v4.10.0 — list-abilities read-only meta-ability
- *
- * Iterates the GLOBAL wp_get_abilities() registry, deriving namespace +
- * annotation flags via the real getter surface (get_name/get_category/
- * get_meta). Behavioral, not registration-shape: we execute() it and
- * inspect the emitted catalogue.
- * ════════════════════════════════════════════════════════════════════ */
-
-echo "\n[v4.10.0] list-abilities meta-ability:\n";
-
-ap_reset_caps();
-
-// Registered + reachable.
-ap_true( null !== wp_get_ability( 'signal-noise/list-abilities' ), 'v4.10.0: list-abilities registered' );
-
-$plugin_ability_count = count( $GLOBALS['__test_registered_abilities'] );
-
-// Happy path: execute with empty input → catalogue of every registered ability.
-$out = wp_get_ability( 'signal-noise/list-abilities' )->execute( array() );
-ap_true( is_array( $out ) && isset( $out['ok'], $out['count'], $out['namespaces'], $out['items'] ), 'list-abilities: required keys present' );
-ap_eq( true, $out['ok'], 'list-abilities: ok=true' );
-ap_eq( $plugin_ability_count, $out['count'], 'list-abilities: count matches registry size' );
-ap_true( $out['count'] >= count( $expected_abilities ), 'list-abilities: count >= plugin baseline' );
-ap_eq( $out['count'], count( $out['items'] ), 'list-abilities: items length == count' );
-
-// Result includes list-abilities itself (it iterates the live registry).
-$item_names = array_map( function( $it ) { return $it['name']; }, $out['items'] );
-ap_true( in_array( 'signal-noise/list-abilities', $item_names, true ), 'list-abilities: catalogue includes itself' );
-
-// Every item carries the signal-noise namespace + the descriptive fields.
-$all_sn_namespace = true;
-$item_index       = array();
-foreach ( $out['items'] as $it ) {
-	if ( 'signal-noise' !== $it['namespace'] ) { $all_sn_namespace = false; }
-	ap_true( isset( $it['name'], $it['label'], $it['category'], $it['namespace'], $it['annotations'] ), 'list-abilities: item ' . $it['name'] . ' has full shape' );
-	$item_index[ $it['name'] ] = $it;
-}
-ap_true( $all_sn_namespace, 'list-abilities: every item namespace === signal-noise' );
-
-// Annotation booleans surfaced from get_meta()['annotations'].
-ap_eq( true, $item_index['signal-noise/purge-all-caches']['annotations']['destructive'], 'list-abilities: purge-all-caches destructive=true' );
-ap_eq( true, $item_index['signal-noise/get-deploy-status']['annotations']['readonly'], 'list-abilities: get-deploy-status readonly=true' );
-ap_eq( true, $item_index['signal-noise/list-abilities']['annotations']['readonly'], 'list-abilities: list-abilities self readonly=true' );
-// A purge ability has no readonly annotation set → null (the real default).
-ap_true( null === $item_index['signal-noise/purge-all-caches']['annotations']['readonly'], 'list-abilities: unset annotation is null not absent' );
-
-// Namespace tally matches the catalogue.
-ap_true( isset( $out['namespaces']['signal-noise'] ), 'list-abilities: namespaces tally has signal-noise' );
-ap_eq( $out['count'], $out['namespaces']['signal-noise'], 'list-abilities: signal-noise tally == count (all SN here)' );
-
-// Namespace filter — known.
-$filtered = wp_get_ability( 'signal-noise/list-abilities' )->execute( array( 'namespace' => 'signal-noise' ) );
-ap_eq( $plugin_ability_count, $filtered['count'], 'list-abilities: namespace=signal-noise returns all' );
-
-// Namespace filter — unknown → 0.
-$none = wp_get_ability( 'signal-noise/list-abilities' )->execute( array( 'namespace' => 'nonexistent' ) );
-ap_eq( 0, $none['count'], 'list-abilities: namespace=nonexistent returns count 0' );
-ap_eq( array(), $none['items'], 'list-abilities: namespace=nonexistent returns empty items' );
-
-// Capability denial.
-$GLOBALS['__test_user_caps'] = array( 'read' => true );
-$res = wp_get_ability( 'signal-noise/list-abilities' )->execute( array() );
-ap_true( is_wp_error( $res ), 'list-abilities: subscriber denied' );
-ap_eq( 'ability_invalid_permissions', $res->get_error_code(), 'list-abilities: permission-denial code' );
-ap_reset_caps();
+// v4.10.0's list-abilities meta-ability was removed in v8.0.0 (deprecated
+// 7.7.0) — the core catalogue endpoint GET /wp-abilities/v1/abilities is the
+// replacement, so there is no plugin-side catalogue behavior left to test.
+// tests/abilities-removals-v8.php guards the absence.
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -10,7 +10,8 @@
  * metadata is caught in CI, not in a broken editor:
  *
  *   - valid JSON, apiVersion 3, name signal-noise/scheduled
- *   - the three attributes from / until / scheduleId exist and are type string
+ *   - the five attributes from / until / scheduleId / swapId / swapRole exist
+ *     and are type string (swapId/swapRole added by the v8.0.0 version-swap)
  *   - supports.html is false (no raw-HTML edit mode for a gated fragment)
  *   - editorScript is a non-empty handle string that does NOT start with file:
  *
@@ -61,7 +62,7 @@ ok( isset( $meta['name'] ) && 'signal-noise/scheduled' === $meta['name'], "meta:
 
 // The three window/identity attributes, each type string.
 $attrs = isset( $meta['attributes'] ) && is_array( $meta['attributes'] ) ? $meta['attributes'] : array();
-foreach ( array( 'from', 'until', 'scheduleId' ) as $attr ) {
+foreach ( array( 'from', 'until', 'scheduleId', 'swapId', 'swapRole' ) as $attr ) {
 	$present = isset( $attrs[ $attr ] ) && is_array( $attrs[ $attr ] );
 	$is_str  = $present && isset( $attrs[ $attr ]['type'] ) && 'string' === $attrs[ $attr ]['type'];
 	ok( $present && $is_str, "meta: attribute '$attr' exists with type string" );

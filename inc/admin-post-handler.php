@@ -74,6 +74,7 @@ function sn_admin_post_handlers() {
 		// inc/schedule-admin.php to keep the subsystem cohesive.
 		'schedule_run_now'           => 'sn_handle_schedule_run_now',
 		'schedule_repurge'           => 'sn_handle_schedule_repurge',
+		'schedule_swap_run_now'      => 'sn_handle_schedule_swap_run_now',
 	);
 }
 

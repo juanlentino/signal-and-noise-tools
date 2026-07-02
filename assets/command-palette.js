@@ -219,8 +219,9 @@
 
 	dispatch.registerCommand( {
 		// v7.7.0: dispatches get-deploy-status {force_refresh:true} — the
-		// force-check-updates ability is deprecated (removal v8.0.0). The
-		// command name/label keep the user-facing verb.
+		// force-check-updates ability was removed in v8.0.0. The command
+		// name/label keep the user-facing verb (a palette-local identifier,
+		// not an ability slug).
 		name: 'signal-noise/force-check-updates',
 		label: __( 'SN: Force-check updates', 'signal-noise-tools' ),
 		icon: dashicon( 'update' ),
