@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.4] - 2026-07-02: ActivityPub collisions — author-enum guard exemption + evidence-based cron warning
+
+**Headline:** Activating the official ActivityPub plugin surfaced two collisions with our own hardening. First, ActivityPub actor ids ARE author URLs (`/?author=N`), and the author-enumeration guard 301'd every actor fetch to home before the AP plugin could serve it (the "Author URL is not accessible" Site Health critical). AP-negotiated requests are now exempt; plain HTML enumeration probes stay blocked. Second, the cron pipeline check warned "no system cron has been declared" purely because a declaration filter was never set, while the same panel showed events firing on schedule. The warning is now evidence-based: recent firings suppress it.
+
+> **Why PATCH:** hardening calibration and a false-alarm fix, no new capability, no API change.
+
+### Fixed
+- Author-enum guard exempts ActivityPub-negotiated requests (`sn_security_is_activitypub_request()`, guarded by `class_exists`; new `sn_security_author_enum_exempt` filter). Guard refactored into named functions with a decision/action split and its first test suite (`tests/security-headers.php` + AP Query stub).
+- `snt_cron_site_health_result()` no longer raises the silently-disabled-cron warning when any monitored hook fired within 2x its recurrence (proof a system cron runs); fixtures recalibrated both directions.
+
 ## [8.1.3] - 2026-07-02: Fediverse fetcher UAs classified as bots
 
 **Headline:** ActivityPub adoption (theme-side arc) makes Mastodon-class servers fetch feed and post URLs server-to-server. Those fetchers are machine clients, not subscribers: the RSS tracker's bot classifier now recognizes Mastodon/http.rb, Pleroma, Akkoma, Misskey, and Friendica so federation traffic never pollutes subscriber counts.

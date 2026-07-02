@@ -71,23 +71,59 @@ add_action( 'send_headers', function() {
 } );
 
 /**
+ * True when the current request negotiates ActivityPub: the official plugin
+ * is active and recognises the request (Accept: application/activity+json
+ * or an AP query var — its own logic, includes/class-query.php v9.0.2).
+ *
+ * ActivityPub actor ids ARE author URLs (/?author=N), and the AP plugin
+ * serves them via template_include, which runs AFTER template_redirect —
+ * i.e. after the enum guard below. Without this exemption the guard 301s
+ * every actor fetch and federation silently breaks (the "Author URL is not
+ * accessible" Site Health critical, 2026-07-02). Federation publishes the
+ * author's existence by design, so exempting AP-negotiated requests does
+ * not reopen the enumeration the guard exists to block: plain HTML probes
+ * still redirect.
+ */
+function sn_security_is_activitypub_request() {
+	return class_exists( '\Activitypub\Query' )
+		&& \Activitypub\Query::get_instance()->is_activitypub_request();
+}
+
+/**
+ * Decision half of the author-enum guard (split from the redirect+exit
+ * action so tests never cross exit). True = block the request.
+ */
+function sn_security_author_enum_should_redirect() {
+	if ( ! apply_filters( 'sn_security_block_author_enum', true ) ) {
+		return false;
+	}
+	if ( is_user_logged_in() ) {
+		return false;
+	}
+	if ( ! isset( $_GET['author'] ) ) {
+		return false;
+	}
+	if ( apply_filters( 'sn_security_author_enum_exempt', sn_security_is_activitypub_request() ) ) {
+		return false;
+	}
+	return true;
+}
+
+/**
  * Block /?author=N → /author/{username}/ enumeration. Anonymous users
  * hitting /?author=N (any value) get redirected home; logged-in users
  * keep the standard behaviour so the admin author-archive view still
- * works from inside the dashboard.
+ * works from inside the dashboard. ActivityPub-negotiated requests are
+ * exempt (see sn_security_is_activitypub_request above).
  */
-add_action( 'template_redirect', function() {
-	if ( ! apply_filters( 'sn_security_block_author_enum', true ) ) {
+function sn_security_author_enum_guard() {
+	if ( ! sn_security_author_enum_should_redirect() ) {
 		return;
 	}
-	if ( is_user_logged_in() ) {
-		return;
-	}
-	if ( isset( $_GET['author'] ) ) {
-		wp_safe_redirect( home_url( '/' ), 301 );
-		exit;
-	}
-} );
+	wp_safe_redirect( home_url( '/' ), 301 );
+	exit;
+}
+add_action( 'template_redirect', 'sn_security_author_enum_guard' );
 
 /**
  * Lock down /wp-json/wp/v2/users for unauthenticated requests. The
