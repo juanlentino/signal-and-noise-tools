@@ -437,6 +437,14 @@
 	height: 100%;
 	margin: 0;
 	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+}
+/* Anchor a card's own action row (Run scan) to its bottom edge when the row
+   stretches it taller than its content; the Opportunities card's actions sit
+   inside its form (not a direct child), so its layout is untouched. */
+.sn-health-actions .sn-fieldset > .sn-fieldset-actions {
+	margin-top: auto;
 }
 .sn-health-passing {
 	max-width: none;
