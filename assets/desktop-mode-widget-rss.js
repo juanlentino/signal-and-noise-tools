@@ -27,7 +27,6 @@
 	var data        = window.snDesktopData || {};
 	var rssPageUrl  = ( data.pages && data.pages.rss ) || '';
 	// v6.55.0: read RSS activity via the get-rss-stats ability run-path.
-	var RSS_STATS_RUN_PATH = '/wp-abilities/v1/abilities/signal-noise/get-rss-stats/run';
 	var REFRESH_MS  = 5 * 60 * 1000;
 
 	function el( tag, opts ) {
@@ -123,15 +122,12 @@
 		renderLoading( container );
 
 		function refresh() {
-			if ( ! window.wp.apiFetch ) {
-				renderError( container, 'wp.apiFetch unavailable' );
+			if ( ! window.sntAbilityRun ) {
+				renderError( container, 'sntAbilityRun unavailable' );
 				return;
 			}
-			window.wp.apiFetch( {
-				path:   RSS_STATS_RUN_PATH,
-				method: 'POST',
-				data:   { input: {} },
-			} )
+			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
+			window.sntAbilityRun( 'get-rss-stats' )
 				.then( function( res ) {
 					if ( res && res.data ) {
 						renderCard( container, res.data );

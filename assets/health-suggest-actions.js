@@ -10,10 +10,9 @@
  * (only when snt_ai_is_available() returns true).
  *
  * Calls the Abilities API REST surface:
- *   POST /wp-abilities/v1/abilities/signal-noise/ai-alt-suggest/run
- *   POST /wp-abilities/v1/abilities/signal-noise/ai-alt-apply/run
- *   POST /wp-abilities/v1/abilities/signal-noise/ai-drift-suggest/run
- *   POST /wp-abilities/v1/abilities/signal-noise/ai-drift-apply/run
+ *   signal-noise/ai-alt-suggest · ai-alt-apply · ai-drift-suggest ·
+ *   ai-drift-apply (+ the later orphan/link/pattern/dismiss families), all
+ *   dispatched through window.sntAbilityRun with annotation-derived verbs
  *
  * Suggest All: iterates over un-suggested rows in a check section,
  * calls Suggest sequentially with a 500ms throttle, populates each
@@ -32,7 +31,6 @@
 	var __ = ( window.wp.i18n && window.wp.i18n.__ ) || function( s ) { return s; };
 	var SUGGEST_THROTTLE_MS = 500;
 
-	var ABILITY_PATH = '/wp-abilities/v1/abilities/signal-noise/';
 
 	var ABILITY_BY_CHECK = {
 		missing_alt:                         { suggest: 'ai-alt-suggest',                  apply: 'ai-alt-apply' },
@@ -56,12 +54,11 @@
 	 * @param {object} input        Input object matching the ability's input_schema
 	 * @return {Promise<object>}   Resolves with response body; rejects with Error(msg).
 	 */
+	// v7.7.2: transport via the shared runner — the verb comes from the
+	// server-annotation map (the old always-POST 405'd block-migrations-suggest,
+	// which is readonly => GET).
 	function callAbility( abilitySlug, input ) {
-		return window.wp.apiFetch( {
-			path:   ABILITY_PATH + abilitySlug + '/run',
-			method: 'POST',
-			data:   { input: input },
-		} ).catch( function( err ) {
+		return window.sntAbilityRun( abilitySlug, input ).catch( function( err ) {
 			var msg = ( err && err.message ) ? err.message : __( 'Unknown error.', 'signal-noise-tools' );
 			throw new Error( msg );
 		} );

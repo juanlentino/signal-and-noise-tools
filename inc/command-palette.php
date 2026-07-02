@@ -45,7 +45,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'snt-command-palette',
 		plugins_url( 'assets/command-palette.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-commands', 'wp-data', 'wp-i18n', 'wp-api-fetch', 'wp-element', 'wp-html-entities' ),
+		array( 'wp-commands', 'wp-data', 'wp-i18n', 'wp-api-fetch', 'wp-element', 'wp-html-entities', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);

@@ -65,7 +65,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'sn-desktop-mode',
 		plugins_url( 'assets/desktop-mode.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch' ),
+		array( 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -73,7 +73,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget',
 		plugins_url( 'assets/desktop-mode-widget.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch' ),
+		array( 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -82,7 +82,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-actions',
 		plugins_url( 'assets/desktop-mode-widget-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch' ),
+		array( 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -90,7 +90,7 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-rss',
 		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch' ),
+		array( 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);

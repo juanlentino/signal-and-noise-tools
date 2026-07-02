@@ -153,47 +153,24 @@
 	 * @param {object|null} input   Input payload matching the ability's input_schema. Pass null for no input.
 	 * @returns {Promise<any>}      Resolves with the ability's output payload, rejects with WP_Error JSON.
 	 */
-	function executeAbility( name, annotations, input ) {
-		var verb = annotations.readonly    ? 'GET'
-		         : annotations.destructive ? 'DELETE'
-		         :                           'POST';
-		// v2.5.2 URL fix: route includes /abilities/ segment per
-		// class-wp-rest-abilities-v1-run-controller.php source ($rest_base = 'abilities').
-		// The abilities-api docs/rest-api.md documents the URL WITHOUT this
-		// segment — the docs are wrong vs the implementation.
-		var path = '/wp-abilities/v1/abilities/' + name + '/run';
-		var opts = { path: path, method: verb };
-		// v2.5.4: only send input if it's actually populated. The
-		// abilities-api REST controller does NOT JSON-decode the query
-		// string `input` param for GET/DELETE — it returns the raw string
-		// to validate_input(). Sending `?input=%7B%7D` (URL-encoded {})
-		// makes the server read the literal string "{}" and fail
-		// validation against `type: 'object'` schemas (the bug v2.5.3
-		// thought it fixed by always sending {}). For empty input, send
-		// nothing; server reads null; the corresponding PHP schema change
-		// in abilities-registration.php (`type: ['object', 'null']`) lets
-		// validate_input(null) pass.
-		//
-		// For POST requests, the body IS JSON-decoded by WP REST, so
-		// sending {} works fine.
-		var hasInput = input !== null && input !== undefined
-			&& ! ( typeof input === 'object' && Object.keys( input ).length === 0 );
-		if ( hasInput ) {
-			if ( verb === 'POST' ) {
-				opts.data = { input: input };
-			} else {
-				opts.path += '?input=' + encodeURIComponent( JSON.stringify( input ) );
-			}
-		}
-		return wp.apiFetch( opts );
+	// v7.7.2: transport delegated to the shared runner (assets/snt-ability-run.js).
+	// The verb comes from a map localized off the SERVER's annotations, so a
+	// client verb can never drift from the registration again (the v2.5.x
+	// client-side annotation guesses here 405'd whenever server annotations
+	// changed — most recently the v7.7.0 force-check POST of the readonly
+	// get-deploy-status). GET/DELETE input rides as bracket-encoded query
+	// params (?input[k]=v), which the run controller's raw query read parses
+	// to a real array — a JSON `?input=` string fails object schemas.
+	function executeAbility( name, input ) {
+		return window.sntAbilityRun( name, input );
 	}
 
 	// Generic runner: close palette → execute → DOM notice with result.
-	function run( label, name, annotations, input, close, onSuccess ) {
+	function run( label, name, input, close, onSuccess ) {
 		if ( typeof close === 'function' ) {
 			close();
 		}
-		executeAbility( name, annotations, input )
+		executeAbility( name, input )
 			.then( function( res ) {
 				if ( typeof onSuccess === 'function' ) {
 					onSuccess( res, label );
@@ -220,7 +197,6 @@
 			run(
 				__( 'Purge caches', 'signal-noise-tools' ),
 				'signal-noise/purge-all-caches',
-				{ destructive: true, idempotent: true },
 				{},  // ability accepts empty input
 				args.close
 			);
@@ -235,7 +211,6 @@
 			run(
 				__( 'Clear overrides', 'signal-noise-tools' ),
 				'signal-noise/clear-template-overrides',
-				{ destructive: true, idempotent: true },
 				{},
 				args.close
 			);
@@ -253,10 +228,10 @@
 			run(
 				__( 'Force-check', 'signal-noise-tools' ),
 				'signal-noise/get-deploy-status',
-				// NOT marked readonly here on purpose: readonly → GET, and the
-				// run controller does not JSON-decode GET ?input=, so the
-				// force_refresh input must ride a POST body.
-				{ idempotent: true },
+				// v7.7.2: the runner sends this readonly ability as GET with
+				// ?input[force_refresh]=true (the v7.7.0 POST 405'd — readonly
+				// abilities REQUIRE GET, and bracket params are how GET input
+				// actually travels).
 				{ force_refresh: true },
 				args.close,
 				function( res, label ) {
@@ -277,7 +252,6 @@
 			run(
 				__( 'Status', 'signal-noise-tools' ),
 				'signal-noise/get-deploy-status',
-				{ readonly: true, idempotent: true },
 				null,
 				args.close,
 				function( res, label ) {
