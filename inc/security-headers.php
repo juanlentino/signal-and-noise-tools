@@ -71,25 +71,6 @@ add_action( 'send_headers', function() {
 } );
 
 /**
- * True when the current request negotiates ActivityPub: the official plugin
- * is active and recognises the request (Accept: application/activity+json
- * or an AP query var — its own logic, includes/class-query.php v9.0.2).
- *
- * ActivityPub actor ids ARE author URLs (/?author=N), and the AP plugin
- * serves them via template_include, which runs AFTER template_redirect —
- * i.e. after the enum guard below. Without this exemption the guard 301s
- * every actor fetch and federation silently breaks (the "Author URL is not
- * accessible" Site Health critical, 2026-07-02). Federation publishes the
- * author's existence by design, so exempting AP-negotiated requests does
- * not reopen the enumeration the guard exists to block: plain HTML probes
- * still redirect.
- */
-function sn_security_is_activitypub_request() {
-	return class_exists( '\Activitypub\Query' )
-		&& \Activitypub\Query::get_instance()->is_activitypub_request();
-}
-
-/**
  * Decision half of the author-enum guard (split from the redirect+exit
  * action so tests never cross exit). True = block the request.
  */
@@ -103,9 +84,6 @@ function sn_security_author_enum_should_redirect() {
 	if ( ! isset( $_GET['author'] ) ) {
 		return false;
 	}
-	if ( apply_filters( 'sn_security_author_enum_exempt', sn_security_is_activitypub_request() ) ) {
-		return false;
-	}
 	return true;
 }
 
@@ -113,8 +91,13 @@ function sn_security_author_enum_should_redirect() {
  * Block /?author=N → /author/{username}/ enumeration. Anonymous users
  * hitting /?author=N (any value) get redirected home; logged-in users
  * keep the standard behaviour so the admin author-archive view still
- * works from inside the dashboard. ActivityPub-negotiated requests are
- * exempt (see sn_security_is_activitypub_request above).
+ * works from inside the dashboard.
+ *
+ * Hook-order caveat (learned 2026-07-02): WP core registers
+ * redirect_canonical on this same hook and priority BEFORE plugins load,
+ * so a bare /?author=N is usually canonical-redirected (leaking the
+ * nicename in Location) before this guard runs. Move the add_action to
+ * priority 9 if strict enum-blocking ever matters again.
  */
 function sn_security_author_enum_guard() {
 	if ( ! sn_security_author_enum_should_redirect() ) {

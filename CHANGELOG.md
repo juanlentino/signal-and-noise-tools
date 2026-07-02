@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.1.5] - 2026-07-02: Remove the ActivityPub exemption (adoption declined) + config-aware cron pipeline check
+
+**Headline:** Two same-day calibrations. The owner declined the ActivityPub adoption entirely before anything federated, so the v8.1.4 exemption in the author-enum guard lost its referent the same day it shipped: removed, with removal-guard tests keeping it removed. And the Site Health cron pipeline check learns feature gates: hooks whose features are configured off (narration, weekly insights scan, uptime heartbeat) are intentionally unscheduled and no longer downgrade Site Health or read as issues.
+
+> **Why PATCH:** dead-code removal restoring pre-exemption guard semantics + health-check calibration; no API change.
+
+### Improvements
+- `snt_cron_site_health_result()` is config-aware via `snt_cron_hook_is_expected()`: unscheduled hooks of disabled features (narration, weekly insights scan, uptime heartbeat) no longer count as issues and are labeled "not scheduled (feature off)" in the panel. A genuinely missing schedule for an ENABLED feature still downgrades (regression-tested).
+
+### Removed
+- `sn_security_is_activitypub_request()` and the `sn_security_author_enum_exempt` filter from the author-enum guard (`inc/security-headers.php`); the ActivityPub Query test stub (`tests/stubs/`). Removal guards added to `tests/security-headers.php` per the repo's removal-test idiom.
+
+### Cleanup
+- `inc/rss-feed-tracker.php` docblock: the fediverse-UA rationale reworded to its durable justification (preview-card fetchers), dropping the ActivityPub-adoption framing. Hook-order caveat (core `redirect_canonical` outruns the guard) documented in `inc/security-headers.php`.
+
 ## [8.1.4] - 2026-07-02: ActivityPub collisions — author-enum guard exemption + evidence-based cron warning
 
 **Headline:** Activating the official ActivityPub plugin surfaced two collisions with our own hardening. First, ActivityPub actor ids ARE author URLs (`/?author=N`), and the author-enumeration guard 301'd every actor fetch to home before the AP plugin could serve it (the "Author URL is not accessible" Site Health critical). AP-negotiated requests are now exempt; plain HTML enumeration probes stay blocked. Second, the cron pipeline check warned "no system cron has been declared" purely because a declaration filter was never set, while the same panel showed events firing on schedule. The warning is now evidence-based: recent firings suppress it.

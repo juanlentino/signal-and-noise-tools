@@ -101,8 +101,9 @@ function sn_rss_tracker_server_token() {
  * current pattern uses specific tool names; tests in
  * tests/bot-detection.php enforce both directions.
  * v8.1.3 adds fediverse fetcher UAs (Mastodon/http.rb, Pleroma, Akkoma,
- * Misskey, Friendica) — ActivityPub adoption makes these hit the feed and
- * post URLs server-to-server; they are machine clients, never subscribers.
+ * Misskey, Friendica) — fediverse servers fetch pages and feeds
+ * server-to-server (preview cards etc.) whenever anyone shares a URL;
+ * machine clients, never subscribers.
  */
 function sn_rss_tracker_is_bot( $ua ) {
 	if ( '' === $ua ) {
