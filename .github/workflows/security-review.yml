@@ -17,7 +17,7 @@ jobs:
       - uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda
         with:
           claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude-model: claude-sonnet-4-6
+          claude-model: claude-sonnet-5
           comment-pr: 'true'
           run-every-commit: 'false'
           exclude-directories: 'vendor,node_modules,tests'
