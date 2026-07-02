@@ -1091,12 +1091,12 @@
 	position: relative;
 	background: var(--sn-surface, #fff);
 	border: 1px solid var(--sn-border, #c3c4c7);
-	border-radius: 4px;
+	border-radius: var(--sn-radius); /* v8.0.2: token, was a literal 4px */
 	padding: 14px 16px;
 	transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .sn-link-card:hover {
-	border-color: #8c8f94;
+	border-color: var(--sn-text-muted); /* v8.0.2: token, was #8c8f94 */
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 .sn-link-card__label {

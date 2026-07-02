@@ -52,6 +52,7 @@ ap_ok( false !== strpos( $css, '.sn-health-findings .sn-fieldset' ), '#8 Health 
 ap_ok( false !== strpos( $css, '#sn_post_settings .sn-prepop-notice' ), '#14 prepop notice is scoped to the meta box' );
 ap_ok( false !== strpos( $css, '.sn-url-preview:focus-visible' ), '#19 url-preview link has a focus-visible ring' );
 ap_ok( false === strpos( $css, 'sn-state-card' ), '#3 dead .sn-state-card vocabulary is gone (v6.46.1 #104)' );
+ap_ok( false === strpos( $css, 'border-color: #8c8f94' ), 'v8.0.2 link-card hover no longer hardcodes a hex (token cleanup)' );
 
 // ── Group: registry wide flags (#2) ────────────────────────────────────────
 echo "\nGroup: registry — Security audit-log is wide; login/login-defense capped\n";
