@@ -57,3 +57,32 @@ function snt_freshness_card() {
 		'id'    => SNT_FRESHNESS_CARD_ID,
 	);
 }
+
+/**
+ * Enqueue the freshness-dot script on any S&N admin page. The JS is a no-op
+ * unless the freshness card (#snt-freshness-card) is on the page, so gating to
+ * the SN page group (not the exact dashboard tab) is safe — the same pattern as
+ * inc/cron-dashboard-admin.php. Named (not a closure) so it is unit-testable.
+ *
+ * @param string $hook_suffix Current admin page hook suffix.
+ * @return void
+ */
+function snt_freshness_enqueue( $hook_suffix ) {
+	if ( ! function_exists( 'sn_admin_page_hooks' )
+		|| ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+		return;
+	}
+	wp_register_script(
+		'sn-freshness-dot',
+		plugins_url( 'assets/freshness-dot.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', array(
+		'routes' => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
+		'cardId' => SNT_FRESHNESS_CARD_ID,
+	) );
+	wp_enqueue_script( 'sn-freshness-dot' );
+}
+add_action( 'admin_enqueue_scripts', 'snt_freshness_enqueue' );

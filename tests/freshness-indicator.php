@@ -51,5 +51,39 @@ ok( ( $card['id'] ?? '' ) === 'snt-freshness-card', 'card carries the JS-target 
 ok( ! empty( $card['value'] ), 'card has a neutral placeholder value' );
 ok( ! isset( $card['pill'] ), 'card renders NO pill server-side (JS injects it after the check)' );
 
+echo "\nFreshness indicator: enqueue\n";
+
+// Constants + WP stubs the enqueue path touches.
+if ( ! defined( 'SNT_URL' ) ) { define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' ); }
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', __DIR__ . '/../' ); }
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '9.9.9-test' ); }
+if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $p = '', $f = '' ) { return SNT_URL . ltrim( (string) $p, '/' ); } }
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://example.test' . $p; } }
+// Named seam the enqueue guard uses. Pretend one SN admin page hook exists.
+if ( ! function_exists( 'sn_admin_page_hooks' ) ) { function sn_admin_page_hooks( $s = null ) { return array( 'toplevel_page_sn-theme-options' ); } }
+
+$GLOBALS['__reg'] = array(); $GLOBALS['__loc'] = array(); $GLOBALS['__enq'] = array();
+if ( ! function_exists( 'wp_register_script' ) ) { function wp_register_script( $h, $src = '', $d = array(), $v = false, $f = false ) { $GLOBALS['__reg'][ $h ] = array( 'src' => $src, 'deps' => $d, 'ver' => $v, 'foot' => $f ); } }
+if ( ! function_exists( 'wp_localize_script' ) ) { function wp_localize_script( $h, $obj, $data ) { $GLOBALS['__loc'][ $h ] = array( 'obj' => $obj, 'data' => $data ); } }
+if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( $h ) { $GLOBALS['__enq'][] = $h; } }
+
+ok( function_exists( 'snt_freshness_enqueue' ), 'enqueue: snt_freshness_enqueue() is a named, testable callback' );
+
+// On an SN admin page hook, the script registers + localizes + enqueues.
+$GLOBALS['__reg'] = array(); $GLOBALS['__loc'] = array(); $GLOBALS['__enq'] = array();
+snt_freshness_enqueue( 'toplevel_page_sn-theme-options' );
+ok( isset( $GLOBALS['__reg']['sn-freshness-dot'] ), 'registers the sn-freshness-dot script on an SN admin page' );
+ok( strpos( (string) ( $GLOBALS['__reg']['sn-freshness-dot']['src'] ?? '' ), 'freshness-dot.js' ) !== false, 'points at assets/freshness-dot.js' );
+ok( in_array( 'sn-freshness-dot', $GLOBALS['__enq'], true ), 'enqueues the script' );
+$loc = $GLOBALS['__loc']['sn-freshness-dot']['data'] ?? array();
+ok( ( $GLOBALS['__loc']['sn-freshness-dot']['obj'] ?? '' ) === 'sntFreshness', 'localizes under the sntFreshness object' );
+ok( ! empty( $loc['routes'] ) && is_array( $loc['routes'] ), 'localizes the routes list' );
+ok( ( $loc['cardId'] ?? '' ) === 'snt-freshness-card', 'localizes the card id' );
+
+// On a NON-SN screen, nothing is enqueued.
+$GLOBALS['__reg'] = array(); $GLOBALS['__enq'] = array();
+snt_freshness_enqueue( 'edit.php' );
+ok( empty( $GLOBALS['__enq'] ), 'does NOT enqueue on a non-SN admin screen' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
