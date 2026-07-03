@@ -49,40 +49,57 @@ function sn_uptime_status_health_section() {
 }
 
 /**
- * The Uptime monitor panel for the Dashboard → Analytics page (v8.4.0,
- * owner call: the stats live where the numbers are reviewed; v8.4.2:
- * rendered as a proper postbox on the snt_analytics_after_overview seam,
- * directly under the Overview panel — it shipped as a bare section below
- * the fold and read as an afterthought). The mount carries BOTH hook
- * attributes — data-sn-uptime-status marks it as a paintable mount,
- * data-sn-uptime-detail upgrades the shared ability call to the detail
- * tier (availability windows + response times + incidents), so one call
- * still feeds every mount on the page. '' unconfigured; zero remote cost
- * on render, same as every other surface.
+ * The rail Uptime strip for the Analytics header region (v8.5.0): status
+ * tier only — chip + one line. The mount deliberately does NOT carry
+ * data-sn-uptime-detail, so page load costs the status tier alone; the full
+ * monitor lives in the lazy detail panel below the header grid. History:
+ * v8.4.0 put the full monitor on the page, v8.4.2 seated it on the
+ * snt_analytics_after_overview seam; v8.5.0 splits strip/detail and the
+ * header region (inc/analytics-header-region.php) calls both directly —
+ * the seam itself keeps firing, this module just no longer hooks it.
+ * '' unconfigured; zero remote cost on render, same as every surface.
  *
  * @return string Panel HTML, or '' when no token is configured.
  */
-function sn_uptime_status_analytics_section() {
+function sn_uptime_status_rail_strip() {
 	if ( ! sn_uptime_status_configured() ) {
 		return '';
 	}
-	return '<div class="postbox sn-uptime-monitor">'
-		. '<div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Uptime', 'signal-noise-tools' ) . '</span></h2></div>'
-		. '<div class="inside">'
-		. '<div class="sn-uptime-status" data-sn-uptime-status data-sn-uptime-detail>'
+	ob_start();
+	snt_an_panel_open( __( 'Uptime', 'signal-noise-tools' ), array(
+		'panel_class' => 'sn-an-rail-tile sn-uptime-strip',
+	) );
+	echo '<div class="sn-uptime-status" data-sn-uptime-status>'
 		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-noise-tools' ) . '</p>'
-		. '</div>'
-		. '</div>'
 		. '</div>';
+	snt_an_panel_close();
+	return (string) ob_get_clean();
 }
 
 /**
- * Echo wrapper hooked on the Analytics dashboard's after-Overview seam.
+ * The full uptime monitor as a COLLAPSED full-width panel below the header
+ * region (v8.5.0). The body mount is data-sn-uptime-lazy-detail:
+ * assets/uptime-status.js fetches the detail tier only on the panel's first
+ * sn-an-panel-open event — collapsing saves API calls, not just pixels.
+ *
+ * @return string Panel HTML, or '' when no token is configured.
  */
-function sn_uptime_status_render_analytics_section() {
-	echo sn_uptime_status_analytics_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+function sn_uptime_status_detail_panel() {
+	if ( ! sn_uptime_status_configured() ) {
+		return '';
+	}
+	ob_start();
+	snt_an_panel_open( __( 'Uptime detail', 'signal-noise-tools' ), array(
+		'panel_class' => 'sn-uptime-monitor',
+		'collapsible' => true,
+		'collapsed'   => true,
+	) );
+	echo '<div class="sn-uptime-status" data-sn-uptime-lazy-detail>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Expand to load monitor detail…', 'signal-noise-tools' ) . '</p>'
+		. '</div>';
+	snt_an_panel_close();
+	return (string) ob_get_clean();
 }
-add_action( 'snt_analytics_after_overview', 'sn_uptime_status_render_analytics_section' );
 
 /**
  * Panel assets for the two Dashboard-menu surfaces: the home dashboard
