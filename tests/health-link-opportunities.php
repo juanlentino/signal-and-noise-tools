@@ -169,7 +169,8 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 3, 'Coffee Brewing Notes', 'coffee-brewing', $coffee_prose, '2026-07-01 12:00:00' ),
 	mk_row( 4, 'Sundry Observations', 'sundry', $generic_prose, '2026-07-01 13:00:00' ),
 );
-function seed_pair_verdict( $key, $entry ) { $GLOBALS['__options']['sn_ai_link_verdicts'] = array( $key => $entry ); }
+// v8.4.3: one option row PER verdict (the key IS the option name).
+function seed_pair_verdict( $key, $entry ) { $GLOBALS['__options'] = array( $key => $entry ); }
 $GLOBALS['__tags'] = array();
 seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
 $check = sn_health_check_link_opportunities();

@@ -146,7 +146,8 @@ $GLOBALS['__scan_rows'] = array(
 	mk_row( 1, 'Source note', 'source-a', '<p>I said honesty has to be the cheap option and meant it.</p>', '2026-07-01 10:00:00' ),
 	mk_row( 2, 'Honesty has to be the cheap option', 'cheap-option', '<p>target</p>', '2026-07-01 11:00:00' ),
 );
-function seed_link_verdict( $key, $entry ) { $GLOBALS['__options']['sn_ai_link_verdicts'] = array( $key => $entry ); }
+// v8.4.3: one option row PER verdict (the key IS the option name).
+function seed_link_verdict( $key, $entry ) { $GLOBALS['__options'] = array( $key => $entry ); }
 $GLOBALS['__options'] = array();
 $GLOBALS['__transients'] = array();
 $check = sn_health_check_unlinked_mentions();

@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.4.3] - 2026-07-02: Verdict store goes per-row — the Suggest All race
+
+**Headline:** The owner's live screenshots after v8.4.1 showed judged pairs still resurrecting across scan cycles, but with a new signature: shrinking counts (10 → 8 → 6) with a few pairs staying suppressed each round. That is last-writer-wins, not cache volatility. Root cause: v8.4.1 consolidated verdicts into ONE option map, and "Suggest all" fires overlapping requests (its JS throttle is 500 ms; each AI call takes seconds) — concurrent read-modify-writes of the shared map erased each other's freshly written verdicts. The transient era never had this race because every verdict owned its own row. v8.4.3 restores that shape with the durability kept: **each verdict is its own autoload=no option row** (the verdict key is the option name), so overlapping writers have no shared state to clobber. Pruning (180-day age + 300-row cap, oldest first) walks the rows on write; a one-time migration splits any v8.4.1 map remnant into rows and drops it. The purge chain's transient sweep only matches `_transient_`-prefixed rows, so verdict rows survive every flush.
+
+> **Why PATCH:** concurrency bugfix in a store shipped earlier today; no API or settings-schema change.
+
+### Fixed
+- `snt_ai_verdict_store_get/set` are per-row; new `snt_ai_verdict_store_prune()` (wpdb LIKE sweep over `sn_link_verdict_%` / `sn_pair_verdict_%`, `is_callable` guard per the repo's db-handle rule) handles age/cap pruning and the v8.4.1 map migration. Fixtures pin the no-clobber property (a second write leaves the first row untouched), the per-row shape + autoload=no, pruning both ways, and the migration.
+
 ## [8.4.2] - 2026-07-02: Uptime monitor seated as a first-class Analytics panel
 
 **Headline:** Owner feedback on the live v8.4.0 render: the Uptime section sat below Entry/Exit pages as a bare heading and table — "weird down there hidden." It is now a proper postbox card (same chrome as Overview, Traffic sources, and the rest) rendered on a new `snt_analytics_after_overview` composition seam, directly under the Overview panel where an "is everything okay" readout belongs. The tail-append in the page callback is gone; the table drops its standalone frame inside the card (the postbox is the frame).
