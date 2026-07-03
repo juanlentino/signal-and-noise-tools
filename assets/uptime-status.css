@@ -94,12 +94,7 @@
 	font-size: 12px;
 }
 
-/* ── Analytics page monitor (v8.4.0) ── */
-
-.sn-uptime-monitor {
-	max-width: 860px;
-	margin-top: 24px;
-}
+/* ── Analytics page monitor (v8.4.0; postbox card since v8.4.2) ── */
 
 .sn-uw-table {
 	width: 100%;
@@ -107,6 +102,22 @@
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Inside the postbox the card chrome IS the frame — the table drops its own. */
+.sn-uptime-monitor .sn-uw-table {
+	border: 0;
+	box-shadow: none;
+}
+
+.sn-uptime-monitor .sn-uw-table th:first-child,
+.sn-uptime-monitor .sn-uw-table td:first-child {
+	padding-left: 0;
+}
+
+.sn-uptime-monitor .sn-uw-table th:last-child,
+.sn-uptime-monitor .sn-uw-table td:last-child {
+	padding-right: 0;
 }
 
 .sn-uw-table th,

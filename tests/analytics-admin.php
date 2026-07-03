@@ -13,6 +13,8 @@ define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
+// v8.4.2: the dashboard fires the snt_analytics_after_overview seam.
+if ( ! function_exists( 'do_action' ) ) { function do_action( $h = '', ...$args ) {} }
 
 // Escaping + i18n stubs.
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }

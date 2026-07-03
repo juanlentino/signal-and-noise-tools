@@ -113,15 +113,17 @@ unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
 uw_fire_enqueue( 'index.php' );
 uw_ok( ! isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'not enqueued unconfigured (no mount, no wasted requests)' );
 
-// ─── Test 5: Analytics page monitor section (v8.4.0) ─────────────────
-echo "\nTest 5: Analytics page section\n";
+// ─── Test 5: Analytics page monitor panel (v8.4.0; postbox seam v8.4.2) ──
+echo "\nTest 5: Analytics page panel\n";
 uw_ok( '' === sn_uptime_status_analytics_section(), 'empty string without a token' );
 $GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
 $html = sn_uptime_status_analytics_section();
 uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ) && false !== strpos( $html, 'data-sn-uptime-detail' ), 'detail mount carries BOTH hook attributes (one ability call feeds every mount)' );
-uw_ok( false !== strpos( $html, '>Uptime<' ), 'section heading present' );
+uw_ok( false !== strpos( $html, 'postbox' ) && false !== strpos( $html, 'postbox-header' ) && false !== strpos( $html, 'hndle' ), 'renders as a first-class postbox card (v8.4.2 — not a bare section below the fold)' );
+uw_ok( false !== strpos( $html, '>Uptime<' ), 'panel heading present' );
 uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
-uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the Analytics section render (async contract)' );
+uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the Analytics panel render (async contract)' );
+uw_ok( in_array( 'sn_uptime_status_render_analytics_section', $GLOBALS['__actions']['snt_analytics_after_overview'] ?? array(), true ), 'panel hooks the after-Overview seam (renders under the Overview panel)' );
 
 uw_fire_enqueue( 'dashboard_page_sn-analytics' );
 uw_ok( isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'assets enqueued on the Analytics page hook when configured' );
