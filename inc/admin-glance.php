@@ -11,6 +11,7 @@
  *   [
  *     'label'     => string,            // muted small caption
  *     'value'     => string,            // the headline figure (~16-18px)
+ *     'id'        => string (optional), // DOM id hook for progressive JS
  *     'meta_html' => string (optional), // pre-escaped / kses-safe sub-line
  *     'pill'      => [                   // optional status chip
  *       'kind' => 'ok' | 'warn' | 'err',
@@ -58,7 +59,14 @@ function sn_admin_glance_grid( array $cards ) {
 		$label = isset( $card['label'] ) ? (string) $card['label'] : '';
 		$value = isset( $card['value'] ) ? (string) $card['value'] : '';
 
-		echo '<div class="sn-glance-card">';
+		// Optional DOM id hook for progressive JS.
+		$card_id = isset( $card['id'] ) && '' !== $card['id'] ? (string) $card['id'] : '';
+
+		echo '<div class="sn-glance-card"';
+		if ( '' !== $card_id ) {
+			echo ' id="' . esc_attr( $card_id ) . '"';
+		}
+		echo '>';
 		echo '<p class="sn-glance-card__label">' . esc_html( $label ) . '</p>';
 		echo '<p class="sn-glance-card__value">' . esc_html( $value ) . '</p>';
 

@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.5.1] - 2026-07-03: Dashboard cache-freshness dot
+
+**Headline:** The Dashboard first-glance grid gains a small **Caches** card that answers "is the edge serving current pages?" at a glance. It runs a check from your browser — for each cache-critical route (home, /notes/, /provenance/) it fetches the live page and a cache-busted variant and compares their combined-CSS hash; a mismatch means that route is stale (green **Fresh N/N**, amber **N stale · purge needed**, **Unknown** if a fetch fails). This is the exact signal the manual sweep uses ("expect the current sn-styles-<hash> everywhere") and would have caught the 2026-07-02 pruned-CSS 404s.
+
+> **Why PATCH:** surfaces an existing signal (the combined-CSS hash) and closes the admin's staleness blind spot — no new subsystem, no theme/worker change, no schema/route/ability change. Stage 1 of the "verified purge" arc; the later pipeline (a MINOR) upgrades this same card to a server-side render-epoch report.
+
+### New
+- `inc/freshness-indicator.php` — filterable cache-critical route list (`snt_freshness_routes`) + the "Caches" glance card (`snt_freshness_card`) + the admin enqueue.
+- `assets/freshness-dot.js` — client-side canonical-vs-busted CSS-hash check, filling the card from the admin's browser (a true edge vantage; the origin box can't probe its own public edge post-lockdown).
+
+### Improvements
+- `sn_admin_glance_grid()` cards accept an optional escaped `id` (a DOM hook for progressive JS); backward compatible.
+
 ## [8.5.0] - 2026-07-03: The Analytics page redesign — crisp console on postbox, one design, no scroll wasted
 
 **Headline:** The Dashboard → Analytics page was three eras in a trench coat: the v6.5.x dense layout, native postbox chrome, and the v8.4.x uptime table stacked below the fold. It is now ONE design, brainstormed and approved panel by panel (visual companion mockups + a live owner review of the mock-harness previews). The landing answers the daily read above the fold at every desktop width: a full four-plus-KPI **Overview** (deltas now carry prior-period tooltips) at 2/3 width beside a rail with the **Uptime strip** (status tier only) and the new **Movers** tile (top posts by views delta vs the prior window, 15-min transient); under them the new **Pulse strip** packs scroll-depth bands, read-time bands, a bot-share microspark, and today-so-far into one hairline row — durable reads only, never AE, never remote. The full uptime monitor collapsed into an **Uptime detail** panel whose detail-tier fetch fires only on first expand (collapsing saves API calls, not just pixels; localStorage remembers your choice). The Content view regrouped by question — Top pages (10 visible) beside Top sources (all 10) + Referrer-categories chips, then Entry/Exit/Low-engagement as one journeys row — with every long table clamped to a visible count and a "View all N" expander (full rows stay in the DOM; display-only). Owner rules baked in: "keep the postbox feel" (real postbox shells, crisp-console tokens inside — hairlines, 3px radius, 600-weight tabular numerals), "no blank spaces" (columns balance, the rail stretches), "the shorter the scroll, the better" (grids hold two columns down to WP's own 782px breakpoint).
