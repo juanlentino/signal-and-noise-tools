@@ -260,3 +260,54 @@
 		} );
 	}
 } )();
+
+/* v8.5.0: Analytics row clamp + collapsible panels. The clamp is
+ * display-only (rows are already in the DOM — zero extra queries); the
+ * collapse persists per-panel in localStorage and announces opens via the
+ * sn-an-panel-open event so lazy consumers (the uptime detail tier) can
+ * fetch on first expand instead of on page load. */
+( function () {
+	'use strict';
+	var LS_PREFIX = 'sn-an-panel-';
+
+	document.addEventListener( 'click', function ( e ) {
+		var viewall = e.target.closest( '.sn-an-viewall' );
+		if ( viewall ) {
+			var clamp = viewall.closest( '.sn-an-clamp' );
+			if ( clamp ) {
+				var open = clamp.classList.toggle( 'sn-an-clamp--open' );
+				viewall.textContent = open
+					? 'Show fewer'
+					: 'View all ' + ( clamp.getAttribute( 'data-sn-an-total' ) || '' );
+			}
+			return;
+		}
+		var toggle = e.target.closest( '.sn-an-toggle' );
+		if ( toggle ) {
+			var panel = toggle.closest( '[data-sn-an-collapsible]' );
+			if ( ! panel ) { return; }
+			var collapsed = panel.classList.toggle( 'sn-an-collapsed' );
+			toggle.setAttribute( 'aria-expanded', collapsed ? 'false' : 'true' );
+			try { window.localStorage.setItem( LS_PREFIX + panel.getAttribute( 'data-sn-an-collapsible' ), collapsed ? '1' : '0' ); } catch ( err ) {}
+			if ( ! collapsed ) {
+				panel.dispatchEvent( new CustomEvent( 'sn-an-panel-open', { bubbles: true } ) );
+			}
+		}
+	} );
+
+	// Restore persisted state on load; fire the open event for restored-open
+	// panels so lazy consumers fetch when the user left the panel open.
+	document.querySelectorAll( '[data-sn-an-collapsible]' ).forEach( function ( panel ) {
+		var key = LS_PREFIX + panel.getAttribute( 'data-sn-an-collapsible' );
+		var saved = null;
+		try { saved = window.localStorage.getItem( key ); } catch ( err ) {}
+		if ( null === saved ) { return; }
+		var collapsed = '1' === saved;
+		panel.classList.toggle( 'sn-an-collapsed', collapsed );
+		var btn = panel.querySelector( '.sn-an-toggle' );
+		if ( btn ) { btn.setAttribute( 'aria-expanded', collapsed ? 'false' : 'true' ); }
+		if ( ! collapsed ) {
+			panel.dispatchEvent( new CustomEvent( 'sn-an-panel-open', { bubbles: true } ) );
+		}
+	} );
+} )();

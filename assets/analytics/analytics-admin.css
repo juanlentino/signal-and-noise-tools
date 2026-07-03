@@ -282,3 +282,23 @@
 /* Cross-tab drill-down panel. v6.9.0 */
 .sn-an-drill { border-left: 3px solid var(--wp-admin-theme-color, #2271b1); }
 .sn-an-drill .sn-an-subh { font-size: 13px; color: #50575e; }
+
+/* ── v8.5.0: row clamp — long tables render fully, display 5 (or 3) ──────── */
+.sn-an-clamp--5:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+6) { display: none; }
+.sn-an-clamp--3:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+4) { display: none; }
+.sn-an-viewall {
+	display: block; width: 100%; padding: 6px 0 2px; margin: 0;
+	background: none; border: 0; cursor: pointer;
+	color: #2271b1; font-size: 12px; text-align: left;
+}
+.sn-an-viewall:hover { color: #135e96; }
+.sn-an-clamp--open .sn-an-viewall { color: var(--sn-text-muted, #646970); }
+
+/* ── v8.5.0: collapsible panels (uptime detail) ──────────────────────────── */
+.sn-an-collapsed > .inside { display: none; }
+.sn-an-toggle {
+	margin-left: auto; padding: 0 12px; background: none; border: 0; cursor: pointer;
+	color: var(--sn-text-muted, #646970);
+}
+.sn-an-toggle::before { content: "\2303"; display: inline-block; transition: transform .15s ease; }
+.sn-an-collapsed .sn-an-toggle::before { transform: rotate(180deg); }
