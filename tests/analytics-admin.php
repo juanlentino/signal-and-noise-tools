@@ -157,6 +157,7 @@ if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
+require_once __DIR__ . '/../inc/analytics-view-content.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
 

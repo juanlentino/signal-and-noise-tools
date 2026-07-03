@@ -455,27 +455,8 @@ function snt_analytics_render_dashboard() {
 
 		case 'content':
 		default:
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
-			// Brand-folded sources (self-referrals + www + multi-host providers
-			// collapsed); the sparkline series is summed across each label's member
-			// hosts, and the drill token carries the canonical label (resolved back
-			// to its member hosts by the brand-aware referrer drill-down).
-			$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
-			$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer' );
-			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
-			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
-			// v6.10.0: entry (landing) + exit pages. Both are HUMAN-ONLY — the
-			// global Human/Suspect/Bot control does not apply (no class column),
-			// consistent with the human-only Plausible history. Entry = live AE
-			// rollup + historical import merged; exit = historical only.
-			if ( function_exists( 'snt_analytics_render_pageroles_table' ) && function_exists( 'sn_analytics_top_entry_pages' ) ) {
-				echo '<p class="sn-an-sep sn-an-sep--full">Entry &amp; exit pages are <strong>not segmented by traffic class</strong> (human only).</p>';
-				snt_analytics_render_pageroles_table( sn_analytics_top_entry_pages( $from, $to, 25 ), 'entry' );
-				snt_analytics_render_pageroles_table( sn_analytics_top_exit_pages( $from, $to, 25 ), 'exit' );
-			}
-			echo '</div>';
+			// v8.5.0: regrouped landing — inc/analytics-view-content.php.
+			snt_analytics_render_view_content( $from, $to, $class, $granularity );
 			break;
 	}
 	echo '</div>';

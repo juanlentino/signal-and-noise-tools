@@ -365,7 +365,7 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
  */
 function snt_analytics_render_referrer_categories( $cats ) {
 	snt_an_panel_open( __( 'Traffic sources', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-refcats">';
+	echo '<div class="sn-an-panel sn-an-refcats sn-an-refcats--chips">'; // v8.5.0: chips compaction (CSS-only)
 	$total = 0;
 	foreach ( (array) $cats as $c ) {
 		$total += (int) ( $c['views'] ?? 0 );
@@ -546,6 +546,7 @@ function snt_analytics_render_paths_table( $paths ) {
 		snt_an_panel_close();
 		return;
 	}
+	snt_an_clamp_open( count( $paths ), 5 ); // v8.5.0: full rows in the DOM, 5 visible
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Path</th>'
 		. '<th scope="col" class="manage-column num">Views</th>'
@@ -563,6 +564,7 @@ function snt_analytics_render_paths_table( $paths ) {
 			. '</tr>';
 	}
 	echo '</tbody></table>';
+	snt_an_clamp_close( count( $paths ), 5 );
 	snt_an_panel_close();
 }
 
@@ -584,6 +586,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		return;
 	}
 	$has_spark = ! empty( $series );
+	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	if ( $has_spark ) {
@@ -606,6 +609,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		echo '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
+	snt_an_clamp_close( count( $rows ), 5 );
 	snt_an_panel_close();
 }
 
@@ -777,6 +781,7 @@ function snt_analytics_render_lowengage( $rows ) {
 		snt_an_panel_close();
 		return;
 	}
+	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Page</th>'
 		. '<th scope="col" class="manage-column num">Views</th>'
@@ -792,6 +797,7 @@ function snt_analytics_render_lowengage( $rows ) {
 			. '</tr>';
 	}
 	echo '</tbody></table>';
+	snt_an_clamp_close( count( $rows ), 5 );
 	snt_an_panel_close();
 }
 
@@ -970,6 +976,7 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 		snt_an_panel_close();
 		return;
 	}
+	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Path</th>'
 		. '<th scope="col" class="manage-column num">Views</th>'
@@ -983,6 +990,7 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 			. '</tr>';
 	}
 	echo '</tbody></table>';
+	snt_an_clamp_close( count( $rows ), 5 );
 	snt_an_panel_close();
 }
 
