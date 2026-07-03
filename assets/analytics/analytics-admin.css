@@ -286,6 +286,7 @@
 /* ── v8.5.0: row clamp — long tables render fully, display 5 (or 3) ──────── */
 .sn-an-clamp--5:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+6) { display: none; }
 .sn-an-clamp--3:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+4) { display: none; }
+.sn-an-clamp--10:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+11) { display: none; }
 .sn-an-viewall {
 	display: block; width: 100%; padding: 6px 0 2px; margin: 0;
 	background: none; border: 0; cursor: pointer;
@@ -338,7 +339,7 @@
 .sn-an-mover-more { display: inline-block; margin-top: 4px; font-size: 12px; }
 
 /* ── v8.5.0: referrer categories as chips (CSS-only compaction) ──────────── */
-.sn-an-refcats--chips .sn-an-refcats-bars { display: flex; flex-wrap: wrap; gap: 4px; }
+.sn-an-refcats--chips .sn-an-refcats-bars { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
 .sn-an-refcats--chips .sn-an-refcat { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--sn-radius, 3px); background: #f0f6fc; font-size: 12px; }
 .sn-an-refcats--chips .sn-an-refcat-h { display: flex; gap: 6px; }
 .sn-an-refcats--chips .sn-an-refcat-bar { display: none; }
@@ -362,3 +363,11 @@
 .sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 1.7rem; font-weight: 600; }
 .sn-an-postbox .sn-kpi,
 .sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-border); }
+
+/* ── v8.5.0: rail stretches to the Overview's height — no dead space under
+   the Movers tile; mover rows carry muted views beside the delta. ───────── */
+.sn-an-header-grid { align-items: stretch; }
+.sn-an-movers { flex: 1; display: flex; flex-direction: column; }
+.sn-an-movers .inside { flex: 1; }
+.sn-an-mover-nums { display: inline-flex; gap: 8px; align-items: baseline; }
+.sn-an-mover-views { color: var(--sn-text-muted, #646970); font-size: 11px; }

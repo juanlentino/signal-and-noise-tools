@@ -96,8 +96,11 @@ ok( false !== strpos( $html, '/a/' ) && false !== strpos( $html, '+41' ), 'posit
 ok( false !== strpos( $html, 'sn-an-delta-up' ) && false !== strpos( $html, 'sn-an-delta-down' ), 'semantic delta classes' );
 ok( false !== strpos( $html, 'sn_view=posts' ), 'tile links to the Posts tab' );
 
+echo "\nTest: movers tile enrichment (v8.5.0 rail-fill)\n";
+ok( false !== strpos( $html, 'sn-an-mover-views' ), 'rows carry the muted current-views figure beside the delta' );
+
 echo "\nTest: movers tile empty state\n";
-$GLOBALS['__transients'] = array( 'sn_an_movers_' . md5( '2026-01-01|2026-01-02|human|3' ) => array() );
+$GLOBALS['__transients'] = array( 'sn_an_movers_' . md5( '2026-01-01|2026-01-02|human|5' ) => array() );
 $html = capture( function () { snt_analytics_render_movers_tile( '2026-01-01', '2026-01-02', 'human' ); } );
 ok( false !== strpos( $html, 'No movement in this range yet.' ), 'empty state copy' );
 

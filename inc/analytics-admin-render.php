@@ -364,8 +364,12 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
  * @param array $cats [{category,label,views,visits}]
  */
 function snt_analytics_render_referrer_categories( $cats ) {
-	snt_an_panel_open( __( 'Traffic sources', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-refcats sn-an-refcats--chips">'; // v8.5.0: chips compaction (CSS-only)
+	// v8.5.0: retitled from 'Traffic sources' — it sat directly under the
+	// 'Top sources' table in the new side column and the near-duplicate
+	// titles read as the same panel twice (approved mockup: 'Referrer
+	// categories'). Chips compaction is CSS-only.
+	snt_an_panel_open( __( 'Referrer categories', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<div class="sn-an-panel sn-an-refcats sn-an-refcats--chips">';
 	$total = 0;
 	foreach ( (array) $cats as $c ) {
 		$total += (int) ( $c['views'] ?? 0 );
@@ -379,7 +383,7 @@ function snt_analytics_render_referrer_categories( $cats ) {
 	foreach ( (array) $cats as $c ) {
 		$v   = (int) ( $c['views'] ?? 0 );
 		$pct = (int) round( $v / $total * 100 );
-		echo '<div class="sn-an-refcat">';
+		echo '<div class="sn-an-refcat" title="' . esc_attr( (string) ( $c['label'] ?? '' ) . ': ' . number_format_i18n( $v ) . ' views · ' . number_format_i18n( (int) ( $c['visits'] ?? 0 ) ) . ' visits' ) . '">';
 		echo '<div class="sn-an-refcat-h"><span>' . esc_html( (string) ( $c['label'] ?? '' ) ) . '</span>'
 			. '<span class="num">' . esc_html( number_format_i18n( $v ) . ' · ' . $pct . '%' ) . '</span></div>';
 		echo '<div class="sn-an-refcat-bar"><span style="width:' . esc_attr( max( 1, $pct ) ) . '%"></span></div>';
@@ -546,7 +550,7 @@ function snt_analytics_render_paths_table( $paths ) {
 		snt_an_panel_close();
 		return;
 	}
-	snt_an_clamp_open( count( $paths ), 5 ); // v8.5.0: full rows in the DOM, 5 visible
+	snt_an_clamp_open( count( $paths ), 10 ); // v8.5.0: full rows in the DOM; 10 visible — the primary table fills its column beside the sources stack (owner: no blank spaces)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Path</th>'
 		. '<th scope="col" class="manage-column num">Views</th>'
@@ -564,7 +568,7 @@ function snt_analytics_render_paths_table( $paths ) {
 			. '</tr>';
 	}
 	echo '</tbody></table>';
-	snt_an_clamp_close( count( $paths ), 5 );
+	snt_an_clamp_close( count( $paths ), 10 );
 	snt_an_panel_close();
 }
 
@@ -578,7 +582,7 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param string $empty  Empty-state copy.
  * @param array  $series Optional value-keyed series map for sparklines.
  */
-function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '' ) {
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5 ) {
 	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p>';
@@ -586,7 +590,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		return;
 	}
 	$has_spark = ! empty( $series );
-	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
+	snt_an_clamp_open( count( $rows ), (int) $visible ); // v8.5.0 (content view passes 10 for sources — column balance)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	if ( $has_spark ) {
@@ -609,7 +613,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		echo '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
-	snt_an_clamp_close( count( $rows ), 5 );
+	snt_an_clamp_close( count( $rows ), (int) $visible );
 	snt_an_panel_close();
 }
 

@@ -79,7 +79,19 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLO
 function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__aa']['class_totals']; }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { return $GLOBALS['__aa']['series']; }
 function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
-function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['paths']; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
+	// v8.5.0: window-aware — the PRIOR window returns shifted views so the
+	// Movers tile shows real deltas in the preview.
+	if ( 'PRIOR' === $from ) {
+		$out = array();
+		foreach ( (array) $GLOBALS['__aa']['paths'] as $i => $r ) {
+			$r['views'] = max( 0, (int) round( $r['views'] * ( 0 === $i % 2 ? 0.7 : 1.3 ) ) );
+			$out[] = $r;
+		}
+		return $out;
+	}
+	return $GLOBALS['__aa']['paths'];
+}
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 
 // Derived + buckets seams.
@@ -101,6 +113,9 @@ function sn_analytics_distribution( $metric, $from, $to, $class = 'human' ) {
 	if ( 'scroll' === $metric ) { return array( array( 'label' => '0–25%', 'views' => 4 ), array( 'label' => '25–50%', 'views' => 10 ), array( 'label' => '50–75%', 'views' => 20 ), array( 'label' => '75–100%', 'views' => 40 ) ); }
 	return array( array( 'label' => '0–10s', 'views' => 7 ), array( 'label' => '10–30s', 'views' => 15 ), array( 'label' => '30s–2m', 'views' => 30 ), array( 'label' => '3m+', 'views' => 2 ) );
 }
+function sn_analytics_top_entry_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/', 'views' => 98, 'visits' => 91 ), array( 'path' => '/notes/falsifiability-is-the-line/', 'views' => 67, 'visits' => 60 ), array( 'path' => '/notes/start-here/', 'views' => 31, 'visits' => 29 ) ); }
+function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/contact/', 'views' => 54, 'visits' => 50 ), array( 'path' => '/notes/start-here/', 'views' => 41, 'visits' => 38 ) ); }
+function sn_analytics_percentiles( $m, $f, $t, $c = 'human' ) { return array( array( 'label' => 'p50', 'value' => 63.0 ), array( 'label' => 'p75', 'value' => 84.0 ), array( 'label' => 'p90', 'value' => 95.0 ) ); }
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 	return array(
 		array( 'category' => 'search', 'label' => 'Search', 'views' => 120, 'visits' => 70 ),
@@ -140,7 +155,7 @@ if ( ! function_exists( 'sanitize_title' ) ) { function sanitize_title( $s ) { r
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__pv_transients'][ $k ] ?? false; } }
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__pv_transients'][ $k ] = $v; return true; } }
-if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( $f, $t ); } }
+if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( 'PRIOR', 'PRIOR' ); } }
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
@@ -178,6 +193,14 @@ $GLOBALS['__aa']['paths'] = array(
 	array( 'path' => '/',                            'views' => 189, 'visits' => 145, 'scroll_avg' => 38.0,  'time_avg' => 45000.0 ),
 	array( 'path' => '/notes/signal-and-noise',      'views' => 101, 'visits' => 52,  'scroll_avg' => 80.0,  'time_avg' => 200000.0 ),
 	array( 'path' => '/notes/on-tools',              'views' => 78,  'visits' => 41,  'scroll_avg' => 55.0,  'time_avg' => 90000.0 ),
+	// v8.5.0: enough rows to exercise the 10-visible clamp + View all.
+	array( 'path' => '/provenance/',                 'views' => 64,  'visits' => 39,  'scroll_avg' => 62.0,  'time_avg' => 110000.0 ),
+	array( 'path' => '/notes/start-here',            'views' => 51,  'visits' => 33,  'scroll_avg' => 70.0,  'time_avg' => 95000.0 ),
+	array( 'path' => '/about',                       'views' => 44,  'visits' => 30,  'scroll_avg' => 48.0,  'time_avg' => 60000.0 ),
+	array( 'path' => '/notes/signing-the-inputs',    'views' => 39,  'visits' => 26,  'scroll_avg' => 74.0,  'time_avg' => 130000.0 ),
+	array( 'path' => '/music',                       'views' => 31,  'visits' => 22,  'scroll_avg' => 41.0,  'time_avg' => 40000.0 ),
+	array( 'path' => '/notes/detection-scales',      'views' => 26,  'visits' => 18,  'scroll_avg' => 66.0,  'time_avg' => 88000.0 ),
+	array( 'path' => '/colophon',                    'views' => 19,  'visits' => 14,  'scroll_avg' => 52.0,  'time_avg' => 47000.0 ),
 );
 // Country rows (realistic: US heavy, SG, AR, CN).
 $GLOBALS['__aa']['dim'] = array(

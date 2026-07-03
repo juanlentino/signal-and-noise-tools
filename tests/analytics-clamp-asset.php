@@ -20,8 +20,10 @@ echo "analytics-clamp-asset suite - plugin v8.5.0\n";
 echo "\nTest: clamp CSS\n";
 ok( false !== strpos( $css, '.sn-an-clamp--5' ), 'clamp-5 rule exists' );
 ok( false !== strpos( $css, '.sn-an-clamp--3' ), 'clamp-3 rule exists (rail-scale override)' );
+ok( false !== strpos( $css, '.sn-an-clamp--10' ), 'clamp-10 rule exists (the primary Top pages table fills its column)' );
 ok( false !== strpos( $css, 'nth-child(n+6)' ), 'clamp-5 hides from row 6' );
 ok( false !== strpos( $css, 'nth-child(n+4)' ), 'clamp-3 hides from row 4' );
+ok( false !== strpos( $css, 'nth-child(n+11)' ), 'clamp-10 hides from row 11' );
 ok( false !== strpos( $css, '.sn-an-clamp--open' ), 'open state defined' );
 ok( false !== strpos( $css, '.sn-an-viewall' ), 'view-all button styled' );
 

@@ -39,7 +39,7 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	// to its member hosts by the brand-aware referrer drill-down).
 	$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
 	$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer' );
+	snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer', 10 );
 	snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
 	echo '</div>';
 

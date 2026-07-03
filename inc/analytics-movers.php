@@ -81,7 +81,9 @@ function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3 ) {
 }
 
 /**
- * The rail "Movers" tile (v8.5.0 landing). Three rows: path, signed delta.
+ * The rail "Movers" tile (v8.5.0 landing). Up to five rows: path, current
+ * views (muted), signed delta — the rail stretches to the Overview's height,
+ * so the tile fills what used to be blank (owner: "no blank spaces").
  * Links to the Posts tab for the deep dive (trajectory / catalog / velocity).
  *
  * @param string $from  Window start (Y-m-d).
@@ -89,7 +91,7 @@ function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3 ) {
  * @param string $class Traffic class (follows the page filter).
  */
 function snt_analytics_render_movers_tile( $from, $to, $class ) {
-	$movers = sn_analytics_movers( $from, $to, $class, 3 );
+	$movers = sn_analytics_movers( $from, $to, $class, 5 );
 
 	snt_an_panel_open( __( 'Movers', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rail-tile sn-an-movers',
@@ -104,7 +106,8 @@ function snt_analytics_render_movers_tile( $from, $to, $class ) {
 			$sign  = $delta > 0 ? '+' : '';
 			$cls   = $delta > 0 ? 'sn-an-delta-up' : 'sn-an-delta-down';
 			echo '<li><span class="sn-an-mover-path">' . esc_html( (string) $m['path'] ) . '</span>'
-				. '<span class="' . esc_attr( $cls ) . '">' . esc_html( $sign . $delta ) . '</span></li>';
+				. '<span class="sn-an-mover-nums"><span class="sn-an-mover-views">' . esc_html( number_format_i18n( (int) $m['views'] ) ) . '</span>'
+				. '<span class="' . esc_attr( $cls ) . '">' . esc_html( $sign . $delta ) . '</span></span></li>';
 		}
 		echo '</ul>';
 		echo '<a class="sn-an-mover-more" href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=posts' ) ) . '">'
