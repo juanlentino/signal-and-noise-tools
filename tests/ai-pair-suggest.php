@@ -20,7 +20,11 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return $s; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; } }
-if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+// v8.4.1: map-backed option stubs — the verdict store is durable now.
+$GLOBALS['__options'] = array();
+$GLOBALS['__option_autoload'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__option_autoload'][ $k ] = $autoload; return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
@@ -118,6 +122,15 @@ echo "\nTest: dual-stamp verdict cache\n";
 $res2 = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'same stamps: NO second AI call' );
 ok( ( $res2['fingerprint'] ?? '' ) === $res['fingerprint'], 'fingerprint recomputed fresh (never cached)' );
+
+echo "\nTest: verdict memory is DURABLE (v8.4.1 — the persistent-entries bug)\n";
+$GLOBALS['__transients'] = array(); // Breeze purge / v10.22.0 auto-purge flushes every transient
+$res2b = snt_ai_pair_suggest_impl( 1, 2 );
+ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill, no resurrected finding' );
+ok( isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'pair verdicts live in the shared option store' );
+ok( false === ( $GLOBALS['__option_autoload']['sn_ai_link_verdicts'] ?? null ), 'store option is autoload=no' );
+ok( 500 === SNT_AI_PAIR_SUGGEST_MAX_TOKENS, 'pair budget raised to 500 (three-field response was truncating at 300 live)' );
+
 $GLOBALS['__posts'][2]->post_modified_gmt = '2026-07-02 09:00:00'; // TARGET edit invalidates too
 $res3 = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 2 === $GLOBALS['__ai_calls'], 'target-modified change busts the cache (the stamp the mentions check never needed)' );

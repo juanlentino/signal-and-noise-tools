@@ -39,8 +39,72 @@ const SNT_AI_LINK_SUGGEST_SYSTEM = "You are an editor deciding whether a mention
 	"- \"unsure\" when the context is too thin to judge.\n" .
 	"- Output JSON only. No markdown, no preamble.";
 
-const SNT_AI_LINK_SUGGEST_MAX_TOKENS = 120;
+// v8.4.1: 120 → 200. A long two-field reason could still clip at 120; the
+// parser's truncation salvage (below) makes a clipped response survivable,
+// but headroom keeps reasons intact in the first place.
+const SNT_AI_LINK_SUGGEST_MAX_TOKENS = 200;
 const SNT_AI_LINK_ANCHOR_MAX_LENGTH  = 300;
+
+// v8.4.1: durable verdict memory. Verdicts were 30-day TRANSIENTS, and the
+// scan-side judged-noise suppression reads them — but transients are
+// flush-volatile (Breeze/object-cache purges), and since theme v10.22.0
+// EVERY plugin/theme update and Styles save fires the full purge chain. Net
+// effect the owner reported: judged pairs resurrected on every scan after
+// every release ("persistent entries"), each re-judgment re-billing the AI.
+// One autoload=no option holds every verdict for BOTH link surfaces; keys
+// keep their historical sn_link_verdict_/sn_pair_verdict_ md5 forms (the
+// modified-stamp semantics are unchanged — edits still re-nominate).
+const SNT_AI_VERDICT_STORE_OPT     = 'sn_ai_link_verdicts';
+const SNT_AI_VERDICT_STORE_CAP     = 300;
+const SNT_AI_VERDICT_STORE_MAX_AGE = 180 * DAY_IN_SECONDS;
+
+/**
+ * Read one stored verdict.
+ *
+ * @param string $key Full verdict key (sn_link_verdict_… / sn_pair_verdict_…).
+ * @return array|null
+ *
+ * @since 8.4.1
+ */
+function snt_ai_verdict_store_get( $key ) {
+	$store = get_option( SNT_AI_VERDICT_STORE_OPT, array() );
+	return ( is_array( $store ) && isset( $store[ $key ] ) && is_array( $store[ $key ] ) ) ? $store[ $key ] : null;
+}
+
+/**
+ * Write one verdict, stamping ts and pruning: entries past the max age are
+ * dropped, then the oldest are evicted beyond the cap. Stamp-keyed entries
+ * orphan naturally when posts are edited (new key); pruning keeps the
+ * option bounded without a cron.
+ *
+ * @param string $key  Full verdict key.
+ * @param array  $data Verdict payload (verdict/reason/anchor…).
+ *
+ * @since 8.4.1
+ */
+function snt_ai_verdict_store_set( $key, $data ) {
+	$store = get_option( SNT_AI_VERDICT_STORE_OPT, array() );
+	if ( ! is_array( $store ) ) {
+		$store = array();
+	}
+	$data['ts']    = time();
+	$store[ $key ] = $data;
+
+	$cutoff = time() - SNT_AI_VERDICT_STORE_MAX_AGE;
+	foreach ( $store as $k => $entry ) {
+		if ( ! is_array( $entry ) || (int) ( $entry['ts'] ?? 0 ) < $cutoff ) {
+			unset( $store[ $k ] );
+		}
+	}
+	if ( count( $store ) > SNT_AI_VERDICT_STORE_CAP ) {
+		uasort( $store, function ( $a, $b ) {
+			return (int) ( $a['ts'] ?? 0 ) <=> (int) ( $b['ts'] ?? 0 );
+		} );
+		$store = array_slice( $store, count( $store ) - SNT_AI_VERDICT_STORE_CAP, null, true );
+	}
+
+	update_option( SNT_AI_VERDICT_STORE_OPT, $store, false ); // durable, autoload=no
+}
 
 /**
  * Pure impl: AI verdict + splice coordinates for linking one unlinked mention.
@@ -111,10 +175,11 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	// advice-only (empty anchor, can_apply=false).
 	$inside_anchor = snt_ai_link_position_inside_anchor( $raw, $raw_position );
 
-	// Verdict cache: (source, target, source-modified) triple. Content change
-	// = new post_modified = new key, so fingerprints stay honest below.
+	// Verdict memory: (source, target, source-modified) triple. Content
+	// change = new post_modified = new key, so fingerprints stay honest
+	// below. Durable store since v8.4.1 (transients died on every purge).
 	$cache_key = 'sn_link_verdict_' . md5( $source_id . '|' . $target_id . '|' . (string) $source->post_modified_gmt );
-	$cached    = get_transient( $cache_key );
+	$cached    = snt_ai_verdict_store_get( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['verdict'], $cached['reason'] ) ) {
 		$verdict = (string) $cached['verdict'];
 		$reason  = (string) $cached['reason'];
@@ -142,7 +207,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 		$verdict = in_array( (string) $parsed['verdict'], array( 'link', 'skip', 'unsure' ), true ) ? (string) $parsed['verdict'] : 'unsure';
 		$reason  = (string) ( $parsed['reason'] ?? '' );
 
-		set_transient( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason ), 30 * DAY_IN_SECONDS );
+		snt_ai_verdict_store_set( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason ) );
 	}
 
 	// v8.1.1: inside-anchor mentions degrade the splice contract to
@@ -190,6 +255,23 @@ function snt_ai_parse_verdict_json( $text ) {
 		if ( is_array( $parsed ) ) {
 			return $parsed;
 		}
+	}
+	// Truncation salvage (v8.4.1): a response clipped by the token budget
+	// has no closing brace, so neither decode above can save it — the live
+	// "persistent unparseable verdict" class. verdict is the FIRST field by
+	// prompt design, so a field-level regex still rescues the decision;
+	// reason/anchor are taken only when their strings CLOSED (a half string
+	// is dropped, and a link verdict without an anchor already degrades to
+	// advice-only downstream by contract).
+	if ( preg_match( '/"verdict"\s*:\s*"(link|skip|unsure)"/', $text, $m ) ) {
+		$out = array( 'verdict' => $m[1] );
+		if ( preg_match( '/"reason"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"\s*[,}]/', $text, $m2 ) ) {
+			$out['reason'] = stripcslashes( $m2[1] );
+		}
+		if ( preg_match( '/"anchor"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"\s*[,}]/', $text, $m3 ) ) {
+			$out['anchor'] = stripcslashes( $m3[1] );
+		}
+		return $out;
 	}
 	error_log( 'snt_ai verdict unparseable (head): ' . substr( $text, 0, 200 ) );
 	return null;

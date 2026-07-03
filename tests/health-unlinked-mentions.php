@@ -24,7 +24,11 @@ if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return 
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; } }
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { return 'https://x.test/?p=' . (int) $id; } }
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://x.test' . $p; } }
-if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+// v8.4.1: map-backed option stubs — judged-noise reads the DURABLE verdict
+// store now, not flush-volatile transients.
+$GLOBALS['__options'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
 if ( ! function_exists( 'strip_shortcodes' ) ) { function strip_shortcodes( $s ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $s ); } }
@@ -142,21 +146,33 @@ $GLOBALS['__scan_rows'] = array(
 	mk_row( 1, 'Source note', 'source-a', '<p>I said honesty has to be the cheap option and meant it.</p>', '2026-07-01 10:00:00' ),
 	mk_row( 2, 'Honesty has to be the cheap option', 'cheap-option', '<p>target</p>', '2026-07-01 11:00:00' ),
 );
+function seed_link_verdict( $key, $entry ) { $GLOBALS['__options']['sn_ai_link_verdicts'] = array( $key => $entry ); }
+$GLOBALS['__options'] = array();
 $GLOBALS['__transients'] = array();
 $check = sn_health_check_unlinked_mentions();
 ok( 1 === (int) $check['count'], 'unjudged mention pair still nominates (baseline)' );
+seed_link_verdict( link_key( 1, 2, '2026-07-01 10:00:00' ), array( 'verdict' => 'skip', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'stored skip verdict suppresses the mention pair' );
+// v8.4.1 regression (the persistent-entries bug): a verdict parked in the
+// OLD transient location must be invisible to the scan, and a stored
+// verdict must survive a transient flush.
 $GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r' ) );
 $check = sn_health_check_unlinked_mentions();
-ok( 0 === (int) $check['count'], 'cached skip verdict suppresses the mention pair' );
-$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'unsure', 'reason' => 'r' ) );
+ok( 0 === (int) $check['count'], 'suppression reads the store (transient copy irrelevant)' );
+$GLOBALS['__transients'] = array();
 $check = sn_health_check_unlinked_mentions();
-ok( 0 === (int) $check['count'], 'cached unsure verdict suppresses the mention pair' );
-$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 10:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r' ) );
+ok( 0 === (int) $check['count'], 'stored verdict SURVIVES a transient flush — judged pairs stay gone' );
+seed_link_verdict( link_key( 1, 2, '2026-07-01 10:00:00' ), array( 'verdict' => 'unsure', 'reason' => 'r' ) );
 $check = sn_health_check_unlinked_mentions();
-ok( 1 === (int) $check['count'], 'cached link verdict keeps the mention pair' );
-$GLOBALS['__transients'] = array( link_key( 1, 2, '2026-07-01 09:59:59' ) => array( 'verdict' => 'skip', 'reason' => 'r' ) );
+ok( 0 === (int) $check['count'], 'stored unsure verdict suppresses the mention pair' );
+seed_link_verdict( link_key( 1, 2, '2026-07-01 10:00:00' ), array( 'verdict' => 'link', 'reason' => 'r' ) );
+$check = sn_health_check_unlinked_mentions();
+ok( 1 === (int) $check['count'], 'stored link verdict keeps the mention pair' );
+seed_link_verdict( link_key( 1, 2, '2026-07-01 09:59:59' ), array( 'verdict' => 'skip', 'reason' => 'r' ) );
 $check = sn_health_check_unlinked_mentions();
 ok( 1 === (int) $check['count'], 'stale-stamp judgment does NOT suppress (content changed => re-nominate)' );
+$GLOBALS['__options'] = array();
 
 echo "\nTest: v8.1.2 — structurally un-applyable mentions never nominate\n";
 $GLOBALS['__transients'] = array();

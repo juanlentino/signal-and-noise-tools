@@ -105,13 +105,15 @@ function sn_health_pair_top_terms( $tf, $df, $total_docs ) {
  * Whether a candidate pair has already been JUDGED non-actionable.
  *
  * v8.1.2 (owner rule 2026-07-02: "the ones that don't suggest anything are
- * noise"): the Suggest verdict cache doubles as the scan's memory. A cached
- * skip/unsure means the AI already said no; a cached link whose nomination
+ * noise"): the Suggest verdict store doubles as the scan's memory. A stored
+ * skip/unsure means the AI already said no; a stored link whose nomination
  * no longer yields a usable splice contract is advice-only — both suppress
- * the pair. No cache (never judged, or either post edited since — the key
- * carries BOTH modified stamps) keeps the pair nominated. Transients are
- * flush-volatile under the object cache, so a plugin-update flush can
- * resurrect suppressed pairs until one Suggest All pass re-judges them.
+ * the pair. No entry (never judged, or either post edited since — the key
+ * carries BOTH modified stamps) keeps the pair nominated. v8.4.1: the
+ * memory is the DURABLE snt_ai_verdict_store (autoload=no option) — it was
+ * transients, and the v10.22.0 auto-purges flush those on every update,
+ * which resurrected judged pairs after every release (the owner-reported
+ * "persistent entries").
  *
  * @param array $src Source row (ID, post_content, post_modified_gmt).
  * @param array $tgt Target row (ID, post_modified_gmt).
@@ -120,14 +122,14 @@ function sn_health_pair_top_terms( $tf, $df, $total_docs ) {
  * @since 8.1.2
  */
 function sn_health_pair_judged_noise( $src, $tgt ) {
-	if ( ! function_exists( 'get_transient' ) ) {
+	if ( ! function_exists( 'snt_ai_verdict_store_get' ) ) {
 		return false;
 	}
 	$key = 'sn_pair_verdict_' . md5(
 		(int) $src['ID'] . '|' . (int) $tgt['ID'] . '|'
 		. (string) ( $src['post_modified_gmt'] ?? '' ) . '|' . (string) ( $tgt['post_modified_gmt'] ?? '' )
 	);
-	$cached = get_transient( $key );
+	$cached = snt_ai_verdict_store_get( $key );
 	if ( ! is_array( $cached ) || ! isset( $cached['verdict'] ) ) {
 		return false;
 	}
