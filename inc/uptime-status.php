@@ -43,6 +43,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SN_UPTIME_STATUS_TOKEN_OPT', 'sn_betterstack_api_token' );
 define( 'SN_UPTIME_STATUS_TRANSIENT', 'sn_uptime_status_snapshot' );
+define( 'SN_UPTIME_STATUS_AVAIL_TRANSIENT', 'sn_uptime_availability' );
 define( 'SN_UPTIME_STATUS_TTL', 90 );
 define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/v2/' );
 
@@ -118,11 +119,12 @@ function sn_uptime_status_api_get( $resource ) {
 }
 
 /**
- * Normalize one JSON:API resource into a display row.
+ * Normalize one JSON:API resource into a display row. The id rides along
+ * (v8.3.0) so the availability layer can join its per-resource summaries.
  *
  * @param array  $item JSON:API resource ({id,type,attributes}).
  * @param string $kind 'monitor' or 'heartbeat'.
- * @return array {kind,name,status,level,checked_at}
+ * @return array {kind,id,name,status,level,checked_at}
  */
 function sn_uptime_status_row( $item, $kind ) {
 	$attrs  = isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
@@ -130,11 +132,64 @@ function sn_uptime_status_row( $item, $kind ) {
 	$status = (string) ( $attrs['status'] ?? 'pending' );
 	return array(
 		'kind'       => $kind,
+		'id'         => (string) ( $item['id'] ?? '' ),
 		'name'       => $name,
 		'status'     => $status,
 		'level'      => sn_uptime_status_level( $status ),
 		'checked_at' => isset( $attrs['last_checked_at'] ) ? (string) $attrs['last_checked_at'] : null,
 	);
+}
+
+/**
+ * 30-day availability + incident counts per resource (v8.3.0). One map
+ * keyed "kind:id" → {availability:float|null, incidents:int|null}, from
+ * the per-resource summary endpoints (monitors use /sla, heartbeats use
+ * /availability — same attribute shape, verified 2026-07-02). Cached ONE
+ * HOUR (availability barely moves; the status snapshot stays on its own
+ * 90s cadence). Failure is SOFT and circuit-broken: on the first failed
+ * call the remaining calls are skipped and an all-null map is cached for
+ * 10 minutes — statuses must never be held hostage by, or hammer, the
+ * summary endpoints.
+ *
+ * @param array $rows Normalized snapshot rows (kind + id are read).
+ * @return array Map of "kind:id" → array|null.
+ */
+function sn_uptime_status_availability_map( $rows ) {
+	$cached = get_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$from   = gmdate( 'Y-m-d', time() - 30 * 86400 );
+	$to     = gmdate( 'Y-m-d' );
+	$map    = array();
+	$broken = false;
+
+	foreach ( $rows as $row ) {
+		$key = $row['kind'] . ':' . $row['id'];
+		if ( $broken || '' === $row['id'] ) {
+			$map[ $key ] = null;
+			continue;
+		}
+		$path = ( 'monitor' === $row['kind']
+			? 'monitors/' . rawurlencode( $row['id'] ) . '/sla'
+			: 'heartbeats/' . rawurlencode( $row['id'] ) . '/availability'
+		) . '?from=' . $from . '&to=' . $to;
+		$resp = sn_uptime_status_api_get( $path );
+		if ( is_wp_error( $resp ) || ! isset( $resp['data']['attributes'] ) || ! is_array( $resp['data']['attributes'] ) ) {
+			$broken      = true;
+			$map[ $key ] = null;
+			continue;
+		}
+		$attrs       = $resp['data']['attributes'];
+		$map[ $key ] = array(
+			'availability' => isset( $attrs['availability'] ) ? (float) $attrs['availability'] : null,
+			'incidents'    => isset( $attrs['number_of_incidents'] ) ? (int) $attrs['number_of_incidents'] : null,
+		);
+	}
+
+	set_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT, $map, $broken ? 600 : 3600 );
+	return $map;
 }
 
 /**
@@ -172,6 +227,14 @@ function sn_uptime_status_fetch( $force = false ) {
 	}
 	foreach ( $heartbeats['data'] as $item ) {
 		$rows[] = sn_uptime_status_row( $item, 'heartbeat' );
+	}
+
+	// v8.3.0: merge the (separately cached, soft-failing) 30d availability.
+	$avail = sn_uptime_status_availability_map( $rows );
+	foreach ( $rows as $i => $row ) {
+		$entry                        = $avail[ $row['kind'] . ':' . $row['id'] ] ?? null;
+		$rows[ $i ]['availability']   = is_array( $entry ) ? $entry['availability'] : null;
+		$rows[ $i ]['incidents_30d']  = is_array( $entry ) ? $entry['incidents'] : null;
 	}
 
 	$snapshot = array(
@@ -223,7 +286,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/uptime-status', array(
 		'label'               => 'Get Better Stack uptime status',
-		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90-second server-side cache. Pass force_refresh=true to bypass the cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error).',
+		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) plus 30-day availability and incident counts, from server-side caches (90s statuses, 1h availability). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); availability=null means the summary endpoints were unavailable (statuses are still authoritative).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
@@ -250,11 +313,14 @@ add_action( 'wp_abilities_api_init', function () {
 					'items' => array(
 						'type'       => 'object',
 						'properties' => array(
-							'kind'       => array( 'type' => 'string', 'enum' => array( 'monitor', 'heartbeat' ) ),
-							'name'       => array( 'type' => 'string' ),
-							'status'     => array( 'type' => 'string' ),
-							'level'      => array( 'type' => 'string', 'enum' => array( 'ok', 'warn', 'alert' ) ),
-							'checked_at' => array( 'type' => array( 'string', 'null' ) ),
+							'kind'          => array( 'type' => 'string', 'enum' => array( 'monitor', 'heartbeat' ) ),
+							'id'            => array( 'type' => 'string' ),
+							'name'          => array( 'type' => 'string' ),
+							'status'        => array( 'type' => 'string' ),
+							'level'         => array( 'type' => 'string', 'enum' => array( 'ok', 'warn', 'alert' ) ),
+							'checked_at'    => array( 'type' => array( 'string', 'null' ) ),
+							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; null when the summary endpoint was unavailable.' ),
+							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
 						),
 					),
 				),

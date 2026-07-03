@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.3.0] - 2026-07-02: Uptime folded into the S&N Health widget + 30-day availability
+
+**Headline:** Owner call, same day as v8.2.0: one "is everything okay" surface instead of a fifth dashboard box. The standalone "S&N Uptime" widget is gone; the S&N Health widget now ends with an Uptime section (same async mount, still zero-cost on render, absent entirely when no token is configured — no prompt, no dead box). And the uptime rows got richer: each monitor and heartbeat now shows its **30-day availability** (from the per-resource summary endpoints, cached a full hour on their own transient) with incident counts in the tooltip and a "checked Xm ago" stamp on hover; the meta line surfaces 30-day incident totals when everything is currently up. Availability fails soft and circuit-breaks: if the first summary call fails, the rest are skipped and an all-null map is short-cached for 10 minutes — statuses are never held hostage by, and never hammer, the summary endpoints.
+
+> **Why MINOR:** new user-visible information (availability, incidents, checked-ago) + additive ability output fields; the widget consolidation is UI reorganization, not an API change.
+
+### New
+- 30-day availability + incident counts per row: `sn_uptime_status_availability_map()` joins `monitors/{id}/sla` and `heartbeats/{id}/availability` (same attribute shape, different suffixes — verified against the Better Stack docs) into the snapshot rows; 1-hour transient, 10-minute negative cache with a first-failure circuit break. The `signal-noise/uptime-status` ability output gains `id`, `availability`, and `incidents_30d` per row (additive).
+- Uptime section inside the S&N Health widget: the registered callback is now `sn_site_health_widget_render_full()` (the untouched health render + `sn_uptime_status_health_section()`), so the health widget's early-return states stay intact.
+
+### Removed
+- The standalone "S&N Uptime" dashboard widget (`sn_uptime_status`), one release after it shipped — consolidated into S&N Health per the owner. Removal guards in `tests/uptime-status-widget.php` keep the registration gone.
+
+### Improvements
+- Dashboard assets (uptime-status.js/css) now enqueue only when a token is configured — no mount means no wasted requests on every admin login. Token save/clear also drops the availability transient.
+
 ## [8.2.0] - 2026-07-02: In-admin Better Stack status panel
 
 **Headline:** The Better Stack monitor and heartbeat states, rendered natively inside wp-admin (owner-requested; no iframe, no embed, no public route — the public page stays Better Stack-hosted because a status page served by the site it reports on dies with the site). Two surfaces off one data layer: an "S&N Uptime" dashboard widget (the fourth sanctioned widget) and a "Better Stack status" panel in the Connections → Webhooks rail. Renders are zero-cost by contract — the admin prints an instant shell and the data loads async through a new readonly `signal-noise/uptime-status` ability (`sntAbilityRun`, the one JS transport), backed by a 90-second server-side snapshot transient over the Uptime API (monitors + heartbeats, Bearer auth). Failures are never cached, so a Better Stack blip clears on the next panel load.

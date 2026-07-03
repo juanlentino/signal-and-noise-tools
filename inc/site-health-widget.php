@@ -37,7 +37,22 @@ function sn_site_health_widget_register() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	wp_add_dashboard_widget( 'sn_site_health', __( 'S&N Health', 'signal-and-noise-tools' ), 'sn_site_health_widget_render' );
+	wp_add_dashboard_widget( 'sn_site_health', __( 'S&N Health', 'signal-and-noise-tools' ), 'sn_site_health_widget_render_full' );
+}
+
+/**
+ * The registered callback since v8.3.0: the health render plus the Uptime
+ * section (inc/uptime-status-widget.php) — the standalone "S&N Uptime"
+ * widget was consolidated into this one on the owner's call. The inner
+ * render keeps its early-return states, so the section is appended HERE,
+ * not inline; the section is '' when no Better Stack token is configured,
+ * and its data loads async (this render stays zero-cost either way).
+ */
+function sn_site_health_widget_render_full() {
+	sn_site_health_widget_render();
+	if ( function_exists( 'sn_uptime_status_health_section' ) ) {
+		echo sn_uptime_status_health_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+	}
 }
 
 /**

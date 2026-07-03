@@ -390,11 +390,13 @@ function sn_handle_monitoring_save( $post ) {
 			delete_option( $token_opt );
 			if ( function_exists( 'delete_transient' ) ) {
 				delete_transient( 'sn_uptime_status_snapshot' );
+				delete_transient( 'sn_uptime_availability' ); // v8.3.0 map
 			}
 		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
 			update_option( $token_opt, $new_token, false ); // not autoloaded
 			if ( function_exists( 'delete_transient' ) ) {
 				delete_transient( 'sn_uptime_status_snapshot' );
+				delete_transient( 'sn_uptime_availability' ); // v8.3.0 map
 			}
 		}
 	}

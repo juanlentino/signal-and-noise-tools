@@ -30,10 +30,35 @@
 }
 
 .sn-uw-name {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* 30-day availability (v8.3.0) — quiet, right of the name. */
+.sn-uw-avail {
+	flex: none;
+	color: #646970;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Section chrome when the panel lives inside the S&N Health widget (v8.3.0). */
+.sn-uw-section {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sn-uw-head {
+	margin: 0 0 4px;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
 
 .sn-uw-pill {
