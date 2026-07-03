@@ -99,11 +99,13 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 
 	$stripped = wp_strip_all_tags( strip_shortcodes( $raw ) );
 
-	// Verdict memory: BOTH modified stamps — a semantic verdict depends on
-	// both contents. Either post's edit = new key. Durable store since
-	// v8.4.1 (transients died on every purge, resurrecting judged pairs).
-	$cache_key = 'sn_pair_verdict_' . md5( $source_id . '|' . $target_id . '|' . (string) $source->post_modified_gmt . '|' . (string) $target->post_modified_gmt );
-	$cached    = snt_ai_verdict_store_get( $cache_key );
+	// Verdict memory: ID-keyed row, BOTH modified stamps compared in the
+	// payload — a semantic verdict depends on both contents; either post's
+	// edit = stamp mismatch = cache miss. v8.4.5 moved the stamps out of the
+	// key: stamp-keyed rows orphaned on every Apply (wp_update_post bumps
+	// post_modified), resurrecting judged siblings. Durable store since
+	// v8.4.1 (transients died on every purge).
+	$cached = snt_ai_verdict_lookup_pair( $source_id, $target_id, (string) $source->post_modified_gmt, (string) $target->post_modified_gmt );
 	if ( is_array( $cached ) && isset( $cached['verdict'], $cached['reason'], $cached['anchor'] ) ) {
 		$verdict    = (string) $cached['verdict'];
 		$reason     = (string) $cached['reason'];
@@ -134,7 +136,15 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 		$reason     = (string) ( $parsed['reason'] ?? '' );
 		$nomination = (string) ( $parsed['anchor'] ?? '' );
 
-		snt_ai_verdict_store_set( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason, 'anchor' => $nomination ) );
+		snt_ai_verdict_store_set( snt_ai_pair_verdict_key( $source_id, $target_id ), array(
+			'verdict' => $verdict,
+			'reason'  => $reason,
+			'anchor'  => $nomination,
+			'src_id'  => $source_id,
+			'tgt_id'  => $target_id,
+			'src_mod' => (string) $source->post_modified_gmt,
+			'tgt_mod' => (string) $target->post_modified_gmt,
+		) );
 	}
 
 	// Validate the nomination against CURRENT content. The impl, never the

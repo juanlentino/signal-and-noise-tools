@@ -1039,16 +1039,18 @@ function sn_health_check_unlinked_mentions() {
 			}
 			// (b) JUDGED: the Suggest verdict store doubles as the scan's
 			// memory — a stored skip/unsure means the AI already said no.
-			// The key carries the source's modified stamp, so an edit
-			// re-nominates naturally. v8.4.1: DURABLE store (autoload=no
-			// option), not transients — the v10.22.0 auto-purges flush
-			// transients on every update, which resurrected judged pairs.
+			// The stored stamp gates suppression, so an edit re-nominates
+			// naturally. v8.4.1: DURABLE store (autoload=no option), not
+			// transients — the v10.22.0 auto-purges flush transients on
+			// every update, which resurrected judged pairs.
 			// v8.4.4: a judged pair KEEPS its cap slot (renders nothing) —
 			// suppression before the cap freed slots and every re-scan
 			// promoted the next eligible target, so Suggest All never
 			// converged (same treadmill as link_opportunities).
-			if ( function_exists( 'snt_ai_verdict_store_get' ) ) {
-				$judged = snt_ai_verdict_store_get( 'sn_link_verdict_' . md5( (int) $source['ID'] . '|' . (int) $target['ID'] . '|' . (string) ( $source['post_modified_gmt'] ?? '' ) ) );
+			// v8.4.5: ID-keyed lookup, stamp in the payload — Apply restamps
+			// its post's rows so judged siblings survive our own splice.
+			if ( function_exists( 'snt_ai_verdict_lookup_link' ) ) {
+				$judged = snt_ai_verdict_lookup_link( (int) $source['ID'], (int) $target['ID'], (string) ( $source['post_modified_gmt'] ?? '' ) );
 				if ( is_array( $judged ) && isset( $judged['verdict'] ) && 'link' !== (string) $judged['verdict'] ) {
 					$pairs++;
 					continue;

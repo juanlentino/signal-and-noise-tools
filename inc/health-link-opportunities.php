@@ -122,14 +122,19 @@ function sn_health_pair_top_terms( $tf, $df, $total_docs ) {
  * @since 8.1.2
  */
 function sn_health_pair_judged_noise( $src, $tgt ) {
-	if ( ! function_exists( 'snt_ai_verdict_store_get' ) ) {
+	if ( ! function_exists( 'snt_ai_verdict_lookup_pair' ) ) {
 		return false;
 	}
-	$key = 'sn_pair_verdict_' . md5(
-		(int) $src['ID'] . '|' . (int) $tgt['ID'] . '|'
-		. (string) ( $src['post_modified_gmt'] ?? '' ) . '|' . (string) ( $tgt['post_modified_gmt'] ?? '' )
+	// v8.4.5: ID-keyed lookup with the stamps compared in the payload (the
+	// lookup also reads + migrates pre-v8.4.5 stamp-keyed rows). Apply
+	// restamps its post's rows, so judged siblings survive our own splice;
+	// a real edit still re-nominates.
+	$cached = snt_ai_verdict_lookup_pair(
+		(int) $src['ID'],
+		(int) $tgt['ID'],
+		(string) ( $src['post_modified_gmt'] ?? '' ),
+		(string) ( $tgt['post_modified_gmt'] ?? '' )
 	);
-	$cached = snt_ai_verdict_store_get( $key );
 	if ( ! is_array( $cached ) || ! isset( $cached['verdict'] ) ) {
 		return false;
 	}

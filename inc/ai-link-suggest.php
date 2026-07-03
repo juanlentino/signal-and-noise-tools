@@ -150,6 +150,164 @@ function snt_ai_verdict_store_prune() {
 }
 
 /**
+ * Canonical verdict keys: ID-only since v8.4.5. The modified stamps used to
+ * be part of the key, which orphaned every sibling verdict the moment
+ * Apply's own wp_update_post bumped the source's post_modified — judged
+ * pairs resurrected on the next scan and re-billed on the next Suggest (the
+ * owner's "still doing the same" on v8.4.4). The stamps now live INSIDE the
+ * payload (src_mod / tgt_mod, with src_id / tgt_id for the restamp sweep);
+ * lookups compare them there, so the invalidation semantics are unchanged
+ * while the rows survive our own applies.
+ *
+ * @param int $src_id Source post id.
+ * @param int $tgt_id Target post id.
+ * @return string Option name.
+ *
+ * @since 8.4.5
+ */
+function snt_ai_pair_verdict_key( $src_id, $tgt_id ) {
+	return 'sn_pair_verdict_' . md5( (int) $src_id . '|' . (int) $tgt_id );
+}
+
+/**
+ * Mention-verdict key twin of snt_ai_pair_verdict_key().
+ *
+ * @param int $src_id Source post id.
+ * @param int $tgt_id Target post id.
+ * @return string Option name.
+ *
+ * @since 8.4.5
+ */
+function snt_ai_link_verdict_key( $src_id, $tgt_id ) {
+	return 'sn_link_verdict_' . md5( (int) $src_id . '|' . (int) $tgt_id );
+}
+
+/**
+ * Look up a PAIR verdict for the current content generation: the ID-keyed
+ * row suppresses only while BOTH payload stamps match. Falls back to the
+ * pre-v8.4.5 stamp-embedded key (findable exactly while the stamps still
+ * match, same semantics it always had) and migrates it forward on hit so a
+ * pre-upgrade judgment is never re-billed.
+ *
+ * @param int    $src_id  Source post id.
+ * @param int    $tgt_id  Target post id.
+ * @param string $src_mod Source post_modified_gmt.
+ * @param string $tgt_mod Target post_modified_gmt.
+ * @return array|null Verdict payload, or null when unjudged / stale.
+ *
+ * @since 8.4.5
+ */
+function snt_ai_verdict_lookup_pair( $src_id, $tgt_id, $src_mod, $tgt_mod ) {
+	$src_id  = (int) $src_id;
+	$tgt_id  = (int) $tgt_id;
+	$src_mod = (string) $src_mod;
+	$tgt_mod = (string) $tgt_mod;
+
+	$row = snt_ai_verdict_store_get( snt_ai_pair_verdict_key( $src_id, $tgt_id ) );
+	if ( is_array( $row ) ) {
+		return ( (string) ( $row['src_mod'] ?? '' ) === $src_mod && (string) ( $row['tgt_mod'] ?? '' ) === $tgt_mod ) ? $row : null;
+	}
+
+	$legacy_key = 'sn_pair_verdict_' . md5( $src_id . '|' . $tgt_id . '|' . $src_mod . '|' . $tgt_mod );
+	$legacy     = snt_ai_verdict_store_get( $legacy_key );
+	if ( ! is_array( $legacy ) ) {
+		return null;
+	}
+	$legacy['src_id']  = $src_id;
+	$legacy['tgt_id']  = $tgt_id;
+	$legacy['src_mod'] = $src_mod;
+	$legacy['tgt_mod'] = $tgt_mod;
+	update_option( snt_ai_pair_verdict_key( $src_id, $tgt_id ), $legacy, false );
+	delete_option( $legacy_key );
+	return $legacy;
+}
+
+/**
+ * Mention-verdict twin of snt_ai_verdict_lookup_pair() — single stamp (the
+ * mentions check never needed the target's).
+ *
+ * @param int    $src_id  Source post id.
+ * @param int    $tgt_id  Target post id.
+ * @param string $src_mod Source post_modified_gmt.
+ * @return array|null Verdict payload, or null when unjudged / stale.
+ *
+ * @since 8.4.5
+ */
+function snt_ai_verdict_lookup_link( $src_id, $tgt_id, $src_mod ) {
+	$src_id  = (int) $src_id;
+	$tgt_id  = (int) $tgt_id;
+	$src_mod = (string) $src_mod;
+
+	$row = snt_ai_verdict_store_get( snt_ai_link_verdict_key( $src_id, $tgt_id ) );
+	if ( is_array( $row ) ) {
+		return ( (string) ( $row['src_mod'] ?? '' ) === $src_mod ) ? $row : null;
+	}
+
+	$legacy_key = 'sn_link_verdict_' . md5( $src_id . '|' . $tgt_id . '|' . $src_mod );
+	$legacy     = snt_ai_verdict_store_get( $legacy_key );
+	if ( ! is_array( $legacy ) ) {
+		return null;
+	}
+	$legacy['src_id']  = $src_id;
+	$legacy['tgt_id']  = $tgt_id;
+	$legacy['src_mod'] = $src_mod;
+	update_option( snt_ai_link_verdict_key( $src_id, $tgt_id ), $legacy, false );
+	delete_option( $legacy_key );
+	return $legacy;
+}
+
+/**
+ * Restamp every verdict row involving $post_id to its post-apply modified
+ * stamp. Called ONLY from snt_ai_link_apply_impl after its own
+ * wp_update_post: our splice is not an owner edit, so the AI's judgments of
+ * this post's OTHER pairs still stand. A real editor save never restamps,
+ * so it still re-nominates everything for the post. Legacy rows carry no
+ * ids and are skipped (they orphan on apply exactly as before v8.4.5).
+ * The ts is deliberately preserved — restamping is not a fresh judgment.
+ *
+ * @param int    $post_id      The post Apply just wrote.
+ * @param string $new_modified Its post_modified_gmt after the write.
+ *
+ * @since 8.4.5
+ */
+function snt_ai_verdict_store_restamp( $post_id, $new_modified ) {
+	global $wpdb;
+	// is_callable, not method_exists — the repo rule for db handles.
+	if ( ! $wpdb || ! is_callable( array( $wpdb, 'get_results' ) ) ) {
+		return;
+	}
+	$post_id      = (int) $post_id;
+	$new_modified = (string) $new_modified;
+
+	$rows = $wpdb->get_results(
+		"SELECT option_name, option_value FROM {$wpdb->options}
+		 WHERE option_name LIKE 'sn\\_link\\_verdict\\_%'
+		    OR option_name LIKE 'sn\\_pair\\_verdict\\_%'"
+	);
+	if ( ! is_array( $rows ) ) {
+		return;
+	}
+	foreach ( $rows as $row ) {
+		$value = maybe_unserialize( $row->option_value );
+		if ( ! is_array( $value ) ) {
+			continue;
+		}
+		$dirty = false;
+		if ( isset( $value['src_mod'] ) && (int) ( $value['src_id'] ?? 0 ) === $post_id ) {
+			$value['src_mod'] = $new_modified;
+			$dirty            = true;
+		}
+		if ( isset( $value['tgt_mod'] ) && (int) ( $value['tgt_id'] ?? 0 ) === $post_id ) {
+			$value['tgt_mod'] = $new_modified;
+			$dirty            = true;
+		}
+		if ( $dirty ) {
+			update_option( $row->option_name, $value, false );
+		}
+	}
+}
+
+/**
  * Pure impl: AI verdict + splice coordinates for linking one unlinked mention.
  *
  * @param int $source_id Post that contains the mention.
@@ -218,11 +376,11 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	// advice-only (empty anchor, can_apply=false).
 	$inside_anchor = snt_ai_link_position_inside_anchor( $raw, $raw_position );
 
-	// Verdict memory: (source, target, source-modified) triple. Content
-	// change = new post_modified = new key, so fingerprints stay honest
-	// below. Durable store since v8.4.1 (transients died on every purge).
-	$cache_key = 'sn_link_verdict_' . md5( $source_id . '|' . $target_id . '|' . (string) $source->post_modified_gmt );
-	$cached    = snt_ai_verdict_store_get( $cache_key );
+	// Verdict memory: ID-keyed row, source stamp compared in the payload
+	// (v8.4.5 — stamp-keyed rows orphaned on every Apply). Content change =
+	// stamp mismatch = cache miss, so fingerprints stay honest below.
+	// Durable store since v8.4.1 (transients died on every purge).
+	$cached = snt_ai_verdict_lookup_link( $source_id, $target_id, (string) $source->post_modified_gmt );
 	if ( is_array( $cached ) && isset( $cached['verdict'], $cached['reason'] ) ) {
 		$verdict = (string) $cached['verdict'];
 		$reason  = (string) $cached['reason'];
@@ -250,7 +408,13 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 		$verdict = in_array( (string) $parsed['verdict'], array( 'link', 'skip', 'unsure' ), true ) ? (string) $parsed['verdict'] : 'unsure';
 		$reason  = (string) ( $parsed['reason'] ?? '' );
 
-		snt_ai_verdict_store_set( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason ) );
+		snt_ai_verdict_store_set( snt_ai_link_verdict_key( $source_id, $target_id ), array(
+			'verdict' => $verdict,
+			'reason'  => $reason,
+			'src_id'  => $source_id,
+			'tgt_id'  => $target_id,
+			'src_mod' => (string) $source->post_modified_gmt,
+		) );
 	}
 
 	// v8.1.1: inside-anchor mentions degrade the splice contract to
@@ -425,6 +589,15 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 
 	if ( is_wp_error( $result ) ) {
 		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'wp_update_post failed: %s', 'signal-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
+	}
+
+	// v8.4.5: OUR write just bumped this post's modified stamp — restamp its
+	// verdict rows so the judged siblings stay judged. Without this, one
+	// Apply resurrected every other judged pair on the source (and re-billed
+	// them), which is the owner-reported treadmill v8.4.4 did not close.
+	$updated = get_post( $post_id );
+	if ( $updated ) {
+		snt_ai_verdict_store_restamp( $post_id, (string) $updated->post_modified_gmt );
 	}
 
 	return array(
