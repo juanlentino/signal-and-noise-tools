@@ -331,6 +331,12 @@ function snt_analytics_render_dashboard() {
 		snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
 		snt_analytics_render_trend( $series, $granularity );
 		echo '</div></div>';
+
+		// v8.4.2: composition seam — the Better Stack uptime monitor
+		// (inc/uptime-status-widget.php) hooks here so it reads as a
+		// first-class panel right under Overview, not an afterthought
+		// below the fold (owner: "weird down there hidden").
+		do_action( 'snt_analytics_after_overview', $view );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
 		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
 		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).

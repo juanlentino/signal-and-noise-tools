@@ -75,11 +75,10 @@ function snt_analytics_dashboard_page() {
 		snt_analytics_render_dashboard();
 	}
 
-	// v8.4.0: Better Stack uptime monitor (owner call: stats live where the
-	// numbers are reviewed). Async detail mount; '' when no token is saved.
-	if ( function_exists( 'sn_uptime_status_analytics_section' ) ) {
-		echo sn_uptime_status_analytics_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
-	}
+	// v8.4.2: the Better Stack uptime monitor moved OFF this tail append —
+	// it renders as a postbox on the snt_analytics_after_overview seam
+	// inside the dashboard body (inc/uptime-status-widget.php), so it sits
+	// under Overview instead of below the fold.
 
 	echo '</div>';
 }

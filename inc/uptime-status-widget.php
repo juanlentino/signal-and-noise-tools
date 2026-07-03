@@ -49,27 +49,40 @@ function sn_uptime_status_health_section() {
 }
 
 /**
- * The Uptime monitor section for the Dashboard → Analytics page (v8.4.0,
- * owner call: the stats live where the numbers are reviewed). The mount
- * carries BOTH hook attributes — data-sn-uptime-status marks it as a
- * paintable mount, data-sn-uptime-detail upgrades the shared ability call
- * to the detail tier (availability windows + response times + incidents),
- * so one call still feeds every mount on the page. '' unconfigured; zero
- * remote cost on render, same as every other surface.
+ * The Uptime monitor panel for the Dashboard → Analytics page (v8.4.0,
+ * owner call: the stats live where the numbers are reviewed; v8.4.2:
+ * rendered as a proper postbox on the snt_analytics_after_overview seam,
+ * directly under the Overview panel — it shipped as a bare section below
+ * the fold and read as an afterthought). The mount carries BOTH hook
+ * attributes — data-sn-uptime-status marks it as a paintable mount,
+ * data-sn-uptime-detail upgrades the shared ability call to the detail
+ * tier (availability windows + response times + incidents), so one call
+ * still feeds every mount on the page. '' unconfigured; zero remote cost
+ * on render, same as every other surface.
  *
- * @return string Section HTML, or '' when no token is configured.
+ * @return string Panel HTML, or '' when no token is configured.
  */
 function sn_uptime_status_analytics_section() {
 	if ( ! sn_uptime_status_configured() ) {
 		return '';
 	}
-	return '<div class="sn-uptime-monitor">'
-		. '<h2>' . esc_html__( 'Uptime', 'signal-noise-tools' ) . '</h2>'
+	return '<div class="postbox sn-uptime-monitor">'
+		. '<div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Uptime', 'signal-noise-tools' ) . '</span></h2></div>'
+		. '<div class="inside">'
 		. '<div class="sn-uptime-status" data-sn-uptime-status data-sn-uptime-detail>'
 		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-noise-tools' ) . '</p>'
 		. '</div>'
+		. '</div>'
 		. '</div>';
 }
+
+/**
+ * Echo wrapper hooked on the Analytics dashboard's after-Overview seam.
+ */
+function sn_uptime_status_render_analytics_section() {
+	echo sn_uptime_status_analytics_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+}
+add_action( 'snt_analytics_after_overview', 'sn_uptime_status_render_analytics_section' );
 
 /**
  * Panel assets for the two Dashboard-menu surfaces: the home dashboard

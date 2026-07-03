@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.4.2] - 2026-07-02: Uptime monitor seated as a first-class Analytics panel
+
+**Headline:** Owner feedback on the live v8.4.0 render: the Uptime section sat below Entry/Exit pages as a bare heading and table — "weird down there hidden." It is now a proper postbox card (same chrome as Overview, Traffic sources, and the rest) rendered on a new `snt_analytics_after_overview` composition seam, directly under the Overview panel where an "is everything okay" readout belongs. The tail-append in the page callback is gone; the table drops its standalone frame inside the card (the postbox is the frame).
+
+> **Why PATCH:** placement and presentation fix for a v8.4.0 surface; no data, API, or settings change.
+
+### Fixed
+- `sn_uptime_status_analytics_section()` renders postbox chrome and hooks `snt_analytics_after_overview` (fired inside `snt_analytics_render_dashboard()` after the Overview panel closes, shared-chrome views only); the `analytics-dashboard-page.php` tail append is removed so the panel renders exactly once, above the fold.
+
 ## [8.4.1] - 2026-07-02: Durable link verdicts + truncation-proof verdict parsing
 
 **Headline:** Two owner-reported bugs in the link checks, one root cause each. **The persistent entries:** judged pairs ("No link to apply — clears on next scan") kept resurrecting because verdict memory lived in transients, and transients die on every cache flush — which, since theme v10.22.0, happens automatically on every update and Styles save. Verdicts now live in one durable `sn_ai_link_verdicts` option (autoload=no, 300-entry cap, 180-day age pruning) shared by both link surfaces and both scan-side suppressors, so a judged pair stays judged across purges, releases, and re-scans; each verdict is also paid for exactly once. **The persistent "AI returned an unparseable verdict":** the three-field pair response kept truncating at the 300-token budget, and a clipped response has no closing brace, defeating both the plain decode and the brace-span retry. The parser gains a field-level truncation salvage (verdict is the first field by prompt design and is rescued even from a clipped head; reason/anchor only when their strings closed — a link verdict without an anchor already degrades to advice-only by contract), and budgets get real headroom (pair 300 → 500, mentions 120 → 200).
