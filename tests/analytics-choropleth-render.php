@@ -58,8 +58,10 @@ $dn = snt_analytics_recolor_world_svg(
 ok( strpos( $dn, '<title>United States — 7 views</title>' ) !== false, "recolor: falls back to the SVG path's data-name when no name is passed" );
 
 echo "\nGroup: orchestrator empty-state (no file needed)\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
 $empty = capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.' ); } );
-ok( strpos( $empty, 'No country data in this range yet.' ) !== false, 'render: empty rows → empty-state message' );
+ok( '' === trim( $empty ), 'render: empty rows → no panel emitted (omit + fold, v8.5.2)' );
+ok( in_array( 'Countries map', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'render: empty rows → title noted for the fold' );
 ok( strpos( $empty, '<svg' ) === false, 'render: empty rows → no SVG emitted' );
 
 echo "\nGroup: orchestrator with the real vendored asset\n";

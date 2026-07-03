@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * KPI cards: Checked / Blocked / Block rate / Networks. Mirrors the .sn-kpi-row
  * markup of snt_analytics_render_cards() with login labels.

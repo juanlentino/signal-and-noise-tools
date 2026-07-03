@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Content view body (inside .sn-an-view; tabs + drill-down are the
  * dispatcher's).
@@ -59,4 +61,5 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	}
 	snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
 	echo '</div>';
+	snt_an_flush_empty_fold();
 }

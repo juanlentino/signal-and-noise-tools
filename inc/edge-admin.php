@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /** Humanize a byte count (reuses WP's size_format when available). */
 function snt_edge_fmt_bytes( $bytes ) {
 	$bytes = (int) $bytes;

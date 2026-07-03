@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // panel chrome + the empty-fold collector this file emits into
+
 /**
  * Format a millisecond duration as "Nm SSs" / "Ns".
  *
