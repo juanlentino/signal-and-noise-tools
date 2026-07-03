@@ -19,7 +19,14 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return $s; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; } }
-if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+// v8.4.1: map-backed option stubs — the verdict store is a DURABLE
+// autoload=no option now (transients are flush-volatile under Breeze and
+// the v10.22.0 auto-purges flush on every update, resurrecting judged
+// pairs — the owner-reported "persistent entries").
+$GLOBALS['__options'] = array();
+$GLOBALS['__option_autoload'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__option_autoload'][ $k ] = $autoload; return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
@@ -108,6 +115,13 @@ $res2 = snt_ai_link_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'second suggest for the same (source, target, modified) makes NO AI call' );
 ok( ( $res2['verdict'] ?? '' ) === 'link' && ( $res2['fingerprint'] ?? '' ) === $res['fingerprint'], 'cached verdict + fresh fingerprint returned' );
 
+echo "\nTest: verdict memory is DURABLE (v8.4.1 — the persistent-entries bug)\n";
+$GLOBALS['__transients'] = array(); // a cache flush (Breeze purge, v10.22.0 auto-purge) wipes every transient
+$res3 = snt_ai_link_suggest_impl( 1, 2 );
+ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill' );
+ok( false === array_search( 'sn_ai_link_verdicts', array_keys( $GLOBALS['__transients'] ), true ) && isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'verdicts live in the option store, not transients' );
+ok( false === ( $GLOBALS['__option_autoload']['sn_ai_link_verdicts'] ?? null ), 'store option is autoload=no' );
+
 echo "\nTest: suggest guards\n";
 $GLOBALS['__ai_gate'] = new WP_Error( 'snt_ai_unavailable', 'no provider' );
 ok( is_wp_error( snt_ai_link_suggest_impl( 1, 2 ) ), 'AI gate error propagates' );
@@ -126,19 +140,58 @@ mk_post( 4, 'No mention source', 'source-c', '<p>entirely unrelated prose</p>' )
 ok( 'snt_ai_mention_drifted' === snt_ai_link_suggest_impl( 4, 2 )->get_error_code(), 'mention absent → drifted 409' );
 
 // fenced JSON is parsed; garbage is a runtime error.
-$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array();
 $GLOBALS['__ai_response'] = "```json\n{\"verdict\":\"skip\",\"reason\":\"generic phrase\"}\n```";
 ok( 'skip' === ( snt_ai_link_suggest_impl( 1, 2 )['verdict'] ?? '' ), 'markdown-fenced verdict JSON parsed' );
-$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array();
 $GLOBALS['__ai_response'] = 'not json at all';
 ok( 'snt_ai_runtime_error' === snt_ai_link_suggest_impl( 1, 2 )->get_error_code(), 'unparseable AI response → runtime error' );
-$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array();
 $GLOBALS['__ai_response'] = '{"verdict":"banana","reason":"?"}';
 ok( 'unsure' === ( snt_ai_link_suggest_impl( 1, 2 )['verdict'] ?? '' ), 'out-of-enum verdict coerces to unsure' );
 
+echo "\nTest: truncation salvage (v8.4.1 — the persistent unparseable-verdict bug)\n";
+// A response cut off by the token budget has no closing brace, so neither
+// plain decode nor the brace-span retry can save it. verdict is the FIRST
+// field by prompt design — the field-level regex rescues the decision.
+$p = snt_ai_parse_verdict_json( '{"verdict":"skip","reason":"the overlap is superfic' );
+ok( is_array( $p ) && 'skip' === ( $p['verdict'] ?? '' ), 'truncated-mid-reason: verdict rescued' );
+$p = snt_ai_parse_verdict_json( "Here is my verdict:\n{\"verdict\":\"link\",\"reason\":\"good match\",\"anchor\":\"the seat was nev" );
+ok( is_array( $p ) && 'link' === ( $p['verdict'] ?? '' ) && 'good match' === ( $p['reason'] ?? '' ), 'preamble + truncated-mid-anchor: verdict AND complete reason rescued' );
+ok( ! isset( $p['anchor'] ), 'truncated anchor NOT half-captured (link degrades to advice-only downstream)' );
+ok( null === snt_ai_parse_verdict_json( 'I cannot judge this pair.' ), 'true garbage still returns null' );
+$GLOBALS['__options'] = array();
+$GLOBALS['__ai_response'] = '{"verdict":"skip","reason":"cut mid sente';
+ok( 'skip' === ( snt_ai_link_suggest_impl( 1, 2 )['verdict'] ?? '' ), 'impl-level: truncated response no longer a runtime error' );
+
+echo "\nTest: verdict store unit contract (v8.4.1)\n";
+$GLOBALS['__options'] = array();
+snt_ai_verdict_store_set( 'k1', array( 'verdict' => 'skip', 'reason' => 'r' ) );
+$got = snt_ai_verdict_store_get( 'k1' );
+ok( is_array( $got ) && 'skip' === $got['verdict'] && ! empty( $got['ts'] ), 'round-trip + ts stamped' );
+ok( null === snt_ai_verdict_store_get( 'missing' ), 'missing key → null' );
+// Age pruning: an entry past the max age is dropped on the next write.
+$GLOBALS['__options']['sn_ai_link_verdicts']['old'] = array( 'verdict' => 'skip', 'ts' => time() - 200 * 86400 );
+snt_ai_verdict_store_set( 'k2', array( 'verdict' => 'unsure' ) );
+ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts']['old'] ), 'stale entries (>180d) pruned on write' );
+ok( isset( $GLOBALS['__options']['sn_ai_link_verdicts']['k1'] ), 'fresh entries survive pruning' );
+// Cap pruning: oldest evicted beyond the cap.
+$GLOBALS['__options'] = array();
+$now = time();
+for ( $i = 0; $i < 300; $i++ ) {
+	$GLOBALS['__options']['sn_ai_link_verdicts'][ 'k' . $i ] = array( 'verdict' => 'skip', 'ts' => $now - 300 + $i );
+}
+snt_ai_verdict_store_set( 'newest', array( 'verdict' => 'link' ) );
+ok( 300 === count( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'store capped at 300 entries' );
+ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts']['k0'] ) && isset( $GLOBALS['__options']['sn_ai_link_verdicts']['newest'] ), 'oldest evicted, newest kept' );
+$GLOBALS['__options'] = array();
+
+echo "\nTest: token budget pin (v8.4.1)\n";
+ok( 200 === SNT_AI_LINK_SUGGEST_MAX_TOKENS, 'link budget raised to 200 (two-field response headroom)' );
+
 echo "\nTest: snt_ai_link_apply_impl — happy path\n";
 $GLOBALS['__ai_response'] = '{"verdict":"link","reason":"r"}';
-$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array();
 $s = snt_ai_link_suggest_impl( 1, 2 );
 $out = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], $s['target_url'] );
 ok( is_array( $out ) && true === ( $out['ok'] ?? false ), 'apply returns ok' );

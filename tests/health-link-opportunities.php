@@ -19,7 +19,11 @@ if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return $s; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; } }
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { return 'https://x.test/?p=' . (int) $id; } }
-if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+// v8.4.1: map-backed option stubs — judged-noise reads the DURABLE verdict
+// store now, not flush-volatile transients.
+$GLOBALS['__options'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
@@ -165,23 +169,35 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 3, 'Coffee Brewing Notes', 'coffee-brewing', $coffee_prose, '2026-07-01 12:00:00' ),
 	mk_row( 4, 'Sundry Observations', 'sundry', $generic_prose, '2026-07-01 13:00:00' ),
 );
+function seed_pair_verdict( $key, $entry ) { $GLOBALS['__options']['sn_ai_link_verdicts'] = array( $key => $entry ); }
 $GLOBALS['__tags'] = array();
+seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'stored skip verdict suppresses the pair' );
+// v8.4.1 regression (the persistent-entries bug): the verdict survives a
+// transient flush, and a verdict parked in the OLD transient location is
+// invisible to the scan.
+$GLOBALS['__transients'] = array();
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'stored verdict SURVIVES a transient flush — judged pairs stay gone' );
+$GLOBALS['__options'] = array();
 $GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
 $check = sn_health_check_link_opportunities();
-ok( 0 === (int) $check['count'], 'cached skip verdict suppresses the pair' );
-$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'unsure', 'reason' => 'r', 'anchor' => '' ) );
+ok( 1 === (int) $check['count'], 'old transient location is IGNORED (store is the only memory)' );
+$GLOBALS['__transients'] = array();
+seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'unsure', 'reason' => 'r', 'anchor' => '' ) );
 $check = sn_health_check_link_opportunities();
-ok( 0 === (int) $check['count'], 'cached unsure verdict suppresses the pair' );
-$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'compression' ) );
+ok( 0 === (int) $check['count'], 'stored unsure verdict suppresses the pair' );
+seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'compression' ) );
 $check = sn_health_check_link_opportunities();
-ok( 1 === (int) $check['count'], 'cached link verdict with a valid nomination KEEPS the pair' );
-$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ) => array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'phrase appearing nowhere' ) );
+ok( 1 === (int) $check['count'], 'stored link verdict with a valid nomination KEEPS the pair' );
+seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'link', 'reason' => 'r', 'anchor' => 'phrase appearing nowhere' ) );
 $check = sn_health_check_link_opportunities();
-ok( 0 === (int) $check['count'], 'cached link verdict whose nomination no longer validates suppresses (advice-only = noise)' );
-$GLOBALS['__transients'] = array( pair_key( 1, 2, '2026-07-01 09:59:59', '2026-07-01 11:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
+ok( 0 === (int) $check['count'], 'stored link verdict whose nomination no longer validates suppresses (advice-only = noise)' );
+seed_pair_verdict( pair_key( 1, 2, '2026-07-01 09:59:59', '2026-07-01 11:00:00' ), array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
 $check = sn_health_check_link_opportunities();
 ok( 1 === (int) $check['count'], 'stale-stamp judgment does NOT suppress (content changed => re-nominate)' );
-$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

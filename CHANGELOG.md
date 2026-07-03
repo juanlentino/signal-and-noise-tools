@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.4.1] - 2026-07-02: Durable link verdicts + truncation-proof verdict parsing
+
+**Headline:** Two owner-reported bugs in the link checks, one root cause each. **The persistent entries:** judged pairs ("No link to apply — clears on next scan") kept resurrecting because verdict memory lived in transients, and transients die on every cache flush — which, since theme v10.22.0, happens automatically on every update and Styles save. Verdicts now live in one durable `sn_ai_link_verdicts` option (autoload=no, 300-entry cap, 180-day age pruning) shared by both link surfaces and both scan-side suppressors, so a judged pair stays judged across purges, releases, and re-scans; each verdict is also paid for exactly once. **The persistent "AI returned an unparseable verdict":** the three-field pair response kept truncating at the 300-token budget, and a clipped response has no closing brace, defeating both the plain decode and the brace-span retry. The parser gains a field-level truncation salvage (verdict is the first field by prompt design and is rescued even from a clipped head; reason/anchor only when their strings closed — a link verdict without an anchor already degrades to advice-only by contract), and budgets get real headroom (pair 300 → 500, mentions 120 → 200).
+
+> **Why PATCH:** bug fixes; no new capability, no API or settings-schema change (keys keep their historical md5 forms; the modified-stamp re-nomination semantics are unchanged).
+
+### Fixed
+- Verdict memory for both link surfaces (`ai-link-suggest`, `ai-pair-suggest`) and both scan-side judged-noise suppressors (`health-checks` unlinked mentions, `health-link-opportunities`) moved from 30-day transients to the durable `snt_ai_verdict_store` option. Fixtures now assert a full transient flush neither resurrects a judged pair nor re-bills the AI, and that the old transient location is ignored.
+- `snt_ai_parse_verdict_json()` truncation salvage: token-clipped responses no longer surface as "AI returned an unparseable verdict"; true garbage still errors (and still logs its head). Regression-tested against mid-reason and mid-anchor clips, with the half-open anchor deliberately dropped.
+
+### Improvements
+- Token budgets: pair suggest 300 → 500, mention suggest 120 → 200 (pinned by fixtures). Token save/clear already dropped stat transients; verdict pruning needs no cron (age + cap enforced on write).
+
 ## [8.4.0] - 2026-07-02: Uptime monitor on the Analytics page
 
 **Headline:** Owner call: stats live where the numbers are reviewed. The Dashboard → Analytics page gains an **Uptime monitor**: a per-resource table (status, 30-day and 90-day availability, average response time over the last 24h, checked-ago) plus a recent-incidents log (newest first, ongoing incidents flagged red with cause and duration). The ability grows a `detail=true` tier for it — availability windows, response times (v2), and incidents (the one v3 endpoint) each cache on their own transient (1h / 6h / 15min / 5min) and fail soft with per-tier circuit breaks, so a partial Better Stack outage degrades the table, never the page. The S&N Health widget section slims back to what a glance widget should be: name + status + "All systems go", two API calls, nothing else — its stats moved to Analytics.

@@ -1037,13 +1037,14 @@ function sn_health_check_unlinked_mentions() {
 					continue;
 				}
 			}
-			// (b) JUDGED: the Suggest verdict cache doubles as the scan's
-			// memory — a cached skip/unsure means the AI already said no.
+			// (b) JUDGED: the Suggest verdict store doubles as the scan's
+			// memory — a stored skip/unsure means the AI already said no.
 			// The key carries the source's modified stamp, so an edit
-			// re-nominates naturally. Transients are flush-volatile; a
-			// flush resurrects pairs until one Suggest pass re-judges them.
-			if ( function_exists( 'get_transient' ) ) {
-				$judged = get_transient( 'sn_link_verdict_' . md5( (int) $source['ID'] . '|' . (int) $target['ID'] . '|' . (string) ( $source['post_modified_gmt'] ?? '' ) ) );
+			// re-nominates naturally. v8.4.1: DURABLE store (autoload=no
+			// option), not transients — the v10.22.0 auto-purges flush
+			// transients on every update, which resurrected judged pairs.
+			if ( function_exists( 'snt_ai_verdict_store_get' ) ) {
+				$judged = snt_ai_verdict_store_get( 'sn_link_verdict_' . md5( (int) $source['ID'] . '|' . (int) $target['ID'] . '|' . (string) ( $source['post_modified_gmt'] ?? '' ) ) );
 				if ( is_array( $judged ) && isset( $judged['verdict'] ) && 'link' !== (string) $judged['verdict'] ) {
 					continue;
 				}

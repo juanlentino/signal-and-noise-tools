@@ -47,9 +47,11 @@ const SNT_AI_PAIR_SUGGEST_SYSTEM = "You are an editor deciding whether one note 
 	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs — same casing, same punctuation. Never invent or paraphrase. If no phrase can be copied verbatim, do not use \"link\" — return \"skip\" instead.\n" .
 	"- Output JSON only. No markdown, no preamble.";
 
-// v8.1.1: 200 → 300. The three-field response (verdict + reason + anchor)
-// truncated mid-JSON live at 200, surfacing as "unparseable verdict".
-const SNT_AI_PAIR_SUGGEST_MAX_TOKENS   = 300;
+// v8.1.1: 200 → 300; v8.4.1: 300 → 500. The three-field response kept
+// truncating live at 300 (one pair failed EVERY retry — the persistent
+// "unparseable verdict"). The parser now salvages truncated responses too,
+// but headroom keeps reason + anchor intact in the first place.
+const SNT_AI_PAIR_SUGGEST_MAX_TOKENS   = 500;
 const SNT_AI_PAIR_SOURCE_EXCERPT_CHARS = 1200;
 const SNT_AI_PAIR_TARGET_EXCERPT_CHARS = 600;
 const SNT_AI_PAIR_ANCHOR_MIN_LENGTH    = 3;
@@ -97,10 +99,11 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 
 	$stripped = wp_strip_all_tags( strip_shortcodes( $raw ) );
 
-	// Verdict cache: BOTH modified stamps — a semantic verdict depends on
-	// both contents. Either post's edit = new key.
+	// Verdict memory: BOTH modified stamps — a semantic verdict depends on
+	// both contents. Either post's edit = new key. Durable store since
+	// v8.4.1 (transients died on every purge, resurrecting judged pairs).
 	$cache_key = 'sn_pair_verdict_' . md5( $source_id . '|' . $target_id . '|' . (string) $source->post_modified_gmt . '|' . (string) $target->post_modified_gmt );
-	$cached    = get_transient( $cache_key );
+	$cached    = snt_ai_verdict_store_get( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['verdict'], $cached['reason'], $cached['anchor'] ) ) {
 		$verdict    = (string) $cached['verdict'];
 		$reason     = (string) $cached['reason'];
@@ -131,7 +134,7 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 		$reason     = (string) ( $parsed['reason'] ?? '' );
 		$nomination = (string) ( $parsed['anchor'] ?? '' );
 
-		set_transient( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason, 'anchor' => $nomination ), 30 * DAY_IN_SECONDS );
+		snt_ai_verdict_store_set( $cache_key, array( 'verdict' => $verdict, 'reason' => $reason, 'anchor' => $nomination ) );
 	}
 
 	// Validate the nomination against CURRENT content. The impl, never the
