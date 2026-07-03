@@ -66,6 +66,9 @@ function sn_cloudways_get_token() {
 			'email'   => sn_cloudways_cfg( 'SN_CLOUDWAYS_EMAIL' ),
 			'api_key' => sn_cloudways_cfg( 'SN_CLOUDWAYS_API_KEY' ),
 		),
+		// v8.7.1 (CMA audit INFO-1): the account-wide api_key rides the POST body,
+		// so a 307/308 would re-send it — forbid following any 3xx from the API host.
+		'redirection' => 0,
 	) );
 	if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
 		return '';
@@ -106,6 +109,7 @@ function sn_cloudways_purge_app() {
 			'server_id' => sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' ),
 			'app_id'    => sn_cloudways_cfg( 'SN_CLOUDWAYS_APP_ID' ),
 		),
+		'redirection' => 0, // v8.7.1 (CMA INFO-1): never re-send the Bearer on a 3xx.
 	) );
 	$http = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
 	$data = is_wp_error( $res ) ? array() : (array) json_decode( wp_remote_retrieve_body( $res ), true );

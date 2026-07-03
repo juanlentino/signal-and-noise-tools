@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.7.1] - 2026-07-03: Outbound purge calls forbid redirects (CMA audit INFO-1)
+
+**Headline:** The new Cloudflare and Cloudways purge calls now set `redirection => 0`, matching the outbound-hardening convention every other credential-carrying call in the plugin already follows (`sn_uptime_status_api_get`). Each attaches a Bearer token, or for the Cloudways OAuth exchange the account-wide API key in the POST body, so if the vendor API ever returned a 3xx, WordPress's HTTP layer would re-send the credential to the redirect target. Forbidding redirects closes that theoretical leak. Surfaced by the post-ship CMA audit of `v8.1.6..v8.7.0` as its single (INFO) finding, not exploitable from the plugin alone.
+
+> **Why PATCH:** defense-in-depth hardening + convention consistency; no user-visible, contract, or capability change.
+
+### Security
+- `redirection => 0` on `sn_cf_api_post()` + the new `sn_cf_api_post_blocking()` (`inc/cloudflare-purge.php`) and both Cloudways calls `sn_cloudways_get_token()` + `sn_cloudways_purge_app()` (`inc/cloudways-purge.php`). `tests/cloudflare-purge.php` + `tests/cloudways-purge.php` pin the convention so a future edit that drops it fails CI.
+
 ## [8.7.0] - 2026-07-03: Verified purge Tier-1: confirmed CF purge + report-backed freshness card
 
 **Headline:** The manual "Purge All Caches" now confirms its Cloudflare leg, and the Dashboard says what the last purge actually did. `sn_cf_purge_everything_verified()` runs a blocking full-zone purge and reads CF's real `{success:true}` body, so the theme's per-leg report carries a genuine accept-confirmation instead of a fire-and-forget guess (the fast auto-purge path stays non-blocking). The "Caches" glance card gains a compact "last purge" line (`Last purge 3 mins ago · Varnish ✓ · CF ✓`) read from the theme's new `sn_last_purge_report`, and the freshness dot now also compares the render-epoch meta, so it catches staleness the CSS-hash heuristic can't: an Additional-CSS edit lands in `global-styles-inline-css`, not the combined stylesheet file. Pairs with theme v10.23.0.

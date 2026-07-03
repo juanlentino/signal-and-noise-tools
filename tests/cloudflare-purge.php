@@ -62,6 +62,9 @@ $req = $GLOBALS['__http'][0];
 ok( strpos( $req['url'], '/zones/ZONE123/purge_cache' ) !== false, 'request targets the zone purge_cache endpoint' );
 ok( true === ( $req['args']['blocking'] ?? null ), 'the verified request is BLOCKING' );
 ok( ( $req['args']['headers']['Authorization'] ?? '' ) === 'Bearer CFTOKEN', 'Bearer token sent' );
+// v8.7.1 (CMA audit INFO-1): a Bearer credential is attached, so forbid following any
+// redirect from the API host that would re-send it (matches sn_uptime_status_api_get).
+ok( 0 === ( $req['args']['redirection'] ?? -1 ), 'the verified CF request disables redirects' );
 $body = json_decode( (string) ( $req['args']['body'] ?? '' ), true );
 ok( is_array( $body ) && ! empty( $body['purge_everything'] ), 'body requests purge_everything' );
 
