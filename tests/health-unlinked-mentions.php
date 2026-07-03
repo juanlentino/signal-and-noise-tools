@@ -29,6 +29,7 @@ if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return '
 $GLOBALS['__options'] = array();
 if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
 if ( ! function_exists( 'strip_shortcodes' ) ) { function strip_shortcodes( $s ) { return preg_replace( '/\[[^\]]*\]/', '', (string) $s ); } }
@@ -221,6 +222,46 @@ $targets = array();
 foreach ( $check['findings'] as $ff ) { $targets[] = (int) $ff['target_id']; }
 sort( $targets );
 ok( array( 13, 14, 15 ) === $targets, 'partial judging: judged slots stay consumed, 6th target does not backfill' );
+$GLOBALS['__options'] = array();
+
+echo "\nTest: v8.4.5 — Apply no longer resurrects judged mention siblings (ID-keyed verdicts)\n";
+// Same treadmill as the pairs check: an apply on the source bumped the stamp
+// its verdict keys embedded, resurrecting every OTHER judged mention. The
+// suppression must read stamps from the ID-keyed row's payload.
+function link_key_v845( $sid, $tid ) { return 'sn_link_verdict_' . md5( $sid . '|' . $tid ); }
+function seed_link_v845( $sid, $tid, $smod, $verdict = 'skip' ) {
+	$GLOBALS['__options'][ link_key_v845( $sid, $tid ) ] = array(
+		'verdict' => $verdict, 'reason' => 'r',
+		'src_id' => $sid, 'tgt_id' => $tid, 'src_mod' => $smod, 'ts' => time(),
+	);
+}
+$GLOBALS['__options'] = array();
+for ( $i = 1; $i <= 5; $i++ ) {
+	seed_link_v845( 1, 10 + $i, '2026-07-01 10:00:00' );
+}
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'ID-keyed judged mentions suppress (payload stamp matches)' );
+// APPLY simulation: source stamp bumps AND apply restamps its rows.
+$GLOBALS['__scan_rows'][0]['post_modified_gmt'] = '2026-07-02 23:00:00';
+for ( $i = 1; $i <= 5; $i++ ) {
+	$GLOBALS['__options'][ link_key_v845( 1, 10 + $i ) ]['src_mod'] = '2026-07-02 23:00:00';
+}
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'after an APPLY (stamp bumped + rows restamped) judged mentions STAY suppressed' );
+// A REAL owner edit (stamp changes, no restamp) still re-nominates.
+$GLOBALS['__scan_rows'][0]['post_modified_gmt'] = '2026-07-02 23:59:59';
+$check = sn_health_check_unlinked_mentions();
+ok( 5 === (int) $check['count'], 'a real edit still re-nominates (restamp never runs outside apply)' );
+$GLOBALS['__scan_rows'][0]['post_modified_gmt'] = '2026-07-01 10:00:00';
+
+echo "\nTest: v8.4.5 — legacy stamp-keyed mention verdicts still suppress and migrate\n";
+$GLOBALS['__options'] = array(
+	link_key( 1, 11, '2026-07-01 10:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'ts' => time() ),
+);
+$check = sn_health_check_unlinked_mentions();
+ok( 4 === (int) $check['count'], 'pre-v8.4.5 stamp-keyed verdict suppresses via the legacy fallback (and consumes its slot)' );
+ok( is_array( $GLOBALS['__options'][ link_key_v845( 1, 11 ) ] ?? null ), 'legacy row migrated to the ID-keyed row during the scan' );
+ok( ! isset( $GLOBALS['__options'][ link_key( 1, 11, '2026-07-01 10:00:00' ) ] ), 'legacy row deleted after migration' );
 $GLOBALS['__options'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";

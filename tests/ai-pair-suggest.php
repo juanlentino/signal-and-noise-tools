@@ -25,6 +25,7 @@ $GLOBALS['__options'] = array();
 $GLOBALS['__option_autoload'] = array();
 if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__option_autoload'][ $k ] = $autoload; return true; } }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
@@ -127,8 +128,14 @@ echo "\nTest: verdict memory is DURABLE (v8.4.1) and PER-ROW (v8.4.3)\n";
 $GLOBALS['__transients'] = array(); // Breeze purge / v10.22.0 auto-purge flushes every transient
 $res2b = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill, no resurrected finding' );
-$pkey = 'sn_pair_verdict_' . md5( '1|2|2026-07-01 00:00:00|2026-07-01 00:00:00' );
-ok( is_array( $GLOBALS['__options'][ $pkey ] ?? null ), 'pair verdict lives in its OWN option row (v8.4.3 — no shared map for overlapping Suggest All requests to clobber)' );
+// v8.4.5: the key is ID-only; the stamps live INSIDE the payload. Stamp-keyed
+// rows orphaned on every Apply (wp_update_post bumps post_modified, the key
+// stops matching, judged siblings resurrect + re-bill — the owner's "still
+// doing the same" on v8.4.4).
+$pkey = 'sn_pair_verdict_' . md5( '1|2' );
+ok( is_array( $GLOBALS['__options'][ $pkey ] ?? null ), 'pair verdict lives in its OWN ID-keyed option row (v8.4.5 — stamp-keyed rows orphaned on Apply)' );
+ok( '2026-07-01 00:00:00' === ( $GLOBALS['__options'][ $pkey ]['src_mod'] ?? '' ) && '2026-07-01 00:00:00' === ( $GLOBALS['__options'][ $pkey ]['tgt_mod'] ?? '' ), 'payload carries BOTH modified stamps (invalidation moved from key to payload)' );
+ok( 1 === ( $GLOBALS['__options'][ $pkey ]['src_id'] ?? 0 ) && 2 === ( $GLOBALS['__options'][ $pkey ]['tgt_id'] ?? 0 ), 'payload carries the post ids (restamp-on-apply needs them)' );
 ok( false === ( $GLOBALS['__option_autoload'][ $pkey ] ?? null ), 'verdict row is autoload=no' );
 ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'the v8.4.1 shared-map option is NOT written' );
 ok( 500 === SNT_AI_PAIR_SUGGEST_MAX_TOKENS, 'pair budget raised to 500 (three-field response was truncating at 300 live)' );
@@ -136,6 +143,23 @@ ok( 500 === SNT_AI_PAIR_SUGGEST_MAX_TOKENS, 'pair budget raised to 500 (three-fi
 $GLOBALS['__posts'][2]->post_modified_gmt = '2026-07-02 09:00:00'; // TARGET edit invalidates too
 $res3 = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 2 === $GLOBALS['__ai_calls'], 'target-modified change busts the cache (the stamp the mentions check never needed)' );
+$pair_rows = 0;
+foreach ( array_keys( $GLOBALS['__options'] ) as $k ) { if ( 0 === strpos( $k, 'sn_pair_verdict_' ) ) { $pair_rows++; } }
+ok( 1 === $pair_rows, 'the re-suggest OVERWROTE the same row — stamp changes no longer orphan verdict rows' );
+ok( '2026-07-02 09:00:00' === ( $GLOBALS['__options'][ $pkey ]['tgt_mod'] ?? '' ), 'overwritten row carries the fresh target stamp' );
+
+echo "\nTest: v8.4.5 — legacy stamp-keyed row is read once and migrated\n";
+mk_post( 21, 'Legacy Target', 'legacy-target', '<p>legacy target body</p>' );
+mk_post( 20, 'Legacy Source', 'legacy-source', '<p>Prose that never mentions the target title.</p>' );
+$legacy_key = 'sn_pair_verdict_' . md5( '20|21|2026-07-01 00:00:00|2026-07-01 00:00:00' );
+$GLOBALS['__options'][ $legacy_key ] = array( 'verdict' => 'skip', 'reason' => 'judged pre-v8.4.5', 'anchor' => '', 'ts' => time() );
+$calls_before = $GLOBALS['__ai_calls'];
+$res_legacy   = snt_ai_pair_suggest_impl( 20, 21 );
+ok( $GLOBALS['__ai_calls'] === $calls_before, 'legacy row is a cache HIT — no AI re-bill for a pre-upgrade judgment' );
+ok( 'skip' === ( $res_legacy['verdict'] ?? '' ), 'legacy verdict passes through' );
+$new_key = 'sn_pair_verdict_' . md5( '20|21' );
+ok( is_array( $GLOBALS['__options'][ $new_key ] ?? null ) && 20 === ( $GLOBALS['__options'][ $new_key ]['src_id'] ?? 0 ), 'legacy row migrated to the ID-keyed row with ids + stamps' );
+ok( ! isset( $GLOBALS['__options'][ $legacy_key ] ), 'legacy row deleted after migration' );
 
 echo "\nTest: fabricated anchor degrades to advice-only\n";
 $GLOBALS['__posts'][2]->post_modified_gmt = '2026-07-02 10:00:00'; // fresh cache key

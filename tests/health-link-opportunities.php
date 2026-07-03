@@ -24,6 +24,7 @@ if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { re
 $GLOBALS['__options'] = array();
 if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; } }
 if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $k, $d = false ) { return $d; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) { function wp_get_attachment_metadata( $id ) { return array(); } }
@@ -249,6 +250,51 @@ $GLOBALS['__options'] = array(
 $targets = subject_one_targets( sn_health_check_link_opportunities() );
 sort( $targets );
 ok( array( 32, 33 ) === $targets, 'partial judging: judged slot stays consumed, unjudged candidate does not backfill' );
+$GLOBALS['__options'] = array();
+
+echo "\nTest: v8.4.5 — Apply no longer resurrects judged siblings (ID-keyed verdicts)\n";
+// The owner's live repro on v8.4.4: judge 3 pairs, APPLY one good link — the
+// apply's wp_update_post bumps the source's modified stamp, the stamp-keyed
+// verdicts for the OTHER judged pairs stop matching, and the next scan
+// resurrects them. Verdicts are ID-keyed now with stamps in the payload;
+// Apply restamps its post's rows (tested in tests/ai-link-suggest.php), so
+// suppression must read stamps from the PAYLOAD and survive the apply.
+function pair_key_v845( $sid, $tid ) { return 'sn_pair_verdict_' . md5( $sid . '|' . $tid ); }
+function seed_pair_v845( $sid, $tid, $smod, $tmod, $verdict = 'skip' ) {
+	$GLOBALS['__options'][ pair_key_v845( $sid, $tid ) ] = array(
+		'verdict' => $verdict, 'reason' => 'r', 'anchor' => '',
+		'src_id' => $sid, 'tgt_id' => $tid, 'src_mod' => $smod, 'tgt_mod' => $tmod, 'ts' => time(),
+	);
+}
+$GLOBALS['__options'] = array();
+seed_pair_v845( 1, 31, '2026-07-01 10:00:00', '2026-07-01 01:00:00' );
+seed_pair_v845( 1, 32, '2026-07-01 10:00:00', '2026-07-01 02:00:00' );
+seed_pair_v845( 1, 33, '2026-07-01 10:00:00', '2026-07-01 03:00:00' );
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+ok( array() === $targets, 'ID-keyed judged pairs suppress (payload stamps match)' );
+// APPLY simulation: the source's stamp bumps AND apply restamps its rows.
+$GLOBALS['wpdb']->rows[0]['post_modified_gmt'] = '2026-07-02 23:00:00';
+foreach ( array( 31, 32, 33 ) as $tid ) {
+	$GLOBALS['__options'][ pair_key_v845( 1, $tid ) ]['src_mod'] = '2026-07-02 23:00:00';
+}
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+ok( array() === $targets, 'after an APPLY (stamp bumped + rows restamped) judged pairs STAY suppressed — the treadmill is closed' );
+// A REAL owner edit (stamp changes, no restamp) still re-nominates.
+$GLOBALS['wpdb']->rows[0]['post_modified_gmt'] = '2026-07-02 23:59:59';
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+sort( $targets );
+ok( array( 31, 32, 33 ) === $targets, 'a real edit still re-nominates (restamp never runs outside apply)' );
+$GLOBALS['wpdb']->rows[0]['post_modified_gmt'] = '2026-07-01 10:00:00';
+
+echo "\nTest: v8.4.5 — legacy stamp-keyed verdicts still suppress and migrate\n";
+$GLOBALS['__options'] = array(
+	pair_key( 1, 31, '2026-07-01 10:00:00', '2026-07-01 01:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '', 'ts' => time() ),
+);
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+sort( $targets );
+ok( array( 32, 33 ) === $targets, 'pre-v8.4.5 stamp-keyed verdict suppresses via the legacy fallback (and consumes its slot)' );
+ok( is_array( $GLOBALS['__options'][ pair_key_v845( 1, 31 ) ] ?? null ), 'legacy row migrated to the ID-keyed row during the scan' );
+ok( ! isset( $GLOBALS['__options'][ pair_key( 1, 31, '2026-07-01 10:00:00', '2026-07-01 01:00:00' ) ] ), 'legacy row deleted after migration' );
 $GLOBALS['__options'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";

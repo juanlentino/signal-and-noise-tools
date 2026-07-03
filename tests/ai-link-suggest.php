@@ -63,8 +63,13 @@ function current_user_can( $cap, $id = 0 ) { return $GLOBALS['__can_edit']; }
 
 $GLOBALS['__updated'] = null;   // captured wp_update_post payload
 $GLOBALS['__update_result'] = 1;
+$GLOBALS['__next_modified'] = null; // v8.4.5: opt-in — simulate the modified-stamp bump a real update performs
 function wp_update_post( $arr, $wp_error = false ) {
 	$GLOBALS['__updated'] = $arr;
+	$id = (int) ( $arr['ID'] ?? 0 );
+	if ( null !== $GLOBALS['__next_modified'] && isset( $GLOBALS['__posts'][ $id ] ) ) {
+		$GLOBALS['__posts'][ $id ]->post_modified_gmt = $GLOBALS['__next_modified'];
+	}
 	return $GLOBALS['__update_result'];
 }
 
@@ -119,10 +124,23 @@ echo "\nTest: verdict memory is DURABLE (v8.4.1) and PER-ROW (v8.4.3)\n";
 $GLOBALS['__transients'] = array(); // a cache flush (Breeze purge, v10.22.0 auto-purge) wipes every transient
 $res3 = snt_ai_link_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill' );
-$vkey = 'sn_link_verdict_' . md5( '1|2|2026-07-01 00:00:00' );
-ok( is_array( $GLOBALS['__options'][ $vkey ] ?? null ), 'verdict lives in its OWN option row (v8.4.3 — Suggest All fires overlapping requests; a shared map lost concurrent writes)' );
+// v8.4.5: ID-only key; stamps live in the payload (stamp-keyed rows orphaned
+// on every Apply because wp_update_post bumps post_modified).
+$vkey = 'sn_link_verdict_' . md5( '1|2' );
+ok( is_array( $GLOBALS['__options'][ $vkey ] ?? null ), 'verdict lives in its OWN ID-keyed option row (v8.4.3 per-row, v8.4.5 ID-keyed)' );
+ok( '2026-07-01 00:00:00' === ( $GLOBALS['__options'][ $vkey ]['src_mod'] ?? '' ) && 1 === ( $GLOBALS['__options'][ $vkey ]['src_id'] ?? 0 ) && 2 === ( $GLOBALS['__options'][ $vkey ]['tgt_id'] ?? 0 ), 'payload carries source stamp + both ids' );
 ok( false === ( $GLOBALS['__option_autoload'][ $vkey ] ?? null ), 'verdict row is autoload=no' );
 ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'the v8.4.1 shared-map option is NOT written' );
+
+echo "\nTest: v8.4.5 — a source edit busts the cache but OVERWRITES the same row\n";
+$GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-01 06:00:00';
+$res3b = snt_ai_link_suggest_impl( 1, 2 );
+ok( 2 === $GLOBALS['__ai_calls'], 'stamp mismatch is a cache miss (edit invalidation preserved)' );
+$link_rows = 0;
+foreach ( array_keys( $GLOBALS['__options'] ) as $k ) { if ( 0 === strpos( $k, 'sn_link_verdict_' ) ) { $link_rows++; } }
+ok( 1 === $link_rows, 're-suggest overwrote the SAME row — no orphan pileup per stamp generation' );
+ok( '2026-07-01 06:00:00' === ( $GLOBALS['__options'][ $vkey ]['src_mod'] ?? '' ), 'row carries the fresh source stamp' );
+$GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-01 00:00:00'; // restore for later sections
 
 echo "\nTest: suggest guards\n";
 $GLOBALS['__ai_gate'] = new WP_Error( 'snt_ai_unavailable', 'no provider' );
@@ -225,6 +243,41 @@ ok( is_array( $GLOBALS['__options']['sn_link_verdict_m1'] ?? null ) && is_array(
 ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'legacy map option dropped after migration' );
 $GLOBALS['__options'] = array();
 
+echo "\nTest: v8.4.5 — snt_ai_verdict_store_restamp (Apply must not orphan sibling verdicts)\n";
+$now = time();
+$GLOBALS['__options'] = array(
+	// post 40 as SOURCE of a pair, as TARGET of a pair, as SOURCE of a mention.
+	'sn_pair_verdict_' . md5( '40|41' ) => array( 'verdict' => 'skip', 'src_id' => 40, 'tgt_id' => 41, 'src_mod' => 'OLD-A', 'tgt_mod' => 'OLD-B', 'ts' => $now - 100 ),
+	'sn_pair_verdict_' . md5( '42|40' ) => array( 'verdict' => 'skip', 'src_id' => 42, 'tgt_id' => 40, 'src_mod' => 'OLD-C', 'tgt_mod' => 'OLD-A', 'ts' => $now - 100 ),
+	'sn_link_verdict_' . md5( '40|43' ) => array( 'verdict' => 'skip', 'src_id' => 40, 'tgt_id' => 43, 'src_mod' => 'OLD-A', 'ts' => $now - 100 ),
+	'sn_link_verdict_' . md5( '44|45' ) => array( 'verdict' => 'skip', 'src_id' => 44, 'tgt_id' => 45, 'src_mod' => 'OLD-D', 'ts' => $now - 100 ),
+);
+snt_ai_verdict_store_restamp( 40, 'NEW-STAMP' );
+$r1 = $GLOBALS['__options'][ 'sn_pair_verdict_' . md5( '40|41' ) ];
+$r2 = $GLOBALS['__options'][ 'sn_pair_verdict_' . md5( '42|40' ) ];
+$r3 = $GLOBALS['__options'][ 'sn_link_verdict_' . md5( '40|43' ) ];
+$r4 = $GLOBALS['__options'][ 'sn_link_verdict_' . md5( '44|45' ) ];
+ok( 'NEW-STAMP' === $r1['src_mod'] && 'OLD-B' === $r1['tgt_mod'], 'pair where post is SOURCE: src_mod restamped, tgt_mod untouched' );
+ok( 'NEW-STAMP' === $r2['tgt_mod'] && 'OLD-C' === $r2['src_mod'], 'pair where post is TARGET: tgt_mod restamped, src_mod untouched' );
+ok( 'NEW-STAMP' === $r3['src_mod'] && ! isset( $r3['tgt_mod'] ), 'mention row restamped; no tgt_mod invented on a single-stamp row' );
+ok( 'OLD-D' === $r4['src_mod'], 'unrelated row untouched' );
+ok( $now - 100 === $r1['ts'], 'restamp preserves ts — judgment age is not reset' );
+$GLOBALS['__options'] = array();
+
+echo "\nTest: v8.4.5 — legacy stamp-keyed mention row is read once and migrated\n";
+mk_post( 30, 'Legacy Mention Target', 'legacy-mention-target', '<p>target body</p>' );
+mk_post( 31, 'Legacy Mention Source', 'legacy-mention-source', '<p>I discussed Legacy Mention Target at length.</p>' );
+$legacy_key = 'sn_link_verdict_' . md5( '31|30|2026-07-01 00:00:00' );
+$GLOBALS['__options'][ $legacy_key ] = array( 'verdict' => 'skip', 'reason' => 'judged pre-v8.4.5', 'ts' => time() );
+$calls_before = $GLOBALS['__ai_calls'];
+$res_legacy   = snt_ai_link_suggest_impl( 31, 30 );
+ok( $GLOBALS['__ai_calls'] === $calls_before, 'legacy row is a cache HIT — no AI re-bill for a pre-upgrade judgment' );
+ok( 'skip' === ( $res_legacy['verdict'] ?? '' ), 'legacy verdict passes through' );
+$new_key = 'sn_link_verdict_' . md5( '31|30' );
+ok( is_array( $GLOBALS['__options'][ $new_key ] ?? null ) && 31 === ( $GLOBALS['__options'][ $new_key ]['src_id'] ?? 0 ), 'legacy row migrated to the ID-keyed row with ids + stamp' );
+ok( ! isset( $GLOBALS['__options'][ $legacy_key ] ), 'legacy row deleted after migration' );
+$GLOBALS['__options'] = array();
+
 echo "\nTest: token budget pin (v8.4.1)\n";
 ok( 200 === SNT_AI_LINK_SUGGEST_MAX_TOKENS, 'link budget raised to 200 (two-field response headroom)' );
 
@@ -238,6 +291,21 @@ $written = (string) ( $GLOBALS['__updated']['post_content'] ?? '' );
 ok( false !== strpos( $written, '<a href="https://x.test/notes/cheap-option/">honesty has to be the cheap option</a>' ), 'mention wrapped in the target link' );
 ok( 1 === substr_count( $written, '<a href="https://x.test/notes/cheap-option/">' ), 'exactly one link inserted' );
 ok( false !== strpos( $written, 'Preamble paragraph.' ), 'surrounding content untouched' );
+
+echo "\nTest: v8.4.5 — Apply restamps the source's sibling verdicts (the owner's treadmill)\n";
+// Judge → apply → re-scan resurrected every OTHER judged pair on the same
+// source, because the apply's own wp_update_post bumped the stamp their keys
+// embedded. Apply must re-stamp its post's sibling rows: OUR splice is not
+// an owner edit.
+$GLOBALS['__options'][ 'sn_pair_verdict_' . md5( '1|50' ) ] = array( 'verdict' => 'skip', 'src_id' => 1, 'tgt_id' => 50, 'src_mod' => '2026-07-01 00:00:00', 'tgt_mod' => 'T', 'ts' => time() );
+$GLOBALS['__options'][ 'sn_link_verdict_' . md5( '1|51' ) ] = array( 'verdict' => 'skip', 'src_id' => 1, 'tgt_id' => 51, 'src_mod' => '2026-07-01 00:00:00', 'ts' => time() );
+$GLOBALS['__next_modified'] = '2026-07-02 23:00:00'; // the bump a real wp_update_post performs
+$out2 = snt_ai_link_apply_impl( 1, $s['anchor'], $s['context_snippet'], $s['fingerprint'], $s['target_url'] );
+$GLOBALS['__next_modified'] = null;
+ok( is_array( $out2 ) && true === ( $out2['ok'] ?? false ), 'apply succeeds' );
+ok( '2026-07-02 23:00:00' === ( $GLOBALS['__options'][ 'sn_pair_verdict_' . md5( '1|50' ) ]['src_mod'] ?? '' ), 'sibling PAIR verdict restamped to the post-apply stamp (stays suppressed on re-scan)' );
+ok( '2026-07-02 23:00:00' === ( $GLOBALS['__options'][ 'sn_link_verdict_' . md5( '1|51' ) ]['src_mod'] ?? '' ), 'sibling MENTION verdict restamped too' );
+$GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-01 00:00:00'; // restore for later sections
 
 echo "\nTest: apply — multi-occurrence disambiguation via context\n";
 // The two occurrences need genuinely distinct 200-char neighborhoods —
