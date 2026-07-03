@@ -2,10 +2,14 @@
  * Signal & Noise Tools — cache freshness dot.
  *
  * Runs on the plugin dashboard. For each cache-critical route, fetches the
- * canonical URL and a cache-busted variant, extracts the combined-CSS hash
- * (sn-styles-<hash>.css) from each, and compares. A mismatch means the edge is
- * serving a stale render for that route. Aggregates into the "Caches" glance
- * card (#snt-freshness-card).
+ * canonical URL and a cache-busted variant and compares TWO staleness markers
+ * from each HTML body:
+ *   - the combined-CSS hash (sn-styles-<hash>.css), and
+ *   - the render-epoch meta (<meta name="sn-render-epoch">, theme v10.23.0).
+ * A route is stale when EITHER marker differs canonical(edge)-vs-busted(fresh
+ * origin). The epoch catches render changes the CSS hash can't — e.g. an
+ * Additional-CSS edit, which lands in global-styles-inline-css, not the combined
+ * stylesheet file. Aggregates into the "Caches" glance card (#snt-freshness-card).
  *
  * Vantage: the admin browser resolves to Cloudflare and sees the true public
  * cache state. The edge caches HTML with no logged-in bypass, so a logged-in
@@ -19,10 +23,11 @@
 	if (!card) { return; } // only the dashboard has the card
 
 	var valueEl = card.querySelector('.sn-glance-card__value');
-	var HASH_RE = /sn-styles-([a-f0-9]{12})\.css/;
+	var HASH_RE  = /sn-styles-([a-f0-9]{12})\.css/;
+	var EPOCH_RE = /<meta[^>]+name=["']sn-render-epoch["'][^>]+content=["'](\d+)["']/i;
 
-	function hashOf(text) {
-		var m = (text || '').match(HASH_RE);
+	function markerOf(text, re) {
+		var m = (text || '').match(re);
 		return m ? m[1] : null;
 	}
 
@@ -32,15 +37,24 @@
 			.catch(function () { return null; });
 	}
 
-	// 'fresh' when the canonical (edge) hash matches the cache-busted (fresh
-	// origin) hash; 'stale' when they differ; 'unknown' when a fetch/parse fails.
+	// 'fresh' when every comparable marker matches canonical(edge) vs busted (fresh
+	// origin); 'stale' when any differs; 'unknown' when a fetch fails or neither
+	// marker is present to compare.
 	function checkRoute(url) {
 		var bust = url + (url.indexOf('?') === -1 ? '?' : '&') + 'x=' + Date.now();
 		return Promise.all([fetchText(url), fetchText(bust)]).then(function (both) {
-			var canon = hashOf(both[0]);
-			var fresh = hashOf(both[1]);
-			if (!canon || !fresh) { return 'unknown'; }
-			return canon === fresh ? 'fresh' : 'stale';
+			var canonHtml = both[0], freshHtml = both[1];
+			if (canonHtml === null || freshHtml === null) { return 'unknown'; }
+			var markers = [HASH_RE, EPOCH_RE], compared = 0, stale = false;
+			for (var i = 0; i < markers.length; i++) {
+				var canon = markerOf(canonHtml, markers[i]);
+				var fresh = markerOf(freshHtml, markers[i]);
+				if (canon === null || fresh === null) { continue; }
+				compared++;
+				if (canon !== fresh) { stale = true; }
+			}
+			if (compared === 0) { return 'unknown'; }
+			return stale ? 'stale' : 'fresh';
 		});
 	}
 

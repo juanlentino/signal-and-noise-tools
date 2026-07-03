@@ -25,7 +25,10 @@ function sn_handle_clear_overrides( $post ) {
 }
 
 function sn_handle_purge_caches( $post ) {
-	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+	// v8.7.0: verified=true routes the theme's CF leg through the blocking variant
+	// and writes the per-leg sn_last_purge_report. This is the deliberate, watched
+	// manual purge, so the extra second on the CF confirmation is acceptable.
+	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'verified' => true ) );
 	return 'purged';
 }
 
@@ -33,7 +36,8 @@ function sn_handle_full_reset( $post ) {
 	// v4.1.1 (D-07): pass explicit template_overrides=true rather than an
 	// empty args array. "Full reset" semantically includes template overrides;
 	// being explicit prevents drift if the theme tightens its filter contract.
-	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => true ) );
+	// v8.7.0: verified=true (see sn_handle_purge_caches) for the confirmed report.
+	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => true, 'verified' => true ) );
 	return 'reset_' . $count;
 }
 

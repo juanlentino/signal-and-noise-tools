@@ -21,6 +21,12 @@ if ( ! function_exists( 'apply_filters' ) ) {
 }
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
 
+// Option store + output/format stubs the card's report line touches (v8.7.0).
+$GLOBALS['__opts'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; } }
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $from, $to = 0 ) { return '3 mins'; } }
+
 require_once __DIR__ . '/../inc/freshness-indicator.php';
 
 $pass = 0; $fail = 0;
@@ -50,6 +56,35 @@ ok( ( $card['label'] ?? '' ) === 'Caches', 'card label is Caches' );
 ok( ( $card['id'] ?? '' ) === 'snt-freshness-card', 'card carries the JS-target id' );
 ok( ! empty( $card['value'] ), 'card has a neutral placeholder value' );
 ok( ! isset( $card['pill'] ), 'card renders NO pill server-side (JS injects it after the check)' );
+ok( ! isset( $card['meta_html'] ), 'card has no report line before any purge has run' );
+
+echo "\nFreshness indicator: last-purge report line (v8.7.0)\n";
+// A verified purge report from the theme (theme writes, plugin reads).
+$GLOBALS['__opts']['sn_last_purge_report'] = array(
+	'time'  => 100,
+	'mode'  => 'verified',
+	'epoch' => 7,
+	'legs'  => array(
+		'breeze_file' => true,
+		'varnish'     => array( 'via' => 'cloudways', 'ok' => true, 'http' => 200, 'operation_id' => 42 ),
+		'cf'          => array( 'accepted' => true, 'http' => 200, 'cf_success' => true ),
+	),
+);
+$card = snt_freshness_card();
+ok( ! empty( $card['meta_html'] ), 'card gains a report line when a purge report exists' );
+ok( is_string( $card['meta_html'] ) && false !== strpos( $card['meta_html'], 'Varnish' ), 'report line names the Varnish leg' );
+ok( false !== strpos( $card['meta_html'], 'CF' ), 'report line names the CF leg' );
+
+// An auto (dispatched-but-unconfirmed) CF leg reads as dispatched, not a tick.
+$GLOBALS['__opts']['sn_last_purge_report']['mode']       = 'auto';
+$GLOBALS['__opts']['sn_last_purge_report']['legs']['cf'] = array( 'dispatched' => true, 'confirmed' => null );
+$card = snt_freshness_card();
+ok( false !== strpos( $card['meta_html'], 'dispatched' ), 'an unconfirmed CF leg reads as dispatched' );
+
+// Malformed / empty report → no line, no fatal.
+$GLOBALS['__opts']['sn_last_purge_report'] = 'not-an-array';
+$card = snt_freshness_card();
+ok( ! isset( $card['meta_html'] ), 'a malformed report yields no line (fail-safe)' );
 
 echo "\nFreshness indicator: enqueue\n";
 

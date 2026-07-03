@@ -37,6 +37,8 @@ if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { retur
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
 if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $a, $b = 0 ) { return '3 hours'; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
+// v8.7.0: the freshness card now reads sn_last_purge_report; default = no report → no line.
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
 
 // ── Stubbed plugin accessors (the card builder is function_exists-guarded) ──
 $GLOBALS['__d'] = array(
