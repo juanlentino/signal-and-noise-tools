@@ -309,13 +309,20 @@
 .sn-an-header-rail { display: flex; flex-direction: column; gap: 12px; }
 .sn-an-header-rail .postbox { margin-bottom: 0; }
 .sn-an-header-main .postbox { margin-bottom: 0; }
-@media ( max-width: 1100px ) { .sn-an-header-grid { grid-template-columns: 1fr; } }
+/* v8.5.0 owner rule: the shorter the scroll, the better — hold the columns
+   down to WP's own 782px mobile breakpoint; when the header finally stacks,
+   the rail tiles sit SIDE BY SIDE (one extra row, not two). */
+@media ( max-width: 782px ) {
+	.sn-an-header-grid { grid-template-columns: 1fr; }
+	.sn-an-header-rail { flex-direction: row; }
+	.sn-an-header-rail > .postbox { flex: 1; min-width: 0; }
+}
 
 /* ── v8.5.0: content view — what's read | where it comes from ────────────── */
 .sn-an-content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 12px; }
 .sn-an-content-side { display: flex; flex-direction: column; gap: 12px; }
 .sn-an-content-side .postbox, .sn-an-content-main .postbox { margin-bottom: 0; }
-@media ( max-width: 960px ) { .sn-an-content-grid { grid-template-columns: 1fr; } }
+@media ( max-width: 782px ) { .sn-an-content-grid { grid-template-columns: 1fr; } }
 
 /* ── v8.5.0: journeys & diagnostics row ──────────────────────────────────── */
 .sn-an-journeys-label {
@@ -325,7 +332,8 @@
 }
 .sn-an-journeys-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; }
 .sn-an-journeys-grid .postbox { margin-bottom: 0; }
-@media ( max-width: 1100px ) { .sn-an-journeys-grid { grid-template-columns: 1fr; } }
+@media ( max-width: 960px ) { .sn-an-journeys-grid { grid-template-columns: 1fr 1fr; } }
+@media ( max-width: 782px ) { .sn-an-journeys-grid { grid-template-columns: 1fr; } }
 
 /* ── v8.5.0: rail tiles + movers ─────────────────────────────────────────── */
 .sn-an-rail-tile .inside { padding: 8px 14px 10px; }
