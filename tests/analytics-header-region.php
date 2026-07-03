@@ -30,6 +30,22 @@ function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return 
 function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'pct' => 12, 'dir' => 'up' ) ); }
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 62; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 62, 'previous' => 65, 'pct' => -3, 'dir' => 'down' ); }
+// Pulse-strip accessors (durable bucket/rollup reads) — flip the globals to
+// model a dataless install.
+$GLOBALS['__dist_on'] = true;
+function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) {
+	if ( ! $GLOBALS['__dist_on'] ) { return array(); }
+	return array( array( 'label' => '0-25%', 'views' => 4 ), array( 'label' => '75-100%', 'views' => 40 ) );
+}
+$GLOBALS['__cs_on'] = true;
+function sn_analytics_class_series( $f, $t, $g = 'day' ) {
+	if ( ! $GLOBALS['__cs_on'] ) { return array(); }
+	return array( array( 'day' => '2026-07-01', 'bot_pct' => 20, 'total' => 80 ), array( 'day' => '2026-07-02', 'bot_pct' => 30, 'total' => 90 ) );
+}
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+// Shared bézier helper (real impl lives in analytics-admin-render.php; the
+// pulse spark consumes it — a recorder string keeps this fixture focused).
+if ( ! function_exists( 'snt_analytics_smooth_path' ) ) { function snt_analytics_smooth_path( $px, $py, $top, $base ) { return 'M 0,0 C 1,1 2,2 3,3'; } }
 
 // Sub-renderer recorders (each has its own suite; this fixture pins ORDER + composition).
 function snt_analytics_render_controls( $r, $c, $f = '', $t = '' ) { echo '<!--CONTROLS-->'; }
@@ -90,6 +106,35 @@ ob_start();
 $totals = snt_analytics_render_header_region( 'content', 'all', 'human', '2020-01-01', '2026-07-07', 'week' );
 $html = (string) ob_get_clean();
 ok( false !== strpos( $html, '<!--CARDS-->' ), 'all-range renders cards without deltas' );
+
+echo "\nTest: v8.5.0 Pulse strip — four durable micro-stats, one hairline row\n";
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+$html = (string) ob_get_clean();
+ok( false !== strpos( $html, 'sn-an-pulse' ), 'pulse strip renders' );
+$grid_pos  = strpos( $html, 'sn-an-header-grid' );
+$pulse_pos = strpos( $html, '<div class="sn-an-pulse">' );
+$detail    = strpos( $html, '<!--UPTIME-DETAIL-->' );
+ok( false !== $pulse_pos && $pulse_pos > $grid_pos && $pulse_pos < $detail, 'pulse sits between the header grid and the uptime detail panel' );
+ok( false !== strpos( $html, '>Scroll<' ) && false !== strpos( $html, '>Read time<' ), 'scroll + read-time band cells present' );
+ok( false !== strpos( $html, '75-100% · 91%' ), 'dominant band named with its share (40 of 44)' );
+ok( false !== strpos( $html, 'Bot share' ) && false !== strpos( $html, 'sn-an-pulse-spark' ), 'bot-share cell with microspark' );
+ok( false !== strpos( $html, '>25%<' ), 'bot share window average (20+30 / 2)' );
+ok( false !== strpos( $html, 'Today so far' ), 'today cell present on day granularity' );
+// Week granularity: no "today" cell (a week bucket is not a day).
+ob_start();
+snt_analytics_render_header_region( 'content', '90', 'human', '2026-04-01', '2026-07-07', 'week' );
+$html = (string) ob_get_clean();
+ok( false === strpos( $html, 'Today so far' ), 'today cell absent on non-day granularity' );
+// Dataless install: strip renders nothing (no dead chrome).
+$GLOBALS['__dist_on'] = false;
+$GLOBALS['__cs_on'] = false;
+ob_start();
+snt_analytics_render_header_region( 'content', '90', 'human', '2026-04-01', '2026-07-07', 'week' );
+$html = (string) ob_get_clean();
+ok( false === strpos( $html, 'sn-an-pulse' ), 'dataless install: no pulse chrome' );
+$GLOBALS['__dist_on'] = true;
+$GLOBALS['__cs_on'] = true;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

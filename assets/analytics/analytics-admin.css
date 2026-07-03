@@ -379,3 +379,22 @@
 .sn-an-movers .inside { flex: 1; }
 .sn-an-mover-nums { display: inline-flex; gap: 8px; align-items: baseline; }
 .sn-an-mover-views { color: var(--sn-text-muted, #646970); font-size: 11px; }
+
+/* ── v8.5.0: the Pulse strip — four glanceable micro-stats in one hairline
+   row (scroll bands, read-time bands, bot-share spark, today). ──────────── */
+.sn-an-pulse {
+	display: flex; align-items: center; gap: 16px;
+	margin: 0 0 12px; padding: 8px 14px;
+	background: #fff; border: 1px solid var(--sn-an-border, #dcdcde);
+	border-radius: var(--sn-radius, 3px);
+	font-variant-numeric: tabular-nums;
+}
+.sn-an-pulse-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.sn-an-pulse-k { color: var(--sn-text-muted, #646970); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.sn-an-pulse-v { font-size: 12px; color: #1d2327; white-space: nowrap; }
+.sn-an-pulse-v--big { font-size: 16px; font-weight: 600; }
+.sn-an-pulse-bar { display: inline-flex; width: 96px; height: 8px; border-radius: 2px; overflow: hidden; background: #f0f0f1; }
+.sn-an-pulse-bar span { display: block; height: 100%; }
+.sn-an-pulse-spark { width: 72px; height: 18px; }
+.sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-border, #dcdcde); }
+@media ( max-width: 782px ) { .sn-an-pulse { flex-wrap: wrap; } .sn-an-pulse-sep { display: none; } }

@@ -166,13 +166,19 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '' ) {
 function snt_analytics_render_separation( $class_totals, $class ) {
 	$bot     = (int) ( $class_totals['bot']['views'] ?? 0 );
 	$suspect = (int) ( $class_totals['suspect']['views'] ?? 0 );
+	$human   = (int) ( $class_totals['human']['views'] ?? 0 );
 	$auto    = $bot + $suspect;
+	$total   = $auto + $human;
 	echo '<div class="notice notice-info inline"><p>';
 	echo 'Showing <strong>' . esc_html( $class ) . '</strong> traffic';
 	if ( $auto > 0 ) {
 		echo ' · ' . esc_html( number_format_i18n( $auto ) ) . ' automated filtered ('
 			. esc_html( number_format_i18n( $bot ) ) . ' bot · '
 			. esc_html( number_format_i18n( $suspect ) ) . ' suspect)';
+		// v8.5.0: the share, not just the count — % of ALL recorded traffic.
+		if ( $total > 0 ) {
+			echo ' · ' . esc_html( (string) round( $auto / $total * 100 ) . '% of all traffic' );
+		}
 	}
 	echo '</p></div>';
 }
@@ -311,7 +317,14 @@ function snt_analytics_render_delta_badge_kpi( $delta ) {
 	$text  = ( null === $pct )
 		? ( 'up' === $dir ? 'new' : '—' )
 		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
-	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
+	// v8.5.0 (data-obsessed pass): the absolute prior-period value rides a
+	// tooltip so the % is never the whole story.
+	$title = '';
+	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
+		$prev  = (float) $delta['previous'];
+		$title = ' title="' . esc_attr( 'previous period: ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 ) ) . '"';
+	}
+	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"' . $title . '><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
 }
 
 /**
