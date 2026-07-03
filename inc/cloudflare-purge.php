@@ -166,6 +166,10 @@ function sn_cf_api_post( $path, $body ) {
 		'timeout'  => 5,
 		'blocking' => false,
 		'sslverify' => true,
+		// v8.7.1 (CMA audit INFO-1): a Bearer credential is attached to a fixed API
+		// host, so forbid following any 3xx that would re-send it — matching the
+		// sn_uptime_status_api_get() outbound-hardening convention.
+		'redirection' => 0,
 	) );
 }
 
@@ -189,6 +193,7 @@ function sn_cf_api_post_blocking( $path, $body ) {
 		'timeout'   => 8,
 		'blocking'  => true,
 		'sslverify' => true,
+		'redirection' => 0, // v8.7.1 (CMA INFO-1): never re-send the Bearer on a 3xx.
 	) );
 	$http = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 	$data = is_wp_error( $res ) ? array() : (array) json_decode( wp_remote_retrieve_body( $res ), true );

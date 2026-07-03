@@ -59,10 +59,14 @@ $oauth = $GLOBALS['__http'][0];
 ok( strpos( $oauth['url'], 'oauth/access_token' ) !== false, 'first call hits oauth/access_token' );
 ok( ( $oauth['args']['body']['email'] ?? '' ) === 'me@example.test', 'oauth body carries the email' );
 ok( ( $oauth['args']['body']['api_key'] ?? '' ) === 'SECRETKEY123', 'oauth body carries the api_key' );
+// v8.7.1 (CMA audit INFO-1): the account-wide api_key rides the POST body, so a 307/308
+// redirect would re-send it — redirection=>0 forbids following any 3xx from the API host.
+ok( 0 === ( $oauth['args']['redirection'] ?? -1 ), 'oauth request disables redirects (no api_key forward on a 3xx)' );
 
 $purge = $GLOBALS['__http'][1];
 ok( strpos( $purge['url'], 'app/cache/purge' ) !== false, 'second call hits app/cache/purge' );
 ok( ( $purge['args']['headers']['Authorization'] ?? '' ) === 'Bearer TESTTOKEN', 'purge sends the Bearer token' );
+ok( 0 === ( $purge['args']['redirection'] ?? -1 ), 'purge request disables redirects (no Bearer forward on a 3xx)' );
 ok( (string) ( $purge['args']['body']['server_id'] ?? '' ) === '111', 'purge body carries server_id' );
 ok( (string) ( $purge['args']['body']['app_id'] ?? '' ) === '222', 'purge body carries app_id' );
 
