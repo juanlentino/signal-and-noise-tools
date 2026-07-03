@@ -145,6 +145,11 @@ require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 require_once __DIR__ . '/../inc/analytics-view-content.php';
+require_once __DIR__ . '/../inc/analytics-view-technology.php';
+require_once __DIR__ . '/../inc/analytics-view-geography.php';
+require_once __DIR__ . '/../inc/analytics-view-engagement.php';
+require_once __DIR__ . '/../inc/analytics-view-quality.php';
+require_once __DIR__ . '/../inc/analytics-view-events.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
 
