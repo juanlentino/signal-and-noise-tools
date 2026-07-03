@@ -198,9 +198,22 @@
 	.sn-kpi:nth-child(3n) { border-right: 1px solid #dcdcde; }
 	.sn-kpi:nth-child(2n) { border-right: none; }
 }
+@media screen and (min-width: 1101px) {
+	.sn-kpi-row--edge { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
 
 /* ── layout helpers still consumed by current render fns ────────────────── */
-.sn-an-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.sn-an-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; align-items: start; }
+/* A lone trailing panel (odd count, after empties are omitted) spans full width so it
+   never sits half-empty. Requires panel-only grids (intros/folds live outside them). */
+.sn-an-grid > .postbox:last-child:nth-child(odd),
+.sn-geo-tiles > .postbox:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.sn-geo-tiles { align-items: start; }
+/* Field Core Web Vitals as one row (LCP / INP / CLS belong together). */
+.sn-an-cwv-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+@media screen and (max-width: 782px) { .sn-an-cwv-grid { grid-template-columns: 1fr; } }
+/* Muted fold line listing the panels that had no data this range. */
+.sn-an-empty-fold { grid-column: 1 / -1; margin: 4px 0 0; }
 .sn-an-view-tabs { margin: 18px 0 0; }
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
@@ -224,7 +237,8 @@
 .sn-an-refcat-bar span { display: block; height: 100%; background: #2271b1; border-radius: 4px; }
 .sn-an-dist-bars { display: flex; flex-direction: column; gap: 7px; }
 .sn-an-dist-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.sn-an-dist-l { flex: 0 0 72px; color: #646970; }
+.sn-an-dist-l { flex: 0 0 72px; color: #646970; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sn-an-dist--wide .sn-an-dist-l { flex: 0 0 180px; }
 .sn-an-dist-bar { flex: 1; height: 10px; background: #f0f0f1; border-radius: 5px; overflow: hidden; }
 .sn-an-dist-bar span { display: block; height: 100%; background: #2271b1; border-radius: 5px; }
 .sn-an-dist-n { flex: 0 0 auto; }
