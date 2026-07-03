@@ -139,6 +139,16 @@ ok( stripos( $clear, 'checks passed' ) !== false && strpos( $clear, '2' ) !== fa
 ok( stripos( $clear, 'scanned' ) !== false && strpos( $clear, '2 hours' ) !== false, 'all-clear: relative scan timestamp' );
 ok( strpos( $clear, 'sn-aw-grid' ) === false && strpos( $clear, 'sn-aw-list' ) === false, 'all-clear: no findings tiles/list' );
 
+// v8.5.0 pairing: the advisory tier is part of the glance — an all-clear site
+// with open advisories says so instead of hiding the queue.
+$GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
+	'missing_alt'    => mk_check( 0, 'Missing alt text' ),
+	'external_links' => mk_check( 4, 'External link rot' ),
+) );
+ob_start(); sn_site_health_widget_render(); $adv = ob_get_clean();
+ok( strpos( $adv, 'sn-hw-head--ok' ) !== false, 'advisories-only: still the ok header (advisory tier never alarms)' );
+ok( stripos( $adv, '4 advisories' ) !== false, 'advisories-only: subline names the open advisory count' );
+
 // ═══ render: state 3 (findings) ═══
 echo "\n-- render: findings --\n";
 $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
@@ -154,6 +164,7 @@ ok( strpos( $f, 'sn-hw-head--warn' ) !== false, 'findings: warn status header' )
 // need me" surface, and third-party rot does not.
 ok( stripos( $f, '10 finding' ) !== false, 'findings: headline total sums fault checks only (3+7=10)' );
 ok( stripos( $f, '2 of 4' ) !== false, 'findings: subline counts only fault-tier flagged checks (2 of 4)' );
+ok( stripos( $f, '2 advisories' ) !== false, 'findings: subline also names the advisory queue (v8.5.0 pairing)' );
 ok( strpos( $f, 'sn-aw-list' ) !== false, 'findings: ranked list present' );
 $p_broken = strpos( $f, 'Broken internal links' );
 $p_alt    = strpos( $f, 'Missing alt text' );

@@ -81,6 +81,8 @@ ok( $series[0]['day'] === '2026-06-20' && $series[1]['views'] === 9, 'trend seri
 $GLOBALS['__lg_q'] = array(
 	array( array( 'decision' => 'block', 'hits' => 4 ), array( 'decision' => 'pass', 'hits' => 6 ) ),
 	array( array( 'asorg' => 'BadNet', 'hits' => 4 ) ),
+	// v8.5.0: the headline also fetches + caches the 7d trend (third query).
+	array( array( 'day' => '2026-07-01', 'blocked' => 1, 'passed' => 3 ), array( 'day' => '2026-07-02', 'blocked' => 3, 'passed' => 3 ) ),
 );
 function sn_analytics_config() { return array( 'account_id' => 'x', 'token' => 'y' ); }
 function sn_analytics_query( $sql ) { return array_shift( $GLOBALS['__lg_q'] ); }
@@ -90,6 +92,8 @@ function set_transient( $k, $v, $ttl ) { $GLOBALS['__t'][ $k ] = $v; return true
 $h = sn_login_defense_headline();
 ok( $h['blocked'] === 4 && $h['block_rate'] === 40 && $h['top_network'] === 'BadNet', 'headline: blocked/rate/top-network' );
 ok( isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: cached in transient' );
+// v8.5.0: the trend rides the SAME transient (one shared cache, no widget-side query).
+ok( isset( $h['trend'] ) && 2 === count( $h['trend'] ) && 3 === (int) $h['trend'][1]['views'], 'headline: carries the 7d blocked trend as a sparkline series (blocked -> views)' );
 
 // --- D1: Security panel is status-only (no decisions KPI; links to analytics) -
 function esc_html( $s ) { return (string) $s; }

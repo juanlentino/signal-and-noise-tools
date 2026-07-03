@@ -52,6 +52,15 @@ function sn_login_defense_widget_render() {
 	echo '<div class="sn-aw-stat"><div class="sn-aw-stat-n">' . esc_html( (int) $h['block_rate'] . '%' ) . '</div>'
 		. '<div class="sn-aw-stat-l">' . esc_html__( 'Block rate', 'signal-and-noise-tools' ) . '</div></div>';
 	echo '</div>';
+	// v8.5.0 pairing: the 7d blocked microspark from the headline's cached
+	// trend (no widget-side query) — same .sn-aw-trend treatment as the
+	// Overview widget's views sparkline.
+	if ( ! empty( $h['trend'] ) && function_exists( 'snt_analytics_sparkline' ) ) {
+		echo '<div class="sn-aw-trend">';
+		echo snt_analytics_sparkline( $h['trend'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped SVG from the shared helper.
+		echo '<span class="sn-aw-trend-l">' . esc_html__( '7-day blocked', 'signal-and-noise-tools' ) . '</span>';
+		echo '</div>';
+	}
 	// v6.44.0: surface the denominator (the returned-but-previously-ignored `checked`
 	// total) so the block rate has volume context — 40% of 10 reads very differently
 	// from 40% of 10,000. Forward-only 7d window, same source as the tiles above.

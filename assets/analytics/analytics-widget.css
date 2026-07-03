@@ -70,3 +70,15 @@
 .sn-hw-head--ok .sn-hw-h{color:#0a7c2f;}
 .sn-hw-sub{font-size:0.85em;color:#646970;margin:2px 0 0;}
 .sn-hw-list{margin-top:14px;}
+
+/* ── v8.5.0 pairing: share bars, today line, mover deltas ─────────────────── */
+.sn-aw-list--bars li { position: relative; }
+.sn-aw-list--bars li::before {
+	content: ""; position: absolute; left: 0; bottom: 0; top: 0;
+	width: var(--sn-aw-share, 0%);
+	background: rgba(34, 113, 177, 0.07); pointer-events: none;
+}
+.sn-aw-today { margin-top: 2px; }
+.sn-aw-movers li { font-variant-numeric: tabular-nums; }
+.sn-aw-mv-up { color: #00a32a; font-weight: 600; }
+.sn-aw-mv-down { color: #d63638; font-weight: 600; }

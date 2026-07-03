@@ -121,12 +121,17 @@ function sn_login_defense_headline() {
 	}
 	$kpis = sn_login_defense_kpis_from_rows( sn_analytics_query( sn_login_defense_decisions_sql( 7 ) ) ?: array() );
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( 7, 1 ) ) ?: array();
+	// v8.5.0: the 7d blocked trend rides the same cached headline (one extra
+	// AE query per 10 minutes, shared by every consumer — the widget renders
+	// its microspark from this, never queries on its own).
+	$trend = sn_login_defense_trend_series( sn_analytics_query( sn_login_defense_trend_sql( 7 ) ) ?: array() );
 	$out  = array(
 		'configured'  => true,
 		'checked'     => $kpis['checked'],
 		'blocked'     => $kpis['blocked'],
 		'block_rate'  => $kpis['block_rate'],
 		'top_network' => (string) ( $asn[0]['asorg'] ?? '' ),
+		'trend'       => $trend,
 	);
 	set_transient( 'sn_lg_headline', $out, 600 );
 	return $out;

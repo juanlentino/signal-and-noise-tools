@@ -85,12 +85,20 @@ function sn_site_health_widget_render() {
 		? sprintf( __( 'Scanned %s ago', 'signal-and-noise-tools' ), human_time_diff( $scanned_at, time() ) )
 		: '';
 
+	// v8.5.0 pairing: the advisory tier joins the glance — an open advisory
+	// queue is information, not alarm, so it rides the subline in BOTH states.
+	$advisories = function_exists( 'sn_health_advisory_total' ) ? (int) sn_health_advisory_total( $scan ) : 0;
+
 	// ── State 2: all clear. Green affirmative + "M checks passed". ──
 	if ( $total < 1 ) {
 		$sub = $check_total > 0
 			/* translators: %s: number of health checks that passed. */
 			? sprintf( __( '%s checks passed', 'signal-and-noise-tools' ), number_format_i18n( $check_total ) )
 			: __( 'No health findings', 'signal-and-noise-tools' );
+		if ( $advisories > 0 ) {
+			/* translators: %s: open advisory count. */
+			$sub .= ' · ' . sprintf( __( '%s advisories', 'signal-and-noise-tools' ), number_format_i18n( $advisories ) );
+		}
 		if ( '' !== $ago ) {
 			$sub .= ' · ' . $ago;
 		}
@@ -108,6 +116,10 @@ function sn_site_health_widget_render() {
 		? sprintf( __( 'across %1$s of %2$s checks', 'signal-and-noise-tools' ), number_format_i18n( $flag_count ), number_format_i18n( $check_total ) )
 		/* translators: %s: flagged check count. */
 		: sprintf( __( 'across %s checks', 'signal-and-noise-tools' ), number_format_i18n( $flag_count ) );
+	if ( $advisories > 0 ) {
+		/* translators: %s: open advisory count. */
+		$sub .= ' · ' . sprintf( __( '%s advisories', 'signal-and-noise-tools' ), number_format_i18n( $advisories ) );
+	}
 	if ( '' !== $ago ) {
 		$sub .= ' · ' . $ago;
 	}

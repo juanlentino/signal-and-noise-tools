@@ -50,6 +50,25 @@ ok( strpos( $w, 'sn-lg-widget' ) === false, 'the unstyled .sn-lg-widget bare-<ul
 // from 40% of 10,000.
 ok( strpos( $w, '4 of 10' ) !== false, 'foot surfaces the blocked-of-checked denominator (7d) using the returned checked total' );
 
+// v8.5.0 pairing: a cached 7d blocked trend rides the headline; when present
+// (and the shared sparkline helper exists) the widget renders a microspark.
+function snt_analytics_sparkline( $series ) { return '<span class="sn-an-spark" data-n="' . count( (array) $series ) . '"></span>'; }
+$GLOBALS['__ld_headline'] = array(
+	'configured' => true, 'checked' => 10, 'blocked' => 4, 'block_rate' => 40, 'top_network' => 'BadNet',
+	'trend' => array( array( 'day' => '2026-07-01', 'views' => 2 ), array( 'day' => '2026-07-02', 'views' => 4 ) ),
+);
+ob_start();
+sn_login_defense_widget_render();
+$w = ob_get_clean();
+ok( strpos( $w, 'sn-aw-trend' ) !== false && strpos( $w, 'sn-an-spark' ) !== false, 'headline trend renders as a 7d blocked microspark (sn-aw-trend parity with the Overview widget)' );
+ok( strpos( $w, 'blocked' ) !== false, 'spark labelled as the blocked trend' );
+// Backward compat: a headline WITHOUT the trend key renders exactly as before.
+$GLOBALS['__ld_headline'] = array( 'configured' => true, 'checked' => 10, 'blocked' => 4, 'block_rate' => 40, 'top_network' => 'BadNet' );
+ob_start();
+sn_login_defense_widget_render();
+$w = ob_get_clean();
+ok( strpos( $w, 'sn-aw-trend' ) === false, 'no trend in the headline → no spark (guarded, zero behavior change)' );
+
 // v6.47.0 (audit #5/#12): the dormant state adopts the analytics widgets' styled
 // .sn-aw-err treatment (not a bare <p>) and points at the same edge-worker
 // prerequisite, so all three home widgets read as one design system when CF is off.
