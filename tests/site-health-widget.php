@@ -113,7 +113,9 @@ $GLOBALS['__can'] = true; $GLOBALS['__widgets'] = array();
 sn_site_health_widget_register();
 ok( isset( $GLOBALS['__widgets']['sn_site_health'] ), 'register: manage_options user registers sn_site_health' );
 ok( isset( $GLOBALS['__widgets']['sn_site_health']['title'] ) && $GLOBALS['__widgets']['sn_site_health']['title'] === 'S&N Health', 'register: title is "S&N Health"' );
-ok( isset( $GLOBALS['__widgets']['sn_site_health']['cb'] ) && $GLOBALS['__widgets']['sn_site_health']['cb'] === 'sn_site_health_widget_render', 'register: render callback wired' );
+// v8.3.0: the registered callback is the _full wrapper (health render +
+// uptime section) — asserted in depth in the uptime-section block below.
+ok( isset( $GLOBALS['__widgets']['sn_site_health']['cb'] ) && $GLOBALS['__widgets']['sn_site_health']['cb'] === 'sn_site_health_widget_render_full', 'register: full (health + uptime) render callback wired' );
 
 // ═══ render: state 1 (no scan) ═══
 echo "\n-- render: no scan --\n";
@@ -176,6 +178,30 @@ $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array( 'x' => mk_check( 1, '
 ob_start(); sn_site_health_widget_render(); $xss = ob_get_clean();
 ok( strpos( $xss, '<script>alert(1)</script>' ) === false, 'escaping: raw <script> label is not emitted' );
 ok( strpos( $xss, '&lt;script&gt;' ) !== false, 'escaping: label passes through esc_html' );
+
+// ═══ uptime section (v8.3.0 consolidation) ═══
+// The standalone "S&N Uptime" widget was folded into this one: the
+// registered callback is now the _full wrapper (health render + uptime
+// section). The section is '' without a token and an async mount with one;
+// either way the render stays remote-call-free.
+echo "\n-- uptime section (v8.3.0) --\n";
+require __DIR__ . '/../inc/uptime-status.php';
+require __DIR__ . '/../inc/uptime-status-widget.php';
+$GLOBALS['__can'] = true; $GLOBALS['__widgets'] = array();
+sn_site_health_widget_register();
+$full_cb = $GLOBALS['__widgets']['sn_site_health']['cb'] ?? '';
+ok( 'sn_site_health_widget_render_full' === $full_cb, 'uptime: widget registers the full (health + uptime) callback' );
+
+$GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array( 'ok1' => mk_check( 0, 'Fine' ) ) );
+unset( $GLOBALS['__opt']['sn_betterstack_api_token'] );
+ob_start(); call_user_func( $full_cb ); $no_token = ob_get_clean();
+ok( strpos( $no_token, 'data-sn-uptime-status' ) === false, 'uptime: no section without a token (no prompt, no dead box)' );
+
+$GLOBALS['__opt']['sn_betterstack_api_token'] = 'tok-abcdef123456';
+ob_start(); call_user_func( $full_cb ); $with_token = ob_get_clean();
+ok( strpos( $with_token, 'sn-uw-section' ) !== false && strpos( $with_token, 'data-sn-uptime-status' ) !== false, 'uptime: configured render appends the async mount section' );
+ok( strpos( $with_token, 'tok-abcdef123456' ) === false, 'uptime: token never in widget markup' );
+unset( $GLOBALS['__opt']['sn_betterstack_api_token'] );
 
 // ═══ never triggers a scan (zero-cost render is a hard requirement) ═══
 echo "\n-- never-scan guard --\n";

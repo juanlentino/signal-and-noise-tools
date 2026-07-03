@@ -1,20 +1,25 @@
 <?php
 /**
- * Standalone fixture tests for inc/uptime-status-widget.php (v8.2.0) —
- * the "S&N Uptime" dashboard widget.
+ * Standalone fixture tests for inc/uptime-status-widget.php — since v8.3.0
+ * the Uptime SECTION of the S&N Health widget (the standalone "S&N Uptime"
+ * widget was consolidated away, owner call 2026-07-02).
  *
- * Contract under test (mirrors the site-health-widget discipline):
- *   - registration on wp_dashboard_setup, manage_options-gated
- *   - render is ZERO-COST: no HTTP ever (index.php renders on every
- *     admin login); data loads async via sntAbilityRun into the mount
- *   - unconfigured → settings prompt, no JS mount
- *   - configured → mount div + loading copy, still no HTTP
- *   - assets/uptime-status.js enqueued on index.php AND the SN admin
- *     pages (rail panel), dep on snt-ability-run, nowhere else
+ * Contract under test:
+ *   - REMOVAL GUARDS: no standalone dashboard widget registration remains
+ *     (no wp_dashboard_setup hook, no wp_add_dashboard_widget call)
+ *   - sn_uptime_status_health_section(): '' when unconfigured; heading +
+ *     async mount when configured; token never in markup; ZERO HTTP
+ *   - assets enqueue on index.php ONLY when configured (no token → no
+ *     mount → shipping JS/CSS would be wasted requests), dep on
+ *     snt-ability-run, nowhere else
+ *
+ * The integration (S&N Health widget appends the section via its
+ * registered sn_site_health_widget_render_full callback) is asserted in
+ * tests/site-health-widget.php.
  *
  * Run: php tests/uptime-status-widget.php
  *
- * @since plugin v8.2.0
+ * @since plugin v8.2.0 (standalone widget), v8.3.0 (section rewrite)
  */
 
 // SECURITY: Prevent web access. CLI / WP-CLI only.
@@ -25,14 +30,11 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 
 define( 'ABSPATH', '/' );
 define( 'SNT_URL', 'https://example.com/wp-content/plugins/signal-and-noise-tools/' );
-define( 'SNT_VERSION', '8.2.0' );
+define( 'SNT_VERSION', '8.3.0' );
 
 // ── Stubs ────────────────────────────────────────────────────────────
 $GLOBALS['__actions'] = array();
 function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; }
-
-$GLOBALS['__can'] = true;
-function current_user_can( $cap ) { return ! empty( $GLOBALS['__can'] ); }
 
 $GLOBALS['__widgets'] = array();
 function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( 'title' => $title, 'cb' => $cb ); }
@@ -42,7 +44,7 @@ function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $
 $GLOBALS['__styles'] = array();
 function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false ) { $GLOBALS['__styles'][ $handle ] = array( 'src' => $src, 'deps' => $deps ); }
 
-// HTTP tripwire: ANY call during render is a contract violation.
+// HTTP tripwire: ANY call from the section path is a contract violation.
 $GLOBALS['__http_calls'] = 0;
 function wp_remote_get( $url, $args = array() ) { $GLOBALS['__http_calls']++; return array( 'code' => 200, 'body' => '{}' ); }
 
@@ -58,7 +60,6 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
 
-// The widget consumes the data layer's configured()/mount helpers.
 require_once __DIR__ . '/../inc/uptime-status.php';
 require_once __DIR__ . '/../inc/uptime-status-widget.php';
 
@@ -70,56 +71,47 @@ function uw_ok( $c, $msg ) {
 	else { $fail++; echo "  FAIL: $msg\n"; }
 }
 
-function uw_render() {
-	$w = $GLOBALS['__widgets']['sn_uptime_status'] ?? null;
-	if ( ! $w ) { return ''; }
-	ob_start();
-	call_user_func( $w['cb'] );
-	return (string) ob_get_clean();
-}
-function uw_register() {
-	$GLOBALS['__widgets'] = array();
-	foreach ( $GLOBALS['__actions']['wp_dashboard_setup'] ?? array() as $cb ) { $cb(); }
-}
+// ─── Test 1: REMOVAL GUARDS — the standalone widget stays gone ───────
+echo "\nTest 1: standalone widget removal guards (v8.3.0)\n";
+foreach ( $GLOBALS['__actions']['wp_dashboard_setup'] ?? array() as $cb ) { $cb(); }
+uw_ok( ! isset( $GLOBALS['__widgets']['sn_uptime_status'] ), 'no sn_uptime_status dashboard widget registered' );
+$module_src = file_get_contents( __DIR__ . '/../inc/uptime-status-widget.php' );
+uw_ok( false === strpos( $module_src, 'wp_add_dashboard_widget(' ), 'module contains no widget registration call' );
+uw_ok( false === strpos( $module_src, "add_action( 'wp_dashboard_setup'" ), 'module no longer hooks wp_dashboard_setup' );
 
-// ─── Test 1: registration gate ───────────────────────────────────────
-echo "\nTest 1: manage_options-gated registration\n";
-$GLOBALS['__can'] = false;
-uw_register();
-uw_ok( ! isset( $GLOBALS['__widgets']['sn_uptime_status'] ), 'no widget without manage_options' );
-$GLOBALS['__can'] = true;
-uw_register();
-uw_ok( isset( $GLOBALS['__widgets']['sn_uptime_status'] ), 'widget registered for admins' );
+// ─── Test 2: section — unconfigured renders NOTHING ──────────────────
+echo "\nTest 2: unconfigured section\n";
+uw_ok( '' === sn_uptime_status_health_section(), 'empty string without a token (no prompt, no dead box)' );
+uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP unconfigured' );
 
-// ─── Test 2: unconfigured render — prompt, no mount, no HTTP ─────────
-echo "\nTest 2: unconfigured render\n";
-$html = uw_render();
-uw_ok( false !== strpos( $html, 'page=sn-connections' ) && false !== strpos( $html, 'sub=webhooks' ), 'links to the Connections → Webhooks settings page' );
-uw_ok( false === strpos( $html, 'data-sn-uptime-status' ), 'no JS mount when unconfigured' );
-uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on unconfigured render' );
-
-// ─── Test 3: configured render — mount shell, still no HTTP ──────────
-echo "\nTest 3: configured render is an async shell\n";
+// ─── Test 3: configured section — heading + async mount, no HTTP ─────
+echo "\nTest 3: configured section is an async shell\n";
 $GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
-$html = uw_render();
-uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ), 'JS mount present when configured' );
-uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in the widget markup' );
+$html = sn_uptime_status_health_section();
+uw_ok( false !== strpos( $html, 'sn-uw-section' ), 'section wrapper present' );
+uw_ok( false !== strpos( $html, '>Uptime<' ), 'section heading present' );
+uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ), 'async mount present' );
+uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
 uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on configured render (async contract)' );
 
-// ─── Test 4: script enqueue surfaces ─────────────────────────────────
-echo "\nTest 4: uptime-status.js enqueue gating\n";
+// ─── Test 4: asset enqueue — index.php AND configured only ───────────
+echo "\nTest 4: enqueue gating (configured + dashboard home)\n";
 function uw_fire_enqueue( $hook ) {
 	$GLOBALS['__scripts'] = array();
 	$GLOBALS['__styles']  = array();
 	foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] ?? array() as $cb ) { $cb( $hook ); }
 }
 uw_fire_enqueue( 'index.php' );
-uw_ok( isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'script enqueued on the dashboard home' );
+uw_ok( isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'script enqueued on the dashboard home when configured' );
 uw_ok( in_array( 'snt-ability-run', $GLOBALS['__scripts']['sn-uptime-status']['deps'] ?? array(), true ), 'depends on snt-ability-run (the ONE ability transport)' );
 uw_ok( isset( $GLOBALS['__styles']['sn-uptime-status'] ), 'stylesheet enqueued on the dashboard home' );
 
 uw_fire_enqueue( 'edit.php' );
 uw_ok( ! isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'not enqueued on unrelated admin screens' );
+
+unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
+uw_fire_enqueue( 'index.php' );
+uw_ok( ! isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'not enqueued unconfigured (no mount, no wasted requests)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

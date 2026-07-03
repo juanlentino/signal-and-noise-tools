@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     8.2.0
+ * Version:     8.3.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -261,8 +261,8 @@ require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 require_once SNT_PATH . 'inc/webhooks.php';
 require_once SNT_PATH . 'inc/webhooks-admin.php';
 require_once SNT_PATH . 'inc/uptime-heartbeat.php';
-require_once SNT_PATH . 'inc/uptime-status.php';        // v8.2.0: Better Stack status data layer + ability + field/mount helpers
-require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.2.0: "S&N Uptime" dashboard widget (4th sanctioned widget) + panel assets
+require_once SNT_PATH . 'inc/uptime-status.php';        // v8.2.0: Better Stack status data layer + ability + field/mount helpers (v8.3.0: + 30d availability)
+require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime section of the S&N Health widget (standalone widget consolidated away) + panel assets
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
 require_once SNT_PATH . 'inc/insights.php';
 require_once SNT_PATH . 'inc/insights-narration.php';

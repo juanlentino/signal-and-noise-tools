@@ -102,7 +102,25 @@ function us_heartbeats_body() {
 		array( 'id' => '9', 'type' => 'heartbeat', 'attributes' => array( 'name' => 'WP-Cron heartbeat', 'status' => 'up' ) ),
 	) ) );
 }
+// SLA/availability summary (v8.3.0): monitors use /sla, heartbeats use
+// /availability — same data.attributes shape (verified against the Better
+// Stack docs 2026-07-02). data is an OBJECT here, not a list.
+function us_sla_body( $availability, $incidents ) {
+	return wp_json_encode_stub( array( 'data' => array(
+		'id'         => 'x',
+		'type'       => 'monitor_sla',
+		'attributes' => array(
+			'availability'        => $availability,
+			'total_downtime'      => 335,
+			'number_of_incidents' => $incidents,
+			'longest_incident'    => 194,
+			'average_incident'    => 67,
+		),
+	) ) );
+}
 function wp_json_encode_stub( $v ) { return json_encode( $v ); }
+function us_window_from() { return gmdate( 'Y-m-d', time() - 30 * 86400 ); }
+function us_window_to() { return gmdate( 'Y-m-d' ); }
 
 // ─── Test 1: unconfigured — no token anywhere ────────────────────────
 echo "\nTest 1: unconfigured state\n";
@@ -122,24 +140,37 @@ us_eq( true, sn_uptime_status_configured(), 'configured() true' );
 $GLOBALS['__http_queue'] = array(
 	array( 'code' => 200, 'body' => us_monitors_body() ),
 	array( 'code' => 200, 'body' => us_heartbeats_body() ),
+	array( 'code' => 200, 'body' => us_sla_body( 99.98, 0 ) ),
+	array( 'code' => 200, 'body' => us_sla_body( 98.5, 3 ) ),
+	array( 'code' => 200, 'body' => us_sla_body( 100, 0 ) ),
 );
 $snap = sn_uptime_status_fetch();
 us_ok( is_array( $snap ), 'fetch returns a snapshot array' );
-us_eq( 2, count( $GLOBALS['__http_requests'] ), 'two HTTP GETs (monitors + heartbeats)' );
+us_eq( 5, count( $GLOBALS['__http_requests'] ), 'five HTTP GETs (monitors + heartbeats + 3 availability)' );
 us_eq( 'https://uptime.betterstack.com/api/v2/monitors', $GLOBALS['__http_requests'][0]['url'], 'monitors endpoint' );
 us_eq( 'https://uptime.betterstack.com/api/v2/heartbeats', $GLOBALS['__http_requests'][1]['url'], 'heartbeats endpoint' );
+us_eq( 'https://uptime.betterstack.com/api/v2/monitors/1/sla?from=' . us_window_from() . '&to=' . us_window_to(),
+	$GLOBALS['__http_requests'][2]['url'], 'monitor SLA endpoint with 30d window' );
+us_eq( 'https://uptime.betterstack.com/api/v2/monitors/2/sla?from=' . us_window_from() . '&to=' . us_window_to(),
+	$GLOBALS['__http_requests'][3]['url'], 'second monitor SLA endpoint' );
+us_eq( 'https://uptime.betterstack.com/api/v2/heartbeats/9/availability?from=' . us_window_from() . '&to=' . us_window_to(),
+	$GLOBALS['__http_requests'][4]['url'], 'heartbeat availability endpoint (different suffix than monitors)' );
 us_eq( 'Bearer secret-token-abcd1234', $GLOBALS['__http_requests'][0]['args']['headers']['Authorization'] ?? '', 'Bearer auth on monitors call' );
-us_eq( 'Bearer secret-token-abcd1234', $GLOBALS['__http_requests'][1]['args']['headers']['Authorization'] ?? '', 'Bearer auth on heartbeats call' );
+us_eq( 'Bearer secret-token-abcd1234', $GLOBALS['__http_requests'][4]['args']['headers']['Authorization'] ?? '', 'Bearer auth on availability call' );
 us_eq( 3, count( $snap['rows'] ), 'three normalized rows' );
-us_eq( array( 'monitor', 'Home', 'up', 'ok', '2026-07-02T22:00:00.000Z' ),
-	array( $snap['rows'][0]['kind'], $snap['rows'][0]['name'], $snap['rows'][0]['status'], $snap['rows'][0]['level'], $snap['rows'][0]['checked_at'] ),
-	'monitor row normalized (up → ok)' );
+us_eq( array( 'monitor', '1', 'Home', 'up', 'ok', '2026-07-02T22:00:00.000Z' ),
+	array( $snap['rows'][0]['kind'], $snap['rows'][0]['id'], $snap['rows'][0]['name'], $snap['rows'][0]['status'], $snap['rows'][0]['level'], $snap['rows'][0]['checked_at'] ),
+	'monitor row normalized (up → ok, carries id)' );
 us_eq( 'alert', $snap['rows'][1]['level'], 'down → alert' );
 us_eq( array( 'heartbeat', 'WP-Cron heartbeat', 'up', 'ok', null ),
 	array( $snap['rows'][2]['kind'], $snap['rows'][2]['name'], $snap['rows'][2]['status'], $snap['rows'][2]['level'], $snap['rows'][2]['checked_at'] ),
 	'heartbeat row normalized (no checked_at)' );
+us_eq( array( 99.98, 0 ), array( $snap['rows'][0]['availability'], $snap['rows'][0]['incidents_30d'] ), 'row 0 availability merged' );
+us_eq( array( 98.5, 3 ), array( $snap['rows'][1]['availability'], $snap['rows'][1]['incidents_30d'] ), 'row 1 availability merged' );
+us_eq( array( 100.0, 0 ), array( (float) $snap['rows'][2]['availability'], $snap['rows'][2]['incidents_30d'] ), 'heartbeat availability merged' );
 us_ok( ! empty( $snap['fetched_at'] ), 'snapshot carries fetched_at' );
 us_eq( 90, $GLOBALS['__transient_ttls']['sn_uptime_status_snapshot'] ?? 0, 'cached in a 90s transient' );
+us_eq( 3600, $GLOBALS['__transient_ttls']['sn_uptime_availability'] ?? 0, 'availability map cached for an hour' );
 
 // ─── Test 3: transient cache short-circuits HTTP ─────────────────────
 echo "\nTest 3: cache behavior\n";
@@ -153,7 +184,7 @@ $GLOBALS['__http_queue'] = array(
 	array( 'code' => 200, 'body' => us_heartbeats_body() ),
 );
 sn_uptime_status_fetch( true );
-us_eq( $before + 2, count( $GLOBALS['__http_requests'] ), 'force refresh bypasses the cache' );
+us_eq( $before + 2, count( $GLOBALS['__http_requests'] ), 'force refresh bypasses the snapshot but rides the warm availability map (no SLA re-fetch)' );
 
 // ─── Test 4: API failure — WP_Error, nothing cached ──────────────────
 echo "\nTest 4: failure handling\n";
@@ -168,6 +199,23 @@ delete_transient( 'sn_uptime_status_snapshot' );
 $GLOBALS['__http_queue'] = array(); // transport-level WP_Error
 $r = sn_uptime_status_fetch();
 us_ok( is_wp_error( $r ), 'transport WP_Error yields WP_Error' );
+
+// ─── Test 4b: availability failure is SOFT + circuit-broken ──────────
+echo "\nTest 4b: availability circuit break\n";
+delete_transient( 'sn_uptime_status_snapshot' );
+delete_transient( 'sn_uptime_availability' );
+$GLOBALS['__http_queue'] = array(
+	array( 'code' => 200, 'body' => us_monitors_body() ),
+	array( 'code' => 200, 'body' => us_heartbeats_body() ),
+	array( 'code' => 500, 'body' => 'sla down' ), // first SLA call fails
+);
+$before = count( $GLOBALS['__http_requests'] );
+$snap = sn_uptime_status_fetch();
+us_ok( is_array( $snap ), 'snapshot still returned when availability fails' );
+us_eq( 3, count( $snap['rows'] ), 'statuses intact without availability' );
+us_eq( $before + 3, count( $GLOBALS['__http_requests'] ), 'circuit break: remaining SLA calls skipped after the first failure' );
+us_eq( array( null, null, null ), array( $snap['rows'][0]['availability'], $snap['rows'][1]['availability'], $snap['rows'][2]['availability'] ), 'availability null across rows' );
+us_eq( 600, $GLOBALS['__transient_ttls']['sn_uptime_availability'] ?? 0, 'failed map short-cached (10 min) so a down SLA API is not hammered' );
 
 // ─── Test 5: level map covers every documented status ────────────────
 echo "\nTest 5: level mapping\n";
@@ -189,13 +237,18 @@ us_eq( true, $ab['meta']['annotations']['idempotent'] ?? false, 'annotated idemp
 
 $exec = $ab['execute_callback'] ?? '';
 delete_transient( 'sn_uptime_status_snapshot' );
+delete_transient( 'sn_uptime_availability' );
 $GLOBALS['__http_queue'] = array(
 	array( 'code' => 200, 'body' => us_monitors_body() ),
 	array( 'code' => 200, 'body' => us_heartbeats_body() ),
+	array( 'code' => 200, 'body' => us_sla_body( 99.98, 0 ) ),
+	array( 'code' => 200, 'body' => us_sla_body( 98.5, 3 ) ),
+	array( 'code' => 200, 'body' => us_sla_body( 100, 0 ) ),
 );
 $out = call_user_func( $exec, null );
 us_eq( true, $out['configured'], 'execute: configured true' );
 us_eq( 3, count( $out['rows'] ), 'execute: rows present' );
+us_eq( 99.98, $out['rows'][0]['availability'], 'execute: availability rides the rows' );
 us_eq( '', $out['error'], 'execute: no error on success' );
 
 delete_transient( 'sn_uptime_status_snapshot' );
