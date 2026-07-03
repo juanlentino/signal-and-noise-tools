@@ -33,6 +33,7 @@ function remove_query_arg( $keys, $url = null ) {
 	return $q ? $parts[0] . '?' . http_build_query( $q ) : $parts[0];
 }
 
+require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 
 $pass = 0; $fail = 0;

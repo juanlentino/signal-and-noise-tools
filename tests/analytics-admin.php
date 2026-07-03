@@ -145,6 +145,7 @@ if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return '
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
 require_once __DIR__ . '/../inc/analytics-sources.php';
+require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
 
