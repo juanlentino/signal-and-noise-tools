@@ -115,12 +115,14 @@ $res2 = snt_ai_link_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'second suggest for the same (source, target, modified) makes NO AI call' );
 ok( ( $res2['verdict'] ?? '' ) === 'link' && ( $res2['fingerprint'] ?? '' ) === $res['fingerprint'], 'cached verdict + fresh fingerprint returned' );
 
-echo "\nTest: verdict memory is DURABLE (v8.4.1 — the persistent-entries bug)\n";
+echo "\nTest: verdict memory is DURABLE (v8.4.1) and PER-ROW (v8.4.3)\n";
 $GLOBALS['__transients'] = array(); // a cache flush (Breeze purge, v10.22.0 auto-purge) wipes every transient
 $res3 = snt_ai_link_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill' );
-ok( false === array_search( 'sn_ai_link_verdicts', array_keys( $GLOBALS['__transients'] ), true ) && isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'verdicts live in the option store, not transients' );
-ok( false === ( $GLOBALS['__option_autoload']['sn_ai_link_verdicts'] ?? null ), 'store option is autoload=no' );
+$vkey = 'sn_link_verdict_' . md5( '1|2|2026-07-01 00:00:00' );
+ok( is_array( $GLOBALS['__options'][ $vkey ] ?? null ), 'verdict lives in its OWN option row (v8.4.3 — Suggest All fires overlapping requests; a shared map lost concurrent writes)' );
+ok( false === ( $GLOBALS['__option_autoload'][ $vkey ] ?? null ), 'verdict row is autoload=no' );
+ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'the v8.4.1 shared-map option is NOT written' );
 
 echo "\nTest: suggest guards\n";
 $GLOBALS['__ai_gate'] = new WP_Error( 'snt_ai_unavailable', 'no provider' );
@@ -164,26 +166,63 @@ $GLOBALS['__options'] = array();
 $GLOBALS['__ai_response'] = '{"verdict":"skip","reason":"cut mid sente';
 ok( 'skip' === ( snt_ai_link_suggest_impl( 1, 2 )['verdict'] ?? '' ), 'impl-level: truncated response no longer a runtime error' );
 
-echo "\nTest: verdict store unit contract (v8.4.1)\n";
+echo "\nTest: verdict store unit contract (per-row since v8.4.3)\n";
+// Prune walks the options table — give the store a wpdb stub backed by the
+// same __options map so age/cap/migration paths are exercised for real.
+if ( ! function_exists( 'maybe_unserialize' ) ) { function maybe_unserialize( $v ) { return $v; } }
+class US_WPDB {
+	public $options = 'wp_options';
+	public function get_results( $q ) {
+		$out = array();
+		foreach ( $GLOBALS['__options'] as $k => $v ) {
+			if ( 0 === strpos( $k, 'sn_link_verdict_' ) || 0 === strpos( $k, 'sn_pair_verdict_' ) ) {
+				$o = new stdClass();
+				$o->option_name  = $k;
+				$o->option_value = $v;
+				$out[] = $o;
+			}
+		}
+		return $out;
+	}
+}
+$GLOBALS['wpdb'] = new US_WPDB();
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; } }
+
 $GLOBALS['__options'] = array();
-snt_ai_verdict_store_set( 'k1', array( 'verdict' => 'skip', 'reason' => 'r' ) );
-$got = snt_ai_verdict_store_get( 'k1' );
+snt_ai_verdict_store_set( 'sn_link_verdict_k1', array( 'verdict' => 'skip', 'reason' => 'r' ) );
+$got = snt_ai_verdict_store_get( 'sn_link_verdict_k1' );
 ok( is_array( $got ) && 'skip' === $got['verdict'] && ! empty( $got['ts'] ), 'round-trip + ts stamped' );
-ok( null === snt_ai_verdict_store_get( 'missing' ), 'missing key → null' );
-// Age pruning: an entry past the max age is dropped on the next write.
-$GLOBALS['__options']['sn_ai_link_verdicts']['old'] = array( 'verdict' => 'skip', 'ts' => time() - 200 * 86400 );
-snt_ai_verdict_store_set( 'k2', array( 'verdict' => 'unsure' ) );
-ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts']['old'] ), 'stale entries (>180d) pruned on write' );
-ok( isset( $GLOBALS['__options']['sn_ai_link_verdicts']['k1'] ), 'fresh entries survive pruning' );
+ok( null === snt_ai_verdict_store_get( 'sn_link_verdict_missing' ), 'missing key → null' );
+// Per-row isolation — the no-clobber property that fixes the Suggest All
+// race: writing one verdict must never rewrite another verdict's row.
+snt_ai_verdict_store_set( 'sn_pair_verdict_k2', array( 'verdict' => 'unsure' ) );
+ok( is_array( $GLOBALS['__options']['sn_link_verdict_k1'] ) && is_array( $GLOBALS['__options']['sn_pair_verdict_k2'] ), 'each verdict is its own option row; a second write leaves the first row untouched' );
+// Age pruning: a row past the max age is dropped on the next write.
+$GLOBALS['__options']['sn_link_verdict_old'] = array( 'verdict' => 'skip', 'ts' => time() - 200 * 86400 );
+snt_ai_verdict_store_set( 'sn_link_verdict_k3', array( 'verdict' => 'skip' ) );
+ok( ! isset( $GLOBALS['__options']['sn_link_verdict_old'] ), 'stale rows (>180d) pruned on write' );
+ok( isset( $GLOBALS['__options']['sn_link_verdict_k1'] ), 'fresh rows survive pruning' );
 // Cap pruning: oldest evicted beyond the cap.
 $GLOBALS['__options'] = array();
 $now = time();
 for ( $i = 0; $i < 300; $i++ ) {
-	$GLOBALS['__options']['sn_ai_link_verdicts'][ 'k' . $i ] = array( 'verdict' => 'skip', 'ts' => $now - 300 + $i );
+	$GLOBALS['__options'][ 'sn_link_verdict_k' . $i ] = array( 'verdict' => 'skip', 'ts' => $now - 400 + $i );
 }
-snt_ai_verdict_store_set( 'newest', array( 'verdict' => 'link' ) );
-ok( 300 === count( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'store capped at 300 entries' );
-ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts']['k0'] ) && isset( $GLOBALS['__options']['sn_ai_link_verdicts']['newest'] ), 'oldest evicted, newest kept' );
+snt_ai_verdict_store_set( 'sn_link_verdict_newest', array( 'verdict' => 'link' ) );
+$verdict_rows = 0;
+foreach ( $GLOBALS['__options'] as $k => $v ) { if ( 0 === strpos( $k, 'sn_link_verdict_' ) ) { $verdict_rows++; } }
+ok( 300 === $verdict_rows, 'store capped at 300 rows' );
+ok( ! isset( $GLOBALS['__options']['sn_link_verdict_k0'] ) && isset( $GLOBALS['__options']['sn_link_verdict_newest'] ), 'oldest evicted, newest kept' );
+// One-time migration: the short-lived v8.4.1 map splits into rows and is dropped.
+$GLOBALS['__options'] = array(
+	'sn_ai_link_verdicts' => array(
+		'sn_link_verdict_m1' => array( 'verdict' => 'skip', 'reason' => 'r', 'ts' => time() ),
+		'sn_pair_verdict_m2' => array( 'verdict' => 'unsure', 'ts' => time() ),
+	),
+);
+snt_ai_verdict_store_set( 'sn_link_verdict_m3', array( 'verdict' => 'link' ) );
+ok( is_array( $GLOBALS['__options']['sn_link_verdict_m1'] ?? null ) && is_array( $GLOBALS['__options']['sn_pair_verdict_m2'] ?? null ), 'v8.4.1 map entries migrated to per-key rows' );
+ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'legacy map option dropped after migration' );
 $GLOBALS['__options'] = array();
 
 echo "\nTest: token budget pin (v8.4.1)\n";

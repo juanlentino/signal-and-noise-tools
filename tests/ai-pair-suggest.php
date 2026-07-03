@@ -123,12 +123,14 @@ $res2 = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'same stamps: NO second AI call' );
 ok( ( $res2['fingerprint'] ?? '' ) === $res['fingerprint'], 'fingerprint recomputed fresh (never cached)' );
 
-echo "\nTest: verdict memory is DURABLE (v8.4.1 — the persistent-entries bug)\n";
+echo "\nTest: verdict memory is DURABLE (v8.4.1) and PER-ROW (v8.4.3)\n";
 $GLOBALS['__transients'] = array(); // Breeze purge / v10.22.0 auto-purge flushes every transient
 $res2b = snt_ai_pair_suggest_impl( 1, 2 );
 ok( 1 === $GLOBALS['__ai_calls'], 'verdict survives a full transient flush — no AI re-bill, no resurrected finding' );
-ok( isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'pair verdicts live in the shared option store' );
-ok( false === ( $GLOBALS['__option_autoload']['sn_ai_link_verdicts'] ?? null ), 'store option is autoload=no' );
+$pkey = 'sn_pair_verdict_' . md5( '1|2|2026-07-01 00:00:00|2026-07-01 00:00:00' );
+ok( is_array( $GLOBALS['__options'][ $pkey ] ?? null ), 'pair verdict lives in its OWN option row (v8.4.3 — no shared map for overlapping Suggest All requests to clobber)' );
+ok( false === ( $GLOBALS['__option_autoload'][ $pkey ] ?? null ), 'verdict row is autoload=no' );
+ok( ! isset( $GLOBALS['__options']['sn_ai_link_verdicts'] ), 'the v8.4.1 shared-map option is NOT written' );
 ok( 500 === SNT_AI_PAIR_SUGGEST_MAX_TOKENS, 'pair budget raised to 500 (three-field response was truncating at 300 live)' );
 
 $GLOBALS['__posts'][2]->post_modified_gmt = '2026-07-02 09:00:00'; // TARGET edit invalidates too

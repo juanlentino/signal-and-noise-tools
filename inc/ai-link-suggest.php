@@ -45,21 +45,26 @@ const SNT_AI_LINK_SUGGEST_SYSTEM = "You are an editor deciding whether a mention
 const SNT_AI_LINK_SUGGEST_MAX_TOKENS = 200;
 const SNT_AI_LINK_ANCHOR_MAX_LENGTH  = 300;
 
-// v8.4.1: durable verdict memory. Verdicts were 30-day TRANSIENTS, and the
-// scan-side judged-noise suppression reads them — but transients are
-// flush-volatile (Breeze/object-cache purges), and since theme v10.22.0
-// EVERY plugin/theme update and Styles save fires the full purge chain. Net
-// effect the owner reported: judged pairs resurrected on every scan after
-// every release ("persistent entries"), each re-judgment re-billing the AI.
-// One autoload=no option holds every verdict for BOTH link surfaces; keys
-// keep their historical sn_link_verdict_/sn_pair_verdict_ md5 forms (the
-// modified-stamp semantics are unchanged — edits still re-nominate).
-const SNT_AI_VERDICT_STORE_OPT     = 'sn_ai_link_verdicts';
+// v8.4.1: durable verdict memory — verdicts were 30-day TRANSIENTS, and the
+// v10.22.0 auto-purges flushed them on every release, resurrecting judged
+// pairs ("persistent entries") and re-billing the AI.
+// v8.4.3: one option row PER VERDICT. v8.4.1 consolidated verdicts into a
+// single map option, which reintroduced a race the transient era never
+// had: Suggest All fires OVERLAPPING requests (the JS throttle is 500ms,
+// the AI calls take seconds), and concurrent read-modify-writes of one
+// shared map lost each other's entries (live: 10 → 8 → 6 findings
+// resurrecting across scan cycles — last-writer-wins). Per-row writes have
+// no shared state to clobber. The verdict key IS the option name
+// (sn_link_verdict_… / sn_pair_verdict_…, autoload=no); the purge chain's
+// transient sweep only matches _transient_-prefixed rows, so these survive
+// every flush. Age/cap pruning walks the rows on write (the corpus is a
+// few dozen rows; no cron needed).
+const SNT_AI_VERDICT_STORE_OPT     = 'sn_ai_link_verdicts'; // legacy v8.4.1 map — migrated + dropped by the prune
 const SNT_AI_VERDICT_STORE_CAP     = 300;
 const SNT_AI_VERDICT_STORE_MAX_AGE = 180 * DAY_IN_SECONDS;
 
 /**
- * Read one stored verdict.
+ * Read one stored verdict (its own option row since v8.4.3).
  *
  * @param string $key Full verdict key (sn_link_verdict_… / sn_pair_verdict_…).
  * @return array|null
@@ -67,43 +72,81 @@ const SNT_AI_VERDICT_STORE_MAX_AGE = 180 * DAY_IN_SECONDS;
  * @since 8.4.1
  */
 function snt_ai_verdict_store_get( $key ) {
-	$store = get_option( SNT_AI_VERDICT_STORE_OPT, array() );
-	return ( is_array( $store ) && isset( $store[ $key ] ) && is_array( $store[ $key ] ) ) ? $store[ $key ] : null;
+	$row = get_option( $key, null );
+	return is_array( $row ) ? $row : null;
 }
 
 /**
- * Write one verdict, stamping ts and pruning: entries past the max age are
- * dropped, then the oldest are evicted beyond the cap. Stamp-keyed entries
- * orphan naturally when posts are edited (new key); pruning keeps the
- * option bounded without a cron.
+ * Write one verdict into ITS OWN option row (autoload=no), stamping ts,
+ * then prune. The per-row shape is the concurrency contract: overlapping
+ * Suggest All requests each write a different row and can never clobber
+ * each other (the v8.4.3 fix).
  *
  * @param string $key  Full verdict key.
  * @param array  $data Verdict payload (verdict/reason/anchor…).
  *
- * @since 8.4.1
+ * @since 8.4.1 (map), 8.4.3 (per-row)
  */
 function snt_ai_verdict_store_set( $key, $data ) {
-	$store = get_option( SNT_AI_VERDICT_STORE_OPT, array() );
-	if ( ! is_array( $store ) ) {
-		$store = array();
+	$data['ts'] = time();
+	update_option( $key, $data, false ); // own row, durable, autoload=no
+	snt_ai_verdict_store_prune();
+}
+
+/**
+ * Prune the verdict rows: migrate any v8.4.1 map remnant into rows first
+ * (existing rows win, then the map is dropped), then delete rows past the
+ * max age, then evict the oldest beyond the cap. Concurrent pruning is
+ * harmless — deletes are idempotent, and a rare over-eviction just means
+ * one future re-suggest.
+ *
+ * @since 8.4.3
+ */
+function snt_ai_verdict_store_prune() {
+	global $wpdb;
+	// is_callable, not method_exists — the repo rule for db handles.
+	if ( ! $wpdb || ! is_callable( array( $wpdb, 'get_results' ) ) ) {
+		return;
 	}
-	$data['ts']    = time();
-	$store[ $key ] = $data;
+
+	// One-time v8.4.1 → v8.4.3 migration.
+	$legacy = get_option( SNT_AI_VERDICT_STORE_OPT, null );
+	if ( is_array( $legacy ) ) {
+		foreach ( $legacy as $k => $entry ) {
+			if ( is_string( $k ) && is_array( $entry ) && null === get_option( $k, null ) ) {
+				update_option( $k, $entry, false );
+			}
+		}
+		delete_option( SNT_AI_VERDICT_STORE_OPT );
+	}
+
+	$rows = $wpdb->get_results(
+		"SELECT option_name, option_value FROM {$wpdb->options}
+		 WHERE option_name LIKE 'sn\\_link\\_verdict\\_%'
+		    OR option_name LIKE 'sn\\_pair\\_verdict\\_%'"
+	);
+	if ( ! is_array( $rows ) ) {
+		return;
+	}
 
 	$cutoff = time() - SNT_AI_VERDICT_STORE_MAX_AGE;
-	foreach ( $store as $k => $entry ) {
-		if ( ! is_array( $entry ) || (int) ( $entry['ts'] ?? 0 ) < $cutoff ) {
-			unset( $store[ $k ] );
+	$live   = array();
+	foreach ( $rows as $row ) {
+		$value = maybe_unserialize( $row->option_value );
+		$ts    = is_array( $value ) ? (int) ( $value['ts'] ?? 0 ) : 0;
+		if ( $ts < $cutoff ) {
+			delete_option( $row->option_name );
+			continue;
+		}
+		$live[ $row->option_name ] = $ts;
+	}
+	if ( count( $live ) > SNT_AI_VERDICT_STORE_CAP ) {
+		asort( $live ); // oldest first
+		$evict = count( $live ) - SNT_AI_VERDICT_STORE_CAP;
+		foreach ( array_slice( array_keys( $live ), 0, $evict ) as $name ) {
+			delete_option( $name );
 		}
 	}
-	if ( count( $store ) > SNT_AI_VERDICT_STORE_CAP ) {
-		uasort( $store, function ( $a, $b ) {
-			return (int) ( $a['ts'] ?? 0 ) <=> (int) ( $b['ts'] ?? 0 );
-		} );
-		$store = array_slice( $store, count( $store ) - SNT_AI_VERDICT_STORE_CAP, null, true );
-	}
-
-	update_option( SNT_AI_VERDICT_STORE_OPT, $store, false ); // durable, autoload=no
 }
 
 /**
