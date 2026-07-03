@@ -46,16 +46,65 @@ function snt_freshness_routes() {
 
 /**
  * The freshness glance card. Server renders a neutral "Checking…" state with the
- * JS-target id and NO pill; assets/freshness-dot.js fills the result client-side.
+ * JS-target id and NO pill; assets/freshness-dot.js fills the live edge result
+ * client-side. When the theme's verified-purge pipeline has written a report
+ * (v8.7.0), the card also carries a compact server-side "last purge" meta line.
  *
- * @return array{label:string,value:string,id:string}
+ * @return array{label:string,value:string,id:string,meta_html?:string}
  */
 function snt_freshness_card() {
-	return array(
+	$card = array(
 		'label' => 'Caches',
 		'value' => 'Checking…',
 		'id'    => SNT_FRESHNESS_CARD_ID,
 	);
+	$meta = snt_freshness_report_meta();
+	if ( '' !== $meta ) {
+		$card['meta_html'] = $meta;
+	}
+	return $card;
+}
+
+/**
+ * Compact escaped summary of the theme's last verified purge (sn_last_purge_report
+ * — theme writes, plugin reads). Empty string when no report exists yet or the
+ * stored value is malformed (fail-safe: the card simply omits the line). Passed
+ * through wp_kses_post by sn_admin_glance_grid, so plain esc_html'd text is safe.
+ *
+ * @return string
+ */
+function snt_freshness_report_meta() {
+	$r = get_option( 'sn_last_purge_report', array() );
+	if ( ! is_array( $r ) || empty( $r ) || empty( $r['legs'] ) || ! is_array( $r['legs'] ) ) {
+		return '';
+	}
+
+	$parts = array();
+
+	// Varnish leg — the Cloudways confirmation.
+	$v = isset( $r['legs']['varnish'] ) && is_array( $r['legs']['varnish'] ) ? $r['legs']['varnish'] : array();
+	if ( 'cloudways' === ( $v['via'] ?? '' ) ) {
+		$parts[] = 'Varnish ' . ( ! empty( $v['ok'] ) ? '✓' : '✕' );
+	}
+
+	// CF leg — confirmed on a verified purge, else dispatched-but-unconfirmed.
+	$cf = isset( $r['legs']['cf'] ) && is_array( $r['legs']['cf'] ) ? $r['legs']['cf'] : array();
+	if ( array_key_exists( 'cf_success', $cf ) ) {
+		$parts[] = 'CF ' . ( ! empty( $cf['cf_success'] ) ? '✓' : '✕' );
+	} elseif ( ! empty( $cf['dispatched'] ) ) {
+		$parts[] = 'CF dispatched';
+	}
+
+	$when = '';
+	if ( ! empty( $r['time'] ) && function_exists( 'human_time_diff' ) ) {
+		$when = ' ' . human_time_diff( (int) $r['time'], time() ) . ' ago';
+	}
+
+	$line = 'Last purge' . $when;
+	if ( $parts ) {
+		$line .= ' · ' . implode( ' · ', $parts );
+	}
+	return esc_html( $line );
 }
 
 /**

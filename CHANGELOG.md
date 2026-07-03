@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.7.0] - 2026-07-03: Verified purge Tier-1: confirmed CF purge + report-backed freshness card
+
+**Headline:** The manual "Purge All Caches" now confirms its Cloudflare leg, and the Dashboard says what the last purge actually did. `sn_cf_purge_everything_verified()` runs a blocking full-zone purge and reads CF's real `{success:true}` body, so the theme's per-leg report carries a genuine accept-confirmation instead of a fire-and-forget guess (the fast auto-purge path stays non-blocking). The "Caches" glance card gains a compact "last purge" line (`Last purge 3 mins ago · Varnish ✓ · CF ✓`) read from the theme's new `sn_last_purge_report`, and the freshness dot now also compares the render-epoch meta, so it catches staleness the CSS-hash heuristic can't: an Additional-CSS edit lands in `global-styles-inline-css`, not the combined stylesheet file. Pairs with theme v10.23.0.
+
+> **Why MINOR:** new capability (verified CF confirmation + a report-backed, epoch-aware dot). No route, ability, schema, or admin-surface change; the fast auto-purge path is untouched.
+
+### New
+- `sn_cf_purge_everything_verified()` + `sn_cf_api_post_blocking()` (`inc/cloudflare-purge.php`): a BLOCKING full-zone Cloudflare purge that returns `{accepted, http, cf_success}` from CF's response body, used only by the verified manual purge. Records the confirmation in `sn_cf_last_purge`. New suite `tests/cloudflare-purge.php`.
+
+### Improvements
+- The manual "Purge All Caches" + "Full reset" handlers pass `verified => true` to the theme, so the Cloudflare leg is confirmed and the theme writes its per-leg `sn_last_purge_report` (`inc/admin-post-actions.php`).
+- The "Caches" glance card carries a compact last-purge line read from `sn_last_purge_report` (`inc/freshness-indicator.php`), and the freshness dot compares the `sn-render-epoch` marker alongside the combined-CSS hash, flagging a route stale when either differs canonical-vs-cache-busted (`assets/freshness-dot.js`).
+
 ## [8.6.0] - 2026-07-03: Cloudways API Varnish purge — the reliable Varnish leg
 
 **Headline:** The purge chain's Varnish leg finally works. Breeze's `breeze_clear_varnish` PURGE silently no-ops on Cloudways (non-blocking, unconfirmable), so stale Varnish objects survived every purge and re-seeded Cloudflare within seconds (curl-proven 2026-07-03: `/`, `/notes/`, `/provenance/` served the pruned `sn-styles-b2cfd5e0d77f` with `x-cache: HIT`, `last-modified 2026-07-02 21:00:44`). The new `inc/cloudways-purge.php` rides that same action and clears the app's cache (incl. Varnish) through the **Cloudways API** (`/oauth/access_token` → `/app/cache/purge`) — the programmatic form of the panel's "Purge Varnish" button — with a real `{status, operation_id}` confirmation. Net effect: the "Purge All Caches" button + every auto-purge (theme/plugin update, Styles save, post save) now actually evict Varnish.

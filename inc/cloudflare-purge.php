@@ -170,6 +170,72 @@ function sn_cf_api_post( $path, $body ) {
 }
 
 /**
+ * v8.7.0 (verified-purge Tier-1): fire a BLOCKING POST against the Cloudflare API
+ * and read the real response. The fast auto-purge path stays non-blocking
+ * (sn_cf_api_post); this variant is used only by the verified manual purge so the
+ * per-leg report can carry a genuine accept-confirmation.
+ *
+ * @param string $path CF API path (starting with /).
+ * @param array  $body Request body.
+ * @return array{http:int,cf_success:bool} HTTP code + whether CF's body said {success:true}.
+ */
+function sn_cf_api_post_blocking( $path, $body ) {
+	$res  = wp_remote_post( SN_CF_API_BASE . $path, array(
+		'headers'  => array(
+			'Authorization' => 'Bearer ' . sn_cf_get_token(),
+			'Content-Type'  => 'application/json',
+		),
+		'body'      => wp_json_encode( $body ),
+		'timeout'   => 8,
+		'blocking'  => true,
+		'sslverify' => true,
+	) );
+	$http = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
+	$data = is_wp_error( $res ) ? array() : (array) json_decode( wp_remote_retrieve_body( $res ), true );
+	return array(
+		'http'       => $http,
+		'cf_success' => ( 200 === $http ) && ! empty( $data['success'] ),
+	);
+}
+
+/**
+ * v8.7.0 (verified-purge Tier-1): full-zone purge with a blocking
+ * accept-confirmation, for the verified manual "Purge All Caches" path.
+ *
+ * Returns the shape the theme's report writer stashes + records:
+ *   accepted   — CF took the request at the HTTP layer (200).
+ *   http       — the HTTP status (0 on transport error).
+ *   cf_success — CF's body confirmed {success:true}.
+ * Unconfigured ⇒ no HTTP call, all-false (fail-safe like sn_cf_purge_everything).
+ *
+ * @return array{accepted:bool,http:int,cf_success:bool}
+ */
+function sn_cf_purge_everything_verified() {
+	if ( ! sn_cf_is_configured() ) {
+		return array( 'accepted' => false, 'http' => 0, 'cf_success' => false );
+	}
+
+	$r   = sn_cf_api_post_blocking(
+		'/zones/' . sn_cf_get_zone() . '/purge_cache',
+		array( 'purge_everything' => true )
+	);
+	$out = array(
+		'accepted'   => ( 200 === $r['http'] ),
+		'http'       => $r['http'],
+		'cf_success' => $r['cf_success'],
+	);
+
+	update_option( SN_CF_LAST_PURGE_OPT, array(
+		'time'       => time(),
+		'kind'       => 'all',
+		'verified'   => true,
+		'cf_success' => $out['cf_success'],
+	), false );
+
+	return $out;
+}
+
+/**
  * Auto-purge: when a published post is saved, purge that post's URL
  * plus the index URLs that may list/link it (homepage, /notes/,
  * /provenance/, RSS feed). Skips revisions, autosaves, and non-
