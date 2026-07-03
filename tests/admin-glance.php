@@ -136,5 +136,29 @@ sn_admin_glance_grid( array() );
 $out_f = ob_get_clean();
 ag_assert( '' === trim( $out_f ), 'empty cards array emits nothing' );
 
+// ─── Test G: optional card id hook ──────────────────────────────────
+echo "\nTest G: optional card id\n";
+ob_start();
+sn_admin_glance_grid( array(
+	array( 'label' => 'Caches', 'value' => 'Checking…', 'id' => 'snt-freshness-card' ),
+) );
+$out_g = ob_get_clean();
+ag_contains( $out_g, 'id="snt-freshness-card"', 'renders the optional card id' );
+
+echo "\nTest H: card id is escaped\n";
+ob_start();
+sn_admin_glance_grid( array(
+	array( 'label' => 'X', 'value' => 'Y', 'id' => 'a" onload="x' ),
+) );
+$out_h = ob_get_clean();
+ag_assert( false === strpos( $out_h, 'a" onload="x' ), 'the raw quote-breakout payload does not survive (the quote is escaped)' );
+ag_contains( $out_h, '&quot;', 'the malicious double-quote in the id is escaped to &quot;' );
+
+echo "\nTest I: no id attribute when omitted\n";
+ob_start();
+sn_admin_glance_grid( array( array( 'label' => 'A', 'value' => 'B' ) ) );
+$out_i = ob_get_clean();
+ag_assert( false === strpos( $out_i, ' id=' ), 'no id attribute is emitted when the card omits id' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
