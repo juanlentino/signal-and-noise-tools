@@ -69,6 +69,7 @@ require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
+require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each
 // window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn
