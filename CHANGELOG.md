@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.6.0] - 2026-07-03: Cloudways API Varnish purge — the reliable Varnish leg
+
+**Headline:** The purge chain's Varnish leg finally works. Breeze's `breeze_clear_varnish` PURGE silently no-ops on Cloudways (non-blocking, unconfirmable), so stale Varnish objects survived every purge and re-seeded Cloudflare within seconds (curl-proven 2026-07-03: `/`, `/notes/`, `/provenance/` served the pruned `sn-styles-b2cfd5e0d77f` with `x-cache: HIT`, `last-modified 2026-07-02 21:00:44`). The new `inc/cloudways-purge.php` rides that same action and clears the app's cache (incl. Varnish) through the **Cloudways API** (`/oauth/access_token` → `/app/cache/purge`) — the programmatic form of the panel's "Purge Varnish" button — with a real `{status, operation_id}` confirmation. Net effect: the "Purge All Caches" button + every auto-purge (theme/plugin update, Styles save, post save) now actually evict Varnish.
+
+> **Why MINOR:** a new external-service integration (the plugin can now purge Cloudways Varnish). No new admin surface, route, ability, or schema — config is four `SN_CLOUDWAYS_*` wp-config constants, and it no-ops silently if any are absent (fail-safe, like the Cloudflare integration).
+
+### New
+- `inc/cloudways-purge.php` — `sn_cloudways_purge_app()` (once-per-request, blocking, verified) hooked to `breeze_clear_varnish`, so it runs at the Varnish step *before* the CF purge and respects the `origin_html` flag. Auth ports the theme deploy workflow's Cloudways OAuth flow. Records `sn_cloudways_last_purge` (autoload=no; ok/http/operation_id only).
+
+### Security
+- The Cloudways API key is account-wide; it lives in wp-config only (never the DB/settings) and appears only in urlencoded traffic to `api.cloudways.com` — never echoed, logged, or stored.
+
 ## [8.5.2] - 2026-07-03: Analytics arrangement — compact & pack
 
 **Headline:** The Dashboard → Analytics tabs stop wasting space. Panels with no data in the selected range no longer draw a full-height "no data" card — they fold into one muted line (`No data in this range yet: …`), so a sparse tab (Traffic & edge, Login defense) is a short read instead of a wall of empties. The grid packs: it top-aligns (no more stretching a short card to match a tall neighbor — closes the World-map-vs-Countries gap) and a lone trailing panel spans full width, retiring every orphan (Connection RTT, TLS versions, Time zones, the Threats KPI). The three field Core Web Vitals sit as one row, and long launch-velocity labels ellipsise instead of wrapping to four lines.
