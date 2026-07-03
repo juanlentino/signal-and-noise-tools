@@ -145,7 +145,18 @@ if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return '
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
 require_once __DIR__ . '/../inc/analytics-sources.php';
+// v8.5.0 header-region dependencies: the movers tile + panel primitive run
+// REAL over the stubbed accessors; uptime surfaces stay absent (the region's
+// function_exists guards skip them, matching an unconfigured install).
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! function_exists( 'sanitize_title' ) ) { function sanitize_title( $s ) { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $s ) ), '-' ); } }
+if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__aa_transients'][ $k ] ?? false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__aa_transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( $f, $t ); } }
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
+require_once __DIR__ . '/../inc/analytics-movers.php';
+require_once __DIR__ . '/../inc/analytics-header-region.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 require_once __DIR__ . '/../inc/analytics-admin.php';
 

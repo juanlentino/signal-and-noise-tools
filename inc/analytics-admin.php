@@ -305,38 +305,16 @@ function snt_analytics_render_dashboard() {
 	// pageview-only regions below (fetches, header render, post-switch empty hint).
 	$owns_chrome = snt_analytics_view_owns_chrome( $view );
 
-	// ── Persistent header (shared-chrome tabs only): the at-a-glance headline.
-	if ( ! $owns_chrome ) {
-		$totals       = sn_analytics_range_totals( $from, $to, $class );
-		$class_totals = sn_analytics_class_totals( $from, $to );
-		$now          = sn_analytics_realtime( $class );
-		$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
-		$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
-		$engaged      = ( 'all' === $range )
-			? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
-			: sn_analytics_engaged_rate_delta( $from, $to, $class );
-	}
-
 	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
 
+	// ── Persistent header (shared-chrome tabs only). v8.5.0: the whole frame
+	// (controls, class strip, full Overview + rail grid, uptime detail panel,
+	// the still-firing after-Overview seam) lives in
+	// inc/analytics-header-region.php; it returns the range totals so the
+	// tail empty-hint below keeps its signal.
+	$totals = array();
 	if ( ! $owns_chrome ) {
-		snt_analytics_render_controls( $range, $class, $from, $to );
-		snt_analytics_render_separation( $class_totals, $class );
-
-		// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
-		// (was two half-empty postboxes). render_cards / render_trend now emit body-only
-		// markup; the postbox chrome lives here so the chart reads as the panel's footer.
-		echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-		echo '<div class="inside inside-flush sn-overview-inside">';
-		snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
-		snt_analytics_render_trend( $series, $granularity );
-		echo '</div></div>';
-
-		// v8.4.2: composition seam — the Better Stack uptime monitor
-		// (inc/uptime-status-widget.php) hooks here so it reads as a
-		// first-class panel right under Overview, not an afterthought
-		// below the fold (owner: "weird down there hidden").
-		do_action( 'snt_analytics_after_overview', $view );
+		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
 		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
 		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
