@@ -17,18 +17,25 @@ require __DIR__ . '/../inc/analytics-admin-render.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
 
-echo "\nGroup: distribution custom empty-state\n";
-// Custom empty message when no data.
+echo "\nGroup: empty distribution omits the panel + notes the title (v8.5.2)\n";
+// Empty rows now omit the panel entirely and register the title for the fold line
+// (was: a full 'no data' card with the custom/default message inside — the
+// compact-&-pack redesign folds empties instead of drawing cards).
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_distribution( 'Bot confidence', array(), 'Needs Cloudflare Bot Management enabled.' ); $e = ob_get_clean();
-ok( strpos( $e, 'Needs Cloudflare Bot Management enabled.' ) !== false, 'custom empty message shown when no data' );
-// Default empty message preserved (2-arg back-compat).
+ok( '' === trim( $e ), 'empty distribution renders no panel markup' );
+ok( in_array( 'Bot confidence', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty distribution notes its title for the fold' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_distribution( 'Scroll depth', array() ); $d = ob_get_clean();
-ok( strpos( $d, 'No scroll depth data in this range yet.' ) !== false, 'default empty message unchanged (2-arg callers)' );
-ok( strpos( $d, 'sn-an-empty--panel' ) !== false, 'empty-state uses the extracted padding class (refinement audit D2)' );
-ok( strpos( $d, 'style="padding' ) === false, 'no inline padding style remains on the empty-state' );
-// Bars render when data present (custom msg ignored).
+ok( '' === trim( $d ), 'no-rows distribution renders no panel (2-arg back-compat)' );
+
+echo "\nGroup: distribution renders bands when data present\n";
 ob_start(); snt_analytics_render_distribution( 'Bot confidence', array( array( 'label' => '61–99', 'views' => 9 ) ), 'x' ); $h = ob_get_clean();
 ok( strpos( $h, '61–99' ) !== false && strpos( $h, 'sn-an-dist-bar' ) !== false, 'renders bands when data present' );
+ok( strpos( $h, 'sn-an-dist--wide' ) === false, 'no wide-label class by default' );
+// $wide_labels adds the ellipsis-label modifier (launch velocity opts in).
+ob_start(); snt_analytics_render_distribution( 'Launch velocity', array( array( 'label' => 'A very long post title', 'views' => 3 ) ), '', true ); $w = ob_get_clean();
+ok( strpos( $w, 'sn-an-dist--wide' ) !== false, '$wide_labels adds the .sn-an-dist--wide class' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
