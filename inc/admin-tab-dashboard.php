@@ -394,6 +394,11 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		}
 	}
 
+	// ── Cache freshness (client-checked dot; JS fills the result). ──
+	if ( function_exists( 'snt_freshness_card' ) ) {
+		$cards[] = snt_freshness_card();
+	}
+
 	return $cards;
 }
 

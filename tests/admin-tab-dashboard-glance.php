@@ -75,6 +75,7 @@ function apply_filters( $t, $v = null ) { return $v; }
 require_once __DIR__ . '/../inc/health-summary.php'; // real finding-total accessor the glance card + attention strip now share
 require_once __DIR__ . '/../inc/admin-glance.php';
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
+require_once __DIR__ . '/../inc/freshness-indicator.php'; // v8.5.1: freshness card appended to the grid
 
 function dg_contains( $h, $n, $msg ) {
 	global $pass, $fail;
@@ -106,6 +107,12 @@ dg_assert( in_array( 'AI spend 30d', $labels, true ), 'includes an AI spend card
 dg_assert( in_array( 'Cron', $labels, true ), 'includes a Cron card (snt_cron_summary_for_localize present)' );
 dg_assert( in_array( 'Login blocks 7d', $labels, true ), 'includes a Login blocks card (sn_login_defense_headline present)' );
 dg_assert( in_array( 'Views 7d', $labels, true ), 'includes a Views card (analytics configured)' );
+dg_assert( in_array( 'Caches', $labels, true ), 'includes the Caches freshness card (v8.5.1)' );
+$has_freshness_id = false;
+foreach ( $cards as $c ) {
+	if ( is_array( $c ) && ( $c['id'] ?? '' ) === 'snt-freshness-card' ) { $has_freshness_id = true; break; }
+}
+dg_assert( $has_freshness_id, 'the freshness card carries id=snt-freshness-card' );
 
 // The grid renders via sn_admin_glance_grid.
 ob_start();
