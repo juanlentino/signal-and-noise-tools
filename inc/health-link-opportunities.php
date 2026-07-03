@@ -240,15 +240,21 @@ function sn_health_check_link_opportunities() {
 		$src = $rows[ $pair['i'] ];
 		$tgt = $rows[ $pair['j'] ];
 		$sid = (int) $src['ID'];
-		// v8.1.2 owner rule: a pair already judged non-actionable is NOISE —
-		// suppress it before it consumes a cap slot or renders a row.
-		if ( sn_health_pair_judged_noise( $src, $tgt ) ) {
-			continue;
-		}
 		if ( ( $per_source[ $sid ] ?? 0 ) >= SN_HEALTH_PAIRS_MAX_PER_SOURCE ) {
 			continue;
 		}
 		$per_source[ $sid ] = ( $per_source[ $sid ] ?? 0 ) + 1;
+		// v8.1.2 owner rule: a pair already judged non-actionable is NOISE —
+		// it renders nothing. v8.4.4: but it KEEPS its cap slot. Suppression
+		// used to run before the cap, so judging the rendered top-3 freed
+		// their slots and every re-scan promoted the next-ranked unjudged
+		// pairs — Suggest All never converged. With the slot consumed, the
+		// cap means "top-N SCORED candidates per source" and one judging
+		// pass reaches quiet; an edit to either post changes the verdict
+		// key's modified stamps and re-nominates naturally.
+		if ( sn_health_pair_judged_noise( $src, $tgt ) ) {
+			continue;
+		}
 
 		$findings[] = array(
 			'subject_type'  => 'post',
