@@ -318,13 +318,16 @@ function snt_analytics_render_delta_badge_kpi( $delta ) {
 		? ( 'up' === $dir ? 'new' : '—' )
 		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
 	// v8.5.0 (data-obsessed pass): the absolute prior-period value rides a
-	// tooltip so the % is never the whole story.
-	$title = '';
+	// tooltip so the % is never the whole story. Escaping at the point of
+	// output (the sniff cannot see through a pre-built attribute string).
+	$prev_title = '';
 	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
-		$prev  = (float) $delta['previous'];
-		$title = ' title="' . esc_attr( 'previous period: ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 ) ) . '"';
+		$prev       = (float) $delta['previous'];
+		$prev_title = 'previous period: ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
 	}
-	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"' . $title . '><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
+	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"'
+		. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
+		. '><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
 }
 
 /**
