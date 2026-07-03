@@ -342,3 +342,23 @@
 .sn-an-refcats--chips .sn-an-refcat { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--sn-radius, 3px); background: #f0f6fc; font-size: 12px; }
 .sn-an-refcats--chips .sn-an-refcat-h { display: flex; gap: 6px; }
 .sn-an-refcats--chips .sn-an-refcat-bar { display: none; }
+
+/* ── v8.5.0: crisp console on postbox — the token pass (owner: "B, but keep
+   postbox feel"). Real .postbox shells; hairline + radius + numeral treatment
+   from tokens. --sn-an-border is LOCAL: the settings pages' --sn-border
+   (#c3c4c7) contract (tests/admin-polish-v647.php) stays untouched. ────── */
+.sn-an-postbox {
+	--sn-an-border: #dcdcde;
+	border: 1px solid var(--sn-an-border);
+	border-radius: var(--sn-radius, 3px);
+	overflow: hidden; /* radius clips the header bar */
+}
+.sn-an-postbox > .postbox-header { border-bottom: 1px solid var(--sn-an-border); display: flex; align-items: center; }
+.sn-an-postbox .sn-kpi-value {
+	font-size: 1.35rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 1.7rem; font-weight: 600; }
+.sn-an-postbox .sn-kpi,
+.sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-border); }

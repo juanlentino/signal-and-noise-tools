@@ -96,18 +96,13 @@
 
 /* ── Analytics page monitor (v8.4.0; postbox card since v8.4.2) ── */
 
+/* v8.5.0: the table renders only inside the detail panel now, and the panel
+   shell (the primitive's .sn-an-postbox chrome) IS the frame — the table
+   never draws its own. */
 .sn-uw-table {
 	width: 100%;
 	border-collapse: collapse;
 	background: #fff;
-	border: 1px solid #c3c4c7;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
-/* Inside the postbox the card chrome IS the frame — the table drops its own. */
-.sn-uptime-monitor .sn-uw-table {
-	border: 0;
-	box-shadow: none;
 }
 
 .sn-uptime-monitor .sn-uw-table th:first-child,
@@ -130,7 +125,7 @@
 
 .sn-uw-table thead th {
 	font-weight: 600;
-	border-bottom: 1px solid #c3c4c7;
+	border-bottom: 1px solid #dcdcde; /* v8.5.0: hairline vocabulary */
 }
 
 .sn-uw-table tbody tr:last-child td {
