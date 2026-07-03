@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Geography view body.
  *
@@ -36,4 +38,5 @@ function snt_analytics_render_view_geography( $from, $to, $class ) {
 	// my audience reads" signal, finer than country. Empty until the worker ships.
 	snt_analytics_render_dim_table( 'Time zones', sn_analytics_top_dimension( 'timezone', $from, $to, $class, 10 ), 'No timezone data yet (needs worker v1.7.0 + traffic).', array(), 'timezone' );
 	echo '</div></div>';
+	snt_an_flush_empty_fold();
 }

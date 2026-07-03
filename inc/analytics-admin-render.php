@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // panel chrome + the empty-fold collector this file emits into
+
 /**
  * Format a millisecond duration as "Nm SSs" / "Ns".
  *
@@ -417,19 +419,17 @@ function snt_analytics_render_referrer_categories( $cats ) {
  * @param string $title
  * @param array  $rows  [{label,views}]
  */
-function snt_analytics_render_distribution( $title, $rows, $empty_msg = '' ) {
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-dist">';
+function snt_analytics_render_distribution( $title, $rows, $empty_msg = '', $wide_labels = false ) {
 	$max = 0;
 	foreach ( (array) $rows as $r ) {
 		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
 	}
 	if ( $max <= 0 ) {
-		$msg = ( '' !== $empty_msg ) ? $empty_msg : 'No ' . strtolower( $title ) . ' data in this range yet.';
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $msg ) . '</p></div>';
-		snt_an_panel_close();
+		snt_an_note_empty( $title );
 		return;
 	}
+	snt_an_panel_open( $title, array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<div class="sn-an-panel sn-an-dist' . ( $wide_labels ? ' sn-an-dist--wide' : '' ) . '">';
 	echo '<div class="sn-an-dist-bars">';
 	foreach ( (array) $rows as $r ) {
 		$v   = (int) ( $r['views'] ?? 0 );
@@ -599,12 +599,11 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param array  $series Optional value-keyed series map for sparklines.
  */
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5 ) {
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( $title );
 		return;
 	}
+	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	$has_spark = ! empty( $series );
 	snt_an_clamp_open( count( $rows ), (int) $visible ); // v8.5.0 (content view passes 10 for sources — column balance)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
@@ -1167,20 +1166,14 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 		}
 	}
 
+	$svg = snt_analytics_choropleth_svg();
+	if ( ! $has_data || '' === $svg ) {
+		snt_an_note_empty( $title );
+		return;
+	}
+
 	echo '<div class="sn-an-choropleth postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div>';
 	echo '<div class="inside inside-flush sn-map-inside">';
-
-	if ( ! $has_data ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
-		return;
-	}
-
-	$svg = snt_analytics_choropleth_svg();
-	if ( '' === $svg ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
-		return;
-	}
-
 	echo '<figure class="sn-map-figure">';
 	echo '<div role="img" aria-label="' . esc_attr( __( 'World map shaded by views per country', 'signal-and-noise-tools' ) ) . '">';
 	echo snt_analytics_recolor_world_svg( $svg, $views, $names ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: vendored static SVG + numeric fills + esc_html'd <title>s.

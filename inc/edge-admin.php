@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /** Humanize a byte count (reuses WP's size_format when available). */
 function snt_edge_fmt_bytes( $bytes ) {
 	$bytes = (int) $bytes;
@@ -70,7 +72,7 @@ function snt_edge_render_view( $from, $to ) {
 			$ret_days
 		) ) . '</p>';
 	}
-	echo '<div class="sn-kpi-row">';
+	echo '<div class="sn-kpi-row sn-kpi-row--edge">';
 	foreach ( $cards as $c ) {
 		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
 		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
@@ -101,8 +103,8 @@ function snt_edge_render_view( $from, $to ) {
 	// Full-width labelled divider (matches the other sections in this view, e.g. the
 	// engagement CWV intro) instead of wrapping the dim grid in an extra .postbox. The
 	// nested postbox header rendered oversized next to the un-nested dim-card headers.
-	echo '<div class="sn-an-grid">';
 	echo '<p class="sn-an-sep sn-an-sep--full"><strong>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly — the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<div class="sn-an-grid">';
 	snt_edge_render_dim( 'Login doors', sn_edge_top_dim( 'atk_door', $from, $to, 10 ), 'No login-door hits in this range yet.', false );
 	snt_edge_render_dim( 'Door status codes', sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );
 	snt_edge_render_dim( 'Door methods', sn_edge_top_dim( 'atk_method', $from, $to, 10 ), 'No door method data yet.', false );
@@ -110,6 +112,7 @@ function snt_edge_render_view( $from, $to ) {
 	snt_edge_render_dim( 'Attacker networks', sn_edge_top_dim( 'atk_asn', $from, $to, 10 ), 'No attacker-network data yet.', false );
 	snt_edge_render_dim( 'Top probed paths (4xx)', sn_edge_top_dim( 'atk_path', $from, $to, 25 ), 'No probe scans recorded yet.', false );
 	echo '</div>';
+	snt_an_flush_empty_fold();
 }
 
 /**
@@ -122,11 +125,11 @@ function snt_edge_render_view( $from, $to ) {
  * @param bool   $with_bytes
  */
 function snt_edge_render_dim( $title, $rows, $empty, $with_bytes = true ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p></div></div>';
+		snt_an_note_empty( $title );
 		return;
 	}
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	echo '<th scope="col" class="manage-column num">Requests</th>';

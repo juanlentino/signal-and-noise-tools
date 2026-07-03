@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * KPI cards: Checked / Blocked / Block rate / Networks. Mirrors the .sn-kpi-row
  * markup of snt_analytics_render_cards() with login labels.
@@ -96,11 +98,11 @@ function sn_login_defense_render_trend_chart( $series ) {
  * Ranked top-N table (attacker networks / countries). $rows = [{k,v}].
  */
 function sn_login_defense_render_top_table( $title, $col, $rows ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( ! $rows ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No blocks recorded yet.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		snt_an_note_empty( $title );
 		return;
 	}
+	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $col ) . '</th>';
 	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Blocked', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
@@ -245,6 +247,7 @@ function sn_login_defense_render_body() {
 			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 		echo '</div></div>';
 	}
+	snt_an_flush_empty_fold();
 }
 
 /**

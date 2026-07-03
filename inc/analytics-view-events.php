@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Events view body.
  *
@@ -29,4 +31,5 @@ function snt_analytics_render_view_events( $from, $to ) {
 	snt_analytics_render_events_table( sn_analytics_top_events( $from, $to, 25 ) );
 	snt_analytics_render_event_props_table( sn_analytics_top_event_props( $from, $to, $ev_prop, 50 ), $ev_prop );
 	echo '</div>';
+	snt_an_flush_empty_fold();
 }

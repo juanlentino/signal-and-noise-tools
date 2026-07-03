@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Quality view body.
  *
@@ -29,4 +31,5 @@ function snt_analytics_render_view_quality( $from, $to, $class, $granularity ) {
 		sn_analytics_distribution( 'botscore', $from, $to, $class ),
 		'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).'
 	);
+	snt_an_flush_empty_fold();
 }

@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Technology view body.
  *
@@ -46,4 +48,5 @@ function snt_analytics_render_view_technology( $from, $to, $class, $granularity 
 	$tls_ser  = sn_analytics_dimension_series( 'tls', $tls_vals, $from, $to, $class, $granularity );
 	snt_analytics_render_dim_table( 'TLS versions', $tls_rows, 'No TLS data in this range yet.', $tls_ser, 'tls' );
 	echo '</div>';
+	snt_an_flush_empty_fold();
 }

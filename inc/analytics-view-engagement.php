@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
+
 /**
  * Render the Engagement view body.
  *
@@ -43,9 +45,10 @@ function snt_analytics_render_view_engagement( $from, $to, $class ) {
 	// Empty until those ship + traffic flows.
 	$cwv_empty = 'No field Core Web Vitals yet — needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.';
 	echo '<p class="sn-an-sep sn-an-sep--full">Field Core Web Vitals — what real visitors experienced (vs the synthetic Lighthouse lab score).</p>';
-	echo '<div class="sn-an-grid">';
+	echo '<div class="sn-an-cwv-grid">';
 	snt_analytics_render_distribution( 'LCP (field)', sn_analytics_distribution( 'lcp', $from, $to, $class ), $cwv_empty );
 	snt_analytics_render_distribution( 'INP (field)', sn_analytics_distribution( 'inp', $from, $to, $class ), $cwv_empty );
 	snt_analytics_render_distribution( 'CLS (field)', sn_analytics_distribution( 'cls', $from, $to, $class ), $cwv_empty );
 	echo '</div>';
+	snt_an_flush_empty_fold();
 }

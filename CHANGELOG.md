@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.5.2] - 2026-07-03: Analytics arrangement — compact & pack
+
+**Headline:** The Dashboard → Analytics tabs stop wasting space. Panels with no data in the selected range no longer draw a full-height "no data" card — they fold into one muted line (`No data in this range yet: …`), so a sparse tab (Traffic & edge, Login defense) is a short read instead of a wall of empties. The grid packs: it top-aligns (no more stretching a short card to match a tall neighbor — closes the World-map-vs-Countries gap) and a lone trailing panel spans full width, retiring every orphan (Connection RTT, TLS versions, Time zones, the Threats KPI). The three field Core Web Vitals sit as one row, and long launch-velocity labels ellipsise instead of wrapping to four lines.
+
+> **Why PATCH:** presentation refactor + fixes the always-render-empty / orphan / ragged-grid bugs. No new panel, metric, query, route, ability, or schema; keeps the postbox feel.
+
+### Improvements
+- Empty analytics panels omit + fold into one line (`inc/analytics-panels.php` collector; the shared `dim-table` / `distribution` / `choropleth` helpers + `edge-admin.php` + `login-defense-analytics.php`).
+- One grid: `align-items:start` + a `:last-child:nth-child(odd)` auto-span retire stretch + orphans; Core Web Vitals render 3-up; launch-velocity labels ellipsise (`$wide_labels`).
+
+### Fixed
+- Sparse tabs no longer render 8–10 full-height empty cards; orphaned half-width panels and the wrapped Threats KPI are gone.
+
 ## [8.5.1] - 2026-07-03: Dashboard cache-freshness dot
 
 **Headline:** The Dashboard first-glance grid gains a small **Caches** card that answers "is the edge serving current pages?" at a glance. It runs a check from your browser — for each cache-critical route (home, /notes/, /provenance/) it fetches the live page and a cache-busted variant and compares their combined-CSS hash; a mismatch means that route is stale (green **Fresh N/N**, amber **N stale · purge needed**, **Unknown** if a fetch fails). This is the exact signal the manual sweep uses ("expect the current sn-styles-<hash> everywhere") and would have caught the 2026-07-02 pruned-CSS 404s.

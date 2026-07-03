@@ -68,9 +68,12 @@ ok( strpos( $tb, 'BadNet' ) !== false && strpos( $tb, 'Top networks' ) !== false
 	'top table renders rows + caption' );
 ok( strpos( $tb, 'postbox' ) !== false && strpos( $tb, 'wp-list-table' ) !== false && strpos( $tb, 'hndle' ) !== false,
 	'top table uses the shared postbox + wp-list-table chrome' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start();
 sn_login_defense_render_top_table( 'Top networks', 'Network', array() );
-ok( strpos( ob_get_clean(), 'No' ) !== false, 'top table empty-state' );
+$out_empty = ob_get_clean();
+ok( '' === trim( $out_empty ), 'empty top table → no panel emitted (omit + fold, v8.5.2)' );
+ok( in_array( 'Top networks', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty top table → title noted for the fold' );
 
 // --- B3: view dormant gate ---------------------------------------------------
 $GLOBALS['__cfg'] = null;

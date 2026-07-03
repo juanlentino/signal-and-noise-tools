@@ -88,3 +88,36 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
 	}
 	echo '</div>';
 }
+
+/**
+ * Record a panel that had no data this range instead of drawing an empty card.
+ * Collected per request; emitted as one muted line by snt_an_flush_empty_fold().
+ *
+ * @param string $title Panel title.
+ * @return void
+ */
+function snt_an_note_empty( $title ) {
+	if ( ! isset( $GLOBALS['sn_an_empty_panels'] ) || ! is_array( $GLOBALS['sn_an_empty_panels'] ) ) {
+		$GLOBALS['sn_an_empty_panels'] = array();
+	}
+	$GLOBALS['sn_an_empty_panels'][] = (string) $title;
+}
+
+/**
+ * Emit the collected empty panels as ONE muted "No data in this range yet: A · B"
+ * line, then clear the collector. Emits nothing when nothing was collected.
+ *
+ * @return void
+ */
+function snt_an_flush_empty_fold() {
+	$names                          = isset( $GLOBALS['sn_an_empty_panels'] ) ? (array) $GLOBALS['sn_an_empty_panels'] : array();
+	$GLOBALS['sn_an_empty_panels'] = array();
+	if ( empty( $names ) ) {
+		return;
+	}
+	$escaped = array_map( 'esc_html', $names );
+	echo '<p class="sn-an-empty sn-an-empty-fold">'
+		. esc_html__( 'No data in this range yet:', 'signal-and-noise-tools' ) . ' '
+		. implode( ' &middot; ', $escaped ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each element esc_html'd above; separator is a static entity.
+		. '</p>';
+}
