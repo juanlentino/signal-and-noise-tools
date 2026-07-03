@@ -59,12 +59,14 @@ function sn_admin_glance_grid( array $cards ) {
 		$label = isset( $card['label'] ) ? (string) $card['label'] : '';
 		$value = isset( $card['value'] ) ? (string) $card['value'] : '';
 
-		// Optional DOM id hook for progressive JS (escaped).
-		$card_id = isset( $card['id'] ) && '' !== $card['id']
-			? ' id="' . esc_attr( (string) $card['id'] ) . '"'
-			: '';
+		// Optional DOM id hook for progressive JS.
+		$card_id = isset( $card['id'] ) && '' !== $card['id'] ? (string) $card['id'] : '';
 
-		echo '<div class="sn-glance-card"' . $card_id . '>';
+		echo '<div class="sn-glance-card"';
+		if ( '' !== $card_id ) {
+			echo ' id="' . esc_attr( $card_id ) . '"';
+		}
+		echo '>';
 		echo '<p class="sn-glance-card__label">' . esc_html( $label ) . '</p>';
 		echo '<p class="sn-glance-card__value">' . esc_html( $value ) . '</p>';
 
