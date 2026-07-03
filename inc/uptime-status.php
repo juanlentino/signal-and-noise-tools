@@ -26,12 +26,23 @@
  * paste-to-update, 'clear' to remove; the raw value never renders).
  * A read-scoped Uptime API token is all this needs.
  *
+ * Two payload tiers since v8.4.0 (the stats display moved to the
+ * Dashboard → Analytics page, owner call):
+ *   - LIGHT (sn_uptime_status_fetch): statuses only, 2 calls, 90s cache.
+ *     Feeds the S&N Health widget section + the Webhooks rail.
+ *   - DETAIL (sn_uptime_status_detail): + 30d/90d availability, avg
+ *     response times (24h), and the incidents log. Feeds the Analytics
+ *     page monitor. Every stat tier is independently cached, fails SOFT
+ *     (null, never an exception), and circuit-breaks on first failure so
+ *     a down summary API is neither waited on nor hammered.
+ *
  * Endpoints (betterstack.com/docs/uptime/api, verified 2026-07-02):
- *   GET https://uptime.betterstack.com/api/v2/monitors
- *   GET https://uptime.betterstack.com/api/v2/heartbeats
- * Both are JSON:API ({data:[{id,type,attributes:{…}}]}) with pagination;
- * first page (50) is plenty for this site's monitor count, so pagination
- * is deliberately not walked.
+ *   GET api/v2/monitors · api/v2/heartbeats
+ *   GET api/v2/monitors/{id}/sla · api/v2/heartbeats/{id}/availability
+ *   GET api/v2/monitors/{id}/response-times   (last 24h, seconds)
+ *   GET api/v3/incidents                       (NOTE: v3, not v2)
+ * All JSON:API; list pagination deliberately not walked (first page is
+ * plenty for this site's monitor count).
  *
  * @package SignalNoiseTools
  * @since 8.2.0
@@ -44,8 +55,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_UPTIME_STATUS_TOKEN_OPT', 'sn_betterstack_api_token' );
 define( 'SN_UPTIME_STATUS_TRANSIENT', 'sn_uptime_status_snapshot' );
 define( 'SN_UPTIME_STATUS_AVAIL_TRANSIENT', 'sn_uptime_availability' );
+define( 'SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT', 'sn_uptime_availability_90d' );
+define( 'SN_UPTIME_STATUS_RESPONSE_TRANSIENT', 'sn_uptime_response_times' );
+define( 'SN_UPTIME_STATUS_INCIDENTS_TRANSIENT', 'sn_uptime_incidents' );
 define( 'SN_UPTIME_STATUS_TTL', 90 );
-define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/v2/' );
+// Version-less base (v8.4.0): monitors/SLA/response-times live on v2,
+// incidents on v3 — callers pass the versioned path.
+define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/' );
 
 /**
  * Resolve the active Uptime API token. Constant wins over option.
@@ -91,8 +107,8 @@ function sn_uptime_status_level( $status ) {
  * https, no redirects — so no SSRF surface; the token never appears in
  * errors or logs.
  *
- * @param string $resource 'monitors' or 'heartbeats'.
- * @return array|WP_Error Decoded {data:[…]} array or WP_Error.
+ * @param string $resource Versioned path, e.g. 'v2/monitors' or 'v3/incidents'.
+ * @return array|WP_Error Decoded {data:…} array or WP_Error.
  */
 function sn_uptime_status_api_get( $resource ) {
 	$resp = wp_remote_get( SN_UPTIME_STATUS_API_BASE . $resource, array(
@@ -141,26 +157,29 @@ function sn_uptime_status_row( $item, $kind ) {
 }
 
 /**
- * 30-day availability + incident counts per resource (v8.3.0). One map
- * keyed "kind:id" → {availability:float|null, incidents:int|null}, from
- * the per-resource summary endpoints (monitors use /sla, heartbeats use
- * /availability — same attribute shape, verified 2026-07-02). Cached ONE
- * HOUR (availability barely moves; the status snapshot stays on its own
- * 90s cadence). Failure is SOFT and circuit-broken: on the first failed
- * call the remaining calls are skipped and an all-null map is cached for
- * 10 minutes — statuses must never be held hostage by, or hammer, the
- * summary endpoints.
+ * Windowed availability + incident counts per resource (v8.3.0; window
+ * parametrized v8.4.0). One map keyed "kind:id" → {availability:float|null,
+ * incidents:int|null}, from the per-resource summary endpoints (monitors
+ * use /sla, heartbeats use /availability — same attribute shape). Each
+ * window caches on its own transient (30d: 1h; 90d: 6h — the wider the
+ * window, the slower it moves). Failure is SOFT and circuit-broken: on the
+ * first failed call the remaining calls are skipped and an all-null map is
+ * cached for 10 minutes — statuses must never be held hostage by, or
+ * hammer, the summary endpoints.
  *
- * @param array $rows Normalized snapshot rows (kind + id are read).
+ * @param array  $rows      Normalized snapshot rows (kind + id are read).
+ * @param int    $days      Window size in days.
+ * @param string $transient Transient key for this window's map.
+ * @param int    $ttl       Success TTL in seconds.
  * @return array Map of "kind:id" → array|null.
  */
-function sn_uptime_status_availability_map( $rows ) {
-	$cached = get_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
+function sn_uptime_status_availability_map( $rows, $days = 30, $transient = SN_UPTIME_STATUS_AVAIL_TRANSIENT, $ttl = 3600 ) {
+	$cached = get_transient( $transient );
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
 
-	$from   = gmdate( 'Y-m-d', time() - 30 * 86400 );
+	$from   = gmdate( 'Y-m-d', time() - $days * 86400 );
 	$to     = gmdate( 'Y-m-d' );
 	$map    = array();
 	$broken = false;
@@ -172,8 +191,8 @@ function sn_uptime_status_availability_map( $rows ) {
 			continue;
 		}
 		$path = ( 'monitor' === $row['kind']
-			? 'monitors/' . rawurlencode( $row['id'] ) . '/sla'
-			: 'heartbeats/' . rawurlencode( $row['id'] ) . '/availability'
+			? 'v2/monitors/' . rawurlencode( $row['id'] ) . '/sla'
+			: 'v2/heartbeats/' . rawurlencode( $row['id'] ) . '/availability'
 		) . '?from=' . $from . '&to=' . $to;
 		$resp = sn_uptime_status_api_get( $path );
 		if ( is_wp_error( $resp ) || ! isset( $resp['data']['attributes'] ) || ! is_array( $resp['data']['attributes'] ) ) {
@@ -188,8 +207,105 @@ function sn_uptime_status_availability_map( $rows ) {
 		);
 	}
 
-	set_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT, $map, $broken ? 600 : 3600 );
+	set_transient( $transient, $map, $broken ? 600 : $ttl );
 	return $map;
+}
+
+/**
+ * Average response time per MONITOR (heartbeats are inbound; they have no
+ * response times) from the 24h response-times endpoint. The response nests
+ * per-region sample arrays ({at, response_time} in SECONDS); the average
+ * here is across every sample of every region, in whole milliseconds —
+ * a glanceable number, not a percentile study (the Better Stack console
+ * owns the charts). 15 min TTL; same circuit-break discipline as the
+ * availability maps.
+ *
+ * @param array $rows Normalized snapshot rows.
+ * @return array Map of "monitor:{id}" → int ms | null.
+ */
+function sn_uptime_status_response_map( $rows ) {
+	$cached = get_transient( SN_UPTIME_STATUS_RESPONSE_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$map    = array();
+	$broken = false;
+
+	foreach ( $rows as $row ) {
+		if ( 'monitor' !== $row['kind'] || '' === $row['id'] ) {
+			continue;
+		}
+		$key = 'monitor:' . $row['id'];
+		if ( $broken ) {
+			$map[ $key ] = null;
+			continue;
+		}
+		$resp = sn_uptime_status_api_get( 'v2/monitors/' . rawurlencode( $row['id'] ) . '/response-times' );
+		if ( is_wp_error( $resp ) || ! isset( $resp['data']['attributes']['regions'] ) || ! is_array( $resp['data']['attributes']['regions'] ) ) {
+			$broken      = true;
+			$map[ $key ] = null;
+			continue;
+		}
+		$sum   = 0.0;
+		$count = 0;
+		foreach ( $resp['data']['attributes']['regions'] as $region ) {
+			foreach ( (array) ( $region['response_times'] ?? array() ) as $sample ) {
+				if ( isset( $sample['response_time'] ) && is_numeric( $sample['response_time'] ) ) {
+					$sum += (float) $sample['response_time'];
+					$count++;
+				}
+			}
+		}
+		$map[ $key ] = $count > 0 ? (int) round( 1000 * $sum / $count ) : null;
+	}
+
+	set_transient( SN_UPTIME_STATUS_RESPONSE_TRANSIENT, $map, $broken ? 600 : 900 );
+	return $map;
+}
+
+/**
+ * Recent incidents (v3 endpoint — the one resource NOT on v2), normalized
+ * and sorted newest first. resolved_at null = ongoing. 5 min TTL so an
+ * active incident shows promptly; failures return null (renderers show an
+ * "unavailable" line) and are never cached.
+ *
+ * @return array|null List of {name,cause,started_at,resolved_at,ongoing,duration_s} or null.
+ */
+function sn_uptime_status_incidents() {
+	$cached = get_transient( SN_UPTIME_STATUS_INCIDENTS_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$resp = sn_uptime_status_api_get( 'v3/incidents?per_page=25' );
+	if ( is_wp_error( $resp ) ) {
+		return null;
+	}
+
+	$incidents = array();
+	foreach ( (array) $resp['data'] as $item ) {
+		$attrs = isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
+		$start = isset( $attrs['started_at'] ) ? (string) $attrs['started_at'] : '';
+		$end   = isset( $attrs['resolved_at'] ) && null !== $attrs['resolved_at'] ? (string) $attrs['resolved_at'] : null;
+		$s_ts  = $start ? strtotime( $start ) : false;
+		$e_ts  = $end ? strtotime( $end ) : false;
+		$incidents[] = array(
+			'name'        => (string) ( $attrs['name'] ?? $attrs['url'] ?? '' ),
+			'cause'       => (string) ( $attrs['cause'] ?? '' ),
+			'started_at'  => $start,
+			'resolved_at' => $end,
+			'ongoing'     => null === $end,
+			'duration_s'  => ( false !== $s_ts && false !== $e_ts ) ? max( 0, $e_ts - $s_ts ) : null,
+		);
+	}
+	usort( $incidents, function ( $a, $b ) {
+		return strcmp( $b['started_at'], $a['started_at'] ); // ISO 8601 sorts lexically
+	} );
+	$incidents = array_slice( $incidents, 0, 10 );
+
+	set_transient( SN_UPTIME_STATUS_INCIDENTS_TRANSIENT, $incidents, 300 );
+	return $incidents;
 }
 
 /**
@@ -212,11 +328,11 @@ function sn_uptime_status_fetch( $force = false ) {
 		}
 	}
 
-	$monitors = sn_uptime_status_api_get( 'monitors' );
+	$monitors = sn_uptime_status_api_get( 'v2/monitors' );
 	if ( is_wp_error( $monitors ) ) {
 		return $monitors;
 	}
-	$heartbeats = sn_uptime_status_api_get( 'heartbeats' );
+	$heartbeats = sn_uptime_status_api_get( 'v2/heartbeats' );
 	if ( is_wp_error( $heartbeats ) ) {
 		return $heartbeats;
 	}
@@ -229,13 +345,9 @@ function sn_uptime_status_fetch( $force = false ) {
 		$rows[] = sn_uptime_status_row( $item, 'heartbeat' );
 	}
 
-	// v8.3.0: merge the (separately cached, soft-failing) 30d availability.
-	$avail = sn_uptime_status_availability_map( $rows );
-	foreach ( $rows as $i => $row ) {
-		$entry                        = $avail[ $row['kind'] . ':' . $row['id'] ] ?? null;
-		$rows[ $i ]['availability']   = is_array( $entry ) ? $entry['availability'] : null;
-		$rows[ $i ]['incidents_30d']  = is_array( $entry ) ? $entry['incidents'] : null;
-	}
+	// v8.4.0: statuses ONLY — the widget/rail path stays at two calls. The
+	// stat merges (availability windows, response times) live in
+	// sn_uptime_status_detail(), which the Analytics page requests.
 
 	$snapshot = array(
 		'fetched_at' => time(),
@@ -246,12 +358,52 @@ function sn_uptime_status_fetch( $force = false ) {
 }
 
 /**
- * Ability execute callback. Three states, none of them exceptions:
- * unconfigured (prompt state, not an error), snapshot, unreachable
- * (configured + error message, empty rows).
+ * The full monitor payload for the Analytics page (v8.4.0): status rows
+ * enriched with 30d + 90d availability, incident counts, and average
+ * response times, plus the recent-incidents log. Composes the independent
+ * cache tiers — each fails soft to null, so a partial Better Stack outage
+ * degrades the table, never the page.
  *
- * @param array|null $input {force_refresh?:bool}.
- * @return array {configured,fetched_at,rows,error}
+ * @param bool $force Bypass the STATUS transient (stat tiers keep their own cadences).
+ * @return array|WP_Error {fetched_at, rows, incidents:array|null} or WP_Error.
+ */
+function sn_uptime_status_detail( $force = false ) {
+	$snap = sn_uptime_status_fetch( $force );
+	if ( is_wp_error( $snap ) ) {
+		return $snap;
+	}
+
+	$rows = $snap['rows'];
+	$a30  = sn_uptime_status_availability_map( $rows, 30, SN_UPTIME_STATUS_AVAIL_TRANSIENT, 3600 );
+	$a90  = sn_uptime_status_availability_map( $rows, 90, SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT, 21600 );
+	$rt   = sn_uptime_status_response_map( $rows );
+
+	foreach ( $rows as $i => $row ) {
+		$key                             = $row['kind'] . ':' . $row['id'];
+		$e30                             = isset( $a30[ $key ] ) && is_array( $a30[ $key ] ) ? $a30[ $key ] : null;
+		$e90                             = isset( $a90[ $key ] ) && is_array( $a90[ $key ] ) ? $a90[ $key ] : null;
+		$rows[ $i ]['availability']      = $e30 ? $e30['availability'] : null;
+		$rows[ $i ]['incidents_30d']     = $e30 ? $e30['incidents'] : null;
+		$rows[ $i ]['availability_90d']  = $e90 ? $e90['availability'] : null;
+		$rows[ $i ]['response_ms']       = $rt[ $key ] ?? null;
+	}
+
+	return array(
+		'fetched_at' => $snap['fetched_at'],
+		'rows'       => $rows,
+		'incidents'  => sn_uptime_status_incidents(),
+	);
+}
+
+/**
+ * Ability execute callback. Two payload tiers (v8.4.0): light (statuses,
+ * stat keys null — the widget/rail path) and detail=true (full monitor:
+ * stats populated + the incidents log — the Analytics page path). Three
+ * states either way, none of them exceptions: unconfigured (prompt state,
+ * not an error), payload, unreachable (configured + error message).
+ *
+ * @param array|null $input {force_refresh?:bool, detail?:bool}.
+ * @return array {configured,fetched_at,rows,incidents,error}
  */
 function snt_ability_uptime_status( $input = null ) {
 	if ( ! sn_uptime_status_configured() ) {
@@ -259,23 +411,40 @@ function snt_ability_uptime_status( $input = null ) {
 			'configured' => false,
 			'fetched_at' => 0,
 			'rows'       => array(),
+			'incidents'  => null,
 			'error'      => '',
 		);
 	}
-	$force = is_array( $input ) && ! empty( $input['force_refresh'] );
-	$snap  = sn_uptime_status_fetch( $force );
-	if ( is_wp_error( $snap ) ) {
+	$force  = is_array( $input ) && ! empty( $input['force_refresh'] );
+	$detail = is_array( $input ) && ! empty( $input['detail'] );
+
+	$payload = $detail ? sn_uptime_status_detail( $force ) : sn_uptime_status_fetch( $force );
+	if ( is_wp_error( $payload ) ) {
 		return array(
 			'configured' => true,
 			'fetched_at' => 0,
 			'rows'       => array(),
-			'error'      => $snap->get_error_message(),
+			'incidents'  => null,
+			'error'      => $payload->get_error_message(),
 		);
 	}
+
+	$rows = $payload['rows'];
+	if ( ! $detail ) {
+		// Stable row shape across tiers: stat keys present, just null.
+		foreach ( $rows as $i => $row ) {
+			$rows[ $i ]['availability']     = null;
+			$rows[ $i ]['incidents_30d']    = null;
+			$rows[ $i ]['availability_90d'] = null;
+			$rows[ $i ]['response_ms']      = null;
+		}
+	}
+
 	return array(
 		'configured' => true,
-		'fetched_at' => (int) $snap['fetched_at'],
-		'rows'       => $snap['rows'],
+		'fetched_at' => (int) $payload['fetched_at'],
+		'rows'       => $rows,
+		'incidents'  => $detail ? $payload['incidents'] : null,
 		'error'      => '',
 	);
 }
@@ -286,7 +455,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/uptime-status', array(
 		'label'               => 'Get Better Stack uptime status',
-		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) plus 30-day availability and incident counts, from server-side caches (90s statuses, 1h availability). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); availability=null means the summary endpoints were unavailable (statuses are still authoritative).',
+		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache. Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
@@ -299,6 +468,11 @@ add_action( 'wp_abilities_api_init', function () {
 					'type'        => 'boolean',
 					'default'     => false,
 					'description' => 'Bypass the 90s snapshot transient and hit the Uptime API fresh.',
+				),
+				'detail'        => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'Return the full monitor payload: availability windows, response times, and the incidents log (the Analytics page tier).',
 				),
 			),
 			'additionalProperties' => false,
@@ -319,8 +493,25 @@ add_action( 'wp_abilities_api_init', function () {
 							'status'        => array( 'type' => 'string' ),
 							'level'         => array( 'type' => 'string', 'enum' => array( 'ok', 'warn', 'alert' ) ),
 							'checked_at'    => array( 'type' => array( 'string', 'null' ) ),
-							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; null when the summary endpoint was unavailable.' ),
+							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; null on the light tier or when the summary endpoint was unavailable.' ),
 							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
+							'availability_90d' => array( 'type' => array( 'number', 'null' ) ),
+							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'Average response time over the last 24h in ms (monitors only, detail tier).' ),
+						),
+					),
+				),
+				'incidents'  => array(
+					'type'        => array( 'array', 'null' ),
+					'description' => 'Recent incidents, newest first (detail tier only; null on the light tier or when the incidents endpoint was unavailable).',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'name'        => array( 'type' => 'string' ),
+							'cause'       => array( 'type' => 'string' ),
+							'started_at'  => array( 'type' => 'string' ),
+							'resolved_at' => array( 'type' => array( 'string', 'null' ) ),
+							'ongoing'     => array( 'type' => 'boolean' ),
+							'duration_s'  => array( 'type' => array( 'integer', 'null' ) ),
 						),
 					),
 				),

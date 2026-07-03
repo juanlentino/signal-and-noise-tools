@@ -1,12 +1,16 @@
 /**
- * S&N Uptime status panel loader (v8.2.0; availability enrichment v8.3.0).
+ * S&N Uptime status panel loader (v8.2.0; detail monitor v8.4.0).
  *
- * Populates every [data-sn-uptime-status] mount (the Uptime section of the
- * S&N Health widget + the Webhooks-tab rail) from ONE call to the readonly
- * signal-noise/uptime-status ability via sntAbilityRun — renders stay
- * zero-cost server-side; the Better Stack round trip happens here, backed
- * by server transients (90s statuses, 1h availability). All API-derived
- * strings land via textContent, never innerHTML.
+ * Populates every [data-sn-uptime-status] mount from ONE call to the
+ * readonly signal-noise/uptime-status ability via sntAbilityRun. Two mount
+ * flavors: plain status lists (the S&N Health widget section + the
+ * Webhooks-tab rail) and [data-sn-uptime-detail] (the Analytics page
+ * monitor: table with availability windows + response times, plus the
+ * incidents log). If ANY detail mount is on the page the single call is
+ * upgraded to detail=true and every mount is fed from the same payload.
+ * Renders stay zero-cost server-side; the Better Stack round trips happen
+ * behind the ability's tiered transients. All API-derived strings land via
+ * textContent, never innerHTML.
  */
 (function () {
 	'use strict';
@@ -67,27 +71,95 @@
 			name.title = when ? kind + ' · ' + when : kind;
 			item.appendChild( name );
 
-			// v8.3.0: 30-day availability, quiet, availability=null degrades
-			// to statuses-only (the summary endpoints failing soft server-side).
-			if ( 'number' === typeof row.availability ) {
-				var avail = el( 'span', 'sn-uw-avail', pct( row.availability ) );
-				avail.title = '30-day availability'
-					+ ( row.incidents_30d ? ' · ' + row.incidents_30d + ' incident' + ( 1 === row.incidents_30d ? '' : 's' ) : ' · no incidents' );
-				item.appendChild( avail );
-			}
-
 			item.appendChild( el( 'span', 'sn-uw-pill sn-uw--' + ( row.level || 'warn' ), row.status ) );
 			list.appendChild( item );
 		} );
 		mount.appendChild( list );
 
 		var down = data.rows.filter( function ( r ) { return 'alert' === r.level; } ).length;
-		var incidents = data.rows.reduce( function ( sum, r ) { return sum + ( r.incidents_30d || 0 ); }, 0 );
-		var meta = down ? down + ' down · Better Stack' : 'All systems go · Better Stack';
-		if ( ! down && incidents ) {
-			meta = incidents + ' incident' + ( 1 === incidents ? '' : 's' ) + ' in 30d · Better Stack';
+		mount.appendChild( el( 'p', 'sn-uw-meta', down ? down + ' down · Better Stack' : 'All systems go · Better Stack' ) );
+	}
+
+	// Duration like "12m" / "1h 04m" for the incidents log.
+	function dur( s ) {
+		if ( null === s || undefined === s ) {
+			return '';
 		}
-		mount.appendChild( el( 'p', 'sn-uw-meta', meta ) );
+		if ( s < 3600 ) {
+			return Math.max( 1, Math.round( s / 60 ) ) + 'm';
+		}
+		var h = Math.floor( s / 3600 );
+		var m = Math.round( ( s % 3600 ) / 60 );
+		return h + 'h ' + ( m < 10 ? '0' : '' ) + m + 'm';
+	}
+
+	// The Analytics page monitor: per-resource table + incidents log (v8.4.0).
+	function paintDetail( mount, data ) {
+		mount.textContent = '';
+
+		if ( data.error ) {
+			mount.appendChild( el( 'p', 'sn-uw-error', 'Better Stack unreachable: ' + data.error ) );
+			return;
+		}
+		if ( ! data.configured || ! data.rows || ! data.rows.length ) {
+			mount.appendChild( el( 'p', 'sn-uw-loading', 'No monitors or heartbeats yet.' ) );
+			return;
+		}
+
+		var table = el( 'table', 'sn-uw-table' );
+		var thead = el( 'thead' );
+		var hr = el( 'tr' );
+		[ 'Monitor', 'Status', '30d', '90d', 'Resp.', 'Checked' ].forEach( function ( h, i ) {
+			hr.appendChild( el( 'th', i > 0 ? 'sn-uw-num' : '', h ) );
+		} );
+		thead.appendChild( hr );
+		table.appendChild( thead );
+
+		var tbody = el( 'tbody' );
+		data.rows.forEach( function ( row ) {
+			var tr = el( 'tr' );
+			var name = el( 'td', '', row.name );
+			name.title = 'heartbeat' === row.kind ? 'Heartbeat (push)' : 'HTTP monitor';
+			tr.appendChild( name );
+			var status = el( 'td', 'sn-uw-num' );
+			status.appendChild( el( 'span', 'sn-uw-pill sn-uw--' + ( row.level || 'warn' ), row.status ) );
+			tr.appendChild( status );
+			var a30 = 'number' === typeof row.availability ? pct( row.availability ) : '—';
+			var t30 = el( 'td', 'sn-uw-num', a30 );
+			if ( row.incidents_30d ) {
+				t30.title = row.incidents_30d + ' incident' + ( 1 === row.incidents_30d ? '' : 's' ) + ' in 30d';
+			}
+			tr.appendChild( t30 );
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.availability_90d ? pct( row.availability_90d ) : '—' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.response_ms ? row.response_ms + ' ms' : '—' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-quiet', ago( row.checked_at ).replace( 'checked ', '' ) || '—' ) );
+			tbody.appendChild( tr );
+		} );
+		table.appendChild( tbody );
+		mount.appendChild( table );
+
+		var head = el( 'p', 'sn-uw-head', 'Recent incidents' );
+		mount.appendChild( head );
+		if ( null === data.incidents || undefined === data.incidents ) {
+			mount.appendChild( el( 'p', 'sn-uw-quiet sn-uw-meta', 'Incident log unavailable right now.' ) );
+		} else if ( ! data.incidents.length ) {
+			mount.appendChild( el( 'p', 'sn-uw-quiet sn-uw-meta', 'No recent incidents.' ) );
+		} else {
+			var log = el( 'ul', 'sn-uw-incidents' );
+			data.incidents.forEach( function ( inc ) {
+				var li = el( 'li', 'sn-uw-incident' + ( inc.ongoing ? ' sn-uw-incident--ongoing' : '' ) );
+				var when = inc.started_at ? new Date( inc.started_at ).toLocaleString() : '';
+				li.appendChild( el( 'span', 'sn-uw-inc-name', inc.name ) );
+				li.appendChild( el( 'span', 'sn-uw-inc-detail',
+					( inc.cause ? inc.cause : 'Incident' )
+					+ ( when ? ' · ' + when : '' )
+					+ ( inc.ongoing ? ' · ONGOING' : ( inc.duration_s ? ' · ' + dur( inc.duration_s ) : '' ) )
+				) );
+				log.appendChild( li );
+			} );
+			mount.appendChild( log );
+		}
+		mount.appendChild( el( 'p', 'sn-uw-meta', 'Availability over 30/90 days · response averaged over 24h · Better Stack' ) );
 	}
 
 	function boot() {
@@ -95,8 +167,16 @@
 		if ( ! mounts.length || 'function' !== typeof window.sntAbilityRun ) {
 			return;
 		}
-		window.sntAbilityRun( 'signal-noise/uptime-status' ).then( function ( data ) {
-			mounts.forEach( function ( m ) { paint( m, data || {} ); } );
+		var wantsDetail = document.querySelector( '[data-sn-uptime-detail]' ) !== null;
+		var input = wantsDetail ? { detail: true } : undefined;
+		window.sntAbilityRun( 'signal-noise/uptime-status', input ).then( function ( data ) {
+			mounts.forEach( function ( m ) {
+				if ( m.hasAttribute( 'data-sn-uptime-detail' ) ) {
+					paintDetail( m, data || {} );
+				} else {
+					paint( m, data || {} );
+				}
+			} );
 		} ).catch( function () {
 			mounts.forEach( function ( m ) {
 				m.textContent = '';

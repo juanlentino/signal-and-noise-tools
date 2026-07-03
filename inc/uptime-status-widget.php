@@ -49,15 +49,41 @@ function sn_uptime_status_health_section() {
 }
 
 /**
- * Dashboard-home assets. Gated on a configured token since v8.3.0 — with
- * no token there is no mount, so shipping the JS/CSS would be two wasted
- * requests on every admin login. The SN admin pages (Webhooks-tab rail)
- * get the same handles from the shared enqueue in inc/admin-menu.php.
+ * The Uptime monitor section for the Dashboard → Analytics page (v8.4.0,
+ * owner call: the stats live where the numbers are reviewed). The mount
+ * carries BOTH hook attributes — data-sn-uptime-status marks it as a
+ * paintable mount, data-sn-uptime-detail upgrades the shared ability call
+ * to the detail tier (availability windows + response times + incidents),
+ * so one call still feeds every mount on the page. '' unconfigured; zero
+ * remote cost on render, same as every other surface.
+ *
+ * @return string Section HTML, or '' when no token is configured.
+ */
+function sn_uptime_status_analytics_section() {
+	if ( ! sn_uptime_status_configured() ) {
+		return '';
+	}
+	return '<div class="sn-uptime-monitor">'
+		. '<h2>' . esc_html__( 'Uptime', 'signal-noise-tools' ) . '</h2>'
+		. '<div class="sn-uptime-status" data-sn-uptime-status data-sn-uptime-detail>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-noise-tools' ) . '</p>'
+		. '</div>'
+		. '</div>';
+}
+
+/**
+ * Panel assets for the two Dashboard-menu surfaces: the home dashboard
+ * (S&N Health widget section) and the Analytics page (monitor section).
+ * Gated on a configured token — with no token there is no mount, so
+ * shipping the JS/CSS would be wasted requests. The SN admin pages
+ * (Webhooks-tab rail) get the same handles from the shared enqueue in
+ * inc/admin-menu.php.
  *
  * @param string $hook Admin page hook suffix.
  */
 function sn_uptime_status_widget_enqueue( $hook ) {
-	if ( 'index.php' !== $hook || ! sn_uptime_status_configured() ) {
+	$surfaces = array( 'index.php', 'dashboard_page_sn-analytics' );
+	if ( ! in_array( $hook, $surfaces, true ) || ! sn_uptime_status_configured() ) {
 		return;
 	}
 	sn_uptime_status_enqueue_assets();
