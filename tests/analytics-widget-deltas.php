@@ -70,6 +70,12 @@ ok( strpos( cap( function () { sn_aw_delta_badge( array( 'pct' => -8, 'dir' => '
 ok( strpos( cap( function () { sn_aw_delta_badge( array( 'pct' => 0, 'dir' => 'flat' ) ); } ), '■ 0%' ) !== false,
 	'flat: ■ 0% with sn-aw-delta--flat class' );
 
+echo "\nGroup: v8.5.0 — the absolute prior value rides a tooltip\n";
+$b = cap( function () { sn_aw_delta_badge( array( 'pct' => 101, 'dir' => 'up', 'current' => 1204, 'previous' => 600 ) ); } );
+ok( strpos( $b, 'title="previous period: 600"' ) !== false, 'badge carries the prior-period absolute in a title attr (page parity)' );
+$b = cap( function () { sn_aw_delta_badge( array( 'pct' => 12, 'dir' => 'up' ) ); } );
+ok( strpos( $b, 'title=' ) === false, 'no previous value → no tooltip (renders exactly as before)' );
+
 echo "\nGroup: pct null (no prior window) mirrors the page badge: new / em-dash\n";
 ok( strpos( cap( function () { sn_aw_delta_badge( array( 'pct' => null, 'dir' => 'up' ) ); } ), '▲ new' ) !== false,
 	'pct null + up → ▲ new (brand-new traffic, no division)' );

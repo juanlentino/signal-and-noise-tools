@@ -224,8 +224,39 @@ function sn_aw_overview() {
 	}
 	echo '<div class="sn-aw-subhead">Right now</div>';
 	sn_aw_realtime( false );
+	// v8.5.0 pairing: today-so-far from the daily series' LAST bucket — the
+	// same zero-extra-queries trick as the Analytics page's Pulse strip.
+	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+		list( $t_from, $t_to ) = sn_aw_window7();
+		$t_series = sn_analytics_daily_series( $t_from, $t_to, 'human', 'day' );
+		$t_last   = ( is_array( $t_series ) && ! empty( $t_series ) ) ? end( $t_series ) : null;
+		if ( is_array( $t_last ) && isset( $t_last['views'] ) ) {
+			echo '<p class="sn-aw-foot sn-aw-today">' . esc_html( sprintf(
+				/* translators: %s: view count so far today. */
+				__( '%s views today so far', 'signal-and-noise-tools' ),
+				number_format_i18n( (int) $t_last['views'] )
+			) ) . '</p>';
+		}
+	}
 	echo '<div class="sn-aw-subhead">Last 7 days</div>';
 	sn_aw_snapshot( false );
+	// v8.5.0 pairing: the redesign's Movers answer ("which posts moved"),
+	// compact — top 3 by views delta vs the prior 7 days, shared 15-min cache.
+	if ( function_exists( 'sn_analytics_movers' ) ) {
+		list( $m_from, $m_to ) = sn_aw_window7();
+		$movers = sn_analytics_movers( $m_from, $m_to, 'human', 3 );
+		if ( ! empty( $movers ) ) {
+			echo '<div class="sn-aw-subhead">Movers</div>';
+			echo '<ul class="sn-aw-list sn-aw-movers">';
+			foreach ( $movers as $m ) {
+				$delta = (int) ( $m['delta'] ?? 0 );
+				$cls   = $delta > 0 ? 'sn-aw-mv-up' : 'sn-aw-mv-down';
+				echo '<li><span class="k">' . esc_html( (string) ( $m['path'] ?? '' ) ) . '</span>'
+					. '<span class="v ' . esc_attr( $cls ) . '">' . esc_html( ( $delta > 0 ? '+' : '' ) . $delta ) . '</span></li>';
+			}
+			echo '</ul>';
+		}
+	}
 	sn_aw_footer();
 }
 
@@ -258,9 +289,17 @@ function sn_aw_kv_list( $rows, $empty ) {
 		echo '<p class="sn-aw-empty">' . esc_html( $empty ) . '</p>';
 		return;
 	}
-	echo '<ul class="sn-aw-list">';
+	// v8.5.0 pairing: proportional share bars behind each row (vs the list
+	// max) — the glanceable proportion the raw counts don't give. Zero new
+	// data; the CSS paints via the --sn-aw-share custom property.
+	$max = 0;
 	foreach ( $rows as $row ) {
-		echo '<li><span class="k">';
+		$max = max( $max, (int) ( $row['v'] ?? 0 ) );
+	}
+	echo '<ul class="sn-aw-list sn-aw-list--bars">';
+	foreach ( $rows as $row ) {
+		$share = $max > 0 ? (int) round( (int) ( $row['v'] ?? 0 ) / $max * 100 ) : 0;
+		echo '<li style="--sn-aw-share:' . esc_attr( (string) $share ) . '%"><span class="k">';
 		if ( ! empty( $row['href'] ) ) {
 			echo '<a href="' . esc_url( (string) $row['href'] ) . '">' . esc_html( (string) $row['k'] ) . '</a>';
 		} else {
@@ -308,7 +347,16 @@ function sn_aw_delta_badge( $delta ) {
 	$text  = ( null === $pct )
 		? ( 'up' === $dir ? 'new' : '—' )
 		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
-	echo ' <span class="sn-aw-delta sn-aw-delta--' . esc_attr( $dir ) . '">' . esc_html( $arrow . ' ' . $text ) . '</span>';
+	// v8.5.0: prior-period absolute in a tooltip (page-badge parity);
+	// escaping at the point of output.
+	$prev_title = '';
+	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
+		$prev       = (float) $delta['previous'];
+		$prev_title = 'previous period: ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
+	}
+	echo ' <span class="sn-aw-delta sn-aw-delta--' . esc_attr( $dir ) . '"'
+		. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
+		. '>' . esc_html( $arrow . ' ' . $text ) . '</span>';
 }
 
 function sn_aw_duration( $seconds ) {

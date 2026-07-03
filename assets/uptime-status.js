@@ -185,6 +185,25 @@
 		} );
 	}
 
+	// v8.5.0: lazy detail — the Analytics "Uptime detail" panel fetches the
+	// detail tier on FIRST expand (sn-an-panel-open dispatched by
+	// assets/admin.js). The eager [data-sn-uptime-detail] path in boot()
+	// still serves any surface that wants detail at load; the redesigned
+	// Analytics page ships none, so page load costs the status tier only.
+	document.addEventListener( 'sn-an-panel-open', function ( e ) {
+		var mount = e.target.querySelector( '[data-sn-uptime-lazy-detail]' );
+		if ( ! mount || mount.hasAttribute( 'data-sn-uptime-loaded' ) || 'function' !== typeof window.sntAbilityRun ) {
+			return;
+		}
+		mount.setAttribute( 'data-sn-uptime-loaded', '1' );
+		window.sntAbilityRun( 'signal-noise/uptime-status', { detail: true } ).then( function ( data ) {
+			paintDetail( mount, data || {} );
+		} ).catch( function () {
+			mount.textContent = '';
+			mount.appendChild( el( 'p', 'sn-uw-error', 'Better Stack status unavailable.' ) );
+		} );
+	} );
+
 	if ( 'loading' === document.readyState ) {
 		document.addEventListener( 'DOMContentLoaded', boot );
 	} else {

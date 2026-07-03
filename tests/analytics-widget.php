@@ -14,6 +14,8 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $
 $GLOBALS['__widgets'] = array();
 function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( 'title' => $title, 'cb' => $cb ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function __( $s, $d = null ) { return (string) $s; }
+function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
@@ -131,6 +133,33 @@ $GLOBALS['__pw']['classes'] = array();
 $d = cap( 'sn_aw_snapshot' );
 ok( strpos( $d, '>—</div><div class="sn-aw-stat-l">Engaged<' ) !== false, 'snapshot: no time-distribution data → Engaged em-dash' );
 ok( strpos( $d, '>—</div><div class="sn-aw-stat-l">Filtered<' ) !== false, 'snapshot: empty class_totals → Filtered em-dash (not 0)' );
+
+echo "\nGroup: v8.5.0 pairing — today, movers, share bars\n";
+// Movers seam (the redesign's rail tile shares it; guarded in the widget).
+function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3 ) {
+	return array(
+		array( 'path' => '/notes/x', 'views' => 141, 'delta' => 41 ),
+		array( 'path' => '/notes/b', 'views' => 22, 'delta' => -18 ),
+	);
+}
+$GLOBALS['__pw_config']      = true;
+$GLOBALS['__pw']['totals']   = array( 'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 108000.0 );
+$GLOBALS['__pw']['realtime'] = 7;
+$GLOBALS['__pw']['engaged']  = 74;
+$GLOBALS['__pw']['classes']  = array( 'human' => array( 'views' => 1163 ), 'suspect' => array( 'views' => 18 ), 'bot' => array( 'views' => 23 ) );
+$GLOBALS['__pw']['series']   = array( array( 'day' => '2020-01-01', 'views' => 100 ), array( 'day' => '2020-01-02', 'views' => 84 ) );
+$ov = cap( 'sn_aw_overview' );
+ok( strpos( $ov, 'sn-aw-today' ) !== false && strpos( $ov, '84' ) !== false, 'overview: today-so-far views beside Right now (last series bucket, zero new queries)' );
+ok( strpos( $ov, 'Movers' ) !== false, 'overview: Movers section present (pairs with the redesign rail tile)' );
+ok( strpos( $ov, '/notes/x' ) !== false && strpos( $ov, '+41' ) !== false && strpos( $ov, 'sn-aw-mv-up' ) !== false, 'overview: positive mover row with signed delta' );
+ok( strpos( $ov, '-18' ) !== false && strpos( $ov, 'sn-aw-mv-down' ) !== false, 'overview: negative mover row' );
+$GLOBALS['__pw']['paths'] = array(
+	array( 'path' => '/notes/x', 'views' => 412 ),
+	array( 'path' => '/notes/b', 'views' => 103 ),
+);
+$tc = cap( 'sn_aw_top_content' );
+ok( strpos( $tc, '--sn-aw-share:100%' ) !== false, 'top content: the max row carries a full share bar' );
+ok( strpos( $tc, '--sn-aw-share:25%' ) !== false, 'top content: proportional share bar on the smaller row (103/412)' );
 
 echo "\nGroup: unconfigured shows config empty state\n";
 $GLOBALS['__pw_config'] = false;

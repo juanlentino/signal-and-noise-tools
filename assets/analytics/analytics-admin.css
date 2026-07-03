@@ -282,3 +282,119 @@
 /* Cross-tab drill-down panel. v6.9.0 */
 .sn-an-drill { border-left: 3px solid var(--wp-admin-theme-color, #2271b1); }
 .sn-an-drill .sn-an-subh { font-size: 13px; color: #50575e; }
+
+/* ── v8.5.0: row clamp — long tables render fully, display 5 (or 3) ──────── */
+.sn-an-clamp--5:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+6) { display: none; }
+.sn-an-clamp--3:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+4) { display: none; }
+.sn-an-clamp--10:not(.sn-an-clamp--open) .widefat tbody tr:nth-child(n+11) { display: none; }
+.sn-an-viewall {
+	display: block; width: 100%; padding: 6px 0 2px; margin: 0;
+	background: none; border: 0; cursor: pointer;
+	color: #2271b1; font-size: 12px; text-align: left;
+}
+.sn-an-viewall:hover { color: #135e96; }
+.sn-an-clamp--open .sn-an-viewall { color: var(--sn-text-muted, #646970); }
+
+/* ── v8.5.0: collapsible panels (uptime detail) ──────────────────────────── */
+.sn-an-collapsed > .inside { display: none; }
+.sn-an-toggle {
+	margin-left: auto; padding: 0 12px; background: none; border: 0; cursor: pointer;
+	color: var(--sn-text-muted, #646970);
+}
+.sn-an-toggle::before { content: "\2303"; display: inline-block; transition: transform .15s ease; }
+.sn-an-collapsed .sn-an-toggle::before { transform: rotate(180deg); }
+
+/* ── v8.5.0: header grid — full Overview (2/3) beside the rail (1/3) ─────── */
+.sn-an-header-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; margin-bottom: 12px; }
+.sn-an-header-rail { display: flex; flex-direction: column; gap: 12px; }
+.sn-an-header-rail .postbox { margin-bottom: 0; }
+.sn-an-header-main .postbox { margin-bottom: 0; }
+/* v8.5.0 owner rule: the shorter the scroll, the better — hold the columns
+   down to WP's own 782px mobile breakpoint; when the header finally stacks,
+   the rail tiles sit SIDE BY SIDE (one extra row, not two). */
+@media ( max-width: 782px ) {
+	.sn-an-header-grid { grid-template-columns: 1fr; }
+	.sn-an-header-rail { flex-direction: row; }
+	.sn-an-header-rail > .postbox { flex: 1; min-width: 0; }
+}
+
+/* ── v8.5.0: content view — what's read | where it comes from ────────────── */
+.sn-an-content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 12px; }
+.sn-an-content-side { display: flex; flex-direction: column; gap: 12px; }
+.sn-an-content-side .postbox, .sn-an-content-main .postbox { margin-bottom: 0; }
+@media ( max-width: 782px ) { .sn-an-content-grid { grid-template-columns: 1fr; } }
+
+/* ── v8.5.0: journeys & diagnostics row ──────────────────────────────────── */
+.sn-an-journeys-label {
+	border-top: 1px solid var(--sn-border, #dcdcde); margin-top: 16px; padding-top: 8px;
+	color: var(--sn-text-muted, #646970); font-size: 11px;
+	text-transform: uppercase; letter-spacing: .05em;
+}
+.sn-an-journeys-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; }
+.sn-an-journeys-grid .postbox { margin-bottom: 0; }
+@media ( max-width: 960px ) { .sn-an-journeys-grid { grid-template-columns: 1fr 1fr; } }
+@media ( max-width: 782px ) { .sn-an-journeys-grid { grid-template-columns: 1fr; } }
+
+/* ── v8.5.0: rail tiles + movers ─────────────────────────────────────────── */
+.sn-an-rail-tile .inside { padding: 8px 14px 10px; }
+.sn-an-head-meta { margin-left: auto; padding-right: 12px; align-self: center; color: var(--sn-text-muted, #646970); font-size: 11px; }
+.sn-an-movers-list { margin: 0; }
+.sn-an-movers-list li { display: flex; justify-content: space-between; gap: 8px; margin: 0; padding: 3px 0; border-bottom: 1px solid #f6f7f7; font-variant-numeric: tabular-nums; }
+.sn-an-movers-list li:last-child { border-bottom: 0; }
+.sn-an-mover-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-an-delta-up { color: #00a32a; font-weight: 600; }
+.sn-an-delta-down { color: #d63638; font-weight: 600; }
+.sn-an-mover-more { display: inline-block; margin-top: 4px; font-size: 12px; }
+
+/* ── v8.5.0: referrer categories as chips (CSS-only compaction) ──────────── */
+.sn-an-refcats--chips .sn-an-refcats-bars { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
+.sn-an-refcats--chips .sn-an-refcat { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--sn-radius, 3px); background: #f0f6fc; font-size: 12px; }
+.sn-an-refcats--chips .sn-an-refcat-h { display: flex; gap: 6px; }
+.sn-an-refcats--chips .sn-an-refcat-bar { display: none; }
+
+/* ── v8.5.0: crisp console on postbox — the token pass (owner: "B, but keep
+   postbox feel"). Real .postbox shells; hairline + radius + numeral treatment
+   from tokens. --sn-an-border is LOCAL: the settings pages' --sn-border
+   (#c3c4c7) contract (tests/admin-polish-v647.php) stays untouched. ────── */
+.sn-an-postbox {
+	--sn-an-border: #dcdcde;
+	border: 1px solid var(--sn-an-border);
+	border-radius: var(--sn-radius, 3px);
+	overflow: hidden; /* radius clips the header bar */
+}
+.sn-an-postbox > .postbox-header { border-bottom: 1px solid var(--sn-an-border); display: flex; align-items: center; }
+.sn-an-postbox .sn-kpi-value {
+	font-size: 1.35rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 1.7rem; font-weight: 600; }
+.sn-an-postbox .sn-kpi,
+.sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-border); }
+
+/* ── v8.5.0: rail stretches to the Overview's height — no dead space under
+   the Movers tile; mover rows carry muted views beside the delta. ───────── */
+.sn-an-header-grid { align-items: stretch; }
+.sn-an-movers { flex: 1; display: flex; flex-direction: column; }
+.sn-an-movers .inside { flex: 1; }
+.sn-an-mover-nums { display: inline-flex; gap: 8px; align-items: baseline; }
+.sn-an-mover-views { color: var(--sn-text-muted, #646970); font-size: 11px; }
+
+/* ── v8.5.0: the Pulse strip — four glanceable micro-stats in one hairline
+   row (scroll bands, read-time bands, bot-share spark, today). ──────────── */
+.sn-an-pulse {
+	display: flex; align-items: center; gap: 16px;
+	margin: 0 0 12px; padding: 8px 14px;
+	background: #fff; border: 1px solid var(--sn-an-border, #dcdcde);
+	border-radius: var(--sn-radius, 3px);
+	font-variant-numeric: tabular-nums;
+}
+.sn-an-pulse-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.sn-an-pulse-k { color: var(--sn-text-muted, #646970); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.sn-an-pulse-v { font-size: 12px; color: #1d2327; white-space: nowrap; }
+.sn-an-pulse-v--big { font-size: 16px; font-weight: 600; }
+.sn-an-pulse-bar { display: inline-flex; width: 96px; height: 8px; border-radius: 2px; overflow: hidden; background: #f0f0f1; }
+.sn-an-pulse-bar span { display: block; height: 100%; }
+.sn-an-pulse-spark { width: 72px; height: 18px; }
+.sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-border, #dcdcde); }
+@media ( max-width: 782px ) { .sn-an-pulse { flex-wrap: wrap; } .sn-an-pulse-sep { display: none; } }

@@ -60,6 +60,10 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
 
+function wp_kses_post( $s ) { return (string) $s; }
+function sanitize_title( $s ) { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $s ) ), '-' ); }
+
+require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: strip + detail render through the primitive
 require_once __DIR__ . '/../inc/uptime-status.php';
 require_once __DIR__ . '/../inc/uptime-status-widget.php';
 
@@ -113,17 +117,40 @@ unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
 uw_fire_enqueue( 'index.php' );
 uw_ok( ! isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'not enqueued unconfigured (no mount, no wasted requests)' );
 
-// ─── Test 5: Analytics page monitor panel (v8.4.0; postbox seam v8.4.2) ──
-echo "\nTest 5: Analytics page panel\n";
-uw_ok( '' === sn_uptime_status_analytics_section(), 'empty string without a token' );
+// ─── Test 5: rail strip — status tier ONLY (v8.5.0) ──────────────────
+echo "\nTest 5: rail strip (status tier only)\n";
+unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
+uw_ok( '' === sn_uptime_status_rail_strip(), 'strip: empty string without a token' );
 $GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
-$html = sn_uptime_status_analytics_section();
-uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ) && false !== strpos( $html, 'data-sn-uptime-detail' ), 'detail mount carries BOTH hook attributes (one ability call feeds every mount)' );
-uw_ok( false !== strpos( $html, 'postbox' ) && false !== strpos( $html, 'postbox-header' ) && false !== strpos( $html, 'hndle' ), 'renders as a first-class postbox card (v8.4.2 — not a bare section below the fold)' );
-uw_ok( false !== strpos( $html, '>Uptime<' ), 'panel heading present' );
+$html = sn_uptime_status_rail_strip();
+uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ), 'strip carries the status mount' );
+uw_ok( false === strpos( $html, 'data-sn-uptime-detail' ), 'strip does NOT carry the eager detail attribute (page load costs the status tier only)' );
+uw_ok( false !== strpos( $html, 'sn-an-postbox' ) && false !== strpos( $html, 'hndle' ), 'strip renders through the panel primitive (postbox feel kept)' );
+uw_ok( false !== strpos( $html, '>Uptime<' ), 'strip heading present' );
 uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
-uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the Analytics panel render (async contract)' );
-uw_ok( in_array( 'sn_uptime_status_render_analytics_section', $GLOBALS['__actions']['snt_analytics_after_overview'] ?? array(), true ), 'panel hooks the after-Overview seam (renders under the Overview panel)' );
+uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the strip render (async contract)' );
+
+// ─── Test 6: lazy detail panel — collapsed, fetches only on expand ───
+echo "\nTest 6: lazy detail panel\n";
+unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
+uw_ok( '' === sn_uptime_status_detail_panel(), 'detail: empty string without a token' );
+$GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
+$html = sn_uptime_status_detail_panel();
+uw_ok( false !== strpos( $html, 'data-sn-an-collapsible="uptime-detail"' ), 'detail panel is collapsible with the stable localStorage slug' );
+uw_ok( false !== strpos( $html, 'sn-an-collapsed' ) && false !== strpos( $html, 'aria-expanded="false"' ), 'detail panel starts collapsed' );
+uw_ok( false !== strpos( $html, 'data-sn-uptime-lazy-detail' ), 'detail mount is the LAZY hook' );
+uw_ok( false === strpos( $html, 'data-sn-uptime-detail' ) || false !== strpos( $html, 'data-sn-uptime-lazy-detail' ), 'no eager detail attribute anywhere' );
+uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
+uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the detail-panel render (fetch happens on expand, not render)' );
+uw_ok( ! in_array( 'sn_uptime_status_render_analytics_section', $GLOBALS['__actions']['snt_analytics_after_overview'] ?? array(), true ), 'module no longer hooks the after-Overview seam (header region seats the rail directly; the seam itself keeps firing)' );
+uw_ok( false === strpos( $module_src, "add_action( 'snt_analytics_after_overview'" ), 'module source contains no seam hook' );
+
+// ─── Test 7: JS lazy contract ────────────────────────────────────────
+echo "\nTest 7: uptime-status.js lazy-detail contract\n";
+$js = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.js' );
+uw_ok( false !== strpos( $js, 'data-sn-uptime-lazy-detail' ), 'JS knows the lazy mount' );
+uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS listens for the panel-open event' );
+uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
 
 uw_fire_enqueue( 'dashboard_page_sn-analytics' );
 uw_ok( isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'assets enqueued on the Analytics page hook when configured' );

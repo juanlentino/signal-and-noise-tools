@@ -305,38 +305,16 @@ function snt_analytics_render_dashboard() {
 	// pageview-only regions below (fetches, header render, post-switch empty hint).
 	$owns_chrome = snt_analytics_view_owns_chrome( $view );
 
-	// ── Persistent header (shared-chrome tabs only): the at-a-glance headline.
-	if ( ! $owns_chrome ) {
-		$totals       = sn_analytics_range_totals( $from, $to, $class );
-		$class_totals = sn_analytics_class_totals( $from, $to );
-		$now          = sn_analytics_realtime( $class );
-		$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
-		$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
-		$engaged      = ( 'all' === $range )
-			? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
-			: sn_analytics_engaged_rate_delta( $from, $to, $class );
-	}
-
 	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
 
+	// ── Persistent header (shared-chrome tabs only). v8.5.0: the whole frame
+	// (controls, class strip, full Overview + rail grid, uptime detail panel,
+	// the still-firing after-Overview seam) lives in
+	// inc/analytics-header-region.php; it returns the range totals so the
+	// tail empty-hint below keeps its signal.
+	$totals = array();
 	if ( ! $owns_chrome ) {
-		snt_analytics_render_controls( $range, $class, $from, $to );
-		snt_analytics_render_separation( $class_totals, $class );
-
-		// v6.5.2: the KPI strip + daily-views chart are fused into ONE "Overview" panel
-		// (was two half-empty postboxes). render_cards / render_trend now emit body-only
-		// markup; the postbox chrome lives here so the chart reads as the panel's footer.
-		echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-		echo '<div class="inside inside-flush sn-overview-inside">';
-		snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
-		snt_analytics_render_trend( $series, $granularity );
-		echo '</div></div>';
-
-		// v8.4.2: composition seam — the Better Stack uptime monitor
-		// (inc/uptime-status-widget.php) hooks here so it reads as a
-		// first-class panel right under Overview, not an afterthought
-		// below the fold (owner: "weird down there hidden").
-		do_action( 'snt_analytics_after_overview', $view );
+		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
 		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
 		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
@@ -374,45 +352,11 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'technology':
-			echo '<div class="sn-an-grid">';
-			$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
-			$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
-			$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Browsers', $brow_rows, 'No browser data in this range yet.', $brow_ser, 'browser' );
-			$os_rows = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
-			$os_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $os_rows );
-			$os_ser  = sn_analytics_dimension_series( 'os', $os_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Operating systems', $os_rows, 'No OS data in this range yet.', $os_ser, 'os' );
-			$dev_rows = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
-			$dev_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $dev_rows );
-			$dev_ser  = sn_analytics_dimension_series( 'device', $dev_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Devices', $dev_rows, 'No device data in this range.', $dev_ser, 'device' );
-			$pro_rows = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
-			$pro_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $pro_rows );
-			$pro_ser  = sn_analytics_dimension_series( 'protocol', $pro_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Protocols', $pro_rows, 'No protocol data in this range yet.', $pro_ser, 'protocol' );
-			$tls_rows = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
-			$tls_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $tls_rows );
-			$tls_ser  = sn_analytics_dimension_series( 'tls', $tls_vals, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'TLS versions', $tls_rows, 'No TLS data in this range yet.', $tls_ser, 'tls' );
-			echo '</div>';
+			snt_analytics_render_view_technology( $from, $to, $class, $granularity ); // v8.5.0: inc/analytics-view-technology.php
 			break;
 
 		case 'geography':
-			echo '<div class="sn-geo">';
-			echo '<div class="sn-geo-split">';
-			snt_analytics_render_choropleth( 'World map', sn_analytics_top_dimension( 'country', $from, $to, $class, 250 ), 'No country data in this range yet.' );
-			snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.', array(), 'country' );
-			echo '</div>';
-			echo '<div class="sn-geo-tiles" style="margin-top:20px">';
-			snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.', array(), 'city' );
-			snt_analytics_render_dim_table( 'Regions', sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.', array(), 'region' );
-			snt_analytics_render_dim_table( 'Networks', sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.', array(), 'network' );
-			snt_analytics_render_dim_table( 'Edge locations', sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.', array(), 'colo' );
-			// v6.27.0: visitor IANA timezone (worker v1.7.0, blob19) — the "when/where
-			// my audience reads" signal, finer than country. Empty until the worker ships.
-			snt_analytics_render_dim_table( 'Time zones', sn_analytics_top_dimension( 'timezone', $from, $to, $class, 10 ), 'No timezone data yet (needs worker v1.7.0 + traffic).', array(), 'timezone' );
-			echo '</div></div>';
+			snt_analytics_render_view_geography( $from, $to, $class ); // v8.5.0: inc/analytics-view-geography.php
 			break;
 
 		case 'edge':
@@ -422,53 +366,15 @@ function snt_analytics_render_dashboard() {
 			break;
 
 		case 'engagement':
-			snt_analytics_render_heatmap( sn_analytics_hour_dow_grid( $from, $to, $class ) );
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_distribution( 'Scroll depth', sn_analytics_distribution( 'scroll', $from, $to, $class ) );
-			snt_analytics_render_distribution( 'Time on page', sn_analytics_distribution( 'time', $from, $to, $class ) );
-			// v6.27.0: connection RTT (worker v1.7.0, double4 = clientTcpRtt). TCP-only —
-			// HTTP/3 / QUIC requests carry no RTT, so the distribution measures HTTP/1–2.
-			snt_analytics_render_distribution( 'Connection RTT', sn_analytics_distribution( 'rtt', $from, $to, $class ), 'No TCP round-trips in this range — HTTP/3 connections carry no RTT, so only HTTP/1–2 visitors are measured (needs worker v1.7.0 + traffic).' );
-			echo '</div>';
-			$pctl_note  = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
-				? '(reflects the last ~90 days — Analytics Engine raw retention)'
-				: '';
-			$pctl_empty = 'Percentiles need live Analytics Engine data for this window.';
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_percentiles( 'Scroll depth — percentiles', sn_analytics_percentiles( 'scroll', $from, $to, $class ), 'pct', $pctl_empty, $pctl_note );
-			snt_analytics_render_percentiles( 'Time on page — percentiles', sn_analytics_percentiles( 'time', $from, $to, $class ), 'time', $pctl_empty, $pctl_note );
-			echo '</div>';
-			// v6.28.0: field Core Web Vitals — real-user LCP/INP/CLS in Google's
-			// good/needs-work/poor bands (worker v1.8.0 / theme beacon v10.14.0).
-			// Empty until those ship + traffic flows.
-			$cwv_empty = 'No field Core Web Vitals yet — needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.';
-			echo '<p class="sn-an-sep sn-an-sep--full">Field Core Web Vitals — what real visitors experienced (vs the synthetic Lighthouse lab score).</p>';
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_distribution( 'LCP (field)', sn_analytics_distribution( 'lcp', $from, $to, $class ), $cwv_empty );
-			snt_analytics_render_distribution( 'INP (field)', sn_analytics_distribution( 'inp', $from, $to, $class ), $cwv_empty );
-			snt_analytics_render_distribution( 'CLS (field)', sn_analytics_distribution( 'cls', $from, $to, $class ), $cwv_empty );
-			echo '</div>';
+			snt_analytics_render_view_engagement( $from, $to, $class ); // v8.5.0: inc/analytics-view-engagement.php
 			break;
 
 		case 'quality':
-			snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
-			snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
-			snt_analytics_render_distribution(
-				'Bot confidence',
-				sn_analytics_distribution( 'botscore', $from, $to, $class ),
-				'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).'
-			);
+			snt_analytics_render_view_quality( $from, $to, $class, $granularity ); // v8.5.0: inc/analytics-view-quality.php
 			break;
 
 		case 'events':
-			// Custom events carry no traffic-class dimension (from/to only), so the
-			// global Human/Suspect/Bot control is inert here — say so explicitly.
-			echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
-			$ev_prop = isset( $_GET['sn_event_prop'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_event_prop'] ) ) : '';
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_events_table( sn_analytics_top_events( $from, $to, 25 ) );
-			snt_analytics_render_event_props_table( sn_analytics_top_event_props( $from, $to, $ev_prop, 50 ), $ev_prop );
-			echo '</div>';
+			snt_analytics_render_view_events( $from, $to ); // v8.5.0: inc/analytics-view-events.php
 			break;
 
 		case 'login-defense':
@@ -477,27 +383,8 @@ function snt_analytics_render_dashboard() {
 
 		case 'content':
 		default:
-			echo '<div class="sn-an-grid">';
-			snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
-			// Brand-folded sources (self-referrals + www + multi-host providers
-			// collapsed); the sparkline series is summed across each label's member
-			// hosts, and the drill token carries the canonical label (resolved back
-			// to its member hosts by the brand-aware referrer drill-down).
-			$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
-			$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
-			snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer' );
-			snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
-			snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
-			// v6.10.0: entry (landing) + exit pages. Both are HUMAN-ONLY — the
-			// global Human/Suspect/Bot control does not apply (no class column),
-			// consistent with the human-only Plausible history. Entry = live AE
-			// rollup + historical import merged; exit = historical only.
-			if ( function_exists( 'snt_analytics_render_pageroles_table' ) && function_exists( 'sn_analytics_top_entry_pages' ) ) {
-				echo '<p class="sn-an-sep sn-an-sep--full">Entry &amp; exit pages are <strong>not segmented by traffic class</strong> (human only).</p>';
-				snt_analytics_render_pageroles_table( sn_analytics_top_entry_pages( $from, $to, 25 ), 'entry' );
-				snt_analytics_render_pageroles_table( sn_analytics_top_exit_pages( $from, $to, 25 ), 'exit' );
-			}
-			echo '</div>';
+			// v8.5.0: regrouped landing — inc/analytics-view-content.php.
+			snt_analytics_render_view_content( $from, $to, $class, $granularity );
 			break;
 	}
 	echo '</div>';

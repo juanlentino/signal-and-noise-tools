@@ -15,6 +15,7 @@ function esc_attr__( $s, $d = '' ) { return $s; }
 function __( $s, $d = '' ) { return $s; }
 function number_format_i18n( $n ) { return (string) (int) $n; }
 
+require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require __DIR__ . '/../inc/analytics-admin-render.php';
 
 $pass = 0; $fail = 0;

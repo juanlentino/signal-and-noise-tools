@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     8.4.5
+ * Version:     8.5.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -85,6 +85,7 @@ require_once SNT_PATH . 'inc/schedule-block.php';
 require_once SNT_PATH . 'inc/schedule-sync.php';
 require_once SNT_PATH . 'inc/schedule-pages.php';
 require_once SNT_PATH . 'inc/schedule-admin.php';
+require_once SNT_PATH . 'inc/analytics-panels.php'; // v8.5.0: the ONE panel-chrome primitive for the Analytics page
 require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
@@ -92,6 +93,14 @@ require_once SNT_PATH . 'inc/analytics-api.php';
 require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
+require_once SNT_PATH . 'inc/analytics-movers.php'; // v8.5.0: landing "Movers" tile (views delta vs prior window)
+require_once SNT_PATH . 'inc/analytics-header-region.php'; // v8.5.0: the shared header frame (Overview + rail + uptime detail)
+require_once SNT_PATH . 'inc/analytics-view-content.php';  // v8.5.0: the regrouped Content view (default landing)
+require_once SNT_PATH . 'inc/analytics-view-technology.php'; // v8.5.0 extraction
+require_once SNT_PATH . 'inc/analytics-view-geography.php';  // v8.5.0 extraction
+require_once SNT_PATH . 'inc/analytics-view-engagement.php'; // v8.5.0 extraction
+require_once SNT_PATH . 'inc/analytics-view-quality.php';    // v8.5.0 extraction
+require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors

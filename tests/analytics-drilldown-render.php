@@ -14,6 +14,7 @@ function esc_url( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-
 function number_format_i18n( $n ) { return (string) (int) $n; }
 function add_query_arg( $a ) { $q = array(); foreach ( $a as $k => $v ) { $q[] = $k . '=' . rawurlencode( (string) $v ); } return '?' . implode( '&', $q ); }
 function remove_query_arg( $k, $u = '' ) { return '?cleared'; }
+require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require __DIR__ . '/../inc/analytics-admin-render.php';
 
 $pass = 0; $fail = 0;
