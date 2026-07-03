@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.4.0] - 2026-07-02: Uptime monitor on the Analytics page
+
+**Headline:** Owner call: stats live where the numbers are reviewed. The Dashboard → Analytics page gains an **Uptime monitor**: a per-resource table (status, 30-day and 90-day availability, average response time over the last 24h, checked-ago) plus a recent-incidents log (newest first, ongoing incidents flagged red with cause and duration). The ability grows a `detail=true` tier for it — availability windows, response times (v2), and incidents (the one v3 endpoint) each cache on their own transient (1h / 6h / 15min / 5min) and fail soft with per-tier circuit breaks, so a partial Better Stack outage degrades the table, never the page. The S&N Health widget section slims back to what a glance widget should be: name + status + "All systems go", two API calls, nothing else — its stats moved to Analytics.
+
+> **Why MINOR:** new user-visible surface (the Analytics monitor) + additive ability input/output; no API or settings-schema change.
+
+### New
+- `sn_uptime_status_detail()`: the full monitor payload — status rows enriched with `availability` (30d), `availability_90d`, `incidents_30d`, `response_ms`, plus a normalized `incidents` log (name, cause, started_at, resolved_at, ongoing, duration). Response times averaged across all regions/samples of the 24h endpoint, in whole ms. Incidents come from the **v3** API (everything else is v2; the API base is now version-less and callers pass versioned paths).
+- Analytics page section (`sn_uptime_status_analytics_section()` appended by the Dashboard → Analytics render): async detail mount carrying both hook attributes so ONE `sntAbilityRun` call feeds every mount on a page; assets enqueue on the `dashboard_page_sn-analytics` hook, token-gated.
+- `signal-noise/uptime-status` ability input gains `detail` (default false); output gains `incidents` (array|null) and per-row `availability_90d` + `response_ms` (additive; stat keys are present-but-null on the light tier for a stable row shape).
+
+### Changed
+- The light tier (`sn_uptime_status_fetch()`, feeding the Health widget section and the Webhooks rail) is statuses-only again: two API calls, no SLA merge. The widget's availability span and 30d-incident meta line moved to the Analytics monitor.
+
 ## [8.3.0] - 2026-07-02: Uptime folded into the S&N Health widget + 30-day availability
 
 **Headline:** Owner call, same day as v8.2.0: one "is everything okay" surface instead of a fifth dashboard box. The standalone "S&N Uptime" widget is gone; the S&N Health widget now ends with an Uptime section (same async mount, still zero-cost on render, absent entirely when no token is configured — no prompt, no dead box). And the uptime rows got richer: each monitor and heartbeat now shows its **30-day availability** (from the per-resource summary endpoints, cached a full hour on their own transient) with incident counts in the tooltip and a "checked Xm ago" stamp on hover; the meta line surfaces 30-day incident totals when everything is currently up. Availability fails soft and circuit-breaks: if the first summary call fails, the rest are skipped and an all-null map is short-cached for 10 minutes — statuses are never held hostage by, and never hammer, the summary endpoints.

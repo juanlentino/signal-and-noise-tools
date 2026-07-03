@@ -93,3 +93,80 @@
 	color: #d63638;
 	font-size: 12px;
 }
+
+/* ── Analytics page monitor (v8.4.0) ── */
+
+.sn-uptime-monitor {
+	max-width: 860px;
+	margin-top: 24px;
+}
+
+.sn-uw-table {
+	width: 100%;
+	border-collapse: collapse;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.sn-uw-table th,
+.sn-uw-table td {
+	padding: 8px 12px;
+	text-align: left;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 13px;
+}
+
+.sn-uw-table thead th {
+	font-weight: 600;
+	border-bottom: 1px solid #c3c4c7;
+}
+
+.sn-uw-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.sn-uw-table .sn-uw-num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.sn-uw-quiet {
+	color: #646970;
+}
+
+.sn-uw-incidents {
+	margin: 4px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sn-uw-incident {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 4px 0;
+	margin: 0;
+	font-size: 12px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sn-uw-incident:last-child {
+	border-bottom: 0;
+}
+
+.sn-uw-inc-name {
+	flex: none;
+	font-weight: 600;
+}
+
+.sn-uw-inc-detail {
+	color: #646970;
+	min-width: 0;
+}
+
+.sn-uw-incident--ongoing .sn-uw-inc-name,
+.sn-uw-incident--ongoing .sn-uw-inc-detail {
+	color: #d63638;
+}
