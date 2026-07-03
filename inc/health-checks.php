@@ -1043,9 +1043,14 @@ function sn_health_check_unlinked_mentions() {
 			// re-nominates naturally. v8.4.1: DURABLE store (autoload=no
 			// option), not transients — the v10.22.0 auto-purges flush
 			// transients on every update, which resurrected judged pairs.
+			// v8.4.4: a judged pair KEEPS its cap slot (renders nothing) —
+			// suppression before the cap freed slots and every re-scan
+			// promoted the next eligible target, so Suggest All never
+			// converged (same treadmill as link_opportunities).
 			if ( function_exists( 'snt_ai_verdict_store_get' ) ) {
 				$judged = snt_ai_verdict_store_get( 'sn_link_verdict_' . md5( (int) $source['ID'] . '|' . (int) $target['ID'] . '|' . (string) ( $source['post_modified_gmt'] ?? '' ) ) );
 				if ( is_array( $judged ) && isset( $judged['verdict'] ) && 'link' !== (string) $judged['verdict'] ) {
+					$pairs++;
 					continue;
 				}
 			}

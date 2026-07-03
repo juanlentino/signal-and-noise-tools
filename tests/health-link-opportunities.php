@@ -200,5 +200,56 @@ $check = sn_health_check_link_opportunities();
 ok( 1 === (int) $check['count'], 'stale-stamp judgment does NOT suppress (content changed => re-nominate)' );
 $GLOBALS['__options'] = array();
 
+echo "\nTest: v8.4.4 — judged pairs CONSUME cap slots (one Suggest All pass converges)\n";
+// The owner-reported treadmill: suppression ran BEFORE the per-source cap,
+// so judging the rendered top-3 freed their slots and every re-scan
+// PROMOTED the next-ranked unjudged candidates — Suggest All → Re-run →
+// Suggest All → … never converged. A judged pair must now occupy its cap
+// slot (render nothing), so the cap means "top-N SCORED candidates" and
+// one judging pass reaches quiet. Distinct shared-tag counts pin the
+// ranking: 31 (4 tags, score 12) > 32 (3, 9) > 33 (2, 6) > 34 (1, 3).
+$GLOBALS['wpdb']->rows = array(
+	mk_row( 1, 'Mixing Vocals Loud', 'mixing-vocals-loud', $audio_prose_a, '2026-07-01 10:00:00' ),
+	mk_row( 31, 'Older One', 'older-one', $coffee_prose, '2026-07-01 01:00:00' ),
+	mk_row( 32, 'Older Two', 'older-two', $generic_prose, '2026-07-01 02:00:00' ),
+	mk_row( 33, 'Older Three', 'older-three', '<p>Entirely different words here, unrelated content follows.</p>', '2026-07-01 03:00:00' ),
+	mk_row( 34, 'Older Four', 'older-four', '<p>Another unrelated body of text with no overlap.</p>', '2026-07-01 04:00:00' ),
+);
+$GLOBALS['__tags'] = array(
+	1  => array( 10, 11, 12, 13 ),
+	31 => array( 10, 11, 12, 13 ),
+	32 => array( 10, 11, 12 ),
+	33 => array( 10, 11 ),
+	34 => array( 10 ),
+);
+function subject_one_targets( $check ) {
+	$t = array();
+	foreach ( $check['findings'] as $ff ) { if ( 1 === $ff['subject_id'] ) { $t[] = (int) $ff['target_id']; } }
+	return $t;
+}
+// Baseline: unjudged, the cap keeps the 3 strongest (31, 32, 33); 34 is out.
+$GLOBALS['__options'] = array();
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+sort( $targets );
+ok( array( 31, 32, 33 ) === $targets, 'baseline: top-3 scored candidates render, weakest capped out' );
+// Judge ALL THREE rendered pairs as skip: the re-scan must go QUIET for
+// this source — no promotion of the never-rendered candidate 34.
+$GLOBALS['__options'] = array(
+	pair_key( 1, 31, '2026-07-01 10:00:00', '2026-07-01 01:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ),
+	pair_key( 1, 32, '2026-07-01 10:00:00', '2026-07-01 02:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ),
+	pair_key( 1, 33, '2026-07-01 10:00:00', '2026-07-01 03:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ),
+);
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+ok( array() === $targets, 'all top-3 judged: source goes quiet in ONE pass (no promotion)' );
+// Judge only the strongest: its slot stays consumed (hidden), the other two
+// rendered pairs remain, and candidate 34 still does NOT promote.
+$GLOBALS['__options'] = array(
+	pair_key( 1, 31, '2026-07-01 10:00:00', '2026-07-01 01:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ),
+);
+$targets = subject_one_targets( sn_health_check_link_opportunities() );
+sort( $targets );
+ok( array( 32, 33 ) === $targets, 'partial judging: judged slot stays consumed, unjudged candidate does not backfill' );
+$GLOBALS['__options'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

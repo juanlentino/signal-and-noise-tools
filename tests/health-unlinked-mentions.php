@@ -184,5 +184,44 @@ $GLOBALS['__scan_rows'] = array(
 $check = sn_health_check_unlinked_mentions();
 ok( 0 === (int) $check['count'], 'mention inside an existing <a> never nominates (advice-only is noise, owner rule)' );
 
+echo "\nTest: v8.4.4 — judged mentions CONSUME cap slots (one Suggest All pass converges)\n";
+// Same treadmill as link_opportunities: judged suppression ran before the
+// per-source cap, so judging the rendered 5 freed their slots and the next
+// scan PROMOTED the 6th eligible target. A judged mention must occupy its
+// slot so the source goes quiet after one judging pass.
+$rows = array( mk_row( 1, 'Source note title here', 'source-a',
+	'<p>alpha beta gamma one. alpha beta gamma two. alpha beta gamma three. alpha beta gamma four. alpha beta gamma five. alpha beta gamma six.</p>',
+	'2026-07-01 10:00:00' ) );
+for ( $i = 1; $i <= 6; $i++ ) {
+	$word = array( '', 'one', 'two', 'three', 'four', 'five', 'six' )[ $i ];
+	$rows[] = mk_row( 10 + $i, 'alpha beta gamma ' . $word, 'abg-' . $word, '<p>t</p>', '2026-07-01 0' . $i . ':00:00' );
+}
+$GLOBALS['__scan_rows'] = $rows;
+$GLOBALS['__options'] = array();
+$check = sn_health_check_unlinked_mentions();
+ok( 5 === (int) $check['count'], 'baseline: first 5 eligible mentions render, 6th capped out' );
+// Judge ALL FIVE rendered pairs as skip: the re-scan must go quiet — no
+// promotion of the never-rendered 6th target into the freed slots.
+$seed = array();
+for ( $i = 1; $i <= 5; $i++ ) {
+	$seed[ link_key( 1, 10 + $i, '2026-07-01 10:00:00' ) ] = array( 'verdict' => 'skip', 'reason' => 'r' );
+}
+$GLOBALS['__options'] = $seed;
+$check = sn_health_check_unlinked_mentions();
+ok( 0 === (int) $check['count'], 'all 5 judged: source goes quiet in ONE pass (no promotion of the 6th)' );
+// Partial judging: 2 of 5 judged → the 3 unjudged rendered pairs remain,
+// judged slots stay consumed, the 6th still never promotes.
+$seed = array(
+	link_key( 1, 11, '2026-07-01 10:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r' ),
+	link_key( 1, 12, '2026-07-01 10:00:00' ) => array( 'verdict' => 'skip', 'reason' => 'r' ),
+);
+$GLOBALS['__options'] = $seed;
+$check = sn_health_check_unlinked_mentions();
+$targets = array();
+foreach ( $check['findings'] as $ff ) { $targets[] = (int) $ff['target_id']; }
+sort( $targets );
+ok( array( 13, 14, 15 ) === $targets, 'partial judging: judged slots stay consumed, 6th target does not backfill' );
+$GLOBALS['__options'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
