@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.9.0] - 2026-07-06: Anomaly arc — cross-metric engagement anomalies + narrator context
+
+**Headline:** A new **Engagement anomalies** panel (Dashboard → Analytics → Engagement) and `GET /analytics/anomalies` surface per-path cross-metric outliers the siloed distributions can't: pages that scroll deep but leave fast ("skim"), pages that dwell long but never scroll ("stall"), and pages more than 2σ from the per-metric mean. Separately, the weekly AI narrator now receives an optional `anomaly_flags` block — week totals sitting outside their trailing ~6-week typical range — so its prose gives context ("views 1,500, above the typical 990–1,010") instead of a bare delta. Both surfaces are built on one shared z-score primitive and read data the beacon already collects; they stay strictly cookieless (aggregate, within-week; no identity, no cross-day, no new-vs-returning — the narrator guardrail was re-verified intact).
+
+> **Why MINOR:** new user-visible capability (a dashboard panel + a REST route + a richer narrator payload); no breaking change to existing routes, options, abilities, or schemas — it reads data already collected.
+
+### Added
+- Shared statistics primitive `sn_analytics_stat_summary()` + `sn_analytics_zscore()`, the per-path cross-metric detector `sn_analytics_engagement_anomalies()`, and the aggregate week-over-week detector `sn_analytics_baseline_movers()` ([inc/analytics-derived.php](inc/analytics-derived.php)). Covered by [tests/analytics-anomalies.php](tests/analytics-anomalies.php).
+- `GET /analytics/anomalies` — read-only, `manage_options`-gated, sanitised via the shared window resolver ([inc/analytics-rest.php](inc/analytics-rest.php)). Covered by [tests/analytics-rest-anomalies.php](tests/analytics-rest-anomalies.php).
+- The **Engagement anomalies** dashboard panel ([inc/analytics-admin-render.php](inc/analytics-admin-render.php), wired in [inc/analytics-view-engagement.php](inc/analytics-view-engagement.php); all output escaped inline). Covered by [tests/analytics-render-anomalies.php](tests/analytics-render-anomalies.php).
+
+### Changed
+- The weekly narrator payload gains an optional `anomaly_flags` block, and the system prompt learns to narrate it within the existing cookieless guardrail ([inc/insights-narration.php](inc/insights-narration.php)). Guarded by [tests/insights-narration-guardrail.php](tests/insights-narration-guardrail.php).
+
 ## [8.8.5] - 2026-07-06: Outbound hardening — forbid redirects on the credential-carrying fetch calls
 
 **Headline:** v8.7.1 set `redirection => 0` on the Cloudflare/Cloudways *purge* calls so a 3xx from the vendor API could never re-send the credential to the redirect target — but the convention was never propagated to the credential-carrying *fetch* calls. Five outbound requests across four modules still followed redirects: the Muso credits fetch (Muso key), the Spotify token POST (client secret in the body) and album GET (Bearer token), and both GitHub tag/runs fetches (`SNT_GITHUB_TOKEN` bearer). Each now sets `redirection => 0`, matching the outbound-hardening convention every purge call already follows. Not exploitable from the plugin alone (all five hit fixed, non-user-supplied hosts); this is defense-in-depth + convention consistency, and the wp-update tag fetch sits on the critical wp-admin Updates path.

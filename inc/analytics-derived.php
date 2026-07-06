@@ -118,6 +118,52 @@ function sn_analytics_prior_window( $from, $to ) {
 
 const SN_ANALYTICS_ENGAGED_TIME_MS = 10000; // ≥10s = an "engaged" pageview (GA4-style)
 
+// Anomaly arc (v8.9.0) thresholds.
+const SN_ANALYTICS_ANOMALY_MIN_VIEWS    = 20;     // ignore low-traffic noise
+const SN_ANALYTICS_ANOMALY_SKIM_SCROLL  = 50;     // % scroll considered "deep"
+const SN_ANALYTICS_ANOMALY_SKIM_TIME    = 5000;   // ms; under this = "fast leave"
+const SN_ANALYTICS_ANOMALY_DWELL_TIME   = 30000;  // ms; over this = "long dwell"
+const SN_ANALYTICS_ANOMALY_DWELL_SCROLL = 25;     // % scroll; under this = "stalled"
+const SN_ANALYTICS_ANOMALY_Z            = 2.0;    // |z| cutoff for an outlier
+const SN_ANALYTICS_BASELINE_WEEKS       = 6;      // trailing weeks for the narrator baseline
+
+/**
+ * Population mean + standard deviation of a numeric list.
+ * Population (÷n) not sample (÷n-1): stable for the tiny n we feed it and
+ * never NaN on n=1. Returns zeros for the empty case (callers guard on n/sd).
+ *
+ * @param array<int,float|int> $nums
+ * @return array{n:int,mean:float,sd:float}
+ */
+function sn_analytics_stat_summary( array $nums ) {
+	$n = count( $nums );
+	if ( 0 === $n ) {
+		return array( 'n' => 0, 'mean' => 0.0, 'sd' => 0.0 );
+	}
+	$mean = array_sum( $nums ) / $n;
+	$var  = 0.0;
+	foreach ( $nums as $x ) {
+		$var += ( (float) $x - $mean ) ** 2;
+	}
+	return array( 'n' => $n, 'mean' => $mean, 'sd' => sqrt( $var / $n ) );
+}
+
+/**
+ * Standard score. Returns 0.0 when sd<=0 (a flat series has no outliers),
+ * so callers never divide by zero.
+ *
+ * @param float|int $x    The observation.
+ * @param float     $mean Series mean.
+ * @param float     $sd   Series standard deviation.
+ * @return float
+ */
+function sn_analytics_zscore( $x, $mean, $sd ) {
+	if ( $sd <= 0.0 ) {
+		return 0.0;
+	}
+	return ( (float) $x - $mean ) / $sd;
+}
+
 /**
  * Engaged-pageview rate: % of timed pageviews lasting ≥10s, from the time
  * distribution buckets. Single-signal by design — an "≥10s OR scrolled>50%"
@@ -232,4 +278,135 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		),
 		'top_bot_networks' => is_array( $networks ) ? $networks : array(),
 	);
+}
+
+/**
+ * Cross-metric per-path engagement anomalies for a window. Two kinds:
+ *  - divergence: pages whose scroll and dwell disagree (deep-scroll/fast-leave
+ *    "skim", or long-dwell/low-scroll "stall").
+ *  - outliers: pages >|Z| standard deviations from the per-metric mean across
+ *    the window's paths (scroll_avg, time_avg), high or low.
+ * Cookieless: reads only per-path daily aggregates. No identity, no cross-day.
+ *
+ * @param string $from  Y-m-d inclusive start.
+ * @param string $to    Y-m-d inclusive end.
+ * @param string $class Traffic class.
+ * @return array{divergence:array<int,array>,outliers:array<int,array>}
+ */
+function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
+	if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
+		return array( 'divergence' => array(), 'outliers' => array() );
+	}
+	$rows = array_values(
+		array_filter(
+			sn_analytics_top_paths( $from, $to, $class, 100 ),
+			static function ( $r ) {
+				return (int) ( $r['views'] ?? 0 ) >= SN_ANALYTICS_ANOMALY_MIN_VIEWS;
+			}
+		)
+	);
+
+	$divergence = array();
+	foreach ( $rows as $r ) {
+		$scroll = (float) ( $r['scroll_avg'] ?? 0 );
+		$time   = (float) ( $r['time_avg'] ?? 0 );
+		$type   = '';
+		if ( $scroll >= SN_ANALYTICS_ANOMALY_SKIM_SCROLL && $time < SN_ANALYTICS_ANOMALY_SKIM_TIME ) {
+			$type = 'skim';
+		} elseif ( $time >= SN_ANALYTICS_ANOMALY_DWELL_TIME && $scroll < SN_ANALYTICS_ANOMALY_DWELL_SCROLL ) {
+			$type = 'stall';
+		}
+		if ( '' !== $type ) {
+			$divergence[] = array(
+				'path'        => (string) $r['path'],
+				'type'        => $type,
+				'scroll_avg'  => round( $scroll, 1 ),
+				'time_avg_ms' => (int) round( $time ),
+				'views'       => (int) $r['views'],
+			);
+		}
+	}
+
+	$outliers = array();
+	foreach ( array( 'scroll_avg', 'time_avg' ) as $metric ) {
+		$vals = array_map(
+			static function ( $r ) use ( $metric ) {
+				return (float) ( $r[ $metric ] ?? 0 );
+			},
+			$rows
+		);
+		$stat = sn_analytics_stat_summary( $vals );
+		if ( $stat['n'] < 4 || $stat['sd'] <= 0.0 ) {
+			continue;
+		}
+		foreach ( $rows as $r ) {
+			$z = sn_analytics_zscore( (float) ( $r[ $metric ] ?? 0 ), $stat['mean'], $stat['sd'] );
+			if ( abs( $z ) >= SN_ANALYTICS_ANOMALY_Z ) {
+				$outliers[] = array(
+					'path'   => (string) $r['path'],
+					'metric' => $metric,
+					'value'  => round( (float) $r[ $metric ], 1 ),
+					'mean'   => round( $stat['mean'], 1 ),
+					'z'      => round( $z, 2 ),
+					'dir'    => $z > 0 ? 'high' : 'low',
+					'views'  => (int) $r['views'],
+				);
+			}
+		}
+	}
+
+	return array( 'divergence' => $divergence, 'outliers' => $outliers );
+}
+
+/**
+ * Flag this week's totals that sit >|Z| sd from their trailing-N-week mean.
+ * Gives the narrator "typical range" context (e.g. views 1,500 vs typical
+ * 990-1,010). Aggregate + within-week only — no identity, no cross-day.
+ *
+ * @param string $from  Y-m-d inclusive start of the current window.
+ * @param string $to    Y-m-d inclusive end of the current window.
+ * @param string $class Traffic class.
+ * @param int    $weeks Trailing weeks to baseline against.
+ * @return array<int,array{metric:string,current:float|int,typical_low:float,typical_high:float,z:float,dir:string}>
+ */
+function sn_analytics_baseline_movers( $from, $to, $class = 'human', $weeks = SN_ANALYTICS_BASELINE_WEEKS ) {
+	if ( ! function_exists( 'sn_analytics_range_totals' ) || ! function_exists( 'sn_analytics_prior_window' ) ) {
+		return array();
+	}
+	$current = sn_analytics_range_totals( $from, $to, $class );
+	$metrics = array( 'views', 'visits', 'scroll_avg', 'time_avg' );
+	$series  = array_fill_keys( $metrics, array() );
+
+	$wf = $from;
+	$wt = $to;
+	for ( $i = 0; $i < (int) $weeks; $i++ ) {
+		list( $wf, $wt ) = sn_analytics_prior_window( $wf, $wt );
+		$t = sn_analytics_range_totals( $wf, $wt, $class );
+		foreach ( $metrics as $m ) {
+			$series[ $m ][] = (float) ( $t[ $m ] ?? 0 );
+		}
+	}
+
+	$flags = array();
+	foreach ( $metrics as $m ) {
+		$stat = sn_analytics_stat_summary( $series[ $m ] );
+		if ( $stat['n'] < 3 || $stat['sd'] <= 0.0 ) {
+			continue;
+		}
+		$cur = (float) ( $current[ $m ] ?? 0 );
+		$z   = sn_analytics_zscore( $cur, $stat['mean'], $stat['sd'] );
+		if ( abs( $z ) < SN_ANALYTICS_ANOMALY_Z ) {
+			continue;
+		}
+		$is_rate = in_array( $m, array( 'scroll_avg', 'time_avg' ), true );
+		$flags[] = array(
+			'metric'       => $m,
+			'current'      => $is_rate ? round( $cur, 1 ) : (int) round( $cur ),
+			'typical_low'  => round( $stat['mean'] - $stat['sd'], 1 ),
+			'typical_high' => round( $stat['mean'] + $stat['sd'], 1 ),
+			'z'            => round( $z, 2 ),
+			'dir'          => $z > 0 ? 'above' : 'below',
+		);
+	}
+	return $flags;
 }

@@ -102,6 +102,9 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 	if ( 'scroll' === $metric ) { return array( array( 'label' => 'p50', 'value' => 63.0 ), array( 'label' => 'p75', 'value' => 84.0 ), array( 'label' => 'p90', 'value' => 95.0 ) ); }
 	return array( array( 'label' => 'p50', 'value' => 38000.0 ), array( 'label' => 'p75', 'value' => 72000.0 ), array( 'label' => 'p90', 'value' => 220000.0 ) );
 }
+function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
+	return array( 'divergence' => array(), 'outliers' => array() );
+}
 // Faithful to the real contract: reject no-colon, empty value, and unknown dim
 // (so the negative assertions below can't be masked by an over-permissive stub).
 function sn_analytics_drilldown_parse( $raw ) {
