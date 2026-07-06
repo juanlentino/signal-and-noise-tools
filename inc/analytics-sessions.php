@@ -93,3 +93,66 @@ function sn_sessionize( array $rows, $gap_sec = SN_ANALYTICS_SESSION_GAP_SEC ) {
 	}
 	return $visits;
 }
+
+/**
+ * Summarize one visit (list of ordered events) into a struct.
+ *
+ * Known simplification: if a path is viewed more than once in a visit, scroll
+ * and dwell are attributed to that path in aggregate (max), not to a specific
+ * repeat view — acceptable at this site's volume.
+ *
+ * @param array $events         Ordered events of a single visit.
+ * @param int   $engaged_scroll Scroll % floor for an engaged read.
+ * @param int   $engaged_ms     Dwell ms floor for an engaged read.
+ * @return array Visit summary struct.
+ */
+function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION_ENGAGED_PCT, $engaged_ms = SN_ANALYTICS_SESSION_ENGAGED_MS ) {
+	$path       = array();
+	$goals      = array();
+	$max_scroll = array(); // path => max scroll %
+	$max_dwell  = array(); // path => max dwell ms
+	$first_ts   = null;
+	$last_ts    = null;
+	$seq        = array(); // compact ordered events for funnel matching
+
+	foreach ( $events as $e ) {
+		$ts       = (int) ( $e['ts'] ?? 0 );
+		$first_ts = ( null === $first_ts ) ? $ts : min( $first_ts, $ts );
+		$last_ts  = ( null === $last_ts ) ? $ts : max( $last_ts, $ts );
+		$type     = (string) ( $e['ev'] ?? '' );
+		$p        = (string) ( $e['path'] ?? '' );
+		$seq[]    = array( 'ev' => $type, 'path' => $p, 'ce' => (string) ( $e['ce'] ?? '' ) );
+
+		if ( 'pv' === $type ) {
+			$path[] = $p;
+		} elseif ( 'sc' === $type ) {
+			$max_scroll[ $p ] = max( $max_scroll[ $p ] ?? 0, (float) ( $e['scroll'] ?? 0 ) );
+		} elseif ( 'tm' === $type ) {
+			$max_dwell[ $p ] = max( $max_dwell[ $p ] ?? 0, (float) ( $e['dwell'] ?? 0 ) );
+		} elseif ( 'ce' === $type ) {
+			$name = (string) ( $e['ce'] ?? '' );
+			if ( '' !== $name ) {
+				$goals[] = $name;
+			}
+		}
+	}
+
+	$engaged = false;
+	foreach ( $path as $p ) {
+		if ( ( $max_scroll[ $p ] ?? 0 ) >= $engaged_scroll && ( $max_dwell[ $p ] ?? 0 ) >= $engaged_ms ) {
+			$engaged = true;
+			break;
+		}
+	}
+
+	return array(
+		'entry'     => $path ? $path[0] : '',
+		'exit'      => $path ? $path[ count( $path ) - 1 ] : '',
+		'path'      => $path,
+		'pageviews' => count( $path ),
+		'duration'  => ( null === $first_ts ) ? 0 : ( $last_ts - $first_ts ),
+		'engaged'   => $engaged,
+		'goals'     => array_values( array_unique( $goals ) ),
+		'events'    => $seq,
+	);
+}

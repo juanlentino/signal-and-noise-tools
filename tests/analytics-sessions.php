@@ -43,5 +43,28 @@ ok( 1 === count( $edge ), 'gap == gap_sec does NOT split (only > splits)' );
 $uns = sn_sessionize( array( ev( 'D', 200, 'pv', '/2' ), ev( 'D', 100, 'pv', '/1' ) ), 1800 );
 ok( '/1' === $uns[0][0]['path'], 'events sorted by ts within visitor' );
 
+echo "\nGroup: sn_visit_summary\n";
+$visit = array(
+	ev( 'A', 100, 'pv', '/post' ),
+	ev( 'A', 105, 'sc', '/post', '', 80, 0 ),      // 80% scroll on /post
+	ev( 'A', 140, 'tm', '/post', '', 0, 20000 ),   // 20s dwell on /post
+	ev( 'A', 150, 'pv', '/next' ),
+	ev( 'A', 160, 'ce', '/next', 'subscribe' ),
+);
+$s = sn_visit_summary( $visit, 50, 15000 );
+ok( '/post' === $s['entry'], 'entry is first pageview path' );
+ok( '/next' === $s['exit'], 'exit is last pageview path' );
+ok( array( '/post', '/next' ) === $s['path'], 'path lists pageviews in order' );
+ok( 2 === $s['pageviews'], 'two pageviews' );
+ok( 60 === $s['duration'], 'duration = last ts - first ts (160-100)' );
+ok( true === $s['engaged'], '/post cleared 50% + 15s → engaged' );
+ok( in_array( 'subscribe', $s['goals'], true ), 'subscribe goal captured' );
+// Not engaged: scroll below floor.
+$s2 = sn_visit_summary( array( ev( 'B', 0, 'pv', '/x' ), ev( 'B', 2, 'sc', '/x', '', 40, 0 ), ev( 'B', 3, 'tm', '/x', '', 0, 60000 ) ), 50, 15000 );
+ok( false === $s2['engaged'], 'scroll 40% < 50% → not engaged despite long dwell' );
+// Bounce shape: single pageview.
+$s3 = sn_visit_summary( array( ev( 'C', 0, 'pv', '/only' ) ), 50, 15000 );
+ok( 1 === $s3['pageviews'] && '/only' === $s3['entry'] && '/only' === $s3['exit'], 'single-pageview visit' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
