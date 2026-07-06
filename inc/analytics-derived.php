@@ -118,6 +118,52 @@ function sn_analytics_prior_window( $from, $to ) {
 
 const SN_ANALYTICS_ENGAGED_TIME_MS = 10000; // ≥10s = an "engaged" pageview (GA4-style)
 
+// Anomaly arc (v8.9.0) thresholds.
+const SN_ANALYTICS_ANOMALY_MIN_VIEWS    = 20;     // ignore low-traffic noise
+const SN_ANALYTICS_ANOMALY_SKIM_SCROLL  = 50;     // % scroll considered "deep"
+const SN_ANALYTICS_ANOMALY_SKIM_TIME    = 5000;   // ms; under this = "fast leave"
+const SN_ANALYTICS_ANOMALY_DWELL_TIME   = 30000;  // ms; over this = "long dwell"
+const SN_ANALYTICS_ANOMALY_DWELL_SCROLL = 25;     // % scroll; under this = "stalled"
+const SN_ANALYTICS_ANOMALY_Z            = 2.0;    // |z| cutoff for an outlier
+const SN_ANALYTICS_BASELINE_WEEKS       = 6;      // trailing weeks for the narrator baseline
+
+/**
+ * Population mean + standard deviation of a numeric list.
+ * Population (÷n) not sample (÷n-1): stable for the tiny n we feed it and
+ * never NaN on n=1. Returns zeros for the empty case (callers guard on n/sd).
+ *
+ * @param array<int,float|int> $nums
+ * @return array{n:int,mean:float,sd:float}
+ */
+function sn_analytics_stat_summary( array $nums ) {
+	$n = count( $nums );
+	if ( 0 === $n ) {
+		return array( 'n' => 0, 'mean' => 0.0, 'sd' => 0.0 );
+	}
+	$mean = array_sum( $nums ) / $n;
+	$var  = 0.0;
+	foreach ( $nums as $x ) {
+		$var += ( (float) $x - $mean ) ** 2;
+	}
+	return array( 'n' => $n, 'mean' => $mean, 'sd' => sqrt( $var / $n ) );
+}
+
+/**
+ * Standard score. Returns 0.0 when sd<=0 (a flat series has no outliers),
+ * so callers never divide by zero.
+ *
+ * @param float|int $x    The observation.
+ * @param float     $mean Series mean.
+ * @param float     $sd   Series standard deviation.
+ * @return float
+ */
+function sn_analytics_zscore( $x, $mean, $sd ) {
+	if ( $sd <= 0.0 ) {
+		return 0.0;
+	}
+	return ( (float) $x - $mean ) / $sd;
+}
+
 /**
  * Engaged-pageview rate: % of timed pageviews lasting ≥10s, from the time
  * distribution buckets. Single-signal by design — an "≥10s OR scrolled>50%"
