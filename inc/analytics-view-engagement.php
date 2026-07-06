@@ -50,5 +50,6 @@ function snt_analytics_render_view_engagement( $from, $to, $class ) {
 	snt_analytics_render_distribution( 'INP (field)', sn_analytics_distribution( 'inp', $from, $to, $class ), $cwv_empty );
 	snt_analytics_render_distribution( 'CLS (field)', sn_analytics_distribution( 'cls', $from, $to, $class ), $cwv_empty );
 	echo '</div>';
+	snt_analytics_render_anomalies( sn_analytics_engagement_anomalies( $from, $to, $class ) );
 	snt_an_flush_empty_fold();
 }

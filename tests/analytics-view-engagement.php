@@ -16,9 +16,11 @@ if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field
 function sn_analytics_hour_dow_grid( $f, $t, $c = 'human' ) { return array( 'grid' => array(), 'max' => 0 ); }
 function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) { return array(); }
 function sn_analytics_percentiles( $m, $f, $t, $c = 'human' ) { return array(); }
+function sn_analytics_engagement_anomalies( $f, $t, $c = 'human' ) { return array( 'divergence' => array(), 'outliers' => array() ); }
 function snt_analytics_render_heatmap( $h ) { echo '<!--HEATMAP-->'; }
 function snt_analytics_render_distribution( $title, $rows, $empty = '' ) { echo '<!--DIST:' . $title . '-->'; }
 function snt_analytics_render_percentiles( $title, $rows, $fmt = 'pct', $empty = '', $note = '' ) { echo '<!--PCTL:' . $title . '-->'; }
+function snt_analytics_render_anomalies( $anom ) { echo '<!--ANOM-->'; }
 
 require_once __DIR__ . '/../inc/analytics-view-engagement.php';
 
@@ -35,6 +37,7 @@ foreach ( array( 'Scroll depth', 'Time on page', 'Connection RTT', 'LCP (field)'
 }
 ok( false !== strpos( $html, '<!--PCTL:Scroll depth' ) && false !== strpos( $html, '<!--PCTL:Time on page' ), 'both percentile panels render' );
 ok( false !== strpos( $html, 'Field Core Web Vitals' ), 'CWV separator kept' );
+ok( false !== strpos( $html, '<!--ANOM-->' ), 'anomalies panel renders' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
