@@ -361,10 +361,16 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 			'blob1 AS ev, blob2 AS path, blob3 AS ref, blob16 AS ce,',
 			'double1 AS scroll, double2 AS dwell',
 			'FROM ' . $dataset,
-			"WHERE timestamp >= '{$from} 00:00:00' AND timestamp <= '{$to} 23:59:59'",
+			// AE's SQL types are strict: the DateTime `timestamp` column cannot be
+			// compared to a String literal (>= 422s), so wrap the validated bounds
+			// in toDateTime(). $from/$to are regex-checked Y-m-d above.
+			"WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')",
 			"AND blob7 = '{$class}'",
 			"AND blob1 IN ('pv','sc','tm','ce')",
-			'ORDER BY index1, timestamp',
+			// No ORDER BY: AE resolves ORDER BY against SELECT aliases (not raw
+			// columns), so `index1`/`timestamp` both 422. sn_sessionize sorts each
+			// visitor's events by ts in PHP anyway; the row cap only binds far above
+			// this site's volume, where the `capped` flag already warns.
 			"LIMIT {$cap}",
 		)
 	);

@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.2] - 2026-07-06: Fix Visits view Analytics Engine query (DateTime typing)
+
+**Headline:** The v8.8.0 "Visits" view (and its nightly rollup) always failed with an Analytics Engine **HTTP 422** and rendered no data. AE's SQL is strictly typed: it rejects comparing the `DateTime` `timestamp` column against String literals, and it resolves `ORDER BY` against SELECT *aliases* rather than raw columns — so both the `timestamp >= '<string>'` bounds and the `ORDER BY index1, timestamp` clause were invalid. The window bounds are now wrapped in `toDateTime()`, and the redundant `ORDER BY` is dropped (`sn_sessionize()` already sorts each visitor's events by timestamp in PHP). Verified end-to-end against the live AE dataset (200, rows returned).
+
+> **Why PATCH:** bug fix to the session query builder; no new capability, route, ability, schema, or option change. (8.8.1 is reserved for the separate `%f` rollup-locale fix.)
+
+### Fixed
+- `sn_analytics_session_sql()` produced an AE-invalid query, so the Visits view and the session-quality rollup always returned a 422 and no data. Bounds now use `toDateTime()`; the `ORDER BY` is removed. Regression pinned in `tests/analytics-sessions.php` (`inc/analytics-sessions.php`).
+
 ## [8.8.0] - 2026-07-06: Cookieless within-day visits & conversion
 
 **Headline:** A new Dashboard → Analytics "Visits" view reads the existing cookieless `sn_pageviews` Analytics Engine data as within-day visits — visit quality (bounce, pages/visit, median duration), engaged-read rate (scroll ≥50% + dwell ≥15s), top page-to-page transitions, and auto-derived conversion funnels (surfacing `ce` events, including token-authed `srv:1` server events like the RSS feed tracker). Visits group the daily-rotating `index1` hash WITHIN a single UTC day only and reset at midnight — no cookie, no cross-day identity, no consent trigger. A nightly rollup persists per-day visit quality beyond Analytics Engine's ~90-day raw retention. Client-side goal-click events are a separate theme change (tracked independently).
