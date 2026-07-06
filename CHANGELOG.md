@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.5] - 2026-07-06: Outbound hardening — forbid redirects on the credential-carrying fetch calls
+
+**Headline:** v8.7.1 set `redirection => 0` on the Cloudflare/Cloudways *purge* calls so a 3xx from the vendor API could never re-send the credential to the redirect target — but the convention was never propagated to the credential-carrying *fetch* calls. Five outbound requests across four modules still followed redirects: the Muso credits fetch (Muso key), the Spotify token POST (client secret in the body) and album GET (Bearer token), and both GitHub tag/runs fetches (`SNT_GITHUB_TOKEN` bearer). Each now sets `redirection => 0`, matching the outbound-hardening convention every purge call already follows. Not exploitable from the plugin alone (all five hit fixed, non-user-supplied hosts); this is defense-in-depth + convention consistency, and the wp-update tag fetch sits on the critical wp-admin Updates path.
+
+> **Why PATCH:** defense-in-depth hardening + convention consistency; no user-visible, route, ability, schema, or capability change.
+
+### Security
+- `redirection => 0` on `sn_muso_fetch_page()` (`inc/muso-api.php`), `sn_spotify_token()` + `sn_spotify_album_for_track()` (`inc/spotify-api.php`), `snt_gh_recent_runs()` (`inc/github-actions-api.php`), and `sn_gh_latest_plugin_tag()` (`inc/wp-update-integration.php`). Each request carries a credential (API key, client secret, or bearer token), so forbidding redirects closes the theoretical leak if any vendor API ever returned a 3xx.
+
+### Tests
+- Pinned the convention so a future edit that drops it fails CI: added redirection assertions to `tests/muso-api.php` and `tests/spotify-api.php`, and new focused suites `tests/github-actions-api.php` and `tests/wp-update-integration.php` (the latter to be extended into full behavioural coverage under the roadmap's C3 item).
+
 ## [8.8.4] - 2026-07-06: Visits view — real visits + cohesive KPI cards
 
 **Headline:** The Visits view counted every within-day `index1` group as a "visit", so RSS feed-readers polling the endpoint (server `srv:1`/`ce` events — no pageview, gap-split hourly into separate groups) inflated the count: it read "106 visits · 0.32 pages/visit · 95% bounce" when the reality was ~12 human visits at ~3.5 pages each. A **visit now requires at least one pageview**; pageview-less server/RSS and orphan scroll/timing groups are excluded (they remain in the Events view). Visually, the visit-quality metrics now render as the same **KPI cards** as the Overview strip (`sn-kpi-row`) instead of a bare label/value list, and the doubled "Page → next page" heading is retitled "Top paths".

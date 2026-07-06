@@ -111,13 +111,16 @@ function sn_spotify_token() {
 	$response = wp_remote_post(
 		SN_SPOTIFY_TOKEN_URL,
 		array(
-			'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
-			'body'    => array(
+			'headers'     => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
+			'body'        => array(
 				'grant_type'    => 'client_credentials',
 				'client_id'     => $cfg['id'],
 				'client_secret' => $cfg['secret'],
 			),
-			'timeout' => 15,
+			'timeout'     => 15,
+			// v8.8.x: forbid redirects — the client_secret in this body must
+			// never be re-sent to a 3xx target (outbound-hardening, v8.7.1).
+			'redirection' => 0,
 		)
 	);
 
@@ -163,8 +166,11 @@ function sn_spotify_album_for_track( $track_spotify_id ) {
 	$response = wp_remote_get(
 		$url,
 		array(
-			'headers' => array( 'Authorization' => 'Bearer ' . $token ),
-			'timeout' => 15,
+			'headers'     => array( 'Authorization' => 'Bearer ' . $token ),
+			'timeout'     => 15,
+			// v8.8.x: forbid redirects — the Bearer token must never be
+			// re-sent to a 3xx target (outbound-hardening, v8.7.1).
+			'redirection' => 0,
 		)
 	);
 

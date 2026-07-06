@@ -103,8 +103,11 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 	}
 
 	$response = wp_remote_get( $url, array(
-		'timeout' => 8,
-		'headers' => $headers,
+		'timeout'     => 8,
+		'headers'     => $headers,
+		// v8.8.x: forbid redirects — the SNT_GITHUB_TOKEN bearer must never be
+		// re-sent to a 3xx target (outbound-hardening convention, v8.7.1).
+		'redirection' => 0,
 	) );
 
 	if ( is_wp_error( $response ) ) {
