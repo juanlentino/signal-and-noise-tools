@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.9.1] - 2026-07-06: Split the Analytics render monolith into per-domain partials
+
+**Headline:** `inc/analytics-admin-render.php` had grown to ~1.3k lines — 31 panel/table renderers in one file, well over the project's 800-line ceiling (a LOW finding from the v8.9.0 anomaly-arc review, pre-existing, not introduced there). The renderers are now split by panel/domain into eleven focused `inc/analytics-render-*.php` files, mirroring the v8.5.0 `analytics-view-*.php` extraction. `analytics-admin-render.php` stays the single include point — it is now a **barrel** that `require_once`s each domain file, so the plugin (`signal-and-noise-tools.php:120`) and every test that `require`s it keep working unchanged. Every render function is byte-identical; behaviour is untouched.
+
+> **Why PATCH:** pure internal refactor — no user-visible, route, ability, schema, capability, or output change. The 31-function public surface (`snt_analytics_render_*`, `snt_analytics_fmt_time`, `snt_analytics_smooth_path`, `snt_analytics_sparkline`, `snt_analytics_window_args`, `snt_analytics_recolor_world_svg`, `snt_analytics_choropleth_svg`) is preserved verbatim and still loads from the same include point.
+
+### Changed
+- Extracted the analytics renderers from the [inc/analytics-admin-render.php](inc/analytics-admin-render.php) monolith (1329 → 41 lines, now a load-order manifest) into eleven cohesive partials, each ≤229 lines:
+  - [inc/analytics-render-helpers.php](inc/analytics-render-helpers.php) — the two cross-domain primitives (`snt_analytics_fmt_time`, `snt_analytics_smooth_path`).
+  - [inc/analytics-render-controls.php](inc/analytics-render-controls.php) — range/class toolbar, custom range, class-separation notice.
+  - [inc/analytics-render-overview.php](inc/analytics-render-overview.php) — KPI strip, views trend, delta badges.
+  - [inc/analytics-render-distribution.php](inc/analytics-render-distribution.php) — referrer categories, scroll/time bands, hour heatmap, percentiles.
+  - [inc/analytics-render-quality.php](inc/analytics-render-quality.php) — traffic-quality stacked bar, bot-share trend.
+  - [inc/analytics-render-anomalies.php](inc/analytics-render-anomalies.php) — the v8.9.0 engagement-anomalies panel.
+  - [inc/analytics-render-tables.php](inc/analytics-render-tables.php) — top pages, dimension tables, low-engagement, entry/exit, inline sparkline.
+  - [inc/analytics-render-events.php](inc/analytics-render-events.php) — custom-events + event-property tables.
+  - [inc/analytics-render-geography.php](inc/analytics-render-geography.php) — world-map choropleth + SVG recolor transform.
+  - [inc/analytics-render-drilldown.php](inc/analytics-render-drilldown.php) — cross-tab dimension drill-down panel.
+  - [inc/analytics-render-settings.php](inc/analytics-render-settings.php) — credentials, exclusion, worker setup, Plausible import.
+- Each partial `require_once`s only the primitives it uses (`analytics-panels.php` chrome and/or `analytics-render-helpers.php`), so it is independently loadable; the barrel documents the load order.
+
+### Tests
+- No test changes required. The existing `tests/analytics-*render*.php` suites and `tests/analytics-admin.php` still `require` the barrel and stay green (228 suites / 6159 assertions), confirming the split preserves the full render surface. PHPCS and PHPStan clean on all twelve touched files.
+
 ## [8.9.0] - 2026-07-06: Anomaly arc — cross-metric engagement anomalies + narrator context
 
 **Headline:** A new **Engagement anomalies** panel (Dashboard → Analytics → Engagement) and `GET /analytics/anomalies` surface per-path cross-metric outliers the siloed distributions can't: pages that scroll deep but leave fast ("skim"), pages that dwell long but never scroll ("stall"), and pages more than 2σ from the per-metric mean. Separately, the weekly AI narrator now receives an optional `anomaly_flags` block — week totals sitting outside their trailing ~6-week typical range — so its prose gives context ("views 1,500, above the typical 990–1,010") instead of a bare delta. Both surfaces are built on one shared z-score primitive and read data the beacon already collects; they stay strictly cookieless (aggregate, within-week; no identity, no cross-day, no new-vs-returning — the narrator guardrail was re-verified intact).
