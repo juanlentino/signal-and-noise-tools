@@ -59,13 +59,25 @@
 	}
 
 	function render(results) {
+		var total = results.length;
+		var fresh = results.filter(function (r) { return r === 'fresh'; }).length;
 		var stale = results.filter(function (r) { return r === 'stale'; }).length;
 		var unknown = results.filter(function (r) { return r === 'unknown'; }).length;
 		var kind = null, text = '', value;
 
-		if (stale > 0) { kind = 'warn'; value = stale + ' stale'; text = 'purge needed'; }
-		else if (unknown === results.length) { value = 'Unknown'; }
-		else { kind = 'ok'; value = 'Fresh'; text = results.length + '/' + results.length; }
+		// Primary metric: how many cache-critical routes are verified fresh (N/M),
+		// shown consistently. The pill carries the actionable state.
+		if (unknown === total) {
+			value = 'Unknown';
+		} else if (stale > 0) {
+			kind = 'warn';
+			value = fresh + '/' + total + ' fresh';
+			text = stale + ' stale · purge needed';
+		} else {
+			kind = 'ok';
+			value = fresh + '/' + total + ' fresh';
+			text = unknown > 0 ? unknown + ' unknown' : 'all fresh';
+		}
 
 		if (valueEl) { valueEl.textContent = value; }
 
