@@ -47,7 +47,9 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 	}
 	snt_an_panel_close();
 
-	// Transitions (want #3-style, but visit-scoped).
+	// Transitions — the table helper owns its own panel chrome + empty-state, so
+	// build the rows and hand off directly (matching every sibling view). An
+	// empty transition set collapses into the empty fold, no hollow panel.
 	$rows = array();
 	foreach ( (array) $paths as $p ) {
 		$rows[] = array(
@@ -56,15 +58,12 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 			'visits' => (int) $p['count'],
 		);
 	}
-	if ( empty( $rows ) ) {
-		snt_an_note_empty( 'Top paths' );
-	} else {
-		snt_an_panel_open( 'Top paths' );
-		snt_analytics_render_dim_table( __( 'Page → next page', 'signal-and-noise-tools' ), $rows, '' );
-		snt_an_panel_close();
-	}
+	snt_analytics_render_dim_table( __( 'Page → next page', 'signal-and-noise-tools' ), $rows, '' );
 
-	// Funnels as completion bars.
+	// Funnels as completion bars. The distribution helper owns its own panel +
+	// empty-note keyed on the funnel title, so an all-zero funnel (nobody
+	// reached step 1) collapses into the empty fold under its OWN name rather
+	// than emitting a hollow titled panel + a mislabeled "Reached step" note.
 	foreach ( (array) $funnels as $f ) {
 		$bars = array();
 		foreach ( (array) $f['report'] as $step ) {
@@ -73,13 +72,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 				'views' => (int) $step['reached'],
 			);
 		}
-		if ( empty( $bars ) ) {
-			snt_an_note_empty( $f['title'] );
-			continue;
-		}
-		snt_an_panel_open( $f['title'] );
-		snt_analytics_render_distribution( __( 'Reached step', 'signal-and-noise-tools' ), $bars, '', true );
-		snt_an_panel_close();
+		snt_analytics_render_distribution( $f['title'], $bars, '', true );
 	}
 
 	snt_an_flush_empty_fold();
@@ -108,25 +101,4 @@ function snt_analytics_render_view_sessions( $from, $to, $class ) {
 		);
 	}
 	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ) );
-}
-
-/**
- * Auto-derived + optional code-defined funnels. A site can add named funnels via
- * the 'sn_analytics_session_funnels' filter; nothing is required for the view to
- * work (transitions + quality render regardless).
- *
- * @return array List of array{title:string,steps:array}.
- */
-function sn_analytics_session_funnels() {
-	$defaults = array(
-		array(
-			'title' => __( 'Home → post → subscribe', 'signal-and-noise-tools' ),
-			'steps' => array(
-				array( 'match' => 'path', 'value' => '/', 'prefix' => false ),
-				array( 'match' => 'path', 'value' => '/notes/', 'prefix' => true ),
-				array( 'match' => 'ce', 'value' => 'subscribe', 'prefix' => false ),
-			),
-		),
-	);
-	return (array) apply_filters( 'sn_analytics_session_funnels', $defaults );
 }

@@ -49,6 +49,27 @@ function sn_analytics_session_config() {
 }
 
 /**
+ * Auto-derived + optional code-defined funnels. A site can add named funnels via
+ * the 'sn_analytics_session_funnels' filter; nothing is required for the view to
+ * work (transitions + quality render regardless).
+ *
+ * @return array List of array{title:string,steps:array}.
+ */
+function sn_analytics_session_funnels() {
+	$defaults = array(
+		array(
+			'title' => __( 'Home → post → subscribe', 'signal-and-noise-tools' ),
+			'steps' => array(
+				array( 'match' => 'path', 'value' => '/', 'prefix' => false ),
+				array( 'match' => 'path', 'value' => '/notes/', 'prefix' => true ),
+				array( 'match' => 'ce', 'value' => 'subscribe', 'prefix' => false ),
+			),
+		),
+	);
+	return (array) apply_filters( 'sn_analytics_session_funnels', $defaults );
+}
+
+/**
  * Group raw events into within-day visits.
  *
  * @param array $rows    Rows with keys vid, ts (int epoch), ev, path, ref, ce, scroll, dwell.

@@ -26,9 +26,27 @@ if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { retur
 if ( ! function_exists( 'sanitize_title' ) ) { function sanitize_title( $s ) { return strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $s ) ); } }
 
 // Render-helper stubs — these live in analytics-admin-render.php, which is NOT
-// loaded by requiring the view, so stubbing them here is safe.
-if ( ! function_exists( 'snt_analytics_render_distribution' ) ) { function snt_analytics_render_distribution( $t, $r, $e = '', $w = false ) { echo "[dist:$t:" . count( $r ) . ']'; } }
-if ( ! function_exists( 'snt_analytics_render_dim_table' ) ) { function snt_analytics_render_dim_table( $t, $r, $e = '', $s = array(), $d = '', $v = 5 ) { echo "[dim:$t:" . count( $r ) . ']'; } }
+// loaded by requiring the view, so stubbing them here is safe. They MIRROR the
+// real helpers' empty-vs-non-empty branching (see analytics-admin-render.php:422
+// and :601): an all-zero / empty dataset routes to the REAL snt_an_note_empty()
+// (loaded via the view's panels require) so its title collapses into the empty
+// fold with NO titled panel; a non-empty dataset emits a titled panel marker
+// carrying the row count. This is what makes the empty-funnel assertion below a
+// genuine behavioral check rather than a tautology.
+if ( ! function_exists( 'snt_analytics_render_distribution' ) ) {
+	function snt_analytics_render_distribution( $t, $r, $e = '', $w = false ) {
+		$max = 0;
+		foreach ( (array) $r as $row ) { $max = max( $max, (int) ( $row['views'] ?? 0 ) ); }
+		if ( $max <= 0 ) { snt_an_note_empty( $t ); return; }
+		echo "[dist-panel:$t:" . count( $r ) . ']';
+	}
+}
+if ( ! function_exists( 'snt_analytics_render_dim_table' ) ) {
+	function snt_analytics_render_dim_table( $t, $r, $e = '', $s = array(), $d = '', $v = 5 ) {
+		if ( empty( $r ) ) { snt_an_note_empty( $t ); return; }
+		echo "[dim-panel:$t:" . count( $r ) . ']';
+	}
+}
 
 require __DIR__ . '/../inc/analytics-sessions.php';
 require __DIR__ . '/../inc/analytics-view-sessions.php';
@@ -48,6 +66,28 @@ $out = ob_get_clean();
 ok( is_string( $out ), 'render produced output without fatal' );
 ok( false !== strpos( $out, 'postbox' ), 'emitted a real .postbox panel' );
 ok( false !== strpos( $out, 'Visit quality' ), 'emitted the Visit quality panel title' );
+
+// Regression guard for the funnel/transition empty-state delegation: a visible
+// transition row PLUS a funnel whose report is all-zero (nobody reached step 1).
+// After delegating empty-state to the render helpers, the empty funnel must NOT
+// produce a hollow titled panel — it must collapse into the empty fold under its
+// OWN name. The visible transition must still render as a titled panel.
+ob_start();
+snt_analytics_render_summary_panels(
+	array( 'visits' => 4, 'bounce_rate' => 0.25, 'pages_per_visit' => 1.75, 'median_duration' => 30, 'engaged_visits' => 2, 'engaged_rate' => 0.5 ),
+	array( array( 'from' => '/a', 'to' => '/b', 'count' => 3 ) ),
+	array( array( 'title' => 'Empty funnel', 'report' => array( array( 'label' => '/', 'reached' => 0, 'rate' => 0.0, 'drop' => 0 ) ) ) ),
+	false
+);
+$out2 = ob_get_clean();
+ok( false !== strpos( $out2, '[dim-panel:Page → next page:1]' ), 'non-empty transition rendered as a titled panel with its 1 row' );
+// The OLD hollow-panel bug emitted a real .postbox with the funnel name in its
+// hndle heading (<h2 class="hndle"><span>Empty funnel</span></h2>) wrapping an
+// empty body. Assert that exact markup is gone.
+ok( false === strpos( $out2, '<span>Empty funnel</span>' ), 'all-zero funnel did NOT emit a hollow .postbox heading' );
+ok( false === strpos( $out2, '[dist-panel:Empty funnel' ), 'all-zero funnel did NOT emit a titled distribution panel' );
+ok( false !== strpos( $out2, 'sn-an-empty-fold' ), 'the empty fold line was emitted' );
+ok( false !== strpos( $out2, 'Empty funnel' ), 'all-zero funnel collapsed into the empty fold under its own name' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
