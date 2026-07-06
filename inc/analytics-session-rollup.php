@@ -145,7 +145,7 @@ function sn_session_rollup_upsert( $clean ) {
 			. implode( ', ', $placeholders )
 			. ' ON DUPLICATE KEY UPDATE visits=VALUES(visits), bounce_pct=VALUES(bounce_pct), ppv=VALUES(ppv), median_dur=VALUES(median_dur)';
 
-		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
 		if ( false !== $result ) {
 			$written += count( $chunk );
