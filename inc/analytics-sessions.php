@@ -47,3 +47,49 @@ function sn_analytics_session_config() {
 		'row_cap'        => max( 100, (int) ( $out['row_cap'] ?? $cfg['row_cap'] ) ),
 	);
 }
+
+/**
+ * Group raw events into within-day visits.
+ *
+ * @param array $rows    Rows with keys vid, ts (int epoch), ev, path, ref, ce, scroll, dwell.
+ * @param int   $gap_sec Idle gap that starts a new visit. Default from config.
+ * @return array List of visits; each visit is an ordered list of event rows.
+ */
+function sn_sessionize( array $rows, $gap_sec = SN_ANALYTICS_SESSION_GAP_SEC ) {
+	$gap_sec = max( 1, (int) $gap_sec );
+
+	// Bucket by visitor id.
+	$by_vid = array();
+	foreach ( $rows as $r ) {
+		$vid = isset( $r['vid'] ) ? (string) $r['vid'] : '';
+		if ( '' === $vid ) {
+			continue;
+		}
+		$r['ts']          = (int) ( $r['ts'] ?? 0 );
+		$by_vid[ $vid ][] = $r;
+	}
+
+	$visits = array();
+	foreach ( $by_vid as $events ) {
+		usort(
+			$events,
+			function ( $a, $b ) {
+				return $a['ts'] <=> $b['ts'];
+			}
+		);
+		$current = array();
+		$prev_ts = null;
+		foreach ( $events as $e ) {
+			if ( null !== $prev_ts && ( $e['ts'] - $prev_ts ) > $gap_sec ) {
+				$visits[]  = $current;
+				$current   = array();
+			}
+			$current[] = $e;
+			$prev_ts   = $e['ts'];
+		}
+		if ( ! empty( $current ) ) {
+			$visits[] = $current;
+		}
+	}
+	return $visits;
+}
