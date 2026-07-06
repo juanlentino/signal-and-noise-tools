@@ -239,3 +239,72 @@ function sn_session_paths( array $summaries, $limit = 20 ) {
 	}
 	return $out;
 }
+
+/**
+ * Does one compact event (from a summary 'events' list) satisfy a funnel step?
+ *
+ * @param array $step  array{match:string,value:string,prefix?:bool}.
+ * @param array $event array{ev:string,path:string,ce:string}.
+ * @return bool
+ */
+function sn_funnel_step_matches( array $step, array $event ) {
+	$match  = (string) ( $step['match'] ?? '' );
+	$value  = (string) ( $step['value'] ?? '' );
+	$prefix = ! empty( $step['prefix'] );
+
+	if ( 'path' === $match ) {
+		if ( 'pv' !== (string) ( $event['ev'] ?? '' ) ) {
+			return false;
+		}
+		$path = (string) ( $event['path'] ?? '' );
+		return $prefix ? ( 0 === strncmp( $path, $value, strlen( $value ) ) ) : ( $path === $value );
+	}
+	if ( 'ce' === $match ) {
+		return 'ce' === (string) ( $event['ev'] ?? '' ) && (string) ( $event['ce'] ?? '' ) === $value;
+	}
+	return false;
+}
+
+/**
+ * Aggregate ordered-step completion across visits.
+ *
+ * @param array $summaries Visit summaries (each with an ordered 'events' list).
+ * @param array $funnel    Ordered steps.
+ * @return array List of array{label:string,reached:int,rate:float,drop:int}.
+ */
+function sn_funnel_report( array $summaries, array $funnel ) {
+	$steps = array_values( $funnel );
+	$n     = count( $steps );
+	if ( 0 === $n ) {
+		return array();
+	}
+	$reached = array_fill( 0, $n, 0 );
+
+	foreach ( $summaries as $s ) {
+		$events = isset( $s['events'] ) ? (array) $s['events'] : array();
+		$idx    = 0;
+		foreach ( $events as $e ) {
+			if ( $idx >= $n ) {
+				break;
+			}
+			if ( sn_funnel_step_matches( $steps[ $idx ], (array) $e ) ) {
+				$reached[ $idx ]++;
+				$idx++;
+			}
+		}
+	}
+
+	$first = $reached[0] > 0 ? $reached[0] : 0;
+	$out   = array();
+	for ( $i = 0; $i < $n; $i++ ) {
+		$label = (string) ( $steps[ $i ]['value'] ?? ( 'step ' . ( $i + 1 ) ) );
+		$prev  = $i > 0 ? $reached[ $i - 1 ] : $reached[ $i ];
+		$out[] = array(
+			'label'   => $label,
+			'reached' => $reached[ $i ],
+			'rate'    => ( $first > 0 ) ? ( $reached[ $i ] / $first ) : 0.0,
+			'drop'    => ( $i > 0 ) ? max( 0, $prev - $reached[ $i ] ) : 0,
+		);
+	}
+	return $out;
+}

@@ -94,5 +94,30 @@ foreach ( $paths as $p ) { if ( '/b' === $p['from'] && '/c' === $p['to'] ) { $fo
 ok( $found, 'B→C counted once' );
 ok( array() === sn_session_paths( array(), 10 ), 'empty input → empty list' );
 
+echo "\nGroup: sn_funnel_report\n";
+function vs_events( $events ) { return sn_visit_summary( $events, 50, 15000 ); }
+$f_summaries = array(
+	vs_events( array( ev( 'A', 0, 'pv', '/home' ), ev( 'A', 10, 'pv', '/post/x' ), ev( 'A', 20, 'ce', '/post/x', 'subscribe' ) ) ), // full
+	vs_events( array( ev( 'B', 0, 'pv', '/home' ), ev( 'B', 10, 'pv', '/post/y' ) ) ),                                              // stops at step 2
+	vs_events( array( ev( 'C', 0, 'pv', '/home' ) ) ),                                                                             // stops at step 1
+	vs_events( array( ev( 'D', 0, 'pv', '/about' ) ) ),                                                                            // never enters
+);
+$funnel = array(
+	array( 'match' => 'path', 'value' => '/home',  'prefix' => false ),
+	array( 'match' => 'path', 'value' => '/post/', 'prefix' => true ),
+	array( 'match' => 'ce',   'value' => 'subscribe', 'prefix' => false ),
+);
+$rep = sn_funnel_report( $f_summaries, $funnel );
+ok( 3 === $rep[0]['reached'], 'step 1 reached by 3 visits (entered /home)' );
+ok( 2 === $rep[1]['reached'], 'step 2 (/post/ prefix) reached by 2' );
+ok( 1 === $rep[2]['reached'], 'step 3 (subscribe) reached by 1' );
+ok( abs( $rep[1]['rate'] - ( 2 / 3 ) ) < 0.001, 'step 2 rate is relative to step 1 count' );
+ok( 0 === $rep[0]['drop'], 'first step has no drop' );
+ok( 1 === $rep[1]['drop'], 'step 2 dropped 1 from step 1' );
+// Ordering matters: subscribe BEFORE reaching /post/ does not count step 3.
+$order = array( vs_events( array( ev( 'E', 0, 'ce', '/home', 'subscribe' ), ev( 'E', 5, 'pv', '/home' ), ev( 'E', 9, 'pv', '/post/z' ) ) ) );
+$rep2  = sn_funnel_report( $order, $funnel );
+ok( 0 === $rep2[2]['reached'], 'subscribe before step 2 does not complete the funnel' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
