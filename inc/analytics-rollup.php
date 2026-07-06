@@ -240,14 +240,29 @@ function sn_analytics_rollup_upsert( $rows ) {
 		$placeholders = array();
 		$values       = array();
 		foreach ( $chunk as $c ) {
-			$placeholders[] = '(%s, %s, %s, %d, %d, %f, %f)';
-			array_push( $values, $c['day'], $c['path'], $c['class'], $c['views'], $c['visits'], $c['scroll_avg'], $c['time_avg'] );
+			// scroll_avg / time_avg bind as %s carrying a number_format()'d string,
+			// NOT %f. %f routes through $wpdb->prepare()'s vsprintf(), which honours
+			// LC_NUMERIC — under a comma-decimal server locale (de_DE, pt_BR, …) it
+			// would emit "1,50" and corrupt the SQL. number_format( …, '.', '' )
+			// forces a '.' decimal and empty thousands separator regardless of
+			// locale, and MySQL coerces the quoted numeric string into the FLOAT column.
+			$placeholders[] = '(%s, %s, %s, %d, %d, %s, %s)';
+			array_push(
+				$values,
+				$c['day'],
+				$c['path'],
+				$c['class'],
+				$c['views'],
+				$c['visits'],
+				number_format( (float) $c['scroll_avg'], 2, '.', '' ),
+				number_format( (float) $c['time_avg'], 2, '.', '' )
+			);
 		}
 		$sql = "INSERT INTO {$table} (day, path, class, views, visits, scroll_avg, time_avg) VALUES "
 			. implode( ', ', $placeholders )
 			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits), scroll_avg=VALUES(scroll_avg), time_avg=VALUES(time_avg)';
 
-		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
 		if ( false !== $result ) {
 			$written += count( $chunk );

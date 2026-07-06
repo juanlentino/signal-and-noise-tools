@@ -291,8 +291,10 @@ $q = $wpdb->queries[0];
 ok( stripos( $q, 'INSERT INTO wp_sn_analytics_daily' ) !== false, 'upsert: INSERT into the table' );
 ok( stripos( $q, 'ON DUPLICATE KEY UPDATE' ) !== false, 'upsert: uses ON DUPLICATE KEY UPDATE' );
 // Full VALUES tuple in EXACT column order — distinct sentinels pin both
-// position and per-column type binding (catches swapped columns + %f→%d).
-ok( strpos( $q, "'2026-06-11', '/notes/a', 'human', 42, 30, 58.5, 12345" ) !== false,
+// position and per-column binding (catches swapped columns). scroll_avg/time_avg
+// are number_format()'d '.'-decimal strings bound via %s, so they read as quoted
+// '58.50' / '12345.00', not raw %f floats.
+ok( strpos( $q, "'2026-06-11', '/notes/a', 'human', 42, 30, '58.50', '12345.00'" ) !== false,
 	'upsert: binds (day, path, class, views, visits, scroll_avg, time_avg) in exact order' );
 // Every metric column is refreshed on conflict, not just views — this is the
 // recomputed-partial-day self-correction guarantee.
@@ -326,7 +328,7 @@ sn_analytics_rollup_upsert( array(
 $qn = $GLOBALS['wpdb']->queries[0];
 ok( strpos( $qn, "'/" . str_repeat( 'a', 179 ) . "'" ) !== false && strpos( $qn, str_repeat( 'a', 181 ) ) === false,
 	'upsert: path truncated to 180 chars' );
-ok( strpos( $qn, ', 0, 0, 58.57, 12345.68' ) !== false,
+ok( strpos( $qn, ", 0, 0, '58.57', '12345.68'" ) !== false,
 	'upsert: negative counts clamp to 0; averages round to 2 decimals' );
 
 // Unknown class is rejected (never stored; defensive allow-list).
@@ -350,6 +352,28 @@ $nf = sn_analytics_rollup_upsert( array(
 	array( 'day' => '2026-06-11', 'path' => '/x', 'views' => 1, 'visits' => 1, 'scroll_avg' => 1, 'time_avg' => 1 ),
 ) );
 ok( 0 === $nf, 'upsert: a failed write (query returns false) is not counted' );
+
+// ── Locale-safe float binding (regression) ────────────────────────────────────
+// $wpdb->prepare() routes %f through vsprintf(), which is LC_NUMERIC-sensitive:
+// under a comma-decimal server locale (de_DE, pt_BR, …) a raw-float %f renders
+// 58.5 as "58,5" — corrupt SQL. scroll_avg/time_avg must therefore be bound as
+// '.'-decimal strings (number_format → %s), never as %f floats, so the generated
+// SQL is identical regardless of the server's LC_NUMERIC.
+echo "\nGroup: locale-safe float binding\n";
+$__saved_numeric = setlocale( LC_NUMERIC, '0' ); // query current, for restore
+setlocale( LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.ISO8859-1' ); // no-op if uninstalled
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-06-11', 'path' => '/x', 'class' => 'human', 'views' => 1, 'visits' => 1, 'scroll_avg' => 58.5, 'time_avg' => 12345.5 ),
+) );
+$ql = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $ql, "'58.50'" ) !== false,
+	'locale-safe: scroll_avg bound as a dot-decimal 2dp string (%s), not a %f float' );
+ok( strpos( $ql, "'12345.50'" ) !== false,
+	'locale-safe: time_avg bound as a dot-decimal string with NO thousands separator' );
+ok( strpos( $ql, '58,5' ) === false && strpos( $ql, '12345,5' ) === false && strpos( $ql, '12,345' ) === false,
+	'locale-safe: no comma decimal or thousands comma under a de_DE LC_NUMERIC' );
+if ( false !== $__saved_numeric ) { setlocale( LC_NUMERIC, $__saved_numeric ); }
 
 // ── run_rollup orchestration ──────────────────────────────────────────────────
 echo "\nGroup: run_rollup\n";
