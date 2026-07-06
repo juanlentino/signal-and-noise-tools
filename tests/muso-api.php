@@ -94,6 +94,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 $GLOBALS['__http_calls'] = 0;
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__http_calls']++;
+	$GLOBALS['__last_args'] = $args;
 	$mode = $GLOBALS['__http']['mode'];
 	if ( 'wp_error' === $mode ) {
 		return new WP_Error( 'http_request_failed', 'cURL error 7: Connection refused' );
@@ -152,6 +153,9 @@ ok( is_array( $items ) && ! is_wp_error( $items ), 'fetch: returns an array on 2
 ok( count( $items ) === 60, 'fetch: returns all 60 track-credits' );
 ok( isset( $items[0]['track']['spotifyId'] ) && '' !== $items[0]['track']['spotifyId'], 'fetch: items carry track.spotifyId' );
 ok( $GLOBALS['__http_calls'] === 1, 'fetch: single page (hasMoreToLoad:false) → one request' );
+// Outbound-hardening convention (v8.7.1): a credential-carrying call must forbid
+// redirects so WP never re-sends the Muso key to a 3xx target. Pins the convention.
+ok( 0 === ( $GLOBALS['__last_args']['redirection'] ?? -1 ), 'fetch: request disables redirects (no Muso key forward on a 3xx)' );
 
 // ── FETCH (pagination merges across pages) ───────────────────────────
 $GLOBALS['__http']['mode']  = 'pages';

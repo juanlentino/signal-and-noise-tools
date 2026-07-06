@@ -78,8 +78,11 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 		$headers['Authorization'] = 'Bearer ' . SNT_GITHUB_TOKEN;
 	}
 	$response = wp_remote_get( $url, array(
-		'timeout' => 8,
-		'headers' => $headers,
+		'timeout'     => 8,
+		'headers'     => $headers,
+		// v8.8.x: forbid redirects — the SNT_GITHUB_TOKEN bearer must never be
+		// re-sent to a 3xx target (outbound-hardening convention, v8.7.1).
+		'redirection' => 0,
 	) );
 
 	if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {

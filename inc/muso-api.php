@@ -132,8 +132,11 @@ function sn_muso_fetch_page( $profile_id, $offset, $limit ) {
 	$response = wp_remote_get(
 		$url,
 		array(
-			'headers' => sn_muso_request_headers(),
-			'timeout' => 15,
+			'headers'     => sn_muso_request_headers(),
+			'timeout'     => 15,
+			// v8.8.x: forbid redirects — the Muso credentials must never be
+			// re-sent to a 3xx target (outbound-hardening convention, v8.7.1).
+			'redirection' => 0,
 		)
 	);
 

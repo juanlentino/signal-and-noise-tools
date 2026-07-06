@@ -72,6 +72,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 
 function wp_remote_post( $url, $args = array() ) {
 	$GLOBALS['__post_calls']++;
+	$GLOBALS['__last_post_args'] = $args;
 	if ( 'wp_error' === $GLOBALS['__spotify']['token_mode'] ) {
 		return new WP_Error( 'http_request_failed', 'connection refused' );
 	}
@@ -82,6 +83,7 @@ function wp_remote_post( $url, $args = array() ) {
 }
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__get_calls']++;
+	$GLOBALS['__last_get_args'] = $args;
 	if ( 'http_404' === $GLOBALS['__spotify']['track_mode'] ) {
 		return array( 'response' => array( 'code' => 404 ), 'body' => '{"error":{"status":404,"message":"non existing id"}}' );
 	}
@@ -126,11 +128,16 @@ $t1 = sn_spotify_token();
 $t2 = sn_spotify_token();
 ok( $t1 === 'BQ-test-token' && $t2 === $t1, 'token: returns the bearer token' );
 ok( $GLOBALS['__post_calls'] === 1, 'token: cached — only ONE token POST across repeated calls' );
+// Outbound-hardening convention (v8.7.1): the token POST carries the client
+// secret in its body — forbid redirects so a 3xx can't forward it elsewhere.
+ok( 0 === ( $GLOBALS['__last_post_args']['redirection'] ?? -1 ), 'token: POST disables redirects (no client_secret forward on a 3xx)' );
 
 // ── ALBUM RESOLUTION from a track id ─────────────────────────────────
 $GLOBALS['__spotify']['track_mode'] = 'ok';
 $album = sn_spotify_album_for_track( '6MuumbyTsu4CLaniAN0lBW' );
 ok( is_array( $album ), 'album: resolves a track id to its album' );
+// The album GET sends the Bearer token — forbid redirects so a 3xx can't forward it.
+ok( 0 === ( $GLOBALS['__last_get_args']['redirection'] ?? -1 ), 'album: GET disables redirects (no Bearer forward on a 3xx)' );
 ok( ( $album['spotify_id'] ?? '' ) === '7aB9cD2eF4gH6iJ8kL0mN1', 'album: spotify_id is the ALBUM id (not the track id)' );
 ok( strpos( (string) ( $album['spotify_url'] ?? '' ), '/album/7aB9cD2eF4gH6iJ8kL0mN1' ) !== false, 'album: spotify_url is the album open.spotify.com link' );
 ok( ( $album['type'] ?? '' ) === 'album', 'album: type from album.album_type' );
