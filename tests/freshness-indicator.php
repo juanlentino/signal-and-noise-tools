@@ -58,28 +58,46 @@ ok( ! empty( $card['value'] ), 'card has a neutral placeholder value' );
 ok( ! isset( $card['pill'] ), 'card renders NO pill server-side (JS injects it after the check)' );
 ok( ! isset( $card['meta_html'] ), 'card has no report line before any purge has run' );
 
-echo "\nFreshness indicator: last-purge report line (v8.7.0)\n";
-// A verified purge report from the theme (theme writes, plugin reads).
+echo "\nFreshness indicator: last-purge report line\n";
+// A probed purge that resolved FRESH → the verdict, not the raw legs (even when a
+// leg reads ✕ / dispatched, which is exactly the confusing case being fixed).
 $GLOBALS['__opts']['sn_last_purge_report'] = array(
-	'time'  => 100,
-	'mode'  => 'verified',
-	'epoch' => 7,
-	'legs'  => array(
-		'breeze_file' => true,
-		'varnish'     => array( 'via' => 'cloudways', 'ok' => true, 'http' => 200, 'operation_id' => 42 ),
-		'cf'          => array( 'accepted' => true, 'http' => 200, 'cf_success' => true ),
+	'time'     => 100,
+	'mode'     => 'verified',
+	'epoch'    => 7,
+	'resolved' => true,
+	'routes'   => array( array( 'fresh' => true ), array( 'fresh' => true ) ),
+	'legs'     => array(
+		'varnish' => array( 'via' => 'cloudways', 'ok' => false ),
+		'cf'      => array( 'dispatched' => true ),
 	),
 );
 $card = snt_freshness_card();
 ok( ! empty( $card['meta_html'] ), 'card gains a report line when a purge report exists' );
-ok( is_string( $card['meta_html'] ) && false !== strpos( $card['meta_html'], 'Varnish' ), 'report line names the Varnish leg' );
-ok( false !== strpos( $card['meta_html'], 'CF' ), 'report line names the CF leg' );
+ok( false !== strpos( $card['meta_html'], 'verified fresh' ), 'a resolved-fresh report reads as verified fresh' );
+ok( false === strpos( $card['meta_html'], 'Varnish' ), 'a resolved report does NOT surface the confusing per-leg dispatch result' );
 
-// An auto (dispatched-but-unconfirmed) CF leg reads as dispatched, not a tick.
-$GLOBALS['__opts']['sn_last_purge_report']['mode']       = 'auto';
-$GLOBALS['__opts']['sn_last_purge_report']['legs']['cf'] = array( 'dispatched' => true, 'confirmed' => null );
+// A probed purge that resolved STALE → the actionable warning.
+$GLOBALS['__opts']['sn_last_purge_report']['resolved'] = false;
 $card = snt_freshness_card();
-ok( false !== strpos( $card['meta_html'], 'dispatched' ), 'an unconfirmed CF leg reads as dispatched' );
+ok( false !== strpos( $card['meta_html'], 'purge needed' ), 'a resolved-stale report reads as stale, purge needed' );
+
+// An auto-purge whose deferred verify cron has not run yet → verifying, not legs.
+$GLOBALS['__opts']['sn_last_purge_report'] = array(
+	'time' => 100,
+	'mode' => 'auto',
+	'legs' => array( 'varnish' => array( 'via' => 'cloudways', 'ok' => false ), 'cf' => array( 'dispatched' => true ) ),
+);
+$card = snt_freshness_card();
+ok( false !== strpos( $card['meta_html'], 'verifying' ), 'an unverified auto-purge reads as verifying, not the failing legs' );
+
+// Legacy legs-only report (no mode/resolved) → the per-leg fallback still works.
+$GLOBALS['__opts']['sn_last_purge_report'] = array(
+	'time' => 100,
+	'legs' => array( 'varnish' => array( 'via' => 'cloudways', 'ok' => true ), 'cf' => array( 'cf_success' => true ) ),
+);
+$card = snt_freshness_card();
+ok( false !== strpos( $card['meta_html'], 'Varnish' ) && false !== strpos( $card['meta_html'], 'CF' ), 'a legacy legs-only report falls back to the per-leg line' );
 
 // Malformed / empty report → no line, no fatal.
 $GLOBALS['__opts']['sn_last_purge_report'] = 'not-an-array';
