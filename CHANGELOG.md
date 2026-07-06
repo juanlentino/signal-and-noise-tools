@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.7.3] - 2026-07-06: Freshness card shows N/M routes fresh
+
+**Headline:** The Dashboard "Caches" glance card now reads the fresh fraction consistently — `N/M fresh` (e.g. "3/3 fresh", "1/3 fresh") as the primary value, with the pill carrying the actionable state (`N stale · purge needed`, `all fresh`, or `N unknown`). Previously the fraction appeared only in the all-fresh case (as the pill "3/3") while a partial-stale showed a bare stale count. Display-only: the per-route canonical-vs-cache-busted check in `assets/freshness-dot.js` is unchanged. This is the plugin half of the Tier-2 verified-purge follow-ups (the theme half — a deferred cron that verifies auto-purge freshness — is separate).
+
+> **Why PATCH:** presentation refinement of an existing card's value/pill text; no new capability, route, ability, schema, or option change.
+
+### Improvements
+- `assets/freshness-dot.js`: the Caches card value shows `N/M fresh` in every state (all-fresh, partial-stale, all-unknown), not only when all routes are fresh; the pill now carries the state and the action.
+
 ## [8.7.2] - 2026-07-05: Plugin Check ERROR sweep — text-domain, escaping & DB-parameter safety
 
 **Headline:** Clears all 328 ERROR-level findings the new WordPress Plugin Check CI (PR #172) surfaced on the tree, so the check can be promoted to a required gate. The dominant fix (288 findings) normalizes every i18n call from the ad-hoc `'signal-noise-tools'` domain to the plugin slug `'signal-and-noise-tools'`. Plugin Check derives the *expected* domain from the slug and runs `WordPress.WP.I18n` with `runtime-set text_domain <slug>` — it never reads the `Text Domain:` header — so adding a mismatched header would NOT have cleared a single finding (verified against the real sniff locally). A canonical `Text Domain: signal-and-noise-tools` header is now declared anyway, and the seven `wp_set_script_translations()` calls move to the same domain so PHP and JS translation lookups stay consistent. The 12 privacy-exporter / Site-Health registration KEYS that happen to share the old string are left untouched — they are identifiers asserted by tests, not text domains.
