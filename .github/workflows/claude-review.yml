@@ -14,7 +14,7 @@ jobs:
       contents: read
       id-token: write   # claude-code-action requests an OIDC token; without this the job fails before reviewing
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 1
       - id: prompt
@@ -24,7 +24,7 @@ jobs:
             cat .github/claude-review-prompt.md
             echo 'PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
-      - uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707
+      - uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.prompt.outputs.content }}
