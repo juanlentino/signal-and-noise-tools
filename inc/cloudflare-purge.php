@@ -368,6 +368,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '<div class="sn-status-box">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Configured — auto-purge active</p>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $last_line is static text plus esc_html()-escaped values.
 		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--ok">Active</span>';

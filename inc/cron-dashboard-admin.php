@@ -40,49 +40,50 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	// change, not a code change).
 	wp_localize_script( 'sn-cron-dashboard', 'sntCronI18n', array(
 		/* translators: button label while a cron event is being dispatched */
-		'running'          => __( 'Running…', 'signal-noise-tools' ),
+		'running'          => __( 'Running…', 'signal-and-noise-tools' ),
 		/* translators: button label when idle */
-		'runNow'           => __( 'Run now', 'signal-noise-tools' ),
+		'runNow'           => __( 'Run now', 'signal-and-noise-tools' ),
 		/* translators: relative-time label shown immediately after a manual run */
-		'justNow'          => __( 'just now', 'signal-noise-tools' ),
+		'justNow'          => __( 'just now', 'signal-and-noise-tools' ),
 		/* translators: %s is the cron hook name (e.g., wp_version_check) */
-		'confirmRun'       => __( "Run cron event '%s' now?", 'signal-noise-tools' ),
-		'apiFetchMissing'  => __( 'wp.apiFetch unavailable — cannot dispatch.', 'signal-noise-tools' ),
-		'unknownError'     => __( 'unknown error', 'signal-noise-tools' ),
+		'confirmRun'       => __( "Run cron event '%s' now?", 'signal-and-noise-tools' ),
+		'apiFetchMissing'  => __( 'wp.apiFetch unavailable — cannot dispatch.', 'signal-and-noise-tools' ),
+		'unknownError'     => __( 'unknown error', 'signal-and-noise-tools' ),
 		/* translators: 1: hook name, 2: elapsed time in milliseconds */
-		'firedTemplate'    => __( '%1$s fired in %2$dms', 'signal-noise-tools' ),
+		'firedTemplate'    => __( '%1$s fired in %2$dms', 'signal-and-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
-		'runFailedTemplate' => __( 'Run failed: %s', 'signal-noise-tools' ),
+		'runFailedTemplate' => __( 'Run failed: %s', 'signal-and-noise-tools' ),
 		/* translators: button label while a cron event is being unscheduled (v3.1.0) */
-		'unscheduling'     => __( 'Unscheduling…', 'signal-noise-tools' ),
+		'unscheduling'     => __( 'Unscheduling…', 'signal-and-noise-tools' ),
 		/* translators: button label when idle (v3.1.0) */
-		'unschedule'       => __( 'Unschedule', 'signal-noise-tools' ),
+		'unschedule'       => __( 'Unschedule', 'signal-and-noise-tools' ),
 		/* translators: %s is the cron hook name — confirmation prompt before destructive unschedule */
-		'confirmUnschedule' => __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone — the event will re-appear only if a plugin re-registers it.", 'signal-noise-tools' ),
+		'confirmUnschedule' => __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone — the event will re-appear only if a plugin re-registers it.", 'signal-and-noise-tools' ),
 		/* translators: 1: hook name, 2: number of events cleared */
-		'unscheduledTemplate' => __( "%1\$s unscheduled (%2\$d event(s) cleared)", 'signal-noise-tools' ),
-		'unscheduledNoMatch' => __( 'No matching scheduled event found — likely already gone.', 'signal-noise-tools' ),
+		'unscheduledTemplate' => __( "%1\$s unscheduled (%2\$d event(s) cleared)", 'signal-and-noise-tools' ),
+		'unscheduledNoMatch' => __( 'No matching scheduled event found — likely already gone.', 'signal-and-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
-		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-noise-tools' ),
+		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-and-noise-tools' ),
 		// v3.2.0: cron history panel
-		'historyShow'      => __( 'history', 'signal-noise-tools' ),
-		'historyHide'      => __( 'hide', 'signal-noise-tools' ),
-		'historyLoading'   => __( 'Loading history…', 'signal-noise-tools' ),
-		'historyEmpty'     => __( 'No firings recorded yet (history tracking landed in plugin v3.2.0).', 'signal-noise-tools' ),
-		'historyHeaderTime'    => __( 'Fired at', 'signal-noise-tools' ),
-		'historyHeaderElapsed' => __( 'Elapsed', 'signal-noise-tools' ),
-		'historyHeaderStatus'  => __( 'Status', 'signal-noise-tools' ),
-		'historyOk'        => __( 'ok', 'signal-noise-tools' ),
-		'historyFail'      => __( 'fail', 'signal-noise-tools' ),
-		'historyMs'        => __( '%dms', 'signal-noise-tools' ),
+		'historyShow'      => __( 'history', 'signal-and-noise-tools' ),
+		'historyHide'      => __( 'hide', 'signal-and-noise-tools' ),
+		'historyLoading'   => __( 'Loading history…', 'signal-and-noise-tools' ),
+		'historyEmpty'     => __( 'No firings recorded yet (history tracking landed in plugin v3.2.0).', 'signal-and-noise-tools' ),
+		'historyHeaderTime'    => __( 'Fired at', 'signal-and-noise-tools' ),
+		'historyHeaderElapsed' => __( 'Elapsed', 'signal-and-noise-tools' ),
+		'historyHeaderStatus'  => __( 'Status', 'signal-and-noise-tools' ),
+		'historyOk'        => __( 'ok', 'signal-and-noise-tools' ),
+		'historyFail'      => __( 'fail', 'signal-and-noise-tools' ),
+		/* translators: %d is the elapsed time in milliseconds */
+		'historyMs'        => __( '%dms', 'signal-and-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
-		'historyFetchFailed' => __( 'Could not load history: %s', 'signal-noise-tools' ),
+		'historyFetchFailed' => __( 'Could not load history: %s', 'signal-and-noise-tools' ),
 	) );
 
 	wp_enqueue_script( 'sn-cron-dashboard' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'sn-cron-dashboard', 'signal-noise-tools' );
+		wp_set_script_translations( 'sn-cron-dashboard', 'signal-and-noise-tools' );
 	}
 } );
 
@@ -132,7 +133,7 @@ function snt_cron_glance_cards( $rows ) {
 
 function snt_cron_render_admin_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'You do not have permission to view this page.', 'signal-noise-tools' ) );
+		wp_die( esc_html__( 'You do not have permission to view this page.', 'signal-and-noise-tools' ) );
 	}
 
 	$rows = function_exists( 'snt_cron_get_events_impl' )
@@ -142,8 +143,8 @@ function snt_cron_render_admin_tab() {
 	echo '<div class="sn-cron-dashboard">';
 
 	if ( empty( $rows ) ) {
-		echo '<div class="sn-card"><h3>' . esc_html__( 'No scheduled events.', 'signal-noise-tools' ) . '</h3>';
-		echo '<p>' . wp_kses_post( __( 'This is unusual — WordPress core typically schedules <code>wp_version_check</code>, <code>wp_update_plugins</code>, <code>wp_update_themes</code>, and <code>wp_scheduled_delete</code> at install. If your cron is empty, something has cleared it. Check your hosting provider\'s cron configuration.', 'signal-noise-tools' ) ) . '</p></div></div>';
+		echo '<div class="sn-card"><h3>' . esc_html__( 'No scheduled events.', 'signal-and-noise-tools' ) . '</h3>';
+		echo '<p>' . wp_kses_post( __( 'This is unusual — WordPress core typically schedules <code>wp_version_check</code>, <code>wp_update_plugins</code>, <code>wp_update_themes</code>, and <code>wp_scheduled_delete</code> at install. If your cron is empty, something has cleared it. Check your hosting provider\'s cron configuration.', 'signal-and-noise-tools' ) ) . '</p></div></div>';
 		return;
 	}
 
@@ -159,26 +160,26 @@ function snt_cron_render_admin_tab() {
 	echo '<p class="sn-field-helper">';
 	printf(
 		/* translators: %s is the number of scheduled cron events */
-		esc_html( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-noise-tools' ) ),
+		esc_html( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		esc_html( number_format_i18n( $count ) )
 	);
 	echo '</p>';
 
 	echo '<p>';
-	echo '<label for="sn-cron-filter" class="screen-reader-text">' . esc_html__( 'Filter cron events by hook name', 'signal-noise-tools' ) . '</label>';
-	echo '<input type="search" id="sn-cron-filter" class="sn-input--filter" placeholder="' . esc_attr__( 'Filter by hook name…', 'signal-noise-tools' ) . '" />';
+	echo '<label for="sn-cron-filter" class="screen-reader-text">' . esc_html__( 'Filter cron events by hook name', 'signal-and-noise-tools' ) . '</label>';
+	echo '<input type="search" id="sn-cron-filter" class="sn-input--filter" placeholder="' . esc_attr__( 'Filter by hook name…', 'signal-and-noise-tools' ) . '" />';
 	echo '</p>';
 
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped" id="sn-cron-table">';
-	echo '<caption class="screen-reader-text">' . esc_html__( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-noise-tools' ) . '</caption>';
+	echo '<caption class="screen-reader-text">' . esc_html__( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-and-noise-tools' ) . '</caption>';
 	echo '<thead><tr>';
-	echo '<th scope="col">' . esc_html__( 'Hook', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Next run', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Recurrence', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Last fired', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Args', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Hook', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Next run', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Recurrence', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Last fired', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Args', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $rows as $row ) {
@@ -188,12 +189,10 @@ function snt_cron_render_admin_tab() {
 		// Hook
 		echo '<th scope="row"><code>' . esc_html( $row['hook'] ) . '</code>';
 		if ( $row['is_sn_owned'] ) {
-			$sn_title = esc_attr__( 'Signal & Noise–owned event', 'signal-noise-tools' );
-			echo ' <span class="sn-badge" title="' . $sn_title . '"><span class="screen-reader-text">' . esc_html__( 'Signal and Noise owned:', 'signal-noise-tools' ) . '</span>' . esc_html__( 'SN', 'signal-noise-tools' ) . '</span>';
+			echo ' <span class="sn-badge" title="' . ( esc_attr__( 'Signal & Noise–owned event', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Signal and Noise owned:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'SN', 'signal-and-noise-tools' ) . '</span>';
 		}
 		if ( ! $row['has_handler'] ) {
-			$orphan_title = esc_attr__( 'No handler registered — schedule will fire to nothing', 'signal-noise-tools' );
-			echo ' <span class="sn-badge sn-badge-warn" title="' . $orphan_title . '"><span class="screen-reader-text">' . esc_html__( 'Warning:', 'signal-noise-tools' ) . '</span>' . esc_html__( 'orphan', 'signal-noise-tools' ) . '</span>';
+			echo ' <span class="sn-badge sn-badge-warn" title="' . ( esc_attr__( 'No handler registered — schedule will fire to nothing', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Warning:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'orphan', 'signal-and-noise-tools' ) . '</span>';
 		}
 		echo '</th>';
 
@@ -202,7 +201,7 @@ function snt_cron_render_admin_tab() {
 		$next_rel = human_time_diff( time(), $row['next_run_ts'] );
 		echo '<td>' . esc_html( $next_str ) . '<br><small>';
 		/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-		printf( esc_html__( 'in %s', 'signal-noise-tools' ), esc_html( $next_rel ) );
+		printf( esc_html__( 'in %s', 'signal-and-noise-tools' ), esc_html( $next_rel ) );
 		echo '</small></td>';
 
 		// Recurrence
@@ -213,13 +212,13 @@ function snt_cron_render_admin_tab() {
 			}
 			echo '</td>';
 		} else {
-			echo '<td><small>' . esc_html__( 'single event', 'signal-noise-tools' ) . '</small></td>';
+			echo '<td><small>' . esc_html__( 'single event', 'signal-and-noise-tools' ) . '</small></td>';
 		}
 
 		// Last fired
 		$history_toggle_aria = sprintf(
 			/* translators: %s is the cron hook name */
-			__( 'Show firing history for %s', 'signal-noise-tools' ),
+			__( 'Show firing history for %s', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
 		if ( $row['last_fired_ts'] ) {
@@ -227,10 +226,10 @@ function snt_cron_render_admin_tab() {
 			$last_rel = human_time_diff( $row['last_fired_ts'], time() );
 			echo '<td class="sn-cron-last-fired">' . esc_html( $last_str ) . '<br><small>';
 			/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-			printf( esc_html__( '%s ago', 'signal-noise-tools' ), esc_html( $last_rel ) );
+			printf( esc_html__( '%s ago', 'signal-and-noise-tools' ), esc_html( $last_rel ) );
 			echo '</small>';
 			// v3.2.0: history toggle.
-			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-noise-tools' ) . '">' . esc_html__( 'history', 'signal-noise-tools' ) . '</button>';
+			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-and-noise-tools' ) . '">' . esc_html__( 'history', 'signal-and-noise-tools' ) . '</button>';
 			echo '<div class="sn-cron-history-panel" hidden></div>';
 			echo '</td>';
 		} else {
@@ -239,7 +238,7 @@ function snt_cron_render_admin_tab() {
 			// without a last-fired record (manual one-shot dispatches
 			// land in history without updating the last-fired option
 			// during edge cases).
-			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-noise-tools' ) . '">' . esc_html__( 'history', 'signal-noise-tools' ) . '</button>';
+			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-and-noise-tools' ) . '">' . esc_html__( 'history', 'signal-and-noise-tools' ) . '</button>';
 			echo '<div class="sn-cron-history-panel" hidden></div>';
 			echo '</td>';
 		}
@@ -255,12 +254,12 @@ function snt_cron_render_admin_tab() {
 		// for screen readers (visible labels are repeated per row).
 		$run_aria = sprintf(
 			/* translators: %s is the cron hook name */
-			__( 'Run cron event %s now', 'signal-noise-tools' ),
+			__( 'Run cron event %s now', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
 		$unschedule_aria = sprintf(
 			/* translators: %s is the cron hook name */
-			__( 'Unschedule cron event %s', 'signal-noise-tools' ),
+			__( 'Unschedule cron event %s', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
 		// Encode the args array as a JSON data attribute so the JS can
@@ -271,28 +270,25 @@ function snt_cron_render_admin_tab() {
 		}
 		echo '<td>';
 		if ( ! $row['has_handler'] ) {
-			$disabled_title = esc_attr__( 'No handler registered', 'signal-noise-tools' );
-			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . $disabled_title . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . ( esc_attr__( 'No handler registered', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
 		} elseif ( str_starts_with( (string) $row['hook'], 'sn_' ) ) {
 			// v6.55.0: Run-now dispatches via the signal-noise/run-cron-event
 			// ability (run-path), which refuses sn_* hooks — Signal & Noise's own
 			// internal events fire on their own schedule and have dedicated
 			// abilities. Disable + explain instead of letting the click resolve to
 			// a refusal toast, mirroring the Unschedule gate below.
-			$sn_run_disabled_title = esc_attr__( 'Signal & Noise–internal event: dispatched on its own schedule, not manually runnable here', 'signal-noise-tools' );
-			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . $sn_run_disabled_title . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . ( esc_attr__( 'Signal & Noise–internal event: dispatched on its own schedule, not manually runnable here', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
 		} else {
-			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-noise-tools' ) . '</button>';
+			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
 		}
 		// v3.1.0: Unschedule button. SN-owned events refuse this op via
 		// the impl-layer guard, so disable the button + explain why
 		// rather than letting the user click into an error.
 		echo ' ';
 		if ( $row['is_sn_owned'] ) {
-			$sn_disabled_title = esc_attr__( 'Signal & Noise–owned: disable the owning module from its settings tab instead', 'signal-noise-tools' );
-			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $unschedule_aria ) . '" title="' . $sn_disabled_title . '">' . esc_html__( 'Unschedule', 'signal-noise-tools' ) . '</button>';
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $unschedule_aria ) . '" title="' . ( esc_attr__( 'Signal & Noise–owned: disable the owning module from its settings tab instead', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Unschedule', 'signal-and-noise-tools' ) . '</button>';
 		} else {
-			echo '<button class="button button-small button-link-delete sn-cron-unschedule" type="button" aria-label="' . esc_attr( $unschedule_aria ) . '" data-args="' . esc_attr( $args_json ) . '">' . esc_html__( 'Unschedule', 'signal-noise-tools' ) . '</button>';
+			echo '<button class="button button-small button-link-delete sn-cron-unschedule" type="button" aria-label="' . esc_attr( $unschedule_aria ) . '" data-args="' . esc_attr( $args_json ) . '">' . esc_html__( 'Unschedule', 'signal-and-noise-tools' ) . '</button>';
 		}
 		echo '</td>';
 

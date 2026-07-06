@@ -247,6 +247,7 @@ function sn_analytics_rollup_upsert( $rows ) {
 			. implode( ', ', $placeholders )
 			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits), scroll_avg=VALUES(scroll_avg), time_avg=VALUES(time_avg)';
 
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
 		if ( false !== $result ) {
 			$written += count( $chunk );

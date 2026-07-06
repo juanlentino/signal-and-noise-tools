@@ -143,6 +143,7 @@ function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity =
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $expr is a hardcoded SQL fragment ("day" or a fixed DATE_SUB() expression) from sn_analytics_bucket_expr(); $table is $wpdb->prefix + a plugin constant; every user value is bound via prepare().
 	$results = $wpdb->get_results( $wpdb->prepare(
 		"SELECT {$expr} AS day, SUM(views) AS views, SUM(visits) AS visits
 		 FROM {$table}
@@ -191,6 +192,7 @@ function sn_analytics_dimension_series( $dim, $values, $from, $to, $class = 'hum
 
 	$in_ph   = implode( ',', array_fill( 0, count( $values ), '%s' ) );
 	$args    = array_merge( array( (string) $from, (string) $to, $dim, $class ), $values );
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $expr is a hardcoded SQL fragment ("day" or a fixed DATE_SUB() expression) from sn_analytics_bucket_expr(); $table is $wpdb->prefix + a plugin constant; every user value is bound via prepare().
 	$results = $wpdb->get_results( $wpdb->prepare(
 		"SELECT {$expr} AS day, value, SUM(views) AS views
 		 FROM {$table}
@@ -299,6 +301,7 @@ function sn_analytics_class_series( $from, $to, $granularity = 'day' ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $expr is a hardcoded SQL fragment ("day" or a fixed DATE_SUB() expression) from sn_analytics_bucket_expr(); $table is $wpdb->prefix + a plugin constant; every user value is bound via prepare().
 	$results = $wpdb->get_results( $wpdb->prepare(
 		"SELECT {$expr} AS day, class, SUM(views) AS views
 		 FROM {$table}

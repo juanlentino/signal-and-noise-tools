@@ -168,16 +168,17 @@ function snt_block_fp_apply( $args ) {
 	};
 
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
-		return $err( 'capability', 403, __( 'You cannot edit this post.', 'signal-noise-tools' ) );
+		return $err( 'capability', 403, __( 'You cannot edit this post.', 'signal-and-noise-tools' ) );
 	}
 
 	if ( ! in_array( $type, $valid_types, true ) ) {
-		return $err( 'invalid_type', 422, sprintf( __( 'Type must be one of: %s.', 'signal-noise-tools' ), implode( ', ', $valid_types ) ) );
+		/* translators: %s is a comma-separated list of valid block types */
+		return $err( 'invalid_type', 422, sprintf( __( 'Type must be one of: %s.', 'signal-and-noise-tools' ), implode( ', ', $valid_types ) ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return $err( 'post_not_found', 404, __( 'Post not found.', 'signal-noise-tools' ) );
+		return $err( 'post_not_found', 404, __( 'Post not found.', 'signal-and-noise-tools' ) );
 	}
 
 	$blocks           = parse_blocks( (string) $post->post_content );
@@ -188,7 +189,7 @@ function snt_block_fp_apply( $args ) {
 	// non-block input returns a single node with blockName === null (a
 	// "freeform" classic block); accepting it would splice raw HTML.
 	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
-		return $err( 'invalid_markup', 422, __( 'Replacement markup did not parse to a valid block.', 'signal-noise-tools' ) );
+		return $err( 'invalid_markup', 422, __( 'Replacement markup did not parse to a valid block.', 'signal-and-noise-tools' ) );
 	}
 
 	// v6.39.2 SECURITY (now both surfaces): the replacement is untrusted —
@@ -200,7 +201,7 @@ function snt_block_fp_apply( $args ) {
 	snt_block_fp_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );
 
 	if ( ! $found ) {
-		return $err( 'conflict', 409, __( 'Block changed or removed since scan. Re-run scan.', 'signal-noise-tools' ) );
+		return $err( 'conflict', 409, __( 'Block changed or removed since scan. Re-run scan.', 'signal-and-noise-tools' ) );
 	}
 
 	$result = wp_update_post( array(
@@ -209,7 +210,8 @@ function snt_block_fp_apply( $args ) {
 	), true );
 
 	if ( is_wp_error( $result ) ) {
-		$template = isset( $messages['write_failed'] ) ? (string) $messages['write_failed'] : __( 'wp_update_post failed: %s', 'signal-noise-tools' );
+		/* translators: %s is the error message from wp_update_post() */
+		$template = isset( $messages['write_failed'] ) ? (string) $messages['write_failed'] : __( 'wp_update_post failed: %s', 'signal-and-noise-tools' );
 		return new WP_Error(
 			isset( $codes['write_failed'] ) ? (string) $codes['write_failed'] : 'snt_block_fp_write_failed',
 			sprintf( $template, $result->get_error_message() ),

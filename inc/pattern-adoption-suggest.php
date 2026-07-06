@@ -53,7 +53,7 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
 	if ( ! in_array( $pattern_type, SNT_PATTERN_ADOPTION_VALID_TYPES, true ) ) {
 		return new WP_Error(
 			'snt_pattern_adoption_invalid_pattern_type',
-			__( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-noise-tools' ),
+			__( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -62,7 +62,7 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
 	if ( ! $post ) {
 		return new WP_Error(
 			'snt_pattern_adoption_post_not_found',
-			__( 'Post not found.', 'signal-noise-tools' ),
+			__( 'Post not found.', 'signal-and-noise-tools' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -73,7 +73,7 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
 	if ( null === $match ) {
 		return new WP_Error(
 			'snt_pattern_adoption_candidate_not_found',
-			__( 'Candidate block not found in current post content. Re-run scan.', 'signal-noise-tools' ),
+			__( 'Candidate block not found in current post content. Re-run scan.', 'signal-and-noise-tools' ),
 			array( 'status' => 404 )
 		);
 	}

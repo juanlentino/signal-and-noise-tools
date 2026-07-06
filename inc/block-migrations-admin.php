@@ -44,25 +44,25 @@ function snt_block_migrations_render_section() {
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-	echo esc_html__( 'Block migrations', 'signal-noise-tools' );
+	echo esc_html__( 'Block migrations', 'signal-and-noise-tools' );
 	if ( $last_scan ) {
 		$total     = (int) ( $last_scan['counts']['heading_hierarchy_skip'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' .
 			esc_html( sprintf(
 				/* translators: %d is the count of block-migration candidates found */
-				_n( '%d candidate', '%d candidates', $total, 'signal-noise-tools' ),
+				_n( '%d candidate', '%d candidates', $total, 'signal-and-noise-tools' ),
 				$total
 			) ) . '</span>';
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing posts for structural issues like heading-hierarchy skips (h3 without preceding h2, WCAG 1.3.1). Pure structural detection — no AI. Each candidate is reviewed and applied per-row.', 'signal-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing posts for structural issues like heading-hierarchy skips (h3 without preceding h2, WCAG 1.3.1). Pure structural detection — no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="block_migrations_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan', 'signal-noise-tools' ) : __( 'Scan for migrations', 'signal-noise-tools' ) ) . '</button>';
+	echo '<button type="submit" name="sn_action" value="block_migrations_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ) ) . '</button>';
 	echo '</div>';
 	echo '</form>';
 
@@ -73,7 +73,7 @@ function snt_block_migrations_render_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-noise-tools' ) . '</p>';
+		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
@@ -82,15 +82,15 @@ function snt_block_migrations_render_section() {
 	echo '<summary>' .
 		esc_html( sprintf(
 			/* translators: %d is the count of candidates to review */
-			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-noise-tools' ),
+			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-and-noise-tools' ),
 			count( $candidates )
 		) ) . '</summary>';
 
 	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Issue', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Issue', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $candidates as $c ) {
@@ -107,12 +107,12 @@ function snt_block_migrations_render_section() {
 		echo ' data-post-id="' . esc_attr( (string) (int) $c['post_id'] ) . '"';
 		echo ' data-fingerprint="' . esc_attr( (string) $c['block_fingerprint'] ) . '"';
 		echo ' data-migration-type="' . esc_attr( (string) $c['migration_type'] ) . '"';
-		echo '>' . esc_html__( 'Suggest', 'signal-noise-tools' ) . '</button>';
+		echo '>' . esc_html__( 'Suggest', 'signal-and-noise-tools' ) . '</button>';
 		echo ' <button type="button" class="button button-small" data-snt-block-migrations-dismiss="1"';
 		echo ' data-post-id="' . esc_attr( (string) (int) $c['post_id'] ) . '"';
 		echo ' data-fingerprint="' . esc_attr( (string) $c['block_fingerprint'] ) . '"';
 		echo ' data-migration-type="' . esc_attr( (string) $c['migration_type'] ) . '"';
-		echo '>' . esc_html__( 'Dismiss', 'signal-noise-tools' ) . '</button>';
+		echo '>' . esc_html__( 'Dismiss', 'signal-and-noise-tools' ) . '</button>';
 		echo '</td>';
 		echo '</tr>';
 	}

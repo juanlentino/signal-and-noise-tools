@@ -213,7 +213,7 @@ function snt_ability_export_audit_log( $input = null ) {
  */
 function sn_audit_export_download_handler() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'Insufficient permissions.', 'signal-noise-tools' ), '', array( 'response' => 403 ) );
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
 	}
 	check_admin_referer( 'sn_audit_export', 'sn_audit_export_nonce' );
 

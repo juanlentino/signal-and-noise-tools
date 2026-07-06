@@ -154,7 +154,7 @@ add_action( 'wp_abilities_api_init', function() {
  */
 function snt_ability_block_migrations_scan( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_run_scan' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations scan helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations scan helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	return snt_block_migrations_run_scan();
 }
@@ -169,7 +169,7 @@ function snt_ability_block_migrations_scan( $input ) {
  */
 function snt_ability_block_migrations_suggest( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_suggest_impl' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations suggest helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations suggest helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	return snt_block_migrations_suggest_impl(
 		(int)    ( $input['post_id'] ?? 0 ),
@@ -188,7 +188,7 @@ function snt_ability_block_migrations_suggest( $input ) {
  */
 function snt_ability_block_migrations_apply( $input ) {
 	if ( ! function_exists( 'snt_block_migrations_apply_impl' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations apply helper not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+		return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations apply helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	return snt_block_migrations_apply_impl(
 		(int)    ( $input['post_id'] ?? 0 ),
@@ -221,7 +221,7 @@ function snt_block_migrations_dismiss_impl( $post_id, $fingerprint, $migration_t
 	$migration_type = (string) $migration_type;
 
 	if ( ! $post_id || ! $fingerprint || ! $migration_type ) {
-		return new WP_Error( 'snt_block_migration_invalid_input', __( 'post_id, block_fingerprint, and migration_type are required.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_block_migration_invalid_input', __( 'post_id, block_fingerprint, and migration_type are required.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	// get_post_meta( …, true ) returns '' when the key is unset, and (array)''
@@ -242,5 +242,5 @@ function snt_block_migrations_dismiss_impl( $post_id, $fingerprint, $migration_t
 	$tkey = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
 	delete_transient( $tkey );
 
-	return array( 'ok' => true, 'message' => __( 'Candidate dismissed.', 'signal-noise-tools' ) );
+	return array( 'ok' => true, 'message' => __( 'Candidate dismissed.', 'signal-and-noise-tools' ) );
 }

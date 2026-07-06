@@ -645,7 +645,7 @@ function sn_schedule_cron_schedules( $schedules ) {
 	if ( ! isset( $schedules['sn_five_minutes'] ) ) {
 		$schedules['sn_five_minutes'] = array(
 			'interval' => 5 * MINUTE_IN_SECONDS,
-			'display'  => __( 'Every 5 minutes (Signal & Noise)', 'signal-noise-tools' ),
+			'display'  => __( 'Every 5 minutes (Signal & Noise)', 'signal-and-noise-tools' ),
 		);
 	}
 	return $schedules;

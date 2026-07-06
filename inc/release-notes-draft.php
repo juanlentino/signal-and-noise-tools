@@ -78,7 +78,7 @@ function snt_release_notes_draft_impl( $changelog_delta ) {
 	if ( '' === $delta ) {
 		return new WP_Error(
 			'snt_rn_empty',
-			__( 'Paste a change log delta (what changed in this version) before drafting release notes.', 'signal-noise-tools' ),
+			__( 'Paste a change log delta (what changed in this version) before drafting release notes.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}

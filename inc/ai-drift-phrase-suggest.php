@@ -202,7 +202,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	// Pre-flight: phrase must still exist somewhere in raw post_content.
@@ -212,7 +212,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	if ( -1 === $raw_position ) {
 		return new WP_Error(
 			'snt_ai_phrase_drifted',
-			__( 'Phrase no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-noise-tools' ),
+			__( 'Phrase no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ),
 			array( 'status' => 409 )
 		);
 	}
@@ -226,7 +226,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	);
 	$prompt  = wp_json_encode( $payload );
 	if ( false === $prompt ) {
-		return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+		return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 
 	$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SUGGEST_SYSTEM, SNT_AI_DRIFT_SUGGEST_MAX_TOKENS );
@@ -237,7 +237,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	$suggestion = (string) $result;  // v4.1.6 (D-10): quote-strip now happens in snt_ai_generate_with_constraints().
 
 	if ( 'PHRASE_NO_REPLACEMENT' === $suggestion ) {
-		return new WP_Error( 'snt_ai_no_replacement', __( 'AI could not generate a useful replacement for this phrase.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_no_replacement', __( 'AI could not generate a useful replacement for this phrase.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	return array(
@@ -299,22 +299,23 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	$context_snippet = (string) $context_snippet;
 
 	if ( '' === $replacement ) {
-		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement is empty.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( strlen( $replacement ) > SNT_AI_DRIFT_REPLACEMENT_MAX_LENGTH ) {
-		return new WP_Error( 'snt_ai_replacement_invalid', sprintf( __( 'Replacement exceeds %d characters.', 'signal-noise-tools' ), SNT_AI_DRIFT_REPLACEMENT_MAX_LENGTH ), array( 'status' => 422 ) );
+		/* translators: %d is the maximum allowed number of characters */
+		return new WP_Error( 'snt_ai_replacement_invalid', sprintf( __( 'Replacement exceeds %d characters.', 'signal-and-noise-tools' ), SNT_AI_DRIFT_REPLACEMENT_MAX_LENGTH ), array( 'status' => 422 ) );
 	}
 	// Reject any HTML angle brackets — drift replacements should be plain text.
 	if ( $replacement !== wp_strip_all_tags( $replacement ) ) {
-		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML — only plain text allowed.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML — only plain text allowed.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
-		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-noise-tools' ), array( 'status' => 403 ) );
+		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	$current_content = (string) $post->post_content;
@@ -324,13 +325,13 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	// for defense-in-depth (e.g., post edited between suggest and apply).
 	$raw_position = snt_ai_drift_locate_in_raw( $current_content, $phrase, $context_snippet );
 	if ( -1 === $raw_position ) {
-		return new WP_Error( 'snt_ai_apply_conflict', __( 'Phrase no longer present in post content. Re-run scan.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_apply_conflict', __( 'Phrase no longer present in post content. Re-run scan.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// Fingerprint must still match at the resolved position.
 	$current_fp = snt_ai_drift_fingerprint( $current_content, $phrase, $raw_position );
 	if ( $current_fp !== $fingerprint ) {
-		return new WP_Error( 'snt_ai_apply_conflict', __( 'Post changed since scan. Re-run scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_apply_conflict', __( 'Post changed since scan. Re-run scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// Splice at the resolved raw-content position.
@@ -342,7 +343,8 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	), true );
 
 	if ( is_wp_error( $result ) ) {
-		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'wp_update_post failed: %s', 'signal-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
+		/* translators: %s is the error message from wp_update_post() */
+		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'wp_update_post failed: %s', 'signal-and-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
 	}
 
 	return array(

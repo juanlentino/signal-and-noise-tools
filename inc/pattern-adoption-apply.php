@@ -71,7 +71,7 @@ function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $repl
 			'write_failed'   => 'snt_pattern_adoption_write_failed',
 		),
 		'error_messages'     => array(
-			'invalid_type' => __( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-noise-tools' ),
+			'invalid_type' => __( 'pattern_type must be one of: pull-quote, steps-enumerated.', 'signal-and-noise-tools' ),
 		),
 	) );
 

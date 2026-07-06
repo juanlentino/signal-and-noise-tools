@@ -108,24 +108,24 @@ function sn_admin_render_scheduled_content_section() {
 		sn_admin_render_schedule_swaps( sn_schedule_swap_pairs( $fragments ) );
 	}
 
-	echo '<p class="sn-field-helper">' . esc_html__( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( 0 === $total ) {
 		echo '<table class="wp-list-table widefat striped"><tbody><tr><td>'
-			. esc_html__( 'No scheduled content. Add a signal-noise/scheduled block to a page, or schedule a post for the future, and it will appear here.', 'signal-noise-tools' )
+			. esc_html__( 'No scheduled content. Add a signal-noise/scheduled block to a page, or schedule a post for the future, and it will appear here.', 'signal-and-noise-tools' )
 			. '</td></tr></tbody></table>';
 		return;
 	}
 
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
-	echo '<th scope="col">' . esc_html__( 'Target', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Type', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Window', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Status', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Type', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Window', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $fragments as $row ) {
@@ -154,16 +154,16 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 		return;
 	}
 
-	echo '<h3>' . esc_html__( 'Version swaps', 'signal-noise-tools' ) . '</h3>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-noise-tools' ) . '</p>';
+	echo '<h3>' . esc_html__( 'Version swaps', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
-	echo '<th scope="col">' . esc_html__( 'Target', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Swap at', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Status', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Swap at', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $pairs as $pair ) {
@@ -181,7 +181,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 		} elseif ( $target_id > 0 ) {
 			echo esc_html( get_the_title( $target_id ) ) . ' <small>#' . esc_html( (string) $target_id ) . '</small>';
 		} else {
-			echo '<small>' . esc_html__( '(unlinked)', 'signal-noise-tools' ) . '</small>';
+			echo '<small>' . esc_html__( '(unlinked)', 'signal-and-noise-tools' ) . '</small>';
 		}
 		echo '</th>';
 
@@ -205,7 +205,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 			echo '<input type="hidden" name="sn_action" value="schedule_swap_run_now">';
 			echo '<input type="hidden" name="hide_id" value="' . esc_attr( (string) $hide_id ) . '">';
 			echo '<input type="hidden" name="show_id" value="' . esc_attr( (string) $show_id ) . '">';
-			echo '<button type="submit" class="button button-small">' . esc_html__( 'Run swap now', 'signal-noise-tools' ) . '</button>';
+			echo '<button type="submit" class="button button-small">' . esc_html__( 'Run swap now', 'signal-and-noise-tools' ) . '</button>';
 			echo '</form>';
 		} else {
 			echo '<small>&mdash;</small>';
@@ -242,12 +242,12 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 	} elseif ( $target_id > 0 ) {
 		echo esc_html( get_the_title( $target_id ) ) . ' <small>#' . esc_html( (string) $target_id ) . '</small>';
 	} else {
-		echo '<small>' . esc_html__( '(unlinked fragment)', 'signal-noise-tools' ) . '</small>';
+		echo '<small>' . esc_html__( '(unlinked fragment)', 'signal-and-noise-tools' ) . '</small>';
 	}
 	echo '</th>';
 
 	// Type.
-	echo '<td>' . esc_html__( 'Fragment', 'signal-noise-tools' ) . '</td>';
+	echo '<td>' . esc_html__( 'Fragment', 'signal-and-noise-tools' ) . '</td>';
 
 	// Action: reveal / hide (the row's stored action verb).
 	echo '<td>' . esc_html( $action ) . '</td>';
@@ -265,9 +265,9 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 	// Actions: two tiny POST forms. Cap + nonce are enforced by the dispatcher.
 	echo '<td>';
 	if ( $row_id > 0 ) {
-		sn_admin_render_schedule_op_button( $row_id, 'schedule_run_now', __( 'Run now', 'signal-noise-tools' ) );
+		sn_admin_render_schedule_op_button( $row_id, 'schedule_run_now', __( 'Run now', 'signal-and-noise-tools' ) );
 		echo ' ';
-		sn_admin_render_schedule_op_button( $row_id, 'schedule_repurge', __( 'Re-purge', 'signal-noise-tools' ) );
+		sn_admin_render_schedule_op_button( $row_id, 'schedule_repurge', __( 'Re-purge', 'signal-and-noise-tools' ) );
 	} else {
 		echo '<small>&mdash;</small>';
 	}
@@ -305,23 +305,23 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 	echo '</th>';
 
 	// Type.
-	echo '<td>' . esc_html__( 'Page', 'signal-noise-tools' ) . '</td>';
+	echo '<td>' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</td>';
 
 	// Action: native posts always publish at their scheduled instant.
-	echo '<td>' . esc_html__( 'Publish', 'signal-noise-tools' ) . '</td>';
+	echo '<td>' . esc_html__( 'Publish', 'signal-and-noise-tools' ) . '</td>';
 
 	// Window: a single instant (the publish time), site-tz.
 	echo '<td>' . esc_html( sn_admin_schedule_fmt_gmt( $gmt ) ) . '</td>';
 
 	// Status: core-managed.
-	echo '<td>' . esc_html__( 'Scheduled', 'signal-noise-tools' ) . '</td>';
+	echo '<td>' . esc_html__( 'Scheduled', 'signal-and-noise-tools' ) . '</td>';
 
 	// Next transition: relative to the publish instant.
 	$next_post = sn_admin_schedule_next_transition( $gmt, null );
 	echo '<td>' . ( '' !== $next_post ? esc_html( $next_post ) : '&mdash;' ) . '</td>';
 
 	// Actions: none; native posts are core-managed.
-	echo '<td><small>' . esc_html__( 'native', 'signal-noise-tools' ) . '</small></td>';
+	echo '<td><small>' . esc_html__( 'native', 'signal-and-noise-tools' ) . '</small></td>';
 
 	echo '</tr>';
 }
@@ -359,8 +359,8 @@ function sn_admin_schedule_window_html( $starts_at, $ends_at ) {
 	$from = sn_admin_schedule_fmt_gmt( $starts_at );
 	$to   = sn_admin_schedule_fmt_gmt( $ends_at );
 
-	$from_label = '' !== $from ? esc_html( $from ) : '<small>' . esc_html__( 'always', 'signal-noise-tools' ) . '</small>';
-	$to_label   = '' !== $to ? esc_html( $to ) : '<small>' . esc_html__( 'never', 'signal-noise-tools' ) . '</small>';
+	$from_label = '' !== $from ? esc_html( $from ) : '<small>' . esc_html__( 'always', 'signal-and-noise-tools' ) . '</small>';
+	$to_label   = '' !== $to ? esc_html( $to ) : '<small>' . esc_html__( 'never', 'signal-and-noise-tools' ) . '</small>';
 
 	return $from_label . ' &rarr; ' . $to_label;
 }
@@ -417,7 +417,7 @@ function sn_admin_schedule_next_transition( $starts_at, $ends_at ) {
 	}
 
 	/* translators: %s is a human-readable relative time, e.g. "3 days". */
-	return sprintf( __( 'in %s', 'signal-noise-tools' ), human_time_diff( $now, $next ) );
+	return sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( $now, $next ) );
 }
 
 /**

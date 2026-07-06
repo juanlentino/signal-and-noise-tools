@@ -534,7 +534,7 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
 	}
 
 	echo '<div class="notice notice-warning inline sn-attention-strip">';
-	echo '<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-noise-tools' ) . '</strong> ';
+	echo '<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-and-noise-tools' ) . '</strong> ';
 	$links = array();
 	foreach ( $items as $item ) {
 		$links[] = '<a href="' . esc_url( $item['href'] ) . '">' . esc_html( $item['text'] ) . '</a>';
@@ -587,13 +587,14 @@ function snt_dashboard_render_deploy_row( $run ) {
 	$href         = $run['html_url'] ?? '';
 
 	echo '<li class="sn-deploy-row">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $status_icon is built by snt_dashboard_run_glyph_html(): class/label are esc_attr/esc_html-escaped and the glyph is a hardcoded HTML entity.
 	echo $status_icon; /* already escaped via helper */
 	echo '<span class="sn-deploy-row__repo">' . esc_html( $repo_short ) . '</span>';
 	echo '<span class="sn-deploy-row__ref"><code>' . esc_html( $ref ) . '</code></span>';
 	echo '<span class="sn-deploy-row__duration">' . esc_html( $duration ) . '</span>';
 	echo '<span class="sn-deploy-row__when">' . esc_html( $when ) . '</span>';
 	if ( $href ) {
-		echo '<a class="sn-deploy-row__link" href="' . esc_url( $href ) . '" target="_blank" rel="noopener noreferrer" title="' . esc_attr__( 'View on GitHub', 'signal-noise-tools' ) . '">&#x2197;</a>';
+		echo '<a class="sn-deploy-row__link" href="' . esc_url( $href ) . '" target="_blank" rel="noopener noreferrer" title="' . esc_attr__( 'View on GitHub', 'signal-and-noise-tools' ) . '">&#x2197;</a>';
 	} else {
 		echo '<span></span>';
 	}
@@ -604,10 +605,10 @@ function snt_dashboard_run_glyph( $run, $base_class ) {
 	$status     = (string) ( $run['status'] ?? '' );
 	$conclusion = (string) ( $run['conclusion'] ?? '' );
 	if ( 'in_progress' === $status || 'queued' === $status ) {
-		return snt_dashboard_run_glyph_html( $base_class . 'warn', '&middot;', __( 'Running', 'signal-noise-tools' ) );
+		return snt_dashboard_run_glyph_html( $base_class . 'warn', '&middot;', __( 'Running', 'signal-and-noise-tools' ) );
 	}
 	if ( 'success' === $conclusion ) {
-		return snt_dashboard_run_glyph_html( $base_class . 'ok', '&#x2713;', __( 'Success', 'signal-noise-tools' ) );
+		return snt_dashboard_run_glyph_html( $base_class . 'ok', '&#x2713;', __( 'Success', 'signal-and-noise-tools' ) );
 	}
 	if ( 'cancelled' === $conclusion || 'skipped' === $conclusion ) {
 		return snt_dashboard_run_glyph_html( $base_class . 'warn', '&#x2298;', ucfirst( $conclusion ) );
@@ -703,7 +704,7 @@ function snt_dashboard_render_api_summary() {
 		echo '<div class="notice notice-warning inline sn-notice-spacing"><p>';
 		printf(
 			/* translators: %s: comma-separated host labels */
-			esc_html__( 'Rate limit critical: %s. The site may temporarily lose access to these services.', 'signal-noise-tools' ),
+			esc_html__( 'Rate limit critical: %s. The site may temporarily lose access to these services.', 'signal-and-noise-tools' ),
 			esc_html( implode( ', ', $crit ) )
 		);
 		echo '</p></div>';
@@ -717,15 +718,17 @@ function snt_dashboard_render_api_summary() {
 
 	echo '<h2 class="sn-section-h">External APIs</h2>';
 	echo '<p class="sn-api-summary">';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each $items entry is sprintf()-built with esc_attr/esc_html on every field; $sep is static markup.
 	echo implode( ' ' . $sep . ' ', $items );
 	// Separator before the Refresh link only when at least one host item
 	// rendered — avoids a leading "· Refresh" when no host has a snapshot
 	// (unreachable in practice since GitHub is polled by the update-checker,
 	// but keeps the markup clean if it ever happens). (v4.5.5)
 	if ( ! empty( $items ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
 		echo ' ' . $sep . ' ';
 	}
-	echo '<a class="button-link" href="' . esc_url( $refresh_url ) . '">' . esc_html__( 'Refresh now', 'signal-noise-tools' ) . '</a>';
+	echo '<a class="button-link" href="' . esc_url( $refresh_url ) . '">' . esc_html__( 'Refresh now', 'signal-and-noise-tools' ) . '</a>';
 	echo '</p>';
 }
 
@@ -768,14 +771,18 @@ function snt_dashboard_render_rss_summary() {
 	echo '<h2 class="sn-section-h">RSS feed activity</h2>';
 	echo '<p class="sn-api-summary">';
 	echo '<span class="sn-api-summary__item">Last request: <em>' . esc_html( $last_request ?: 'none yet' ) . '</em></span>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
 	echo ' ' . $sep . ' ';
 	echo '<span class="sn-api-summary__item">24h: <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['uniques'] ) ) . '</span> uniq</span>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
 	echo ' ' . $sep . ' ';
 	echo '<span class="sn-api-summary__item">7d: <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['uniques'] ) ) . '</span> uniq</span>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
 	echo ' ' . $sep . ' ';
 	echo '<span class="sn-api-summary__item">30d: <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['uniques'] ) ) . '</span> uniq</span>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
 	echo ' ' . $sep . ' ';
-	echo '<a class="button-link" href="' . esc_url( $rss_url ) . '">' . esc_html__( 'Open RSS tab', 'signal-noise-tools' ) . '</a>';
+	echo '<a class="button-link" href="' . esc_url( $rss_url ) . '">' . esc_html__( 'Open RSS tab', 'signal-and-noise-tools' ) . '</a>';
 	echo '</p>';
 }
 
@@ -790,7 +797,7 @@ function snt_dashboard_render_rss_summary() {
 
 add_action( 'admin_post_sn_force_update_check', function() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'Insufficient permissions.', 'signal-noise-tools' ), '', array( 'response' => 403 ) );
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
 	}
 	check_admin_referer( 'sn_force_update_check', 'sn_force_update_check_nonce' );
 
@@ -827,11 +834,11 @@ function snt_dashboard_debug_information( $info ) {
 
 	// Plugin + theme versions (public).
 	$fields['plugin_version'] = array(
-		'label' => __( 'Plugin version', 'signal-noise-tools' ),
+		'label' => __( 'Plugin version', 'signal-and-noise-tools' ),
 		'value' => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
 	);
 	$fields['theme_version'] = array(
-		'label' => __( 'Signal & Noise theme version', 'signal-noise-tools' ),
+		'label' => __( 'Signal & Noise theme version', 'signal-and-noise-tools' ),
 		'value' => (string) wp_get_theme( 'signal-and-noise' )->get( 'Version' ),
 	);
 
@@ -839,14 +846,14 @@ function snt_dashboard_debug_information( $info ) {
 	if ( function_exists( 'snt_deploy_status_for' ) ) {
 		$plugin = snt_deploy_status_for( 'plugin' );
 		$fields['plugin_update_state'] = array(
-			'label' => __( 'Plugin update state', 'signal-noise-tools' ),
+			'label' => __( 'Plugin update state', 'signal-and-noise-tools' ),
 			'value' => isset( $plugin['state'] ) ? (string) $plugin['state'] : 'unknown',
 		);
 	}
 
 	// DB override count (public).
 	$fields['db_overrides'] = array(
-		'label' => __( 'Database template/navigation overrides', 'signal-noise-tools' ),
+		'label' => __( 'Database template/navigation overrides', 'signal-and-noise-tools' ),
 		'value' => snt_dashboard_override_count(),
 	);
 
@@ -856,24 +863,24 @@ function snt_dashboard_debug_information( $info ) {
 	foreach ( $hooks as $hook ) {
 		$next       = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( $hook ) : false;
 		$last_fired = function_exists( 'snt_cron_last_fired_for' ) ? snt_cron_last_fired_for( $hook ) : null;
-		$sched      = ( false !== $next && is_numeric( $next ) ) ? __( 'scheduled', 'signal-noise-tools' ) : __( 'NOT scheduled', 'signal-noise-tools' );
+		$sched      = ( false !== $next && is_numeric( $next ) ) ? __( 'scheduled', 'signal-and-noise-tools' ) : __( 'NOT scheduled', 'signal-and-noise-tools' );
 		$fired      = ( null !== $last_fired )
-			? sprintf( /* translators: %s: human time diff. */ __( 'fired %s ago', 'signal-noise-tools' ), human_time_diff( (int) $last_fired, time() ) )
-			: __( 'never', 'signal-noise-tools' );
+			? sprintf( /* translators: %s: human time diff. */ __( 'fired %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $last_fired, time() ) )
+			: __( 'never', 'signal-and-noise-tools' );
 		$cron_lines[] = $hook . ': ' . $sched . ', ' . $fired;
 	}
 	$fields['cron_pipeline'] = array(
-		'label'   => __( 'Cron pipeline', 'signal-noise-tools' ),
-		'value'   => $cron_lines ? implode( ' | ', $cron_lines ) : __( 'no SN-owned hooks', 'signal-noise-tools' ),
+		'label'   => __( 'Cron pipeline', 'signal-and-noise-tools' ),
+		'value'   => $cron_lines ? implode( ' | ', $cron_lines ) : __( 'no SN-owned hooks', 'signal-and-noise-tools' ),
 		'private' => true,
 	);
 
 	// Cron-history table present? (private).
 	$fields['cron_history_table'] = array(
-		'label'   => __( 'Cron history table installed', 'signal-noise-tools' ),
+		'label'   => __( 'Cron history table installed', 'signal-and-noise-tools' ),
 		'value'   => ( defined( 'SNT_CRON_HISTORY_DB_VERSION_OPT' ) && get_option( SNT_CRON_HISTORY_DB_VERSION_OPT ) )
-			? __( 'yes', 'signal-noise-tools' )
-			: __( 'no', 'signal-noise-tools' ),
+			? __( 'yes', 'signal-and-noise-tools' )
+			: __( 'no', 'signal-and-noise-tools' ),
 		'private' => true,
 	);
 
@@ -887,8 +894,8 @@ function snt_dashboard_debug_information( $info ) {
 			$rate_lines[] = $label . ': ' . $state;
 		}
 		$fields['api_rate_state'] = array(
-			'label'   => __( 'External API rate state', 'signal-noise-tools' ),
-			'value'   => $rate_lines ? implode( ', ', $rate_lines ) : __( 'none', 'signal-noise-tools' ),
+			'label'   => __( 'External API rate state', 'signal-and-noise-tools' ),
+			'value'   => $rate_lines ? implode( ', ', $rate_lines ) : __( 'none', 'signal-and-noise-tools' ),
 			'private' => true,
 		);
 	}
@@ -896,8 +903,8 @@ function snt_dashboard_debug_information( $info ) {
 	// AI availability (private).
 	if ( function_exists( 'snt_ai_is_available' ) ) {
 		$fields['ai_available'] = array(
-			'label'   => __( 'AI provider available', 'signal-noise-tools' ),
-			'value'   => snt_ai_is_available() ? __( 'yes', 'signal-noise-tools' ) : __( 'no', 'signal-noise-tools' ),
+			'label'   => __( 'AI provider available', 'signal-and-noise-tools' ),
+			'value'   => snt_ai_is_available() ? __( 'yes', 'signal-and-noise-tools' ) : __( 'no', 'signal-and-noise-tools' ),
 			'private' => true,
 		);
 	}
@@ -913,7 +920,7 @@ function snt_dashboard_debug_information( $info ) {
 			}
 		}
 		$fields['webhooks'] = array(
-			'label' => __( 'Webhooks (total / enabled)', 'signal-noise-tools' ),
+			'label' => __( 'Webhooks (total / enabled)', 'signal-and-noise-tools' ),
 			'value' => sprintf( '%d / %d', $total, $enabled ),
 		);
 	}
@@ -929,14 +936,14 @@ function snt_dashboard_debug_information( $info ) {
 		$cache_bits[] = 'health-scan: none';
 	}
 	$fields['cache_state'] = array(
-		'label'   => __( 'Cache state', 'signal-noise-tools' ),
+		'label'   => __( 'Cache state', 'signal-and-noise-tools' ),
 		'value'   => implode( '; ', $cache_bits ),
 		'private' => true,
 	);
 
 	$info['signal-noise-tools'] = array(
-		'label'       => __( 'Signal & Noise Tools', 'signal-noise-tools' ),
-		'description' => __( 'Operational state for the Signal & Noise Tools plugin (versions, cron pipeline, integrations, caches).', 'signal-noise-tools' ),
+		'label'       => __( 'Signal & Noise Tools', 'signal-and-noise-tools' ),
+		'description' => __( 'Operational state for the Signal & Noise Tools plugin (versions, cron pipeline, integrations, caches).', 'signal-and-noise-tools' ),
 		'fields'      => $fields,
 	);
 

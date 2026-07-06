@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.7.2] - 2026-07-05: Plugin Check ERROR sweep — text-domain, escaping & DB-parameter safety
+
+**Headline:** Clears all 328 ERROR-level findings the new WordPress Plugin Check CI (PR #172) surfaced on the tree, so the check can be promoted to a required gate. The dominant fix (288 findings) normalizes every i18n call from the ad-hoc `'signal-noise-tools'` domain to the plugin slug `'signal-and-noise-tools'`. Plugin Check derives the *expected* domain from the slug and runs `WordPress.WP.I18n` with `runtime-set text_domain <slug>` — it never reads the `Text Domain:` header — so adding a mismatched header would NOT have cleared a single finding (verified against the real sniff locally). A canonical `Text Domain: signal-and-noise-tools` header is now declared anyway, and the seven `wp_set_script_translations()` calls move to the same domain so PHP and JS translation lookups stay consistent. The 12 privacy-exporter / Site-Health registration KEYS that happen to share the old string are left untouched — they are identifiers asserted by tests, not text domains.
+
+> **Why PATCH:** i18n correctness plus output-escaping and SQL-parameter hardening; no user-visible, route, ability, schema, or capability change. No translations ship, so the domain rename is behaviourally inert at runtime.
+
+### i18n
+- Normalized 288 `__()`/`_e()`/`esc_html__()`… calls (plus 7 `wp_set_script_translations()` calls) to the `signal-and-noise-tools` text domain across 40 files, clearing 288× `WordPress.WP.I18n.TextDomainMismatch`. Added the canonical `Text Domain:` header to `signal-and-noise-tools.php`.
+- Added `/* translators: … */` comments to 12 placeholder-bearing strings, clearing 12× `WordPress.WP.I18n.MissingTranslatorsComment`.
+
+### Security
+- Output escaping (16× `WordPress.Security.EscapeOutput.OutputNotEscaped`): inlined `esc_attr__()` at the point of output for six admin-render sites in `inc/cron-dashboard-admin.php` + `inc/admin-tabs.php` (they escaped one line early into a throwaway variable); annotated the remaining helper-escaped / static-markup echoes in `inc/admin-tab-dashboard.php`, `inc/health-checks-admin.php`, and `inc/cloudflare-purge.php` with scoped, justified `phpcs:ignore`s.
+- SQL parameters (12× `PluginCheck.Security.DirectDB.UnescapedDBParameter`): audited every flagged `$wpdb` call — all already bind user-supplied values through `$wpdb->prepare()`. The flags are on irreducible dynamic-SQL interpolation (bulk-INSERT placeholder groups, a hardcoded bucket-expression whitelist, `intval`-cast ID lists, and `$wpdb->prefix`+constant table names); confirmed non-injectable — even `%i` identifier placeholders don't satisfy the taint tracker — and annotated each with a scoped, reasoned `phpcs:ignore`.
+
+### Notes
+- The 136 `WordPress.DB.DirectDatabaseQuery.*` WARNINGs (idiomatic for the custom analytics tables) are intentionally left as-is; they are to be filtered during Plugin Check CI tuning, not fixed.
+
 ## [8.7.1] - 2026-07-03: Outbound purge calls forbid redirects (CMA audit INFO-1)
 
 **Headline:** The new Cloudflare and Cloudways purge calls now set `redirection => 0`, matching the outbound-hardening convention every other credential-carrying call in the plugin already follows (`sn_uptime_status_api_get`). Each attaches a Bearer token, or for the Cloudways OAuth exchange the account-wide API key in the POST body, so if the vendor API ever returned a 3xx, WordPress's HTTP layer would re-send the credential to the redirect target. Forbidding redirects closes that theoretical leak. Surfaced by the post-ship CMA audit of `v8.1.6..v8.7.0` as its single (INFO) finding, not exploitable from the plugin alone.

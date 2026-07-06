@@ -81,20 +81,20 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 	$source_id = (int) $source_id;
 	$target_id = (int) $target_id;
 	if ( $source_id === $target_id ) {
-		return new WP_Error( 'snt_ai_link_invalid', __( 'Source and target are the same post.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_link_invalid', __( 'Source and target are the same post.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	$source = get_post( $source_id );
 	$target = get_post( $target_id );
 	if ( ! $source || ! $target || 'publish' !== $target->post_status ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Source or target post not found (target must be published).', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Source or target post not found (target must be published).', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	$raw = (string) $source->post_content;
 
 	// Stale-finding guard: the link may have been added since the scan.
 	if ( sn_health_contains_note_link( $raw, (string) $target->post_name ) ) {
-		return new WP_Error( 'snt_ai_link_already_linked', __( 'The source already links to this note. Re-run the scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_link_already_linked', __( 'The source already links to this note. Re-run the scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	$stripped = wp_strip_all_tags( strip_shortcodes( $raw ) );
@@ -120,7 +120,7 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 		);
 		$prompt  = wp_json_encode( $payload );
 		if ( false === $prompt ) {
-			return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 
 		$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_PAIR_SUGGEST_SYSTEM, SNT_AI_PAIR_SUGGEST_MAX_TOKENS );
@@ -130,7 +130,7 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 
 		$parsed = snt_ai_parse_verdict_json( (string) $result );
 		if ( ! is_array( $parsed ) || ! isset( $parsed['verdict'] ) ) {
-			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 		$verdict    = in_array( (string) $parsed['verdict'], array( 'link', 'skip', 'unsure' ), true ) ? (string) $parsed['verdict'] : 'unsure';
 		$reason     = (string) ( $parsed['reason'] ?? '' );
