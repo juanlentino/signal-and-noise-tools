@@ -223,7 +223,7 @@ function snt_ai_require_text_generation() {
 	}
 	return new WP_Error(
 		'snt_ai_unavailable',
-		__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-noise-tools' ),
+		__( 'AI text generation is not available. Upgrade to WordPress 7.0+ and configure a provider in Settings > Connectors.', 'signal-and-noise-tools' ),
 		array( 'status' => 503 )
 	);
 }
@@ -265,7 +265,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	if ( ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
-			__( 'WP AI Client is not installed or activated. Install the wp-ai-client plugin (WP 6.x) or upgrade to WordPress 7.0+.', 'signal-noise-tools' ),
+			__( 'WP AI Client is not installed or activated. Install the wp-ai-client plugin (WP 6.x) or upgrade to WordPress 7.0+.', 'signal-and-noise-tools' ),
 			array( 'status' => 503 )
 		);
 	}
@@ -336,7 +336,8 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 		// can still bubble. Catch + convert so callers always get WP_Error.
 		return new WP_Error(
 			'snt_ai_runtime_error',
-			sprintf( __( 'AI runtime error: %s', 'signal-noise-tools' ), $e->getMessage() ),
+			/* translators: %s is the runtime error message */
+			sprintf( __( 'AI runtime error: %s', 'signal-and-noise-tools' ), $e->getMessage() ),
 			array( 'status' => 500 )
 		);
 	}
@@ -375,7 +376,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	if ( '' === $text ) {
 		return new WP_Error(
 			'snt_ai_empty_response',
-			__( 'AI returned an empty response (the model produced no text). Try again; if it recurs, the prompt may be hitting the model output limit.', 'signal-noise-tools' ),
+			__( 'AI returned an empty response (the model produced no text). Try again; if it recurs, the prompt may be hitting the model output limit.', 'signal-and-noise-tools' ),
 			array( 'status' => 502 )
 		);
 	}
@@ -422,7 +423,8 @@ function snt_ai_error_with_message( $error ) {
 	$data = $error->get_error_data();
 	return new WP_Error(
 		$code,
-		sprintf( __( 'AI transport error (%s). Try again; if it recurs, check the provider status page.', 'signal-noise-tools' ), $code ),
+		/* translators: %s is the transport error code */
+		sprintf( __( 'AI transport error (%s). Try again; if it recurs, check the provider status page.', 'signal-and-noise-tools' ), $code ),
 		is_array( $data ) && ! empty( $data ) ? $data : array( 'status' => 502 )
 	);
 }

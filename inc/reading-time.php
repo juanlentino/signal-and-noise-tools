@@ -397,8 +397,8 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"'
 			. ( 0 === $report_n ? ' disabled' : '' )
 			. ' data-snt-confirm="' . esc_attr( sprintf( 'Removes legacy reading-time strings from %d post(s) — rewrites post content, excerpts, and meta. Cannot be undone.', (int) $report_n ) ) . '"'
-			. ' data-snt-confirm-title="' . esc_attr__( 'Apply reading-time cleanup?', 'signal-noise-tools' ) . '"'
-			. ' data-snt-confirm-label="' . esc_attr__( 'Apply', 'signal-noise-tools' ) . '"'
+			. ' data-snt-confirm-title="' . esc_attr__( 'Apply reading-time cleanup?', 'signal-and-noise-tools' ) . '"'
+			. ' data-snt-confirm-label="' . esc_attr__( 'Apply', 'signal-and-noise-tools' ) . '"'
 			. ' data-snt-confirm-danger="1"'
 			. '>Apply to ' . (int) $report_n . ' post(s)</button>';
 		echo '</form>';

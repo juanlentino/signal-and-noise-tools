@@ -101,14 +101,14 @@ function snt_ability_dismiss_candidate( $input ) {
 
 	if ( 'block-migrations' === $surface ) {
 		if ( ! function_exists( 'snt_block_migrations_dismiss_impl' ) ) {
-			return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations module not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_helper_unavailable', __( 'Block migrations module not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 		return snt_block_migrations_dismiss_impl( $post_id, $fingerprint, $type );
 	}
 
 	if ( 'pattern-adoption' === $surface ) {
 		if ( ! function_exists( 'snt_pattern_adoption_dismiss_impl' ) ) {
-			return new WP_Error( 'snt_helper_unavailable', __( 'Pattern-adoption module not loaded.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_helper_unavailable', __( 'Pattern-adoption module not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 		// The pattern-adoption impl's signature is ( post_id, pattern_type, fingerprint ).
 		return snt_pattern_adoption_dismiss_impl( $post_id, $type, $fingerprint );
@@ -116,5 +116,5 @@ function snt_ability_dismiss_candidate( $input ) {
 
 	// Schema enum already blocks this via the run controller; guard anyway for
 	// direct callers (tests, future internal dispatch).
-	return new WP_Error( 'snt_dismiss_unknown_surface', __( 'Unknown dismiss surface.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+	return new WP_Error( 'snt_dismiss_unknown_surface', __( 'Unknown dismiss surface.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 }

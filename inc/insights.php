@@ -258,6 +258,7 @@ function snt_insights_collect_signals() {
 	$out['cron_freshness'] = array();
 	$table = $wpdb->prefix . 'snt_cron_history';
 	$cutoff = time() - DAY_IN_SECONDS;
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is $wpdb->prefix + a plugin constant (no user input).
 	$cron_rows = $wpdb->get_results( $wpdb->prepare(
 		"SELECT hook,
 		        MAX(UNIX_TIMESTAMP(fired_at)) AS last_fired_ts,

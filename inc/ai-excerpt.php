@@ -92,7 +92,7 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 	if ( '' === $content ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'Post has no content to summarize. Add some body text first.', 'signal-noise-tools' ),
+			__( 'Post has no content to summarize. Add some body text first.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -149,6 +149,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_enqueue_script( 'snt-ai-excerpt' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-excerpt', 'signal-noise-tools' );
+		wp_set_script_translations( 'snt-ai-excerpt', 'signal-and-noise-tools' );
 	}
 } );

@@ -41,25 +41,25 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	echo '<div class="sn-fieldset snt-mt-2">';
 	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-	echo esc_html__( 'Opportunities', 'signal-noise-tools' );
+	echo esc_html__( 'Opportunities', 'signal-and-noise-tools' );
 	if ( $last_scan ) {
 		$total = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';
 		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' .
 			esc_html( sprintf(
 				/* translators: %d is the count of pattern-adoption opportunities found */
-				_n( '%d opportunity', '%d opportunities', $total, 'signal-noise-tools' ),
+				_n( '%d opportunity', '%d opportunities', $total, 'signal-and-noise-tools' ),
 				$total
 			) ) . '</span>';
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection — no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection — no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="pattern_adoption_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan opportunities', 'signal-noise-tools' ) : __( 'Scan for opportunities', 'signal-noise-tools' ) ) . '</button>';
+	echo '<button type="submit" name="sn_action" value="pattern_adoption_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan opportunities', 'signal-and-noise-tools' ) : __( 'Scan for opportunities', 'signal-and-noise-tools' ) ) . '</button>';
 	echo '</div>';
 	echo '</form>';
 
@@ -70,7 +70,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-noise-tools' ) . '</p>';
+		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
@@ -80,15 +80,15 @@ function snt_pattern_adoption_render_opportunities_section() {
 	echo '<summary>' .
 		esc_html( sprintf(
 			/* translators: %d is the count of pattern-adoption candidates to review */
-			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-noise-tools' ),
+			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-and-noise-tools' ),
 			count( $candidates )
 		) ) . '</summary>';
 
 	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Pattern', 'signal-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Pattern', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
 	foreach ( $candidates as $c ) {
@@ -106,12 +106,12 @@ function snt_pattern_adoption_render_opportunities_section() {
 		echo ' data-post-id="' . esc_attr( (string) (int) $c['post_id'] ) . '"';
 		echo ' data-fingerprint="' . esc_attr( (string) $c['block_fingerprint'] ) . '"';
 		echo ' data-pattern-type="' . esc_attr( (string) $c['pattern_type'] ) . '"';
-		echo '>' . esc_html__( 'Suggest', 'signal-noise-tools' ) . '</button>';
+		echo '>' . esc_html__( 'Suggest', 'signal-and-noise-tools' ) . '</button>';
 		echo ' <button type="button" class="button button-small" data-snt-dismiss="1"';
 		echo ' data-post-id="' . esc_attr( (string) (int) $c['post_id'] ) . '"';
 		echo ' data-fingerprint="' . esc_attr( (string) $c['block_fingerprint'] ) . '"';
 		echo ' data-pattern-type="' . esc_attr( (string) $c['pattern_type'] ) . '"';
-		echo '>' . esc_html__( 'Dismiss', 'signal-noise-tools' ) . '</button>';
+		echo '>' . esc_html__( 'Dismiss', 'signal-and-noise-tools' ) . '</button>';
 		echo '</td>';
 		echo '</tr>';
 	}

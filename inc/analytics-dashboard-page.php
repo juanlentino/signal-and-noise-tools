@@ -34,8 +34,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_analytics_register_dashboard_page() {
 	$hook = add_dashboard_page(
-		__( 'Analytics', 'signal-noise-tools' ),
-		__( 'Analytics', 'signal-noise-tools' ),
+		__( 'Analytics', 'signal-and-noise-tools' ),
+		__( 'Analytics', 'signal-and-noise-tools' ),
 		'manage_options',
 		'sn-analytics',
 		'snt_analytics_dashboard_page'
@@ -58,7 +58,7 @@ add_action( 'admin_menu', 'snt_analytics_register_dashboard_page', 11 );
  */
 function snt_analytics_dashboard_page() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'signal-noise-tools' ) );
+		wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'signal-and-noise-tools' ) );
 	}
 
 	echo '<div class="wrap">';

@@ -173,7 +173,7 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 				true
 			);
 			if ( function_exists( 'wp_set_script_translations' ) ) {
-				wp_set_script_translations( 'snt-health-suggest-actions', 'signal-noise-tools' );
+				wp_set_script_translations( 'snt-health-suggest-actions', 'signal-and-noise-tools' );
 			}
 		}
 

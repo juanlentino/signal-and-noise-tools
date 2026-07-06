@@ -49,7 +49,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	if ( ! in_array( $migration_type, SNT_BLOCK_MIGRATIONS_VALID_TYPES, true ) ) {
 		return new WP_Error(
 			'snt_block_migration_invalid_type',
-			__( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-noise-tools' ),
+			__( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -58,7 +58,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	if ( ! $post ) {
 		return new WP_Error(
 			'snt_block_migration_post_not_found',
-			__( 'Post not found.', 'signal-noise-tools' ),
+			__( 'Post not found.', 'signal-and-noise-tools' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -69,7 +69,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	if ( null === $match ) {
 		return new WP_Error(
 			'snt_block_migration_candidate_not_found',
-			__( 'Candidate block not found in current post content. Re-run scan.', 'signal-noise-tools' ),
+			__( 'Candidate block not found in current post content. Re-run scan.', 'signal-and-noise-tools' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -80,7 +80,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 		// Defensive — invalid type was already gated above. Defense-in-depth.
 		return new WP_Error(
 			'snt_block_migration_invalid_type',
-			__( 'Unknown migration_type.', 'signal-noise-tools' ),
+			__( 'Unknown migration_type.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}

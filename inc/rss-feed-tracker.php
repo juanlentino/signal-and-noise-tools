@@ -331,6 +331,7 @@ function sn_rss_tracker_window_stats_multi( array $days_list ) {
 		$selects[] = "COUNT(DISTINCT CASE WHEN ts >= UTC_TIMESTAMP() - INTERVAL {$d} DAY THEN ua_hash END) AS uniq_{$d}";
 	}
 
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $selects is composed solely of hardcoded aggregate expressions with (int)-cast, 1..365-clamped day intervals; $table is $wpdb->prefix + a plugin constant.
 	$row = $wpdb->get_row(
 		"SELECT " . implode( ', ', $selects )
 		. " FROM {$table}"
@@ -541,7 +542,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<p class="submit">';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_SAVE ) . '" class="button button-primary">Save Settings</button> ';
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-noise-tools' ) . '">Reset to Defaults</button>';
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>';
 	echo '</p>';
 	echo '</form>';
 }
@@ -582,7 +583,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '</div>';
 	echo '<p class="submit sn-submit--tight">';
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
 	echo '</p>';
 	echo '</form>';
 	echo '</div>';

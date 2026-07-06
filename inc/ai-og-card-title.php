@@ -92,7 +92,7 @@ function snt_ai_og_card_title_impl( $post_id ) {
 	if ( ! current_user_can( 'edit_post', (int) $post_id ) ) {
 		return new WP_Error(
 			'snt_ai_og_card_title_forbidden',
-			__( 'You cannot edit this post.', 'signal-noise-tools' ),
+			__( 'You cannot edit this post.', 'signal-and-noise-tools' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -121,7 +121,7 @@ function snt_ai_og_card_title_write( $post_id ) {
 	if ( ! $post ) {
 		return new WP_Error(
 			'snt_ai_post_not_found',
-			__( 'Post not found.', 'signal-noise-tools' ),
+			__( 'Post not found.', 'signal-and-noise-tools' ),
 			array( 'status' => 404 )
 		);
 	}
@@ -210,6 +210,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_enqueue_script( 'snt-ai-og-card-title' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-og-card-title', 'signal-noise-tools' );
+		wp_set_script_translations( 'snt-ai-og-card-title', 'signal-and-noise-tools' );
 	}
 } );

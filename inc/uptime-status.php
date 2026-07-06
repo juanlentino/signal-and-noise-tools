@@ -537,7 +537,7 @@ add_action( 'wp_abilities_api_init', function () {
  */
 function sn_uptime_status_mount_html() {
 	return '<div class="sn-uptime-status" data-sn-uptime-status>'
-		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-noise-tools' ) . '</p>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-and-noise-tools' ) . '</p>'
 		. '</div>';
 }
 
@@ -551,14 +551,14 @@ function sn_uptime_status_mount_html() {
  */
 function sn_uptime_status_token_field_html() {
 	$html = '<div class="sn-field sn-field-w-lg">';
-	$html .= '<label class="sn-field-label" for="sn_betterstack_token">' . esc_html__( 'Better Stack API token (optional)', 'signal-noise-tools' ) . '</label>';
+	$html .= '<label class="sn-field-label" for="sn_betterstack_token">' . esc_html__( 'Better Stack API token (optional)', 'signal-and-noise-tools' ) . '</label>';
 	if ( defined( 'SN_BETTERSTACK_API_TOKEN' ) && SN_BETTERSTACK_API_TOKEN ) {
 		$html .= '<input type="text" id="sn_betterstack_token" value="' . esc_attr( '••••' ) . '" disabled class="sn-mono">';
-		$html .= '<p class="sn-field-helper"><strong>' . esc_html__( 'Locked.', 'signal-noise-tools' ) . '</strong> ' . esc_html__( 'Set via', 'signal-noise-tools' ) . ' <code>SN_BETTERSTACK_API_TOKEN</code> ' . esc_html__( 'in', 'signal-noise-tools' ) . ' <code>wp-config.php</code>.</p>';
+		$html .= '<p class="sn-field-helper"><strong>' . esc_html__( 'Locked.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Set via', 'signal-and-noise-tools' ) . ' <code>SN_BETTERSTACK_API_TOKEN</code> ' . esc_html__( 'in', 'signal-and-noise-tools' ) . ' <code>wp-config.php</code>.</p>';
 	} else {
 		$obscured = sn_mask_secret( (string) get_option( SN_UPTIME_STATUS_TOKEN_OPT, '' ) );
-		$html .= '<input type="text" id="sn_betterstack_token" name="sn_betterstack_token" value="' . esc_attr( $obscured ) . '" placeholder="' . esc_attr__( 'Paste a fresh token to update; type \'clear\' to remove', 'signal-noise-tools' ) . '" class="sn-mono">';
-		$html .= '<p class="sn-field-helper">' . esc_html__( 'Uptime API token (read scope is enough). Powers the in-admin status panel: the dashboard widget and the rail on this tab. Leave the obscured value alone to keep the existing token.', 'signal-noise-tools' ) . '</p>';
+		$html .= '<input type="text" id="sn_betterstack_token" name="sn_betterstack_token" value="' . esc_attr( $obscured ) . '" placeholder="' . esc_attr__( 'Paste a fresh token to update; type \'clear\' to remove', 'signal-and-noise-tools' ) . '" class="sn-mono">';
+		$html .= '<p class="sn-field-helper">' . esc_html__( 'Uptime API token (read scope is enough). Powers the in-admin status panel: the dashboard widget and the rail on this tab. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	$html .= '</div>';
 	return $html;

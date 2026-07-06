@@ -264,7 +264,7 @@ function snt_insights_render_recommendations_section( $last ) {
 		}
 		echo '<button type="submit" name="sn_action" value="insights_snooze" class="button button-small">Snooze 30d</button> ';
 		// v4.1.1 (U-01): data-snt-confirm attribute (not inline onclick).
-		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
+		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
 		echo '</form>';
 
 		echo '</div>';

@@ -43,7 +43,7 @@ function sn_uptime_status_health_section() {
 		return '';
 	}
 	return '<div class="sn-uw-section">'
-		. '<p class="sn-uw-head">' . esc_html__( 'Uptime', 'signal-noise-tools' ) . '</p>'
+		. '<p class="sn-uw-head">' . esc_html__( 'Uptime', 'signal-and-noise-tools' ) . '</p>'
 		. sn_uptime_status_mount_html()
 		. '</div>';
 }
@@ -66,11 +66,11 @@ function sn_uptime_status_rail_strip() {
 		return '';
 	}
 	ob_start();
-	snt_an_panel_open( __( 'Uptime', 'signal-noise-tools' ), array(
+	snt_an_panel_open( __( 'Uptime', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rail-tile sn-uptime-strip',
 	) );
 	echo '<div class="sn-uptime-status" data-sn-uptime-status>'
-		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-noise-tools' ) . '</p>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-and-noise-tools' ) . '</p>'
 		. '</div>';
 	snt_an_panel_close();
 	return (string) ob_get_clean();
@@ -89,13 +89,13 @@ function sn_uptime_status_detail_panel() {
 		return '';
 	}
 	ob_start();
-	snt_an_panel_open( __( 'Uptime detail', 'signal-noise-tools' ), array(
+	snt_an_panel_open( __( 'Uptime detail', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-uptime-monitor',
 		'collapsible' => true,
 		'collapsed'   => true,
 	) );
 	echo '<div class="sn-uptime-status" data-sn-uptime-lazy-detail>'
-		. '<p class="sn-uw-loading">' . esc_html__( 'Expand to load monitor detail…', 'signal-noise-tools' ) . '</p>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Expand to load monitor detail…', 'signal-and-noise-tools' ) . '</p>'
 		. '</div>';
 	snt_an_panel_close();
 	return (string) ob_get_clean();
