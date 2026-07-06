@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.1] - 2026-07-06: Locale-safe float binding in the analytics rollups
+
+**Headline:** The two batched-upsert rollups now bind their `FLOAT` columns as `number_format()`'d dot-decimal strings (`%s`) instead of `%f` placeholders. `%f` routes through `$wpdb->prepare()`'s `vsprintf()`, which honours `LC_NUMERIC`: on a server whose locale uses a comma decimal separator (de_DE, pt_BR, …) it renders `1.50` as `1,50` and emits corrupt, invalid SQL. The bug was latent — masked only because the current server locale uses `.` — and predates the v8.8.0 session feature: it affected the existing `inc/analytics-rollup.php` (`scroll_avg`, `time_avg`) as well as the new `inc/analytics-session-rollup.php` (`bounce_pct`, `ppv`), so both were fixed together to keep the shared pattern in lockstep.
+
+> **Why PATCH:** correctness fix to the generated SQL of two internal cron rollups; no new capability, route, ability, option, or schema change. Values still land in the same `FLOAT` columns — MySQL coerces the quoted numeric string on the way in.
+
+### Fixed
+- `inc/analytics-rollup.php` and `inc/analytics-session-rollup.php`: `%f` placeholders replaced with `number_format( $value, 2, '.', '' )` bound via `%s`, making each batched `INSERT … ON DUPLICATE KEY UPDATE` locale-independent. The explicit empty thousands separator also stops a large `time_avg` (ms) from picking up a stray grouping comma. Covered by new locale-regression assertions in `tests/analytics-rollup.php` and `tests/analytics-session-rollup.php`, which set `LC_NUMERIC=de_DE.UTF-8` to prove the emitted SQL stays dot-decimal.
+
 ## [8.8.0] - 2026-07-06: Cookieless within-day visits & conversion
 
 **Headline:** A new Dashboard → Analytics "Visits" view reads the existing cookieless `sn_pageviews` Analytics Engine data as within-day visits — visit quality (bounce, pages/visit, median duration), engaged-read rate (scroll ≥50% + dwell ≥15s), top page-to-page transitions, and auto-derived conversion funnels (surfacing `ce` events, including token-authed `srv:1` server events like the RSS feed tracker). Visits group the daily-rotating `index1` hash WITHIN a single UTC day only and reset at midnight — no cookie, no cross-day identity, no consent trigger. A nightly rollup persists per-day visit quality beyond Analytics Engine's ~90-day raw retention. Client-side goal-click events are a separate theme change (tracked independently).

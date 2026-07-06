@@ -138,8 +138,22 @@ function sn_session_rollup_upsert( $clean ) {
 		$placeholders = array();
 		$values       = array();
 		foreach ( $chunk as $c ) {
-			$placeholders[] = '(%s, %s, %d, %f, %f, %d)';
-			array_push( $values, $c['day'], $c['class'], $c['visits'], $c['bounce_pct'], $c['ppv'], $c['median_dur'] );
+			// bounce_pct / ppv bind as %s carrying a number_format()'d string, NOT
+			// %f. %f routes through $wpdb->prepare()'s vsprintf(), which honours
+			// LC_NUMERIC — under a comma-decimal server locale (de_DE, pt_BR, …) it
+			// would emit "1,50" and corrupt the SQL. number_format( …, '.', '' )
+			// forces a '.' decimal and an empty thousands separator regardless of
+			// locale, and MySQL coerces the quoted numeric string into the FLOAT column.
+			$placeholders[] = '(%s, %s, %d, %s, %s, %d)';
+			array_push(
+				$values,
+				$c['day'],
+				$c['class'],
+				$c['visits'],
+				number_format( (float) $c['bounce_pct'], 2, '.', '' ),
+				number_format( (float) $c['ppv'], 2, '.', '' ),
+				$c['median_dur']
+			);
 		}
 		$sql = "INSERT INTO {$table} (day, class, visits, bounce_pct, ppv, median_dur) VALUES "
 			. implode( ', ', $placeholders )

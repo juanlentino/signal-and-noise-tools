@@ -240,8 +240,23 @@ function sn_analytics_rollup_upsert( $rows ) {
 		$placeholders = array();
 		$values       = array();
 		foreach ( $chunk as $c ) {
-			$placeholders[] = '(%s, %s, %s, %d, %d, %f, %f)';
-			array_push( $values, $c['day'], $c['path'], $c['class'], $c['views'], $c['visits'], $c['scroll_avg'], $c['time_avg'] );
+			// scroll_avg / time_avg bind as %s carrying a number_format()'d string,
+			// NOT %f. %f routes through $wpdb->prepare()'s vsprintf(), which honours
+			// LC_NUMERIC — under a comma-decimal server locale (de_DE, pt_BR, …) it
+			// would emit "1,50" and corrupt the SQL. number_format( …, '.', '' )
+			// forces a '.' decimal and an empty thousands separator regardless of
+			// locale, and MySQL coerces the quoted numeric string into the FLOAT column.
+			$placeholders[] = '(%s, %s, %s, %d, %d, %s, %s)';
+			array_push(
+				$values,
+				$c['day'],
+				$c['path'],
+				$c['class'],
+				$c['views'],
+				$c['visits'],
+				number_format( (float) $c['scroll_avg'], 2, '.', '' ),
+				number_format( (float) $c['time_avg'], 2, '.', '' )
+			);
 		}
 		$sql = "INSERT INTO {$table} (day, path, class, views, visits, scroll_avg, time_avg) VALUES "
 			. implode( ', ', $placeholders )
