@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.7.4] - 2026-07-06: Freshness card reads the verified verdict
+
+**Headline:** The Dashboard "Caches" card's last-purge line now shows the theme's authoritative freshness verdict (`✓ verified fresh` or `✕ stale, purge needed`) instead of the raw per-leg dispatch result (`Varnish ✕ · CF dispatched`), which read as failure even when the edge ended up fresh, contradicting the `N/M fresh` value above it. While an auto-purge waits on its deferred verify cron (theme v10.25.0) the line reads `verifying…`; legacy legs-only reports still fall back to the per-leg line. `snt_freshness_report_meta()` now reads the report's `resolved` field.
+
+> **Why PATCH:** presentation/correctness fix to one admin card line; reads an existing report field, no new capability, route, ability, schema, or option change.
+
+### Fixed
+- The "Caches" card last-purge line surfaced the raw per-leg dispatch result (e.g. `Varnish ✕ · CF dispatched`) even when the routes verified fresh, contradicting the card's own `N/M fresh` value. It now prefers the theme's `resolved` verdict, reads `verifying…` while an auto-purge's cron is pending, and keeps the per-leg fallback for legacy reports (`inc/freshness-indicator.php`). Coverage added in `tests/freshness-indicator.php`.
+
 ## [8.7.3] - 2026-07-06: Freshness card shows N/M routes fresh
 
 **Headline:** The Dashboard "Caches" glance card now reads the fresh fraction consistently — `N/M fresh` (e.g. "3/3 fresh", "1/3 fresh") as the primary value, with the pill carrying the actionable state (`N stale · purge needed`, `all fresh`, or `N unknown`). Previously the fraction appeared only in the all-fresh case (as the pill "3/3") while a partial-stale showed a bare stale count. Display-only: the per-route canonical-vs-cache-busted check in `assets/freshness-dot.js` is unchanged. This is the plugin half of the Tier-2 verified-purge follow-ups (the theme half — a deferred cron that verifies auto-purge freshness — is separate).

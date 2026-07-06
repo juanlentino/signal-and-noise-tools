@@ -66,41 +66,56 @@ function snt_freshness_card() {
 }
 
 /**
- * Compact escaped summary of the theme's last verified purge (sn_last_purge_report
- * — theme writes, plugin reads). Empty string when no report exists yet or the
- * stored value is malformed (fail-safe: the card simply omits the line). Passed
- * through wp_kses_post by sn_admin_glance_grid, so plain esc_html'd text is safe.
+ * Compact escaped summary of the theme's last purge (sn_last_purge_report — theme
+ * writes, plugin reads). Prefers the authoritative freshness VERDICT: a report the
+ * theme has probed (a verified purge inline, or an auto-purge its deferred cron has
+ * since verified, v10.25.0) carries `resolved`, which supersedes the raw per-leg
+ * dispatch result — a leg can read ✕ even when the edge ended up fresh, which is
+ * confusing next to the "N/M fresh" card value. While an auto-purge waits on its
+ * verify cron the line reads "verifying…"; legacy legs-only reports fall back to the
+ * per-leg line. Empty string when there is no report or it is malformed (fail-safe:
+ * the card omits the line). Passed through wp_kses_post by sn_admin_glance_grid, so
+ * plain esc_html'd text is safe.
  *
  * @return string
  */
 function snt_freshness_report_meta() {
 	$r = get_option( 'sn_last_purge_report', array() );
-	if ( ! is_array( $r ) || empty( $r ) || empty( $r['legs'] ) || ! is_array( $r['legs'] ) ) {
+	if ( ! is_array( $r ) || empty( $r ) ) {
 		return '';
-	}
-
-	$parts = array();
-
-	// Varnish leg — the Cloudways confirmation.
-	$v = isset( $r['legs']['varnish'] ) && is_array( $r['legs']['varnish'] ) ? $r['legs']['varnish'] : array();
-	if ( 'cloudways' === ( $v['via'] ?? '' ) ) {
-		$parts[] = 'Varnish ' . ( ! empty( $v['ok'] ) ? '✓' : '✕' );
-	}
-
-	// CF leg — confirmed on a verified purge, else dispatched-but-unconfirmed.
-	$cf = isset( $r['legs']['cf'] ) && is_array( $r['legs']['cf'] ) ? $r['legs']['cf'] : array();
-	if ( array_key_exists( 'cf_success', $cf ) ) {
-		$parts[] = 'CF ' . ( ! empty( $cf['cf_success'] ) ? '✓' : '✕' );
-	} elseif ( ! empty( $cf['dispatched'] ) ) {
-		$parts[] = 'CF dispatched';
 	}
 
 	$when = '';
 	if ( ! empty( $r['time'] ) && function_exists( 'human_time_diff' ) ) {
 		$when = ' ' . human_time_diff( (int) $r['time'], time() ) . ' ago';
 	}
-
 	$line = 'Last purge' . $when;
+
+	// A probed report carries the authoritative verdict — prefer it over raw legs.
+	if ( array_key_exists( 'resolved', $r ) ) {
+		return esc_html( $line . ' · ' . ( ! empty( $r['resolved'] ) ? '✓ verified fresh' : '✕ stale, purge needed' ) );
+	}
+
+	// An auto-purge whose deferred verify cron has not run yet.
+	if ( 'auto' === ( $r['mode'] ?? '' ) ) {
+		return esc_html( $line . ' · verifying…' );
+	}
+
+	// Fallback: a legacy legs-only report — the per-leg dispatch result.
+	if ( empty( $r['legs'] ) || ! is_array( $r['legs'] ) ) {
+		return esc_html( $line );
+	}
+	$parts = array();
+	$v     = isset( $r['legs']['varnish'] ) && is_array( $r['legs']['varnish'] ) ? $r['legs']['varnish'] : array();
+	if ( 'cloudways' === ( $v['via'] ?? '' ) ) {
+		$parts[] = 'Varnish ' . ( ! empty( $v['ok'] ) ? '✓' : '✕' );
+	}
+	$cf = isset( $r['legs']['cf'] ) && is_array( $r['legs']['cf'] ) ? $r['legs']['cf'] : array();
+	if ( array_key_exists( 'cf_success', $cf ) ) {
+		$parts[] = 'CF ' . ( ! empty( $cf['cf_success'] ) ? '✓' : '✕' );
+	} elseif ( ! empty( $cf['dispatched'] ) ) {
+		$parts[] = 'CF dispatched';
+	}
 	if ( $parts ) {
 		$line .= ' · ' . implode( ' · ', $parts );
 	}
