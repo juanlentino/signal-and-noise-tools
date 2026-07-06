@@ -1,0 +1,14 @@
+# Local secret scanning before every commit. Dev-only; never shipped in the
+# plugin artifact. Uses the same gitleaks ruleset + .gitleaks.toml allowlist as CI.
+#
+# One-time setup:
+#   pipx install pre-commit   # or: brew install pre-commit
+#   pre-commit install
+#
+# Manual full-history scan:
+#   gitleaks detect --source .
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
