@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.3] - 2026-07-06: Locale-safe float binding in the analytics rollups
+
+**Headline:** Both analytics rollup upserts bound their FLOAT columns with `%f` placeholders through `$wpdb->prepare()`, which routes through `vsprintf()` and honours `LC_NUMERIC`. On a comma-decimal server locale (de_DE, pt_BR, …) `%f` renders `58.5` as `58,5`, corrupting the generated SQL. `scroll_avg`/`time_avg` (`inc/analytics-rollup.php`) and `bounce_pct`/`ppv` (`inc/analytics-session-rollup.php`) now bind as `number_format( …, 2, '.', '' )` dot-decimal strings via `%s`, so the SQL is identical regardless of the server locale (MySQL coerces the quoted numeric string into the FLOAT column). Regression pinned with a `de_DE`-locale test in both suites.
+
+> **Why PATCH:** latent correctness fix to two DB writers; no new capability, route, ability, schema, or option change. (Reconciled from a mis-based PR — the original #186 merged into an already-squashed, deleted branch and never reached `main`.)
+
+### Fixed
+- `sn_analytics_rollup_upsert()` and `sn_session_rollup_upsert()` used locale-sensitive `%f` binding for float columns, which would corrupt the INSERT under a comma-decimal `LC_NUMERIC`. Both now bind locale-independent dot-decimal strings. Coverage added in `tests/analytics-rollup.php` and `tests/analytics-session-rollup.php`.
+
 ## [8.8.2] - 2026-07-06: Fix Visits view Analytics Engine query (DateTime typing)
 
 **Headline:** The v8.8.0 "Visits" view (and its nightly rollup) always failed with an Analytics Engine **HTTP 422** and rendered no data. AE's SQL is strictly typed: it rejects comparing the `DateTime` `timestamp` column against String literals, and it resolves `ORDER BY` against SELECT *aliases* rather than raw columns — so both the `timestamp >= '<string>'` bounds and the `ORDER BY index1, timestamp` clause were invalid. The window bounds are now wrapped in `toDateTime()`, and the redundant `ORDER BY` is dropped (`sn_sessionize()` already sorts each visitor's events by timestamp in PHP). Verified end-to-end against the live AE dataset (200, rows returned).
