@@ -15,6 +15,11 @@ updates:
         patterns: ["*"]   # one grouped PR per week instead of one per action
     commit-message:
       prefix: "ci"
+    ignore:
+      # Honor the explicit gitleaks-action@v2 pin — hold it on the v2 line
+      # instead of auto-jumping to a new major (v3 was reverted deliberately).
+      - dependency-name: "gitleaks/gitleaks-action"
+        update-types: ["version-update:semver-major"]
 
   # Composer dev tooling only (phpcs, WPCS, PHPCompatibility, phpstan-wordpress,
   # wp-stubs, security-advisories). The plugin has no runtime Composer deps.
