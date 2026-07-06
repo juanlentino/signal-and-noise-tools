@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.4] - 2026-07-06: Visits view — real visits + cohesive KPI cards
+
+**Headline:** The Visits view counted every within-day `index1` group as a "visit", so RSS feed-readers polling the endpoint (server `srv:1`/`ce` events — no pageview, gap-split hourly into separate groups) inflated the count: it read "106 visits · 0.32 pages/visit · 95% bounce" when the reality was ~12 human visits at ~3.5 pages each. A **visit now requires at least one pageview**; pageview-less server/RSS and orphan scroll/timing groups are excluded (they remain in the Events view). Visually, the visit-quality metrics now render as the same **KPI cards** as the Overview strip (`sn-kpi-row`) instead of a bare label/value list, and the doubled "Page → next page" heading is retitled "Top paths".
+
+> **Why PATCH:** corrects a metric-counting bug and aligns the view's styling with the dashboard; no new capability, route, ability, schema, or option change.
+
+### Fixed
+- A "visit" now requires ≥1 pageview (`sn_pageview_visits()`), so RSS/`srv:1` server events and orphan scroll/timing beacons no longer inflate visits, bounce rate, pages/visit, or median duration (`inc/analytics-sessions.php`, `inc/analytics-view-sessions.php`). Coverage in `tests/analytics-sessions.php`.
+
+### Changed
+- Visit-quality metrics render as cohesive `sn-kpi` cards matching the Overview strip; the transitions panel is retitled "Top paths" (`inc/analytics-view-sessions.php`).
+
 ## [8.8.3] - 2026-07-06: Locale-safe float binding in the analytics rollups
 
 **Headline:** Both analytics rollup upserts bound their FLOAT columns with `%f` placeholders through `$wpdb->prepare()`, which routes through `vsprintf()` and honours `LC_NUMERIC`. On a comma-decimal server locale (de_DE, pt_BR, …) `%f` renders `58.5` as `58,5`, corrupting the generated SQL. `scroll_avg`/`time_avg` (`inc/analytics-rollup.php`) and `bounce_pct`/`ppv` (`inc/analytics-session-rollup.php`) now bind as `number_format( …, 2, '.', '' )` dot-decimal strings via `%s`, so the SQL is identical regardless of the server locale (MySQL coerces the quoted numeric string into the FLOAT column). Regression pinned with a `de_DE`-locale test in both suites.

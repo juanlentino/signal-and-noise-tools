@@ -179,6 +179,28 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 }
 
 /**
+ * Keep only visits that contain at least one pageview.
+ *
+ * A "visit" = a within-day index1 group with >= 1 pageview. Groups made only of
+ * server events (srv:1 / RSS ce), scroll, or timing beacons with NO pageview are
+ * not visits and belong to the Events view — an RSS feed reader polling hourly
+ * would otherwise gap-split into dozens of phantom pageview-less "visits" and
+ * corrupt bounce / pages-per-visit / median-duration.
+ *
+ * @param array $summaries Visit summaries from sn_visit_summary().
+ * @return array Re-indexed list of summaries with pageviews >= 1.
+ */
+function sn_pageview_visits( array $summaries ) {
+	$visits = array();
+	foreach ( $summaries as $s ) {
+		if ( (int) ( $s['pageviews'] ?? 0 ) >= 1 ) {
+			$visits[] = $s;
+		}
+	}
+	return $visits;
+}
+
+/**
  * Aggregate visit-quality metrics from a list of visit summaries.
  *
  * @param array $summaries Visit summaries from sn_visit_summary().
