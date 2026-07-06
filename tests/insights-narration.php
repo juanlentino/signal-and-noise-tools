@@ -171,7 +171,7 @@ eq( 6, count( $p['highlights'] ), 'highlights capped at 6' );
 echo "\nTest 7: system instruction carries the cookieless guard\n";
 $sys = snt_narration_system_instruction();
 ok( false !== stripos( $sys, 'COOKIELESS' ), 'mentions COOKIELESS' );
-ok( false !== stripos( $sys, 'never infer or mention sessions' ), 'forbids inferring sessions/journeys' );
+ok( false !== stripos( $sys, 'new-vs-returning' ), 'forbids new-vs-returning / cross-day identity' );
 ok( false !== stripos( $sys, 'Output JSON only' ), 'JSON-only instruction present' );
 
 // ── Test 8: collect_signals machine block graceful ──
