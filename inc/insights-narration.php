@@ -215,7 +215,7 @@ Rules:
 - Mention machine/bot traffic or blocked threats ONLY if the "machine" block is present in the data.
 - Mention page-experience / Core Web Vitals ONLY if the "cwv" block is present. good_pct/poor_pct are the share of page-loads in Google's Good/Poor band for that metric this window.
 - Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
-- COOKIELESS DATA — this site has no per-visitor identity. NEVER infer or mention sessions, user journeys, new-vs-returning visitors, funnels, or per-person paths. "visits" is a per-day visitor-count approximation, not a tracked identity, and cannot be followed across days. Describe only aggregate counts and rates.
+- COOKIELESS DATA — visit metrics (bounce rate, pages/visit, engaged-read %, funnel completion) are WITHIN-DAY aggregates only; describe them as aggregate rates. A "visit" resets at UTC midnight and is never a cross-day identity. NEVER infer or mention new-vs-returning visitors, per-person identity, or following any individual across days.
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
 }
