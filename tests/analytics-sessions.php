@@ -119,5 +119,15 @@ $order = array( vs_events( array( ev( 'E', 0, 'ce', '/home', 'subscribe' ), ev( 
 $rep2  = sn_funnel_report( $order, $funnel );
 ok( 0 === $rep2[2]['reached'], 'subscribe before step 2 does not complete the funnel' );
 
+echo "\nGroup: sn_analytics_session_sql\n";
+$sql = sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'human', 50000 );
+ok( false !== strpos( $sql, 'FROM sn_pageviews' ), 'targets the sn_pageviews dataset' );
+ok( false !== strpos( $sql, "blob7 = 'human'" ), 'filters the requested traffic class' );
+ok( false !== strpos( $sql, "'2026-06-01 00:00:00'" ) && false !== strpos( $sql, "'2026-06-30 23:59:59'" ), 'bounds the window by date' );
+ok( false !== strpos( $sql, 'ORDER BY index1' ), 'orders by visitor then time' );
+ok( false !== strpos( $sql, 'LIMIT 50000' ), 'applies the row cap' );
+ok( '' === sn_analytics_session_sql( 'not-a-date', '2026-06-30', 'human', 100 ), 'bad from-date rejected → empty SQL' );
+ok( '' === sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'robot', 100 ), 'non-whitelisted class rejected → empty SQL' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

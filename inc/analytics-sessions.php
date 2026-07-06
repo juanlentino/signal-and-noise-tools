@@ -308,3 +308,72 @@ function sn_funnel_report( array $summaries, array $funnel ) {
 	}
 	return $out;
 }
+
+/**
+ * Build the AE SQL that pulls raw human events for sessionization. Returns ''
+ * (so the caller no-ops) if the window or class is invalid. class is strictly
+ * whitelisted and dates are format-validated — the only interpolated values —
+ * so the string is injection-safe against the AE SQL API.
+ *
+ * @param string $from  Window start, 'Y-m-d'.
+ * @param string $to    Window end, 'Y-m-d'.
+ * @param string $class Traffic class (human/suspect/bot).
+ * @param int    $cap   Row cap (LIMIT).
+ * @return string SQL, or '' when inputs are invalid.
+ */
+function sn_analytics_session_sql( $from, $to, $class, $cap ) {
+	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from )
+		|| 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
+		return '';
+	}
+	$allowed = defined( 'SN_ANALYTICS_CLASSES' ) ? SN_ANALYTICS_CLASSES : array( 'human', 'suspect', 'bot' );
+	if ( ! in_array( (string) $class, $allowed, true ) ) {
+		return '';
+	}
+	$cap     = max( 1, (int) $cap );
+	$dataset = defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews';
+
+	return implode(
+		' ',
+		array(
+			'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts,',
+			'blob1 AS ev, blob2 AS path, blob3 AS ref, blob16 AS ce,',
+			'double1 AS scroll, double2 AS dwell',
+			'FROM ' . $dataset,
+			"WHERE timestamp >= '{$from} 00:00:00' AND timestamp <= '{$to} 23:59:59'",
+			"AND blob7 = '{$class}'",
+			"AND blob1 IN ('pv','sc','tm','ce')",
+			'ORDER BY index1, timestamp',
+			"LIMIT {$cap}",
+		)
+	);
+}
+
+/**
+ * Fetch + sessionize + summarize a window into visit summaries. Returns an
+ * array with the summaries plus a 'capped' flag (true when the row cap was hit,
+ * so the view can warn instead of silently truncating).
+ *
+ * @param string $from  Window start, 'Y-m-d'.
+ * @param string $to    Window end, 'Y-m-d'.
+ * @param string $class Traffic class.
+ * @return array{summaries:array,visits:array,capped:bool,configured:bool}
+ */
+function sn_analytics_fetch_session_events( $from, $to, $class ) {
+	$cfg = sn_analytics_session_config();
+	$sql = sn_analytics_session_sql( $from, $to, $class, $cfg['row_cap'] );
+	if ( '' === $sql || ! function_exists( 'sn_analytics_query' ) ) {
+		return array( 'summaries' => array(), 'visits' => array(), 'capped' => false, 'configured' => false );
+	}
+	$rows = sn_analytics_query( $sql );
+	if ( ! is_array( $rows ) ) {
+		return array( 'summaries' => array(), 'visits' => array(), 'capped' => false, 'configured' => false );
+	}
+	$capped = count( $rows ) >= $cfg['row_cap'];
+	$visits = sn_sessionize( $rows, $cfg['gap_sec'] );
+	$summaries = array();
+	foreach ( $visits as $v ) {
+		$summaries[] = sn_visit_summary( $v, $cfg['engaged_scroll'], $cfg['engaged_ms'] );
+	}
+	return array( 'summaries' => $summaries, 'visits' => $visits, 'capped' => $capped, 'configured' => true );
+}
