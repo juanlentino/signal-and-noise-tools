@@ -1,0 +1,71 @@
+# Gitleaks configuration — signal-and-noise-tools
+#
+# Dev/CI only. This file is never bundled into the WordPress plugin artifact.
+# It layers a narrow allowlist on top of gitleaks' full upstream ruleset so
+# known-safe identifiers, test fixtures, and documentation placeholders don't
+# produce false positives — while any real secret-shaped value in SHIPPED code
+# is still reported.
+#
+# This repo is intentionally PUBLIC and references real secrets by name (the GHA
+# SSH_PRIVATE_KEY, the four SN_CLOUDWAYS_* wp-config constants, Cloudflare
+# secrets), so a committed token is a genuine risk this scan closes.
+#
+# Verify locally:  gitleaks detect --source .        # full git history
+#                  gitleaks detect --source . --no-git   # working tree
+
+title = "signal-and-noise-tools"
+
+# Inherit gitleaks' complete default ruleset; we only add an allowlist below.
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Allow known-safe locations and identifiers only. Shipped code (inc/, blocks/,
+root PHP, README) is fully scanned and trips on any real secret-shaped value.
+"""
+
+# Path allowlist — locations that hold fake secrets / third-party code by design
+# and never ship in the plugin artifact.
+paths = [
+  # Test fixtures: unit tests assign deliberately-fake tokens (e.g.
+  # sk_live_0123456789abcdef, tok-abcdef123456) to exercise masking/redaction.
+  # Their shapes are indistinguishable from real keys, so path-allowlist them —
+  # this mirrors .github/workflows/security-review.yml (exclude-directories: tests).
+  '''(^|/)tests/''',
+  # Third-party dependencies (gitignored) — vendored code full of function names
+  # that trip generic-api-key (e.g. phpcs/phpstan phars → sodium_crypto_*).
+  '''(^|/)vendor/''',
+  '''(^|/)node_modules/''',
+  # Internal planning artifacts: command examples and placeholder credentials
+  # (e.g. curl -u 'subscriber-username:app-password'). Not shipped, not code.
+  '''(^|/)docs/superpowers/plans/''',
+  # Claude Code local state (gitignored): settings.local.json records dev
+  # command history that can include curl auth examples. Never committed.
+  '''(^|/)\.claude/''',
+  # This config's own regex patterns spell out the constant names — don't self-flag.
+  '''\.gitleaks\.toml$''',
+]
+
+# Value allowlist — matched against the captured SECRET (gitleaks' default
+# target), so a real high-entropy value assigned to any of these still trips.
+# Patterns tolerate surrounding quotes because some rules (e.g. curl-auth-user)
+# capture the quoted argument.
+regexes = [
+  # 1. wp-config / deploy constant NAMES — public identifiers, never secrets.
+  #    Fires only when the captured secret is the identifier token itself; a
+  #    random API key never contains an UPPER_SNAKE identifier.
+  '''(?:SN_CLOUDWAYS|CLOUDWAYS|SN_MCP)_[A-Z0-9_]+''',
+
+  # 2. Internal cache / transient / option / hook key names (all sn_-prefixed,
+  #    lowercase snake_case). Kills generic-api-key FPs on `$cache_key = 'sn_…'`.
+  #    A real secret is never a readable lowercase-underscore identifier.
+  '''^['"]?sn_[a-z0-9_]+['"]?$''',
+
+  # 3. curl basic-auth placeholder in REST checklists:
+  #    curl -u 'subscriber-username:app-password' …  (no real secret contains this).
+  '''(?i)app-password''',
+
+  # 4. Documentation placeholder values — obvious non-secrets.
+  '''(?i)^['"]?(?:…|\.{3}|x{3,}|placeholder|changeme|redacted|dummy|sample|example|your[-_ ]?(?:api[-_ ]?)?(?:key|token|secret|value)?)['"]?$''',
+]
