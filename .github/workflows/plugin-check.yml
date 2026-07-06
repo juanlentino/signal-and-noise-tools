@@ -22,22 +22,24 @@ name: Plugin Check
 # plugin_review_phpcs security sweep (nonce / sanitize / escape output +
 # discouraged/forbidden functions) from `security`.
 #
-# NON-BLOCKING (continue-on-error) for this first cycle: the point is to gauge how
-# much the tuned ruleset actually fires on our tree. Findings show up in the job
-# log and the uploaded `plugin-check-results` artifact but do NOT fail the PR, so
-# the project's "never merge a red PR" rule is preserved while we calibrate.
-# FOLLOW-UP: once the noise is understood and any real findings are cleared,
-# promote this to a required check (remove continue-on-error) in a separate PR.
+# REQUIRED / BLOCKING (promoted from the #172 gauge cycle): the gauge run measured
+# the tuned ruleset, and #180 cleared all 328 ERROR-level findings (288 i18n
+# text-domain, 16 escaping, 12 SQL-parameter, 12 translators-comment), so this is
+# now a required check — `continue-on-error` is gone and any ERROR fails the PR.
+# Advisory WARNINGs are silenced (`ignore-warnings`): the 136
+# WordPress.DB.DirectDatabaseQuery.* hits are idiomatic for the plugin's custom
+# analytics tables (direct $wpdb by design, no object-cache layer), so only
+# genuine ERRORs gate. To actually BLOCK merge, add "WordPress Plugin Check" to
+# the branch-protection required checks in repo Settings.
 #
-# No secrets are used — the action authenticates with the default GITHUB_TOKEN —
-# so, unlike claude-review/security-review, this is safe on fork PRs and needs no
-# fork-guard.
+# ALWAYS-RUN (no `paths:` filter): a path-filtered job that is *also* a required
+# status check deadlocks any PR that doesn't touch the filtered paths (the check
+# never reports → merge stays blocked on a pending check). This repo gets exactly
+# those PRs (Dependabot bumps to other workflow files, CHANGELOG-only edits), so
+# the gate runs on every PR. It is cheap (~2 min), deterministic, and uses no
+# secrets (default GITHUB_TOKEN), so it is safe on fork PRs and needs no fork-guard.
 on:
   pull_request:
-    paths:
-      - '**.php'
-      - 'assets/**'
-      - '.github/workflows/plugin-check.yml'
   workflow_dispatch:
 
 permissions:
@@ -57,13 +59,6 @@ jobs:
       # signal-and-noise-tools.php main file.
       - name: Run Plugin Check (wp.org-submission categories filtered out)
         uses: WordPress/plugin-check-action@98a1788320d0add90df2d8183934ecccbc4e05d2 # v1.1.7
-        # Non-blocking gauge cycle — MUST be step-level, not job-level. Job-level
-        # continue-on-error only spares the overall workflow *run*; the job's own
-        # check still reports red on the PR (which would trip "never merge a red
-        # PR"). Step-level lets the action's findings surface (log + the uploaded
-        # plugin-check-results artifact) while the job concludes green. Remove
-        # this one line to promote plugin-check to a required, blocking check.
-        continue-on-error: true
         with:
           # Whitelist the meaningful categories. This opt-in drops the whole
           # `plugin_repo` (wp.org submission) category and stays correct even if
@@ -82,3 +77,16 @@ jobs:
             vendor
             node_modules
             tests
+          # phpstan-bootstrap.php is dev-only PHPStan tooling (referenced by
+          # phpstan.neon `bootstrapFiles`, NEVER loaded by WordPress). Its whole
+          # job is `defined('ABSPATH') || define('ABSPATH', '/')`, so the
+          # missing_direct_file_access_protection guard the check wants would make
+          # it exit before defining constants and break the PHPStan gate. Not
+          # shipped runtime code — exclude it from the scan entirely.
+          exclude-files: |
+            phpstan-bootstrap.php
+          # Advisory warnings do not gate a merge. The 136
+          # WordPress.DB.DirectDatabaseQuery.* WARNINGs are idiomatic for the
+          # plugin's custom analytics tables; only ERROR-level findings should
+          # fail the now-required check.
+          ignore-warnings: 'true'
