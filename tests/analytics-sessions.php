@@ -129,5 +129,12 @@ ok( false !== strpos( $sql, 'LIMIT 50000' ), 'applies the row cap' );
 ok( '' === sn_analytics_session_sql( 'not-a-date', '2026-06-30', 'human', 100 ), 'bad from-date rejected → empty SQL' );
 ok( '' === sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'robot', 100 ), 'non-whitelisted class rejected → empty SQL' );
 
+echo "\nGroup: sn_pageview_visits\n";
+$mix = array( array( 'pageviews' => 2 ), array( 'pageviews' => 0 ), array( 'pageviews' => 1 ) );
+$pvv = sn_pageview_visits( $mix );
+ok( 2 === count( $pvv ), 'drops pageview-less (server/RSS/orphan-beacon) groups' );
+ok( 2 === $pvv[0]['pageviews'] && 1 === $pvv[1]['pageviews'], 'keeps only pv-bearing visits, re-indexed' );
+ok( array() === sn_pageview_visits( array() ), 'empty input → empty' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
