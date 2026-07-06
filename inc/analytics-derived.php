@@ -279,3 +279,81 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		'top_bot_networks' => is_array( $networks ) ? $networks : array(),
 	);
 }
+
+/**
+ * Cross-metric per-path engagement anomalies for a window. Two kinds:
+ *  - divergence: pages whose scroll and dwell disagree (deep-scroll/fast-leave
+ *    "skim", or long-dwell/low-scroll "stall").
+ *  - outliers: pages >|Z| standard deviations from the per-metric mean across
+ *    the window's paths (scroll_avg, time_avg), high or low.
+ * Cookieless: reads only per-path daily aggregates. No identity, no cross-day.
+ *
+ * @param string $from  Y-m-d inclusive start.
+ * @param string $to    Y-m-d inclusive end.
+ * @param string $class Traffic class.
+ * @return array{divergence:array<int,array>,outliers:array<int,array>}
+ */
+function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
+	if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
+		return array( 'divergence' => array(), 'outliers' => array() );
+	}
+	$rows = array_values(
+		array_filter(
+			sn_analytics_top_paths( $from, $to, $class, 100 ),
+			static function ( $r ) {
+				return (int) ( $r['views'] ?? 0 ) >= SN_ANALYTICS_ANOMALY_MIN_VIEWS;
+			}
+		)
+	);
+
+	$divergence = array();
+	foreach ( $rows as $r ) {
+		$scroll = (float) ( $r['scroll_avg'] ?? 0 );
+		$time   = (float) ( $r['time_avg'] ?? 0 );
+		$type   = '';
+		if ( $scroll >= SN_ANALYTICS_ANOMALY_SKIM_SCROLL && $time < SN_ANALYTICS_ANOMALY_SKIM_TIME ) {
+			$type = 'skim';
+		} elseif ( $time >= SN_ANALYTICS_ANOMALY_DWELL_TIME && $scroll < SN_ANALYTICS_ANOMALY_DWELL_SCROLL ) {
+			$type = 'stall';
+		}
+		if ( '' !== $type ) {
+			$divergence[] = array(
+				'path'        => (string) $r['path'],
+				'type'        => $type,
+				'scroll_avg'  => round( $scroll, 1 ),
+				'time_avg_ms' => (int) round( $time ),
+				'views'       => (int) $r['views'],
+			);
+		}
+	}
+
+	$outliers = array();
+	foreach ( array( 'scroll_avg', 'time_avg' ) as $metric ) {
+		$vals = array_map(
+			static function ( $r ) use ( $metric ) {
+				return (float) ( $r[ $metric ] ?? 0 );
+			},
+			$rows
+		);
+		$stat = sn_analytics_stat_summary( $vals );
+		if ( $stat['n'] < 4 || $stat['sd'] <= 0.0 ) {
+			continue;
+		}
+		foreach ( $rows as $r ) {
+			$z = sn_analytics_zscore( (float) ( $r[ $metric ] ?? 0 ), $stat['mean'], $stat['sd'] );
+			if ( abs( $z ) >= SN_ANALYTICS_ANOMALY_Z ) {
+				$outliers[] = array(
+					'path'   => (string) $r['path'],
+					'metric' => $metric,
+					'value'  => round( (float) $r[ $metric ], 1 ),
+					'mean'   => round( $stat['mean'], 1 ),
+					'z'      => round( $z, 2 ),
+					'dir'    => $z > 0 ? 'high' : 'low',
+					'views'  => (int) $r['views'],
+				);
+			}
+		}
+	}
+
+	return array( 'divergence' => $divergence, 'outliers' => $outliers );
+}
