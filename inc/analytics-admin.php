@@ -53,6 +53,7 @@ const SN_ANALYTICS_VIEWS = array(
 	'technology' => 'Technology',
 	'geography'  => 'Geography',
 	'engagement' => 'Engagement',
+	'visits'     => 'Visits',
 	'quality'    => 'Quality',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
@@ -375,6 +376,10 @@ function snt_analytics_render_dashboard() {
 
 		case 'events':
 			snt_analytics_render_view_events( $from, $to ); // v8.5.0: inc/analytics-view-events.php
+			break;
+
+		case 'visits':
+			snt_analytics_render_view_sessions( $from, $to, $class );
 			break;
 
 		case 'login-defense':
