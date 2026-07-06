@@ -4,7 +4,9 @@ on:
 jobs:
   security:
     # Fork-guard: same-repo PRs only (public-repo fork PRs get no secrets anyway).
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Dependabot PRs run without access to Actions secrets (ANTHROPIC_API_KEY
+    # is empty), so this review can't run there — skip the bot's own PRs.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
