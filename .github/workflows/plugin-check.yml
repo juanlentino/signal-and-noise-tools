@@ -1,0 +1,80 @@
+name: Plugin Check
+
+# The official WordPress Plugin Check (wordpress/plugin-check-action, Apache-2.0;
+# the plugin-check tool itself is GPL-2.0). A deterministic, WP-idiomatic lint —
+# the same rule engine the wp.org review bot runs — that catches escaping/output,
+# i18n, security, and forbidden/discouraged-function issues with zero LLM variance.
+# It runs at PR time, BEFORE the expensive Opus CMA audit, and complements the
+# LLM claude-review + security-review workflows with rule-based signal.
+#
+# Consumed via the GitHub Action / WP-CLI in CI ONLY — nothing ships; this is not
+# a plugin runtime dependency. Scope is the plugin repo (the theme would need
+# theme-check separately, out of scope here).
+#
+# WHY THE FILTER: this plugin is NOT distributed on wordpress.org (self-hosted,
+# delivered by the in-plugin self-updater), so the submission-only checks are pure
+# noise. We whitelist only `general` + `security`, which drops the entire
+# `plugin_repo` category wholesale (readme.txt header, trademarks, updater /
+# Update-URI, hello-dolly). The two submission checks that ALSO live under
+# `general` — file_type (VCS/hidden-file flags) and plugin_header_fields ("Tested
+# up to" / readme-header nags) — are then dropped by slug. What's KEPT is exactly
+# what matters here: i18n_usage (general) plus late_escaping and the
+# plugin_review_phpcs security sweep (nonce / sanitize / escape output +
+# discouraged/forbidden functions) from `security`.
+#
+# NON-BLOCKING (continue-on-error) for this first cycle: the point is to gauge how
+# much the tuned ruleset actually fires on our tree. Findings show up in the job
+# log and the uploaded `plugin-check-results` artifact but do NOT fail the PR, so
+# the project's "never merge a red PR" rule is preserved while we calibrate.
+# FOLLOW-UP: once the noise is understood and any real findings are cleared,
+# promote this to a required check (remove continue-on-error) in a separate PR.
+#
+# No secrets are used — the action authenticates with the default GITHUB_TOKEN —
+# so, unlike claude-review/security-review, this is safe on fork PRs and needs no
+# fork-guard.
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - 'assets/**'
+      - '.github/workflows/plugin-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    # Non-blocking gauge cycle: a red plugin-check (or a flaky wp-env spin-up)
+    # must not block the PR yet. Promote to a required check in a follow-up.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      # The action spins up a real wp-env, activates this plugin, and runs
+      # `wp plugin check` against it. build-dir defaults to './', so the plugin
+      # slug resolves to the repo dir (signal-and-noise-tools), matching the
+      # signal-and-noise-tools.php main file.
+      - name: Run Plugin Check (wp.org-submission categories filtered out)
+        uses: WordPress/plugin-check-action@98a1788320d0add90df2d8183934ecccbc4e05d2 # v1.1.7
+        with:
+          # Whitelist the meaningful categories. This opt-in drops the whole
+          # `plugin_repo` (wp.org submission) category and stays correct even if
+          # WordPress adds new submission checks upstream.
+          categories: |
+            general
+            security
+          # Submission checks that are dual-tagged into `general` — drop by slug.
+          exclude-checks: |
+            file_type
+            plugin_header_fields
+          # Dev/test trees that are not shipped runtime code (mirrors
+          # security-review.yml's exclusions). tests/ is standalone fixtures that
+          # stub WP functions and would emit irrelevant escaping/function findings.
+          exclude-directories: |
+            vendor
+            node_modules
+            tests
