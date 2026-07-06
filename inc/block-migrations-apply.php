@@ -60,7 +60,7 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 			'write_failed'   => 'snt_block_migration_write_failed',
 		),
 		'error_messages'     => array(
-			'invalid_type' => __( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-noise-tools' ),
+			'invalid_type' => __( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-and-noise-tools' ),
 		),
 	) );
 

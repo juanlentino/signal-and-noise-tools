@@ -260,6 +260,7 @@ function snt_cron_history_prune() {
 		// implode'd raw into IN() is asking for trouble).
 		$keep_ids = array_map( 'intval', $keep_ids );
 		$ids_csv  = implode( ',', $keep_ids );
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $ids_csv is a comma-joined list of intval-cast IDs read from this same table; $hook is bound via prepare().
 		$wpdb->query( $wpdb->prepare(
 			"DELETE FROM {$table} WHERE hook = %s AND id NOT IN ( {$ids_csv} )",
 			$hook

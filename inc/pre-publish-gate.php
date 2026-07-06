@@ -66,6 +66,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	wp_enqueue_script( 'snt-pre-publish-gate' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-pre-publish-gate', 'signal-noise-tools' );
+		wp_set_script_translations( 'snt-pre-publish-gate', 'signal-and-noise-tools' );
 	}
 } );

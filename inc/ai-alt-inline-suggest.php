@@ -126,7 +126,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	$post_content = (string) $post->post_content;
@@ -137,7 +137,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	if ( false === strpos( $post_content, $image_src ) ) {
 		return new WP_Error(
 			'snt_ai_img_not_found',
-			__( 'Image src no longer found in post content — post may have been edited since the scan. Re-run the Health scan to refresh.', 'signal-noise-tools' ),
+			__( 'Image src no longer found in post content — post may have been edited since the scan. Re-run the Health scan to refresh.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -146,7 +146,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	if ( '' === $context ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'No usable context around the image — post body may be too short.', 'signal-noise-tools' ),
+			__( 'No usable context around the image — post body may be too short.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -195,7 +195,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	if ( 'ALT_INSUFFICIENT_CONTEXT' === $suggestion ) {
 		return new WP_Error(
 			'snt_ai_insufficient_context',
-			__( 'Not enough context for a useful alt-text suggestion. Try adding more text around the image first.', 'signal-noise-tools' ),
+			__( 'Not enough context for a useful alt-text suggestion. Try adding more text around the image first.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}

@@ -95,7 +95,7 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
 	if ( '' === $content ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'Post has no content to summarize. Add some body text first.', 'signal-noise-tools' ),
+			__( 'Post has no content to summarize. Add some body text first.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -170,6 +170,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	// Set translations on the script for wp.i18n.__ — only effective if
 	// the .pot/.po files exist; otherwise falls back to the source string.
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-meta-description', 'signal-noise-tools' );
+		wp_set_script_translations( 'snt-ai-meta-description', 'signal-and-noise-tools' );
 	}
 } );

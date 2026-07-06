@@ -159,14 +159,14 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
 		return new WP_Error(
 			'snt_ai_not_attachment',
-			__( 'Not an image attachment.', 'signal-noise-tools' ),
+			__( 'Not an image attachment.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
 	if ( 0 !== strpos( (string) $attachment->post_mime_type, 'image/' ) ) {
 		return new WP_Error(
 			'snt_ai_not_attachment',
-			__( 'Attachment is not an image MIME type.', 'signal-noise-tools' ),
+			__( 'Attachment is not an image MIME type.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -222,7 +222,7 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 	if ( empty( $context_parts ) && ! $has_image ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'No context available — attachment has no readable image, title, caption, filename, or referencing posts.', 'signal-noise-tools' ),
+			__( 'No context available — attachment has no readable image, title, caption, filename, or referencing posts.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -250,7 +250,7 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 	if ( 'ALT_INSUFFICIENT_CONTEXT' === $suggestion ) {
 		return new WP_Error(
 			'snt_ai_insufficient_context',
-			__( 'Not enough context for a useful alt-text suggestion. Try adding a title or caption to the attachment first.', 'signal-noise-tools' ),
+			__( 'Not enough context for a useful alt-text suggestion. Try adding a title or caption to the attachment first.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -289,18 +289,19 @@ function snt_ai_alt_apply_impl( $attachment_id, $alt_text ) {
 	$alt_text      = trim( (string) $alt_text );
 
 	if ( '' === $alt_text ) {
-		return new WP_Error( 'snt_ai_alt_empty', __( 'Alt text is empty.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_alt_empty', __( 'Alt text is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( strlen( $alt_text ) > SNT_AI_ALT_APPLY_MAX_LENGTH ) {
-		return new WP_Error( 'snt_ai_alt_too_long', sprintf( __( 'Alt text exceeds %d characters.', 'signal-noise-tools' ), SNT_AI_ALT_APPLY_MAX_LENGTH ), array( 'status' => 422 ) );
+		/* translators: %d is the maximum allowed number of characters */
+		return new WP_Error( 'snt_ai_alt_too_long', sprintf( __( 'Alt text exceeds %d characters.', 'signal-and-noise-tools' ), SNT_AI_ALT_APPLY_MAX_LENGTH ), array( 'status' => 422 ) );
 	}
 	if ( ! current_user_can( 'edit_post', $attachment_id ) ) {
-		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this attachment.', 'signal-noise-tools' ), array( 'status' => 403 ) );
+		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this attachment.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
 	}
 
 	$attachment = get_post( $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
-		return new WP_Error( 'snt_ai_not_attachment', __( 'Not an attachment.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Not an attachment.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	global $wpdb;
@@ -309,7 +310,8 @@ function snt_ai_alt_apply_impl( $attachment_id, $alt_text ) {
 	// update_post_meta returns false for "no change" AND for "real error".
 	// Disambiguate via $wpdb->last_error per WORDPRESS-REFERENCE.md gotcha #10.
 	if ( false === $written && ! empty( $wpdb->last_error ) ) {
-		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'Database write failed: %s', 'signal-noise-tools' ), $wpdb->last_error ), array( 'status' => 500 ) );
+		/* translators: %s is the database error message */
+		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'Database write failed: %s', 'signal-and-noise-tools' ), $wpdb->last_error ), array( 'status' => 500 ) );
 	}
 
 	return array(

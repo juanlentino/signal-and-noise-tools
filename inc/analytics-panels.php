@@ -83,6 +83,7 @@ function snt_an_clamp_open( $total, $visible = 5 ) {
 function snt_an_clamp_close( $total, $visible = 5 ) {
 	if ( (int) $total > (int) $visible ) {
 		echo '<button type="button" class="sn-an-viewall">'
+			/* translators: %d is the total number of items */
 			. esc_html( sprintf( __( 'View all %d', 'signal-and-noise-tools' ), (int) $total ) )
 			. '</button>';
 	}

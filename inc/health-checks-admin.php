@@ -40,7 +40,8 @@ if ( ! defined( 'SNT_AI_SUGGEST_ALL_MAX' ) ) {
 function snt_health_suggest_all_button_html( $count ) {
 	$shown = min( (int) $count, SNT_AI_SUGGEST_ALL_MAX );
 	return '<button type="button" class="button button-small sn-ml-auto" data-snt-suggest-all="1" data-snt-suggest-all-max="' . esc_attr( SNT_AI_SUGGEST_ALL_MAX ) . '">'
-		. esc_html( sprintf( __( 'Suggest all %d', 'signal-noise-tools' ), $shown ) )
+		/* translators: %d is the number of items to suggest */
+		. esc_html( sprintf( __( 'Suggest all %d', 'signal-and-noise-tools' ), $shown ) )
 		. '</button>';
 }
 
@@ -211,7 +212,7 @@ function sn_health_render_admin_tab() {
 			echo '<th scope="col">Note</th>';
 			echo '<th scope="col" class="snt-col-90px">Action</th>';
 			if ( $show_ai_col ) {
-				echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-noise-tools' ) . '</th>';
+				echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-and-noise-tools' ) . '</th>';
 			}
 			echo '</tr></thead><tbody>';
 
@@ -230,6 +231,7 @@ function sn_health_render_admin_tab() {
 				echo '</td>';
 				if ( $show_ai_col ) {
 					echo '<td>';
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sn_health_render_suggest_cell() returns markup with every attribute esc_attr-escaped and the label esc_html-escaped.
 					echo sn_health_render_suggest_cell( $key, $f );
 					echo '</td>';
 				}
@@ -342,7 +344,7 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 	foreach ( $attrs as $k => $v ) {
 		$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( (string) $v ) . '"';
 	}
-	$html .= '>' . esc_html__( 'Suggest', 'signal-noise-tools' ) . '</button>';
+	$html .= '>' . esc_html__( 'Suggest', 'signal-and-noise-tools' ) . '</button>';
 
 	return $html;
 }

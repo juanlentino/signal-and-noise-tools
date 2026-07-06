@@ -91,6 +91,6 @@ add_action( 'admin_enqueue_scripts', function() {
 	wp_enqueue_script( 'snt-command-palette' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-command-palette', 'signal-noise-tools' );
+		wp_set_script_translations( 'snt-command-palette', 'signal-and-noise-tools' );
 	}
 } );

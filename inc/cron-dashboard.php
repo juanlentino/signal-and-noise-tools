@@ -521,12 +521,12 @@ function snt_cron_site_health_result() {
 		$expected   = snt_cron_hook_is_expected( $hook );
 
 		$next_label = ( false !== $next && is_numeric( $next ) )
-			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-noise-tools' ), human_time_diff( $now, (int) $next ) )
-			: ( $expected ? __( 'NOT scheduled', 'signal-noise-tools' ) : __( 'not scheduled (feature off)', 'signal-noise-tools' ) );
+			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-and-noise-tools' ), human_time_diff( $now, (int) $next ) )
+			: ( $expected ? __( 'NOT scheduled', 'signal-and-noise-tools' ) : __( 'not scheduled (feature off)', 'signal-and-noise-tools' ) );
 
 		$last_label = ( null !== $last_fired )
-			? sprintf( /* translators: %s: human time diff. */ __( 'last fired %s ago', 'signal-noise-tools' ), human_time_diff( (int) $last_fired, $now ) )
-			: __( 'never fired', 'signal-noise-tools' );
+			? sprintf( /* translators: %s: human time diff. */ __( 'last fired %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $last_fired, $now ) )
+			: __( 'never fired', 'signal-and-noise-tools' );
 
 		if ( false === $next || ! is_numeric( $next ) ) {
 			if ( $expected ) {
@@ -553,20 +553,20 @@ function snt_cron_site_health_result() {
 
 	$description = '<p>' . wp_kses_post( implode( '<br>', $lines ) ) . '</p>';
 	if ( $cron_silently_disabled ) {
-		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-noise-tools' ) . '</p>';
+		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	$cron_tab_url = admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' );
 
 	return array(
-		'label'       => __( 'Signal & Noise cron pipeline', 'signal-noise-tools' ),
+		'label'       => __( 'Signal & Noise cron pipeline', 'signal-and-noise-tools' ),
 		'status'      => $status,
 		'badge'       => array(
-			'label' => __( 'Performance', 'signal-noise-tools' ),
+			'label' => __( 'Performance', 'signal-and-noise-tools' ),
 			'color' => 'blue',
 		),
 		'description' => $description,
-		'actions'     => '<p><a href="' . esc_url( $cron_tab_url ) . '">' . esc_html__( 'Open the Cron tab', 'signal-noise-tools' ) . '</a></p>',
+		'actions'     => '<p><a href="' . esc_url( $cron_tab_url ) . '">' . esc_html__( 'Open the Cron tab', 'signal-and-noise-tools' ) . '</a></p>',
 		'test'        => 'sn_cron_pipeline',
 	);
 }
@@ -577,7 +577,7 @@ function snt_cron_site_health_result() {
 add_filter( 'site_status_tests', 'snt_cron_register_site_health_test' );
 function snt_cron_register_site_health_test( $tests ) {
 	$tests['async']['sn_cron_pipeline'] = array(
-		'label'    => __( 'Signal & Noise cron pipeline', 'signal-noise-tools' ),
+		'label'    => __( 'Signal & Noise cron pipeline', 'signal-and-noise-tools' ),
 		'test'     => rest_url( 'signal-noise/v1/site-health/cron' ),
 		'has_rest' => true,
 	);

@@ -333,20 +333,20 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	$source_id = (int) $source_id;
 	$target_id = (int) $target_id;
 	if ( $source_id === $target_id ) {
-		return new WP_Error( 'snt_ai_link_invalid', __( 'Source and target are the same post.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_link_invalid', __( 'Source and target are the same post.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	$source = get_post( $source_id );
 	$target = get_post( $target_id );
 	if ( ! $source || ! $target || 'publish' !== $target->post_status ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Source or target post not found (target must be published).', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Source or target post not found (target must be published).', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	$raw = (string) $source->post_content;
 
 	// Stale-finding guard: the link may have been added since the scan.
 	if ( sn_health_contains_note_link( $raw, (string) $target->post_name ) ) {
-		return new WP_Error( 'snt_ai_link_already_linked', __( 'The source already links to this note. Re-run the scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_link_already_linked', __( 'The source already links to this note. Re-run the scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// Re-derive the mention from CURRENT content (never trust scan data).
@@ -354,7 +354,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	$title    = trim( (string) $target->post_title );
 	$pos      = ( '' !== $title ) ? stripos( $stripped, $title ) : false;
 	if ( false === $pos ) {
-		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 	$mention = substr( $stripped, $pos, strlen( $title ) );
 	$start   = max( 0, $pos - 80 );
@@ -366,7 +366,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	if ( -1 === $raw_position ) {
 		// Mention exists in prose but not contiguously in raw content (split
 		// by inline markup) — Apply could not splice it safely.
-		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention is split by inline markup — link it manually in the editor.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention is split by inline markup — link it manually in the editor.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// v8.1.1: the mention can sit inside an EXISTING <a> to a third note —
@@ -393,7 +393,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 		);
 		$prompt = wp_json_encode( $payload );
 		if ( false === $prompt ) {
-			return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 
 		$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_LINK_SUGGEST_SYSTEM, SNT_AI_LINK_SUGGEST_MAX_TOKENS );
@@ -403,7 +403,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 
 		$parsed = snt_ai_parse_verdict_json( (string) $result );
 		if ( ! is_array( $parsed ) || ! isset( $parsed['verdict'] ) ) {
-			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+			return new WP_Error( 'snt_ai_runtime_error', __( 'AI returned an unparseable verdict.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 		$verdict = in_array( (string) $parsed['verdict'], array( 'link', 'skip', 'unsure' ), true ) ? (string) $parsed['verdict'] : 'unsure';
 		$reason  = (string) ( $parsed['reason'] ?? '' );
@@ -545,38 +545,38 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 	$target_url      = (string) $target_url;
 
 	if ( '' === $anchor || strlen( $anchor ) > SNT_AI_LINK_ANCHOR_MAX_LENGTH ) {
-		return new WP_Error( 'snt_ai_anchor_invalid', __( 'Anchor is empty or too long.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_anchor_invalid', __( 'Anchor is empty or too long.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	$target_host = wp_parse_url( $target_url, PHP_URL_HOST );
 	$site_host   = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $target_host || ! $site_host || strtolower( (string) $target_host ) !== strtolower( (string) $site_host ) ) {
-		return new WP_Error( 'snt_ai_link_target_invalid', __( 'Target URL must be an internal permalink.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_link_target_invalid', __( 'Target URL must be an internal permalink.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
-		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-noise-tools' ), array( 'status' => 403 ) );
+		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-noise-tools' ), array( 'status' => 404 ) );
+		return new WP_Error( 'snt_ai_post_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 
 	$current_content = (string) $post->post_content;
 
 	$raw_position = snt_ai_drift_locate_in_raw( $current_content, $anchor, $context_snippet );
 	if ( -1 === $raw_position ) {
-		return new WP_Error( 'snt_ai_apply_conflict', __( 'Mention no longer present in post content. Re-run scan.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_apply_conflict', __( 'Mention no longer present in post content. Re-run scan.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	$current_fp = snt_ai_drift_fingerprint( $current_content, $anchor, $raw_position );
 	if ( $current_fp !== $fingerprint ) {
-		return new WP_Error( 'snt_ai_apply_conflict', __( 'Post changed since suggest. Re-run scan to refresh.', 'signal-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_apply_conflict', __( 'Post changed since suggest. Re-run scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	if ( snt_ai_link_position_inside_anchor( $current_content, $raw_position ) ) {
-		return new WP_Error( 'snt_ai_link_already_linked', __( 'The mention already sits inside a link.', 'signal-noise-tools' ), array( 'status' => 400 ) );
+		return new WP_Error( 'snt_ai_link_already_linked', __( 'The mention already sits inside a link.', 'signal-and-noise-tools' ), array( 'status' => 400 ) );
 	}
 
 	$link        = '<a href="' . esc_url( $target_url ) . '">' . $anchor . '</a>';
@@ -588,7 +588,8 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 	), true );
 
 	if ( is_wp_error( $result ) ) {
-		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'wp_update_post failed: %s', 'signal-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
+		/* translators: %s is the error message from wp_update_post() */
+		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'wp_update_post failed: %s', 'signal-and-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
 	}
 
 	// v8.4.5: OUR write just bumped this post's modified stamp — restamp its

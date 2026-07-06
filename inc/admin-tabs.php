@@ -93,8 +93,7 @@ function sn_admin_render_sub_tabs( $tab_slug, $active_sub ) {
 			$is_active = ( $sub_slug === $active_sub );
 			$class     = 'sn-sub-tab' . ( $is_active ? ' is-active' : '' );
 			$url       = $base_url . '&sub=' . rawurlencode( $sub_slug );
-			$aria      = $is_active ? ' aria-current="page"' : '';
-			echo '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '"' . $aria . '>' . esc_html( $sub['label'] ) . '</a>';
+			echo '<a href="' . esc_url( $url ) . '" class="' . esc_attr( $class ) . '"' . ( $is_active ? ' aria-current="page"' : '' ) . '>' . esc_html( $sub['label'] ) . '</a>';
 		}
 		echo '</nav>';
 		return;

@@ -64,10 +64,10 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 	// Gate: attachment exists and is an image.
 	$attachment = get_post( $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
-		return new WP_Error( 'snt_ai_not_attachment', __( 'Not an image attachment.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Not an image attachment.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( 0 !== strpos( (string) $attachment->post_mime_type, 'image/' ) ) {
-		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment is not an image MIME type.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment is not an image MIME type.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	// Cache lookup. Mirrors v4.0.1 drift cache shape.
@@ -116,7 +116,7 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 
 	$text = trim( (string) $raw );
 	if ( '' === $text ) {
-		return new WP_Error( 'snt_ai_empty_response', __( 'AI returned empty response.', 'signal-noise-tools' ), array( 'status' => 502 ) );
+		return new WP_Error( 'snt_ai_empty_response', __( 'AI returned empty response.', 'signal-and-noise-tools' ), array( 'status' => 502 ) );
 	}
 
 	// Strip optional markdown fences (same defensive pattern as v4.0.1 drift).
@@ -129,7 +129,7 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 	// Fallback to 'unsure' for unparseable / out-of-enum responses. Preserves the finding.
 	if ( ! in_array( $verdict, array( 'delete', 'keep', 'unsure' ), true ) ) {
 		$verdict = 'unsure';
-		$reason  = __( 'AI response could not be parsed; review manually', 'signal-noise-tools' );
+		$reason  = __( 'AI response could not be parsed; review manually', 'signal-and-noise-tools' );
 	}
 
 	$payload = array(
@@ -173,19 +173,19 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 
 	if ( ! current_user_can( 'delete_post', $attachment_id ) ) {
-		return new WP_Error( 'snt_ai_capability', __( 'You cannot delete this attachment.', 'signal-noise-tools' ), array( 'status' => 403 ) );
+		return new WP_Error( 'snt_ai_capability', __( 'You cannot delete this attachment.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
 	}
 
 	$attachment = get_post( $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
-		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment not found or already deleted.', 'signal-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment not found or already deleted.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
 	// wp_delete_attachment() returns WP_Post|false in WP 7.0; null guard is
 	// defensive for any future return-type change.
 	$result = wp_delete_attachment( $attachment_id, true );
 	if ( false === $result || null === $result ) {
-		return new WP_Error( 'snt_ai_delete_failed', __( 'Delete failed. Check file permissions on uploads/.', 'signal-noise-tools' ), array( 'status' => 500 ) );
+		return new WP_Error( 'snt_ai_delete_failed', __( 'Delete failed. Check file permissions on uploads/.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 
 	delete_transient( 'sn_orphan_verdict_' . $attachment_id );
