@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.8.0] - 2026-07-06: Cookieless within-day visits & conversion
+
+**Headline:** A new Dashboard → Analytics "Visits" view reads the existing cookieless `sn_pageviews` Analytics Engine data as within-day visits — visit quality (bounce, pages/visit, median duration), engaged-read rate (scroll ≥50% + dwell ≥15s), top page-to-page transitions, and auto-derived conversion funnels (surfacing `ce` events, including token-authed `srv:1` server events like the RSS feed tracker). Visits group the daily-rotating `index1` hash WITHIN a single UTC day only and reset at midnight — no cookie, no cross-day identity, no consent trigger. A nightly rollup persists per-day visit quality beyond Analytics Engine's ~90-day raw retention. Client-side goal-click events are a separate theme change (tracked independently).
+
+> **Why MINOR:** new user-visible analytics capability (a new dashboard view + read APIs + a rollup table); no breaking change to existing routes, options, abilities, or schemas — the feature reads data the beacon already collects.
+
+### Added
+- Cookieless within-day session engine — pure transforms (`sn_sessionize`, `sn_visit_summary`, `sn_session_metrics`, `sn_session_paths`, `sn_funnel_report`) + AE fetch, in `inc/analytics-sessions.php`. Covered by `tests/analytics-sessions.php`.
+- Dashboard → Analytics **"Visits"** view (`inc/analytics-view-sessions.php`): visit-quality stat grid, engaged-read, top-path transitions, and auto-derived funnels (filterable via `sn_analytics_session_funnels`). Covered by `tests/analytics-view-sessions.php`.
+- Durable per-day visit-quality rollup table (`{prefix}sn_session_daily`) + daily cron, in `inc/analytics-session-rollup.php`, for long-term trends beyond AE's raw retention. Covered by `tests/analytics-session-rollup.php`.
+
+### Changed
+- The AI-narrator guardrail now permits **within-day** visit metrics (bounce, pages/visit, engaged-read %, funnel completion) described as aggregates, while still forbidding cross-day or per-person identity and new-vs-returning framing (`inc/insights-narration.php`). Guarded by `tests/insights-narration-guardrail.php`.
+
 ## [8.7.4] - 2026-07-06: Freshness card reads the verified verdict
 
 **Headline:** The Dashboard "Caches" card's last-purge line now shows the theme's authoritative freshness verdict (`✓ verified fresh` or `✕ stale, purge needed`) instead of the raw per-leg dispatch result (`Varnish ✕ · CF dispatched`), which read as failure even when the edge ended up fresh, contradicting the `N/M fresh` value above it. While an auto-purge waits on its deferred verify cron (theme v10.25.0) the line reads `verifying…`; legacy legs-only reports still fall back to the per-leg line. `snt_freshness_report_meta()` now reads the report's `resolved` field.
