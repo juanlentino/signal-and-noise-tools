@@ -67,6 +67,12 @@ add_action( 'rest_api_init', function () {
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_event_props',
 	) );
+
+	register_rest_route( $ns, '/analytics/anomalies', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'sn_analytics_rest_can_read',
+		'callback'            => 'sn_analytics_rest_anomalies',
+	) );
 } );
 
 // ── Shared window resolver ────────────────────────────────────────────────────
@@ -139,4 +145,16 @@ function sn_analytics_rest_event_props( $request ) {
 	list( $from, $to ) = sn_analytics_rest_window( $request );
 	$property = (string) $request->get_param( 'property' );
 	return function_exists( 'sn_analytics_top_event_props' ) ? sn_analytics_top_event_props( $from, $to, $property, 200 ) : array();
+}
+
+/**
+ * GET /analytics/anomalies — per-path cross-metric engagement anomalies
+ * for the requested range. Read-only, manage_options-gated.
+ *
+ * @param WP_REST_Request $request
+ * @return array
+ */
+function sn_analytics_rest_anomalies( $request ) {
+	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
+	return sn_analytics_engagement_anomalies( $from, $to, $class );
 }
