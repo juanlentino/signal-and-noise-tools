@@ -17,14 +17,14 @@
 		"wp-coding-standards/wpcs": "^3.1",
 		"phpcompatibility/phpcompatibility-wp": "^2.1",
 		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-		"szepeviktor/phpstan-wordpress": "^2.0",
-		"php-stubs/wordpress-stubs": "^6.9",
+		"phpstan/phpstan": "^2.0",
+		"php-stubs/wordpress-stubs": "^7.0",
 		"roave/security-advisories": "dev-latest"
 	},
 	"scripts": {
 		"lint": "phpcs --standard=phpcs.xml.dist",
 		"lint:fix": "phpcbf --standard=phpcs.xml.dist",
-		"phpstan": "phpstan analyse --memory-limit=1G"
+		"phpstan": "phpstan analyse --memory-limit=2G"
 	},
 	"minimum-stability": "stable",
 	"config": {

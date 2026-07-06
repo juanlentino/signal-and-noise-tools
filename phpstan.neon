@@ -8,30 +8,78 @@
 # resolves to nothing, so PHPStan errors on it (undefined-symbol checks fire at
 # level 0+), before it can fatal in production.
 #
-# The szepeviktor/phpstan-wordpress extension bootstraps the full WordPress stub
-# set (vendor/php-stubs/wordpress-stubs/wordpress-stubs.php) so core symbols
-# resolve. Do NOT add a second bootstrapFiles entry for the stubs — the
-# extension already loads them and a double-load fatals on redeclare.
+# Architecture: we bootstrap php-stubs/wordpress-stubs DIRECTLY on phpstan core,
+# NOT via szepeviktor/phpstan-wordpress. That extension is abandoned (maintainer
+# stepped away from the WP ecosystem) and its stable release capped stubs at
+# <7.0. Dropping it lets us pin stubs to ^7.0 to match production (Cloudways: WP
+# 7.0.x) AND removes the abandoned dependency. The unknown-symbol gate is
+# unaffected — it comes from the stubs + phpstan core, not the extension. What we
+# give up (WP-specific dynamic return types + hook-callback rules) is marginal at
+# level 1; the load-bearing bits are replicated below:
+#   - phpstan-bootstrap.php  — the core WP constants the stubs omit (ABSPATH,
+#     *_IN_SECONDS, ARRAY_A, EP_*, …), formerly supplied by the extension's
+#     bundled bootstrap.php.
+#   - dynamicConstantNames   — so environment-dependent constants are not folded
+#     to a fixed value (no bogus always-true/false + unreachable findings).
+#   - earlyTerminatingFunctionCalls — WP functions that exit(), so code after
+#     them is correctly treated as unreachable.
 #
-# Stub version: pinned to wordpress-stubs ^6.9 (v6.9.4), the newest the stable
-# phpstan-wordpress v2.0.x permits (it caps stubs at <7.0). Production runs WP
-# 7.0.x; get_queried_object_id() and the entire pre-7.0 core surface exist
-# identically in 6.9, so the unknown-symbol class is caught the same. Bump to
-# ^7.0 once a stable phpstan-wordpress release allows WP 7.0 stubs.
-#
-# level: 1 for the first cycle (climb later). phpstan-baseline.neon absorbs the
-# large pre-existing FSE/WP findings so only NEW findings surface. The CI job
-# (.github/workflows/phpstan.yml) runs soft (non-blocking) for this first cycle.
+# level: 1 for now (climb later). phpstan-baseline.neon absorbs pre-existing
+# findings so only NEW findings surface. CI (.github/workflows/phpstan.yml) runs
+# soft (non-blocking) for the first cycle.
 #
 # Run:                 composer install, then vendor/bin/phpstan analyse
-# Regenerate baseline: vendor/bin/phpstan analyse --generate-baseline
+# Regenerate baseline: empty phpstan-baseline.neon, then
+#                      vendor/bin/phpstan analyse --generate-baseline
 
 includes:
 	- phpstan-baseline.neon
-	- vendor/szepeviktor/phpstan-wordpress/extension.neon
 
 parameters:
 	level: 1
 	paths:
 		- signal-and-noise-tools.php
 		- inc
+	bootstrapFiles:
+		# WordPress core function/class signatures (^7.0 — matches production).
+		- vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+		# Core WP constants the stubs omit; see the file header for why.
+		- phpstan-bootstrap.php
+	# Environment-dependent constants (values set at WP boot). Defined in
+	# phpstan-bootstrap.php so references resolve, but declared dynamic here so
+	# PHPStan does not assume their value.
+	dynamicConstantNames:
+		- WP_DEBUG
+		- WP_DEBUG_LOG
+		- WP_DEBUG_DISPLAY
+		- SCRIPT_DEBUG
+		- ABSPATH
+		- WP_CONTENT_DIR
+		- WP_PLUGIN_DIR
+		- WPMU_PLUGIN_DIR
+		- WP_LANG_DIR
+		- WP_DEFAULT_THEME
+		- COOKIE_DOMAIN
+		- EMPTY_TRASH_DAYS
+		- FS_CONNECT_TIMEOUT
+		- FS_TIMEOUT
+		- FS_CHMOD_DIR
+		- FS_CHMOD_FILE
+		- DOING_CRON
+		- DOING_AJAX
+		- DOING_AUTOSAVE
+		- WP_CLI
+		- REST_REQUEST
+		# This plugin's own runtime constants (placeholders in phpstan-bootstrap.php).
+		- SNT_PATH
+		- SNT_URL
+		- SNT_VERSION
+	# WordPress functions/methods that terminate execution.
+	earlyTerminatingFunctionCalls:
+		- wp_send_json
+		- wp_send_json_success
+		- wp_send_json_error
+		- wp_nonce_ays
+	earlyTerminatingMethodCalls:
+		WP_Ajax_Response:
+			- send
