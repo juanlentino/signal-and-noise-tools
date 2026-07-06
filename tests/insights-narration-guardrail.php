@@ -13,5 +13,10 @@ ok( false !== stripos( $src, 'within-day' ), 'permits within-day framing explici
 ok( false !== stripos( $src, 'never a cross-day identity' ) || false !== stripos( $src, 'across days' ), 'still forbids cross-day identity' );
 ok( false !== stripos( $src, 'new-vs-returning' ), 'still forbids new-vs-returning' );
 
+echo "\nGroup: narrator anomaly-flags wiring\n";
+ok( false !== stripos( $src, 'anomaly_flags' ), 'prompt/collector reference the anomaly_flags block' );
+ok( false !== stripos( $src, 'typical' ), 'prompt frames anomalies as a typical-range comparison' );
+ok( false !== stripos( $src, 'sn_analytics_baseline_movers' ), 'collector sources anomaly_flags from baseline movers' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
