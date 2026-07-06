@@ -1,0 +1,65 @@
+name: PHPStan
+
+# Static analysis gate — the DETERMINISTIC unknown-symbol check.
+#
+# Complements the local php-lsp/Intelephense (non-deterministic across editor
+# state + warm/cold caches) by making the same check a hard CI signal. Catches
+# the exact fatal class that took single-notes down in the theme's v9.11.2: a
+# typo'd core call like get_the_queried_object_id() (the real symbol is
+# get_queried_object_id()) resolves to nothing and errors HERE, in CI, before it
+# can fatal in production.
+#
+# SOFT LAUNCH (cycle 1): the job is `continue-on-error: true` — it RUNS and
+# surfaces findings as PR annotations (--error-format=github) but does NOT block
+# merges yet. Once the baseline is trusted and the signal stays quiet, delete
+# that one line (and optionally climb `level` in phpstan.neon) to make it a hard
+# gate. This is the code gate's sibling — deployment stays manual (deploy.yml).
+#
+# Runs on PHP 8.5 to match production (Cloudways: PHP 8.5 / WordPress 7.0.x) so
+# analysis reflects the deployed runtime.
+#
+# All analysis tooling (phpstan, php-stubs/wordpress-stubs, the phpstan-wordpress
+# extension, roave/security-advisories) is composer require-dev ONLY: vendor/ is
+# gitignored and never reaches the shipped plugin archive — zero runtime deps,
+# no build step preserved.
+#
+# Security: no untrusted github.event.* interpolation; pinned action SHAs;
+# least-privilege token (contents: read); credentials not persisted.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phpstan:
+    name: PHPStan static analysis
+    runs-on: ubuntu-latest
+    # SOFT LAUNCH (cycle 1): surface findings without blocking merges. The
+    # committed baseline already makes a clean tree exit 0; this line only keeps
+    # NEW findings non-fatal for the first cycle. Remove it to harden the gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer
+      # No committed composer.lock (gitignored: dev-only linters/analysers that
+      # never ship). `composer install` with no lock resolves + installs the
+      # require-dev tree — and roave/security-advisories hard-fails here if any
+      # resolved dev dep carries a known CVE (guards the analysis toolchain).
+      - name: Install dev dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      # `composer run phpstan` carries --memory-limit=1G (the 5 MB WordPress stub
+      # set overflows PHP's 128M default). --error-format=github renders findings
+      # as inline PR annotations.
+      - name: Run PHPStan (level 1, baselined)
+        run: composer run phpstan -- --no-progress --error-format=github

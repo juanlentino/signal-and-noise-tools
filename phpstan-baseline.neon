@@ -1,0 +1,157 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ability-run-client.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/admin-heartbeat.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/admin-menu.php
+
+		-
+			message: '#^Constant SNT_URL not found\.$#'
+			identifier: constant.notFound
+			count: 4
+			path: inc/admin-menu.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ai-bootstrap.php
+
+		-
+			message: '#^Function wp_ai_client_prompt not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/ai-bootstrap.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ai-excerpt.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ai-meta-description.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ai-og-card-title.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/ai-prepopulate-notice.php
+
+		-
+			message: '#^Constant SNT_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/analytics-widget.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/audit-log-admin.php
+
+		-
+			message: '#^Action callback returns array but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: inc/audit-log.php
+
+		-
+			message: '#^Action callback returns bool but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: inc/cloudways-purge.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/command-palette.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/cron-dashboard-admin.php
+
+		-
+			message: '#^Found usage of constant DOING_CRON\. Use wp_doing_cron\(\) instead\.$#'
+			identifier: phpstanWP.wpConstant.fetch
+			count: 1
+			path: inc/cron-dashboard.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 6
+			path: inc/desktop-mode-integration.php
+
+		-
+			message: '#^Action callback returns bool but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: inc/discography-sync.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/freshness-indicator.php
+
+		-
+			message: '#^Variable \$items in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: inc/now-page.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/pre-publish-gate.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/schedule-block.php
+
+		-
+			message: '#^Constant SNT_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: inc/schedule-block.php
+
+		-
+			message: '#^Constant SNT_URL not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: inc/uptime-status-widget.php
+
+		-
+			message: '#^Constant SNT_PATH not found\.$#'
+			identifier: constant.notFound
+			count: 4
+			path: inc/wp-update-integration.php

@@ -1,0 +1,37 @@
+# PHPStan static analysis — the deterministic unknown-symbol gate.
+#
+# Why this exists: local php-lsp/Intelephense flags undefined functions
+# non-deterministically (editor state, warm/cold caches). This turns the same
+# check into a hard CI signal. It catches the exact fatal class that took
+# single-notes down in the theme's v9.11.2 — a typo'd core call like
+# get_the_queried_object_id() (the real symbol is get_queried_object_id())
+# resolves to nothing, so PHPStan errors on it (undefined-symbol checks fire at
+# level 0+), before it can fatal in production.
+#
+# The szepeviktor/phpstan-wordpress extension bootstraps the full WordPress stub
+# set (vendor/php-stubs/wordpress-stubs/wordpress-stubs.php) so core symbols
+# resolve. Do NOT add a second bootstrapFiles entry for the stubs — the
+# extension already loads them and a double-load fatals on redeclare.
+#
+# Stub version: pinned to wordpress-stubs ^6.9 (v6.9.4), the newest the stable
+# phpstan-wordpress v2.0.x permits (it caps stubs at <7.0). Production runs WP
+# 7.0.x; get_queried_object_id() and the entire pre-7.0 core surface exist
+# identically in 6.9, so the unknown-symbol class is caught the same. Bump to
+# ^7.0 once a stable phpstan-wordpress release allows WP 7.0 stubs.
+#
+# level: 1 for the first cycle (climb later). phpstan-baseline.neon absorbs the
+# large pre-existing FSE/WP findings so only NEW findings surface. The CI job
+# (.github/workflows/phpstan.yml) runs soft (non-blocking) for this first cycle.
+#
+# Run:                 composer install, then vendor/bin/phpstan analyse
+# Regenerate baseline: vendor/bin/phpstan analyse --generate-baseline
+
+includes:
+	- phpstan-baseline.neon
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+	level: 1
+	paths:
+		- signal-and-noise-tools.php
+		- inc
