@@ -1,0 +1,29 @@
+# Dependabot — keep dev/CI dependencies current. GitHub-side config only;
+# never bundled into the WordPress plugin artifact.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # GitHub Actions used by our workflows (checkout, gitleaks-action, phpstan,
+  # plugin-check, …). Dependabot bumps the pinned SHA *and* its `# vX.Y.Z` tag,
+  # keeping the supply-chain-pinned actions current without losing the pin.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]   # one grouped PR per week instead of one per action
+    commit-message:
+      prefix: "ci"
+
+  # Composer dev tooling only (phpcs, WPCS, PHPCompatibility, phpstan-wordpress,
+  # wp-stubs, security-advisories). The plugin has no runtime Composer deps.
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      composer:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore"
