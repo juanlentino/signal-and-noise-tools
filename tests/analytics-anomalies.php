@@ -70,5 +70,20 @@ ok( 1 === count( $time_out ) && '/obig' === $time_out[0]['path'], 'anomalies: fa
 ok( $time_out && 'high' === $time_out[0]['dir'] && $time_out[0]['z'] >= 2.0, 'anomalies: outlier record carries dir=high and |z|>=2' );
 ok( empty( $scroll_out ), 'anomalies: a flat metric (sd=0) yields no outliers' );
 
+echo "\nGroup: baseline movers (aggregate week-over-week)\n";
+// Uses the REAL sn_analytics_prior_window() (already loaded from analytics-derived.php);
+// it steps back 7 days per call, so these fixture keys match the windows it generates.
+$GLOBALS['__totals'] = array();
+$GLOBALS['__totals']['2026-06-08|2026-06-14'] = array( 'views' => 1500, 'visits' => 300, 'scroll_avg' => 55, 'time_avg' => 40000 );
+$prior = array( '2026-06-01|2026-06-07' => 1000, '2026-05-25|2026-05-31' => 1010, '2026-05-18|2026-05-24' => 990, '2026-05-11|2026-05-17' => 1005, '2026-05-04|2026-05-10' => 995, '2026-04-27|2026-05-03' => 1000 );
+foreach ( $prior as $k => $v ) { $GLOBALS['__totals'][ $k ] = array( 'views' => $v, 'visits' => 200, 'scroll_avg' => 55, 'time_avg' => 40000 ); }
+$flags     = sn_analytics_baseline_movers( '2026-06-08', '2026-06-14', 'human', 6 );
+$by_metric = array_column( $flags, null, 'metric' );
+ok( isset( $by_metric['views'] ), 'movers: the 1500-vs-~1000 views spike is flagged (>2 sd)' );
+ok( ! isset( $by_metric['scroll_avg'] ), 'movers: a flat metric (constant scroll) is NOT flagged' );
+$v = $by_metric['views'] ?? array();
+ok( isset( $v['typical_low'], $v['typical_high'], $v['dir'] ) && 'above' === $v['dir'], 'movers: flag carries typical range + direction' );
+ok( is_array( sn_analytics_baseline_movers( '2026-06-08', '2026-06-14', 'human', 6 ) ), 'movers: always returns an array' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -357,3 +357,56 @@ function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
 
 	return array( 'divergence' => $divergence, 'outliers' => $outliers );
 }
+
+/**
+ * Flag this week's totals that sit >|Z| sd from their trailing-N-week mean.
+ * Gives the narrator "typical range" context (e.g. views 1,500 vs typical
+ * 990-1,010). Aggregate + within-week only — no identity, no cross-day.
+ *
+ * @param string $from  Y-m-d inclusive start of the current window.
+ * @param string $to    Y-m-d inclusive end of the current window.
+ * @param string $class Traffic class.
+ * @param int    $weeks Trailing weeks to baseline against.
+ * @return array<int,array{metric:string,current:float|int,typical_low:float,typical_high:float,z:float,dir:string}>
+ */
+function sn_analytics_baseline_movers( $from, $to, $class = 'human', $weeks = SN_ANALYTICS_BASELINE_WEEKS ) {
+	if ( ! function_exists( 'sn_analytics_range_totals' ) || ! function_exists( 'sn_analytics_prior_window' ) ) {
+		return array();
+	}
+	$current = sn_analytics_range_totals( $from, $to, $class );
+	$metrics = array( 'views', 'visits', 'scroll_avg', 'time_avg' );
+	$series  = array_fill_keys( $metrics, array() );
+
+	$wf = $from;
+	$wt = $to;
+	for ( $i = 0; $i < (int) $weeks; $i++ ) {
+		list( $wf, $wt ) = sn_analytics_prior_window( $wf, $wt );
+		$t = sn_analytics_range_totals( $wf, $wt, $class );
+		foreach ( $metrics as $m ) {
+			$series[ $m ][] = (float) ( $t[ $m ] ?? 0 );
+		}
+	}
+
+	$flags = array();
+	foreach ( $metrics as $m ) {
+		$stat = sn_analytics_stat_summary( $series[ $m ] );
+		if ( $stat['n'] < 3 || $stat['sd'] <= 0.0 ) {
+			continue;
+		}
+		$cur = (float) ( $current[ $m ] ?? 0 );
+		$z   = sn_analytics_zscore( $cur, $stat['mean'], $stat['sd'] );
+		if ( abs( $z ) < SN_ANALYTICS_ANOMALY_Z ) {
+			continue;
+		}
+		$is_rate = in_array( $m, array( 'scroll_avg', 'time_avg' ), true );
+		$flags[] = array(
+			'metric'       => $m,
+			'current'      => $is_rate ? round( $cur, 1 ) : (int) round( $cur ),
+			'typical_low'  => round( $stat['mean'] - $stat['sd'], 1 ),
+			'typical_high' => round( $stat['mean'] + $stat['sd'], 1 ),
+			'z'            => round( $z, 2 ),
+			'dir'          => $z > 0 ? 'above' : 'below',
+		);
+	}
+	return $flags;
+}
