@@ -156,3 +156,54 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 		'events'    => $seq,
 	);
 }
+
+/**
+ * Aggregate visit-quality metrics from a list of visit summaries.
+ *
+ * @param array $summaries Visit summaries from sn_visit_summary().
+ * @return array{visits:int,bounce_rate:float,pages_per_visit:float,median_duration:int,engaged_visits:int,engaged_rate:float}
+ */
+function sn_session_metrics( array $summaries ) {
+	$n = count( $summaries );
+	if ( 0 === $n ) {
+		return array(
+			'visits'          => 0,
+			'bounce_rate'     => 0.0,
+			'pages_per_visit' => 0.0,
+			'median_duration' => 0,
+			'engaged_visits'  => 0,
+			'engaged_rate'    => 0.0,
+		);
+	}
+
+	$bounces    = 0;
+	$pv_total   = 0;
+	$engaged    = 0;
+	$durations  = array();
+	foreach ( $summaries as $s ) {
+		$pv = (int) ( $s['pageviews'] ?? 0 );
+		$pv_total += $pv;
+		if ( $pv <= 1 ) {
+			$bounces++;
+		}
+		if ( ! empty( $s['engaged'] ) ) {
+			$engaged++;
+		}
+		$durations[] = (int) ( $s['duration'] ?? 0 );
+	}
+
+	sort( $durations );
+	$mid    = intdiv( $n, 2 );
+	$median = ( 0 === $n % 2 )
+		? (int) round( ( $durations[ $mid - 1 ] + $durations[ $mid ] ) / 2 )
+		: $durations[ $mid ];
+
+	return array(
+		'visits'          => $n,
+		'bounce_rate'     => $bounces / $n,
+		'pages_per_visit' => $pv_total / $n,
+		'median_duration' => $median,
+		'engaged_visits'  => $engaged,
+		'engaged_rate'    => $engaged / $n,
+	);
+}

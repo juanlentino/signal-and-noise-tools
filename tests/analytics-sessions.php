@@ -66,5 +66,19 @@ ok( false === $s2['engaged'], 'scroll 40% < 50% → not engaged despite long dwe
 $s3 = sn_visit_summary( array( ev( 'C', 0, 'pv', '/only' ) ), 50, 15000 );
 ok( 1 === $s3['pageviews'] && '/only' === $s3['entry'] && '/only' === $s3['exit'], 'single-pageview visit' );
 
+echo "\nGroup: sn_session_metrics\n";
+$summaries = array(
+	array( 'entry' => '/a', 'exit' => '/a', 'path' => array( '/a' ), 'pageviews' => 1, 'duration' => 0,  'engaged' => false, 'goals' => array(), 'events' => array() ),
+	array( 'entry' => '/a', 'exit' => '/c', 'path' => array( '/a', '/b', '/c' ), 'pageviews' => 3, 'duration' => 120, 'engaged' => true, 'goals' => array(), 'events' => array() ),
+	array( 'entry' => '/b', 'exit' => '/b', 'path' => array( '/b' ), 'pageviews' => 1, 'duration' => 40, 'engaged' => true, 'goals' => array(), 'events' => array() ),
+);
+$m = sn_session_metrics( $summaries );
+ok( 3 === $m['visits'], 'visits = 3' );
+ok( abs( $m['bounce_rate'] - ( 2 / 3 ) ) < 0.001, 'bounce_rate = 2 single-pageview / 3' );
+ok( abs( $m['pages_per_visit'] - ( 5 / 3 ) ) < 0.001, 'pages_per_visit = 5/3' );
+ok( 40 === $m['median_duration'], 'median duration of {0,120,40} = 40' );
+ok( 2 === $m['engaged_visits'], '2 engaged visits' );
+ok( 0 === sn_session_metrics( array() )['visits'], 'empty input → 0 visits, no divide-by-zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
