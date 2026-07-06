@@ -207,3 +207,35 @@ function sn_session_metrics( array $summaries ) {
 		'engaged_rate'    => $engaged / $n,
 	);
 }
+
+/**
+ * Count consecutive page-to-page transitions across visits, most common first.
+ *
+ * @param array $summaries Visit summaries (each with a 'path' list).
+ * @param int   $limit     Max transitions to return.
+ * @return array List of array{from:string,to:string,count:int}.
+ */
+function sn_session_paths( array $summaries, $limit = 20 ) {
+	$counts = array(); // "from\x00to" => count
+	foreach ( $summaries as $s ) {
+		$path = isset( $s['path'] ) ? array_values( (array) $s['path'] ) : array();
+		for ( $i = 1, $len = count( $path ); $i < $len; $i++ ) {
+			$key            = $path[ $i - 1 ] . "\x00" . $path[ $i ];
+			$counts[ $key ] = ( $counts[ $key ] ?? 0 ) + 1;
+		}
+	}
+	arsort( $counts );
+	$out = array();
+	foreach ( $counts as $key => $count ) {
+		list( $from, $to ) = explode( "\x00", $key, 2 );
+		$out[] = array(
+			'from'  => $from,
+			'to'    => $to,
+			'count' => (int) $count,
+		);
+		if ( count( $out ) >= (int) $limit ) {
+			break;
+		}
+	}
+	return $out;
+}

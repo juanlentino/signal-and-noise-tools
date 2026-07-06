@@ -80,5 +80,19 @@ ok( 40 === $m['median_duration'], 'median duration of {0,120,40} = 40' );
 ok( 2 === $m['engaged_visits'], '2 engaged visits' );
 ok( 0 === sn_session_metrics( array() )['visits'], 'empty input → 0 visits, no divide-by-zero' );
 
+echo "\nGroup: sn_session_paths\n";
+$sp = array(
+	array( 'path' => array( '/a', '/b', '/c' ) ),
+	array( 'path' => array( '/a', '/b' ) ),
+	array( 'path' => array( '/a' ) ),
+);
+$paths = sn_session_paths( $sp, 10 );
+ok( isset( $paths[0]['from'], $paths[0]['to'], $paths[0]['count'] ), 'rows have from/to/count' );
+ok( '/a' === $paths[0]['from'] && '/b' === $paths[0]['to'] && 2 === $paths[0]['count'], 'A→B is top transition with count 2' );
+$found = false;
+foreach ( $paths as $p ) { if ( '/b' === $p['from'] && '/c' === $p['to'] ) { $found = ( 1 === $p['count'] ); } }
+ok( $found, 'B→C counted once' );
+ok( array() === sn_session_paths( array(), 10 ), 'empty input → empty list' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
