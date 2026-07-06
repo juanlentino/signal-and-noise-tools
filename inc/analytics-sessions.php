@@ -108,9 +108,9 @@ function sn_sessionize( array $rows, $gap_sec = SN_ANALYTICS_SESSION_GAP_SEC ) {
 			$current[] = $e;
 			$prev_ts   = $e['ts'];
 		}
-		if ( ! empty( $current ) ) {
-			$visits[] = $current;
-		}
+		// $events is never empty (only populated vids reach $by_vid), so the inner
+		// loop always ran and $current holds at least the final event.
+		$visits[] = $current;
 	}
 	return $visits;
 }
