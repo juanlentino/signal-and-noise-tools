@@ -70,7 +70,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-empty-note">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}

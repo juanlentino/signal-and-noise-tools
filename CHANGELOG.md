@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.9.2] - 2026-07-06: Empty states read as intentional, not orphaned
+
+**Headline:** Admin "no data yet" notes floated at the bottom of a view as faint italic text with no visual home (most visibly the analytics engagement-anomalies fold line). They now render as a **subtle dashed inset with a leading info icon** and normal weight — a designed placeholder rather than stray text — applied consistently across every surface that shows the pattern. The treatment targets *empty-specific* selectors only, never the shared `.sn-an-empty` base class (which also carries non-empty muted meta text, e.g. worker-status lines), so live status/metadata is untouched. The icon is an inline data-URI SVG (no font dependency).
+
+> **Why PATCH:** presentation refinement of existing empty-state notes; no new capability, route, ability, schema, or option change. Excludes error states, inline status values, and already-contained messages by design. (Ships as 8.9.2 — 8.9.1 went to the concurrent analytics-render split, PR #192.)
+
+### Changed
+- Unified empty-note treatment across the analytics dashboard (the fold line + the 13 in-panel empties, via `.sn-an-empty-fold` / `.sn-an-empty--panel` in `assets/analytics/analytics-admin.css`; three bare full-view empties opt in via a `--note` / `--panel` modifier in `inc/analytics-view-sessions.php` and `inc/analytics-admin.php`), the WP Dashboard analytics widget (`.sn-aw-empty` in `assets/analytics/analytics-widget.css`), and the content-tool result notes (a shared `.sn-empty-note` in `assets/admin.css`, applied in `inc/block-migrations-admin.php`, `inc/pattern-adoption-admin.php`, `inc/reading-time.php`).
+
 ## [8.9.1] - 2026-07-06: Split the Analytics render monolith into per-domain partials
 
 **Headline:** `inc/analytics-admin-render.php` had grown to ~1.3k lines — 31 panel/table renderers in one file, well over the project's 800-line ceiling (a LOW finding from the v8.9.0 anomaly-arc review, pre-existing, not introduced there). The renderers are now split by panel/domain into eleven focused `inc/analytics-render-*.php` files, mirroring the v8.5.0 `analytics-view-*.php` extraction. `analytics-admin-render.php` stays the single include point — it is now a **barrel** that `require_once`s each domain file, so the plugin (`signal-and-noise-tools.php:120`) and every test that `require`s it keep working unchanged. Every render function is byte-identical; behaviour is untouched.
@@ -25,7 +34,6 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ### Tests
 - No test changes required. The existing `tests/analytics-*render*.php` suites and `tests/analytics-admin.php` still `require` the barrel and stay green (228 suites / 6159 assertions), confirming the split preserves the full render surface. PHPCS and PHPStan clean on all twelve touched files.
-
 ## [8.9.0] - 2026-07-06: Anomaly arc — cross-metric engagement anomalies + narrator context
 
 **Headline:** A new **Engagement anomalies** panel (Dashboard → Analytics → Engagement) and `GET /analytics/anomalies` surface per-path cross-metric outliers the siloed distributions can't: pages that scroll deep but leave fast ("skim"), pages that dwell long but never scroll ("stall"), and pages more than 2σ from the per-metric mean. Separately, the weekly AI narrator now receives an optional `anomaly_flags` block — week totals sitting outside their trailing ~6-week typical range — so its prose gives context ("views 1,500, above the typical 990–1,010") instead of a bare delta. Both surfaces are built on one shared z-score primitive and read data the beacon already collects; they stay strictly cookieless (aggregate, within-week; no identity, no cross-day, no new-vs-returning — the narrator guardrail was re-verified intact).

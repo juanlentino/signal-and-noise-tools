@@ -386,7 +386,7 @@ add_action( 'sn_admin_reading_time_tab', function() {
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<strong>2 · Apply</strong>';
 		if ( 0 === $report_n ) {
-			echo '<p class="sn-helper">No matches found — nothing to apply.</p>';
+			echo '<p class="sn-empty-note">No matches found — nothing to apply.</p>';
 		} else {
 			echo '<p class="sn-helper"><strong>Destructive.</strong> Removes the ' . (int) $report_n . ' match(es) below from post content / excerpts / meta. Cannot be undone — back up first.</p>';
 		}
