@@ -371,6 +371,64 @@ function sn_funnel_report( array $summaries, array $funnel ) {
 }
 
 /**
+ * Attribute converting visits to their entry page.
+ *
+ * For each visit whose goals include one matching $goal_value (prefix or exact),
+ * credit its entry page once — so the result answers "where did the visitors who
+ * actually converted first land?" (e.g. did /services feed the contact form, or
+ * did people reach /contact directly?). A visit is counted once even if it fired
+ * two matching goals: this counts converting VISITS, mirroring sn_funnel_report's
+ * visit semantics, not raw conversion events. Runs over the same within-day
+ * summaries the Visits view already holds — no extra query. Cookieless and
+ * aggregate: only the entry PATH is retained, never an identity.
+ *
+ * @param array  $summaries  Visit summaries (each with 'entry' + 'goals').
+ * @param string $goal_value Goal name, or a family prefix (e.g. 'contact-').
+ * @param bool   $prefix     Match $goal_value as a prefix. Default true.
+ * @param int    $limit      Max rows returned (<= 0 = no cap). Default 10.
+ * @return array List of array{entry:string,conversions:int}, desc by conversions.
+ */
+function sn_goal_attribution( array $summaries, $goal_value, $prefix = true, $limit = 10 ) {
+	$value = (string) $goal_value;
+	$vlen  = strlen( $value );
+	$tally = array();
+	foreach ( $summaries as $s ) {
+		$goals = isset( $s['goals'] ) ? (array) $s['goals'] : array();
+		$hit   = false;
+		foreach ( $goals as $g ) {
+			$g = (string) $g;
+			if ( $prefix ? ( 0 === strncmp( $g, $value, $vlen ) ) : ( $g === $value ) ) {
+				$hit = true;
+				break;
+			}
+		}
+		if ( ! $hit ) {
+			continue;
+		}
+		$entry           = (string) ( $s['entry'] ?? '' );
+		$entry           = ( '' !== $entry ) ? $entry : '(unknown)';
+		$tally[ $entry ] = ( $tally[ $entry ] ?? 0 ) + 1;
+	}
+	$rows = array();
+	foreach ( $tally as $entry => $count ) {
+		$rows[] = array( 'entry' => $entry, 'conversions' => $count );
+	}
+	// Desc by conversions; entry name asc as a stable tiebreak (deterministic output).
+	usort(
+		$rows,
+		function ( $a, $b ) {
+			return ( $a['conversions'] === $b['conversions'] )
+				? strcmp( $a['entry'], $b['entry'] )
+				: ( $b['conversions'] - $a['conversions'] );
+		}
+	);
+	if ( $limit > 0 && count( $rows ) > $limit ) {
+		$rows = array_slice( $rows, 0, $limit );
+	}
+	return $rows;
+}
+
+/**
  * Build the AE SQL that pulls raw human events for sessionization. Returns ''
  * (so the caller no-ops) if the window or class is invalid. class is strictly
  * whitelisted and dates are format-validated — the only interpolated values —

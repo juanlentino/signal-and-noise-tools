@@ -152,6 +152,35 @@ if ( null !== $contact_funnel ) {
 	ok( 1 === $last['reached'], 'services -> contact -> contact-music completes the contact funnel end-to-end' );
 }
 
+echo "\nGroup: sn_goal_attribution (v9.1.0)\n";
+// Credit each converting visit to its entry page — "where did the visitors who
+// actually contacted first land?" Computed from the same within-day summaries.
+$attr_summaries = array(
+	vs_events( array( ev( 'A', 0, 'pv', '/services' ), ev( 'A', 10, 'pv', '/contact' ), ev( 'A', 20, 'ce', '/contact', 'contact-music' ) ) ), // /services → converts
+	vs_events( array( ev( 'B', 0, 'pv', '/services' ), ev( 'B', 10, 'ce', '/contact', 'contact-press' ) ) ),                                    // /services → converts
+	vs_events( array( ev( 'C', 0, 'pv', '/contact' ),  ev( 'C', 10, 'ce', '/contact', 'contact-role' ) ) ),                                     // /contact directly → converts
+	vs_events( array( ev( 'D', 0, 'pv', '/notes/x' ),  ev( 'D', 10, 'ce', '/notes/x', 'subscribe' ) ) ),                                        // subscribe only → NOT a contact conversion
+	vs_events( array( ev( 'E', 0, 'pv', '/services' ), ev( 'E', 10, 'pv', '/contact' ) ) ),                                                     // browses, no conversion
+);
+$attr = sn_goal_attribution( $attr_summaries, 'contact-', true, 10 );
+ok( is_array( $attr ), 'returns an array' );
+ok( isset( $attr[0]['entry'], $attr[0]['conversions'] ), 'rows carry entry + conversions' );
+ok( '/services' === $attr[0]['entry'] && 2 === $attr[0]['conversions'], '/services is the top entry with 2 contact conversions' );
+$svc = null; $ct = null;
+foreach ( $attr as $r ) { if ( '/services' === $r['entry'] ) { $svc = $r['conversions']; } if ( '/contact' === $r['entry'] ) { $ct = $r['conversions']; } }
+ok( 2 === $svc && 1 === $ct, 'per-entry counts are correct (services 2, contact 1)' );
+$entries = array_map( function ( $r ) { return $r['entry']; }, $attr );
+ok( ! in_array( '/notes/x', $entries, true ), 'a subscribe-only visit is NOT credited to contact conversions' );
+ok( 2 === count( $attr ), 'only entries that produced a contact conversion appear' );
+// A visit is credited once even with two matching goals (converting VISITS, not events).
+$twice = sn_goal_attribution( array( vs_events( array( ev( 'G', 0, 'pv', '/services' ), ev( 'G', 5, 'ce', '/c', 'contact-music' ), ev( 'G', 6, 'ce', '/c', 'contact-press' ) ) ) ), 'contact-' );
+ok( 1 === count( $twice ) && 1 === $twice[0]['conversions'], 'a visit with two contact goals counts once' );
+// Exact (prefix=false) attributes a single concrete goal, not the family.
+$attr_exact = sn_goal_attribution( $attr_summaries, 'contact-music', false );
+ok( 1 === count( $attr_exact ) && '/services' === $attr_exact[0]['entry'] && 1 === $attr_exact[0]['conversions'], 'exact match attributes one concrete goal' );
+ok( array() === sn_goal_attribution( array(), 'contact-' ), 'empty input → empty list, no divide-by-zero' );
+ok( 1 === count( sn_goal_attribution( $attr_summaries, 'contact-', true, 1 ) ), 'limit caps the returned rows' );
+
 echo "\nGroup: sn_analytics_session_sql\n";
 $sql = sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'human', 50000 );
 ok( false !== strpos( $sql, 'FROM sn_pageviews' ), 'targets the sn_pageviews dataset' );

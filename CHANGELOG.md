@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.1.0] - 2026-07-07: Conversion attribution — where your contact conversions start
+
+**Headline:** The Visits view already shows *whether* people convert (the funnel) and *which* goals fire (the Custom-events leaderboard). What neither answers is *where the converting visits came from* — the exact question the theme's `/services`→`/contact` reconciliation raises: does Services actually feed the contact form, or do people reach `/contact` some other way? This adds a **"Contact conversions by entry page"** panel: for the visits that clicked a contact alias (the `contact-*` family, theme v10.28.0), it ranks the pages those visitors *first landed on*. If `/services` sits at the top, the funnel is doing its job; if `/contact` direct dominates, Services isn't the driver you'd assume.
+
+> **Why MINOR:** a new user-visible panel plus a new reusable, filterable-friendly function (`sn_goal_attribution()`). Purely additive — it reuses the within-day visit summaries the Visits view already fetches (no new Analytics Engine query), the panel is `snt_analytics_render_summary_panels()`'s new optional 5th argument (default empty → nothing renders), and it stays strictly cookieless and aggregate (entry *path* only, never an identity). No route, ability, or settings-schema change.
+
+### New
+- **`sn_goal_attribution( $summaries, $goal_value, $prefix = true, $limit = 10 )`** (`inc/analytics-sessions.php`): credits each converting visit to its entry page, returning `array{entry, conversions}` ranked desc. Counts converting *visits* (a visit with two matching goals counts once), mirroring `sn_funnel_report()`'s visit semantics. Prefix (`contact-`) or exact matching; deterministic tiebreak by entry name.
+- **"Contact conversions by entry page" panel** in the Visits view (`inc/analytics-view-sessions.php`), rendered as single-metric bars via the existing distribution helper — so a window with no contact conversions collapses into the empty fold under its own title rather than emitting a hollow panel, matching the funnels' behavior.
+
+### Improvements
+- `snt_analytics_render_summary_panels()` gains an optional `$attribution` parameter (5th, defaulted). Existing callers are unaffected.
+
 ## [9.0.1] - 2026-07-07: Surface the theme's contact conversions as a funnel (1:1 with theme v10.28.0)
 
 **Headline:** Theme v10.28.0 tags each `/contact` email alias with `data-sn-goal="contact-<alias>"`, so a click now emits a cookieless `contact-research`/`press`/`speaking`/`music`/`role` conversion event. Two things kept those from ever showing up as a funnel here. First, the session engine shipped exactly one default funnel ("Home → post → subscribe"), so nothing captured the contact family. Second — the latent one — `sn_funnel_step_matches()` honored the documented `prefix` flag for `path` steps but **silently ignored it for `ce` steps**, so "any `contact-*` goal" could not even be expressed as a single step (a family-prefix step like `contact-` was always compared for exact equality and never matched a concrete `contact-music`). This release fixes the matcher and adds a default "Services → contact → email" funnel that collapses the whole `contact-*` family into its final step.
