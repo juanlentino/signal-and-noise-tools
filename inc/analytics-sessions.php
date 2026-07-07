@@ -65,6 +65,17 @@ function sn_analytics_session_funnels() {
 				array( 'match' => 'ce', 'value' => 'subscribe', 'prefix' => false ),
 			),
 		),
+		array(
+			// The site's commercial conversion path. The theme (v10.28.0) tags each
+			// /contact email alias with data-sn-goal="contact-<alias>", so the final
+			// step matches the whole contact-* family via the ce-prefix flag.
+			'title' => __( 'Services → contact → email', 'signal-and-noise-tools' ),
+			'steps' => array(
+				array( 'match' => 'path', 'value' => '/services', 'prefix' => true ),
+				array( 'match' => 'path', 'value' => '/contact', 'prefix' => true ),
+				array( 'match' => 'ce', 'value' => 'contact-', 'prefix' => true ),
+			),
+		),
 	);
 	return (array) apply_filters( 'sn_analytics_session_funnels', $defaults );
 }
@@ -303,7 +314,14 @@ function sn_funnel_step_matches( array $step, array $event ) {
 		return $prefix ? ( 0 === strncmp( $path, $value, strlen( $value ) ) ) : ( $path === $value );
 	}
 	if ( 'ce' === $match ) {
-		return 'ce' === (string) ( $event['ev'] ?? '' ) && (string) ( $event['ce'] ?? '' ) === $value;
+		if ( 'ce' !== (string) ( $event['ev'] ?? '' ) ) {
+			return false;
+		}
+		$ce = (string) ( $event['ce'] ?? '' );
+		// Honor the documented prefix flag, mirroring the 'path' branch — so a
+		// single step (e.g. value 'contact-') captures a whole goal family
+		// (contact-research, contact-press, …) the theme emits per alias.
+		return $prefix ? ( 0 === strncmp( $ce, $value, strlen( $value ) ) ) : ( $ce === $value );
 	}
 	return false;
 }
