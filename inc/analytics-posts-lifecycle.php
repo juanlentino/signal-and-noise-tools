@@ -132,7 +132,7 @@ function sn_analytics_lifecycle_sort( $rows ) {
 	}
 	uasort(
 		$idx,
-		function ( $a, $b ) use ( $rows ) {
+		function ( $a, $b ) {
 			$ac = ! empty( $a['refresh_candidate'] ) ? 1 : 0;
 			$bc = ! empty( $b['refresh_candidate'] ) ? 1 : 0;
 			if ( $ac !== $bc ) {
