@@ -90,5 +90,27 @@ ok( false === strpos( $out2, '[dist-panel:Empty funnel' ), 'all-zero funnel did 
 ok( false !== strpos( $out2, 'sn-an-empty-fold' ), 'the empty fold line was emitted' );
 ok( false !== strpos( $out2, 'Empty funnel' ), 'all-zero funnel collapsed into the empty fold under its own name' );
 
+// v9.1.0: conversion-attribution panel renders from the new 5th arg (entry → conversions).
+ob_start();
+snt_analytics_render_summary_panels(
+	array( 'visits' => 2, 'bounce_rate' => 0.0, 'pages_per_visit' => 2.0, 'median_duration' => 30, 'engaged_visits' => 1, 'engaged_rate' => 0.5 ),
+	array(),
+	array(),
+	false,
+	array( array( 'entry' => '/services', 'conversions' => 3 ), array( 'entry' => '/contact', 'conversions' => 1 ) )
+);
+$out3 = ob_get_clean();
+ok( false !== strpos( $out3, '[dist-panel:Contact conversions by entry page:2]' ), 'conversion-attribution panel renders its rows when data is present' );
+
+// Empty attribution collapses into the fold — no hollow titled panel (matches funnels).
+ob_start();
+snt_analytics_render_summary_panels(
+	array( 'visits' => 2, 'bounce_rate' => 0.0, 'pages_per_visit' => 2.0, 'median_duration' => 30, 'engaged_visits' => 1, 'engaged_rate' => 0.5 ),
+	array(), array(), false, array()
+);
+$out4 = ob_get_clean();
+ok( false === strpos( $out4, '[dist-panel:Contact conversions by entry page' ), 'empty attribution does NOT emit a titled panel' );
+ok( false !== strpos( $out4, 'sn-an-empty-fold' ), 'empty attribution collapses into the empty fold' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

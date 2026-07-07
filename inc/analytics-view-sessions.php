@@ -23,8 +23,9 @@ require_once __DIR__ . '/analytics-panels.php';
  * @param array $paths   From sn_session_paths().
  * @param array $funnels List of array{title:string,report:array} (from sn_funnel_report()).
  * @param bool  $capped  Whether the raw row cap was hit.
+ * @param array $attribution From sn_goal_attribution(): array{entry,conversions} rows.
  */
-function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped ) {
+function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array() ) {
 	snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
 	if ( (int) $metrics['visits'] < 1 ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
@@ -82,6 +83,16 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 		snt_analytics_render_distribution( $f['title'], $bars, '', true );
 	}
 
+	// Conversion sources — where the visits that converted first landed. Single-metric
+	// bars (entry page → converting visits); the distribution helper owns its own empty
+	// fold, so a window with no contact conversions collapses under this title rather
+	// than emitting a hollow panel. Wide labels because entry paths run long.
+	$attr_rows = array();
+	foreach ( (array) $attribution as $a ) {
+		$attr_rows[] = array( 'label' => (string) ( $a['entry'] ?? '' ), 'views' => (int) ( $a['conversions'] ?? 0 ) );
+	}
+	snt_analytics_render_distribution( __( 'Contact conversions by entry page', 'signal-and-noise-tools' ), $attr_rows, '', true );
+
 	snt_an_flush_empty_fold();
 }
 
@@ -112,5 +123,9 @@ function snt_analytics_render_view_sessions( $from, $to, $class ) {
 			'report' => sn_funnel_report( $visits, $def['steps'] ),
 		);
 	}
-	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ) );
+	// Conversion attribution for the contact-* goal family (theme v10.28.0 emits
+	// contact-<alias> per /contact email link). Computed from the same visits — no
+	// extra query. Overridable prefix stays internal; the panel is contact-scoped.
+	$attribution = sn_goal_attribution( $visits, 'contact-' );
+	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ), $attribution );
 }
