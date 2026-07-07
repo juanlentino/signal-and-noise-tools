@@ -50,7 +50,7 @@ function sn_redirects_render_admin_tab() {
 
 		echo '<div class="sn-field">';
 		echo '<label class="sn-field-label">Type</label>';
-		echo sn_redirects_status_select_html( $status );
+		echo sn_redirects_status_select_html( $status ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper builds escaped markup (static strings + selected()).
 		echo '</div>';
 
 		echo '<div class="sn-fieldset-actions">';
@@ -77,7 +77,7 @@ function sn_redirects_render_admin_tab() {
 	echo '</div>';
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Type</label>';
-	echo sn_redirects_status_select_html( 301 );
+	echo sn_redirects_status_select_html( 301 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper builds escaped markup (static strings + selected()).
 	echo '</div>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="redirect_add" class="button button-primary">Add redirect</button>';
