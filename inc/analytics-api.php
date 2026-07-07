@@ -48,7 +48,7 @@
  * Wire it into a cron callback or REST endpoint in a downstream module once
  * the rollup table is ready.
  *
- * Mirrors the patterns of inc/plausible-api.php:
+ * Mirrors the outbound-API-client patterns:
  *   - Constant-first config resolution (file-based wp-config, read-only token).
  *   - wp_remote_post with timeout=6 + redirection=0 (SSRF hardening).
  *   - Error capture: url + code + 240-char body excerpt → transient.
@@ -86,7 +86,7 @@ const SN_CF_ACCOUNT_ID_OPT      = 'sn_cf_account_id';
 /**
  * Resolve account_id + token via constant > option fallback.
  *
- * Config resolution (mirrors inc/plausible-api.php and inc/cloudflare-purge.php):
+ * Config resolution (mirrors inc/cloudflare-purge.php):
  *
  *   SN_CF_ANALYTICS_TOKEN  — Account Analytics Read token (read-only, file-based
  *                             in wp-config.php). Obtain from Cloudflare dashboard →
@@ -180,7 +180,7 @@ function sn_analytics_query( $sql ) {
 		'body'        => $sql,
 		'timeout'     => 6,
 		// Do not follow redirects — keeps the Bearer token on the validated host.
-		// Mirrors inc/plausible-api.php + inc/webhooks.php + inc/uptime-heartbeat.php.
+		// Mirrors inc/webhooks.php + inc/uptime-heartbeat.php.
 		'redirection' => 0,
 	) );
 

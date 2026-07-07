@@ -6,7 +6,7 @@
  * per-class "current visitors" counts (human / suspect / bot) — distinct
  * visitor-day hashes seen in the last few minutes — read from a short-lived
  * transient that an admin_init SWR warmer keeps ~30s fresh via non-blocking
- * background single-events. Mirrors inc/plausible-api.php's realtime half.
+ * background single-events. Mirrors the retired Plausible client's realtime-single-events pattern.
  *
  * No table and no recurring cron: a "now" number is only meaningful while
  * someone is looking at the dashboard, so the warmer schedules single events

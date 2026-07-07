@@ -5,11 +5,11 @@
  * One table, two roles:
  *   role='entry' — landing pages: a pageview whose referrer (blob3) is external
  *                  or direct. Fed live by a daily AE rollup (see Task 2) wired
- *                  into the existing rollup cron, AND back-filled from Plausible
- *                  CSV history via inc/analytics-import.php (type entry_pages).
+ *                  into the existing rollup cron, AND (historically) back-
+ *                  filled from Plausible CSV (importer retired at 9.0.0).
  *   role='exit'  — last page of a visit. NO live source (true live exit needs a
  *                  session id, which breaks cookieless — deferred). Historical
- *                  only, back-filled from Plausible CSV (type exit_pages).
+ *                  only (the Plausible CSV back-fill importer was retired at 9.0.0).
  *
  * Entry/exit are HUMAN-ONLY (no traffic-class column): the dashboard class pill
  * does not apply, consistent with the Events tab and the human-only Plausible

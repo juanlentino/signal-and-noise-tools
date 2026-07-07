@@ -38,8 +38,8 @@ add_action( 'admin_init', 'sn_migrate_remove_orphan_options' );
  * Delete the Plausible Stats-API orphans once (v6.0.0).
  *
  * v6.0.0 retires the Plausible Stats-API integration (first-party edge
- * analytics replaced it as the stats source since v5.2.0). The deleted
- * inc/plausible-api.php left behind:
+ * analytics replaced it as the stats source since v5.2.0). The retired
+ * Plausible module (v6.0.0) left behind:
  *   - option    `sn_plausible_stats_token`  (admin-saved Stats API token)
  *   - transient `sn_plausible_dashboard_v4` (7-day batched SWR cache)
  *   - transient `sn_plausible_realtime_v3`  (realtime visitor SWR cache)
