@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     8.10.0
+ * Version:     8.11.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -120,6 +120,8 @@ require_once SNT_PATH . 'inc/analytics-import.php'; // one-time Plausible-CSV �
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
 require_once SNT_PATH . 'inc/analytics-posts.php';       // v6.39.0: post-lifecycle data layer (durable per-path rollup)
 require_once SNT_PATH . 'inc/analytics-posts-admin.php'; // v6.39.0: Posts view render (reuses admin-render helpers)
+require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A4): catalogue-wide decay census + refresh candidates
+require_once SNT_PATH . 'inc/analytics-posts-lifecycle-admin.php'; // v8.11.0 (A4): "Lifecycle at scale" render
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
 require_once SNT_PATH . 'inc/edge-analytics.php';  // v6.26.0: Cloudflare GraphQL zone-analytics client (edge traffic)
 require_once SNT_PATH . 'inc/edge-rollup.php';     // v6.26.0: edge daily/dims tables + daily GraphQL rollup cron
@@ -268,6 +270,7 @@ require_once __DIR__ . '/inc/discography-sync.php';    // v4.13.0: Music Identit
 require_once __DIR__ . '/inc/seo-schema-music.php';    // v4.13.0: Music Identity — MusicAlbum/MusicRecording JSON-LD on /music
 require_once __DIR__ . '/inc/music-featured.php';      // v4.14.0: settings-driven featured release (sn_music_featured filter)
 require_once __DIR__ . '/inc/post-settings.php';
+require_once __DIR__ . '/inc/post-evergreen.php'; // v8.11.0 (B5): evergreen flag accessor + Posts list column
 require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';

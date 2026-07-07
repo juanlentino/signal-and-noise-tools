@@ -23,7 +23,8 @@
  *                             AI verdict + force-delete since v4.1.0.
  *   3. broken_links         — internal links in post_content that 404 or
  *                             return network errors (cached HEAD requests).
- *   4. stale_posts          — published posts unedited in the last 12 months.
+ *   4. stale_posts          — published posts unedited in the last 12 months
+ *                             (excluding those flagged `_sn_evergreen`, v8.11.0 B5).
  *                             Read-only; AI Suggest was scoped out of v4.1.0
  *                             per evergreen-site mismatch.
  *   5. drift_time_phrases   — time-relative phrases (recently, last year,
@@ -541,12 +542,18 @@ function sn_health_check_stale_posts() {
 	$findings = array();
 
 	$cutoff = gmdate( 'Y-m-d H:i:s', strtotime( '-' . SN_HEALTH_STALE_MONTHS . ' months' ) );
+	// v8.11.0 (B5): posts the editor flagged `_sn_evergreen` are intentionally
+	// timeless — "accept as evergreen" made actionable, so they drop out of the scan.
 	$rows = $wpdb->get_results( $wpdb->prepare(
 		"SELECT ID, post_title, post_modified_gmt
 		 FROM {$wpdb->posts}
 		 WHERE post_status = 'publish'
 		   AND post_type IN ('post','page')
 		   AND post_modified_gmt < %s
+		   AND ID NOT IN (
+		       SELECT post_id FROM {$wpdb->postmeta}
+		       WHERE meta_key = '_sn_evergreen' AND meta_value = '1'
+		   )
 		 ORDER BY post_modified_gmt ASC
 		 LIMIT 200",
 		$cutoff
@@ -565,7 +572,7 @@ function sn_health_check_stale_posts() {
 		}
 	}
 
-	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $findings, 'Review and either update, archive, or accept as evergreen.' );
+	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $findings, 'Review and either update, archive, or mark "Evergreen" in the post\'s Signal & Noise box to exempt it.' );
 }
 
 /**
