@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.11.0] - 2026-07-07: Freshness arc — decay at scale (A4) meets the editor's evergreen flag (B5)
+
+**Headline:** Two halves of one story. **A4 (path decay at scale)** takes the decay classifier that the Posts view already runs on your 12 newest Notes (`spike` / `cooling` / `evergreen`, from each post's early-life share of lifetime views) and runs it across your **whole published catalogue** — a new **"Lifecycle at scale"** section (Dashboard → Analytics → Posts) with a shape census and a **refresh queue**. **B5 (evergreen flag)** adds a per-post **Evergreen** toggle (in the post's Signal & Noise box) that says "this is intentionally timeless." They meet in the refresh queue: a **refresh candidate** is a Note the data says is *cooling* that you have **not** marked evergreen — the editorial call the numbers can't make. Flagging a post evergreen also exempts it from the stale-content health check (the "accept as evergreen" that check already invited) and drops it from the refresh queue even when its traffic cools.
+
+At catalogue scale the per-path history is read with **one** grouped query over the durable daily rollup (not N per-path reads), and the whole bundle is transient-cached (6h).
+
+> **Why MINOR:** two new user-visible capabilities (the catalogue-wide lifecycle analytics + the evergreen flag with its editor column and health-check integration), additive, with a new `_sn_evergreen` post-meta. No breaking change, no migration.
+
+### Added
+- **A4 — Lifecycle at scale.** [inc/analytics-posts-lifecycle.php](inc/analytics-posts-lifecycle.php): pure classification (`sn_analytics_lifecycle_classify` → decay shape + refresh-candidate flag), the batched row builder (`sn_analytics_posts_lifecycle_rows`), census (`sn_analytics_lifecycle_summary`), candidate-first ordering (`sn_analytics_lifecycle_sort`), and the impure orchestration (`sn_analytics_posts_lifecycle` + the single grouped `sn_analytics_paths_daily_series` read, capped at `SN_POSTS_LIFECYCLE_MAX = 200`, cached `SN_POSTS_LIFECYCLE_TTL = 6h`). Render in [inc/analytics-posts-lifecycle-admin.php](inc/analytics-posts-lifecycle-admin.php): a `.sn-kpi` glance (refresh candidates + shape census) over the refresh-queue leaderboard, reusing the dashboard's native chrome (no new CSS). Wired into the Posts view in [inc/analytics-admin.php](inc/analytics-admin.php).
+- **B5 — Evergreen flag.** [inc/post-evergreen.php](inc/post-evergreen.php): the `sn_post_is_evergreen()` accessor and the Posts list-table **Evergreen** indicator column. The `_sn_evergreen` meta is registered + rendered (a checkbox in the consolidated meta box) + saved in [inc/post-settings.php](inc/post-settings.php), alongside the existing per-post meta.
+
+### Changed
+- The stale-posts health check ([inc/health-checks.php](inc/health-checks.php)) now **excludes** posts flagged `_sn_evergreen` (a `NOT IN` sub-select on postmeta), and its remediation copy points at the new toggle.
+- Registered the three new modules in [signal-and-noise-tools.php](signal-and-noise-tools.php) (lifecycle data + render after the Posts view; the evergreen module after post-settings).
+
+### Tests
+- New CLI fixtures [tests/analytics-posts-lifecycle.php](tests/analytics-posts-lifecycle.php) (17 assertions: classify, refresh-candidate intersection with the evergreen flag, batched row alignment, lifetime summing, census, candidate-first ordering) and [tests/post-evergreen.php](tests/post-evergreen.php) (8: accessor, column insertion order, cell markup). Full standalone sweep green: 6244 assertions, 0 failures. Render path verified end-to-end (candidate sorts first; cooling-but-flagged renders "Evergreen," not a candidate; empty state clean).
+
 ## [8.10.0] - 2026-07-07: Redirects arc — a URL redirect manager + a front-end 404 log
 
 **Headline:** A new **Redirects** surface (Connections → Redirects) lets the owner map any old or broken path to a new destination — a 301 (permanent) or 302 (temporary) redirect to an on-site path (`/new-page`) or a full external URL (`https://…`). Alongside it, a **404 log** in the sidebar captures front-end requests that hit a missing page (with bot/probe noise filtered out) and ranks them by hit count, so real broken inbound links surface instead of hiding in server logs. The two connect: one click on a logged 404 turns it into a redirect **and** clears it from the list. This generalizes the tag-only 301 map (`inc/tag-consolidation-redirects.php`) to arbitrary paths.

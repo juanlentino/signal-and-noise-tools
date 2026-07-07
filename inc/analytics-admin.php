@@ -350,6 +350,8 @@ function snt_analytics_render_dashboard() {
 			// Post-lifecycle view: hero + trajectory + catalog + velocity/decay.
 			// Manages its own layout (hero/trajectory full-width, then a grid).
 			snt_analytics_render_posts_view( sn_analytics_posts_bundle() );
+			// v8.11.0 (A4): the catalogue-wide decay census + refresh queue.
+			snt_analytics_render_lifecycle_section( sn_analytics_posts_lifecycle() );
 			break;
 
 		case 'technology':

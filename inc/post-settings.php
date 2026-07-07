@@ -68,6 +68,7 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_noindex',          $bool_args );
 		register_post_meta( $post_type, '_sn_noarchive',        $bool_args );
 		register_post_meta( $post_type, '_sn_noimageindex',     $bool_args );
+		register_post_meta( $post_type, '_sn_evergreen',        $bool_args ); // v8.11.0 (B5): freshness flag.
 		register_post_meta( $post_type, '_sn_meta_description', $text_args );
 		register_post_meta( $post_type, '_sn_canonical_url',    $url_args );
 		register_post_meta( $post_type, '_sn_og_image_url',     $url_args );
@@ -107,6 +108,7 @@ add_action( 'add_meta_boxes', 'sn_post_settings_register_meta_box' );
 function sn_post_settings_render( $post ) {
 	wp_nonce_field( SN_POST_SETTINGS_NONCE, 'sn_post_settings_nonce' );
 
+	$evergreen     = (bool) get_post_meta( $post->ID, '_sn_evergreen', true );
 	$noindex       = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
 	$noarchive     = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
 	$noimageindex  = (bool) get_post_meta( $post->ID, '_sn_noimageindex', true );
@@ -122,6 +124,15 @@ function sn_post_settings_render( $post ) {
 	if ( function_exists( 'sn_prepop_render_notice' ) ) {
 		sn_prepop_render_notice( $post );
 	}
+
+	// ─── Freshness (v8.11.0, B5) ───
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label sn-field-label--inline">';
+	echo '<input type="checkbox" name="sn_evergreen" value="1"' . checked( $evergreen, true, false ) . '> ';
+	echo 'Evergreen (timeless)';
+	echo '</label>';
+	echo '<p class="sn-field-helper">Marks this Note as intentionally timeless: it&rsquo;s exempt from the &ldquo;stale content&rdquo; health check and won&rsquo;t show as a refresh candidate in Analytics &rarr; Posts even if its traffic is cooling.</p>';
+	echo '</div>';
 
 	// ─── Robots directives ───
 	echo '<div class="sn-field">';
@@ -210,6 +221,7 @@ function sn_post_settings_save( $post_id ) {
 
 	// Boolean flags — checkbox unchecked = absent from $_POST.
 	$bool_fields = array(
+		'_sn_evergreen'    => 'sn_evergreen',
 		'_sn_noindex'      => 'sn_noindex',
 		'_sn_noarchive'    => 'sn_noarchive',
 		'_sn_noimageindex' => 'sn_noimageindex',
