@@ -118,54 +118,7 @@ function snt_analytics_render_worker_setup() {
 	echo '</ol></details>';
 }
 
-/**
- * One-time Plausible-history import panel (v6.0.0). A multipart form with one
- * optional file input per supported CSV export, plus a one-shot summary of the
- * last import (read from a short transient). Posts sn_action=analytics_import on
- * the page=sn-theme-options route, so the shared admin-post handler accepts it.
- */
-function snt_analytics_render_import() {
-	if ( ! function_exists( 'sn_analytics_import_types' ) ) {
-		return;
-	}
-
-	echo '<details class="sn-an-worker"><summary>Import history from Plausible (one-time CSV)</summary>';
-	echo '<p class="sn-an-settings-help">Retiring Plausible? In Plausible, export each report to CSV, then upload them here to back-fill the first-party dashboard. Import <strong>history from before the edge worker went live</strong> — days the worker already tracks are overwritten by the next data refresh, so avoid importing dates that overlap live data. Re-importing is safe (idempotent). Pages, sources, locations, devices, browsers, and operating systems map across; the hour heatmap, scroll/time distributions, and network/edge/protocol/TLS dimensions start fresh from the worker.</p>';
-
-	// One-shot summary of the last import.
-	$report = function_exists( 'get_transient' ) ? get_transient( 'sn_analytics_import_report' ) : false;
-	if ( is_array( $report ) ) {
-		if ( function_exists( 'delete_transient' ) ) {
-			delete_transient( 'sn_analytics_import_report' );
-		}
-		echo '<div class="notice notice-success notice-alt inline"><p><strong>Imported:</strong> '
-			. esc_html( number_format_i18n( (int) ( $report['daily'] ?? 0 ) ) ) . ' page-day rows';
-		if ( ! empty( $report['dims'] ) && is_array( $report['dims'] ) ) {
-			$bits = array();
-			foreach ( $report['dims'] as $dim => $n ) {
-				$bits[] = (string) $dim . ': ' . number_format_i18n( (int) $n );
-			}
-			echo ' · ' . esc_html( implode( ' · ', $bits ) );
-		}
-		if ( ! empty( $report['events'] ) ) {
-			echo ' · custom events: ' . esc_html( number_format_i18n( (int) $report['events'] ) );
-		}
-		if ( ! empty( $report['event_props'] ) ) {
-			echo ' · custom props: ' . esc_html( number_format_i18n( (int) $report['event_props'] ) );
-		}
-		echo '.</p></div>';
-	}
-
-	echo '<form method="post" enctype="multipart/form-data" class="sn-an-settings">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<table class="form-table" role="presentation"><tbody>';
-	foreach ( sn_analytics_import_types() as $type => $label ) {
-		$id = 'sn_import_' . $type;
-		echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th>';
-		echo '<td><input type="file" id="' . esc_attr( $id ) . '" name="' . esc_attr( $id ) . '" accept=".csv,text/csv"></td></tr>';
-	}
-	echo '</tbody></table>';
-	echo '<p><button type="submit" name="sn_action" value="analytics_import" class="button button-primary">Import CSV history</button> ';
-	echo '<span class="sn-an-empty">All fields optional — upload whichever reports you have.</span></p>';
-	echo '</form></details>';
-}
+// v9.0.0 (D1): the one-time Plausible-CSV history importer (snt_analytics_render_import
+// + inc/analytics-import.php) was retired here. Plausible itself was removed at v6.0.0;
+// the CSV back-fill it shipped alongside has had three major versions to run and is
+// no longer carried. See CHANGELOG "action required".

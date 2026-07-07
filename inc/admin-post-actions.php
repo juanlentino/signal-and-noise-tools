@@ -980,45 +980,6 @@ function sn_handle_analytics_export( $post ) {
 	exit;
 }
 
-/**
- * One-time import of Plausible CSV exports into the first-party rollup tables
- * (v6.0.0). Validates each uploaded file (genuine upload, ≤5MB, no upload error),
- * hands the temp paths to sn_analytics_import_run() (which parses, maps, and
- * idempotently upserts), and stashes the count report in a short transient the
- * settings section renders once. Payload is in $_FILES, not $_POST.
- *
- * @param array $post Raw $_POST (unused; kept for dispatcher contract).
- * @return string Flash code: 'analytics_imported' | 'analytics_import_empty' | 'analytics_import_err'.
- */
-function sn_handle_analytics_import( $post ) {
-	if ( ! function_exists( 'sn_analytics_import_run' ) || ! function_exists( 'sn_analytics_import_types' ) ) {
-		return 'analytics_import_err';
-	}
-
-	$files = array();
-	foreach ( array_keys( sn_analytics_import_types() ) as $type ) {
-		$field = 'sn_import_' . $type;
-		if ( ! isset( $_FILES[ $field ] ) || ! is_array( $_FILES[ $field ] ) ) {
-			continue;
-		}
-		$err = isset( $_FILES[ $field ]['error'] ) ? (int) $_FILES[ $field ]['error'] : UPLOAD_ERR_NO_FILE;
-		if ( UPLOAD_ERR_OK !== $err ) {
-			continue;
-		}
-		// tmp_name is a server-generated path; sanitize for the linter, then validate
-		// it's a genuine upload with is_uploaded_file(). size is int-cast.
-		$tmp  = isset( $_FILES[ $field ]['tmp_name'] ) ? sanitize_text_field( wp_unslash( $_FILES[ $field ]['tmp_name'] ) ) : '';
-		$size = isset( $_FILES[ $field ]['size'] ) ? (int) $_FILES[ $field ]['size'] : 0;
-		if ( '' !== $tmp && is_uploaded_file( $tmp ) && $size > 0 && $size <= 5 * 1024 * 1024 ) {
-			$files[ $type ] = $tmp;
-		}
-	}
-
-	if ( empty( $files ) ) {
-		return 'analytics_import_empty';
-	}
-
-	$report = sn_analytics_import_run( $files );
-	set_transient( 'sn_analytics_import_report', $report, 5 * MINUTE_IN_SECONDS );
-	return 'analytics_imported';
-}
+// v9.0.0 (D1): sn_handle_analytics_import() (the Plausible-CSV upload handler) was
+// removed with the rest of the importer. The analytics_export handler above stays —
+// export is a live first-party feature, unrelated to the retired Plausible path.

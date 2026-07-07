@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.0.0] - 2026-07-07: MAJOR — retire the grandfathered Plausible-CSV importer (the v6.0.0 migration path closes)
+
+**⚠️ Action required (for the vanishingly few it affects):** if you still hold Plausible CSV exports you intend to back-fill into the first-party analytics dashboard, import them **before** upgrading — the "Import history from Plausible" tool (Dashboard → Analytics → settings) is removed in this release. Already-imported data is untouched: it lives in the durable rollup tables, which stay. Only the one-time import *tool* goes.
+
+**Headline:** Plausible itself was retired three majors ago at [6.0.0](#) — which shipped a one-time CSV importer so the first-party pipeline could carry Plausible's pre-cutover history. That back-fill has had all of 6.x → 8.x to run; this release closes the door. The importer (`inc/analytics-import.php` — 15 CSV parse/map/normalize functions), its settings panel, its `analytics_import` POST action + handler, its flash codes, and its four test fixtures are removed. The live analytics dashboard, the durable rollup tables, and CSV **export** are all untouched — export is a first-party feature unrelated to the retired Plausible path. (Note: there was no live Plausible *Stats client* left to remove — that went at 6.0.0; the grandfathered path that actually remained was this importer.)
+
+> **Why MAJOR:** removal of a user-facing feature and its public `analytics_import` form action — a SemVer break requiring user action (import before upgrading). This is the clean subtractive cut that closes Track D of the 8.9→9.0 roadmap, the bookend to the 6.0.0 Plausible retirement.
+
+### Removed
+- `inc/analytics-import.php` — the entire one-time Plausible-CSV importer: `sn_analytics_import_types` / `_parse_csv` / `_map` / `_run`, the pages/dims/events/event-props/entry-pages/exit-pages/pageroles row mappers, and the device/browser/os/referrer label normalizers.
+- `snt_analytics_render_import()` (the "Import history from Plausible" panel) in [inc/analytics-render-settings.php](inc/analytics-render-settings.php), and its call site in [inc/analytics-admin.php](inc/analytics-admin.php).
+- `sn_handle_analytics_import()` + the `analytics_import` dispatcher entry ([inc/admin-post-actions.php](inc/admin-post-actions.php), [inc/admin-post-handler.php](inc/admin-post-handler.php)), and the three `analytics_import*` flash messages ([inc/admin-flash-messages.php](inc/admin-flash-messages.php)).
+- Test fixtures `tests/analytics-import.php`, `tests/analytics-import-render.php`, `tests/analytics-pageroles-import.php`, `tests/analytics-events-import.php`.
+
+### Changed
+- Reworded six code-comments that still pointed at the `inc/plausible-api.php` module deleted back at 6.0.0 (in `analytics-api.php`, `analytics-rollup.php`, `analytics-realtime.php`, `migrate-orphan-options.php`) to describe the shared outbound-client pattern instead of a dead file.
+- `tests/admin-post-actions.php`: handler-map count assertion 50 → 49.
+
+### Tests
+- Full standalone sweep green after removal: **6133 assertions, 0 failures** (228 suites). A symbol sweep confirmed zero dangling references to any removed function, action, flash code, or transient.
+
 ## [8.11.0] - 2026-07-07: Freshness arc — decay at scale (A4) meets the editor's evergreen flag (B5)
 
 **Headline:** Two halves of one story. **A4 (path decay at scale)** takes the decay classifier that the Posts view already runs on your 12 newest Notes (`spike` / `cooling` / `evergreen`, from each post's early-life share of lifetime views) and runs it across your **whole published catalogue** — a new **"Lifecycle at scale"** section (Dashboard → Analytics → Posts) with a shape census and a **refresh queue**. **B5 (evergreen flag)** adds a per-post **Evergreen** toggle (in the post's Signal & Noise box) that says "this is intentionally timeless." They meet in the refresh queue: a **refresh candidate** is a Note the data says is *cooling* that you have **not** marked evergreen — the editorial call the numbers can't make. Flagging a post evergreen also exempts it from the stale-content health check (the "accept as evergreen" that check already invited) and drops it from the refresh queue even when its traffic cools.

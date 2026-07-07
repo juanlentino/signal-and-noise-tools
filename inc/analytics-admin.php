@@ -409,12 +409,12 @@ function snt_analytics_render_dashboard() {
  * The Monitoring → Analytics settings section. Open-and-wide Phase 2 (v6.44.0):
  * a `.sn-2up` two-column layout that splits the active settings (credentials +
  * own-visit exclusion) from the read-only edge-worker reference (live version,
- * one-time Worker setup, Plausible CSV import). The `analytics` leaf is marked
+ * one-time Worker setup). The `analytics` leaf is marked
  * `'wide' => true` in inc/admin-tabs-data.php, so the wrapper emits a bare
  * `.sn-section` and each column owns its own `.sn-fieldset` chrome here (the
  * wide-leaf card-ownership rule). The forms post on the page=sn-theme-options
  * route (the Monitoring sub-tab nav guarantees that slug), so the existing
- * admin-post handler processes analytics_save / _test / _exclude_save / _import
+ * admin-post handler processes analytics_save / _test / _exclude_save / _export
  * unchanged — each <form> keeps its own nonce + sn_action button.
  */
 function snt_analytics_render_settings_section() {
@@ -431,7 +431,7 @@ function snt_analytics_render_settings_section() {
 	}
 	echo '</div>';
 
-	// ── Right: edge-worker reference (what's live → how to deploy → one-time import). ──
+	// ── Right: edge-worker reference (what's live → how to deploy). ──
 	echo '<div class="sn-fieldset">';
 	// The deployed edge-Worker version, read live from /_sn/version (guarded +
 	// SWR-cached) — "what's live" above the manual setup steps.
@@ -439,9 +439,6 @@ function snt_analytics_render_settings_section() {
 		sn_worker_version_render_card();
 	}
 	snt_analytics_render_worker_setup();
-	if ( function_exists( 'snt_analytics_render_import' ) ) {
-		snt_analytics_render_import();
-	}
 	echo '</div>';
 
 	echo '</div>'; // .sn-2up

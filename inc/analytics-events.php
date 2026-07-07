@@ -6,8 +6,8 @@
  *   wp_sn_analytics_events      — daily totals per named Plausible custom event
  *   wp_sn_analytics_event_props — daily totals per custom event property+value pair
  *
- * Back-filled from Plausible CSV exports via inc/analytics-import.php (types
- * custom_events / custom_props). No live-capture pipeline yet — these are
+ * Historically back-filled from Plausible CSV exports (the importer was
+ * retired at 9.0.0; these durable tables and their data remain). No live-capture pipeline yet — these are
  * durable historical tables. No dashboard display surface is wired in this
  * release; read accessors (sn_analytics_top_events / sn_analytics_top_event_props)
  * are provided for a later redesign pass.

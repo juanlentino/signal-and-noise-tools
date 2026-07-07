@@ -41,7 +41,7 @@
  * (interval=1 → both exact), and this matches the locked spec, so consumers
  * should treat views/visits as an estimate, not a precise ratio.
  *
- * ── Refresh architecture (mirrors inc/plausible-api.php SWR) ──────────────────
+ * ── Refresh architecture (the shared outbound-client SWR pattern) ──────────────────
  *
  *   - sn_analytics_run_rollup() (the cron callback) queries AE for the trailing
  *     SN_ANALYTICS_ROLLUP_WINDOW_DAYS and UPSERTs each (day, path). Re-rolling a

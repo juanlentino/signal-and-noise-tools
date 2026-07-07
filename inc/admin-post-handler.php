@@ -74,7 +74,6 @@ function sn_admin_post_handlers() {
 		'analytics_save'             => 'sn_handle_analytics_save',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
-		'analytics_import'           => 'sn_handle_analytics_import',
 		'analytics_export'           => 'sn_handle_analytics_export',
 		// Scheduled-content ops (Task 8). Handler bodies live in
 		// inc/schedule-admin.php to keep the subsystem cohesive.
