@@ -61,6 +61,13 @@ function sn_admin_flash_messages() {
 		'wh_deleted'                => array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' ),
 		'wh_invalid'                => array( 'error', 'Could not add webhook — name and valid URL are required.' ),
 		'wh_not_found'              => array( 'error', 'Webhook not found.' ),
+		// v8.10.0 Redirects arc.
+		'redirect_added'            => array( 'success', 'Redirect saved.' ),
+		'redirect_updated'          => array( 'success', 'Redirect updated.' ),
+		'redirect_deleted'          => array( 'success', 'Redirect deleted — it stops resolving immediately.' ),
+		'redirect_invalid'          => array( 'error', 'Could not save the redirect — a source path and a different target are both required.' ),
+		'redirect_404_deleted'      => array( 'success', 'Removed from the 404 log.' ),
+		'redirect_404_cleared'      => array( 'success', '404 log cleared.' ),
 		'insights_scanned'          => array( 'success', 'Insights scan complete. Open questions below (or none, if nothing cleared the bar).' ),
 		// v7.0.1: the genuine "no AI provider configured" case — the ONLY failure
 		// that earns the configure-AI copy. Every other scan failure resolves via

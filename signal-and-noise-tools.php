@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     8.9.2
+ * Version:     8.10.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -217,6 +217,14 @@ require_once __DIR__ . '/inc/content-migrations.php';
 require_once __DIR__ . '/inc/tag-consolidation.php';
 require_once __DIR__ . '/inc/tag-consolidation-redirects.php'; // front end too (301 handler)
 require_once __DIR__ . '/inc/tag-consolidation-admin.php';
+// v8.10.0 Redirects arc (B1 + B2): general owner-authored redirect map + front-end
+// 404 capture log. Load order is dependency-sensible — the store owns the shared
+// path normalizer the 404 log reuses; the handler wires both onto template_redirect
+// (front end too); the admin file renders the CRUD + 404 list.
+require_once __DIR__ . '/inc/redirects-store.php';
+require_once __DIR__ . '/inc/redirects-404-log.php';
+require_once __DIR__ . '/inc/redirects-handler.php';
+require_once __DIR__ . '/inc/redirects-admin.php';
 require_once __DIR__ . '/inc/og-card-generator.php';
 require_once __DIR__ . '/inc/reading-time.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';

@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [8.10.0] - 2026-07-07: Redirects arc — a URL redirect manager + a front-end 404 log
+
+**Headline:** A new **Redirects** surface (Connections → Redirects) lets the owner map any old or broken path to a new destination — a 301 (permanent) or 302 (temporary) redirect to an on-site path (`/new-page`) or a full external URL (`https://…`). Alongside it, a **404 log** in the sidebar captures front-end requests that hit a missing page (with bot/probe noise filtered out) and ranks them by hit count, so real broken inbound links surface instead of hiding in server logs. The two connect: one click on a logged 404 turns it into a redirect **and** clears it from the list. This generalizes the tag-only 301 map (`inc/tag-consolidation-redirects.php`) to arbitrary paths.
+
+Both features are backed by capped, aggregating options — `sn_redirects` (bounded at 500 entries, source-keyed so a source can't duplicate) and `sn_404_log` (bounded at 200 distinct paths, path-keyed with a hit count so a bot hammering one URL is one row, not thousands). No new database tables.
+
+> **Why MINOR:** two new user-visible capabilities (the redirect manager and the 404 log) with new options and a new admin sub-tab — additive, no breaking change, no migration required. Ships as a single PR (B1 + B2 of the roadmap Redirects arc).
+
+### Added
+- **B1 — Redirect manager.** [inc/redirects-store.php](inc/redirects-store.php): the pure data layer (`sn_redirects_normalize_path`, `sn_redirects_all`, `sn_redirect_save` upsert, `sn_redirect_delete`, and the exit-free `sn_redirect_target` resolver). Source paths normalize so trailing-slash and query-string differences never cause a miss; internal targets expand via `home_url()`, external `http(s)` targets pass through verbatim. Non-`http(s)` targets (e.g. `//evil.com`, `javascript:`) are neutralized at resolve time — always prefixed with `home_url()`, so they can only become a same-host path, never an off-site or scheme redirect.
+- **B2 — 404 capture log.** [inc/redirects-404-log.php](inc/redirects-404-log.php): `sn_404_should_capture` (filters the site root plus executable/config-file probe noise — `wp-login.php`, `/.env`, `vendor/phpunit` RCE probes, `.sql` dumps, etc.), the aggregating `sn_404_log_record`, and `sn_404_log_all` / `sn_404_log_delete` / `sn_404_log_clear`.
+- **Front-end hooks.** [inc/redirects-handler.php](inc/redirects-handler.php): the redirect resolver on `template_redirect` **priority 8** (before WP's canonical redirect and the priority-9 tag handler) and the 404 capture on **priority 99** — deliberately last, so a path about to 30x can never be mis-logged as a phantom 404 (same-priority hooks fire in registration order, so 9 could race the existing tag redirect). External targets are whitelisted through `wp_safe_redirect()` per-request; GET-only capture; `wp_get_referer()` recorded for provenance.
+- **Admin surface.** [inc/redirects-admin.php](inc/redirects-admin.php): the Connections → Redirects sub-tab — the manager (add / edit target + type / delete) in the main column, the ranked 404 log with per-row "Create redirect" + "Dismiss" and a "Clear log" in the rail — plus the `redirect_add` / `redirect_update` / `redirect_delete` / `redirect_404_delete` / `redirect_404_clear` POST handlers (co-located, mirroring the schedule-ops pattern).
+
+### Changed
+- Registered the four modules in [signal-and-noise-tools.php](signal-and-noise-tools.php) (dependency-ordered: store → 404 log → handler → admin), added the `redirects` leaf to the Connections tab in [inc/admin-tabs-data.php](inc/admin-tabs-data.php), the `sn_admin_render_redirects_section()` wrapper in [inc/admin-render-sections.php](inc/admin-render-sections.php), the five actions to the dispatcher map in [inc/admin-post-handler.php](inc/admin-post-handler.php), and the six flash codes in [inc/admin-flash-messages.php](inc/admin-flash-messages.php).
+
+### Tests
+- New CLI fixtures [tests/redirects-store.php](tests/redirects-store.php) (27 assertions: normalize, upsert, self-loop rejection, status coercion, internal/external resolve, delete, FIFO cap) and [tests/redirects-404-log.php](tests/redirects-404-log.php) (23 assertions: junk filter, aggregating record, delete, clear, cap).
+- Updated the registry contract ([tests/admin-registry.php](tests/admin-registry.php): new leaf + wrapper) and the handler-map contract ([tests/admin-post-actions.php](tests/admin-post-actions.php): 45 → 50 actions, requires `redirects-admin.php` so the new handlers resolve). Full standalone sweep green: 6216 assertions, 0 failures.
+
 ## [8.9.2] - 2026-07-06: Empty states read as intentional, not orphaned
 
 **Headline:** Admin "no data yet" notes floated at the bottom of a view as faint italic text with no visual home (most visibly the analytics engagement-anomalies fold line). They now render as a **subtle dashed inset with a leading info icon** and normal weight — a designed placeholder rather than stray text — applied consistently across every surface that shows the pattern. The treatment targets *empty-specific* selectors only, never the shared `.sn-an-empty` base class (which also carries non-empty muted meta text, e.g. worker-status lines), so live status/metadata is untouched. The icon is an inline data-URI SVG (no font dependency).

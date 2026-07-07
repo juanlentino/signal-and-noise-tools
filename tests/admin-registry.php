@@ -60,6 +60,7 @@ foreach ( array(
 	'sn_admin_render_dashboard', 'sn_admin_render_cloudflare_section', 'sn_admin_render_cron_section',
 	'sn_admin_render_webhooks_section', 'sn_admin_render_health_section', 'sn_admin_render_insights_section',
 	'sn_admin_render_reading_time_section', 'sn_admin_render_block_migrations_section', 'sn_admin_render_rss_section',
+	'sn_admin_render_redirects_section', // v8.10.0 Redirects arc
 ) as $fn ) {
 	ok( function_exists( $fn ), "wrapper $fn() is defined" );
 }
@@ -89,8 +90,8 @@ ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo' ),
 	'site holds only identity-and-seo (cloudflare moved out)' );
 ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'reading-time', 'performance', 'music', 'rss', 'tags', 'now', 'uses' ),
 	'content leaves: front-end, reading-time, performance, music, rss, tags, now, uses (v7.5.0 + v7.6.0 page editors)' );
-ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'cron', 'scheduled-content' ),
-	'connections leaves: cloudflare, webhooks, indexnow, cron, scheduled-content' );
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'redirects', 'cron', 'scheduled-content' ),
+	'connections leaves: cloudflare, webhooks, indexnow, redirects, cron, scheduled-content' );
 ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
 	'monitoring leaves: analytics, insights, health (login-defense moved to the Analytics dashboard)' );
 ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),

@@ -39,6 +39,11 @@ function sn_admin_render_webhooks_section() {
 	do_action( 'sn_admin_webhooks_tab' );
 }
 
+/** Connections → Redirects (v8.10.0): the redirect manager + 404 log. */
+function sn_admin_render_redirects_section() {
+	do_action( 'sn_admin_redirects_tab' );
+}
+
 /** Monitoring → Health. */
 function sn_admin_render_health_section() {
 	do_action( 'sn_admin_health_tab' );

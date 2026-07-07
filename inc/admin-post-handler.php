@@ -40,6 +40,12 @@ function sn_admin_post_handlers() {
 		'webhook_add'                => 'sn_handle_webhook_add',
 		'webhook_update'             => 'sn_handle_webhook_update',
 		'webhook_delete'             => 'sn_handle_webhook_delete',
+			// v8.10.0 Redirects arc (handler bodies in inc/redirects-admin.php).
+			'redirect_add'               => 'sn_handle_redirect_add',
+			'redirect_update'            => 'sn_handle_redirect_update',
+			'redirect_delete'            => 'sn_handle_redirect_delete',
+			'redirect_404_delete'        => 'sn_handle_redirect_404_delete',
+			'redirect_404_clear'         => 'sn_handle_redirect_404_clear',
 		'insights_run'               => 'sn_handle_insights_run',
 		'insights_dismiss'           => 'sn_handle_insights_dismiss',
 		'insights_snooze'            => 'sn_handle_insights_snooze',
