@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.0.1] - 2026-07-07: Surface the theme's contact conversions as a funnel (1:1 with theme v10.28.0)
+
+**Headline:** Theme v10.28.0 tags each `/contact` email alias with `data-sn-goal="contact-<alias>"`, so a click now emits a cookieless `contact-research`/`press`/`speaking`/`music`/`role` conversion event. Two things kept those from ever showing up as a funnel here. First, the session engine shipped exactly one default funnel ("Home → post → subscribe"), so nothing captured the contact family. Second — the latent one — `sn_funnel_step_matches()` honored the documented `prefix` flag for `path` steps but **silently ignored it for `ce` steps**, so "any `contact-*` goal" could not even be expressed as a single step (a family-prefix step like `contact-` was always compared for exact equality and never matched a concrete `contact-music`). This release fixes the matcher and adds a default "Services → contact → email" funnel that collapses the whole `contact-*` family into its final step.
+
+> **Why PATCH:** a consistency fix (the `ce` branch now honors the `prefix` flag its own step schema already documents and the `path` branch already applies) plus a calibration of the *default* funnel set to the goals the theme actually emits. The funnel engine, its `sn_analytics_session_funnels` filter, and the `array{match,value,prefix?}` step schema all shipped in v8.8.0 — no new API, route, ability, or settings-schema change.
+
+### Fixed
+- `sn_funnel_step_matches()`: `ce` (custom-event) steps now honor the `prefix` flag, matching the `path` branch. Previously a `ce` step was an exact match regardless of `prefix`, so a family-prefix step never matched a concrete event. Exact `ce` matching (`prefix` omitted or `false`) is unchanged. Covered by new RED→GREEN assertions in `tests/analytics-sessions.php` (prefix true/false/exact/no-over-match, plus an end-to-end funnel completion).
+
+### New
+- Default **"Services → contact → email"** funnel in `sn_analytics_session_funnels()`: `/services` → `/contact` → any `contact-*` goal. It surfaces the site's primary commercial conversion out of the box, mirroring the theme's reconciled `/services`→`/contact` IA (theme v10.27.0) and its per-alias goal hooks (theme v10.28.0). Both path steps use `prefix` for trailing-slash / `/contact/personal` robustness. Sites can still override or extend the set via the `sn_analytics_session_funnels` filter.
+
 ## [9.0.0] - 2026-07-07: MAJOR — retire the grandfathered Plausible-CSV importer (the v6.0.0 migration path closes)
 
 **⚠️ Action required (for the vanishingly few it affects):** if you still hold Plausible CSV exports you intend to back-fill into the first-party analytics dashboard, import them **before** upgrading — the "Import history from Plausible" tool (Dashboard → Analytics → settings) is removed in this release. Already-imported data is untouched: it lives in the durable rollup tables, which stay. Only the one-time import *tool* goes.

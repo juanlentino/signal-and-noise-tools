@@ -7,6 +7,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 define( 'SN_ANALYTICS_DATASET', 'sn_pageviews' );
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
+if ( ! function_exists( '__' ) ) { function __( $text, $domain = 'default' ) { return $text; } }
 require __DIR__ . '/../inc/analytics-sessions.php';
 
 $pass = 0; $fail = 0;
@@ -118,6 +119,38 @@ ok( 1 === $rep[1]['drop'], 'step 2 dropped 1 from step 1' );
 $order = array( vs_events( array( ev( 'E', 0, 'ce', '/home', 'subscribe' ), ev( 'E', 5, 'pv', '/home' ), ev( 'E', 9, 'pv', '/post/z' ) ) ) );
 $rep2  = sn_funnel_report( $order, $funnel );
 ok( 0 === $rep2[2]['reached'], 'subscribe before step 2 does not complete the funnel' );
+
+echo "\nGroup: ce-prefix matching + default contact funnel (v9.0.1)\n";
+// The ce branch must honor the documented prefix flag, matching the path branch —
+// so the theme's five contact-<alias> goals collapse into one funnel step.
+$ce_ev = array( 'ev' => 'ce', 'path' => '/contact', 'ce' => 'contact-music' );
+ok( true  === sn_funnel_step_matches( array( 'match' => 'ce', 'value' => 'contact-', 'prefix' => true ), $ce_ev ), 'ce step matches by prefix (contact- captures contact-music)' );
+ok( false === sn_funnel_step_matches( array( 'match' => 'ce', 'value' => 'contact-', 'prefix' => false ), $ce_ev ), 'ce step with prefix=false stays exact (contact- != contact-music)' );
+ok( true  === sn_funnel_step_matches( array( 'match' => 'ce', 'value' => 'contact-music', 'prefix' => false ), $ce_ev ), 'ce exact match still works' );
+ok( false === sn_funnel_step_matches( array( 'match' => 'ce', 'value' => 'sub', 'prefix' => true ), $ce_ev ), 'ce prefix does not over-match an unrelated value' );
+
+// A default "Services -> contact -> email" funnel now ships, capturing the theme's
+// contact-<alias> goals (theme v10.28.0) through the ce-prefix step above.
+$defs = sn_analytics_session_funnels();
+$contact_funnel = null;
+foreach ( $defs as $d ) {
+	foreach ( (array) $d['steps'] as $st ) {
+		if ( 'ce' === ( $st['match'] ?? '' ) && 'contact-' === ( $st['value'] ?? '' ) && ! empty( $st['prefix'] ) ) { $contact_funnel = $d; break 2; }
+	}
+}
+ok( null !== $contact_funnel, 'a default funnel targets contact-* goals via a ce-prefix step' );
+
+// End-to-end: a services -> contact -> email visit completes that funnel.
+if ( null !== $contact_funnel ) {
+	$conv = array( vs_events( array(
+		ev( 'F', 0, 'pv', '/services' ),
+		ev( 'F', 10, 'pv', '/contact' ),
+		ev( 'F', 20, 'ce', '/contact', 'contact-music' ),
+	) ) );
+	$crep = sn_funnel_report( $conv, $contact_funnel['steps'] );
+	$last = $crep[ count( $crep ) - 1 ];
+	ok( 1 === $last['reached'], 'services -> contact -> contact-music completes the contact funnel end-to-end' );
+}
 
 echo "\nGroup: sn_analytics_session_sql\n";
 $sql = sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'human', 50000 );
