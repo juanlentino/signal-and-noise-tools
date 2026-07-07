@@ -399,7 +399,7 @@ function snt_analytics_render_dashboard() {
 	// ! $owns_chrome: $totals is unset for chrome-owning views (login-defense brings
 	// its own empty states), so reading it there would warn + show a false notice.
 	if ( ! $owns_chrome && (int) ( $totals['views'] ?? 0 ) === 0 ) {
-		echo '<p class="sn-an-empty">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
+		echo '<p class="sn-an-empty sn-an-empty--note">No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.</p>';
 	}
 }
 

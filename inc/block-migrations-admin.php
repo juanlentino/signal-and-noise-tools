@@ -73,7 +73,7 @@ function snt_block_migrations_render_section() {
 
 	$candidates = (array) ( $last_scan['candidates'] ?? array() );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-fieldset-intro snt-mt-1">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-empty-note">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}

@@ -27,7 +27,7 @@ require_once __DIR__ . '/analytics-panels.php';
 function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped ) {
 	snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
 	if ( (int) $metrics['visits'] < 1 ) {
-		echo '<p class="sn-an-empty">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
 		// Cohesive with the Overview KPI strip — same sn-kpi-row / sn-kpi cards. No
 		// period-over-period delta here yet, so the delta slot carries a muted
@@ -95,7 +95,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 function snt_analytics_render_view_sessions( $from, $to, $class ) {
 	$data = sn_analytics_fetch_session_events( $from, $to, $class );
 	if ( empty( $data['configured'] ) ) {
-		echo '<p class="sn-an-empty">' . esc_html__( 'Visit analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'Visit analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 	// A "visit" requires >= 1 pageview: server events (srv:1 / RSS ce) and orphan
