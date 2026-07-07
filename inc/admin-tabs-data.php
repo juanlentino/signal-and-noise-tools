@@ -111,7 +111,7 @@ function sn_admin_top_tabs() {
 			'tab'      => 'connections',
 			'label'    => 'Connections',
 			'title'    => 'Signal & Noise — Connections',
-			'subtitle' => 'Cloudflare edge cache, outbound webhooks, IndexNow, scheduled jobs, and scheduled content.',
+			'subtitle' => 'Cloudflare edge cache, outbound webhooks, IndexNow, URL redirects, scheduled jobs, and scheduled content.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
 				// Automation tab (v6.18.0). 'wide' (Phase 3, v6.45.0): all five
@@ -121,6 +121,10 @@ function sn_admin_top_tabs() {
 				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section', 'wide' => true ),
 				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section', 'wide' => true ),
 				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section', 'wide' => true ),
+				// v8.10.0 Redirects arc: owner-authored redirect map + 404 capture log.
+				// 'wide' — the manager (main) + 404 log (rail) fill the two-column
+				// sn_admin_shell, so it opts out of the wrapper's default capped card.
+				'redirects'         => array( 'label' => 'Redirects', 'render' => 'sn_admin_render_redirects_section', 'wide' => true ),
 				'cron'              => array( 'label' => 'Cron', 'render' => 'sn_admin_render_cron_section', 'wide' => true ),
 				// Scheduled-content status list (Task 8): the read-mostly union of
 				// signal-noise/scheduled fragment rows + native future posts. A sub-tab
