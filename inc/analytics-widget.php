@@ -176,6 +176,38 @@ function sn_aw_realtime( $standalone = true ) {
 	}
 }
 
+/**
+ * "Right now" as a two-up micro-stat: visitors now (last 5 min) beside views
+ * today-so-far. Replaces the old single big number + "N views today so far"
+ * sentence — two explicitly-labelled windows in the widget's number-over-label
+ * vocabulary, no taller than the number it replaces. Config is already gated by
+ * sn_aw_preamble() at the top of sn_aw_overview(), so there is no re-check here.
+ * Today reuses the daily series' LAST bucket (zero extra queries — the same trick
+ * as the Analytics page's Pulse strip); the cell is omitted when that series is
+ * empty, so the "now" figure never renders a bare, unpaired label.
+ */
+function sn_aw_now_today() {
+	$now   = function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( 'human' ) : null;
+	$today = null;
+	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+		list( $t_from, $t_to ) = sn_aw_window7();
+		$t_series = sn_analytics_daily_series( $t_from, $t_to, 'human', 'day' );
+		$t_last   = ( is_array( $t_series ) && ! empty( $t_series ) ) ? end( $t_series ) : null;
+		if ( is_array( $t_last ) && isset( $t_last['views'] ) ) {
+			$today = (int) $t_last['views'];
+		}
+	}
+	echo '<div class="sn-aw-nowtoday">';
+	echo '<div class="sn-aw-nt"><span class="sn-aw-nt-v">' . esc_html( null === $now ? '—' : number_format_i18n( (int) $now ) ) . '</span>'
+		. '<span class="sn-aw-nt-k">' . esc_html__( 'visitors now', 'signal-and-noise-tools' ) . '</span></div>';
+	if ( null !== $today ) {
+		echo '<div class="sn-aw-nt"><span class="sn-aw-nt-v">' . esc_html( number_format_i18n( $today ) ) . '</span>'
+			. '<span class="sn-aw-nt-k">' . esc_html__( 'views today', 'signal-and-noise-tools' ) . '</span></div>';
+	}
+	echo '</div>';
+	echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s</p>';
+}
+
 function sn_aw_pages( $standalone = true ) {
 	if ( ! sn_aw_preamble() ) {
 		return;
@@ -223,21 +255,7 @@ function sn_aw_overview() {
 		return;
 	}
 	echo '<div class="sn-aw-subhead">Right now</div>';
-	sn_aw_realtime( false );
-	// v8.5.0 pairing: today-so-far from the daily series' LAST bucket — the
-	// same zero-extra-queries trick as the Analytics page's Pulse strip.
-	if ( function_exists( 'sn_analytics_daily_series' ) ) {
-		list( $t_from, $t_to ) = sn_aw_window7();
-		$t_series = sn_analytics_daily_series( $t_from, $t_to, 'human', 'day' );
-		$t_last   = ( is_array( $t_series ) && ! empty( $t_series ) ) ? end( $t_series ) : null;
-		if ( is_array( $t_last ) && isset( $t_last['views'] ) ) {
-			echo '<p class="sn-aw-foot sn-aw-today">' . esc_html( sprintf(
-				/* translators: %s: view count so far today. */
-				__( '%s views today so far', 'signal-and-noise-tools' ),
-				number_format_i18n( (int) $t_last['views'] )
-			) ) . '</p>';
-		}
-	}
+	sn_aw_now_today();
 	echo '<div class="sn-aw-subhead">Last 7 days</div>';
 	sn_aw_snapshot( false );
 	// v8.5.0 pairing: the redesign's Movers answer ("which posts moved"),

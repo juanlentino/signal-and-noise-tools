@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.1.3] - 2026-07-08: Dashboard "Right now" as a Now/Today micro-stat
+
+**Headline:** In the "Analytics — Overview" dashboard widget, the "Right now" block stacked a big live-visitor number, its caption, and a separate "N views today so far" sentence — blurring two different time windows (last-5-min vs today) and breaking the widget's number-over-label vocabulary with a lone prose line. It now reads as a **two-up micro-stat**: `visitors now` beside `views today`, two explicitly-labelled windows in the same stat style as the Last-7-days KPIs. Fits in **less** vertical space than before (one paired row replaces the big number + sentence) — the widget does not grow.
+
+> **Why PATCH:** presentation-only calibration of an existing widget; no new capability, route, ability, schema, or query. The "today" figure still comes from the daily series' last bucket (zero extra queries), exactly as before.
+
+### Improvements
+- `sn_aw_overview()` "Right now" now renders `sn_aw_now_today()` — a two-cell `visitors now` / `views today` pair (`.sn-aw-nowtoday`), replacing the single big number + the free-floating "N views today so far" line. The two windows are each labelled, so it's never ambiguous which number is live vs cumulative. Height-neutral (slightly shorter). The standalone realtime sub-renderer (`sn_aw_realtime`) and its big-number treatment are unchanged.
+- The `today` cell is omitted when the daily series is empty, so the live figure never renders a bare, unpaired label.
+
 ## [9.1.2] - 2026-07-08: Sharpen the 404 log — suppress scanner-probe noise
 
 **Headline:** The 404 log's junk filter caught the classic RCE/config probes (`wp-login`, `xmlrpc`, `/.env`, `/vendor/phpunit`) but let a whole second class of scanner recon through, so the "broken paths — Attention" list filled with noise instead of real broken links: bare CMS-location guesses (`/wp`, `/wordpress`), backup/version recon (`/backup`, `/old`, `/new`), a config-leak probe whose extension wasn't covered (`/web.config`), username enumeration (`/author/<name>`), and browser auto-requests for missing icons (`/apple-touch-icon.png`). This broadens the filter to those categories and — critically — retroactively hides entries already logged under the old ruleset, so the current list cleans up without wiping the genuine broken links (e.g. `/about-us` → `/about`) alongside them.
