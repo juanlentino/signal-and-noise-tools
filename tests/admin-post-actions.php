@@ -645,5 +645,18 @@ pa_eq( 'health_scanned_clean', sn_handle_health_scan( array() ), '0 findings →
 $GLOBALS['__health_scan_result']['checks']['b']['count'] = 3;
 pa_eq( 'health_scanned', sn_handle_health_scan( array() ), 'findings present → health_scanned' );
 
+// ─── v9.2.0: sn-analytics (Dashboard submenu) POST routing ───────────────────
+echo "\nTest: sn_admin_post_dashboard_redirect_url + allowlist (v9.2.0)\n";
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
+if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $args, $url = '' ) { return (string) $url . ( strpos( (string) $url, '?' ) !== false ? '&' : '?' ) . http_build_query( (array) $args ); } }
+$durl = sn_admin_post_dashboard_redirect_url( 'sn-analytics', 'narration_generated' );
+pa_eq( true, null !== $durl, 'dashboard redirect url returned for sn-analytics' );
+pa_eq( true, strpos( (string) $durl, 'index.php' ) !== false, 'redirect targets index.php not admin.php' );
+pa_eq( true, strpos( (string) $durl, 'page=sn-analytics' ) !== false, 'redirect keeps the page' );
+pa_eq( true, strpos( (string) $durl, 'sn_view=intelligence' ) !== false, 'redirect lands on the intelligence view' );
+pa_eq( true, strpos( (string) $durl, 'sn_flash=narration_generated' ) !== false, 'redirect carries the flash' );
+pa_eq( null, sn_admin_post_dashboard_redirect_url( 'sn-theme-options', 'x' ), 'non-dashboard page returns null (falls through to admin.php path)' );
+pa_eq( true, in_array( 'sn-analytics', sn_admin_post_allowed_pages(), true ), 'sn-analytics is an allowed POST page' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
