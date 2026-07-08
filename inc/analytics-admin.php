@@ -48,6 +48,7 @@ function snt_analytics_resolve_class( $raw ) {
 // The detailed dimension/derived panels live under one of these; the headline
 // (controls + delta cards + trend) is persistent above the tabs.
 const SN_ANALYTICS_VIEWS = array(
+	'intelligence' => 'Intelligence',
 	'content'    => 'Content',
 	'posts'      => 'Posts',
 	'technology' => 'Technology',
@@ -72,9 +73,11 @@ function snt_analytics_resolve_view( $raw ) {
 }
 
 // Views that render their own complete chrome (own KPI cards, trend, range control)
-// and therefore opt OUT of the shared pageview header. login-defense ONLY — 'edge'
-// deliberately keeps the shared header it ships today (changing it would be a regression).
-const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
+// and therefore opt OUT of the shared pageview header. login-defense brings its
+// own KPI/trend; intelligence (v9.2.0) is interpretation, not measurement, so it
+// carries no pageview header/delta cards/trend. 'edge' deliberately keeps the
+// shared header it ships today (changing it would be a regression).
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense', 'intelligence' );
 
 /**
  * True iff $view brings its own chrome, so the shared pageview header (controls +
@@ -346,6 +349,15 @@ function snt_analytics_render_dashboard() {
 	}
 
 	switch ( $view ) {
+		case 'intelligence':
+			// The interpretation home (v9.2.0): the weekly-digest read + its
+			// actions. Owns-chrome, so no pageview header ran above; renders its
+			// own body. Recommendations (b) and Ask-your-analytics (c) extend it.
+			if ( function_exists( 'snt_analytics_render_intelligence_view' ) ) {
+				snt_analytics_render_intelligence_view();
+			}
+			break;
+
 		case 'posts':
 			// Post-lifecycle view: hero + trajectory + catalog + velocity/decay.
 			// Manages its own layout (hero/trajectory full-width, then a grid).

@@ -156,22 +156,10 @@ ish_assert( is_int( $rail_b ) && false !== $noscan_at && $noscan_at > $rail_b, '
 ish_assert( is_int( $rail_b ) && false !== $run_b && $run_b < $rail_b, 'Run Analysis stays in the main column with no scan' );
 ish_assert( 1 === substr_count( $html_b, '<aside class="sn-shell__rail"' ) && 1 === substr_count( $html_b, '</aside>' ), 'rail aside balanced with no scan' );
 
-// ─── Scenario C: digest meta humanizes elapsed too (v8.0.4, same audit find) ──
-echo "\nScenario C: weekly-digest meta elapsed is humanized\n";
-$GLOBALS['__no_scan']   = false;
-$GLOBALS['__narration'] = array(
-	'generated_at' => time() - 7200,
-	'headline'     => 'A quiet week on the edge',
-	'paragraphs'   => array( 'One paragraph.' ),
-	'highlights'   => array(),
-	'elapsed_ms'   => 15500,
-);
-ob_start();
-snt_insights_render_admin_tab();
-$html_c = ob_get_clean();
-ish_assert( false !== strpos( $html_c, 'in 15.5s.' ), 'digest meta reads humanized (15500ms → 15.5s)' );
-ish_assert( false === strpos( $html_c, '15500ms' ), 'no raw-millisecond digest meta remains' );
-$GLOBALS['__narration'] = null;
+// (v9.2.0) The weekly-digest render moved to Analytics → Intelligence, so the
+// digest-meta humanized-elapsed assertion moved with it to
+// tests/analytics-intelligence.php. The Insights shell now deep-links to the tab.
+ish_assert( false !== strpos( $html_b, 'sn_view=intelligence' ), 'Insights shell deep-links to the Intelligence tab' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

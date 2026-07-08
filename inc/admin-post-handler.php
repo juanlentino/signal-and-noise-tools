@@ -52,6 +52,7 @@ function sn_admin_post_handlers() {
 		'insights_mark_done'         => 'sn_handle_insights_mark_done',
 		'narration_run'              => 'sn_handle_narration_run',
 		'save_insights_settings'     => 'sn_handle_save_insights_settings',
+		'narration_settings_save'    => 'sn_handle_narration_settings_save',
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'security_digest_save'       => 'sn_handle_security_digest_save',
 		'now_save'                   => 'sn_handle_now_save',
@@ -96,7 +97,35 @@ add_action( 'admin_init', 'sn_handle_admin_post' );
 function sn_admin_post_allowed_pages() {
 	$legacy   = function_exists( 'sn_admin_pages' ) ? array_column( sn_admin_pages(), 'slug' ) : array();
 	$registry = function_exists( 'sn_admin_top_tabs' ) ? array_column( sn_admin_top_tabs(), 'slug' ) : array();
-	return array_values( array_unique( array_merge( $legacy, $registry ) ) );
+	// v9.2.0: sn-analytics is a Dashboard submenu (index.php via add_dashboard_page),
+	// not an SN top-tab, so it is in neither source list — but the Intelligence tab
+	// puts the digest forms there. Its redirect goes back to index.php (below).
+	$dashboard = array( 'sn-analytics' );
+	return array_values( array_unique( array_merge( $legacy, $registry, $dashboard ) ) );
+}
+
+/**
+ * Redirect URL for a POST that arrived on an SN Dashboard-submenu page (currently
+ * only sn-analytics, registered under index.php). Returns null for the normal
+ * admin.php pages so the caller falls through to the standard top-tab/sub
+ * redirect. Pure (no header/exit) so it is unit-testable.
+ *
+ * @param string $current_page The ?page slug the POST arrived on.
+ * @param string $flash        The flash code the handler produced.
+ * @return string|null
+ */
+function sn_admin_post_dashboard_redirect_url( $current_page, $flash ) {
+	if ( 'sn-analytics' !== $current_page ) {
+		return null;
+	}
+	return add_query_arg(
+		array(
+			'page'     => 'sn-analytics',
+			'sn_view'  => 'intelligence',
+			'sn_flash' => $flash,
+		),
+		admin_url( 'index.php' )
+	);
 }
 
 function sn_handle_admin_post() {
@@ -125,6 +154,15 @@ function sn_handle_admin_post() {
 	// Handlers receive the RAW $_POST and unslash per-field exactly as their
 	// original arms did (see inc/admin-post-actions.php docblock).
 	$flash = (string) call_user_func( $handlers[ $action ], $_POST );
+
+	// v9.2.0: Dashboard-submenu pages (sn-analytics) redirect back to index.php
+	// with the view preserved — the admin.php + top-tab scheme below does not
+	// apply to them (the page is registered under index.php, not admin.php).
+	$dashboard_url = sn_admin_post_dashboard_redirect_url( $current_page, $flash );
+	if ( null !== $dashboard_url ) {
+		header( 'Location: ' . $dashboard_url, true, 302 );
+		exit;
+	}
 
 	$redirect_args = array(
 		'page'     => $current_page,

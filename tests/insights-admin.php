@@ -97,5 +97,22 @@ snt_insights_render_usage_section();
 $html = ob_get_clean();
 hc_contains( $html, 'No AI calls recorded', 'graceful empty state' );
 
+// ─── Test D (v9.2.0): digest relocated to Analytics → Intelligence ───
+echo "\nTest D: digest moved off Insights; advisor stays; deep-link present\n";
+if ( ! function_exists( 'sn_admin_shell_open' ) ) { function sn_admin_shell_open() {} }
+if ( ! function_exists( 'sn_admin_shell_rail' ) ) { function sn_admin_shell_rail( $t = '' ) {} }
+if ( ! function_exists( 'sn_admin_shell_close' ) ) { function sn_admin_shell_close() {} }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" value="x">'; } }
+if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $e = true ) { $r = ( $a == $b ) ? ' checked' : ''; if ( $e ) { echo $r; } return $r; } }
+$GLOBALS['__opts'] = array();
+ob_start();
+snt_insights_render_admin_tab();
+$tab = ob_get_clean();
+hc_contains( $tab, 'index.php?page=sn-analytics&sn_view=intelligence', 'Insights deep-links to the Intelligence tab' );
+if ( false === strpos( $tab, 'value="narration_run"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest Generate button\n"; } else { $fail++; echo "  FAIL: digest Generate button still present\n"; }
+if ( false === strpos( $tab, 'name="insights_narration"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest automation toggle\n"; } else { $fail++; echo "  FAIL: digest toggle still present\n"; }
+hc_contains( $tab, 'value="insights_run"', 'Insights still renders the advisor scan' );
+hc_contains( $tab, 'name="insights_weekly_cron"', 'Insights still renders the advisor weekly-cron toggle' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
