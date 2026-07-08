@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.2.0] - 2026-07-08: Analytics Intelligence tab — the read (slice a)
+
+**Headline:** New **Dashboard → Analytics → Intelligence** tab — the home for analytics *interpretation*, first in the tab strip (Content stays the default landing). Slice (a) relocates the weekly AI digest here: the read (headline, prose, highlights, generated-timestamp), a Refresh/Generate action, and the "generate weekly digest automatically" toggle. The Insights page keeps the editorial Open-Question advisor and deep-links to the new tab. This is the first of three slices; Recommendations (b) and Ask-your-analytics (c) follow.
+
+> **Why MINOR:** new user-visible capability (a new tab + relocated digest surface), additive; no public API removed or renamed. The digest data layer (`inc/insights-narration.php`) is unchanged — only its render and its two form actions moved. Cookieless and cost-neutral: the tab reads the narrator's existing 7-day cache; no new always-on AI spend.
+
+### New
+- **Analytics → Intelligence tab** (`inc/analytics-intelligence.php`): the weekly-digest read from the narrator's cache (or an empty state), a Refresh/Generate action, and the digest-automation toggle. First in the strip; the tab owns its chrome (no pageview header, delta cards, or trend — it is interpretation, not measurement).
+
+### Changed
+- The weekly digest moved off the Insights page onto the Intelligence tab; Insights now shows a deep-link and keeps only the editorial Open-Question advisor (which reads publish history / webhooks / cron — it is about what to write, not what happened).
+- The digest-automation opt-in gets its own POST action (`narration_settings_save`) instead of sharing the Insights Settings form with the advisor toggle — a shared handler read a missing checkbox as "off" and would have silently disabled whichever toggle was not on the submitting form.
+- The shared admin-POST handler now accepts the `sn-analytics` Dashboard-submenu page and redirects its POSTs back to `index.php?page=sn-analytics&sn_view=intelligence` (PRG), where the dashboard already renders `?sn_flash` notices.
+
 ## [9.1.3] - 2026-07-08: Dashboard "Right now" as a Now/Today micro-stat
 
 **Headline:** In the "Analytics — Overview" dashboard widget, the "Right now" block stacked a big live-visitor number, its caption, and a separate "N views today so far" sentence — blurring two different time windows (last-5-min vs today) and breaking the widget's number-over-label vocabulary with a lone prose line. It now reads as a **two-up micro-stat**: `visitors now` beside `views today`, two explicitly-labelled windows in the same stat style as the Last-7-days KPIs. Fits in **less** vertical space than before (one paired row replaces the big number + sentence) — the widget does not grow.
