@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.1.1] - 2026-07-08: Finish the outbound `redirection => 0` hardening (CMA audit follow-up)
+
+**Headline:** The 2026-07-08 CMA diff audit (v8.7.1→v9.1.0, verdict *satisfied*, 0 critical/high/medium) surfaced the last two outbound clients the v8.8.5 "harden the credential-carrying fetch calls" pass didn't reach — both in files *unchanged* by that PR, which is why they slipped the diff. `sn_edge_query()` sends a **Cloudflare API Bearer token** and `sn_indexnow_submit()` POSTs the **IndexNow key**, neither with `redirection => 0`, so a `3xx` from their (fixed, TLS-pinned) hosts would re-send the credential to the redirect target. Neither is attacker-reachable (compile-time-constant hosts, `sslverify`), and the IndexNow key is already public at its keyLocation — so this is defense-in-depth + convention consistency, not a live exposure. This closes the convention across every `wp_remote_*` credential call in the plugin. Also lands the audit's highest-value coverage add.
+
+> **Why PATCH:** security-hardening + convention consistency; no user-visible, route, ability, schema, or capability change. Identical class to the v8.7.1 (purge calls) and v8.8.5 (spotify/muso/github/wp-update) hardening PATCHes.
+
+### Fixed
+- `sn_edge_query()` (`inc/edge-analytics.php`): add `'redirection' => 0` so the Cloudflare GraphQL `Authorization: Bearer` is never forwarded on a redirect — the one credential-carrying call the v8.8.5 pass missed. Pinned by a new assertion in `tests/edge-analytics.php`.
+- `sn_indexnow_submit()` (`inc/indexnow.php`): add `'redirection' => 0` so the key-bearing JSON body is never re-POSTed on a redirect. Impact was nil (the key is public), but it completes the convention. Pinned in `tests/indexnow.php`.
+
+### New
+- `tests/redirects-handler.php` — characterization coverage for `sn_redirect_maybe()` / `sn_redirect_capture_404()` (the audit's highest-value coverage gap): 301/302 status coercion, the `is_admin()` / `is_404()` / GET guards, and the `allowed_redirect_hosts` whitelisting for owner-authored external targets. No behavior change — pins the existing redirect-security behavior against regression.
+
 ## [9.1.0] - 2026-07-07: Conversion attribution — where your contact conversions start
 
 **Headline:** The Visits view already shows *whether* people convert (the funnel) and *which* goals fire (the Custom-events leaderboard). What neither answers is *where the converting visits came from* — the exact question the theme's `/services`→`/contact` reconciliation raises: does Services actually feed the contact form, or do people reach `/contact` some other way? This adds a **"Contact conversions by entry page"** panel: for the visits that clicked a contact alias (the `contact-*` family, theme v10.28.0), it ranks the pages those visitors *first landed on*. If `/services` sits at the top, the funnel is doing its job; if `/contact` direct dominates, Services isn't the driver you'd assume.
