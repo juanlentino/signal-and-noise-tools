@@ -159,6 +159,11 @@ function sn_indexnow_submit( $urls ) {
 		'timeout'   => 10,
 		'blocking'  => true,
 		'sslverify' => true,
+		// Do not follow redirects: a 3xx from the (fixed) IndexNow host would
+		// otherwise re-POST the body (incl. the submission key) to the redirect
+		// target. The key is already public at its keyLocation, so impact is nil —
+		// this is convention consistency with the v8.8.5 outbound-hardening pass.
+		'redirection' => 0,
 	) );
 
 	$result = array( 'time' => time(), 'count' => count( $urls ), 'code' => 0, 'error' => '' );

@@ -60,6 +60,8 @@ ok( is_array( $zone ) && isset( $zone['httpRequests1dGroups'] ), 'query: returns
 ok( isset( $GLOBALS['__http']['last_args']['headers']['Authorization'] ) && strpos( $GLOBALS['__http']['last_args']['headers']['Authorization'], 'Bearer tok123' ) === 0, 'query: sends Bearer token' );
 $sent = json_decode( $GLOBALS['__http']['last_args']['body'], true );
 ok( isset( $sent['variables']['zone'] ) && $sent['variables']['zone'] === 'zone456', 'query: auto-injects the configured zoneTag into variables' );
+// v9.1.1 outbound-hardening (audit LOW): the CF API Bearer must not follow a 3xx.
+ok( 0 === ( $GLOBALS['__http']['last_args']['redirection'] ?? -1 ), 'query: POST disables redirects (no Cloudflare Bearer forward on a 3xx)' );
 
 echo "\nGroup: sn_edge_query failure modes → null (never fatal)\n";
 $GLOBALS['__http']['wp_error'] = true;

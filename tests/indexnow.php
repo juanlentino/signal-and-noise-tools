@@ -122,6 +122,8 @@ ok( 'example.com' === $body['host'], 'submit: body host is the home host' );
 ok( $body['key'] === $k3 && $body['keyLocation'] === sn_indexnow_key_url(), 'submit: body carries key + keyLocation' );
 ok( 2 === count( $body['urlList'] ), 'submit: body urlList has both URLs' );
 ok( true === $GLOBALS['__remote_post'][0]['args']['blocking'], 'submit: blocking POST (so the response can be logged)' );
+// v9.1.1 outbound-hardening (audit INFO): the key-bearing body must not follow a 3xx.
+ok( 0 === ( $GLOBALS['__remote_post'][0]['args']['redirection'] ?? -1 ), 'submit: disables redirects (no IndexNow key forward on a 3xx)' );
 $res = get_option( SN_INDEXNOW_RESULT_OPT );
 ok( is_array( $res ) && 200 === $res['code'] && 2 === $res['count'], 'submit: last-result logs code + count' );
 

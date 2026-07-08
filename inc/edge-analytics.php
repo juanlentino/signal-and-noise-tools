@@ -93,6 +93,11 @@ function sn_edge_query( $query, $variables = array() ) {
 		),
 		'body'    => wp_json_encode( array( 'query' => (string) $query, 'variables' => $variables ) ),
 		'timeout' => 15,
+		// Do not follow redirects: a 3xx from the (fixed) CF GraphQL host would
+		// otherwise re-send the Authorization: Bearer token to the redirect target.
+		// Matches the v8.8.5 credential-carrying-fetch hardening (spotify/muso/github/
+		// wp-update) and this subsystem's own sibling sn_analytics_api_query().
+		'redirection' => 0,
 	) );
 
 	if ( is_wp_error( $res ) ) {
