@@ -31,6 +31,7 @@ function t_contains( $h, $n, $m ) { t_true( strpos( (string) $h, (string) $n ) !
 
 require __DIR__ . '/../inc/analytics-admin.php';
 require __DIR__ . '/../inc/analytics-intelligence.php';
+require __DIR__ . '/../inc/health-summary.php'; // real snt_health_format_elapsed (digest-meta humanization moved here from insights-shell)
 
 // ── Task 1: registration ──
 t_true( isset( SN_ANALYTICS_VIEWS['intelligence'] ), 'intelligence in SN_ANALYTICS_VIEWS' );
@@ -51,11 +52,14 @@ $GLOBALS['__narration'] = array(
 );
 function snt_narration_last() { return $GLOBALS['__narration']; }
 function snt_ai_is_available() { return true; }
-function snt_health_format_elapsed( $ms ) { return $ms . 'ms'; }
 
 ob_start(); snt_intelligence_render_digest( true ); $out = ob_get_clean();
 t_contains( $out, 'Views up 12% to 1,430', 'digest headline rendered' );
 t_contains( $out, 'views 1,430 (+12%)', 'digest highlight rendered' );
+// Digest meta humanizes elapsed via the real snt_health_format_elapsed (coverage
+// relocated from tests/insights-shell.php Scenario C when the digest moved here).
+t_contains( $out, 'in 1.2s', 'digest meta humanizes elapsed (1234ms → 1.2s)' );
+t_true( strpos( $out, '1234ms' ) === false, 'no raw-millisecond digest meta remains' );
 
 $GLOBALS['__narration'] = null;
 ob_start(); snt_intelligence_render_digest( true ); $out2 = ob_get_clean();
