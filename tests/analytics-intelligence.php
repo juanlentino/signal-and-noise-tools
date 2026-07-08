@@ -41,4 +41,24 @@ t_true( 'content' === snt_analytics_resolve_view( '' ), 'default view stays cont
 t_true( snt_analytics_view_owns_chrome( 'intelligence' ), 'intelligence owns its chrome' );
 t_true( function_exists( 'snt_analytics_render_intelligence_view' ), 'render entry defined' );
 
+// ── Task 2: digest read from cache ──
+$GLOBALS['__narration'] = array(
+	'headline'     => 'Views up 12% to 1,430',
+	'paragraphs'   => array( 'Traffic rose on the back of /notes/foo.' ),
+	'highlights'   => array( 'views 1,430 (+12%)' ),
+	'generated_at' => 1700000000,
+	'elapsed_ms'   => 1234,
+);
+function snt_narration_last() { return $GLOBALS['__narration']; }
+function snt_ai_is_available() { return true; }
+function snt_health_format_elapsed( $ms ) { return $ms . 'ms'; }
+
+ob_start(); snt_intelligence_render_digest( true ); $out = ob_get_clean();
+t_contains( $out, 'Views up 12% to 1,430', 'digest headline rendered' );
+t_contains( $out, 'views 1,430 (+12%)', 'digest highlight rendered' );
+
+$GLOBALS['__narration'] = null;
+ob_start(); snt_intelligence_render_digest( true ); $out2 = ob_get_clean();
+t_contains( $out2, 'No digest yet', 'empty state when no cached digest' );
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
