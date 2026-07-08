@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.1.2] - 2026-07-08: Sharpen the 404 log — suppress scanner-probe noise
+
+**Headline:** The 404 log's junk filter caught the classic RCE/config probes (`wp-login`, `xmlrpc`, `/.env`, `/vendor/phpunit`) but let a whole second class of scanner recon through, so the "broken paths — Attention" list filled with noise instead of real broken links: bare CMS-location guesses (`/wp`, `/wordpress`), backup/version recon (`/backup`, `/old`, `/new`), a config-leak probe whose extension wasn't covered (`/web.config`), username enumeration (`/author/<name>`), and browser auto-requests for missing icons (`/apple-touch-icon.png`). This broadens the filter to those categories and — critically — retroactively hides entries already logged under the old ruleset, so the current list cleans up without wiping the genuine broken links (e.g. `/about-us` → `/about`) alongside them.
+
+> **Why PATCH:** calibration of an existing filter (broader match set) plus an internal read-path helper; no route, ability, schema, or user-facing capability change. The log's job is unchanged — surface broken links worth redirecting; probe monitoring stays the edge's job (Cloudflare / the attack-surface view).
+
+### Improvements
+- `sn_404_should_capture()` now also suppresses: single-segment scanner guesses (`/wp`, `/wordpress`, `/admin`, `/backup`, `/old`, `/new`, `/phpmyadmin`, `/db`, `/config`, `/staging`, … — matched **exactly**, so a real `/news`, `/renew`, or `/database-design` is never caught); the `.config`/`.conf` extension; browser/OS auto-assets (`apple-touch-icon*.png`, `favicon.ico`, `browserconfig.xml`, `apple-app-site-association`); and author-archive enumeration (`/author/…`).
+- **Retroactive cleanup, no data loss.** New `sn_404_log_actionable()` returns the raw store minus anything the current filter rejects; the redirects admin (list + the "N broken paths" count) reads through it, so junk logged under the old ruleset disappears from the view immediately — while real broken links stay put (no need to "Clear 404 log" and lose them). The record path also self-prunes stale junk on its next write, so the stored option heals over time. The raw `sn_404_log_all()` is unchanged for writes.
+
+### Notes
+- Deliberately record-time + exact-match for the guess list: the filter never suppresses a substring, so it can't hide a legitimate content path that merely contains a scanner word. Ambiguous-but-plausible paths (e.g. `/clients`) are kept — under-suppressing beats hiding a real broken link.
+
 ## [9.1.1] - 2026-07-08: Finish the outbound `redirection => 0` hardening (CMA audit follow-up)
 
 **Headline:** The 2026-07-08 CMA diff audit (v8.7.1→v9.1.0, verdict *satisfied*, 0 critical/high/medium) surfaced the last two outbound clients the v8.8.5 "harden the credential-carrying fetch calls" pass didn't reach — both in files *unchanged* by that PR, which is why they slipped the diff. `sn_edge_query()` sends a **Cloudflare API Bearer token** and `sn_indexnow_submit()` POSTs the **IndexNow key**, neither with `redirection => 0`, so a `3xx` from their (fixed, TLS-pinned) hosts would re-send the credential to the redirect target. Neither is attacker-reachable (compile-time-constant hosts, `sslverify`), and the IndexNow key is already public at its keyLocation — so this is defense-in-depth + convention consistency, not a live exposure. This closes the convention across every `wp_remote_*` credential call in the plugin. Also lands the audit's highest-value coverage add.

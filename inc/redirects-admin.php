@@ -27,7 +27,9 @@ function sn_redirects_render_admin_tab() {
 		return;
 	}
 	$redirects = sn_redirects_all();
-	$log       = sn_404_log_all();
+	// Actionable view: hides probe/auto-asset noise (incl. entries logged under an
+	// older, narrower filter) so the list stays broken-links-worth-fixing only.
+	$log       = sn_404_log_actionable();
 
 	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). The <strong>404 log</strong> in the sidebar surfaces paths visitors actually hit that don&rsquo;t exist — one click turns any of them into a redirect.</p>';
 

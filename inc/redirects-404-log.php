@@ -44,7 +44,19 @@ function sn_404_should_capture( $path ) {
 	}
 	$lower = strtolower( $path );
 	// Executable / config / dump extensions — never a legit content 404.
-	if ( preg_match( '#\.(php|phtml|asp|aspx|jsp|cgi|env|git|sql|bak|old|ini|sh|py|yml|yaml|json|lock)$#', $lower ) ) {
+	if ( preg_match( '#\.(php|phtml|asp|aspx|jsp|cgi|env|git|sql|bak|old|ini|conf|config|sh|py|yml|yaml|json|lock)$#', $lower ) ) {
+		return false;
+	}
+	// Browser/OS auto-requested assets: a missing one is an agent default, not a
+	// human-followable broken link (matched by name, so a real missing content
+	// image like /notes/hero.png still surfaces).
+	if ( preg_match( '#^/(apple-touch-icon[\w.-]*\.png|apple-touch-icon-precomposed\.png|favicon\.ico|browserconfig\.xml|apple-app-site-association)$#', $lower ) ) {
+		return false;
+	}
+	// Author-archive username enumeration (the author-enum guard blocks these; they
+	// are recon, never a link an owner fixes). Normalization strips the trailing
+	// slash, so match the bare '/author' as well as any '/author/<name>'.
+	if ( '/author' === $lower || 0 === strpos( $lower, '/author/' ) ) {
 		return false;
 	}
 	// Substrings that mark an infra path or a known probe campaign.
@@ -54,7 +66,39 @@ function sn_404_should_capture( $path ) {
 			return false;
 		}
 	}
+	// Single-segment scanner guesses (CMS location, admin panels, backup/dump dirs).
+	// Matched EXACTLY — never as a substring — so a real path like /news, /renew, or
+	// /database-design is never suppressed by /new or /db.
+	$guesses = array(
+		'/wp', '/wordpress', '/joomla', '/drupal', '/typo3', '/magento', '/cms', '/site',
+		'/admin', '/administrator', '/login', '/signin', '/user', '/users', '/account',
+		'/panel', '/dashboard', '/cpanel', '/phpmyadmin', '/pma', '/mysql', '/db', '/database', '/sql',
+		'/backup', '/backups', '/bak', '/old', '/new', '/dump', '/config', '/configuration',
+		'/setup', '/install', '/test', '/dev', '/staging', '/tmp', '/temp', '/shell', '/cmd', '/api',
+	);
+	if ( in_array( $lower, $guesses, true ) ) {
+		return false;
+	}
 	return true;
+}
+
+/**
+ * The 404 log filtered to actionable broken links only — the raw store minus any
+ * entry the current sn_404_should_capture() rejects. This lets a broadened filter
+ * retroactively hide junk logged under an older, narrower ruleset WITHOUT mutating
+ * the stored option on read. The admin surface + its "N broken paths" count read
+ * through this; the raw sn_404_log_all() stays the source of truth for writes.
+ *
+ * @return array<string,array{count:int,first_seen:int,last_seen:int,referer:string}>
+ */
+function sn_404_log_actionable() {
+	$out = array();
+	foreach ( sn_404_log_all() as $path => $entry ) {
+		if ( sn_404_should_capture( $path ) ) {
+			$out[ $path ] = $entry;
+		}
+	}
+	return $out;
 }
 
 /**
@@ -84,6 +128,14 @@ function sn_404_log_record( $uri, $referer = '' ) {
 	$referer = trim( (string) $referer );
 	$now     = time();
 	$log     = sn_404_log_all();
+
+	// Self-heal: drop any entry a since-broadened filter now rejects (logged under
+	// an older, narrower ruleset). Free — we are already rewriting the option below.
+	foreach ( array_keys( $log ) as $stale ) {
+		if ( ! sn_404_should_capture( $stale ) ) {
+			unset( $log[ $stale ] );
+		}
+	}
 
 	if ( isset( $log[ $path ] ) ) {
 		$log[ $path ]['count']     = (int) $log[ $path ]['count'] + 1;

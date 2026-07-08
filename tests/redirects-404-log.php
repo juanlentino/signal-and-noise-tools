@@ -31,6 +31,54 @@ ok( sn_404_should_capture( '/.htaccess' ) === false, 'filter: .htaccess probe su
 ok( sn_404_should_capture( '/.DS_Store' ) === false, 'filter: .DS_Store probe suppressed (case-insensitive)' );
 ok( sn_404_should_capture( '/wp-json/wp/v2/users' ) === false, 'filter: /wp-json REST probe suppressed' );
 
+// ── v9.1.2: broadened junk filter ──
+// CMS-location / backup / admin single-segment scanner guesses (exact match).
+foreach ( array( '/wp', '/wordpress', '/backup', '/old', '/new', '/admin', '/administrator', '/login', '/phpmyadmin', '/db', '/config', '/setup', '/staging', '/test' ) as $guess ) {
+	ok( sn_404_should_capture( $guess ) === false, "filter: scanner guess $guess suppressed" );
+}
+// Config-file probe whose extension the ext-strip didn't previously cover.
+ok( sn_404_should_capture( '/web.config' ) === false, 'filter: /web.config (.config ext) suppressed' );
+// Author-archive username enumeration.
+ok( sn_404_should_capture( '/author/juanlentino' ) === false, 'filter: /author/<name> enumeration suppressed' );
+ok( sn_404_should_capture( '/author/' ) === false, 'filter: /author/ prefix suppressed' );
+// Browser/OS auto-requested assets: a missing one is not a human broken link.
+ok( sn_404_should_capture( '/apple-touch-icon.png' ) === false, 'filter: apple-touch-icon auto-request suppressed' );
+ok( sn_404_should_capture( '/apple-touch-icon-precomposed.png' ) === false, 'filter: apple-touch-icon-precomposed suppressed' );
+ok( sn_404_should_capture( '/apple-touch-icon-120x120.png' ) === false, 'filter: sized apple-touch-icon suppressed' );
+ok( sn_404_should_capture( '/favicon.ico' ) === false, 'filter: favicon.ico auto-request suppressed' );
+ok( sn_404_should_capture( '/browserconfig.xml' ) === false, 'filter: browserconfig.xml auto-request suppressed' );
+
+// ── CRITICAL false-positive guards: exact-match, NEVER substring ──
+ok( sn_404_should_capture( '/news' ) === true, 'guard: /news is NOT suppressed by the /new guess (exact match)' );
+ok( sn_404_should_capture( '/renew' ) === true, 'guard: /renew is NOT suppressed by /new' );
+ok( sn_404_should_capture( '/older-posts' ) === true, 'guard: /older-posts is NOT suppressed by /old' );
+ok( sn_404_should_capture( '/gold' ) === true, 'guard: /gold is NOT suppressed (no .old extension, not the /old guess)' );
+ok( sn_404_should_capture( '/about-us' ) === true, 'guard: /about-us (the real broken link) is captured' );
+ok( sn_404_should_capture( '/clients' ) === true, 'guard: /clients (content-shaped) is captured' );
+ok( sn_404_should_capture( '/notes/deleted-hero.png' ) === true, 'guard: a real missing content image is still captured (only named auto-assets filtered)' );
+
+// ── sn_404_log_actionable(): retroactively hides junk already in the store ──
+$GLOBALS['__opts'] = array();
+$__n = time();
+$GLOBALS['__opts'][ SN_404_LOG_OPT ] = array(
+	'/about-us'             => array( 'count' => 1, 'first_seen' => $__n, 'last_seen' => $__n, 'referer' => '' ),
+	'/wp'                   => array( 'count' => 3, 'first_seen' => $__n, 'last_seen' => $__n, 'referer' => '' ),
+	'/apple-touch-icon.png' => array( 'count' => 5, 'first_seen' => $__n, 'last_seen' => $__n, 'referer' => '' ),
+	'/author/juanlentino'   => array( 'count' => 1, 'first_seen' => $__n, 'last_seen' => $__n, 'referer' => '' ),
+);
+$act = sn_404_log_actionable();
+ok( isset( $act['/about-us'] ), 'actionable: keeps a real broken link' );
+ok( ! isset( $act['/wp'], $act['/apple-touch-icon.png'], $act['/author/juanlentino'] ), 'actionable: hides junk already in the store (retroactive)' );
+ok( count( $act ) === 1, 'actionable: only the real path survives' );
+ok( count( sn_404_log_all() ) === 4, 'actionable: does NOT mutate the raw store on read' );
+
+// ── self-prune: a new real record drops stale junk from the store on write ──
+sn_404_log_record( '/genuinely-missing/', '' );
+$raw = sn_404_log_all();
+ok( isset( $raw['/about-us'], $raw['/genuinely-missing'] ), 'self-prune: real entries survive the write' );
+ok( ! isset( $raw['/wp'], $raw['/apple-touch-icon.png'], $raw['/author/juanlentino'] ), 'self-prune: stale junk pruned on the next record write' );
+$GLOBALS['__opts'] = array();
+
 // ── record + aggregate ──
 ok( sn_404_log_record( '/missing/', 'https://google.com/' ) === true, 'record: captures a real 404' );
 $log = sn_404_log_all();
