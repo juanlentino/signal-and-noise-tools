@@ -52,6 +52,7 @@ function sn_admin_post_handlers() {
 		'insights_mark_done'         => 'sn_handle_insights_mark_done',
 		'narration_run'              => 'sn_handle_narration_run',
 		'save_insights_settings'     => 'sn_handle_save_insights_settings',
+		'narration_settings_save'    => 'sn_handle_narration_settings_save',
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'security_digest_save'       => 'sn_handle_security_digest_save',
 		'now_save'                   => 'sn_handle_now_save',

@@ -230,15 +230,32 @@ function sn_handle_save_insights_settings( $post ) {
 		}
 	}
 
-	// v6.30.0: weekly digest-narration opt-in rides the same Settings form.
+	// v9.2.0: the weekly digest-narration opt-in moved to its own action
+	// (sn_handle_narration_settings_save) on the Analytics → Intelligence tab, so
+	// it no longer rides this form. Saving the advisor toggle here must NOT touch
+	// insights.narration_enabled — a shared read of a missing checkbox would
+	// silently disable the digest.
+	return 'insights_settings_saved';
+}
+
+/**
+ * Save the weekly digest-automation opt-in (relocated to Analytics → Intelligence
+ * in v9.2.0). Its own action so the advisor "weekly scan" toggle and this one
+ * never share a POST: a shared handler reads a missing checkbox as "off" and
+ * would silently disable whichever toggle was not on the submitting form.
+ * Single-key write, then a self-healing cron sync (schedules when on+unscheduled,
+ * unschedules when off+scheduled).
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_narration_settings_save( $post ) {
 	$narration = ! empty( $post['insights_narration'] );
 	sn_setting_update( 'insights.narration_enabled', $narration );
 	if ( function_exists( 'snt_narration_maybe_schedule_cron' ) ) {
-		// Self-healing: schedules when on+unscheduled, unschedules when off+scheduled.
 		snt_narration_maybe_schedule_cron();
 	}
-
-	return 'insights_settings_saved';
+	return 'narration_settings_saved';
 }
 
 function sn_handle_audit_save_retention( $post ) {

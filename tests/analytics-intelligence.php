@@ -75,4 +75,11 @@ t_contains( $out4, 'Regenerate digest', 'button reads Regenerate when a digest e
 ob_start(); snt_intelligence_render_digest( false ); $out5 = ob_get_clean();
 t_contains( $out5, 'disabled', 'button disabled when AI not ready' );
 
+// ── Task 4: digest-automation toggle form ──
+$GLOBALS['__setting_narration'] = false;
+function snt_narration_enabled() { return $GLOBALS['__setting_narration']; }
+ob_start(); snt_intelligence_render_digest( true ); $out6 = ob_get_clean();
+t_contains( $out6, 'name="sn_action" value="narration_settings_save"', 'automation toggle posts narration_settings_save' );
+t_contains( $out6, 'name="insights_narration"', 'automation toggle field present' );
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";

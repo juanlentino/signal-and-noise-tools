@@ -71,5 +71,15 @@ function snt_intelligence_render_digest( $ai_ready ) {
 	}
 	echo '</form>';
 
+	// Digest automation — relocated here from the Insights Settings form (v9.2.0).
+	// Its own action (narration_settings_save) so it never shares a POST with the
+	// advisor toggle. Posts to sn-analytics; the handler PRGs back to this tab.
+	$narration_on = function_exists( 'snt_narration_enabled' ) && snt_narration_enabled();
+	echo '<form method="post" class="sn-an-actions">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<label><input type="checkbox" name="insights_narration" value="1"' . checked( $narration_on, true, false ) . '> Generate a weekly digest automatically</label> ';
+	echo '<button type="submit" name="sn_action" value="narration_settings_save" class="button">Save</button>';
+	echo '</form>';
+
 	snt_an_panel_close();
 }

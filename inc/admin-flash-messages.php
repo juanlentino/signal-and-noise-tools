@@ -77,6 +77,7 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Question snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
+		'narration_settings_saved'  => array( 'success', 'Digest automation saved.' ),
 		'narration_generated'       => array( 'success', 'Weekly digest generated.' ),
 		// v7.2.2: the genuine "no AI provider" case — the ONLY failure that earns
 		// the configure-AI copy. Every other digest failure resolves via the
