@@ -61,5 +61,15 @@ function snt_intelligence_render_digest( $ai_ready ) {
 		echo '<p class="sn-an-meta">No digest yet. Generate one below (~$0.01, cached 7 days).</p>';
 	}
 
+	// Refresh/Generate — posts narration_run (handled on admin_init; PRG back to
+	// this tab). Disabled until the AI client is configured.
+	echo '<form method="post" class="sn-an-actions">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<button type="submit" name="sn_action" value="narration_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( is_array( $narration ) ? 'Regenerate digest' : 'Generate digest' ) . '</button>';
+	if ( is_array( $narration ) ) {
+		echo ' <label><input type="checkbox" name="force" value="1"> Force fresh (ignore cache)</label>';
+	}
+	echo '</form>';
+
 	snt_an_panel_close();
 }

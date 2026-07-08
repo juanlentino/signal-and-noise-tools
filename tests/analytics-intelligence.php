@@ -61,4 +61,18 @@ $GLOBALS['__narration'] = null;
 ob_start(); snt_intelligence_render_digest( true ); $out2 = ob_get_clean();
 t_contains( $out2, 'No digest yet', 'empty state when no cached digest' );
 
+// ── Task 3: Refresh/Generate form ──
+$GLOBALS['__narration'] = null;
+ob_start(); snt_intelligence_render_digest( true ); $out3 = ob_get_clean();
+t_contains( $out3, 'name="sn_action" value="narration_run"', 'Refresh form posts narration_run' );
+t_contains( $out3, 'name="_wpnonce"', 'Refresh form carries a nonce' );
+t_contains( $out3, 'Generate digest', 'button reads Generate when no digest' );
+
+$GLOBALS['__narration'] = array( 'headline' => 'x', 'paragraphs' => array( 'y' ), 'highlights' => array(), 'generated_at' => 1700000000, 'elapsed_ms' => 1 );
+ob_start(); snt_intelligence_render_digest( true ); $out4 = ob_get_clean();
+t_contains( $out4, 'Regenerate digest', 'button reads Regenerate when a digest exists' );
+
+ob_start(); snt_intelligence_render_digest( false ); $out5 = ob_get_clean();
+t_contains( $out5, 'disabled', 'button disabled when AI not ready' );
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
