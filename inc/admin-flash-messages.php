@@ -77,12 +77,6 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Question snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
-		'narration_settings_saved'  => array( 'success', 'Digest automation saved.' ),
-		'narration_generated'       => array( 'success', 'Weekly digest generated.' ),
-		// v7.2.2: the genuine "no AI provider" case — the ONLY failure that earns
-		// the configure-AI copy. Every other digest failure resolves via the
-		// 'narration_failed' live-data branch below (the insights v7.0.1 pattern).
-		'narration_ai_unavailable'  => array( 'error', 'Weekly digest failed: no AI provider is configured. Enable AI under Settings → AI, then add a provider and key under Settings → Connectors.' ),
 		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),
 		// v8.0.1: findings-aware split — the static copy above promised "findings
 		// below" even over a 0-findings screen. The scan handler counts the fresh
@@ -177,25 +171,6 @@ function sn_admin_flash_to_notice( $flash ) {
 		}
 		return array( 'error', 'Insights scan failed, but no diagnostic was recorded. Re-run the scan; if it recurs, check the PHP error log.' );
 	}
-	// v7.2.2: same treatment for the weekly digest — surface the REAL stored
-	// error (code + message + bounded raw output). The genuine no-provider case
-	// is the static 'narration_ai_unavailable' code above.
-	if ( 'narration_failed' === $flash ) {
-		$err = function_exists( 'snt_narration_last_error' ) ? snt_narration_last_error() : null;
-		if ( is_array( $err ) && ! empty( $err['message'] ) ) {
-			$detail = esc_html( substr( (string) $err['message'], 0, 300 ) );
-			if ( ! empty( $err['code'] ) ) {
-				$detail .= ' (<code>' . esc_html( (string) $err['code'] ) . '</code>)';
-			}
-			$notice = 'Weekly digest failed: ' . $detail . ' This is a digest-specific failure, not an AI setup problem.';
-			if ( ! empty( $err['raw'] ) ) {
-				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 400 ) ) . '</code>';
-			}
-			return array( 'error', $notice );
-		}
-		return array( 'error', 'Weekly digest failed, but no diagnostic was recorded. Re-run it; if it recurs, check the PHP error log.' );
-	}
-
 	// Count-prefixed codes — parse the trailing int into the message template.
 	if ( 0 === strpos( $flash, 'rt_applied_' ) ) {
 		$count = (int) substr( $flash, strlen( 'rt_applied_' ) );

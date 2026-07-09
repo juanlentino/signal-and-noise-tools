@@ -140,10 +140,6 @@ function sn_settings_defaults() {
 		// so it also needs a preserve block in sn_settings_save() below.
 		'insights' => array(
 			'weekly_cron_enabled' => false,
-			// v6.30.0: weekly digest-narration cron opt-in. Default OFF; rides
-			// under the same already-preserved `insights` subtree (preserve block
-			// in sn_settings_save() covers the whole subtree).
-			'narration_enabled'   => false,
 		),
 		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
 		// own visits"). exclude_roles lists role slugs whose logged-in users are

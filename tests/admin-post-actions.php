@@ -462,11 +462,10 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 50, count( $map ), 'map has 50 actions' ); // v9.2.0: +1 narration_settings_save (digest automation relocated to the Intelligence tab) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
+pa_eq( 48, count( $map ), 'map has 48 actions' ); // v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
-pa_eq( true, isset( $map['narration_run'] ) && is_callable( $map['narration_run'] ), 'narration_run handler registered + callable (v6.30.0)' );
 
 // ─── sn_handle_insights_run() — report the REAL failure (v7.0.1) ─────────────
 // The bug: EVERY WP_Error collapsed to 'insights_failed' → the flash registry's
@@ -520,67 +519,17 @@ pa_eq( 'insights_scanned', sn_handle_insights_run( array( 'force' => '1' ) ), 's
 pa_eq( true, $GLOBALS['__insights_scan_last_force'], 'force flag forwarded to the scan' );
 pa_eq( true, $GLOBALS['__insights_cleared'], 'success clears any stale stored error' );
 
-// ─── sn_handle_narration_run() — report the REAL failure (v7.2.2) ────────────
-// Same class as the insights v7.0.1 fix: EVERY WP_Error collapsed to
-// 'narration_failed' → the blanket configure-AI copy. The handler must store
-// the real error, route only the genuine ai-unavailable code to the
-// configure-AI copy, and clear the stale error on success.
-$GLOBALS['__narration_run_result']  = null;
-$GLOBALS['__narration_stored_error'] = null;
-$GLOBALS['__narration_cleared']      = false;
-if ( ! function_exists( 'snt_narration_run' ) ) {
-	function snt_narration_run( $force = false ) { return $GLOBALS['__narration_run_result']; }
-}
-if ( ! function_exists( 'snt_narration_store_last_error' ) ) {
-	function snt_narration_store_last_error( $err ) {
-		$GLOBALS['__narration_stored_error'] = is_wp_error( $err )
-			? array( 'code' => $err->get_error_code(), 'message' => $err->get_error_message() )
-			: 'NON_ERROR';
-	}
-}
-if ( ! function_exists( 'snt_narration_clear_last_error' ) ) {
-	function snt_narration_clear_last_error() { $GLOBALS['__narration_cleared'] = true; }
-}
-
-echo "\nTest: sn_handle_narration_run() reports the REAL failure, not a blanket 'configure AI'\n";
-$GLOBALS['__narration_run_result'] = new PA_WP_Error( 'snt_ai_unavailable', 'AI client not available.' );
-pa_eq( 'narration_ai_unavailable', sn_handle_narration_run( array() ), 'ai-unavailable → narration_ai_unavailable (configure-AI copy correct here)' );
-pa_eq( 'snt_ai_unavailable', $GLOBALS['__narration_stored_error']['code'], 'the real error is stored' );
-
-$GLOBALS['__narration_stored_error'] = null;
-$GLOBALS['__narration_run_result']   = new PA_WP_Error( 'snt_narration_invalid_json', 'AI digest response was not valid JSON.' );
-pa_eq( 'narration_failed', sn_handle_narration_run( array() ), 'parse failure → narration_failed (real error, not blamed on AI config)' );
-pa_eq( 'snt_narration_invalid_json', $GLOBALS['__narration_stored_error']['code'], 'the real parse error is stored' );
-
-$GLOBALS['__narration_run_result'] = new PA_WP_Error( 'snt_ai_empty_response', 'AI returned an empty response.' );
-pa_eq( 'narration_failed', sn_handle_narration_run( array() ), 'empty-response transport error → narration_failed' );
-
-$GLOBALS['__narration_cleared']    = false;
-$GLOBALS['__narration_run_result'] = array( 'generated_at' => 1, 'headline' => 'H', 'paragraphs' => array( 'p' ), 'highlights' => array() );
-pa_eq( 'narration_generated', sn_handle_narration_run( array( 'force' => '1' ) ), 'success → narration_generated' );
-pa_eq( true, $GLOBALS['__narration_cleared'], 'success clears any stale stored error' );
-
-// ─── v9.2.0: digest-automation toggle relocated to its own action ────────────
-// Its own action so the advisor "weekly scan" toggle and the digest toggle no
-// longer share one POST — a shared handler read a missing checkbox as "off" and
-// would silently disable whichever toggle wasn't on the submitting form.
-echo "\nTest: sn_handle_narration_settings_save + trimmed sn_handle_save_insights_settings\n";
-if ( ! function_exists( 'snt_narration_maybe_schedule_cron' ) ) {
-	function snt_narration_maybe_schedule_cron() { $GLOBALS['__narr_cron_synced'] = true; }
-}
+// ─── v9.5.0 (R2): the weekly-digest POST surface was retired ─────────────────
+// Both digest handlers (run + settings-save) are gone. The advisor Settings save
+// is untouched and still writes only its own weekly-scan toggle (no digest key).
+echo "\nTest: digest POST actions retired (R2); advisor save unaffected\n";
+pa_eq( false, function_exists( 'sn_handle_narration_run' ), 'R2: sn_handle_narration_run removed' );
+pa_eq( false, function_exists( 'sn_handle_narration_settings_save' ), 'R2: sn_handle_narration_settings_save removed' );
+pa_eq( false, isset( sn_admin_post_handlers()['narration_run'] ), 'R2: narration_run gone from the action map' );
+pa_eq( false, isset( sn_admin_post_handlers()['narration_settings_save'] ), 'R2: narration_settings_save gone from the action map' );
 $GLOBALS['__options']['sn_settings'] = array();
 sn_setting_reset_cache();
-$GLOBALS['__narr_cron_synced'] = false;
-pa_eq( 'narration_settings_saved', sn_handle_narration_settings_save( array( 'insights_narration' => '1' ) ), 'narration_settings_save → its flash code' );
-pa_eq( true, sn_setting( 'insights.narration_enabled' ), 'narration_settings_save writes narration_enabled=true' );
-pa_eq( true, $GLOBALS['__narr_cron_synced'], 'narration_settings_save syncs the digest cron' );
-// The advisor Settings form no longer carries insights_narration — saving it must
-// NOT clear the digest opt-in (the cross-contamination the split prevents).
-$GLOBALS['__options']['sn_settings'] = array();
-sn_setting_reset_cache();
-sn_setting_update( 'insights.narration_enabled', true );
 sn_handle_save_insights_settings( array( 'insights_weekly_cron' => '1' ) );
-pa_eq( true, sn_setting( 'insights.narration_enabled' ), 'save_insights_settings does NOT clear narration_enabled' );
 pa_eq( true, sn_setting( 'insights.weekly_cron_enabled' ), 'save_insights_settings still writes the advisor cron toggle' );
 
 // ── v8.0.1: capture the CF purge seam. Input-aware stub (records the exact
@@ -649,12 +598,12 @@ pa_eq( 'health_scanned', sn_handle_health_scan( array() ), 'findings present →
 echo "\nTest: sn_admin_post_dashboard_redirect_url + allowlist (v9.2.0)\n";
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
 if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $args, $url = '' ) { return (string) $url . ( strpos( (string) $url, '?' ) !== false ? '&' : '?' ) . http_build_query( (array) $args ); } }
-$durl = sn_admin_post_dashboard_redirect_url( 'sn-analytics', 'narration_generated' );
+$durl = sn_admin_post_dashboard_redirect_url( 'sn-analytics', 'analytics_saved' );
 pa_eq( true, null !== $durl, 'dashboard redirect url returned for sn-analytics' );
 pa_eq( true, strpos( (string) $durl, 'index.php' ) !== false, 'redirect targets index.php not admin.php' );
 pa_eq( true, strpos( (string) $durl, 'page=sn-analytics' ) !== false, 'redirect keeps the page' );
-pa_eq( true, strpos( (string) $durl, 'sn_view=intelligence' ) !== false, 'redirect lands on the intelligence view' );
-pa_eq( true, strpos( (string) $durl, 'sn_flash=narration_generated' ) !== false, 'redirect carries the flash' );
+pa_eq( true, strpos( (string) $durl, 'sn_view=content' ) !== false, 'R2: redirect lands on the content default (intelligence retired)' );
+pa_eq( true, strpos( (string) $durl, 'sn_flash=analytics_saved' ) !== false, 'redirect carries the flash' );
 pa_eq( null, sn_admin_post_dashboard_redirect_url( 'sn-theme-options', 'x' ), 'non-dashboard page returns null (falls through to admin.php path)' );
 pa_eq( true, in_array( 'sn-analytics', sn_admin_post_allowed_pages(), true ), 'sn-analytics is an allowed POST page' );
 

@@ -50,9 +50,7 @@ function sn_admin_post_handlers() {
 		'insights_dismiss'           => 'sn_handle_insights_dismiss',
 		'insights_snooze'            => 'sn_handle_insights_snooze',
 		'insights_mark_done'         => 'sn_handle_insights_mark_done',
-		'narration_run'              => 'sn_handle_narration_run',
 		'save_insights_settings'     => 'sn_handle_save_insights_settings',
-		'narration_settings_save'    => 'sn_handle_narration_settings_save',
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'security_digest_save'       => 'sn_handle_security_digest_save',
 		'now_save'                   => 'sn_handle_now_save',
@@ -98,8 +96,8 @@ function sn_admin_post_allowed_pages() {
 	$legacy   = function_exists( 'sn_admin_pages' ) ? array_column( sn_admin_pages(), 'slug' ) : array();
 	$registry = function_exists( 'sn_admin_top_tabs' ) ? array_column( sn_admin_top_tabs(), 'slug' ) : array();
 	// v9.2.0: sn-analytics is a Dashboard submenu (index.php via add_dashboard_page),
-	// not an SN top-tab, so it is in neither source list — but the Intelligence tab
-	// puts the digest forms there. Its redirect goes back to index.php (below).
+	// not an SN top-tab, so it is in neither source list — but it carries POST forms
+	// (the analytics CSV export). Its redirect goes back to index.php (below).
 	$dashboard = array( 'sn-analytics' );
 	return array_values( array_unique( array_merge( $legacy, $registry, $dashboard ) ) );
 }
@@ -121,7 +119,7 @@ function sn_admin_post_dashboard_redirect_url( $current_page, $flash ) {
 	return add_query_arg(
 		array(
 			'page'     => 'sn-analytics',
-			'sn_view'  => 'intelligence',
+			'sn_view'  => 'content',
 			'sn_flash' => $flash,
 		),
 		admin_url( 'index.php' )
