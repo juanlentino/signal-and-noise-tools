@@ -1,0 +1,5 @@
+.sn-prov-admin{max-width:640px}
+.sn-prov-pending{list-style:none;margin:.5rem 0;padding:0}
+.sn-prov-row{padding:.35rem 0;border-bottom:1px dashed rgba(128,128,128,.25)}
+.sn-prov-row.sn-prov-pending span{color:#c98a12}
+.sn-prov-key code{word-break:break-all}

@@ -66,3 +66,32 @@ add_action( 'rest_api_init', 'sn_prov_admin_register_status_route' );
 function sn_prov_admin_status_handler( $request ) {
 	return new WP_REST_Response( sn_prov_admin_status(), 200 );
 }
+
+/**
+ * Tools → Provenance section body. The live stepper is hydrated by
+ * assets/provenance-admin.js polling the /status endpoint.
+ */
+function sn_admin_render_provenance_section() {
+	$pubkey = function_exists( 'sn_prov_pubkey_b64' ) ? sn_prov_pubkey_b64() : '';
+	echo '<div class="sn-prov-admin" data-endpoint="' . esc_attr( esc_url_raw( rest_url( 'sn-prov/v1/status' ) ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '">';
+	echo '<h2>' . esc_html__( 'Provenance', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<div class="sn-prov-live" aria-live="polite"><p>' . esc_html__( 'Loading anchor status…', 'signal-and-noise-tools' ) . '</p></div>';
+	echo '<p class="sn-prov-key"><strong>' . esc_html__( 'Public key', 'signal-and-noise-tools' ) . ':</strong> <code>' . esc_html( $pubkey ) . '</code></p>';
+	echo '</div>';
+}
+
+/**
+ * Enqueue the live-stepper CSS/JS ONLY on the plugin's admin screens
+ * (external files — never inline; screen-gated per house rule).
+ *
+ * @param string $hook_suffix
+ */
+function sn_prov_admin_enqueue( $hook_suffix ) {
+	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+		return;
+	}
+	$base = plugins_url( 'assets/', SNT_PATH . 'signal-and-noise-tools.php' );
+	wp_enqueue_style( 'sn-provenance-admin', $base . 'provenance-admin.css', array(), SNT_VERSION );
+	wp_enqueue_script( 'sn-provenance-admin', $base . 'provenance-admin.js', array(), SNT_VERSION, true );
+}
+add_action( 'admin_enqueue_scripts', 'sn_prov_admin_enqueue' );

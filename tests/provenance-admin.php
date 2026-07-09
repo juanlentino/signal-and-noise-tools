@@ -15,6 +15,7 @@ if ( ! defined( 'SNT_VERSION' ) ) {
 
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
+$GLOBALS['__pv_enq']     = array(); // captured wp_enqueue_* handles
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {
@@ -73,6 +74,27 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 			$this->status = $s; }
 	}
 }
+// Enqueue-gate stubs (Task 5). sn_admin_page_hooks() is NOT loaded in this
+// standalone harness (inc/admin-menu.php is never required), so stub it to the
+// canonical plugin top-level hook the gate keys off.
+if ( ! function_exists( 'sn_admin_page_hooks' ) ) {
+	function sn_admin_page_hooks( $set = null ) {
+		return array( 'toplevel_page_sn-theme-options' ); }
+}
+if ( ! function_exists( 'plugins_url' ) ) {
+	function plugins_url( $path = '', $plugin = '' ) {
+		return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_enqueue_style' ) ) {
+	function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) {
+		$GLOBALS['__pv_enq'][] = $handle;
+		return true; }
+}
+if ( ! function_exists( 'wp_enqueue_script' ) ) {
+	function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $in_footer = false ) {
+		$GLOBALS['__pv_enq'][] = $handle;
+		return true; }
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-admin.php';
@@ -109,6 +131,14 @@ ad_true( is_array( $data ) && isset( $data['pending'] ), 'status returns a pendi
 ad_eq( 1, count( $data['pending'] ), 'one pending commit surfaced' );
 ad_eq( 'u11', $data['pending'][0]['note_uid'], 'pending item carries note_uid' );
 ad_eq( 'pending', $data['genesis']['status'], 'genesis status included' );
+
+echo "\nTask 5: admin assets gate\n";
+$GLOBALS['__pv_enq'] = array();
+sn_prov_admin_enqueue( 'toplevel_page_sn-theme-options' );  // a plugin page hook
+ad_true( in_array( 'sn-provenance-admin', $GLOBALS['__pv_enq'], true ), 'assets enqueued on the plugin screen' );
+$GLOBALS['__pv_enq'] = array();
+sn_prov_admin_enqueue( 'edit.php' );
+ad_eq( 0, count( $GLOBALS['__pv_enq'] ), 'assets NOT enqueued on foreign screens' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
