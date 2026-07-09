@@ -23,6 +23,7 @@ const SN_NOTES_PAGE_SLUG        = 'notes';
 const SN_PROVENANCE_SLUG        = 'provenance';
 const SN_OVER_DETECTION_SLUG    = 'over-detection';
 const SN_AS_SUBSTRATE_SLUG      = 'as-substrate';
+const SN_VERIFY_SLUG            = 'verify';
 const SN_PERMALINK_STRUCTURE    = '/notes/%postname%/';
 const SN_SEED_FLAG_OPTION       = 'sn_content_surfaces_seeded_v1';
 const SN_PROV_BODY_MIGRATED_OPT = 'sn_provenance_body_migrated_v1';
@@ -36,6 +37,7 @@ const SN_AS_DATE_DISPLAYTYPE_OPT = 'sn_provenance_as_substrate_date_displaytype_
 const SN_OD_EYEBROW_DYN_OPT     = 'sn_provenance_over_detection_eyebrow_dynamic_v1';
 const SN_NOTES_TPL_OVERRIDE_CLEARED_OPT = 'sn_notes_template_override_cleared_v1';
 const SN_PROV_CATALOG_NUMBERS_OPT = 'sn_provenance_catalog_numbers_v1';
+const SN_PROV_VERIFY_PAGE_MIGR_OPT = 'sn_prov_verify_page_migrated_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
@@ -63,6 +65,7 @@ function sn_seed_content_surfaces() {
 	sn_ensure_provenance_page();
 	sn_ensure_over_detection_page();
 	sn_ensure_as_substrate_page();
+	sn_ensure_verify_page();
 	sn_ensure_permalink_structure();
 
 	update_option( SN_SEED_FLAG_OPTION, time(), true );
@@ -180,6 +183,40 @@ function sn_ensure_as_substrate_page() {
 		'post_type'     => 'page',
 		'post_content'  => sn_load_as_substrate_body(),
 		'post_excerpt'  => 'A short read on why music files need fingerprints, not just name tags.',
+		'page_template' => 'page-provenance',
+	), false );
+}
+
+/**
+ * Create the public "Verify a Note" how-to as a child page under /provenance,
+ * at /provenance/verify. This is the surface the byline panel's "Verify it
+ * yourself" link (sn_prov_render_panel → home_url('/provenance/verify'))
+ * points at, so without this page that link 404s on every Note.
+ *
+ * The body embeds the [sn_provenance_verify] shortcode; the_content() expands
+ * it to the live verification steps + the published Ed25519 public key, so the
+ * instructions never drift from sn_prov_verify_shortcode(). Reuses
+ * page-provenance.html so it inherits the same hero/section treatment as its
+ * siblings (guaranteed to exist). Idempotent: leave any existing child page
+ * untouched.
+ */
+function sn_ensure_verify_page() {
+	$parent = get_page_by_path( SN_PROVENANCE_SLUG );
+	$parent_id = $parent ? (int) $parent->ID : 0;
+
+	$existing = get_page_by_path( SN_PROVENANCE_SLUG . '/' . SN_VERIFY_SLUG );
+	if ( $existing ) {
+		return (int) $existing->ID;
+	}
+
+	return wp_insert_post( array(
+		'post_title'    => 'Verify a Note',
+		'post_name'     => SN_VERIFY_SLUG,
+		'post_parent'   => $parent_id,
+		'post_status'   => 'publish',
+		'post_type'     => 'page',
+		'post_content'  => sn_load_verify_body(),
+		'post_excerpt'  => 'How to check any Note\'s cryptographic provenance record yourself, without trusting this site.',
 		'page_template' => 'page-provenance',
 	), false );
 }
