@@ -64,3 +64,101 @@ function sn_prov_ledger_note_url( $uid ) {
 	$repo  = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
 	return "https://github.com/{$owner}/{$repo}/tree/main/notes/" . rawurlencode( $uid );
 }
+
+/**
+ * Status → human label.
+ *
+ * @param string $status Commit status.
+ * @return string
+ */
+function sn_prov_status_label( $status ) {
+	$map = array(
+		'confirmed'  => 'Verified',
+		'pending'    => 'Pending',
+		'genesis'    => 'Genesis',
+		'unanchored' => 'Recording',
+	);
+	return $map[ $status ] ?? 'Recording';
+}
+
+/**
+ * The byline chip. Empty string when the Note has no chain.
+ *
+ * @param int $post_id Post ID.
+ * @return string
+ */
+function sn_prov_render_chip( $post_id ) {
+	$vm = sn_prov_view_data( $post_id );
+	if ( null === $vm ) {
+		return '';
+	}
+	return sprintf(
+		'<span class="sn-prov-chip sn-prov-%s" data-status="%s">%s%s</span>',
+		esc_attr( $vm['status'] ),
+		esc_attr( $vm['status'] ),
+		esc_html( sn_prov_status_label( $vm['status'] ) ),
+		$vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version']
+	);
+}
+
+/**
+ * The expandable record. Empty string when the Note has no chain.
+ *
+ * @param int $post_id Post ID.
+ * @return string
+ */
+function sn_prov_render_panel( $post_id ) {
+	$vm = sn_prov_view_data( $post_id );
+	if ( null === $vm ) {
+		return '';
+	}
+	$rows = '';
+	foreach ( array_reverse( $vm['versions'] ) as $v ) {
+		$meta = 'genesis' === $v['status']
+			? 'genesis snapshot'
+			: ( $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : ucfirst( $v['status'] ) );
+		$rows .= sprintf(
+			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
+			esc_attr( $v['status'] ),
+			(int) $v['version'],
+			esc_html( substr( $v['content_hash'], 0, 12 ) ),
+			esc_html( $meta )
+		);
+	}
+	$caveat = $vm['genesis_caveat']
+		? '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>'
+		: '';
+	return sprintf(
+		'<section class="sn-prov-panel" aria-label="Provenance record">
+			<ol class="sn-prov-chain">%s</ol>%s
+			<p class="sn-prov-links"><a href="%s" rel="nofollow">Download proof (.ots)</a>
+			<a href="%s" rel="nofollow">Git ledger</a>
+			<a href="%s">Verify it yourself</a></p>
+		</section>',
+		$rows,
+		$caveat,
+		esc_url( $vm['ots_url'] ),
+		esc_url( $vm['ledger_url'] ),
+		esc_url( $vm['verify_url'] )
+	);
+}
+
+/**
+ * Enqueue default front-end styling on single Note views only. The theme may
+ * dequeue or override `sn-provenance-front`.
+ */
+function sn_prov_enqueue_front() {
+	if ( ! is_singular( 'post' ) ) {
+		return;
+	}
+	if ( function_exists( 'sn_prov_is_note' ) && ! sn_prov_is_note( get_the_ID() ) ) {
+		return;
+	}
+	wp_enqueue_style(
+		'sn-provenance-front',
+		plugins_url( 'assets/provenance-front.css', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION
+	);
+}
+add_action( 'wp_enqueue_scripts', 'sn_prov_enqueue_front' );

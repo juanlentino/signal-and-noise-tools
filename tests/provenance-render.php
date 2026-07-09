@@ -44,6 +44,22 @@ if ( ! function_exists( 'home_url' ) ) {
 	function home_url( $p = '' ) {
 		return 'https://example.com' . $p; }
 }
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $t ) {
+		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $t ) {
+		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_url' ) ) {
+	function esc_url( $u ) {
+		return (string) $u; }
+}
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $n, $decimals = 0 ) {
+		return number_format( (float) $n, (int) $decimals ); }
+}
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-render.php';
 
@@ -91,6 +107,20 @@ update_post_meta( 6, SN_PROV_CHAIN_META, array( array( 'version' => 0, 'content_
 $vm6 = sn_prov_view_data( 6 );
 rp_eq( true, $vm6['is_genesis_only'], 'genesis-only flagged' );
 rp_eq( true, $vm6['genesis_caveat'], 'genesis caveat on' );
+
+echo "\nTask 2: render helpers\n";
+$chip = sn_prov_render_chip( 5 );  // version 2, pending
+rp_true( false !== strpos( $chip, 'sn-prov-chip' ), 'chip has its class' );
+rp_true( false !== strpos( $chip, 'Pending' ), 'chip shows pending label' );
+rp_eq( '', sn_prov_render_chip( 999 ), 'no chain -> empty chip' );
+
+$panel = sn_prov_render_panel( 5 );
+rp_true( false !== strpos( $panel, 'sn-prov-panel' ), 'panel wrapper present' );
+rp_true( false !== strpos( $panel, '902417' ) || false !== strpos( $panel, '902,417' ), 'panel shows block height' );
+rp_true( false !== strpos( $panel, 'v2' ) && false !== strpos( $panel, 'v1' ), 'panel lists both versions' );
+
+$panel6 = sn_prov_render_panel( 6 ); // genesis-only
+rp_true( false !== strpos( $panel6, 'not independently proven' ), 'genesis caveat rendered' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

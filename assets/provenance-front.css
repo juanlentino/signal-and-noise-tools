@@ -1,0 +1,10 @@
+.sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6}
+.sn-prov-confirmed{color:#1f9d55;border-color:rgba(52,199,89,.4)}
+.sn-prov-pending{color:#c98a12;border-color:rgba(255,176,32,.4)}
+.sn-prov-genesis{color:#6b7280;border-color:rgba(128,128,128,.4)}
+.sn-prov-panel{border:1px solid rgba(128,128,128,.24);border-radius:12px;padding:1rem 1.15rem;font-size:.82rem}
+.sn-prov-chain{list-style:none;margin:0 0 .6rem;padding:0}
+.sn-prov-ver{display:flex;gap:.5em;align-items:baseline;padding:.25em 0}
+.sn-prov-meta{opacity:.6}
+.sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
+.sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}
