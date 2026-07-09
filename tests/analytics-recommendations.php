@@ -55,5 +55,27 @@ r_true( null === r_card( sn_analytics_recommendations(), 'unlinked' ), 'no unlin
 $GLOBALS['__scan'] = null;
 r_true( null === r_card( sn_analytics_recommendations(), 'unlinked' ), 'no unlinked card when no scan has run (no live re-scan)' );
 
+// ── SEO descriptionless-route rule ──
+echo "\nRule: SEO descriptionless pages\n";
+$mk = function ( $id, $title, $desc ) { $x = new stdClass(); $x->ID = $id; $x->post_title = $title; $x->__desc = $desc; return $x; };
+$GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ), $mk( 11, 'Random', '' ), $mk( 12, 'Ghost', '' ) );
+$s = r_card( sn_analytics_recommendations(), 'seo_meta' );
+r_true( is_array( $s ), 'seo card present when a page resolves to empty description' );
+r_eq( 2, $s['count'] ?? 0, 'counts only the descriptionless pages (11, 12)' );
+r_true( false !== strpos( $s['action_url'] ?? '', 'post=11' ), 'deep-links to the first descriptionless page editor' );
+$GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ) );
+r_true( null === r_card( sn_analytics_recommendations(), 'seo_meta' ), 'no seo card when every page has a description' );
+
+// ── Cookieless: no card carries a per-person field (all three signals live) ──
+echo "\nCookieless: no per-person fields in any card\n";
+$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 2 ) );
+$GLOBALS['__scan']      = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 1 ) ) );
+$GLOBALS['__pages']     = array( $mk( 11, 'Random', '' ) );
+$all = sn_analytics_recommendations();
+r_eq( 3, count( $all ), 'all three rules fire when their signals are present' );
+foreach ( $all as $c ) {
+	r_true( ! isset( $c['visitor'] ) && ! isset( $c['ip'] ) && ! isset( $c['session'] ), 'card ' . $c['id'] . ' carries no per-person field' );
+}
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );

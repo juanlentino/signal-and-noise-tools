@@ -78,7 +78,43 @@ function sn_analytics_rec_unlinked() {
 	);
 }
 
-/** Placeholder — implemented in Task 4. @return array|null */
+/**
+ * SEO rule: published Pages that resolve to an EMPTY meta description ship
+ * descriptionless. Uses the shared resolver (override → excerpt → theme filter),
+ * so the theme's supplied copy for /about,/contact,/colophon,/music,/services is
+ * honored — only a Page with no excerpt AND no theme entry is flagged. Deep-links
+ * to the first such Page's editor (adding an excerpt fixes it; the theme route
+ * map is the alternative). Cross-repo signal, plugin-only code. Null when none.
+ *
+ * @return array|null
+ */
 function sn_analytics_rec_seo_meta() {
-	return null;
+	if ( ! function_exists( 'sn_seo_resolve_singular_description' ) || ! function_exists( 'get_posts' ) ) {
+		return null;
+	}
+	$pages   = (array) get_posts( array(
+		'post_type'        => 'page',
+		'post_status'      => 'publish',
+		'numberposts'      => 100,
+		'suppress_filters' => false,
+	) );
+	$missing = array();
+	foreach ( $pages as $p ) {
+		if ( is_object( $p ) && '' === trim( (string) sn_seo_resolve_singular_description( $p ) ) ) {
+			$missing[] = $p;
+		}
+	}
+	$n = count( $missing );
+	if ( $n < 1 ) {
+		return null;
+	}
+	$first = (int) ( $missing[0]->ID ?? 0 );
+	return array(
+		'id'           => 'seo_meta',
+		'title'        => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
+		'detail'       => 'Search engines and AI crawlers get no summary for these routes. Add a Page excerpt (or theme route copy) to fix.',
+		'count'        => $n,
+		'action_url'   => admin_url( 'post.php?post=' . $first . '&action=edit' ),
+		'action_label' => 'Add a description',
+	);
 }
