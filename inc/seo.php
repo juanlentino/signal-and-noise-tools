@@ -13,6 +13,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Shared singular meta-description resolver (also used by the Analytics
+// Intelligence "descriptionless route" recommendation). v9.3.0.
+require_once __DIR__ . '/seo-description.php';
+
 /**
  * SEO: Suppress The SEO Framework's Open Graph / Facebook / Twitter emission.
  *
@@ -123,23 +127,12 @@ function sn_seo_meta_for_current_view() {
 		$post  = get_queried_object();
 		$title = $post ? wp_strip_all_tags( get_the_title( $post ) ) . ' — ' . sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ) : '';
 		if ( $post ) {
-			// v1.10.0+: per-post _sn_meta_description override wins over
-			// the excerpt. Empty override falls through to excerpt.
-			$override = function_exists( 'sn_post_settings_get_description' )
-				? sn_post_settings_get_description( $post->ID )
-				: '';
-			if ( '' !== $override ) {
-				$description = $override;
-			} elseif ( ! empty( $post->post_excerpt ) ) {
-				$description = wp_strip_all_tags( $post->post_excerpt );
-			}
-			// v6.24.0: template-driven Pages (e.g. /about, /contact, /colophon,
-			// /music) carry no excerpt — the content lives in a theme template,
-			// not post_content — so they'd ship with no description. The companion
-			// theme supplies one per route via this filter (it owns the copy).
-			if ( '' === $description ) {
-				$description = (string) apply_filters( 'sn_seo_singular_description', '', $post );
-			}
+			// v9.3.0: precedence (override -> excerpt -> theme filter) extracted to
+			// the shared resolver so the recs "descriptionless route" rule and this
+			// emitter can never drift. Template-driven Pages (/about, /contact,
+			// /colophon, /music, /services) carry no excerpt, so the theme supplies
+			// their copy via the sn_seo_singular_description filter inside it.
+			$description = sn_seo_resolve_singular_description( $post );
 		}
 		$url = $post ? get_permalink( $post ) : '';
 	}
