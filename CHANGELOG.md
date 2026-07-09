@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.2.2] - 2026-07-08: Fix — Panacea `foundingDate` schema/copy mismatch
+
+**Headline:** The Person JSON-LD `@graph` on `/about/` embeds a `worksFor` → `Organization` node for Panacea whose `foundingDate` read **2015**. The theme's visible About-page copy was corrected the same day from "opened in 2015" to "opened in **2016**" (verified against both resumes), so the structured data now contradicted the on-page text. Corrected the schema value to **2016** so the rich-results surface matches the visible page.
+
+> **Why PATCH:** a data correction to one literal in `sn_schema_person()` (`inc/seo-schema.php`) — no new capability, no change to the `Organization` node's shape, no API/route/schema-contract change. Structured data now agrees with the source-of-truth copy.
+
+### Fixed
+- `worksFor.foundingDate` in the Person schema **2015 → 2016**, matching the corrected About-page copy (theme side already shipped). Updated the T6 assertion in `tests/seo-schema.php` accordingly (69 passed, 0 failed).
+
 ## [9.2.1] - 2026-07-08: Fix — weekly digest truncated to invalid JSON
 
 **Headline:** Generating the weekly digest on the new Intelligence tab failed with "AI digest response was not valid JSON" (`snt_narration_invalid_json`). Root cause: the completion budget (`SN_NARRATION_MAX_TOKENS`) was **512 tokens**, and on real traffic data the model wrote a digest that overran it — the JSON was cut off mid-response, so `json_decode` failed. The parser had no truncation-salvage (unlike the Insights advisor's parser, hardened for the same class in v7.1.1), so a cut-off response hard-failed instead of recovering. Slice (a) didn't cause this — it surfaced a latent v6.30.0 bug by putting the digest behind a prominent button.

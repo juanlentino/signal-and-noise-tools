@@ -138,7 +138,7 @@ function sn_schema_person_credentials() {
 				'@type'        => 'Organization',
 				'name'         => 'Panacea',
 				'description'  => 'Recording studio',
-				'foundingDate' => '2015',
+				'foundingDate' => '2016',
 			),
 		)
 	);

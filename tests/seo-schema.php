@@ -336,7 +336,7 @@ ss_true( in_array( 'Valedictorian, Full Sail University', (array) ( $pc['award']
 ss_eq( 'The Recording Academy', $pc['memberOf'][0]['name'] ?? null, 'memberOf includes The Recording Academy' );
 ss_eq( 'The Latin Recording Academy', $pc['memberOf'][1]['name'] ?? null, 'memberOf includes The Latin Recording Academy' );
 ss_eq( 'Panacea', $pc['worksFor']['name'] ?? null, 'worksFor === Panacea' );
-ss_eq( '2015', $pc['worksFor']['foundingDate'] ?? null, 'worksFor.foundingDate === 2015' );
+ss_eq( '2016', $pc['worksFor']['foundingDate'] ?? null, 'worksFor.foundingDate === 2016' );
 
 // ─── T7: ProfilePage on identity pages (mainEntity → Person) ───
 echo "\nT7: ProfilePage on identity pages\n";
