@@ -101,3 +101,40 @@ function sn_prov_update_commit( $post_id, $version, array $fields ) {
 	}
 	return false;
 }
+
+add_action( 'rest_api_init', 'sn_prov_register_confirm_route' );
+
+function sn_prov_register_confirm_route() {
+	register_rest_route( 'sn-prov/v1', '/confirm', array(
+		'methods'             => 'POST',
+		'callback'            => 'sn_prov_confirm_handler',
+		'permission_callback' => 'sn_prov_confirm_permission',
+	) );
+}
+
+/**
+ * Verify the Worker's Ed25519 signature (header X-SN-Ed25519, base64) over the
+ * raw body, using the published public key. WP holds no signing secret.
+ *
+ * @param WP_REST_Request $request
+ * @return true|WP_Error
+ */
+function sn_prov_confirm_permission( $request ) {
+	$pub_b64 = sn_prov_pubkey_b64();
+	if ( '' === $pub_b64 ) {
+		return new WP_Error( 'sn_prov_no_key', 'No public key configured.', array( 'status' => 500 ) );
+	}
+	$pk  = base64_decode( $pub_b64, true );
+	$sig = base64_decode( (string) $request->get_header( 'x_sn_ed25519' ), true );
+	$msg = $request->get_body();
+
+	if ( false === $pk || false === $sig
+		|| SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES !== strlen( $pk )
+		|| SODIUM_CRYPTO_SIGN_BYTES !== strlen( $sig ) ) {
+		return new WP_Error( 'sn_prov_bad_sig', 'Malformed signature.', array( 'status' => 401 ) );
+	}
+	if ( ! sodium_crypto_sign_verify_detached( $sig, $msg, $pk ) ) {
+		return new WP_Error( 'sn_prov_bad_sig', 'Invalid signature.', array( 'status' => 403 ) );
+	}
+	return true;
+}

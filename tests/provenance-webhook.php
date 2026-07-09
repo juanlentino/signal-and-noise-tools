@@ -72,6 +72,41 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 	function wp_generate_uuid4() {
 		return 'uuuuuuuu-0000-4000-8000-000000000000'; }
 }
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code;
+		public $data;
+		public function __construct( $c = '', $m = '', $d = array() ) {
+			$this->code = $c;
+			$this->data = $d; }
+	}
+}
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data;
+		public $status;
+		public function __construct( $d = null, $s = 200 ) {
+			$this->data = $d;
+			$this->status = $s; }
+	}
+}
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+	class WP_REST_Request {
+		private $headers;
+		private $body;
+		public function __construct( $headers = array(), $body = '' ) {
+			$this->headers = $headers;
+			$this->body = $body; }
+		public function get_header( $k ) {
+			return $this->headers[ $k ] ?? null; }
+		public function get_body() {
+			return $this->body; }
+	}
+}
+if ( ! function_exists( 'register_rest_route' ) ) {
+	function register_rest_route() {
+		return true; }
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
@@ -128,6 +163,25 @@ $chain = sn_prov_get_chain( 42 );
 wh_eq( 'pending', $chain[0]['status'], 'chain entry flipped to pending' );
 wh_eq( 'SIGBASE64', $chain[0]['signature'], 'signature stored on the commit' );
 wh_eq( 'notes/u/v1.json', $chain[0]['ledger_path'], 'ledger_path stored' );
+
+echo "\nTask 3: confirm permission (ed25519)\n";
+if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) {
+	echo "  SKIP: libsodium not available\n";
+} else {
+	$kp     = sodium_crypto_sign_keypair();
+	$sk     = sodium_crypto_sign_secretkey( $kp );
+	$pk     = sodium_crypto_sign_publickey( $kp );
+	$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = base64_encode( $pk );
+
+	$body   = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed' ) );
+	$goodsig = base64_encode( sodium_crypto_sign_detached( $body, $sk ) );
+
+	$req_ok  = new WP_REST_Request( array( 'x_sn_ed25519' => $goodsig ), $body );
+	$req_bad = new WP_REST_Request( array( 'x_sn_ed25519' => base64_encode( str_repeat( "\0", 64 ) ) ), $body );
+
+	wh_eq( true, sn_prov_confirm_permission( $req_ok ), 'valid ed25519 signature accepted' );
+	wh_true( sn_prov_confirm_permission( $req_bad ) instanceof WP_Error, 'forged signature rejected' );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
