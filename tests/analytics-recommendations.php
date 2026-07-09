@@ -1,9 +1,9 @@
 <?php
 /**
- * Tests for inc/analytics-recommendations.php — the Intelligence tab's pure-rules
- * recommendation engine (slice b). Each rule reads a CACHED signal (never a live
- * scan) and returns one deep-linked card or null. Run: php tests/analytics-recommendations.php
- * @since plugin v9.3.0
+ * Tests for inc/analytics-recommendations.php — the Content-view pure-rules
+ * recommendation engine. Each rule reads a CACHED signal (never a live scan) and
+ * returns one deep-linked card or null. Run: php tests/analytics-recommendations.php
+ * @since plugin v9.6.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
@@ -49,7 +49,7 @@ $GLOBALS['__scan'] = array( 'checks' => array( 'unlinked_mentions' => array( 'co
 $u = r_card( sn_analytics_recommendations(), 'unlinked' );
 r_true( is_array( $u ), 'unlinked card present when the cached scan has mentions' );
 r_eq( 4, $u['count'] ?? 0, 'unlinked count read from the cached scan' );
-r_true( false !== strpos( $u['action_url'] ?? '', 'tab=health' ), 'unlinked deep-links to Health' );
+r_true( false !== strpos( $u['action_url'] ?? '', 'sub=health' ), 'unlinked deep-links to the current Health sub-tab' );
 $GLOBALS['__scan'] = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 0 ) ) );
 r_true( null === r_card( sn_analytics_recommendations(), 'unlinked' ), 'no unlinked card when count = 0' );
 $GLOBALS['__scan'] = null;

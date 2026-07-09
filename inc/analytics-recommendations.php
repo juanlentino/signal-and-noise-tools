@@ -1,14 +1,15 @@
 <?php
 /**
- * Signal & Noise Tools — Analytics → Intelligence recommendations engine (slice b).
+ * Signal & Noise Tools — Analytics recommendations engine + panel render.
  *
  * Pure rules over already-cached signals: each rule reads a durable/transient-
  * cached source (never triggers an expensive live scan) and returns at most one
  * actionable card deep-linked to the tool that acts on it. Cookieless: rules read
  * aggregate counts + published-content metadata only, never per-person data.
+ * Rendered as a panel at the top of the Analytics → Content view (annotations R3b).
  *
  * @package SignalNoiseTools
- * @since 9.3.0
+ * @since 9.6.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -75,7 +76,7 @@ function sn_analytics_rec_unlinked() {
 		'title'        => sprintf( _n( '%d unlinked mention between notes', '%d unlinked mentions between notes', $n, 'signal-and-noise-tools' ), $n ),
 		'detail'       => 'One note names another without linking it. Health → Suggest proposes an anchor already in your prose.',
 		'count'        => $n,
-		'action_url'   => admin_url( 'admin.php?page=sn-theme-options&tab=health' ),
+		'action_url'   => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
 		'action_label' => 'Review link suggestions',
 	);
 }
@@ -91,6 +92,11 @@ function sn_analytics_rec_unlinked() {
  * @return array|null
  */
 function sn_analytics_rec_seo_meta() {
+	// v9.6.0: sn_seo_resolve_singular_description() is not yet on main — the
+	// per-Page description path is still inline in sn_seo_meta_for_current_view()
+	// (only the TITLE path got a pure resolver, back in v9.3.0). This rule ships
+	// DORMANT: the guard below self-disables it until a follow-up extracts the
+	// resolver. Refresh + unlinked are the two live rules today.
 	if ( ! function_exists( 'sn_seo_resolve_singular_description' ) || ! function_exists( 'get_posts' ) ) {
 		return null;
 	}
@@ -126,14 +132,10 @@ function sn_analytics_rec_seo_meta() {
  * Render the recommendations panel: deterministic, deep-linked action cards from
  * sn_analytics_recommendations(). Empty is first-class ("nothing needs attention
  * right now"). All dynamic output escaped; wp-admin-native. Uses the shared panel
- * primitive (snt_an_panel_open/close), so it drops into any dashboard view.
+ * primitive (snt_an_panel_open/close) + the .sn-an-rec* rules in
+ * assets/analytics/analytics-admin.css. Rendered at the top of the Content view.
  *
- * R3b (v9.6.0): re-homed from the deleted Intelligence tab into the Content view.
- * NOTE (next session): this fn is NOT yet wired. Call it from
- * snt_analytics_render_view_content() (inc/analytics-view-content.php), and
- * require this module in signal-and-noise-tools.php near the other analytics
- * requires. See the R3b plan for placement + the render-harness fix.
- *
+ * @since 9.6.0 Re-homed from the retired Intelligence tab into the Content view.
  * @return void
  */
 function snt_analytics_render_recommendations_panel() {
@@ -141,7 +143,7 @@ function snt_analytics_render_recommendations_panel() {
 
 	snt_an_panel_open( 'Recommendations' );
 	if ( empty( $cards ) ) {
-		echo '<p class="sn-an-meta">Nothing needs attention right now.</p>';
+		echo '<p class="sn-an-empty">' . esc_html__( 'Nothing needs attention right now.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}
@@ -150,7 +152,7 @@ function snt_analytics_render_recommendations_panel() {
 		echo '<li class="sn-an-rec">';
 		echo '<p class="sn-an-rec-title">' . esc_html( (string) ( $c['title'] ?? '' ) ) . '</p>';
 		if ( ! empty( $c['detail'] ) ) {
-			echo '<p class="sn-an-meta">' . esc_html( (string) $c['detail'] ) . '</p>';
+			echo '<p class="sn-an-rec-detail">' . esc_html( (string) $c['detail'] ) . '</p>';
 		}
 		if ( ! empty( $c['action_url'] ) ) {
 			echo '<a class="button button-small" href="' . esc_url( (string) $c['action_url'] ) . '">' . esc_html( (string) ( $c['action_label'] ?? 'Open' ) ) . '</a>';

@@ -244,6 +244,15 @@
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
 
+/* Recommendations panel (v9.6.0, annotations R3b): deep-linked action cards atop
+   the Content view. Native postbox body; cards separated by hairlines, muted
+   detail under a bold title, the action as a native small button. */
+.sn-an-recs { margin: 0; }
+.sn-an-rec { padding: 12px 0; border-top: 1px solid #f0f0f1; }
+.sn-an-rec:first-child { padding-top: 2px; border-top: 0; }
+.sn-an-rec-title { margin: 0 0 2px; font-weight: 600; font-size: 13px; color: #1d2327; }
+.sn-an-rec-detail { margin: 0 0 8px; color: #646970; font-size: 13px; line-height: 1.5; }
+
 /* Interpretation callout (v9.4.0): a short "read" above a panel's data, drawn on
    content only (the resolver returns null when there is nothing to say). Crisp-
    console treatment: left hairline accent, muted body, squared single-sided border. */

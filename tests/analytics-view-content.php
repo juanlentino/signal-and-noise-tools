@@ -32,7 +32,23 @@ function snt_analytics_render_referrer_categories( $cats ) { echo '<!--REFCATS--
 function snt_analytics_render_lowengage( $rows ) { echo '<!--LOWENGAGE-->'; }
 function snt_analytics_render_pageroles_table( $rows, $role ) { echo '<!--PAGEROLES:' . esc_html( $role ) . '-->'; }
 
+// v9.6.0 (R3b): the Content view now renders the REAL recommendations panel at
+// its top. Exercise the real render (R1's render-harness lesson) by requiring the
+// module and driving its engine through dependency stubs — the panel is empty
+// when the signals are quiet, populated when they trip. (The SEO rule stays
+// dormant here just as in production: sn_seo_resolve_singular_description() is
+// undefined, so its function_exists guard self-disables it.)
+if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } }
+$GLOBALS['__lifecycle'] = null;
+if ( ! function_exists( 'sn_analytics_posts_lifecycle' ) ) { function sn_analytics_posts_lifecycle( $limit = 0 ) { return $GLOBALS['__lifecycle']; } }
+$GLOBALS['__scan'] = null;
+if ( ! function_exists( 'sn_health_last_scan' ) ) { function sn_health_last_scan() { return $GLOBALS['__scan']; } }
+
 require_once __DIR__ . '/../inc/analytics-annotations.php'; // v9.5.0: the read resolvers the view now calls
+require_once __DIR__ . '/../inc/analytics-recommendations.php'; // v9.6.0: the recs engine + the panel render the view now calls
 require_once __DIR__ . '/../inc/analytics-view-content.php';
 
 $pass = 0; $fail = 0;
@@ -99,6 +115,34 @@ $side_pos = strpos( $hot, 'sn-an-content-side' );
 ok( false !== $note_pos && $note_pos < $side_pos, 'the top-pages read sits in the main column, above the side column' );
 $GLOBALS['__tp'] = null;
 $GLOBALS['__rc'] = null;
+
+echo "\nTest: recommendations panel renders atop the Content view (v9.6.0 R3b)\n";
+// Quiet signals -> empty panel with the graceful empty-state.
+$GLOBALS['__lifecycle'] = null;
+$GLOBALS['__scan']      = null;
+ob_start();
+snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
+$recs_empty = (string) ob_get_clean();
+ok( false !== strpos( $recs_empty, '<span>Recommendations</span>' ), 'the Recommendations panel renders in the Content view' );
+ok( false !== strpos( $recs_empty, 'Nothing needs attention right now.' ), 'quiet signals -> graceful empty-state' );
+$rec_at  = strpos( $recs_empty, '<span>Recommendations</span>' );
+$grid_at = strpos( $recs_empty, 'sn-an-content-grid' );
+ok( false !== $rec_at && false !== $grid_at && $rec_at < $grid_at, 'the panel sits at the TOP of the view, above the content grid' );
+
+// Tripping signals -> the two live rules (refresh + unlinked) produce cards.
+$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 3 ) );
+$GLOBALS['__scan']      = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 4 ) ) );
+ob_start();
+snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
+$recs_hot = (string) ob_get_clean();
+ok( false !== strpos( $recs_hot, 'sn-an-recs' ), 'populated signals render the cards list' );
+ok( false !== strpos( $recs_hot, 'cooling posts worth a refresh' ), 'the refresh card renders' );
+ok( false !== strpos( $recs_hot, 'unlinked mentions between notes' ), 'the unlinked card renders' );
+ok( false !== strpos( $recs_hot, 'sn_view=posts' ), 'refresh card deep-links to the Posts view' );
+ok( false !== strpos( $recs_hot, 'tab=monitoring&sub=health' ), 'unlinked card deep-links to the CURRENT Health sub-tab (not legacy tab=health)' );
+ok( false === strpos( $recs_hot, 'Nothing needs attention' ), 'no empty-state when cards are present' );
+$GLOBALS['__lifecycle'] = null;
+$GLOBALS['__scan']      = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
