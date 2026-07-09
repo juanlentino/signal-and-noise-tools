@@ -3,6 +3,7 @@
   if (!root) return;
   var endpoint = root.getAttribute('data-endpoint');
   var nonce = root.getAttribute('data-nonce');
+  var ledgerBase = root.getAttribute('data-ledger') || '';
   var live = root.querySelector('.sn-prov-live');
 
   function el(tag, cls, text) {
@@ -12,30 +13,94 @@
     return n;
   }
 
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function ledgerUrl(uid) {
+    if (!ledgerBase) return '';
+    return ledgerBase + encodeURIComponent(String(uid));
+  }
+
+  // Status -> pill modifier: pending (sent, awaiting confirmation) reads amber,
+  // unanchored (never dispatched) reads red so they don't look identical.
+  // Anything else falls back to the plain pill.
+  var STATUS_PILL = { pending: 'sn-pill--warn', unanchored: 'sn-pill--err' };
+
+  function statusPill(status) {
+    var key = String(status);
+    var pill = document.createElement('span');
+    pill.className = 'sn-pill ' + (STATUS_PILL[key] || '');
+    pill.textContent = key;
+    return pill;
+  }
+
+  function commitRow(p) {
+    var tr = el('tr');
+
+    var tdUid = el('td');
+    tdUid.appendChild(el('code', null, p.note_uid));
+    tr.appendChild(tdUid);
+
+    tr.appendChild(el('td', null, 'v' + Number(p.version)));
+
+    var tdStatus = el('td');
+    tdStatus.appendChild(statusPill(p.status));
+    tr.appendChild(tdStatus);
+
+    var tdLedger = el('td');
+    var href = ledgerUrl(p.note_uid);
+    if (href) {
+      var a = el('a', null, 'Ledger');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      tdLedger.appendChild(a);
+    } else {
+      tdLedger.appendChild(document.createTextNode('—'));
+    }
+    tr.appendChild(tdLedger);
+
+    return tr;
+  }
+
+  function commitsTable(pending) {
+    var table = el('table', 'sn-status-table sn-status-table--full sn-prov-table');
+    var thead = el('thead');
+    var hr = el('tr');
+    ['UID', 'Version', 'Status', 'Ledger'].forEach(function (h) {
+      hr.appendChild(el('th', null, h));
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    var tbody = el('tbody');
+    pending.forEach(function (p) {
+      tbody.appendChild(commitRow(p));
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
   function render(d) {
-    while (live.firstChild) live.removeChild(live.firstChild);
+    clear(live);
+
     var status = (d.genesis && d.genesis.status) ? d.genesis.status : 'n/a';
-    var head = el('p');
+    var head = el('p', 'sn-prov-genesis-line');
     head.appendChild(document.createTextNode('Genesis anchor: '));
     head.appendChild(el('strong', null, status));
     live.appendChild(head);
 
     var pending = d.pending || [];
-    if (!pending.length) { live.appendChild(el('p', null, 'All commits anchored')); return; }
-
-    var ul = el('ul', 'sn-prov-pending');
-    pending.forEach(function (p) {
-      var li = el('li', 'sn-prov-row sn-prov-' + String(p.status).replace(/[^a-z]/gi, ''));
-      li.appendChild(el('code', null, p.note_uid));
-      li.appendChild(document.createTextNode(' v' + Number(p.version) + ' '));
-      li.appendChild(el('span', null, p.status));
-      ul.appendChild(li);
-    });
-    live.appendChild(ul);
+    if (!pending.length) {
+      live.appendChild(el('p', null, 'All commits anchored'));
+      return;
+    }
+    live.appendChild(commitsTable(pending));
   }
 
   function renderError(e) {
-    while (live.firstChild) live.removeChild(live.firstChild);
+    clear(live);
     var msg = 'Status check failed — reload the page to re-check.';
     if (e && e.message) msg += ' (' + e.message + ')';
     live.appendChild(el('p', 'sn-prov-error', msg));
