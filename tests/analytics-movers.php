@@ -53,6 +53,7 @@ if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 }
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
 
 $pass = 0; $fail = 0;

@@ -20,6 +20,7 @@ if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( 
 // snt_an_note_empty() collects into $GLOBALS['sn_an_empty_panels'], and
 // snt_an_panel_open() echoes real markup containing the title.
 require_once __DIR__ . '/../inc/analytics-panels.php';
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 

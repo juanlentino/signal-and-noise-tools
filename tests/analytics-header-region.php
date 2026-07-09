@@ -60,6 +60,7 @@ function sn_uptime_status_rail_strip() { return $GLOBALS['__uptime_on'] ? '<!--U
 function sn_uptime_status_detail_panel() { return $GLOBALS['__uptime_on'] ? '<!--UPTIME-DETAIL-->' : ''; }
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 
 $pass = 0; $fail = 0;
