@@ -192,3 +192,87 @@ function sn_prov_genesis_persist( array $genesis ) {
 		}
 	}
 }
+
+/**
+ * Anchor the genesis root through the Worker (one Bitcoin anchor for the whole
+ * backlog). Reuses the webhook dispatch contract with a synthetic commit.
+ *
+ * @param array $genesis
+ */
+function sn_prov_genesis_anchor( array $genesis ) {
+	$manifest = wp_json_encode( array(
+		'kind'  => 'genesis',
+		'root'  => $genesis['root'],
+		'date'  => $genesis['date'],
+		'count' => count( $genesis['leaves'] ),
+		'notes' => array_map(
+			static function ( $e ) {
+				return array( 'note_uid' => $e['note_uid'], 'leaf_hash' => bin2hex( sn_prov_leaf_hash( $e['leaf'] ) ) );
+			},
+			$genesis['leaves']
+		),
+	) );
+	$commit = array( 'version' => 0, 'content_hash' => $genesis['root'] );
+	// note_uid 'genesis' has no post; the ledger writes genesis/<date>-root.{json,ots}.
+	$GLOBALS['sn_prov_genesis_uid'] = 'genesis';
+	add_filter( 'sn_prov_dispatch_note_uid', 'sn_prov_genesis_uid_override' );
+	sn_prov_dispatch_manifest( $genesis['root'], $manifest, $genesis['date'] );
+
+	update_option( SN_PROV_GENESIS_OPT, array(
+		'root'   => $genesis['root'],
+		'date'   => $genesis['date'],
+		'status' => 'pending',
+	), false );
+}
+
+/** Dispatch a raw manifest to the Worker (genesis has no post_id). */
+function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
+	$url    = sn_prov_worker_url();
+	$secret = sn_prov_hmac_secret();
+	if ( '' === $url || '' === $secret ) {
+		return;
+	}
+	$body = wp_json_encode( array(
+		'canonical'    => $manifest,
+		'content_hash' => $root,
+		'note_uid'     => 'genesis',
+		'version'      => 0,
+	) );
+	wp_remote_post( $url, array(
+		'timeout' => 20,
+		'headers' => array(
+			'Content-Type'   => 'application/json',
+			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
+		),
+		'body'    => $body,
+	) );
+}
+
+/**
+ * One-shot migration: snapshot the whole backlog, persist proofs, anchor the
+ * root. Gated by SN_PROV_GENESIS_MIGR_OPT — runs at most once per site.
+ */
+function sn_prov_genesis_migrate() {
+	if ( get_option( SN_PROV_GENESIS_MIGR_OPT ) ) {
+		return;
+	}
+	if ( ! function_exists( 'sn_prov_active' ) || ! sn_prov_active() ) {
+		return; // ext-intl gate — retry next admin_init
+	}
+	$ids = sn_prov_genesis_backlog();
+	if ( ! $ids ) {
+		update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true ); // nothing to snapshot
+		return;
+	}
+	$posts = array_map( 'get_post', $ids );
+	$genesis = sn_prov_genesis_build( $posts, sn_prov_genesis_author() );
+	sn_prov_genesis_persist( $genesis );
+	sn_prov_genesis_anchor( $genesis );
+	update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true );
+}
+add_action( 'admin_init', 'sn_prov_genesis_migrate' );
+
+/** Author string for genesis leaves (filterable; defaults to the blog owner). */
+function sn_prov_genesis_author() {
+	return (string) apply_filters( 'sn_prov_genesis_author', get_bloginfo( 'name' ) );
+}
