@@ -73,6 +73,10 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 		return trim( $s );
 	}
 }
+if ( ! function_exists( 'get_the_title' ) ) {
+	function get_the_title( $post ) {
+		return is_object( $post ) ? $post->post_title : ''; }
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
 
@@ -109,6 +113,28 @@ $uid1 = sn_prov_note_uid( 501 );
 pv_true( is_string( $uid1 ) && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $uid1 ), 'note_uid is a v4 UUID' );
 pv_eq( $uid1, sn_prov_note_uid( 501 ), 'note_uid is stable across calls (persisted)' );
 pv_true( $uid1 !== sn_prov_note_uid( 502 ), 'distinct posts get distinct uids' );
+
+echo "\nTask 5: payload + hash + published_at\n";
+$post              = new stdClass();
+$post->ID          = 501;
+$post->post_title  = 'On over-detection';
+$post->post_content = '<p>Hello world.</p>';
+$post->post_date    = '2026-06-12 09:30:00';
+$post->post_date_gmt = '2026-06-12 09:30:00';
+$post->post_author  = 1;
+
+pv_eq( '2026-06-12T09:30:00Z', sn_prov_published_at( $post ), 'published_at is ISO-8601 UTC' );
+
+$payload = sn_prov_build_payload( $post, 1, null, 'Juan Lentino' );
+pv_eq( 'sn-normalize-v1', $payload['algo'], 'payload.algo' );
+pv_eq( 'Hello world.', $payload['content'], 'payload.content normalized' );
+pv_eq( 1, $payload['version'], 'payload.version' );
+pv_eq( null, $payload['parent'], 'payload.parent null for genesis-less first commit' );
+
+$hash = sn_prov_content_hash( sn_prov_canonical_json( $payload ) );
+pv_true( 1 === preg_match( '/^[0-9a-f]{64}$/', $hash ), 'content hash is 64-hex sha256' );
+// Deterministic: same payload -> same hash.
+pv_eq( $hash, sn_prov_content_hash( sn_prov_canonical_json( sn_prov_build_payload( $post, 1, null, 'Juan Lentino' ) ) ), 'hash is deterministic' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

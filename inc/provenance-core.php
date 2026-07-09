@@ -137,3 +137,51 @@ function sn_prov_is_list( array $arr ) {
 	}
 	return true;
 }
+
+/**
+ * The Note's claimed publish time as ISO-8601 UTC (Z). Uses post_date_gmt
+ * when set, else post_date interpreted as UTC.
+ *
+ * @param WP_Post|object $post
+ * @return string
+ */
+function sn_prov_published_at( $post ) {
+	$gmt = ( ! empty( $post->post_date_gmt ) && '0000-00-00 00:00:00' !== $post->post_date_gmt )
+		? $post->post_date_gmt
+		: $post->post_date;
+	return gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( $gmt . ' UTC' ) );
+}
+
+/**
+ * Build the canonical provenance payload (the object that gets hashed +
+ * signed). Provenance-bearing fields only: title, author, published_at,
+ * content. Slug and tags are deliberately excluded.
+ *
+ * @param WP_Post|object $post
+ * @param int            $version
+ * @param string|null    $parent  Hex content_hash of the parent commit, or null.
+ * @param string         $author
+ * @return array
+ */
+function sn_prov_build_payload( $post, $version, $parent, $author ) {
+	return array(
+		'algo'         => SN_PROV_ALGO,
+		'author'       => (string) $author,
+		'content'      => sn_prov_normalize_v1( $post->post_content ),
+		'note_uid'     => sn_prov_note_uid( $post->ID ),
+		'parent'       => null === $parent ? null : (string) $parent,
+		'published_at' => sn_prov_published_at( $post ),
+		'title'        => (string) get_the_title( $post ),
+		'version'      => (int) $version,
+	);
+}
+
+/**
+ * SHA-256 (hex) of the canonical payload bytes.
+ *
+ * @param string $canonical_json
+ * @return string
+ */
+function sn_prov_content_hash( $canonical_json ) {
+	return hash( 'sha256', (string) $canonical_json );
+}
