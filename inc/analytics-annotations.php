@@ -47,6 +47,12 @@ const SN_ANNOTATION_TOP_PAGE_MIN_ROWS = 4;
 const SN_ANNOTATION_DIRECT_SHARE       = 0.85;
 const SN_ANNOTATION_SOURCES_MIN_VISITS = 30;
 
+// Geography: fire when the two largest markets hold at least this share of visits,
+// and only with at least this many markets in play (with 3, top-2 is mathematically
+// >= 67%, so the read would be trivial rather than a real concentration signal).
+const SN_ANNOTATION_GEO_TOP2_SHARE = 0.65;
+const SN_ANNOTATION_GEO_MIN_ROWS   = 4;
+
 /**
  * Movers read: state the direction of movement when it clearly skews one way.
  * Uses only { path, views, delta }, with no post age (age would need a per-path
@@ -258,6 +264,40 @@ function sn_annotation_sources( $cats ) {
 	return sprintf(
 		/* translators: %d is the percent of visits that arrive directly, with no referrer */
 		__( '%d%% of visits are direct, with little referral: an owned audience, not discovered.', 'signal-and-noise-tools' ),
+		(int) round( $share * 100 )
+	);
+}
+
+/**
+ * Geography read: the audience clusters in a couple of markets, with little
+ * discovery beyond them. Uses the 250-row country pull (every country, so the
+ * visits sum is a true total, not a share-of-top-N). Markets are ranked by visits.
+ * Null on a spread map, a thin market set, or no visits.
+ *
+ * @param array $geo [ { value, views, visits } ] from sn_analytics_top_dimension('country',…,250).
+ * @return string|null
+ */
+function sn_annotation_geography( $geo ) {
+	$geo = is_array( $geo ) ? array_values( $geo ) : array();
+	if ( count( $geo ) < SN_ANNOTATION_GEO_MIN_ROWS ) {
+		return null;
+	}
+	$visits = array();
+	foreach ( $geo as $g ) {
+		$visits[] = max( 0, (int) ( $g['visits'] ?? 0 ) );
+	}
+	$total = array_sum( $visits );
+	if ( $total <= 0 ) {
+		return null;
+	}
+	rsort( $visits );
+	$share = ( $visits[0] + ( $visits[1] ?? 0 ) ) / $total;
+	if ( $share < SN_ANNOTATION_GEO_TOP2_SHARE ) {
+		return null;
+	}
+	return sprintf(
+		/* translators: %d is the percent of visits from the two largest country markets */
+		__( 'Two markets are %d%% of visits: little discovery beyond your core geography.', 'signal-and-noise-tools' ),
 		(int) round( $share * 100 )
 	);
 }

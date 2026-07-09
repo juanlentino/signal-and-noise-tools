@@ -116,5 +116,15 @@ an_eq( null, sn_annotation_sources( $rc( 60, 20, 15, 5 ) ), 'balanced mix -> nul
 an_eq( null, sn_annotation_sources( $rc( 20, 4, 3, 2 ) ), 'below min volume -> null' );
 an_eq( null, sn_annotation_sources( array() ), 'empty -> null' );
 
+echo "\ngeography\n";
+// { value, views, visits } from sn_analytics_top_dimension('country',…,250) — every
+// country, so the visits sum is a true total. Markets are ranked by visits (unordered
+// input on purpose). Needs >=4 markets: with 3, top-2 is mathematically >=67%, trivial.
+$geo = function ( array $visits ) { $r = array(); foreach ( $visits as $i => $v ) { $r[] = array( 'value' => "C$i", 'views' => $v, 'visits' => $v ); } return $r; };
+an_eq( 'Two markets are 71% of visits: little discovery beyond your core geography.', sn_annotation_geography( $geo( array( 31, 40, 15, 14 ) ) ), 'top-2 concentration -> read (rank by visits, unordered)' );
+an_eq( null, sn_annotation_geography( $geo( array( 30, 25, 25, 20 ) ) ), 'visits spread across markets -> null' );
+an_eq( null, sn_annotation_geography( $geo( array( 50, 30, 20 ) ) ), 'only three markets -> null (concentration is trivial)' );
+an_eq( null, sn_annotation_geography( array() ), 'empty -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
