@@ -111,6 +111,36 @@ function sn_seo_resolve_singular_title( $post ) {
 	return $base . ' — ' . $site;
 }
 
+/**
+ * Resolve the singular meta description for <meta name="description">,
+ * og:description, and twitter:description.
+ *
+ * Precedence: _sn_meta_description per-post override → post_excerpt (stripped) →
+ * sn_seo_singular_description theme-route fallback (v6.24.0 seam, defaults '').
+ * Mirrors pre-v9.7.0 behavior exactly — the override is returned RAW (the meta
+ * box stores plain text; unlike the title path, which strips it), only the
+ * excerpt is stripped, and an excerpt that is empty() (including the literal
+ * '0') falls through to the filter. Named + pure so the chain is CLI-testable
+ * independent of the wp_head emission, and so the Analytics descriptionless-
+ * Pages recommendation can reuse the identical resolution.
+ *
+ * @since 9.7.0
+ * @param WP_Post|object $post
+ * @return string
+ */
+function sn_seo_resolve_singular_description( $post ) {
+	$override = function_exists( 'sn_post_settings_get_description' )
+		? sn_post_settings_get_description( $post->ID )
+		: '';
+	if ( '' !== $override ) {
+		return $override;
+	}
+	if ( ! empty( $post->post_excerpt ) ) {
+		return wp_strip_all_tags( $post->post_excerpt );
+	}
+	return (string) apply_filters( 'sn_seo_singular_description', '', $post );
+}
+
 function sn_seo_meta_for_current_view() {
 	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
 	// title/description/url since WP has no post for it. Takes precedence.
@@ -150,26 +180,14 @@ function sn_seo_meta_for_current_view() {
 		// v9.3.0: per-page _sn_seo_title override → sn_seo_singular_title theme
 		// fallback → derived title, all with the site-name suffix.
 		$title = $post ? sn_seo_resolve_singular_title( $post ) : '';
-		if ( $post ) {
-			// v1.10.0+: per-post _sn_meta_description override wins over
-			// the excerpt. Empty override falls through to excerpt.
-			$override = function_exists( 'sn_post_settings_get_description' )
-				? sn_post_settings_get_description( $post->ID )
-				: '';
-			if ( '' !== $override ) {
-				$description = $override;
-			} elseif ( ! empty( $post->post_excerpt ) ) {
-				$description = wp_strip_all_tags( $post->post_excerpt );
-			}
-			// v6.24.0: template-driven Pages (e.g. /about, /contact, /colophon,
-			// /music) carry no excerpt — the content lives in a theme template,
-			// not post_content — so they'd ship with no description. The companion
-			// theme supplies one per route via this filter (it owns the copy).
-			if ( '' === $description ) {
-				$description = (string) apply_filters( 'sn_seo_singular_description', '', $post );
-			}
-		}
-		$url = $post ? get_permalink( $post ) : '';
+		// v9.7.0: per-post _sn_meta_description override → post_excerpt →
+		// sn_seo_singular_description theme-route filter (for template-driven
+		// Pages like /about, /contact, /colophon, /music that carry no excerpt).
+		// Extracted into sn_seo_resolve_singular_description() so this path and
+		// the Analytics descriptionless-Pages recommendation share one source of
+		// truth — mirrors how the title above delegates to its resolver.
+		$description = $post ? sn_seo_resolve_singular_description( $post ) : '';
+		$url         = $post ? get_permalink( $post ) : '';
 	}
 
 	return array( $title, $description, $url );

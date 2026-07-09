@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.7.0] - 2026-07-09: Feat — SEO description resolver lights up the descriptionless-Pages recommendation
+
+**Headline:** The Analytics Content view's Recommendations panel gains its third live rule: published Pages that would ship with no meta description. The card was built in v9.6.0 but shipped dormant, waiting on a shared resolver. That resolver now exists. The per-Page meta-description chain (a hand-written override, then the Page excerpt, then the theme's per-route copy) is extracted from the SEO head emission into one pure, named function, and both the head tags and the recommendation read it. So the card flags only a Page that truly resolves to nothing, and adding a Page excerpt (or theme route copy) makes it disappear.
+
+> **Why MINOR:** a new user-visible recommendation goes live, additive. No public API removed or renamed, no settings-schema change. The description resolution is byte-identical to before (the meta description, og:description, and twitter:description tags emit exactly what they did); the chain is merely extracted so the recommendation can reuse it. Cookieless and cost-neutral: the rule reads published-Page metadata, adds no Analytics Engine query, and makes no LLM call.
+
+### New
+- **"Pages ship without a meta description" recommendation** (now live) on the Analytics Content view. It counts published Pages whose meta description resolves to empty across the full chain (per-post override, Page excerpt, theme route copy) and deep-links to the first one's editor. Built in v9.6.0, dormant until now.
+- `sn_seo_resolve_singular_description( $post )`: a pure, named resolver for the singular meta-description chain (per-post override, then Page excerpt, then the `sn_seo_singular_description` theme-route filter), mirroring `sn_seo_resolve_singular_title()` from v9.3.0. CLI-testable independent of `wp_head`.
+
+### Changed
+- `sn_seo_meta_for_current_view()` now delegates its singular description branch to the new resolver instead of computing the chain inline, so the meta description tag, og:description, twitter:description, and the Analytics recommendation all share one source of truth.
+
 ## [9.6.0] - 2026-07-09: Feat — recommendations panel (annotations Release 3b, closes the arc)
 
 **Headline:** The Analytics Content view now opens with a Recommendations panel: a short, deep-linked to-do list of what needs attention. Two rules are live today. A refresh-candidates card (cooling, non-evergreen posts) links straight to the Posts view's refresh queue, and an unlinked-mentions card (one note names another without linking it) links to the Health tab's Suggest/Apply tool. When nothing needs attention the panel collapses to a single reassuring line. This is the second half of Release 3 and the final surface of the annotations arc, which now spans the panel seam, nine contextual reads, and this consolidated action list.
