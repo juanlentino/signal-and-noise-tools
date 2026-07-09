@@ -27,6 +27,7 @@ require_once __DIR__ . '/analytics-panels.php';
  */
 function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array() ) {
 	snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
+	snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 	if ( (int) $metrics['visits'] < 1 ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
@@ -91,6 +92,9 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 	foreach ( (array) $attribution as $a ) {
 		$attr_rows[] = array( 'label' => (string) ( $a['entry'] ?? '' ), 'views' => (int) ( $a['conversions'] ?? 0 ) );
 	}
+	// v9.5.0 read: one entry page dominates conversions. The distribution helper
+	// owns its own chrome, so the read renders just above that panel.
+	snt_an_annotation( sn_annotation_conversions( $attribution ) );
 	snt_analytics_render_distribution( __( 'Contact conversions by entry page', 'signal-and-noise-tools' ), $attr_rows, '', true );
 
 	snt_an_flush_empty_fold();

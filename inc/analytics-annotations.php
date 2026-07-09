@@ -53,6 +53,18 @@ const SN_ANNOTATION_SOURCES_MIN_VISITS = 30;
 const SN_ANNOTATION_GEO_TOP2_SHARE = 0.65;
 const SN_ANNOTATION_GEO_MIN_ROWS   = 4;
 
+// Visit quality: absolute engaged-read bands (the panel holds no baseline). Only
+// the two tails speak; a typical middle range stays quiet. Gated by a visit floor
+// so a handful of visits never trips it.
+const SN_ANNOTATION_ENGAGED_HIGH       = 0.65;
+const SN_ANNOTATION_ENGAGED_LOW        = 0.25;
+const SN_ANNOTATION_QUALITY_MIN_VISITS = 20;
+
+// Conversions: fire when one entry page holds at least this share of contact
+// conversions, above a small floor so a single contact never trips it.
+const SN_ANNOTATION_CONV_DOMINANCE = 0.60;
+const SN_ANNOTATION_CONV_MIN       = 3;
+
 /**
  * Movers read: state the direction of movement when it clearly skews one way.
  * Uses only { path, views, delta }, with no post age (age would need a per-path
@@ -298,6 +310,77 @@ function sn_annotation_geography( $geo ) {
 	return sprintf(
 		/* translators: %d is the percent of visits from the two largest country markets */
 		__( 'Two markets are %d%% of visits: little discovery beyond your core geography.', 'signal-and-noise-tools' ),
+		(int) round( $share * 100 )
+	);
+}
+
+/**
+ * Visit-quality read: an unusually engaged or unusually shallow range. engaged_rate
+ * is a 0..1 fraction, and the panel holds no baseline, so the bands are absolute and
+ * only the tails speak. Null in the typical middle band or below the visit floor.
+ *
+ * @param array $metrics { visits, engaged_rate, ... } from sn_session_metrics().
+ * @return string|null
+ */
+function sn_annotation_visit_quality( $metrics ) {
+	$metrics = is_array( $metrics ) ? $metrics : array();
+	if ( (int) ( $metrics['visits'] ?? 0 ) < SN_ANNOTATION_QUALITY_MIN_VISITS ) {
+		return null;
+	}
+	$rate = (float) ( $metrics['engaged_rate'] ?? 0 );
+	if ( $rate >= SN_ANNOTATION_ENGAGED_HIGH ) {
+		return sprintf(
+			/* translators: %d is the percent of visits that were engaged reads */
+			__( 'A high-quality range: %d%% of visits were engaged reads.', 'signal-and-noise-tools' ),
+			(int) round( $rate * 100 )
+		);
+	}
+	if ( $rate <= SN_ANNOTATION_ENGAGED_LOW ) {
+		return sprintf(
+			/* translators: %d is the percent of visits that were engaged reads */
+			__( 'A shallow range: only %d%% of visits were engaged reads.', 'signal-and-noise-tools' ),
+			(int) round( $rate * 100 )
+		);
+	}
+	return null;
+}
+
+/**
+ * Conversions read: one entry page dominates where contact conversions begin.
+ * Share is over the returned attribution rows' conversions (contact conversions
+ * are few, so that sum is effectively the total). Names the entry page (a safe
+ * path, escaped at render). Null with no conversions, a spread, or below the floor.
+ *
+ * @param array $attribution [ { entry, conversions } ] from sn_goal_attribution().
+ * @return string|null
+ */
+function sn_annotation_conversions( $attribution ) {
+	$rows = is_array( $attribution ) ? array_values( $attribution ) : array();
+	if ( empty( $rows ) ) {
+		return null;
+	}
+	$total     = 0;
+	$top_entry = '';
+	$top_conv  = 0;
+	foreach ( $rows as $r ) {
+		$c      = max( 0, (int) ( $r['conversions'] ?? 0 ) );
+		$total += $c;
+		if ( $c > $top_conv ) {
+			$top_conv  = $c;
+			$top_entry = (string) ( $r['entry'] ?? '' );
+		}
+	}
+	if ( $total < SN_ANNOTATION_CONV_MIN || '' === $top_entry ) {
+		return null;
+	}
+	$share = $top_conv / $total;
+	if ( $share < SN_ANNOTATION_CONV_DOMINANCE ) {
+		return null;
+	}
+	return sprintf(
+		/* translators: 1: entry page path, 2: percent of contact conversions that begin on that page */
+		__( 'Most contacts enter on %1$s: %2$d%% of conversions land there first.', 'signal-and-noise-tools' ),
+		$top_entry,
 		(int) round( $share * 100 )
 	);
 }

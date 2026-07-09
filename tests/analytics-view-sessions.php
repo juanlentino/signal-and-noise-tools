@@ -48,6 +48,7 @@ if ( ! function_exists( 'snt_analytics_render_dim_table' ) ) {
 	}
 }
 
+require __DIR__ . '/../inc/analytics-annotations.php'; // v9.5.0: the Visits-view read resolvers
 require __DIR__ . '/../inc/analytics-sessions.php';
 require __DIR__ . '/../inc/analytics-view-sessions.php';
 
@@ -111,6 +112,28 @@ snt_analytics_render_summary_panels(
 $out4 = ob_get_clean();
 ok( false === strpos( $out4, '[dist-panel:Contact conversions by entry page' ), 'empty attribution does NOT emit a titled panel' );
 ok( false !== strpos( $out4, 'sn-an-empty-fold' ), 'empty attribution collapses into the empty fold' );
+
+// v9.5.0 reads: visit quality (engaged-read band) + conversions (entry dominance).
+ob_start();
+snt_analytics_render_summary_panels(
+	array( 'visits' => 120, 'bounce_rate' => 0.2, 'pages_per_visit' => 2.5, 'median_duration' => 60, 'engaged_visits' => 86, 'engaged_rate' => 0.72 ),
+	array(), array(), false,
+	array( array( 'entry' => '/contact/', 'conversions' => 8 ), array( 'entry' => '/services/', 'conversions' => 2 ) )
+);
+$out5 = ob_get_clean();
+ok( substr_count( $out5, 'class="sn-an-note"' ) >= 2, 'both Visits-view reads emit on tripping data' );
+ok( false !== strpos( $out5, 'engaged reads' ), 'visit-quality read text is rendered' );
+ok( false !== strpos( $out5, 'Most contacts enter on /contact/' ), 'conversions read names the dominant entry page' );
+
+// A typical middle range + spread conversions emit neither read.
+ob_start();
+snt_analytics_render_summary_panels(
+	array( 'visits' => 120, 'bounce_rate' => 0.4, 'pages_per_visit' => 1.8, 'median_duration' => 30, 'engaged_visits' => 54, 'engaged_rate' => 0.45 ),
+	array(), array(), false,
+	array( array( 'entry' => '/contact/', 'conversions' => 4 ), array( 'entry' => '/services/', 'conversions' => 3 ), array( 'entry' => '/about/', 'conversions' => 3 ) )
+);
+$out6 = ob_get_clean();
+ok( false === strpos( $out6, 'class="sn-an-note"' ), 'a typical range with spread conversions emits no read' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

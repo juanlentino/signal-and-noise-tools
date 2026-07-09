@@ -126,5 +126,24 @@ an_eq( null, sn_annotation_geography( $geo( array( 30, 25, 25, 20 ) ) ), 'visits
 an_eq( null, sn_annotation_geography( $geo( array( 50, 30, 20 ) ) ), 'only three markets -> null (concentration is trivial)' );
 an_eq( null, sn_annotation_geography( array() ), 'empty -> null' );
 
+echo "\nvisit quality\n";
+// sn_session_metrics: { visits, bounce_rate, engaged_rate, ... }, engaged_rate a
+// 0..1 fraction. No baseline exists on the panel, so absolute bands: the read
+// speaks only on the two tails, and stays quiet on a typical middle range.
+$vm = function ( $visits, $engaged ) { return array( 'visits' => $visits, 'engaged_rate' => $engaged, 'bounce_rate' => 0.4 ); };
+an_eq( 'A high-quality range: 72% of visits were engaged reads.', sn_annotation_visit_quality( $vm( 100, 0.72 ) ), 'high engagement -> read' );
+an_eq( 'A shallow range: only 18% of visits were engaged reads.', sn_annotation_visit_quality( $vm( 100, 0.18 ) ), 'low engagement -> read' );
+an_eq( null, sn_annotation_visit_quality( $vm( 100, 0.45 ) ), 'typical middle range -> null' );
+an_eq( null, sn_annotation_visit_quality( $vm( 10, 0.90 ) ), 'too few visits -> null' );
+an_eq( null, sn_annotation_visit_quality( array() ), 'no metrics -> null' );
+
+echo "\nconversions\n";
+// sn_goal_attribution: [ { entry, conversions } ], conversions DESC. Names the
+// entry page (a safe path, esc_html'd at render). Null with no/few conversions.
+an_eq( 'Most contacts enter on /contact/: 80% of conversions land there first.', sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 8 ), array( 'entry' => '/services/', 'conversions' => 2 ) ) ), 'one entry dominates -> read' );
+an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 4 ), array( 'entry' => '/services/', 'conversions' => 3 ), array( 'entry' => '/about/', 'conversions' => 3 ) ) ), 'conversions spread -> null' );
+an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 2 ) ) ), 'too few conversions -> null' );
+an_eq( null, sn_annotation_conversions( array() ), 'no conversions in range -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
