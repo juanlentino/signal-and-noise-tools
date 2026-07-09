@@ -40,6 +40,7 @@ function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
+function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
 function sn_admin_render_front_end_form() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_front_end_form'; }
 function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_tag_cleanup_section'; }
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
@@ -94,8 +95,8 @@ ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'w
 	'connections leaves: cloudflare, webhooks, indexnow, redirects, cron, scheduled-content' );
 ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
 	'monitoring leaves: analytics, insights, health (login-defense moved to the Analytics dashboard)' );
-ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'links' ),
-	'tools leaves: block-migrations, release-notes, links (links last)' );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'provenance', 'links' ),
+	'tools leaves: block-migrations, release-notes, provenance, links (links last)' );
 ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),
 	'security leaves: login, login-defense, audit-log' );
 
