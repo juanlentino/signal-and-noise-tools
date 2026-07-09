@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.9.2] - 2026-07-09: Fix — provenance panel rebuilt in the house settings layout + honest re-anchor error
+
+**Headline:** The Tools → Provenance panel now uses the same layout language as every other settings section — a first-glance stat-card row (Worker / Genesis / Pending / Confirmed) over stacked full-width `.sn-fieldset` blocks (System, Genesis anchor, Commits), with the commits list as a standard `wp-list-table widefat striped`. The earlier floating `.sn-card` grid — a one-off visual language that didn't match any other page — is gone. Separately, the re-anchor failure notice, which hardcoded "check the Worker URL and HMAC secret" even when those are configured (it misdirected a real debugging session), is now config-aware.
+
+> **Why PATCH:** UI restructuring + an error-message fix of surfaces shipped in v9.9.0/v9.9.1 — no new capability, no public API or settings-schema change. Reuses the shared `sn_admin_glance_grid()` / `.sn-fieldset` / `wp-list-table` styles (no bespoke CSS), and keeps the nonce + `manage_options` re-anchor gate, the `innerHTML`-free JS, and secret-presence-only rendering (the HMAC value never reaches output), all re-asserted by tests.
+
+### Fixed
+- Provenance panel rebuilt to the house pattern: a `sn_admin_glance_grid()` hero + stacked `.sn-fieldset` blocks + a `wp-list-table widefat striped` commits table, replacing the one-off `.sn-card` grid ([inc/provenance-admin.php](inc/provenance-admin.php), [assets/provenance-admin.js](assets/provenance-admin.js), [assets/provenance-admin.css](assets/provenance-admin.css)).
+- The re-anchor `fail` notice is now config-aware: "the Worker rejected the dispatch — check the Worker is deployed and reachable" when the `SN_PROV_*` constants are all set, versus "set the `SN_PROV_*` constants in wp-config first" when they aren't — it no longer misdiagnoses a Worker-side rejection as a config problem ([inc/provenance-admin.php](inc/provenance-admin.php)).
+
+### Notes
+- The actual genesis-anchoring bug was fixed in the companion `sn-provenance` Cloudflare Worker (which had no genesis code path and rejected the `note_uid: "genesis"`, `version: 0` manifest) and deployed separately; the genesis root is now anchored in the public ledger at `genesis/{date}-root.json`. That fix lives in the Worker repo, not this plugin.
+
 ## [9.9.1] - 2026-07-09: Fix — provenance admin layout polish (UID wrap, card reflow, status labels)
 
 **Headline:** Tightens the v9.9.0 Provenance panel after a live look. The Commits table's 36-character UID no longer stacks one character per line — it shows a `head…tail` digest (`a0f8393c…d1ff`) with the full value on hover (`title`) and in the ledger link, and a `white-space:nowrap` rule keeps it on one line. The cards reflow so **System + Genesis sit in the top row with the Commits table full-width below** (a table doesn't belong in a 340 px column). The duplicate "Genesis anchor" status line is dropped from the Commits card — the Genesis card is the single source — and status labels are consistently capitalised (Pending / Confirmed / Unanchored / Genesis) across the genesis pill and the commits table.
