@@ -34,11 +34,21 @@
     live.appendChild(ul);
   }
 
+  function renderError(e) {
+    while (live.firstChild) live.removeChild(live.firstChild);
+    var msg = 'Status check failed — reload the page to re-check.';
+    if (e && e.message) msg += ' (' + e.message + ')';
+    live.appendChild(el('p', 'sn-prov-error', msg));
+  }
+
   function poll() {
     fetch(endpoint, { headers: { 'X-WP-Nonce': nonce } })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      })
       .then(render)
-      .catch(function () {});
+      .catch(renderError);
   }
   poll();
   setInterval(poll, 30000);

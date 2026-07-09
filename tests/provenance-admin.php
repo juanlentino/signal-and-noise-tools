@@ -16,6 +16,8 @@ if ( ! defined( 'SNT_VERSION' ) ) {
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_enq']     = array(); // captured wp_enqueue_* handles
+$GLOBALS['__pv_routes']  = array(); // captured register_rest_route args
+$GLOBALS['__pv_can']     = true;    // current_user_can( 'manage_options' ) toggle
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {
@@ -59,10 +61,12 @@ if ( ! function_exists( 'get_posts' ) ) {
 }
 if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( $cap ) {
-		return true; }
+		return ! empty( $GLOBALS['__pv_can'] ); }
 }
 if ( ! function_exists( 'register_rest_route' ) ) {
-	function register_rest_route() {
+	// Record the route args so the auth gate + handler can be exercised.
+	function register_rest_route( $namespace, $route, $args = array() ) {
+		$GLOBALS['__pv_routes'][ $namespace . $route ] = $args;
 		return true; }
 }
 if ( ! class_exists( 'WP_REST_Response' ) ) {
@@ -131,6 +135,25 @@ ad_true( is_array( $data ) && isset( $data['pending'] ), 'status returns a pendi
 ad_eq( 1, count( $data['pending'] ), 'one pending commit surfaced' );
 ad_eq( 'u11', $data['pending'][0]['note_uid'], 'pending item carries note_uid' );
 ad_eq( 'pending', $data['genesis']['status'], 'genesis status included' );
+
+echo "\nTask 4b: REST auth gate + handler\n";
+$GLOBALS['__pv_routes'] = array();
+sn_prov_admin_register_status_route();
+$route = $GLOBALS['__pv_routes']['sn-prov/v1/status'] ?? null;
+ad_true( is_array( $route ), 'status route registered under sn-prov/v1/status' );
+ad_eq( 'GET', $route['methods'] ?? null, 'route method is GET' );
+ad_true( is_callable( $route['permission_callback'] ?? null ), 'permission_callback is callable' );
+ad_true( is_callable( $route['callback'] ?? null ), 'callback is callable' );
+
+$GLOBALS['__pv_can'] = true;
+ad_eq( true, call_user_func( $route['permission_callback'] ), 'manage_options user passes the gate' );
+$GLOBALS['__pv_can'] = false;
+ad_eq( false, call_user_func( $route['permission_callback'] ), 'non-manage_options user rejected' );
+$GLOBALS['__pv_can'] = true;
+
+$resp = call_user_func( $route['callback'], null );
+ad_true( $resp instanceof WP_REST_Response, 'handler returns a WP_REST_Response' );
+ad_true( is_array( $resp->data ) && isset( $resp->data['pending'] ), 'handler response data carries a pending list' );
 
 echo "\nTask 5: admin assets gate\n";
 $GLOBALS['__pv_enq'] = array();

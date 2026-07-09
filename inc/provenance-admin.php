@@ -16,6 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array
  */
 function sn_prov_admin_status() {
+	// Surfaces the newest 100 UID-tracked Notes (default date-desc order biases
+	// toward in-flight commits); older pending commits beyond that window aren't
+	// listed. No pagination — the live stepper only needs the recent tail.
 	$ids = get_posts( array(
 		'post_type'   => 'post',
 		'post_status' => 'publish',
