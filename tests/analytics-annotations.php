@@ -89,5 +89,32 @@ an_eq( null, sn_annotation_overview( $dv( 5, 'up' ), array( 'dir' => 'down' ) ),
 an_eq( null, sn_annotation_overview( array(), array( 'dir' => 'down' ) ), 'no deltas (all range) -> null' );
 an_eq( null, sn_annotation_overview( $dv( 38, 'up' ), array() ), 'no engaged dir -> null' );
 
+echo "\ntop pages\n";
+// { path, views, visits, ... }, views DESC. Share is of the returned rows' views
+// (the panel has no grand total in scope), so the copy says "top pages", not "range".
+$tp = function ( array $views ) { $r = array(); foreach ( $views as $i => $v ) { $r[] = array( 'path' => "/p$i", 'views' => $v, 'visits' => $v ); } return $r; };
+an_eq( 'One page holds 61% of your top pages\' views: traffic is concentrated.', sn_annotation_top_pages( $tp( array( 61, 15, 14, 10 ) ) ), 'dominant top page -> read' );
+an_eq( 'One page holds 55% of your top pages\' views: traffic is concentrated.', sn_annotation_top_pages( $tp( array( 55, 20, 15, 10 ) ) ), 'exactly at threshold -> read' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 30, 25, 25, 20 ) ) ), 'views spread across pages -> null' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 80, 20 ) ) ), 'too few pages -> null' );
+an_eq( null, sn_annotation_top_pages( array() ), 'empty -> null' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 0, 0, 0, 0 ) ) ), 'zero views -> null' );
+
+echo "\nsources\n";
+// referrer_categories: 4 fixed rows { category, label, views, visits }. Direct is
+// isolated cleanly here (unlike top_sources, which folds unknown into direct).
+$rc = function ( $direct, $search, $social, $other ) {
+	return array(
+		array( 'category' => 'direct', 'label' => 'Direct', 'views' => $direct, 'visits' => $direct ),
+		array( 'category' => 'search', 'label' => 'Search', 'views' => $search, 'visits' => $search ),
+		array( 'category' => 'social', 'label' => 'Social', 'views' => $social, 'visits' => $social ),
+		array( 'category' => 'other',  'label' => 'Other',  'views' => $other,  'visits' => $other ),
+	);
+};
+an_eq( '88% of visits are direct, with little referral: an owned audience, not discovered.', sn_annotation_sources( $rc( 88, 6, 4, 2 ) ), 'direct-dominant -> read' );
+an_eq( null, sn_annotation_sources( $rc( 60, 20, 15, 5 ) ), 'balanced mix -> null' );
+an_eq( null, sn_annotation_sources( $rc( 20, 4, 3, 2 ) ), 'below min volume -> null' );
+an_eq( null, sn_annotation_sources( array() ), 'empty -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

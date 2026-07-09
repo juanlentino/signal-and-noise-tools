@@ -34,6 +34,19 @@ const SN_ANNOTATION_LIFECYCLE_MIN_CANDIDATES = 3;
 // divergence to be worth calling out.
 const SN_ANNOTATION_OVERVIEW_VIEWS_PCT = 15;
 
+// Top pages: fire when one page holds at least this share of the returned rows'
+// views (the Content view has no grand range total in scope, so this is a
+// share-of-top-pages), and only with at least this many pages in play (a 55%
+// share among 2-3 pages is trivial, not a concentration signal).
+const SN_ANNOTATION_TOP_PAGE_SHARE    = 0.55;
+const SN_ANNOTATION_TOP_PAGE_MIN_ROWS = 4;
+
+// Sources: fire when direct is at least this share of referrer-category visits,
+// above a volume floor so a trickle never trips it. Conservative because a
+// cookieless site already strips many referrers into the direct bucket.
+const SN_ANNOTATION_DIRECT_SHARE       = 0.85;
+const SN_ANNOTATION_SOURCES_MIN_VISITS = 30;
+
 /**
  * Movers read: state the direction of movement when it clearly skews one way.
  * Uses only { path, views, delta }, with no post age (age would need a per-path
@@ -179,5 +192,72 @@ function sn_annotation_overview( $deltas, $engaged ) {
 		/* translators: %d is the percent fall in views */
 		__( 'Views down %d%%, but engaged rate rose: fewer visits, but stickier.', 'signal-and-noise-tools' ),
 		abs( $vpct )
+	);
+}
+
+/**
+ * Top-pages read: one page dominates the view distribution. Share is over the
+ * returned rows' views (the Content view holds no grand range total in scope),
+ * so the copy says "top pages", not "the range". Null on a spread distribution,
+ * a thin page set, or zero views.
+ *
+ * @param array $paths [ { path, views, ... } ] from sn_analytics_top_paths().
+ * @return string|null
+ */
+function sn_annotation_top_pages( $paths ) {
+	$paths = is_array( $paths ) ? array_values( $paths ) : array();
+	if ( count( $paths ) < SN_ANNOTATION_TOP_PAGE_MIN_ROWS ) {
+		return null;
+	}
+	$views = array();
+	foreach ( $paths as $p ) {
+		$views[] = max( 0, (int) ( $p['views'] ?? 0 ) );
+	}
+	$total = array_sum( $views );
+	if ( $total <= 0 ) {
+		return null;
+	}
+	$share = max( $views ) / $total;
+	if ( $share < SN_ANNOTATION_TOP_PAGE_SHARE ) {
+		return null;
+	}
+	return sprintf(
+		/* translators: %d is the percent of the top pages' views held by the single most-viewed page */
+		__( 'One page holds %d%% of your top pages\' views: traffic is concentrated.', 'signal-and-noise-tools' ),
+		(int) round( $share * 100 )
+	);
+}
+
+/**
+ * Sources read: traffic is almost entirely direct, with little referral (an
+ * owned audience rather than a discovered one). Reads referrer CATEGORIES, which
+ * isolate direct cleanly, rather than top_sources, which folds unknown referrers
+ * into the direct bucket. Null below the direct-share threshold or the floor.
+ *
+ * @param array $cats [ { category, views, visits } ] from sn_analytics_referrer_categories().
+ * @return string|null
+ */
+function sn_annotation_sources( $cats ) {
+	$cats   = is_array( $cats ) ? $cats : array();
+	$total  = 0;
+	$direct = 0;
+	foreach ( $cats as $c ) {
+		$v      = max( 0, (int) ( $c['visits'] ?? 0 ) );
+		$total += $v;
+		if ( 'direct' === (string) ( $c['category'] ?? '' ) ) {
+			$direct += $v;
+		}
+	}
+	if ( $total < SN_ANNOTATION_SOURCES_MIN_VISITS ) {
+		return null;
+	}
+	$share = $direct / $total;
+	if ( $share < SN_ANNOTATION_DIRECT_SHARE ) {
+		return null;
+	}
+	return sprintf(
+		/* translators: %d is the percent of visits that arrive directly, with no referrer */
+		__( '%d%% of visits are direct, with little referral: an owned audience, not discovered.', 'signal-and-noise-tools' ),
+		(int) round( $share * 100 )
 	);
 }

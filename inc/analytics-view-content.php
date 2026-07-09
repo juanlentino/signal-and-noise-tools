@@ -31,7 +31,10 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	echo '<div class="sn-an-content-grid">';
 
 	echo '<div class="sn-an-content-main">';
-	snt_analytics_render_paths_table( sn_analytics_top_paths( $from, $to, $class, 25 ) );
+	// Capture the rows so the annotation and the table share one query (v9.5.0 read).
+	$paths = sn_analytics_top_paths( $from, $to, $class, 25 );
+	snt_an_annotation( sn_annotation_top_pages( $paths ) );
+	snt_analytics_render_paths_table( $paths );
 	echo '</div>';
 
 	echo '<div class="sn-an-content-side">';
@@ -39,10 +42,14 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	// collapsed); the sparkline series is summed across each label's member
 	// hosts, and the drill token carries the canonical label (resolved back
 	// to its member hosts by the brand-aware referrer drill-down).
+	// Referrer categories are captured first so the sources read and the chips
+	// share one query (v9.5.0 read: direct-heavy / owned-audience).
+	$refcats  = sn_analytics_referrer_categories( $from, $to, $class );
+	snt_an_annotation( sn_annotation_sources( $refcats ) );
 	$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
 	$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
 	snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer', 10 );
-	snt_analytics_render_referrer_categories( sn_analytics_referrer_categories( $from, $to, $class ) );
+	snt_analytics_render_referrer_categories( $refcats );
 	echo '</div>';
 
 	echo '</div>';
