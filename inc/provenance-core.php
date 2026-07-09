@@ -88,3 +88,52 @@ function sn_prov_normalize_v1( $post_content ) {
 	$s = preg_replace( '/\n{3,}/', "\n\n", $s );                     // 7
 	return trim( $s );
 }
+
+/**
+ * Deterministic JSON: recursively sort object keys (byte order), compact,
+ * UTF-8, slashes + non-ASCII emitted raw. Byte-identical to RFC 8785 for our
+ * strings-and-integers payload. Object keys MUST stay ASCII and non-numeric.
+ *
+ * @param array $data
+ * @return string
+ */
+function sn_prov_canonical_json( array $data ) {
+	sn_prov_ksort_recursive( $data );
+	return wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+}
+
+/**
+ * Recursively ksort associative arrays; leave list arrays in order.
+ *
+ * @param array $data
+ */
+function sn_prov_ksort_recursive( array &$data ) {
+	if ( ! sn_prov_is_list( $data ) ) {
+		ksort( $data, SORT_STRING );
+	}
+	foreach ( $data as &$value ) {
+		if ( is_array( $value ) ) {
+			sn_prov_ksort_recursive( $value );
+		}
+	}
+	unset( $value );
+}
+
+/**
+ * array_is_list() polyfill (native since PHP 8.1; target is 8.0).
+ *
+ * @param array $arr
+ * @return bool
+ */
+function sn_prov_is_list( array $arr ) {
+	if ( function_exists( 'array_is_list' ) ) {
+		return array_is_list( $arr );
+	}
+	$i = 0;
+	foreach ( $arr as $k => $unused ) {
+		if ( $k !== $i++ ) {
+			return false;
+		}
+	}
+	return true;
+}

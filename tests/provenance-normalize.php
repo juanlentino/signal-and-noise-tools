@@ -74,5 +74,19 @@ if ( function_exists( 'normalizer_normalize' ) ) {
 	echo "  SKIP: NFC vector (ext-intl not loaded)\n";
 }
 
+echo "\nCanonical JSON\n";
+// Keys sorted lexicographically (SORT_STRING); compact; slashes + unicode raw.
+nv_eq(
+	'{"algo":"sn-normalize-v1","author":"Juan","title":"a/b é"}',
+	sn_prov_canonical_json( array( 'title' => 'a/b é', 'algo' => 'sn-normalize-v1', 'author' => 'Juan' ) ),
+	'sorted keys, unescaped slash + unicode, compact'
+);
+// Nested object keys sorted; list arrays preserved in order.
+nv_eq(
+	'{"outer":{"a":1,"b":[3,2,1]}}',
+	sn_prov_canonical_json( array( 'outer' => array( 'b' => array( 3, 2, 1 ), 'a' => 1 ) ) ),
+	'recursive key sort; list order preserved'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
