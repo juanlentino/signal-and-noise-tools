@@ -22,24 +22,48 @@
     return ledgerBase + encodeURIComponent(String(uid));
   }
 
+  // A 36-char UUID wraps one char per line in the narrow UID column; show a
+  // head…tail digest instead (full value stays in the title + the ledger link).
+  function shortUid(uid) {
+    var s = String(uid);
+    if (s.length <= 13) return s;
+    return s.slice(0, 8) + '…' + s.slice(-4);
+  }
+
   // Status -> pill modifier: pending (sent, awaiting confirmation) reads amber,
   // unanchored (never dispatched) reads red so they don't look identical.
   // Anything else falls back to the plain pill.
   var STATUS_PILL = { pending: 'sn-pill--warn', unanchored: 'sn-pill--err' };
+  // Capitalized labels mirroring the PHP sn_prov_admin_status_label() map so the
+  // commits-table pill text matches the server-rendered Genesis pill casing.
+  var STATUS_LABEL = {
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    unanchored: 'Unanchored',
+    genesis: 'Genesis'
+  };
+
+  function statusLabel(status) {
+    var key = String(status);
+    return STATUS_LABEL[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : key);
+  }
 
   function statusPill(status) {
     var key = String(status);
     var pill = document.createElement('span');
     pill.className = 'sn-pill ' + (STATUS_PILL[key] || '');
-    pill.textContent = key;
+    pill.textContent = statusLabel(key);
     return pill;
   }
 
   function commitRow(p) {
     var tr = el('tr');
 
+    var full = String(p.note_uid);
     var tdUid = el('td');
-    tdUid.appendChild(el('code', null, p.note_uid));
+    var code = el('code', null, shortUid(full));
+    code.title = full;
+    tdUid.appendChild(code);
     tr.appendChild(tdUid);
 
     tr.appendChild(el('td', null, 'v' + Number(p.version)));
@@ -49,7 +73,7 @@
     tr.appendChild(tdStatus);
 
     var tdLedger = el('td');
-    var href = ledgerUrl(p.note_uid);
+    var href = ledgerUrl(full);
     if (href) {
       var a = el('a', null, 'Ledger');
       a.href = href;
@@ -83,13 +107,9 @@
   }
 
   function render(d) {
+    // Genesis status lives in its own server-rendered card — the Commits card
+    // shows ONLY the commits table (or the empty state), no duplicated line.
     clear(live);
-
-    var status = (d.genesis && d.genesis.status) ? d.genesis.status : 'n/a';
-    var head = el('p', 'sn-prov-genesis-line');
-    head.appendChild(document.createTextNode('Genesis anchor: '));
-    head.appendChild(el('strong', null, status));
-    live.appendChild(head);
 
     var pending = d.pending || [];
     if (!pending.length) {
