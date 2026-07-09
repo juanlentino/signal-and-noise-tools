@@ -62,6 +62,9 @@ function sn_prov_note_uid( $post_id ) {
  *   6. per line: collapse [space|tab|NBSP] runs to one space, trim
  *   7. collapse 2+ blank lines to one; trim overall
  *
+ * Callers outside sn_prov_record() must check sn_prov_active() first — NFC
+ * (step 4) is only reproducible when ext-intl is loaded.
+ *
  * @param string $post_content
  * @return string
  */
@@ -148,8 +151,28 @@ function sn_prov_is_list( array $arr ) {
 function sn_prov_published_at( $post ) {
 	$gmt = ( ! empty( $post->post_date_gmt ) && '0000-00-00 00:00:00' !== $post->post_date_gmt )
 		? $post->post_date_gmt
-		: $post->post_date;
-	return gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( $gmt . ' UTC' ) );
+		: get_gmt_from_date( (string) $post->post_date );
+	$ts  = strtotime( $gmt . ' UTC' );
+	return gmdate( 'Y-m-d\TH:i:s\Z', $ts ? $ts : 0 );
+}
+
+/**
+ * The provenance-bearing fields (no version, no parent). Single source of
+ * truth for both the payload and the coalescing bearing hash.
+ *
+ * @param WP_Post|object $post
+ * @param string         $author
+ * @return array
+ */
+function sn_prov_bearing_fields( $post, $author ) {
+	return array(
+		'algo'         => SN_PROV_ALGO,
+		'author'       => (string) $author,
+		'content'      => sn_prov_normalize_v1( $post->post_content ),
+		'note_uid'     => sn_prov_note_uid( $post->ID ),
+		'published_at' => sn_prov_published_at( $post ),
+		'title'        => (string) get_the_title( $post ),
+	);
 }
 
 /**
@@ -164,16 +187,23 @@ function sn_prov_published_at( $post ) {
  * @return array
  */
 function sn_prov_build_payload( $post, $version, $parent, $author ) {
-	return array(
-		'algo'         => SN_PROV_ALGO,
-		'author'       => (string) $author,
-		'content'      => sn_prov_normalize_v1( $post->post_content ),
-		'note_uid'     => sn_prov_note_uid( $post->ID ),
-		'parent'       => null === $parent ? null : (string) $parent,
-		'published_at' => sn_prov_published_at( $post ),
-		'title'        => (string) get_the_title( $post ),
-		'version'      => (int) $version,
-	);
+	return sn_prov_build_payload_from_fields( sn_prov_bearing_fields( $post, $author ), $version, $parent );
+}
+
+/**
+ * Build the canonical payload from already-computed bearing fields. Lets
+ * sn_prov_record() reuse the bearing fields it already normalized for the
+ * bearing hash, instead of normalizing the content a second time.
+ *
+ * @param array       $fields  Result of sn_prov_bearing_fields().
+ * @param int         $version
+ * @param string|null $parent  Hex content_hash of the parent commit, or null.
+ * @return array
+ */
+function sn_prov_build_payload_from_fields( array $fields, $version, $parent ) {
+	$fields['parent']  = null === $parent ? null : (string) $parent;
+	$fields['version'] = (int) $version;
+	return $fields;
 }
 
 /**
@@ -230,15 +260,7 @@ function sn_prov_append_commit( $post_id, array $commit ) {
  * @return string
  */
 function sn_prov_bearing_hash( $post, $author ) {
-	$bearing = array(
-		'algo'         => SN_PROV_ALGO,
-		'author'       => (string) $author,
-		'content'      => sn_prov_normalize_v1( $post->post_content ),
-		'note_uid'     => sn_prov_note_uid( $post->ID ),
-		'published_at' => sn_prov_published_at( $post ),
-		'title'        => (string) get_the_title( $post ),
-	);
-	return sn_prov_content_hash( sn_prov_canonical_json( $bearing ) );
+	return sn_prov_content_hash( sn_prov_canonical_json( sn_prov_bearing_fields( $post, $author ) ) );
 }
 
 /**
@@ -264,8 +286,13 @@ function sn_prov_genesis_parent( $post_id ) {
  * @return array|null
  */
 function sn_prov_record( $post, $author ) {
-	$chain   = sn_prov_get_chain( $post->ID );
-	$bearing = sn_prov_bearing_hash( $post, $author );
+	if ( ! sn_prov_active() ) {
+		return null; // ext-intl required for reproducible NFC; see sn_prov_active()
+	}
+
+	$chain          = sn_prov_get_chain( $post->ID );
+	$bearing_fields = sn_prov_bearing_fields( $post, $author );
+	$bearing        = sn_prov_content_hash( sn_prov_canonical_json( $bearing_fields ) );
 
 	if ( $chain ) {
 		$last = end( $chain );
@@ -276,10 +303,10 @@ function sn_prov_record( $post, $author ) {
 
 	$version = count( $chain ) + 1;
 	$parent  = $chain
-		? ( end( $chain )['content_hash'] ?? null )
+		? ( $last['content_hash'] ?? null )
 		: sn_prov_genesis_parent( $post->ID );
 
-	$payload = sn_prov_build_payload( $post, $version, $parent, $author );
+	$payload = sn_prov_build_payload_from_fields( $bearing_fields, $version, $parent );
 	$canon   = sn_prov_canonical_json( $payload );
 	$hash    = sn_prov_content_hash( $canon );
 

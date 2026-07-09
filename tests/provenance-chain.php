@@ -193,5 +193,19 @@ pv_eq( 2, count( $c3 ), 'material change records version 2' );
 pv_eq( 2, $c3[1]['version'], 'second commit is version 2' );
 pv_eq( $c3[0]['content_hash'], $c3[1]['parent'], 'version 2 parent = version 1 content_hash' );
 
+echo "\nTask 8: genesis parent feeds the first commit\n";
+$gp                = new stdClass();
+$gp->ID            = 950;
+$gp->post_title    = 'Backlog note';
+$gp->post_content  = '<p>Backlog body.</p>';
+$gp->post_date     = '2025-06-01 00:00:00';
+$gp->post_date_gmt = '2025-06-01 00:00:00';
+$gp->post_author   = 1;
+
+$genesis_hash = str_repeat( 'ab', 32 ); // 64-hex placeholder "prior chain" hash
+update_post_meta( $gp->ID, SN_PROV_GENESIS_META, $genesis_hash );
+$gc = sn_prov_record( $gp, 'Juan Lentino' );
+pv_eq( $genesis_hash, $gc[0]['parent'], 'first commit parent = genesis parent when set' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
