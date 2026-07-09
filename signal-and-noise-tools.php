@@ -76,6 +76,7 @@ require_once SNT_PATH . 'inc/provenance-core.php'; // Notes provenance: commit-c
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // Notes provenance: Worker glue (Plan 4)
 require_once SNT_PATH . 'inc/provenance-genesis.php'; // Notes provenance: genesis snapshot (Plan 5)
 require_once SNT_PATH . 'inc/provenance-render.php'; // Notes provenance: public surfaces (Plan 6)
+require_once SNT_PATH . 'inc/provenance-admin.php'; // Notes provenance: admin surface (Plan 6)
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each
 // window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn
