@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.4.0] - 2026-07-08: Feat — analytics contextual annotations (seam + four reads)
+
+**Headline:** The Analytics dashboard now writes short, plain-language reads next to the panels that earn them, instead of a separate digest. Each read is a deterministic rule over data the panel already holds (zero new queries, zero AI, fully cookieless), and it draws only when it has something true and non-obvious to say, so most panels stay silent on a quiet range. This release ships the seam plus the first four reads: Overview (volume versus engagement), Movers (direction skew), Engagement anomalies (skim and stall), and the catalogue Lifecycle census. Batched with a small SEO follow-up: the /about ORCID iD now also emits as a schema.org `identifier` PropertyValue.
+
+> **Why MINOR:** new user-visible capability (interpretation callouts on the dashboard), additive. No public API removed or renamed, no settings-schema change. Cookieless and cost-neutral: every read is a pure rules function over data already on the page (zero new Analytics Engine queries, no LLM). The digest tab is untouched this release. Its retirement is a separate, later release.
+
+### New
+- **Contextual annotations** on the Analytics dashboard: a `snt_an_annotation()` body-callout renderer (draws only on content, escapes with `esc_html`) fed by a new pure-rules resolver module, `inc/analytics-annotations.php`. Four reads land wired into their panels (Overview, Movers, Engagement anomalies, and Lifecycle census), each silent unless a conservative threshold trips. In the narrow rail tile the Movers read stacks its label as a kicker so it stays compact but legible. Extends the existing inline signals rather than duplicating them.
+
+### Fixed
+- The `/about` ORCID iD (`https://orcid.org/0009-0006-8151-5920`) now also emits as a `Person.identifier` PropertyValue (`propertyID: ORCID`), the schema.org best-practice form alongside the `sameAs` link added in v9.2.2. The site-scoped `@id` is unchanged.
+
 ## [9.3.0] - 2026-07-08: Feat — first-class SEO for template-driven (contentless) Pages
 
 **Headline:** Most Pages on the site (about, services, colophon, music) are real posts with an **empty `post_content`** — an FSE block template renders them, not the body — so their SEO signals had gaps the AI tooling couldn't fill. Investigation corrected the working assumption: the per-post override meta box already renders on Pages, so a description, OG image, and OG card title could always be set **manually**; the real gaps were narrower. This release closes them. The meta-description and excerpt AI generators (and publish-time auto-prepopulate) now work on empty-body Pages by synthesizing a prompt from the page title plus the theme's curated fallback, instead of failing with "no content to summarize." A new per-page **SEO title** override drives the browser `<title>`, `og:title`, and `twitter:title` together. The OG card image's dek line falls back to the curated theme description, so a contentless Page's social card is no longer blank. Two theme-fallback filter seams (`sn_seo_singular_title`, `sn_seo_singular_og_image`) are added on the plugin side for the theme to fill later.
