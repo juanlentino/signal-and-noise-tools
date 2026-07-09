@@ -63,6 +63,27 @@ function snt_an_panel_close() {
 }
 
 /**
+ * Render an interpretation callout inside a panel body: a short "read" of the
+ * data, drawn ONLY when there is something to say. The inverse of the empty-fold
+ * collector: draw-on-content, skip on null/empty. The sentence is plain text (the
+ * resolver never emits markup) so it escapes with esc_html per
+ * WORDPRESS-REFERENCE.md section 7.
+ *
+ * @param string|null $text One-sentence read, or null / '' to render nothing.
+ * @return void
+ * @since 9.4.0
+ */
+function snt_an_annotation( $text ) {
+	$text = is_string( $text ) ? trim( $text ) : '';
+	if ( '' === $text ) {
+		return;
+	}
+	echo '<div class="sn-an-note"><span class="sn-an-note-label">'
+		. esc_html__( 'Read', 'signal-and-noise-tools' ) . '</span> '
+		. '<span class="sn-an-note-body">' . esc_html( $text ) . '</span></div>';
+}
+
+/**
  * Open a row-clamp region around a long table. Full rows stay in the DOM
  * (already fetched — clamping is display-only, zero extra queries); CSS hides
  * rows past $visible; assets/admin.js toggles .sn-an-clamp--open.

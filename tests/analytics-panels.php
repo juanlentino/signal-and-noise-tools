@@ -95,5 +95,16 @@ $html = capture( function () {
 ok( false === strpos( $html, 'sn-an-viewall' ), 'no view-all button when rows fit the clamp' );
 ok( false !== strpos( $html, 'sn-an-clamp--5' ), 'wrapper still emitted (stable layout hook)' );
 
+// ── snt_an_annotation: draw-on-content interpretation callout ──
+echo "\nannotation renderer (draw-on-content)\n";
+ok( '' === capture( function () { snt_an_annotation( null ); } ), 'null renders nothing' );
+ok( '' === capture( function () { snt_an_annotation( '' ); } ), 'empty string renders nothing' );
+ok( '' === capture( function () { snt_an_annotation( '   ' ); } ), 'whitespace-only renders nothing' );
+$note = capture( function () { snt_an_annotation( 'Movement skews down.' ); } );
+ok( false !== strpos( $note, 'sn-an-note' ), 'callout carries the .sn-an-note class' );
+ok( false !== strpos( $note, 'Movement skews down.' ), 'the sentence appears in the output' );
+$xss = capture( function () { snt_an_annotation( 'a <b>bold</b> & <script>x</script>' ); } );
+ok( false === strpos( $xss, '<b>' ) && false === strpos( $xss, '<script>' ), 'sentence is esc_html-escaped (no raw tags survive)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
