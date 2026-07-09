@@ -99,8 +99,36 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) {
 		$GLOBALS['__pv_enq'][] = $handle;
 		return true; }
 }
+// Escaping/URL/nonce/i18n stubs for the admin section renderer smoke test.
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $t ) {
+		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $t ) {
+		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_html__' ) ) {
+	function esc_html__( $t, $d = 'default' ) {
+		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( $u ) {
+		return (string) $u; }
+}
+if ( ! function_exists( 'rest_url' ) ) {
+	function rest_url( $path = '' ) {
+		return 'https://example.com/wp-json/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+	function wp_create_nonce( $action = -1 ) {
+		return 'nonce-' . md5( (string) $action ); }
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
+// Loads the REAL sn_prov_pubkey_b64() (unguarded — never stub it: redeclare
+// fatal) so the renderer test drives it via the sn_prov_pubkey_b64 option.
+require_once SNT_PATH . 'inc/provenance-webhook.php';
 require_once SNT_PATH . 'inc/provenance-admin.php';
 
 $pass = 0;
@@ -162,6 +190,19 @@ ad_true( in_array( 'sn-provenance-admin', $GLOBALS['__pv_enq'], true ), 'assets 
 $GLOBALS['__pv_enq'] = array();
 sn_prov_admin_enqueue( 'edit.php' );
 ad_eq( 0, count( $GLOBALS['__pv_enq'] ), 'assets NOT enqueued on foreign screens' );
+
+echo "\nTask 5b: section renderer\n";
+// The real sn_prov_pubkey_b64() falls back to get_option( 'sn_prov_pubkey_b64' )
+// (no wp-config constant in the harness), so seed the published key there.
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEYSMOKE';
+ob_start();
+sn_admin_render_provenance_section();
+$html = ob_get_clean();
+ad_true( false !== strpos( $html, 'sn-prov-admin' ), 'renders the sn-prov-admin wrapper' );
+ad_true( false !== strpos( $html, 'data-endpoint' ), 'wrapper carries the status data-endpoint' );
+ad_true( false !== strpos( $html, 'data-nonce' ), 'wrapper carries the wp_rest data-nonce' );
+ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live status region' );
+ad_true( false !== strpos( $html, 'PUBKEYSMOKE' ), 'publishes the Ed25519 public key from the option' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
