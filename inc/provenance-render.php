@@ -116,7 +116,7 @@ function sn_prov_render_panel( $post_id ) {
 	foreach ( array_reverse( $vm['versions'] ) as $v ) {
 		$meta = 'genesis' === $v['status']
 			? 'genesis snapshot'
-			: ( $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : ucfirst( $v['status'] ) );
+			: ( $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : sn_prov_status_label( $v['status'] ) );
 		$rows .= sprintf(
 			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
 			esc_attr( $v['status'] ),

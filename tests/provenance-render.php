@@ -9,9 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! defined( 'SNT_PATH' ) ) {
 	define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 }
+if ( ! defined( 'SNT_VERSION' ) ) {
+	define( 'SNT_VERSION', 'test' );
+}
 
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
+$GLOBALS['__pv_enq']     = array(); // captured wp_enqueue_style handles
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {
@@ -72,6 +76,29 @@ if ( ! function_exists( 'wp_kses' ) ) {
 	function wp_kses( $s, $allowed = array() ) {
 		return (string) $s; }
 }
+// Enqueue-gate stubs. Toggled via $GLOBALS so the REAL sn_prov_is_note()
+// (which calls has_term) drives the gate without redeclaring it.
+if ( ! function_exists( 'is_singular' ) ) {
+	function is_singular( $type = '' ) {
+		return ! empty( $GLOBALS['__pv_singular'] ); }
+}
+if ( ! function_exists( 'get_the_ID' ) ) {
+	function get_the_ID() {
+		return $GLOBALS['__pv_current_id'] ?? 0; }
+}
+if ( ! function_exists( 'has_term' ) ) {
+	function has_term( $term = '', $taxonomy = '', $post = null ) {
+		return ! empty( $GLOBALS['__pv_is_note'] ); }
+}
+if ( ! function_exists( 'plugins_url' ) ) {
+	function plugins_url( $path = '', $plugin = '' ) {
+		return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_enqueue_style' ) ) {
+	function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) {
+		$GLOBALS['__pv_enq'][] = $handle;
+		return true; }
+}
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
 require_once SNT_PATH . 'inc/provenance-render.php';
@@ -127,6 +154,12 @@ rp_true( false !== strpos( $chip, 'sn-prov-chip' ), 'chip has its class' );
 rp_true( false !== strpos( $chip, 'Pending' ), 'chip shows pending label' );
 rp_eq( '', sn_prov_render_chip( 999 ), 'no chain -> empty chip' );
 
+$chip6 = sn_prov_render_chip( 6 ); // genesis-only fixture (post 6)
+rp_true( false !== strpos( $chip6, 'sn-prov-genesis' ), 'genesis-only chip carries the genesis class' );
+rp_true( false !== strpos( $chip6, 'Genesis' ), 'genesis-only chip shows the Genesis label' );
+rp_true( false === strpos( $chip6, '&middot;' ), 'genesis-only chip suppresses the middot separator' );
+rp_true( false === strpos( $chip6, ' v0' ), 'genesis-only chip suppresses the v0 version suffix' );
+
 $panel = sn_prov_render_panel( 5 );
 rp_true( false !== strpos( $panel, 'sn-prov-panel' ), 'panel wrapper present' );
 rp_true( false !== strpos( $panel, '902417' ) || false !== strpos( $panel, '902,417' ), 'panel shows block height' );
@@ -141,6 +174,29 @@ $html = sn_prov_verify_shortcode( array() );
 rp_true( false !== strpos( $html, 'PUBLICKEYBASE64' ), 'verify content shows the public key' );
 rp_true( false !== strpos( $html, 'ots verify' ), 'verify content documents ots verify' );
 rp_true( false !== strpos( $html, 'sn-normalize-v1' ), 'verify content names the normalization algo' );
+
+echo "\nTask 4: front enqueue gate\n";
+// Single Note view: gate is open, front CSS enqueued.
+$GLOBALS['__pv_enq']        = array();
+$GLOBALS['__pv_singular']   = true;
+$GLOBALS['__pv_is_note']    = true;
+$GLOBALS['__pv_current_id'] = 5;
+sn_prov_enqueue_front();
+rp_true( in_array( 'sn-provenance-front', $GLOBALS['__pv_enq'], true ), 'front CSS enqueued on a single Note' );
+
+// Not a singular view: gate closed, nothing enqueued.
+$GLOBALS['__pv_enq']      = array();
+$GLOBALS['__pv_singular'] = false;
+$GLOBALS['__pv_is_note']  = true;
+sn_prov_enqueue_front();
+rp_eq( 0, count( $GLOBALS['__pv_enq'] ), 'nothing enqueued off single views' );
+
+// Singular but not a Note: gate closed, nothing enqueued.
+$GLOBALS['__pv_enq']      = array();
+$GLOBALS['__pv_singular'] = true;
+$GLOBALS['__pv_is_note']  = false;
+sn_prov_enqueue_front();
+rp_eq( 0, count( $GLOBALS['__pv_enq'] ), 'nothing enqueued on a non-Note single' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
