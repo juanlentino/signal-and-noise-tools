@@ -136,7 +136,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/unschedule-cron-event', array(
 		'label'               => 'Unschedule cron event',
-		'description'         => "Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. Signal & Noise's own LIVE recurring hooks (analytics + edge rollups, audit + cron-history prune, insights, narration, uptime heartbeat, discography, RSS) are refused with a clear error so the dashboard's data pipeline can't be killed by one call; retired or orphaned hooks stay removable (that is the point of cleanup). The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.",
+		'description'         => "Permanently removes a scheduled WP-Cron event (single OR recurring) by hook + args. Signal & Noise's own LIVE recurring hooks (analytics + edge rollups, audit + cron-history prune, insights, uptime heartbeat, discography, RSS) are refused with a clear error so the dashboard's data pipeline can't be killed by one call; retired or orphaned hooks stay removable (that is the point of cleanup). The matching event is identified by exact args match — pass [] for events scheduled without args. Returns the count cleared (0 if no match). Useful for pruning orphaned cron events left by uninstalled plugins.",
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_unschedule_cron_event',

@@ -56,7 +56,6 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_AUDIT_PRUNE_HOOK',           'sn_audit_log_prune' ),
 		array( 'SNT_CRON_HISTORY_CRON_HOOK',    'snt_cron_history_prune' ),
 		array( 'SN_DISCOGRAPHY_CRON_HOOK',      'sn_discography_cron' ),
-		array( 'SN_NARRATION_CRON_HOOK',        'sn_insights_narration_weekly' ),
 		array( 'SN_EDGE_ROLLUP_HOOK',           'sn_edge_rollup_cron' ),
 		array( 'SN_UPTIME_HEARTBEAT_HOOK',      'sn_uptime_kuma_heartbeat' ),
 		array( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan' ),
@@ -455,10 +454,10 @@ function snt_cron_interval_seconds( $hook ) {
 
 /**
  * Whether a hook is EXPECTED to be scheduled given its feature's config.
- * Mirrors the owning modules' scheduling gates: narration and the weekly
- * insights scan only schedule when enabled (inc/insights-narration.php,
- * inc/insights.php), the uptime heartbeat only with monitoring enabled AND
- * a push URL (inc/uptime-heartbeat.php). Config-off features leave their
+ * Mirrors the owning modules' scheduling gates: the weekly insights scan only
+ * schedules when enabled (inc/insights.php), and the uptime heartbeat only with
+ * monitoring enabled AND a push URL (inc/uptime-heartbeat.php).
+ * Config-off features leave their
  * hooks unscheduled BY DESIGN and must not read as pipeline issues (the
  * v8.1.2 noise rule). Unknown hooks default to expected; each gate is
  * function_exists-guarded so a module rename fails safe — a real
@@ -469,13 +468,9 @@ function snt_cron_interval_seconds( $hook ) {
  * @return bool True when the hook should be scheduled.
  */
 function snt_cron_hook_is_expected( $hook ) {
-	$narration = defined( 'SN_NARRATION_CRON_HOOK' ) ? SN_NARRATION_CRON_HOOK : 'sn_insights_narration_weekly';
 	$insights  = defined( 'SN_INSIGHTS_CRON_HOOK' ) ? SN_INSIGHTS_CRON_HOOK : 'sn_insights_weekly_scan';
 	$heartbeat = defined( 'SN_UPTIME_HEARTBEAT_HOOK' ) ? SN_UPTIME_HEARTBEAT_HOOK : 'sn_uptime_kuma_heartbeat';
 
-	if ( $hook === $narration && function_exists( 'snt_narration_enabled' ) ) {
-		return (bool) snt_narration_enabled();
-	}
 	if ( $hook === $insights && function_exists( 'snt_insights_weekly_cron_enabled' ) ) {
 		return (bool) snt_insights_weekly_cron_enabled();
 	}

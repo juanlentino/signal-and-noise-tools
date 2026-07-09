@@ -5,9 +5,10 @@
  * A read-only prose "what happened this week" digest — a second output mode
  * over the same first-party analytics the Insights advisor reads, but framed
  * as narrative (what happened) rather than the advisor's 5 structured
- * recommendations (what to do). Reuses the shared Sonnet-pinned AI wrapper,
- * a 7-day transient cache, and an opt-in weekly cron (default OFF), mirroring
- * the inc/insights.php skeleton.
+ * recommendations (what to do). Reuses the shared Sonnet-pinned AI wrapper
+ * and a 7-day transient cache. As of v9.5.0 (annotations R2) the dashboard
+ * surface + opt-in weekly cron were retired; the digest now lives only as the
+ * two narration Abilities (signal-noise/run-narration + get-narration).
  *
  * Compact payload (~1.5K input tokens): totals + period-over-period deltas +
  * top-10 paths/sources/events + (graceful) edge machine-split. NO per-post
@@ -24,7 +25,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SN_NARRATION_CACHE_KEY',  'sn_insights_narration' );
 define( 'SN_NARRATION_CACHE_TTL',  7 * DAY_IN_SECONDS );
-define( 'SN_NARRATION_CRON_HOOK',  'sn_insights_narration_weekly' );
 // v9.2.1: raised 512 -> 1024. On real traffic data the model's digest overran
 // 512 completion tokens and the JSON truncated mid-response, hard-failing the
 // parser (snt_narration_invalid_json). 1024 fits the (brevity-capped) output
@@ -445,54 +445,3 @@ function snt_narration_last() {
 	$cached = get_transient( SN_NARRATION_CACHE_KEY );
 	return is_array( $cached ) ? $cached : null;
 }
-
-/**
- * Is the weekly-digest cron opt-in enabled?
- *
- * @return bool
- */
-function snt_narration_enabled() {
-	return (bool) sn_setting( 'insights.narration_enabled', false );
-}
-
-/**
- * Self-healing weekly cron sync: schedule when enabled+unscheduled, unschedule
- * when disabled+scheduled. Runs on every load via the `init` hook, so toggling
- * the setting takes effect on the next request without a dedicated save hook.
- * Separate from the Insights recs cron (different payload projection — no shared
- * collection to amortize), so this never touches inc/insights.php's cron logic.
- *
- * @return void
- */
-function snt_narration_maybe_schedule_cron() {
-	$on        = snt_narration_enabled();
-	$scheduled = wp_next_scheduled( SN_NARRATION_CRON_HOOK );
-	if ( $on && ! $scheduled ) {
-		wp_schedule_event( time() + HOUR_IN_SECONDS, 'weekly', SN_NARRATION_CRON_HOOK );
-	} elseif ( ! $on && $scheduled ) {
-		wp_unschedule_event( $scheduled, SN_NARRATION_CRON_HOOK );
-	}
-}
-add_action( 'init', 'snt_narration_maybe_schedule_cron' );
-
-/**
- * Explicit unschedule (used by the settings-save handler for an immediate sync).
- *
- * @return void
- */
-function snt_narration_unschedule_cron() {
-	$ts = wp_next_scheduled( SN_NARRATION_CRON_HOOK );
-	if ( $ts ) {
-		wp_unschedule_event( $ts, SN_NARRATION_CRON_HOOK );
-	}
-}
-
-/**
- * Cron handler: force a fresh digest (bypasses the 7-day cache).
- *
- * @return void
- */
-function snt_narration_weekly_cron_cb() {
-	snt_narration_run( true );
-}
-add_action( SN_NARRATION_CRON_HOOK, 'snt_narration_weekly_cron_cb' );

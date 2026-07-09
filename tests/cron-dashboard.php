@@ -156,7 +156,9 @@ assert_true( snt_cron_is_sn_owned( 'snt_cron_history_prune' ), 'cron-history pru
 assert_true( snt_cron_is_sn_owned( 'sn_audit_log_prune' ), 'audit-log prune is SN-owned' );
 assert_true( snt_cron_is_sn_owned( 'sn_edge_rollup_cron' ), 'edge rollup is SN-owned' );
 assert_true( snt_cron_is_sn_owned( 'sn_insights_weekly_scan' ), 'insights scan is SN-owned' );
-assert_true( snt_cron_is_sn_owned( 'sn_insights_narration_weekly' ), 'insights narration is SN-owned' );
+// v9.5.0 (R2): the weekly-digest cron was retired, so it is no longer an SN-owned
+// live hook — the unschedule-cron-event ability may now clear the orphan.
+assert_true( ! snt_cron_is_sn_owned( 'sn_insights_narration_weekly' ), 'R2: retired narration cron is NOT SN-owned (orphan is removable)' );
 assert_true( snt_cron_is_sn_owned( 'sn_uptime_kuma_heartbeat' ), 'uptime heartbeat is SN-owned' );
 assert_true( snt_cron_is_sn_owned( 'sn_discography_cron' ), 'discography sync is SN-owned' );
 

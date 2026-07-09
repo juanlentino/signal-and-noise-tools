@@ -210,20 +210,17 @@ ok( is_wp_error( $r ), 'invalid AI output → WP_Error' );
 ok( false === get_transient( SN_NARRATION_CACHE_KEY ), 'failed digest is NOT cached' );
 $GLOBALS['__ai_response'] = '{"headline":"H","paragraphs":["a"],"highlights":[]}'; // restore
 
-// ── Test 11: cron self-heal schedule/unschedule ──
-echo "\nTest 11: maybe_schedule_cron self-heals on the narration toggle\n";
-$GLOBALS['__cron'] = array();
-$GLOBALS['__settings']['insights.narration_enabled'] = false;
-snt_narration_maybe_schedule_cron();
-ok( false === wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'not scheduled when disabled' );
-$GLOBALS['__settings']['insights.narration_enabled'] = true;
-snt_narration_maybe_schedule_cron();
-ok( false !== wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'scheduled when enabled' );
-snt_narration_maybe_schedule_cron(); // idempotent
-ok( false !== wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'idempotent — still scheduled, no duplicate' );
-$GLOBALS['__settings']['insights.narration_enabled'] = false;
-snt_narration_maybe_schedule_cron();
-ok( false === wp_next_scheduled( SN_NARRATION_CRON_HOOK ), 'unscheduled when toggled off' );
+// ── Test 11: v9.5.0 (R2) — the weekly-digest scheduler was retired ──
+// The narrator CORE (run/last/parse/collect) stays for the two narration abilities;
+// only the opt-in weekly cron + its enabled-gate leave. Assert the scheduling surface
+// is gone and the ability-facing core survives.
+echo "\nTest 11: the weekly-digest cron scheduling is retired (R2)\n";
+ok( ! function_exists( 'snt_narration_maybe_schedule_cron' ), 'R2: maybe_schedule_cron removed' );
+ok( ! function_exists( 'snt_narration_unschedule_cron' ), 'R2: unschedule_cron removed' );
+ok( ! function_exists( 'snt_narration_weekly_cron_cb' ), 'R2: weekly_cron_cb removed' );
+ok( ! function_exists( 'snt_narration_enabled' ), 'R2: narration enabled-gate removed' );
+ok( ! defined( 'SN_NARRATION_CRON_HOOK' ), 'R2: cron-hook const removed' );
+ok( function_exists( 'snt_narration_run' ) && function_exists( 'snt_narration_last' ), 'core run/last kept for the abilities' );
 
 // ── Test: cwv block (v7.2.0) — present with data, omitted without ──
 echo "\nTest: cwv signal block\n";
