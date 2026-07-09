@@ -307,3 +307,59 @@ function sn_prov_record( $post, $author ) {
 
 	return $full;
 }
+
+/**
+ * Is this post a Note? Filterable category (default 'notes'). Terms are
+ * reliably present because we hook wp_after_insert_post (fires after terms
+ * are saved).
+ *
+ * @param int $post_id
+ * @return bool
+ */
+function sn_prov_is_note( $post_id ) {
+	$category = apply_filters( 'sn_prov_note_category', 'notes' );
+	return (bool) has_term( $category, 'category', $post_id );
+}
+
+/**
+ * The provenance author string for a post (the post author's display name,
+ * filterable).
+ *
+ * @param WP_Post|object $post
+ * @return string
+ */
+function sn_prov_author( $post ) {
+	$author = get_the_author_meta( 'display_name', (int) $post->post_author );
+	return (string) apply_filters( 'sn_prov_author', $author, $post );
+}
+
+/**
+ * wp_after_insert_post handler: record a provenance commit when a Note
+ * reaches/updates the 'publish' state. Fires once for classic + block
+ * editors, after terms + meta are saved. Keeps to update_post_meta only
+ * (never re-saves the post), so it cannot re-trigger itself.
+ *
+ * @param int          $post_id
+ * @param WP_Post       $post
+ * @param bool          $update
+ * @param WP_Post|null  $post_before
+ */
+function sn_prov_on_after_insert( $post_id, $post, $update, $post_before ) {
+	if ( ! sn_prov_active() ) {
+		return;
+	}
+	if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
+		return;
+	}
+	if ( ! is_object( $post ) || 'post' !== $post->post_type ) {
+		return;
+	}
+	if ( 'publish' !== $post->post_status ) {
+		return;
+	}
+	if ( ! sn_prov_is_note( $post_id ) ) {
+		return;
+	}
+	sn_prov_record( $post, sn_prov_author( $post ) );
+}
+add_action( 'wp_after_insert_post', 'sn_prov_on_after_insert', 20, 4 );
