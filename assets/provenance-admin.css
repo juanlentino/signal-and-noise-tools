@@ -1,5 +1,30 @@
-.sn-prov-admin{max-width:640px}
-.sn-prov-pending{list-style:none;margin:.5rem 0;padding:0}
-.sn-prov-row{padding:.35rem 0;border-bottom:1px dashed rgba(128,128,128,.25)}
-.sn-prov-row.sn-prov-pending span{color:#c98a12}
-.sn-prov-key code{word-break:break-all}
+/* Provenance admin — small tweaks over the shared card/section/pill system.
+   Everything structural (cards, pills, status boxes, status tables) comes from
+   assets/admin.css; this file only adds the provenance-specific bits. */
+
+.sn-prov-admin { max-width: none; }
+
+/* System + Genesis cards sit a touch wider than the shared 260px cap so the
+   config readout and truncated root breathe; the Commits card takes its own
+   full-width row below them. */
+.sn-prov-card { max-width: 360px; }
+.sn-prov-card--wide { flex: 1 1 100%; max-width: none; }
+
+/* Config presence readout: label left, ✓/✗ pill right. */
+.sn-prov-config { list-style: none; margin: .5rem 0 .75rem; padding: 0; }
+.sn-prov-config li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .2rem 0;
+}
+
+.sn-prov-key code,
+.sn-prov-root code { word-break: break-all; }
+
+.sn-prov-genesis-line { margin: 0 0 .5rem; }
+
+.sn-prov-table code { word-break: break-all; }
+
+.sn-prov-error { color: #8b1a1a; }
