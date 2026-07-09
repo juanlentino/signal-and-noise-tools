@@ -22,6 +22,19 @@
     return ledgerBase + encodeURIComponent(String(uid));
   }
 
+  // Status -> pill modifier: pending (sent, awaiting confirmation) reads amber,
+  // unanchored (never dispatched) reads red so they don't look identical.
+  // Anything else falls back to the plain pill.
+  var STATUS_PILL = { pending: 'sn-pill--warn', unanchored: 'sn-pill--err' };
+
+  function statusPill(status) {
+    var key = String(status);
+    var pill = document.createElement('span');
+    pill.className = 'sn-pill ' + (STATUS_PILL[key] || '');
+    pill.textContent = key;
+    return pill;
+  }
+
   function commitRow(p) {
     var tr = el('tr');
 
@@ -32,7 +45,7 @@
     tr.appendChild(el('td', null, 'v' + Number(p.version)));
 
     var tdStatus = el('td');
-    tdStatus.appendChild(el('span', 'sn-pill sn-pill--warn', p.status));
+    tdStatus.appendChild(statusPill(p.status));
     tr.appendChild(tdStatus);
 
     var tdLedger = el('td');
