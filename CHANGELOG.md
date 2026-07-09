@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.9.3] - 2026-07-09: Improvement — provenance panel fills its full width via the shared two-column shell
+
+**Headline:** The Tools → Provenance panel now uses the whole content width instead of leaving the entire right half blank. The live Commits table moves into a wide main column, and the compact System and Genesis anchor readouts stack in a narrower right rail — the same two-column admin shell the RSS, IndexNow, audit-log, redirects, and other settings sections already use. This fixes the sparse, left-aligned look of v9.9.2, where the `.sn-fieldset` cards sat at their 820 px cap with a wide empty gutter beside them.
+
+> **Why PATCH:** Pure layout — reuses the existing `sn_admin_shell_open()`/`_rail()`/`_close()` primitive with no new CSS, no new capability, and no public-API or settings-schema change. The nonce + `manage_options` re-anchor gate, the `innerHTML`-free live poller, and secret-presence-only rendering (the HMAC value never reaches output) are all unchanged and re-asserted by tests. The shell's documented rule — wide data tables in the main column, compact readouts in the rail — is exactly the arrangement adopted here.
+
+### Improvements
+- Provenance panel adopts the shared two-column shell: the live `wp-list-table` Commits table fills the main column while the compact System (config presence, public key, ledger link) and Genesis anchor readouts stack in the narrower rail — eliminating the blank right half left by the v9.9.2 stacked-fieldset layout. Reuses `sn_admin_shell_*` ([inc/admin-shell.php](inc/admin-shell.php)); no bespoke CSS ([inc/provenance-admin.php](inc/provenance-admin.php)).
+
 ## [9.9.2] - 2026-07-09: Fix — provenance panel rebuilt in the house settings layout + honest re-anchor error
 
 **Headline:** The Tools → Provenance panel now uses the same layout language as every other settings section — a first-glance stat-card row (Worker / Genesis / Pending / Confirmed) over stacked full-width `.sn-fieldset` blocks (System, Genesis anchor, Commits), with the commits list as a standard `wp-list-table widefat striped`. The earlier floating `.sn-card` grid — a one-off visual language that didn't match any other page — is gone. Separately, the re-anchor failure notice, which hardcoded "check the Worker URL and HMAC secret" even when those are configured (it misdirected a real debugging session), is now config-aware.

@@ -196,10 +196,13 @@ function sn_prov_admin_status_handler( $request ) {
 
 /**
  * Tools → Provenance section body, rendered in the house settings-page idiom: a
- * first-glance stat-card hero over stacked full-width .sn-fieldset blocks
- * (System, Genesis anchor, Commits). The Commits table's <tbody> is the live
- * region assets/provenance-admin.js hydrates by polling the /status endpoint; it
- * carries the data-endpoint/data-nonce/data-ledger the poller reads.
+ * first-glance stat-card hero over the shared two-column shell (sn_admin_shell_*).
+ * The wide live Commits table fills the main column; the compact System and
+ * Genesis readouts stack in the narrower rail — the shell's documented RULE (wide
+ * data tables in the main column, status readouts in the rail; see
+ * inc/admin-shell.php). The Commits <tbody> is the live region
+ * assets/provenance-admin.js hydrates by polling /status; it carries the
+ * data-endpoint/data-nonce/data-ledger the poller reads.
  *
  * The dispatcher wraps this callback in <div class="sn-section"> (the leaf is
  * registered 'wide'), so this renderer adds NO outer wrapper of its own.
@@ -216,10 +219,15 @@ function sn_admin_render_provenance_section() {
 		echo '</section>';
 	}
 
-	// 2. Stacked full-width fieldset blocks (System, Genesis, Commits).
+	// 2. Two-column shell: the wide live Commits table in the main column, the
+	// compact System + Genesis readouts stacked in the rail. Between open() and
+	// close() no early return may occur (would unbalance the wrapper divs).
+	sn_admin_shell_open();
+	sn_prov_admin_render_commits_fieldset( $note_base );
+	sn_admin_shell_rail( __( 'Provenance status', 'signal-and-noise-tools' ) );
 	sn_prov_admin_render_system_fieldset( $sys );
 	sn_prov_admin_render_genesis_fieldset( $sys );
-	sn_prov_admin_render_commits_fieldset( $note_base );
+	sn_admin_shell_close();
 }
 
 /**
