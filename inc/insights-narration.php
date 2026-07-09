@@ -25,7 +25,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_NARRATION_CACHE_KEY',  'sn_insights_narration' );
 define( 'SN_NARRATION_CACHE_TTL',  7 * DAY_IN_SECONDS );
 define( 'SN_NARRATION_CRON_HOOK',  'sn_insights_narration_weekly' );
-define( 'SN_NARRATION_MAX_TOKENS', 512 );
+// v9.2.1: raised 512 -> 1024. On real traffic data the model's digest overran
+// 512 completion tokens and the JSON truncated mid-response, hard-failing the
+// parser (snt_narration_invalid_json). 1024 fits the (brevity-capped) output
+// with ample margin; the parser also salvages a truncated response now.
+define( 'SN_NARRATION_MAX_TOKENS', 1024 );
 // v7.2.2: ephemeral diagnostic — the code + message (+ bounded raw output) of
 // the most recent digest FAILURE, so the admin notice reports the REAL error
 // instead of the blanket "configure AI" copy. Mirrors SN_INSIGHTS_LAST_ERROR_KEY
@@ -228,6 +232,7 @@ Rules:
 - Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
 - Mention statistical anomalies ONLY if the "anomaly_flags" block is present. Each flag is an aggregate week metric (views, visits, scroll or dwell) whose value this week is more than two standard deviations from its trailing ~6-week mean. Cite it as the value with its typical range and direction, e.g. "views 1,500, above the typical 990-1,010". typical_low/typical_high bound that range. These are aggregate within-week figures — never per-person, never cross-day.
 - COOKIELESS DATA — visit metrics (bounce rate, pages/visit, engaged-read %, funnel completion) are WITHIN-DAY aggregates only; describe them as aggregate rates. A "visit" resets at UTC midnight and is never a cross-day identity. NEVER infer or mention new-vs-returning visitors, per-person identity, or following any individual across days.
+- Keep the ENTIRE response under 200 words total (headline + all paragraphs + all highlights combined). This is a glance digest, not a report: prefer 2 short paragraphs and 3 highlights over exhausting every signal.
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
 }
@@ -250,10 +255,77 @@ function snt_narration_call_ai( $signals ) {
 }
 
 /**
+ * Extract the COMPLETE JSON string elements of a named string-array field from
+ * loose/truncated model text. Returns each fully-quoted value (a truncated final
+ * string has no closing quote, so it is naturally excluded). Bounds the scan to
+ * the field's closing "]" when present. Each match is json_decode'd individually
+ * so JSON escapes (\", \\, \n) resolve correctly.
+ *
+ * @param string $text  Raw (fence-stripped) model text.
+ * @param string $field Field name ('paragraphs' | 'highlights').
+ * @return string[] Complete, non-empty string values (possibly empty).
+ */
+function snt_narration_salvage_string_array( $text, $field ) {
+	if ( ! preg_match( '/"' . preg_quote( $field, '/' ) . '"\s*:\s*\[/', $text, $m, PREG_OFFSET_CAPTURE ) ) {
+		return array();
+	}
+	$region = substr( $text, $m[0][1] + strlen( $m[0][0] ) );
+	$close  = strpos( $region, ']' );
+	if ( false !== $close ) {
+		$region = substr( $region, 0, $close );
+	}
+	if ( ! preg_match_all( '/"(?:[^"\\\\]|\\\\.)*"/', $region, $mm ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( $mm[0] as $quoted ) {
+		$val = json_decode( $quoted, true );
+		if ( is_string( $val ) && '' !== trim( $val ) ) {
+			$out[] = trim( $val );
+		}
+	}
+	return $out;
+}
+
+/**
+ * Salvage a {headline, paragraphs[], highlights[]} digest from model output that
+ * a direct json_decode could not parse — the model hit max_tokens mid-response
+ * or wrapped the JSON in prose. Recovers the first complete "headline" plus every
+ * complete paragraph/highlight string. Returns null (caller reports the error) if
+ * a complete headline and at least one complete paragraph cannot be recovered —
+ * so it never fabricates a digest out of nothing. Called ONLY after a direct
+ * decode fails, so the happy path is untouched.
+ *
+ * @param string $text Raw (fence-stripped) model text.
+ * @return array|null { headline, paragraphs[], highlights[] } or null.
+ */
+function snt_narration_salvage_truncated( $text ) {
+	$text = (string) $text;
+	if ( ! preg_match( '/"headline"\s*:\s*("(?:[^"\\\\]|\\\\.)*")/', $text, $hm ) ) {
+		return null; // no complete headline → nothing trustworthy to salvage.
+	}
+	$headline = json_decode( $hm[1], true );
+	if ( ! is_string( $headline ) || '' === trim( $headline ) ) {
+		return null;
+	}
+	$paragraphs = snt_narration_salvage_string_array( $text, 'paragraphs' );
+	if ( empty( $paragraphs ) ) {
+		return null; // a headline with no complete paragraph is not a usable digest.
+	}
+	return array(
+		'headline'   => trim( $headline ),
+		'paragraphs' => $paragraphs,
+		'highlights' => snt_narration_salvage_string_array( $text, 'highlights' ),
+	);
+}
+
+/**
  * Parse + validate the raw AI digest into { headline, paragraphs[], highlights[] }.
  *
- * Strips optional markdown fences (defensive). Returns WP_Error on a missing
- * headline or empty body. Highlights may be empty.
+ * Strips optional markdown fences (defensive), then json_decodes; if that fails
+ * (max_tokens truncation or a prose wrapper), falls back to
+ * snt_narration_salvage_truncated() before erroring. Returns WP_Error on a
+ * missing headline or empty body. Highlights may be empty.
  *
  * @param string $raw Raw AI text.
  * @return array|WP_Error
@@ -266,6 +338,15 @@ function snt_narration_parse_response( $raw ) {
 	}
 
 	$decoded = json_decode( $text, true );
+	if ( ! is_array( $decoded ) ) {
+		// v9.2.1: the model hit max_tokens mid-response (or wrapped the JSON in
+		// prose), so a direct decode fails. Salvage the complete parts of the
+		// known {headline, paragraphs, highlights} object before giving up —
+		// mirrors inc/insights.php's truncation salvage (snt_insights_recover_
+		// json_array, v7.1.1). Only reached after decode fails, so it never
+		// changes the happy path.
+		$decoded = snt_narration_salvage_truncated( $text );
+	}
 	if ( ! is_array( $decoded ) ) {
 		return new WP_Error(
 			'snt_narration_invalid_json',

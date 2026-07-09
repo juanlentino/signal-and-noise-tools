@@ -2,7 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.2.0] - 2026-07-08: Analytics Intelligence tab — the read (slice a)
+## [9.2.1] - 2026-07-08: Fix — weekly digest truncated to invalid JSON
+
+**Headline:** Generating the weekly digest on the new Intelligence tab failed with "AI digest response was not valid JSON" (`snt_narration_invalid_json`). Root cause: the completion budget (`SN_NARRATION_MAX_TOKENS`) was **512 tokens**, and on real traffic data the model wrote a digest that overran it — the JSON was cut off mid-response, so `json_decode` failed. The parser had no truncation-salvage (unlike the Insights advisor's parser, hardened for the same class in v7.1.1), so a cut-off response hard-failed instead of recovering. Slice (a) didn't cause this — it surfaced a latent v6.30.0 bug by putting the digest behind a prominent button.
+
+> **Why PATCH:** a bugfix to the digest generation path (`inc/insights-narration.php`) — no new capability, no API/route/schema change. Cookieless and cost model unchanged (still one cached call).
+
+### Fixed
+- Raised `SN_NARRATION_MAX_TOKENS` **512 → 1024**, so a normal digest completes with ample margin.
+- Added a firm brevity cap to the digest system instruction (whole response under ~200 words), keeping output well inside the budget so truncation is very unlikely in the first place.
+- `snt_narration_parse_response()` now **salvages a truncated or prose-wrapped response**: after a direct `json_decode` fails, it recovers the complete `headline` plus every complete `paragraph`/`highlight` string, and returns a usable digest when a headline and at least one complete paragraph survive (otherwise it still errors honestly — never fabricates). Mirrors `inc/insights.php`'s `snt_insights_recover_json_array` truncation salvage.
 
 **Headline:** New **Dashboard → Analytics → Intelligence** tab — the home for analytics *interpretation*, first in the tab strip (Content stays the default landing). Slice (a) relocates the weekly AI digest here: the read (headline, prose, highlights, generated-timestamp), a Refresh/Generate action, and the "generate weekly digest automatically" toggle. The Insights page keeps the editorial Open-Question advisor and deep-links to the new tab. This is the first of three slices; Recommendations (b) and Ask-your-analytics (c) follow.
 
