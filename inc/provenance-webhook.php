@@ -171,7 +171,25 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 	if ( ! $post_id ) {
 		return false;
 	}
-	$fields = array( 'status' => (string) ( $data['status'] ?? 'confirmed' ) );
+
+	// Integrity belt: a confirm must never flip an entry whose hash doesn't
+	// match what's already on the chain — resolve + compare before mutating.
+	foreach ( sn_prov_get_chain( $post_id ) as $entry ) {
+		if ( (int) ( $entry['version'] ?? 0 ) !== (int) $version ) {
+			continue;
+		}
+		if ( isset( $data['content_hash'] ) && ( $entry['content_hash'] ?? null ) !== $data['content_hash'] ) {
+			return false;
+		}
+		break;
+	}
+
+	// Whitelist status: never store an arbitrary caller-supplied string.
+	$allowed_statuses = array( 'pending', 'confirmed', 'unanchored', 'genesis' );
+	$status           = (string) ( $data['status'] ?? 'confirmed' );
+	$fields           = array(
+		'status' => in_array( $status, $allowed_statuses, true ) ? $status : 'confirmed',
+	);
 	if ( isset( $data['bitcoin_block'] ) ) {
 		$fields['bitcoin_block'] = (int) $data['bitcoin_block'];
 	}

@@ -301,8 +301,12 @@ function sn_prov_record( $post, $author ) {
 		}
 	}
 
-	$version = count( $chain ) + 1;
-	$parent  = $chain
+	// Genesis persists a v0 entry first, so last_version + 1 correctly yields v1
+	// for the first real commit (no gap). For a chain with no genesis (starts at
+	// v1, contiguous), last_version + 1 equals count( $chain ) + 1 — unchanged.
+	$last_version = $chain ? (int) ( $last['version'] ?? 0 ) : 0;
+	$version      = $last_version + 1;
+	$parent       = $chain
 		? ( $last['content_hash'] ?? null )
 		: sn_prov_genesis_parent( $post->ID );
 

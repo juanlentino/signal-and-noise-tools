@@ -50,6 +50,10 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 	function wp_generate_uuid4() {
 		return sprintf( '00000000-0000-4000-8000-%012d', ++$GLOBALS['__pv_uidc'] ); }
 }
+if ( ! function_exists( 'do_action' ) ) {
+	function do_action() {
+		return null; }
+}
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // SN_PROV_CONFIRM_HOOK — required by Task 5's add_action()
 require_once SNT_PATH . 'inc/provenance-genesis.php';
@@ -123,6 +127,15 @@ $chain201 = sn_prov_get_chain( 201 );
 gn_eq( 0, $chain201[0]['version'], 'v0 commit written to the chain' );
 gn_eq( 'genesis', $chain201[0]['status'], 'v0 commit marked genesis' );
 gn_true( isset( $chain201[0]['genesis'] ) && true === $chain201[0]['genesis'], 'v0 commit flagged genesis snapshot' );
+
+echo "\nTask 4: FIX B — no version gap after a genesis v0 entry\n";
+// Post 201's chain currently holds only the v0 genesis entry (asserted above).
+$edit    = gn_make_post( 201, 'Note A (revised)', '<p>Alpha body, materially revised.</p>', '2025-02-01 00:00:00' );
+$updated = sn_prov_record( $edit, 'Juan Lentino' );
+gn_true( is_array( $updated ), 'sn_prov_record returns the chain for a post with only a v0 genesis entry' );
+gn_eq( 2, count( $updated ), 'chain now holds the v0 genesis entry plus the new commit' );
+gn_eq( 1, $updated[1]['version'], 'first real commit after genesis is version 1, not 2 (no gap)' );
+gn_eq( $chain201[0]['content_hash'], $updated[1]['parent'], 'new commit parent = genesis v0 content_hash' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

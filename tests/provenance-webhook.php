@@ -192,6 +192,27 @@ if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) {
 
 	wh_eq( true, sn_prov_confirm_permission( $req_ok ), 'valid ed25519 signature accepted' );
 	wh_true( sn_prov_confirm_permission( $req_bad ) instanceof WP_Error, 'forged signature rejected' );
+
+	// Tampered body: signature is valid for body-A, but the submitted request carries body-B.
+	$body_b       = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 1 ) );
+	$req_tampered = new WP_REST_Request( array( 'x_sn_ed25519' => $goodsig ), $body_b );
+	wh_true( sn_prov_confirm_permission( $req_tampered ) instanceof WP_Error, 'tampered body rejected even with a validly-formed signature' );
+
+	// Missing header: no x_sn_ed25519 at all.
+	$req_missing = new WP_REST_Request( array(), $body );
+	wh_true( sn_prov_confirm_permission( $req_missing ) instanceof WP_Error, 'missing signature header rejected' );
+
+	// Empty pubkey config: must fail CLOSED (500), not open.
+	$saved_pubkey = $GLOBALS['__pv_options']['sn_prov_pubkey_b64'];
+	unset( $GLOBALS['__pv_options']['sn_prov_pubkey_b64'] );
+	$no_key_result = sn_prov_confirm_permission( $req_ok );
+	wh_true( $no_key_result instanceof WP_Error, 'unset public key rejected' );
+	wh_eq( 500, $no_key_result->data['status'] ?? null, 'unset public key fails closed with a 500' );
+	$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = $saved_pubkey; // restore
+
+	// Wrong-length sig: base64 of a 10-byte value, rejected before verification.
+	$req_short = new WP_REST_Request( array( 'x_sn_ed25519' => base64_encode( str_repeat( "\x01", 10 ) ) ), $body );
+	wh_true( sn_prov_confirm_permission( $req_short ) instanceof WP_Error, 'wrong-length signature rejected before verify' );
 }
 
 echo "\nTask 4: apply confirmation\n";

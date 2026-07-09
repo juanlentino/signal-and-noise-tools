@@ -18,6 +18,7 @@ if ( ! function_exists( 'add_filter' ) ) {
 		return true; }
 }
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // SN_PROV_CONFIRM_HOOK — required by Task 5's add_action()
+require_once SNT_PATH . 'inc/provenance-core.php'; // SN_PROV_GENESIS_META etc. — genesis.php calls into core-dependent paths
 require_once SNT_PATH . 'inc/provenance-genesis.php';
 
 $pass = 0;

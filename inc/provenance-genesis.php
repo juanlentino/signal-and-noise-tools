@@ -183,6 +183,7 @@ function sn_prov_genesis_persist( array $genesis ) {
 			sn_prov_append_commit( $post_id, array(
 				'version'      => 0,
 				'parent'       => $genesis['root'],
+				// Merkle LEAF hash SHA256(0x00‖canonical) — NOT the plain SHA256(canonical) that Plan-1 v1+ commits use; never recompute a v0 hash with sn_prov_content_hash().
 				'content_hash' => bin2hex( sn_prov_leaf_hash( $entry['leaf'] ) ),
 				'status'       => 'genesis',
 				'genesis'      => true,
@@ -212,10 +213,6 @@ function sn_prov_genesis_anchor( array $genesis ) {
 			$genesis['leaves']
 		),
 	) );
-	$commit = array( 'version' => 0, 'content_hash' => $genesis['root'] );
-	// note_uid 'genesis' has no post; the ledger writes genesis/<date>-root.{json,ots}.
-	$GLOBALS['sn_prov_genesis_uid'] = 'genesis';
-	add_filter( 'sn_prov_dispatch_note_uid', 'sn_prov_genesis_uid_override' );
 	sn_prov_dispatch_manifest( $genesis['root'], $manifest, $genesis['date'] );
 
 	update_option( SN_PROV_GENESIS_OPT, array(
