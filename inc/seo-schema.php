@@ -154,6 +154,14 @@ function sn_schema_person_credentials() {
 				'description'  => 'Recording studio',
 				'foundingDate' => '2016',
 			),
+			// v9.4.0: the /about ORCID as a formal identifier (PropertyValue),
+			// the schema.org best-practice form ORCID's own JSON-LD serves,
+			// alongside the sameAs link added in v9.2.2. @id stays the site anchor.
+			'identifier'    => array(
+				'@type'      => 'PropertyValue',
+				'propertyID' => 'ORCID',
+				'value'      => 'https://orcid.org/0009-0006-8151-5920',
+			),
 		)
 	);
 }

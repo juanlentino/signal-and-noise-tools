@@ -368,6 +368,13 @@ $count = count( array_keys( (array) ( $po3['sameAs'] ?? array() ), $orcid_url, t
 ss_eq( 1, $count, 'ORCID appears exactly once (dedupe guard) when already configured' );
 $GLOBALS['__ss']['settings'] = array();
 
+// v9.4.0: the ORCID is ALSO emitted as an identifier PropertyValue (schema.org
+// best practice, and what ORCID's own JSON-LD serves) alongside the sameAs link.
+$pid = sn_schema_person();
+ss_eq( 'PropertyValue', $pid['identifier']['@type'] ?? null, 'Person.identifier is a PropertyValue' );
+ss_eq( $orcid_url, $pid['identifier']['value'] ?? null, 'identifier.value is the ORCID URL' );
+ss_eq( 'ORCID', $pid['identifier']['propertyID'] ?? null, 'identifier.propertyID names ORCID' );
+
 // ─── T7: ProfilePage on identity pages (mainEntity → Person) ───
 echo "\nT7: ProfilePage on identity pages\n";
 $GLOBALS['__ss']['is_singular_post'] = true;
