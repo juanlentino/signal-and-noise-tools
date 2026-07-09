@@ -50,6 +50,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		'panel_class'  => 'sn-overview',
 		'inside_class' => 'inside inside-flush sn-overview-inside',
 	) );
+	snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
 	snt_analytics_render_trend( $series, $granularity );
 	snt_an_panel_close();

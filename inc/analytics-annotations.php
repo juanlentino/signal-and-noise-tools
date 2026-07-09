@@ -145,3 +145,39 @@ function sn_annotation_lifecycle( $summary ) {
 	}
 	return null;
 }
+
+/**
+ * Overview read: volume moved but engagement diverged from it, the caveat the
+ * headline number hides. Uses the period deltas + engaged-rate delta the header
+ * region already fetched. Phrased qualitatively on the engagement side so it
+ * needs no assumption about the rate's scale. Null when they agree, when views
+ * moved little, or on the 'all' range (no deltas).
+ *
+ * @param array $deltas  Period deltas ('views' => { pct, dir }) from sn_analytics_period_deltas().
+ * @param array $engaged Engaged-rate delta ({ dir }) from sn_analytics_engaged_rate_delta().
+ * @return string|null
+ */
+function sn_annotation_overview( $deltas, $engaged ) {
+	$views = ( is_array( $deltas ) && isset( $deltas['views'] ) && is_array( $deltas['views'] ) ) ? $deltas['views'] : array();
+	$vdir  = (string) ( $views['dir'] ?? '' );
+	$vpct  = (int) round( (float) ( $views['pct'] ?? 0 ) );
+	$edir  = is_array( $engaged ) ? (string) ( $engaged['dir'] ?? '' ) : '';
+
+	$is_move  = ( 'up' === $vdir || 'down' === $vdir ) && abs( $vpct ) >= SN_ANNOTATION_OVERVIEW_VIEWS_PCT;
+	$diverges = ( 'up' === $vdir && 'down' === $edir ) || ( 'down' === $vdir && 'up' === $edir );
+	if ( ! $is_move || ! $diverges ) {
+		return null;
+	}
+	if ( 'up' === $vdir ) {
+		return sprintf(
+			/* translators: %d is the percent rise in views */
+			__( 'Views up %d%%, but engaged rate slipped: more traffic, shallower visits.', 'signal-and-noise-tools' ),
+			abs( $vpct )
+		);
+	}
+	return sprintf(
+		/* translators: %d is the percent fall in views */
+		__( 'Views down %d%%, but engaged rate rose: fewer visits, but stickier.', 'signal-and-noise-tools' ),
+		abs( $vpct )
+	);
+}

@@ -80,5 +80,14 @@ an_eq( 'Most of your catalogue holds: 15 of 20 posts are evergreen.', sn_annotat
 an_eq( null, sn_annotation_lifecycle( $sum( 1, 3, 0, 6 ) ), 'thin catalogue -> null' );
 an_eq( null, sn_annotation_lifecycle( $sum( 2, 5, 1, 12 ) ), 'no strong signal -> null' );
 
+echo "\noverview\n";
+$dv = function ( $pct, $dir ) { return array( 'views' => array( 'pct' => $pct, 'dir' => $dir ) ); };
+an_eq( 'Views up 38%, but engaged rate slipped: more traffic, shallower visits.', sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'down' ) ), 'up-views / down-engagement divergence' );
+an_eq( 'Views down 22%, but engaged rate rose: fewer visits, but stickier.', sn_annotation_overview( $dv( 22, 'down' ), array( 'dir' => 'up' ) ), 'down-views / up-engagement divergence' );
+an_eq( null, sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'up' ) ), 'same direction -> null' );
+an_eq( null, sn_annotation_overview( $dv( 5, 'up' ), array( 'dir' => 'down' ) ), 'below views threshold -> null' );
+an_eq( null, sn_annotation_overview( array(), array( 'dir' => 'down' ) ), 'no deltas (all range) -> null' );
+an_eq( null, sn_annotation_overview( $dv( 38, 'up' ), array() ), 'no engaged dir -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
