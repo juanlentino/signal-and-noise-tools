@@ -83,6 +83,80 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 add_action( 'sn_prov_committed', 'sn_prov_dispatch', 10, 3 );
 
 /**
+ * Trigger the Worker's on-demand upgrade sweep (POST /sweep) — the hourly cron's
+ * work, run now. HMAC-signed with the SAME secret as sn_prov_dispatch() (the body
+ * is signed, so no new secret), letting the admin flip Bitcoin-confirmed proofs
+ * immediately from the Provenance panel instead of waiting for the top of the
+ * hour. Returns a normalized result: [ ok, checked, upgraded, still_pending ] on
+ * success, or [ ok => false, error ] on failure.
+ *
+ * @return array
+ */
+function sn_prov_run_sweep() {
+	$url    = sn_prov_worker_url();
+	$secret = sn_prov_hmac_secret();
+	if ( '' === $url || '' === $secret ) {
+		return array( 'ok' => false, 'error' => 'unconfigured' );
+	}
+	$body     = wp_json_encode( array( 'action' => 'sweep' ) );
+	$response = wp_remote_post( untrailingslashit( $url ) . '/sweep', array(
+		'timeout' => 20,
+		'headers' => array(
+			'Content-Type'   => 'application/json',
+			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
+		),
+		'body'    => $body,
+	) );
+	if ( is_wp_error( $response ) ) {
+		return array( 'ok' => false, 'error' => 'network' );
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	$out  = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( $code < 200 || $code >= 300 || ! is_array( $out ) || empty( $out['ok'] ) ) {
+		return array( 'ok' => false, 'error' => 'worker', 'code' => $code );
+	}
+	return array(
+		'ok'            => true,
+		'checked'       => (int) ( $out['checked'] ?? 0 ),
+		'upgraded'      => (int) ( $out['upgraded'] ?? 0 ),
+		'still_pending' => (int) ( $out['stillPending'] ?? 0 ),
+	);
+}
+
+/**
+ * The deployed Worker's semver, read from its public GET /_sn/version endpoint
+ * and cached ~10 min (the version only changes on deploy, and this is an
+ * admin-panel readout — no need to hit the Worker per page load). Returns '' when
+ * the Worker URL is unset or the endpoint is unreachable.
+ *
+ * Deliberately NOT folded into sn_prov_admin_system_status(): that view-model is
+ * also read by the dashboard glance card, which must stay query-only (no outbound
+ * HTTP on every admin page load). This is called only from the Provenance panel.
+ *
+ * @return string
+ */
+function sn_prov_worker_version() {
+	$url = sn_prov_worker_url();
+	if ( '' === $url ) {
+		return '';
+	}
+	$cached = get_transient( 'sn_prov_worker_version' );
+	if ( false !== $cached ) {
+		return (string) $cached;
+	}
+	$version  = '';
+	$response = wp_remote_get( untrailingslashit( $url ) . '/_sn/version', array( 'timeout' => 5 ) );
+	if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( is_array( $data ) && ! empty( $data['version'] ) ) {
+			$version = (string) $data['version'];
+		}
+	}
+	set_transient( 'sn_prov_worker_version', $version, 10 * MINUTE_IN_SECONDS );
+	return $version;
+}
+
+/**
  * Merge fields into the chain entry matching $version. Returns true if found.
  *
  * @param int   $post_id

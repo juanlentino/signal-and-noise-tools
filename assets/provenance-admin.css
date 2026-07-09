@@ -17,3 +17,9 @@
 .sn-prov-table code { white-space: nowrap; }
 
 .sn-prov-error { color: #8b1a1a; }
+
+/* Manual-sweep trigger: give the button + inline hint room above the table. */
+.sn-prov-sweep { margin: 0 0 12px; }
+
+/* Muted fallback (e.g. Worker version "unknown"). */
+.sn-prov-muted { color: var(--sn-text-muted, #646970); }
