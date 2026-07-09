@@ -36,8 +36,10 @@ function snt_analytics_render_pageroles_table( $rows, $role ) { echo '<!--PAGERO
 // its top. Exercise the real render (R1's render-harness lesson) by requiring the
 // module and driving its engine through dependency stubs — the panel is empty
 // when the signals are quiet, populated when they trip. (The SEO rule stays
-// dormant here just as in production: sn_seo_resolve_singular_description() is
-// undefined, so its function_exists guard self-disables it.)
+// dormant in THIS harness because inc/seo.php — where
+// sn_seo_resolve_singular_description() lives, live since v9.7.0 — isn't loaded
+// here, so its function_exists guard self-disables it. Its resolution is covered
+// by tests/seo-description-override.php and tests/analytics-recommendations.php.)
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
