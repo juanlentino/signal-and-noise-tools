@@ -336,7 +336,37 @@ ss_true( in_array( 'Valedictorian, Full Sail University', (array) ( $pc['award']
 ss_eq( 'The Recording Academy', $pc['memberOf'][0]['name'] ?? null, 'memberOf includes The Recording Academy' );
 ss_eq( 'The Latin Recording Academy', $pc['memberOf'][1]['name'] ?? null, 'memberOf includes The Latin Recording Academy' );
 ss_eq( 'Panacea', $pc['worksFor']['name'] ?? null, 'worksFor === Panacea' );
-ss_eq( '2015', $pc['worksFor']['foundingDate'] ?? null, 'worksFor.foundingDate === 2015' );
+ss_eq( '2016', $pc['worksFor']['foundingDate'] ?? null, 'worksFor.foundingDate === 2016' );
+
+// ─── T6b: Person.sameAs carries the ORCID identity link (v9.2.2) ───
+// The /about page publicly displays an ORCID iD; sameAs is the reconciliation
+// link search + answer engines use to fuse this Person with its authoritative
+// researcher profile. The visible identifier must appear in the structured data
+// too. Merged into the (filterable) sameAs with a dedupe guard, so a configured
+// social-profile list is preserved and the ORCID is never duplicated.
+echo "\nT6b: Person.sameAs ORCID identity link\n";
+$orcid_url = 'https://orcid.org/0009-0006-8151-5920';
+
+// empty settings → sameAs still carries the ORCID (emitted from code, not settings).
+$GLOBALS['__ss']['settings'] = array();
+$po = sn_schema_person();
+ss_true( in_array( $orcid_url, (array) ( $po['sameAs'] ?? array() ), true ), 'sameAs includes the ORCID identity link (no configured profiles)' );
+
+// configured social profiles are preserved; the ORCID is appended, not clobbered.
+$GLOBALS['__ss']['settings'] = array(
+	'social.same_as' => array( 'https://x.com/juan_lentino', 'https://linkedin.com/in/juanlentino' ),
+);
+$po2      = sn_schema_person();
+$same_as2 = (array) ( $po2['sameAs'] ?? array() );
+ss_true( in_array( 'https://x.com/juan_lentino', $same_as2, true ), 'sameAs keeps the configured social profiles' );
+ss_true( in_array( $orcid_url, $same_as2, true ), 'sameAs appends the ORCID alongside social profiles' );
+
+// idempotent: ORCID appears exactly once even if already present in the setting.
+$GLOBALS['__ss']['settings'] = array( 'social.same_as' => array( $orcid_url ) );
+$po3   = sn_schema_person();
+$count = count( array_keys( (array) ( $po3['sameAs'] ?? array() ), $orcid_url, true ) );
+ss_eq( 1, $count, 'ORCID appears exactly once (dedupe guard) when already configured' );
+$GLOBALS['__ss']['settings'] = array();
 
 // ─── T7: ProfilePage on identity pages (mainEntity → Person) ───
 echo "\nT7: ProfilePage on identity pages\n";
