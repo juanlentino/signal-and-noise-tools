@@ -85,8 +85,9 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 	$gate = snt_ai_require_text_generation();
 	if ( $gate ) { return $gate; }
 
-	$content = function_exists( 'snt_ai_extract_post_text' )
-		? snt_ai_extract_post_text( $post_id, SNT_AI_EXCERPT_INPUT_WORDS )
+	// v9.3.0: signal helper handles contentless template Pages (title + fallback).
+	$content = function_exists( 'snt_ai_post_signal' )
+		? snt_ai_post_signal( $post_id, SNT_AI_EXCERPT_INPUT_WORDS )
 		: '';
 
 	if ( '' === $content ) {
