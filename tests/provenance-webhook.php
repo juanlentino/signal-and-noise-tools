@@ -37,6 +37,11 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 if ( ! function_exists( 'wp_remote_post' ) ) {
 	function wp_remote_post( $url, $args = array() ) {
 		$GLOBALS['__pv_http'][] = array( $url, $args );
+		if ( false !== strpos( (string) $url, '/sweep' ) ) {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode(
+				$GLOBALS['__pv_sweep_body'] ?? array( 'ok' => true, 'checked' => 3, 'upgraded' => 2, 'stillPending' => 1 )
+			) );
+		}
 		return array( 'response' => array( 'code' => 202 ), 'body' => wp_json_encode( array(
 			'signature'   => 'SIGBASE64',
 			'pubkey_id'   => 'sn-ed25519-2026-07',
@@ -44,6 +49,10 @@ if ( ! function_exists( 'wp_remote_post' ) ) {
 			'ots_status'  => 'pending',
 		) ) );
 	}
+}
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	function untrailingslashit( $s ) {
+		return rtrim( (string) $s, '/' ); }
 }
 if ( ! function_exists( 'is_wp_error' ) ) {
 	function is_wp_error( $t ) {
@@ -242,6 +251,35 @@ wh_eq( 'pending', $chain[0]['status'], 'reconcile flips unanchored -> pending' )
 $GLOBALS['__pv_http'] = array();
 sn_prov_reconcile_post( 77 );
 wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'already-pending commit not re-dispatched' );
+
+echo "\nTask 6: manual sweep trigger (sn_prov_run_sweep)\n";
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http'] = array();
+$res = sn_prov_run_sweep();
+wh_eq( 1, count( $GLOBALS['__pv_http'] ), 'one sweep POST fired' );
+$swept = $GLOBALS['__pv_http'][0];
+wh_eq( 'https://worker.example/sweep', $swept[0], 'posts to <worker>/sweep (trailing slash collapsed)' );
+$expected_sig = 'sha256=' . hash_hmac( 'sha256', $swept[1]['body'], 'shh' );
+wh_eq( $expected_sig, $swept[1]['headers']['X-SN-Signature'], 'sweep request HMAC-signed over the body' );
+wh_true( ! empty( $res['ok'] ), 'configured sweep returns ok' );
+wh_eq( 2, $res['upgraded'], 'summary upgraded count parsed' );
+wh_eq( 1, $res['still_pending'], 'summary still_pending parsed (from Worker stillPending)' );
+
+// Unconfigured (no secret) → no POST, ok:false.
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = '';
+$GLOBALS['__pv_http'] = array();
+$res2 = sn_prov_run_sweep();
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'unconfigured: no sweep POST fired' );
+wh_true( empty( $res2['ok'] ) && 'unconfigured' === ( $res2['error'] ?? '' ), 'unconfigured → ok:false error:unconfigured' );
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh'; // restore
+
+// Worker replies ok:false → result ok:false (not silently treated as success).
+$GLOBALS['__pv_sweep_body'] = array( 'ok' => false, 'error' => 'x' );
+$GLOBALS['__pv_http'] = array();
+$res3 = sn_prov_run_sweep();
+wh_true( empty( $res3['ok'] ), 'worker ok:false body → result ok:false' );
+unset( $GLOBALS['__pv_sweep_body'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

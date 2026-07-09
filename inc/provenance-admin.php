@@ -173,6 +173,34 @@ function sn_prov_admin_reanchor_handler() {
 add_action( 'admin_post_sn_prov_reanchor', 'sn_prov_admin_reanchor_handler' );
 
 /**
+ * admin_post_sn_prov_runsweep handler: nonce + manage_options gated. Triggers the
+ * Worker's on-demand sweep via sn_prov_run_sweep(), stashes the result in a short
+ * per-user transient, and redirects back to the Provenance sub-tab with an
+ * ok|fail flag the notice renders.
+ */
+function sn_prov_admin_runsweep_handler() {
+	check_admin_referer( 'sn_prov_runsweep' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
+	}
+	$result = function_exists( 'sn_prov_run_sweep' )
+		? sn_prov_run_sweep()
+		: array( 'ok' => false, 'error' => 'unavailable' );
+	set_transient( 'sn_prov_sweep_result_' . get_current_user_id(), $result, MINUTE_IN_SECONDS );
+	wp_safe_redirect( add_query_arg(
+		array(
+			'page'          => 'sn-theme-options',
+			'tab'           => 'tools',
+			'sub'           => 'provenance',
+			'sn_prov_swept' => ! empty( $result['ok'] ) ? 'ok' : 'fail',
+		),
+		admin_url( 'admin.php' )
+	) );
+	exit;
+}
+add_action( 'admin_post_sn_prov_runsweep', 'sn_prov_admin_runsweep_handler' );
+
+/**
  * Register the nonce-gated live-status REST route (manage_options only).
  */
 function sn_prov_admin_register_status_route() {
@@ -349,6 +377,55 @@ function sn_prov_admin_render_reanchor_notice( array $sys ) {
 }
 
 /**
+ * The ?sn_prov_swept=ok|fail flash for the manual sweep, rendered inside the
+ * Commits fieldset beside the trigger button. Reads the per-user transient the
+ * handler stashed (then clears it — one-shot). Count-driven copy on success; a
+ * config-aware line on failure.
+ *
+ * @return void
+ */
+function sn_prov_admin_render_sweep_notice() {
+	if ( ! isset( $_GET['sn_prov_swept'] ) ) {
+		return;
+	}
+	$flag   = sanitize_text_field( wp_unslash( $_GET['sn_prov_swept'] ) );
+	$key    = 'sn_prov_sweep_result_' . get_current_user_id();
+	$result = get_transient( $key );
+	delete_transient( $key );
+	$result = is_array( $result ) ? $result : array();
+
+	if ( 'ok' === $flag && ! empty( $result['ok'] ) ) {
+		$up    = (int) ( $result['upgraded'] ?? 0 );
+		$pend  = (int) ( $result['still_pending'] ?? 0 );
+		$mod   = '';
+		$title = __( 'Sweep complete', 'signal-and-noise-tools' );
+		$body  = $up > 0
+			? sprintf(
+				/* translators: 1: newly-confirmed count, 2: still-pending count */
+				_n( '%1$d proof newly confirmed on Bitcoin; %2$d still pending.', '%1$d proofs newly confirmed on Bitcoin; %2$d still pending.', $up, 'signal-and-noise-tools' ),
+				$up,
+				$pend
+			)
+			: sprintf(
+				/* translators: %d: still-pending count */
+				_n( 'Nothing new — %d proof is still awaiting Bitcoin confirmation.', 'Nothing new — %d proofs are still awaiting Bitcoin confirmation.', $pend, 'signal-and-noise-tools' ),
+				$pend
+			);
+	} else {
+		$mod   = ' sn-status-box--err';
+		$title = __( 'Sweep failed', 'signal-and-noise-tools' );
+		$err   = isset( $result['error'] ) ? (string) $result['error'] : '';
+		$body  = 'unconfigured' === $err
+			? __( 'Set the SN_PROV_* constants in wp-config first.', 'signal-and-noise-tools' )
+			: __( 'Could not reach the Worker, or it rejected the request.', 'signal-and-noise-tools' );
+	}
+	echo '<div class="sn-status-box' . esc_attr( $mod ) . '"><div>'
+		. '<p class="sn-status-box-title">' . esc_html( $title ) . '</p>'
+		. '<p class="sn-status-box-body">' . esc_html( $body ) . '</p>'
+		. '</div></div>';
+}
+
+/**
  * System fieldset: the config-presence readout (Worker URL / HMAC secret /
  * Public key — presence booleans ONLY, never the secret value), the Ed25519
  * public key, and the public-ledger link.
@@ -363,6 +440,17 @@ function sn_prov_admin_render_system_fieldset( array $sys ) {
 	sn_prov_admin_config_row( __( 'HMAC secret', 'signal-and-noise-tools' ), ! empty( $sys['config']['hmac'] ) );
 	sn_prov_admin_config_row( __( 'Public key', 'signal-and-noise-tools' ), ! empty( $sys['config']['pubkey'] ) );
 	echo '</tbody></table>';
+
+	// Deployed Worker version, from its /_sn/version endpoint (cached). Shown only
+	// when the Worker is configured; "unknown" when it can't be reached.
+	if ( ! empty( $sys['config']['worker_url'] ) ) {
+		$wver = function_exists( 'sn_prov_worker_version' ) ? sn_prov_worker_version() : '';
+		echo '<p class="sn-prov-worker-ver">' . esc_html__( 'Worker version', 'signal-and-noise-tools' ) . ' '
+			. ( '' !== $wver
+				? '<code>' . esc_html( $wver ) . '</code>'
+				: '<span class="sn-prov-muted">' . esc_html__( 'unknown', 'signal-and-noise-tools' ) . '</span>' )
+			. '</p>';
+	}
 
 	$pubkey = (string) $sys['pubkey'];
 	if ( '' !== $pubkey ) {
@@ -443,6 +531,17 @@ function sn_prov_admin_render_genesis_fieldset( array $sys ) {
  */
 function sn_prov_admin_render_commits_fieldset( $note_base ) {
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html__( 'Commits', 'signal-and-noise-tools' ) . '</h2>';
+
+	// On-demand sweep: the last result flash + the trigger. Lets the owner flip
+	// Bitcoin-confirmed proofs now instead of waiting for the Worker's hourly cron.
+	sn_prov_admin_render_sweep_notice();
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="sn-prov-sweep">';
+	wp_nonce_field( 'sn_prov_runsweep' );
+	echo '<input type="hidden" name="action" value="sn_prov_runsweep" />';
+	echo '<button type="submit" class="button">' . esc_html__( 'Check for confirmations', 'signal-and-noise-tools' ) . '</button> ';
+	echo '<span class="sn-fieldset-intro">' . esc_html__( 'Ask the Worker to check pending proofs against Bitcoin now, rather than waiting for the hourly sweep.', 'signal-and-noise-tools' ) . '</span>';
+	echo '</form>';
+
 	echo '<table class="wp-list-table widefat striped sn-prov-table"><thead><tr>'
 		. '<th>' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Version', 'signal-and-noise-tools' ) . '</th>'

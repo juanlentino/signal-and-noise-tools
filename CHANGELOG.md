@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.11.0] - 2026-07-09: Feat — on-demand anchoring sweep + Worker version in the Provenance panel
+
+**Headline:** The Tools → Provenance panel gains a **"Check for confirmations"** button that runs the Worker's anchoring sweep on demand — so you can flip Bitcoin-confirmed proofs to confirmed immediately instead of waiting for the hourly cron — and now shows the **deployed Worker version**, read from its `/_sn/version` endpoint.
+
+> **Why MINOR:** two new user-visible capabilities, no settings-schema change. The sweep trigger reuses the SAME HMAC secret as the commit webhook (no new secret) and is nonce + `manage_options` gated, mirroring the Re-anchor genesis action; the Worker version is a cached read of the public `/_sn/version` endpoint, kept out of the shared status view-model so the dashboard glance card stays query-only (no outbound HTTP per page load).
+
+### New
+- "Check for confirmations" button in the Provenance panel's Commits section: POSTs an HMAC-signed request to the Worker's new `POST /sweep` route (which runs the pending→confirmed sweep now and returns a summary), then reports "N newly confirmed on Bitcoin; M still pending" — or a config-aware failure ([inc/provenance-admin.php](inc/provenance-admin.php), [inc/provenance-webhook.php](inc/provenance-webhook.php)).
+- Deployed Worker version shown in the Provenance panel's System section, read and ~10-min cached from the Worker's `/_sn/version` endpoint; "unknown" when the Worker can't be reached ([inc/provenance-admin.php](inc/provenance-admin.php), [inc/provenance-webhook.php](inc/provenance-webhook.php)).
+
+### Notes
+- Requires the companion `sn-provenance` Worker at **v1.1.0+** (which adds the `POST /sweep` route). That Worker change ships and deploys separately via `wrangler`, not through this plugin.
+
 ## [9.10.0] - 2026-07-09: Feat — provenance card on the dashboard + a deliberate 2×5 glance grid
 
 **Headline:** The Signal & Noise dashboard now shows a **Provenance** card in its at-a-glance row — how many Notes are cryptographically confirmed on Bitcoin, with a pill for any still in flight — and the ten status cards are arranged in an intentional two-row-by-five grid grouped by meaning (release & integrity on top, runtime & audience below) instead of one auto-flowing row.

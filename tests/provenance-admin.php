@@ -203,6 +203,69 @@ if ( ! function_exists( 'sn_prov_genesis_reanchor' ) ) {
 		return (bool) $GLOBALS['__pv_reanchor_return']; }
 }
 
+// ── Stubs for the manual-sweep trigger + Worker-version readout (Task 12). ──
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+$GLOBALS['__pv_transients'] = array();
+$GLOBALS['__pv_http']       = array(); // captured wp_remote_* calls: [method, url, args]
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $k ) {
+		return array_key_exists( $k, $GLOBALS['__pv_transients'] ) ? $GLOBALS['__pv_transients'][ $k ] : false; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $k, $v, $ttl = 0 ) {
+		$GLOBALS['__pv_transients'][ $k ] = $v;
+		return true; }
+}
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( $k ) {
+		unset( $GLOBALS['__pv_transients'][ $k ] );
+		return true; }
+}
+if ( ! function_exists( 'get_current_user_id' ) ) {
+	function get_current_user_id() {
+		return 7; }
+}
+if ( ! function_exists( '_n' ) ) {
+	function _n( $single, $plural, $number, $domain = null ) {
+		return 1 === (int) $number ? $single : $plural; }
+}
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $d, $f = 0, $depth = 512 ) {
+		return json_encode( $d, $f, $depth ); }
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $t ) {
+		return false; }
+}
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	function untrailingslashit( $s ) {
+		return rtrim( (string) $s, '/' ); }
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( $r ) {
+		return $r['response']['code'] ?? 0; }
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $r ) {
+		return $r['body'] ?? ''; }
+}
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = array() ) {
+		$GLOBALS['__pv_http'][] = array( 'POST', $url, $args );
+		return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode(
+			$GLOBALS['__pv_sweep_body'] ?? array( 'ok' => true, 'checked' => 3, 'upgraded' => 2, 'stillPending' => 1 )
+		) );
+	}
+}
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( $url, $args = array() ) {
+		$GLOBALS['__pv_http'][] = array( 'GET', $url, $args );
+		return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode(
+			$GLOBALS['__pv_version_body'] ?? array( 'worker' => 'sn-provenance', 'version' => '1.1.0' )
+		) );
+	}
+}
+
 require_once SNT_PATH . 'inc/provenance-core.php';
 // Loads the REAL sn_prov_pubkey_b64() (unguarded — never stub it: redeclare
 // fatal) so the renderer test drives it via the sn_prov_pubkey_b64 option.
@@ -461,6 +524,60 @@ $html_fail_unset = ob_get_clean();
 unset( $_GET['sn_prov_reanchor'] );
 ad_true( false !== strpos( $html_fail_unset, 'SN_PROV_* constants' ), 'unconfigured fail: points at the SN_PROV_* constants' );
 ad_true( false === strpos( $html_fail_unset, 'Worker rejected' ), 'unconfigured fail: does NOT blame the Worker' );
+
+echo "\nTask 12: manual sweep trigger + Worker version readout\n";
+$GLOBALS['__pv_meta']       = array();
+$GLOBALS['__pv_options']    = array();
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/';
+$GLOBALS['__pv_transients'] = array();
+unset( $_GET['sn_prov_swept'] );
+
+ob_start();
+sn_admin_render_provenance_section();
+$html12 = ob_get_clean();
+ad_true( false !== strpos( $html12, 'name="action" value="sn_prov_runsweep"' ), 'Commits fieldset renders the sweep trigger form' );
+ad_true( false !== strpos( $html12, 'Check for confirmations' ), 'sweep button labelled "Check for confirmations"' );
+ad_true( false !== strpos( $html12, '<code>1.1.0</code>' ), 'System fieldset shows the Worker version from /_sn/version' );
+
+// Handler registered.
+$registered_sweep = false;
+foreach ( $GLOBALS['__pv_actions'] as $pair ) {
+	if ( 'admin_post_sn_prov_runsweep' === $pair[0] && 'sn_prov_admin_runsweep_handler' === $pair[1] ) { $registered_sweep = true; }
+}
+ad_true( $registered_sweep, 'handler hooked on admin_post_sn_prov_runsweep' );
+
+// Gating: no manage_options → wp_die (403), no sweep POST.
+$GLOBALS['__pv_can']  = false;
+$GLOBALS['__pv_died'] = false;
+$GLOBALS['__pv_http'] = array();
+try { sn_prov_admin_runsweep_handler(); } catch ( SN_Prov_Test_Halt $e ) { /* die */ }
+ad_true( $GLOBALS['__pv_died'], 'sweep handler wp_die()s without manage_options' );
+ad_true( 0 === count( array_filter( $GLOBALS['__pv_http'], function ( $c ) { return 'POST' === $c[0]; } ) ), 'no sweep POST fires when the cap check fails' );
+$GLOBALS['__pv_can'] = true;
+
+// Happy path: cap + config → one signed sweep POST, redirect with ok flag.
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http']     = array();
+$GLOBALS['__pv_redirect'] = '';
+try { sn_prov_admin_runsweep_handler(); } catch ( SN_Prov_Test_Halt $e ) { /* redirect */ }
+ad_true( 1 === count( array_filter( $GLOBALS['__pv_http'], function ( $c ) { return 'POST' === $c[0]; } ) ), 'handler fires exactly one sweep POST' );
+ad_true( false !== strpos( $GLOBALS['__pv_redirect'], 'sn_prov_swept=ok' ), 'redirects with sn_prov_swept=ok on success' );
+
+// Notice renders the counts from the stashed transient.
+$_GET['sn_prov_swept'] = 'ok';
+set_transient( 'sn_prov_sweep_result_' . get_current_user_id(), array( 'ok' => true, 'upgraded' => 2, 'still_pending' => 1 ), 60 );
+ob_start();
+sn_prov_admin_render_sweep_notice();
+$notice = ob_get_clean();
+ad_true( false !== strpos( $notice, 'Sweep complete' ), 'notice title "Sweep complete"' );
+ad_true( false !== strpos( $notice, '2 proofs newly confirmed' ), 'notice reports the newly-confirmed count' );
+ad_true( false === get_transient( 'sn_prov_sweep_result_' . get_current_user_id() ), 'notice is one-shot (transient cleared after render)' );
+unset( $_GET['sn_prov_swept'] );
+
+// Worker version is cached — a second read does not re-fetch (already fetched in the render above).
+$GLOBALS['__pv_http'] = array();
+sn_prov_worker_version();
+ad_true( 0 === count( array_filter( $GLOBALS['__pv_http'], function ( $c ) { return 'GET' === $c[0]; } ) ), 'worker version served from cache (no second GET)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
