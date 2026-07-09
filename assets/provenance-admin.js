@@ -1,10 +1,12 @@
 (function () {
-  var root = document.querySelector('.sn-prov-admin');
-  if (!root) return;
-  var endpoint = root.getAttribute('data-endpoint');
-  var nonce = root.getAttribute('data-nonce');
-  var ledgerBase = root.getAttribute('data-ledger') || '';
-  var live = root.querySelector('.sn-prov-live');
+  // The commits table's <tbody> is the live region AND the config carrier: it
+  // holds the poll endpoint/nonce/ledger base (the section renders no outer
+  // wrapper — the dispatcher's .sn-section is the only ancestor).
+  var live = document.querySelector('.sn-prov-live');
+  if (!live) return;
+  var endpoint = live.getAttribute('data-endpoint');
+  var nonce = live.getAttribute('data-nonce');
+  var ledgerBase = live.getAttribute('data-ledger') || '';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -88,42 +90,36 @@
     return tr;
   }
 
-  function commitsTable(pending) {
-    var table = el('table', 'sn-status-table sn-status-table--full sn-prov-table');
-    var thead = el('thead');
-    var hr = el('tr');
-    ['UID', 'Version', 'Status', 'Ledger'].forEach(function (h) {
-      hr.appendChild(el('th', null, h));
-    });
-    thead.appendChild(hr);
-    table.appendChild(thead);
-
-    var tbody = el('tbody');
-    pending.forEach(function (p) {
-      tbody.appendChild(commitRow(p));
-    });
-    table.appendChild(tbody);
-    return table;
+  // Empty/error/loading states share a single full-width row spanning the four
+  // columns (UID / Version / Status / Ledger).
+  function messageRow(text, cls) {
+    var tr = el('tr');
+    var td = el('td', cls, text);
+    td.colSpan = 4;
+    tr.appendChild(td);
+    return tr;
   }
 
   function render(d) {
-    // Genesis status lives in its own server-rendered card — the Commits card
-    // shows ONLY the commits table (or the empty state), no duplicated line.
+    // Genesis status lives in its own server-rendered fieldset — the Commits
+    // table shows ONLY commit rows (or the empty state), no duplicated line.
     clear(live);
 
     var pending = d.pending || [];
     if (!pending.length) {
-      live.appendChild(el('p', null, 'All commits anchored'));
+      live.appendChild(messageRow('All commits anchored'));
       return;
     }
-    live.appendChild(commitsTable(pending));
+    pending.forEach(function (p) {
+      live.appendChild(commitRow(p));
+    });
   }
 
   function renderError(e) {
     clear(live);
     var msg = 'Status check failed — reload the page to re-check.';
     if (e && e.message) msg += ' (' + e.message + ')';
-    live.appendChild(el('p', 'sn-prov-error', msg));
+    live.appendChild(messageRow(msg, 'sn-prov-error'));
   }
 
   function poll() {

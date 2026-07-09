@@ -1,33 +1,19 @@
-/* Provenance admin — small tweaks over the shared card/section/pill system.
-   Everything structural (cards, pills, status boxes, status tables) comes from
-   assets/admin.css; this file only adds the provenance-specific bits. */
+/* Provenance admin — small tweaks over the shared glance-grid / .sn-fieldset /
+   wp-list-table system in assets/admin.css. Everything structural (the hero
+   grid, fieldset cards, pills, status boxes, list tables) comes from there; this
+   file only adds the provenance-specific bits. */
 
-.sn-prov-admin { max-width: none; }
-
-/* System + Genesis sit side by side in the top .sn-card-grid row; the Commits
-   card is a full-width block below the grid (a table never fits a narrow card
-   column). */
-.sn-prov-card { max-width: 360px; }
-.sn-prov-card--wide { max-width: none; margin-top: var(--sn-space-3); }
-
-/* Config presence readout: label left, ✓/✗ pill right. The pill's own leading
-   dot is redundant next to the ✓/✗ glyph, so drop it and tighten the chip. */
-.sn-prov-config { list-style: none; margin: .5rem 0 .75rem; padding: 0; }
-.sn-prov-config li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  padding: .15rem 0;
-}
-.sn-prov-config .sn-pill { padding: 1px 8px; }
+/* Config-presence readout: each row's ✓/✗ glyph already carries the status, so
+   the pill's own leading dot is redundant — hide it in this table. */
 .sn-prov-config .sn-pill::before { display: none; }
 
+/* Long base64/hex values (public key, genesis root) may overflow the fieldset;
+   let them wrap on any character rather than push the card wide. */
 .sn-prov-key code,
 .sn-prov-root code { word-break: break-all; }
 
-/* Commits table: the shortened UID digest must stay on one line (the full value
-   is in the cell title + the ledger link). */
-.sn-status-table--full code { white-space: nowrap; }
+/* Commits table: the shortened UID digest stays on one line (the full UID is in
+   the cell title + the ledger link). */
+.sn-prov-table code { white-space: nowrap; }
 
 .sn-prov-error { color: #8b1a1a; }
