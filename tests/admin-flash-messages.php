@@ -33,11 +33,6 @@ function number_format_i18n( $n ) { return (string) $n; }
 $GLOBALS['__insights_err'] = null;
 function snt_insights_last_error() { return $GLOBALS['__insights_err']; }
 
-// v7.2.2: the 'narration_failed' live-data notice mirrors the insights pattern,
-// reading the real stored error via snt_narration_last_error(). Stub it here.
-$GLOBALS['__narration_err'] = null;
-function snt_narration_last_error() { return $GLOBALS['__narration_err']; }
-
 require_once __DIR__ . '/../inc/admin-flash-messages.php';
 
 $pass = 0; $fail = 0;
@@ -132,26 +127,12 @@ fm_eq( false, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' )
 $note = sn_admin_flash_to_notice( 'health_scanned' );
 fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' ), 'dirty copy still points at the findings' );
 
-echo "\nTest 5b: narration_failed surfaces the REAL error (v7.2.2, mirrors 5a)\n";
-$GLOBALS['__narration_err'] = array( 'code' => 'snt_narration_invalid_json', 'message' => 'AI digest response was not valid JSON.', 'at' => 123 );
-$note = sn_admin_flash_to_notice( 'narration_failed' );
-fm_eq( 'error', $note[0], 'narration_failed → error severity' );
-fm_eq( true, false !== strpos( $note[1], 'AI digest response was not valid JSON.' ), 'surfaces the REAL error message' );
-fm_eq( true, false !== strpos( $note[1], 'snt_narration_invalid_json' ), 'surfaces the REAL error code' );
-fm_eq( false, false !== strpos( $note[1], 'Check that an AI provider is configured' ), 'does NOT show the old misleading configure-AI copy' );
-// Raw model output rides along when captured (parse failures attach it).
-$GLOBALS['__narration_err'] = array( 'code' => 'snt_narration_invalid_json', 'message' => 'AI digest response was not valid JSON.', 'raw' => 'Sure! Here is your digest: { broken', 'at' => 123 );
-$note = sn_admin_flash_to_notice( 'narration_failed' );
-fm_eq( true, false !== stripos( $note[1], 'model returned' ), 'surfaces a "model returned" preamble for the raw output' );
-fm_eq( true, false !== strpos( $note[1], 'Sure! Here is your digest' ), 'surfaces the raw model output snippet' );
-// No diagnostic recorded → still an error notice.
-$GLOBALS['__narration_err'] = null;
-$note = sn_admin_flash_to_notice( 'narration_failed' );
-fm_eq( 'error', $note[0], 'narration_failed with no stored error → still an error notice' );
-// The genuine no-provider case gets its own static configure-AI code.
+// v9.5.0 (R2): the weekly-digest flash codes (narration_generated / _settings_saved
+// / _ai_unavailable, and the dynamic narration_failed branch) retired with the surface.
 $static = sn_admin_flash_messages();
-fm_eq( true, isset( $static['narration_ai_unavailable'] ), 'narration_ai_unavailable static code exists' );
-fm_eq( true, false !== strpos( $static['narration_ai_unavailable'][1], 'provider' ), 'narration_ai_unavailable carries the configure-AI copy' );
+fm_eq( false, isset( $static['narration_ai_unavailable'] ), 'R2: narration_ai_unavailable static code removed' );
+fm_eq( false, isset( $static['narration_settings_saved'] ), 'R2: narration_settings_saved static code removed' );
+fm_eq( false, isset( $static['narration_generated'] ), 'R2: narration_generated static code removed' );
 // release_notes_failed no longer blames AI config (its detail box shows the real error).
 fm_eq( false, false !== strpos( $static['release_notes_failed'][1], 'AI provider is configured' ), 'release_notes_failed copy no longer blames AI config' );
 

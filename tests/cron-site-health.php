@@ -113,16 +113,14 @@ class WP_Error {
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
 // Feature gates (v8.1.5 config-aware expectations) — stubs mirror the real
-// gate functions in inc/insights-narration.php / inc/insights.php /
-// inc/uptime-heartbeat.php. Default ON so the all-healthy fixtures keep
-// treating every hook as expected.
-$GLOBALS['__test_narration_on']    = true;
+// gate functions in inc/insights.php / inc/uptime-heartbeat.php. Default ON so
+// the all-healthy fixtures keep treating every hook as expected. (v9.5.0/R2: the
+// narration gate is gone with the retired weekly-digest cron.)
 $GLOBALS['__test_insights_cron_on'] = true;
 $GLOBALS['__test_sn_settings']     = array(
 	'monitoring.uptime_kuma_enabled'  => true,
 	'monitoring.uptime_kuma_push_url' => 'https://uptime.example/api/push/abc',
 );
-function snt_narration_enabled() { return $GLOBALS['__test_narration_on']; }
 function snt_insights_weekly_cron_enabled() { return $GLOBALS['__test_insights_cron_on']; }
 function sn_setting( $path, $default = false ) {
 	return array_key_exists( $path, $GLOBALS['__test_sn_settings'] ) ? $GLOBALS['__test_sn_settings'][ $path ] : $default;
@@ -220,19 +218,18 @@ $res = snt_cron_site_health_result();
 ch_eq( 'recommended', $res['status'], 'stale hook (>2x interval) downgrades to recommended' );
 
 // ─── Test 7: config-off features leave hooks unscheduled BY DESIGN → good ─
-// v8.1.5 calibration (owner noise rule): narration / weekly-scan / heartbeat
-// hooks are only scheduled when their features are enabled; an intentionally
-// off feature must not downgrade Site Health.
+// v8.1.5 calibration (owner noise rule): weekly-scan / heartbeat hooks are only
+// scheduled when their features are enabled; an intentionally off feature must
+// not downgrade Site Health.
 echo "\nTest 7: unscheduled hooks of config-off features → still good\n";
 ch_all_healthy();
 $GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
-$GLOBALS['__test_narration_on']    = false;
 $GLOBALS['__test_insights_cron_on'] = false;
 $GLOBALS['__test_sn_settings']     = array(
 	'monitoring.uptime_kuma_enabled'  => false,
 	'monitoring.uptime_kuma_push_url' => '',
 );
-foreach ( array( 'sn_insights_narration_weekly', 'sn_insights_weekly_scan', 'sn_uptime_kuma_heartbeat' ) as $off_hook ) {
+foreach ( array( 'sn_insights_weekly_scan', 'sn_uptime_kuma_heartbeat' ) as $off_hook ) {
 	unset( $GLOBALS['__test_next_scheduled'][ $off_hook ] );
 	unset( $GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $off_hook ) ] );
 }
@@ -242,12 +239,11 @@ ch_true( false !== strpos( (string) $res['description'], 'not scheduled (feature
 
 // ─── Test 8: feature ON but hook unscheduled → recommended (real failure) ─
 echo "\nTest 8: enabled feature with an unscheduled hook → recommended\n";
-$GLOBALS['__test_narration_on'] = true;
+$GLOBALS['__test_insights_cron_on'] = true;
 $res = snt_cron_site_health_result();
 ch_eq( 'recommended', $res['status'], 'a genuinely missing schedule still downgrades' );
 
 // Reset gates for any later fixtures.
-$GLOBALS['__test_narration_on']    = true;
 $GLOBALS['__test_insights_cron_on'] = true;
 
 echo "\nResult: $pass passed, $fail failed.\n";

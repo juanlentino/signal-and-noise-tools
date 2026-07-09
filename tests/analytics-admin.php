@@ -480,6 +480,12 @@ ok( snt_analytics_view_owns_chrome( 'content' ) === false, 'owns_chrome: content
 ok( snt_analytics_view_owns_chrome( 'edge' ) === false, 'owns_chrome: edge keeps shared chrome (no regression)' );
 ok( snt_analytics_view_owns_chrome( 'martian' ) === false, 'owns_chrome: unknown view -> false' );
 
+// v9.5.0 (annotations R2): the Intelligence tab / weekly-digest surface was retired.
+// The view is gone from the registry, resolves to the default, and no longer owns chrome.
+ok( ! array_key_exists( 'intelligence', SN_ANALYTICS_VIEWS ), 'R2: intelligence view removed from the registry' );
+ok( snt_analytics_resolve_view( 'intelligence' ) === 'content', 'R2: retired intelligence resolves to the content default' );
+ok( snt_analytics_view_owns_chrome( 'intelligence' ) === false, 'R2: retired intelligence no longer owns chrome' );
+
 echo "\nGroup: login-defense dashboard dispatch + chrome suppression\n";
 // Stub the login renderer so this isolates the DASHBOARD's routing + chrome
 // suppression (the code that changed) from the login renderer (covered by

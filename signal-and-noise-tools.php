@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.4.0
+ * Version:     9.4.1
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -123,7 +123,6 @@ require_once SNT_PATH . 'inc/analytics-posts-admin.php'; // v6.39.0: Posts view 
 require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A4): catalogue-wide decay census + refresh candidates
 require_once SNT_PATH . 'inc/analytics-posts-lifecycle-admin.php'; // v8.11.0 (A4): "Lifecycle at scale" render
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
-require_once SNT_PATH . 'inc/analytics-intelligence.php';  // v9.2.0: Analytics → Intelligence tab (the read; slice a)
 require_once SNT_PATH . 'inc/edge-analytics.php';  // v6.26.0: Cloudflare GraphQL zone-analytics client (edge traffic)
 require_once SNT_PATH . 'inc/edge-rollup.php';     // v6.26.0: edge daily/dims tables + daily GraphQL rollup cron
 require_once SNT_PATH . 'inc/edge-admin.php';      // v6.26.0: "Traffic & edge" Analytics view (presenter)
@@ -293,6 +292,7 @@ require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime sectio
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
 require_once SNT_PATH . 'inc/insights.php';
 require_once SNT_PATH . 'inc/insights-narration.php';
+require_once SNT_PATH . 'inc/narration-cron-cleanup.php'; // v9.5.0: one-time clear of the weekly-digest cron orphaned when R2 retired the scheduler
 require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge classifier (used by both health probes below)
 require_once SNT_PATH . 'inc/health-checks.php';

@@ -227,10 +227,10 @@ function snt_security_digest_send( $test = false ) {
 }
 
 /**
- * Self-healing weekly cron sync — the exact pattern of
- * snt_narration_maybe_schedule_cron(): schedule when enabled+unscheduled,
- * unschedule when disabled+scheduled; runs on init so a settings toggle takes
- * effect on the next request without a dedicated save hook.
+ * Self-healing weekly cron sync — the same pattern the Insights weekly scan uses
+ * (inc/insights.php): schedule when enabled+unscheduled, unschedule when
+ * disabled+scheduled; runs on init so a settings toggle takes effect on the next
+ * request without a dedicated save hook.
  *
  * @return void
  */

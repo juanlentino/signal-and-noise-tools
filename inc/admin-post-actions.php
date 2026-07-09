@@ -192,27 +192,6 @@ function sn_handle_insights_mark_done( $post ) {
 	return 'insights_done';
 }
 
-function sn_handle_narration_run( $post ) {
-	if ( ! function_exists( 'snt_narration_run' ) ) {
-		return 'narration_failed';
-	}
-	$force  = ! empty( $post['force'] );
-	$result = snt_narration_run( $force );
-	if ( is_wp_error( $result ) ) {
-		// v7.2.2: record the REAL error (the insights v7.0.1 pattern) so the
-		// notice can report it. Only the genuine no-provider code earns the
-		// configure-AI copy; a parse/transport/empty failure is digest-specific.
-		if ( function_exists( 'snt_narration_store_last_error' ) ) {
-			snt_narration_store_last_error( $result );
-		}
-		return 'snt_ai_unavailable' === $result->get_error_code() ? 'narration_ai_unavailable' : 'narration_failed';
-	}
-	if ( function_exists( 'snt_narration_clear_last_error' ) ) {
-		snt_narration_clear_last_error();
-	}
-	return 'narration_generated';
-}
-
 function sn_handle_save_insights_settings( $post ) {
 	// v4.2.0 (D-06): write via sn_setting_update() — busts the per-request
 	// cache so the cron sync below reads back the new value.
@@ -230,32 +209,7 @@ function sn_handle_save_insights_settings( $post ) {
 		}
 	}
 
-	// v9.2.0: the weekly digest-narration opt-in moved to its own action
-	// (sn_handle_narration_settings_save) on the Analytics → Intelligence tab, so
-	// it no longer rides this form. Saving the advisor toggle here must NOT touch
-	// insights.narration_enabled — a shared read of a missing checkbox would
-	// silently disable the digest.
 	return 'insights_settings_saved';
-}
-
-/**
- * Save the weekly digest-automation opt-in (relocated to Analytics → Intelligence
- * in v9.2.0). Its own action so the advisor "weekly scan" toggle and this one
- * never share a POST: a shared handler reads a missing checkbox as "off" and
- * would silently disable whichever toggle was not on the submitting form.
- * Single-key write, then a self-healing cron sync (schedules when on+unscheduled,
- * unschedules when off+scheduled).
- *
- * @param array $post Raw $_POST.
- * @return string Flash code.
- */
-function sn_handle_narration_settings_save( $post ) {
-	$narration = ! empty( $post['insights_narration'] );
-	sn_setting_update( 'insights.narration_enabled', $narration );
-	if ( function_exists( 'snt_narration_maybe_schedule_cron' ) ) {
-		snt_narration_maybe_schedule_cron();
-	}
-	return 'narration_settings_saved';
 }
 
 function sn_handle_audit_save_retention( $post ) {
