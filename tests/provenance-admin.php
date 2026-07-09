@@ -211,6 +211,10 @@ require_once SNT_PATH . 'inc/provenance-webhook.php';
 // REAL helper (unguarded — never stub it: redeclare fatal) so the smoke test can
 // assert the .sn-glance markup it emits.
 require_once SNT_PATH . 'inc/admin-glance.php';
+// The section wraps its fieldsets in the shared two-column shell (main + rail).
+// Load the REAL primitive (three tiny echo helpers; never stub — redeclare fatal)
+// so the smoke test asserts the real .sn-shell markup and column order.
+require_once SNT_PATH . 'inc/admin-shell.php';
 require_once SNT_PATH . 'inc/provenance-admin.php';
 
 $pass = 0;
@@ -410,7 +414,7 @@ ad_eq( 'Genesis', sn_prov_admin_status_label( 'genesis' ), 'label: genesis -> Ge
 ad_eq( 'Unsent', sn_prov_admin_status_label( 'unsent' ), 'label: unsent -> Unsent' );
 ad_eq( 'Whatever', sn_prov_admin_status_label( 'whatever' ), 'label: unknown -> ucfirst fallback' );
 
-echo "\nTask 10: house-pattern section order (glance hero -> System -> Genesis -> Commits)\n";
+echo "\nTask 10: two-column shell order (glance hero -> Commits [main] -> System -> Genesis [rail])\n";
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'a', 64 ), 'status' => 'pending', 'date' => '2026-06-30' );
@@ -418,12 +422,16 @@ ob_start();
 sn_admin_render_provenance_section();
 $html3       = ob_get_clean();
 $glance_pos  = strpos( $html3, 'sn-glance' );
+$main_pos    = strpos( $html3, 'sn-shell__main' );
+$rail_pos    = strpos( $html3, 'sn-shell__rail' );
 $sys_pos     = strpos( $html3, '>System<' );
 $gen_pos     = strpos( $html3, 'Genesis anchor' );
 $commits_pos = strpos( $html3, '>Commits<' );
-ad_true( false !== $glance_pos && false !== $sys_pos && $glance_pos < $sys_pos, 'glance hero renders before the System fieldset' );
-ad_true( false !== $sys_pos && false !== $gen_pos && $sys_pos < $gen_pos, 'System fieldset precedes Genesis anchor' );
-ad_true( false !== $gen_pos && false !== $commits_pos && $gen_pos < $commits_pos, 'Genesis anchor precedes Commits' );
+ad_true( false !== strpos( $html3, 'sn-shell' ), 'wraps the fieldsets in the two-column shell' );
+ad_true( false !== $main_pos && false !== $rail_pos && $main_pos < $rail_pos, 'shell main column precedes the rail' );
+ad_true( false !== $glance_pos && false !== $commits_pos && $glance_pos < $commits_pos, 'glance hero renders before the Commits table' );
+ad_true( false !== $commits_pos && false !== $sys_pos && $commits_pos < $sys_pos, 'Commits (main column) precedes System (rail)' );
+ad_true( false !== $sys_pos && false !== $gen_pos && $sys_pos < $gen_pos, 'System precedes Genesis within the rail' );
 ad_true( false !== strpos( $html3, 'wp-list-table' ), 'Commits renders a wp-list-table' );
 ad_true( false !== strpos( $html3, 'Pending' ), 'genesis surfaces the capitalized status label' );
 
