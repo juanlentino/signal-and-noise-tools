@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.3.0] - 2026-07-08: Analytics Intelligence tab — recommendations (slice b)
+
+**Headline:** The Intelligence tab gains a **Recommendations** feed below the digest read — deterministic, pure-rules cards derived from signals the site already computes, each deep-linked to the tool that acts on it. No AI call, no new always-on cost. Slice (b) of three; Ask-your-analytics (slice c) follows.
+
+> **Why MINOR:** new user-visible capability (the recommendations feed), additive; no API/route/schema change. Cookieless (rules read aggregate counts + published-content metadata only) and cost-neutral (no AI — pure rules over already-cached signals).
+
+### New
+- **Recommendations feed** (`inc/analytics-recommendations.php` → `sn_analytics_recommendations()`), rendered on Analytics → Intelligence. Three v1 rules, each reading a cached signal (never triggering an expensive live scan) and returning one deep-linked card:
+  - **Cooling posts worth a refresh** — from the transient-cached lifecycle bundle (`summary.refresh_candidates`) → the Posts view's refresh queue.
+  - **Unlinked mentions between notes** — from the durable cached Health scan (`sn_health_last_scan()`, a `get_option` — the O(n²) check itself is never re-run here) → the Health tab's Suggest/Apply.
+  - **Pages shipping without a meta description** — enumerates published Pages and flags any that resolve to an empty description → the Page editor (adding an excerpt fixes it; theme route copy is the alternative). Cross-repo signal, plugin-only code.
+- "Nothing needs attention right now" is a first-class empty state.
+
+### Changed
+- Extracted `inc/seo.php`'s singular meta-description precedence (override → excerpt → theme filter) into a shared `sn_seo_resolve_singular_description()` (`inc/seo-description.php`), so the `<head>` emitter and the descriptionless-route recommendation can never drift. Behavior-preserving.
+
+### Notes
+- The seed's fourth candidate rule — "high-traffic / low-engagement pages" — is intentionally **deferred**: it needs threshold calibration and risks noisy cards. Easy to add once the feed proves useful.
+
 ## [9.2.1] - 2026-07-08: Fix — weekly digest truncated to invalid JSON
 
 **Headline:** Generating the weekly digest on the new Intelligence tab failed with "AI digest response was not valid JSON" (`snt_narration_invalid_json`). Root cause: the completion budget (`SN_NARRATION_MAX_TOKENS`) was **512 tokens**, and on real traffic data the model wrote a digest that overran it — the JSON was cut off mid-response, so `json_decode` failed. The parser had no truncation-salvage (unlike the Insights advisor's parser, hardened for the same class in v7.1.1), so a cut-off response hard-failed instead of recovering. Slice (a) didn't cause this — it surfaced a latent v6.30.0 bug by putting the digest behind a prominent button.
