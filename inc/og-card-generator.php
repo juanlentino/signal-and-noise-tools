@@ -135,6 +135,29 @@ function sn_og_image_url_for_post( $post ) {
  * @param int $post_id
  * @return bool
  */
+/**
+ * Resolve the card's dek/excerpt line. Precedence: post_excerpt →
+ * content-derived trim → sn_seo_singular_description theme fallback (v9.3.0,
+ * so contentless template Pages get a real dek from curated copy) → blank.
+ * Extracted from the generator so the chain is CLI-testable.
+ *
+ * @since 9.3.0
+ * @param WP_Post|object $post
+ * @return string
+ */
+function sn_og_card_dek_source( $post ) {
+	$excerpt = trim( (string) $post->post_excerpt );
+	if ( '' === $excerpt ) {
+		$cleaned = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', ' ', $post->post_content );
+		$cleaned = wp_strip_all_tags( strip_shortcodes( $cleaned ) );
+		$excerpt = wp_trim_words( $cleaned, 36, '…' );
+	}
+	if ( '' === trim( $excerpt ) ) {
+		$excerpt = (string) apply_filters( 'sn_seo_singular_description', '', $post );
+	}
+	return $excerpt;
+}
+
 function sn_generate_og_card( $post_id ) {
 	if ( ! function_exists( 'imagettftext' ) ) {
 		return false;
@@ -192,13 +215,8 @@ function sn_generate_og_card( $post_id ) {
 		$y += 100;
 	}
 
-	// Excerpt: prefer post_excerpt; otherwise derive from cleaned content.
-	$excerpt = trim( (string) $post->post_excerpt );
-	if ( '' === $excerpt ) {
-		$cleaned = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', ' ', $post->post_content );
-		$cleaned = wp_strip_all_tags( strip_shortcodes( $cleaned ) );
-		$excerpt = wp_trim_words( $cleaned, 36, '…' );
-	}
+	// Excerpt/dek: post_excerpt → content-derived → theme fallback (v9.3.0).
+	$excerpt = sn_og_card_dek_source( $post );
 	$excerpt_lines = sn_og_wrap_lines( $excerpt, 26, $dmmono_path, $max_width, 3 );
 	$y             = SN_OG_HEIGHT - 180;
 	foreach ( $excerpt_lines as $line ) {
@@ -371,13 +389,22 @@ function sn_migrate_backfill_og_cards() {
 /**
  * Theme's own OG emitter (inc/seo.php) reads through this filter.
  */
-add_filter( 'sn_og_image_url', function( $default ) {
-	$post = get_post();
+/**
+ * Resolve the og:image URL for the current post. Precedence: _sn_og_image_url
+ * override → featured image / generated card → sn_seo_singular_og_image theme
+ * fallback (v9.3.0 seam, defaults to the passed site default) → site default.
+ * Named so the chain is CLI-testable (the filter closure just forwards).
+ *
+ * @since 9.3.0
+ * @param string              $default Site-default OG image URL.
+ * @param WP_Post|object|null $post
+ * @return string
+ */
+function sn_resolve_og_image_url( $default, $post ) {
 	if ( ! $post ) {
 		return $default;
 	}
-	// v1.10.0+: per-post _sn_og_image_url wins over featured image
-	// and auto-generated card. Explicit beats implicit.
+	// v1.10.0+: per-post _sn_og_image_url wins over featured image + card.
 	if ( function_exists( 'sn_post_settings_get_og_image_url' ) ) {
 		$override = sn_post_settings_get_og_image_url( $post->ID );
 		if ( '' !== $override ) {
@@ -385,7 +412,15 @@ add_filter( 'sn_og_image_url', function( $default ) {
 		}
 	}
 	$url = sn_og_image_url_for_post( $post );
-	return $url ? $url : $default;
+	if ( $url ) {
+		return $url;
+	}
+	// v9.3.0: theme-owned per-route fallback image; defaults to $default.
+	return (string) apply_filters( 'sn_seo_singular_og_image', $default, $post );
+}
+
+add_filter( 'sn_og_image_url', function( $default ) {
+	return sn_resolve_og_image_url( $default, get_post() );
 } );
 
 // Note: Phase 10 (plugin v1.6.0) removed three dead `wpseo_*` filter hooks
