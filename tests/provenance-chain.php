@@ -104,5 +104,11 @@ pv_true( defined( 'SN_PROV_ALGO' ) && 'sn-normalize-v1' === SN_PROV_ALGO, 'SN_PR
 pv_true( defined( 'SN_PROV_CHAIN_META' ), 'SN_PROV_CHAIN_META defined' );
 pv_true( function_exists( 'sn_prov_active' ), 'sn_prov_active() exists' );
 
+echo "\nTask 2: note_uid minting\n";
+$uid1 = sn_prov_note_uid( 501 );
+pv_true( is_string( $uid1 ) && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $uid1 ), 'note_uid is a v4 UUID' );
+pv_eq( $uid1, sn_prov_note_uid( 501 ), 'note_uid is stable across calls (persisted)' );
+pv_true( $uid1 !== sn_prov_note_uid( 502 ), 'distinct posts get distinct uids' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

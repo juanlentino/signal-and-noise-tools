@@ -30,3 +30,21 @@ const SN_PROV_GENESIS_META = '_sn_prov_genesis_parent'; // set by Plan 4
 function sn_prov_active() {
 	return function_exists( 'normalizer_normalize' );
 }
+
+/**
+ * Return the Note's stable provenance UUID, minting + persisting it on first
+ * call. This — not the WP post ID or slug — is the ledger key, so migrations
+ * and slug changes never disturb the ledger.
+ *
+ * @param int $post_id
+ * @return string RFC 4122 v4 UUID.
+ */
+function sn_prov_note_uid( $post_id ) {
+	$uid = get_post_meta( (int) $post_id, SN_PROV_UID_META, true );
+	if ( is_string( $uid ) && '' !== $uid ) {
+		return $uid;
+	}
+	$uid = wp_generate_uuid4();
+	update_post_meta( (int) $post_id, SN_PROV_UID_META, $uid );
+	return $uid;
+}
