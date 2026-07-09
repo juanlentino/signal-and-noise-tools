@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.8.0] - 2026-07-09: Feat — cryptographic provenance for Notes (commit chain, Bitcoin anchoring, public verify)
+
+**Headline:** Every published Note now carries a tamper-evident provenance record. On publish or a substantive edit the plugin records a per-Note commit chain — each version's canonically-normalized content hashed, ed25519-signed, and dispatched to a companion Cloudflare Worker that OpenTimestamps-anchors it to Bitcoin and mirrors the proof to a public git ledger. A one-shot genesis migration folds the existing Notes backlog into a single RFC 6962 Merkle root with a per-Note inclusion proof, so history is attested too, not just new writes. Readers get a provenance chip in the Note byline that expands to the full version record, a `/provenance/verify` how-to that walks through checking a proof independently (`ots verify` — no need to trust this site), and admins get a live anchor-status stepper under Tools → Provenance.
+
+> **Why MINOR:** additive across the board — new modules, a new admin sub-tab, a new public page + shortcode, a new seeded surface, and a new plugin→theme filter, with no public API removed or renamed and no settings-schema change. The write path fails safe: dispatch is gated on the `SN_PROV_*` wp-config constants, and with them unset the plugin records the local chain but makes no outbound call ([inc/provenance-webhook.php](inc/provenance-webhook.php) `sn_prov_dispatch()` early-returns), so activating without configuring the Worker cannot break a site. Public surfaces render from locally-stored chain data and add no per-request network or LLM calls; the admin stepper polls only a nonce- and `manage_options`-gated endpoint.
+
+### New
+- **Provenance commit chain** ([inc/provenance-core.php](inc/provenance-core.php)): a per-Note UUID plus a serialized commit chain keyed on a canonical content hash, with trivial-diff coalescing so cosmetic edits don't mint a new version. Recorded via `wp_after_insert_post` for published Notes.
+- **Signed Worker webhook + confirmations** ([inc/provenance-webhook.php](inc/provenance-webhook.php)): an HMAC-authenticated webhook dispatched on commit, an ed25519-verified `/confirm` REST route that applies the Worker's anchoring confirmations back onto the chain, and a WP-cron reconciliation sweep that recovers dropped confirmations.
+- **Genesis snapshot** ([inc/provenance-genesis.php](inc/provenance-genesis.php), [inc/provenance-merkle.php](inc/provenance-merkle.php)): a one-shot migration that builds a domain-separated RFC 6962 Merkle root over the existing Notes backlog, persists a v0 genesis commit plus a per-Note inclusion proof, and anchors the root.
+- **Public surfaces** ([inc/provenance-render.php](inc/provenance-render.php)): the `sn_note_provenance` view-model filter, `sn_prov_render_chip()` / `sn_prov_render_panel()` render helpers, a `[sn_provenance_verify]` how-to shortcode that publishes the ed25519 public key and `ots verify` steps, and a default front-end stylesheet ([assets/provenance-front.css](assets/provenance-front.css)) enqueued only on single Note views.
+- **`/provenance/verify` page** ([inc/content-surfaces.php](inc/content-surfaces.php), [inc/seed-content/verify-body.html](inc/seed-content/verify-body.html)): a seeded child of the Provenance hub carrying the verify shortcode — created on fresh installs and retrofitted onto already-seeded sites via a one-shot, idempotent `admin_init` migration ([inc/content-migrations.php](inc/content-migrations.php)), so the byline panel's "Verify it yourself" link always resolves.
+- **Tools → Provenance admin tab** ([inc/provenance-admin.php](inc/provenance-admin.php), [assets/provenance-admin.js](assets/provenance-admin.js)): a live anchor-status stepper that polls a nonce- and `manage_options`-gated REST endpoint (`sn-prov/v1/status`), built with safe DOM methods (no `innerHTML`) and surfacing a failed poll explicitly instead of a false "all anchored" state.
+
+### Changed
+- `sn_note_provenance` added to the plugin→theme cross-package contract table ([README.md](README.md)); the theme renders the byline chip and record panel from the view-model (theme-side wiring is a separate task).
+
+### Notes
+- The write path requires three `SN_PROV_*` wp-config constants (`SN_PROV_WORKER_URL`, `SN_PROV_HMAC_SECRET`, `SN_PROV_PUBKEY_B64`) plus the companion Worker and public ledger repo. Add these **only after this release is deployed**; on an install without the Worker the chain records locally and dispatch is a no-op.
+
 ## [9.7.0] - 2026-07-09: Feat — SEO description resolver lights up the descriptionless-Pages recommendation
 
 **Headline:** The Analytics Content view's Recommendations panel gains its third live rule: published Pages that would ship with no meta description. The card was built in v9.6.0 but shipped dormant, waiting on a shared resolver. That resolver now exists. The per-Page meta-description chain (a hand-written override, then the Page excerpt, then the theme's per-route copy) is extracted from the SEO head emission into one pure, named function, and both the head tags and the recommendation read it. So the card flags only a Page that truly resolves to nothing, and adding a Page excerpt (or theme route copy) makes it disappear.

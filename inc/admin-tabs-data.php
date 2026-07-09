@@ -186,6 +186,8 @@ function sn_admin_top_tabs() {
 				'block-migrations' => array( 'label' => 'Block Migrations', 'render' => 'sn_admin_render_block_migrations_section' ),
 				// v4.11.0 (T4): AI release-notes drafter.
 				'release-notes'    => array( 'label' => 'Release Notes', 'render' => 'sn_admin_render_release_notes_section' ),
+				// Notes provenance (Plan 6): live anchor-status stepper + public key.
+				'provenance'       => array( 'label' => 'Provenance', 'render' => 'sn_admin_render_provenance_section', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'            => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),

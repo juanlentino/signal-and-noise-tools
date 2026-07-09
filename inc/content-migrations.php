@@ -50,6 +50,16 @@ function sn_load_as_substrate_body() {
 	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
 }
 
+/**
+ * Load the seeded "Verify a Note" body markup from disk. Mirrors
+ * sn_load_as_substrate_body — same fallback semantics. The body carries the
+ * [sn_provenance_verify] shortcode, so the_content() renders the live steps.
+ */
+function sn_load_verify_body() {
+	$body_file = __DIR__ . '/seed-content/verify-body.html';
+	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
+}
+
 // ── MIGRATIONS (one-shot, idempotent per SN_*_MIGR_OPT flag) ───────
 
 /**
@@ -327,6 +337,36 @@ function sn_migrate_as_substrate_seed() {
 
 	sn_ensure_as_substrate_page();
 	update_option( SN_AS_SUBSTRATE_SEED_OPT, time(), true );
+}
+
+/**
+ * One-time migration that creates the public "Verify a Note" how-to page
+ * (/provenance/verify) on installs whose `SN_SEED_FLAG_OPTION` was already set
+ * before this page existed — the main seed flow short-circuits on those sites,
+ * so the new ensure-call needs its own gate. Without this the byline panel's
+ * "Verify it yourself" link 404s on every already-seeded production site.
+ *
+ * Idempotent on multiple axes: bails if the dedicated flag is set, and
+ * `sn_ensure_verify_page()` itself bails if the child page exists.
+ */
+add_action( 'admin_init', 'sn_migrate_verify_page_seed' );
+
+function sn_migrate_verify_page_seed() {
+	if ( get_option( SN_PROV_VERIFY_PAGE_MIGR_OPT ) ) {
+		return;
+	}
+
+	$parent = get_page_by_path( SN_PROVENANCE_SLUG );
+	if ( ! $parent ) {
+		// Parent page doesn't exist yet — sn_seed_content_surfaces will
+		// create both in the same pass on its next admin_init firing.
+		// Mark migrated so we don't keep scanning.
+		update_option( SN_PROV_VERIFY_PAGE_MIGR_OPT, time(), true );
+		return;
+	}
+
+	sn_ensure_verify_page();
+	update_option( SN_PROV_VERIFY_PAGE_MIGR_OPT, time(), true );
 }
 
 /**
