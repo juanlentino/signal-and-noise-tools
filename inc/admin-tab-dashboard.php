@@ -159,7 +159,7 @@ function snt_dashboard_tab_render() {
 	// actually exist on this install.
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
 	if ( ! empty( $cards ) ) {
-		echo '<section aria-label="Site at a glance">';
+		echo '<section class="sn-dash-glance" aria-label="Site at a glance">';
 		sn_admin_glance_grid( $cards );
 		echo '</section>';
 	}
@@ -398,6 +398,39 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	if ( function_exists( 'snt_freshness_card' ) ) {
 		$cards[] = snt_freshness_card();
 	}
+
+	// ── Provenance: confirmed count + pending pill. Only when provenance is
+	// active AND the Worker is configured — an unconfigured install dispatches
+	// nothing, so a "0 confirmed / all anchored" card would imply integrity that
+	// isn't there. Omit it instead (this file never fabricates a card). Reads the
+	// same view-model as the Tools → Provenance panel. ──
+	if ( function_exists( 'sn_prov_active' ) && sn_prov_active()
+		&& function_exists( 'sn_prov_worker_url' ) && '' !== sn_prov_worker_url()
+		&& function_exists( 'sn_prov_admin_system_status' ) ) {
+		$prov      = sn_prov_admin_system_status();
+		$confirmed = (int) ( $prov['counts']['confirmed'] ?? 0 );
+		$pending   = (int) ( $prov['counts']['pending'] ?? 0 );
+		$cards[]   = array(
+			'label' => 'Provenance',
+			'value' => sprintf( '%s confirmed', number_format_i18n( $confirmed ) ),
+			'pill'  => $pending > 0
+				? array( 'kind' => 'warn', 'text' => sprintf( '%s pending', number_format_i18n( $pending ) ) )
+				: array( 'kind' => 'ok', 'text' => 'all anchored' ),
+		);
+	}
+
+	// Arrange into the two-row grouping — release/integrity, then runtime/
+	// audience — independent of build order. Absent-source cards never appear;
+	// present cards follow this relative order. usort is stable on PHP 8+ (the
+	// plugin's floor), and every built card is in the map (an unlisted label
+	// sorts last, defensively).
+	$order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
+	$rank  = array_flip( $order );
+	usort( $cards, function ( $a, $b ) use ( $rank ) {
+		$ra = $rank[ is_array( $a ) ? ( $a['label'] ?? '' ) : '' ] ?? 999;
+		$rb = $rank[ is_array( $b ) ? ( $b['label'] ?? '' ) : '' ] ?? 999;
+		return $ra <=> $rb;
+	} );
 
 	return $cards;
 }

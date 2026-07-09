@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.10.0] - 2026-07-09: Feat — provenance card on the dashboard + a deliberate 2×5 glance grid
+
+**Headline:** The Signal & Noise dashboard now shows a **Provenance** card in its at-a-glance row — how many Notes are cryptographically confirmed on Bitcoin, with a pill for any still in flight — and the ten status cards are arranged in an intentional two-row-by-five grid grouped by meaning (release & integrity on top, runtime & audience below) instead of one auto-flowing row.
+
+> **Why MINOR:** adds a new user-visible surface (the Provenance glance card) built entirely from the existing `sn_prov_admin_system_status()` view-model — no new data layer, no settings-schema change. The card is omitted on installs where the provenance Worker isn't configured (this dashboard never fabricates a card). The 2×5 layout is scoped to the Dashboard tab (`.sn-dash-glance`) so the shared auto-fit glance grid used by every other section — including the Tools → Provenance panel — is untouched; it reflows 5 → 3 → 2 → 1 as the viewport narrows.
+
+### New
+- Provenance glance card on the Dashboard: value = confirmed (Bitcoin-anchored) Note count, pill = "N pending" (amber) while proofs are in flight or "all anchored" (green) when the queue is clear. Sourced from the same view-model as the Tools → Provenance panel; shown only when the provenance Worker is configured ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)).
+
+### Improvements
+- The Dashboard glance row is now a deliberate two-row-by-five grid grouped by meaning — Row 1 (release & integrity): Theme, Plugin, Deploys, Provenance, Health; Row 2 (runtime & audience): Cron, Caches, Login blocks, Views, AI spend — enforced by a label-priority sort independent of build order, so absent-source cards drop out cleanly. Scoped to the Dashboard via `.sn-dash-glance`, leaving every other `.sn-glance` grid on its shared auto-fit layout ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php), [assets/admin.css](assets/admin.css)).
+
 ## [9.9.3] - 2026-07-09: Improvement — provenance panel fills its full width via the shared two-column shell
 
 **Headline:** The Tools → Provenance panel now uses the whole content width instead of leaving the entire right half blank. The live Commits table moves into a wide main column, and the compact System and Genesis anchor readouts stack in a narrower right rail — the same two-column admin shell the RSS, IndexNow, audit-log, redirects, and other settings sections already use. This fixes the sparse, left-aligned look of v9.9.2, where the `.sn-fieldset` cards sat at their 820 px cap with a wide empty gutter beside them.

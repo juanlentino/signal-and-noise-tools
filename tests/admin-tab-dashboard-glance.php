@@ -56,6 +56,12 @@ $GLOBALS['__d'] = array(
 	'config'  => true,
 	'deltas'  => array( 'views' => array( 'current' => 1204, 'previous' => 1100, 'pct' => 9, 'dir' => 'up' ) ),
 	'overrides_ids' => array(),
+	'prov'    => array(
+		'active'     => true,
+		'worker_url' => 'https://w',
+		'counts'     => array( 'confirmed' => 1, 'pending' => 2, 'unanchored' => 0 ),
+		'config'     => array( 'worker_url' => true ),
+	),
 );
 
 function sn_health_last_scan() { return $GLOBALS['__d']['health']; }
@@ -64,6 +70,10 @@ function snt_cron_summary_for_localize() { return $GLOBALS['__d']['cron']; }
 function sn_login_defense_headline() { return $GLOBALS['__d']['login']; }
 function sn_analytics_config() { return $GLOBALS['__d']['config']; }
 function sn_analytics_period_deltas( $from, $to, $class = 'human' ) { return $GLOBALS['__d']['deltas']; }
+// Provenance accessors (provenance-*.php not loaded here → safe to stub, no redeclare).
+function sn_prov_active() { return ! empty( $GLOBALS['__d']['prov']['active'] ); }
+function sn_prov_worker_url() { return (string) ( $GLOBALS['__d']['prov']['worker_url'] ?? '' ); }
+function sn_prov_admin_system_status() { return $GLOBALS['__d']['prov']; }
 // snt_dashboard_override_count() is defined inside the file under test; it calls
 // get_posts() with fields=ids. Drive the override count via this stub so we
 // don't redeclare the real function.
@@ -115,6 +125,25 @@ foreach ( $cards as $c ) {
 	if ( is_array( $c ) && ( $c['id'] ?? '' ) === 'snt-freshness-card' ) { $has_freshness_id = true; break; }
 }
 dg_assert( $has_freshness_id, 'the freshness card carries id=snt-freshness-card' );
+dg_assert( in_array( 'Provenance', $labels, true ), 'includes a Provenance card (configured)' );
+
+// Grouped 2×5 order: release/integrity row then runtime/audience row.
+$expected_order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
+dg_assert( $labels === $expected_order, 'cards render in the grouped 2×5 order (release/integrity, then runtime/audience)' );
+
+// Provenance card content: confirmed count + pending pill.
+$prov_card = null;
+foreach ( $cards as $c ) { if ( 'Provenance' === ( $c['label'] ?? '' ) ) { $prov_card = $c; break; } }
+dg_assert( null !== $prov_card && '1 confirmed' === ( $prov_card['value'] ?? '' ), 'Provenance value = confirmed count ("1 confirmed")' );
+dg_assert( null !== $prov_card && 'warn' === ( $prov_card['pill']['kind'] ?? '' ) && false !== strpos( (string) ( $prov_card['pill']['text'] ?? '' ), 'pending' ), 'Provenance pill = pending count (warn) when pending > 0' );
+
+// pending = 0 → ok "all anchored".
+$GLOBALS['__d']['prov']['counts']['pending'] = 0;
+$cards_anch = snt_dashboard_glance_cards( $theme, $plugin, array(), '—' );
+$prov_anch  = null;
+foreach ( $cards_anch as $c ) { if ( 'Provenance' === ( $c['label'] ?? '' ) ) { $prov_anch = $c; break; } }
+dg_assert( null !== $prov_anch && 'ok' === ( $prov_anch['pill']['kind'] ?? '' ) && 'all anchored' === ( $prov_anch['pill']['text'] ?? '' ), 'Provenance pill = "all anchored" (ok) when nothing pending' );
+$GLOBALS['__d']['prov']['counts']['pending'] = 2; // restore
 
 // The grid renders via sn_admin_glance_grid.
 ob_start();
@@ -135,6 +164,12 @@ $GLOBALS['__d']['config'] = false;
 $cards_b2 = snt_dashboard_glance_cards( $theme, $plugin, array(), '—' );
 $labels_b2 = array_map( function ( $c ) { return $c['label'] ?? ''; }, $cards_b2 );
 dg_assert( ! in_array( 'Views 7d', $labels_b2, true ), 'views card omitted when analytics not configured' );
+// Provenance not configured (empty worker_url) → no Provenance card.
+$GLOBALS['__d']['prov']['worker_url'] = '';
+$cards_bp  = snt_dashboard_glance_cards( $theme, $plugin, array(), '—' );
+$labels_bp = array_map( function ( $c ) { return $c['label'] ?? ''; }, $cards_bp );
+dg_assert( ! in_array( 'Provenance', $labels_bp, true ), 'Provenance card omitted when the worker is not configured' );
+$GLOBALS['__d']['prov']['worker_url'] = 'https://w';
 // Restore.
 $GLOBALS['__d']['login']  = array( 'configured' => true, 'blocked' => 42, 'block_rate' => 18, 'top_network' => 'AS1234' );
 $GLOBALS['__d']['config'] = true;
@@ -229,6 +264,7 @@ ob_start();
 snt_dashboard_tab_render();
 $tab = ob_get_clean();
 dg_contains( $tab, '<div class="sn-glance">', 'dashboard tab opens with the glance grid' );
+dg_contains( $tab, 'sn-dash-glance', 'glance section carries the dashboard-scoped 2×5 wrapper class' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
