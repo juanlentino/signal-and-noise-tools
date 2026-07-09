@@ -64,6 +64,10 @@ function sn_post_settings_register_meta() {
 		'sanitize_callback' => 'esc_url_raw',
 	);
 
+	// v9.3.0: title override is single-line — sanitize as text, not textarea.
+	$title_args                      = $text_args;
+	$title_args['sanitize_callback'] = 'sanitize_text_field';
+
 	foreach ( SN_POST_SETTINGS_POST_TYPES as $post_type ) {
 		register_post_meta( $post_type, '_sn_noindex',          $bool_args );
 		register_post_meta( $post_type, '_sn_noarchive',        $bool_args );
@@ -73,6 +77,7 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_canonical_url',    $url_args );
 		register_post_meta( $post_type, '_sn_og_image_url',     $url_args );
 		register_post_meta( $post_type, '_sn_og_card_title',    $text_args );
+		register_post_meta( $post_type, '_sn_seo_title',        $title_args ); // v9.3.0
 	}
 }
 add_action( 'init', 'sn_post_settings_register_meta' );
@@ -116,6 +121,7 @@ function sn_post_settings_render( $post ) {
 	$canonical     = (string) get_post_meta( $post->ID, '_sn_canonical_url', true );
 	$og            = (string) get_post_meta( $post->ID, '_sn_og_image_url', true );
 	$og_card_title = (string) get_post_meta( $post->ID, '_sn_og_card_title', true );
+	$seo_title     = (string) get_post_meta( $post->ID, '_sn_seo_title', true );
 
 	echo '<div class="sn-post-settings">';
 
@@ -157,6 +163,13 @@ function sn_post_settings_render( $post ) {
 	echo 'Hide images from image search (noimageindex)';
 	echo '</label>';
 	echo '<p class="sn-field-helper">Images on this page won&rsquo;t appear in Google Images.</p>';
+	echo '</div>';
+
+	// ─── SEO / social title override (v9.3.0) ───
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_seo_title">SEO title</label>';
+	echo '<input type="text" id="sn_seo_title" name="sn_seo_title" value="' . esc_attr( $seo_title ) . '" placeholder="' . esc_attr( wp_strip_all_tags( get_the_title( $post ) ) ) . '">';
+	echo '<p class="sn-field-helper">Overrides the page title used for the browser tab, <code>og:title</code>, and <code>twitter:title</code>. The site name is still appended. Empty falls back to the real page title.</p>';
 	echo '</div>';
 
 	// ─── Meta description ───
@@ -255,6 +268,16 @@ function sn_post_settings_save( $post_id ) {
 		delete_post_meta( $post_id, '_sn_og_card_title' );
 	}
 
+	// SEO title override (v9.3.0) — single-line, sanitize as text.
+	$seo_title = isset( $_POST['sn_seo_title'] )
+		? sanitize_text_field( wp_unslash( $_POST['sn_seo_title'] ) )
+		: '';
+	if ( '' !== $seo_title ) {
+		update_post_meta( $post_id, '_sn_seo_title', $seo_title );
+	} else {
+		delete_post_meta( $post_id, '_sn_seo_title' );
+	}
+
 	// URL fields — esc_url_raw strips invalid URLs to ''.
 	$url_fields = array(
 		'_sn_canonical_url' => 'sn_canonical_url',
@@ -310,4 +333,8 @@ function sn_post_settings_get_og_image_url( $post_id ) {
 
 function sn_post_settings_get_og_card_title( $post_id ) {
 	return (string) get_post_meta( $post_id, '_sn_og_card_title', true );
+}
+
+function sn_post_settings_get_seo_title( $post_id ) {
+	return (string) get_post_meta( $post_id, '_sn_seo_title', true );
 }
