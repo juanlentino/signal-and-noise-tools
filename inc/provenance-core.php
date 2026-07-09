@@ -48,3 +48,43 @@ function sn_prov_note_uid( $post_id ) {
 	update_post_meta( (int) $post_id, SN_PROV_UID_META, $uid );
 	return $uid;
 }
+
+/**
+ * sn-normalize-v1: block/HTML markup -> deterministic plain prose.
+ *
+ * Ordered pipeline (mirrored byte-for-byte by the JS reference impl in the
+ * ledger repo — DO NOT reorder without bumping the algo version):
+ *   1. remove Gutenberg block-delimiter comments
+ *   2. strip all HTML tags
+ *   3. decode HTML entities exactly once (HTML5 table, UTF-8)
+ *   4. Unicode NFC (ext-intl)
+ *   5. line endings -> LF, strip leading BOM
+ *   6. per line: collapse [space|tab|NBSP] runs to one space, trim
+ *   7. collapse 2+ blank lines to one; trim overall
+ *
+ * @param string $post_content
+ * @return string
+ */
+function sn_prov_normalize_v1( $post_content ) {
+	$s = (string) $post_content;
+	$s = preg_replace( '/<!--\s*\/?wp:.*?-->/s', '', $s );            // 1
+	$s = wp_strip_all_tags( $s );                                     // 2
+	$s = html_entity_decode( $s, ENT_QUOTES | ENT_HTML5, 'UTF-8' );   // 3
+	if ( function_exists( 'normalizer_normalize' ) ) {               // 4
+		$n = normalizer_normalize( $s, Normalizer::FORM_C );
+		if ( is_string( $n ) ) {
+			$s = $n;
+		}
+	}
+	$s = preg_replace( '/^\x{FEFF}/u', '', $s );                      // 5
+	$s = preg_replace( '/\r\n?/', "\n", $s );
+	$lines = array_map(                                              // 6
+		static function ( $ln ) {
+			return trim( preg_replace( '/[ \t\x{00A0}]+/u', ' ', $ln ) );
+		},
+		explode( "\n", $s )
+	);
+	$s = implode( "\n", $lines );
+	$s = preg_replace( '/\n{3,}/', "\n\n", $s );                     // 7
+	return trim( $s );
+}
