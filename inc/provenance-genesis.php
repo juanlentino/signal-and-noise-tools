@@ -98,3 +98,39 @@ function sn_prov_merkle_verify( $leaf_data, array $proof, $root_hex ) {
 	}
 	return hash_equals( $root_hex, bin2hex( $h ) );
 }
+
+/**
+ * The genesis (v0) canonical payload bytes for a Note — the Merkle leaf data.
+ *
+ * @param WP_Post|object $post
+ * @param string         $author
+ * @return string canonical JSON
+ */
+function sn_prov_genesis_leaf( $post, $author ) {
+	return sn_prov_canonical_json( sn_prov_build_payload( $post, 0, null, $author ) );
+}
+
+/**
+ * Published Notes with no commit chain yet — the backlog to snapshot.
+ * Ordered by post_date ASC so the leaf order is deterministic + reproducible.
+ *
+ * @return int[] post IDs
+ */
+function sn_prov_genesis_backlog() {
+	$ids = get_posts( array(
+		'post_type'   => 'post',
+		'post_status' => 'publish',
+		'numberposts' => -1,
+		'orderby'     => 'date',
+		'order'       => 'ASC',
+		'fields'      => 'ids',
+		'category_name' => apply_filters( 'sn_prov_note_category', 'notes' ),
+	) );
+	$backlog = array();
+	foreach ( $ids as $id ) {
+		if ( ! sn_prov_get_chain( (int) $id ) ) {
+			$backlog[] = (int) $id;
+		}
+	}
+	return $backlog;
+}
