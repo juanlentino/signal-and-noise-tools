@@ -162,3 +162,29 @@ function sn_prov_enqueue_front() {
 	);
 }
 add_action( 'wp_enqueue_scripts', 'sn_prov_enqueue_front' );
+
+/**
+ * Renders the "verify it yourself" instructions + the published public key.
+ *
+ * @param array $atts Shortcode attributes (unused).
+ * @return string
+ */
+function sn_prov_verify_shortcode( $atts ) {
+	$pub   = function_exists( 'sn_prov_pubkey_b64' ) ? sn_prov_pubkey_b64() : '';
+	$steps = array(
+		'Fetch the Note\'s <code>vN.json</code> from the git ledger.',
+		'Recompute <code>sn-normalize-v1</code> on the published text, rebuild the canonical JSON, and SHA-256 it — it must equal <code>content_hash</code>.',
+		'Verify the Ed25519 <code>signature</code> against the public key below.',
+		'Run <code>ots verify vN.ots</code> — Bitcoin attests the timestamp; no need to trust this site.',
+	);
+	$list = '';
+	foreach ( $steps as $s ) {
+		$list .= '<li>' . wp_kses( $s, array( 'code' => array() ) ) . '</li>';
+	}
+	return sprintf(
+		'<div class="sn-prov-verify"><ol>%s</ol><p class="sn-prov-key"><strong>Public key (Ed25519, base64):</strong> <code>%s</code></p></div>',
+		$list,
+		esc_html( $pub )
+	);
+}
+add_shortcode( 'sn_provenance_verify', 'sn_prov_verify_shortcode' );

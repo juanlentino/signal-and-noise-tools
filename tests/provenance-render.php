@@ -60,7 +60,20 @@ if ( ! function_exists( 'number_format_i18n' ) ) {
 	function number_format_i18n( $n, $decimals = 0 ) {
 		return number_format( (float) $n, (int) $decimals ); }
 }
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $k, $d = false ) {
+		return $GLOBALS['__pv_options'][ $k ] ?? $d; }
+}
+if ( ! function_exists( 'add_shortcode' ) ) {
+	function add_shortcode() {
+		return true; }
+}
+if ( ! function_exists( 'wp_kses' ) ) {
+	function wp_kses( $s, $allowed = array() ) {
+		return (string) $s; }
+}
 require_once SNT_PATH . 'inc/provenance-core.php';
+require_once SNT_PATH . 'inc/provenance-webhook.php';
 require_once SNT_PATH . 'inc/provenance-render.php';
 
 $pass = 0;
@@ -121,6 +134,13 @@ rp_true( false !== strpos( $panel, 'v2' ) && false !== strpos( $panel, 'v1' ), '
 
 $panel6 = sn_prov_render_panel( 6 ); // genesis-only
 rp_true( false !== strpos( $panel6, 'not independently proven' ), 'genesis caveat rendered' );
+
+echo "\nTask 3: verify shortcode\n";
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBLICKEYBASE64';
+$html = sn_prov_verify_shortcode( array() );
+rp_true( false !== strpos( $html, 'PUBLICKEYBASE64' ), 'verify content shows the public key' );
+rp_true( false !== strpos( $html, 'ots verify' ), 'verify content documents ots verify' );
+rp_true( false !== strpos( $html, 'sn-normalize-v1' ), 'verify content names the normalization algo' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
