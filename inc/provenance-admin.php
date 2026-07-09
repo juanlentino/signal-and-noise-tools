@@ -195,32 +195,31 @@ function sn_prov_admin_status_handler( $request ) {
 }
 
 /**
- * Tools → Provenance section body: three cards (System, Genesis, Commits) built
- * on the shared admin design system. The Commits card's live region is hydrated
- * by assets/provenance-admin.js polling the /status endpoint; the container
- * keeps the data-endpoint/data-nonce (and a data-ledger base) the JS needs.
+ * Tools → Provenance section body, rendered in the house settings-page idiom: a
+ * first-glance stat-card hero over stacked full-width .sn-fieldset blocks
+ * (System, Genesis anchor, Commits). The Commits table's <tbody> is the live
+ * region assets/provenance-admin.js hydrates by polling the /status endpoint; it
+ * carries the data-endpoint/data-nonce/data-ledger the poller reads.
+ *
+ * The dispatcher wraps this callback in <div class="sn-section"> (the leaf is
+ * registered 'wide'), so this renderer adds NO outer wrapper of its own.
  */
 function sn_admin_render_provenance_section() {
 	$sys        = sn_prov_admin_system_status();
 	$ledger_url = (string) $sys['ledger_url'];
 	$note_base  = '' !== $ledger_url ? $ledger_url . '/tree/main/notes/' : '';
 
-	echo '<div class="sn-prov-admin"'
-		. ' data-endpoint="' . esc_attr( esc_url_raw( rest_url( 'sn-prov/v1/status' ) ) ) . '"'
-		. ' data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '"'
-		. ' data-ledger="' . esc_attr( esc_url_raw( $note_base ) ) . '">';
+	// 1. First-glance hero: Worker / Genesis / Pending / Confirmed.
+	if ( function_exists( 'sn_admin_glance_grid' ) ) {
+		echo '<section aria-label="Provenance at a glance">';
+		sn_admin_glance_grid( sn_prov_admin_glance_cards( $sys ) );
+		echo '</section>';
+	}
 
-	sn_prov_admin_render_reanchor_notice();
-
-	// Top row: System + Genesis side by side. Commits spans full width BELOW the
-	// grid (a table never fits a ~360px card column).
-	echo '<div class="sn-card-grid">';
-	sn_prov_admin_render_system_card( $sys );
-	sn_prov_admin_render_genesis_card( $sys );
-	echo '</div>';
-	sn_prov_admin_render_commits_card();
-
-	echo '</div>';
+	// 2. Stacked full-width fieldset blocks (System, Genesis, Commits).
+	sn_prov_admin_render_system_fieldset( $sys );
+	sn_prov_admin_render_genesis_fieldset( $sys );
+	sn_prov_admin_render_commits_fieldset( $note_base );
 }
 
 /**
@@ -243,22 +242,95 @@ function sn_prov_admin_status_label( $status ) {
 }
 
 /**
- * The ?sn_prov_reanchor=ok|fail flash notice as a status box. Read-only display
- * of a whitelisted flag — no state change, so no nonce is required here.
+ * First-glance hero cards for the Provenance panel: Worker reachability, the
+ * genesis anchor status, and the pending/confirmed commit tallies. Pure — takes
+ * the sn_prov_admin_system_status() view-model, returns the card array for
+ * sn_admin_glance_grid(). Mirrors snt_tags_glance_cards().
+ *
+ * @param array $sys sn_prov_admin_system_status() view-model.
+ * @return array<int,array<string,mixed>>
  */
-function sn_prov_admin_render_reanchor_notice() {
+function sn_prov_admin_glance_cards( array $sys ) {
+	$reachable    = ! empty( $sys['worker']['reachable'] );
+	$last_contact = (string) ( $sys['worker']['last_contact'] ?? '' );
+	$worker_value = $reachable
+		? __( 'Reachable', 'signal-and-noise-tools' )
+		: __( 'No contact yet', 'signal-and-noise-tools' );
+	if ( $reachable && '' !== $last_contact ) {
+		$worker_value .= ' · ' . $last_contact;
+	}
+
+	$genesis  = is_array( $sys['genesis'] ) ? $sys['genesis'] : array();
+	$g_status = (string) ( $genesis['status'] ?? '' );
+	$g_pills  = array(
+		'confirmed' => array( 'kind' => 'ok', 'text' => 'anchored' ),
+		'pending'   => array( 'kind' => 'warn', 'text' => 'awaiting' ),
+		'unsent'    => array( 'kind' => 'err', 'text' => 'unsent' ),
+	);
+	$genesis_card = array(
+		'label' => 'Genesis',
+		'value' => '' !== $g_status ? sn_prov_admin_status_label( $g_status ) : __( 'Not anchored', 'signal-and-noise-tools' ),
+	);
+	if ( isset( $g_pills[ $g_status ] ) ) {
+		$genesis_card['pill'] = $g_pills[ $g_status ];
+	}
+
+	$pending   = (int) ( $sys['counts']['pending'] ?? 0 );
+	$confirmed = (int) ( $sys['counts']['confirmed'] ?? 0 );
+
+	return array(
+		array(
+			'label' => 'Worker',
+			'value' => $worker_value,
+			'pill'  => $reachable
+				? array( 'kind' => 'ok', 'text' => 'online' )
+				: array( 'kind' => 'warn', 'text' => 'idle' ),
+		),
+		$genesis_card,
+		array(
+			'label' => 'Pending',
+			'value' => number_format_i18n( $pending ),
+			'pill'  => $pending > 0
+				? array( 'kind' => 'warn', 'text' => 'in flight' )
+				: array( 'kind' => 'ok', 'text' => 'clear' ),
+		),
+		array(
+			'label' => 'Confirmed',
+			'value' => number_format_i18n( $confirmed ),
+			'pill'  => array( 'kind' => 'ok', 'text' => 'anchored' ),
+		),
+	);
+}
+
+/**
+ * The ?sn_prov_reanchor=ok|fail flash notice as a status box, rendered inside the
+ * Genesis fieldset (beside the re-anchor form). Read-only display of a
+ * whitelisted flag — no state change, so no nonce is required here.
+ *
+ * The failure copy is config-aware (honest reporting): when all three SN_PROV_*
+ * constants are present, the dispatch reached a deployed Worker that rejected it,
+ * so it blames the Worker; otherwise the constants are simply unset.
+ *
+ * @param array $sys sn_prov_admin_system_status() view-model (for config booleans).
+ */
+function sn_prov_admin_render_reanchor_notice( array $sys ) {
 	if ( ! isset( $_GET['sn_prov_reanchor'] ) ) {
 		return;
 	}
 	$result = sanitize_text_field( wp_unslash( $_GET['sn_prov_reanchor'] ) );
 	if ( 'ok' === $result ) {
 		$mod   = '';
-		$title = esc_html__( 'Re-anchor dispatched', 'signal-and-noise-tools' );
-		$body  = esc_html__( 'The genesis root was re-submitted to the Worker for anchoring.', 'signal-and-noise-tools' );
+		$title = __( 'Re-anchor dispatched', 'signal-and-noise-tools' );
+		$body  = __( 'The genesis root was re-submitted to the Worker for anchoring.', 'signal-and-noise-tools' );
 	} elseif ( 'fail' === $result ) {
-		$mod   = ' sn-status-box--err';
-		$title = esc_html__( 'Re-anchor failed', 'signal-and-noise-tools' );
-		$body  = esc_html__( 'Nothing was dispatched — check the Worker URL and HMAC secret are configured.', 'signal-and-noise-tools' );
+		$mod    = ' sn-status-box--err';
+		$title  = __( 'Re-anchor failed', 'signal-and-noise-tools' );
+		$config = isset( $sys['config'] ) && is_array( $sys['config'] ) ? $sys['config'] : array();
+		if ( ! empty( $config['worker_url'] ) && ! empty( $config['hmac'] ) && ! empty( $config['pubkey'] ) ) {
+			$body = __( 'The Worker rejected the dispatch. Check the Worker is deployed and reachable.', 'signal-and-noise-tools' );
+		} else {
+			$body = __( 'Set the SN_PROV_* constants in wp-config first.', 'signal-and-noise-tools' );
+		}
 	} else {
 		return;
 	}
@@ -269,30 +341,20 @@ function sn_prov_admin_render_reanchor_notice() {
 }
 
 /**
- * System card: inferred Worker status pill, config presence readout (never a
- * secret), the public key, and the ledger link.
+ * System fieldset: the config-presence readout (Worker URL / HMAC secret /
+ * Public key — presence booleans ONLY, never the secret value), the Ed25519
+ * public key, and the public-ledger link.
  *
  * @param array $sys sn_prov_admin_system_status() view-model.
  */
-function sn_prov_admin_render_system_card( array $sys ) {
-	echo '<section class="sn-card sn-prov-card">';
-	echo '<strong>' . esc_html__( 'System', 'signal-and-noise-tools' ) . '</strong>';
+function sn_prov_admin_render_system_fieldset( array $sys ) {
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'System', 'signal-and-noise-tools' ) . '</h2>';
 
-	if ( ! empty( $sys['worker']['reachable'] ) ) {
-		echo '<p><span class="sn-pill sn-pill--ok">' . esc_html__( 'Worker: reachable', 'signal-and-noise-tools' );
-		if ( '' !== (string) $sys['worker']['last_contact'] ) {
-			echo ' &middot; ' . esc_html( (string) $sys['worker']['last_contact'] );
-		}
-		echo '</span></p>';
-	} else {
-		echo '<p><span class="sn-pill sn-pill--warn">' . esc_html__( 'Worker: no contact yet', 'signal-and-noise-tools' ) . '</span></p>';
-	}
-
-	echo '<ul class="sn-prov-config">';
-	sn_prov_admin_render_config_row( __( 'Worker URL', 'signal-and-noise-tools' ), ! empty( $sys['config']['worker_url'] ) );
-	sn_prov_admin_render_config_row( __( 'HMAC secret', 'signal-and-noise-tools' ), ! empty( $sys['config']['hmac'] ) );
-	sn_prov_admin_render_config_row( __( 'Public key', 'signal-and-noise-tools' ), ! empty( $sys['config']['pubkey'] ) );
-	echo '</ul>';
+	echo '<table class="widefat striped sn-prov-config"><tbody>';
+	sn_prov_admin_config_row( __( 'Worker URL', 'signal-and-noise-tools' ), ! empty( $sys['config']['worker_url'] ) );
+	sn_prov_admin_config_row( __( 'HMAC secret', 'signal-and-noise-tools' ), ! empty( $sys['config']['hmac'] ) );
+	sn_prov_admin_config_row( __( 'Public key', 'signal-and-noise-tools' ), ! empty( $sys['config']['pubkey'] ) );
+	echo '</tbody></table>';
 
 	$pubkey = (string) $sys['pubkey'];
 	if ( '' !== $pubkey ) {
@@ -304,36 +366,40 @@ function sn_prov_admin_render_system_card( array $sys ) {
 		echo '<p><a href="' . esc_url( $ledger_url ) . '" target="_blank" rel="noopener">'
 			. esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	}
-	echo '</section>';
+	echo '</div>';
 }
 
 /**
- * One config presence row: a label with a ✓/✗ pill. Presence only — the value
- * (e.g. the HMAC secret) is NEVER rendered.
+ * One config-presence row (a striped table row): the setting label with a ✓/✗
+ * presence pill. Presence ONLY — the value (e.g. the HMAC secret) is NEVER
+ * rendered.
  *
- * @param string $label
- * @param bool   $present
+ * @param string $label   Human setting label.
+ * @param bool   $present Whether the constant/option is configured.
  */
-function sn_prov_admin_render_config_row( $label, $present ) {
+function sn_prov_admin_config_row( $label, $present ) {
 	$class = $present ? 'sn-pill sn-pill--ok' : 'sn-pill sn-pill--warn';
 	$mark  = $present ? '✓' : '✗';
-	echo '<li><span>' . esc_html( $label ) . '</span>'
-		. '<span class="' . esc_attr( $class ) . '">' . esc_html( $mark ) . '</span></li>';
+	echo '<tr><td>' . esc_html( $label ) . '</td>'
+		. '<td><span class="' . esc_attr( $class ) . '">' . esc_html( $mark ) . '</span></td></tr>';
 }
 
 /**
- * Genesis card: anchor-status pill, the truncated root, and the re-anchor
- * button (POSTs to admin-post.php, nonce-protected).
+ * Genesis anchor fieldset: the flash notice for the last re-anchor action, the
+ * anchor-status pill, the truncated root, and the re-anchor button (POSTs to
+ * admin-post.php, nonce-protected).
  *
  * @param array $sys sn_prov_admin_system_status() view-model.
  */
-function sn_prov_admin_render_genesis_card( array $sys ) {
+function sn_prov_admin_render_genesis_fieldset( array $sys ) {
 	$genesis = is_array( $sys['genesis'] ) ? $sys['genesis'] : array();
 	$status  = (string) ( $genesis['status'] ?? '' );
 	$root    = (string) ( $genesis['root'] ?? '' );
 
-	echo '<section class="sn-card sn-prov-card">';
-	echo '<strong>' . esc_html__( 'Genesis anchor', 'signal-and-noise-tools' ) . '</strong>';
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Genesis anchor', 'signal-and-noise-tools' ) . '</h2>';
+
+	// The re-anchor form lives in this fieldset, so its result notice does too.
+	sn_prov_admin_render_reanchor_notice( $sys );
 
 	// Color class per genesis-anchor status; the label text comes from the shared
 	// label map so its casing matches the commits table.
@@ -357,18 +423,31 @@ function sn_prov_admin_render_genesis_card( array $sys ) {
 	echo '<input type="hidden" name="action" value="sn_prov_reanchor" />';
 	echo '<button type="submit" class="button">' . esc_html__( 'Re-anchor genesis', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form>';
-	echo '</section>';
+	echo '</div>';
 }
 
 /**
- * Commits card: the aria-live region the JS hydrates into a commits table.
- * Full-width (its own row in the grid).
+ * Commits fieldset: a wp-list-table whose <tbody class="sn-prov-live"> is the
+ * aria-live region assets/provenance-admin.js hydrates into commit rows. The
+ * tbody carries the data-endpoint/data-nonce/data-ledger the poller reads.
+ *
+ * @param string $note_base Per-Note ledger URL base (empty when unconfigured).
  */
-function sn_prov_admin_render_commits_card() {
-	echo '<section class="sn-card sn-prov-card sn-prov-card--wide">';
-	echo '<strong>' . esc_html__( 'Commits', 'signal-and-noise-tools' ) . '</strong>';
-	echo '<div class="sn-prov-live" aria-live="polite"><p>' . esc_html__( 'Loading anchor status…', 'signal-and-noise-tools' ) . '</p></div>';
-	echo '</section>';
+function sn_prov_admin_render_commits_fieldset( $note_base ) {
+	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html__( 'Commits', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<table class="wp-list-table widefat striped sn-prov-table"><thead><tr>'
+		. '<th>' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
+		. '<th>' . esc_html__( 'Version', 'signal-and-noise-tools' ) . '</th>'
+		. '<th>' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>'
+		. '<th>' . esc_html__( 'Ledger', 'signal-and-noise-tools' ) . '</th>'
+		. '</tr></thead>';
+	echo '<tbody class="sn-prov-live" aria-live="polite"'
+		. ' data-endpoint="' . esc_attr( esc_url_raw( rest_url( 'sn-prov/v1/status' ) ) ) . '"'
+		. ' data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '"'
+		. ' data-ledger="' . esc_attr( esc_url_raw( (string) $note_base ) ) . '">';
+	echo '<tr><td colspan="4">' . esc_html__( 'Loading anchor status…', 'signal-and-noise-tools' ) . '</td></tr>';
+	echo '</tbody></table>';
+	echo '</div>';
 }
 
 /**

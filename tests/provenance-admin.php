@@ -161,6 +161,10 @@ if ( ! function_exists( 'add_query_arg' ) ) {
 		$sep = ( false === strpos( (string) $url, '?' ) ) ? '?' : '&';
 		return $url . $sep . http_build_query( $args ); }
 }
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $number, $decimals = 0 ) {
+		return number_format( (float) $number, (int) $decimals ); }
+}
 if ( ! function_exists( 'wp_nonce_field' ) ) {
 	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
 		$field = '<input type="hidden" name="' . $name . '" value="nonce-' . md5( (string) $action ) . '" />';
@@ -203,6 +207,10 @@ require_once SNT_PATH . 'inc/provenance-core.php';
 // Loads the REAL sn_prov_pubkey_b64() (unguarded — never stub it: redeclare
 // fatal) so the renderer test drives it via the sn_prov_pubkey_b64 option.
 require_once SNT_PATH . 'inc/provenance-webhook.php';
+// The redesigned section renders the shared first-glance grid (Task 1). Load the
+// REAL helper (unguarded — never stub it: redeclare fatal) so the smoke test can
+// assert the .sn-glance markup it emits.
+require_once SNT_PATH . 'inc/admin-glance.php';
 require_once SNT_PATH . 'inc/provenance-admin.php';
 
 $pass = 0;
@@ -265,18 +273,24 @@ $GLOBALS['__pv_enq'] = array();
 sn_prov_admin_enqueue( 'edit.php' );
 ad_eq( 0, count( $GLOBALS['__pv_enq'] ), 'assets NOT enqueued on foreign screens' );
 
-echo "\nTask 5b: section renderer\n";
+echo "\nTask 5b: section renderer (house pattern — glance + fieldsets + list table)\n";
 // The real sn_prov_pubkey_b64() falls back to get_option( 'sn_prov_pubkey_b64' )
 // (no wp-config constant in the harness), so seed the published key there.
 $GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEYSMOKE';
 ob_start();
 sn_admin_render_provenance_section();
 $html = ob_get_clean();
-ad_true( false !== strpos( $html, 'sn-prov-admin' ), 'renders the sn-prov-admin wrapper' );
-ad_true( false !== strpos( $html, 'data-endpoint' ), 'wrapper carries the status data-endpoint' );
-ad_true( false !== strpos( $html, 'data-nonce' ), 'wrapper carries the wp_rest data-nonce' );
-ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live status region' );
+ad_true( false !== strpos( $html, 'sn-glance' ), 'renders the first-glance hero grid' );
+ad_true( false !== strpos( $html, 'sn-fieldset-h' ), 'renders .sn-fieldset section headings' );
+ad_true( false !== strpos( $html, '>System<' ), 'System fieldset heading present' );
+ad_true( false !== strpos( $html, 'Genesis anchor' ), 'Genesis anchor fieldset heading present' );
+ad_true( false !== strpos( $html, '>Commits<' ), 'Commits fieldset heading present' );
+ad_true( false !== strpos( $html, 'wp-list-table' ), 'renders the commits wp-list-table' );
+ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live commits tbody' );
+ad_true( false !== strpos( $html, 'data-endpoint' ), 'live tbody carries the status data-endpoint' );
+ad_true( false !== strpos( $html, 'data-nonce' ), 'live tbody carries the wp_rest data-nonce' );
 ad_true( false !== strpos( $html, 'PUBKEYSMOKE' ), 'publishes the Ed25519 public key from the option' );
+ad_true( false === strpos( $html, 'sn-card-grid' ), 'no foreign card-grid markup remains' );
 
 echo "\nTask 6: system status view-model\n";
 $GLOBALS['__pv_meta']    = array();
@@ -365,7 +379,7 @@ ad_eq( 0, $GLOBALS['__pv_reanchor_called'], 'reanchor NOT invoked without manage
 ad_true( $GLOBALS['__pv_died'], 'handler dies (403) without the cap' );
 $GLOBALS['__pv_can'] = true;
 
-echo "\nTask 8: redesigned section renderer (cards + button + secret safety)\n";
+echo "\nTask 8: redesigned section renderer (house pattern + button + secret safety)\n";
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'PUBKEYSMOKE';
@@ -377,17 +391,18 @@ ob_start();
 sn_admin_render_provenance_section();
 $html2 = ob_get_clean();
 unset( $_GET['sn_prov_reanchor'] );
-ad_true( false !== strpos( $html2, 'sn-prov-admin' ), 'still renders the sn-prov-admin wrapper' );
-ad_true( false !== strpos( $html2, 'data-endpoint' ), 'wrapper keeps the status data-endpoint' );
-ad_true( false !== strpos( $html2, 'data-nonce' ), 'wrapper keeps the wp_rest data-nonce' );
+ad_true( false !== strpos( $html2, 'sn-glance' ), 'still renders the first-glance hero' );
+ad_true( false !== strpos( $html2, 'data-endpoint' ), 'live tbody keeps the status data-endpoint' );
+ad_true( false !== strpos( $html2, 'data-nonce' ), 'live tbody keeps the wp_rest data-nonce' );
 ad_true( false !== strpos( $html2, 'sn-prov-live' ), 'keeps the aria-live commits region' );
-ad_true( false !== strpos( $html2, 'sn-card' ), 'renders the card layout' );
+ad_true( false !== strpos( $html2, 'sn-fieldset' ), 'renders the .sn-fieldset block layout' );
+ad_true( false !== strpos( $html2, 'wp-list-table' ), 'renders the commits list table' );
 ad_true( false !== strpos( $html2, 'PUBKEYSMOKE' ), 'surfaces the public key' );
 ad_true( false !== strpos( $html2, 'sn_prov_reanchor' ), 'renders the re-anchor form action' );
 ad_true( false !== strpos( $html2, 'sn-status-box' ), 'shows the re-anchor result notice' );
 ad_true( false === strpos( $html2, 'SUPERSECRETHMAC' ), 'NEVER echoes the HMAC secret' );
 
-echo "\nTask 9: status labels + card reflow (9.9.1 design fixes)\n";
+echo "\nTask 9: status labels\n";
 ad_eq( 'Pending', sn_prov_admin_status_label( 'pending' ), 'label: pending -> Pending' );
 ad_eq( 'Confirmed', sn_prov_admin_status_label( 'confirmed' ), 'label: confirmed -> Confirmed' );
 ad_eq( 'Unanchored', sn_prov_admin_status_label( 'unanchored' ), 'label: unanchored -> Unanchored' );
@@ -395,20 +410,49 @@ ad_eq( 'Genesis', sn_prov_admin_status_label( 'genesis' ), 'label: genesis -> Ge
 ad_eq( 'Unsent', sn_prov_admin_status_label( 'unsent' ), 'label: unsent -> Unsent' );
 ad_eq( 'Whatever', sn_prov_admin_status_label( 'whatever' ), 'label: unknown -> ucfirst fallback' );
 
-// Reflow: the Commits card sits OUTSIDE (after) the System+Genesis grid, so the
-// grid's closing </div> must appear before the full-width Commits card.
+echo "\nTask 10: house-pattern section order (glance hero -> System -> Genesis -> Commits)\n";
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'a', 64 ), 'status' => 'pending', 'date' => '2026-06-30' );
 ob_start();
 sn_admin_render_provenance_section();
-$html3    = ob_get_clean();
-$grid_pos = strpos( $html3, 'sn-card-grid' );
-$wide_pos = strpos( $html3, 'sn-prov-card--wide' );
-ad_true( false !== $grid_pos && false !== $wide_pos && $wide_pos > $grid_pos, 'Commits card renders after the System+Genesis grid' );
-$between = ( false !== $grid_pos && false !== $wide_pos ) ? substr( $html3, $grid_pos, $wide_pos - $grid_pos ) : '';
-ad_true( false !== strpos( $between, '</div>' ), 'the card-grid closes before the full-width Commits card' );
-ad_true( false !== strpos( $html3, 'Pending' ), 'genesis card uses the capitalized status label' );
+$html3       = ob_get_clean();
+$glance_pos  = strpos( $html3, 'sn-glance' );
+$sys_pos     = strpos( $html3, '>System<' );
+$gen_pos     = strpos( $html3, 'Genesis anchor' );
+$commits_pos = strpos( $html3, '>Commits<' );
+ad_true( false !== $glance_pos && false !== $sys_pos && $glance_pos < $sys_pos, 'glance hero renders before the System fieldset' );
+ad_true( false !== $sys_pos && false !== $gen_pos && $sys_pos < $gen_pos, 'System fieldset precedes Genesis anchor' );
+ad_true( false !== $gen_pos && false !== $commits_pos && $gen_pos < $commits_pos, 'Genesis anchor precedes Commits' );
+ad_true( false !== strpos( $html3, 'wp-list-table' ), 'Commits renders a wp-list-table' );
+ad_true( false !== strpos( $html3, 'Pending' ), 'genesis surfaces the capitalized status label' );
+
+echo "\nTask 11: honest re-anchor fail copy (config-aware)\n";
+// Fully configured -> the dispatch reached a deployed Worker that rejected it.
+$GLOBALS['__pv_meta']    = array();
+$GLOBALS['__pv_options'] = array();
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/anchor';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'SUPERSECRETHMAC';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'PUBKEYSMOKE';
+$_GET['sn_prov_reanchor'] = 'fail';
+ob_start();
+sn_admin_render_provenance_section();
+$html_fail_cfg = ob_get_clean();
+ad_true( false !== strpos( $html_fail_cfg, 'Worker rejected' ), 'configured fail: blames the Worker, not the config' );
+ad_true( false === strpos( $html_fail_cfg, 'SN_PROV_* constants' ), 'configured fail: does NOT mention unset constants' );
+ad_true( false === strpos( $html_fail_cfg, 'SUPERSECRETHMAC' ), 'configured fail still NEVER echoes the HMAC secret' );
+
+// Missing a constant -> the honest cause is unset SN_PROV_* config.
+$GLOBALS['__pv_options'] = array();
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/anchor';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEYSMOKE';
+// hmac deliberately absent.
+ob_start();
+sn_admin_render_provenance_section();
+$html_fail_unset = ob_get_clean();
+unset( $_GET['sn_prov_reanchor'] );
+ad_true( false !== strpos( $html_fail_unset, 'SN_PROV_* constants' ), 'unconfigured fail: points at the SN_PROV_* constants' );
+ad_true( false === strpos( $html_fail_unset, 'Worker rejected' ), 'unconfigured fail: does NOT blame the Worker' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
