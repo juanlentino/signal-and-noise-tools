@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.4.1] - 2026-07-09: Refactor — retire the dashboard digest (annotations Release 2)
+
+**Headline:** The weekly-digest dashboard surface is retired. Release 1 (v9.4.0) moved analytics interpretation inline as contextual annotations next to the panels that earn it, which made the separate digest a redundant second summary. This release removes that surface: the Analytics "Intelligence" tab and its Generate/automation controls, the digest POST handlers and flash notices, the `insights.narration_enabled` setting, and the opt-in weekly cron. The narrator core and the two agent-facing narration Abilities (`signal-noise/run-narration`, `signal-noise/get-narration`) are kept, so automation callers can still generate or read a digest on demand. Only the dashboard, cron, and settings surface is gone. A one-time upgrade routine clears the now-orphaned weekly cron event on the first admin page load after updating.
+
+> **Why PATCH:** this removes a redundant user-facing surface without adding a capability and without a breaking change. By the project rubric (MINOR is a new capability; PATCH is a refactor or consistency cleanup) that is a PATCH, mirroring the theme's v10.27.1 release that dropped the per-offering delivery-mode labels. No public API is removed or renamed: both narration Abilities and the `snt_narration_run` / `snt_narration_last` core stay. The removed `insights.narration_enabled` key leaves harmless dead data (nothing reads it), so no migration is required. No user action is needed, because the interpretation the digest provided already lives inline as annotations (v9.4.0). Cookieless and cost model unchanged.
+
+### Removed
+- **The Analytics "Intelligence" tab** (`inc/analytics-intelligence.php`), its registration in `SN_ANALYTICS_VIEWS` and `SN_ANALYTICS_OWNS_CHROME`, and its dispatch case. The Insights page deep-link to it is removed, and `?sn_view=intelligence` now resolves to the Content default view.
+- **The digest write surface:** the `narration_run` and `narration_settings_save` POST actions and their handlers, the `narration_generated` / `narration_settings_saved` / `narration_ai_unavailable` flash codes plus the dynamic `narration_failed` error notice, and the `insights.narration_enabled` setting default.
+- **The opt-in weekly cron:** `SN_NARRATION_CRON_HOOK`, `snt_narration_enabled`, `snt_narration_maybe_schedule_cron`, `snt_narration_unschedule_cron`, `snt_narration_weekly_cron_cb`, and their hook wiring. The retired hook is dropped from the cron dashboard's SN-owned and expected-hook logic too, so the `signal-noise/unschedule-cron-event` Ability may now clear an orphaned `sn_insights_narration_weekly` event.
+
+### Added
+- **A one-time orphaned-cron cleanup** (`inc/narration-cron-cleanup.php`): an `admin_init` routine, gated by a version sentinel so it runs once, that clears any `sn_insights_narration_weekly` event left scheduled on installs that had digest automation enabled.
+
+### Kept
+- **Both narration Abilities** (`signal-noise/run-narration`, `signal-noise/get-narration`) and the narrator core (`snt_narration_run`, `snt_narration_last`, parse, collect, salvage). The digest survives as an on-demand agent capability; it is retired only as a dashboard, cron, and settings surface.
+
 ## [9.4.0] - 2026-07-08: Feat — analytics contextual annotations (seam + four reads)
 
 **Headline:** The Analytics dashboard now writes short, plain-language reads next to the panels that earn them, instead of a separate digest. Each read is a deterministic rule over data the panel already holds (zero new queries, zero AI, fully cookieless), and it draws only when it has something true and non-obvious to say, so most panels stay silent on a quiet range. This release ships the seam plus the first four reads: Overview (volume versus engagement), Movers (direction skew), Engagement anomalies (skim and stall), and the catalogue Lifecycle census. Batched with a small SEO follow-up: the /about ORCID iD now also emits as a schema.org `identifier` PropertyValue.
