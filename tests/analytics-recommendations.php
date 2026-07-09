@@ -43,5 +43,17 @@ r_true( null === r_card( sn_analytics_recommendations(), 'refresh' ), 'no refres
 $GLOBALS['__lifecycle'] = null;
 r_true( null === r_card( sn_analytics_recommendations(), 'refresh' ), 'no refresh card when lifecycle null (no posts)' );
 
+// ── Unlinked-mentions rule (reads the cached Health scan) ──
+echo "\nRule: unlinked mentions (from cached scan)\n";
+$GLOBALS['__scan'] = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 4 ) ) );
+$u = r_card( sn_analytics_recommendations(), 'unlinked' );
+r_true( is_array( $u ), 'unlinked card present when the cached scan has mentions' );
+r_eq( 4, $u['count'] ?? 0, 'unlinked count read from the cached scan' );
+r_true( false !== strpos( $u['action_url'] ?? '', 'tab=health' ), 'unlinked deep-links to Health' );
+$GLOBALS['__scan'] = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 0 ) ) );
+r_true( null === r_card( sn_analytics_recommendations(), 'unlinked' ), 'no unlinked card when count = 0' );
+$GLOBALS['__scan'] = null;
+r_true( null === r_card( sn_analytics_recommendations(), 'unlinked' ), 'no unlinked card when no scan has run (no live re-scan)' );
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );

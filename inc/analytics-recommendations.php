@@ -53,9 +53,29 @@ function sn_analytics_rec_refresh() {
 	);
 }
 
-/** Placeholder — implemented in Task 3. @return array|null */
+/**
+ * Unlinked-mentions rule: notes that title-mention another note without linking
+ * it, read from the DURABLE cached Health scan (sn_health_last_scan() — a
+ * get_option, never a live re-scan; the check itself is an O(n^2) TF-IDF pass).
+ * Deep-links to the Health tab where Suggest/Apply lives. Null when no scan or
+ * zero mentions.
+ *
+ * @return array|null
+ */
 function sn_analytics_rec_unlinked() {
-	return null;
+	$scan = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
+	$n    = is_array( $scan ) ? (int) ( $scan['checks']['unlinked_mentions']['count'] ?? 0 ) : 0;
+	if ( $n < 1 ) {
+		return null;
+	}
+	return array(
+		'id'           => 'unlinked',
+		'title'        => sprintf( _n( '%d unlinked mention between notes', '%d unlinked mentions between notes', $n, 'signal-and-noise-tools' ), $n ),
+		'detail'       => 'One note names another without linking it. Health → Suggest proposes an anchor already in your prose.',
+		'count'        => $n,
+		'action_url'   => admin_url( 'admin.php?page=sn-theme-options&tab=health' ),
+		'action_label' => 'Review link suggestions',
+	);
 }
 
 /** Placeholder — implemented in Task 4. @return array|null */
