@@ -63,5 +63,13 @@ an_eq( null, sn_annotation_movers( $mixed ), 'mixed movement -> null' );
 an_eq( null, sn_annotation_movers( array( array( 'path' => '/a', 'views' => 1, 'delta' => -5 ) ) ), 'too few movers -> null' );
 an_eq( null, sn_annotation_movers( array() ), 'empty -> null' );
 
+echo "\nanomalies\n";
+$mk = function ( $type, $n ) { $o = array(); for ( $i = 0; $i < $n; $i++ ) { $o[] = array( 'path' => "/p$i", 'type' => $type ); } return $o; };
+an_eq( '2 pages skimmed: deep scroll, fast leave.', sn_annotation_anomalies( array( 'divergence' => $mk( 'skim', 2 ), 'outliers' => array() ) ), 'skim-only read' );
+an_eq( '3 pages stalled: long dwell, low scroll.', sn_annotation_anomalies( array( 'divergence' => $mk( 'stall', 3 ), 'outliers' => array() ) ), 'stall-only read' );
+an_eq( '2 pages skimmed: deep scroll, fast leave. 2 pages stalled: long dwell, low scroll.', sn_annotation_anomalies( array( 'divergence' => array_merge( $mk( 'skim', 2 ), $mk( 'stall', 2 ) ), 'outliers' => array() ) ), 'both types read' );
+an_eq( null, sn_annotation_anomalies( array( 'divergence' => $mk( 'skim', 1 ), 'outliers' => array() ) ), 'below-threshold -> null' );
+an_eq( null, sn_annotation_anomalies( array( 'divergence' => array(), 'outliers' => array() ) ), 'no anomalies -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

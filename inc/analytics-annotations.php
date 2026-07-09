@@ -76,3 +76,34 @@ function sn_annotation_movers( $movers ) {
 	}
 	return null;
 }
+
+/**
+ * Anomalies read: summarize the divergence rows by type (skim / stall). Null
+ * below the per-type threshold.
+ *
+ * @param array $anom { divergence:[ { type } ], outliers:[] } from sn_analytics_engagement_anomalies().
+ * @return string|null
+ */
+function sn_annotation_anomalies( $anom ) {
+	$div   = ( is_array( $anom ) && isset( $anom['divergence'] ) && is_array( $anom['divergence'] ) ) ? $anom['divergence'] : array();
+	$skim  = 0;
+	$stall = 0;
+	foreach ( $div as $d ) {
+		$t = (string) ( $d['type'] ?? '' );
+		if ( 'skim' === $t ) {
+			++$skim;
+		} elseif ( 'stall' === $t ) {
+			++$stall;
+		}
+	}
+	$parts = array();
+	if ( $skim >= SN_ANNOTATION_ANOMALY_MIN ) {
+		/* translators: %d is the number of skimmed pages */
+		$parts[] = sprintf( __( '%d pages skimmed: deep scroll, fast leave.', 'signal-and-noise-tools' ), $skim );
+	}
+	if ( $stall >= SN_ANNOTATION_ANOMALY_MIN ) {
+		/* translators: %d is the number of stalled pages */
+		$parts[] = sprintf( __( '%d pages stalled: long dwell, low scroll.', 'signal-and-noise-tools' ), $stall );
+	}
+	return empty( $parts ) ? null : implode( ' ', $parts );
+}
