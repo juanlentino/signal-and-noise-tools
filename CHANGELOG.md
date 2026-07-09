@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.11.1] - 2026-07-09: Fix — genesis anchor confirmation now sticks (was stuck "pending" forever)
+
+**Headline:** The genesis (site-anchor) root could confirm on Bitcoin yet never show as confirmed — it kept flipping back to "pending." Two coupled causes: the Worker's genesis confirmation callback was silently dropped by WordPress, and "Re-anchor genesis" would re-stamp an already-in-flight or confirmed root, resetting its Bitcoin clock. Both fixed — genesis now confirms and stays confirmed.
+
+> **Why PATCH:** bug fix, no new capability or settings-schema change.
+
+### Fixed
+- The Worker's genesis confirm callback (`note_uid: "genesis"`) now updates the persisted genesis option directly. It was routed through the per-Note post-chain path (`sn_prov_apply_confirmation`), which finds no post for the "genesis" sentinel and dropped the confirmation — so the option stayed "pending" and only the hourly refresh could ever flip it (racing against re-anchors). Genesis now confirms immediately, exactly like a Note ([inc/provenance-webhook.php](inc/provenance-webhook.php), [inc/provenance-genesis.php](inc/provenance-genesis.php)).
+- "Re-anchor genesis" is now a no-op once the root is already dispatched ("pending", in flight to Bitcoin) or "confirmed" — re-stamping would reset the OpenTimestamps clock or revert a confirmed anchor. The button is disabled in those states (with an "already anchored" hint), and `sn_prov_genesis_reanchor()` refuses to re-dispatch them ([inc/provenance-genesis.php](inc/provenance-genesis.php), [inc/provenance-admin.php](inc/provenance-admin.php)).
+
+### Notes
+- The `admin_init` self-heal now targets only a genuinely un-dispatched ("unsent") root; its historical "re-dispatch a false-pending" behavior is obsolete — the current Worker writes "unsent" on a failed dispatch, never a false "pending."
+
 ## [9.11.0] - 2026-07-09: Feat — on-demand anchoring sweep + Worker version in the Provenance panel
 
 **Headline:** The Tools → Provenance panel gains a **"Check for confirmations"** button that runs the Worker's anchoring sweep on demand — so you can flip Bitcoin-confirmed proofs to confirmed immediately instead of waiting for the hourly cron — and now shows the **deployed Worker version**, read from its `/_sn/version` endpoint.

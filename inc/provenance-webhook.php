@@ -282,6 +282,14 @@ function sn_prov_confirm_handler( $request ) {
 	if ( ! is_array( $data ) || empty( $data['note_uid'] ) ) {
 		return new WP_Error( 'sn_prov_bad_payload', 'Malformed payload.', array( 'status' => 400 ) );
 	}
+	// Genesis is a sentinel, not a Note post — apply its confirmation to the
+	// persisted genesis option directly. Routing it through
+	// sn_prov_apply_confirmation() (which resolves a post by uid) would drop it,
+	// leaving the option stuck 'pending' forever.
+	if ( 'genesis' === (string) $data['note_uid'] && function_exists( 'sn_prov_apply_genesis_confirmation' ) ) {
+		$ok = sn_prov_apply_genesis_confirmation( $data );
+		return new WP_REST_Response( array( 'ok' => $ok ), $ok ? 200 : 404 );
+	}
 	$ok = sn_prov_apply_confirmation( (string) $data['note_uid'], (int) ( $data['version'] ?? 0 ), $data );
 	return new WP_REST_Response( array( 'ok' => $ok ), $ok ? 200 : 404 );
 }

@@ -302,6 +302,15 @@ function sn_prov_genesis_reanchor() {
 	if ( ! is_array( $state ) || empty( $state['root'] ) ) {
 		return false; // nothing persisted to re-anchor
 	}
+	// Once the root is already dispatched ('pending', in flight to Bitcoin) or
+	// 'confirmed', re-anchoring would re-stamp it — resetting the OTS clock, or
+	// reverting a confirmed anchor to pending. There is nothing to do: report
+	// success (no error), fire no dispatch. Re-anchor only acts on a root that
+	// genuinely isn't anchored yet (unsent / never-dispatched).
+	$status = (string) ( $state['status'] ?? '' );
+	if ( 'pending' === $status || 'confirmed' === $status ) {
+		return true;
+	}
 	$root = (string) $state['root'];
 	$date = (string) ( $state['date'] ?? '' );
 
@@ -453,6 +462,37 @@ function sn_prov_genesis_refresh() {
 	}
 }
 add_action( SN_PROV_CONFIRM_HOOK, 'sn_prov_genesis_refresh' );
+
+/**
+ * Apply the Worker's confirm callback for the genesis sentinel (note_uid
+ * "genesis"). Genesis is not a Note post, so sn_prov_apply_confirmation() drops
+ * it — this flips the persisted genesis OPTION to 'confirmed' instead, so the
+ * confirmation lands immediately (like a Note), not only on the next hourly
+ * refresh. Integrity belt: the callback's content_hash must match the persisted
+ * root, and the status must be 'confirmed'. The callback is Ed25519-signed by the
+ * Worker (sn_prov_confirm_permission), so its fields are authenticated.
+ *
+ * @param array $data Confirm payload { content_hash, status, bitcoin_block? }.
+ * @return bool True when the option was updated.
+ */
+function sn_prov_apply_genesis_confirmation( array $data ) {
+	$state = get_option( SN_PROV_GENESIS_OPT, array() );
+	if ( ! is_array( $state ) || empty( $state['root'] ) ) {
+		return false;
+	}
+	if ( isset( $data['content_hash'] ) && (string) $data['content_hash'] !== (string) $state['root'] ) {
+		return false;
+	}
+	if ( 'confirmed' !== (string) ( $data['status'] ?? '' ) ) {
+		return false;
+	}
+	$state['status'] = 'confirmed';
+	if ( isset( $data['bitcoin_block'] ) ) {
+		$state['bitcoin_block'] = (int) $data['bitcoin_block'];
+	}
+	update_option( SN_PROV_GENESIS_OPT, $state, false );
+	return true;
+}
 
 /** Raw ledger URL for a path (filterable; default GitHub raw). */
 function sn_prov_ledger_raw_url( $path ) {
