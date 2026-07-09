@@ -71,5 +71,14 @@ an_eq( '2 pages skimmed: deep scroll, fast leave. 2 pages stalled: long dwell, l
 an_eq( null, sn_annotation_anomalies( array( 'divergence' => $mk( 'skim', 1 ), 'outliers' => array() ) ), 'below-threshold -> null' );
 an_eq( null, sn_annotation_anomalies( array( 'divergence' => array(), 'outliers' => array() ) ), 'no anomalies -> null' );
 
+echo "\nlifecycle\n";
+$sum = function ( $cooling, $evergreen, $cands, $total ) {
+	return array( 'counts' => array( 'spike' => 0, 'cooling' => $cooling, 'evergreen' => $evergreen, 'unknown' => 0 ), 'refresh_candidates' => $cands, 'total' => $total );
+};
+an_eq( '4 of 20 posts are cooling, and 3 are refresh candidates.', sn_annotation_lifecycle( $sum( 4, 10, 3, 20 ) ), 'refresh-candidate read' );
+an_eq( 'Most of your catalogue holds: 15 of 20 posts are evergreen.', sn_annotation_lifecycle( $sum( 2, 15, 0, 20 ) ), 'evergreen-majority read' );
+an_eq( null, sn_annotation_lifecycle( $sum( 1, 3, 0, 6 ) ), 'thin catalogue -> null' );
+an_eq( null, sn_annotation_lifecycle( $sum( 2, 5, 1, 12 ) ), 'no strong signal -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
