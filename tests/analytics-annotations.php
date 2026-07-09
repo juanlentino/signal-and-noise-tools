@@ -89,5 +89,61 @@ an_eq( null, sn_annotation_overview( $dv( 5, 'up' ), array( 'dir' => 'down' ) ),
 an_eq( null, sn_annotation_overview( array(), array( 'dir' => 'down' ) ), 'no deltas (all range) -> null' );
 an_eq( null, sn_annotation_overview( $dv( 38, 'up' ), array() ), 'no engaged dir -> null' );
 
+echo "\ntop pages\n";
+// { path, views, visits, ... }, views DESC. Share is of the returned rows' views
+// (the panel has no grand total in scope), so the copy says "top pages", not "range".
+$tp = function ( array $views ) { $r = array(); foreach ( $views as $i => $v ) { $r[] = array( 'path' => "/p$i", 'views' => $v, 'visits' => $v ); } return $r; };
+an_eq( 'One page holds 61% of your top pages\' views: traffic is concentrated.', sn_annotation_top_pages( $tp( array( 61, 15, 14, 10 ) ) ), 'dominant top page -> read' );
+an_eq( 'One page holds 55% of your top pages\' views: traffic is concentrated.', sn_annotation_top_pages( $tp( array( 55, 20, 15, 10 ) ) ), 'exactly at threshold -> read' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 30, 25, 25, 20 ) ) ), 'views spread across pages -> null' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 80, 20 ) ) ), 'too few pages -> null' );
+an_eq( null, sn_annotation_top_pages( array() ), 'empty -> null' );
+an_eq( null, sn_annotation_top_pages( $tp( array( 0, 0, 0, 0 ) ) ), 'zero views -> null' );
+
+echo "\nsources\n";
+// referrer_categories: 4 fixed rows { category, label, views, visits }. Direct is
+// isolated cleanly here (unlike top_sources, which folds unknown into direct).
+$rc = function ( $direct, $search, $social, $other ) {
+	return array(
+		array( 'category' => 'direct', 'label' => 'Direct', 'views' => $direct, 'visits' => $direct ),
+		array( 'category' => 'search', 'label' => 'Search', 'views' => $search, 'visits' => $search ),
+		array( 'category' => 'social', 'label' => 'Social', 'views' => $social, 'visits' => $social ),
+		array( 'category' => 'other',  'label' => 'Other',  'views' => $other,  'visits' => $other ),
+	);
+};
+an_eq( '88% of visits are direct, with little referral: an owned audience, not discovered.', sn_annotation_sources( $rc( 88, 6, 4, 2 ) ), 'direct-dominant -> read' );
+an_eq( null, sn_annotation_sources( $rc( 60, 20, 15, 5 ) ), 'balanced mix -> null' );
+an_eq( null, sn_annotation_sources( $rc( 20, 4, 3, 2 ) ), 'below min volume -> null' );
+an_eq( null, sn_annotation_sources( array() ), 'empty -> null' );
+
+echo "\ngeography\n";
+// { value, views, visits } from sn_analytics_top_dimension('country',…,250) — every
+// country, so the visits sum is a true total. Markets are ranked by visits (unordered
+// input on purpose). Needs >=4 markets: with 3, top-2 is mathematically >=67%, trivial.
+$geo = function ( array $visits ) { $r = array(); foreach ( $visits as $i => $v ) { $r[] = array( 'value' => "C$i", 'views' => $v, 'visits' => $v ); } return $r; };
+an_eq( 'Two markets are 71% of visits: little discovery beyond your core geography.', sn_annotation_geography( $geo( array( 31, 40, 15, 14 ) ) ), 'top-2 concentration -> read (rank by visits, unordered)' );
+an_eq( null, sn_annotation_geography( $geo( array( 30, 25, 25, 20 ) ) ), 'visits spread across markets -> null' );
+an_eq( null, sn_annotation_geography( $geo( array( 50, 30, 20 ) ) ), 'only three markets -> null (concentration is trivial)' );
+an_eq( null, sn_annotation_geography( array() ), 'empty -> null' );
+
+echo "\nvisit quality\n";
+// sn_session_metrics: { visits, bounce_rate, engaged_rate, ... }, engaged_rate a
+// 0..1 fraction. No baseline exists on the panel, so absolute bands: the read
+// speaks only on the two tails, and stays quiet on a typical middle range.
+$vm = function ( $visits, $engaged ) { return array( 'visits' => $visits, 'engaged_rate' => $engaged, 'bounce_rate' => 0.4 ); };
+an_eq( 'A high-quality range: 72% of visits were engaged reads.', sn_annotation_visit_quality( $vm( 100, 0.72 ) ), 'high engagement -> read' );
+an_eq( 'A shallow range: only 18% of visits were engaged reads.', sn_annotation_visit_quality( $vm( 100, 0.18 ) ), 'low engagement -> read' );
+an_eq( null, sn_annotation_visit_quality( $vm( 100, 0.45 ) ), 'typical middle range -> null' );
+an_eq( null, sn_annotation_visit_quality( $vm( 10, 0.90 ) ), 'too few visits -> null' );
+an_eq( null, sn_annotation_visit_quality( array() ), 'no metrics -> null' );
+
+echo "\nconversions\n";
+// sn_goal_attribution: [ { entry, conversions } ], conversions DESC. Names the
+// entry page (a safe path, esc_html'd at render). Null with no/few conversions.
+an_eq( 'Most contacts enter on /contact/: 80% of conversions land there first.', sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 8 ), array( 'entry' => '/services/', 'conversions' => 2 ) ) ), 'one entry dominates -> read' );
+an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 4 ), array( 'entry' => '/services/', 'conversions' => 3 ), array( 'entry' => '/about/', 'conversions' => 3 ) ) ), 'conversions spread -> null' );
+an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 2 ) ) ), 'too few conversions -> null' );
+an_eq( null, sn_annotation_conversions( array() ), 'no conversions in range -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.5.0] - 2026-07-09: Feat — five more analytics annotation reads (Release 3a)
+
+**Headline:** Five more contextual reads join the four from Release 1, so most Analytics views now write a short, plain-language interpretation next to the panel that earns it. The Content view gains a top-pages concentration read and a direct-versus-referral read; Geography gains a market-concentration read; the Visits view gains an engaged-read quality band and a conversions-by-entry-page read. Every read is a deterministic rule over data the panel already fetched (zero new queries, zero AI, cookieless), and each stays silent unless a conservative threshold trips, so a quiet range still says little.
+
+> **Why MINOR:** five new user-visible capabilities (interpretation reads on the Content, Geography, and Visits views), additive. No public API removed or renamed, no settings-schema change. Cookieless and cost-neutral: each read is a pure function over data already on the page (no new Analytics Engine queries, no LLM). Thresholds ship as tunable `SN_ANNOTATION_*` constants. The recommendations panel (the other half of Release 3) is a separate, later release.
+
+### New
+- **Top pages read** (Content): one page holds a large share of your top pages' views. Because the Content view holds no grand range total in scope, the share is over the returned rows, so the copy says "top pages", not "the range".
+- **Sources read** (Content): traffic is almost entirely direct with little referral (an owned audience, not a discovered one). Reads referrer categories, which isolate direct cleanly, rather than `top_sources`, which folds unknown referrers into the direct bucket. Conservative threshold, because a cookieless site already inflates direct.
+- **Geography read**: the audience clusters in a couple of country markets (top-2 share of visits), with little discovery beyond them. Uses the full 250-country pull already fetched for the choropleth (every country, so the visits sum is a true total). Requires at least four markets, since with three the top-2 share is mathematically trivial. Names no market (the countries table sits right below).
+- **Visit-quality read** (Visits): an unusually engaged or unusually shallow range, from the engaged-read rate. The panel holds no baseline, so the bands are absolute and only the two tails speak.
+- **Conversions read** (Visits): one entry page dominates where contact conversions begin, naming that entry page. Renders just above the conversions-by-entry-page panel.
+
+### Notes
+- **Grounding corrected three spec assumptions before coding.** The Content, Geography, and Conversions panels hold no grand-total denominator, so each read uses share-of-returned-rows (a true total only for Geography's 250-country pull). The "Quality" tab is bot-only with no baseline, so the visit-quality read lives on the Visits view's engaged-read metric with absolute bands. The sources read uses referrer categories, not `top_sources`, to isolate direct cleanly. Each new read captures its panel's existing query into a variable and reuses it, so nothing adds a query.
+- Render-integration tests assert each read both fires on tripping data and stays silent on a quiet range, mirroring the Release-1 harness pattern.
+
 ## [9.4.1] - 2026-07-09: Refactor — retire the dashboard digest (annotations Release 2)
 
 **Headline:** The weekly-digest dashboard surface is retired. Release 1 (v9.4.0) moved analytics interpretation inline as contextual annotations next to the panels that earn it, which made the separate digest a redundant second summary. This release removes that surface: the Analytics "Intelligence" tab and its Generate/automation controls, the digest POST handlers and flash notices, the `insights.narration_enabled` setting, and the opt-in weekly cron. The narrator core and the two agent-facing narration Abilities (`signal-noise/run-narration`, `signal-noise/get-narration`) are kept, so automation callers can still generate or read a digest on demand. Only the dashboard, cron, and settings surface is gone. A one-time upgrade routine clears the now-orphaned weekly cron event on the first admin page load after updating.
