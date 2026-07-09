@@ -293,6 +293,7 @@ require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime sectio
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
 require_once SNT_PATH . 'inc/insights.php';
 require_once SNT_PATH . 'inc/insights-narration.php';
+require_once SNT_PATH . 'inc/narration-cron-cleanup.php'; // v9.5.0: one-time clear of the weekly-digest cron orphaned when R2 retired the scheduler
 require_once SNT_PATH . 'inc/insights-admin.php';
 require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge classifier (used by both health probes below)
 require_once SNT_PATH . 'inc/health-checks.php';
