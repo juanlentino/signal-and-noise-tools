@@ -72,6 +72,7 @@ require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
+require_once SNT_PATH . 'inc/provenance-core.php'; // Notes provenance: commit-chain core (Plan 1)
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each
 // window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn
