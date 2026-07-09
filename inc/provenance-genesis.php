@@ -371,7 +371,16 @@ function sn_prov_genesis_migrate() {
 	// the next admin_init retries instead of leaving the root stuck un-anchored.
 	sn_prov_genesis_persist( $genesis );
 	if ( sn_prov_genesis_anchor( $genesis ) ) {
-		update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true );
+		$now = time();
+		update_option( SN_PROV_GENESIS_MIGR_OPT, $now, true );
+		// A fresh successful initial anchor makes the re-anchor self-heal moot, so
+		// close its gate in the SAME request too. sn_prov_genesis_reanchor_migrate()
+		// also runs this admin_init (registered after us) and would otherwise see
+		// status 'pending' (not 'confirmed') with its own gate unset and re-POST the
+		// identical root a second time. Only this initial-anchor-succeeded branch
+		// touches the re-anchor gate — a no-op/failed anchor leaves BOTH gates unset
+		// so each retries next admin_init.
+		update_option( SN_PROV_GENESIS_REANCHOR_OPT, $now, true );
 	}
 }
 add_action( 'admin_init', 'sn_prov_genesis_migrate' );
@@ -385,6 +394,12 @@ add_action( 'admin_init', 'sn_prov_genesis_migrate' );
  * Gated by SN_PROV_GENESIS_REANCHOR_OPT; the gate is set only once the anchor
  * has landed (a successful re-dispatch, or an already-'confirmed' root), so it
  * retries each admin_init until it succeeds.
+ *
+ * A site that was LEGITIMATELY 'pending' (its manifest really was sent and is
+ * awaiting OTS confirmation) gets one redundant re-dispatch the first time this
+ * one-shot runs — an accepted one-time cost. The old anchor wrote a false
+ * 'pending' on a no-op dispatch, so 'pending' alone can't be trusted to mean
+ * "sent" on the deploying install; re-sending the identical root is idempotent.
  */
 function sn_prov_genesis_reanchor_migrate() {
 	if ( get_option( SN_PROV_GENESIS_REANCHOR_OPT ) ) {

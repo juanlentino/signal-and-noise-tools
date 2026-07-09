@@ -356,5 +356,45 @@ $GLOBALS['__pv_http'] = array();
 sn_prov_genesis_reanchor_migrate();
 gn_eq( false, get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'reanchor_migrate leaves the gate UNSET when the dispatch fails (retry next admin_init)' );
 
+echo "\nTask 10: fresh-install cascade — no same-request double-dispatch (FIX #6)\n";
+// Both hooks run on one admin_init (migrate registered first). On a fresh install
+// migrate() must anchor once AND close the re-anchor gate, so reanchor_migrate()
+// no-ops instead of re-POSTing the identical root a second time in the same request.
+
+// (a) No config: migrate's anchor no-ops -> NEITHER gate is set (both retry).
+$GLOBALS['__pv_posts'][401] = gn_make_post( 401, 'Fresh One', '<p>Uno.</p>', '2025-08-01 00:00:00' );
+$GLOBALS['__pv_posts'][402] = gn_make_post( 402, 'Fresh Two', '<p>Dos.</p>', '2025-08-02 00:00:00' );
+$GLOBALS['__pv_note_ids']   = array( 401, 402 );
+unset(
+	$GLOBALS['__pv_options']['sn_prov_worker_url'],
+	$GLOBALS['__pv_options']['sn_prov_hmac_secret'],
+	$GLOBALS['__pv_options'][ SN_PROV_GENESIS_MIGR_OPT ],
+	$GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ]
+);
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_migrate();
+gn_eq( false, get_option( SN_PROV_GENESIS_MIGR_OPT ), 'no-config migrate leaves the migrate gate unset' );
+gn_eq( false, get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'no-config migrate never sets the re-anchor gate either' );
+
+// (b) Config present + non-empty backlog: migrate anchors and closes BOTH gates,
+//     so the re-anchor self-heal (same admin_init) no-ops -> exactly ONE POST.
+$GLOBALS['__pv_posts'][411] = gn_make_post( 411, 'Fresh Three', '<p>Tres.</p>', '2025-09-01 00:00:00' );
+$GLOBALS['__pv_posts'][412] = gn_make_post( 412, 'Fresh Four', '<p>Cuatro.</p>', '2025-09-02 00:00:00' );
+$GLOBALS['__pv_note_ids']   = array( 411, 412 );
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+unset(
+	$GLOBALS['__pv_options'][ SN_PROV_GENESIS_MIGR_OPT ],
+	$GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ]
+);
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_migrate();            // registered first on admin_init
+sn_prov_genesis_reanchor_migrate();   // registered second on the same admin_init
+gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'fresh-install cascade fires exactly ONE POST (no same-request double-dispatch)' );
+gn_true( (bool) get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate gate set after the initial anchor' );
+gn_true( (bool) get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'initial anchor also closes the re-anchor gate -> reanchor_migrate no-ops' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
