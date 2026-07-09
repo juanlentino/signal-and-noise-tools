@@ -39,5 +39,29 @@ echo "analytics-annotations resolver suite (v9.4.0)\n";
 
 // ── read blocks are appended below by Tasks 3-6 ──
 
+echo "\nmovers\n";
+$down = array(
+	array( 'path' => '/a', 'views' => 10, 'delta' => -40 ),
+	array( 'path' => '/b', 'views' => 20, 'delta' => -30 ),
+	array( 'path' => '/c', 'views' => 30, 'delta' => -20 ),
+	array( 'path' => '/d', 'views' => 40, 'delta' =>  15 ),
+);
+an_eq( 'Movement skews down: 3 of 4 movers lost views.', sn_annotation_movers( $down ), 'down-skew read' );
+$up = array(
+	array( 'path' => '/a', 'views' => 50, 'delta' => 40 ),
+	array( 'path' => '/b', 'views' => 40, 'delta' => 30 ),
+	array( 'path' => '/c', 'views' => 30, 'delta' => 20 ),
+);
+an_eq( 'Movement skews up: 3 of 3 movers gained views.', sn_annotation_movers( $up ), 'up-skew read' );
+$mixed = array(
+	array( 'path' => '/a', 'views' => 10, 'delta' =>  40 ),
+	array( 'path' => '/b', 'views' => 20, 'delta' => -30 ),
+	array( 'path' => '/c', 'views' => 30, 'delta' =>  20 ),
+	array( 'path' => '/d', 'views' => 40, 'delta' => -15 ),
+);
+an_eq( null, sn_annotation_movers( $mixed ), 'mixed movement -> null' );
+an_eq( null, sn_annotation_movers( array( array( 'path' => '/a', 'views' => 1, 'delta' => -5 ) ) ), 'too few movers -> null' );
+an_eq( null, sn_annotation_movers( array() ), 'empty -> null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

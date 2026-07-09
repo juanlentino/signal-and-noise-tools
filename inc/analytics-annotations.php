@@ -33,3 +33,46 @@ const SN_ANNOTATION_LIFECYCLE_MIN_CANDIDATES = 3;
 // Overview: views must move at least this percent for a volume/engagement
 // divergence to be worth calling out.
 const SN_ANNOTATION_OVERVIEW_VIEWS_PCT = 15;
+
+/**
+ * Movers read: state the direction of movement when it clearly skews one way.
+ * Uses only { path, views, delta }, with no post age (age would need a per-path
+ * query, breaking the zero-new-query rule). Null on mixed or thin movement.
+ *
+ * @param array $movers [ { path, views, delta } ] from sn_analytics_movers().
+ * @return string|null
+ */
+function sn_annotation_movers( $movers ) {
+	$movers = is_array( $movers ) ? $movers : array();
+	$total  = count( $movers );
+	if ( $total < SN_ANNOTATION_MOVERS_MIN ) {
+		return null;
+	}
+	$up   = 0;
+	$down = 0;
+	foreach ( $movers as $m ) {
+		$d = (int) ( $m['delta'] ?? 0 );
+		if ( $d > 0 ) {
+			++$up;
+		} elseif ( $d < 0 ) {
+			++$down;
+		}
+	}
+	if ( $down >= $up && $down / $total >= SN_ANNOTATION_MOVERS_SKEW ) {
+		return sprintf(
+			/* translators: 1: count of declining pages, 2: total movers */
+			__( 'Movement skews down: %1$d of %2$d movers lost views.', 'signal-and-noise-tools' ),
+			$down,
+			$total
+		);
+	}
+	if ( $up > $down && $up / $total >= SN_ANNOTATION_MOVERS_SKEW ) {
+		return sprintf(
+			/* translators: 1: count of rising pages, 2: total movers */
+			__( 'Movement skews up: %1$d of %2$d movers gained views.', 'signal-and-noise-tools' ),
+			$up,
+			$total
+		);
+	}
+	return null;
+}
