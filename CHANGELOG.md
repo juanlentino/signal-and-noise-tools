@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.6.0] - 2026-07-09: Feat — recommendations panel (annotations Release 3b, closes the arc)
+
+**Headline:** The Analytics Content view now opens with a Recommendations panel: a short, deep-linked to-do list of what needs attention. Two rules are live today. A refresh-candidates card (cooling, non-evergreen posts) links straight to the Posts view's refresh queue, and an unlinked-mentions card (one note names another without linking it) links to the Health tab's Suggest/Apply tool. When nothing needs attention the panel collapses to a single reassuring line. This is the second half of Release 3 and the final surface of the annotations arc, which now spans the panel seam, nine contextual reads, and this consolidated action list.
+
+> **Why MINOR:** a new user-visible panel, additive. No public API removed or renamed, no settings-schema change. The engine is pure rules over already-cached signals (the catalogue lifecycle census and the last durable Health scan), so it adds no Analytics Engine queries, no LLM calls, and reads only aggregate counts (cookieless). A third rule (descriptionless Pages) ships dormant, see Notes.
+
+### New
+- **Recommendations panel** on the Analytics → Content view: deterministic, deep-linked action cards built from signals the dashboard already caches. Each card carries a count, a one-line explanation, and a button to the tool that acts on it. Empty is first-class ("Nothing needs attention right now.").
+  - *Refresh candidates* (live): cooling, non-evergreen posts worth a refresh, from the catalogue lifecycle census. Deep-links to the Posts view's refresh queue.
+  - *Unlinked mentions* (live): notes that name another note without linking it, read from the last durable Health scan (never a live re-scan). Deep-links to the Health sub-tab where Suggest/Apply lives.
+
+### Changed
+- The unlinked-mentions deep-link now targets the current Health location (`tab=monitoring&sub=health`) directly, instead of the legacy `tab=health` slug that only reached it through a redirect.
+
+### Notes
+- **The SEO rule (descriptionless published Pages) ships dormant.** It calls a per-Page description resolver that does not yet exist on `main`: only the SEO title path was extracted into a pure resolver (v9.3.0), while the description path is still inline in `sn_seo_meta_for_current_view()`. A `function_exists` guard self-disables the rule, so the panel ships clean with its two live rules. Extracting the resolver, and lighting up the third card, is a fast follow-up.
+- Closes the annotations arc: the `snt_an_annotation` seam (Release 1), nine contextual reads (Releases 1 and 3a), and this recommendations panel (Release 3b).
+
 ## [9.5.0] - 2026-07-09: Feat — five more analytics annotation reads (Release 3a)
 
 **Headline:** Five more contextual reads join the four from Release 1, so most Analytics views now write a short, plain-language interpretation next to the panel that earns it. The Content view gains a top-pages concentration read and a direct-versus-referral read; Geography gains a market-concentration read; the Visits view gains an engaged-read quality band and a conversions-by-entry-page read. Every read is a deterministic rule over data the panel already fetched (zero new queries, zero AI, cookieless), and each stays silent unless a conservative threshold trips, so a quiet range still says little.

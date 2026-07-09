@@ -28,6 +28,14 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  * @param string $granularity 'day' | 'week' | 'month'.
  */
 function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
+	// v9.6.0 (R3b): the recommendations to-do list greets the landing view above
+	// the data — a full-width panel that collapses to a one-line empty-state when
+	// nothing needs attention. Guarded so a partial install degrades cleanly.
+	// Closes the annotations arc (seam + 9 reads + this panel).
+	if ( function_exists( 'snt_analytics_render_recommendations_panel' ) ) {
+		snt_analytics_render_recommendations_panel();
+	}
+
 	echo '<div class="sn-an-content-grid">';
 
 	echo '<div class="sn-an-content-main">';
