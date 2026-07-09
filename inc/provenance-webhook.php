@@ -138,3 +138,58 @@ function sn_prov_confirm_permission( $request ) {
 	}
 	return true;
 }
+
+/**
+ * Resolve a note_uid to its post ID via the provenance UID meta.
+ *
+ * @param string $uid
+ * @return int 0 if not found.
+ */
+function sn_prov_post_by_uid( $uid ) {
+	$ids = get_posts( array(
+		'post_type'   => 'post',
+		'post_status' => 'publish',
+		'numberposts' => 1,
+		'fields'      => 'ids',
+		'meta_key'    => SN_PROV_UID_META,
+		'meta_value'  => (string) $uid,
+	) );
+	return $ids ? (int) $ids[0] : 0;
+}
+
+/**
+ * Apply a confirmation payload to the matching commit. Returns false if the
+ * note or version is unknown.
+ *
+ * @param string $uid
+ * @param int    $version
+ * @param array  $data  {status, bitcoin_block?, block_time?}
+ * @return bool
+ */
+function sn_prov_apply_confirmation( $uid, $version, array $data ) {
+	$post_id = sn_prov_post_by_uid( $uid );
+	if ( ! $post_id ) {
+		return false;
+	}
+	$fields = array( 'status' => (string) ( $data['status'] ?? 'confirmed' ) );
+	if ( isset( $data['bitcoin_block'] ) ) {
+		$fields['bitcoin_block'] = (int) $data['bitcoin_block'];
+	}
+	if ( isset( $data['block_time'] ) ) {
+		$fields['block_time'] = (string) $data['block_time'];
+	}
+	return sn_prov_update_commit( $post_id, (int) $version, $fields );
+}
+
+/**
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response|WP_Error
+ */
+function sn_prov_confirm_handler( $request ) {
+	$data = json_decode( $request->get_body(), true );
+	if ( ! is_array( $data ) || empty( $data['note_uid'] ) ) {
+		return new WP_Error( 'sn_prov_bad_payload', 'Malformed payload.', array( 'status' => 400 ) );
+	}
+	$ok = sn_prov_apply_confirmation( (string) $data['note_uid'], (int) ( $data['version'] ?? 0 ), $data );
+	return new WP_REST_Response( array( 'ok' => $ok ), $ok ? 200 : 404 );
+}

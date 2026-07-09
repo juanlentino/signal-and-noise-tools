@@ -107,6 +107,17 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 	function register_rest_route() {
 		return true; }
 }
+if ( ! function_exists( 'get_posts' ) ) {
+	function get_posts( $args ) {
+		$want = $args['meta_value'] ?? null;
+		foreach ( $GLOBALS['__pv_meta'] as $pid => $meta ) {
+			if ( ( $meta[ SN_PROV_UID_META ] ?? null ) === $want ) {
+				return array( (int) $pid );
+			}
+		}
+		return array();
+	}
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
@@ -182,6 +193,18 @@ if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) {
 	wh_eq( true, sn_prov_confirm_permission( $req_ok ), 'valid ed25519 signature accepted' );
 	wh_true( sn_prov_confirm_permission( $req_bad ) instanceof WP_Error, 'forged signature rejected' );
 }
+
+echo "\nTask 4: apply confirmation\n";
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
+update_post_meta( 42, SN_PROV_UID_META, 'u' );
+
+wh_eq( 42, sn_prov_post_by_uid( 'u' ), 'note_uid resolves to post id' );
+$applied = sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'confirmed', 'bitcoin_block' => 902417 ) );
+wh_eq( true, $applied, 'confirmation applied' );
+$chain = sn_prov_get_chain( 42 );
+wh_eq( 'confirmed', $chain[0]['status'], 'status is confirmed' );
+wh_eq( 902417, $chain[0]['bitcoin_block'], 'block height recorded' );
+wh_eq( false, sn_prov_apply_confirmation( 'nope', 1, array() ), 'unknown uid returns false' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
