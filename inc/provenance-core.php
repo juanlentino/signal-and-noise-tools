@@ -240,3 +240,70 @@ function sn_prov_bearing_hash( $post, $author ) {
 	);
 	return sn_prov_content_hash( sn_prov_canonical_json( $bearing ) );
 }
+
+/**
+ * Genesis parent baseline for a Note's first commit. Plan 4 sets
+ * SN_PROV_GENESIS_META for backlog Notes; absent it, first commits have a
+ * null parent.
+ *
+ * @param int $post_id
+ * @return string|null
+ */
+function sn_prov_genesis_parent( $post_id ) {
+	$g = get_post_meta( (int) $post_id, SN_PROV_GENESIS_META, true );
+	return ( is_string( $g ) && '' !== $g ) ? $g : null;
+}
+
+/**
+ * Build a commit for the current post state and append it to the chain,
+ * coalescing trivial diffs. Emits `sn_prov_committed` for the Worker webhook
+ * (Plan 3). Returns the full chain, or null when coalesced.
+ *
+ * @param WP_Post|object $post
+ * @param string         $author
+ * @return array|null
+ */
+function sn_prov_record( $post, $author ) {
+	$chain   = sn_prov_get_chain( $post->ID );
+	$bearing = sn_prov_bearing_hash( $post, $author );
+
+	if ( $chain ) {
+		$last = end( $chain );
+		if ( isset( $last['bearing_hash'] ) && $last['bearing_hash'] === $bearing ) {
+			return null; // coalesce: nothing provenance-bearing changed
+		}
+	}
+
+	$version = count( $chain ) + 1;
+	$parent  = $chain
+		? ( end( $chain )['content_hash'] ?? null )
+		: sn_prov_genesis_parent( $post->ID );
+
+	$payload = sn_prov_build_payload( $post, $version, $parent, $author );
+	$canon   = sn_prov_canonical_json( $payload );
+	$hash    = sn_prov_content_hash( $canon );
+
+	$commit = array(
+		'version'      => $version,
+		'parent'       => $parent,
+		'content_hash' => $hash,
+		'bearing_hash' => $bearing,
+		'payload'      => $payload,
+		'status'       => 'unanchored',
+		'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+	);
+
+	$full = sn_prov_append_commit( $post->ID, $commit );
+
+	/**
+	 * Fires after a provenance commit is appended. Plan 3's Worker webhook
+	 * hooks this to submit the hash for signing + OpenTimestamps anchoring.
+	 *
+	 * @param int    $post_id
+	 * @param array  $commit
+	 * @param string $canonical_json The exact bytes that were hashed.
+	 */
+	do_action( 'sn_prov_committed', (int) $post->ID, $commit, $canon );
+
+	return $full;
+}

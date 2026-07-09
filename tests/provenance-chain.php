@@ -77,6 +77,13 @@ if ( ! function_exists( 'get_the_title' ) ) {
 	function get_the_title( $post ) {
 		return is_object( $post ) ? $post->post_title : ''; }
 }
+$GLOBALS['__pv_actions'] = array();
+if ( ! function_exists( 'do_action' ) ) {
+	function do_action( $tag, ...$args ) {
+		$GLOBALS['__pv_actions'][] = array( $tag, $args );
+		return null;
+	}
+}
 
 require_once SNT_PATH . 'inc/provenance-core.php';
 
@@ -152,6 +159,39 @@ pv_eq( $b1, $b2, 'bearing hash stable for identical content' );
 $post->post_title = 'On over-detection (revised)';
 pv_true( $b1 !== sn_prov_bearing_hash( $post, 'Juan Lentino' ), 'bearing hash changes when title changes' );
 $post->post_title = 'On over-detection'; // restore
+
+echo "\nTask 7: sn_prov_record (coalescing + seam)\n";
+$rp               = new stdClass();
+$rp->ID           = 900;
+$rp->post_title   = 'A note';
+$rp->post_content = '<p>First body.</p>';
+$rp->post_date    = '2026-01-01 00:00:00';
+$rp->post_date_gmt = '2026-01-01 00:00:00';
+$rp->post_author  = 1;
+
+$GLOBALS['__pv_actions'] = array();
+$c1 = sn_prov_record( $rp, 'Juan Lentino' );
+pv_eq( 1, count( sn_prov_get_chain( 900 ) ), 'first publish records a commit' );
+pv_eq( 1, $c1[0]['version'], 'first commit is version 1' );
+pv_eq( null, $c1[0]['parent'], 'first commit parent is null' );
+pv_eq( 'unanchored', $c1[0]['status'], 'new commit starts unanchored' );
+pv_true( isset( $c1[0]['payload'] ), 'commit stores its full payload' );
+pv_eq( 'sn_prov_committed', $GLOBALS['__pv_actions'][0][0] ?? '', 'commit fires sn_prov_committed' );
+
+// Re-save with only formatting/whitespace change -> coalesced (no new commit).
+$GLOBALS['__pv_actions'] = array();
+$rp->post_content = "<p>First    body.</p>\r\n"; // same words after normalization
+$c2 = sn_prov_record( $rp, 'Juan Lentino' );
+pv_eq( null, $c2, 'trivial diff coalesces (returns null)' );
+pv_eq( 1, count( sn_prov_get_chain( 900 ) ), 'no new commit for trivial diff' );
+pv_eq( 0, count( $GLOBALS['__pv_actions'] ), 'coalesced save fires no seam' );
+
+// Real content change -> version 2 chained to version 1.
+$rp->post_content = '<p>Second body, materially different.</p>';
+$c3 = sn_prov_record( $rp, 'Juan Lentino' );
+pv_eq( 2, count( $c3 ), 'material change records version 2' );
+pv_eq( 2, $c3[1]['version'], 'second commit is version 2' );
+pv_eq( $c3[0]['content_hash'], $c3[1]['parent'], 'version 2 parent = version 1 content_hash' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
