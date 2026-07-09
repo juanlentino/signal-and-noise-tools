@@ -85,6 +85,32 @@ function sn_seo_route_meta() {
 	return $cached;
 }
 
+/**
+ * Resolve the singular page title for <title>/og:title/twitter:title.
+ *
+ * Precedence: _sn_seo_title per-page override → sn_seo_singular_title theme
+ * fallback (v9.3.0 seam, defaults '') → get_the_title(). The " — {site_name}"
+ * suffix is always appended, matching pre-v9.3.0 behavior for every singular.
+ * Named + pure so the chain is CLI-testable independent of document_title_parts.
+ *
+ * @since 9.3.0
+ * @param WP_Post|object $post
+ * @return string
+ */
+function sn_seo_resolve_singular_title( $post ) {
+	$override = function_exists( 'sn_post_settings_get_seo_title' )
+		? sn_post_settings_get_seo_title( $post->ID )
+		: '';
+	if ( '' === $override ) {
+		$override = (string) apply_filters( 'sn_seo_singular_title', '', $post );
+	}
+	$base = ( '' !== $override )
+		? wp_strip_all_tags( $override )
+		: wp_strip_all_tags( get_the_title( $post ) );
+	$site = sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
+	return $base . ' — ' . $site;
+}
+
 function sn_seo_meta_for_current_view() {
 	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
 	// title/description/url since WP has no post for it. Takes precedence.
@@ -121,7 +147,9 @@ function sn_seo_meta_for_current_view() {
 		$url         = home_url( '/provenance/' );
 	} elseif ( is_singular() ) {
 		$post  = get_queried_object();
-		$title = $post ? wp_strip_all_tags( get_the_title( $post ) ) . ' — ' . sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ) : '';
+		// v9.3.0: per-page _sn_seo_title override → sn_seo_singular_title theme
+		// fallback → derived title, all with the site-name suffix.
+		$title = $post ? sn_seo_resolve_singular_title( $post ) : '';
 		if ( $post ) {
 			// v1.10.0+: per-post _sn_meta_description override wins over
 			// the excerpt. Empty override falls through to excerpt.

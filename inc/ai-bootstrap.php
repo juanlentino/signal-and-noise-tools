@@ -725,6 +725,43 @@ function snt_ai_extract_post_text( $post_id, $words = 1000 ) {
 }
 
 /**
+ * Content-or-synthesized AI signal for a post.
+ *
+ * Returns post_content (via snt_ai_extract_post_text) when the body has text —
+ * BYTE-IDENTICAL to the old path for normal posts, so no regression. For a
+ * contentless template Page (empty body) it synthesizes a signal from the
+ * title, the theme's curated fallback description (sn_seo_singular_description),
+ * and the slug — enough for the meta-description / excerpt generators to work
+ * instead of returning a 422. Untrusted-input posture is unchanged: this only
+ * assembles first-party post fields + a theme-owned fallback string; the AI
+ * callers' system instructions still frame it as data.
+ *
+ * @since 9.3.0
+ * @param int $post_id
+ * @param int $words   Word cap forwarded to snt_ai_extract_post_text.
+ * @return string      May be '' only when the post cannot be resolved.
+ */
+function snt_ai_post_signal( $post_id, $words = 1000 ) {
+	$content = snt_ai_extract_post_text( $post_id, $words );
+	if ( '' !== $content ) {
+		return $content;
+	}
+	$post = get_post( (int) $post_id );
+	if ( ! $post ) {
+		return '';
+	}
+	$parts    = array( 'TITLE: ' . $post->post_title );
+	$fallback = (string) apply_filters( 'sn_seo_singular_description', '', $post );
+	if ( '' !== $fallback ) {
+		$parts[] = 'SUMMARY: ' . $fallback;
+	}
+	if ( '' !== (string) $post->post_name ) {
+		$parts[] = 'SLUG: ' . $post->post_name;
+	}
+	return implode( "\n", $parts );
+}
+
+/**
  * Register the shared `snt-status` JS utility — exposes window.sntSetStatus.
  *
  * Replaces 4 byte-identical setStatus() copies that lived in

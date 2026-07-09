@@ -91,7 +91,9 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
 	$gate = snt_ai_require_text_generation();
 	if ( $gate ) { return $gate; }
 
-	$content = snt_ai_extract_post_text( $post_id, SNT_AI_META_DESC_INPUT_WORDS );
+	// v9.3.0: signal helper falls back to title + theme description for
+	// contentless template Pages instead of returning an empty string (422).
+	$content = snt_ai_post_signal( $post_id, SNT_AI_META_DESC_INPUT_WORDS );
 	if ( '' === $content ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
