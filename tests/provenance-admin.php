@@ -387,5 +387,28 @@ ad_true( false !== strpos( $html2, 'sn_prov_reanchor' ), 'renders the re-anchor 
 ad_true( false !== strpos( $html2, 'sn-status-box' ), 'shows the re-anchor result notice' );
 ad_true( false === strpos( $html2, 'SUPERSECRETHMAC' ), 'NEVER echoes the HMAC secret' );
 
+echo "\nTask 9: status labels + card reflow (9.9.1 design fixes)\n";
+ad_eq( 'Pending', sn_prov_admin_status_label( 'pending' ), 'label: pending -> Pending' );
+ad_eq( 'Confirmed', sn_prov_admin_status_label( 'confirmed' ), 'label: confirmed -> Confirmed' );
+ad_eq( 'Unanchored', sn_prov_admin_status_label( 'unanchored' ), 'label: unanchored -> Unanchored' );
+ad_eq( 'Genesis', sn_prov_admin_status_label( 'genesis' ), 'label: genesis -> Genesis' );
+ad_eq( 'Unsent', sn_prov_admin_status_label( 'unsent' ), 'label: unsent -> Unsent' );
+ad_eq( 'Whatever', sn_prov_admin_status_label( 'whatever' ), 'label: unknown -> ucfirst fallback' );
+
+// Reflow: the Commits card sits OUTSIDE (after) the System+Genesis grid, so the
+// grid's closing </div> must appear before the full-width Commits card.
+$GLOBALS['__pv_meta']    = array();
+$GLOBALS['__pv_options'] = array();
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'a', 64 ), 'status' => 'pending', 'date' => '2026-06-30' );
+ob_start();
+sn_admin_render_provenance_section();
+$html3    = ob_get_clean();
+$grid_pos = strpos( $html3, 'sn-card-grid' );
+$wide_pos = strpos( $html3, 'sn-prov-card--wide' );
+ad_true( false !== $grid_pos && false !== $wide_pos && $wide_pos > $grid_pos, 'Commits card renders after the System+Genesis grid' );
+$between = ( false !== $grid_pos && false !== $wide_pos ) ? substr( $html3, $grid_pos, $wide_pos - $grid_pos ) : '';
+ad_true( false !== strpos( $between, '</div>' ), 'the card-grid closes before the full-width Commits card' );
+ad_true( false !== strpos( $html3, 'Pending' ), 'genesis card uses the capitalized status label' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

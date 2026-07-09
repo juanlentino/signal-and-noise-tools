@@ -212,13 +212,34 @@ function sn_admin_render_provenance_section() {
 
 	sn_prov_admin_render_reanchor_notice();
 
+	// Top row: System + Genesis side by side. Commits spans full width BELOW the
+	// grid (a table never fits a ~360px card column).
 	echo '<div class="sn-card-grid">';
 	sn_prov_admin_render_system_card( $sys );
 	sn_prov_admin_render_genesis_card( $sys );
-	sn_prov_admin_render_commits_card();
 	echo '</div>';
+	sn_prov_admin_render_commits_card();
 
 	echo '</div>';
+}
+
+/**
+ * Canonical human label for a commit/anchor status. Shared by the server-
+ * rendered Genesis pill and mirrored in the JS commits table so casing matches.
+ *
+ * @param string $status
+ * @return string
+ */
+function sn_prov_admin_status_label( $status ) {
+	$labels = array(
+		'pending'    => __( 'Pending', 'signal-and-noise-tools' ),
+		'confirmed'  => __( 'Confirmed', 'signal-and-noise-tools' ),
+		'unanchored' => __( 'Unanchored', 'signal-and-noise-tools' ),
+		'genesis'    => __( 'Genesis', 'signal-and-noise-tools' ),
+		'unsent'     => __( 'Unsent', 'signal-and-noise-tools' ),
+	);
+	$status = (string) $status;
+	return $labels[ $status ] ?? ucfirst( $status );
 }
 
 /**
@@ -314,13 +335,15 @@ function sn_prov_admin_render_genesis_card( array $sys ) {
 	echo '<section class="sn-card sn-prov-card">';
 	echo '<strong>' . esc_html__( 'Genesis anchor', 'signal-and-noise-tools' ) . '</strong>';
 
-	$map = array(
-		'confirmed' => array( 'sn-pill sn-pill--ok', __( 'Confirmed', 'signal-and-noise-tools' ) ),
-		'pending'   => array( 'sn-pill sn-pill--warn', __( 'Pending', 'signal-and-noise-tools' ) ),
-		'unsent'    => array( 'sn-pill sn-pill--err', __( 'Unsent', 'signal-and-noise-tools' ) ),
+	// Color class per genesis-anchor status; the label text comes from the shared
+	// label map so its casing matches the commits table.
+	$colors = array(
+		'confirmed' => 'sn-pill sn-pill--ok',
+		'pending'   => 'sn-pill sn-pill--warn',
+		'unsent'    => 'sn-pill sn-pill--err',
 	);
-	if ( isset( $map[ $status ] ) ) {
-		echo '<p><span class="' . esc_attr( $map[ $status ][0] ) . '">' . esc_html( $map[ $status ][1] ) . '</span></p>';
+	if ( isset( $colors[ $status ] ) ) {
+		echo '<p><span class="' . esc_attr( $colors[ $status ] ) . '">' . esc_html( sn_prov_admin_status_label( $status ) ) . '</span></p>';
 	} else {
 		echo '<p><span class="sn-pill">' . esc_html__( 'Not anchored', 'signal-and-noise-tools' ) . '</span></p>';
 	}

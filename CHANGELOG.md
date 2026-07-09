@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.9.1] - 2026-07-09: Fix — provenance admin layout polish (UID wrap, card reflow, status labels)
+
+**Headline:** Tightens the v9.9.0 Provenance panel after a live look. The Commits table's 36-character UID no longer stacks one character per line — it shows a `head…tail` digest (`a0f8393c…d1ff`) with the full value on hover (`title`) and in the ledger link, and a `white-space:nowrap` rule keeps it on one line. The cards reflow so **System + Genesis sit in the top row with the Commits table full-width below** (a table doesn't belong in a 340 px column). The duplicate "Genesis anchor" status line is dropped from the Commits card — the Genesis card is the single source — and status labels are consistently capitalised (Pending / Confirmed / Unanchored / Genesis) across the genesis pill and the commits table.
+
+> **Why PATCH:** UI-only fix and polish of surfaces shipped in v9.9.0 — no new capability, no public API or settings-schema change. Output escaping, the `innerHTML`-free DOM build, and secret-presence-only rendering (the HMAC value never reaches output) are all unchanged and re-asserted by tests.
+
+### Fixed
+- Commits-table UID renders a `first8…last4` digest with the full UID in the cell `title` and the ledger link, plus `.sn-status-table--full code{white-space:nowrap}` — fixing the per-character vertical wrap ([assets/provenance-admin.js](assets/provenance-admin.js), [assets/provenance-admin.css](assets/provenance-admin.css)).
+- Card layout reflowed: System + Genesis in the top `.sn-card-grid` row, Commits as a full-width card below so the table has room ([inc/provenance-admin.php](inc/provenance-admin.php)).
+- Dropped the redundant genesis status line from the Commits live region; the Genesis card owns it ([assets/provenance-admin.js](assets/provenance-admin.js)).
+- Consistent capitalised status labels via a shared `sn_prov_admin_status_label()` (PHP) mirrored by a JS `STATUS_LABEL` map, driving both the genesis pill and the commits-table pill ([inc/provenance-admin.php](inc/provenance-admin.php)).
+
 ## [9.9.0] - 2026-07-09: Feat — provenance admin redesign + self-healing genesis anchor
 
 **Headline:** The Tools → Provenance panel graduates from a bare status line to a three-card control surface: a **System** card (Worker reachability inferred from real dispatch history, plus a ✓/✗ readout of which `SN_PROV_*` constants are configured — never the secret value), a **Genesis** card with a one-click **Re-anchor** button, and a live **Commits** table (UID · version · status pill coloured by state · per-Note ledger link). Underneath, the genesis anchor becomes **self-healing**: the one-shot migration no longer marks itself done until the root actually reaches the Worker, and a new one-shot re-anchor migration re-sends the already-persisted root on the next admin load. This fixes a genesis that was recorded but never dispatched because the `SN_PROV_*` config landed *after* the first migration ran — the exact deploy-order footgun the v9.8.0 rollout hit.
