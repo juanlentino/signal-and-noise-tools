@@ -26,6 +26,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_analytics_render_intelligence_view() {
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 	snt_intelligence_render_digest( $ai_ready );
+	snt_intelligence_render_recommendations();
+}
+
+/**
+ * Render the recommendations feed (slice b): deterministic, deep-linked action
+ * cards from sn_analytics_recommendations(). Empty is first-class ("nothing needs
+ * attention right now"). All dynamic output escaped; wp-admin-native.
+ *
+ * @return void
+ */
+function snt_intelligence_render_recommendations() {
+	$cards = function_exists( 'sn_analytics_recommendations' ) ? sn_analytics_recommendations() : array();
+
+	snt_an_panel_open( 'Recommendations' );
+	if ( empty( $cards ) ) {
+		echo '<p class="sn-an-meta">Nothing needs attention right now.</p>';
+		snt_an_panel_close();
+		return;
+	}
+	echo '<ul class="sn-an-recs">';
+	foreach ( $cards as $c ) {
+		echo '<li class="sn-an-rec">';
+		echo '<p class="sn-an-rec-title">' . esc_html( (string) ( $c['title'] ?? '' ) ) . '</p>';
+		if ( ! empty( $c['detail'] ) ) {
+			echo '<p class="sn-an-meta">' . esc_html( (string) $c['detail'] ) . '</p>';
+		}
+		if ( ! empty( $c['action_url'] ) ) {
+			echo '<a class="button button-small" href="' . esc_url( (string) $c['action_url'] ) . '">' . esc_html( (string) ( $c['action_label'] ?? 'Open' ) ) . '</a>';
+		}
+		echo '</li>';
+	}
+	echo '</ul>';
+	snt_an_panel_close();
 }
 
 /**

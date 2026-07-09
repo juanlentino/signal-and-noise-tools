@@ -86,4 +86,18 @@ ob_start(); snt_intelligence_render_digest( true ); $out6 = ob_get_clean();
 t_contains( $out6, 'name="sn_action" value="narration_settings_save"', 'automation toggle posts narration_settings_save' );
 t_contains( $out6, 'name="insights_narration"', 'automation toggle field present' );
 
+// ── Slice b: recommendations render ──
+$GLOBALS['__recs'] = array(
+	array( 'id' => 'refresh', 'title' => '3 cooling posts worth a refresh', 'detail' => 'D', 'count' => 3, 'action_url' => '/wp-admin/index.php?page=sn-analytics&sn_view=posts', 'action_label' => 'Open the refresh queue' ),
+);
+function sn_analytics_recommendations() { return $GLOBALS['__recs']; }
+ob_start(); snt_intelligence_render_recommendations(); $rout = ob_get_clean();
+t_contains( $rout, '3 cooling posts worth a refresh', 'rec title rendered' );
+t_contains( $rout, 'Open the refresh queue', 'rec action label rendered' );
+t_contains( $rout, 'sn_view=posts', 'rec action link rendered' );
+
+$GLOBALS['__recs'] = array();
+ob_start(); snt_intelligence_render_recommendations(); $rempty = ob_get_clean();
+t_contains( $rempty, 'Nothing needs attention', 'empty state when no recommendations' );
+
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
