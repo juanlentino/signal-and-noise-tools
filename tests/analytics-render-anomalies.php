@@ -21,6 +21,7 @@ if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( 
 // snt_an_panel_open() echoes real markup containing the title.
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/analytics-annotations.php';
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // the resolvers translate their read strings
 
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 
@@ -44,6 +45,22 @@ snt_analytics_render_anomalies( array(
 $html = ob_get_clean();
 ok( false !== strpos( $html, 'Engagement anomalies' ), 'render: with data → opens the panel' );
 ok( false !== strpos( $html, '/skim' ), 'render: emits the anomalous path' );
+
+// Integration: >=2 divergences of a type trips the read, so the render emits the
+// callout. Proves snt_analytics_render_anomalies hands $anom to the resolver and
+// renders the returned sentence (a wrong variable would yield null + no callout).
+unset( $GLOBALS['sn_an_empty_panels'] );
+ob_start();
+snt_analytics_render_anomalies( array(
+	'divergence' => array(
+		array( 'path' => '/x', 'type' => 'skim', 'scroll_avg' => 82.0, 'time_avg_ms' => 2500, 'views' => 400 ),
+		array( 'path' => '/y', 'type' => 'skim', 'scroll_avg' => 80.0, 'time_avg_ms' => 2400, 'views' => 300 ),
+	),
+	'outliers' => array(),
+) );
+$anno = ob_get_clean();
+ok( false !== strpos( $anno, 'sn-an-note' ), 'render integration: >=2 divergences emit the annotation callout' );
+ok( false !== strpos( $anno, '2 pages skimmed: deep scroll, fast leave.' ), 'render integration: callout carries the resolver read for the panel data' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

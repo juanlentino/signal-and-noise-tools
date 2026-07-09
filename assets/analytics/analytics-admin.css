@@ -262,6 +262,11 @@
 }
 .sn-an-note-label { flex: none; font-weight: 600; font-size: 11px; letter-spacing: .02em; color: #2271b1; }
 .sn-an-note-body { color: #3c434a; }
+/* In the narrow rail tile the read sits above a 5-row list in a 1/3-width
+   column, so tighten padding and type to keep the wrap graceful. */
+.sn-an-rail-tile .sn-an-note { margin: 0 0 8px; padding: 6px 9px; gap: .4em; }
+.sn-an-rail-tile .sn-an-note-label,
+.sn-an-rail-tile .sn-an-note-body { font-size: 11px; }
 /* Empty-state inside a full-bleed (.inside-flush / .sn-map-inside) panel: the
    dashed note gets a side gutter so it doesn't touch the panel edges. */
 .sn-an-empty--panel { margin: 12px; }
