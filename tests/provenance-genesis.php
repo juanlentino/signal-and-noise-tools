@@ -51,6 +51,7 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 		return sprintf( '00000000-0000-4000-8000-%012d', ++$GLOBALS['__pv_uidc'] ); }
 }
 require_once SNT_PATH . 'inc/provenance-core.php';
+require_once SNT_PATH . 'inc/provenance-webhook.php'; // SN_PROV_CONFIRM_HOOK — required by Task 5's add_action()
 require_once SNT_PATH . 'inc/provenance-genesis.php';
 
 $pass = 0;

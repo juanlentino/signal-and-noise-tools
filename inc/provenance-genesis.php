@@ -276,3 +276,39 @@ add_action( 'admin_init', 'sn_prov_genesis_migrate' );
 function sn_prov_genesis_author() {
 	return (string) apply_filters( 'sn_prov_genesis_author', get_bloginfo( 'name' ) );
 }
+
+/**
+ * Refresh genesis status from the ledger's genesis record. Flips
+ * SN_PROV_GENESIS_OPT to 'confirmed' once the root's .ots is anchored.
+ */
+function sn_prov_genesis_refresh() {
+	$state = get_option( SN_PROV_GENESIS_OPT, array() );
+	if ( ! is_array( $state ) || 'pending' !== ( $state['status'] ?? '' ) ) {
+		return;
+	}
+	$url = sn_prov_ledger_raw_url( 'genesis/' . $state['date'] . '-root.json' );
+	if ( '' === $url ) {
+		return;
+	}
+	$res = wp_remote_get( $url, array( 'timeout' => 15 ) );
+	if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+		return;
+	}
+	$record = json_decode( wp_remote_retrieve_body( $res ), true );
+	if ( is_array( $record ) && 'confirmed' === ( $record['ots']['status'] ?? '' ) ) {
+		$state['status']        = 'confirmed';
+		$state['bitcoin_block'] = (int) ( $record['ots']['bitcoin_block'] ?? 0 );
+		update_option( SN_PROV_GENESIS_OPT, $state, false );
+	}
+}
+add_action( SN_PROV_CONFIRM_HOOK, 'sn_prov_genesis_refresh' );
+
+/** Raw ledger URL for a path (filterable; default GitHub raw). */
+function sn_prov_ledger_raw_url( $path ) {
+	$owner = (string) apply_filters( 'sn_prov_ledger_owner', 'juanlentino' );
+	$repo  = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
+	if ( '' === $owner || '' === $repo ) {
+		return '';
+	}
+	return "https://raw.githubusercontent.com/{$owner}/{$repo}/main/{$path}";
+}
