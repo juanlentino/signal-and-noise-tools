@@ -92,6 +92,30 @@ function snt_prepop_on_transition( $new_status, $old_status, $post ) {
 add_action( 'transition_post_status', 'snt_prepop_on_transition', 10, 3 );
 
 /**
+ * Whether prepop should run for a post given the word-count gate.
+ *
+ * Extracted from snt_run_prepop() (v9.3.0) so it is unit-testable and so the
+ * contentless-Page exception lives in one place. A post passes when its body
+ * meets $min words OR when the body is entirely empty but a resolvable AI
+ * signal exists (snt_ai_post_signal) — i.e. a real template Page, not an
+ * abandoned thin draft. A thin, non-empty draft under $min is still rejected.
+ *
+ * @since 9.3.0
+ * @param WP_Post|object $post
+ * @param int            $min
+ * @return bool
+ */
+function snt_prepop_passes_content_gate( $post, $min ) {
+	$words = str_word_count( wp_strip_all_tags( (string) $post->post_content ) );
+	if ( $words >= $min ) {
+		return true;
+	}
+	return ( '' === trim( (string) $post->post_content ) )
+		&& function_exists( 'snt_ai_post_signal' )
+		&& '' !== snt_ai_post_signal( (int) $post->ID, 50 );
+}
+
+/**
  * Cron callback: generate + persist the empty fields.
  *
  * @param int $post_id
@@ -121,9 +145,8 @@ function snt_run_prepop( $post_id ) {
 		}
 	}
 
-	$min   = (int) apply_filters( 'snt_prepop_min_words', SNT_PREPOP_MIN_WORDS );
-	$words = str_word_count( wp_strip_all_tags( (string) $post->post_content ) );
-	if ( $words < $min ) {
+	$min = (int) apply_filters( 'snt_prepop_min_words', SNT_PREPOP_MIN_WORDS );
+	if ( ! snt_prepop_passes_content_gate( $post, $min ) ) {
 		return;
 	}
 
