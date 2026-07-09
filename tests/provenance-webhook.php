@@ -206,5 +206,21 @@ wh_eq( 'confirmed', $chain[0]['status'], 'status is confirmed' );
 wh_eq( 902417, $chain[0]['bitcoin_block'], 'block height recorded' );
 wh_eq( false, sn_prov_apply_confirmation( 'nope', 1, array() ), 'unknown uid returns false' );
 
+echo "\nTask 5: reconcile\n";
+// Post 77 has an unanchored commit and no worker response yet.
+update_post_meta( 77, SN_PROV_UID_META, 'w' );
+update_post_meta( 77, SN_PROV_CHAIN_META, array(
+	array( 'version' => 1, 'content_hash' => 'bb', 'status' => 'unanchored', 'payload' => array( 'x' => 1 ) ),
+) );
+$GLOBALS['__pv_http'] = array();
+sn_prov_reconcile_post( 77 );
+wh_eq( 1, count( $GLOBALS['__pv_http'] ), 'unanchored commit re-dispatched' );
+$chain = sn_prov_get_chain( 77 );
+wh_eq( 'pending', $chain[0]['status'], 'reconcile flips unanchored -> pending' );
+// A pending/confirmed commit is left alone.
+$GLOBALS['__pv_http'] = array();
+sn_prov_reconcile_post( 77 );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'already-pending commit not re-dispatched' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

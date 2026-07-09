@@ -193,3 +193,43 @@ function sn_prov_confirm_handler( $request ) {
 	$ok = sn_prov_apply_confirmation( (string) $data['note_uid'], (int) ( $data['version'] ?? 0 ), $data );
 	return new WP_REST_Response( array( 'ok' => $ok ), $ok ? 200 : 404 );
 }
+
+/**
+ * Re-dispatch any 'unanchored' commits for a post (dropped webhook recovery).
+ * Uses the stored canonical payload so re-dispatch is byte-identical.
+ *
+ * @param int $post_id
+ */
+function sn_prov_reconcile_post( $post_id ) {
+	foreach ( sn_prov_get_chain( $post_id ) as $commit ) {
+		if ( 'unanchored' !== ( $commit['status'] ?? '' ) ) {
+			continue;
+		}
+		$canonical = isset( $commit['payload'] ) ? sn_prov_canonical_json( (array) $commit['payload'] ) : '';
+		sn_prov_dispatch( $post_id, $commit, $canonical );
+	}
+}
+
+/**
+ * Cron sweep: reconcile every Note that still has an unanchored commit.
+ */
+function sn_prov_reconcile_sweep() {
+	$ids = get_posts( array(
+		'post_type'   => 'post',
+		'post_status' => 'publish',
+		'numberposts' => 50,
+		'fields'      => 'ids',
+		'meta_key'    => SN_PROV_UID_META,
+	) );
+	foreach ( $ids as $id ) {
+		sn_prov_reconcile_post( (int) $id );
+	}
+}
+add_action( SN_PROV_CONFIRM_HOOK, 'sn_prov_reconcile_sweep' );
+
+add_action( 'init', 'sn_prov_schedule_reconcile' );
+function sn_prov_schedule_reconcile() {
+	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_PROV_CONFIRM_HOOK ) ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', SN_PROV_CONFIRM_HOOK );
+	}
+}
