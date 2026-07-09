@@ -134,3 +134,61 @@ function sn_prov_genesis_backlog() {
 	}
 	return $backlog;
 }
+
+/**
+ * Build the genesis structure for a set of backlog posts:
+ *   { root, date, leaves: [ { post_id, note_uid, leaf, proof } ] }
+ *
+ * @param array  $posts  ordered WP_Post|object list
+ * @param string $author
+ * @return array
+ */
+function sn_prov_genesis_build( array $posts, $author ) {
+	$leaves = array();
+	$data   = array();
+	foreach ( $posts as $post ) {
+		$leaf   = sn_prov_genesis_leaf( $post, $author );
+		$data[] = $leaf;
+		$leaves[] = array(
+			'post_id'  => (int) $post->ID,
+			'note_uid' => sn_prov_note_uid( (int) $post->ID ),
+			'leaf'     => $leaf,
+		);
+	}
+	$root = sn_prov_merkle_root( $data );
+	foreach ( $leaves as $i => $entry ) {
+		$leaves[ $i ]['proof'] = sn_prov_merkle_proof( $data, $i );
+	}
+	return array(
+		'root'   => $root,
+		'date'   => gmdate( 'Y-m-d' ),
+		'leaves' => $leaves,
+	);
+}
+
+/**
+ * Persist genesis to each Note: the root as its parent baseline, its inclusion
+ * proof, and a v0 chain entry (status 'genesis', flagged). Does NOT anchor —
+ * anchoring is Task 4.
+ *
+ * @param array $genesis
+ */
+function sn_prov_genesis_persist( array $genesis ) {
+	foreach ( $genesis['leaves'] as $entry ) {
+		$post_id = (int) $entry['post_id'];
+		update_post_meta( $post_id, SN_PROV_GENESIS_META, $genesis['root'] );
+		update_post_meta( $post_id, SN_PROV_PROOF_META, $entry['proof'] );
+		$chain = sn_prov_get_chain( $post_id );
+		if ( ! $chain ) {
+			sn_prov_append_commit( $post_id, array(
+				'version'      => 0,
+				'parent'       => $genesis['root'],
+				'content_hash' => bin2hex( sn_prov_leaf_hash( $entry['leaf'] ) ),
+				'status'       => 'genesis',
+				'genesis'      => true,
+				'payload'      => json_decode( $entry['leaf'], true ),
+				'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+			) );
+		}
+	}
+}
