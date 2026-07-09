@@ -192,7 +192,7 @@ $GLOBALS['__ai_calls']   = 0;
 $r1 = snt_narration_run( false );
 ok( is_array( $r1 ) && isset( $r1['headline'] ), 'first run returns a digest' );
 eq( 'insights_narration', $GLOBALS['__last_ai_feature'], 'AI call tagged insights_narration' );
-eq( SN_NARRATION_MAX_TOKENS, $GLOBALS['__last_ai_max'], 'max_tokens = SN_NARRATION_MAX_TOKENS (512)' );
+eq( SN_NARRATION_MAX_TOKENS, $GLOBALS['__last_ai_max'], 'max_tokens = SN_NARRATION_MAX_TOKENS (1024)' );
 eq( 1, $GLOBALS['__ai_calls'], 'one AI call on first run' );
 $r2 = snt_narration_run( false );
 eq( 1, $GLOBALS['__ai_calls'], 'second run (no force) served from cache — no AI call' );
@@ -273,6 +273,34 @@ echo "\nTest: instruction conditional rules\n";
 $instr = snt_narration_system_instruction();
 ok( false !== strpos( $instr, '"cwv" block is present' ), 'instruction has cwv conditional rule' );
 ok( false !== strpos( $instr, '"security" block is present' ), 'instruction has security conditional rule' );
+ok( false !== stripos( $instr, 'under 200 words' ), 'instruction caps total length for brevity (v9.2.1)' );
+
+// ── Test: budget raised so a normal digest does not truncate (v9.2.1) ──
+echo "\nTest: token budget raised to 1024 (was 512 — truncated real-data digests)\n";
+eq( 1024, SN_NARRATION_MAX_TOKENS, 'SN_NARRATION_MAX_TOKENS raised to 1024' );
+
+// ── Test: salvage a TRUNCATED digest (v9.2.1 — the live snt_narration_invalid_json bug) ──
+// The model hit max_tokens mid-second-paragraph: headline + one COMPLETE paragraph
+// done, the 2nd cut off, no highlights, no closing brackets. Direct json_decode
+// fails; salvage must recover the complete parts rather than hard-failing.
+echo "\nTest: truncated digest salvaged (headline + complete paragraphs recovered)\n";
+$truncated = '{"headline":"Traffic ticked up this week","paragraphs":["Views rose 6% to 37 and visits rose 33% to 53.","The engaged-read rate climbed to 48';
+$p = snt_narration_parse_response( $truncated );
+ok( is_array( $p ), 'truncated digest salvaged to an array (not WP_Error)' );
+eq( 'Traffic ticked up this week', $p['headline'] ?? null, 'headline recovered from truncation' );
+eq( 1, count( $p['paragraphs'] ?? array() ), 'only the COMPLETE paragraph kept (cut-off one dropped)' );
+ok( false === strpos( implode( ' ', $p['paragraphs'] ?? array() ), 'climbed to 48' ), 'the truncated partial paragraph is excluded' );
+
+// Prose preamble before the JSON is also salvaged (the headline regex scans anywhere).
+echo "\nTest: prose-preamble digest salvaged\n";
+$preamble = 'Here is the digest: {"headline":"A steady week","paragraphs":["Nothing moved much."],"highlights":["views flat at 37"]} Hope this helps.';
+$p2 = snt_narration_parse_response( $preamble );
+ok( is_array( $p2 ) && 'A steady week' === ( $p2['headline'] ?? null ), 'preamble-wrapped JSON recovered' );
+
+// Truncated so badly even the first paragraph is incomplete → cannot salvage → honest error.
+echo "\nTest: unsalvageable truncation (no complete paragraph) → WP_Error\n";
+$tooshort = '{"headline":"A quiet week","paragraphs":["Overall activity grew modest';
+ok( is_wp_error( snt_narration_parse_response( $tooshort ) ), 'no complete paragraph → WP_Error (honest, never fabricated)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
