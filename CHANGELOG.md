@@ -2,14 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.2.2] - 2026-07-08: Fix — Panacea `foundingDate` schema/copy mismatch
+## [9.2.2] - 2026-07-08: Fix — Person JSON-LD ↔ /about copy (foundingDate + ORCID)
 
-**Headline:** The Person JSON-LD `@graph` on `/about/` embeds a `worksFor` → `Organization` node for Panacea whose `foundingDate` read **2015**. The theme's visible About-page copy was corrected the same day from "opened in 2015" to "opened in **2016**" (verified against both resumes), so the structured data now contradicted the on-page text. Corrected the schema value to **2016** so the rich-results surface matches the visible page.
+**Headline:** The Person JSON-LD `@graph` on `/about/` embeds a `worksFor` → `Organization` node for Panacea whose `foundingDate` read **2015**. The theme's visible About-page copy was corrected the same day from "opened in 2015" to "opened in **2016**" (verified against both resumes), so the structured data now contradicted the on-page text. Corrected the schema value to **2016** so the rich-results surface matches the visible page. A schema/copy audit in the same pass surfaced a second, quieter gap: the /about page prints an ORCID iD (the authoritative identifier for the research it describes), but the Person node carried no `sameAs` link to it, so the visible identifier was invisible to the entity graph. Added it. Both are the same defect class, structured data drifting from the visible page.
 
-> **Why PATCH:** a data correction to one literal in `sn_schema_person()` (`inc/seo-schema.php`) — no new capability, no change to the `Organization` node's shape, no API/route/schema-contract change. Structured data now agrees with the source-of-truth copy.
+> **Why PATCH:** data corrections to the Person node in `sn_schema_person()` (`inc/seo-schema.php`): no new capability, no change to the `Organization` node's shape or any `@id`, no API/route/schema-contract change. `sameAs` gains one identity link, and nothing is removed or renamed. Structured data now agrees with the source-of-truth copy.
 
 ### Fixed
 - `worksFor.foundingDate` in the Person schema **2015 → 2016**, matching the corrected About-page copy (theme side already shipped). Updated the T6 assertion in `tests/seo-schema.php` accordingly (69 passed, 0 failed).
+- Added the ORCID iD (`https://orcid.org/0009-0006-8151-5920`, checksum-valid) to `Person.sameAs`, sourced verbatim from the /about page. `sameAs` is the reconciliation link that search and answer engines use to fuse the Person entity with its authoritative researcher profile. The identifier was visible on the page but absent from the JSON-LD, so the same schema/copy audit that caught the founding year caught this too. Merged before the `sn_schema_same_as` filter (so it stays overridable), with a dedupe guard so a configured or duplicate entry is never doubled. New T6b assertions in `tests/seo-schema.php` (suite now 73 passed, 0 failed).
 
 ## [9.2.1] - 2026-07-08: Fix — weekly digest truncated to invalid JSON
 

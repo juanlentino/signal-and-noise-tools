@@ -47,9 +47,23 @@ function sn_schema_default_same_as() {
  * Build the Person schema (author + publisher).
  */
 function sn_schema_person() {
-	$home    = home_url( '/' );
-	$same_as = (array) apply_filters( 'sn_schema_same_as', sn_schema_default_same_as() );
-	$name    = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
+	$home = home_url( '/' );
+
+	// v9.2.2: the /about page publicly displays an ORCID iD — the authoritative
+	// identifier for the research the page describes (the Provenance papers).
+	// sameAs is the link search + answer engines use to reconcile this Person with
+	// that profile, so the visible identifier must live in the structured data too;
+	// otherwise it exists only as page text, invisible to the entity graph. Merged
+	// into the sameAs list BEFORE the sn_schema_same_as filter (so it stays fully
+	// overridable) with a dedupe guard so a configured/duplicate entry is not doubled.
+	$same_as = (array) sn_schema_default_same_as();
+	$orcid   = 'https://orcid.org/0009-0006-8151-5920';
+	if ( ! in_array( $orcid, $same_as, true ) ) {
+		$same_as[] = $orcid;
+	}
+	$same_as = (array) apply_filters( 'sn_schema_same_as', $same_as );
+
+	$name = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
 
 	$person = array(
 		'@type'      => 'Person',
