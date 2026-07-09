@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.3.0
+ * Version:     9.4.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -89,6 +89,7 @@ require_once SNT_PATH . 'inc/schedule-sync.php';
 require_once SNT_PATH . 'inc/schedule-pages.php';
 require_once SNT_PATH . 'inc/schedule-admin.php';
 require_once SNT_PATH . 'inc/analytics-panels.php'; // v8.5.0: the ONE panel-chrome primitive for the Analytics page
+require_once SNT_PATH . 'inc/analytics-annotations.php'; // v9.4.0: rules-only panel-annotation resolvers
 require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.

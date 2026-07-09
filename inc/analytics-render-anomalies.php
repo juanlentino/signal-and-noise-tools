@@ -31,6 +31,7 @@ function snt_analytics_render_anomalies( $anom ) {
 		return;
 	}
 	snt_an_panel_open( 'Engagement anomalies' );
+	snt_an_annotation( sn_annotation_anomalies( $anom ) );
 	echo '<table class="widefat striped"><thead><tr><th>Page</th><th>Signal</th><th>Detail</th><th>Views</th></tr></thead><tbody>';
 	foreach ( $div as $d ) {
 		$label = 'skim' === $d['type'] ? 'Deep scroll, fast leave' : 'Long dwell, low scroll';

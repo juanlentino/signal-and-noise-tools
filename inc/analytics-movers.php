@@ -97,6 +97,7 @@ function snt_analytics_render_movers_tile( $from, $to, $class ) {
 		'panel_class' => 'sn-an-rail-tile sn-an-movers',
 		'header_meta' => esc_html__( 'vs prior period', 'signal-and-noise-tools' ),
 	) );
+	snt_an_annotation( sn_annotation_movers( $movers ) );
 	if ( empty( $movers ) ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No movement in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {

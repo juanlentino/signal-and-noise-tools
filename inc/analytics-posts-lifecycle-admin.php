@@ -41,6 +41,8 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 		. esc_html__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' )
 		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
 
+	snt_an_annotation( sn_annotation_lifecycle( $summary ) );
+
 	// ── Glance: the actionable number + the shape census, in cloned .sn-kpi cards.
 	$cards = array(
 		array(

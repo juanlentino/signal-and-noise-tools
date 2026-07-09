@@ -53,6 +53,7 @@ if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 }
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
 
 $pass = 0; $fail = 0;
@@ -103,6 +104,20 @@ echo "\nTest: movers tile empty state\n";
 $GLOBALS['__transients'] = array( 'sn_an_movers_' . md5( '2026-01-01|2026-01-02|human|5' ) => array() );
 $html = capture( function () { snt_analytics_render_movers_tile( '2026-01-01', '2026-01-02', 'human' ); } );
 ok( false !== strpos( $html, 'No movement in this range yet.' ), 'empty state copy' );
+
+echo "\nTest: movers tile renders the annotation callout (integration)\n";
+// Seed the tile's own transient (limit 5) with a skewing set so the render's
+// internal sn_analytics_movers() hits it, then assert the wired read appears.
+$GLOBALS['__transients'] = array();
+$GLOBALS['__transients'][ 'sn_an_movers_' . md5( '2026-07-01|2026-07-07|human|5' ) ] = array(
+	array( 'path' => '/a/', 'views' => 5,  'delta' => -40 ),
+	array( 'path' => '/b/', 'views' => 10, 'delta' => -30 ),
+	array( 'path' => '/c/', 'views' => 15, 'delta' => -20 ),
+	array( 'path' => '/d/', 'views' => 20, 'delta' =>  10 ),
+);
+$anno_html = capture( function () { snt_analytics_render_movers_tile( '2026-07-01', '2026-07-07', 'human' ); } );
+ok( false !== strpos( $anno_html, 'sn-an-note' ), 'render integration: skewing movers emit the annotation callout' );
+ok( false !== strpos( $anno_html, 'Movement skews down: 3 of 4 movers lost views.' ), 'render integration: callout carries the movers read for the tile data' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -157,6 +157,7 @@ if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { ret
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__pv_transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( 'PRIOR', 'PRIOR' ); } }
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 require_once __DIR__ . '/../inc/analytics-view-content.php';

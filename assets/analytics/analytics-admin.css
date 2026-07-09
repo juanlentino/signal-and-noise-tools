@@ -243,6 +243,31 @@
 .sn-an-view-tabs { margin: 18px 0 0; }
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
+
+/* Interpretation callout (v9.4.0): a short "read" above a panel's data, drawn on
+   content only (the resolver returns null when there is nothing to say). Crisp-
+   console treatment: left hairline accent, muted body, squared single-sided border. */
+.sn-an-note {
+	display: flex;
+	gap: .5em;
+	align-items: baseline;
+	margin: 0 0 12px;
+	padding: 8px 12px;
+	border-left: 2px solid #2271b1;
+	border-radius: 0;
+	background: #f6f7f7;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #3c434a;
+}
+.sn-an-note-label { flex: none; font-weight: 600; font-size: 11px; letter-spacing: .02em; color: #2271b1; }
+.sn-an-note-body { color: #3c434a; }
+/* In the narrow rail tile, stack the label as a kicker above the sentence so the
+   read stays a small box but still breathes: the sentence gets the full column
+   width instead of fighting an inline label. */
+.sn-an-rail-tile .sn-an-note { display: block; margin: 0 0 10px; padding: 8px 10px; }
+.sn-an-rail-tile .sn-an-note-label { display: block; margin: 0 0 2px; letter-spacing: .03em; }
+.sn-an-rail-tile .sn-an-note-body { display: block; font-size: 12px; line-height: 1.45; }
 /* Empty-state inside a full-bleed (.inside-flush / .sn-map-inside) panel: the
    dashed note gets a side gutter so it doesn't touch the panel edges. */
 .sn-an-empty--panel { margin: 12px; }

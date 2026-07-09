@@ -27,7 +27,7 @@ function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'view
 function sn_analytics_class_totals( $f, $t ) { return array( 'human' => 300, 'suspect' => 10, 'bot' => 90 ); }
 function sn_analytics_realtime( $c = 'human' ) { return 3; }
 function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return array( array( 'day' => $f, 'views' => 10 ) ); }
-function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'pct' => 12, 'dir' => 'up' ) ); }
+function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'pct' => 40, 'dir' => 'up' ) ); } // 40% up + engaged down trips the overview read
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 62; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 62, 'previous' => 65, 'pct' => -3, 'dir' => 'down' ); }
 // Pulse-strip accessors (durable bucket/rollup reads) — flip the globals to
@@ -60,6 +60,7 @@ function sn_uptime_status_rail_strip() { return $GLOBALS['__uptime_on'] ? '<!--U
 function sn_uptime_status_detail_panel() { return $GLOBALS['__uptime_on'] ? '<!--UPTIME-DETAIL-->' : ''; }
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
+require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 
 $pass = 0; $fail = 0;
@@ -89,6 +90,11 @@ $detail_pos = strpos( $html, '<!--UPTIME-DETAIL-->' );
 $grid_end   = strpos( $html, 'sn-an-header-rail' );
 ok( false !== $detail_pos && $detail_pos > $grid_end, 'detail panel renders AFTER the header grid (full-width row)' );
 ok( is_array( $totals ) && 1284 === ( $totals['views'] ?? 0 ), 'region returns the totals (the dashboard tail empty-hint reads them)' );
+// Integration: 40%-up views + down engagement trips the overview read, so the
+// Overview panel emits the callout. Proves the render passes $deltas + $engaged
+// to the resolver in order (an arg swap would not produce this exact sentence).
+ok( false !== strpos( $html, 'sn-an-note' ), 'render integration: diverging overview emits the annotation callout' );
+ok( false !== strpos( $html, 'Views up 40%, but engaged rate slipped: more traffic, shallower visits.' ), 'render integration: callout carries the overview read (deltas + engaged passed correctly)' );
 
 echo "\nTest: unconfigured uptime degrades to movers-only rail\n";
 $GLOBALS['__uptime_on'] = false;
