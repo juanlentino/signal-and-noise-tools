@@ -89,6 +89,7 @@ require_once SNT_PATH . 'inc/schedule-sync.php';
 require_once SNT_PATH . 'inc/schedule-pages.php';
 require_once SNT_PATH . 'inc/schedule-admin.php';
 require_once SNT_PATH . 'inc/analytics-panels.php'; // v8.5.0: the ONE panel-chrome primitive for the Analytics page
+require_once SNT_PATH . 'inc/analytics-annotations.php'; // v9.4.0: rules-only panel-annotation resolvers
 require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
