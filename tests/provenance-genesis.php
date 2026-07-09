@@ -54,6 +54,58 @@ if ( ! function_exists( 'do_action' ) ) {
 	function do_action() {
 		return null; }
 }
+// ── Task 5–9 stubs: options store, configurable Worker transport, post lookup ──
+$GLOBALS['__pv_options']   = array(); // options store (get_option/update_option)
+$GLOBALS['__pv_http']      = array(); // captured wp_remote_post calls: [ url, args ]
+$GLOBALS['__pv_http_code'] = 202;     // settable response code for the transport stub
+$GLOBALS['__pv_http_err']  = false;   // when true, wp_remote_post returns a WP_Error
+$GLOBALS['__pv_note_ids']  = array(); // ids the get_posts stub returns (date ASC)
+$GLOBALS['__pv_posts']     = array(); // id => post object, for the get_post stub
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $k, $d = false ) {
+		return $GLOBALS['__pv_options'][ $k ] ?? $d; }
+}
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $k, $v, $a = null ) {
+		$GLOBALS['__pv_options'][ $k ] = $v;
+		return true; }
+}
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code;
+		public function __construct( $c = '', $m = '', $d = array() ) {
+			$this->code = $c; }
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $t ) {
+		return $t instanceof WP_Error; }
+}
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = array() ) {
+		$GLOBALS['__pv_http'][] = array( $url, $args );
+		if ( ! empty( $GLOBALS['__pv_http_err'] ) ) {
+			return new WP_Error( 'http_request_failed', 'boom' );
+		}
+		return array( 'response' => array( 'code' => (int) $GLOBALS['__pv_http_code'] ), 'body' => '' );
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( $r ) {
+		return $r['response']['code'] ?? 0; }
+}
+if ( ! function_exists( 'get_posts' ) ) {
+	function get_posts( $args = array() ) {
+		return $GLOBALS['__pv_note_ids']; }
+}
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) {
+		return $GLOBALS['__pv_posts'][ (int) $id ] ?? null; }
+}
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $k = '' ) {
+		return 'Signal & Noise'; }
+}
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // SN_PROV_CONFIRM_HOOK — required by Task 5's add_action()
 require_once SNT_PATH . 'inc/provenance-genesis.php';
@@ -136,6 +188,173 @@ gn_true( is_array( $updated ), 'sn_prov_record returns the chain for a post with
 gn_eq( 2, count( $updated ), 'chain now holds the v0 genesis entry plus the new commit' );
 gn_eq( 1, $updated[1]['version'], 'first real commit after genesis is version 1, not 2 (no gap)' );
 gn_eq( $chain201[0]['content_hash'], $updated[1]['parent'], 'new commit parent = genesis v0 content_hash' );
+
+echo "\nTask 5: dispatch_manifest return contract (FIX #1)\n";
+// No Worker config -> no-op, returns false, and NOTHING is POSTed.
+unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+$GLOBALS['__pv_http'] = array();
+gn_eq( false, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest returns false without Worker config' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'no POST attempted when unconfigured' );
+
+// Configured from here on.
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+
+// Non-2xx (e.g. 500) -> false.
+$GLOBALS['__pv_http']      = array();
+$GLOBALS['__pv_http_err']  = false;
+$GLOBALS['__pv_http_code'] = 500;
+gn_eq( false, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest returns false on a non-2xx response' );
+gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'a POST was attempted for the non-2xx case' );
+
+// Transport WP_Error -> false.
+$GLOBALS['__pv_http_err'] = true;
+gn_eq( false, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest returns false on a wp_error transport failure' );
+
+// 202 (the Worker's accept code) -> true.
+$GLOBALS['__pv_http_err']  = false;
+$GLOBALS['__pv_http_code'] = 202;
+gn_eq( true, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest returns true on a 202 dispatch' );
+
+echo "\nTask 6: genesis_anchor status + return (FIX #2)\n";
+// Reuse $genesis from Task 3. No config -> status 'unsent', returns false.
+unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] );
+gn_eq( false, sn_prov_genesis_anchor( $genesis ), 'anchor returns false when the manifest could not be dispatched' );
+$opt = get_option( SN_PROV_GENESIS_OPT, array() );
+gn_eq( 'unsent', $opt['status'], "no-op anchor records status 'unsent' — never a false 'pending'" );
+gn_eq( $genesis['root'], $opt['root'], 'anchor persists the root even when unsent' );
+
+// Configured + 202 -> status 'pending', returns true.
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+gn_eq( true, sn_prov_genesis_anchor( $genesis ), 'anchor returns true when the manifest dispatched' );
+$opt = get_option( SN_PROV_GENESIS_OPT, array() );
+gn_eq( 'pending', $opt['status'], "dispatched anchor records status 'pending'" );
+
+echo "\nTask 7: genesis_reanchor re-anchors the PERSISTED root (FIX #3)\n";
+// (a) Nothing persisted -> false.
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] );
+gn_eq( false, sn_prov_genesis_reanchor(), 'reanchor returns false when nothing is persisted' );
+
+// Persist the Task-3 snapshot root. Posts 201/202/203 already carry
+// GENESIS_META === root + v0 commits from sn_prov_genesis_persist() above.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array(
+	'root'   => $genesis['root'],
+	'date'   => '2025-05-01',
+	'status' => 'unsent',
+);
+$GLOBALS['__pv_note_ids'] = array( 201, 202, 203 ); // published Notes, date ASC
+
+// (b) No config -> false, persisted status left untouched.
+unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+$GLOBALS['__pv_http'] = array();
+gn_eq( false, sn_prov_genesis_reanchor(), 'reanchor returns false without Worker config' );
+gn_eq( 'unsent', get_option( SN_PROV_GENESIS_OPT )['status'], 'reanchor leaves status unsent when it could not dispatch' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'reanchor fires no POST without config' );
+
+// (c) Configured -> true; POSTs the persisted root + a faithfully reconstructed manifest.
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+$GLOBALS['__pv_http']      = array();
+gn_eq( true, sn_prov_genesis_reanchor(), 'reanchor returns true when dispatched' );
+gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'reanchor fired exactly one POST' );
+
+$sent_body = json_decode( $GLOBALS['__pv_http'][0][1]['body'], true );
+gn_eq( $genesis['root'], $sent_body['content_hash'], 'POST content_hash === the PERSISTED root (never recomputed)' );
+gn_eq( 'genesis', $sent_body['note_uid'], "POST note_uid is 'genesis'" );
+gn_eq( 0, $sent_body['version'], 'POST version is 0' );
+
+$manifest = json_decode( $sent_body['canonical'], true );
+gn_eq( 'genesis', $manifest['kind'], 'manifest kind is genesis' );
+gn_eq( $genesis['root'], $manifest['root'], 'manifest root === persisted root' );
+gn_eq( 3, $manifest['count'], 'manifest counts all three Notes' );
+
+// Reconstructed notes must match the original snapshot: note_uid + the v0 leaf
+// hash (bin2hex(sn_prov_leaf_hash(leaf))) that persist wrote to each chain.
+$expected_notes = array();
+foreach ( $genesis['leaves'] as $lf ) {
+	$expected_notes[] = array(
+		'note_uid'  => $lf['note_uid'],
+		'leaf_hash' => bin2hex( sn_prov_leaf_hash( $lf['leaf'] ) ),
+	);
+}
+gn_eq( $expected_notes, $manifest['notes'], 'reconstructed manifest notes match the original leaf_hash + note_uid, in order' );
+gn_eq( 'pending', get_option( SN_PROV_GENESIS_OPT )['status'], 'successful reanchor flips persisted status to pending' );
+
+echo "\nTask 8: migrate self-heal — flag the gate only after a real anchor (FIX #4)\n";
+// Two fresh Notes with no chain form the backlog.
+$GLOBALS['__pv_posts'][301] = gn_make_post( 301, 'Backlog One', '<p>One.</p>', '2025-06-01 00:00:00' );
+$GLOBALS['__pv_posts'][302] = gn_make_post( 302, 'Backlog Two', '<p>Two.</p>', '2025-06-02 00:00:00' );
+$GLOBALS['__pv_note_ids']   = array( 301, 302 );
+
+// (a) No Worker config: the anchor no-ops -> the gate MUST stay unset (retry).
+unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_MIGR_OPT ] );
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_migrate();
+gn_eq( false, get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate leaves the gate UNSET when the anchor no-ops (no config)' );
+gn_true( '' !== get_post_meta( 301, SN_PROV_GENESIS_META, true ), 'persist still ran (root stored on the backlog Note) even though the anchor no-op\'d' );
+
+// (b) Configured: the anchor dispatches -> the gate IS set.
+$GLOBALS['__pv_posts'][311] = gn_make_post( 311, 'Backlog Three', '<p>Three.</p>', '2025-07-01 00:00:00' );
+$GLOBALS['__pv_posts'][312] = gn_make_post( 312, 'Backlog Four', '<p>Four.</p>', '2025-07-02 00:00:00' );
+$GLOBALS['__pv_note_ids']   = array( 311, 312 );
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_MIGR_OPT ] );
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_migrate();
+gn_true( (bool) get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate SETS the gate after a successful anchor dispatch' );
+gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'migrate dispatched the genesis manifest' );
+
+// (c) Empty backlog: nothing to snapshot -> gate set, no POST.
+$GLOBALS['__pv_note_ids'] = array();
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_MIGR_OPT ] );
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_migrate();
+gn_true( (bool) get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate sets the gate when there is nothing to snapshot' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'empty-backlog migrate fires no POST' );
+
+echo "\nTask 9: reanchor_migrate one-shot self-heal (FIX #5)\n";
+// Persist a genesis root that was marked 'pending' but never actually POSTed
+// (the exact prod bug), backed by the Task-3 Notes.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array(
+	'root'   => $genesis['root'],
+	'date'   => '2025-05-01',
+	'status' => 'pending',
+);
+$GLOBALS['__pv_note_ids'] = array( 201, 202, 203 );
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+
+// (a) Gate already set -> no-op (no reanchor, no POST).
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ] = time();
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_reanchor_migrate();
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'reanchor_migrate no-ops when its gate is already set' );
+
+// (b) Gate unset + root persisted + config -> reanchors, sets the gate.
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ] );
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_reanchor_migrate();
+gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'reanchor_migrate dispatched the persisted root' );
+gn_true( (bool) get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'reanchor_migrate sets its gate after a successful dispatch' );
+
+// (c) Gate unset + dispatch fails (no config) -> gate stays unset (retry).
+unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ] );
+unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+$GLOBALS['__pv_http'] = array();
+sn_prov_genesis_reanchor_migrate();
+gn_eq( false, get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'reanchor_migrate leaves the gate UNSET when the dispatch fails (retry next admin_init)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

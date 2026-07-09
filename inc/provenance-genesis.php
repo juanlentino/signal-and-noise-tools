@@ -13,9 +13,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_PROV_GENESIS_MIGR_OPT = 'sn_prov_genesis_migrated';
-const SN_PROV_GENESIS_OPT      = 'sn_prov_genesis';        // {root, ledger_path, status, date}
-const SN_PROV_PROOF_META       = '_sn_prov_genesis_proof'; // per-Note inclusion proof
+const SN_PROV_GENESIS_MIGR_OPT     = 'sn_prov_genesis_migrated';
+const SN_PROV_GENESIS_REANCHOR_OPT = 'sn_prov_genesis_reanchored_v1'; // one-shot re-anchor self-heal gate
+const SN_PROV_GENESIS_OPT          = 'sn_prov_genesis';        // {root, ledger_path, status, date}
+const SN_PROV_PROOF_META           = '_sn_prov_genesis_proof'; // per-Note inclusion proof
 
 /** Leaf hash: SHA-256(0x00 || data). Raw bytes. */
 function sn_prov_leaf_hash( $data ) {
@@ -198,7 +199,12 @@ function sn_prov_genesis_persist( array $genesis ) {
  * Anchor the genesis root through the Worker (one Bitcoin anchor for the whole
  * backlog). Reuses the webhook dispatch contract with a synthetic commit.
  *
+ * Records status 'pending' ONLY when the manifest actually dispatched (a 2xx
+ * from the Worker); on a no-op/failed dispatch it records 'unsent' so the
+ * option never claims a pending anchor that was never sent.
+ *
  * @param array $genesis
+ * @return bool True when the manifest dispatched (2xx), false otherwise.
  */
 function sn_prov_genesis_anchor( array $genesis ) {
 	$manifest = wp_json_encode( array(
@@ -213,21 +219,31 @@ function sn_prov_genesis_anchor( array $genesis ) {
 			$genesis['leaves']
 		),
 	) );
-	sn_prov_dispatch_manifest( $genesis['root'], $manifest, $genesis['date'] );
+	$dispatched = sn_prov_dispatch_manifest( $genesis['root'], $manifest, $genesis['date'] );
 
 	update_option( SN_PROV_GENESIS_OPT, array(
 		'root'   => $genesis['root'],
 		'date'   => $genesis['date'],
-		'status' => 'pending',
+		'status' => $dispatched ? 'pending' : 'unsent',
 	), false );
+
+	return $dispatched;
 }
 
-/** Dispatch a raw manifest to the Worker (genesis has no post_id). */
+/**
+ * Dispatch a raw manifest to the Worker (genesis has no post_id).
+ *
+ * @param string $root     Hex genesis root — sent as content_hash.
+ * @param string $manifest The canonical manifest JSON.
+ * @param string $date     Genesis date (informational; part of the manifest).
+ * @return bool True iff the Worker accepted it with a 2xx; false when
+ *              unconfigured, on a transport error, or on a non-2xx response.
+ */
 function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 	$url    = sn_prov_worker_url();
 	$secret = sn_prov_hmac_secret();
 	if ( '' === $url || '' === $secret ) {
-		return;
+		return false;
 	}
 	$body = wp_json_encode( array(
 		'canonical'    => $manifest,
@@ -235,7 +251,7 @@ function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 		'note_uid'     => 'genesis',
 		'version'      => 0,
 	) );
-	wp_remote_post( $url, array(
+	$response = wp_remote_post( $url, array(
 		'timeout' => 20,
 		'headers' => array(
 			'Content-Type'   => 'application/json',
@@ -243,6 +259,92 @@ function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 		),
 		'body'    => $body,
 	) );
+	if ( is_wp_error( $response ) ) {
+		return false;
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	return $code >= 200 && $code < 300; // Worker returns 202 Accepted
+}
+
+/**
+ * The v0 (genesis) commit's content_hash for a Note — the Merkle leaf hash
+ * stored at snapshot time (bin2hex(sn_prov_leaf_hash(leaf))). Read from the
+ * persisted chain; never recomputed. Empty string when the Note has no
+ * genesis entry.
+ *
+ * @param int $post_id
+ * @return string hex leaf hash, or '' if absent
+ */
+function sn_prov_genesis_v0_hash( $post_id ) {
+	foreach ( sn_prov_get_chain( (int) $post_id ) as $entry ) {
+		if ( 0 === (int) ( $entry['version'] ?? -1 ) && ! empty( $entry['genesis'] ) ) {
+			return (string) ( $entry['content_hash'] ?? '' );
+		}
+	}
+	return '';
+}
+
+/**
+ * Re-anchor the ALREADY-PERSISTED genesis root — no rebuild, no backlog. Reads
+ * the root, date, and every per-Note leaf hash straight from persisted state
+ * (the option + each Note's v0 commit); it NEVER recomputes a leaf or root.
+ *
+ * Reconstructs the same manifest shape sn_prov_genesis_anchor() sends by
+ * enumerating published Notes whose GENESIS_META === the persisted root (post
+ * date ASC, matching the original snapshot order), then dispatches it. On a
+ * successful dispatch it flips the persisted status to 'pending'.
+ *
+ * @return bool True on a successful dispatch; false when nothing is persisted,
+ *              the Worker is unconfigured, or the dispatch failed.
+ */
+function sn_prov_genesis_reanchor() {
+	$state = get_option( SN_PROV_GENESIS_OPT, array() );
+	if ( ! is_array( $state ) || empty( $state['root'] ) ) {
+		return false; // nothing persisted to re-anchor
+	}
+	$root = (string) $state['root'];
+	$date = (string) ( $state['date'] ?? '' );
+
+	$ids = get_posts( array(
+		'post_type'     => 'post',
+		'post_status'   => 'publish',
+		'numberposts'   => -1,
+		'orderby'       => 'date',
+		'order'         => 'ASC',
+		'fields'        => 'ids',
+		'category_name' => apply_filters( 'sn_prov_note_category', 'notes' ),
+	) );
+
+	$notes = array();
+	foreach ( $ids as $id ) {
+		$id = (int) $id;
+		if ( get_post_meta( $id, SN_PROV_GENESIS_META, true ) !== $root ) {
+			continue; // not part of this genesis snapshot
+		}
+		$leaf_hash = sn_prov_genesis_v0_hash( $id );
+		if ( '' === $leaf_hash ) {
+			continue; // no persisted v0 commit — cannot contribute a leaf
+		}
+		$notes[] = array(
+			'note_uid'  => (string) get_post_meta( $id, SN_PROV_UID_META, true ),
+			'leaf_hash' => $leaf_hash,
+		);
+	}
+
+	$manifest = wp_json_encode( array(
+		'kind'  => 'genesis',
+		'root'  => $root,
+		'date'  => $date,
+		'count' => count( $notes ),
+		'notes' => $notes,
+	) );
+
+	$dispatched = sn_prov_dispatch_manifest( $root, $manifest, $date );
+	if ( $dispatched ) {
+		$state['status'] = 'pending';
+		update_option( SN_PROV_GENESIS_OPT, $state, false );
+	}
+	return $dispatched;
 }
 
 /**
@@ -261,13 +363,50 @@ function sn_prov_genesis_migrate() {
 		update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true ); // nothing to snapshot
 		return;
 	}
-	$posts = array_map( 'get_post', $ids );
+	$posts   = array_map( 'get_post', $ids );
 	$genesis = sn_prov_genesis_build( $posts, sn_prov_genesis_author() );
+	// Persist first (idempotent — a v0 entry is only appended when the chain is
+	// empty), then flag the gate ONLY once the anchor actually dispatched. If the
+	// Worker config isn't ready yet, the anchor no-ops and the gate stays unset so
+	// the next admin_init retries instead of leaving the root stuck un-anchored.
 	sn_prov_genesis_persist( $genesis );
-	sn_prov_genesis_anchor( $genesis );
-	update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true );
+	if ( sn_prov_genesis_anchor( $genesis ) ) {
+		update_option( SN_PROV_GENESIS_MIGR_OPT, time(), true );
+	}
 }
 add_action( 'admin_init', 'sn_prov_genesis_migrate' );
+
+/**
+ * One-shot self-heal for installs whose genesis root was persisted but never
+ * anchored — the migration fired on an early admin_init before the Worker
+ * config was present, so the anchor no-op'd yet marked itself done. Re-anchors
+ * the persisted root once config is available.
+ *
+ * Gated by SN_PROV_GENESIS_REANCHOR_OPT; the gate is set only once the anchor
+ * has landed (a successful re-dispatch, or an already-'confirmed' root), so it
+ * retries each admin_init until it succeeds.
+ */
+function sn_prov_genesis_reanchor_migrate() {
+	if ( get_option( SN_PROV_GENESIS_REANCHOR_OPT ) ) {
+		return;
+	}
+	if ( ! function_exists( 'sn_prov_active' ) || ! sn_prov_active() ) {
+		return; // ext-intl gate — retry next admin_init
+	}
+	$state = get_option( SN_PROV_GENESIS_OPT, array() );
+	if ( ! is_array( $state ) || empty( $state['root'] ) ) {
+		return; // nothing persisted — sn_prov_genesis_migrate() handles fresh installs
+	}
+	if ( 'confirmed' === ( $state['status'] ?? '' ) ) {
+		update_option( SN_PROV_GENESIS_REANCHOR_OPT, time(), true ); // already anchored + confirmed
+		return;
+	}
+	if ( sn_prov_genesis_reanchor() ) {
+		update_option( SN_PROV_GENESIS_REANCHOR_OPT, time(), true );
+	}
+	// else: leave the gate unset so the next admin_init retries the re-anchor.
+}
+add_action( 'admin_init', 'sn_prov_genesis_reanchor_migrate' );
 
 /** Author string for genesis leaves (filterable; defaults to the blog owner). */
 function sn_prov_genesis_author() {
