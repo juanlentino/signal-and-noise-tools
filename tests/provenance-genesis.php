@@ -323,12 +323,14 @@ gn_true( (bool) get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate sets the gate w
 gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'empty-backlog migrate fires no POST' );
 
 echo "\nTask 9: reanchor_migrate one-shot self-heal (FIX #5)\n";
-// Persist a genesis root that was marked 'pending' but never actually POSTed
-// (the exact prod bug), backed by the Task-3 Notes.
+// Persist a genesis root that was built but never dispatched ('unsent' — the
+// current code's failed-dispatch state), backed by the Task-3 Notes. The
+// self-heal re-dispatches an 'unsent' root; a genuinely 'pending'/'confirmed'
+// one is left alone by the re-anchor guard (Task 12).
 $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array(
 	'root'   => $genesis['root'],
 	'date'   => '2025-05-01',
-	'status' => 'pending',
+	'status' => 'unsent',
 );
 $GLOBALS['__pv_note_ids'] = array( 201, 202, 203 );
 $GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
@@ -350,8 +352,12 @@ gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'reanchor_migrate dispatched the persi
 gn_true( (bool) get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'reanchor_migrate sets its gate after a successful dispatch' );
 
 // (c) Gate unset + dispatch fails (no config) -> gate stays unset (retry).
+// Reset to 'unsent' — (b)'s successful dispatch flipped the status to 'pending',
+// which the re-anchor guard would now no-op (so it would never reach the failing
+// dispatch this case exercises).
 unset( $GLOBALS['__pv_options'][ SN_PROV_GENESIS_REANCHOR_OPT ] );
 unset( $GLOBALS['__pv_options']['sn_prov_worker_url'], $GLOBALS['__pv_options']['sn_prov_hmac_secret'] );
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ]['status'] = 'unsent';
 $GLOBALS['__pv_http'] = array();
 sn_prov_genesis_reanchor_migrate();
 gn_eq( false, get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'reanchor_migrate leaves the gate UNSET when the dispatch fails (retry next admin_init)' );
@@ -395,6 +401,40 @@ sn_prov_genesis_reanchor_migrate();   // registered second on the same admin_ini
 gn_eq( 1, count( $GLOBALS['__pv_http'] ), 'fresh-install cascade fires exactly ONE POST (no same-request double-dispatch)' );
 gn_true( (bool) get_option( SN_PROV_GENESIS_MIGR_OPT ), 'migrate gate set after the initial anchor' );
 gn_true( (bool) get_option( SN_PROV_GENESIS_REANCHOR_OPT ), 'initial anchor also closes the re-anchor gate -> reanchor_migrate no-ops' );
+
+echo "\nTask 11: genesis confirm applies to the OPTION (genesis is not a post)\n";
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array(
+	'root'   => str_repeat( 'ab', 32 ),
+	'date'   => '2026-07-09',
+	'status' => 'pending',
+);
+gn_eq( true, sn_prov_apply_genesis_confirmation( array( 'content_hash' => str_repeat( 'ab', 32 ), 'status' => 'confirmed', 'bitcoin_block' => 902417 ) ), 'genesis confirm applied' );
+gn_eq( 'confirmed', get_option( SN_PROV_GENESIS_OPT )['status'], 'genesis option flipped to confirmed' );
+gn_eq( 902417, get_option( SN_PROV_GENESIS_OPT )['bitcoin_block'], 'genesis bitcoin_block recorded when present' );
+// Integrity: a mismatched root is rejected, option untouched.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ]['status'] = 'pending';
+gn_eq( false, sn_prov_apply_genesis_confirmation( array( 'content_hash' => str_repeat( 'ff', 32 ), 'status' => 'confirmed' ) ), 'genesis confirm with a mismatched root is rejected' );
+gn_eq( 'pending', get_option( SN_PROV_GENESIS_OPT )['status'], 'rejected genesis confirm leaves status pending' );
+// A non-confirmed status is a no-op.
+gn_eq( false, sn_prov_apply_genesis_confirmation( array( 'content_hash' => str_repeat( 'ab', 32 ), 'status' => 'pending' ) ), 'genesis confirm requires status=confirmed' );
+
+echo "\nTask 12: re-anchor is a no-op once the root is dispatched or confirmed\n";
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+// pending -> no re-stamp (would reset the OTS clock).
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'ab', 32 ), 'date' => '2026-07-09', 'status' => 'pending' );
+$GLOBALS['__pv_http'] = array();
+gn_eq( true, sn_prov_genesis_reanchor(), 'reanchor no-ops (returns true) when already pending' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'reanchor fires NO POST when pending' );
+gn_eq( 'pending', get_option( SN_PROV_GENESIS_OPT )['status'], 'reanchor leaves a pending genesis untouched' );
+// confirmed -> no re-stamp (never reverts a confirmed anchor).
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ]['status'] = 'confirmed';
+$GLOBALS['__pv_http'] = array();
+gn_eq( true, sn_prov_genesis_reanchor(), 'reanchor no-ops when already confirmed' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'reanchor fires NO POST when confirmed' );
+gn_eq( 'confirmed', get_option( SN_PROV_GENESIS_OPT )['status'], 'reanchor leaves a confirmed genesis confirmed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

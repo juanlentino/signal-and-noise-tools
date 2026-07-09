@@ -281,5 +281,25 @@ $res3 = sn_prov_run_sweep();
 wh_true( empty( $res3['ok'] ), 'worker ok:false body → result ok:false' );
 unset( $GLOBALS['__pv_sweep_body'] );
 
+echo "\nTask 7: confirm handler routes the genesis sentinel to the option path\n";
+// provenance-genesis.php is NOT loaded here — stub the genesis applier to capture
+// that the handler routes note_uid 'genesis' to it (not the post-chain path).
+$GLOBALS['__pv_genesis_applied'] = null;
+if ( ! function_exists( 'sn_prov_apply_genesis_confirmation' ) ) {
+	function sn_prov_apply_genesis_confirmation( array $data ) {
+		$GLOBALS['__pv_genesis_applied'] = $data;
+		return true; }
+}
+$gbody = wp_json_encode( array( 'note_uid' => 'genesis', 'version' => 0, 'content_hash' => 'aa', 'status' => 'confirmed' ) );
+$gresp = sn_prov_confirm_handler( new WP_REST_Request( array(), $gbody ) );
+wh_true( is_array( $GLOBALS['__pv_genesis_applied'] ), 'genesis payload routed to sn_prov_apply_genesis_confirmation' );
+wh_eq( 200, $gresp->status ?? null, 'genesis confirm returns 200 on success' );
+wh_eq( 'confirmed', $GLOBALS['__pv_genesis_applied']['status'] ?? null, 'genesis applier receives the confirm payload' );
+// A Note payload must NOT hit the genesis path.
+$GLOBALS['__pv_genesis_applied'] = null;
+$nbody = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed' ) );
+sn_prov_confirm_handler( new WP_REST_Request( array(), $nbody ) );
+wh_eq( null, $GLOBALS['__pv_genesis_applied'], 'a Note confirm does NOT hit the genesis path' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

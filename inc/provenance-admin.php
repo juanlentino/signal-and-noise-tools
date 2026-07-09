@@ -514,10 +514,18 @@ function sn_prov_admin_render_genesis_fieldset( array $sys ) {
 		echo '<p class="sn-prov-root"><code>' . esc_html( sn_prov_admin_truncate( $root ) ) . '</code></p>';
 	}
 
+	// Re-anchoring is only meaningful when the root isn't already anchored. Once
+	// it's 'pending' (in flight to Bitcoin) or 'confirmed', re-stamping would reset
+	// the OTS clock / revert the anchor — so the button is disabled (and the
+	// handler no-ops as a belt: sn_prov_genesis_reanchor()).
+	$anchored = ( 'pending' === $status || 'confirmed' === $status );
 	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 	wp_nonce_field( 'sn_prov_reanchor' );
 	echo '<input type="hidden" name="action" value="sn_prov_reanchor" />';
-	echo '<button type="submit" class="button">' . esc_html__( 'Re-anchor genesis', 'signal-and-noise-tools' ) . '</button>';
+	echo '<button type="submit" class="button"' . ( $anchored ? ' disabled' : '' ) . '>' . esc_html__( 'Re-anchor genesis', 'signal-and-noise-tools' ) . '</button>';
+	if ( $anchored ) {
+		echo ' <span class="sn-fieldset-intro">' . esc_html__( 'Already anchored — nothing to re-anchor.', 'signal-and-noise-tools' ) . '</span>';
+	}
 	echo '</form>';
 	echo '</div>';
 }

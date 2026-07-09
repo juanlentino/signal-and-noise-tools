@@ -579,5 +579,28 @@ $GLOBALS['__pv_http'] = array();
 sn_prov_worker_version();
 ad_true( 0 === count( array_filter( $GLOBALS['__pv_http'], function ( $c ) { return 'GET' === $c[0]; } ) ), 'worker version served from cache (no second GET)' );
 
+echo "\nTask 13: re-anchor button disabled once the genesis is anchored\n";
+$GLOBALS['__pv_meta']       = array();
+$GLOBALS['__pv_options']    = array();
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_transients'] = array();
+unset( $_GET['sn_prov_swept'], $_GET['sn_prov_reanchor'] );
+
+// Confirmed → disabled + hint.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'a', 64 ), 'status' => 'confirmed', 'date' => '2026-07-09' );
+ob_start();
+sn_admin_render_provenance_section();
+$h_conf = ob_get_clean();
+ad_true( false !== strpos( $h_conf, 'disabled' ), 'confirmed genesis → re-anchor button is disabled' );
+ad_true( false !== strpos( $h_conf, 'Already anchored' ), 'confirmed genesis → shows the "already anchored" hint' );
+
+// Unsent → button active (re-anchor is meaningful), no hint.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ]['status'] = 'unsent';
+ob_start();
+sn_admin_render_provenance_section();
+$h_unsent = ob_get_clean();
+ad_true( false !== strpos( $h_unsent, 'value="sn_prov_reanchor"' ), 'unsent genesis still renders the re-anchor form' );
+ad_true( false === strpos( $h_unsent, 'Already anchored' ), 'unsent genesis → no "already anchored" hint (button active)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
