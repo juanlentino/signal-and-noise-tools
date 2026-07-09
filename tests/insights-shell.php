@@ -156,10 +156,10 @@ ish_assert( is_int( $rail_b ) && false !== $noscan_at && $noscan_at > $rail_b, '
 ish_assert( is_int( $rail_b ) && false !== $run_b && $run_b < $rail_b, 'Run Analysis stays in the main column with no scan' );
 ish_assert( 1 === substr_count( $html_b, '<aside class="sn-shell__rail"' ) && 1 === substr_count( $html_b, '</aside>' ), 'rail aside balanced with no scan' );
 
-// (v9.2.0) The weekly-digest render moved to Analytics → Intelligence, so the
-// digest-meta humanized-elapsed assertion moved with it to
-// tests/analytics-intelligence.php. The Insights shell now deep-links to the tab.
-ish_assert( false !== strpos( $html_b, 'sn_view=intelligence' ), 'Insights shell deep-links to the Intelligence tab' );
+// (v9.5.0 R2) The weekly-digest surface was retired (interpretation now lives as
+// inline annotations across the Analytics dashboard), so the Insights shell no
+// longer deep-links to the removed Intelligence tab.
+ish_assert( false === strpos( $html_b, 'sn_view=intelligence' ), 'Insights shell no longer links to the retired Intelligence tab' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

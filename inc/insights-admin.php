@@ -51,11 +51,6 @@ function snt_insights_render_admin_tab() {
 	echo '</div>';
 	echo '</form>';
 
-	// ── WEEKLY DIGEST — moved to Analytics → Intelligence (v9.2.0). The digest
-	// is analytics interpretation, so it lives with the analytics dashboard; this
-	// editorial advisor (open questions for Notes) stays here. Deep-link across. ──
-	echo '<p class="sn-prose">The weekly analytics digest now lives on <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=intelligence' ) ) . '">Dashboard &rarr; Analytics &rarr; Intelligence</a>.</p>';
-
 	// ── RECOMMENDATIONS cards (rendered by Task 12) ──
 	snt_insights_render_recommendations_section( $last );
 
