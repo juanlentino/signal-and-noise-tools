@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.12.2] - 2026-07-09: Fix — confirmed founding-snapshot chip now renders verified-green (CSS follow-up to 9.12.0)
+
+**Headline:** 9.12.0 made a Bitcoin-confirmed founding-snapshot Note's chip read "Verified" and carry both the `sn-prov-confirmed` and `sn-prov-genesis` classes — but the front CSS's `.sn-prov-genesis` (gray) was defined after `.sn-prov-confirmed` (green) at equal specificity, so the chip said "Verified" while rendering in genesis-gray. It now renders green.
+
+> **Why PATCH:** a one-rule CSS correction to a v9.12.0 visual regression. No behavior, capability, or settings-schema change.
+
+### Fixed
+- Added `.sn-prov-confirmed.sn-prov-genesis` (green) so a confirmed founding-snapshot chip wins the cascade by **specificity** (0,2,0), not source order — it reads verified-green, matching an individually-anchored Note, while a still-pending genesis chip stays gray. Verified in-browser: confirmed-genesis computes `rgb(31,157,85)`, pending-genesis `rgb(107,114,128)` ([assets/provenance-front.css](assets/provenance-front.css)).
+
 ## [9.12.1] - 2026-07-09: Fix — "views today" follows the site timezone, not UTC
 
 **Headline:** The dashboard's Analytics — Overview "views today" reset to zero at **UTC midnight (8 PM Eastern)**, not at the site's local midnight — so the counter zeroed itself mid-evening. It now measures "today so far" in the site's timezone (`wp_timezone`), matching the day the reader is actually in.
