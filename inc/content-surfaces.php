@@ -44,6 +44,10 @@ const SN_CONTACT_SLUG           = 'contact';
 const SN_CONTACT_BODY_MIGRATED_OPT = 'sn_contact_body_migrated_v1';
 const SN_SERVICES_SLUG          = 'services';
 const SN_SERVICES_BODY_MIGRATED_OPT = 'sn_services_body_migrated_v1';
+const SN_RESUME_SLUG            = 'resume';
+const SN_RESUME_BODY_MERGED_OPT = 'sn_resume_body_merged_v1';
+const SN_MUSIC_SLUG            = 'music';
+const SN_MUSIC_BODY_MERGED_OPT = 'sn_music_body_merged_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
