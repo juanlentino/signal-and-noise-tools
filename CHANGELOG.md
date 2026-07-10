@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.14.1] - 2026-07-10: Fix — provenance panel UX: pending row links the tx, plus a plain-language intro
+
+**Headline:** The record panel now matches the byline chip: a **pending** version row links to its in-flight Bitcoin transaction on mempool.space and shows the live **N/6** count (before, only the chip did). And the panel opens with a one-line, plain-language explanation so a non-technical reader knows what it is.
+
+> **Why PATCH:** UX polish completing 9.14.0; no new capability or settings-schema change.
+
+### Changed
+- Panel pending rows now render `Pending · N/6` as a link to the transaction (once it's in a tx), mirroring the chip ([inc/provenance-render.php](inc/provenance-render.php)).
+- The panel leads with: *"This Note is cryptographically signed and timestamped on the Bitcoin blockchain. Verify it yourself below — no trust in this site required."* ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+
 ## [9.14.0] - 2026-07-10: Feat — pending Notes link to the live Bitcoin transaction (mempool), with an N/6 count
 
 **Headline:** Anchoring is checkable *before* it fully confirms. A pending Note's byline chip now links to its **in-flight Bitcoin transaction on mempool.space** and shows a live **N/6 confirmation count** — so anyone, with no cryptography knowledge, can watch it confirm. Once it hits 6, the chip flips to "Verified" linking the block. (Confirmed chips now link their block too.)
