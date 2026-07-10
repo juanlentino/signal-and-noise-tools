@@ -18,5 +18,15 @@
    for a pending Note) — strip the default anchor styling so the chip keeps its
    own look; the pointer cursor signals it's clickable. */
 .sn-prov-chip-link{text-decoration:none;color:inherit;cursor:pointer}
+/* The linked chip's "opens the public ledger" affordance: a subtle ↗ that
+   inherits the chip colour, so it reads as a way out without shouting. */
+.sn-prov-chip-ext{font-size:.85em;opacity:.55}
+/* The lead, plainly-worded on-chain link — the entry point for a reader who's
+   never heard of a block explorer. Regular weight, red, underlined: it reads
+   like the panel's sibling action links (Download proof / Git ledger / Verify),
+   not as a shout — just a clearly-worded way in. */
+.sn-prov-onchain{margin:0 0 .7rem;font-size:.8rem;line-height:1.5}
+.sn-prov-onchain-cta{text-decoration:underline;text-underline-offset:2px}
+.sn-prov-onchain-host{opacity:.6}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
 .sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}
