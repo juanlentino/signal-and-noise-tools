@@ -8,6 +8,10 @@ if ( ! defined( 'SN_CONTACT_SLUG' ) ) { define( 'SN_CONTACT_SLUG', 'contact' ); 
 if ( ! defined( 'SN_CONTACT_BODY_MIGRATED_OPT' ) ) { define( 'SN_CONTACT_BODY_MIGRATED_OPT', 'sn_contact_body_migrated_v1' ); }
 if ( ! defined( 'SN_SERVICES_SLUG' ) ) { define( 'SN_SERVICES_SLUG', 'services' ); }
 if ( ! defined( 'SN_SERVICES_BODY_MIGRATED_OPT' ) ) { define( 'SN_SERVICES_BODY_MIGRATED_OPT', 'sn_services_body_migrated_v1' ); }
+if ( ! defined( 'SN_RESUME_SLUG' ) ) { define( 'SN_RESUME_SLUG', 'resume' ); }
+if ( ! defined( 'SN_RESUME_BODY_MERGED_OPT' ) ) { define( 'SN_RESUME_BODY_MERGED_OPT', 'sn_resume_body_merged_v1' ); }
+if ( ! defined( 'SN_MUSIC_SLUG' ) ) { define( 'SN_MUSIC_SLUG', 'music' ); }
+if ( ! defined( 'SN_MUSIC_BODY_MERGED_OPT' ) ) { define( 'SN_MUSIC_BODY_MERGED_OPT', 'sn_music_body_merged_v1' ); }
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
 
 $GLOBALS['__opt']  = array();
@@ -147,6 +151,94 @@ $GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array(); $GLOBALS['__page'] = n
 sn_migrate_services_body();
 ok( 0 === count( $GLOBALS['__upd'] ), 'no Page -> no write' );
 ok( ! empty( $GLOBALS['__opt'][ SN_SERVICES_BODY_MIGRATED_OPT ] ), 'no Page -> marks migrated' );
+
+echo "\nResume body merge migration\n";
+
+ok( '' !== trim( sn_load_resume_above() ), 'above loader returns non-empty Resume markup' );
+ok( '' !== trim( sn_load_resume_below() ), 'below loader returns non-empty Resume markup' );
+
+// Fresh site, existing PDF-only post_content, empty excerpt -> merges above+existing+below, seeds excerpt, sets flag.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 42, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => '' );
+sn_migrate_resume_body();
+ok( 1 === count( $GLOBALS['__upd'] ), 'existing content -> exactly one wp_update_post' );
+ok( 42 === $GLOBALS['__upd'][0]['ID'], 'update targets the Resume Page' );
+$merged = $GLOBALS['__upd'][0]['post_content'];
+ok( false !== strpos( $merged, 'Dossier · Background' ), 'merged body contains the hero sentinel' );
+ok( false !== strpos( $merged, 'EXISTING' ), 'merged body contains the existing content' );
+ok( strpos( $merged, 'Dossier · Background' ) < strpos( $merged, 'EXISTING' ), 'hero sentinel precedes existing content' );
+ok( '' !== trim( $GLOBALS['__upd'][0]['post_excerpt'] ), 'seeds a non-empty excerpt' );
+ok( ! empty( $GLOBALS['__opt'][ SN_RESUME_BODY_MERGED_OPT ] ), 'flag set after merging' );
+
+// Idempotency: post_content already contains the sentinel -> no write, flag set.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 42, 'post_content' => $merged, 'post_excerpt' => 'already merged' );
+sn_migrate_resume_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'sentinel already present -> no write (never double-merge)' );
+ok( ! empty( $GLOBALS['__opt'][ SN_RESUME_BODY_MERGED_OPT ] ), 'sentinel already present -> marks migrated' );
+
+// Flag already set -> no-op.
+$GLOBALS['__upd'] = array(); $GLOBALS['__opt'][ SN_RESUME_BODY_MERGED_OPT ] = 1;
+$GLOBALS['__page'] = (object) array( 'ID' => 42, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => '' );
+sn_migrate_resume_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'flag set -> never writes again' );
+
+// No Page -> marks migrated, no write.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array(); $GLOBALS['__page'] = null;
+sn_migrate_resume_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'no Page -> no write' );
+ok( ! empty( $GLOBALS['__opt'][ SN_RESUME_BODY_MERGED_OPT ] ), 'no Page -> marks migrated' );
+
+// Owner-written excerpt already present -> merge happens, excerpt NOT overwritten.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 42, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => 'owner-written excerpt' );
+sn_migrate_resume_body();
+ok( 1 === count( $GLOBALS['__upd'] ), 'owner excerpt -> exactly one wp_update_post (body still merged)' );
+ok( ! array_key_exists( 'post_excerpt', $GLOBALS['__upd'][0] ), 'owner excerpt -> post_excerpt NOT in the update args (guard holds)' );
+
+echo "\nMusic body merge migration\n";
+
+ok( '' !== trim( sn_load_music_above() ), 'above loader returns non-empty Music markup' );
+ok( '' !== trim( sn_load_music_below() ), 'below loader returns non-empty Music markup' );
+
+// Fresh site, existing player-only post_content, empty excerpt -> merges above+existing+below, seeds excerpt, sets flag.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 43, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => '' );
+sn_migrate_music_body();
+ok( 1 === count( $GLOBALS['__upd'] ), 'existing content -> exactly one wp_update_post' );
+ok( 43 === $GLOBALS['__upd'][0]['ID'], 'update targets the Music Page' );
+$merged = $GLOBALS['__upd'][0]['post_content'];
+ok( false !== strpos( $merged, 'Catalog · Discography' ), 'merged body contains the hero sentinel' );
+ok( false !== strpos( $merged, 'EXISTING' ), 'merged body contains the existing content' );
+ok( strpos( $merged, 'Catalog · Discography' ) < strpos( $merged, 'EXISTING' ), 'hero sentinel precedes existing content' );
+ok( '' !== trim( $GLOBALS['__upd'][0]['post_excerpt'] ), 'seeds a non-empty excerpt' );
+ok( ! empty( $GLOBALS['__opt'][ SN_MUSIC_BODY_MERGED_OPT ] ), 'flag set after merging' );
+
+// Idempotency: post_content already contains the sentinel -> no write, flag set.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 43, 'post_content' => $merged, 'post_excerpt' => 'already merged' );
+sn_migrate_music_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'sentinel already present -> no write (never double-merge)' );
+ok( ! empty( $GLOBALS['__opt'][ SN_MUSIC_BODY_MERGED_OPT ] ), 'sentinel already present -> marks migrated' );
+
+// Flag already set -> no-op.
+$GLOBALS['__upd'] = array(); $GLOBALS['__opt'][ SN_MUSIC_BODY_MERGED_OPT ] = 1;
+$GLOBALS['__page'] = (object) array( 'ID' => 43, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => '' );
+sn_migrate_music_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'flag set -> never writes again' );
+
+// No Page -> marks migrated, no write.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array(); $GLOBALS['__page'] = null;
+sn_migrate_music_body();
+ok( 0 === count( $GLOBALS['__upd'] ), 'no Page -> no write' );
+ok( ! empty( $GLOBALS['__opt'][ SN_MUSIC_BODY_MERGED_OPT ] ), 'no Page -> marks migrated' );
+
+// Owner-written excerpt already present -> merge happens, excerpt NOT overwritten.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 43, 'post_content' => '<!-- wp:paragraph --><p>EXISTING</p><!-- /wp:paragraph -->', 'post_excerpt' => 'owner-written excerpt' );
+sn_migrate_music_body();
+ok( 1 === count( $GLOBALS['__upd'] ), 'owner excerpt -> exactly one wp_update_post (body still merged)' );
+ok( ! array_key_exists( 'post_excerpt', $GLOBALS['__upd'][0] ), 'owner excerpt -> post_excerpt NOT in the update args (guard holds)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
