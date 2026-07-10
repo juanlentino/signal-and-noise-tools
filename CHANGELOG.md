@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.17.0] - 2026-07-10: Feat — /contact + /services become CMS-editable (pages-to-CMS flip, Phase 1b)
+
+**Headline:** Two more editorial pages move into the WordPress editor, using the exact migration the About pilot proved. One-time, idempotent migrations seed the (empty) **Contact** and **Services** Pages' `post_content` + Excerpt from frozen copies of their current designs — so both are now editable from **Pages → …**, with native Excerpts feeding SEO. Their `[sn_availability]` / `[sn_email]` shortcodes ride along in `post_content` and resolve unchanged. The front end switches in the companion theme release; until then the pages are unchanged.
+
+> **Why MINOR:** two new authoring surfaces (Contact + Services editable in wp-admin) via additive, edit-safe migrations. No settings-schema change; no API removed. Each migration only writes when the field is empty — it can never overwrite owner edits.
+
+### Added
+- `sn_migrate_contact_body()` and `sn_migrate_services_body()` (`admin_init`, idempotent, flag-guarded by `SN_CONTACT_BODY_MIGRATED_OPT` / `SN_SERVICES_BODY_MIGRATED_OPT`) — each seeds its Page's `post_content` from `inc/seed-content/{contact,services}-body.html` and `post_excerpt` from the current description, **only when empty**. Same guard order as the About/Provenance migrations. Loaders + `SN_*_SLUG` constants accompany them. The seed bodies are the templates' inner content with the FSE chrome and decorative HTML comments stripped (block-editor-safe), shortcodes preserved ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php), [inc/seed-content/contact-body.html](inc/seed-content/contact-body.html), [inc/seed-content/services-body.html](inc/seed-content/services-body.html)).
+
+### Notes
+- Companion theme release slims `templates/page-{contact,services}.html` to a frame + `wp:post-content` and drops their hardcoded descriptions from the route-meta map. Deploy this plugin first, confirm both Page bodies in wp-admin, then ship the theme change.
+
 ## [9.16.0] - 2026-07-10: Feat — /about becomes CMS-editable (pages-to-CMS flip, Phase 1a: About pilot)
 
 **Headline:** The first step of moving the theme's editorial pages out of template files and into the WordPress editor. A one-time, idempotent migration seeds the (empty) **About** Page's `post_content` and Excerpt from a frozen copy of the current design — so About is now editable from **Pages → About**, with a native Excerpt feeding SEO. Replicates the proven `sn_migrate_provenance_body()` pattern exactly. The front end switches to rendering the Page body in the companion theme release; until then `/about` is unchanged.
