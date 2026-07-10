@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.16.0] - 2026-07-10: Feat — /about becomes CMS-editable (pages-to-CMS flip, Phase 1a: About pilot)
+
+**Headline:** The first step of moving the theme's editorial pages out of template files and into the WordPress editor. A one-time, idempotent migration seeds the (empty) **About** Page's `post_content` and Excerpt from a frozen copy of the current design — so About is now editable from **Pages → About**, with a native Excerpt feeding SEO. Replicates the proven `sn_migrate_provenance_body()` pattern exactly. The front end switches to rendering the Page body in the companion theme release; until then `/about` is unchanged.
+
+> **Why MINOR:** a new authoring surface (About editable in wp-admin) via an additive migration. No settings-schema change; no public API removed or renamed. The migration only ever writes when the field is empty — it can never overwrite owner edits.
+
+### Added
+- `sn_migrate_about_body()` (`admin_init`, idempotent, flag-guarded by `SN_ABOUT_BODY_MIGRATED_OPT`) — seeds the About Page's `post_content` from `inc/seed-content/about-body.html` and its `post_excerpt` from the current description, each written **only when empty**. Mirrors the provenance-body migration's guard order (flag → no-Page → non-empty-body → seed-missing-retry → write). `sn_load_about_body()` + `SN_ABOUT_SLUG` accompany it ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php), [inc/seed-content/about-body.html](inc/seed-content/about-body.html)).
+
+### Notes
+- Companion theme release slims `templates/page-about.html` to a frame + `wp:post-content` and drops the hardcoded About description from the theme's route-meta map — that is what makes the seeded body render on the front end. Deploy this plugin first, confirm the About Page body in wp-admin, then ship the theme change.
+
 ## [9.15.1] - 2026-07-10: Fix — the on-chain link appears once, not twice (de-duplicate the panel's block/tx link)
 
 **Headline:** v9.15.0's plain-language lead link and the version row's "block N" both pointed at the same place, so a confirmed Note showed the *same* mempool link twice, stacked. The lead link now owns the on-chain target: the version chain and the caveat show that block/tx as **plain text**, so the link appears exactly once. A version anchored in a *different* block (or a panel with no lead link — e.g. a fresh version not yet in a transaction) keeps its own link, so a reachable anchor is never orphaned.

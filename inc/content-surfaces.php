@@ -38,6 +38,8 @@ const SN_OD_EYEBROW_DYN_OPT     = 'sn_provenance_over_detection_eyebrow_dynamic_
 const SN_NOTES_TPL_OVERRIDE_CLEARED_OPT = 'sn_notes_template_override_cleared_v1';
 const SN_PROV_CATALOG_NUMBERS_OPT = 'sn_provenance_catalog_numbers_v1';
 const SN_PROV_VERIFY_PAGE_MIGR_OPT = 'sn_prov_verify_page_migrated_v1';
+const SN_ABOUT_SLUG             = 'about';
+const SN_ABOUT_BODY_MIGRATED_OPT = 'sn_about_body_migrated_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
