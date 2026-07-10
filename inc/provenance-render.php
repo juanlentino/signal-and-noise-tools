@@ -294,7 +294,6 @@ function sn_prov_render_panel( $post_id ) {
 	}
 	return sprintf(
 		'<section class="sn-prov-panel" aria-label="Provenance record">
-			<p class="sn-prov-intro">This Note is cryptographically signed and timestamped on the Bitcoin blockchain. Verify it yourself below — no trust in this site required.</p>
 				<ol class="sn-prov-chain">%s</ol>%s
 			<p class="sn-prov-links"><a href="%s" rel="nofollow">Download proof (.ots)</a>
 			<a href="%s" rel="nofollow">Git ledger</a>

@@ -18,6 +18,5 @@
    for a pending Note) — strip the default anchor styling so the chip keeps its
    own look; the pointer cursor signals it's clickable. */
 .sn-prov-chip-link{text-decoration:none;color:inherit;cursor:pointer}
-.sn-prov-intro{margin:0 0 .8rem;font-size:.8rem;line-height:1.5;opacity:.8}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
 .sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}

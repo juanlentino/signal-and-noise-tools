@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.14.2] - 2026-07-10: Fix — drop the provenance panel's intro sentence
+
+**Headline:** Removed the plain-language intro line added in 9.14.1 ("This Note is cryptographically signed…"). The panel goes back to letting the record speak for itself. The pending-tx link + `N/6` count from 9.14.1 stay.
+
+> **Why PATCH:** copy removal only.
+
+### Removed
+- The `.sn-prov-intro` sentence and its style from the record panel ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+
 ## [9.14.1] - 2026-07-10: Fix — provenance panel UX: pending row links the tx, plus a plain-language intro
 
 **Headline:** The record panel now matches the byline chip: a **pending** version row links to its in-flight Bitcoin transaction on mempool.space and shows the live **N/6** count (before, only the chip did). And the panel opens with a one-line, plain-language explanation so a non-technical reader knows what it is.
