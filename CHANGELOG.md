@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.18.0] - 2026-07-10: Feat — /resume + /music prose moves into the editor (pages-to-CMS flip, Phase 1c — merge migrations)
+
+**Headline:** The last two Phase-1 pages. Unlike About/Contact/Services (whose Pages were empty), Resume and Music already carry content in `post_content` (the PDF; the featured-player shortcode) while their *prose* — Resume's hero + bio, Music's hero + intro + Muso-credits copy — lived only in the template. These migrations **merge** that prose into `post_content`, wrapping it around the existing content so the page renders **identically**, then it's all editable from Pages → …. A native Excerpt is seeded too (Resume had none). The front end switches in the companion theme release.
+
+> **Why MINOR:** two new authoring surfaces via additive migrations. No settings-schema change; no API removed. Identity-preserving and doubly-guarded (a run-once flag AND a content sentinel), and it only ever *wraps* existing content — it never deletes or overwrites owner edits.
+
+### Added
+- `sn_migrate_resume_body()` + `sn_migrate_music_body()` (`admin_init`, idempotent) — each sets `post_content = ABOVE-seed + existing post_content + BELOW-seed`, reconstructing the current render exactly (`ABOVE`/`BELOW` are the template blocks that sat before/after the `wp:post-content` marker, split into `inc/seed-content/{resume,music}-{above,below}.html`). Guard order: flag → no-Page → **sentinel already present** (skip; never double-merge) → seed-missing (retry) → merge + seed Excerpt when empty. Music's `[sn_discography]` and its featured-player shortcode are preserved in order; Resume's `#resume-viewer` anchor is preserved ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php), [inc/seed-content/](inc/seed-content/)).
+
+### Notes
+- Companion theme release slims `templates/page-{resume,music}.html` to bare frames and drops `'music'` from the route-meta map. Deploy this plugin first, confirm both Page bodies render + open cleanly in the editor, then ship the theme change.
+
 ## [9.17.0] - 2026-07-10: Feat — /contact + /services become CMS-editable (pages-to-CMS flip, Phase 1b)
 
 **Headline:** Two more editorial pages move into the WordPress editor, using the exact migration the About pilot proved. One-time, idempotent migrations seed the (empty) **Contact** and **Services** Pages' `post_content` + Excerpt from frozen copies of their current designs — so both are now editable from **Pages → …**, with native Excerpts feeding SEO. Their `[sn_availability]` / `[sn_email]` shortcodes ride along in `post_content` and resolve unchanged. The front end switches in the companion theme release; until then the pages are unchanged.
