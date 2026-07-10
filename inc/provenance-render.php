@@ -82,6 +82,51 @@ function sn_prov_status_label( $status ) {
 }
 
 /**
+ * Confirmation state of the genesis (founding-snapshot) root: its persisted OTS
+ * status and the Bitcoin block it anchored in. Founding-snapshot Notes inherit
+ * their verifiability from this one root, so the public surface reads it to
+ * decide whether a 'genesis' commit reads as verified-via-snapshot or is still
+ * anchoring. The option lives in the genesis module; guard the constant so the
+ * render layer resolves it without a hard dependency (and so the standalone
+ * test harness, which doesn't load that module, resolves it too).
+ *
+ * @return array{status:string,bitcoin_block:int}
+ */
+function sn_prov_genesis_root_state() {
+	$opt   = defined( 'SN_PROV_GENESIS_OPT' ) ? SN_PROV_GENESIS_OPT : 'sn_prov_genesis';
+	$state = get_option( $opt, array() );
+	if ( ! is_array( $state ) ) {
+		$state = array();
+	}
+	return array(
+		'status'        => (string) ( $state['status'] ?? '' ),
+		'bitcoin_block' => (int) ( $state['bitcoin_block'] ?? 0 ),
+	);
+}
+
+/**
+ * Presentation of a commit status, resolving the one context-dependent case: a
+ * 'genesis' (founding-snapshot) commit reads as verified ONLY once the genesis
+ * root's own OTS proof is Bitcoin-confirmed; until then the snapshot isn't
+ * independently proven, so it stays "Genesis". Every other status maps straight
+ * through sn_prov_status_label(). The chip keeps a genesis marker and the panel
+ * keeps the "founding snapshot" wording, so a verified snapshot Note stays
+ * distinct from an individually-anchored one.
+ *
+ * @param string $status      The commit's own status.
+ * @param string $root_status The genesis root option status ('confirmed'|…).
+ * @return array{state:string,label:string} CSS state token + human label.
+ */
+function sn_prov_present_status( $status, $root_status ) {
+	if ( 'genesis' === $status ) {
+		return 'confirmed' === $root_status
+			? array( 'state' => 'confirmed', 'label' => 'Verified' )
+			: array( 'state' => 'genesis', 'label' => 'Genesis' );
+	}
+	return array( 'state' => $status, 'label' => sn_prov_status_label( $status ) );
+}
+
+/**
  * The byline chip. Empty string when the Note has no chain.
  *
  * @param int $post_id Post ID.
@@ -92,11 +137,21 @@ function sn_prov_render_chip( $post_id ) {
 	if ( null === $vm ) {
 		return '';
 	}
+	$root = sn_prov_genesis_root_state();
+	$pres = sn_prov_present_status( $vm['status'], $root['status'] );
+	// Keep the founding-snapshot marker even once the chip reads verified, so a
+	// snapshot Note stays distinguishable from an individually-anchored one (the
+	// 'genesis' state already carries the class; add it back when it flips to
+	// 'confirmed'). data-genesis exposes the same distinction machine-readably.
+	$genesis_class = ( $vm['is_genesis_only'] && 'genesis' !== $pres['state'] ) ? ' sn-prov-genesis' : '';
+	$genesis_attr  = $vm['is_genesis_only'] ? ' data-genesis="1"' : '';
 	return sprintf(
-		'<span class="sn-prov-chip sn-prov-%s" data-status="%s">%s%s</span>',
-		esc_attr( $vm['status'] ),
-		esc_attr( $vm['status'] ),
-		esc_html( sn_prov_status_label( $vm['status'] ) ),
+		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s</span>',
+		esc_attr( $pres['state'] ),
+		$genesis_class,
+		esc_attr( $pres['state'] ),
+		$genesis_attr,
+		esc_html( $pres['label'] ),
 		$vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version']
 	);
 }
@@ -112,22 +167,44 @@ function sn_prov_render_panel( $post_id ) {
 	if ( null === $vm ) {
 		return '';
 	}
-	$rows = '';
+	$root           = sn_prov_genesis_root_state();
+	$root_confirmed = 'confirmed' === $root['status'];
+	$root_block     = $root['bitcoin_block'];
+	$rows           = '';
 	foreach ( array_reverse( $vm['versions'] ) as $v ) {
-		$meta = 'genesis' === $v['status']
-			? 'genesis snapshot'
-			: ( $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : sn_prov_status_label( $v['status'] ) );
+		$pres = sn_prov_present_status( $v['status'], $root['status'] );
+		if ( 'genesis' === $v['status'] ) {
+			// Founding-snapshot leaf: it's only verified once its root is on Bitcoin;
+			// then it shows the root's block, staying labelled "founding snapshot".
+			if ( $root_confirmed ) {
+				$meta = $root_block
+					? 'founding snapshot · block ' . number_format_i18n( $root_block )
+					: 'founding snapshot · verified';
+			} else {
+				$meta = 'genesis snapshot';
+			}
+		} else {
+			$meta = $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : sn_prov_status_label( $v['status'] );
+		}
 		$rows .= sprintf(
 			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
-			esc_attr( $v['status'] ),
+			esc_attr( $pres['state'] ),
 			(int) $v['version'],
 			esc_html( substr( $v['content_hash'], 0, 12 ) ),
 			esc_html( $meta )
 		);
 	}
-	$caveat = $vm['genesis_caveat']
-		? '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>'
-		: '';
+	// The caveat tracks the root: once the snapshot is Bitcoin-anchored it IS
+	// independently proven, so the honest wording flips from "not proven" to
+	// verified-via-snapshot (while still noting the original date is a claim).
+	if ( ! $vm['genesis_caveat'] ) {
+		$caveat = '';
+	} elseif ( $root_confirmed ) {
+		$anchor = $root_block ? ', anchored in Bitcoin block ' . number_format_i18n( $root_block ) : '';
+		$caveat = '<p class="sn-prov-caveat">Verified via the founding snapshot' . $anchor . '. The snapshot proves this Note existed as of the anchor; its original publication date is claimed by the site, not independently timestamped.</p>';
+	} else {
+		$caveat = '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>';
+	}
 	return sprintf(
 		'<section class="sn-prov-panel" aria-label="Provenance record">
 			<ol class="sn-prov-chain">%s</ol>%s

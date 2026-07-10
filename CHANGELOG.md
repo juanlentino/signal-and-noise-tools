@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.12.0] - 2026-07-09: Feat — founding-snapshot Notes read as "Verified" once the genesis root confirms
+
+**Headline:** Every published Note is anchored — the backlog through the one-time genesis Merkle snapshot, newer Notes through their own per-Note commits. But a backlog Note's chip read "Genesis" forever, even after the genesis root confirmed on Bitcoin. Now, once that root is Bitcoin-confirmed, founding-snapshot Notes present as **verified** (chip "Verified", panel "founding snapshot · block N") — while staying distinct from an individually-anchored Note. No re-timestamping: the single Merkle anchor still covers the whole backlog.
+
+> **Why MINOR:** new user-visible capability (a whole class of Notes now reads verified). No data migration — the v0 commit keeps `status: genesis`; the shift is presentation-only, driven by the genesis root's confirmation state. No settings-schema change.
+
+### Added
+- `sn_prov_present_status( $status, $root_status )` — resolves the one context-dependent status: a `genesis` (founding-snapshot) commit reads as verified **only** once the genesis root's own OpenTimestamps proof is Bitcoin-confirmed; until then it honestly stays "Genesis" ([inc/provenance-render.php](inc/provenance-render.php)).
+- `sn_prov_genesis_root_state()` — the render layer's read of the genesis root's OTS status + anchored Bitcoin block (constant-guarded, no hard dependency on the genesis module) ([inc/provenance-render.php](inc/provenance-render.php)).
+
+### Changed
+- The byline chip for a founding-snapshot Note flips from "Genesis" to "Verified" once the root confirms, keeping a `sn-prov-genesis` marker class + `data-genesis="1"` so it stays distinguishable from an individually-anchored Note ([inc/provenance-render.php](inc/provenance-render.php)).
+- The provenance panel's genesis row now shows "founding snapshot · block N" once anchored, and its caveat flips from *"…not independently proven"* to *"Verified via the founding snapshot, anchored in Bitcoin block N…"* (still noting the original publication date is a claim, not a timestamp) ([inc/provenance-render.php](inc/provenance-render.php)).
+
 ## [9.11.2] - 2026-07-09: Fix — Provenance "last contact" time now reads in Eastern Time, not raw UTC
 
 **Headline:** The Provenance panel's Worker card showed its last-contact time as a raw UTC ISO string — "Reachable · 2026-07-09T19:31:58Z". It now renders in Eastern Time — "Reachable · Jul 9, 2026 3:31 PM EDT" — the site's operating timezone, and DST-aware (EDT in summer, EST in winter).
