@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.19.0] - 2026-07-10: Feat: /now becomes a real CMS Page (pages-to-CMS flip, Phase 2a: Now pilot)
+
+**Headline:** The first Phase-2 route. `/now` was a postless PHP virtual route (rendered by a `template_redirect` short-circuit). This migration *creates* a real `now` Page (bound to the theme's new `page-now` template) and seeds its `post_content` from the owner's **Content → Now Page text box** (`sn_now_page_sections()` converted to `core/heading` + `core/list` blocks), prepended with a frozen hero, plus a native Excerpt. It stays invisible until the companion theme release (v10.34.0) removes the interceptor. Creating the Page first is safe (the interceptor still serves the old route), so **deploy this plugin first, then the theme**. Unlike Phase 1 (which populated existing Pages), Phase 2 pages do not exist yet, so this is the first migration that creates one, mirroring `sn_migrate_provenance_split()`'s `wp_insert_post` shape.
+
+> **Why MINOR:** `/now` becomes CMS-editable via an additive one-time migration. No settings-schema change, no API removed. Retry-safe (waits for the text box to have content) and never clobbers an existing, owner-edited Page.
+
+### Added
+- `sn_migrate_now_page()` (`admin_init`, idempotent): creates the `now` Page via `wp_insert_post` (`post_status=publish`, `page_template=page-now`) and seeds `post_content` (the hero seed plus the Now text box converted to blocks) plus a native Excerpt, only when the Page is absent or empty. Guard order: flag, then existing-non-empty (bail and flag, never clobber), then hero/content not ready (retry, no flag), then create-or-seed and flag ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php)).
+- `sn_now_sections_to_blocks()`: pure converter turning the parsed `[{label, items[]}]` Now sections into a constrained group of `core/heading` + `core/list` blocks. Every label and item is `esc_html`'d at the block-markup boundary ([inc/content-migrations.php](inc/content-migrations.php)).
+- `inc/seed-content/now-hero.html`: the frozen `/now` hero (eyebrow, headline, dek) in the shared block vocabulary (`sn-catalog-eyebrow` plus presets), with an automatic `core/post-date` (`displayType:"modified"`) byline replacing the retired `sn_now_updated` stamp.
+
+### Fixed
+- The hero's automatic "Updated" byline: core's `render_block_core_post_date()` renders nothing when a `"modified"` date equals the published date, and a fresh insert sets them equal, so a follow-up update backdates `post_date` a few minutes (which refreshes `post_modified` to now). That opens a modified-greater-than-published gap so the byline renders from first load ([inc/content-migrations.php](inc/content-migrations.php)).
+
+### Notes
+- The bespoke Now text-box editor (`inc/now-page.php`) stays for now but becomes a harmless no-op once the theme route is gone (its `sn_now_sections` filter has no consumer). It retires in Phase 3. After the flip, `/now` is edited from Pages → Now in the block editor.
+- Tests: `tests/now-page-migration.php` (32 assertions: converter validity and escaping, Page creation args, excerpt, idempotency, retry-safety, the post-date backdate). Full sweep 251 suites, 6901 assertions.
+
 ## [9.18.0] - 2026-07-10: Feat — /resume + /music prose moves into the editor (pages-to-CMS flip, Phase 1c — merge migrations)
 
 **Headline:** The last two Phase-1 pages. Unlike About/Contact/Services (whose Pages were empty), Resume and Music already carry content in `post_content` (the PDF; the featured-player shortcode) while their *prose* — Resume's hero + bio, Music's hero + intro + Muso-credits copy — lived only in the template. These migrations **merge** that prose into `post_content`, wrapping it around the existing content so the page renders **identically**, then it's all editable from Pages → …. A native Excerpt is seeded too (Resume had none). The front end switches in the companion theme release.
