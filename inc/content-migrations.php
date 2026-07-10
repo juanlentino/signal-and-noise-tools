@@ -1075,3 +1075,122 @@ function sn_migrate_clear_notes_template_override() {
 
 	update_option( SN_NOTES_TPL_OVERRIDE_CLEARED_OPT, time(), true );
 }
+
+/**
+ * Load the frozen /now hero markup (eyebrow + headline + dek + the automatic
+ * modified-date block). Empty string when the seed is missing — same fallback
+ * semantics as the seed loaders above.
+ *
+ * @return string
+ */
+function sn_load_now_hero() {
+	$f = __DIR__ . '/seed-content/now-hero.html';
+	return file_exists( $f ) ? (string) file_get_contents( $f ) : '';
+}
+
+/**
+ * Convert the /now text-box sections into a constrained group of heading +
+ * list blocks. Pure; returns '' when there are no usable sections. Every label
+ * and item is esc_html'd — the text box is owner input that becomes rendered
+ * post_content, so it is escaped at the block-markup boundary.
+ *
+ * @param array<int,array{label:string,items:array<int,string>}> $sections
+ * @return string
+ */
+function sn_now_sections_to_blocks( $sections ) {
+	if ( empty( $sections ) || ! is_array( $sections ) ) {
+		return '';
+	}
+
+	$inner = '';
+	foreach ( $sections as $section ) {
+		$label = esc_html( (string) ( $section['label'] ?? '' ) );
+		if ( '' === $label ) {
+			continue;
+		}
+
+		$inner .= "\n\t<!-- wp:heading -->\n\t<h2 class=\"wp-block-heading\">{$label}</h2>\n\t<!-- /wp:heading -->\n";
+
+		$items = '';
+		foreach ( (array) ( $section['items'] ?? array() ) as $item ) {
+			$item   = esc_html( (string) $item );
+			$items .= "\t\t<!-- wp:list-item -->\n\t\t<li>{$item}</li>\n\t\t<!-- /wp:list-item -->\n";
+		}
+		$inner .= "\n\t<!-- wp:list -->\n\t<ul class=\"wp-block-list\">\n{$items}\t</ul>\n\t<!-- /wp:list -->\n";
+	}
+
+	if ( '' === trim( $inner ) ) {
+		return '';
+	}
+
+	$open  = '<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|40","bottom":"var:preset|spacing|70","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"backgroundColor":"void","layout":{"type":"constrained","contentSize":"760px"}} -->' . "\n";
+	$open .= '<div class="wp-block-group has-void-background-color has-background" style="padding-top:var(--wp--preset--spacing--40);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--40)">';
+
+	return $open . "\n" . $inner . "\n</div>\n<!-- /wp:group -->";
+}
+
+/**
+ * One-time migration: flip /now from a postless virtual route to a real CMS
+ * Page. Creates the `now` Page (bound to the page-now template) and seeds its
+ * body from the owner's Content → Now Page text box (sn_now_page_sections),
+ * prepended with the frozen hero, plus a native Excerpt so SEO stays native.
+ *
+ * Retry-safe: does nothing (and does NOT set the flag) until both the hero
+ * seed and real text-box content are present, so the Page is created only once
+ * it has real content. Never clobbers an existing, owner-edited Page.
+ */
+add_action( 'admin_init', 'sn_migrate_now_page' );
+
+function sn_migrate_now_page() {
+	if ( get_option( SN_NOW_PAGE_MIGRATED_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( SN_NOW_SLUG );
+
+	// Existing, owner-edited Page — never touch it, but stop checking.
+	if ( $page && '' !== trim( (string) $page->post_content ) ) {
+		update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
+		return;
+	}
+
+	$hero     = sn_load_now_hero();
+	$sections = function_exists( 'sn_now_page_sections' ) ? sn_now_page_sections() : array();
+	$body_sec = sn_now_sections_to_blocks( $sections );
+
+	// Retry-safe: wait for both the hero seed and real text-box content
+	// before creating/seeding — never flag an incomplete run.
+	if ( '' === $hero || '' === trim( $body_sec ) ) {
+		return;
+	}
+
+	$body    = $hero . "\n\n" . $body_sec;
+	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
+
+	if ( $page ) {
+		$update = array(
+			'ID'           => $page->ID,
+			'post_content' => $body,
+		);
+		if ( '' === trim( (string) $page->post_excerpt ) ) {
+			$update['post_excerpt'] = $excerpt;
+		}
+		wp_update_post( $update );
+	} else {
+		wp_insert_post(
+			array(
+				'post_title'    => 'Now',
+				'post_name'     => SN_NOW_SLUG,
+				'post_parent'   => 0,
+				'post_status'   => 'publish',
+				'post_type'     => 'page',
+				'post_content'  => $body,
+				'post_excerpt'  => $excerpt,
+				'page_template' => 'page-now',
+			),
+			false
+		);
+	}
+
+	update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
+}
