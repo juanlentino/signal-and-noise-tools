@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.14.0] - 2026-07-10: Feat — pending Notes link to the live Bitcoin transaction (mempool), with an N/6 count
+
+**Headline:** Anchoring is checkable *before* it fully confirms. A pending Note's byline chip now links to its **in-flight Bitcoin transaction on mempool.space** and shows a live **N/6 confirmation count** — so anyone, with no cryptography knowledge, can watch it confirm. Once it hits 6, the chip flips to "Verified" linking the block. (Confirmed chips now link their block too.)
+
+> **Why MINOR:** new user-visible capability. No settings-schema change.
+
+### Added
+- `sn_prov_tx_explorer_url( $txid )` — filterable public-explorer URL for a Bitcoin transaction (default `https://mempool.space/tx/<txid>`; filter `sn_prov_tx_explorer`) ([inc/provenance-render.php](inc/provenance-render.php)).
+- The view-model + webhook now carry `bitcoin_txid` and `confirmations`, recorded from the Worker's signed pending-progress callback (txid shape-validated) ([inc/provenance-render.php](inc/provenance-render.php), [inc/provenance-webhook.php](inc/provenance-webhook.php)).
+
+### Changed
+- The byline chip is now a link to the on-chain proof: a confirmed Note → its block, a pending Note (once in a tx) → the transaction, its label carrying the `N/6` count. No target yet → a plain, unlinked chip (unchanged) ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+- Requires the `sn-provenance` Worker at **v1.4.0+** (which captures the pending tx + count).
+
 ## [9.13.0] - 2026-07-09: Feat — Bitcoin block numbers in the provenance panel link to a public explorer
 
 **Headline:** A confirmed Note's provenance panel showed its anchor as inert text ("block 957,333"). The block number is now a **link** to that block on a public explorer (mempool.space by default) — so a reader clicks through and sees the actual Bitcoin block their Note is timestamped in. The "verify it yourself" promise, made tangible.

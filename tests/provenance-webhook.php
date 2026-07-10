@@ -236,6 +236,19 @@ wh_eq( 'confirmed', $chain[0]['status'], 'status is confirmed' );
 wh_eq( 902417, $chain[0]['bitcoin_block'], 'block height recorded' );
 wh_eq( false, sn_prov_apply_confirmation( 'nope', 1, array() ), 'unknown uid returns false' );
 
+// Pending-progress callback: records the in-flight tx + confirmation count on the
+// still-pending commit (status stays pending); a malformed txid is rejected.
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
+$txid = str_repeat( 'ab', 32 );
+sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'pending', 'bitcoin_txid' => $txid, 'confirmations' => 3 ) );
+$pchain = sn_prov_get_chain( 42 );
+wh_eq( 'pending', $pchain[0]['status'], 'pending update keeps status pending' );
+wh_eq( $txid, $pchain[0]['bitcoin_txid'] ?? '', 'pending tx id recorded' );
+wh_eq( 3, $pchain[0]['confirmations'] ?? -1, 'confirmation count recorded' );
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
+sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'pending', 'bitcoin_txid' => 'not-a-txid' ) );
+wh_eq( '', sn_prov_get_chain( 42 )[0]['bitcoin_txid'] ?? '', 'a malformed txid is rejected' );
+
 echo "\nTask 5: reconcile\n";
 // Post 77 has an unanchored commit and no worker response yet.
 update_post_meta( 77, SN_PROV_UID_META, 'w' );

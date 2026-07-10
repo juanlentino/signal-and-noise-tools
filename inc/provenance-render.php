@@ -33,6 +33,8 @@ function sn_prov_view_data( $post_id ) {
 			'status'        => (string) ( $c['status'] ?? 'unanchored' ),
 			'content_hash'  => (string) ( $c['content_hash'] ?? '' ),
 			'bitcoin_block' => isset( $c['bitcoin_block'] ) ? (int) $c['bitcoin_block'] : null,
+			'bitcoin_txid'  => (string) ( $c['bitcoin_txid'] ?? '' ),
+			'confirmations' => isset( $c['confirmations'] ) ? (int) $c['confirmations'] : null,
 			'genesis'       => ! empty( $c['genesis'] ),
 			'committed_at'  => (string) ( $c['committed_at'] ?? '' ),
 		);
@@ -43,6 +45,9 @@ function sn_prov_view_data( $post_id ) {
 		'status'          => (string) ( $latest['status'] ?? 'unanchored' ),
 		'current_hash'    => (string) ( $latest['content_hash'] ?? '' ),
 		'version'         => (int) ( $latest['version'] ?? 0 ),
+		'bitcoin_block'   => isset( $latest['bitcoin_block'] ) ? (int) $latest['bitcoin_block'] : 0,
+		'bitcoin_txid'    => (string) ( $latest['bitcoin_txid'] ?? '' ),
+		'confirmations'   => isset( $latest['confirmations'] ) ? (int) $latest['confirmations'] : null,
 		'versions'        => $versions,
 		'is_genesis_only' => $genesis_only,
 		'genesis_caveat'  => $genesis_only,
@@ -127,6 +132,22 @@ function sn_prov_present_status( $status, $root_status ) {
 }
 
 /**
+ * Public block-explorer URL for a Bitcoin transaction id (filterable). Lets a
+ * reader watch a still-pending anchor confirm on mempool.space without knowing
+ * any cryptography. Return '' (or filter away) to disable linking.
+ *
+ * @param string $txid 64-hex Bitcoin transaction id.
+ * @return string
+ */
+function sn_prov_tx_explorer_url( $txid ) {
+	$txid = strtolower( trim( (string) $txid ) );
+	if ( ! preg_match( '/^[0-9a-f]{64}$/', $txid ) ) {
+		return '';
+	}
+	return (string) apply_filters( 'sn_prov_tx_explorer', 'https://mempool.space/tx/' . $txid, $txid );
+}
+
+/**
  * The byline chip. Empty string when the Note has no chain.
  *
  * @param int $post_id Post ID.
@@ -145,15 +166,35 @@ function sn_prov_render_chip( $post_id ) {
 	// 'confirmed'). data-genesis exposes the same distinction machine-readably.
 	$genesis_class = ( $vm['is_genesis_only'] && 'genesis' !== $pres['state'] ) ? ' sn-prov-genesis' : '';
 	$genesis_attr  = $vm['is_genesis_only'] ? ' data-genesis="1"' : '';
-	return sprintf(
+
+	// Link the chip to the on-chain proof so anyone can check it on mempool.space
+	// with no crypto knowledge: a confirmed Note → its block; a pending Note → the
+	// in-flight transaction, the label carrying a live N/6 confirmation count.
+	// No target (not yet in a tx, or genesis-still-anchoring) → a plain chip.
+	$href   = '';
+	$suffix = $vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version'];
+	if ( 'confirmed' === $pres['state'] ) {
+		$block = $vm['is_genesis_only'] ? (int) $root['bitcoin_block'] : (int) $vm['bitcoin_block'];
+		if ( $block > 0 ) {
+			$href = sn_prov_block_explorer_url( $block );
+		}
+	} elseif ( 'pending' === $pres['state'] && '' !== sn_prov_tx_explorer_url( $vm['bitcoin_txid'] ) ) {
+		$href   = sn_prov_tx_explorer_url( $vm['bitcoin_txid'] );
+		$suffix = null === $vm['confirmations'] ? '' : ' &middot; ' . max( 0, (int) $vm['confirmations'] ) . '/6';
+	}
+
+	$chip = sprintf(
 		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s</span>',
 		esc_attr( $pres['state'] ),
 		$genesis_class,
 		esc_attr( $pres['state'] ),
 		$genesis_attr,
 		esc_html( $pres['label'] ),
-		$vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version']
+		$suffix
 	);
+	return '' === $href
+		? $chip
+		: '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank">' . $chip . '</a>';
 }
 
 /**
