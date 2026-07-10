@@ -60,6 +60,15 @@ function sn_load_verify_body() {
 	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
 }
 
+/**
+ * Load the seeded /about body markup from disk. Mirrors
+ * sn_load_provenance_body — same empty-string fallback semantics.
+ */
+function sn_load_about_body() {
+	$body_file = __DIR__ . '/seed-content/about-body.html';
+	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
+}
+
 // ── MIGRATIONS (one-shot, idempotent per SN_*_MIGR_OPT flag) ───────
 
 /**
@@ -108,6 +117,43 @@ function sn_migrate_provenance_body() {
 	) );
 
 	update_option( SN_PROV_BODY_MIGRATED_OPT, time(), true );
+}
+
+/**
+ * One-time migration flipping /about from file-authored to CMS-authored:
+ * seeds the existing (empty) About Page's body from the seed file, plus a
+ * native Excerpt so the SEO layer reads a real excerpt instead of the theme's
+ * hardcoded description map. Same safety as sn_migrate_provenance_body():
+ * runs once, only writes when the field is genuinely empty.
+ */
+add_action( 'admin_init', 'sn_migrate_about_body' );
+
+function sn_migrate_about_body() {
+	if ( get_option( SN_ABOUT_BODY_MIGRATED_OPT ) ) {
+		return;
+	}
+	$page = get_page_by_path( SN_ABOUT_SLUG );
+	if ( ! $page ) {
+		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
+		return;
+	}
+	if ( '' !== trim( (string) $page->post_content ) ) {
+		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
+		return;
+	}
+	$body = sn_load_about_body();
+	if ( '' === $body ) {
+		return; // Seed missing — retry next admin_init once it deploys.
+	}
+	$update = array(
+		'ID'           => $page->ID,
+		'post_content' => $body,
+	);
+	if ( '' === trim( (string) $page->post_excerpt ) ) {
+		$update['post_excerpt'] = 'Music producer, mix engineer, and creative strategist based in Buenos Aires. The person behind the work, the studio, and the notes.';
+	}
+	wp_update_post( $update );
+	update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
 }
 
 /**
