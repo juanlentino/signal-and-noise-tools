@@ -11,5 +11,8 @@
 .sn-prov-chain{list-style:none;margin:0 0 .6rem;padding:0}
 .sn-prov-ver{display:flex;gap:.5em;align-items:baseline;padding:.25em 0}
 .sn-prov-meta{opacity:.6}
+/* The block number links to that block on a public explorer — underlined so it
+   reads as clickable within the dimmed meta; inherits color to stay subtle. */
+.sn-prov-block{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
 .sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}

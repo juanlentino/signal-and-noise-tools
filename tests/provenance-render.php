@@ -230,5 +230,28 @@ rp_true( false !== strpos( $chip6p, 'Genesis' ), 'pending root → genesis chip 
 rp_true( false !== strpos( sn_prov_render_panel( 6 ), 'not independently proven' ), 'pending root → honest caveat still shown' );
 unset( $GLOBALS['__pv_options']['sn_prov_genesis'] );
 
+echo "\nTask 6: Bitcoin block numbers link to a public explorer\n";
+rp_true( false !== strpos( sn_prov_block_explorer_url( 957333 ), 'mempool.space/block/957333' ), 'explorer url defaults to mempool.space/block/<height>' );
+rp_eq( '', sn_prov_block_explorer_url( 0 ), 'no explorer url for a zero block' );
+$blink = sn_prov_block_link( 957333 );
+rp_true( false !== strpos( $blink, '<a ' ), 'block link is an anchor' );
+rp_true( false !== strpos( $blink, 'mempool.space/block/957333' ), 'block link points at the block' );
+rp_true( false !== strpos( $blink, 'block 957,333' ), 'block link text is the humanized number' );
+rp_true( false !== strpos( $blink, 'nofollow' ), 'block link is rel=nofollow (external)' );
+rp_eq( '', sn_prov_block_link( 0 ), 'no link for a zero/absent block' );
+
+// Confirmed genesis panel (post 6): the founding-snapshot block is a link.
+$GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'confirmed', 'bitcoin_block' => 957359 );
+$panel6b = sn_prov_render_panel( 6 );
+rp_true( false !== strpos( $panel6b, 'mempool.space/block/957359' ), 'confirmed genesis panel links the founding-snapshot block' );
+rp_true( false !== strpos( $panel6b, 'founding snapshot' ), 'confirmed genesis panel keeps the founding-snapshot label' );
+rp_true( false !== strpos( $panel6b, '957,359</a>' ), 'the block number is inside the anchor' );
+unset( $GLOBALS['__pv_options']['sn_prov_genesis'] );
+
+// Per-Note confirmed block (post 5, block 902417) links too.
+$panel5b = sn_prov_render_panel( 5 );
+rp_true( false !== strpos( $panel5b, 'mempool.space/block/902417' ), 'per-Note confirmed block links to the explorer' );
+rp_true( false !== strpos( $panel5b, '902,417</a>' ), 'per-Note block number is inside the anchor' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
