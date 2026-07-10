@@ -270,6 +270,15 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 	if ( isset( $data['block_time'] ) ) {
 		$fields['block_time'] = (string) $data['block_time'];
 	}
+	// Pending-anchor progress: the Worker reports the in-flight Bitcoin tx id and
+	// its confirmation count (0..6) so a still-pending Note links to mempool.space
+	// and shows a live N/6 count. Validate the txid shape; never store junk.
+	if ( isset( $data['bitcoin_txid'] ) && preg_match( '/^[0-9a-f]{64}$/i', (string) $data['bitcoin_txid'] ) ) {
+		$fields['bitcoin_txid'] = strtolower( (string) $data['bitcoin_txid'] );
+	}
+	if ( isset( $data['confirmations'] ) ) {
+		$fields['confirmations'] = max( 0, (int) $data['confirmations'] );
+	}
 	return sn_prov_update_commit( $post_id, (int) $version, $fields );
 }
 

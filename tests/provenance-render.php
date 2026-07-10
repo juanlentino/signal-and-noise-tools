@@ -253,5 +253,30 @@ $panel5b = sn_prov_render_panel( 5 );
 rp_true( false !== strpos( $panel5b, 'mempool.space/block/902417' ), 'per-Note confirmed block links to the explorer' );
 rp_true( false !== strpos( $panel5b, '902,417</a>' ), 'per-Note block number is inside the anchor' );
 
+echo "\nTask 7: pending Notes link to the mempool tx with a live N/6 count\n";
+$txid = str_repeat( 'ab', 32 ); // 64-hex
+rp_true( false !== strpos( sn_prov_tx_explorer_url( $txid ), 'mempool.space/tx/' . $txid ), 'tx url = mempool.space/tx/<txid>' );
+rp_eq( '', sn_prov_tx_explorer_url( 'nothex' ), 'invalid txid → no url' );
+
+update_post_meta( 7, SN_PROV_UID_META, 'uid7' );
+update_post_meta( 7, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'p1', 'status' => 'pending', 'bitcoin_txid' => $txid, 'confirmations' => 3 ) ) );
+$chip7 = sn_prov_render_chip( 7 );
+rp_true( false !== strpos( $chip7, 'mempool.space/tx/' . $txid ), 'pending chip links to the in-flight tx' );
+rp_true( false !== strpos( $chip7, '3/6' ), 'pending chip shows the N/6 confirmation count' );
+rp_true( false !== strpos( $chip7, 'Pending' ), 'pending chip still reads Pending' );
+rp_true( false !== strpos( $chip7, '<a ' ), 'pending chip is wrapped in a link' );
+
+// Pending with NO txid yet (not in a tx) → plain, unlinked chip.
+update_post_meta( 7, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'p1', 'status' => 'pending' ) ) );
+$chip7b = sn_prov_render_chip( 7 );
+rp_true( false === strpos( $chip7b, '<a ' ), 'pending chip with no txid → plain, unlinked' );
+rp_true( false === strpos( $chip7b, '/6' ), 'no count without confirmations' );
+
+// A confirmed per-Note chip now links to its block too.
+update_post_meta( 7, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'p1', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ) );
+$chip7c = sn_prov_render_chip( 7 );
+rp_true( false !== strpos( $chip7c, 'mempool.space/block/957333' ), 'confirmed chip links to its block' );
+rp_true( false !== strpos( $chip7c, 'Verified' ), 'confirmed chip reads Verified' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

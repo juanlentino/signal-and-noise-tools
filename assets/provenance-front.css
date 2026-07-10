@@ -14,5 +14,9 @@
 /* The block number links to that block on a public explorer — underlined so it
    reads as clickable within the dimmed meta; inherits color to stay subtle. */
 .sn-prov-block{color:inherit;text-decoration:underline;text-underline-offset:2px}
+/* The whole byline chip can be a link (to its Bitcoin block, or the in-flight tx
+   for a pending Note) — strip the default anchor styling so the chip keeps its
+   own look; the pointer cursor signals it's clickable. */
+.sn-prov-chip-link{text-decoration:none;color:inherit;cursor:pointer}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
 .sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}
