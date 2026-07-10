@@ -182,14 +182,15 @@ function sn_aw_realtime( $standalone = true ) {
  * sentence — two explicitly-labelled windows in the widget's number-over-label
  * vocabulary, no taller than the number it replaces. Config is already gated by
  * sn_aw_preamble() at the top of sn_aw_overview(), so there is no re-check here.
- * Today reuses the daily series' LAST bucket (zero extra queries — the same trick
- * as the Analytics page's Pulse strip); the cell is omitted when that series is
- * empty, so the "now" figure never renders a bare, unpaired label.
+ * Today prefers the realtime tier's site-timezone "views today so far"; the UTC
+ * daily rollup's last bucket is only a cold-cache fallback (it rolls at UTC
+ * midnight — 8pm ET — which reset this figure mid-evening). The cell is omitted
+ * when neither source has data, so the "now" figure never renders unpaired.
  */
 function sn_aw_now_today() {
 	$now   = function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( 'human' ) : null;
-	$today = null;
-	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+	$today = function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null;
+	if ( null === $today && function_exists( 'sn_analytics_daily_series' ) ) {
 		list( $t_from, $t_to ) = sn_aw_window7();
 		$t_series = sn_analytics_daily_series( $t_from, $t_to, 'human', 'day' );
 		$t_last   = ( is_array( $t_series ) && ! empty( $t_series ) ) ? end( $t_series ) : null;

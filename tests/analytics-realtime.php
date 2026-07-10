@@ -59,15 +59,25 @@ function current_user_can( $cap ) {
 	return (bool) $GLOBALS['__rt_cap'];
 }
 
+// Site timezone stub — fixed ET so the day-boundary math is deterministic.
+function wp_timezone() {
+	return new DateTimeZone( 'America/New_York' );
+}
+
 // AE read-client seam (analytics-api.php not loaded here; injected).
 $GLOBALS['__rt_config_present'] = true;
-$GLOBALS['__rt_query_return']   = null;
+$GLOBALS['__rt_query_return']   = null;  // visitors-now query result
+$GLOBALS['__rt_query_today']    = null;  // views-today query result
 $GLOBALS['__rt_query_calls']    = array();
 function sn_analytics_config() {
 	return $GLOBALS['__rt_config_present'] ? array( 'account_id' => 'a', 'token' => 't' ) : null;
 }
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__rt_query_calls'][] = $sql;
+	// Route by shape: the views-today query is the only one that SUMs sampled PVs.
+	if ( strpos( $sql, 'sum(_sample_interval)' ) !== false ) {
+		return $GLOBALS['__rt_query_today'];
+	}
 	return $GLOBALS['__rt_query_return'];
 }
 
@@ -93,6 +103,7 @@ function rt_reset() {
 	$GLOBALS['__rt_cap']            = true;
 	$GLOBALS['__rt_config_present'] = true;
 	$GLOBALS['__rt_query_return']   = null;
+	$GLOBALS['__rt_query_today']    = null;
 	$GLOBALS['__rt_query_calls']    = array();
 }
 
@@ -132,7 +143,7 @@ $GLOBALS['__rt_query_return']   = array(
 	array( 'class' => 'bot',   'visitors' => 50 ),
 );
 sn_analytics_realtime_refresh();
-ok( count( $GLOBALS['__rt_query_calls'] ) === 1, 'refresh: issues one AE query' );
+ok( count( $GLOBALS['__rt_query_calls'] ) === 2, 'refresh: issues the visitors-now + views-today queries' );
 $c = get_transient( SN_ANALYTICS_REALTIME_KEY );
 ok( is_array( $c ) && ( $c['counts']['human'] ?? null ) === 7, 'refresh: caches per-class human count' );
 ok( ( $c['counts']['bot'] ?? null ) === 50, 'refresh: caches per-class bot count' );
@@ -197,6 +208,63 @@ rt_reset();
 $GLOBALS['__rt_config_present'] = false;
 sn_analytics_realtime_warm();
 ok( count( $GLOBALS['__rt_single_events'] ) === 0, 'warmer: unconfigured → no schedule' );
+
+// ── Views today (site-timezone day-so-far) ─────────────────────────────────────
+echo "\nGroup: views-today boundary math (site timezone)\n";
+$et = new DateTimeZone( 'America/New_York' );
+$mid  = ( new DateTimeImmutable( '2026-07-09 00:00:00', $et ) )->getTimestamp();
+$noon = ( new DateTimeImmutable( '2026-07-09 12:00:00', $et ) )->getTimestamp();
+$eod  = ( new DateTimeImmutable( '2026-07-09 23:59:59', $et ) )->getTimestamp();
+ok( sn_analytics_seconds_since_wp_midnight( $mid ) === 0, 'boundary: local midnight → 0s' );
+ok( sn_analytics_seconds_since_wp_midnight( $noon ) === 43200, 'boundary: local noon → 43200s' );
+ok( sn_analytics_seconds_since_wp_midnight( $eod ) === 86399, 'boundary: 1s before next local midnight → 86399s' );
+// The prod symptom: 9:43pm ET is already tomorrow in UTC, yet elapsed-since-LOCAL
+// -midnight is ~21.7h, NOT ~1.7h — proving the window follows ET, not UTC.
+$late = ( new DateTimeImmutable( '2026-07-09 21:43:00', $et ) )->getTimestamp();
+ok( sn_analytics_seconds_since_wp_midnight( $late ) === 78180, 'boundary: 9:43pm ET → 78180s (ET day), not a fresh UTC day' );
+
+echo "\nGroup: views-today SQL\n";
+$sqlt = sn_analytics_views_today_sql( 43200 );
+ok( strpos( $sqlt, 'sum(_sample_interval) AS views' ) !== false, 'today sql: sums sampled pageviews' );
+ok( strpos( $sqlt, 'FROM sn_pageviews' ) !== false, 'today sql: from the dataset' );
+ok( strpos( $sqlt, "blob1 = 'pv'" ) !== false, 'today sql: pageviews only' );
+ok( strpos( $sqlt, "blob7 = 'human'" ) !== false, 'today sql: human class only' );
+ok( strpos( $sqlt, "now() - INTERVAL '43200' SECOND" ) !== false, 'today sql: window = seconds since local midnight' );
+ok( strpos( $sqlt, "INTERVAL '-" ) === false, 'today sql: never a negative interval' );
+
+echo "\nGroup: views-today accessor\n";
+rt_reset();
+ok( sn_analytics_views_today() === null, 'today accessor: null when unwarmed' );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 1 ), 'views_today' => 0, 'fetched' => time() ), 0 );
+ok( sn_analytics_views_today() === 0, 'today accessor: warmed zero is 0, not null' );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 1 ), 'views_today' => 88, 'fetched' => time() ), 0 );
+ok( sn_analytics_views_today() === 88, 'today accessor: returns the cached count' );
+// Legacy cache shape (no key) → null so the widget falls back to the UTC bucket.
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 1 ), 'fetched' => time() ), 0 );
+ok( sn_analytics_views_today() === null, 'today accessor: cache without the key → null (fallback)' );
+
+echo "\nGroup: views-today refresh caching\n";
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 7 ) );
+$GLOBALS['__rt_query_today']  = array( array( 'views' => 123 ) );
+sn_analytics_realtime_refresh();
+ok( ( get_transient( SN_ANALYTICS_REALTIME_KEY )['views_today'] ?? null ) === 123, 'refresh: caches views_today from the today query' );
+
+// A successful-but-empty today query is a real zero (no views since local midnight).
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 5 ) );
+$GLOBALS['__rt_query_today']  = array();
+sn_analytics_realtime_refresh();
+ok( get_transient( SN_ANALYTICS_REALTIME_KEY )['views_today'] === 0, 'refresh: empty today result → real 0' );
+
+// A failed today query must NOT block the visitors-now cache; views_today → null (fallback).
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 5 ) );
+$GLOBALS['__rt_query_today']  = null;
+sn_analytics_realtime_refresh();
+$c2 = get_transient( SN_ANALYTICS_REALTIME_KEY );
+ok( ( $c2['counts']['human'] ?? null ) === 5, 'refresh: visitors cached even when the today query fails' );
+ok( array_key_exists( 'views_today', $c2 ) && $c2['views_today'] === null, 'refresh: failed today query → views_today null' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
