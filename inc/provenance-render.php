@@ -157,6 +157,43 @@ function sn_prov_render_chip( $post_id ) {
 }
 
 /**
+ * Public block-explorer URL for a Bitcoin block height (filterable). Default:
+ * mempool.space, which resolves a bare height. Filter `sn_prov_block_explorer`
+ * to point at another explorer, or return '' to disable linking entirely.
+ *
+ * @param int $height Bitcoin block height.
+ * @return string URL, or '' for a zero/absent height (or if filtered away).
+ */
+function sn_prov_block_explorer_url( $height ) {
+	$height = (int) $height;
+	if ( $height <= 0 ) {
+		return '';
+	}
+	return (string) apply_filters( 'sn_prov_block_explorer', 'https://mempool.space/block/' . $height, $height );
+}
+
+/**
+ * "block N" as a link to that block on a public explorer, so a reader can click
+ * through to the on-chain anchor. Fully escaped. Returns '' for a zero/absent
+ * block; degrades to plain escaped text if the explorer URL is filtered away.
+ *
+ * @param int $height Bitcoin block height.
+ * @return string Anchor HTML, plain text, or ''.
+ */
+function sn_prov_block_link( $height ) {
+	$height = (int) $height;
+	if ( $height <= 0 ) {
+		return '';
+	}
+	$label = 'block ' . number_format_i18n( $height );
+	$url   = sn_prov_block_explorer_url( $height );
+	if ( '' === $url ) {
+		return esc_html( $label );
+	}
+	return '<a class="sn-prov-block" href="' . esc_url( $url ) . '" rel="nofollow noopener" target="_blank">' . esc_html( $label ) . '</a>';
+}
+
+/**
  * The expandable record. Empty string when the Note has no chain.
  *
  * @param int $post_id Post ID.
@@ -173,25 +210,27 @@ function sn_prov_render_panel( $post_id ) {
 	$rows           = '';
 	foreach ( array_reverse( $vm['versions'] ) as $v ) {
 		$pres = sn_prov_present_status( $v['status'], $root['status'] );
+		// $meta is emitted as safe HTML (below), so every branch is either an
+		// escaped block link (sn_prov_block_link) or explicitly esc_html'd text.
 		if ( 'genesis' === $v['status'] ) {
 			// Founding-snapshot leaf: it's only verified once its root is on Bitcoin;
 			// then it shows the root's block, staying labelled "founding snapshot".
 			if ( $root_confirmed ) {
 				$meta = $root_block
-					? 'founding snapshot · block ' . number_format_i18n( $root_block )
-					: 'founding snapshot · verified';
+					? esc_html( 'founding snapshot' ) . ' · ' . sn_prov_block_link( $root_block )
+					: esc_html( 'founding snapshot · verified' );
 			} else {
-				$meta = 'genesis snapshot';
+				$meta = esc_html( 'genesis snapshot' );
 			}
 		} else {
-			$meta = $v['bitcoin_block'] ? 'block ' . number_format_i18n( $v['bitcoin_block'] ) : sn_prov_status_label( $v['status'] );
+			$meta = $v['bitcoin_block'] ? sn_prov_block_link( $v['bitcoin_block'] ) : esc_html( sn_prov_status_label( $v['status'] ) );
 		}
 		$rows .= sprintf(
 			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
 			esc_attr( $pres['state'] ),
 			(int) $v['version'],
 			esc_html( substr( $v['content_hash'], 0, 12 ) ),
-			esc_html( $meta )
+			$meta
 		);
 	}
 	// The caveat tracks the root: once the snapshot is Bitcoin-anchored it IS
@@ -200,7 +239,7 @@ function sn_prov_render_panel( $post_id ) {
 	if ( ! $vm['genesis_caveat'] ) {
 		$caveat = '';
 	} elseif ( $root_confirmed ) {
-		$anchor = $root_block ? ', anchored in Bitcoin block ' . number_format_i18n( $root_block ) : '';
+		$anchor = $root_block ? ', anchored in Bitcoin ' . sn_prov_block_link( $root_block ) : '';
 		$caveat = '<p class="sn-prov-caveat">Verified via the founding snapshot' . $anchor . '. The snapshot proves this Note existed as of the anchor; its original publication date is claimed by the site, not independently timestamped.</p>';
 	} else {
 		$caveat = '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>';

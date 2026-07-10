@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.13.0] - 2026-07-09: Feat — Bitcoin block numbers in the provenance panel link to a public explorer
+
+**Headline:** A confirmed Note's provenance panel showed its anchor as inert text ("block 957,333"). The block number is now a **link** to that block on a public explorer (mempool.space by default) — so a reader clicks through and sees the actual Bitcoin block their Note is timestamped in. The "verify it yourself" promise, made tangible.
+
+> **Why MINOR:** new user-visible capability (block anchors become clickable). No settings-schema change.
+
+### Added
+- `sn_prov_block_explorer_url( $height )` — filterable public-explorer URL for a block height (default `https://mempool.space/block/<height>`; filter `sn_prov_block_explorer`, or return '' to disable linking) ([inc/provenance-render.php](inc/provenance-render.php)).
+- `sn_prov_block_link( $height )` — "block N" as a fully-escaped anchor (`rel="nofollow noopener"`, new tab); '' for a zero/absent block, plain escaped text if the explorer is filtered away ([inc/provenance-render.php](inc/provenance-render.php)).
+
+### Changed
+- The provenance panel now links every block number — per-Note commits, the founding-snapshot row, and the genesis caveat ("anchored in Bitcoin block N") — styled as a subtle underlined link within the meta line ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+
 ## [9.12.2] - 2026-07-09: Fix — confirmed founding-snapshot chip now renders verified-green (CSS follow-up to 9.12.0)
 
 **Headline:** 9.12.0 made a Bitcoin-confirmed founding-snapshot Note's chip read "Verified" and carry both the `sn-prov-confirmed` and `sn-prov-genesis` classes — but the front CSS's `.sn-prov-genesis` (gray) was defined after `.sn-prov-confirmed` (green) at equal specificity, so the chip said "Verified" while rendering in genesis-gray. It now renders green.
