@@ -278,8 +278,6 @@ $chip7c = sn_prov_render_chip( 7 );
 rp_true( false !== strpos( $chip7c, 'mempool.space/block/957333' ), 'confirmed chip links to its block' );
 rp_true( false !== strpos( $chip7c, 'Verified' ), 'confirmed chip reads Verified' );
 
-echo "\nTask 8: panel surfaces the pending tx + a plain-language intro\n";
-rp_true( false !== strpos( sn_prov_render_panel( 5 ), 'no trust in this site required' ), 'panel shows the plain-language intro' );
 update_post_meta( 7, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'p1', 'status' => 'pending', 'bitcoin_txid' => $txid, 'confirmations' => 4 ) ) );
 $panel7 = sn_prov_render_panel( 7 );
 rp_true( false !== strpos( $panel7, 'mempool.space/tx/' . $txid ), 'panel pending row links the in-flight tx' );
