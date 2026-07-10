@@ -40,6 +40,10 @@ const SN_PROV_CATALOG_NUMBERS_OPT = 'sn_provenance_catalog_numbers_v1';
 const SN_PROV_VERIFY_PAGE_MIGR_OPT = 'sn_prov_verify_page_migrated_v1';
 const SN_ABOUT_SLUG             = 'about';
 const SN_ABOUT_BODY_MIGRATED_OPT = 'sn_about_body_migrated_v1';
+const SN_CONTACT_SLUG           = 'contact';
+const SN_CONTACT_BODY_MIGRATED_OPT = 'sn_contact_body_migrated_v1';
+const SN_SERVICES_SLUG          = 'services';
+const SN_SERVICES_BODY_MIGRATED_OPT = 'sn_services_body_migrated_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
