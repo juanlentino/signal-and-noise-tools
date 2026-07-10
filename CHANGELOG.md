@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.11.2] - 2026-07-09: Fix — Provenance "last contact" time now reads in Eastern Time, not raw UTC
+
+**Headline:** The Provenance panel's Worker card showed its last-contact time as a raw UTC ISO string — "Reachable · 2026-07-09T19:31:58Z". It now renders in Eastern Time — "Reachable · Jul 9, 2026 3:31 PM EDT" — the site's operating timezone, and DST-aware (EDT in summer, EST in winter).
+
+> **Why PATCH:** display formatting only; no new capability, data, or settings-schema change.
+
+### Fixed
+- `sn_prov_admin_glance_cards()` now formats the Worker "last contact" timestamp through a new `sn_prov_admin_format_ts()` helper: a UTC ISO-8601 instant converts to `M j, Y g:i A T` in `America/New_York` (DST-aware), a bare genesis calendar date (`YYYY-MM-DD`) is shown date-only with no timezone shift (so its midnight can't roll a day back), and an empty or unparseable value degrades gracefully (empty → empty, junk → shown verbatim) ([inc/provenance-admin.php](inc/provenance-admin.php)).
+
 ## [9.11.1] - 2026-07-09: Fix — genesis anchor confirmation now sticks (was stuck "pending" forever)
 
 **Headline:** The genesis (site-anchor) root could confirm on Bitcoin yet never show as confirmed — it kept flipping back to "pending." Two coupled causes: the Worker's genesis confirmation callback was silently dropped by WordPress, and "Re-anchor genesis" would re-stamp an already-in-flight or confirmed root, resetting its Bitcoin clock. Both fixed — genesis now confirms and stays confirmed.
