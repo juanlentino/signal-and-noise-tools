@@ -114,5 +114,33 @@ ok( 9 === ( $GLOBALS['__upd'][0]['ID'] ?? 0 ), 'update targets the existing Page
 ok( false !== strpos( $GLOBALS['__upd'][0]['post_content'] ?? '', 'sn-catalog-eyebrow' ), 'update seeds the hero+sections body' );
 ok( ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'empty Page seeded -> flag set' );
 
+// --- sn_now_build_body: hero + sections ---
+$bb = sn_now_build_body( array( array( 'label' => 'Building', 'items' => array( 'x' ) ) ) );
+ok( false !== strpos( $bb, 'sn-catalog-eyebrow' ) && false !== strpos( $bb, '<!-- wp:list' ), 'build_body = hero + section blocks' );
+ok( '' === sn_now_build_body( array() ), 'build_body is empty when there are no sections' );
+
+// --- sn_now_sync_page: the editor save regenerates the Page from the text box ---
+// Existing Page -> update (regenerate), never insert.
+$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 5, 'post_content' => 'old', 'post_excerpt' => 'x' );
+$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'fresh-item' ) ) );
+sn_now_sync_page();
+ok( 0 === count( $GLOBALS['__ins'] ) && 1 === count( $GLOBALS['__upd'] ), 'sync on an existing Page updates (regenerates), never inserts' );
+ok( false !== strpos( $GLOBALS['__upd'][0]['post_content'] ?? '', '>fresh-item<' ), 'sync writes the current text-box content into the Page body' );
+
+// No Page yet -> sync creates it.
+$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = null;
+$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'x' ) ) );
+sn_now_sync_page();
+ok( 1 === count( $GLOBALS['__ins'] ), 'sync creates the Page when it is absent' );
+
+// Empty text box -> sync is a no-op (never blanks the Page).
+$GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 5, 'post_content' => 'keep', 'post_excerpt' => '' );
+$GLOBALS['__now_sections'] = array();
+sn_now_sync_page();
+ok( 0 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ), 'sync with an empty text box is a no-op (never blanks the page)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

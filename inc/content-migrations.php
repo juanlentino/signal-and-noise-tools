@@ -1130,14 +1130,120 @@ function sn_now_sections_to_blocks( $sections ) {
 }
 
 /**
- * One-time migration: flip /now from a postless virtual route to a real CMS
- * Page. Creates the `now` Page (bound to the page-now template) and seeds its
- * body from the owner's Content → Now Page text box (sn_now_page_sections),
- * prepended with the frozen hero, plus a native Excerpt so SEO stays native.
+ * Build the /now Page body from parsed text-box sections: the frozen hero
+ * followed by the sections as heading + list blocks. Returns '' when the hero
+ * seed is missing or the sections produce no usable blocks, so callers never
+ * blank the page.
  *
- * Retry-safe: does nothing (and does NOT set the flag) until both the hero
- * seed and real text-box content are present, so the Page is created only once
- * it has real content. Never clobbers an existing, owner-edited Page.
+ * @param array<int,array{label:string,items:array<int,string>}> $sections
+ * @return string
+ */
+function sn_now_build_body( $sections ) {
+	$blocks = sn_now_sections_to_blocks( $sections );
+	if ( '' === trim( $blocks ) ) {
+		return '';
+	}
+	$hero = sn_load_now_hero();
+	if ( '' === $hero ) {
+		return '';
+	}
+	return $hero . "\n\n" . $blocks;
+}
+
+/**
+ * Create-or-update the /now Page with the given body. Creates it (published,
+ * bound to page-now, with a seeded Excerpt) when absent; otherwise replaces
+ * post_content (the text box is the canonical editor, so a regenerate is a full
+ * replace) and seeds the Excerpt only when still empty. On create, a follow-up
+ * update backdates post_date so the hero's modified-date byline renders from
+ * first load (WP core renders nothing when a "modified" date equals the
+ * published date, which a fresh insert makes equal). Returns the Page ID, or 0
+ * on failure / empty body.
+ *
+ * @param string $body Full post_content (hero + sections).
+ * @return int
+ */
+function sn_now_upsert_page( $body ) {
+	if ( '' === trim( (string) $body ) ) {
+		return 0;
+	}
+
+	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
+	$page    = get_page_by_path( SN_NOW_SLUG );
+
+	if ( $page ) {
+		$update = array(
+			'ID'           => $page->ID,
+			'post_content' => $body,
+		);
+		if ( '' === trim( (string) $page->post_excerpt ) ) {
+			$update['post_excerpt'] = $excerpt;
+		}
+		wp_update_post( $update );
+		return (int) $page->ID;
+	}
+
+	$new_id = wp_insert_post(
+		array(
+			'post_title'    => 'Now',
+			'post_name'     => SN_NOW_SLUG,
+			'post_parent'   => 0,
+			'post_status'   => 'publish',
+			'post_type'     => 'page',
+			'post_content'  => $body,
+			'post_excerpt'  => $excerpt,
+			'page_template' => 'page-now',
+		),
+		false
+	);
+
+	// The hero's automatic "Updated" byline is a core/post-date block in
+	// `displayType:"modified"` mode. WP core's render_block_core_post_date()
+	// renders NOTHING when the modified date equals the published date, and a
+	// fresh wp_insert_post() sets post_modified = post_date. Nudge post_date a
+	// few minutes into the past via one follow-up update; the update itself
+	// refreshes post_modified to now, opening a gap so modified > published and
+	// the byline renders from first load. (Update-path saves avoid this
+	// naturally: the Page's post_date already predates the save.)
+	if ( is_int( $new_id ) && $new_id > 0 ) {
+		$created = get_post( $new_id );
+		if ( $created && isset( $created->post_date ) ) {
+			wp_update_post( array(
+				'ID'        => $new_id,
+				'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( (string) $created->post_date ) - 5 * MINUTE_IN_SECONDS ),
+			) );
+		}
+		return $new_id;
+	}
+
+	return 0;
+}
+
+/**
+ * Regenerate the /now Page from the current Content → Now Page text box. Wired
+ * to the editor's save (sn_now_page_save), so the plain-text box stays the
+ * authoring surface while the Page is the rendered artifact + SEO/URL surface.
+ * No-op (never blanks the page) when the text box has no usable sections.
+ */
+function sn_now_sync_page() {
+	if ( ! function_exists( 'sn_now_page_sections' ) ) {
+		return;
+	}
+	$body = sn_now_build_body( sn_now_page_sections() );
+	if ( '' !== $body ) {
+		sn_now_upsert_page( $body );
+	}
+}
+
+/**
+ * One-time migration: flip /now from a postless virtual route to a real CMS
+ * Page, populating it from the current Content → Now Page text box. Ongoing
+ * edits flow through sn_now_sync_page() on save; this performs the initial
+ * carry-over.
+ *
+ * Retry-safe: does nothing (and does NOT set the flag) until the hero seed and
+ * real text-box content are both present. Never clobbers an existing,
+ * owner-edited Page.
  */
 add_action( 'admin_init', 'sn_migrate_now_page' );
 
@@ -1154,62 +1260,14 @@ function sn_migrate_now_page() {
 		return;
 	}
 
-	$hero     = sn_load_now_hero();
-	$sections = function_exists( 'sn_now_page_sections' ) ? sn_now_page_sections() : array();
-	$body_sec = sn_now_sections_to_blocks( $sections );
+	$body = function_exists( 'sn_now_page_sections' ) ? sn_now_build_body( sn_now_page_sections() ) : '';
 
-	// Retry-safe: wait for both the hero seed and real text-box content
-	// before creating/seeding — never flag an incomplete run.
-	if ( '' === $hero || '' === trim( $body_sec ) ) {
+	// Retry-safe: wait for the hero seed and real text-box content before
+	// creating and flagging — never flag an incomplete run.
+	if ( '' === $body ) {
 		return;
 	}
 
-	$body    = $hero . "\n\n" . $body_sec;
-	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
-
-	if ( $page ) {
-		$update = array(
-			'ID'           => $page->ID,
-			'post_content' => $body,
-		);
-		if ( '' === trim( (string) $page->post_excerpt ) ) {
-			$update['post_excerpt'] = $excerpt;
-		}
-		wp_update_post( $update );
-	} else {
-		$new_id = wp_insert_post(
-			array(
-				'post_title'    => 'Now',
-				'post_name'     => SN_NOW_SLUG,
-				'post_parent'   => 0,
-				'post_status'   => 'publish',
-				'post_type'     => 'page',
-				'post_content'  => $body,
-				'post_excerpt'  => $excerpt,
-				'page_template' => 'page-now',
-			),
-			false
-		);
-
-		// The hero's automatic "Updated …" byline is a core/post-date block in
-		// `displayType:"modified"` mode. WP core's render_block_core_post_date()
-		// renders NOTHING when the modified date equals the published date, and a
-		// fresh wp_insert_post() sets post_modified = post_date — so the byline
-		// would be blank until the owner's first edit. Nudge post_date a few
-		// minutes into the past via one follow-up update; the update itself
-		// refreshes post_modified to now, opening a gap so modified > published
-		// and the byline renders from first load. (The empty-Page update path
-		// above avoids this naturally — its post_date already predates now.)
-		if ( is_int( $new_id ) && $new_id > 0 ) {
-			$created = get_post( $new_id );
-			if ( $created && isset( $created->post_date ) ) {
-				wp_update_post( array(
-					'ID'        => $new_id,
-					'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( (string) $created->post_date ) - 5 * MINUTE_IN_SECONDS ),
-				) );
-			}
-		}
-	}
-
+	sn_now_upsert_page( $body );
 	update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
 }
