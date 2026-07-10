@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.12.1] - 2026-07-09: Fix — "views today" follows the site timezone, not UTC
+
+**Headline:** The dashboard's Analytics — Overview "views today" reset to zero at **UTC midnight (8 PM Eastern)**, not at the site's local midnight — so the counter zeroed itself mid-evening. It now measures "today so far" in the site's timezone (`wp_timezone`), matching the day the reader is actually in.
+
+> **Why PATCH:** corrects a wrong day boundary on an existing figure. No new user-facing capability or settings-schema change.
+
+### Fixed
+- "Views today" is now sourced from a new site-timezone "today so far" read on the realtime tier, instead of the UTC-keyed daily rollup's last bucket (which rolls at UTC midnight). The whole historical rollup stays UTC-keyed by design — only the human-facing "today" figure moves to local time ([inc/analytics-realtime.php](inc/analytics-realtime.php), [inc/analytics-widget.php](inc/analytics-widget.php)).
+
+### Added
+- `sn_analytics_seconds_since_wp_midnight()` — seconds since the site-timezone midnight (DST-aware, injectable clock for tests).
+- `sn_analytics_views_today_sql()` / `sn_analytics_views_today()` — a best-effort AE read of human pageviews since local midnight, cached on the realtime transient and refreshed with "visitors now". It reuses the proven `now() - INTERVAL 'N' SECOND` window shape (no `DateTime` literal or AE timezone function), and the widget **falls back to the previous UTC bucket** if the read is unwarmed or fails — so it can never render blank ([inc/analytics-realtime.php](inc/analytics-realtime.php)).
+
 ## [9.12.0] - 2026-07-09: Feat — founding-snapshot Notes read as "Verified" once the genesis root confirms
 
 **Headline:** Every published Note is anchored — the backlog through the one-time genesis Merkle snapshot, newer Notes through their own per-Note commits. But a backlog Note's chip read "Genesis" forever, even after the genesis root confirmed on Bitcoin. Now, once that root is Bitcoin-confirmed, founding-snapshot Notes present as **verified** (chip "Verified", panel "founding snapshot · block N") — while staying distinct from an individually-anchored Note. No re-timestamping: the single Merkle anchor still covers the whole backlog.
