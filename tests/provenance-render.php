@@ -283,5 +283,77 @@ $panel7 = sn_prov_render_panel( 7 );
 rp_true( false !== strpos( $panel7, 'mempool.space/tx/' . $txid ), 'panel pending row links the in-flight tx' );
 rp_true( false !== strpos( $panel7, '4/6' ), 'panel pending row shows the N/6 count' );
 
+echo "\nTask 8: a plain-language, self-announcing on-chain link (chip + panel)\n";
+
+// --- sn_prov_primary_explorer(): the single reader-facing on-chain target ---
+$txid8   = str_repeat( 'cd', 32 );
+$no_root = array( 'status' => '', 'bitcoin_block' => 0 );
+// Confirmed per-Note → its block.
+$e = sn_prov_primary_explorer( array( 'status' => 'confirmed', 'is_genesis_only' => false, 'bitcoin_block' => 957333, 'bitcoin_txid' => '' ), $no_root );
+rp_eq( 'block', $e['kind'], 'primary explorer: confirmed Note → block kind' );
+rp_true( false !== strpos( $e['href'], 'mempool.space/block/957333' ), 'primary explorer: confirmed → its block url' );
+// Pending, already in a tx → the tx.
+$e = sn_prov_primary_explorer( array( 'status' => 'pending', 'is_genesis_only' => false, 'bitcoin_block' => 0, 'bitcoin_txid' => $txid8 ), $no_root );
+rp_eq( 'tx', $e['kind'], 'primary explorer: pending Note in a tx → tx kind' );
+rp_true( false !== strpos( $e['href'], 'mempool.space/tx/' . $txid8 ), 'primary explorer: pending → its tx url' );
+// Pending, no tx yet → no public target.
+$e = sn_prov_primary_explorer( array( 'status' => 'pending', 'is_genesis_only' => false, 'bitcoin_block' => 0, 'bitcoin_txid' => '' ), $no_root );
+rp_eq( '', $e['kind'], 'primary explorer: pending with no tx → no target' );
+rp_eq( '', $e['href'], 'primary explorer: no target → empty href' );
+// Genesis-only leaf inherits the genesis root's block once the root confirms.
+$gen_vm = array( 'status' => 'genesis', 'is_genesis_only' => true, 'bitcoin_block' => 0, 'bitcoin_txid' => '' );
+$e      = sn_prov_primary_explorer( $gen_vm, array( 'status' => 'confirmed', 'bitcoin_block' => 957359 ) );
+rp_eq( 'block', $e['kind'], 'primary explorer: genesis + confirmed root → block kind' );
+rp_true( false !== strpos( $e['href'], 'mempool.space/block/957359' ), 'primary explorer: genesis → the root block url' );
+$e = sn_prov_primary_explorer( $gen_vm, array( 'status' => 'pending', 'bitcoin_block' => 0 ) );
+rp_eq( '', $e['kind'], 'primary explorer: genesis + pending root → no target yet' );
+
+// --- CTA copy is plain-language and kind-aware ---
+rp_true( false !== stripos( sn_prov_explorer_cta( 'block' ), 'public Bitcoin ledger' ), 'confirmed CTA names the public Bitcoin ledger' );
+rp_true( false !== stripos( sn_prov_explorer_cta( 'tx' ), 'confirm' ), 'pending CTA says "watch it confirm"' );
+
+// --- The byline chip announces itself as a link when it is one ---
+update_post_meta( 8, SN_PROV_UID_META, 'uid8' );
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ) );
+$chip8 = sn_prov_render_chip( 8 );
+rp_true( false !== strpos( $chip8, 'title="' ) && false !== stripos( $chip8, 'public Bitcoin ledger' ), 'confirmed chip carries a plain-language title' );
+rp_true( false !== strpos( $chip8, 'aria-label="' ), 'confirmed chip carries an aria-label for screen readers' );
+rp_true( false !== strpos( $chip8, 'sn-prov-chip-ext' ), 'linked chip shows the opens-the-ledger affordance' );
+rp_true( false !== strpos( $chip8, 'mempool.space/block/957333' ), 'confirmed chip still links its block (unchanged)' );
+rp_true( false !== strpos( $chip8, 'Verified' ), 'confirmed chip still reads Verified (unchanged)' );
+
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending', 'bitcoin_txid' => $txid8, 'confirmations' => 2 ) ) );
+$chip8p = sn_prov_render_chip( 8 );
+rp_true( false !== stripos( $chip8p, 'confirm' ), 'pending chip title says watch it confirm' );
+rp_true( false !== strpos( $chip8p, '2/6' ), 'pending chip keeps the N/6 count (unchanged)' );
+
+// An unlinked chip (pending, not yet in a tx) stays plain — no affordance, no label.
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending' ) ) );
+$chip8u = sn_prov_render_chip( 8 );
+rp_true( false === strpos( $chip8u, '<a ' ), 'unlinked chip is not an anchor' );
+rp_true( false === strpos( $chip8u, 'sn-prov-chip-ext' ), 'unlinked chip has no affordance' );
+rp_true( false === strpos( $chip8u, 'title="' ), 'unlinked chip has no title' );
+
+// --- The panel leads with one plainly-worded link to the same on-chain target ---
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ) );
+$panel8 = sn_prov_render_panel( 8 );
+rp_true( false !== strpos( $panel8, 'sn-prov-onchain' ), 'confirmed panel renders the lead ledger link' );
+rp_true( false !== stripos( $panel8, 'See it on the public Bitcoin ledger' ), 'lead link uses plain language' );
+rp_true( false !== strpos( $panel8, 'mempool.space/block/957333' ), 'lead link points at the block' );
+rp_true( false !== stripos( $panel8, '(mempool.space)' ), 'lead link names the host in plain sight' );
+rp_true( strpos( $panel8, 'sn-prov-onchain' ) < strpos( $panel8, 'sn-prov-chain' ), 'lead link precedes the version chain' );
+
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending', 'bitcoin_txid' => $txid8, 'confirmations' => 2 ) ) );
+$panel8p = sn_prov_render_panel( 8 );
+rp_true( false !== strpos( $panel8p, 'sn-prov-onchain' ), 'pending panel renders the lead ledger link' );
+rp_true( false !== stripos( $panel8p, 'Watch it confirm on the public Bitcoin ledger' ), 'pending lead link says watch it confirm' );
+rp_true( false !== strpos( $panel8p, 'mempool.space/tx/' . $txid8 ), 'pending lead link points at the tx' );
+
+// No public target yet → no lead link, but the panel still renders.
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending' ) ) );
+$panel8u = sn_prov_render_panel( 8 );
+rp_true( false === strpos( $panel8u, 'sn-prov-onchain' ), 'no lead link when there is no public target yet' );
+rp_true( false !== strpos( $panel8u, 'sn-prov-panel' ), 'panel still renders without a lead link' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

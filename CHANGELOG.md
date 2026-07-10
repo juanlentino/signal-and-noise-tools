@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.15.0] - 2026-07-10: Feat — the on-chain link speaks plain language (a self-announcing chip + a lead "public Bitcoin ledger" link)
+
+**Headline:** A Note's proof was always on-chain, but the only way there read as jargon — a byline chip that said "Verified" and a dimmed "block 957,333" in the record. A reader who's never heard of mempool.space had no idea either was a link, or where it went. Now the byline chip **announces itself** (a subtle ↗ plus a plain-language hover/screen-reader label — *"See it on the public Bitcoin ledger (mempool.space)"*), and the provenance record **leads** with one clearly-worded link in the panel's own quiet register: *"See it on the public Bitcoin ledger (mempool.space) →"* (a pending Note reads *"Watch it confirm…"*). Same destinations as before; now anyone knows it's there and what it is.
+
+> **Why MINOR:** a new user-visible affordance (the lead ledger link + the self-labeling chip). No settings-schema change, no new data — it points at the same block/tx the chip already resolved.
+
+### Added
+- `sn_prov_primary_explorer( $vm, $root )` — resolves a Note's single most reader-facing on-chain target (its confirmed block, or its in-flight transaction), the same way the byline chip does, so the chip and the panel's lead link always agree. Returns `array{href, kind}` with `kind` `'block'|'tx'|''` (`''` = no public target yet) ([inc/provenance-render.php](inc/provenance-render.php)).
+- `sn_prov_explorer_cta( $kind )` — the plain-language call-to-action copy, written for a non-technical reader: "See this Note on the public Bitcoin ledger" (confirmed) / "Watch this Note confirm on the public Bitcoin ledger" (pending) ([inc/provenance-render.php](inc/provenance-render.php)).
+
+### Changed
+- The provenance record now **leads** with a `.sn-prov-onchain` link to the same block/tx — plainly worded, regular weight and red like its sibling links (Download proof / Git ledger / Verify it yourself), so it reads as an obvious "check this yourself on Bitcoin" entry point rather than a bare block height, without shouting. Omitted when there's no public target yet (a genesis root still anchoring, or a pending Note not yet in a transaction) ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+- The byline chip, when it links out, now carries a `title` + `aria-label` in plain language and a subtle `↗` affordance, so a reader knows it's a link to the public ledger on hover and to a screen reader — not only via a mystery pointer cursor. Unlinked chips (no public target yet) stay plain, exactly as before ([inc/provenance-render.php](inc/provenance-render.php), [assets/provenance-front.css](assets/provenance-front.css)).
+
 ## [9.14.2] - 2026-07-10: Fix — drop the provenance panel's intro sentence
 
 **Headline:** Removed the plain-language intro line added in 9.14.1 ("This Note is cryptographically signed…"). The panel goes back to letting the record speak for itself. The pending-tx link + `N/6` count from 9.14.1 stay.

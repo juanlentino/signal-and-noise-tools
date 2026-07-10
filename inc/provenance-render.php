@@ -148,6 +148,48 @@ function sn_prov_tx_explorer_url( $txid ) {
 }
 
 /**
+ * The Note's single most reader-facing on-chain target: its confirmed Bitcoin
+ * block, or the still-in-flight transaction — resolved exactly as the byline
+ * chip resolves its own link, so the chip and the panel's plain-language ledger
+ * link always point at the same place. Returns array{href:string,kind:string}
+ * where kind is 'block' | 'tx' | '' ('' = no public target yet: a genesis root
+ * still anchoring, or a pending Note not yet in a transaction). href is '' when
+ * kind is ''.
+ *
+ * @param array $vm   View-model (needs status, is_genesis_only, bitcoin_block, bitcoin_txid).
+ * @param array $root Genesis root state from sn_prov_genesis_root_state() (status, bitcoin_block).
+ * @return array{href:string,kind:string}
+ */
+function sn_prov_primary_explorer( $vm, $root ) {
+	$pres = sn_prov_present_status( (string) ( $vm['status'] ?? '' ), (string) ( $root['status'] ?? '' ) );
+	if ( 'confirmed' === $pres['state'] ) {
+		$block = ! empty( $vm['is_genesis_only'] ) ? (int) $root['bitcoin_block'] : (int) $vm['bitcoin_block'];
+		$url   = sn_prov_block_explorer_url( $block );
+		return array( 'href' => $url, 'kind' => '' === $url ? '' : 'block' );
+	}
+	if ( 'pending' === $pres['state'] ) {
+		$url = sn_prov_tx_explorer_url( (string) ( $vm['bitcoin_txid'] ?? '' ) );
+		return array( 'href' => $url, 'kind' => '' === $url ? '' : 'tx' );
+	}
+	return array( 'href' => '', 'kind' => '' );
+}
+
+/**
+ * Plain-language call-to-action for the primary on-chain link, written for a
+ * reader who has never heard of mempool.space or a block explorer: a confirmed
+ * anchor is there to "see"; a still-pending one is there to "watch confirm".
+ * Deliberately terse to sit in the panel's quiet register beside its siblings.
+ *
+ * @param string $kind 'tx' (pending) | anything else (confirmed block).
+ * @return string
+ */
+function sn_prov_explorer_cta( $kind ) {
+	return 'tx' === $kind
+		? 'Watch it confirm on the public Bitcoin ledger'
+		: 'See it on the public Bitcoin ledger';
+}
+
+/**
  * The byline chip. Empty string when the Note has no chain.
  *
  * @param int $post_id Post ID.
@@ -167,34 +209,38 @@ function sn_prov_render_chip( $post_id ) {
 	$genesis_class = ( $vm['is_genesis_only'] && 'genesis' !== $pres['state'] ) ? ' sn-prov-genesis' : '';
 	$genesis_attr  = $vm['is_genesis_only'] ? ' data-genesis="1"' : '';
 
-	// Link the chip to the on-chain proof so anyone can check it on mempool.space
-	// with no crypto knowledge: a confirmed Note → its block; a pending Note → the
-	// in-flight transaction, the label carrying a live N/6 confirmation count.
-	// No target (not yet in a tx, or genesis-still-anchoring) → a plain chip.
-	$href   = '';
-	$suffix = $vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version'];
-	if ( 'confirmed' === $pres['state'] ) {
-		$block = $vm['is_genesis_only'] ? (int) $root['bitcoin_block'] : (int) $vm['bitcoin_block'];
-		if ( $block > 0 ) {
-			$href = sn_prov_block_explorer_url( $block );
-		}
-	} elseif ( 'pending' === $pres['state'] && '' !== sn_prov_tx_explorer_url( $vm['bitcoin_txid'] ) ) {
-		$href   = sn_prov_tx_explorer_url( $vm['bitcoin_txid'] );
+	// Link the chip to the on-chain proof so anyone can check it on the public
+	// Bitcoin ledger with no crypto knowledge: a confirmed Note → its block; a
+	// pending Note → the in-flight transaction, the label carrying a live N/6
+	// count. No target (not yet in a tx, or genesis-still-anchoring) → a plain,
+	// unlinked chip.
+	$explorer = sn_prov_primary_explorer( $vm, $root );
+	$href     = $explorer['href'];
+	$suffix   = $vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version'];
+	if ( 'tx' === $explorer['kind'] ) {
 		$suffix = null === $vm['confirmations'] ? '' : ' &middot; ' . max( 0, (int) $vm['confirmations'] ) . '/6';
 	}
+	// When linked, the chip announces itself as a way OUT to the ledger: a small
+	// ↗ glyph (a non-jargon "opens elsewhere" cue) plus a plain-language title +
+	// aria-label — so a reader who's never heard of mempool.space still knows what
+	// they're clicking, on hover and to a screen reader alike.
+	$ext = '' === $href ? '' : ' <span class="sn-prov-chip-ext" aria-hidden="true">&#8599;</span>';
 
 	$chip = sprintf(
-		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s</span>',
+		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s%s</span>',
 		esc_attr( $pres['state'] ),
 		$genesis_class,
 		esc_attr( $pres['state'] ),
 		$genesis_attr,
 		esc_html( $pres['label'] ),
-		$suffix
+		$suffix,
+		$ext
 	);
-	return '' === $href
-		? $chip
-		: '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank">' . $chip . '</a>';
+	if ( '' === $href ) {
+		return $chip;
+	}
+	$cta = sn_prov_explorer_cta( $explorer['kind'] ) . ' (mempool.space)';
+	return '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $cta ) . '" aria-label="' . esc_attr( $cta ) . '">' . $chip . '</a>';
 }
 
 /**
@@ -292,13 +338,25 @@ function sn_prov_render_panel( $post_id ) {
 	} else {
 		$caveat = '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>';
 	}
+	// Lead the panel with ONE plainly-worded link to the same on-chain target the
+	// byline chip points at, so a reader who doesn't know what a block explorer is
+	// still gets an obvious "check this yourself on Bitcoin" entry point. The
+	// version rows below link the block/tx too, but read as bare hashes/heights;
+	// this one says what it is. Omitted when there's no public target yet (a
+	// genesis root still anchoring, or a pending Note not yet in a transaction).
+	$explorer = sn_prov_primary_explorer( $vm, $root );
+	$onchain  = '';
+	if ( '' !== $explorer['href'] ) {
+		$onchain = '<p class="sn-prov-onchain"><a class="sn-prov-onchain-cta" href="' . esc_url( $explorer['href'] ) . '" rel="nofollow noopener" target="_blank">' . esc_html( sn_prov_explorer_cta( $explorer['kind'] ) ) . ' <span class="sn-prov-onchain-host">(mempool.space)</span> &rarr;</a></p>';
+	}
 	return sprintf(
-		'<section class="sn-prov-panel" aria-label="Provenance record">
+		'<section class="sn-prov-panel" aria-label="Provenance record">%s
 				<ol class="sn-prov-chain">%s</ol>%s
 			<p class="sn-prov-links"><a href="%s" rel="nofollow">Download proof (.ots)</a>
 			<a href="%s" rel="nofollow">Git ledger</a>
 			<a href="%s">Verify it yourself</a></p>
 		</section>',
+		$onchain,
 		$rows,
 		$caveat,
 		esc_url( $vm['ots_url'] ),
