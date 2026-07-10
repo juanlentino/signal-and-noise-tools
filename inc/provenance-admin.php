@@ -278,6 +278,35 @@ function sn_prov_admin_status_label( $status ) {
 }
 
 /**
+ * Format a provenance timestamp for admin display in Eastern Time — the site's
+ * operating timezone — instead of the raw UTC ISO-8601 the Worker/ledger store.
+ * A full instant (e.g. "2026-07-09T19:31:58Z") becomes "Jul 9, 2026 3:31 PM EDT"
+ * (DST-aware: EDT in summer, EST in winter). A bare calendar date (the genesis
+ * "date", "YYYY-MM-DD") is reformatted date-only with NO timezone shift — moving
+ * its implicit midnight across zones would roll it to the previous day. Empty in
+ * → empty out; an unparseable value is returned verbatim rather than swallowed.
+ *
+ * @param string $iso UTC ISO-8601 instant or a YYYY-MM-DD date.
+ * @return string Human ET string, or the input unchanged if it can't be parsed.
+ */
+function sn_prov_admin_format_ts( $iso ) {
+	$iso = trim( (string) $iso );
+	if ( '' === $iso ) {
+		return '';
+	}
+	try {
+		$dt = new DateTimeImmutable( $iso );
+	} catch ( Exception $e ) {
+		return $iso; // not a date we recognize — show it as-is, don't lie
+	}
+	// Date-only input carries no clock; reformat as written (no zone conversion).
+	if ( false === strpos( $iso, 'T' ) && false === strpos( $iso, ':' ) ) {
+		return $dt->format( 'M j, Y' );
+	}
+	return $dt->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'M j, Y g:i A T' );
+}
+
+/**
  * First-glance hero cards for the Provenance panel: Worker reachability, the
  * genesis anchor status, and the pending/confirmed commit tallies. Pure — takes
  * the sn_prov_admin_system_status() view-model, returns the card array for
@@ -293,7 +322,7 @@ function sn_prov_admin_glance_cards( array $sys ) {
 		? __( 'Reachable', 'signal-and-noise-tools' )
 		: __( 'No contact yet', 'signal-and-noise-tools' );
 	if ( $reachable && '' !== $last_contact ) {
-		$worker_value .= ' · ' . $last_contact;
+		$worker_value .= ' · ' . sn_prov_admin_format_ts( $last_contact );
 	}
 
 	$genesis  = is_array( $sys['genesis'] ) ? $sys['genesis'] : array();

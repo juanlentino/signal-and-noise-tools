@@ -602,5 +602,33 @@ $h_unsent = ob_get_clean();
 ad_true( false !== strpos( $h_unsent, 'value="sn_prov_reanchor"' ), 'unsent genesis still renders the re-anchor form' );
 ad_true( false === strpos( $h_unsent, 'Already anchored' ), 'unsent genesis → no "already anchored" hint (button active)' );
 
+echo "\nTask 14: last-contact timestamps render in ET, not raw UTC ISO\n";
+// A summer instant (EDT, UTC-4): 19:31:58Z → 3:31 PM EDT.
+ad_eq( 'Jul 9, 2026 3:31 PM EDT', sn_prov_admin_format_ts( '2026-07-09T19:31:58Z' ), 'summer UTC instant → ET with EDT abbreviation' );
+// A winter instant (EST, UTC-5) proves it's DST-aware, not a fixed offset.
+ad_eq( 'Jan 15, 2026 2:31 PM EST', sn_prov_admin_format_ts( '2026-01-15T19:31:58Z' ), 'winter UTC instant → ET with EST abbreviation' );
+// A calendar date (genesis 'date' = YYYY-MM-DD) has no clock — reformat as-is,
+// with NO tz shift (converting midnight across zones would roll it a day back).
+ad_eq( 'Jul 9, 2026', sn_prov_admin_format_ts( '2026-07-09' ), 'date-only genesis date → date, no time, no day-shift' );
+// Degrade gracefully: empty stays empty, unparseable shows verbatim.
+ad_eq( '', sn_prov_admin_format_ts( '' ), 'empty last_contact → empty string' );
+ad_eq( 'not-a-date', sn_prov_admin_format_ts( 'not-a-date' ), 'unparseable timestamp → returned verbatim' );
+
+// Integration: the Worker glance card shows the ET-formatted contact, never raw ISO.
+$et_sys   = array(
+	'worker'  => array( 'reachable' => true, 'last_contact' => '2026-07-09T19:31:58Z' ),
+	'genesis' => array(),
+	'counts'  => array( 'pending' => 0, 'confirmed' => 0 ),
+);
+$et_cards = sn_prov_admin_glance_cards( $et_sys );
+$worker_card = '';
+foreach ( $et_cards as $c ) {
+	if ( isset( $c['label'] ) && 'Worker' === $c['label'] ) {
+		$worker_card = (string) $c['value'];
+	}
+}
+ad_true( false !== strpos( $worker_card, 'Reachable · Jul 9, 2026 3:31 PM EDT' ), 'Worker card renders "Reachable · <ET time>"' );
+ad_true( false === strpos( $worker_card, '2026-07-09T19:31:58Z' ), 'Worker card no longer leaks the raw UTC ISO string' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
