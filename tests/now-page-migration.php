@@ -15,6 +15,7 @@ if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 if ( ! defined( 'SN_NOW_SLUG' ) ) { define( 'SN_NOW_SLUG', 'now' ); }
 if ( ! defined( 'SN_NOW_PAGE_MIGRATED_OPT' ) ) { define( 'SN_NOW_PAGE_MIGRATED_OPT', 'sn_now_page_migrated_v1' ); }
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 
 $GLOBALS['__opt']          = array();
 $GLOBALS['__page']         = null;   // get_page_by_path return
@@ -30,6 +31,9 @@ if ( ! function_exists( 'wp_insert_post' ) ) { function wp_insert_post( $a, $e =
 if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $a ) { $GLOBALS['__upd'][] = $a; return $a['ID']; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'time' ) ) { function time() { return 1; } }
+// get_post: the migration reads the freshly-created Page back to backdate its
+// post_date (so the modified-date byline renders). Fixed noon stamp for the gap check.
+if ( ! function_exists( 'get_post' ) ) { function get_post( $id ) { return (object) array( 'ID' => $id, 'post_date' => '2026-07-10 12:00:00' ); } }
 // Content source lives in now-page.php; stub it so this suite is self-contained.
 if ( ! function_exists( 'sn_now_page_sections' ) ) { function sn_now_page_sections() { return $GLOBALS['__now_sections']; } }
 
@@ -74,6 +78,10 @@ ok( false !== strpos( $ins['post_content'] ?? '', 'sn-catalog-eyebrow' ), 'body 
 ok( false !== strpos( $ins['post_content'] ?? '', '<!-- wp:list' ), 'body includes the converted sections' );
 ok( '' !== trim( $ins['post_excerpt'] ?? '' ), 'seeds a non-empty excerpt' );
 ok( ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'flag set after creating' );
+// Follow-up: backdate post_date so post_modified > post_date and the hero's
+// modified-date byline renders on first load (WP core renders nothing when equal).
+ok( 1 === count( $GLOBALS['__upd'] ), 'create path issues one follow-up update to backdate post_date' );
+ok( isset( $GLOBALS['__upd'][0]['post_date'] ) && strtotime( (string) $GLOBALS['__upd'][0]['post_date'] ) < strtotime( '2026-07-10 12:00:00' ), 'follow-up update backdates post_date (opens the modified > published gap)' );
 
 // --- Migration: flag set -> no-op ---
 $GLOBALS['__ins'] = array();

@@ -1177,7 +1177,7 @@ function sn_migrate_now_page() {
 		}
 		wp_update_post( $update );
 	} else {
-		wp_insert_post(
+		$new_id = wp_insert_post(
 			array(
 				'post_title'    => 'Now',
 				'post_name'     => SN_NOW_SLUG,
@@ -1190,6 +1190,25 @@ function sn_migrate_now_page() {
 			),
 			false
 		);
+
+		// The hero's automatic "Updated …" byline is a core/post-date block in
+		// `displayType:"modified"` mode. WP core's render_block_core_post_date()
+		// renders NOTHING when the modified date equals the published date, and a
+		// fresh wp_insert_post() sets post_modified = post_date — so the byline
+		// would be blank until the owner's first edit. Nudge post_date a few
+		// minutes into the past via one follow-up update; the update itself
+		// refreshes post_modified to now, opening a gap so modified > published
+		// and the byline renders from first load. (The empty-Page update path
+		// above avoids this naturally — its post_date already predates now.)
+		if ( is_int( $new_id ) && $new_id > 0 ) {
+			$created = get_post( $new_id );
+			if ( $created && isset( $created->post_date ) ) {
+				wp_update_post( array(
+					'ID'        => $new_id,
+					'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( (string) $created->post_date ) - 5 * MINUTE_IN_SECONDS ),
+				) );
+			}
+		}
 	}
 
 	update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
