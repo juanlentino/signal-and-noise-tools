@@ -17,6 +17,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ### Changed
 - `sn_now_page_save()` now regenerates the `/now` Page on every save (via `sn_now_sync_page()`), instead of only feeding the theme's `sn_now_sections` filter (that filter is retired in the companion theme v10.34.0). The Now text-box editor is now the *canonical* editor for `/now` ([inc/now-page.php](inc/now-page.php)).
+- Content → Now Page admin copy: reflects the new role (this box is the `/now` page editor; saving regenerates it) and drops the obsolete "reverts to the theme's built-in file content" language (that file content is removed in the companion theme release) ([inc/admin-forms/now-page.php](inc/admin-forms/now-page.php)).
 
 ### Fixed
 - The hero's automatic "Updated" byline: core's `render_block_core_post_date()` renders nothing when a `"modified"` date equals the published date, and a fresh insert sets them equal, so a follow-up update backdates `post_date` a few minutes (which refreshes `post_modified` to now). That opens a modified-greater-than-published gap so the byline renders from first load ([inc/content-migrations.php](inc/content-migrations.php)).
