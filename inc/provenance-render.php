@@ -263,8 +263,15 @@ function sn_prov_render_panel( $post_id ) {
 			} else {
 				$meta = esc_html( 'genesis snapshot' );
 			}
+		} elseif ( $v['bitcoin_block'] ) {
+			$meta = sn_prov_block_link( $v['bitcoin_block'] );
+		} elseif ( 'pending' === $v['status'] && '' !== sn_prov_tx_explorer_url( $v['bitcoin_txid'] ) ) {
+			// Pending but already in a Bitcoin tx: link it on mempool.space with a
+			// live N/6 count, so a reader can watch it confirm.
+			$label = null === $v['confirmations'] ? 'Pending' : 'Pending &middot; ' . max( 0, (int) $v['confirmations'] ) . '/6';
+			$meta  = '<a class="sn-prov-block" href="' . esc_url( sn_prov_tx_explorer_url( $v['bitcoin_txid'] ) ) . '" rel="nofollow noopener" target="_blank">' . $label . '</a>';
 		} else {
-			$meta = $v['bitcoin_block'] ? sn_prov_block_link( $v['bitcoin_block'] ) : esc_html( sn_prov_status_label( $v['status'] ) );
+			$meta = esc_html( sn_prov_status_label( $v['status'] ) );
 		}
 		$rows .= sprintf(
 			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
@@ -287,7 +294,8 @@ function sn_prov_render_panel( $post_id ) {
 	}
 	return sprintf(
 		'<section class="sn-prov-panel" aria-label="Provenance record">
-			<ol class="sn-prov-chain">%s</ol>%s
+			<p class="sn-prov-intro">This Note is cryptographically signed and timestamped on the Bitcoin blockchain. Verify it yourself below — no trust in this site required.</p>
+				<ol class="sn-prov-chain">%s</ol>%s
 			<p class="sn-prov-links"><a href="%s" rel="nofollow">Download proof (.ots)</a>
 			<a href="%s" rel="nofollow">Git ledger</a>
 			<a href="%s">Verify it yourself</a></p>
