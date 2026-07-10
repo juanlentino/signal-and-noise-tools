@@ -281,6 +281,31 @@ function sn_prov_block_link( $height ) {
 }
 
 /**
+ * "block N" for a chain row or the caveat, de-duplicated against the panel's
+ * lead link: plain (unlinked) text when it points at the SAME block the lead
+ * link already links, an anchor otherwise — so the same on-chain target is never
+ * linked twice in one panel, while a version anchored in a DIFFERENT block (or a
+ * panel with no lead link at all) still links through. Degrades to plain text
+ * for a zero/absent block or a filtered-away explorer, exactly like the linked
+ * form ('' for height 0).
+ *
+ * @param int    $height    Bitcoin block height.
+ * @param string $lead_href The lead link's URL ('' when the panel has none).
+ * @return string Anchor HTML, plain text, or ''.
+ */
+function sn_prov_block_meta( $height, $lead_href ) {
+	$height = (int) $height;
+	if ( $height <= 0 ) {
+		return '';
+	}
+	$url = sn_prov_block_explorer_url( $height );
+	if ( '' !== $lead_href && $url === $lead_href ) {
+		return esc_html( 'block ' . number_format_i18n( $height ) );
+	}
+	return sn_prov_block_link( $height );
+}
+
+/**
  * The expandable record. Empty string when the Note has no chain.
  *
  * @param int $post_id Post ID.
@@ -294,7 +319,15 @@ function sn_prov_render_panel( $post_id ) {
 	$root           = sn_prov_genesis_root_state();
 	$root_confirmed = 'confirmed' === $root['status'];
 	$root_block     = $root['bitcoin_block'];
-	$rows           = '';
+	// The panel's single on-chain link (the plain-language "lead" rendered below).
+	// Any chain row or caveat pointing at this SAME target renders as plain text,
+	// so the link appears exactly once — a reader never sees the same block/tx
+	// linked twice. '' when there's no public target yet (a genesis root still
+	// anchoring, or a pending Note not yet in a transaction), in which case the
+	// rows keep their own links so an anchored version stays reachable.
+	$explorer  = sn_prov_primary_explorer( $vm, $root );
+	$lead_href = $explorer['href'];
+	$rows      = '';
 	foreach ( array_reverse( $vm['versions'] ) as $v ) {
 		$pres = sn_prov_present_status( $v['status'], $root['status'] );
 		// $meta is emitted as safe HTML (below), so every branch is either an
@@ -304,18 +337,22 @@ function sn_prov_render_panel( $post_id ) {
 			// then it shows the root's block, staying labelled "founding snapshot".
 			if ( $root_confirmed ) {
 				$meta = $root_block
-					? esc_html( 'founding snapshot' ) . ' · ' . sn_prov_block_link( $root_block )
+					? esc_html( 'founding snapshot' ) . ' · ' . sn_prov_block_meta( $root_block, $lead_href )
 					: esc_html( 'founding snapshot · verified' );
 			} else {
 				$meta = esc_html( 'genesis snapshot' );
 			}
 		} elseif ( $v['bitcoin_block'] ) {
-			$meta = sn_prov_block_link( $v['bitcoin_block'] );
+			$meta = sn_prov_block_meta( $v['bitcoin_block'], $lead_href );
 		} elseif ( 'pending' === $v['status'] && '' !== sn_prov_tx_explorer_url( $v['bitcoin_txid'] ) ) {
-			// Pending but already in a Bitcoin tx: link it on mempool.space with a
-			// live N/6 count, so a reader can watch it confirm.
+			// Pending but already in a Bitcoin tx: the lead link owns that tx, so the
+			// row shows its live N/6 count as plain text; when the lead link points
+			// elsewhere (or is absent) the row stays linked so the tx is reachable.
+			$turl  = sn_prov_tx_explorer_url( $v['bitcoin_txid'] );
 			$label = null === $v['confirmations'] ? 'Pending' : 'Pending &middot; ' . max( 0, (int) $v['confirmations'] ) . '/6';
-			$meta  = '<a class="sn-prov-block" href="' . esc_url( sn_prov_tx_explorer_url( $v['bitcoin_txid'] ) ) . '" rel="nofollow noopener" target="_blank">' . $label . '</a>';
+			$meta  = ( '' !== $lead_href && $turl === $lead_href )
+				? $label
+				: '<a class="sn-prov-block" href="' . esc_url( $turl ) . '" rel="nofollow noopener" target="_blank">' . $label . '</a>';
 		} else {
 			$meta = esc_html( sn_prov_status_label( $v['status'] ) );
 		}
@@ -333,21 +370,18 @@ function sn_prov_render_panel( $post_id ) {
 	if ( ! $vm['genesis_caveat'] ) {
 		$caveat = '';
 	} elseif ( $root_confirmed ) {
-		$anchor = $root_block ? ', anchored in Bitcoin ' . sn_prov_block_link( $root_block ) : '';
+		$anchor = $root_block ? ', anchored in Bitcoin ' . sn_prov_block_meta( $root_block, $lead_href ) : '';
 		$caveat = '<p class="sn-prov-caveat">Verified via the founding snapshot' . $anchor . '. The snapshot proves this Note existed as of the anchor; its original publication date is claimed by the site, not independently timestamped.</p>';
 	} else {
 		$caveat = '<p class="sn-prov-caveat">Attested in the genesis snapshot; original date claimed, not independently proven.</p>';
 	}
-	// Lead the panel with ONE plainly-worded link to the same on-chain target the
-	// byline chip points at, so a reader who doesn't know what a block explorer is
-	// still gets an obvious "check this yourself on Bitcoin" entry point. The
-	// version rows below link the block/tx too, but read as bare hashes/heights;
-	// this one says what it is. Omitted when there's no public target yet (a
-	// genesis root still anchoring, or a pending Note not yet in a transaction).
-	$explorer = sn_prov_primary_explorer( $vm, $root );
-	$onchain  = '';
-	if ( '' !== $explorer['href'] ) {
-		$onchain = '<p class="sn-prov-onchain"><a class="sn-prov-onchain-cta" href="' . esc_url( $explorer['href'] ) . '" rel="nofollow noopener" target="_blank">' . esc_html( sn_prov_explorer_cta( $explorer['kind'] ) ) . ' <span class="sn-prov-onchain-host">(mempool.space)</span> &rarr;</a></p>';
+	// Lead the panel with that single plainly-worded link, so a reader who doesn't
+	// know what a block explorer is still gets an obvious "check this yourself on
+	// Bitcoin" entry point. It's the ONLY on-chain link in the panel — the chain
+	// rows and caveat render the same target as plain text (see $lead_href above).
+	$onchain = '';
+	if ( '' !== $lead_href ) {
+		$onchain = '<p class="sn-prov-onchain"><a class="sn-prov-onchain-cta" href="' . esc_url( $lead_href ) . '" rel="nofollow noopener" target="_blank">' . esc_html( sn_prov_explorer_cta( $explorer['kind'] ) ) . ' <span class="sn-prov-onchain-host">(mempool.space)</span> &rarr;</a></p>';
 	}
 	return sprintf(
 		'<section class="sn-prov-panel" aria-label="Provenance record">%s

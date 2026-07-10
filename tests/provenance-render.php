@@ -240,18 +240,33 @@ rp_true( false !== strpos( $blink, 'block 957,333' ), 'block link text is the hu
 rp_true( false !== strpos( $blink, 'nofollow' ), 'block link is rel=nofollow (external)' );
 rp_eq( '', sn_prov_block_link( 0 ), 'no link for a zero/absent block' );
 
-// Confirmed genesis panel (post 6): the founding-snapshot block is a link.
+// sn_prov_block_meta(): plain text when it duplicates the lead link's target,
+// an anchor otherwise (or plain text for a zero block).
+rp_true( false === strpos( sn_prov_block_meta( 957333, 'https://mempool.space/block/957333' ), '<a ' ), 'block_meta: plain text when it matches the lead link' );
+rp_true( false !== strpos( sn_prov_block_meta( 957333, 'https://mempool.space/block/957333' ), 'block 957,333' ), 'block_meta: still shows the humanized number when de-linked' );
+rp_true( false !== strpos( sn_prov_block_meta( 957333, 'https://mempool.space/tx/abc' ), '<a ' ), 'block_meta: links when the lead link points elsewhere' );
+rp_true( false !== strpos( sn_prov_block_meta( 957333, '' ), '<a ' ), 'block_meta: links when there is no lead link' );
+rp_eq( '', sn_prov_block_meta( 0, 'https://mempool.space/block/957333' ), 'block_meta: no output for a zero/absent block' );
+
+// Confirmed genesis panel (post 6): the founding-snapshot block reaches the
+// explorer via the panel's single lead link; the chain + caveat show it as plain
+// text, so the same block is never linked twice.
 $GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'confirmed', 'bitcoin_block' => 957359 );
 $panel6b = sn_prov_render_panel( 6 );
-rp_true( false !== strpos( $panel6b, 'mempool.space/block/957359' ), 'confirmed genesis panel links the founding-snapshot block' );
+rp_true( false !== strpos( $panel6b, 'mempool.space/block/957359' ), 'confirmed genesis panel reaches the founding-snapshot block' );
 rp_true( false !== strpos( $panel6b, 'founding snapshot' ), 'confirmed genesis panel keeps the founding-snapshot label' );
-rp_true( false !== strpos( $panel6b, '957,359</a>' ), 'the block number is inside the anchor' );
+rp_eq( 1, substr_count( $panel6b, 'mempool.space/block/957359' ), 'the genesis block is linked exactly once (the lead link owns it)' );
+rp_true( false !== strpos( $panel6b, 'sn-prov-onchain' ), 'that one link is the plain-language lead link' );
+rp_true( false !== strpos( $panel6b, 'founding snapshot · block 957,359' ), 'the chain shows the block as plain text, not a second link' );
 unset( $GLOBALS['__pv_options']['sn_prov_genesis'] );
 
-// Per-Note confirmed block (post 5, block 902417) links too.
+// Per-Note confirmed block (post 5): its LATEST version (v2) is pending with no
+// tx yet, so the panel has NO lead link — which means the confirmed v1 block must
+// keep its own link (never orphan a reachable anchor behind an absent lead link).
 $panel5b = sn_prov_render_panel( 5 );
-rp_true( false !== strpos( $panel5b, 'mempool.space/block/902417' ), 'per-Note confirmed block links to the explorer' );
-rp_true( false !== strpos( $panel5b, '902,417</a>' ), 'per-Note block number is inside the anchor' );
+rp_true( false === strpos( $panel5b, 'sn-prov-onchain' ), 'post 5 (latest pending, no tx) → no lead link' );
+rp_true( false !== strpos( $panel5b, 'mempool.space/block/902417' ), 'the confirmed v1 block still links to the explorer' );
+rp_true( false !== strpos( $panel5b, '902,417</a>' ), 'with no lead link to de-dup against, the v1 block stays a link' );
 
 echo "\nTask 7: pending Notes link to the mempool tx with a live N/6 count\n";
 $txid = str_repeat( 'ab', 32 ); // 64-hex
@@ -342,12 +357,17 @@ rp_true( false !== stripos( $panel8, 'See it on the public Bitcoin ledger' ), 'l
 rp_true( false !== strpos( $panel8, 'mempool.space/block/957333' ), 'lead link points at the block' );
 rp_true( false !== stripos( $panel8, '(mempool.space)' ), 'lead link names the host in plain sight' );
 rp_true( strpos( $panel8, 'sn-prov-onchain' ) < strpos( $panel8, 'sn-prov-chain' ), 'lead link precedes the version chain' );
+// De-dup: the same block is linked exactly ONCE (the lead link); the chain row
+// below shows it as plain text, not a second link to the same place.
+rp_eq( 1, substr_count( $panel8, 'mempool.space/block/957333' ), 'confirmed panel links the block exactly once (no duplicate)' );
+rp_true( false === strpos( $panel8, '957,333</a>' ), 'the chain row shows the block as plain text, not a duplicate link' );
 
 update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending', 'bitcoin_txid' => $txid8, 'confirmations' => 2 ) ) );
 $panel8p = sn_prov_render_panel( 8 );
 rp_true( false !== strpos( $panel8p, 'sn-prov-onchain' ), 'pending panel renders the lead ledger link' );
 rp_true( false !== stripos( $panel8p, 'Watch it confirm on the public Bitcoin ledger' ), 'pending lead link says watch it confirm' );
 rp_true( false !== strpos( $panel8p, 'mempool.space/tx/' . $txid8 ), 'pending lead link points at the tx' );
+rp_eq( 1, substr_count( $panel8p, 'mempool.space/tx/' . $txid8 ), 'pending panel links the tx exactly once (no duplicate)' );
 
 // No public target yet → no lead link, but the panel still renders.
 update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'pending' ) ) );
