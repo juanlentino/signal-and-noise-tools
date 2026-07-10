@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.20.0] - 2026-07-10: Feat: /about/uses is a CMS Page + /now design restored (pages-to-CMS flip, Phase 2b)
+
+**Headline:** `/about/uses` joins `/now` as a real CMS Page, edited from the existing **Content → Uses Page** text box (which now regenerates the Page on save). And this corrects `/now`: v9.19.0 rebuilt its body as generic core blocks, which discarded the bespoke "dossier" design (big Bebas section labels, hairline rows). This release makes both routes **reproduce the theme's original `sn-now-*` / `sn-uses-*` markup** in a `core/html` block, so `now.css` / `uses.css` (and any Site-Editor global styles that target those classes) render them identically. `/now` was never deployed, so this is its first live form. The `core/post-date` byline and its backdate workaround are gone; the "Updated" line is stamped at save time (matching the old behavior).
+
+> **Why MINOR:** a new CMS Page (`/about/uses`) authored from its existing text box, plus a design-fidelity correction to the not-yet-deployed `/now`. No settings-schema change, no API removed. Retry-safe; never clobbers an owner-edited Page.
+
+### Added
+- `sn_uses_dossier_html()` + `sn_uses_current_body()` + `sn_uses_upsert_page()` + `sn_uses_sync_page()` + `sn_migrate_uses_page()` (`admin_init`): flip `/about/uses` to a real **child** Page of `/about` (`wp_insert_post` with `post_parent`, `page_template=page-uses`), seeded from the Uses text box (`## Label` / `- name | note`) and regenerated on every save. Retry-safe until the box has content AND the About parent exists ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php), [inc/uses-page.php](inc/uses-page.php)).
+- `sn_dossier_section_html()`: shared renderer for a `/now` or `/uses` dossier section (Bebas label + mono count badge + hairline `<ul>`), reproducing the theme's original markup verbatim ([inc/content-migrations.php](inc/content-migrations.php)).
+- `sn_now_dossier_html()`: replaces the v9.19.0 core-block converter; reproduces the `sn-now-*` markup so `now.css` restores the original design ([inc/content-migrations.php](inc/content-migrations.php)).
+- `/about/uses` added to `sn_schema_profile_page_slugs` so it emits `ProfilePage` JSON-LD (a sibling of `/about`) ([inc/seo-schema.php](inc/seo-schema.php)).
+
+### Changed
+- `sn_uses_page_save()` regenerates the `/about/uses` Page on save (the text box is now its canonical editor), mirroring `/now`. Uses/Now admin copy updated to say the box edits the live page ([inc/uses-page.php](inc/uses-page.php), [inc/admin-forms/uses-page.php](inc/admin-forms/uses-page.php)).
+- `/now` body is now the faithful dossier `core/html` block, not generic core blocks; the "Updated" line is stamped at save time ([inc/content-migrations.php](inc/content-migrations.php)).
+
+### Removed
+- The v9.19.0 `/now` core-block converter, the `now-hero.html` seed, and the `core/post-date` byline + its `post_date` backdate workaround (superseded by the stamped-at-save "Updated" line) ([inc/content-migrations.php](inc/content-migrations.php), inc/seed-content/).
+
+### Notes
+- **Editing model:** `/now` and `/uses` are edited from their Content text boxes (which regenerate the Pages on save), not the block editor. Because the box is the source of truth, editing these Pages directly in Gutenberg is not the workflow. The heroes are fixed in the renderer. This matches the pre-flip design exactly.
+- **Requires the companion theme v10.35.0** (which restores the `now.css` enqueue, adds the `uses.css` enqueue on the real Pages, adds `templates/page-uses.html`, and removes the `/about/uses` virtual route). Deploy this plugin FIRST, then the theme.
+- Tests: `tests/now-page-migration.php` (rewritten for the dossier) + `tests/uses-page-migration.php` (new, child-page). Full sweep 252 suites, 6915 assertions.
+
 ## [9.19.0] - 2026-07-10: Feat: /now becomes a real CMS Page (pages-to-CMS flip, Phase 2a: Now pilot)
 
 **Headline:** The first Phase-2 route. `/now` was a postless PHP virtual route (rendered by a `template_redirect` short-circuit). It becomes a real `now` Page (bound to the theme's new `page-now` template), but the plain-text **Content → Now Page box stays the editor**: on every save it regenerates the Page's `post_content` (the frozen hero plus your `## Label` / `- item` sections converted to `core/heading` + `core/list` blocks), and a one-time migration performs the initial carry-over. So `/now` is edited exactly as before, while being a real CMS Page with a native Excerpt, canonical URL, and `WebPage` schema. It stays invisible until the companion theme release (v10.34.0) removes the interceptor, so **deploy this plugin first, then the theme**. Unlike Phase 1 (which populated existing Pages), Phase 2 pages do not exist yet, so this is the first migration that creates one, mirroring `sn_migrate_provenance_split()`'s `wp_insert_post` shape.

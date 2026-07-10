@@ -2,13 +2,12 @@
 /**
  * Signal & Noise — Uses Page admin section (Content tab → Uses Page sub-tab).
  *
- * The editor for the theme's /uses gear list (owner direction 2026-07-01:
- * same plugin-managed behavior as the /now page). One textarea in the
+ * The editor for the /about/uses gear list. One textarea in the
  * `## Label` / `- name | note` format; sn_action=uses_save stores it via
- * sn_uses_page_save() (inc/uses-page.php). When nothing is saved yet the
- * textarea PREFILLS with the theme's CURRENT file groups (serialized round-
- * trip) so the owner edits the live list instead of retyping it. Saving an
- * empty box clears the override — /uses reverts to the theme file content.
+ * sn_uses_page_save() (inc/uses-page.php). Since v9.20.0 /about/uses is a real
+ * CMS child Page, and saving here regenerates that Page's content: the box
+ * stays the editor, the Page is the rendered artifact + Excerpt/SEO surface.
+ * An empty box leaves the last published page unchanged.
  *
  * @package SignalNoiseTools
  * @since 7.6.0
@@ -42,15 +41,15 @@ function sn_admin_render_uses_section() {
 	echo '<h2 class="sn-fieldset-h">Uses page</h2>';
 
 	if ( $live ) {
-		echo '<p class="sn-fieldset-intro">This content feeds the live <a href="' . esc_url( home_url( '/about/uses' ) ) . '" target="_blank" rel="noopener">/about/uses</a> page. Last saved: <code>' . esc_html( (string) $page['updated'] ) . '</code>.</p>';
+		echo '<p class="sn-fieldset-intro">This box is the editor for the live <a href="' . esc_url( home_url( '/about/uses' ) ) . '" target="_blank" rel="noopener">/about/uses</a> page. Saving here regenerates it. Last saved: <code>' . esc_html( (string) $page['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">Nothing saved here yet — <a href="' . esc_url( home_url( '/about/uses' ) ) . '" target="_blank" rel="noopener">/about/uses</a> is rendering the theme\'s built-in gear list (prefilled below for editing). Save to take over without a theme release.</p>';
+		echo '<p class="sn-fieldset-intro">This box is the editor for the <a href="' . esc_url( home_url( '/about/uses' ) ) . '" target="_blank" rel="noopener">/about/uses</a> page. Add your gear list below and save to publish it.</p>';
 	}
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn-uses-content">Gear list</label>';
 	echo '<textarea id="sn-uses-content" name="uses_content" rows="16" class="large-text code">' . esc_textarea( $raw ) . '</textarea>';
-	echo '<p class="sn-field-helper"><code>## Label</code> starts a group; each line is one item, with an optional <code>|</code> separating the name from a short note (e.g. <code>- SSL UF8 | Advanced DAW controller</code>). Saving an empty box reverts /about/uses to the theme\'s built-in list. Content that parses to zero groups never replaces the live page.</p>';
+	echo '<p class="sn-field-helper"><code>## Label</code> starts a group; each line is one item, with an optional <code>|</code> separating the name from a short note (e.g. <code>- SSL UF8 | Advanced DAW controller</code>). Saving regenerates the /about/uses page from this list. An empty box, or content with zero groups, leaves the last published page unchanged (it never blanks the page).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
