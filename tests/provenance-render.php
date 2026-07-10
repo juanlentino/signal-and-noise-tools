@@ -198,5 +198,37 @@ $GLOBALS['__pv_is_note']  = false;
 sn_prov_enqueue_front();
 rp_eq( 0, count( $GLOBALS['__pv_enq'] ), 'nothing enqueued on a non-Note single' );
 
+echo "\nTask 5: genesis Notes read verified-via-snapshot once the root confirms\n";
+// Pure presenter. A founding-snapshot commit stays "Genesis" until the genesis
+// ROOT itself is Bitcoin-confirmed; only then does it read verified.
+$g_pending = sn_prov_present_status( 'genesis', 'pending' );
+rp_eq( 'Genesis', $g_pending['label'], 'genesis + pending root → Genesis label' );
+rp_eq( 'genesis', $g_pending['state'], 'genesis + pending root → genesis state class' );
+$g_conf = sn_prov_present_status( 'genesis', 'confirmed' );
+rp_eq( 'Verified', $g_conf['label'], 'genesis + confirmed root → Verified label' );
+rp_eq( 'confirmed', $g_conf['state'], 'genesis + confirmed root → confirmed state class' );
+// A real per-Note status is never affected by the genesis root.
+rp_eq( 'Verified', sn_prov_present_status( 'confirmed', 'pending' )['label'], 'per-Note confirmed is independent of the root' );
+rp_eq( 'Pending', sn_prov_present_status( 'pending', 'confirmed' )['label'], 'per-Note pending is independent of the root' );
+
+// End-to-end on the genesis-only fixture (post 6) with a confirmed root.
+$GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'confirmed', 'bitcoin_block' => 957359 );
+$chip6c = sn_prov_render_chip( 6 );
+rp_true( false !== strpos( $chip6c, 'Verified' ), 'confirmed root → genesis chip reads Verified' );
+rp_true( false !== strpos( $chip6c, 'sn-prov-confirmed' ), 'confirmed root → genesis chip carries the verified state class' );
+rp_true( false !== strpos( $chip6c, 'sn-prov-genesis' ), 'confirmed root → genesis chip KEEPS the genesis marker (distinct)' );
+$panel6c = sn_prov_render_panel( 6 );
+rp_true( false !== strpos( $panel6c, 'founding snapshot' ), 'confirmed root → panel meta reads "founding snapshot"' );
+rp_true( false !== strpos( $panel6c, '957,359' ), 'confirmed root → panel shows the genesis Bitcoin block' );
+rp_true( false === strpos( $panel6c, 'not independently proven' ), 'confirmed root → the stale "not proven" caveat is gone' );
+rp_true( false !== strpos( $panel6c, 'Verified via the founding snapshot' ), 'confirmed root → caveat states verified-via-snapshot' );
+
+// A still-pending root leaves the honest "Genesis / not proven" surface intact.
+$GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'pending' );
+$chip6p = sn_prov_render_chip( 6 );
+rp_true( false !== strpos( $chip6p, 'Genesis' ), 'pending root → genesis chip still reads Genesis' );
+rp_true( false !== strpos( sn_prov_render_panel( 6 ), 'not independently proven' ), 'pending root → honest caveat still shown' );
+unset( $GLOBALS['__pv_options']['sn_prov_genesis'] );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
