@@ -123,15 +123,26 @@ function sn_uses_page_save( $raw ) {
 	if ( '' === trim( $raw ) ) {
 		return delete_option( SN_USES_PAGE_OPTION );
 	}
-	return update_option(
+	$result = update_option(
 		SN_USES_PAGE_OPTION,
 		array(
 			'raw'     => $raw,
 			// Site-timezone stamp (wp_date), never UTC — the v7.5.1 lesson.
 			'updated' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
 		),
-		false // autoload=no: read on /uses renders + the editor only.
+		false // autoload=no: read by the editor + the page regenerator below.
 	);
+
+	// v9.20.0: this plain-text box is the canonical /uses editor, and
+	// /about/uses is now a real CMS child Page. Regenerate the Page body on
+	// every save. Guarded so the editor's own unit tests exercise the option
+	// layer in isolation (the page builder in inc/content-migrations.php loads
+	// after this file; it is present at save time on a live request).
+	if ( function_exists( 'sn_uses_sync_page' ) ) {
+		sn_uses_sync_page();
+	}
+
+	return $result;
 }
 
 /**

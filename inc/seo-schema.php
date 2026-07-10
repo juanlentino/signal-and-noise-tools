@@ -379,10 +379,11 @@ function sn_schema_webpage() {
 		$webpage['description'] = $description;
 	}
 
-	// Identity pages (about / resume / services) are ProfilePages whose mainEntity is
+	// Identity pages (about / resume / services / uses) are ProfilePages whose mainEntity is
 	// the Person — so search + answer engines read them as "the page about this person"
-	// rather than a generic WebPage (additions A1). Filterable slug list.
-	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services' ) );
+	// rather than a generic WebPage (additions A1; uses is a sibling of about, v9.20.0).
+	// Filterable slug list.
+	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services', 'uses' ) );
 	$slug          = isset( $post->post_name ) ? (string) $post->post_name : '';
 	if ( in_array( $slug, $profile_slugs, true ) ) {
 		$webpage['@type']      = 'ProfilePage';

@@ -1,7 +1,7 @@
 <?php
 /**
- * Tests for the /now CMS-flip migration: the text-box → blocks converter
- * and the create-and-seed migration (sn_migrate_now_page).
+ * Tests for the /now CMS-flip: the dossier renderer (faithful sn-now-* markup),
+ * the create-and-regenerate helpers, and the one-time migration.
  *
  * Standalone CLI harness (no PHPUnit): inline WP stubs, a pass/fail counter,
  * and the summary line the CI sweep gates on.
@@ -14,14 +14,16 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', dirname( __DIR__ ) . '/' ); }
 if ( ! defined( 'SN_NOW_SLUG' ) ) { define( 'SN_NOW_SLUG', 'now' ); }
 if ( ! defined( 'SN_NOW_PAGE_MIGRATED_OPT' ) ) { define( 'SN_NOW_PAGE_MIGRATED_OPT', 'sn_now_page_migrated_v1' ); }
+if ( ! defined( 'SN_ABOUT_SLUG' ) ) { define( 'SN_ABOUT_SLUG', 'about' ); }
+if ( ! defined( 'SN_USES_SLUG' ) ) { define( 'SN_USES_SLUG', 'uses' ); }
+if ( ! defined( 'SN_USES_PAGE_MIGRATED_OPT' ) ) { define( 'SN_USES_PAGE_MIGRATED_OPT', 'sn_uses_page_migrated_v1' ); }
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
-if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 
 $GLOBALS['__opt']          = array();
-$GLOBALS['__page']         = null;   // get_page_by_path return
-$GLOBALS['__ins']          = array(); // captured wp_insert_post args
-$GLOBALS['__upd']          = array(); // captured wp_update_post args
-$GLOBALS['__now_sections'] = array(); // what sn_now_page_sections() returns
+$GLOBALS['__page']         = null;
+$GLOBALS['__ins']          = array();
+$GLOBALS['__upd']          = array();
+$GLOBALS['__now_sections'] = array();
 
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; } }
@@ -30,11 +32,8 @@ if ( ! function_exists( 'get_page_by_path' ) ) { function get_page_by_path( $p, 
 if ( ! function_exists( 'wp_insert_post' ) ) { function wp_insert_post( $a, $e = false ) { $GLOBALS['__ins'][] = $a; return 77; } }
 if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $a ) { $GLOBALS['__upd'][] = $a; return $a['ID']; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'time' ) ) { function time() { return 1; } }
-// get_post: the migration reads the freshly-created Page back to backdate its
-// post_date (so the modified-date byline renders). Fixed noon stamp for the gap check.
-if ( ! function_exists( 'get_post' ) ) { function get_post( $id ) { return (object) array( 'ID' => $id, 'post_date' => '2026-07-10 12:00:00' ); } }
-// Content source lives in now-page.php; stub it so this suite is self-contained.
 if ( ! function_exists( 'sn_now_page_sections' ) ) { function sn_now_page_sections() { return $GLOBALS['__now_sections']; } }
 
 require_once SNT_PATH . 'inc/content-migrations.php';
@@ -42,105 +41,79 @@ require_once SNT_PATH . 'inc/content-migrations.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "  PASS: $m\n"; } else { ++$fail; echo "  FAIL: $m\n"; } }
 
-echo "/now converter + migration\n";
+echo "/now dossier + migration\n";
 
-// --- Converter ---
-$blocks = sn_now_sections_to_blocks( array(
-	array( 'label' => 'Building', 'items' => array( 'Signal & Noise theme', 'A <script>bad</script> item' ) ),
-) );
-ok( false !== strpos( $blocks, '<!-- wp:heading' ), 'converter emits a heading block' );
-ok( false !== strpos( $blocks, '>Building<' ), 'converter emits the label text' );
-ok( false !== strpos( $blocks, '<!-- wp:list ' ) || false !== strpos( $blocks, "<!-- wp:list -->" ), 'converter emits a list block' );
-ok( false !== strpos( $blocks, '<!-- wp:list-item' ), 'converter emits list-item blocks' );
-ok( false === strpos( $blocks, '<script>bad' ), 'converter escapes item HTML' );
-ok( substr_count( $blocks, '<!-- wp:list-item' ) === substr_count( $blocks, '<!-- /wp:list-item' ), 'list-item delimiters balance' );
-ok( substr_count( $blocks, '<!-- wp:list -->' ) === substr_count( $blocks, '<!-- /wp:list -->' ), 'list delimiters balance' );
-ok( substr_count( $blocks, '<!-- wp:heading' ) === substr_count( $blocks, '<!-- /wp:heading' ), 'heading delimiters balance' );
-ok( '' === trim( sn_now_sections_to_blocks( array() ) ), 'empty sections -> empty string' );
-ok( '' === trim( sn_now_sections_to_blocks( array( array( 'label' => '', 'items' => array( 'x' ) ) ) ) ), 'label-less section -> dropped (empty)' );
+// --- Shared section renderer ---
+$sec = sn_dossier_section_html( 'now', 0, 'Building', '<li class="sn-now-item">x</li>', 3 );
+ok( false !== strpos( $sec, 'class="sn-now-section"' ), 'section carries the sn-now-section class' );
+ok( false !== strpos( $sec, 'class="sn-now-section-label"' ) && false !== strpos( $sec, '>Building<' ), 'section-label holds the (escaped) label' );
+ok( false !== strpos( $sec, '<span class="sn-now-section-count">03</span>' ), 'count badge is zero-padded' );
+ok( false !== strpos( $sec, 'class="sn-now-list"' ), 'list carries the sn-now-list class' );
 
-// --- Hero loader ---
-ok( false !== strpos( sn_load_now_hero(), 'sn-catalog-eyebrow' ), 'hero loader returns the frozen hero markup' );
-ok( false !== strpos( sn_load_now_hero(), 'wp:post-date' ), 'hero includes the automatic modified-date block' );
+// --- Dossier body ---
+$html = sn_now_dossier_html( array(
+	array( 'label' => 'Building', 'items' => array( 'Signal & Noise', 'A <script>x</script> item' ) ),
+), 'July 10, 2026' );
+ok( false !== strpos( $html, '<!-- wp:html -->' ) && false !== strpos( $html, '<!-- /wp:html -->' ), 'body is wrapped in a core/html block' );
+ok( false !== strpos( $html, '<div class="sn-now-page">' ), 'body wraps in the sn-now-page scope' );
+ok( false !== strpos( $html, 'class="sn-now-hero"' ) && false !== strpos( $html, 'class="sn-now-headline">Now.<' ), 'hero renders with the Now. headline' );
+ok( false !== strpos( $html, 'Updated July 10, 2026' ), 'hero meta shows the given Updated date' );
+ok( false !== strpos( $html, 'class="sn-now-item-text">Signal &amp; Noise<' ), 'item text is escaped' );
+ok( false === strpos( $html, '<script>x' ), 'item HTML is escaped (no raw script)' );
+ok( '' === sn_now_dossier_html( array(), 'x' ), 'empty sections -> empty string' );
+ok( '' === sn_now_dossier_html( array( array( 'label' => '', 'items' => array( 'a' ) ) ), 'x' ), 'label-less section -> empty' );
 
-// --- Migration: no Page + real sections -> CREATE the Page ---
+// --- build_body stamps a date ---
+ok( false !== strpos( sn_now_build_body( array( array( 'label' => 'B', 'items' => array( 'x' ) ) ) ), 'Updated ' ), 'build_body stamps an Updated date' );
+
+// --- upsert: no Page -> create (no backdate second write) ---
 $GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = null;
+$id = sn_now_upsert_page( '<!-- wp:html --><div class="sn-now-page">x</div><!-- /wp:html -->' );
+ok( 1 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ), 'create -> one insert, no follow-up update' );
+$ins = $GLOBALS['__ins'][0] ?? array();
+ok( ( $ins['post_name'] ?? '' ) === 'now' && ( $ins['post_status'] ?? '' ) === 'publish' && ( $ins['page_template'] ?? '' ) === 'page-now', 'create binds slug/status/template' );
+ok( 77 === $id, 'upsert returns the new id' );
+
+// --- upsert: existing Page -> update (regenerate), excerpt only when empty ---
+$GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 9, 'post_content' => 'old', 'post_excerpt' => 'keep' );
+sn_now_upsert_page( 'NEWBODY' );
+ok( 0 === count( $GLOBALS['__ins'] ) && 1 === count( $GLOBALS['__upd'] ), 'existing Page -> update, no insert' );
+ok( 'NEWBODY' === ( $GLOBALS['__upd'][0]['post_content'] ?? '' ), 'update replaces post_content' );
+ok( ! isset( $GLOBALS['__upd'][0]['post_excerpt'] ), 'a non-empty excerpt is never clobbered' );
+
+// --- sync: regenerate from the text box ---
+$GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 9, 'post_content' => 'old', 'post_excerpt' => '' );
+$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'fresh-item' ) ) );
+sn_now_sync_page();
+ok( 1 === count( $GLOBALS['__upd'] ) && false !== strpos( $GLOBALS['__upd'][0]['post_content'] ?? '', '>fresh-item<' ), 'sync regenerates the Page from the box' );
+$GLOBALS['__upd'] = array();
+$GLOBALS['__now_sections'] = array();
+sn_now_sync_page();
+ok( 0 === count( $GLOBALS['__upd'] ), 'sync with an empty box is a no-op (never blanks)' );
+
+// --- migration: create-once / idempotent / retry-safe / never-clobber ---
+$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array();
 $GLOBALS['__page'] = null;
 $GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'x' ) ) );
 sn_migrate_now_page();
-ok( 1 === count( $GLOBALS['__ins'] ), 'no Page + content -> exactly one wp_insert_post' );
-$ins = $GLOBALS['__ins'][0] ?? array();
-ok( ( $ins['post_name'] ?? '' ) === 'now', 'creates the page with slug now' );
-ok( ( $ins['post_status'] ?? '' ) === 'publish', 'creates it published' );
-ok( ( $ins['post_type'] ?? '' ) === 'page', 'creates a page' );
-ok( ( $ins['page_template'] ?? '' ) === 'page-now', 'binds the page-now template' );
-ok( false !== strpos( $ins['post_content'] ?? '', 'sn-catalog-eyebrow' ), 'body includes the hero' );
-ok( false !== strpos( $ins['post_content'] ?? '', '<!-- wp:list' ), 'body includes the converted sections' );
-ok( '' !== trim( $ins['post_excerpt'] ?? '' ), 'seeds a non-empty excerpt' );
-ok( ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'flag set after creating' );
-// Follow-up: backdate post_date so post_modified > post_date and the hero's
-// modified-date byline renders on first load (WP core renders nothing when equal).
-ok( 1 === count( $GLOBALS['__upd'] ), 'create path issues one follow-up update to backdate post_date' );
-ok( isset( $GLOBALS['__upd'][0]['post_date'] ) && strtotime( (string) $GLOBALS['__upd'][0]['post_date'] ) < strtotime( '2026-07-10 12:00:00' ), 'follow-up update backdates post_date (opens the modified > published gap)' );
-
-// --- Migration: flag set -> no-op ---
+ok( 1 === count( $GLOBALS['__ins'] ) && ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'migration creates the Page + flags' );
 $GLOBALS['__ins'] = array();
 sn_migrate_now_page();
 ok( 0 === count( $GLOBALS['__ins'] ), 'flag set -> never creates again' );
 
-// --- Migration: empty text box -> retry-safe (no insert, NO flag) ---
 $GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array();
-$GLOBALS['__page'] = null;
 $GLOBALS['__now_sections'] = array();
 sn_migrate_now_page();
-ok( 0 === count( $GLOBALS['__ins'] ), 'empty box -> no Page created' );
-ok( empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'empty box -> flag NOT set (retry next admin_init)' );
+ok( 0 === count( $GLOBALS['__ins'] ) && empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'empty box -> no create, no flag (retry)' );
 
-// --- Migration: Page already exists with content -> never clobber, but mark migrated ---
 $GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
-$GLOBALS['__page'] = (object) array( 'ID' => 9, 'post_content' => '<!-- wp:paragraph --><p>owner</p><!-- /wp:paragraph -->', 'post_excerpt' => 'hand' );
+$GLOBALS['__page'] = (object) array( 'ID' => 9, 'post_content' => '<p>owner</p>', 'post_excerpt' => 'x' );
 $GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'x' ) ) );
 sn_migrate_now_page();
-ok( 0 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ), 'existing non-empty Page -> no write' );
-ok( ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'existing Page -> still marks migrated' );
-
-// --- Migration: Page exists but empty -> seed it (update, not insert) ---
-$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
-$GLOBALS['__page'] = (object) array( 'ID' => 9, 'post_content' => '', 'post_excerpt' => '' );
-$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'x' ) ) );
-sn_migrate_now_page();
-ok( 1 === count( $GLOBALS['__upd'] ), 'existing empty Page -> one wp_update_post' );
-ok( 9 === ( $GLOBALS['__upd'][0]['ID'] ?? 0 ), 'update targets the existing Page' );
-ok( false !== strpos( $GLOBALS['__upd'][0]['post_content'] ?? '', 'sn-catalog-eyebrow' ), 'update seeds the hero+sections body' );
-ok( ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'empty Page seeded -> flag set' );
-
-// --- sn_now_build_body: hero + sections ---
-$bb = sn_now_build_body( array( array( 'label' => 'Building', 'items' => array( 'x' ) ) ) );
-ok( false !== strpos( $bb, 'sn-catalog-eyebrow' ) && false !== strpos( $bb, '<!-- wp:list' ), 'build_body = hero + section blocks' );
-ok( '' === sn_now_build_body( array() ), 'build_body is empty when there are no sections' );
-
-// --- sn_now_sync_page: the editor save regenerates the Page from the text box ---
-// Existing Page -> update (regenerate), never insert.
-$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
-$GLOBALS['__page'] = (object) array( 'ID' => 5, 'post_content' => 'old', 'post_excerpt' => 'x' );
-$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'fresh-item' ) ) );
-sn_now_sync_page();
-ok( 0 === count( $GLOBALS['__ins'] ) && 1 === count( $GLOBALS['__upd'] ), 'sync on an existing Page updates (regenerates), never inserts' );
-ok( false !== strpos( $GLOBALS['__upd'][0]['post_content'] ?? '', '>fresh-item<' ), 'sync writes the current text-box content into the Page body' );
-
-// No Page yet -> sync creates it.
-$GLOBALS['__opt'] = array(); $GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
-$GLOBALS['__page'] = null;
-$GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => array( 'x' ) ) );
-sn_now_sync_page();
-ok( 1 === count( $GLOBALS['__ins'] ), 'sync creates the Page when it is absent' );
-
-// Empty text box -> sync is a no-op (never blanks the Page).
-$GLOBALS['__ins'] = array(); $GLOBALS['__upd'] = array();
-$GLOBALS['__page'] = (object) array( 'ID' => 5, 'post_content' => 'keep', 'post_excerpt' => '' );
-$GLOBALS['__now_sections'] = array();
-sn_now_sync_page();
-ok( 0 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ), 'sync with an empty text box is a no-op (never blanks the page)' );
+ok( 0 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ) && ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'existing non-empty Page -> no write, still flags' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

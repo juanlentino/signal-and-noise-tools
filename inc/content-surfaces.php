@@ -50,6 +50,8 @@ const SN_MUSIC_SLUG            = 'music';
 const SN_MUSIC_BODY_MERGED_OPT = 'sn_music_body_merged_v1';
 const SN_NOW_SLUG              = 'now';
 const SN_NOW_PAGE_MIGRATED_OPT = 'sn_now_page_migrated_v1';
+const SN_USES_SLUG             = 'uses';
+const SN_USES_PAGE_MIGRATED_OPT = 'sn_uses_page_migrated_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
