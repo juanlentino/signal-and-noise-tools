@@ -132,26 +132,39 @@ function sn_migrate_about_body() {
 	if ( get_option( SN_ABOUT_BODY_MIGRATED_OPT ) ) {
 		return;
 	}
+
 	$page = get_page_by_path( SN_ABOUT_SLUG );
 	if ( ! $page ) {
+		// Page doesn't exist yet — the seed flow creates it later. Mark
+		// migrated so we don't keep checking.
 		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
 		return;
 	}
+
 	if ( '' !== trim( (string) $page->post_content ) ) {
+		// Body already has content — could be edits we shouldn't touch.
 		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
 		return;
 	}
+
 	$body = sn_load_about_body();
 	if ( '' === $body ) {
-		return; // Seed missing — retry next admin_init once it deploys.
+		// Seed file missing — leave the Page alone, do not mark migrated
+		// so we retry on next admin_init in case the file lands later.
+		return;
 	}
+
 	$update = array(
 		'ID'           => $page->ID,
 		'post_content' => $body,
 	);
+
+	// Only seed the excerpt when it's genuinely empty — never clobber an
+	// owner-written excerpt.
 	if ( '' === trim( (string) $page->post_excerpt ) ) {
 		$update['post_excerpt'] = 'Music producer, mix engineer, and creative strategist based in Buenos Aires. The person behind the work, the studio, and the notes.';
 	}
+
 	wp_update_post( $update );
 	update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
 }

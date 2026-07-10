@@ -49,6 +49,13 @@ sn_migrate_about_body();
 ok( 0 === count( $GLOBALS['__upd'] ), 'existing body -> no overwrite' );
 ok( ! empty( $GLOBALS['__opt'][ SN_ABOUT_BODY_MIGRATED_OPT ] ), 'existing body -> still marks migrated' );
 
+// Empty body but owner-written excerpt → seeds body, LEAVES the excerpt alone.
+$GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array();
+$GLOBALS['__page'] = (object) array( 'ID' => 42, 'post_content' => '', 'post_excerpt' => 'owner-written excerpt' );
+sn_migrate_about_body();
+ok( 1 === count( $GLOBALS['__upd'] ), 'empty body + owner excerpt -> exactly one wp_update_post (body seeded)' );
+ok( ! array_key_exists( 'post_excerpt', $GLOBALS['__upd'][0] ), 'owner excerpt -> post_excerpt NOT in the update args (guard holds)' );
+
 // No Page → marks migrated, no write.
 $GLOBALS['__opt'] = array(); $GLOBALS['__upd'] = array(); $GLOBALS['__page'] = null;
 sn_migrate_about_body();
