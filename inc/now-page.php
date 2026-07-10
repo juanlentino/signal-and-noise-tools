@@ -114,7 +114,7 @@ function sn_now_page_save( $raw ) {
 	if ( '' === trim( $raw ) ) {
 		return delete_option( SN_NOW_PAGE_OPTION );
 	}
-	return update_option(
+	$result = update_option(
 		SN_NOW_PAGE_OPTION,
 		array(
 			'raw'     => $raw,
@@ -124,8 +124,20 @@ function sn_now_page_save( $raw ) {
 			// WP 5.3+; the gmdate fallback only serves bare test harnesses).
 			'updated' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
 		),
-		false // autoload=no: admin-edited content read on /now renders + the editor only.
+		false // autoload=no: read by the editor + the page regenerator below.
 	);
+
+	// v9.19.0: this plain-text box is the canonical /now editor, and /now is now
+	// a real CMS Page. Regenerate the Page body (hero + these sections as blocks)
+	// on every save — the Page is the rendered artifact + Excerpt/SEO/URL surface.
+	// Guarded so the editor's own unit tests exercise the option layer in
+	// isolation (the page builder lives in inc/content-migrations.php, loaded
+	// after this file; it is present at save time on a live request).
+	if ( function_exists( 'sn_now_sync_page' ) ) {
+		sn_now_sync_page();
+	}
+
+	return $result;
 }
 
 /**

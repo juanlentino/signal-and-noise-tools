@@ -2,12 +2,12 @@
 /**
  * Signal & Noise — Now Page admin section (Content tab → Now Page sub-tab).
  *
- * The editor for the theme's /now page content (owner direction 2026-07-01:
- * content lives in the plugin, not a hardcoded theme file). One textarea in
- * the simple `## Label` / `- item` format; sn_action=now_save stores it via
- * sn_now_page_save() (inc/now-page.php), which stamps the updated date the
- * /now page renders. Saving an empty box clears the override — the page
- * reverts to the theme's built-in file content.
+ * The editor for the /now page. One textarea in the simple `## Label` /
+ * `- item` format; sn_action=now_save stores it via sn_now_page_save()
+ * (inc/now-page.php). Since v9.19.0 /now is a real CMS Page, and saving here
+ * regenerates that Page's content (the hero plus these sections as blocks):
+ * the box stays the editor, the Page is the rendered artifact + Excerpt/SEO
+ * surface. An empty box leaves the last published page unchanged.
  *
  * @package SignalNoiseTools
  * @since 7.5.0
@@ -35,15 +35,15 @@ function sn_admin_render_now_section() {
 	echo '<h2 class="sn-fieldset-h">Now page</h2>';
 
 	if ( $live ) {
-		echo '<p class="sn-fieldset-intro">This content feeds the live <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Updated stamp: <code>' . esc_html( (string) $page['updated'] ) . '</code> (set automatically on save).</p>';
+		echo '<p class="sn-fieldset-intro">This box is the editor for the live <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Saving here regenerates it. Last saved: <code>' . esc_html( (string) $page['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">Nothing saved here yet — the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page is rendering the theme\'s built-in file content. Save content below to take over without a theme release.</p>';
+		echo '<p class="sn-fieldset-intro">This box is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Add content below and save to publish it.</p>';
 	}
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn-now-content">Sections</label>';
 	echo '<textarea id="sn-now-content" name="now_content" rows="14" class="large-text code" placeholder="' . esc_attr( $sample ) . '">' . esc_textarea( $raw ) . '</textarea>';
-	echo '<p class="sn-field-helper"><code>## Label</code> starts a section; every other line is an item (a leading <code>-</code> is fine). Sections without items are skipped. Saving an empty box reverts /now to the theme\'s built-in content. Content that parses to zero sections never replaces the live page.</p>';
+	echo '<p class="sn-field-helper"><code>## Label</code> starts a section; every other line is an item (a leading <code>-</code> is fine). Sections without items are skipped. Saving regenerates the /now page from this content. An empty box, or content with zero sections, leaves the last published page unchanged (it never blanks the page).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';

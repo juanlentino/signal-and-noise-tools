@@ -1075,3 +1075,199 @@ function sn_migrate_clear_notes_template_override() {
 
 	update_option( SN_NOTES_TPL_OVERRIDE_CLEARED_OPT, time(), true );
 }
+
+/**
+ * Load the frozen /now hero markup (eyebrow + headline + dek + the automatic
+ * modified-date block). Empty string when the seed is missing — same fallback
+ * semantics as the seed loaders above.
+ *
+ * @return string
+ */
+function sn_load_now_hero() {
+	$f = __DIR__ . '/seed-content/now-hero.html';
+	return file_exists( $f ) ? (string) file_get_contents( $f ) : '';
+}
+
+/**
+ * Convert the /now text-box sections into a constrained group of heading +
+ * list blocks. Pure; returns '' when there are no usable sections. Every label
+ * and item is esc_html'd — the text box is owner input that becomes rendered
+ * post_content, so it is escaped at the block-markup boundary.
+ *
+ * @param array<int,array{label:string,items:array<int,string>}> $sections
+ * @return string
+ */
+function sn_now_sections_to_blocks( $sections ) {
+	if ( empty( $sections ) || ! is_array( $sections ) ) {
+		return '';
+	}
+
+	$inner = '';
+	foreach ( $sections as $section ) {
+		$label = esc_html( (string) ( $section['label'] ?? '' ) );
+		if ( '' === $label ) {
+			continue;
+		}
+
+		$inner .= "\n\t<!-- wp:heading -->\n\t<h2 class=\"wp-block-heading\">{$label}</h2>\n\t<!-- /wp:heading -->\n";
+
+		$items = '';
+		foreach ( (array) ( $section['items'] ?? array() ) as $item ) {
+			$item   = esc_html( (string) $item );
+			$items .= "\t\t<!-- wp:list-item -->\n\t\t<li>{$item}</li>\n\t\t<!-- /wp:list-item -->\n";
+		}
+		$inner .= "\n\t<!-- wp:list -->\n\t<ul class=\"wp-block-list\">\n{$items}\t</ul>\n\t<!-- /wp:list -->\n";
+	}
+
+	if ( '' === trim( $inner ) ) {
+		return '';
+	}
+
+	$open  = '<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|40","bottom":"var:preset|spacing|70","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"backgroundColor":"void","layout":{"type":"constrained","contentSize":"760px"}} -->' . "\n";
+	$open .= '<div class="wp-block-group has-void-background-color has-background" style="padding-top:var(--wp--preset--spacing--40);padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--40)">';
+
+	return $open . "\n" . $inner . "\n</div>\n<!-- /wp:group -->";
+}
+
+/**
+ * Build the /now Page body from parsed text-box sections: the frozen hero
+ * followed by the sections as heading + list blocks. Returns '' when the hero
+ * seed is missing or the sections produce no usable blocks, so callers never
+ * blank the page.
+ *
+ * @param array<int,array{label:string,items:array<int,string>}> $sections
+ * @return string
+ */
+function sn_now_build_body( $sections ) {
+	$blocks = sn_now_sections_to_blocks( $sections );
+	if ( '' === trim( $blocks ) ) {
+		return '';
+	}
+	$hero = sn_load_now_hero();
+	if ( '' === $hero ) {
+		return '';
+	}
+	return $hero . "\n\n" . $blocks;
+}
+
+/**
+ * Create-or-update the /now Page with the given body. Creates it (published,
+ * bound to page-now, with a seeded Excerpt) when absent; otherwise replaces
+ * post_content (the text box is the canonical editor, so a regenerate is a full
+ * replace) and seeds the Excerpt only when still empty. On create, a follow-up
+ * update backdates post_date so the hero's modified-date byline renders from
+ * first load (WP core renders nothing when a "modified" date equals the
+ * published date, which a fresh insert makes equal). Returns the Page ID, or 0
+ * on failure / empty body.
+ *
+ * @param string $body Full post_content (hero + sections).
+ * @return int
+ */
+function sn_now_upsert_page( $body ) {
+	if ( '' === trim( (string) $body ) ) {
+		return 0;
+	}
+
+	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
+	$page    = get_page_by_path( SN_NOW_SLUG );
+
+	if ( $page ) {
+		$update = array(
+			'ID'           => $page->ID,
+			'post_content' => $body,
+		);
+		if ( '' === trim( (string) $page->post_excerpt ) ) {
+			$update['post_excerpt'] = $excerpt;
+		}
+		wp_update_post( $update );
+		return (int) $page->ID;
+	}
+
+	$new_id = wp_insert_post(
+		array(
+			'post_title'    => 'Now',
+			'post_name'     => SN_NOW_SLUG,
+			'post_parent'   => 0,
+			'post_status'   => 'publish',
+			'post_type'     => 'page',
+			'post_content'  => $body,
+			'post_excerpt'  => $excerpt,
+			'page_template' => 'page-now',
+		),
+		false
+	);
+
+	// The hero's automatic "Updated" byline is a core/post-date block in
+	// `displayType:"modified"` mode. WP core's render_block_core_post_date()
+	// renders NOTHING when the modified date equals the published date, and a
+	// fresh wp_insert_post() sets post_modified = post_date. Nudge post_date a
+	// few minutes into the past via one follow-up update; the update itself
+	// refreshes post_modified to now, opening a gap so modified > published and
+	// the byline renders from first load. (Update-path saves avoid this
+	// naturally: the Page's post_date already predates the save.)
+	if ( is_int( $new_id ) && $new_id > 0 ) {
+		$created = get_post( $new_id );
+		if ( $created && isset( $created->post_date ) ) {
+			wp_update_post( array(
+				'ID'        => $new_id,
+				'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( (string) $created->post_date ) - 5 * MINUTE_IN_SECONDS ),
+			) );
+		}
+		return $new_id;
+	}
+
+	return 0;
+}
+
+/**
+ * Regenerate the /now Page from the current Content → Now Page text box. Wired
+ * to the editor's save (sn_now_page_save), so the plain-text box stays the
+ * authoring surface while the Page is the rendered artifact + SEO/URL surface.
+ * No-op (never blanks the page) when the text box has no usable sections.
+ */
+function sn_now_sync_page() {
+	if ( ! function_exists( 'sn_now_page_sections' ) ) {
+		return;
+	}
+	$body = sn_now_build_body( sn_now_page_sections() );
+	if ( '' !== $body ) {
+		sn_now_upsert_page( $body );
+	}
+}
+
+/**
+ * One-time migration: flip /now from a postless virtual route to a real CMS
+ * Page, populating it from the current Content → Now Page text box. Ongoing
+ * edits flow through sn_now_sync_page() on save; this performs the initial
+ * carry-over.
+ *
+ * Retry-safe: does nothing (and does NOT set the flag) until the hero seed and
+ * real text-box content are both present. Never clobbers an existing,
+ * owner-edited Page.
+ */
+add_action( 'admin_init', 'sn_migrate_now_page' );
+
+function sn_migrate_now_page() {
+	if ( get_option( SN_NOW_PAGE_MIGRATED_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( SN_NOW_SLUG );
+
+	// Existing, owner-edited Page — never touch it, but stop checking.
+	if ( $page && '' !== trim( (string) $page->post_content ) ) {
+		update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
+		return;
+	}
+
+	$body = function_exists( 'sn_now_page_sections' ) ? sn_now_build_body( sn_now_page_sections() ) : '';
+
+	// Retry-safe: wait for the hero seed and real text-box content before
+	// creating and flagging — never flag an incomplete run.
+	if ( '' === $body ) {
+		return;
+	}
+
+	sn_now_upsert_page( $body );
+	update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
+}
