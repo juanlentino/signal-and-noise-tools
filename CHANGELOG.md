@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.21.0] - 2026-07-10: Feat: /accessibility + /contact/personal are CMS Pages (pages-to-CMS flip, Phase 2c)
+
+**Headline:** The last two postless virtual routes join the flip. `/accessibility` (top-level) and `/contact/personal` (a child of `/contact`) become real CMS Pages, seeded once from frozen `*-body.html` files and thereafter edited in the block editor. Unlike `/now` and `/about/uses` (edited from Content text boxes), these are prose pages with no editor, so they use the Phase-1 frozen-seed model — which means there is no empty-box failure mode. After this, all nine editorial surfaces are CMS-authored; Phase 2 is complete.
+
+> **Why MINOR:** two new CMS Pages seeded once from frozen content. No settings-schema change, no API removed. Both migrations are create-once, never-clobber, and retry-safe (they never overwrite an owner-edited Page).
+
+### Added
+- `sn_migrate_accessibility_page()` (`admin_init`): flip `/accessibility` to a real top-level Page (`wp_insert_post`, `page_template=page-accessibility`), seeded from `inc/seed-content/accessibility-body.html` plus a native Excerpt. The statement is reproduced as classed `core/heading` + `core/paragraph` blocks carrying the `sn-a11y-*` classes, so it stays block-editable while the theme's `accessibility.css` styles it identically. Create-once, never-clobber, retry-safe while the seed is missing ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php)).
+- `sn_migrate_personal_page()` (`admin_init`): flip `/contact/personal` to a real **child** Page of `/contact` (`wp_insert_post` with `post_parent`, `page_template=page-personal`), seeded from `inc/seed-content/personal-body.html` (the page's existing block markup) plus a native Excerpt. Retry-safe until the Contact parent exists; never clobbers an owner-edited Page ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php)).
+- `inc/seed-content/accessibility-body.html` + `inc/seed-content/personal-body.html`: the frozen page bodies (personal is the pre-flip block markup minus its outer `<main>` wrapper, which the template supplies) ([inc/seed-content/](inc/seed-content/)).
+- `sn_load_accessibility_body()` + `sn_load_personal_body()`: seed loaders mirroring `sn_load_about_body()` ([inc/content-migrations.php](inc/content-migrations.php)).
+
+### Notes
+- **Editing model:** after the flip these two prose pages are edited in the block editor (Gutenberg) — there is no text box, so no empty-box risk (the 2b `/uses` regression does not apply). `/personal` gains `WebPage` JSON-LD as a real Page (nothing to retire). `/accessibility`'s meta description now comes from its Excerpt; the theme retires its `sn_seo_route_meta_for_accessibility` handler in the paired theme release.
+- **Deploy order (owner gate):** install this plugin FIRST (creates the two Pages, invisible behind the theme's still-present route interceptors), THEN the paired theme release (which removes the interceptors → the Pages go live). Theme-first would 404 the routes. After creating each new route, purge the edge cache (Breeze/Cloudflare can serve a stale pre-Page 404).
+- Tests: `tests/accessibility-page-migration.php` (22 assertions), `tests/personal-page-migration.php` (20 assertions).
+
 ## [9.20.1] - 2026-07-10: Fix: repair the Phase-2b flip on the live site (/now dossier + /about/uses creation)
 
 **Headline:** A one-time repair migration for two regressions the v9.20.0 install surfaced on the live site. (1) `/now` Pages created by the earlier v9.19.0 deploy hold generic core-block content, and v9.20.0's never-clobber migration guard refused to upgrade them, so `now.css` had no `sn-now-*` classes to style. (2) `/about/uses` 404'd where the Uses text box was never saved (its content had lived only in the theme's removed `uses-data.php` default). The repair force-regenerates `/now` from its (populated) box into the dossier markup, and re-seeds an empty Uses box from a frozen copy of the original gear list, which creates `/about/uses`. Self-heals on deploy.
