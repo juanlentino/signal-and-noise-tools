@@ -984,6 +984,60 @@ hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini
 
 @unlink( $vimg );
 
+// ─── Test 33: economy-tier model routing for one-liner features (v9.26.0) ──
+//
+// Short prose one-liners (meta_desc, excerpt, og_title, drift_phrase,
+// tag_suggest) route to Haiku 4.5; reasoning + structured-JSON features stay on
+// the default. Registered at priority 20 — a HARD FLOOR over the owner dropdown.
+// The harness clears filters on fixture_reset() and runs them in registration
+// order, so re-register the route each block (and any dropdown filter BEFORE
+// it), mirroring the alt-text route tests above.
+echo "\nTest 33: economy-tier model routing (v9.26.0)\n";
+
+// (a) an economy feature routes to Haiku (+ the Sonnet 5 fallback net).
+fixture_reset();
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 150, 'meta_desc' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'economy feature meta_desc routes to Haiku 4.5' );
+
+// (b) a reasoning feature is NOT economy — stays on the default (deduped).
+fixture_reset();
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 2048, 'insights' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'reasoning feature insights stays on the default (Sonnet 5)' );
+
+// (c) HARD FLOOR: even with the owner dropdown forcing Opus, the economy route
+// wins for an economy feature (register the dropdown first → same order as the
+// production priority 20 > 10).
+fixture_reset();
+add_filter( 'snt_ai_model_preference', function () { return 'claude-opus-4-8'; }, 10, 4 );
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 60, 'og_title' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'hard floor: economy feature stays Haiku even when the dropdown forces Opus' );
+hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-opus-4-8', 'claude-sonnet-5' ) ),
+	'hard floor: the Opus pin is NOT applied to an economy feature' );
+
+// (d) ESCAPE HATCH: snt_ai_economy_model returning the inherited model opts a
+// feature back onto the owner's choice.
+fixture_reset();
+add_filter( 'snt_ai_model_preference', function () { return 'claude-opus-4-8'; }, 10, 4 );
+snt_ai_register_economy_model_route();
+add_filter( 'snt_ai_economy_model', function ( $model, $feature, $inherited ) { return $inherited; }, 10, 3 );
+snt_ai_generate_with_constraints( 'p', 's', 150, 'meta_desc' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-opus-4-8', 'claude-sonnet-5' ) ),
+	'escape hatch: snt_ai_economy_model → inherited opts meta_desc back to the owner pick' );
+
+// (e) the economy feature LIST is filterable (add/drop economy features).
+fixture_reset();
+add_filter( 'snt_ai_economy_features', function () { return array( 'insights' ); } );
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 2048, 'insights' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'snt_ai_economy_features filter can add a feature to the economy tier' );
+
 // ─── v8.1.1: snt_ai_error_with_message — empty-message transport errors ───
 // Live incident 2026-07-02: an SDK-wrapped WP_Error with an EMPTY message
 // reached the Health-tab JS as "Unknown error." — undiagnosable from the UI.

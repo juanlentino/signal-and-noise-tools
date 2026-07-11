@@ -475,6 +475,66 @@ function snt_ai_register_alt_text_model_route() {
 snt_ai_register_alt_text_model_route();
 
 /**
+ * v9.26.0: the feature labels routed to the economy text model.
+ *
+ * Short, mechanical prose one-liners a human judges at a glance — NOT the
+ * structured-JSON suggesters (link/orphan/pair, whose parse-robustness we care
+ * about) or the reasoning calls (insights, insights_narration, drift_detect,
+ * release_notes), which stay on the default model. Filterable so a deployment
+ * can add or drop economy features with no release.
+ *
+ * @since 9.26.0
+ * @return string[] Economy feature labels (see snt_ai_generate_with_constraints $feature).
+ */
+function snt_ai_economy_features() {
+	return (array) apply_filters(
+		'snt_ai_economy_features',
+		array( 'meta_desc', 'excerpt', 'og_title', 'drift_phrase', 'tag_suggest' )
+	);
+}
+
+/**
+ * v9.26.0: economy-tier model routing for the short one-liner features.
+ *
+ * The default text model (Sonnet 5) is right for reasoning-heavy calls, but the
+ * HIGHEST-FREQUENCY calls are tiny prose one-liners that fire on every post
+ * save (a 150-char meta description, a 60-token OG title, a tag list). Those
+ * don't need a premium model: Haiku 4.5 is ~3x cheaper ($1/$5 vs $3/$15 per
+ * MTok) at effectively equal quality on a glance-judged task. That is a
+ * decision, not a preference, so it ships as a default FLOOR rather than a
+ * settings toggle.
+ *
+ * Priority 20 — AFTER the owner's model dropdown (sn_tf_ai_model, priority 10)
+ * — makes it a hard floor: economy features run on Haiku even if the owner
+ * picks Opus for everything else. Every non-economy feature still follows the
+ * dropdown. The alt-text route (priority 10) is disjoint ('alt-text' is not an
+ * economy feature) and unaffected.
+ *
+ * Escape hatch: `snt_ai_economy_model` receives (model, feature,
+ * inherited_model) — return the inherited model to opt a feature back onto the
+ * owner's choice, or a different id to re-pin. Named function (not a bare
+ * add_filter) so the test harness can re-register after clearing filters,
+ * mirroring snt_ai_register_alt_text_model_route().
+ *
+ * @since 9.26.0
+ * @return void
+ */
+function snt_ai_register_economy_model_route() {
+	add_filter(
+		'snt_ai_model_preference',
+		function ( $model, $prompt, $system_instruction, $feature = 'generic' ) {
+			if ( in_array( $feature, snt_ai_economy_features(), true ) ) {
+				return (string) apply_filters( 'snt_ai_economy_model', 'claude-haiku-4-5', $feature, $model );
+			}
+			return $model;
+		},
+		20,
+		4
+	);
+}
+snt_ai_register_economy_model_route();
+
+/**
  * Record one AI call's token usage to the capped FIFO log option.
  *
  * Reads the TokenUsage DTO off the GenerativeAiResult — the metadata that
