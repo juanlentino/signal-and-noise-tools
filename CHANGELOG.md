@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.25.0] - 2026-07-11: Content-credential OG cards — each share image carries its own provenance
+
+**Headline:** Every Note's social-share card (the generated 1200×630 OG PNG) now embeds a self-contained **provenance block** in its metadata — the Note's existing Verifiable Credential plus pointers to the DID document and the live credential. A machine that reads the shared image can verify its authorship and timestamp offline (resolve `did:web` → verify the Ed25519 proof over the canonical payload → check the Bitcoin anchor) and follow the pointers back to the site. No new signing: the block reuses the signature D1 already produced, and inherits D1's visibility gate (a non-public or password-protected Note embeds nothing). Sub-project D2 of the machine-readability program — the last one; this closes A→B→C→D1→D2.
+
+> **Why MINOR:** a new machine-readable surface embedded in an existing asset. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. Additive; reuses D1; no Worker or theme change.
+
+### New
+- `inc/og-card-provenance.php` — pure-PHP PNG `iTXt` read/write plus a provenance-block builder that reuses the **visibility-gated** `sn_prov_credential()` (so a non-public or password-protected Note never embeds a block), a file injector called after the card is rendered, and an `sn_agents_surfaces` advertisement. Deliberately **not** C2PA: full C2PA would require an external X.509 signing service, a Trust-List certificate, and a timestamp authority — breaking the plugin's zero-dependency design for an audience no platform is shown to surface on OG cards. ([inc/og-card-provenance.php](inc/og-card-provenance.php))
+- `tests/og-card-provenance.php`.
+
+### Changed
+- `inc/og-card-generator.php` — `sn_generate_og_card()` injects the provenance block after a successful `imagepng()` write (in the existing non-blocking save path; a no-op for gated Notes), wrapped in a `try/catch` so decorative provenance can never break a save.
+
 ## [9.24.1] - 2026-07-11: Fix — LinkedIn (HTTP 999) no longer false-flagged as external link rot
 
 **Headline:** The External link-rot health check flagged a live `linkedin.com/in/…` citation as rotted with the note *"HTTP 999 on probe"*. HTTP 999 is not a real HTTP status — it's LinkedIn's proprietary **anti-bot "Request denied"** reply to any non-browser client. The profile is fully live for a human; the automated probe is simply being refused. The check already skips Cloudflare-gated citations as *live-but-gating* rather than rot, but those guards key on a Cloudflare fingerprint (`cf-mitigated` / `cf-ray`), and LinkedIn isn't behind Cloudflare — so the 999 fell through and was scored as a dead link. This adds a host-agnostic classifier that treats any status outside the valid HTTP range (100–599, RFC 9110 §15) as unverifiable, closing the same false-positive class for anti-bot hosts that don't sit behind a CDN.
