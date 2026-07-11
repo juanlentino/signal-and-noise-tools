@@ -82,7 +82,12 @@ function sn_og_card_allowed_for_post( $post ) {
 	if ( ! $post ) {
 		return false;
 	}
-	return '' === (string) $post->post_password;
+	// Read post_password defensively via ?? so a partial post object (e.g. a
+	// stdClass fixture lacking the property, as some CLI tests pass) doesn't
+	// emit an "Undefined property" warning. A real WP_Post always carries the
+	// property, so production behaviour is identical; a missing/empty value
+	// means "no password" → card allowed, which preserves the security gate.
+	return '' === (string) ( $post->post_password ?? '' );
 }
 
 /**
