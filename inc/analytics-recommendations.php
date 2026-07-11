@@ -83,13 +83,16 @@ function sn_analytics_rec_unlinked() {
 
 /**
  * SEO rule: published Pages that resolve to an EMPTY meta description ship
- * descriptionless. Uses the shared resolver (override → excerpt → theme filter),
- * so a Page's own Excerpt (or the theme's colophon route copy) is honored — only
- * a Page with no excerpt AND no theme entry is flagged. Pages the owner hides
- * from search (the per-page noindex toggle) are skipped — a summary a crawler
- * will never read isn't worth nagging about. The card NAMES each remaining Page
- * and deep-links it to its own editor, so the owner sees exactly which pages
- * still need a summary. Cross-repo signal, plugin-only code. Null when none.
+ * descriptionless. Resolves each Page's description the SAME way the site emits
+ * it (sn_seo_description_for_post): the front page, /notes and /provenance read
+ * their SEO settings; every other Page reads its override → excerpt → theme
+ * filter. So a Page is flagged only when its ACTUAL emitted description is empty
+ * — not when some unrelated field is (the v9.22.3 fix: the front page is
+ * described by a setting, so checking its excerpt false-positived a homepage
+ * that was fine). Pages the owner hides from search (the per-page noindex
+ * toggle) are skipped — a summary a crawler will never read isn't worth nagging
+ * about. The card NAMES each remaining Page and deep-links it to its own editor.
+ * Cross-repo signal, plugin-only code. Null when none.
  *
  * @return array|null
  */
@@ -97,7 +100,7 @@ function sn_analytics_rec_seo_meta() {
 	// The guard is defensive: sn_seo_resolve_singular_description() shipped in
 	// v9.7.0 (inc/seo.php), so this rule is LIVE in production. It stays guarded
 	// so the recs panel degrades gracefully if the SEO module is ever absent.
-	if ( ! function_exists( 'sn_seo_resolve_singular_description' ) || ! function_exists( 'get_posts' ) ) {
+	if ( ! function_exists( 'sn_seo_description_for_post' ) || ! function_exists( 'get_posts' ) ) {
 		return null;
 	}
 	$pages   = (array) get_posts( array(
@@ -120,7 +123,7 @@ function sn_analytics_rec_seo_meta() {
 		if ( $noindex ) {
 			continue;
 		}
-		if ( '' === trim( (string) sn_seo_resolve_singular_description( $p ) ) ) {
+		if ( '' === trim( (string) sn_seo_description_for_post( $p ) ) ) {
 			$missing[] = $p;
 		}
 	}

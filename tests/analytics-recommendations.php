@@ -24,7 +24,7 @@ $GLOBALS['__scan'] = null;
 function sn_health_last_scan() { return $GLOBALS['__scan']; }
 $GLOBALS['__pages'] = array();
 function get_posts( $args ) { return $GLOBALS['__pages']; }
-function sn_seo_resolve_singular_description( $post ) { return (string) ( $post->__desc ?? '' ); }
+function sn_seo_description_for_post( $post ) { return (string) ( $post->__desc ?? '' ); }
 $GLOBALS['__noindex'] = array();
 function sn_post_settings_get_noindex( $id ) { return ! empty( $GLOBALS['__noindex'][ $id ] ); }
 function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' ) : ''; }

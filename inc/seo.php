@@ -141,6 +141,42 @@ function sn_seo_resolve_singular_description( $post ) {
 	return (string) apply_filters( 'sn_seo_singular_description', '', $post );
 }
 
+/**
+ * The meta description sn_seo_meta_for_current_view() WOULD emit for a given
+ * Page post — mirrors that function's per-route description branches but keyed
+ * on the post's identity (not conditional tags), so a caller can evaluate an
+ * arbitrary Page outside its own request. Used by the Analytics
+ * descriptionless-Pages recommendation, which walks every published Page.
+ *
+ * The front page, /notes, and /provenance take their description from SEO
+ * settings (seo_copy.*_description), NOT the Page excerpt; every other Page uses
+ * sn_seo_resolve_singular_description(). Keep the route branches in sync with
+ * sn_seo_meta_for_current_view() above — the seo-description-for-post test pins
+ * each branch.
+ *
+ * @param object|null $post A Page post object ( ->ID, ->post_name, ->post_excerpt ).
+ * @return string
+ */
+function sn_seo_description_for_post( $post ) {
+	if ( ! is_object( $post ) ) {
+		return '';
+	}
+	$front = (int) get_option( 'page_on_front' );
+	$id    = (int) ( $post->ID ?? 0 );
+	$slug  = (string) ( $post->post_name ?? '' );
+
+	if ( $front && $id === $front ) {
+		return (string) sn_setting( 'seo_copy.home_description', '' );
+	}
+	if ( 'notes' === $slug ) {
+		return (string) sn_setting( 'seo_copy.notes_description', '' );
+	}
+	if ( 'provenance' === $slug ) {
+		return (string) sn_setting( 'seo_copy.provenance_description', '' );
+	}
+	return sn_seo_resolve_singular_description( $post );
+}
+
 function sn_seo_meta_for_current_view() {
 	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
 	// title/description/url since WP has no post for it. Takes precedence.

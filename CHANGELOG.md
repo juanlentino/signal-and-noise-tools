@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.22.3] - 2026-07-11: Recommendation reads each page's REAL description source (front-page false positive fixed)
+
+**Headline:** The Analytics "N pages ship without a meta description" recommendation now resolves each Page's description the same way the site actually emits it. The front page, `/notes`, and `/provenance` take their description from SEO settings (Signal & Noise → Identity & SEO), not the Page excerpt — so the recommendation no longer flags a homepage that already has a description. It previously checked the excerpt for *every* Page and false-positived the (setting-described) front page.
+
+> **Why PATCH:** a bug fix — the recommendation checked the wrong description source for the three setting-driven routes. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. The actual emitted `<meta name="description">` is unchanged; only the recommendation's read is corrected.
+
+### Fixed
+- [inc/analytics-recommendations.php](inc/analytics-recommendations.php) — `sn_analytics_rec_seo_meta()` now resolves each Page via the new `sn_seo_description_for_post()` instead of `sn_seo_resolve_singular_description()`. The front page (`page_on_front`), `/notes`, and `/provenance` are described by `seo_copy.*_description` settings; checking their excerpts produced false positives (a homepage with a real setting-based description was flagged) and could produce false negatives (a setting-driven route with an empty setting but a filled excerpt went unflagged).
+
+### Added
+- [inc/seo.php](inc/seo.php) — `sn_seo_description_for_post( $post )`: the per-post mirror of `sn_seo_meta_for_current_view()`'s description routing, keyed on post identity so a caller can evaluate an arbitrary Page outside its own request. Front page / notes / provenance → SEO settings; every other Page → `sn_seo_resolve_singular_description()` (override → excerpt → theme filter). The route branches are kept in sync with the view and pinned by tests.
+
+### Notes
+- Practical effect: the recommendation stops nagging about the homepage, which is described by the "Home description" field in Identity & SEO (verified live — the site emits a real homepage description). No page's actual emitted description changes.
+- Tests: new [tests/seo-description-for-post.php](tests/seo-description-for-post.php) (11 — each route branch, front-page precedence, empty-setting, generic fall-through, guards); [tests/analytics-recommendations.php](tests/analytics-recommendations.php) retargeted to the new resolver. Full sweep 261 suites / 7102 assertions / 0 failures; PHPCS falsified; PHPStan clean.
+
 ## [9.22.2] - 2026-07-11: Recommendation skips pages hidden from search (noindex)
 
 **Headline:** The Analytics "N pages ship without a meta description" recommendation no longer flags Pages the owner has set to noindex — a page hidden from search doesn't need a summary a crawler will never read. Set a utility or legal page (Privacy Policy, an HTML sitemap, etc.) to "Hide from search engines" and it drops off the recommendation instead of forcing an invented description.
