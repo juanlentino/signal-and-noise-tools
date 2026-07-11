@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.24.0] - 2026-07-11: Analytics stops counting the admin — `/wp-admin/` filtered + cache-proof owner exclusion
+
+**Headline:** `/wp-admin/` (and `/wp-login.php`) no longer appear in the first-party analytics, and your own visits are excluded even on cached pages. Two root causes were bundled under "the analytics keeps reading me as a visitor": (A) admin/login paths were being counted as human pageviews, and (B) the v6.23.0 role-exclusion couldn't fire on CDN-cached pages, so the owner's front-end views leaked in.
+
+The **invariant** was already documented — the retired Plausible importer skipped `/wp-admin` and `/wp-login.php` because "they never fire the front-end beacon." The live ingestion pipeline (collector Worker → Analytics Engine → daily rollup) never enforced it. This restores the invariant at the ingestion boundary, source-agnostic, so it holds no matter how a stray beacon arrives.
+
+> **Why MINOR:** adds a new user-visible capability (cache-proof owner exclusion at the edge) plus a data migration, all additive. No public function/REST route removed or renamed. The daily-table rows are purged by a version-gated one-time migration, so no manual user action is required.
+
+### Fixed
+- **`/wp-admin/` counted as a human pageview.** [inc/analytics-rollup.php](inc/analytics-rollup.php) now drops admin/login paths on write via a new shared predicate `sn_analytics_is_excluded_path()`, mirroring the invariant the importer enforced. Boundary-aware: a real front-end slug like `/wp-admin-guide/` is **not** swept up (stricter than the importer's loose `strpos`).
+
+### Added
+- **One-time purge** of the admin/login rows already in `wp_sn_analytics_daily` — daily-table DB version `2 → 3`. Critically, the 2→3 step is a **targeted `DELETE`, not a table drop**: the old install path blanket-dropped the table on any version mismatch (safe only while it was dormant), which would now destroy real history. The structural pre-v2 rotation is preserved; v2-onward migrations mutate data in place.
+- **Cache-proof owner exclusion** (paired with the collector Worker, v1.10.0). The Worker drops any beacon carrying a `wordpress_logged_in_*` cookie — the same-origin `sendBeacon` POST carries the WP auth cookie even when the page was a CDN cache hit, closing the one gap the theme's per-user `sn_beacon_enabled` filter can't cover. Toggle at the edge with `SN_PX_EXCLUDE_LOGGED_IN`.
+
+### Changed
+- [inc/analytics-render-settings.php](inc/analytics-render-settings.php) — the "Exclude my own visits" card no longer warns that a cache-bypass rule is *required*; it explains the edge collector now drops logged-in beacons cache-proof, with the role list refining per-role control on uncached requests.
+
+### Notes
+- The collector Worker ([signal-and-noise-analytics-worker](https://github.com/juanlentino/signal-and-noise-analytics-worker)) must be redeployed (`npm run deploy`) for the edge drops to take effect — it enforces the same admin/login path rule and the logged-in-cookie drop before the AE write. The plugin-side rollup guard is the safety net for anything already in AE.
+- Tests: [tests/analytics-rollup.php](tests/analytics-rollup.php) extended — the excluded-path predicate, the upsert skip (incl. the `/wp-admin-guide/` non-match), and the history-preserving v2→v3 purge.
+
 ## [9.23.0] - 2026-07-11: Verifiable Credentials — each Note's proof as a W3C VC
 
 **Headline:** Every Note's existing Bitcoin-anchored authorship proof is now readable as a **W3C Verifiable Credential** (JSON-LD) at `/wp-json/signal-noise/v1/credential/<note-uid>`, and the site publishes a **`did:web:juanlentino.com`** identity at `/.well-known/did.json` carrying the Ed25519 public key. A machine can now verify a Note's authorship and timestamp without scraping — resolve the DID for the key, verify the signature over the credential's canonical payload, then check the Bitcoin anchor. No new signing: the credential reuses the signature the provenance Worker already produces. Sub-project D1 of the machine-readability program (C2PA is a later follow-up).

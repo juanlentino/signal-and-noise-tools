@@ -67,7 +67,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
-const SN_ANALYTICS_DAILY_DB_VERSION     = '2';
+// v3: one-time purge of admin/login rows that leaked in before the ingestion
+// guard (sn_analytics_is_excluded_path) existed. Data-only — no schema change.
+const SN_ANALYTICS_DAILY_DB_VERSION     = '3';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
 // SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
@@ -85,6 +87,26 @@ const SN_ANALYTICS_ROLLUP_FRESH_KEY    = 'sn_analytics_rollup_fresh';
 const SN_ANALYTICS_ROLLUP_TTL          = 15 * MINUTE_IN_SECONDS;  // freshness target for the admin warmer
 const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness stamp outlives the TTL
 const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
+
+/**
+ * Is this an admin/login path that should never be counted as a human pageview?
+ *
+ * The front-end beacon (theme) only enqueues on wp_enqueue_scripts, so it can't
+ * fire in wp-admin or on wp-login.php — any such path in the pipeline is noise
+ * (a stray/forged beacon, a cache edge case), never a real visit. This is the
+ * ingestion-side half of the invariant the retired Plausible importer enforced;
+ * the collector Worker enforces the same rule at the edge. Boundary-aware so a
+ * legitimate front-end slug like `/wp-admin-guide/` is NOT swept up.
+ *
+ * @param string $path Request path (already query/hash-stripped upstream).
+ * @return bool
+ */
+function sn_analytics_is_excluded_path( $path ) {
+	$path = (string) $path;
+	return '/wp-admin' === $path
+		|| 0 === strpos( $path, '/wp-admin/' )
+		|| 0 === strpos( $path, '/wp-login.php' );
+}
 
 /**
  * dbDelta CREATE TABLE for the daily aggregate.
@@ -133,13 +155,29 @@ function sn_analytics_daily_install() {
 	}
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
-	// dbDelta only ADDS — it can't rotate a UNIQUE KEY. The table is dormant
-	// (never populated before the worker deploys), so drop + recreate is safe
-	// and avoids leaving the old (day, path) key in place.
-	if ( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) && get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) !== SN_ANALYTICS_DAILY_DB_VERSION ) {
+	$prev  = (string) get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '' );
+
+	// Structural rotation ONLY for the pre-v2 era. dbDelta can't rotate a UNIQUE
+	// KEY (v1 was (day, path); v2 added class), so v1→v2 needed a drop+recreate —
+	// safe then because the table was dormant (never populated before the worker
+	// deployed). From v2 on the table holds real history, so we must NEVER blanket-
+	// drop it; later migrations mutate data in place.
+	if ( '' !== $prev && version_compare( $prev, '2', '<' ) ) {
 		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 	}
+
 	dbDelta( sn_analytics_daily_schema_sql() );
+
+	// v3 one-time purge: admin/login paths leaked into the rollup before the
+	// ingestion guard (sn_analytics_is_excluded_path) existed. The schema is
+	// unchanged from v2, so this is a targeted, history-preserving DELETE — not a
+	// drop. LIKE patterns mirror the predicate; a static query with a trusted
+	// $wpdb->prefix table name, so no bound parameters are needed.
+	if ( '' !== $prev && version_compare( $prev, '3', '<' ) ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- static DELETE; $table is $wpdb->prefix + a plugin constant; the path literals/LIKE patterns carry no external input.
+		$wpdb->query( "DELETE FROM {$table} WHERE path = '/wp-admin' OR path LIKE '/wp-admin/%' OR path LIKE '/wp-login.php%'" );
+	}
+
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 }
 
@@ -214,6 +252,9 @@ function sn_analytics_rollup_upsert( $rows ) {
 		$class = isset( $r['class'] ) && '' !== (string) $r['class'] ? (string) $r['class'] : 'human';
 		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || '' === $path ) {
 			continue;
+		}
+		if ( sn_analytics_is_excluded_path( $path ) ) {
+			continue; // admin/login paths are never human pageviews — ingestion guard
 		}
 		if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 			continue; // defensive: never store an unexpected class

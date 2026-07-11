@@ -98,7 +98,7 @@ function snt_analytics_render_exclusion() {
 		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	echo '<p class="sn-an-settings-help"><strong>' . esc_html__( 'Requires a logged-in cache bypass.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'This site serves cached HTML from the CDN, so for the exclusion to run, logged-in requests must miss the edge cache — add a Cloudflare rule to bypass cache when the request carries a wordpress_logged_in_ cookie. Otherwise a cached page still carries the beacon.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list above adds per-role control on uncached requests — to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><button type="submit" name="sn_action" value="analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
