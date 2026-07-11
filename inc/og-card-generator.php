@@ -625,9 +625,29 @@ function sn_resolve_og_image_url( $default, $post ) {
 	return (string) apply_filters( 'sn_seo_singular_og_image', $default, $post );
 }
 
-add_filter( 'sn_og_image_url', function( $default ) {
+/**
+ * Filter body for `sn_og_image_url`. Only a SINGULAR view (a single Note/Page,
+ * or a static front page) has one authoritative post whose generated card
+ * represents the page. On the blog index, tag archives, and search results
+ * get_post() returns the loop's first post (often the sticky "Start here"
+ * Note), whose card must NOT be borrowed as the page's shared image: that
+ * mislabels the /notes index and every search result with a single Note's card
+ * while the og:title/alt correctly read "Notes". Non-singular views fall through
+ * to the site default. Template Pages (e.g. /colophon) are real Pages, so
+ * is_singular() keeps resolving their own card. Named for CLI testability.
+ *
+ * @since 9.25.4
+ * @param string $default Site-default OG image URL.
+ * @return string
+ */
+function sn_og_image_url_for_current_view( $default ) {
+	if ( ! is_singular() ) {
+		return $default;
+	}
 	return sn_resolve_og_image_url( $default, get_post() );
-} );
+}
+
+add_filter( 'sn_og_image_url', 'sn_og_image_url_for_current_view' );
 
 // Note: Phase 10 (plugin v1.6.0) removed three dead `wpseo_*` filter hooks
 // that targeted Yoast SEO's filter namespace. The active site runs The SEO
