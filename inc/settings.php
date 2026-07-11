@@ -95,6 +95,7 @@ function sn_settings_defaults() {
 			'reading_wpm'            => 225,
 			'notes_per_page'         => 20,
 			'ai_model'               => 'claude-sonnet-5',
+			'ai_monthly_budget'      => 0,
 		),
 		'login' => array(
 			'slug' => 'sn-login',

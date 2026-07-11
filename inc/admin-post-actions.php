@@ -490,6 +490,9 @@ function sn_handle_save_theme( $post ) {
 	$vision         = isset( $post['theme_ai_alt_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_alt_model'] ) ) : '';
 	$ok            &= sn_setting_update( 'theme.ai_alt_model', in_array( $vision, $vision_allowed, true ) ? $vision : (string) sn_setting( 'theme.ai_alt_model', $vision_allowed[0] ) );
 
+	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
+	$ok &= sn_setting_update( 'theme.ai_monthly_budget', round( max( 0, (float) ( $post['theme_ai_monthly_budget'] ?? 0 ) ), 2 ) );
+
 	return $ok ? 'theme_saved' : 'theme_unchanged';
 }
 

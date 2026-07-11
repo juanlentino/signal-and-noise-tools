@@ -1038,6 +1038,66 @@ snt_ai_generate_with_constraints( 'p', 's', 2048, 'insights' );
 hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
 	'snt_ai_economy_features filter can add a feature to the economy tier' );
 
+// ─── Test 34: monthly AI spend cap (v9.26.0) ──
+//
+// A durable YYYY-MM rollup (immune to the FIFO log's 200-entry eviction) plus a
+// hard gate in snt_ai_generate_with_constraints. Default budget 0 = off. The
+// gate reads theme.ai_monthly_budget via the sn_setting stub defined in Test 32.
+echo "\nTest 34: monthly AI spend cap (v9.26.0)\n";
+
+// (a) rollup accounting: costs accumulate into this month's bucket.
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+snt_ai_add_month_spend( 0.02 );
+snt_ai_add_month_spend( 0.03 );
+hc_true( abs( snt_ai_spend_this_month() - 0.05 ) < 1e-9, 'rollup accumulates this month to $0.05' );
+snt_ai_add_month_spend( 0 );
+snt_ai_add_month_spend( -1.5 );
+hc_true( abs( snt_ai_spend_this_month() - 0.05 ) < 1e-9, 'zero/negative cost is a no-op' );
+
+// (b) the gate fires when this month's spend has reached the budget — BEFORE
+// any model call (the builder is never constructed). fixture_reset() clears the
+// option store (line 364), so seed the rollup AFTER it.
+fixture_reset();
+snt_ai_add_month_spend( 0.05 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 0.05; // == seeded spend
+$g = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_true( is_wp_error( $g ) && 'snt_ai_over_budget' === $g->get_error_code(),
+	'spend >= budget → snt_ai_over_budget WP_Error' );
+hc_true( fixture_first_call_index( 'using_model_preference' ) < 0,
+	'over-budget short-circuits before the generation builder chain runs' );
+
+// (c) under budget → the gate does not fire; the call proceeds past it.
+fixture_reset();
+snt_ai_add_month_spend( 0.05 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 1.00; // >> seeded $0.05
+$g2 = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_eq( false, is_wp_error( $g2 ) && 'snt_ai_over_budget' === $g2->get_error_code(),
+	'spend < budget → the budget gate does not fire' );
+hc_true( (int) $GLOBALS['__test_ai_builder_construct_count'] > 0,
+	'under-budget: the call proceeds past the gate (builder constructed)' );
+
+// (d) budget 0 (off) → no cap even with plenty of spend on the books.
+fixture_reset();
+snt_ai_add_month_spend( 10.0 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 0;
+$g3 = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_eq( false, is_wp_error( $g3 ) && 'snt_ai_over_budget' === $g3->get_error_code(),
+	'budget 0 = off: no cap even with spend recorded' );
+
+// (e) rollup prunes to the retained window (SN_AI_SPEND_MONTHS buckets).
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+for ( $m = 1; $m <= SN_AI_SPEND_MONTHS + 3; $m++ ) {
+	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+	$roll[ sprintf( '2020-%02d', $m ) ] = 0.01 * $m; // synthetic historical buckets
+	update_option( SN_AI_SPEND_ROLLUP_OPT, $roll, false );
+}
+snt_ai_add_month_spend( 0.01 ); // current-month bucket → triggers the prune
+$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+hc_true( count( $roll ) <= SN_AI_SPEND_MONTHS, 'rollup prunes to SN_AI_SPEND_MONTHS buckets' );
+
+unset( $GLOBALS['__settings']['theme.ai_monthly_budget'] );
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+
 // ─── v8.1.1: snt_ai_error_with_message — empty-message transport errors ───
 // Live incident 2026-07-02: an SDK-wrapped WP_Error with an EMPTY message
 // reached the Health-tab JS as "Unknown error." — undiagnosable from the UI.

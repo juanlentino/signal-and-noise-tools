@@ -49,6 +49,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_AI_USAGE_LOG_OPT', 'sn_ai_usage_log' );
 define( 'SN_AI_USAGE_LOG_CAP', 200 );
 
+// v9.26.0: durable month-to-date AI spend rollup, keyed YYYY-MM. Unlike the
+// capped FIFO log above (which evicts old entries), this never loses history
+// within the retained window, so month-to-date spend is exact even under heavy
+// use. Feeds the optional monthly budget cap and the AI-spend readout. Keep ~1
+// year of buckets.
+define( 'SN_AI_SPEND_ROLLUP_OPT', 'sn_ai_spend_month' );
+define( 'SN_AI_SPEND_MONTHS', 13 );
+
 // v6.52.0: the preferred + safety-net text model for ALL SN AI generation.
 // SN_AI_DEFAULT_MODEL is the model SN pins by default; SN_AI_FALLBACK_MODEL is
 // appended as a SECOND preference so the variadic using_model_preference() has
@@ -271,6 +279,27 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 			__( 'WP AI Client is not installed or activated. Install the wp-ai-client plugin (WP 6.x) or upgrade to WordPress 7.0+.', 'signal-and-noise-tools' ),
 			array( 'status' => 503 )
 		);
+	}
+
+	// v9.26.0: monthly spend cap. When the owner sets a budget (> 0) and this
+	// month's accumulated spend has already reached it, stop before spending
+	// more. Centralized here so EVERY AI feature is gated uniformly and
+	// predictably. Default 0 = off, so nothing changes until a budget is set.
+	$sn_ai_budget = function_exists( 'sn_setting' ) ? (float) sn_setting( 'theme.ai_monthly_budget', 0 ) : 0.0;
+	if ( $sn_ai_budget > 0 ) {
+		$sn_ai_spent = snt_ai_spend_this_month();
+		if ( $sn_ai_spent >= $sn_ai_budget ) {
+			return new WP_Error(
+				'snt_ai_over_budget',
+				sprintf(
+					/* translators: 1: month-to-date spend, 2: monthly budget, both USD */
+					__( 'Monthly AI budget reached (%1$s of %2$s). Raise it on the Front-End settings tab, or wait for next month.', 'signal-and-noise-tools' ),
+					'$' . number_format( $sn_ai_spent, 2 ),
+					'$' . number_format( $sn_ai_budget, 2 )
+				),
+				array( 'status' => 402 )
+			);
+		}
 	}
 
 	$max_tokens = max( 1, min( 4096, (int) $max_tokens ) );
@@ -602,6 +631,74 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 		$log = array_slice( $log, -SN_AI_USAGE_LOG_CAP );
 	}
 	update_option( SN_AI_USAGE_LOG_OPT, $log, false );
+
+	// v9.26.0: also fold this call's cost into the durable monthly rollup, which
+	// (unlike the capped FIFO log above) never evicts — so the budget cap and the
+	// spend readout see a full month even under heavy use. Served model wins for
+	// attribution when the provider substituted a different one.
+	snt_ai_add_month_spend(
+		snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t )
+	);
+}
+
+/**
+ * v9.26.0: the current spend-rollup bucket key, site-local YYYY-MM.
+ *
+ * Uses wp_date() (site timezone) when available so the "month" matches the
+ * owner's calendar; falls back to gmdate() outside WordPress (CLI tests).
+ *
+ * @return string
+ * @since 9.26.0
+ */
+function snt_ai_spend_month_key() {
+	return function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m' ) : gmdate( 'Y-m' );
+}
+
+/**
+ * v9.26.0: fold one call's USD cost into the current month's rollup bucket.
+ *
+ * A single autoload=no option keyed YYYY-MM, pruned to the last
+ * SN_AI_SPEND_MONTHS buckets (keys sort chronologically). No-op on a
+ * zero/negative cost (e.g. an unpriced model, per snt_ai_estimate_cost).
+ *
+ * @param float $cost USD cost of the call.
+ * @return void
+ * @since 9.26.0
+ */
+function snt_ai_add_month_spend( $cost ) {
+	$cost = (float) $cost;
+	if ( $cost <= 0 ) {
+		return;
+	}
+	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+	if ( ! is_array( $roll ) ) {
+		$roll = array();
+	}
+	$key          = snt_ai_spend_month_key();
+	$roll[ $key ] = round( ( isset( $roll[ $key ] ) ? (float) $roll[ $key ] : 0.0 ) + $cost, 6 );
+	if ( count( $roll ) > SN_AI_SPEND_MONTHS ) {
+		ksort( $roll );
+		$roll = array_slice( $roll, -SN_AI_SPEND_MONTHS, null, true );
+	}
+	update_option( SN_AI_SPEND_ROLLUP_OPT, $roll, false );
+}
+
+/**
+ * v9.26.0: this calendar month's accumulated AI spend in USD (0.0 if none).
+ *
+ * Reads the durable rollup, so it reflects the whole month regardless of the
+ * FIFO usage log's 200-entry cap. Feeds the budget cap and the spend readout.
+ *
+ * @return float
+ * @since 9.26.0
+ */
+function snt_ai_spend_this_month() {
+	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+	if ( ! is_array( $roll ) ) {
+		return 0.0;
+	}
+	$key = snt_ai_spend_month_key();
+	return isset( $roll[ $key ] ) ? (float) $roll[ $key ] : 0.0;
 }
 
 /**
