@@ -138,13 +138,16 @@ function sn_prov_credential( $post_id, $version = null ) {
 function sn_prov_cred_rest( $request ) {
 	$uid     = (string) $request->get_param( 'uid' );
 	$post_id = sn_prov_post_by_uid( $uid );
-	if ( ! $post_id ) {
-		return new WP_Error( 'sn_prov_no_note', 'No such Note.', array( 'status' => 404 ) );
-	}
-	$v  = $request->get_param( 'v' );
-	$vc = sn_prov_credential( (int) $post_id, ( null === $v || '' === $v ) ? null : (int) $v );
+	$v       = $request->get_param( 'v' );
+	$vc      = $post_id
+		? sn_prov_credential( (int) $post_id, ( null === $v || '' === $v ) ? null : (int) $v )
+		: null;
 	if ( null === $vc ) {
-		return new WP_Error( 'sn_prov_no_credential', 'No verifiable credential for this Note/version.', array( 'status' => 404 ) );
+		// One opaque 404 for BOTH "uid resolves to nothing" AND "uid resolves to a
+		// published-but-uncredentialed Note", so the endpoint is not an existence
+		// oracle (mirrors the DID route's single body-less 404). No content is ever
+		// disclosed in either branch; this only removes the distinguishable code.
+		return new WP_Error( 'sn_prov_no_credential', 'No verifiable credential for this Note.', array( 'status' => 404 ) );
 	}
 	$resp = new WP_REST_Response( $vc, 200 );
 	$resp->header( 'Content-Type', 'application/vc+ld+json' );

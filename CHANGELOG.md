@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.26.1] - 2026-07-11: Fix: credential endpoint returns one opaque 404 (close the existence oracle)
+
+**Headline:** Closes the INFO-1 hardening item from the family-close CMA audit. The public Verifiable-Credential endpoint (`GET /wp-json/signal-noise/v1/credential/<uid>`) returned two distinguishable 404s: `sn_prov_no_note` ("No such Note.") when the uid resolved to nothing, versus `sn_prov_no_credential` when the uid resolved to a *published* Note with no emittable credential (password-protected or unsigned). A caller holding a uid could distinguish those two states, a weak existence oracle. It leaked no content (the `sn_prov_credential()` visibility gate guarantees no credential or post-content body in either branch) and the differential only ever covered already-public Notes, so the audit rated it INFO. Both failure paths now collapse into a single opaque 404, matching the DID route's body-less-404 shape, so the endpoint no longer distinguishes the two states.
+
+> **Why PATCH:** a security-hardening fix in one REST callback. No public function, REST route, or ability removed or renamed, no settings-schema change, no WP-floor raise. The 200 (credential-present) path is byte-for-byte unchanged; only the two 404 error shapes are unified.
+
+### Security
+- [inc/provenance-credential.php](inc/provenance-credential.php): `sn_prov_cred_rest()` now returns a single `sn_prov_no_credential` 404 whenever no credential is emittable (whether the uid resolved to nothing or to a published-but-uncredentialed Note), removing the distinguishable code and message. No content was disclosed in either branch before or after; this only removes the existence differential.
+
+### Tests
+- [tests/provenance-credential.php](tests/provenance-credential.php): new assertions that a resolvable-but-uncredentialed Note and an unknown uid return the SAME opaque 404 code (25 assertions total). Full standalone sweep 267 suites / 0 failed; PHPCS falsified-clean; PHPStan clean.
+
 ## [9.26.0] - 2026-07-11: Feat — AI cost controls (per-feature model tiering + monthly spend cap)
 
 **Headline:** Four changes that make this plugin's own AI spend cheaper and controllable, all within the existing WP AI Client abstraction (no direct-to-provider calls). **(1)** Every AI call now carries a distinct feature label, so the spend readout attributes cost per feature instead of lumping most of it under `generic` — the flagship Insights scan included. **(2)** The five short prose one-liners that fire on every post save (meta description, excerpt, OG title, drift-phrase replacement, tag list) route to **Haiku 4.5** — ~3x cheaper ($1/$5 vs $3/$15 per MTok) at effectively equal quality on a glance-judged task — while reasoning and structured-JSON features stay on the default. **(3)** A new optional **monthly AI budget** (default 0 = off) hard-caps this plugin's own spend: once the calendar-month total reaches the budget, AI features pause until next month. **(4)** The AI fallback model is repinned off the now-dominated Sonnet 4.6 to Sonnet 5, and Sonnet 4.6 is dropped from the model picker (a stored value degrades to the default automatically).

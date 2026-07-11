@@ -105,6 +105,15 @@ ok( $r instanceof WP_REST_Response && ( $r->data['type'][0] ?? '' ) === 'Verifia
 ok( ( $r->headers['Content-Type'] ?? '' ) === 'application/vc+ld+json', 'REST sets the vc+ld+json content type' );
 $e = sn_prov_cred_rest( new SN_Cred_Req( array( 'uid' => 'nope' ) ) );
 ok( $e instanceof WP_Error && ( $e->data['status'] ?? 0 ) === 404, 'unknown uid → 404' );
+// Oracle-closure (v9.26.1): a KNOWN uid that resolves to a published-but-
+// uncredentialed Note (here: password-protected) must return the SAME opaque 404
+// as an unknown uid (no distinguishable code/message), so the endpoint isn't an
+// existence oracle. No content leaks in either branch; this removes the differential.
+$GLOBALS['__post'] = (object) array( 'post_status' => 'publish', 'post_password' => 'secret' ); // uid 'known' → 7 resolves, but the credential is withheld → null
+$e2 = sn_prov_cred_rest( new SN_Cred_Req( array( 'uid' => 'known' ) ) );
+ok( $e2 instanceof WP_Error && ( $e2->data['status'] ?? 0 ) === 404, 'resolvable-but-uncredentialed Note → 404' );
+ok( $e2 instanceof WP_Error && $e instanceof WP_Error && $e2->code === $e->code, 'the two 404 branches are indistinguishable (no existence oracle)' );
+$GLOBALS['__post'] = (object) array( 'post_status' => 'publish', 'post_password' => '' ); // reset
 
 // --- manifest advertisement (two entries: did + credential convention) ---
 $surf = sn_prov_cred_advertise_surface( array() );
