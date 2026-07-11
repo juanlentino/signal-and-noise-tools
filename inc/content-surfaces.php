@@ -53,6 +53,10 @@ const SN_NOW_PAGE_MIGRATED_OPT = 'sn_now_page_migrated_v1';
 const SN_USES_SLUG             = 'uses';
 const SN_USES_PAGE_MIGRATED_OPT = 'sn_uses_page_migrated_v1';
 const SN_NOW_USES_DOSSIER_REPAIR_OPT = 'sn_now_uses_dossier_repair_v1';
+const SN_A11Y_SLUG            = 'accessibility';
+const SN_A11Y_PAGE_MIGRATED_OPT = 'sn_accessibility_page_migrated_v1';
+const SN_PERSONAL_SLUG        = 'personal';
+const SN_PERSONAL_PAGE_MIGRATED_OPT = 'sn_personal_page_migrated_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**

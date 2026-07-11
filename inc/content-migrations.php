@@ -1495,3 +1495,162 @@ function sn_migrate_now_uses_dossier_repair() {
 
 	update_option( SN_NOW_USES_DOSSIER_REPAIR_OPT, time(), true );
 }
+
+// ── PHASE 2c: /accessibility + /contact/personal (frozen-seed prose pages) ──
+//
+// Unlike /now and /about/uses (edited from Content text boxes), these two prose
+// pages have no editor — their content lived inline in the theme's render files.
+// So they use the Phase-1 frozen-seed model: a one-time migration CREATES the
+// Page from a frozen *-body.html seed, seeds a native Excerpt, and never runs
+// again. After the flip they are edited in the block editor (Gutenberg). No text
+// box means no empty-box failure mode (the 2b /uses regression does not apply).
+
+/**
+ * Load the frozen /accessibility body markup from disk. Mirrors
+ * sn_load_about_body() — same empty-string fallback semantics.
+ *
+ * @return string
+ */
+function sn_load_accessibility_body() {
+	$body_file = __DIR__ . '/seed-content/accessibility-body.html';
+	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
+}
+
+/**
+ * Load the frozen /contact/personal body markup from disk. Mirrors
+ * sn_load_about_body() — same empty-string fallback semantics.
+ *
+ * @return string
+ */
+function sn_load_personal_body() {
+	$body_file = __DIR__ . '/seed-content/personal-body.html';
+	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
+}
+
+/**
+ * One-time migration: flip /accessibility from a postless virtual route to a
+ * real top-level CMS Page, seeded from the frozen accessibility-body.html.
+ *
+ * Create-once and never-clobber: creates the Page when absent, seeds an existing
+ * EMPTY Page in place, and never touches an owner-edited (non-empty) Page. A
+ * native Excerpt is seeded only when the field is empty (the SEO layer reads it
+ * once the route-meta handler is retired theme-side). Retry-safe: does nothing
+ * and does NOT flag while the seed file is missing.
+ */
+add_action( 'admin_init', 'sn_migrate_accessibility_page' );
+
+function sn_migrate_accessibility_page() {
+	if ( get_option( SN_A11Y_PAGE_MIGRATED_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( SN_A11Y_SLUG );
+
+	// Existing, owner-edited Page — never touch it, but stop checking.
+	if ( $page && '' !== trim( (string) $page->post_content ) ) {
+		update_option( SN_A11Y_PAGE_MIGRATED_OPT, time(), true );
+		return;
+	}
+
+	$body = sn_load_accessibility_body();
+	if ( '' === trim( $body ) ) {
+		return; // Seed file missing — retry on the next admin_init.
+	}
+
+	$excerpt = 'Accessibility statement for juanlentino.com: WCAG 2.1 AA target, measures in place, known limitations, and how to report problems.';
+
+	if ( $page ) {
+		// Page exists but is empty — seed it in place.
+		$update = array(
+			'ID'           => $page->ID,
+			'post_content' => $body,
+		);
+		if ( '' === trim( (string) $page->post_excerpt ) ) {
+			$update['post_excerpt'] = $excerpt;
+		}
+		wp_update_post( $update );
+	} else {
+		wp_insert_post(
+			array(
+				'post_title'    => 'Accessibility',
+				'post_name'     => SN_A11Y_SLUG,
+				'post_parent'   => 0,
+				'post_status'   => 'publish',
+				'post_type'     => 'page',
+				'post_content'  => $body,
+				'post_excerpt'  => $excerpt,
+				'page_template' => 'page-accessibility',
+			),
+			false
+		);
+	}
+
+	update_option( SN_A11Y_PAGE_MIGRATED_OPT, time(), true );
+}
+
+/**
+ * One-time migration: flip /contact/personal from a postless virtual route to a
+ * real CHILD CMS Page (under /contact), seeded from the frozen personal-body.html.
+ *
+ * Same create-once/never-clobber semantics as sn_migrate_accessibility_page(),
+ * plus child parenting: the Page is inserted with post_parent = the Contact Page
+ * ID (mirrors sn_uses_upsert_page). Retry-safe: does nothing and does NOT flag
+ * while the seed file is missing OR the Contact parent does not exist yet.
+ */
+add_action( 'admin_init', 'sn_migrate_personal_page' );
+
+function sn_migrate_personal_page() {
+	if ( get_option( SN_PERSONAL_PAGE_MIGRATED_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( SN_CONTACT_SLUG . '/' . SN_PERSONAL_SLUG );
+
+	// Existing, owner-edited Page — never touch it, but stop checking.
+	if ( $page && '' !== trim( (string) $page->post_content ) ) {
+		update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
+		return;
+	}
+
+	$body = sn_load_personal_body();
+	if ( '' === trim( $body ) ) {
+		return; // Seed file missing — retry.
+	}
+
+	$excerpt = 'Why requests for synchronous time (coffees, calls, meetings) are a no, and the structural reason behind it.';
+
+	if ( $page ) {
+		// Child Page exists but is empty — seed it in place.
+		$update = array(
+			'ID'           => $page->ID,
+			'post_content' => $body,
+		);
+		if ( '' === trim( (string) $page->post_excerpt ) ) {
+			$update['post_excerpt'] = $excerpt;
+		}
+		wp_update_post( $update );
+		update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
+		return;
+	}
+
+	$parent = get_page_by_path( SN_CONTACT_SLUG );
+	if ( ! $parent ) {
+		return; // Contact parent not ready — retry on the next admin_init.
+	}
+
+	wp_insert_post(
+		array(
+			'post_title'    => 'Personal',
+			'post_name'     => SN_PERSONAL_SLUG,
+			'post_parent'   => (int) $parent->ID,
+			'post_status'   => 'publish',
+			'post_type'     => 'page',
+			'post_content'  => $body,
+			'post_excerpt'  => $excerpt,
+			'page_template' => 'page-personal',
+		),
+		false
+	);
+
+	update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
+}
