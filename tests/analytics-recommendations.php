@@ -26,6 +26,11 @@ $GLOBALS['__pages'] = array();
 function get_posts( $args ) { return $GLOBALS['__pages']; }
 function sn_seo_resolve_singular_description( $post ) { return (string) ( $post->__desc ?? '' ); }
 function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' ) : ''; }
+function esc_html( $s ) { return (string) $s; }
+function esc_url( $s ) { return (string) $s; }
+function esc_html__( $s, $d = null ) { return (string) $s; }
+function snt_an_panel_open( $title ) { echo '<div class="sn-an-panel"><span>' . $title . '</span>'; }
+function snt_an_panel_close() { echo '</div>'; }
 
 require __DIR__ . '/../inc/analytics-recommendations.php';
 
@@ -62,7 +67,21 @@ $GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ), $mk( 11, 'Random', 
 $s = r_card( sn_analytics_recommendations(), 'seo_meta' );
 r_true( is_array( $s ), 'seo card present when a page resolves to empty description' );
 r_eq( 2, $s['count'] ?? 0, 'counts only the descriptionless pages (11, 12)' );
-r_true( false !== strpos( $s['action_url'] ?? '', 'post=11' ), 'deep-links to the first descriptionless page editor' );
+// v9.23.0: the card names each descriptionless page with its own editor deep-link.
+$items = $s['items'] ?? array();
+r_eq( 2, count( $items ), 'one item per descriptionless page (not a single first-page button)' );
+r_eq( 'Random', $items[0]['label'] ?? '', 'first item labelled by the page title' );
+r_true( false !== strpos( $items[0]['url'] ?? '', 'post=11' ), 'first item deep-links to the page 11 editor' );
+r_eq( 'Ghost', $items[1]['label'] ?? '', 'second item labelled by the page title' );
+r_true( false !== strpos( $items[1]['url'] ?? '', 'post=12' ), 'second item deep-links to the page 12 editor' );
+r_true( ! isset( $s['action_url'] ), 'no single first-page button — the per-page list replaces it' );
+// Render: the panel lists each page as its own editable link.
+$GLOBALS['__lifecycle'] = null; $GLOBALS['__scan'] = null;
+ob_start(); snt_analytics_render_recommendations_panel(); $html = (string) ob_get_clean();
+r_true( false !== strpos( $html, 'sn-an-rec-items' ), 'render: the SEO card emits an items list' );
+r_true( false !== strpos( $html, '>Random</a>' ), 'render: the first page title is a link' );
+r_true( false !== strpos( $html, 'post=11' ), 'render: each item links to its own page editor' );
+r_true( false !== strpos( $html, '>Ghost</a>' ), 'render: the second page title is a link' );
 $GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ) );
 r_true( null === r_card( sn_analytics_recommendations(), 'seo_meta' ), 'no seo card when every page has a description' );
 

@@ -179,6 +179,46 @@ function sn_migrate_provenance_body() {
 }
 
 /**
+ * Back-fill the native Excerpt on the five theme-authored Pages whose create
+ * paths seed one (sn_seed_page_excerpts()) but which predate that excerpt on
+ * production — the /notes index and the four provenance-family Pages. The
+ * editorial Pages (about/contact/services/resume/music/now/uses/accessibility/
+ * personal) each got their own body+excerpt back-fill; these five never did, so
+ * on long-lived installs they ship descriptionless and the SEO layer has no
+ * summary to emit (surfaced by the Analytics "N pages ship without a meta
+ * description" recommendation).
+ *
+ * Runs once, guarded by a dedicated flag. Only writes an Excerpt that is
+ * genuinely empty, so an owner-written summary is never clobbered and a page
+ * that already carries one is a no-op. Pages not seeded yet are skipped — a
+ * fresh install creates them WITH the excerpt via sn_ensure_* — and the flag is
+ * still set so we stop scanning every admin_init.
+ */
+add_action( 'admin_init', 'sn_migrate_seed_page_excerpts' );
+
+function sn_migrate_seed_page_excerpts() {
+	if ( get_option( SN_SEED_EXCERPTS_BACKFILL_OPT ) ) {
+		return;
+	}
+
+	foreach ( sn_seed_page_excerpts() as $path => $excerpt ) {
+		$page = get_page_by_path( $path );
+		if ( ! is_object( $page ) ) {
+			continue;
+		}
+		if ( '' !== trim( (string) ( $page->post_excerpt ?? '' ) ) ) {
+			continue;
+		}
+		wp_update_post( array(
+			'ID'           => (int) $page->ID,
+			'post_excerpt' => $excerpt,
+		) );
+	}
+
+	update_option( SN_SEED_EXCERPTS_BACKFILL_OPT, time(), true );
+}
+
+/**
  * One-time migration flipping /about from file-authored to CMS-authored:
  * seeds the existing (empty) About Page's body from the seed file, plus a
  * native Excerpt so the SEO layer reads a real excerpt instead of the theme's
@@ -631,7 +671,7 @@ function sn_migrate_provenance_split() {
 			'post_status'   => 'publish',
 			'post_type'     => 'page',
 			'post_content'  => $essay,
-			'post_excerpt'  => "A short read on why the industry needs to prove what's human, not chase what isn't.",
+			'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_OVER_DETECTION_SLUG ],
 			'page_template' => 'page-provenance',
 		), false );
 	}

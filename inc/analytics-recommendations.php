@@ -84,19 +84,17 @@ function sn_analytics_rec_unlinked() {
 /**
  * SEO rule: published Pages that resolve to an EMPTY meta description ship
  * descriptionless. Uses the shared resolver (override → excerpt → theme filter),
- * so the theme's supplied copy for /about,/contact,/colophon,/music,/services is
- * honored — only a Page with no excerpt AND no theme entry is flagged. Deep-links
- * to the first such Page's editor (adding an excerpt fixes it; the theme route
- * map is the alternative). Cross-repo signal, plugin-only code. Null when none.
+ * so a Page's own Excerpt (or the theme's colophon route copy) is honored — only
+ * a Page with no excerpt AND no theme entry is flagged. The card NAMES each such
+ * Page and deep-links it to its own editor, so the owner sees exactly which
+ * pages still need a summary. Cross-repo signal, plugin-only code. Null when none.
  *
  * @return array|null
  */
 function sn_analytics_rec_seo_meta() {
-	// v9.6.0: sn_seo_resolve_singular_description() is not yet on main — the
-	// per-Page description path is still inline in sn_seo_meta_for_current_view()
-	// (only the TITLE path got a pure resolver, back in v9.3.0). This rule ships
-	// DORMANT: the guard below self-disables it until a follow-up extracts the
-	// resolver. Refresh + unlinked are the two live rules today.
+	// The guard is defensive: sn_seo_resolve_singular_description() shipped in
+	// v9.7.0 (inc/seo.php), so this rule is LIVE in production. It stays guarded
+	// so the recs panel degrades gracefully if the SEO module is ever absent.
 	if ( ! function_exists( 'sn_seo_resolve_singular_description' ) || ! function_exists( 'get_posts' ) ) {
 		return null;
 	}
@@ -116,15 +114,25 @@ function sn_analytics_rec_seo_meta() {
 	if ( $n < 1 ) {
 		return null;
 	}
-	$first = (int) ( $missing[0]->ID ?? 0 );
+	$items = array();
+	foreach ( $missing as $p ) {
+		$id    = (int) ( $p->ID ?? 0 );
+		$label = trim( (string) ( $p->post_title ?? '' ) );
+		if ( '' === $label ) {
+			$label = (string) ( $p->post_name ?? ( '#' . $id ) );
+		}
+		$items[] = array(
+			'label' => $label,
+			'url'   => admin_url( 'post.php?post=' . $id . '&action=edit' ),
+		);
+	}
 	return array(
-		'id'           => 'seo_meta',
+		'id'     => 'seo_meta',
 		// translators: %d is the number of published pages that ship with no meta description.
-		'title'        => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
-		'detail'       => 'Search engines and AI crawlers get no summary for these routes. Add a Page excerpt (or theme route copy) to fix.',
-		'count'        => $n,
-		'action_url'   => admin_url( 'post.php?post=' . $first . '&action=edit' ),
-		'action_label' => 'Add a description',
+		'title'  => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
+		'detail' => 'Search engines and AI crawlers get no summary for these pages. Add a Page Excerpt to each:',
+		'count'  => $n,
+		'items'  => $items,
 	);
 }
 
@@ -154,7 +162,20 @@ function snt_analytics_render_recommendations_panel() {
 		if ( ! empty( $c['detail'] ) ) {
 			echo '<p class="sn-an-rec-detail">' . esc_html( (string) $c['detail'] ) . '</p>';
 		}
-		if ( ! empty( $c['action_url'] ) ) {
+		if ( ! empty( $c['items'] ) && is_array( $c['items'] ) ) {
+			echo '<ul class="sn-an-rec-items">';
+			foreach ( $c['items'] as $it ) {
+				$label = (string) ( $it['label'] ?? '' );
+				if ( '' === $label ) {
+					continue;
+				}
+				$url = (string) ( $it['url'] ?? '' );
+				echo '<li>' . ( '' !== $url
+					? '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>'
+					: esc_html( $label ) ) . '</li>';
+			}
+			echo '</ul>';
+		} elseif ( ! empty( $c['action_url'] ) ) {
 			echo '<a class="button button-small" href="' . esc_url( (string) $c['action_url'] ) . '">' . esc_html( (string) ( $c['action_label'] ?? 'Open' ) ) . '</a>';
 		}
 		echo '</li>';
