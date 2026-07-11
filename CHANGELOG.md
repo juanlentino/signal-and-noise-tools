@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.25.1] - 2026-07-11: Security — password-protected posts no longer leak content through their OG card
+## [9.25.2] - 2026-07-11: Security — password-protected posts no longer leak content through their OG card
 
 **Headline:** The generated 1200×630 social-share card baked a post's **title and up to ~36 words of `post_content`** (via `sn_og_card_dek_source()`) into a PNG served publicly and **without authentication** at `/wp-content/uploads/sn-og/post-{ID}.png`. A password-protected post is still `post_status='publish'`, so the status-keyed generation and serving gates let it through — anyone could read the protected title and dek as visible pixels, bypassing the password. D2 (v9.25.0) already withholds the *metadata* credential for exactly these posts (`sn_prov_credential()` embeds nothing in a protected Note's card), but the rendered *pixels* still leaked; this closes the pixel side with the same gate. Pre-existing, not introduced by D2.
 

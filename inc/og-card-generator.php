@@ -74,7 +74,7 @@ function sn_og_upload_dir() {
  * so every card path — generation, serving, save hook, purge — shares one
  * source of truth.
  *
- * @since 9.25.1
+ * @since 9.25.2
  * @param WP_Post|object|null $post
  * @return bool True when a card may be generated/served; false to withhold it.
  */
@@ -92,7 +92,7 @@ function sn_og_card_allowed_for_post( $post ) {
  * protected-card purge migration. Best-effort and quiet: returns true only
  * when a file was actually removed.
  *
- * @since 9.25.1
+ * @since 9.25.2
  * @param int $post_id
  * @return bool
  */
@@ -404,7 +404,7 @@ function sn_og_wrap_lines( $text, $size, $font, $max_width, $max_lines ) {
  * Auto-(re)generation on save stays post/page only; other types get a card
  * solely through an explicit regen action.
  *
- * @since 9.25.1
+ * @since 9.25.2
  * @param int            $post_id
  * @param WP_Post|object $post
  * @return bool Whether a card was (re)generated.
@@ -515,7 +515,7 @@ const SN_OG_PROTECTED_PURGE_OPT = 'sn_og_protected_purge_completed_v1';
  * Runs on admin_init at priority 5, idempotent, at most once per install
  * (gated by SN_OG_PROTECTED_PURGE_OPT), mirroring sn_migrate_backfill_og_cards().
  *
- * @since 9.25.1
+ * @since 9.25.2
  */
 add_action( 'admin_init', 'sn_migrate_purge_protected_og_cards', 5 );
 

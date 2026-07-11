@@ -20,7 +20,7 @@
  *   4. sn_generate_og_card() bails (returns false, writes nothing) for a
  *      protected post; sn_og_delete_card() removes an existing card.
  *
- * (plugin v9.25.1)
+ * (plugin v9.25.2)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
