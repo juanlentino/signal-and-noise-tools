@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.25.3] - 2026-07-11: Fix — long OG-card titles no longer overlap the excerpt
+
+**Headline:** A long post title on the generated 1200×630 OG card used to print *on top of* the excerpt. The title (Bebas Neue, 88px) wrapped to three lines whose last baseline landed at `y=250 + 2×100 = 450` — the exact baseline where the excerpt began — so a three-line title and the first excerpt line drew in the same place (visible on a live Telegram/social share). The card now **auto-sizes the title**: it steps the title down a size ladder (88 → 74 → 62px) until the wrapped block clears the excerpt zone, so a long title shrinks one notch instead of colliding. One- and two-line titles are unchanged (still 88px), and the excerpt and footer keep their positions.
+
+> **Why PATCH:** a rendering fix to the OG-card layout. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. The `og:title`/`og:description` HTML meta tags are unaffected — only the visual title baked into the PNG is resized when it would otherwise overlap.
+
+### Fixed
+- [inc/og-card-generator.php](inc/og-card-generator.php) — `sn_generate_og_card()` now sizes the title via a new pure `sn_og_fit_title()` helper (a size ladder + a "does the wrapped block clear the excerpt baseline" test) instead of hardcoding 88px, eliminating the title/excerpt overlap on long titles. Verified by rendering the real functions with the theme fonts.
+- New `tests/og-card-title-fit.php` — GD-free unit tests for the sizing decision (short title stays 88px, three-line-at-88 steps to 74px, very long falls back to the smallest step, the fitted block always clears the limit).
+
 ## [9.25.2] - 2026-07-11: Security — password-protected posts no longer leak content through their OG card
 
 **Headline:** The generated 1200×630 social-share card baked a post's **title and up to ~36 words of `post_content`** (via `sn_og_card_dek_source()`) into a PNG served publicly and **without authentication** at `/wp-content/uploads/sn-og/post-{ID}.png`. A password-protected post is still `post_status='publish'`, so the status-keyed generation and serving gates let it through — anyone could read the protected title and dek as visible pixels, bypassing the password. D2 (v9.25.0) already withholds the *metadata* credential for exactly these posts (`sn_prov_credential()` embeds nothing in a protected Note's card), but the rendered *pixels* still leaked; this closes the pixel side with the same gate. Pre-existing, not introduced by D2.
