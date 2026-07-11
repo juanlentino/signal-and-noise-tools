@@ -234,7 +234,13 @@ function sn_generate_og_card( $post_id ) {
 	$ok   = imagepng( $im, $path, 6 );
 	imagedestroy( $im );
 	if ( $ok && function_exists( 'sn_og_card_inject_provenance' ) ) {
-		sn_og_card_inject_provenance( $path, (int) $post_id ); // v9.25.0: embed the Note's provenance in the card (D2).
+		// v9.25.0: embed the Note's provenance in the card (D2). Decorative work
+		// must never break the (non-blocking) save path — swallow any failure.
+		try {
+			sn_og_card_inject_provenance( $path, (int) $post_id );
+		} catch ( \Throwable $e ) {
+			// no-op: the card still exists; provenance is simply absent.
+		}
 	}
 	return (bool) $ok;
 }

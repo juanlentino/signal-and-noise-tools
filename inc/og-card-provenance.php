@@ -199,12 +199,18 @@ function sn_og_card_inject_provenance( $path, $post_id ) {
  * @return array<int,array<string,string>>
  */
 function sn_og_card_advertise_surface( $surfaces ) {
+	// Point at the real card resources, host-derived (uploads dir may be relocated).
+	$dirname = defined( 'SN_OG_DIRNAME' ) ? SN_OG_DIRNAME : 'sn-og';
+	$updir   = function_exists( 'wp_get_upload_dir' ) ? wp_get_upload_dir() : array();
+	$base    = ! empty( $updir['baseurl'] )
+		? $updir['baseurl'] . '/' . $dirname
+		: ( ( function_exists( 'home_url' ) ? home_url() : '' ) . '/wp-content/uploads/' . $dirname );
 	$surfaces[] = array(
 		'type'        => 'og-card-provenance',
-		'url'         => 'https://juanlentino.com/ns/card-provenance/v1',
+		'url'         => $base . '/post-{post-id}.png',
 		'format'      => 'image/png (embedded application/json in an iTXt "provenance" chunk)',
 		'title'       => 'OG card provenance',
-		'description' => "Each Note's social-share card embeds a self-contained provenance block (the Note's Verifiable Credential) in its PNG metadata.",
+		'description' => "Each Note's social-share card embeds a self-contained provenance block (the Note's Verifiable Credential, JSON-LD) in its PNG metadata; verify via the site DID document and the linked credential.",
 	);
 	return $surfaces;
 }

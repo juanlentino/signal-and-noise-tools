@@ -96,7 +96,10 @@ unlink( $tmp );
 
 // --- manifest advertisement ---
 $surf = sn_og_card_advertise_surface( array() );
-ok( in_array( 'og-card-provenance', array_column( $surf, 'type' ), true ), 'advertises the og-card-provenance surface' );
+$og   = null;
+foreach ( $surf as $s ) { if ( ( $s['type'] ?? '' ) === 'og-card-provenance' ) { $og = $s; } }
+ok( $og !== null, 'advertises the og-card-provenance surface' );
+ok( strpos( (string) ( $og['url'] ?? '' ), 'https://juanlentino.com' ) === 0 && strpos( (string) ( $og['url'] ?? '' ), '/post-{post-id}.png' ) !== false, 'surface url is an absolute, host-derived card URL' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
