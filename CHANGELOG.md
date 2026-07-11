@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.21.1] - 2026-07-11: Fix: Notes-provenance outbound hardening + async per-publish dispatch
+
+**Headline:** The Notes provenance subsystem's five outbound `wp_remote_*` calls now match the plugin-wide outbound convention every sibling probe already follows — `redirection => 0` plus a shared https-only, resolve-then-range-check SSRF gate that fails closed. Separately, the per-commit webhook that fired synchronously inside the editor save (a `wp_remote_post` with a 15s timeout) now enqueues a near-term cron, so a slow or unreachable Worker can no longer stall a Note publish.
+
+> **Why PATCH:** security-hardening plus a perf/UX improvement. No new capability, no REST/Ability change, no settings-schema change, no break. Destinations are wp-config-constant / hardcoded (`SN_PROV_WORKER_URL`, `raw.githubusercontent.com`) — not attacker-controllable through the plugin — so this closes a defense-in-depth gap, not an exploitable hole; the async flip is transparent (the hourly reconcile already recovers dropped webhooks).
+
+### Fixed
+- **Provenance outbound SSRF hardening (CMA LOW-1):** the five provenance `wp_remote_*` calls — `sn_prov_dispatch()`, `sn_prov_run_sweep()`, `sn_prov_worker_version()` ([inc/provenance-webhook.php](inc/provenance-webhook.php)), `sn_prov_dispatch_manifest()`, and `sn_prov_genesis_refresh()` ([inc/provenance-genesis.php](inc/provenance-genesis.php)) — now set `redirection => 0` and route their URL through a new shared `sn_prov_url_allowed()` gate (https + `wp_http_validate_url()` + the shared `sn_ssrf_host_blocked()` resolve-then-range-check), failing closed. Mirrors the sibling `sn_worker_version_probe()` convention ([inc/worker-version.php](inc/worker-version.php)); the third time the CMA has caught this outbound-hardening class.
+
+### Improvements
+- **Async per-publish anchoring (CMA INFO-1):** the per-commit webhook (`sn_prov_committed`) no longer POSTs to the Worker synchronously inside `wp_after_insert_post`. It now enqueues a near-term `wp_schedule_single_event` that re-dispatches through the existing `sn_prov_reconcile_post()` path, so a slow/unreachable Worker no longer adds up to ~15s to a Note publish. Deduped by post id; the hourly `sn_prov_reconcile` remains the backstop ([inc/provenance-webhook.php](inc/provenance-webhook.php)).
+
+### Notes
+- Tests: `tests/provenance-webhook.php` (+ redirection=0 / SSRF-gate / async-dispatch assertions), `tests/provenance-genesis.php` (+ redirection=0 / SSRF-gate assertions), and `tests/provenance-admin.php` (the Worker-version readout now runs through the gate). Full standalone sweep green (255 suites).
+
 ## [9.21.0] - 2026-07-10: Feat: /accessibility + /contact/personal are CMS Pages (pages-to-CMS flip, Phase 2c)
 
 **Headline:** The last two postless virtual routes join the flip. `/accessibility` (top-level) and `/contact/personal` (a child of `/contact`) become real CMS Pages, seeded once from frozen `*-body.html` files and thereafter edited in the block editor. Unlike `/now` and `/about/uses` (edited from Content text boxes), these are prose pages with no editor, so they use the Phase-1 frozen-seed model — which means there is no empty-box failure mode. After this, all nine editorial surfaces are CMS-authored; Phase 2 is complete.

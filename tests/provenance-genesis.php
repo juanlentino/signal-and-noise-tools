@@ -106,6 +106,52 @@ if ( ! function_exists( 'get_bloginfo' ) ) {
 	function get_bloginfo( $k = '' ) {
 		return 'Signal & Noise'; }
 }
+
+// ── v9.21.1 outbound-hardening stubs (CMA LOW-1) ──────────────────────────
+$GLOBALS['__pv_http_get']    = array(); // captured wp_remote_get calls: [ url, args ]
+$GLOBALS['__pv_ledger_body'] = array( 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 900001 ) );
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( $url, $args = array() ) {
+		$GLOBALS['__pv_http_get'][] = array( $url, $args );
+		return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( $GLOBALS['__pv_ledger_body'] ) );
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $r ) {
+		return $r['body'] ?? ''; }
+}
+if ( ! function_exists( 'wp_http_validate_url' ) ) {
+	function wp_http_validate_url( $u ) {
+		if ( ! is_string( $u ) || '' === $u ) {
+			return false; }
+		$p = parse_url( $u );
+		if ( ! is_array( $p ) || empty( $p['scheme'] ) || empty( $p['host'] ) ) {
+			return false; }
+		return in_array( strtolower( $p['scheme'] ), array( 'http', 'https' ), true ) ? $u : false;
+	}
+}
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
+// Deterministic resolver seam (defined BEFORE ssrf-guard.php so its
+// function_exists() guard keeps THIS one). Encoded metadata IP is blocked; the
+// ledger host is forced internal only when __pv_block_ghraw is set, so the
+// blocked-path test can prove the gate covers even the trusted ledger host.
+if ( ! function_exists( 'sn_ssrf_resolve_host' ) ) {
+	function sn_ssrf_resolve_host( $host ) {
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return $host;
+		}
+		if ( 'raw.githubusercontent.com' === $host && ! empty( $GLOBALS['__pv_block_ghraw'] ) ) {
+			return '10.0.0.9';
+		}
+		return '2852039166' === $host ? '169.254.169.254' : '93.184.216.34';
+	}
+}
+
+require_once SNT_PATH . 'inc/ssrf-guard.php';
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // SN_PROV_CONFIRM_HOOK — required by Task 5's add_action()
 require_once SNT_PATH . 'inc/provenance-genesis.php';
@@ -435,6 +481,38 @@ $GLOBALS['__pv_http'] = array();
 gn_eq( true, sn_prov_genesis_reanchor(), 'reanchor no-ops when already confirmed' );
 gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'reanchor fires NO POST when confirmed' );
 gn_eq( 'confirmed', get_option( SN_PROV_GENESIS_OPT )['status'], 'reanchor leaves a confirmed genesis confirmed' );
+
+echo "\nTask 13: outbound hardening — redirection=0 + shared SSRF gate (CMA LOW-1)\n";
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_http_code'] = 202;
+$GLOBALS['__pv_http_err']  = false;
+
+// dispatch_manifest(): redirection => 0 for an allowed host; a blocked (http) host → false, no POST.
+$GLOBALS['__pv_http'] = array();
+gn_eq( true, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest ok for an allowed host' );
+gn_eq( 0, $GLOBALS['__pv_http'][0][1]['redirection'] ?? -1, 'dispatch_manifest POST sets redirection => 0' );
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'http://worker.example/';
+$GLOBALS['__pv_http'] = array();
+gn_eq( false, sn_prov_dispatch_manifest( 'deadbeef', '{"kind":"genesis"}', '2025-05-01' ), 'dispatch_manifest returns false for a blocked (http) host' );
+gn_eq( 0, count( $GLOBALS['__pv_http'] ), 'dispatch_manifest fires NO POST when blocked' );
+
+// genesis_refresh(): redirection => 0 on the ledger GET; a blocked ledger host → no GET, status untouched.
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'ab', 32 ), 'date' => '2026-07-11', 'status' => 'pending' );
+$GLOBALS['__pv_block_ghraw'] = false;
+$GLOBALS['__pv_http_get']    = array();
+sn_prov_genesis_refresh();
+gn_eq( 'confirmed', get_option( SN_PROV_GENESIS_OPT )['status'], 'genesis_refresh flips pending → confirmed from the ledger record' );
+gn_eq( 1, count( $GLOBALS['__pv_http_get'] ), 'genesis_refresh fired one GET for the allowed ledger host' );
+gn_eq( 0, $GLOBALS['__pv_http_get'][0][1]['redirection'] ?? -1, 'genesis_refresh GET sets redirection => 0' );
+
+$GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'ab', 32 ), 'date' => '2026-07-11', 'status' => 'pending' );
+$GLOBALS['__pv_block_ghraw'] = true;
+$GLOBALS['__pv_http_get']    = array();
+sn_prov_genesis_refresh();
+gn_eq( 'pending', get_option( SN_PROV_GENESIS_OPT )['status'], 'genesis_refresh leaves status pending when the ledger host is blocked' );
+gn_eq( 0, count( $GLOBALS['__pv_http_get'] ), 'genesis_refresh fires NO GET when blocked' );
+$GLOBALS['__pv_block_ghraw'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

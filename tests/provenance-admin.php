@@ -266,6 +266,32 @@ if ( ! function_exists( 'wp_remote_get' ) ) {
 	}
 }
 
+// v9.21.1 (CMA LOW-1): the Worker-version readout now runs through the shared
+// provenance outbound gate (sn_prov_url_allowed), so the renderer needs the URL
+// stubs + SSRF guard. Seam resolves every test host public; the https worker.example
+// URLs the section uses stay allowed, so the version readout is unchanged.
+if ( ! function_exists( 'wp_http_validate_url' ) ) {
+	function wp_http_validate_url( $u ) {
+		if ( ! is_string( $u ) || '' === $u ) {
+			return false; }
+		$p = parse_url( $u );
+		if ( ! is_array( $p ) || empty( $p['scheme'] ) || empty( $p['host'] ) ) {
+			return false; }
+		return in_array( strtolower( $p['scheme'] ), array( 'http', 'https' ), true ) ? $u : false;
+	}
+}
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
+if ( ! function_exists( 'sn_ssrf_resolve_host' ) ) {
+	function sn_ssrf_resolve_host( $host ) {
+		return filter_var( $host, FILTER_VALIDATE_IP ) ? $host : '93.184.216.34'; // all test hosts → public
+	}
+}
+require_once SNT_PATH . 'inc/ssrf-guard.php';
+
 require_once SNT_PATH . 'inc/provenance-core.php';
 // Loads the REAL sn_prov_pubkey_b64() (unguarded — never stub it: redeclare
 // fatal) so the renderer test drives it via the sn_prov_pubkey_b64 option.
