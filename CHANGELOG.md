@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.22.1] - 2026-07-11: Back-fill missing Page descriptions + name them in the recommendation
+
+**Headline:** The five theme-authored Pages that shipped without a meta description on long-lived installs — the `/notes` index and the four provenance-family Pages (`/provenance`, `/provenance/over-detection`, `/provenance/as-substrate`, `/provenance/verify`) — now get their canonical Excerpt back-filled automatically, and the Analytics "N pages ship without a meta description" recommendation now names each descriptionless Page with its own editor link instead of a single first-page button.
+
+> **Why PATCH:** a coverage fix (the back-fill) plus presentation polish of an existing recommendation. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise, and no user action required — the migration runs automatically on `admin_init`, only-when-empty.
+
+### Fixed
+- [inc/content-migrations.php](inc/content-migrations.php) — new one-shot `sn_migrate_seed_page_excerpts()` (`admin_init`, flag-gated by `SN_SEED_EXCERPTS_BACKFILL_OPT`) back-fills the native Excerpt on the five theme-authored Pages whose create paths seed one but which predate that Excerpt on production. The editorial Pages (about/contact/services/resume/music/now/uses/accessibility/personal) each got their own body+excerpt back-fill; these five never did, so on long-lived installs they shipped descriptionless and the SEO layer had no summary to emit (the source of the Analytics "N pages ship without a meta description" recommendation). Only writes a genuinely-empty Excerpt, so an owner-written summary is never clobbered and a Page that already has one is a no-op.
+
+### Improvements
+- [inc/analytics-recommendations.php](inc/analytics-recommendations.php) — the SEO "descriptionless pages" recommendation now lists each flagged Page by title, each deep-linked to its own editor (`.sn-an-rec-items`), instead of a single "Add a description" button that only opened the first page. The detail copy now points at the concrete fix ("Add a Page Excerpt to each:") and drops the developer-facing "theme route copy" alternative. Once the back-fill runs, the card's count drops to zero on its own; the per-page list is what it shows for any Page that ships descriptionless in the future.
+
+### Changed
+- [inc/content-surfaces.php](inc/content-surfaces.php) — new `sn_seed_page_excerpts()` is the single source of truth for those five Pages' Excerpts; the five `sn_ensure_*` create paths and the provenance split migration now read it, so a fresh install and a back-filled production Page describe each page byte-identically.
+
+### Notes
+- Cookieless and cost-neutral: the recommendation reads published-Page metadata only (no analytics query, no LLM); the migration is a one-shot option write.
+- Tests: new [tests/seed-page-excerpts.php](tests/seed-page-excerpts.php) (map contents, create-path parity, only-when-empty back-fill, flag-gate, missing-page skip); extended [tests/analytics-recommendations.php](tests/analytics-recommendations.php) (per-page `items` + render). Full sweep 260 suites / 7089 assertions / 0 failures; PHPCS falsified; PHPStan clean.
+
 ## [9.22.0] - 2026-07-11: Native MCP server — read-only tools over the site's abilities
 
 **Headline:** The plugin now speaks the Model Context Protocol. A native, dependency-free endpoint at `POST /wp-json/signal-noise/v1/mcp` exposes a read-only allowlist of 15 existing Abilities (health, uptime, deploy status, analytics, RSS stats, cron history + events, insights, the weekly digest, plus the theme's version, latest tag, and design-system reads) as MCP tools. An agent — Claude Code first — connects with a WordPress application password and queries the site through the standard protocol. This is sub-project B of the machine-readability program; sub-project A's `/.well-known/agents.json` manifest now advertises the endpoint.

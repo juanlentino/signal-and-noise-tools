@@ -57,6 +57,7 @@ const SN_A11Y_SLUG            = 'accessibility';
 const SN_A11Y_PAGE_MIGRATED_OPT = 'sn_accessibility_page_migrated_v1';
 const SN_PERSONAL_SLUG        = 'personal';
 const SN_PERSONAL_PAGE_MIGRATED_OPT = 'sn_personal_page_migrated_v1';
+const SN_SEED_EXCERPTS_BACKFILL_OPT = 'sn_seed_page_excerpts_backfilled_v1';
 const SN_NOTES_QUERY_ID         = 42;
 
 /**
@@ -106,6 +107,29 @@ function sn_ensure_notes_category() {
 	return is_wp_error( $result ) ? 0 : (int) $result['term_id'];
 }
 
+/**
+ * Canonical meta-description Excerpts for the five theme-authored Pages that
+ * have no dedicated body/excerpt back-fill migration of their own: the /notes
+ * index and the four provenance-family Pages. Keyed by the path
+ * get_page_by_path() resolves (child pages carry the "provenance/<slug>" path).
+ *
+ * Single source of truth: the sn_ensure_* create paths AND the
+ * sn_migrate_seed_page_excerpts() back-fill both read this map, so a fresh
+ * install and a back-filled production Page describe each page identically.
+ *
+ * @return array<string,string> path => excerpt
+ */
+function sn_seed_page_excerpts() {
+	$prov = SN_PROVENANCE_SLUG;
+	return array(
+		SN_NOTES_PAGE_SLUG                   => 'Working notes on music, AI, and the infrastructure underneath. Written when there\'s something worth writing.',
+		$prov                                => 'Two papers proposing cryptographic provenance as the foundation of music rights infrastructure.',
+		$prov . '/' . SN_OVER_DETECTION_SLUG => 'A short read on why the industry needs to prove what\'s human, not chase what isn\'t.',
+		$prov . '/' . SN_AS_SUBSTRATE_SLUG   => 'A short read on why music files need fingerprints, not just name tags.',
+		$prov . '/' . SN_VERIFY_SLUG         => 'How to check any Note\'s cryptographic provenance record yourself, without trusting this site.',
+	);
+}
+
 function sn_ensure_notes_page() {
 	$existing = get_page_by_path( SN_NOTES_PAGE_SLUG );
 	if ( $existing ) {
@@ -118,7 +142,7 @@ function sn_ensure_notes_page() {
 		'post_status'   => 'publish',
 		'post_type'     => 'page',
 		'post_content'  => '',
-		'post_excerpt'  => 'Working notes on music, AI, and the infrastructure underneath. Written when there\'s something worth writing.',
+		'post_excerpt'  => sn_seed_page_excerpts()[ SN_NOTES_PAGE_SLUG ],
 		'page_template' => 'page-notes',
 	), false );
 }
@@ -145,7 +169,7 @@ function sn_ensure_provenance_page() {
 		'post_status'   => 'publish',
 		'post_type'     => 'page',
 		'post_content'  => sn_load_provenance_body(),
-		'post_excerpt'  => 'Two papers proposing cryptographic provenance as the foundation of music rights infrastructure.',
+		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG ],
 		'page_template' => 'page-provenance',
 	), false );
 }
@@ -174,7 +198,7 @@ function sn_ensure_over_detection_page() {
 		'post_status'   => 'publish',
 		'post_type'     => 'page',
 		'post_content'  => sn_load_over_detection_body(),
-		'post_excerpt'  => "A short read on why the industry needs to prove what's human, not chase what isn't.",
+		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_OVER_DETECTION_SLUG ],
 		'page_template' => 'page-provenance',
 	), false );
 }
@@ -201,7 +225,7 @@ function sn_ensure_as_substrate_page() {
 		'post_status'   => 'publish',
 		'post_type'     => 'page',
 		'post_content'  => sn_load_as_substrate_body(),
-		'post_excerpt'  => 'A short read on why music files need fingerprints, not just name tags.',
+		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_AS_SUBSTRATE_SLUG ],
 		'page_template' => 'page-provenance',
 	), false );
 }
@@ -235,7 +259,7 @@ function sn_ensure_verify_page() {
 		'post_status'   => 'publish',
 		'post_type'     => 'page',
 		'post_content'  => sn_load_verify_body(),
-		'post_excerpt'  => 'How to check any Note\'s cryptographic provenance record yourself, without trusting this site.',
+		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_VERIFY_SLUG ],
 		'page_template' => 'page-provenance',
 	), false );
 }
