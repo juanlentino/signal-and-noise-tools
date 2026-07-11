@@ -68,5 +68,43 @@ ok( strpos( $q, '42,5' ) === false && strpos( $q, '1,75' ) === false, 'no comma 
 ok( strpos( $q, "'2026-06-01', 'human', 12, '42.50', '1.75', 55" ) !== false, 'binds columns in exact order' );
 if ( false !== $__saved_numeric ) { setlocale( LC_NUMERIC, $__saved_numeric ); }
 
+// ── Visit-quality is computed over PAGEVIEW-FILTERED visits (matches the live view) ──
+// Bug: sn_session_rollup_run() fed the RAW fetched summaries straight into
+// sn_session_metrics(), skipping the sn_pageview_visits() filter the interactive
+// Visits view applies first. Pageview-less groups (RSS srv:1 'ce' polls, orphan
+// scroll/timing beacons) then inflate visits and wreck bounce / ppv / median in the
+// durable wp_sn_session_daily table, so the trend line permanently disagrees with
+// the live view for the same window. The rollup must filter exactly like the view.
+echo "\nGroup: run() filters pageview-less groups before metrics\n";
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+// analytics-sessions.php is NOT loaded here, so these are safe stubs (no redeclare).
+$GLOBALS['__sr_metrics_pv'] = array();
+function sn_analytics_config() { return array( 'account_id' => 'a', 'token' => 't' ); }
+function sn_analytics_fetch_session_events( $from, $to, $class ) {
+	// Two real pageview visits + one pageview-less server/RSS group (the phantom).
+	return array( 'configured' => true, 'summaries' => array(
+		array( 'pageviews' => 2, 'duration' => 40, 'engaged' => 1 ),
+		array( 'pageviews' => 1, 'duration' => 5,  'engaged' => 0 ),
+		array( 'pageviews' => 0, 'duration' => 0,  'engaged' => 0 ), // RSS 'ce' poll — NOT a visit
+	) );
+}
+// Real filter semantics (mirrors inc/analytics-sessions.php::sn_pageview_visits).
+function sn_pageview_visits( array $summaries ) {
+	return array_values( array_filter( $summaries, function ( $s ) {
+		return (int) ( $s['pageviews'] ?? 0 ) >= 1;
+	} ) );
+}
+// Spy: record how many summaries the metric aggregator actually received.
+function sn_session_metrics( array $summaries ) {
+	$GLOBALS['__sr_metrics_pv'][] = count( $summaries );
+	return array( 'visits' => count( $summaries ), 'bounce_rate' => 0.0, 'pages_per_visit' => 0.0, 'median_duration' => 0 );
+}
+$GLOBALS['wpdb'] = new SR_Stub_wpdb();
+sn_session_rollup_run();
+ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 3 !== max( $GLOBALS['__sr_metrics_pv'] ),
+	'run: metrics never see the raw (unfiltered) 3-group set' );
+ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 2 === max( $GLOBALS['__sr_metrics_pv'] ),
+	'run: metrics computed over the 2 pageview visits (phantom pageview-less group dropped)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
