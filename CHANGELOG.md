@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.21.2] - 2026-07-11: Fix: Color-drift check no longer misreads HTML entities as hex colors
+
+**Headline:** The zero-AI **Color drift** Health check was flagging the `/now` dossier for an "off-palette inline color: #003399" that does not exist on the page. The `#003399` is a phantom: `esc_html()` encodes the apostrophe in *"this site's theme"* to the numeric character reference `&#039;`, and the extractor's `/#[0-9a-f]{3}\b/` regex read the `#039` inside it as the 3-digit hex `#039` → normalized to `#003399`. The check now strips numeric HTML character references (`&#NNN;` and `&#xNN;`) before extracting hex colors, so an apostrophe — or `&#160;` (nbsp), `&#233;` (é), or any 3-digit `&#NNN;` — can never masquerade as a color. The `/now` page itself was never off-palette: it is class-only markup (`sn-now-*`) styled entirely by the theme's palette tokens.
+
+> **Why PATCH:** a false-positive fix in one Health check. No new capability, no REST/Ability change, no settings-schema change, no break. The `/now` content is unchanged; only the scanner's extraction is corrected.
+
+### Fixed
+- **Color-drift false positive on apostrophes/entities:** `sn_health_check_color_drift()` ([inc/health-checks.php](inc/health-checks.php)) now runs `preg_replace( '/&#(?:x[0-9a-f]+|[0-9]+);/i', ' ', $content )` after the existing `<svg>` strip and before hex extraction. Numeric character references are removed so their digits can never be read as CSS hex colors; genuine inline hexes (`style="color:#039"`) carry no leading `&`/trailing `;` and are untouched. This is the same "strip the false-alarm source before extraction" shape as the v7.3.1 SVG exclusion. The live `/now` finding now clears.
+
+### Notes
+- Tests: `tests/health-color-drift.php` gains a "numeric character references are not colors" block — entity-only posts (apostrophe, nbsp, é) stay clean, and an entity + a genuine off-palette color still flags with the note naming only the real color (never `#003399`). Full standalone sweep green (256 suites).
+
 ## [9.21.1] - 2026-07-11: Fix: Notes-provenance outbound hardening + async per-publish dispatch
 
 **Headline:** The Notes provenance subsystem's five outbound `wp_remote_*` calls now match the plugin-wide outbound convention every sibling probe already follows — `redirection => 0` plus a shared https-only, resolve-then-range-check SSRF gate that fails closed. Separately, the per-commit webhook that fired synchronously inside the editor save (a `wp_remote_post` with a 15s timeout) now enqueues a near-term cron, so a slow or unreachable Worker can no longer stall a Note publish.

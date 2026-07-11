@@ -898,6 +898,14 @@ function sn_health_check_color_drift() {
 		// block; nested <svg> inside <svg> would leave the outer tail, which
 		// only risks a FLAGGED nested tail (never hides prose drift outside).
 		$content = (string) preg_replace( '#<svg\b[^>]*>.*?</svg\s*>#is', '', (string) $r['post_content'] );
+		// v9.21.2: numeric HTML character references are NOT hex colors, but the
+		// hex regex below reads the "#039" inside "&#039;" (esc_html'd apostrophe)
+		// as the 3-digit hex #039 → #003399, phantom-flagging every clean post
+		// whose prose has an apostrophe (the live /now dossier: "this site&#039;s
+		// theme"). Same class: &#160; (nbsp), &#233; (é), any 3-digit &#NNN;.
+		// Strip decimal (&#NNN;) and hex (&#xNN;) references before extraction;
+		// real inline hexes (style="color:#039") carry no leading &/trailing ;.
+		$content = (string) preg_replace( '/&#(?:x[0-9a-f]+|[0-9]+);/i', ' ', $content );
 		if ( ! preg_match_all( '/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', $content, $m ) ) {
 			continue;
 		}
