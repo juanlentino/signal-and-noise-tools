@@ -20,6 +20,20 @@ The fix is layered because the earlier backfill migration already generated a ca
 
 ### Tests
 - [tests/og-card-password-protected.php](tests/og-card-password-protected.php) — proves a protected post is withheld by the predicate, that `sn_og_image_url_for_post()` returns `null` for a protected post **even when the card PNG is on disk** (paired against a public post that resolves to that same file, so the assertion is non-vacuous), that a protected post's featured image is still served, and that generation bails while the delete helper removes an existing card.
+## [9.25.1] - 2026-07-11: Fix — transient network blips no longer freeze a live citation as "HTTP 0" rot
+
+**Headline:** The External link-rot check flagged a live citation (`caselaw.nationalarchives.gov.uk/…`) as rotted with the note *"HTTP 0 on probe"*. HTTP 0 is not a status the server sends — it's the probe's *network-failure sentinel* (`is_wp_error()` → code 0). Driving WordPress's exact HTTP stack from the production server (`wp_safe_remote_head`/`get`, same args) returned **HTTP 200**, proving the link is reachable. The real defect: a single **transient blip at scan time** (a momentary timeout/DNS/connection error) was recorded as a failure **and cached for 24h** — and because the probe serves that cache, even "Re-run scan" kept returning the stale code 0. A deterministic status (404) can be cached safely; a non-deterministic network error must not be.
+
+> **Why PATCH:** a false-positive fix in probe/caching behaviour. No public function/REST route removed or renamed, no settings-schema change, no user action required. (Follows the v9.24.1 link-rot fix, which shipped in [#245](https://github.com/juanlentino/signal-and-noise-tools/pull/245); this builds on current main at v9.25.0.)
+
+### Fixed
+- [inc/health-external-links.php](inc/health-external-links.php) — three changes to network-error (code 0) handling in `sn_health_external_link_status()`:
+  - **Retry on network error:** a `WP_Error` from the HEAD probe now retries once with GET (mirroring the existing 405/501→GET fallback) before recording failure, so a transient blip or a HEAD-hostile host is absorbed within the scan. A genuinely dead host still fails both and is flagged.
+  - **Never cache a code-0:** only deterministic outcomes (a real HTTP status, or a skip) are cached for 24h. A network error is left uncached, so a transient self-heals on the next scan and "Re-run scan" actually re-probes instead of replaying the stale failure.
+  - **Capture the `WP_Error` reason:** the finding note now reads `Unreachable on probe (cURL error 28: …)` instead of the opaque `HTTP 0 on probe`, so a genuine failure is self-diagnosing. `fix_hint` updated to explain the "Unreachable" case.
+
+### Tests
+- [tests/health-external-links.php](tests/health-external-links.php) — HEAD-error→GET retry recovers to 200 (transient absorbed); code-0 is not cached and the next probe re-verifies a recovered host; a deterministic 404 is still cached; the `WP_Error` message is captured; and an end-to-end case where a genuinely unreachable citation is still flagged but with the self-describing "Unreachable (<reason>)" note. The error stub now carries a message/code to exercise the capture path.
 
 ## [9.25.0] - 2026-07-11: Content-credential OG cards — each share image carries its own provenance
 
