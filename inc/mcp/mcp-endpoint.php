@@ -92,12 +92,13 @@ function sn_mcp_register_route() {
  * @return array<int,array<string,string>>
  */
 function sn_mcp_advertise_surface( $surfaces ) {
-	$url          = function_exists( 'home_url' ) ? home_url( '/wp-json/' . sn_mcp_namespace() . '/mcp' ) : '';
-	$surfaces[]   = array(
+	// rest_url() honors a customized rest_url_prefix (unlike a hand-built /wp-json/).
+	$url        = function_exists( 'rest_url' ) ? rest_url( sn_mcp_namespace() . '/mcp' ) : '';
+	$surfaces[] = array(
 		'type'        => 'mcp',
 		'url'         => $url,
 		'title'       => 'MCP server',
-		'description' => "Model Context Protocol endpoint — read-only tools over the site's abilities. Requires a WordPress application password.",
+		'description' => "Model Context Protocol endpoint. Read-only tools over the site's abilities. Requires a WordPress application password.",
 		'format'      => 'application/json',
 		'auth'        => 'application-password',
 	);

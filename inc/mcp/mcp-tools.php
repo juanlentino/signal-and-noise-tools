@@ -45,6 +45,15 @@ function sn_mcp_normalize_schema( $schema ) {
 	if ( ! is_array( $schema ) || empty( $schema ) ) {
 		return array( 'type' => 'object' );
 	}
+	// MCP requires the top-level tool schema type to be the literal "object".
+	// The abilities declare a ['object','null'] union (their GET/null run-path),
+	// which strict MCP hosts (e.g. the Anthropic tool-schema validator that a
+	// client forwards to) reject. Force the scalar "object".
+	$schema['type'] = 'object';
+	// An empty PHP array encodes to JSON as [] — an object schema needs {}.
+	if ( isset( $schema['properties'] ) && array() === $schema['properties'] ) {
+		$schema['properties'] = (object) array();
+	}
 	return $schema;
 }
 
@@ -60,7 +69,7 @@ function sn_mcp_project_tool( $ability ) {
 	$desc  = (string) $ability->get_description();
 	$tool  = array(
 		'name'        => sn_mcp_tool_name_from_slug( $ability->get_name() ),
-		'description' => trim( '' === $desc ? $label : $label . ' — ' . $desc ),
+		'description' => trim( '' === $desc ? $label : $label . ': ' . $desc ),
 		'inputSchema' => sn_mcp_normalize_schema( $ability->get_input_schema() ),
 	);
 	$out = $ability->get_output_schema();
@@ -131,7 +140,10 @@ function sn_mcp_error_result( $message ) {
  * @return array<string,mixed>
  */
 function sn_mcp_call_tool( $tool_name, $arguments ) {
-	$slug = sn_mcp_slug_from_tool_name( (string) $tool_name );
+	if ( ! is_string( $tool_name ) ) {
+		return array( 'error' => array( 'code' => -32602, 'message' => 'Invalid tool name' ) );
+	}
+	$slug = sn_mcp_slug_from_tool_name( $tool_name );
 
 	if ( ! sn_mcp_is_allowed( $slug ) ) {
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Unknown tool: ' . (string) $tool_name ) );

@@ -90,5 +90,16 @@ $GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'si
 $err = sn_mcp_call_tool( 'signal-noise__get-rss-stats', array() );
 ok( isset( $err['result'] ) && true === $err['result']['isError'] && strpos( $err['result']['content'][0]['text'], 'feed unavailable' ) !== false, 'execute() WP_Error becomes an isError result with the message' );
 
+// --- schema conformance: the abilities' ['object','null'] union + empty properties
+//     must normalize to a strict-MCP-conformant object schema (Anthropic/OpenAI reject otherwise) ---
+$GLOBALS['__abilities']['signal-noise/get-cron-history'] = new SN_Test_Ability( 'signal-noise/get-cron-history', array(
+	'label' => 'Get cron history', 'description' => 'Past runs.',
+	'input_schema' => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+) );
+$ct = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-cron-history'] );
+ok( $ct['inputSchema']['type'] === 'object', 'union [object,null] type normalizes to the literal "object"' );
+$enc = wp_json_encode( $ct['inputSchema'] );
+ok( strpos( $enc, '"properties":{}' ) !== false && strpos( $enc, '"properties":[]' ) === false, 'empty properties encodes as {} not [] (MCP-conformant)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

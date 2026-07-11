@@ -22,6 +22,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; 
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
 $GLOBALS['__cap'] = true; // toggle current_user_can result
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return $GLOBALS['__cap']; } }
+if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://juanlentino.com/wp-json/' . ltrim( (string) $p, '/' ); } }
 $GLOBALS['__abilities'] = array();
 if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
 

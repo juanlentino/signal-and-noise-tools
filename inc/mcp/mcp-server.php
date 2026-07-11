@@ -48,10 +48,12 @@ function sn_mcp_handle_request( $request ) {
 		return sn_mcp_error_response( $id, -32600, 'Invalid Request' );
 	}
 
-	$is_notification = ! array_key_exists( 'id', $request );
-	$id              = $is_notification ? null : $request['id'];
-	$method          = isset( $request['method'] ) ? (string) $request['method'] : '';
-	$params          = isset( $request['params'] ) && is_array( $request['params'] ) ? $request['params'] : array();
+	if ( ! array_key_exists( 'id', $request ) ) {
+		return null; // JSON-RPC: a notification (no id) never receives a response.
+	}
+	$id     = $request['id'];
+	$method = isset( $request['method'] ) ? (string) $request['method'] : '';
+	$params = isset( $request['params'] ) && is_array( $request['params'] ) ? $request['params'] : array();
 
 	switch ( $method ) {
 		case 'initialize':
@@ -63,9 +65,6 @@ function sn_mcp_handle_request( $request ) {
 					'serverInfo'      => sn_mcp_server_info(),
 				)
 			);
-
-		case 'notifications/initialized':
-			return null; // A notification — no response.
 
 		case 'ping':
 			return sn_mcp_result_response( $id, (object) array() );
@@ -84,9 +83,6 @@ function sn_mcp_handle_request( $request ) {
 			return sn_mcp_result_response( $id, $call['result'] );
 
 		default:
-			if ( $is_notification ) {
-				return null; // Unknown notifications are silently ignored per JSON-RPC.
-			}
 			return sn_mcp_error_response( $id, -32601, 'Method not found: ' . $method );
 	}
 }
