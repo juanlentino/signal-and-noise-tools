@@ -165,6 +165,15 @@ require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content 
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
 
+// v9.22.0: native MCP server — POST /wp-json/signal-noise/v1/mcp exposes a
+// read-only allowlist of Abilities as MCP tools (machine-readability program,
+// sub-project B). Required AFTER rest-api.php so SN_REST_NAMESPACE is defined.
+// Load order = capabilities → tools → server → endpoint (dependency order).
+require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
+require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
+require_once SNT_PATH . 'inc/mcp/mcp-server.php';
+require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
+
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
 // metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:
 // rss-feed-tracker (just below), webhooks, uptime-heartbeat, and
