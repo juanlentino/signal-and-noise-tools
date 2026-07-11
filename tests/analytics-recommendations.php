@@ -25,6 +25,8 @@ function sn_health_last_scan() { return $GLOBALS['__scan']; }
 $GLOBALS['__pages'] = array();
 function get_posts( $args ) { return $GLOBALS['__pages']; }
 function sn_seo_resolve_singular_description( $post ) { return (string) ( $post->__desc ?? '' ); }
+$GLOBALS['__noindex'] = array();
+function sn_post_settings_get_noindex( $id ) { return ! empty( $GLOBALS['__noindex'][ $id ] ); }
 function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' ) : ''; }
 function esc_html( $s ) { return (string) $s; }
 function esc_url( $s ) { return (string) $s; }
@@ -82,6 +84,16 @@ r_true( false !== strpos( $html, 'sn-an-rec-items' ), 'render: the SEO card emit
 r_true( false !== strpos( $html, '>Random</a>' ), 'render: the first page title is a link' );
 r_true( false !== strpos( $html, 'post=11' ), 'render: each item links to its own page editor' );
 r_true( false !== strpos( $html, '>Ghost</a>' ), 'render: the second page title is a link' );
+// v9.22.2: a noindexed descriptionless page is NOT flagged — a page hidden from
+// search doesn't need a summary crawlers will never use.
+$GLOBALS['__pages']   = array( $mk( 11, 'Random', '' ), $mk( 12, 'Ghost', '' ), $mk( 13, 'Hidden', '' ) );
+$GLOBALS['__noindex'] = array( 13 => true );
+$sn = r_card( sn_analytics_recommendations(), 'seo_meta' );
+r_eq( 2, $sn['count'] ?? 0, 'noindexed descriptionless page (13) is excluded from the count' );
+$hidden_listed = false;
+foreach ( ( $sn['items'] ?? array() ) as $it ) { if ( 'Hidden' === ( $it['label'] ?? '' ) ) { $hidden_listed = true; } }
+r_true( ! $hidden_listed, 'the noindexed page is not named in the list' );
+$GLOBALS['__noindex'] = array();
 $GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ) );
 r_true( null === r_card( sn_analytics_recommendations(), 'seo_meta' ), 'no seo card when every page has a description' );
 

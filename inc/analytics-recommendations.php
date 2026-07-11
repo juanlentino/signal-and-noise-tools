@@ -85,9 +85,11 @@ function sn_analytics_rec_unlinked() {
  * SEO rule: published Pages that resolve to an EMPTY meta description ship
  * descriptionless. Uses the shared resolver (override → excerpt → theme filter),
  * so a Page's own Excerpt (or the theme's colophon route copy) is honored — only
- * a Page with no excerpt AND no theme entry is flagged. The card NAMES each such
- * Page and deep-links it to its own editor, so the owner sees exactly which
- * pages still need a summary. Cross-repo signal, plugin-only code. Null when none.
+ * a Page with no excerpt AND no theme entry is flagged. Pages the owner hides
+ * from search (the per-page noindex toggle) are skipped — a summary a crawler
+ * will never read isn't worth nagging about. The card NAMES each remaining Page
+ * and deep-links it to its own editor, so the owner sees exactly which pages
+ * still need a summary. Cross-repo signal, plugin-only code. Null when none.
  *
  * @return array|null
  */
@@ -106,7 +108,19 @@ function sn_analytics_rec_seo_meta() {
 	) );
 	$missing = array();
 	foreach ( $pages as $p ) {
-		if ( is_object( $p ) && '' === trim( (string) sn_seo_resolve_singular_description( $p ) ) ) {
+		if ( ! is_object( $p ) ) {
+			continue;
+		}
+		// A page the owner hides from search (noindex) doesn't need a meta
+		// description — a crawler will never use it — so don't flag it. Mirrors
+		// the noindex read in inc/seo.php.
+		$noindex = function_exists( 'sn_post_settings_get_noindex' )
+			? sn_post_settings_get_noindex( (int) ( $p->ID ?? 0 ) )
+			: ( '1' === (string) get_post_meta( (int) ( $p->ID ?? 0 ), '_sn_noindex', true ) );
+		if ( $noindex ) {
+			continue;
+		}
+		if ( '' === trim( (string) sn_seo_resolve_singular_description( $p ) ) ) {
 			$missing[] = $p;
 		}
 	}

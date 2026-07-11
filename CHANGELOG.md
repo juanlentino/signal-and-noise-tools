@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.22.2] - 2026-07-11: Recommendation skips pages hidden from search (noindex)
+
+**Headline:** The Analytics "N pages ship without a meta description" recommendation no longer flags Pages the owner has set to noindex — a page hidden from search doesn't need a summary a crawler will never read. Set a utility or legal page (Privacy Policy, an HTML sitemap, etc.) to "Hide from search engines" and it drops off the recommendation instead of forcing an invented description.
+
+> **Why PATCH:** a calibration of an existing recommendation's flagging logic. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise.
+
+### Improvements
+- [inc/analytics-recommendations.php](inc/analytics-recommendations.php) — `sn_analytics_rec_seo_meta()` now skips any published Page whose per-page noindex toggle (`_sn_noindex`, read via `sn_post_settings_get_noindex()`) is on, before counting it as descriptionless. Mirrors the noindex read in [inc/seo.php](inc/seo.php), so the recommendation respects the same indexing signal the SEO layer emits.
+
+### Notes
+- Context: a live audit found the flagged Pages on production were orphan/duplicate/utility Pages (a stray top-level `/uses` duplicating `/about/uses`, an empty `/sitemap` shadowing the XML-sitemap redirect, the front page, and the WordPress Privacy Policy) — none theme-authored, so v9.22.1's back-fill (which targets theme content) correctly left them alone. Trashing the orphans and describing the front page are owner actions; this change lets the utility/legal pages an owner deliberately noindexes stop appearing in the recommendation.
+- Cookieless and cost-neutral: reads published-Page metadata only.
+- Tests: extended [tests/analytics-recommendations.php](tests/analytics-recommendations.php) — a noindexed descriptionless Page is excluded from the count and not named in the list. Full sweep 260 suites / 7091 assertions / 0 failures; PHPCS falsified; PHPStan clean.
+
 ## [9.22.1] - 2026-07-11: Back-fill missing Page descriptions + name them in the recommendation
 
 **Headline:** The five theme-authored Pages that shipped without a meta description on long-lived installs — the `/notes` index and the four provenance-family Pages (`/provenance`, `/provenance/over-detection`, `/provenance/as-substrate`, `/provenance/verify`) — now get their canonical Excerpt back-filled automatically, and the Analytics "N pages ship without a meta description" recommendation now names each descriptionless Page with its own editor link instead of a single first-page button.
