@@ -174,7 +174,7 @@ function sn_analytics_daily_install() {
 	// drop. LIKE patterns mirror the predicate; a static query with a trusted
 	// $wpdb->prefix table name, so no bound parameters are needed.
 	if ( '' !== $prev && version_compare( $prev, '3', '<' ) ) {
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- static DELETE; $table is $wpdb->prefix + a plugin constant; the path literals/LIKE patterns carry no external input.
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- static DELETE; $table is $wpdb->prefix + a plugin constant; the path literals/LIKE patterns carry no external input.
 		$wpdb->query( "DELETE FROM {$table} WHERE path = '/wp-admin' OR path LIKE '/wp-admin/%' OR path LIKE '/wp-login.php%'" );
 	}
 
