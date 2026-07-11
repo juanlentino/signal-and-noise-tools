@@ -1440,3 +1440,58 @@ function sn_migrate_uses_page() {
 
 	update_option( SN_USES_PAGE_MIGRATED_OPT, time(), true );
 }
+
+/**
+ * Load the frozen /uses default gear list (## Label / - name | note text). Used
+ * to re-seed the Uses text box on installs where the box was never saved and the
+ * content had lived only in the theme's (now-removed) uses-data.php default.
+ *
+ * @return string
+ */
+function sn_load_uses_default() {
+	$f = __DIR__ . '/seed-content/uses-default.txt';
+	return file_exists( $f ) ? (string) file_get_contents( $f ) : '';
+}
+
+/**
+ * v9.20.1 one-time repair for two Phase-2-flip regressions:
+ *   1. /now Pages created by v9.19.0 hold generic core-block content; v9.20.0's
+ *      never-clobber migration guard skipped upgrading them to the dossier
+ *      markup. Force a regenerate from the (populated) text box.
+ *   2. /about/uses was never created where the Uses text box was empty (its
+ *      content had lived in the theme's removed uses-data.php default). Re-seed
+ *      the box from the frozen default, which creates the Page via the save sync.
+ *
+ * Idempotent (own flag). Safe: the /now sync is a full regenerate from the
+ * canonical text box (a no-op when the box is empty, so it never blanks a page),
+ * and the Uses box is only seeded when it is genuinely empty (never clobbers a
+ * saved box).
+ */
+add_action( 'admin_init', 'sn_migrate_now_uses_dossier_repair' );
+
+function sn_migrate_now_uses_dossier_repair() {
+	if ( get_option( SN_NOW_USES_DOSSIER_REPAIR_OPT ) ) {
+		return;
+	}
+
+	// 1. /now: regenerate from the box (upgrades v9.19.0 core-block content to
+	//    the dossier markup; a no-op when the box is empty, never blanks).
+	if ( function_exists( 'sn_now_sync_page' ) ) {
+		sn_now_sync_page();
+	}
+
+	// 2. /uses: seed the box from the frozen default when empty (which creates
+	//    the Page via sn_uses_page_save's sync); otherwise just regenerate.
+	if ( function_exists( 'sn_uses_page_get' ) && function_exists( 'sn_uses_page_save' ) ) {
+		if ( null === sn_uses_page_get() ) {
+			$seed = sn_load_uses_default();
+			if ( '' !== trim( $seed ) ) {
+				sn_uses_page_save( $seed );
+			}
+		} elseif ( function_exists( 'sn_uses_sync_page' ) ) {
+			sn_uses_sync_page();
+		}
+	}
+
+	update_option( SN_NOW_USES_DOSSIER_REPAIR_OPT, time(), true );
+}

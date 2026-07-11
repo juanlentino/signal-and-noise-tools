@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.20.1] - 2026-07-10: Fix: repair the Phase-2b flip on the live site (/now dossier + /about/uses creation)
+
+**Headline:** A one-time repair migration for two regressions the v9.20.0 install surfaced on the live site. (1) `/now` Pages created by the earlier v9.19.0 deploy hold generic core-block content, and v9.20.0's never-clobber migration guard refused to upgrade them, so `now.css` had no `sn-now-*` classes to style. (2) `/about/uses` 404'd where the Uses text box was never saved (its content had lived only in the theme's removed `uses-data.php` default). The repair force-regenerates `/now` from its (populated) box into the dossier markup, and re-seeds an empty Uses box from a frozen copy of the original gear list, which creates `/about/uses`. Self-heals on deploy.
+
+> **Why PATCH:** a data-repair migration fixing a regression from the Phase-2b release. No API or schema change.
+
+### Fixed
+- `sn_migrate_now_uses_dossier_repair()` (`admin_init`, idempotent, own flag): calls `sn_now_sync_page()` to regenerate `/now` from the text box (upgrading v9.19.0 core-block content; a no-op if the box is empty, so it never blanks a page), and re-seeds the Uses box from `inc/seed-content/uses-default.txt` only when the box is genuinely empty (which creates `/about/uses` via the save sync; never clobbers a saved box) ([inc/content-migrations.php](inc/content-migrations.php), [inc/content-surfaces.php](inc/content-surfaces.php)).
+
+### Added
+- `inc/seed-content/uses-default.txt`: the original `/uses` gear list (recovered from the retired `uses-data.php`) in the `## Label` / `- name | note` text-box format, so the Uses box can be restored where it was never saved ([inc/seed-content/uses-default.txt](inc/seed-content/uses-default.txt)).
+
+### Notes
+- No theme change needed (v10.35.0 is correct). Deploy this plugin; the repair runs on the next wp-admin load. Tests: `tests/now-uses-dossier-repair.php` (9 assertions).
+
 ## [9.20.0] - 2026-07-10: Feat: /about/uses is a CMS Page + /now design restored (pages-to-CMS flip, Phase 2b)
 
 **Headline:** `/about/uses` joins `/now` as a real CMS Page, edited from the existing **Content → Uses Page** text box (which now regenerates the Page on save). And this corrects `/now`: v9.19.0 rebuilt its body as generic core blocks, which discarded the bespoke "dossier" design (big Bebas section labels, hairline rows). This release makes both routes **reproduce the theme's original `sn-now-*` / `sn-uses-*` markup** in a `core/html` block, so `now.css` / `uses.css` (and any Site-Editor global styles that target those classes) render them identically. `/now` was never deployed, so this is its first live form. The `core/post-date` byline and its backdate workaround are gone; the "Updated" line is stamped at save time (matching the old behavior).
