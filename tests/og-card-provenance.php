@@ -74,5 +74,29 @@ ok( sn_og_test_count_itxt( $twice, 'provenance' ) === 1, 'exactly one provenance
 ok( sn_og_png_set_itxt( 'not a png', 'provenance', 'x' ) === 'not a png', 'non-PNG returned unchanged' );
 ok( sn_og_png_get_itxt( 'not a png', 'provenance' ) === null, 'get_itxt on non-PNG is null' );
 
+// --- block builder + D1 gate inheritance ---
+$block = sn_og_card_provenance_block( 7 );
+ok( is_array( $block ) && ( $block['type'] ?? '' ) === 'OGCardProvenance', 'block has the OGCardProvenance type' );
+ok( ( $block['credential'] ?? null ) === $GLOBALS['__vc'], 'block embeds the D1 credential verbatim' );
+ok( ( $block['note_uid'] ?? '' ) === 'test-uid-1234' && strpos( (string) ( $block['credential_url'] ?? '' ), 'credential/test-uid-1234' ) !== false, 'block carries the uid + live credential URL' );
+ok( strpos( (string) ( $block['did_document'] ?? '' ), '/.well-known/did.json' ) !== false, 'block points at the DID document' );
+$GLOBALS['__vc'] = null; // simulate the D1 visibility gate (non-public / uncredentialed Note)
+ok( sn_og_card_provenance_block( 7 ) === null, 'no credential → no block (D1 gate inherited)' );
+
+// --- file injector ---
+$tmp = tempnam( sys_get_temp_dir(), 'sncard' ); file_put_contents( $tmp, $png );
+ok( sn_og_card_inject_provenance( $tmp, 7 ) === false && file_get_contents( $tmp ) === $png, 'gated Note → inject is a byte-exact no-op' );
+$GLOBALS['__vc'] = array( 'type' => array( 'VerifiableCredential' ), 'proof' => array( 'proofValue' => 'abc' ) );
+ok( sn_og_card_inject_provenance( $tmp, 7 ) === true, 'public Note → inject succeeds' );
+$injected = file_get_contents( $tmp );
+ok( sn_og_png_get_itxt( $injected, 'provenance' ) !== null && sn_og_test_crc_ok( $injected ), 'injected card carries a CRC-valid provenance chunk' );
+$decoded = json_decode( (string) sn_og_png_get_itxt( $injected, 'provenance' ), true );
+ok( is_array( $decoded ) && ( $decoded['type'] ?? '' ) === 'OGCardProvenance', 'embedded JSON decodes to the provenance block' );
+unlink( $tmp );
+
+// --- manifest advertisement ---
+$surf = sn_og_card_advertise_surface( array() );
+ok( in_array( 'og-card-provenance', array_column( $surf, 'type' ), true ), 'advertises the og-card-provenance surface' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

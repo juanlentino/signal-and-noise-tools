@@ -125,3 +125,90 @@ function sn_og_png_get_itxt( $png, $keyword ) {
 	}
 	return null;
 }
+
+/**
+ * Build the provenance block for a Note's OG card, or null when D1 declines a
+ * credential (non-public, password-protected, unsigned, or payload/hash drift)
+ * — inheriting D1's visibility gate exactly, so a card never embeds provenance
+ * a public verifier could not confirm, and never leaks protected content.
+ *
+ * @param int $post_id
+ * @return array<string,mixed>|null
+ */
+function sn_og_card_provenance_block( $post_id ) {
+	if ( ! function_exists( 'sn_prov_credential' ) ) {
+		return null;
+	}
+	$vc = sn_prov_credential( (int) $post_id, null );
+	if ( null === $vc ) {
+		return null; // D1 gate.
+	}
+	$uid = function_exists( 'sn_prov_note_uid' ) ? (string) sn_prov_note_uid( $post_id ) : '';
+	if ( '' === $uid ) {
+		return null;
+	}
+	$ns   = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
+	$home = function_exists( 'home_url' ) ? home_url() : '';
+	return array(
+		'@context'       => 'https://juanlentino.com/ns/card-provenance/v1',
+		'type'           => 'OGCardProvenance',
+		'note_uid'       => $uid,
+		'credential_url' => function_exists( 'rest_url' ) ? rest_url( $ns . '/credential/' . rawurlencode( $uid ) ) : ( $home . '/wp-json/' . $ns . '/credential/' . rawurlencode( $uid ) ),
+		'did_document'   => function_exists( 'home_url' ) ? home_url( '/.well-known/did.json' ) : '/.well-known/did.json',
+		'credential'     => $vc, // the D1 Verifiable Credential, verbatim (single source of truth).
+	);
+}
+
+/**
+ * Inject the provenance block into the card PNG at $path (in place). No-op
+ * (returns false) when there is no block, the file is unreadable, or it is not
+ * a PNG. Never throws into the non-blocking card-generation path.
+ *
+ * @param string $path Absolute path to a generated card PNG.
+ * @param int    $post_id
+ * @return bool True only when the file was rewritten with a provenance chunk.
+ */
+function sn_og_card_inject_provenance( $path, $post_id ) {
+	$block = sn_og_card_provenance_block( $post_id );
+	if ( null === $block ) {
+		return false;
+	}
+	$json = function_exists( 'wp_json_encode' ) ? wp_json_encode( $block, JSON_UNESCAPED_SLASHES ) : json_encode( $block );
+	if ( ! is_string( $json ) || '' === $json ) {
+		return false;
+	}
+	if ( ! is_readable( $path ) ) {
+		return false;
+	}
+	$png = file_get_contents( $path );
+	if ( false === $png ) {
+		return false;
+	}
+	$out = sn_og_png_set_itxt( $png, SN_OG_PROV_KEYWORD, $json );
+	if ( $out === $png ) {
+		return false; // not a PNG, or nothing changed.
+	}
+	return false !== file_put_contents( $path, $out );
+}
+
+/**
+ * Advertise the OG-card provenance convention in sub-project A's discovery
+ * manifest (the theme owns the filter; the plugin appends one callback).
+ *
+ * @param array<int,array<string,string>> $surfaces
+ * @return array<int,array<string,string>>
+ */
+function sn_og_card_advertise_surface( $surfaces ) {
+	$surfaces[] = array(
+		'type'        => 'og-card-provenance',
+		'url'         => 'https://juanlentino.com/ns/card-provenance/v1',
+		'format'      => 'image/png (embedded application/json in an iTXt "provenance" chunk)',
+		'title'       => 'OG card provenance',
+		'description' => "Each Note's social-share card embeds a self-contained provenance block (the Note's Verifiable Credential) in its PNG metadata.",
+	);
+	return $surfaces;
+}
+
+if ( ! defined( 'SN_OG_CARD_PROV_TEST' ) || ! SN_OG_CARD_PROV_TEST ) {
+	add_filter( 'sn_agents_surfaces', 'sn_og_card_advertise_surface' );
+}
