@@ -17,6 +17,9 @@ All notable changes to Signal & Noise Tools are documented here.
 ### Tests
 - [tests/health-external-links.php](tests/health-external-links.php) — HEAD-error→GET retry recovers to 200 (transient absorbed); code-0 is not cached and the next probe re-verifies a recovered host; a deterministic 404 is still cached; the `WP_Error` message is captured; and an end-to-end case where a genuinely unreachable citation is still flagged but with the self-describing "Unreachable (<reason>)" note. The error stub now carries a message/code to exercise the capture path.
 
+### Verified in production
+- After deploying v9.25.1 to the live site, a fresh scan (`wp eval 'sn_health_run_scan(); … external_links'`) returned **`findings: 0`** — the previously stuck `caselaw.nationalarchives.gov.uk` "HTTP 0" citation cleared. With the transient failure no longer cached, the re-run re-probed the URL and got its real HTTP 200, dropping it from the findings. Confirms the fix end-to-end against the exact reported case.
+
 ## [9.25.0] - 2026-07-11: Content-credential OG cards — each share image carries its own provenance
 
 **Headline:** Every Note's social-share card (the generated 1200×630 OG PNG) now embeds a self-contained **provenance block** in its metadata — the Note's existing Verifiable Credential plus pointers to the DID document and the live credential. A machine that reads the shared image can verify its authorship and timestamp offline (resolve `did:web` → verify the Ed25519 proof over the canonical payload → check the Bitcoin anchor) and follow the pointers back to the site. No new signing: the block reuses the signature D1 already produced, and inherits D1's visibility gate (a non-public or password-protected Note embeds nothing). Sub-project D2 of the machine-readability program — the last one; this closes A→B→C→D1→D2.
