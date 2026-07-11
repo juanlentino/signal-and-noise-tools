@@ -37,7 +37,12 @@ $GLOBALS['__ext'] = array(
 	'head_args' => array(),  // captured args per url
 );
 
-class WP_Error_Stub {}
+class WP_Error_Stub {
+	public $msg; public $code;
+	public function __construct( $msg = 'cURL error 28: Operation timed out', $code = 'http_request_failed' ) { $this->msg = $msg; $this->code = $code; }
+	public function get_error_message() { return $this->msg; }
+	public function get_error_code() { return $this->code; }
+}
 function is_wp_error( $x ) { return $x instanceof WP_Error_Stub; }
 
 // Deterministic resolver seam for the SHARED guard (v6.13.1: inc/ssrf-guard.php
@@ -151,10 +156,45 @@ $GLOBALS['__ext']['http_get']['https://noheadsite.example/c'] = array( 'code' =>
 $s = sn_health_external_link_status( 'https://noheadsite.example/c' );
 ok( true === $s['ok'] && 200 === $s['code'], 'HEAD 405 → GET fallback resolves to 200' );
 
-// 2f. Network error → code 0, not ok.
-$GLOBALS['__ext']['http']['https://dead.example/d'] = 'ERR';
+// 2f. Network error on BOTH HEAD and GET → code 0, not ok, WITH the reason captured.
+$GLOBALS['__ext']['http']['https://dead.example/d']     = 'ERR';
+$GLOBALS['__ext']['http_get']['https://dead.example/d'] = 'ERR';
 $s = sn_health_external_link_status( 'https://dead.example/d' );
-ok( false === $s['ok'] && 0 === $s['code'], 'network error → code 0, not ok' );
+ok( false === $s['ok'] && 0 === $s['code'], 'network error on HEAD+GET → code 0, not ok' );
+ok( ! empty( $s['error'] ), 'the WP_Error message is captured (so the finding note self-diagnoses instead of showing opaque "HTTP 0")' );
+
+// 2f-retry. A HEAD network error is a TRANSIENT signal — retry once with GET before
+// recording failure. If GET succeeds, the link is healthy: a momentary blip must not
+// flag (and cache-freeze) a live citation. This is the reported caselaw.nationalarchives
+// false positive — WP's own probe returns 200, but one unlucky scan-time blip stuck.
+$GLOBALS['__resolve']['blip.example']                   = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://blip.example/x']     = 'ERR';                 // HEAD blips
+$GLOBALS['__ext']['http_get']['https://blip.example/x'] = array( 'code' => 200 ); // GET recovers
+$s = sn_health_external_link_status( 'https://blip.example/x' );
+ok( true === $s['ok'] && 200 === $s['code'], 'HEAD network error → GET retry recovers to 200 (transient blip absorbed, not flagged)' );
+
+// 2f-nocache. A network error (code 0) is NEVER cached. Freezing a non-deterministic
+// blip for 24h would keep a live citation flagged for a day AND make "Re-run scan"
+// return the stale failure instead of re-verifying. The next scan must re-probe.
+// (No transient reset here — flap.example is a fresh URL, and clobbering the whole
+// bag would wipe good.example's cache that a later test asserts on.)
+$GLOBALS['__resolve']['flap.example']                   = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://flap.example/x']     = 'ERR';
+$GLOBALS['__ext']['http_get']['https://flap.example/x'] = 'ERR';
+$s = sn_health_external_link_status( 'https://flap.example/x' );
+ok( false === $s['ok'] && 0 === $s['code'], 'flap.example errors (code 0) on first probe' );
+ok( ! isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://flap.example/x' )] ), 'a code-0 network error is NOT cached (a transient is never frozen for 24h)' );
+// Host recovers — the very next probe must re-verify (not serve a cached failure).
+$GLOBALS['__ext']['http']['https://flap.example/x']     = array( 'code' => 200 );
+$GLOBALS['__ext']['http_get']['https://flap.example/x'] = array( 'code' => 200 );
+$s2 = sn_health_external_link_status( 'https://flap.example/x' );
+ok( true === $s2['ok'] && 200 === $s2['code'] && empty( $s2['cached'] ), 'next scan re-probes the recovered host → 200 (self-heals; no stale cache hit)' );
+
+// A real HTTP status (404) MUST still be cached (deterministic — unchanged behavior).
+$GLOBALS['__resolve']['stillgone.example']        = '93.184.216.34';
+$GLOBALS['__ext']['http']['https://stillgone.example/d'] = array( 'code' => 404 );
+sn_health_external_link_status( 'https://stillgone.example/d' );
+ok( isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://stillgone.example/d' )] ), 'a deterministic 404 IS still cached (only code-0 network errors are left uncached)' );
 
 // 2g. Cache hit → cached flag, no new probe.
 $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://cached.example/e' )] = array( 'ok' => false, 'code' => 503 );
@@ -289,6 +329,21 @@ $GLOBALS['__ext']['rows'] = array(
 $res = sn_health_check_external_links();
 ok( 1 === $res['count'], 'LinkedIn 999 profile is NOT flagged; only the genuinely dead 404 is (reproduces the reported false positive)' );
 ok( 1 === count( $res['findings'] ) && strpos( $res['findings'][0]['subject_url'], 'rot.example' ) !== false, 'the single finding is the dead link, not the LinkedIn profile' );
+
+// ─── 3e. A genuinely unreachable citation (HEAD + GET both network-error) is still
+// flagged (real rot is never hidden) — but with a self-describing "Unreachable
+// (<reason>)" note carrying the WP_Error, NOT the opaque "HTTP 0 on probe". ───
+$GLOBALS['__ext']['transient'] = array();
+$GLOBALS['__ext']['head_args'] = array();
+$GLOBALS['__resolve']['down.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http']     = array( 'https://down.example/x' => 'ERR' );
+$GLOBALS['__ext']['http_get'] = array( 'https://down.example/x' => 'ERR' );
+$GLOBALS['__ext']['rows'] = array(
+	array( 'ID' => 51, 'post_title' => 'Cited', 'post_content' => '<a href="https://down.example/x">source</a>' ),
+);
+$res = sn_health_check_external_links();
+ok( 1 === $res['count'], 'a genuinely unreachable citation (HEAD+GET both fail) is STILL flagged — real rot is not hidden' );
+ok( strpos( $res['findings'][0]['note'], 'Unreachable' ) !== false && strpos( $res['findings'][0]['note'], 'HTTP 0' ) === false, 'the note reads "Unreachable (<reason>)", not the opaque "HTTP 0 on probe"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
