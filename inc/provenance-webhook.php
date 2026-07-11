@@ -34,6 +34,38 @@ function sn_prov_pubkey_b64() {
 }
 
 /**
+ * Shared outbound gate for every provenance probe + dispatcher (CMA LOW-1).
+ *
+ * Mirrors the sibling worker-version probe (inc/worker-version.php): an outbound
+ * URL must be https, pass core URL validation, and resolve to a PUBLIC host — the
+ * shared resolve-then-range-check catches the encoded-IP metadata bypasses a
+ * literal string match misses. Fails CLOSED on an empty/malformed/internal URL.
+ * Callers still pass 'redirection' => 0 on the request itself: this gate only
+ * sees the first hop, so redirection=0 is what stops a validated host bouncing to
+ * an internal one. sn_ssrf_host_blocked() is function_exists-guarded because
+ * ssrf-guard.php loads after this module — but at call time (a save or a cron
+ * event, long after every require) it is always present.
+ *
+ * @since 9.21.1
+ * @param string $url Outbound URL (Worker endpoint or ledger raw URL).
+ * @return bool True when the URL is safe to request.
+ */
+function sn_prov_url_allowed( $url ) {
+	$url = (string) $url;
+	if ( '' === $url ) {
+		return false;
+	}
+	$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+	if ( ! wp_http_validate_url( $url )
+		|| 'https' !== wp_parse_url( $url, PHP_URL_SCHEME )
+		|| ( function_exists( 'sn_ssrf_host_blocked' ) && sn_ssrf_host_blocked( $host ) )
+	) {
+		return false;
+	}
+	return true;
+}
+
+/**
  * POST an HMAC-signed webhook to the Worker for a new commit, then record the
  * returned signature + pending status on the chain entry. Silent on transport
  * failure — the reconcile cron (Task 5) catches up.
@@ -48,6 +80,9 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 	if ( '' === $url || '' === $secret ) {
 		return;
 	}
+	if ( ! sn_prov_url_allowed( $url ) ) {
+		return; // outbound gate — never POST to a non-https / internal host.
+	}
 	$body = wp_json_encode( array(
 		'canonical'    => $canonical,
 		'content_hash' => $commit['content_hash'],
@@ -55,12 +90,13 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 		'version'      => (int) $commit['version'],
 	) );
 	$response = wp_remote_post( $url, array(
-		'timeout' => 15,
-		'headers' => array(
+		'timeout'     => 15,
+		'redirection' => 0,
+		'headers'     => array(
 			'Content-Type'   => 'application/json',
 			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
 		),
-		'body'    => $body,
+		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
 		return;
@@ -80,7 +116,31 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 		'ledger_path' => (string) ( $out['ledger_path'] ?? '' ),
 	) );
 }
-add_action( 'sn_prov_committed', 'sn_prov_dispatch', 10, 3 );
+
+const SN_PROV_DISPATCH_ASYNC_HOOK = 'sn_prov_dispatch_async';
+
+/**
+ * On a fresh commit, enqueue the Worker dispatch instead of POSTing synchronously
+ * inside the editor save (CMA INFO-1). sn_prov_record() has already persisted the
+ * commit as 'unanchored' before firing sn_prov_committed, so a near-term
+ * single-event cron re-dispatches it through the SAME reconcile path the hourly
+ * sweep uses — keeping a slow/unreachable Worker (a 15s POST timeout) off the
+ * save's critical path. The hourly sn_prov_reconcile is the backstop; dedup by
+ * post id coalesces rapid re-saves (reconcile catches every unanchored commit for
+ * the post anyway). Registered for one arg — the async event re-reads the chain,
+ * so it needs only the post id, not the commit/canonical.
+ *
+ * @since 9.21.1
+ * @param int $post_id
+ */
+function sn_prov_enqueue_dispatch( $post_id ) {
+	$post_id = (int) $post_id;
+	if ( ! wp_next_scheduled( SN_PROV_DISPATCH_ASYNC_HOOK, array( $post_id ) ) ) {
+		wp_schedule_single_event( time(), SN_PROV_DISPATCH_ASYNC_HOOK, array( $post_id ) );
+	}
+}
+add_action( 'sn_prov_committed', 'sn_prov_enqueue_dispatch', 10, 1 );
+add_action( SN_PROV_DISPATCH_ASYNC_HOOK, 'sn_prov_reconcile_post', 10, 1 );
 
 /**
  * Trigger the Worker's on-demand upgrade sweep (POST /sweep) — the hourly cron's
@@ -98,14 +158,19 @@ function sn_prov_run_sweep() {
 	if ( '' === $url || '' === $secret ) {
 		return array( 'ok' => false, 'error' => 'unconfigured' );
 	}
+	$endpoint = untrailingslashit( $url ) . '/sweep';
+	if ( ! sn_prov_url_allowed( $endpoint ) ) {
+		return array( 'ok' => false, 'error' => 'blocked' );
+	}
 	$body     = wp_json_encode( array( 'action' => 'sweep' ) );
-	$response = wp_remote_post( untrailingslashit( $url ) . '/sweep', array(
-		'timeout' => 20,
-		'headers' => array(
+	$response = wp_remote_post( $endpoint, array(
+		'timeout'     => 20,
+		'redirection' => 0,
+		'headers'     => array(
 			'Content-Type'   => 'application/json',
 			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
 		),
-		'body'    => $body,
+		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
 		return array( 'ok' => false, 'error' => 'network' );
@@ -145,11 +210,17 @@ function sn_prov_worker_version() {
 		return (string) $cached;
 	}
 	$version  = '';
-	$response = wp_remote_get( untrailingslashit( $url ) . '/_sn/version', array( 'timeout' => 5 ) );
-	if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
-		if ( is_array( $data ) && ! empty( $data['version'] ) ) {
-			$version = (string) $data['version'];
+	$endpoint = untrailingslashit( $url ) . '/_sn/version';
+	if ( sn_prov_url_allowed( $endpoint ) ) {
+		$response = wp_remote_get( $endpoint, array(
+			'timeout'     => 5,
+			'redirection' => 0,
+		) );
+		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+			$data = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( is_array( $data ) && ! empty( $data['version'] ) ) {
+				$version = (string) $data['version'];
+			}
 		}
 	}
 	set_transient( 'sn_prov_worker_version', $version, 10 * MINUTE_IN_SECONDS );

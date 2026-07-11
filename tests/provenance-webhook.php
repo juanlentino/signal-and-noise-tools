@@ -128,6 +128,80 @@ if ( ! function_exists( 'get_posts' ) ) {
 	}
 }
 
+// ── v9.21.1 outbound-hardening stubs (CMA LOW-1) ──────────────────────────
+$GLOBALS['__pv_http_get'] = array(); // captured wp_remote_get calls: [ url, args ]
+$GLOBALS['__pv_ver_body'] = array( 'version' => '3.1.0' ); // GET /_sn/version body
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( $url, $args = array() ) {
+		$GLOBALS['__pv_http_get'][] = array( $url, $args );
+		return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( $GLOBALS['__pv_ver_body'] ) );
+	}
+}
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $k ) {
+		return $GLOBALS['__pv_transients'][ $k ] ?? false; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $k, $v, $ttl = 0 ) {
+		$GLOBALS['__pv_transients'][ $k ] = $v;
+		return true; }
+}
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+	define( 'MINUTE_IN_SECONDS', 60 );
+}
+// Faithful wp_http_validate_url: http/https + host only. The 169.254 / encoded-IP
+// blocking is the plugin's OWN sn_ssrf_host_blocked() guard — this stub must not
+// fake it or the metadata cases would give false assurance (mirrors tests/webhooks.php).
+if ( ! function_exists( 'wp_http_validate_url' ) ) {
+	function wp_http_validate_url( $u ) {
+		if ( ! is_string( $u ) || '' === $u ) {
+			return false; }
+		$p = parse_url( $u );
+		if ( ! is_array( $p ) || empty( $p['scheme'] ) || empty( $p['host'] ) ) {
+			return false; }
+		return in_array( strtolower( $p['scheme'] ), array( 'http', 'https' ), true ) ? $u : false;
+	}
+}
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
+	}
+}
+// INFO-1 async-dispatch cron seam: schedule captures; wp_next_scheduled reflects it.
+$GLOBALS['__pv_sched'] = array();
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $ts, $hook, $args = array() ) {
+		$GLOBALS['__pv_sched'][] = array( 'ts' => $ts, 'hook' => $hook, 'args' => $args );
+		return true; }
+}
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook, $args = array() ) {
+		foreach ( $GLOBALS['__pv_sched'] as $e ) {
+			if ( $e['hook'] === $hook && $e['args'] === $args ) {
+				return $e['ts'] > 0 ? $e['ts'] : 1;
+			}
+		}
+		return false;
+	}
+}
+// Deterministic resolver seam for the shared SSRF guard — defined BEFORE
+// inc/ssrf-guard.php so its function_exists() guard keeps THIS one (mirrors
+// tests/worker-version.php). Encoded metadata IP + an RFC-1918 hostname are
+// blocked; every other host resolves public.
+if ( ! function_exists( 'sn_ssrf_resolve_host' ) ) {
+	function sn_ssrf_resolve_host( $host ) {
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return $host;
+		}
+		$map = array(
+			'2852039166'               => '169.254.169.254', // decimal-encoded metadata IP
+			'blocked-internal.example' => '10.0.0.5',         // hostname → RFC-1918
+		);
+		return $map[ $host ] ?? '93.184.216.34'; // any other host → public
+	}
+}
+
+require_once SNT_PATH . 'inc/ssrf-guard.php';
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
 
@@ -313,6 +387,71 @@ $GLOBALS['__pv_genesis_applied'] = null;
 $nbody = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed' ) );
 sn_prov_confirm_handler( new WP_REST_Request( array(), $nbody ) );
 wh_eq( null, $GLOBALS['__pv_genesis_applied'], 'a Note confirm does NOT hit the genesis path' );
+
+echo "\nTask 8: outbound hardening — redirection=0 + shared SSRF gate (CMA LOW-1)\n";
+// The shared provenance outbound gate: https + public host only, fail closed.
+wh_true( sn_prov_url_allowed( 'https://worker.example/' ), 'gate allows an https public host' );
+wh_true( ! sn_prov_url_allowed( 'http://worker.example/' ), 'gate blocks a plain-http URL (scheme)' );
+wh_true( ! sn_prov_url_allowed( 'https://2852039166/' ), 'gate blocks the decimal-encoded metadata IP' );
+wh_true( ! sn_prov_url_allowed( 'https://blocked-internal.example/' ), 'gate blocks an RFC-1918 hostname' );
+wh_true( ! sn_prov_url_allowed( '' ), 'gate blocks an empty URL (fail closed)' );
+
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+
+// dispatch(): the POST carries redirection => 0.
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'unanchored' ) ) );
+update_post_meta( 42, SN_PROV_UID_META, 'u' );
+$GLOBALS['__pv_http'] = array();
+sn_prov_dispatch( 42, array( 'version' => 1, 'content_hash' => 'aa' ), '{"x":1}' );
+wh_eq( 1, count( $GLOBALS['__pv_http'] ), 'dispatch fired one POST for an allowed host' );
+wh_eq( 0, $GLOBALS['__pv_http'][0][1]['redirection'] ?? -1, 'dispatch POST sets redirection => 0' );
+
+// dispatch(): a blocked (plain-http) worker URL fires NO POST.
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'http://worker.example/';
+$GLOBALS['__pv_http'] = array();
+sn_prov_dispatch( 42, array( 'version' => 1, 'content_hash' => 'aa' ), '{"x":1}' );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'dispatch fires NO POST when the gate blocks the URL' );
+
+// run_sweep(): redirection => 0 on an allowed host; blocked host → ok:false error:blocked, no POST.
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/';
+$GLOBALS['__pv_http'] = array();
+$sw = sn_prov_run_sweep();
+wh_true( ! empty( $sw['ok'] ), 'run_sweep ok for an allowed host' );
+wh_eq( 0, $GLOBALS['__pv_http'][0][1]['redirection'] ?? -1, 'run_sweep POST sets redirection => 0' );
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'http://worker.example/';
+$GLOBALS['__pv_http'] = array();
+$sw2 = sn_prov_run_sweep();
+wh_true( empty( $sw2['ok'] ) && 'blocked' === ( $sw2['error'] ?? '' ), 'run_sweep blocked host → ok:false error:blocked' );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'run_sweep fires NO POST when blocked' );
+
+// worker_version(): redirection => 0 on the GET; returns the version; blocked → '' + no GET.
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/';
+$GLOBALS['__pv_transients'] = array();
+$GLOBALS['__pv_http_get']  = array();
+$ver = sn_prov_worker_version();
+wh_eq( '3.1.0', $ver, 'worker_version returns the probed version for an allowed host' );
+wh_eq( 0, $GLOBALS['__pv_http_get'][0][1]['redirection'] ?? -1, 'worker_version GET sets redirection => 0' );
+$GLOBALS['__pv_options']['sn_prov_worker_url'] = 'http://worker.example/';
+$GLOBALS['__pv_transients'] = array();
+$GLOBALS['__pv_http_get']  = array();
+$verb = sn_prov_worker_version();
+wh_eq( '', $verb, 'worker_version returns empty for a blocked host' );
+wh_eq( 0, count( $GLOBALS['__pv_http_get'] ), 'worker_version fires NO GET when blocked' );
+
+echo "\nTask 9: async dispatch — commit enqueues a near-term cron, no synchronous POST (INFO-1)\n";
+$GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';
+$GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
+$GLOBALS['__pv_sched'] = array();
+$GLOBALS['__pv_http']  = array();
+sn_prov_enqueue_dispatch( 42, array( 'version' => 1, 'content_hash' => 'aa' ), '{"x":1}' );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'enqueue fires NO synchronous POST (off the editor save path)' );
+wh_eq( 1, count( $GLOBALS['__pv_sched'] ), 'enqueue schedules exactly one event' );
+wh_eq( 'sn_prov_dispatch_async', $GLOBALS['__pv_sched'][0]['hook'] ?? '', 'enqueue schedules the async dispatch hook' );
+wh_eq( array( 42 ), $GLOBALS['__pv_sched'][0]['args'] ?? null, 'scheduled event carries just the post id' );
+// A second enqueue while one is pending dedups (reconcile catches all unanchored anyway).
+sn_prov_enqueue_dispatch( 42, array( 'version' => 1, 'content_hash' => 'aa' ), '{"x":1}' );
+wh_eq( 1, count( $GLOBALS['__pv_sched'] ), 'a second enqueue for the same post does not double-schedule' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

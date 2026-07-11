@@ -245,6 +245,9 @@ function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 	if ( '' === $url || '' === $secret ) {
 		return false;
 	}
+	if ( ! sn_prov_url_allowed( $url ) ) {
+		return false; // outbound gate — never POST to a non-https / internal host.
+	}
 	$body = wp_json_encode( array(
 		'canonical'    => $manifest,
 		'content_hash' => $root,
@@ -252,12 +255,13 @@ function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 		'version'      => 0,
 	) );
 	$response = wp_remote_post( $url, array(
-		'timeout' => 20,
-		'headers' => array(
+		'timeout'     => 20,
+		'redirection' => 0,
+		'headers'     => array(
 			'Content-Type'   => 'application/json',
 			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
 		),
-		'body'    => $body,
+		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
 		return false;
@@ -447,10 +451,13 @@ function sn_prov_genesis_refresh() {
 		return;
 	}
 	$url = sn_prov_ledger_raw_url( 'genesis/' . $state['date'] . '-root.json' );
-	if ( '' === $url ) {
+	if ( '' === $url || ! sn_prov_url_allowed( $url ) ) {
 		return;
 	}
-	$res = wp_remote_get( $url, array( 'timeout' => 15 ) );
+	$res = wp_remote_get( $url, array(
+		'timeout'     => 15,
+		'redirection' => 0,
+	) );
 	if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
 		return;
 	}
