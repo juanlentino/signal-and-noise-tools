@@ -115,5 +115,26 @@ ok( 8 === ( $check['findings'][0]['subject_id'] ?? 0 ), 'the mixed post is the f
 ok( false !== strpos( (string) $check['findings'][0]['note'], '#ff8800' ), 'note names the prose color' );
 ok( false === strpos( (string) $check['findings'][0]['note'], '#dc2626' ), 'note does NOT name the svg figure color' );
 
+// ── v9.x: numeric HTML character references are NOT hex colors. esc_html()
+// encodes an apostrophe to "&#039;", whose "#039" the extractor otherwise reads
+// as the 3-digit hex #039 → #003399 — a phantom "off-palette color" on every
+// clean post whose prose contains an apostrophe (the live /now dossier regression:
+// "this site&#039;s theme"). nbsp (&#160;), é (&#233;) etc. are the same class. ──
+echo "\nTest: numeric character references are not colors (v9.x)\n";
+$GLOBALS['__palette']   = array( array( 'slug' => 'void', 'color' => '#ffffff' ), array( 'slug' => 'bone', 'color' => '#000000' ) );
+$GLOBALS['__scan_rows'] = array(
+	// Clean dossier prose with an esc_html'd apostrophe → must NOT flag.
+	array( 'ID' => 20, 'post_title' => 'Now', 'post_content' => '<li class="sn-now-item"><span>this site&#039;s theme &amp; plugin</span></li>' ),
+	// Other 3-digit numeric entities (nbsp, é) with no real color → must NOT flag.
+	array( 'ID' => 21, 'post_title' => 'Entities', 'post_content' => '<p>caf&#233;&#160;&mdash; a&#160;test</p>' ),
+	// Entity AND a genuine off-palette color → flags, note names ONLY the real color.
+	array( 'ID' => 22, 'post_title' => 'Mixed entity', 'post_content' => '<p style="color:#ff8800">it&#039;s off</p>' ),
+);
+$check = sn_health_check_color_drift();
+ok( 1 === $check['count'], 'entity-only posts are clean; only the genuinely-drifting post flags' );
+ok( 22 === ( $check['findings'][0]['subject_id'] ?? 0 ), 'the real-color post is the finding' );
+ok( false === strpos( (string) $check['findings'][0]['note'], '#003399' ), 'apostrophe entity is NOT reported as #003399' );
+ok( false !== strpos( (string) $check['findings'][0]['note'], '#ff8800' ), 'note names the genuine off-palette color' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
