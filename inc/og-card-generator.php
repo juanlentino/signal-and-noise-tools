@@ -391,28 +391,48 @@ function sn_og_wrap_lines( $text, $size, $font, $max_width, $max_lines ) {
 }
 
 /**
+ * Reconcile a post's cached card on save. Extracted from the hook closure so
+ * the branching is CLI-testable.
+ *
+ * Order matters, and the security cleanup comes FIRST so it is NOT limited to
+ * post/page: a card can be generated for ANY editable post type via the
+ * admin-bar quick action, the regenerate-og-card ability, or the AI-title
+ * rewrite (all call sn_generate_og_card() with no post_type restriction). So a
+ * post of any type that becomes password-protected must have its stale card
+ * removed here — scoping the delete to post/page (as auto-generation is) would
+ * strand a custom-post-type card on disk, the exact leak this guards against.
+ * Auto-(re)generation on save stays post/page only; other types get a card
+ * solely through an explicit regen action.
+ *
+ * @since 9.25.1
+ * @param int            $post_id
+ * @param WP_Post|object $post
+ * @return bool Whether a card was (re)generated.
+ */
+function sn_og_sync_card_on_save( $post_id, $post ) {
+	// Security cleanup — any post type, any status.
+	if ( ! sn_og_card_allowed_for_post( $post ) ) {
+		sn_og_delete_card( $post_id );
+		return false;
+	}
+	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		return false;
+	}
+	if ( 'publish' !== $post->post_status ) {
+		return false;
+	}
+	return (bool) sn_generate_og_card( $post_id );
+}
+
+/**
  * Rebuild the cached card whenever a post or page is saved. Skips
- * revisions/autosaves and unpublished content.
+ * revisions/autosaves; delegates the rest to sn_og_sync_card_on_save().
  */
 add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_before ) {
 	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
 		return;
 	}
-	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
-		return;
-	}
-	if ( 'publish' !== $post->post_status ) {
-		return;
-	}
-	// Security: a password-protected post must not carry a public content card.
-	// Skip generation AND remove any card left from when the post was public —
-	// the public→protected transition fires this same save hook. sn_generate_og_card()
-	// re-guards internally; deleting here also cleans the file, not just the emit.
-	if ( ! sn_og_card_allowed_for_post( $post ) ) {
-		sn_og_delete_card( $post_id );
-		return;
-	}
-	sn_generate_og_card( $post_id );
+	sn_og_sync_card_on_save( $post_id, $post );
 }, 20, 4 );
 
 /**
@@ -484,12 +504,13 @@ function sn_migrate_backfill_og_cards() {
 const SN_OG_PROTECTED_PURGE_OPT = 'sn_og_protected_purge_completed_v1';
 
 /**
- * One-time remediation: delete cards the earlier backfill generated for
- * password-protected published posts. The generation/serving gates keep NEW
- * and FUTURE leaks closed, but the backfill (SN_OG_BACKFILL_OPT) already wrote
- * a content card for every published post — protected ones included — before
- * those gates existed. Those PNGs still sit on disk at a guessable URL, so this
- * removes them. Posts protected AFTER this runs are handled by the save hook.
+ * One-time remediation: delete cards already on disk for password-protected
+ * published posts of ANY type. The generation/serving gates keep NEW and FUTURE
+ * leaks closed, but cards were written before those gates existed — by the
+ * backfill (SN_OG_BACKFILL_OPT) for post/page, and by the admin-bar/ability/
+ * AI-title regen callers for any editable type. Those PNGs still sit on disk at
+ * a guessable URL, so this removes them. Posts protected AFTER this runs are
+ * handled by sn_og_sync_card_on_save() on the next save.
  *
  * Runs on admin_init at priority 5, idempotent, at most once per install
  * (gated by SN_OG_PROTECTED_PURGE_OPT), mirroring sn_migrate_backfill_og_cards().
@@ -512,9 +533,9 @@ function sn_migrate_purge_protected_og_cards() {
 	}
 
 	$post_ids = get_posts( array(
-		'post_type'      => array( 'post', 'page' ),
+		'post_type'      => 'any', // any card-bearing type, not just post/page
 		'post_status'    => 'publish',
-		'has_password'   => true, // only password-protected posts
+		'has_password'   => true,  // only password-protected posts
 		'posts_per_page' => -1,
 		'fields'         => 'ids',
 		'no_found_rows'  => true,

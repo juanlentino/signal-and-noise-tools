@@ -53,6 +53,12 @@ function wp_delete_file( $path ) { if ( file_exists( $path ) ) { unlink( $path )
 function apply_filters( $tag, $value ) { return $value; }
 function add_action() {}
 function add_filter() {}
+$GLOBALS['__options']    = array();
+$GLOBALS['__query_ids']  = array();
+$GLOBALS['__last_query'] = array();
+function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
+function get_posts( $args = array() ) { $GLOBALS['__last_query'] = $args; return $GLOBALS['__query_ids']; }
 
 require __DIR__ . '/../inc/og-card-generator.php';
 
@@ -113,6 +119,34 @@ ok( file_exists( $card99 ), 'seed: card 99 exists before deletion' );
 ok( true  === sn_og_delete_card( 99 ), 'sn_og_delete_card() removes an existing card' );
 ok( ! file_exists( $card99 ), 'card 99 is gone after deletion' );
 ok( false === sn_og_delete_card( 99 ), 'sn_og_delete_card() returns false when nothing to delete' );
+
+echo "\nGroup: save-sync cleanup covers ANY post type (not just post/page)\n";
+// A card can be generated for any editable post type via the admin-bar /
+// ability / AI-title regen callers, so the delete-on-protect path must not be
+// post/page-scoped or a CPT's stale card survives a public->protected switch.
+$cpt_card = seed_card( 55 );
+$cpt = (object) array( 'ID' => 55, 'post_status' => 'publish', 'post_password' => 'secret', 'post_type' => 'landing_page' );
+$GLOBALS['__posts'][55] = $cpt;
+ok( false === sn_og_sync_card_on_save( 55, $cpt ), 'save-sync returns false for a protected custom-post-type post' );
+ok( ! file_exists( $cpt_card ), 'protected custom-post-type card is deleted on save (not only post/page)' );
+
+$pub_card = seed_card( 56 );
+$pub = (object) array( 'ID' => 56, 'post_status' => 'publish', 'post_password' => '', 'post_type' => 'post' );
+$GLOBALS['__posts'][56] = $pub;
+sn_og_sync_card_on_save( 56, $pub );
+ok( file_exists( $pub_card ), 'a public post keeps its card through save-sync' );
+
+echo "\nGroup: purge migration sweeps protected cards of ANY post type\n";
+$GLOBALS['__options']   = array(); // purge not yet run
+$mig_card               = seed_card( 61 ); // a protected custom-type post's pre-existing card
+$GLOBALS['__query_ids'] = array( 61 );
+sn_migrate_purge_protected_og_cards();
+ok( 'any' === ( $GLOBALS['__last_query']['post_type'] ?? null ),
+	'purge query is not restricted to post/page (covers any card-bearing type)' );
+ok( true === ( $GLOBALS['__last_query']['has_password'] ?? null ),
+	'purge query targets only password-protected posts' );
+ok( ! file_exists( $mig_card ), 'purge migration deletes a protected post-type card returned by the query' );
+ok( isset( $GLOBALS['__options']['sn_og_protected_purge_completed_v1'] ), 'purge migration sets its completion flag' );
 
 // --- Cleanup. ---------------------------------------------------------------
 $dir = $GLOBALS['__base'] . '/sn-og';
