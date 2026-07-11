@@ -525,6 +525,12 @@ function sn_health_link_status( $url ) {
 			// CF-fronted, so a bare-403 probe would false-flag live pages as broken.
 			// Unverifiable, not broken; mirrors the external link-rot probe.
 			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
+		} elseif ( sn_health_is_nonstandard_status( $code ) ) {
+			// A non-standard status (outside HTTP 100–599) — an anti-bot refusal like
+			// LinkedIn's HTTP 999, not a real status and never "gone". Same shared
+			// classifier the external link-rot probe uses; kept here so the two probes
+			// agree. Unlikely on a same-host internal probe, but folded in for parity.
+			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'nonstandard_status' );
 		} else {
 			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
 		}

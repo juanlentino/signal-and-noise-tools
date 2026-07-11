@@ -353,6 +353,41 @@ $nf = sn_analytics_rollup_upsert( array(
 ) );
 ok( 0 === $nf, 'upsert: a failed write (query returns false) is not counted' );
 
+// ── Admin/login path exclusion (ingestion guard) ──────────────────────────────
+// Admin & login paths are never real human pageviews — the front-end beacon can't
+// fire in wp-admin/wp-login.php. If a stray beacon still lands one in AE, the
+// rollup must drop it rather than store it (matches the retired importer's rule).
+ar_reset();
+$n = sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-06-11', 'path' => '/wp-admin',             'views' => 5, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/wp-admin/',            'views' => 5, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/wp-admin/options.php', 'views' => 5, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/wp-login.php',         'views' => 5, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/wp-login.php?action=logout', 'views' => 5, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ),
+) );
+ok( 0 === $n, 'upsert: admin/login paths are skipped (never stored as pageviews)' );
+ok( count( $GLOBALS['wpdb']->queries ) === 0, 'upsert: an all-admin batch issues no query' );
+
+// Boundary-aware: a legit front-end path that merely starts with the "/wp-admin"
+// TEXT must NOT be caught (regression against a loose strpos prefix match).
+ar_reset();
+$n = sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-06-11', 'path' => '/wp-admin-guide/', 'views' => 3, 'visits' => 2, 'scroll_avg' => 0, 'time_avg' => 0 ),
+	array( 'day' => '2026-06-11', 'path' => '/wp-admin',        'views' => 9, 'visits' => 4, 'scroll_avg' => 0, 'time_avg' => 0 ),
+) );
+ok( 1 === $n, 'upsert: only the real admin path is skipped; /wp-admin-guide/ is kept' );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'/wp-admin-guide/'" ) !== false, 'upsert: /wp-admin-guide/ is stored' );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'/wp-admin'," ) === false, 'upsert: the exact /wp-admin path is not stored' );
+
+// ── excluded-path predicate ───────────────────────────────────────────────────
+echo "\nGroup: excluded-path predicate\n";
+foreach ( array( '/wp-admin', '/wp-admin/', '/wp-admin/options-general.php', '/wp-login.php', '/wp-login.php?action=logout' ) as $p ) {
+	ok( sn_analytics_is_excluded_path( $p ), "excluded-path: $p is excluded" );
+}
+foreach ( array( '/', '/notes/a', '/wp-admin-guide/', '/resume/', '/about/' ) as $p ) {
+	ok( ! sn_analytics_is_excluded_path( $p ), "excluded-path: $p is NOT excluded" );
+}
+
 // ── Locale-safe float binding (regression) ────────────────────────────────────
 // $wpdb->prepare() routes %f through vsprintf(), which is LC_NUMERIC-sensitive:
 // under a comma-decimal server locale (de_DE, pt_BR, …) a raw-float %f renders
@@ -519,10 +554,10 @@ ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 0, 'maybe_install: current version → no dbDelta' );
-ok( SN_ANALYTICS_DAILY_DB_VERSION === '2', 'db version is 2 (class dimension added)' );
+ok( SN_ANALYTICS_DAILY_DB_VERSION === '3', 'db version is 3 (admin/login purge)' );
 
-// Upgrading from v1 drops the old table (dbDelta cannot rotate the unique key)
-// then recreates. The stub records the DROP via query().
+// Upgrading from a pre-v2 version drops the old table (dbDelta cannot rotate the
+// unique key) then recreates. The stub records the DROP via query().
 ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '1' );
 sn_analytics_daily_maybe_install();
@@ -530,9 +565,25 @@ $dropped = false;
 foreach ( $GLOBALS['wpdb']->queries as $q ) {
 	if ( stripos( $q, 'DROP TABLE IF EXISTS wp_sn_analytics_daily' ) !== false ) { $dropped = true; }
 }
-ok( $dropped, 'maybe_install: v1→v2 drops the old table before recreating' );
-ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: v1→v2 runs dbDelta to recreate' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '2', 'maybe_install: stamps db version 2' );
+ok( $dropped, 'maybe_install: pre-v2 upgrade drops the old table before recreating' );
+ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: pre-v2 upgrade runs dbDelta to recreate' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '3', 'maybe_install: stamps the current db version' );
+
+// v2→v3 must NOT drop the table (it now holds real history). It runs a targeted
+// one-time DELETE of the admin/login rows that leaked in before the ingestion
+// guard existed — history-preserving, unlike the structural pre-v2 rotation.
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '2' );
+sn_analytics_daily_maybe_install();
+$dropped_v3 = false;
+$purged     = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'DROP TABLE' ) !== false ) { $dropped_v3 = true; }
+	if ( stripos( $q, 'DELETE FROM wp_sn_analytics_daily' ) !== false && stripos( $q, '/wp-admin' ) !== false ) { $purged = true; }
+}
+ok( ! $dropped_v3, 'maybe_install: v2→v3 does NOT drop the populated table' );
+ok( $purged, 'maybe_install: v2→v3 purges admin/login rows with a targeted DELETE' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '3', 'maybe_install: v2→v3 stamps db version 3' );
 
 // Option absent → install runs dbDelta with the schema + stamps the version.
 ar_reset();

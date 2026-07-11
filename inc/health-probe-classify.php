@@ -125,3 +125,28 @@ function sn_health_is_edge_gated( $code, $headers ) {
 	}
 	return sn_health_probe_is_cloudflare( $headers );
 }
+
+/**
+ * Is a probe response a NON-STANDARD status code — outside the valid HTTP range —
+ * rather than a dead link? Standard HTTP status codes occupy 100–599 (RFC 9110
+ * §15: the first digit is the class, 1–5). A code >= 600 is not a valid HTTP
+ * status at all, so it cannot carry "the resource is gone" semantics — that is a
+ * well-defined 404/410. In practice a >= 600 code is emitted by an anti-bot /
+ * anti-scraping layer refusing an automated client. The canonical case is
+ * LinkedIn's HTTP `999 Request denied`, returned to any non-browser probe of a
+ * profile that is fully LIVE for a human — so flagging it as rot is a false
+ * positive, exactly like a Cloudflare challenge or block.
+ *
+ * This classifier is DISTINCT from the two above: it is host-agnostic (LinkedIn is
+ * NOT behind Cloudflare, so the cf-mitigated / cf-ray fingerprints never fire) and
+ * keys purely on the code being non-standard, needing no header at all. The two
+ * Health probes encode a network error as code 0, which stays BELOW 600, so a
+ * genuine request failure is never swept into this skip bucket. A real dead link
+ * always answers with a standard 404/410/5xx (<= 599), so this never masks rot.
+ *
+ * @param int $code HTTP status code from the probe.
+ * @return bool True when the code is outside the valid HTTP range (treat as unverifiable).
+ */
+function sn_health_is_nonstandard_status( $code ) {
+	return (int) $code >= 600;
+}

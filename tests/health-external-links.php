@@ -211,6 +211,20 @@ $GLOBALS['__ext']['http']['https://cf-gone.example/g'] = array( 'code' => 404, '
 $s = sn_health_external_link_status( 'https://cf-gone.example/g' );
 ok( false === $s['ok'] && empty( $s['skipped'] ) && 404 === $s['code'], 'CF-fronted 404 still rots (edge-gating is 403/429 only, never masks GONE)' );
 
+// ─── 2m. LinkedIn's HTTP 999 "Request denied" — a LIVE profile the server refuses
+// to answer for a non-browser probe. 999 is OUTSIDE the valid HTTP range (100–599),
+// so it is neither a CF challenge nor a CF block (LinkedIn is not behind Cloudflare)
+// and must fold into the skip bucket as nonstandard_status, NOT rot. This is the
+// exact false positive the user reported on https://www.linkedin.com/in/… ───
+$GLOBALS['__resolve']['linkedin.example'] = '93.184.216.34';
+$GLOBALS['__ext']['transient'] = array(); // uncached
+$GLOBALS['__ext']['http']['https://linkedin.example/in/someone'] = array( 'code' => 999, 'headers' => array( 'server' => 'Play' ) );
+$s = sn_health_external_link_status( 'https://linkedin.example/in/someone' );
+ok( ! empty( $s['skipped'] ), 'HTTP 999 (LinkedIn anti-bot) is SKIPPED, not rotted' );
+ok( 'nonstandard_status' === ( $s['reason'] ?? '' ), 'skip reason is nonstandard_status' );
+ok( true === $s['ok'], 'a 999 link is treated as ok (produces no finding)' );
+ok( 999 === $s['code'], '999 code is preserved' );
+
 // ─── 3. The check: report rotted external links, skip good/SSRF-unsafe ───
 ok( function_exists( 'sn_health_check_external_links' ), 'sn_health_check_external_links() defined' );
 $GLOBALS['__ext']['transient'] = array(); // clear cache
@@ -257,6 +271,24 @@ $GLOBALS['__ext']['rows'] = array(
 $res = sn_health_check_external_links();
 ok( 1 === $res['count'], 'CF-challenged citation is NOT flagged; only the genuinely dead 404 is (reproduces the SSRN false positive)' );
 ok( 1 === count( $res['findings'] ) && strpos( $res['findings'][0]['subject_url'], 'rot.example' ) !== false, 'the single finding is the dead link, not the bot-protected one' );
+
+// ─── 3d. Regression for the LinkedIn HTTP 999 false positive: a post citing a
+// LinkedIn profile (answers a bot probe with 999) plus a genuinely dead link (404).
+// Only the dead link is flagged; the live-but-gated LinkedIn URL is not. This is
+// the exact Health-tab scenario the user reported. ───
+$GLOBALS['__ext']['transient'] = array();
+$GLOBALS['__ext']['head_args'] = array();
+$GLOBALS['__resolve']['linkedin.example'] = '93.184.216.34';
+$GLOBALS['__ext']['http'] = array(
+	'https://linkedin.example/in/juanlentino' => array( 'code' => 999 ),
+	'https://rot.example/dead'                => array( 'code' => 404 ),
+);
+$GLOBALS['__ext']['rows'] = array(
+	array( 'ID' => 41, 'post_title' => 'Personal', 'post_content' => '<a href="https://linkedin.example/in/juanlentino">LinkedIn</a> <a href="https://rot.example/dead">dead source</a>' ),
+);
+$res = sn_health_check_external_links();
+ok( 1 === $res['count'], 'LinkedIn 999 profile is NOT flagged; only the genuinely dead 404 is (reproduces the reported false positive)' );
+ok( 1 === count( $res['findings'] ) && strpos( $res['findings'][0]['subject_url'], 'rot.example' ) !== false, 'the single finding is the dead link, not the LinkedIn profile' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

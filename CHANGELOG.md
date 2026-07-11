@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.24.1] - 2026-07-11: Fix — LinkedIn (HTTP 999) no longer false-flagged as external link rot
+
+**Headline:** The External link-rot health check flagged a live `linkedin.com/in/…` citation as rotted with the note *"HTTP 999 on probe"*. HTTP 999 is not a real HTTP status — it's LinkedIn's proprietary **anti-bot "Request denied"** reply to any non-browser client. The profile is fully live for a human; the automated probe is simply being refused. The check already skips Cloudflare-gated citations as *live-but-gating* rather than rot, but those guards key on a Cloudflare fingerprint (`cf-mitigated` / `cf-ray`), and LinkedIn isn't behind Cloudflare — so the 999 fell through and was scored as a dead link. This adds a host-agnostic classifier that treats any status outside the valid HTTP range (100–599, RFC 9110 §15) as unverifiable, closing the same false-positive class for anti-bot hosts that don't sit behind a CDN.
+
+> **Why PATCH:** a false-positive fix. No public function/REST route removed or renamed, no settings-schema change, no user action required — the stale finding self-clears once its 24h probe cache expires and the next scan re-probes.
+
+### Fixed
+- [inc/health-probe-classify.php](inc/health-probe-classify.php) — new shared classifier `sn_health_is_nonstandard_status( $code )` returns true for any code ≥ 600 (outside the valid HTTP 1xx–5xx range), the band anti-bot layers use to refuse automated probes (canonically LinkedIn's `999 Request denied`). The code-0 network-error sentinel stays below 600, so a genuine request failure is never masked, and a real dead link always answers with a standard 404/410/5xx, so this never hides rot.
+- [inc/health-external-links.php](inc/health-external-links.php) — the external link-rot probe folds a non-standard status into the skip bucket (`reason: nonstandard_status`), the same treatment a Cloudflare challenge/block already gets. Its `fix_hint` now names anti-bot refusals (e.g. LinkedIn's HTTP 999) among the skipped-not-flagged cases.
+- [inc/health-checks.php](inc/health-checks.php) — the internal broken-links probe calls the same classifier so both probes agree (parity; a non-standard status is unlikely on a same-host internal link, but the shared seam stays consistent).
+
+### Tests
+- [tests/health-probe-classify.php](tests/health-probe-classify.php) — unit coverage for `sn_health_is_nonstandard_status()` (999 / 600 / 700 skip; 599/500/404/410/200/0 do not).
+- [tests/health-external-links.php](tests/health-external-links.php) — a 999 probe is skipped as `nonstandard_status` (not rot), plus an end-to-end regression reproducing the reported scenario: a post citing a LinkedIn profile (999) alongside a genuinely dead link (404) flags only the 404.
+
+## [9.24.0] - 2026-07-11: Analytics stops counting the admin — `/wp-admin/` filtered + cache-proof owner exclusion
+
+**Headline:** `/wp-admin/` (and `/wp-login.php`) no longer appear in the first-party analytics, and your own visits are excluded even on cached pages. Two root causes were bundled under "the analytics keeps reading me as a visitor": (A) admin/login paths were being counted as human pageviews, and (B) the v6.23.0 role-exclusion couldn't fire on CDN-cached pages, so the owner's front-end views leaked in.
+
+The **invariant** was already documented — the retired Plausible importer skipped `/wp-admin` and `/wp-login.php` because "they never fire the front-end beacon." The live ingestion pipeline (collector Worker → Analytics Engine → daily rollup) never enforced it. This restores the invariant at the ingestion boundary, source-agnostic, so it holds no matter how a stray beacon arrives.
+
+> **Why MINOR:** adds a new user-visible capability (cache-proof owner exclusion at the edge) plus a data migration, all additive. No public function/REST route removed or renamed. The daily-table rows are purged by a version-gated one-time migration, so no manual user action is required.
+
+### Fixed
+- **`/wp-admin/` counted as a human pageview.** [inc/analytics-rollup.php](inc/analytics-rollup.php) now drops admin/login paths on write via a new shared predicate `sn_analytics_is_excluded_path()`, mirroring the invariant the importer enforced. Boundary-aware: a real front-end slug like `/wp-admin-guide/` is **not** swept up (stricter than the importer's loose `strpos`).
+
+### Added
+- **One-time purge** of the admin/login rows already in `wp_sn_analytics_daily` — daily-table DB version `2 → 3`. Critically, the 2→3 step is a **targeted `DELETE`, not a table drop**: the old install path blanket-dropped the table on any version mismatch (safe only while it was dormant), which would now destroy real history. The structural pre-v2 rotation is preserved; v2-onward migrations mutate data in place.
+- **Cache-proof owner exclusion** (paired with the collector Worker, v1.10.0). The Worker drops any beacon carrying a `wordpress_logged_in_*` cookie — the same-origin `sendBeacon` POST carries the WP auth cookie even when the page was a CDN cache hit, closing the one gap the theme's per-user `sn_beacon_enabled` filter can't cover. Toggle at the edge with `SN_PX_EXCLUDE_LOGGED_IN`.
+
+### Changed
+- [inc/analytics-render-settings.php](inc/analytics-render-settings.php) — the "Exclude my own visits" card no longer warns that a cache-bypass rule is *required*; it explains the edge collector now drops logged-in beacons cache-proof, with the role list refining per-role control on uncached requests.
+
+### Notes
+- The collector Worker ([signal-and-noise-analytics-worker](https://github.com/juanlentino/signal-and-noise-analytics-worker)) must be redeployed (`npm run deploy`) for the edge drops to take effect — it enforces the same admin/login path rule and the logged-in-cookie drop before the AE write. The plugin-side rollup guard is the safety net for anything already in AE.
+- Tests: [tests/analytics-rollup.php](tests/analytics-rollup.php) extended — the excluded-path predicate, the upsert skip (incl. the `/wp-admin-guide/` non-match), and the history-preserving v2→v3 purge.
+
 ## [9.23.0] - 2026-07-11: Verifiable Credentials — each Note's proof as a W3C VC
 
 **Headline:** Every Note's existing Bitcoin-anchored authorship proof is now readable as a **W3C Verifiable Credential** (JSON-LD) at `/wp-json/signal-noise/v1/credential/<note-uid>`, and the site publishes a **`did:web:juanlentino.com`** identity at `/.well-known/did.json` carrying the Ed25519 public key. A machine can now verify a Note's authorship and timestamp without scraping — resolve the DID for the key, verify the signature over the credential's canonical payload, then check the Bitcoin anchor. No new signing: the credential reuses the signature the provenance Worker already produces. Sub-project D1 of the machine-readability program (C2PA is a later follow-up).

@@ -69,5 +69,25 @@ ok( false === sn_health_is_edge_gated( 503, array( 'cf-ray' => '8ab' ) ), '503 b
 ok( false === sn_health_is_edge_gated( 200, array( 'cf-ray' => '8ab' ) ), 'healthy 200 behind CF → not edge-gated' );
 ok( true  === sn_health_is_edge_gated( 403, new SN_CI_Headers( array( 'CF-RAY' => '8ab' ) ) ), 'detects CF fingerprint through the ArrayAccess CaseInsensitiveDictionary (real WP path)' );
 
+// ─── sn_health_is_nonstandard_status(): a probe answered with a code OUTSIDE the
+// valid HTTP range (100–599, RFC 9110 §15 — first digit is the class 1–5) is not
+// a real HTTP status and cannot mean "gone" (that is a well-defined 404/410). In
+// practice it is an anti-bot / anti-scraping refusal of the automated probe; the
+// canonical case is LinkedIn's HTTP 999 "Request denied", returned to non-browser
+// clients hitting a profile that is fully LIVE for a human. Host-agnostic (LinkedIn
+// is NOT behind Cloudflare, so the CF classifiers above never catch it) and keys
+// purely on the code, needing no header fingerprint. The code-0 network-error
+// sentinel the probes use stays BELOW 600, so a genuine failure is never masked. ───
+ok( function_exists( 'sn_health_is_nonstandard_status' ), 'sn_health_is_nonstandard_status() defined' );
+ok( true  === sn_health_is_nonstandard_status( 999 ), 'HTTP 999 (LinkedIn anti-bot "Request denied") → non-standard, unverifiable (not rot)' );
+ok( true  === sn_health_is_nonstandard_status( 600 ), '600 (first code past the valid HTTP range) → non-standard' );
+ok( true  === sn_health_is_nonstandard_status( 700 ), 'any code ≥ 600 → non-standard (not just 999)' );
+ok( false === sn_health_is_nonstandard_status( 599 ), '599 (top of the valid HTTP range) → standard, NOT caught' );
+ok( false === sn_health_is_nonstandard_status( 500 ), '500 server error → standard, stays real rot' );
+ok( false === sn_health_is_nonstandard_status( 404 ), '404 → standard, GONE, stays real rot' );
+ok( false === sn_health_is_nonstandard_status( 410 ), '410 → standard, GONE, stays real rot' );
+ok( false === sn_health_is_nonstandard_status( 200 ), 'healthy 200 → not non-standard' );
+ok( false === sn_health_is_nonstandard_status( 0 ), 'code 0 (network-error sentinel) → NOT caught here (stays a network-failure rot signal)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

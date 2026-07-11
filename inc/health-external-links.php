@@ -155,6 +155,14 @@ function sn_health_external_link_status( $url ) {
 			// Unverifiable, not rot — same treatment as a challenge. A plain non-CF
 			// 403 still rots (the prior guard against blanket-ignoring every 403).
 			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
+			} elseif ( sn_health_is_nonstandard_status( $code ) ) {
+				// A NON-STANDARD status (outside HTTP 100–599) — e.g. LinkedIn's HTTP
+				// `999 Request denied` anti-bot refusal. The resource is LIVE for a
+				// human; the server just rejects the non-browser probe. Not a real HTTP
+				// status, so it can't mean "gone" (that is 404/410). Unverifiable, not
+				// rot — same skip treatment as a CF challenge/block, but host-agnostic
+				// (LinkedIn is not behind Cloudflare, so the edge classifiers miss it).
+				$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'nonstandard_status' );
 		} else {
 			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
 		}
@@ -179,7 +187,7 @@ function sn_health_check_external_links() {
 	global $wpdb;
 
 	$label     = 'External link rot';
-	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local) or bot-challenged (e.g. Cloudflare-gated) URLs are skipped, not flagged — a 403 challenge means the page is live but gating automated probes, not rotted.';
+	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local), bot-challenged (e.g. Cloudflare-gated), or anti-bot-refused (e.g. LinkedIn returns HTTP 999) URLs are skipped, not flagged — the page is live but gating automated probes, not rotted.';
 	$findings  = array();
 	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $site_host ) {
