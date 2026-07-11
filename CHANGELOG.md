@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.25.1] - 2026-07-11: Security — password-protected posts no longer leak content through their OG card
+
+**Headline:** The generated 1200×630 social-share card baked a post's **title and up to ~36 words of `post_content`** (via `sn_og_card_dek_source()`) into a PNG served publicly and **without authentication** at `/wp-content/uploads/sn-og/post-{ID}.png`. A password-protected post is still `post_status='publish'`, so the status-keyed generation and serving gates let it through — anyone could read the protected title and dek as visible pixels, bypassing the password. D2 (v9.25.0) already withholds the *metadata* credential for exactly these posts (`sn_prov_credential()` embeds nothing in a protected Note's card), but the rendered *pixels* still leaked; this closes the pixel side with the same gate. Pre-existing, not introduced by D2.
+
+The fix is layered because the earlier backfill migration already generated a card for **every** published post — protected ones included — before any gate existed, so a generation-only fix would leave those PNGs live on disk:
+
+1. **Don't generate** — `sn_generate_og_card()` bails for a protected post, covering all five callers (save hook, backfill, rebuild-card ability, admin-bar action, AI-title rewrite).
+2. **Don't serve** — `sn_og_image_url_for_post()` returns `null` for a protected post even when a card PNG exists on disk, so the public `og:image` never points at it. The author-chosen featured image is still emitted (it's not a content leak).
+3. **Remove the files** — the save hook deletes any card on the public→protected transition, and a one-time `admin_init` migration purges cards already written for protected posts.
+
+> **Why PATCH:** a security-hardening fix. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. New helpers are additive; the purge migration is version-gated and idempotent, so no user action is required.
+
+### Security
+- [inc/og-card-generator.php](inc/og-card-generator.php) — new `sn_og_card_allowed_for_post( $post )` predicate mirrors the D1/D2 gate (`'' !== (string) $post->post_password`) as the single source of truth for every card path. `sn_generate_og_card()` and `sn_og_image_url_for_post()` consult it (generation bail + serving `null`); the `wp_after_insert_post` hook and the new `sn_migrate_purge_protected_og_cards()` migration delete stale/pre-existing cards via a new `sn_og_delete_card( $post_id )` helper. The featured-image branch is untouched — only the auto-generated content card is withheld.
+
+### Tests
+- [tests/og-card-password-protected.php](tests/og-card-password-protected.php) — proves a protected post is withheld by the predicate, that `sn_og_image_url_for_post()` returns `null` for a protected post **even when the card PNG is on disk** (paired against a public post that resolves to that same file, so the assertion is non-vacuous), that a protected post's featured image is still served, and that generation bails while the delete helper removes an existing card.
+
 ## [9.25.0] - 2026-07-11: Content-credential OG cards — each share image carries its own provenance
 
 **Headline:** Every Note's social-share card (the generated 1200×630 OG PNG) now embeds a self-contained **provenance block** in its metadata — the Note's existing Verifiable Credential plus pointers to the DID document and the live credential. A machine that reads the shared image can verify its authorship and timestamp offline (resolve `did:web` → verify the Ed25519 proof over the canonical payload → check the Bitcoin anchor) and follow the pointers back to the site. No new signing: the block reuses the signature D1 already produced, and inherits D1's visibility gate (a non-public or password-protected Note embeds nothing). Sub-project D2 of the machine-readability program — the last one; this closes A→B→C→D1→D2.

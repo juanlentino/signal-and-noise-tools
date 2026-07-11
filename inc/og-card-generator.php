@@ -55,6 +55,61 @@ function sn_og_upload_dir() {
 }
 
 /**
+ * Guard: may this post carry a generated content card?
+ *
+ * A card bakes the post title and up to ~36 words of post_content (via
+ * sn_og_card_dek_source()) into a PNG served publicly and WITHOUT auth at
+ * wp-content/uploads/sn-og/post-{ID}.png. A password-protected post is still
+ * post_status='publish', so the status-keyed generation/serving gates let it
+ * through — and its protected title + dek would leak to anyone as visible
+ * pixels, bypassing the password. This predicate withholds the card for
+ * exactly those posts.
+ *
+ * Mirrors the D1/D2 content-credential gate in sn_prov_credential()
+ * (inc/provenance-credential.php): that withholds the *metadata* credential
+ * for a protected/unpublished Note; this withholds the rendered *pixels*.
+ *
+ * Extracted as a named predicate so the gate is CLI-testable without GD/fonts
+ * (same rationale as sn_og_card_dek_source() / sn_resolve_og_image_url()) and
+ * so every card path — generation, serving, save hook, purge — shares one
+ * source of truth.
+ *
+ * @since 9.25.1
+ * @param WP_Post|object|null $post
+ * @return bool True when a card may be generated/served; false to withhold it.
+ */
+function sn_og_card_allowed_for_post( $post ) {
+	if ( ! $post ) {
+		return false;
+	}
+	return '' === (string) $post->post_password;
+}
+
+/**
+ * Delete the cached OG card PNG for a post, if one exists. Used to remove a
+ * card that must no longer be served — e.g. when a post becomes
+ * password-protected (the wp_after_insert_post hook) or the one-time
+ * protected-card purge migration. Best-effort and quiet: returns true only
+ * when a file was actually removed.
+ *
+ * @since 9.25.1
+ * @param int $post_id
+ * @return bool
+ */
+function sn_og_delete_card( $post_id ) {
+	$dir = sn_og_upload_dir();
+	if ( ! $dir ) {
+		return false;
+	}
+	$path = $dir['path'] . '/post-' . (int) $post_id . '.png';
+	if ( ! file_exists( $path ) ) {
+		return false;
+	}
+	wp_delete_file( $path );
+	return ! file_exists( $path );
+}
+
+/**
  * Return the OG image URL for a post, with a cache-buster query string
  * tied to post-modified time. Featured image wins; otherwise the
  * generated card; null if neither is available so callers can fall
@@ -103,6 +158,17 @@ function sn_og_image_url_for_post( $post ) {
 		if ( $thumb ) {
 			return $thumb;
 		}
+	}
+
+	// Security: never surface the generated content card for a
+	// password-protected post — it bakes the protected title + dek into public
+	// pixels served without auth. The featured image above is author-chosen and
+	// safe; this only withholds the auto-generated card. Guards pre-existing
+	// cards on disk too (the backfill migration already generated one for every
+	// published post, protected ones included), so this — not just the
+	// generation gate — is what closes the live leak.
+	if ( ! sn_og_card_allowed_for_post( $post ) ) {
+		return null;
 	}
 
 	$dir = sn_og_upload_dir();
@@ -164,6 +230,15 @@ function sn_generate_og_card( $post_id ) {
 	}
 	$post = get_post( $post_id );
 	if ( ! $post ) {
+		return false;
+	}
+
+	// Security: never bake protected content into a public card. Placed inside
+	// the shared generator so ALL callers are covered — the save hook, the
+	// backfill migration, the rebuild-card ability, the admin-bar action, and
+	// the AI-title rewrite. Also stops D2's provenance injection below from
+	// running for a post whose credential sn_prov_credential() already withholds.
+	if ( ! sn_og_card_allowed_for_post( $post ) ) {
 		return false;
 	}
 
@@ -329,6 +404,14 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	if ( 'publish' !== $post->post_status ) {
 		return;
 	}
+	// Security: a password-protected post must not carry a public content card.
+	// Skip generation AND remove any card left from when the post was public —
+	// the public→protected transition fires this same save hook. sn_generate_og_card()
+	// re-guards internally; deleting here also cleans the file, not just the emit.
+	if ( ! sn_og_card_allowed_for_post( $post ) ) {
+		sn_og_delete_card( $post_id );
+		return;
+	}
 	sn_generate_og_card( $post_id );
 }, 20, 4 );
 
@@ -393,6 +476,55 @@ function sn_migrate_backfill_og_cards() {
 	}
 
 	update_option( SN_OG_BACKFILL_OPT, time(), true );
+}
+
+/**
+ * Purge option flag — set once the one-time protected-card sweep has run.
+ */
+const SN_OG_PROTECTED_PURGE_OPT = 'sn_og_protected_purge_completed_v1';
+
+/**
+ * One-time remediation: delete cards the earlier backfill generated for
+ * password-protected published posts. The generation/serving gates keep NEW
+ * and FUTURE leaks closed, but the backfill (SN_OG_BACKFILL_OPT) already wrote
+ * a content card for every published post — protected ones included — before
+ * those gates existed. Those PNGs still sit on disk at a guessable URL, so this
+ * removes them. Posts protected AFTER this runs are handled by the save hook.
+ *
+ * Runs on admin_init at priority 5, idempotent, at most once per install
+ * (gated by SN_OG_PROTECTED_PURGE_OPT), mirroring sn_migrate_backfill_og_cards().
+ *
+ * @since 9.25.1
+ */
+add_action( 'admin_init', 'sn_migrate_purge_protected_og_cards', 5 );
+
+function sn_migrate_purge_protected_og_cards() {
+	if ( get_option( SN_OG_PROTECTED_PURGE_OPT ) ) {
+		return;
+	}
+
+	$dir = sn_og_upload_dir();
+	if ( ! $dir ) {
+		// Uploads dir unavailable — mark done so we don't loop forever. Future
+		// protected saves are still handled by the wp_after_insert_post hook.
+		update_option( SN_OG_PROTECTED_PURGE_OPT, time(), true );
+		return;
+	}
+
+	$post_ids = get_posts( array(
+		'post_type'      => array( 'post', 'page' ),
+		'post_status'    => 'publish',
+		'has_password'   => true, // only password-protected posts
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+	) );
+
+	foreach ( $post_ids as $post_id ) {
+		sn_og_delete_card( $post_id );
+	}
+
+	update_option( SN_OG_PROTECTED_PURGE_OPT, time(), true );
 }
 
 /**
