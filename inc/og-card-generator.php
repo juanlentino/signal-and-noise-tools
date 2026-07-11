@@ -233,6 +233,9 @@ function sn_generate_og_card( $post_id ) {
 	$path = $dir['path'] . '/post-' . (int) $post_id . '.png';
 	$ok   = imagepng( $im, $path, 6 );
 	imagedestroy( $im );
+	if ( $ok && function_exists( 'sn_og_card_inject_provenance' ) ) {
+		sn_og_card_inject_provenance( $path, (int) $post_id ); // v9.25.0: embed the Note's provenance in the card (D2).
+	}
 	return (bool) $ok;
 }
 

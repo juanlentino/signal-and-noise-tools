@@ -245,6 +245,7 @@ require_once __DIR__ . '/inc/redirects-404-log.php';
 require_once __DIR__ . '/inc/redirects-handler.php';
 require_once __DIR__ . '/inc/redirects-admin.php';
 require_once __DIR__ . '/inc/og-card-generator.php';
+require_once __DIR__ . '/inc/og-card-provenance.php'; // v9.25.0: embed provenance in OG cards (machine-readability D2)
 require_once __DIR__ . '/inc/reading-time.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';
 require_once __DIR__ . '/inc/wp-update-git-preservation.php';
