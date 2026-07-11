@@ -84,5 +84,22 @@ ok( sn_prov_credential( 7, null ) === null, 'content_hash mismatch → no VC (ne
 $GLOBALS['__chain'] = array();
 ok( sn_prov_credential( 7, null ) === null, 'no chain → null' );
 
+// --- REST callback: uid resolves → VC; unknown/unsigned → 404 ---
+if ( ! function_exists( 'sn_prov_post_by_uid' ) ) { function sn_prov_post_by_uid( $uid ) { return 'known' === $uid ? 7 : 0; } }
+class SN_Cred_Req { private $p; function __construct( $p ) { $this->p = $p; } function get_param( $k ) { return $this->p[ $k ] ?? null; } }
+if ( ! class_exists( 'WP_REST_Response' ) ) { class WP_REST_Response { public $data; public $status; public $headers = array(); function __construct( $d = null, $s = 200 ) { $this->data = $d; $this->status = $s; } function header( $k, $v ) { $this->headers[ $k ] = $v; } } }
+if ( ! class_exists( 'WP_Error' ) ) { class WP_Error { public $code; public $data; function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->data = $d; } } }
+$GLOBALS['__chain'] = array( sn_test_commit( 1, 'confirmed' ) );
+$r = sn_prov_cred_rest( new SN_Cred_Req( array( 'uid' => 'known' ) ) );
+ok( $r instanceof WP_REST_Response && ( $r->data['type'][0] ?? '' ) === 'VerifiableCredential', 'REST returns the VC for a known uid' );
+ok( ( $r->headers['Content-Type'] ?? '' ) === 'application/vc+ld+json', 'REST sets the vc+ld+json content type' );
+$e = sn_prov_cred_rest( new SN_Cred_Req( array( 'uid' => 'nope' ) ) );
+ok( $e instanceof WP_Error && ( $e->data['status'] ?? 0 ) === 404, 'unknown uid → 404' );
+
+// --- manifest advertisement (two entries: did + credential convention) ---
+$surf = sn_prov_cred_advertise_surface( array() );
+$types = array_column( $surf, 'type' );
+ok( in_array( 'did-web', $types, true ) && in_array( 'verifiable-credential', $types, true ), 'advertises did-web + verifiable-credential surfaces' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
