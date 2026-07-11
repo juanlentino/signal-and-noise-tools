@@ -224,6 +224,37 @@ function sn_og_card_dek_source( $post ) {
 	return $excerpt;
 }
 
+/**
+ * Auto-size the title so a long one doesn't collide with the dek. Tries each
+ * [size, line_height] in $ladder (largest first) and returns the first whose
+ * wrapped block's last baseline clears $limit; falls back to the smallest step
+ * (then the wrap ellipsizes) when even that overflows. Pure — $wrap( $size )
+ * returns the wrapped lines at that size, so the sizing decision is testable
+ * without GD.
+ *
+ * @since 9.25.2
+ * @param array<int,array{0:int,1:int}> $ladder    [ [size, line_height], ... ], largest first.
+ * @param callable                      $wrap      fn(int $size): string[]
+ * @param int                           $title_top First title baseline (y).
+ * @param int                           $limit     Max allowed last-line baseline (y).
+ * @return array{size:int,lh:int,lines:array<int,string>}
+ */
+function sn_og_fit_title( array $ladder, callable $wrap, $title_top, $limit ) {
+	$chosen = array( 'size' => 88, 'lh' => 100, 'lines' => array() );
+	foreach ( $ladder as $step ) {
+		$size   = (int) $step[0];
+		$lh     = (int) $step[1];
+		$lines  = (array) $wrap( $size );
+		$n      = max( 1, count( $lines ) );
+		$bottom = (int) $title_top + ( $n - 1 ) * $lh;
+		$chosen = array( 'size' => $size, 'lh' => $lh, 'lines' => $lines );
+		if ( $bottom <= (int) $limit ) {
+			return $chosen;
+		}
+	}
+	return $chosen; // Nothing cleared the limit — use the smallest ladder step.
+}
+
 function sn_generate_og_card( $post_id ) {
 	if ( ! function_exists( 'imagettftext' ) ) {
 		return false;
@@ -282,12 +313,25 @@ function sn_generate_og_card( $post_id ) {
 	// matching pre-v2.4.0 behavior exactly. The og:title HTML meta tag is
 	// unaffected — it continues to emit the canonical article title; only
 	// the visual title baked into the PNG changes.
-	$title       = (string) apply_filters( 'sn_og_card_title', $post->post_title, $post->ID );
-	$title_lines = sn_og_wrap_lines( $title, 88, $bebas_path, $max_width, 3 );
-	$y           = 250;
-	foreach ( $title_lines as $line ) {
-		imagettftext( $im, 88, 0, $pad_x, $y, $black, $bebas_path, $line );
-		$y += 100;
+	$title     = (string) apply_filters( 'sn_og_card_title', $post->post_title, $post->ID );
+	$title_top = 250;
+	// v9.25.2: auto-size the title. A 3-line title at 88px used to land its last
+	// line on y=250+200=450 — exactly the dek's first baseline — so the two
+	// overlapped. Shrink the title one ladder step when it would reach into the
+	// dek zone (its last baseline must clear the dek's 450 by 64px). 1-2 line
+	// titles are unchanged (88px); only the long ones step down.
+	$fit = sn_og_fit_title(
+		array( array( 88, 100 ), array( 74, 84 ), array( 62, 72 ) ),
+		function ( $size ) use ( $title, $bebas_path, $max_width ) {
+			return sn_og_wrap_lines( $title, $size, $bebas_path, $max_width, 3 );
+		},
+		$title_top,
+		( SN_OG_HEIGHT - 180 ) - 64
+	);
+	$y = $title_top;
+	foreach ( $fit['lines'] as $line ) {
+		imagettftext( $im, $fit['size'], 0, $pad_x, $y, $black, $bebas_path, $line );
+		$y += $fit['lh'];
 	}
 
 	// Excerpt/dek: post_excerpt → content-derived → theme fallback (v9.3.0).
