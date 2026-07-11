@@ -563,8 +563,9 @@ hc_true( false !== strpos( $result->get_error_message(), 'fixture: generate_text
 // CRITICAL — protects against future regression where someone removes
 // the model pin. Verifies that:
 //   (a) the builder chain recorded a call to using_model_preference
-//       with exactly ['claude-sonnet-5', 'claude-sonnet-4-6'] as the args
-//       (v6.52.0: the SN_AI_DEFAULT_MODEL pin + the SN_AI_FALLBACK_MODEL net)
+//       with exactly ['claude-sonnet-5'] as the args — SN_AI_DEFAULT_MODEL and
+//       SN_AI_FALLBACK_MODEL are both Sonnet 5 now, so array_unique collapses
+//       the doubled id (v6.52.0 list build; fallback repinned off 4.6)
 //   (b) that call happened BEFORE generate_text
 // If either invariant breaks (someone removes the pin OR moves it
 // after generate_text such that it no-ops), this test fails.
@@ -573,8 +574,8 @@ fixture_reset();
 $GLOBALS['__test_ai_builder_supports_text']    = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
-	'builder chain recorded using_model_preference(claude-sonnet-5, claude-sonnet-4-6)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'builder chain recorded using_model_preference(claude-sonnet-5) — default == fallback, deduped' );
 $pref_idx = fixture_first_call_index( 'using_model_preference' );
 $gen_idx  = fixture_first_call_index( 'generate_text_result' );
 hc_true( $pref_idx >= 0, 'using_model_preference was called' );
@@ -591,26 +592,26 @@ add_filter( 'snt_ai_model_preference', function () {
 	return 'claude-haiku-4-5';
 } );
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
 	'filter override propagates to builder (using_model_preference(claude-haiku-4-5, fallback))' );
-hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
+hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
 	'default pin list NOT recorded once filter overrides' );
 
 // ─── Test 13b: pin == fallback dedupes to a single id (v6.52.0) ──────
 //
 // SN_AI_FALLBACK_MODEL is appended to the preference list, but if the
 // resolved pin already equals it, array_unique collapses the doubled id so
-// the builder sees a single 'claude-sonnet-4-6' (not [..-4-6, ..-4-6]).
+// the builder sees a single 'claude-sonnet-5' (not [..-5, ..-5]).
 echo "\nTest 13b: snt_ai_generate_with_constraints — pin equal to fallback dedupes\n";
 fixture_reset();
 $GLOBALS['__test_ai_builder_supports_text']    = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 add_filter( 'snt_ai_model_preference', function () {
-	return 'claude-sonnet-4-6'; // equals SN_AI_FALLBACK_MODEL
+	return 'claude-sonnet-5'; // equals SN_AI_FALLBACK_MODEL
 } );
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-4-6' ) ),
-	'pin == fallback → single deduped id (no doubled claude-sonnet-4-6)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'pin == fallback → single deduped id (no doubled claude-sonnet-5)' );
 
 // ─── Test 14: max_tokens clamping ────────────────────────────────────
 echo "\nTest 14: snt_ai_generate_with_constraints — max_tokens clamped to [1, 4096]\n";
@@ -934,7 +935,7 @@ snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
 hc_true( fixture_recorded_call_matches( 'with_file', array( $vimg, 'image/jpeg' ) ),
 	'vision path: builder recorded with_file(path, mime)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'feature alt-text routes using_model_preference → [gemini-2.5-flash-lite, fallback]' );
 
 // v7.3.0: the alt-text route default follows theme.ai_alt_model when set. The
@@ -948,13 +949,13 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 $GLOBALS['__settings']['theme.ai_alt_model'] = 'gemini-2.5-flash';
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-5' ) ),
 	'v7.3.0: alt-text default follows theme.ai_alt_model' );
 unset( $GLOBALS['__settings']['theme.ai_alt_model'] );
 fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'v7.3.0: absent setting keeps the pinned default' );
 
 // Text-only path: no image → ZERO with_file calls, default Sonnet model unchanged.
@@ -962,15 +963,15 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'generic' );
 hc_eq( false, ai_saw_with_file(), 'text path: zero with_file calls (text-only path byte-identical)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
-	'feature generic stays on the default pin list [claude-sonnet-5, fallback]' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'feature generic stays on the default pin list [claude-sonnet-5] (default == fallback, deduped)' );
 
 // Unreadable image path: ignored (is_readable guard), still routes to Gemini.
 fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', '/no/such/img.jpg', 'image/jpeg' );
 hc_eq( false, ai_saw_with_file(), 'unreadable image: no with_file attached (is_readable guard)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'alt-text still routes to Gemini even when the image is unreadable (degrades to text-only)' );
 
 // snt_ai_alt_text_model filter re-pins the alt-text model with no release.
@@ -978,7 +979,7 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 add_filter( 'snt_ai_alt_text_model', function () { return 'gemini-2.5-flash'; } );
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-5' ) ),
 	'snt_ai_alt_text_model filter re-pins the alt-text model ([gemini-2.5-flash, fallback])' );
 
 @unlink( $vimg );

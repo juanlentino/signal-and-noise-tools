@@ -7,7 +7,8 @@
  * One on-demand call per submission; FRUGAL by design:
  *   - hard-caps the input to ~4000 chars (word-boundary) BEFORE the call so a
  *     giant paste can't balloon token cost;
- *   - pins Sonnet 4.6 + a 700-token output cap via snt_ai_generate_with_constraints().
+ *   - caps output at 700 tokens via snt_ai_generate_with_constraints(), which
+ *     routes through the site's configured default text model (Sonnet 5).
  *
  * Output is markdown — the user pastes it straight into a Mimestream-style
  * release-notes document (per the v4.11.0 design decision).

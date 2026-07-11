@@ -57,9 +57,12 @@ define( 'SN_AI_USAGE_LOG_CAP', 200 );
 // the provider's cached list, an unguarded single pin would fall through to the
 // provider's most-capable default (Opus/Fable) — the exact expensive-model
 // surprise the pin exists to prevent. With the fallback it degrades to Sonnet
-// 4.6 instead. Both are alias ids (no date suffix). See snt_ai_model_pricing().
+// 5 instead. Both are alias ids (no date suffix). See snt_ai_model_pricing().
+// The fallback tracks the default (both Sonnet 5): same price as the retired
+// 4.6 pin but strictly better, and now universally resolvable, so it is the
+// current known-good net for any owner-picked id the provider can't resolve.
 define( 'SN_AI_DEFAULT_MODEL',  'claude-sonnet-5' );
-define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-4-6' );
+define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-5' );
 
 /**
  * Is the WP AI Client wired up with at least one provider that can
@@ -307,7 +310,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// SN_AI_FALLBACK_MODEL as a known-good Sonnet safety net (deduped so a pin that
 	// already equals the fallback stays a single id). using_model_preference()
 	// picks the first id the configured provider exposes, so a just-released id not
-	// yet in the provider's cached /v1/models list degrades to Sonnet 4.6 instead
+	// yet in the provider's cached /v1/models list degrades to Sonnet 5 instead
 	// of falling through to the provider's most-capable (expensive) default.
 	$model_list = array_values( array_unique( array_filter( array( (string) $model_preference, SN_AI_FALLBACK_MODEL ) ) ) );
 
