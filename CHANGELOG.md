@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.23.0] - 2026-07-11: Verifiable Credentials — each Note's proof as a W3C VC
+
+**Headline:** Every Note's existing Bitcoin-anchored authorship proof is now readable as a **W3C Verifiable Credential** (JSON-LD) at `/wp-json/signal-noise/v1/credential/<note-uid>`, and the site publishes a **`did:web:juanlentino.com`** identity at `/.well-known/did.json` carrying the Ed25519 public key. A machine can now verify a Note's authorship and timestamp without scraping — resolve the DID for the key, verify the signature over the credential's canonical payload, then check the Bitcoin anchor. No new signing: the credential reuses the signature the provenance Worker already produces. Sub-project D1 of the machine-readability program (C2PA is a later follow-up).
+
+> **Why MINOR:** a new machine-verifiable surface, additive. No public function/REST route removed or renamed, no settings-schema change, no WP-floor raise. Read-only, public (credentials are meant to be verified by anyone), and it re-serializes existing data — it signs nothing new.
+
+### Added
+- [inc/provenance-did.php](inc/provenance-did.php) — serves `/.well-known/did.json`, publishing the provenance Ed25519 public key as a `JsonWebKey2020` under `did:web:juanlentino.com` (flush-free `template_redirect` virtual route; 404s until a key is configured, and rejects a non-32-byte key).
+- [inc/provenance-credential.php](inc/provenance-credential.php) — builds each Note's Verifiable Credential from its signed commit, reusing the canonical payload the signature actually covers (`proof.signedPayloadB64`) and self-checking it against the anchored `content_hash` before emitting — never publishes a credential it can't itself verify. Served at `/wp-json/signal-noise/v1/credential/<uid>` (with `?v=<n>` for a specific version), advertised per-Note in the `<head>` and site-wide in `/.well-known/agents.json`.
+- [tests/provenance-did.php](tests/provenance-did.php) (15) + [tests/provenance-credential.php](tests/provenance-credential.php) (23).
+
+### Security
+- The credential builder is gated on public visibility (`post_status === 'publish'` **and** an empty `post_password`) at its single choke point, so both the public REST route and the `<head>` link inherit it. Because `proof.signedPayloadB64` embeds the canonical payload — which includes the Note's content — a password-protected or non-published Note must never earn a credential; the gate closes that content-leak path.
+
+### Notes
+- The credential's `proof` uses a site-specific documented cryptosuite `sn-ed25519-canonical-2026`: the Ed25519 signature covers the UTF-8 bytes of the canonical JSON (not the `content_hash`), so verification is `Ed25519(proofValue, base64decode(signedPayloadB64), key)` → `sha256(that) === contentHash` → check the Bitcoin anchor.
+- Full sweep 263 suites / 7140 assertions / 0 failures; PHPCS falsified; PHPStan clean (217 files).
+
 ## [9.22.3] - 2026-07-11: Recommendation reads each page's REAL description source (front-page false positive fixed)
 
 **Headline:** The Analytics "N pages ship without a meta description" recommendation now resolves each Page's description the same way the site actually emits it. The front page, `/notes`, and `/provenance` take their description from SEO settings (Signal & Noise → Identity & SEO), not the Page excerpt — so the recommendation no longer flags a homepage that already has a description. It previously checked the excerpt for *every* Page and false-positived the (setting-described) front page.
