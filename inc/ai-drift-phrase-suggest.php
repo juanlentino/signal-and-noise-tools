@@ -229,7 +229,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 		return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 
-	$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SUGGEST_SYSTEM, SNT_AI_DRIFT_SUGGEST_MAX_TOKENS );
+	$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SUGGEST_SYSTEM, SNT_AI_DRIFT_SUGGEST_MAX_TOKENS, 'drift_phrase' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}

@@ -143,7 +143,8 @@ function snt_ai_og_card_title_write( $post_id ) {
 	$result = snt_ai_generate_with_constraints(
 		$prompt,
 		SNT_AI_OG_CARD_TITLE_SYSTEM,
-		SNT_AI_OG_CARD_TITLE_MAX_TOKENS
+		SNT_AI_OG_CARD_TITLE_MAX_TOKENS,
+		'og_title'
 	);
 
 	if ( is_wp_error( $result ) ) {

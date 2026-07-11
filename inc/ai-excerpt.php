@@ -101,7 +101,8 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 	$result = snt_ai_generate_with_constraints(
 		$content,
 		$concise ? SNT_AI_EXCERPT_SYSTEM_CONCISE : SNT_AI_EXCERPT_SYSTEM,
-		$concise ? SNT_AI_EXCERPT_MAX_TOKENS_CONCISE : SNT_AI_EXCERPT_MAX_TOKENS
+		$concise ? SNT_AI_EXCERPT_MAX_TOKENS_CONCISE : SNT_AI_EXCERPT_MAX_TOKENS,
+		'excerpt'
 	);
 
 	if ( is_wp_error( $result ) ) {

@@ -750,7 +750,7 @@ function sn_health_check_drift_time_phrases() {
 			&& $cached['prompt_version'] === $prompt_version ) {
 			$verdicts = $cached['verdicts'];
 		} else {
-			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600 );
+			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600, 'drift_detect' );
 			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
 				continue;  // Soft fail — skip this post.
 			}

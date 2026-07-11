@@ -90,7 +90,7 @@ function snt_release_notes_draft_impl( $changelog_delta ) {
 		$delta = snt_release_notes_cap_input( $delta, SNT_RELEASE_NOTES_MAX_INPUT );
 	}
 
-	$result = snt_ai_generate_with_constraints( $delta, SNT_RELEASE_NOTES_SYSTEM, 700 );
+	$result = snt_ai_generate_with_constraints( $delta, SNT_RELEASE_NOTES_SYSTEM, 700, 'release_notes' );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
