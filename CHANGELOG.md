@@ -21,6 +21,18 @@ All notable changes to Signal & Noise Tools are documented here.
 - [tests/ai-bootstrap.php](tests/ai-bootstrap.php) — Test 33 (economy routing, the hard floor over an Opus dropdown, the escape hatch, the filterable feature list) and Test 34 (rollup accounting, the budget gate under/over/off, the prune cap); the fallback-list assertions follow the Sonnet 5 repin.
 - [tests/settings-theme.php](tests/settings-theme.php) — the budget default (0) plus save clamp/persist; the picker assertion now expects Sonnet 4.6 dropped.
 
+## [9.25.5] - 2026-07-11: Fix — the OG-card password gate reads `post_password` defensively (no warning on partial post objects)
+
+**Headline:** `sn_og_card_allowed_for_post()` — the single-source-of-truth predicate that withholds the generated social card for password-protected posts (added in v9.25.2) — read `$post->post_password` directly. A real `WP_Post` always carries that property, so **production was never affected**, but any code path that passes a *partial* post object (a `stdClass` built without `post_password`, e.g. the CLI fixtures in `tests/og-card-dek-fallback.php`) tripped a `PHP Warning: Undefined property: stdClass::$post_password`. The read is now null-coalesced (`$post->post_password ?? ''`) so a missing property degrades silently to "no password → card allowed", exactly matching a real published post. The three-way security outcome is unchanged: missing/empty password → card allowed; a real password → card withheld.
+
+> **Why PATCH:** a defensive robustness fix in one predicate. No production behaviour change (real `WP_Post` objects always have the property), no public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. Pre-existing since the v9.25.2 password-protected-OG-card security fix; surfaced during v9.26.0 work.
+
+### Fixed
+- [inc/og-card-generator.php](inc/og-card-generator.php) — `sn_og_card_allowed_for_post()` now reads `post_password` via `?? ''`, so a partial post object no longer emits an "Undefined property" warning. A short comment records why the guard exists so a future edit doesn't strip it back to a direct read. The security semantics (only an empty/absent password allows the card) are byte-for-byte identical for real `WP_Post` inputs.
+
+### Tests
+- [tests/og-card-dek-fallback.php](tests/og-card-dek-fallback.php) now runs warning-free (9/9, previously passed but emitted two `Undefined property` warnings via the `sn_resolve_og_image_url()` → `sn_og_image_url_for_post()` → `sn_og_card_allowed_for_post()` path). Full standalone `tests/*.php` sweep clean — no genuine PHP warnings/notices across the suite; `tests/og-card-password-protected.php` (the security gate) still 20/20.
+
 ## [9.25.4] - 2026-07-11: Fix: the /notes index and search stop borrowing a Note's OG card
 
 **Headline:** Sharing the `/notes` index (or any search or tag-archive URL) produced a social card baked with a single Note's headline. On every non-singular view the `og:image` resolved to `post-1746.png`, the 1200x630 card of the sticky "Start here" Note, because the `sn_og_image_url` filter body picked the image with `get_post()`, and `get_post()` returns the loop's first post (the sticky) on an archive. So the shared image read "What's coming next: a work in progress" while that same page's `og:title` and `og:image:alt` correctly read as the "Notes" identity: the card text contradicted the link title. Now a non-singular view falls through to the site default OG image, and only a singular view (a single Note or Page, or the static front page) resolves its own post's card. Live-verified that `/notes`, `/notes/?s=...`, and `/?s=...` all served the sticky Note's card before the fix.
