@@ -123,55 +123,80 @@ function sn_health_external_link_status( $url ) {
 		'headers'     => array( 'User-Agent' => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' link-rot-check' ),
 	);
 
-	$resp = wp_safe_remote_head( $url, $args );
-	if ( is_wp_error( $resp ) ) {
-		$result = array( 'ok' => false, 'code' => 0 );
-	} else {
-		$final = $resp;
-		$code  = (int) wp_remote_retrieve_response_code( $resp );
-		// Some hosts reject HEAD (405/501) — retry with GET, still no redirects.
-		if ( 405 === $code || 501 === $code ) {
-			$resp2 = wp_safe_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 0, 'sslverify' => true ) );
-			if ( is_wp_error( $resp2 ) ) {
-				$final = null;
-				$code  = 0;
-			} else {
-				$final = $resp2;
-				$code  = (int) wp_remote_retrieve_response_code( $resp2 );
-			}
-		}
-		$headers = $final ? wp_remote_retrieve_headers( $final ) : array();
-		if ( sn_health_is_bot_challenge( $code, $headers ) ) {
-			// A live page behind a Cloudflare (or equivalent) bot challenge: the
-			// resource exists, the edge is gating automated clients. Treat as
-			// unverifiable (like an SSRF skip) rather than rotted — flagging it
-			// would be a false positive, since a human in a browser reaches it.
-			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
-		} elseif ( sn_health_is_edge_gated( $code, $headers ) ) {
-			// A live page the Cloudflare edge is BLOCKING or rate-limiting for this
-			// automated client (403/429 with a cf-ray but no cf-mitigated challenge
-			// — a WAF / Super-Bot-Fight-Mode "block", a separate enforcement from a
-			// challenge). The resource exists; a human in a browser reaches it.
-			// Unverifiable, not rot — same treatment as a challenge. A plain non-CF
-			// 403 still rots (the prior guard against blanket-ignoring every 403).
-			$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
-			} elseif ( sn_health_is_nonstandard_status( $code ) ) {
-				// A NON-STANDARD status (outside HTTP 100–599) — e.g. LinkedIn's HTTP
-				// `999 Request denied` anti-bot refusal. The resource is LIVE for a
-				// human; the server just rejects the non-browser probe. Not a real HTTP
-				// status, so it can't mean "gone" (that is 404/410). Unverifiable, not
-				// rot — same skip treatment as a CF challenge/block, but host-agnostic
-				// (LinkedIn is not behind Cloudflare, so the edge classifiers miss it).
-				$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'nonstandard_status' );
+	$resp     = wp_safe_remote_head( $url, $args );
+	$head_err = is_wp_error( $resp );
+	$final    = $head_err ? null : $resp;
+	$code     = $head_err ? 0 : (int) wp_remote_retrieve_response_code( $resp );
+	$err_msg  = $head_err ? (string) $resp->get_error_message() : '';
+
+	// Retry with GET (still no redirects) when HEAD is unusable: a 405/501 (HEAD not
+	// allowed) OR a network error. The network-error retry is the fix for the
+	// caselaw.nationalarchives false positive — a single TRANSIENT blip on HEAD (a
+	// momentary timeout / DNS / connection reset) would otherwise be recorded as rot
+	// for a live citation. A second attempt via GET absorbs the blip; a genuinely
+	// dead host still fails both and is flagged.
+	if ( $head_err || 405 === $code || 501 === $code ) {
+		$resp2 = wp_safe_remote_get( $url, array(
+			'timeout'     => SN_HEALTH_LINK_TIMEOUT,
+			'redirection' => 0,
+			'sslverify'   => true,
+			'headers'     => $args['headers'],
+		) );
+		if ( is_wp_error( $resp2 ) ) {
+			$final   = null;
+			$code    = 0;
+			$err_msg = (string) $resp2->get_error_message();
 		} else {
-			$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+			$final   = $resp2;
+			$code    = (int) wp_remote_retrieve_response_code( $resp2 );
+			$err_msg = '';
 		}
 	}
 
-	// Cache the probe outcome (incl. a bot-challenge skip, so it costs one probe
-	// per TTL, not one per scan). 'probed'/'cached' are per-call and set AFTER the
-	// write so they never persist — a later cache hit must not look like a probe.
-	set_transient( $cache_key, $result, SN_HEALTH_LINK_CACHE_TTL );
+	$headers = $final ? wp_remote_retrieve_headers( $final ) : array();
+	if ( sn_health_is_bot_challenge( $code, $headers ) ) {
+		// A live page behind a Cloudflare (or equivalent) bot challenge: the
+		// resource exists, the edge is gating automated clients. Treat as
+		// unverifiable (like an SSRF skip) rather than rotted — flagging it
+		// would be a false positive, since a human in a browser reaches it.
+		$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'bot_challenge' );
+	} elseif ( sn_health_is_edge_gated( $code, $headers ) ) {
+		// A live page the Cloudflare edge is BLOCKING or rate-limiting for this
+		// automated client (403/429 with a cf-ray but no cf-mitigated challenge
+		// — a WAF / Super-Bot-Fight-Mode "block", a separate enforcement from a
+		// challenge). The resource exists; a human in a browser reaches it.
+		// Unverifiable, not rot — same treatment as a challenge. A plain non-CF
+		// 403 still rots (the prior guard against blanket-ignoring every 403).
+		$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'edge_gated' );
+	} elseif ( sn_health_is_nonstandard_status( $code ) ) {
+		// A NON-STANDARD status (outside HTTP 100–599) — e.g. LinkedIn's HTTP
+		// `999 Request denied` anti-bot refusal. The resource is LIVE for a
+		// human; the server just rejects the non-browser probe. Not a real HTTP
+		// status, so it can't mean "gone" (that is 404/410). Unverifiable, not
+		// rot — same skip treatment as a CF challenge/block, but host-agnostic
+		// (LinkedIn is not behind Cloudflare, so the edge classifiers miss it).
+		$result = array( 'ok' => true, 'code' => $code, 'skipped' => true, 'reason' => 'nonstandard_status' );
+	} else {
+		// A real HTTP status, or a network error (code 0). 2xx/3xx = ok. A code-0
+		// carries the WP_Error reason so the finding note self-diagnoses
+		// ("Unreachable (cURL error 28: …)") instead of an opaque "HTTP 0".
+		$result = array( 'ok' => ( $code >= 200 && $code < 400 ), 'code' => $code );
+		if ( 0 === $code && '' !== $err_msg ) {
+			$result['error'] = $err_msg;
+		}
+	}
+
+	// Cache DETERMINISTIC outcomes (a real HTTP status, or a skip) so they cost one
+	// probe per TTL, not one per scan. A network error (code 0) is NEVER cached: it
+	// is non-deterministic (a transient timeout / DNS / connection blip), so freezing
+	// it for 24h would keep a live citation flagged for a full day AND make "Re-run
+	// scan" return the stale failure instead of re-verifying. Leaving it uncached lets
+	// the next scan re-probe it; the GET retry above already absorbs most blips.
+	// 'probed'/'cached' are per-call and set AFTER the write so they never persist —
+	// a later cache hit must not look like a probe.
+	if ( 0 !== (int) $result['code'] ) {
+		set_transient( $cache_key, $result, SN_HEALTH_LINK_CACHE_TTL );
+	}
 	$result['cached'] = false;
 	$result['probed'] = true; // this call performed a live network request
 	return $result;
@@ -187,7 +212,7 @@ function sn_health_check_external_links() {
 	global $wpdb;
 
 	$label     = 'External link rot';
-	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local), bot-challenged (e.g. Cloudflare-gated), or anti-bot-refused (e.g. LinkedIn returns HTTP 999) URLs are skipped, not flagged — the page is live but gating automated probes, not rotted.';
+	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local), bot-challenged (e.g. Cloudflare-gated), or anti-bot-refused (e.g. LinkedIn returns HTTP 999) URLs are skipped, not flagged. An "Unreachable" result is a network error (timeout / DNS / connection) — the probe retries once with GET and never caches the failure, so a transient blip clears on the next scan; only a persistently unreachable link is genuinely rotted.';
 	$findings  = array();
 	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $site_host ) {
@@ -236,13 +261,19 @@ function sn_health_check_external_links() {
 		if ( ! empty( $status['skipped'] ) || $status['ok'] ) {
 			continue;
 		}
+		// A code-0 is a network error, not an HTTP status — render it as a
+		// self-describing "Unreachable (<reason>)" so the user can tell "the host
+		// refused/timed out on our probe" from a definitive 4xx/5xx.
+		$probe = ( 0 === (int) $status['code'] )
+			? 'Unreachable on probe' . ( ! empty( $status['error'] ) ? ' (' . $status['error'] . ')' : '' )
+			: sprintf( 'HTTP %d on probe', (int) $status['code'] );
 		$findings[] = array(
 			'subject_type'  => 'external_link',
 			'subject_url'   => $url,
 			'subject_label' => $url,
 			'subject_id'    => 0,
 			'edit_url'      => admin_url( 'post.php?post=' . $usages[0]['post_id'] . '&action=edit' ),
-			'note'          => sprintf( 'HTTP %d on probe — cited in %d post(s). First use: %s', $status['code'], count( $usages ), $usages[0]['post_title'] ),
+			'note'          => sprintf( '%s — cited in %d post(s). First use: %s', $probe, count( $usages ), $usages[0]['post_title'] ),
 		);
 	}
 
