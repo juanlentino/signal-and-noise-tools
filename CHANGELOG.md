@@ -21,6 +21,18 @@ All notable changes to Signal & Noise Tools are documented here.
 - [tests/ai-bootstrap.php](tests/ai-bootstrap.php) — Test 33 (economy routing, the hard floor over an Opus dropdown, the escape hatch, the filterable feature list) and Test 34 (rollup accounting, the budget gate under/over/off, the prune cap); the fallback-list assertions follow the Sonnet 5 repin.
 - [tests/settings-theme.php](tests/settings-theme.php) — the budget default (0) plus save clamp/persist; the picker assertion now expects Sonnet 4.6 dropped.
 
+## [9.25.4] - 2026-07-11: Fix: the /notes index and search stop borrowing a Note's OG card
+
+**Headline:** Sharing the `/notes` index (or any search or tag-archive URL) produced a social card baked with a single Note's headline. On every non-singular view the `og:image` resolved to `post-1746.png`, the 1200x630 card of the sticky "Start here" Note, because the `sn_og_image_url` filter body picked the image with `get_post()`, and `get_post()` returns the loop's first post (the sticky) on an archive. So the shared image read "What's coming next: a work in progress" while that same page's `og:title` and `og:image:alt` correctly read as the "Notes" identity: the card text contradicted the link title. Now a non-singular view falls through to the site default OG image, and only a singular view (a single Note or Page, or the static front page) resolves its own post's card. Live-verified that `/notes`, `/notes/?s=...`, and `/?s=...` all served the sticky Note's card before the fix.
+
+> **Why PATCH:** a false-image bug fix in one filter body. No public function, REST route, or ability removed or renamed, no settings-schema change, no WP-floor raise. The singular path is unchanged (single Notes/Pages, the static front page, and template Pages like `/colophon`, which are real Pages, keep their own card); only non-singular views change, and they now emit the `og.default_image_url` site default instead of a loop post's card.
+
+### Fixed
+- [inc/og-card-generator.php](inc/og-card-generator.php): the anonymous `sn_og_image_url` filter closure is extracted into a named `sn_og_image_url_for_current_view()` that returns the passed site default when `! is_singular()` and only calls `sn_resolve_og_image_url( $default, get_post() )` on a singular view. This stops the sticky Note's generated card (and, generally, any archive's first-loop post) from being emitted as the shared image for the `/notes` index, `/notes` tag archives, and search results.
+
+### Tests
+- New [tests/og-image-current-view.php](tests/og-image-current-view.php) (5 assertions): a non-singular view returns the site default and never calls `get_post()`; a singular view resolves the queried post's image via `get_post()`. Full standalone sweep 267 suites / 0 failed; PHPCS falsified (a probe fires `WordPress.Security.EscapeOutput`); PHPStan clean.
+
 ## [9.25.3] - 2026-07-11: Fix — long OG-card titles no longer overlap the excerpt
 
 **Headline:** A long post title on the generated 1200×630 OG card used to print *on top of* the excerpt. The title (Bebas Neue, 88px) wrapped to three lines whose last baseline landed at `y=250 + 2×100 = 450` — the exact baseline where the excerpt began — so a three-line title and the first excerpt line drew in the same place (visible on a live Telegram/social share). The card now **auto-sizes the title**: it steps the title down a size ladder (88 → 74 → 62px) until the wrapped block clears the excerpt zone, so a long title shrinks one notch instead of colliding. One- and two-line titles are unchanged (still 88px), and the excerpt and footer keep their positions.
