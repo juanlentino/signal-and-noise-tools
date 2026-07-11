@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.24.1] - 2026-07-11: Fix — LinkedIn (HTTP 999) no longer false-flagged as external link rot
+
+**Headline:** The External link-rot health check flagged a live `linkedin.com/in/…` citation as rotted with the note *"HTTP 999 on probe"*. HTTP 999 is not a real HTTP status — it's LinkedIn's proprietary **anti-bot "Request denied"** reply to any non-browser client. The profile is fully live for a human; the automated probe is simply being refused. The check already skips Cloudflare-gated citations as *live-but-gating* rather than rot, but those guards key on a Cloudflare fingerprint (`cf-mitigated` / `cf-ray`), and LinkedIn isn't behind Cloudflare — so the 999 fell through and was scored as a dead link. This adds a host-agnostic classifier that treats any status outside the valid HTTP range (100–599, RFC 9110 §15) as unverifiable, closing the same false-positive class for anti-bot hosts that don't sit behind a CDN.
+
+> **Why PATCH:** a false-positive fix. No public function/REST route removed or renamed, no settings-schema change, no user action required — the stale finding self-clears once its 24h probe cache expires and the next scan re-probes.
+
+### Fixed
+- [inc/health-probe-classify.php](inc/health-probe-classify.php) — new shared classifier `sn_health_is_nonstandard_status( $code )` returns true for any code ≥ 600 (outside the valid HTTP 1xx–5xx range), the band anti-bot layers use to refuse automated probes (canonically LinkedIn's `999 Request denied`). The code-0 network-error sentinel stays below 600, so a genuine request failure is never masked, and a real dead link always answers with a standard 404/410/5xx, so this never hides rot.
+- [inc/health-external-links.php](inc/health-external-links.php) — the external link-rot probe folds a non-standard status into the skip bucket (`reason: nonstandard_status`), the same treatment a Cloudflare challenge/block already gets. Its `fix_hint` now names anti-bot refusals (e.g. LinkedIn's HTTP 999) among the skipped-not-flagged cases.
+- [inc/health-checks.php](inc/health-checks.php) — the internal broken-links probe calls the same classifier so both probes agree (parity; a non-standard status is unlikely on a same-host internal link, but the shared seam stays consistent).
+
+### Tests
+- [tests/health-probe-classify.php](tests/health-probe-classify.php) — unit coverage for `sn_health_is_nonstandard_status()` (999 / 600 / 700 skip; 599/500/404/410/200/0 do not).
+- [tests/health-external-links.php](tests/health-external-links.php) — a 999 probe is skipped as `nonstandard_status` (not rot), plus an end-to-end regression reproducing the reported scenario: a post citing a LinkedIn profile (999) alongside a genuinely dead link (404) flags only the 404.
+
 ## [9.24.0] - 2026-07-11: Analytics stops counting the admin — `/wp-admin/` filtered + cache-proof owner exclusion
 
 **Headline:** `/wp-admin/` (and `/wp-login.php`) no longer appear in the first-party analytics, and your own visits are excluded even on cached pages. Two root causes were bundled under "the analytics keeps reading me as a visitor": (A) admin/login paths were being counted as human pageviews, and (B) the v6.23.0 role-exclusion couldn't fire on CDN-cached pages, so the owner's front-end views leaked in.
