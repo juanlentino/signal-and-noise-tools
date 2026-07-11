@@ -563,8 +563,9 @@ hc_true( false !== strpos( $result->get_error_message(), 'fixture: generate_text
 // CRITICAL — protects against future regression where someone removes
 // the model pin. Verifies that:
 //   (a) the builder chain recorded a call to using_model_preference
-//       with exactly ['claude-sonnet-5', 'claude-sonnet-4-6'] as the args
-//       (v6.52.0: the SN_AI_DEFAULT_MODEL pin + the SN_AI_FALLBACK_MODEL net)
+//       with exactly ['claude-sonnet-5'] as the args — SN_AI_DEFAULT_MODEL and
+//       SN_AI_FALLBACK_MODEL are both Sonnet 5 now, so array_unique collapses
+//       the doubled id (v6.52.0 list build; fallback repinned off 4.6)
 //   (b) that call happened BEFORE generate_text
 // If either invariant breaks (someone removes the pin OR moves it
 // after generate_text such that it no-ops), this test fails.
@@ -573,8 +574,8 @@ fixture_reset();
 $GLOBALS['__test_ai_builder_supports_text']    = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
-	'builder chain recorded using_model_preference(claude-sonnet-5, claude-sonnet-4-6)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'builder chain recorded using_model_preference(claude-sonnet-5) — default == fallback, deduped' );
 $pref_idx = fixture_first_call_index( 'using_model_preference' );
 $gen_idx  = fixture_first_call_index( 'generate_text_result' );
 hc_true( $pref_idx >= 0, 'using_model_preference was called' );
@@ -591,26 +592,26 @@ add_filter( 'snt_ai_model_preference', function () {
 	return 'claude-haiku-4-5';
 } );
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
 	'filter override propagates to builder (using_model_preference(claude-haiku-4-5, fallback))' );
-hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
+hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
 	'default pin list NOT recorded once filter overrides' );
 
 // ─── Test 13b: pin == fallback dedupes to a single id (v6.52.0) ──────
 //
 // SN_AI_FALLBACK_MODEL is appended to the preference list, but if the
 // resolved pin already equals it, array_unique collapses the doubled id so
-// the builder sees a single 'claude-sonnet-4-6' (not [..-4-6, ..-4-6]).
+// the builder sees a single 'claude-sonnet-5' (not [..-5, ..-5]).
 echo "\nTest 13b: snt_ai_generate_with_constraints — pin equal to fallback dedupes\n";
 fixture_reset();
 $GLOBALS['__test_ai_builder_supports_text']    = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 add_filter( 'snt_ai_model_preference', function () {
-	return 'claude-sonnet-4-6'; // equals SN_AI_FALLBACK_MODEL
+	return 'claude-sonnet-5'; // equals SN_AI_FALLBACK_MODEL
 } );
 snt_ai_generate_with_constraints( 'p', 's' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-4-6' ) ),
-	'pin == fallback → single deduped id (no doubled claude-sonnet-4-6)' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'pin == fallback → single deduped id (no doubled claude-sonnet-5)' );
 
 // ─── Test 14: max_tokens clamping ────────────────────────────────────
 echo "\nTest 14: snt_ai_generate_with_constraints — max_tokens clamped to [1, 4096]\n";
@@ -934,7 +935,7 @@ snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
 hc_true( fixture_recorded_call_matches( 'with_file', array( $vimg, 'image/jpeg' ) ),
 	'vision path: builder recorded with_file(path, mime)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'feature alt-text routes using_model_preference → [gemini-2.5-flash-lite, fallback]' );
 
 // v7.3.0: the alt-text route default follows theme.ai_alt_model when set. The
@@ -948,13 +949,13 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 $GLOBALS['__settings']['theme.ai_alt_model'] = 'gemini-2.5-flash';
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-5' ) ),
 	'v7.3.0: alt-text default follows theme.ai_alt_model' );
 unset( $GLOBALS['__settings']['theme.ai_alt_model'] );
 fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'v7.3.0: absent setting keeps the pinned default' );
 
 // Text-only path: no image → ZERO with_file calls, default Sonnet model unchanged.
@@ -962,15 +963,15 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'generic' );
 hc_eq( false, ai_saw_with_file(), 'text path: zero with_file calls (text-only path byte-identical)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5', 'claude-sonnet-4-6' ) ),
-	'feature generic stays on the default pin list [claude-sonnet-5, fallback]' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'feature generic stays on the default pin list [claude-sonnet-5] (default == fallback, deduped)' );
 
 // Unreadable image path: ignored (is_readable guard), still routes to Gemini.
 fixture_reset();
 snt_ai_register_alt_text_model_route();
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', '/no/such/img.jpg', 'image/jpeg' );
 hc_eq( false, ai_saw_with_file(), 'unreadable image: no with_file attached (is_readable guard)' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash-lite', 'claude-sonnet-5' ) ),
 	'alt-text still routes to Gemini even when the image is unreadable (degrades to text-only)' );
 
 // snt_ai_alt_text_model filter re-pins the alt-text model with no release.
@@ -978,10 +979,124 @@ fixture_reset();
 snt_ai_register_alt_text_model_route();
 add_filter( 'snt_ai_alt_text_model', function () { return 'gemini-2.5-flash'; } );
 snt_ai_generate_with_constraints( 'p', 's', 80, 'alt-text', $vimg, 'image/jpeg' );
-hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-4-6' ) ),
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'gemini-2.5-flash', 'claude-sonnet-5' ) ),
 	'snt_ai_alt_text_model filter re-pins the alt-text model ([gemini-2.5-flash, fallback])' );
 
 @unlink( $vimg );
+
+// ─── Test 33: economy-tier model routing for one-liner features (v9.26.0) ──
+//
+// Short prose one-liners (meta_desc, excerpt, og_title, drift_phrase,
+// tag_suggest) route to Haiku 4.5; reasoning + structured-JSON features stay on
+// the default. Registered at priority 20 — a HARD FLOOR over the owner dropdown.
+// The harness clears filters on fixture_reset() and runs them in registration
+// order, so re-register the route each block (and any dropdown filter BEFORE
+// it), mirroring the alt-text route tests above.
+echo "\nTest 33: economy-tier model routing (v9.26.0)\n";
+
+// (a) an economy feature routes to Haiku (+ the Sonnet 5 fallback net).
+fixture_reset();
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 150, 'meta_desc' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'economy feature meta_desc routes to Haiku 4.5' );
+
+// (b) a reasoning feature is NOT economy — stays on the default (deduped).
+fixture_reset();
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 2048, 'insights' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5' ) ),
+	'reasoning feature insights stays on the default (Sonnet 5)' );
+
+// (c) HARD FLOOR: even with the owner dropdown forcing Opus, the economy route
+// wins for an economy feature (register the dropdown first → same order as the
+// production priority 20 > 10).
+fixture_reset();
+add_filter( 'snt_ai_model_preference', function () { return 'claude-opus-4-8'; }, 10, 4 );
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 60, 'og_title' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'hard floor: economy feature stays Haiku even when the dropdown forces Opus' );
+hc_eq( false, fixture_recorded_call_matches( 'using_model_preference', array( 'claude-opus-4-8', 'claude-sonnet-5' ) ),
+	'hard floor: the Opus pin is NOT applied to an economy feature' );
+
+// (d) ESCAPE HATCH: snt_ai_economy_model returning the inherited model opts a
+// feature back onto the owner's choice.
+fixture_reset();
+add_filter( 'snt_ai_model_preference', function () { return 'claude-opus-4-8'; }, 10, 4 );
+snt_ai_register_economy_model_route();
+add_filter( 'snt_ai_economy_model', function ( $model, $feature, $inherited ) { return $inherited; }, 10, 3 );
+snt_ai_generate_with_constraints( 'p', 's', 150, 'meta_desc' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-opus-4-8', 'claude-sonnet-5' ) ),
+	'escape hatch: snt_ai_economy_model → inherited opts meta_desc back to the owner pick' );
+
+// (e) the economy feature LIST is filterable (add/drop economy features).
+fixture_reset();
+add_filter( 'snt_ai_economy_features', function () { return array( 'insights' ); } );
+snt_ai_register_economy_model_route();
+snt_ai_generate_with_constraints( 'p', 's', 2048, 'insights' );
+hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-haiku-4-5', 'claude-sonnet-5' ) ),
+	'snt_ai_economy_features filter can add a feature to the economy tier' );
+
+// ─── Test 34: monthly AI spend cap (v9.26.0) ──
+//
+// A durable YYYY-MM rollup (immune to the FIFO log's 200-entry eviction) plus a
+// hard gate in snt_ai_generate_with_constraints. Default budget 0 = off. The
+// gate reads theme.ai_monthly_budget via the sn_setting stub defined in Test 32.
+echo "\nTest 34: monthly AI spend cap (v9.26.0)\n";
+
+// (a) rollup accounting: costs accumulate into this month's bucket.
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+snt_ai_add_month_spend( 0.02 );
+snt_ai_add_month_spend( 0.03 );
+hc_true( abs( snt_ai_spend_this_month() - 0.05 ) < 1e-9, 'rollup accumulates this month to $0.05' );
+snt_ai_add_month_spend( 0 );
+snt_ai_add_month_spend( -1.5 );
+hc_true( abs( snt_ai_spend_this_month() - 0.05 ) < 1e-9, 'zero/negative cost is a no-op' );
+
+// (b) the gate fires when this month's spend has reached the budget — BEFORE
+// any model call (the builder is never constructed). fixture_reset() clears the
+// option store (line 364), so seed the rollup AFTER it.
+fixture_reset();
+snt_ai_add_month_spend( 0.05 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 0.05; // == seeded spend
+$g = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_true( is_wp_error( $g ) && 'snt_ai_over_budget' === $g->get_error_code(),
+	'spend >= budget → snt_ai_over_budget WP_Error' );
+hc_true( fixture_first_call_index( 'using_model_preference' ) < 0,
+	'over-budget short-circuits before the generation builder chain runs' );
+
+// (c) under budget → the gate does not fire; the call proceeds past it.
+fixture_reset();
+snt_ai_add_month_spend( 0.05 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 1.00; // >> seeded $0.05
+$g2 = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_eq( false, is_wp_error( $g2 ) && 'snt_ai_over_budget' === $g2->get_error_code(),
+	'spend < budget → the budget gate does not fire' );
+hc_true( (int) $GLOBALS['__test_ai_builder_construct_count'] > 0,
+	'under-budget: the call proceeds past the gate (builder constructed)' );
+
+// (d) budget 0 (off) → no cap even with plenty of spend on the books.
+fixture_reset();
+snt_ai_add_month_spend( 10.0 );
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 0;
+$g3 = snt_ai_generate_with_constraints( 'p', 's', 100, 'insights' );
+hc_eq( false, is_wp_error( $g3 ) && 'snt_ai_over_budget' === $g3->get_error_code(),
+	'budget 0 = off: no cap even with spend recorded' );
+
+// (e) rollup prunes to the retained window (SN_AI_SPEND_MONTHS buckets).
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+for ( $m = 1; $m <= SN_AI_SPEND_MONTHS + 3; $m++ ) {
+	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+	$roll[ sprintf( '2020-%02d', $m ) ] = 0.01 * $m; // synthetic historical buckets
+	update_option( SN_AI_SPEND_ROLLUP_OPT, $roll, false );
+}
+snt_ai_add_month_spend( 0.01 ); // current-month bucket → triggers the prune
+$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+hc_true( count( $roll ) <= SN_AI_SPEND_MONTHS, 'rollup prunes to SN_AI_SPEND_MONTHS buckets' );
+
+unset( $GLOBALS['__settings']['theme.ai_monthly_budget'] );
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
 
 // ─── v8.1.1: snt_ai_error_with_message — empty-message transport errors ───
 // Live incident 2026-07-02: an SDK-wrapped WP_Error with an EMPTY message

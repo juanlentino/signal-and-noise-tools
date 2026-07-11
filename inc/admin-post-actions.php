@@ -423,8 +423,8 @@ function sn_handle_perf_save( $post ) {
  * model ids passed to the snt_ai_model_preference filter; values are UI labels.
  *
  * Ids are the alias form (no date suffix), verified Active against the
- * claude-api model catalog: Sonnet 5 (default), Sonnet 4.6 (previous), Opus 4.8
- * (most capable), Haiku 4.5 (fastest/cheapest). v6.52.0: this stays a small
+ * claude-api model catalog: Sonnet 5 (default), Opus 4.8 (most capable),
+ * Haiku 4.5 (fastest/cheapest). v6.52.0: this stays a small
  * hand-maintained list rather than a live enumeration. The WP AI Client exposes
  * no public model-list helper (only an SDK-internal registry path that hits the
  * network on admin render and is untestable in CI), so a curated allowlist keeps
@@ -437,7 +437,6 @@ function sn_handle_perf_save( $post ) {
 function sn_theme_ai_models() {
 	return array(
 		'claude-sonnet-5'   => 'Claude Sonnet 5 (balanced, default)',
-		'claude-sonnet-4-6' => 'Claude Sonnet 4.6 (balanced, previous)',
 		'claude-opus-4-8'   => 'Claude Opus 4.8 (most capable)',
 		'claude-haiku-4-5'  => 'Claude Haiku 4.5 (fastest, cheapest)',
 	);
@@ -490,6 +489,9 @@ function sn_handle_save_theme( $post ) {
 	$vision_allowed = array_keys( sn_theme_ai_vision_models() );
 	$vision         = isset( $post['theme_ai_alt_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_alt_model'] ) ) : '';
 	$ok            &= sn_setting_update( 'theme.ai_alt_model', in_array( $vision, $vision_allowed, true ) ? $vision : (string) sn_setting( 'theme.ai_alt_model', $vision_allowed[0] ) );
+
+	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
+	$ok &= sn_setting_update( 'theme.ai_monthly_budget', round( max( 0, (float) ( $post['theme_ai_monthly_budget'] ?? 0 ) ), 2 ) );
 
 	return $ok ? 'theme_saved' : 'theme_unchanged';
 }

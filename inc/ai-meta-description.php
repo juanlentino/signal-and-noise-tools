@@ -105,7 +105,8 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
 	$result = snt_ai_generate_with_constraints(
 		$content,
 		$concise ? SNT_AI_META_DESC_SYSTEM_CONCISE : SNT_AI_META_DESC_SYSTEM,
-		$concise ? SNT_AI_META_DESC_MAX_TOKENS_CONCISE : SNT_AI_META_DESC_MAX_TOKENS
+		$concise ? SNT_AI_META_DESC_MAX_TOKENS_CONCISE : SNT_AI_META_DESC_MAX_TOKENS,
+		'meta_desc'
 	);
 
 	if ( is_wp_error( $result ) ) {

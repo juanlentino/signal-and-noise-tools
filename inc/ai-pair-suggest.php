@@ -123,7 +123,7 @@ function snt_ai_pair_suggest_impl( $source_id, $target_id ) {
 			return new WP_Error( 'snt_ai_runtime_error', __( 'Failed to encode AI payload.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 		}
 
-		$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_PAIR_SUGGEST_SYSTEM, SNT_AI_PAIR_SUGGEST_MAX_TOKENS );
+		$result = snt_ai_generate_with_constraints( $prompt, SNT_AI_PAIR_SUGGEST_SYSTEM, SNT_AI_PAIR_SUGGEST_MAX_TOKENS, 'pair_suggest' );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

@@ -65,12 +65,13 @@ ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_d
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
 ok( $d['theme']['ai_model'] === 'claude-sonnet-5', 'defaults: ai_model claude-sonnet-5' );
 ok( $d['theme']['notes_per_page'] === 20, 'defaults: notes_per_page 20' );
+ok( $d['theme']['ai_monthly_budget'] === 0, 'defaults: ai_monthly_budget 0 (cap off)' );
 
 // ── P2: AI-model allowlist + save handler (clamps + validation) ──────
 require __DIR__ . '/../inc/admin-post-actions.php';
 
 $models = sn_theme_ai_models();
-ok( ! empty( $models ) && array_key_exists( 'claude-sonnet-5', $models ) && array_key_exists( 'claude-sonnet-4-6', $models ), 'ai models: list non-empty + contains new default (sonnet-5) + previous (sonnet-4-6)' );
+ok( ! empty( $models ) && array_key_exists( 'claude-sonnet-5', $models ) && ! array_key_exists( 'claude-sonnet-4-6', $models ), 'ai models: non-empty + contains default (sonnet-5), drops the dominated sonnet-4-6' );
 ok( array_key_exists( 'claude-opus-4-8', $models ) && array_key_exists( 'claude-haiku-4-5', $models ), 'ai models: includes opus-4-8 + haiku-4-5 (alias ids)' );
 
 // Out-of-range ints clamp; off-list model rejected; checkbox present → true.
@@ -83,6 +84,7 @@ sn_handle_save_theme( array(
 	'theme_updated_threshold_days' => '500',
 	'theme_reading_wpm'            => '5',
 	'theme_notes_per_page'         => '500',
+	'theme_ai_monthly_budget'      => '-5',
 ) );
 ok( (int) sn_setting( 'theme.related_count' ) === 12, 'save: related_count clamps to max 12' );
 ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recent_count clamps to min 0' );
@@ -92,14 +94,17 @@ ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps t
 ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save: off-list ai_model rejected → keeps default' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
 ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
+ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save: negative ai_monthly_budget clamps to 0' );
 
 // Checkbox absent/empty → false; on-list model accepted.
 sn_handle_save_theme( array(
-	'theme_palette_enabled' => '',
-	'theme_ai_model'        => 'claude-opus-4-8',
+	'theme_palette_enabled'   => '',
+	'theme_ai_model'          => 'claude-opus-4-8',
+	'theme_ai_monthly_budget' => '12.5',
 ) );
 ok( sn_setting( 'theme.palette_enabled' ) === false, 'save: palette_enabled false when checkbox absent/empty' );
 ok( sn_setting( 'theme.ai_model' ) === 'claude-opus-4-8', 'save: on-list ai_model accepted' );
+ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 12.5, 'save: valid ai_monthly_budget persists (12.5)' );
 
 // ── v7.3.0: vision (alt-text) model — curated allowlist ─────────────
 $vmodels = sn_theme_ai_vision_models();

@@ -108,7 +108,7 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
 	) );
 
 	$prompt = implode( "\n", $context_parts );
-	$raw    = snt_ai_generate_with_constraints( $prompt, SNT_AI_ORPHAN_SUGGEST_SYSTEM, SNT_AI_ORPHAN_SUGGEST_MAX_TOKENS );
+	$raw    = snt_ai_generate_with_constraints( $prompt, SNT_AI_ORPHAN_SUGGEST_SYSTEM, SNT_AI_ORPHAN_SUGGEST_MAX_TOKENS, 'orphan_suggest' );
 
 	if ( is_wp_error( $raw ) ) {
 		return $raw;

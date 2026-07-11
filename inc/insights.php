@@ -310,7 +310,7 @@ function snt_insights_call_ai( $signals ) {
 	// still receives the content, but is framed to analyze rather than obey it.
 	$prompt = "<<<SN_UNTRUSTED_DATA\n" . $json . "\nSN_UNTRUSTED_DATA>>>";
 
-	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS );
+	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights' );
 }
 
 /**

@@ -33,6 +33,8 @@ function sn_admin_render_front_end_form() {
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
 	$model     = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
 	$alt_model = (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' );
+	$budget    = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
+	$spent     = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 
 	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -106,6 +108,12 @@ function sn_admin_render_front_end_form() {
 	}
 	echo '</select>';
 	echo '<p class="sn-field-helper">Model used to LOOK at images when suggesting alt text. The <code>snt_ai_alt_text_model</code> filter still overrides this for code-level pins.</p>';
+	echo '</div>';
+
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_theme_ai_monthly_budget">Monthly AI budget (USD)</label>';
+	echo '<input type="number" min="0" step="0.5" id="sn_theme_ai_monthly_budget" name="theme_ai_monthly_budget" value="' . esc_attr( number_format( $budget, 2, '.', '' ) ) . '">';
+	echo '<p class="sn-field-helper">Hard cap on this plugin&rsquo;s own AI spend per calendar month. <strong>0 = no limit.</strong> When reached, AI features pause until the next month or you raise this. This month so far: <strong>$' . esc_html( number_format( $spent, 2 ) ) . '</strong>.</p>';
 	echo '</div>';
 
 	// Wide leaf → no wrapper card → the save row must be a card-owned

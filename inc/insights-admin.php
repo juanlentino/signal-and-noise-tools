@@ -146,6 +146,22 @@ function snt_insights_render_usage_section() {
 		. esc_html( number_format_i18n( (int) $s7['total'] ) ) . ' tokens, est. '
 		. esc_html( $fmt_cost( $s7['cost'] ) ) . '.</p>';
 
+	// v9.26.0: calendar-month spend vs the owner's budget cap (0 = no cap). The
+	// "this month" figure reads the durable rollup, so it is exact regardless of
+	// the FIFO log window the trailing summaries above use.
+	$sn_budget = function_exists( 'sn_setting' ) ? (float) sn_setting( 'theme.ai_monthly_budget', 0 ) : 0.0;
+	$sn_spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
+	if ( $sn_budget > 0 ) {
+		$sn_pct = (int) round( min( 100, ( $sn_spent / $sn_budget ) * 100 ) );
+		echo '<p class="sn-status-box-body"><strong>This month:</strong> '
+			. esc_html( $fmt_cost( $sn_spent ) ) . ' of $' . esc_html( number_format_i18n( $sn_budget, 2 ) )
+			. ' budget (' . esc_html( (string) $sn_pct ) . '%)'
+			. ( $sn_spent >= $sn_budget ? ' &mdash; <strong>limit reached; AI features are paused until next month</strong>' : '' )
+			. '.</p>';
+	} else {
+		echo '<p class="sn-field-helper">No monthly AI budget set (unlimited). Set a cap on the Front-End settings tab to pause AI features once a month&rsquo;s spend is reached.</p>';
+	}
+
 	if ( ! empty( $s30['by_feature'] ) ) {
 		$rows = $s30['by_feature'];
 		uasort(
