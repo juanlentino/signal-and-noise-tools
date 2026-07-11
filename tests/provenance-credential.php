@@ -16,6 +16,8 @@ if ( ! function_exists( 'get_the_date' ) ) { function get_the_date( $f, $p ) { r
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( preg_replace( '/<[^>]*>/', '', (string) $s ) ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+$GLOBALS['__post'] = (object) array( 'post_status' => 'publish', 'post_password' => '' );
+if ( ! function_exists( 'get_post' ) ) { function get_post( $id = 0 ) { return $GLOBALS['__post']; } }
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
 
@@ -83,6 +85,14 @@ ok( sn_prov_credential( 7, null ) === null, 'content_hash mismatch → no VC (ne
 // no chain → null
 $GLOBALS['__chain'] = array();
 ok( sn_prov_credential( 7, null ) === null, 'no chain → null' );
+
+// visibility gate: password-protected / non-public Notes never emit a VC (signedPayloadB64 embeds content)
+$GLOBALS['__chain'] = array( sn_test_commit( 1, 'confirmed' ) ); // a fully valid, signed chain — the ONLY reason for null is visibility
+$GLOBALS['__post']  = (object) array( 'post_status' => 'publish', 'post_password' => 'secret' );
+ok( sn_prov_credential( 7, null ) === null, 'password-protected Note → no VC (content-leak guard)' );
+$GLOBALS['__post']  = (object) array( 'post_status' => 'draft', 'post_password' => '' );
+ok( sn_prov_credential( 7, null ) === null, 'non-published Note → no VC' );
+$GLOBALS['__post']  = (object) array( 'post_status' => 'publish', 'post_password' => '' ); // reset to public for the REST section below
 
 // --- REST callback: uid resolves → VC; unknown/unsigned → 404 ---
 if ( ! function_exists( 'sn_prov_post_by_uid' ) ) { function sn_prov_post_by_uid( $uid ) { return 'known' === $uid ? 7 : 0; } }

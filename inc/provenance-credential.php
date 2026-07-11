@@ -41,14 +41,22 @@ function sn_prov_cred_select_commit( $chain, $version ) {
 
 /**
  * Build the Verifiable Credential for a Note's commit, or null when one can't be
- * honestly produced (no chain, no such version, unsigned, or the stored payload
- * no longer reproduces the anchored content_hash). Never emits an unverifiable VC.
+ * honestly produced (not a public published Note, no chain, no such version,
+ * unsigned, or the stored payload no longer reproduces the anchored content_hash).
+ * Never emits an unverifiable VC, and never a credential for non-public content.
  *
  * @param int      $post_id
  * @param int|null $version  null = latest.
  * @return array<string,mixed>|null
  */
 function sn_prov_credential( $post_id, $version = null ) {
+	// Only a public, published Note earns a credential: proof.signedPayloadB64 embeds the
+	// canonical payload (which includes the post content), so a password-protected or
+	// non-published Note would leak its content through this public endpoint.
+	$post = get_post( (int) $post_id );
+	if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
+		return null;
+	}
 	$commit = sn_prov_cred_select_commit( sn_prov_get_chain( $post_id ), $version );
 	if ( null === $commit ) {
 		return null;
