@@ -541,7 +541,6 @@ function home_url( $path = '' ) { return 'https://example.test' . $path; }
 
 // ── v7.5.0: now_save (/now page editor) ──────────────────────────────
 echo "\nTest: sn_handle_now_save\n";
-if ( ! defined( 'SN_NOW_PAGE_TEST' ) ) { define( 'SN_NOW_PAGE_TEST', true ); } // skip add_filter wiring
 require_once __DIR__ . '/../inc/now-page.php';
 
 pa_eq( 'now_saved', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'valid content → now_saved' );
@@ -566,7 +565,6 @@ sn_handle_now_save( array( 'now_content' => '' ) ); // reset
 
 // ── v7.6.0: uses_save (/uses page editor) ────────────────────────────
 echo "\nTest: sn_handle_uses_save\n";
-if ( ! defined( 'SN_USES_PAGE_TEST' ) ) { define( 'SN_USES_PAGE_TEST', true ); } // skip add_filter wiring
 require_once __DIR__ . '/../inc/uses-page.php';
 
 $GLOBALS['__purged_url_sets'] = array(); // reset the capture for the uses route

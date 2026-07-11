@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.26.2] - 2026-07-11: Refactor — prune the retired /now + /uses theme-filter callbacks (dead-code cleanup)
+
+**Headline:** Removes the vestigial `sn_now_sections` / `sn_now_updated` / `sn_uses_groups` theme-filter callbacks from the /now and /uses content editors. These fed the theme's old data-file render path; that seam was retired when /now and /about/uses became real CMS Pages (theme v10.34.0; plugin v9.19.0 / v9.20.0), after which the editors write the Pages' `post_content` directly via `sn_now_sync_page()` / `sn_uses_sync_page()` on save. The callbacks were registered on filter hooks that nothing applies anymore (confirmed across both the plugin and the companion theme), so they were pure dead code — this is the "prune in a later cleanup" flagged in the v9.19.0 entry below. No runtime behaviour changes.
+
+> **Why PATCH:** an internal dead-code refactor. The removed `sn_tf_*` functions were filter callbacks on hooks the theme no longer fires; nothing in the plugin or theme calls them, so no public function, ability, or REST route that anyone uses is removed, and there is no settings-schema change or WP-floor raise. The live /now + /uses editing path (option storage → parser → Page regeneration on save) is untouched.
+
+### Removed
+- [inc/now-page.php](inc/now-page.php): `sn_tf_now_sections()` and `sn_tf_now_updated()` plus their `add_filter( 'sn_now_sections', … )` / `add_filter( 'sn_now_updated', … )` registrations. The durable option storage, tolerant parser, and `sn_now_page_save()` (which regenerates the /now Page) are kept.
+- [inc/uses-page.php](inc/uses-page.php): `sn_tf_uses_groups()` and its `add_filter( 'sn_uses_groups', … )` registration. The parser, serializer, option storage, and `sn_uses_page_save()` are kept.
+
+### Tests
+- [tests/now-page.php](tests/now-page.php), [tests/uses-page.php](tests/uses-page.php): dropped the theme-filter callback assertions (the callbacks are gone); the parser / save-get / autoload / fallback assertions remain. Removed the now-purposeless `SN_NOW_PAGE_TEST` / `SN_USES_PAGE_TEST` guards (also from [tests/admin-post-actions.php](tests/admin-post-actions.php)) — with no `add_filter` wiring left to suppress, they were no-ops. Full standalone sweep 267 suites / 0 failed; PHPStan clean.
+
 ## [9.26.1] - 2026-07-11: Fix: credential endpoint returns one opaque 404 (close the existence oracle)
 
 **Headline:** Closes the INFO-1 hardening item from the family-close CMA audit. The public Verifiable-Credential endpoint (`GET /wp-json/signal-noise/v1/credential/<uid>`) returned two distinguishable 404s: `sn_prov_no_note` ("No such Note.") when the uid resolved to nothing, versus `sn_prov_no_credential` when the uid resolved to a *published* Note with no emittable credential (password-protected or unsigned). A caller holding a uid could distinguish those two states, a weak existence oracle. It leaked no content (the `sn_prov_credential()` visibility gate guarantees no credential or post-content body in either branch) and the differential only ever covered already-public Notes, so the audit rated it INFO. Both failure paths now collapse into a single opaque 404, matching the DID route's body-less-404 shape, so the endpoint no longer distinguishes the two states.

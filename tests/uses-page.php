@@ -3,10 +3,10 @@
  * Standalone fixture tests for the /uses page content editor (plugin v7.6.0).
  *
  * Owner direction 2026-07-01: /uses gets the same plugin-managed content
- * behavior as /now. The theme's seam (`sn_uses_groups`, shipped v10.10.0
- * with the uses trio and explicitly documented as "the deferred-admin-UI
- * seam") finally gets fed. inc/uses-page.php mirrors inc/now-page.php but
- * items are {name, note} pairs — an optional ` | ` splits name from note:
+ * behavior as /now. /about/uses is a real CMS child Page whose post_content
+ * sn_uses_page_save() regenerates from this editor. inc/uses-page.php mirrors
+ * inc/now-page.php but items are {name, note} pairs — an optional ` | ` splits
+ * name from note:
  *
  *   ## Interface & control
  *   - Universal Audio Apollo Twin X DUO | Custom 10 plug-in upgrade
@@ -14,17 +14,15 @@
  *
  * The section grammar is shared with the /now parser (sn_now_parse_sections);
  * this module maps its string items to pairs. Same fallback discipline: empty
- * clears, zero-group content never replaces the theme file content. A
- * serializer round-trips the theme's live groups so the editor can prefill
- * from the current file content instead of making the owner retype it.
+ * clears, zero-group content is refused at save so it never blanks the page. A
+ * serializer round-trips existing groups so the editor can prefill from them
+ * instead of making the owner retype it.
  *
  * Run: php tests/uses-page.php
  * @since plugin v7.6.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
-define( 'SN_NOW_PAGE_TEST', true );  // suppress /now filter wiring (shared parser rides in)
-define( 'SN_USES_PAGE_TEST', true ); // suppress /uses filter wiring
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -83,16 +81,6 @@ ok( null === sn_uses_page_get(), 'cleared → null' );
 $GLOBALS['__options']['sn_uses_page'] = 'hostile';
 ok( null === sn_uses_page_get(), 'hostile stored shape → null' );
 $GLOBALS['__options'] = array();
-
-// ── theme-filter callback ──
-echo "\nTest: sn_tf_uses_groups\n";
-$theme_default = array( array( 'label' => 'Theme file', 'items' => array( array( 'name' => 'fallback', 'note' => '' ) ) ) );
-ok( $theme_default === sn_tf_uses_groups( $theme_default ), 'no saved content → theme default passes through' );
-sn_uses_page_save( "## Plugin Group\n- plugin item | with note\n" );
-$out = sn_tf_uses_groups( $theme_default );
-ok( 'Plugin Group' === ( $out[0]['label'] ?? '' ), 'saved content REPLACES the theme groups' );
-sn_uses_page_save( "no headers, just prose\n" );
-ok( $theme_default === sn_tf_uses_groups( $theme_default ), 'zero-group saved content → theme default (never a blank /uses)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

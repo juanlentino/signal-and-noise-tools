@@ -4,11 +4,10 @@
  *
  * inc/now-page.php: the owner asked for /now content to live in the plugin
  * ("done in content instead... Content in the plugin"), not hardcoded in the
- * theme data file. The theme shipped the seams for exactly this:
- * `sn_now_sections` (v10.21.0) + `sn_now_updated` (v10.21.1). This module
- * stores an owner-edited plain-text document in a durable autoload=no option
- * (transients are flush-volatile under Breeze), parses it into the theme's
- * section shape, and feeds both filters. Empty option = theme-file fallback.
+ * theme data file. This module stores an owner-edited plain-text document in a
+ * durable autoload=no option (transients are flush-volatile under Breeze) and
+ * parses it into the section shape that sn_now_page_save() regenerates the
+ * /now Page from. Empty/unparseable option = the prior page content stands.
  *
  * Format: `## Label` opens a section; every other non-empty line is an item
  * (leading `- ` / `* ` stripped). Items before the first header are dropped.
@@ -18,7 +17,6 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
-define( 'SN_NOW_PAGE_TEST', true ); // suppress add_filter wiring on require
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -79,23 +77,6 @@ ok( array() === sn_now_page_sections(), 'cleared option → no sections' );
 $GLOBALS['__options']['sn_now_page'] = 'not-an-array';
 ok( null === sn_now_page_get(), 'non-array stored value → null' );
 $GLOBALS['__options'] = array();
-
-// ── theme-filter callbacks ──
-echo "\nTest: sn_tf_now_sections / sn_tf_now_updated\n";
-$theme_default_sections = array( array( 'label' => 'Theme file', 'items' => array( 'fallback' ) ) );
-ok( $theme_default_sections === sn_tf_now_sections( $theme_default_sections ), 'no saved content → theme default passes through' );
-ok( '2026-07-01' === sn_tf_now_updated( '2026-07-01' ), 'no saved content → theme default date passes through' );
-
-sn_now_page_save( "## Plugin Section\n- plugin item\n" );
-$out = sn_tf_now_sections( $theme_default_sections );
-ok( is_array( $out ) && 'Plugin Section' === ( $out[0]['label'] ?? '' ), 'saved content REPLACES the theme sections' );
-ok( sn_tf_now_updated( '2026-07-01' ) === ( sn_now_page_get()['updated'] ?? '' ), 'saved content supplies its save-stamp as the updated date' );
-
-// content that parses to NOTHING (e.g. prose without headers) must fall back,
-// not blank the live page.
-sn_now_page_save( "no headers here, just prose\n" );
-ok( $theme_default_sections === sn_tf_now_sections( $theme_default_sections ), 'unparseable saved content → theme default (never a blank /now)' );
-ok( '2026-07-01' === sn_tf_now_updated( '2026-07-01' ), 'unparseable saved content → theme default date' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
