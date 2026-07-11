@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.21.2
+ * Version:     9.22.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -164,6 +164,15 @@ require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content 
 require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content → Uses Page editor form (prefills from the theme's live list)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
+
+// v9.22.0: native MCP server — POST /wp-json/signal-noise/v1/mcp exposes a
+// read-only allowlist of Abilities as MCP tools (machine-readability program,
+// sub-project B). Required AFTER rest-api.php so SN_REST_NAMESPACE is defined.
+// Load order = capabilities → tools → server → endpoint (dependency order).
+require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
+require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
+require_once SNT_PATH . 'inc/mcp/mcp-server.php';
+require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
 
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
 // metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:

@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.22.0] - 2026-07-11: Native MCP server — read-only tools over the site's abilities
+
+**Headline:** The plugin now speaks the Model Context Protocol. A native, dependency-free endpoint at `POST /wp-json/signal-noise/v1/mcp` exposes a read-only allowlist of 15 existing Abilities (health, uptime, deploy status, analytics, RSS stats, cron history + events, insights, the weekly digest, plus the theme's version, latest tag, and design-system reads) as MCP tools. An agent — Claude Code first — connects with a WordPress application password and queries the site through the standard protocol. This is sub-project B of the machine-readability program; sub-project A's `/.well-known/agents.json` manifest now advertises the endpoint.
+
+> **Why MINOR:** a new user-visible capability (the MCP endpoint), additive. No public function or REST route removed or renamed, no settings-schema change, no WP-floor raise. The endpoint is admin-gated (`manage_options`) and read-only.
+
+### New
+- `inc/mcp/mcp-endpoint.php` — `POST /wp-json/signal-noise/v1/mcp` (reuses the `signal-noise/v1` namespace), with a `manage_options` auth floor over WordPress application-password auth and `Cache-Control: no-store`. Advertises itself into the theme's `sn_agents_surfaces` discovery manifest via `rest_url()`.
+- `inc/mcp/mcp-server.php` — a hand-rolled JSON-RPC 2.0 router: `initialize` (with protocol-version negotiation), `tools/list`, `tools/call`, `ping`. Notifications receive no response, per JSON-RPC.
+- `inc/mcp/mcp-tools.php` — projects each allowlisted `WP_Ability` into an MCP tool from its existing JSON Schema and callbacks; normalizes each schema to a strict-conformant object schema. The allowlist gates `tools/call`, not just `tools/list`, so the other abilities are never reachable.
+- `inc/mcp/mcp-capabilities.php` — the 15-slug read-only allowlist (single source of truth, filterable via `sn_mcp_allowlist`), the protocol version, and server identity.
+- `tests/mcp-capabilities.php`, `tests/mcp-tools.php`, `tests/mcp-server.php`, `tests/mcp-endpoint.php` — standalone fixtures (47 assertions).
+
+### Notes
+- Zero runtime dependencies (no `mcp-adapter` or SDK) — the endpoint hand-rolls the protocol. The transport is written as a seam so a streaming (SSE) branch can drop in later without touching the method logic.
+- Connect: `claude mcp add --transport http https://juanlentino.com/wp-json/signal-noise/v1/mcp --header "Authorization: Basic <base64 user:app-password>"`.
+
 ## [9.21.2] - 2026-07-11: Fix: Color-drift check no longer misreads HTML entities as hex colors
 
 **Headline:** The zero-AI **Color drift** Health check was flagging the `/now` dossier for an "off-palette inline color: #003399" that does not exist on the page. The `#003399` is a phantom: `esc_html()` encodes the apostrophe in *"this site's theme"* to the numeric character reference `&#039;`, and the extractor's `/#[0-9a-f]{3}\b/` regex read the `#039` inside it as the 3-digit hex `#039` → normalized to `#003399`. The check now strips numeric HTML character references (`&#NNN;` and `&#xNN;`) before extracting hex colors, so an apostrophe — or `&#160;` (nbsp), `&#233;` (é), or any 3-digit `&#NNN;` — can never masquerade as a color. The `/now` page itself was never off-palette: it is class-only markup (`sn-now-*`) styled entirely by the theme's palette tokens.
