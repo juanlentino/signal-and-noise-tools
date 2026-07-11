@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.25.2] - 2026-07-11: Security — password-protected posts no longer leak content through their OG card
+
+**Headline:** The generated 1200×630 social-share card baked a post's **title and up to ~36 words of `post_content`** (via `sn_og_card_dek_source()`) into a PNG served publicly and **without authentication** at `/wp-content/uploads/sn-og/post-{ID}.png`. A password-protected post is still `post_status='publish'`, so the status-keyed generation and serving gates let it through — anyone could read the protected title and dek as visible pixels, bypassing the password. D2 (v9.25.0) already withholds the *metadata* credential for exactly these posts (`sn_prov_credential()` embeds nothing in a protected Note's card), but the rendered *pixels* still leaked; this closes the pixel side with the same gate. Pre-existing, not introduced by D2.
+
+The fix is layered because the earlier backfill migration already generated a card for **every** published post — protected ones included — before any gate existed, so a generation-only fix would leave those PNGs live on disk:
+
+1. **Don't generate** — `sn_generate_og_card()` bails for a protected post, covering all five callers (save hook, backfill, rebuild-card ability, admin-bar action, AI-title rewrite).
+2. **Don't serve** — `sn_og_image_url_for_post()` returns `null` for a protected post even when a card PNG exists on disk, so the public `og:image` never points at it. The author-chosen featured image is still emitted (it's not a content leak).
+3. **Remove the files** — the save hook deletes any card on the public→protected transition, and a one-time `admin_init` migration purges cards already written for protected posts.
+
+> **Why PATCH:** a security-hardening fix. No public function/REST route/ability removed or renamed, no settings-schema change, no WP-floor raise. New helpers are additive; the purge migration is version-gated and idempotent, so no user action is required.
+
+### Security
+- [inc/og-card-generator.php](inc/og-card-generator.php) — new `sn_og_card_allowed_for_post( $post )` predicate mirrors the D1/D2 gate (`'' !== (string) $post->post_password`) as the single source of truth for every card path. `sn_generate_og_card()` and `sn_og_image_url_for_post()` consult it (generation bail + serving `null`); `sn_og_sync_card_on_save()` (the extracted save-hook body) and the new one-time `sn_migrate_purge_protected_og_cards()` migration delete stale/pre-existing cards via a new `sn_og_delete_card( $post_id )` helper. The featured-image branch is untouched — only the auto-generated content card is withheld.
+- The deletion paths cover **any editable post type**, not just `post`/`page`: a card can be regenerated for any type through the admin-bar quick action, the `regenerate-og-card` ability, or the AI-title rewrite, so the save-hook cleanup runs before the post/page gate and the purge query uses `post_type => 'any'` — matching the (type-agnostic) generation and serving gates so a custom-post-type card can't be stranded on disk after a public→protected switch.
+
+### Tests
+- [tests/og-card-password-protected.php](tests/og-card-password-protected.php) — proves a protected post is withheld by the predicate, that `sn_og_image_url_for_post()` returns `null` for a protected post **even when the card PNG is on disk** (paired against a public post that resolves to that same file, so the assertion is non-vacuous), that a protected post's featured image is still served, and that generation bails while the delete helper removes an existing card.
 ## [9.25.1] - 2026-07-11: Fix — transient network blips no longer freeze a live citation as "HTTP 0" rot
 
 **Headline:** The External link-rot check flagged a live citation (`caselaw.nationalarchives.gov.uk/…`) as rotted with the note *"HTTP 0 on probe"*. HTTP 0 is not a status the server sends — it's the probe's *network-failure sentinel* (`is_wp_error()` → code 0). Driving WordPress's exact HTTP stack from the production server (`wp_safe_remote_head`/`get`, same args) returned **HTTP 200**, proving the link is reachable. The real defect: a single **transient blip at scan time** (a momentary timeout/DNS/connection error) was recorded as a failure **and cached for 24h** — and because the probe serves that cache, even "Re-run scan" kept returning the stale code 0. A deterministic status (404) can be cached safely; a non-deterministic network error must not be.
