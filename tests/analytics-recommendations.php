@@ -31,6 +31,8 @@ function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' )
 function esc_html( $s ) { return (string) $s; }
 function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
+function esc_attr( $s ) { return (string) $s; }
+function wp_kses_post( $s ) { return (string) $s; }
 function snt_an_panel_open( $title ) { echo '<div class="sn-an-panel"><span>' . $title . '</span>'; }
 function snt_an_panel_close() { echo '</div>'; }
 
@@ -107,6 +109,45 @@ r_eq( 3, count( $all ), 'all three rules fire when their signals are present' );
 foreach ( $all as $c ) {
 	r_true( ! isset( $c['visitor'] ) && ! isset( $c['ip'] ) && ! isset( $c['session'] ), 'card ' . $c['id'] . ' carries no per-person field' );
 }
+
+// ── v9.33.0: AI-reasoned recommendations behind the seam (rules stay the floor) ──
+echo "\nSeam: AI-reasoned brief over the rule cards\n";
+if ( ! class_exists( 'WP_Error' ) ) { class WP_Error {} }
+$GLOBALS['__ai_return'] = null; $GLOBALS['__ai_prompt'] = ''; $GLOBALS['__ai_system'] = '';
+if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
+	function snt_ai_generate_with_constraints( $prompt, $system, $max = 256, $feature = 'generic' ) {
+		$GLOBALS['__ai_prompt'] = $prompt; $GLOBALS['__ai_system'] = $system; $GLOBALS['__ai_feature'] = $feature;
+		return $GLOBALS['__ai_return'];
+	}
+}
+$sig_fix = array( array( 'plain_label' => '/notes/x is decaying (-38% over the window)', 'kind' => 'trajectory', 'confidence' => 'medium' ) );
+$rec = sn_analytics_recommend( $sig_fix );
+r_true( 'fallback' === $rec['source'] && '' === $rec['brief'], 'recommend: AI silent → rules-only fallback (empty brief)' );
+r_eq( count( sn_analytics_recommendations() ), count( $rec['cards'] ?? array() ), 'recommend: fallback passes the rule cards through verbatim' );
+$GLOBALS['__ai_return'] = 'Refresh the cooling posts first; the decay signal makes them the highest-leverage fix.';
+$rec2 = sn_analytics_recommend( $sig_fix );
+r_true( 'ai' === $rec2['source'] && false !== strpos( $rec2['brief'], 'highest-leverage' ), 'recommend: AI path fills the priority brief' );
+r_eq( json_encode( sn_analytics_recommendations() ), json_encode( $rec2['cards'] ), 'recommend: the AI NEVER alters the deep-linked cards (verbatim rules)' );
+r_true( false !== strpos( $GLOBALS['__ai_prompt'], 'cooling post' ) && false !== strpos( $GLOBALS['__ai_prompt'], 'decaying' ) && false !== strpos( (string) $GLOBALS['__ai_system'], 'NEVER invent' ), 'recommend: prompt carries cards + signals; system forbids invention' );
+$GLOBALS['__ai_return'] = new WP_Error();
+$rec3 = sn_analytics_recommend( $sig_fix );
+r_true( 'fallback' === $rec3['source'] && '' === $rec3['brief'], 'recommend: budget-cap WP_Error → rules-only fallback' );
+$GLOBALS['__lifecycle'] = null; $GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
+$GLOBALS['__ai_prompt'] = 'UNTOUCHED';
+$rec4 = sn_analytics_recommend( $sig_fix );
+r_true( '' === $rec4['brief'] && 'UNTOUCHED' === $GLOBALS['__ai_prompt'], 'recommend: no cards → no AI call, empty brief' );
+
+echo "\nRender: the AI brief leads the panel; fallback renders as before\n";
+$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 2 ) );
+$GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
+$GLOBALS['__ai_return'] = 'Refresh the cooling posts first.';
+ob_start(); snt_analytics_render_recommendations_panel(); $bh = (string) ob_get_clean();
+r_true( false !== strpos( $bh, 'sn-an-rec-brief' ) && false !== strpos( $bh, 'data-source="ai"' ) && false !== strpos( $bh, 'Refresh the cooling posts first.' ), 'render: AI brief renders with its source' );
+$p_brief = strpos( $bh, 'sn-an-rec-brief' ); $p_cards = strpos( $bh, 'sn-an-recs' );
+r_true( false !== $p_brief && false !== $p_cards && $p_brief < $p_cards, 'render: the brief precedes the card list' );
+$GLOBALS['__ai_return'] = null;
+ob_start(); snt_analytics_render_recommendations_panel(); $fh = (string) ob_get_clean();
+r_true( false === strpos( $fh, 'sn-an-rec-brief' ) && false !== strpos( $fh, 'cooling post' ), 'render: AI silent → panel renders exactly the rules cards (no brief div)' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );
