@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.26.5
+ * Version:     9.27.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -166,6 +166,7 @@ require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content 
 require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content → Uses Page editor form (prefills from the theme's live list)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
+require_once SNT_PATH . 'inc/analytics-refresh-rest.php'; // v9.27.0: token-gated rollup-refresh trigger (CF Cron worker → reliable freshness)
 
 // v9.22.0: native MCP server — POST /wp-json/signal-noise/v1/mcp exposes a
 // read-only allowlist of Abilities as MCP tools (machine-readability program,
