@@ -236,7 +236,8 @@ function sn_analytics_recommend( $signals = null ) {
 	$cards = sn_analytics_recommendations();
 	if ( null === $signals && function_exists( 'sn_analytics_signals' ) ) {
 		$to      = gmdate( 'Y-m-d' );
-		$signals = sn_analytics_signals( gmdate( 'Y-m-d', strtotime( $to . ' -13 days' ) ), $to, 'human' );
+		$opts    = function_exists( 'sn_analytics_signal_opts' ) ? sn_analytics_signal_opts() : array();
+		$signals = sn_analytics_signals( gmdate( 'Y-m-d', strtotime( $to . ' -13 days' ) ), $to, 'human', $opts );
 	}
 	$signals  = is_array( $signals ) ? $signals : array();
 	$override = function_exists( 'apply_filters' ) ? apply_filters( 'sn_analytics_recommender', null, $cards, $signals ) : null;

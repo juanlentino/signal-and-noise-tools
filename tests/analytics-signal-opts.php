@@ -73,6 +73,15 @@ $GLOBALS['__filters']['sn_analytics_signal_config'] = static function ( $cfg ) {
 $opts = sn_analytics_signal_opts();
 ok( 14 === $opts['baseline_days'], 'post-filter re-clamp: baseline 5 → 14' );
 ok( 0.5 === $opts['z'], 'post-filter re-clamp: junk z → 0.5 floor' );
+$GLOBALS['__filters']['sn_analytics_signal_config'] = static function ( $cfg ) {
+	$cfg['z'] = 42; return $cfg;
+};
+ok( 10.0 === sn_analytics_signal_opts()['z'], 'post-filter re-clamp: z 42 → 10.0 ceiling' );
+$GLOBALS['__filters']['sn_analytics_signal_config'] = static function ( $cfg ) {
+	return 'not-an-array';
+};
+$opts = sn_analytics_signal_opts();
+ok( 30 === $opts['baseline_days'] && 3.5 === $opts['z'], 'filter returning a scalar collapses to settings-derived defaults' );
 unset( $GLOBALS['__filters']['sn_analytics_signal_config'] );
 
 echo "\n--- $pass passed, $fail failed ---\n";

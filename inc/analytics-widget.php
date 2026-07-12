@@ -259,7 +259,8 @@ function sn_aw_insight_header() {
 		return;
 	}
 	list( $from, $to ) = sn_aw_window7();
-	$signals = sn_analytics_signals( $from, $to, 'human' );
+	$opts    = function_exists( 'sn_analytics_signal_opts' ) ? sn_analytics_signal_opts() : array();
+	$signals = sn_analytics_signals( $from, $to, 'human', $opts );
 	if ( ! is_array( $signals ) || empty( $signals ) ) {
 		return;
 	}

@@ -26,6 +26,9 @@ const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the b
  * Preset map (no new top-level constants — the duplicate-const class):
  * relaxed → 2.5σ, standard → SN_ANALYTICS_SIGNAL_ANOMALY_Z (3.5), strict → 4.5σ.
  *
+ * Only baseline_days and z pass through — other filter-supplied keys (e.g.
+ * floor) are intentionally dropped; engine defaults apply.
+ *
  * @since 9.36.0
  * @return array{baseline_days:int, z:float}
  */
@@ -39,7 +42,7 @@ function sn_analytics_signal_opts() {
 	$z_map = array( 'relaxed' => 2.5, 'standard' => SN_ANALYTICS_SIGNAL_ANOMALY_Z, 'strict' => 4.5 );
 	$cfg   = array(
 		'baseline_days' => $baseline,
-		'z'             => isset( $z_map[ $preset ] ) ? $z_map[ $preset ] : $z_map['standard'],
+		'z'             => $z_map[ $preset ] ?? $z_map['standard'],
 	);
 	$out = function_exists( 'apply_filters' ) ? (array) apply_filters( 'sn_analytics_signal_config', $cfg ) : $cfg;
 	return array(
