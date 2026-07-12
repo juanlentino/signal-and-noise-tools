@@ -224,7 +224,7 @@ function snt_analytics_render_pipeline_status() {
 
 /**
  * Settings-hub engine tuning (v9.36.0): the two owner-tunable predictive knobs
- * — baseline window (days of history behind anomaly/trend baselines, clamped
+ * — baseline window (days of history behind the anomaly baseline, clamped
  * 14–90 server-side) and anomaly sensitivity as a preset (relaxed/standard/
  * strict → z 2.5/3.5/4.5 in sn_analytics_signal_opts()). Presets instead of a
  * raw σ field: the label explains the consequence, not the math. Everything
@@ -250,7 +250,7 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<p><label for="sn_signal_baseline_days"><strong>' . esc_html__( 'Baseline window', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	echo '<input type="number" id="sn_signal_baseline_days" name="sn_signal_baseline_days" value="' . esc_attr( (string) $baseline ) . '" min="14" max="90" step="1" class="small-text"> ' . esc_html__( 'days', 'signal-and-noise-tools' );
-	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind anomaly & trend baselines. 14–90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind the anomaly baseline. 14–90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
 
 	// T4-review a11y carry-over: the radios are a real <fieldset> with a <legend>
 	// (the exclusion card's grouping idiom), so screen readers announce the group.
