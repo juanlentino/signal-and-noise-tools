@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.31.0] - 2026-07-12: Feat — WP-home Overview widget leads with insight (maturity Increment 2)
+
+**Headline:** The WP dashboard-home **Analytics — Overview** widget now leads with a compact **Insight header** — the narrator's one-liner plus the single highest-severity signal chip (tier-badged, confidence-labelled) — pure reuse of the v9.30.0 signal engine + narrator (Increment 2 of the maturity model). Honest degradation at every seam: no signals → header hidden and the KPIs render exactly as before; AI off → a deterministic one-liner built from the top signal's `plain_label` (never the 4-item digest list); insights module absent → the widget renders verbatim (`function_exists` guards). Top-content widget untouched.
+
+> **Why MINOR:** additive user-visible capability on an existing widget. No public function/route/ability removed or renamed; no settings-schema change; renders fully with AI off.
+
+### New
+- `inc/analytics-widget.php`: `sn_aw_insight_header()` — compact digest (narrator gets ONLY the top signal — compact and cheap) + the shared `snt_analytics_render_signal_chip`, mounted atop `sn_aw_overview()`.
+- `assets/analytics/analytics-widget.css`: compact insight-header + chip styles (the widget stylesheet is `index.php`-scoped; the analytics-page stylesheet doesn't load on the home dashboard).
+
+### Tests
+- `tests/analytics-widget.php`: +10 assertions — AI one-liner + source mark, single top-severity chip, narrator receives only the top signal, fallback one-liner (not the digest list), hidden when no signals, mounts above "Right now", KPIs intact, module-absent verbatim. Full sweep green; PHPStan + phpcs clean.
+
 ## [9.30.0] - 2026-07-12: Feat — analytics predictive+prescriptive Insights band (maturity tiers, Increment 1)
 
 **Headline:** The analytics dashboard gains an **Insights band** that leads the page — the first slice of the descriptive→predictive→prescriptive maturity model. A transparent statistical **signal engine** (robust median/MAD anomaly detection on daily views/visits + Theil–Sen trajectory classification for top content and campaigns) produces typed, calibrated signals; a **narrator** turns them into a short "what happened → why → what to do" brief. The narrator uses the WP AI Client when available and falls back to a deterministic template, so the band always renders — no panel depends on an LLM call. Honest by construction: robust stats (not mean/SD), a 14-day minimum-sample floor, a decoupled 30-day baseline independent of the selected range, and confidence on every signal.

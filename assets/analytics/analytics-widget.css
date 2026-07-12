@@ -88,3 +88,11 @@
 .sn-aw-movers li { font-variant-numeric: tabular-nums; }
 .sn-aw-mv-up { color: #00a32a; font-weight: 600; }
 .sn-aw-mv-down { color: #d63638; font-weight: 600; }
+
+/* v9.31.0 maturity I2: compact insight header (digest one-liner + top-signal chip) */
+.sn-aw-insight{margin:4px 0 8px;}
+.sn-aw-insight p{margin:0 0 6px;font-size:12px;line-height:1.5;}
+.sn-aw-insight .sn-an-signal{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 8px;border:1px solid #dcdcde;border-radius:999px;}
+.sn-aw-insight .sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#2271b1;}
+.sn-aw-insight .sn-an-signal-dir{font-size:10px;}
+.sn-aw-insight .sn-an-signal-conf{font-size:10px;color:#646970;text-transform:uppercase;}
