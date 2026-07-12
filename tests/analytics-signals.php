@@ -20,7 +20,16 @@ $GLOBALS['__lifecycle'] = null;
 function sn_analytics_posts_lifecycle( $limit = 400 ) { return $GLOBALS['__lifecycle']; }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( (string) $u, $c ); } }
 
+// Production (signal-and-noise-tools.php) requires analytics-derived.php BEFORE
+// analytics-signals.php. Load both in that order so cross-file constant collisions
+// surface here instead of only on a live site — the harness-isolation gap that let
+// v9.30.0 ship a duplicate SN_ANALYTICS_ANOMALY_Z (2.0 in derived, 3.5 here): the
+// first definition won and the anomaly engine silently ran at 2.0σ.
+$GLOBALS['__load_warnings'] = array();
+set_error_handler( static function ( $errno, $errstr ) { $GLOBALS['__load_warnings'][] = $errstr; return true; }, E_WARNING | E_NOTICE | E_DEPRECATED );
+require __DIR__ . '/../inc/analytics-derived.php';
 require __DIR__ . '/../inc/analytics-signals.php';
+restore_error_handler();
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -158,6 +167,22 @@ $pick = static function ( $sigs, $kind ) { return array_values( array_filter( $s
 $wa = $pick( $wide, 'anomaly' ); $na = $pick( $narrow, 'anomaly' );
 ok( count( $wa ) >= 1 && count( $na ) >= 1 && $wa[0]['value'] === $na[0]['value'] && $wa[0]['interval'] === $na[0]['interval'], 'invariant: the spike scores identically in wide + narrow display windows (baseline is $to-anchored)' );
 ok( json_encode( $pick( $wide, 'forecast' ) ) === json_encode( $pick( $narrow, 'forecast' ) ), 'invariant: forecasts identical across display ranges (history is $to-anchored)' );
+$GLOBALS['__daily'] = array();
+
+echo "\nGroup: loader-order parity (derived + signals together)\n";
+$collisions = array_values( array_filter( $GLOBALS['__load_warnings'], static function ( $w ) { return false !== strpos( (string) $w, 'already defined' ); } ) );
+ok( array() === $collisions, 'parity: no "already defined" constant warnings loading derived then signals' );
+ok( defined( 'SN_ANALYTICS_SIGNAL_ANOMALY_Z' ) && 3.5 === constant( 'SN_ANALYTICS_SIGNAL_ANOMALY_Z' ), 'parity: the signal-engine threshold constant exists and is 3.5' );
+ok( 2.0 === SN_ANALYTICS_ANOMALY_Z, 'parity: the legacy derived z constant is untouched at 2.0' );
+// Behavioral pin: an outlier at robust z≈2.7 sits BETWEEN the legacy 2.0 cutoff and
+// the engine's designed 3.5 — with both files loaded it must NOT flag. Under the
+// duplicate-constant bug (effective threshold 2.0) it flagged. The 60-view spike in
+// the anomaly group above (z≈33.7) already proves real anomalies still fire.
+$mid = array();
+for ( $i = 0; $i < 19; $i++ ) { $mid[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => ( $i % 2 ) ? 11 : 9, 'visits' => 8 ); }
+$mid[] = array( 'day' => '2026-06-20', 'views' => 14, 'visits' => 8 ); // z = 0.6745·(14−10)/1 ≈ 2.7
+$GLOBALS['__daily'] = $mid;
+ok( array() === sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' ), 'parity: z≈2.7 outlier stays quiet at the effective threshold (3.5, not 2.0)' );
 $GLOBALS['__daily'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";

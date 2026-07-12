@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.35.1] - 2026-07-12: Fix — the anomaly engine runs at its designed 3.5σ threshold (duplicate-constant collision with analytics-derived)
+
+**Headline:** v9.30.0's predictive signal engine declared `SN_ANALYTICS_ANOMALY_Z = 3.5` in `inc/analytics-signals.php` — but `inc/analytics-derived.php` has owned that exact name since the legacy z-score engagement annotations (`= 2.0`), and the plugin loader requires derived BEFORE signals. In PHP the first constant definition wins (the second emits a "Constant already defined" warning on every page load), so in production the anomaly engine silently ran at a **2.0** robust-z cutoff instead of the designed/documented/tested **3.5** — flagging ordinary day-to-day variance as anomalies. The CLI suite loaded `analytics-signals.php` in isolation, saw 3.5, and never caught it. The engine's constant is renamed `SN_ANALYTICS_SIGNAL_ANOMALY_Z` (joining the file's `SN_ANALYTICS_SIGNAL_*` prefix); derived's legacy 2.0 constant is untouched.
+
+> **Why PATCH:** restores designed + documented behaviour and removes a load-time PHP warning. The renamed constant was internal (nothing outside `inc/analytics-signals.php` referenced it — the `$opts['z']` override seam is unchanged); no public function/route/ability removed or renamed, no settings-schema change, no user action required.
+
+### Fixed
+- [inc/analytics-signals.php](inc/analytics-signals.php): `SN_ANALYTICS_ANOMALY_Z` → `SN_ANALYTICS_SIGNAL_ANOMALY_Z` (the declaration + its single use in `sn_analytics_signal_anomalies()`). Kills the duplicate-definition warning and restores the 3.5 threshold in production. [inc/analytics-derived.php](inc/analytics-derived.php) is untouched.
+
+### Tests
+- [tests/analytics-signals.php](tests/analytics-signals.php) 43 → 47: the suite now requires `inc/analytics-derived.php` BEFORE `inc/analytics-signals.php` (mirroring the production loader order) under a warning-capturing error handler — closing the harness-isolation gap that hid this. New "loader-order parity" group: no "already defined" warnings across the two loads; the engine constant exists and reads 3.5; derived's legacy constant still reads 2.0; and a behavioural pin — an outlier at robust z≈2.7 (between the legacy 2.0 cutoff and the designed 3.5) must stay quiet with both files loaded (it flagged under the bug; the existing z≈33.7 spike fixture proves real anomalies still fire). Full sweep 274 suites / 7,483 assertions / 0 failed; PHPStan + phpcs clean.
+
 ## [9.35.0] - 2026-07-12: Feat — maturity framing: tier badges everywhere + the public case-study explainer (Increment 6, roadmap complete)
 
 **Headline:** The maturity model becomes legible everywhere — the closing increment. A **shared tier-badge component** (`snt_analytics_tier_badge`, whitelisted, one way to name a tier) badges the Overview panel (Descriptive), the Insights band (Prescriptive + Predictive, now real badges), the Recommendations panel (Prescriptive), and every signal chip — on the dashboard AND the WP-home widget. The Insights band gains a **methods note** naming the stats and their limits in-product ("robust median/MAD… backtested Holt forecasts… signals need ~2 weeks of history") — naming the limit is the flex (spec §12). And the **`[sn_analytics_maturity]` shortcode** renders the public "how this works" case-study explainer — the four-tier table + the honesty principles, static by design (no live metrics, no per-person data) so it is safe to publish as the portfolio artifact.
