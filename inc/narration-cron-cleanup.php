@@ -2,7 +2,7 @@
 /**
  * Signal & Noise Tools — one-time cleanup of the retired weekly-digest cron.
  *
- * v9.5.0 (annotations Release 2) removed the weekly-digest DASHBOARD surface and
+ * v9.4.1 (annotations Release 2) removed the weekly-digest DASHBOARD surface and
  * its self-healing scheduler (inc/insights-narration.php no longer schedules the
  * `sn_insights_narration_weekly` event). Any install that had the opt-in enabled
  * is left with an orphaned recurring event whose scheduler is gone. Install hooks
@@ -13,7 +13,7 @@
  * get-narration) are intentionally kept — only the automated weekly schedule is gone.
  *
  * @package SignalNoiseTools
- * @since 9.5.0
+ * @since 9.4.1
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

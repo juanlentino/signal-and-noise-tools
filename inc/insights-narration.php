@@ -6,7 +6,7 @@
  * over the same first-party analytics the Insights advisor reads, but framed
  * as narrative (what happened) rather than the advisor's 5 structured
  * recommendations (what to do). Reuses the shared Sonnet-pinned AI wrapper
- * and a 7-day transient cache. As of v9.5.0 (annotations R2) the dashboard
+ * and a 7-day transient cache. As of v9.4.1 (annotations R2) the dashboard
  * surface + opt-in weekly cron were retired; the digest now lives only as the
  * two narration Abilities (signal-noise/run-narration + get-narration).
  *
