@@ -4,6 +4,7 @@ define( 'ABSPATH', '/' );
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return $s; } }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 
 // Stubs: signal engine + narrator (recorders/fixtures).
 $GLOBALS['__sig'] = array();
@@ -53,6 +54,13 @@ $GLOBALS['__sig'] = array();
 $GLOBALS['__digest'] = array( 'digest' => '', 'source' => 'fallback' );
 ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $we = ob_get_clean();
 ok( false !== strpos( $we, 'needs ~2 weeks' ), 'band: empty digest keeps the honest empty state' );
+
+echo "\nGroup: v9.35.0 — band framing (I6)\n";
+$GLOBALS['__sig'] = array( $sig );
+$GLOBALS['__digest'] = array( 'digest' => '<p>Body.</p>', 'source' => 'ai' );
+ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $fb = ob_get_clean();
+ok( false !== strpos( $fb, 'Prescriptive' ) && false !== strpos( $fb, 'Predictive' ), 'band head: tier names survive when the shared component is absent (fallback)' );
+ok( false !== strpos( $fb, 'sn-an-methods-note' ) && false !== strpos( $fb, 'median/MAD' ) && false !== strpos( $fb, '2 weeks' ), 'band: the methods note names the stats and the honesty limit (the limit IS the flex)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

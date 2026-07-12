@@ -13,7 +13,9 @@ function snt_analytics_render_signal_chip( $signal ) {
 	$dir  = (string) ( $signal['direction'] ?? '' );
 	$icon = ( 'up' === $dir ) ? '▲' : ( ( 'down' === $dir ) ? '▼' : '•' );
 	return '<span class="sn-an-signal sn-an-signal--' . esc_attr( (string) ( $signal['kind'] ?? '' ) ) . '">'
-		. '<span class="sn-an-signal-badge">' . esc_html( $tier ) . '</span> '
+		. ( function_exists( 'snt_analytics_tier_badge' ) && '' !== snt_analytics_tier_badge( strtolower( $tier ) )
+			? snt_analytics_tier_badge( strtolower( $tier ) ) . ' '
+			: '<span class="sn-an-signal-badge">' . esc_html( $tier ) . '</span> ' )
 		. '<span class="sn-an-signal-dir">' . esc_html( $icon ) . '</span> '
 		. esc_html( (string) ( $signal['plain_label'] ?? '' ) )
 		. ' <span class="sn-an-signal-conf">' . esc_html( (string) ( $signal['confidence'] ?? '' ) ) . '</span>'
@@ -38,7 +40,13 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 	}
 
 	echo '<div class="sn-an-insights">';
-	echo '<div class="sn-an-insights-head"><span>Insights</span> <span class="sn-an-tier-note">Prescriptive &middot; Predictive</span></div>';
+	// v9.35.0 (maturity I6): real tier badges via the shared component; the static
+	// text stays as the floor for partial installs (the harness-isolation contract).
+	$tier_marks = function_exists( 'snt_analytics_tier_badge' )
+		? snt_analytics_tier_badge( 'prescriptive' ) . ' ' . snt_analytics_tier_badge( 'predictive' )
+		: '<span class="sn-an-tier-note">Prescriptive &middot; Predictive</span>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from the escaped shared component / static fallback markup.
+	echo '<div class="sn-an-insights-head"><span>Insights</span> <span class="sn-an-tier-badges">' . $tier_marks . '</span></div>';
 	if ( '' !== trim( (string) $narr['narrative'] ) ) {
 		echo '<div class="sn-an-insights-narrative" data-source="' . esc_attr( (string) $narr['source'] ) . '">' . wp_kses_post( $narr['narrative'] ) . '</div>';
 	} else {
@@ -51,5 +59,8 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 		}
 		echo '</div>';
 	}
+	// Spec §12: naming the limit IS the flex — say what the stats are and what
+	// they need, on the surface itself.
+	echo '<p class="sn-an-methods-note">' . esc_html__( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts with intervals. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }

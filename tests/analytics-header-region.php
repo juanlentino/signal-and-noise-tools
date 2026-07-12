@@ -160,5 +160,9 @@ ok( false === strpos( $html, 'sn-an-pulse' ), 'dataless install: no pulse chrome
 $GLOBALS['__dist_on'] = true;
 $GLOBALS['__cs_on'] = true;
 
+echo "\nTest: v9.35.0 — the Overview panel names its tier (I6)\n";
+ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' ); $h_badge = (string) ob_get_clean();
+ok( false !== strpos( $h_badge, 'sn-an-tier--descriptive' ) && false !== strpos( $h_badge, '>Descriptive<' ), 'overview: header carries the shared Descriptive badge' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

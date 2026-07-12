@@ -496,3 +496,11 @@
 .sn-spark-wrap{position:relative;cursor:crosshair;touch-action:none}
 .sn-brush-sel{display:none;position:absolute;top:0;bottom:0;background:rgba(34,113,177,.12);border-left:1px solid #2271b1;border-right:1px solid #2271b1;pointer-events:none}
 .sn-an-compare-note{margin:4px 8px 8px;font-size:12px;color:#646970}
+
+/* v9.35.0 maturity tier badges (I6) */
+.sn-an-tier{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;border:1px solid #dcdcde;color:#50575e;background:#f6f7f7}
+.sn-an-tier--predictive{color:#2271b1;border-color:#9ec2e6}
+.sn-an-tier--prescriptive{color:#7c3aed;border-color:#c4b5fd}
+.sn-an-tier--diagnostic{color:#996800;border-color:#e5cf8c}
+.sn-an-methods-note{margin:10px 0 0;font-size:11px;color:#787c82}
+.sn-an-tier-badges .sn-an-tier{margin-left:4px}

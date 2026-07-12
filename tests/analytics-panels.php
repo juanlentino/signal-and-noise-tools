@@ -106,5 +106,10 @@ ok( false !== strpos( $note, 'Movement skews down.' ), 'the sentence appears in 
 $xss = capture( function () { snt_an_annotation( 'a <b>bold</b> & <script>x</script>' ); } );
 ok( false === strpos( $xss, '<b>' ) && false === strpos( $xss, '<script>' ), 'sentence is esc_html-escaped (no raw tags survive)' );
 
+echo "\nTest: v9.35.0 — shared maturity tier badge (I6)\n";
+ok( '<span class="sn-an-tier sn-an-tier--predictive">Predictive</span>' === snt_analytics_tier_badge( 'predictive' ), 'badge: renders the tier label inside the shared class pair' );
+ok( '' !== snt_analytics_tier_badge( 'descriptive' ) && '' !== snt_analytics_tier_badge( 'diagnostic' ) && '' !== snt_analytics_tier_badge( 'prescriptive' ), 'badge: all four tiers whitelisted' );
+ok( '' === snt_analytics_tier_badge( 'quantum' ) && '' === snt_analytics_tier_badge( '' ), 'badge: unknown tier renders nothing (never guess a tier)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

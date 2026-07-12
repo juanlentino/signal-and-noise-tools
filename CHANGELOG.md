@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.35.0] - 2026-07-12: Feat — maturity framing: tier badges everywhere + the public case-study explainer (Increment 6, roadmap complete)
+
+**Headline:** The maturity model becomes legible everywhere — the closing increment. A **shared tier-badge component** (`snt_analytics_tier_badge`, whitelisted, one way to name a tier) badges the Overview panel (Descriptive), the Insights band (Prescriptive + Predictive, now real badges), the Recommendations panel (Prescriptive), and every signal chip — on the dashboard AND the WP-home widget. The Insights band gains a **methods note** naming the stats and their limits in-product ("robust median/MAD… backtested Holt forecasts… signals need ~2 weeks of history") — naming the limit is the flex (spec §12). And the **`[sn_analytics_maturity]` shortcode** renders the public "how this works" case-study explainer — the four-tier table + the honesty principles, static by design (no live metrics, no per-person data) so it is safe to publish as the portfolio artifact.
+
+> **Why MINOR:** additive framing on existing surfaces + one new public shortcode. No public function/route/ability removed or renamed; no settings-schema change. This completes the descriptive→predictive→prescriptive maturity roadmap (Increments 1–6, v9.30.0 → v9.35.0).
+
+### New
+- `inc/analytics-panels.php`: `snt_analytics_tier_badge()` — the shared component, applied via the panel primitive's existing `header_meta` seam (zero signature changes).
+- `inc/analytics-maturity-page.php`: `[sn_analytics_maturity]` + `sn_analytics_maturity_tiers()` — the static public explainer.
+- Badge applications in `inc/analytics-header-region.php`, `inc/analytics-insights.php` (band header + chips + methods note), `inc/analytics-recommendations.php` — every cross-module call `function_exists`-guarded with the previous markup as the floor.
+
+### Tests
+- `tests/analytics-panels.php` 26 → 29 (component: label/class, whitelist, unknown → nothing) · `tests/analytics-header-region.php` 22 → 23 + `tests/analytics-admin.php` 154 → 155 (Overview badge presence in two suites) · `tests/analytics-insights.php` 8 → 10 (fallback head + methods note) · `tests/analytics-maturity-page.php` (new, 8: registration, tier table, principles, the static-by-design guard). Full sweep green; PHPStan + phpcs clean. The Recommendations badge application is production-only coverage (no CLI harness loads recs + panels + full WP shims together) — guarded, code-reviewed.
+
 ## [9.34.0] - 2026-07-12: Feat — range control redesign: semantic periods, comparison, brush-to-select (maturity Increment 5)
 
 **Headline:** The range control now matches how an operator reasons about time. **Semantic periods** (This week · This month · This quarter, joining YTD/Last month/Last quarter/Previous year) render as quick-jumps, with rolling windows (now including **14d**) kept distinct from calendar periods. **First-class comparison**: an Off · Previous · Year-over-year control overlays the comparison window on the trend as a muted dashed line — on the SAME scale as the current window, so relative volume never lies — plus a plain-language note ("vs previous period (…): N views (±x% now)"); YoY clamps Feb 29 to Feb 28. **Brush-to-select**: drag across the Views-per-day chart to zoom to that window — the chart becomes the control; the JS only builds a `sn_range=custom` URL and the existing server-side validator clamps whatever arrives. **Display-only by construction:** a new invariant test pins that changing the display range never changes anomaly scores or forecasts (the predictive baseline is `$to`-anchored).
