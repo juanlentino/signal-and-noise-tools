@@ -1,21 +1,24 @@
 <?php
 /**
- * Signal & Noise Tools — /now page content editor (data layer + theme feed).
+ * Signal & Noise Tools — /now page content editor (data layer).
  *
- * The theme's /now page (theme v10.21.0) renders sections from its data file
- * but exposes two filters as the plugin seam: `sn_now_sections` (content) and
- * `sn_now_updated` (the honesty date, v10.21.1). Owner direction 2026-07-01:
- * /now content should be edited in the plugin admin, not hardcoded in a theme
- * file release. This module is that editor's data layer:
+ * Owner direction 2026-07-01: /now content should be edited in the plugin
+ * admin, not hardcoded in a theme file release. /now is a real CMS Page whose
+ * post_content is regenerated from this editor on every save — the page builder
+ * lives in inc/content-migrations.php and sn_now_page_save() drives it via
+ * sn_now_sync_page(). This module is that editor's data layer:
  *
  *   - one durable autoload=no OPTION (sn_now_page) holding the owner's raw
  *     plain-text document + the save-stamp (transients are flush-volatile
  *     under Breeze/Redis, so durable owner content never rides a transient);
  *   - a tolerant parser: `## Label` opens a section, every other non-empty
- *     line is an item (leading `- ` / `* ` stripped);
- *   - the two filter callbacks. Fallback discipline: content that is empty
- *     or parses to zero sections NEVER replaces the theme's file content —
- *     a bad save must not blank the live /now page.
+ *     line is an item (leading `- ` / `* ` stripped). Fallback discipline:
+ *     content that parses to zero sections is refused at save time, so a bad
+ *     save can never blank the live /now page.
+ *
+ * The theme's former `sn_now_sections` / `sn_now_updated` filter seams (theme
+ * v10.21.x) were retired when /now became a real Page (theme v10.34.0); this
+ * module no longer registers them.
  *
  * Admin surface: Content → Now Page (inc/admin-forms/now-page.php);
  * POST action `now_save` (inc/admin-post-actions.php).
@@ -138,41 +141,4 @@ function sn_now_page_save( $raw ) {
 	}
 
 	return $result;
-}
-
-/**
- * sn_now_sections theme filter: saved plugin content replaces the theme's
- * file sections — but ONLY when it parses to at least one section, so a bad
- * save can never blank the live page.
- *
- * @param array $d Theme-supplied sections (the file content).
- * @return array
- */
-function sn_tf_now_sections( $d ) {
-	$sections = sn_now_page_sections();
-	return ! empty( $sections ) ? $sections : $d;
-}
-
-/**
- * sn_now_updated theme filter: the save-stamp accompanies the content — the
- * date only overrides the theme's when the CONTENT override is live too.
- *
- * @param string $d Theme-supplied date.
- * @return string
- */
-function sn_tf_now_updated( $d ) {
-	$page = sn_now_page_get();
-	if ( $page && ! empty( sn_now_parse_sections( $page['raw'] ) ) ) {
-		return (string) $page['updated'];
-	}
-	return (string) $d;
-}
-
-// Register against the theme's /now seams. Skipped under the CLI test harness
-// (which exercises the callbacks directly). Sibling contract callbacks live in
-// inc/theme-filters.php; these stay here so the whole /now feature reads from
-// one file.
-if ( ! defined( 'SN_NOW_PAGE_TEST' ) || ! SN_NOW_PAGE_TEST ) {
-	add_filter( 'sn_now_sections', 'sn_tf_now_sections' );
-	add_filter( 'sn_now_updated', 'sn_tf_now_updated' );
 }
