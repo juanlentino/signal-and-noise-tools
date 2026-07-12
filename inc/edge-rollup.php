@@ -160,6 +160,7 @@ function sn_edge_dims_upsert( $rows ) {
 		}
 		$sql = "INSERT INTO {$table} (day, dim, value, requests, bytes) VALUES "
 			. implode( ', ', $ph ) . ' ON DUPLICATE KEY UPDATE requests=VALUES(requests), bytes=VALUES(bytes)';
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		if ( false !== $wpdb->query( $wpdb->prepare( $sql, $vals ) ) ) {
 			$written += count( $ph );
 		}
