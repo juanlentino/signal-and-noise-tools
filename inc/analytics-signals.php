@@ -10,6 +10,10 @@ const SN_ANALYTICS_SIGNAL_BASELINE_DAYS = 30;
 const SN_ANALYTICS_SIGNAL_FLOOR_DAYS    = 14;
 const SN_ANALYTICS_ANOMALY_Z            = 3.5;   // MAD-based robust z (~3σ for normal data)
 const SN_ANALYTICS_TRAJ_MIN_POINTS      = 14;
+const SN_ANALYTICS_FORECAST_HORIZON      = 7;    // days ahead (point at horizon; interval widens with √h)
+const SN_ANALYTICS_FORECAST_MIN_POINTS   = 21;   // min history; below → suppressed (never fake precision)
+const SN_ANALYTICS_FORECAST_HISTORY_DAYS = 30;   // trailing fit window ending $to (decoupled from display)
+const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the backtest MEASURES real coverage
 
 /** Median of numeric values, or null when empty. */
 function sn_analytics_stat_median( array $xs ) {
@@ -156,8 +160,185 @@ function sn_analytics_signal_trajectories( $from, $to, $class = 'human', $opts =
 function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) {
 	$signals = array_merge(
 		sn_analytics_signal_anomalies( $from, $to, $class, $opts ),
-		sn_analytics_signal_trajectories( $from, $to, $class, $opts )
+		sn_analytics_signal_trajectories( $from, $to, $class, $opts ),
+		sn_analytics_signal_forecasts( $from, $to, $class, $opts )
 	);
 	usort( $signals, static function ( $a, $b ) { return (int) $b['severity'] - (int) $a['severity']; } );
 	return $signals;
+}
+
+/**
+ * Holt linear (double exponential smoothing) fit with one-step-ahead residuals,
+ * or null when the series is too short (<3). Fixed smoothing constants — the
+ * honesty mechanism is the backtest (measured coverage), not parameter tuning.
+ * @return array{level:float, trend:float, residuals:array<int,float>}|null
+ */
+function sn_analytics_stat_holt( array $ys, $alpha = 0.5, $beta = 0.3 ) {
+	$ys = array_values( array_map( 'floatval', $ys ) );
+	$n  = count( $ys );
+	if ( $n < 3 ) { return null; }
+	$level     = $ys[0];
+	$trend     = $ys[1] - $ys[0];
+	$residuals = array();
+	for ( $t = 1; $t < $n; $t++ ) {
+		$fitted      = $level + $trend;
+		$residuals[] = $ys[ $t ] - $fitted;
+		$prev_level  = $level;
+		$level       = $alpha * $ys[ $t ] + ( 1 - $alpha ) * ( $level + $trend );
+		$trend       = $beta * ( $level - $prev_level ) + ( 1 - $beta ) * $trend;
+	}
+	return array( 'level' => $level, 'trend' => $trend, 'residuals' => $residuals );
+}
+
+/** h-step-ahead Holt point forecast: level + h×trend. */
+function sn_analytics_stat_holt_point( $fit, $h ) {
+	return (float) $fit['level'] + (int) $h * (float) $fit['trend'];
+}
+
+/** Robust residual scale for intervals: 1.4826×MAD; RMSE fallback when MAD is 0. */
+function sn_analytics_forecast_sigma( array $residuals ) {
+	if ( empty( $residuals ) ) { return 0.0; }
+	$mad = sn_analytics_stat_mad( $residuals );
+	if ( null !== $mad && $mad > 0.0 ) { return 1.4826 * (float) $mad; }
+	$sq = 0.0;
+	foreach ( $residuals as $r ) { $sq += (float) $r * (float) $r; }
+	return sqrt( $sq / count( $residuals ) );
+}
+
+/**
+ * Rolling-origin backtest for the Holt forecaster: for every cutoff from
+ * $min_train to n-1, fit on the prefix, forecast up to $horizon steps, and score
+ * against the held-out actuals. Accuracy is MEASURED, never asserted (spec §8):
+ * the returned coverage is the share of actuals inside the nominal interval and
+ * drives the live signal's confidence + calibration note.
+ * @return array{mae:float, coverage:float, checks:int}|null null when the series
+ *         cannot support a single fold.
+ */
+function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORECAST_HORIZON, $min_train = 14 ) {
+	$ys = array_values( array_map( 'floatval', $ys ) );
+	$n  = count( $ys );
+	if ( $n < $min_train + 1 ) { return null; }
+	$abs_err = array();
+	$inside  = 0;
+	$checks  = 0;
+	for ( $cut = $min_train; $cut < $n; $cut++ ) {
+		$fit = sn_analytics_stat_holt( array_slice( $ys, 0, $cut ) );
+		if ( null === $fit ) { continue; }
+		$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
+		$steps = min( $horizon, $n - $cut );
+		for ( $h = 1; $h <= $steps; $h++ ) {
+			$point     = sn_analytics_stat_holt_point( $fit, $h );
+			$half      = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $h );
+			$actual    = $ys[ $cut + $h - 1 ];
+			$abs_err[] = abs( $actual - $point );
+			if ( $actual >= $point - $half && $actual <= $point + $half ) { $inside++; }
+			$checks++;
+		}
+	}
+	if ( 0 === $checks ) { return null; }
+	// Explicit float casts: evenly-divisible int/int division returns int in PHP.
+	return array(
+		'mae'      => (float) ( array_sum( $abs_err ) / $checks ),
+		'coverage' => (float) ( $inside / $checks ),
+		'checks'   => $checks,
+	);
+}
+
+/**
+ * Compose one subject's daily-views series into a forecast Signal, or null when
+ * suppressed. Honesty gates: below SN_ANALYTICS_FORECAST_MIN_POINTS → null; zero
+ * median level → null; the ~95% interval is an approximation (residual scale ×√h),
+ * so confidence comes from the backtest's MEASURED coverage and every plain_label
+ * carries the calibration note. Displayed point + bounds clamp at 0 (views ≥ 0).
+ * @return array|null Signal
+ */
+function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts = array() ) {
+	$min     = max( 4, (int) ( $opts['min_points'] ?? SN_ANALYTICS_FORECAST_MIN_POINTS ) );
+	$horizon = max( 1, (int) ( $opts['horizon'] ?? SN_ANALYTICS_FORECAST_HORIZON ) );
+	$ys      = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, (array) $series );
+	if ( count( $ys ) < $min ) { return null; }
+	$level = sn_analytics_stat_median( $ys );
+	if ( null === $level || $level <= 0 ) { return null; }
+	$fit = sn_analytics_stat_holt( $ys );
+	if ( null === $fit ) { return null; }
+	$backtest = sn_analytics_forecast_backtest( $ys, $horizon, max( 3, (int) floor( count( $ys ) / 2 ) ) );
+	if ( null === $backtest ) { return null; }
+	$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
+	$point = sn_analytics_stat_holt_point( $fit, $horizon );
+	$half  = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $horizon );
+	$shown = max( 0.0, $point );
+	$low   = max( 0.0, $point - $half );
+	$high  = max( 0.0, $point + $half );
+	$move  = $horizon * (float) $fit['trend'];
+	$rel   = $move / $level;
+	$dir   = ( abs( $rel ) < 0.05 ) ? 'flat' : ( $move > 0 ? 'up' : 'down' );
+	$cov   = (float) $backtest['coverage'];
+	$conf  = ( $cov >= 0.8 ) ? 'high' : ( ( $cov >= 0.5 ) ? 'medium' : 'low' );
+	return array(
+		'id'            => 'forecast:' . $subject . ':' . (string) $to . '+' . $horizon . 'd',
+		'tier'          => 'predictive',
+		'kind'          => 'forecast',
+		'subject'       => $subject,
+		'subject_label' => (string) $label,
+		'stat'          => 'holt_linear',
+		'value'         => round( $shown, 1 ),
+		'direction'     => $dir,
+		'interval'      => array( 'low' => round( $low, 1 ), 'high' => round( $high, 1 ) ),
+		'confidence'    => $conf,
+		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
+		'plain_label'   => sprintf(
+			'%s: next %d days ≈ %.1f/day (interval %.1f–%.1f; backtest %d%% in-interval)',
+			(string) $label, $horizon, $shown, $low, $high, (int) round( $cov * 100 )
+		),
+		'severity'      => ( 'down' === $dir ) ? 2 : 1,
+	);
+}
+
+/**
+ * Forecast signals for the window: site views+visits (trailing fit history ending
+ * $to, decoupled from the display range), top campaigns, and the lifecycle
+ * census's refresh candidates (spec §8 reuse — the census picks the subjects, the
+ * existing per-path series supplies the data). Engagement metrics are deferred:
+ * no per-day engagement series accessor exists yet, and the engine adds no new
+ * queries. Every dependency is function_exists-guarded.
+ * @return array Signal[]
+ */
+function sn_analytics_signal_forecasts( $from, $to, $class = 'human', $opts = array() ) {
+	$out       = array();
+	$history   = max( 1, (int) ( $opts['history_days'] ?? SN_ANALYTICS_FORECAST_HISTORY_DAYS ) );
+	$hist_from = gmdate( 'Y-m-d', strtotime( (string) $to . ' -' . ( $history - 1 ) . ' days' ) );
+	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+		$series = sn_analytics_daily_series( $hist_from, (string) $to, $class, 'day' );
+		foreach ( array( 'views', 'visits' ) as $metric ) {
+			$ms  = array_map( static function ( $r ) use ( $metric ) { return array( 'views' => (float) ( $r[ $metric ] ?? 0 ) ); }, (array) $series );
+			$sig = sn_analytics_forecast_of( $metric, ucfirst( $metric ), $ms, $hist_from, $to, $opts );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	if ( function_exists( 'sn_analytics_top_utm_campaigns' ) && function_exists( 'sn_analytics_utm_series' ) ) {
+		$camps  = sn_analytics_top_utm_campaigns( (string) $from, (string) $to, $class, (int) ( $opts['campaigns'] ?? 3 ) );
+		$values = array_map( static function ( $r ) { return (string) $r['value']; }, (array) $camps );
+		$cser   = sn_analytics_utm_series( 'campaign', $values, $hist_from, (string) $to, $class, 'day' );
+		foreach ( $values as $v ) {
+			$sig = sn_analytics_forecast_of( 'campaign:' . $v, $v, $cser[ $v ] ?? array(), $hist_from, $to, $opts );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	if ( function_exists( 'sn_analytics_posts_lifecycle' ) && function_exists( 'sn_analytics_path_daily_series' ) && function_exists( 'wp_parse_url' ) ) {
+		$bundle = sn_analytics_posts_lifecycle();
+		$rows   = is_array( $bundle ) ? (array) ( $bundle['rows'] ?? array() ) : array();
+		$done   = 0;
+		$cap    = (int) ( $opts['decay_paths'] ?? 3 );
+		foreach ( $rows as $r ) {
+			if ( empty( $r['refresh_candidate'] ) ) { continue; }
+			$path = (string) wp_parse_url( (string) ( $r['permalink'] ?? '' ), PHP_URL_PATH );
+			if ( '' === $path ) { continue; }
+			$sig = sn_analytics_forecast_of( 'path:' . $path, $path, sn_analytics_path_daily_series( $path, $hist_from, (string) $to ), $hist_from, $to, $opts );
+			if ( $sig ) {
+				$out[] = $sig;
+				if ( ++$done >= $cap ) { break; }
+			}
+		}
+	}
+	return $out;
 }

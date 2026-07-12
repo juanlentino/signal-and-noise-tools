@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.32.0] - 2026-07-12: Feat — forecast signals with measured calibration (maturity Increment 3)
+
+**Headline:** The signal engine gains the **forecast** kind — Holt-linear 7-day projections for site views/visits, top campaigns, and the lifecycle census's refresh candidates. Honest by construction: every forecast **always carries a prediction interval**; series below a 21-point floor (or with no traffic) are suppressed; and confidence is **measured, not asserted** — a rolling-origin backtest holds out the tail of each series, scores interval coverage + MAE, and every chip's plain-language label carries the calibration note ("backtest N% in-interval"). Forecasts flow into the existing Insights band and widget chips through the aggregator — no new UI.
+
+> **Why MINOR:** additive engine capability + new chips on existing surfaces. No public function/route/ability removed or renamed; no settings-schema change; no LLM involvement (pure statistics).
+
+### New
+- `inc/analytics-signals.php`: `sn_analytics_stat_holt` + `sn_analytics_stat_holt_point` (double exponential smoothing), `sn_analytics_forecast_sigma` (robust 1.4826·MAD residual scale, RMSE fallback), `sn_analytics_forecast_backtest` (rolling-origin hold-out → MAE + interval coverage), `sn_analytics_forecast_of` (Signal composer: clamped-at-zero display, min-sample + zero-level suppression, backtest-calibrated confidence), `sn_analytics_signal_forecasts` (subjects: site metrics, top campaigns, lifecycle refresh candidates) — merged into `sn_analytics_signals()`.
+
+### Deferred (honest scope)
+- Engagement-metric forecasts (spec §8 lists them): no per-day engagement series accessor exists — engaged rate is derived from marginal time-distribution buckets over a range — and the signal engine's charter adds no new queries. Revisit when a durable per-day engagement rollup lands.
+
+### Tests
+- `tests/analytics-signals.php`: +26 assertions (15 → 41) — Holt exactness on a perfect line, backtest MAE/coverage on perfect + noisy fixtures, composer honesty gates (interval always, min-sample + zero-level suppression, zero-clamped display, calibration note), producer subjects + suppression, aggregator merge + ordering. Full sweep green; PHPStan + phpcs clean.
+
 ## [9.31.0] - 2026-07-12: Feat — WP-home Overview widget leads with insight (maturity Increment 2)
 
 **Headline:** The WP dashboard-home **Analytics — Overview** widget now leads with a compact **Insight header** — the narrator's one-liner plus the single highest-severity signal chip (tier-badged, confidence-labelled) — pure reuse of the v9.30.0 signal engine + narrator (Increment 2 of the maturity model). Honest degradation at every seam: no signals → header hidden and the KPIs render exactly as before; AI off → a deterministic one-liner built from the top signal's `plain_label` (never the 4-item digest list); insights module absent → the widget renders verbatim (`function_exists` guards). Top-content widget untouched.
