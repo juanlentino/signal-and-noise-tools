@@ -164,13 +164,22 @@ function sn_analytics_rec_seo_meta() {
  * @return void
  */
 function snt_analytics_render_recommendations_panel() {
-	$cards = function_exists( 'sn_analytics_recommendations' ) ? sn_analytics_recommendations() : array();
+	$rec   = function_exists( 'sn_analytics_recommend' )
+		? sn_analytics_recommend()
+		: array( 'cards' => function_exists( 'sn_analytics_recommendations' ) ? sn_analytics_recommendations() : array(), 'brief' => '', 'source' => 'fallback' );
+	$cards = is_array( $rec['cards'] ?? null ) ? $rec['cards'] : array();
 
 	snt_an_panel_open( 'Recommendations' );
 	if ( empty( $cards ) ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Nothing needs attention right now.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
+	}
+	// v9.33.0 (maturity I4): the AI priority brief leads the panel when the seam
+	// filled it; empty brief (AI off/over-budget/silent) renders exactly as before.
+	$brief = trim( (string) ( $rec['brief'] ?? '' ) );
+	if ( '' !== $brief ) {
+		echo '<div class="sn-an-rec-brief" data-source="' . esc_attr( (string) ( $rec['source'] ?? 'ai' ) ) . '">' . wp_kses_post( $brief ) . '</div>';
 	}
 	echo '<ul class="sn-an-recs">';
 	foreach ( $cards as $c ) {
@@ -221,7 +230,7 @@ function sn_analytics_recommend( $signals = null ) {
 		$signals = sn_analytics_signals( gmdate( 'Y-m-d', strtotime( $to . ' -13 days' ) ), $to, 'human' );
 	}
 	$signals  = is_array( $signals ) ? $signals : array();
-	$override = apply_filters( 'sn_analytics_recommender', null, $cards, $signals );
+	$override = function_exists( 'apply_filters' ) ? apply_filters( 'sn_analytics_recommender', null, $cards, $signals ) : null;
 	if ( is_array( $override ) && isset( $override['cards'] ) ) { return $override; }
 	$ai = sn_analytics_recommend_ai( $cards, $signals );
 	if ( is_array( $ai ) && '' !== trim( (string) ( $ai['brief'] ?? '' ) ) ) {

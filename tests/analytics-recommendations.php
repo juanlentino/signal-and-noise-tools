@@ -31,6 +31,8 @@ function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' )
 function esc_html( $s ) { return (string) $s; }
 function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
+function esc_attr( $s ) { return (string) $s; }
+function wp_kses_post( $s ) { return (string) $s; }
 function snt_an_panel_open( $title ) { echo '<div class="sn-an-panel"><span>' . $title . '</span>'; }
 function snt_an_panel_close() { echo '</div>'; }
 
@@ -134,6 +136,18 @@ $GLOBALS['__lifecycle'] = null; $GLOBALS['__scan'] = null; $GLOBALS['__pages'] =
 $GLOBALS['__ai_prompt'] = 'UNTOUCHED';
 $rec4 = sn_analytics_recommend( $sig_fix );
 r_true( '' === $rec4['brief'] && 'UNTOUCHED' === $GLOBALS['__ai_prompt'], 'recommend: no cards → no AI call, empty brief' );
+
+echo "\nRender: the AI brief leads the panel; fallback renders as before\n";
+$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 2 ) );
+$GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
+$GLOBALS['__ai_return'] = 'Refresh the cooling posts first.';
+ob_start(); snt_analytics_render_recommendations_panel(); $bh = (string) ob_get_clean();
+r_true( false !== strpos( $bh, 'sn-an-rec-brief' ) && false !== strpos( $bh, 'data-source="ai"' ) && false !== strpos( $bh, 'Refresh the cooling posts first.' ), 'render: AI brief renders with its source' );
+$p_brief = strpos( $bh, 'sn-an-rec-brief' ); $p_cards = strpos( $bh, 'sn-an-recs' );
+r_true( false !== $p_brief && false !== $p_cards && $p_brief < $p_cards, 'render: the brief precedes the card list' );
+$GLOBALS['__ai_return'] = null;
+ob_start(); snt_analytics_render_recommendations_panel(); $fh = (string) ob_get_clean();
+r_true( false === strpos( $fh, 'sn-an-rec-brief' ) && false !== strpos( $fh, 'cooling post' ), 'render: AI silent → panel renders exactly the rules cards (no brief div)' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );

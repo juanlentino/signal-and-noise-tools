@@ -490,3 +490,4 @@
 /* v9.33.0 weekly digest in the Insights band */
 .sn-an-digest-head{font-weight:600;margin:0 0 6px}
 .sn-an-digest-next{margin:8px 0 0;font-weight:500}
+.sn-an-rec-brief{font-size:13px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--sn-accent,#2563eb);background:var(--sn-surface-2,#f6f7f7)}
