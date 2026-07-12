@@ -267,6 +267,8 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 }
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab' );
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
+// v9.29.0: the dedicated UTM Campaigns view is a first-class tab in the strip.
+ok( strpos( $html, 'sn_view=campaigns' ) !== false && strpos( $html, '>Campaigns<' ) !== false, 'tabs: the Campaigns view is registered and rendered in the tab strip' );
 
 echo "\nGroup: dashboard — trend: smooth SVG area chart (v6.5.2)\n";
 aa_fill_data();
