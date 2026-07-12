@@ -148,5 +148,17 @@ ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() now carries the 4
 ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 2 === $fkinds[0]['severity'], 'aggregate: still severity-sorted; the down-forecast leads the forecasts' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
+echo "\nGroup: display range never changes the stats (I5 invariant)\n";
+// 30-day series ending 2026-07-12 with a spike on 2026-07-10 (inside both windows).
+$inv = array(); for ( $i = 0; $i < 30; $i++ ) { $inv[] = array( 'day' => gmdate( 'Y-m-d', strtotime( '2026-06-13 UTC' ) + $i * 86400 ), 'views' => ( 27 === $i ) ? 60 : ( ( $i % 2 ) ? 11 : 9 ), 'visits' => 8 ); }
+$GLOBALS['__daily'] = $inv;
+$wide   = sn_analytics_signals( '2026-06-23', '2026-07-12', 'human' );
+$narrow = sn_analytics_signals( '2026-07-08', '2026-07-12', 'human' );
+$pick = static function ( $sigs, $kind ) { return array_values( array_filter( $sigs, static function ( $s ) use ( $kind ) { return $kind === $s['kind']; } ) ); };
+$wa = $pick( $wide, 'anomaly' ); $na = $pick( $narrow, 'anomaly' );
+ok( count( $wa ) >= 1 && count( $na ) >= 1 && $wa[0]['value'] === $na[0]['value'] && $wa[0]['interval'] === $na[0]['interval'], 'invariant: the spike scores identically in wide + narrow display windows (baseline is $to-anchored)' );
+ok( json_encode( $pick( $wide, 'forecast' ) ) === json_encode( $pick( $narrow, 'forecast' ) ), 'invariant: forecasts identical across display ranges (history is $to-anchored)' );
+$GLOBALS['__daily'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
