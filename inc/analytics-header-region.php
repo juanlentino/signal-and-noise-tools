@@ -148,10 +148,15 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 			. '<span class="sn-an-pulse-v">' . esc_html( $avg . '%' ) . '</span></span>';
 	}
 
-	// Today so far — the already-fetched series' last bucket (day granularity).
+	// Today so far — the already-fetched series' last bucket (day granularity). Only
+	// label it "today" when that bucket's day IS today (UTC, matching the durable
+	// series' boundary). Before today's bucket is rolled, end($series) is a PRIOR
+	// day; showing its full-day count as "Today so far" (then dropping when today's
+	// partial bucket lands) is the reported stale-today bug — suppress the cell then.
 	if ( 'day' === $granularity && ! empty( $series ) ) {
 		$last = end( $series );
-		if ( is_array( $last ) && isset( $last['views'] ) ) {
+		if ( is_array( $last ) && isset( $last['views'] )
+			&& isset( $last['day'] ) && (string) $last['day'] === gmdate( 'Y-m-d' ) ) {
 			$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-k">' . esc_html__( 'Today so far', 'signal-and-noise-tools' ) . '</span>'
 				. '<span class="sn-an-pulse-v sn-an-pulse-v--big">' . esc_html( number_format_i18n( (int) $last['views'] ) ) . '</span>'
 				. '<span class="sn-an-pulse-v">' . esc_html__( 'views', 'signal-and-noise-tools' ) . '</span></span>';

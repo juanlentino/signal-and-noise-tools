@@ -43,6 +43,16 @@ function delete_transient( $key ) {
 	return true;
 }
 
+// Durable option store (the views-today last-good survives the short transient).
+$GLOBALS['__rt_options'] = array();
+function get_option( $key, $default = false ) {
+	return array_key_exists( $key, $GLOBALS['__rt_options'] ) ? $GLOBALS['__rt_options'][ $key ] : $default;
+}
+function update_option( $key, $value, $autoload = null ) {
+	$GLOBALS['__rt_options'][ $key ] = $value;
+	return true;
+}
+
 $GLOBALS['__rt_scheduled']     = array();
 $GLOBALS['__rt_single_events'] = array();
 function wp_next_scheduled( $hook ) {
@@ -98,6 +108,7 @@ function ok( $cond, $msg ) {
 }
 function rt_reset() {
 	$GLOBALS['__rt_transients']     = array();
+	$GLOBALS['__rt_options']        = array();
 	$GLOBALS['__rt_scheduled']      = array();
 	$GLOBALS['__rt_single_events']  = array();
 	$GLOBALS['__rt_cap']            = true;
@@ -265,6 +276,60 @@ sn_analytics_realtime_refresh();
 $c2 = get_transient( SN_ANALYTICS_REALTIME_KEY );
 ok( ( $c2['counts']['human'] ?? null ) === 5, 'refresh: visitors cached even when the today query fails' );
 ok( array_key_exists( 'views_today', $c2 ) && $c2['views_today'] === null, 'refresh: failed today query → views_today null' );
+
+// ── Views today: durable last-good (survives the short transient) ──────────────
+// The reported bug: "views today" flickered 55→40 because the 5-min realtime
+// transient lapses between dashboard visits, and the widget then fell back to the
+// UTC-day rollup bucket — a DIFFERENT day boundary than the site-timezone live
+// query. The durable last-good keeps the SAME (site-local) definition on the cold
+// path, keyed to the local day so it resets at local midnight, never regressing to
+// the UTC bucket while a same-day measurement exists.
+echo "\nGroup: views-today durable last-good\n";
+
+// local_day helper: site-timezone Y-m-d (ET stub), injectable for determinism.
+ok( function_exists( 'sn_analytics_local_day' ), 'local_day: helper exists' );
+$et2 = new DateTimeZone( 'America/New_York' );
+$late_et = ( new DateTimeImmutable( '2026-07-09 21:43:00', $et2 ) )->getTimestamp(); // 9:43pm ET = already 2026-07-10 in UTC
+ok( sn_analytics_local_day( $late_et ) === '2026-07-09', 'local_day: 9:43pm ET is still the ET day, not the UTC day' );
+
+$today_str = sn_analytics_local_day();
+
+// Refresh persists a same-day durable last-good on a successful today query.
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 7 ) );
+$GLOBALS['__rt_query_today']  = array( array( 'views' => 55 ) );
+sn_analytics_realtime_refresh();
+$lg = get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD );
+ok( is_array( $lg ) && ( $lg['views'] ?? null ) === 55 && ( $lg['day'] ?? null ) === $today_str,
+	'refresh: persists durable same-day last-good on success' );
+
+// The core regression: transient warm (55), then it lapses — accessor still returns
+// 55 from the durable same-day store, so the widget never flips to the UTC bucket.
+delete_transient( SN_ANALYTICS_REALTIME_KEY );
+ok( sn_analytics_views_today() === 55, 'accessor: lapsed transient → same-day last-good 55 (no UTC-bucket flip)' );
+
+// A fresh transient still wins over the durable last-good.
+rt_reset();
+update_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array( 'day' => $today_str, 'views' => 55 ), false );
+set_transient( SN_ANALYTICS_REALTIME_KEY, array( 'counts' => array( 'human' => 1 ), 'views_today' => 60, 'fetched' => time() ), 0 );
+ok( sn_analytics_views_today() === 60, 'accessor: fresh transient wins over durable last-good' );
+
+// A stale (different-day) last-good is NOT shown — it resets at local midnight, so
+// the accessor returns null and the caller falls back to the UTC bucket.
+rt_reset();
+update_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array( 'day' => '2000-01-01', 'views' => 55 ), false );
+ok( sn_analytics_views_today() === null, 'accessor: different-day last-good → null (stale, fall back)' );
+
+// A failed today query must NOT clobber a good same-day durable value, and the
+// accessor recovers via last-good despite the transient's views_today being null.
+rt_reset();
+update_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array( 'day' => $today_str, 'views' => 55 ), false );
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 7 ) );
+$GLOBALS['__rt_query_today']  = null; // today query fails this cycle
+sn_analytics_realtime_refresh();
+ok( ( get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD )['views'] ?? null ) === 55,
+	'refresh: failed today query does not clobber durable last-good' );
+ok( sn_analytics_views_today() === 55, 'accessor: failed today refresh still shows same-day last-good, not null' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -26,7 +26,15 @@ function do_action( $hook, ...$args ) { $GLOBALS['__fired'][] = array( $hook, $a
 function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 1284, 'visits' => 316 ); }
 function sn_analytics_class_totals( $f, $t ) { return array( 'human' => 300, 'suspect' => 10, 'bot' => 90 ); }
 function sn_analytics_realtime( $c = 'human' ) { return 3; }
-function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return array( array( 'day' => $f, 'views' => 10 ) ); }
+// The pulse "Today so far" cell reads the series' LAST bucket. Its day is
+// controllable: default = today (a rolled current-day bucket) so the positive case
+// renders; flip __series_last_today off to model today's bucket not yet rolled
+// (last bucket = a stale prior day), which must NOT be mislabelled "Today so far".
+$GLOBALS['__series_last_today'] = true;
+function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) {
+	$day = ( $GLOBALS['__series_last_today'] ?? true ) ? gmdate( 'Y-m-d' ) : $f;
+	return array( array( 'day' => $day, 'views' => 10 ) );
+}
 function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'pct' => 40, 'dir' => 'up' ) ); } // 40% up + engaged down trips the overview read
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 62; }
 function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 62, 'previous' => 65, 'pct' => -3, 'dir' => 'down' ); }
@@ -126,7 +134,17 @@ ok( false !== strpos( $html, '>Scroll<' ) && false !== strpos( $html, '>Read tim
 ok( false !== strpos( $html, '75-100% · 91%' ), 'dominant band named with its share (40 of 44)' );
 ok( false !== strpos( $html, 'Bot share' ) && false !== strpos( $html, 'sn-an-pulse-spark' ), 'bot-share cell with microspark' );
 ok( false !== strpos( $html, '>25%<' ), 'bot share window average (20+30 / 2)' );
-ok( false !== strpos( $html, 'Today so far' ), 'today cell present on day granularity' );
+ok( false !== strpos( $html, 'Today so far' ), 'today cell present when the last bucket IS today' );
+// Regression: if today's bucket hasn't been rolled yet, the series' last bucket is a
+// PRIOR day. It must NOT be mislabelled "Today so far" (that showed a stale full-day
+// count as today, then dropped when today's partial bucket landed — the reported bug
+// family). The cell is suppressed unless the last bucket's day == today (UTC).
+$GLOBALS['__series_last_today'] = false;
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+$html_stale = (string) ob_get_clean();
+ok( false === strpos( $html_stale, 'Today so far' ), 'today cell suppressed when the last bucket is a stale prior day (not today)' );
+$GLOBALS['__series_last_today'] = true;
 // Week granularity: no "today" cell (a week bucket is not a day).
 ob_start();
 snt_analytics_render_header_region( 'content', '90', 'human', '2026-04-01', '2026-07-07', 'week' );

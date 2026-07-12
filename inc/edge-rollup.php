@@ -132,23 +132,40 @@ function sn_edge_dims_upsert( $rows ) {
 	if ( ! is_array( $rows ) || empty( $rows ) ) {
 		return 0;
 	}
-	global $wpdb;
-	$table = $wpdb->prefix . SN_EDGE_DIMS_TABLE;
-	$ph    = array();
-	$vals  = array();
+	// Drop malformed rows first, then CHUNK. sn_edge_run_rollup() re-pulls
+	// SN_EDGE_BACKFILL_DAYS days of countryMap + adaptive threat/colo/attack dims on
+	// EVERY run, so this row set is unbounded — one INSERT of the whole set (5
+	// placeholders each) can blow past MySQL's 65,535-placeholder statement limit,
+	// making $wpdb->query() return false → 0 rows written → and, re-pulled each run,
+	// never recovering. 100 rows/chunk (500 placeholders) matches every sibling upsert.
+	$clean = array();
 	foreach ( $rows as $r ) {
 		if ( ! is_array( $r ) || empty( $r['day'] ) || '' === (string) ( $r['value'] ?? '' ) ) {
 			continue;
 		}
-		$ph[]   = '(%s, %s, %s, %d, %d)';
-		array_push( $vals, (string) $r['day'], (string) $r['dim'], substr( (string) $r['value'], 0, 160 ), max( 0, (int) ( $r['requests'] ?? 0 ) ), max( 0, (int) ( $r['bytes'] ?? 0 ) ) );
+		$clean[] = $r;
 	}
-	if ( empty( $ph ) ) {
+	if ( empty( $clean ) ) {
 		return 0;
 	}
-	$sql = "INSERT INTO {$table} (day, dim, value, requests, bytes) VALUES "
-		. implode( ', ', $ph ) . ' ON DUPLICATE KEY UPDATE requests=VALUES(requests), bytes=VALUES(bytes)';
-	return false === $wpdb->query( $wpdb->prepare( $sql, $vals ) ) ? 0 : count( $ph );
+	global $wpdb;
+	$table   = $wpdb->prefix . SN_EDGE_DIMS_TABLE;
+	$written = 0;
+	foreach ( array_chunk( $clean, 100 ) as $chunk ) {
+		$ph   = array();
+		$vals = array();
+		foreach ( $chunk as $r ) {
+			$ph[]   = '(%s, %s, %s, %d, %d)';
+			array_push( $vals, (string) $r['day'], (string) $r['dim'], substr( (string) $r['value'], 0, 160 ), max( 0, (int) ( $r['requests'] ?? 0 ) ), max( 0, (int) ( $r['bytes'] ?? 0 ) ) );
+		}
+		$sql = "INSERT INTO {$table} (day, dim, value, requests, bytes) VALUES "
+			. implode( ', ', $ph ) . ' ON DUPLICATE KEY UPDATE requests=VALUES(requests), bytes=VALUES(bytes)';
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
+		if ( false !== $wpdb->query( $wpdb->prepare( $sql, $vals ) ) ) {
+			$written += count( $ph );
+		}
+	}
+	return $written;
 }
 
 /** Bucket an HTTP status code to its class column key (2xx..5xx); others ignored. */

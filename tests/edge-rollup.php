@@ -141,6 +141,24 @@ eo_reset();
 sn_edge_dims_upsert( array( array( 'day' => '2026-06-18', 'dim' => 'colo', 'value' => str_repeat( 'x', 250 ), 'requests' => 1, 'bytes' => 0 ) ) );
 ok( strpos( $GLOBALS['wpdb']->queries[0], str_repeat( 'x', 161 ) ) === false, 'dims upsert: value truncated to 160' );
 
+// Large row sets must be CHUNKED, not one INSERT. sn_edge_run_rollup() re-pulls
+// SN_EDGE_BACKFILL_DAYS (395) days of countryMap + adaptive threat/colo/attack dims
+// EVERY run, so this row set is unbounded. A single INSERT of thousands of rows
+// (5 placeholders each) blows past MySQL's 65,535-placeholder-per-statement hard
+// limit → $wpdb->query() returns false → 0 dims written → and, re-pulled each run,
+// never recovers. Every sibling upsert chunks at 100; this one must too.
+eo_reset();
+$big = array();
+for ( $i = 0; $i < 250; $i++ ) {
+	$big[] = array( 'day' => '2026-06-18', 'dim' => 'country', 'value' => 'C' . $i, 'requests' => $i + 1, 'bytes' => 0 );
+}
+$written = sn_edge_dims_upsert( $big );
+ok( 3 === count( $GLOBALS['wpdb']->queries ), 'dims upsert: 250 rows chunked into 3 INSERTs, not 1' );
+ok( 250 === $written, 'dims upsert: returns the total written across chunks' );
+$maxrows = 0;
+foreach ( $GLOBALS['wpdb']->queries as $qq ) { $maxrows = max( $maxrows, substr_count( $qq, "'2026-06-18'" ) ); }
+ok( $maxrows <= 100, 'dims upsert: no single statement carries more than 100 rows' );
+
 echo "\nGroup: run_rollup parses all three datasets\n";
 eo_reset();
 $GLOBALS['__edge_data']['httpRequests1dGroups'] = array( 'httpRequests1dGroups' => array(

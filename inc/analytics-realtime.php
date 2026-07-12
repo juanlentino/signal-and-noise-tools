@@ -30,6 +30,16 @@ const SN_ANALYTICS_REALTIME_RETENTION  = 5 * MINUTE_IN_SECONDS;  // stale value 
 const SN_ANALYTICS_REALTIME_WINDOW_MIN = 5;                      // "now" = a visitor active in the last N minutes
 const SN_ANALYTICS_REALTIME_HOOK       = 'sn_analytics_realtime_refresh';
 
+// Durable "views today so far" last-good, keyed to the SITE-local day. The realtime
+// transient above lives only ~5 min, so between dashboard visits it lapses and the
+// widget used to fall back to the UTC-day rollup bucket — a DIFFERENT day boundary
+// than the site-timezone live query, which made "views today" visibly regress (e.g.
+// 55→40) whenever the transient was cold. This option preserves the last successful
+// site-timezone figure across that gap, resetting at local midnight (the stored day
+// no longer matches), so the cold path keeps the SAME definition instead of the UTC
+// bucket. Shape: { day: 'YYYY-MM-DD' (site tz), views: int }. Non-autoloaded.
+const SN_ANALYTICS_VIEWS_TODAY_LASTGOOD = 'sn_analytics_views_today_lastgood';
+
 /**
  * Build the AE SQL for the current-visitors count per traffic class: distinct
  * visitor-day hashes with any event in the trailing window, grouped by the
@@ -65,6 +75,21 @@ function sn_analytics_seconds_since_wp_midnight( $now = null ) {
 	$local    = ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz );
 	$midnight = $local->setTime( 0, 0, 0 )->getTimestamp();
 	return max( 0, $now - $midnight );
+}
+
+/**
+ * The current calendar day in the SITE's timezone as 'YYYY-MM-DD' — the reset key
+ * for the durable "views today" last-good, so it lapses at LOCAL midnight (matching
+ * the site-timezone window the figure is measured over) rather than UTC midnight.
+ * $now is injectable (Unix seconds) for deterministic tests.
+ *
+ * @param int|null $now Unix timestamp; defaults to time().
+ * @return string Site-local date, 'YYYY-MM-DD'.
+ */
+function sn_analytics_local_day( $now = null ) {
+	$now = ( null === $now ) ? time() : (int) $now;
+	$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	return ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz )->format( 'Y-m-d' );
 }
 
 /**
@@ -113,19 +138,32 @@ function sn_analytics_realtime( $class = 'human' ) {
 }
 
 /**
- * Read-only accessor: cached "views so far today" in the site timezone, or null
- * when the tier is unwarmed, the cache predates this key, or the today query
- * failed on the last refresh. A warmed zero is a real 0. Never makes a network
- * call — callers fall back to the UTC daily bucket on null.
+ * Read-only accessor: "views so far today" in the site timezone. Prefers the fresh
+ * realtime transient; when that has lapsed (its ~5-min retention is shorter than the
+ * gap between dashboard visits) or its last today-query failed, falls back to the
+ * durable last-good FOR THE SAME site-local day — the same definition, so the number
+ * never flips to the UTC-day rollup bucket (the reported 55→40 regression). Returns
+ * null only when neither source has a value for today (never warmed today), leaving
+ * the widget's UTC-bucket fallback as the final resort. A warmed zero is a real 0.
+ * Never makes a network call.
  *
  * @return int|null
  */
 function sn_analytics_views_today() {
 	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
-	if ( ! is_array( $cached ) || ! array_key_exists( 'views_today', $cached ) ) {
-		return null;
+	if ( is_array( $cached ) && array_key_exists( 'views_today', $cached ) && is_int( $cached['views_today'] ) ) {
+		return $cached['views_today'];
 	}
-	return is_int( $cached['views_today'] ) ? $cached['views_today'] : null;
+	// Cold transient / failed today read → the durable same-day last-good (site tz).
+	$lastgood = get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array() );
+	if ( is_array( $lastgood )
+		&& isset( $lastgood['views'], $lastgood['day'] )
+		&& is_int( $lastgood['views'] )
+		&& $lastgood['day'] === sn_analytics_local_day()
+	) {
+		return $lastgood['views'];
+	}
+	return null;
 }
 
 /**
@@ -168,6 +206,18 @@ function sn_analytics_realtime_refresh() {
 	$views_today = null;
 	if ( is_array( $today_rows ) ) {
 		$views_today = isset( $today_rows[0]['views'] ) ? max( 0, (int) $today_rows[0]['views'] ) : 0;
+	}
+
+	// Persist the durable same-day last-good ONLY on a successful today read (int) —
+	// a failed query ($views_today null) must never clobber a good value with garbage.
+	// Keyed to the site-local day so it self-expires at local midnight (see the
+	// SN_ANALYTICS_VIEWS_TODAY_LASTGOOD docblock). This is what keeps "views today"
+	// stable when the short transient lapses between dashboard visits.
+	if ( is_int( $views_today ) ) {
+		update_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array(
+			'day'   => sn_analytics_local_day(),
+			'views' => $views_today,
+		), false );
 	}
 
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(

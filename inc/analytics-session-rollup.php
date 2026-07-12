@@ -107,7 +107,13 @@ function sn_session_rollup_run() {
 		if ( empty( $data['configured'] ) ) {
 			continue;
 		}
-		$m         = sn_session_metrics( $data['summaries'] );
+		// A "visit" requires >= 1 pageview. Filter pageview-less groups (RSS srv:1
+		// 'ce' polls, orphan scroll/timing beacons) BEFORE aggregating — exactly as
+		// the interactive Visits view does (inc/analytics-view-sessions.php). Without
+		// this the durable table's bounce / ppv / median disagree with the live view
+		// for the same window (a lone RSS reader gap-splits into phantom visits).
+		$visits    = function_exists( 'sn_pageview_visits' ) ? sn_pageview_visits( $data['summaries'] ) : $data['summaries'];
+		$m         = sn_session_metrics( $visits );
 		$records[] = array(
 			'day'        => $day,
 			'class'      => $class,
