@@ -249,11 +249,14 @@ function snt_analytics_render_engine_tuning() {
 	echo '<input type="number" id="sn_signal_baseline_days" name="sn_signal_baseline_days" value="' . esc_attr( (string) $baseline ) . '" min="14" max="90" step="1" class="small-text"> ' . esc_html__( 'days', 'signal-and-noise-tools' );
 	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind anomaly & trend baselines. 14–90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
 
-	echo '<p><strong>' . esc_html__( 'Anomaly sensitivity', 'signal-and-noise-tools' ) . '</strong><br>';
+	// T4-review a11y carry-over: the radios are a real <fieldset> with a <legend>
+	// (the exclusion card's grouping idiom), so screen readers announce the group.
+	echo '<fieldset class="sn-an-tuning-radios"><legend><strong>' . esc_html__( 'Anomaly sensitivity', 'signal-and-noise-tools' ) . '</strong></legend>';
 	foreach ( $presets as $slug => $label ) {
 		echo '<label class="sn-an-radio"><input type="radio" name="sn_anomaly_sensitivity" value="' . esc_attr( $slug ) . '"' . checked( $preset, $slug, false ) . '> ' . esc_html( $label ) . '</label>';
 	}
-	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'How unusual a day must be before it’s flagged as an anomaly.', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'How unusual a day must be before it’s flagged as an anomaly.', 'signal-and-noise-tools' ) . '</p>';
+	echo '</fieldset>';
 
 	echo '<p><button type="submit" name="sn_action" value="analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';

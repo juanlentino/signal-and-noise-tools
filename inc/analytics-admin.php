@@ -477,11 +477,20 @@ function snt_analytics_render_dashboard() {
  * route (the Monitoring sub-tab nav guarantees that slug), so the existing
  * admin-post handler processes analytics_save / _test / _exclude_save / _export
  * unchanged — each <form> keeps its own nonce + sn_action button.
+ * v9.36.0 (settings hub): pipeline status strip above the columns; engine tuning
+ * joins the writable column; read-only mirrors + filter reference join the
+ * reference column.
  */
 function snt_analytics_render_settings_section() {
+	// v9.36.0 settings hub: pipeline status first — the five presence pills
+	// (beacon → worker → read → cron → edge) above the two columns.
+	if ( function_exists( 'snt_analytics_render_pipeline_status' ) ) {
+		snt_analytics_render_pipeline_status();
+	}
+
 	echo '<div class="sn-2up">';
 
-	// ── Left: active settings (credentials + own-visit exclusion). ──
+	// ── Left: writable settings (credentials + exclusion + engine tuning). ──
 	echo '<div class="sn-fieldset">';
 	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>. <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
 	snt_analytics_render_credentials();
@@ -490,14 +499,26 @@ function snt_analytics_render_settings_section() {
 	if ( function_exists( 'snt_analytics_render_exclusion' ) ) {
 		snt_analytics_render_exclusion();
 	}
+	// v9.36.0: the two owner-tunable predictive-engine knobs.
+	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
+		snt_analytics_render_engine_tuning();
+	}
 	echo '</div>';
 
-	// ── Right: edge-worker reference (what's live → how to deploy). ──
+	// ── Right: read-only reference (worker → mirrors → disclosures). ──
 	echo '<div class="sn-fieldset">';
 	// The deployed edge-Worker version, read live from /_sn/version (guarded +
 	// SWR-cached) — "what's live" above the manual setup steps.
 	if ( function_exists( 'sn_worker_version_render_card' ) ) {
 		sn_worker_version_render_card();
+	}
+	// v9.36.0: shared config shown read-only with deep links (mirror rule:
+	// display-only — one write surface per option, on its own tab).
+	if ( function_exists( 'snt_analytics_render_mirrors' ) ) {
+		snt_analytics_render_mirrors();
+	}
+	if ( function_exists( 'snt_analytics_render_filter_reference' ) ) {
+		snt_analytics_render_filter_reference();
 	}
 	snt_analytics_render_worker_setup();
 	echo '</div>';

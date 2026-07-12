@@ -58,6 +58,14 @@ if ( ! defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ) { define( 'SN_CF_ANALYTICS_TOKEN
 if ( ! defined( 'SN_CF_ACCOUNT_ID_OPT' ) )      { define( 'SN_CF_ACCOUNT_ID_OPT', 'sn_cf_account_id' ); }
 
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" />'; } }
+// v9.36.0: the settings hub renders the engine-tuning radios (checked() at radio render).
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $a, $b = true, $echo = true ) {
+		$r = ( (string) $a === (string) $b ) ? ' checked' : '';
+		if ( $echo ) { echo $r; }
+		return $r;
+	}
+}
 if ( ! function_exists( 'sn_mask_secret' ) ) {
 	function sn_mask_secret( $v ) { $v = (string) $v; return '' === $v ? '' : ( strlen( $v ) <= 8 ? '••••••••' : '••••' . substr( $v, -4 ) ); }
 }
@@ -459,6 +467,27 @@ $wrng_at = strpos( $html, 'wrangler' );
 ok( false !== $acct_at && false !== $wrng_at && $acct_at < $wrng_at, 'settings: credentials (left card) precede the edge-worker reference (right card)' );
 $reg = file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' );
 ok( (bool) preg_match( "/'analytics'\\s*=>\\s*array\\([^\\n]*'wide'\\s*=>\\s*true/", $reg ), 'registry: the analytics leaf is marked wide (opts out of the wrapper cap)' );
+
+echo "\nGroup: settings hub composition (v9.36.0, layout A) — status strip + operate|reference columns\n";
+// The real partials render here (analytics-render-settings.php is loaded via
+// analytics-admin-render.php), so order is asserted on each subsection's own
+// distinctive marker. sn_worker_version_render_card (inc/worker-version.php) is
+// NOT loaded in this harness, so its guarded call is skipped — the reference
+// column's first marker is the mirrors card.
+$pipe    = strpos( $html, 'sn-an-pipeline' );
+$twoup   = strpos( $html, '<div class="sn-2up">' );
+$creds   = strpos( $html, 'name="sn_cf_account_id"' );
+$excl    = strpos( $html, 'sn-an-exclude' );
+$tune    = strpos( $html, 'sn-an-tuning' );
+$mirrors = strpos( $html, 'sn-an-mirrors' );
+$filters = strpos( $html, 'sn-an-filters' );
+$setup   = strpos( $html, 'wrangler' );
+ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
+ok( false !== $creds && false !== $excl && false !== $tune && $creds < $excl && $excl < $tune,
+	'hub(left): credentials → exclusion → engine tuning (writable column order)' );
+ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $filters && $filters < $setup,
+	'hub(right): mirrors → filter reference → worker setup (reference column order)' );
+ok( $tune < $mirrors, 'hub: the writable column (tuning last) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );

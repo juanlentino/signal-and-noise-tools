@@ -40,6 +40,7 @@ ok( strpos( $h, 'value="analytics_tuning_save"' ) !== false, 'submit posts analy
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce present' );
 ok( strpos( $h, 'class="sn-an-radio"' ) !== false, 'radio labels use the stylesheet class (no inline styles)' );
 ok( strpos( $h, 'style=' ) === false, 'no inline style attributes' );
+ok( strpos( $h, '<fieldset' ) !== false && strpos( $h, '<legend' ) !== false, 'sensitivity radios grouped in a fieldset with legend' );
 
 $GLOBALS['__settings'] = array( 'analytics.signal_baseline_days' => 60, 'analytics.anomaly_sensitivity' => 'strict' );
 ob_start();
