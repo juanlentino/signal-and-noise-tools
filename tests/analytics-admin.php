@@ -544,5 +544,16 @@ $nav    = substr( $full, $navpos, $navend - $navpos );
 ok( strpos( $nav, 'sn_lg_range' ) === false, 'tabs: sn_lg_range stripped from tab links (login range does not leak onto sibling tabs)' );
 $_SERVER['REQUEST_URI'] = $prev_uri;
 
+echo "\nGroup: v9.34.0 — first-class comparison (overlay + note)\n";
+aa_fill_data();
+$_GET['sn_view']    = 'content';
+$_GET['sn_compare'] = 'prev';
+$html_cmp = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_cmp, 'sn-an-compare-note' ) !== false && strpos( $html_cmp, 'previous period' ) !== false, 'compare: the note names the comparison window' );
+ok( strpos( $html_cmp, 'stroke="#a7aaad"' ) !== false && strpos( $html_cmp, 'stroke-dasharray' ) !== false, 'compare: the trend overlays a muted dashed comparison path' );
+unset( $_GET['sn_compare'] );
+$html_off = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_off, 'sn-an-compare-note' ) === false && strpos( $html_off, 'stroke-dasharray' ) === false, 'compare off (default): no note, no overlay' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

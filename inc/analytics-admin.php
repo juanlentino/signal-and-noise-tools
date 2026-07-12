@@ -334,6 +334,7 @@ function snt_analytics_render_dashboard() {
 	$from_raw  = isset( $_GET['sn_from'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_from'] ) ) : '';
 	$to_raw    = isset( $_GET['sn_to'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_to'] ) ) : '';
 	$class     = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
+	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
 	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
@@ -370,7 +371,7 @@ function snt_analytics_render_dashboard() {
 	}
 	$totals = array();
 	if ( ! $owns_chrome ) {
-		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity );
+		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
 		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
 		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
