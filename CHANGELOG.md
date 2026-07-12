@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.26.4] - 2026-07-12: Docs — correct the annotations-R2 retirement version in the narration docblocks
+
+**Headline:** Two narration docblocks attributed the weekly-digest dashboard/cron retirement to `v9.5.0`. It actually shipped in `v9.4.1` — the CHANGELOG entry there is *"Refactor — retire the dashboard digest (annotations Release 2)"*, and that release is also where `inc/narration-cron-cleanup.php` was introduced. `v9.5.0` is annotations **Release 3a** (five more analytics reads), a different release. This corrects the `As of v9.5.0`, `v9.5.0 (annotations Release 2)`, and `@since 9.5.0` references to `9.4.1`.
+
+> **Why PATCH:** a comment-only documentation correction — no code, no behaviour, no public API, ability, REST route, or settings change, and no WP-floor raise. The docblock edits landed in the previous commit (#258) without a version bump; this release just records them in the version-keyed CHANGELOG and bumps the header so every entry maps to a tag.
+
+### Fixed
+- [inc/insights-narration.php](inc/insights-narration.php), [inc/narration-cron-cleanup.php](inc/narration-cron-cleanup.php): the dashboard/cron retirement is now correctly attributed to `v9.4.1` (annotations Release 2), including the `@since` on the one-time cleanup module that was added in that release. Verified against `CHANGELOG [9.4.1]`.
+
 ## [9.26.3] - 2026-07-11: Fix — analytics "today" stability + two durable-rollup correctness bugs
 
 **Headline:** A debugging pass on the first-party analytics read path, triggered by the dashboard's "views today" visibly jumping (55 with a live visitor, 40 without). Four fixes: **(1)** the reported flicker — "views today" was a two-source figure that flipped between the site-timezone live query (transient warm) and the UTC-day rollup bucket (transient cold, a *different* day boundary), so it regressed whenever the 5-min realtime transient lapsed between visits. It now persists a durable last-good keyed to the site-local day, so the cold path keeps the same definition and never flips to the UTC bucket. **(2)** HIGH — the durable session-quality rollup (`wp_sn_session_daily`) computed bounce / pages-per-visit / median over the *raw* fetched groups, skipping the `sn_pageview_visits()` filter the live Visits view applies first; a single RSS reader's pageview-less polls gap-split into phantom visits and permanently skewed the trend line away from the live view. It now filters identically. **(3)** MEDIUM — the edge-dims upsert was the one upsert that didn't chunk its INSERT; the 395-day backfill re-pulled every run could exceed MySQL's 65,535-placeholder statement limit → a silent `false` → dims never written and never recovering. Now chunked at 100 like every sibling. **(4)** LOW — the Analytics-page "Today so far" pulse cell read the series' last bucket and labelled it "today" even before today's bucket was rolled, showing a stale full day as today; now suppressed unless that bucket's day is actually today.
