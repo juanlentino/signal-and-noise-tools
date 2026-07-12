@@ -36,5 +36,14 @@ $GLOBALS['__ai_return'] = null;
 $r3 = sn_analytics_narrate( array(), array() );
 ok( 'fallback' === $r3['source'], 'narrate: no signals → fallback empty-state' );
 
+echo "\nGroup: weekly digest — deterministic fallback\n";
+$digest_summary = array( 'views' => 1204, 'visits' => 389 );
+$dh = sn_analytics_digest_fallback( $digest_summary, $signals );
+ok( false !== strpos( $dh, '1,204 views' ) && false !== strpos( $dh, '389 visits' ), 'digest fallback: leads with the descriptive summary line' );
+ok( false !== strpos( $dh, 'sn-an-digest-list' ) && false !== strpos( $dh, 'decaying' ) && false !== strpos( $dh, 'Start here:' ), 'digest fallback: signal list + a concrete start-here line' );
+ok( false !== strpos( sn_analytics_digest_fallback( array(), array() ), 'nothing needs attention' ), 'digest fallback: graceful empty without summary' );
+$many = array(); for ( $i = 0; $i < 10; $i++ ) { $many[] = array( 'plain_label' => 'signal number ' . $i ); }
+ok( 8 === substr_count( sn_analytics_digest_fallback( array(), $many ), '<li>' ), 'digest fallback: caps the list at 8 items' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

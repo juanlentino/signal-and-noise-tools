@@ -47,3 +47,30 @@ function sn_analytics_narrate_ai( $summary, $signals ) {
 	if ( ! is_string( $text ) || '' === trim( $text ) ) { return null; }
 	return array( 'narrative' => '<p>' . esc_html( trim( $text ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 }
+
+/**
+ * Deterministic weekly-digest floor (spec §9): descriptive summary line + the
+ * period's signal list (≤8) + a concrete start-here line from the top signal.
+ * Always available; the AI path composes richer prose over the same facts.
+ */
+function sn_analytics_digest_fallback( $summary, $signals ) {
+	$head = '';
+	if ( is_array( $summary ) && ( isset( $summary['views'] ) || isset( $summary['visits'] ) ) ) {
+		$head = '<p class="sn-an-digest-head">' . esc_html( sprintf(
+			'This period: %s views, %s visits.',
+			number_format( (float) ( $summary['views'] ?? 0 ) ),
+			number_format( (float) ( $summary['visits'] ?? 0 ) )
+		) ) . '</p>';
+	}
+	if ( empty( $signals ) ) {
+		return $head . '<p class="sn-an-note">No standout signals in this window — nothing needs attention right now.</p>';
+	}
+	$items = array();
+	foreach ( array_slice( $signals, 0, 8 ) as $s ) {
+		$label = trim( (string) ( $s['plain_label'] ?? '' ) );
+		if ( '' !== $label ) { $items[] = '<li>' . esc_html( $label ) . '</li>'; }
+	}
+	$next = trim( (string) ( $signals[0]['plain_label'] ?? '' ) );
+	$do   = '' !== $next ? '<p class="sn-an-digest-next">' . esc_html( 'Start here: ' . $next ) . '</p>' : '';
+	return $head . '<ul class="sn-an-digest-list">' . implode( '', $items ) . '</ul>' . $do;
+}
