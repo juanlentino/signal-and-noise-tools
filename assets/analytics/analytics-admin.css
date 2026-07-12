@@ -486,3 +486,7 @@
 .sn-an-signal{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 8px;border:1px solid var(--sn-hairline,#e2e4e7);border-radius:999px}
 .sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--sn-accent,#2563eb)}
 .sn-an-signal-conf{font-size:10px;color:var(--sn-muted,#6b7280);text-transform:uppercase}
+
+/* v9.33.0 weekly digest in the Insights band */
+.sn-an-digest-head{font-weight:600;margin:0 0 6px}
+.sn-an-digest-next{margin:8px 0 0;font-weight:500}

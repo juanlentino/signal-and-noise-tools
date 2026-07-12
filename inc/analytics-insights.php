@@ -24,9 +24,18 @@ function snt_analytics_render_signal_chip( $signal ) {
 function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) {
 	if ( ! function_exists( 'sn_analytics_signals' ) ) { return; }
 	$signals = sn_analytics_signals( $from, $to, $class );
-	$narr    = function_exists( 'sn_analytics_narrate' )
-		? sn_analytics_narrate( array(), $signals )
-		: array( 'narrative' => '', 'source' => 'fallback' );
+	$summary = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( (string) $from, (string) $to, $class ) : array();
+	// v9.33.0 (maturity I4): the band's narrative slot is the weekly executive
+	// digest (longer-form, fed the real range totals); narrate() remains the
+	// compact path for the WP-home widget and the guard fallback here.
+	if ( function_exists( 'sn_analytics_digest' ) ) {
+		$d    = sn_analytics_digest( $summary, $signals );
+		$narr = array( 'narrative' => (string) ( $d['digest'] ?? '' ), 'source' => (string) ( $d['source'] ?? 'fallback' ) );
+	} else {
+		$narr = function_exists( 'sn_analytics_narrate' )
+			? sn_analytics_narrate( $summary, $signals )
+			: array( 'narrative' => '', 'source' => 'fallback' );
+	}
 
 	echo '<div class="sn-an-insights">';
 	echo '<div class="sn-an-insights-head"><span>Insights</span> <span class="sn-an-tier-note">Prescriptive &middot; Predictive</span></div>';
