@@ -219,6 +219,43 @@ function snt_analytics_render_pipeline_status() {
 	echo '</div>';
 }
 
+/**
+ * Settings-hub engine tuning (v9.36.0): the two owner-tunable predictive knobs
+ * — baseline window (days of history behind anomaly/trend baselines, clamped
+ * 14–90 server-side) and anomaly sensitivity as a preset (relaxed/standard/
+ * strict → z 2.5/3.5/4.5 in sn_analytics_signal_opts()). Presets instead of a
+ * raw σ field: the label explains the consequence, not the math. Everything
+ * else stays filter- or const-tier (design spec §7). Saved by
+ * sn_handle_analytics_tuning_save() via sn_action=analytics_tuning_save.
+ */
+function snt_analytics_render_engine_tuning() {
+	$baseline = (int) sn_setting( 'analytics.signal_baseline_days', 30 );
+	$preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', 'standard' );
+	$presets  = array(
+		'relaxed'  => __( 'Relaxed — fewer flags (≈2.5σ)', 'signal-and-noise-tools' ),
+		'standard' => __( 'Standard — designed default (≈3.5σ)', 'signal-and-noise-tools' ),
+		'strict'   => __( 'Strict — only extremes (≈4.5σ)', 'signal-and-noise-tools' ),
+	);
+
+	echo '<form method="post" class="sn-an-settings sn-an-tuning">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Engine tuning', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'How the predictive signal engine (anomalies, trends, forecasts) reads your history. Developers can override more via the sn_analytics_signal_config filter — see the reference in the right column.', 'signal-and-noise-tools' ) . '</p>';
+
+	echo '<p><label for="sn_signal_baseline_days"><strong>' . esc_html__( 'Baseline window', 'signal-and-noise-tools' ) . '</strong></label><br>';
+	echo '<input type="number" id="sn_signal_baseline_days" name="sn_signal_baseline_days" value="' . esc_attr( (string) $baseline ) . '" min="14" max="90" step="1" class="small-text"> ' . esc_html__( 'days', 'signal-and-noise-tools' );
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind anomaly & trend baselines. 14–90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
+
+	echo '<p><strong>' . esc_html__( 'Anomaly sensitivity', 'signal-and-noise-tools' ) . '</strong><br>';
+	foreach ( $presets as $slug => $label ) {
+		echo '<label class="sn-an-radio"><input type="radio" name="sn_anomaly_sensitivity" value="' . esc_attr( $slug ) . '"' . checked( $preset, $slug, false ) . '> ' . esc_html( $label ) . '</label>';
+	}
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'How unusual a day must be before it’s flagged as an anomaly.', 'signal-and-noise-tools' ) . '</span></p>';
+
+	echo '<p><button type="submit" name="sn_action" value="analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
+}
+
 // v9.0.0 (D1): the one-time Plausible-CSV history importer (snt_analytics_render_import
 // + inc/analytics-import.php) was retired here. Plausible itself was removed at v6.0.0;
 // the CSV back-fill it shipped alongside has had three major versions to run and is
