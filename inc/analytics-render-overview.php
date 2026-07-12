@@ -71,7 +71,15 @@ function snt_analytics_render_trend( $series, $granularity = 'day', $compare_ser
 	echo '<div class="sn-overview-trend">';
 	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Views per day', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
-	echo '<div class="sn-spark-wrap">';
+	// v9.34.0 (maturity I5): brush-to-select — the chart becomes the range control.
+	// The JS (analytics-brush.js) maps drag fractions onto these attributes and
+	// navigates to sn_range=custom; snt_analytics_resolve_custom_window validates
+	// whatever arrives server-side, so the JS only ever BUILDS a URL.
+	$brush = ( 'day' === $granularity && $n > 1 )
+		? ' data-brush-from="' . esc_attr( (string) $series[0]['day'] ) . '" data-brush-days="' . esc_attr( (string) $n ) . '"'
+		: '';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes assembled from esc_attr'd fragments above.
+	echo '<div class="sn-spark-wrap"' . $brush . '>';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
 	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( $aria ) . '">';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.

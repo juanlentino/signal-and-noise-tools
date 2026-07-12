@@ -107,6 +107,15 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		array( 'sn-admin' ),
 		SNT_VERSION
 	);
+	// v9.34.0 (maturity I5): brush-to-select on the trend chart (the chart becomes
+	// the range control). Self-gating: no-op unless a [data-brush-from] chart exists.
+	wp_enqueue_script(
+		'sn-analytics-brush',
+		SNT_URL . 'assets/analytics/analytics-brush.js',
+		array(),
+		SNT_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'sn-admin',
 		SNT_URL . 'assets/admin.js',

@@ -555,5 +555,12 @@ unset( $_GET['sn_compare'] );
 $html_off = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html_off, 'sn-an-compare-note' ) === false && strpos( $html_off, 'stroke-dasharray' ) === false, 'compare off (default): no note, no overlay' );
 
+echo "\nGroup: v9.34.0 — brush data attributes on the trend\n";
+$_GET['sn_view'] = 'content';
+$html_br = capture( 'snt_analytics_render_dashboard' );
+$brush_at = strpos( $html_br, 'data-brush-from="' );
+ok( false !== $brush_at && strpos( $html_br, 'data-brush-days="' ) !== false, 'brush: the day-granularity trend carries the brush data attributes' );
+ok( preg_match( '/data-brush-from="\d{4}-\d{2}-\d{2}"/', $html_br ) === 1, 'brush: data-brush-from is a real date (the window start the JS maps fractions onto)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
