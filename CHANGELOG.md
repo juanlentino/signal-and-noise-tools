@@ -20,6 +20,14 @@ All notable changes to Signal & Noise Tools are documented here.
 - [tests/analytics-api.php](tests/analytics-api.php) — `sn_analytics_site_tz_name()` passes named zones (incl. UTC), rejects manual offsets and junk. Full standalone sweep 267 suites / 0 failed.
 
 > **Live-gate:** AE SQL can't be unit-tested against the real engine; the timezone-function syntax is verified against live AE post-deploy. It fails safe to the UTC path either way.
+## [9.26.4] - 2026-07-12: Docs — correct the annotations-R2 retirement version in the narration docblocks
+
+**Headline:** Two narration docblocks attributed the weekly-digest dashboard/cron retirement to `v9.5.0`. It actually shipped in `v9.4.1` — the CHANGELOG entry there is *"Refactor — retire the dashboard digest (annotations Release 2)"*, and that release is also where `inc/narration-cron-cleanup.php` was introduced. `v9.5.0` is annotations **Release 3a** (five more analytics reads), a different release. This corrects the `As of v9.5.0`, `v9.5.0 (annotations Release 2)`, and `@since 9.5.0` references to `9.4.1`.
+
+> **Why PATCH:** a comment-only documentation correction — no code, no behaviour, no public API, ability, REST route, or settings change, and no WP-floor raise. The docblock edits landed in the previous commit (#258) without a version bump; this release just records them in the version-keyed CHANGELOG and bumps the header so every entry maps to a tag.
+
+### Fixed
+- [inc/insights-narration.php](inc/insights-narration.php), [inc/narration-cron-cleanup.php](inc/narration-cron-cleanup.php): the dashboard/cron retirement is now correctly attributed to `v9.4.1` (annotations Release 2), including the `@since` on the one-time cleanup module that was added in that release. Verified against `CHANGELOG [9.4.1]`.
 
 ## [9.26.3] - 2026-07-11: Fix — analytics "today" stability + two durable-rollup correctness bugs
 
