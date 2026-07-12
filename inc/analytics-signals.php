@@ -160,7 +160,8 @@ function sn_analytics_signal_trajectories( $from, $to, $class = 'human', $opts =
 function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) {
 	$signals = array_merge(
 		sn_analytics_signal_anomalies( $from, $to, $class, $opts ),
-		sn_analytics_signal_trajectories( $from, $to, $class, $opts )
+		sn_analytics_signal_trajectories( $from, $to, $class, $opts ),
+		sn_analytics_signal_forecasts( $from, $to, $class, $opts )
 	);
 	usort( $signals, static function ( $a, $b ) { return (int) $b['severity'] - (int) $a['severity']; } );
 	return $signals;

@@ -134,5 +134,19 @@ $GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) 
 ok( count( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) ) === 3, 'producer: short campaign history → that forecast suppressed' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
+echo "\nGroup: aggregate includes forecasts\n";
+// Re-arm the producer fixtures; the noisy series maxes out at robust z≈1.4, so the
+// anomaly engine stays quiet and the aggregate exercises forecasts + sorting only.
+$GLOBALS['__daily'] = $daily30;
+$GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy ) );
+$GLOBALS['__lifecycle'] = array( 'rows' => array( array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ) ), 'summary' => array() );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
+$agg = sn_analytics_signals( '2026-07-06', '2026-07-12', 'human' );
+$fkinds = array_values( array_filter( $agg, static function ( $s ) { return 'forecast' === $s['kind']; } ) );
+ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() now carries the 4 forecasts' );
+ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 2 === $fkinds[0]['severity'], 'aggregate: still severity-sorted; the down-forecast leads the forecasts' );
+$GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
