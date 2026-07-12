@@ -475,3 +475,14 @@
 .sn-an-pulse-spark { width: 72px; height: 18px; }
 .sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-border, #dcdcde); }
 @media ( max-width: 782px ) { .sn-an-pulse { flex-wrap: wrap; } .sn-an-pulse-sep { display: none; } }
+
+/* v9.30.0 Insights band (predictive + prescriptive) */
+.sn-an-insights{border:1px solid var(--sn-hairline,#e2e4e7);border-radius:8px;padding:14px 16px;margin:0 0 16px;background:var(--sn-surface,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.sn-an-insights-head{display:flex;justify-content:space-between;align-items:baseline;font-weight:600;margin-bottom:8px}
+.sn-an-tier-note{font-size:11px;font-weight:500;color:var(--sn-muted,#6b7280);text-transform:uppercase;letter-spacing:.04em}
+.sn-an-insights-narrative{font-size:13px;line-height:1.5;margin-bottom:10px}
+.sn-an-digest-list{margin:0;padding-left:18px}
+.sn-an-signal-chips{display:flex;flex-wrap:wrap;gap:8px}
+.sn-an-signal{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 8px;border:1px solid var(--sn-hairline,#e2e4e7);border-radius:999px}
+.sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--sn-accent,#2563eb)}
+.sn-an-signal-conf{font-size:10px;color:var(--sn-muted,#6b7280);text-transform:uppercase}
