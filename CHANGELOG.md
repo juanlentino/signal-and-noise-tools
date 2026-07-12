@@ -2,7 +2,9 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.26.4] - 2026-07-12: Fix — analytics "today" follows the site timezone at the source (timezone-aware AE rollup)
+## [9.26.5] - 2026-07-12: Fix — analytics "today" follows the site timezone at the source (timezone-aware AE rollup)
+
+> **Why 9.26.5, not 9.26.4:** this code shipped in PR #260 with a 9.26.4 header, but a concurrent session had already tagged v9.26.4 for an unrelated docs correction (#259, the entry below). Rather than force-move a published tag, this release takes the next number. The two are independent — 9.26.4 = the annotations-R2 docblock fix; 9.26.5 = this timezone-aware rollup.
 
 **Headline:** The root-cause fix for the "views today" resets that v9.26.3 patched at the read layer. The durable daily rollup bucketed pageviews by the **UTC** calendar day, while the live "views today" measured the **site-local** day — so for a western zone the durable figure (and the widget's cold-cache fallback, and the "Today so far" pulse) rolled over at UTC midnight, i.e. **8pm in New York**, resetting the day's count mid-evening. Cloudflare Analytics Engine added optional-timezone date functions on 2025-11-12 (`formatDateTime(ts, fmt, '<tz>')`, `toStartOfInterval(ts, INTERVAL '1' DAY, '<tz>')`); the beacon rollup and the live "views today" query now bucket by the site's **named IANA zone** (e.g. `America/New_York`), so the durable table, the fallback, the pulse, and the live figure all share **one** day boundary — the site's. The v9.26.3 last-good cache stays as belt-and-suspenders. GraphQL edge analytics (`httpRequests1dGroups`) remain UTC-only (Cloudflare exposes no timezone there), which is correct — that's the all-requests edge dataset, not the beacon "views today."
 
