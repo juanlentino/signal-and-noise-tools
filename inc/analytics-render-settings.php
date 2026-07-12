@@ -256,6 +256,85 @@ function snt_analytics_render_engine_tuning() {
 	echo '</form>';
 }
 
+/**
+ * Settings-hub "Configured elsewhere" mirrors (v9.36.0): read-only rows for the
+ * analytics-load-bearing settings that live on other tabs, each with a deep
+ * link to its real home. HARD RULE: no inputs here, ever — one write surface
+ * per option (single source of truth; the drift class the hub exists to avoid).
+ */
+function snt_analytics_render_mirrors() {
+	echo '<div class="sn-an-mirrors">';
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Configured elsewhere', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Settings analytics depends on that live on other tabs — shown read-only; follow a link to change one.', 'signal-and-noise-tools' ) . '</p>';
+
+	// AI model + monthly budget (drives the digest/recommendations tier).
+	$model  = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
+	$models = function_exists( 'sn_theme_ai_models' ) ? sn_theme_ai_models() : array();
+	$label  = isset( $models[ $model ] ) ? (string) $models[ $model ] : $model;
+	$budget = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
+	$spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
+	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'AI model', 'signal-and-noise-tools' ) . ':</strong> ' . esc_html( $label );
+	if ( $budget > 0 ) {
+		$pct = (int) round( min( 100, ( $spent / $budget ) * 100 ) );
+		echo '<br>' . sprintf(
+			/* translators: 1: spend this month, 2: budget, 3: percent used */
+			esc_html__( '$%1$s of $%2$s budget this month (%3$s%%)', 'signal-and-noise-tools' ),
+			esc_html( number_format_i18n( $spent, 2 ) ),
+			esc_html( number_format_i18n( $budget, 2 ) ),
+			esc_html( number_format_i18n( $pct ) )
+		);
+		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct ) . '%"></span></span>';
+	} else {
+		echo ' · ' . esc_html__( 'no monthly budget cap', 'signal-and-noise-tools' );
+	}
+	echo '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=front-end' ) ) . '">' . esc_html__( 'Content → Front-End →', 'signal-and-noise-tools' ) . '</a></div>';
+
+	// Weekly digest cron (the AI-insights sibling leaf).
+	$cron_on = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();
+	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Weekly insights cron', 'signal-and-noise-tools' ) . ':</strong> '
+		. esc_html( $cron_on ? __( 'On', 'signal-and-noise-tools' ) : __( 'Off', 'signal-and-noise-tools' ) )
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights' ) ) . '">' . esc_html__( 'Monitoring → Insights →', 'signal-and-noise-tools' ) . '</a></div>';
+
+	// Collector URL (also this screen's worker-version probe base).
+	$rss       = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
+	$collector = (string) ( $rss['collector_url'] ?? '' );
+	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Collector URL', 'signal-and-noise-tools' ) . ':</strong> '
+		. ( '' !== $collector ? '<code>' . esc_html( $collector ) . '</code>' : esc_html__( '(default)', 'signal-and-noise-tools' ) )
+		. '<br><span class="sn-an-settings-help">' . esc_html__( 'Also the base the worker-version card above probes.', 'signal-and-noise-tools' ) . '</span>'
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=rss' ) ) . '">' . esc_html__( 'Content → RSS →', 'signal-and-noise-tools' ) . '</a></div>';
+
+	echo '</div>';
+}
+
+/**
+ * Settings-hub developer filter reference (v9.36.0): the filter-tier seams from
+ * the knob-exposure policy (design spec §7), one line each, collapsed by
+ * default. Static i18n-wrapped content — the <details> idiom mirrors the
+ * worker-setup box.
+ */
+function snt_analytics_render_filter_reference() {
+	$filters = array(
+		'sn_analytics_signal_config'   => __( 'Predictive engine opts: baseline_days, z (post-filter clamped).', 'signal-and-noise-tools' ),
+		'sn_analytics_session_config'  => __( 'Session engine: idle gap, engaged thresholds, row cap.', 'signal-and-noise-tools' ),
+		'sn_analytics_session_funnels' => __( 'Named conversion funnels for the Visits view.', 'signal-and-noise-tools' ),
+		'sn_analytics_narrator'        => __( 'Override the compact AI narrative.', 'signal-and-noise-tools' ),
+		'sn_analytics_digest'          => __( 'Override the weekly executive digest.', 'signal-and-noise-tools' ),
+		'sn_analytics_recommender'     => __( 'Override the recommendations payload.', 'signal-and-noise-tools' ),
+		'sn_analytics_refresh_secret'  => __( 'Override the cron-refresh auth secret (default SN_SRV_TOKEN).', 'signal-and-noise-tools' ),
+		'sn_beacon_token'              => __( 'Override the beacon/collector token (default SN_BEACON_TOKEN).', 'signal-and-noise-tools' ),
+		'sn_analytics_self_hosts'      => __( 'Hosts folded as self-referrals in Sources.', 'signal-and-noise-tools' ),
+		'snt_ai_model_preference'      => __( 'Route AI features to a specific model.', 'signal-and-noise-tools' ),
+		'snt_ai_economy_features'      => __( 'Which AI features ride the economy (Haiku) tier.', 'signal-and-noise-tools' ),
+		'snt_ai_economy_model'         => __( 'Which model the economy tier uses.', 'signal-and-noise-tools' ),
+	);
+	echo '<details class="sn-an-worker sn-an-filters"><summary>' . esc_html__( 'Advanced: filter reference (developers)', 'signal-and-noise-tools' ) . '</summary>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Code-level seams for everything the two knobs above don’t cover. Constants beyond these stay internal by policy.', 'signal-and-noise-tools' ) . '</p><ul class="sn-an-steps">';
+	foreach ( $filters as $tag => $desc ) {
+		echo '<li><code>' . esc_html( $tag ) . '</code> — ' . esc_html( $desc ) . '</li>';
+	}
+	echo '</ul></details>';
+}
+
 // v9.0.0 (D1): the one-time Plausible-CSV history importer (snt_analytics_render_import
 // + inc/analytics-import.php) was retired here. Plausible itself was removed at v6.0.0;
 // the CSV back-fill it shipped alongside has had three major versions to run and is
