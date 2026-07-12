@@ -236,6 +236,9 @@ function snt_analytics_render_engine_tuning() {
 		'standard' => __( 'Standard — designed default (≈3.5σ)', 'signal-and-noise-tools' ),
 		'strict'   => __( 'Strict — only extremes (≈4.5σ)', 'signal-and-noise-tools' ),
 	);
+	// Display the engine's effective preset: an unknown stored value falls back
+	// to 'standard' in sn_analytics_signal_opts(), so the form mirrors that.
+	$preset = isset( $presets[ $preset ] ) ? $preset : 'standard';
 
 	echo '<form method="post" class="sn-an-settings sn-an-tuning">';
 	wp_nonce_field( 'sn_theme_options_nonce' );

@@ -91,6 +91,8 @@ function sn_admin_flash_messages() {
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
 		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
+		'analytics_tuning_saved'     => array( 'success', 'Engine tuning saved. Signals recompute on the next dashboard load.' ),
+		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		// v7.2.2: dropped the "or check that an AI provider is configured" clause —
 		// the handler stores the real WP_Error and the box below shows it; blaming

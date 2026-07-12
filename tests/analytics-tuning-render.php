@@ -49,5 +49,11 @@ ok( strpos( $h, 'value="60"' ) !== false, 'stored baseline (60) shown' );
 ok( preg_match( '/value="strict"\s+checked/', $h ) === 1, 'stored preset (strict) checked' );
 ok( preg_match( '/value="standard"\s+checked/', $h ) === 0, 'standard no longer checked' );
 
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'garbage-preset' );
+ob_start();
+snt_analytics_render_engine_tuning();
+$h = ob_get_clean();
+ok( preg_match( '/value="standard"\s+checked/', $h ) === 1, 'unknown stored preset displays as standard (the engine fallback)' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
