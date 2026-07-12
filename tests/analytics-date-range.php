@@ -62,5 +62,13 @@ ok( snt_analytics_preset_dates( 'this-quarter', $jan15 ) === array( '2026-01-01'
 ok( snt_analytics_resolve_window( 'this-month', '', '', $sun ) === array( 'this-month', '2026-07-01', '2026-07-12' ), 'resolve_window: semantic token resolves + survives' );
 ok( snt_analytics_resolve_window( '14', '', '', $sun ) === array( 14, '2026-06-29', '2026-07-12' ), 'rolling 14d accepted (kept as a rolling option, distinct from the calendar periods)' );
 
+echo "\nGroup: v9.34.0 comparison windows\n";
+ok( snt_analytics_compare_window( '2026-07-06', '2026-07-12', 'prev' ) === array( '2026-06-29', '2026-07-05' ), 'prev: same-length window immediately before (adjacent, no overlap)' );
+ok( snt_analytics_compare_window( '2026-07-01', '2026-07-01', 'prev' ) === array( '2026-06-30', '2026-06-30' ), 'prev: single-day window' );
+ok( snt_analytics_compare_window( '2026-07-01', '2026-07-10', 'prev' ) === array( '2026-06-21', '2026-06-30' ), 'prev: 10-day length preserved across the month boundary' );
+ok( snt_analytics_compare_window( '2026-07-06', '2026-07-12', 'yoy' ) === array( '2025-07-06', '2025-07-12' ), 'yoy: same dates one year earlier' );
+ok( snt_analytics_compare_window( '2024-02-29', '2024-03-05', 'yoy' ) === array( '2023-02-28', '2023-03-05' ), 'yoy: Feb 29 clamps to Feb 28 (no prior-year twin)' );
+ok( 'prev' === snt_analytics_resolve_compare( 'prev' ) && 'yoy' === snt_analytics_resolve_compare( 'yoy' ) && 'off' === snt_analytics_resolve_compare( 'nonsense' ) && 'off' === snt_analytics_resolve_compare( '' ), 'resolve_compare: whitelist with off default' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

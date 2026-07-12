@@ -263,6 +263,47 @@ function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '',
 }
 
 /**
+ * Comparison window for [$from,$to] (maturity I5, spec §10): 'prev' = the
+ * same-length window immediately before (adjacent, no overlap); 'yoy' = the same
+ * dates one year earlier (Feb 29 clamps to Feb 28 — PHP's relative-year math
+ * would normalize it to Mar 1). Pure calendar math; DISPLAY-ONLY — the
+ * predictive baseline is $to-anchored and never reads this.
+ *
+ * @param string $from YYYY-MM-DD.
+ * @param string $to   YYYY-MM-DD.
+ * @param string $mode 'prev' | 'yoy'.
+ * @return array{0:string,1:string}
+ */
+function snt_analytics_compare_window( $from, $to, $mode ) {
+	$f = strtotime( (string) $from . ' UTC' );
+	$t = strtotime( (string) $to . ' UTC' );
+	if ( 'yoy' === (string) $mode ) {
+		$cf = sprintf( '%04d%s', (int) gmdate( 'Y', $f ) - 1, gmdate( '-m-d', $f ) );
+		$ct = sprintf( '%04d%s', (int) gmdate( 'Y', $t ) - 1, gmdate( '-m-d', $t ) );
+		if ( ! checkdate( (int) substr( $cf, 5, 2 ), (int) substr( $cf, 8, 2 ), (int) substr( $cf, 0, 4 ) ) ) {
+			$cf = substr( $cf, 0, 4 ) . '-02-28';
+		}
+		if ( ! checkdate( (int) substr( $ct, 5, 2 ), (int) substr( $ct, 8, 2 ), (int) substr( $ct, 0, 4 ) ) ) {
+			$ct = substr( $ct, 0, 4 ) . '-02-28';
+		}
+		return array( $cf, $ct );
+	}
+	$len = (int) floor( ( $t - $f ) / DAY_IN_SECONDS ) + 1;
+	return array( gmdate( 'Y-m-d', $f - $len * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $f - DAY_IN_SECONDS ) );
+}
+
+/**
+ * Whitelist the ?sn_compare GET value: 'prev' | 'yoy' | 'off' (default).
+ *
+ * @param mixed $raw
+ * @return string
+ */
+function snt_analytics_resolve_compare( $raw ) {
+	$c = (string) $raw;
+	return in_array( $c, array( 'prev', 'yoy' ), true ) ? $c : 'off';
+}
+
+/**
  * The settings page the dashboard's "Configure →" link points at (and where the
  * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
  * route so the form POST hits the allow-listed admin-post handler.
