@@ -247,6 +247,41 @@ function sn_aw_sources( $standalone = true ) {
 }
 
 /**
+ * v9.31.0 (maturity I2): compact insight header for the Overview widget — the
+ * narrator's one-liner + the single highest-severity signal chip. Pure reuse of
+ * the I1 engine/narrator/chip; every dependency is function_exists-guarded so the
+ * widget renders verbatim as before when the insights module is absent. Signals
+ * empty → renders nothing (the KPIs lead, no filler). The deterministic floor is
+ * a true one-liner (the top signal's plain_label), NOT the 4-item digest list.
+ */
+function sn_aw_insight_header() {
+	if ( ! function_exists( 'sn_analytics_signals' ) || ! function_exists( 'snt_analytics_render_signal_chip' ) ) {
+		return;
+	}
+	list( $from, $to ) = sn_aw_window7();
+	$signals = sn_analytics_signals( $from, $to, 'human' );
+	if ( ! is_array( $signals ) || empty( $signals ) ) {
+		return;
+	}
+	$top  = $signals[0]; // producer sorts severity-desc; the widget shows only the headline signal.
+	$narr = function_exists( 'sn_analytics_narrate' )
+		? sn_analytics_narrate( array(), array( $top ) )
+		: array( 'narrative' => '', 'source' => 'fallback' );
+	$use_ai = is_array( $narr )
+		&& 'fallback' !== (string) ( $narr['source'] ?? 'fallback' )
+		&& '' !== trim( (string) ( $narr['narrative'] ?? '' ) );
+	echo '<div class="sn-aw-subhead">Insight</div>';
+	echo '<div class="sn-aw-insight" data-source="' . esc_attr( $use_ai ? (string) $narr['source'] : 'fallback' ) . '">';
+	if ( $use_ai ) {
+		echo wp_kses_post( (string) $narr['narrative'] );
+	} else {
+		echo '<p class="sn-aw-insight-line">' . esc_html( (string) ( $top['plain_label'] ?? '' ) ) . '</p>';
+	}
+	echo snt_analytics_render_signal_chip( $top ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip is assembled from esc_html/esc_attr fragments in the helper.
+	echo '</div>';
+}
+
+/**
  * Widget 1 (v6.19.2): "Analytics — Overview" — Right now + last-7-days KPIs.
  * Composes the realtime + snapshot sub-renderers under one config gate and one
  * shared footer (each section gets a .sn-aw-subhead label).

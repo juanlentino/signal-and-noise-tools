@@ -169,5 +169,38 @@ $GLOBALS['__pw_config'] = false;
 $html = cap( 'sn_aw_snapshot' );
 ok( stripos( $html, 'SN_CF_ANALYTICS_TOKEN' ) !== false || stripos( $html, 'not configured' ) !== false, 'snapshot: unconfigured → config copy' );
 
+echo "\nGroup: v9.31.0 maturity I2 — compact insight header (module present)\n";
+// The three insights-module seams are defined only NOW, and CONDITIONALLY — a bare
+// top-level `function` would be hoisted at compile time and exist during the earlier
+// groups, silently killing their module-ABSENT coverage (widget verbatim, no header).
+$GLOBALS['__sig'] = array();
+if ( ! function_exists( 'sn_analytics_signals' ) ) {
+	function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { return $GLOBALS['__sig']; }
+}
+$GLOBALS['__narr'] = array( 'narrative' => '', 'source' => 'fallback' );
+$GLOBALS['__narr_in'] = null;
+if ( ! function_exists( 'sn_analytics_narrate' ) ) {
+	function sn_analytics_narrate( $summary, $signals ) { $GLOBALS['__narr_in'] = $signals; return $GLOBALS['__narr']; }
+}
+if ( ! function_exists( 'snt_analytics_render_signal_chip' ) ) {
+	function snt_analytics_render_signal_chip( $s ) { return '<span class="sn-an-signal">CHIP:' . esc_html( (string) ( $s['plain_label'] ?? '' ) ) . '</span>'; }
+}
+
+$GLOBALS['__pw_config'] = true;
+$top_sig = array( 'kind' => 'anomaly', 'tier' => 'predictive', 'direction' => 'up', 'confidence' => 'high', 'severity' => 3, 'plain_label' => 'Views ran above the 30-day norm on 2026-06-20' );
+$low_sig = array( 'kind' => 'trajectory', 'tier' => 'predictive', 'direction' => 'down', 'confidence' => 'medium', 'severity' => 1, 'plain_label' => '/notes/x is decaying (-38% over the window)' );
+$GLOBALS['__sig']  = array( $top_sig, $low_sig );
+$GLOBALS['__narr'] = array( 'narrative' => '<p>Views spiked; look at the 20th.</p>', 'source' => 'ai' );
+$ih = cap( 'sn_aw_insight_header' );
+ok( strpos( $ih, 'sn-aw-insight' ) !== false && strpos( $ih, 'Views spiked' ) !== false, 'insight header: renders the AI one-liner' );
+ok( strpos( $ih, 'data-source="ai"' ) !== false, 'insight header: marks the narrative source' );
+ok( strpos( $ih, 'CHIP:Views ran above' ) !== false && strpos( $ih, 'CHIP:/notes/x' ) === false, 'insight header: exactly the single top-severity chip' );
+ok( is_array( $GLOBALS['__narr_in'] ) && count( $GLOBALS['__narr_in'] ) === 1 && 'anomaly' === $GLOBALS['__narr_in'][0]['kind'], 'insight header: narrator gets ONLY the top signal (compact)' );
+$GLOBALS['__narr'] = array( 'narrative' => '<ul><li>ignored digest list</li></ul>', 'source' => 'fallback' );
+$fb = cap( 'sn_aw_insight_header' );
+ok( strpos( $fb, 'sn-aw-insight-line' ) !== false && strpos( $fb, 'Views ran above the 30-day norm' ) !== false && strpos( $fb, 'ignored digest list' ) === false, 'insight header: AI off → deterministic plain_label one-liner (not the digest list)' );
+$GLOBALS['__sig'] = array();
+ok( '' === cap( 'sn_aw_insight_header' ), 'insight header: no signals → renders nothing (hidden)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
