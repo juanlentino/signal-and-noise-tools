@@ -143,3 +143,26 @@ function snt_an_flush_empty_fold() {
 		. implode( ' &middot; ', $escaped ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each element esc_html'd above; separator is a static entity.
 		. '</p>';
 }
+
+/**
+ * Shared maturity tier badge (maturity I6, spec §11): ONE component so every
+ * view names its tier identically. Whitelisted; an unknown tier renders
+ * nothing — never guess a tier. Returns HTML built from escaped fragments;
+ * callers may echo it raw or pass it through the panel primitive's header_meta.
+ *
+ * @param string $tier 'descriptive' | 'diagnostic' | 'predictive' | 'prescriptive'.
+ * @return string
+ */
+function snt_analytics_tier_badge( $tier ) {
+	$tiers = array(
+		'descriptive'  => __( 'Descriptive', 'signal-and-noise-tools' ),
+		'diagnostic'   => __( 'Diagnostic', 'signal-and-noise-tools' ),
+		'predictive'   => __( 'Predictive', 'signal-and-noise-tools' ),
+		'prescriptive' => __( 'Prescriptive', 'signal-and-noise-tools' ),
+	);
+	$key = (string) $tier;
+	if ( ! isset( $tiers[ $key ] ) ) {
+		return '';
+	}
+	return '<span class="sn-an-tier sn-an-tier--' . esc_attr( $key ) . '">' . esc_html( $tiers[ $key ] ) . '</span>';
+}

@@ -96,3 +96,8 @@
 .sn-aw-insight .sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#2271b1;}
 .sn-aw-insight .sn-an-signal-dir{font-size:10px;}
 .sn-aw-insight .sn-an-signal-conf{font-size:10px;color:#646970;text-transform:uppercase;}
+
+/* v9.35.0 maturity tier badge (shared component, chip-scale) */
+.sn-aw-insight .sn-an-tier{display:inline-block;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:0 6px;border-radius:999px;border:1px solid #dcdcde;color:#50575e;background:#f6f7f7}
+.sn-aw-insight .sn-an-tier--predictive{color:#2271b1;border-color:#9ec2e6}
+.sn-aw-insight .sn-an-tier--prescriptive{color:#7c3aed;border-color:#c4b5fd}
