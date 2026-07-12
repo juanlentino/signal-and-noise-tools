@@ -118,6 +118,95 @@ function snt_analytics_render_worker_setup() {
 	echo '</ol></details>';
 }
 
+/**
+ * Settings-hub pipeline status strip (v9.36.0): five presence pills in
+ * data-flow order — beacon → worker → read → cron → edge. States: ok | warn |
+ * unknown (probe-miss only). Secrets are never echoed; every check is a
+ * presence boolean resolved through the SAME helper the consuming feature
+ * uses, so the pill can't drift from the real behavior. Missing helpers
+ * (isolated harnesses / partial installs) degrade per-pill, never fatal.
+ */
+function snt_analytics_render_pipeline_status() {
+	$pills = array(); // each: array( state, label, warn-note )
+
+	// 1. Beacon token — the resolution sn_rss_tracker_token()/the theme beacon use.
+	$beacon = function_exists( 'sn_rss_tracker_token' )
+		? sn_rss_tracker_token()
+		: ( defined( 'SN_BEACON_TOKEN' ) ? (string) SN_BEACON_TOKEN : '' );
+	$pills[] = ( '' !== $beacon )
+		? array( 'ok', __( 'Beacon token set', 'signal-and-noise-tools' ), '' )
+		: array( 'warn', __( 'Beacon token missing', 'signal-and-noise-tools' ), __( 'The front-end beacon can’t authenticate to the collector — set SN_BEACON_TOKEN in wp-config.php (same value as the Worker’s SN_PX_TOKEN).', 'signal-and-noise-tools' ) );
+
+	// 2. Edge worker — the existing SWR probe; config booleans are presence-only.
+	if ( function_exists( 'sn_worker_version_get' ) ) {
+		$wv = sn_worker_version_get();
+		if ( ! empty( $wv['ok'] ) ) {
+			$ver   = (string) ( $wv['data']['version'] ?? '' );
+			$cfg   = isset( $wv['data']['config'] ) && is_array( $wv['data']['config'] ) ? $wv['data']['config'] : array();
+			$label = '' !== $ver
+				/* translators: %s: deployed worker version */
+				? sprintf( __( 'Worker v%s', 'signal-and-noise-tools' ), $ver )
+				: __( 'Worker reachable', 'signal-and-noise-tools' );
+			$missing = array();
+			if ( array() !== $cfg ) {
+				if ( empty( $cfg['px_token_set'] ) ) { $missing[] = 'SN_PX_TOKEN'; }
+				if ( empty( $cfg['ae_bound'] ) ) { $missing[] = 'SN_AE'; }
+			}
+			$pills[] = empty( $missing )
+				? array( 'ok', $label, '' )
+				/* translators: %s: comma-separated missing worker bindings */
+				: array( 'warn', $label, sprintf( __( 'Worker is missing %s — beacons may be rejected or unrecorded (wrangler secret put / binding).', 'signal-and-noise-tools' ), implode( ', ', $missing ) ) );
+		} else {
+			$pills[] = array( 'unknown', __( 'Worker unreachable', 'signal-and-noise-tools' ), '' );
+		}
+	} else {
+		$pills[] = array( 'unknown', __( 'Worker status unavailable', 'signal-and-noise-tools' ), '' );
+	}
+
+	// 3. Read credentials — what the dashboard queries AE with.
+	$configured = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
+	$pills[]    = $configured
+		? array( 'ok', __( 'Read credentials', 'signal-and-noise-tools' ), '' )
+		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine — add the Cloudflare credentials below.', 'signal-and-noise-tools' ) );
+
+	// 4. Server token — the */15 cron-refresh auth. Fails CLOSED when unset,
+	// which today is completely invisible; this pill is that failure's only UI.
+	$srv = function_exists( 'sn_analytics_refresh_secret' )
+		? sn_analytics_refresh_secret()
+		: ( defined( 'SN_SRV_TOKEN' ) ? (string) SN_SRV_TOKEN : '' );
+	$pills[] = ( '' !== $srv )
+		? array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' )
+		: array( 'warn', __( 'SN_SRV_TOKEN missing', 'signal-and-noise-tools' ), __( 'The */15 cron refresh is disabled (it fails closed) and RSS srv hits lose their trusted class — set SN_SRV_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
+
+	// 5. Zone ID — gates the dashboard's Edge view (constant > option).
+	$zone = ( defined( 'SN_CF_ZONE' ) && '' !== (string) SN_CF_ZONE )
+		? (string) SN_CF_ZONE
+		: ( defined( 'SN_CF_ZONE_OPT' ) ? (string) get_option( SN_CF_ZONE_OPT, '' ) : '' );
+	$pills[] = ( '' !== $zone )
+		? array( 'ok', __( 'Zone ID set', 'signal-and-noise-tools' ), '' )
+		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant — configure the zone on Connections → Cloudflare.', 'signal-and-noise-tools' ) );
+
+	$marks = array(
+		'ok'      => '✓',
+		'warn'    => '!',
+		'unknown' => '?',
+	);
+	echo '<div class="sn-fieldset sn-an-pipeline">';
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Pipeline status', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Beacon → worker → Analytics Engine → cron. Presence checks only — secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<div class="sn-an-pipeline-pills">';
+	foreach ( $pills as $p ) {
+		echo '<span class="sn-an-pill sn-an-pill--' . esc_attr( $p[0] ) . '"><span class="sn-an-pill-mark">' . esc_html( $marks[ $p[0] ] ) . '</span> ' . esc_html( $p[1] ) . '</span>';
+	}
+	echo '</div>';
+	foreach ( $pills as $p ) {
+		if ( 'warn' === $p[0] && '' !== $p[2] ) {
+			echo '<p class="sn-an-pipeline-warn">' . esc_html( $p[1] ) . ' — ' . esc_html( $p[2] ) . '</p>';
+		}
+	}
+	echo '</div>';
+}
+
 // v9.0.0 (D1): the one-time Plausible-CSV history importer (snt_analytics_render_import
 // + inc/analytics-import.php) was retired here. Plausible itself was removed at v6.0.0;
 // the CSV back-fill it shipped alongside has had three major versions to run and is

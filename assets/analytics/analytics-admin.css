@@ -348,6 +348,21 @@
 .sn-an-pre { background: #f6f7f7; border: 1px solid #e0e0e0; padding: 8px 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre; overflow: auto; }
 .sn-an-worker[open] summary { margin-bottom: 6px; }
 
+/* ── settings hub (v9.36.0): pipeline pills + mirror rows ─────────────── */
+.sn-an-pipeline { margin-bottom: 16px; }
+.sn-an-pipeline-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.sn-an-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid #dcdcde; background: #f6f7f7; color: #1d2327; }
+.sn-an-pill--warn { border-color: #e5cf8c; background: #fcf0d6; }
+.sn-an-pill--unknown { border-style: dashed; color: #646970; }
+.sn-an-pill-mark { font-weight: 700; }
+.sn-an-pill--ok .sn-an-pill-mark { color: #00a32a; }
+.sn-an-pill--warn .sn-an-pill-mark { color: #996800; }
+.sn-an-pipeline-warn { color: #646970; font-size: 12px; margin: 6px 0 0; }
+.sn-an-mirror-row { font-size: 13px; color: #1d2327; margin: 8px 0; }
+.sn-an-mirror-meter { height: 6px; max-width: 200px; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: var(--sn-radius, 3px); overflow: hidden; margin: 4px 0; }
+.sn-an-mirror-meter > span { display: block; height: 100%; background: #2271b1; }
+.sn-an-tuning .sn-an-radio { margin-right: 12px; }
+
 /* Engagement percentiles — 3-stat chips (p50/p75/p90). v6.8.0 */
 .sn-an-pctl-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .sn-an-pctl-chip { flex: 1 1 0; min-width: 80px; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; }
