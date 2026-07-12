@@ -115,6 +115,9 @@ ok( strpos( $ov, '<span class="sn-aw-nt-v">7</span>' ) !== false && strpos( $ov,
 ok( strpos( $ov, 'sn-aw-big' ) === false, 'overview: the single big-number block is gone (replaced by the two-up)' );
 ok( strpos( $ov, '1,204' ) !== false, 'overview: shows the 7-day KPI views' );
 ok( substr_count( $ov, 'Open Analytics' ) === 1, 'overview: exactly ONE Open-Analytics footer link (no double footer)' );
+// v9.31.0: the insights module is not defined at this point in the file (the seams
+// below are conditionally bound later), so the widget must render verbatim — no header.
+ok( strpos( $ov, 'sn-aw-insight' ) === false, 'overview: insights module absent → widget verbatim (no header)' );
 $tc = cap( 'sn_aw_top_content' );
 ok( strpos( $tc, 'Top pages' ) !== false && strpos( $tc, 'Top sources' ) !== false, 'top content: Top pages + Top sources subheads' );
 ok( strpos( $tc, '/notes/x' ) !== false && strpos( $tc, 'Hacker News' ) !== false, 'top content: shows top path + folded top source' );
@@ -201,6 +204,20 @@ $fb = cap( 'sn_aw_insight_header' );
 ok( strpos( $fb, 'sn-aw-insight-line' ) !== false && strpos( $fb, 'Views ran above the 30-day norm' ) !== false && strpos( $fb, 'ignored digest list' ) === false, 'insight header: AI off → deterministic plain_label one-liner (not the digest list)' );
 $GLOBALS['__sig'] = array();
 ok( '' === cap( 'sn_aw_insight_header' ), 'insight header: no signals → renders nothing (hidden)' );
+
+// Mounted: the header leads the Overview widget, above "Right now".
+$GLOBALS['__sig']  = array( $top_sig );
+$GLOBALS['__narr'] = array( 'narrative' => '<p>Views spiked; look at the 20th.</p>', 'source' => 'ai' );
+$GLOBALS['__pw']['totals']   = array( 'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 108000.0 );
+$GLOBALS['__pw']['realtime'] = 7;
+$ovi   = cap( 'sn_aw_overview' );
+$p_ins = strpos( $ovi, 'sn-aw-insight' );
+$p_now = strpos( $ovi, 'Right now' );
+ok( false !== $p_ins && false !== $p_now && $p_ins < $p_now, 'overview: insight header mounts ABOVE Right now (leads the widget)' );
+ok( strpos( $ovi, '1,204' ) !== false, 'overview: KPIs still render below the header' );
+$GLOBALS['__sig'] = array();
+$ov0 = cap( 'sn_aw_overview' );
+ok( strpos( $ov0, 'sn-aw-insight' ) === false && strpos( $ov0, 'Right now' ) !== false, 'overview: no signals → header hidden, KPIs exactly as today' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

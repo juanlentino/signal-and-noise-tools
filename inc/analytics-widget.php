@@ -290,6 +290,9 @@ function sn_aw_overview() {
 	if ( ! sn_aw_preamble() ) {
 		return;
 	}
+	// v9.31.0 (maturity I2): lead with insight — compact digest + top-signal chip
+	// above the KPIs. Hidden when no signals; widget verbatim when module absent.
+	sn_aw_insight_header();
 	echo '<div class="sn-aw-subhead">Right now</div>';
 	sn_aw_now_today();
 	echo '<div class="sn-aw-subhead">Last 7 days</div>';
