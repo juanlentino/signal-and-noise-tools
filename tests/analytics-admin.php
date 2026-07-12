@@ -147,6 +147,10 @@ function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $G
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
+$GLOBALS['__insights_html'] = '<div class="sn-an-insights">MOUNTED</div>';
+if ( ! function_exists( 'snt_analytics_render_insights_band' ) ) {
+	function snt_analytics_render_insights_band( $from, $to, $class, $g ) { echo $GLOBALS['__insights_html']; }
+}
 require_once __DIR__ . '/../inc/analytics-sources.php';
 // v8.5.0 header-region dependencies: the movers tile + panel primitive run
 // REAL over the stubbed accessors; uptime surfaces stay absent (the region's
@@ -269,6 +273,10 @@ ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 // v9.29.0: the dedicated UTM Campaigns view is a first-class tab in the strip.
 ok( strpos( $html, 'sn_view=campaigns' ) !== false && strpos( $html, '>Campaigns<' ) !== false, 'tabs: the Campaigns view is registered and rendered in the tab strip' );
+// v9.30.0: the Insights band leads the dashboard, above the descriptive Overview.
+$ins = strpos( $html, 'sn-an-insights' );
+$ov  = strpos( $html, 'Overview' );
+ok( false !== $ins && ( false === $ov || $ins < $ov ), 'dashboard: Insights band renders above the Overview (leads the page)' );
 
 echo "\nGroup: dashboard — trend: smooth SVG area chart (v6.5.2)\n";
 aa_fill_data();

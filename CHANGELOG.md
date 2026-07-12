@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.30.0] - 2026-07-12: Feat — analytics predictive+prescriptive Insights band (maturity tiers, Increment 1)
+
+**Headline:** The analytics dashboard gains an **Insights band** that leads the page — the first slice of the descriptive→predictive→prescriptive maturity model. A transparent statistical **signal engine** (robust median/MAD anomaly detection on daily views/visits + Theil–Sen trajectory classification for top content and campaigns) produces typed, calibrated signals; a **narrator** turns them into a short "what happened → why → what to do" brief. The narrator uses the WP AI Client when available and falls back to a deterministic template, so the band always renders — no panel depends on an LLM call. Honest by construction: robust stats (not mean/SD), a 14-day minimum-sample floor, a decoupled 30-day baseline independent of the selected range, and confidence on every signal.
+
+> **Why MINOR:** additive new capability (a new dashboard surface + two new deterministic engines). No public function/route/ability removed or renamed; no settings-schema change; no WP-floor raise. Renders fully with AI off.
+
+### New
+- `inc/analytics-signals.php`: robust statistical helpers + `sn_analytics_signal_anomalies` (median/MAD z, decoupled 30d baseline, 14d floor) + `sn_analytics_signal_trajectories` (Theil–Sen, top paths + campaigns) + the severity-sorted `sn_analytics_signals` aggregator.
+- `inc/analytics-narrator.php`: `sn_analytics_narrate` (swap seam) over `sn_analytics_narrate_ai` (WP AI Client, strict "narrate only provided signals" prompt) + `sn_analytics_narrate_fallback` (the deterministic floor).
+- `inc/analytics-insights.php`: the Insights band + tier-badged signal chips, mounted atop the dashboard (leads with the higher tiers).
+
+### Tests
+- `tests/analytics-signals.php`, `tests/analytics-narrator.php`, `tests/analytics-insights.php` (new) + `tests/analytics-admin.php` (band mounts above Overview). Full sweep green; PHPStan + Plugin Check clean.
+
 ## [9.29.0] - 2026-07-12: Feat — dedicated "Campaigns" analytics tab (UTM, always visible)
 
 **Headline:** The UTM campaign breakdowns shipped in v9.28.0 now live in their own **Campaigns** tab in the analytics dashboard (alongside Content, Technology, Geography, …) instead of being tucked into the Content view's side column — and, crucially, the tab is **always present and renders an empty state** rather than only appearing once campaign data exists. The v9.28.0 placement was gated on data, so the feature was invisible until the first tagged visit arrived; this makes it discoverable immediately: open the tab, see the Campaigns + Source/Medium panels (with trend sparklines) and, until traffic flows, a short empty state that explains how to tag a link.

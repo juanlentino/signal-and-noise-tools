@@ -315,6 +315,11 @@ function snt_analytics_render_dashboard() {
 	// the still-firing after-Overview seam) lives in
 	// inc/analytics-header-region.php; it returns the range totals so the
 	// tail empty-hint below keeps its signal.
+	// v9.30.0: lead with the higher tiers — the Insights band (predictive +
+	// prescriptive) sits above the descriptive Overview. Guarded for partial installs.
+	if ( function_exists( 'snt_analytics_render_insights_band' ) ) {
+		snt_analytics_render_insights_band( $from, $to, $class, $granularity );
+	}
 	$totals = array();
 	if ( ! $owns_chrome ) {
 		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity );
