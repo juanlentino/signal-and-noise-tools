@@ -124,6 +124,29 @@ function sn_analytics_config() {
 }
 
 /**
+ * The site timezone as a named IANA identifier (e.g. 'America/New_York', 'UTC') for
+ * Analytics Engine's timezone-aware date functions (formatDateTime / toStartOfInterval
+ * gained an optional timezone arg on 2025-11-12), or '' when the site uses a manual
+ * UTC offset — which ClickHouse/AE will not accept as a zone name.
+ *
+ * Consumers (inc/analytics-rollup.php day bucketing, inc/analytics-realtime.php
+ * "views today") pass the returned name into their SQL builders so the durable and
+ * live figures share ONE day boundary (the site's), instead of a UTC day that rolls
+ * mid-evening for western zones. Validated against the canonical identifier list, so
+ * the return is always a real zone name — never a manual offset ('+05:30'), never
+ * anything injectable (a listed name has no quotes, spaces, or semicolons).
+ *
+ * @return string IANA zone name, or '' to signal "use the UTC / elapsed-seconds path".
+ */
+function sn_analytics_site_tz_name() {
+	if ( ! function_exists( 'wp_timezone_string' ) ) {
+		return '';
+	}
+	$tz = (string) wp_timezone_string();
+	return in_array( $tz, timezone_identifiers_list(), true ) ? $tz : '';
+}
+
+/**
  * Record an Analytics Engine API failure.
  *
  * Stores url + HTTP status + 240-char body excerpt. Token is never written.
