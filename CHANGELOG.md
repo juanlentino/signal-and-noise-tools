@@ -2,11 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.26.2] - 2026-07-11: Fix — analytics "today" stability + two durable-rollup correctness bugs
+## [9.26.3] - 2026-07-11: Fix — analytics "today" stability + two durable-rollup correctness bugs
 
 **Headline:** A debugging pass on the first-party analytics read path, triggered by the dashboard's "views today" visibly jumping (55 with a live visitor, 40 without). Four fixes: **(1)** the reported flicker — "views today" was a two-source figure that flipped between the site-timezone live query (transient warm) and the UTC-day rollup bucket (transient cold, a *different* day boundary), so it regressed whenever the 5-min realtime transient lapsed between visits. It now persists a durable last-good keyed to the site-local day, so the cold path keeps the same definition and never flips to the UTC bucket. **(2)** HIGH — the durable session-quality rollup (`wp_sn_session_daily`) computed bounce / pages-per-visit / median over the *raw* fetched groups, skipping the `sn_pageview_visits()` filter the live Visits view applies first; a single RSS reader's pageview-less polls gap-split into phantom visits and permanently skewed the trend line away from the live view. It now filters identically. **(3)** MEDIUM — the edge-dims upsert was the one upsert that didn't chunk its INSERT; the 395-day backfill re-pulled every run could exceed MySQL's 65,535-placeholder statement limit → a silent `false` → dims never written and never recovering. Now chunked at 100 like every sibling. **(4)** LOW — the Analytics-page "Today so far" pulse cell read the series' last bucket and labelled it "today" even before today's bucket was rolled, showing a stale full day as today; now suppressed unless that bucket's day is actually today.
 
 > **Why PATCH:** four bug fixes on the analytics read/rollup path. No public function, REST route, ability, or settings schema removed or renamed; no WP-floor raise. One new internal non-autoloaded option (`sn_analytics_views_today_lastgood`) is added, mirroring the existing `sn_edge_adaptive_retention` last-good pattern — additive, self-expiring by local day, requires no migration. The durable session-rollup values change going forward (they were wrong); this is a correction, not a behavioural break requiring user action.
+
+> **Why 9.26.3, not 9.26.2:** a concurrent session merged an unrelated dead-code cleanup as v9.26.2 (#256) while this fix was in review, so this patch takes the next number. The two releases are independent — 9.26.2 pruned the retired /now + /uses callbacks (below); 9.26.3 is the analytics read-path fixes.
 
 ### Fixed
 - **"Views today" no longer flips between two day-boundary definitions** ([inc/analytics-realtime.php](inc/analytics-realtime.php)): `sn_analytics_views_today()` now falls back to a durable same-site-local-day last-good (`SN_ANALYTICS_VIEWS_TODAY_LASTGOOD`, written by `sn_analytics_realtime_refresh()` only on a successful today read, keyed via the new `sn_analytics_local_day()`) instead of returning null → the widget's UTC-day rollup bucket. The figure stays on the site-timezone definition whenever it has been measured today, resets at local midnight, and a failed query never clobbers a good value. The "Right now" panel now reads a stable "views today" whether or not a visitor is live.
@@ -21,6 +23,19 @@ All notable changes to Signal & Noise Tools are documented here.
 - [tests/analytics-header-region.php](tests/analytics-header-region.php) — the "Today so far" cell is suppressed when the last bucket is a stale prior day. Full standalone sweep 267 suites / 0 failed.
 
 > **Companion worker fix (needs a separate deploy):** `signal-and-noise-analytics-worker` v1.10.1 hardens the beacon token gate to fail *closed* when `SN_PX_TOKEN` is unset (an unset secret + a keyless beacon was `undefined !== undefined` → accepted). No production impact (the live worker reports `px_token_set: true`); ships via `npm run deploy` from that repo — not bundled in this plugin tag.
+
+## [9.26.2] - 2026-07-11: Refactor — prune the retired /now + /uses theme-filter callbacks (dead-code cleanup)
+
+**Headline:** Removes the vestigial `sn_now_sections` / `sn_now_updated` / `sn_uses_groups` theme-filter callbacks from the /now and /uses content editors. These fed the theme's old data-file render path; that seam was retired when /now and /about/uses became real CMS Pages (theme v10.34.0; plugin v9.19.0 / v9.20.0), after which the editors write the Pages' `post_content` directly via `sn_now_sync_page()` / `sn_uses_sync_page()` on save. The callbacks were registered on filter hooks that nothing applies anymore (confirmed across both the plugin and the companion theme), so they were pure dead code — this is the "prune in a later cleanup" flagged in the v9.19.0 entry below. No runtime behaviour changes.
+
+> **Why PATCH:** an internal dead-code refactor. The removed `sn_tf_*` functions were filter callbacks on hooks the theme no longer fires; nothing in the plugin or theme calls them, so no public function, ability, or REST route that anyone uses is removed, and there is no settings-schema change or WP-floor raise. The live /now + /uses editing path (option storage → parser → Page regeneration on save) is untouched.
+
+### Removed
+- [inc/now-page.php](inc/now-page.php): `sn_tf_now_sections()` and `sn_tf_now_updated()` plus their `add_filter( 'sn_now_sections', … )` / `add_filter( 'sn_now_updated', … )` registrations. The durable option storage, tolerant parser, and `sn_now_page_save()` (which regenerates the /now Page) are kept.
+- [inc/uses-page.php](inc/uses-page.php): `sn_tf_uses_groups()` and its `add_filter( 'sn_uses_groups', … )` registration. The parser, serializer, option storage, and `sn_uses_page_save()` are kept.
+
+### Tests
+- [tests/now-page.php](tests/now-page.php), [tests/uses-page.php](tests/uses-page.php): dropped the theme-filter callback assertions (the callbacks are gone); the parser / save-get / autoload / fallback assertions remain. Removed the now-purposeless `SN_NOW_PAGE_TEST` / `SN_USES_PAGE_TEST` guards (also from [tests/admin-post-actions.php](tests/admin-post-actions.php)) — with no `add_filter` wiring left to suppress, they were no-ops. Full standalone sweep 267 suites / 0 failed; PHPStan clean.
 
 ## [9.26.1] - 2026-07-11: Fix: credential endpoint returns one opaque 404 (close the existence oracle)
 

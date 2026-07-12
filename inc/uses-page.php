@@ -1,21 +1,23 @@
 <?php
 /**
- * Signal & Noise Tools — /uses page content editor (data layer + theme feed).
+ * Signal & Noise Tools — /uses page content editor (data layer).
  *
  * Owner direction 2026-07-01: /uses gets the same plugin-managed content
- * behavior as /now. The theme's uses trio shipped (v10.10.0) with the
- * `sn_uses_groups` filter explicitly documented as "the deferred-admin-UI
- * seam — the companion plugin can supply the list later WITHOUT a theme
- * change." This module finally feeds it, mirroring inc/now-page.php:
+ * behavior as /now. /about/uses is a real CMS child Page whose post_content is
+ * regenerated from this editor on every save (sn_uses_page_save() drives the
+ * builder in inc/content-migrations.php via sn_uses_sync_page()), mirroring
+ * inc/now-page.php:
  *
  *   - durable autoload=no OPTION (sn_uses_page) holding the raw document +
  *     a site-timezone save-stamp (wp_date — the v7.5.1 lesson, from day one);
  *   - the SECTION grammar is shared with /now (sn_now_parse_sections);
  *     /uses items are {name, note} pairs, split on the FIRST ` | `;
- *   - a serializer so the admin editor can PREFILL from the theme's live
- *     file groups instead of making the owner retype eleven items;
- *   - the filter callback with the same fallback discipline: empty or
- *     zero-group content NEVER replaces the theme's file content.
+ *   - a serializer so the admin editor can PREFILL from existing groups
+ *     instead of making the owner retype eleven items. Fallback discipline:
+ *     zero-group content is refused at save time, never blanking /about/uses.
+ *
+ * The theme's former `sn_uses_groups` filter seam (theme v10.10.0) was retired
+ * when /about/uses became a real Page; this module no longer registers it.
  *
  * Admin surface: Content → Uses Page (inc/admin-forms/uses-page.php);
  * POST action `uses_save` (inc/admin-post-actions.php).
@@ -143,26 +145,4 @@ function sn_uses_page_save( $raw ) {
 	}
 
 	return $result;
-}
-
-/**
- * sn_uses_groups theme filter: saved plugin content replaces the theme's
- * file groups — ONLY when it parses to at least one group, so a bad save
- * can never blank the live /uses page.
- *
- * @param array $d Theme-supplied groups (the file content).
- * @return array
- */
-function sn_tf_uses_groups( $d ) {
-	$page = sn_uses_page_get();
-	if ( ! $page ) {
-		return $d;
-	}
-	$groups = sn_uses_parse_groups( $page['raw'] );
-	return ! empty( $groups ) ? $groups : $d;
-}
-
-// Register against the theme's /uses seam. Skipped under the CLI test harness.
-if ( ! defined( 'SN_USES_PAGE_TEST' ) || ! SN_USES_PAGE_TEST ) {
-	add_filter( 'sn_uses_groups', 'sn_tf_uses_groups' );
 }
