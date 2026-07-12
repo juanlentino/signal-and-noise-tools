@@ -31,5 +31,26 @@ ok( sn_analytics_stat_theil_sen( array( 0, 2, 4, 6, 8 ) ) === 2.0, 'theil-sen: e
 // One wild outlier must not move the slope much (median of pairwise slopes).
 ok( abs( sn_analytics_stat_theil_sen( array( 0, 2, 4, 6, 999 ) ) - 2.0 ) < 0.001, 'theil-sen: outlier-resistant' );
 
+echo "\nGroup: anomaly signals\n";
+// 19-day baseline oscillating 9/11 around 10 (median 10, MAD 1 — real variance so
+// the robust z is defined), with a spike to 60 on the last day (within display range).
+$series = array();
+for ( $i = 0; $i < 19; $i++ ) { $series[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => ( $i % 2 ) ? 11 : 9, 'visits' => 8 ); }
+$series[] = array( 'day' => '2026-06-20', 'views' => 60, 'visits' => 8 );
+$GLOBALS['__daily'] = $series;
+$sig = sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' );
+$views_anom = array_values( array_filter( $sig, static function ( $s ) { return 'views' === $s['subject']; } ) );
+ok( count( $views_anom ) === 1 && 'up' === $views_anom[0]['direction'], 'anomaly: catches the views spike, direction up' );
+ok( 'predictive' === $views_anom[0]['tier'] && 'anomaly' === $views_anom[0]['kind'], 'anomaly: tier/kind set' );
+ok( '' !== $views_anom[0]['plain_label'], 'anomaly: carries a plain_label' );
+// Flat series → no anomaly (MAD 0 → skipped, no fake precision).
+$flat = array(); for ( $i = 0; $i < 20; $i++ ) { $flat[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => 10, 'visits' => 10 ); }
+$GLOBALS['__daily'] = $flat;
+ok( array() === sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' ), 'anomaly: flat baseline → none' );
+// Short history (< 14 days) → insufficient → none.
+$GLOBALS['__daily'] = array_slice( $flat, 0, 10 );
+ok( array() === sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' ), 'anomaly: <14d baseline → insufficient, no flag' );
+$GLOBALS['__daily'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
