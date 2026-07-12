@@ -24,6 +24,12 @@ function sn_analytics_referrer_categories( $f, $t, $c = 'human' ) { return $GLOB
 function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
 function sn_analytics_top_entry_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/', 'views' => 9, 'visits' => 8 ) ); }
 function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/contact/', 'views' => 5, 'visits' => 5 ) ); }
+// v9.28.0: UTM campaign accessors — the side column surfaces Campaigns + Source/Medium
+// only when there IS campaign data (empty → the section is skipped, no clutter).
+function sn_analytics_top_utm_campaigns( $f, $t, $c = 'human', $l = 10 ) { return $GLOBALS['__utmc'] ?? array( array( 'value' => 'summer_sale', 'views' => 12, 'visits' => 9 ) ); }
+function sn_analytics_top_utm_sources( $f, $t, $c = 'human', $l = 10 ) { return array( array( 'value' => 'google / cpc', 'source' => 'google', 'medium' => 'cpc', 'views' => 9, 'visits' => 7 ) ); }
+$GLOBALS['__utm_series_modes'] = array();
+function sn_analytics_utm_series( $mode, $vals, $f, $t, $c = 'human', $g = 'day' ) { $GLOBALS['__utm_series_modes'][] = (string) $mode; return array(); }
 
 // Renderer recorders — each panel has its own suite.
 function snt_analytics_render_paths_table( $rows ) { echo '<!--PATHS-->'; }
@@ -72,6 +78,24 @@ $dim   = strpos( $html, '<!--DIM:Top sources-->' );
 $cats  = strpos( $html, '<!--REFCATS-->' );
 ok( false !== $paths && $paths > $main && $paths < $side, 'Top pages lives in the main column' );
 ok( false !== $dim && false !== $cats && $dim > $side && $cats > $dim, 'Top sources then Referrer categories stack in the side column' );
+// v9.28.0: with campaign data present, the side column also stacks Campaigns then
+// Source/Medium after the referrer categories.
+$utm_camp   = strpos( $html, '<!--DIM:Campaigns-->' );
+$utm_srcmed = strpos( $html, '<!--DIM:Source / Medium-->' );
+ok( false !== $utm_camp && $utm_camp > $cats, 'Campaigns panel renders in the side column, after referrer categories' );
+ok( false !== $utm_srcmed && $utm_srcmed > $utm_camp, 'Source/Medium panel follows the Campaigns panel' );
+// Both UTM panels get trend sparklines (parity with Top sources): the series
+// accessor is requested for the campaign and the source/medium modes.
+ok( in_array( 'campaign', $GLOBALS['__utm_series_modes'], true ) && in_array( 'source_medium', $GLOBALS['__utm_series_modes'], true ), 'both UTM panels request a trend series (campaign + source_medium sparklines)' );
+// The section is gated on campaign data: with none, neither UTM panel renders.
+$GLOBALS['__utmc'] = array();
+ob_start();
+snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
+$no_utm = (string) ob_get_clean();
+ok( false === strpos( $no_utm, '<!--DIM:Campaigns-->' ), 'no campaign data → the Campaigns panel is skipped (no side-column clutter)' );
+$GLOBALS['__utmc'] = null;
+// The UTM section stays behind a function_exists guard (partial install degrades).
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/analytics-view-content.php' ), "function_exists( 'sn_analytics_top_utm_campaigns' )" ), 'UTM section stays behind the function_exists guard' );
 
 ok( false !== strpos( $html, 'sn-an-journeys-label' ), 'journeys hairline label present' );
 ok( false !== stripos( $html, 'human only' ), 'human-only note lives in the section label' );

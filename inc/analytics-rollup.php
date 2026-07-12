@@ -384,6 +384,12 @@ function sn_analytics_run_rollup() {
 		sn_analytics_dims_run_rollup();
 	}
 
+	// v9.28.0: roll the packed UTM (blob20) into the Source/Medium + Campaign
+	// table in the same pass — its own AE query, same guard.
+	if ( function_exists( 'sn_analytics_utm_run_rollup' ) ) {
+		sn_analytics_utm_run_rollup();
+	}
+
 	// v5.4.0: roll the derived views (hour-of-day heatmap + scroll/time
 	// distributions) in the same pass — their own AE queries, same guard.
 	if ( function_exists( 'sn_analytics_buckets_run_rollup' ) ) {

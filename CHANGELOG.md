@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.28.0] - 2026-07-12: Feat — UTM campaign attribution (Source/Medium + Campaign breakdowns)
+
+**Headline:** The analytics dashboard now reports campaign attribution. The edge worker (v1.12.0) captures the five named `utm_*` params a visitor lands with and packs them into the AE row's last free blob (`blob20`); this release rolls that packed column into a durable per-day table and surfaces two new side-column panels in the Content view — **Campaigns** and **Source / Medium** — that appear only when there is campaign data (a site that never tags links keeps a clean view). This completes the cookieless, three-repo attribution pipeline (theme beacon → worker `blob20` → this plugin), so campaigns are measured with the same privacy stance as the rest of the beacon: no cookies, no cross-day identity, only the marketing tags the site owner puts on their own links.
+
+> **Why MINOR:** a new user-visible capability (campaign reporting the dashboard never had), additive. No public function, REST route, or ability removed or renamed; the new dims-style table adds rows to a brand-new dormant table (created empty, written only once AE creds + campaign traffic exist), so no schema migration and no WP-floor raise. Every existing view and rollup is unchanged.
+
+### New
+- [inc/analytics-utm.php](inc/analytics-utm.php): a dedicated UTM module mirroring the dims layer. Because `blob20` is a *packed* tuple (`source␟medium␟campaign␟term␟content`, `␟` = U+001F) rather than one dim = one blob, it groups by the raw packed string in AE (no JOINs, no untrusted split functions there) and splits it in **PHP** at write time. The wide `(source, medium, campaign)` tuple is keyed by a 40-char sha1 `sig` so the UNIQUE index stays well inside InnoDB's prefix limit. Read accessors: `sn_analytics_top_utm_campaigns()`, `sn_analytics_top_utm_sources()` (the classic Source/Medium report), and `sn_analytics_utm_series()` for the trend sparklines (one batched query per panel, keyed on the campaign column or the `CONCAT(source,' / ',medium)` label — no N+1). `term`/`content` are captured at the edge but not surfaced yet.
+- [inc/analytics-rollup.php](inc/analytics-rollup.php): `sn_analytics_run_rollup()` now also runs the UTM rollup in the same cron pass (one extra AE query), behind a `function_exists` guard like the other breakdown rollups.
+- [inc/analytics-view-content.php](inc/analytics-view-content.php): the Content view's acquisition (side) column renders the **Campaigns** and **Source / Medium** panels after the referrer categories — each with per-row trend sparklines matching Top sources — gated on campaign data and behind a `function_exists` guard so a partial install degrades to nothing (and, without the series accessor, to plain tables).
+
+### Privacy
+No change to what the beacon collects beyond the already-disclosed `utm_*` params. The rollup stores only the campaign tuple + counts; no visitor identity, no path, no query string. Consistent with the cookieless, storageless first-party stance.
+
+### Tests
+- [tests/analytics-utm.php](tests/analytics-utm.php): 56 assertions — the packed-string split, schema/install, the AE rollup SQL (pv-only, `blob20 != ''`, documented aggregate forms, `$days` injection guard), the upsert (split + sig + `(none)` normalization + skips for bad day/class/empty tuple), `run_rollup`, both read accessors, and the batched trend-series builder (campaign + source/medium modes, empty-values short-circuit).
+- [tests/analytics-view-content.php](tests/analytics-view-content.php): the two new panels' placement, ordering, sparkline wiring (both series modes requested), the empty-data gate, and the `function_exists` guard.
+- [phpcs.xml.dist](phpcs.xml.dist): `analytics-utm.php` added to the `WordPress.DB.PreparedSQL` exclude list (interpolates only `$wpdb->prefix . CONSTANT`; every value is bound) — same rationale as the sibling custom-table modules. Full sweep 270 suites / 0 failed; PHPStan clean.
+
 ## [9.27.0] - 2026-07-12: Feat — reliable analytics freshness via a token-gated rollup-refresh trigger (CF Cron)
 
 **Headline:** "Views today" and the durable rollups otherwise ride on WP-Cron, which only fires on front-end traffic and silently stalls on an idle site — the "views today went cold / stale" failure this whole arc kept surfacing. This adds a token-authenticated `POST /analytics/refresh` REST endpoint that the analytics Worker's new Cron Trigger (v1.11.0) POSTs every 15 minutes, driving `sn_analytics_run_rollup()` + `sn_analytics_realtime_refresh()` on Cloudflare's guaranteed schedule regardless of site traffic or WP-Cron health.
