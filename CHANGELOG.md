@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.33.0] - 2026-07-12: Feat — weekly executive digest + AI-reasoned recommendations (maturity Increment 4)
+
+**Headline:** The prescriptive tier deepens. The Insights band's narrative slot is now a **weekly executive digest** — longer-form AI prose over the period's real totals + every signal, with a structured deterministic floor (summary line, signal list, a concrete "Start here"). **Recommendations gain an AI-reasoned priority brief behind the narrator-style seam**: the AI reasons over the rule cards + live signals and says what to act on first and why — while the deep-linked action cards themselves stay rules-only and pass through verbatim (the AI can never invent, reorder, or rewrite an action). Every AI path falls back deterministically on empty output, errors, and the monthly **budget cap** (the wrapper's WP_Error is routed to the floor by construction, and the tests pin it). Stays on the WP AI Client — no structured-output/tool-use need appeared, so no direct-to-provider (spec §9).
+
+> **Why MINOR:** additive capability on existing surfaces (band narrative upgraded, recs panel gains a brief). No public function/route/ability removed or renamed; no settings-schema change; renders fully with AI off.
+
+### New
+- `inc/analytics-narrator.php`: `sn_analytics_digest` (seam + `sn_analytics_digest` filter) over `sn_analytics_digest_ai` (feature `analytics_digest_weekly`, 500-token longer form) + `sn_analytics_digest_fallback` (deterministic floor).
+- `inc/analytics-recommendations.php`: `sn_analytics_recommend` (seam + `sn_analytics_recommender` filter) over `sn_analytics_recommend_ai` (feature `analytics_recs`; brief only — cards verbatim); the panel renders the brief above the cards.
+- `inc/analytics-insights.php`: the band feeds the digest the real range totals (`sn_analytics_range_totals`) and prefers it over the compact `narrate()` (which remains the WP-home widget's path).
+
+### Tests
+- `tests/analytics-narrator.php` 6 → 16 (digest fallback composition + 8-item cap, seam, WP_Error budget-cap fallback for digest AND narrate) · `tests/analytics-recommendations.php` 29 → 39 (seam, cards-verbatim invariant, no-cards short-circuit, budget fallback, brief render + ordering) · `tests/analytics-insights.php` 5 → 8 (band renders the digest + source, receives totals+signals, honest empty state). Full sweep green; PHPStan + phpcs clean.
+
 ## [9.32.0] - 2026-07-12: Feat — forecast signals with measured calibration (maturity Increment 3)
 
 **Headline:** The signal engine gains the **forecast** kind — Holt-linear 7-day projections for site views/visits, top campaigns, and the lifecycle census's refresh candidates. Honest by construction: every forecast **always carries a prediction interval**; series below a 21-point floor (or with no traffic) are suppressed; and confidence is **measured, not asserted** — a rolling-origin backtest holds out the tail of each series, scores interval coverage + MAE, and every chip's plain-language label carries the calibration note ("backtest N% in-interval"). Forecasts flow into the existing Insights band and widget chips through the aggregator — no new UI.
