@@ -93,5 +93,22 @@ $btn = sn_analytics_forecast_backtest( $noisy, 7, 14 );
 ok( is_array( $btn ) && $btn['coverage'] >= 0.8 && 91 === $btn['checks'], 'backtest: noisy line → high measured coverage over 91 checks' );
 ok( $btn['mae'] < 4.0, 'backtest: noisy line → MAE bounded by the noise scale' );
 
+echo "\nGroup: forecast signal composer\n";
+$noisy_rows = array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy );
+$fs = sn_analytics_forecast_of( 'views', 'Views', $noisy_rows, '2026-06-13', '2026-07-12' );
+ok( is_array( $fs ) && 'forecast' === $fs['kind'] && 'holt_linear' === $fs['stat'] && 'predictive' === $fs['tier'] && 'forecast:views:2026-07-12+7d' === $fs['id'], 'forecast: kind/stat/tier/id shaped per §5.1' );
+ok( 'up' === $fs['direction'] && 'high' === $fs['confidence'], 'forecast: rising fixture → up, backtest-calibrated high confidence' );
+ok( is_array( $fs['interval'] ) && $fs['interval']['low'] < $fs['value'] && $fs['value'] < $fs['interval']['high'], 'forecast: ALWAYS carries an interval that brackets the point' );
+ok( false !== strpos( $fs['plain_label'], 'backtest' ) && false !== strpos( $fs['plain_label'], 'in-interval' ), 'forecast: plain_label carries the calibration note' );
+$flat_rows = array_fill( 0, 30, array( 'views' => 50 ) );
+$ff = sn_analytics_forecast_of( 'visits', 'Visits', $flat_rows, '2026-06-13', '2026-07-12' );
+ok( is_array( $ff ) && 'flat' === $ff['direction'] && 50.0 === $ff['value'], 'forecast: flat series → flat direction, level point' );
+$dec_rows = array(); for ( $i = 0; $i < 30; $i++ ) { $dec_rows[] = array( 'views' => 70 - 2 * $i + ( ( $i % 2 ) ? 1 : -1 ) ); }
+$fd = sn_analytics_forecast_of( 'path:/notes/x', '/notes/x', $dec_rows, '2026-06-13', '2026-07-12' );
+ok( is_array( $fd ) && 'down' === $fd['direction'] && 2 === $fd['severity'], 'forecast: decaying fixture → down, severity 2' );
+ok( 0.0 === $fd['value'] && 0.0 === $fd['interval']['low'], 'forecast: sub-zero projection clamps to 0 (views cannot go negative)' );
+ok( null === sn_analytics_forecast_of( 'visits', 'Visits', array_fill( 0, 30, array( 'views' => 0 ) ), '2026-06-13', '2026-07-12' ), 'forecast: all-zero series → suppressed (nothing to forecast honestly)' );
+ok( null === sn_analytics_forecast_of( 'views', 'Views', array_slice( $noisy_rows, 0, 10 ), '2026-07-03', '2026-07-12' ), 'forecast: below min-sample floor → suppressed' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

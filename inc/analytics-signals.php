@@ -242,3 +242,53 @@ function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORE
 		'checks'   => $checks,
 	);
 }
+
+/**
+ * Compose one subject's daily-views series into a forecast Signal, or null when
+ * suppressed. Honesty gates: below SN_ANALYTICS_FORECAST_MIN_POINTS → null; zero
+ * median level → null; the ~95% interval is an approximation (residual scale ×√h),
+ * so confidence comes from the backtest's MEASURED coverage and every plain_label
+ * carries the calibration note. Displayed point + bounds clamp at 0 (views ≥ 0).
+ * @return array|null Signal
+ */
+function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts = array() ) {
+	$min     = max( 4, (int) ( $opts['min_points'] ?? SN_ANALYTICS_FORECAST_MIN_POINTS ) );
+	$horizon = max( 1, (int) ( $opts['horizon'] ?? SN_ANALYTICS_FORECAST_HORIZON ) );
+	$ys      = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, (array) $series );
+	if ( count( $ys ) < $min ) { return null; }
+	$level = sn_analytics_stat_median( $ys );
+	if ( null === $level || $level <= 0 ) { return null; }
+	$fit = sn_analytics_stat_holt( $ys );
+	if ( null === $fit ) { return null; }
+	$backtest = sn_analytics_forecast_backtest( $ys, $horizon, max( 3, (int) floor( count( $ys ) / 2 ) ) );
+	if ( null === $backtest ) { return null; }
+	$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
+	$point = sn_analytics_stat_holt_point( $fit, $horizon );
+	$half  = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $horizon );
+	$shown = max( 0.0, $point );
+	$low   = max( 0.0, $point - $half );
+	$high  = max( 0.0, $point + $half );
+	$move  = $horizon * (float) $fit['trend'];
+	$rel   = $move / $level;
+	$dir   = ( abs( $rel ) < 0.05 ) ? 'flat' : ( $move > 0 ? 'up' : 'down' );
+	$cov   = (float) $backtest['coverage'];
+	$conf  = ( $cov >= 0.8 ) ? 'high' : ( ( $cov >= 0.5 ) ? 'medium' : 'low' );
+	return array(
+		'id'            => 'forecast:' . $subject . ':' . (string) $to . '+' . $horizon . 'd',
+		'tier'          => 'predictive',
+		'kind'          => 'forecast',
+		'subject'       => $subject,
+		'subject_label' => (string) $label,
+		'stat'          => 'holt_linear',
+		'value'         => round( $shown, 1 ),
+		'direction'     => $dir,
+		'interval'      => array( 'low' => round( $low, 1 ), 'high' => round( $high, 1 ) ),
+		'confidence'    => $conf,
+		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
+		'plain_label'   => sprintf(
+			'%s: next %d days ≈ %.1f/day (interval %.1f–%.1f; backtest %d%% in-interval)',
+			(string) $label, $horizon, $shown, $low, $high, (int) round( $cov * 100 )
+		),
+		'severity'      => ( 'down' === $dir ) ? 2 : 1,
+	);
+}
