@@ -52,5 +52,24 @@ $GLOBALS['__daily'] = array_slice( $flat, 0, 10 );
 ok( array() === sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' ), 'anomaly: <14d baseline → insufficient, no flag' );
 $GLOBALS['__daily'] = array();
 
+echo "\nGroup: trajectory + aggregate\n";
+// Rising path: 14 points climbing 5→31.
+$rising = array(); for ( $i = 0; $i < 14; $i++ ) { $rising[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => 5 + 2 * $i ); }
+$GLOBALS['__paths'] = array( array( 'path' => '/notes/x', 'views' => 200, 'visits' => 120 ) );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $rising );
+$GLOBALS['__camps'] = array();
+$traj = sn_analytics_signal_trajectories( '2026-06-01', '2026-06-14', 'human' );
+ok( count( $traj ) === 1 && 'up' === $traj[0]['direction'] && false !== strpos( $traj[0]['plain_label'], 'rising' ), 'trajectory: rising path classified up' );
+ok( 'trajectory' === $traj[0]['kind'] && 'theil_sen' === $traj[0]['stat'], 'trajectory: kind/stat set' );
+// Short series → skipped.
+$GLOBALS['__pathseries'] = array( '/notes/x' => array_slice( $rising, 0, 5 ) );
+ok( array() === sn_analytics_signal_trajectories( '2026-06-01', '2026-06-14', 'human' ), 'trajectory: <14 points → skipped' );
+// Aggregate producer merges + sorts by severity desc (anomaly high=3 before trajectory=1).
+$GLOBALS['__daily'] = $series; // reuse the spike fixture from Task 2
+$GLOBALS['__pathseries'] = array( '/notes/x' => $rising );
+$all = sn_analytics_signals( '2026-06-14', '2026-06-20', 'human' );
+ok( count( $all ) >= 2 && $all[0]['severity'] >= $all[ count( $all ) - 1 ]['severity'], 'aggregate: merged + sorted by severity desc' );
+$GLOBALS['__daily'] = array(); $GLOBALS['__paths'] = array(); $GLOBALS['__pathseries'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

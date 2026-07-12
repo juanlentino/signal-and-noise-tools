@@ -94,3 +94,70 @@ function sn_analytics_signal_anomalies( $from, $to, $class = 'human', $opts = ar
 	}
 	return $out;
 }
+
+/** Classify one subject's daily-views series into a trajectory signal, or null if too short. */
+function sn_analytics_trajectory_of( $subject, $label, $series, $from, $to, $min_points ) {
+	$ys = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, (array) $series );
+	if ( count( $ys ) < $min_points ) { return null; }
+	$slope = sn_analytics_stat_theil_sen( $ys );
+	if ( null === $slope ) { return null; }
+	$median = sn_analytics_stat_median( $ys );
+	$rel    = ( $median > 0 ) ? ( $slope * count( $ys ) ) / $median : 0.0; // total change ÷ level
+	if ( abs( $rel ) < 0.25 ) {
+		$kind_t = 'flat'; $dir = 'flat'; $conf = 'medium'; $sev = 1;
+	} else {
+		$kind_t = $slope > 0 ? 'rising' : 'decaying';
+		$dir    = $slope > 0 ? 'up' : 'down';
+		$conf   = ( abs( $rel ) >= 0.6 ) ? 'high' : 'medium';
+		$sev    = ( 'decaying' === $kind_t ) ? 2 : 1;
+	}
+	return array(
+		'id'            => 'trajectory:' . $subject,
+		'tier'          => 'predictive',
+		'kind'          => 'trajectory',
+		'subject'       => $subject,
+		'subject_label' => (string) $label,
+		'stat'          => 'theil_sen',
+		'value'         => round( $slope, 3 ),
+		'direction'     => $dir,
+		'interval'      => null,
+		'confidence'    => $conf,
+		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => 0 ),
+		'plain_label'   => sprintf( '%s is %s (%+.0f%% over the window)', (string) $label, $kind_t, $rel * 100 ),
+		'severity'      => $sev,
+	);
+}
+
+/** Trajectory signals for top content paths + top campaigns. @return array Signal[] */
+function sn_analytics_signal_trajectories( $from, $to, $class = 'human', $opts = array() ) {
+	$min = max( 2, (int) ( $opts['min_points'] ?? SN_ANALYTICS_TRAJ_MIN_POINTS ) );
+	$out = array();
+	if ( function_exists( 'sn_analytics_top_paths' ) && function_exists( 'sn_analytics_path_daily_series' ) ) {
+		foreach ( (array) sn_analytics_top_paths( (string) $from, (string) $to, $class, (int) ( $opts['paths'] ?? 5 ) ) as $p ) {
+			$path = (string) ( $p['path'] ?? '' );
+			if ( '' === $path ) { continue; }
+			$sig = sn_analytics_trajectory_of( 'path:' . $path, $path, sn_analytics_path_daily_series( $path, (string) $from, (string) $to ), $from, $to, $min );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	if ( function_exists( 'sn_analytics_top_utm_campaigns' ) && function_exists( 'sn_analytics_utm_series' ) ) {
+		$camps  = sn_analytics_top_utm_campaigns( (string) $from, (string) $to, $class, (int) ( $opts['campaigns'] ?? 5 ) );
+		$values = array_map( static function ( $r ) { return (string) $r['value']; }, (array) $camps );
+		$cser   = sn_analytics_utm_series( 'campaign', $values, (string) $from, (string) $to, $class, 'day' );
+		foreach ( $values as $v ) {
+			$sig = sn_analytics_trajectory_of( 'campaign:' . $v, $v, $cser[ $v ] ?? array(), $from, $to, $min );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	return $out;
+}
+
+/** All signals for the window, sorted by severity desc. @return array Signal[] */
+function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) {
+	$signals = array_merge(
+		sn_analytics_signal_anomalies( $from, $to, $class, $opts ),
+		sn_analytics_signal_trajectories( $from, $to, $class, $opts )
+	);
+	usort( $signals, static function ( $a, $b ) { return (int) $b['severity'] - (int) $a['severity']; } );
+	return $signals;
+}
