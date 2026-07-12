@@ -2,6 +2,7 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! class_exists( 'WP_Error' ) ) { class WP_Error {} }
 
 // (near the top, before require) — mockable AI wrapper.
 $GLOBALS['__ai_return'] = null;
@@ -44,6 +45,21 @@ ok( false !== strpos( $dh, 'sn-an-digest-list' ) && false !== strpos( $dh, 'deca
 ok( false !== strpos( sn_analytics_digest_fallback( array(), array() ), 'nothing needs attention' ), 'digest fallback: graceful empty without summary' );
 $many = array(); for ( $i = 0; $i < 10; $i++ ) { $many[] = array( 'plain_label' => 'signal number ' . $i ); }
 ok( 8 === substr_count( sn_analytics_digest_fallback( array(), $many ), '<li>' ), 'digest fallback: caps the list at 8 items' );
+
+echo "\nGroup: weekly digest — seam + budget-cap fallback\n";
+$GLOBALS['__ai_return'] = "Strong week. Views spiked on the 20th.\n\nNext: refresh /notes/x.";
+$dg = sn_analytics_digest( $digest_summary, $signals );
+ok( 'ai' === $dg['source'] && false !== strpos( $dg['digest'], 'refresh /notes/x' ), 'digest: uses the AI longer-form path when it returns text' );
+ok( false !== strpos( (string) $GLOBALS['__ai_system'], 'NEVER invent' ) && false !== strpos( (string) $GLOBALS['__ai_prompt'], '1204' ) && false !== strpos( (string) $GLOBALS['__ai_prompt'], 'decaying' ), 'digest: prompt carries the summary numbers + signals; system forbids invention' );
+$GLOBALS['__ai_return'] = new WP_Error();
+$dg2 = sn_analytics_digest( $digest_summary, $signals );
+ok( 'fallback' === $dg2['source'] && false !== strpos( $dg2['digest'], '1,204 views' ), 'digest: budget-cap WP_Error → deterministic fallback (the wrapper returns WP_Error over budget)' );
+$r_be = sn_analytics_narrate( array(), $signals );
+ok( 'fallback' === $r_be['source'], 'narrate: budget-cap WP_Error → fallback too' );
+$GLOBALS['__ai_return'] = '';
+ok( 'fallback' === sn_analytics_digest( $digest_summary, $signals )['source'], 'digest: empty AI → fallback' );
+$GLOBALS['__ai_return'] = null;
+ok( 'fallback' === sn_analytics_digest( $digest_summary, array() )['source'], 'digest: no signals → fallback empty-state' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
