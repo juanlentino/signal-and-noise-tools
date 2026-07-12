@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 const SN_ANALYTICS_SIGNAL_BASELINE_DAYS = 30;
 const SN_ANALYTICS_SIGNAL_FLOOR_DAYS    = 14;
-const SN_ANALYTICS_ANOMALY_Z            = 3.5;   // MAD-based robust z (~3σ for normal data)
+const SN_ANALYTICS_SIGNAL_ANOMALY_Z     = 3.5;   // MAD-based robust z (~3σ for normal data); SN_ANALYTICS_ANOMALY_Z is taken by analytics-derived.php (2.0)
 const SN_ANALYTICS_TRAJ_MIN_POINTS      = 14;
 const SN_ANALYTICS_FORECAST_HORIZON      = 7;    // days ahead (point at horizon; interval widens with √h)
 const SN_ANALYTICS_FORECAST_MIN_POINTS   = 21;   // min history; below → suppressed (never fake precision)
@@ -59,7 +59,7 @@ function sn_analytics_signal_anomalies( $from, $to, $class = 'human', $opts = ar
 	if ( ! function_exists( 'sn_analytics_daily_series' ) ) { return array(); }
 	$baseline_days = max( 1, (int) ( $opts['baseline_days'] ?? SN_ANALYTICS_SIGNAL_BASELINE_DAYS ) );
 	$floor         = max( 1, (int) ( $opts['floor'] ?? SN_ANALYTICS_SIGNAL_FLOOR_DAYS ) );
-	$z_thresh      = (float) ( $opts['z'] ?? SN_ANALYTICS_ANOMALY_Z );
+	$z_thresh      = (float) ( $opts['z'] ?? SN_ANALYTICS_SIGNAL_ANOMALY_Z );
 	$baseline_from = gmdate( 'Y-m-d', strtotime( (string) $to . ' -' . ( $baseline_days - 1 ) . ' days' ) );
 
 	$series = sn_analytics_daily_series( $baseline_from, (string) $to, $class, 'day' );
