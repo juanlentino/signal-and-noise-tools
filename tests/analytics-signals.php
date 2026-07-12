@@ -16,6 +16,9 @@ $GLOBALS['__camps'] = array();
 function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__camps']; }
 $GLOBALS['__campseries'] = array();
 function sn_analytics_utm_series( $mode, $vals, $from, $to, $class = 'human', $g = 'day' ) { return $GLOBALS['__campseries']; }
+$GLOBALS['__lifecycle'] = null;
+function sn_analytics_posts_lifecycle( $limit = 400 ) { return $GLOBALS['__lifecycle']; }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( (string) $u, $c ); } }
 
 require __DIR__ . '/../inc/analytics-signals.php';
 $pass = 0; $fail = 0;
@@ -109,6 +112,27 @@ ok( is_array( $fd ) && 'down' === $fd['direction'] && 2 === $fd['severity'], 'fo
 ok( 0.0 === $fd['value'] && 0.0 === $fd['interval']['low'], 'forecast: sub-zero projection clamps to 0 (views cannot go negative)' );
 ok( null === sn_analytics_forecast_of( 'visits', 'Visits', array_fill( 0, 30, array( 'views' => 0 ) ), '2026-06-13', '2026-07-12' ), 'forecast: all-zero series → suppressed (nothing to forecast honestly)' );
 ok( null === sn_analytics_forecast_of( 'views', 'Views', array_slice( $noisy_rows, 0, 10 ), '2026-07-03', '2026-07-12' ), 'forecast: below min-sample floor → suppressed' );
+
+echo "\nGroup: forecast producer\n";
+$daily30 = array(); for ( $i = 0; $i < 30; $i++ ) { $daily30[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => $noisy[ $i ], 'visits' => 50 ); }
+$GLOBALS['__daily'] = $daily30;
+$GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy ) );
+$GLOBALS['__lifecycle'] = array( 'rows' => array(
+	array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ),
+	array( 'permalink' => 'https://juanlentino.com/notes/keep', 'refresh_candidate' => false ),
+), 'summary' => array() );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
+$fc = sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' );
+$fsub = array_map( static function ( $s ) { return $s['subject']; }, $fc );
+ok( count( $fc ) === 4, 'producer: site views+visits, campaign, decay path → 4 forecasts' );
+ok( in_array( 'views', $fsub, true ) && in_array( 'visits', $fsub, true ) && in_array( 'campaign:launch', $fsub, true ) && in_array( 'path:/notes/x', $fsub, true ), 'producer: all four subjects present' );
+ok( ! in_array( 'path:/notes/keep', $fsub, true ), 'producer: non-candidate lifecycle rows skipped' );
+$by = array(); foreach ( $fc as $s ) { $by[ $s['subject'] ] = $s; }
+ok( 'up' === $by['views']['direction'] && 'flat' === $by['visits']['direction'] && 'down' === $by['path:/notes/x']['direction'] && 2 === $by['path:/notes/x']['severity'], 'producer: per-subject directions + decay severity' );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $noisy, 0, 10 ) ) );
+ok( count( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) ) === 3, 'producer: short campaign history → that forecast suppressed' );
+$GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

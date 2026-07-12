@@ -292,3 +292,52 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 		'severity'      => ( 'down' === $dir ) ? 2 : 1,
 	);
 }
+
+/**
+ * Forecast signals for the window: site views+visits (trailing fit history ending
+ * $to, decoupled from the display range), top campaigns, and the lifecycle
+ * census's refresh candidates (spec §8 reuse — the census picks the subjects, the
+ * existing per-path series supplies the data). Engagement metrics are deferred:
+ * no per-day engagement series accessor exists yet, and the engine adds no new
+ * queries. Every dependency is function_exists-guarded.
+ * @return array Signal[]
+ */
+function sn_analytics_signal_forecasts( $from, $to, $class = 'human', $opts = array() ) {
+	$out       = array();
+	$history   = max( 1, (int) ( $opts['history_days'] ?? SN_ANALYTICS_FORECAST_HISTORY_DAYS ) );
+	$hist_from = gmdate( 'Y-m-d', strtotime( (string) $to . ' -' . ( $history - 1 ) . ' days' ) );
+	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+		$series = sn_analytics_daily_series( $hist_from, (string) $to, $class, 'day' );
+		foreach ( array( 'views', 'visits' ) as $metric ) {
+			$ms  = array_map( static function ( $r ) use ( $metric ) { return array( 'views' => (float) ( $r[ $metric ] ?? 0 ) ); }, (array) $series );
+			$sig = sn_analytics_forecast_of( $metric, ucfirst( $metric ), $ms, $hist_from, $to, $opts );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	if ( function_exists( 'sn_analytics_top_utm_campaigns' ) && function_exists( 'sn_analytics_utm_series' ) ) {
+		$camps  = sn_analytics_top_utm_campaigns( (string) $from, (string) $to, $class, (int) ( $opts['campaigns'] ?? 3 ) );
+		$values = array_map( static function ( $r ) { return (string) $r['value']; }, (array) $camps );
+		$cser   = sn_analytics_utm_series( 'campaign', $values, $hist_from, (string) $to, $class, 'day' );
+		foreach ( $values as $v ) {
+			$sig = sn_analytics_forecast_of( 'campaign:' . $v, $v, $cser[ $v ] ?? array(), $hist_from, $to, $opts );
+			if ( $sig ) { $out[] = $sig; }
+		}
+	}
+	if ( function_exists( 'sn_analytics_posts_lifecycle' ) && function_exists( 'sn_analytics_path_daily_series' ) && function_exists( 'wp_parse_url' ) ) {
+		$bundle = sn_analytics_posts_lifecycle();
+		$rows   = is_array( $bundle ) ? (array) ( $bundle['rows'] ?? array() ) : array();
+		$done   = 0;
+		$cap    = (int) ( $opts['decay_paths'] ?? 3 );
+		foreach ( $rows as $r ) {
+			if ( empty( $r['refresh_candidate'] ) ) { continue; }
+			$path = (string) wp_parse_url( (string) ( $r['permalink'] ?? '' ), PHP_URL_PATH );
+			if ( '' === $path ) { continue; }
+			$sig = sn_analytics_forecast_of( 'path:' . $path, $path, sn_analytics_path_daily_series( $path, $hist_from, (string) $to ), $hist_from, $to, $opts );
+			if ( $sig ) {
+				$out[] = $sig;
+				if ( ++$done >= $cap ) { break; }
+			}
+		}
+	}
+	return $out;
+}
