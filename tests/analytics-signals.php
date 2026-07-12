@@ -71,5 +71,13 @@ $all = sn_analytics_signals( '2026-06-14', '2026-06-20', 'human' );
 ok( count( $all ) >= 2 && $all[0]['severity'] >= $all[ count( $all ) - 1 ]['severity'], 'aggregate: merged + sorted by severity desc' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__paths'] = array(); $GLOBALS['__pathseries'] = array();
 
+echo "\nGroup: Holt fit\n";
+// Perfect line y=2t: level tracks the last point, trend locks to 2, residuals vanish.
+$hf = sn_analytics_stat_holt( array( 0, 2, 4, 6, 8 ) );
+ok( is_array( $hf ) && abs( $hf['level'] - 8.0 ) < 1e-9 && abs( $hf['trend'] - 2.0 ) < 1e-9, 'holt: exact level+trend on a perfect line' );
+ok( count( $hf['residuals'] ) === 4 && max( array_map( 'abs', $hf['residuals'] ) ) < 1e-9, 'holt: one-step residuals vanish on a perfect line' );
+ok( abs( sn_analytics_stat_holt_point( $hf, 7 ) - 22.0 ) < 1e-9, 'holt: 7-step point continues the line (8 + 7×2)' );
+ok( null === sn_analytics_stat_holt( array( 1, 2 ) ), 'holt: <3 points → null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -10,6 +10,10 @@ const SN_ANALYTICS_SIGNAL_BASELINE_DAYS = 30;
 const SN_ANALYTICS_SIGNAL_FLOOR_DAYS    = 14;
 const SN_ANALYTICS_ANOMALY_Z            = 3.5;   // MAD-based robust z (~3σ for normal data)
 const SN_ANALYTICS_TRAJ_MIN_POINTS      = 14;
+const SN_ANALYTICS_FORECAST_HORIZON      = 7;    // days ahead (point at horizon; interval widens with √h)
+const SN_ANALYTICS_FORECAST_MIN_POINTS   = 21;   // min history; below → suppressed (never fake precision)
+const SN_ANALYTICS_FORECAST_HISTORY_DAYS = 30;   // trailing fit window ending $to (decoupled from display)
+const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the backtest MEASURES real coverage
 
 /** Median of numeric values, or null when empty. */
 function sn_analytics_stat_median( array $xs ) {
@@ -160,4 +164,32 @@ function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) {
 	);
 	usort( $signals, static function ( $a, $b ) { return (int) $b['severity'] - (int) $a['severity']; } );
 	return $signals;
+}
+
+/**
+ * Holt linear (double exponential smoothing) fit with one-step-ahead residuals,
+ * or null when the series is too short (<3). Fixed smoothing constants — the
+ * honesty mechanism is the backtest (measured coverage), not parameter tuning.
+ * @return array{level:float, trend:float, residuals:array<int,float>}|null
+ */
+function sn_analytics_stat_holt( array $ys, $alpha = 0.5, $beta = 0.3 ) {
+	$ys = array_values( array_map( 'floatval', $ys ) );
+	$n  = count( $ys );
+	if ( $n < 3 ) { return null; }
+	$level     = $ys[0];
+	$trend     = $ys[1] - $ys[0];
+	$residuals = array();
+	for ( $t = 1; $t < $n; $t++ ) {
+		$fitted      = $level + $trend;
+		$residuals[] = $ys[ $t ] - $fitted;
+		$prev_level  = $level;
+		$level       = $alpha * $ys[ $t ] + ( 1 - $alpha ) * ( $level + $trend );
+		$trend       = $beta * ( $level - $prev_level ) + ( 1 - $beta ) * $trend;
+	}
+	return array( 'level' => $level, 'trend' => $trend, 'residuals' => $residuals );
+}
+
+/** h-step-ahead Holt point forecast: level + h×trend. */
+function sn_analytics_stat_holt_point( $fit, $h ) {
+	return (float) $fit['level'] + (int) $h * (float) $fit['trend'];
 }
