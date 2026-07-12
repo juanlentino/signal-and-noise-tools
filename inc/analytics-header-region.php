@@ -50,7 +50,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
 		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
-	snt_analytics_render_controls( $range, $class, $from, $to );
+	snt_analytics_render_controls( $range, $class, $from, $to, $compare );
 	snt_analytics_render_separation( $class_totals, $class );
 
 	echo '<div class="sn-an-header-grid">';
