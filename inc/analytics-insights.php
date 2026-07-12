@@ -25,7 +25,8 @@ function snt_analytics_render_signal_chip( $signal ) {
 /** The Insights band — leads the dashboard (spec §4). Guarded for partial installs. */
 function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) {
 	if ( ! function_exists( 'sn_analytics_signals' ) ) { return; }
-	$signals = sn_analytics_signals( $from, $to, $class );
+	$opts    = function_exists( 'sn_analytics_signal_opts' ) ? sn_analytics_signal_opts() : array();
+	$signals = sn_analytics_signals( $from, $to, $class, $opts );
 	$summary = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( (string) $from, (string) $to, $class ) : array();
 	// v9.33.0 (maturity I4): the band's narrative slot is the weekly executive
 	// digest (longer-form, fed the real range totals); narrate() remains the

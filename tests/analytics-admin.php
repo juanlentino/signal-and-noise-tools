@@ -58,6 +58,14 @@ if ( ! defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ) { define( 'SN_CF_ANALYTICS_TOKEN
 if ( ! defined( 'SN_CF_ACCOUNT_ID_OPT' ) )      { define( 'SN_CF_ACCOUNT_ID_OPT', 'sn_cf_account_id' ); }
 
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" />'; } }
+// v9.36.0: the settings hub renders the engine-tuning radios (checked() at radio render).
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $a, $b = true, $echo = true ) {
+		$r = ( (string) $a === (string) $b ) ? ' checked' : '';
+		if ( $echo ) { echo $r; }
+		return $r;
+	}
+}
 if ( ! function_exists( 'sn_mask_secret' ) ) {
 	function sn_mask_secret( $v ) { $v = (string) $v; return '' === $v ? '' : ( strlen( $v ) <= 8 ? '••••••••' : '••••' . substr( $v, -4 ) ); }
 }
@@ -453,12 +461,41 @@ $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a .sn-2up two-column grid' );
-ok( substr_count( $html, 'class="sn-fieldset"' ) === 2, 'settings: exactly two real .sn-fieldset cards (wide leaf owns its own chrome)' );
+// Class-token-boundary count (survives modifier classes on any card): the two
+// bare column wrappers + the pipeline strip's combined "sn-fieldset sn-an-pipeline".
+// sn-fieldset-h headings don't match (the lookahead rejects the trailing hyphen).
+$fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
+ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces — pipeline strip + the two columns (wide leaf owns its own chrome)' );
+ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
 $acct_at = strpos( $html, 'name="sn_cf_account_id"' );
-$wrng_at = strpos( $html, 'wrangler' );
+// 'Cloudflare Worker setup' (the <summary> text), NOT 'wrangler': the pipeline
+// strip's warn note can also say "wrangler" once the worker stub lands, and the
+// strip renders ABOVE the columns — a 'wrangler' marker would false-fail order.
+$wrng_at = strpos( $html, 'Cloudflare Worker setup' );
 ok( false !== $acct_at && false !== $wrng_at && $acct_at < $wrng_at, 'settings: credentials (left card) precede the edge-worker reference (right card)' );
 $reg = file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' );
 ok( (bool) preg_match( "/'analytics'\\s*=>\\s*array\\([^\\n]*'wide'\\s*=>\\s*true/", $reg ), 'registry: the analytics leaf is marked wide (opts out of the wrapper cap)' );
+
+echo "\nGroup: settings hub composition (v9.36.0, layout A) — status strip + operate|reference columns\n";
+// The real partials render here (analytics-render-settings.php is loaded via
+// analytics-admin-render.php), so order is asserted on each subsection's own
+// distinctive marker. sn_worker_version_render_card (inc/worker-version.php) is
+// NOT loaded in this harness, so its guarded call is skipped — the reference
+// column's first marker is the mirrors card.
+$pipe    = strpos( $html, 'sn-an-pipeline' );
+$twoup   = strpos( $html, '<div class="sn-2up">' );
+$creds   = strpos( $html, 'name="sn_cf_account_id"' );
+$excl    = strpos( $html, 'sn-an-exclude' );
+$tune    = strpos( $html, 'sn-an-tuning' );
+$mirrors = strpos( $html, 'sn-an-mirrors' );
+$filters = strpos( $html, 'sn-an-filters' );
+$setup   = strpos( $html, 'Cloudflare Worker setup' ); // collision-free: the strip's warn note can also contain 'wrangler'
+ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
+ok( false !== $creds && false !== $excl && false !== $tune && $creds < $excl && $excl < $tune,
+	'hub(left): credentials → exclusion → engine tuning (writable column order)' );
+ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $filters && $filters < $setup,
+	'hub(right): mirrors → filter reference → worker setup (reference column order)' );
+ok( $tune < $mirrors, 'hub: the writable column (tuning last) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );

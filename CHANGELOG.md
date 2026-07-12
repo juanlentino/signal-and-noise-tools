@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.36.0] - 2026-07-12: Analytics settings hub — pipeline status pills, engine-tuning knobs, shared-config mirrors
+
+**Headline:** Monitoring → Analytics becomes the analytics operations hub. A pipeline-status strip surfaces every invisible wp-config dependency as a presence pill — including `SN_SRV_TOKEN`, whose absence silently disabled the */15 cron refresh with zero UI trace until now (the pill names the fail-closed consequence, and dual-resolves the independently-filterable RSS srv-trust seam). Two owner-tunable engine knobs (anomaly-baseline window 14–90 days; anomaly sensitivity relaxed/standard/strict ≈ 2.5/3.5/4.5σ) finally wire the signal engine's `$opts` plumbing that v9.30.0 shipped unconnected, via the new `sn_analytics_signal_config` filter (sessions-pattern clamped, re-clamped post-filter). Shared config (AI model + budget with a truthful over-budget spend meter, weekly-digest cron, collector URL) appears as read-only mirrors with deep links — never a second write path.
+
+> **Why MINOR:** new user-visible capability (status strip, tuning UI, mirrors) + a new public filter; no breaking change — both new settings default to the engine's prior hardcoded behaviour (30 days / 3.5σ), so an untouched install behaves identically.
+
+### Added
+- [inc/analytics-render-settings.php](inc/analytics-render-settings.php): `snt_analytics_render_pipeline_status()` (5 presence pills in data-flow order, ok/warn/unknown, secrets never echoed), `snt_analytics_render_engine_tuning()` (a11y fieldset radios), `snt_analytics_render_mirrors()` (read-only; zero write controls, test-enforced), `snt_analytics_render_filter_reference()` (12 documented seams).
+- [inc/analytics-signals.php](inc/analytics-signals.php): `sn_analytics_signal_opts()` + the `sn_analytics_signal_config` filter; consumed by the insights band, recommendations, and the WP-home widget (the previously-unwired `$opts` seam). Engine-side consumption is regression-armored: tests flip real anomaly outcomes on both knobs.
+- [inc/admin-post-actions.php](inc/admin-post-actions.php): `sn_handle_analytics_tuning_save()` (clamps [14,90], preset whitelist, unchanged detection) + dispatch-map entry + 2 flash codes.
+- Settings defaults: `analytics.signal_baseline_days` (30), `analytics.anomaly_sensitivity` ('standard') — preserved through Identity saves by the existing analytics-subtree block.
+- [tests/analytics-filter-reference-parity.php](tests/analytics-filter-reference-parity.php): two-way contract — every discovered `sn_analytics_*`/`snt_ai_*` filter seam must be documented or explicitly allowlisted; no phantom docs.
+
+### Changed
+- [inc/analytics-admin.php](inc/analytics-admin.php): settings section recomposed — status strip above an operate|reference `.sn-2up` split (design spec layout A); engine tuning joins the writable column, mirrors + filter reference join the reference column.
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): settings-hub pill + mirror styles — zero new colors (existing palette only), light-only.
+
+### Tests
+- 7 new CLI suites (signal-opts unit, call-site wiring spies, pipeline strip, tuning form, mirrors, tuning-save handler, filter-reference parity) + engine-side opts armor and contract-ledger additions in the analytics-signals / analytics-admin / admin-post-actions suites; full 281-suite sweep, PHPStan `[OK]`, phpcs clean.
+
 ## [9.35.1] - 2026-07-12: Fix — the anomaly engine runs at its designed 3.5σ threshold (duplicate-constant collision with analytics-derived)
 
 **Headline:** v9.30.0's predictive signal engine declared `SN_ANALYTICS_ANOMALY_Z = 3.5` in `inc/analytics-signals.php` — but `inc/analytics-derived.php` has owned that exact name since the legacy z-score engagement annotations (`= 2.0`), and the plugin loader requires derived BEFORE signals. In PHP the first constant definition wins (the second emits a "Constant already defined" warning on every page load), so in production the anomaly engine silently ran at a **2.0** robust-z cutoff instead of the designed/documented/tested **3.5** — flagging ordinary day-to-day variance as anomalies. The CLI suite loaded `analytics-signals.php` in isolation, saw 3.5, and never caught it. The engine's constant is renamed `SN_ANALYTICS_SIGNAL_ANOMALY_Z` (joining the file's `SN_ANALYTICS_SIGNAL_*` prefix); derived's legacy 2.0 constant is untouched.

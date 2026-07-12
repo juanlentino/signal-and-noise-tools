@@ -15,6 +15,42 @@ const SN_ANALYTICS_FORECAST_MIN_POINTS   = 21;   // min history; below → suppr
 const SN_ANALYTICS_FORECAST_HISTORY_DAYS = 30;   // trailing fit window ending $to (decoupled from display)
 const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the backtest MEASURES real coverage
 
+/**
+ * Owner-tunable engine options (settings hub, v9.36.0): builds the $opts array
+ * the signal producers accept, from the two Monitoring → Analytics knobs, then
+ * lets code override via the 'sn_analytics_signal_config' filter (the
+ * sessions-module pattern). Values are re-clamped AFTER the filter so a bad
+ * override can't poison the math. Falls back to the file's own defaults when
+ * sn_setting()/apply_filters() are absent (isolated CLI harnesses).
+ *
+ * Preset map (no new top-level constants — the duplicate-const class):
+ * relaxed → 2.5σ, standard → SN_ANALYTICS_SIGNAL_ANOMALY_Z (3.5), strict → 4.5σ.
+ *
+ * Only baseline_days and z pass through — other filter-supplied keys (e.g.
+ * floor) are intentionally dropped; engine defaults apply.
+ *
+ * @since 9.36.0
+ * @return array{baseline_days:int, z:float}
+ */
+function sn_analytics_signal_opts() {
+	$baseline = SN_ANALYTICS_SIGNAL_BASELINE_DAYS;
+	$preset   = 'standard';
+	if ( function_exists( 'sn_setting' ) ) {
+		$baseline = (int) sn_setting( 'analytics.signal_baseline_days', $baseline );
+		$preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', $preset );
+	}
+	$z_map = array( 'relaxed' => 2.5, 'standard' => SN_ANALYTICS_SIGNAL_ANOMALY_Z, 'strict' => 4.5 );
+	$cfg   = array(
+		'baseline_days' => $baseline,
+		'z'             => $z_map[ $preset ] ?? $z_map['standard'],
+	);
+	$out = function_exists( 'apply_filters' ) ? (array) apply_filters( 'sn_analytics_signal_config', $cfg ) : $cfg;
+	return array(
+		'baseline_days' => max( SN_ANALYTICS_SIGNAL_FLOOR_DAYS, min( 90, (int) ( $out['baseline_days'] ?? $cfg['baseline_days'] ) ) ),
+		'z'             => max( 0.5, min( 10.0, (float) ( $out['z'] ?? $cfg['z'] ) ) ),
+	);
+}
+
 /** Median of numeric values, or null when empty. */
 function sn_analytics_stat_median( array $xs ) {
 	$xs = array_values( array_filter( $xs, 'is_numeric' ) );

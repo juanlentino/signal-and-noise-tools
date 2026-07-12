@@ -911,6 +911,37 @@ function sn_handle_analytics_exclude_save( $post ) {
 }
 
 /**
+ * v9.36.0 (settings hub): save the two predictive-engine tuning knobs
+ * (Monitoring → Analytics → Engine tuning). Baseline is clamped to [14,90]
+ * (floor = the engine's SN_ANALYTICS_SIGNAL_FLOOR_DAYS); the sensitivity
+ * preset is whitelisted (unknown → 'standard'). Invalid input is corrected,
+ * never rejected-with-loss. sn_analytics_signal_opts() reads these on the
+ * next dashboard load — no cache to bust.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code: 'analytics_tuning_saved' | 'analytics_tuning_unchanged'.
+ */
+function sn_handle_analytics_tuning_save( $post ) {
+	$baseline = isset( $post['sn_signal_baseline_days'] ) ? (int) $post['sn_signal_baseline_days'] : 30;
+	$baseline = max( 14, min( 90, $baseline ) );
+
+	$preset = isset( $post['sn_anomaly_sensitivity'] ) ? sanitize_key( wp_unslash( $post['sn_anomaly_sensitivity'] ) ) : 'standard';
+	if ( ! in_array( $preset, array( 'relaxed', 'standard', 'strict' ), true ) ) {
+		$preset = 'standard';
+	}
+
+	$prior_baseline = (int) sn_setting( 'analytics.signal_baseline_days', 30 );
+	$prior_preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', 'standard' );
+	if ( $baseline === $prior_baseline && $preset === $prior_preset ) {
+		return 'analytics_tuning_unchanged';
+	}
+
+	$ok = sn_setting_update( 'analytics.signal_baseline_days', $baseline );
+	$ok = sn_setting_update( 'analytics.anomaly_sensitivity', $preset ) && $ok;
+	return $ok ? 'analytics_tuning_saved' : 'analytics_tuning_unchanged';
+}
+
+/**
  * v6.1.0: stream a CSV or JSON download of the current analytics range/class.
  *
  * This handler intentionally does NOT return a flash code — it streams a file

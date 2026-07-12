@@ -5,9 +5,19 @@ define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 
-// Data-accessor stubs (fixtures controlled per-test).
+// Data-accessor stubs (fixtures controlled per-test). __daily_filter (default off,
+// so every legacy fixture is untouched) makes the daily stub honor its window args
+// like the real rollup reader — the opts-consumption group needs that so
+// $opts['baseline_days'] → $baseline_from genuinely excludes older rows.
 $GLOBALS['__daily'] = array();
-function sn_analytics_daily_series( $from, $to, $class = 'human', $g = 'day' ) { return $GLOBALS['__daily']; }
+$GLOBALS['__daily_filter'] = false;
+function sn_analytics_daily_series( $from, $to, $class = 'human', $g = 'day' ) {
+	if ( empty( $GLOBALS['__daily_filter'] ) ) { return $GLOBALS['__daily']; }
+	return array_values( array_filter( $GLOBALS['__daily'], static function ( $r ) use ( $from, $to ) {
+		$d = (string) ( $r['day'] ?? '' );
+		return $d >= (string) $from && $d <= (string) $to;
+	} ) );
+}
 $GLOBALS['__paths'] = array();
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__paths']; }
 $GLOBALS['__pathseries'] = array();
@@ -184,6 +194,34 @@ $mid[] = array( 'day' => '2026-06-20', 'views' => 14, 'visits' => 8 ); // z = 0.
 $GLOBALS['__daily'] = $mid;
 ok( array() === sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human' ), 'parity: z≈2.7 outlier stays quiet at the effective threshold (3.5, not 2.0)' );
 $GLOBALS['__daily'] = array();
+
+echo "\nGroup: engine consumes explicit \$opts (settings hub T2 armor)\n";
+// A key-name typo/rename in the producer would leave the settings-hub knobs
+// inert with every wiring suite still green — these assertions catch that by
+// flipping OUTCOMES through the real engine with explicit $opts.
+// (a) z: the parity group's z≈2.7 fixture stays quiet at the default 3.5 (pinned
+// above); the SAME data must fire once the caller passes z 2.5.
+$GLOBALS['__daily'] = $mid;
+$zsig = sn_analytics_signal_anomalies( '2026-06-14', '2026-06-20', 'human', array( 'z' => 2.5 ) );
+ok( 1 === count( $zsig ) && 'views' === $zsig[0]['subject'] && 'up' === $zsig[0]['direction'], 'opts: z 2.5 fires the z≈2.7 outlier the default 3.5 holds quiet' );
+$GLOBALS['__daily'] = array();
+// (b) baseline_days: window-honoring stub mode on. 16 wild days (2/18 oscillating)
+// then 13 calm days (9/11) then a probe at 18, display window = the probe day only.
+// 30-day baseline spans both regimes → median 10, MAD 8, probe z≈0.67 → quiet;
+// baseline_days 14 excludes the wild regime → median 10, MAD 1, z≈5.4 → fires.
+// Both regimes oscillate so MAD > 0 in every window (the I1 MAD-0 trap).
+// Math prototyped + engine-verified in scratch before landing here.
+$GLOBALS['__daily_filter'] = true;
+$bl = array();
+for ( $i = 0; $i < 16; $i++ ) { $bl[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => ( $i % 2 ) ? 18 : 2, 'visits' => 8 ); }
+for ( $i = 0; $i < 13; $i++ ) { $bl[] = array( 'day' => sprintf( '2026-06-%02d', $i + 17 ), 'views' => ( $i % 2 ) ? 11 : 9, 'visits' => 8 ); }
+$bl[] = array( 'day' => '2026-06-30', 'views' => 18, 'visits' => 8 );
+$GLOBALS['__daily'] = $bl;
+ok( array() === sn_analytics_signal_anomalies( '2026-06-30', '2026-06-30', 'human' ), 'opts: default 30-day baseline absorbs the probe (wild old regime widens MAD)' );
+$bsig = sn_analytics_signal_anomalies( '2026-06-30', '2026-06-30', 'human', array( 'baseline_days' => 14 ) );
+ok( 1 === count( $bsig ) && 'up' === $bsig[0]['direction'], 'opts: baseline_days 14 excludes the old regime → the probe fires' );
+ok( 14 === $bsig[0]['window']['baseline_days'], 'opts: the firing signal reports window.baseline_days = 14' );
+$GLOBALS['__daily'] = array(); $GLOBALS['__daily_filter'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
