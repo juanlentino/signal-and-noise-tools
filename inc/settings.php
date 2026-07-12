@@ -153,6 +153,13 @@ function sn_settings_defaults() {
 		// so it also needs a preserve block in sn_settings_save() below.
 		'analytics' => array(
 			'exclude_roles' => array(),
+			// v9.36.0 settings hub: predictive-engine tuning knobs. Scalar
+			// defaults are safe with array_replace_recursive (unlike the
+			// exclude_roles list above). Written by
+			// sn_handle_analytics_tuning_save(); the whole analytics subtree is
+			// already preserved by sn_settings_save()'s v6.23.0 block.
+			'signal_baseline_days' => 30,
+			'anomaly_sensitivity'  => 'standard',
 		),
 	);
 }
