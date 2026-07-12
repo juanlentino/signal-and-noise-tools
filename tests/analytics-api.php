@@ -116,6 +116,13 @@ if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {}
 }
 
+// Site timezone stub — drives sn_analytics_site_tz_name() (v9.26.4). Controllable
+// per test to model a named IANA zone vs a manual UTC offset vs a junk string.
+$GLOBALS['__ae_tz_string'] = 'America/New_York';
+function wp_timezone_string() {
+	return $GLOBALS['__ae_tz_string'];
+}
+
 // ── Load the module under test ───────────────────────────────────────────────
 
 require_once __DIR__ . '/../inc/analytics-api.php';
@@ -372,6 +379,21 @@ echo "\nTest 21: sn_analytics_probe() → false on WP_Error\n";
 ae_reset();
 $GLOBALS['__ae_wp_error_mode'] = true;
 ok( sn_analytics_probe() === false, 'probe: false when query returns null (WP_Error)' );
+
+// ── Site timezone name (AE tz-aware bucketing, v9.26.4) ───────────────────────
+echo "\nGroup: sn_analytics_site_tz_name\n";
+$GLOBALS['__ae_tz_string'] = 'America/New_York';
+ok( sn_analytics_site_tz_name() === 'America/New_York', 'tz-name: a real IANA identifier passes through' );
+$GLOBALS['__ae_tz_string'] = 'UTC';
+ok( sn_analytics_site_tz_name() === 'UTC', 'tz-name: UTC is a valid identifier' );
+$GLOBALS['__ae_tz_string'] = 'Europe/Madrid';
+ok( sn_analytics_site_tz_name() === 'Europe/Madrid', 'tz-name: another named zone passes through' );
+$GLOBALS['__ae_tz_string'] = '+05:30';
+ok( sn_analytics_site_tz_name() === '', 'tz-name: a manual UTC offset is NOT a usable AE zone → empty' );
+$GLOBALS['__ae_tz_string'] = "Bad'; DROP TABLE x --";
+ok( sn_analytics_site_tz_name() === '', 'tz-name: a non-identifier / injectable string is rejected → empty' );
+$GLOBALS['__ae_tz_string'] = '';
+ok( sn_analytics_site_tz_name() === '', 'tz-name: empty setting → empty' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

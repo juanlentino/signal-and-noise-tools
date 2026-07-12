@@ -276,6 +276,23 @@ ok( strpos( $evil, 'DROP TABLE' ) === false && preg_match( "/INTERVAL '7' DAY/",
 $zero = sn_analytics_rollup_sql( 0 );
 ok( preg_match( "/INTERVAL '1' DAY/", $zero ) === 1, 'rollup-sql: a non-positive window floors to 1 day' );
 
+// v9.26.4 — timezone-aware bucketing. A valid IANA zone buckets each row by the
+// SITE-LOCAL calendar day (AE's formatDateTime/toStartOfInterval timezone arg), so
+// the durable table's "day" matches the live "views today" (same zone) instead of a
+// UTC day that rolls mid-evening for western zones.
+$tzsql = sn_analytics_rollup_sql( 7, 'America/New_York' );
+ok( strpos( $tzsql, "formatDateTime(timestamp, '%Y-%m-%d', 'America/New_York')" ) !== false,
+	'rollup-sql: zoned day-bucket formats in the site IANA zone' );
+ok( strpos( $tzsql, "toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York') - INTERVAL '7' DAY" ) !== false,
+	'rollup-sql: zoned lower bound floors to local-day start, N days back' );
+ok( strpos( $tzsql, 'toStartOfDay(' ) === false, 'rollup-sql: zoned query drops the UTC toStartOfDay bucketing' );
+// An empty zone keeps the UTC path (unchanged); an injectable string is rejected → UTC.
+$utcsql = sn_analytics_rollup_sql( 7, '' );
+ok( strpos( $utcsql, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false, 'rollup-sql: empty zone → UTC day bucket' );
+$eviltz = sn_analytics_rollup_sql( 7, "UTC'; DROP TABLE x --" );
+ok( strpos( $eviltz, 'DROP TABLE' ) === false && strpos( $eviltz, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false,
+	'rollup-sql: an injectable zone string is rejected → UTC path' );
+
 // ── Upsert ────────────────────────────────────────────────────────────────────
 echo "\nGroup: upsert\n";
 ar_reset();
@@ -554,7 +571,7 @@ ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 0, 'maybe_install: current version → no dbDelta' );
-ok( SN_ANALYTICS_DAILY_DB_VERSION === '3', 'db version is 3 (admin/login purge)' );
+ok( SN_ANALYTICS_DAILY_DB_VERSION === '4', 'db version is 4 (site-local-day rollup)' );
 
 // Upgrading from a pre-v2 version drops the old table (dbDelta cannot rotate the
 // unique key) then recreates. The stub records the DROP via query().
@@ -567,7 +584,7 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( $dropped, 'maybe_install: pre-v2 upgrade drops the old table before recreating' );
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: pre-v2 upgrade runs dbDelta to recreate' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '3', 'maybe_install: stamps the current db version' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: stamps the current db version' );
 
 // v2→v3 must NOT drop the table (it now holds real history). It runs a targeted
 // one-time DELETE of the admin/login rows that leaked in before the ingestion
@@ -583,7 +600,25 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( ! $dropped_v3, 'maybe_install: v2→v3 does NOT drop the populated table' );
 ok( $purged, 'maybe_install: v2→v3 purges admin/login rows with a targeted DELETE' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '3', 'maybe_install: v2→v3 stamps db version 3' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: upgrading past v3 stamps the current db version (4)' );
+
+// v3→v4: the rollup day boundary moved from UTC to the SITE-LOCAL day. No drop, no
+// purge — just schedule a one-time re-roll so the trailing window is overwritten
+// with local-day buckets (idempotent by (day, path, class); history preserved).
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '3' );
+sn_analytics_daily_maybe_install();
+$dropped_v4 = false;
+$purged_v4  = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'DROP TABLE' ) !== false ) { $dropped_v4 = true; }
+	if ( stripos( $q, 'DELETE FROM wp_sn_analytics_daily' ) !== false ) { $purged_v4 = true; }
+}
+ok( ! $dropped_v4 && ! $purged_v4, 'maybe_install: v3→v4 neither drops nor purges the table' );
+ok( count( $GLOBALS['__ar_single_events'] ) === 1
+	&& $GLOBALS['__ar_single_events'][0]['hook'] === SN_ANALYTICS_ROLLUP_HOOK,
+	'maybe_install: v3→v4 schedules a one-time re-roll' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: v3→v4 stamps db version 4' );
 
 // Option absent → install runs dbDelta with the schema + stamps the version.
 ar_reset();

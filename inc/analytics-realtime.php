@@ -94,21 +94,31 @@ function sn_analytics_local_day( $now = null ) {
 
 /**
  * AE SQL for "views so far today" in the site's timezone: sampled pageviews
- * (blob1='pv') from human visitors (blob7='human') since local midnight,
- * expressed as `now() - INTERVAL 'N' SECOND` — the exact relative-window shape
- * the visitors-now query already runs against live AE, so it needs no DateTime
- * literal or AE timezone function. $elapsed is an internal integer (cast +
- * clamped); no user input is interpolated.
+ * (blob1='pv') from human visitors (blob7='human') since local midnight.
  *
- * @param int $elapsed Seconds since local midnight (from sn_analytics_seconds_since_wp_midnight()).
+ * When a named IANA zone is supplied (v9.26.4), the lower bound is AE's EXACT
+ * local-day start — `toStartOfInterval(now(), INTERVAL '1' DAY, '<tz>')` (the
+ * timezone arg AE added 2025-11-12) — so it shares ONE boundary with the durable
+ * rollup and carries no now()/time() skew. Without a zone (a manual UTC offset, or
+ * an AE that predates the tz functions → HTTP 422 caught by the caller's fallback),
+ * it uses the compatible relative window `now() - INTERVAL 'N' SECOND`, where N is
+ * seconds-since-local-midnight computed in PHP. $tz is charset-guarded before
+ * interpolation (defence in depth; the caller validates via sn_analytics_site_tz_name());
+ * $elapsed is an internal integer. No user input is interpolated.
+ *
+ * @param int    $elapsed Seconds since local midnight (from sn_analytics_seconds_since_wp_midnight()).
+ * @param string $tz      Named IANA zone for the exact local-day start, or '' for the elapsed window.
  * @return string AE SQL.
  */
-function sn_analytics_views_today_sql( $elapsed ) {
-	$secs = max( 0, (int) $elapsed );
+function sn_analytics_views_today_sql( $elapsed, $tz = '' ) {
+	$tz    = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', $tz ) ) ? $tz : '';
+	$lower = '' !== $tz
+		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}')"
+		: "now() - INTERVAL '" . max( 0, (int) $elapsed ) . "' SECOND";
 	return implode( ' ', array(
 		'SELECT sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND blob7 = 'human' AND timestamp >= now() - INTERVAL '{$secs}' SECOND",
+		"WHERE blob1 = 'pv' AND blob7 = 'human' AND timestamp >= {$lower}",
 	) );
 }
 
@@ -200,9 +210,19 @@ function sn_analytics_realtime_refresh() {
 
 	// Second, independent read: views so far today in the SITE timezone. Best
 	// -effort — a transport failure omits the number (null) and the widget falls
-	// back to the UTC daily bucket rather than showing nothing. A successful query
-	// with no rows is a real zero (no human pageviews since local midnight).
-	$today_rows  = sn_analytics_query( sn_analytics_views_today_sql( sn_analytics_seconds_since_wp_midnight() ) );
+	// back to the durable last-good / rollup rather than showing nothing. A
+	// successful query with no rows is a real zero (no human pageviews since local
+	// midnight). Prefer the zone-exact query (v9.26.4); if it fails (an AE that
+	// predates the timezone functions → HTTP 422 → null), retry the elapsed-window
+	// form within the same refresh so the number never drops out on account of the
+	// zone syntax alone. A successful-but-empty result is [] (is_array), so the retry
+	// only fires on a real failure.
+	$tz          = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$elapsed     = sn_analytics_seconds_since_wp_midnight();
+	$today_rows  = sn_analytics_query( sn_analytics_views_today_sql( $elapsed, $tz ) );
+	if ( '' !== $tz && ! is_array( $today_rows ) ) {
+		$today_rows = sn_analytics_query( sn_analytics_views_today_sql( $elapsed, '' ) );
+	}
 	$views_today = null;
 	if ( is_array( $today_rows ) ) {
 		$views_today = isset( $today_rows[0]['views'] ) ? max( 0, (int) $today_rows[0]['views'] ) : 0;

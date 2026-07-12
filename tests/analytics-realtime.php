@@ -243,6 +243,18 @@ ok( strpos( $sqlt, "blob7 = 'human'" ) !== false, 'today sql: human class only' 
 ok( strpos( $sqlt, "now() - INTERVAL '43200' SECOND" ) !== false, 'today sql: window = seconds since local midnight' );
 ok( strpos( $sqlt, "INTERVAL '-" ) === false, 'today sql: never a negative interval' );
 
+// v9.26.4 — a valid IANA zone uses an EXACT local-midnight lower bound via AE's
+// toStartOfInterval timezone arg (no PHP-computed elapsed, no now()/time() skew);
+// an empty/invalid zone keeps the elapsed-seconds window (backward compatible).
+$sqltz = sn_analytics_views_today_sql( 43200, 'America/New_York' );
+ok( strpos( $sqltz, "timestamp >= toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York')" ) !== false,
+	'today sql: zoned lower bound is local midnight via toStartOfInterval' );
+ok( strpos( $sqltz, 'SECOND' ) === false, 'today sql: zoned query drops the elapsed-seconds window' );
+ok( strpos( $sqltz, "blob1 = 'pv' AND blob7 = 'human'" ) !== false, 'today sql: zoned query keeps the pv/human filter' );
+$sqlno = sn_analytics_views_today_sql( 43200, "x'; DROP" );
+ok( strpos( $sqlno, 'DROP' ) === false && strpos( $sqlno, "now() - INTERVAL '43200' SECOND" ) !== false,
+	'today sql: an injectable zone is rejected → elapsed-seconds window' );
+
 echo "\nGroup: views-today accessor\n";
 rt_reset();
 ok( sn_analytics_views_today() === null, 'today accessor: null when unwarmed' );

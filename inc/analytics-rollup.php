@@ -69,7 +69,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
 // v3: one-time purge of admin/login rows that leaked in before the ingestion
 // guard (sn_analytics_is_excluded_path) existed. Data-only — no schema change.
-const SN_ANALYTICS_DAILY_DB_VERSION     = '3';
+const SN_ANALYTICS_DAILY_DB_VERSION     = '4';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
 // SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
@@ -178,6 +178,20 @@ function sn_analytics_daily_install() {
 		$wpdb->query( "DELETE FROM {$table} WHERE path = '/wp-admin' OR path LIKE '/wp-admin/%' OR path LIKE '/wp-login.php%'" );
 	}
 
+	// v4: the durable "day" boundary moved from the UTC day to the SITE-LOCAL day
+	// (timezone-aware rollup). No schema change and no drop/purge — existing rows are
+	// UTC-keyed but share the same YYYY-MM-DD key space, so a re-roll simply
+	// overwrites the trailing window's buckets (idempotent by (day, path, class);
+	// history preserved). Schedule ONE immediate re-roll so "views today" / "today so
+	// far" become local promptly instead of waiting for the next warmer/backstop; the
+	// hook self-clears after firing. Buckets older than the window converge on later
+	// scheduled runs. Guarded on '' !== $prev so a fresh install (no data) skips it.
+	if ( '' !== $prev && version_compare( $prev, '4', '<' ) ) {
+		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_ANALYTICS_ROLLUP_HOOK ) ) {
+			wp_schedule_single_event( time(), SN_ANALYTICS_ROLLUP_HOOK );
+		}
+	}
+
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 }
 
@@ -201,11 +215,30 @@ add_action( 'init', 'sn_analytics_daily_maybe_install' );
  * @param int $days Trailing window in days (floored to >= 1).
  * @return string AE SQL.
  */
-function sn_analytics_rollup_sql( $days ) {
+function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
+	// Bucket each row by the SITE-LOCAL calendar day when a named IANA zone is
+	// available (v9.26.4), so the durable "day" matches the site's day — and the live
+	// "views today" measured in the same zone — instead of a UTC day that rolls
+	// mid-evening for western zones (the 8pm-ET reset). AE's formatDateTime() and
+	// toStartOfInterval() take an optional timezone arg (added 2025-11-12). The zone
+	// is charset-guarded before interpolation as defence in depth; the caller already
+	// validates it via sn_analytics_site_tz_name(). Empty/invalid → the UTC path.
+	$tz      = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', $tz ) ) ? $tz : '';
+	$day_col = '' !== $tz
+		? "formatDateTime(timestamp, '%Y-%m-%d', '{$tz}')"
+		: "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')";
+	// Floor the lower bound to a COMPLETE calendar day — LOCAL when zoned
+	// (toStartOfInterval with the zone), UTC otherwise. A bare `now() - INTERVAL`
+	// instant would aggregate the boundary day as a partial slice, and the UPSERT
+	// would clobber its previously-complete row — silently corrupting the durable
+	// forever-table. Flooring keeps every re-roll genuinely idempotent.
+	$lower   = '' !== $tz
+		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$days}' DAY"
+		: "toStartOfDay(now() - INTERVAL '{$days}' DAY)";
 
 	return implode( ' ', array(
-		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		'blob7 AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
@@ -213,13 +246,7 @@ function sn_analytics_rollup_sql( $days ) {
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
 		"avgIf(double2, blob1 = 'tm') AS time_avg",
 		'FROM ' . SN_ANALYTICS_DATASET,
-		// Floor the lower bound to a day boundary so the OLDEST in-window bucket
-		// is a COMPLETE calendar day. A bare `now() - INTERVAL` lower bound is a
-		// wall-clock instant, so the boundary day would be aggregated as a
-		// partial slice (only events after that instant-of-day) and the UPSERT
-		// would clobber its previously-complete row — silently corrupting the
-		// durable forever-table. Flooring keeps every re-roll genuinely idempotent.
-		"WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE timestamp >= {$lower}",
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -332,7 +359,17 @@ function sn_analytics_run_rollup() {
 		return;
 	}
 
-	$rows = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	// Roll by the SITE-LOCAL day when a named zone is available (v9.26.4). If the
+	// zoned query fails (an AE that predates the timezone functions → HTTP 422 →
+	// null), fall back to the UTC rollup WITHIN THE SAME RUN so the durable table
+	// never goes stale on account of the zone syntax alone — it degrades to the
+	// pre-v9.26.4 behaviour, no worse. A successful-but-empty zoned result is []
+	// (is_array), so the fallback only fires on a real failure.
+	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$rows = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	if ( '' !== $tz && ! is_array( $rows ) ) {
+		$rows = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+	}
 	if ( ! is_array( $rows ) ) {
 		return; // transport / non-200 / parse failure — already captured by the read-client.
 	}
