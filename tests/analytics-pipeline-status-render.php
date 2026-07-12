@@ -33,6 +33,11 @@ $GLOBALS['__cfg'] = true;
 function sn_analytics_config() { return $GLOBALS['__cfg'] ? array( 'account' => 'a', 'token' => 't' ) : null; }
 $GLOBALS['__srv'] = 'srv-sekrit-99y';
 function sn_analytics_refresh_secret() { return (string) $GLOBALS['__srv']; }
+// sn_rss_tracker_server_token() lives in inc/rss-feed-tracker.php (NOT the file
+// under test), so stubbing is safe. It resolves SN_SRV_TOKEN through its OWN
+// filter (sn_server_token), so it can diverge from sn_analytics_refresh_secret().
+$GLOBALS['__rss_srv'] = 'srv-sekrit-99y';
+function sn_rss_tracker_server_token() { return (string) $GLOBALS['__rss_srv']; }
 define( 'SN_CF_ZONE_OPT', 'sn_cf_zone_id' );
 
 require __DIR__ . '/../inc/analytics-render-settings.php';
@@ -49,18 +54,33 @@ ok( strpos( $h, 'Worker v1.11.0' ) !== false, 'worker pill shows the probed vers
 ok( strpos( $h, 'beacon-sekrit-77x' ) === false && strpos( $h, 'srv-sekrit-99y' ) === false, 'no secret value is ever echoed' );
 
 echo "Group: SN_SRV_TOKEN missing (the invisible-cron failure)\n";
-$GLOBALS['__srv'] = '';
+$GLOBALS['__srv']     = '';
+$GLOBALS['__rss_srv'] = '';
 $h = render();
 ok( strpos( $h, 'sn-an-pill--warn' ) !== false, 'missing server token renders a warn pill' );
 ok( strpos( $h, 'SN_SRV_TOKEN' ) !== false, 'warn names the constant' );
 ok( strpos( $h, 'cron refresh' ) !== false, 'warn names the disabled */15 cron consequence' );
-$GLOBALS['__srv'] = 'srv-sekrit-99y';
+ok( strpos( $h, 'RSS srv' ) !== false, 'both seams empty: the warn also names the RSS srv-trust loss' );
+$GLOBALS['__rss_srv'] = 'x'; // sn_server_token filter supplies a token the refresh seam lacks
+$h = render();
+ok( strpos( $h, 'RSS srv' ) === false, 'diverged seams: warn keeps the cron clause but drops the RSS srv claim' );
+$GLOBALS['__srv']     = 'srv-sekrit-99y';
+$GLOBALS['__rss_srv'] = 'srv-sekrit-99y';
 
 echo "Group: worker unreachable → unknown, never an error box\n";
 $GLOBALS['__worker'] = array( 'ok' => false, 'data' => array(), 'error' => 'network' );
 $h = render();
 ok( strpos( $h, 'sn-an-pill--unknown' ) !== false, 'probe failure renders an unknown pill' );
 ok( strpos( $h, 'notice-error' ) === false, 'no error notice markup' );
+$GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '', 'config' => array( 'px_token_set' => true, 'ae_bound' => true ) ) );
+$h = render();
+ok( strpos( $h, 'Worker reachable' ) !== false, 'ok probe with empty version falls back to the reachable label' );
+$GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '1.11.0' ) );
+$h = render();
+ok( substr_count( $h, 'sn-an-pill--ok' ) === 5 && strpos( $h, 'SN_AE' ) === false, 'older worker with no config map stays ok (binding check silent)' );
+$GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '1.11.0', 'config' => array( 'px_token_set' => true, 'ae_bound' => false ) ) );
+$h = render();
+ok( strpos( $h, 'SN_AE' ) !== false, 'reachable worker without the AE binding warns naming SN_AE' );
 $GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '1.11.0', 'config' => array( 'px_token_set' => false, 'ae_bound' => true ) ) );
 $h = render();
 ok( strpos( $h, 'SN_PX_TOKEN' ) !== false, 'reachable worker with unset px token warns naming the binding' );

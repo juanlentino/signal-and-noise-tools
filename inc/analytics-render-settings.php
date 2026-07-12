@@ -169,14 +169,26 @@ function snt_analytics_render_pipeline_status() {
 		? array( 'ok', __( 'Read credentials', 'signal-and-noise-tools' ), '' )
 		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine — add the Cloudflare credentials below.', 'signal-and-noise-tools' ) );
 
-	// 4. Server token — the */15 cron-refresh auth. Fails CLOSED when unset,
-	// which today is completely invisible; this pill is that failure's only UI.
+	// 4. Server token — the */15 cron-refresh auth (fails CLOSED when unset,
+	// which today is completely invisible; this pill is that failure's only UI).
+	// The RSS srv-trust clause resolves through its OWN filter seam
+	// (sn_server_token, inc/rss-feed-tracker.php), so it is checked separately —
+	// the two default to the same constant but can diverge under filters.
 	$srv = function_exists( 'sn_analytics_refresh_secret' )
 		? sn_analytics_refresh_secret()
 		: ( defined( 'SN_SRV_TOKEN' ) ? (string) SN_SRV_TOKEN : '' );
-	$pills[] = ( '' !== $srv )
-		? array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'SN_SRV_TOKEN missing', 'signal-and-noise-tools' ), __( 'The */15 cron refresh is disabled (it fails closed) and RSS srv hits lose their trusted class — set SN_SRV_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
+	$rss_srv = function_exists( 'sn_rss_tracker_server_token' )
+		? sn_rss_tracker_server_token()
+		: $srv;
+	if ( '' !== $srv ) {
+		$pills[] = array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' );
+	} else {
+		$note = __( 'The */15 cron refresh is disabled (it fails closed) — set SN_SRV_TOKEN in wp-config.php.', 'signal-and-noise-tools' );
+		if ( '' === $rss_srv ) {
+			$note .= ' ' . __( 'RSS srv hits also lose their trusted class.', 'signal-and-noise-tools' );
+		}
+		$pills[] = array( 'warn', __( 'SN_SRV_TOKEN missing', 'signal-and-noise-tools' ), $note );
+	}
 
 	// 5. Zone ID — gates the dashboard's Edge view (constant > option).
 	$zone = ( defined( 'SN_CF_ZONE' ) && '' !== (string) SN_CF_ZONE )
