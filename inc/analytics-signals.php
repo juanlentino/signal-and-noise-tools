@@ -193,3 +193,52 @@ function sn_analytics_stat_holt( array $ys, $alpha = 0.5, $beta = 0.3 ) {
 function sn_analytics_stat_holt_point( $fit, $h ) {
 	return (float) $fit['level'] + (int) $h * (float) $fit['trend'];
 }
+
+/** Robust residual scale for intervals: 1.4826×MAD; RMSE fallback when MAD is 0. */
+function sn_analytics_forecast_sigma( array $residuals ) {
+	if ( empty( $residuals ) ) { return 0.0; }
+	$mad = sn_analytics_stat_mad( $residuals );
+	if ( null !== $mad && $mad > 0.0 ) { return 1.4826 * (float) $mad; }
+	$sq = 0.0;
+	foreach ( $residuals as $r ) { $sq += (float) $r * (float) $r; }
+	return sqrt( $sq / count( $residuals ) );
+}
+
+/**
+ * Rolling-origin backtest for the Holt forecaster: for every cutoff from
+ * $min_train to n-1, fit on the prefix, forecast up to $horizon steps, and score
+ * against the held-out actuals. Accuracy is MEASURED, never asserted (spec §8):
+ * the returned coverage is the share of actuals inside the nominal interval and
+ * drives the live signal's confidence + calibration note.
+ * @return array{mae:float, coverage:float, checks:int}|null null when the series
+ *         cannot support a single fold.
+ */
+function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORECAST_HORIZON, $min_train = 14 ) {
+	$ys = array_values( array_map( 'floatval', $ys ) );
+	$n  = count( $ys );
+	if ( $n < $min_train + 1 ) { return null; }
+	$abs_err = array();
+	$inside  = 0;
+	$checks  = 0;
+	for ( $cut = $min_train; $cut < $n; $cut++ ) {
+		$fit = sn_analytics_stat_holt( array_slice( $ys, 0, $cut ) );
+		if ( null === $fit ) { continue; }
+		$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
+		$steps = min( $horizon, $n - $cut );
+		for ( $h = 1; $h <= $steps; $h++ ) {
+			$point     = sn_analytics_stat_holt_point( $fit, $h );
+			$half      = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $h );
+			$actual    = $ys[ $cut + $h - 1 ];
+			$abs_err[] = abs( $actual - $point );
+			if ( $actual >= $point - $half && $actual <= $point + $half ) { $inside++; }
+			$checks++;
+		}
+	}
+	if ( 0 === $checks ) { return null; }
+	// Explicit float casts: evenly-divisible int/int division returns int in PHP.
+	return array(
+		'mae'      => (float) ( array_sum( $abs_err ) / $checks ),
+		'coverage' => (float) ( $inside / $checks ),
+		'checks'   => $checks,
+	);
+}

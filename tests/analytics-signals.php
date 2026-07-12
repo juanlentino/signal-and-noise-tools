@@ -79,5 +79,19 @@ ok( count( $hf['residuals'] ) === 4 && max( array_map( 'abs', $hf['residuals'] )
 ok( abs( sn_analytics_stat_holt_point( $hf, 7 ) - 22.0 ) < 1e-9, 'holt: 7-step point continues the line (8 + 7×2)' );
 ok( null === sn_analytics_stat_holt( array( 1, 2 ) ), 'holt: <3 points → null' );
 
+echo "\nGroup: backtest harness\n";
+// Perfect 25-point line: forecasts are exact, so MAE ~0 and every check lands inside.
+$line25 = array(); for ( $i = 0; $i < 25; $i++ ) { $line25[] = 10 + 2 * $i; }
+$bt = sn_analytics_forecast_backtest( $line25, 7, 14 );
+ok( is_array( $bt ) && $bt['mae'] < 1e-9, 'backtest: perfect line → MAE ~0' );
+ok( 1.0 === $bt['coverage'], 'backtest: perfect line → 100% interval coverage' );
+ok( 56 === $bt['checks'], 'backtest: 11 rolling folds × capped horizon = 56 checks' );
+ok( null === sn_analytics_forecast_backtest( array( 1, 2, 3 ), 7, 14 ), 'backtest: too short for one fold → null (insufficient)' );
+// Deterministic noise ±2 around a slope-2 line: intervals must absorb the noise.
+$noisy = array(); for ( $i = 0; $i < 30; $i++ ) { $noisy[] = 10 + 2 * $i + ( ( $i % 2 ) ? 2 : -2 ); }
+$btn = sn_analytics_forecast_backtest( $noisy, 7, 14 );
+ok( is_array( $btn ) && $btn['coverage'] >= 0.8 && 91 === $btn['checks'], 'backtest: noisy line → high measured coverage over 91 checks' );
+ok( $btn['mae'] < 4.0, 'backtest: noisy line → MAE bounded by the noise scale' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
