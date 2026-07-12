@@ -562,5 +562,10 @@ $brush_at = strpos( $html_br, 'data-brush-from="' );
 ok( false !== $brush_at && strpos( $html_br, 'data-brush-days="' ) !== false, 'brush: the day-granularity trend carries the brush data attributes' );
 ok( preg_match( '/data-brush-from="\d{4}-\d{2}-\d{2}"/', $html_br ) === 1, 'brush: data-brush-from is a real date (the window start the JS maps fractions onto)' );
 
+echo "\nGroup: v9.35.0 — tier badges (I6)\n";
+$_GET['sn_view'] = 'content';
+$html_tb = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_tb, 'sn-an-tier--descriptive' ) !== false, 'dashboard: the Overview postbox names its tier via the shared badge' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

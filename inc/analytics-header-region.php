@@ -60,6 +60,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	snt_an_panel_open( __( 'Overview', 'signal-and-noise-tools' ), array(
 		'panel_class'  => 'sn-overview',
 		'inside_class' => 'inside inside-flush sn-overview-inside',
+		'header_meta'  => function_exists( 'snt_analytics_tier_badge' ) ? snt_analytics_tier_badge( 'descriptive' ) : '',
 	) );
 	snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );

@@ -169,7 +169,16 @@ function snt_analytics_render_recommendations_panel() {
 		: array( 'cards' => function_exists( 'sn_analytics_recommendations' ) ? sn_analytics_recommendations() : array(), 'brief' => '', 'source' => 'fallback' );
 	$cards = is_array( $rec['cards'] ?? null ) ? $rec['cards'] : array();
 
-	snt_an_panel_open( 'Recommendations' );
+	// v9.35.0 (maturity I6): the shared tier badge in the panel header. The
+	// wp_kses_post guard covers CLI harnesses that load the real panel primitive
+	// without WP (tests/analytics-view-content.php) — the panel header renders
+	// header_meta through wp_kses_post, so only pass it when the full stack can
+	// consume it; both functions always exist on a live install.
+	snt_an_panel_open( 'Recommendations', array(
+		'header_meta' => function_exists( 'snt_analytics_tier_badge' ) && function_exists( 'wp_kses_post' )
+			? snt_analytics_tier_badge( 'prescriptive' )
+			: '',
+	) );
 	if ( empty( $cards ) ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Nothing needs attention right now.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
