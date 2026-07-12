@@ -1,10 +1,13 @@
 <?php
 /**
- * Signal & Noise — Analytics settings/config partials: the read-credentials form,
- * the owner/role exclusion card, the read-only Cloudflare Worker setup reference,
- * and the one-time Plausible-CSV import panel. Native wp-admin forms; every
- * dynamic value is escaped at the point of output. Extracted from
- * analytics-admin-render.php (v8.9.x split).
+ * Signal & Noise — Analytics settings-hub partials (Monitoring → Analytics):
+ * the read-credentials form, the owner/role exclusion card, the read-only
+ * Cloudflare Worker setup reference, and the v9.36.0 hub additions — pipeline
+ * status strip, engine-tuning form, read-only shared-config mirrors, and the
+ * developer filter reference. Native wp-admin forms; every dynamic value is
+ * escaped at the point of output. Extracted from analytics-admin-render.php
+ * (v8.9.x split); the one-time Plausible-CSV import panel it once held was
+ * retired at v9.0.0 (see the note at the end of this file).
  *
  * @package SignalNoiseTools
  * @since 5.0.1

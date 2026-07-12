@@ -56,12 +56,22 @@ ok( 'standard' === $GLOBALS['__settings']['analytics.anomaly_sensitivity'], 'unk
 echo "Group: absent fields (defaults, never notices)\n";
 $GLOBALS['__settings'] = array();
 $flash = sn_handle_analytics_tuning_save( array() );
-ok( 30 === ( $GLOBALS['__settings']['analytics.signal_baseline_days'] ?? null ) || 'analytics_tuning_unchanged' === $flash, 'empty POST defaults to 30/standard or reports unchanged' );
+ok( 'analytics_tuning_unchanged' === $flash, 'empty POST resolves to the defaults (30/standard) and reports unchanged' );
+ok( ! array_key_exists( 'analytics.signal_baseline_days', $GLOBALS['__settings'] ), 'empty POST writes nothing — defaults already effective, no key created' );
 
 echo "Group: unchanged detection\n";
 $GLOBALS['__settings'] = array( 'analytics.signal_baseline_days' => 30, 'analytics.anomaly_sensitivity' => 'standard' );
 $flash = sn_handle_analytics_tuning_save( array( 'sn_signal_baseline_days' => '30', 'sn_anomaly_sensitivity' => 'standard' ) );
 ok( 'analytics_tuning_unchanged' === $flash, 'identical values return unchanged flash' );
+
+echo "Group: partial change (one knob moves, the other holds)\n";
+// Guards the unchanged condition staying a strict AND: the baseline changes
+// while the preset repeats its prior value — an accidental || flip would
+// misreport this as unchanged and silently drop the save.
+$GLOBALS['__settings'] = array( 'analytics.signal_baseline_days' => 30, 'analytics.anomaly_sensitivity' => 'standard' );
+$flash = sn_handle_analytics_tuning_save( array( 'sn_signal_baseline_days' => '45', 'sn_anomaly_sensitivity' => 'standard' ) );
+ok( 'analytics_tuning_saved' === $flash, 'baseline-only change returns saved flash (unchanged means baseline AND preset)' );
+ok( 45 === $GLOBALS['__settings']['analytics.signal_baseline_days'], 'baseline-only change stores 45' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

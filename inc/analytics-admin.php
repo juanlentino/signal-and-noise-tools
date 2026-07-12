@@ -476,7 +476,8 @@ function snt_analytics_render_dashboard() {
  * wide-leaf card-ownership rule). The forms post on the page=sn-theme-options
  * route (the Monitoring sub-tab nav guarantees that slug), so the existing
  * admin-post handler processes analytics_save / _test / _exclude_save / _export
- * unchanged — each <form> keeps its own nonce + sn_action button.
+ * unchanged + analytics_tuning_save (v9.36.0) — each <form> keeps its own
+ * nonce + sn_action button.
  * v9.36.0 (settings hub): pipeline status strip above the columns; engine tuning
  * joins the writable column; read-only mirrors + filter reference join the
  * reference column.

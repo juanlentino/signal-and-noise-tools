@@ -461,9 +461,17 @@ $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a .sn-2up two-column grid' );
-ok( substr_count( $html, 'class="sn-fieldset"' ) === 2, 'settings: exactly two real .sn-fieldset cards (wide leaf owns its own chrome)' );
+// Class-token-boundary count (survives modifier classes on any card): the two
+// bare column wrappers + the pipeline strip's combined "sn-fieldset sn-an-pipeline".
+// sn-fieldset-h headings don't match (the lookahead rejects the trailing hyphen).
+$fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
+ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces — pipeline strip + the two columns (wide leaf owns its own chrome)' );
+ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
 $acct_at = strpos( $html, 'name="sn_cf_account_id"' );
-$wrng_at = strpos( $html, 'wrangler' );
+// 'Cloudflare Worker setup' (the <summary> text), NOT 'wrangler': the pipeline
+// strip's warn note can also say "wrangler" once the worker stub lands, and the
+// strip renders ABOVE the columns — a 'wrangler' marker would false-fail order.
+$wrng_at = strpos( $html, 'Cloudflare Worker setup' );
 ok( false !== $acct_at && false !== $wrng_at && $acct_at < $wrng_at, 'settings: credentials (left card) precede the edge-worker reference (right card)' );
 $reg = file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' );
 ok( (bool) preg_match( "/'analytics'\\s*=>\\s*array\\([^\\n]*'wide'\\s*=>\\s*true/", $reg ), 'registry: the analytics leaf is marked wide (opts out of the wrapper cap)' );
@@ -481,7 +489,7 @@ $excl    = strpos( $html, 'sn-an-exclude' );
 $tune    = strpos( $html, 'sn-an-tuning' );
 $mirrors = strpos( $html, 'sn-an-mirrors' );
 $filters = strpos( $html, 'sn-an-filters' );
-$setup   = strpos( $html, 'wrangler' );
+$setup   = strpos( $html, 'Cloudflare Worker setup' ); // collision-free: the strip's warn note can also contain 'wrangler'
 ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
 ok( false !== $creds && false !== $excl && false !== $tune && $creds < $excl && $excl < $tune,
 	'hub(left): credentials → exclusion → engine tuning (writable column order)' );
