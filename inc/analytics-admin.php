@@ -49,6 +49,7 @@ function snt_analytics_resolve_class( $raw ) {
 // (controls + delta cards + trend) is persistent above the tabs.
 const SN_ANALYTICS_VIEWS = array(
 	'content'    => 'Content',
+	'campaigns'  => 'Campaigns',
 	'posts'      => 'Posts',
 	'technology' => 'Technology',
 	'geography'  => 'Geography',
@@ -387,6 +388,11 @@ function snt_analytics_render_dashboard() {
 
 		case 'login-defense':
 			sn_login_defense_render_body();
+			break;
+
+		case 'campaigns':
+			// v9.29.0: UTM campaign attribution — inc/analytics-view-campaigns.php.
+			snt_analytics_render_view_campaigns( $from, $to, $class, $granularity );
 			break;
 
 		case 'content':

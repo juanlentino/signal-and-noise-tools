@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.29.0] - 2026-07-12: Feat — dedicated "Campaigns" analytics tab (UTM, always visible)
+
+**Headline:** The UTM campaign breakdowns shipped in v9.28.0 now live in their own **Campaigns** tab in the analytics dashboard (alongside Content, Technology, Geography, …) instead of being tucked into the Content view's side column — and, crucially, the tab is **always present and renders an empty state** rather than only appearing once campaign data exists. The v9.28.0 placement was gated on data, so the feature was invisible until the first tagged visit arrived; this makes it discoverable immediately: open the tab, see the Campaigns + Source/Medium panels (with trend sparklines) and, until traffic flows, a short empty state that explains how to tag a link.
+
+> **Why MINOR:** a new user-visible surface (a dedicated dashboard tab), additive. It relocates the v9.28.0 panels out of the Content view — a behavioural move, but no public function/REST route/ability is removed or renamed, no settings-schema change, no WP-floor raise, and the underlying rollup + read accessors are unchanged. (v9.28.0 shipped moments earlier in the same session; in practice this supersedes its Content-view placement before most installs saw it.)
+
+### New
+- [inc/analytics-view-campaigns.php](inc/analytics-view-campaigns.php): the Campaigns view — the `Campaigns` and `Source / Medium` panels (each with trend sparklines via `sn_analytics_utm_series()`), always rendered with a self-explaining empty state, behind `function_exists` guards.
+- [inc/analytics-admin.php](inc/analytics-admin.php): `campaigns` registered in `SN_ANALYTICS_VIEWS` (right after Content) and dispatched to the new view. The tab strip renders it like every other dashboard view.
+
+### Changed
+- [inc/analytics-view-content.php](inc/analytics-view-content.php): the Content view no longer renders the campaign panels — they moved to the dedicated Campaigns tab (no duplication).
+
+### Tests
+- [tests/analytics-view-campaigns.php](tests/analytics-view-campaigns.php): the view renders both panels *always* (with and without data), requests both sparkline series, shows the explanatory intro, and stays behind the partial-install guard.
+- [tests/analytics-admin.php](tests/analytics-admin.php): asserts the Campaigns tab is registered and rendered in the dashboard tab strip.
+- [tests/analytics-view-content.php](tests/analytics-view-content.php): asserts the Content view no longer carries the Campaigns panel. Full sweep 271 suites / 0 failed; PHPStan clean; phpcs clean.
+
 ## [9.28.0] - 2026-07-12: Feat — UTM campaign attribution (Source/Medium + Campaign breakdowns)
 
 **Headline:** The analytics dashboard now reports campaign attribution. The edge worker (v1.12.0) captures the five named `utm_*` params a visitor lands with and packs them into the AE row's last free blob (`blob20`); this release rolls that packed column into a durable per-day table and surfaces two new side-column panels in the Content view — **Campaigns** and **Source / Medium** — that appear only when there is campaign data (a site that never tags links keeps a clean view). This completes the cookieless, three-repo attribution pipeline (theme beacon → worker `blob20` → this plugin), so campaigns are measured with the same privacy stance as the rest of the beacon: no cookies, no cross-day identity, only the marketing tags the site owner puts on their own links.
