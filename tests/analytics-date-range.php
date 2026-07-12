@@ -50,5 +50,17 @@ ok( snt_analytics_resolve_window( 'custom', '2026-05-20', '2026-06-10', $cnow ) 
 ok( snt_analytics_resolve_window( 'custom', 'junk', '', $cnow ) === array( 7, '2026-06-07', '2026-06-13' ), 'invalid custom → 7d fallback' );
 ok( snt_analytics_resolve_window( 'martian', '', '', $cnow )[0] === 7, 'unknown range → 7 default' );
 
+echo "\nGroup: v9.34.0 semantic periods + rolling 14\n";
+$sun = strtotime( '2026-07-12 12:00:00 UTC' ); // a Sunday
+$mon = strtotime( '2026-07-06 09:00:00 UTC' ); // a Monday
+ok( snt_analytics_preset_dates( 'this-week', $sun ) === array( '2026-07-06', '2026-07-12' ), 'this-week = ISO Monday → today' );
+ok( snt_analytics_preset_dates( 'this-week', $mon ) === array( '2026-07-06', '2026-07-06' ), 'this-week on a Monday = a single day' );
+ok( snt_analytics_preset_dates( 'this-month', $sun ) === array( '2026-07-01', '2026-07-12' ), 'this-month = 1st → today (MTD)' );
+ok( snt_analytics_preset_dates( 'this-quarter', $sun ) === array( '2026-07-01', '2026-07-12' ), 'this-quarter = Q3 start → today' );
+$jan15 = strtotime( '2026-01-15 12:00:00 UTC' );
+ok( snt_analytics_preset_dates( 'this-quarter', $jan15 ) === array( '2026-01-01', '2026-01-15' ), 'this-quarter in Jan = Q1 start' );
+ok( snt_analytics_resolve_window( 'this-month', '', '', $sun ) === array( 'this-month', '2026-07-01', '2026-07-12' ), 'resolve_window: semantic token resolves + survives' );
+ok( snt_analytics_resolve_window( '14', '', '', $sun ) === array( 14, '2026-06-29', '2026-07-12' ), 'rolling 14d accepted (kept as a rolling option, distinct from the calendar periods)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

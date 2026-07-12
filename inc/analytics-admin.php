@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_ANALYTICS_RANGES = array( 7, 30, 90, 365 );
+const SN_ANALYTICS_RANGES = array( 7, 14, 30, 90, 365 );
 
 /**
  * Whitelist the ?sn_range GET value to a supported window; default 7.
@@ -156,7 +156,7 @@ function snt_analytics_is_ymd( $s ) {
  * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
  * injectable for deterministic tests.
  *
- * @param string   $preset 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
+ * @param string   $preset 'this-week' | 'this-month' | 'this-quarter' | 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
  * @param int|null $now    Unix anchor.
  * @return array{0:string,1:string}
  */
@@ -166,6 +166,13 @@ function snt_analytics_preset_dates( $preset, $now = null ) {
 	$y     = (int) gmdate( 'Y', $now );
 	$mo    = (int) gmdate( 'n', $now );
 	switch ( (string) $preset ) {
+		case 'this-week':
+			$dow = (int) gmdate( 'N', $now ); // ISO Monday=1, matching the weekly bucket's Monday floor
+			return array( gmdate( 'Y-m-d', $now - ( $dow - 1 ) * DAY_IN_SECONDS ), $today );
+		case 'this-month':
+			return array( gmdate( 'Y-m-01', $now ), $today );
+		case 'this-quarter':
+			return array( sprintf( '%04d-%02d-01', $y, ( (int) ceil( $mo / 3 ) - 1 ) * 3 + 1 ), $today );
 		case 'ytd':
 			return array( sprintf( '%04d-01-01', $y ), $today );
 		case 'prev-year':
@@ -237,7 +244,7 @@ function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) 
  */
 function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '', $now = null ) {
 	$range_raw = (string) $range_raw;
-	$presets   = array( 'ytd', 'last-month', 'last-quarter', 'prev-year' );
+	$presets   = array( 'this-week', 'this-month', 'this-quarter', 'ytd', 'last-month', 'last-quarter', 'prev-year' );
 	if ( in_array( $range_raw, $presets, true ) ) {
 		list( $from, $to ) = snt_analytics_preset_dates( $range_raw, $now );
 		return array( $range_raw, $from, $to );
