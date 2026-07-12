@@ -275,15 +275,16 @@ function snt_analytics_render_mirrors() {
 	$spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'AI model', 'signal-and-noise-tools' ) . ':</strong> ' . esc_html( $label );
 	if ( $budget > 0 ) {
-		$pct = (int) round( min( 100, ( $spent / $budget ) * 100 ) );
+		$pct_true  = (int) round( ( $spent / $budget ) * 100 );
+		$pct_width = max( 0, min( 100, $pct_true ) );
 		echo '<br>' . sprintf(
 			/* translators: 1: spend this month, 2: budget, 3: percent used */
 			esc_html__( '$%1$s of $%2$s budget this month (%3$s%%)', 'signal-and-noise-tools' ),
 			esc_html( number_format_i18n( $spent, 2 ) ),
 			esc_html( number_format_i18n( $budget, 2 ) ),
-			esc_html( number_format_i18n( $pct ) )
+			esc_html( number_format_i18n( $pct_true ) )
 		);
-		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct ) . '%"></span></span>';
+		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct_width ) . '%"></span></span>';
 	} else {
 		echo ' · ' . esc_html__( 'no monthly budget cap', 'signal-and-noise-tools' );
 	}
@@ -324,7 +325,7 @@ function snt_analytics_render_filter_reference() {
 		'sn_beacon_token'              => __( 'Override the beacon/collector token (default SN_BEACON_TOKEN).', 'signal-and-noise-tools' ),
 		'sn_analytics_self_hosts'      => __( 'Hosts folded as self-referrals in Sources.', 'signal-and-noise-tools' ),
 		'snt_ai_model_preference'      => __( 'Route AI features to a specific model.', 'signal-and-noise-tools' ),
-		'snt_ai_economy_features'      => __( 'Which AI features ride the economy (Haiku) tier.', 'signal-and-noise-tools' ),
+		'snt_ai_economy_features'      => __( 'Which AI features ride the economy tier.', 'signal-and-noise-tools' ),
 		'snt_ai_economy_model'         => __( 'Which model the economy tier uses.', 'signal-and-noise-tools' ),
 	);
 	echo '<details class="sn-an-worker sn-an-filters"><summary>' . esc_html__( 'Advanced: filter reference (developers)', 'signal-and-noise-tools' ) . '</summary>';

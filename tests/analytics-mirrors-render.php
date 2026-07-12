@@ -24,7 +24,7 @@ function sn_setting( $path, $default = null ) {
 	return array_key_exists( $path, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $path ] : $default;
 }
 function sn_theme_ai_models() { return array( 'claude-sonnet-5' => 'Claude Sonnet 5 (balanced, default)' ); }
-function snt_ai_spend_this_month() { return 4.2; }
+function snt_ai_spend_this_month() { return isset( $GLOBALS['__spend'] ) ? (float) $GLOBALS['__spend'] : 4.2; }
 function snt_insights_weekly_cron_enabled() { return true; }
 function sn_rss_tracker_settings() { return array( 'collector_url' => 'https://example.com/_sn/px' ); }
 
@@ -43,7 +43,7 @@ ok( strpos( $h, 'tab=content&sub=front-end' ) !== false, 'AI row links to Conten
 ok( strpos( $h, 'tab=monitoring&sub=insights' ) !== false, 'cron row links to Monitoring → Insights' );
 ok( strpos( $h, 'tab=content&sub=rss' ) !== false, 'collector row links to Content → RSS' );
 ok( strpos( $h, 'https://example.com/_sn/px' ) !== false, 'collector URL shown' );
-ok( strpos( $h, '<input' ) === false && strpos( $h, '<select' ) === false && strpos( $h, '<button' ) === false, 'MIRROR RULE: no write controls of any kind' );
+ok( strpos( $h, '<input' ) === false && strpos( $h, '<select' ) === false && strpos( $h, '<button' ) === false && strpos( $h, '<textarea' ) === false, 'MIRROR RULE: no write controls of any kind' );
 ok( strpos( $h, 'sn-an-mirror-meter' ) !== false, 'budget meter rendered when a cap is set' );
 ok( strpos( $h, 'width:42%' ) !== false, 'meter width reflects 4.2/10 spend' );
 
@@ -53,6 +53,13 @@ ob_start(); snt_analytics_render_mirrors(); $h2 = ob_get_clean();
 ok( strpos( $h2, 'sn-an-mirror-meter' ) === false, 'no meter without a budget cap' );
 ok( stripos( $h2, 'no monthly budget' ) !== false, 'uncapped copy shown' );
 
+// Over budget: label tells the truth, meter clamps.
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 10;
+$GLOBALS['__spend'] = 15.0;
+ob_start(); snt_analytics_render_mirrors(); $h4 = ob_get_clean();
+ok( strpos( $h4, '(150%)' ) !== false, 'over-budget label shows the true 150%' );
+ok( strpos( $h4, 'width:100%' ) !== false, 'meter width clamps to 100%' );
+
 ob_start();
 snt_analytics_render_filter_reference();
 $h3 = ob_get_clean();
@@ -61,7 +68,7 @@ ok( strpos( $h3, 'sn_analytics_signal_config' ) !== false, 'new signal-config fi
 ok( strpos( $h3, 'sn_analytics_session_config' ) !== false, 'session config filter documented' );
 ok( strpos( $h3, 'sn_analytics_refresh_secret' ) !== false, 'refresh-secret filter documented' );
 ok( strpos( $h3, 'sn_beacon_token' ) !== false, 'beacon-token filter documented' );
-ok( strpos( $h3, '<input' ) === false && strpos( $h3, '<button' ) === false, 'filter reference is read-only too' );
+ok( strpos( $h3, '<input' ) === false && strpos( $h3, '<button' ) === false && strpos( $h3, '<textarea' ) === false, 'filter reference is read-only too' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
