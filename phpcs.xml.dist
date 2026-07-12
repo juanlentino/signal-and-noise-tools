@@ -105,8 +105,9 @@
 		PreparedSQL: scoped-EXCLUDED only in the custom-table files + the
 		insights/analytics readers. Those tables (wp_snt_cron_history,
 		wp_rss_feed_log, wp_sn_analytics_daily, wp_sn_analytics_dims,
-		wp_sn_analytics_buckets, wp_sn_analytics_events, wp_sn_analytics_event_props,
-		wp_sn_analytics_page_roles, wp_sn_edge_daily, wp_sn_edge_dims, wp_sn_schedules)
+		wp_sn_analytics_utm, wp_sn_analytics_buckets, wp_sn_analytics_events,
+		wp_sn_analytics_event_props, wp_sn_analytics_page_roles, wp_sn_edge_daily,
+		wp_sn_edge_dims, wp_sn_schedules)
 		have no WP API wrapper, so the table NAME must be
 		interpolated ($wpdb->prefix . CONSTANT — never user input; identifiers
 		cannot be bound by prepare()). Every VALUE is bound (%d/%s/%f) or
@@ -118,7 +119,10 @@
 		v4.5.1 security audit + the v5.0.1 analytics-rollup/dims/read add + the
 		v5.4.0 analytics-buckets add + the v6.2.0 analytics-events add + the
 		v6.10.0 analytics-pageroles add + the v6.26.0 edge-rollup add + the
-		v6.40.0 schedule-engine add. The sniff stays ACTIVE everywhere else.
+		v6.40.0 schedule-engine add + the v9.28.0 analytics-utm add (packed
+		blob20 → wp_sn_analytics_utm; the sig-keyed upsert + the two GROUP BY
+		reads interpolate only $wpdb->prefix . CONSTANT and bind every value).
+		The sniff stays ACTIVE everywhere else.
 	-->
 	<rule ref="WordPress.DB.PreparedSQL">
 		<exclude-pattern>*/inc/cron-history.php</exclude-pattern>
@@ -126,6 +130,7 @@
 		<exclude-pattern>*/inc/insights.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-rollup.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-dims.php</exclude-pattern>
+		<exclude-pattern>*/inc/analytics-utm.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-read.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-posts.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-buckets.php</exclude-pattern>

@@ -58,6 +58,32 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
 	snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer', 10 );
 	snt_analytics_render_referrer_categories( $refcats );
+
+	// v9.28.0: campaign attribution (UTM). Only surfaced when there IS campaign
+	// data, so a site that never tags links keeps a clean side column. Guarded so
+	// a partial install (plugin without the UTM module) degrades to nothing.
+	$utm_campaigns = function_exists( 'sn_analytics_top_utm_campaigns' )
+		? sn_analytics_top_utm_campaigns( $from, $to, $class, 10 )
+		: array();
+	if ( ! empty( $utm_campaigns ) ) {
+		// Trend sparklines matching Top sources: one batched series query per panel,
+		// keyed by the rows already fetched. Guarded so a partial install still
+		// renders the tables without trends.
+		$camp_values = array_map( static function ( $r ) { return (string) $r['value']; }, $utm_campaigns );
+		$camp_series = function_exists( 'sn_analytics_utm_series' )
+			? sn_analytics_utm_series( 'campaign', $camp_values, $from, $to, $class, $granularity )
+			: array();
+		snt_analytics_render_dim_table( 'Campaigns', $utm_campaigns, 'No campaigns in this range.', $camp_series, '', 10 );
+
+		if ( function_exists( 'sn_analytics_top_utm_sources' ) ) {
+			$utm_sources = sn_analytics_top_utm_sources( $from, $to, $class, 10 );
+			$src_values  = array_map( static function ( $r ) { return (string) $r['value']; }, $utm_sources );
+			$src_series  = function_exists( 'sn_analytics_utm_series' )
+				? sn_analytics_utm_series( 'source_medium', $src_values, $from, $to, $class, $granularity )
+				: array();
+			snt_analytics_render_dim_table( 'Source / Medium', $utm_sources, 'No campaign sources in this range.', $src_series, '', 10 );
+		}
+	}
 	echo '</div>';
 
 	echo '</div>';
