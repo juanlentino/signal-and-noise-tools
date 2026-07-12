@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.27.0] - 2026-07-12: Feat — reliable analytics freshness via a token-gated rollup-refresh trigger (CF Cron)
+
+**Headline:** "Views today" and the durable rollups otherwise ride on WP-Cron, which only fires on front-end traffic and silently stalls on an idle site — the "views today went cold / stale" failure this whole arc kept surfacing. This adds a token-authenticated `POST /analytics/refresh` REST endpoint that the analytics Worker's new Cron Trigger (v1.11.0) POSTs every 15 minutes, driving `sn_analytics_run_rollup()` + `sn_analytics_realtime_refresh()` on Cloudflare's guaranteed schedule regardless of site traffic or WP-Cron health.
+
+> **Why MINOR:** a new REST capability (route), additive. No existing function/route/ability removed or renamed; no settings-schema change; no WP-floor raise. The endpoint fails CLOSED (503) when `SN_SRV_TOKEN` is unset, so it never runs open. It reuses the private `SN_SRV_TOKEN` already shared with the Worker — no new secret. Idempotent: a re-poke re-rolls the same trailing window (overwrite) and never double-counts.
+
+### Added
+- **Token-gated rollup-refresh endpoint** ([inc/analytics-refresh-rest.php](inc/analytics-refresh-rest.php)): `POST signal-noise/v1/analytics/refresh`, permission-gated on an `X-SN-Refresh-Key` header constant-time-compared against `SN_SRV_TOKEN` (`sn_analytics_refresh_permission()` — 503 when the secret is unset, 403 on absent/wrong key; never `manage_options`, since the caller is the Worker, not an admin). The callback runs the durable rollup + realtime refresh and returns `{ok, ran:[rollup,realtime]}`. The secret source is overridable via the `sn_analytics_refresh_secret` filter.
+
+### Companion (separate repo)
+- `signal-and-noise-analytics-worker` **v1.11.0** adds a `scheduled()` handler + a `*/15 * * * *` Cron Trigger that POSTs this endpoint with `SN_SRV_TOKEN`. Ships via `npm run deploy`. Requires `SN_SRV_TOKEN` set (matching) in both `wp-config.php` and the Worker — already the case wherever `srv:1` beacon trust is configured.
+
+### Tests
+- [tests/analytics-refresh-rest.php](tests/analytics-refresh-rest.php): the route is POST with the token `permission_callback` (never `__return_true`); the gate allows a correct key, 403s an absent/wrong key, and 503s a fail-closed unset secret; the callback runs BOTH triggers. Full standalone sweep 268 suites / 0 failed.
+
 ## [9.26.5] - 2026-07-12: Fix — analytics "today" follows the site timezone at the source (timezone-aware AE rollup)
 
 > **Why 9.26.5, not 9.26.4:** this code shipped in PR #260 with a 9.26.4 header, but a concurrent session had already tagged v9.26.4 for an unrelated docs correction (#259, the entry below). Rather than force-move a published tag, this release takes the next number. The two are independent — 9.26.4 = the annotations-R2 docblock fix; 9.26.5 = this timezone-aware rollup.
