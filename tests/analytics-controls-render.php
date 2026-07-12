@@ -7,7 +7,7 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
 define( 'ABSPATH', '/' );
-define( 'SN_ANALYTICS_RANGES', array( 7, 30, 90, 365 ) );
+define( 'SN_ANALYTICS_RANGES', array( 7, 14, 30, 90, 365 ) );
 
 function add_query_arg( $args, $base = '' ) { return $base . '?' . http_build_query( $args ); }
 function remove_query_arg( $keys, $url = '' ) { return $url; }
@@ -18,6 +18,7 @@ function esc_url( $s ) { return $s; }
 function esc_html( $s ) { return $s; }
 function esc_html__( $s, $d = '' ) { return $s; }
 function esc_attr__( $s, $d = '' ) { return $s; }
+function __( $s, $d = '' ) { return $s; }
 
 require __DIR__ . '/../inc/analytics-admin-render.php';
 
@@ -41,10 +42,18 @@ $html_all = capture_controls( 'all', 'human' );
 ok( substr_count( $html_all, 'aria-pressed="true"' ) >= 1, 'All selected marks an active control' );
 // Negative: when a numeric range is active, the All button must NOT carry active/aria-pressed.
 $html_90 = capture_controls( 90, 'human' );
-ok( substr_count( $html_90, ' active' ) === 2, '90d active: exactly 2 active marks (range + class)' );
+ok( substr_count( $html_90, ' active' ) === 3, '90d active: exactly 3 active marks (range + class + compare Off)' );
 ok( strpos( $html_90, ' active' ) !== false && strpos( $html_90, 'sn_range=all' ) !== false
 	&& false === (bool) preg_match( '/ active[^"]*"[^>]*sn_range=all/', $html_90 ),
 	'All button is NOT active when numeric range is selected' );
+
+echo "\nGroup: v9.34.0 — semantic quick-jumps + compare pills\n";
+$html = capture_controls( 7, 'human' );
+ok( strpos( $html, '>14d<' ) !== false, 'renders the rolling 14d pill' );
+ok( strpos( $html, 'sn_range=this-week' ) !== false && strpos( $html, '>This week<' ) !== false && strpos( $html, 'sn_range=this-quarter' ) !== false, 'semantic periods render as quick-jump links' );
+ok( strpos( $html, 'sn_compare=prev' ) !== false && strpos( $html, 'sn_compare=yoy' ) !== false, 'compare pills link prev + yoy' );
+ob_start(); snt_analytics_render_controls( 7, 'human', '', '', 'prev' ); $hc = ob_get_clean();
+ok( preg_match( '/<a class="button button-small active"[^>]*aria-pressed="true"[^>]*>Previous</', $hc ) === 1, 'active compare mode is marked pressed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

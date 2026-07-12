@@ -27,19 +27,30 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $from        Window start (Y-m-d).
  * @param string $to          Window end (Y-m-d).
  * @param string $granularity 'day' | 'week' | 'month'.
+ * @param string $compare     Comparison mode: 'prev' | 'yoy' | 'off' (default).
  * @return array Range totals — the dashboard's tail empty-hint reads them.
  */
-function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity ) {
+function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off' ) {
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
 	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
+	// v9.34.0 (maturity I5): first-class comparison — display-only; the predictive
+	// baseline is $to-anchored and never reads this window.
+	$cseries = array();
+	$ctotals = array();
+	$cwin    = array( '', '' );
+	if ( 'off' !== (string) $compare && 'all' !== (string) $range && function_exists( 'snt_analytics_compare_window' ) ) {
+		$cwin    = snt_analytics_compare_window( $from, $to, $compare );
+		$cseries = sn_analytics_daily_series( $cwin[0], $cwin[1], $class, $granularity );
+		$ctotals = sn_analytics_range_totals( $cwin[0], $cwin[1], $class );
+	}
 	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
 	$engaged      = ( 'all' === $range )
 		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
 		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
-	snt_analytics_render_controls( $range, $class, $from, $to );
+	snt_analytics_render_controls( $range, $class, $from, $to, $compare );
 	snt_analytics_render_separation( $class_totals, $class );
 
 	echo '<div class="sn-an-header-grid">';
@@ -52,7 +63,10 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	) );
 	snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
-	snt_analytics_render_trend( $series, $granularity );
+	snt_analytics_render_trend( $series, $granularity, $cseries );
+	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
+		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );
+	}
 	snt_an_panel_close();
 	echo '</div>';
 	echo '<div class="sn-an-header-rail">';

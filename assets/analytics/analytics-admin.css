@@ -491,3 +491,8 @@
 .sn-an-digest-head{font-weight:600;margin:0 0 6px}
 .sn-an-digest-next{margin:8px 0 0;font-weight:500}
 .sn-an-rec-brief{font-size:13px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--sn-accent,#2563eb);background:var(--sn-surface-2,#f6f7f7)}
+
+/* v9.34.0 brush-to-select + compare note */
+.sn-spark-wrap{position:relative;cursor:crosshair;touch-action:none}
+.sn-brush-sel{display:none;position:absolute;top:0;bottom:0;background:rgba(34,113,177,.12);border-left:1px solid #2271b1;border-right:1px solid #2271b1;pointer-events:none}
+.sn-an-compare-note{margin:4px 8px 8px;font-size:12px;color:#646970}

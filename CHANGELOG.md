@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.34.0] - 2026-07-12: Feat — range control redesign: semantic periods, comparison, brush-to-select (maturity Increment 5)
+
+**Headline:** The range control now matches how an operator reasons about time. **Semantic periods** (This week · This month · This quarter, joining YTD/Last month/Last quarter/Previous year) render as quick-jumps, with rolling windows (now including **14d**) kept distinct from calendar periods. **First-class comparison**: an Off · Previous · Year-over-year control overlays the comparison window on the trend as a muted dashed line — on the SAME scale as the current window, so relative volume never lies — plus a plain-language note ("vs previous period (…): N views (±x% now)"); YoY clamps Feb 29 to Feb 28. **Brush-to-select**: drag across the Views-per-day chart to zoom to that window — the chart becomes the control; the JS only builds a `sn_range=custom` URL and the existing server-side validator clamps whatever arrives. **Display-only by construction:** a new invariant test pins that changing the display range never changes anomaly scores or forecasts (the predictive baseline is `$to`-anchored).
+
+> **Why MINOR:** additive controls + presets on existing surfaces; the first analytics admin JS asset (self-gating). No public function/route/ability removed or renamed (all extended signatures take defaults); no settings-schema change.
+
+### New
+- `inc/analytics-admin.php`: `this-week`/`this-month`/`this-quarter` preset cases, rolling `14` in `SN_ANALYTICS_RANGES`, `snt_analytics_compare_window` (prev/YoY calendar math), `snt_analytics_resolve_compare` (`?sn_compare` whitelist), compare threaded through the dashboard.
+- `inc/analytics-header-region.php` + `inc/analytics-render-overview.php`: comparison series/totals fetch, shared-scale dashed trend overlay, `snt_analytics_render_compare_note`, `data-brush-*` attributes on the day-granularity trend.
+- `inc/analytics-render-controls.php`: 14d pill, semantic quick-jumps, Compare pill group (mode survives range/class/tab navigation).
+- `assets/analytics/analytics-brush.js` (new, dependency-free) + enqueue: pointer-drag selection → day-snapped custom window.
+
+### Tests
+- `tests/analytics-date-range.php` 22 → 35 (period calendar math incl. Monday/quarter/Jan edges; comparison math incl. leap-day clamp + whitelist) · `tests/analytics-controls-render.php` 8 → 12 · `tests/analytics-admin.php` 149 → 154 (overlay + note + off-state; brush attributes) · `tests/analytics-signals.php` 41 → 43 (the decoupled-baseline invariant). Full sweep green; PHPStan + phpcs clean. The brush JS is browser-only (not CLI-testable); its server contract (attributes + custom-window validation) is what the suites pin.
+
 ## [9.33.0] - 2026-07-12: Feat — weekly executive digest + AI-reasoned recommendations (maturity Increment 4)
 
 **Headline:** The prescriptive tier deepens. The Insights band's narrative slot is now a **weekly executive digest** — longer-form AI prose over the period's real totals + every signal, with a structured deterministic floor (summary line, signal list, a concrete "Start here"). **Recommendations gain an AI-reasoned priority brief behind the narrator-style seam**: the AI reasons over the rule cards + live signals and says what to act on first and why — while the deep-linked action cards themselves stay rules-only and pass through verbatim (the AI can never invent, reorder, or rewrite an action). Every AI path falls back deterministically on empty output, errors, and the monthly **budget cap** (the wrapper's WP_Error is routed to the floor by construction, and the tests pin it). Stays on the WP AI Client — no structured-output/tool-use need appeared, so no direct-to-provider (spec §9).

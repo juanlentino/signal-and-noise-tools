@@ -20,10 +20,11 @@ require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_smooth_
  * Replaces the old chunky bar strip. Inside a native .postbox (no collapse toggle).
  * All injected SVG coords are numeric/esc_attr'd; static SVG chrome is phpcs-clean.
  *
- * @param array  $series      [{day,views,visits}] ascending.
- * @param string $granularity 'day' (default) or 'week' — controls the aria-label.
+ * @param array  $series         [{day,views,visits}] ascending.
+ * @param string $granularity    'day' (default) or 'week' — controls the aria-label.
+ * @param array  $compare_series Optional comparison-window series, overlaid dashed on the shared y-scale.
  */
-function snt_analytics_render_trend( $series, $granularity = 'day' ) {
+function snt_analytics_render_trend( $series, $granularity = 'day', $compare_series = array() ) {
 	if ( empty( $series ) ) {
 		return;
 	}
@@ -31,6 +32,11 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	$max  = 1;
 	foreach ( $series as $r ) {
 		$max = max( $max, (int) $r['views'] );
+	}
+	// v9.34.0: the comparison overlay shares this $max so both lines are on the
+	// same scale — an overlay on its own scale would lie about relative volume.
+	foreach ( (array) $compare_series as $r ) {
+		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
 	}
 	$w    = 600.0;
 	$top  = 8.0;
@@ -65,13 +71,34 @@ function snt_analytics_render_trend( $series, $granularity = 'day' ) {
 	echo '<div class="sn-overview-trend">';
 	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Views per day', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
-	echo '<div class="sn-spark-wrap">';
+	// v9.34.0 (maturity I5): brush-to-select — the chart becomes the range control.
+	// The JS (analytics-brush.js) maps drag fractions onto these attributes and
+	// navigates to sn_range=custom; snt_analytics_resolve_custom_window validates
+	// whatever arrives server-side, so the JS only ever BUILDS a URL.
+	$brush = ( 'day' === $granularity && $n > 1 )
+		? ' data-brush-from="' . esc_attr( (string) $series[0]['day'] ) . '" data-brush-days="' . esc_attr( (string) $n ) . '"'
+		: '';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes assembled from esc_attr'd fragments above.
+	echo '<div class="sn-spark-wrap"' . $brush . '>';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
 	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( $aria ) . '">';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
 	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
 	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
 	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
+	if ( count( (array) $compare_series ) > 1 ) {
+		$cn  = count( $compare_series );
+		$cst = $w / ( $cn - 1 );
+		$cpx = array();
+		$cpy = array();
+		foreach ( array_values( $compare_series ) as $i => $r ) {
+			$cpx[] = round( $i * $cst, 2 );
+			$cpy[] = round( $base - ( (int) ( $r['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
+		}
+		$cmp_d = snt_analytics_smooth_path( $cpx, $cpy, $top, $base );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
+		echo '<path d="' . esc_attr( $cmp_d ) . '" fill="none" stroke="#a7aaad" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+	}
 	// non-scaling-stroke keeps the line a crisp 2px regardless of the horizontal stretch (preserveAspectRatio=none).
 	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
 	echo '</svg></div>';
@@ -170,4 +197,36 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 		echo '</div>';
 	}
 	echo '</div>';
+}
+
+/**
+ * One-line comparison summary under the trend (maturity I5): names the compare
+ * window and its views total, with a signed delta vs the current window. No-op
+ * when compare is off or the comparison totals are empty.
+ *
+ * @param string $mode    'prev' | 'yoy' | 'off'.
+ * @param array  $totals  Current-window totals.
+ * @param array  $ctotals Comparison-window totals.
+ * @param string $cfrom   Comparison window start.
+ * @param string $cto     Comparison window end.
+ */
+function snt_analytics_render_compare_note( $mode, $totals, $ctotals, $cfrom, $cto ) {
+	if ( ! in_array( (string) $mode, array( 'prev', 'yoy' ), true ) || empty( $ctotals ) ) {
+		return;
+	}
+	$label = ( 'yoy' === (string) $mode )
+		? __( 'same period last year', 'signal-and-noise-tools' )
+		: __( 'previous period', 'signal-and-noise-tools' );
+	$cur  = (int) ( $totals['views'] ?? 0 );
+	$prev = (int) ( $ctotals['views'] ?? 0 );
+	$pct  = ( $prev > 0 ) ? (int) round( ( $cur - $prev ) / $prev * 100 ) : null;
+	$note = sprintf(
+		/* translators: 1: comparison label, 2: window start, 3: window end, 4: comparison views. */
+		__( 'vs %1$s (%2$s – %3$s): %4$s views', 'signal-and-noise-tools' ),
+		$label, (string) $cfrom, (string) $cto, number_format_i18n( $prev )
+	);
+	if ( null !== $pct ) {
+		$note .= ' (' . ( $pct > 0 ? '+' : '' ) . $pct . '% now)';
+	}
+	echo '<p class="sn-an-compare-note">' . esc_html( $note ) . '</p>';
 }

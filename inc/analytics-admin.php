@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_ANALYTICS_RANGES = array( 7, 30, 90, 365 );
+const SN_ANALYTICS_RANGES = array( 7, 14, 30, 90, 365 );
 
 /**
  * Whitelist the ?sn_range GET value to a supported window; default 7.
@@ -156,7 +156,7 @@ function snt_analytics_is_ymd( $s ) {
  * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
  * injectable for deterministic tests.
  *
- * @param string   $preset 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
+ * @param string   $preset 'this-week' | 'this-month' | 'this-quarter' | 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
  * @param int|null $now    Unix anchor.
  * @return array{0:string,1:string}
  */
@@ -166,6 +166,13 @@ function snt_analytics_preset_dates( $preset, $now = null ) {
 	$y     = (int) gmdate( 'Y', $now );
 	$mo    = (int) gmdate( 'n', $now );
 	switch ( (string) $preset ) {
+		case 'this-week':
+			$dow = (int) gmdate( 'N', $now ); // ISO Monday=1, matching the weekly bucket's Monday floor
+			return array( gmdate( 'Y-m-d', $now - ( $dow - 1 ) * DAY_IN_SECONDS ), $today );
+		case 'this-month':
+			return array( gmdate( 'Y-m-01', $now ), $today );
+		case 'this-quarter':
+			return array( sprintf( '%04d-%02d-01', $y, ( (int) ceil( $mo / 3 ) - 1 ) * 3 + 1 ), $today );
 		case 'ytd':
 			return array( sprintf( '%04d-01-01', $y ), $today );
 		case 'prev-year':
@@ -237,7 +244,7 @@ function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) 
  */
 function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '', $now = null ) {
 	$range_raw = (string) $range_raw;
-	$presets   = array( 'ytd', 'last-month', 'last-quarter', 'prev-year' );
+	$presets   = array( 'this-week', 'this-month', 'this-quarter', 'ytd', 'last-month', 'last-quarter', 'prev-year' );
 	if ( in_array( $range_raw, $presets, true ) ) {
 		list( $from, $to ) = snt_analytics_preset_dates( $range_raw, $now );
 		return array( $range_raw, $from, $to );
@@ -253,6 +260,47 @@ function snt_analytics_resolve_window( $range_raw, $from_raw = '', $to_raw = '',
 	}
 	list( $from, $to ) = snt_analytics_range_dates( $range, $now );
 	return array( $range, $from, $to );
+}
+
+/**
+ * Comparison window for [$from,$to] (maturity I5, spec §10): 'prev' = the
+ * same-length window immediately before (adjacent, no overlap); 'yoy' = the same
+ * dates one year earlier (Feb 29 clamps to Feb 28 — PHP's relative-year math
+ * would normalize it to Mar 1). Pure calendar math; DISPLAY-ONLY — the
+ * predictive baseline is $to-anchored and never reads this.
+ *
+ * @param string $from YYYY-MM-DD.
+ * @param string $to   YYYY-MM-DD.
+ * @param string $mode 'prev' | 'yoy'.
+ * @return array{0:string,1:string}
+ */
+function snt_analytics_compare_window( $from, $to, $mode ) {
+	$f = strtotime( (string) $from . ' UTC' );
+	$t = strtotime( (string) $to . ' UTC' );
+	if ( 'yoy' === (string) $mode ) {
+		$cf = sprintf( '%04d%s', (int) gmdate( 'Y', $f ) - 1, gmdate( '-m-d', $f ) );
+		$ct = sprintf( '%04d%s', (int) gmdate( 'Y', $t ) - 1, gmdate( '-m-d', $t ) );
+		if ( ! checkdate( (int) substr( $cf, 5, 2 ), (int) substr( $cf, 8, 2 ), (int) substr( $cf, 0, 4 ) ) ) {
+			$cf = substr( $cf, 0, 4 ) . '-02-28';
+		}
+		if ( ! checkdate( (int) substr( $ct, 5, 2 ), (int) substr( $ct, 8, 2 ), (int) substr( $ct, 0, 4 ) ) ) {
+			$ct = substr( $ct, 0, 4 ) . '-02-28';
+		}
+		return array( $cf, $ct );
+	}
+	$len = (int) floor( ( $t - $f ) / DAY_IN_SECONDS ) + 1;
+	return array( gmdate( 'Y-m-d', $f - $len * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $f - DAY_IN_SECONDS ) );
+}
+
+/**
+ * Whitelist the ?sn_compare GET value: 'prev' | 'yoy' | 'off' (default).
+ *
+ * @param mixed $raw
+ * @return string
+ */
+function snt_analytics_resolve_compare( $raw ) {
+	$c = (string) $raw;
+	return in_array( $c, array( 'prev', 'yoy' ), true ) ? $c : 'off';
 }
 
 /**
@@ -286,6 +334,7 @@ function snt_analytics_render_dashboard() {
 	$from_raw  = isset( $_GET['sn_from'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_from'] ) ) : '';
 	$to_raw    = isset( $_GET['sn_to'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_to'] ) ) : '';
 	$class     = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
+	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
 	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
@@ -322,7 +371,7 @@ function snt_analytics_render_dashboard() {
 	}
 	$totals = array();
 	if ( ! $owns_chrome ) {
-		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity );
+		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
 		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
 		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
