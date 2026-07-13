@@ -125,6 +125,7 @@ $GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
 $html = sn_uptime_status_rail_strip();
 uw_ok( false !== strpos( $html, '<details class="sn-an-uptime">' ), 'card: native details wrapper (WAI-APG disclosure)' );
 uw_ok( false === strpos( $html, '<details class="sn-an-uptime" open' ), 'card: starts collapsed' );
+uw_ok( false !== strpos( $html, '<summary aria-label="Uptime status">' ), 'card: summary carries a concise accessible name (painted list would otherwise flatten into a run-on name)' );
 $sum_end = (int) strpos( $html, '</summary>' );
 uw_ok( false !== strpos( substr( $html, 0, $sum_end ), 'data-sn-uptime-status' ), 'card: summary carries the status mount (monitor names + states ARE the summary)' );
 uw_ok( false !== strpos( substr( $html, $sum_end ), 'data-sn-uptime-lazy-detail' ), 'card: expansion carries the LAZY detail mount' );
@@ -145,7 +146,8 @@ echo "\nTest 7: uptime-status.js lazy-detail contract\n";
 $js = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.js' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-lazy-detail' ), 'JS knows the lazy mount' );
 uw_ok( false !== strpos( $js, "addEventListener( 'toggle'" ) && false !== strpos( $js, 'sn-an-uptime' ), 'JS binds the native details toggle (capture — toggle does not bubble)' );
-uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-open path (postbox surfaces stay servable)' );
+uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-open path (for a future collapsible-panel producer — none ship today)' );
+uw_ok( false !== strpos( $js, "closest( 'summary' )" ) && false !== strpos( $js, "setAttribute( 'aria-label'" ), 'JS swaps the summary accessible name to the status meta after paint' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
 
 uw_fire_enqueue( 'dashboard_page_sn-analytics' );

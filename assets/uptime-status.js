@@ -78,6 +78,14 @@
 
 		var down = data.rows.filter( function ( r ) { return 'alert' === r.level; } ).length;
 		mount.appendChild( el( 'p', 'sn-uw-meta', down ? down + ' down · Better Stack' : 'All systems go · Better Stack' ) );
+
+		// The merged rail card's <summary> flattens every descendant into its
+		// accessible name — give AT users the concise meta line instead of the
+		// run-on monitor list (v9.37.0 D1).
+		var summary = mount.closest ? mount.closest( 'summary' ) : null;
+		if ( summary ) {
+			summary.setAttribute( 'aria-label', down ? down + ' down · Better Stack' : 'All systems go · Better Stack' );
+		}
 	}
 
 	// Duration like "12m" / "1h 04m" for the incidents log.
@@ -188,9 +196,10 @@
 	// Lazy detail: fetch the detail tier on FIRST reveal, once. v9.37.0 (D1):
 	// the merged rail Uptime card is a native <details> — bind its toggle in
 	// the capture phase ('toggle' does not bubble). The legacy sn-an-panel-open
-	// path (assets/admin.js postbox collapsibles) stays servable. The eager
-	// [data-sn-uptime-detail] path in boot() still serves any surface that
-	// wants detail at load; the Analytics page ships none.
+	// listener is kept for a future collapsible-panel producer — no surface
+	// emits data-sn-an-collapsible today. The eager [data-sn-uptime-detail]
+	// path in boot() still serves any surface that wants detail at load; the
+	// Analytics page ships none.
 	function loadLazyDetail( mount ) {
 		if ( ! mount || mount.hasAttribute( 'data-sn-uptime-loaded' ) || 'function' !== typeof window.sntAbilityRun ) {
 			return;

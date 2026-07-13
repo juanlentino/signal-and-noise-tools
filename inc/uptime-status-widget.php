@@ -67,7 +67,7 @@ function sn_uptime_status_rail_strip() {
 		'panel_class' => 'sn-an-rail-tile sn-uptime-strip',
 	) );
 	echo '<details class="sn-an-uptime">';
-	echo '<summary><span class="sn-uptime-status" data-sn-uptime-status>'
+	echo '<summary aria-label="' . esc_attr__( 'Uptime status', 'signal-and-noise-tools' ) . '"><span class="sn-uptime-status" data-sn-uptime-status>'
 		. '<span class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-and-noise-tools' ) . '</span>'
 		. '</span></summary>';
 	echo '<div class="sn-uptime-status" data-sn-uptime-lazy-detail>'
