@@ -5,6 +5,7 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return $s; } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 
 // Stubs: signal engine + narrator (recorders/fixtures).
 $GLOBALS['__sig'] = array();

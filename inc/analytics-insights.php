@@ -9,15 +9,18 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * First sentence of a narrative, tag-stripped and clamped for the headline
- * summary row (D1 §3): split on the first sentence terminator, then clamp to
- * 140 display chars with an ellipsis. mb-safe; a narrative with no terminator
- * returns the clamped whole string.
+ * summary row (D1 §3): split on the first sentence terminator, then clamped
+ * to 140 display chars (ellipsis only when truncated). mb-safe; a narrative
+ * with no terminator returns the clamped whole string.
  *
  * @param string $text Narrative (may contain HTML).
  * @return string Plain-text lead.
  */
 function snt_analytics_headline_lead( $text ) {
-	$text = trim( wp_strip_all_tags( (string) $text ) );
+	// Block/list boundaries must survive the tag strip as whitespace — the
+	// fallback digest concatenates sibling <p>/<ul> nodes with zero space.
+	$text = preg_replace( '~(</[a-z][a-z0-9]*>|<br\s*/?\s*>)~i', '$1 ', (string) $text );
+	$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $text ) ) );
 	if ( '' === $text ) {
 		return '';
 	}
@@ -31,11 +34,13 @@ function snt_analytics_render_signal_chip( $signal ) {
 	$tier = ucfirst( (string) ( $signal['tier'] ?? 'predictive' ) );
 	$dir  = (string) ( $signal['direction'] ?? '' );
 	$icon = ( 'up' === $dir ) ? '▲' : ( ( 'down' === $dir ) ? '▼' : '•' );
+	$sr   = ( 'up' === $dir ) ? __( 'rising', 'signal-and-noise-tools' ) : ( ( 'down' === $dir ) ? __( 'falling', 'signal-and-noise-tools' ) : '' );
 	return '<span class="sn-an-signal sn-an-signal--' . esc_attr( (string) ( $signal['kind'] ?? '' ) ) . '">'
 		. ( function_exists( 'snt_analytics_tier_badge' ) && '' !== snt_analytics_tier_badge( strtolower( $tier ) )
 			? snt_analytics_tier_badge( strtolower( $tier ) ) . ' '
 			: '<span class="sn-an-signal-badge">' . esc_html( $tier ) . '</span> ' )
 		. '<span class="sn-an-signal-dir" aria-hidden="true">' . esc_html( $icon ) . '</span> '
+		. ( '' !== $sr ? '<span class="screen-reader-text">' . esc_html( $sr ) . '</span> ' : '' )
 		. esc_html( (string) ( $signal['plain_label'] ?? '' ) )
 		. ' <span class="sn-an-signal-conf">' . esc_html( (string) ( $signal['confidence'] ?? '' ) ) . '</span>'
 		. '</span>';

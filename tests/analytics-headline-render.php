@@ -47,11 +47,17 @@ $long = str_repeat( 'word ', 40 ) . 'end.';
 $clamped = snt_analytics_headline_lead( $long );
 ok( mb_strwidth( $clamped, 'UTF-8' ) <= 140 && '…' === mb_substr( $clamped, -1, 1, 'UTF-8' ), 'lead: >140-char sentence clamps to <=140 display width ending in the ellipsis' );
 ok( 'Tráfico aumentó 42% — señal clara.' === snt_analytics_headline_lead( 'Tráfico aumentó 42% — señal clara. Más contexto aquí.' ), 'lead: mb-safe on multibyte narrative' );
+ok( 'This period: 1,204 views, 389 visits.' === snt_analytics_headline_lead( '<p class="sn-an-digest-head">This period: 1,204 views, 389 visits.</p><p class="sn-an-note">No standout signals in this window.</p>' ), 'lead: adjacent block elements do not glue sentences (the real fallback-digest shape)' );
 
 echo "\nGroup: chip glyph a11y (D1 §6)\n";
 $chip = snt_analytics_render_signal_chip( $sig );
 ok( false !== strpos( $chip, '<span class="sn-an-signal-dir" aria-hidden="true">' ), 'chip: direction glyph wrapped aria-hidden (plain-text label carries the meaning)' );
 ok( false !== strpos( $chip, 'Views ran above' ), 'chip: plain_label still present' );
+$chip_dn = snt_analytics_render_signal_chip( $sig2 );
+ok( false !== strpos( $chip, '<span class="screen-reader-text">rising</span>' ), 'chip: up direction announced via sr-text (forecast labels carry no direction wording)' );
+ok( false !== strpos( $chip_dn, '<span class="screen-reader-text">falling</span>' ), 'chip: down direction announced via sr-text' );
+$chip_flat = snt_analytics_render_signal_chip( array( 'kind' => 'forecast', 'tier' => 'predictive', 'direction' => 'flat', 'confidence' => 'medium', 'plain_label' => 'Views: next 7 days = 42.0/day' ) );
+ok( false === strpos( $chip_flat, 'screen-reader-text' ), 'chip: flat direction adds no sr-noise' );
 
 echo "\nGroup: headline band — collapsed summary\n";
 $h = band( array( $sig, $sig2 ), array( 'digest' => '<p>Views rose 42% this week. Second sentence with detail.</p>', 'source' => 'ai' ) );
