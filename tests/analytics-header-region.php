@@ -194,6 +194,17 @@ ok( false !== strpos( (string) ( $GLOBALS['__hr_cards_basis'] ?? '' ), 'last yea
 ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day', 'off' ); ob_end_clean();
 ok( array( '2026-06-24', '2026-06-30' ) === ( $GLOBALS['__hr_deltas_cwin'] ?? null ), 'frame: off keeps the quiet prev basis (explicit prev window passed)' );
 ok( 'prev' === ( $GLOBALS['__hr_movers_mode'] ?? '' ), 'frame: off movers meta stays the default' );
+// range=all + yoy (T3 review, Important): the compare pills render at every
+// range, so this combination is reachable. At 'all' no compare window resolves
+// ($cwin_basis = null) and the movers fall back to prior-period DATA — the
+// LABEL must degrade with it to 'prev', or the tile would claim "vs same
+// period last year" over prior-window numbers.
+unset( $GLOBALS['__hr_movers_mode'], $GLOBALS['__hr_movers_cwin'] );
+ob_start(); snt_analytics_render_header_region( 'content', 'all', 'human', '2026-07-01', '2026-07-07', 'day', 'yoy' ); ob_end_clean();
+ok( 'prev' === ( $GLOBALS['__hr_movers_mode'] ?? '' ), 'frame: range=all + yoy degrades the movers label to the truthful prev basis (window and label stay matched on the fallback path)' );
+// array_key_exists (not ??): the recorded value IS null, and ?? cannot tell a
+// recorded null from "the tile was never called" (we unset the key above).
+ok( array_key_exists( '__hr_movers_cwin', $GLOBALS ) && null === $GLOBALS['__hr_movers_cwin'], 'frame: range=all passes no explicit window (movers fall back to prior-period data)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

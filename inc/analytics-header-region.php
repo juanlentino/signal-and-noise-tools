@@ -47,9 +47,13 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	// once, and threaded into every delta surface — badges, engaged, the Read
 	// annotation's inputs, and Movers. Window and label derive from the SAME
 	// $compare so a mode/window mismatch cannot exist at this (the only) call
-	// site. 'off' keeps the quiet prev basis (badges stay glanceable, no
+	// site — and the basis carries the SAME range=all gate as the window, so
+	// the pair stays matched on the fallback path too: at 'all' no compare
+	// window resolves, movers fall back to prior-period data, and the basis
+	// degrades to 'prev' so their label tells the truth about that data.
+	// 'off' keeps the quiet prev basis (badges stay glanceable, no
 	// overlay/note); 'yoy' switches EVERYTHING.
-	$basis       = ( 'yoy' === (string) $compare ) ? 'yoy' : 'prev';
+	$basis       = ( 'yoy' === (string) $compare && 'all' !== (string) $range ) ? 'yoy' : 'prev';
 	$cwin_basis  = ( 'all' === (string) $range || ! function_exists( 'snt_analytics_compare_window' ) )
 		? null
 		: snt_analytics_compare_window( $from, $to, $basis );

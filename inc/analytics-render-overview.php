@@ -153,7 +153,7 @@ function snt_analytics_render_delta_badge_kpi( $delta, $basis_label = '' ) {
 	$prev_title = '';
 	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
 		$prev       = (float) $delta['previous'];
-		$prev_title = ( '' !== (string) $basis_label ? (string) $basis_label : 'previous period' ) . ': ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
+		$prev_title = ( '' !== (string) $basis_label ? (string) $basis_label : __( 'previous period', 'signal-and-noise-tools' ) ) . ': ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
 	}
 	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"'
 		. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
