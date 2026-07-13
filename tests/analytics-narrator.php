@@ -51,6 +51,15 @@ $GLOBALS['__ai_return'] = "Strong week. Views spiked on the 20th.\n\nNext: refre
 $dg = sn_analytics_digest( $digest_summary, $signals );
 ok( 'ai' === $dg['source'] && false !== strpos( $dg['digest'], 'refresh /notes/x' ), 'digest: uses the AI longer-form path when it returns text' );
 ok( false !== strpos( (string) $GLOBALS['__ai_system'], 'NEVER invent' ) && false !== strpos( (string) $GLOBALS['__ai_prompt'], '1204' ) && false !== strpos( (string) $GLOBALS['__ai_prompt'], 'decaying' ), 'digest: prompt carries the summary numbers + signals; system forbids invention' );
+
+// v9.38.0 (D2): the digest is now the screen's ONE voice — it accepts the top
+// deterministic recommendation card's title as optional context so the
+// start-here thread survives the recs-brief retirement.
+sn_analytics_digest( $digest_summary, $signals, '3 cooling posts worth a refresh' );
+ok( false !== strpos( (string) $GLOBALS['__ai_prompt'], 'Top recommended action: 3 cooling posts worth a refresh' ), 'digest: top-action context reaches the AI prompt' );
+sn_analytics_digest( $digest_summary, $signals );
+ok( false === strpos( (string) $GLOBALS['__ai_prompt'], 'Top recommended action' ), 'digest: no action, no context line' );
+
 $GLOBALS['__ai_return'] = new WP_Error();
 $dg2 = sn_analytics_digest( $digest_summary, $signals );
 ok( 'fallback' === $dg2['source'] && false !== strpos( $dg2['digest'], '1,204 views' ), 'digest: budget-cap WP_Error → deterministic fallback (the wrapper returns WP_Error over budget)' );

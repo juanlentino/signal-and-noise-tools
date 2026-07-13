@@ -20,15 +20,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Build the ordered recommendation card list. Each rule returns one card or null;
  * nulls are filtered. Empty result is first-class ("nothing needs attention").
  *
+ * v9.38.0 (D2): request-level memo — the headline band (every shared-chrome
+ * view) AND the Content panel both consume the cards in one request; the
+ * seo-meta rule's get_posts() must not run twice. $refresh re-primes (CLI
+ * suites use it at fixture boundaries; production never passes it).
+ *
+ * @param bool $refresh Recompute even when the request memo is primed.
  * @return array<int,array{id:string,title:string,detail:string,count:int,action_url:string,action_label:string}>
  */
-function sn_analytics_recommendations() {
-	$cards = array(
-		sn_analytics_rec_refresh(),
-		sn_analytics_rec_unlinked(),
-		sn_analytics_rec_seo_meta(),
-	);
-	return array_values( array_filter( $cards ) );
+function sn_analytics_recommendations( $refresh = false ) {
+	static $memo = null;
+	if ( $refresh || null === $memo ) {
+		$cards = array(
+			sn_analytics_rec_refresh(),
+			sn_analytics_rec_unlinked(),
+			sn_analytics_rec_seo_meta(),
+		);
+		$memo = array_values( array_filter( $cards ) );
+	}
+	return $memo;
 }
 
 /**
@@ -180,15 +190,16 @@ function snt_analytics_render_recommendations_panel() {
 			: '',
 	) );
 	if ( empty( $cards ) ) {
-		echo '<p class="sn-an-empty">' . esc_html__( 'Nothing needs attention right now.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-empty">' . esc_html__( 'No action cards right now.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}
-	// v9.33.0 (maturity I4): the AI priority brief leads the panel when the seam
-	// filled it; empty brief (AI off/over-budget/silent) renders exactly as before.
+	// v9.38.0 (D2): the AI priority brief retired — this div only renders when the
+	// documented 'sn_analytics_recommender' filter deliberately fills it. Empty
+	// brief (the default) renders exactly the deterministic cards, no div.
 	$brief = trim( (string) ( $rec['brief'] ?? '' ) );
 	if ( '' !== $brief ) {
-		echo '<div class="sn-an-rec-brief" data-source="' . esc_attr( (string) ( $rec['source'] ?? 'ai' ) ) . '">' . wp_kses_post( $brief ) . '</div>';
+		echo '<div class="sn-an-rec-brief" data-source="' . esc_attr( (string) ( $rec['source'] ?? 'filter' ) ) . '">' . wp_kses_post( $brief ) . '</div>';
 	}
 	echo '<ul class="sn-an-recs">';
 	foreach ( $cards as $c ) {
@@ -220,48 +231,21 @@ function snt_analytics_render_recommendations_panel() {
 }
 
 /**
- * v9.33.0 (maturity I4): recommendations behind the narrator-style seam. The
- * rule cards are the deterministic floor and pass through VERBATIM — the AI
- * path only ADDS a priority brief reasoning over cards + live signals; it can
- * never invent, reorder, or rewrite the deep-linked actions. Swap seam: the
- * 'sn_analytics_recommender' filter can replace the whole result. The AI
- * wrapper returns WP_Error over the monthly budget; is_string() routes that
- * to the floor.
+ * v9.38.0 (D2, single voice): the deterministic cards ARE the result — the AI
+ * priority brief retired into the digest (the screen's one voice; the band
+ * feeds the top card's title into the digest prompt instead). The documented
+ * 'sn_analytics_recommender' filter seam survives unchanged and remains the
+ * only way a brief reaches the panel.
  *
- * @param array|null $signals Signal[] to reason over; null → self-fetch the
- *                            trailing 14 days from the signal engine (guarded).
+ * @param array|null $signals Signal[] handed to the filter; never self-fetched (v9.38.0).
  * @return array{cards:array, brief:string, source:string, model:?string}
  */
 function sn_analytics_recommend( $signals = null ) {
-	$cards = sn_analytics_recommendations();
-	if ( null === $signals && function_exists( 'sn_analytics_signals' ) ) {
-		$to      = gmdate( 'Y-m-d' );
-		$opts    = function_exists( 'sn_analytics_signal_opts' ) ? sn_analytics_signal_opts() : array();
-		$signals = sn_analytics_signals( gmdate( 'Y-m-d', strtotime( $to . ' -13 days' ) ), $to, 'human', $opts );
-	}
+	$cards    = sn_analytics_recommendations();
 	$signals  = is_array( $signals ) ? $signals : array();
 	$override = function_exists( 'apply_filters' ) ? apply_filters( 'sn_analytics_recommender', null, $cards, $signals ) : null;
-	if ( is_array( $override ) && isset( $override['cards'] ) ) { return $override; }
-	$ai = sn_analytics_recommend_ai( $cards, $signals );
-	if ( is_array( $ai ) && '' !== trim( (string) ( $ai['brief'] ?? '' ) ) ) {
-		return array( 'cards' => $cards, 'brief' => (string) $ai['brief'], 'source' => 'ai', 'model' => (string) ( $ai['model'] ?? 'wp-ai-client' ) );
+	if ( is_array( $override ) && isset( $override['cards'] ) ) {
+		return $override;
 	}
 	return array( 'cards' => $cards, 'brief' => '', 'source' => 'fallback', 'model' => null );
-}
-
-/** AI priority brief over cards + signals, or null (no cards/absent/empty/error). */
-function sn_analytics_recommend_ai( $cards, $signals ) {
-	if ( empty( $cards ) || ! function_exists( 'snt_ai_generate_with_constraints' ) ) { return null; }
-	$facts = array();
-	foreach ( (array) $cards as $c ) {
-		$facts[] = '- ACTION CARD: ' . (string) ( $c['title'] ?? '' ) . ' — ' . (string) ( $c['detail'] ?? '' );
-	}
-	foreach ( array_slice( (array) $signals, 0, 6 ) as $s ) {
-		$facts[] = '- SIGNAL: ' . (string) ( $s['plain_label'] ?? '' ) . ' [' . (string) ( $s['kind'] ?? '' ) . ', confidence ' . (string) ( $s['confidence'] ?? '' ) . ']';
-	}
-	$system = 'You are prioritizing site-analytics action cards. Reason ONLY over the provided cards and signals. NEVER invent a number, action, or URL. Say which card to act on first and why, tying it to the signals. 2-4 sentences. Plain text.';
-	$prompt = "Inputs:\n" . implode( "\n", $facts ) . "\n\nWrite the priority brief.";
-	$text   = snt_ai_generate_with_constraints( $prompt, $system, 300, 'analytics_recs' );
-	if ( ! is_string( $text ) || '' === trim( $text ) ) { return null; }
-	return array( 'brief' => '<p>' . esc_html( trim( $text ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 }

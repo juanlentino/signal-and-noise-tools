@@ -22,13 +22,18 @@ $GLOBALS['__de_dim']    = array();   // referrer rows (and network rows for the 
 $GLOBALS['__de_totals'] = array();   // keyed "$from|$to" → totals
 $GLOBALS['__de_class']  = array();   // class_totals
 $GLOBALS['__de_dim_calls'] = array();
+$GLOBALS['__totals_by_window'] = array(); // D2: explicit-cwin override, keyed "$from|$to" — takes priority over __de_totals
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
 	$GLOBALS['__de_dim_calls'][] = array( $dim, $from, $to, $class, $limit );
 	$key = $dim . '|' . $class;
 	return $GLOBALS['__de_dim'][ $key ] ?? array();
 }
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
-	return $GLOBALS['__de_totals'][ "$from|$to" ] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0, 'time_avg' => 0 );
+	$key = "$from|$to";
+	if ( isset( $GLOBALS['__totals_by_window'][ $key ] ) ) {
+		return $GLOBALS['__totals_by_window'][ $key ];
+	}
+	return $GLOBALS['__de_totals'][ $key ] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0, 'time_avg' => 0 );
 }
 function sn_analytics_class_totals( $from, $to ) {
 	return $GLOBALS['__de_class'];
@@ -87,6 +92,24 @@ $GLOBALS['__de_totals']['2026-07-08|2026-07-14'] = array( 'views' => 50, 'visits
 // (prior window 2026-07-01|2026-07-07 unset → zeros)
 $d2 = sn_analytics_period_deltas( '2026-07-08', '2026-07-14', 'human' );
 ok( $d2['views']['pct'] === null && $d2['views']['dir'] === 'up', 'deltas: prior=0 → pct null but dir up (new traffic, no divide-by-zero)' );
+
+echo "\nGroup: D2 — explicit compare window (one frame)\n";
+$GLOBALS['__totals_by_window'] = array(
+	'2026-07-06|2026-07-12' => array( 'views' => 200, 'visits' => 60, 'scroll_avg' => 50.0, 'time_avg' => 90.0 ),
+	'2026-06-29|2026-07-05' => array( 'views' => 100, 'visits' => 30, 'scroll_avg' => 40.0, 'time_avg' => 80.0 ),
+	'2025-07-06|2025-07-12' => array( 'views' => 400, 'visits' => 90, 'scroll_avg' => 60.0, 'time_avg' => 70.0 ),
+);
+$d_prev = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human' );
+ok( 100 === (int) ( $d_prev['views']['previous'] ?? -1 ) && 'up' === ( $d_prev['views']['dir'] ?? '' ), 'period_deltas: null cwin keeps the prior-window basis (back-compat pin)' );
+$d_yoy = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06', '2025-07-12' ) );
+ok( 400 === (int) ( $d_yoy['views']['previous'] ?? -1 ) && 'down' === ( $d_yoy['views']['dir'] ?? '' ), 'period_deltas: explicit cwin is the basis (yoy window read, prior window ignored)' );
+$d_trunc = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06' ) );
+ok( 100 === (int) ( $d_trunc['views']['previous'] ?? -1 ), 'period_deltas: truncated cwin falls back to the prior window (no silent zero-row read)' );
+$d_sentinel = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '', '' ) );
+ok( 100 === (int) ( $d_sentinel['views']['previous'] ?? -1 ), 'period_deltas: the off-sentinel array(\'\',\'\') falls back to the prior window' );
+ok( array( '2025-07-06', '2025-07-12' ) === sn_analytics_resolve_cwin( array( '2025-07-06', '2025-07-12' ), '2026-07-06', '2026-07-12' ), 'resolve_cwin: well-formed tuple wins' );
+ok( array( '2026-06-29', '2026-07-05' ) === sn_analytics_resolve_cwin( null, '2026-07-06', '2026-07-12' ), 'resolve_cwin: null falls back to the prior window' );
+$GLOBALS['__totals_by_window'] = array();
 
 echo "\nGroup: bot breakdown\n";
 $GLOBALS['__de_class'] = array(

@@ -31,10 +31,30 @@ if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t
 if ( ! function_exists( 'sn_analytics_prior_window' ) ) {
 	function sn_analytics_prior_window( $from, $to ) { return array( 'P_FROM', 'P_TO' ); }
 }
+// D2: a guarded stub mirroring inc/analytics-derived.php's sn_analytics_resolve_cwin()
+// real semantics. This suite deliberately does NOT require analytics-derived.php —
+// its real sn_analytics_prior_window() would shadow the 'P_FROM'/'P_TO' fixture
+// switch every pre-D2 assertion below depends on (and would fatal-redeclare against
+// the local stub above, since the real file declares it unconditionally). The stub
+// still exercises the real fallback contract: well-formed explicit tuple wins,
+// else defer to sn_analytics_prior_window() (this suite's own stub).
+if ( ! function_exists( 'sn_analytics_resolve_cwin' ) ) {
+	function sn_analytics_resolve_cwin( $cwin, $from, $to ) {
+		if ( is_array( $cwin ) && isset( $cwin[0], $cwin[1] ) && '' !== (string) $cwin[0] && '' !== (string) $cwin[1] ) {
+			return array( (string) $cwin[0], (string) $cwin[1] );
+		}
+		return sn_analytics_prior_window( $from, $to );
+	}
+}
 $GLOBALS['__paths_calls'] = array();
+$GLOBALS['__paths_by_window'] = array(); // D2: explicit-window override, keyed "$from|$to" — takes priority over the switch below
 if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 	function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
 		$GLOBALS['__paths_calls'][] = array( $from, $to, $class, $limit );
+		$key = "$from|$to";
+		if ( isset( $GLOBALS['__paths_by_window'][ $key ] ) ) {
+			return $GLOBALS['__paths_by_window'][ $key ];
+		}
 		if ( 'P_FROM' === $from ) {
 			return array(
 				array( 'path' => '/a/', 'views' => 100 ),
@@ -101,15 +121,18 @@ echo "\nTest: movers tile enrichment (v8.5.0 rail-fill)\n";
 ok( false !== strpos( $html, 'sn-an-mover-views' ), 'rows carry the muted current-views figure beside the delta' );
 
 echo "\nTest: movers tile empty state\n";
-$GLOBALS['__transients'] = array( 'sn_an_movers_' . md5( '2026-01-01|2026-01-02|human|5' ) => array() );
+// D2: the cache key now suffixes the RESOLVED basis window ('P_FROM'/'P_TO' here,
+// this suite's default-cwin fallback — see sn_analytics_resolve_cwin() stub above).
+$GLOBALS['__transients'] = array( 'sn_an_movers_' . md5( '2026-01-01|2026-01-02|human|5|P_FROM|P_TO' ) => array() );
 $html = capture( function () { snt_analytics_render_movers_tile( '2026-01-01', '2026-01-02', 'human' ); } );
 ok( false !== strpos( $html, 'No movement in this range yet.' ), 'empty state copy' );
 
 echo "\nTest: movers tile renders the annotation callout (integration)\n";
 // Seed the tile's own transient (limit 5) with a skewing set so the render's
 // internal sn_analytics_movers() hits it, then assert the wired read appears.
+// D2: key includes the resolved basis suffix (see empty-state test above).
 $GLOBALS['__transients'] = array();
-$GLOBALS['__transients'][ 'sn_an_movers_' . md5( '2026-07-01|2026-07-07|human|5' ) ] = array(
+$GLOBALS['__transients'][ 'sn_an_movers_' . md5( '2026-07-01|2026-07-07|human|5|P_FROM|P_TO' ) ] = array(
 	array( 'path' => '/a/', 'views' => 5,  'delta' => -40 ),
 	array( 'path' => '/b/', 'views' => 10, 'delta' => -30 ),
 	array( 'path' => '/c/', 'views' => 15, 'delta' => -20 ),
@@ -118,6 +141,36 @@ $GLOBALS['__transients'][ 'sn_an_movers_' . md5( '2026-07-01|2026-07-07|human|5'
 $anno_html = capture( function () { snt_analytics_render_movers_tile( '2026-07-01', '2026-07-07', 'human' ); } );
 ok( false !== strpos( $anno_html, 'sn-an-note' ), 'render integration: skewing movers emit the annotation callout' );
 ok( false !== strpos( $anno_html, 'Movement skews down: 3 of 4 movers lost views.' ), 'render integration: callout carries the movers read for the tile data' );
+
+echo "\nGroup: D2 — movers follow the compare frame\n";
+$GLOBALS['__transients']      = array();
+$GLOBALS['__paths_calls']     = array();
+// Distinct fixture for the yoy basis window only — the current window ('2026-07-06'
+// .. '2026-07-12') falls through to the existing generic "current" fixture above
+// (unchanged for both calls), so any diff between $m_prev and $m_yoy is entirely
+// attributable to which PRIOR window fed the diff.
+$GLOBALS['__paths_by_window'] = array(
+	'2025-07-06|2025-07-12' => array(
+		array( 'path' => '/a/', 'views' => 20 ),
+		array( 'path' => '/z/', 'views' => 90 ),
+	),
+);
+$m_prev = sn_analytics_movers( '2026-07-06', '2026-07-12', 'human', 3 );
+$m_yoy  = sn_analytics_movers( '2026-07-06', '2026-07-12', 'human', 3, array( '2025-07-06', '2025-07-12' ) );
+ok( $m_prev !== $m_yoy, 'movers: yoy window computes a different diff (not served from the prev cache)' );
+ok( 2 === count( $GLOBALS['__transients'] ), 'movers: cache key includes the resolved basis (two windows, two transients)' );
+
+ob_start();
+snt_analytics_render_movers_tile( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06', '2025-07-12' ), 'yoy' );
+$tile_yoy = (string) ob_get_clean();
+ok( false !== strpos( $tile_yoy, 'vs same period last year' ), 'movers tile: yoy meta label' );
+
+ob_start();
+snt_analytics_render_movers_tile( '2026-07-06', '2026-07-12', 'human' );
+$tile_prev = (string) ob_get_clean();
+ok( false !== strpos( $tile_prev, 'vs prior period' ), 'movers tile: default meta label unchanged' );
+
+$GLOBALS['__paths_by_window'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

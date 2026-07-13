@@ -276,7 +276,7 @@ function snt_analytics_render_mirrors() {
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Configured elsewhere', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Settings analytics depends on that live on other tabs — shown read-only; follow a link to change one.', 'signal-and-noise-tools' ) . '</p>';
 
-	// AI model + monthly budget (drives the digest/recommendations tier).
+	// AI model + monthly budget (drives the digest tier).
 	$model  = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
 	$models = function_exists( 'sn_theme_ai_models' ) ? sn_theme_ai_models() : array();
 	$label  = isset( $models[ $model ] ) ? (string) $models[ $model ] : $model;

@@ -116,6 +116,25 @@ function sn_analytics_prior_window( $from, $to ) {
 	return array( gmdate( 'Y-m-d', $pfrom ), gmdate( 'Y-m-d', $pto ) );
 }
 
+/**
+ * Resolve the comparison window for the one-frame plumbing (v9.38.0 D2):
+ * a well-formed explicit 2-tuple wins; anything else (null, sentinel
+ * array('',''), truncated or malformed input) falls back to the adjacent
+ * prior window so a bad caller degrades loudly-visible-as-prev, never as a
+ * silent zero-row read.
+ *
+ * @param array|null $cwin Explicit window candidate.
+ * @param string     $from Current window start (Y-m-d).
+ * @param string     $to   Current window end (Y-m-d).
+ * @return array{0:string,1:string}
+ */
+function sn_analytics_resolve_cwin( $cwin, $from, $to ) {
+	if ( is_array( $cwin ) && isset( $cwin[0], $cwin[1] ) && '' !== (string) $cwin[0] && '' !== (string) $cwin[1] ) {
+		return array( (string) $cwin[0], (string) $cwin[1] );
+	}
+	return sn_analytics_prior_window( $from, $to );
+}
+
 const SN_ANALYTICS_ENGAGED_TIME_MS = 10000; // ≥10s = an "engaged" pageview (GA4-style)
 
 // Anomaly arc (v8.9.0) thresholds.
@@ -193,11 +212,15 @@ function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) {
  * Period-over-period delta for the engaged-pageview rate, shaped like
  * sn_analytics_period_deltas() entries so it renders with the same badge.
  *
+ * @param string $from  Inclusive start day, YYYY-MM-DD.
+ * @param string $to    Inclusive end day, YYYY-MM-DD.
+ * @param string $class Traffic class (default 'human').
+ * @param array{0:string,1:string}|null $cwin Explicit comparison window (v9.38.0 one-frame); null = the adjacent prior window.
  * @return array{current:?int, previous:?int, pct:?int, dir:string}
  */
-function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
+function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human', $cwin = null ) {
 	$cur = sn_analytics_engaged_rate( $from, $to, $class );
-	list( $pf, $pt ) = sn_analytics_prior_window( $from, $to );
+	list( $pf, $pt ) = sn_analytics_resolve_cwin( $cwin, $from, $to );
 	$prev = sn_analytics_engaged_rate( $pf, $pt, $class );
 	if ( null === $cur || null === $prev ) {
 		$d = array( 'pct' => null, 'dir' => 'flat' );
@@ -219,14 +242,15 @@ function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
+ * @param array{0:string,1:string}|null $cwin Explicit comparison window (v9.38.0 one-frame); null = the adjacent prior window.
  * @return array<string, array{current:int|float, previous:int|float, pct:?int, dir:string}>
  */
-function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
+function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null ) {
 	$cur = function_exists( 'sn_analytics_range_totals' )
 		? sn_analytics_range_totals( $from, $to, $class )
 		: array();
 
-	list( $prior_from, $prior_to ) = sn_analytics_prior_window( $from, $to );
+	list( $prior_from, $prior_to ) = sn_analytics_resolve_cwin( $cwin, $from, $to );
 	$prev = function_exists( 'sn_analytics_range_totals' )
 		? sn_analytics_range_totals( $prior_from, $prior_to, $class )
 		: array();

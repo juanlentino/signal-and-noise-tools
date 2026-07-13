@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.38.0] - 2026-07-13: Analytics dashboard D2 — one comparison frame, one narrative voice
+
+**Headline:** At any moment every comparison surface on the dashboard now shares ONE window: the KPI delta badges, the engaged badge, the Overview annotation inputs, and the Movers tile all follow the `sn_compare` selection (previously they were pinned to the prior period while the overlay + note followed the pill — two frames on screen with year-over-year selected). Off keeps the quiet default (implicit previous period, no overlay/note); `yoy` switches everything — KPI tooltips and the Movers meta name the actual basis, and at range=all the label truthfully degrades with the data. And the screen has ONE AI voice: the Recommendations panel's separate AI brief is retired — the digest (headline band) absorbs the start-here thread by receiving the top deterministic card as prompt context. Content view drops from two AI calls per load to one. Second increment of the dashboard revamp (D2 of 5).
+
+> **Why MINOR:** new user-visible comparison semantics + reduced AI surface; no breaking change — `sn_analytics_recommend()` and the documented `sn_analytics_recommender` filter survive (the filter remains the only path to a panel brief), and every new parameter is optional with prior behavior as the default.
+
+### Added
+- [inc/analytics-derived.php](inc/analytics-derived.php): `sn_analytics_resolve_cwin()` — the one hardened comparison-window resolver (well-formed tuple wins; null/sentinel/truncated input degrades to the prior window, never a silent zero-row read).
+
+### Changed
+- [inc/analytics-derived.php](inc/analytics-derived.php): `sn_analytics_period_deltas()` + `sn_analytics_engaged_rate_delta()` accept an explicit comparison window (null = adjacent prior period — the widget/glance callers are untouched).
+- [inc/analytics-movers.php](inc/analytics-movers.php): movers accept the frame window; the transient key includes the RESOLVED basis window (yoy can never serve cached prev diffs); the tile meta names the mode.
+- [inc/analytics-header-region.php](inc/analytics-header-region.php) + [inc/analytics-render-overview.php](inc/analytics-render-overview.php): the region resolves the frame once (basis/window/label from the same `sn_compare`, range=all gated identically so window and label never diverge) and threads it into badges (tooltip names the basis), engaged, and Movers; overlay + note logic unchanged (off still renders neither).
+- [inc/analytics-recommendations.php](inc/analytics-recommendations.php): `sn_analytics_recommend_ai()` deleted along with its private trailing-14d signals fetch; the deterministic cards and the `sn_analytics_recommender` filter seam are untouched; cards are memoized per request (the band + the Content panel share one computation — the seo-meta rule's `get_posts()` no longer runs per surface); panel empty state reworded ("No action cards right now.") so the band's fallback line is no longer duplicated.
+- [inc/analytics-narrator.php](inc/analytics-narrator.php) + [inc/analytics-insights.php](inc/analytics-insights.php): the digest accepts the top recommendation as optional prompt context; the band feeds it the first card's title (guarded; memoized sources only).
+
+### Tests
+- New groups across `analytics-derived` (explicit window + hardened resolver pins), `analytics-engaged`, `analytics-movers` (resolved-basis cache key), `analytics-header-region` (frame-threading armor incl. the range=all matched-pair pin), `analytics-admin` (yoy flips tooltip + movers meta; the v9.34.0 off-invariant stays byte-green), `analytics-recommendations` (AI leg gone, zero signals fetches, filter seam intact, request-memo contract), `analytics-narrator` (top-action prompt context), `analytics-view-content` + `analytics-signal-opts-wiring` (contract maintenance).
 ## [9.37.0] - 2026-07-13: Analytics dashboard D1 — composition: tabs lead, headline band, one uptime surface
 
 **Headline:** The dashboard's composition is fixed: the 11-view tab strip becomes always-visible top navigation (underline treatment, unchanged core-5.2 link-tab semantics), the Insights monolith collapses into a `<details>` headline band (top signal chip + digest lead sentence + "Full insights (N signals)"), the pulse strip folds into the Overview footer (Content view only), the two uptime surfaces merge into one lazy rail `<details>` card, and the permanent separation notice becomes muted toolbar meta. Tabs + headline + toolbar + KPI strip + trend now fit the 1440×900 fold on Content. First increment of the dashboard revamp (D1 of 5); presentation-only — no engine, AI-prompt, or view-body changes.

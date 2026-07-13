@@ -44,16 +44,31 @@ echo "\nGroup: v9.33.0 — the band's narrative is the weekly digest\n";
 $GLOBALS['__digest'] = array( 'digest' => '', 'source' => 'fallback' );
 $GLOBALS['__digest_in'] = null;
 if ( ! function_exists( 'sn_analytics_digest' ) ) {
-	function sn_analytics_digest( $summary, $signals ) { $GLOBALS['__digest_in'] = array( $summary, $signals ); return $GLOBALS['__digest']; }
+	function sn_analytics_digest( $summary, $signals, $top_action = '' ) { $GLOBALS['__digest_in'] = array( $summary, $signals, $top_action ); return $GLOBALS['__digest']; }
 }
 if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
 	function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return array( 'views' => 1204, 'visits' => 389 ); }
+}
+// v9.38.0 (D2): the band feeds the digest the top deterministic recommendation
+// card's title. Guarded stub so callers without the recs engine loaded degrade.
+if ( ! function_exists( 'sn_analytics_recommendations' ) ) {
+	function sn_analytics_recommendations() { return $GLOBALS['__rec_cards'] ?? array(); }
 }
 $GLOBALS['__sig'] = array( $sig );
 $GLOBALS['__digest'] = array( 'digest' => '<p>Weekly digest body: refresh /notes/x.</p>', 'source' => 'ai' );
 ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $wd = ob_get_clean();
 ok( false !== strpos( $wd, 'Weekly digest body' ) && false !== strpos( $wd, 'data-source="ai"' ), 'band: narrative slot renders the weekly digest + its source' );
 ok( is_array( $GLOBALS['__digest_in'] ) && 1204 === ( $GLOBALS['__digest_in'][0]['views'] ?? 0 ) && 'anomaly' === ( $GLOBALS['__digest_in'][1][0]['kind'] ?? '' ), 'band: digest receives the real range totals + the signals' );
+
+// v9.38.0 (D2): the band feeds the digest the top deterministic recommendation
+// card's title so the start-here thread survives the recs-brief retirement.
+$GLOBALS['__rec_cards'] = array( array( 'title' => 'Fix the cooling post' ) );
+ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); ob_get_clean();
+ok( 'Fix the cooling post' === ( $GLOBALS['__digest_in'][2] ?? null ), 'band: passes the top recommendation card title as the digest top_action' );
+$GLOBALS['__rec_cards'] = array();
+ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); ob_get_clean();
+ok( '' === ( $GLOBALS['__digest_in'][2] ?? 'x' ), 'band: no recommendation cards -> empty top_action' );
+
 $GLOBALS['__sig'] = array();
 $GLOBALS['__digest'] = array( 'digest' => '', 'source' => 'fallback' );
 ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $we = ob_get_clean();

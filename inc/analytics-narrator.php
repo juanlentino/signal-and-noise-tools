@@ -79,8 +79,12 @@ function sn_analytics_digest_fallback( $summary, $signals ) {
  * AI weekly digest via the WP AI Client wrapper. Longer-form than narrate():
  * two short paragraphs over the descriptive summary + every signal's plain_label.
  * Returns null on no-signals / wrapper-absent / empty / WP_Error (budget cap).
+ *
+ * @param array  $summary    Descriptive summary (views/visits).
+ * @param array  $signals    Signal[] for the period.
+ * @param string $top_action The top deterministic recommendation card's title; '' = omit (v9.38.0, D2).
  */
-function sn_analytics_digest_ai( $summary, $signals ) {
+function sn_analytics_digest_ai( $summary, $signals, $top_action = '' ) {
 	if ( empty( $signals ) || ! function_exists( 'snt_ai_generate_with_constraints' ) ) { return null; }
 	$facts = array();
 	if ( is_array( $summary ) ) {
@@ -90,6 +94,9 @@ function sn_analytics_digest_ai( $summary, $signals ) {
 	}
 	foreach ( $signals as $s ) {
 		$facts[] = '- ' . (string) ( $s['plain_label'] ?? '' ) . ' [' . (string) ( $s['kind'] ?? '' ) . ', confidence ' . (string) ( $s['confidence'] ?? '' ) . ']';
+	}
+	if ( '' !== trim( (string) $top_action ) ) {
+		$facts[] = '- Top recommended action: ' . trim( (string) $top_action );
 	}
 	$system = 'You are writing a weekly analytics executive digest. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present. State uncertainty plainly. Two short paragraphs: (1) what happened and why it matters; (2) what to do next, concretely. Plain text.';
 	$prompt = "Facts:\n" . implode( "\n", $facts ) . "\n\nWrite the weekly digest.";
@@ -102,12 +109,16 @@ function sn_analytics_digest_ai( $summary, $signals ) {
  * Public weekly digest (the seam, mirroring sn_analytics_narrate): filter
  * override → AI longer-form → deterministic floor. The wrapper returns WP_Error
  * when the monthly budget cap is hit; is_string() routes that to the floor.
+ *
+ * @param array  $summary    Descriptive summary (views/visits).
+ * @param array  $signals    Signal[] for the period.
+ * @param string $top_action The top deterministic recommendation card's title; '' = omit (v9.38.0, D2 — the digest is the screen's ONE voice).
  * @return array{digest:string, source:string, model:?string}
  */
-function sn_analytics_digest( $summary, $signals ) {
+function sn_analytics_digest( $summary, $signals, $top_action = '' ) {
 	$override = function_exists( 'apply_filters' ) ? apply_filters( 'sn_analytics_digest', null, $summary, $signals ) : null;
 	if ( is_array( $override ) && '' !== trim( (string) ( $override['digest'] ?? '' ) ) ) { return $override; }
-	$ai = sn_analytics_digest_ai( $summary, $signals );
+	$ai = sn_analytics_digest_ai( $summary, $signals, $top_action );
 	if ( is_array( $ai ) && '' !== trim( (string) ( $ai['digest'] ?? '' ) ) ) { return $ai; }
 	return array( 'digest' => sn_analytics_digest_fallback( $summary, $signals ), 'source' => 'fallback', 'model' => null );
 }
