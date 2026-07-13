@@ -8,6 +8,7 @@ if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) 
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( '_n' ) ) { function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; } }
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+if ( ! function_exists( 'wp_specialchars_decode' ) ) { function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, ENT_QUOTES ); } }
 
 // Stubs: signal engine + narrator (recorders/fixtures).
 $GLOBALS['__sig'] = array();

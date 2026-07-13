@@ -15,6 +15,7 @@ if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) 
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( '_n' ) ) { function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; } }
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+if ( ! function_exists( 'wp_specialchars_decode' ) ) { function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, ENT_QUOTES ); } }
 
 // Stubs: signal engine + narrator (recorders/fixtures) — MUST precede the require.
 $GLOBALS['__sig'] = array();
@@ -48,6 +49,7 @@ $clamped = snt_analytics_headline_lead( $long );
 ok( mb_strwidth( $clamped, 'UTF-8' ) <= 140 && '…' === mb_substr( $clamped, -1, 1, 'UTF-8' ), 'lead: >140-char sentence clamps to <=140 display width ending in the ellipsis' );
 ok( 'Tráfico aumentó 42% — señal clara.' === snt_analytics_headline_lead( 'Tráfico aumentó 42% — señal clara. Más contexto aquí.' ), 'lead: mb-safe on multibyte narrative' );
 ok( 'This period: 1,204 views, 389 visits.' === snt_analytics_headline_lead( '<p class="sn-an-digest-head">This period: 1,204 views, 389 visits.</p><p class="sn-an-note">No standout signals in this window.</p>' ), 'lead: adjacent block elements do not glue sentences (the real fallback-digest shape)' );
+ok( "The site's traffic didn't change much this week." === snt_analytics_headline_lead( '<p>The site&#039;s traffic didn&#039;t change much this week. More detail.</p>' ), 'lead: pre-escaped digest entities decode once (no double-encode garble)' );
 
 echo "\nGroup: chip glyph a11y (D1 §6)\n";
 $chip = snt_analytics_render_signal_chip( $sig );
@@ -68,6 +70,8 @@ ok( false !== strpos( $sum, 'Views ran above' ), 'summary: chip 0 (top severity-
 ok( false !== strpos( $sum, 'Views rose 42% this week.' ) && false === strpos( $sum, 'Second sentence' ), 'summary: lead sentence only' );
 ok( false !== strpos( $sum, 'Full insights (2 signals)' ), 'summary: static indicator with the signal count' );
 ok( false === strpos( $sum, 'Read time drifting down' ), 'summary: chip 1 NOT in the summary' );
+ok( false !== strpos( $sum, '</span> <span class="sn-an-headline-lead">' ), 'summary: literal space between chip and lead (accessible name does not glue words)' );
+ok( false !== strpos( $sum, '</span> <span class="sn-an-headline-more">' ), 'summary: literal space between lead and indicator' );
 
 echo "\nGroup: headline band — expanded body\n";
 $body = substr( $h, (int) strpos( $h, '</summary>' ) );

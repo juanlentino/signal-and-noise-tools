@@ -20,7 +20,11 @@ function snt_analytics_headline_lead( $text ) {
 	// Block/list boundaries must survive the tag strip as whitespace — the
 	// fallback digest concatenates sibling <p>/<ul> nodes with zero space.
 	$text = preg_replace( '~(</[a-z][a-z0-9]*>|<br\s*/?\s*>)~i', '$1 ', (string) $text );
-	$text = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( $text ) ) );
+	// The digest narrative arrives with its text already esc_html'd — decode
+	// once after stripping so the single esc_html() at output is the ONLY
+	// encode (no &amp;#039; garble in the summary).
+	$text = wp_specialchars_decode( wp_strip_all_tags( $text ), ENT_QUOTES );
+	$text = trim( preg_replace( '/\s+/u', ' ', $text ) );
 	if ( '' === $text ) {
 		return '';
 	}
@@ -88,11 +92,13 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 	echo '<summary>';
 	if ( $count > 0 ) {
 		echo snt_analytics_render_signal_chip( $signals[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip renderer escapes every dynamic value.
+		// Literal separator: CSS flex gap does not reach the accessible name.
+		echo ' ';
 	}
 	echo '<span class="sn-an-headline-lead">' . esc_html( $lead ) . '</span>';
 	if ( $count > 0 ) {
 		/* translators: %d: number of analytics signals. */
-		echo '<span class="sn-an-headline-more">' . esc_html( sprintf( _n( 'Full insights (%d signal)', 'Full insights (%d signals)', $count, 'signal-and-noise-tools' ), $count ) ) . '</span>';
+		echo ' <span class="sn-an-headline-more">' . esc_html( sprintf( _n( 'Full insights (%d signal)', 'Full insights (%d signals)', $count, 'signal-and-noise-tools' ), $count ) ) . '</span>';
 	}
 	echo '</summary>';
 	echo '<div class="sn-an-headline-body">';
