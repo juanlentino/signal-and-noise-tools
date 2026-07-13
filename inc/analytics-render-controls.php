@@ -137,10 +137,11 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	$sep_auto    = $sep_bot + $sep_suspect;
 	$sep_total   = $sep_auto + (int) ( $class_totals['human']['views'] ?? 0 );
 	if ( $sep_auto > 0 ) {
-		$sep_meta = '· ' . number_format_i18n( $sep_auto ) . ' automated filtered ('
-			. number_format_i18n( $sep_bot ) . ' bot · ' . number_format_i18n( $sep_suspect ) . ' suspect)';
+		/* translators: 1: automated view count, 2: bot view count, 3: suspect view count. */
+		$sep_meta = sprintf( __( '%1$s automated filtered (%2$s bot · %3$s suspect)', 'signal-and-noise-tools' ), number_format_i18n( $sep_auto ), number_format_i18n( $sep_bot ), number_format_i18n( $sep_suspect ) );
 		if ( $sep_total > 0 ) {
-			$sep_meta .= ' · ' . round( $sep_auto / $sep_total * 100 ) . '% of all traffic';
+			/* translators: %d: percentage of all recorded traffic that is automated. */
+			$sep_meta .= ' · ' . sprintf( __( '%d%% of all traffic', 'signal-and-noise-tools' ), round( $sep_auto / $sep_total * 100 ) );
 		}
 		echo '<span class="sn-an-sep-meta">' . esc_html( $sep_meta ) . '</span>';
 	}

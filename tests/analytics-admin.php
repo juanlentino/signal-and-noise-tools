@@ -277,6 +277,7 @@ ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( '
 ok( strpos( $ctl0, 'sn-an-sep-meta' ) === false, 'meta: hidden when auto=0 (nothing to disclose)' );
 ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 1204 ), 'bot' => array( 'views' => 268 ), 'suspect' => array( 'views' => 44 ) ) ); $ctl1 = (string) ob_get_clean();
 ok( strpos( $ctl1, '312 automated filtered (268 bot · 44 suspect)' ) !== false && strpos( $ctl1, '21% of all traffic' ) !== false, 'meta: counts + share (312/1516 → 21%)' );
+ok( strpos( $ctl1, 'sn-an-sep-meta">312' ) !== false, 'meta: starts with the count — no leading orphan bullet (flex gap separates)' );
 ok( strpos( $ctl1, 'Showing' ) === false, 'meta: the "Showing human traffic" clause is dropped (the active class pill already says it)' );
 
 echo "\nGroup: dashboard — period-over-period deltas on cards\n";
