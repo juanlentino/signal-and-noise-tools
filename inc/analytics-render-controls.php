@@ -33,6 +33,65 @@ function snt_analytics_window_args( $range, $class, $from, $to ) {
 }
 
 /**
+ * The 7 calendar-preset tokens → display labels (single source for the
+ * range panel's Calendar row AND the summary label; v9.39.0 D3).
+ *
+ * @return array<string,string>
+ */
+function snt_analytics_preset_labels() {
+	return array(
+		'this-week'    => __( 'This week', 'signal-and-noise-tools' ),
+		'this-month'   => __( 'This month', 'signal-and-noise-tools' ),
+		'this-quarter' => __( 'This quarter', 'signal-and-noise-tools' ),
+		'ytd'          => __( 'Year to date', 'signal-and-noise-tools' ),
+		'last-month'   => __( 'Last month', 'signal-and-noise-tools' ),
+		'last-quarter' => __( 'Last quarter', 'signal-and-noise-tools' ),
+		'prev-year'    => __( 'Previous year', 'signal-and-noise-tools' ),
+	);
+}
+
+/**
+ * Humanize the RESOLVED range token for the one-control summary (v9.39.0 D3).
+ * Junk never reaches here in production (the dispatcher resolves first), but
+ * the helper degrades safely: unknown token → the raw token; malformed custom
+ * dates → 'Custom'. Custom shows the raw ISO window — the compare note's
+ * existing date idiom, deliberately not re-localized (D5 may revisit).
+ *
+ * @param int|string $range Resolved token.
+ * @param string     $from  Custom window start (Y-m-d).
+ * @param string     $to    Custom window end (Y-m-d).
+ * @return string
+ */
+function snt_analytics_range_label( $range, $from = '', $to = '' ) {
+	$range   = (string) $range;
+	$rolling = array(
+		'7'   => __( 'Last 7 days', 'signal-and-noise-tools' ),
+		'14'  => __( 'Last 14 days', 'signal-and-noise-tools' ),
+		'30'  => __( 'Last 30 days', 'signal-and-noise-tools' ),
+		'90'  => __( 'Last 90 days', 'signal-and-noise-tools' ),
+		'365' => __( 'Last year', 'signal-and-noise-tools' ),
+	);
+	if ( isset( $rolling[ $range ] ) ) {
+		return $rolling[ $range ];
+	}
+	if ( 'all' === $range ) {
+		return __( 'All history', 'signal-and-noise-tools' );
+	}
+	$presets = snt_analytics_preset_labels();
+	if ( isset( $presets[ $range ] ) ) {
+		return $presets[ $range ];
+	}
+	if ( 'custom' === $range ) {
+		$ymd = '/^\d{4}-\d{2}-\d{2}$/';
+		if ( preg_match( $ymd, (string) $from ) && preg_match( $ymd, (string) $to ) ) {
+			return $from . ' – ' . $to;
+		}
+		return __( 'Custom', 'signal-and-noise-tools' );
+	}
+	return $range;
+}
+
+/**
  * Range picker + class segmented control (GET links preserving the route).
  *
  * @param int|string $range        Active window (int days or 'all').

@@ -55,5 +55,16 @@ ok( strpos( $html, 'sn_compare=prev' ) !== false && strpos( $html, 'sn_compare=y
 ob_start(); snt_analytics_render_controls( 7, 'human', '', '', 'prev' ); $hc = ob_get_clean();
 ok( preg_match( '/<a class="button button-small active"[^>]*aria-pressed="true"[^>]*>Previous</', $hc ) === 1, 'active compare mode is marked pressed' );
 
+echo "\nGroup: D3 — range label vocabulary\n";
+ok( 'Last 7 days' === snt_analytics_range_label( 7 ), 'label: 7' );
+ok( 'Last 30 days' === snt_analytics_range_label( '30' ), 'label: string 30' );
+ok( 'Last year' === snt_analytics_range_label( 365 ), 'label: 365' );
+ok( 'All history' === snt_analytics_range_label( 'all' ), 'label: all' );
+ok( 'This quarter' === snt_analytics_range_label( 'this-quarter' ), 'label: preset' );
+ok( '2026-06-01 – 2026-07-13' === snt_analytics_range_label( 'custom', '2026-06-01', '2026-07-13' ), 'label: custom shows the raw ISO window (house compare-note idiom)' );
+ok( 'Custom' === snt_analytics_range_label( 'custom', 'junk', '' ), 'label: malformed custom degrades to Custom' );
+ok( 'weird' === snt_analytics_range_label( 'weird' ), 'label: junk token echoes raw (server already fell back)' );
+ok( 7 === count( snt_analytics_preset_labels() ), 'preset labels: all 7 calendar tokens' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
