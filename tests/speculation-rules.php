@@ -39,6 +39,9 @@ function sanitize_text_field( $s ) { return trim( (string) $s ); }
 function sanitize_textarea_field( $s ) { return trim( (string) $s ); }
 function sanitize_title( $s ) { return strtolower( trim( (string) $s ) ); }
 function esc_url_raw( $s ) { return trim( (string) $s ); }
+// Real stripslashes_deep behavior (sn_settings_save() unslashes its payload
+// as of v9.36.1) — a no-op for the clean literals this fixture passes.
+function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
 // add_filter is a no-op here — we call the callbacks directly to test behavior.
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
 
