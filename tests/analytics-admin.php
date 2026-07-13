@@ -336,6 +336,20 @@ ok( false !== $kpi_pos && false !== $trend_pos && $kpi_pos < $trend_pos,
 	'overview: KPI strip precedes the trend band within the fused panel' );
 ok( strpos( $html_trend, '>Daily views<' ) === false, 'overview: redundant standalone "Daily views" header removed' );
 
+echo "\nGroup: D1 — pulse footer inside the Overview (content only)\n";
+$p_pos = strpos( $html_trend, 'sn-an-pulse' );
+$r_pos = strpos( $html_trend, 'sn-an-header-rail' );
+ok( false !== $p_pos && false !== $r_pos && $p_pos < $r_pos, 'pulse: footer renders inside the Overview panel on Content' );
+// Adaptation: the plan's 'visits' view isn't wired into this fixture (no
+// inc/analytics-view-sessions.php require + no snt_analytics_render_view_sessions
+// stub — it would fatal). 'technology' is already exercised in this suite
+// (Group: dashboard — Technology view, above) and is an equally valid
+// non-Content, shared-chrome view for the gating check.
+$_GET['sn_view'] = 'technology';
+$html_technology = capture( 'snt_analytics_render_dashboard' );
+ok( false === strpos( $html_technology, 'sn-an-pulse' ), 'pulse: absent on non-Content views' );
+$_GET['sn_view'] = 'content';
+
 echo "\nGroup: table panels keep the native widget gutter (not flush) (v6.5.3)\n";
 $_GET['sn_view'] = 'content';
 $html_tbl = capture( 'snt_analytics_render_dashboard' );

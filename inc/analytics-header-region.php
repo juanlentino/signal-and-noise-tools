@@ -67,6 +67,11 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
 		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );
 	}
+	// v9.37.0 (D1): the pulse micro-stats fold into the Overview as a hairline
+	// footer — Content view only (the other views keep a leaner Overview).
+	if ( 'content' === $view ) {
+		snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granularity );
+	}
 	snt_an_panel_close();
 	echo '</div>';
 	echo '<div class="sn-an-header-rail">';
@@ -76,8 +81,6 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	snt_analytics_render_movers_tile( $from, $to, $class );
 	echo '</div>';
 	echo '</div>';
-
-	snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granularity );
 
 	if ( function_exists( 'sn_uptime_status_detail_panel' ) ) {
 		echo sn_uptime_status_detail_panel(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
@@ -91,9 +94,12 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 }
 
 /**
- * The Pulse strip (v8.5.0, the data-obsessed pass): one full-width hairline
- * row under the header grid packing four glanceable micro-stats — scroll-depth
- * bands, time-on-page bands, bot share (+ microspark), and today-so-far.
+ * The Pulse strip (v8.5.0, the data-obsessed pass; folded into the Overview
+ * panel's footer at v9.37.0/D1): a hairline row packing four glanceable
+ * micro-stats — scroll-depth bands, time-on-page bands, bot share (+
+ * microspark), and today-so-far. Rendered ONLY on the Content view, as the
+ * last row inside the Overview panel's .inside (before panel close) — the
+ * other shared-chrome views keep a leaner Overview with no footer.
  * DURABLE READS ONLY (bucket + rollup tables; never AE, never remote) so the
  * landing keeps its never-blocks contract. Cells render only when their data
  * exists; the whole strip stays silent on a dataless install.
@@ -180,5 +186,5 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 	if ( empty( $cells ) ) {
 		return;
 	}
-	echo '<div class="sn-an-pulse">' . implode( '<span class="sn-an-pulse-sep"></span>', $cells ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cells assembled above with esc_* at every dynamic value.
+	echo '<div class="sn-an-pulse sn-an-pulse--footer">' . implode( '<span class="sn-an-pulse-sep"></span>', $cells ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cells assembled above with esc_* at every dynamic value.
 }

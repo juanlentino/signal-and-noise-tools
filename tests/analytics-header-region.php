@@ -126,15 +126,20 @@ $totals = snt_analytics_render_header_region( 'content', 'all', 'human', '2020-0
 $html = (string) ob_get_clean();
 ok( false !== strpos( $html, '<!--CARDS-->' ), 'all-range renders cards without deltas' );
 
-echo "\nTest: v8.5.0 Pulse strip — four durable micro-stats, one hairline row\n";
+echo "\nTest: v9.37.0 (D1) Pulse strip folds into the Overview footer — Content view only\n";
 ob_start();
 snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
 $html = (string) ob_get_clean();
 ok( false !== strpos( $html, 'sn-an-pulse' ), 'pulse strip renders' );
-$grid_pos  = strpos( $html, 'sn-an-header-grid' );
-$pulse_pos = strpos( $html, '<div class="sn-an-pulse">' );
-$detail    = strpos( $html, '<!--UPTIME-DETAIL-->' );
-ok( false !== $pulse_pos && $pulse_pos > $grid_pos && $pulse_pos < $detail, 'pulse sits between the header grid and the uptime detail panel' );
+$pulse_pos = strpos( $html, '<div class="sn-an-pulse' );
+$rail_pos  = strpos( $html, 'sn-an-header-rail' );
+$trend_pos = strpos( $html, '<!--TREND-->' );
+ok( false !== $pulse_pos && false !== $trend_pos && $pulse_pos > $trend_pos && $pulse_pos < $rail_pos, 'pulse: renders INSIDE the Overview panel, after the trend, before the rail (D1 footer)' );
+ok( false !== strpos( $html, 'sn-an-pulse--footer' ), 'pulse: carries the footer modifier' );
+ob_start();
+snt_analytics_render_header_region( 'visits', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+$html_v = (string) ob_get_clean();
+ok( false === strpos( $html_v, 'sn-an-pulse' ), 'pulse: footer is Content-view-only (other views keep a leaner Overview)' );
 ok( false !== strpos( $html, '>Scroll<' ) && false !== strpos( $html, '>Read time<' ), 'scroll + read-time band cells present' );
 ok( false !== strpos( $html, '75-100% · 91%' ), 'dominant band named with its share (40 of 44)' );
 ok( false !== strpos( $html, 'Bot share' ) && false !== strpos( $html, 'sn-an-pulse-spark' ), 'bot-share cell with microspark' );
