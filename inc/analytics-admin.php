@@ -359,28 +359,30 @@ function snt_analytics_render_dashboard() {
 
 	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
 
-	// ── Persistent header (shared-chrome tabs only). v8.5.0: the whole frame
-	// (controls, class strip, full Overview + rail grid, uptime detail panel,
-	// the still-firing after-Overview seam) lives in
-	// inc/analytics-header-region.php; it returns the range totals so the
-	// tail empty-hint below keeps its signal.
-	// v9.30.0: lead with the higher tiers — the Insights band (predictive +
-	// prescriptive) sits above the descriptive Overview. Guarded for partial installs.
-	if ( function_exists( 'snt_analytics_render_insights_band' ) ) {
+	// ── v9.37.0 (D1): tabs lead the page on EVERY view — always-visible top
+	// navigation (core 5.2 link-tab semantics live in the renderer itself).
+	snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
+
+	// The headline band (collapsed <details>) renders on shared-chrome,
+	// class-segmented views only: NOT on login-defense (owns chrome) and NOT
+	// on edge (not class-segmented). Guarded for partial installs.
+	if ( ! $owns_chrome && 'edge' !== $view && function_exists( 'snt_analytics_render_insights_band' ) ) {
 		snt_analytics_render_insights_band( $from, $to, $class, $granularity );
 	}
+
+	// ── Persistent header (shared-chrome views). v8.5.0: the whole frame lives
+	// in inc/analytics-header-region.php; it returns the range totals so the
+	// tail empty-hint below keeps its signal. v9.37.0 (D1): renders BELOW the
+	// tabs + headline band.
 	$totals = array();
 	if ( ! $owns_chrome ) {
 		$totals = snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare );
 	} elseif ( 'login-defense' === $view && function_exists( 'sn_login_defense_render_header' ) ) {
-		// The chrome-owning view renders its OWN header (range + Overview + breakdown)
-		// here, ABOVE the tabs, so the frame matches the pageview views (no tab-bar jump).
+		// The chrome-owning view renders its OWN header (range + Overview +
+		// breakdown) below the shared tabs, in the same slot the pageview
+		// header occupies — the frame still matches (no tab-bar jump).
 		sn_login_defense_render_header();
 	}
-
-	// ── Tabs + the active view's panels. Each view fetches ONLY its own data,
-	// so a tab switch is a lighter query set, not just CSS show/hide.
-	snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 
 	echo '<div class="sn-an-view">';
 
