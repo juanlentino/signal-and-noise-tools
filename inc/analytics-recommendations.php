@@ -102,7 +102,10 @@ function sn_analytics_rec_unlinked() {
  * that was fine). Pages the owner hides from search (the per-page noindex
  * toggle) are skipped — a summary a crawler will never read isn't worth nagging
  * about. The card NAMES each remaining Page and deep-links it to its own editor.
- * Cross-repo signal, plugin-only code. Null when none.
+ * Cross-repo signal, plugin-only code. Null when none. The finished card (or
+ * its absence, as a 'none' sentinel) caches for an hour in the
+ * sn_an_rec_seo_meta transient (v9.39.0) — parity with the other two rules'
+ * pre-computed artifacts.
  *
  * @return array|null
  */
