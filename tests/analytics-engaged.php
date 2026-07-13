@@ -18,9 +18,12 @@ function sn_analytics_buckets_metrics() {
 		array( 'label' => '3m+',    'lo' => 180000, 'hi' => null ),
 	) ) );
 }
-$GLOBALS['__dist']    = array();
-$GLOBALS['__dist_by'] = array();
+$GLOBALS['__dist']           = array();
+$GLOBALS['__dist_by']        = array();
+$GLOBALS['__dist_by_window'] = array(); // D2: explicit-cwin override, keyed "$from|$to" — takes priority
 function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) {
+	$key = "$f|$t";
+	if ( isset( $GLOBALS['__dist_by_window'][ $key ] ) ) { return $GLOBALS['__dist_by_window'][ $key ]; }
 	if ( isset( $GLOBALS['__dist_by'][ $f ] ) ) { return $GLOBALS['__dist_by'][ $f ]; }
 	return $GLOBALS['__dist'];
 }
@@ -61,6 +64,18 @@ $dn = sn_analytics_engaged_rate_delta( '2026-06-06', '2026-06-12', 'human' );
 ok( $dn['current'] === 50, 'current window computed (50%)' );
 ok( $dn['previous'] === null, 'prior window with no data → previous is null (not 0)' );
 ok( $dn['dir'] === 'flat' && $dn['pct'] === null, 'null prior → flat, NO fabricated up-arrow' );
+
+echo "\nGroup: D2 — explicit compare window (one frame)\n";
+$GLOBALS['__dist_by_window'] = array(
+	'2026-07-06|2026-07-12' => array( array( 'label' => '0–10s', 'views' => 70 ), array( 'label' => '10–30s', 'views' => 30 ) ),
+	'2026-06-29|2026-07-05' => array( array( 'label' => '0–10s', 'views' => 80 ), array( 'label' => '10–30s', 'views' => 20 ) ),
+	'2025-07-06|2025-07-12' => array( array( 'label' => '0–10s', 'views' => 10 ), array( 'label' => '10–30s', 'views' => 90 ) ),
+);
+$e_prev = sn_analytics_engaged_rate_delta( '2026-07-06', '2026-07-12', 'human' );
+ok( 20 === ( $e_prev['previous'] ?? -1 ) && 'up' === $e_prev['dir'], 'engaged_rate_delta: null cwin keeps the prior-window basis (back-compat pin)' );
+$e_yoy = sn_analytics_engaged_rate_delta( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06', '2025-07-12' ) );
+ok( 90 === ( $e_yoy['previous'] ?? -1 ) && 'down' === $e_yoy['dir'], 'engaged_rate_delta: explicit cwin is the basis (yoy window read, prior window ignored)' );
+$GLOBALS['__dist_by_window'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -193,11 +193,15 @@ function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) {
  * Period-over-period delta for the engaged-pageview rate, shaped like
  * sn_analytics_period_deltas() entries so it renders with the same badge.
  *
+ * @param string $from  Inclusive start day, YYYY-MM-DD.
+ * @param string $to    Inclusive end day, YYYY-MM-DD.
+ * @param string $class Traffic class (default 'human').
+ * @param array{0:string,1:string}|null $cwin Explicit comparison window (v9.38.0 one-frame); null = the adjacent prior window.
  * @return array{current:?int, previous:?int, pct:?int, dir:string}
  */
-function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
+function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human', $cwin = null ) {
 	$cur = sn_analytics_engaged_rate( $from, $to, $class );
-	list( $pf, $pt ) = sn_analytics_prior_window( $from, $to );
+	list( $pf, $pt ) = ( is_array( $cwin ) && '' !== (string) ( $cwin[0] ?? '' ) ) ? $cwin : sn_analytics_prior_window( $from, $to );
 	$prev = sn_analytics_engaged_rate( $pf, $pt, $class );
 	if ( null === $cur || null === $prev ) {
 		$d = array( 'pct' => null, 'dir' => 'flat' );
@@ -219,14 +223,15 @@ function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human' ) {
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
+ * @param array{0:string,1:string}|null $cwin Explicit comparison window (v9.38.0 one-frame); null = the adjacent prior window.
  * @return array<string, array{current:int|float, previous:int|float, pct:?int, dir:string}>
  */
-function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
+function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null ) {
 	$cur = function_exists( 'sn_analytics_range_totals' )
 		? sn_analytics_range_totals( $from, $to, $class )
 		: array();
 
-	list( $prior_from, $prior_to ) = sn_analytics_prior_window( $from, $to );
+	list( $prior_from, $prior_to ) = ( is_array( $cwin ) && '' !== (string) ( $cwin[0] ?? '' ) ) ? $cwin : sn_analytics_prior_window( $from, $to );
 	$prev = function_exists( 'sn_analytics_range_totals' )
 		? sn_analytics_range_totals( $prior_from, $prior_to, $class )
 		: array();
