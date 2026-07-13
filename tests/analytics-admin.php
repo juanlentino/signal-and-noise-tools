@@ -255,8 +255,13 @@ ok( strpos( $raw_body, '<style' ) === false, 'dashboard: no inline <style> echoe
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
 ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );
-ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation line' );
-ok( strpos( $html, 'notice notice-info inline' ) !== false, 'controls: separation wrapped in native notice-info inline' );
+ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation meta (counts survive the notice retirement)' );
+ok( strpos( $html, 'sn-an-sep-meta' ) !== false, 'controls: separation folded into the toolbar as muted meta' );
+ok( strpos( $html, 'notice notice-info inline' ) === false, 'controls: the permanent notice-info block is GONE (notices are transient, not chrome)' );
+$tb_open  = strpos( $html, '<div class="sn-toolbar">' );
+$tb_meta  = strpos( $html, 'sn-an-sep-meta' );
+$tb_close = strpos( $html, 'sn-an-daterange' ); // the disclosure renders right after the toolbar row closes
+ok( false !== $tb_open && false !== $tb_meta && false !== $tb_close && $tb_open < $tb_meta && $tb_meta < $tb_close, 'controls: meta sits INSIDE the .sn-toolbar row' );
 ok( strpos( $html, 'sn-toolbar' ) !== false, 'controls: native toolbar wrapper present' );
 ok( strpos( $html, 'button-group' ) !== false, 'controls: button-group pill rows present' );
 ok( strpos( $html, 'button button-small' ) !== false, 'controls: pills use button button-small class' );
@@ -266,6 +271,13 @@ ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promo
 ok( strpos( $html, '<div class="n">7</div>' ) === false, 'cards: old .n markup gone' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only — NO settings form embedded (split)' );
 ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only — NO save button (split)' );
+
+echo "\nGroup: D1 — separation meta only when automated traffic exists\n";
+ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 900 ), 'bot' => array( 'views' => 0 ), 'suspect' => array( 'views' => 0 ) ) ); $ctl0 = (string) ob_get_clean();
+ok( strpos( $ctl0, 'sn-an-sep-meta' ) === false, 'meta: hidden when auto=0 (nothing to disclose)' );
+ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 1204 ), 'bot' => array( 'views' => 268 ), 'suspect' => array( 'views' => 44 ) ) ); $ctl1 = (string) ob_get_clean();
+ok( strpos( $ctl1, '312 automated filtered (268 bot · 44 suspect)' ) !== false && strpos( $ctl1, '21% of all traffic' ) !== false, 'meta: counts + share (312/1516 → 21%)' );
+ok( strpos( $ctl1, 'Showing' ) === false, 'meta: the "Showing human traffic" clause is dropped (the active class pill already says it)' );
 
 echo "\nGroup: dashboard — period-over-period deltas on cards\n";
 ok( strpos( $html, 'sn-delta-down' ) !== false && strpos( $html, 'sn-delta-up' ) !== false, 'cards: up + down deltas' );
@@ -569,8 +581,8 @@ ok( $pos_tabs !== false && $pos_header !== false && $pos_tabs < $pos_header,
 ok( $pos_body !== false && $pos_tabs !== false && $pos_body > $pos_tabs,
 	'frame: login body renders BELOW the tab bar' );
 ok( false === strpos( $html, 'sn-an-headline' ), 'chrome: no headline band on the chrome-owning login view' );
-ok( strpos( $html, 'Showing <strong>' ) === false,
-	'chrome: pageview separation notice SUPPRESSED on the login view' );
+ok( strpos( $html, 'sn-an-sep-meta' ) === false,
+	'chrome: separation meta SUPPRESSED on the login view (its own toolbar carries no class totals)' );
 ok( strpos( $html, 'sn_view=login-defense' ) !== false, 'tabs: login-defense tab present in nav' );
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab (login-defense)' );
 // Sanity: content view still shows the shared Overview chrome.

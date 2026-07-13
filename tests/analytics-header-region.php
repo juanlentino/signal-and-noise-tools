@@ -56,8 +56,7 @@ if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( 
 if ( ! function_exists( 'snt_analytics_smooth_path' ) ) { function snt_analytics_smooth_path( $px, $py, $top, $base ) { return 'M 0,0 C 1,1 2,2 3,3'; } }
 
 // Sub-renderer recorders (each has its own suite; this fixture pins ORDER + composition).
-function snt_analytics_render_controls( $r, $c, $f = '', $t = '' ) { echo '<!--CONTROLS-->'; }
-function snt_analytics_render_separation( $ct, $c ) { echo '<!--SEPARATION-->'; }
+function snt_analytics_render_controls( $r, $c, $f = '', $t = '', $cmp = 'off', $ct = array() ) { $GLOBALS['__hr_controls_ct'] = $ct; echo '<!--CONTROLS-->'; }
 function snt_analytics_render_cards( $n, $t, $d = array(), $e = null ) { echo '<!--CARDS-->'; }
 function snt_analytics_render_trend( $s, $g = 'day' ) { echo '<!--TREND-->'; }
 function snt_analytics_render_movers_tile( $f, $t, $c ) { echo '<!--MOVERS-->'; }
@@ -81,7 +80,7 @@ $GLOBALS['__fired'] = array();
 ob_start();
 $totals = snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
 $html   = (string) ob_get_clean();
-$order  = array( '<!--CONTROLS-->', '<!--SEPARATION-->', 'sn-an-header-grid', 'sn-an-header-main', '<!--CARDS-->', '<!--TREND-->', 'sn-an-header-rail', '<!--UPTIME-STRIP-->', '<!--MOVERS-->', '<!--UPTIME-DETAIL-->' );
+$order  = array( '<!--CONTROLS-->', 'sn-an-header-grid', 'sn-an-header-main', '<!--CARDS-->', '<!--TREND-->', 'sn-an-header-rail', '<!--UPTIME-STRIP-->', '<!--MOVERS-->', '<!--UPTIME-DETAIL-->' );
 $last   = -1;
 $in_order = true;
 foreach ( $order as $marker ) {
@@ -89,7 +88,13 @@ foreach ( $order as $marker ) {
 	if ( false === $pos || $pos < $last ) { $in_order = false; break; }
 	$last = $pos;
 }
-ok( $in_order, 'controls -> separation -> grid(main: cards+trend) -> rail(uptime strip, movers) -> detail panel, in order' );
+ok( $in_order, 'controls -> grid(main: cards+trend) -> rail(uptime strip, movers) -> detail panel, in order' );
+// Armor: the fixture's sn_analytics_class_totals() returns a flat class => views
+// map (line 27 above), NOT the nested {views,visits} shape the real accessor
+// returns — this suite stubs render_controls entirely, so it only needs to prove
+// the region hands class totals THROUGH to the toolbar seam, not shape-match
+// production. Its bot figure is 90.
+ok( 90 === (int) ( $GLOBALS['__hr_controls_ct']['bot'] ?? -1 ), 'armor: header region hands class totals INTO the toolbar (the meta seam is plumbed, not decorative)' );
 ok( false !== strpos( $html, 'sn-overview' ), 'Overview panel keeps its sn-overview class (fused KPI+trend, v6.5.2 contract)' );
 ok( false !== strpos( $html, '>Overview<' ), 'Overview panel titled through the primitive' );
 ok( 1 === count( $GLOBALS['__fired'] ) && 'snt_analytics_after_overview' === $GLOBALS['__fired'][0][0], 'the after-Overview seam STILL FIRES exactly once (v8.5.0 removes nothing)' );
