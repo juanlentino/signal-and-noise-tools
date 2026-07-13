@@ -9,8 +9,10 @@
  * verbatim from the 270-line if/elseif in inc/admin-page.php in v4.5.4.
  *
  * Handlers receive the RAW $_POST and unslash per-field exactly as the original
- * arms did (notably: save_identity passes the raw array straight to
- * sn_settings_save(), which is the pre-existing behavior — do not "fix" it).
+ * arms did. save_identity still passes the raw array straight to
+ * sn_settings_save(), which now wp_unslash()es the whole payload itself
+ * (v9.36.1 — the old pass-through-without-unslash behavior added one
+ * backslash layer to every apostrophe per save).
  *
  * @package SignalNoiseTools
  */
