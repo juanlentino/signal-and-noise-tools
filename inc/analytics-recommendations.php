@@ -20,15 +20,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Build the ordered recommendation card list. Each rule returns one card or null;
  * nulls are filtered. Empty result is first-class ("nothing needs attention").
  *
+ * v9.38.0 (D2): request-level memo — the headline band (every shared-chrome
+ * view) AND the Content panel both consume the cards in one request; the
+ * seo-meta rule's get_posts() must not run twice. $refresh re-primes (CLI
+ * suites use it at fixture boundaries; production never passes it).
+ *
+ * @param bool $refresh Recompute even when the request memo is primed.
  * @return array<int,array{id:string,title:string,detail:string,count:int,action_url:string,action_label:string}>
  */
-function sn_analytics_recommendations() {
-	$cards = array(
-		sn_analytics_rec_refresh(),
-		sn_analytics_rec_unlinked(),
-		sn_analytics_rec_seo_meta(),
-	);
-	return array_values( array_filter( $cards ) );
+function sn_analytics_recommendations( $refresh = false ) {
+	static $memo = null;
+	if ( $refresh || null === $memo ) {
+		$cards = array(
+			sn_analytics_rec_refresh(),
+			sn_analytics_rec_unlinked(),
+			sn_analytics_rec_seo_meta(),
+		);
+		$memo = array_values( array_filter( $cards ) );
+	}
+	return $memo;
 }
 
 /**

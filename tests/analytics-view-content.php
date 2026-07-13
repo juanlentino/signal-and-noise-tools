@@ -138,6 +138,7 @@ ok( false !== $rec_at && false !== $grid_at && $rec_at < $grid_at, 'the panel si
 // Tripping signals -> the two live rules (refresh + unlinked) produce cards.
 $GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 3 ) );
 $GLOBALS['__scan']      = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 4 ) ) );
+sn_analytics_recommendations( true ); // re-prime the request memo for the new fixture
 ob_start();
 snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
 $recs_hot = (string) ob_get_clean();

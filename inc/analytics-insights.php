@@ -76,7 +76,8 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 	if ( function_exists( 'sn_analytics_digest' ) ) {
 		// v9.38.0 (D2): the digest is the screen's ONE voice — feed it the top
 		// deterministic recommendation so the start-here thread survives the
-		// recs-brief retirement. Cards read cached sources; cheap on every view.
+		// recs-brief retirement. Cards are memoized per request (see
+		// sn_analytics_recommendations) — cheap on every view.
 		$top_action = '';
 		if ( function_exists( 'sn_analytics_recommendations' ) ) {
 			$rec_cards  = sn_analytics_recommendations();
