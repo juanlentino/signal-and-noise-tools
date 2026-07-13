@@ -61,10 +61,9 @@ function snt_analytics_render_cards( $n, $t, $d = array(), $e = null ) { echo '<
 function snt_analytics_render_trend( $s, $g = 'day' ) { echo '<!--TREND-->'; }
 function snt_analytics_render_movers_tile( $f, $t, $c ) { echo '<!--MOVERS-->'; }
 
-// Uptime surface stubs — flip $GLOBALS['__uptime_on'] to model un/configured.
+// Uptime surface stub — flip $GLOBALS['__uptime_on'] to model un/configured.
 $GLOBALS['__uptime_on'] = true;
 function sn_uptime_status_rail_strip() { return $GLOBALS['__uptime_on'] ? '<!--UPTIME-STRIP-->' : ''; }
-function sn_uptime_status_detail_panel() { return $GLOBALS['__uptime_on'] ? '<!--UPTIME-DETAIL-->' : ''; }
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/analytics-annotations.php';
@@ -80,7 +79,7 @@ $GLOBALS['__fired'] = array();
 ob_start();
 $totals = snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
 $html   = (string) ob_get_clean();
-$order  = array( '<!--CONTROLS-->', 'sn-an-header-grid', 'sn-an-header-main', '<!--CARDS-->', '<!--TREND-->', 'sn-an-header-rail', '<!--UPTIME-STRIP-->', '<!--MOVERS-->', '<!--UPTIME-DETAIL-->' );
+$order  = array( '<!--CONTROLS-->', 'sn-an-header-grid', 'sn-an-header-main', '<!--CARDS-->', '<!--TREND-->', 'sn-an-header-rail', '<!--UPTIME-STRIP-->', '<!--MOVERS-->' );
 $last   = -1;
 $in_order = true;
 foreach ( $order as $marker ) {
@@ -99,9 +98,7 @@ ok( false !== strpos( $html, 'sn-overview' ), 'Overview panel keeps its sn-overv
 ok( false !== strpos( $html, '>Overview<' ), 'Overview panel titled through the primitive' );
 ok( 1 === count( $GLOBALS['__fired'] ) && 'snt_analytics_after_overview' === $GLOBALS['__fired'][0][0], 'the after-Overview seam STILL FIRES exactly once (v8.5.0 removes nothing)' );
 ok( array( 'content' ) === $GLOBALS['__fired'][0][1], 'seam receives the view' );
-$detail_pos = strpos( $html, '<!--UPTIME-DETAIL-->' );
-$grid_end   = strpos( $html, 'sn-an-header-rail' );
-ok( false !== $detail_pos && $detail_pos > $grid_end, 'detail panel renders AFTER the header grid (full-width row)' );
+ok( false === strpos( $html, '<!--UPTIME-DETAIL-->' ), 'uptime: the standalone detail postbox is GONE from the region (single surface lives in the rail)' );
 ok( is_array( $totals ) && 1284 === ( $totals['views'] ?? 0 ), 'region returns the totals (the dashboard tail empty-hint reads them)' );
 // Integration: 40%-up views + down engagement trips the overview read, so the
 // Overview panel emits the callout. Proves the render passes $deltas + $engaged
@@ -114,7 +111,7 @@ $GLOBALS['__uptime_on'] = false;
 ob_start();
 snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
 $html = (string) ob_get_clean();
-ok( false === strpos( $html, '<!--UPTIME-STRIP-->' ) && false === strpos( $html, '<!--UPTIME-DETAIL-->' ), 'no uptime markup without a token' );
+ok( false === strpos( $html, '<!--UPTIME-STRIP-->' ), 'no uptime markup without a token' );
 ok( false !== strpos( $html, '<!--MOVERS-->' ) && false !== strpos( $html, 'sn-an-header-rail' ), 'rail still renders with the movers tile' );
 $GLOBALS['__uptime_on'] = true;
 

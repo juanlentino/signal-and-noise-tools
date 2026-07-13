@@ -185,13 +185,13 @@
 		} );
 	}
 
-	// v8.5.0: lazy detail — the Analytics "Uptime detail" panel fetches the
-	// detail tier on FIRST expand (sn-an-panel-open dispatched by
-	// assets/admin.js). The eager [data-sn-uptime-detail] path in boot()
-	// still serves any surface that wants detail at load; the redesigned
-	// Analytics page ships none, so page load costs the status tier only.
-	document.addEventListener( 'sn-an-panel-open', function ( e ) {
-		var mount = e.target.querySelector( '[data-sn-uptime-lazy-detail]' );
+	// Lazy detail: fetch the detail tier on FIRST reveal, once. v9.37.0 (D1):
+	// the merged rail Uptime card is a native <details> — bind its toggle in
+	// the capture phase ('toggle' does not bubble). The legacy sn-an-panel-open
+	// path (assets/admin.js postbox collapsibles) stays servable. The eager
+	// [data-sn-uptime-detail] path in boot() still serves any surface that
+	// wants detail at load; the Analytics page ships none.
+	function loadLazyDetail( mount ) {
 		if ( ! mount || mount.hasAttribute( 'data-sn-uptime-loaded' ) || 'function' !== typeof window.sntAbilityRun ) {
 			return;
 		}
@@ -202,6 +202,18 @@
 			mount.textContent = '';
 			mount.appendChild( el( 'p', 'sn-uw-error', 'Better Stack status unavailable.' ) );
 		} );
+	}
+
+	document.addEventListener( 'toggle', function ( e ) {
+		var d = e.target;
+		if ( ! d || ! d.matches || ! d.matches( 'details.sn-an-uptime' ) || ! d.open ) {
+			return;
+		}
+		loadLazyDetail( d.querySelector( '[data-sn-uptime-lazy-detail]' ) );
+	}, true );
+
+	document.addEventListener( 'sn-an-panel-open', function ( e ) {
+		loadLazyDetail( e.target.querySelector( '[data-sn-uptime-lazy-detail]' ) );
 	} );
 
 	if ( 'loading' === document.readyState ) {

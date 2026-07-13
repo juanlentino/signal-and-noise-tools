@@ -1,13 +1,17 @@
 <?php
 /**
- * Signal & Noise Tools — Analytics header region (v8.5.0).
+ * Signal & Noise Tools — Analytics header region (v8.5.0; uptime merged to
+ * one surface at v9.37.0/D1).
  *
  * The persistent frame every shared-chrome view gets: controls, class strip,
  * then the 2/3 + 1/3 header grid — full Overview (KPIs + trend) beside the
- * rail (uptime strip + movers) — then the collapsed uptime detail panel.
- * Owner layout decision 2026-07-03: "B, with the full overview like in A."
- * The snt_analytics_after_overview seam KEEPS FIRING (after the region) —
- * v8.5.0 moves the uptime widget off it but removes nothing.
+ * rail (the Uptime card + movers). The Uptime card is the ONE uptime surface
+ * (a native <details> — status tier in the summary, detail tier lazy-loaded
+ * on first expand); the standalone full-width "Uptime detail" postbox that
+ * used to render below the grid is retired (v9.37.0). Owner layout decision
+ * 2026-07-03: "B, with the full overview like in A." The
+ * snt_analytics_after_overview seam KEEPS FIRING (after the region) — v8.5.0
+ * moved the uptime widget off it but removed nothing.
  *
  * @package SignalNoiseTools
  * @since 8.5.0
@@ -81,10 +85,6 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	snt_analytics_render_movers_tile( $from, $to, $class );
 	echo '</div>';
 	echo '</div>';
-
-	if ( function_exists( 'sn_uptime_status_detail_panel' ) ) {
-		echo sn_uptime_status_detail_panel(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
-	}
 
 	// v8.4.2 composition seam — kept firing (v8.5.0 moved the uptime widget
 	// into the rail but removed nothing; the hook remains an extension point).

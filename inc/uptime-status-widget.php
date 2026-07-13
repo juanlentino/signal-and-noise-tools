@@ -49,17 +49,14 @@ function sn_uptime_status_health_section() {
 }
 
 /**
- * The rail Uptime strip for the Analytics header region (v8.5.0): status
- * tier only — chip + one line. The mount deliberately does NOT carry
- * data-sn-uptime-detail, so page load costs the status tier alone; the full
- * monitor lives in the lazy detail panel below the header grid. History:
- * v8.4.0 put the full monitor on the page, v8.4.2 seated it on the
- * snt_analytics_after_overview seam; v8.5.0 splits strip/detail and the
- * header region (inc/analytics-header-region.php) calls both directly —
- * the seam itself keeps firing, this module just no longer hooks it.
- * '' unconfigured; zero remote cost on render, same as every surface.
+ * The rail Uptime card (v9.37.0 D1 §5c: the ONE uptime surface). A native
+ * <details>: summary = the status tier (monitor names + UP/DOWN pills, painted
+ * async into [data-sn-uptime-status]); expansion = the detail table + incident
+ * log, fetched lazily on FIRST open into [data-sn-uptime-lazy-detail] (see
+ * assets/uptime-status.js). Replaces the old strip + full-width detail postbox
+ * pair. Empty string when unconfigured — the rail degrades to movers-only.
  *
- * @return string Panel HTML, or '' when no token is configured.
+ * @return string Panel HTML ('' unconfigured).
  */
 function sn_uptime_status_rail_strip() {
 	if ( ! sn_uptime_status_configured() ) {
@@ -69,34 +66,14 @@ function sn_uptime_status_rail_strip() {
 	snt_an_panel_open( __( 'Uptime', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rail-tile sn-uptime-strip',
 	) );
-	echo '<div class="sn-uptime-status" data-sn-uptime-status>'
-		. '<p class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-and-noise-tools' ) . '</p>'
-		. '</div>';
-	snt_an_panel_close();
-	return (string) ob_get_clean();
-}
-
-/**
- * The full uptime monitor as a COLLAPSED full-width panel below the header
- * region (v8.5.0). The body mount is data-sn-uptime-lazy-detail:
- * assets/uptime-status.js fetches the detail tier only on the panel's first
- * sn-an-panel-open event — collapsing saves API calls, not just pixels.
- *
- * @return string Panel HTML, or '' when no token is configured.
- */
-function sn_uptime_status_detail_panel() {
-	if ( ! sn_uptime_status_configured() ) {
-		return '';
-	}
-	ob_start();
-	snt_an_panel_open( __( 'Uptime detail', 'signal-and-noise-tools' ), array(
-		'panel_class' => 'sn-uptime-monitor',
-		'collapsible' => true,
-		'collapsed'   => true,
-	) );
+	echo '<details class="sn-an-uptime">';
+	echo '<summary><span class="sn-uptime-status" data-sn-uptime-status>'
+		. '<span class="sn-uw-loading">' . esc_html__( 'Checking Better Stack…', 'signal-and-noise-tools' ) . '</span>'
+		. '</span></summary>';
 	echo '<div class="sn-uptime-status" data-sn-uptime-lazy-detail>'
-		. '<p class="sn-uw-loading">' . esc_html__( 'Expand to load monitor detail…', 'signal-and-noise-tools' ) . '</p>'
+		. '<p class="sn-uw-loading">' . esc_html__( 'Loading monitor detail…', 'signal-and-noise-tools' ) . '</p>'
 		. '</div>';
+	echo '</details>';
 	snt_an_panel_close();
 	return (string) ob_get_clean();
 }
