@@ -491,17 +491,6 @@
 .sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-border, #dcdcde); }
 @media ( max-width: 782px ) { .sn-an-pulse { flex-wrap: wrap; } .sn-an-pulse-sep { display: none; } }
 
-/* v9.30.0 Insights band (predictive + prescriptive) */
-.sn-an-insights{border:1px solid var(--sn-hairline,#e2e4e7);border-radius:8px;padding:14px 16px;margin:0 0 16px;background:var(--sn-surface,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.sn-an-insights-head{display:flex;justify-content:space-between;align-items:baseline;font-weight:600;margin-bottom:8px}
-.sn-an-tier-note{font-size:11px;font-weight:500;color:var(--sn-muted,#6b7280);text-transform:uppercase;letter-spacing:.04em}
-.sn-an-insights-narrative{font-size:13px;line-height:1.5;margin-bottom:10px}
-.sn-an-digest-list{margin:0;padding-left:18px}
-.sn-an-signal-chips{display:flex;flex-wrap:wrap;gap:8px}
-.sn-an-signal{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 8px;border:1px solid var(--sn-hairline,#e2e4e7);border-radius:999px}
-.sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--sn-accent,#2563eb)}
-.sn-an-signal-conf{font-size:10px;color:var(--sn-muted,#6b7280);text-transform:uppercase}
-
 /* v9.33.0 weekly digest in the Insights band */
 .sn-an-digest-head{font-weight:600;margin:0 0 6px}
 .sn-an-digest-next{margin:8px 0 0;font-weight:500}
@@ -518,4 +507,63 @@
 .sn-an-tier--prescriptive{color:#7c3aed;border-color:#c4b5fd}
 .sn-an-tier--diagnostic{color:#996800;border-color:#e5cf8c}
 .sn-an-methods-note{margin:10px 0 0;font-size:11px;color:#787c82}
-.sn-an-tier-badges .sn-an-tier{margin-left:4px}
+
+/* ── v9.37.0 D1: modern-native treatment — the five touched surfaces ONLY
+   (tabs, headline band, toolbar meta, Overview, rail cards). D4 propagates
+   the language to every remaining panel and formalizes the tokens.
+   Palette discipline: #2271b1 accent · #1d2327/#50575e/#646970 text ·
+   #dcdcde hairline · deltas #00a32a/#d63638 only. Flat: no shadows. ── */
+
+/* Tabs: underline variant — semantics unchanged (<nav> + aria-current). */
+.sn-an-view-tabs { display: flex; flex-wrap: wrap; gap: 14px; border-bottom: 1px solid #dcdcde; padding-top: 0; padding-bottom: 0; margin: 12px 0 16px; }
+.sn-an-view-tabs .nav-tab { background: transparent; border: 0; margin: 0; padding: 6px 2px 8px; font-size: 13px; font-weight: 500; color: #50575e; }
+.sn-an-view-tabs .nav-tab:hover, .sn-an-view-tabs .nav-tab:focus { color: #1d2327; background: transparent; }
+.sn-an-view-tabs .nav-tab-active { color: #1d2327; border-bottom: 2px solid #2271b1; background: transparent; }
+
+/* Headline band: hairline card, 4px radius, flat. */
+.sn-an-headline { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 0; margin: 0 0 16px; }
+.sn-an-headline > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; font-size: 13px; }
+.sn-an-headline > summary::-webkit-details-marker { display: none; }
+.sn-an-headline > summary::before { content: "▸"; color: #646970; font-size: 11px; }
+.sn-an-headline[open] > summary::before { content: "▾"; }
+.sn-an-headline-lead { color: #1d2327; }
+.sn-an-headline-more { margin-left: auto; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; color: #646970; white-space: nowrap; }
+.sn-an-headline-body { border-top: 1px solid #dcdcde; padding: 12px 14px; }
+.sn-an-headline-body .sn-an-insights-narrative { font-size: 13px; line-height: 1.5; margin: 0 0 12px; }
+.sn-an-headline-body .sn-an-methods-note { margin: 12px 0 0; }
+.sn-an-digest-list { margin: 0; padding-left: 18px; }
+
+/* Signal chips (native palette — the old accent one-offs are retired). */
+.sn-an-signal-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sn-an-signal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 8px; border: 1px solid #dcdcde; border-radius: 999px; background: #fff; }
+.sn-an-signal-badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #2271b1; }
+.sn-an-signal-conf { font-size: 11px; color: #646970; text-transform: uppercase; }
+
+/* Toolbar meta: the separation notice, demoted to muted inline text. */
+.sn-an-sep-meta { font-size: 11px; color: #646970; align-self: center; margin-left: 8px; }
+
+/* Overview + rail cards: 4px flat hairline (compound selector outweighs the base shell — order-independent). */
+.sn-an-postbox.sn-overview, .sn-an-postbox.sn-an-rail-tile { border-radius: 4px; box-shadow: none; }
+.sn-overview .hndle span, .sn-an-rail-tile .hndle span { font-size: 13px; font-weight: 600; }
+
+/* KPI hierarchy: the promoted scale, dead since v8.5.0, restored at the
+   treatment-B sizes (22/13). The .postbox.sn-overview compound wins by
+   specificity over the .sn-an-postbox shell overrides (order-independent —
+   survives D4 reorders) and still reaches the login-defense clone, whose
+   Overview carries .postbox.sn-overview WITHOUT .sn-an-postbox. */
+.postbox.sn-overview .sn-kpi-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.postbox.sn-overview .sn-kpi-promoted .sn-kpi-value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.postbox.sn-overview .sn-kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
+
+/* Overview annotation: accent-bar callout (the .sn-an-note idiom, reused). */
+.sn-overview .sn-an-note { border-left: 3px solid #2271b1; padding: 4px 14px 4px 11px; color: #646970; }
+
+/* Pulse footer: hairline row INSIDE the Overview (was a standalone band). */
+.sn-overview .sn-an-pulse--footer { border: 0; border-top: 1px solid #dcdcde; border-radius: 0; margin: 0; padding: 8px 14px; background: transparent; }
+
+/* Merged uptime card: native details in the rail tile. */
+.sn-an-uptime > summary { cursor: pointer; list-style: none; }
+.sn-an-uptime > summary::-webkit-details-marker { display: none; }
+.sn-an-uptime > summary::after { content: "▸ detail"; display: inline-block; margin-top: 4px; font-size: 11px; color: #646970; }
+.sn-an-uptime[open] > summary::after { content: "▾ detail"; }
+.sn-an-uptime > .sn-uptime-status[data-sn-uptime-lazy-detail] { border-top: 1px solid #dcdcde; margin-top: 8px; padding-top: 8px; }

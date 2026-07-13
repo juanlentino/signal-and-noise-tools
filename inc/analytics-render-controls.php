@@ -1,9 +1,10 @@
 <?php
 /**
  * Signal & Noise — Analytics toolbar partials: the range/class picker, the custom
- * range disclosure, the window-preserving link args, and the class-separation
- * notice. Native wp-admin markup; every dynamic value is escaped at the point of
- * output. Extracted from analytics-admin-render.php (v8.9.x split).
+ * range disclosure, the window-preserving link args, and the separation meta
+ * (automated-traffic disclosure folded into the toolbar row, v9.37.0 D1). Native
+ * wp-admin markup; every dynamic value is escaped at the point of output.
+ * Extracted from analytics-admin-render.php (v8.9.x split).
  *
  * @package SignalNoiseTools
  * @since 5.0.1
@@ -34,13 +35,14 @@ function snt_analytics_window_args( $range, $class, $from, $to ) {
 /**
  * Range picker + class segmented control (GET links preserving the route).
  *
- * @param int|string $range   Active window (int days or 'all').
- * @param string     $class   Active class.
- * @param string     $from    Custom window start (only carried when $range==='custom').
- * @param string     $to      Custom window end.
- * @param string     $compare 'off' | 'prev' | 'yoy'.
+ * @param int|string $range        Active window (int days or 'all').
+ * @param string     $class        Active class.
+ * @param string     $from         Custom window start (only carried when $range==='custom').
+ * @param string     $to           Custom window end.
+ * @param string     $compare      'off' | 'prev' | 'yoy'.
+ * @param array      $class_totals { class => {views,visits} } — separation meta source (optional).
  */
-function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $compare = 'off' ) {
+function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $compare = 'off', $class_totals = array() ) {
 	// Context-aware base: preserve the CURRENT route so the controls work wherever
 	// this view is hooked. v5.3.0 moved the analytics dashboard onto the Dashboard
 	// tab; deriving the base from the request (vs. a hardcoded Monitoring path)
@@ -126,6 +128,24 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '<button type="submit" name="format" value="json" class="button button-secondary button-small">JSON</button>';
 	echo '</form></div>';
 
+	// v9.37.0 (D1): the permanent separation notice becomes muted toolbar meta —
+	// rendered only when automated traffic exists. The "Showing <class>" clause
+	// is dropped (the active class pill already says it); bot-share detail stays
+	// on the Content view's pulse footer + the Quality view.
+	$sep_bot     = (int) ( $class_totals['bot']['views'] ?? 0 );
+	$sep_suspect = (int) ( $class_totals['suspect']['views'] ?? 0 );
+	$sep_auto    = $sep_bot + $sep_suspect;
+	$sep_total   = $sep_auto + (int) ( $class_totals['human']['views'] ?? 0 );
+	if ( $sep_auto > 0 ) {
+		/* translators: 1: automated view count, 2: bot view count, 3: suspect view count. */
+		$sep_meta = sprintf( __( '%1$s automated filtered (%2$s bot · %3$s suspect)', 'signal-and-noise-tools' ), number_format_i18n( $sep_auto ), number_format_i18n( $sep_bot ), number_format_i18n( $sep_suspect ) );
+		if ( $sep_total > 0 ) {
+			/* translators: %d: percentage of all recorded traffic that is automated. */
+			$sep_meta .= ' · ' . sprintf( __( '%d%% of all traffic', 'signal-and-noise-tools' ), round( $sep_auto / $sep_total * 100 ) );
+		}
+		echo '<span class="sn-an-sep-meta">' . esc_html( $sep_meta ) . '</span>';
+	}
+
 	echo '</div>';
 
 	// Custom range + presets (zero-JS): preset links re-resolve each load; the custom
@@ -162,30 +182,4 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '<label>' . esc_html__( 'To', 'signal-and-noise-tools' ) . ' <input type="date" name="sn_to" value="' . esc_attr( $is_custom ? (string) $to : '' ) . '" max="' . esc_attr( $today ) . '"></label> ';
 	echo '<button type="submit" class="button button-small">' . esc_html__( 'Apply', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></details>';
-}
-
-/**
- * "Showing <class> traffic · N automated filtered (X bot · Y suspect)".
- *
- * @param array  $class_totals { class => {views,visits} }
- * @param string $class        Active class.
- */
-function snt_analytics_render_separation( $class_totals, $class ) {
-	$bot     = (int) ( $class_totals['bot']['views'] ?? 0 );
-	$suspect = (int) ( $class_totals['suspect']['views'] ?? 0 );
-	$human   = (int) ( $class_totals['human']['views'] ?? 0 );
-	$auto    = $bot + $suspect;
-	$total   = $auto + $human;
-	echo '<div class="notice notice-info inline"><p>';
-	echo 'Showing <strong>' . esc_html( $class ) . '</strong> traffic';
-	if ( $auto > 0 ) {
-		echo ' · ' . esc_html( number_format_i18n( $auto ) ) . ' automated filtered ('
-			. esc_html( number_format_i18n( $bot ) ) . ' bot · '
-			. esc_html( number_format_i18n( $suspect ) ) . ' suspect)';
-		// v8.5.0: the share, not just the count — % of ALL recorded traffic.
-		if ( $total > 0 ) {
-			echo ' · ' . esc_html( (string) round( $auto / $total * 100 ) . '% of all traffic' );
-		}
-	}
-	echo '</p></div>';
 }

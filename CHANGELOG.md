@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.37.0] - 2026-07-13: Analytics dashboard D1 — composition: tabs lead, headline band, one uptime surface
+
+**Headline:** The dashboard's composition is fixed: the 11-view tab strip becomes always-visible top navigation (underline treatment, unchanged core-5.2 link-tab semantics), the Insights monolith collapses into a `<details>` headline band (top signal chip + digest lead sentence + "Full insights (N signals)"), the pulse strip folds into the Overview footer (Content view only), the two uptime surfaces merge into one lazy rail `<details>` card, and the permanent separation notice becomes muted toolbar meta. Tabs + headline + toolbar + KPI strip + trend now fit the 1440×900 fold on Content. First increment of the dashboard revamp (D1 of 5); presentation-only — no engine, AI-prompt, or view-body changes.
+
+> **Why MINOR:** new user-visible composition and disclosure surfaces on the analytics dashboard; no breaking change — all data flows, settings, filters, and abilities are untouched.
+
+### Added
+- [inc/analytics-insights.php](inc/analytics-insights.php): `snt_analytics_headline_lead()` — mb-safe first-sentence extraction (block-boundary whitespace, single entity decode, 140-char display clamp) for the headline summary.
+- [tests/analytics-headline-render.php](tests/analytics-headline-render.php): the headline band suite — lead-extraction edges (incl. the real fallback-digest shape and pre-escaped entities), summary/expanded split, chip-0 dedup, indicator count, empty states, glyph + direction a11y.
+
+### Changed
+- [inc/analytics-admin.php](inc/analytics-admin.php): tabs render first on every view; headline band gated to shared-chrome, class-segmented views (not `login-defense`, not `edge`); the login-defense header now renders below the tabs.
+- [inc/analytics-insights.php](inc/analytics-insights.php): the full Insights band is now a collapsed `<details class="sn-an-headline">` — full narrative, remaining chips, and the methods note live in the expansion; the head's PRESCRIPTIVE/PREDICTIVE badge pair is retired (chips carry tiers); direction glyphs are `aria-hidden` with screen-reader direction words (`rising`/`falling`) so forecast chips keep their direction for AT users.
+- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): the permanent `notice-info` separation block is retired; its counts render as muted `.sn-an-sep-meta` inside the toolbar (i18n-wrapped), only when automated traffic exists — the "Showing <class>" clause is dropped (the active pill says it).
+- [inc/analytics-header-region.php](inc/analytics-header-region.php): pulse micro-stats render as the Overview panel's hairline footer (Content view only); the standalone pulse band and the full-width uptime detail postbox are removed; the `snt_analytics_after_overview` seam keeps firing.
+- [inc/uptime-status-widget.php](inc/uptime-status-widget.php) + [assets/uptime-status.js](assets/uptime-status.js): the rail Uptime card is a native `<details>` — status tier in the summary (with a concise, dynamically-updated accessible name), detail table lazy-fetched on first open (`toggle` capture bind; the legacy `sn-an-panel-open` listener is kept for a future collapsible producer). `sn_uptime_status_detail_panel()` removed.
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): dated D1 "modern native" block on the five touched surfaces — underline tabs, 4px flat hairline cards, promoted-KPI scale restored at 22px/13px (dead since v8.5.0; order-independent specificity), accent-bar Overview annotation, native palette; the v9.30.0 band's Tailwind one-offs (`#2563eb`, 8px radius, box-shadow) pruned.
+
+### Tests
+- 1 new suite + updates across `analytics-admin` (173), `analytics-insights` (11), `analytics-header-region` (26), `uptime-status-widget` (35), `analytics-tokens` (22) — composition order, gating, meta-seam armor (class totals plumbed into the toolbar), merged-surface contract, D1 CSS contract incl. cascade-order independence.
 ## [9.36.1] - 2026-07-13: Fix — Identity-tab saves no longer add a backslash layer to every apostrophe (unslash the $_POST payload)
 
 **Headline:** `sn_settings_save()` stored WP's magic-quotes-slashed `$_POST` verbatim: WP core slashes every request (`wp_magic_quotes()`), and `update_option()` — unlike `update_post_meta()` — does not unslash on write. So `what's` persisted as `what\'s`, and because the Identity form re-echoes the stored value, EVERY subsequent save re-slashed it (`addslashes` doubles existing backslashes: n → 2n+1 — exponential). After five saves the live `/provenance` og:description read `what\\\\\\…\\'s human` in LinkedIn link previews. The fix is a single `wp_unslash()` on the payload at the top of `sn_settings_save()` — the same boundary idiom the meta-box path (`inc/post-settings.php`) and `sn_handle_save_login()` already used. Every Identity-tab text field (identity, social, OG, all six `seo_copy.*` fields) is covered by the one choke point.

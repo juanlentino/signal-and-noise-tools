@@ -36,5 +36,20 @@ echo "\nTest: uptime-status.css frame duplication folded into the primitive\n";
 ok( false === strpos( $uw, '#c3c4c7' ), 'no hardcoded frame border remains (the panel shell owns the frame)' );
 ok( false !== strpos( $uw, '.sn-uw-table' ), 'table row styling stays (rows are the file\'s job, frames are not)' );
 
+echo "\nTest: D1 modern-native block (v9.37.0)\n";
+ok( false !== strpos( $an, '.sn-an-headline' ), 'D1: headline band styled' );
+ok( false === strpos( $an, '.sn-an-insights{' ) && false === strpos( $an, '.sn-an-insights {' ), 'D1: dead .sn-an-insights band rules pruned' );
+ok( false !== strpos( $an, '.sn-an-view-tabs .nav-tab' ), 'D1: underline tab treatment present' );
+ok( preg_match( '/\.sn-an-view-tabs \.nav-tab-active\s*\{[^}]*border-bottom:\s*2px solid #2271b1/s', $an ) === 1, 'D1: active tab = 2px accent underline' );
+ok( preg_match( '/\.postbox\.sn-overview \.sn-kpi-promoted \.sn-kpi-value\s*\{[^}]*font-size:\s*22px/s', $an ) === 1, 'D1: promoted KPI 22px (order-independent specificity — survives D4 reorders)' );
+ok( preg_match( '/\.postbox\.sn-overview \.sn-kpi-value\s*\{[^}]*font-size:\s*13px/s', $an ) === 1, 'D1: secondary KPI 13px' );
+ok( preg_match( '/\.sn-an-view-tabs\s*\{[^}]*padding-top:\s*0/s', $an ) === 1, 'D1: core nav-tab-wrapper 9px padding-top zeroed (8px rhythm)' );
+ok( false !== strpos( $an, '.sn-an-sep-meta' ), 'D1: toolbar separation meta styled (muted inline)' );
+ok( false !== strpos( $an, '.sn-an-uptime' ), 'D1: merged uptime details card styled' );
+ok( preg_match( '/\.sn-overview \.sn-an-note\s*\{[^}]*border-left:\s*3px solid #2271b1/s', $an ) === 1, 'D1: Overview annotation = accent-bar callout (the .sn-an-note idiom, reused)' );
+$d1 = substr( $an, (int) strpos( $an, 'v9.37.0 D1' ) );
+ok( false !== strpos( $d1, 'box-shadow: none' ) && preg_match( '/box-shadow:\s*0/', $d1 ) === 0, 'D1 block: flat — the core postbox shadow is explicitly switched off, no new shadows added' );
+ok( false === strpos( $d1, '#2563eb' ) && false === strpos( $d1, '#6b7280' ) && false === strpos( $d1, '#e2e4e7' ), 'D1 block: native palette only' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

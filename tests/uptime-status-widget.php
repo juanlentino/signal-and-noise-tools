@@ -117,31 +117,27 @@ unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
 uw_fire_enqueue( 'index.php' );
 uw_ok( ! isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'not enqueued unconfigured (no mount, no wasted requests)' );
 
-// ─── Test 5: rail strip — status tier ONLY (v8.5.0) ──────────────────
-echo "\nTest 5: rail strip (status tier only)\n";
+// ─── Test 5: rail card — ONE uptime surface, native <details> (v9.37.0) ──
+echo "\nTest 5: rail uptime card (merged surface, native details)\n";
 unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
-uw_ok( '' === sn_uptime_status_rail_strip(), 'strip: empty string without a token' );
+uw_ok( '' === sn_uptime_status_rail_strip(), 'card: empty string without a token' );
 $GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
 $html = sn_uptime_status_rail_strip();
-uw_ok( false !== strpos( $html, 'data-sn-uptime-status' ), 'strip carries the status mount' );
-uw_ok( false === strpos( $html, 'data-sn-uptime-detail' ), 'strip does NOT carry the eager detail attribute (page load costs the status tier only)' );
-uw_ok( false !== strpos( $html, 'sn-an-postbox' ) && false !== strpos( $html, 'hndle' ), 'strip renders through the panel primitive (postbox feel kept)' );
-uw_ok( false !== strpos( $html, '>Uptime<' ), 'strip heading present' );
+uw_ok( false !== strpos( $html, '<details class="sn-an-uptime">' ), 'card: native details wrapper (WAI-APG disclosure)' );
+uw_ok( false === strpos( $html, '<details class="sn-an-uptime" open' ), 'card: starts collapsed' );
+uw_ok( false !== strpos( $html, '<summary aria-label="Uptime status">' ), 'card: summary carries a concise accessible name (painted list would otherwise flatten into a run-on name)' );
+$sum_end = (int) strpos( $html, '</summary>' );
+uw_ok( false !== strpos( substr( $html, 0, $sum_end ), 'data-sn-uptime-status' ), 'card: summary carries the status mount (monitor names + states ARE the summary)' );
+uw_ok( false !== strpos( substr( $html, $sum_end ), 'data-sn-uptime-lazy-detail' ), 'card: expansion carries the LAZY detail mount' );
+uw_ok( false === strpos( $html, 'data-sn-uptime-detail' ) || false !== strpos( $html, 'data-sn-uptime-lazy-detail' ), 'card: no eager detail attribute (page load costs the status tier only)' );
+uw_ok( false !== strpos( $html, 'sn-an-postbox' ) && false !== strpos( $html, 'hndle' ), 'card: renders through the panel primitive (postbox feel kept)' );
+uw_ok( false !== strpos( $html, '>Uptime<' ), 'card: heading present' );
 uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
-uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the strip render (async contract)' );
+uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the card render (async contract)' );
 
-// ─── Test 6: lazy detail panel — collapsed, fetches only on expand ───
-echo "\nTest 6: lazy detail panel\n";
-unset( $GLOBALS['__options']['sn_betterstack_api_token'] );
-uw_ok( '' === sn_uptime_status_detail_panel(), 'detail: empty string without a token' );
-$GLOBALS['__options']['sn_betterstack_api_token'] = 'secret-token-abcd1234';
-$html = sn_uptime_status_detail_panel();
-uw_ok( false !== strpos( $html, 'data-sn-an-collapsible="uptime-detail"' ), 'detail panel is collapsible with the stable localStorage slug' );
-uw_ok( false !== strpos( $html, 'sn-an-collapsed' ) && false !== strpos( $html, 'aria-expanded="false"' ), 'detail panel starts collapsed' );
-uw_ok( false !== strpos( $html, 'data-sn-uptime-lazy-detail' ), 'detail mount is the LAZY hook' );
-uw_ok( false === strpos( $html, 'data-sn-uptime-detail' ) || false !== strpos( $html, 'data-sn-uptime-lazy-detail' ), 'no eager detail attribute anywhere' );
-uw_ok( false === strpos( $html, 'secret-token-abcd1234' ), 'token never in markup' );
-uw_ok( 0 === $GLOBALS['__http_calls'], 'zero HTTP on the detail-panel render (fetch happens on expand, not render)' );
+// ─── Test 6: the standalone detail panel is GONE ─────────────────────
+echo "\nTest 6: detail panel retired (two-surfaces duplication killed)\n";
+uw_ok( ! function_exists( 'sn_uptime_status_detail_panel' ), 'detail: sn_uptime_status_detail_panel() no longer exists (single surface)' );
 uw_ok( ! in_array( 'sn_uptime_status_render_analytics_section', $GLOBALS['__actions']['snt_analytics_after_overview'] ?? array(), true ), 'module no longer hooks the after-Overview seam (header region seats the rail directly; the seam itself keeps firing)' );
 uw_ok( false === strpos( $module_src, "add_action( 'snt_analytics_after_overview'" ), 'module source contains no seam hook' );
 
@@ -149,7 +145,9 @@ uw_ok( false === strpos( $module_src, "add_action( 'snt_analytics_after_overview
 echo "\nTest 7: uptime-status.js lazy-detail contract\n";
 $js = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.js' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-lazy-detail' ), 'JS knows the lazy mount' );
-uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS listens for the panel-open event' );
+uw_ok( false !== strpos( $js, "addEventListener( 'toggle'" ) && false !== strpos( $js, 'sn-an-uptime' ), 'JS binds the native details toggle (capture — toggle does not bubble)' );
+uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-open path (for a future collapsible-panel producer — none ship today)' );
+uw_ok( false !== strpos( $js, "closest( 'summary' )" ) && false !== strpos( $js, "setAttribute( 'aria-label'" ), 'JS swaps the summary accessible name to the status meta after paint' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
 
 uw_fire_enqueue( 'dashboard_page_sn-analytics' );

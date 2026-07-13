@@ -1,13 +1,17 @@
 <?php
 /**
- * Signal & Noise Tools — Analytics header region (v8.5.0).
+ * Signal & Noise Tools — Analytics header region (v8.5.0; uptime merged to
+ * one surface at v9.37.0/D1).
  *
  * The persistent frame every shared-chrome view gets: controls, class strip,
  * then the 2/3 + 1/3 header grid — full Overview (KPIs + trend) beside the
- * rail (uptime strip + movers) — then the collapsed uptime detail panel.
- * Owner layout decision 2026-07-03: "B, with the full overview like in A."
- * The snt_analytics_after_overview seam KEEPS FIRING (after the region) —
- * v8.5.0 moves the uptime widget off it but removes nothing.
+ * rail (the Uptime card + movers). The Uptime card is the ONE uptime surface
+ * (a native <details> — status tier in the summary, detail tier lazy-loaded
+ * on first expand); the standalone full-width "Uptime detail" postbox that
+ * used to render below the grid is retired (v9.37.0). Owner layout decision
+ * 2026-07-03: "B, with the full overview like in A." The
+ * snt_analytics_after_overview seam KEEPS FIRING (after the region) — v8.5.0
+ * moved the uptime widget off it but removed nothing.
  *
  * @package SignalNoiseTools
  * @since 8.5.0
@@ -50,8 +54,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
 		: sn_analytics_engaged_rate_delta( $from, $to, $class );
 
-	snt_analytics_render_controls( $range, $class, $from, $to, $compare );
-	snt_analytics_render_separation( $class_totals, $class );
+	snt_analytics_render_controls( $range, $class, $from, $to, $compare, $class_totals );
 
 	echo '<div class="sn-an-header-grid">';
 	echo '<div class="sn-an-header-main">';
@@ -68,6 +71,11 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
 		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );
 	}
+	// v9.37.0 (D1): the pulse micro-stats fold into the Overview as a hairline
+	// footer — Content view only (the other views keep a leaner Overview).
+	if ( 'content' === $view ) {
+		snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granularity );
+	}
 	snt_an_panel_close();
 	echo '</div>';
 	echo '<div class="sn-an-header-rail">';
@@ -78,12 +86,6 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	echo '</div>';
 	echo '</div>';
 
-	snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granularity );
-
-	if ( function_exists( 'sn_uptime_status_detail_panel' ) ) {
-		echo sn_uptime_status_detail_panel(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
-	}
-
 	// v8.4.2 composition seam — kept firing (v8.5.0 moved the uptime widget
 	// into the rail but removed nothing; the hook remains an extension point).
 	do_action( 'snt_analytics_after_overview', $view );
@@ -92,9 +94,12 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 }
 
 /**
- * The Pulse strip (v8.5.0, the data-obsessed pass): one full-width hairline
- * row under the header grid packing four glanceable micro-stats — scroll-depth
- * bands, time-on-page bands, bot share (+ microspark), and today-so-far.
+ * The Pulse strip (v8.5.0, the data-obsessed pass; folded into the Overview
+ * panel's footer at v9.37.0/D1): a hairline row packing four glanceable
+ * micro-stats — scroll-depth bands, time-on-page bands, bot share (+
+ * microspark), and today-so-far. Rendered ONLY on the Content view, as the
+ * last row inside the Overview panel's .inside (before panel close) — the
+ * other shared-chrome views keep a leaner Overview with no footer.
  * DURABLE READS ONLY (bucket + rollup tables; never AE, never remote) so the
  * landing keeps its never-blocks contract. Cells render only when their data
  * exists; the whole strip stays silent on a dataless install.
@@ -181,5 +186,5 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 	if ( empty( $cells ) ) {
 		return;
 	}
-	echo '<div class="sn-an-pulse">' . implode( '<span class="sn-an-pulse-sep"></span>', $cells ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cells assembled above with esc_* at every dynamic value.
+	echo '<div class="sn-an-pulse sn-an-pulse--footer">' . implode( '<span class="sn-an-pulse-sep"></span>', $cells ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cells assembled above with esc_* at every dynamic value.
 }

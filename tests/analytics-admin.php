@@ -155,7 +155,7 @@ function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $G
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
-$GLOBALS['__insights_html'] = '<div class="sn-an-insights">MOUNTED</div>';
+$GLOBALS['__insights_html'] = '<details class="sn-an-headline">MOUNTED</details>';
 if ( ! function_exists( 'snt_analytics_render_insights_band' ) ) {
 	function snt_analytics_render_insights_band( $from, $to, $class, $g ) { echo $GLOBALS['__insights_html']; }
 }
@@ -255,8 +255,13 @@ ok( strpos( $raw_body, '<style' ) === false, 'dashboard: no inline <style> echoe
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '1,204' ) !== false, 'dashboard: views stat card formatted' );
 ok( strpos( $html, 'sn-kpi-value">7<' ) !== false, 'cards: Now card value (7) rendered in sn-kpi-value element' );
-ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation line' );
-ok( strpos( $html, 'notice notice-info inline' ) !== false, 'controls: separation wrapped in native notice-info inline' );
+ok( strpos( $html, '312 automated filtered (268 bot · 44 suspect)' ) !== false, 'dashboard: separation meta (counts survive the notice retirement)' );
+ok( strpos( $html, 'sn-an-sep-meta' ) !== false, 'controls: separation folded into the toolbar as muted meta' );
+ok( strpos( $html, 'notice notice-info inline' ) === false, 'controls: the permanent notice-info block is GONE (notices are transient, not chrome)' );
+$tb_open  = strpos( $html, '<div class="sn-toolbar">' );
+$tb_meta  = strpos( $html, 'sn-an-sep-meta' );
+$tb_close = strpos( $html, 'sn-an-daterange' ); // the disclosure renders right after the toolbar row closes
+ok( false !== $tb_open && false !== $tb_meta && false !== $tb_close && $tb_open < $tb_meta && $tb_meta < $tb_close, 'controls: meta sits INSIDE the .sn-toolbar row' );
 ok( strpos( $html, 'sn-toolbar' ) !== false, 'controls: native toolbar wrapper present' );
 ok( strpos( $html, 'button-group' ) !== false, 'controls: button-group pill rows present' );
 ok( strpos( $html, 'button button-small' ) !== false, 'controls: pills use button button-small class' );
@@ -266,6 +271,14 @@ ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promo
 ok( strpos( $html, '<div class="n">7</div>' ) === false, 'cards: old .n markup gone' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only — NO settings form embedded (split)' );
 ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only — NO save button (split)' );
+
+echo "\nGroup: D1 — separation meta only when automated traffic exists\n";
+ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 900 ), 'bot' => array( 'views' => 0 ), 'suspect' => array( 'views' => 0 ) ) ); $ctl0 = (string) ob_get_clean();
+ok( strpos( $ctl0, 'sn-an-sep-meta' ) === false, 'meta: hidden when auto=0 (nothing to disclose)' );
+ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 1204 ), 'bot' => array( 'views' => 268 ), 'suspect' => array( 'views' => 44 ) ) ); $ctl1 = (string) ob_get_clean();
+ok( strpos( $ctl1, '312 automated filtered (268 bot · 44 suspect)' ) !== false && strpos( $ctl1, '21% of all traffic' ) !== false, 'meta: counts + share (312/1516 → 21%)' );
+ok( strpos( $ctl1, 'sn-an-sep-meta">312' ) !== false, 'meta: starts with the count — no leading orphan bullet (flex gap separates)' );
+ok( strpos( $ctl1, 'Showing' ) === false, 'meta: the "Showing human traffic" clause is dropped (the active class pill already says it)' );
 
 echo "\nGroup: dashboard — period-over-period deltas on cards\n";
 ok( strpos( $html, 'sn-delta-down' ) !== false && strpos( $html, 'sn-delta-up' ) !== false, 'cards: up + down deltas' );
@@ -281,10 +294,25 @@ ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab
 ok( strpos( $html, 'page=sn-analytics' ) !== false, 'tabs: links target the current page (sn-analytics)' );
 // v9.29.0: the dedicated UTM Campaigns view is a first-class tab in the strip.
 ok( strpos( $html, 'sn_view=campaigns' ) !== false && strpos( $html, '>Campaigns<' ) !== false, 'tabs: the Campaigns view is registered and rendered in the tab strip' );
-// v9.30.0: the Insights band leads the dashboard, above the descriptive Overview.
-$ins = strpos( $html, 'sn-an-insights' );
-$ov  = strpos( $html, 'Overview' );
-ok( false !== $ins && ( false === $ov || $ins < $ov ), 'dashboard: Insights band renders above the Overview (leads the page)' );
+// v9.37.0 (D1): tabs lead the page; the headline band sits between the tabs
+// and the toolbar; Overview follows.
+$tabs = strpos( $html, 'sn-an-view-tabs' );
+$band = strpos( $html, 'sn-an-headline' );
+$tool = strpos( $html, 'sn-toolbar' );
+$ov   = strpos( $html, 'Overview' );
+ok( false !== $tabs && false !== $band && $tabs < $band, 'D1 order: tabs above the headline band' );
+ok( false !== $tool && $band < $tool, 'D1 order: headline band above the toolbar' );
+ok( false !== $ov && $tool < $ov, 'D1 order: toolbar above the Overview' );
+
+echo "\nGroup: D1 — headline band gating\n";
+if ( ! function_exists( 'snt_edge_render_view' ) ) {
+	function snt_edge_render_view( $f, $t ) { echo '<!--EDGE-VIEW-->'; }
+}
+$_GET['sn_view'] = 'edge';
+$html_edge = capture( 'snt_analytics_render_dashboard' );
+ok( false === strpos( $html_edge, 'sn-an-headline' ), 'gating: edge (not class-segmented) renders NO headline band' );
+ok( false !== strpos( $html_edge, 'sn-toolbar' ), 'gating: edge keeps the shared header (regression guard — deliberate)' );
+$_GET['sn_view'] = 'content';
 
 echo "\nGroup: dashboard — trend: smooth SVG area chart (v6.5.2)\n";
 aa_fill_data();
@@ -307,6 +335,20 @@ $trend_pos = strpos( $html_trend, 'sn-overview-trend' );
 ok( false !== $kpi_pos && false !== $trend_pos && $kpi_pos < $trend_pos,
 	'overview: KPI strip precedes the trend band within the fused panel' );
 ok( strpos( $html_trend, '>Daily views<' ) === false, 'overview: redundant standalone "Daily views" header removed' );
+
+echo "\nGroup: D1 — pulse footer inside the Overview (content only)\n";
+$p_pos = strpos( $html_trend, 'sn-an-pulse' );
+$r_pos = strpos( $html_trend, 'sn-an-header-rail' );
+ok( false !== $p_pos && false !== $r_pos && $p_pos < $r_pos, 'pulse: footer renders inside the Overview panel on Content' );
+// Adaptation: the plan's 'visits' view isn't wired into this fixture (no
+// inc/analytics-view-sessions.php require + no snt_analytics_render_view_sessions
+// stub — it would fatal). 'technology' is already exercised in this suite
+// (Group: dashboard — Technology view, above) and is an equally valid
+// non-Content, shared-chrome view for the gating check.
+$_GET['sn_view'] = 'technology';
+$html_technology = capture( 'snt_analytics_render_dashboard' );
+ok( false === strpos( $html_technology, 'sn-an-pulse' ), 'pulse: absent on non-Content views' );
+$_GET['sn_view'] = 'content';
 
 echo "\nGroup: table panels keep the native widget gutter (not flush) (v6.5.3)\n";
 $_GET['sn_view'] = 'content';
@@ -549,12 +591,13 @@ $html = capture( 'snt_analytics_render_dashboard' );
 $pos_tabs   = strpos( $html, 'nav-tab-wrapper' );
 $pos_header = strpos( $html, 'LOGIN-DEFENSE-HEADER' );
 $pos_body   = strpos( $html, 'LOGIN-DEFENSE-BODY' );
-ok( $pos_header !== false && $pos_tabs !== false && $pos_header < $pos_tabs,
-	'frame: login header renders ABOVE the tab bar (same slot as the pageview chrome)' );
+ok( $pos_tabs !== false && $pos_header !== false && $pos_tabs < $pos_header,
+	'frame: tabs lead (v9.37.0 D1) — login header renders BELOW the tab bar (same slot as the pageview chrome)' );
 ok( $pos_body !== false && $pos_tabs !== false && $pos_body > $pos_tabs,
 	'frame: login body renders BELOW the tab bar' );
-ok( strpos( $html, 'Showing <strong>' ) === false,
-	'chrome: pageview separation notice SUPPRESSED on the login view' );
+ok( false === strpos( $html, 'sn-an-headline' ), 'chrome: no headline band on the chrome-owning login view' );
+ok( strpos( $html, 'sn-an-sep-meta' ) === false,
+	'chrome: separation meta SUPPRESSED on the login view (its own toolbar carries no class totals)' );
 ok( strpos( $html, 'sn_view=login-defense' ) !== false, 'tabs: login-defense tab present in nav' );
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'tabs: exactly one active tab (login-defense)' );
 // Sanity: content view still shows the shared Overview chrome.
