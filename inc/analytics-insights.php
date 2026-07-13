@@ -1,9 +1,10 @@
 <?php
 /**
- * Signal & Noise — Insights band (dashboard renderer for the predictive +
- * prescriptive tiers). Consumes signals + narrator; renders narrative + tier-
- * badged chips, or an honest empty state. Reuses existing panel tokens.
- * @package SignalNoiseTools @since 9.30.0
+ * Signal & Noise — headline band (dashboard renderer for the predictive +
+ * prescriptive tiers). Consumes signals + narrator; renders a collapsed
+ * <details> headline (top chip + digest lead) whose expansion carries the
+ * full narrative + remaining tier-badged chips, or an honest empty state.
+ * @package SignalNoiseTools @since 9.30.0 (headline band since 9.37.0)
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
