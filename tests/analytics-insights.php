@@ -6,6 +6,8 @@ if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlsp
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return $s; } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( '_n' ) ) { function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; } }
+if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
 
 // Stubs: signal engine + narrator (recorders/fixtures).
 $GLOBALS['__sig'] = array();
@@ -30,7 +32,7 @@ echo "\nGroup: insights band\n";
 $GLOBALS['__sig'] = array( $sig );
 $GLOBALS['__narr'] = array( 'narrative' => '<p>Spike on the 20th; consider why.</p>', 'source' => 'ai' );
 ob_start(); snt_analytics_render_insights_band( '2026-06-14', '2026-06-20', 'human', 'day' ); $h = ob_get_clean();
-ok( false !== strpos( $h, 'sn-an-insights' ) && false !== strpos( $h, 'Spike on the 20th' ), 'band: renders the narrative' );
+ok( false !== strpos( $h, 'sn-an-headline' ) && false !== strpos( $h, 'Spike on the 20th' ), 'band: renders the narrative (details headline)' );
 ok( false !== strpos( $h, 'sn-an-signal' ) && false !== strpos( $h, 'data-source="ai"' ), 'band: renders badged chips + marks the source' );
 $GLOBALS['__sig'] = array();
 $GLOBALS['__narr'] = array( 'narrative' => '', 'source' => 'fallback' );
@@ -60,7 +62,8 @@ echo "\nGroup: v9.35.0 — band framing (I6)\n";
 $GLOBALS['__sig'] = array( $sig );
 $GLOBALS['__digest'] = array( 'digest' => '<p>Body.</p>', 'source' => 'ai' );
 ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $fb = ob_get_clean();
-ok( false !== strpos( $fb, 'Prescriptive' ) && false !== strpos( $fb, 'Predictive' ), 'band head: tier names survive when the shared component is absent (fallback)' );
+ok( false === strpos( $fb, 'sn-an-tier-badges' ), 'band head: the PRESCRIPTIVE/PREDICTIVE badge pair is retired (chips alone carry tiers, D1 badge diet)' );
+ok( false !== strpos( $fb, 'Predictive' ), 'chips still badge their tier' );
 ok( false !== strpos( $fb, 'sn-an-methods-note' ) && false !== strpos( $fb, 'median/MAD' ) && false !== strpos( $fb, '2 weeks' ), 'band: the methods note names the stats and the honesty limit (the limit IS the flex)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

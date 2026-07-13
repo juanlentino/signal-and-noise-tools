@@ -46,15 +46,28 @@ function snt_analytics_render_signal_chip( $signal ) {
 		. '</span>';
 }
 
-/** The Insights band — leads the dashboard (spec §4). Guarded for partial installs. */
+/**
+ * The headline band (v9.37.0 dashboard D1): a native <details> replacing the
+ * full Insights band. Collapsed = top signal chip + the digest lead sentence +
+ * a static "Full insights (N signals)" indicator. Expanded = the full digest
+ * narrative, the remaining chips (chip 0 never repeats), and the methods-note
+ * footer. Data flow unchanged from v9.30.0/v9.36.0: sn_analytics_digest() over
+ * sn_analytics_signals() with the tuned opts; digest → narrate() → honest
+ * "needs ~2 weeks" note fallback chain intact. Zero JS — WAI-APG disclosure
+ * semantics come free with <details>/<summary>.
+ *
+ * @param string $from        Window start (Y-m-d).
+ * @param string $to          Window end (Y-m-d).
+ * @param string $class       Traffic class.
+ * @param string $granularity 'day' | 'week' | 'month'.
+ */
 function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) {
-	if ( ! function_exists( 'sn_analytics_signals' ) ) { return; }
+	if ( ! function_exists( 'sn_analytics_signals' ) ) {
+		return;
+	}
 	$opts    = function_exists( 'sn_analytics_signal_opts' ) ? sn_analytics_signal_opts() : array();
 	$signals = sn_analytics_signals( $from, $to, $class, $opts );
 	$summary = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( (string) $from, (string) $to, $class ) : array();
-	// v9.33.0 (maturity I4): the band's narrative slot is the weekly executive
-	// digest (longer-form, fed the real range totals); narrate() remains the
-	// compact path for the WP-home widget and the guard fallback here.
 	if ( function_exists( 'sn_analytics_digest' ) ) {
 		$d    = sn_analytics_digest( $summary, $signals );
 		$narr = array( 'narrative' => (string) ( $d['digest'] ?? '' ), 'source' => (string) ( $d['source'] ?? 'fallback' ) );
@@ -64,28 +77,36 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 			: array( 'narrative' => '', 'source' => 'fallback' );
 	}
 
-	echo '<div class="sn-an-insights">';
-	// v9.35.0 (maturity I6): real tier badges via the shared component; the static
-	// text stays as the floor for partial installs (the harness-isolation contract).
-	$tier_marks = function_exists( 'snt_analytics_tier_badge' )
-		? snt_analytics_tier_badge( 'prescriptive' ) . ' ' . snt_analytics_tier_badge( 'predictive' )
-		: '<span class="sn-an-tier-note">Prescriptive &middot; Predictive</span>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- assembled from the escaped shared component / static fallback markup.
-	echo '<div class="sn-an-insights-head"><span>Insights</span> <span class="sn-an-tier-badges">' . $tier_marks . '</span></div>';
-	if ( '' !== trim( (string) $narr['narrative'] ) ) {
-		echo '<div class="sn-an-insights-narrative" data-source="' . esc_attr( (string) $narr['source'] ) . '">' . wp_kses_post( $narr['narrative'] ) . '</div>';
-	} else {
-		echo '<p class="sn-an-note">Predictive needs ~2 weeks of history — insights will appear here as data accrues.</p>';
+	$narrative = trim( (string) $narr['narrative'] );
+	$has_narr  = '' !== $narrative;
+	$lead      = $has_narr
+		? snt_analytics_headline_lead( $narrative )
+		: __( 'Predictive needs ~2 weeks of history — insights will appear here as data accrues.', 'signal-and-noise-tools' );
+	$count     = count( $signals );
+
+	echo '<details class="sn-an-headline">';
+	echo '<summary>';
+	if ( $count > 0 ) {
+		echo snt_analytics_render_signal_chip( $signals[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip renderer escapes every dynamic value.
 	}
-	if ( ! empty( $signals ) ) {
+	echo '<span class="sn-an-headline-lead">' . esc_html( $lead ) . '</span>';
+	if ( $count > 0 ) {
+		/* translators: %d: number of analytics signals. */
+		echo '<span class="sn-an-headline-more">' . esc_html( sprintf( _n( 'Full insights (%d signal)', 'Full insights (%d signals)', $count, 'signal-and-noise-tools' ), $count ) ) . '</span>';
+	}
+	echo '</summary>';
+	echo '<div class="sn-an-headline-body">';
+	if ( $has_narr ) {
+		echo '<div class="sn-an-insights-narrative" data-source="' . esc_attr( (string) $narr['source'] ) . '">' . wp_kses_post( $narrative ) . '</div>';
+	}
+	if ( $count > 1 ) {
 		echo '<div class="sn-an-signal-chips">';
-		foreach ( array_slice( $signals, 0, 6 ) as $s ) {
-			echo snt_analytics_render_signal_chip( $s ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip is assembled from esc_html/esc_attr fragments in the helper.
+		foreach ( array_slice( $signals, 1 ) as $s ) {
+			echo snt_analytics_render_signal_chip( $s ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip renderer escapes every dynamic value.
 		}
 		echo '</div>';
 	}
-	// Spec §12: naming the limit IS the flex — say what the stats are and what
-	// they need, on the surface itself.
 	echo '<p class="sn-an-methods-note">' . esc_html__( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts with intervals. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
+	echo '</details>';
 }
