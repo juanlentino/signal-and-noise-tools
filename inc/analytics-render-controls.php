@@ -131,7 +131,7 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	// v9.37.0 (D1): the permanent separation notice becomes muted toolbar meta —
 	// rendered only when automated traffic exists. The "Showing <class>" clause
 	// is dropped (the active class pill already says it); bot-share detail stays
-	// on the pulse cells + Quality view.
+	// on the Content view's pulse footer + the Quality view.
 	$sep_bot     = (int) ( $class_totals['bot']['views'] ?? 0 );
 	$sep_suspect = (int) ( $class_totals['suspect']['views'] ?? 0 );
 	$sep_auto    = $sep_bot + $sep_suspect;
