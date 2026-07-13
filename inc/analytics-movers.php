@@ -2,10 +2,11 @@
 /**
  * Signal & Noise Tools — Analytics "Movers" (v8.5.0).
  *
- * Top posts by views delta, current window vs the prior window of equal
- * length — the owner's daily "which posts moved" question, answered on the
- * landing so it stops costing a tab switch. Zero new storage: two
- * sn_analytics_top_paths() reads diffed in memory, 15-min transient.
+ * Top posts by views delta, current window vs the selected comparison window
+ * (prior period by default; follows sn_compare since v9.38.0) — the owner's
+ * daily "which posts moved" question, answered on the landing so it stops
+ * costing a tab switch. Zero new storage: two sn_analytics_top_paths() reads
+ * diffed in memory, 15-min transient.
  *
  * @package SignalNoiseTools
  * @since 8.5.0
@@ -20,14 +21,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * that dropped out entirely is a negative mover (its loss is the story).
  * Zero-delta paths are noise, not movers.
  *
- * @param string $from  Window start (Y-m-d).
- * @param string $to    Window end (Y-m-d).
- * @param string $class Traffic class (follows the page filter).
- * @param int    $limit Rows returned.
+ * @param string          $from  Window start (Y-m-d).
+ * @param string          $to    Window end (Y-m-d).
+ * @param string          $class Traffic class (follows the page filter).
+ * @param int             $limit Rows returned.
+ * @param array{0:string,1:string}|null $cwin Explicit compare window (D2, v9.38.0);
+ *                                            null keeps the prior-window basis.
  * @return array[] Rows: { path, views, delta }, ranked by |delta| desc.
  */
-function sn_analytics_movers_uncached( $from, $to, $class = 'human', $limit = 3 ) {
-	list( $pfrom, $pto ) = sn_analytics_prior_window( $from, $to );
+function sn_analytics_movers_uncached( $from, $to, $class = 'human', $limit = 3, $cwin = null ) {
+	list( $pfrom, $pto ) = function_exists( 'sn_analytics_resolve_cwin' )
+		? sn_analytics_resolve_cwin( $cwin, $from, $to )
+		: sn_analytics_prior_window( $from, $to );
 	$cur = sn_analytics_top_paths( $from, $to, $class, 50 );
 	$pri = sn_analytics_top_paths( $pfrom, $pto, $class, 50 );
 
@@ -63,19 +68,28 @@ function sn_analytics_movers_uncached( $from, $to, $class = 'human', $limit = 3 
  * rollup table; the transient is cache data, exactly what transients are for
  * per docs/WORDPRESS-REFERENCE.md §3 — flush-volatility is fine here).
  *
- * @param string $from  Window start (Y-m-d).
- * @param string $to    Window end (Y-m-d).
- * @param string $class Traffic class.
- * @param int    $limit Rows returned.
+ * @param string          $from  Window start (Y-m-d).
+ * @param string          $to    Window end (Y-m-d).
+ * @param string          $class Traffic class.
+ * @param int             $limit Rows returned.
+ * @param array{0:string,1:string}|null $cwin Explicit compare window (D2, v9.38.0);
+ *                                            null keeps the prior-window basis.
  * @return array[] See sn_analytics_movers_uncached().
  */
-function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3 ) {
-	$key    = 'sn_an_movers_' . md5( $from . '|' . $to . '|' . $class . '|' . (int) $limit );
+function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3, $cwin = null ) {
+	// v9.38.0 (D2): key on the RESOLVED basis window so a yoy selection can
+	// never serve cached prev diffs (cache correctness by construction). NOTE:
+	// this reshapes the cache key for ALL callers — pre-D2 transients simply
+	// expire unread within their existing ≤15-min TTL; no migration needed.
+	$basis  = function_exists( 'sn_analytics_resolve_cwin' )
+		? sn_analytics_resolve_cwin( $cwin, $from, $to )
+		: sn_analytics_prior_window( $from, $to );
+	$key    = 'sn_an_movers_' . md5( $from . '|' . $to . '|' . $class . '|' . (int) $limit . '|' . implode( '|', $basis ) );
 	$cached = get_transient( $key );
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
-	$out = sn_analytics_movers_uncached( $from, $to, $class, $limit );
+	$out = sn_analytics_movers_uncached( $from, $to, $class, $limit, $cwin );
 	set_transient( $key, $out, 15 * MINUTE_IN_SECONDS );
 	return $out;
 }
@@ -86,16 +100,22 @@ function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3 ) {
  * so the tile fills what used to be blank (owner: "no blank spaces").
  * Links to the Posts tab for the deep dive (trajectory / catalog / velocity).
  *
- * @param string $from  Window start (Y-m-d).
- * @param string $to    Window end (Y-m-d).
- * @param string $class Traffic class (follows the page filter).
+ * @param string     $from  Window start (Y-m-d).
+ * @param string     $to    Window end (Y-m-d).
+ * @param string     $class Traffic class (follows the page filter).
+ * @param array|null $cwin  Explicit compare window (D2, v9.38.0); null keeps
+ *                          the prior-window basis.
+ * @param string     $mode  'prev'|'yoy' — meta label only (does not affect
+ *                          which window is queried; that's $cwin's job).
  */
-function snt_analytics_render_movers_tile( $from, $to, $class ) {
-	$movers = sn_analytics_movers( $from, $to, $class, 5 );
+function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mode = 'prev' ) {
+	$movers = sn_analytics_movers( $from, $to, $class, 5, $cwin );
 
 	snt_an_panel_open( __( 'Movers', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rail-tile sn-an-movers',
-		'header_meta' => esc_html__( 'vs prior period', 'signal-and-noise-tools' ),
+		'header_meta' => ( 'yoy' === (string) $mode )
+			? esc_html__( 'vs same period last year', 'signal-and-noise-tools' )
+			: esc_html__( 'vs prior period', 'signal-and-noise-tools' ),
 	) );
 	snt_an_annotation( sn_annotation_movers( $movers ) );
 	if ( empty( $movers ) ) {
