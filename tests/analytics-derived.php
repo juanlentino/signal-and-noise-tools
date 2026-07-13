@@ -103,6 +103,12 @@ $d_prev = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human' );
 ok( 100 === (int) ( $d_prev['views']['previous'] ?? -1 ) && 'up' === ( $d_prev['views']['dir'] ?? '' ), 'period_deltas: null cwin keeps the prior-window basis (back-compat pin)' );
 $d_yoy = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06', '2025-07-12' ) );
 ok( 400 === (int) ( $d_yoy['views']['previous'] ?? -1 ) && 'down' === ( $d_yoy['views']['dir'] ?? '' ), 'period_deltas: explicit cwin is the basis (yoy window read, prior window ignored)' );
+$d_trunc = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '2025-07-06' ) );
+ok( 100 === (int) ( $d_trunc['views']['previous'] ?? -1 ), 'period_deltas: truncated cwin falls back to the prior window (no silent zero-row read)' );
+$d_sentinel = sn_analytics_period_deltas( '2026-07-06', '2026-07-12', 'human', array( '', '' ) );
+ok( 100 === (int) ( $d_sentinel['views']['previous'] ?? -1 ), 'period_deltas: the off-sentinel array(\'\',\'\') falls back to the prior window' );
+ok( array( '2025-07-06', '2025-07-12' ) === sn_analytics_resolve_cwin( array( '2025-07-06', '2025-07-12' ), '2026-07-06', '2026-07-12' ), 'resolve_cwin: well-formed tuple wins' );
+ok( array( '2026-06-29', '2026-07-05' ) === sn_analytics_resolve_cwin( null, '2026-07-06', '2026-07-12' ), 'resolve_cwin: null falls back to the prior window' );
 $GLOBALS['__totals_by_window'] = array();
 
 echo "\nGroup: bot breakdown\n";
