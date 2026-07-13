@@ -7,6 +7,25 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * First sentence of a narrative, tag-stripped and clamped for the headline
+ * summary row (D1 §3): split on the first sentence terminator, then clamp to
+ * 140 display chars with an ellipsis. mb-safe; a narrative with no terminator
+ * returns the clamped whole string.
+ *
+ * @param string $text Narrative (may contain HTML).
+ * @return string Plain-text lead.
+ */
+function snt_analytics_headline_lead( $text ) {
+	$text = trim( wp_strip_all_tags( (string) $text ) );
+	if ( '' === $text ) {
+		return '';
+	}
+	$parts = preg_split( '/(?<=[.!?])\s/u', $text, 2 );
+	$lead  = is_array( $parts ) ? $parts[0] : $text;
+	return mb_strimwidth( $lead, 0, 140, '…', 'UTF-8' );
+}
+
 /** One tier-badged signal chip. Built from escaped fragments. */
 function snt_analytics_render_signal_chip( $signal ) {
 	$tier = ucfirst( (string) ( $signal['tier'] ?? 'predictive' ) );
@@ -16,7 +35,7 @@ function snt_analytics_render_signal_chip( $signal ) {
 		. ( function_exists( 'snt_analytics_tier_badge' ) && '' !== snt_analytics_tier_badge( strtolower( $tier ) )
 			? snt_analytics_tier_badge( strtolower( $tier ) ) . ' '
 			: '<span class="sn-an-signal-badge">' . esc_html( $tier ) . '</span> ' )
-		. '<span class="sn-an-signal-dir">' . esc_html( $icon ) . '</span> '
+		. '<span class="sn-an-signal-dir" aria-hidden="true">' . esc_html( $icon ) . '</span> '
 		. esc_html( (string) ( $signal['plain_label'] ?? '' ) )
 		. ' <span class="sn-an-signal-conf">' . esc_html( (string) ( $signal['confidence'] ?? '' ) ) . '</span>'
 		. '</span>';
