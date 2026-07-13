@@ -130,7 +130,7 @@ ob_start();
 snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
 $recs_empty = (string) ob_get_clean();
 ok( false !== strpos( $recs_empty, '<span>Recommendations</span>' ), 'the Recommendations panel renders in the Content view' );
-ok( false !== strpos( $recs_empty, 'Nothing needs attention right now.' ), 'quiet signals -> graceful empty-state' );
+ok( false !== strpos( $recs_empty, 'No action cards right now.' ), 'quiet signals -> graceful empty-state' );
 $rec_at  = strpos( $recs_empty, '<span>Recommendations</span>' );
 $grid_at = strpos( $recs_empty, 'sn-an-content-grid' );
 ok( false !== $rec_at && false !== $grid_at && $rec_at < $grid_at, 'the panel sits at the TOP of the view, above the content grid' );
@@ -146,7 +146,7 @@ ok( false !== strpos( $recs_hot, 'cooling posts worth a refresh' ), 'the refresh
 ok( false !== strpos( $recs_hot, 'unlinked mentions between notes' ), 'the unlinked card renders' );
 ok( false !== strpos( $recs_hot, 'sn_view=posts' ), 'refresh card deep-links to the Posts view' );
 ok( false !== strpos( $recs_hot, 'tab=monitoring&sub=health' ), 'unlinked card deep-links to the CURRENT Health sub-tab (not legacy tab=health)' );
-ok( false === strpos( $recs_hot, 'Nothing needs attention' ), 'no empty-state when cards are present' );
+ok( false === strpos( $recs_hot, 'No action cards right now.' ), 'no empty-state when cards are present' );
 $GLOBALS['__lifecycle'] = null;
 $GLOBALS['__scan']      = null;
 

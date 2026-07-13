@@ -74,7 +74,15 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 	$signals = sn_analytics_signals( $from, $to, $class, $opts );
 	$summary = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( (string) $from, (string) $to, $class ) : array();
 	if ( function_exists( 'sn_analytics_digest' ) ) {
-		$d    = sn_analytics_digest( $summary, $signals );
+		// v9.38.0 (D2): the digest is the screen's ONE voice — feed it the top
+		// deterministic recommendation so the start-here thread survives the
+		// recs-brief retirement. Cards read cached sources; cheap on every view.
+		$top_action = '';
+		if ( function_exists( 'sn_analytics_recommendations' ) ) {
+			$rec_cards  = sn_analytics_recommendations();
+			$top_action = trim( (string) ( $rec_cards[0]['title'] ?? '' ) );
+		}
+		$d    = sn_analytics_digest( $summary, $signals, $top_action );
 		$narr = array( 'narrative' => (string) ( $d['digest'] ?? '' ), 'source' => (string) ( $d['source'] ?? 'fallback' ) );
 	} else {
 		$narr = function_exists( 'sn_analytics_narrate' )

@@ -54,13 +54,11 @@ ok( 1 === count( $GLOBALS['__sig_calls'] ), 'band fetched signals exactly once' 
 ok( $sentinel === ( $GLOBALS['__sig_calls'][0]['opts'] ?? null ), 'band passes sn_analytics_signal_opts() through' );
 
 echo "Group: recommendations self-fetch\n";
+// v9.38.0 (D2): the AI priority brief retired — sn_analytics_recommend() no
+// longer self-fetches signals at all (the digest is the screen's one voice).
 $GLOBALS['__sig_calls'] = array();
 try { sn_analytics_recommend( null ); } catch ( Throwable $e ) {}
-ok( 1 === count( $GLOBALS['__sig_calls'] ), 'recommend(null) fetched signals exactly once' );
-ok( $sentinel === ( $GLOBALS['__sig_calls'][0]['opts'] ?? null ), 'recommend passes sn_analytics_signal_opts() through' );
-ok( 'human' === ( $GLOBALS['__sig_calls'][0]['class'] ?? '' ), 'recommend keeps its hardcoded human class (window/class policy unchanged)' );
-ok( gmdate( 'Y-m-d' ) === ( $GLOBALS['__sig_calls'][0]['to'] ?? '' ), 'recommend window ends today' );
-ok( gmdate( 'Y-m-d', strtotime( '-13 days' ) ) === ( $GLOBALS['__sig_calls'][0]['from'] ?? '' ), 'recommend window is trailing 14 days' );
+ok( 0 === count( $GLOBALS['__sig_calls'] ), 'recommend(null): the private trailing-14d signals self-fetch is GONE (D2)' );
 
 echo "Group: WP-home widget header\n";
 $GLOBALS['__sig_calls'] = array();

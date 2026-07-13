@@ -9,7 +9,12 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
-function apply_filters( $t, $v, ...$a ) { return $v; }
+// D2: filter overrides are keyed by tag so the documented 'sn_analytics_recommender'
+// seam can be exercised without disturbing every other apply_filters() call site.
+$GLOBALS['__filter_override'] = array();
+function apply_filters( $t, $v, ...$a ) {
+	return array_key_exists( $t, $GLOBALS['__filter_override'] ) ? $GLOBALS['__filter_override'][ $t ] : $v;
+}
 function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; }
 
 $__pass = 0; $__fail = 0;
@@ -22,6 +27,9 @@ $GLOBALS['__lifecycle'] = null;
 function sn_analytics_posts_lifecycle( $limit = 0 ) { return $GLOBALS['__lifecycle']; }
 $GLOBALS['__scan'] = null;
 function sn_health_last_scan() { return $GLOBALS['__scan']; }
+// D2: recommend() must NEVER self-fetch signals any more — this spy proves it.
+$GLOBALS['__sig_calls'] = 0;
+function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { $GLOBALS['__sig_calls']++; return array(); }
 $GLOBALS['__pages'] = array();
 function get_posts( $args ) { return $GLOBALS['__pages']; }
 function sn_seo_description_for_post( $post ) { return (string) ( $post->__desc ?? '' ); }
@@ -110,44 +118,46 @@ foreach ( $all as $c ) {
 	r_true( ! isset( $c['visitor'] ) && ! isset( $c['ip'] ) && ! isset( $c['session'] ), 'card ' . $c['id'] . ' carries no per-person field' );
 }
 
-// ── v9.33.0: AI-reasoned recommendations behind the seam (rules stay the floor) ──
-echo "\nSeam: AI-reasoned brief over the rule cards\n";
-if ( ! class_exists( 'WP_Error' ) ) { class WP_Error {} }
-$GLOBALS['__ai_return'] = null; $GLOBALS['__ai_prompt'] = ''; $GLOBALS['__ai_system'] = '';
-if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
-	function snt_ai_generate_with_constraints( $prompt, $system, $max = 256, $feature = 'generic' ) {
-		$GLOBALS['__ai_prompt'] = $prompt; $GLOBALS['__ai_system'] = $system; $GLOBALS['__ai_feature'] = $feature;
-		return $GLOBALS['__ai_return'];
-	}
-}
-$sig_fix = array( array( 'plain_label' => '/notes/x is decaying (-38% over the window)', 'kind' => 'trajectory', 'confidence' => 'medium' ) );
-$rec = sn_analytics_recommend( $sig_fix );
-r_true( 'fallback' === $rec['source'] && '' === $rec['brief'], 'recommend: AI silent → rules-only fallback (empty brief)' );
-r_eq( count( sn_analytics_recommendations() ), count( $rec['cards'] ?? array() ), 'recommend: fallback passes the rule cards through verbatim' );
-$GLOBALS['__ai_return'] = 'Refresh the cooling posts first; the decay signal makes them the highest-leverage fix.';
-$rec2 = sn_analytics_recommend( $sig_fix );
-r_true( 'ai' === $rec2['source'] && false !== strpos( $rec2['brief'], 'highest-leverage' ), 'recommend: AI path fills the priority brief' );
-r_eq( json_encode( sn_analytics_recommendations() ), json_encode( $rec2['cards'] ), 'recommend: the AI NEVER alters the deep-linked cards (verbatim rules)' );
-r_true( false !== strpos( $GLOBALS['__ai_prompt'], 'cooling post' ) && false !== strpos( $GLOBALS['__ai_prompt'], 'decaying' ) && false !== strpos( (string) $GLOBALS['__ai_system'], 'NEVER invent' ), 'recommend: prompt carries cards + signals; system forbids invention' );
-$GLOBALS['__ai_return'] = new WP_Error();
-$rec3 = sn_analytics_recommend( $sig_fix );
-r_true( 'fallback' === $rec3['source'] && '' === $rec3['brief'], 'recommend: budget-cap WP_Error → rules-only fallback' );
-$GLOBALS['__lifecycle'] = null; $GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
-$GLOBALS['__ai_prompt'] = 'UNTOUCHED';
-$rec4 = sn_analytics_recommend( $sig_fix );
-r_true( '' === $rec4['brief'] && 'UNTOUCHED' === $GLOBALS['__ai_prompt'], 'recommend: no cards → no AI call, empty brief' );
-
-echo "\nRender: the AI brief leads the panel; fallback renders as before\n";
-$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 2 ) );
+// ── v9.38.0 (D2): the AI priority brief is retired — the digest is the ONE
+// voice on the Content view. sn_analytics_recommend() never self-fetches
+// signals and never calls an AI leg any more; the documented
+// 'sn_analytics_recommender' filter is public API and survives untouched. ──
+echo "\nGroup: D2 — the AI brief is retired (single voice lives in the digest)\n";
+$GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 3 ) );
 $GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
-$GLOBALS['__ai_return'] = 'Refresh the cooling posts first.';
+$GLOBALS['__sig_calls'] = 0;
+$rec = sn_analytics_recommend();
+r_true( '' === ( $rec['brief'] ?? 'x' ) && 'fallback' === ( $rec['source'] ?? '' ), 'recommend: default path always returns an empty brief (no AI leg)' );
+r_true( 0 === (int) $GLOBALS['__sig_calls'], 'recommend: the private trailing-14d signals fetch is GONE' );
+r_true( ! function_exists( 'sn_analytics_recommend_ai' ), 'recommend_ai: deleted' );
+r_eq( count( sn_analytics_recommendations() ), count( $rec['cards'] ?? array() ), 'recommend: cards pass through verbatim (no AI leg)' );
+// A caller passing $signals explicitly is tolerated (still just handed to the
+// filter, never used to self-fetch or to feed an AI call).
+$rec_sig = sn_analytics_recommend( array( array( 'plain_label' => 'x' ) ) );
+r_true( '' === ( $rec_sig['brief'] ?? 'x' ) && 0 === (int) $GLOBALS['__sig_calls'], 'recommend: an explicit $signals arg still never triggers a self-fetch or AI call' );
+
+echo "\nGroup: D2 — the sn_analytics_recommender filter seam survives (public API)\n";
+$fixture_cards = array( array( 'id' => 'owner', 'title' => 'Owner override card' ) );
+$GLOBALS['__filter_override']['sn_analytics_recommender'] = array( 'cards' => $fixture_cards, 'brief' => '<p>owner brief</p>', 'source' => 'filter' );
+$rec_f = sn_analytics_recommend();
+r_true( 'filter' === ( $rec_f['source'] ?? '' ) && '<p>owner brief</p>' === ( $rec_f['brief'] ?? '' ), 'recommend: the documented sn_analytics_recommender filter still overrides the whole result' );
+r_eq( json_encode( $fixture_cards ), json_encode( $rec_f['cards'] ?? null ), 'recommend: the filter fixture cards pass through untouched' );
+
+echo "\nRender: the filter-seam brief leads the panel; the AI brief div is unreachable by default\n";
 ob_start(); snt_analytics_render_recommendations_panel(); $bh = (string) ob_get_clean();
-r_true( false !== strpos( $bh, 'sn-an-rec-brief' ) && false !== strpos( $bh, 'data-source="ai"' ) && false !== strpos( $bh, 'Refresh the cooling posts first.' ), 'render: AI brief renders with its source' );
+r_true( false !== strpos( $bh, 'sn-an-rec-brief' ) && false !== strpos( $bh, 'data-source="filter"' ) && false !== strpos( $bh, 'owner brief' ), 'render: filter-fixture brief renders with its source' );
+r_true( false !== strpos( $bh, 'Owner override card' ), 'render: the filter-fixture cards render verbatim' );
 $p_brief = strpos( $bh, 'sn-an-rec-brief' ); $p_cards = strpos( $bh, 'sn-an-recs' );
 r_true( false !== $p_brief && false !== $p_cards && $p_brief < $p_cards, 'render: the brief precedes the card list' );
-$GLOBALS['__ai_return'] = null;
+
+unset( $GLOBALS['__filter_override']['sn_analytics_recommender'] );
 ob_start(); snt_analytics_render_recommendations_panel(); $fh = (string) ob_get_clean();
-r_true( false === strpos( $fh, 'sn-an-rec-brief' ) && false !== strpos( $fh, 'cooling post' ), 'render: AI silent → panel renders exactly the rules cards (no brief div)' );
+r_true( false === strpos( $fh, 'sn-an-rec-brief' ) && false !== strpos( $fh, 'cooling post' ), 'render: no filter override -> panel renders exactly the rule cards (no brief div)' );
+
+echo "\nRender: empty cards -> the new empty-state copy\n";
+$GLOBALS['__lifecycle'] = null; $GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
+ob_start(); snt_analytics_render_recommendations_panel(); $eh = (string) ob_get_clean();
+r_true( false !== strpos( $eh, 'No action cards right now.' ), 'render: empty cards render the D2 empty-state string' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );
