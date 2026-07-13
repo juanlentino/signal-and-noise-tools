@@ -43,16 +43,28 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	// baseline is $to-anchored and never reads this window.
 	$cseries = array();
 	$ctotals = array();
-	$cwin    = array( '', '' );
+	// v9.38.0 (D2): ONE comparison frame. The basis window is resolved here,
+	// once, and threaded into every delta surface — badges, engaged, the Read
+	// annotation's inputs, and Movers. Window and label derive from the SAME
+	// $compare so a mode/window mismatch cannot exist at this (the only) call
+	// site. 'off' keeps the quiet prev basis (badges stay glanceable, no
+	// overlay/note); 'yoy' switches EVERYTHING.
+	$basis       = ( 'yoy' === (string) $compare ) ? 'yoy' : 'prev';
+	$cwin_basis  = ( 'all' === (string) $range || ! function_exists( 'snt_analytics_compare_window' ) )
+		? null
+		: snt_analytics_compare_window( $from, $to, $basis );
+	$basis_label = ( 'yoy' === $basis )
+		? __( 'same period last year', 'signal-and-noise-tools' )
+		: __( 'previous period', 'signal-and-noise-tools' );
+	$cwin        = $cwin_basis ?? array( '', '' );
 	if ( 'off' !== (string) $compare && 'all' !== (string) $range && function_exists( 'snt_analytics_compare_window' ) ) {
-		$cwin    = snt_analytics_compare_window( $from, $to, $compare );
 		$cseries = sn_analytics_daily_series( $cwin[0], $cwin[1], $class, $granularity );
 		$ctotals = sn_analytics_range_totals( $cwin[0], $cwin[1], $class );
 	}
-	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class );
+	$deltas       = ( 'all' === $range ) ? array() : sn_analytics_period_deltas( $from, $to, $class, $cwin_basis );
 	$engaged      = ( 'all' === $range )
 		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
-		: sn_analytics_engaged_rate_delta( $from, $to, $class );
+		: sn_analytics_engaged_rate_delta( $from, $to, $class, $cwin_basis );
 
 	snt_analytics_render_controls( $range, $class, $from, $to, $compare, $class_totals );
 
@@ -66,7 +78,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		'header_meta'  => function_exists( 'snt_analytics_tier_badge' ) ? snt_analytics_tier_badge( 'descriptive' ) : '',
 	) );
 	snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
-	snt_analytics_render_cards( $now, $totals, $deltas, $engaged );
+	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label );
 	snt_analytics_render_trend( $series, $granularity, $cseries );
 	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
 		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );
@@ -82,7 +94,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( function_exists( 'sn_uptime_status_rail_strip' ) ) {
 		echo sn_uptime_status_rail_strip(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
 	}
-	snt_analytics_render_movers_tile( $from, $to, $class );
+	snt_analytics_render_movers_tile( $from, $to, $class, $cwin_basis, $basis );
 	echo '</div>';
 	echo '</div>';
 

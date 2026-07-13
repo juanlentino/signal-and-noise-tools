@@ -635,6 +635,24 @@ unset( $_GET['sn_compare'] );
 $html_off = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html_off, 'sn-an-compare-note' ) === false && strpos( $html_off, 'stroke-dasharray' ) === false, 'compare off (default): no note, no overlay' );
 
+// D2 (v9.38.0): the header region resolves ONE basis from sn_compare and threads
+// it to every surface — the KPI badge tooltip AND the Movers meta must flip
+// together on yoy, and 'off' keeps the quiet prev basis (no note/overlay, but
+// the badge tooltip still reads "previous period").
+$_GET['sn_compare'] = 'yoy';
+$html_yoy = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html_yoy, 'same period last year:' ), 'D2 frame: yoy flips the KPI badge tooltip basis' );
+// Armor: the compare-NOTE also contains the substring "vs same period last
+// year" (its own label), so a bare strpos() would pass even if the Movers
+// tile never received the mode. Anchor to the Movers panel's OWN head-meta
+// span (sn-an-head-meta, uniquely emitted by the movers tile with this text)
+// so this can only pass when the mode actually reached snt_analytics_render_movers_tile().
+ok( false !== strpos( $html_yoy, 'sn-an-head-meta">vs same period last year<' ), 'D2 frame: yoy flips the movers meta' );
+unset( $_GET['sn_compare'] );
+$html_off = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html_off, 'previous period:' ), 'D2 frame: off keeps the quiet previous-period tooltip' );
+ok( false === strpos( $html_off, 'sn-an-compare-note' ), 'D2 frame: off still renders no note (v9.34.0 invariant)' );
+
 echo "\nGroup: v9.34.0 — brush data attributes on the trend\n";
 $_GET['sn_view'] = 'content';
 $html_br = capture( 'snt_analytics_render_dashboard' );

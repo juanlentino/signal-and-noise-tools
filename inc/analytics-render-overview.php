@@ -130,9 +130,10 @@ function snt_analytics_render_delta_badge( $delta ) {
  * Echo a period-over-period delta badge in the new KPI strip style (▲/▼/■ + signed pct).
  * pct null → "new" (prev window was empty). No-op when no valid delta is supplied.
  *
- * @param array|null $delta {pct:?int, dir:string}
+ * @param array|null $delta       {pct:?int, dir:string}
+ * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
  */
-function snt_analytics_render_delta_badge_kpi( $delta ) {
+function snt_analytics_render_delta_badge_kpi( $delta, $basis_label = '' ) {
 	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
 		return;
 	}
@@ -146,10 +147,13 @@ function snt_analytics_render_delta_badge_kpi( $delta ) {
 	// v8.5.0 (data-obsessed pass): the absolute prior-period value rides a
 	// tooltip so the % is never the whole story. Escaping at the point of
 	// output (the sniff cannot see through a pre-built attribute string).
+	// v9.38.0 (D2): the tooltip's basis label follows the SAME resolved
+	// comparison frame as everything else (see analytics-header-region.php) —
+	// 'previous period' by default, 'same period last year' on yoy.
 	$prev_title = '';
 	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
 		$prev       = (float) $delta['previous'];
-		$prev_title = 'previous period: ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
+		$prev_title = ( '' !== (string) $basis_label ? (string) $basis_label : 'previous period' ) . ': ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
 	}
 	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"'
 		. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
@@ -162,13 +166,14 @@ function snt_analytics_render_delta_badge_kpi( $delta ) {
  * period-over-period delta badge when $deltas is given. "Now" is always live.
  * Wraps in a native .postbox (no collapse toggle — clean static header).
  *
- * @param int|null   $now     Realtime visitor count (null = not available).
- * @param array      $totals  {views,visits,scroll_avg,time_avg}
- * @param array      $deltas  {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param int|null   $now         Realtime visitor count (null = not available).
+ * @param array      $totals      {views,visits,scroll_avg,time_avg}
+ * @param array      $deltas      {views,visits,scroll_avg,time_avg} => {pct,dir}
  * @param array{current:?int,previous?:?int,pct?:?int,dir?:string}|null $engaged Engaged-rate data,
  *                                                                                or null to omit the card.
+ * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
  */
-function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null ) {
+function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null, $basis_label = '' ) {
 	$cards = array(
 		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ),  'delta' => $deltas['views'] ?? null,      'promoted' => true ),
 		array( 'l' => 'Visits',     'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ), 'delta' => $deltas['visits'] ?? null,     'promoted' => true ),
@@ -190,7 +195,7 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 		if ( ! empty( $c['live'] ) ) {
 			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
 		} elseif ( ! empty( $c['delta'] ) ) {
-			snt_analytics_render_delta_badge_kpi( $c['delta'] );
+			snt_analytics_render_delta_badge_kpi( $c['delta'], $basis_label );
 		} else {
 			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'no change', 'signal-and-noise-tools' ) . '</span>';
 		}

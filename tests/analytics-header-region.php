@@ -10,6 +10,7 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); } // needed by the REAL snt_analytics_compare_window (D2)
 
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
@@ -35,9 +36,12 @@ function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) {
 	$day = ( $GLOBALS['__series_last_today'] ?? true ) ? gmdate( 'Y-m-d' ) : $f;
 	return array( array( 'day' => $day, 'views' => 10 ) );
 }
-function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'pct' => 40, 'dir' => 'up' ) ); } // 40% up + engaged down trips the overview read
+// D2: each stub records its trailing comparison-window/mode/basis args into a
+// global so the new test group can assert the SAME resolved frame reached
+// every surface (a mode/window mismatch would show up as divergent globals).
+function sn_analytics_period_deltas( $f, $t, $c = 'human', $cwin = null ) { $GLOBALS['__hr_deltas_cwin'] = $cwin; return array( 'views' => array( 'pct' => 40, 'dir' => 'up' ) ); } // 40% up + engaged down trips the overview read
 function sn_analytics_engaged_rate( $f, $t, $c = 'human' ) { return 62; }
-function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 62, 'previous' => 65, 'pct' => -3, 'dir' => 'down' ); }
+function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human', $cwin = null ) { $GLOBALS['__hr_engaged_cwin'] = $cwin; return array( 'current' => 62, 'previous' => 65, 'pct' => -3, 'dir' => 'down' ); }
 // Pulse-strip accessors (durable bucket/rollup reads) — flip the globals to
 // model a dataless install.
 $GLOBALS['__dist_on'] = true;
@@ -57,9 +61,9 @@ if ( ! function_exists( 'snt_analytics_smooth_path' ) ) { function snt_analytics
 
 // Sub-renderer recorders (each has its own suite; this fixture pins ORDER + composition).
 function snt_analytics_render_controls( $r, $c, $f = '', $t = '', $cmp = 'off', $ct = array() ) { $GLOBALS['__hr_controls_ct'] = $ct; echo '<!--CONTROLS-->'; }
-function snt_analytics_render_cards( $n, $t, $d = array(), $e = null ) { echo '<!--CARDS-->'; }
+function snt_analytics_render_cards( $n, $t, $d = array(), $e = null, $basis_label = '' ) { $GLOBALS['__hr_cards_basis'] = $basis_label; echo '<!--CARDS-->'; }
 function snt_analytics_render_trend( $s, $g = 'day' ) { echo '<!--TREND-->'; }
-function snt_analytics_render_movers_tile( $f, $t, $c ) { echo '<!--MOVERS-->'; }
+function snt_analytics_render_movers_tile( $f, $t, $c, $cwin = null, $mode = 'prev' ) { $GLOBALS['__hr_movers_cwin'] = $cwin; $GLOBALS['__hr_movers_mode'] = $mode; echo '<!--MOVERS-->'; }
 
 // Uptime surface stub — flip $GLOBALS['__uptime_on'] to model un/configured.
 $GLOBALS['__uptime_on'] = true;
@@ -67,6 +71,11 @@ function sn_uptime_status_rail_strip() { return $GLOBALS['__uptime_on'] ? '<!--U
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/analytics-annotations.php';
+// D2: pull in the REAL snt_analytics_compare_window() rather than hand-rolling a
+// second implementation of its yoy/prev + Feb-29 clamp semantics in this fixture
+// (a stub could silently drift from the real function and mask a mismatch). The
+// file only declares functions/consts at the top level — safe to require whole.
+require_once __DIR__ . '/../inc/analytics-admin.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 
 $pass = 0; $fail = 0;
@@ -170,6 +179,21 @@ $GLOBALS['__cs_on'] = true;
 echo "\nTest: v9.35.0 — the Overview panel names its tier (I6)\n";
 ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' ); $h_badge = (string) ob_get_clean();
 ok( false !== strpos( $h_badge, 'sn-an-tier--descriptive' ) && false !== strpos( $h_badge, '>Descriptive<' ), 'overview: header carries the shared Descriptive badge' );
+
+// D2: ONE comparison frame resolved once and threaded to every surface. Windows
+// below are the LITERAL output of the real snt_analytics_compare_window() for
+// this fixture's from/to ('2026-07-01'..'2026-07-07', a 7-day window):
+//   yoy  -> same calendar dates, one year earlier: 2025-07-01 .. 2025-07-07
+//   prev -> the adjacent equal-length (7-day) prior window: 2026-06-24 .. 2026-06-30
+echo "\nGroup: D2 — one frame resolved once, threaded everywhere\n";
+ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day', 'yoy' ); ob_end_clean();
+ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_deltas_cwin'] ?? null ), 'frame: period_deltas receives the yoy window' );
+ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_engaged_cwin'] ?? null ), 'frame: engaged delta receives the yoy window' );
+ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_movers_cwin'] ?? null ) && 'yoy' === ( $GLOBALS['__hr_movers_mode'] ?? '' ), 'frame: movers receive the yoy window + mode (matched pair by construction)' );
+ok( false !== strpos( (string) ( $GLOBALS['__hr_cards_basis'] ?? '' ), 'last year' ), 'frame: cards receive the yoy basis label' );
+ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day', 'off' ); ob_end_clean();
+ok( array( '2026-06-24', '2026-06-30' ) === ( $GLOBALS['__hr_deltas_cwin'] ?? null ), 'frame: off keeps the quiet prev basis (explicit prev window passed)' );
+ok( 'prev' === ( $GLOBALS['__hr_movers_mode'] ?? '' ), 'frame: off movers meta stays the default' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
