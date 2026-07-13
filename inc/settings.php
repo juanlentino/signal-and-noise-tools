@@ -271,10 +271,17 @@ function sn_setting_update( $path, $value ) {
 /**
  * Sanitize + persist settings from a $_POST submission.
  *
- * @param array $raw Raw $_POST data from the Identity tab form.
+ * @param array $raw Raw (still-slashed) $_POST data from the Identity tab form.
  * @return bool True on update_option success.
  */
 function sn_settings_save( $raw ) {
+	// WP core slashes all of $_POST (wp_magic_quotes()), and update_option()
+	// — unlike update_post_meta() — does NOT unslash on write. Without this,
+	// every apostrophe gains a backslash layer PER SAVE (n → 2n+1, since the
+	// form re-echoes the stored value): the v9.36.x /provenance og:description
+	// read "what\\\\…\'s human" in link previews after five Identity saves.
+	$raw = wp_unslash( (array) $raw );
+
 	$sanitized = array();
 
 	// knows_about — textarea, one topic per line. Trim each, drop empties.

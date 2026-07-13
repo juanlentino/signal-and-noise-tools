@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.36.1] - 2026-07-13: Fix — Identity-tab saves no longer add a backslash layer to every apostrophe (unslash the $_POST payload)
+
+**Headline:** `sn_settings_save()` stored WP's magic-quotes-slashed `$_POST` verbatim: WP core slashes every request (`wp_magic_quotes()`), and `update_option()` — unlike `update_post_meta()` — does not unslash on write. So `what's` persisted as `what\'s`, and because the Identity form re-echoes the stored value, EVERY subsequent save re-slashed it (`addslashes` doubles existing backslashes: n → 2n+1 — exponential). After five saves the live `/provenance` og:description read `what\\\\\\…\\'s human` in LinkedIn link previews. The fix is a single `wp_unslash()` on the payload at the top of `sn_settings_save()` — the same boundary idiom the meta-box path (`inc/post-settings.php`) and `sn_handle_save_login()` already used. Every Identity-tab text field (identity, social, OG, all six `seo_copy.*` fields) is covered by the one choke point.
+
+> **Why PATCH:** pure fix — no API/schema change. **Owner action required once:** the corrupted stored values are not auto-repaired; re-paste clean text into the affected Identity-tab fields (at minimum the `/provenance` description) and save once with 9.36.1 deployed.
+
+### Fixed
+- [inc/settings.php](inc/settings.php): `sn_settings_save()` now `wp_unslash()`es the whole `$_POST` payload before sanitizing (recursive `stripslashes_deep`).
+- [inc/admin-post-actions.php](inc/admin-post-actions.php): retired the file-header note that blessed the raw pass-through as "pre-existing behavior — do not fix" (it was the bug).
+
+### Tests
+- [tests/settings-save-unslash.php](tests/settings-save-unslash.php): new CLI suite simulating `wp_magic_quotes()` on the way in — pins unslashed storage after one save AND byte-stability across 5 untouched re-saves (the 2n+1 growth reproduction). `wp_unslash` stubs in the two pre-existing `sn_settings_save()` fixtures upgraded to real `stripslashes_deep` behavior. Full 283-suite sweep green.
+
 ## [9.36.0] - 2026-07-12: Analytics settings hub — pipeline status pills, engine-tuning knobs, shared-config mirrors
 
 **Headline:** Monitoring → Analytics becomes the analytics operations hub. A pipeline-status strip surfaces every invisible wp-config dependency as a presence pill — including `SN_SRV_TOKEN`, whose absence silently disabled the */15 cron refresh with zero UI trace until now (the pill names the fail-closed consequence, and dual-resolves the independently-filterable RSS srv-trust seam). Two owner-tunable engine knobs (anomaly-baseline window 14–90 days; anomaly sensitivity relaxed/standard/strict ≈ 2.5/3.5/4.5σ) finally wire the signal engine's `$opts` plumbing that v9.30.0 shipped unconnected, via the new `sn_analytics_signal_config` filter (sessions-pattern clamped, re-clamped post-filter). Shared config (AI model + budget with a truthful over-budget spend meter, weekly-digest cron, collector URL) appears as read-only mirrors with deep links — never a second write path.
