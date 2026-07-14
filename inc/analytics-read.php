@@ -68,11 +68,26 @@ function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
  * Range totals for the stat cards: summed views/visits + views-weighted
  * scroll/time across all paths for one class.
  *
+ * Request-scope memo (D5 §5 perf): the header region
+ * (inc/analytics-header-region.php:38), the insights band
+ * (inc/analytics-insights.php:75), and the Dashboard-home widget all pull the
+ * SAME [$from,$to,$class] window once per page load (audit E§3.8) — cache it
+ * per request so that costs one read, not three. $refresh is the re-prime
+ * seam (the D2 sn_analytics_recommendations( true ) idiom) for callers that
+ * must force a fresh read within the same request (e.g. CLI/tests).
+ *
+ * @param bool $refresh Bypass and re-prime the memo for this key.
  * @return array{views:int, visits:int, scroll_avg:float, time_avg:float}
  */
-function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
+function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 		$class = 'human';
+	}
+
+	static $memo = array();
+	$key = $from . '|' . $to . '|' . $class;
+	if ( ! $refresh && isset( $memo[ $key ] ) ) {
+		return $memo[ $key ];
 	}
 
 	global $wpdb;
@@ -91,12 +106,13 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
 	), ARRAY_A );
 
 	$r = ( is_array( $row ) && isset( $row[0] ) && is_array( $row[0] ) ) ? $row[0] : array();
-	return array(
+	$memo[ $key ] = array(
 		'views'      => (int) ( $r['views'] ?? 0 ),
 		'visits'     => (int) ( $r['visits'] ?? 0 ),
 		'scroll_avg' => (float) ( $r['scroll_avg'] ?? 0 ),
 		'time_avg'   => (float) ( $r['time_avg'] ?? 0 ),
 	);
+	return $memo[ $key ];
 }
 
 /**

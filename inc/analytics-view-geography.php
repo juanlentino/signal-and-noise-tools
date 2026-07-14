@@ -25,13 +25,16 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  */
 function snt_analytics_render_view_geography( $from, $to, $class ) {
 	echo '<div class="sn-geo">';
-	// Capture the full country pull so the read and the choropleth share one query
-	// (v9.5.0 read: audience concentrated in a couple of markets).
+	// Capture the full country pull so the read, the choropleth, AND the
+	// Countries table share ONE query (v9.5.0 read: audience concentrated in
+	// a couple of markets; D5 §5: sn_analytics_top_dimension() orders by
+	// views DESC in SQL before LIMIT, so the first 10 of this 250-pull are
+	// exactly the top 10 by views — identical to a standalone limit-10 pull).
 	$countries = sn_analytics_top_dimension( 'country', $from, $to, $class, 250 );
 	snt_an_annotation( sn_annotation_geography( $countries ) );
 	echo '<div class="sn-geo-split">';
 	snt_analytics_render_choropleth( 'World map', $countries, 'No country data in this range yet.' );
-	snt_analytics_render_dim_table( 'Countries', sn_analytics_top_dimension( 'country', $from, $to, $class, 10 ), 'No country data in this range.', array(), 'country' );
+	snt_analytics_render_dim_table( 'Countries', array_slice( $countries, 0, 10 ), 'No country data in this range.', array(), 'country' );
 	echo '</div>';
 	echo '<div class="sn-geo-tiles" style="margin-top:20px">';
 	snt_analytics_render_dim_table( 'Cities', sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.', array(), 'city' );
