@@ -160,6 +160,15 @@ function sn_settings_defaults() {
 			// already preserved by sn_settings_save()'s v6.23.0 block.
 			'signal_baseline_days' => 30,
 			'anomaly_sensitivity'  => 'standard',
+			// S2 §3 (v9.42.0 arc): owner-defined session funnels (Visits view).
+			// MUST default to an EMPTY array — same reasoning as exclude_roles
+			// above: a non-empty default would resurface via array_replace_recursive
+			// (index-keyed merge), making "no configured funnels" (i.e. "use the
+			// hardcoded defaults") impossible to store once a funnel is deleted.
+			// Written via sn_setting_update('analytics.funnels', …) by
+			// sn_handle_analytics_funnels_save() — already covered by the whole-
+			// analytics-subtree preserve block in sn_settings_save() below.
+			'funnels' => array(),
 		),
 	);
 }

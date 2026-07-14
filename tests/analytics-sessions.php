@@ -8,6 +8,10 @@ define( 'ABSPATH', '/' );
 define( 'SN_ANALYTICS_DATASET', 'sn_pageviews' );
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
 if ( ! function_exists( '__' ) ) { function __( $text, $domain = 'default' ) { return $text; } }
+// S2 §3: sn_analytics_session_funnels() now reads analytics.funnels — an
+// absent setting (this stub's default) falls back to the hardcoded two, so
+// every pin in this file that predates the setting seam is unaffected.
+if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $path, $default = null ) { return $default; } }
 require __DIR__ . '/../inc/analytics-sessions.php';
 
 $pass = 0; $fail = 0;

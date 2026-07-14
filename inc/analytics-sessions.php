@@ -25,6 +25,11 @@ const SN_ANALYTICS_SESSION_ENGAGED_PCT = 50;    // engaged read: scroll depth % 
 const SN_ANALYTICS_SESSION_ENGAGED_MS  = 15000; // engaged read: dwell ms floor.
 const SN_ANALYTICS_SESSION_ROW_CAP     = 50000; // max raw rows pulled per window.
 
+// S2 §3 (settings-defined funnels): textarea-parser caps. Kept small — a
+// funnel list is a curated set of named conversion paths, not an open log.
+const SN_ANALYTICS_FUNNELS_MAX       = 10; // max funnels the parser will accept.
+const SN_ANALYTICS_FUNNELS_MAX_STEPS = 8;  // max steps per funnel.
+
 /**
  * Filterable session-engine config. Constants are the defaults; the
  * 'sn_analytics_session_config' filter lets a site override any key.
@@ -49,14 +54,23 @@ function sn_analytics_session_config() {
 }
 
 /**
- * Auto-derived + optional code-defined funnels. A site can add named funnels via
- * the 'sn_analytics_session_funnels' filter; nothing is required for the view to
- * work (transitions + quality render regardless).
+ * Auto-derived + optional owner-defined funnels. A site can configure named
+ * funnels via Monitoring → Analytics (Settings → analytics.funnels, S2 §3) or
+ * add/override them in code via the 'sn_analytics_session_funnels' filter;
+ * nothing is required for the view to work (transitions + quality render
+ * regardless).
  *
+ * Precedence: a non-empty, well-formed analytics.funnels setting REPLACES the
+ * hardcoded two below; an empty/absent/corrupt setting falls back to them.
+ * The filter always runs last, over either source, so code-level overrides
+ * still win.
+ *
+ * @since 8.8.0
+ * @since S2 (v9.42.0 arc) settings-defined funnels via analytics.funnels.
  * @return array List of array{title:string,steps:array}.
  */
 function sn_analytics_session_funnels() {
-	$defaults = array(
+	$hardcoded = array(
 		array(
 			'title' => __( 'Home → post → subscribe', 'signal-and-noise-tools' ),
 			'steps' => array(
@@ -77,7 +91,172 @@ function sn_analytics_session_funnels() {
 			),
 		),
 	);
-	return (array) apply_filters( 'sn_analytics_session_funnels', $defaults );
+
+	$configured = sn_setting( 'analytics.funnels', array() );
+	$funnels    = sn_analytics_funnels_resolve_setting( $configured, $hardcoded );
+
+	return (array) apply_filters( 'sn_analytics_session_funnels', $funnels );
+}
+
+/**
+ * Resolve the analytics.funnels setting against the hardcoded fallback.
+ *
+ * Defensive: a non-array setting, an empty setting, or a setting whose entries
+ * aren't themselves arrays (a corrupt/hand-edited option value) all fall back
+ * to the hardcoded defaults wholesale — never a partial/best-effort mix, so a
+ * bad option value can't silently drop a funnel out from under sn_funnel_report().
+ *
+ * @since S2 (v9.42.0 arc)
+ * @param mixed $configured The raw analytics.funnels setting value.
+ * @param array $hardcoded  The hardcoded fallback funnel list.
+ * @return array
+ */
+function sn_analytics_funnels_resolve_setting( $configured, array $hardcoded ) {
+	if ( ! is_array( $configured ) || empty( $configured ) ) {
+		return $hardcoded;
+	}
+	foreach ( $configured as $entry ) {
+		if ( ! is_array( $entry ) ) {
+			return $hardcoded;
+		}
+	}
+	return $configured;
+}
+
+/**
+ * Build one sn_analytics_parse_funnels() error string.
+ *
+ * The "Line N: " prefix is a fixed, NON-translated literal (not run through
+ * __()) so sn_handle_analytics_funnels_save() can reliably regex-extract the
+ * line number to build its flash code regardless of the site's locale — only
+ * $reason (the human-readable part after the prefix) is translated.
+ *
+ * @since S2 (v9.42.0 arc)
+ * @param int    $line_num 1-based source line number.
+ * @param string $reason   Already-translated explanation text.
+ * @return string
+ */
+function sn_analytics_funnels_error( $line_num, $reason ) {
+	return 'Line ' . (int) $line_num . ': ' . $reason;
+}
+
+/**
+ * Parse the Monitoring → Analytics "Session funnels" textarea into the funnel
+ * shape sn_analytics_session_funnels() returns — one funnel per line:
+ *
+ *     Name: /entry > /step > /goal
+ *
+ * Every parsed step is an exact-match path step (array{match:'path',value,
+ * prefix:false}) — the textarea format has no syntax for prefix matching or
+ * custom-event ('ce') goals; those remain code-only via the
+ * 'sn_analytics_session_funnels' filter.
+ *
+ * Rejections (each recorded as one errors[] entry naming the 1-based line
+ * number, in the caller-facing text a flash notice can show verbatim):
+ *   - a line with no ':' separator
+ *   - an empty funnel name
+ *   - fewer than 2 steps
+ *   - more than SN_ANALYTICS_FUNNELS_MAX_STEPS steps
+ *   - more than SN_ANALYTICS_FUNNELS_MAX funnel lines (the excess lines error)
+ *
+ * @since S2 (v9.42.0 arc)
+ * @param string $raw Raw textarea content (already wp_unslash()ed by the caller).
+ * @return array{funnels:array,errors:array<string>}
+ */
+function sn_analytics_parse_funnels( $raw ) {
+	$raw = (string) $raw;
+	if ( '' === trim( $raw ) ) {
+		return array(
+			'funnels' => array(),
+			'errors'  => array(),
+		);
+	}
+
+	$funnels     = array();
+	$errors      = array();
+	$lines_seen  = 0;
+	foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $i => $raw_line ) {
+		$line_num = $i + 1;
+		$line     = trim( (string) $raw_line );
+		if ( '' === $line ) {
+			continue;
+		}
+
+		++$lines_seen;
+		if ( $lines_seen > SN_ANALYTICS_FUNNELS_MAX ) {
+			$errors[] = sn_analytics_funnels_error(
+				$line_num,
+				sprintf(
+					/* translators: %d: max funnel count */
+					__( 'too many funnels (max %d) — this line was skipped.', 'signal-and-noise-tools' ),
+					SN_ANALYTICS_FUNNELS_MAX
+				)
+			);
+			continue;
+		}
+
+		if ( false === strpos( $line, ':' ) ) {
+			$errors[] = sn_analytics_funnels_error(
+				$line_num,
+				__( 'missing ":" — expected "Name: /step > /step".', 'signal-and-noise-tools' )
+			);
+			continue;
+		}
+
+		list( $name_raw, $steps_raw ) = explode( ':', $line, 2 );
+		$name                         = trim( $name_raw );
+		if ( '' === $name ) {
+			$errors[] = sn_analytics_funnels_error( $line_num, __( 'funnel name is empty.', 'signal-and-noise-tools' ) );
+			continue;
+		}
+
+		$steps = array();
+		foreach ( explode( '>', $steps_raw ) as $step_raw ) {
+			$step = trim( $step_raw );
+			if ( '' === $step ) {
+				continue;
+			}
+			if ( '/' !== substr( $step, 0, 1 ) ) {
+				$step = '/' . $step;
+			}
+			$steps[] = $step;
+		}
+
+		if ( count( $steps ) < 2 ) {
+			$errors[] = sn_analytics_funnels_error( $line_num, __( 'needs at least 2 steps.', 'signal-and-noise-tools' ) );
+			continue;
+		}
+		if ( count( $steps ) > SN_ANALYTICS_FUNNELS_MAX_STEPS ) {
+			$errors[] = sn_analytics_funnels_error(
+				$line_num,
+				sprintf(
+					/* translators: %d: max step count */
+					__( 'too many steps (max %d).', 'signal-and-noise-tools' ),
+					SN_ANALYTICS_FUNNELS_MAX_STEPS
+				)
+			);
+			continue;
+		}
+
+		$funnels[] = array(
+			'title' => $name,
+			'steps' => array_map(
+				function ( $path ) {
+					return array(
+						'match'  => 'path',
+						'value'  => $path,
+						'prefix' => false,
+					);
+				},
+				$steps
+			),
+		);
+	}
+
+	return array(
+		'funnels' => $funnels,
+		'errors'  => $errors,
+	);
 }
 
 /**

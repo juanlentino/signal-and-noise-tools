@@ -944,6 +944,47 @@ function sn_handle_analytics_tuning_save( $post ) {
 }
 
 /**
+ * S2 §3 (v9.42.0 arc): save the owner-defined session funnels (Monitoring →
+ * Analytics → Session funnels). No inline nonce check — sn_handle_admin_post()
+ * (inc/admin-post-handler.php) already runs check_admin_referer() for every
+ * action on this dispatcher before any handler is called, same as every other
+ * handler in this file.
+ *
+ * Atomic: a parse error saves NOTHING (the prior analytics.funnels setting is
+ * left exactly as it was) and returns an 'analytics_funnels_invalid[_N-N…]'
+ * flash carrying the 1-based line numbers that failed, mirroring the existing
+ * count/id-prefixed flash-code idiom (cleared_12, wh_added_<id>, …) resolved
+ * in inc/admin-flash-messages.php — no extra transient plumbing needed since
+ * the parser's error strings already name their own line number.
+ *
+ * STRING-SETTING RULE: WP core slashes all of $_POST (wp_magic_quotes()), so
+ * the raw textarea payload is wp_unslash()ed BEFORE it reaches the parser —
+ * apostrophes in funnel names are the exact recurring hazard (see
+ * tests/settings-save-unslash.php / the v9.36.1 fix in sn_settings_save()).
+ *
+ * @since S2 (v9.42.0 arc)
+ * @param array $post Raw $_POST.
+ * @return string Flash code: 'analytics_funnels_saved' | 'analytics_funnels_invalid[_N[-N…]]' | 'analytics_funnels_failed'.
+ */
+function sn_handle_analytics_funnels_save( $post ) {
+	$raw    = isset( $post['sn_funnels'] ) ? wp_unslash( $post['sn_funnels'] ) : '';
+	$parsed = sn_analytics_parse_funnels( (string) $raw );
+
+	if ( ! empty( $parsed['errors'] ) ) {
+		$bad_lines = array();
+		foreach ( $parsed['errors'] as $error ) {
+			if ( 1 === preg_match( '/^Line (\d+):/', $error, $m ) ) {
+				$bad_lines[] = $m[1];
+			}
+		}
+		return $bad_lines ? ( 'analytics_funnels_invalid_' . implode( '-', $bad_lines ) ) : 'analytics_funnels_invalid';
+	}
+
+	$ok = sn_setting_update( 'analytics.funnels', $parsed['funnels'] );
+	return $ok ? 'analytics_funnels_saved' : 'analytics_funnels_failed';
+}
+
+/**
  * v6.1.0: stream a CSV or JSON download of the current analytics range/class.
  *
  * This handler intentionally does NOT return a flash code — it streams a file
