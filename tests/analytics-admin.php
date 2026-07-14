@@ -462,7 +462,7 @@ ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native pos
 // second <path fill="url(#id)"> silently resolves to the FIRST matching id in
 // the DOM (duplicate-SVG-id behavior), stealing the wrong gradient.
 preg_match_all( '/id="(snSparkFill[A-Za-z0-9]*)"/', $html, $m_grad );
-ok( count( $m_grad[1] ) === count( array_unique( $m_grad[1] ) ), 'quality: no duplicate trend gradient ids on a page where both trends co-render' );
+ok( count( $m_grad[1] ) >= 2 && count( $m_grad[1] ) === count( array_unique( $m_grad[1] ) ), 'quality: BOTH trend gradients on the page and no duplicate ids (>=2 guards against a fixture change making this vacuous)' );
 
 echo "\nGroup: dashboard — Events view (new tab)\n";
 $_GET['sn_view'] = 'events';

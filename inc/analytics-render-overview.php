@@ -33,16 +33,12 @@ function snt_analytics_render_trend( $series, $granularity = 'day', $compare_ser
 
 	// Peak stays at the caller (drives the head's "peak N" meta text); the geometry
 	// itself only needs the plain views array.
-	$views    = array();
-	$peak     = 0;
-	$peak_day = '';
+	$views = array();
+	$peak  = 0;
 	foreach ( $series as $r ) {
 		$v       = (int) $r['views'];
 		$views[] = $v;
-		if ( $v >= $peak ) {
-			$peak     = $v;
-			$peak_day = (string) $r['day'];
-		}
+		$peak    = max( $peak, $v );
 	}
 	$overlay_views = array();
 	foreach ( (array) $compare_series as $r ) {
