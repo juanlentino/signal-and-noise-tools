@@ -166,3 +166,90 @@ function snt_analytics_tier_badge( $tier ) {
 	}
 	return '<span class="sn-an-tier sn-an-tier--' . esc_attr( $key ) . '">' . esc_html( $tiers[ $key ] ) . '</span>';
 }
+
+/**
+ * THE delta badge (v9.40.0 D4): one renderer, two variants.
+ * 'kpi' = the KPI-strip style (.sn-kpi-delta + prior-period tooltip);
+ * 'inline' (default) = the legacy annotation style (.sn-an-delta--dir).
+ * Colors come from --sn-an-up/--sn-an-down only. Silent no-op on bad input.
+ *
+ * @param array|null $delta {pct:?int, dir:string, previous?:numeric}
+ * @param array      $opts  {variant?:'inline'|'kpi', basis_label?:string}
+ */
+function snt_an_delta_badge( $delta, $opts = array() ) {
+	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
+		return;
+	}
+	$dir   = (string) $delta['dir'];
+	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
+	$pct   = $delta['pct'] ?? null;
+	$text  = ( null === $pct )
+		? ( 'up' === $dir ? 'new' : '—' )
+		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
+	if ( 'kpi' === ( $opts['variant'] ?? 'inline' ) ) {
+		$cls        = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );
+		$prev_title = '';
+		if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
+			$prev        = (float) $delta['previous'];
+			$basis_label = (string) ( $opts['basis_label'] ?? '' );
+			$prev_title  = ( '' !== $basis_label ? $basis_label : __( 'previous period', 'signal-and-noise-tools' ) ) . ': ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
+		}
+		echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"'
+			. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
+			. '><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
+		return;
+	}
+	echo ' <span class="sn-an-delta sn-an-delta--' . esc_attr( $dir ) . '">' . esc_html( $arrow . ' ' . $text ) . '</span>';
+}
+
+/**
+ * THE KPI-card row (v9.40.0 D4): the one loop behind the Overview strip and its
+ * former clones (visits, posts hero, lifecycle glance, edge). Card keys:
+ * l (label), n (value), promoted?, live?, delta? (badge array), sub? (flat
+ * descriptor). Slot precedence live > delta > sub > default. Malformed cards
+ * are skipped silently.
+ *
+ * @param array $cards
+ * @param array $opts {empty_slot?:'no-change'|'omit', row_class?:string, basis_label?:string}
+ */
+function snt_an_kpi_row( $cards, $opts = array() ) {
+	echo '<div class="sn-kpi-row' . ( '' !== (string) ( $opts['row_class'] ?? '' ) ? ' ' . esc_attr( (string) $opts['row_class'] ) : '' ) . '">';
+	foreach ( (array) $cards as $c ) {
+		if ( ! is_array( $c ) || ! isset( $c['l'], $c['n'] ) ) {
+			continue;
+		}
+		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
+		echo '<p class="sn-kpi-label">' . esc_html( (string) $c['l'] ) . '</p>';
+		echo '<p class="sn-kpi-value">' . esc_html( (string) $c['n'] ) . '</p>';
+		if ( ! empty( $c['live'] ) ) {
+			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
+		} elseif ( ! empty( $c['delta'] ) ) {
+			snt_an_delta_badge( $c['delta'], array( 'variant' => 'kpi', 'basis_label' => (string) ( $opts['basis_label'] ?? '' ) ) );
+		} elseif ( isset( $c['sub'] ) && '' !== (string) $c['sub'] ) {
+			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( (string) $c['sub'] ) . '</span>';
+		} elseif ( 'omit' !== ( $opts['empty_slot'] ?? 'no-change' ) ) {
+			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'no change', 'signal-and-noise-tools' ) . '</span>';
+		}
+		echo '</div>';
+	}
+	echo '</div>';
+}
+
+/**
+ * THE config/dormant gate (v9.40.0 D4): one bare-postbox notice for "this view
+ * needs setup / has no substrate yet". Replaces the per-view hand-rolled gate
+ * idioms (dashboard unconfigured, edge dormant, visits AE, posts/lifecycle).
+ *
+ * @param string $title     Panel title.
+ * @param string $message   Gate copy (plain text; already translated).
+ * @param string $cta_label Optional CTA text.
+ * @param string $cta_url   Optional CTA href (both required to render the CTA).
+ */
+function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '' ) {
+	echo '<div class="postbox sn-an-gate"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside">';
+	echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $message );
+	if ( '' !== $cta_label && '' !== $cta_url ) {
+		echo ' <a class="button button-small" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_label ) . '</a>';
+	}
+	echo '</p></div></div>';
+}
