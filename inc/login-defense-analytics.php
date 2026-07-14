@@ -17,8 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
 
 /**
- * KPI cards: Checked / Blocked / Block rate / Networks. Mirrors the .sn-kpi-row
- * markup of snt_analytics_render_cards() with login labels.
+ * KPI cards: Checked / Blocked / Block rate / Networks. Routes through the
+ * shared snt_an_kpi_row() primitive (D5 §5, inc/analytics-panels.php) — every
+ * card here is the plain-descriptor shape (a flat 'sub' line, no real
+ * {pct,dir} delta and no derived sub_class), so the primitive's default
+ * 'sn-delta-flat' reproduces the old hand-rolled loop byte-for-byte.
  */
 function sn_login_defense_render_kpi_cards( $k ) {
 	$cards = array(
@@ -27,17 +30,7 @@ function sn_login_defense_render_kpi_cards( $k ) {
 		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%', 'sub' => __( 'of checks', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Networks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['networks'] ?? 0 ) ), 'sub' => __( 'distinct', 'signal-and-noise-tools' ) ),
 	);
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		// Flat delta slot — login KPIs have no period-over-period delta; the slot keeps
-		// the card structure identical to snt_analytics_render_cards() (a labelled sub-line).
-		echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( $c['sub'] ) . '</span>';
-		echo '</div>';
-	}
-	echo '</div>';
+	snt_an_kpi_row( $cards );
 }
 
 /**
@@ -122,9 +115,14 @@ function sn_login_defense_resolve_days() {
  */
 function sn_login_defense_render_header() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		echo '<div class="postbox"><div class="inside"><p class="sn-an-empty">'
-			. esc_html__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+		// D5 §5: routes through the shared snt_an_gate() primitive. The old gate
+		// was a bare, titleless postbox (no header at all) — it now carries the
+		// view's natural title 'Login defense', matching every other view's gate
+		// (Analytics, Visits, Traffic & edge). No CTA: the old gate never had one.
+		snt_an_gate(
+			__( 'Login defense', 'signal-and-noise-tools' ),
+			__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -136,6 +134,11 @@ function sn_login_defense_render_header() {
 	// (login AE retains ~90d and is not class-segmented -- those would render empty/false).
 	// Active marker is the `active` class (NOT button-primary): the shared CSS targets
 	// .button.button-small.active. Base = remove only sn_lg_range (preserves sn_view).
+	// D5 §5: with the gate/Overview/KPI-loop/door-knock postbox all adopted onto
+	// the shared primitives this task, this pill row is now the ONLY remaining
+	// hand-rolled control clone in the codebase — a recorded post-arc backlog
+	// item (a range-pill primitive was never in scope for D4 or D5), not an
+	// oversight.
 	$base = remove_query_arg( array( 'sn_lg_range' ) );
 	echo '<div class="sn-toolbar">';
 	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
@@ -157,11 +160,19 @@ function sn_login_defense_render_header() {
 
 	// Fuse the KPI strip + blocked-trend into ONE "Overview" postbox, identical to the
 	// shared dashboard chrome (render_dashboard wraps the other views' cards+trend this way).
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-overview-inside">';
+	// D5 §5: routes through snt_an_panel_open()/close() — the one deliberate visual
+	// change (owner-approved): the Overview now also carries sn-an-postbox, so it
+	// picks up the 22/13 KPI scale like every other view's Overview.
+	snt_an_panel_open(
+		__( 'Overview', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-overview-inside',
+		)
+	);
 	sn_login_defense_render_kpi_cards( $kpis );
 	sn_login_defense_render_trend_chart( sn_login_defense_trend_series( sn_analytics_query( sn_login_defense_trend_sql( $days ) ) ?: array() ) );
-	echo '</div></div>';
+	snt_an_panel_close();
 
 	echo '<p class="sn-an-breakdown">';
 	foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $d ) {
@@ -217,7 +228,8 @@ function sn_login_defense_render_body() {
 		}
 		$ctry_e = sn_edge_top_dim( 'atk_country', $from_d, $to_d, 1 );
 		$net_e  = sn_edge_top_dim( 'atk_asn', $from_d, $to_d, 1 );
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+		// D5 §5: routes through snt_an_panel_open()/close() — picks up sn-an-postbox.
+		snt_an_panel_open( __( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) );
 		echo '<p>' . esc_html( number_format_i18n( $total ) ) . ' '
 			. esc_html__( 'hits on /wp-login.php + /xmlrpc.php', 'signal-and-noise-tools' );
 		if ( ! empty( $ctry_e[0]['value'] ) ) {
@@ -229,7 +241,7 @@ function sn_login_defense_render_body() {
 		echo '</p>';
 		echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=edge' ) ) . '">'
 			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
-		echo '</div></div>';
+		snt_an_panel_close();
 	}
 	snt_an_flush_empty_fold();
 }

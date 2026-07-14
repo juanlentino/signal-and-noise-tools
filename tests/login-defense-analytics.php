@@ -49,6 +49,11 @@ $h = ob_get_clean();
 ok( strpos( $h, 'sn-kpi' ) !== false && strpos( $h, '30%' ) !== false && strpos( $h, 'Block rate' ) !== false,
 	'KPI cards render login labels + values' );
 ok( strpos( $h, 'sn-kpi-delta' ) !== false, 'KPI cards include the delta slot (parity with the shared cards)' );
+// D5 §5: the KPI loop routes through the shared snt_an_kpi_row() primitive —
+// byte-identical markup (label/value classes were already this shape), so this
+// just pins that the primitive's own class vocabulary is what's on the page.
+ok( strpos( $h, 'sn-kpi-label' ) !== false && strpos( $h, 'sn-kpi-value' ) !== false,
+	'KPI cards route through the shared snt_an_kpi_row() primitive (label/value classes)' );
 
 // --- B1: trend ---------------------------------------------------------------
 ob_start();
@@ -88,7 +93,17 @@ ok( 1 === count( $ld_noted ) && 'Top networks' === $ld_noted[0]['title'], 'empty
 $GLOBALS['__cfg'] = null;
 ob_start();
 sn_login_defense_view_render();
-ok( strpos( ob_get_clean(), 'Connect Cloudflare Analytics' ) !== false, 'view dormant-gates when CF not configured' );
+$dormant = ob_get_clean();
+ok( strpos( $dormant, 'Connect Cloudflare Analytics' ) !== false, 'view dormant-gates when CF not configured' );
+// D5 §5: the config gate routes through the shared snt_an_gate() primitive. The
+// old gate was titleless (bare postbox, no header) — it now carries the view's
+// natural title, matching every other view's gate (Analytics, Visits, Traffic & edge).
+ok( strpos( $dormant, 'sn-an-gate' ) !== false, 'dormant gate routes through the shared snt_an_gate() primitive' );
+ok( strpos( $dormant, '<h2 class="hndle"><span>Login defense</span></h2>' ) !== false,
+	'dormant gate carries the view\'s natural title "Login defense" (was titleless)' );
+ok( strpos( $dormant, 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.' ) !== false,
+	'dormant gate copy is byte-preserved' );
+ok( substr_count( $dormant, '<div' ) === substr_count( $dormant, '</div>' ), 'dormant view output is div-balanced' );
 
 // --- B3: view configured (smoke) ---------------------------------------------
 $GLOBALS['__cfg'] = array( 'account_id' => 'x', 'token' => 'y' );
@@ -99,6 +114,11 @@ $v = ob_get_clean();
 ok( strpos( $v, 'sn-kpi' ) !== false && strpos( $v, 'Top attacker networks' ) !== false,
 	'view configured renders KPIs + threat tables (no fatal)' );
 ok( strpos( $v, 'postbox sn-overview' ) !== false, 'view wraps KPIs + trend in the shared Overview postbox' );
+// D5 §5: the Overview postbox routes through snt_an_panel_open() — picks up the
+// sn-an-postbox chrome marker (the ONE deliberate visual change this task makes).
+ok( strpos( $v, 'postbox sn-an-postbox sn-overview' ) !== false,
+	'Overview postbox adopts the shared panel primitive (sn-an-postbox chrome)' );
+ok( substr_count( $v, '<div' ) === substr_count( $v, '</div>' ), 'configured view output is div-balanced' );
 
 // --- B4: CF edge door-knock glance ------------------------------------------
 $GLOBALS['__cfg']      = array( 'account_id' => 'x', 'token' => 'y' ); // AE configured (view precondition)
@@ -116,6 +136,14 @@ ok( strpos( $g, 'Door-knock pressure' ) !== false, 'glance: renders when edge co
 ok( strpos( $g, '8,400' ) !== false || strpos( $g, '8400' ) !== false, 'glance: total door-knock pressure (8400)' );
 ok( strpos( $g, 'CN' ) !== false && strpos( $g, 'DIGITALOCEAN-ASN' ) !== false, 'glance: top country + network' );
 ok( strpos( $g, 'page=sn-analytics&sn_view=edge' ) !== false, 'glance: links to the Traffic & edge breakdown' );
+// D5 §5: the door-knock postbox routes through snt_an_panel_open() — exact
+// byte-preserved header text, now wrapped in the shared sn-an-postbox chrome.
+ok( strpos( $g, '<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Door-knock pressure (CF edge)</span></h2></div><div class="inside">' ) !== false,
+	'door-knock postbox adopts the shared panel primitive (sn-an-postbox)' );
+// Overview + 2 top tables (D5 §4, already shipped) + door-knock = 4 sn-an-postbox panels.
+ok( substr_count( $g, 'class="postbox sn-an-postbox' ) >= 4,
+	'Overview + top tables + door-knock all carry the shared sn-an-postbox marker' );
+ok( substr_count( $g, '<div' ) === substr_count( $g, '</div>' ), 'fully-configured view output is div-balanced' );
 
 // --- Frame parity: header / body split --------------------------------------
 $GLOBALS['__cfg']      = array( 'account_id' => 'x', 'token' => 'y' );
@@ -141,12 +169,17 @@ ok( strpos( $bd, 'postbox sn-overview' ) === false,
 	'body: does NOT render the Overview postbox (header-only)' );
 
 // Wrapper dormant: exactly ONE "Connect" notice (no double-emit from header+body).
+// D5 §5: the gate is now snt_an_gate(), whose own <p> carries TWO classes that
+// both contain the substring 'sn-an-empty' ("sn-an-empty sn-an-empty--panel") —
+// so that substring is no longer a reliable single-render marker. 'sn-an-gate'
+// (the gate's outer postbox class) IS single-occurrence per render and carries
+// the same intent: exactly one gate, not a double-emit from header+body.
 $GLOBALS['__cfg'] = null;
 ob_start();
 sn_login_defense_view_render();
 $dz = ob_get_clean();
-ok( substr_count( $dz, 'sn-an-empty' ) === 1,
-	'wrapper dormant: the Connect-CF notice is emitted exactly once (header only; body silent)' );
+ok( substr_count( $dz, 'sn-an-gate' ) === 1,
+	'wrapper dormant: the Connect-CF gate is emitted exactly once (header only; body silent)' );
 ok( strpos( $dz, 'Connect Cloudflare Analytics' ) !== false,
 	'wrapper dormant: still shows the Connect-CF notice' );
 

@@ -12,6 +12,7 @@ function esc_url( $s ) { return $s; }
 function esc_html__( $s, $d = '' ) { return $s; }
 function __( $s, $d = '' ) { return $s; }
 function number_format_i18n( $n, $dec = 0 ) { return number_format( (float) $n, (int) $dec ); }
+if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 
 require __DIR__ . '/../inc/analytics-panels.php';
 
@@ -182,6 +183,19 @@ $h = cap( function () {
 	);
 } );
 ok( false !== strpos( $h, 'data-colname="Edge locations"' ) && false !== strpos( $h, 'data-colname="Requests"' ), 'kv table: data_colname=true emits data-colname on every cell (edge idiom)' );
+
+// Rider (D5 T5, a T4 review note): header_meta is the primitive's only untested
+// passthrough seam — neither adopter uses it today, but the opt must actually
+// reach snt_an_panel_open() rather than being silently dropped.
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900' ) ),
+		array( 'Edge locations', 'Requests' ),
+		array( 'header_meta' => 'last 24h' )
+	);
+} );
+ok( false !== strpos( $h, '<span class="sn-an-head-meta">last 24h</span>' ), 'kv table: header_meta opt passes through to snt_an_panel_open()' );
 
 // esc_html()/esc_attr() are identity stubs in this file (see the top-of-file
 // stubs, shared by every group above) — real escaping is pinned against

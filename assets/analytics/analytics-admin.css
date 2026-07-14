@@ -588,8 +588,12 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* KPI hierarchy: the promoted scale, dead since v8.5.0, restored at the
    treatment-B sizes (22/13). The .postbox.sn-overview compound wins by
    specificity over the .sn-an-postbox shell overrides (order-independent —
-   survives D4 reorders) and still reaches the login-defense clone, whose
-   Overview carries .postbox.sn-overview WITHOUT .sn-an-postbox. */
+   survives D4 reorders) and reaches the login-defense clone's Overview too:
+   through D4 it carried .postbox.sn-overview WITHOUT .sn-an-postbox; as of
+   D5 §5 it adopted snt_an_panel_open() and now carries BOTH classes like every
+   other Overview. The rule needed neither class alone, so this was never a
+   fragile dependency — just recording that the "WITHOUT .sn-an-postbox" case
+   this comment used to describe no longer exists. */
 .postbox.sn-overview .sn-kpi-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .postbox.sn-overview .sn-kpi-promoted .sn-kpi-value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
 .postbox.sn-overview .sn-kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
