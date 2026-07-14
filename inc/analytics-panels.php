@@ -248,6 +248,7 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
  * @param string $message   Gate copy (plain text; already translated).
  * @param string $cta_label Optional CTA text.
  * @param string $cta_url   Optional CTA href (both required to render the CTA).
+ * @param array  $opts      { @type bool $cta_primary First-run gates: CTA keeps button-primary weight. Default false. }
  */
 function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '', $opts = array() ) {
 	echo '<div class="postbox sn-an-gate"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside">';

@@ -61,6 +61,7 @@ echo "\nGroup: snt_an_gate — the ONE config/dormant gate\n";
 $h = cap( function () { snt_an_gate( 'Edge', 'Not configured yet.', 'Configure →', 'https://x/wp-admin/admin.php?page=sn-theme-options' ); } );
 ok( false !== strpos( $h, 'postbox' ) && false !== strpos( $h, 'sn-an-gate' ), 'gate renders panel chrome + marker class' );
 ok( false !== strpos( $h, 'Not configured yet.' ) && false !== strpos( $h, 'Configure →' ), 'message + CTA' );
+ok( false !== strpos( $h, 'button button-small' ) && false === strpos( $h, 'button-primary' ), 'default CTA weight stays button-small' );
 $h = cap( function () { snt_an_gate( 'Analytics', 'Add credentials.', 'Configure →', 'https://x/wp-admin/admin.php', array( 'cta_primary' => true ) ); } );
 ok( false !== strpos( $h, 'button button-primary' ) && false === strpos( $h, 'button-small' ), 'cta_primary: first-run gates keep the primary CTA weight' );
 $h = cap( function () { snt_an_gate( 'Posts', 'No published posts yet.' ); } );
