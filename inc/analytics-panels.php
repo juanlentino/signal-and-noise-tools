@@ -123,9 +123,10 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
  * empty state (inc/analytics-movers.php), Uptime's structural header-region
  * rail tiles, all of login-defense (D5), the dashboard tail hint
  * (inc/analytics-admin.php — view-level, not a panel), the headline band's
- * own copy, and panels emptied by an ACTIVE user filter (the drill panel,
+ * own copy, panels emptied by an ACTIVE user filter (the drill panel,
  * filtered event properties) — they stay open so the Clear affordance
- * survives.
+ * survives — and snt_an_gate() itself (a persistent needs-setup notice, not a
+ * range-empty data panel; folding it would bury a setup CTA in a muted line).
  *
  * @param string $title Panel title.
  * @param string $why   Optional diagnostic ("needs X", "no Y in range", …).
