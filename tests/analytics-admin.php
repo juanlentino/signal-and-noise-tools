@@ -431,6 +431,10 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders on the view that owns the dim' );
 ok( strpos( $html, 'sn_drill=country%3A' ) !== false, 'drill: Countries table values are drill links (colon URL-encoded by add_query_arg)' );
 ok( strpos( $html, 'sn_view=technology' ) !== false && strpos( explode( '</nav>', $html )[0], 'sn_drill' ) === false, 'drill: tab links do NOT carry sn_drill (cleared on tab switch)' );
+$_GET['sn_event_prop'] = 'utm_source';
+$html_ep = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( explode( '</nav>', $html_ep )[0], 'sn_event_prop' ) === false, 'D3 matrix: tab links do NOT carry sn_event_prop (view-local resets on view switch)' );
+unset( $_GET['sn_event_prop'] );
 // View-gate: a valid drill whose dim is NOT on the active view shows NO panel.
 $_GET['sn_view'] = 'technology';
 $html = capture( 'snt_analytics_render_dashboard' );

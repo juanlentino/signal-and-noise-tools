@@ -14,7 +14,7 @@
  * — these routes expose personal-site analytics.
  *
  * Query params shared by all four routes:
- *   range  int|string  7 | 30 | 90 | 365 | "all"  (default 30)
+ *   range  int|string  7 | 14 | 30 | 90 | 365 | "all"  (default 30)
  *   class  string      human | suspect | bot       (default human)
  *
  * @package SignalAndNoiseTools

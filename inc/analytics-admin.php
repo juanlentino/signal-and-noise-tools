@@ -23,7 +23,7 @@ const SN_ANALYTICS_RANGES = array( 7, 14, 30, 90, 365 );
  * Whitelist the ?sn_range GET value to a supported window; default 7.
  *
  * @param mixed $raw
- * @return int|string 7 | 30 | 90 | 365 | 'all'
+ * @return int|string 7 | 14 | 30 | 90 | 365 | 'all'
  */
 function snt_analytics_resolve_range( $raw ) {
 	if ( 'all' === (string) $raw ) {
@@ -100,10 +100,13 @@ function snt_analytics_view_owns_chrome( $view ) {
  * @param string     $class  Active class (preserved across tabs).
  */
 function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $to = '' ) {
-	// sn_drill is stripped too: a drill is scoped to the view that owns the dim, so
-	// switching tabs clears it rather than carrying a stale "Country = US" onto a tab
-	// with no Country table (the panel render is also dim/view-gated as a backstop).
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_lg_range' ), add_query_arg( array() ) );
+	// sn_drill + sn_event_prop are stripped too: both are view-local filters scoped to
+	// the view that owns the dim/property, so switching tabs clears them rather than
+	// carrying a stale "Country = US" or event-property choice onto a tab with no
+	// matching table (the panel render is also dim/view-gated as a backstop). This is
+	// the ONE reset point in the param-carry matrix (v9.39.0 D3) — every other builder
+	// preserves these across window/class/compare changes.
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}
@@ -128,7 +131,7 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
  * for deterministic tests. When $range is 'all', $from is the earliest day in
  * the rollup table (via sn_analytics_min_day()).
  *
- * @param int|string $range Days as int (7|30|90|365) or 'all'.
+ * @param int|string $range Days as int (7|14|30|90|365) or 'all'.
  * @param int|null   $now   Unix timestamp anchor (defaults to now).
  * @return array{0:string,1:string} [$from, $to]
  */
@@ -232,7 +235,7 @@ function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) 
 
 /**
  * Single resolver for the dashboard/export window. Returns [$range_token,$from,$to]
- * — $range_token is the scalar used for URL/display (7|30|90|365|'all'|preset|'custom'),
+ * — $range_token is the scalar used for URL/display (7|14|30|90|365|'all'|preset|'custom'),
  * $from/$to the concrete inclusive window. Presets + custom resolve here; int/'all'
  * delegate to the unchanged resolve_range + range_dates.
  *

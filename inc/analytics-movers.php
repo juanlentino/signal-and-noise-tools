@@ -107,8 +107,11 @@ function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3, $cwin = 
  *                          the prior-window basis.
  * @param string     $mode  'prev'|'yoy' — meta label only (does not affect
  *                          which window is queried; that's $cwin's job).
+ * @param int|string $range Active range token (v9.39.0 D3 param-carry matrix);
+ *                          '' (default) omits sn_range/sn_class from the Posts
+ *                          deep link entirely (back-compat, no window inferred).
  */
-function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mode = 'prev' ) {
+function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mode = 'prev', $range = '' ) {
 	$movers = sn_analytics_movers( $from, $to, $class, 5, $cwin );
 
 	snt_an_panel_open( __( 'Movers', 'signal-and-noise-tools' ), array(
@@ -131,7 +134,16 @@ function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mo
 				. '<span class="' . esc_attr( $cls ) . '">' . esc_html( $sign . $delta ) . '</span></span></li>';
 		}
 		echo '</ul>';
-		echo '<a class="sn-an-mover-more" href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=posts' ) ) . '">'
+		// v9.39.0 (D3): carry the window (+ class) onto the Posts deep link, so
+		// "Posts view →" lands on the SAME range/class instead of resetting to
+		// whatever the Posts view's own defaults are (function_exists guard: the
+		// barrel that declares snt_analytics_window_args loads after this file —
+		// same load-order reality as the D2 resolve_cwin guard above).
+		$posts_url = admin_url( 'index.php?page=sn-analytics&sn_view=posts' );
+		if ( '' !== (string) $range && function_exists( 'snt_analytics_window_args' ) ) {
+			$posts_url = add_query_arg( snt_analytics_window_args( $range, $class, $from, $to ), $posts_url );
+		}
+		echo '<a class="sn-an-mover-more" href="' . esc_url( $posts_url ) . '">'
 			. esc_html__( 'Posts view', 'signal-and-noise-tools' ) . ' &rarr;</a>';
 	}
 	snt_an_panel_close();

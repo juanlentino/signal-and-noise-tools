@@ -97,6 +97,15 @@ function snt_analytics_range_label( $range, $from = '', $to = '' ) {
  * custom, v9.39.0 D3), the class segmented control, the compare pills, export,
  * and the separation meta — every GET link preserving the route.
  *
+ * THE param-carry matrix (v9.39.0 D3 — tests/analytics-param-carry.php is the contract):
+ *   Context (sn_view, sn_range, sn_from/sn_to [custom only], sn_class, sn_compare):
+ *     survive every in-dashboard navigation.
+ *   View-local (sn_drill, sn_event_prop, sn_lg_range):
+ *     survive window/class/compare changes; RESET on view switch (the tab
+ *     strip-list in snt_analytics_render_view_tabs owns the reset).
+ *   Deliberate exceptions: export (window+class only); recs/widget deep links
+ *   (cross-surface, bare); login-defense internals (sn_lg_range never leaves it).
+ *
  * @param int|string $range        Active window (int days or 'all').
  * @param string     $class        Active class.
  * @param string     $from         Custom window start (only carried when $range==='custom').
@@ -161,10 +170,13 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 			. ' href="' . esc_url( $purl ) . '">' . esc_html( $label ) . '</a>';
 	}
 	echo '</span></p>';
-	// Custom row — the GET form (hidden-field whitelist unchanged in this task; D3-T4 widens it).
+	// Custom row — the GET form. Hidden-field whitelist is now final (v9.39.0 D3):
+	// page/tab/sn_view (route) + sn_compare/sn_drill/sn_event_prop (context + the
+	// view-local filters that must survive a window change). sn_lg_range is
+	// deliberately excluded — login-defense owns that param, never this form.
 	echo '<form class="sn-an-custom-form" method="get" action="' . esc_url( $action ) . '">';
 	foreach ( $hidden as $hk => $hv ) {
-		if ( in_array( $hk, array( 'page', 'tab', 'sn_view' ), true ) ) {
+		if ( in_array( $hk, array( 'page', 'tab', 'sn_view', 'sn_compare', 'sn_drill', 'sn_event_prop' ), true ) ) {
 			echo '<input type="hidden" name="' . esc_attr( $hk ) . '" value="' . esc_attr( (string) $hv ) . '">';
 		}
 	}
@@ -192,8 +204,10 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '</span></div>';
 
 	// v9.34.0 (maturity I5): first-class comparison — Off · Previous · Year over year.
-	// The other control links never strip sn_compare from their base, so the active
-	// mode survives range/class/tab navigation for free; only these pills reset it.
+	// v9.39.0 (D3): these pills now build off $base (which already preserves every
+	// context/view-local param present on the request — sn_range/sn_class included)
+	// PLUS the resolved window args, so clicking a mode never resets the window back
+	// to a 7d/human default (the D3 bug fix); only sn_compare itself changes.
 	$compare_labels = array(
 		'off'  => __( 'Off', 'signal-and-noise-tools' ),
 		'prev' => __( 'Previous', 'signal-and-noise-tools' ),
@@ -204,7 +218,10 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '<span class="sn-control-label">' . esc_html__( 'Compare', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="button-group">';
 	foreach ( $compare_labels as $key => $label ) {
-		$curl      = ( 'off' === $key ) ? $cbase : add_query_arg( array( 'sn_compare' => $key ), $cbase );
+		$curl = add_query_arg(
+			snt_analytics_window_args( $range, $class, $from, $to ) + ( 'off' === $key ? array() : array( 'sn_compare' => $key ) ),
+			$cbase
+		);
 		$is_active = ( $key === (string) $compare );
 		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
 			. ( $is_active ? ' aria-pressed="true"' : '' )

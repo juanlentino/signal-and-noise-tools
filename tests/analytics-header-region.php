@@ -63,7 +63,7 @@ if ( ! function_exists( 'snt_analytics_smooth_path' ) ) { function snt_analytics
 function snt_analytics_render_controls( $r, $c, $f = '', $t = '', $cmp = 'off', $ct = array() ) { $GLOBALS['__hr_controls_ct'] = $ct; echo '<!--CONTROLS-->'; }
 function snt_analytics_render_cards( $n, $t, $d = array(), $e = null, $basis_label = '' ) { $GLOBALS['__hr_cards_basis'] = $basis_label; echo '<!--CARDS-->'; }
 function snt_analytics_render_trend( $s, $g = 'day' ) { echo '<!--TREND-->'; }
-function snt_analytics_render_movers_tile( $f, $t, $c, $cwin = null, $mode = 'prev' ) { $GLOBALS['__hr_movers_cwin'] = $cwin; $GLOBALS['__hr_movers_mode'] = $mode; echo '<!--MOVERS-->'; }
+function snt_analytics_render_movers_tile( $f, $t, $c, $cwin = null, $mode = 'prev', $range = '' ) { $GLOBALS['__hr_movers_cwin'] = $cwin; $GLOBALS['__hr_movers_mode'] = $mode; $GLOBALS['__hr_movers_range'] = $range; echo '<!--MOVERS-->'; }
 
 // Uptime surface stub — flip $GLOBALS['__uptime_on'] to model un/configured.
 $GLOBALS['__uptime_on'] = true;
@@ -190,6 +190,7 @@ ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-0
 ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_deltas_cwin'] ?? null ), 'frame: period_deltas receives the yoy window' );
 ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_engaged_cwin'] ?? null ), 'frame: engaged delta receives the yoy window' );
 ok( array( '2025-07-01', '2025-07-07' ) === ( $GLOBALS['__hr_movers_cwin'] ?? null ) && 'yoy' === ( $GLOBALS['__hr_movers_mode'] ?? '' ), 'frame: movers receive the yoy window + mode (matched pair by construction)' );
+ok( '7' === ( $GLOBALS['__hr_movers_range'] ?? null ) || 7 === ( $GLOBALS['__hr_movers_range'] ?? null ), 'region: movers receive the range token for the deep-link carry' );
 ok( false !== strpos( (string) ( $GLOBALS['__hr_cards_basis'] ?? '' ), 'last year' ), 'frame: cards receive the yoy basis label' );
 ob_start(); snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day', 'off' ); ob_end_clean();
 ok( array( '2026-06-24', '2026-06-30' ) === ( $GLOBALS['__hr_deltas_cwin'] ?? null ), 'frame: off keeps the quiet prev basis (explicit prev window passed)' );

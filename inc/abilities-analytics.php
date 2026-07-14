@@ -53,7 +53,7 @@ add_action( 'wp_abilities_api_init', function () {
 
 	wp_register_ability( 'signal-noise/get-analytics-summary', array(
 		'label'               => 'Get analytics summary',
-		'description'         => 'Returns views, visits, average scroll and time for a window (range: 7|30|90|365|all, class: human|suspect|bot). Read-only.',
+		'description'         => 'Returns views, visits, average scroll and time for a window (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_get_analytics_summary',
