@@ -430,10 +430,11 @@ $_GET['sn_drill'] = 'country:US';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders on the view that owns the dim' );
 ok( strpos( $html, 'sn_drill=country%3A' ) !== false, 'drill: Countries table values are drill links (colon URL-encoded by add_query_arg)' );
-ok( strpos( $html, 'sn_view=technology' ) !== false && strpos( explode( '</nav>', $html )[0], 'sn_drill' ) === false, 'drill: tab links do NOT carry sn_drill (cleared on tab switch)' );
-// (The sn_event_prop tab-drop is pinned in tests/analytics-param-carry.php,
-// whose URL stubs have REAL query semantics — this suite's stubs ignore $_GET,
-// so an assertion here would pass vacuously.)
+ok( strpos( $html, 'sn_view=technology' ) !== false, 'drill: tab links present on the drilled view' );
+// (BOTH view-local tab-drops — sn_drill AND sn_event_prop — are pinned in
+// tests/analytics-param-carry.php, whose URL stubs have REAL query semantics.
+// This suite's add_query_arg stub ignores $_GET, so carry assertions here pass
+// vacuously; the old sn_drill pin was removed for exactly that reason (D4 rider).)
 // View-gate: a valid drill whose dim is NOT on the active view shows NO panel.
 $_GET['sn_view'] = 'technology';
 $html = capture( 'snt_analytics_render_dashboard' );

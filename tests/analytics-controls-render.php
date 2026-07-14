@@ -56,6 +56,7 @@ ok( preg_match( '/<a class="button button-small active"[^>]*aria-pressed="true"[
 
 echo "\nGroup: D3 — range label vocabulary\n";
 ok( 'Last 7 days' === snt_analytics_range_label( 7 ), 'label: 7' );
+ok( 'Last 14 days' === snt_analytics_range_label( 14 ), 'label: 14 (the token the D3 docblock hygiene added)' );
 ok( 'Last 30 days' === snt_analytics_range_label( '30' ), 'label: string 30' );
 ok( 'Last year' === snt_analytics_range_label( 365 ), 'label: 365' );
 ok( 'All history' === snt_analytics_range_label( 'all' ), 'label: all' );
