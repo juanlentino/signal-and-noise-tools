@@ -30,13 +30,12 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	$bot     = (int) ( $t['bot'] ?? 0 );
 	$total   = (int) ( $t['total'] ?? ( $human + $suspect + $bot ) );
 
-	snt_an_panel_open( __( 'Traffic quality', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-botbreak">';
 	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No traffic recorded in this range yet.</p></div>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Traffic quality', 'signal-and-noise-tools' ), 'No traffic recorded in this range yet.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Traffic quality', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<div class="sn-an-panel sn-an-botbreak">';
 	echo '<div class="sn-an-quality-bar">';
 	foreach ( array( 'human' => $human, 'suspect' => $suspect, 'bot' => $bot ) as $cls => $v ) {
 		if ( $v <= 0 ) {
@@ -77,9 +76,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
  */
 function snt_analytics_render_bot_trend( $rows ) {
 	if ( empty( $rows ) ) {
-		snt_an_panel_open( __( 'Bot share over time', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-		echo '<p class="sn-an-empty sn-an-empty--panel">No traffic recorded in this range yet.</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Bot share over time', 'signal-and-noise-tools' ), 'No traffic recorded in this range yet.' );
 		return;
 	}
 	$n    = count( $rows );

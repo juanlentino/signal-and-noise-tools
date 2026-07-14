@@ -24,12 +24,11 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  * @param array $rows [{name,events,visitors}]
  */
 function snt_analytics_render_events_table( $rows ) {
-	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No custom events in this range yet.</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Custom events', 'signal-and-noise-tools' ), 'No custom events in this range yet.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Event</th>'
 		. '<th scope="col" class="manage-column num">Events</th>'
@@ -60,16 +59,15 @@ function snt_analytics_render_events_table( $rows ) {
  */
 function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	$filtered = ( '' !== (string) $active_prop );
+	if ( empty( $rows ) ) {
+		snt_an_note_empty( __( 'Event properties', 'signal-and-noise-tools' ), 'No event properties in this range yet.' );
+		return;
+	}
 	snt_an_panel_open( __( 'Event properties', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
 		echo '<p class="sn-an-subh sn-an-subh--panel">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
 			. '<a href="' . esc_url( $clear ) . '">Clear</a></p>';
-	}
-	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No event properties in this range yet.</p>';
-		snt_an_panel_close();
-		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	if ( ! $filtered ) {

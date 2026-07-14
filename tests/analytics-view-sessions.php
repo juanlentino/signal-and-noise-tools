@@ -65,8 +65,10 @@ snt_analytics_render_summary_panels(
 );
 $out = ob_get_clean();
 ok( is_string( $out ), 'render produced output without fatal' );
-ok( false !== strpos( $out, 'postbox' ), 'emitted a real .postbox panel' );
-ok( false !== strpos( $out, 'Visit quality' ), 'emitted the Visit quality panel title' );
+// D4 §4: a dataless Visit-quality panel now folds instead of opening a postbox
+// with an inline empty message — no visits this range means no postbox at all.
+ok( false === strpos( $out, 'postbox' ), 'no visits: no .postbox panel emitted (folds instead, D4 §4)' );
+ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Visit quality' ), 'no visits: title survives into the empty fold' );
 
 // Regression guard for the funnel/transition empty-state delegation: a visible
 // transition row PLUS a funnel whose report is all-zero (nobody reached step 1).

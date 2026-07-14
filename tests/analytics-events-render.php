@@ -51,8 +51,11 @@ $html = capture( function () use ( $ev ) { snt_analytics_render_events_table( $e
 ok( strpos( $html, 'Custom events' ) !== false, 'events: panel heading' );
 ok( strpos( $html, 'signup' ) !== false && strpos( $html, '120' ) !== false, 'events: row name + events count' );
 ok( strpos( $html, '>90<' ) !== false, 'events: visitors column' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_events_table( array() ); } );
-ok( strpos( $html, 'No custom events' ) !== false, 'events: empty state' );
+ok( '' === $html, 'events: empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Custom events' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No custom events' ), 'events: empty state copy carried as the fold why' );
 $html = capture( function () { snt_analytics_render_events_table( array( array( 'name' => 'x"<script>', 'events' => 1, 'visitors' => 1 ) ) ); } );
 ok( strpos( $html, '<script>' ) === false, 'events: name is escaped' );
 
@@ -73,8 +76,11 @@ ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false, 'props(f
 ok( strpos( $html, '>Clear<' ) !== false, 'props(filtered): Clear link present' );
 ok( strpos( $html, '<th>Property</th>' ) === false, 'props(filtered): Property column dropped' );
 ok( strpos( $html, 'sn_event_prop=' ) === false, 'props(filtered): no further drill-down links' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_event_props_table( array(), '' ); } );
-ok( strpos( $html, 'No event properties' ) !== false, 'props: empty state' );
+ok( '' === $html, 'props: empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Event properties' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No event properties' ), 'props: empty state copy carried as the fold why' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

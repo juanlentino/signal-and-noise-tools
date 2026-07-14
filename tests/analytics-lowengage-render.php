@@ -30,10 +30,16 @@ $h = ob_get_clean();
 ok( strpos( $h, 'Pages losing readers' ) !== false, 'panel heading present' );
 ok( strpos( $h, '/bouncy' ) !== false, 'lists the path' );
 
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start();
 snt_analytics_render_lowengage( array() );
 $e = ob_get_clean();
-ok( strpos( $e, 'sn-an-empty' ) !== false, 'empty state when no rows' );
+ok( '' === $e, 'empty rows: panel folds instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Pages losing readers' === $noted[0]['title'], 'empty state notes the panel title' );
+ok( false !== strpos( $noted[0]['why'], 'readers are sticking around' ), 'empty state carries its copy as the fold why' );
+ob_start(); snt_an_flush_empty_fold(); $folded = ob_get_clean();
+ok( strpos( $folded, 'sn-an-empty' ) !== false, 'flushed fold still renders the sn-an-empty treatment' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -26,11 +26,11 @@ require_once __DIR__ . '/analytics-panels.php';
  * @param array $attribution From sn_goal_attribution(): array{entry,conversions} rows.
  */
 function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array() ) {
-	snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
-	snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 	if ( (int) $metrics['visits'] < 1 ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
+		snt_an_note_empty( __( 'Visit quality', 'signal-and-noise-tools' ), __( 'No visits in this range yet.', 'signal-and-noise-tools' ) );
 	} else {
+		snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
+		snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 		// Cohesive with the Overview KPI strip — now literally shares snt_an_kpi_row.
 		// No period-over-period delta here yet, so the delta slot carries a muted
 		// descriptor (matches the strip's three-line card rhythm).
@@ -45,8 +45,8 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 		if ( $capped ) {
 			echo '<p class="sn-an-empty">' . esc_html__( 'Results capped for this window — narrow the date range for exact figures.', 'signal-and-noise-tools' ) . '</p>';
 		}
+		snt_an_panel_close();
 	}
-	snt_an_panel_close();
 
 	// Transitions — the table helper owns its own panel chrome + empty-state, so
 	// build the rows and hand off directly (matching every sibling view). An

@@ -36,8 +36,11 @@ ok( strpos( $h, '#d63638' ) !== false, 'red accent (matches the bot quality-bar 
 ok( strpos( $h, 'peak 30% bot' ) !== false, 'peak labelled with the absolute max bot %' );
 ok( preg_match( '/d="M [\d.]+,[\d.]+ C /', $h ) === 1, 'smooth bézier line (scaled to peak)' );
 
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_bot_trend( array() ); $e = ob_get_clean();
-ok( stripos( $e, 'No traffic recorded' ) !== false, 'empty input → empty state' );
+ok( '' === $e, 'empty input → panel folds instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Bot share over time' === $noted[0]['title'] && false !== stripos( $noted[0]['why'], 'No traffic recorded' ), 'empty state copy carried as the fold why' );
 
 // A single day of data must still draw a visible (flat) line, not an invisible bare moveto.
 ob_start(); snt_analytics_render_bot_trend( array( array( 'day' => '2026-06-11', 'bot_pct' => 12, 'total' => 40 ) ) ); $h1 = ob_get_clean();

@@ -33,20 +33,24 @@ function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' )
 		'colo' => 'Edge location', 'protocol' => 'Protocol', 'tls' => 'TLS',
 	);
 	$label = isset( $labels[ $dim ] ) ? $labels[ $dim ] : ucfirst( (string) $dim );
-	$clear = remove_query_arg( 'sn_drill', add_query_arg( array() ) );
+	$title = 'Top pages · ' . $label . ' = ' . (string) $value;
 
-	snt_an_panel_open( 'Top pages · ' . $label . ' = ' . (string) $value, array(
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		// The retention caveat previously rode the always-visible subhead even
+		// on the empty state; fold it into the why so it's not lost — the fold
+		// is now the only place this panel's copy survives to.
+		$why = 'No pages for this segment in this range (or it needs live Analytics Engine data).' . ( '' !== $note ? ' ' . $note : '' );
+		snt_an_note_empty( $title, $why );
+		return;
+	}
+
+	$clear = remove_query_arg( 'sn_drill', add_query_arg( array() ) );
+	snt_an_panel_open( $title, array(
 		'panel_class'  => 'sn-an-drill',
 		'inside_class' => 'inside sn-an-table-inside',
 	) );
 	echo '<p class="sn-an-subh sn-an-subh--panel"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
 		. ( '' !== $note ? ' · <span class="sn-an-foot">' . esc_html( $note ) . '</span>' : '' ) . '</p>';
-
-	if ( ! is_array( $rows ) || empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No pages for this segment in this range (or it needs live Analytics Engine data).</p>';
-		snt_an_panel_close();
-		return;
-	}
 
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Page</th>'

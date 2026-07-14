@@ -264,6 +264,23 @@
 .sn-an-view-tabs { margin: 18px 0 0; }
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
+/* Empty-fold WITH diagnostics (D4 §4, v9.40.0): the dashed inset above becomes a
+   native <details> so the crafted "why" strings are reachable behind one click
+   instead of only the title surviving into the summary line. The shared box
+   rules above (background/border/padding) still apply via the .sn-an-empty-fold
+   class; the tag-qualified selector here wins on specificity to swap the flex
+   layout + SVG dot icon for a block layout + ▸/▾ marker (same idiom as
+   .sn-an-headline > summary) since <details>/<summary>/<ul> need to stack, not
+   sit in a row. */
+details.sn-an-empty-fold { display: block; }
+details.sn-an-empty-fold::before { display: none; }
+details.sn-an-empty-fold summary { display: block; cursor: pointer; list-style: none; }
+details.sn-an-empty-fold summary::-webkit-details-marker { display: none; }
+details.sn-an-empty-fold summary::before { content: "▸"; color: var(--sn-an-muted); font-size: 11px; margin-right: 6px; }
+details.sn-an-empty-fold[open] summary::before { content: "▾"; }
+details.sn-an-empty-fold ul { margin: 4px 0 0 18px; padding: 0; font-style: normal; font-size: 12px; color: var(--sn-an-muted); }
+details.sn-an-empty-fold li { margin-bottom: 4px; }
+details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 
 /* Recommendations panel (v9.6.0, annotations R3b): deep-linked action cards atop
    the Content view. Native postbox body; cards separated by hairlines, muted

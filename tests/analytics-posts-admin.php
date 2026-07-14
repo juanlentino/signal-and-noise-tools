@@ -62,13 +62,19 @@ ok( strpos( $hero, 'sn-delta-flat">all-time' ) !== false, 'lifetime card falls t
 ok( strpos( $hero, 'class="postbox sn-an-postbox sn-overview"' ) !== false, 'hero panel adopts the primitive and keeps the sn-overview KPI-scale class' );
 
 echo "\nGroup: hero degrades gracefully (no analytics yet)\n";
+// D4 §4: the no-data hero now folds entirely (title included) instead of
+// opening a panel with just the title + an inline empty note — the fold is
+// the only place this Note's "did it land?" copy survives to. The view-level
+// null-bundle gate (snt_an_gate) still covers "no posts at all"; this is the
+// narrower "one post exists, zero views yet" case.
 $empty_subject = array( 'id' => 9, 'title' => 'Fresh', 'permalink' => '/f/', 'age' => 1, 'views' => 0, 'lifetime' => 0, 'median' => 0, 'delta' => array( 'pct' => null, 'dir' => 'flat' ), 'rank' => array( 'rank' => 1, 'of' => 1 ), 'by_dol' => array(), 'has_data' => false );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $eh = cap( function () use ( $empty_subject ) { snt_analytics_render_post_hero( $empty_subject ); } );
-ok( strpos( $eh, 'Fresh' ) !== false && strpos( $eh, 'sn-an-empty' ) !== false, 'no-data subject → its title + an empty-state note, not a broken card' );
+ok( '' === $eh, 'no-data subject → hero folds instead of rendering inline (D4 §4)' );
 ok( strpos( $eh, 'sn-delta-up' ) === false, 'no spurious verdict badge when there is no baseline' );
-// The early-return (no-data) branch must ALSO close the panel correctly (div balance).
-ok( strpos( $eh, 'class="postbox sn-an-postbox sn-overview"' ) !== false, 'no-data branch still opens the adopted panel' );
-ok( substr_count( $eh, '<div' ) === substr_count( $eh, '</div>' ), 'no-data branch keeps the div count balanced' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Latest Note — did it land?' === $noted[0]['title'], 'no-data subject: hero title noted for the fold' );
+ok( false !== strpos( $noted[0]['why'], 'Not enough data yet' ), 'no-data subject: empty-state copy carried as the fold why' );
 
 echo "\nGroup: leaderboard reuses the shared .wp-list-table chrome (bespoke columns)\n";
 $lb = cap( function () use ( $leaderboard ) { snt_analytics_render_posts_leaderboard( $leaderboard ); } );
@@ -79,11 +85,13 @@ ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'evergreen' ) !== false, 'd
 // v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
 ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
 
-echo "\nGroup: catalog panel empty state keeps the panel chrome (div balance)\n";
+echo "\nGroup: catalog panel empty state folds instead of opening chrome (D4 §4)\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
 $lb_empty = cap( function () { snt_analytics_render_posts_leaderboard( array() ); } );
-ok( strpos( $lb_empty, 'class="postbox sn-an-postbox"' ) !== false, 'empty catalog still opens the adopted panel' );
-ok( strpos( $lb_empty, 'No posts yet.' ) !== false, 'empty catalog keeps its exact empty-state copy' );
-ok( substr_count( $lb_empty, '<div' ) === substr_count( $lb_empty, '</div>' ), 'empty catalog keeps the div count balanced' );
+ok( '' === $lb_empty, 'empty catalog folds instead of opening a panel' );
+ok( substr_count( $lb_empty, '<div' ) === substr_count( $lb_empty, '</div>' ), 'empty catalog keeps the div count balanced (trivially, nothing rendered)' );
+$noted_lb = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_lb ) && 'Your catalog' === $noted_lb[0]['title'] && 'No posts yet.' === $noted_lb[0]['why'], 'empty catalog keeps its exact empty-state copy, carried as the fold why' );
 
 echo "\nGroup: trajectory reuses the shared smooth-path treatment, two curves\n";
 $traj = cap( function () use ( $subject, $leaderboard ) { snt_analytics_render_post_trajectory( $subject, $leaderboard ); } );

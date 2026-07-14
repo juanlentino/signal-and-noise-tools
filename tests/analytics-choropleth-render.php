@@ -61,7 +61,9 @@ echo "\nGroup: orchestrator empty-state (no file needed)\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 $empty = capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.' ); } );
 ok( '' === trim( $empty ), 'render: empty rows → no panel emitted (omit + fold, v8.5.2)' );
-ok( in_array( 'Countries map', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'render: empty rows → title noted for the fold' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Countries map' === $noted[0]['title'], 'render: empty rows → title noted for the fold' );
+ok( 'No country data in this range yet.' === $noted[0]['why'], 'render: empty rows (SVG present) → $empty carried as the fold why, no asset-missing suffix (D4 §4)' );
 ok( strpos( $empty, '<svg' ) === false, 'render: empty rows → no SVG emitted' );
 
 echo "\nGroup: orchestrator with the real vendored asset\n";

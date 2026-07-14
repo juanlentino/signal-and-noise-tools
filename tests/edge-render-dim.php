@@ -19,7 +19,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_edge_render_dim( 'Edge locations', array(), 'No edge-location data yet.', true ); $e = ob_get_clean();
 ok( '' === trim( $e ), 'empty edge dim renders no panel' );
-ok( in_array( 'Edge locations', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty edge dim registers its title' );
+// v9.40.0 D4: the collector now stores { title, why } shape (fold contract in
+// tests/analytics-primitives.php) instead of a plain title string.
+$edge_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $edge_noted ) && 'Edge locations' === $edge_noted[0]['title'], 'empty edge dim registers its title' );
 
 ob_start(); snt_edge_render_dim( 'Status codes', array( array( 'value' => '2xx', 'requests' => 5, 'bytes' => 0 ) ), 'x', false ); $h = ob_get_clean();
 ok( strpos( $h, '2xx' ) !== false && strpos( $h, 'postbox' ) !== false, 'renders a panel when rows present' );

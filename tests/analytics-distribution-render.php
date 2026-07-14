@@ -17,14 +17,16 @@ require __DIR__ . '/../inc/analytics-admin-render.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
 
-echo "\nGroup: empty distribution omits the panel + notes the title (v8.5.2)\n";
+echo "\nGroup: empty distribution omits the panel + notes the title (v8.5.2, why-carrying since D4 §4)\n";
 // Empty rows now omit the panel entirely and register the title for the fold line
 // (was: a full 'no data' card with the custom/default message inside — the
 // compact-&-pack redesign folds empties instead of drawing cards).
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_distribution( 'Bot confidence', array(), 'Needs Cloudflare Bot Management enabled.' ); $e = ob_get_clean();
 ok( '' === trim( $e ), 'empty distribution renders no panel markup' );
-ok( in_array( 'Bot confidence', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty distribution notes its title for the fold' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Bot confidence' === $noted[0]['title'], 'empty distribution notes its title for the fold' );
+ok( 'Needs Cloudflare Bot Management enabled.' === $noted[0]['why'], 'empty distribution carries its $empty_msg as the fold why (D4 §4)' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_distribution( 'Scroll depth', array() ); $d = ob_get_clean();
 ok( '' === trim( $d ), 'no-rows distribution renders no panel (2-arg back-compat)' );

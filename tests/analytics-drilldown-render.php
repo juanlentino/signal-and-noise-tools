@@ -26,10 +26,18 @@ ob_start(); snt_analytics_render_drilldown_panel( 'country', 'US', $rows ); $h =
 ok( strpos( $h, 'Top pages · Country = ' ) !== false && strpos( $h, 'US' ) !== false, 'panel: title with dim label + value' );
 ok( strpos( $h, '/a' ) !== false && strpos( $h, '20' ) !== false, 'panel: page rows' );
 ok( strpos( $h, 'Clear' ) !== false, 'panel: clear link' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_drilldown_panel( 'referrer', 'x', null ); $e = ob_get_clean();
-ok( strpos( $e, 'No pages for this segment' ) !== false, 'panel: null → empty-state' );
+ok( '' === $e, 'panel: null → folds instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && false !== strpos( $noted[0]['title'], 'Referrer = x' ) && false !== strpos( $noted[0]['why'], 'No pages for this segment' ), 'panel: null → title + empty copy carried as the fold why' );
 ob_start(); snt_analytics_render_drilldown_panel( 'country', 'US', $rows, '(reflects the last ~90 days — Analytics Engine raw retention)' ); $n = ob_get_clean();
-ok( strpos( $n, 'last ~90 days' ) !== false, 'panel: retention note shown when provided' );
+ok( strpos( $n, 'last ~90 days' ) !== false, 'panel: retention note shown when provided (non-empty path)' );
+unset( $GLOBALS['sn_an_empty_panels'] );
+ob_start(); snt_analytics_render_drilldown_panel( 'country', 'US', null, '(reflects the last ~90 days — Analytics Engine raw retention)' ); $en = ob_get_clean();
+ok( '' === $en, 'panel: null + retention note → also folds' );
+$noted2 = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted2 ) && false !== strpos( $noted2[0]['why'], 'last ~90 days' ), 'panel: null → retention note survives into the fold why (would otherwise be lost)' );
 
 echo "\nGroup: dim-table drill links (\$drill_dim)\n";
 $drows = array( array( 'value' => 'United States', 'views' => 10, 'visits' => 6 ) );

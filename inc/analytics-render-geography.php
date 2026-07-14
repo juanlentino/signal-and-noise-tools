@@ -122,7 +122,12 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 
 	$svg = snt_analytics_choropleth_svg();
 	if ( ! $has_data || '' === $svg ) {
-		snt_an_note_empty( $title );
+		// Two distinct fold causes share this branch: no country has views (the
+		// common case — $empty covers it), or the vendored SVG asset failed to
+		// load (an operational fault, not a data gap — append the cause so the
+		// diagnostic doesn't read as "no data" when the map itself is missing).
+		$why = ( '' === $svg ) ? trim( $empty . ' World map asset missing.' ) : $empty;
+		snt_an_note_empty( $title, $why );
 		return;
 	}
 

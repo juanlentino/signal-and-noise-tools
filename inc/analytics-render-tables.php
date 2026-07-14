@@ -23,12 +23,11 @@ require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_fmt_tim
  * @param array $paths [{path,views,visits,scroll_avg,time_avg}]
  */
 function snt_analytics_render_paths_table( $paths ) {
-	snt_an_panel_open( __( 'Top pages', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $paths ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No page views in this range.</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Top pages', 'signal-and-noise-tools' ), 'No page views in this range.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Top pages', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $paths ), 10 ); // v8.5.0: full rows in the DOM; 10 visible — the primary table fills its column beside the sources stack (owner: no blank spaces)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Path</th>'
@@ -63,7 +62,7 @@ function snt_analytics_render_paths_table( $paths ) {
  */
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5 ) {
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( $title );
+		snt_an_note_empty( $title, $empty );
 		return;
 	}
 	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
@@ -153,12 +152,11 @@ function snt_analytics_sparkline( $series ) {
  * @param array $rows [{path,views,scroll_avg,time_avg}]
  */
 function snt_analytics_render_lowengage( $rows ) {
-	snt_an_panel_open( __( 'Pages losing readers', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No low-engagement pages in this range — readers are sticking around.</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Pages losing readers', 'signal-and-noise-tools' ), 'No low-engagement pages in this range — readers are sticking around.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Pages losing readers', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Page</th>'
@@ -203,13 +201,12 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 		? __( 'No exit pages in this range yet.', 'signal-and-noise-tools' )
 		: __( 'No entry pages in this range yet.', 'signal-and-noise-tools' );
 
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
-	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $empty ) . '</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( $title, $empty );
 		return;
 	}
+	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Path</th>'

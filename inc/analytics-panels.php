@@ -113,35 +113,89 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
 
 /**
  * Record a panel that had no data this range instead of drawing an empty card.
- * Collected per request; emitted as one muted line by snt_an_flush_empty_fold().
+ * Collected per request; emitted by snt_an_flush_empty_fold() as ONE muted line
+ * (no $why given for any panel) or ONE native <details> (at least one $why given)
+ * so the crafted diagnostic strings are reachable on demand instead of dropped.
+ *
+ * THE CONVENTION (D4 §4): a dataless VIEW-BODY panel never renders open — it
+ * folds into its view's collector, with its diagnostic available behind the
+ * fold. NAMED EXCEPTIONS that stay outside this convention: the Movers tile
+ * empty state (inc/analytics-movers.php), Uptime's structural header-region
+ * rail tiles, all of login-defense (D5), the dashboard tail hint
+ * (inc/analytics-admin.php — view-level, not a panel), and the headline band's
+ * own copy.
  *
  * @param string $title Panel title.
+ * @param string $why   Optional diagnostic ("needs X", "no Y in range", …).
+ *                       Default '' — panel stays summary-only in the fold.
  * @return void
  */
-function snt_an_note_empty( $title ) {
+function snt_an_note_empty( $title, $why = '' ) {
 	if ( ! isset( $GLOBALS['sn_an_empty_panels'] ) || ! is_array( $GLOBALS['sn_an_empty_panels'] ) ) {
 		$GLOBALS['sn_an_empty_panels'] = array();
 	}
-	$GLOBALS['sn_an_empty_panels'][] = (string) $title;
+	$GLOBALS['sn_an_empty_panels'][] = array(
+		'title' => (string) $title,
+		'why'   => (string) $why,
+	);
 }
 
 /**
- * Emit the collected empty panels as ONE muted "No data in this range yet: A · B"
- * line, then clear the collector. Emits nothing when nothing was collected.
+ * Emit the collected empty panels, then clear the collector. Emits nothing
+ * when nothing was collected.
+ *
+ * No panel carries a $why: today's plain line, byte-identical —
+ * <p class="sn-an-empty sn-an-empty-fold">No data in this range yet: A · B</p>
+ *
+ * At least one panel carries a $why: a native <details> so every crafted
+ * diagnostic is reachable behind one click, without cluttering the fold for
+ * panels that have nothing more to say than their title —
+ * <details class="sn-an-empty-fold"><summary>No data in this range yet: A · B</summary>
+ * <ul><li><strong>A</strong> — why</li></ul></details>
+ * (panels without a $why still appear in the summary line, just not as an <li>).
  *
  * @return void
  */
 function snt_an_flush_empty_fold() {
-	$names                          = isset( $GLOBALS['sn_an_empty_panels'] ) ? (array) $GLOBALS['sn_an_empty_panels'] : array();
+	$panels                        = isset( $GLOBALS['sn_an_empty_panels'] ) ? (array) $GLOBALS['sn_an_empty_panels'] : array();
 	$GLOBALS['sn_an_empty_panels'] = array();
-	if ( empty( $names ) ) {
+	if ( empty( $panels ) ) {
 		return;
 	}
-	$escaped = array_map( 'esc_html', $names );
-	echo '<p class="sn-an-empty sn-an-empty-fold">'
-		. esc_html__( 'No data in this range yet:', 'signal-and-noise-tools' ) . ' '
-		. implode( ' &middot; ', $escaped ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each element esc_html'd above; separator is a static entity.
-		. '</p>';
+	// Defensively normalize any legacy plain-string entries (third-party callers
+	// that never adopted the $why arg) to the { title, why } shape.
+	$panels = array_map(
+		function ( $panel ) {
+			return is_array( $panel ) ? $panel : array(
+				'title' => (string) $panel,
+				'why'   => '',
+			);
+		},
+		$panels
+	);
+
+	$titles   = array_column( $panels, 'title' );
+	$escaped  = array_map( 'esc_html', $titles );
+	$summary  = esc_html__( 'No data in this range yet:', 'signal-and-noise-tools' ) . ' '
+		. implode( ' &middot; ', $escaped ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each element esc_html'd above; separator is a static entity.
+
+	$with_why = array_filter(
+		$panels,
+		function ( $panel ) {
+			return '' !== $panel['why'];
+		}
+	);
+
+	if ( empty( $with_why ) ) {
+		echo '<p class="sn-an-empty sn-an-empty-fold">' . $summary . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $summary built from esc_html'd fragments above.
+		return;
+	}
+
+	echo '<details class="sn-an-empty-fold"><summary>' . $summary . '</summary><ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $summary built from esc_html'd fragments above.
+	foreach ( $with_why as $panel ) {
+		echo '<li><strong>' . esc_html( $panel['title'] ) . '</strong> — ' . esc_html( $panel['why'] ) . '</li>';
+	}
+	echo '</ul></details>';
 }
 
 /**

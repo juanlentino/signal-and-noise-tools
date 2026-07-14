@@ -73,7 +73,12 @@ ob_start();
 sn_login_defense_render_top_table( 'Top networks', 'Network', array() );
 $out_empty = ob_get_clean();
 ok( '' === trim( $out_empty ), 'empty top table → no panel emitted (omit + fold, v8.5.2)' );
-ok( in_array( 'Top networks', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty top table → title noted for the fold' );
+// v9.40.0 D4: the collector now stores { title, why } shape (fold contract in
+// tests/analytics-primitives.php) instead of a plain title string. login-defense
+// itself is out of scope for D4 §4 (named exception, deferred to D5) — this call
+// still passes only a title, so why defaults to ''.
+$ld_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $ld_noted ) && 'Top networks' === $ld_noted[0]['title'], 'empty top table → title noted for the fold' );
 
 // --- B3: view dormant gate ---------------------------------------------------
 $GLOBALS['__cfg'] = null;

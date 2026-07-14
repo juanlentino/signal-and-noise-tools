@@ -71,6 +71,20 @@ function snt_analytics_render_posts_view( $bundle ) {
  * @param array $subject From sn_analytics_posts_subject().
  */
 function snt_analytics_render_post_hero( $subject ) {
+	if ( empty( $subject['has_data'] ) ) {
+		// D4 §4: the whole hero — including the "which post?" title line — folds
+		// when this Note has no recorded views. The view-level null-bundle gate
+		// (snt_an_gate, above in snt_analytics_render_posts_view) still covers
+		// the "no posts at all" case; this is the narrower "one post exists but
+		// has zero views yet" case, which now yields no visible hero at all
+		// rather than a panel with just the title.
+		snt_an_note_empty(
+			__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+			__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
+		);
+		return;
+	}
+
 	$age = (int) $subject['age'];
 	$pub = ( 0 === $age )
 		? __( 'published today', 'signal-and-noise-tools' )
@@ -86,14 +100,6 @@ function snt_analytics_render_post_hero( $subject ) {
 	);
 	echo '<p class="sn-posts-hero-h"><a href="' . esc_url( (string) $subject['permalink'] ) . '"><strong>'
 		. esc_html( (string) $subject['title'] ) . '</strong></a> · ' . esc_html( $pub ) . '</p>';
-
-	if ( empty( $subject['has_data'] ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
-			. '</p>';
-		snt_an_panel_close();
-		return;
-	}
 
 	$d       = is_array( $subject['delta'] ) ? $subject['delta'] : array();
 	$dir     = in_array( $d['dir'] ?? 'flat', array( 'up', 'down', 'flat' ), true ) ? $d['dir'] : 'flat';
@@ -194,12 +200,11 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
  * @param array $rows Leaderboard rows.
  */
 function snt_analytics_render_posts_leaderboard( $rows ) {
-	snt_an_panel_open( __( 'Your catalog', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No posts yet.', 'signal-and-noise-tools' ) . '</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Your catalog', 'signal-and-noise-tools' ), __( 'No posts yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
+	snt_an_panel_open( __( 'Your catalog', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Lifetime views', 'signal-and-noise-tools' ) . '</th>';

@@ -67,5 +67,20 @@ ok( false !== strpos( $h, 'button button-primary' ) && false === strpos( $h, 'bu
 $h = cap( function () { snt_an_gate( 'Posts', 'No published posts yet.' ); } );
 ok( false === strpos( $h, '<a ' ), 'no CTA when label/url absent' );
 
+echo "\nGroup: the empty-state fold — plain line vs details diagnostics\n";
+$GLOBALS['sn_an_empty_panels'] = array();
+snt_an_note_empty( 'TLS versions' );
+snt_an_note_empty( 'Time zones' );
+$h = cap( 'snt_an_flush_empty_fold' );
+ok( false !== strpos( $h, '<p class="sn-an-empty sn-an-empty-fold">' ) && false !== strpos( $h, 'TLS versions &middot; Time zones' ), 'no whys: plain line, byte-shape unchanged' );
+snt_an_note_empty( 'LCP (field)', 'Needs the web-vitals beacon + worker v1.8.0 + traffic.' );
+snt_an_note_empty( 'Time zones' );
+$h = cap( 'snt_an_flush_empty_fold' );
+ok( false !== strpos( $h, '<details class="sn-an-empty-fold">' ) && false !== strpos( $h, '<summary' ), 'with whys: details shape' );
+ok( false !== strpos( $h, 'LCP (field)' ) && false !== strpos( $h, 'web-vitals beacon' ), 'diagnostic listed' );
+ok( false !== strpos( $h, 'Time zones' ) && 1 === substr_count( $h, '<li' ), 'why-less panel stays summary-only (one li)' );
+$h = cap( 'snt_an_flush_empty_fold' );
+ok( '' === $h, 'collector resets after flush' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
