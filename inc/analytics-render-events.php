@@ -59,7 +59,11 @@ function snt_analytics_render_events_table( $rows ) {
  */
 function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	$filtered = ( '' !== (string) $active_prop );
-	if ( empty( $rows ) ) {
+	// D4 §4: an UNFILTERED empty folds into the view's collector. A FILTERED
+	// empty (?sn_event_prop active) is the carve-out — it stays an OPEN panel
+	// so the active-property heading + Clear escape hatch survive (folding
+	// would strand the user with no in-UI way back to the unfiltered table).
+	if ( empty( $rows ) && ! $filtered ) {
 		snt_an_note_empty( __( 'Event properties', 'signal-and-noise-tools' ), 'No event properties in this range yet.' );
 		return;
 	}
@@ -68,6 +72,11 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
 		echo '<p class="sn-an-subh sn-an-subh--panel">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
 			. '<a href="' . esc_url( $clear ) . '">Clear</a></p>';
+	}
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-an-empty sn-an-empty--panel">No event properties in this range yet.</p>';
+		snt_an_panel_close();
+		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	if ( ! $filtered ) {

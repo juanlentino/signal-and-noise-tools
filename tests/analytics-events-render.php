@@ -78,9 +78,18 @@ ok( strpos( $html, '<th>Property</th>' ) === false, 'props(filtered): Property c
 ok( strpos( $html, 'sn_event_prop=' ) === false, 'props(filtered): no further drill-down links' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_event_props_table( array(), '' ); } );
-ok( '' === $html, 'props: empty rows fold instead of rendering inline (D4 §4)' );
+ok( '' === $html, 'props(unfiltered): empty rows fold instead of rendering inline (D4 §4)' );
 $noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
-ok( 1 === count( $noted ) && 'Event properties' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No event properties' ), 'props: empty state copy carried as the fold why' );
+ok( 1 === count( $noted ) && 'Event properties' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No event properties' ), 'props(unfiltered): empty state copy carried as the fold why' );
+
+// D4 §4 carve-out: a FILTERED empty (?sn_event_prop active) stays an OPEN panel
+// with its original empty copy — the Clear escape hatch must survive; folding
+// here would strand the user with no in-UI way back to the unfiltered table.
+unset( $GLOBALS['sn_an_empty_panels'] );
+$html = capture( function () { snt_analytics_render_event_props_table( array(), 'utm_source' ); } );
+ok( strpos( $html, 'No event properties' ) !== false, 'props(filtered): empty renders the OPEN panel with its original copy (active-filter carve-out)' );
+ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false && strpos( $html, '>Clear<' ) !== false, 'props(filtered): active-property heading + Clear escape hatch survive on empty' );
+ok( array() === (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), 'props(filtered): nothing noted to the fold' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

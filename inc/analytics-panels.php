@@ -122,8 +122,10 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
  * fold. NAMED EXCEPTIONS that stay outside this convention: the Movers tile
  * empty state (inc/analytics-movers.php), Uptime's structural header-region
  * rail tiles, all of login-defense (D5), the dashboard tail hint
- * (inc/analytics-admin.php — view-level, not a panel), and the headline band's
- * own copy.
+ * (inc/analytics-admin.php — view-level, not a panel), the headline band's
+ * own copy, and panels emptied by an ACTIVE user filter (the drill panel,
+ * filtered event properties) — they stay open so the Clear affordance
+ * survives.
  *
  * @param string $title Panel title.
  * @param string $why   Optional diagnostic ("needs X", "no Y in range", …).

@@ -20,6 +20,12 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  * a Clear link, populated by sn_analytics_drilldown(). $rows null/empty → empty
  * state (rejected value / no data / unconfigured AE). Native wp-admin, no brutalist.
  *
+ * D4 §4 carve-out: this panel only ever renders when ?sn_drill is active — an
+ * ALWAYS-filtered state. It deliberately does NOT fold on empty (see the
+ * convention in snt_an_note_empty()'s docblock): folding would strand the user
+ * with no in-UI way back, so the open panel keeps the "Clear drill-down"
+ * escape hatch visible.
+ *
  * @param string                                                    $dim   A SN_ANALYTICS_DIM_COLUMNS key (for the label).
  * @param string                                                    $value The drilled value.
  * @param array<int,array{path:string,views:int,visits:int}>|null   $rows  Top pages, or null.
@@ -33,24 +39,20 @@ function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' )
 		'colo' => 'Edge location', 'protocol' => 'Protocol', 'tls' => 'TLS',
 	);
 	$label = isset( $labels[ $dim ] ) ? $labels[ $dim ] : ucfirst( (string) $dim );
-	$title = 'Top pages · ' . $label . ' = ' . (string) $value;
-
-	if ( ! is_array( $rows ) || empty( $rows ) ) {
-		// The retention caveat previously rode the always-visible subhead even
-		// on the empty state; fold it into the why so it's not lost — the fold
-		// is now the only place this panel's copy survives to.
-		$why = 'No pages for this segment in this range (or it needs live Analytics Engine data).' . ( '' !== $note ? ' ' . $note : '' );
-		snt_an_note_empty( $title, $why );
-		return;
-	}
-
 	$clear = remove_query_arg( 'sn_drill', add_query_arg( array() ) );
-	snt_an_panel_open( $title, array(
+
+	snt_an_panel_open( 'Top pages · ' . $label . ' = ' . (string) $value, array(
 		'panel_class'  => 'sn-an-drill',
 		'inside_class' => 'inside sn-an-table-inside',
 	) );
 	echo '<p class="sn-an-subh sn-an-subh--panel"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
 		. ( '' !== $note ? ' · <span class="sn-an-foot">' . esc_html( $note ) . '</span>' : '' ) . '</p>';
+
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		echo '<p class="sn-an-empty sn-an-empty--panel">No pages for this segment in this range (or it needs live Analytics Engine data).</p>';
+		snt_an_panel_close();
+		return;
+	}
 
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Page</th>'
