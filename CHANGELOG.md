@@ -22,7 +22,7 @@ All notable changes to Signal & Noise Tools are documented here.
 - [inc/analytics-render-controls.php](inc/analytics-render-controls.php): carry-matrix docblock names the movers deep-link exception (D3 rider).
 
 ### Tests
-- New primitives suite; tokens suite re-pinned to the new vocabulary (+ hero + fold-summary color pins); label-14 pin added; the vacuous `sn_drill` tab pin removed (its real pin lives in the param-carry contract suite); fold-shape pins across ~16 view/render suites; div-balance regression pins on the converted panels.
+- New primitives suite; tokens suite re-pinned to the new vocabulary (+ hero + fold-summary color pins); label-14 pin added; the vacuous `sn_drill` tab pin removed (its real pin lives in the param-carry contract suite); fold-shape pins across ~16 view/render suites; empty-output pins guard the converted panels' div balance.
 
 ## [9.39.0] - 2026-07-14: Analytics dashboard D3 — one range control, one param-carry matrix
 
