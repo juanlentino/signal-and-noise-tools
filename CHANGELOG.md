@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.41.0] - 2026-07-14: Analytics dashboard D5 — de-clone finale, perf, polish (the arc closes)
+
+**Headline:** Login defense joins the shared design system — its hand-rolled postboxes, gate, KPI cards, trend chart, and top tables now render through the D4 primitives, closing the dashboard's last look-alike gap (its Overview picks up the same 22/13 KPI scale and token chrome as every other view — the one deliberate visual change). The final two clone families get their helpers: ONE trend-SVG renderer (`snt_an_trend_svg`) behind the Overview/login-defense/bot-share charts (the posts trajectory is a recorded bespoke holdout) and ONE k/v table (`snt_an_kv_table`) behind the edge and login-defense tables — edge dims' diagnostic copy, the last dead `$empty` param, finally reaches the fold. Perf: `sn_analytics_range_totals()` gains a request memo with a `$refresh` re-prime seam (the insights band, header region, and widget no longer re-fetch the same window) and Geography serves the choropleth AND its Countries table from one country pull. Polish: the CWV and Events intro separators fold with their panels (the Events caveat deliberately stays when an active `sn_event_prop` filter holds its panel open), the geo tiles' orphan margin is gone, the posts-hero fold names its Note, and raw-English panel titles across seven views gain i18n wrapping. Fifth and FINAL increment of the dashboard revamp.
+
+> **Why MINOR:** user-visible perf + the login-defense visual alignment; no breaking change — all public function names survive as wrappers (one internal dead param dropped from `snt_analytics_render_empty()`).
+
+### Added
+- [inc/analytics-panels.php](inc/analytics-panels.php): `snt_an_trend_svg()` (opts: overlay_series/stroke/head/meta/axis/id_suffix/wrap_attrs/aria_label/wrap_class/svg_class) + `snt_an_kv_table()` (cols-driven, `data_colname` opt, folds with its `empty` why) — the primitives home completes.
+- [tests/analytics-view-events.php](tests/analytics-view-events.php): new view-level suite pinning the caveat's fold/keep matrix.
+
+### Changed
+- [inc/analytics-read.php](inc/analytics-read.php): `sn_analytics_range_totals( $from, $to, $class, $refresh = false )` — request-scope memo keyed from|to|class.
+- [inc/login-defense-analytics.php](inc/login-defense-analytics.php): gate → `snt_an_gate` (gains the "Login defense" panel title), Overview + door-knock → `snt_an_panel_open`, KPI cards → `snt_an_kpi_row`, trend → the shared helper, top tables → `snt_an_kv_table`. Its range pills remain the one recorded control clone (post-arc backlog). sn_lg_range, decision pills, and all SQL untouched.
+- [inc/analytics-render-overview.php](inc/analytics-render-overview.php) + [inc/analytics-render-quality.php](inc/analytics-render-quality.php): trend charts route through the helper — the Quality tab's bot-trend gradient gets a suffixed id (naive adoption would have let the co-rendering header trend steal its gradient); a 1-point Overview series now renders nothing instead of a degenerate sliver.
+- [inc/edge-admin.php](inc/edge-admin.php): dims route through `snt_an_kv_table` and forward their `$empty`; dim titles, KPI labels, and the Requests/Bandwidth headers gain `__()`.
+- [inc/analytics-view-engagement.php](inc/analytics-view-engagement.php) / [inc/analytics-view-events.php](inc/analytics-view-events.php) / [inc/analytics-view-geography.php](inc/analytics-view-geography.php): orphan separators/margins fold with their panels; geography's Countries table slices the choropleth's single pull.
+- [inc/analytics-posts-admin.php](inc/analytics-posts-admin.php): the hero's fold why names the Note.
+- i18n title sweep across technology/geography/campaigns/quality/engagement/sessions + the anomalies double-title ([inc/analytics-render-anomalies.php](inc/analytics-render-anomalies.php)).
+
+### Tests
+- Trend geometry group (hand-computed pins incl. shared-y-max discrimination), kv-table group, memo seam group, country single-pull counter, caveat fold/keep matrix incl. the filtered-empty carve-out, login-defense primitive re-pins with div-balance both states; sweep 285 suites / 7,915 assertions.
+
 ## [9.40.0] - 2026-07-14: Analytics dashboard D4 — token layer, shared primitives, one empty-state convention
 
 **Headline:** The dashboard's design vocabulary becomes ONE namespaced token layer (`--sn-an-*`): one accent (#2271b1), one delta green (#0a7c2f — the only one of the former three passing WCAG AA at badge sizes), one red, one hairline, one radius — and the headline band gains the single sanctioned hero elevation (owner-picked "modern"). Three shared primitives retire the clone farms: ONE delta badge (two renderers merged, byte-parity proven), ONE KPI-card row (5 hand-cloned loops), ONE config/dormant gate (5 idioms; first-run gates keep `button-primary` weight via `cta_primary`). And ONE empty-state convention: a dataless view-body panel never renders open — it folds into the per-view collector, now a native `<details>` whose body finally renders the ~25 crafted diagnostic strings ("needs the web-vitals beacon…", "tag a link with ?utm_source=…") that have been dead since they were written. Panels emptied by an ACTIVE user filter (the drill panel, filtered event properties) stay open so the Clear escape hatch survives. Fourth increment of the dashboard revamp (D4 of 5).
