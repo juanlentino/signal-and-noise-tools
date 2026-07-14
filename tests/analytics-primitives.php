@@ -126,5 +126,36 @@ ok( false !== strpos( $h, 'sn-trend-title">Views per day' ) && false !== strpos(
 $h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
 ok( false === strpos( $h, 'sn-trend-head' ), 'head/meta absent when not passed' );
 
+echo "\nGroup: snt_an_trend_svg — adopter parity seams (T2 review: wrap_attrs / aria_label / class opts)\n";
+// wrap_attrs: the Overview canonical puts the brush data attrs ON .sn-spark-wrap
+// (inc/analytics-render-overview.php:79-83, pinned by tests/analytics-admin.php) —
+// without this seam "brush stays at the caller" is impossible.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'wrap_attrs' => 'data-x="1"' ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-wrap" data-x="1">' ), 'wrap_attrs lands inside the .sn-spark-wrap open tag' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-wrap">' ), 'default wrap_attrs: bare wrap, byte-identical to today' );
+
+// aria_label: both head-bearing adopters carry DISTINCT translated aria strings
+// (Overview 'Daily/Weekly views trend', login-defense 'Daily blocked trend',
+// bot-trend 'Bot share trend' vs head 'Bot share') — head-fallback alone would
+// silently rename them for screen readers.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day', 'aria_label' => 'Daily views trend' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Daily views trend"' ) && false === strpos( $h, 'aria-label="Views per day"' ), 'explicit aria_label wins over the head fallback' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'aria_label' => 'Daily blocked trend' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Daily blocked trend"' ), 'aria_label lands even with no head' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Views per day"' ), 'omitted aria_label falls back to head' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'aria-label' ), 'head and aria_label both absent: no aria-label attribute (trajectory precedent, posts-admin.php:185)' );
+
+// wrap_class / svg_class: bot-trend's sn-an-bot-trend wrapper + .sn-an-bot-spark svg
+// are pinned (tests/analytics-bottrend-render.php) AND load-bearing in
+// analytics-admin.css — without these opts bot-trend is a forced holdout.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'wrap_class' => 'sn-an-bot-trend', 'svg_class' => 'sn-an-bot-spark' ) ); } );
+ok( false !== strpos( $h, '<div class="sn-an-bot-trend">' ) && false === strpos( $h, 'sn-overview-trend' ), 'wrap_class overrides the outer wrapper' );
+ok( false !== strpos( $h, '<svg class="sn-an-bot-spark"' ) && false === strpos( $h, 'class="sn-spark"' ), 'svg_class overrides the svg class' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, '<div class="sn-overview-trend">' ) && false !== strpos( $h, '<svg class="sn-spark"' ), 'defaults stay the canonical sn-overview-trend + sn-spark, byte-identical' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

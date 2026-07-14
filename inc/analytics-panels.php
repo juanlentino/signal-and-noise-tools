@@ -344,6 +344,9 @@ function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '', $opts = 
  * (views, bot_pct, cumulative count, …) before calling, and supplies any axis
  * labels itself via $opts['axis']. Fewer than 2 points renders nothing (the
  * empty-fold, if any, is the CALLER's concern, per snt_an_note_empty above).
+ * Callers also own their <2-point/1-point pre-processing: bot-trend pads a
+ * 1-point series to a flat [v, v] before calling; the Overview canonical's n=1
+ * degenerate sliver deliberately becomes nothing at adoption.
  *
  * @param array $series Numeric values, ascending, >= 2 points to render anything.
  * @param array $opts   {
@@ -355,8 +358,25 @@ function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '', $opts = 
  *     @type string $head           Trend-head title text. Omit to skip the head row.
  *     @type string $meta           Trend-head meta text (only shown alongside $head).
  *     @type array  $axis           [start_label, end_label]. Omit to skip the axis row.
- *     @type string $id_suffix      Appended to the gradient id ('snSparkFill' + suffix)
- *                                  so two instances on one page don't collide.
+ *     @type string $id_suffix      Appended to the gradient id ('snSparkFill' + suffix).
+ *                                  Forward-looking seam, not a live-bug fix: today's
+ *                                  two 'snSparkFill' copies (Overview, login-defense)
+ *                                  are mutually exclusive views behind the
+ *                                  analytics-admin.php view switch and never co-render.
+ *     @type string $wrap_attrs     PRE-ESCAPED attribute string appended inside the
+ *                                  .sn-spark-wrap open tag (the canonical's brush
+ *                                  data-attrs live on that element — the caller
+ *                                  assembles them from esc_attr'd fragments exactly
+ *                                  as inc/analytics-render-overview.php does today).
+ *                                  Default '' = the bare wrap, byte-identical.
+ *     @type string $aria_label     svg aria-label. Default '' = fall back to $head;
+ *                                  both absent = no aria-label attribute at all
+ *                                  (the headless trajectory copy's precedent).
+ *     @type string $wrap_class     Outer wrapper class. Default 'sn-overview-trend'
+ *                                  (bot-trend needs its CSS-load-bearing 'sn-an-bot-trend').
+ *     @type string $svg_class      svg class. Default 'sn-spark' (bot-trend:
+ *                                  'sn-an-bot-spark'). The inner .sn-spark-wrap is
+ *                                  shared by every copy and stays fixed.
  * }
  */
 function snt_an_trend_svg( $series, $opts = array() ) {
@@ -401,8 +421,17 @@ function snt_an_trend_svg( $series, $opts = array() ) {
 	$head        = (string) ( $opts['head'] ?? '' );
 	$meta        = (string) ( $opts['meta'] ?? '' );
 	$axis        = ( isset( $opts['axis'] ) && is_array( $opts['axis'] ) && 2 === count( $opts['axis'] ) ) ? array_values( $opts['axis'] ) : array();
+	$wrap_attrs  = (string) ( $opts['wrap_attrs'] ?? '' );
+	$wrap_class  = (string) ( $opts['wrap_class'] ?? 'sn-overview-trend' );
+	$svg_class   = (string) ( $opts['svg_class'] ?? 'sn-spark' );
+	// Explicit aria wins; else fall back to the head; both absent → omit the
+	// attribute entirely (the headless trajectory copy's precedent).
+	$aria = (string) ( $opts['aria_label'] ?? '' );
+	if ( '' === $aria ) {
+		$aria = $head;
+	}
 
-	echo '<div class="sn-overview-trend">';
+	echo '<div class="' . esc_attr( $wrap_class ) . '">';
 	if ( '' !== $head ) {
 		echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html( $head ) . '</span>';
 		if ( '' !== $meta ) {
@@ -410,9 +439,10 @@ function snt_an_trend_svg( $series, $opts = array() ) {
 		}
 		echo '</div>';
 	}
-	echo '<div class="sn-spark-wrap">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
-	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img"' . ( '' !== $head ? ' aria-label="' . esc_attr( $head ) . '"' : '' ) . '>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $wrap_attrs is a pre-escaped attribute string assembled from esc_attr'd fragments at the caller (the canonical's brush-attr pattern).
+	echo '<div class="sn-spark-wrap"' . ( '' !== $wrap_attrs ? ' ' . $wrap_attrs : '' ) . '>';
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- class + aria esc_attr'd, static SVG chrome otherwise.
+	echo '<svg class="' . esc_attr( $svg_class ) . '" viewBox="0 0 600 84" preserveAspectRatio="none" role="img"' . ( '' !== $aria ? ' aria-label="' . esc_attr( $aria ) . '"' : '' ) . '>';
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- gradient id + color esc_attr'd, static SVG chrome otherwise.
 	echo '<defs><linearGradient id="' . esc_attr( $gradient_id ) . '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' . esc_attr( $stroke ) . '" stop-opacity="0.16"/><stop offset="55%" stop-color="' . esc_attr( $stroke ) . '" stop-opacity="0.04"/><stop offset="100%" stop-color="' . esc_attr( $stroke ) . '" stop-opacity="0"/></linearGradient></defs>';
 	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
