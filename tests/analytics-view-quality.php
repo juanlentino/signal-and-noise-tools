@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
 if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $v ) { return trim( (string) $v ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // D5 §6: view now wraps the panel title
 
 function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array(); }
 function sn_analytics_bot_breakdown( $f, $t, $l = 10 ) { return array(); }

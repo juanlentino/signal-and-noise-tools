@@ -126,9 +126,9 @@ function snt_edge_render_view( $from, $to ) {
  * @param bool   $with_bytes
  */
 function snt_edge_render_dim( $title, $rows, $empty, $with_bytes = true ) {
-	$cols = array( $title, 'Requests' );
+	$cols = array( $title, __( 'Requests', 'signal-and-noise-tools' ) );
 	if ( $with_bytes ) {
-		$cols[] = 'Bandwidth';
+		$cols[] = __( 'Bandwidth', 'signal-and-noise-tools' );
 	}
 
 	$kv_rows = array();

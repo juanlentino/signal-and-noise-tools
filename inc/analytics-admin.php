@@ -342,7 +342,7 @@ function snt_analytics_render_dashboard() {
 
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		snt_analytics_render_empty( 'unconfigured' );
+		snt_analytics_render_empty();
 		return;
 	}
 
@@ -537,9 +537,10 @@ function snt_analytics_render_settings_section() {
  * "Configure analytics →" CTA used to be a second element the caller rendered
  * after this call; it's now folded into the gate itself).
  *
- * @param string $reason 'unconfigured' (the only reason this gate currently sees).
+ * D5 §6: dropped the $reason param — its only caller always passed
+ * 'unconfigured' and the body never branched on it (dead diagnostic param).
  */
-function snt_analytics_render_empty( $reason ) {
+function snt_analytics_render_empty() {
 	snt_an_gate(
 		__( 'Analytics', 'signal-and-noise-tools' ),
 		__( 'Analytics isn\'t receiving data yet. Add your Cloudflare read credentials below to connect the dashboard. You can also set SN_CF_ANALYTICS_TOKEN / SN_CF_ACCOUNT_ID in wp-config.php (see Cloudflare Worker setup below).', 'signal-and-noise-tools' ),

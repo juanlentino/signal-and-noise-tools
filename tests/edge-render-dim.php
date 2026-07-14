@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function number_format_i18n( $n ) { return (string) (int) $n; }
+function __( $s, $d = null ) { return $s; } // D5 §6/§8: snt_edge_render_dim() now wraps its Requests/Bandwidth column headers
 
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/edge-admin.php';

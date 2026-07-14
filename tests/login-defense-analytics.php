@@ -182,6 +182,12 @@ ok( substr_count( $dz, 'sn-an-gate' ) === 1,
 	'wrapper dormant: the Connect-CF gate is emitted exactly once (header only; body silent)' );
 ok( strpos( $dz, 'Connect Cloudflare Analytics' ) !== false,
 	'wrapper dormant: still shows the Connect-CF notice' );
+// D5 §9 (T5 review carry-note): restores the original notice-COUNT intent
+// alongside the wrapper-class pin above — the gate class proves "one gate
+// postbox", this proves "one copy of the notice text" (no double-emit hiding
+// behind e.g. a second gate variant that reuses the same class).
+ok( substr_count( $dz, 'Connect Cloudflare Analytics' ) === 1,
+	'wrapper dormant: the Connect-CF notice text appears exactly once' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

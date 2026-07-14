@@ -78,9 +78,17 @@ function snt_analytics_render_post_hero( $subject ) {
 		// the "no posts at all" case; this is the narrower "one post exists but
 		// has zero views yet" case, which now yields no visible hero at all
 		// rather than a panel with just the title.
+		// D5 §6: the fold why now NAMES the Note (was a generic "this Note" —
+		// the fold's <li> already carries the panel title separately, but the
+		// why-sentence read stronger identifying the subject by its own title).
+		$title = (string) ( $subject['title'] ?? '' );
 		snt_an_note_empty(
 			__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
-			__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
+			sprintf(
+				/* translators: %s: the Note's title. */
+				__( '"%s" has no recorded views yet, or your other Notes have none to compare it against.', 'signal-and-noise-tools' ),
+				$title
+			)
 		);
 		return;
 	}
