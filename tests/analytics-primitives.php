@@ -88,5 +88,43 @@ $h = cap( 'snt_an_flush_empty_fold' );
 ok( false !== strpos( $h, '<p class="sn-an-empty sn-an-empty-fold">' ) && false !== strpos( $h, 'Legacy plain-string entry' ), 'legacy plain-string entry normalizes into the plain summary line' );
 ok( false === strpos( $h, '<li' ) && false === stripos( $h, 'warning' ), 'legacy entry: no li, no PHP warning leaked' );
 
+echo "\nGroup: snt_an_trend_svg — THE trend renderer (D5 §3, geometry from the Overview canonical)\n";
+// Pinned 3-point series [10,40,20]: n=3, w=600 -> step=300 -> px=[0,300,600].
+// max=40 (peak at index 1) -> py = round(78-(v/40)*70,2) = [60.5, 8, 43].
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, 'viewBox="0 0 600 84"' ) && false !== strpos( $h, 'class="sn-spark"' ), 'SVG present with the canonical viewBox/width' );
+ok( false !== strpos( $h, 'd="M 0,60.5' ), "path d begins at the first point's x/y (0,60.5)" );
+ok( false !== strpos( $h, ' 300,8' ), 'the peak (v=40 of 40) maps to the top padding (y=8)' );
+
+// Shared y-max: series=[0,100,50] (own max=100) + overlay=[0,200] -> shared max=200.
+// Main series py = round(78-(v/200)*70,2) = [78, 43, 60.5] — v=100 (its OWN peak)
+// no longer maps to top=8, proving the overlay's larger value raised the shared scale.
+$h = cap( function () { snt_an_trend_svg( array( 0, 100, 50 ), array( 'overlay_series' => array( 0, 200 ) ) ); } );
+ok( false !== strpos( $h, 'd="M 0,78' ), 'main path begins at (0,78) under the shared max' );
+ok( false !== strpos( $h, ' 300,43' ) && false === strpos( $h, ' 300,8' ), "series' own peak (100) does NOT hit top=8 once the overlay (200) raises the shared max" );
+ok( false !== strpos( $h, 'stroke-dasharray="4 3"' ) && false !== strpos( $h, 'stroke="#a7aaad"' ), 'overlay_series renders a second, dashed path' );
+ok( false !== strpos( $h, ' 600,8' ), "overlay's own peak (200 of shared max 200) maps to top=8" );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'stroke' => '#d63638' ) ); } );
+ok( false !== strpos( $h, 'stroke="#d63638" stroke-width="2"' ), 'stroke opt changes the main line stroke' );
+
+ok( '' === cap( function () { snt_an_trend_svg( array( 5 ) ); } ), 'fewer than 2 points (1) -> complete silence' );
+ok( '' === cap( function () { snt_an_trend_svg( array() ); } ), 'fewer than 2 points (0) -> complete silence' );
+
+$h1 = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+$h2 = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'id_suffix' => '-cmp' ) ); } );
+ok( false !== strpos( $h1, 'url(#snSparkFill)' ) && false !== strpos( $h1, 'id="snSparkFill"' ), 'default id_suffix (\'\') reproduces the canonical gradient id' );
+ok( false !== strpos( $h2, 'url(#snSparkFill-cmp)' ) && false !== strpos( $h2, 'id="snSparkFill-cmp"' ), 'id_suffix de-collides the gradient id' );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'axis' => array( 'Jan 1', 'Jan 3' ) ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-axis"><span>Jan 1</span><span>Jan 3</span></div>' ), 'axis labels render when passed' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'sn-spark-axis' ), 'axis row absent when not passed' );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day', 'meta' => 'peak 40' ) ); } );
+ok( false !== strpos( $h, 'sn-trend-title">Views per day' ) && false !== strpos( $h, 'sn-trend-meta">peak 40' ), 'head/meta render when passed' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'sn-trend-head' ), 'head/meta absent when not passed' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
