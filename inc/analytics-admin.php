@@ -544,7 +544,8 @@ function snt_analytics_render_empty( $reason ) {
 		__( 'Analytics', 'signal-and-noise-tools' ),
 		__( 'Analytics isn\'t receiving data yet. Add your Cloudflare read credentials below to connect the dashboard. You can also set SN_CF_ANALYTICS_TOKEN / SN_CF_ACCOUNT_ID in wp-config.php (see Cloudflare Worker setup below).', 'signal-and-noise-tools' ),
 		__( 'Configure analytics →', 'signal-and-noise-tools' ),
-		snt_analytics_settings_url()
+		snt_analytics_settings_url(),
+		array( 'cta_primary' => true ) // first-run: the page's ONLY action keeps primary weight.
 	);
 }
 

@@ -249,11 +249,14 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
  * @param string $cta_label Optional CTA text.
  * @param string $cta_url   Optional CTA href (both required to render the CTA).
  */
-function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '' ) {
+function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '', $opts = array() ) {
 	echo '<div class="postbox sn-an-gate"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside">';
 	echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $message );
 	if ( '' !== $cta_label && '' !== $cta_url ) {
-		echo ' <a class="button button-small" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_label ) . '</a>';
+		// cta_primary: first-run gates (the page's ONLY action) keep button-primary
+		// weight per the house convention; routine dormant gates stay button-small.
+		$cta_class = ! empty( $opts['cta_primary'] ) ? 'button button-primary' : 'button button-small';
+		echo ' <a class="' . esc_attr( $cta_class ) . '" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_label ) . '</a>';
 	}
 	echo '</p></div></div>';
 }
