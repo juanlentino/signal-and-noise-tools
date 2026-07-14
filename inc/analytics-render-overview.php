@@ -29,82 +29,55 @@ function snt_analytics_render_trend( $series, $granularity = 'day', $compare_ser
 	if ( empty( $series ) ) {
 		return;
 	}
-	$n    = count( $series );
-	$max  = 1;
-	foreach ( $series as $r ) {
-		$max = max( $max, (int) $r['views'] );
-	}
-	// v9.34.0: the comparison overlay shares this $max so both lines are on the
-	// same scale — an overlay on its own scale would lie about relative volume.
-	foreach ( (array) $compare_series as $r ) {
-		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
-	}
-	$w    = 600.0;
-	$top  = 8.0;
-	$base = 78.0;
-	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
-	$px   = array();
-	$py   = array();
-	foreach ( array_values( $series ) as $i => $r ) {
-		$px[] = round( $i * $step, 2 );
-		$py[] = round( $base - ( (int) $r['views'] / $max ) * ( $base - $top ), 2 );
-	}
+	$n = count( $series );
 
-	// Smooth line via the shared helper (clamped Catmull-Rom → bézier).
-	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	$last_x = $px[ $n - 1 ];
-	// Area = the smooth line dropped to the baseline and closed.
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
+	// Peak stays at the caller (drives the head's "peak N" meta text); the geometry
+	// itself only needs the plain views array.
+	$views    = array();
 	$peak     = 0;
 	$peak_day = '';
 	foreach ( $series as $r ) {
-		if ( (int) $r['views'] >= $peak ) {
-			$peak     = (int) $r['views'];
+		$v       = (int) $r['views'];
+		$views[] = $v;
+		if ( $v >= $peak ) {
+			$peak     = $v;
 			$peak_day = (string) $r['day'];
 		}
 	}
+	$overlay_views = array();
+	foreach ( (array) $compare_series as $r ) {
+		$overlay_views[] = (int) ( $r['views'] ?? 0 );
+	}
+
 	$aria = ( 'week' === $granularity )
 		? __( 'Weekly views trend', 'signal-and-noise-tools' )
 		: __( 'Daily views trend', 'signal-and-noise-tools' );
 
-	// Body-only trend band (v6.5.2): rendered inside the fused Overview panel,
-	// directly below the KPI strip — no separate postbox/header.
-	echo '<div class="sn-overview-trend">';
-	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Views per day', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
 	// v9.34.0 (maturity I5): brush-to-select — the chart becomes the range control.
 	// The JS (analytics-brush.js) maps drag fractions onto these attributes and
 	// navigates to sn_range=custom; snt_analytics_resolve_custom_window validates
-	// whatever arrives server-side, so the JS only ever BUILDS a URL.
-	$brush = ( 'day' === $granularity && $n > 1 )
-		? ' data-brush-from="' . esc_attr( (string) $series[0]['day'] ) . '" data-brush-days="' . esc_attr( (string) $n ) . '"'
+	// whatever arrives server-side, so the JS only ever BUILDS a URL. Assembled from
+	// esc_attr'd fragments here — the helper appends this string verbatim onto
+	// .sn-spark-wrap (its $wrap_attrs contract, D5 §3).
+	$wrap_attrs = ( 'day' === $granularity && $n > 1 )
+		? 'data-brush-from="' . esc_attr( (string) $series[0]['day'] ) . '" data-brush-days="' . esc_attr( (string) $n ) . '"'
 		: '';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes assembled from esc_attr'd fragments above.
-	echo '<div class="sn-spark-wrap"' . $brush . '>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
-	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( $aria ) . '">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
-	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
-	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
-	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
-	if ( count( (array) $compare_series ) > 1 ) {
-		$cn  = count( $compare_series );
-		$cst = $w / ( $cn - 1 );
-		$cpx = array();
-		$cpy = array();
-		foreach ( array_values( $compare_series ) as $i => $r ) {
-			$cpx[] = round( $i * $cst, 2 );
-			$cpy[] = round( $base - ( (int) ( $r['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
-		}
-		$cmp_d = snt_analytics_smooth_path( $cpx, $cpy, $top, $base );
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
-		echo '<path d="' . esc_attr( $cmp_d ) . '" fill="none" stroke="#a7aaad" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-	}
-	// non-scaling-stroke keeps the line a crisp 2px regardless of the horizontal stretch (preserveAspectRatio=none).
-	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-	echo '</svg></div>';
-	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
-	echo '</div>';
+
+	// Body-only trend band (v6.5.2): rendered inside the fused Overview panel,
+	// directly below the KPI strip — no separate postbox/header. D5 §3: routes
+	// through the shared trend-SVG primitive (inc/analytics-panels.php); geometry
+	// is byte-identical to the pre-D5 inline copy this replaces.
+	snt_an_trend_svg(
+		$views,
+		array(
+			'overlay_series' => $overlay_views,
+			'head'           => __( 'Views per day', 'signal-and-noise-tools' ),
+			'meta'           => sprintf( /* translators: %s peak view count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ),
+			'axis'           => array( (string) $series[0]['day'], (string) end( $series )['day'] ),
+			'wrap_attrs'     => $wrap_attrs,
+			'aria_label'     => $aria,
+		)
+	);
 }
 
 /**

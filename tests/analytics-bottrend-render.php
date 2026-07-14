@@ -35,6 +35,12 @@ ok( strpos( $h, 'class="bar"' ) === false, 'old chunky bars gone' );
 ok( strpos( $h, '#d63638' ) !== false, 'red accent (matches the bot quality-bar segment)' );
 ok( strpos( $h, 'peak 30% bot' ) !== false, 'peak labelled with the absolute max bot %' );
 ok( preg_match( '/d="M [\d.]+,[\d.]+ C /', $h ) === 1, 'smooth bézier line (scaled to peak)' );
+// D5 §3: routes through the shared trend-SVG primitive (inc/analytics-panels.php)
+// with id_suffix 'Bot' — proves the primitive is doing the drawing AND guards the
+// anti-collision fix (the Overview header trend's 'snSparkFill' co-renders on this
+// same Quality-tab page; a bare/default id here would silently steal that gradient).
+ok( strpos( $h, 'id="snSparkFillBot"' ) !== false && strpos( $h, 'url(#snSparkFillBot)' ) !== false, 'trend: routes through the shared primitive with a de-collided gradient id' );
+ok( strpos( $h, 'snBotTrendFill' ) === false, 'trend: the old standalone gradient id is gone' );
 
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_bot_trend( array() ); $e = ob_get_clean();

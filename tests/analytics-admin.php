@@ -456,6 +456,13 @@ ok( strpos( $html, 'sn-an-bot-trend' ) !== false, 'quality tab renders the bot-s
 ok( strpos( $html, 'Bot confidence' ) !== false, 'quality: bot-confidence distribution panel rendered' );
 ok( strpos( $html, '1–30' ) !== false || strpos( $html, '61–99' ) !== false, 'quality: bot-confidence bands rendered' );
 ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native postbox' );
+// D5 §3: the shared header trend AND the bot-trend now both route through
+// snt_an_trend_svg() and co-render on this same page (header above the tabs,
+// bot-trend inside the Quality body) — their gradient ids MUST differ, or the
+// second <path fill="url(#id)"> silently resolves to the FIRST matching id in
+// the DOM (duplicate-SVG-id behavior), stealing the wrong gradient.
+preg_match_all( '/id="(snSparkFill[A-Za-z0-9]*)"/', $html, $m_grad );
+ok( count( $m_grad[1] ) === count( array_unique( $m_grad[1] ) ), 'quality: no duplicate trend gradient ids on a page where both trends co-render' );
 
 echo "\nGroup: dashboard — Events view (new tab)\n";
 $_GET['sn_view'] = 'events';

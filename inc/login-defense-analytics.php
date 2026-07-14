@@ -41,57 +41,36 @@ function sn_login_defense_render_kpi_cards( $k ) {
 }
 
 /**
- * Daily blocked-trend sparkline. Mirrors snt_analytics_render_trend()'s SVG band
- * (reusing snt_analytics_smooth_path when available, else a straight polyline)
- * with login labels. $series = [{day,views}] ascending; views = blocked count.
+ * Daily blocked-trend sparkline. Routes through the shared trend-SVG primitive
+ * (inc/analytics-panels.php, D5 §3) — default gradient id (its suite pins
+ * `url(#snSparkFill)`, tests/login-defense-analytics.php:58; the two 'snSparkFill'
+ * copies are mutually exclusive views behind the analytics-admin.php view switch
+ * and never co-render, so the shared id is safe). $series = [{day,views}]
+ * ascending; views = blocked count. The <2-point silent guard matches the
+ * primitive's own guard exactly — kept here only so the peak/axis reads below
+ * never run against a too-short series.
  */
 function sn_login_defense_render_trend_chart( $series ) {
 	if ( ! is_array( $series ) || count( $series ) < 2 ) {
 		return;
 	}
-	$n    = count( $series );
-	$max  = 1;
-	$peak = 0;
+	$peak  = 0;
+	$views = array();
 	foreach ( $series as $r ) {
-		$v    = (int) ( $r['views'] ?? 0 );
-		$max  = max( $max, $v );
-		$peak = max( $peak, $v );
+		$v       = (int) ( $r['views'] ?? 0 );
+		$views[] = $v;
+		$peak    = max( $peak, $v );
 	}
-	$w    = 600.0;
-	$top  = 8.0;
-	$base = 78.0;
-	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
-	$px   = array();
-	$py   = array();
-	foreach ( array_values( $series ) as $i => $r ) {
-		$px[] = round( $i * $step, 2 );
-		$py[] = round( $base - ( (int) ( $r['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
-	}
-	if ( function_exists( 'snt_analytics_smooth_path' ) ) {
-		$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	} else {
-		$pts    = array();
-		foreach ( $px as $i => $x ) { $pts[] = $x . ',' . $py[ $i ]; }
-		$line_d = 'M ' . implode( ' L ', $pts );
-	}
-	// Area = the line dropped to the baseline and closed (parity with snt_analytics_render_trend).
-	$last_x = $px[ $n - 1 ];
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 
-	echo '<div class="sn-overview-trend">';
-	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Blocked per day', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak blocked count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
-	echo '<div class="sn-spark-wrap">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- coords esc_attr'd, static SVG chrome.
-	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( __( 'Daily blocked trend', 'signal-and-noise-tools' ) ) . '">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG gradient def, no dynamic values.
-	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
-	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
-	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
-	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-	echo '</svg></div>';
-	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
-	echo '</div>';
+	snt_an_trend_svg(
+		$views,
+		array(
+			'head'       => __( 'Blocked per day', 'signal-and-noise-tools' ),
+			'meta'       => sprintf( /* translators: %s peak blocked count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ),
+			'axis'       => array( (string) $series[0]['day'], (string) end( $series )['day'] ),
+			'aria_label' => __( 'Daily blocked trend', 'signal-and-noise-tools' ),
+		)
+	);
 }
 
 /**

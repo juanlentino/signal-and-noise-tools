@@ -69,8 +69,12 @@ function snt_analytics_render_bot_breakdown( $bb ) {
  * Bot-share trend panel: a smooth SVG line + gradient area of per-bucket bot% over
  * the window, scaled to the peak with the absolute peak labelled. Red accent to match
  * the bot segment of the Quality-tab stacked bar. Data from sn_analytics_class_series()
- * (durable — no AE). Mirrors snt_analytics_render_trend()'s SVG treatment via the
- * shared smooth-path helper; only one renders per page so a fixed gradient id is safe.
+ * (durable — no AE). Routes through the shared trend-SVG primitive (D5 §3); the
+ * fold-on-empty stays here (it needs the caller's own diagnostic string). id_suffix
+ * 'Bot' (-> 'snSparkFillBot') de-collides the gradient id from the Overview header
+ * trend's 'snSparkFill' — the two DO co-render on this same Quality-tab page (the
+ * header trend renders above the tab body on every shared-chrome view), so a bare
+ * id would silently steal the wrong gradient (first-id-wins under duplicate SVG ids).
  *
  * @param array $rows [{day:string, bot_pct:int, total:int, bot:int}]
  */
@@ -79,47 +83,37 @@ function snt_analytics_render_bot_trend( $rows ) {
 		snt_an_note_empty( __( 'Bot share over time', 'signal-and-noise-tools' ), 'No traffic recorded in this range yet.' );
 		return;
 	}
-	$n    = count( $rows );
-	$peak = 0;
+	// scale-to-peak so a typically-low rate is readable; absolute peak is labelled.
+	// $peak stays UNCLAMPED (parity with the pre-D5 copy) while each plotted point is
+	// clamped to [0,100] — the primitive derives its own scale from this series.
+	$peak   = 0;
+	$series = array();
 	foreach ( $rows as $r ) {
-		$peak = max( $peak, (int) ( $r['bot_pct'] ?? 0 ) );
+		$series[] = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
+		$peak     = max( $peak, (int) ( $r['bot_pct'] ?? 0 ) );
 	}
-	$scale = max( 1, $peak ); // scale-to-peak so a typically-low rate is readable; absolute peak is labelled.
-	$w     = 600.0;
-	$top   = 8.0;
-	$base  = 78.0;
-	$step  = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
-	$px    = array();
-	$py    = array();
-	foreach ( array_values( $rows ) as $i => $r ) {
-		$pct  = max( 0, min( 100, (int) ( $r['bot_pct'] ?? 0 ) ) );
-		$px[] = round( $i * $step, 2 );
-		$py[] = round( $base - ( $pct / $scale ) * ( $base - $top ), 2 );
+	// A single day smooths to a bare moveto (invisible) inside the primitive too —
+	// pad to a flat two-point line (parity with the pre-D5 copy's px/py padding).
+	if ( count( $series ) < 2 ) {
+		$series = array( $series[0], $series[0] );
 	}
-	// A single day smooths to a bare moveto (invisible); pad to a flat full-width line.
-	if ( count( $px ) < 2 ) {
-		$px = array( 0.0, $w );
-		$py = array( $py[0], $py[0] );
-	}
-	$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $px[ count( $px ) - 1 ] . ',' . $base . ' Z';
-	$first  = (string) ( $rows[0]['day'] ?? '' );
-	$last   = (string) ( end( $rows )['day'] ?? '' );
-	$meta   = sprintf( /* translators: %s peak bot percentage */ __( 'peak %s%% bot', 'signal-and-noise-tools' ), number_format_i18n( (int) $peak ) );
+	$first = (string) ( $rows[0]['day'] ?? '' );
+	$last  = (string) ( end( $rows )['day'] ?? '' );
+	$meta  = sprintf( /* translators: %s peak bot percentage */ __( 'peak %s%% bot', 'signal-and-noise-tools' ), number_format_i18n( (int) $peak ) );
 
 	snt_an_panel_open( __( 'Bot share over time', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-bot-trend">';
-	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Bot share', 'signal-and-noise-tools' ) . '</span><span class="sn-trend-meta">' . esc_html( $meta ) . '</span></div>';
-	echo '<div class="sn-spark-wrap">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- numeric coords esc_attr'd, static SVG chrome.
-	echo '<svg class="sn-an-bot-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr__( 'Bot share trend', 'signal-and-noise-tools' ) . '">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG defs, no dynamic values.
-	echo '<defs><linearGradient id="snBotTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d63638" stop-opacity="0.16"/><stop offset="55%" stop-color="#d63638" stop-opacity="0.04"/><stop offset="100%" stop-color="#d63638" stop-opacity="0"/></linearGradient></defs>';
-	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
-	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snBotTrendFill)" stroke="none"/>';
-	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#d63638" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-	echo '</svg></div>';
-	echo '<div class="sn-spark-axis"><span>' . esc_html( $first ) . '</span><span>' . esc_html( $last ) . '</span></div>';
-	echo '</div>';
+	snt_an_trend_svg(
+		$series,
+		array(
+			'stroke'     => '#d63638',
+			'head'       => __( 'Bot share', 'signal-and-noise-tools' ),
+			'meta'       => $meta,
+			'axis'       => array( $first, $last ),
+			'aria_label' => __( 'Bot share trend', 'signal-and-noise-tools' ),
+			'wrap_class' => 'sn-an-bot-trend',
+			'svg_class'  => 'sn-an-bot-spark',
+			'id_suffix'  => 'Bot',
+		)
+	);
 	snt_an_panel_close();
 }
