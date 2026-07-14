@@ -102,7 +102,10 @@ function sn_analytics_rec_unlinked() {
  * that was fine). Pages the owner hides from search (the per-page noindex
  * toggle) are skipped — a summary a crawler will never read isn't worth nagging
  * about. The card NAMES each remaining Page and deep-links it to its own editor.
- * Cross-repo signal, plugin-only code. Null when none.
+ * Cross-repo signal, plugin-only code. Null when none. The finished card (or
+ * its absence, as a 'none' sentinel) caches for an hour in the
+ * sn_an_rec_seo_meta transient (v9.39.0) — parity with the other two rules'
+ * pre-computed artifacts.
  *
  * @return array|null
  */
@@ -110,9 +113,23 @@ function sn_analytics_rec_seo_meta() {
 	// The guard is defensive: sn_seo_resolve_singular_description() shipped in
 	// v9.7.0 (inc/seo.php), so this rule is LIVE in production. It stays guarded
 	// so the recs panel degrades gracefully if the SEO module is ever absent.
+	// Kept OUTSIDE the transient envelope below: an install missing the SEO
+	// module must keep re-checking function_exists() every request, never lock
+	// itself into caching 'none' forever.
 	if ( ! function_exists( 'sn_seo_description_for_post' ) || ! function_exists( 'get_posts' ) ) {
 		return null;
 	}
+
+	// v9.39.0 (D3 fast-follow): the only rule that computed inline — its Page
+	// scan now caches for an hour like its peers' pre-computed artifacts
+	// (lifecycle transient / health-scan option). 'none' sentinel
+	// distinguishes a cached null from a cache miss. No invalidation hooks —
+	// owner-glance card.
+	$cached = get_transient( 'sn_an_rec_seo_meta' );
+	if ( false !== $cached ) {
+		return 'none' === $cached ? null : $cached;
+	}
+
 	$pages   = (array) get_posts( array(
 		'post_type'        => 'page',
 		'post_status'      => 'publish',
@@ -139,28 +156,32 @@ function sn_analytics_rec_seo_meta() {
 	}
 	$n = count( $missing );
 	if ( $n < 1 ) {
-		return null;
-	}
-	$items = array();
-	foreach ( $missing as $p ) {
-		$id    = (int) ( $p->ID ?? 0 );
-		$label = trim( (string) ( $p->post_title ?? '' ) );
-		if ( '' === $label ) {
-			$label = (string) ( $p->post_name ?? ( '#' . $id ) );
+		$card = null;
+	} else {
+		$items = array();
+		foreach ( $missing as $p ) {
+			$id    = (int) ( $p->ID ?? 0 );
+			$label = trim( (string) ( $p->post_title ?? '' ) );
+			if ( '' === $label ) {
+				$label = (string) ( $p->post_name ?? ( '#' . $id ) );
+			}
+			$items[] = array(
+				'label' => $label,
+				'url'   => admin_url( 'post.php?post=' . $id . '&action=edit' ),
+			);
 		}
-		$items[] = array(
-			'label' => $label,
-			'url'   => admin_url( 'post.php?post=' . $id . '&action=edit' ),
+		$card = array(
+			'id'     => 'seo_meta',
+			// translators: %d is the number of published pages that ship with no meta description.
+			'title'  => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
+			'detail' => 'Search engines and AI crawlers get no summary for these pages. Add a Page Excerpt to each:',
+			'count'  => $n,
+			'items'  => $items,
 		);
 	}
-	return array(
-		'id'     => 'seo_meta',
-		// translators: %d is the number of published pages that ship with no meta description.
-		'title'  => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
-		'detail' => 'Search engines and AI crawlers get no summary for these pages. Add a Page Excerpt to each:',
-		'count'  => $n,
-		'items'  => $items,
-	);
+
+	set_transient( 'sn_an_rec_seo_meta', ( null === $card ? 'none' : $card ), HOUR_IN_SECONDS );
+	return $card;
 }
 
 /**

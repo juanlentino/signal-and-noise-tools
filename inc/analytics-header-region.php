@@ -98,7 +98,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( function_exists( 'sn_uptime_status_rail_strip' ) ) {
 		echo sn_uptime_status_rail_strip(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
 	}
-	snt_analytics_render_movers_tile( $from, $to, $class, $cwin_basis, $basis );
+	snt_analytics_render_movers_tile( $from, $to, $class, $cwin_basis, $basis, $range );
 	echo '</div>';
 	echo '</div>';
 

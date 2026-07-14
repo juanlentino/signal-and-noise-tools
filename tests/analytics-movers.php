@@ -21,6 +21,17 @@ if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { retur
 if ( ! function_exists( 'sanitize_title' ) ) { function sanitize_title( $s ) { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $s ) ), '-' ); } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; } }
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return (string) (int) $n; } }
+// D3: the movers deep link now carries the window (range+class) when $range is
+// supplied — needs add_query_arg + the real snt_analytics_window_args semantics
+// (this suite deliberately doesn't require analytics-render-controls.php).
+if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $args, $url = '' ) { return (string) $url . ( strpos( (string) $url, '?' ) !== false ? '&' : '?' ) . http_build_query( (array) $args ); } }
+if ( ! function_exists( 'snt_analytics_window_args' ) ) {
+	function snt_analytics_window_args( $range, $class, $from, $to ) {
+		$args = array( 'sn_range' => (string) $range, 'sn_class' => (string) $class );
+		if ( 'custom' === (string) $range ) { $args['sn_from'] = (string) $from; $args['sn_to'] = (string) $to; }
+		return $args;
+	}
+}
 
 $GLOBALS['__transients'] = array();
 $GLOBALS['__transient_ttl'] = array();
@@ -171,6 +182,12 @@ $tile_prev = (string) ob_get_clean();
 ok( false !== strpos( $tile_prev, 'vs prior period' ), 'movers tile: default meta label unchanged' );
 
 $GLOBALS['__paths_by_window'] = array();
+
+echo "\nGroup: D3 — movers deep link carries the window (param-carry matrix)\n";
+ob_start(); snt_analytics_render_movers_tile( '2026-07-06', '2026-07-12', 'human', null, 'prev', 30 ); $tile = (string) ob_get_clean();
+ok( false !== strpos( $tile, 'sn_view=posts' ) && false !== strpos( $tile, 'sn_range=30' ) && false !== strpos( $tile, 'sn_class=human' ), 'movers deep link carries the window + class (D3 matrix)' );
+ob_start(); snt_analytics_render_movers_tile( '2026-07-06', '2026-07-12', 'human' ); $tile_bare = (string) ob_get_clean();
+ok( false !== strpos( $tile_bare, 'sn_view=posts' ) && false === strpos( $tile_bare, 'sn_range=' ), 'movers deep link: no range arg when none supplied (back-compat)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

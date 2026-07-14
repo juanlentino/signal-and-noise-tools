@@ -48,6 +48,18 @@ function wp_kses_post( $s ) { return (string) $s; }
 function snt_an_panel_open( $title ) { echo '<div class="sn-an-panel"><span>' . $title . '</span>'; }
 function snt_an_panel_close() { echo '</div>'; }
 
+// D3 (v9.39.0): the seo-meta rule now caches its finished card behind a
+// transient — guarded stubs backed by a plain array store, matching the
+// house pattern used by the other transient-consuming suites.
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
+}
+
 require __DIR__ . '/../inc/analytics-recommendations.php';
 
 // ── Refresh rule ──
@@ -80,6 +92,7 @@ r_true( null === r_card( sn_analytics_recommendations( true ), 'unlinked' ), 'no
 echo "\nRule: SEO descriptionless pages\n";
 $mk = function ( $id, $title, $desc ) { $x = new stdClass(); $x->ID = $id; $x->post_title = $title; $x->__desc = $desc; return $x; };
 $GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ), $mk( 11, 'Random', '' ), $mk( 12, 'Ghost', '' ) );
+$GLOBALS['__transients'] = array(); // D3: the fixture just changed — force a cold Page scan, not a stale cached card.
 $s = r_card( sn_analytics_recommendations( true ), 'seo_meta' ); // re-prime for the new fixture
 r_true( is_array( $s ), 'seo card present when a page resolves to empty description' );
 r_eq( 2, $s['count'] ?? 0, 'counts only the descriptionless pages (11, 12)' );
@@ -103,6 +116,7 @@ r_true( false !== strpos( $html, '>Ghost</a>' ), 'render: the second page title 
 // search doesn't need a summary crawlers will never use.
 $GLOBALS['__pages']   = array( $mk( 11, 'Random', '' ), $mk( 12, 'Ghost', '' ), $mk( 13, 'Hidden', '' ) );
 $GLOBALS['__noindex'] = array( 13 => true );
+$GLOBALS['__transients'] = array(); // D3: fixture changed (page 13 + noindex) — force a cold scan through the noindex logic, not a coincidentally-matching stale cache.
 $sn = r_card( sn_analytics_recommendations( true ), 'seo_meta' ); // re-prime for the new fixture
 r_eq( 2, $sn['count'] ?? 0, 'noindexed descriptionless page (13) is excluded from the count' );
 $hidden_listed = false;
@@ -110,6 +124,7 @@ foreach ( ( $sn['items'] ?? array() ) as $it ) { if ( 'Hidden' === ( $it['label'
 r_true( ! $hidden_listed, 'the noindexed page is not named in the list' );
 $GLOBALS['__noindex'] = array();
 $GLOBALS['__pages'] = array( $mk( 10, 'About', 'has desc' ) );
+$GLOBALS['__transients'] = array(); // D3: fixture changed back to "all described" — force a cold scan, not the previous cached count=2 card.
 r_true( null === r_card( sn_analytics_recommendations( true ), 'seo_meta' ), 'no seo card when every page has a description' ); // re-prime for the new fixture
 
 // ── Cookieless: no card carries a per-person field (all three signals live) ──
@@ -117,6 +132,7 @@ echo "\nCookieless: no per-person fields in any card\n";
 $GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 2 ) );
 $GLOBALS['__scan']      = array( 'checks' => array( 'unlinked_mentions' => array( 'count' => 1 ) ) );
 $GLOBALS['__pages']     = array( $mk( 11, 'Random', '' ) );
+$GLOBALS['__transients'] = array(); // D3: fixture changed — force a cold scan so the seo_meta card actually fires here.
 $all = sn_analytics_recommendations( true ); // re-prime the request memo for the new fixture
 r_eq( 3, count( $all ), 'all three rules fire when their signals are present' );
 foreach ( $all as $c ) {
@@ -130,6 +146,7 @@ foreach ( $all as $c ) {
 echo "\nGroup: D2 — the AI brief is retired (single voice lives in the digest)\n";
 $GLOBALS['__lifecycle'] = array( 'summary' => array( 'refresh_candidates' => 3 ) );
 $GLOBALS['__scan'] = null; $GLOBALS['__pages'] = array();
+$GLOBALS['__transients'] = array(); // D3: fixture changed back to zero pages — force a cold scan, not the previous cached real card.
 sn_analytics_recommendations( true ); // re-prime the request memo for the new fixture
 $GLOBALS['__sig_calls'] = 0;
 $rec = sn_analytics_recommend();
@@ -175,8 +192,24 @@ $GLOBALS['__rule_reads'] = 0;
 sn_analytics_recommendations();
 sn_analytics_recommendations();
 r_true( 0 === (int) $GLOBALS['__rule_reads'], 'recommendations: repeat calls in one request never re-read the rule sources (memoized)' );
+$GLOBALS['__transients'] = array(); // D3: the seo-meta rule's OWN transient would otherwise short-circuit get_posts here — reset so this re-prime still proves a genuine rule-source read.
 sn_analytics_recommendations( true );
 r_true( (int) $GLOBALS['__rule_reads'] > 0, 'recommendations: refresh re-primes (the CLI-suite seam works)' );
+
+// ── v9.39.0 (D3 fast-follow): seo-meta caches its Page scan for an hour like
+// its two cached-signal peers (lifecycle transient / health-scan option). The
+// warm path must read the transient — zero get_posts calls — and the 'none'
+// sentinel must round-trip back to a real null, not a phantom card. ──
+echo "\nGroup: D3 — seo-meta rule caches its Page scan (transient parity with its peers)\n";
+$GLOBALS['__transients'] = array();
+sn_analytics_recommendations( true ); // re-prime → cold compute, sets the transient
+$cold_reads = (int) $GLOBALS['__rule_reads'];
+r_true( $cold_reads > 0, 'seo-meta: cold path scans Pages once' );
+$GLOBALS['__rule_reads'] = 0;
+sn_analytics_recommendations( true ); // re-prime again → memo recomputes but the RULE reads the transient
+r_true( 0 === (int) $GLOBALS['__rule_reads'], 'seo-meta: warm path reads the transient, zero get_posts calls' );
+r_true( isset( $GLOBALS['__transients']['sn_an_rec_seo_meta'] ), 'seo-meta: transient key present' );
+r_true( null === sn_analytics_rec_seo_meta(), 'seo-meta: warm path round-trips the cached null sentinel back to null (no phantom card)' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );
