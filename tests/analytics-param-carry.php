@@ -93,5 +93,11 @@ $tab = link_args( $tabs, 'sn_view=content' );
 ok( is_array( $tab ) && 'yoy' === ( $tab['sn_compare'] ?? '' ) && '30' === ( $tab['sn_range'] ?? '' ) && 'bot' === ( $tab['sn_class'] ?? '' ), 'tab link carries the context params (view/window/class/compare)' );
 ok( is_array( $tab ) && ! isset( $tab['sn_drill'] ) && ! isset( $tab['sn_event_prop'] ) && ! isset( $tab['sn_lg_range'] ), 'tab link drops ALL view-local filters (drill + event_prop + lg_range)' );
 
+echo "\nGroup: contract — hidden-field loop skips crafted non-scalar params\n";
+$GLOBALS['__current_url'] = 'https://x/wp-admin/index.php?page=sn-analytics&sn_view=events&sn_range=30&sn_drill%5B%5D=x';
+ob_start(); snt_analytics_render_controls( 30, 'human', '', '', '' ); $ctl2 = ob_get_clean();
+ok( false === strpos( $ctl2, 'value="Array"' ), 'array-valued sn_drill never renders an "Array" hidden field' );
+ok( false === strpos( $ctl2, 'name="sn_drill"' ), 'array-valued sn_drill is skipped entirely (no warning, no field)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

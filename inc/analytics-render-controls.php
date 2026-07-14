@@ -176,6 +176,9 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	// deliberately excluded — login-defense owns that param, never this form.
 	echo '<form class="sn-an-custom-form" method="get" action="' . esc_url( $action ) . '">';
 	foreach ( $hidden as $hk => $hv ) {
+		if ( ! is_scalar( $hv ) ) {
+			continue; // crafted array params (?sn_drill[]=x) never render a field.
+		}
 		if ( in_array( $hk, array( 'page', 'tab', 'sn_view', 'sn_compare', 'sn_drill', 'sn_event_prop' ), true ) ) {
 			echo '<input type="hidden" name="' . esc_attr( $hk ) . '" value="' . esc_attr( (string) $hv ) . '">';
 		}

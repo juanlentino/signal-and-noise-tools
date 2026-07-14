@@ -10,17 +10,17 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ### Added
 - [inc/analytics-render-controls.php](inc/analytics-render-controls.php): `snt_analytics_preset_labels()` + `snt_analytics_range_label()` — the one label vocabulary for the control's summary and Calendar row.
-- [tests/analytics-param-carry.php](tests/analytics-param-carry.php): the carry-matrix CONTRACT suite — real query-string semantics, one group per policy-encoding builder (compare, custom form, rolling/calendar links); the audit's "3 inconsistent matrices" is now 1 tested one.
+- [tests/analytics-param-carry.php](tests/analytics-param-carry.php): the carry-matrix CONTRACT suite — real query-string semantics, one group per policy-encoding builder (compare, custom form, rolling/calendar links, tab switch) plus a non-scalar-param hardening pin; the audit's "3 inconsistent matrices" is now 1 tested one.
 
 ### Changed
-- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): the ONE range control (`<details class="sn-an-range">`) replaces the pills row + preset links + daterange disclosure; compare links re-add the window args (bug fix: prev/yoy no longer resets to 7d/human); the custom form's hidden-field whitelist grows to carry `sn_compare`/`sn_drill`/`sn_event_prop`; the matrix table lives in the docblock.
+- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): the ONE range control (`<details class="sn-an-range">`) replaces the pills row + preset links + daterange disclosure; compare links re-add the window args (bug fix: prev/yoy no longer resets to 7d/human); the custom form's hidden-field whitelist grows to carry `sn_compare`/`sn_drill`/`sn_event_prop` (and its loop now skips crafted non-scalar params); the matrix table lives in the docblock.
 - [inc/analytics-admin.php](inc/analytics-admin.php): the tab strip-list gains `sn_event_prop` (view-local filters reset on view switch); stale range-token docblocks gain the `14` token (also [inc/abilities-analytics.php](inc/abilities-analytics.php) + [inc/analytics-rest.php](inc/analytics-rest.php)).
 - [inc/analytics-movers.php](inc/analytics-movers.php) + [inc/analytics-header-region.php](inc/analytics-header-region.php): the Movers "Posts view →" deep link carries the current window + class.
 - [inc/analytics-recommendations.php](inc/analytics-recommendations.php): the seo-meta rule caches its Page scan for an hour (PR #276 fast-follow — parity with its two pre-computed peers).
 - [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): `.sn-an-daterange` rules retired for the `.sn-an-range` dropdown (flat hairline panel, D1 language, no new colors).
 
 ### Tests
-- 1 new contract suite + a label-vocabulary group; rewrites/updates across `analytics-controls-render`, `analytics-admin` (tab event-prop drop; the old daterange pins), `analytics-movers` (deep-link carry + back-compat), `analytics-header-region` (range threading), `analytics-recommendations` (transient cold/warm contract).
+- 1 new contract suite + a label-vocabulary group; rewrites/updates across `analytics-controls-render`, `analytics-admin` (the old daterange pins — the tab event-prop carry pin lives in the contract suite, whose stubs have real query semantics), `analytics-movers` (deep-link carry + back-compat), `analytics-header-region` (range threading), `analytics-recommendations` (transient cold/warm contract).
 
 ## [9.38.0] - 2026-07-13: Analytics dashboard D2 — one comparison frame, one narrative voice
 
