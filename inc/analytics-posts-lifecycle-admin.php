@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // snt_an_annotation + snt_an_kpi_row (house style: don't lean on loader order).
+
 const SN_LIFECYCLE_TABLE_LIMIT = 50; // rows rendered (candidates sort first); census counts the full catalogue.
 
 /**

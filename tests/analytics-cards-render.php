@@ -15,7 +15,9 @@ function esc_attr__( $s, $d = null ) { return (string) $s; }
 // D2-T3 review: the badge tooltip's fallback basis label is i18n-wrapped now.
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return (string) $s; } }
 function number_format_i18n( $n ) { return (string) (int) $n; }
-// snt_analytics_fmt_time and snt_analytics_render_delta_badge are defined in the render file itself — no stubs needed.
+// snt_analytics_fmt_time lives in the render file; snt_analytics_render_delta_badge is a thin
+// delegator whose body is snt_an_delta_badge in inc/analytics-panels.php (required by the render
+// file) — no stubs needed, and NEVER stub either name (redeclare fatal).
 
 require __DIR__ . '/../inc/analytics-admin-render.php';
 

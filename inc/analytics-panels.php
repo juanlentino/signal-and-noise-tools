@@ -168,7 +168,9 @@ function snt_analytics_tier_badge( $tier ) {
 }
 
 /**
- * THE delta badge (v9.40.0 D4): one renderer, two variants.
+ * THE delta badge (v9.40.0 D4): one renderer, two variants. The kpi variant's
+ * basis label follows the resolved comparison frame — see analytics-header-region.php
+ * (v9.38.0 D2 contract).
  * 'kpi' = the KPI-strip style (.sn-kpi-delta + prior-period tooltip);
  * 'inline' (default) = the legacy annotation style (.sn-an-delta--dir).
  * Colors come from --sn-an-up/--sn-an-down only. Silent no-op on bad input.
