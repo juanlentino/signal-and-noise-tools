@@ -64,14 +64,16 @@
 }
 .sn-toolbar-spacer { flex: 1 1 auto; }
 
-/* ── date-range presets + custom window (collapsible, below the pill toolbar) ── */
-.sn-an-daterange { margin: 4px 0 2px; font-size: 13px; }
-.sn-an-daterange > summary { cursor: pointer; color: #2271b1; font-weight: 600; list-style: none; display: inline-block; }
-.sn-an-daterange > summary::-webkit-details-marker { display: none; }
-.sn-an-daterange > summary::before { content: "▸ "; color: #646970; }
-.sn-an-daterange[open] > summary::before { content: "▾ "; }
-.sn-an-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.sn-an-custom-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+/* v9.39.0 D3: the ONE range control — flat hairline dropdown, no JS. */
+.sn-an-range { position: relative; }
+.sn-an-range > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
+.sn-an-range > summary::-webkit-details-marker { display: none; }
+.sn-an-range > summary::after { content: "▾"; font-size: 11px; color: #646970; }
+.sn-an-range[open] > summary::after { content: "▴"; }
+.sn-an-range-current { font-weight: 600; color: #1d2327; }
+.sn-an-range-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 480px; background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 12px 14px; }
+.sn-an-range-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; flex-wrap: wrap; }
+.sn-an-range-panel .sn-an-custom-form { border-top: 1px solid #dcdcde; padding-top: 8px; margin: 8px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sn-an-custom-form label { color: #646970; display: inline-flex; align-items: center; gap: 4px; }
 .sn-an-custom-form input[type="date"] { font-size: 13px; }
 

@@ -260,7 +260,12 @@ ok( strpos( $html, 'sn-an-sep-meta' ) !== false, 'controls: separation folded in
 ok( strpos( $html, 'notice notice-info inline' ) === false, 'controls: the permanent notice-info block is GONE (notices are transient, not chrome)' );
 $tb_open  = strpos( $html, '<div class="sn-toolbar">' );
 $tb_meta  = strpos( $html, 'sn-an-sep-meta' );
-$tb_close = strpos( $html, 'sn-an-daterange' ); // the disclosure renders right after the toolbar row closes
+// D3: the old trailing daterange disclosure is gone; the ONE range control now
+// lives INSIDE the toolbar, so the after-toolbar marker is the per-view content
+// wrapper (<div class="sn-an-view">) that follows the whole header region. A
+// bare strpos() would match the EARLIER 'sn-an-view-tabs' nav (tabs lead, D1) —
+// search from $tb_meta forward so the match is the wrapper, not the tab strip.
+$tb_close = strpos( $html, 'sn-an-view', $tb_meta );
 ok( false !== $tb_open && false !== $tb_meta && false !== $tb_close && $tb_open < $tb_meta && $tb_meta < $tb_close, 'controls: meta sits INSIDE the .sn-toolbar row' );
 ok( strpos( $html, 'sn-toolbar' ) !== false, 'controls: native toolbar wrapper present' );
 ok( strpos( $html, 'button-group' ) !== false, 'controls: button-group pill rows present' );
@@ -547,7 +552,7 @@ aa_fill_data();
 $_GET['sn_view'] = 'content';
 $_GET['sn_range'] = 'ytd';
 $h = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $h, 'sn-an-daterange' ) !== false, 'date-range: custom/preset disclosure present' );
+ok( strpos( $h, 'sn-an-range' ) !== false, 'date-range: the ONE range control present' );
 ok( strpos( $h, 'Year to date' ) !== false && strpos( $h, 'Previous year' ) !== false, 'date-range: preset links rendered' );
 ok( strpos( $h, 'sn_range=ytd' ) !== false, 'date-range: YTD preset is a GET link' );
 $_GET['sn_range'] = 'custom';

@@ -1,10 +1,11 @@
 <?php
 /**
- * Signal & Noise — Analytics toolbar partials: the range/class picker, the custom
- * range disclosure, the window-preserving link args, and the separation meta
- * (automated-traffic disclosure folded into the toolbar row, v9.37.0 D1). Native
- * wp-admin markup; every dynamic value is escaped at the point of output.
- * Extracted from analytics-admin-render.php (v8.9.x split).
+ * Signal & Noise — Analytics toolbar partials: the ONE range control (rolling +
+ * calendar + custom, v9.39.0 D3), the class/compare pills, the window-preserving
+ * link args, and the separation meta (automated-traffic disclosure folded into
+ * the toolbar row, v9.37.0 D1). Native wp-admin markup; every dynamic value is
+ * escaped at the point of output. Extracted from analytics-admin-render.php
+ * (v8.9.x split).
  *
  * @package SignalNoiseTools
  * @since 5.0.1
@@ -92,7 +93,9 @@ function snt_analytics_range_label( $range, $from = '', $to = '' ) {
 }
 
 /**
- * Range picker + class segmented control (GET links preserving the route).
+ * The persistent toolbar row: the ONE range control (rolling + calendar +
+ * custom, v9.39.0 D3), the class segmented control, the compare pills, export,
+ * and the separation meta — every GET link preserving the route.
  *
  * @param int|string $range        Active window (int days or 'all').
  * @param string     $class        Active class.
@@ -111,17 +114,33 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 		$base = admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' );
 	}
 
-	// Range pills — GET links styled as .button .button-small (zero JS; active state server-set).
-	// Must stay in sync with SN_ANALYTICS_RANGES; the $r . 'd' fallback fires only for unlabelled entries.
-	$range_labels = array( 7 => '7d', 14 => '14d', 30 => '30d', 90 => '90d', 365 => '1y' );
 	echo '<div class="sn-toolbar">';
-	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
-	echo '<span class="sn-control-label">' . esc_html__( 'Range', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="button-group">';
+
+	// ── The ONE range control (v9.39.0 D3, owner variant C): a single native
+	// <details> dropdown labeled with the current range; rolling, calendar,
+	// and custom all live inside. Replaces the pills row + preset links +
+	// the trailing daterange disclosure. Zero JS; no auto-open — the summary
+	// itself names the active window.
+	$range_labels  = array( 7 => '7d', 14 => '14d', 30 => '30d', 90 => '90d', 365 => '1y' );
+	$preset_labels = snt_analytics_preset_labels();
+	$fb_parts      = explode( '?', (string) $base, 2 );
+	$action        = $fb_parts[0];
+	$hidden        = array();
+	if ( isset( $fb_parts[1] ) ) {
+		parse_str( $fb_parts[1], $hidden );
+	}
+	$today     = gmdate( 'Y-m-d' );
+	$is_custom = ( 'custom' === (string) $range );
+
+	echo '<details class="sn-an-range">';
+	echo '<summary><span class="sn-control-label">' . esc_html__( 'Range', 'signal-and-noise-tools' ) . '</span> <span class="sn-an-range-current">' . esc_html( snt_analytics_range_label( $range, $from, $to ) ) . '</span></summary>';
+	echo '<div class="sn-an-range-panel">';
+	// Rolling row — the six fast entries, same links as the old pills.
+	echo '<p class="sn-an-range-row"><span class="sn-control-label">' . esc_html__( 'Rolling', 'signal-and-noise-tools' ) . '</span><span class="button-group">';
 	foreach ( SN_ANALYTICS_RANGES as $r ) {
-		$url      = add_query_arg( snt_analytics_window_args( $r, $class, $from, $to ), $base );
+		$url       = add_query_arg( snt_analytics_window_args( $r, $class, $from, $to ), $base );
 		$is_active = ( (string) $r === (string) $range );
-		$label    = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
+		$label     = isset( $range_labels[ $r ] ) ? $range_labels[ $r ] : ( $r . 'd' );
 		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
 			. ( $is_active ? ' aria-pressed="true"' : '' )
 			. ' href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
@@ -131,7 +150,32 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '<a class="button button-small' . ( $active_all ? ' active' : '' ) . '"'
 		. ( $active_all ? ' aria-pressed="true"' : '' )
 		. ' href="' . esc_url( $url_all ) . '">' . esc_html__( 'All', 'signal-and-noise-tools' ) . '</a>';
-	echo '</span></div>';
+	echo '</span></p>';
+	// Calendar row — the seven presets (now with the pills' active/pressed idiom).
+	echo '<p class="sn-an-range-row"><span class="sn-control-label">' . esc_html__( 'Calendar', 'signal-and-noise-tools' ) . '</span><span class="button-group">';
+	foreach ( $preset_labels as $key => $label ) {
+		$purl      = add_query_arg( array( 'sn_range' => $key, 'sn_class' => $class ), $base );
+		$is_active = ( (string) $range === $key );
+		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
+			. ( $is_active ? ' aria-pressed="true"' : '' )
+			. ' href="' . esc_url( $purl ) . '">' . esc_html( $label ) . '</a>';
+	}
+	echo '</span></p>';
+	// Custom row — the GET form (hidden-field whitelist unchanged in this task; D3-T4 widens it).
+	echo '<form class="sn-an-custom-form" method="get" action="' . esc_url( $action ) . '">';
+	foreach ( $hidden as $hk => $hv ) {
+		if ( in_array( $hk, array( 'page', 'tab', 'sn_view' ), true ) ) {
+			echo '<input type="hidden" name="' . esc_attr( $hk ) . '" value="' . esc_attr( (string) $hv ) . '">';
+		}
+	}
+	echo '<input type="hidden" name="sn_range" value="custom">';
+	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
+	echo '<label>' . esc_html__( 'From', 'signal-and-noise-tools' ) . ' <input type="date" name="sn_from" value="' . esc_attr( $is_custom ? (string) $from : '' ) . '" max="' . esc_attr( $today ) . '"></label> ';
+	echo '<label>' . esc_html__( 'To', 'signal-and-noise-tools' ) . ' <input type="date" name="sn_to" value="' . esc_attr( $is_custom ? (string) $to : '' ) . '" max="' . esc_attr( $today ) . '"></label> ';
+	echo '<button type="submit" class="button button-small">' . esc_html__( 'Apply', 'signal-and-noise-tools' ) . '</button>';
+	echo '</form>';
+	echo '</div>';
+	echo '</details>';
 
 	// Class pills.
 	$class_labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
@@ -206,39 +250,4 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	}
 
 	echo '</div>';
-
-	// Custom range + presets (zero-JS): preset links re-resolve each load; the custom
-	// GET form posts sn_range=custom + sn_from/sn_to back to this page. Lives below the
-	// pill toolbar in a collapsible disclosure so it doesn't crowd the inline controls.
-	$presets   = array( 'this-week' => 'This week', 'this-month' => 'This month', 'this-quarter' => 'This quarter', 'ytd' => 'Year to date', 'last-month' => 'Last month', 'last-quarter' => 'Last quarter', 'prev-year' => 'Previous year' );
-	$is_custom = ( 'custom' === (string) $range );
-	$is_preset = isset( $presets[ (string) $range ] );
-	$fb_parts  = explode( '?', (string) $base, 2 );
-	$action    = $fb_parts[0];
-	$hidden    = array();
-	if ( isset( $fb_parts[1] ) ) {
-		parse_str( $fb_parts[1], $hidden );
-	}
-	$today = gmdate( 'Y-m-d' );
-
-	echo '<details class="sn-an-daterange"' . ( ( $is_custom || $is_preset ) ? ' open' : '' ) . '>';
-	echo '<summary>' . esc_html__( 'Custom range', 'signal-and-noise-tools' ) . '</summary>';
-	echo '<div class="sn-an-presets">';
-	foreach ( $presets as $key => $label ) {
-		$purl = add_query_arg( array( 'sn_range' => $key, 'sn_class' => $class ), $base );
-		echo '<a class="button button-small' . ( ( (string) $range === $key ) ? ' active' : '' ) . '" href="' . esc_url( $purl ) . '">' . esc_html( $label ) . '</a>';
-	}
-	echo '</div>';
-	echo '<form class="sn-an-custom-form" method="get" action="' . esc_url( $action ) . '">';
-	foreach ( $hidden as $hk => $hv ) {
-		if ( in_array( $hk, array( 'page', 'tab', 'sn_view' ), true ) ) {
-			echo '<input type="hidden" name="' . esc_attr( $hk ) . '" value="' . esc_attr( (string) $hv ) . '">';
-		}
-	}
-	echo '<input type="hidden" name="sn_range" value="custom">';
-	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
-	echo '<label>' . esc_html__( 'From', 'signal-and-noise-tools' ) . ' <input type="date" name="sn_from" value="' . esc_attr( $is_custom ? (string) $from : '' ) . '" max="' . esc_attr( $today ) . '"></label> ';
-	echo '<label>' . esc_html__( 'To', 'signal-and-noise-tools' ) . ' <input type="date" name="sn_to" value="' . esc_attr( $is_custom ? (string) $to : '' ) . '" max="' . esc_attr( $today ) . '"></label> ';
-	echo '<button type="submit" class="button button-small">' . esc_html__( 'Apply', 'signal-and-noise-tools' ) . '</button>';
-	echo '</form></details>';
 }

@@ -31,21 +31,20 @@ function ok( $cond, $msg ) {
 
 function capture_controls( $range, $class ) { ob_start(); snt_analytics_render_controls( $range, $class ); return ob_get_clean(); }
 
-echo "\nGroup: controls render\n";
+echo "\nGroup: D3 — the ONE range control\n";
 $html = capture_controls( 90, 'human' );
-ok( strpos( $html, '>7d<' )  !== false, 'renders 7d' );
-ok( strpos( $html, '>1y<' )  !== false, 'renders 365 as "1y"' );
-ok( strpos( $html, '>All<' ) !== false, 'renders All button' );
-ok( strpos( $html, 'sn_range=365' ) !== false, '365 link present' );
-ok( strpos( $html, 'sn_range=all' ) !== false, 'all link present' );
-$html_all = capture_controls( 'all', 'human' );
-ok( substr_count( $html_all, 'aria-pressed="true"' ) >= 1, 'All selected marks an active control' );
-// Negative: when a numeric range is active, the All button must NOT carry active/aria-pressed.
-$html_90 = capture_controls( 90, 'human' );
-ok( substr_count( $html_90, ' active' ) === 3, '90d active: exactly 3 active marks (range + class + compare Off)' );
-ok( strpos( $html_90, ' active' ) !== false && strpos( $html_90, 'sn_range=all' ) !== false
-	&& false === (bool) preg_match( '/ active[^"]*"[^>]*sn_range=all/', $html_90 ),
-	'All button is NOT active when numeric range is selected' );
+ok( strpos( $html, '<details class="sn-an-range">' ) !== false, 'one control: details wrapper present' );
+ok( strpos( $html, 'sn-an-range-current">Last 90 days<' ) !== false, 'summary names the current range' );
+ok( strpos( $html, '>7d<' ) !== false && strpos( $html, '>14d<' ) !== false && strpos( $html, '>1y<' ) !== false && strpos( $html, '>All<' ) !== false, 'rolling row: all six entries' );
+ok( strpos( $html, 'sn_range=365' ) !== false && strpos( $html, 'sn_range=all' ) !== false, 'rolling links intact' );
+ok( strpos( $html, 'sn_range=this-week' ) !== false && strpos( $html, '>This week<' ) !== false, 'calendar row: presets inside the control' );
+ok( strpos( $html, 'name="sn_from"' ) !== false && strpos( $html, 'value="custom"' ) !== false, 'custom form lives inside the control' );
+ok( strpos( $html, 'sn-an-daterange' ) === false, 'the old daterange disclosure is GONE' );
+ok( substr_count( $html, ' active' ) === 3, '90d active: exactly 3 active marks (range entry + class + compare Off)' );
+ok( false === (bool) preg_match( '/ active[^"]*"[^>]*sn_range=all/', $html ), 'All entry NOT active when 90 selected' );
+ob_start(); snt_analytics_render_controls( 'custom', 'human', '2026-06-01', '2026-07-13' ); $hcus = ob_get_clean();
+ok( strpos( $hcus, 'sn-an-range-current">2026-06-01 – 2026-07-13<' ) !== false, 'summary shows the custom window' );
+ok( strpos( $hcus, '<details class="sn-an-range">' ) !== false && strpos( $hcus, ' open' ) === false, 'no auto-open (the summary already names the window)' );
 
 echo "\nGroup: v9.34.0 — semantic quick-jumps + compare pills\n";
 $html = capture_controls( 7, 'human' );
