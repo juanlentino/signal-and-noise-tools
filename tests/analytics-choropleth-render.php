@@ -66,6 +66,21 @@ ok( 1 === count( $noted ) && 'Countries map' === $noted[0]['title'], 'render: em
 ok( 'No country data in this range yet.' === $noted[0]['why'], 'render: empty rows (SVG present) → $empty carried as the fold why, no asset-missing suffix (D4 §4)' );
 ok( strpos( $empty, '<svg' ) === false, 'render: empty rows → no SVG emitted' );
 
+echo "\nGroup: orchestrator missing-SVG fold causes (injected empty asset)\n";
+// T5 review: two distinct fold causes must not share one why. Data present but
+// the vendored asset missing is an operational fault — the why must say ONLY
+// that, never the false "no data" copy. No data (asset state irrelevant) keeps
+// plain $empty alone.
+unset( $GLOBALS['sn_an_empty_panels'] );
+$noasset = capture( function () { snt_analytics_render_choropleth( 'Countries map', array( array( 'value' => 'US', 'views' => 100, 'visits' => 40 ) ), 'No country data in this range yet.', '' ); } );
+ok( '' === trim( $noasset ), 'render: data + missing SVG → folds, no panel' );
+$noted_na = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_na ) && 'World map asset missing.' === $noted_na[0]['why'], 'render: data + missing SVG → why is ONLY the asset fault (no false "no data" copy)' );
+unset( $GLOBALS['sn_an_empty_panels'] );
+capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.', '' ); } );
+$noted_nd = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_nd ) && 'No country data in this range yet.' === $noted_nd[0]['why'], 'render: no data (asset also missing) → plain $empty alone, the data gap dominates' );
+
 echo "\nGroup: orchestrator with the real vendored asset\n";
 $real = capture( function () { snt_analytics_render_choropleth( 'Countries map', array( array( 'value' => 'US', 'views' => 100, 'visits' => 40 ) ), 'No country data.' ); } );
 ok( strpos( $real, 'role="img"' ) !== false && strpos( $real, 'aria-label' ) !== false, 'render: accessible panel (role=img + aria-label)' );

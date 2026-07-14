@@ -21,16 +21,26 @@ function sn_analytics_top_paths( $f, $t, $c = 'human', $l = 25 ) { return $GLOBA
 function sn_analytics_top_sources( $f, $t, $c = 'human', $l = 10 ) { return array( array( 'value' => 'Direct', 'views' => 4, 'visits' => 2 ) ); }
 function sn_analytics_top_sources_series( $rows, $f, $t, $c = 'human', $g = 'day' ) { return array(); }
 function sn_analytics_referrer_categories( $f, $t, $c = 'human' ) { return $GLOBALS['__rc'] ?? array( array( 'category' => 'search', 'label' => 'Search', 'views' => 4, 'visits' => 2 ) ); }
-function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return array(); }
-function sn_analytics_top_entry_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/', 'views' => 9, 'visits' => 8 ) ); }
-function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) { return array( array( 'path' => '/contact/', 'views' => 5, 'visits' => 5 ) ); }
+function sn_analytics_low_engagement_paths( $f, $t, $c = 'human', $l = 15 ) { return $GLOBALS['__lowe'] ?? array( array( 'path' => '/bouncy', 'views' => 60, 'scroll_avg' => 8.0, 'time_avg' => 1500.0 ) ); }
+function sn_analytics_top_entry_pages( $f, $t, $l = 25 ) { return $GLOBALS['__entry'] ?? array( array( 'path' => '/', 'views' => 9, 'visits' => 8 ) ); }
+function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) { return $GLOBALS['__exit'] ?? array( array( 'path' => '/contact/', 'views' => 5, 'visits' => 5 ) ); }
 
-// Renderer recorders — each panel has its own suite.
+// Renderer recorders — each panel has its own suite. The journeys recorders
+// MIRROR the real helpers' empty-vs-non-empty branching (the sessions-suite
+// idiom): empty rows route to the REAL snt_an_note_empty() (loaded via the
+// view's panels require) so the all-empty orphaned-label assertion below is a
+// genuine behavioral check, not a tautology.
 function snt_analytics_render_paths_table( $rows ) { echo '<!--PATHS-->'; }
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '' ) { echo '<!--DIM:' . esc_html( $title ) . '-->'; }
 function snt_analytics_render_referrer_categories( $cats ) { echo '<!--REFCATS-->'; }
-function snt_analytics_render_lowengage( $rows ) { echo '<!--LOWENGAGE-->'; }
-function snt_analytics_render_pageroles_table( $rows, $role ) { echo '<!--PAGEROLES:' . esc_html( $role ) . '-->'; }
+function snt_analytics_render_lowengage( $rows ) {
+	if ( empty( $rows ) ) { snt_an_note_empty( 'Pages losing readers', 'No low-engagement pages in this range — readers are sticking around.' ); return; }
+	echo '<!--LOWENGAGE-->';
+}
+function snt_analytics_render_pageroles_table( $rows, $role ) {
+	if ( empty( $rows ) ) { snt_an_note_empty( 'exit' === $role ? 'Exit pages' : 'Entry pages', 'No ' . $role . ' pages in this range yet.' ); return; }
+	echo '<!--PAGEROLES:' . esc_html( $role ) . '-->';
+}
 
 // v9.6.0 (R3b): the Content view now renders the REAL recommendations panel at
 // its top. Exercise the real render (R1's render-harness lesson) by requiring the
@@ -89,6 +99,23 @@ ok( false === strpos( $html, 'sn-an-sep--full' ), 'the old separator paragraph i
 // v9.5.0: with the quiet default fixtures (one page, one search referrer) neither
 // read trips, so the view emits no annotation.
 ok( false === strpos( $html, 'sn-an-note' ), 'quiet range emits no annotation read' );
+
+echo "\nTest: all-empty journeys row folds its label (D4 §4, T5 review)\n";
+// When entry, exit AND low-engagement are all empty, all three panels fold —
+// rendering the hairline label + grid would orphan a section header above
+// nothing on the flagship view. The label/grid must vanish with its panels.
+$GLOBALS['__entry'] = array();
+$GLOBALS['__exit']  = array();
+$GLOBALS['__lowe']  = array();
+ob_start();
+snt_analytics_render_view_content( '2026-07-01', '2026-07-07', 'human', 'day' );
+$jempty = (string) ob_get_clean();
+ok( false === strpos( $jempty, 'sn-an-journeys-label' ), 'all-empty journeys: no orphaned hairline label' );
+ok( false === strpos( $jempty, 'sn-an-journeys-grid' ), 'all-empty journeys: no empty grid wrapper' );
+ok( false !== strpos( $jempty, 'Entry pages' ) && false !== strpos( $jempty, 'Exit pages' ) && false !== strpos( $jempty, 'Pages losing readers' ), 'all-empty journeys: all three panels fold under their own names' );
+$GLOBALS['__entry'] = null;
+$GLOBALS['__exit']  = null;
+$GLOBALS['__lowe']  = null;
 
 echo "\nTest: pageroles absence degrades (partial install)\n";
 // The function_exists guard: simulate by asserting the guard exists in source

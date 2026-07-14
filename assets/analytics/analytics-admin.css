@@ -274,7 +274,7 @@
    sit in a row. */
 details.sn-an-empty-fold { display: block; }
 details.sn-an-empty-fold::before { display: none; }
-details.sn-an-empty-fold summary { display: block; cursor: pointer; list-style: none; }
+details.sn-an-empty-fold summary { display: block; cursor: pointer; list-style: none; color: var(--sn-an-muted); }
 details.sn-an-empty-fold summary::-webkit-details-marker { display: none; }
 details.sn-an-empty-fold summary::before { content: "▸"; color: var(--sn-an-muted); font-size: 11px; margin-right: 6px; }
 details.sn-an-empty-fold[open] summary::before { content: "▾"; }

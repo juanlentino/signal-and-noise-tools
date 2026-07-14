@@ -180,12 +180,12 @@ function snt_an_flush_empty_fold() {
 	$titles   = array_column( $panels, 'title' );
 	$escaped  = array_map( 'esc_html', $titles );
 	$summary  = esc_html__( 'No data in this range yet:', 'signal-and-noise-tools' ) . ' '
-		. implode( ' &middot; ', $escaped ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each element esc_html'd above; separator is a static entity.
+		. implode( ' &middot; ', $escaped ); // Each element esc_html'd above; the separator is a static entity.
 
 	$with_why = array_filter(
 		$panels,
 		function ( $panel ) {
-			return '' !== $panel['why'];
+			return '' !== ( $panel['why'] ?? '' );
 		}
 	);
 

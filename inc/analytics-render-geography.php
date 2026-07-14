@@ -97,11 +97,14 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
  * vendored SVG (static-cached) and echoes the recolored, titled map in an accessible
  * panel. Mirrors snt_analytics_render_heatmap()'s panel + a11y shape. No JS, no AE.
  *
- * @param string $title Panel heading.
- * @param array  $rows  [{value: ISO-2, views, visits}] from sn_analytics_top_dimension('country', …).
- * @param string $empty Empty-state copy.
+ * @param string      $title Panel heading.
+ * @param array       $rows  [{value: ISO-2, views, visits}] from sn_analytics_top_dimension('country', …).
+ * @param string      $empty Empty-state copy.
+ * @param string|null $svg   Map SVG override (tests inject '' to exercise the
+ *                           missing-asset fold; the loader fn is unguarded so it
+ *                           cannot be stubbed). Null loads the vendored asset.
  */
-function snt_analytics_render_choropleth( $title, $rows, $empty ) {
+function snt_analytics_render_choropleth( $title, $rows, $empty, $svg = null ) {
 	$views = array();
 	$names = array();
 	foreach ( (array) $rows as $r ) {
@@ -120,13 +123,14 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 		}
 	}
 
-	$svg = snt_analytics_choropleth_svg();
+	$svg = ( null === $svg ) ? snt_analytics_choropleth_svg() : (string) $svg;
 	if ( ! $has_data || '' === $svg ) {
-		// Two distinct fold causes share this branch: no country has views (the
-		// common case — $empty covers it), or the vendored SVG asset failed to
-		// load (an operational fault, not a data gap — append the cause so the
-		// diagnostic doesn't read as "no data" when the map itself is missing).
-		$why = ( '' === $svg ) ? trim( $empty . ' World map asset missing.' ) : $empty;
+		// Two distinct fold causes share this branch. No country has views: the
+		// common data-gap case — plain $empty covers it (even if the asset is
+		// ALSO missing, the data gap is the message that matters). Data exists
+		// but the vendored SVG failed to load: an operational fault, not a data
+		// gap — say ONLY that, never the false "no data" copy.
+		$why = ( $has_data && '' === $svg ) ? 'World map asset missing.' : $empty;
 		snt_an_note_empty( $title, $why );
 		return;
 	}

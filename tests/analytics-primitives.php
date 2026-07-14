@@ -81,6 +81,12 @@ ok( false !== strpos( $h, 'LCP (field)' ) && false !== strpos( $h, 'web-vitals b
 ok( false !== strpos( $h, 'Time zones' ) && 1 === substr_count( $h, '<li' ), 'why-less panel stays summary-only (one li)' );
 $h = cap( 'snt_an_flush_empty_fold' );
 ok( '' === $h, 'collector resets after flush' );
+// Legacy third-party callers may still push raw title strings straight into the
+// global — flush normalizes them to { title, why: '' } (summary-only, no li).
+$GLOBALS['sn_an_empty_panels'][] = 'Legacy plain-string entry';
+$h = cap( 'snt_an_flush_empty_fold' );
+ok( false !== strpos( $h, '<p class="sn-an-empty sn-an-empty-fold">' ) && false !== strpos( $h, 'Legacy plain-string entry' ), 'legacy plain-string entry normalizes into the plain summary line' );
+ok( false === strpos( $h, '<li' ) && false === stripos( $h, 'warning' ), 'legacy entry: no li, no PHP warning leaked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

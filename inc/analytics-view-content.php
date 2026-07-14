@@ -67,15 +67,29 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	// human-only Plausible history); the note rides the section label now
 	// instead of a separator paragraph. Low engagement joins them as the
 	// third diagnostics sibling.
-	echo '<div class="sn-an-journeys-label">'
-		. esc_html__( 'Journeys & diagnostics — entry/exit are human only', 'signal-and-noise-tools' )
-		. '</div>';
-	echo '<div class="sn-an-journeys-grid">';
-	if ( function_exists( 'snt_analytics_render_pageroles_table' ) && function_exists( 'sn_analytics_top_entry_pages' ) ) {
-		snt_analytics_render_pageroles_table( sn_analytics_top_entry_pages( $from, $to, 25 ), 'entry' );
-		snt_analytics_render_pageroles_table( sn_analytics_top_exit_pages( $from, $to, 25 ), 'exit' );
+	// D4 §4 (T5 review): fetch the three row sets FIRST — when all three are
+	// empty their panels all fold, and the hairline label + grid would sit
+	// orphaned above nothing on the flagship view. In that case skip the
+	// label/grid markup entirely; the renderers still run and note their own
+	// folds (each owns its why copy).
+	$has_pageroles = function_exists( 'snt_analytics_render_pageroles_table' ) && function_exists( 'sn_analytics_top_entry_pages' );
+	$entry_rows    = $has_pageroles ? sn_analytics_top_entry_pages( $from, $to, 25 ) : array();
+	$exit_rows     = $has_pageroles ? sn_analytics_top_exit_pages( $from, $to, 25 ) : array();
+	$lowe_rows     = sn_analytics_low_engagement_paths( $from, $to, $class );
+	$journeys_gone = empty( $entry_rows ) && empty( $exit_rows ) && empty( $lowe_rows );
+	if ( ! $journeys_gone ) {
+		echo '<div class="sn-an-journeys-label">'
+			. esc_html__( 'Journeys & diagnostics — entry/exit are human only', 'signal-and-noise-tools' )
+			. '</div>';
+		echo '<div class="sn-an-journeys-grid">';
 	}
-	snt_analytics_render_lowengage( sn_analytics_low_engagement_paths( $from, $to, $class ) );
-	echo '</div>';
+	if ( $has_pageroles ) {
+		snt_analytics_render_pageroles_table( $entry_rows, 'entry' );
+		snt_analytics_render_pageroles_table( $exit_rows, 'exit' );
+	}
+	snt_analytics_render_lowengage( $lowe_rows );
+	if ( ! $journeys_gone ) {
+		echo '</div>';
+	}
 	snt_an_flush_empty_fold();
 }

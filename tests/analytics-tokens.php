@@ -64,6 +64,7 @@ ok( false === strpos( $an, 'var(--sn-accent' ) && false === strpos( $an, 'var(--
 ok( false !== strpos( $an, '.sn-an-headline' ) && false !== strpos( $an, 'var(--sn-an-elev-radius)' ) && false !== strpos( $an, 'var(--sn-an-shadow)' ), 'headline band carries the hero treatment' );
 ok( false !== strpos( $an, '.sn-an-postbox.sn-overview, .sn-an-postbox.sn-an-rail-tile' ), 'D1 KPI specificity block intact' );
 ok( false === (bool) preg_match( '/border-radius:\s*(2|3|5|6)px/', $an ), 'radius vocabulary consolidated (only token / 4px-in-token / 999px / 0 remain)' );
+ok( preg_match( '/details\.sn-an-empty-fold summary\s*\{[^}]*color:\s*var\(--sn-an-muted\)/', $an ) === 1, 'D4 §4: fold-details summary reads the muted token (matches the plain line color)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
