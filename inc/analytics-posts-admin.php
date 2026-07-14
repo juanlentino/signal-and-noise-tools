@@ -78,9 +78,17 @@ function snt_analytics_render_post_hero( $subject ) {
 		// the "no posts at all" case; this is the narrower "one post exists but
 		// has zero views yet" case, which now yields no visible hero at all
 		// rather than a panel with just the title.
+		// D5 §6: the fold why now NAMES the Note (was a generic "this Note" —
+		// the fold's <li> already carries the panel title separately, but the
+		// why-sentence read stronger identifying the subject by its own title).
+		$title = (string) ( $subject['title'] ?? '' );
 		snt_an_note_empty(
 			__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
-			__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
+			sprintf(
+				/* translators: %s: the Note's title. */
+				__( '"%s" has no recorded views yet, or your other Notes have none to compare it against.', 'signal-and-noise-tools' ),
+				$title
+			)
 		);
 		return;
 	}
@@ -137,6 +145,12 @@ function snt_analytics_render_post_hero( $subject ) {
  * overlaid on the cohort's median trajectory at each age. Both curves built with
  * the shared snt_analytics_smooth_path so the treatment is pixel-identical to
  * every other trend on the page (subject #2271b1, baseline muted #646970).
+ *
+ * D5 §3 recorded holdout: does NOT route through snt_an_trend_svg() (the shared
+ * trend-SVG primitive the other three trend copies adopted) — different viewBox
+ * (600×86, not 600×84), no area fill/gradient/baseline, dual equal-x series (the
+ * primitive's overlay uses its own point count, not a shared x-axis), and a
+ * different overlay stroke. Pre-authorized to stay bespoke; parity beats purity.
  *
  * @param array $subject     Subject summary.
  * @param array $leaderboard All recent-post rows (carry by_dol + age).

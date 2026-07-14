@@ -12,6 +12,7 @@ function esc_url( $s ) { return $s; }
 function esc_html__( $s, $d = '' ) { return $s; }
 function __( $s, $d = '' ) { return $s; }
 function number_format_i18n( $n, $dec = 0 ) { return number_format( (float) $n, (int) $dec ); }
+if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 
 require __DIR__ . '/../inc/analytics-panels.php';
 
@@ -87,6 +88,131 @@ $GLOBALS['sn_an_empty_panels'][] = 'Legacy plain-string entry';
 $h = cap( 'snt_an_flush_empty_fold' );
 ok( false !== strpos( $h, '<p class="sn-an-empty sn-an-empty-fold">' ) && false !== strpos( $h, 'Legacy plain-string entry' ), 'legacy plain-string entry normalizes into the plain summary line' );
 ok( false === strpos( $h, '<li' ) && false === stripos( $h, 'warning' ), 'legacy entry: no li, no PHP warning leaked' );
+
+echo "\nGroup: snt_an_trend_svg — THE trend renderer (D5 §3, geometry from the Overview canonical)\n";
+// Pinned 3-point series [10,40,20]: n=3, w=600 -> step=300 -> px=[0,300,600].
+// max=40 (peak at index 1) -> py = round(78-(v/40)*70,2) = [60.5, 8, 43].
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, 'viewBox="0 0 600 84"' ) && false !== strpos( $h, 'class="sn-spark"' ), 'SVG present with the canonical viewBox/width' );
+ok( false !== strpos( $h, 'd="M 0,60.5' ), "path d begins at the first point's x/y (0,60.5)" );
+ok( false !== strpos( $h, ' 300,8' ), 'the peak (v=40 of 40) maps to the top padding (y=8)' );
+
+// Shared y-max: series=[0,100,50] (own max=100) + overlay=[0,200] -> shared max=200.
+// Main series py = round(78-(v/200)*70,2) = [78, 43, 60.5] — v=100 (its OWN peak)
+// no longer maps to top=8, proving the overlay's larger value raised the shared scale.
+$h = cap( function () { snt_an_trend_svg( array( 0, 100, 50 ), array( 'overlay_series' => array( 0, 200 ) ) ); } );
+ok( false !== strpos( $h, 'd="M 0,78' ), 'main path begins at (0,78) under the shared max' );
+ok( false !== strpos( $h, ' 300,43' ) && false === strpos( $h, ' 300,8' ), "series' own peak (100) does NOT hit top=8 once the overlay (200) raises the shared max" );
+ok( false !== strpos( $h, 'stroke-dasharray="4 3"' ) && false !== strpos( $h, 'stroke="#a7aaad"' ), 'overlay_series renders a second, dashed path' );
+ok( false !== strpos( $h, ' 600,8' ), "overlay's own peak (200 of shared max 200) maps to top=8" );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'stroke' => '#d63638' ) ); } );
+ok( false !== strpos( $h, 'stroke="#d63638" stroke-width="2"' ), 'stroke opt changes the main line stroke' );
+
+ok( '' === cap( function () { snt_an_trend_svg( array( 5 ) ); } ), 'fewer than 2 points (1) -> complete silence' );
+ok( '' === cap( function () { snt_an_trend_svg( array() ); } ), 'fewer than 2 points (0) -> complete silence' );
+
+$h1 = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+$h2 = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'id_suffix' => '-cmp' ) ); } );
+ok( false !== strpos( $h1, 'url(#snSparkFill)' ) && false !== strpos( $h1, 'id="snSparkFill"' ), 'default id_suffix (\'\') reproduces the canonical gradient id' );
+ok( false !== strpos( $h2, 'url(#snSparkFill-cmp)' ) && false !== strpos( $h2, 'id="snSparkFill-cmp"' ), 'id_suffix de-collides the gradient id' );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'axis' => array( 'Jan 1', 'Jan 3' ) ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-axis"><span>Jan 1</span><span>Jan 3</span></div>' ), 'axis labels render when passed' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'sn-spark-axis' ), 'axis row absent when not passed' );
+
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day', 'meta' => 'peak 40' ) ); } );
+ok( false !== strpos( $h, 'sn-trend-title">Views per day' ) && false !== strpos( $h, 'sn-trend-meta">peak 40' ), 'head/meta render when passed' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'sn-trend-head' ), 'head/meta absent when not passed' );
+
+echo "\nGroup: snt_an_trend_svg — adopter parity seams (T2 review: wrap_attrs / aria_label / class opts)\n";
+// wrap_attrs: the Overview canonical puts the brush data attrs ON .sn-spark-wrap
+// (inc/analytics-render-overview.php:79-83, pinned by tests/analytics-admin.php) —
+// without this seam "brush stays at the caller" is impossible.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'wrap_attrs' => 'data-x="1"' ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-wrap" data-x="1">' ), 'wrap_attrs lands inside the .sn-spark-wrap open tag' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, '<div class="sn-spark-wrap">' ), 'default wrap_attrs: bare wrap, byte-identical to today' );
+
+// aria_label: both head-bearing adopters carry DISTINCT translated aria strings
+// (Overview 'Daily/Weekly views trend', login-defense 'Daily blocked trend',
+// bot-trend 'Bot share trend' vs head 'Bot share') — head-fallback alone would
+// silently rename them for screen readers.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day', 'aria_label' => 'Daily views trend' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Daily views trend"' ) && false === strpos( $h, 'aria-label="Views per day"' ), 'explicit aria_label wins over the head fallback' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'aria_label' => 'Daily blocked trend' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Daily blocked trend"' ), 'aria_label lands even with no head' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'head' => 'Views per day' ) ); } );
+ok( false !== strpos( $h, 'aria-label="Views per day"' ), 'omitted aria_label falls back to head' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false === strpos( $h, 'aria-label' ), 'head and aria_label both absent: no aria-label attribute (trajectory precedent, posts-admin.php:185)' );
+
+// wrap_class / svg_class: bot-trend's sn-an-bot-trend wrapper + .sn-an-bot-spark svg
+// are pinned (tests/analytics-bottrend-render.php) AND load-bearing in
+// analytics-admin.css — without these opts bot-trend is a forced holdout.
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ), array( 'wrap_class' => 'sn-an-bot-trend', 'svg_class' => 'sn-an-bot-spark' ) ); } );
+ok( false !== strpos( $h, '<div class="sn-an-bot-trend">' ) && false === strpos( $h, 'sn-overview-trend' ), 'wrap_class overrides the outer wrapper' );
+ok( false !== strpos( $h, '<svg class="sn-an-bot-spark"' ) && false === strpos( $h, 'class="sn-spark"' ), 'svg_class overrides the svg class' );
+$h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
+ok( false !== strpos( $h, '<div class="sn-overview-trend">' ) && false !== strpos( $h, '<svg class="sn-spark"' ), 'defaults stay the canonical sn-overview-trend + sn-spark, byte-identical' );
+
+echo "\nGroup: snt_an_kv_table — THE k/v table (D5 §4, edge dims + login-defense top tables)\n";
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900', '5 MB' ), array( 'ORD', '400', '2 MB' ) ),
+		array( 'Edge locations', 'Requests', 'Bandwidth' )
+	);
+} );
+ok( false !== strpos( $h, 'class="postbox sn-an-postbox"' ), 'kv table: panel chrome via the shared primitive (sn-an-postbox)' );
+ok( false !== strpos( $h, 'inside sn-an-table-inside' ), 'kv table: body class is the table-inside idiom' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column column-primary">Edge locations</th>' ), 'kv table: primary col header from cols[0]' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column num">Requests</th>' ) && false !== strpos( $h, '<th scope="col" class="manage-column num">Bandwidth</th>' ), 'kv table: numeric col headers from cols[1..]' );
+ok( false !== strpos( $h, '<td class="column-primary"><strong>IAD</strong></td>' ), 'kv table: primary cell bold, no data-colname by default' );
+ok( false !== strpos( $h, '<td class="num">900</td>' ) && false !== strpos( $h, '<td class="num">5 MB</td>' ), 'kv table: numeric cells pre-formatted, class="num"' );
+ok( false === strpos( $h, 'data-colname' ), 'kv table: data_colname off by default (login-defense parity)' );
+
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900' ) ),
+		array( 'Edge locations', 'Requests' ),
+		array( 'data_colname' => true )
+	);
+} );
+ok( false !== strpos( $h, 'data-colname="Edge locations"' ) && false !== strpos( $h, 'data-colname="Requests"' ), 'kv table: data_colname=true emits data-colname on every cell (edge idiom)' );
+
+// Rider (D5 T5, a T4 review note): header_meta is the primitive's only untested
+// passthrough seam — neither adopter uses it today, but the opt must actually
+// reach snt_an_panel_open() rather than being silently dropped.
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900' ) ),
+		array( 'Edge locations', 'Requests' ),
+		array( 'header_meta' => 'last 24h' )
+	);
+} );
+ok( false !== strpos( $h, '<span class="sn-an-head-meta">last 24h</span>' ), 'kv table: header_meta opt passes through to snt_an_panel_open()' );
+
+// esc_html()/esc_attr() are identity stubs in this file (see the top-of-file
+// stubs, shared by every group above) — real escaping is pinned against
+// tests/edge-render-dim.php's htmlspecialchars stubs instead. This just proves
+// row cells and headers route THROUGH esc_html()/esc_attr() (content survives
+// the round trip) rather than being dropped or reordered.
+$h = cap( function () {
+	snt_an_kv_table( 'Weird & Co', array( array( 'A & B', '1' ) ), array( 'Weird & Co', 'N' ) );
+} );
+ok( false !== strpos( $h, 'A & B' ), 'kv table: row cell content survives the esc_html() call' );
+ok( false !== strpos( $h, 'Weird & Co' ), 'kv table: header content survives the esc_html() call' );
+
+$GLOBALS['sn_an_empty_panels'] = array();
+$h = cap( function () { snt_an_kv_table( 'Edge locations', array(), array( 'Edge locations', 'Requests' ), array( 'empty' => 'No edge-location data in this range yet.' ) ); } );
+ok( '' === $h, 'kv table: empty rows render no panel markup' );
+$kv_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $kv_noted ) && 'Edge locations' === $kv_noted[0]['title'] && 'No edge-location data in this range yet.' === $kv_noted[0]['why'], 'kv table: empty rows fold with title + why' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

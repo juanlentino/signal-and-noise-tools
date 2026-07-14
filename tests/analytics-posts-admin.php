@@ -74,7 +74,9 @@ ok( '' === $eh, 'no-data subject → hero folds instead of rendering inline (D4 
 ok( strpos( $eh, 'sn-delta-up' ) === false, 'no spurious verdict badge when there is no baseline' );
 $noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted ) && 'Latest Note — did it land?' === $noted[0]['title'], 'no-data subject: hero title noted for the fold' );
-ok( false !== strpos( $noted[0]['why'], 'Not enough data yet' ), 'no-data subject: empty-state copy carried as the fold why' );
+// D5 §4: the fold why now NAMES the Note by its own title (was a generic
+// "this Note has no recorded views…" — copy change, deliberate).
+ok( false !== strpos( $noted[0]['why'], '"Fresh" has no recorded views yet' ), 'no-data subject: fold why names the Note by title' );
 
 echo "\nGroup: leaderboard reuses the shared .wp-list-table chrome (bespoke columns)\n";
 $lb = cap( function () use ( $leaderboard ) { snt_analytics_render_posts_leaderboard( $leaderboard ); } );

@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
 if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $v ) { return trim( (string) $v ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // D5 §6: view now wraps panel titles
 
 function sn_analytics_top_dimension( $d, $f, $t, $c = 'human', $l = 25 ) { return array( array( 'value' => 'X', 'views' => 1, 'visits' => 1 ) ); }
 function sn_analytics_dimension_series( $d, $v, $f, $t, $c = 'human', $g = 'day' ) { return array(); }

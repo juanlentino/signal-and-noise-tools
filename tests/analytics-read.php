@@ -189,5 +189,22 @@ sn_analytics_daily_series( '2026-06-01', '2026-06-12' );
 $sql2 = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql2, 'GROUP BY day' ) !== false && strpos( $sql2, 'DATE_SUB' ) === false, 'day granularity: unchanged GROUP BY day' );
 
+echo "\nGroup: range_totals request-scope memo (D5 perf)\n";
+// Distinct window from every earlier group so this memo group can't collide
+// with (or be poisoned by) the range_totals key already primed above.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = $fixture;
+$reads_before = count( $GLOBALS['wpdb']->queries );
+$m1 = sn_analytics_range_totals( '2026-07-01', '2026-07-07', 'human' );
+$m2 = sn_analytics_range_totals( '2026-07-01', '2026-07-07', 'human' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 1, 'range_totals: identical repeat call issues exactly one underlying read' );
+ok( $m1 === $m2, 'range_totals: memoized calls return the identical cached result' );
+
+$m3 = sn_analytics_range_totals( '2026-07-01', '2026-07-07', 'bot' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 2, 'range_totals: a different class is a distinct memo key (second read)' );
+
+$m4 = sn_analytics_range_totals( '2026-07-01', '2026-07-07', 'human', true );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'range_totals: $refresh=true re-primes the memo (third read)' );
+ok( $m4 === $m1, 'range_totals: refreshed read still shapes an identical result over unchanged fixture data' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

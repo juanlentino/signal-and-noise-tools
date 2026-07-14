@@ -24,13 +24,14 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  * @return void
  */
 function snt_analytics_render_anomalies( $anom ) {
-	$div = isset( $anom['divergence'] ) && is_array( $anom['divergence'] ) ? $anom['divergence'] : array();
-	$out = isset( $anom['outliers'] ) && is_array( $anom['outliers'] ) ? $anom['outliers'] : array();
+	$title = __( 'Engagement anomalies', 'signal-and-noise-tools' );
+	$div   = isset( $anom['divergence'] ) && is_array( $anom['divergence'] ) ? $anom['divergence'] : array();
+	$out   = isset( $anom['outliers'] ) && is_array( $anom['outliers'] ) ? $anom['outliers'] : array();
 	if ( empty( $div ) && empty( $out ) ) {
-		snt_an_note_empty( 'Engagement anomalies' );
+		snt_an_note_empty( $title );
 		return;
 	}
-	snt_an_panel_open( 'Engagement anomalies' );
+	snt_an_panel_open( $title );
 	snt_an_annotation( sn_annotation_anomalies( $anom ) );
 	echo '<table class="widefat striped"><thead><tr><th>Page</th><th>Signal</th><th>Detail</th><th>Views</th></tr></thead><tbody>';
 	foreach ( $div as $d ) {

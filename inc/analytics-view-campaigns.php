@@ -57,8 +57,8 @@ function snt_analytics_render_view_campaigns( $from, $to, $class, $granularity )
 	$empty_src  = __( 'No campaign sources in this range.', 'signal-and-noise-tools' );
 
 	echo '<div class="sn-an-grid">';
-	snt_analytics_render_dim_table( 'Campaigns', $campaigns, $empty_camp, $camp_series, '', 25 );
-	snt_analytics_render_dim_table( 'Source / Medium', $sources, $empty_src, $src_series, '', 25 );
+	snt_analytics_render_dim_table( __( 'Campaigns', 'signal-and-noise-tools' ), $campaigns, $empty_camp, $camp_series, '', 25 );
+	snt_analytics_render_dim_table( __( 'Source / Medium', 'signal-and-noise-tools' ), $sources, $empty_src, $src_series, '', 25 );
 	echo '</div>';
 
 	snt_an_flush_empty_fold();

@@ -29,7 +29,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 	if ( (int) $metrics['visits'] < 1 ) {
 		snt_an_note_empty( __( 'Visit quality', 'signal-and-noise-tools' ), __( 'No visits in this range yet.', 'signal-and-noise-tools' ) );
 	} else {
-		snt_an_panel_open( 'Visit quality', array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
+		snt_an_panel_open( __( 'Visit quality', 'signal-and-noise-tools' ), array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
 		snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 		// Cohesive with the Overview KPI strip — now literally shares snt_an_kpi_row.
 		// No period-over-period delta here yet, so the delta slot carries a muted

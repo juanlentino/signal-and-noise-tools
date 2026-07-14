@@ -17,8 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
 
 /**
- * KPI cards: Checked / Blocked / Block rate / Networks. Mirrors the .sn-kpi-row
- * markup of snt_analytics_render_cards() with login labels.
+ * KPI cards: Checked / Blocked / Block rate / Networks. Routes through the
+ * shared snt_an_kpi_row() primitive (D5 §5, inc/analytics-panels.php) — every
+ * card here is the plain-descriptor shape (a flat 'sub' line, no real
+ * {pct,dir} delta and no derived sub_class), so the primitive's default
+ * 'sn-delta-flat' reproduces the old hand-rolled loop byte-for-byte.
  */
 function sn_login_defense_render_kpi_cards( $k ) {
 	$cards = array(
@@ -27,90 +30,64 @@ function sn_login_defense_render_kpi_cards( $k ) {
 		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%', 'sub' => __( 'of checks', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Networks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['networks'] ?? 0 ) ), 'sub' => __( 'distinct', 'signal-and-noise-tools' ) ),
 	);
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		// Flat delta slot — login KPIs have no period-over-period delta; the slot keeps
-		// the card structure identical to snt_analytics_render_cards() (a labelled sub-line).
-		echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( $c['sub'] ) . '</span>';
-		echo '</div>';
-	}
-	echo '</div>';
+	snt_an_kpi_row( $cards );
 }
 
 /**
- * Daily blocked-trend sparkline. Mirrors snt_analytics_render_trend()'s SVG band
- * (reusing snt_analytics_smooth_path when available, else a straight polyline)
- * with login labels. $series = [{day,views}] ascending; views = blocked count.
+ * Daily blocked-trend sparkline. Routes through the shared trend-SVG primitive
+ * (inc/analytics-panels.php, D5 §3) — default gradient id (its suite pins
+ * `url(#snSparkFill)`, tests/login-defense-analytics.php:58; the two 'snSparkFill'
+ * copies are mutually exclusive views behind the analytics-admin.php view switch
+ * and never co-render, so the shared id is safe). $series = [{day,views}]
+ * ascending; views = blocked count. The <2-point silent guard matches the
+ * primitive's own guard exactly — kept here only so the peak/axis reads below
+ * never run against a too-short series.
  */
 function sn_login_defense_render_trend_chart( $series ) {
 	if ( ! is_array( $series ) || count( $series ) < 2 ) {
 		return;
 	}
-	$n    = count( $series );
-	$max  = 1;
-	$peak = 0;
+	$peak  = 0;
+	$views = array();
 	foreach ( $series as $r ) {
-		$v    = (int) ( $r['views'] ?? 0 );
-		$max  = max( $max, $v );
-		$peak = max( $peak, $v );
+		$v       = (int) ( $r['views'] ?? 0 );
+		$views[] = $v;
+		$peak    = max( $peak, $v );
 	}
-	$w    = 600.0;
-	$top  = 8.0;
-	$base = 78.0;
-	$step = ( $n > 1 ) ? $w / ( $n - 1 ) : 0.0;
-	$px   = array();
-	$py   = array();
-	foreach ( array_values( $series ) as $i => $r ) {
-		$px[] = round( $i * $step, 2 );
-		$py[] = round( $base - ( (int) ( $r['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
-	}
-	if ( function_exists( 'snt_analytics_smooth_path' ) ) {
-		$line_d = snt_analytics_smooth_path( $px, $py, $top, $base );
-	} else {
-		$pts    = array();
-		foreach ( $px as $i => $x ) { $pts[] = $x . ',' . $py[ $i ]; }
-		$line_d = 'M ' . implode( ' L ', $pts );
-	}
-	// Area = the line dropped to the baseline and closed (parity with snt_analytics_render_trend).
-	$last_x = $px[ $n - 1 ];
-	$area_d = 'M ' . $px[0] . ',' . $base . ' L ' . substr( $line_d, 2 ) . ' L ' . $last_x . ',' . $base . ' Z';
 
-	echo '<div class="sn-overview-trend">';
-	echo '<div class="sn-trend-head"><span class="sn-trend-title">' . esc_html__( 'Blocked per day', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="sn-trend-meta">' . esc_html( sprintf( /* translators: %s peak blocked count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ) ) . '</span></div>';
-	echo '<div class="sn-spark-wrap">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- coords esc_attr'd, static SVG chrome.
-	echo '<svg class="sn-spark" viewBox="0 0 600 84" preserveAspectRatio="none" role="img" aria-label="' . esc_attr( __( 'Daily blocked trend', 'signal-and-noise-tools' ) ) . '">';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG gradient def, no dynamic values.
-	echo '<defs><linearGradient id="snSparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2271b1" stop-opacity="0.16"/><stop offset="55%" stop-color="#2271b1" stop-opacity="0.04"/><stop offset="100%" stop-color="#2271b1" stop-opacity="0"/></linearGradient></defs>';
-	echo '<line x1="0" y1="78" x2="600" y2="78" stroke="#dcdcde" stroke-width="1" vector-effect="non-scaling-stroke"/>';
-	echo '<path d="' . esc_attr( $area_d ) . '" fill="url(#snSparkFill)" stroke="none"/>';
-	echo '<path d="' . esc_attr( $line_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
-	echo '</svg></div>';
-	echo '<div class="sn-spark-axis"><span>' . esc_html( (string) $series[0]['day'] ) . '</span><span>' . esc_html( (string) end( $series )['day'] ) . '</span></div>';
-	echo '</div>';
+	snt_an_trend_svg(
+		$views,
+		array(
+			'head'       => __( 'Blocked per day', 'signal-and-noise-tools' ),
+			'meta'       => sprintf( /* translators: %s peak blocked count */ __( 'peak %s', 'signal-and-noise-tools' ), number_format_i18n( $peak ) ),
+			'axis'       => array( (string) $series[0]['day'], (string) end( $series )['day'] ),
+			'aria_label' => __( 'Daily blocked trend', 'signal-and-noise-tools' ),
+		)
+	);
 }
 
 /**
- * Ranked top-N table (attacker networks / countries). $rows = [{k,v}].
+ * Ranked top-N table (attacker networks / countries). $rows = [{k,v}]. Thin
+ * wrapper over the shared snt_an_kv_table() primitive (D5 §4,
+ * inc/analytics-panels.php) — picks up the standard sn-an-postbox chrome this
+ * hand-rolled table never had. Keeps its $col semantics (the primary column
+ * header, distinct from $title, e.g. title "Top attacker networks" / col
+ * "Network (ASN)"). No empty-fold $why: this fn never had one, still doesn't.
  */
 function sn_login_defense_render_top_table( $title, $col, $rows ) {
-	if ( ! $rows ) {
-		snt_an_note_empty( $title );
-		return;
+	$kv_rows = array();
+	foreach ( (array) $rows as $r ) {
+		$kv_rows[] = array(
+			(string) ( $r['k'] ?? '' ),
+			number_format_i18n( (int) ( $r['v'] ?? 0 ) ),
+		);
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
-	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $col ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Blocked', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
-	foreach ( $rows as $r ) {
-		echo '<tr><td class="column-primary"><strong>' . esc_html( (string) ( $r['k'] ?? '' ) ) . '</strong></td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) ( $r['v'] ?? 0 ) ) ) . '</td></tr>';
-	}
-	echo '</tbody></table></div></div>';
+
+	snt_an_kv_table(
+		$title,
+		$kv_rows,
+		array( $col, __( 'Blocked', 'signal-and-noise-tools' ) )
+	);
 }
 
 /**
@@ -138,9 +115,14 @@ function sn_login_defense_resolve_days() {
  */
 function sn_login_defense_render_header() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		echo '<div class="postbox"><div class="inside"><p class="sn-an-empty">'
-			. esc_html__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+		// D5 §5: routes through the shared snt_an_gate() primitive. The old gate
+		// was a bare, titleless postbox (no header at all) — it now carries the
+		// view's natural title 'Login defense', matching every other view's gate
+		// (Analytics, Visits, Traffic & edge). No CTA: the old gate never had one.
+		snt_an_gate(
+			__( 'Login defense', 'signal-and-noise-tools' ),
+			__( 'Connect Cloudflare Analytics (Account ID + token) in the Analytics tab to see login-defense analytics.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -152,6 +134,11 @@ function sn_login_defense_render_header() {
 	// (login AE retains ~90d and is not class-segmented -- those would render empty/false).
 	// Active marker is the `active` class (NOT button-primary): the shared CSS targets
 	// .button.button-small.active. Base = remove only sn_lg_range (preserves sn_view).
+	// D5 §5: with the gate/Overview/KPI-loop/door-knock postbox all adopted onto
+	// the shared primitives this task, this pill row is now the ONLY remaining
+	// hand-rolled control clone in the codebase — a recorded post-arc backlog
+	// item (a range-pill primitive was never in scope for D4 or D5), not an
+	// oversight.
 	$base = remove_query_arg( array( 'sn_lg_range' ) );
 	echo '<div class="sn-toolbar">';
 	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
@@ -173,11 +160,19 @@ function sn_login_defense_render_header() {
 
 	// Fuse the KPI strip + blocked-trend into ONE "Overview" postbox, identical to the
 	// shared dashboard chrome (render_dashboard wraps the other views' cards+trend this way).
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Overview', 'signal-and-noise-tools' ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-overview-inside">';
+	// D5 §5: routes through snt_an_panel_open()/close() — the one deliberate visual
+	// change (owner-approved): the Overview now also carries sn-an-postbox, so it
+	// picks up the 22/13 KPI scale like every other view's Overview.
+	snt_an_panel_open(
+		__( 'Overview', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-overview-inside',
+		)
+	);
 	sn_login_defense_render_kpi_cards( $kpis );
 	sn_login_defense_render_trend_chart( sn_login_defense_trend_series( sn_analytics_query( sn_login_defense_trend_sql( $days ) ) ?: array() ) );
-	echo '</div></div>';
+	snt_an_panel_close();
 
 	echo '<p class="sn-an-breakdown">';
 	foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $d ) {
@@ -233,7 +228,8 @@ function sn_login_defense_render_body() {
 		}
 		$ctry_e = sn_edge_top_dim( 'atk_country', $from_d, $to_d, 1 );
 		$net_e  = sn_edge_top_dim( 'atk_asn', $from_d, $to_d, 1 );
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside">';
+		// D5 §5: routes through snt_an_panel_open()/close() — picks up sn-an-postbox.
+		snt_an_panel_open( __( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) );
 		echo '<p>' . esc_html( number_format_i18n( $total ) ) . ' '
 			. esc_html__( 'hits on /wp-login.php + /xmlrpc.php', 'signal-and-noise-tools' );
 		if ( ! empty( $ctry_e[0]['value'] ) ) {
@@ -245,7 +241,7 @@ function sn_login_defense_render_body() {
 		echo '</p>';
 		echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=edge' ) ) . '">'
 			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
-		echo '</div></div>';
+		snt_an_panel_close();
 	}
 	snt_an_flush_empty_fold();
 }

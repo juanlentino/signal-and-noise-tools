@@ -23,13 +23,19 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  * @param string $to   Window end (Y-m-d).
  */
 function snt_analytics_render_view_events( $from, $to ) {
-	// Custom events carry no traffic-class dimension (from/to only), so the
-	// global Human/Suspect/Bot control is inert here — say so explicitly.
-	echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
 	$ev_prop = isset( $_GET['sn_event_prop'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_event_prop'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET filter on an admin report, no state change.
+	$events  = sn_analytics_top_events( $from, $to, 25 );
+	$props   = sn_analytics_top_event_props( $from, $to, $ev_prop, 50 );
+	// Custom events carry no traffic-class dimension (from/to only), so the global
+	// Human/Suspect/Bot control is inert here — say so explicitly, but only when
+	// there is a panel below for the caveat to apply to (D5 §6: an all-empty
+	// range would otherwise orphan the note above two folded panels).
+	if ( ! empty( $events ) || ! empty( $props ) || '' !== $ev_prop ) { // active filter = the carve-out panel below is OPEN even when empty (T6 review).
+		echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
+	}
 	echo '<div class="sn-an-grid">';
-	snt_analytics_render_events_table( sn_analytics_top_events( $from, $to, 25 ) );
-	snt_analytics_render_event_props_table( sn_analytics_top_event_props( $from, $to, $ev_prop, 50 ), $ev_prop );
+	snt_analytics_render_events_table( $events );
+	snt_analytics_render_event_props_table( $props, $ev_prop );
 	echo '</div>';
 	snt_an_flush_empty_fold();
 }
