@@ -36,9 +36,10 @@ function snt_edge_fmt_bytes( $bytes ) {
  */
 function snt_edge_render_view( $from, $to ) {
 	if ( ! function_exists( 'sn_edge_config' ) || ! sn_edge_config() ) {
-		echo '<div class="postbox"><div class="inside"><p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'Edge analytics is not configured yet. Add the “Zone Analytics:Read” permission to your SN_CF_ANALYTICS_TOKEN in the Cloudflare dashboard — the zone ID is reused from the cache-purge settings. The first daily sync back-fills ~1 year of edge history.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+		snt_an_gate(
+			__( 'Traffic & edge', 'signal-and-noise-tools' ),
+			__( 'Edge analytics is not configured yet. Add the “Zone Analytics:Read” permission to your SN_CF_ANALYTICS_TOKEN in the Cloudflare dashboard — the zone ID is reused from the cache-purge settings. The first daily sync back-fills ~1 year of edge history.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -55,7 +56,7 @@ function snt_edge_render_view( $from, $to ) {
 		array( 'l' => 'Errors',          'n' => (int) ( $t['error_pct'] ?? 0 ) . '%' ),
 		array( 'l' => 'Threats',         'n' => number_format_i18n( (int) ( $t['threats'] ?? 0 ) ) ),
 	);
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html__( 'Traffic & edge', 'signal-and-noise-tools' ) . '</span></h2></div><div class="inside inside-flush">';
+	snt_an_panel_open( __( 'Traffic & edge', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
 	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals — every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
 	// Surface the REAL adaptive-dataset retention (discovered from the settings node,
 	// not the old "24h on Free" guess). Omitted entirely until the probe knows it.
@@ -72,18 +73,13 @@ function snt_edge_render_view( $from, $to ) {
 			$ret_days
 		) ) . '</p>';
 	}
-	echo '<div class="sn-kpi-row sn-kpi-row--edge">';
-	foreach ( $cards as $c ) {
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		echo '</div>';
-	}
-	echo '</div>';
+	// v9.40.0 D4: no card here carries live/delta/sub, so empty_slot=omit
+	// reproduces the old loop's silence (label + value only, no third line).
+	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit', 'row_class' => 'sn-kpi-row--edge' ) );
 	if ( function_exists( 'snt_analytics_render_trend' ) ) {
 		snt_analytics_render_trend( sn_edge_daily_series( $from, $to ) );
 	}
-	echo '</div></div>';
+	snt_an_panel_close();
 
 	// Status-code breakdown (error monitoring) — built from the daily scalar buckets.
 	$status_rows = array();
@@ -129,7 +125,7 @@ function snt_edge_render_dim( $title, $rows, $empty, $with_bytes = true ) {
 		snt_an_note_empty( $title );
 		return;
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
+	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	echo '<th scope="col" class="manage-column num">Requests</th>';
@@ -145,5 +141,6 @@ function snt_edge_render_dim( $title, $rows, $empty, $with_bytes = true ) {
 		}
 		echo '</tr>';
 	}
-	echo '</tbody></table></div></div>';
+	echo '</tbody></table>';
+	snt_an_panel_close();
 }

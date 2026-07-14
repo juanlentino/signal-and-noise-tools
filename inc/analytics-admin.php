@@ -343,7 +343,6 @@ function snt_analytics_render_dashboard() {
 	// Config gate: empty notice + a link to the settings page (the form lives there now).
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		snt_analytics_render_empty( 'unconfigured' );
-		echo '<p><a class="button button-primary" href="' . esc_url( snt_analytics_settings_url() ) . '">Configure analytics &rarr;</a></p>';
 		return;
 	}
 
@@ -533,17 +532,21 @@ function snt_analytics_render_settings_section() {
 }
 
 /**
- * Unconfigured notice shown above the settings form when creds are missing.
- * Points users to the form rendered immediately after this notice, and mentions
- * the wp-config-constant alternative for those who prefer it.
+ * Unconfigured gate for the Dashboard → Analytics config gate. Renders via the
+ * shared snt_an_gate() primitive (v9.40.0 D4 — was a raw .notice div, and the
+ * "Configure analytics →" CTA used to be a second element the caller rendered
+ * after this call; it's now folded into the gate itself).
  *
- * @param string $reason 'unconfigured'.
+ * @param string $reason 'unconfigured' (the only reason this gate currently sees).
  */
 function snt_analytics_render_empty( $reason ) {
-	echo '<div class="notice notice-info notice-alt inline"><p><strong>Analytics isn\'t receiving data yet.</strong> ';
-	echo 'Add your Cloudflare read credentials below to connect the dashboard. You can also set ';
-	echo '<code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> in <code>wp-config.php</code> ';
-	echo '(see <em>Cloudflare Worker setup</em> below).</p></div>';
+	snt_an_gate(
+		__( 'Analytics', 'signal-and-noise-tools' ),
+		__( 'Analytics isn\'t receiving data yet. Add your Cloudflare read credentials below to connect the dashboard. You can also set SN_CF_ANALYTICS_TOKEN / SN_CF_ACCOUNT_ID in wp-config.php (see Cloudflare Worker setup below).', 'signal-and-noise-tools' ),
+		__( 'Configure analytics →', 'signal-and-noise-tools' ),
+		snt_analytics_settings_url(),
+		array( 'cta_primary' => true ) // first-run: the page's ONLY action keeps primary weight.
+	);
 }
 
 /**

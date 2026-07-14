@@ -51,8 +51,10 @@ function snt_analytics_render_view_campaigns( $from, $to, $class, $granularity )
 		? sn_analytics_utm_series( 'source_medium', $src_values, $from, $to, $class, $granularity )
 		: array();
 
-	$empty_camp = esc_html__( 'No campaigns in this range. Tag a link with ?utm_source=…&utm_medium=…&utm_campaign=… and campaign visits will appear here.', 'signal-and-noise-tools' );
-	$empty_src  = esc_html__( 'No campaign sources in this range.', 'signal-and-noise-tools' );
+	// Raw text per the collector contract — snt_an_note_empty()/flush own the
+	// escaping (esc_html__ here would double-escape the why in the fold).
+	$empty_camp = __( 'No campaigns in this range. Tag a link with ?utm_source=…&utm_medium=…&utm_campaign=… and campaign visits will appear here.', 'signal-and-noise-tools' );
+	$empty_src  = __( 'No campaign sources in this range.', 'signal-and-noise-tools' );
 
 	echo '<div class="sn-an-grid">';
 	snt_analytics_render_dim_table( 'Campaigns', $campaigns, $empty_camp, $camp_series, '', 25 );

@@ -39,11 +39,17 @@ ok( strpos( $t, '38s' ) !== false, 'time: seconds formatting' );
 ok( strpos( $t, '1m 12s' ) !== false && strpos( $t, '3m 40s' ) !== false, 'time: minute+second formatting' );
 
 echo "\nGroup: null/empty → empty-state, never fatal\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_percentiles( 'Scroll depth — percentiles', null, 'pct', 'Percentiles need live Analytics Engine data.' ); $e = ob_get_clean();
-ok( strpos( $e, 'Percentiles need live Analytics Engine data.' ) !== false, 'null: custom empty message shown' );
+ok( '' === trim( $e ), 'null: panel folds instead of rendering inline (D4 §4)' );
 ok( strpos( $e, 'sn-an-pctl-chip' ) === false, 'null: no chips rendered' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Percentiles need live Analytics Engine data.' === $noted[0]['why'], 'null: custom empty message carried as the fold why' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_percentiles( 'Time on page — percentiles', array(), 'time' ); $e2 = ob_get_clean();
-ok( strpos( $e2, 'No time on page — percentiles data' ) !== false, 'empty: default empty message' );
+ok( '' === trim( $e2 ), 'empty: panel folds instead of rendering inline' );
+$noted2 = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted2 ) && false !== strpos( $noted2[0]['why'], 'No time on page — percentiles data' ), 'empty: default empty message carried as the fold why' );
 
 echo "\nGroup: optional retention note\n";
 ob_start(); snt_analytics_render_percentiles( 'Scroll depth — percentiles', $rows, 'pct', '', '(last ~90d — AE retention)' ); $n = ob_get_clean();

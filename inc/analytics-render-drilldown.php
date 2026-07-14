@@ -20,6 +20,12 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  * a Clear link, populated by sn_analytics_drilldown(). $rows null/empty → empty
  * state (rejected value / no data / unconfigured AE). Native wp-admin, no brutalist.
  *
+ * D4 §4 carve-out: this panel only ever renders when ?sn_drill is active — an
+ * ALWAYS-filtered state. It deliberately does NOT fold on empty (see the
+ * convention in snt_an_note_empty()'s docblock): folding would strand the user
+ * with no in-UI way back, so the open panel keeps the "Clear drill-down"
+ * escape hatch visible.
+ *
  * @param string                                                    $dim   A SN_ANALYTICS_DIM_COLUMNS key (for the label).
  * @param string                                                    $value The drilled value.
  * @param array<int,array{path:string,views:int,visits:int}>|null   $rows  Top pages, or null.

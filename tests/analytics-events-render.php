@@ -51,8 +51,11 @@ $html = capture( function () use ( $ev ) { snt_analytics_render_events_table( $e
 ok( strpos( $html, 'Custom events' ) !== false, 'events: panel heading' );
 ok( strpos( $html, 'signup' ) !== false && strpos( $html, '120' ) !== false, 'events: row name + events count' );
 ok( strpos( $html, '>90<' ) !== false, 'events: visitors column' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_events_table( array() ); } );
-ok( strpos( $html, 'No custom events' ) !== false, 'events: empty state' );
+ok( '' === $html, 'events: empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Custom events' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No custom events' ), 'events: empty state copy carried as the fold why' );
 $html = capture( function () { snt_analytics_render_events_table( array( array( 'name' => 'x"<script>', 'events' => 1, 'visitors' => 1 ) ) ); } );
 ok( strpos( $html, '<script>' ) === false, 'events: name is escaped' );
 
@@ -73,8 +76,20 @@ ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false, 'props(f
 ok( strpos( $html, '>Clear<' ) !== false, 'props(filtered): Clear link present' );
 ok( strpos( $html, '<th>Property</th>' ) === false, 'props(filtered): Property column dropped' );
 ok( strpos( $html, 'sn_event_prop=' ) === false, 'props(filtered): no further drill-down links' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_event_props_table( array(), '' ); } );
-ok( strpos( $html, 'No event properties' ) !== false, 'props: empty state' );
+ok( '' === $html, 'props(unfiltered): empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Event properties' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No event properties' ), 'props(unfiltered): empty state copy carried as the fold why' );
+
+// D4 §4 carve-out: a FILTERED empty (?sn_event_prop active) stays an OPEN panel
+// with its original empty copy — the Clear escape hatch must survive; folding
+// here would strand the user with no in-UI way back to the unfiltered table.
+unset( $GLOBALS['sn_an_empty_panels'] );
+$html = capture( function () { snt_analytics_render_event_props_table( array(), 'utm_source' ); } );
+ok( strpos( $html, 'No event properties' ) !== false, 'props(filtered): empty renders the OPEN panel with its original copy (active-filter carve-out)' );
+ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false && strpos( $html, '>Clear<' ) !== false, 'props(filtered): active-property heading + Clear escape hatch survive on empty' );
+ok( array() === (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), 'props(filtered): nothing noted to the fold' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

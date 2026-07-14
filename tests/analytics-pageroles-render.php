@@ -53,15 +53,21 @@ ok( strpos( $html, '/about' ) !== false && strpos( $html, '44' ) !== false, 'ent
 ok( strpos( $html, '>90<' ) !== false, 'entry: visits column' );
 ok( strpos( $html, 'class="wp-list-table widefat striped"' ) !== false, 'entry: WP-native widefat table' );
 ok( strpos( $html, 'sn-an-table-inside' ) !== false, 'entry: reuses .sn-an-table-inside' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_pageroles_table( array(), 'entry' ); } );
-ok( strpos( $html, 'No entry pages' ) !== false, 'entry: empty state copy' );
+ok( '' === $html, 'entry: empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Entry pages' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No entry pages' ), 'entry: empty state copy carried as the fold why' );
 
 echo "\nGroup: exit panel\n";
 $html = capture( function () use ( $rows ) { snt_analytics_render_pageroles_table( $rows, 'exit' ); } );
 ok( strpos( $html, 'Exit pages' ) !== false, 'exit: panel heading "Exit pages"' );
 ok( strpos( $html, 'session model' ) !== false, 'exit: caption notes live exit awaits the session model' );
+unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_pageroles_table( array(), 'exit' ); } );
-ok( strpos( $html, 'No exit pages' ) !== false, 'exit: empty state copy' );
+ok( '' === $html, 'exit: empty rows fold instead of rendering inline (D4 §4)' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Exit pages' === $noted[0]['title'] && false !== strpos( $noted[0]['why'], 'No exit pages' ), 'exit: empty state copy carried as the fold why' );
 
 echo "\nGroup: escaping\n";
 $html = capture( function () { snt_analytics_render_pageroles_table( array( array( 'path' => '/x"<script>', 'views' => 1, 'visits' => 1 ) ), 'entry' ); } );

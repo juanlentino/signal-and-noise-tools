@@ -430,10 +430,11 @@ $_GET['sn_drill'] = 'country:US';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'Top pages · Country = US' ) !== false, 'drill: panel renders on the view that owns the dim' );
 ok( strpos( $html, 'sn_drill=country%3A' ) !== false, 'drill: Countries table values are drill links (colon URL-encoded by add_query_arg)' );
-ok( strpos( $html, 'sn_view=technology' ) !== false && strpos( explode( '</nav>', $html )[0], 'sn_drill' ) === false, 'drill: tab links do NOT carry sn_drill (cleared on tab switch)' );
-// (The sn_event_prop tab-drop is pinned in tests/analytics-param-carry.php,
-// whose URL stubs have REAL query semantics — this suite's stubs ignore $_GET,
-// so an assertion here would pass vacuously.)
+ok( strpos( $html, 'sn_view=technology' ) !== false, 'drill: tab links present on the drilled view' );
+// (BOTH view-local tab-drops — sn_drill AND sn_event_prop — are pinned in
+// tests/analytics-param-carry.php, whose URL stubs have REAL query semantics.
+// This suite's add_query_arg stub ignores $_GET, so carry assertions here pass
+// vacuously; the old sn_drill pin was removed for exactly that reason (D4 rider).)
 // View-gate: a valid drill whose dim is NOT on the active view shows NO panel.
 $_GET['sn_view'] = 'technology';
 $html = capture( 'snt_analytics_render_dashboard' );
@@ -487,6 +488,14 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( stripos( $html, 'not receiving data' ) !== false || stripos( $html, 'isn' ) !== false, 'dashboard(unconfigured): shows the empty/config notice' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard(unconfigured): does NOT embed the settings form' );
 ok( stripos( $html, 'Configure' ) !== false, 'dashboard(unconfigured): links to the settings page' );
+// v9.40.0 D4: snt_analytics_render_empty() adopts the unified snt_an_gate() idiom
+// (was a raw .notice div) and now folds the "Configure analytics →" CTA into the
+// gate call itself, so the caller no longer renders a separate <p><a> line.
+ok( strpos( $html, 'sn-an-gate' ) !== false, 'dashboard(unconfigured): unified gate marker present' );
+ok( strpos( $html, '<span>Analytics</span>' ) !== false, 'dashboard(unconfigured): gate title is "Analytics"' );
+ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured): the CTA renders exactly once (folded into the gate, not duplicated by the caller)' );
+ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
+	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
 echo "\nGroup: settings section — the creds form + dashboard backlink\n";
 $GLOBALS['__aa_config'] = false;

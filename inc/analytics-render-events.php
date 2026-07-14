@@ -24,12 +24,11 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  * @param array $rows [{name,events,visitors}]
  */
 function snt_analytics_render_events_table( $rows ) {
-	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No custom events in this range yet.</p>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Custom events', 'signal-and-noise-tools' ), 'No custom events in this range yet.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">Event</th>'
 		. '<th scope="col" class="manage-column num">Events</th>'
@@ -60,6 +59,14 @@ function snt_analytics_render_events_table( $rows ) {
  */
 function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	$filtered = ( '' !== (string) $active_prop );
+	// D4 §4: an UNFILTERED empty folds into the view's collector. A FILTERED
+	// empty (?sn_event_prop active) is the carve-out — it stays an OPEN panel
+	// so the active-property heading + Clear escape hatch survive (folding
+	// would strand the user with no in-UI way back to the unfiltered table).
+	if ( empty( $rows ) && ! $filtered ) {
+		snt_an_note_empty( __( 'Event properties', 'signal-and-noise-tools' ), 'No event properties in this range yet.' );
+		return;
+	}
 	snt_an_panel_open( __( 'Event properties', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );

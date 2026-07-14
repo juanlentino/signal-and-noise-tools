@@ -97,11 +97,14 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
  * vendored SVG (static-cached) and echoes the recolored, titled map in an accessible
  * panel. Mirrors snt_analytics_render_heatmap()'s panel + a11y shape. No JS, no AE.
  *
- * @param string $title Panel heading.
- * @param array  $rows  [{value: ISO-2, views, visits}] from sn_analytics_top_dimension('country', …).
- * @param string $empty Empty-state copy.
+ * @param string      $title Panel heading.
+ * @param array       $rows  [{value: ISO-2, views, visits}] from sn_analytics_top_dimension('country', …).
+ * @param string      $empty Empty-state copy.
+ * @param string|null $svg   Map SVG override (tests inject '' to exercise the
+ *                           missing-asset fold; the loader fn is unguarded so it
+ *                           cannot be stubbed). Null loads the vendored asset.
  */
-function snt_analytics_render_choropleth( $title, $rows, $empty ) {
+function snt_analytics_render_choropleth( $title, $rows, $empty, $svg = null ) {
 	$views = array();
 	$names = array();
 	foreach ( (array) $rows as $r ) {
@@ -120,14 +123,19 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 		}
 	}
 
-	$svg = snt_analytics_choropleth_svg();
+	$svg = ( null === $svg ) ? snt_analytics_choropleth_svg() : (string) $svg;
 	if ( ! $has_data || '' === $svg ) {
-		snt_an_note_empty( $title );
+		// Two distinct fold causes share this branch. No country has views: the
+		// common data-gap case — plain $empty covers it (even if the asset is
+		// ALSO missing, the data gap is the message that matters). Data exists
+		// but the vendored SVG failed to load: an operational fault, not a data
+		// gap — say ONLY that, never the false "no data" copy.
+		$why = ( $has_data && '' === $svg ) ? 'World map asset missing.' : $empty;
+		snt_an_note_empty( $title, $why );
 		return;
 	}
 
-	echo '<div class="sn-an-choropleth postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-map-inside">';
+	snt_an_panel_open( $title, array( 'panel_class' => 'sn-an-choropleth', 'inside_class' => 'inside inside-flush sn-map-inside' ) );
 	echo '<figure class="sn-map-figure">';
 	echo '<div role="img" aria-label="' . esc_attr( __( 'World map shaded by views per country', 'signal-and-noise-tools' ) ) . '">';
 	echo snt_analytics_recolor_world_svg( $svg, $views, $names ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: vendored static SVG + numeric fills + esc_html'd <title>s.
@@ -138,7 +146,7 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 	echo '<span class="sn-legend-item"><span class="sn-legend-swatch sn-legend-swatch--high"></span> ' . esc_html__( 'High', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="sn-legend-item sn-legend-item--meta">' . esc_html__( 'Views by country', 'signal-and-noise-tools' ) . '</span>';
 	echo '</div>';
-	echo '</div></div>';
+	snt_an_panel_close();
 }
 
 /**

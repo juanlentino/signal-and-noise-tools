@@ -34,11 +34,13 @@ ob_start(); snt_analytics_render_dim_table( 'Browsers', $rows, 'none' ); $h2 = o
 ok( strpos( $h2, 'sn-an-spark' ) === false, 'no sparkline when series omitted (back-compat)' );
 ok( strpos( $h2, 'Chrome' ) !== false, 'still renders the row' );
 
-echo "\nGroup: empty omits the panel + notes the title (v8.5.2)\n";
+echo "\nGroup: empty omits the panel + notes the title (v8.5.2, why-carrying since D4 §4)\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_dim_table( 'Edge locations', array(), 'No edge-location data yet.', array(), 'colo' ); $he = ob_get_clean();
 ok( '' === trim( $he ), 'empty dim table renders no panel markup' );
-ok( in_array( 'Edge locations', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'empty dim table registers its title' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Edge locations' === $noted[0]['title'], 'empty dim table registers its title' );
+ok( 'No edge-location data yet.' === $noted[0]['why'], 'empty dim table carries its $empty copy as the fold why (D4 §4)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

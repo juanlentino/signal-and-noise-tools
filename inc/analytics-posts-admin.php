@@ -27,9 +27,10 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  */
 function snt_analytics_render_posts_view( $bundle ) {
 	if ( ! is_array( $bundle ) || empty( $bundle['subject'] ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
-			. '</p>';
+		snt_an_gate(
+			__( 'Posts', 'signal-and-noise-tools' ),
+			__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -70,24 +71,35 @@ function snt_analytics_render_posts_view( $bundle ) {
  * @param array $subject From sn_analytics_posts_subject().
  */
 function snt_analytics_render_post_hero( $subject ) {
+	if ( empty( $subject['has_data'] ) ) {
+		// D4 §4: the whole hero — including the "which post?" title line — folds
+		// when this Note has no recorded views. The view-level null-bundle gate
+		// (snt_an_gate, above in snt_analytics_render_posts_view) still covers
+		// the "no posts at all" case; this is the narrower "one post exists but
+		// has zero views yet" case, which now yields no visible hero at all
+		// rather than a panel with just the title.
+		snt_an_note_empty(
+			__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+			__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
+		);
+		return;
+	}
+
 	$age = (int) $subject['age'];
 	$pub = ( 0 === $age )
 		? __( 'published today', 'signal-and-noise-tools' )
 		/* translators: %d: days since publish. */
 		: sprintf( _n( 'published %d day ago', 'published %d days ago', $age, 'signal-and-noise-tools' ), $age );
 
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Latest Note — did it land?', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-an-panel',
+		)
+	);
 	echo '<p class="sn-posts-hero-h"><a href="' . esc_url( (string) $subject['permalink'] ) . '"><strong>'
 		. esc_html( (string) $subject['title'] ) . '</strong></a> · ' . esc_html( $pub ) . '</p>';
-
-	if ( empty( $subject['has_data'] ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
-		return;
-	}
 
 	$d       = is_array( $subject['delta'] ) ? $subject['delta'] : array();
 	$dir     = in_array( $d['dir'] ?? 'flat', array( 'up', 'down', 'flat' ), true ) ? $d['dir'] : 'flat';
@@ -105,24 +117,19 @@ function snt_analytics_render_post_hero( $subject ) {
 		/* translators: %d: days since publish. */
 		: sprintf( _n( 'in %d day', 'in %d days', $age, 'signal-and-noise-tools' ), $age );
 
+	// v9.40.0 D4: 'sub' cards are always colored TEXT descriptors here (no real
+	// {pct,dir} pair) — 'sub_class' rides the dir-derived class; the three
+	// always-flat cards omit it and fall through to the primitive's default.
 	$cards = array(
-		array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['views'] ), 'promoted' => true, 'sub' => $age_sub, 'dir' => 'flat' ),
-		array( 'l' => __( 'vs your typical', 'signal-and-noise-tools' ), 'n' => $verdict, 'promoted' => true, 'sub' => $descr, 'dir' => $dir ),
+		array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['views'] ), 'promoted' => true, 'sub' => $age_sub ),
+		array( 'l' => __( 'vs your typical', 'signal-and-noise-tools' ), 'n' => $verdict, 'promoted' => true, 'sub' => $descr, 'sub_class' => 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' ) ),
 		/* translators: %d: total recent Notes compared. */
-		array( 'l' => __( 'Rank', 'signal-and-noise-tools' ), 'n' => '#' . (int) $rank['rank'], 'sub' => sprintf( __( 'of %d recent', 'signal-and-noise-tools' ), (int) $rank['of'] ), 'dir' => 'flat' ),
-		array( 'l' => __( 'Lifetime', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['lifetime'] ), 'sub' => __( 'all-time', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
+		array( 'l' => __( 'Rank', 'signal-and-noise-tools' ), 'n' => '#' . (int) $rank['rank'], 'sub' => sprintf( __( 'of %d recent', 'signal-and-noise-tools' ), (int) $rank['of'] ) ),
+		array( 'l' => __( 'Lifetime', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['lifetime'] ), 'sub' => __( 'all-time', 'signal-and-noise-tools' ) ),
 	);
 
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		$cls = 'up' === $c['dir'] ? 'sn-delta-up' : ( 'down' === $c['dir'] ? 'sn-delta-down' : 'sn-delta-flat' );
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '">' . esc_html( $c['sub'] ) . '</span>';
-		echo '</div>';
-	}
-	echo '</div></div></div>';
+	snt_an_kpi_row( $cards );
+	snt_an_panel_close();
 }
 
 /**
@@ -171,16 +178,18 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
 	$base_d = $plot( $base );
 	$subj_d = $plot( $subj );
 
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' ),
+		array( 'inside_class' => 'inside inside-flush sn-an-panel' )
+	);
 	echo '<svg viewBox="0 0 600 86" preserveAspectRatio="none" role="img" class="sn-an-spark" style="width:100%;height:120px">';
 	echo '<path d="' . esc_attr( $base_d ) . '" fill="none" stroke="#646970" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
 	echo '<path d="' . esc_attr( $subj_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" vector-effect="non-scaling-stroke"/>';
 	echo '</svg>';
 	echo '<p class="sn-an-foot">'
 		. esc_html__( 'Blue: this Note. Grey dashed: the median of your recent Notes at the same day of life.', 'signal-and-noise-tools' )
-		. '</p></div></div>';
+		. '</p>';
+	snt_an_panel_close();
 }
 
 /**
@@ -191,13 +200,11 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
  * @param array $rows Leaderboard rows.
  */
 function snt_analytics_render_posts_leaderboard( $rows ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Your catalog', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside sn-an-table-inside">';
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No posts yet.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		snt_an_note_empty( __( 'Your catalog', 'signal-and-noise-tools' ), __( 'No posts yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
+	snt_an_panel_open( __( 'Your catalog', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Lifetime views', 'signal-and-noise-tools' ) . '</th>';
@@ -212,5 +219,6 @@ function snt_analytics_render_posts_leaderboard( $rows ) {
 		echo '<td data-colname="Shape">' . ( '' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">—</span>' ) . '</td>';
 		echo '</tr>';
 	}
-	echo '</tbody></table></div></div>';
+	echo '</tbody></table>';
+	snt_an_panel_close();
 }

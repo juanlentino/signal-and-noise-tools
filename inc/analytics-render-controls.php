@@ -103,7 +103,8 @@ function snt_analytics_range_label( $range, $from = '', $to = '' ) {
  *   View-local (sn_drill, sn_event_prop, sn_lg_range):
  *     survive window/class/compare changes; RESET on view switch (the tab
  *     strip-list in snt_analytics_render_view_tabs owns the reset).
- *   Deliberate exceptions: export (window+class only); recs/widget deep links
+ *   Deliberate exceptions: export (window+class only); the movers deep link
+ *   (window+class only, no sn_compare — D3 §3.4); recs/widget deep links
  *   (cross-surface, bare); login-defense internals (sn_lg_range never leaves it).
  *
  * @param int|string $range        Active window (int days or 'all').

@@ -8,11 +8,30 @@
  * which is why the live dashboard could render unstyled. See the WordPress Plugin
  * Handbook, "Including CSS & JavaScript".
  *
- * WP admin native palette: #1d2327 text · #646970 muted · #2271b1 link ·
- * #dcdcde hairline · #d63638 error. wp-admin already ships .postbox, .widefat,
- * .nav-tab, .button, .notice core CSS — this file adds ONLY the custom dense-layout
- * rules those core classes don't provide.
+ * WP admin native palette, namespaced as the D4 --sn-an-* token layer below:
+ * --sn-an-text (#1d2327) · --sn-an-muted (#646970) · --sn-an-accent (#2271b1) ·
+ * --sn-an-hairline (#dcdcde) · --sn-an-down (#d63638). wp-admin already ships
+ * .postbox, .widefat, .nav-tab, .button, .notice core CSS — this file adds ONLY
+ * the custom dense-layout rules those core classes don't provide.
  */
+
+/* ── D4 token layer (v9.40.0): THE analytics vocabulary. Namespaced --sn-an-*
+   so the settings pages' --sn-border #c3c4c7 contract (tests/admin-polish-v647.php)
+   is untouched. One accent, one green (AA at badge sizes), one red, one hairline,
+   one radius — plus the single sanctioned elevation (headline band only). ── */
+:root {
+	--sn-an-accent: #2271b1;
+	--sn-an-up: #0a7c2f;
+	--sn-an-down: #d63638;
+	--sn-an-hairline: #dcdcde;
+	--sn-an-muted: #646970;
+	--sn-an-text: #1d2327;
+	--sn-an-surface: #fff;
+	--sn-an-surface-2: #f6f7f7;
+	--sn-an-radius: 4px;
+	--sn-an-elev-radius: 8px;
+	--sn-an-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
 
 /* ── postbox / widefat tweaks ───────────────────────────────────────────── */
 /* Panel TITLE gutter. This page registers its postboxes outside the metabox
@@ -66,12 +85,12 @@
 
 /* v9.39.0 D3: the ONE range control — flat hairline dropdown, no JS. */
 .sn-an-range { position: relative; }
-.sn-an-range > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
+.sn-an-range > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); background: #fff; }
 .sn-an-range > summary::-webkit-details-marker { display: none; }
 .sn-an-range > summary::after { content: "▾"; font-size: 11px; color: #646970; }
 .sn-an-range[open] > summary::after { content: "▴"; }
 .sn-an-range-current { font-weight: 600; color: #1d2327; }
-.sn-an-range-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 480px; background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 12px 14px; }
+.sn-an-range-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 480px; background: #fff; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); padding: 12px 14px; }
 .sn-an-range-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; flex-wrap: wrap; }
 .sn-an-range-panel .sn-an-custom-form { border-top: 1px solid #dcdcde; padding-top: 8px; margin: 8px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sn-an-custom-form label { color: #646970; display: inline-flex; align-items: center; gap: 4px; }
@@ -120,8 +139,8 @@
 	font-weight: 600;
 	line-height: 1.3;
 }
-.sn-delta-down { color: #d63638; }
-.sn-delta-up   { color: #006b18; }
+.sn-delta-down { color: var(--sn-an-down); }
+.sn-delta-up   { color: var(--sn-an-up); }
 .sn-delta-flat { color: #646970; font-weight: 400; }
 .sn-delta-arrow { font-size: 11px; vertical-align: middle; }
 
@@ -227,7 +246,7 @@
 	padding: 9px 13px;
 	background: #f6f7f7;
 	border: 1px dashed #c3c4c7;
-	border-radius: 4px;
+	border-radius: var(--sn-an-radius);
 	font-style: normal;
 }
 .sn-an-empty-fold::before,
@@ -245,6 +264,23 @@
 .sn-an-view-tabs { margin: 18px 0 0; }
 .sn-an-view { margin-top: 16px; }
 .sn-an-empty { color: #646970; font-style: italic; font-size: 13px; margin-top: 16px; }
+/* Empty-fold WITH diagnostics (D4 §4, v9.40.0): the dashed inset above becomes a
+   native <details> so the crafted "why" strings are reachable behind one click
+   instead of only the title surviving into the summary line. The shared box
+   rules above (background/border/padding) still apply via the .sn-an-empty-fold
+   class; the tag-qualified selector here wins on specificity to swap the flex
+   layout + SVG dot icon for a block layout + ▸/▾ marker (same idiom as
+   .sn-an-headline > summary) since <details>/<summary>/<ul> need to stack, not
+   sit in a row. */
+details.sn-an-empty-fold { display: block; }
+details.sn-an-empty-fold::before { display: none; }
+details.sn-an-empty-fold summary { display: block; cursor: pointer; list-style: none; color: var(--sn-an-muted); }
+details.sn-an-empty-fold summary::-webkit-details-marker { display: none; }
+details.sn-an-empty-fold summary::before { content: "▸"; color: var(--sn-an-muted); font-size: 11px; margin-right: 6px; }
+details.sn-an-empty-fold[open] summary::before { content: "▾"; }
+details.sn-an-empty-fold ul { margin: 4px 0 0 18px; padding: 0; font-style: normal; font-size: 12px; color: var(--sn-an-muted); }
+details.sn-an-empty-fold li { margin-bottom: 4px; }
+details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 
 /* Recommendations panel (v9.6.0, annotations R3b): deep-linked action cards atop
    the Content view. Native postbox body; cards separated by hairlines, muted
@@ -293,31 +329,31 @@
 
 /* ── bespoke viz (inline bar/heatmap panels; no native equivalent) ─────── */
 .sn-an-delta { font-size: 0.72em; font-weight: 600; margin-left: 5px; white-space: nowrap; }
-.sn-an-delta--up   { color: #0a7c2f; }
-.sn-an-delta--down { color: #b32d2e; }
+.sn-an-delta--up   { color: var(--sn-an-up); }
+.sn-an-delta--down { color: var(--sn-an-down); }
 .sn-an-delta--flat { color: #646970; }
 .sn-an-refcats-bars { display: flex; flex-direction: column; gap: 8px; }
 .sn-an-refcat-h { display: flex; justify-content: space-between; font-size: 13px; color: #1d2327; margin-bottom: 3px; }
-.sn-an-refcat-bar { height: 8px; background: #f0f0f1; border-radius: 4px; overflow: hidden; }
-.sn-an-refcat-bar span { display: block; height: 100%; background: #2271b1; border-radius: 4px; }
+.sn-an-refcat-bar { height: 8px; background: #f0f0f1; border-radius: var(--sn-an-radius); overflow: hidden; }
+.sn-an-refcat-bar span { display: block; height: 100%; background: #2271b1; border-radius: var(--sn-an-radius); }
 .sn-an-dist-bars { display: flex; flex-direction: column; gap: 7px; }
 .sn-an-dist-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .sn-an-dist-l { flex: 0 0 72px; color: #646970; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sn-an-dist--wide .sn-an-dist-l { flex: 0 0 180px; }
-.sn-an-dist-bar { flex: 1; height: 10px; background: #f0f0f1; border-radius: 5px; overflow: hidden; }
-.sn-an-dist-bar span { display: block; height: 100%; background: #2271b1; border-radius: 5px; }
+.sn-an-dist-bar { flex: 1; height: 10px; background: #f0f0f1; border-radius: var(--sn-an-radius); overflow: hidden; }
+.sn-an-dist-bar span { display: block; height: 100%; background: #2271b1; border-radius: var(--sn-an-radius); }
 .sn-an-dist-n { flex: 0 0 auto; }
 .sn-an-heatmap { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
 .sn-an-hm-row { display: flex; align-items: center; gap: 3px; }
 .sn-an-hm-day { flex: 0 0 32px; font-size: 11px; color: #646970; }
-.sn-an-hm-cell { flex: 1; min-width: 9px; height: 14px; background: #f0f0f1; border-radius: 2px; }
-.sn-an-quality-bar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; margin: 0 0 8px; background: #f0f0f1; }
+.sn-an-hm-cell { flex: 1; min-width: 9px; height: 14px; background: #f0f0f1; border-radius: var(--sn-an-radius); }
+.sn-an-quality-bar { display: flex; height: 16px; border-radius: var(--sn-an-radius); overflow: hidden; margin: 0 0 8px; background: #f0f0f1; }
 .sn-an-q { display: block; height: 100%; }
 .sn-an-q--human   { background: #2271b1; }
 .sn-an-q--suspect { background: #dba617; }
 .sn-an-q--bot     { background: #d63638; }
 .sn-an-q-legend { font-size: 12px; color: #646970; margin: 0 0 10px; }
-.sn-an-q-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 2px; }
+.sn-an-q-key { display: inline-block; width: 9px; height: 9px; border-radius: var(--sn-an-radius); margin-right: 2px; }
 .sn-an-subh { font-size: 12px; color: #646970; margin: 10px 0 4px; }
 .sn-an-subh--panel { padding: 0 12px 8px; }
 /* per-dimension inline sparkline (dim tables) — tiny smooth SVG mini-area */
@@ -343,7 +379,7 @@
 /* ── settings surface (Monitoring → Analytics creds form) ───────────────── */
 .sn-an-settings { max-width: 640px; }
 .sn-an-settings-help { color: #646970; font-size: 13px; margin: .25rem 0 1rem; }
-.sn-an-worker { margin-top: 16px; border: 1px solid #dcdcde; border-radius: 6px; padding: 10px 14px; background: #fff; }
+.sn-an-worker { margin-top: 16px; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); padding: 10px 14px; background: #fff; }
 .sn-an-worker summary { cursor: pointer; font-weight: 600; font-size: 13px; color: #1d2327; }
 .sn-an-steps { margin: 10px 0 0; padding-left: 20px; font-size: 13px; color: #1d2327; }
 .sn-an-steps li { margin: 6px 0; }
@@ -357,17 +393,17 @@
 .sn-an-pill--warn { border-color: #e5cf8c; background: #fcf0d6; }
 .sn-an-pill--unknown { border-style: dashed; color: #646970; }
 .sn-an-pill-mark { font-weight: 700; }
-.sn-an-pill--ok .sn-an-pill-mark { color: #00a32a; }
+.sn-an-pill--ok .sn-an-pill-mark { color: var(--sn-an-up); }
 .sn-an-pill--warn .sn-an-pill-mark { color: #996800; }
 .sn-an-pipeline-warn { color: #646970; font-size: 12px; margin: 6px 0 0; }
 .sn-an-mirror-row { font-size: 13px; color: #1d2327; margin: 8px 0; }
-.sn-an-mirror-meter { height: 6px; max-width: 200px; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: var(--sn-radius, 3px); overflow: hidden; margin: 4px 0; }
+.sn-an-mirror-meter { height: 6px; max-width: 200px; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); overflow: hidden; margin: 4px 0; }
 .sn-an-mirror-meter > span { display: block; height: 100%; background: #2271b1; }
 .sn-an-tuning .sn-an-radio { margin-right: 12px; }
 
 /* Engagement percentiles — 3-stat chips (p50/p75/p90). v6.8.0 */
 .sn-an-pctl-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.sn-an-pctl-chip { flex: 1 1 0; min-width: 80px; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 6px; }
+.sn-an-pctl-chip { flex: 1 1 0; min-width: 80px; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); }
 .sn-an-pctl-k { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #646970; }
 .sn-an-pctl-v { font-size: 22px; font-weight: 600; line-height: 1.1; color: #1d2327; font-variant-numeric: tabular-nums; }
 .sn-an-pctl .sn-an-empty { margin: 0; }
@@ -436,27 +472,27 @@
 .sn-an-movers-list li { display: flex; justify-content: space-between; gap: 8px; margin: 0; padding: 3px 0; border-bottom: 1px solid #f6f7f7; font-variant-numeric: tabular-nums; }
 .sn-an-movers-list li:last-child { border-bottom: 0; }
 .sn-an-mover-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sn-an-delta-up { color: #00a32a; font-weight: 600; }
-.sn-an-delta-down { color: #d63638; font-weight: 600; }
+.sn-an-delta-up { color: var(--sn-an-up); font-weight: 600; }
+.sn-an-delta-down { color: var(--sn-an-down); font-weight: 600; }
 .sn-an-mover-more { display: inline-block; margin-top: 4px; font-size: 12px; }
 
 /* ── v8.5.0: referrer categories as chips (CSS-only compaction) ──────────── */
 .sn-an-refcats--chips .sn-an-refcats-bars { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
-.sn-an-refcats--chips .sn-an-refcat { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--sn-radius, 3px); background: #f0f6fc; font-size: 12px; }
+.sn-an-refcats--chips .sn-an-refcat { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--sn-an-radius); background: #f0f6fc; font-size: 12px; }
 .sn-an-refcats--chips .sn-an-refcat-h { display: flex; gap: 6px; }
 .sn-an-refcats--chips .sn-an-refcat-bar { display: none; }
 
 /* ── v8.5.0: crisp console on postbox — the token pass (owner: "B, but keep
    postbox feel"). Real .postbox shells; hairline + radius + numeral treatment
-   from tokens. --sn-an-border is LOCAL: the settings pages' --sn-border
-   (#c3c4c7) contract (tests/admin-polish-v647.php) stays untouched. ────── */
+   from tokens. The hairline now lives in the D4 :root layer (--sn-an-hairline);
+   the settings pages' --sn-border (#c3c4c7) contract (tests/admin-polish-v647.php)
+   stays untouched. ────── */
 .sn-an-postbox {
-	--sn-an-border: #dcdcde;
-	border: 1px solid var(--sn-an-border);
-	border-radius: var(--sn-radius, 3px);
+	border: 1px solid var(--sn-an-hairline);
+	border-radius: var(--sn-an-radius);
 	overflow: hidden; /* radius clips the header bar */
 }
-.sn-an-postbox > .postbox-header { border-bottom: 1px solid var(--sn-an-border); display: flex; align-items: center; }
+.sn-an-postbox > .postbox-header { border-bottom: 1px solid var(--sn-an-hairline); display: flex; align-items: center; }
 .sn-an-postbox .sn-kpi-value {
 	font-size: 1.35rem;
 	font-weight: 600;
@@ -464,7 +500,7 @@
 }
 .sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 1.7rem; font-weight: 600; }
 .sn-an-postbox .sn-kpi,
-.sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-border); }
+.sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-hairline); }
 
 /* ── v8.5.0: rail stretches to the Overview's height — no dead space under
    the Movers tile; mover rows carry muted views beside the delta. ───────── */
@@ -479,24 +515,24 @@
 .sn-an-pulse {
 	display: flex; align-items: center; gap: 16px;
 	margin: 0 0 12px; padding: 8px 14px;
-	background: #fff; border: 1px solid var(--sn-an-border, #dcdcde);
-	border-radius: var(--sn-radius, 3px);
+	background: #fff; border: 1px solid var(--sn-an-hairline);
+	border-radius: var(--sn-an-radius);
 	font-variant-numeric: tabular-nums;
 }
 .sn-an-pulse-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .sn-an-pulse-k { color: var(--sn-text-muted, #646970); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
 .sn-an-pulse-v { font-size: 12px; color: #1d2327; white-space: nowrap; }
 .sn-an-pulse-v--big { font-size: 16px; font-weight: 600; }
-.sn-an-pulse-bar { display: inline-flex; width: 96px; height: 8px; border-radius: 2px; overflow: hidden; background: #f0f0f1; }
+.sn-an-pulse-bar { display: inline-flex; width: 96px; height: 8px; border-radius: var(--sn-an-radius); overflow: hidden; background: #f0f0f1; }
 .sn-an-pulse-bar span { display: block; height: 100%; }
 .sn-an-pulse-spark { width: 72px; height: 18px; }
-.sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-border, #dcdcde); }
+.sn-an-pulse-sep { flex: 0 0 1px; align-self: stretch; background: var(--sn-an-hairline); }
 @media ( max-width: 782px ) { .sn-an-pulse { flex-wrap: wrap; } .sn-an-pulse-sep { display: none; } }
 
 /* v9.33.0 weekly digest in the Insights band */
 .sn-an-digest-head{font-weight:600;margin:0 0 6px}
 .sn-an-digest-next{margin:8px 0 0;font-weight:500}
-.sn-an-rec-brief{font-size:13px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--sn-accent,#2563eb);background:var(--sn-surface-2,#f6f7f7)}
+.sn-an-rec-brief{font-size:13px;line-height:1.5;margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--sn-an-accent);background:var(--sn-an-surface-2)}
 
 /* v9.34.0 brush-to-select + compare note */
 .sn-spark-wrap{position:relative;cursor:crosshair;touch-action:none}
@@ -513,8 +549,9 @@
 /* ── v9.37.0 D1: modern-native treatment — the five touched surfaces ONLY
    (tabs, headline band, toolbar meta, Overview, rail cards). D4 propagates
    the language to every remaining panel and formalizes the tokens.
-   Palette discipline: #2271b1 accent · #1d2327/#50575e/#646970 text ·
-   #dcdcde hairline · deltas #00a32a/#d63638 only. Flat: no shadows. ── */
+   Palette discipline: --sn-an-accent text/rules · --sn-an-text/muted body ·
+   --sn-an-hairline borders · deltas --sn-an-up/--sn-an-down only. Flat except
+   the one sanctioned elevation: the headline band's --sn-an-shadow. ── */
 
 /* Tabs: underline variant — semantics unchanged (<nav> + aria-current). */
 .sn-an-view-tabs { display: flex; flex-wrap: wrap; gap: 14px; border-bottom: 1px solid #dcdcde; padding-top: 0; padding-bottom: 0; margin: 12px 0 16px; }
@@ -522,8 +559,8 @@
 .sn-an-view-tabs .nav-tab:hover, .sn-an-view-tabs .nav-tab:focus { color: #1d2327; background: transparent; }
 .sn-an-view-tabs .nav-tab-active { color: #1d2327; border-bottom: 2px solid #2271b1; background: transparent; }
 
-/* Headline band: hairline card, 4px radius, flat. */
-.sn-an-headline { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 0; margin: 0 0 16px; }
+/* Headline band: the ONE elevated hero surface (D4) — elev-radius + the sanctioned shadow. */
+.sn-an-headline { background: #fff; border: 1px solid #dcdcde; border-radius: var(--sn-an-elev-radius); box-shadow: var(--sn-an-shadow); padding: 0; margin: 0 0 16px; }
 .sn-an-headline > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; font-size: 13px; }
 .sn-an-headline > summary::-webkit-details-marker { display: none; }
 .sn-an-headline > summary::before { content: "▸"; color: #646970; font-size: 11px; }
@@ -545,7 +582,7 @@
 .sn-an-sep-meta { font-size: 11px; color: #646970; align-self: center; margin-left: 8px; }
 
 /* Overview + rail cards: 4px flat hairline (compound selector outweighs the base shell — order-independent). */
-.sn-an-postbox.sn-overview, .sn-an-postbox.sn-an-rail-tile { border-radius: 4px; box-shadow: none; }
+.sn-an-postbox.sn-overview, .sn-an-postbox.sn-an-rail-tile { border-radius: var(--sn-an-radius); box-shadow: none; }
 .sn-overview .hndle span, .sn-an-rail-tile .hndle span { font-size: 13px; font-weight: 600; }
 
 /* KPI hierarchy: the promoted scale, dead since v8.5.0, restored at the

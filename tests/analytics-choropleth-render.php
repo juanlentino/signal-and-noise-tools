@@ -61,8 +61,25 @@ echo "\nGroup: orchestrator empty-state (no file needed)\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 $empty = capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.' ); } );
 ok( '' === trim( $empty ), 'render: empty rows → no panel emitted (omit + fold, v8.5.2)' );
-ok( in_array( 'Countries map', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'render: empty rows → title noted for the fold' );
+$noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted ) && 'Countries map' === $noted[0]['title'], 'render: empty rows → title noted for the fold' );
+ok( 'No country data in this range yet.' === $noted[0]['why'], 'render: empty rows (SVG present) → $empty carried as the fold why, no asset-missing suffix (D4 §4)' );
 ok( strpos( $empty, '<svg' ) === false, 'render: empty rows → no SVG emitted' );
+
+echo "\nGroup: orchestrator missing-SVG fold causes (injected empty asset)\n";
+// T5 review: two distinct fold causes must not share one why. Data present but
+// the vendored asset missing is an operational fault — the why must say ONLY
+// that, never the false "no data" copy. No data (asset state irrelevant) keeps
+// plain $empty alone.
+unset( $GLOBALS['sn_an_empty_panels'] );
+$noasset = capture( function () { snt_analytics_render_choropleth( 'Countries map', array( array( 'value' => 'US', 'views' => 100, 'visits' => 40 ) ), 'No country data in this range yet.', '' ); } );
+ok( '' === trim( $noasset ), 'render: data + missing SVG → folds, no panel' );
+$noted_na = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_na ) && 'World map asset missing.' === $noted_na[0]['why'], 'render: data + missing SVG → why is ONLY the asset fault (no false "no data" copy)' );
+unset( $GLOBALS['sn_an_empty_panels'] );
+capture( function () { snt_analytics_render_choropleth( 'Countries map', array(), 'No country data in this range yet.', '' ); } );
+$noted_nd = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_nd ) && 'No country data in this range yet.' === $noted_nd[0]['why'], 'render: no data (asset also missing) → plain $empty alone, the data gap dominates' );
 
 echo "\nGroup: orchestrator with the real vendored asset\n";
 $real = capture( function () { snt_analytics_render_choropleth( 'Countries map', array( array( 'value' => 'US', 'views' => 100, 'visits' => 40 ) ), 'No country data.' ); } );
@@ -71,6 +88,12 @@ ok( strpos( $real, '<svg' ) !== false && strpos( $real, 'rgba(34,113,177' ) !== 
 ok( strpos( $real, 'United States' ) !== false, 'render: tooltip uses the country name (data-name) from the asset, not the bare ISO code' );
 ok( strpos( $real, 'sn-map-legend' ) !== false, 'render: legend strip (Low/Med/High swatches) present' );
 ok( strpos( $real, 'postbox' ) !== false, 'render: choropleth wrapped in native postbox' );
+// v9.40.0 D4: the choropleth postbox now routes through the shared panel
+// primitive — pin the new sn-an-postbox marker alongside the existing
+// sn-an-choropleth class, and the exact title.
+ok( strpos( $real, 'class="postbox sn-an-postbox sn-an-choropleth"' ) !== false,
+	'render: choropleth panel adopts the primitive and keeps its sn-an-choropleth class' );
+ok( strpos( $real, '<span>Countries map</span>' ) !== false, 'render: choropleth title stays pinned' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

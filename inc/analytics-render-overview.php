@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_smooth_path (trend) + snt_analytics_fmt_time (cards)
+require_once __DIR__ . '/analytics-panels.php'; // snt_an_delta_badge + snt_an_kpi_row (v9.40.0 D4 primitives)
 
 /**
  * Slim SVG sparkline trend (polyline + area fill + last-point dot + axis labels).
@@ -114,16 +115,8 @@ function snt_analytics_render_trend( $series, $granularity = 'day', $compare_ser
  * @param array|null $delta {pct:?int, dir:string}
  */
 function snt_analytics_render_delta_badge( $delta ) {
-	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
-		return;
-	}
-	$dir   = (string) $delta['dir'];
-	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
-	$pct   = $delta['pct'] ?? null;
-	$text  = ( null === $pct )
-		? ( 'up' === $dir ? 'new' : '—' )
-		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
-	echo ' <span class="sn-an-delta sn-an-delta--' . esc_attr( $dir ) . '">' . esc_html( $arrow . ' ' . $text ) . '</span>';
+	// v9.40.0 D4: thin wrapper — delegates to the shared primitive (inline variant).
+	snt_an_delta_badge( $delta );
 }
 
 /**
@@ -134,30 +127,8 @@ function snt_analytics_render_delta_badge( $delta ) {
  * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
  */
 function snt_analytics_render_delta_badge_kpi( $delta, $basis_label = '' ) {
-	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
-		return;
-	}
-	$dir   = (string) $delta['dir'];
-	$cls   = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );
-	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
-	$pct   = $delta['pct'] ?? null;
-	$text  = ( null === $pct )
-		? ( 'up' === $dir ? 'new' : '—' )
-		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
-	// v8.5.0 (data-obsessed pass): the absolute prior-period value rides a
-	// tooltip so the % is never the whole story. Escaping at the point of
-	// output (the sniff cannot see through a pre-built attribute string).
-	// v9.38.0 (D2): the tooltip's basis label follows the SAME resolved
-	// comparison frame as everything else (see analytics-header-region.php) —
-	// 'previous period' by default, 'same period last year' on yoy.
-	$prev_title = '';
-	if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
-		$prev       = (float) $delta['previous'];
-		$prev_title = ( '' !== (string) $basis_label ? (string) $basis_label : __( 'previous period', 'signal-and-noise-tools' ) ) . ': ' . number_format_i18n( $prev, ( $prev == (int) $prev ) ? 0 : 1 );
-	}
-	echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '"'
-		. ( '' !== $prev_title ? ' title="' . esc_attr( $prev_title ) . '"' : '' )
-		. '><span class="sn-delta-arrow">' . esc_html( $arrow ) . '</span> ' . esc_html( $text ) . '</span>';
+	// v9.40.0 D4: thin wrapper — delegates to the shared primitive (kpi variant).
+	snt_an_delta_badge( $delta, array( 'variant' => 'kpi', 'basis_label' => $basis_label ) );
 }
 
 /**
@@ -187,21 +158,10 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	// Body-only (no postbox wrapper): render_dashboard fuses this KPI strip and the
 	// trend chart into a single "Overview" panel (v6.5.2) so the sparkline is the
 	// panel's footer rather than a lonely half-empty box.
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		if ( ! empty( $c['live'] ) ) {
-			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
-		} elseif ( ! empty( $c['delta'] ) ) {
-			snt_analytics_render_delta_badge_kpi( $c['delta'], $basis_label );
-		} else {
-			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'no change', 'signal-and-noise-tools' ) . '</span>';
-		}
-		echo '</div>';
-	}
-	echo '</div>';
+	// v9.40.0 D4: routes through the shared row primitive — l/n/delta/live keys
+	// are already primitive-compatible; its default slot prints "no change"
+	// exactly like the old else-branch.
+	snt_an_kpi_row( $cards, array( 'basis_label' => $basis_label ) );
 }
 
 /**

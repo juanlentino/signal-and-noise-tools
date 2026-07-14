@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-panels.php'; // snt_an_annotation + snt_an_kpi_row (house style: don't lean on loader order).
+
 const SN_LIFECYCLE_TABLE_LIMIT = 50; // rows rendered (candidates sort first); census counts the full catalogue.
 
 /**
@@ -25,11 +27,10 @@ const SN_LIFECYCLE_TABLE_LIMIT = 50; // rows rendered (candidates sort first); c
  */
 function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	if ( ! is_array( $lifecycle ) || empty( $lifecycle['rows'] ) ) {
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-			. esc_html__( 'Lifecycle at scale', 'signal-and-noise-tools' )
-			. '</span></h2></div><div class="inside sn-an-panel"><p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'No catalogue data yet — once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+		snt_an_gate(
+			__( 'Lifecycle at scale', 'signal-and-noise-tools' ),
+			__( 'No catalogue data yet — once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -37,38 +38,36 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	$counts  = is_array( $summary['counts'] ?? null ) ? $summary['counts'] : array();
 	$cands   = (int) ( $summary['refresh_candidates'] ?? 0 );
 
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-an-panel',
+		)
+	);
 
 	snt_an_annotation( sn_annotation_lifecycle( $summary ) );
 
 	// ── Glance: the actionable number + the shape census, in cloned .sn-kpi cards.
+	// v9.40.0 D4: 'sub' cards are colored TEXT descriptors (no real {pct,dir}
+	// pair) — 'sub_class' rides the candidate-count-derived class; the three
+	// always-flat cards omit it and fall through to the primitive's default.
 	$cards = array(
 		array(
-			'l'        => __( 'Refresh candidates', 'signal-and-noise-tools' ),
-			'n'        => number_format_i18n( $cands ),
-			'sub'      => __( 'cooling, not evergreen', 'signal-and-noise-tools' ),
-			'promoted' => true,
-			'dir'      => $cands > 0 ? 'down' : 'flat',
+			'l'         => __( 'Refresh candidates', 'signal-and-noise-tools' ),
+			'n'         => number_format_i18n( $cands ),
+			'sub'       => __( 'cooling, not evergreen', 'signal-and-noise-tools' ),
+			'promoted'  => true,
+			'sub_class' => $cands > 0 ? 'sn-delta-down' : 'sn-delta-flat',
 		),
-		array( 'l' => __( 'Cooling', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['cooling'] ?? 0 ) ), 'sub' => __( 'losing steam', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
-		array( 'l' => __( 'Evergreen', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['evergreen'] ?? 0 ) ), 'sub' => __( 'sustained tail', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
-		array( 'l' => __( 'Spike', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['spike'] ?? 0 ) ), 'sub' => __( 'front-loaded', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
+		array( 'l' => __( 'Cooling', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['cooling'] ?? 0 ) ), 'sub' => __( 'losing steam', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Evergreen', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['evergreen'] ?? 0 ) ), 'sub' => __( 'sustained tail', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Spike', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['spike'] ?? 0 ) ), 'sub' => __( 'front-loaded', 'signal-and-noise-tools' ) ),
 	);
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		$cls = 'down' === $c['dir'] ? 'sn-delta-down' : 'sn-delta-flat';
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '">' . esc_html( $c['sub'] ) . '</span>';
-		echo '</div>';
-	}
-	echo '</div>';
+	snt_an_kpi_row( $cards );
 
 	echo '<p class="sn-an-foot">' . esc_html__( 'Shape is each Note\'s early-life share of its lifetime views. A refresh candidate is a cooling Note you haven\'t marked evergreen — the editorial call the data can\'t make.', 'signal-and-noise-tools' ) . '</p>';
-	echo '</div></div>';
+	snt_an_panel_close();
 
 	snt_analytics_render_lifecycle_table( (array) $lifecycle['rows'], (int) ( $summary['total'] ?? 0 ) );
 }
@@ -80,9 +79,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
  * @param int   $total Full catalogue count (for the truncation note).
  */
 function snt_analytics_render_lifecycle_table( $rows, $total ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Refresh queue', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside sn-an-table-inside">';
+	snt_an_panel_open( __( 'Refresh queue', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 
 	$shown = array_slice( $rows, 0, SN_LIFECYCLE_TABLE_LIMIT );
 
@@ -114,7 +111,7 @@ function snt_analytics_render_lifecycle_table( $rows, $total ) {
 			(int) $total
 		) ) . '</p>';
 	}
-	echo '</div></div>';
+	snt_an_panel_close();
 }
 
 /**

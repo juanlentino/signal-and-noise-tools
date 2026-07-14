@@ -24,21 +24,20 @@ require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_fmt_tim
  * @param array $cats [{category,label,views,visits}]
  */
 function snt_analytics_render_referrer_categories( $cats ) {
+	$total = 0;
+	foreach ( (array) $cats as $c ) {
+		$total += (int) ( $c['views'] ?? 0 );
+	}
+	if ( $total <= 0 ) {
+		snt_an_note_empty( __( 'Referrer categories', 'signal-and-noise-tools' ), 'No referrer data in this range yet.' );
+		return;
+	}
 	// v8.5.0: retitled from 'Traffic sources' — it sat directly under the
 	// 'Top sources' table in the new side column and the near-duplicate
 	// titles read as the same panel twice (approved mockup: 'Referrer
 	// categories'). Chips compaction is CSS-only.
 	snt_an_panel_open( __( 'Referrer categories', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
 	echo '<div class="sn-an-panel sn-an-refcats sn-an-refcats--chips">';
-	$total = 0;
-	foreach ( (array) $cats as $c ) {
-		$total += (int) ( $c['views'] ?? 0 );
-	}
-	if ( $total <= 0 ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No referrer data in this range yet.</p></div>';
-		snt_an_panel_close();
-		return;
-	}
 	echo '<div class="sn-an-refcats-bars">';
 	foreach ( (array) $cats as $c ) {
 		$v   = (int) ( $c['views'] ?? 0 );
@@ -67,7 +66,7 @@ function snt_analytics_render_distribution( $title, $rows, $empty_msg = '', $wid
 		$max = max( $max, (int) ( $r['views'] ?? 0 ) );
 	}
 	if ( $max <= 0 ) {
-		snt_an_note_empty( $title );
+		snt_an_note_empty( $title, $empty_msg );
 		return;
 	}
 	snt_an_panel_open( $title, array( 'inside_class' => 'inside inside-flush' ) );
@@ -95,13 +94,12 @@ function snt_analytics_render_distribution( $title, $rows, $empty_msg = '', $wid
 function snt_analytics_render_heatmap( $heatmap ) {
 	$grid = ( isset( $heatmap['grid'] ) && is_array( $heatmap['grid'] ) ) ? $heatmap['grid'] : array();
 	$max  = (int) ( $heatmap['max'] ?? 0 );
-	snt_an_panel_open( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-heatmap-panel">';
 	if ( $max <= 0 || empty( $grid ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No hourly data in this range yet.</p></div>';
-		snt_an_panel_close();
+		snt_an_note_empty( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), 'No hourly data in this range yet.' );
 		return;
 	}
+	snt_an_panel_open( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<div class="sn-an-panel sn-an-heatmap-panel">';
 	$days = array( 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat', 7 => 'Sun' );
 	echo '<div class="sn-an-heatmap" aria-hidden="true">';
 	foreach ( $days as $dow => $label ) {
@@ -160,14 +158,14 @@ function snt_analytics_render_heatmap( $heatmap ) {
  * @return void
  */
 function snt_analytics_render_percentiles( $title, $rows, $format = 'pct', $empty_msg = '', $note = '' ) {
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<div class="sn-an-panel sn-an-pctl">';
 	if ( ! is_array( $rows ) || empty( $rows ) ) {
 		$msg = ( '' !== $empty_msg ) ? $empty_msg : 'No ' . strtolower( $title ) . ' data in this range yet.';
-		echo '<p class="sn-an-empty">' . esc_html( $msg ) . '</p></div>';
-		snt_an_panel_close();
+		$why = $msg . ( '' !== $note ? ' ' . $note : '' );
+		snt_an_note_empty( $title, $why );
 		return;
 	}
+	snt_an_panel_open( $title, array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<div class="sn-an-panel sn-an-pctl">';
 	echo '<div class="sn-an-pctl-row">';
 	foreach ( $rows as $r ) {
 		$label = strtoupper( (string) ( $r['label'] ?? '' ) );

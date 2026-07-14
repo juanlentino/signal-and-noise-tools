@@ -34,7 +34,10 @@ ob_start();
 snt_analytics_render_anomalies( array( 'divergence' => array(), 'outliers' => array() ) );
 $empty_html = ob_get_clean();
 ok( '' === trim( $empty_html ), 'render: no anomalies → emits no panel markup' );
-ok( in_array( 'Engagement anomalies', (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() ), true ), 'render: no anomalies → folds to empty note (no full panel)' );
+// v9.40.0 D4: the collector now stores { title, why } shape (fold contract in
+// tests/analytics-primitives.php) instead of a plain title string.
+$anom_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $anom_noted ) && 'Engagement anomalies' === $anom_noted[0]['title'], 'render: no anomalies → folds to empty note (no full panel)' );
 
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start();

@@ -65,8 +65,10 @@ snt_analytics_render_summary_panels(
 );
 $out = ob_get_clean();
 ok( is_string( $out ), 'render produced output without fatal' );
-ok( false !== strpos( $out, 'postbox' ), 'emitted a real .postbox panel' );
-ok( false !== strpos( $out, 'Visit quality' ), 'emitted the Visit quality panel title' );
+// D4 §4: a dataless Visit-quality panel now folds instead of opening a postbox
+// with an inline empty message — no visits this range means no postbox at all.
+ok( false === strpos( $out, 'postbox' ), 'no visits: no .postbox panel emitted (folds instead, D4 §4)' );
+ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Visit quality' ), 'no visits: title survives into the empty fold' );
 
 // Regression guard for the funnel/transition empty-state delegation: a visible
 // transition row PLUS a funnel whose report is all-zero (nobody reached step 1).
@@ -83,6 +85,9 @@ snt_analytics_render_summary_panels(
 $out2 = ob_get_clean();
 ok( false !== strpos( $out2, '[dim-panel:Top paths:1]' ), 'non-empty transition rendered as a titled "Top paths" panel with its 1 row' );
 ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'visit quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
+// v9.40.0 D4: the cards now route through the shared snt_an_kpi_row primitive —
+// pin its flat sub-descriptor rendering (the sole slot shape this view uses).
+ok( false !== strpos( $out2, 'sn-delta-flat">with a pageview' ), 'shared row primitive renders the sub descriptor with its flat class' );
 // The OLD hollow-panel bug emitted a real .postbox with the funnel name in its
 // hndle heading (<h2 class="hndle"><span>Empty funnel</span></h2>) wrapping an
 // empty body. Assert that exact markup is gone.
@@ -134,6 +139,19 @@ snt_analytics_render_summary_panels(
 );
 $out6 = ob_get_clean();
 ok( false === strpos( $out6, 'class="sn-an-note"' ), 'a typical range with spread conversions emits no read' );
+
+// v9.40.0 D4: snt_analytics_render_view_sessions()'s AE-dormant gate had no prior
+// coverage in this suite (it only exercised snt_analytics_render_summary_panels).
+// Add it: the old idiom was a titleless bare <p> — adopting snt_an_gate() is a
+// deliberate shape upgrade to full postbox chrome (same class as the other
+// unified gates), which this pin now locks in.
+echo "\nGroup: AE dormant gate (no live Analytics Engine data for this window)\n";
+ob_start();
+snt_analytics_render_view_sessions( '2026-07-01', '2026-07-07', 'human' );
+$gate = (string) ob_get_clean();
+ok( false !== strpos( $gate, 'sn-an-gate' ), 'AE gate: unified gate marker present (upgrade from the old titleless bare <p>)' );
+ok( false !== strpos( $gate, 'Visit analytics need live Analytics Engine data for this window.' ), 'AE gate: exact original message preserved' );
+ok( false !== strpos( $gate, '<span>Visits</span>' ), 'AE gate: carries a title' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
