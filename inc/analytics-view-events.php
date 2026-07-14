@@ -30,7 +30,7 @@ function snt_analytics_render_view_events( $from, $to ) {
 	// Human/Suspect/Bot control is inert here — say so explicitly, but only when
 	// there is a panel below for the caveat to apply to (D5 §6: an all-empty
 	// range would otherwise orphan the note above two folded panels).
-	if ( ! empty( $events ) || ! empty( $props ) ) {
+	if ( ! empty( $events ) || ! empty( $props ) || '' !== $ev_prop ) { // active filter = the carve-out panel below is OPEN even when empty (T6 review).
 		echo '<p class="sn-an-sep">Custom events are <strong>not segmented by traffic class</strong> — the class filter above does not apply to this view.</p>';
 	}
 	echo '<div class="sn-an-grid">';

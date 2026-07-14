@@ -56,6 +56,16 @@ snt_analytics_render_view_events( '2026-07-01', '2026-07-07' );
 $props_html = (string) ob_get_clean();
 ok( false !== strpos( $props_html, 'not segmented by traffic class' ), 'event-props data present: caveat PRESENT' );
 
+echo "\nTest: T6 review — filtered-empty keeps the caveat (an OPEN carve-out panel sits below it)\n";
+$GLOBALS['__ev_events']  = array();
+$GLOBALS['__ev_props']   = array();
+$_GET['sn_event_prop'] = 'utm_source';
+ob_start();
+snt_analytics_render_view_events( '2026-07-01', '2026-07-07' );
+$filtered_html = (string) ob_get_clean();
+ok( false !== strpos( $filtered_html, 'not segmented by traffic class' ), 'filtered-empty: caveat PRESENT (the carve-out panel below it is open)' );
+unset( $_GET['sn_event_prop'] );
+
 echo "\nTest: the D4 filtered ?sn_event_prop carve-out still reaches the props accessor unchanged\n";
 $GLOBALS['__ev_events'] = array();
 $GLOBALS['__ev_props']  = array();
