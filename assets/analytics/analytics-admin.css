@@ -542,7 +542,7 @@
 .sn-an-view-tabs .nav-tab:hover, .sn-an-view-tabs .nav-tab:focus { color: #1d2327; background: transparent; }
 .sn-an-view-tabs .nav-tab-active { color: #1d2327; border-bottom: 2px solid #2271b1; background: transparent; }
 
-/* Headline band: hairline card, 4px radius, flat. */
+/* Headline band: the ONE elevated hero surface (D4) — elev-radius + the sanctioned shadow. */
 .sn-an-headline { background: #fff; border: 1px solid #dcdcde; border-radius: var(--sn-an-elev-radius); box-shadow: var(--sn-an-shadow); padding: 0; margin: 0 0 16px; }
 .sn-an-headline > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; font-size: 13px; }
 .sn-an-headline > summary::-webkit-details-marker { display: none; }

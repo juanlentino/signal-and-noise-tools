@@ -22,7 +22,7 @@ echo "\nTest: the sn-an-postbox shell treatment\n";
 ok( false !== strpos( $an, '--sn-an-hairline: #dcdcde' ), 'local hairline token defined (settings pages keep their #c3c4c7 contract untouched)' );
 ok( false !== strpos( $an, '.sn-an-postbox' ), 'shell treatment targets the primitive marker class' );
 ok( false !== strpos( $an, 'border: 1px solid var(--sn-an-hairline' ), 'shell border reads the token' );
-ok( false !== strpos( $an, 'border-radius: var(--sn-an-radius' ), 'shell radius reads the v8.0.3 token (3px crisp-console)' );
+ok( false !== strpos( $an, 'border-radius: var(--sn-an-radius' ), 'shell radius reads the D4 token (--sn-an-radius, 4px)' );
 
 echo "\nTest: KPI numerals — the v8.0.3 glance contract\n";
 ok( false !== strpos( $an, '.sn-an-postbox .sn-kpi-value' ), 'KPI override is scoped to primitive panels' );
@@ -48,7 +48,7 @@ ok( false !== strpos( $an, '.sn-an-sep-meta' ), 'D1: toolbar separation meta sty
 ok( false !== strpos( $an, '.sn-an-uptime' ), 'D1: merged uptime details card styled' );
 ok( preg_match( '/\.sn-overview \.sn-an-note\s*\{[^}]*border-left:\s*3px solid #2271b1/s', $an ) === 1, 'D1: Overview annotation = accent-bar callout (the .sn-an-note idiom, reused)' );
 $d1 = substr( $an, (int) strpos( $an, 'v9.37.0 D1' ) );
-ok( false !== strpos( $d1, 'box-shadow: none' ) && preg_match( '/box-shadow:\s*0/', $d1 ) === 0, 'D1 block: flat — the core postbox shadow is explicitly switched off, no new shadows added' );
+ok( false !== strpos( $d1, 'box-shadow: none' ) && preg_match( '/box-shadow:\s*0/', $d1 ) === 0, 'D1 block: panels stay flat (box-shadow: none) and any shadow must ride the token, never a literal' );
 ok( false === strpos( $d1, '#2563eb' ) && false === strpos( $d1, '#6b7280' ) && false === strpos( $d1, '#e2e4e7' ), 'D1 block: native palette only' );
 
 echo "\nTest: D4 — the namespaced token layer\n";
