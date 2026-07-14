@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.40.0] - 2026-07-14: Analytics dashboard D4 — token layer, shared primitives, one empty-state convention
+
+**Headline:** The dashboard's design vocabulary becomes ONE namespaced token layer (`--sn-an-*`): one accent (#2271b1), one delta green (#0a7c2f — the only one of the former three passing WCAG AA at badge sizes), one red, one hairline, one radius — and the headline band gains the single sanctioned hero elevation (owner-picked "modern"). Three shared primitives retire the clone farms: ONE delta badge (two renderers merged, byte-parity proven), ONE KPI-card row (5 hand-cloned loops), ONE config/dormant gate (5 idioms; first-run gates keep `button-primary` weight via `cta_primary`). And ONE empty-state convention: a dataless view-body panel never renders open — it folds into the per-view collector, now a native `<details>` whose body finally renders the ~25 crafted diagnostic strings ("needs the web-vitals beacon…", "tag a link with ?utm_source=…") that have been dead since they were written. Panels emptied by an ACTIVE user filter (the drill panel, filtered event properties) stay open so the Clear escape hatch survives. Fourth increment of the dashboard revamp (D4 of 5).
+
+> **Why MINOR:** new user-visible surface behavior (hero band, expandable diagnostics, folding empties) + new public primitives; no breaking change — panel titles, data, URLs, and login-defense are untouched.
+
+### Added
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): the `:root` `--sn-an-*` token block (accent/up/down/hairline/muted/text/surfaces/radius + elev-radius/shadow for the headline band only).
+- [inc/analytics-panels.php](inc/analytics-panels.php): `snt_an_delta_badge()` (kpi + inline variants), `snt_an_kpi_row()` (card keys l/n/promoted/live/delta/sub/sub_class), `snt_an_gate()` (with `cta_primary`) — the primitives home grows the trio.
+- [tests/analytics-primitives.php](tests/analytics-primitives.php): primitive + empty-fold contract suite (29 assertions).
+
+### Changed
+- CSS re-base: #006b18/#b32d2e/#2563eb retired; #00a32a re-points to the green token (incl. the status-ok pill); 2/3/5/6px radii + `--sn-radius` refs consolidate onto `--sn-an-radius` (4px); `--sn-an-border` folds into `--sn-an-hairline`; `.sn-an-headline` carries the hero elevation; the D1 `.postbox.sn-overview` KPI specificity block is untouched.
+- [inc/analytics-render-overview.php](inc/analytics-render-overview.php): both delta-badge renderers are now thin wrappers over the primitive; `snt_analytics_render_cards()` routes through `snt_an_kpi_row()` (visits, posts hero, lifecycle glance, and edge clones follow — login-defense's clone stays for D5).
+- Raw postboxes at posts/lifecycle/edge/choropleth adopt `snt_an_panel_open()` (8 sites gain the `.sn-an-postbox` token treatment); the dashboard/edge/visits/posts/lifecycle gates become `snt_an_gate()` (three upgrade from bare paragraphs to titled panels; the first-run dashboard gate keeps its primary CTA).
+- [inc/analytics-panels.php](inc/analytics-panels.php): `snt_an_note_empty( $title, $why )` + the collector renders a `<details>` with per-panel diagnostics when any why exists (plain line otherwise, byte-identical); `dim_table`/`distribution`/`percentiles`/`choropleth` forward their previously-dead empty copy; ~13 inline-empty view-body panels convert to the fold. Named exceptions: Movers/Uptime rail tiles, login-defense (D5), the tail hint, active-filter panels, the gate itself.
+- [inc/analytics-view-content.php](inc/analytics-view-content.php): the "Journeys & diagnostics" label and grid fold away with their panels when entry/exit/low-engagement are all empty (no more orphaned section label).
+- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): carry-matrix docblock names the movers deep-link exception (D3 rider).
+
+### Tests
+- New primitives suite; tokens suite re-pinned to the new vocabulary (+ hero + fold-summary color pins); label-14 pin added; the vacuous `sn_drill` tab pin removed (its real pin lives in the param-carry contract suite); fold-shape pins across ~16 view/render suites; div-balance regression pins on the converted panels.
+
 ## [9.39.0] - 2026-07-14: Analytics dashboard D3 — one range control, one param-carry matrix
 
 **Headline:** The three range clusters (fixed pills, calendar-preset links, the custom-range disclosure) collapse into ONE native `<details>` dropdown labeled with the current range — "Last 30 days", "This quarter", "2026-06-01 – 2026-07-13" — with rolling, calendar, and custom rows inside (all 14 range tokens unchanged, zero JS). Underneath it, ONE param-carry matrix: context params (view, window, class, compare) survive every in-dashboard navigation; view-local filters (drill, event property, login-defense range) reset on view switch and survive everything else. That fixes a real bug — the compare pills silently reset the window to 7d/human — plus the stale events-filter tab leak, and the Movers deep link now lands on the Posts view in YOUR window. Third increment of the dashboard revamp (D3 of 5).
