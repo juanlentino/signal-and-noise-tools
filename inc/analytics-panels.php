@@ -206,8 +206,10 @@ function snt_an_delta_badge( $delta, $opts = array() ) {
  * THE KPI-card row (v9.40.0 D4): the one loop behind the Overview strip and its
  * former clones (visits, posts hero, lifecycle glance, edge). Card keys:
  * l (label), n (value), promoted?, live?, delta? (badge array), sub? (flat
- * descriptor). Slot precedence live > delta > sub > default. Malformed cards
- * are skipped silently.
+ * descriptor), sub_class? (CSS class for the sub descriptor; default
+ * 'sn-delta-flat' — lets a clone color its text descriptor, e.g. sn-delta-down,
+ * without needing a real {pct,dir} delta). Slot precedence live > delta > sub >
+ * default. Malformed cards are skipped silently.
  *
  * @param array $cards
  * @param array $opts {empty_slot?:'no-change'|'omit', row_class?:string, basis_label?:string}
@@ -226,7 +228,7 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
 		} elseif ( ! empty( $c['delta'] ) ) {
 			snt_an_delta_badge( $c['delta'], array( 'variant' => 'kpi', 'basis_label' => (string) ( $opts['basis_label'] ?? '' ) ) );
 		} elseif ( isset( $c['sub'] ) && '' !== (string) $c['sub'] ) {
-			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( (string) $c['sub'] ) . '</span>';
+			echo '<span class="sn-kpi-delta ' . esc_attr( (string) ( $c['sub_class'] ?? 'sn-delta-flat' ) ) . '">' . esc_html( (string) $c['sub'] ) . '</span>';
 		} elseif ( 'omit' !== ( $opts['empty_slot'] ?? 'no-change' ) ) {
 			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'no change', 'signal-and-noise-tools' ) . '</span>';
 		}

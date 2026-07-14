@@ -31,8 +31,8 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 	if ( (int) $metrics['visits'] < 1 ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No visits in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
-		// Cohesive with the Overview KPI strip — same sn-kpi-row / sn-kpi cards. No
-		// period-over-period delta here yet, so the delta slot carries a muted
+		// Cohesive with the Overview KPI strip — now literally shares snt_an_kpi_row.
+		// No period-over-period delta here yet, so the delta slot carries a muted
 		// descriptor (matches the strip's three-line card rhythm).
 		$cards = array(
 			array( 'l' => __( 'Visits', 'signal-and-noise-tools' ),          'n' => number_format_i18n( (int) $metrics['visits'] ),                'sub' => __( 'with a pageview', 'signal-and-noise-tools' ),    'promoted' => true ),
@@ -41,15 +41,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 			array( 'l' => __( 'Median duration', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $metrics['median_duration'] ) . 's', 'sub' => __( 'per visit', 'signal-and-noise-tools' ) ),
 			array( 'l' => __( 'Engaged reads', 'signal-and-noise-tools' ),   'n' => number_format_i18n( $metrics['engaged_rate'] * 100, 1 ) . '%', 'sub' => __( 'scroll + dwell', 'signal-and-noise-tools' ) ),
 		);
-		echo '<div class="sn-kpi-row">';
-		foreach ( $cards as $c ) {
-			echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-			echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-			echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html( $c['sub'] ) . '</span>';
-			echo '</div>';
-		}
-		echo '</div>';
+		snt_an_kpi_row( $cards );
 		if ( $capped ) {
 			echo '<p class="sn-an-empty">' . esc_html__( 'Results capped for this window — narrow the date range for exact figures.', 'signal-and-noise-tools' ) . '</p>';
 		}

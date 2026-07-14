@@ -29,6 +29,8 @@ $h = cap( function () { snt_an_delta_badge( array( 'pct' => null, 'dir' => 'up' 
 ok( false !== strpos( $h, '>new<' ) || false !== strpos( $h, ' new</span>' ), 'kpi: null pct + up = "new"' );
 ok( '' === cap( function () { snt_an_delta_badge( null, array( 'variant' => 'kpi' ) ); } ), 'kpi: null delta = silent no-op' );
 ok( '' === cap( function () { snt_an_delta_badge( array( 'pct' => 5 ), array( 'variant' => 'kpi' ) ); } ), 'kpi: missing dir = silent no-op' );
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => 0, 'dir' => 'flat' ), array( 'variant' => 'kpi' ) ); } );
+ok( false !== strpos( $h, 'sn-delta-flat' ) && false !== strpos( $h, '■' ), 'kpi: flat dir renders the flat class + square' );
 
 echo "\nGroup: snt_an_delta_badge — inline variant\n";
 $h = cap( function () { snt_an_delta_badge( array( 'pct' => -8, 'dir' => 'down' ) ); } );
@@ -47,11 +49,13 @@ ok( false !== strpos( $h, 'sn-delta-up' ) && false !== strpos( $h, '+5%' ), 'del
 ok( false !== strpos( $h, '>live<' ), 'live card renders the live slot' );
 ok( false !== strpos( $h, 'sn-delta-flat">of 120 visits' ), 'sub card renders flat descriptor' );
 ok( false !== strpos( $h, 'no change' ), 'bare card defaults to "no change"' );
+$sc = cap( function () { snt_an_kpi_row( array( array( 'l' => 'Cooling', 'n' => '4', 'sub' => 'losing steam', 'sub_class' => 'sn-delta-down' ) ) ); } );
+ok( false !== strpos( $sc, 'sn-delta-down">losing steam' ), 'sub_class overrides the default flat class on a sub descriptor' );
 $h = cap( function () use ( $cards ) { snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit', 'row_class' => 'sn-kpi-row--edge' ) ); } );
 ok( false === strpos( $h, 'no change' ), 'empty_slot=omit suppresses the default slot (edge idiom)' );
 ok( false !== strpos( $h, 'sn-kpi-row sn-kpi-row--edge' ), 'row_class rides the wrapper' );
 $h = cap( function () { snt_an_kpi_row( array( array( 'n' => 'orphan' ), 'not-an-array' ) ); } );
-ok( false !== strpos( $h, 'sn-kpi-row' ) && false === strpos( $h, 'orphan-label' ), 'malformed cards degrade silently (no notice)' );
+ok( '<div class="sn-kpi-row"></div>' === $h, 'malformed cards degrade silently (empty row, no notice)' );
 
 echo "\nGroup: snt_an_gate — the ONE config/dormant gate\n";
 $h = cap( function () { snt_an_gate( 'Edge', 'Not configured yet.', 'Configure →', 'https://x/wp-admin/admin.php?page=sn-theme-options' ); } );

@@ -72,14 +72,9 @@ function snt_edge_render_view( $from, $to ) {
 			$ret_days
 		) ) . '</p>';
 	}
-	echo '<div class="sn-kpi-row sn-kpi-row--edge">';
-	foreach ( $cards as $c ) {
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		echo '</div>';
-	}
-	echo '</div>';
+	// v9.40.0 D4: no card here carries live/delta/sub, so empty_slot=omit
+	// reproduces the old loop's silence (label + value only, no third line).
+	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit', 'row_class' => 'sn-kpi-row--edge' ) );
 	if ( function_exists( 'snt_analytics_render_trend' ) ) {
 		snt_analytics_render_trend( sn_edge_daily_series( $from, $to ) );
 	}

@@ -105,24 +105,19 @@ function snt_analytics_render_post_hero( $subject ) {
 		/* translators: %d: days since publish. */
 		: sprintf( _n( 'in %d day', 'in %d days', $age, 'signal-and-noise-tools' ), $age );
 
+	// v9.40.0 D4: 'sub' cards are always colored TEXT descriptors here (no real
+	// {pct,dir} pair) — 'sub_class' rides the dir-derived class; the three
+	// always-flat cards omit it and fall through to the primitive's default.
 	$cards = array(
-		array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['views'] ), 'promoted' => true, 'sub' => $age_sub, 'dir' => 'flat' ),
-		array( 'l' => __( 'vs your typical', 'signal-and-noise-tools' ), 'n' => $verdict, 'promoted' => true, 'sub' => $descr, 'dir' => $dir ),
+		array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['views'] ), 'promoted' => true, 'sub' => $age_sub ),
+		array( 'l' => __( 'vs your typical', 'signal-and-noise-tools' ), 'n' => $verdict, 'promoted' => true, 'sub' => $descr, 'sub_class' => 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' ) ),
 		/* translators: %d: total recent Notes compared. */
-		array( 'l' => __( 'Rank', 'signal-and-noise-tools' ), 'n' => '#' . (int) $rank['rank'], 'sub' => sprintf( __( 'of %d recent', 'signal-and-noise-tools' ), (int) $rank['of'] ), 'dir' => 'flat' ),
-		array( 'l' => __( 'Lifetime', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['lifetime'] ), 'sub' => __( 'all-time', 'signal-and-noise-tools' ), 'dir' => 'flat' ),
+		array( 'l' => __( 'Rank', 'signal-and-noise-tools' ), 'n' => '#' . (int) $rank['rank'], 'sub' => sprintf( __( 'of %d recent', 'signal-and-noise-tools' ), (int) $rank['of'] ) ),
+		array( 'l' => __( 'Lifetime', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $subject['lifetime'] ), 'sub' => __( 'all-time', 'signal-and-noise-tools' ) ),
 	);
 
-	echo '<div class="sn-kpi-row">';
-	foreach ( $cards as $c ) {
-		$cls = 'up' === $c['dir'] ? 'sn-delta-up' : ( 'down' === $c['dir'] ? 'sn-delta-down' : 'sn-delta-flat' );
-		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
-		echo '<p class="sn-kpi-label">' . esc_html( $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( $c['n'] ) . '</p>';
-		echo '<span class="sn-kpi-delta ' . esc_attr( $cls ) . '">' . esc_html( $c['sub'] ) . '</span>';
-		echo '</div>';
-	}
-	echo '</div></div></div>';
+	snt_an_kpi_row( $cards );
+	echo '</div></div>';
 }
 
 /**

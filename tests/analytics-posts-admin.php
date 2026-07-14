@@ -52,6 +52,10 @@ ok( strpos( $hero, '<p class="sn-kpi-value">120</p>' ) !== false, 'hero promotes
 ok( strpos( $hero, 'sn-kpi-delta sn-delta-up' ) !== false && strpos( $hero, '+50%' ) !== false,
 	'verdict badge carries the real direction class + signed pct (▲ +50% vs typical)' );
 ok( strpos( $hero, '#1' ) !== false && strpos( $hero, '5' ) !== false, 'hero shows the rank (#1 of 5)' );
+// v9.40.0 D4: hero cards now route through the shared snt_an_kpi_row primitive —
+// pin the sub_class fall-through for the always-flat cards (Lifetime has no
+// real {pct,dir} pair, so it defaults to the primitive's flat class).
+ok( strpos( $hero, 'sn-delta-flat">all-time' ) !== false, 'lifetime card falls through to the primitive default flat class' );
 
 echo "\nGroup: hero degrades gracefully (no analytics yet)\n";
 $empty_subject = array( 'id' => 9, 'title' => 'Fresh', 'permalink' => '/f/', 'age' => 1, 'views' => 0, 'lifetime' => 0, 'median' => 0, 'delta' => array( 'pct' => null, 'dir' => 'flat' ), 'rank' => array( 'rank' => 1, 'of' => 1 ), 'by_dol' => array(), 'has_data' => false );

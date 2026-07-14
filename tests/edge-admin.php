@@ -61,6 +61,11 @@ echo "\nGroup: configured — KPI headline + reconciliation\n";
 $GLOBALS['__trend_calls'] = array();
 $html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
 ok( strpos( $html, 'sn-kpi-row' ) !== false, 'kpi: reuses the native KPI row markup' );
+// v9.40.0 D4: the row now routes through the shared snt_an_kpi_row primitive —
+// pin the exact row_class wrapper and that no card carries a delta/sub span
+// (empty_slot=omit reproduces the old loop's label+value-only cards).
+ok( strpos( $html, 'sn-kpi-row sn-kpi-row--edge' ) !== false, 'kpi: row_class rides the shared primitive wrapper exactly' );
+ok( strpos( $html, 'sn-kpi-delta' ) === false, 'kpi: empty_slot=omit suppresses the third line entirely (no delta/sub span)' );
 ok( strpos( $html, '2,000' ) !== false, 'kpi: total edge requests' );
 ok( strpos( $html, '176' ) !== false, 'kpi: human pageviews (from the beacon)' );
 ok( strpos( $html, '65%' ) !== false, 'kpi: machine-traffic % (the reconciliation headline)' );

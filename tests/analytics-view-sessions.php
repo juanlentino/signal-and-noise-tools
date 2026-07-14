@@ -83,6 +83,9 @@ snt_analytics_render_summary_panels(
 $out2 = ob_get_clean();
 ok( false !== strpos( $out2, '[dim-panel:Top paths:1]' ), 'non-empty transition rendered as a titled "Top paths" panel with its 1 row' );
 ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'visit quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
+// v9.40.0 D4: the cards now route through the shared snt_an_kpi_row primitive —
+// pin its flat sub-descriptor rendering (the sole slot shape this view uses).
+ok( false !== strpos( $out2, 'sn-delta-flat">with a pageview' ), 'shared row primitive renders the sub descriptor with its flat class' );
 // The OLD hollow-panel bug emitted a real .postbox with the funnel name in its
 // hndle heading (<h2 class="hndle"><span>Empty funnel</span></h2>) wrapping an
 // empty body. Assert that exact markup is gone.

@@ -55,6 +55,10 @@ $lifecycle = array(
 $html = cap( function () use ( $lifecycle ) { snt_analytics_render_lifecycle_section( $lifecycle ); } );
 ok( false !== strpos( $html, 'sn-an-note' ), 'render integration: catalogue with candidates emits the annotation callout' );
 ok( false !== strpos( $html, '4 of 20 posts are cooling, and 3 are refresh candidates.' ), 'render integration: callout carries the lifecycle read for the summary' );
+// v9.40.0 D4: the glance cards now route through the shared snt_an_kpi_row
+// primitive — pin the row + the candidate-count-derived sub_class (down when
+// refresh_candidates > 0).
+ok( false !== strpos( $html, 'sn-kpi-row' ) && false !== strpos( $html, 'sn-delta-down">cooling, not evergreen' ), 'glance renders via the shared KPI row primitive (down class when candidates > 0)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
