@@ -10,7 +10,7 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ### Added
 - [inc/analytics-panels.php](inc/analytics-panels.php): `snt_an_trend_svg()` (opts: overlay_series/stroke/head/meta/axis/id_suffix/wrap_attrs/aria_label/wrap_class/svg_class) + `snt_an_kv_table()` (cols-driven, `data_colname` opt, folds with its `empty` why) — the primitives home completes.
-- [tests/analytics-view-events.php](tests/analytics-view-events.php): new view-level suite pinning the caveat's fold/keep matrix.
+- [tests/analytics-view-events.php](tests/analytics-view-events.php): the caveat's fold/keep matrix (incl. the filtered-empty carve-out) joins the events view suite.
 
 ### Changed
 - [inc/analytics-read.php](inc/analytics-read.php): `sn_analytics_range_totals( $from, $to, $class, $refresh = false )` — request-scope memo keyed from|to|class.
