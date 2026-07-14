@@ -68,6 +68,10 @@ ok( strpos( $tb, 'BadNet' ) !== false && strpos( $tb, 'Top networks' ) !== false
 	'top table renders rows + caption' );
 ok( strpos( $tb, 'postbox' ) !== false && strpos( $tb, 'wp-list-table' ) !== false && strpos( $tb, 'hndle' ) !== false,
 	'top table uses the shared postbox + wp-list-table chrome' );
+// D5 §4: routes through the shared snt_an_kv_table primitive, picking up the
+// standardized panel-primitive marker class it never had before.
+ok( strpos( $tb, 'class="postbox sn-an-postbox"' ) !== false,
+	'top table adopts the shared kv-table primitive (sn-an-postbox chrome)' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start();
 sn_login_defense_render_top_table( 'Top networks', 'Network', array() );

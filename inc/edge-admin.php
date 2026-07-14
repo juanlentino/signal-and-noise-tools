@@ -48,13 +48,13 @@ function snt_edge_render_view( $from, $to ) {
 
 	// KPI headline — the reconciliation (Machine %) is the point of this view.
 	$cards = array(
-		array( 'l' => 'Edge requests',   'n' => number_format_i18n( (int) ( $t['requests'] ?? 0 ) ),       'promoted' => true ),
-		array( 'l' => 'Human pageviews', 'n' => number_format_i18n( (int) ( $split['human'] ?? 0 ) ),       'promoted' => true ),
-		array( 'l' => 'Machine traffic', 'n' => (int) ( $split['machine_pct'] ?? 0 ) . '%',                 'promoted' => true ),
-		array( 'l' => 'Cache hit',       'n' => (int) ( $t['cache_hit_pct'] ?? 0 ) . '%' ),
-		array( 'l' => 'Bandwidth',       'n' => snt_edge_fmt_bytes( (int) ( $t['bytes'] ?? 0 ) ) ),
-		array( 'l' => 'Errors',          'n' => (int) ( $t['error_pct'] ?? 0 ) . '%' ),
-		array( 'l' => 'Threats',         'n' => number_format_i18n( (int) ( $t['threats'] ?? 0 ) ) ),
+		array( 'l' => __( 'Edge requests', 'signal-and-noise-tools' ),   'n' => number_format_i18n( (int) ( $t['requests'] ?? 0 ) ),       'promoted' => true ),
+		array( 'l' => __( 'Human pageviews', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $split['human'] ?? 0 ) ),       'promoted' => true ),
+		array( 'l' => __( 'Machine traffic', 'signal-and-noise-tools' ), 'n' => (int) ( $split['machine_pct'] ?? 0 ) . '%',                 'promoted' => true ),
+		array( 'l' => __( 'Cache hit', 'signal-and-noise-tools' ),       'n' => (int) ( $t['cache_hit_pct'] ?? 0 ) . '%' ),
+		array( 'l' => __( 'Bandwidth', 'signal-and-noise-tools' ),       'n' => snt_edge_fmt_bytes( (int) ( $t['bytes'] ?? 0 ) ) ),
+		array( 'l' => __( 'Errors', 'signal-and-noise-tools' ),          'n' => (int) ( $t['error_pct'] ?? 0 ) . '%' ),
+		array( 'l' => __( 'Threats', 'signal-and-noise-tools' ),         'n' => number_format_i18n( (int) ( $t['threats'] ?? 0 ) ) ),
 	);
 	snt_an_panel_open( __( 'Traffic & edge', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
 	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals — every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
@@ -87,10 +87,10 @@ function snt_edge_render_view( $from, $to ) {
 		$status_rows[] = array( 'value' => $label, 'requests' => (int) ( $t[ $key ] ?? 0 ), 'bytes' => 0 );
 	}
 	echo '<div class="sn-an-grid">';
-	snt_edge_render_dim( 'Status codes', $status_rows, 'No status data yet.', false );
-	snt_edge_render_dim( 'Edge locations', sn_edge_top_dim( 'colo', $from, $to, 10 ), 'No edge-location data in this range yet.' );
-	snt_edge_render_dim( 'Countries (all traffic)', sn_edge_top_dim( 'country', $from, $to, 10 ), 'No country data yet.' );
-	snt_edge_render_dim( 'Threats', sn_edge_top_dim( 'threat', $from, $to, 10 ), 'No threats recorded in this range.' );
+	snt_edge_render_dim( __( 'Status codes', 'signal-and-noise-tools' ), $status_rows, 'No status data yet.', false );
+	snt_edge_render_dim( __( 'Edge locations', 'signal-and-noise-tools' ), sn_edge_top_dim( 'colo', $from, $to, 10 ), 'No edge-location data in this range yet.' );
+	snt_edge_render_dim( __( 'Countries (all traffic)', 'signal-and-noise-tools' ), sn_edge_top_dim( 'country', $from, $to, 10 ), 'No country data yet.' );
+	snt_edge_render_dim( __( 'Threats', 'signal-and-noise-tools' ), sn_edge_top_dim( 'threat', $from, $to, 10 ), 'No threats recorded in this range.' );
 	echo '</div>';
 
 	// Attack-surface pressure — the loud doors (/wp-login.php, /xmlrpc.php) + the
@@ -101,19 +101,24 @@ function snt_edge_render_view( $from, $to ) {
 	// nested postbox header rendered oversized next to the un-nested dim-card headers.
 	echo '<p class="sn-an-sep sn-an-sep--full"><strong>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly — the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-an-grid">';
-	snt_edge_render_dim( 'Login doors', sn_edge_top_dim( 'atk_door', $from, $to, 10 ), 'No login-door hits in this range yet.', false );
-	snt_edge_render_dim( 'Door status codes', sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );
-	snt_edge_render_dim( 'Door methods', sn_edge_top_dim( 'atk_method', $from, $to, 10 ), 'No door method data yet.', false );
-	snt_edge_render_dim( 'Attacker countries', sn_edge_top_dim( 'atk_country', $from, $to, 10 ), 'No attacker-country data yet.', false );
-	snt_edge_render_dim( 'Attacker networks', sn_edge_top_dim( 'atk_asn', $from, $to, 10 ), 'No attacker-network data yet.', false );
-	snt_edge_render_dim( 'Top probed paths (4xx)', sn_edge_top_dim( 'atk_path', $from, $to, 25 ), 'No probe scans recorded yet.', false );
+	snt_edge_render_dim( __( 'Login doors', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_door', $from, $to, 10 ), 'No login-door hits in this range yet.', false );
+	snt_edge_render_dim( __( 'Door status codes', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );
+	snt_edge_render_dim( __( 'Door methods', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_method', $from, $to, 10 ), 'No door method data yet.', false );
+	snt_edge_render_dim( __( 'Attacker countries', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_country', $from, $to, 10 ), 'No attacker-country data yet.', false );
+	snt_edge_render_dim( __( 'Attacker networks', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_asn', $from, $to, 10 ), 'No attacker-network data yet.', false );
+	snt_edge_render_dim( __( 'Top probed paths (4xx)', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_path', $from, $to, 25 ), 'No probe scans recorded yet.', false );
 	echo '</div>';
 	snt_an_flush_empty_fold();
 }
 
 /**
  * A native edge breakdown table: Value | Requests | (Bandwidth). $with_bytes=false
- * drops the bandwidth column (e.g. the status table).
+ * drops the bandwidth column (e.g. the status table). Thin wrapper over the
+ * shared snt_an_kv_table() primitive (D5 §4, inc/analytics-panels.php): does
+ * its own number_format_i18n()/snt_edge_fmt_bytes() formatting (the primitive
+ * takes pre-formatted strings) and forwards $empty into the fold's why-text —
+ * this used to be silently dropped, the last dead diagnostic param in the
+ * plugin (D4 §4 convention, finally completed here).
  *
  * @param string $title
  * @param array  $rows  [{value, requests, bytes}]
@@ -121,26 +126,30 @@ function snt_edge_render_view( $from, $to ) {
  * @param bool   $with_bytes
  */
 function snt_edge_render_dim( $title, $rows, $empty, $with_bytes = true ) {
-	if ( empty( $rows ) ) {
-		snt_an_note_empty( $title );
-		return;
-	}
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
-	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
-	echo '<th scope="col" class="manage-column num">Requests</th>';
+	$cols = array( $title, 'Requests' );
 	if ( $with_bytes ) {
-		echo '<th scope="col" class="manage-column num">Bandwidth</th>';
+		$cols[] = 'Bandwidth';
 	}
-	echo '</tr></thead><tbody>';
-	foreach ( $rows as $r ) {
-		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '"><strong>' . esc_html( (string) ( $r['value'] ?? '' ) ) . '</strong></td>';
-		echo '<td class="num" data-colname="Requests">' . esc_html( number_format_i18n( (int) ( $r['requests'] ?? 0 ) ) ) . '</td>';
+
+	$kv_rows = array();
+	foreach ( (array) $rows as $r ) {
+		$row = array(
+			(string) ( $r['value'] ?? '' ),
+			number_format_i18n( (int) ( $r['requests'] ?? 0 ) ),
+		);
 		if ( $with_bytes ) {
-			echo '<td class="num" data-colname="Bandwidth">' . esc_html( snt_edge_fmt_bytes( (int) ( $r['bytes'] ?? 0 ) ) ) . '</td>';
+			$row[] = snt_edge_fmt_bytes( (int) ( $r['bytes'] ?? 0 ) );
 		}
-		echo '</tr>';
+		$kv_rows[] = $row;
 	}
-	echo '</tbody></table>';
-	snt_an_panel_close();
+
+	snt_an_kv_table(
+		$title,
+		$kv_rows,
+		$cols,
+		array(
+			'empty'        => $empty,
+			'data_colname' => true,
+		)
+	);
 }

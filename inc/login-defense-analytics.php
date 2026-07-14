@@ -74,22 +74,27 @@ function sn_login_defense_render_trend_chart( $series ) {
 }
 
 /**
- * Ranked top-N table (attacker networks / countries). $rows = [{k,v}].
+ * Ranked top-N table (attacker networks / countries). $rows = [{k,v}]. Thin
+ * wrapper over the shared snt_an_kv_table() primitive (D5 §4,
+ * inc/analytics-panels.php) — picks up the standard sn-an-postbox chrome this
+ * hand-rolled table never had. Keeps its $col semantics (the primary column
+ * header, distinct from $title, e.g. title "Top attacker networks" / col
+ * "Network (ASN)"). No empty-fold $why: this fn never had one, still doesn't.
  */
 function sn_login_defense_render_top_table( $title, $col, $rows ) {
-	if ( ! $rows ) {
-		snt_an_note_empty( $title );
-		return;
+	$kv_rows = array();
+	foreach ( (array) $rows as $r ) {
+		$kv_rows[] = array(
+			(string) ( $r['k'] ?? '' ),
+			number_format_i18n( (int) ( $r['v'] ?? 0 ) ),
+		);
 	}
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside sn-an-table-inside">';
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
-	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $col ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Blocked', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
-	foreach ( $rows as $r ) {
-		echo '<tr><td class="column-primary"><strong>' . esc_html( (string) ( $r['k'] ?? '' ) ) . '</strong></td>'
-			. '<td class="num">' . esc_html( number_format_i18n( (int) ( $r['v'] ?? 0 ) ) ) . '</td></tr>';
-	}
-	echo '</tbody></table></div></div>';
+
+	snt_an_kv_table(
+		$title,
+		$kv_rows,
+		array( $col, __( 'Blocked', 'signal-and-noise-tools' ) )
+	);
 }
 
 /**

@@ -468,3 +468,85 @@ function snt_an_trend_svg( $series, $opts = array() ) {
 	}
 	echo '</div>';
 }
+
+/**
+ * THE k/v table (D5 §4): one postbox table for "primary label + N numeric
+ * columns" rows — the ranked/dimensional-breakdown shape shared by the edge
+ * dim tables and login-defense's attacker top-tables. Domain-agnostic like
+ * snt_an_trend_svg(): it never formats or translates a value itself — every
+ * cell arrives as a PRE-FORMATTED string (number_format_i18n(), snt_edge_fmt_bytes(),
+ * translated column labels, …), assembled by the caller. $cols is a flat,
+ * ordered list of column headers (not assoc — neither adopter needs
+ * per-column options beyond "numeric, right-aligned", which is implicit for
+ * every column after the first): $cols[0] is the primary row-label column
+ * (bold, class="column-primary"); every column after it is numeric
+ * (class="num", the house right-align idiom). $rows is a list of rows, each
+ * itself a plain list of cell strings aligned 1:1 with $cols.
+ *
+ * Adopters: snt_edge_render_dim() (inc/edge-admin.php) — forwards its long-dead
+ * $empty diagnostic here for the first time — and
+ * sn_login_defense_render_top_table() (inc/login-defense-analytics.php), which
+ * picks up the standard postbox chrome (sn-an-postbox) it never had. NOT
+ * adopted by the posts/lifecycle leaderboards (inc/analytics-posts-admin.php,
+ * inc/analytics-render-tables.php) — those are bespoke ranked tables (extra
+ * meta cells, sparkline cells, clamp regions) that don't decompose onto this
+ * simple label+numeric-columns shape; recorded holdouts, not an oversight.
+ *
+ * @param string $title Panel title AND the empty-fold key (snt_an_note_empty).
+ * @param array  $rows  List of rows; each row is a list of pre-formatted
+ *                       string cell values, 1:1 with $cols.
+ * @param array  $cols  Ordered column headers; $cols[0] = primary label
+ *                       column, the rest are numeric (class="num").
+ * @param array  $opts  {
+ *     @type string $empty        Diagnostic why-text for the empty fold
+ *                                 (forwarded verbatim to snt_an_note_empty()).
+ *     @type string $header_meta  Forwarded to snt_an_panel_open() (small muted
+ *                                 note right of the panel title). Unused by
+ *                                 today's two adopters; kept as a passthrough
+ *                                 seam since the primitive already supports it.
+ *     @type bool   $data_colname Emit data-colname="<header>" on every <td>
+ *                                 (the wp-list-table mobile-responsive
+ *                                 convention). Default false. Only the edge
+ *                                 dim tables carried this before adoption —
+ *                                 login-defense's top tables never did, and
+ *                                 stay byte-identical by leaving this off.
+ * }
+ * @since 9.41.0
+ */
+function snt_an_kv_table( $title, $rows, $cols, $opts = array() ) {
+	if ( empty( $rows ) ) {
+		snt_an_note_empty( $title, (string) ( $opts['empty'] ?? '' ) );
+		return;
+	}
+
+	$cols          = array_values( (array) $cols );
+	$primary_label = (string) ( $cols[0] ?? '' );
+	$num_labels    = array_slice( $cols, 1 );
+	$with_colname  = ! empty( $opts['data_colname'] );
+
+	$panel_args = array( 'inside_class' => 'inside sn-an-table-inside' );
+	if ( ! empty( $opts['header_meta'] ) ) {
+		$panel_args['header_meta'] = $opts['header_meta'];
+	}
+	snt_an_panel_open( $title, $panel_args );
+
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $primary_label ) . '</th>';
+	foreach ( $num_labels as $label ) {
+		echo '<th scope="col" class="manage-column num">' . esc_html( (string) $label ) . '</th>';
+	}
+	echo '</tr></thead><tbody>';
+
+	foreach ( $rows as $row ) {
+		$row = array_values( (array) $row );
+		echo '<tr><td class="column-primary"' . ( $with_colname ? ' data-colname="' . esc_attr( $primary_label ) . '"' : '' )
+			. '><strong>' . esc_html( (string) ( $row[0] ?? '' ) ) . '</strong></td>';
+		foreach ( $num_labels as $i => $label ) {
+			echo '<td class="num"' . ( $with_colname ? ' data-colname="' . esc_attr( (string) $label ) . '"' : '' )
+				. '>' . esc_html( (string) ( $row[ $i + 1 ] ?? '' ) ) . '</td>';
+		}
+		echo '</tr>';
+	}
+	echo '</tbody></table>';
+	snt_an_panel_close();
+}

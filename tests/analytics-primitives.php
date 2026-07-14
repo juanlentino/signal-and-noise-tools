@@ -157,5 +157,48 @@ ok( false !== strpos( $h, '<svg class="sn-an-bot-spark"' ) && false === strpos( 
 $h = cap( function () { snt_an_trend_svg( array( 10, 40, 20 ) ); } );
 ok( false !== strpos( $h, '<div class="sn-overview-trend">' ) && false !== strpos( $h, '<svg class="sn-spark"' ), 'defaults stay the canonical sn-overview-trend + sn-spark, byte-identical' );
 
+echo "\nGroup: snt_an_kv_table — THE k/v table (D5 §4, edge dims + login-defense top tables)\n";
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900', '5 MB' ), array( 'ORD', '400', '2 MB' ) ),
+		array( 'Edge locations', 'Requests', 'Bandwidth' )
+	);
+} );
+ok( false !== strpos( $h, 'class="postbox sn-an-postbox"' ), 'kv table: panel chrome via the shared primitive (sn-an-postbox)' );
+ok( false !== strpos( $h, 'inside sn-an-table-inside' ), 'kv table: body class is the table-inside idiom' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column column-primary">Edge locations</th>' ), 'kv table: primary col header from cols[0]' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column num">Requests</th>' ) && false !== strpos( $h, '<th scope="col" class="manage-column num">Bandwidth</th>' ), 'kv table: numeric col headers from cols[1..]' );
+ok( false !== strpos( $h, '<td class="column-primary"><strong>IAD</strong></td>' ), 'kv table: primary cell bold, no data-colname by default' );
+ok( false !== strpos( $h, '<td class="num">900</td>' ) && false !== strpos( $h, '<td class="num">5 MB</td>' ), 'kv table: numeric cells pre-formatted, class="num"' );
+ok( false === strpos( $h, 'data-colname' ), 'kv table: data_colname off by default (login-defense parity)' );
+
+$h = cap( function () {
+	snt_an_kv_table(
+		'Edge locations',
+		array( array( 'IAD', '900' ) ),
+		array( 'Edge locations', 'Requests' ),
+		array( 'data_colname' => true )
+	);
+} );
+ok( false !== strpos( $h, 'data-colname="Edge locations"' ) && false !== strpos( $h, 'data-colname="Requests"' ), 'kv table: data_colname=true emits data-colname on every cell (edge idiom)' );
+
+// esc_html()/esc_attr() are identity stubs in this file (see the top-of-file
+// stubs, shared by every group above) — real escaping is pinned against
+// tests/edge-render-dim.php's htmlspecialchars stubs instead. This just proves
+// row cells and headers route THROUGH esc_html()/esc_attr() (content survives
+// the round trip) rather than being dropped or reordered.
+$h = cap( function () {
+	snt_an_kv_table( 'Weird & Co', array( array( 'A & B', '1' ) ), array( 'Weird & Co', 'N' ) );
+} );
+ok( false !== strpos( $h, 'A & B' ), 'kv table: row cell content survives the esc_html() call' );
+ok( false !== strpos( $h, 'Weird & Co' ), 'kv table: header content survives the esc_html() call' );
+
+$GLOBALS['sn_an_empty_panels'] = array();
+$h = cap( function () { snt_an_kv_table( 'Edge locations', array(), array( 'Edge locations', 'Requests' ), array( 'empty' => 'No edge-location data in this range yet.' ) ); } );
+ok( '' === $h, 'kv table: empty rows render no panel markup' );
+$kv_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $kv_noted ) && 'Edge locations' === $kv_noted[0]['title'] && 'No edge-location data in this range yet.' === $kv_noted[0]['why'], 'kv table: empty rows fold with title + why' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
