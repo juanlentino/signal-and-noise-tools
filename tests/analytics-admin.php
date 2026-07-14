@@ -487,6 +487,14 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( stripos( $html, 'not receiving data' ) !== false || stripos( $html, 'isn' ) !== false, 'dashboard(unconfigured): shows the empty/config notice' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard(unconfigured): does NOT embed the settings form' );
 ok( stripos( $html, 'Configure' ) !== false, 'dashboard(unconfigured): links to the settings page' );
+// v9.40.0 D4: snt_analytics_render_empty() adopts the unified snt_an_gate() idiom
+// (was a raw .notice div) and now folds the "Configure analytics →" CTA into the
+// gate call itself, so the caller no longer renders a separate <p><a> line.
+ok( strpos( $html, 'sn-an-gate' ) !== false, 'dashboard(unconfigured): unified gate marker present' );
+ok( strpos( $html, '<span>Analytics</span>' ) !== false, 'dashboard(unconfigured): gate title is "Analytics"' );
+ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured): the CTA renders exactly once (folded into the gate, not duplicated by the caller)' );
+ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
+	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
 echo "\nGroup: settings section — the creds form + dashboard backlink\n";
 $GLOBALS['__aa_config'] = false;

@@ -102,7 +102,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 function snt_analytics_render_view_sessions( $from, $to, $class ) {
 	$data = sn_analytics_fetch_session_events( $from, $to, $class );
 	if ( empty( $data['configured'] ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'Visit analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) . '</p>';
+		snt_an_gate( __( 'Visits', 'signal-and-noise-tools' ), __( 'Visit analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	// A "visit" requires >= 1 pageview: server events (srv:1 / RSS ce) and orphan

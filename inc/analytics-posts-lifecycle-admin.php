@@ -27,11 +27,10 @@ const SN_LIFECYCLE_TABLE_LIMIT = 50; // rows rendered (candidates sort first); c
  */
 function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	if ( ! is_array( $lifecycle ) || empty( $lifecycle['rows'] ) ) {
-		echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-			. esc_html__( 'Lifecycle at scale', 'signal-and-noise-tools' )
-			. '</span></h2></div><div class="inside sn-an-panel"><p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'No catalogue data yet — once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+		snt_an_gate(
+			__( 'Lifecycle at scale', 'signal-and-noise-tools' ),
+			__( 'No catalogue data yet — once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -39,9 +38,13 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	$counts  = is_array( $summary['counts'] ?? null ) ? $summary['counts'] : array();
 	$cands   = (int) ( $summary['refresh_candidates'] ?? 0 );
 
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-an-panel',
+		)
+	);
 
 	snt_an_annotation( sn_annotation_lifecycle( $summary ) );
 
@@ -64,7 +67,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	snt_an_kpi_row( $cards );
 
 	echo '<p class="sn-an-foot">' . esc_html__( 'Shape is each Note\'s early-life share of its lifetime views. A refresh candidate is a cooling Note you haven\'t marked evergreen — the editorial call the data can\'t make.', 'signal-and-noise-tools' ) . '</p>';
-	echo '</div></div>';
+	snt_an_panel_close();
 
 	snt_analytics_render_lifecycle_table( (array) $lifecycle['rows'], (int) ( $summary['total'] ?? 0 ) );
 }
@@ -76,9 +79,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
  * @param int   $total Full catalogue count (for the truncation note).
  */
 function snt_analytics_render_lifecycle_table( $rows, $total ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Refresh queue', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside sn-an-table-inside">';
+	snt_an_panel_open( __( 'Refresh queue', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 
 	$shown = array_slice( $rows, 0, SN_LIFECYCLE_TABLE_LIMIT );
 
@@ -110,7 +111,7 @@ function snt_analytics_render_lifecycle_table( $rows, $total ) {
 			(int) $total
 		) ) . '</p>';
 	}
-	echo '</div></div>';
+	snt_an_panel_close();
 }
 
 /**

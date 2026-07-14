@@ -39,6 +39,10 @@ echo "\nTest: empty catalogue folds to the empty state (no annotation)\n";
 $empty = cap( function () { snt_analytics_render_lifecycle_section( array( 'rows' => array(), 'summary' => array() ) ); } );
 ok( false !== strpos( $empty, 'No catalogue data yet' ), 'empty rows -> empty-state note' );
 ok( false === strpos( $empty, 'sn-an-note' ), 'empty catalogue -> no annotation callout' );
+// v9.40.0 D4: the empty idiom adopts the unified snt_an_gate() — its old bare
+// postbox already carried the "Lifecycle at scale" title; that title is preserved.
+ok( false !== strpos( $empty, 'sn-an-gate' ), 'empty catalogue -> unified gate marker present' );
+ok( false !== strpos( $empty, '<span>Lifecycle at scale</span>' ), 'empty catalogue -> gate preserves the "Lifecycle at scale" title' );
 
 echo "\nTest: catalogue with refresh candidates renders the annotation callout (integration)\n";
 $mk_row = function ( $decay, $cand ) {
@@ -59,6 +63,11 @@ ok( false !== strpos( $html, '4 of 20 posts are cooling, and 3 are refresh candi
 // primitive — pin the row + the candidate-count-derived sub_class (down when
 // refresh_candidates > 0).
 ok( false !== strpos( $html, 'sn-kpi-row' ) && false !== strpos( $html, 'sn-delta-down">cooling, not evergreen' ), 'glance renders via the shared KPI row primitive (down class when candidates > 0)' );
+// v9.40.0 D4: both postboxes in this section now route through the shared panel
+// primitive — glance keeps sn-overview (KPI-scale contract); refresh queue is plain.
+ok( false !== strpos( $html, 'class="postbox sn-an-postbox sn-overview"' ), 'glance panel adopts the primitive + keeps sn-overview' );
+ok( false !== strpos( $html, 'class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Refresh queue' ),
+	'refresh-queue panel adopts the primitive (plain, no sn-overview)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

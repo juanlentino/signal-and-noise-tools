@@ -126,8 +126,7 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 		return;
 	}
 
-	echo '<div class="sn-an-choropleth postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div>';
-	echo '<div class="inside inside-flush sn-map-inside">';
+	snt_an_panel_open( $title, array( 'panel_class' => 'sn-an-choropleth', 'inside_class' => 'inside inside-flush sn-map-inside' ) );
 	echo '<figure class="sn-map-figure">';
 	echo '<div role="img" aria-label="' . esc_attr( __( 'World map shaded by views per country', 'signal-and-noise-tools' ) ) . '">';
 	echo snt_analytics_recolor_world_svg( $svg, $views, $names ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: vendored static SVG + numeric fills + esc_html'd <title>s.
@@ -138,7 +137,7 @@ function snt_analytics_render_choropleth( $title, $rows, $empty ) {
 	echo '<span class="sn-legend-item"><span class="sn-legend-swatch sn-legend-swatch--high"></span> ' . esc_html__( 'High', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="sn-legend-item sn-legend-item--meta">' . esc_html__( 'Views by country', 'signal-and-noise-tools' ) . '</span>';
 	echo '</div>';
-	echo '</div></div>';
+	snt_an_panel_close();
 }
 
 /**

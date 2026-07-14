@@ -56,12 +56,19 @@ ok( strpos( $hero, '#1' ) !== false && strpos( $hero, '5' ) !== false, 'hero sho
 // pin the sub_class fall-through for the always-flat cards (Lifetime has no
 // real {pct,dir} pair, so it defaults to the primitive's flat class).
 ok( strpos( $hero, 'sn-delta-flat">all-time' ) !== false, 'lifetime card falls through to the primitive default flat class' );
+// v9.40.0 D4: the hero postbox now routes through the shared panel primitive —
+// pin BOTH the new sn-an-postbox marker AND the KPI-scale sn-overview class
+// (the D1 CSS ".sn-an-postbox.sn-overview" block depends on both being present).
+ok( strpos( $hero, 'class="postbox sn-an-postbox sn-overview"' ) !== false, 'hero panel adopts the primitive and keeps the sn-overview KPI-scale class' );
 
 echo "\nGroup: hero degrades gracefully (no analytics yet)\n";
 $empty_subject = array( 'id' => 9, 'title' => 'Fresh', 'permalink' => '/f/', 'age' => 1, 'views' => 0, 'lifetime' => 0, 'median' => 0, 'delta' => array( 'pct' => null, 'dir' => 'flat' ), 'rank' => array( 'rank' => 1, 'of' => 1 ), 'by_dol' => array(), 'has_data' => false );
 $eh = cap( function () use ( $empty_subject ) { snt_analytics_render_post_hero( $empty_subject ); } );
 ok( strpos( $eh, 'Fresh' ) !== false && strpos( $eh, 'sn-an-empty' ) !== false, 'no-data subject → its title + an empty-state note, not a broken card' );
 ok( strpos( $eh, 'sn-delta-up' ) === false, 'no spurious verdict badge when there is no baseline' );
+// The early-return (no-data) branch must ALSO close the panel correctly (div balance).
+ok( strpos( $eh, 'class="postbox sn-an-postbox sn-overview"' ) !== false, 'no-data branch still opens the adopted panel' );
+ok( substr_count( $eh, '<div' ) === substr_count( $eh, '</div>' ), 'no-data branch keeps the div count balanced' );
 
 echo "\nGroup: leaderboard reuses the shared .wp-list-table chrome (bespoke columns)\n";
 $lb = cap( function () use ( $leaderboard ) { snt_analytics_render_posts_leaderboard( $leaderboard ); } );
@@ -69,11 +76,21 @@ ok( strpos( $lb, 'wp-list-table widefat striped' ) !== false, 'leaderboard table
 ok( strpos( $lb, 'My Note' ) !== false && strpos( $lb, 'Older Note' ) !== false, 'every recent post is listed' );
 ok( strpos( $lb, '>400<' ) !== false, 'lifetime views column rendered (400)' );
 ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'evergreen' ) !== false, 'decay verdict chip per post' );
+// v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
+ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
+
+echo "\nGroup: catalog panel empty state keeps the panel chrome (div balance)\n";
+$lb_empty = cap( function () { snt_analytics_render_posts_leaderboard( array() ); } );
+ok( strpos( $lb_empty, 'class="postbox sn-an-postbox"' ) !== false, 'empty catalog still opens the adopted panel' );
+ok( strpos( $lb_empty, 'No posts yet.' ) !== false, 'empty catalog keeps its exact empty-state copy' );
+ok( substr_count( $lb_empty, '<div' ) === substr_count( $lb_empty, '</div>' ), 'empty catalog keeps the div count balanced' );
 
 echo "\nGroup: trajectory reuses the shared smooth-path treatment, two curves\n";
 $traj = cap( function () use ( $subject, $leaderboard ) { snt_analytics_render_post_trajectory( $subject, $leaderboard ); } );
 ok( strpos( $traj, '<svg' ) !== false, 'trajectory renders an SVG' );
 ok( substr_count( $traj, 'SMOOTH' ) >= 2, 'both the post line AND the baseline band use the shared snt_analytics_smooth_path (≥2 curves)' );
+// v9.40.0 D4: plain postbox — no sn-overview.
+ok( strpos( $traj, 'class="postbox sn-an-postbox"' ) !== false, 'trajectory panel adopts the primitive (plain, no sn-overview)' );
 
 echo "\nGroup: the view delegates velocity + decay to the shared distribution bars\n";
 $view = cap( function () use ( $bundle ) { snt_analytics_render_posts_view( $bundle ); } );
@@ -83,6 +100,12 @@ ok( strpos( $view, 'sn-kpi-row' ) !== false && strpos( $view, 'wp-list-table' ) 
 echo "\nGroup: whole-view empty state\n";
 $none = cap( function () { snt_analytics_render_posts_view( null ); } );
 ok( strpos( $none, 'sn-an-empty' ) !== false, 'null bundle (no published posts) → a single empty-state note, no fatal' );
+// v9.40.0 D4: the null-bundle notice adopts the unified snt_an_gate() idiom —
+// a deliberate upgrade from the old titleless bare <p> to full postbox chrome.
+ok( strpos( $none, 'sn-an-gate' ) !== false, 'null bundle → the unified gate (postbox chrome), not a bare paragraph' );
+ok( strpos( $none, 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.' ) !== false,
+	'null-bundle gate carries the exact original message' );
+ok( strpos( $none, '<span>Posts</span>' ) !== false, 'null-bundle gate carries a title (upgrade from the old titleless bare <p>)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

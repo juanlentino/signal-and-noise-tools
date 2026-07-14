@@ -138,5 +138,18 @@ snt_analytics_render_summary_panels(
 $out6 = ob_get_clean();
 ok( false === strpos( $out6, 'class="sn-an-note"' ), 'a typical range with spread conversions emits no read' );
 
+// v9.40.0 D4: snt_analytics_render_view_sessions()'s AE-dormant gate had no prior
+// coverage in this suite (it only exercised snt_analytics_render_summary_panels).
+// Add it: the old idiom was a titleless bare <p> — adopting snt_an_gate() is a
+// deliberate shape upgrade to full postbox chrome (same class as the other
+// unified gates), which this pin now locks in.
+echo "\nGroup: AE dormant gate (no live Analytics Engine data for this window)\n";
+ob_start();
+snt_analytics_render_view_sessions( '2026-07-01', '2026-07-07', 'human' );
+$gate = (string) ob_get_clean();
+ok( false !== strpos( $gate, 'sn-an-gate' ), 'AE gate: unified gate marker present (upgrade from the old titleless bare <p>)' );
+ok( false !== strpos( $gate, 'Visit analytics need live Analytics Engine data for this window.' ), 'AE gate: exact original message preserved' );
+ok( false !== strpos( $gate, '<span>Visits</span>' ), 'AE gate: carries a title' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -71,6 +71,12 @@ ok( strpos( $real, '<svg' ) !== false && strpos( $real, 'rgba(34,113,177' ) !== 
 ok( strpos( $real, 'United States' ) !== false, 'render: tooltip uses the country name (data-name) from the asset, not the bare ISO code' );
 ok( strpos( $real, 'sn-map-legend' ) !== false, 'render: legend strip (Low/Med/High swatches) present' );
 ok( strpos( $real, 'postbox' ) !== false, 'render: choropleth wrapped in native postbox' );
+// v9.40.0 D4: the choropleth postbox now routes through the shared panel
+// primitive — pin the new sn-an-postbox marker alongside the existing
+// sn-an-choropleth class, and the exact title.
+ok( strpos( $real, 'class="postbox sn-an-postbox sn-an-choropleth"' ) !== false,
+	'render: choropleth panel adopts the primitive and keeps its sn-an-choropleth class' );
+ok( strpos( $real, '<span>Countries map</span>' ) !== false, 'render: choropleth title stays pinned' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

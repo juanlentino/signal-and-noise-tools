@@ -27,9 +27,10 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  */
 function snt_analytics_render_posts_view( $bundle ) {
 	if ( ! is_array( $bundle ) || empty( $bundle['subject'] ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">'
-			. esc_html__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
-			. '</p>';
+		snt_an_gate(
+			__( 'Posts', 'signal-and-noise-tools' ),
+			__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
+		);
 		return;
 	}
 
@@ -76,16 +77,21 @@ function snt_analytics_render_post_hero( $subject ) {
 		/* translators: %d: days since publish. */
 		: sprintf( _n( 'published %d day ago', 'published %d days ago', $age, 'signal-and-noise-tools' ), $age );
 
-	echo '<div class="postbox sn-overview"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Latest Note — did it land?', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+		array(
+			'panel_class'  => 'sn-overview',
+			'inside_class' => 'inside inside-flush sn-an-panel',
+		)
+	);
 	echo '<p class="sn-posts-hero-h"><a href="' . esc_url( (string) $subject['permalink'] ) . '"><strong>'
 		. esc_html( (string) $subject['title'] ) . '</strong></a> · ' . esc_html( $pub ) . '</p>';
 
 	if ( empty( $subject['has_data'] ) ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">'
 			. esc_html__( 'Not enough data yet — this Note has no recorded views, or your other Notes have none to compare it against.', 'signal-and-noise-tools' )
-			. '</p></div></div>';
+			. '</p>';
+		snt_an_panel_close();
 		return;
 	}
 
@@ -117,7 +123,7 @@ function snt_analytics_render_post_hero( $subject ) {
 	);
 
 	snt_an_kpi_row( $cards );
-	echo '</div></div>';
+	snt_an_panel_close();
 }
 
 /**
@@ -166,16 +172,18 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
 	$base_d = $plot( $base );
 	$subj_d = $plot( $subj );
 
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside inside-flush sn-an-panel">';
+	snt_an_panel_open(
+		__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' ),
+		array( 'inside_class' => 'inside inside-flush sn-an-panel' )
+	);
 	echo '<svg viewBox="0 0 600 86" preserveAspectRatio="none" role="img" class="sn-an-spark" style="width:100%;height:120px">';
 	echo '<path d="' . esc_attr( $base_d ) . '" fill="none" stroke="#646970" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
 	echo '<path d="' . esc_attr( $subj_d ) . '" fill="none" stroke="#2271b1" stroke-width="2" vector-effect="non-scaling-stroke"/>';
 	echo '</svg>';
 	echo '<p class="sn-an-foot">'
 		. esc_html__( 'Blue: this Note. Grey dashed: the median of your recent Notes at the same day of life.', 'signal-and-noise-tools' )
-		. '</p></div></div>';
+		. '</p>';
+	snt_an_panel_close();
 }
 
 /**
@@ -186,11 +194,10 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
  * @param array $rows Leaderboard rows.
  */
 function snt_analytics_render_posts_leaderboard( $rows ) {
-	echo '<div class="postbox"><div class="postbox-header"><h2 class="hndle"><span>'
-		. esc_html__( 'Your catalog', 'signal-and-noise-tools' )
-		. '</span></h2></div><div class="inside sn-an-table-inside">';
+	snt_an_panel_open( __( 'Your catalog', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No posts yet.', 'signal-and-noise-tools' ) . '</p></div></div>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No posts yet.', 'signal-and-noise-tools' ) . '</p>';
+		snt_an_panel_close();
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
@@ -207,5 +214,6 @@ function snt_analytics_render_posts_leaderboard( $rows ) {
 		echo '<td data-colname="Shape">' . ( '' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">—</span>' ) . '</td>';
 		echo '</tr>';
 	}
-	echo '</tbody></table></div></div>';
+	echo '</tbody></table>';
+	snt_an_panel_close();
 }
