@@ -97,6 +97,28 @@ $res = sn_analytics_parse_funnels( 'One step: /a' );
 ok( array() === $res['funnels'], 'fewer than 2 steps produces no funnel' );
 ok( 1 === count( $res['errors'] ), 'fewer-than-2-steps error recorded' );
 
+echo "\nGroup: sn_analytics_parse_funnels — T2-review hardening: a double colon does not yield a garbage step\n";
+// The bug: 'Name:: /a > /b' splits on the FIRST colon into name="Name",
+// steps_raw=": /a > /b" — the leftover ':' used to ride along into the first
+// step's value as "/: /a" instead of erroring. Now any step that (after
+// leading-slash normalization) contains whitespace or a ':' rejects the WHOLE
+// line, since a well-formed path step has neither.
+$res = sn_analytics_parse_funnels( 'Name:: /a > /b' );
+ok( array() === $res['funnels'], 'a double colon does not produce a garbage step — the line is rejected' );
+ok( 1 === count( $res['errors'] ), 'double-colon line records exactly one error' );
+ok( false !== strpos( $res['errors'][0], 'Line 1' ), 'double-colon error names line 1' );
+
+$res = sn_analytics_parse_funnels( "Good: /a > /b\nName:: /a > /b\nAlso good: /c > /d" );
+ok( 2 === count( $res['funnels'] ), 'a bad double-colon line does not block its neighbors from parsing' );
+ok( 1 === count( $res['errors'] ), 'exactly one error recorded for the bad line' );
+ok( false !== strpos( $res['errors'][0], 'Line 2' ), 'error names the actual bad line (2), not line 1' );
+ok( 'Also good' === $res['funnels'][1]['title'], 'the line AFTER the bad one still parses correctly' );
+
+echo "\nGroup: sn_analytics_parse_funnels — T2-review hardening: a step with internal whitespace is rejected\n";
+$res = sn_analytics_parse_funnels( 'Name: /a b > /c' );
+ok( array() === $res['funnels'], 'a step containing internal whitespace is rejected (paths have no whitespace)' );
+ok( 1 === count( $res['errors'] ), 'whitespace-in-step line records exactly one error' );
+
 echo "\nGroup: sn_analytics_parse_funnels — line numbers across mixed valid/invalid lines\n";
 $res = sn_analytics_parse_funnels( "Good: /a > /b\nno colon\nAlso good: /c > /d" );
 ok( 2 === count( $res['funnels'] ), 'the two valid lines still parse despite line 2 failing' );
@@ -185,6 +207,29 @@ echo "\nGroup: sn_analytics_session_funnels — defensive fallback on a corrupt 
 $GLOBALS['__settings'] = array( 'analytics.funnels' => array( 'not-an-array', array( 'title' => 'ok' ) ) );
 $out                   = sn_analytics_session_funnels();
 ok( $hardcoded_today === $out, 'a corrupt setting (a non-array entry) falls back to the hardcoded defaults wholesale' );
+
+echo "\nGroup: sn_analytics_funnels_resolve_setting — T2-review hardening: an entry missing 'steps' rejects the WHOLE setting\n";
+// Every configured entry (not just non-array ones) must carry title + steps
+// (steps itself an array) or the setting falls back wholesale — matches the
+// existing corrupt-fallback semantics, just widened to the funnel SHAPE, not
+// only its PHP type.
+$out = sn_analytics_funnels_resolve_setting( array( array( 'title' => 'No steps here' ) ), $hardcoded_today );
+ok( $hardcoded_today === $out, 'an entry missing "steps" -> the hardcoded defaults, not a partial/best-effort mix' );
+$out = sn_analytics_funnels_resolve_setting( array( array( 'steps' => array() ) ), $hardcoded_today );
+ok( $hardcoded_today === $out, 'an entry missing "title" -> the hardcoded defaults' );
+$out = sn_analytics_funnels_resolve_setting( array( array( 'title' => 'Bad steps', 'steps' => 'not-an-array' ) ), $hardcoded_today );
+ok( $hardcoded_today === $out, 'an entry whose "steps" is not itself an array -> the hardcoded defaults' );
+// End-to-end through the public seam + the Visits view's own funnel-building
+// loop (mirrors inc/analytics-view-sessions.php:116-121): a corrupt setting
+// must not fatal the render path, just resolve to the well-formed defaults.
+$GLOBALS['__settings'] = array( 'analytics.funnels' => array( array( 'title' => 'No steps here' ) ) );
+$out                   = sn_analytics_session_funnels();
+ok( $hardcoded_today === $out, 'sn_analytics_session_funnels(): an entry missing "steps" falls back to the hardcoded defaults' );
+$rendered = array();
+foreach ( $out as $def ) {
+	$rendered[] = array( 'title' => $def['title'], 'report' => sn_funnel_report( array(), $def['steps'] ) );
+}
+ok( 2 === count( $rendered ), 'the Visits-view funnel-building loop completes without error over the fallback funnels' );
 
 echo "\nGroup: sn_analytics_session_funnels — the filter still runs LAST, over BOTH sources\n";
 function sn_test_append_funnel_filter( $funnels ) {

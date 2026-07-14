@@ -266,6 +266,36 @@ function snt_analytics_render_engine_tuning() {
 }
 
 /**
+ * Settings-hub session funnels card (S2 §3, Task 3): a zero-JS textarea, one
+ * named conversion funnel per line ("Name: /entry > /step > /goal"), prefilled
+ * from the CURRENT analytics.funnels setting via sn_analytics_funnels_to_text()
+ * so the owner edits what is actually live. Saved by
+ * sn_handle_analytics_funnels_save() via sn_action=analytics_funnels_save;
+ * parsed by sn_analytics_parse_funnels() (both inc/analytics-sessions.php).
+ *
+ * Only exact-match path steps are expressible in this textarea — a funnel
+ * carrying a custom-event goal or a prefix-match step (like the two hardcoded
+ * defaults) is OMITTED from the prefill rather than invented into a comment
+ * syntax the parser would reject; it stays live via the
+ * 'sn_analytics_session_funnels' filter, which always runs last. The help text
+ * says so, and that saving anything here replaces the hardcoded defaults.
+ */
+function snt_analytics_render_funnels() {
+	$funnels = (array) sn_setting( 'analytics.funnels', array() );
+	$text    = sn_analytics_funnels_to_text( $funnels );
+
+	echo '<form method="post" class="sn-an-settings sn-an-funnels">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Named conversion paths for the Visits view — one per line: "Name: /entry > /step > /goal" (2–10 steps, up to 10 funnels). A bare path gets a leading slash added automatically.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p><textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Visits view — including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be edited here. A funnel defined in code with prefix matching or a custom-event goal is not shown in this box — it stays active via the filter above, so saving never silently drops it.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
+}
+
+/**
  * Settings-hub "Configured elsewhere" mirrors (v9.36.0): read-only rows for the
  * analytics-load-bearing settings that live on other tabs, each with a deep
  * link to its real home. HARD RULE: no inputs here, ever — one write surface

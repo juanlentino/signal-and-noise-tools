@@ -480,11 +480,13 @@ function snt_analytics_render_dashboard() {
  * wide-leaf card-ownership rule). The forms post on the page=sn-theme-options
  * route (the Monitoring sub-tab nav guarantees that slug), so the existing
  * admin-post handler processes analytics_save / _test / _exclude_save / _export
- * unchanged + analytics_tuning_save (v9.36.0) — each <form> keeps its own
- * nonce + sn_action button.
+ * unchanged + analytics_tuning_save (v9.36.0) + analytics_funnels_save (S2 §3)
+ * — each <form> keeps its own nonce + sn_action button.
  * v9.36.0 (settings hub): pipeline status strip above the columns; engine tuning
  * joins the writable column; read-only mirrors + filter reference join the
  * reference column.
+ * S2 §3 (v9.42.0 arc): the session-funnels card joins the writable column,
+ * after engine tuning.
  */
 function snt_analytics_render_settings_section() {
 	// v9.36.0 settings hub: pipeline status first — the five presence pills
@@ -507,6 +509,11 @@ function snt_analytics_render_settings_section() {
 	// v9.36.0: the two owner-tunable predictive-engine knobs.
 	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
 		snt_analytics_render_engine_tuning();
+	}
+	// S2 §3 (v9.42.0 arc): owner-defined session funnels, after engine tuning —
+	// the writable column's last card.
+	if ( function_exists( 'snt_analytics_render_funnels' ) ) {
+		snt_analytics_render_funnels();
 	}
 	echo '</div>';
 

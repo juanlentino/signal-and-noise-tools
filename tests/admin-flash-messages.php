@@ -136,5 +136,38 @@ fm_eq( false, isset( $static['narration_generated'] ), 'R2: narration_generated 
 // release_notes_failed no longer blames AI config (its detail box shows the real error).
 fm_eq( false, false !== strpos( $static['release_notes_failed'][1], 'AI provider is configured' ), 'release_notes_failed copy no longer blames AI config' );
 
+echo "\nTest 7: analytics_funnels static codes (S2 §3)\n";
+fm_eq( array( 'success', 'Session funnels saved. The Visits view reflects them on the next load.' ), sn_admin_flash_to_notice( 'analytics_funnels_saved' ), 'analytics_funnels_saved' );
+fm_eq( array( 'error', 'Session funnels could not be saved — try again.' ), sn_admin_flash_to_notice( 'analytics_funnels_failed' ), 'analytics_funnels_failed' );
+
+echo "\nTest 8: analytics_funnels_invalid prefix branch (S2 §3 + T2-review hardening)\n";
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_3' );
+fm_eq( 'error', $note[0], 'single bad line -> error severity' );
+fm_eq( true, false !== strpos( $note[1], 'Check line 3.' ), 'single bad line -> singular "line" + the number' );
+fm_eq( false, false !== strpos( $note[1], 'lines' ), 'single bad line does NOT say "lines" (plural)' );
+
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_2-4' );
+fm_eq( true, false !== strpos( $note[1], 'Check lines 2, 4.' ), 'multiple bad lines -> plural "lines" + comma-joined list' );
+
+// Bare code (no trailing line-number suffix) still resolves, with no "Check line" clause.
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid' );
+fm_eq( 'error', $note[0], 'bare code (no line suffix) -> error severity' );
+fm_eq( 'Funnels not saved — nothing changed.', $note[1], 'bare code -> no "Check line" clause appended' );
+
+// Crafted-junk suffix: sn_handle_analytics_funnels_save() only ever emits digits
+// joined by '-', but $flash reaches this resolver after sanitize_text_field()
+// (inc/admin-page.php), which strips tags but not arbitrary characters — a
+// hand-crafted ?sn_flash= URL param could still carry stray junk. Hardening pin:
+// the resolver whitelists to [0-9,\- ] and caps the suffix length itself.
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_<script>alert(1)</script>' );
+fm_eq( true, false === strpos( $note[1], '<script>' ), 'crafted junk suffix: no raw "<script>" survives into the notice' );
+fm_eq( true, false === strpos( $note[1], '<' ) && false === strpos( $note[1], '>' ) && false === strpos( $note[1], '(' ) && false === strpos( $note[1], ')' ),
+	'crafted junk suffix: non-digit/comma/dash/space characters are stripped entirely' );
+
+$flash_long = 'analytics_funnels_invalid_' . str_repeat( '9', 100 );
+$note       = sn_admin_flash_to_notice( $flash_long );
+fm_eq( false, false !== strpos( $note[1], str_repeat( '9', 100 ) ), 'crafted junk suffix: a 100-char digit run is NOT echoed in full (capped)' );
+fm_eq( true, false !== strpos( $note[1], str_repeat( '9', 40 ) ), 'crafted junk suffix: exactly the first 40 chars of the digit run survive the cap' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

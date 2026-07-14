@@ -23,6 +23,8 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
+// S2 §3 (v9.42.0 arc): the funnels card's textarea (inc/analytics-render-settings.php).
+function esc_textarea( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 // v6.23.0: snt_analytics_render_settings_section() now also renders the "Exclude
 // my own visits" card, which reads sn_setting('analytics.exclude_roles'). Stub it
 // (the card's full markup is covered by tests/analytics-exclusion-render.php; with
@@ -169,6 +171,11 @@ if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { retur
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__aa_transients'][ $k ] ?? false; } }
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__aa_transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( $f, $t ); } }
+// S2 §3 (v9.42.0 arc): snt_analytics_render_funnels() (inc/analytics-render-settings.php,
+// pulled in via analytics-admin-render.php below) calls sn_analytics_funnels_to_text()
+// — mirrors production load order (signal-and-noise-tools.php requires
+// analytics-sessions.php before analytics-admin-render.php/analytics-admin.php).
+require_once __DIR__ . '/../inc/analytics-sessions.php';
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
@@ -553,15 +560,17 @@ $twoup   = strpos( $html, '<div class="sn-2up">' );
 $creds   = strpos( $html, 'name="sn_cf_account_id"' );
 $excl    = strpos( $html, 'sn-an-exclude' );
 $tune    = strpos( $html, 'sn-an-tuning' );
+$funnels = strpos( $html, 'sn-an-funnels' ); // S2 §3 (v9.42.0 arc): funnels card, after engine tuning
 $mirrors = strpos( $html, 'sn-an-mirrors' );
 $filters = strpos( $html, 'sn-an-filters' );
 $setup   = strpos( $html, 'Cloudflare Worker setup' ); // collision-free: the strip's warn note can also contain 'wrangler'
 ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
-ok( false !== $creds && false !== $excl && false !== $tune && $creds < $excl && $excl < $tune,
-	'hub(left): credentials → exclusion → engine tuning (writable column order)' );
+ok( false !== $creds && false !== $excl && false !== $tune && false !== $funnels && $creds < $excl && $excl < $tune && $tune < $funnels,
+	'hub(left): credentials → exclusion → engine tuning → funnels (writable column order)' );
+ok( strpos( $html, 'name="sn_funnels"' ) !== false, 'hub(left): the funnels card\'s textarea is present' );
 ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $filters && $filters < $setup,
 	'hub(right): mirrors → filter reference → worker setup (reference column order)' );
-ok( $tune < $mirrors, 'hub: the writable column (tuning last) precedes the reference column\'s first marker' );
+ok( $funnels < $mirrors, 'hub: the writable column (funnels last) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
