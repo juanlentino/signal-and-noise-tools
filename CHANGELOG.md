@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.39.0] - 2026-07-14: Analytics dashboard D3 — one range control, one param-carry matrix
+
+**Headline:** The three range clusters (fixed pills, calendar-preset links, the custom-range disclosure) collapse into ONE native `<details>` dropdown labeled with the current range — "Last 30 days", "This quarter", "2026-06-01 – 2026-07-13" — with rolling, calendar, and custom rows inside (all 14 range tokens unchanged, zero JS). Underneath it, ONE param-carry matrix: context params (view, window, class, compare) survive every in-dashboard navigation; view-local filters (drill, event property, login-defense range) reset on view switch and survive everything else. That fixes a real bug — the compare pills silently reset the window to 7d/human — plus the stale events-filter tab leak, and the Movers deep link now lands on the Posts view in YOUR window. Third increment of the dashboard revamp (D3 of 5).
+
+> **Why MINOR:** new user-visible control + carry semantics; no breaking change — range tokens, resolution, and every URL contract are unchanged or strictly more preserving.
+
+### Added
+- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): `snt_analytics_preset_labels()` + `snt_analytics_range_label()` — the one label vocabulary for the control's summary and Calendar row.
+- [tests/analytics-param-carry.php](tests/analytics-param-carry.php): the carry-matrix CONTRACT suite — real query-string semantics, one group per policy-encoding builder (compare, custom form, rolling/calendar links); the audit's "3 inconsistent matrices" is now 1 tested one.
+
+### Changed
+- [inc/analytics-render-controls.php](inc/analytics-render-controls.php): the ONE range control (`<details class="sn-an-range">`) replaces the pills row + preset links + daterange disclosure; compare links re-add the window args (bug fix: prev/yoy no longer resets to 7d/human); the custom form's hidden-field whitelist grows to carry `sn_compare`/`sn_drill`/`sn_event_prop`; the matrix table lives in the docblock.
+- [inc/analytics-admin.php](inc/analytics-admin.php): the tab strip-list gains `sn_event_prop` (view-local filters reset on view switch); stale range-token docblocks gain the `14` token (also [inc/abilities-analytics.php](inc/abilities-analytics.php) + [inc/analytics-rest.php](inc/analytics-rest.php)).
+- [inc/analytics-movers.php](inc/analytics-movers.php) + [inc/analytics-header-region.php](inc/analytics-header-region.php): the Movers "Posts view →" deep link carries the current window + class.
+- [inc/analytics-recommendations.php](inc/analytics-recommendations.php): the seo-meta rule caches its Page scan for an hour (PR #276 fast-follow — parity with its two pre-computed peers).
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): `.sn-an-daterange` rules retired for the `.sn-an-range` dropdown (flat hairline panel, D1 language, no new colors).
+
+### Tests
+- 1 new contract suite + a label-vocabulary group; rewrites/updates across `analytics-controls-render`, `analytics-admin` (tab event-prop drop; the old daterange pins), `analytics-movers` (deep-link carry + back-compat), `analytics-header-region` (range threading), `analytics-recommendations` (transient cold/warm contract).
+
 ## [9.38.0] - 2026-07-13: Analytics dashboard D2 — one comparison frame, one narrative voice
 
 **Headline:** At any moment every comparison surface on the dashboard now shares ONE window: the KPI delta badges, the engaged badge, the Overview annotation inputs, and the Movers tile all follow the `sn_compare` selection (previously they were pinned to the prior period while the overlay + note followed the pill — two frames on screen with year-over-year selected). Off keeps the quiet default (implicit previous period, no overlay/note); `yoy` switches everything — KPI tooltips and the Movers meta name the actual basis, and at range=all the label truthfully degrades with the data. And the screen has ONE AI voice: the Recommendations panel's separate AI brief is retired — the digest (headline band) absorbs the start-here thread by receiving the top deterministic card as prompt context. Content view drops from two AI calls per load to one. Second increment of the dashboard revamp (D2 of 5).
