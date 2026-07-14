@@ -11,7 +11,8 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
-define( 'SN_ANALYTICS_RANGES', array( 7, 14, 30, 90, 365 ) );
+// SN_ANALYTICS_RANGES comes from the real inc/analytics-admin.php (required
+// below, before the barrel) — this suite also drives the REAL tab builder.
 
 // REAL query-string semantics (the naive stubs elsewhere can't test carry).
 $GLOBALS['__current_url'] = '';
@@ -45,7 +46,8 @@ function __( $s, $d = '' ) { return $s; }
 function wp_nonce_field( $a ) { echo ''; }
 function number_format_i18n( $n, $d = 0 ) { return (string) $n; }
 
-require __DIR__ . '/../inc/analytics-admin-render.php';
+require __DIR__ . '/../inc/analytics-admin.php';        // consts + the tab builder (side-effect-free at load)
+require __DIR__ . '/../inc/analytics-admin-render.php';  // barrel: controls + tables + events renderers
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -84,6 +86,12 @@ $roll = link_args( $ctl, 'sn_range=90' );
 ok( is_array( $roll ) && 'yoy' === ( $roll['sn_compare'] ?? '' ) && 'country:US' === ( $roll['sn_drill'] ?? '' ) && 'utm_source' === ( $roll['sn_event_prop'] ?? '' ), 'rolling link carries compare + view-local filters' );
 $cal = link_args( $ctl, 'sn_range=ytd' );
 ok( is_array( $cal ) && 'yoy' === ( $cal['sn_compare'] ?? '' ) && 'events' === ( $cal['sn_view'] ?? '' ), 'calendar link carries compare + view' );
+
+echo "\nGroup: contract — tab switch resets view-local, keeps context\n";
+ob_start(); snt_analytics_render_view_tabs( 'events', 30, 'bot', '', '' ); $tabs = ob_get_clean();
+$tab = link_args( $tabs, 'sn_view=content' );
+ok( is_array( $tab ) && 'yoy' === ( $tab['sn_compare'] ?? '' ) && '30' === ( $tab['sn_range'] ?? '' ) && 'bot' === ( $tab['sn_class'] ?? '' ), 'tab link carries the context params (view/window/class/compare)' );
+ok( is_array( $tab ) && ! isset( $tab['sn_drill'] ) && ! isset( $tab['sn_event_prop'] ) && ! isset( $tab['sn_lg_range'] ), 'tab link drops ALL view-local filters (drill + event_prop + lg_range)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
