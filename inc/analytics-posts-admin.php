@@ -138,6 +138,12 @@ function snt_analytics_render_post_hero( $subject ) {
  * the shared snt_analytics_smooth_path so the treatment is pixel-identical to
  * every other trend on the page (subject #2271b1, baseline muted #646970).
  *
+ * D5 §3 recorded holdout: does NOT route through snt_an_trend_svg() (the shared
+ * trend-SVG primitive the other three trend copies adopted) — different viewBox
+ * (600×86, not 600×84), no area fill/gradient/baseline, dual equal-x series (the
+ * primitive's overlay uses its own point count, not a shared x-axis), and a
+ * different overlay stroke. Pre-authorized to stay bespoke; parity beats purity.
+ *
  * @param array $subject     Subject summary.
  * @param array $leaderboard All recent-post rows (carry by_dol + age).
  */
