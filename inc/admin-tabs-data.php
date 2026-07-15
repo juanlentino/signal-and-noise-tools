@@ -181,13 +181,17 @@ function sn_admin_top_tabs() {
 			'tab'      => 'tools',
 			'label'    => 'Tools',
 			'title'    => 'Signal & Noise — Tools',
-			'subtitle' => 'Block migrations, AI release notes, and external shortcuts.',
+			'subtitle' => 'Block migrations, AI release notes, MCP client setup, and external shortcuts.',
 			'sub_tabs' => array(
 				'block-migrations' => array( 'label' => 'Block Migrations', 'render' => 'sn_admin_render_block_migrations_section' ),
 				// v4.11.0 (T4): AI release-notes drafter.
 				'release-notes'    => array( 'label' => 'Release Notes', 'render' => 'sn_admin_render_release_notes_section' ),
 				// Notes provenance (Plan 6): live anchor-status stepper + public key.
 				'provenance'       => array( 'label' => 'Provenance', 'render' => 'sn_admin_render_provenance_section', 'wide' => true ),
+				// v9.47.0: read-only "how to connect an external MCP client" doc leaf
+				// (native JSON-RPC server + the wp.org AI plugin's Abilities-registry
+				// adapter). No form, no side effects — pure reference, like Links.
+				'mcp-connect'      => array( 'label' => 'MCP', 'render' => 'sn_admin_render_mcp_connect_section' ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'            => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),
