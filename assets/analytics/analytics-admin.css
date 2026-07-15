@@ -421,9 +421,9 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
    inc/analytics-admin.php) so nothing outside the settings leaf is touched.
    `.sn-2up > .sn-fieldset` targets ONLY the two operate/reference column
    cards — never the pipeline strip above them (it lives outside .sn-2up and
-   keeps its own .sn-an-pipeline hero treatment; a bare `.sn-fieldset`
-   selector here would also match it via its shared class and, at equal
-   specificity, lose that hero to this flatter card treatment). Flat
+   keeps its own .sn-an-pipeline hero treatment; a bare
+   `.sn-an-settings-leaf .sn-fieldset` (0,2,0) would also match it AND
+   OUT-SPECIFY the (0,1,0) .sn-an-pipeline hero rule — flattening it). Flat
    surfaces only — --sn-an-radius, no elevation token, no shadow. */
 .sn-an-settings-leaf .sn-2up > .sn-fieldset {
 	background: var(--sn-an-surface);
