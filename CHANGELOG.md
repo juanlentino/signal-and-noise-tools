@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.42.2] - 2026-07-14: The last control clone falls — range pills become a shared primitive
+
+**Headline:** login-defense's hand-rolled `sn_lg_range` pill row — self-documented since D5 as *"the ONLY remaining hand-rolled control clone in the codebase"* — is extracted into the shared primitive `snt_an_range_pills( $param, $allowed, $active_value, $opts )` in [inc/analytics-panels.php](inc/analytics-panels.php), and [inc/login-defense-analytics.php](inc/login-defense-analytics.php) adopts it. The rendered header is **byte-identical** (proven by rendering the pre- and post-extraction code under identical stubs and diffing, across default/7d/30d/90d active states — 2,434 identical bytes each). The primitive renders only the `.sn-control-group` (the `.sn-toolbar` wrapper stays the caller's, matching the row/group-primitive convention); the dashboard's own range control (`snt_analytics_render_controls`, D3) is deliberately untouched — it is a different, richer shape.
+
+> **Why PATCH:** pure refactor/de-clone; zero markup, visual, or behavioral change.
+
+### Added
+- [tests/analytics-range-pills.php](tests/analytics-range-pills.php): 19-assert suite — a byte pin of the pre-extraction login-defense header (the parity proof) + the primitive contract (single active pill with `aria-pressed`, escaping on label/aria-label/href, `<int>d` formatting, i18n-domain recording, empty-`$allowed` degradation).
+
+### Changed
+- [inc/analytics-panels.php](inc/analytics-panels.php): the new range-pill primitive (`@since 9.42.2`), placed with the other primitives.
+- [inc/login-defense-analytics.php](inc/login-defense-analytics.php): the header composes `.sn-toolbar` + `snt_an_range_pills()` instead of hand-rolling the pills; its "only remaining control clone" comment retired.
+
 ## [9.42.1] - 2026-07-14: i18n sweep — the analytics surface's raw strings route through the text domain
 
 **Headline:** Zero-copy-change i18n pass over the analytics admin surface: **89 previously-raw call sites** now route through `__()`/`esc_html__()` with the `signal-and-noise-tools` text domain — every why/empty diagnostic, every table column header, the three raw titles (Top sources, the drill-down panel, Recommendations), and the inline labels (`Property:` / Clear / Open / Clear drill-down / the Traffic-quality legend). English output is byte-identical (proven by rendering both trees and diffing), so nothing changes on en_US installs; non-English locales can now translate the whole dashboard surface instead of a wrapped-titles-raw-whys patchwork.
