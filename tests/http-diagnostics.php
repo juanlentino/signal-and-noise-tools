@@ -74,10 +74,12 @@ function wp_doing_ajax() { return ! empty( $GLOBALS['__test_doing_ajax'] ); }
 function wp_doing_cron() { return ! empty( $GLOBALS['__test_doing_cron'] ); }
 
 $GLOBALS['__test_timer_stop'] = 0.0;
-function timer_stop( $display = 1, $precision = 3 ) { return $GLOBALS['__test_timer_stop']; }
+// WP-faithful: real timer_stop() returns a number_format()'d STRING, not a
+// float — stub fidelity on core return types (the v9.46.2 incident class).
+function timer_stop( $display = 1, $precision = 3 ) { return number_format( (float) $GLOBALS['__test_timer_stop'], $precision, '.', '' ); }
 
 $GLOBALS['__test_hooks'] = array();
-function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__test_hooks']['action'][] = $hook; }
+function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__test_hooks']['action'][] = $hook; $GLOBALS['__test_hooks']['action_args'][ $hook ] = $args; }
 function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__test_hooks']['filter'][] = $hook; }
 
 require __DIR__ . '/../inc/http-diagnostics.php';
@@ -207,6 +209,22 @@ $GLOBALS['__test_doing_ajax'] = false;
 
 $GLOBALS['__test_doing_cron'] = true;
 ok( null === sn_httpdiag_shutdown( array(), 9.9 ), 'wp_doing_cron() === true blocks the write' );
+
+echo "\nGroup: the v9.46.2 incident — WP's argless-do_action empty-string filler must never fatal\n";
+// do_action('shutdown') fires with no args, and WP hands accepted_args>=1
+// callbacks '' as their first param — the exact production shape that
+// fataled record()'s array type on every slow no-HTTP page (10.11s admin).
+$GLOBALS['__test_is_admin'] = true; $GLOBALS['__test_doing_ajax'] = false; $GLOBALS['__test_doing_cron'] = false;
+$GLOBALS['__test_timer_stop'] = 10.11;
+$incident = sn_httpdiag_shutdown( '' );
+ok( is_array( $incident ), 'the hook-filler empty string falls back to the real buffer — entry logged, NO fatal' );
+ok( 10.11 === ( $incident['wall_s'] ?? 0.0 ), 'wall_s falls back to (float) timer_stop(0) — survives the STRING core return type' );
+$incident2 = sn_httpdiag_shutdown( '', '' );
+ok( is_array( $incident2 ) && 10.11 === ( $incident2['wall_s'] ?? 0.0 ), 'both filler args non-fatal (wall falls back past a non-numeric)' );
+$GLOBALS['__test_timer_stop'] = 0.0;
+$GLOBALS['__test_hooks'] = array();
+sn_httpdiag_register_hooks();
+ok( 0 === ( $GLOBALS['__test_hooks']['action_args']['shutdown'] ?? -1 ), 'shutdown registers with accepted_args 0 — WP passes the callback nothing at all' );
 $GLOBALS['__test_doing_cron'] = false;
 
 define( 'REST_REQUEST', true );
