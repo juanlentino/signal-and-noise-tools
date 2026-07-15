@@ -50,6 +50,11 @@ add_action( 'wp_dashboard_setup', function() {
  * rules only appear in these dashboard-home widgets; loading them on any other
  * admin screen would be dead weight.
  *
+ * Widget tokenization: also enqueues the shared 'snt-analytics-tokens'
+ * stylesheet (the D4 --sn-an-* palette, formerly declared only inside
+ * analytics-admin.css) as a dependency of analytics-widget.css, so WP's dep
+ * graph guarantees it loads first and both surfaces read the same palette.
+ *
  * @param string $hook Current admin page hook suffix.
  */
 function sn_aw_enqueue_styles( $hook ) {
@@ -57,9 +62,15 @@ function sn_aw_enqueue_styles( $hook ) {
 		return;
 	}
 	wp_enqueue_style(
+		'snt-analytics-tokens',
+		SNT_URL . 'assets/analytics/analytics-tokens.css',
+		array(),
+		SNT_VERSION
+	);
+	wp_enqueue_style(
 		'sn-analytics-widget',
 		SNT_URL . 'assets/analytics/analytics-widget.css',
-		array(),
+		array( 'snt-analytics-tokens' ),
 		SNT_VERSION
 	);
 }

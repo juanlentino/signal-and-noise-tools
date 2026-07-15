@@ -8,30 +8,15 @@
  * which is why the live dashboard could render unstyled. See the WordPress Plugin
  * Handbook, "Including CSS & JavaScript".
  *
- * WP admin native palette, namespaced as the D4 --sn-an-* token layer below:
- * --sn-an-text (#1d2327) · --sn-an-muted (#646970) · --sn-an-accent (#2271b1) ·
- * --sn-an-hairline (#dcdcde) · --sn-an-down (#d63638). wp-admin already ships
+ * WP admin native palette, read through the D4 --sn-an-* token layer: --sn-an-text
+ * (#1d2327) · --sn-an-muted (#646970) · --sn-an-accent (#2271b1) · --sn-an-hairline
+ * (#dcdcde) · --sn-an-down (#d63638). The tokens themselves now live in
+ * analytics-tokens.css (a 'snt-analytics-tokens' dependency of this stylesheet, so
+ * WP's dep graph guarantees it loads first) — shared verbatim with
+ * analytics-widget.css on the Dashboard home screen. wp-admin already ships
  * .postbox, .widefat, .nav-tab, .button, .notice core CSS — this file adds ONLY
  * the custom dense-layout rules those core classes don't provide.
  */
-
-/* ── D4 token layer (v9.40.0): THE analytics vocabulary. Namespaced --sn-an-*
-   so the settings pages' --sn-border #c3c4c7 contract (tests/admin-polish-v647.php)
-   is untouched. One accent, one green (AA at badge sizes), one red, one hairline,
-   one radius — plus the single sanctioned elevation (headline band only). ── */
-:root {
-	--sn-an-accent: #2271b1;
-	--sn-an-up: #0a7c2f;
-	--sn-an-down: #d63638;
-	--sn-an-hairline: #dcdcde;
-	--sn-an-muted: #646970;
-	--sn-an-text: #1d2327;
-	--sn-an-surface: #fff;
-	--sn-an-surface-2: #f6f7f7;
-	--sn-an-radius: 4px;
-	--sn-an-elev-radius: 8px;
-	--sn-an-shadow: 0 1px 2px rgba(0,0,0,.04);
-}
 
 /* ── postbox / widefat tweaks ───────────────────────────────────────────── */
 /* Panel TITLE gutter. This page registers its postboxes outside the metabox
@@ -580,9 +565,9 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 
 /* v9.35.0 maturity tier badges (I6) */
 .sn-an-tier{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;border:1px solid #dcdcde;color:#50575e;background:#f6f7f7}
-.sn-an-tier--predictive{color:#2271b1;border-color:#9ec2e6}
-.sn-an-tier--prescriptive{color:#7c3aed;border-color:#c4b5fd}
-.sn-an-tier--diagnostic{color:#996800;border-color:#e5cf8c}
+.sn-an-tier--predictive{color:var(--sn-an-accent);border-color:var(--sn-an-tier-predictive-border)}
+.sn-an-tier--prescriptive{color:var(--sn-an-tier-prescriptive);border-color:var(--sn-an-tier-prescriptive-border)}
+.sn-an-tier--diagnostic{color:var(--sn-an-tier-diagnostic);border-color:var(--sn-an-tier-diagnostic-border)}
 .sn-an-methods-note{margin:10px 0 0;font-size:11px;color:#787c82}
 
 /* ── v9.37.0 D1: modern-native treatment — the five touched surfaces ONLY

@@ -94,17 +94,29 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		array(),
 		SNT_VERSION
 	);
+	// Widget tokenization: the shared D4 --sn-an-* token layer (formerly declared
+	// inline in analytics-admin.css's own :root block) now lives in its own
+	// stylesheet so analytics-widget.css can read the same palette on the
+	// Dashboard home screen. Registered as a dependency below so WP's dep graph —
+	// not enqueue call order — guarantees it loads first.
+	wp_enqueue_style(
+		'snt-analytics-tokens',
+		SNT_URL . 'assets/analytics/analytics-tokens.css',
+		array(),
+		SNT_VERSION
+	);
 	// v6.5.1: the dense Analytics dashboard layout (formerly an inline <style>
 	// echoed mid-body by snt_analytics_styles(), which could render unstyled on the
 	// live page — a body-injected <style> is subject to edge/cache HTML rewriting and
 	// a strict CSP, and the old once-guard was fragile). Loaded as a proper external,
-	// cache-busted stylesheet in <head>. Depends on sn-admin so it cascades after it.
-	// Scoped to .sn-an-*/.sn-kpi-*/.sn-geo-* classes that only appear on the analytics
+	// cache-busted stylesheet in <head>. Depends on sn-admin so it cascades after it,
+	// and on snt-analytics-tokens for the shared token layer. Scoped to
+	// .sn-an-*/.sn-kpi-*/.sn-geo-* classes that only appear on the analytics
 	// surfaces, so loading it on every SN admin page is harmless.
 	wp_enqueue_style(
 		'sn-analytics-admin',
 		SNT_URL . 'assets/analytics/analytics-admin.css',
-		array( 'sn-admin' ),
+		array( 'sn-admin', 'snt-analytics-tokens' ),
 		SNT_VERSION
 	);
 	// v9.34.0 (maturity I5): brush-to-select on the trend chart (the chart becomes

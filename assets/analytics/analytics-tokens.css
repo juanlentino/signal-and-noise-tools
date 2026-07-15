@@ -1,0 +1,45 @@
+/*
+ * Signal & Noise — shared analytics token layer (--sn-an-*).
+ *
+ * The D4 token vocabulary (v9.40.0), extracted out of analytics-admin.css so
+ * BOTH admin surfaces can read from ONE palette instead of maintaining
+ * parallel hex literals:
+ *   - analytics-admin.css   — the Analytics/Monitoring admin pages
+ *   - analytics-widget.css  — the WP Dashboard-home widgets
+ * Registered as the 'snt-analytics-tokens' handle and enqueued as a
+ * dependency of BOTH stylesheets (inc/admin-menu.php + sn_aw_enqueue_styles()
+ * in inc/analytics-widget.php), so WP's dependency graph — not enqueue call
+ * order — guarantees this file loads first on every surface that needs it.
+ *
+ * WP admin native palette: --sn-an-text (#1d2327) · --sn-an-muted (#646970) ·
+ * --sn-an-accent (#2271b1) · --sn-an-hairline (#dcdcde) · --sn-an-down
+ * (#d63638). One accent, one green (AA at badge sizes), one red, one
+ * hairline, one radius — plus the single sanctioned elevation (headline
+ * band / pipeline hero only). The settings pages' own --sn-border (#c3c4c7)
+ * contract (tests/admin-polish-v647.php) is a SEPARATE token, untouched.
+ */
+:root {
+	--sn-an-accent: #2271b1;
+	--sn-an-up: #0a7c2f;
+	--sn-an-down: #d63638;
+	--sn-an-hairline: #dcdcde;
+	--sn-an-muted: #646970;
+	--sn-an-text: #1d2327;
+	--sn-an-surface: #fff;
+	--sn-an-surface-2: #f6f7f7;
+	--sn-an-radius: 4px;
+	--sn-an-elev-radius: 8px;
+	--sn-an-shadow: 0 1px 2px rgba(0,0,0,.04);
+
+	/* Maturity tier badge variants (v9.35.0 I6): predictive/prescriptive/
+	   diagnostic chip colors, duplicated verbatim across analytics-admin.css
+	   (.sn-an-tier--*) and analytics-widget.css (.sn-aw-insight .sn-an-tier--*)
+	   — genuinely shared, so they belong here rather than as parallel hex.
+	   The predictive variant's TEXT color reuses --sn-an-accent above; only
+	   its border needed a new name. */
+	--sn-an-tier-predictive-border: #9ec2e6;
+	--sn-an-tier-prescriptive: #7c3aed;
+	--sn-an-tier-prescriptive-border: #c4b5fd;
+	--sn-an-tier-diagnostic: #996800;
+	--sn-an-tier-diagnostic-border: #e5cf8c;
+}

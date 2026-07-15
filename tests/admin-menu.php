@@ -73,12 +73,22 @@ ok( isset( $st['src'] ) && strpos( (string) $st['src'], 'assets/analytics/analyt
 	'enqueue: src points at assets/analytics/analytics-admin.css (external file, not inline)' );
 ok( isset( $st['deps'] ) && in_array( 'sn-admin', (array) $st['deps'], true ),
 	'enqueue: depends on sn-admin so it cascades after the base admin stylesheet' );
+ok( isset( $st['deps'] ) && in_array( 'snt-analytics-tokens', (array) $st['deps'], true ),
+	'enqueue: depends on snt-analytics-tokens (widget tokenization — ordering guaranteed by WP deps)' );
 ok( ( $st['ver'] ?? null ) === SNT_VERSION, 'enqueue: cache-busted by SNT_VERSION' );
+
+// Widget tokenization: the shared D4 token stylesheet also loads on SN admin pages.
+ok( isset( $GLOBALS['__styles']['snt-analytics-tokens'] ), 'enqueue: snt-analytics-tokens style registered on an SN page' );
+$tk = $GLOBALS['__styles']['snt-analytics-tokens'] ?? array();
+ok( isset( $tk['src'] ) && strpos( (string) $tk['src'], 'assets/analytics/analytics-tokens.css' ) !== false,
+	'enqueue: tokens src points at assets/analytics/analytics-tokens.css' );
+ok( ( $tk['ver'] ?? null ) === SNT_VERSION, 'enqueue: tokens stylesheet cache-busted by SNT_VERSION' );
 
 // Negative: scoped — NOT loaded on a non-SN admin page.
 $GLOBALS['__styles'] = array();
 foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] as $cb ) { $cb( 'edit.php' ); }
 ok( ! isset( $GLOBALS['__styles']['sn-analytics-admin'] ), 'enqueue: NOT loaded on a non-SN admin page (scoped guard)' );
+ok( ! isset( $GLOBALS['__styles']['snt-analytics-tokens'] ), 'enqueue: tokens stylesheet also NOT loaded on a non-SN admin page' );
 
 // ── v6.47.2 regression: the shared Suggest+Apply JS (snt-health-suggest-actions)
 // must load on exactly the leaves that render data-snt-suggest buttons —
