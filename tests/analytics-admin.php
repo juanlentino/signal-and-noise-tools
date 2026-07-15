@@ -545,6 +545,20 @@ ok( 0 === $GLOBALS['__aa_calls']['range_totals'], 'unconfigured: sn_analytics_ra
 ok( 0 === $GLOBALS['__aa_calls']['class_totals'], 'unconfigured: sn_analytics_class_totals() never called' );
 ok( 0 === $GLOBALS['__aa_calls']['daily_series'], 'unconfigured: sn_analytics_daily_series() never called' );
 ok( 0 === $GLOBALS['__aa_calls']['top_paths'], 'unconfigured: sn_analytics_top_paths() never called' );
+// T5 review: 'all' is the ONE range token whose pre-gate resolution reads a local
+// accessor (sn_analytics_min_day — rollup MIN, transient-cached, empty-table-safe).
+// Pin that documented contract: exactly one min_day read, still zero AE accessors.
+if ( ! function_exists( 'sn_analytics_min_day' ) ) {
+	function sn_analytics_min_day() { ++$GLOBALS['__aa_calls_min_day']; return '2026-01-01'; }
+}
+$GLOBALS['__aa_calls_min_day'] = 0;
+aa_reset_call_counts();
+$_GET['sn_range'] = 'all';
+$html_all = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_all, 'sn-an-view-tabs' ) !== false && strpos( $html_all, 'sn_range=all' ) !== false, 'unconfigured+all: tabs render and carry the all token' );
+ok( 1 === $GLOBALS['__aa_calls_min_day'], 'unconfigured+all: exactly ONE min_day read (the documented pre-gate exception)' );
+ok( 0 === array_sum( $GLOBALS['__aa_calls'] ), 'unconfigured+all: the five AE accessors still never called' );
+unset( $_GET['sn_range'] );
 $GLOBALS['__aa_config'] = true; // restore for the groups that follow.
 
 echo "\nGroup: settings section — the creds form + dashboard backlink\n";

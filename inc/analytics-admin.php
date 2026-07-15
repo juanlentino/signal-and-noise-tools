@@ -349,10 +349,13 @@ function snt_analytics_render_dashboard() {
 	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
 	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
-	// Window resolution is pure date math + GET whitelisting — no accessor reads,
-	// no config dependency — so it's safe (and now necessary) to resolve BEFORE
-	// the config gate: the tab strip below needs $range/$from/$to to build its
+	// Window resolution is date math + GET whitelisting with no AE/config-gated
+	// accessor reads — so it's safe (and now necessary) to resolve BEFORE the
+	// config gate: the tab strip below needs $range/$from/$to to build its
 	// window-preserving links on EVERY install state, configured or not.
+	// Caveat for future movers: 'all'/'custom' DO read sn_analytics_min_day()
+	// (local rollup MIN, transient-cached; the table exists on every install via
+	// the init-time installer, and an empty table safely falls back to today).
 	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
 
 	// Config gate: the tab strip renders regardless (S2 §5 — the dashboard's
