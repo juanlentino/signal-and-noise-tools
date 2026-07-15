@@ -328,6 +328,15 @@ function snt_analytics_settings_url() {
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
  *
+ * S2 §5: the v9.37.0 (D1) "tabs lead the page" rule now applies to EVERY install
+ * state, not just every configured view — the tab strip renders BEFORE the
+ * config gate, so the dashboard's shape (which views exist) is visible even
+ * before Cloudflare credentials are set. Only the data below the gate (header
+ * region, insights band, per-view panels) is withheld until sn_analytics_config()
+ * resolves. This resolves the product question parked at PR #275 (should the
+ * tabs render pre-configuration) in favor of "yes" — one visible fact per gate:
+ * *what* the dashboard covers is free, *its data* is gated.
+ *
  * Note: period-over-period deltas are suppressed for the 'all' range. Trend
  * granularity is daily for windows ≤90 days, weekly beyond.
  */
@@ -340,13 +349,24 @@ function snt_analytics_render_dashboard() {
 	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
 	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
-	// Config gate: empty notice + a link to the settings page (the form lives there now).
+	// Window resolution is pure date math + GET whitelisting — no accessor reads,
+	// no config dependency — so it's safe (and now necessary) to resolve BEFORE
+	// the config gate: the tab strip below needs $range/$from/$to to build its
+	// window-preserving links on EVERY install state, configured or not.
+	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
+
+	// Config gate: the tab strip renders regardless (S2 §5 — the dashboard's
+	// shape is visible from day one); only the data below the gate is withheld.
+	// The gate is view-agnostic on purpose: login-defense checks this SAME
+	// sn_analytics_config() flag (not a separate credential), so routing it to
+	// its own dormant card here would just show an identical message under a
+	// different label — one generic gate for every tab keeps the empty state
+	// coherent while switching tabs pre-configuration.
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 		snt_analytics_render_empty();
 		return;
 	}
-
-	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
 
 	// Granularity from the resolved window day-count — works for every range incl.
 	// presets/custom, and is behaviour-identical to the old (int)$range for fixed ranges.
