@@ -36,34 +36,35 @@ function snt_analytics_render_credentials() {
 
 	echo '<form method="post" class="sn-an-settings">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<h3 class="sn-fieldset-h">Credentials</h3>';
-	echo '<p class="sn-an-settings-help">Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (<code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code>) overrides these and locks the field.</p>';
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
+	/* translators: 1: the read-token wp-config constant name, wrapped in <code>; 2: the account-ID wp-config constant name, wrapped in <code>. */
+	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>', '<code>SN_CF_ACCOUNT_ID</code>' ) . '</p>';
 
 	// Account ID.
-	echo '<p><label for="sn_cf_account_id"><strong>Account ID</strong></label><br>';
+	echo '<p><label for="sn_cf_account_id"><strong>' . esc_html__( 'Account ID', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	if ( $acct_locked ) {
-		echo '<input type="text" id="sn_cf_account_id" value="(set in wp-config)" disabled class="regular-text">';
+		echo '<input type="text" id="sn_cf_account_id" value="' . esc_attr__( '(set in wp-config)', 'signal-and-noise-tools' ) . '" disabled class="regular-text">';
 		/* translators: %s: the wp-config constant name, wrapped in <code>. */
 		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ACCOUNT_ID</code>' ) . '</span>';
 	} else {
-		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_opt ) . '" class="regular-text" placeholder="32-char Cloudflare account ID">';
+		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_opt ) . '" class="regular-text" placeholder="' . esc_attr__( '32-char Cloudflare account ID', 'signal-and-noise-tools' ) . '">';
 	}
 	echo '</p>';
 
 	// Read token (masked).
-	echo '<p><label for="sn_cf_analytics_token"><strong>Account Analytics Read token</strong></label><br>';
+	echo '<p><label for="sn_cf_analytics_token"><strong>' . esc_html__( 'Account Analytics Read token', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	if ( $token_locked ) {
 		echo '<input type="text" id="sn_cf_analytics_token" value="••••" disabled class="regular-text">';
 		/* translators: %s: the wp-config constant name, wrapped in <code>. */
 		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>' ) . '</span>';
 	} else {
-		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="Paste a fresh token; type \'clear\' to remove">';
+		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="' . esc_attr__( 'Paste a fresh token; type ‘clear’ to remove', 'signal-and-noise-tools' ) . '">';
 	}
 	echo '</p>';
 
 	if ( ! ( $token_locked && $acct_locked ) ) {
-		echo '<p><button type="submit" name="sn_action" value="analytics_save" class="button button-primary">Save</button> ';
-		echo '<button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>Test connection</button></p>';
+		echo '<p><button type="submit" name="sn_action" value="analytics_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
+		echo '<button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p>';
 	}
 	echo '</form>';
 }
@@ -114,12 +115,18 @@ function snt_analytics_render_exclusion() {
  * this shows the exact steps so the Cloudflare side is copy-paste, not guesswork.
  */
 function snt_analytics_render_worker_setup() {
-	echo '<details class="sn-an-worker"><summary>Cloudflare Worker setup (manual, one-time)</summary>';
+	echo '<details class="sn-an-worker"><summary>' . esc_html__( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' ) . '</summary>';
 	echo '<ol class="sn-an-steps">';
-	echo '<li><strong>Read token</strong> (for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>';
-	echo '<li><strong>Deploy the edge Worker + its secrets</strong> (from the analytics-worker repo — this can\'t be done from WordPress):<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' . "\n" . 'wrangler secret put SN_PX_SALT_SEED' . "\n" . 'wrangler deploy</pre></li>';
-	echo '<li><strong>Theme beacon</strong>: set <code>SN_BEACON_TOKEN</code> in <code>wp-config.php</code> to the SAME value as the Worker\'s <code>SN_PX_TOKEN</code> so the front-end beacon is accepted.</li>';
-	echo '<li>Hit <strong>Test connection</strong> above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.</li>';
+	echo '<li><strong>' . esc_html__( 'Read token', 'signal-and-noise-tools' ) . '</strong> ';
+	/* translators: 1: the Cloudflare API-token permission scope, wrapped in <code>; 2: the Cloudflare dashboard URL pattern, wrapped in <code>. */
+	echo sprintf( esc_html__( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ), '<code>Account · Analytics · Read</code>', '<code>dash.cloudflare.com/&lt;account_id&gt;</code>' ) . '</li>';
+	echo '<li><strong>' . esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( '(from the analytics-worker repo — this can’t be done from WordPress):', 'signal-and-noise-tools' ) . '<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' . "\n" . 'wrangler secret put SN_PX_SALT_SEED' . "\n" . 'wrangler deploy</pre></li>';
+	echo '<li><strong>' . esc_html__( 'Theme beacon', 'signal-and-noise-tools' ) . '</strong>: ';
+	/* translators: 1: the beacon-token wp-config constant name, wrapped in <code>; 2: the wp-config file name, wrapped in <code>; 3: the worker’s token constant name, wrapped in <code>. */
+	echo sprintf( esc_html__( 'set %1$s in %2$s to the SAME value as the Worker’s %3$s so the front-end beacon is accepted.', 'signal-and-noise-tools' ), '<code>SN_BEACON_TOKEN</code>', '<code>wp-config.php</code>', '<code>SN_PX_TOKEN</code>' ) . '</li>';
+	echo '<li>';
+	/* translators: %s: the "Test connection" button label, wrapped in <strong>. */
+	echo sprintf( esc_html__( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' ), '<strong>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</strong>' ) . '</li>';
 	echo '</ol></details>';
 }
 
