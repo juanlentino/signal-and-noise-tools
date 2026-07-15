@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.46.2] - 2026-07-15: HOTFIX — the diagnostics module fataled on exactly the slow pages it measures
+
+**Headline:** v9.46.0's HTTP-diagnosis module carried a live fatal, caught on the owner's production admin: `do_action( 'shutdown' )` fires with no arguments, and WordPress hands `accepted_args >= 1` callbacks an **empty string** as their first parameter — which shadowed `sn_httpdiag_shutdown()`'s `null` default, sailed past the `null !==` check, and hit `sn_httpdiag_record()`'s `array` type on every admin request slower than 2s with no HTTP calls buffered. The module built to measure slow pages fataled on slow pages. Fixed with both belts: the hook registers with `accepted_args = 0`, and the function coerces any non-array/non-numeric filler (a diagnostics module must be impossible to fatal). The suite's `timer_stop()` stub is now WP-faithful (core returns a **string**, not a float) — the incident class was stub-fidelity: 56 asserts and a review both passed against stubs that never exercised `do_action`'s real calling convention.
+
+> **Why PATCH:** hotfix for a shipped fatal; incident pins stash-verified RED (4 failures) against the v9.46.0 code.
+
+### Fixed
+- [inc/http-diagnostics.php](inc/http-diagnostics.php): `accepted_args = 0` + boundary coercion; [tests/http-diagnostics.php](tests/http-diagnostics.php) 56 → 60 asserts (the exact production shape `sn_httpdiag_shutdown( '' )`, the double-filler shape, the string `timer_stop` return, and the `accepted_args = 0` registration pin).
+
 ## [9.46.1] - 2026-07-15: The three Query Monitor findings — WP 6.9 ability category, duplicate reads, timeout caps
 
 **Headline:** Everything the live Query Monitor session flagged besides the 10-second mystery itself. **(1) The WP 6.9 compat break**: both analytics abilities registered under an `analytics` category that was never itself registered — WP 6.9's Abilities API now requires it (`_doing_it_wrong` ×2 on every admin load, and the abilities at risk of not registering at all). It's now the sixth guarded entry in [inc/abilities-categories.php](inc/abilities-categories.php); a repo-wide sweep confirms zero orphan categories remain. **(2) The six duplicate queries**: `sn_analytics_daily_series`, `sn_analytics_distribution`, and `sn_analytics_top_dimension` each ran twice per page for identical args (anomalies+forecasts, engaged-rate+pulse, refcats+sources) — all three gain the D5 request-memo idiom (arg-keyed, `$refresh` re-prime seam; keys cover every result-affecting parameter, review-verified per-param). **(3) Timeout caps** on the three SWR-cached remote calls whose cold miss could stall a render: edge retention probe 15s → 6s, plugin-tag check 8s → 5s, deploy-runs fetch 8s → 5s — each has a transient + last-good fallback, so the cap bounds worst-case wait without losing data.
