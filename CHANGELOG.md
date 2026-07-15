@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.47.0] - 2026-07-15: Connect an MCP client — the two doors, documented where the owner works
+
+**Headline:** The plugin has run a native MCP server since [v9.22.0](#9220), and WordPress 7.0's Abilities API added a second, adapter-driven door — but nothing in wp-admin explained how to actually connect a client. New **Tools → "Connect an MCP client"** leaf ([inc/admin-forms/mcp-connect.php](inc/admin-forms/mcp-connect.php)): **Door 1**, the native server (`/wp-json/signal-noise/v1/mcp`, `manage_options` floor) with its conservative read-only tool allowlist **rendered from `sn_mcp_allowlist()` at runtime** — the page can never drift from the code; **Door 2**, the wp.org AI plugin's adapter server (full Abilities registry, per-ability capability checks), rendered behind a real `class_exists` detection with honestly hedged copy. Owner steps: Application Password (deep-linked), endpoint URLs from `rest_url()`, a placeholder-only client config, and the Claude Code one-liner — **corrected to the current CLI syntax** (the v9.22.0 notes' form predates the required server-name positional; review-caught, now pinned). Plus the disambiguation nobody documents: **Connector Approvals gates outbound AI-provider use by server code — the Application Password is the inbound MCP-client grant.**
+
+> **Why MINOR:** a new user-visible admin surface; read-only, no behavior change.
+
+### Added
+- The Tools-tab leaf + [tests/mcp-connect-render.php](tests/mcp-connect-render.php) (54 asserts: live-allowlist rendering, placeholder-only guarantees incl. credential-shape screens, escaping, the corrected one-liner pin, read-only contract).
+
 ## [9.46.2] - 2026-07-15: HOTFIX — the diagnostics module fataled on exactly the slow pages it measures
 
 **Headline:** v9.46.0's HTTP-diagnosis module carried a live fatal, caught on the owner's production admin: `do_action( 'shutdown' )` fires with no arguments, and WordPress hands `accepted_args >= 1` callbacks an **empty string** as their first parameter — which shadowed `sn_httpdiag_shutdown()`'s `null` default, sailed past the `null !==` check, and hit `sn_httpdiag_record()`'s `array` type on every admin request slower than 2s with no HTTP calls buffered. The module built to measure slow pages fataled on slow pages. Fixed with both belts: the hook registers with `accepted_args = 0`, and the function coerces any non-array/non-numeric filler (a diagnostics module must be impossible to fatal). The suite's `timer_stop()` stub is now WP-faithful (core returns a **string**, not a float) — the incident class was stub-fidelity: 56 asserts and a review both passed against stubs that never exercised `do_action`'s real calling convention.
