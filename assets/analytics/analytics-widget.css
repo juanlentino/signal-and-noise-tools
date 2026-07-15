@@ -24,13 +24,17 @@
  * WP admin native palette, read through the shared --sn-an-* tokens (defined
  * in analytics-tokens.css, a 'snt-analytics-tokens' dependency of this
  * stylesheet so WP's dep graph — not enqueue call order — guarantees it
- * loads first): the text, muted, accent, hairline, up and down tokens all
- * reappear here verbatim, reconciling what used to be a parallel hex
- * vocabulary against analytics-admin.css. A handful of one-off literals stay
- * outside the shared vocabulary on purpose — they're either a genuinely
- * different shade (this file's own movers up/down pair, the "S&N Health"
- * widget's warn/ok state colors) or belong to a different, untouched token
- * contract (the settings pages' hairline).
+ * loads first): the text, muted, accent, hairline, up, down, and ok/warn
+ * state tokens all reappear here verbatim, reconciling what used to be a
+ * parallel hex vocabulary against analytics-admin.css. That now includes
+ * this file's own mover deltas (.sn-aw-mv-up / .sn-aw-delta--down) and the
+ * "S&N Health" widget's warn/ok state colors — both used to sit outside the
+ * shared vocabulary as undocumented one-off literals, which was drift, not a
+ * deliberate design choice (see tests/analytics-tokens.php). A couple of
+ * literals still stay outside the token layer on purpose: they're genuinely
+ * unrelated to this vocabulary (the list-row hairline, the empty-state
+ * dashed border) or belong to a different, untouched token contract (the
+ * settings pages' hairline).
  */
 
 .sn-aw-subhead{font-size:11.2px;font-weight:600;letter-spacing:var(--sn-an-kicker-track);text-transform:uppercase;color:var(--sn-an-muted);margin:16px 0 8px;}
@@ -40,7 +44,7 @@
 .sn-aw-stat-l{font-size:0.85em;color:var(--sn-an-muted);margin-top:2px;}
 .sn-aw-delta{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:4px;}
 .sn-aw-delta--up{color:var(--sn-an-up);}
-.sn-aw-delta--down{color:#b32d2e;}
+.sn-aw-delta--down{color:var(--sn-an-down);}
 .sn-aw-delta--flat{color:var(--sn-an-muted);font-weight:400;}
 .sn-aw-big{font-size:40px;font-weight:600;color:var(--sn-an-text);text-align:center;line-height:1;padding:8px 0 4px;font-variant-numeric:tabular-nums;}
 .sn-aw-big-l{font-size:0.85em;color:var(--sn-an-muted);text-align:center;}
@@ -77,8 +81,8 @@
 .sn-hw-head{display:flex;align-items:flex-start;gap:12px;margin:2px 0 2px;}
 .sn-hw-ico{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 .sn-hw-ico svg{width:19px;height:19px;display:block;fill:currentColor;}
-.sn-hw-head--ok .sn-hw-ico{background:#e5f3ea;color:var(--sn-an-up);}
-.sn-hw-head--warn .sn-hw-ico{background:#fcf0d6;color:#8a6100;}
+.sn-hw-head--ok .sn-hw-ico{background:var(--sn-an-ok-bg);color:var(--sn-an-up);}
+.sn-hw-head--warn .sn-hw-ico{background:var(--sn-an-warn-bg);color:var(--sn-an-warn-text);}
 .sn-hw-head--dormant .sn-hw-ico{background:#f0f0f1;color:var(--sn-an-muted);}
 .sn-hw-txt{min-width:0;}
 .sn-hw-h{font-size:16.8px;font-weight:600;color:var(--sn-an-text);margin:0;line-height:1.25;}
@@ -98,7 +102,7 @@
 	background: rgba(34, 113, 177, 0.07); pointer-events: none;
 }
 .sn-aw-movers li { font-variant-numeric: tabular-nums; }
-.sn-aw-mv-up { color: #00a32a; font-weight: 600; }
+.sn-aw-mv-up { color: var(--sn-an-up); font-weight: 600; }
 .sn-aw-mv-down { color: var(--sn-an-down); font-weight: 600; }
 
 /* Signal + tier chips below reconcile analytics-admin.css's cross-file drift:
