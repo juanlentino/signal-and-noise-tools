@@ -249,7 +249,11 @@ if ( function_exists( 'add_action' ) ) {
 			add_action( 'http_api_debug', 'sn_httpdiag_capture', 10, 5 );
 		}
 
-		add_action( 'shutdown', 'sn_httpdiag_shutdown' );
+		// accepted_args 0: do_action( 'shutdown' ) fires argless, and WP hands
+		// accepted_args>=1 callbacks an EMPTY STRING for their first param —
+		// which shadowed $buffer's null default and fataled record()'s array
+		// type on every slow no-HTTP request (the v9.46.0→v9.46.2 incident).
+		add_action( 'shutdown', 'sn_httpdiag_shutdown', 10, 0 );
 		add_filter( 'debug_information', 'sn_httpdiag_debug_information' );
 	}
 
@@ -324,8 +328,11 @@ if ( function_exists( 'add_action' ) ) {
 			return null;
 		}
 
-		$buffer = null !== $buffer ? $buffer : sn_httpdiag_buffer();
-		$wall_s = null !== $wall_s ? (float) $wall_s : (float) timer_stop( 0 );
+		// is_array (not null-check): a hook-dispatched call can hand this fn
+		// WP's empty-string filler arg — a diagnostics module must be
+		// impossible to fatal, so anything non-array falls back to the buffer.
+		$buffer = is_array( $buffer ) ? $buffer : sn_httpdiag_buffer();
+		$wall_s = is_numeric( $wall_s ) ? (float) $wall_s : (float) timer_stop( 0 );
 
 		if ( empty( $buffer ) && $wall_s <= SN_HTTPDIAG_WALL_THRESHOLD_S ) {
 			return null;
