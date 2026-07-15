@@ -1,24 +1,30 @@
 <?php
 /**
- * Contract test: the settings-hub developer filter reference
- * (snt_analytics_render_filter_reference, v9.36.0) stays in lockstep with the
- * real filter seams in inc/. Scans every inc/ file (multi-line aware) for
- * apply_filters() tags in the reference's namespaces and asserts both ways:
- *   1. every discovered seam is documented in the reference — or explicitly
+ * Contract test: the settings-hub developer filter reference stays in
+ * lockstep with the real filter seams in inc/. Scans every inc/ file
+ * (multi-line aware) for apply_filters() tags in the reference's namespaces
+ * and asserts both ways:
+ *   1. every discovered seam is documented in docs/FILTERS.md — or explicitly
  *      allowlisted below as intentionally undocumented, with a reason; and
- *   2. every <code> tag the reference renders exists in the codebase
+ *   2. every filter tag documented in docs/FILTERS.md exists in the codebase
  *      (no phantom docs).
  * A future filter #13 fails this suite until it is documented or allowlisted —
  * the same staleness-armor pattern as tests/admin-registry.php.
+ *
+ * v9.45.0 (§4, MED#1b): the reference moved from an inline accordion on the
+ * settings leaf to docs/FILTERS.md (the leaf now renders one deep link —
+ * snt_analytics_render_filter_reference()); this suite's source of truth
+ * moved with it so the staleness-armor property survives the prune.
  *
  * Run: php tests/analytics-filter-reference-parity.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 
-// Minimal WP stubs for the render fn (static i18n-wrapped <details> content).
+// Minimal WP stubs for the render fn (static i18n-wrapped link-line content).
 function __( $s, $d = null ) { return (string) $s; }
 function esc_html( $s ) { return (string) $s; }
+function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr( $s ) { return (string) $s; }
 
@@ -54,14 +60,23 @@ $allowlist = array(
 	'snt_ai_model_pricing',       // spend-estimate rate-table calibration — estimates only; the provider console is authoritative (see snt_ai_model_pricing()).
 );
 
-// ── 3. Render the reference and pull out its <code>-wrapped tags.
+// ── 3. Read docs/FILTERS.md and pull out its backtick-wrapped filter tags
+// (v9.45.0: the reference itself no longer inlines the list — it links out).
+$doc = (string) file_get_contents( __DIR__ . '/../docs/FILTERS.md' );
+ok( '' !== $doc, 'docs/FILTERS.md exists and is non-empty' );
+preg_match_all( '~\|\s*`([a-z][a-z0-9_]+)`\s*\|~', $doc, $m );
+$documented = array_values( array_unique( $m[1] ) );
+sort( $documented );
+ok( count( $documented ) > 0, 'docs/FILTERS.md documents a non-empty tag set (got ' . count( $documented ) . ')' );
+
+// ── 3b. The leaf itself no longer lists filters inline — it links out to the
+// doc instead (§4 sanity check, distinct from the composition test's own
+// assertions).
 ob_start();
 snt_analytics_render_filter_reference();
 $html = (string) ob_get_clean();
-preg_match_all( '~<code>([a-z][a-z0-9_]+)</code>~', $html, $m );
-$documented = array_values( array_unique( $m[1] ) );
-sort( $documented );
-ok( count( $documented ) > 0, 'reference renders a non-empty documented set (got ' . count( $documented ) . ')' );
+ok( strpos( $html, 'docs/FILTERS.md' ) !== false, 'the leaf links to docs/FILTERS.md' );
+ok( strpos( $html, '<code>sn_analytics_signal_config</code>' ) === false, 'the leaf no longer inlines the filter list (moved to docs/FILTERS.md)' );
 
 // ── 4. Forward: every discovered seam is documented or allowlisted.
 foreach ( $found as $tag ) {

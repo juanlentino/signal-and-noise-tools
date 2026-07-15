@@ -61,7 +61,11 @@ echo "Group: all-green pipeline\n";
 $GLOBALS['__opts']['sn_cf_zone_id'] = 'z1';
 $h = render();
 ok( substr_count( $h, 'sn-an-pill--ok' ) === 5, 'five ok pills when everything is configured' );
-ok( strpos( $h, 'Worker v1.11.0' ) !== false, 'worker pill shows the probed version' );
+// v9.45.0 (strip dedupe, MED#3): pill #2 drops the version string — the
+// Edge-worker reference card (right column) is now the ONE place the
+// deployed version shows; the pill uses a fixed "Edge worker" label instead.
+ok( strpos( $h, 'Edge worker' ) !== false, 'worker pill uses the fixed dedupe label' );
+ok( strpos( $h, '1.11.0' ) === false, 'worker pill no longer shows the version string (owned by the Edge-worker card)' );
 ok( strpos( $h, 'beacon-sekrit-77x' ) === false && strpos( $h, 'srv-sekrit-99y' ) === false, 'no secret value is ever echoed' );
 
 echo "Group: SN_SRV_TOKEN missing (the invisible-cron failure)\n";
@@ -85,7 +89,7 @@ ok( strpos( $h, 'sn-an-pill--unknown' ) !== false, 'probe failure renders an unk
 ok( strpos( $h, 'notice-error' ) === false, 'no error notice markup' );
 $GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '', 'config' => array( 'px_token_set' => true, 'ae_bound' => true ) ) );
 $h = render();
-ok( strpos( $h, 'Worker reachable' ) !== false, 'ok probe with empty version falls back to the reachable label' );
+ok( strpos( $h, 'Edge worker' ) !== false, 'ok probe with empty version still uses the fixed dedupe label (no version-derived branching left)' );
 $GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '1.11.0' ) );
 $h = render();
 ok( substr_count( $h, 'sn-an-pill--ok' ) === 5 && strpos( $h, 'SN_AE' ) === false, 'older worker with no config map stays ok (binding check silent)' );

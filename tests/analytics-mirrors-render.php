@@ -99,14 +99,15 @@ ok( strpos( $h6, '<code>locked-zone-999</code>' ) !== false, 'zone row shows the
 ok( strpos( $h6, 'Locked by the' ) !== false && strpos( $h6, 'SN_CLOUDFLARE_ZONE_ID' ) !== false, 'zone row names the locking constant' );
 ok( strpos( $h6, '<input' ) === false && strpos( $h6, '<select' ) === false && strpos( $h6, '<button' ) === false && strpos( $h6, '<textarea' ) === false, 'MIRROR RULE: locked zone row still has no write controls' );
 
+// v9.45.0 (§4): the inline per-filter accordion moved to docs/FILTERS.md —
+// the leaf now renders one deep link instead (parity with the real filter
+// seams is covered separately by tests/analytics-filter-reference-parity.php).
 ob_start();
 snt_analytics_render_filter_reference();
 $h3 = ob_get_clean();
-ok( strpos( $h3, '<details' ) !== false, 'filter reference is a collapsed details' );
-ok( strpos( $h3, 'sn_analytics_signal_config' ) !== false, 'new signal-config filter documented' );
-ok( strpos( $h3, 'sn_analytics_session_config' ) !== false, 'session config filter documented' );
-ok( strpos( $h3, 'sn_analytics_refresh_secret' ) !== false, 'refresh-secret filter documented' );
-ok( strpos( $h3, 'sn_beacon_token' ) !== false, 'beacon-token filter documented' );
+ok( strpos( $h3, 'docs/FILTERS.md' ) !== false, 'filter reference links to docs/FILTERS.md' );
+ok( strpos( $h3, '<details' ) === false, 'the old collapsed-details accordion is gone' );
+ok( strpos( $h3, 'sn_analytics_signal_config' ) === false, 'the old inline per-filter list is gone' );
 ok( strpos( $h3, '<input' ) === false && strpos( $h3, '<button' ) === false && strpos( $h3, '<textarea' ) === false, 'filter reference is read-only too' );
 
 // i18n: this suite's __()/esc_html__() stubs are pass-throughs (no domain
