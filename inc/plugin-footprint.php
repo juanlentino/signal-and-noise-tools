@@ -72,7 +72,6 @@ function sn_footprint_legacy_manifest() {
 		'phpstan-baseline.neon',
 		'phpstan-bootstrap.php',
 		'phpstan.neon',
-		'phpstan.neon.dist',
 		'tests',
 	);
 }

@@ -3,7 +3,7 @@
  * Plugin-footprint diagnostic + legacy-file janitor — fixture tests.
  *
  * Covers inc/plugin-footprint.php:
- *   - sn_footprint_legacy_manifest(): exact 17-name set (derived from the
+ *   - sn_footprint_legacy_manifest(): exact 16-name set (derived from the
  *     .gitattributes export-ignore list + .git + .planning; see the file
  *     header comment there for the historical-tag-root derivation).
  *   - sn_footprint_scan(): per-top-level-entry {name,bytes,files,is_legacy}
@@ -105,10 +105,10 @@ $expected = array(
 	'.git', '.github', '.gitattributes', '.gitignore', '.gitleaks.toml',
 	'.planning', '.pre-commit-config.yaml', 'CHANGELOG.md', 'composer.json',
 	'composer.lock', 'docs', 'phpcs.xml.dist', 'phpstan-baseline.neon',
-	'phpstan-bootstrap.php', 'phpstan.neon', 'phpstan.neon.dist', 'tests',
+	'phpstan-bootstrap.php', 'phpstan.neon', 'tests',
 );
 sort( $manifest ); sort( $expected );
-ok( $manifest === $expected, 'manifest is exactly the 17-name legacy-deploy set' );
+ok( $manifest === $expected, 'manifest is exactly the 16-name legacy-deploy set' );
 
 // ═══════════════════════════════════════════════════════════════════════
 echo "\nGroup: sn_footprint_scan — sizes + legacy flags\n";
@@ -204,6 +204,37 @@ ok( isset( $sym_result['deleted']['.git'] ), 'symlink sweep: .git counted as del
 ok( ! is_link( $base_d . '/.git' ) && ! file_exists( $base_d . '/.git' ), 'the LINK is gone' );
 ok( is_dir( $external ) && file_exists( $external . '/canary.txt' ), 'the external target dir + canary file SURVIVE' );
 ok( 'canary survives' === file_get_contents( $external . '/canary.txt' ), 'canary content untouched' );
+
+// ═══════════════════════════════════════════════════════════════════════
+// Review-fold (v9.43.0): the two safety-critical guards in the RECURSION
+// get their own regression pins — a nested symlink must never be followed
+// (is_link before is_dir inside delete_dir_recursive), and a direct
+// out-of-base call must refuse at the containment check. Both passed as
+// throwaway review probes; pinned here so a future delete-path refactor
+// can't silently reorder them.
+echo "\nGroup: delete recursion — nested symlink inside a manifest dir is not followed\n";
+$base_n     = $scratch_root . '/fixture-nested-symlink-base';
+$external_n = $scratch_root . '/fixture-nested-symlink-external';
+sn_footprint_test_write( $base_n . '/tests/real-file.php', 'delete me' );
+sn_footprint_test_write( $external_n . '/canary.txt', 'nested canary survives' );
+symlink( $external_n, $base_n . '/tests/link-out' );
+
+ok( is_link( $base_n . '/tests/link-out' ), 'fixture sanity: nested link-out is a symlink' );
+$nested_result = sn_janitor_run( $base_n );
+ok( array() === $nested_result['errors'], 'nested-symlink sweep: no errors' );
+ok( ! file_exists( $base_n . '/tests' ), 'the manifest dir (tests/) is fully removed' );
+ok( is_dir( $external_n ) && 'nested canary survives' === file_get_contents( $external_n . '/canary.txt' ), 'the OUTSIDE target of the nested symlink survives untouched' );
+
+echo "\nGroup: delete recursion — direct out-of-base call refuses at the containment check\n";
+$base_c    = $scratch_root . '/fixture-containment-base';
+$outside_c = $scratch_root . '/fixture-containment-outside';
+sn_footprint_test_mkdirp( $base_c );
+sn_footprint_test_write( $outside_c . '/canary.txt', 'containment canary' );
+$containment_errors = array();
+$containment_freed  = sn_footprint_delete_dir_recursive( $outside_c, (string) realpath( $base_c ), $containment_errors );
+ok( 0 === $containment_freed, 'out-of-base recursion frees 0 bytes' );
+ok( 1 === count( $containment_errors ) && false !== strpos( $containment_errors[0], 'escapes the containment root' ), 'out-of-base recursion records the refusal error' );
+ok( is_dir( $outside_c ) && 'containment canary' === file_get_contents( $outside_c . '/canary.txt' ), 'the outside tree survives untouched' );
 
 // ═══════════════════════════════════════════════════════════════════════
 echo "\nGroup: sn_footprint_entry_deletable — the traversal guard\n";
