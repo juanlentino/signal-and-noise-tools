@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.46.2
+ * Version:     9.47.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -182,6 +182,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
 require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
 require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
+require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
 // metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:
