@@ -130,7 +130,7 @@ function snt_analytics_render_choropleth( $title, $rows, $empty, $svg = null ) {
 		// ALSO missing, the data gap is the message that matters). Data exists
 		// but the vendored SVG failed to load: an operational fault, not a data
 		// gap — say ONLY that, never the false "no data" copy.
-		$why = ( $has_data && '' === $svg ) ? 'World map asset missing.' : $empty;
+		$why = ( $has_data && '' === $svg ) ? __( 'World map asset missing.', 'signal-and-noise-tools' ) : $empty;
 		snt_an_note_empty( $title, $why );
 		return;
 	}

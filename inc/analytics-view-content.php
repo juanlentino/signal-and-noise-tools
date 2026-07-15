@@ -56,7 +56,7 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	snt_an_annotation( sn_annotation_sources( $refcats ) );
 	$ref_rows = sn_analytics_top_sources( $from, $to, $class, 10 );
 	$ref_ser  = sn_analytics_top_sources_series( $ref_rows, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( 'Top sources', $ref_rows, 'No referrers in this range.', $ref_ser, 'referrer', 10 );
+	snt_analytics_render_dim_table( __( 'Top sources', 'signal-and-noise-tools' ), $ref_rows, __( 'No referrers in this range.', 'signal-and-noise-tools' ), $ref_ser, 'referrer', 10 );
 	snt_analytics_render_referrer_categories( $refcats );
 
 	echo '</div>';

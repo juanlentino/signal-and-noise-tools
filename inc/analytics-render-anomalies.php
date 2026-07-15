@@ -33,9 +33,9 @@ function snt_analytics_render_anomalies( $anom ) {
 	}
 	snt_an_panel_open( $title );
 	snt_an_annotation( sn_annotation_anomalies( $anom ) );
-	echo '<table class="widefat striped"><thead><tr><th>Page</th><th>Signal</th><th>Detail</th><th>Views</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Signal', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Detail', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $div as $d ) {
-		$label = 'skim' === $d['type'] ? 'Deep scroll, fast leave' : 'Long dwell, low scroll';
+		$label = 'skim' === $d['type'] ? __( 'Deep scroll, fast leave', 'signal-and-noise-tools' ) : __( 'Long dwell, low scroll', 'signal-and-noise-tools' );
 		printf(
 			'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 			esc_html( $d['path'] ),

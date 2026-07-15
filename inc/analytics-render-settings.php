@@ -43,7 +43,8 @@ function snt_analytics_render_credentials() {
 	echo '<p><label for="sn_cf_account_id"><strong>Account ID</strong></label><br>';
 	if ( $acct_locked ) {
 		echo '<input type="text" id="sn_cf_account_id" value="(set in wp-config)" disabled class="regular-text">';
-		echo '<br><span class="sn-an-empty">Locked by the <code>SN_CF_ACCOUNT_ID</code> constant.</span>';
+		/* translators: %s: the wp-config constant name, wrapped in <code>. */
+		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ACCOUNT_ID</code>' ) . '</span>';
 	} else {
 		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_opt ) . '" class="regular-text" placeholder="32-char Cloudflare account ID">';
 	}
@@ -53,7 +54,8 @@ function snt_analytics_render_credentials() {
 	echo '<p><label for="sn_cf_analytics_token"><strong>Account Analytics Read token</strong></label><br>';
 	if ( $token_locked ) {
 		echo '<input type="text" id="sn_cf_analytics_token" value="••••" disabled class="regular-text">';
-		echo '<br><span class="sn-an-empty">Locked by the <code>SN_CF_ANALYTICS_TOKEN</code> constant.</span>';
+		/* translators: %s: the wp-config constant name, wrapped in <code>. */
+		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>' ) . '</span>';
 	} else {
 		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="Paste a fresh token; type \'clear\' to remove">';
 	}

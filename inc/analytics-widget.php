@@ -217,7 +217,7 @@ function sn_aw_pages( $standalone = true ) {
 	$rows = array_map( function ( $r ) {
 		return array( 'k' => $r['path'], 'v' => $r['views'] );
 	}, sn_analytics_top_paths( $from, $to, 'human', 7 ) );
-	sn_aw_kv_list( $rows, 'No page views in the last 7 days.' );
+	sn_aw_kv_list( $rows, __( 'No page views in the last 7 days.', 'signal-and-noise-tools' ) );
 	if ( $standalone ) {
 		sn_aw_footer();
 	}
@@ -240,7 +240,7 @@ function sn_aw_sources( $standalone = true ) {
 			: '';
 		return array( 'k' => $r['value'], 'v' => $r['views'], 'href' => $href );
 	}, sn_analytics_top_sources( $from, $to, 'human', 7 ) );
-	sn_aw_kv_list( $rows, 'No referrers in the last 7 days.' );
+	sn_aw_kv_list( $rows, __( 'No referrers in the last 7 days.', 'signal-and-noise-tools' ) );
 	if ( $standalone ) {
 		sn_aw_footer();
 	}

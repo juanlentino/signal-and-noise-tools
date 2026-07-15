@@ -34,30 +34,39 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  */
 function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' ) {
 	$labels = array(
-		'referrer' => 'Referrer', 'country' => 'Country', 'device' => 'Device', 'browser' => 'Browser',
-		'os' => 'OS', 'region' => 'Region', 'city' => 'City', 'network' => 'Network',
-		'colo' => 'Edge location', 'protocol' => 'Protocol', 'tls' => 'TLS',
+		'referrer' => __( 'Referrer', 'signal-and-noise-tools' ),
+		'country'  => __( 'Country', 'signal-and-noise-tools' ),
+		'device'   => __( 'Device', 'signal-and-noise-tools' ),
+		'browser'  => __( 'Browser', 'signal-and-noise-tools' ),
+		'os'       => __( 'OS', 'signal-and-noise-tools' ),
+		'region'   => __( 'Region', 'signal-and-noise-tools' ),
+		'city'     => __( 'City', 'signal-and-noise-tools' ),
+		'network'  => __( 'Network', 'signal-and-noise-tools' ),
+		'colo'     => __( 'Edge location', 'signal-and-noise-tools' ),
+		'protocol' => __( 'Protocol', 'signal-and-noise-tools' ),
+		'tls'      => __( 'TLS', 'signal-and-noise-tools' ),
 	);
 	$label = isset( $labels[ $dim ] ) ? $labels[ $dim ] : ucfirst( (string) $dim );
 	$clear = remove_query_arg( 'sn_drill', add_query_arg( array() ) );
 
-	snt_an_panel_open( 'Top pages · ' . $label . ' = ' . (string) $value, array(
+	/* translators: 1: dimension label (e.g. Country), 2: the drilled value. */
+	snt_an_panel_open( sprintf( __( 'Top pages · %1$s = %2$s', 'signal-and-noise-tools' ), $label, (string) $value ), array(
 		'panel_class'  => 'sn-an-drill',
 		'inside_class' => 'inside sn-an-table-inside',
 	) );
-	echo '<p class="sn-an-subh sn-an-subh--panel"><a href="' . esc_url( $clear ) . '">&larr; Clear drill-down</a>'
+	echo '<p class="sn-an-subh sn-an-subh--panel"><a href="' . esc_url( $clear ) . '">&larr; ' . esc_html__( 'Clear drill-down', 'signal-and-noise-tools' ) . '</a>'
 		. ( '' !== $note ? ' · <span class="sn-an-foot">' . esc_html( $note ) . '</span>' : '' ) . '</p>';
 
 	if ( ! is_array( $rows ) || empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No pages for this segment in this range (or it needs live Analytics Engine data).</p>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No pages for this segment in this range (or it needs live Analytics Engine data).', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}
 
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
-		. '<th scope="col" class="manage-column column-primary">Page</th>'
-		. '<th scope="col" class="manage-column num">Views</th>'
-		. '<th scope="col" class="manage-column num">Visits</th></tr></thead><tbody>';
+		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr><td class="column-primary" data-colname="Page">' . esc_html( (string) ( $r['path'] ?? '' ) ) . '</td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>'

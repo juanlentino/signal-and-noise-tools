@@ -18,7 +18,7 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
 
 /**
  * KPI cards: Checked / Blocked / Block rate / Networks. Routes through the
- * shared snt_an_kpi_row() primitive (D5 §5, inc/analytics-panels.php) — every
+ * shared snt_an_kpi_row() primitive (D5 §2, inc/analytics-panels.php) — every
  * card here is the plain-descriptor shape (a flat 'sub' line, no real
  * {pct,dir} delta and no derived sub_class), so the primitive's default
  * 'sn-delta-flat' reproduces the old hand-rolled loop byte-for-byte.
@@ -115,7 +115,7 @@ function sn_login_defense_resolve_days() {
  */
 function sn_login_defense_render_header() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		// D5 §5: routes through the shared snt_an_gate() primitive. The old gate
+		// D5 §2: routes through the shared snt_an_gate() primitive. The old gate
 		// was a bare, titleless postbox (no header at all) — it now carries the
 		// view's natural title 'Login defense', matching every other view's gate
 		// (Analytics, Visits, Traffic & edge). No CTA: the old gate never had one.
@@ -134,7 +134,7 @@ function sn_login_defense_render_header() {
 	// (login AE retains ~90d and is not class-segmented -- those would render empty/false).
 	// Active marker is the `active` class (NOT button-primary): the shared CSS targets
 	// .button.button-small.active. Base = remove only sn_lg_range (preserves sn_view).
-	// D5 §5: with the gate/Overview/KPI-loop/door-knock postbox all adopted onto
+	// D5 §2: with the gate/Overview/KPI-loop/door-knock postbox all adopted onto
 	// the shared primitives this task, this pill row is now the ONLY remaining
 	// hand-rolled control clone in the codebase — a recorded post-arc backlog
 	// item (a range-pill primitive was never in scope for D4 or D5), not an
@@ -160,7 +160,7 @@ function sn_login_defense_render_header() {
 
 	// Fuse the KPI strip + blocked-trend into ONE "Overview" postbox, identical to the
 	// shared dashboard chrome (render_dashboard wraps the other views' cards+trend this way).
-	// D5 §5: routes through snt_an_panel_open()/close() — the one deliberate visual
+	// D5 §2: routes through snt_an_panel_open()/close() — the one deliberate visual
 	// change (owner-approved): the Overview now also carries sn-an-postbox, so it
 	// picks up the 22/13 KPI scale like every other view's Overview.
 	snt_an_panel_open(
@@ -228,7 +228,7 @@ function sn_login_defense_render_body() {
 		}
 		$ctry_e = sn_edge_top_dim( 'atk_country', $from_d, $to_d, 1 );
 		$net_e  = sn_edge_top_dim( 'atk_asn', $from_d, $to_d, 1 );
-		// D5 §5: routes through snt_an_panel_open()/close() — picks up sn-an-postbox.
+		// D5 §2: routes through snt_an_panel_open()/close() — picks up sn-an-postbox.
 		snt_an_panel_open( __( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) );
 		echo '<p>' . esc_html( number_format_i18n( $total ) ) . ' '
 			. esc_html__( 'hits on /wp-login.php + /xmlrpc.php', 'signal-and-noise-tools' );

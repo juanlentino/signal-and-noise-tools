@@ -25,14 +25,14 @@ require_once __DIR__ . '/analytics-panels.php'; // panel chrome + empty-fold col
  */
 function snt_analytics_render_events_table( $rows ) {
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( __( 'Custom events', 'signal-and-noise-tools' ), 'No custom events in this range yet.' );
+		snt_an_note_empty( __( 'Custom events', 'signal-and-noise-tools' ), __( 'No custom events in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
-		. '<th scope="col" class="manage-column column-primary">Event</th>'
-		. '<th scope="col" class="manage-column num">Events</th>'
-		. '<th scope="col" class="manage-column num">Visitors</th>'
+		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Event', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Events', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visitors', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>'
@@ -64,27 +64,27 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 	// so the active-property heading + Clear escape hatch survive (folding
 	// would strand the user with no in-UI way back to the unfiltered table).
 	if ( empty( $rows ) && ! $filtered ) {
-		snt_an_note_empty( __( 'Event properties', 'signal-and-noise-tools' ), 'No event properties in this range yet.' );
+		snt_an_note_empty( __( 'Event properties', 'signal-and-noise-tools' ), __( 'No event properties in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Event properties', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	if ( $filtered ) {
 		$clear = remove_query_arg( 'sn_event_prop', add_query_arg( array() ) );
-		echo '<p class="sn-an-subh sn-an-subh--panel">Property: <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
-			. '<a href="' . esc_url( $clear ) . '">Clear</a></p>';
+		echo '<p class="sn-an-subh sn-an-subh--panel">' . esc_html__( 'Property:', 'signal-and-noise-tools' ) . ' <strong>' . esc_html( (string) $active_prop ) . '</strong> · '
+			. '<a href="' . esc_url( $clear ) . '">' . esc_html__( 'Clear', 'signal-and-noise-tools' ) . '</a></p>';
 	}
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-an-empty sn-an-empty--panel">No event properties in this range yet.</p>';
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No event properties in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	if ( ! $filtered ) {
-		echo '<th scope="col" class="manage-column">Property</th>';
+		echo '<th scope="col" class="manage-column">' . esc_html__( 'Property', 'signal-and-noise-tools' ) . '</th>';
 	}
-	echo '<th scope="col" class="manage-column column-primary">Value</th>'
-		. '<th scope="col" class="manage-column num">Events</th>'
-		. '<th scope="col" class="manage-column num">Visitors</th>'
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Value', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Events', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visitors', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>';

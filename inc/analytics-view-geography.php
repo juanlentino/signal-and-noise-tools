@@ -33,21 +33,21 @@ function snt_analytics_render_view_geography( $from, $to, $class ) {
 	$countries = sn_analytics_top_dimension( 'country', $from, $to, $class, 250 );
 	snt_an_annotation( sn_annotation_geography( $countries ) );
 	echo '<div class="sn-geo-split">';
-	snt_analytics_render_choropleth( __( 'World map', 'signal-and-noise-tools' ), $countries, 'No country data in this range yet.' );
-	snt_analytics_render_dim_table( __( 'Countries', 'signal-and-noise-tools' ), array_slice( $countries, 0, 10 ), 'No country data in this range.', array(), 'country' );
+	snt_analytics_render_choropleth( __( 'World map', 'signal-and-noise-tools' ), $countries, __( 'No country data in this range yet.', 'signal-and-noise-tools' ) );
+	snt_analytics_render_dim_table( __( 'Countries', 'signal-and-noise-tools' ), array_slice( $countries, 0, 10 ), __( 'No country data in this range.', 'signal-and-noise-tools' ), array(), 'country' );
 	echo '</div>';
 	// D5 §6: the 20px gutter above this grid lives in CSS (.sn-geo-tiles), not an
 	// inline style — assets/analytics/analytics-admin.css collapses it via
 	// :empty when all five tiles below fold, so an all-dataless range no longer
 	// orphans a bare 20px gap above nothing.
 	echo '<div class="sn-geo-tiles">';
-	snt_analytics_render_dim_table( __( 'Cities', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), 'No city data in this range yet.', array(), 'city' );
-	snt_analytics_render_dim_table( __( 'Regions', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), 'No region data in this range yet.', array(), 'region' );
-	snt_analytics_render_dim_table( __( 'Networks', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), 'No network data in this range yet.', array(), 'network' );
-	snt_analytics_render_dim_table( __( 'Edge locations', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), 'No edge-location data in this range yet.', array(), 'colo' );
+	snt_analytics_render_dim_table( __( 'Cities', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'city', $from, $to, $class, 10 ), __( 'No city data in this range yet.', 'signal-and-noise-tools' ), array(), 'city' );
+	snt_analytics_render_dim_table( __( 'Regions', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'region', $from, $to, $class, 10 ), __( 'No region data in this range yet.', 'signal-and-noise-tools' ), array(), 'region' );
+	snt_analytics_render_dim_table( __( 'Networks', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'network', $from, $to, $class, 10 ), __( 'No network data in this range yet.', 'signal-and-noise-tools' ), array(), 'network' );
+	snt_analytics_render_dim_table( __( 'Edge locations', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'colo', $from, $to, $class, 10 ), __( 'No edge-location data in this range yet.', 'signal-and-noise-tools' ), array(), 'colo' );
 	// v6.27.0: visitor IANA timezone (worker v1.7.0, blob19) — the "when/where
 	// my audience reads" signal, finer than country. Empty until the worker ships.
-	snt_analytics_render_dim_table( __( 'Time zones', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'timezone', $from, $to, $class, 10 ), 'No timezone data yet (needs worker v1.7.0 + traffic).', array(), 'timezone' );
+	snt_analytics_render_dim_table( __( 'Time zones', 'signal-and-noise-tools' ), sn_analytics_top_dimension( 'timezone', $from, $to, $class, 10 ), __( 'No timezone data yet (needs worker v1.7.0 + traffic).', 'signal-and-noise-tools' ), array(), 'timezone' );
 	echo '</div></div>';
 	snt_an_flush_empty_fold();
 }
