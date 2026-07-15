@@ -31,7 +31,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	$total   = (int) ( $t['total'] ?? ( $human + $suspect + $bot ) );
 
 	if ( $total <= 0 ) {
-		snt_an_note_empty( __( 'Traffic quality', 'signal-and-noise-tools' ), 'No traffic recorded in this range yet.' );
+		snt_an_note_empty( __( 'Traffic quality', 'signal-and-noise-tools' ), __( 'No traffic recorded in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Traffic quality', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
@@ -47,14 +47,14 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	}
 	echo '</div>';
 	echo '<p class="sn-an-q-legend">';
-	echo '<span class="sn-an-q-key sn-an-q--human"></span> Human ' . esc_html( number_format_i18n( $human ) );
-	echo ' · <span class="sn-an-q-key sn-an-q--suspect"></span> Suspect ' . esc_html( number_format_i18n( $suspect ) );
-	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> Bot ' . esc_html( number_format_i18n( $bot ) );
+	echo '<span class="sn-an-q-key sn-an-q--human"></span> ' . esc_html__( 'Human', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $human ) );
+	echo ' · <span class="sn-an-q-key sn-an-q--suspect"></span> ' . esc_html__( 'Suspect', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $suspect ) );
+	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> ' . esc_html__( 'Bot', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $bot ) );
 	echo '</p>';
 
 	$nets = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
 	if ( ! empty( $nets ) ) {
-		echo '<h4 class="sn-an-subh">Top bot networks</h4><table class="sn-an-table wp-list-table widefat striped"><thead><tr><th scope="col">Network</th><th scope="col" class="num">Views</th></tr></thead><tbody>';
+		echo '<h4 class="sn-an-subh">' . esc_html__( 'Top bot networks', 'signal-and-noise-tools' ) . '</h4><table class="sn-an-table wp-list-table widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Network', 'signal-and-noise-tools' ) . '</th><th scope="col" class="num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 		foreach ( $nets as $n ) {
 			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
 				. '<td class="num">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';
@@ -80,7 +80,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
  */
 function snt_analytics_render_bot_trend( $rows ) {
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( __( 'Bot share over time', 'signal-and-noise-tools' ), 'No traffic recorded in this range yet.' );
+		snt_an_note_empty( __( 'Bot share over time', 'signal-and-noise-tools' ), __( 'No traffic recorded in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	// scale-to-peak so a typically-low rate is readable; absolute peak is labelled.

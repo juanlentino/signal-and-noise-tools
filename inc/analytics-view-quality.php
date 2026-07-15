@@ -29,7 +29,7 @@ function snt_analytics_render_view_quality( $from, $to, $class, $granularity ) {
 	snt_analytics_render_distribution(
 		__( 'Bot confidence', 'signal-and-noise-tools' ),
 		sn_analytics_distribution( 'botscore', $from, $to, $class ),
-		'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).'
+		__( 'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' )
 	);
 	snt_an_flush_empty_fold();
 }

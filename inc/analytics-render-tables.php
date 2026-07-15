@@ -24,17 +24,17 @@ require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_fmt_tim
  */
 function snt_analytics_render_paths_table( $paths ) {
 	if ( empty( $paths ) ) {
-		snt_an_note_empty( __( 'Top pages', 'signal-and-noise-tools' ), 'No page views in this range.' );
+		snt_an_note_empty( __( 'Top pages', 'signal-and-noise-tools' ), __( 'No page views in this range.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Top pages', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $paths ), 10 ); // v8.5.0: full rows in the DOM; 10 visible — the primary table fills its column beside the sources stack (owner: no blank spaces)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
-		. '<th scope="col" class="manage-column column-primary">Path</th>'
-		. '<th scope="col" class="manage-column num">Views</th>'
-		. '<th scope="col" class="manage-column num">Visits</th>'
-		. '<th scope="col" class="manage-column num">Scroll</th>'
-		. '<th scope="col" class="manage-column num">Time</th>'
+		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Scroll', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Time', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $paths as $r ) {
 		echo '<tr>'
@@ -71,9 +71,9 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	if ( $has_spark ) {
-		echo '<th scope="col" class="manage-column">Trend</th>';
+		echo '<th scope="col" class="manage-column">' . esc_html__( 'Trend', 'signal-and-noise-tools' ) . '</th>';
 	}
-	echo '<th scope="col" class="manage-column num">Views</th><th scope="col" class="manage-column num">Visits</th></tr></thead><tbody>';
+	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th><th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$v = (string) $r['value'];
 		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '">';
@@ -153,16 +153,16 @@ function snt_analytics_sparkline( $series ) {
  */
 function snt_analytics_render_lowengage( $rows ) {
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( __( 'Pages losing readers', 'signal-and-noise-tools' ), 'No low-engagement pages in this range — readers are sticking around.' );
+		snt_an_note_empty( __( 'Pages losing readers', 'signal-and-noise-tools' ), __( 'No low-engagement pages in this range — readers are sticking around.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Pages losing readers', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
-		. '<th scope="col" class="manage-column column-primary">Page</th>'
-		. '<th scope="col" class="manage-column num">Views</th>'
-		. '<th scope="col" class="manage-column num">Scroll</th>'
-		. '<th scope="col" class="manage-column num">Time</th>'
+		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Scroll', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Time', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>'
@@ -209,9 +209,9 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
-		. '<th scope="col" class="manage-column column-primary">Path</th>'
-		. '<th scope="col" class="manage-column num">Views</th>'
-		. '<th scope="col" class="manage-column num">Visits</th>'
+		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
+		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>'

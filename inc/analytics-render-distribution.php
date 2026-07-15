@@ -29,7 +29,7 @@ function snt_analytics_render_referrer_categories( $cats ) {
 		$total += (int) ( $c['views'] ?? 0 );
 	}
 	if ( $total <= 0 ) {
-		snt_an_note_empty( __( 'Referrer categories', 'signal-and-noise-tools' ), 'No referrer data in this range yet.' );
+		snt_an_note_empty( __( 'Referrer categories', 'signal-and-noise-tools' ), __( 'No referrer data in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	// v8.5.0: retitled from 'Traffic sources' — it sat directly under the
@@ -95,7 +95,7 @@ function snt_analytics_render_heatmap( $heatmap ) {
 	$grid = ( isset( $heatmap['grid'] ) && is_array( $heatmap['grid'] ) ) ? $heatmap['grid'] : array();
 	$max  = (int) ( $heatmap['max'] ?? 0 );
 	if ( $max <= 0 || empty( $grid ) ) {
-		snt_an_note_empty( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), 'No hourly data in this range yet.' );
+		snt_an_note_empty( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), __( 'No hourly data in this range yet.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Activity by hour (UTC)', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );

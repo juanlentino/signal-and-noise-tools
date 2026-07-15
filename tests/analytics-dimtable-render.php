@@ -11,6 +11,7 @@ define( 'ABSPATH', '/' );
 function esc_html( $s ) { return $s; }
 function esc_attr( $s ) { return $s; }
 function number_format_i18n( $n ) { return (string) (int) $n; }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return $s; } }
 
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require __DIR__ . '/../inc/analytics-admin-render.php';

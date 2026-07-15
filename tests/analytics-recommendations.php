@@ -43,6 +43,7 @@ function get_the_title( $p ) { return is_object( $p ) ? ( $p->post_title ?? '' )
 function esc_html( $s ) { return (string) $s; }
 function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return (string) $s; } }
 function esc_attr( $s ) { return (string) $s; }
 function wp_kses_post( $s ) { return (string) $s; }
 function snt_an_panel_open( $title ) { echo '<div class="sn-an-panel"><span>' . $title . '</span>'; }

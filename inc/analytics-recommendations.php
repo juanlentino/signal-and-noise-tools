@@ -205,7 +205,7 @@ function snt_analytics_render_recommendations_panel() {
 	// without WP (tests/analytics-view-content.php) — the panel header renders
 	// header_meta through wp_kses_post, so only pass it when the full stack can
 	// consume it; both functions always exist on a live install.
-	snt_an_panel_open( 'Recommendations', array(
+	snt_an_panel_open( __( 'Recommendations', 'signal-and-noise-tools' ), array(
 		'header_meta' => function_exists( 'snt_analytics_tier_badge' ) && function_exists( 'wp_kses_post' )
 			? snt_analytics_tier_badge( 'prescriptive' )
 			: '',
@@ -243,7 +243,7 @@ function snt_analytics_render_recommendations_panel() {
 			}
 			echo '</ul>';
 		} elseif ( ! empty( $c['action_url'] ) ) {
-			echo '<a class="button button-small" href="' . esc_url( (string) $c['action_url'] ) . '">' . esc_html( (string) ( $c['action_label'] ?? 'Open' ) ) . '</a>';
+			echo '<a class="button button-small" href="' . esc_url( (string) $c['action_url'] ) . '">' . esc_html( (string) ( $c['action_label'] ?? __( 'Open', 'signal-and-noise-tools' ) ) ) . '</a>';
 		}
 		echo '</li>';
 	}
