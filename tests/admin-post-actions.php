@@ -36,6 +36,11 @@ function esc_url_raw( $s ) { return $s; }
 function wp_unslash( $v ) { return $v; }
 function add_action( $hook, $cb = null, $p = 10, $a = 1 ) {}
 function apply_filters( $hook, $value, ...$args ) { return $value; }
+// Reason-surfacing task: sn_analytics_parse_funnels() (inc/analytics-sessions.php,
+// required below so sn_handle_analytics_funnels_save()'s real parse path — and
+// the flash-code encoding tests further down — are exercised, not stubbed)
+// translates its reason text via __().
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 
 // ─── Stubs for the Insights "Create draft" handler (T5) ──────────────
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
@@ -77,6 +82,12 @@ function sn_discography_run_sync() {
 }
 
 require_once __DIR__ . '/../inc/settings.php';
+// Reason-surfacing task: sn_handle_analytics_funnels_save() calls
+// sn_analytics_parse_funnels() + reads SN_ANALYTICS_FUNNELS_ERR_KINDS, both
+// defined here — required before admin-post-actions.php for load-order parity
+// with the real bootstrap (signal-and-noise-tools.php), even though PHP only
+// resolves the calls at invocation time.
+require_once __DIR__ . '/../inc/analytics-sessions.php';
 require_once __DIR__ . '/../inc/admin-post-actions.php';
 
 // v6.23.0: sn_handle_analytics_exclude_save() sanitizes via the owner-exclusion
@@ -604,6 +615,59 @@ pa_eq( true, strpos( (string) $durl, 'sn_view=content' ) !== false, 'R2: redirec
 pa_eq( true, strpos( (string) $durl, 'sn_flash=analytics_saved' ) !== false, 'redirect carries the flash' );
 pa_eq( null, sn_admin_post_dashboard_redirect_url( 'sn-theme-options', 'x' ), 'non-dashboard page returns null (falls through to admin.php path)' );
 pa_eq( true, in_array( 'sn-analytics', sn_admin_post_allowed_pages(), true ), 'sn-analytics is an allowed POST page' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: sn_analytics_funnels_error_flash_code — code building (reason-surfacing task)\n";
+// ─────────────────────────────────────────────────────────────────────────
+// Pure encode: (line, kind) detail entries -> 'analytics_funnels_invalid_<line>k<kindIndex>[-...]'.
+// Exercised directly against crafted errors_detail arrays — no textarea/parse
+// path involved — so the encoding contract is pinned in isolation from the
+// parser's own behavior (covered separately in tests/analytics-funnels.php).
+function pa_detail( $line, $kind ) { return array( 'line' => $line, 'kind' => $kind, 'message' => "Line $line: stub" ); }
+
+pa_eq( 'analytics_funnels_invalid', sn_analytics_funnels_error_flash_code( array() ), 'no errors -> the bare code (no suffix)' );
+pa_eq( 'analytics_funnels_invalid_2k4', sn_analytics_funnels_error_flash_code( array( pa_detail( 2, 'few' ) ) ), 'one entry -> one <line>k<kindIndex> pair (few = index 4)' );
+pa_eq(
+	'analytics_funnels_invalid_1k0-2k1-3k2-4k3-5k5',
+	sn_analytics_funnels_error_flash_code( array(
+		pa_detail( 1, 'colon' ),
+		pa_detail( 2, 'name' ),
+		pa_detail( 3, 'long' ),
+		pa_detail( 4, 'step' ),
+		pa_detail( 5, 'many' ),
+	) ),
+	'every kind maps to its stable SN_ANALYTICS_FUNNELS_ERR_KINDS index, pairs stay in input order'
+);
+
+$eleven = array();
+for ( $i = 1; $i <= 11; $i++ ) { $eleven[] = pa_detail( $i, 'colon' ); }
+$capped = sn_analytics_funnels_error_flash_code( $eleven );
+pa_eq( 'analytics_funnels_invalid_1k0-2k0-3k0-4k0-5k0', $capped, 'cap at 5: only the first five entries are encoded, extras dropped silently' );
+pa_eq( 5, substr_count( $capped, 'k' ), 'cap at 5: exactly five pairs ride the code, not eleven' );
+
+// No free text: the SOURCE textarea content never reaches the code, no matter
+// what the caller stuffs into 'message' or an out-of-enum 'kind' — only
+// digits + the fixed 'k'/'-' separators may appear after the prefix.
+$hostile_detail = array(
+	array( 'line' => 3, 'kind' => "'; DROP TABLE wp_options; --", 'message' => 'Line 3: <script>alert(1)</script>' ),
+	pa_detail( 4, 'few' ),
+);
+$hostile_code = sn_analytics_funnels_error_flash_code( $hostile_detail );
+pa_eq( 'analytics_funnels_invalid_4k4', $hostile_code, 'an entry with a kind outside the closed enum is skipped, never encoded as free text' );
+pa_eq( 1, preg_match( '/^analytics_funnels_invalid(_\d{1,4}k[0-5](-\d{1,4}k[0-5])*)?$/', $hostile_code ), 'encoded code matches the digits/k/dash-only shape — no free text can ride along' );
+
+// A malformed detail entry (missing keys, non-numeric line) never fatals or
+// warns — it is simply not encodable, same as an out-of-enum kind.
+pa_eq( 'analytics_funnels_invalid', sn_analytics_funnels_error_flash_code( array( array( 'kind' => 'few' ) ) ), 'a detail entry missing "line" is skipped, not fatal' );
+pa_eq( 'analytics_funnels_invalid', sn_analytics_funnels_error_flash_code( array( array( 'line' => 0, 'kind' => 'few' ) ) ), 'a detail entry with line 0 is skipped (line must be >= 1)' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: sn_handle_analytics_funnels_save — end-to-end pair-format flash codes (reason-surfacing task)\n";
+// ─────────────────────────────────────────────────────────────────────────
+pa_reset_store();
+pa_eq( 'analytics_funnels_invalid_1k1', sn_handle_analytics_funnels_save( array( 'sn_funnels' => ' : /a > /b' ) ), 'empty funnel name -> the "name" kind (index 1)' );
+pa_eq( 'analytics_funnels_invalid_1k4', sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'One step: /a' ) ), 'fewer than 2 steps -> the "few" kind (index 4)' );
+pa_eq( 'analytics_funnels_invalid_1k3', sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'Name:: /a > /b' ) ), 'stray double colon -> the "step" kind (index 3)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

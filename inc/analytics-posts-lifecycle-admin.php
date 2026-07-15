@@ -73,45 +73,62 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 }
 
 /**
- * The catalogue leaderboard — candidates first, capped for DOM sanity.
+ * The catalogue leaderboard — candidates first, capped for DOM sanity. Routes
+ * through the shared snt_an_kv_table() column-spec mode (D5 §4,
+ * inc/analytics-panels.php, holdout retirement v9.43.x): Post carries
+ * caller-built link+strong+age markup, Shape carries the decay text or the
+ * muted &mdash; fallback, and Status carries sn_lifecycle_status_pill()'s
+ * return value — all three as html=true cells (the caller already
+ * escapes/builds them, same contract sn_lifecycle_status_pill() already had).
+ * The row cap + truncation-footer TEXT stay here (kv_table has no concept of
+ * either); $opts['footer'] is only the seam that lands the caller-built <p>
+ * inside the same panel kv_table now owns opening/closing.
  *
  * @param array $rows  Sorted lifecycle rows.
  * @param int   $total Full catalogue count (for the truncation note).
  */
 function snt_analytics_render_lifecycle_table( $rows, $total ) {
-	snt_an_panel_open( __( 'Refresh queue', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
-
 	$shown = array_slice( $rows, 0, SN_LIFECYCLE_TABLE_LIMIT );
 
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
-	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Lifetime', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Per day', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column">' . esc_html__( 'Shape', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column">' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	$cols = array(
+		array( 'label' => __( 'Post', 'signal-and-noise-tools' ), 'html' => true ),
+		array( 'label' => __( 'Lifetime', 'signal-and-noise-tools' ), 'class' => 'num' ),
+		array( 'label' => __( 'Per day', 'signal-and-noise-tools' ), 'class' => 'num' ),
+		array( 'label' => __( 'Shape', 'signal-and-noise-tools' ), 'html' => true ),
+		array( 'label' => __( 'Status', 'signal-and-noise-tools' ), 'html' => true ),
+	);
 
+	$kv_rows = array();
 	foreach ( $shown as $r ) {
-		$decay = (string) ( $r['decay'] ?? '' );
-		echo '<tr>';
-		echo '<td class="column-primary" data-colname="Post"><a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>'
-			. esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span></td>';
-		echo '<td class="num" data-colname="Lifetime">' . esc_html( number_format_i18n( (int) $r['lifetime'] ) ) . '</td>';
-		echo '<td class="num" data-colname="Per day">' . esc_html( number_format_i18n( (float) $r['per_day'] ) ) . '</td>';
-		echo '<td data-colname="Shape">' . ( '' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">&mdash;</span>' ) . '</td>';
-		echo '<td data-colname="Status">' . sn_lifecycle_status_pill( $r ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper builds escaped markup.
-		echo '</tr>';
+		$decay     = (string) ( $r['decay'] ?? '' );
+		$kv_rows[] = array(
+			'<a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>' . esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span>',
+			number_format_i18n( (int) $r['lifetime'] ),
+			number_format_i18n( (float) $r['per_day'] ),
+			'' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">&mdash;</span>',
+			sn_lifecycle_status_pill( $r ),
+		);
 	}
-	echo '</tbody></table>';
 
+	$footer = '';
 	if ( (int) $total > count( $shown ) ) {
-		echo '<p class="sn-an-foot">' . esc_html( sprintf(
+		$footer = '<p class="sn-an-foot">' . esc_html( sprintf(
 			/* translators: 1: rows shown, 2: total posts. */
 			__( 'Showing the top %1$d of %2$d posts (refresh candidates first).', 'signal-and-noise-tools' ),
 			count( $shown ),
 			(int) $total
 		) ) . '</p>';
 	}
-	snt_an_panel_close();
+
+	snt_an_kv_table(
+		__( 'Refresh queue', 'signal-and-noise-tools' ),
+		$kv_rows,
+		$cols,
+		array(
+			'data_colname' => true,
+			'footer'       => $footer,
+		)
+	);
 }
 
 /**

@@ -69,5 +69,29 @@ ok( false !== strpos( $html, 'class="postbox sn-an-postbox sn-overview"' ), 'gla
 ok( false !== strpos( $html, 'class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Refresh queue' ),
 	'refresh-queue panel adopts the primitive (plain, no sn-overview)' );
 
+echo "\nTest: refresh-queue table — byte-parity pin (v9.43.0, pre-kv_table-migration)\n";
+// Literal capture of snt_analytics_render_lifecycle_table()'s FULL output under
+// a fixed, hostile-char fixture, taken from the plugin at v9.43.0 before the
+// kv_table column-spec migration. Covers all three Shape/Status cell shapes
+// (decay text, decay em-dash fallback, refresh pill, evergreen pill, muted
+// dash) plus the truncation-footer branch (n=3 rows, total=10). MUST pass
+// unchanged both before and after the migration.
+$parity_rows = array(
+	array( 'id' => 1, 'title' => 'Cool & <Post>', 'permalink' => '/x/?a=1&b=2', 'age' => 200, 'lifetime' => 50, 'per_day' => 0.2, 'decay' => 'cooling', 'evergreen' => false, 'refresh_candidate' => true ),
+	array( 'id' => 2, 'title' => 'Evergreen One', 'permalink' => '/y/', 'age' => 400, 'lifetime' => 900, 'per_day' => 2.25, 'decay' => 'evergreen', 'evergreen' => true, 'refresh_candidate' => false ),
+	array( 'id' => 3, 'title' => 'Plain One', 'permalink' => '/z/', 'age' => 10, 'lifetime' => 5, 'per_day' => 0.5, 'decay' => '', 'evergreen' => false, 'refresh_candidate' => false ),
+);
+$parity = cap( function () use ( $parity_rows ) { snt_analytics_render_lifecycle_table( $parity_rows, count( $parity_rows ) ); } );
+ok(
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Refresh queue</span></h2></div><div class="inside sn-an-table-inside"><table class="wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th><th scope="col" class="manage-column">Status</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/x/?a=1&b=2"><strong>Cool &amp; &lt;Post&gt;</strong></a> <span class="sn-an-muted">200d</span></td><td class="num" data-colname="Lifetime">50</td><td class="num" data-colname="Per day">0</td><td data-colname="Shape">cooling</td><td data-colname="Status"><span class="sn-pill sn-pill--warn">Refresh</span></td></tr><tr><td class="column-primary" data-colname="Post"><a href="/y/"><strong>Evergreen One</strong></a> <span class="sn-an-muted">400d</span></td><td class="num" data-colname="Lifetime">900</td><td class="num" data-colname="Per day">2</td><td data-colname="Shape">evergreen</td><td data-colname="Status"><span class="sn-pill sn-pill--ok">Evergreen</span></td></tr><tr><td class="column-primary" data-colname="Post"><a href="/z/"><strong>Plain One</strong></a> <span class="sn-an-muted">10d</span></td><td class="num" data-colname="Lifetime">5</td><td class="num" data-colname="Per day">1</td><td data-colname="Shape"><span class="sn-an-muted">&mdash;</span></td><td data-colname="Status"><span class="sn-an-muted" aria-hidden="true">&mdash;</span></td></tr></tbody></table></div></div>' === $parity,
+	'refresh queue: full-string byte-parity pin holds (hostile title escapes, decay text/em-dash-fallback, Refresh/Evergreen/muted-dash pills)'
+);
+
+$parity_truncated = cap( function () use ( $parity_rows ) { snt_analytics_render_lifecycle_table( $parity_rows, 10 ); } );
+ok(
+	false !== strpos( $parity_truncated, '</table><p class="sn-an-foot">Showing the top 3 of 10 posts (refresh candidates first).</p></div></div>' ),
+	'refresh queue: truncation footer renders inside the SAME panel, after </table>, before close — byte-parity holds with $total > count($shown)'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

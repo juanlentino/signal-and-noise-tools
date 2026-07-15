@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.43.4] - 2026-07-14: Funnel save errors finally say WHY — reasons ride the flash code, still no transients
+
+**Headline:** Since S2, a rejected funnels save told you only *"Check line N."* — the parser's six carefully-worded reasons (including the double-colon hint) were authored and then discarded at the save layer, which had deliberately declined transient plumbing. The reasons now arrive WITHOUT reversing that decision: the parser tags each error with a **closed six-kind enum** (`colon`/`name`/`long`/`step`/`few`/`many`, [inc/analytics-sessions.php](inc/analytics-sessions.php)), the save handler encodes `(line, kind-index)` pairs into the flash code (`analytics_funnels_invalid_2k4-7k1`, digits+`k`+`-` only, 5-entry source cap, worst case 34 chars inside the 40-char cap), and the flash renderer ([inc/admin-flash-messages.php](inc/admin-flash-messages.php)) decodes with layered hostile-input defenses — per-token `^\d{1,4}k[0-5]$`, whole-notice degradation to the generic copy on ANY malformed token — then renders each line's reason from the single-source `sn_analytics_funnels_kind_message()`. Old bare-line codes still render the legacy generic copy.
+
+> **Why PATCH:** fixes the authored-but-invisible reason gap; no new surface, no schema change, back-compat preserved.
+
+### Fixed
+- Funnels save rejections now list per-line reasons ("Line 2: a step contains a space or ':' — check for an extra ':' earlier in the line.") instead of only the line number ([inc/admin-post-actions.php](inc/admin-post-actions.php), [inc/admin-flash-messages.php](inc/admin-flash-messages.php)).
+
+### Security notes
+- The flash code remains a URL-controlled value: adversarial review drove 29 hostile payloads (over-cap runs, junk kinds, unicode digits, injections) with zero PHP warnings, zero partial rendering, all output escaped; owner text structurally cannot ride the code (line = clamped int, kind = index into fixed literals — the slash-asymmetry class is sidestepped by construction). Suites: analytics-funnels 142 · admin-post-actions 189 · admin-flash-messages 125, additive-only on the legacy pins.
+
+## [9.43.3] - 2026-07-14: The last table holdouts fall — posts & lifecycle join the shared k/v table
+
+**Headline:** The posts leaderboard and the lifecycle refresh-queue were the D5 arc's two documented table holdouts — bespoke `<table>` markup because `snt_an_kv_table()` couldn't express their link+age primary cells, decay-glyph Shape cells, or status-pill cells. The helper now has an **opt-in column-spec mode** ([inc/analytics-panels.php](inc/analytics-panels.php)): columns declare `{label, class?, html?}`; `html=true` cells carry caller-escaped markup by explicit contract, everything else routes through `esc_html()`; column 0 keeps the legacy `column-primary` + `<strong>` handling; a `footer` opt lets the lifecycle clamp note land inside the panel now that the helper owns close. Both tables migrate **byte-identically** (independently proven: 25,301 identical bytes across hostile-char, empty-decay, all-pill-states, and truncation fixtures), and both pre-existing string-list callers (login-defense, edge dims) stay byte-stable.
+
+> **Why PATCH:** pure refactor/de-clone; zero markup, visual, or behavioral change.
+
+### Changed
+- [inc/analytics-panels.php](inc/analytics-panels.php): `snt_an_kv_table()` column-spec mode + `footer` opt (string-list mode untouched); [inc/analytics-posts-admin.php](inc/analytics-posts-admin.php) and [inc/analytics-posts-lifecycle-admin.php](inc/analytics-posts-lifecycle-admin.php) become thin cell-builders over the shared primitive.
+
+### Added
+- Byte-parity pins captured from the real pre-change renderers in both table suites; spec-mode contract asserts in [tests/analytics-primitives.php](tests/analytics-primitives.php) (72 → 79); a review-fold hostile-cell pin in [tests/analytics-posts-admin.php](tests/analytics-posts-admin.php) proving `html=false` cells escape under a real `esc_html` (mutation-verified to bite).
+
 ## [9.43.2] - 2026-07-14: The widget joins the token system — one shared --sn-an-* layer on every analytics surface
 
 **Headline:** The Dashboard-home widget was the last token-less analytics surface: [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css) carried 49 raw hex values and silently drifted from the dashboard on shared class names. The D4 `:root { --sn-an-* }` block now lives in a new shared [assets/analytics/analytics-tokens.css](assets/analytics/analytics-tokens.css) (values verbatim, + 5 new shared tier-variant tokens), **dependency-enqueued** on both index.php and the plugin pages — WP's dep graph guarantees ordering, and each consumer stylesheet has exactly one enqueue site, so no screen can load a consumer without its tokens. The widget swaps ~25 hex for `var()` with proven value identity; its chip-scale size deltas (one step below the dashboard scale) stay as explicit, commented overrides. **One deliberate visual fix:** the widget was missing `.sn-an-tier--diagnostic`, so a diagnostic-tier insight rendered as an unstyled gray chip — it now matches the dashboard's amber diagnostic styling.
