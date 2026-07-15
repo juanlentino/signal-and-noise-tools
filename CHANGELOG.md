@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.43.2] - 2026-07-14: The widget joins the token system — one shared --sn-an-* layer on every analytics surface
+
+**Headline:** The Dashboard-home widget was the last token-less analytics surface: [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css) carried 49 raw hex values and silently drifted from the dashboard on shared class names. The D4 `:root { --sn-an-* }` block now lives in a new shared [assets/analytics/analytics-tokens.css](assets/analytics/analytics-tokens.css) (values verbatim, + 5 new shared tier-variant tokens), **dependency-enqueued** on both index.php and the plugin pages — WP's dep graph guarantees ordering, and each consumer stylesheet has exactly one enqueue site, so no screen can load a consumer without its tokens. The widget swaps ~25 hex for `var()` with proven value identity; its chip-scale size deltas (one step below the dashboard scale) stay as explicit, commented overrides. **One deliberate visual fix:** the widget was missing `.sn-an-tier--diagnostic`, so a diagnostic-tier insight rendered as an unstyled gray chip — it now matches the dashboard's amber diagnostic styling.
+
+> **Why PATCH:** token indirection with computed-value parity everywhere except the missing-variant fix; no new capability.
+
+### Added
+- [assets/analytics/analytics-tokens.css](assets/analytics/analytics-tokens.css): the shared token layer (11 moved verbatim + `--sn-an-tier-predictive-border` / `--sn-an-tier-prescriptive(-border)` / `--sn-an-tier-diagnostic(-border)`), registered as `snt-analytics-tokens` and required as a dependency by both consumers ([inc/admin-menu.php](inc/admin-menu.php), [inc/analytics-widget.php](inc/analytics-widget.php)).
+- The widget's `.sn-an-tier--diagnostic` variant (the one visual change).
+
+### Changed
+- [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css): hex → `var()` (muted ×12, text ×5, up ×3, surface-2 ×3, down ×2, accent ×2, hairline ×2, + 3 tier variants); genuinely one-off values stay literal with reasons recorded in [tests/analytics-tokens.php](tests/analytics-tokens.php) (52 new asserts, 104 total).
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): only the `:root` move-out + 3 tier-variant declarations onto the shared tokens.
+
+## [9.43.1] - 2026-07-14: Settings-surface i18n completion — labels, placeholders, and the worker-setup steps
+
+**Headline:** The one string category [v9.42.1](#9421---2026-07-14-i18n-sweep--the-analytics-surfaces-raw-strings-route-through-the-text-domain) deliberately excluded is now closed: the credentials card's heading, field labels, placeholders and buttons, plus the four worker-setup `<li>` steps in [inc/analytics-render-settings.php](inc/analytics-render-settings.php), route through `__()`/`esc_html__()`/`esc_attr__()` with the plugin text domain. `<code>`/`<strong>`/`<pre>` markup, URLs, shell commands, and wp-config constant names stay outside msgids (sprintf + translators comments). Output is byte-identical except three apostrophes that follow the file's own typographic-apostrophe idiom (`can’t`, `Worker’s`, `‘clear’` — ENT_QUOTES would otherwise entity-encode them; the same idiom already ships at five older call sites in this file).
+
+> **Why PATCH:** i18n refactor; no capability or copy change beyond three apostrophe glyphs.
+
+### Fixed
+- i18n: `Credentials` heading + help prose, `Account ID` / `Account Analytics Read token` labels, both placeholders (via `esc_attr__`), `Save` / `Test connection` buttons, the locked-state note pair, and the `Cloudflare Worker setup` summary + its four setup steps ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)).
+
+### Added
+- [tests/analytics-i18n.php](tests/analytics-i18n.php) grows a settings-surface section: behavioral drives of the credentials card (locked and unlocked) and the worker-setup panel + 17 source-contract needles — 63 → 111 asserts.
+
 ## [9.43.0] - 2026-07-14: Plugin footprint — Site Health diagnostics + the one-time legacy-deploy janitor
 
 **Headline:** The installed plugin weighs **14.3 MB on disk while the v9.42.1 payload is 2.9 MB / 283 files** — the site's pre-v1.10.1 deploy path was an SSH git checkout (see [deploy.yml](.github/workflows/deploy.yml)'s own comments), so the live directory very likely still carries `.git/` and other repo-only files that nginx pattern-blocks from remote probing. This release makes the install self-diagnosing and self-healing: a **Site Health → Info section** ("Signal & Noise — plugin footprint") lists every top-level entry in the plugin directory with its recursive size and a legacy flag, and a **one-time janitor** (per plugin version, `admin_init`, `update_plugins` capability) deletes ONLY a hardcoded 16-entry legacy manifest — the union of every name the repo has ever export-ignored, plus `.git` and `.planning`. Every manifest entry is reproducible from the GitHub repo, so nothing can be lost; anything unexpected is **reported, never deleted**. The manifest is provably disjoint from the shipped payload, so on a clean install the janitor is a no-op.
