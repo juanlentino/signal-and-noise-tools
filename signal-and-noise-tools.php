@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.42.2
+ * Version:     9.43.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -326,6 +326,7 @@ require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th ch
 require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory check — semantic pairs that should link (C2 approach C)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-checks-admin.php';
+require_once SNT_PATH . 'inc/plugin-footprint.php'; // plugin-directory footprint diagnostic (Site Health) + the one-time legacy-deploy-file janitor (admin_init, once per SNT_VERSION)
 require_once SNT_PATH . 'inc/audit-log.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
