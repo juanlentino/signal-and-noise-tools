@@ -590,6 +590,10 @@ ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a 
 $fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
 ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces — pipeline strip + the two columns (wide leaf owns its own chrome)' );
 ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
+// S2 §6: the whole settings section is wrapped in the D4-leaf marker so the
+// leaf-scoped token-card CSS (analytics-admin.css) has something to hang off.
+ok( strpos( $html, 'class="sn-an-settings-leaf"' ) !== false, 'settings: wrapped in the sn-an-settings-leaf marker (S2 §6)' );
+ok( strpos( $html, 'sn-an-settings-leaf' ) < strpos( $html, 'sn-an-pipeline' ), 'settings: the leaf wrapper opens before the pipeline strip' );
 $acct_at = strpos( $html, 'name="sn_cf_account_id"' );
 // 'Cloudflare Worker setup' (the <summary> text), NOT 'wrangler': the pipeline
 // strip's warn note can also say "wrangler" once the worker stub lands, and the

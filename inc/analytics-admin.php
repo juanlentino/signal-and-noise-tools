@@ -512,6 +512,11 @@ function snt_analytics_render_dashboard() {
  * after engine tuning.
  */
 function snt_analytics_render_settings_section() {
+	// S2 §6: the leaf-scoped D4 marker — every leaf-scoped token-card rule in
+	// analytics-admin.css hangs off this class (the pipeline strip keeps its
+	// own .sn-an-pipeline hero treatment; this wrapper never touches it).
+	echo '<div class="sn-an-settings-leaf">';
+
 	// v9.36.0 settings hub: pipeline status first — the five presence pills
 	// (beacon → worker → read → cron → edge) above the two columns.
 	if ( function_exists( 'snt_analytics_render_pipeline_status' ) ) {
@@ -559,6 +564,7 @@ function snt_analytics_render_settings_section() {
 	echo '</div>';
 
 	echo '</div>'; // .sn-2up
+	echo '</div>'; // .sn-an-settings-leaf
 }
 
 /**
