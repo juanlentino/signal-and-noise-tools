@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.46.1] - 2026-07-15: The three Query Monitor findings — WP 6.9 ability category, duplicate reads, timeout caps
+
+**Headline:** Everything the live Query Monitor session flagged besides the 10-second mystery itself. **(1) The WP 6.9 compat break**: both analytics abilities registered under an `analytics` category that was never itself registered — WP 6.9's Abilities API now requires it (`_doing_it_wrong` ×2 on every admin load, and the abilities at risk of not registering at all). It's now the sixth guarded entry in [inc/abilities-categories.php](inc/abilities-categories.php); a repo-wide sweep confirms zero orphan categories remain. **(2) The six duplicate queries**: `sn_analytics_daily_series`, `sn_analytics_distribution`, and `sn_analytics_top_dimension` each ran twice per page for identical args (anomalies+forecasts, engaged-rate+pulse, refcats+sources) — all three gain the D5 request-memo idiom (arg-keyed, `$refresh` re-prime seam; keys cover every result-affecting parameter, review-verified per-param). **(3) Timeout caps** on the three SWR-cached remote calls whose cold miss could stall a render: edge retention probe 15s → 6s, plugin-tag check 8s → 5s, deploy-runs fetch 8s → 5s — each has a transient + last-good fallback, so the cap bounds worst-case wait without losing data.
+
+> **Why PATCH:** compat fix + perf/dedupe + hardening; no capability or visual change.
+
+### Fixed
+- The `analytics` ability category (WP 6.9); the three duplicate-read pairs; the three oversized timeouts. New [tests/abilities-categories.php](tests/abilities-categories.php) (16 asserts) + call-count memo pins + timeout pins across the touched suites — every family mutation-verified to bite.
+
 ## [9.46.0] - 2026-07-15: The plugin times its own admin HTTP — finding the 10-second click
 
 **Headline:** Query Monitor on the live site showed the smoking gun: **10.11s page generation with 0.04s of database time** — PHP spends the wait blocked on synchronous remote HTTP, not on queries (the rollup architecture came out vindicated: 55 queries in 36 ms). New [inc/http-diagnostics.php](inc/http-diagnostics.php) makes the plugin name the culprits itself: every `wp_remote_*` call on admin requests is timed (`http_request_args` → `http_api_debug`), and qualifying requests (any HTTP, or wall time > 2s) land in a self-healing ring buffer — **Site Health → Info → "Signal & Noise — admin HTTP diagnosis"** ranks the ten slowest admin requests with each remote call's host, milliseconds, and status. It times *every* plugin's calls, not just ours. **Secrets are unstorable by construction**: only scheme+host+path are kept (query strings, fragments, and userinfo are discarded before storage — mutation-verified), and the plugin's one secret-in-path call site (the Uptime Kuma push token) was proven un-capturable through three independent gates in review.
