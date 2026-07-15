@@ -62,6 +62,19 @@ function aw_enqueues_for( $hook ) {
 	) );
 }
 
+/**
+ * Same as aw_enqueues_for() but returns EVERY enqueue call unfiltered — used
+ * to assert the shared tokens stylesheet (which doesn't match 'analytics-widget.css')
+ * is present alongside it, or absent everywhere aw_enqueues_for() expects zero.
+ */
+function aw_all_enqueues_for( $hook ) {
+	$GLOBALS['__enq'] = array();
+	if ( function_exists( 'sn_aw_enqueue_styles' ) ) {
+		sn_aw_enqueue_styles( $hook );
+	}
+	return $GLOBALS['__enq'];
+}
+
 echo "Dashboard-widget stylesheet enqueue (E5)\n\n";
 
 ok( function_exists( 'sn_aw_enqueue_styles' ), 'enqueue: sn_aw_enqueue_styles() is defined (named, testable callback)' );
@@ -77,7 +90,20 @@ ok( ( $row['ver'] ?? '' ) === SNT_VERSION, 'enqueue: cache-busted by SNT_VERSION
 echo "\nGroup: NOT enqueued off the dashboard (the unstyled-bug screen guard)\n";
 foreach ( array( 'post.php', 'edit.php', 'options-general.php', 'toplevel_page_sn-theme-options', 'sn-theme-options_page_sn-monitoring' ) as $other ) {
 	ok( count( aw_enqueues_for( $other ) ) === 0, "enqueue: NOT loaded on '$other'" );
+	ok( count( aw_all_enqueues_for( $other ) ) === 0, "enqueue: the shared tokens stylesheet also NOT loaded on '$other'" );
 }
+
+echo "\nGroup: shared tokens stylesheet (widget tokenization) — dependency of the widget CSS\n";
+$all_dash = aw_all_enqueues_for( 'index.php' );
+$tok_rows = array_values( array_filter( $all_dash, function ( $e ) { return ( $e['handle'] ?? '' ) === 'snt-analytics-tokens'; } ) );
+ok( count( $tok_rows ) === 1, 'enqueue: snt-analytics-tokens style enqueued exactly once on the dashboard' );
+$tok_row = $tok_rows[0] ?? array();
+ok( ( $tok_row['src'] ?? '' ) === SNT_URL . 'assets/analytics/analytics-tokens.css', 'enqueue: tokens src is assets/analytics/analytics-tokens.css under SNT_URL' );
+ok( ( $tok_row['ver'] ?? '' ) === SNT_VERSION, 'enqueue: tokens cache-busted by SNT_VERSION' );
+
+$widget_rows = array_values( array_filter( $all_dash, function ( $e ) { return ( $e['handle'] ?? '' ) === 'sn-analytics-widget'; } ) );
+$widget_row  = $widget_rows[0] ?? array();
+ok( in_array( 'snt-analytics-tokens', (array) ( $widget_row['deps'] ?? array() ), true ), 'enqueue: sn-analytics-widget depends on snt-analytics-tokens (ordering guaranteed by WP deps, not enqueue call order)' );
 
 echo "\nGroup: CSS lives in an external asset, not inline\n";
 $css_path = __DIR__ . '/../assets/analytics/analytics-widget.css';
