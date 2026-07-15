@@ -103,11 +103,14 @@ function sn_analytics_session_funnels() {
  *
  * Defensive: a non-array setting, an empty setting, or a setting whose entries
  * don't carry the funnel shape sn_funnel_report() needs (not themselves an
- * array, missing 'title'/'steps', or 'steps' not itself an array — a
- * corrupt/hand-edited option value) all fall back to the hardcoded defaults
- * wholesale — never a partial/best-effort mix, so a bad option value can't
- * silently drop a funnel out from under sn_funnel_report(), and a malformed
- * entry can't reach the Visits view's rendering loop at all.
+ * array, missing 'title'/'steps', 'steps' not itself an array, or any step
+ * ELEMENT not itself an array — a corrupt/hand-edited option value) all fall
+ * back to the hardcoded defaults wholesale — never a partial/best-effort mix,
+ * so a bad option value can't silently drop a funnel out from under
+ * sn_funnel_report(), and a malformed entry can't reach the Visits view's
+ * rendering loop at all. The per-step check matters under LIVE data: a string
+ * step element would pass every outer check yet TypeError-fatal
+ * sn_funnel_step_matches(array $step, …) the moment a visit has events.
  *
  * @since S2 (v9.42.0 arc)
  * @param mixed $configured The raw analytics.funnels setting value.
@@ -121,6 +124,11 @@ function sn_analytics_funnels_resolve_setting( $configured, array $hardcoded ) {
 	foreach ( $configured as $entry ) {
 		if ( ! is_array( $entry ) || ! isset( $entry['title'], $entry['steps'] ) || ! is_array( $entry['steps'] ) ) {
 			return $hardcoded;
+		}
+		foreach ( $entry['steps'] as $step ) {
+			if ( ! is_array( $step ) ) {
+				return $hardcoded;
+			}
 		}
 	}
 	return $configured;
@@ -289,18 +297,27 @@ function sn_analytics_parse_funnels( $raw ) {
  * the Session funnels card with the CURRENTLY configured analytics.funnels
  * setting so the owner edits what is actually live, not a blank box.
  *
- * Only exact-match path steps round-trip through the textarea: a funnel whose
- * steps are ALL {match:'path', prefix:false} serializes as one line; a funnel
- * containing ANY 'ce' step or ANY prefix-match step is OMITTED entirely — the
- * textarea format has no syntax for either, and inventing a comment syntax the
- * parser doesn't understand would be dishonest (it would look editable but
- * silently vanish on save). Such funnels stay active via the
+ * A funnel is REPRESENTABLE — and serializes as one line — only when its
+ * emitted line would parse back to the SAME funnel:
+ *   - every step is {match:'path', prefix:false} (the textarea format has no
+ *     syntax for 'ce' goals or prefix matching),
+ *   - every step value starts with '/' and contains no whitespace, '>' or ':'
+ *     (a '>' would re-parse as EXTRA steps — silent corruption; ':' or
+ *     whitespace would make the parser REJECT the line, wedging every future
+ *     save on a line the owner never typed),
+ *   - the title contains no ':' and no newline (a second colon would re-split
+ *     name/steps at the wrong place; a newline would split into bogus lines).
+ * Anything else is OMITTED entirely — inventing a comment syntax the parser
+ * doesn't understand would be dishonest (it would look editable but silently
+ * vanish on save). Such funnels stay active via the
  * 'sn_analytics_session_funnels' filter; the render layer's help text says so.
  *
  * ROUND-TRIP GUARANTEE: for any $funnels that is itself the ['funnels'] output
  * of sn_analytics_parse_funnels() (i.e. already normalized — trimmed titles,
  * leading-slash path values, exact-match steps, within the count/step caps),
- * parse( to_text( $funnels ) )['funnels'] === $funnels.
+ * parse( to_text( $funnels ) )['funnels'] === $funnels. Parser output always
+ * satisfies the representability rules above, so nothing it produced is ever
+ * omitted.
  *
  * @since S2 (v9.42.0 arc)
  * @param array $funnels List of array{title:string,steps:array}.
@@ -314,7 +331,7 @@ function sn_analytics_funnels_to_text( array $funnels ) {
 		}
 		$title = isset( $funnel['title'] ) ? trim( (string) $funnel['title'] ) : '';
 		$steps = isset( $funnel['steps'] ) && is_array( $funnel['steps'] ) ? $funnel['steps'] : array();
-		if ( '' === $title || empty( $steps ) ) {
+		if ( '' === $title || 1 === preg_match( '/[:\r\n]/', $title ) || empty( $steps ) ) {
 			continue;
 		}
 
@@ -325,7 +342,14 @@ function sn_analytics_funnels_to_text( array $funnels ) {
 				$representable = false;
 				break;
 			}
-			$values[] = (string) ( $step['value'] ?? '' );
+			$value = (string) ( $step['value'] ?? '' );
+			// Round-trip guard: only a value the parser could itself have produced
+			// re-parses to itself (leading '/', no whitespace/'>'/':').
+			if ( '/' !== substr( $value, 0, 1 ) || 1 === preg_match( '/[\s>:]/', $value ) ) {
+				$representable = false;
+				break;
+			}
+			$values[] = $value;
 		}
 
 		if ( ! $representable || count( $values ) < 2 ) {

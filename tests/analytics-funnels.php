@@ -219,17 +219,77 @@ $out = sn_analytics_funnels_resolve_setting( array( array( 'steps' => array() ) 
 ok( $hardcoded_today === $out, 'an entry missing "title" -> the hardcoded defaults' );
 $out = sn_analytics_funnels_resolve_setting( array( array( 'title' => 'Bad steps', 'steps' => 'not-an-array' ) ), $hardcoded_today );
 ok( $hardcoded_today === $out, 'an entry whose "steps" is not itself an array -> the hardcoded defaults' );
+// T3 review: steps' ELEMENTS must be arrays too — ['title'=>'X','steps'=>
+// ['junk1','junk2']] used to pass resolve and TypeError-fatal
+// sn_funnel_step_matches(array $step, ...) the moment live data reached the
+// matcher (sn_funnel_report only calls it when a summary has events).
+$out = sn_analytics_funnels_resolve_setting( array( array( 'title' => 'X', 'steps' => array( 'junk1', 'junk2' ) ) ), $hardcoded_today );
+ok( $hardcoded_today === $out, 'an entry whose steps ELEMENTS are not arrays -> the hardcoded defaults (would TypeError the matcher under live data)' );
+
 // End-to-end through the public seam + the Visits view's own funnel-building
-// loop (mirrors inc/analytics-view-sessions.php:116-121): a corrupt setting
-// must not fatal the render path, just resolve to the well-formed defaults.
-$GLOBALS['__settings'] = array( 'analytics.funnels' => array( array( 'title' => 'No steps here' ) ) );
+// loop (mirrors inc/analytics-view-sessions.php:116-121) with a NON-EMPTY
+// summaries fixture, so sn_funnel_step_matches actually runs — an empty
+// $summaries never reaches the matcher, which is exactly where the corrupt
+// string-steps would fatal. Discriminating: without the wholesale fallback
+// this loop TypeErrors instead of reporting.
+$GLOBALS['__settings'] = array( 'analytics.funnels' => array( array( 'title' => 'X', 'steps' => array( 'junk1', 'junk2' ) ) ) );
 $out                   = sn_analytics_session_funnels();
-ok( $hardcoded_today === $out, 'sn_analytics_session_funnels(): an entry missing "steps" falls back to the hardcoded defaults' );
+ok( $hardcoded_today === $out, 'sn_analytics_session_funnels(): corrupt string-steps entry falls back to the hardcoded defaults' );
+$live_summaries = array(
+	array(
+		'events' => array(
+			array( 'ev' => 'pv', 'path' => '/', 'ce' => '' ),
+			array( 'ev' => 'pv', 'path' => '/notes/hello', 'ce' => '' ),
+			array( 'ev' => 'ce', 'path' => '/notes/hello', 'ce' => 'subscribe' ),
+		),
+	),
+);
 $rendered = array();
 foreach ( $out as $def ) {
-	$rendered[] = array( 'title' => $def['title'], 'report' => sn_funnel_report( array(), $def['steps'] ) );
+	$rendered[] = array( 'title' => $def['title'], 'report' => sn_funnel_report( $live_summaries, $def['steps'] ) );
 }
-ok( 2 === count( $rendered ), 'the Visits-view funnel-building loop completes without error over the fallback funnels' );
+ok( 2 === count( $rendered ), 'the Visits-view funnel-building loop completes without a fatal over live-shaped summaries' );
+ok( 1 === $rendered[0]['report'][2]['reached'], 'the matcher genuinely ran: the fixture visit completes all 3 steps of the first hardcoded funnel' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: sn_analytics_funnels_to_text — T3-review: unrepresentable funnels are OMITTED, never emitted as corrupt lines\n";
+// ─────────────────────────────────────────────────────────────────────────
+// The invariant: to_text only emits a line when parse() would read that line
+// back to the SAME funnel. A step value carrying '>' would re-parse as extra
+// steps (silent data corruption); a value carrying ':' or whitespace, or a
+// title carrying ':' or a newline, would emit a line the parser REJECTS —
+// wedging the card (every future save errors on a line the owner never typed).
+function t3_step( $v ) { return array( 'match' => 'path', 'value' => $v, 'prefix' => false ); }
+
+$f = array( array( 'title' => 'Bad', 'steps' => array( t3_step( '/a>b' ), t3_step( '/c' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a step value containing ">" -> funnel omitted (would re-parse as 3 steps, silently corrupting)' );
+
+$f = array( array( 'title' => 'Bad', 'steps' => array( t3_step( '/a:b' ), t3_step( '/c' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a step value containing ":" -> funnel omitted (its line would be rejected on save)' );
+
+$f = array( array( 'title' => 'Bad', 'steps' => array( t3_step( '/a b' ), t3_step( '/c' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a step value containing whitespace -> funnel omitted' );
+
+$f = array( array( 'title' => 'Bad', 'steps' => array( t3_step( 'no-slash' ), t3_step( '/c' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a step value without a leading slash -> funnel omitted (would re-parse normalized, not itself)' );
+
+$f = array( array( 'title' => 'A: B', 'steps' => array( t3_step( '/a' ), t3_step( '/b' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a title containing ":" -> funnel omitted (its line would re-split name/steps at the wrong colon)' );
+
+$f = array( array( 'title' => "Two\nlines", 'steps' => array( t3_step( '/a' ), t3_step( '/b' ) ) ) );
+ok( '' === sn_analytics_funnels_to_text( $f ), 'a title containing a newline -> funnel omitted (would split into two bogus lines)' );
+
+// A representable sibling still serializes when an unrepresentable one is dropped.
+$f = array(
+	array( 'title' => 'Bad', 'steps' => array( t3_step( '/a>b' ), t3_step( '/c' ) ) ),
+	array( 'title' => 'Fine', 'steps' => array( t3_step( '/a' ), t3_step( '/b' ) ) ),
+);
+ok( 'Fine: /a > /b' === sn_analytics_funnels_to_text( $f ), 'a representable sibling still emits when the unrepresentable one is dropped' );
+
+// The round trip still holds for representable (parser-produced) funnels.
+$rt1 = sn_analytics_parse_funnels( "Home flow: /entry > /step > /goal\nContact: /a > /b" );
+$rt2 = sn_analytics_parse_funnels( sn_analytics_funnels_to_text( $rt1['funnels'] ) );
+ok( $rt1['funnels'] === $rt2['funnels'], 'round trip still holds for representable funnels' );
 
 echo "\nGroup: sn_analytics_session_funnels — the filter still runs LAST, over BOTH sources\n";
 function sn_test_append_funnel_filter( $funnels ) {

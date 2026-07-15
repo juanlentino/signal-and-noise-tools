@@ -195,14 +195,16 @@ function sn_admin_flash_to_notice( $flash ) {
 	// point at exactly which line(s) to fix, no transient plumbing required.
 	if ( 0 === strpos( $flash, 'analytics_funnels_invalid' ) ) {
 		$lines = trim( substr( $flash, strlen( 'analytics_funnels_invalid' ) ), '_' );
-		// T2-review hardening: $flash already passed through sanitize_text_field()
+		// T2/T3-review hardening: $flash already passed through sanitize_text_field()
 		// upstream (inc/admin-page.php / inc/analytics-dashboard-page.php), but that
 		// strips tags, not arbitrary characters — a hand-crafted ?sn_flash=…_<junk>
 		// suffix could still carry stray quotes/unicode/overlong runs into this
 		// notice. On the legitimate path the suffix is ONLY ever digits joined by
 		// '-' (sn_handle_analytics_funnels_save() implode()s 1-based line numbers),
-		// so whitelist to that charset and cap the length before it reaches the UI.
-		$lines  = substr( preg_replace( '/[^0-9,\- ]/', '', $lines ), 0, 40 );
+		// so whitelist to EXACTLY that charset and cap the length before it
+		// reaches the UI (the display commas come from str_replace below, never
+		// from the input).
+		$lines  = substr( preg_replace( '/[^0-9\-]/', '', $lines ), 0, 40 );
 		$detail = '' !== $lines ? ( ' Check line' . ( false !== strpos( $lines, '-' ) ? 's ' : ' ' ) . str_replace( '-', ', ', $lines ) . '.' ) : '';
 		return array( 'error', 'Funnels not saved — nothing changed.' . $detail );
 	}

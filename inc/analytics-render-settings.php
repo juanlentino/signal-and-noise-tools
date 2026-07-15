@@ -273,12 +273,14 @@ function snt_analytics_render_engine_tuning() {
  * sn_handle_analytics_funnels_save() via sn_action=analytics_funnels_save;
  * parsed by sn_analytics_parse_funnels() (both inc/analytics-sessions.php).
  *
- * Only exact-match path steps are expressible in this textarea — a funnel
- * carrying a custom-event goal or a prefix-match step (like the two hardcoded
- * defaults) is OMITTED from the prefill rather than invented into a comment
- * syntax the parser would reject; it stays live via the
- * 'sn_analytics_session_funnels' filter, which always runs last. The help text
- * says so, and that saving anything here replaces the hardcoded defaults.
+ * Only funnels whose serialized line parses back to itself are expressible in
+ * this textarea (see sn_analytics_funnels_to_text) — a funnel carrying a
+ * custom-event goal, a prefix-match step (like the two hardcoded defaults), or
+ * an out-of-band step value/title the line format can't carry is OMITTED from
+ * the prefill rather than invented into a comment syntax the parser would
+ * reject. FILTER-defined funnels survive saves (the filter always runs last);
+ * a setting-STORED unrepresentable funnel is replaced on the next save like
+ * everything else in the option — the help text promises only the former.
  */
 function snt_analytics_render_funnels() {
 	$funnels = (array) sn_setting( 'analytics.funnels', array() );
@@ -287,10 +289,19 @@ function snt_analytics_render_funnels() {
 	echo '<form method="post" class="sn-an-settings sn-an-funnels">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Named conversion paths for the Visits view — one per line: "Name: /entry > /step > /goal" (2–10 steps, up to 10 funnels). A bare path gets a leading slash added automatically.', 'signal-and-noise-tools' ) . '</p>';
+	// Both clamps render from their constants (SN_ANALYTICS_FUNNELS_MAX_STEPS /
+	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
+	// drift from the parser again (T3 review: it shipped saying "2–10 steps"
+	// while the real step clamp was 8).
+	echo '<p class="sn-an-settings-help">' . esc_html( sprintf(
+		/* translators: 1: max steps per funnel, 2: max funnel count */
+		__( 'Named conversion paths for the Visits view — one per line: "Name: /entry > /step > /goal" (2–%1$d steps, up to %2$d funnels). A bare path gets a leading slash added automatically.', 'signal-and-noise-tools' ),
+		SN_ANALYTICS_FUNNELS_MAX_STEPS,
+		SN_ANALYTICS_FUNNELS_MAX
+	) ) . '</p>';
 	echo '<p><textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Visits view — including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be edited here. A funnel defined in code with prefix matching or a custom-event goal is not shown in this box — it stays active via the filter above, so saving never silently drops it.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express — prefix matching, custom-event goals — are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }

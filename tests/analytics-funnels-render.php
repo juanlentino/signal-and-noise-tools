@@ -103,6 +103,53 @@ ok( strpos( $h, '# (code-defined' ) === false, 'no invented comment syntax stand
 ok( strpos( $h, 'Editable: /a > /b' ) !== false, 'a path-only sibling funnel still prefills' );
 ok( strpos( $h, 'sn_analytics_session_funnels' ) !== false, 'help text names the filter that keeps the omitted funnel alive' );
 ok( stripos( $h, 'replaces the built-in defaults' ) !== false, 'help text warns that saving replaces the built-in defaults' );
+// T3-review rider (a): the old "saving never silently drops it" over-promised —
+// a setting-STORED unrepresentable funnel IS dropped on the next save (only
+// FILTER-defined funnels are save-proof). The copy must not promise otherwise.
+ok( stripos( $h, 'never silently drops' ) === false, 'help text no longer over-promises "saving never silently drops it"' );
+ok( stripos( $h, 'managed in code' ) !== false, 'help text scopes the save-proof claim to code/filter-defined funnels' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: T3-review — clamp copy sprintf'd from the real constants (no drift)\n";
+// ─────────────────────────────────────────────────────────────────────────
+// The bug: the copy said "2–10 steps" while SN_ANALYTICS_FUNNELS_MAX_STEPS = 8.
+// Both clamps now render from their constants, so the copy can't drift again.
+ok( strpos( $h, '2–' . SN_ANALYTICS_FUNNELS_MAX_STEPS . ' steps' ) !== false,
+	'help copy names the REAL step clamp (' . SN_ANALYTICS_FUNNELS_MAX_STEPS . ') from the constant' );
+ok( strpos( $h, '2–8 steps' ) !== false, 'help copy literally reads "2–8 steps" (the constant is 8 today)' );
+ok( strpos( $h, 'up to ' . SN_ANALYTICS_FUNNELS_MAX . ' funnels' ) !== false, 'help copy names the funnel clamp from the constant' );
+ok( strpos( $h, '2–10 steps' ) === false, 'the drifted "2–10 steps" copy is gone' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: T3-review — an unrepresentable stored step value cannot wedge the card\n";
+// ─────────────────────────────────────────────────────────────────────────
+// A step value like '/a>b' (out-of-band setting edit) must NOT prefill: its
+// line would re-parse as three different steps, so a blind Save would silently
+// corrupt the funnel — and a ':'-carrying value would emit a line the parser
+// REJECTS, wedging every future save on this card.
+$GLOBALS['__settings'] = array(
+	'analytics.funnels' => array(
+		array(
+			'title' => 'Corrupt',
+			'steps' => array(
+				array( 'match' => 'path', 'value' => '/a>b', 'prefix' => false ),
+				array( 'match' => 'path', 'value' => '/c', 'prefix' => false ),
+			),
+		),
+		array(
+			'title' => 'Fine',
+			'steps' => array(
+				array( 'match' => 'path', 'value' => '/a', 'prefix' => false ),
+				array( 'match' => 'path', 'value' => '/b', 'prefix' => false ),
+			),
+		),
+	),
+);
+ob_start();
+snt_analytics_render_funnels();
+$h = ob_get_clean();
+ok( strpos( $h, '/a&gt;b' ) === false && strpos( $h, '/a>b' ) === false, 'the corrupt step value does not prefill (omitted, not corrupted-in-place)' );
+ok( strpos( $h, 'Fine: /a > /b' ) !== false, 'the representable sibling still prefills' );
 
 // ─────────────────────────────────────────────────────────────────────────
 echo "\nGroup: round-trip pin — parse(to_text(parse(x)['funnels']))['funnels'] === parse(x)['funnels']\n";

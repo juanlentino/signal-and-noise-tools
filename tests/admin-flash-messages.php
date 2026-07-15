@@ -158,11 +158,17 @@ fm_eq( 'Funnels not saved — nothing changed.', $note[1], 'bare code -> no "Che
 // joined by '-', but $flash reaches this resolver after sanitize_text_field()
 // (inc/admin-page.php), which strips tags but not arbitrary characters — a
 // hand-crafted ?sn_flash= URL param could still carry stray junk. Hardening pin:
-// the resolver whitelists to [0-9,\- ] and caps the suffix length itself.
+// the resolver whitelists to [0-9\-] (exactly what the legit path emits — never
+// a comma or space) and caps the suffix length itself.
 $note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_<script>alert(1)</script>' );
 fm_eq( true, false === strpos( $note[1], '<script>' ), 'crafted junk suffix: no raw "<script>" survives into the notice' );
 fm_eq( true, false === strpos( $note[1], '<' ) && false === strpos( $note[1], '>' ) && false === strpos( $note[1], '(' ) && false === strpos( $note[1], ')' ),
-	'crafted junk suffix: non-digit/comma/dash/space characters are stripped entirely' );
+	'crafted junk suffix: non-whitelist characters are stripped entirely' );
+// T3-review rider (b): comma + space are OUTSIDE the whitelist too — the legit
+// path implode('-')s bare digits, so '2, 4' collapses to the digits alone.
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_2, 4' );
+fm_eq( true, false !== strpos( $note[1], 'Check line 24.' ), 'crafted comma/space suffix: stripped to bare digits (whitelist is [0-9-] only)' );
+fm_eq( false, false !== strpos( $note[1], '2, 4' ), 'crafted comma/space suffix: the comma-joined form never renders' );
 
 $flash_long = 'analytics_funnels_invalid_' . str_repeat( '9', 100 );
 $note       = sn_admin_flash_to_notice( $flash_long );

@@ -163,28 +163,45 @@ ok( false !== strpos( $gate, 'sn-an-gate' ), 'AE gate: unified gate marker prese
 ok( false !== strpos( $gate, 'Visit analytics need live Analytics Engine data for this window.' ), 'AE gate: exact original message preserved' );
 ok( false !== strpos( $gate, '<span>Visits</span>' ), 'AE gate: carries a title' );
 
-// S2 §3 T2-review hardening (item B1): a corrupt analytics.funnels setting (an
-// entry missing 'steps') must not reach sn_funnel_report() malformed — the
-// resolver falls back to the hardcoded defaults wholesale (inc/analytics-sessions.php),
-// and the Visits view's own funnel-building loop (mirrored here — see
-// inc/analytics-view-sessions.php:116-121) renders without a fatal.
-echo "\nGroup: corrupt analytics.funnels setting — Visits view renders without error\n";
-$GLOBALS['__vs_settings'] = array( 'analytics.funnels' => array( array( 'title' => 'Missing steps' ) ) );
+// S2 §3 T2/T3-review hardening: a corrupt analytics.funnels setting must not
+// reach sn_funnel_report() malformed — the resolver falls back to the hardcoded
+// defaults wholesale (inc/analytics-sessions.php). T3 sharpened the fixture in
+// two ways: (1) the corrupt entry now carries STRING step elements
+// (['title'=>'X','steps'=>['junk1','junk2']]) — the shape that used to pass
+// resolve and TypeError sn_funnel_step_matches(array $step, ...) under live
+// data; (2) the summaries fixture is NON-EMPTY, so sn_funnel_report actually
+// reaches the matcher (the old empty-summaries pin never did — the report loop
+// short-circuits before any step is inspected, so it discriminated nothing).
+echo "\nGroup: corrupt analytics.funnels setting — Visits view renders without error under LIVE-shaped data\n";
+$GLOBALS['__vs_settings'] = array( 'analytics.funnels' => array( array( 'title' => 'X', 'steps' => array( 'junk1', 'junk2' ) ) ) );
 $defs                     = sn_analytics_session_funnels();
-ok( 2 === count( $defs ), 'corrupt setting (entry missing "steps") falls back to the 2 hardcoded funnels' );
+ok( 2 === count( $defs ), 'corrupt setting (string step elements) falls back to the 2 hardcoded funnels' );
+$live_summaries = array(
+	array(
+		'visits'    => 1,
+		'pageviews' => 2,
+		'events'    => array(
+			array( 'ev' => 'pv', 'path' => '/', 'ce' => '' ),
+			array( 'ev' => 'pv', 'path' => '/notes/hello', 'ce' => '' ),
+			array( 'ev' => 'ce', 'path' => '/notes/hello', 'ce' => 'subscribe' ),
+		),
+	),
+);
 $funnels = array();
 foreach ( $defs as $def ) {
-	$funnels[] = array( 'title' => $def['title'], 'report' => sn_funnel_report( array(), $def['steps'] ) );
+	$funnels[] = array( 'title' => $def['title'], 'report' => sn_funnel_report( $live_summaries, $def['steps'] ) );
 }
+ok( 1 === $funnels[0]['report'][2]['reached'], 'the matcher genuinely ran: the fixture visit completes all 3 steps of the first hardcoded funnel' );
 ob_start();
 snt_analytics_render_summary_panels(
-	array( 'visits' => 0, 'bounce_rate' => 0.0, 'pages_per_visit' => 0.0, 'median_duration' => 0, 'engaged_visits' => 0, 'engaged_rate' => 0.0 ),
+	array( 'visits' => 1, 'bounce_rate' => 0.0, 'pages_per_visit' => 2.0, 'median_duration' => 30, 'engaged_visits' => 0, 'engaged_rate' => 0.0 ),
 	array(),
 	$funnels,
 	false
 );
 $out7 = ob_get_clean();
 ok( is_string( $out7 ), 'the Visits view renders without a fatal when the funnels setting was corrupt' );
+ok( false !== strpos( $out7, '[dist-panel:Home → post → subscribe:3]' ), 'the fallback funnel renders as a titled panel with its 3 completed steps (the matcher output reached the view)' );
 $GLOBALS['__vs_settings'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
