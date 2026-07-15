@@ -1,6 +1,7 @@
 <?php
 /**
- * Behavioral test — inc/deploy-history.php Breeze rollover dispatch (v4.8.1).
+ * Behavioral test — inc/deploy-history.php Breeze rollover dispatch (v4.8.1;
+ * made async by render hardening FIX 2).
  *
  * WHY THIS FILE EXISTS (adversarial-review fix 2):
  *   tests/contracts-stub.php Contract 5 asserts an INLINE COPY of the rollover
@@ -13,15 +14,18 @@
  *
  *   So here we drive the REAL function through a DIRTY state (sentinel version
  *   differs from the on-disk version) and assert — via a spy on the
- *   `sn_purge_all_caches_result` filter — that the rollover fired EXACTLY ONCE
- *   and forwarded `$args['template_overrides'] === false`.
+ *   `sn_purge_all_caches_result` filter — that a version change SCHEDULES the
+ *   rollover (does NOT fire the filter inline on admin_init) and that the
+ *   scheduled event's own handler, snt_deploy_history_purge_rollover_run(),
+ *   fires the filter exactly once with `$args['template_overrides'] === false`
+ *   when cron later invokes it.
  *
  *   The function carries a `static $checked` short-circuit (it self-limits to
  *   one effective invocation per PHP request), so we can only meaningfully
  *   invoke it ONCE per process. We therefore test the DIRTY branch — the
  *   load-bearing one. The NOT-dirty (no rollover) case is structurally
  *   guaranteed by the dispatch's placement INSIDE `if ($dirty)`: there is no
- *   code path that reaches the apply_filters() call when $dirty is false. A
+ *   code path that reaches the scheduling call when $dirty is false. A
  *   second standalone process would be needed to assert not-dirty against the
  *   real function (the static would otherwise short-circuit it), and the
  *   structural guarantee makes that redundant.
@@ -81,10 +85,34 @@ if ( ! function_exists( 'has_filter' ) ) {
 	}
 }
 // add_action is a no-op here — the module registers handlers at load, but we
-// drive snt_deploy_history_version_check() directly.
+// drive snt_deploy_history_version_check() directly, and simulate cron firing
+// the scheduled rollover by invoking snt_deploy_history_purge_rollover_run()
+// directly by name (it's a plain function; add_action wiring itself is not
+// under test here).
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {
 		return true;
+	}
+}
+
+// ─── Cron scheduling stub (render hardening FIX 2) ───────────
+// Args-aware, mirrors tests/provenance-webhook.php's idiom: exact hook+args
+// match, so wp_next_scheduled() only dedupes a truly identical event.
+$GLOBALS['__dh_sched'] = array();
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $ts, $hook, $args = array() ) {
+		$GLOBALS['__dh_sched'][] = array( 'ts' => $ts, 'hook' => $hook, 'args' => $args );
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook, $args = array() ) {
+		foreach ( $GLOBALS['__dh_sched'] as $e ) {
+			if ( $e['hook'] === $hook && $e['args'] === $args ) {
+				return $e['ts'] > 0 ? $e['ts'] : 1;
+			}
+		}
+		return false;
 	}
 }
 
@@ -166,11 +194,11 @@ function dh_true( $c, $msg ) {
 	}
 }
 
-echo "deploy-history Breeze rollover — REAL snt_deploy_history_version_check() — plugin v4.8.1\n";
+echo "deploy-history Breeze rollover — REAL snt_deploy_history_version_check() — plugin v4.8.1 / async since render hardening FIX 2\n";
 
 // ─── Arrange a DIRTY state ────────────────────────────────────────────
 // Sentinel records OLD versions; on-disk (SNT_VERSION='4.8.1', theme='9.9.0')
-// differ → $dirty becomes true → the rollover dispatch must fire once.
+// differ → $dirty becomes true → the rollover must be SCHEDULED once.
 $GLOBALS['__dh_options'][ SNT_DEPLOY_HISTORY_SENTINEL_OPTION ] = array(
 	'plugin' => '4.8.0',
 	'theme'  => '9.8.0',
@@ -185,13 +213,11 @@ add_filter( 'sn_purge_all_caches_result', function ( $count, $args ) {
 // ─── Act: drive the REAL function ────────────────────────────────────
 snt_deploy_history_version_check();
 
-// ─── Assert observable effects ───────────────────────────────────────
-echo "\nDirty branch: real version-check fires the rollover exactly once\n";
-dh_eq( 1, count( $GLOBALS['__dh_purge_calls'] ), 'rollover dispatched EXACTLY ONCE on a real version change' );
-$args = $GLOBALS['__dh_purge_calls'][0] ?? null;
-dh_true( is_array( $args ), 'rollover forwarded an $args array' );
-dh_true( is_array( $args ) && array_key_exists( 'template_overrides', $args ), '$args carries the template_overrides key' );
-dh_eq( false, is_array( $args ) ? ( $args['template_overrides'] ?? null ) : null, 'template_overrides === false (preserves Site Editor DB overrides)' );
+// ─── Assert observable effects — SCHEDULED, not fired inline (FIX 2) ──
+echo "\nDirty branch: real version-check SCHEDULES the rollover, does NOT fire it inline\n";
+dh_eq( 0, count( $GLOBALS['__dh_purge_calls'] ), 'admin_init path does NOT call the purge filter inline — zero calls' );
+dh_eq( 1, count( $GLOBALS['__dh_sched'] ), 'exactly one event scheduled on a real version change' );
+dh_eq( SNT_DEPLOY_HISTORY_PURGE_HOOK, $GLOBALS['__dh_sched'][0]['hook'] ?? null, 'the scheduled hook is SNT_DEPLOY_HISTORY_PURGE_HOOK' );
 
 // Side effect: the sentinel was advanced to the on-disk versions (proves the
 // $dirty branch actually ran, not just the dispatch).
@@ -208,14 +234,25 @@ $refs = array_map( function ( $r ) {
 dh_true( in_array( 'v4.8.1', $refs, true ), 'history contains the v4.8.1 plugin ref' );
 dh_true( in_array( 'v9.9.0', $refs, true ), 'history contains the v9.9.0 theme ref' );
 
+// ─── The event handler fires the filter chain in cron context ─────────
+// Simulates cron invoking the scheduled event: snt_deploy_history_purge_rollover_run()
+// is the ONLY place the filter chain actually fires now.
+echo "\ncron context: the scheduled event's handler fires the filter chain\n";
+snt_deploy_history_purge_rollover_run();
+dh_eq( 1, count( $GLOBALS['__dh_purge_calls'] ), 'the handler fires the rollover filter exactly once' );
+$args = $GLOBALS['__dh_purge_calls'][0] ?? null;
+dh_true( is_array( $args ), 'rollover forwarded an $args array' );
+dh_true( is_array( $args ) && array_key_exists( 'template_overrides', $args ), '$args carries the template_overrides key' );
+dh_eq( false, is_array( $args ) ? ( $args['template_overrides'] ?? null ) : null, 'template_overrides === false (preserves Site Editor DB overrides)' );
+
 // ─── static $checked short-circuit ──────────────────────────────────
 // A second call in the same process is a no-op (static guard). This proves the
 // function self-limits to one effective run per request, which is WHY the
 // not-dirty path is structurally — not empirically — covered here (see docblock).
 echo "\nstatic \$checked short-circuit: a second call does nothing\n";
-$before = count( $GLOBALS['__dh_purge_calls'] );
+$before = count( $GLOBALS['__dh_sched'] );
 snt_deploy_history_version_check();
-dh_eq( $before, count( $GLOBALS['__dh_purge_calls'] ), 'second invocation short-circuits (no extra rollover)' );
+dh_eq( $before, count( $GLOBALS['__dh_sched'] ), 'second invocation short-circuits (no extra event scheduled)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

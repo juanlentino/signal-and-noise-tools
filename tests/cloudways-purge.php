@@ -10,6 +10,10 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 // --- WP stubs -------------------------------------------------------------
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return false; } }
+if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+// Configurable purge-endpoint response — default is the happy path; scenarios
+// below override it to exercise the non-2xx bounded-capture path (FIX 3b).
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
 $GLOBALS['__http'] = array();
 function wp_remote_post( $url, $args = array() ) {
 	$GLOBALS['__http'][] = array( 'url' => $url, 'args' => $args );
@@ -17,7 +21,7 @@ function wp_remote_post( $url, $args = array() ) {
 		return array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
 	}
 	if ( strpos( $url, 'app/cache/purge' ) !== false ) {
-		return array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
+		return $GLOBALS['__purge_response'];
 	}
 	return array( 'body' => '{}', 'response' => array( 'code' => 200 ) );
 }
@@ -62,6 +66,8 @@ ok( ( $oauth['args']['body']['api_key'] ?? '' ) === 'SECRETKEY123', 'oauth body 
 // v8.7.1 (CMA audit INFO-1): the account-wide api_key rides the POST body, so a 307/308
 // redirect would re-send it — redirection=>0 forbids following any 3xx from the API host.
 ok( 0 === ( $oauth['args']['redirection'] ?? -1 ), 'oauth request disables redirects (no api_key forward on a 3xx)' );
+// (render hardening FIX 3a): 15s → 5s.
+ok( 5 === ( $oauth['args']['timeout'] ?? null ), 'oauth request timeout is 5s (was 15s)' );
 
 $purge = $GLOBALS['__http'][1];
 ok( strpos( $purge['url'], 'app/cache/purge' ) !== false, 'second call hits app/cache/purge' );
@@ -69,6 +75,7 @@ ok( ( $purge['args']['headers']['Authorization'] ?? '' ) === 'Bearer TESTTOKEN',
 ok( 0 === ( $purge['args']['redirection'] ?? -1 ), 'purge request disables redirects (no Bearer forward on a 3xx)' );
 ok( (string) ( $purge['args']['body']['server_id'] ?? '' ) === '111', 'purge body carries server_id' );
 ok( (string) ( $purge['args']['body']['app_id'] ?? '' ) === '222', 'purge body carries app_id' );
+ok( 5 === ( $purge['args']['timeout'] ?? null ), 'purge request timeout is 5s (was 15s)' );
 
 $stored = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
 ok( ! empty( $stored['ok'] ), 'last-purge option records ok=true' );
@@ -82,6 +89,43 @@ $GLOBALS['__http'] = array();
 // guard is now set from the successful purge above
 ok( false === sn_cloudways_purge_app(), 'second call in the same request is a no-op' );
 ok( empty( $GLOBALS['__http'] ), 'guard prevents a second HTTP round-trip' );
+
+// --- Scenario 4: non-2xx purge response — bounded error capture (FIX 3b) --
+// Mirrors the observed live 422: Cloudways' field-validation error envelope.
+echo "\nGroup: non-2xx purge response — bounded, sanitized error capture\n";
+$GLOBALS['__purge_response'] = array(
+	'body'     => json_encode( array( 'status' => false, 'message' => 'server_id: invalid or not found for this account.' ) ),
+	'response' => array( 'code' => 422 ),
+);
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+$res4 = sn_cloudways_purge_app();
+ok( false === $res4, 'purge returns false on a 422' );
+$stored4 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( empty( $stored4['ok'] ), 'last-purge option records ok=false' );
+ok( 422 === (int) ( $stored4['http'] ?? 0 ), 'last-purge option records the http code (422)' );
+ok( isset( $stored4['error'] ), 'last-purge option carries a captured error field' );
+ok( false !== strpos( (string) ( $stored4['error'] ?? '' ), 'invalid or not found' ), 'the field-validation message is visible in the captured error' );
+
+// --- Scenario 5: a hostile/oversized error body — capped + tags stripped --
+echo "\nGroup: hostile long error body — 300-char cap, tags stripped\n";
+$hostile = '<script>evil()</script>' . str_repeat( 'X', 500 );
+$GLOBALS['__purge_response'] = array( 'body' => $hostile, 'response' => array( 'code' => 500 ) );
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+sn_cloudways_purge_app();
+$stored5 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( 300 === strlen( (string) ( $stored5['error'] ?? '' ) ), 'captured error is capped to exactly 300 chars' );
+ok( false === strpos( (string) ( $stored5['error'] ?? '' ), '<script>' ), 'tags are stripped from the captured error' );
+
+// --- Scenario 6: a successful purge does NOT carry an error field ---------
+echo "\nGroup: a successful purge carries no error field\n";
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 999 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+sn_cloudways_purge_app();
+$stored6 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( ! isset( $stored6['error'] ), 'a successful (ok=true) purge does not add an error field' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

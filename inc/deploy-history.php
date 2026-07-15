@@ -47,6 +47,13 @@ const SNT_DEPLOY_HISTORY_MAX_ROWS = 20;
 // The history option itself stays autoload=no.
 const SNT_DEPLOY_HISTORY_SENTINEL_OPTION = 'sn_deploy_history_current_versions';
 
+// (render hardening FIX 2): the version-change Breeze rollover used to
+// fire the full CDN/Varnish purge chain synchronously on admin_init — blocking
+// the first admin view after every update on the whole chain. It now schedules
+// this single event (deduped via wp_next_scheduled) so the purge runs in cron
+// context instead; see snt_deploy_history_purge_rollover_run() below.
+const SNT_DEPLOY_HISTORY_PURGE_HOOK = 'sn_deploy_history_purge_rollover';
+
 /**
  * Map of SN package handles to their (repo, package-key) tuples.
  * Mirrors SNT_DEPLOY_REPOS from inc/admin-tab-dashboard.php so the
@@ -389,9 +396,33 @@ function snt_deploy_history_version_check() {
 		// (holds inlined critical CSS) — theme gotcha #28. Listener lives in the
 		// theme (template-maintenance.php); template_overrides=false preserves
 		// Site Editor DB overrides (matches the dashboard "Purge All Caches").
-		if ( has_filter( 'sn_purge_all_caches_result' ) ) {
-			(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+		//
+		// (render hardening FIX 2): that purge chain used to fire
+		// SYNCHRONOUSLY, right here, on admin_init — the first admin view after
+		// an update paid for the full CDN/Varnish purge inline. This admin_init
+		// path now does only the cheap option write above; the purge itself
+		// moves to snt_deploy_history_purge_rollover_run(), scheduled as a
+		// single deduped event so it runs in cron context instead.
+		if ( has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
+			$already_scheduled = function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( SNT_DEPLOY_HISTORY_PURGE_HOOK );
+			if ( ! $already_scheduled ) {
+				wp_schedule_single_event( time(), SNT_DEPLOY_HISTORY_PURGE_HOOK );
+			}
 		}
 	}
 }
 add_action( 'admin_init', 'snt_deploy_history_version_check' );
+
+/**
+ * Out-of-band handler for the version-change rollover purge — hooked to
+ * SNT_DEPLOY_HISTORY_PURGE_HOOK (render hardening FIX 2). Runs the
+ * SAME filter chain snt_deploy_history_version_check() used to fire inline;
+ * template_overrides stays false to preserve Site Editor DB overrides
+ * (matches the dashboard "Purge All Caches" semantics).
+ */
+function snt_deploy_history_purge_rollover_run() {
+	if ( has_filter( 'sn_purge_all_caches_result' ) ) {
+		(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+	}
+}
+add_action( SNT_DEPLOY_HISTORY_PURGE_HOOK, 'snt_deploy_history_purge_rollover_run' );

@@ -506,6 +506,11 @@ function snt_cron_site_health_result() {
 	$hooks          = snt_cron_site_health_hooks();
 	$now            = time();
 	$issues         = array();
+	$overdue_hooks  = array(); // (render hardening FIX 4): the subset of
+	                           // $issues that are SCHEDULED but overdue (fired
+	                           // before, stale by >2x cadence) — distinct from
+	                           // never-scheduled-at-all, and the specific signal
+	                           // that elevates the test to 'critical' below.
 	$lines          = array();
 	$fired_recently = false;
 
@@ -528,8 +533,11 @@ function snt_cron_site_health_result() {
 				$issues[] = $hook;
 			}
 		} elseif ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) > ( 2 * $interval ) ) {
-			// Fired but the last firing is older than 2× the recurrence — stale.
-			$issues[] = $hook;
+			// Scheduled AND fired before, but the last firing is older than 2×
+			// the recurrence — cron thinks it's scheduled but isn't actually
+			// executing on time. This is the "overdue" signal (FIX 4).
+			$issues[]        = $hook;
+			$overdue_hooks[] = $hook;
 		}
 
 		if ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) <= ( 2 * $interval ) ) {
@@ -544,10 +552,23 @@ function snt_cron_site_health_result() {
 		&& ! $fired_recently
 		&& ! apply_filters( 'sn_cron_system_cron_configured', false );
 
-	$status = ( empty( $issues ) && ! $cron_silently_disabled ) ? 'good' : 'recommended';
+	// (render hardening FIX 4): elevate 'recommended' → 'critical' when
+	// DISABLE_WP_CRON is silently starving cron AND events are actually piling
+	// up overdue (not just theoretically at risk) — hard evidence, not a guess.
+	$cron_overdue_and_starved = $cron_silently_disabled && ! empty( $overdue_hooks );
+
+	if ( $cron_overdue_and_starved ) {
+		$status = 'critical';
+	} elseif ( ! empty( $issues ) || $cron_silently_disabled ) {
+		$status = 'recommended';
+	} else {
+		$status = 'good';
+	}
 
 	$description = '<p>' . wp_kses_post( implode( '<br>', $lines ) ) . '</p>';
-	if ( $cron_silently_disabled ) {
+	if ( $cron_overdue_and_starved ) {
+		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron appears to be running wp-cron.php — scheduled events are piling up overdue. Add a system cron job that requests wp-cron.php on an interval (e.g. every 5 minutes), or unset DISABLE_WP_CRON.', 'signal-and-noise-tools' ) . '</p>';
+	} elseif ( $cron_silently_disabled ) {
 		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
