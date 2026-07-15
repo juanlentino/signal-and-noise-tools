@@ -62,7 +62,7 @@
 .sn-control-label {
 	font-size: 11px;
 	text-transform: uppercase;
-	letter-spacing: 0.02em;
+	letter-spacing: var(--sn-an-kicker-track);
 	color: #646970;
 	font-weight: 600;
 }
@@ -100,7 +100,7 @@
 .sn-kpi-label {
 	font-size: 11px;
 	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	letter-spacing: var(--sn-an-kicker-track);
 	color: #646970;
 	font-weight: 600;
 	margin: 0 0 4px;
@@ -116,7 +116,7 @@
 	margin: 0;
 	font-variant-numeric: tabular-nums;
 }
-.sn-kpi-promoted .sn-kpi-value { font-size: 32px; font-weight: 500; letter-spacing: -0.01em; }
+.sn-kpi-promoted .sn-kpi-value { font-size: 32px; font-weight: 500; letter-spacing: var(--sn-an-display-track); }
 .sn-kpi-delta {
 	display: inline-block;
 	margin-top: 5px;
@@ -137,7 +137,7 @@
 	align-items: baseline;
 	padding: 12px 14px 2px;
 }
-.sn-trend-head .sn-trend-title { font-size: 11px; color: #646970; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.sn-trend-head .sn-trend-title { font-size: 11px; color: #646970; font-weight: 600; text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track); }
 .sn-trend-head .sn-trend-meta  { font-size: 12px; color: #646970; font-variant-numeric: tabular-nums; }
 .sn-spark-wrap { padding: 0 8px 6px; }
 .sn-spark { display: block; width: 100%; height: 104px; }
@@ -428,7 +428,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* Engagement percentiles — 3-stat chips (p50/p75/p90). v6.8.0 */
 .sn-an-pctl-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .sn-an-pctl-chip { flex: 1 1 0; min-width: 80px; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); }
-.sn-an-pctl-k { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #646970; }
+.sn-an-pctl-k { font-size: 11px; font-weight: 600; letter-spacing: var(--sn-an-kicker-track); color: #646970; }
 .sn-an-pctl-v { font-size: 22px; font-weight: 600; line-height: 1.1; color: #1d2327; font-variant-numeric: tabular-nums; }
 .sn-an-pctl .sn-an-empty { margin: 0; }
 .sn-an-foot { margin: 10px 0 0; font-size: 11px; color: #646970; }
@@ -482,7 +482,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-journeys-label {
 	border-top: 1px solid var(--sn-border, #dcdcde); margin-top: 16px; padding-top: 8px;
 	color: var(--sn-text-muted, #646970); font-size: 11px;
-	text-transform: uppercase; letter-spacing: .05em;
+	text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track);
 }
 .sn-an-journeys-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; }
 .sn-an-journeys-grid .postbox { margin-bottom: 0; }
@@ -518,11 +518,11 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 }
 .sn-an-postbox > .postbox-header { border-bottom: 1px solid var(--sn-an-hairline); display: flex; align-items: center; }
 .sn-an-postbox .sn-kpi-value {
-	font-size: 1.35rem;
+	font-size: 21.6px;
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
 }
-.sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 1.7rem; font-weight: 600; }
+.sn-an-postbox .sn-kpi-promoted .sn-kpi-value { font-size: 27.2px; font-weight: 600; }
 .sn-an-postbox .sn-kpi,
 .sn-an-postbox .sn-kpi-row { border-color: var(--sn-an-hairline); }
 
@@ -544,7 +544,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 	font-variant-numeric: tabular-nums;
 }
 .sn-an-pulse-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.sn-an-pulse-k { color: var(--sn-text-muted, #646970); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.sn-an-pulse-k { color: var(--sn-text-muted, #646970); font-size: 11px; text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track); white-space: nowrap; }
 .sn-an-pulse-v { font-size: 12px; color: #1d2327; white-space: nowrap; }
 .sn-an-pulse-v--big { font-size: 16px; font-weight: 600; }
 .sn-an-pulse-bar { display: inline-flex; width: 96px; height: 8px; border-radius: var(--sn-an-radius); overflow: hidden; background: #f0f0f1; }
@@ -564,7 +564,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-compare-note{margin:4px 8px 8px;font-size:12px;color:#646970}
 
 /* v9.35.0 maturity tier badges (I6) */
-.sn-an-tier{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;border:1px solid #dcdcde;color:#50575e;background:#f6f7f7}
+.sn-an-tier{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:var(--sn-an-kicker-track);padding:1px 7px;border-radius:999px;border:1px solid var(--sn-an-hairline);color:var(--sn-an-tier-text);background:var(--sn-an-surface-2)}
 .sn-an-tier--predictive{color:var(--sn-an-accent);border-color:var(--sn-an-tier-predictive-border)}
 .sn-an-tier--prescriptive{color:var(--sn-an-tier-prescriptive);border-color:var(--sn-an-tier-prescriptive-border)}
 .sn-an-tier--diagnostic{color:var(--sn-an-tier-diagnostic);border-color:var(--sn-an-tier-diagnostic-border)}
@@ -590,7 +590,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-headline > summary::before { content: "▸"; color: #646970; font-size: 11px; }
 .sn-an-headline[open] > summary::before { content: "▾"; }
 .sn-an-headline-lead { color: #1d2327; }
-.sn-an-headline-more { margin-left: auto; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; color: #646970; white-space: nowrap; }
+.sn-an-headline-more { margin-left: auto; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track); color: #646970; white-space: nowrap; }
 .sn-an-headline-body { border-top: 1px solid #dcdcde; padding: 12px 14px; }
 .sn-an-headline-body .sn-an-insights-narrative { font-size: 13px; line-height: 1.5; margin: 0 0 12px; }
 .sn-an-headline-body .sn-an-methods-note { margin: 12px 0 0; }
@@ -599,7 +599,7 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* Signal chips (native palette — the old accent one-offs are retired). */
 .sn-an-signal-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .sn-an-signal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 8px; border: 1px solid #dcdcde; border-radius: 999px; background: #fff; }
-.sn-an-signal-badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #2271b1; }
+.sn-an-signal-badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track); color: #2271b1; }
 .sn-an-signal-conf { font-size: 11px; color: #646970; text-transform: uppercase; }
 
 /* Toolbar meta: the separation notice, demoted to muted inline text. */
@@ -619,8 +619,8 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
    fragile dependency — just recording that the "WITHOUT .sn-an-postbox" case
    this comment used to describe no longer exists. */
 .postbox.sn-overview .sn-kpi-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.postbox.sn-overview .sn-kpi-promoted .sn-kpi-value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-.postbox.sn-overview .sn-kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
+.postbox.sn-overview .sn-kpi-promoted .sn-kpi-value { font-size: 22px; font-weight: 600; letter-spacing: var(--sn-an-display-track); }
+.postbox.sn-overview .sn-kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: var(--sn-an-kicker-track); color: #646970; }
 
 /* Overview annotation: accent-bar callout (the .sn-an-note idiom, reused). */
 .sn-overview .sn-an-note { border-left: 3px solid #2271b1; padding: 4px 14px 4px 11px; color: #646970; }

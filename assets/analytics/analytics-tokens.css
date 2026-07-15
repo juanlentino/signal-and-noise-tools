@@ -31,6 +31,19 @@
 	--sn-an-elev-radius: 8px;
 	--sn-an-shadow: 0 1px 2px rgba(0,0,0,.04);
 
+	/* Type-scale unification: the uppercase-kicker role (small tracked labels/
+	   badges) had drifted to five different letter-spacing values across the
+	   two files (0.02/0.03/0.04/0.05/0.06em) — one calibration, applied
+	   everywhere that role appears. The promoted-KPI-numeral role is a
+	   DIFFERENT role (negative tracking on a large tabular numeral, never
+	   uppercase) and gets its own token so the two never drift into each
+	   other again. */
+	--sn-an-kicker-track: .04em;
+	--sn-an-display-track: -.01em;
+	/* The shared tier-badge base text color (.sn-an-tier in both files) —
+	   duplicated verbatim alongside the tier variant tokens above. */
+	--sn-an-tier-text: #50575e;
+
 	/* Maturity tier badge variants (v9.35.0 I6): predictive/prescriptive/
 	   diagnostic chip colors, duplicated verbatim across analytics-admin.css
 	   (.sn-an-tier--*) and analytics-widget.css (.sn-aw-insight .sn-an-tier--*)
