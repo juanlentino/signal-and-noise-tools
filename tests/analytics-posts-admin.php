@@ -87,6 +87,23 @@ ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'evergreen' ) !== false, 'd
 // v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
 ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
 
+echo "\nGroup: leaderboard — byte-parity pin (v9.43.0, pre-kv_table-migration)\n";
+// Literal capture of snt_analytics_render_posts_leaderboard()'s FULL output
+// under a fixed, hostile-char fixture, taken from the plugin at v9.43.0 before
+// the kv_table column-spec migration. This suite's esc_html()/esc_attr()/
+// esc_url() stubs (top of file) are real htmlspecialchars, so this is a
+// genuine escaping proof, not just a pass-through check. MUST pass unchanged
+// both before and after the migration — that's the whole point of the pin.
+$parity_rows = array(
+	array( 'id' => 7, 'title' => 'My "Great" <Note> & Co', 'permalink' => '/notes/x/?a=1&b=2', 'age' => 3, 'lifetime' => 120, 'per_day' => 30.0, 'decay' => 'spike' ),
+	array( 'id' => 5, 'title' => 'Older Note', 'permalink' => '/notes/y/', 'age' => 30, 'lifetime' => 400, 'per_day' => 12.9, 'decay' => '' ),
+);
+$parity = cap( function () use ( $parity_rows ) { snt_analytics_render_posts_leaderboard( $parity_rows ); } );
+ok(
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Your catalog</span></h2></div><div class="inside sn-an-table-inside"><table class="wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime views</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/notes/x/?a=1&b=2"><strong>My &quot;Great&quot; &lt;Note&gt; &amp; Co</strong></a> <span class="sn-an-muted">3d</span></td><td class="num" data-colname="Lifetime views">120</td><td class="num" data-colname="Per day">30</td><td data-colname="Shape">spike</td></tr><tr><td class="column-primary" data-colname="Post"><a href="/notes/y/"><strong>Older Note</strong></a> <span class="sn-an-muted">30d</span></td><td class="num" data-colname="Lifetime views">400</td><td class="num" data-colname="Per day">13</td><td data-colname="Shape"><span class="sn-an-muted">—</span></td></tr></tbody></table></div></div>' === $parity,
+	'leaderboard: full-string byte-parity pin holds (hostile title escapes, permalink escapes, empty-decay falls back to the literal em-dash span)'
+);
+
 echo "\nGroup: catalog panel empty state folds instead of opening chrome (D4 §4)\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 $lb_empty = cap( function () { snt_analytics_render_posts_leaderboard( array() ); } );
@@ -116,6 +133,21 @@ ok( strpos( $none, 'sn-an-gate' ) !== false, 'null bundle → the unified gate (
 ok( strpos( $none, 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.' ) !== false,
 	'null-bundle gate carries the exact original message' );
 ok( strpos( $none, '<span>Posts</span>' ) !== false, 'null-bundle gate carries a title (upgrade from the old titleless bare <p>)' );
+
+echo "\nTest: spec-mode html=false cells escape under a REAL esc_html (review fold, v9.43.3)\n";
+// The primitives suite runs identity esc_* stubs, so it cannot tell escaped
+// from raw — THIS suite's esc_html is real htmlspecialchars, making it the
+// biting pin for the html=false escape contract (a mutation that drops the
+// esc_html route must fail HERE).
+ob_start();
+snt_an_kv_table(
+	'Hostile spec',
+	array( array( '<script>alert(1)</script> & "x"', '5' ) ),
+	array( array( 'label' => 'Value' ), array( 'label' => 'Views', 'class' => 'num' ) )
+);
+$hostile = (string) ob_get_clean();
+ok( false !== strpos( $hostile, '&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;' ), 'hostile html=false primary cell renders fully entity-escaped' );
+ok( false === strpos( $hostile, '<script>' ), 'no raw <script> survives an html=false cell' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -214,5 +214,89 @@ ok( '' === $h, 'kv table: empty rows render no panel markup' );
 $kv_noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $kv_noted ) && 'Edge locations' === $kv_noted[0]['title'] && 'No edge-location data in this range yet.' === $kv_noted[0]['why'], 'kv table: empty rows fold with title + why' );
 
+echo "\nGroup: snt_an_kv_table — column-spec mode (holdout-retirement migration: posts leaderboard + lifecycle refresh queue)\n";
+
+// Back-compat pin: the string-list form (login-defense's actual call shape —
+// title + col[0] primary label + col[1] numeric label, no data_colname) must
+// stay byte-stable now that spec mode exists alongside it. Full literal pin,
+// captured from the pre-column-spec primitive.
+$h = cap( function () {
+	snt_an_kv_table(
+		'Top attacker networks',
+		array( array( 'BadNet', '9' ) ),
+		array( 'Network (ASN)', 'Blocked' )
+	);
+} );
+ok(
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Top attacker networks</span></h2></div><div class="inside sn-an-table-inside"><table class="wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Network (ASN)</th><th scope="col" class="manage-column num">Blocked</th></tr></thead><tbody><tr><td class="column-primary"><strong>BadNet</strong></td><td class="num">9</td></tr></tbody></table></div></div>' === $h,
+	'back-compat: string-list mode (login-defense-style call) is byte-stable, full-string pin'
+);
+
+// Mode detection: cols[0] is an array -> spec mode. Column 0 is always forced
+// to class="column-primary" regardless of what the spec passes (the primitive
+// owns primary handling, per the D5 §4 doc contract) — the bogus 'ignored'
+// class proves the override.
+$cols = array(
+	array( 'label' => 'Post', 'class' => 'ignored', 'html' => true ),
+	array( 'label' => 'Views', 'class' => 'num' ),
+	array( 'label' => 'Shape' ), // no class -> plain column (no class attr at all on its <td>)
+);
+$rows = array(
+	array( '<a href="/x"><strong>Title</strong></a>', '900', 'spike' ),
+);
+$h = cap( function () use ( $cols, $rows ) {
+	snt_an_kv_table( 'Spec table', $rows, $cols, array( 'data_colname' => true ) );
+} );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column column-primary">Post</th>' ), 'spec mode: primary th forces column-primary, ignores a caller-supplied class' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column num">Views</th>' ), 'spec mode: numeric th carries its class' );
+ok( false !== strpos( $h, '<th scope="col" class="manage-column">Shape</th>' ), 'spec mode: classless column th is bare manage-column (no trailing space/class)' );
+ok( false !== strpos( $h, '<td class="column-primary" data-colname="Post"><a href="/x"><strong>Title</strong></a></td>' ), 'spec mode: html=true primary cell passes through RAW — no extra helper-added <strong> wrap around caller markup' );
+ok( false !== strpos( $h, '<td class="num" data-colname="Views">900</td>' ), 'spec mode: numeric cell esc_html-routed, class="num"' );
+ok( false !== strpos( $h, '<td data-colname="Shape">spike</td>' ), 'spec mode: classless column td carries NO class attribute at all (Shape/Status idiom)' );
+
+// html=false vs html=true, the one contract-shape difference this file's
+// identity esc_html()/esc_attr() stubs CAN prove structurally (see the kv-table
+// group's own note above re: real hostile-string escaping being pinned against
+// htmlspecialchars-stubbed suites instead) — the primary column's auto <strong>
+// wrap only fires when html is false/omitted; html=true hands the caller full
+// control and the helper never wraps it.
+$h = cap( function () {
+	snt_an_kv_table(
+		'Spec table 2',
+		array( array( 'Plain Title', '5' ) ),
+		array( array( 'label' => 'Post' ), array( 'label' => 'Views', 'class' => 'num' ) )
+	);
+} );
+ok( false !== strpos( $h, '<td class="column-primary"><strong>Plain Title</strong></td>' ), 'spec mode: html omitted (false) on the primary column keeps the legacy auto-<strong> wrap' );
+
+// Hostile-ish content survives the round trip for BOTH html=false and html=true
+// cells (this file's esc_html()/esc_attr() are identity stubs — see the kv-table
+// group's note above; real escaping fidelity for html=false is pinned by the
+// dedicated hostile-cell group in tests/analytics-posts-admin.php, whose
+// esc_html is real htmlspecialchars).
+$h = cap( function () {
+	snt_an_kv_table(
+		'Weird spec',
+		array( array( 'A & <B>', 'raw <em>C</em>' ) ),
+		array( array( 'label' => 'Name' ), array( 'label' => 'Note', 'html' => true ) )
+	);
+} );
+ok( false !== strpos( $h, 'A & <B>' ), 'spec mode: html=false cell content survives the round trip (esc_html-routed, identity stub)' );
+ok( false !== strpos( $h, 'raw <em>C</em>' ), 'spec mode: html=true cell content passes through verbatim' );
+
+// footer: the new pre-built-HTML passthrough seam the lifecycle refresh-queue
+// migration needs (the clamp/truncation <p> lives INSIDE the same panel,
+// between </table> and the panel close — kv_table owns both, so the caller-built
+// footer string needs a seam to land there). Default '' stays byte-identical
+// (no adopter before this migration ever needed it).
+$h = cap( function () {
+	snt_an_kv_table( 'Footer table', array( array( 'A', '1' ) ), array( 'Name', 'N' ), array( 'footer' => '<p class="sn-an-foot">Showing the top 1 of 5.</p>' ) );
+} );
+ok( false !== strpos( $h, '</table><p class="sn-an-foot">Showing the top 1 of 5.</p></div></div>' ), 'kv table: footer opt lands after </table>, inside the panel, before close' );
+$h = cap( function () {
+	snt_an_kv_table( 'No footer table', array( array( 'A', '1' ) ), array( 'Name', 'N' ) );
+} );
+ok( false === strpos( $h, 'sn-an-foot' ), 'kv table: footer opt omitted by default, byte-identical to today\'s adopters' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
