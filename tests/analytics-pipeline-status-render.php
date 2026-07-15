@@ -39,6 +39,17 @@ function sn_analytics_refresh_secret() { return (string) $GLOBALS['__srv']; }
 $GLOBALS['__rss_srv'] = 'srv-sekrit-99y';
 function sn_rss_tracker_server_token() { return (string) $GLOBALS['__rss_srv']; }
 define( 'SN_CF_ZONE_OPT', 'sn_cf_zone_id' );
+// sn_cf_get_zone() (inc/cloudflare-purge.php) is the zone's ONE resolution
+// seam: SN_CLOUDFLARE_ZONE_ID constant > option. The pill must read through
+// it — the pre-fix code keyed on a dead SN_CF_ZONE constant that no code
+// defines, so a constant-configured site (option deliberately empty — cf_save
+// skips the write in that state) showed a false "Zone ID missing".
+// $GLOBALS['__zone_const'] models the wp-config constant.
+$GLOBALS['__zone_const'] = '';
+function sn_cf_get_zone() {
+	if ( '' !== (string) $GLOBALS['__zone_const'] ) { return (string) $GLOBALS['__zone_const']; }
+	return (string) get_option( SN_CF_ZONE_OPT, '' );
+}
 
 require __DIR__ . '/../inc/analytics-render-settings.php';
 
@@ -84,6 +95,16 @@ ok( strpos( $h, 'SN_AE' ) !== false, 'reachable worker without the AE binding wa
 $GLOBALS['__worker'] = array( 'ok' => true, 'data' => array( 'version' => '1.11.0', 'config' => array( 'px_token_set' => false, 'ae_bound' => true ) ) );
 $h = render();
 ok( strpos( $h, 'SN_PX_TOKEN' ) !== false, 'reachable worker with unset px token warns naming the binding' );
+
+echo "Group: zone pill resolves through sn_cf_get_zone() (constant-configured shape)\n";
+unset( $GLOBALS['__opts']['sn_cf_zone_id'] );   // option empty — cf_save deliberately skips the write when the constant locks it
+$GLOBALS['__zone_const'] = 'const-zone-abc123'; // wp-config SN_CLOUDFLARE_ZONE_ID shape
+$h = render();
+ok( strpos( $h, 'Zone ID set' ) !== false, 'constant-configured site: pill #5 reads Zone ID set (via the accessor)' );
+ok( strpos( $h, 'Zone ID missing' ) === false, 'constant-configured site: no false missing warn' );
+ok( strpos( $h, 'const-zone-abc123' ) === false, 'zone pill stays presence-only (value never echoed)' );
+$GLOBALS['__zone_const'] = '';
+$GLOBALS['__opts']['sn_cf_zone_id'] = 'z1';
 
 echo "Group: zone + beacon + creds warn states\n";
 unset( $GLOBALS['__opts']['sn_cf_zone_id'] );
