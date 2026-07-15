@@ -327,6 +327,7 @@ require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/plugin-footprint.php'; // plugin-directory footprint diagnostic (Site Health) + the one-time legacy-deploy-file janitor (admin_init, once per SNT_VERSION)
+require_once SNT_PATH . 'inc/http-diagnostics.php'; // admin-request HTTP-call diagnosis (Site Health) — names the outbound wp_remote_* calls behind slow wp-admin page loads
 require_once SNT_PATH . 'inc/audit-log.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
