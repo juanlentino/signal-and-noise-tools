@@ -33,23 +33,23 @@
  * contract (the settings pages' hairline).
  */
 
-.sn-aw-subhead{font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--sn-an-muted);margin:16px 0 8px;}
+.sn-aw-subhead{font-size:11.2px;font-weight:600;letter-spacing:var(--sn-an-kicker-track);text-transform:uppercase;color:var(--sn-an-muted);margin:16px 0 8px;}
 .sn-aw-subhead:first-child{margin-top:0;}
 .sn-aw-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 18px;margin:0;}
-.sn-aw-stat-n{font-size:1.6rem;font-weight:600;color:var(--sn-an-text);line-height:1.1;font-variant-numeric:tabular-nums;}
+.sn-aw-stat-n{font-size:25.6px;font-weight:600;color:var(--sn-an-text);line-height:1.1;font-variant-numeric:tabular-nums;}
 .sn-aw-stat-l{font-size:0.85em;color:var(--sn-an-muted);margin-top:2px;}
 .sn-aw-delta{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:4px;}
 .sn-aw-delta--up{color:var(--sn-an-up);}
 .sn-aw-delta--down{color:#b32d2e;}
 .sn-aw-delta--flat{color:var(--sn-an-muted);font-weight:400;}
-.sn-aw-big{font-size:2.5rem;font-weight:600;color:var(--sn-an-text);text-align:center;line-height:1;padding:8px 0 4px;font-variant-numeric:tabular-nums;}
+.sn-aw-big{font-size:40px;font-weight:600;color:var(--sn-an-text);text-align:center;line-height:1;padding:8px 0 4px;font-variant-numeric:tabular-nums;}
 .sn-aw-big-l{font-size:0.85em;color:var(--sn-an-muted);text-align:center;}
 /* v9.1.3: "Right now" as a two-up Now/Today micro-stat — two labelled windows in
    the number-over-label vocabulary, no taller than the single big number it replaces. */
 .sn-aw-nowtoday{display:flex;justify-content:center;gap:32px;padding:8px 0 2px;}
 .sn-aw-nt{display:flex;flex-direction:column;align-items:center;}
-.sn-aw-nt-v{font-size:1.8rem;font-weight:600;color:var(--sn-an-text);line-height:1.1;font-variant-numeric:tabular-nums;}
-.sn-aw-nt-k{font-size:0.72rem;color:var(--sn-an-muted);margin-top:1px;}
+.sn-aw-nt-v{font-size:28.8px;font-weight:600;color:var(--sn-an-text);line-height:1.1;font-variant-numeric:tabular-nums;}
+.sn-aw-nt-k{font-size:11.52px;color:var(--sn-an-muted);margin-top:1px;}
 .sn-aw-list{list-style:none;margin:0;padding:0;font-size:0.875em;}
 .sn-aw-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f1;gap:10px;}
 .sn-aw-list li:last-child{border-bottom:0;}
@@ -81,7 +81,7 @@
 .sn-hw-head--warn .sn-hw-ico{background:#fcf0d6;color:#8a6100;}
 .sn-hw-head--dormant .sn-hw-ico{background:#f0f0f1;color:var(--sn-an-muted);}
 .sn-hw-txt{min-width:0;}
-.sn-hw-h{font-size:1.05rem;font-weight:600;color:var(--sn-an-text);margin:0;line-height:1.25;}
+.sn-hw-h{font-size:16.8px;font-weight:600;color:var(--sn-an-text);margin:0;line-height:1.25;}
 .sn-hw-head--ok .sn-hw-h{color:var(--sn-an-up);}
 .sn-hw-sub{font-size:0.85em;color:var(--sn-an-muted);margin:2px 0 0;}
 .sn-hw-list{margin-top:14px;}
@@ -110,12 +110,12 @@
 .sn-aw-insight{margin:4px 0 8px;}
 .sn-aw-insight p{margin:0 0 6px;font-size:12px;line-height:1.5;}
 .sn-aw-insight .sn-an-signal{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 8px;border:1px solid var(--sn-an-hairline);border-radius:999px;}
-.sn-aw-insight .sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--sn-an-accent);}
+.sn-aw-insight .sn-an-signal-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:var(--sn-an-kicker-track);color:var(--sn-an-accent);}
 .sn-aw-insight .sn-an-signal-dir{font-size:10px;}
 .sn-aw-insight .sn-an-signal-conf{font-size:10px;color:var(--sn-an-muted);text-transform:uppercase;}
 
 /* v9.35.0 maturity tier badge (shared component, chip-scale) */
-.sn-aw-insight .sn-an-tier{display:inline-block;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:0 6px;border-radius:999px;border:1px solid var(--sn-an-hairline);color:#50575e;background:var(--sn-an-surface-2)}
+.sn-aw-insight .sn-an-tier{display:inline-block;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:var(--sn-an-kicker-track);padding:0 6px;border-radius:999px;border:1px solid var(--sn-an-hairline);color:var(--sn-an-tier-text);background:var(--sn-an-surface-2)}
 .sn-aw-insight .sn-an-tier--predictive{color:var(--sn-an-accent);border-color:var(--sn-an-tier-predictive-border)}
 .sn-aw-insight .sn-an-tier--prescriptive{color:var(--sn-an-tier-prescriptive);border-color:var(--sn-an-tier-prescriptive-border)}
 /* NEW — the one deliberate visual change in this pass: analytics-admin.css

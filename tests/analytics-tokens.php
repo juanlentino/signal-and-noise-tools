@@ -30,7 +30,7 @@ echo "\nTest: KPI numerals — the v8.0.3 glance contract\n";
 ok( false !== strpos( $an, '.sn-an-postbox .sn-kpi-value' ), 'KPI override is scoped to primitive panels' );
 $kpi_block = substr( $an, strpos( $an, '.sn-an-postbox .sn-kpi-value' ) );
 $kpi_block = substr( $kpi_block, 0, strpos( $kpi_block, '}' ) );
-ok( false !== strpos( $kpi_block, 'font-size: 1.35rem' ), 'glance value size 1.35rem (matches admin-polish-v647)' );
+ok( false !== strpos( $kpi_block, 'font-size: 21.6px' ), 'glance value size 21.6px (converged from 1.35rem — deterministic 16px-root parity, same computed size)' );
 ok( false !== strpos( $kpi_block, 'font-weight: 600' ), 'glance value weight 600' );
 ok( false !== strpos( $an, 'font-variant-numeric: tabular-nums' ), 'tabular numerals in the vocabulary' );
 
@@ -184,6 +184,136 @@ ok( false !== strpos( $rgba_ctx, '--sn-an-accent' ), 'widget: rgba tint has a ne
 
 echo "\nTest: deliberate chip-scale deltas carry an explicit comment\n";
 ok( false !== stripos( $wg, 'chip-scale: one step below the dashboard scale' ), 'widget: chip-scale size deltas are flagged explicit, not silent drift' );
+
+echo "\nTest: kicker canon — ONE letter-spacing token for the uppercase-kicker role (.04em)\n";
+ok( false !== strpos( $tok, '--sn-an-kicker-track: .04em' ), 'tokens file: --sn-an-kicker-track declared as .04em' );
+ok( false !== strpos( $tok, '--sn-an-display-track: -.01em' ), 'tokens file: --sn-an-display-track declared as -.01em (the promoted-KPI-numeral role — different from the kicker)' );
+ok( false !== strpos( $tok, '--sn-an-tier-text: #50575e' ), 'tokens file: --sn-an-tier-text declared as #50575e (the shared tier base-text literal)' );
+
+// The 10 admin.css selectors judged to be true uppercase kickers (text-transform:
+// uppercase small labels/badges). .sn-an-note-label is EXCLUDED on purpose — see
+// the dedicated exclusion test below (it renders "Read" in sentence case, not
+// uppercase, so tracking calibrated for all-caps text is a different role).
+// Spaced-style rules (this file's dominant convention: "letter-spacing: X").
+$admin_kicker_selectors_spaced = array(
+	'.sn-control-label {',
+	'.sn-kpi-label {',
+	'.sn-trend-head .sn-trend-title {',
+	'.sn-an-pctl-k {',
+	'.sn-an-journeys-label {',
+	'.sn-an-pulse-k {',
+	'.sn-an-headline-more {',
+	'.sn-an-signal-badge {',
+	'.postbox.sn-overview .sn-kpi-label {',
+);
+foreach ( $admin_kicker_selectors_spaced as $sel ) {
+	$block = tok_block( $an, $sel );
+	ok( '' !== $block, "admin kicker rule found: $sel" );
+	ok( false !== strpos( $block, 'letter-spacing: var(--sn-an-kicker-track)' ), "admin kicker reads --sn-an-kicker-track: $sel" );
+}
+// .sn-an-tier is written condensed (no space after ':') in this file — matches
+// its own local convention rather than the surrounding spaced rules.
+$tier_admin_kicker = tok_block( $an, '.sn-an-tier{' );
+ok( '' !== $tier_admin_kicker, 'admin kicker rule found: .sn-an-tier{' );
+ok( false !== strpos( $tier_admin_kicker, 'letter-spacing:var(--sn-an-kicker-track)' ), 'admin kicker reads --sn-an-kicker-track: .sn-an-tier{' );
+ok( substr_count( $an, 'letter-spacing: var(--sn-an-kicker-track)' ) + substr_count( $an, 'letter-spacing:var(--sn-an-kicker-track)' ) === 10, 'admin: exactly 10 kicker declarations read the token (no strays, no doubles)' );
+
+// Every declaration in analytics-widget.css is written condensed (no space
+// after ':') — match that file's convention throughout.
+$widget_kicker_selectors = array(
+	'.sn-aw-subhead{',
+	'.sn-aw-insight .sn-an-signal-badge{',
+	'.sn-aw-insight .sn-an-tier{',
+);
+foreach ( $widget_kicker_selectors as $sel ) {
+	$block = tok_block( $wg, $sel );
+	ok( '' !== $block, "widget kicker rule found: $sel" );
+	ok( false !== strpos( $block, 'letter-spacing:var(--sn-an-kicker-track)' ), "widget kicker reads --sn-an-kicker-track: $sel" );
+}
+ok( substr_count( $wg, 'letter-spacing:var(--sn-an-kicker-track)' ) === 3, 'widget: exactly 3 kicker declarations read the token (chip-scale kickers adopt it too — sizes stay, only tracking calibrates)' );
+
+echo "\nTest: display-numeral track — a DIFFERENT role from the kicker, tokenized separately\n";
+$display_selectors = array(
+	'.sn-kpi-promoted .sn-kpi-value {'                       => 'promoted KPI numeral (base)',
+	'.postbox.sn-overview .sn-kpi-promoted .sn-kpi-value {'  => 'promoted KPI numeral (Overview compound)',
+);
+foreach ( $display_selectors as $sel => $label ) {
+	$block = tok_block( $an, $sel );
+	ok( '' !== $block, "admin display-numeral rule found: $label" );
+	ok( false !== strpos( $block, 'letter-spacing: var(--sn-an-display-track)' ), "admin display numeral reads --sn-an-display-track: $label" );
+}
+ok( substr_count( $an, 'letter-spacing: var(--sn-an-display-track)' ) === 2, 'admin: exactly 2 display-numeral declarations read the token' );
+ok( 0 === preg_match( '/letter-spacing:\s*-0\.01em/', $an ), 'admin: the raw -0.01em literal is gone everywhere (both display-numeral decls tokenized)' );
+
+echo "\nTest: excluded from kicker canon — .sn-an-note-label is NOT uppercase (judgment call, documented)\n";
+$note_label = tok_block( $an, '.sn-an-note-label {' );
+ok( '' !== $note_label, 'note-label base rule found' );
+ok( false === strpos( $note_label, 'text-transform: uppercase' ), 'note-label: confirmed NOT uppercase — a sentence-case inline annotation prefix ("Read"), not a kicker/badge' );
+ok( false !== strpos( $note_label, 'letter-spacing: .02em' ), 'note-label: literal .02em kept as-is (deliberately excluded from the token sweep)' );
+$rail_note_label = tok_block( $an, '.sn-an-rail-tile .sn-an-note-label {' );
+ok( '' !== $rail_note_label, 'rail-tile note-label override rule found' );
+ok( false !== strpos( $rail_note_label, 'letter-spacing: .03em' ), 'rail-tile note-label: literal .03em kept as-is (same exclusion — still not uppercase)' );
+
+echo "\nTest: .sn-an-delta's em font-size stays literal — unprovable context, not guessed\n";
+$delta_block = tok_block( $an, '.sn-an-delta {' );
+ok( '' !== $delta_block, '.sn-an-delta rule found' );
+ok( false !== strpos( $delta_block, 'font-size: 0.72em' ), '.sn-an-delta: 0.72em kept as-is — no ancestor selector in this file pins a font-size for it, so the computed px cannot be proven from the stylesheet' );
+
+echo "\nTest: unit convergence — analytics-widget.css rem font-sizes onto px (16px root; verified no html{font-size} override exists anywhere in this plugin's own CSS)\n";
+ok( 0 === preg_match( '/font-size:\s*[0-9.]*rem/', $wg ), 'widget: zero rem font-sizes remain' );
+$widget_rem_to_px = array(
+	'.sn-aw-subhead{' => '11.2px',
+	'.sn-aw-stat-n{'  => '25.6px',
+	'.sn-aw-big{'     => '40px',
+	'.sn-aw-nt-v{'    => '28.8px',
+	'.sn-aw-nt-k{'    => '11.52px',
+	'.sn-hw-h{'       => '16.8px',
+);
+foreach ( $widget_rem_to_px as $sel => $px ) {
+	$block = tok_block( $wg, $sel );
+	ok( false !== strpos( $block, "font-size:$px" ), "widget: $sel converged to $px (deterministic rem*16 parity, no rendering change)" );
+}
+
+echo "\nTest: unit convergence — analytics-admin.css's 2 rem font-sizes, same treatment\n";
+ok( 0 === preg_match( '/font-size:\s*[0-9.]*rem/', $an ), 'admin: zero rem font-sizes remain' );
+$kpi_glance = tok_block( $an, '.sn-an-postbox .sn-kpi-value {' );
+ok( false !== strpos( $kpi_glance, 'font-size: 21.6px' ), 'admin: .sn-an-postbox .sn-kpi-value converged 1.35rem -> 21.6px' );
+$kpi_glance_promo = tok_block( $an, '.sn-an-postbox .sn-kpi-promoted .sn-kpi-value {' );
+ok( false !== strpos( $kpi_glance_promo, 'font-size: 27.2px' ), 'admin: .sn-an-postbox .sn-kpi-promoted .sn-kpi-value converged 1.7rem -> 27.2px' );
+
+echo "\nTest: analytics-widget.css's 9 em font-sizes stay literal (unprovable context, reported not guessed)\n";
+$widget_unconverted_em = array(
+	'.sn-aw-stat-l{'         => '0.85em',
+	'.sn-aw-big-l{'          => '0.85em',
+	'.sn-aw-list{'           => '0.875em',
+	'.sn-aw-foot{'           => '0.85em',
+	'.sn-aw-trend-l{'        => '0.78em',
+	'.sn-aw-empty{'          => '0.875em',
+	'.sn-aw-err{'            => '0.9em',
+	'.sn-aw-config-snippet{' => '0.85em',
+	'.sn-hw-sub{'            => '0.85em',
+);
+foreach ( $widget_unconverted_em as $sel => $em ) {
+	$block = tok_block( $wg, $sel );
+	ok( false !== strpos( $block, "font-size:$em" ), "widget: $sel kept as $em — no same-file ancestor pins its parent font-size, so px parity can't be proven" );
+}
+ok( preg_match_all( '/font-size:\s*[0-9.]+em(?!\w)/', $wg ) === 9, 'widget: exactly 9 unprovable em font-sizes remain (none silently converted, none silently dropped)' );
+
+echo "\nTest: token-polish riders — value-identical swaps in the shared .sn-an-tier base block\n";
+$tier_admin = tok_block( $an, '.sn-an-tier{' );
+ok( false !== strpos( $tier_admin, 'border:1px solid var(--sn-an-hairline)' ), 'admin .sn-an-tier: border reads --sn-an-hairline (was raw #dcdcde)' );
+ok( false !== strpos( $tier_admin, 'background:var(--sn-an-surface-2)' ), 'admin .sn-an-tier: background reads --sn-an-surface-2 (was raw #f6f7f7)' );
+ok( false !== strpos( $tier_admin, 'color:var(--sn-an-tier-text)' ), 'admin .sn-an-tier: text color reads --sn-an-tier-text (was raw #50575e)' );
+ok( false === strpos( $tier_admin, '#dcdcde' ) && false === strpos( $tier_admin, '#f6f7f7' ) && false === strpos( $tier_admin, '#50575e' ), 'admin .sn-an-tier: no raw hex left in the base block' );
+
+$tier_widget = tok_block( $wg, '.sn-aw-insight .sn-an-tier{' );
+ok( false !== strpos( $tier_widget, 'color:var(--sn-an-tier-text)' ), 'widget .sn-aw-insight .sn-an-tier: text color reads --sn-an-tier-text (was raw #50575e)' );
+ok( false === strpos( $tier_widget, '#50575e' ), 'widget .sn-aw-insight .sn-an-tier: no raw #50575e left' );
+
+// The two OTHER #50575e literals in admin.css (.sn-an-drill .sn-an-subh,
+// .sn-an-view-tabs .nav-tab) are a DIFFERENT role from the shared tier badge —
+// out of this rider's scope, left untouched on purpose.
+ok( substr_count( $an, '#50575e' ) === 2, 'admin: the two non-tier #50575e literals (.sn-an-drill .sn-an-subh, .sn-an-view-tabs .nav-tab) stay untouched — out of rider scope' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
