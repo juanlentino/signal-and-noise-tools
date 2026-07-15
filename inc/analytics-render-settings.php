@@ -202,10 +202,15 @@ function snt_analytics_render_pipeline_status() {
 		$pills[] = array( 'warn', __( 'SN_SRV_TOKEN missing', 'signal-and-noise-tools' ), $note );
 	}
 
-	// 5. Zone ID — gates the dashboard's Edge view (constant > option).
-	$zone = ( defined( 'SN_CF_ZONE' ) && '' !== (string) SN_CF_ZONE )
-		? (string) SN_CF_ZONE
-		: ( defined( 'SN_CF_ZONE_OPT' ) ? (string) get_option( SN_CF_ZONE_OPT, '' ) : '' );
+	// 5. Zone ID — gates the dashboard's Edge view. Resolved via sn_cf_get_zone()
+	// (inc/cloudflare-purge.php): SN_CLOUDFLARE_ZONE_ID constant > option — the
+	// SAME seam the zone's own tab and the purge module read. (Pre-v9.43.x this
+	// keyed on a dead SN_CF_ZONE constant no code defines, so a constant-locked
+	// site — where cf_save deliberately skips the option write — showed a false
+	// "Zone ID missing".)
+	$zone = function_exists( 'sn_cf_get_zone' )
+		? (string) sn_cf_get_zone()
+		: (string) get_option( 'sn_cf_zone_id', '' );
 	$pills[] = ( '' !== $zone )
 		? array( 'ok', __( 'Zone ID set', 'signal-and-noise-tools' ), '' )
 		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant — configure the zone on Connections → Cloudflare.', 'signal-and-noise-tools' ) );
@@ -364,6 +369,22 @@ function snt_analytics_render_mirrors() {
 		. ( '' !== $collector ? '<code>' . esc_html( $collector ) . '</code>' : esc_html__( '(default)', 'signal-and-noise-tools' ) )
 		. '<br><span class="sn-an-settings-help">' . esc_html__( 'Also the base the worker-version card above probes.', 'signal-and-noise-tools' ) . '</span>'
 		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=rss' ) ) . '">' . esc_html__( 'Content → RSS →', 'signal-and-noise-tools' ) . '</a></div>';
+
+	// Zone ID (cache purge target; also gates pipeline pill #5 above and the
+	// dashboard's Edge view — sn_cf_get_zone(), inc/cloudflare-purge.php). The
+	// one analytics-load-bearing dependency the original audit flagged as
+	// missing a deep-link row (rec #4). Renders in plaintext on its home tab
+	// too (not a secret), so this row may echo the value directly.
+	$zone_locked = defined( 'SN_CLOUDFLARE_ZONE_ID' ) && '' !== (string) SN_CLOUDFLARE_ZONE_ID;
+	$zone        = function_exists( 'sn_cf_get_zone' ) ? (string) sn_cf_get_zone() : '';
+	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Zone ID', 'signal-and-noise-tools' ) . ':</strong> '
+		. ( '' !== $zone ? '<code>' . esc_html( $zone ) . '</code>' : esc_html__( 'Not set', 'signal-and-noise-tools' ) );
+	if ( $zone_locked ) {
+		/* translators: %s: the wp-config constant name, wrapped in <code>. */
+		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CLOUDFLARE_ZONE_ID</code>' ) . '</span>';
+	}
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Also gates cache purge and the Edge view.', 'signal-and-noise-tools' ) . '</span>'
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare' ) ) . '">' . esc_html__( 'Connections → Cloudflare →', 'signal-and-noise-tools' ) . '</a></div>';
 
 	echo '</div>';
 }

@@ -56,9 +56,11 @@ function sn_edge_config() {
 	$token = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
 		? (string) SN_CF_ANALYTICS_TOKEN
 		: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
-	$zone = ( defined( 'SN_CF_ZONE' ) && '' !== (string) SN_CF_ZONE )
-		? (string) SN_CF_ZONE
-		: (string) get_option( SN_CF_ZONE_OPT, '' );
+	// sn_cf_get_zone() (inc/cloudflare-purge.php — the loader requires it before
+	// this file): SN_CLOUDFLARE_ZONE_ID constant > option. Pre-v9.43.x this read
+	// a dead SN_CF_ZONE constant no code defines, so a constant-configured site
+	// silently kept the whole edge subsystem dormant.
+	$zone = sn_cf_get_zone();
 
 	if ( '' === $token || '' === $zone ) {
 		return null;

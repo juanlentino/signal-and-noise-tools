@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.44.0] - 2026-07-15: The zone joins the mirrors card — and the phantom constant that muted Edge analytics falls
+
+**Headline:** The settings hub's "Configured elsewhere" card gains its fourth read-only row: **Zone ID** — the value (or "Not set" / a locked-by-constant note) plus a deep-link to Connections → Cloudflare, closing the last unshipped item of the original audit's rec #4; the hub finally has a clickable path to the zone's config ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)). Ground-truthing the row exposed — and this release fixes — a **HIGH pre-existing bug**: pipeline pill #5 and the Edge config resolver checked `SN_CF_ZONE`, a constant that has never existed; the real one is `SN_CLOUDFLARE_ZONE_ID`. On a constant-configured site (the save handler deliberately skips the option write in that state) the pill showed a false "Zone ID missing" and **`sn_edge_config()` returned null — the entire Cloudflare Edge analytics subsystem (live view + durable rollup) sat silently dormant** while cache purge worked. Both sites now read the real accessor `sn_cf_get_zone()` ([inc/edge-analytics.php](inc/edge-analytics.php)), so the pill, the new row, and the Edge view all agree.
+
+> **Why MINOR:** a new user-visible readout (the mirror row) + the Edge-revival fix; no breaking change — option-configured sites were never affected.
+
+### Added
+- The Zone ID mirror row (value / Not set / locked note + caption + deep-link; no write controls — the card's hard rule holds, test-enforced). [tests/analytics-mirrors-render.php](tests/analytics-mirrors-render.php) 22 → 34 asserts, now under a REAL `esc_html` with a hostile zone fixture (mutation-kill proven).
+
+### Fixed
+- The `SN_CF_ZONE` phantom: pill #5 and `sn_edge_config()` resolve the zone via `sn_cf_get_zone()` (constant-over-option precedence). RED-first pins in [tests/analytics-pipeline-status-render.php](tests/analytics-pipeline-status-render.php) and [tests/edge-analytics.php](tests/edge-analytics.php) prove the constant-configured shape now works — both failed against the old code.
+
 ## [9.43.6] - 2026-07-15: Honesty & drift — the tuning card tells the truth, the widget's reds and greens match the dashboard
 
 **Headline:** Three defects surfaced by the deselected-items analysis. (1) **The tuning card over-promised**: its help text claimed the two knobs govern "the predictive signal engine (anomalies, trends, forecasts)" — ground truth is the knobs feed the anomaly detectors only (trajectories read neither; forecasts read neither). The copy now says exactly that, and points developers at the real `sn_analytics_signal_config` filter ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)). (2) **The widget's mover/delta colors were drift, not design**: `.sn-aw-mv-up` wore WP's `#00a32a` and `.sn-aw-delta--down` wore the *destructive-delete* red `#b32d2e` while their own partners already read the shared tokens — both now read `--sn-an-up`/`--sn-an-down`, so a gainer is the same AA-tuned green on the Dashboard widget and the Analytics pages (the file comment rationalizing the old state was corrected). (3) **Warn/ok state colors unify**: new `--sn-an-ok-bg`/`--sn-an-warn-bg`/`--sn-an-warn-text`/`--sn-an-warn-border` tokens ([assets/analytics/analytics-tokens.css](assets/analytics/analytics-tokens.css)), adopted by the widget health icons and the admin warn pill — closing the `#8a6100`-vs-`#996800` warn-amber mismatch (kept deliberately separate from the tier-diagnostic tokens; equal values are coincidence, not shared semantics).

@@ -32,6 +32,18 @@ function wp_remote_post( $url, $args = array() ) {
 function wp_remote_retrieve_response_code( $r ) { return $r['response']['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 
+// sn_cf_get_zone() — the real accessor lives in inc/cloudflare-purge.php,
+// which the plugin loader requires BEFORE this file (signal-and-noise-tools.php
+// lines 72 vs 140), so edge-analytics may call it directly. Stubbed here with
+// the same precedence (SN_CLOUDFLARE_ZONE_ID constant > option) because this
+// harness doesn't load cloudflare-purge.php.
+function sn_cf_get_zone() {
+	if ( defined( 'SN_CLOUDFLARE_ZONE_ID' ) && '' !== (string) SN_CLOUDFLARE_ZONE_ID ) {
+		return (string) SN_CLOUDFLARE_ZONE_ID;
+	}
+	return (string) get_option( SN_CF_ZONE_OPT, '' );
+}
+
 require_once __DIR__ . '/../inc/edge-analytics.php';
 
 $pass = 0; $fail = 0;
@@ -171,6 +183,14 @@ ok( sn_edge_adaptive_retention_days() === 31, 'retention_days: 2678400s → 31 d
 $GLOBALS['__opt'] = array();
 $GLOBALS['__transient'] = array();
 ok( sn_edge_adaptive_retention_days() === 0, 'retention_days: dormant/unknown → 0 (not a negative or fatal)' );
+
+echo "\nGroup: constant-configured zone — SN_CLOUDFLARE_ZONE_ID set, option empty (cf_save skips the option write in that state)\n";
+// LAST group by design: define() is irreversible, so the constant-precedence
+// shape can't precede the option-driven groups above.
+$GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'tok123' ); // NO zone option.
+define( 'SN_CLOUDFLARE_ZONE_ID', 'const-zone-777' );
+$cfg = sn_edge_config();
+ok( is_array( $cfg ) && 'const-zone-777' === ( $cfg['zone'] ?? '' ), 'config: constant-configured site is NOT dormant — zone resolves via sn_cf_get_zone()' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
