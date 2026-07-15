@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.42.0] - 2026-07-14: Analytics settings hub S2 — funnels, one sensitivity, the modern leaf, tabs everywhere, a slimmer ship
+
+**Headline:** The settings hub gains its first genuinely new capability since v9.36.0: **session funnels are now editable in wp-admin** — one textarea, one funnel per line (`Name: /entry > /step > /goal`), atomic validation with line-numbered errors, and the `sn_analytics_session_funnels` filter still wins last (custom-event/prefix funnels stay code-defined and are honestly excluded from the box). The **anomaly-sensitivity preset now governs BOTH anomaly families** — the predictive signals engine (2.5/3.5/4.5) and the per-page skim/dwell detector (new 1.5/2.0/2.5 mapping; the default is byte-identical to before). The Monitoring → Analytics leaf adopts the dashboard's **modern design language** (the pipeline-status strip becomes the leaf's one hero surface; the cards move onto the `--sn-an-*` tokens), and the settings nav gets the dashboard's flat **underline tab treatment** (additive CSS only — the settings-pages token contract is untouched). The **view tabs now render on unconfigured installs** (the dashboard's shape is visible from day one, resolving the question parked since PR #275; zero data reads pre-config, one documented local `min_day` exception for `range=all`). And the **shipped ZIP halves**: a new `.gitattributes` export-ignores tests/.github/docs/CHANGELOG/dev-configs from the tag archive (2.16 MB → 0.98 MB; repo and release flow unchanged).
+
+> **Why MINOR:** new user-visible capability (funnels UI) + visual redesign + the unconfigured-tabs behavior change; no breaking change — all filter seams preserved, zero-config behavior identical, the archive slimming affects only what ships.
+
+### Added
+- [inc/analytics-sessions.php](inc/analytics-sessions.php): `sn_analytics_parse_funnels()` / `sn_analytics_funnels_to_text()` (round-trip-safe, unrepresentable funnels omitted rather than corrupted) + the `analytics.funnels` setting seam; [inc/analytics-render-settings.php](inc/analytics-render-settings.php): the Session funnels card; save handler + dispatch + line-numbered flash codes.
+- [inc/analytics-derived.php](inc/analytics-derived.php): `sn_analytics_derived_z()` — the sensitivity preset's per-page mapping (standard = the existing const).
+- `.gitattributes` + [tests/export-ignore.php](tests/export-ignore.php): the tag-archive contract (runtime present, dev tree absent).
+- [tests/settings-nav-tabs.php](tests/settings-nav-tabs.php) + [tests/analytics-funnels.php](tests/analytics-funnels.php) + [tests/analytics-funnels-render.php](tests/analytics-funnels-render.php): new contract suites.
+
+### Changed
+- [inc/analytics-admin.php](inc/analytics-admin.php): window resolution moved above the config gate; the 11-tab strip renders on every install state; the unconfigured gate follows the tabs (one generic gate for all views — login-defense checks the same config flag).
+- [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): the settings-leaf block — `.sn-an-pipeline` hero (the leaf's one elevation), token cards, heading/help roles (tokens only).
+- [assets/admin.css](assets/admin.css): ADDITIVE `.sn-nav-tabs` underline block (wrapper parity + flat tabs + 2px `--sn-link` underline); sub-tab pills and every pre-existing rule byte-untouched.
+- [inc/admin-flash-messages.php](inc/admin-flash-messages.php): funnels flash codes with a sanitized, length-capped line-number suffix.
+
+### Tests
+- 8,137 assertions across 289 suites (was 7,915): funnels parser/seam/save (incl. the two-save apostrophe pin), derived-z mapping + behavior pins through both real detector paths (√3 fixtures), unconfigured-tabs group with zero-accessor counters + the `min_day` exception pin, nav/leaf CSS contracts, archive contract; `tests/admin-polish-v647.php` ran green after every task (the shared-contract tripwire).
+
 ## [9.41.0] - 2026-07-14: Analytics dashboard D5 — de-clone finale, perf, polish (the arc closes)
 
 **Headline:** Login defense joins the shared design system — its hand-rolled postboxes, gate, KPI cards, trend chart, and top tables now render through the D4 primitives, closing the dashboard's last look-alike gap (its Overview picks up the same 22/13 KPI scale and token chrome as every other view — the one deliberate visual change). The final two clone families get their helpers: ONE trend-SVG renderer (`snt_an_trend_svg`) behind the Overview/login-defense/bot-share charts (the posts trajectory is a recorded bespoke holdout) and ONE k/v table (`snt_an_kv_table`) behind the edge and login-defense tables — edge dims' diagnostic copy, the last dead `$empty` param, finally reaches the fold. Perf: `sn_analytics_range_totals()` gains a request memo with a `$refresh` re-prime seam (the insights band, header region, and widget no longer re-fetch the same window) and Geography serves the choropleth AND its Countries table from one country pull. Polish: the CWV and Events intro separators fold with their panels (the Events caveat deliberately stays when an active `sn_event_prop` filter holds its panel open), the geo tiles' orphan margin is gone, the posts-hero fold names its Note, and raw-English panel titles across seven views gain i18n wrapping. Fifth and FINAL increment of the dashboard revamp.
