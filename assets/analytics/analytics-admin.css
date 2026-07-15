@@ -389,7 +389,20 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-worker[open] summary { margin-bottom: 6px; }
 
 /* ── settings hub (v9.36.0): pipeline pills + mirror rows ─────────────── */
-.sn-an-pipeline { margin-bottom: 16px; }
+/* S2 §6: the pipeline strip is the settings leaf's ONE elevated surface —
+   the hero idiom, mirroring .sn-an-headline's band on the dashboard. It
+   already carries .sn-fieldset (admin.css) on its wrapper; this file loads
+   AFTER admin.css, so these declarations win the cascade at equal
+   specificity and fully replace that shared card's background/border/
+   radius/padding here — admin.css itself is never touched. */
+.sn-an-pipeline {
+	margin-bottom: 16px;
+	background: var(--sn-an-surface);
+	border: 1px solid var(--sn-an-hairline);
+	border-radius: var(--sn-an-elev-radius);
+	box-shadow: var(--sn-an-shadow);
+	padding: 12px 14px;
+}
 .sn-an-pipeline-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
 .sn-an-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid #dcdcde; background: #f6f7f7; color: #1d2327; }
 .sn-an-pill--warn { border-color: #e5cf8c; background: #fcf0d6; }
@@ -402,6 +415,30 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-mirror-meter { height: 6px; max-width: 200px; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); overflow: hidden; margin: 4px 0; }
 .sn-an-mirror-meter > span { display: block; height: 100%; background: #2271b1; }
 .sn-an-tuning .sn-an-radio { margin-right: 12px; }
+
+/* S2 §6: the settings leaf adopts D4's token-card language. Scoped to
+   .sn-an-settings-leaf (the whole-section wrapper added in
+   inc/analytics-admin.php) so nothing outside the settings leaf is touched.
+   `.sn-2up > .sn-fieldset` targets ONLY the two operate/reference column
+   cards — never the pipeline strip above them (it lives outside .sn-2up and
+   keeps its own .sn-an-pipeline hero treatment; a bare
+   `.sn-an-settings-leaf .sn-fieldset` (0,2,0) would also match it AND
+   OUT-SPECIFY the (0,1,0) .sn-an-pipeline hero rule — flattening it). Flat
+   surfaces only — --sn-an-radius, no elevation token, no shadow. */
+.sn-an-settings-leaf .sn-2up > .sn-fieldset {
+	background: var(--sn-an-surface);
+	border: 1px solid var(--sn-an-hairline);
+	border-radius: var(--sn-an-radius);
+	padding: 12px 14px;
+}
+.sn-an-settings-leaf .sn-fieldset-h {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--sn-an-text);
+}
+.sn-an-settings-leaf .sn-an-settings-help {
+	color: var(--sn-an-muted);
+}
 
 /* Engagement percentiles — 3-stat chips (p50/p75/p90). v6.8.0 */
 .sn-an-pctl-row { display: flex; gap: 10px; flex-wrap: wrap; }

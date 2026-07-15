@@ -328,6 +328,15 @@ function snt_analytics_settings_url() {
  * ONLY its own panels' data. Every dimension/derived panel renders its own empty
  * state until the edge data accrues (worker v1.1.0 — no backfill).
  *
+ * S2 §5: the v9.37.0 (D1) "tabs lead the page" rule now applies to EVERY install
+ * state, not just every configured view — the tab strip renders BEFORE the
+ * config gate, so the dashboard's shape (which views exist) is visible even
+ * before Cloudflare credentials are set. Only the data below the gate (header
+ * region, insights band, per-view panels) is withheld until sn_analytics_config()
+ * resolves. This resolves the product question parked at PR #275 (should the
+ * tabs render pre-configuration) in favor of "yes" — one visible fact per gate:
+ * *what* the dashboard covers is free, *its data* is gated.
+ *
  * Note: period-over-period deltas are suppressed for the 'all' range. Trend
  * granularity is daily for windows ≤90 days, weekly beyond.
  */
@@ -340,13 +349,27 @@ function snt_analytics_render_dashboard() {
 	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
 	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
 
-	// Config gate: empty notice + a link to the settings page (the form lives there now).
+	// Window resolution is date math + GET whitelisting with no AE/config-gated
+	// accessor reads — so it's safe (and now necessary) to resolve BEFORE the
+	// config gate: the tab strip below needs $range/$from/$to to build its
+	// window-preserving links on EVERY install state, configured or not.
+	// Caveat for future movers: 'all'/'custom' DO read sn_analytics_min_day()
+	// (local rollup MIN, transient-cached; the table exists on every install via
+	// the init-time installer, and an empty table safely falls back to today).
+	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
+
+	// Config gate: the tab strip renders regardless (S2 §5 — the dashboard's
+	// shape is visible from day one); only the data below the gate is withheld.
+	// The gate is view-agnostic on purpose: login-defense checks this SAME
+	// sn_analytics_config() flag (not a separate credential), so routing it to
+	// its own dormant card here would just show an identical message under a
+	// different label — one generic gate for every tab keeps the empty state
+	// coherent while switching tabs pre-configuration.
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 		snt_analytics_render_empty();
 		return;
 	}
-
-	list( $range, $from, $to ) = snt_analytics_resolve_window( $range_raw, $from_raw, $to_raw );
 
 	// Granularity from the resolved window day-count — works for every range incl.
 	// presets/custom, and is behaviour-identical to the old (int)$range for fixed ranges.
@@ -480,13 +503,20 @@ function snt_analytics_render_dashboard() {
  * wide-leaf card-ownership rule). The forms post on the page=sn-theme-options
  * route (the Monitoring sub-tab nav guarantees that slug), so the existing
  * admin-post handler processes analytics_save / _test / _exclude_save / _export
- * unchanged + analytics_tuning_save (v9.36.0) — each <form> keeps its own
- * nonce + sn_action button.
+ * unchanged + analytics_tuning_save (v9.36.0) + analytics_funnels_save (S2 §3)
+ * — each <form> keeps its own nonce + sn_action button.
  * v9.36.0 (settings hub): pipeline status strip above the columns; engine tuning
  * joins the writable column; read-only mirrors + filter reference join the
  * reference column.
+ * S2 §3 (v9.42.0 arc): the session-funnels card joins the writable column,
+ * after engine tuning.
  */
 function snt_analytics_render_settings_section() {
+	// S2 §6: the leaf-scoped D4 marker — every leaf-scoped token-card rule in
+	// analytics-admin.css hangs off this class (the pipeline strip keeps its
+	// own .sn-an-pipeline hero treatment; this wrapper never touches it).
+	echo '<div class="sn-an-settings-leaf">';
+
 	// v9.36.0 settings hub: pipeline status first — the five presence pills
 	// (beacon → worker → read → cron → edge) above the two columns.
 	if ( function_exists( 'snt_analytics_render_pipeline_status' ) ) {
@@ -507,6 +537,11 @@ function snt_analytics_render_settings_section() {
 	// v9.36.0: the two owner-tunable predictive-engine knobs.
 	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
 		snt_analytics_render_engine_tuning();
+	}
+	// S2 §3 (v9.42.0 arc): owner-defined session funnels, after engine tuning —
+	// the writable column's last card.
+	if ( function_exists( 'snt_analytics_render_funnels' ) ) {
+		snt_analytics_render_funnels();
 	}
 	echo '</div>';
 
@@ -529,6 +564,7 @@ function snt_analytics_render_settings_section() {
 	echo '</div>';
 
 	echo '</div>'; // .sn-2up
+	echo '</div>'; // .sn-an-settings-leaf
 }
 
 /**

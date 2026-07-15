@@ -41,6 +41,7 @@ ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce present' );
 ok( strpos( $h, 'class="sn-an-radio"' ) !== false, 'radio labels use the stylesheet class (no inline styles)' );
 ok( strpos( $h, 'style=' ) === false, 'no inline style attributes' );
 ok( strpos( $h, '<fieldset' ) !== false && strpos( $h, '<legend' ) !== false, 'sensitivity radios grouped in a fieldset with legend' );
+ok( strpos( $h, 'This preset governs both anomaly families: the predictive signals engine and the per-page skim/dwell detector.' ) !== false, 'help text: ONE mental model — the preset governs both anomaly families (S2 §4)' );
 
 $GLOBALS['__settings'] = array( 'analytics.signal_baseline_days' => 60, 'analytics.anomaly_sensitivity' => 'strict' );
 ob_start();

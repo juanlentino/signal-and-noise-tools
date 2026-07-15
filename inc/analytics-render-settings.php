@@ -259,9 +259,52 @@ function snt_analytics_render_engine_tuning() {
 		echo '<label class="sn-an-radio"><input type="radio" name="sn_anomaly_sensitivity" value="' . esc_attr( $slug ) . '"' . checked( $preset, $slug, false ) . '> ' . esc_html( $label ) . '</label>';
 	}
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'How unusual a day must be before it’s flagged as an anomaly.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'This preset governs both anomaly families: the predictive signals engine and the per-page skim/dwell detector.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</fieldset>';
 
 	echo '<p><button type="submit" name="sn_action" value="analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
+}
+
+/**
+ * Settings-hub session funnels card (S2 §3, Task 3): a zero-JS textarea, one
+ * named conversion funnel per line ("Name: /entry > /step > /goal"), prefilled
+ * from the CURRENT analytics.funnels setting via sn_analytics_funnels_to_text()
+ * so the owner edits what is actually live. Saved by
+ * sn_handle_analytics_funnels_save() via sn_action=analytics_funnels_save;
+ * parsed by sn_analytics_parse_funnels() (both inc/analytics-sessions.php).
+ *
+ * Only funnels whose serialized line parses back to itself are expressible in
+ * this textarea (see sn_analytics_funnels_to_text) — a funnel carrying a
+ * custom-event goal, a prefix-match step (like the two hardcoded defaults), or
+ * an out-of-band step value/title the line format can't carry is OMITTED from
+ * the prefill rather than invented into a comment syntax the parser would
+ * reject. FILTER-defined funnels survive saves (the filter always runs last);
+ * a setting-STORED unrepresentable funnel is replaced on the next save like
+ * everything else in the option — the help text promises only the former.
+ */
+function snt_analytics_render_funnels() {
+	$funnels = (array) sn_setting( 'analytics.funnels', array() );
+	$text    = sn_analytics_funnels_to_text( $funnels );
+
+	echo '<form method="post" class="sn-an-settings sn-an-funnels">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
+	// Both clamps render from their constants (SN_ANALYTICS_FUNNELS_MAX_STEPS /
+	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
+	// drift from the parser again (T3 review: it shipped saying "2–10 steps"
+	// while the real step clamp was 8).
+	echo '<p class="sn-an-settings-help">' . esc_html( sprintf(
+		/* translators: 1: max steps per funnel, 2: max funnel count */
+		__( 'Named conversion paths for the Visits view — one per line: "Name: /entry > /step > /goal" (2–%1$d steps, up to %2$d funnels). A bare path gets a leading slash added automatically.', 'signal-and-noise-tools' ),
+		SN_ANALYTICS_FUNNELS_MAX_STEPS,
+		SN_ANALYTICS_FUNNELS_MAX
+	) ) . '</p>';
+	echo '<p><label for="sn_funnels" class="screen-reader-text">' . esc_html__( 'Session funnels, one per line', 'signal-and-noise-tools' ) . '</label>';
+	echo '<textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Visits view — including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express — prefix matching, custom-event goals — are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 

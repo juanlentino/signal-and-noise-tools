@@ -1832,3 +1832,45 @@
 .sn-fieldset--new {
 	border-left: 3px solid #2271b1;
 }
+
+/* ── S2 §6 (settings-nav D1 underline): the top-level nav
+   (`<nav class="nav-tab-wrapper sn-nav-tabs">`, inc/admin-page.php) adopts
+   the analytics dashboard's flat underline tab idiom
+   (.sn-an-view-tabs in assets/analytics/analytics-admin.css) instead of
+   core's boxed folder-tab chrome. ADDITIVE ONLY: every rule below is NEW —
+   nothing above this comment is edited. These (0,2,0) selectors OUT-SPECIFY
+   WP core's single-class `.nav-tab` rules (0,1,0), and this file also loads
+   after core admin CSS — wins on both axes, no `!important`.
+   The sub-tabs pill nav below (.sn-sub-tabs / .sn-sub-tab, a DIFFERENT
+   class) is deliberately left alone — it stays visually subordinate. */
+.sn-nav-tabs {
+	/* Wrapper parity with the dashboard idiom: flat hairline base, core's
+	   folder-tab padding zeroed. Overrides this file's own earlier
+	   .sn-nav-tabs margin rule by order at equal specificity — still additive. */
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	border-bottom: 1px solid var(--sn-border);
+	padding-top: 0;
+	padding-bottom: 0;
+}
+.sn-nav-tabs .nav-tab {
+	background: transparent;
+	border: 0;
+	margin: 0; /* the wrapper's gap owns spacing — true parity with the dashboard idiom (final review). */
+	padding: 6px 2px 8px;
+	color: var(--sn-text-muted);
+}
+.sn-nav-tabs .nav-tab:hover,
+.sn-nav-tabs .nav-tab:focus {
+	background: transparent;
+	color: var(--sn-text);
+}
+.sn-nav-tabs .nav-tab-active,
+.sn-nav-tabs .nav-tab-active:hover,
+.sn-nav-tabs .nav-tab-active:focus {
+	background: transparent;
+	border: 0;
+	border-bottom: 2px solid var(--sn-link);
+	color: var(--sn-text);
+}

@@ -66,5 +66,55 @@ ok( false !== strpos( $an, '.sn-an-postbox.sn-overview, .sn-an-postbox.sn-an-rai
 ok( false === (bool) preg_match( '/border-radius:\s*(2|3|5|6)px/', $an ), 'radius vocabulary consolidated (only token / 4px-in-token / 999px / 0 remain)' );
 ok( preg_match( '/details\.sn-an-empty-fold summary\s*\{[^}]*color:\s*var\(--sn-an-muted\)/', $an ) === 1, 'D4 §4: fold-details summary reads the muted token (matches the plain line color)' );
 
+echo "\nTest: S2 §6 — the modern settings leaf (hero pipeline strip + token cards)\n";
+/**
+ * Pulls the declaration block for the FIRST selector matching $selector,
+ * from its opening `{` to the matching `}` (no nesting in this file).
+ */
+function tok_block( $css, $selector ) {
+	$at = strpos( $css, $selector );
+	if ( false === $at ) {
+		return '';
+	}
+	$open = strpos( $css, '{', $at );
+	$close = strpos( $css, '}', $open );
+	return false === $open || false === $close ? '' : substr( $css, $open, $close - $open + 1 );
+}
+
+ok( false !== strpos( $an, '.sn-an-settings-leaf' ), 'leaf wrapper class is a real CSS scope, not just markup' );
+
+// The hero: the pipeline strip is the leaf's ONE elevated surface.
+$pipe = tok_block( $an, '.sn-an-pipeline {' );
+ok( '' !== $pipe, 'pipeline strip rule found' );
+ok( false !== strpos( $pipe, 'var(--sn-an-surface)' ), 'pipeline hero: surface token' );
+ok( false !== strpos( $pipe, 'var(--sn-an-hairline)' ), 'pipeline hero: hairline token' );
+ok( false !== strpos( $pipe, 'var(--sn-an-elev-radius)' ), 'pipeline hero: elev-radius token (the hero radius, not the flat one)' );
+ok( false !== strpos( $pipe, 'var(--sn-an-shadow)' ), 'pipeline hero: shadow token' );
+ok( false === strpos( $pipe, '#' ), 'pipeline hero: no raw hex — tokens only' );
+
+// The token cards: the two operate/reference columns, flat (not elevated).
+$card = tok_block( $an, '.sn-an-settings-leaf .sn-2up > .sn-fieldset {' );
+ok( '' !== $card, 'leaf-scoped card rule found' );
+ok( false !== strpos( $card, 'var(--sn-an-surface)' ), 'card: surface token' );
+ok( false !== strpos( $card, 'var(--sn-an-hairline)' ), 'card: hairline token' );
+ok( false !== strpos( $card, 'var(--sn-an-radius)' ) && false === strpos( $card, 'var(--sn-an-elev-radius)' ), 'card: the FLAT radius token, never the hero one' );
+ok( false === strpos( $card, 'box-shadow' ), 'card: no shadow — the pipeline strip is the only elevated surface' );
+ok( false === strpos( $card, '#' ), 'card: no raw hex — tokens only' );
+
+$heading = tok_block( $an, '.sn-an-settings-leaf .sn-fieldset-h {' );
+ok( '' !== $heading, 'leaf-scoped heading rule found' );
+ok( false !== strpos( $heading, 'font-size: 13px' ) && false !== strpos( $heading, 'font-weight: 600' ), 'heading: 13px/600 dashboard treatment' );
+ok( false !== strpos( $heading, 'var(--sn-an-text)' ) && false === strpos( $heading, '#' ), 'heading: text token, no raw hex' );
+
+$help = tok_block( $an, '.sn-an-settings-leaf .sn-an-settings-help {' );
+ok( '' !== $help, 'leaf-scoped help-text rule found' );
+ok( false !== strpos( $help, 'var(--sn-an-muted)' ) && false === strpos( $help, '#' ), 'help text: muted token, no raw hex' );
+
+// Exactly one hero consumer among the LEAF-scoped additions (the pipeline
+// strip) + the dashboard's own hero (.sn-an-headline) is untouched — so the
+// file-wide count of each hero token is exactly 2 (headline + pipeline).
+ok( substr_count( $an, 'var(--sn-an-elev-radius)' ) === 2, 'exactly two elev-radius consumers file-wide: dashboard headline + leaf pipeline hero' );
+ok( substr_count( $an, 'var(--sn-an-shadow)' ) === 2, 'exactly two shadow consumers file-wide: dashboard headline + leaf pipeline hero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

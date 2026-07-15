@@ -1,0 +1,18 @@
+# The tag archive IS the shipped plugin (the self-updater pulls archive/refs/tags/<tag>.zip;
+# GitHub's archive endpoint respects export-ignore). Everything below is dev/CI-only and
+# never belongs inside wp-content/plugins on a live install. Repo contents are unaffected.
+# v9.42.0 (S2 §7): tests/ alone was 3.1 MB of the 7.6 MB tracked tree — bigger than inc/.
+tests/            export-ignore
+.github/          export-ignore
+docs/             export-ignore
+CHANGELOG.md      export-ignore
+composer.json     export-ignore
+composer.lock     export-ignore
+phpstan-bootstrap.php export-ignore
+phpstan.neon          export-ignore
+phpstan-baseline.neon export-ignore
+phpcs.xml.dist    export-ignore
+.gitattributes    export-ignore
+.gitignore        export-ignore
+.gitleaks.toml    export-ignore
+.pre-commit-config.yaml export-ignore

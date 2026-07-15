@@ -23,6 +23,8 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
+// S2 §3 (v9.42.0 arc): the funnels card's textarea (inc/analytics-render-settings.php).
+function esc_textarea( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 // v6.23.0: snt_analytics_render_settings_section() now also renders the "Exclude
 // my own visits" card, which reads sn_setting('analytics.exclude_roles'). Stub it
 // (the card's full markup is covered by tests/analytics-exclusion-render.php; with
@@ -78,12 +80,17 @@ function sn_analytics_last_error() { return $GLOBALS['__aa_error']; }
 
 // Core accessor seams.
 $GLOBALS['__aa'] = array( 'realtime' => null, 'totals' => array(), 'class_totals' => array(), 'series' => array(), 'paths' => array(), 'dim' => array() );
-function sn_analytics_realtime( $class = 'human' ) { return $GLOBALS['__aa']['realtime']; }
-function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__aa']['totals']; }
-function sn_analytics_class_totals( $from, $to ) { return $GLOBALS['__aa']['class_totals']; }
-function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { return $GLOBALS['__aa']['series']; }
+// Task 5 (S2 §5): call counters so the unconfigured-render group can pin ZERO
+// accessor reads — the dashboard must not touch any of these five behind the
+// config gate. Reset via aa_reset_call_counts() before the assertion window.
+$GLOBALS['__aa_calls'] = array( 'realtime' => 0, 'range_totals' => 0, 'class_totals' => 0, 'daily_series' => 0, 'top_paths' => 0 );
+function aa_reset_call_counts() { $GLOBALS['__aa_calls'] = array( 'realtime' => 0, 'range_totals' => 0, 'class_totals' => 0, 'daily_series' => 0, 'top_paths' => 0 ); }
+function sn_analytics_realtime( $class = 'human' ) { ++$GLOBALS['__aa_calls']['realtime']; return $GLOBALS['__aa']['realtime']; }
+function sn_analytics_range_totals( $from, $to, $class = 'human' ) { ++$GLOBALS['__aa_calls']['range_totals']; return $GLOBALS['__aa']['totals']; }
+function sn_analytics_class_totals( $from, $to ) { ++$GLOBALS['__aa_calls']['class_totals']; return $GLOBALS['__aa']['class_totals']; }
+function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { ++$GLOBALS['__aa_calls']['daily_series']; return $GLOBALS['__aa']['series']; }
 function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
-function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['paths']; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { ++$GLOBALS['__aa_calls']['top_paths']; return $GLOBALS['__aa']['paths']; }
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 
 // Derived + buckets seams (the dashboard composes these; isolated here).
@@ -169,6 +176,11 @@ if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { retur
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__aa_transients'][ $k ] ?? false; } }
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__aa_transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'sn_analytics_prior_window' ) ) { function sn_analytics_prior_window( $f, $t ) { return array( $f, $t ); } }
+// S2 §3 (v9.42.0 arc): snt_analytics_render_funnels() (inc/analytics-render-settings.php,
+// pulled in via analytics-admin-render.php below) calls sn_analytics_funnels_to_text()
+// — mirrors production load order (signal-and-noise-tools.php requires
+// analytics-sessions.php before analytics-admin-render.php/analytics-admin.php).
+require_once __DIR__ . '/../inc/analytics-sessions.php';
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
@@ -504,6 +516,51 @@ ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured)
 ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
 	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
+echo "\nGroup: dashboard — unconfigured: tabs lead, ZERO accessor reads (S2 §5, resolves PR #275)\n";
+// The dashboard's SHAPE (which views exist) is now visible before Cloudflare
+// creds are set; only the DATA below the gate stays withheld. $_GET['sn_view']
+// is unset here (previous group left it that way), so the tab strip's active
+// tab is the 'content' default.
+$GLOBALS['__aa_config'] = false;
+aa_reset_call_counts();
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn-an-view-tabs' ) !== false, 'unconfigured: the view-tabs strip renders' );
+ok( strpos( $html, 'nav-tab-wrapper' ) !== false, 'unconfigured: WP-native nav-tab-wrapper present' );
+$tab_count = 0;
+foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
+	ok( strpos( $html, 'sn_view=' . $slug ) !== false, "unconfigured: tab link to '$slug' present" );
+	++$tab_count;
+}
+ok( 11 === $tab_count, 'unconfigured: sanity — the registry still has all 11 views (test isn\'t vacuous)' );
+ok( strpos( $html, 'nav-tab" href="' ) !== false, 'unconfigured: tab links carry a real, working href (not a bare <a>)' );
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured: exactly one active tab (content default)' );
+ok( strpos( $html, 'sn-an-gate' ) !== false, 'unconfigured: the gate card still renders alongside the tabs' );
+ok( strpos( $html, 'button button-primary' ) !== false, 'unconfigured: the gate CTA keeps its cta_primary weight' );
+ok( strpos( $html, 'sn-toolbar' ) === false, 'unconfigured: NO .sn-toolbar (controls stay gated behind config)' );
+ok( strpos( $html, 'sn-an-header-grid' ) === false, 'unconfigured: NO header-region markup' );
+ok( strpos( $html, 'postbox sn-overview' ) === false, 'unconfigured: NO Overview panel' );
+ok( strpos( $html, 'sn-an-headline' ) === false, 'unconfigured: NO insights band' );
+ok( 0 === $GLOBALS['__aa_calls']['realtime'], 'unconfigured: sn_analytics_realtime() never called' );
+ok( 0 === $GLOBALS['__aa_calls']['range_totals'], 'unconfigured: sn_analytics_range_totals() never called' );
+ok( 0 === $GLOBALS['__aa_calls']['class_totals'], 'unconfigured: sn_analytics_class_totals() never called' );
+ok( 0 === $GLOBALS['__aa_calls']['daily_series'], 'unconfigured: sn_analytics_daily_series() never called' );
+ok( 0 === $GLOBALS['__aa_calls']['top_paths'], 'unconfigured: sn_analytics_top_paths() never called' );
+// T5 review: 'all' is the ONE range token whose pre-gate resolution reads a local
+// accessor (sn_analytics_min_day — rollup MIN, transient-cached, empty-table-safe).
+// Pin that documented contract: exactly one min_day read, still zero AE accessors.
+if ( ! function_exists( 'sn_analytics_min_day' ) ) {
+	function sn_analytics_min_day() { ++$GLOBALS['__aa_calls_min_day']; return '2026-01-01'; }
+}
+$GLOBALS['__aa_calls_min_day'] = 0;
+aa_reset_call_counts();
+$_GET['sn_range'] = 'all';
+$html_all = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html_all, 'sn-an-view-tabs' ) !== false && strpos( $html_all, 'sn_range=all' ) !== false, 'unconfigured+all: tabs render and carry the all token' );
+ok( 1 === $GLOBALS['__aa_calls_min_day'], 'unconfigured+all: exactly ONE min_day read (the documented pre-gate exception)' );
+ok( 0 === array_sum( $GLOBALS['__aa_calls'] ), 'unconfigured+all: the five AE accessors still never called' );
+unset( $_GET['sn_range'] );
+$GLOBALS['__aa_config'] = true; // restore for the groups that follow.
+
 echo "\nGroup: settings section — the creds form + dashboard backlink\n";
 $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
@@ -533,6 +590,10 @@ ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a 
 $fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
 ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces — pipeline strip + the two columns (wide leaf owns its own chrome)' );
 ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
+// S2 §6: the whole settings section is wrapped in the D4-leaf marker so the
+// leaf-scoped token-card CSS (analytics-admin.css) has something to hang off.
+ok( strpos( $html, 'class="sn-an-settings-leaf"' ) !== false, 'settings: wrapped in the sn-an-settings-leaf marker (S2 §6)' );
+ok( strpos( $html, 'sn-an-settings-leaf' ) < strpos( $html, 'sn-an-pipeline' ), 'settings: the leaf wrapper opens before the pipeline strip' );
 $acct_at = strpos( $html, 'name="sn_cf_account_id"' );
 // 'Cloudflare Worker setup' (the <summary> text), NOT 'wrangler': the pipeline
 // strip's warn note can also say "wrangler" once the worker stub lands, and the
@@ -553,15 +614,17 @@ $twoup   = strpos( $html, '<div class="sn-2up">' );
 $creds   = strpos( $html, 'name="sn_cf_account_id"' );
 $excl    = strpos( $html, 'sn-an-exclude' );
 $tune    = strpos( $html, 'sn-an-tuning' );
+$funnels = strpos( $html, 'sn-an-funnels' ); // S2 §3 (v9.42.0 arc): funnels card, after engine tuning
 $mirrors = strpos( $html, 'sn-an-mirrors' );
 $filters = strpos( $html, 'sn-an-filters' );
 $setup   = strpos( $html, 'Cloudflare Worker setup' ); // collision-free: the strip's warn note can also contain 'wrangler'
 ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
-ok( false !== $creds && false !== $excl && false !== $tune && $creds < $excl && $excl < $tune,
-	'hub(left): credentials → exclusion → engine tuning (writable column order)' );
+ok( false !== $creds && false !== $excl && false !== $tune && false !== $funnels && $creds < $excl && $excl < $tune && $tune < $funnels,
+	'hub(left): credentials → exclusion → engine tuning → funnels (writable column order)' );
+ok( strpos( $html, 'name="sn_funnels"' ) !== false, 'hub(left): the funnels card\'s textarea is present' );
 ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $filters && $filters < $setup,
 	'hub(right): mirrors → filter reference → worker setup (reference column order)' );
-ok( $tune < $mirrors, 'hub: the writable column (tuning last) precedes the reference column\'s first marker' );
+ok( $funnels < $mirrors, 'hub: the writable column (funnels last) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
@@ -633,6 +696,34 @@ $GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom' );
 ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ) !== false, 'render_error: AE diagnostic still fires on the login view' );
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
+
+echo "\nGroup: dashboard — unconfigured + sn_view=login-defense: the SAME generic gate (S2 §5 decision)\n";
+// DECISION: login-defense gates on the exact same sn_analytics_config() flag as
+// every other view (verified by reading inc/login-defense-analytics.php — it is
+// NOT a separate credential/"Connect" card). So the unconfigured branch renders
+// ONE generic "Analytics" gate for every tab rather than dispatching into
+// login-defense's own header/body renderers, which would just show an
+// identical message under a different label and cost two extra function
+// calls for no visible difference. sn_login_defense_render_header()/_body()
+// are stubbed above (LOGIN-DEFENSE-HEADER/BODY markers) — their absence here
+// proves the unconfigured path never reaches the view switch.
+$_GET['sn_view'] = 'login-defense';
+$GLOBALS['__aa_config'] = false;
+aa_reset_call_counts();
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( strpos( $html, 'sn-an-view-tabs' ) !== false, 'unconfigured(login-defense): tab strip still renders' );
+ok( strpos( $html, 'sn_view=login-defense' ) !== false, "unconfigured(login-defense): its own tab link present" );
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured(login-defense): exactly one active tab (login-defense)' );
+ok( strpos( $html, '<span>Analytics</span>' ) !== false, 'unconfigured(login-defense): shows the GENERIC "Analytics" gate title, not a login-defense-specific one' );
+ok( strpos( $html, 'sn-an-gate' ) !== false, 'unconfigured(login-defense): the shared gate marker is present' );
+ok( strpos( $html, 'LOGIN-DEFENSE-HEADER' ) === false && strpos( $html, 'LOGIN-DEFENSE-BODY' ) === false,
+	"unconfigured(login-defense): does NOT dispatch into login-defense's own header/body renderer" );
+ok( 0 === $GLOBALS['__aa_calls']['realtime'] && 0 === $GLOBALS['__aa_calls']['range_totals']
+	&& 0 === $GLOBALS['__aa_calls']['class_totals'] && 0 === $GLOBALS['__aa_calls']['daily_series']
+	&& 0 === $GLOBALS['__aa_calls']['top_paths'],
+	'unconfigured(login-defense): ZERO accessor reads' );
+$GLOBALS['__aa_config'] = true;
+$_GET['sn_view']        = 'content';
 
 echo "\nGroup: tab-URL hygiene\n";
 $prev_uri = $_SERVER['REQUEST_URI'];

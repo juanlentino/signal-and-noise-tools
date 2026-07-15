@@ -17,6 +17,13 @@ $GLOBALS['__totals'] = array();
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__paths']; }
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__totals'][ "$from|$to" ] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0, 'time_avg' => 0 ); }
 
+// S2 §4: controllable settings stub (tests/analytics-tuning-render.php idiom) so
+// the mapping + behavior groups below can flip the owner preset per-assertion.
+$GLOBALS['__settings'] = array();
+function sn_setting( $path, $default = null ) {
+	return array_key_exists( $path, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $path ] : $default;
+}
+
 require_once __DIR__ . '/../inc/analytics-derived.php';
 
 $pass = 0; $fail = 0;
@@ -84,6 +91,65 @@ ok( ! isset( $by_metric['scroll_avg'] ), 'movers: a flat metric (constant scroll
 $v = $by_metric['views'] ?? array();
 ok( isset( $v['typical_low'], $v['typical_high'], $v['dir'] ) && 'above' === $v['dir'], 'movers: flag carries typical range + direction' );
 ok( is_array( sn_analytics_baseline_movers( '2026-06-08', '2026-06-14', 'human', 6 ) ), 'movers: always returns an array' );
+
+echo "\nGroup: sn_analytics_derived_z() sensitivity mapping (S2 §4)\n";
+// Mirrors sn_analytics_signal_opts()'s preset→z map idiom (inc/analytics-signals.php)
+// but at the per-page detector's own scale: relaxed 1.5 / standard 2.0 / strict 2.5.
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'relaxed' );
+ok( 1.5 === sn_analytics_derived_z(), 'derived_z: relaxed → 1.5' );
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'standard' );
+ok( 2.0 === sn_analytics_derived_z(), 'derived_z: standard → 2.0 (== SN_ANALYTICS_ANOMALY_Z, the const stays the single source)' );
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'strict' );
+ok( 2.5 === sn_analytics_derived_z(), 'derived_z: strict → 2.5' );
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'garbage-preset' );
+ok( 2.0 === sn_analytics_derived_z(), 'derived_z: junk preset falls back to 2.0 (the engine fallback)' );
+$GLOBALS['__settings'] = array();
+ok( 2.0 === sn_analytics_derived_z(), 'derived_z: absent setting (key unset) falls back to 2.0' );
+
+echo "\nGroup: the preset governs the per-page detector (S2 §4 behavior pin)\n";
+// A z≈1.732 deviation (3 flat rows + 1 offset row → population z = sqrt(3), scale-
+// invariant regardless of the offset size) sits strictly between the relaxed (1.5)
+// and standard (2.0) cutoffs — the exact gap this task closes. Under relaxed it
+// must fire; under standard (byte-identical to the pre-S2 default) it must not.
+// scroll_avg held flat across all 4 rows (sd=0) so only time_avg produces an
+// outlier, and scroll/time stay far from the skim/stall divergence thresholds so
+// this fixture is clean of that path.
+$GLOBALS['__paths'] = array(
+	array( 'path' => '/z1', 'views' => 100, 'visits' => 90, 'scroll_avg' => 50.0, 'time_avg' => 20000.0 ),
+	array( 'path' => '/z2', 'views' => 100, 'visits' => 90, 'scroll_avg' => 50.0, 'time_avg' => 20000.0 ),
+	array( 'path' => '/z3', 'views' => 100, 'visits' => 90, 'scroll_avg' => 50.0, 'time_avg' => 20000.0 ),
+	array( 'path' => '/zout', 'views' => 100, 'visits' => 90, 'scroll_avg' => 50.0, 'time_avg' => 50000.0 ),
+);
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'relaxed' );
+$ea_relaxed = sn_analytics_engagement_anomalies( '2026-06-08', '2026-06-14', 'human' );
+$out_relaxed = array_values( array_filter( $ea_relaxed['outliers'], static function ( $x ) { return '/zout' === $x['path']; } ) );
+ok( 1 === count( $out_relaxed ) && abs( $out_relaxed[0]['z'] - 1.73 ) < 0.01, 'engagement_anomalies: relaxed (1.5) flags the z≈1.73 outlier the standard default holds quiet' );
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'standard' );
+$ea_standard = sn_analytics_engagement_anomalies( '2026-06-08', '2026-06-14', 'human' );
+$out_standard = array_values( array_filter( $ea_standard['outliers'], static function ( $x ) { return '/zout' === $x['path']; } ) );
+ok( 0 === count( $out_standard ), 'engagement_anomalies: standard (2.0, byte-identical default) stays quiet on the same z≈1.73 fixture' );
+$GLOBALS['__paths']    = array();
+$GLOBALS['__settings'] = array();
+
+// Same behavior pin through the OTHER real read site (baseline_movers, :422):
+// 3 trailing weeks [910, 1000, 1090] (population sd≈73.48) + a current week of
+// 1130 → z≈1.769, again strictly between relaxed and standard.
+$GLOBALS['__totals'] = array(
+	'2026-06-08|2026-06-14' => array( 'views' => 1130, 'visits' => 200, 'scroll_avg' => 55, 'time_avg' => 40000 ),
+	'2026-06-01|2026-06-07' => array( 'views' => 910,  'visits' => 200, 'scroll_avg' => 55, 'time_avg' => 40000 ),
+	'2026-05-25|2026-05-31' => array( 'views' => 1000, 'visits' => 200, 'scroll_avg' => 55, 'time_avg' => 40000 ),
+	'2026-05-18|2026-05-24' => array( 'views' => 1090, 'visits' => 200, 'scroll_avg' => 55, 'time_avg' => 40000 ),
+);
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'relaxed' );
+$bm_relaxed  = sn_analytics_baseline_movers( '2026-06-08', '2026-06-14', 'human', 3 );
+$bm_relaxed_by = array_column( $bm_relaxed, null, 'metric' );
+ok( isset( $bm_relaxed_by['views'] ) && abs( $bm_relaxed_by['views']['z'] - 1.77 ) < 0.01, 'baseline_movers: relaxed (1.5) flags the z≈1.77 views mover the standard default holds quiet' );
+$GLOBALS['__settings'] = array( 'analytics.anomaly_sensitivity' => 'standard' );
+$bm_standard = sn_analytics_baseline_movers( '2026-06-08', '2026-06-14', 'human', 3 );
+$bm_standard_by = array_column( $bm_standard, null, 'metric' );
+ok( ! isset( $bm_standard_by['views'] ), 'baseline_movers: standard (2.0, byte-identical default) stays quiet on the same z≈1.77 fixture' );
+$GLOBALS['__totals']   = array();
+$GLOBALS['__settings'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

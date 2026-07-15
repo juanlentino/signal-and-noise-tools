@@ -93,6 +93,9 @@ function sn_admin_flash_messages() {
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
 		'analytics_tuning_saved'     => array( 'success', 'Engine tuning saved. Signals recompute on the next dashboard load.' ),
 		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
+		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
+		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Visits view reflects them on the next load.' ),
+		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved — try again.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		// v7.2.2: dropped the "or check that an AI provider is configured" clause —
 		// the handler stores the real WP_Error and the box below shows it; blaming
@@ -185,6 +188,25 @@ function sn_admin_flash_to_notice( $flash ) {
 	if ( 0 === strpos( $flash, 'reset_' ) ) {
 		$count = (int) substr( $flash, strlen( 'reset_' ) );
 		return array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
+	}
+	// S2 §3 (v9.42.0 arc): line-number-carrying codes — sn_handle_analytics_funnels_save()
+	// encodes the 1-based bad line(s) straight into the flash code (e.g.
+	// 'analytics_funnels_invalid_2-4'), so nothing was saved AND the notice can
+	// point at exactly which line(s) to fix, no transient plumbing required.
+	if ( 0 === strpos( $flash, 'analytics_funnels_invalid' ) ) {
+		$lines = trim( substr( $flash, strlen( 'analytics_funnels_invalid' ) ), '_' );
+		// T2/T3-review hardening: $flash already passed through sanitize_text_field()
+		// upstream (inc/admin-page.php / inc/analytics-dashboard-page.php), but that
+		// strips tags, not arbitrary characters — a hand-crafted ?sn_flash=…_<junk>
+		// suffix could still carry stray quotes/unicode/overlong runs into this
+		// notice. On the legitimate path the suffix is ONLY ever digits joined by
+		// '-' (sn_handle_analytics_funnels_save() implode()s 1-based line numbers),
+		// so whitelist to EXACTLY that charset and cap the length before it
+		// reaches the UI (the display commas come from str_replace below, never
+		// from the input).
+		$lines  = substr( preg_replace( '/[^0-9\-]/', '', $lines ), 0, 40 );
+		$detail = '' !== $lines ? ( ' Check line' . ( false !== strpos( $lines, '-' ) ? 's ' : ' ' ) . str_replace( '-', ', ', $lines ) . '.' ) : '';
+		return array( 'error', 'Funnels not saved — nothing changed.' . $detail );
 	}
 
 	// Id-prefixed codes — static message; the id is consumed elsewhere

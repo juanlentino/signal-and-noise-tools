@@ -143,8 +143,35 @@ const SN_ANALYTICS_ANOMALY_SKIM_SCROLL  = 50;     // % scroll considered "deep"
 const SN_ANALYTICS_ANOMALY_SKIM_TIME    = 5000;   // ms; under this = "fast leave"
 const SN_ANALYTICS_ANOMALY_DWELL_TIME   = 30000;  // ms; over this = "long dwell"
 const SN_ANALYTICS_ANOMALY_DWELL_SCROLL = 25;     // % scroll; under this = "stalled"
-const SN_ANALYTICS_ANOMALY_Z            = 2.0;    // |z| cutoff for an outlier
+const SN_ANALYTICS_ANOMALY_Z            = 2.0;    // |z| cutoff for an outlier; the 'standard'-preset value (see sn_analytics_derived_z())
 const SN_ANALYTICS_BASELINE_WEEKS       = 6;      // trailing weeks for the narrator baseline
+
+/**
+ * Owner-tunable per-page detector threshold (S2 §4, v9.42.0): ONE anomaly
+ * mental model. The same analytics.anomaly_sensitivity preset that already
+ * drives the predictive signal engine (sn_analytics_signal_opts() in
+ * analytics-signals.php, 2.5σ/3.5σ/4.5σ) now ALSO governs this derived
+ * per-page skim/dwell/outlier detector — the owner no longer has two
+ * silently-independent "how sensitive" knobs. This detector runs over noisier
+ * per-path daily aggregates than the baseline-normalized predictive engine, so
+ * its whole scale sits proportionally lower: relaxed → 1.5σ, standard →
+ * SN_ANALYTICS_ANOMALY_Z (2.0 — the const stays the single source of the
+ * standard value, never a duplicated literal), strict → 2.5σ. The default
+ * preset ('standard') is byte-identical to the pre-S2 behavior. Falls back to
+ * the const when sn_setting() is absent (isolated CLI harnesses) — mirrors
+ * sn_analytics_signal_opts()'s whitelist/fallback idiom exactly.
+ *
+ * @since 9.42.0
+ * @return float
+ */
+function sn_analytics_derived_z() {
+	$preset = 'standard';
+	if ( function_exists( 'sn_setting' ) ) {
+		$preset = (string) sn_setting( 'analytics.anomaly_sensitivity', $preset );
+	}
+	$z_map = array( 'relaxed' => 1.5, 'standard' => SN_ANALYTICS_ANOMALY_Z, 'strict' => 2.5 );
+	return $z_map[ $preset ] ?? $z_map['standard'];
+}
 
 /**
  * Population mean + standard deviation of a numeric list.
@@ -352,6 +379,7 @@ function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
 	}
 
 	$outliers = array();
+	$z_cut    = sn_analytics_derived_z();
 	foreach ( array( 'scroll_avg', 'time_avg' ) as $metric ) {
 		$vals = array_map(
 			static function ( $r ) use ( $metric ) {
@@ -365,7 +393,7 @@ function sn_analytics_engagement_anomalies( $from, $to, $class = 'human' ) {
 		}
 		foreach ( $rows as $r ) {
 			$z = sn_analytics_zscore( (float) ( $r[ $metric ] ?? 0 ), $stat['mean'], $stat['sd'] );
-			if ( abs( $z ) >= SN_ANALYTICS_ANOMALY_Z ) {
+			if ( abs( $z ) >= $z_cut ) {
 				$outliers[] = array(
 					'path'   => (string) $r['path'],
 					'metric' => $metric,
@@ -412,6 +440,7 @@ function sn_analytics_baseline_movers( $from, $to, $class = 'human', $weeks = SN
 	}
 
 	$flags = array();
+	$z_cut = sn_analytics_derived_z();
 	foreach ( $metrics as $m ) {
 		$stat = sn_analytics_stat_summary( $series[ $m ] );
 		if ( $stat['n'] < 3 || $stat['sd'] <= 0.0 ) {
@@ -419,7 +448,7 @@ function sn_analytics_baseline_movers( $from, $to, $class = 'human', $weeks = SN
 		}
 		$cur = (float) ( $current[ $m ] ?? 0 );
 		$z   = sn_analytics_zscore( $cur, $stat['mean'], $stat['sd'] );
-		if ( abs( $z ) < SN_ANALYTICS_ANOMALY_Z ) {
+		if ( abs( $z ) < $z_cut ) {
 			continue;
 		}
 		$is_rate = in_array( $m, array( 'scroll_avg', 'time_avg' ), true );
