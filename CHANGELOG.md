@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.45.0] - 2026-07-15: The settings leaf goes on a diet — presence pills, value-summary folds, docs where docs belong
+
+**Headline:** A two-agent audit (composition map + adversarial problems pass) judged the leaf "light pruning, not structural" — the S2 one-hero rule, the read-only mirrors rule, and the knob policy all verified intact — and this release ships the owner-picked prunes. **The strip dedupes**: pill #2 goes binary ("Edge worker" ok/warn — the Edge-worker card beside it owns the version), and the intro sentence finally names its fifth stage (…→ cron → edge). **The writable column folds**: all four forms wrap in native `<details>` whose summaries carry **live value snapshots** ("Engine tuning — 30-day baseline · Standard…", "2 funnels", "Configured — locked by wp-config"), so collapsed loses nothing at a glance; form internals stay byte-identical; credentials opens automatically while the pipeline is incomplete and closes once it flows (`snt_an_credentials_fold_open()`, both directions test-pinned); every future form defaults closed — the leaf now has a growth budget. **Docs go where docs belong**: the one-time worker-setup steps render only while a pipeline stage is missing (then vanish — same `snt_analytics_pipeline_pills()` seam as the strip, so they can't disagree), and the 12-entry developer filter reference moves verbatim to [docs/FILTERS.md](docs/FILTERS.md) with a one-line link on the leaf (the docs↔code parity suite re-points at the doc, un-weakened).
+
+> **Why MINOR:** user-visible reorganization of the settings leaf (folds, conditional blocks, relocated reference); no capability removed — every control and every line of reference content remains reachable.
+
+### Changed
+- [inc/analytics-render-settings.php](inc/analytics-render-settings.php): `snt_an_settings_fold()` + four pure snapshot builders + the open-state seam + the link line; [inc/analytics-admin.php](inc/analytics-admin.php): the orchestrator wires the folds; [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css): additive token-based fold-summary styling (the strip remains the sole elevated surface).
+
+### Added
+- [docs/FILTERS.md](docs/FILTERS.md) (repo doc, linked not shipped); [tests/analytics-settings-folds.php](tests/analytics-settings-folds.php) (37 asserts: snapshots in all states, fold contract, open-state both directions, worker-setup conditional, link line, hostile-value escaping).
+
 ## [9.44.0] - 2026-07-15: The zone joins the mirrors card — and the phantom constant that muted Edge analytics falls
 
 **Headline:** The settings hub's "Configured elsewhere" card gains its fourth read-only row: **Zone ID** — the value (or "Not set" / a locked-by-constant note) plus a deep-link to Connections → Cloudflare, closing the last unshipped item of the original audit's rec #4; the hub finally has a clickable path to the zone's config ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)). Ground-truthing the row exposed — and this release fixes — a **HIGH pre-existing bug**: pipeline pill #5 and the Edge config resolver checked `SN_CF_ZONE`, a constant that has never existed; the real one is `SN_CLOUDFLARE_ZONE_ID`. On a constant-configured site (the save handler deliberately skips the option write in that state) the pill showed a false "Zone ID missing" and **`sn_edge_config()` returned null — the entire Cloudflare Edge analytics subsystem (live view + durable rollup) sat silently dormant** while cache purge worked. Both sites now read the real accessor `sn_cf_get_zone()` ([inc/edge-analytics.php](inc/edge-analytics.php)), so the pill, the new row, and the Edge view all agree.
