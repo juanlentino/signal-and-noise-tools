@@ -144,16 +144,32 @@ function sn_analytics_bucket_expr( $granularity ) {
 /**
  * Per-day (or per-week) views/visits for one class, ascending — the trend strip.
  *
+ * Request-scope memo (D5 §5 perf): sn_analytics_signal_anomalies() and
+ * sn_analytics_signal_forecasts() (inc/analytics-signals.php) both pull the
+ * SAME [$from,$to,$class,'day'] trailing-baseline window once per page load
+ * (QM: 2 reads per page) — cache it per request so that costs one read, not
+ * two. $refresh is the re-prime seam (the D2 sn_analytics_recommendations( true )
+ * idiom, mirrored in sn_analytics_range_totals()) for callers that must force
+ * a fresh read within the same request (e.g. CLI/tests).
+ *
  * @param string $granularity 'day' | 'week'  Week granularity floors each day
  *                             to the ISO Monday (DATE_SUB … WEEKDAY) so weekly
  *                             bars line up naturally. Use sn_analytics_granularity()
  *                             to pick the right value for a given date range.
+ * @param bool   $refresh     Bypass and re-prime the memo for this key.
  * @return array<int, array{day:string, views:int, visits:int}>
  */
-function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) {
+function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 		$class = 'human';
 	}
+
+	static $memo = array();
+	$key = $from . '|' . $to . '|' . $class . '|' . $granularity;
+	if ( ! $refresh && isset( $memo[ $key ] ) ) {
+		return $memo[ $key ];
+	}
+
 	$expr = sn_analytics_bucket_expr( $granularity );
 
 	global $wpdb;
@@ -181,7 +197,8 @@ function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity =
 			);
 		}
 	}
-	return $out;
+	$memo[ $key ] = $out;
+	return $memo[ $key ];
 }
 
 /**

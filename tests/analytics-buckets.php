@@ -283,5 +283,29 @@ ok( count( $bsd ) === 3, 'distribution(botscore): one entry per configured band 
 ok( (int) $bsd[0]['views'] === 30 && (int) $bsd[2]['views'] === 9, 'distribution(botscore): band values carried; middle band zero-filled' );
 ok( (int) $bsd[1]['views'] === 0, 'distribution(botscore): empty middle band zero-filled (not dropped)' );
 
+echo "\nGroup: distribution request-scope memo (D5 perf)\n";
+// Distinct metric + date range from every earlier group so this memo group
+// can't collide with (or be poisoned by) a key already primed above.
+ab_reset();
+$GLOBALS['wpdb']->rows['wp_sn_analytics_buckets'] = array(
+	array( 'day' => '2026-08-11', 'metric' => 'time', 'bucket' => 'b0', 'class' => 'human', 'views' => 5 ),
+	array( 'day' => '2026-08-11', 'metric' => 'time', 'bucket' => 'b1', 'class' => 'human', 'views' => 3 ),
+);
+$reads_before = count( $GLOBALS['wpdb']->queries );
+$m1 = sn_analytics_distribution( 'time', '2026-08-01', '2026-08-31', 'human' );
+$m2 = sn_analytics_distribution( 'time', '2026-08-01', '2026-08-31', 'human' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 1, 'distribution: identical repeat call issues exactly one underlying read' );
+ok( $m1 === $m2, 'distribution: memoized calls return the identical cached result' );
+
+$m3 = sn_analytics_distribution( 'time', '2026-08-01', '2026-08-31', 'bot' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 2, 'distribution: a different class is a distinct memo key (second read)' );
+
+$m4 = sn_analytics_distribution( 'scroll', '2026-08-01', '2026-08-31', 'human' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'distribution: a different metric is a distinct memo key (third read)' );
+
+$m5 = sn_analytics_distribution( 'time', '2026-08-01', '2026-08-31', 'human', true );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 4, 'distribution: $refresh=true re-primes the memo (fourth read)' );
+ok( $m5 === $m1, 'distribution: refreshed read still shapes an identical result over unchanged fixture data' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

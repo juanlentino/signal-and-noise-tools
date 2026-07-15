@@ -224,5 +224,34 @@ ok( sn_analytics_top_dimension( 'martian', '2026-06-01', '2026-06-12' ) === arra
 $bots = sn_analytics_top_dimension( 'referrer', '2026-06-01', '2026-06-12', 'bot' );
 ok( count( $bots ) === 1 && $bots[0]['value'] === 'spam', 'top_dimension: explicit class returns that bucket' );
 
+echo "\nGroup: top_dimension request-scope memo (D5 perf)\n";
+// Distinct date range from every earlier group (and a limit that survives
+// clamping unchanged) so this memo group can't collide with a key already
+// primed above — e.g. the referrer/2026-06-01..12/human/25 key from the
+// accessor group, or the /500-clamped key from the limit-clamp assertion.
+ad_reset();
+$GLOBALS['wpdb']->rows['wp_sn_analytics_dims'] = array(
+	array( 'day' => '2026-08-11', 'dim' => 'referrer', 'value' => 'a.com', 'class' => 'human', 'views' => 10, 'visits' => 4 ),
+	array( 'day' => '2026-08-11', 'dim' => 'country',  'value' => 'US',    'class' => 'human', 'views' => 20, 'visits' => 8 ),
+);
+$reads_before = count( $GLOBALS['wpdb']->queries );
+$m1 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'human', 10 );
+$m2 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'human', 10 );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 1, 'top_dimension: identical repeat call issues exactly one underlying read' );
+ok( $m1 === $m2, 'top_dimension: memoized calls return the identical cached result' );
+
+$m3 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'bot', 10 );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 2, 'top_dimension: a different class is a distinct memo key (second read)' );
+
+$m4 = sn_analytics_top_dimension( 'country', '2026-08-01', '2026-08-31', 'human', 10 );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'top_dimension: a different dim is a distinct memo key (third read)' );
+
+$m5 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'human', 20 );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 4, 'top_dimension: a different limit is a distinct memo key (fourth read)' );
+
+$m6 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'human', 10, true );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 5, 'top_dimension: $refresh=true re-primes the memo (fifth read)' );
+ok( $m6 === $m1, 'top_dimension: refreshed read still shapes an identical result over unchanged fixture data' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -6,7 +6,9 @@
  * (audit B-11). Registers the SN-owned ability categories on the
  * `wp_abilities_api_categories_init` action so subsequent ability
  * registrations (in the per-feature inc/abilities-*.php files) can
- * cite a registered category. (5 since v4.1.3; `tools` added v4.6.0.)
+ * cite a registered category. (5 since v4.1.3; `tools` added v4.6.0;
+ * `analytics` added to stop the WP 6.9.0 _doing_it_wrong for
+ * inc/abilities-analytics.php's 2 abilities — see below.)
  *
  * Per upstream source, the registry checks `wp_has_ability_category()`
  * and silently bails on `wp_register_ability()` if the category isn't
@@ -71,6 +73,20 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		wp_register_ability_category( 'tools', array(
 			'label'       => 'Tools',
 			'description' => 'Structural/deterministic site tools — block migrations, pattern adoption.',
+		) );
+	}
+
+	// 'analytics' backs the 2 read-only abilities in inc/abilities-analytics.php
+	// (get-analytics-summary, get-analytics-events) — that file is required
+	// directly from signal-and-noise-tools.php rather than through this
+	// orchestrator's require list, which is how this registration got missed.
+	// WP 6.9.0 added a _doing_it_wrong in WP_Abilities_Registry::register()
+	// when an ability cites a category that was never registered; both
+	// analytics abilities were firing it on every request until now.
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'analytics' ) ) {
+		wp_register_ability_category( 'analytics', array(
+			'label'       => 'Analytics',
+			'description' => 'Read-only analytics reads (range totals, custom events) for AI agents.',
 		) );
 	}
 } );

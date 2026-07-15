@@ -41,7 +41,7 @@
  *   (+ inc/abilities-analytics.php — 2 read-only analytics abilities —
  *   required directly from signal-and-noise-tools.php, not this loader.)
  *
- * Total: 44 abilities + 5 categories. The v7.7.0 deprecation ladder CLOSED in
+ * Total: 44 abilities + 6 categories. The v7.7.0 deprecation ladder CLOSED in
  * v8.0.0: the nine deprecated abilities, the `updates` category, and
  * inc/abilities-deprecations.php were removed (see CHANGELOG v8.0.0 for the
  * old → new mapping; tests/abilities-removals-v8.php guards the removal).

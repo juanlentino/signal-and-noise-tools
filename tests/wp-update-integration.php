@@ -53,6 +53,9 @@ ok( ! empty( $GLOBALS['__last_args'] ), 'tag: a live fetch was issued' );
 // bearer token when SNT_GITHUB_TOKEN is set — forbid redirects so a 3xx can't
 // forward it. This fetch sits on the critical wp-admin Updates path.
 ok( 0 === ( $GLOBALS['__last_args']['redirection'] ?? -1 ), 'tag: request disables redirects (no GitHub token forward on a 3xx)' );
+// Timeout hardening (v9.46.1): 1h transient either way — 5s bounds the
+// once-hourly cold miss that can land on any admin_init.
+ok( 5 === ( $GLOBALS['__last_args']['timeout'] ?? -1 ), 'tag: timeout capped at 5s' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -185,7 +185,12 @@ ok( count( array_filter( $GLOBALS['__warnings'], function ( $w ) { return stripo
     'weekly: no "Undefined array key" warning during the week aggregation' );
 ok( ! empty( $ws ) && ! empty( $ws[0]['day'] ) && (int) gmdate( 'N', (int) strtotime( $ws[0]['day'] . ' 00:00:00 UTC' ) ) === 1,
     'weekly: each bucket day floors to an ISO Monday' );
-sn_analytics_daily_series( '2026-06-01', '2026-06-12' );
+// $refresh=true: this exact [from,to,class,granularity] tuple was already
+// primed by the daily_series group above (line 154) — the request-scope memo
+// added below would otherwise serve that cached result here instead of
+// issuing a fresh query, and $sql2 would stay pinned to the WEEKLY query
+// just above instead of reflecting this call.
+sn_analytics_daily_series( '2026-06-01', '2026-06-12', 'human', 'day', true );
 $sql2 = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $sql2, 'GROUP BY day' ) !== false && strpos( $sql2, 'DATE_SUB' ) === false, 'day granularity: unchanged GROUP BY day' );
 
@@ -205,6 +210,27 @@ ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 2, 'range_totals: a d
 $m4 = sn_analytics_range_totals( '2026-07-01', '2026-07-07', 'human', true );
 ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'range_totals: $refresh=true re-primes the memo (third read)' );
 ok( $m4 === $m1, 'range_totals: refreshed read still shapes an identical result over unchanged fixture data' );
+
+echo "\nGroup: daily_series request-scope memo (D5 perf)\n";
+// Distinct window from every earlier group (including the daily_series
+// groups above) so this memo group can't collide with a key already
+// primed elsewhere in this file.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = $fixture;
+$reads_before = count( $GLOBALS['wpdb']->queries );
+$d1 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'human', 'day' );
+$d2 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'human', 'day' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 1, 'daily_series: identical repeat call issues exactly one underlying read' );
+ok( $d1 === $d2, 'daily_series: memoized calls return the identical cached result' );
+
+$d3 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'bot', 'day' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 2, 'daily_series: a different class is a distinct memo key (second read)' );
+
+$d4 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'human', 'week' );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'daily_series: a different granularity is a distinct memo key (third read)' );
+
+$d5 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'human', 'day', true );
+ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 4, 'daily_series: $refresh=true re-primes the memo (fourth read)' );
+ok( $d5 === $d1, 'daily_series: refreshed read still shapes an identical result over unchanged fixture data' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
