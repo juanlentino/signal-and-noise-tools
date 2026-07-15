@@ -191,7 +191,7 @@ function sn_admin_top_tabs() {
 				// v9.47.0: read-only "how to connect an external MCP client" doc leaf
 				// (native JSON-RPC server + the wp.org AI plugin's Abilities-registry
 				// adapter). No form, no side effects — pure reference, like Links.
-				'mcp-connect'      => array( 'label' => 'Connect an MCP client', 'render' => 'sn_admin_render_mcp_connect_section' ),
+				'mcp-connect'      => array( 'label' => 'MCP', 'render' => 'sn_admin_render_mcp_connect_section' ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'            => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),
