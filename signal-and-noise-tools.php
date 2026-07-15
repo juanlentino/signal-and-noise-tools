@@ -182,6 +182,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
 require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
 require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
+require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
 // metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:
