@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.43.1] - 2026-07-14: Settings-surface i18n completion — labels, placeholders, and the worker-setup steps
+
+**Headline:** The one string category [v9.42.1](#9421---2026-07-14-i18n-sweep--the-analytics-surfaces-raw-strings-route-through-the-text-domain) deliberately excluded is now closed: the credentials card's heading, field labels, placeholders and buttons, plus the four worker-setup `<li>` steps in [inc/analytics-render-settings.php](inc/analytics-render-settings.php), route through `__()`/`esc_html__()`/`esc_attr__()` with the plugin text domain. `<code>`/`<strong>`/`<pre>` markup, URLs, shell commands, and wp-config constant names stay outside msgids (sprintf + translators comments). Output is byte-identical except three apostrophes that follow the file's own typographic-apostrophe idiom (`can’t`, `Worker’s`, `‘clear’` — ENT_QUOTES would otherwise entity-encode them; the same idiom already ships at five older call sites in this file).
+
+> **Why PATCH:** i18n refactor; no capability or copy change beyond three apostrophe glyphs.
+
+### Fixed
+- i18n: `Credentials` heading + help prose, `Account ID` / `Account Analytics Read token` labels, both placeholders (via `esc_attr__`), `Save` / `Test connection` buttons, the locked-state note pair, and the `Cloudflare Worker setup` summary + its four setup steps ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)).
+
+### Added
+- [tests/analytics-i18n.php](tests/analytics-i18n.php) grows a settings-surface section: behavioral drives of the credentials card (locked and unlocked) and the worker-setup panel + 17 source-contract needles — 63 → 111 asserts.
+
 ## [9.43.0] - 2026-07-14: Plugin footprint — Site Health diagnostics + the one-time legacy-deploy janitor
 
 **Headline:** The installed plugin weighs **14.3 MB on disk while the v9.42.1 payload is 2.9 MB / 283 files** — the site's pre-v1.10.1 deploy path was an SSH git checkout (see [deploy.yml](.github/workflows/deploy.yml)'s own comments), so the live directory very likely still carries `.git/` and other repo-only files that nginx pattern-blocks from remote probing. This release makes the install self-diagnosing and self-healing: a **Site Health → Info section** ("Signal & Noise — plugin footprint") lists every top-level entry in the plugin directory with its recursive size and a legacy flag, and a **one-time janitor** (per plugin version, `admin_init`, `update_plugins` capability) deletes ONLY a hardcoded 16-entry legacy manifest — the union of every name the repo has ever export-ignored, plus `.git` and `.planning`. Every manifest entry is reproducible from the GitHub repo, so nothing can be lost; anything unexpected is **reported, never deleted**. The manifest is provably disjoint from the shipped payload, so on a clean install the janitor is a no-op.
