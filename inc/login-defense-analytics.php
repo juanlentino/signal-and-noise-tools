@@ -135,23 +135,24 @@ function sn_login_defense_render_header() {
 	// Active marker is the `active` class (NOT button-primary): the shared CSS targets
 	// .button.button-small.active. Base = remove only sn_lg_range (preserves sn_view).
 	// D5 §2: with the gate/Overview/KPI-loop/door-knock postbox all adopted onto
-	// the shared primitives this task, this pill row is now the ONLY remaining
-	// hand-rolled control clone in the codebase — a recorded post-arc backlog
-	// item (a range-pill primitive was never in scope for D4 or D5), not an
-	// oversight.
+	// the shared primitives this task, this pill row WAS the last hand-rolled control
+	// clone in the codebase — v9.42.2 extracts it into snt_an_range_pills()
+	// (inc/analytics-panels.php), closing that recorded backlog item. The
+	// .sn-toolbar wrapper stays here (the primitive renders only the inner
+	// .sn-control-group); markup is byte-identical to the pre-extraction version.
 	$base = remove_query_arg( array( 'sn_lg_range' ) );
 	echo '<div class="sn-toolbar">';
-	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Date range', 'signal-and-noise-tools' ) . '">';
-	echo '<span class="sn-control-label">' . esc_html__( 'Range', 'signal-and-noise-tools' ) . '</span>';
-	echo '<span class="button-group">';
-	foreach ( $allowed as $r ) {
-		$is_active = ( $r === $days );
-		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
-			. ( $is_active ? ' aria-pressed="true"' : '' )
-			. ' href="' . esc_url( add_query_arg( array( 'sn_lg_range' => $r ), $base ) ) . '">'
-			. esc_html( (int) $r . 'd' ) . '</a>';
-	}
-	echo '</span></div></div>';
+	snt_an_range_pills(
+		'sn_lg_range',
+		$allowed,
+		$days,
+		array(
+			'base'       => $base,
+			'label'      => __( 'Range', 'signal-and-noise-tools' ),
+			'aria_label' => __( 'Date range', 'signal-and-noise-tools' ),
+		)
+	);
+	echo '</div>';
 
 	$dec              = sn_analytics_query( sn_login_defense_decisions_sql( $days ) ) ?: array();
 	$kpis             = sn_login_defense_kpis_from_rows( $dec );
