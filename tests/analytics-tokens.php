@@ -138,10 +138,24 @@ foreach ( array(
 	'--sn-an-tier-prescriptive-border' => '#c4b5fd',
 	'--sn-an-tier-diagnostic'          => '#996800',
 	'--sn-an-tier-diagnostic-border'   => '#e5cf8c',
+	'--sn-an-ok-bg'                    => '#e5f3ea',
+	'--sn-an-warn-bg'                  => '#fcf0d6',
+	'--sn-an-warn-text'                => '#996800',
+	'--sn-an-warn-border'              => '#e5cf8c',
 ) as $name => $value ) {
 	ok( false !== strpos( $tok, "$name: $value" ), "tokens file: $name declared verbatim as $value" );
 }
 ok( false !== strpos( $tok, '--sn-an-shadow: 0 1px 2px rgba(0,0,0,.04)' ), 'tokens file: shadow value verbatim' );
+
+echo "\nTest: warn/ok state tokens are a SEPARATE pair from the tier-diagnostic tokens\n";
+// FIX3: the admin pipeline pill's warn palette (#fcf0d6/#996800/#e5cf8c)
+// happens to share values with the maturity tier-diagnostic tokens above —
+// same native-admin amber, different semantic (a warn STATE vs. a tier
+// BADGE). Both pairs must stay independently named so one can change
+// without silently reskinning the other.
+ok( substr_count( $tok, '--sn-an-warn-text:' ) === 1 && substr_count( $tok, '--sn-an-tier-diagnostic:' ) === 1, 'warn-text and tier-diagnostic each declared exactly once, as distinct tokens (not aliases)' );
+ok( substr_count( $tok, '--sn-an-warn-border:' ) === 1 && substr_count( $tok, '--sn-an-tier-diagnostic-border:' ) === 1, 'warn-border and tier-diagnostic-border each declared exactly once, as distinct tokens (not aliases)' );
+ok( false !== stripos( $tok, 'different semantic' ) || false !== stripos( $tok, 'not a shared meaning' ) || false !== stripos( $tok, 'coincidence' ), 'tokens file: a comment documents the value coincidence as deliberate, not drift' );
 
 echo "\nTest: shared tier-variant tokens reconciled in analytics-admin.css\n";
 $pred_a = tok_block( $an, '.sn-an-tier--predictive' );
@@ -153,23 +167,58 @@ ok( '' !== $diag_a && false !== strpos( $diag_a, 'var(--sn-an-tier-diagnostic)' 
 
 echo "\nTest: analytics-widget.css — tokenized hex list gone from rules (comments exempt)\n";
 $wg_no_comments = (string) preg_replace( '/\/\*.*?\*\//s', '', $wg );
-foreach ( array( '#646970', '#1d2327', '#0a7c2f', '#f6f7f7', '#d63638', '#2271b1', '#dcdcde', '#c4b5fd', '#9ec2e6', '#7c3aed' ) as $hex ) {
+foreach ( array( '#646970', '#1d2327', '#0a7c2f', '#f6f7f7', '#d63638', '#2271b1', '#dcdcde', '#c4b5fd', '#9ec2e6', '#7c3aed', '#b32d2e', '#00a32a', '#8a6100', '#fcf0d6', '#e5f3ea' ) as $hex ) {
 	ok( false === stripos( $wg_no_comments, $hex ), "widget: no raw $hex outside comments (tokenized)" );
 }
 ok( substr_count( $wg, 'var(--sn-an-muted)' ) === 12, 'widget: all 12 #646970 rule-occurrences read the muted token' );
 ok( substr_count( $wg, 'var(--sn-an-text)' ) === 5, 'widget: all 5 #1d2327 rule-occurrences read the text token' );
-ok( substr_count( $wg, 'var(--sn-an-up)' ) === 3, 'widget: all 3 #0a7c2f rule-occurrences read the up token' );
+ok( substr_count( $wg, 'var(--sn-an-up)' ) === 4, 'widget: all 4 up-token rule-occurrences read the up token (mover-up now included — FIX2)' );
 ok( substr_count( $wg, 'var(--sn-an-surface-2)' ) === 3, 'widget: all 3 #f6f7f7 rule-occurrences read the surface-2 token' );
-ok( substr_count( $wg, 'var(--sn-an-down)' ) === 2, 'widget: all 2 #d63638 rule-occurrences read the down token' );
+ok( substr_count( $wg, 'var(--sn-an-down)' ) === 3, 'widget: all 3 down-token rule-occurrences read the down token (delta-down now included — FIX2)' );
 ok( substr_count( $wg, 'var(--sn-an-accent)' ) === 2, 'widget: all 2 #2271b1 rule-occurrences read the accent token' );
 ok( substr_count( $wg, 'var(--sn-an-hairline)' ) === 2, 'widget: all 2 #dcdcde rule-occurrences read the hairline token' );
 ok( substr_count( $wg, 'var(--sn-an-tier-predictive-border)' ) === 1, 'widget: predictive border reads its token' );
 ok( substr_count( $wg, 'var(--sn-an-tier-prescriptive-border)' ) === 1, 'widget: prescriptive border reads its token' );
 ok( substr_count( $wg, 'var(--sn-an-tier-prescriptive)' ) === 1, 'widget: prescriptive color reads its token' );
 
-echo "\nTest: widget-only literals stay hex (pre-existing intra-file drift, out of scope)\n";
-ok( false !== strpos( $wg, '#b32d2e' ) && false !== strpos( $wg, '#00a32a' ), 'widget: mover up/down one-offs untouched (no matching admin token — not this pass\'s job)' );
+echo "\nTest: widget-only literals stay hex (genuinely unrelated to this token vocabulary)\n";
+// #b32d2e / #00a32a were drift, not a deliberate choice — see the FIX2 block
+// below. Only the truly unrelated literals stay hex: the list-row hairline
+// and the settings-page hairline contract (a DIFFERENT, untouched token).
 ok( false !== strpos( $wg, '#f0f0f1' ) && false !== strpos( $wg, '#c3c4c7' ), 'widget: lighter-hairline + settings-page-contract literals untouched' );
+
+echo "\nTest: FIX2 — mover/delta drift reconciled onto the shared up/down tokens\n";
+// .sn-aw-delta--down and .sn-aw-mv-up used to carry their own one-off hexes
+// (#b32d2e / #00a32a) even though their partners (.sn-aw-delta--up,
+// .sn-aw-mv-down) already read the shared tokens, and the file comment
+// claimed this was "this file's own movers up/down pair" — a deliberate
+// different shade. It wasn't: it's the same up/down semantic the rest of the
+// dashboard already tokenizes. DELIBERATE VISUAL CHANGE: the mover green
+// darkens #00a32a -> #0a7c2f and the delta-down red shifts #b32d2e -> #d63638
+// (now matching the Analytics pages).
+$delta_down_block = tok_block( $wg, '.sn-aw-delta--down{' );
+ok( '' !== $delta_down_block && false !== strpos( $delta_down_block, 'var(--sn-an-down)' ) && false === strpos( $delta_down_block, '#' ), '.sn-aw-delta--down reads the shared down token (was raw #b32d2e)' );
+$mv_up_block = tok_block( $wg, '.sn-aw-mv-up {' );
+ok( '' !== $mv_up_block && false !== strpos( $mv_up_block, 'var(--sn-an-up)' ) && false === strpos( $mv_up_block, '#' ), '.sn-aw-mv-up reads the shared up token (was raw #00a32a)' );
+ok( false === strpos( $wg, "own movers up/down pair" ), 'widget: the false "own movers up/down pair" comment claim is gone (they now share the real tokens)' );
+ok( false === strpos( $wg, "warn/ok state colors) or belong to a different, untouched token" ), 'widget: the false "warn/ok state colors are a different, untouched contract" comment claim is gone' );
+$header_comment = substr( $wg, 0, (int) strpos( $wg, '*/' ) );
+ok( false !== stripos( $header_comment, 'mover' ) && false !== stripos( $header_comment, 'ok/warn' ), 'widget: header comment still documents the mover + ok/warn tokens, just correctly now (not silently deleted)' );
+
+echo "\nTest: FIX3 — warn/ok state-color unification (S&N Health widget + admin pill)\n";
+$ok_ico_block = tok_block( $wg, '.sn-hw-head--ok .sn-hw-ico{' );
+ok( '' !== $ok_ico_block && false !== strpos( $ok_ico_block, 'var(--sn-an-ok-bg)' ) && false === strpos( $ok_ico_block, '#' ), 'widget: ok-state icon background reads --sn-an-ok-bg (was raw #e5f3ea)' );
+$warn_ico_block = tok_block( $wg, '.sn-hw-head--warn .sn-hw-ico{' );
+ok( '' !== $warn_ico_block && false !== strpos( $warn_ico_block, 'var(--sn-an-warn-bg)' ) && false !== strpos( $warn_ico_block, 'var(--sn-an-warn-text)' ) && false === strpos( $warn_ico_block, '#' ), 'widget: warn-state icon background AND text read the shared warn tokens (bg was raw #fcf0d6, text was raw #8a6100)' );
+// DELIBERATE VISUAL CHANGE: the widget's warn amber darkens #8a6100 -> #996800
+// (var(--sn-an-warn-text)) to match the dashboard pill's warn color.
+ok( false === stripos( $wg, '8a6100' ), 'widget: the darker pre-unification warn amber (#8a6100) is fully gone' );
+
+$pill_warn_block = tok_block( $an, '.sn-an-pill--warn {' );
+ok( '' !== $pill_warn_block && false !== strpos( $pill_warn_block, 'var(--sn-an-warn-border)' ) && false !== strpos( $pill_warn_block, 'var(--sn-an-warn-bg)' ) && false === strpos( $pill_warn_block, '#' ), 'admin: .sn-an-pill--warn reads the shared warn-bg/warn-border tokens (was raw #fcf0d6/#e5cf8c)' );
+$pill_warn_mark_block = tok_block( $an, '.sn-an-pill--warn .sn-an-pill-mark {' );
+ok( '' !== $pill_warn_mark_block && false !== strpos( $pill_warn_mark_block, 'var(--sn-an-warn-text)' ) && false === strpos( $pill_warn_mark_block, '#' ), 'admin: .sn-an-pill--warn .sn-an-pill-mark reads the shared warn-text token (was raw #996800)' );
+ok( 0 === substr_count( $an, '#fcf0d6' ) && 0 === substr_count( $an, '#e5cf8c' ) && 0 === substr_count( $an, '#996800' ), 'admin: no raw warn hexes remain outside the pill\'s token adoption (value-identical swap)' );
 
 echo "\nTest: the missing diagnostic tier variant — the one deliberate visual change\n";
 $diag_w = tok_block( $wg, '.sn-aw-insight .sn-an-tier--diagnostic' );

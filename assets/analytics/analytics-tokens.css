@@ -55,4 +55,18 @@
 	--sn-an-tier-prescriptive-border: #c4b5fd;
 	--sn-an-tier-diagnostic: #996800;
 	--sn-an-tier-diagnostic-border: #e5cf8c;
+
+	/* Warn/ok surface-state tokens (state-color unification pass): the admin
+	   pipeline pill's ok/warn palette, shared with the Dashboard-home "S&N
+	   Health" widget so both surfaces read one state vocabulary instead of
+	   each carrying its own copy of the same hex. These values happen to
+	   coincide with the maturity tier-diagnostic tokens above (#996800 /
+	   #e5cf8c) — that's the native-admin amber showing up twice, NOT a
+	   shared meaning, so the pairs stay independently named: a tier badge
+	   and a warn state are different semantics that just happen to share a
+	   color today. */
+	--sn-an-ok-bg: #e5f3ea;
+	--sn-an-warn-bg: #fcf0d6;
+	--sn-an-warn-text: #996800;
+	--sn-an-warn-border: #e5cf8c;
 }

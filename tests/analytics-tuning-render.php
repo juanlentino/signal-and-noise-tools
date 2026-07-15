@@ -43,6 +43,16 @@ ok( strpos( $h, 'style=' ) === false, 'no inline style attributes' );
 ok( strpos( $h, '<fieldset' ) !== false && strpos( $h, '<legend' ) !== false, 'sensitivity radios grouped in a fieldset with legend' );
 ok( strpos( $h, 'This preset governs both anomaly families: the predictive signals engine and the per-page skim/dwell detector.' ) !== false, 'help text: ONE mental model — the preset governs both anomaly families (S2 §4)' );
 
+// HONESTY fix: the intro help text used to claim these two knobs govern "the
+// predictive signal engine (anomalies, trends, forecasts)" — but neither knob
+// touches trend (trajectory) or forecast signals (sn_analytics_signal_trajectories()
+// reads only $opts['min_points'], sn_analytics_signal_forecasts() only
+// $opts['history_days'] — never 'baseline_days' or 'z'). Pin the truthful,
+// narrower claim and make sure the over-promise can't regress.
+ok( strpos( $h, 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here.' ) !== false, 'help text: truthful scope — anomaly detectors only, not trend/forecast signals' );
+ok( strpos( $h, 'anomalies, trends, forecasts' ) === false, 'help text: no longer lumps trend/forecast scope onto knobs that don\'t govern them' );
+ok( strpos( $h, 'Developers can override more via the sn_analytics_signal_config filter' ) !== false, 'help text: filter-override pointer retained' );
+
 $GLOBALS['__settings'] = array( 'analytics.signal_baseline_days' => 60, 'analytics.anomaly_sensitivity' => 'strict' );
 ob_start();
 snt_analytics_render_engine_tuning();
