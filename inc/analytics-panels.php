@@ -470,6 +470,54 @@ function snt_an_trend_svg( $series, $opts = array() ) {
 }
 
 /**
+ * THE range-pill control (v9.42.2): one control-group for "windowed range, N
+ * discrete int values" — extracted from login-defense's hand-rolled clone
+ * (inc/login-defense-analytics.php), the last hand-rolled control left after D5
+ * (D5 §2's own note: a range-pill primitive was never in scope for D4/D5).
+ *
+ * Renders ONLY the .sn-control-group (role="group" + aria-label) and its
+ * button-group pills — NOT the surrounding .sn-toolbar; a toolbar may host
+ * other controls alongside this one, so that wrapper stays the caller's, same
+ * as the row/group primitives (snt_an_kpi_row, snt_an_trend_svg) leave their
+ * outer chrome to the caller (the postbox primitives own theirs).
+ * Deliberately narrower than snt_analytics_render_controls() (D3): no
+ * calendar/custom/365/all/class-segmented options — login AE retains a fixed
+ * ~90d and is not class-segmented, so those would render empty or false. This
+ * primitive covers exactly the shape login-defense needs; not a generalized
+ * range-control replacement.
+ *
+ * @param string $param        Query-string param each pill toggles (e.g. 'sn_lg_range').
+ * @param array  $allowed      Ordered list of allowed int values.
+ * @param int    $active_value The currently active value — its pill gets the
+ *                              ' active' class + aria-pressed="true".
+ * @param array  $opts         {
+ *     @type string $base       URL base for esc_url( add_query_arg( array( $param => $v ), $base ) ).
+ *                               Default '' (add_query_arg's own current-URL fallback).
+ *     @type string $label      The .sn-control-label text. Default __( 'Range', 'signal-and-noise-tools' ).
+ *     @type string $aria_label The group's aria-label. Default __( 'Date range', 'signal-and-noise-tools' ).
+ * }
+ * @since 9.42.2
+ */
+function snt_an_range_pills( $param, $allowed, $active_value, $opts = array() ) {
+	$param = (string) $param;
+	$base  = (string) ( $opts['base'] ?? '' );
+	$label = (string) ( $opts['label'] ?? __( 'Range', 'signal-and-noise-tools' ) );
+	$aria  = (string) ( $opts['aria_label'] ?? __( 'Date range', 'signal-and-noise-tools' ) );
+
+	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr( $aria ) . '">';
+	echo '<span class="sn-control-label">' . esc_html( $label ) . '</span>';
+	echo '<span class="button-group">';
+	foreach ( (array) $allowed as $v ) {
+		$is_active = ( $v === $active_value );
+		echo '<a class="button button-small' . ( $is_active ? ' active' : '' ) . '"'
+			. ( $is_active ? ' aria-pressed="true"' : '' )
+			. ' href="' . esc_url( add_query_arg( array( $param => $v ), $base ) ) . '">'
+			. esc_html( (int) $v . 'd' ) . '</a>';
+	}
+	echo '</span></div>';
+}
+
+/**
  * THE k/v table (D5 §4): one postbox table for "primary label + N numeric
  * columns" rows — the ranked/dimensional-breakdown shape shared by the edge
  * dim tables and login-defense's attacker top-tables. Domain-agnostic like
