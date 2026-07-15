@@ -47,6 +47,35 @@ if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://x/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 
+// (render hardening FIX 4): stubs for snt_cron_site_health_result(),
+// previously untested by this suite. wp_next_scheduled / wp_get_schedule /
+// wp_get_schedules are fixture-controllable maps so each scenario can pin a
+// hook's "next run" and recurrence independently.
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
+if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $a, $b = 0 ) { return abs( (int) $b - (int) $a ) . 's'; } }
+$GLOBALS['__test_apply_filters'] = array(); // tag => return value (default-false unless set)
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $tag, $value = null ) {
+		return array_key_exists( $tag, $GLOBALS['__test_apply_filters'] ) ? $GLOBALS['__test_apply_filters'][ $tag ] : $value;
+	}
+}
+$GLOBALS['__test_next_scheduled'] = array(); // hook => timestamp|false
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['__test_next_scheduled'][ $hook ] ?? false; }
+}
+$GLOBALS['__test_schedule_slug'] = array(); // hook => schedule slug
+$GLOBALS['__test_schedules']     = array(); // slug => array( 'interval' => N )
+if ( ! function_exists( 'wp_get_schedule' ) ) {
+	function wp_get_schedule( $hook ) { return $GLOBALS['__test_schedule_slug'][ $hook ] ?? false; }
+}
+if ( ! function_exists( 'wp_get_schedules' ) ) {
+	function wp_get_schedules() { return $GLOBALS['__test_schedules']; }
+}
+
 function _get_cron_array() {
 	return $GLOBALS['__test_cron_array'];
 }
@@ -324,6 +353,90 @@ $GLOBALS['__test_scheduled'] = array(
 $res = snt_cron_unschedule_event_impl( 'do_pings', array( 9999 ) );
 assert_eq( 0, $res['cleared'], 'wrong-args call does not clear the [1587] event' );
 assert_true( isset( $GLOBALS['__test_scheduled']['do_pings|' . md5( '[1587]' ) ] ), 'original event still scheduled' );
+
+// ─── Test 20-25: snt_cron_site_health_result — 'critical' elevation (FIX 4) ───
+// DISABLE_WP_CRON is defined ONCE (PHP constants can't be redefined); every
+// scenario that needs to prove "NOT silently disabled" does so via the two
+// other legs of the condition — a recent firing (hard evidence) or the
+// sn_cron_system_cron_configured filter — exercising the full branch matrix
+// without needing to toggle the constant itself.
+if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }
+
+function fix4_reset_healthy_fixture() {
+	$GLOBALS['__test_options']        = array();
+	$GLOBALS['__test_next_scheduled'] = array();
+	$GLOBALS['__test_schedule_slug']  = array();
+	$GLOBALS['__test_schedules']      = array();
+	$GLOBALS['__test_apply_filters']  = array();
+	$now = time();
+	foreach ( snt_cron_site_health_hooks() as $hook ) {
+		$GLOBALS['__test_next_scheduled'][ $hook ] = $now + 3600; // scheduled, healthy, no interval tracked
+	}
+}
+
+echo "\nTest 20: snt_cron_site_health_result — baseline good (all scheduled, system cron declared)\n";
+fix4_reset_healthy_fixture();
+$GLOBALS['__test_apply_filters']['sn_cron_system_cron_configured'] = true; // escapes silent-disabled despite DISABLE_WP_CRON=true
+$r20 = snt_cron_site_health_result();
+assert_eq( 'good', $r20['status'], 'all hooks scheduled + a declared system cron → good' );
+assert_eq( 'Performance', $r20['badge']['label'] ?? null, 'badge stays Performance (unchanged by the elevation)' );
+
+echo "\nTest 21: snt_cron_site_health_result — a NOT-scheduled expected hook → recommended, not critical\n";
+fix4_reset_healthy_fixture();
+$GLOBALS['__test_apply_filters']['sn_cron_system_cron_configured'] = true;
+$hooks21 = snt_cron_site_health_hooks();
+unset( $GLOBALS['__test_next_scheduled'][ $hooks21[0] ] ); // now reads false = not scheduled
+$r21 = snt_cron_site_health_result();
+assert_eq( 'recommended', $r21['status'], 'an unscheduled expected hook → recommended' );
+assert_true( false !== strpos( $r21['description'], 'NOT scheduled' ), 'description names the unscheduled hook' );
+
+echo "\nTest 22: snt_cron_site_health_result — silently disabled but nothing overdue yet → recommended, not critical\n";
+fix4_reset_healthy_fixture(); // no filter set → sn_cron_system_cron_configured defaults false; nothing has ever fired
+$r22 = snt_cron_site_health_result();
+assert_eq( 'recommended', $r22['status'], 'DISABLE_WP_CRON silently starving with zero overdue evidence → recommended, not critical' );
+assert_true( false === strpos( $r22['description'], 'appears to be running' ), 'the critical copy is withheld when nothing is actually overdue yet' );
+
+echo "\nTest 23: snt_cron_site_health_result — silently disabled + an overdue scheduled hook → CRITICAL\n";
+fix4_reset_healthy_fixture();
+$hooks23  = snt_cron_site_health_hooks();
+$target23 = $hooks23[0];
+$GLOBALS['__test_schedule_slug'][ $target23 ]    = 'sn_test_5min';
+$GLOBALS['__test_schedules']['sn_test_5min']     = array( 'interval' => 300 ); // 5 min cadence
+$GLOBALS['__test_next_scheduled'][ $target23 ]   = time() + 300; // WP still THINKS it's scheduled
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $target23 ) ] = time() - 1000; // 1000s ago > 2*300s=600s → overdue
+$r23 = snt_cron_site_health_result();
+assert_eq( 'critical', $r23['status'], 'DISABLE_WP_CRON starved + an overdue scheduled hook (>2x cadence) → critical' );
+assert_true(
+	false !== strpos( $r23['description'], 'DISABLE_WP_CRON is set but no system cron appears to be running wp-cron.php' ),
+	'description names the fix with the exact required copy'
+);
+
+echo "\nTest 24: snt_cron_site_health_result — a declared system cron escapes critical even with an overdue hook\n";
+fix4_reset_healthy_fixture();
+$hooks24  = snt_cron_site_health_hooks();
+$target24 = $hooks24[0];
+$GLOBALS['__test_schedule_slug'][ $target24 ]  = 'sn_test_5min';
+$GLOBALS['__test_schedules']['sn_test_5min']   = array( 'interval' => 300 );
+$GLOBALS['__test_next_scheduled'][ $target24 ] = time() + 300;
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $target24 ) ] = time() - 1000;
+$GLOBALS['__test_apply_filters']['sn_cron_system_cron_configured'] = true;
+$r24 = snt_cron_site_health_result();
+assert_eq( 'recommended', $r24['status'], 'a declared system cron escapes critical (the overdue hook still reads as a plain issue)' );
+
+echo "\nTest 25: snt_cron_site_health_result — a recently-fired hook proves cron works, escaping critical for a separate overdue hook\n";
+fix4_reset_healthy_fixture();
+$hooks25   = snt_cron_site_health_hooks();
+$overdue25 = $hooks25[0];
+$healthy25 = $hooks25[1];
+$GLOBALS['__test_schedule_slug'][ $overdue25 ]  = 'sn_test_5min';
+$GLOBALS['__test_schedules']['sn_test_5min']    = array( 'interval' => 300 );
+$GLOBALS['__test_next_scheduled'][ $overdue25 ] = time() + 300;
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $overdue25 ) ] = time() - 1000; // overdue
+$GLOBALS['__test_schedule_slug'][ $healthy25 ]  = 'sn_test_5min';
+$GLOBALS['__test_next_scheduled'][ $healthy25 ] = time() + 300;
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $healthy25 ) ] = time() - 60; // fired 60s ago — hard evidence cron IS running
+$r25 = snt_cron_site_health_result();
+assert_eq( 'recommended', $r25['status'], 'evidence cron IS firing escapes critical even with a separately overdue hook' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

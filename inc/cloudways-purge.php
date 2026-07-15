@@ -60,7 +60,11 @@ function sn_cloudways_is_configured() {
  */
 function sn_cloudways_get_token() {
 	$res = wp_remote_post( SNT_CW_API_BASE . '/oauth/access_token', array(
-		'timeout' => 15,
+		// (render hardening FIX 3a): 15s → 5s. This request rides the
+		// theme's breeze_clear_varnish action, which itself fires inline on
+		// admin/save paths — a slow or hanging Cloudways API blocked that
+		// request for up to 15s. 5s is generous for an OAuth token exchange.
+		'timeout' => 5,
 		'headers' => array( 'Accept' => 'application/json' ),
 		'body'    => array(
 			'email'   => sn_cloudways_cfg( 'SN_CLOUDWAYS_EMAIL' ),
@@ -103,7 +107,9 @@ function sn_cloudways_purge_app() {
 	}
 
 	$res  = wp_remote_post( SNT_CW_API_BASE . '/app/cache/purge', array(
-		'timeout' => 15,
+		// (render hardening FIX 3a): 15s → 5s, same rationale as the
+		// token exchange above.
+		'timeout' => 5,
 		'headers' => array( 'Authorization' => 'Bearer ' . $token ),
 		'body'    => array(
 			'server_id' => sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' ),
@@ -111,16 +117,31 @@ function sn_cloudways_purge_app() {
 		),
 		'redirection' => 0, // v8.7.1 (CMA INFO-1): never re-send the Bearer on a 3xx.
 	) );
-	$http = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
-	$data = is_wp_error( $res ) ? array() : (array) json_decode( wp_remote_retrieve_body( $res ), true );
-	$ok   = ( 200 === $http ) && ! empty( $data['status'] );
+	$body_raw = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_body( $res );
+	$http     = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
+	$data     = is_wp_error( $res ) ? array() : (array) json_decode( $body_raw, true );
+	$ok       = ( 200 === $http ) && ! empty( $data['status'] );
 
-	update_option( SNT_CW_LAST_PURGE_OPT, array(
+	$record = array(
 		'time'         => time(),
 		'ok'           => $ok,
 		'http'         => (int) $http,
 		'operation_id' => isset( $data['operation_id'] ) ? (int) $data['operation_id'] : 0,
-	), false );
+	);
+
+	if ( ! $ok ) {
+		// (render hardening FIX 3b): on a non-2xx/non-{status:true} response, capture the
+		// error envelope so it's actually visible (e.g. the live 422's field-
+		// validation message) instead of a bare ok:false. Bounded to 300 chars
+		// (a hostile/oversized error page can't bloat the option) and stripped
+		// of tags (defence in depth — the body is Cloudways' own JSON/HTML error
+		// envelope, never user input, but this stays safe if that ever changes).
+		// The endpoint/payload themselves are UNCHANGED here — this capture is
+		// what decides that fix, in a follow-up.
+		$record['error'] = substr( wp_strip_all_tags( $body_raw ), 0, 300 );
+	}
+
+	update_option( SNT_CW_LAST_PURGE_OPT, $record, false );
 
 	return $ok;
 }

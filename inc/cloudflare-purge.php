@@ -391,5 +391,39 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge Cloudflare</button>';
 	echo '</form>';
 
+	// ── CLOUDWAYS PURGE STATUS (render hardening FIX 3b) ──
+	// Cloudways purge rides this SAME purge chain (breeze_clear_varnish — see
+	// inc/cloudways-purge.php); surfaced here rather than invisible, so a failed
+	// purge (e.g. a Cloudways API 422 field-validation error) is visible right
+	// next to the rest of the pipeline instead of a silent ok:false in an option
+	// no screen ever read.
+	if ( function_exists( 'sn_cloudways_is_configured' ) && sn_cloudways_is_configured() ) {
+		$cw_last      = defined( 'SNT_CW_LAST_PURGE_OPT' ) ? get_option( SNT_CW_LAST_PURGE_OPT, array() ) : array();
+		$cw_attempted = ! empty( $cw_last['time'] );
+		$cw_ok        = ! empty( $cw_last['ok'] );
+		$cw_warn      = $cw_attempted && ! $cw_ok;
+		$cw_line      = '';
+		if ( $cw_attempted ) {
+			$cw_line = ' Last attempt: ' . esc_html( human_time_diff( (int) $cw_last['time'], time() ) ) . ' ago.';
+			if ( $cw_warn ) {
+				$cw_line .= ' HTTP ' . esc_html( (string) ( $cw_last['http'] ?? 0 ) );
+				if ( '' !== trim( (string) ( $cw_last['error'] ?? '' ) ) ) {
+					// $cw_last['error'] is already wp_strip_all_tags()+300-char bounded
+					// at capture time (inc/cloudways-purge.php); esc_html() here is the
+					// output-context escape, not a second sanitize pass.
+					$cw_line .= ': ' . esc_html( (string) $cw_last['error'] );
+				}
+			}
+		}
+		echo '<div class="sn-status-box' . ( $cw_warn ? ' sn-status-box--warn' : '' ) . '">';
+		echo '<div>';
+		echo '<p class="sn-status-box-title">Cloudways purge</p>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $cw_line is static text plus esc_html()-escaped values.
+		echo '<p class="sn-status-box-body">Rides the same purge chain (Varnish leg).' . $cw_line . '</p>';
+		echo '</div>';
+		echo '<span class="sn-pill sn-pill--' . ( $cw_warn ? 'warn' : 'ok' ) . '">' . ( $cw_warn ? 'Error' : ( $cw_attempted ? 'OK' : 'Active' ) ) . '</span>';
+		echo '</div>';
+	}
+
 	sn_admin_shell_close();
 } );
