@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.43.0] - 2026-07-14: Plugin footprint — Site Health diagnostics + the one-time legacy-deploy janitor
+
+**Headline:** The installed plugin weighs **14.3 MB on disk while the v9.42.1 payload is 2.9 MB / 283 files** — the site's pre-v1.10.1 deploy path was an SSH git checkout (see [deploy.yml](.github/workflows/deploy.yml)'s own comments), so the live directory very likely still carries `.git/` and other repo-only files that nginx pattern-blocks from remote probing. This release makes the install self-diagnosing and self-healing: a **Site Health → Info section** ("Signal & Noise — plugin footprint") lists every top-level entry in the plugin directory with its recursive size and a legacy flag, and a **one-time janitor** (per plugin version, `admin_init`, `update_plugins` capability) deletes ONLY a hardcoded 16-entry legacy manifest — the union of every name the repo has ever export-ignored, plus `.git` and `.planning`. Every manifest entry is reproducible from the GitHub repo, so nothing can be lost; anything unexpected is **reported, never deleted**. The manifest is provably disjoint from the shipped payload, so on a clean install the janitor is a no-op.
+
+> **Why MINOR:** a new user-visible surface (the Site Health section) + the new one-time cleanup behavior; no breaking change — zero effect on clean installs, and the janitor touches only dev/deploy leftovers.
+
+### Added
+- [inc/plugin-footprint.php](inc/plugin-footprint.php): `sn_footprint_scan()` (recursive sizes, symlinks never followed, 50k-file budget with a truncated flag), `sn_footprint_legacy_manifest()` (the audited 16-name list), `sn_janitor_run()` (containment-checked on every recursive descent; symlinks removed as links only; per-version once-gate via `snt_janitor_last`; freed bytes + deletions logged to `snt_janitor_log`), and the Site Health `debug_information` section.
+- [tests/plugin-footprint.php](tests/plugin-footprint.php): 75 asserts over fixture trees under the system temp dir — deletion safety (outside-target symlinks at top level AND nested inside manifest dirs, direct out-of-base recursion refusal, traversal-name guard, unreadable-tree tolerance), keeper survival, once-per-version semantics, scan sizing/truncation, and the Site Health panel shape. The nested-symlink and containment pins were added as review folds so the two most safety-critical guards can never regress silently.
+
+### Security notes
+- Adversarial review verdict SHIP: ten hostile fixture probes (symlink escapes, traversal names, symlinked base, permission-denied subtrees) all contained; the manifest ∩ shipped-payload invariant verified against the tag archive.
+
 ## [9.42.2] - 2026-07-14: The last control clone falls — range pills become a shared primitive
 
 **Headline:** login-defense's hand-rolled `sn_lg_range` pill row — self-documented since D5 as *"the ONLY remaining hand-rolled control clone in the codebase"* — is extracted into the shared primitive `snt_an_range_pills( $param, $allowed, $active_value, $opts )` in [inc/analytics-panels.php](inc/analytics-panels.php), and [inc/login-defense-analytics.php](inc/login-defense-analytics.php) adopts it. The rendered header is **byte-identical** (proven by rendering the pre- and post-extraction code under identical stubs and diffing, across default/7d/30d/90d active states — 2,434 identical bytes each). The primitive renders only the `.sn-control-group` (the `.sn-toolbar` wrapper stays the caller's, matching the row/group-primitive convention); the dashboard's own range control (`snt_analytics_render_controls`, D3) is deliberately untouched — it is a different, richer shape.
