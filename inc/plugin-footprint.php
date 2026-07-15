@@ -49,6 +49,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_FOOTPRINT_SCAN_FILE_BUDGET = 50000;
 
 /**
+ * Cap on error strings persisted in snt_janitor_log. A full `.git` failure
+ * (e.g. every file owned by a different user than the PHP process) appends
+ * one error per file — thousands, on a live install. The option itself must
+ * stay small; `errors_total` (uncapped) keeps the true count so the panel
+ * can still say "…and N more" instead of silently truncating.
+ */
+const SN_JANITOR_ERRORS_STORED = 20;
+
+/**
+ * How long an errored sweep waits before self-re-arming on the SAME plugin
+ * version (see sn_footprint_janitor_maybe_run()). A permission fix on the
+ * server should heal within a day, not wait for the next release. Literal
+ * seconds (== DAY_IN_SECONDS) rather than the WP constant: this file's
+ * standalone CLI test harness never loads WP, so DAY_IN_SECONDS wouldn't
+ * exist there.
+ */
+const SN_JANITOR_RETRY_INTERVAL_S = 86400;
+
+/**
  * The hardcoded legacy-deploy manifest. See the file header for the
  * derivation. Root-relative, top-level names only — the janitor never
  * looks inside these for anything else to delete.
@@ -292,6 +311,14 @@ function sn_footprint_delete_dir_recursive( $path, $real_base, array &$errors ) 
 		return 0;
 	}
 
+	// SSH-checkout-era ownership can leave a dir the PHP user can't write
+	// into (or, less commonly, can't even read) — heal it here rather than
+	// erroring out on every child. A directory's OWN mode gates whether its
+	// children can be unlinked, independent of each child's own mode.
+	if ( ! is_writable( $path ) || ! is_readable( $path ) ) {
+		@chmod( $path, 0755 );
+	}
+
 	$children = @scandir( $path );
 	if ( ! is_array( $children ) ) {
 		$errors[] = "Could not read directory \"$path\".";
@@ -321,8 +348,16 @@ function sn_footprint_delete_dir_recursive( $path, $real_base, array &$errors ) 
 		}
 
 		if ( is_file( $child_path ) ) {
-			$size = @filesize( $child_path );
-			if ( @unlink( $child_path ) ) {
+			$size    = @filesize( $child_path );
+			$removed = @unlink( $child_path );
+			if ( ! $removed ) {
+				// One heal-and-retry: fix the file's own mode bits (a
+				// stubborn dir mode is already handled above) before
+				// giving up and recording the error.
+				@chmod( $child_path, 0644 );
+				$removed = @unlink( $child_path );
+			}
+			if ( $removed ) {
 				$bytes += false !== $size ? (int) $size : 0;
 			} else {
 				$errors[] = "Failed to remove file \"$child_path\".";
@@ -405,42 +440,71 @@ if ( function_exists( 'add_action' ) ) {
 	 *
 	 * $base and $version are only ever overridden by tests — the injected
 	 * default is what runs in production (plugin root via SNT_PATH; the
-	 * live SNT_VERSION).
+	 * live SNT_VERSION). $run_override is ALSO test-only: when given, it
+	 * stands in for the sn_janitor_run() result outright, so tests can
+	 * drive the storage/gate logic (A1/A2) with a canned outcome instead
+	 * of needing a real filesystem failure (which A4's chmod healing
+	 * would routinely undo for any owner-chmodable fixture).
 	 *
-	 * @param string|null $base    Override for tests; defaults to the plugin root.
-	 * @param string|null $version Override for tests; defaults to SNT_VERSION.
+	 * The gate: run when the version sentinel doesn't match (unchanged), OR
+	 * — even on a version match — when the last stored sweep recorded
+	 * errors and is more than SN_JANITOR_RETRY_INTERVAL_S old. That lets a
+	 * server-side permission fix self-heal within a day instead of sitting
+	 * broken until the next release re-opens the version gate. A fresh
+	 * errored log (or a clean log, of any age) still skips — this must NOT
+	 * become a run-on-every-admin_init check.
+	 *
+	 * @param string|null $base         Override for tests; defaults to the plugin root.
+	 * @param string|null $version      Override for tests; defaults to SNT_VERSION.
+	 * @param array|null  $run_override Override for tests; stands in for the sn_janitor_run() result.
 	 * @return array{deleted:array<string,int>,freed_bytes:int,errors:string[]}|null The sweep result, or null when the gate skipped the run.
 	 */
-	function sn_footprint_janitor_maybe_run( $base = null, $version = null ) {
+	function sn_footprint_janitor_maybe_run( $base = null, $version = null, $run_override = null ) {
 		if ( ! is_admin() || ! current_user_can( 'update_plugins' ) ) {
 			return null;
 		}
 
 		$version = null !== $version ? $version : ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '' );
-		if ( get_option( 'snt_janitor_last' ) === $version ) {
+		if ( get_option( 'snt_janitor_last' ) === $version && ! sn_footprint_janitor_should_retry( get_option( 'snt_janitor_log' ) ) ) {
 			return null;
 		}
 
 		$base   = null !== $base ? $base : ( defined( 'SNT_PATH' ) ? SNT_PATH : dirname( __FILE__, 2 ) . '/' );
-		$result = sn_janitor_run( rtrim( (string) $base, '/' ) );
+		$result = null !== $run_override ? $run_override : sn_janitor_run( rtrim( (string) $base, '/' ) );
 
 		update_option( 'snt_janitor_last', $version, false );
 
-		if ( $result['freed_bytes'] > 0 ) {
-			update_option(
-				'snt_janitor_log',
-				array(
-					'version'     => $version,
-					'freed_bytes' => $result['freed_bytes'],
-					'deleted'     => $result['deleted'],
-					'errors'      => $result['errors'],
-					'time'        => current_time( 'timestamp' ),
-				),
-				false
-			);
-		}
+		update_option(
+			'snt_janitor_log',
+			array(
+				'version'      => $version,
+				'freed_bytes'  => $result['freed_bytes'],
+				'deleted'      => $result['deleted'],
+				'errors'       => array_slice( $result['errors'], 0, SN_JANITOR_ERRORS_STORED ),
+				'errors_total' => count( $result['errors'] ),
+				'time'         => current_time( 'timestamp' ),
+			),
+			false
+		);
 
 		return $result;
+	}
+
+	/**
+	 * Should an errored sweep re-arm despite the version sentinel matching?
+	 * Pure predicate over an already-fetched snt_janitor_log value — kept
+	 * separate from sn_footprint_janitor_maybe_run() so "skip on a fresh
+	 * errored log" (no run-on-every-admin_init) is a single, obviously
+	 * testable branch.
+	 *
+	 * @param mixed $log The stored snt_janitor_log option value (or false/anything else if unset).
+	 * @return bool
+	 */
+	function sn_footprint_janitor_should_retry( $log ) {
+		if ( ! is_array( $log ) || empty( $log['errors_total'] ) || ! isset( $log['time'] ) ) {
+			return false;
+		}
+		return ( current_time( 'timestamp' ) - (int) $log['time'] ) >= SN_JANITOR_RETRY_INTERVAL_S;
 	}
 
 	/**
@@ -476,17 +540,70 @@ if ( function_exists( 'add_action' ) ) {
 			);
 		}
 
+		// Every past sweep gets a row now (A1: the option is written
+		// unconditionally, "nothing to remove" included) — so presence is
+		// keyed on the log existing at all, not on freed_bytes being
+		// truthy (a real, error-free sweep can legitimately free 0 bytes).
 		$log = get_option( 'snt_janitor_log' );
-		if ( is_array( $log ) && ! empty( $log['freed_bytes'] ) ) {
-			$fields['janitor_log'] = array(
-				'label' => __( 'Last janitor sweep', 'signal-and-noise-tools' ),
-				'value' => sprintf(
+		if ( is_array( $log ) && isset( $log['version'] ) ) {
+			$version_str  = (string) $log['version'];
+			$freed        = (int) ( $log['freed_bytes'] ?? 0 );
+			$errors_total = (int) ( $log['errors_total'] ?? 0 );
+
+			if ( $freed > 0 ) {
+				$value = sprintf(
 					/* translators: 1: freed size (e.g. "3.2 MB"), 2: plugin version the sweep ran on. */
 					__( 'freed %1$s on v%2$s', 'signal-and-noise-tools' ),
-					sn_footprint_format_bytes( (int) $log['freed_bytes'] ),
-					(string) ( $log['version'] ?? '' )
-				),
+					sn_footprint_format_bytes( $freed ),
+					$version_str
+				);
+				if ( $errors_total > 0 ) {
+					$value .= sprintf(
+						/* translators: %d: number of errors encountered during the sweep. */
+						__( ', %d error(s)', 'signal-and-noise-tools' ),
+						$errors_total
+					);
+				}
+			} elseif ( $errors_total > 0 ) {
+				$value = sprintf(
+					/* translators: 1: plugin version the sweep ran on, 2: number of errors encountered. */
+					__( 'removed nothing on v%1$s — %2$d error(s)', 'signal-and-noise-tools' ),
+					$version_str,
+					$errors_total
+				);
+			} else {
+				$value = sprintf(
+					/* translators: %s: plugin version the sweep ran on. */
+					__( 'nothing to remove (v%s)', 'signal-and-noise-tools' ),
+					$version_str
+				);
+			}
+
+			$fields['janitor_log'] = array(
+				'label' => __( 'Last janitor sweep', 'signal-and-noise-tools' ),
+				'value' => $value,
 			);
+
+			// The stored 'errors' array is already capped at
+			// SN_JANITOR_ERRORS_STORED (A2); errors_total is the true
+			// pre-cap count, so "…and N more" only appears when it
+			// exceeds what's actually listed.
+			$stored_errors = is_array( $log['errors'] ?? null ) ? $log['errors'] : array();
+			if ( ! empty( $stored_errors ) ) {
+				$parts = $stored_errors;
+				if ( $errors_total > count( $stored_errors ) ) {
+					$parts[] = sprintf(
+						/* translators: %d: number of additional errors beyond the stored cap. */
+						__( '…and %d more', 'signal-and-noise-tools' ),
+						$errors_total - count( $stored_errors )
+					);
+				}
+				$fields['janitor_errors'] = array(
+					'label'   => __( 'Janitor sweep errors', 'signal-and-noise-tools' ),
+					'value'   => implode( ' | ', $parts ),
+					'private' => true, // paths are internal layout, not user-facing content.
+				);
+			}
 		}
 
 		$info['snt_footprint'] = array(

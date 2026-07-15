@@ -55,6 +55,9 @@ const SN_HTTPDIAG_HTTP_MAX = 20;
 /** The ONLY query keys ever read for the "screen" label — a whitelist, not a blacklist. */
 const SN_HTTPDIAG_SCREEN_QUERY_KEYS = array( 'page', 'tab', 'sub', 'sn_view' );
 
+/** Entries older than this (by their recorded `t`) are pruned at write time and hidden at render time — see sn_httpdiag_record() and sn_httpdiag_debug_information(). */
+const SN_HTTPDIAG_RETENTION_S = 30 * 86400;
+
 /**
  * Reduce a request URL to scheme+host+path ONLY. Query string, fragment,
  * and userinfo (user:pass@) are always discarded — see the file header for
@@ -179,6 +182,21 @@ function sn_httpdiag_record( array $http, $wall_s, $pagenow_override = null, $qu
 	$log = is_array( $log ) ? $log : array();
 
 	array_unshift( $log, $entry );
+
+	// Retention prune, relative to the entry being written right now (not a
+	// second, later time() call — deterministic against this one $entry).
+	// Entries with no usable `t` are kept: an unknown age is never treated
+	// as stale at write time.
+	$cutoff = $entry['t'] - SN_HTTPDIAG_RETENTION_S;
+	$log    = array_values(
+		array_filter(
+			$log,
+			function ( $row ) use ( $cutoff ) {
+				return ! isset( $row['t'] ) || ! is_numeric( $row['t'] ) || (int) $row['t'] >= $cutoff;
+			}
+		)
+	);
+
 	$log = array_slice( $log, 0, SN_HTTPDIAG_RING_MAX );
 
 	update_option( 'snt_httpdiag_log', $log, false );
@@ -199,6 +217,44 @@ function sn_httpdiag_format_call( $call ) {
 	$ms   = (int) ( $call['ms'] ?? 0 );
 	$code = (int) ( $call['code'] ?? 0 );
 	return sprintf( '%s — %dms (%d)', $url, $ms, $code );
+}
+
+/**
+ * Render how long ago an entry's `t` was, relative to $now. Pure
+ * formatting — no WP calls (module stance, mirrors sn_httpdiag_format_call()):
+ * this is a Site Health row-label suffix, not translatable prose.
+ *
+ * @param mixed $t   The entry's recorded time() stamp.
+ * @param mixed $now Reference "now" (production always passes time()).
+ * @return string 'just now' / 'Nm ago' / 'Nh ago' / 'Nd ago', or '' when
+ *                $t is unusable (non-numeric, <=0, or after $now — a
+ *                clock-skew guard, never a negative age).
+ */
+function sn_httpdiag_format_age( $t, $now ) {
+	if ( ! is_numeric( $t ) || ! is_numeric( $now ) ) {
+		return '';
+	}
+
+	$t   = (int) $t;
+	$now = (int) $now;
+
+	if ( $t <= 0 || $t > $now ) {
+		return '';
+	}
+
+	$diff = $now - $t;
+
+	if ( $diff < 60 ) {
+		return 'just now';
+	}
+	if ( $diff < 3600 ) {
+		return floor( $diff / 60 ) . 'm ago';
+	}
+	if ( $diff < 86400 ) {
+		return floor( $diff / 3600 ) . 'h ago';
+	}
+
+	return floor( $diff / 86400 ) . 'd ago';
 }
 
 /**
@@ -351,21 +407,38 @@ if ( function_exists( 'add_action' ) ) {
 	 *
 	 * @param array      $info Core's accumulated debug-info panels.
 	 * @param array|null $log_override Override for tests; defaults to the option.
+	 * @param int|null   $now_override Override for tests; defaults to time().
 	 * @return array
 	 */
-	function sn_httpdiag_debug_information( $info, $log_override = null ) {
+	function sn_httpdiag_debug_information( $info, $log_override = null, $now_override = null ) {
 		$log = null !== $log_override ? $log_override : get_option( 'snt_httpdiag_log' );
 		$log = is_array( $log ) ? $log : array();
+		$now = null !== $now_override ? (int) $now_override : time();
+
+		// Render-time retention: the seam that matters on a now-fast site,
+		// where record() may never fire again to prune write-side. A read
+		// path — this NEVER writes the option back. Entries with no usable
+		// `t` are kept, same "unknown age isn't stale" stance as write-time.
+		$cutoff  = $now - SN_HTTPDIAG_RETENTION_S;
+		$visible = array_values(
+			array_filter(
+				$log,
+				function ( $row ) use ( $cutoff ) {
+					return ! isset( $row['t'] ) || ! is_numeric( $row['t'] ) || (int) $row['t'] >= $cutoff;
+				}
+			)
+		);
+		$hidden_count = count( $log ) - count( $visible );
 
 		$fields = array();
 
-		if ( empty( $log ) ) {
+		if ( empty( $visible ) ) {
 			$fields['empty'] = array(
 				'label' => __( 'Status', 'signal-and-noise-tools' ),
 				'value' => __( 'No slow admin requests logged yet.', 'signal-and-noise-tools' ),
 			);
 		} else {
-			$sorted = $log;
+			$sorted = $visible;
 			usort(
 				$sorted,
 				function ( $a, $b ) {
@@ -378,26 +451,43 @@ if ( function_exists( 'add_action' ) ) {
 				$calls = is_array( $entry['http'] ?? null ) ? $entry['http'] : array();
 				$value = array_map( 'sn_httpdiag_format_call', $calls );
 
+				$label = sprintf(
+					'%s — %ss',
+					(string) ( $entry['screen'] ?? '' ),
+					number_format( (float) ( $entry['wall_s'] ?? 0 ), 2 )
+				);
+				$age = sn_httpdiag_format_age( $entry['t'] ?? null, $now );
+				if ( '' !== $age ) {
+					$label .= ' — ' . $age;
+				}
+
 				$fields[ 'slow_' . $i ] = array(
-					'label' => sprintf(
-						'%s — %ss',
-						(string) ( $entry['screen'] ?? '' ),
-						number_format( (float) ( $entry['wall_s'] ?? 0 ), 2 )
-					),
+					'label' => $label,
 					'value' => $value ? implode( ' | ', $value ) : __( '(no HTTP calls captured)', 'signal-and-noise-tools' ),
 				);
 				++$i;
 			}
 
-			$slowest_call = sn_httpdiag_find_slowest_call( $log );
+			$slowest_call  = sn_httpdiag_find_slowest_call( $visible );
+			$summary_value = sprintf(
+				/* translators: 1: total logged requests, 2: the single slowest host+path across the log. */
+				__( '%1$d logged request(s); slowest call: %2$s', 'signal-and-noise-tools' ),
+				count( $visible ),
+				'' !== $slowest_call ? $slowest_call : __( 'none captured', 'signal-and-noise-tools' )
+			);
+
+			if ( $hidden_count > 0 ) {
+				$summary_value .= sprintf(
+					/* translators: 1: number of entries older than the retention window, hidden from this panel; 2: the retention window in days. */
+					_n( '; %1$d older entry hidden (older than %2$d days)', '; %1$d older entries hidden (older than %2$d days)', $hidden_count, 'signal-and-noise-tools' ),
+					$hidden_count,
+					(int) ( SN_HTTPDIAG_RETENTION_S / 86400 ) // derived from the const so the prose can never drift from the actual cutoff.
+				);
+			}
+
 			$fields['summary'] = array(
 				'label' => __( 'Summary', 'signal-and-noise-tools' ),
-				'value' => sprintf(
-					/* translators: 1: total logged requests, 2: the single slowest host+path across the log. */
-					__( '%1$d logged request(s); slowest call: %2$s', 'signal-and-noise-tools' ),
-					count( $log ),
-					'' !== $slowest_call ? $slowest_call : __( 'none captured', 'signal-and-noise-tools' )
-				),
+				'value' => $summary_value,
 			);
 		}
 
