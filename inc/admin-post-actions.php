@@ -951,20 +951,23 @@ function sn_handle_analytics_tuning_save( $post ) {
  * handler in this file.
  *
  * Atomic: a parse error saves NOTHING (the prior analytics.funnels setting is
- * left exactly as it was) and returns an 'analytics_funnels_invalid[_N-N…]'
- * flash carrying the 1-based line numbers that failed, mirroring the existing
- * count/id-prefixed flash-code idiom (cleared_12, wh_added_<id>, …) resolved
- * in inc/admin-flash-messages.php — no extra transient plumbing needed since
- * the parser's error strings already name their own line number.
+ * left exactly as it was) and returns an
+ * 'analytics_funnels_invalid[_<line>k<kindIndex>[-<line>k<kindIndex>…]]' flash
+ * — reason-surfacing task: $kindIndex is now packed in alongside each bad
+ * line, mirroring the existing count/id-prefixed flash-code idiom (cleared_12,
+ * wh_added_<id>, …) resolved in inc/admin-flash-messages.php. STILL no extra
+ * transient plumbing (that was deliberately declined — see
+ * sn_analytics_funnels_error_flash_code() below): the parser's structured
+ * errors_detail already names both the line AND the machine-stable kind.
  *
  * STRING-SETTING RULE: WP core slashes all of $_POST (wp_magic_quotes()), so
  * the raw textarea payload is wp_unslash()ed BEFORE it reaches the parser —
  * apostrophes in funnel names are the exact recurring hazard (see
  * tests/settings-save-unslash.php / the v9.36.1 fix in sn_settings_save()).
  *
- * @since S2 (v9.42.0 arc)
+ * @since S2 (v9.42.0 arc); pair-encoded flash code (reason-surfacing task).
  * @param array $post Raw $_POST.
- * @return string Flash code: 'analytics_funnels_saved' | 'analytics_funnels_invalid[_N[-N…]]' | 'analytics_funnels_failed'.
+ * @return string Flash code: 'analytics_funnels_saved' | 'analytics_funnels_invalid[_<line>k<kindIndex>[-…]]' | 'analytics_funnels_failed'.
  */
 function sn_handle_analytics_funnels_save( $post ) {
 	// is_string guard: a crafted sn_funnels[]= array would warn on the string
@@ -973,21 +976,53 @@ function sn_handle_analytics_funnels_save( $post ) {
 	$parsed = sn_analytics_parse_funnels( (string) $raw );
 
 	if ( ! empty( $parsed['errors'] ) ) {
-		$bad_lines = array();
-		foreach ( $parsed['errors'] as $error ) {
-			if ( 1 === preg_match( '/^Line (\d+):/', $error, $m ) ) {
-				$bad_lines[] = $m[1];
-			}
-		}
-		// Cap at the SOURCE (final review): the display truncates at 40 chars
-		// anyway, and an uncapped code from a huge paste can blow the redirect
-		// URL past server limits (414) — first five bad lines tell the story.
-		$bad_lines = array_slice( $bad_lines, 0, 5 );
-		return $bad_lines ? ( 'analytics_funnels_invalid_' . implode( '-', $bad_lines ) ) : 'analytics_funnels_invalid';
+		return sn_analytics_funnels_error_flash_code( $parsed['errors_detail'] );
 	}
 
 	$ok = sn_setting_update( 'analytics.funnels', $parsed['funnels'] );
 	return $ok ? 'analytics_funnels_saved' : 'analytics_funnels_failed';
+}
+
+/**
+ * Encode the parser's structured error detail (reason-surfacing task) into
+ * the 'analytics_funnels_invalid[_<line>k<kindIndex>[-<line>k<kindIndex>…]]'
+ * flash code inc/admin-flash-messages.php decodes back into per-line reason
+ * text.
+ *
+ * $kindIndex is the entry's position in SN_ANALYTICS_FUNNELS_ERR_KINDS
+ * (inc/analytics-sessions.php) — NEVER the reason string itself and NEVER
+ * anything derived from the owner's textarea content — so nothing beyond
+ * digits (plus the fixed 'k'/'-' separators) can ever reach the redirect URL.
+ * A detail entry with an out-of-enum kind or a non-positive line (never
+ * produced by the real parser — the enum is closed and lines are always
+ * >= 1 — but defensive against any other caller) is silently skipped rather
+ * than encoded as-is.
+ *
+ * SOURCE cap (final review, carried over unchanged from the pre-reason-
+ * surfacing code): first FIVE bad lines only — an uncapped code from a huge
+ * paste can blow the redirect URL past server limits (414).
+ *
+ * Worst-case length: 5 pairs of "<line up to 4 digits>k<kind 1 digit>"
+ * ("9999k5", 6 chars) joined by 4 '-' separators = 5*6 + 4 = 34 chars —
+ * comfortably inside the 40-char cap inc/admin-flash-messages.php enforces on
+ * decode (unchanged from the pre-reason-surfacing display-truncation constant).
+ *
+ * @since (reason-surfacing task)
+ * @param array $errors_detail List of array{line:int,kind:string,message:string}.
+ * @return string
+ */
+function sn_analytics_funnels_error_flash_code( array $errors_detail ) {
+	$kinds = defined( 'SN_ANALYTICS_FUNNELS_ERR_KINDS' ) ? SN_ANALYTICS_FUNNELS_ERR_KINDS : array();
+	$pairs = array();
+	foreach ( array_slice( $errors_detail, 0, 5 ) as $error ) {
+		$line       = isset( $error['line'] ) ? (int) $error['line'] : 0;
+		$kind_index = array_search( (string) ( $error['kind'] ?? '' ), $kinds, true );
+		if ( $line < 1 || false === $kind_index ) {
+			continue; // never emit a malformed pair — the enum is closed, this should not happen.
+		}
+		$pairs[] = $line . 'k' . $kind_index;
+	}
+	return $pairs ? ( 'analytics_funnels_invalid_' . implode( '-', $pairs ) ) : 'analytics_funnels_invalid';
 }
 
 /**
