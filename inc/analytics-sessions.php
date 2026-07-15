@@ -224,6 +224,13 @@ function sn_analytics_parse_funnels( $raw ) {
 			$errors[] = sn_analytics_funnels_error( $line_num, __( 'funnel name is empty.', 'signal-and-noise-tools' ) );
 			continue;
 		}
+		// Length clamps (S2 §8, final review): admin-only + escaped everywhere,
+		// so the risk is option bloat, not injection — but a 10k-char paste is
+		// never a funnel. 80/200 comfortably exceed any real name/path.
+		if ( strlen( $name ) > 80 || strlen( $steps_raw ) > 200 ) {
+			$errors[] = sn_analytics_funnels_error( $line_num, __( 'line is too long (name max 80 chars, steps max 200).', 'signal-and-noise-tools' ) );
+			continue;
+		}
 
 		$steps    = array();
 		$bad_step = false;

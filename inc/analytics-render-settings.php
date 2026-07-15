@@ -300,7 +300,8 @@ function snt_analytics_render_funnels() {
 		SN_ANALYTICS_FUNNELS_MAX_STEPS,
 		SN_ANALYTICS_FUNNELS_MAX
 	) ) . '</p>';
-	echo '<p><textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
+	echo '<p><label for="sn_funnels" class="screen-reader-text">' . esc_html__( 'Session funnels, one per line', 'signal-and-noise-tools' ) . '</label>';
+	echo '<textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Visits view — including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express — prefix matching, custom-event goals — are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';

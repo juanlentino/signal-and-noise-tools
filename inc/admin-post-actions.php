@@ -967,7 +967,9 @@ function sn_handle_analytics_tuning_save( $post ) {
  * @return string Flash code: 'analytics_funnels_saved' | 'analytics_funnels_invalid[_N[-N…]]' | 'analytics_funnels_failed'.
  */
 function sn_handle_analytics_funnels_save( $post ) {
-	$raw    = isset( $post['sn_funnels'] ) ? wp_unslash( $post['sn_funnels'] ) : '';
+	// is_string guard: a crafted sn_funnels[]= array would warn on the string
+	// cast (final review); non-string payloads parse as empty → error flash.
+	$raw    = isset( $post['sn_funnels'] ) && is_string( $post['sn_funnels'] ) ? wp_unslash( $post['sn_funnels'] ) : '';
 	$parsed = sn_analytics_parse_funnels( (string) $raw );
 
 	if ( ! empty( $parsed['errors'] ) ) {
@@ -977,6 +979,10 @@ function sn_handle_analytics_funnels_save( $post ) {
 				$bad_lines[] = $m[1];
 			}
 		}
+		// Cap at the SOURCE (final review): the display truncates at 40 chars
+		// anyway, and an uncapped code from a huge paste can blow the redirect
+		// URL past server limits (414) — first five bad lines tell the story.
+		$bad_lines = array_slice( $bad_lines, 0, 5 );
 		return $bad_lines ? ( 'analytics_funnels_invalid_' . implode( '-', $bad_lines ) ) : 'analytics_funnels_invalid';
 	}
 

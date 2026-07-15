@@ -325,6 +325,22 @@ $map = sn_admin_post_handlers();
 ok( isset( $map['analytics_funnels_save'] ) && 'sn_handle_analytics_funnels_save' === $map['analytics_funnels_save'],
 	'analytics_funnels_save routed to its handler' );
 
+echo "\nGroup: final review — length clamps + array POST + flash-source cap\n";
+$long_name = str_repeat( 'n', 81 ) . ': /a > /b';
+$res       = sn_analytics_parse_funnels( $long_name );
+ok( array() === $res['funnels'] && 1 === count( $res['errors'] ) && false !== strpos( $res['errors'][0], 'too long' ), 'clamp: an 81-char name is rejected with the length error' );
+$long_steps = 'F: /' . str_repeat( 'p', 200 ) . ' > /b';
+$res        = sn_analytics_parse_funnels( $long_steps );
+ok( array() === $res['funnels'] && false !== strpos( $res['errors'][0], 'too long' ), 'clamp: a >200-char steps segment is rejected' );
+$res = sn_analytics_parse_funnels( 'F: ' . str_repeat( '/p > ', 3 ) . '/q' );
+ok( 1 === count( $res['funnels'] ), 'clamp sanity: an ordinary line is untouched by the length rule' );
+$flash = sn_handle_analytics_funnels_save( array( 'sn_funnels' => array( 'crafted' ) ) );
+ok( 'analytics_funnels_saved' === (string) $flash, 'array-shaped sn_funnels[] behaves like the missing-field case (empty save, is_string guard, NO PHP warning)' );
+$many_bad = array();
+for ( $i = 1; $i <= 20; $i++ ) { $many_bad[] = 'bad-line-without-colon'; }
+$flash = sn_handle_analytics_funnels_save( array( 'sn_funnels' => implode( "\n", $many_bad ) ) );
+ok( 1 === preg_match( '/^analytics_funnels_invalid_1-2-3-4-5$/', (string) $flash ), 'flash-source cap: only the first FIVE bad lines ride the redirect code' );
+
 echo "\nGroup: sn_handle_analytics_funnels_save — happy path\n";
 $GLOBALS['__settings'] = array();
 $flash                 = sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'Home: /a > /b' ) );

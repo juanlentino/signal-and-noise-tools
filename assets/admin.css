@@ -1857,7 +1857,7 @@
 .sn-nav-tabs .nav-tab {
 	background: transparent;
 	border: 0;
-	margin: 0 16px 0 0;
+	margin: 0; /* the wrapper's gap owns spacing — true parity with the dashboard idiom (final review). */
 	padding: 6px 2px 8px;
 	color: var(--sn-text-muted);
 }
