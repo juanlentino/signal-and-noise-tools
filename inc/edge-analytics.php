@@ -94,7 +94,7 @@ function sn_edge_query( $query, $variables = array() ) {
 			'Content-Type'  => 'application/json',
 		),
 		'body'    => wp_json_encode( array( 'query' => (string) $query, 'variables' => $variables ) ),
-		'timeout' => 15,
+		'timeout' => 6,
 		// Do not follow redirects: a 3xx from the (fixed) CF GraphQL host would
 		// otherwise re-send the Authorization: Bearer token to the redirect target.
 		// Matches the v8.8.5 credential-carrying-fetch hardening (spotify/muso/github/

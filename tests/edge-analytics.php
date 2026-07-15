@@ -192,5 +192,11 @@ define( 'SN_CLOUDFLARE_ZONE_ID', 'const-zone-777' );
 $cfg = sn_edge_config();
 ok( is_array( $cfg ) && 'const-zone-777' === ( $cfg['zone'] ?? '' ), 'config: constant-configured site is NOT dormant — zone resolves via sn_cf_get_zone()' );
 
+// Timeout hardening (v9.46.1): the retention probe is SWR-cached with a
+// last-good option, so the timeout only bounds the cold-miss worst case —
+// 15s stalled a whole admin render; 6s is the cap. Pins the args the
+// query-transport groups above recorded.
+ok( 6 === ( $GLOBALS['__http']['last_args']['timeout'] ?? -1 ), 'query: timeout capped at 6s (cold-miss render stall bound)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

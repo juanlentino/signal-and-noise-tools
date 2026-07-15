@@ -186,10 +186,13 @@ t_eq( 17, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 17 abil
 // ════ Group B: the `updates` category is retired ═════════════════════
 echo "\nGroup B: category retirement\n";
 t( ! isset( $GLOBALS['__cats']['updates'] ), 'B.1 updates category NOT registered (only member was force-check-updates)' );
-$expected_cats = array( 'ai-generation', 'content', 'diagnostics', 'maintenance', 'tools' );
+// 'analytics' joined the survivors (WP 6.9.0 doing_it_wrong fix) — it backs
+// inc/abilities-analytics.php, which this fixture doesn't load, but the
+// category itself registers unconditionally alongside the other 5.
+$expected_cats = array( 'ai-generation', 'analytics', 'content', 'diagnostics', 'maintenance', 'tools' );
 $actual_cats   = array_keys( $GLOBALS['__cats'] );
 sort( $actual_cats );
-t_eq( $expected_cats, $actual_cats, 'B.2 remaining categories are exactly the 5 survivors' );
+t_eq( $expected_cats, $actual_cats, 'B.2 remaining categories are exactly the 6 survivors' );
 
 // ════ Group C: ladder artifacts deleted from the tree ════════════════
 echo "\nGroup C: ladder artifacts gone\n";

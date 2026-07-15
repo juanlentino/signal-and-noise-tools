@@ -237,14 +237,25 @@ function sn_analytics_dims_run_rollup() {
  * Read accessor: top values for ONE dimension across an inclusive [$from,$to]
  * day range, filtered to a single class (default human), ordered by views.
  *
- * @param string $dim   'referrer' | 'country' | 'device'.
- * @param string $from  Inclusive start day, YYYY-MM-DD.
- * @param string $to    Inclusive end day, YYYY-MM-DD.
- * @param string $class Traffic class (default 'human').
- * @param int    $limit Max rows (1..500).
+ * Request-scope memo (D5 §5 perf): sn_analytics_referrer_categories() and
+ * sn_analytics_top_sources() (both call sn_analytics_top_dimension('referrer', …, 500))
+ * pull the SAME window once per page load (QM: 2 reads per page) — cache it
+ * per request so that costs one read, not two. $refresh is the re-prime seam
+ * (the D2 sn_analytics_recommendations( true ) idiom, mirrored in
+ * sn_analytics_range_totals()) for callers that must force a fresh read within
+ * the same request (e.g. CLI/tests). Keyed on every arg (post-normalization),
+ * so distinct dims/limits/classes each get their own read — only truly
+ * identical calls dedupe.
+ *
+ * @param string $dim     'referrer' | 'country' | 'device'.
+ * @param string $from    Inclusive start day, YYYY-MM-DD.
+ * @param string $to      Inclusive end day, YYYY-MM-DD.
+ * @param string $class   Traffic class (default 'human').
+ * @param int    $limit   Max rows (1..500).
+ * @param bool   $refresh Bypass and re-prime the memo for this key.
  * @return array<int, array{value:string, views:int, visits:int}>
  */
-function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
+function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25, $refresh = false ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return array();
 	}
@@ -252,6 +263,12 @@ function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit 
 		$class = 'human';
 	}
 	$limit = max( 1, min( 500, (int) $limit ) );
+
+	static $memo = array();
+	$key = $dim . '|' . $from . '|' . $to . '|' . $class . '|' . $limit;
+	if ( ! $refresh && isset( $memo[ $key ] ) ) {
+		return $memo[ $key ];
+	}
 
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DIMS_TABLE;
@@ -280,5 +297,6 @@ function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit 
 			);
 		}
 	}
-	return $out;
+	$memo[ $key ] = $out;
+	return $memo[ $key ];
 }

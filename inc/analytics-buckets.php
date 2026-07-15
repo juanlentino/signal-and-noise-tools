@@ -439,19 +439,35 @@ function sn_analytics_hour_dow_grid( $from, $to, $class = 'human' ) {
  * ordered, zero-filled [{label, views}] list (bands the config defines but the
  * data lacks still appear, at 0). Maps the stored bX key → the config label.
  *
- * @param string $metric 'scroll' | 'time' | 'botscore'.
- * @param string $from   Inclusive start day, YYYY-MM-DD.
- * @param string $to     Inclusive end day, YYYY-MM-DD.
- * @param string $class  Traffic class (default 'human').
+ * Request-scope memo (D5 §5 perf): sn_analytics_engaged_rate()
+ * (inc/analytics-derived.php) and snt_analytics_render_pulse_strip()
+ * (inc/analytics-header-region.php) both pull the SAME ['time',$from,$to,$class]
+ * window once per page load on the Content view (QM: 2 reads per page) — cache
+ * it per request so that costs one read, not two. $refresh is the re-prime seam
+ * (the D2 sn_analytics_recommendations( true ) idiom, mirrored in
+ * sn_analytics_range_totals()) for callers that must force a fresh read within
+ * the same request (e.g. CLI/tests).
+ *
+ * @param string $metric  'scroll' | 'time' | 'botscore'.
+ * @param string $from    Inclusive start day, YYYY-MM-DD.
+ * @param string $to      Inclusive end day, YYYY-MM-DD.
+ * @param string $class   Traffic class (default 'human').
+ * @param bool   $refresh Bypass and re-prime the memo for this key.
  * @return array<int, array{label:string, views:int}>
  */
-function sn_analytics_distribution( $metric, $from, $to, $class = 'human' ) {
+function sn_analytics_distribution( $metric, $from, $to, $class = 'human', $refresh = false ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 		$class = 'human';
 	}
 	$metrics = sn_analytics_buckets_metrics();
 	if ( ! isset( $metrics[ $metric ] ) ) {
 		return array();
+	}
+
+	static $memo = array();
+	$key = $metric . '|' . $from . '|' . $to . '|' . $class;
+	if ( ! $refresh && isset( $memo[ $key ] ) ) {
+		return $memo[ $key ];
 	}
 
 	global $wpdb;
@@ -482,5 +498,6 @@ function sn_analytics_distribution( $metric, $from, $to, $class = 'human' ) {
 			'views' => (int) ( $sums[ 'b' . $i ] ?? 0 ),
 		);
 	}
-	return $out;
+	$memo[ $key ] = $out;
+	return $memo[ $key ];
 }

@@ -480,8 +480,31 @@ if ( ! function_exists( 'wp_has_ability_category' ) ) {
 		return isset( $GLOBALS['__test_registered_categories'][ $slug ] );
 	}
 }
+// v6.9.0 doing_it_wrong recorder: real WP_Abilities_Registry::register()
+// fires this and silently bails wp_register_ability() when an ability
+// cites a category that was never registered — the exact symptom Query
+// Monitor caught firing on every live request for signal-noise/get-analytics-*.
+$GLOBALS['__test_doing_it_wrong'] = array();
+if ( ! function_exists( '_doing_it_wrong' ) ) {
+	function _doing_it_wrong( $function_name, $message, $version ) {
+		$GLOBALS['__test_doing_it_wrong'][] = array(
+			'function' => $function_name,
+			'message'  => $message,
+			'version'  => $version,
+		);
+	}
+}
 if ( ! function_exists( 'wp_register_ability' ) ) {
 	function wp_register_ability( $name, $args ) {
+		$category = (string) ( $args['category'] ?? '' );
+		if ( '' !== $category && ! wp_has_ability_category( $category ) ) {
+			_doing_it_wrong(
+				'WP_Abilities_Registry::register',
+				"Ability category \"{$category}\" is not registered. Please register the ability category before assigning it to ability \"{$name}\".",
+				'6.9.0'
+			);
+			return null;
+		}
 		$GLOBALS['__test_registered_abilities'][ $name ] = $args;
 		return true;
 	}
@@ -576,6 +599,11 @@ if ( ! function_exists( 'wp_get_abilities' ) ) {
 
 // ─── Load the SUT ───────────────────────────────────────────────────
 require_once __DIR__ . '/../inc/abilities-registration.php';
+// inc/abilities-analytics.php is required directly from
+// signal-and-noise-tools.php (not through the orchestrator above) — pulled
+// in here too so the category-completeness pins below cover its 2
+// abilities, exactly mirroring the real bootstrap's require order.
+require_once __DIR__ . '/../inc/abilities-analytics.php';
 
 // Now invoke the captured add_action closures in order: categories first,
 // then abilities (the SUT relies on that ordering).
@@ -1115,6 +1143,35 @@ foreach ( $v460_new as $slug ) {
 // 7.7.0) — the core catalogue endpoint GET /wp-abilities/v1/abilities is the
 // replacement, so there is no plugin-side catalogue behavior left to test.
 // tests/abilities-removals-v8.php guards the absence.
+
+// ─── Category completeness + ordering (WP 6.9.0 doing_it_wrong fix) ───
+echo "\nCategory: ability-category completeness + ordering (WP 6.9.0 doing_it_wrong guard)\n";
+
+// Every category cited by every ability this suite registered (across the
+// orchestrator's files + abilities-analytics.php, loaded above) must have
+// been registered on wp_abilities_api_categories_init — the wp_register_ability()
+// stub above bails (like the real registry) and records a _doing_it_wrong
+// if not. This is the general regression guard: it fails RED for ANY
+// category the plugin cites but never registers, not just 'analytics'.
+ap_eq( array(), $GLOBALS['__test_doing_it_wrong'], 'zero _doing_it_wrong calls across every ability registered (every cited category was registered first)' );
+
+$cited_categories = array();
+foreach ( $GLOBALS['__test_registered_abilities'] as $config ) {
+	$cat = (string) ( $config['category'] ?? '' );
+	if ( '' !== $cat ) {
+		$cited_categories[ $cat ] = true;
+	}
+}
+$missing_categories = array_values( array_diff( array_keys( $cited_categories ), array_keys( $GLOBALS['__test_registered_categories'] ) ) );
+ap_eq( array(), $missing_categories, 'every cited category exists in the registered-categories set' );
+
+// The specific regression: both analytics abilities registered (they would
+// have silently failed to — returning null, no _doing_it_wrong swallowed —
+// if 'analytics' were still missing from inc/abilities-categories.php).
+ap_true( isset( $GLOBALS['__test_registered_abilities']['signal-noise/get-analytics-summary'] ), 'get-analytics-summary registered (analytics category present)' );
+ap_true( isset( $GLOBALS['__test_registered_abilities']['signal-noise/get-analytics-events'] ), 'get-analytics-events registered (analytics category present)' );
+ap_eq( 'analytics', $GLOBALS['__test_registered_abilities']['signal-noise/get-analytics-summary']['category'] ?? null, 'get-analytics-summary cites the analytics category' );
+ap_eq( 'analytics', $GLOBALS['__test_registered_abilities']['signal-noise/get-analytics-events']['category'] ?? null, 'get-analytics-events cites the analytics category' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

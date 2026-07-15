@@ -54,6 +54,9 @@ ok( ! empty( $GLOBALS['__last_args'] ), 'runs: a live fetch was issued (cache mi
 // bearer token when SNT_GITHUB_TOKEN is set — forbid redirects so a 3xx can't
 // forward it to an attacker-controlled host.
 ok( 0 === ( $GLOBALS['__last_args']['redirection'] ?? -1 ), 'runs: request disables redirects (no GitHub token forward on a 3xx)' );
+// Timeout hardening (v9.46.1): 5min transient + ETag conditional — 5s bounds
+// the cold miss on the dashboard/deploy surfaces.
+ok( 5 === ( $GLOBALS['__last_args']['timeout'] ?? -1 ), 'runs: timeout capped at 5s' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
