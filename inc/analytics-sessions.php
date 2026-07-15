@@ -30,6 +30,14 @@ const SN_ANALYTICS_SESSION_ROW_CAP     = 50000; // max raw rows pulled per windo
 const SN_ANALYTICS_FUNNELS_MAX       = 10; // max funnels the parser will accept.
 const SN_ANALYTICS_FUNNELS_MAX_STEPS = 8;  // max steps per funnel.
 
+// Reason-surfacing task: the closed six-kind enum for sn_analytics_parse_funnels()
+// errors. Order is the STABLE encoding sn_handle_analytics_funnels_save()
+// (inc/admin-post-actions.php) packs into the flash code's <line>k<kindIndex>
+// pairs, and inc/admin-flash-messages.php decodes back into a reason line —
+// append new kinds at the END only; never reorder or remove an entry, or an
+// already-redirected flash code would decode to the WRONG reason.
+const SN_ANALYTICS_FUNNELS_ERR_KINDS = array( 'colon', 'name', 'long', 'step', 'few', 'many' );
+
 /**
  * Filterable session-engine config. Constants are the defaults; the
  * 'sn_analytics_session_config' filter lets a site override any key.
@@ -135,20 +143,73 @@ function sn_analytics_funnels_resolve_setting( $configured, array $hardcoded ) {
 }
 
 /**
- * Build one sn_analytics_parse_funnels() error string.
+ * Build one sn_analytics_parse_funnels() error entry — both the flat "Line N:
+ * reason" string existing callers/tests expect (unchanged shape, unchanged
+ * bytes) AND a parallel structured {line,kind,message} record.
  *
  * The "Line N: " prefix is a fixed, NON-translated literal (not run through
- * __()) so sn_handle_analytics_funnels_save() can reliably regex-extract the
- * line number to build its flash code regardless of the site's locale — only
+ * __()) so it renders identically regardless of the site's locale — only
  * $reason (the human-readable part after the prefix) is translated.
  *
- * @since S2 (v9.42.0 arc)
+ * Reason-surfacing task: $kind is the new machine-stable member of
+ * SN_ANALYTICS_FUNNELS_ERR_KINDS naming WHICH of the six rejections this is.
+ * sn_analytics_parse_funnels() pushes ['message'] onto its flat $errors list
+ * (unchanged consumer contract) and the whole return value onto its new
+ * $errors_detail list — sn_handle_analytics_funnels_save()
+ * (inc/admin-post-actions.php) reads $kind to encode the flash code without
+ * ever regexing the human string.
+ *
+ * @since S2 (v9.42.0 arc); $kind param added (reason-surfacing task).
  * @param int    $line_num 1-based source line number.
+ * @param string $kind     One of SN_ANALYTICS_FUNNELS_ERR_KINDS.
  * @param string $reason   Already-translated explanation text.
- * @return string
+ * @return array{line:int,kind:string,message:string}
  */
-function sn_analytics_funnels_error( $line_num, $reason ) {
-	return 'Line ' . (int) $line_num . ': ' . $reason;
+function sn_analytics_funnels_error( $line_num, $kind, $reason ) {
+	$line_num = (int) $line_num;
+	return array(
+		'line'    => $line_num,
+		'kind'    => (string) $kind,
+		'message' => 'Line ' . $line_num . ': ' . $reason,
+	);
+}
+
+/**
+ * The single-sourced reason text (no "Line N: " prefix) for one
+ * SN_ANALYTICS_FUNNELS_ERR_KINDS entry. sn_analytics_parse_funnels() calls
+ * this directly for the five kinds whose wording never varies (colon / name /
+ * long / step / few), so the flash-code round trip — inc/admin-post-actions.php
+ * encodes the $kind, inc/admin-flash-messages.php later decodes it back
+ * through THIS SAME function — can never drift from what the parser actually
+ * said.
+ *
+ * 'many' bundles TWO parser call sites (too many funnels vs too many steps,
+ * each with its own configured max baked into a sprintf'd number) into one
+ * kind — the flash code has no room to carry which sub-case or number fired,
+ * so this returns a generic fallback the RENDERER uses for that kind; the
+ * parser keeps emitting its own precise, numbered message directly (not
+ * through this fn) into $parsed['errors'] for the actual reject-and-explain path.
+ *
+ * @since (reason-surfacing task)
+ * @param string $kind One of SN_ANALYTICS_FUNNELS_ERR_KINDS.
+ * @return string Translated reason text, or '' for an unrecognized kind.
+ */
+function sn_analytics_funnels_kind_message( $kind ) {
+	switch ( $kind ) {
+		case 'colon':
+			return __( 'missing ":" — expected "Name: /step > /step".', 'signal-and-noise-tools' );
+		case 'name':
+			return __( 'funnel name is empty.', 'signal-and-noise-tools' );
+		case 'long':
+			return __( 'line is too long (name max 80 chars, steps max 200).', 'signal-and-noise-tools' );
+		case 'step':
+			return __( 'a step contains a space or ":" — check for an extra ":" earlier in the line.', 'signal-and-noise-tools' );
+		case 'few':
+			return __( 'needs at least 2 steps.', 'signal-and-noise-tools' );
+		case 'many':
+			return __( 'too many funnels or steps — the limit was exceeded and this line wasn\'t saved.', 'signal-and-noise-tools' );
+	}
+	return '';
 }
 
 /**
@@ -163,33 +224,39 @@ function sn_analytics_funnels_error( $line_num, $reason ) {
  * 'sn_analytics_session_funnels' filter.
  *
  * Rejections (each recorded as one errors[] entry naming the 1-based line
- * number, in the caller-facing text a flash notice can show verbatim):
- *   - a line with no ':' separator
- *   - an empty funnel name
+ * number, in the caller-facing text a flash notice can show verbatim, AND one
+ * errors_detail[] entry — reason-surfacing task — carrying the same info
+ * structured as {line,kind,message}):
+ *   - a line with no ':' separator                              (kind: colon)
+ *   - an empty funnel name                                      (kind: name)
  *   - a step that (after leading-slash normalization) contains whitespace or a
  *     ':' — a well-formed path step has neither, so this catches malformed
  *     shapes upstream (most commonly a double-colon line like "Name:: /a > /b",
  *     whose OWN extra ':' used to survive into the first step as "/: /a")
- *   - fewer than 2 steps
- *   - more than SN_ANALYTICS_FUNNELS_MAX_STEPS steps
- *   - more than SN_ANALYTICS_FUNNELS_MAX funnel lines (the excess lines error)
+ *                                                                 (kind: step)
+ *   - fewer than 2 steps                                         (kind: few)
+ *   - more than SN_ANALYTICS_FUNNELS_MAX_STEPS steps             (kind: many)
+ *   - more than SN_ANALYTICS_FUNNELS_MAX funnel lines            (kind: many)
+ *   - name over 80 chars or steps segment over 200 chars         (kind: long)
  *
- * @since S2 (v9.42.0 arc)
+ * @since S2 (v9.42.0 arc); errors_detail added (reason-surfacing task).
  * @param string $raw Raw textarea content (already wp_unslash()ed by the caller).
- * @return array{funnels:array,errors:array<string>}
+ * @return array{funnels:array,errors:array<string>,errors_detail:array<array{line:int,kind:string,message:string}>}
  */
 function sn_analytics_parse_funnels( $raw ) {
 	$raw = (string) $raw;
 	if ( '' === trim( $raw ) ) {
 		return array(
-			'funnels' => array(),
-			'errors'  => array(),
+			'funnels'       => array(),
+			'errors'        => array(),
+			'errors_detail' => array(),
 		);
 	}
 
-	$funnels     = array();
-	$errors      = array();
-	$lines_seen  = 0;
+	$funnels       = array();
+	$errors        = array();
+	$errors_detail = array();
+	$lines_seen    = 0;
 	foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $i => $raw_line ) {
 		$line_num = $i + 1;
 		$line     = trim( (string) $raw_line );
@@ -199,36 +266,42 @@ function sn_analytics_parse_funnels( $raw ) {
 
 		++$lines_seen;
 		if ( $lines_seen > SN_ANALYTICS_FUNNELS_MAX ) {
-			$errors[] = sn_analytics_funnels_error(
+			$err = sn_analytics_funnels_error(
 				$line_num,
+				'many',
 				sprintf(
 					/* translators: %d: max funnel count */
 					__( 'too many funnels (max %d) — this line was skipped.', 'signal-and-noise-tools' ),
 					SN_ANALYTICS_FUNNELS_MAX
 				)
 			);
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 
 		if ( false === strpos( $line, ':' ) ) {
-			$errors[] = sn_analytics_funnels_error(
-				$line_num,
-				__( 'missing ":" — expected "Name: /step > /step".', 'signal-and-noise-tools' )
-			);
+			$err             = sn_analytics_funnels_error( $line_num, 'colon', sn_analytics_funnels_kind_message( 'colon' ) );
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 
 		list( $name_raw, $steps_raw ) = explode( ':', $line, 2 );
 		$name                         = trim( $name_raw );
 		if ( '' === $name ) {
-			$errors[] = sn_analytics_funnels_error( $line_num, __( 'funnel name is empty.', 'signal-and-noise-tools' ) );
+			$err             = sn_analytics_funnels_error( $line_num, 'name', sn_analytics_funnels_kind_message( 'name' ) );
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 		// Length clamps (S2 §8, final review): admin-only + escaped everywhere,
 		// so the risk is option bloat, not injection — but a 10k-char paste is
 		// never a funnel. 80/200 comfortably exceed any real name/path.
 		if ( strlen( $name ) > 80 || strlen( $steps_raw ) > 200 ) {
-			$errors[] = sn_analytics_funnels_error( $line_num, __( 'line is too long (name max 80 chars, steps max 200).', 'signal-and-noise-tools' ) );
+			$err             = sn_analytics_funnels_error( $line_num, 'long', sn_analytics_funnels_kind_message( 'long' ) );
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 
@@ -254,26 +327,30 @@ function sn_analytics_parse_funnels( $raw ) {
 		}
 
 		if ( $bad_step ) {
-			$errors[] = sn_analytics_funnels_error(
-				$line_num,
-				__( 'a step contains a space or ":" — check for an extra ":" earlier in the line.', 'signal-and-noise-tools' )
-			);
+			$err             = sn_analytics_funnels_error( $line_num, 'step', sn_analytics_funnels_kind_message( 'step' ) );
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 
 		if ( count( $steps ) < 2 ) {
-			$errors[] = sn_analytics_funnels_error( $line_num, __( 'needs at least 2 steps.', 'signal-and-noise-tools' ) );
+			$err             = sn_analytics_funnels_error( $line_num, 'few', sn_analytics_funnels_kind_message( 'few' ) );
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 		if ( count( $steps ) > SN_ANALYTICS_FUNNELS_MAX_STEPS ) {
-			$errors[] = sn_analytics_funnels_error(
+			$err = sn_analytics_funnels_error(
 				$line_num,
+				'many',
 				sprintf(
 					/* translators: %d: max step count */
 					__( 'too many steps (max %d).', 'signal-and-noise-tools' ),
 					SN_ANALYTICS_FUNNELS_MAX_STEPS
 				)
 			);
+			$errors[]        = $err['message'];
+			$errors_detail[] = $err;
 			continue;
 		}
 
@@ -293,8 +370,9 @@ function sn_analytics_parse_funnels( $raw ) {
 	}
 
 	return array(
-		'funnels' => $funnels,
-		'errors'  => $errors,
+		'funnels'       => $funnels,
+		'errors'        => $errors,
+		'errors_detail' => $errors_detail,
 	);
 }
 

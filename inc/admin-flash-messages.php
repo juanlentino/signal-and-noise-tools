@@ -125,6 +125,61 @@ function sn_admin_flash_messages() {
 }
 
 /**
+ * Decode a NEW-format 'analytics_funnels_invalid_<line>k<kind>[-…]' suffix
+ * (reason-surfacing task) — already whitelisted to [0-9k-] and length-capped
+ * by the caller — into a list of {line,text} reason lines, or null when the
+ * suffix cannot be trusted at all: ANY malformed/out-of-range pair, or the
+ * shared kind-message source (inc/analytics-sessions.php) not being loaded on
+ * this page, degrades the WHOLE notice to the generic message rather than
+ * mixing good and garbage lines — a partial decode of a hostile code is worse
+ * than no detail.
+ *
+ * Range clamp (hostile-input hardening — a crafted ?sn_flash=… URL is
+ * untrusted even after the character whitelist): a pair's line must be
+ * 1-9999 (the parser's own maxima many times over — no real save ever
+ * produces a line number outside this) and its kind index must be a valid
+ * position in SN_ANALYTICS_FUNNELS_ERR_KINDS (0-5, six kinds); anything else
+ * means the code was hand-crafted, never something
+ * sn_handle_analytics_funnels_save() emitted, so it degrades rather than
+ * risking an undefined-index warning or a garbage-mapped reason.
+ *
+ * Decode-side SOURCE cap (mirrors the encode-side cap in
+ * sn_analytics_funnels_error_flash_code(), inc/admin-post-actions.php): only
+ * the first FIVE pairs are ever rendered, even if a hostile code packs more
+ * well-formed pairs into the 40-char budget.
+ *
+ * @since (reason-surfacing task)
+ * @param string $suffix Whitelisted, length-capped suffix (already stripped of the 'analytics_funnels_invalid_' prefix).
+ * @return array<int,array{line:int,text:string}>|null
+ */
+function sn_analytics_funnels_decode_pairs( $suffix ) {
+	if ( ! defined( 'SN_ANALYTICS_FUNNELS_ERR_KINDS' ) || ! function_exists( 'sn_analytics_funnels_kind_message' ) ) {
+		return null; // inc/analytics-sessions.php not loaded on this page — degrade, never fatal.
+	}
+	$kinds = SN_ANALYTICS_FUNNELS_ERR_KINDS;
+	$out   = array();
+	foreach ( array_slice( explode( '-', $suffix ), 0, 5 ) as $token ) {
+		if ( 1 !== preg_match( '/^(\d{1,4})k([0-5])$/', $token, $m ) ) {
+			return null;
+		}
+		$line = (int) $m[1];
+		$kind = $kinds[ (int) $m[2] ] ?? null;
+		if ( $line < 1 || $line > 9999 || null === $kind ) {
+			return null;
+		}
+		$text = sn_analytics_funnels_kind_message( $kind );
+		if ( '' === $text ) {
+			return null;
+		}
+		$out[] = array(
+			'line' => $line,
+			'text' => $text,
+		);
+	}
+	return $out ? $out : null;
+}
+
+/**
  * Resolve a flash code to a [ severity, message-html ] notice, or null when the
  * code is unknown (renders no notice — matches the old "no matching branch").
  *
@@ -189,23 +244,49 @@ function sn_admin_flash_to_notice( $flash ) {
 		$count = (int) substr( $flash, strlen( 'reset_' ) );
 		return array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
 	}
-	// S2 §3 (v9.42.0 arc): line-number-carrying codes — sn_handle_analytics_funnels_save()
-	// encodes the 1-based bad line(s) straight into the flash code (e.g.
-	// 'analytics_funnels_invalid_2-4'), so nothing was saved AND the notice can
-	// point at exactly which line(s) to fix, no transient plumbing required.
+	// S2 §3 (v9.42.0 arc); pair-encoded reasons added (reason-surfacing task):
+	// sn_handle_analytics_funnels_save() (inc/admin-post-actions.php) encodes
+	// bad line(s) straight into the flash code, so nothing was saved AND the
+	// notice can point at exactly which line(s) to fix, no transient plumbing
+	// required. Two formats decode here:
+	//   - NEW: '<line>k<kindIndex>[-<line>k<kindIndex>…]' (e.g. '2k4-7k1') —
+	//     carries which of the six SN_ANALYTICS_FUNNELS_ERR_KINDS fired on each
+	//     line, so the notice can show the OWNER-FACING reason, not just "check
+	//     line N".
+	//   - LEGACY (back-compat, pre-reason-surfacing): a bare '-'-joined line
+	//     list (e.g. '2-4') with no 'k' — renders the old generic "Check line
+	//     N." copy, unchanged, so a stale bookmark/browser-history replay of an
+	//     old redirect URL still resolves to something sensible.
 	if ( 0 === strpos( $flash, 'analytics_funnels_invalid' ) ) {
-		$lines = trim( substr( $flash, strlen( 'analytics_funnels_invalid' ) ), '_' );
+		$suffix = trim( substr( $flash, strlen( 'analytics_funnels_invalid' ) ), '_' );
 		// T2/T3-review hardening: $flash already passed through sanitize_text_field()
 		// upstream (inc/admin-page.php / inc/analytics-dashboard-page.php), but that
 		// strips tags, not arbitrary characters — a hand-crafted ?sn_flash=…_<junk>
 		// suffix could still carry stray quotes/unicode/overlong runs into this
-		// notice. On the legitimate path the suffix is ONLY ever digits joined by
-		// '-' (sn_handle_analytics_funnels_save() implode()s 1-based line numbers),
-		// so whitelist to EXACTLY that charset and cap the length before it
-		// reaches the UI (the display commas come from str_replace below, never
-		// from the input).
-		$lines  = substr( preg_replace( '/[^0-9\-]/', '', $lines ), 0, 40 );
-		$detail = '' !== $lines ? ( ' Check line' . ( false !== strpos( $lines, '-' ) ? 's ' : ' ' ) . str_replace( '-', ', ', $lines ) . '.' ) : '';
+		// notice. On the legitimate path the suffix is ONLY EVER digits joined by
+		// '-' (legacy) or by '-' with a single 'k' inside each pair (current), so
+		// whitelist to EXACTLY that charset and cap the length before it reaches
+		// the UI. Worst-case NEW-format length: 5 pairs of "9999k5" (6 chars) +
+		// 4 '-' separators = 34 chars — safely inside the pre-existing 40-char cap.
+		$suffix = substr( preg_replace( '/[^0-9k\-]/', '', $suffix ), 0, 40 );
+
+		if ( false !== strpos( $suffix, 'k' ) ) {
+			$pairs = sn_analytics_funnels_decode_pairs( $suffix );
+			if ( null !== $pairs ) {
+				$lines = array();
+				foreach ( $pairs as $pair ) {
+					$lines[] = esc_html( 'Line ' . $pair['line'] . ': ' . $pair['text'] );
+				}
+				return array( 'error', 'Funnels not saved — nothing changed.' . ( $lines ? ( '<br>' . implode( '<br>', $lines ) ) : '' ) );
+			}
+			// Malformed/hostile pair code (garbage token, out-of-range kind/line,
+			// or the shared kind-message source not loaded on this page) —
+			// degrade to the generic message rather than guess at partial detail.
+			return array( 'error', 'Funnels not saved — nothing changed.' );
+		}
+
+		// Legacy bare-line format (back-compat, unchanged from pre-reason-surfacing).
+		$detail = '' !== $suffix ? ( ' Check line' . ( false !== strpos( $suffix, '-' ) ? 's ' : ' ' ) . str_replace( '-', ', ', $suffix ) . '.' ) : '';
 		return array( 'error', 'Funnels not saved — nothing changed.' . $detail );
 	}
 

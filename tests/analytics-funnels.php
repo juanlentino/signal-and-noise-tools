@@ -152,14 +152,62 @@ ok( 1 === count( $res['funnels'] ), 'exactly 8 steps is allowed (boundary)' );
 ok( array() === $res['errors'], 'no error at the 8-step boundary' );
 
 echo "\nGroup: sn_analytics_parse_funnels — empty/whitespace-only input\n";
+// PIN CHANGE (reason-surfacing task): sn_analytics_parse_funnels() now also
+// returns 'errors_detail' — structured {line,kind,message} entries parallel
+// to the existing 'errors' string list — so the exact-shape pins below widen
+// to include the new (always-empty-here) key. Every other assertion in this
+// file reads $res['errors']/$res['funnels'] individually and is unaffected.
 ok( array(
-	'funnels' => array(),
-	'errors'  => array(),
+	'funnels'       => array(),
+	'errors'        => array(),
+	'errors_detail' => array(),
 ) === sn_analytics_parse_funnels( '' ), 'empty string → empty shape' );
 ok( array(
-	'funnels' => array(),
-	'errors'  => array(),
+	'funnels'       => array(),
+	'errors'        => array(),
+	'errors_detail' => array(),
 ) === sn_analytics_parse_funnels( "   \n\n  \t " ), 'whitespace-only → empty shape' );
+
+// ─────────────────────────────────────────────────────────────────────────
+echo "\nGroup: sn_analytics_parse_funnels — errors_detail carries the correct KIND + line for each of the six SN_ANALYTICS_FUNNELS_ERR_KINDS\n";
+// ─────────────────────────────────────────────────────────────────────────
+// Every kind must be independently reachable AND correctly tagged, with the
+// structured entry's 'message' staying byte-identical to the flat 'errors'
+// string it parallels (single source of truth — see sn_analytics_funnels_error()).
+function fk_assert_kind( $raw, $expect_line, $expect_kind, $label ) {
+	global $pass, $fail;
+	$res = sn_analytics_parse_funnels( $raw );
+	ok( 1 === count( $res['errors_detail'] ), "$label: exactly one errors_detail entry" );
+	if ( 1 !== count( $res['errors_detail'] ) ) {
+		return;
+	}
+	$d = $res['errors_detail'][0];
+	ok( array( 'line', 'kind', 'message' ) === array_keys( $d ), "$label: errors_detail entry shape is {line,kind,message}" );
+	ok( $expect_line === $d['line'], "$label: line is $expect_line" );
+	ok( $expect_kind === $d['kind'], "$label: kind is '$expect_kind'" );
+	ok( $d['message'] === $res['errors'][0], "$label: errors_detail message matches the flat errors[] string (single source)" );
+	ok( in_array( $d['kind'], SN_ANALYTICS_FUNNELS_ERR_KINDS, true ), "$label: kind is a member of the closed six-kind enum" );
+}
+
+fk_assert_kind( 'no colon here', 1, 'colon', 'colon kind (missing ":")' );
+fk_assert_kind( ' : /a > /b', 1, 'name', 'name kind (empty funnel name)' );
+fk_assert_kind( str_repeat( 'n', 81 ) . ': /a > /b', 1, 'long', 'long kind (name over 80 chars)' );
+fk_assert_kind( 'F: /' . str_repeat( 'p', 200 ) . ' > /b', 1, 'long', 'long kind (steps segment over 200 chars)' );
+fk_assert_kind( 'Name:: /a > /b', 1, 'step', 'step kind (stray double colon)' );
+fk_assert_kind( 'Name: /a b > /c', 1, 'step', 'step kind (whitespace inside a step)' );
+fk_assert_kind( 'One step: /a', 1, 'few', 'few kind (fewer than 2 steps)' );
+fk_assert_kind( 'F: ' . implode( ' > ', array_fill( 0, 9, '/s' ) ), 1, 'many', 'many kind (over max steps)' );
+$lines11_kind = array();
+for ( $i = 1; $i <= 11; $i++ ) {
+	$lines11_kind[] = "F$i: /a > /b";
+}
+$res_many_funnels = sn_analytics_parse_funnels( implode( "\n", $lines11_kind ) );
+ok( 1 === count( $res_many_funnels['errors_detail'] ), 'many kind (over max funnels): exactly one errors_detail entry' );
+ok( 11 === $res_many_funnels['errors_detail'][0]['line'], 'many kind (over max funnels): line is 11' );
+ok( 'many' === $res_many_funnels['errors_detail'][0]['kind'], 'many kind (over max funnels): kind is "many"' );
+
+ok( 6 === count( SN_ANALYTICS_FUNNELS_ERR_KINDS ), 'the enum has exactly six kinds' );
+ok( array( 'colon', 'name', 'long', 'step', 'few', 'many' ) === SN_ANALYTICS_FUNNELS_ERR_KINDS, 'the six kind keys, in their stable encoding order' );
 
 // ─────────────────────────────────────────────────────────────────────────
 echo "\nGroup: sn_analytics_session_funnels — hardcoded defaults byte-identical when unset\n";
@@ -339,7 +387,11 @@ ok( 'analytics_funnels_saved' === (string) $flash, 'array-shaped sn_funnels[] be
 $many_bad = array();
 for ( $i = 1; $i <= 20; $i++ ) { $many_bad[] = 'bad-line-without-colon'; }
 $flash = sn_handle_analytics_funnels_save( array( 'sn_funnels' => implode( "\n", $many_bad ) ) );
-ok( 1 === preg_match( '/^analytics_funnels_invalid_1-2-3-4-5$/', (string) $flash ), 'flash-source cap: only the first FIVE bad lines ride the redirect code' );
+// PIN CHANGE (reason-surfacing task): the flash code now encodes (line, kind
+// INDEX) pairs — 'colon' is index 0 in SN_ANALYTICS_FUNNELS_ERR_KINDS — instead
+// of the old bare-line-number list ('analytics_funnels_invalid_1-2-3-4-5').
+// The SOURCE cap (first five bad lines) is unchanged.
+ok( 1 === preg_match( '/^analytics_funnels_invalid_1k0-2k0-3k0-4k0-5k0$/', (string) $flash ), 'flash-source cap: only the first FIVE bad lines ride the redirect code, each as a line+kind pair' );
 
 echo "\nGroup: sn_handle_analytics_funnels_save — happy path\n";
 $GLOBALS['__settings'] = array();
@@ -358,13 +410,16 @@ $prior_funnels          = array(
 $GLOBALS['__settings'] = array( 'analytics.funnels' => $prior_funnels );
 $flash                 = sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'no colon here' ) );
 ok( 0 === strpos( $flash, 'analytics_funnels_invalid' ), 'parse error returns an "invalid" flash code' );
-ok( false !== strpos( $flash, '_1' ), 'flash code carries the 1-based line number of the bad line' );
+// PIN CHANGE (reason-surfacing task): the line number now rides inside a
+// '<line>k<kindIndex>' pair, not a bare suffix — pin the exact new code.
+ok( 'analytics_funnels_invalid_1k0' === $flash, 'flash code carries the 1-based line number + kind index (0 = colon) of the bad line' );
 ok( $prior_funnels === $GLOBALS['__settings']['analytics.funnels'], 'the prior setting is UNCHANGED — atomic, nothing partially saved' );
 
 echo "\nGroup: sn_handle_analytics_funnels_save — flash code carries MULTIPLE bad line numbers\n";
 $GLOBALS['__settings'] = array( 'analytics.funnels' => $prior_funnels );
 $flash                 = sn_handle_analytics_funnels_save( array( 'sn_funnels' => "no colon here\nGood: /a > /b\nalso no colon" ) );
-ok( false !== strpos( $flash, '1' ) && false !== strpos( $flash, '3' ), 'flash code names both bad lines (1 and 3)' );
+// PIN CHANGE (reason-surfacing task): exact pair-encoded code, not a substring check.
+ok( 'analytics_funnels_invalid_1k0-3k0' === $flash, 'flash code names both bad lines (1 and 3), each paired with the colon kind index' );
 ok( $prior_funnels === $GLOBALS['__settings']['analytics.funnels'], 'still atomic when only SOME lines are invalid — nothing saved' );
 
 echo "\nGroup: sn_handle_analytics_funnels_save — empty textarea clears the setting (falls back to hardcoded on read)\n";

@@ -26,6 +26,9 @@ function esc_url( $s ) { return $s; }
 function esc_html( $s ) { return $s; }
 function get_transient( $k ) { return $GLOBALS['__transient']; }
 function number_format_i18n( $n ) { return (string) $n; }
+// Reason-surfacing task: sn_analytics_funnels_kind_message() (required mid-file
+// below, once inc/analytics-sessions.php loads) translates its reason text via __().
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 
 // v7.0.1: the 'insights_failed' live-data notice reads the real stored scan
 // error via snt_insights_last_error() (defined in inc/insights.php, not loaded
@@ -174,6 +177,76 @@ $flash_long = 'analytics_funnels_invalid_' . str_repeat( '9', 100 );
 $note       = sn_admin_flash_to_notice( $flash_long );
 fm_eq( false, false !== strpos( $note[1], str_repeat( '9', 100 ) ), 'crafted junk suffix: a 100-char digit run is NOT echoed in full (capped)' );
 fm_eq( true, false !== strpos( $note[1], str_repeat( '9', 40 ) ), 'crafted junk suffix: exactly the first 40 chars of the digit run survive the cap' );
+// BACK-COMPAT pin (reason-surfacing task): the whole of Test 8 above uses the
+// OLD bare-line-number format ('analytics_funnels_invalid_3', '..._2-4', plus
+// every crafted-junk variant) and every assertion is UNCHANGED by this task —
+// the old format still renders the generic "Check line N." copy, exactly as
+// before. This comment is the pin: Test 8 passing unmodified IS the back-compat
+// guarantee for old-format codes a stale bookmark/browser-history entry might replay.
+
+echo "\nTest 8b: analytics_funnels_invalid NEW pair-format codes ('<line>k<kindIndex>') degrade to the generic message when the shared kind-message source is not loaded on this page\n";
+// This test file intentionally does NOT require inc/analytics-sessions.php up
+// top — unlike the real bootstrap (signal-and-noise-tools.php), where it always
+// loads before inc/admin-flash-messages.php. The function_exists guard at the
+// render site exists for exactly this isolated-page scenario: never fatal,
+// never partially render a reason it can't actually look up — just fall back
+// to the same generic copy the bare code renders.
+fm_eq( false, function_exists( 'sn_analytics_funnels_kind_message' ), 'sanity: the kind-message source is genuinely NOT loaded yet in this suite' );
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_2k4' );
+fm_eq( 'error', $note[0] ?? null, 'pair-format code without the kind-message source -> still an error notice, not null/fatal' );
+fm_eq( 'Funnels not saved — nothing changed.', $note[1] ?? null, 'pair-format code without the kind-message source -> degrades to the generic message' );
+
+// ─── From here on, the shared kind-message source IS loaded (mirrors the real
+// bootstrap load order: inc/analytics-sessions.php before inc/admin-flash-messages.php). ───
+require_once __DIR__ . '/../inc/analytics-sessions.php';
+
+echo "\nTest 8c: analytics_funnels_invalid pair-format codes render each kind's own reason text, single-sourced against the parser (SN_ANALYTICS_FUNNELS_ERR_KINDS)\n";
+fm_eq( 6, count( SN_ANALYTICS_FUNNELS_ERR_KINDS ), 'sanity: six kinds' );
+foreach ( SN_ANALYTICS_FUNNELS_ERR_KINDS as $idx => $kind ) {
+	$line          = $idx + 1;
+	$note          = sn_admin_flash_to_notice( 'analytics_funnels_invalid_' . $line . 'k' . $idx );
+	$expect_reason = sn_analytics_funnels_kind_message( $kind );
+	fm_eq( 'error', $note[0] ?? null, "pair-format '$kind' kind (index $idx) -> error severity" );
+	fm_eq( true, false !== strpos( $note[1], 'Funnels not saved — nothing changed.' ), "pair-format '$kind' kind -> still opens with the summary line" );
+	fm_eq( true, false !== strpos( $note[1], 'Line ' . $line . ': ' . $expect_reason ), "pair-format '$kind' kind -> renders 'Line $line: ' + its own single-sourced reason text" );
+}
+
+echo "\nTest 8d: multiple pair-format reasons render as one line each, in order\n";
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_2k1-7k4' );
+fm_eq( true, false !== strpos( $note[1], 'Line 2: ' . sn_analytics_funnels_kind_message( 'name' ) ), 'first pair (name kind) renders its own line' );
+fm_eq( true, false !== strpos( $note[1], 'Line 7: ' . sn_analytics_funnels_kind_message( 'few' ) ), 'second pair (few kind) renders its own line' );
+fm_eq( true, strpos( $note[1], 'Line 2:' ) < strpos( $note[1], 'Line 7:' ), 'the two reason lines render in the code\'s own order' );
+
+echo "\nTest 8e: quote/apostrophe characters inside the kind-message reasons survive the decode+render pipeline intact — no stray backslash, no corruption (cf. the update_option slash-asymmetry defect class)\n";
+$note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_9k3' ); // kind index 3 = 'step'
+fm_eq( true, false !== strpos( $note[1], '":"' ), 'the step reason\'s literal ":" characters survive verbatim' );
+fm_eq( false, false !== strpos( $note[1], '\\"' ), 'no stray backslash was introduced before a quote character' );
+$note_many = sn_admin_flash_to_notice( 'analytics_funnels_invalid_4k5' ); // kind index 5 = 'many'
+fm_eq( true, false !== strpos( $note_many[1], "wasn't saved" ), 'the many reason\'s apostrophe survives verbatim, unslashed' );
+fm_eq( false, false !== strpos( $note_many[1], "\\" ), 'no backslash of any kind appears in the rendered notice' );
+
+echo "\nTest 8f: hostile pair-format codes degrade to the generic message, NEVER a warning or a partial/garbage line — kind index out of range, line 0, garbage separators\n";
+$hostile_codes = array(
+	'analytics_funnels_invalid_2k9'     => 'kind index 9 does not exist (only 0-5)',
+	'analytics_funnels_invalid_0k1'     => 'line 0 is out of the 1-9999 range',
+	'analytics_funnels_invalid_2k4x7k1' => 'garbage separator instead of "-"',
+	'analytics_funnels_invalid_2kk4'    => 'double "k"',
+	'analytics_funnels_invalid_k4'      => 'missing line',
+	'analytics_funnels_invalid_2k'      => 'missing kind index',
+	'analytics_funnels_invalid_-2k4'    => 'leading dash produces an empty pair token',
+	'analytics_funnels_invalid_2k4-'    => 'trailing dash produces an empty pair token',
+);
+foreach ( $hostile_codes as $code => $why ) {
+	$note = sn_admin_flash_to_notice( $code );
+	fm_eq( 'error', $note[0] ?? null, "hostile code ($why) -> still an error notice, never null/fatal" );
+	fm_eq( 'Funnels not saved — nothing changed.', $note[1] ?? null, "hostile code ($why) -> degrades to the generic message, no partial line list" );
+}
+
+echo "\nTest 8g: decode-side pair cap — even a hostile code that packs MORE than five well-formed pairs into the 40-char budget only ever renders five reason lines\n";
+$six_pairs = 'analytics_funnels_invalid_1k0-2k0-3k0-4k0-5k0-6k0';
+$note      = sn_admin_flash_to_notice( $six_pairs );
+fm_eq( 5, substr_count( (string) ( $note[1] ?? '' ), 'Line ' ), 'six well-formed pairs in the code -> only five "Line " reason lines render' );
+fm_eq( false, false !== strpos( (string) ( $note[1] ?? '' ), 'Line 6:' ), 'the sixth pair is dropped, not rendered' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
