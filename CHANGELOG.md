@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.43.5] - 2026-07-15: Type-scale calibration — one kicker track, one unit system, the backlog closes
+
+**Headline:** The analytics surface's last typographic drift is gone. Every uppercase kicker/badge across [assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css) and [assets/analytics/analytics-widget.css](assets/analytics/analytics-widget.css) — previously scattered over five letter-spacing values (0.02–0.06em) — now reads one token, `--sn-an-kicker-track: .04em`: **8 declarations change track** (the deliberate calibration: control/KPI/trend labels tighten up from 0.02–0.03em, journeys/pulse labels and the widget subhead relax down from 0.05–0.06em) and 5 already-at-.04em kickers merely tokenize. The two promoted-numeral tracks tokenize as `--sn-an-display-track: -.01em` (value-identical). The px-vs-rem split between the two files closes: 8 rem font-sizes converge to px with proven identity at the 16px root; 10 em declarations whose context isn't provable in-file stay literal (enumerated in the suite, not guessed at). Rider polish from the v9.43.2 review: the tier badge's base block adopts `--sn-an-hairline`/`--sn-an-surface-2`/new `--sn-an-tier-text` in both files (value-identical). Sentence-case `.sn-an-note-label` is deliberately excluded from the all-caps canon (it renders "Read" in sentence case — different role).
+
+> **Why PATCH:** typographic calibration + token indirection; the 8 sub-pixel tracking changes are the release's entire visual delta.
+
+### Changed
+- Kicker canon + display-track + unit convergence + tier-text riders as above; [tests/analytics-tokens.php](tests/analytics-tokens.php) grows 104 → 175 asserts (canon enforcement pins even value-identical literals — reverting one to a raw `.04em` fails the exactly-N-token-reads count).
+
 ## [9.43.4] - 2026-07-14: Funnel save errors finally say WHY — reasons ride the flash code, still no transients
 
 **Headline:** Since S2, a rejected funnels save told you only *"Check line N."* — the parser's six carefully-worded reasons (including the double-colon hint) were authored and then discarded at the save layer, which had deliberately declined transient plumbing. The reasons now arrive WITHOUT reversing that decision: the parser tags each error with a **closed six-kind enum** (`colon`/`name`/`long`/`step`/`few`/`many`, [inc/analytics-sessions.php](inc/analytics-sessions.php)), the save handler encodes `(line, kind-index)` pairs into the flash code (`analytics_funnels_invalid_2k4-7k1`, digits+`k`+`-` only, 5-entry source cap, worst case 34 chars inside the 40-char cap), and the flash renderer ([inc/admin-flash-messages.php](inc/admin-flash-messages.php)) decodes with layered hostile-input defenses — per-token `^\d{1,4}k[0-5]$`, whole-notice degradation to the generic copy on ANY malformed token — then renders each line's reason from the single-source `sn_analytics_funnels_kind_message()`. Old bare-line codes still render the legacy generic copy.
