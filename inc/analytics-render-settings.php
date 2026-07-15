@@ -9,12 +9,53 @@
  * (v8.9.x split); the one-time Plausible-CSV import panel it once held was
  * retired at v9.0.0 (see the note at the end of this file).
  *
+ * v9.45.0 (settings-leaf prune): snt_an_settings_fold() wraps each writable
+ * card behind a native <details> state-snapshot (§2); the worker-setup
+ * reference and the credentials fold's open state both key off the shared
+ * sn_analytics_pipeline_complete() seam (§3); the filter reference is now a
+ * single deep link to docs/FILTERS.md instead of an inline 12-entry list (§4).
+ *
  * @package SignalNoiseTools
  * @since 5.0.1
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+/**
+ * Native <details>/<summary> fold for a writable-column settings card (v9.45.0,
+ * §2, MED#2): the summary always shows the fieldset's title plus a one-line
+ * snapshot of its current state, so collapsing a card never hides whether
+ * it's configured. Zero JS — the leaf's existing accordion idiom (worker-setup
+ * / filter reference already use native <details>). Form INTERNALS (whatever
+ * $render_cb echoes) are byte-identical to before; only this wrapper is new.
+ *
+ * @param string   $title     Plain-text fieldset title (e.g. "Credentials").
+ * @param string   $snapshot  One-line current-state summary shown beside the title.
+ * @param bool     $open      Whether the fold starts expanded.
+ * @param callable $render_cb Zero-arg callback that echoes the card's existing markup.
+ *
+ * @since 9.45.0
+ */
+function snt_an_settings_fold( $title, $snapshot, $open, $render_cb ) {
+	echo '<details class="sn-an-form-fold"' . ( $open ? ' open' : '' ) . '>';
+	echo '<summary>' . esc_html( $title ) . ' <span class="sn-an-form-fold-snapshot">' . esc_html( $snapshot ) . '</span></summary>';
+	call_user_func( $render_cb );
+	echo '</details>';
+}
+
+/**
+ * The credentials fold's open-state decision (§2/§3's shared seam): open while
+ * the pipeline is incomplete, closed once all five stages flow. Its own
+ * function so the folds suite can pin BOTH states — the orchestrator wiring
+ * alone proved unmutatable from the composition harness (review fold, v9.45.0).
+ *
+ * @since 9.45.0
+ * @return bool
+ */
+function snt_an_credentials_fold_open() {
+	return ! sn_analytics_pipeline_complete();
 }
 
 /**
@@ -70,6 +111,28 @@ function snt_analytics_render_credentials() {
 }
 
 /**
+ * The credentials fold's one-line snapshot (v9.45.0, §2): "Configured —
+ * locked by wp-config" when analytics is configured AND at least one field is
+ * locked by a wp-config constant, "Configured" when reachable via the options
+ * table alone, else "Not configured". Ties the "locked" claim to the SAME
+ * sn_analytics_config() the pipeline strip's read-credentials pill uses, so
+ * it can never claim "Configured" when the pair isn't actually usable.
+ *
+ * @since 9.45.0
+ */
+function snt_an_credentials_snapshot() {
+	$locked = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
+		|| ( defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID );
+	$configured = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
+	if ( ! $configured ) {
+		return __( 'Not configured', 'signal-and-noise-tools' );
+	}
+	return $locked
+		? __( 'Configured — locked by wp-config', 'signal-and-noise-tools' )
+		: __( 'Configured', 'signal-and-noise-tools' );
+}
+
+/**
  * The Monitoring → Analytics "Exclude my own visits" card — a Plausible-style
  * role allow-list. Ticking a role stops the front-end beacon for its logged-in
  * users (the sn_beacon_enabled filter in inc/beacon-owner-exclusion.php suppresses
@@ -111,10 +174,35 @@ function snt_analytics_render_exclusion() {
 }
 
 /**
+ * The exclusion fold's one-line snapshot (v9.45.0, §2): the excluded-role
+ * count, or "Off" when the allow-list is empty.
+ *
+ * @since 9.45.0
+ */
+function snt_an_exclusion_snapshot() {
+	$excluded = (array) sn_setting( 'analytics.exclude_roles', array() );
+	$n        = count( $excluded );
+	if ( 0 === $n ) {
+		return __( 'Off', 'signal-and-noise-tools' );
+	}
+	/* translators: %d: number of excluded roles */
+	return sprintf( _n( '%d role excluded', '%d roles excluded', $n, 'signal-and-noise-tools' ), $n );
+}
+
+/**
  * Read-only Cloudflare Worker setup reference. The plugin can't run wrangler;
  * this shows the exact steps so the Cloudflare side is copy-paste, not guesswork.
+ *
+ * v9.45.0 (§3, MED#1a): renders ONLY while the pipeline is incomplete — the
+ * same sn_analytics_pipeline_complete() seam the pipeline strip's pills and
+ * the credentials fold's open state read. A fully wired site has no more use
+ * for "how to set this up" instructions; the block disappears entirely
+ * instead of sitting there as noise once every stage is green.
  */
 function snt_analytics_render_worker_setup() {
+	if ( sn_analytics_pipeline_complete() ) {
+		return;
+	}
 	echo '<details class="sn-an-worker"><summary>' . esc_html__( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' ) . '</summary>';
 	echo '<ol class="sn-an-steps">';
 	echo '<li><strong>' . esc_html__( 'Read token', 'signal-and-noise-tools' ) . '</strong> ';
@@ -131,14 +219,19 @@ function snt_analytics_render_worker_setup() {
 }
 
 /**
- * Settings-hub pipeline status strip (v9.36.0): five presence pills in
- * data-flow order — beacon → worker → read → cron → edge. States: ok | warn |
- * unknown (probe-miss only). Secrets are never echoed; every check is a
- * presence boolean resolved through the SAME helper the consuming feature
- * uses, so the pill can't drift from the real behavior. Missing helpers
- * (isolated harnesses / partial installs) degrade per-pill, never fatal.
+ * Settings-hub pipeline-pill computation (v9.45.0 extraction, §3): the five
+ * presence checks snt_analytics_render_pipeline_status() renders as pills —
+ * pulled into its own function so sn_analytics_pipeline_complete() (the
+ * worker-setup conditional + the credentials fold's open state, §2/§3) reads
+ * the EXACT same seam instead of re-deriving "is everything configured" a
+ * second way. Data-flow order — beacon → worker → read → cron → edge. Each
+ * pill: array( state, label, warn-note ). States: ok | warn | unknown
+ * (probe-miss only). Secrets are never echoed; every check is a presence
+ * boolean resolved through the SAME helper the consuming feature uses, so the
+ * pill can't drift from the real behavior. Missing helpers (isolated
+ * harnesses / partial installs) degrade per-pill, never fatal.
  */
-function snt_analytics_render_pipeline_status() {
+function snt_analytics_pipeline_pills() {
 	$pills = array(); // each: array( state, label, warn-note )
 
 	// 1. Beacon token — the resolution sn_rss_tracker_token()/the theme beacon use.
@@ -150,15 +243,16 @@ function snt_analytics_render_pipeline_status() {
 		: array( 'warn', __( 'Beacon token missing', 'signal-and-noise-tools' ), __( 'The front-end beacon can’t authenticate to the collector — set SN_BEACON_TOKEN in wp-config.php (same value as the Worker’s SN_PX_TOKEN).', 'signal-and-noise-tools' ) );
 
 	// 2. Edge worker — the existing SWR probe; config booleans are presence-only.
+	// v9.45.0 (strip dedupe, MED#3): the label is a fixed "Edge worker" — the
+	// Edge-worker reference card (sn_worker_version_render_card(), right
+	// column) is the ONE place the deployed version string is shown; both
+	// read sn_worker_version_get(), so showing the version twice here was
+	// pure duplication.
 	if ( function_exists( 'sn_worker_version_get' ) ) {
 		$wv = sn_worker_version_get();
 		if ( ! empty( $wv['ok'] ) ) {
-			$ver   = (string) ( $wv['data']['version'] ?? '' );
-			$cfg   = isset( $wv['data']['config'] ) && is_array( $wv['data']['config'] ) ? $wv['data']['config'] : array();
-			$label = '' !== $ver
-				/* translators: %s: deployed worker version */
-				? sprintf( __( 'Worker v%s', 'signal-and-noise-tools' ), $ver )
-				: __( 'Worker reachable', 'signal-and-noise-tools' );
+			$label   = __( 'Edge worker', 'signal-and-noise-tools' );
+			$cfg     = isset( $wv['data']['config'] ) && is_array( $wv['data']['config'] ) ? $wv['data']['config'] : array();
 			$missing = array();
 			if ( array() !== $cfg ) {
 				if ( empty( $cfg['px_token_set'] ) ) { $missing[] = 'SN_PX_TOKEN'; }
@@ -215,6 +309,35 @@ function snt_analytics_render_pipeline_status() {
 		? array( 'ok', __( 'Zone ID set', 'signal-and-noise-tools' ), '' )
 		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant — configure the zone on Connections → Cloudflare.', 'signal-and-noise-tools' ) );
 
+	return $pills;
+}
+
+/**
+ * True iff every pipeline stage (beacon → worker → read → cron → edge) reads
+ * 'ok' — the single completeness seam behind the credentials fold's open
+ * state (§2) and the worker-setup conditional (§3). Reads the SAME pill
+ * computation the strip renders, so this can never drift from what the owner
+ * actually sees.
+ *
+ * @since 9.45.0
+ */
+function sn_analytics_pipeline_complete() {
+	foreach ( snt_analytics_pipeline_pills() as $pill ) {
+		if ( 'ok' !== $pill[0] ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Settings-hub pipeline status strip (v9.36.0): five presence pills in
+ * data-flow order — beacon → worker → read → cron → edge. Renders the pills
+ * computed by snt_analytics_pipeline_pills() (v9.45.0 extraction, §3).
+ */
+function snt_analytics_render_pipeline_status() {
+	$pills = snt_analytics_pipeline_pills();
+
 	$marks = array(
 		'ok'      => '✓',
 		'warn'    => '!',
@@ -222,7 +345,7 @@ function snt_analytics_render_pipeline_status() {
 	);
 	echo '<div class="sn-fieldset sn-an-pipeline">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Pipeline status', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Beacon → worker → Analytics Engine → cron. Presence checks only — secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Beacon → worker → Analytics Engine → cron → edge. Presence checks only — secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-an-pipeline-pills">';
 	foreach ( $pills as $p ) {
 		echo '<span class="sn-an-pill sn-an-pill--' . esc_attr( $p[0] ) . '"><span class="sn-an-pill-mark">' . esc_html( $marks[ $p[0] ] ) . '</span> ' . esc_html( $p[1] ) . '</span>';
@@ -237,6 +360,21 @@ function snt_analytics_render_pipeline_status() {
 }
 
 /**
+ * Shared preset copy for the engine-tuning radios (v9.45.0 extraction, §2):
+ * one msgid set, used by both the radio labels and the writable-column fold's
+ * one-line snapshot, so the two can never drift apart.
+ *
+ * @since 9.45.0
+ */
+function snt_an_tuning_presets() {
+	return array(
+		'relaxed'  => __( 'Relaxed — fewer flags (≈2.5σ)', 'signal-and-noise-tools' ),
+		'standard' => __( 'Standard — designed default (≈3.5σ)', 'signal-and-noise-tools' ),
+		'strict'   => __( 'Strict — only extremes (≈4.5σ)', 'signal-and-noise-tools' ),
+	);
+}
+
+/**
  * Settings-hub engine tuning (v9.36.0): the two owner-tunable predictive knobs
  * — baseline window (days of history behind the anomaly baseline, clamped
  * 14–90 server-side) and anomaly sensitivity as a preset (relaxed/standard/
@@ -248,11 +386,7 @@ function snt_analytics_render_pipeline_status() {
 function snt_analytics_render_engine_tuning() {
 	$baseline = (int) sn_setting( 'analytics.signal_baseline_days', 30 );
 	$preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', 'standard' );
-	$presets  = array(
-		'relaxed'  => __( 'Relaxed — fewer flags (≈2.5σ)', 'signal-and-noise-tools' ),
-		'standard' => __( 'Standard — designed default (≈3.5σ)', 'signal-and-noise-tools' ),
-		'strict'   => __( 'Strict — only extremes (≈4.5σ)', 'signal-and-noise-tools' ),
-	);
+	$presets  = snt_an_tuning_presets();
 	// Display the engine's effective preset: an unknown stored value falls back
 	// to 'standard' in sn_analytics_signal_opts(), so the form mirrors that.
 	$preset = isset( $presets[ $preset ] ) ? $preset : 'standard';
@@ -278,6 +412,22 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<p><button type="submit" name="sn_action" value="analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
+}
+
+/**
+ * The tuning fold's one-line snapshot (v9.45.0, §2): baseline window + the
+ * effective preset label, reusing the exact radio-label msgids via
+ * snt_an_tuning_presets() so the two copies can't drift.
+ *
+ * @since 9.45.0
+ */
+function snt_an_tuning_snapshot() {
+	$baseline = (int) sn_setting( 'analytics.signal_baseline_days', 30 );
+	$preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', 'standard' );
+	$presets  = snt_an_tuning_presets();
+	$preset   = isset( $presets[ $preset ] ) ? $preset : 'standard';
+	/* translators: 1: baseline window in days, 2: the anomaly-sensitivity preset label */
+	return sprintf( __( '%1$d-day baseline · %2$s', 'signal-and-noise-tools' ), $baseline, $presets[ $preset ] );
 }
 
 /**
@@ -320,6 +470,22 @@ function snt_analytics_render_funnels() {
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express — prefix matching, custom-event goals — are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
+}
+
+/**
+ * The funnels fold's one-line snapshot (v9.45.0, §2): the funnel count, or
+ * "None" when the setting is empty.
+ *
+ * @since 9.45.0
+ */
+function snt_an_funnels_snapshot() {
+	$funnels = (array) sn_setting( 'analytics.funnels', array() );
+	$n       = count( $funnels );
+	if ( 0 === $n ) {
+		return __( 'None', 'signal-and-noise-tools' );
+	}
+	/* translators: %d: number of session funnels */
+	return sprintf( _n( '%d funnel', '%d funnels', $n, 'signal-and-noise-tools' ), $n );
 }
 
 /**
@@ -391,31 +557,17 @@ function snt_analytics_render_mirrors() {
 
 /**
  * Settings-hub developer filter reference (v9.36.0): the filter-tier seams from
- * the knob-exposure policy (design spec §7), one line each, collapsed by
- * default. Static i18n-wrapped content — the <details> idiom mirrors the
- * worker-setup box.
+ * the knob-exposure policy (design spec §7).
+ *
+ * v9.45.0 (§4, MED#1b): the 12-entry inline list moved VERBATIM to
+ * docs/FILTERS.md (repo doc, export-ignored — linked, not shipped in the
+ * plugin zip). The leaf now renders one deep link instead of carrying the
+ * whole reference itself; tests/analytics-filter-reference-parity.php keeps
+ * the staleness-armor property by scanning docs/FILTERS.md instead of this
+ * function's markup.
  */
 function snt_analytics_render_filter_reference() {
-	$filters = array(
-		'sn_analytics_signal_config'   => __( 'Predictive engine opts: baseline_days, z (post-filter clamped).', 'signal-and-noise-tools' ),
-		'sn_analytics_session_config'  => __( 'Session engine: idle gap, engaged thresholds, row cap.', 'signal-and-noise-tools' ),
-		'sn_analytics_session_funnels' => __( 'Named conversion funnels for the Visits view.', 'signal-and-noise-tools' ),
-		'sn_analytics_narrator'        => __( 'Override the compact AI narrative.', 'signal-and-noise-tools' ),
-		'sn_analytics_digest'          => __( 'Override the weekly executive digest.', 'signal-and-noise-tools' ),
-		'sn_analytics_recommender'     => __( 'Override the recommendations payload.', 'signal-and-noise-tools' ),
-		'sn_analytics_refresh_secret'  => __( 'Override the cron-refresh auth secret (default SN_SRV_TOKEN).', 'signal-and-noise-tools' ),
-		'sn_beacon_token'              => __( 'Override the beacon/collector token (default SN_BEACON_TOKEN).', 'signal-and-noise-tools' ),
-		'sn_analytics_self_hosts'      => __( 'Hosts folded as self-referrals in Sources.', 'signal-and-noise-tools' ),
-		'snt_ai_model_preference'      => __( 'Route AI features to a specific model.', 'signal-and-noise-tools' ),
-		'snt_ai_economy_features'      => __( 'Which AI features ride the economy tier.', 'signal-and-noise-tools' ),
-		'snt_ai_economy_model'         => __( 'Which model the economy tier uses.', 'signal-and-noise-tools' ),
-	);
-	echo '<details class="sn-an-worker sn-an-filters"><summary>' . esc_html__( 'Advanced: filter reference (developers)', 'signal-and-noise-tools' ) . '</summary>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Code-level seams for everything the two knobs above don’t cover. Constants beyond these stay internal by policy.', 'signal-and-noise-tools' ) . '</p><ul class="sn-an-steps">';
-	foreach ( $filters as $tag => $desc ) {
-		echo '<li><code>' . esc_html( $tag ) . '</code> — ' . esc_html( $desc ) . '</li>';
-	}
-	echo '</ul></details>';
+	echo '<p class="sn-an-filters-link"><a href="' . esc_url( 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/FILTERS.md' ) . '">' . esc_html__( 'Developer filter seams →', 'signal-and-noise-tools' ) . '</a></p>';
 }
 
 // v9.0.0 (D1): the one-time Plausible-CSV history importer (snt_analytics_render_import

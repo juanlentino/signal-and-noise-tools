@@ -510,6 +510,12 @@ function snt_analytics_render_dashboard() {
  * reference column.
  * S2 §3 (v9.42.0 arc): the session-funnels card joins the writable column,
  * after engine tuning.
+ * v9.45.0 (settings-leaf prune, §2): each writable-column card now folds
+ * behind snt_an_settings_fold() — a native <details> whose <summary> carries
+ * a one-line state snapshot, so collapsing a card never hides whether it's
+ * configured. Credentials starts open while the pipeline is incomplete (§3's
+ * same sn_analytics_pipeline_complete() seam); everything else defaults
+ * closed.
  */
 function snt_analytics_render_settings_section() {
 	// S2 §6: the leaf-scoped D4 marker — every leaf-scoped token-card rule in
@@ -528,20 +534,42 @@ function snt_analytics_render_settings_section() {
 	// ── Left: writable settings (credentials + exclusion + engine tuning). ──
 	echo '<div class="sn-fieldset">';
 	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>. <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
-	snt_analytics_render_credentials();
+	// v9.45.0 (§2): credentials starts open while the pipeline is incomplete —
+	// the same completeness seam the worker-setup conditional (§3) reads.
+	snt_an_settings_fold(
+		__( 'Credentials', 'signal-and-noise-tools' ),
+		snt_an_credentials_snapshot(),
+		snt_an_credentials_fold_open(),
+		'snt_analytics_render_credentials'
+	);
 	// The "Exclude my own visits" role allow-list is a primary analytics setting,
 	// so it sits with the credentials in the active-settings column (v6.23.0).
 	if ( function_exists( 'snt_analytics_render_exclusion' ) ) {
-		snt_analytics_render_exclusion();
+		snt_an_settings_fold(
+			__( 'Exclude my own visits', 'signal-and-noise-tools' ),
+			snt_an_exclusion_snapshot(),
+			false,
+			'snt_analytics_render_exclusion'
+		);
 	}
 	// v9.36.0: the two owner-tunable predictive-engine knobs.
 	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
-		snt_analytics_render_engine_tuning();
+		snt_an_settings_fold(
+			__( 'Engine tuning', 'signal-and-noise-tools' ),
+			snt_an_tuning_snapshot(),
+			false,
+			'snt_analytics_render_engine_tuning'
+		);
 	}
 	// S2 §3 (v9.42.0 arc): owner-defined session funnels, after engine tuning —
 	// the writable column's last card.
 	if ( function_exists( 'snt_analytics_render_funnels' ) ) {
-		snt_analytics_render_funnels();
+		snt_an_settings_fold(
+			__( 'Session funnels', 'signal-and-noise-tools' ),
+			snt_an_funnels_snapshot(),
+			false,
+			'snt_analytics_render_funnels'
+		);
 	}
 	echo '</div>';
 

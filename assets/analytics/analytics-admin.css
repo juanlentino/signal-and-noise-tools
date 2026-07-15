@@ -373,6 +373,16 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-pre { background: #f6f7f7; border: 1px solid #e0e0e0; padding: 8px 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre; overflow: auto; }
 .sn-an-worker[open] summary { margin-bottom: 6px; }
 
+/* ── writable-column card folds (v9.45.0, §2) — same native-<details> idiom
+   as .sn-an-worker above; additive, LIGHT-ONLY tokens only. */
+.sn-an-form-fold { margin: 0 0 16px; border: 1px solid #dcdcde; border-radius: var(--sn-an-radius); padding: 10px 14px; background: #fff; }
+.sn-an-form-fold summary { cursor: pointer; font-weight: 600; font-size: 13px; color: #1d2327; }
+.sn-an-form-fold[open] summary { margin-bottom: 6px; }
+.sn-an-form-fold-snapshot { font-weight: 400; color: #646970; }
+.sn-an-form-fold:last-child { margin-bottom: 0; }
+/* the filter reference's one-line deep link (§4), replacing the old accordion */
+.sn-an-filters-link { font-size: 13px; }
+
 /* ── settings hub (v9.36.0): pipeline pills + mirror rows ─────────────── */
 /* S2 §6: the pipeline strip is the settings leaf's ONE elevated surface —
    the hero idiom, mirroring .sn-an-headline's band on the dashboard. It

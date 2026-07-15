@@ -571,6 +571,7 @@ ok( strpos( $html, 'value="analytics_save"' ) !== false, 'settings: analytics_sa
 ok( strpos( $html, 'value="analytics_test"' ) !== false, 'settings: analytics_test submit present' );
 ok( strpos( $html, 'wrangler' ) !== false && strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings: Worker-setup console present' );
 ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the read-only dashboard' );
+ok( strpos( $html, '<details class="sn-an-form-fold" open>' ) !== false, 'settings: unconfigured pipeline -> the credentials fold carries open (v9.45.0 wiring pin)' );
 ok( strpos( $html, 'index.php?page=sn-analytics' ) !== false, 'settings: dashboard link targets the WP Dashboard → Analytics page' );
 
 echo "\nGroup: settings section — escaping of stored values\n";
