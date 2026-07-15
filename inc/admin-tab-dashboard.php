@@ -958,6 +958,17 @@ function snt_dashboard_debug_information( $info ) {
 		);
 	}
 
+	// Action Scheduler backlog (private — v9.48.0). Another plugin's queue,
+	// but its dispatch-gate COUNT runs on every page load, so its size is an
+	// ops concern for this site. Absent module or table degrades gracefully.
+	if ( function_exists( 'snt_asb_snapshot' ) ) {
+		$fields['as_backlog'] = array(
+			'label'   => __( 'Scheduled Actions backlog', 'signal-and-noise-tools' ),
+			'value'   => snt_asb_summary_line( snt_asb_snapshot() ),
+			'private' => true,
+		);
+	}
+
 	// Cache state — health-scan presence/age (private).
 	$cache_bits = array();
 	// v6.47.2: read through the accessor (a durable option since v6.47.2), not a

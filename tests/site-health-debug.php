@@ -142,6 +142,22 @@ if ( ! function_exists( 'sn_gh_latest_plugin_tag' ) ) {
 	function sn_gh_latest_plugin_tag() { return null; }
 }
 
+// Action Scheduler backlog stubs (v9.48.0) — the panel row delegates to the
+// scheduled-actions-health module; canned snapshot + the REAL summary shape.
+$GLOBALS['__test_asb_snapshot'] = array(
+	'counts'          => array( 'pending' => 5 ),
+	'total'           => 5,
+	'overdue_pending' => 2,
+);
+if ( ! function_exists( 'snt_asb_snapshot' ) ) {
+	function snt_asb_snapshot( $db = null, $now = null ) { return $GLOBALS['__test_asb_snapshot']; }
+}
+if ( ! function_exists( 'snt_asb_summary_line' ) ) {
+	function snt_asb_summary_line( $snapshot ) {
+		return null === $snapshot ? 'Action Scheduler not installed' : 'pending 5 (2 overdue) | total 5';
+	}
+}
+
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -216,6 +232,15 @@ sh_true( false !== strpos( $wh_val, '2' ), '2 enabled reflected' );
 echo "\nTest 7: cron-history table presence\n";
 $hist_val = sh_field_value( $fields, 'cron_history_table' );
 sh_true( null !== $hist_val, 'cron_history_table field present' );
+
+// ─── Test 8: Action Scheduler backlog row (v9.48.0) ──────────────────
+// The panel row is guarded on function_exists('snt_asb_snapshot'); the
+// stubs above stand in for the module so the row's delegation is pinned
+// without loading its wpdb dependencies.
+echo "\nTest 8: Action Scheduler backlog row\n";
+$asb_val = sh_field_value( $fields, 'as_backlog' );
+sh_eq( 'pending 5 (2 overdue) | total 5', $asb_val, 'as_backlog value comes straight from snt_asb_summary_line(snapshot)' );
+sh_true( ! empty( $panel['fields']['as_backlog']['private'] ), 'as_backlog row is private (internal ops detail)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
