@@ -208,31 +208,43 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
 
 /**
  * Catalog leaderboard — recent posts by lifetime views + views-per-day-of-life,
- * with each post's decay shape. Bespoke columns over the shared .wp-list-table
- * chrome (login-defense pattern: reuse the CSS, not the fixed-column helper).
+ * with each post's decay shape. Routes through the shared snt_an_kv_table()
+ * column-spec mode (D5 §4, inc/analytics-panels.php, holdout retirement
+ * v9.43.x): the Post column carries caller-built link+strong+age markup
+ * (html=true) and Shape carries either the decay text or the muted em-dash
+ * fallback (also html=true — the caller already ran esc_html() on the text
+ * branch, mirroring how sn_lifecycle_status_pill() is consumed at
+ * inc/analytics-posts-lifecycle-admin.php). Byte-identical to the pre-adoption
+ * hand-rolled table (data_colname was always on here).
  *
  * @param array $rows Leaderboard rows.
  */
 function snt_analytics_render_posts_leaderboard( $rows ) {
-	if ( empty( $rows ) ) {
-		snt_an_note_empty( __( 'Your catalog', 'signal-and-noise-tools' ), __( 'No posts yet.', 'signal-and-noise-tools' ) );
-		return;
-	}
-	snt_an_panel_open( __( 'Your catalog', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
-	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Lifetime views', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Per day', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="manage-column">' . esc_html__( 'Shape', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	$cols = array(
+		array( 'label' => __( 'Post', 'signal-and-noise-tools' ), 'html' => true ),
+		array( 'label' => __( 'Lifetime views', 'signal-and-noise-tools' ), 'class' => 'num' ),
+		array( 'label' => __( 'Per day', 'signal-and-noise-tools' ), 'class' => 'num' ),
+		array( 'label' => __( 'Shape', 'signal-and-noise-tools' ), 'html' => true ),
+	);
+
+	$kv_rows = array();
 	foreach ( (array) $rows as $r ) {
-		$decay = (string) ( $r['decay'] ?? '' );
-		echo '<tr><td class="column-primary" data-colname="Post"><a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>'
-			. esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span></td>';
-		echo '<td class="num" data-colname="Lifetime views">' . esc_html( number_format_i18n( (int) $r['lifetime'] ) ) . '</td>';
-		echo '<td class="num" data-colname="Per day">' . esc_html( number_format_i18n( (float) $r['per_day'] ) ) . '</td>';
-		echo '<td data-colname="Shape">' . ( '' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">—</span>' ) . '</td>';
-		echo '</tr>';
+		$decay     = (string) ( $r['decay'] ?? '' );
+		$kv_rows[] = array(
+			'<a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>' . esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span>',
+			number_format_i18n( (int) $r['lifetime'] ),
+			number_format_i18n( (float) $r['per_day'] ),
+			'' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">—</span>',
+		);
 	}
-	echo '</tbody></table>';
-	snt_an_panel_close();
+
+	snt_an_kv_table(
+		__( 'Your catalog', 'signal-and-noise-tools' ),
+		$kv_rows,
+		$cols,
+		array(
+			'empty'        => __( 'No posts yet.', 'signal-and-noise-tools' ),
+			'data_colname' => true,
+		)
+	);
 }
