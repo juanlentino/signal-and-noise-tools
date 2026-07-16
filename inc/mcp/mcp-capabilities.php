@@ -191,10 +191,17 @@ function sn_mcp_is_allowed( $slug, $door = SN_MCP_DOOR_READ ) {
  * @return array{name:string,version:string}
  */
 function sn_mcp_server_info( $door = SN_MCP_DOOR_READ ) {
-	$name = function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'name' ) : 'Signal & Noise';
-	if ( SN_MCP_DOOR_RW === $door ) {
-		$name .= ' (read-write)';
+	// Branded base defaults to the site title, falling back to a fixed brand
+	// when the title is blank; filterable via 'sn_mcp_server_label' so an owner
+	// can rename BOTH doors at once without editing this file. Each door then
+	// carries an explicit "(Read)" / "(Write)" label so a client that shows the
+	// serverInfo name (rather than the connection's own key) distinguishes them.
+	$site = function_exists( 'get_bloginfo' ) ? trim( (string) get_bloginfo( 'name' ) ) : '';
+	$base = '' !== $site ? $site : 'Signal & Noise';
+	if ( function_exists( 'apply_filters' ) ) {
+		$base = (string) apply_filters( 'sn_mcp_server_label', $base, $door );
 	}
+	$name = $base . ( SN_MCP_DOOR_RW === $door ? ' (Write)' : ' (Read)' );
 	return array(
 		'name'    => $name,
 		'version' => defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '',

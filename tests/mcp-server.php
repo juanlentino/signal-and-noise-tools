@@ -48,7 +48,7 @@ echo "MCP server — plugin v9.22.0\n\n";
 $r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => array( 'protocolVersion' => '2025-06-18' ) ) );
 ok( ( $r['result']['protocolVersion'] ?? '' ) === '2025-06-18', 'initialize negotiates the protocol version' );
 ok( ( $r['result']['capabilities']['tools']['listChanged'] ?? null ) === false, 'initialize declares listChanged:false' );
-ok( ( $r['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise', 'initialize returns serverInfo' );
+ok( ( $r['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise (Read)', 'initialize returns serverInfo (default read door, door-labeled)' );
 ok( ( $r['id'] ?? null ) === 1 && ( $r['jsonrpc'] ?? '' ) === '2.0', 'response echoes id + jsonrpc 2.0' );
 
 // tools/list
@@ -111,9 +111,9 @@ ok( ( $r['result']['capabilities']['prompts']['listChanged'] ?? null ) === false
 // --- initialize: $door threads into serverInfo (a no-op arg pre-v9.50.0, per
 //     lane DOORS' report — this closes it) ---
 $r_read = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 11, 'method' => 'initialize' ), SN_MCP_DOOR_READ );
-ok( ( $r_read['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise', 'initialize on the read door (explicit) keeps the unsuffixed name' );
+ok( ( $r_read['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise (Read)', 'initialize on the read door labels serverInfo (Read)' );
 $r_rw = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 12, 'method' => 'initialize' ), SN_MCP_DOOR_RW );
-ok( stripos( $r_rw['result']['serverInfo']['name'] ?? '', 'read-write' ) !== false, 'initialize on the rw door names serverInfo "(read-write)"' );
+ok( ( $r_rw['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise (Write)', 'initialize on the rw door labels serverInfo (Write)' );
 
 // --- tools/list threads $door through the full router (not just sn_mcp_list_tools directly) ---
 $GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array( 'result' => array( 'suggestion' => 'a cat' ) ) );
