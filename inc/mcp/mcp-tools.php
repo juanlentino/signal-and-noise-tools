@@ -2,7 +2,11 @@
 /**
  * Signal & Noise — MCP server: tool projection + call dispatch. Projects an
  * allowlisted WP_Ability into an MCP Tool and executes tools/call with the
- * allowlist gate + per-ability permission check. Sub-project B.
+ * allowlist gate + per-ability permission check. Sub-project B. Door-aware
+ * since v9.50.0: every entry point takes a $door (SN_MCP_DOOR_READ by
+ * default) and resolves its allowlist through sn_mcp_allowlist_for_door — the
+ * two-doors security property (the allowlist gates the CALL per door, not
+ * just the advertised list) lives here.
  *
  * @package SignalNoiseTools
  * @since 9.22.0
@@ -109,12 +113,16 @@ function sn_mcp_project_output_schema( $out ) {
  * Project a WP_Ability into an MCP Tool. inputSchema passes through the
  * ability's own JSON Schema; outputSchema is included only when declared, and
  * is wrapped (sn_mcp_project_output_schema) when its root isn't guaranteed to
- * already be a JSON object.
+ * already be a JSON object. The read door advertises annotations.readOnlyHint
+ * (truthful — every read-door ability is read-only by curation); the rw door
+ * advertises no annotations in v1 (several registered abilities' own
+ * annotations are known-wrong — don't launder them onto the projection).
  *
  * @param object $ability A WP_Ability (or test stand-in) exposing the accessors.
+ * @param string $door    SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
  * @return array<string,mixed>
  */
-function sn_mcp_project_tool( $ability ) {
+function sn_mcp_project_tool( $ability, $door = SN_MCP_DOOR_READ ) {
 	$label = (string) $ability->get_label();
 	$desc  = (string) $ability->get_description();
 	$tool  = array(
@@ -126,20 +134,27 @@ function sn_mcp_project_tool( $ability ) {
 	if ( is_array( $out ) && ! empty( $out ) ) {
 		$tool['outputSchema'] = sn_mcp_project_output_schema( $out );
 	}
+	if ( SN_MCP_DOOR_READ === $door ) {
+		$tool['annotations'] = array( 'readOnlyHint' => true );
+	}
 	return $tool;
 }
 
 /**
- * Build the tools/list result: project every allowlisted ability that resolves.
+ * Build the tools/list result: project every allowlisted ability (for the
+ * given door) that resolves. The rw door's tools/list is the rw allowlist
+ * ONLY — the read-door 23 are never duplicated into it; a client wanting
+ * reads uses the read door.
  *
+ * @param string $door SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
  * @return array{tools:array<int,array<string,mixed>>}
  */
-function sn_mcp_list_tools() {
+function sn_mcp_list_tools( $door = SN_MCP_DOOR_READ ) {
 	$tools = array();
-	foreach ( sn_mcp_allowlist() as $slug ) {
+	foreach ( sn_mcp_allowlist_for_door( $door ) as $slug ) {
 		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
 		if ( $ability ) {
-			$tools[] = sn_mcp_project_tool( $ability );
+			$tools[] = sn_mcp_project_tool( $ability, $door );
 		}
 	}
 	return array( 'tools' => $tools );
@@ -188,19 +203,22 @@ function sn_mcp_error_result( $message ) {
  *   array{ result: array } for a tool result (success or isError).
  *
  * The allowlist gates the CALL here, so an un-advertised ability can never be
- * reached by naming it directly.
+ * reached by naming it directly — and it does so PER DOOR: an rw-only slug
+ * named on the read door is unknown, and the held-back/excluded slugs are
+ * unknown on both doors regardless of $door.
  *
  * @param string $tool_name
  * @param mixed  $arguments
+ * @param string $door      SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
  * @return array<string,mixed>
  */
-function sn_mcp_call_tool( $tool_name, $arguments ) {
+function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	if ( ! is_string( $tool_name ) ) {
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Invalid tool name' ) );
 	}
 	$slug = sn_mcp_slug_from_tool_name( $tool_name );
 
-	if ( ! sn_mcp_is_allowed( $slug ) ) {
+	if ( ! sn_mcp_is_allowed( $slug, $door ) ) {
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Unknown tool: ' . (string) $tool_name ) );
 	}
 	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;

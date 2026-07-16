@@ -178,5 +178,78 @@ ok( is_object( $empty_result['structuredContent'] ), 'sn_mcp_success_result: emp
 ok( '{}' === wp_json_encode( $empty_result['structuredContent'] ), 'empty structuredContent encodes as {} not []' );
 ok( '[]' === $empty_result['content'][0]['text'], 'the text content block still shows [] (only structuredContent gets the object-cast belt)' );
 
+// ============================================================
+// v9.50.0 — two doors: readOnlyHint projection + per-door call gating
+// ============================================================
+echo "\nMCP tools — two doors (v9.50.0)\n\n";
+
+// --- D4: read-door tools advertise annotations.readOnlyHint:true ---
+$read_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'] );
+ok( ( $read_tool['annotations']['readOnlyHint'] ?? null ) === true, 'read-door projection (default door): annotations.readOnlyHint is true' );
+$read_tool_explicit = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'], SN_MCP_DOOR_READ );
+ok( ( $read_tool_explicit['annotations']['readOnlyHint'] ?? null ) === true, 'read-door projection (explicit door): annotations.readOnlyHint is true' );
+
+// --- D4: rw-door tools carry NO annotations in v1 (don't launder known-wrong ones) ---
+$rw_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'], SN_MCP_DOOR_RW );
+ok( ! isset( $rw_tool['annotations'] ), 'rw-door projection: no annotations key at all (v1)' );
+
+// --- tools/list is door-aware: only projects abilities on the resolved door's
+//     allowlist, and only those that resolve via wp_get_ability ---
+$GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array(
+	'label' => 'Suggest alt text', 'result' => array( 'suggestion' => 'a cat' ),
+) );
+$read_list = sn_mcp_list_tools( SN_MCP_DOOR_READ );
+$read_names = array_column( $read_list['tools'], 'name' );
+ok( ! in_array( 'signal-noise__ai-alt-suggest', $read_names, true ), 'tools/list(read): an rw-only ability is not projected' );
+
+$rw_list = sn_mcp_list_tools( SN_MCP_DOOR_RW );
+$rw_names = array_column( $rw_list['tools'], 'name' );
+ok( in_array( 'signal-noise__ai-alt-suggest', $rw_names, true ), 'tools/list(rw): the rw-only ability IS projected' );
+ok( ! in_array( 'signal-noise__get-health-scan', $rw_names, true ), 'tools/list(rw): a read-only ability is not projected (no duplication across doors)' );
+foreach ( $rw_list['tools'] as $t ) {
+	ok( ! isset( $t['annotations'] ), "tools/list(rw): projected tool '{$t['name']}' carries no annotations" );
+}
+
+// --- D6: per-door CALL gating — the security property holds at the call gate,
+//     not just the advertised list ---
+$rw_only_on_read = sn_mcp_call_tool( 'signal-noise__ai-alt-suggest', array(), SN_MCP_DOOR_READ );
+ok( isset( $rw_only_on_read['error'] ) && -32602 === $rw_only_on_read['error']['code'], 'an rw-only slug called on the read door -> unknown tool (-32602), never executes' );
+
+$rw_only_on_rw = sn_mcp_call_tool( 'signal-noise__ai-alt-suggest', array(), SN_MCP_DOOR_RW );
+ok( isset( $rw_only_on_rw['result'] ) && false === $rw_only_on_rw['result']['isError'], 'the same rw-only slug called on the rw door succeeds' );
+
+$read_only_on_rw = sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_RW );
+ok( isset( $read_only_on_rw['error'] ) && -32602 === $read_only_on_rw['error']['code'], 'a read-only slug called on the rw door -> unknown tool (no cross-door leakage)' );
+
+// --- D6: the excluded slugs are unknown on BOTH doors, even named directly ---
+$GLOBALS['__abilities']['signal-noise/run-cron-event'] = new SN_Test_Ability( 'signal-noise/run-cron-event', array( 'result' => 'ran' ) );
+$excluded_on_read = sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_READ );
+ok( isset( $excluded_on_read['error'] ) && -32602 === $excluded_on_read['error']['code'], 'run-cron-event is unknown on the read door' );
+$excluded_on_rw = sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_RW );
+ok( isset( $excluded_on_rw['error'] ) && -32602 === $excluded_on_rw['error']['code'], 'run-cron-event is unknown on the rw door too (never on any door)' );
+
+$GLOBALS['__abilities']['signal-noise/ai-orphan-apply'] = new SN_Test_Ability( 'signal-noise/ai-orphan-apply', array( 'result' => 'deleted' ) );
+$held_on_rw = sn_mcp_call_tool( 'signal-noise__ai-orphan-apply', array(), SN_MCP_DOOR_RW );
+ok( isset( $held_on_rw['error'] ) && -32602 === $held_on_rw['error']['code'], 'the held ai-orphan-apply is unknown on the rw door (owner-held, not yet opted in)' );
+
+// --- D1: get-analytics-events (array-rooted) is now read-door-allowlisted;
+//     pin the wrap rule end-to-end through the new addition ---
+$GLOBALS['__abilities']['signal-noise/get-analytics-events'] = new SN_Test_Ability( 'signal-noise/get-analytics-events', array(
+	'label' => 'Get analytics events', 'description' => 'Top custom events for a window.',
+	'output_schema' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+	'result' => array( array( 'event' => 'talk_qr_scan', 'count' => 12 ) ),
+) );
+$events_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-analytics-events'], SN_MCP_DOOR_READ );
+ok( ( $events_tool['outputSchema']['type'] ?? '' ) === 'object', 'D1: get-analytics-events advertised outputSchema wraps array root to object' );
+ok( ( $events_tool['outputSchema']['properties']['result']['type'] ?? '' ) === 'array', 'D1: get-analytics-events wrapped schema keeps the original array type inside properties.result' );
+
+$events_list = sn_mcp_list_tools( SN_MCP_DOOR_READ );
+$events_names = array_column( $events_list['tools'], 'name' );
+ok( in_array( 'signal-noise__get-analytics-events', $events_names, true ), 'D1: get-analytics-events is projected on tools/list(read) now that it is allowlisted' );
+
+$events_call = sn_mcp_call_tool( 'signal-noise__get-analytics-events', array(), SN_MCP_DOOR_READ );
+ok( ( $events_call['result']['structuredContent']['result'][0]['event'] ?? '' ) === 'talk_qr_scan', 'D1: get-analytics-events call end-to-end wraps structuredContent as {result:[...]}' );
+ok( ( $events_call['result']['annotations']['readOnlyHint'] ?? null ) === null, 'sanity: annotations live on the projected TOOL, not on the call RESULT' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
