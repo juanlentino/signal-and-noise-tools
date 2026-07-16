@@ -172,6 +172,44 @@ function fire( $hook ) {
 	foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { $cb(); }
 }
 
+echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
+// desktop-mode builds its serverWidgets / serverCommands / desktopIcons
+// payload inside desktop_mode_enqueue_assets(), hooked on
+// admin_enqueue_scripts at DEFAULT priority 10 (includes/render/assets.php).
+// It reads the registries EAGERLY at that moment
+// ($payload[$k] = $builder(); includes/core/payload.php).
+//
+// WordPress runs equal-priority callbacks in INSERTION order, and
+// active_plugins is sorted alphabetically — 'desktop-mode' < 'signal-and-
+// noise-tools' — so desktop-mode's priority-10 callback is ALWAYS added, and
+// therefore runs, BEFORE any priority-10 callback of ours. Registering from
+// our own admin_enqueue_scripts:10 closure is unwinnable: the payload is
+// already built. Everything must be registered by the end of `init`, which is
+// exactly what desktop-mode's own docs/examples/register-widget.md prescribes
+// (scripts on init:5, widget on init:6) — and what this file already did
+// correctly for desktop ICONS, while widgets + commands were left too late.
+// The chromeless/live-refresh path rebuilds the same payload outside
+// admin_enqueue_scripts entirely, and server-sync UNREGISTERS ids missing from
+// a refresh — so a late registry can also actively remove live widgets.
+fire( 'init' );
+$widgets = $GLOBALS['__dm_widgets'];
+ok( count( $widgets ) === 6, 'all six widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $GLOBALS['__dm_commands'] ) === 29, 'all 29 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
+ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
+foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-pulse', 'sn-desktop-mode-widget-health' ) as $h ) {
+	ok( isset( $GLOBALS['__scripts'][ $h ] ), "script handle $h is registered by the end of init (desktop-mode enqueues widget scripts at admin_enqueue_scripts:20)" );
+}
+
+// desktop_mode_register_widget() has NO 'sort' arg — absent from its $defaults
+// and from the stored $entry in both v0.8.9 and v0.9.5. Order is registration
+// order (`seed.push( def )`). Passing 'sort' looked like it controlled layout
+// and controlled nothing; express order by registering in it instead.
+foreach ( $widgets as $id => $args ) {
+	ok( ! array_key_exists( 'sort', $args ), "$id passes no dead 'sort' key (desktop-mode ignores it)" );
+}
+ok( array_keys( $widgets ) === array( 'sn-pulse', 'sn-site-views', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-health' ),
+	'widgets register in intended display order (Pulse first) — registration order IS the picker order' );
+
 echo "\n── Widget registration gate ──\n";
 fire( 'admin_enqueue_scripts' );
 $widgets = $GLOBALS['__dm_widgets'];

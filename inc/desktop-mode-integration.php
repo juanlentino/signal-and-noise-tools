@@ -68,14 +68,44 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sn_desktop_data is localized so the JS can read current version +
  * latest tag without an extra REST call for the "Info" commands.
  */
-// v4.1.6 (D-13): merged 3 separate admin_enqueue_scripts actions
-// (script-register + localize, command-register, widget-register) into a
-// single hook. Each sub-block keeps its own function_exists guard so the
-// merge is semantically identical to the 3-hook version — desktop-mode
-// could theoretically ship _commands_ without _widgets_ (or vice versa)
-// even though in practice both come from the same plugin.
-add_action( 'admin_enqueue_scripts', function() {
-	// ── Sub-block 1: register desktop-mode scripts + localize shared data ──
+/*
+ * v9.52.1 — THE HOOK. Scripts register on `init` priority 5, widgets and
+ * commands on `init` priority 6, exactly as desktop-mode's own
+ * docs/examples/register-widget.md prescribes.
+ *
+ * This is not stylistic. desktop-mode builds its serverWidgets /
+ * serverCommands / desktopIcons payload inside desktop_mode_enqueue_assets(),
+ * hooked on `admin_enqueue_scripts` at DEFAULT priority 10
+ * (includes/render/assets.php), and it reads the registries EAGERLY right
+ * there (`$payload[$k] = $builder();`, includes/core/payload.php). WordPress
+ * runs equal-priority callbacks in INSERTION order, and `active_plugins` is
+ * sorted alphabetically — 'desktop-mode' sorts before 'signal-and-noise-tools'
+ * — so desktop-mode's priority-10 callback is always added, and therefore
+ * runs, BEFORE any priority-10 callback of ours.
+ *
+ * Registering from our own admin_enqueue_scripts:10 closure was therefore
+ * unwinnable: by the time we called desktop_mode_register_widget(), the
+ * payload had already been built from an empty registry. Every widget and
+ * every Cmd+K command was silently absent from the picker/palette — for
+ * years, and independently of the v9.52.0 mount-callback bug (a widget that
+ * never reaches the payload can't mount no matter how correct its callback).
+ * The desktop ICONS in this same file always worked precisely because they
+ * were already registered on `init`.
+ *
+ * `init` also covers the chromeless / live-refresh path, which rebuilds the
+ * same payload OUTSIDE admin_enqueue_scripts entirely — and where server-sync
+ * UNREGISTERS any id missing from the refresh, i.e. a late registry doesn't
+ * just fail to add widgets, it can actively remove live ones.
+ *
+ * (Supersedes the v4.1.6 D-13 note: those three admin_enqueue_scripts actions
+ * were merged into one hook for tidiness; the hook itself was the bug.)
+ */
+add_action( 'init', function() {
+	// ── Register the desktop-mode scripts (init:5, per the docs) ──
+	// Registration only — never wp_enqueue_script() here. desktop-mode
+	// enqueues what it needs on shell pages at admin_enqueue_scripts:20, and
+	// server-sync lazy-loads the rest by URL; enqueueing here would load them
+	// on every admin page.
 	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
 		return;
 	}
@@ -116,18 +146,38 @@ add_action( 'admin_enqueue_scripts', function() {
 	// v9.52.0: three analytics widgets. These read the site-views REST
 	// endpoint (below) rather than the ability run-path, so they depend on
 	// wp-api-fetch only — no snt-ability-run.
+	//
+	// v9.52.1: they DO depend on 'sn-desktop-mode', which carries the
+	// window.snDesktopData localize the widgets read. Sharing a dependency
+	// (wp-api-fetch) never ordered them — the pre-v9.52.1 comment claiming it
+	// did was wrong — so name the real edge and let WP guarantee the data
+	// global is printed before any widget script runs.
 	foreach ( array( 'views', 'pulse', 'health' ) as $sn_widget ) {
 		wp_register_script(
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			array( 'wp-api-fetch' ),
+			array( 'wp-api-fetch', 'sn-desktop-mode' ),
 			SNT_VERSION,
 			true
 		);
 	}
+}, 5 );
 
+/**
+ * Localize the shared data global (admin only).
+ *
+ * Stays on admin_enqueue_scripts — unlike registration, this is not a
+ * registry desktop-mode reads at :10, it's per-handle script data WordPress
+ * prints when the handle is enqueued (desktop-mode does that at :20 on shell
+ * pages). It also reads deploy/health/uptime state, which has no business
+ * running on front-end `init`.
+ */
+add_action( 'admin_enqueue_scripts', function() {
+	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+		return;
+	}
 
-	// Shared data — both scripts read from window.snDesktopData.
+	// Shared data — every SN desktop script reads window.snDesktopData.
 	$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' ) : array();
 	$plugin = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
 	// v9.52.0: this hook fires on EVERY wp-admin screen, so it runs for any
@@ -170,9 +220,20 @@ add_action( 'admin_enqueue_scripts', function() {
 	// transitively on wp-api-fetch), so the global will be set by the time it
 	// runs.
 	wp_localize_script( 'sn-desktop-mode', 'snDesktopData', $shared );
+} );
 
-	// ── Sub-block 2: register Command Palette commands ──
-	// (Pre-v4.1.6 this was a separate add_action — merged for D-13.)
+/**
+ * Register Command Palette commands + desktop widgets (init:6).
+ *
+ * MUST be `init` — see the long note above the script-registration block.
+ * desktop-mode reads both registries eagerly at admin_enqueue_scripts:10 and
+ * always beats a same-priority callback of ours.
+ */
+add_action( 'init', function() {
+	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+		return;
+	}
+
 	$commands = array(
 		// Maintenance (REST → toast).
 		array( 'slug' => 'sn-cmd-force-check',     'label' => 'SN: Force-check updates',       'description' => 'Clear all GitHub + WordPress update transients.',           'icon' => 'dashicons-update' ),
@@ -244,16 +305,38 @@ add_action( 'admin_enqueue_scripts', function() {
 	// Independent function_exists check — desktop-mode could theoretically
 	// ship commands without widgets (defensive, mirrors the pre-v4.1.6 split).
 	if ( function_exists( 'desktop_mode_register_widget' ) ) {
-		// v9.52.0: every entry now carries description + icon. desktop-mode's
+		// v9.52.0: every entry carries description + icon. desktop-mode's
 		// server-sync copies both straight onto the widget def and its picker
 		// lists them under the label; without them the picker showed an empty
 		// blurb and the generic fallback dashicon.
+		//
+		// v9.52.1: the 'sort' key these entries used to pass was DEAD — it is
+		// absent from desktop_mode_register_widget()'s $defaults and from the
+		// stored $entry in BOTH v0.8.9 and v0.9.5, so wp_parse_args() kept it
+		// and the registry then dropped it on the floor. Widget order is simply
+		// REGISTRATION order (`seed.push( def )`, src/widgets/registry.ts), so
+		// the intended order is expressed by registering in it: the Pulse
+		// command-center read first, then Site Views, then the three older
+		// utility cards, then Health.
+		desktop_mode_register_widget( 'sn-pulse', array(
+			'label'       => 'SN Pulse',
+			'description' => 'Views, uptime and content health in one tile.',
+			'icon'        => 'dashicons-heart',
+			'script'      => 'sn-desktop-mode-widget-pulse',
+		) );
+
+		desktop_mode_register_widget( 'sn-site-views', array(
+			'label'       => 'SN Site Views',
+			'description' => 'A 14-day first-party pageview sparkline.',
+			'icon'        => 'dashicons-chart-area',
+			'script'      => 'sn-desktop-mode-widget-views',
+		) );
+
 		desktop_mode_register_widget( 'sn-deploy-status', array(
 			'label'       => 'SN Deploy Status',
 			'description' => 'Theme + plugin version and last deploy time.',
 			'icon'        => 'dashicons-update',
 			'script'      => 'sn-desktop-mode-widget',
-			'sort'        => 50,
 		) );
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
@@ -263,7 +346,6 @@ add_action( 'admin_enqueue_scripts', function() {
 			'description' => 'One-click purge, clear overrides, force update-check.',
 			'icon'        => 'dashicons-controls-repeat',
 			'script'      => 'sn-desktop-mode-widget-actions',
-			'sort'        => 55,
 		) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
@@ -274,26 +356,6 @@ add_action( 'admin_enqueue_scripts', function() {
 			'description' => 'Unique feed subscribers over 24h / 7d / 30d.',
 			'icon'        => 'dashicons-rss',
 			'script'      => 'sn-desktop-mode-widget-rss',
-			'sort'        => 60,
-		) );
-
-		// ── v9.52.0: the three analytics widgets ──
-		// Sort order puts Pulse first (the command-center read), then Site
-		// Views, then Health.
-		desktop_mode_register_widget( 'sn-pulse', array(
-			'label'       => 'SN Pulse',
-			'description' => 'Views, uptime and content health in one tile.',
-			'icon'        => 'dashicons-heart',
-			'script'      => 'sn-desktop-mode-widget-pulse',
-			'sort'        => 40,
-		) );
-
-		desktop_mode_register_widget( 'sn-site-views', array(
-			'label'       => 'SN Site Views',
-			'description' => 'A 14-day first-party pageview sparkline.',
-			'icon'        => 'dashicons-chart-area',
-			'script'      => 'sn-desktop-mode-widget-views',
-			'sort'        => 45,
 		) );
 
 		desktop_mode_register_widget( 'sn-health', array(
@@ -301,10 +363,9 @@ add_action( 'admin_enqueue_scripts', function() {
 			'description' => 'Content-health checks passing, and when last scanned.',
 			'icon'        => 'dashicons-shield-alt',
 			'script'      => 'sn-desktop-mode-widget-health',
-			'sort'        => 65,
 		) );
 	}
-} );
+}, 6 );
 
 /**
  * Dock item — single entry "Signal & Noise" with submenu of all 8 tabs.
