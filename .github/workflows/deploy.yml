@@ -1,32 +1,109 @@
 name: Deploy to Cloudways
 
-# v1.10.1+: tag pushes no longer auto-deploy. Updates land via the
-# WP admin Updates page (inc/wp-update-integration.php registers the
-# plugin with WP's native update system). workflow_dispatch remains
-# as a manual emergency-hotfix fallback — trigger from the GitHub
-# Actions UI or via `gh workflow run deploy.yml --ref vX.Y.Z`.
+# v1.10.1+: tag pushes no longer auto-deploy. Updates land via the WP admin
+# Updates page (inc/wp-update-integration.php registers the plugin with WP's
+# native update system). workflow_dispatch remains as a manual emergency
+# fallback.
 #
-# v4.4.2 security note: tests/ is deployed as part of the git checkout
-# (no rsync, no exclude list possible). Web access is blocked at the
-# PHP layer: every tests/*.php has a CLI-only guard (PHP_SAPI !== 'cli')
-# that returns 404 for HTTP requests. tests/.htaccess adds Apache
-# defense-in-depth (nginx on Cloudways ignores .htaccess — PHP guard
-# is load-bearing).
+#   gh workflow run deploy.yml --ref vX.Y.Z
+#
+# --ref IS MANDATORY AND MUST BE A TAG. This workflow takes no inputs: it
+# deploys the ref it was dispatched ON. Omitting --ref defaults to `main` and
+# fails fast at the guard below, on purpose — a fallback that ships an
+# arbitrary branch is not a fallback, it is a second way to break production.
+#
+# WHEN YOU ACTUALLY NEED THIS: if the tags fetch is broken, the self-updater
+# offers no update at all (pre_set_site_transient_update_plugins returns early
+# on a null tag), so the fix for a broken update checker cannot be delivered BY
+# the update checker. That catch-22 is this workflow's whole reason to exist.
+#
+# ── v9.54.2: ARCHIVE-BASED, not a server-side git checkout ──────────────────
+#
+# The old path ran `git fetch && git checkout <tag>` INSIDE the live plugin
+# directory. It died silently on 2026-07-15, when .git (11.5 MB) was deleted to
+# fix the plugin's installed footprint — and stayed dead, invisibly, for a week,
+# because this fallback is dormant by design. It surfaced only during a real
+# emergency: the worst possible moment to learn your fallback depends on a
+# directory you deliberately removed.
+#
+# Restoring .git was NOT the fix. inc/plugin-footprint.php's janitor manifest
+# INCLUDES .git as a "legacy deploy leftover", and v9.47.2 hardened that janitor
+# (chmod-before-descend + retry-unlink) — so the plugin would very likely delete
+# its own fallback's foothold on the next sweep. The plugin and its deploy path
+# disagreed about whether .git should exist. This resolves that in favour of the
+# footprint, permanently.
+#
+# The payload is now built ON THE RUNNER with `git archive`, which applies
+# .gitattributes export-ignore — byte-identical to what WP's native updater
+# installs from the tag archive. Then it ships over the SSH channel this
+# workflow already had, and rsyncs into place. That buys:
+#   - no .git required on the server, ever
+#   - no server -> GitHub dependency (the 2026-07-16 GitHub REST outage that
+#     broke the update checker would NOT have blocked this deploy)
+#   - tests/, .github/ and docs/ are export-ignored, so they are no longer
+#     deployed at all. This RETIRES the v4.4.2 note that tests/ ships with "no
+#     rsync, no exclude list possible": the exclude list is .gitattributes now,
+#     and the CLI-only guards in tests/*.php are belt to its braces rather than
+#     the only defence.
 on:
   workflow_dispatch:
 
-# Serialise deploys: if a new tag fires while one is in flight, queue
-# rather than cancel — never drop a release.
+# Serialise deploys: if another fires while one is in flight, queue rather than
+# cancel — never drop a release.
 concurrency:
   group: deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: SSH git checkout + CF purge
+    name: Archive deploy + CF purge
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Guard the ref (must be a tag)
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Defence-in-depth: git already constrains ref characters, but a
+          # strict pattern here prevents surprises if upstream loosens its
+          # rules — and gives an unmistakable error for the common mistake
+          # (`gh workflow run deploy.yml` with no --ref, which defaults to main).
+          case "$TAG_REF" in
+            v[0-9]*) ;;
+            *) echo "::error::invalid tag ref: '$TAG_REF'. Dispatch ON a tag: gh workflow run deploy.yml --ref vX.Y.Z"; exit 1 ;;
+          esac
+          echo "Deploying tag: $TAG_REF"
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The dispatch ref IS the tag, so the default checkout is already the
+          # tree we want. No history needed — git archive works off the worktree.
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Build the release payload (identical to the WP updater's)
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # --prefix mirrors the plugin slug so the tarball extracts to exactly
+          # the directory name WP expects. (GitHub's own archive endpoint uses
+          # `signal-and-noise-tools-<version>/`, which is why the updater needs
+          # an upgrader_source_selection rename and a manual zip upload does
+          # NOT — see inc/wp-update-integration.php.)
+          git archive --format=tar.gz --prefix=signal-and-noise-tools/ HEAD -o payload.tar.gz
+          echo "Payload: $(du -h payload.tar.gz | cut -f1)"
+          # Fail loudly if export-ignore ever stops applying: shipping tests/ to
+          # a live site is the exact thing this change retires.
+          if tar -tzf payload.tar.gz | grep -qE '^signal-and-noise-tools/(tests|\.github|docs)/'; then
+            echo "::error::payload contains dev-only paths — .gitattributes export-ignore is not applying"
+            exit 1
+          fi
+          # Sanity: the payload must actually be the plugin.
+          tar -tzf payload.tar.gz | grep -q '^signal-and-noise-tools/signal-and-noise-tools.php$' \
+            || { echo "::error::payload has no main plugin file"; exit 1; }
+
       - name: Configure SSH for Cloudways
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -40,100 +117,92 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: SSH git checkout on Cloudways
+      - name: Ship the payload + rsync into place
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           TAG_REF: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          # Validate ref name (defense-in-depth — git already constrains
-          # ref characters, but a strict pattern here prevents future
-          # surprises if upstream ever loosens its rules).
-          case "$TAG_REF" in
-            v[0-9]*) ;;
-            *) echo "ERROR: invalid tag ref: $TAG_REF"; exit 1 ;;
-          esac
-          # Pass TAG_REF as a positional arg to the remote bash so the
-          # local shell never expands it into the heredoc body.
+          scp -q payload.tar.gz "$SSH_USER@$SSH_HOST:~/sn-deploy-payload.tar.gz"
+          # TAG_REF goes as a positional arg so the local shell never expands it
+          # into the heredoc body.
           ssh "$SSH_USER@$SSH_HOST" bash -s -- "$TAG_REF" <<'REMOTE'
           set -euo pipefail
           TAG_REF="$1"
-          # The deploy runs as Cloudways' restricted "additional SSH user"
-          # (sn-plugin → nffqxsrgxz). Their ~/.ssh is root-owned and
-          # read-only, so the GitHub deploy key lives in the user-writable
-          # ~/.openssh/ directory (Cloudways convention) and we point git
-          # at it explicitly via GIT_SSH_COMMAND.
-          export GIT_SSH_COMMAND="ssh -i $HOME/.openssh/cw-to-gh-deploy_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.openssh/known_hosts"
-          # Auto-discover the plugin path — Cloudways uses random per-app
-          # dir names (e.g. nffqxsrgxz). Surviving a Cloudways app
-          # migration is worth one extra ls invocation.
+          # Auto-discover the plugin path — Cloudways uses random per-app dir
+          # names (e.g. nffqxsrgxz). Surviving an app migration is worth one ls.
           PLUGIN_DIR=$(ls -d /home/master/applications/*/public_html/wp-content/plugins/signal-and-noise-tools 2>/dev/null | head -1)
           [ -z "$PLUGIN_DIR" ] && { echo "ERROR: plugin dir not found"; exit 1; }
           echo "Plugin dir: $PLUGIN_DIR"
-          cd "$PLUGIN_DIR"
-          echo "Before: $(git describe --tags --always)"
-          # v2.0.3 hardening: discard any working-tree state from WP-UI
-          # installs that wrote files without updating the git index.
-          # Safe because plugin dir is fully reproducible from git.
-          git reset --hard --quiet HEAD
-          git clean -fd --quiet
-          git fetch --tags --quiet
-          git checkout --quiet "$TAG_REF"
-          echo "After:  $(git describe --tags --always)"
-          grep -E '^[[:space:]]*\*?[[:space:]]*Version:' signal-and-noise-tools.php | head -1
+          echo "Before: $(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php" || echo '(unreadable)')"
+
+          command -v rsync >/dev/null 2>&1 || { echo "ERROR: rsync not on PATH"; exit 1; }
+
+          STAGE=$(mktemp -d ~/sn-deploy-stage.XXXXXX)
+          # shellcheck disable=SC2064
+          trap "rm -rf '$STAGE' ~/sn-deploy-payload.tar.gz" EXIT
+          tar -xzf ~/sn-deploy-payload.tar.gz -C "$STAGE"
+          [ -f "$STAGE/signal-and-noise-tools/signal-and-noise-tools.php" ] || { echo "ERROR: payload did not extract as expected"; exit 1; }
+
+          # --delete makes this a CLEAN install: anything not in the tag payload
+          # goes, which is what WP's own updater does (clear_destination) and is
+          # exactly how the footprint stays at the ~2.9 MB the janitor targets.
+          # It also means a stray .git can never come back and re-break this.
+          # Note the trailing slashes — without them rsync nests the directory.
+          # -rlptD, NOT -a: `-a` implies -o/-g (owner/group), which only work as
+          # root. This deploy runs as Cloudways' restricted sn-plugin user, and
+          # file ownership is precisely what defeated the footprint janitor for
+          # weeks (a PHP-user file the SSH user could not unlink). Ask for only
+          # what a non-root user can actually set.
+          rsync -rlptD --delete "$STAGE/signal-and-noise-tools/" "$PLUGIN_DIR/"
+
+          echo "After:  $(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php")"
+          # Verify the deployed version matches the tag we were asked to ship.
+          # A deploy that silently lands the wrong code is worse than one that
+          # fails: it looks successful. (The theme's deploy could do exactly
+          # that until 2026-07-16 — see its workflow header.)
+          DEPLOYED=$(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          EXPECTED="${TAG_REF#v}"
+          if [ "$DEPLOYED" != "$EXPECTED" ]; then
+            echo "ERROR: deployed $DEPLOYED but expected $EXPECTED from tag $TAG_REF"
+            exit 1
+          fi
+          echo "OK: $PLUGIN_DIR is now $DEPLOYED (tag $TAG_REF)"
           REMOTE
 
       - name: Purge caches via WP-CLI in-process (no App Password required)
         # v3.7.3 architecture change: replaces the HTTP REST-based purge that
-        # required WP_DEPLOY_USER + WP_DEPLOY_APP_PASSWORD. The actual purge
-        # work (object cache + Breeze + Varnish + Cloudflare) lives in the
-        # theme's `sn_purge_all_caches_result` filter at
-        # inc/template-maintenance.php. We invoke it via `wp eval` over the
-        # same SSH connection used by the git checkout step above — auth is
-        # already established via the deploy SSH key (app-scoped sn-plugin
-        # user), so no HTTP Basic Auth and no rotatable App Password is
-        # involved. After v3.7.3 ships, WP_DEPLOY_USER and
-        # WP_DEPLOY_APP_PASSWORD GH secrets can be deleted.
+        # required WP_DEPLOY_USER + WP_DEPLOY_APP_PASSWORD. The purge work
+        # (object cache + Breeze + Varnish + Cloudflare) lives in the theme's
+        # `sn_purge_all_caches_result` filter at inc/template-maintenance.php.
+        # We invoke it via `wp eval` over the same SSH connection used above —
+        # auth is the deploy SSH key (app-scoped sn-plugin user), so no HTTP
+        # Basic Auth and no rotatable App Password is involved.
         #
-        # Same continue-on-error shape as v3.7.2's HTTP version for the
-        # same reason: SSH git checkout above already landed the files; a
-        # missed cache purge is a latency artifact, not a deploy failure.
-        # If wp-cli is unavailable or the filter fails, CF edge revalidates
-        # naturally via last-modified headers on every plugin asset.
+        # continue-on-error: the rsync above already landed the files; a missed
+        # purge is a latency artifact, not a deploy failure. If wp-cli is
+        # unavailable, CF edge revalidates via last-modified headers anyway.
         continue-on-error: true
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          # Let OPcache pick up the new files written by the prior SSH step
-          # (validate_timestamps gates this on Cloudways).
+          # Let OPcache pick up the new files (validate_timestamps gates this).
           sleep 5
           ssh "$SSH_USER@$SSH_HOST" bash -s <<'REMOTE'
           set -euo pipefail
-          # Auto-discover the app's public_html. Cloudways uses random
-          # per-app directory names (e.g. nffqxsrgxz); the sn-plugin SSH
-          # user has read access only to its own app, so this glob matches
-          # exactly one entry — same lookup pattern as the SSH git checkout
-          # step.
           APP_PUBLIC=$(ls -d /home/master/applications/*/public_html 2>/dev/null | head -1)
           if [ -z "$APP_PUBLIC" ]; then
             echo "::warning::Could not locate app public_html for wp-cli."
             exit 1
           fi
           cd "$APP_PUBLIC"
-          # Verify wp-cli is on PATH (Cloudways ships it for app-scoped
-          # SSH users on all apps; explicit check survives a future
-          # Cloudways base-image change).
           if ! command -v wp >/dev/null 2>&1; then
             echo "::warning::wp-cli not found on PATH for SSH_USER. CF edge will revalidate naturally."
             exit 1
           fi
-          # Call SN's purge filter in-process. The theme's
-          # inc/template-maintenance.php registers a filter handler that
-          # purges object cache + Breeze + Varnish + Cloudflare (uses CF
-          # API credentials from WP options). Returns purged count.
           count=$(wp eval 'echo (int) apply_filters("sn_purge_all_caches_result", 0, array("template_overrides" => false));' 2>&1)
           echo "Purged $count caches via sn_purge_all_caches_result filter."
           REMOTE
