@@ -260,6 +260,54 @@ foreach ( $widgets as $id => $args ) {
 		"$id default height is not below its own minimum" );
 }
 
+echo "\n── v9.52.4: the chrome owns the title (no doubled headings) ──\n";
+// movable:true (v9.52.2) makes desktop-mode render its own chrome header —
+// grip + LABEL + remove — above every card body. The three pre-v9.52.0 widgets
+// each painted their OWN title inside the body, which was right when no chrome
+// existed and became a duplicate the moment dragging was enabled: the card
+// then read "SN Quick Actions" (chrome) directly above "QUICK ACTIONS" (body).
+// The label registered in PHP is the single source of truth for a card's name.
+$sn_widget_js = array(
+	'desktop-mode-widget.js'         => 'Signal & Noise',
+	'desktop-mode-widget-actions.js' => 'Quick actions',
+	'desktop-mode-widget-rss.js'     => 'RSS subscribers',
+	'desktop-mode-widget-views.js'   => null,
+	'desktop-mode-widget-pulse.js'   => null,
+	'desktop-mode-widget-health.js'  => null,
+);
+foreach ( $sn_widget_js as $file => $old_heading ) {
+	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
+	ok( strpos( $code, 'text-transform:uppercase' ) === false,
+		"$file paints no uppercase title row — the chrome header already shows the label" );
+	if ( null !== $old_heading ) {
+		ok( strpos( $code, "'" . $old_heading . "'" ) === false,
+			"$file no longer duplicates its own title (\"$old_heading\")" );
+	}
+}
+
+echo "\n── v9.52.4: EVERY widget reads on the dark glass card ──\n";
+// v9.52.2 fixed only Quick Actions, because that was the reported symptom —
+// three opaque white slabs. The same light-theme palette was still sitting in
+// the deploy-status and RSS widgets, hidden because grey-on-dark reads as DIM
+// rather than obviously broken. Same bug, quieter.
+$light_palette = array(
+	'#1d2327' => 'near-black body text',
+	'#646970' => 'mid-grey label',
+	'#8c8f94' => 'light-grey note',
+	'#c3c4c7' => 'light border',
+	'#2271b1' => 'wp-admin blue link',
+	'#dff4dc' => 'pastel success fill',
+	'#fbe2e2' => 'pastel error fill',
+);
+foreach ( array_keys( $sn_widget_js ) as $file ) {
+	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
+	$found = array();
+	foreach ( $light_palette as $hex => $what ) {
+		if ( stripos( $code, $hex ) !== false ) { $found[] = "$hex ($what)"; }
+	}
+	ok( empty( $found ), "$file carries no light-theme colours" . ( $found ? ' [' . implode( ', ', $found ) . ']' : '' ) );
+}
+
 echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // .desktop-mode-widgets__card is NOT theme-switchable: it is fixed dark glass
 // — background rgba(20,20,22,.55) + backdrop-filter blur, color:#fff

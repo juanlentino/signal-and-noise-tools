@@ -55,9 +55,9 @@
 
 	function stateGlyph( state ) {
 		switch ( state ) {
-			case 'ok':        return { label: '✓', color: '#0a5a1a' };
-			case 'available': return { label: '↑', color: '#b78103' };
-			default:          return { label: '?',      color: '#8b1a1a' };
+			case 'ok':        return { label: '✓', color: '#3fb950' };
+			case 'available': return { label: '↑', color: '#d29922' };
+			default:          return { label: '?',      color: '#ff9d94' };
 		}
 	}
 
@@ -68,7 +68,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;color:#646970;',
+			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;opacity:.6;',
 			text:  'Loading deploy status…',
 		} ) );
 	}
@@ -76,7 +76,7 @@
 	function renderError( container, message ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#cc1818;',
+			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#ff9d94;',
 			text:  'Status fetch failed: ' + ( message || 'unknown' ),
 		} ) );
 	}
@@ -86,13 +86,12 @@
 
 		var wrap = el( 'div', {
 			className: 'sn-dm-widget',
-			style:     'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:#1d2327;',
+			style:     'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
 		} );
 
-		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 10px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#646970;',
-			text:  'Signal & Noise',
-		} ) );
+		// v9.52.4: no title row — desktop-mode's chrome header (grip + label +
+		// remove), rendered since movable:true in v9.52.2, already names this
+		// card. Painting "Signal & Noise" here put a second title on the card.
 
 		var grid = el( 'div', {
 			style: 'display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:13px;line-height:1.4;align-items:baseline;',
@@ -103,7 +102,7 @@
 			var glyph = stateGlyph( info.state || 'unknown' );
 
 			grid.appendChild( el( 'span', {
-				style: 'color:#646970;',
+				style: 'opacity:.6;',
 				text:  pkg === 'theme' ? 'Theme' : 'Plugin',
 			} ) );
 			grid.appendChild( el( 'span', {
@@ -119,13 +118,13 @@
 		wrap.appendChild( grid );
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid #e0e0e0;font-size:11px;color:#646970;',
+			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.14);font-size:11px;opacity:.6;',
 			text:  'Last deploy: ' + ( status.last_deploy || 'unknown' ),
 		} ) );
 
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
-				style: 'display:inline-block;margin-top:8px;font-size:11px;color:#2271b1;text-decoration:none;',
+				style: 'display:inline-block;margin-top:8px;font-size:11px;color:#4a9eff;text-decoration:none;',
 				text:  'Open Dashboard →',
 				href:  dashboardUrl,
 			} ) );
