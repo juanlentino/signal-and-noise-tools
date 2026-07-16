@@ -96,8 +96,20 @@ if ( ! function_exists( 'snt_audit_get_counters_impl' ) ) {
 		);
 	}
 }
+// v9.51.0 (lane SEC-C, R8): mode-switchable via $GLOBALS['__test_many_logins_mode']
+// so the page-size-cap end-to-end test (below) can prove the cap engages
+// against a source impl returning MORE rows than the cap, without redeclaring
+// this function mid-file (a fatal error) — one definition, one flag.
+$GLOBALS['__test_many_logins_mode'] = false;
 if ( ! function_exists( 'snt_audit_get_login_successes_impl' ) ) {
 	function snt_audit_get_login_successes_impl( $days = 30 ) {
+		if ( ! empty( $GLOBALS['__test_many_logins_mode'] ) ) {
+			$rows = array();
+			for ( $i = 0; $i < SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP + 50; $i++ ) {
+				$rows[] = array( 'ts' => $i, 'user' => "user$i", 'formatted' => "f$i" );
+			}
+			return $rows;
+		}
 		return array(
 			array(
 				'ts'        => 1748736000,
@@ -218,6 +230,61 @@ assertTrue( is_array( json_decode( $out_null['content'], true ) ), 'ability: nul
 // unknown format → defaults to json (enum-guarded)
 $out_bogus = snt_ability_export_audit_log( array( 'format' => 'xml' ) );
 assertEq( 'json', $out_bogus['format'], 'ability: unknown format falls back to json' );
+
+// ════════════════════════════════════════════════════════════════════
+// v9.51.0 (lane SEC-C, R8) — PII cap on export-audit-log: default-redacted
+// usernames + a per-call page-size cap, independent of the storage/retention
+// cap. This is the ABILITY-layer surface only — the admin_post download
+// handler (sn_audit_export_download_handler(), a human wp-admin click, not
+// exercised here per the file's own docblock) is UNCHANGED: it still calls
+// sn_audit_export_render() -> sn_audit_export_build_view() directly, full
+// plaintext, for the authenticated owner's own download.
+// ════════════════════════════════════════════════════════════════════
+echo "\n-- R8: PII mask + row cap (pure helpers) --\n";
+assertEq( 'j***', sn_audit_export_pii_mask_username( 'juan' ), 'mask: keeps first char, stars the rest' );
+assertEq( '*', sn_audit_export_pii_mask_username( 'x' ), 'mask: a 1-char username still stars at least one char' );
+assertEq( '', sn_audit_export_pii_mask_username( '' ), 'mask: empty username stays empty' );
+
+$many_rows = array();
+for ( $i = 0; $i < 10; $i++ ) {
+	$many_rows[] = array( 'ts' => $i, 'user' => "user$i", 'formatted' => "f$i" );
+}
+$capped = sn_audit_export_cap_rows( $many_rows, 3 );
+assertEq( 3, count( $capped ), 'cap: slices down to the cap' );
+assertEq( 'user0', $capped[0]['user'], 'cap: keeps the FIRST N rows (login_successes rides newest-first already)' );
+$uncapped = sn_audit_export_cap_rows( $many_rows, 100 );
+assertEq( 10, count( $uncapped ), 'cap: a cap larger than the row count is a no-op' );
+
+echo "\n-- R8: default (no include_pii) redacts usernames + applies the page cap --\n";
+$default_out = snt_ability_export_audit_log( array( 'format' => 'json' ) );
+$default_decoded = json_decode( $default_out['content'], true );
+assertEq( 'j***', $default_decoded['login_successes'][0]['user'] ?? null, 'default call: JSON export username is masked, not plaintext' );
+// Checks the decoded login_successes VALUES specifically — the raw JSON string
+// also legitimately contains "juan" inside the unrelated site field
+// (home_url() = https://juanlentino.com/), so a whole-string search would
+// false-positive on that; the PII surface under test is the username field.
+$default_users = array_column( $default_decoded['login_successes'] ?? array(), 'user' );
+assertTrue( ! in_array( 'juan', $default_users, true ), 'PROBE PIN: the plaintext seeded username never appears as a login_successes.user value in a default-call export' );
+
+$default_out_csv = snt_ability_export_audit_log( array( 'format' => 'csv' ) );
+assertTrue( false === strpos( $default_out_csv['content'], 'juan' ), 'default CSV call: the plaintext seeded username never appears' );
+assertTrue( false !== strpos( $default_out_csv['content'], 'j***' ), 'default CSV call: the masked username IS present' );
+
+echo "\n-- R8: include_pii:true returns full plaintext (still gated the same as ever — capability/rw-door unchanged) --\n";
+$pii_out = snt_ability_export_audit_log( array( 'format' => 'json', 'include_pii' => true ) );
+$pii_decoded = json_decode( $pii_out['content'], true );
+assertEq( 'juan', $pii_decoded['login_successes'][0]['user'] ?? null, 'include_pii:true: JSON export carries the real plaintext username' );
+
+echo "\n-- R8: the page-size cap engages end-to-end when the source impl returns more rows than the cap --\n";
+// Flips the mode-switchable stub (defined near the top of this file) to its
+// many-rows fixture for THIS section only — proves sn_audit_export_cap_rows()
+// (already unit-tested above) is actually WIRED into the ability wrapper's
+// view, not just defined in isolation.
+$GLOBALS['__test_many_logins_mode'] = true;
+$capped_out     = snt_ability_export_audit_log( array( 'format' => 'json' ) );
+$capped_decoded = json_decode( $capped_out['content'], true );
+assertTrue( count( $capped_decoded['login_successes'] ?? array() ) === SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP, 'PROBE PIN: export login_successes never exceeds the page-size cap, even when the source impl returns more rows than that' );
+$GLOBALS['__test_many_logins_mode'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

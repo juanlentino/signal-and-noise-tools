@@ -12,8 +12,17 @@ define( 'SN_MCP_TEST', true );
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '9.22.0' ); }
 if ( ! defined( 'SN_REST_NAMESPACE' ) ) { define( 'SN_REST_NAMESPACE', 'signal-noise/v1' ); }
 
-if ( ! class_exists( 'WP_Error' ) ) { class WP_Error { public function get_error_message() { return ''; } } }
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code; public $message; public $data;
+		public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
+		public function get_error_code()    { return $this->code; }
+		public function get_error_message() { return $this->message; }
+		public function get_error_data()    { return $this->data; }
+	}
+}
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
 if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k = '' ) { return 'name' === $k ? 'Signal & Noise' : ''; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
@@ -32,10 +41,17 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 		return true;
 	}
 }
+// v9.51.0 (lane SEC-A): the rw guard's live-state seams.
+$GLOBALS['__opts'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; } }
+$GLOBALS['__app_pw_uuid'] = null; // what rest_get_authenticated_app_password() returns for the current request.
+if ( ! function_exists( 'rest_get_authenticated_app_password' ) ) { function rest_get_authenticated_app_password() { return $GLOBALS['__app_pw_uuid']; } }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
 require __DIR__ . '/../inc/mcp/mcp-server.php';
+require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-endpoint.php';
 
 $pass = 0; $fail = 0;
@@ -91,11 +107,16 @@ ok( null !== $read_route, 'the read route (/mcp) is registered' );
 ok( null !== $rw_route, 'the new rw route (/mcp-rw) is registered' );
 ok( $rw_route['namespace'] === $read_route['namespace'], 'the rw route shares the same REST namespace as the read route' );
 ok( 'POST' === ( $rw_route['args']['methods'] ?? '' ), 'the rw route is POST, same as the read route' );
-ok( ( $rw_route['args']['permission_callback'] ?? '' ) === ( $read_route['args']['permission_callback'] ?? '' ),
-	'the rw route shares the exact same permission_callback (same manage_options + application-password floor)' );
-ok( ( $rw_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_permission', 'the shared permission callback is sn_mcp_permission' );
+// v9.51.0 (lane SEC-A): the routes no longer share a permission_callback — the
+// read floor is BYTE-FROZEN (still the literal 'sn_mcp_permission' string,
+// unchanged), while the rw floor is hardened with its own callback.
+ok( ( $read_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_permission', 'READ-DOOR-FROZEN: the read route\'s permission_callback is still the literal sn_mcp_permission string' );
+ok( ( $rw_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_rw_permission', 'v9.51.0: the rw route now uses its OWN hardened permission_callback, sn_mcp_rw_permission' );
+ok( ( $rw_route['args']['permission_callback'] ?? '' ) !== ( $read_route['args']['permission_callback'] ?? '' ),
+	'the two doors no longer share a permission_callback (the credential-split finding: a leaked read credential used to be exactly as dangerous as a write one)' );
 ok( ( $rw_route['args']['callback'] ?? '' ) !== ( $read_route['args']['callback'] ?? '' ), 'the rw route uses its OWN REST callback (distinct door context)' );
 ok( function_exists( 'sn_mcp_rw_rest_callback' ), 'sn_mcp_rw_rest_callback() is defined' );
+ok( function_exists( 'sn_mcp_rw_permission' ), 'sn_mcp_rw_permission() is defined' );
 
 // --- D3: door context resolved from the route, passed toward the handler —
 //     dispatch_body accepts a $door and forwards it; defaulting preserves the
@@ -104,6 +125,88 @@ $out = sn_mcp_dispatch_body( '{"jsonrpc":"2.0","id":1,"method":"ping"}' );
 ok( $out['status'] === 200 && isset( $out['payload']['result'] ), 'sanity: dispatch_body with NO door arg still behaves exactly as before (read default)' );
 $out_rw = sn_mcp_dispatch_body( '{"jsonrpc":"2.0","id":1,"method":"ping"}', SN_MCP_DOOR_RW );
 ok( $out_rw['status'] === 200 && isset( $out_rw['payload']['result'] ), 'dispatch_body accepts an explicit rw door and still dispatches successfully' );
+
+// ============================================================
+// v9.51.0 (lane SEC-A) — sn_mcp_rw_permission(): kill switch + credential split
+// ============================================================
+echo "\nMCP rw-door permission floor (v9.51.0, lane SEC-A)\n\n";
+
+function sn_test_reset_rw_guard_state() {
+	$GLOBALS['__opts']        = array();
+	$GLOBALS['__app_pw_uuid'] = null;
+	$GLOBALS['__cap']         = true;
+}
+
+// --- R1 DECISION pinned: fresh install (no bound credential yet) = deny-closed ---
+sn_test_reset_rw_guard_state();
+$result = sn_mcp_rw_permission();
+ok( is_wp_error( $result ), 'R1 DECISION: with no bound rw credential, sn_mcp_rw_permission() denies (deny-closed on unbound state)' );
+ok( is_wp_error( $result ) && ( $result->get_error_data()['status'] ?? null ) === 403, 'the unbound-state denial is a 403' );
+ok( is_wp_error( $result ) && 'sn_mcp_rw_rw_credential_unbound' === $result->get_error_code(), 'the unbound-state denial carries the rw_credential_unbound code' );
+
+// --- R2: kill switch wins even with a valid bound+matching credential ---
+sn_test_reset_rw_guard_state();
+$uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid );
+$GLOBALS['__app_pw_uuid'] = $uuid;
+ok( sn_mcp_rw_permission() === true, 'sanity: bound + matching credential + no kill switch -> allow' );
+
+update_option( 'sn_mcp_rw_enabled', false );
+$result = sn_mcp_rw_permission();
+ok( is_wp_error( $result ) && 'sn_mcp_rw_rw_disabled' === $result->get_error_code(), 'R2: the option kill switch denies rw even with a perfectly valid bound credential' );
+update_option( 'sn_mcp_rw_enabled', true );
+ok( sn_mcp_rw_permission() === true, 'resetting the kill switch option restores the allow' );
+
+// --- R2: kill switch is checked BEFORE manage_options (non-admin still gets the 403, not the plain-false denial) ---
+sn_test_reset_rw_guard_state();
+update_option( 'sn_mcp_rw_enabled', false );
+$GLOBALS['__cap'] = false; // not an admin either
+$result           = sn_mcp_rw_permission();
+ok( is_wp_error( $result ) && 'sn_mcp_rw_rw_disabled' === $result->get_error_code(),
+	'R2: the kill switch fires first — a non-admin request during a kill-switch outage still gets rw_disabled, not the plain admin-floor denial' );
+
+// --- credential mismatch / no app-password auth, once the admin floor + kill switch are clear ---
+sn_test_reset_rw_guard_state();
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid );
+$GLOBALS['__app_pw_uuid'] = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; // a DIFFERENT app password, still an admin
+$result                   = sn_mcp_rw_permission();
+ok( is_wp_error( $result ) && 'sn_mcp_rw_credential_not_authorized' === $result->get_error_code(),
+	'R1: an admin authenticated with the WRONG application password is denied credential_not_authorized' );
+
+sn_test_reset_rw_guard_state();
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid );
+$GLOBALS['__app_pw_uuid'] = null; // cookie+nonce admin session, no app-password auth at all
+$result                   = sn_mcp_rw_permission();
+ok( is_wp_error( $result ) && 'sn_mcp_rw_credential_not_authorized' === $result->get_error_code(),
+	'R1: a cookie-authenticated admin (no application password on this request) is denied credential_not_authorized even though manage_options passes' );
+
+// --- the existing non-admin denial shape is preserved when nothing else is wrong ---
+sn_test_reset_rw_guard_state();
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid );
+$GLOBALS['__app_pw_uuid'] = $uuid;
+$GLOBALS['__cap']         = false;
+ok( sn_mcp_rw_permission() === false, 'a non-admin gets the plain `false` denial (same failure shape as the pre-v9.51.0 floor), not a WP_Error' );
+
+// ============================================================
+// READ-DOOR-FROZEN: sn_mcp_permission() and the /mcp path are provably
+// unaffected by every rw-guard state permutation above.
+// ============================================================
+echo "\nRead-door frozen proof (v9.51.0)\n\n";
+
+sn_test_reset_rw_guard_state();
+$GLOBALS['__cap'] = true;
+ok( sn_mcp_permission() === true, 'read-door frozen: admin still passes with a clean rw-guard state' );
+
+update_option( 'sn_mcp_rw_enabled', false ); // rw kill switch ON
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid ); // rw credential bound
+$GLOBALS['__app_pw_uuid'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; // mismatched vs the rw-bound uuid
+ok( sn_mcp_permission() === true, 'read-door frozen: admin still passes even while the rw kill switch is engaged and the rw credential would deny' );
+$out = sn_mcp_dispatch_body( '{"jsonrpc":"2.0","id":1,"method":"ping"}' ); // default door = read
+ok( $out['status'] === 200 && isset( $out['payload']['result'] ), 'read-door frozen: the read-door dispatch path is unaffected by any rw-guard option state' );
+
+$GLOBALS['__cap'] = false;
+ok( sn_mcp_permission() === false, 'read-door frozen: a non-admin still fails read-door permission regardless of rw-guard state' );
+sn_test_reset_rw_guard_state();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

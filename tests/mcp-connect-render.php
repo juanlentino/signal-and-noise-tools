@@ -44,10 +44,58 @@ function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltr
 function get_edit_profile_url( $user_id = 0 ) { return 'https://example.test/wp-admin/profile.php'; }
 function apply_filters( $tag, $value ) { return $value; } // sn_mcp_allowlist() filters through 'sn_mcp_allowlist'; no filters registered here.
 
+// ---- R9 (v9.51.0, lane SEC-C) stubs: the write-door credential-binding form ----
+// In-memory options store — backs the REAL sn_mcp_rw_bound_uuid()/
+// sn_mcp_set_rw_bound_uuid() (inc/mcp/mcp-rw-guard.php, required below and
+// never stubbed, same "drive the real fn" idiom as sn_mcp_allowlist() above).
+$GLOBALS['__opts'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
+
+function get_current_user_id() { return 42; }
+
+// A configurable fixture standing in for the CURRENT user's own Application
+// Passwords — WP_Application_Passwords::get_user_application_passwords() is
+// itself scoped to one user id in real WP, so a flat fixture list is enough.
+$GLOBALS['__app_passwords'] = array();
+class WP_Application_Passwords {
+	public static function get_user_application_passwords( $user_id ) {
+		return $GLOBALS['__app_passwords'];
+	}
+}
+
+function human_time_diff( $from, $to = 0 ) { return '3 days'; }
+
+// Recording wp_nonce_field()/selected() — real-behavior stand-ins (not just a
+// no-op) so "the nonce field is actually rendered" / "the bound option is
+// actually marked selected" are provable, not assumed.
+function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
+	$html = '<input type="hidden" name="' . $name . '" value="test-nonce-for-' . $action . '">';
+	if ( $echo ) { echo $html; }
+	return $html;
+}
+function selected( $a, $b = true, $echo = true ) {
+	$r = ( (string) $a === (string) $b ) ? ' selected="selected"' : '';
+	if ( $echo ) { echo $r; }
+	return $r;
+}
+
 require __DIR__ . '/../inc/admin-tabs-data.php';
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php'; // the REAL sn_mcp_allowlist() + sn_mcp_rw_allowlist() — never stub either.
 require __DIR__ . '/../inc/mcp/mcp-endpoint.php';      // the REAL sn_mcp_namespace().
+require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';      // the REAL sn_mcp_rw_bound_uuid()/sn_mcp_set_rw_bound_uuid() — never stub either.
 require __DIR__ . '/../inc/admin-forms/mcp-connect.php';
+
+// Fixture Application Passwords for the binding-form tests below. Populated
+// BEFORE the main render drive so the first full-page $html already exercises
+// a populated <select> in the (default, fresh-install) unbound state.
+$uuid_a = '11111111-1111-1111-1111-111111111111';
+$uuid_b = '22222222-2222-2222-2222-222222222222';
+$escaping_name = 'Rex\'s "Prod" <admin>';
+$GLOBALS['__app_passwords'] = array(
+	array( 'uuid' => $uuid_a, 'name' => 'Claude Code', 'created' => 1700000000, 'last_used' => 1700100000 ),
+	array( 'uuid' => $uuid_b, 'name' => $escaping_name, 'created' => 1700000000, 'last_used' => null ),
+);
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -217,10 +265,91 @@ ok( stripos( $html, 'content-audit' ) !== false, 'prompts sentence names content
 // ── REGRESSION: the old "both native doors are uniformly read-only" claim must be gone ──
 ok( false === strpos( $html, 'Both are read-only' ), 'REGRESSION: intro no longer claims both native doors are read-only' );
 
-// ── MIRROR RULE: read-only, no write surface of any kind ──
-ok( strpos( $html, '<input' ) === false && strpos( $html, '<button' ) === false
-	&& strpos( $html, '<textarea' ) === false && strpos( $html, '<form' ) === false,
-	'READ-ONLY: no input/button/textarea/form anywhere in the leaf' );
+// ══════════════════════════════════════════════════════════════════════════
+// R9 (v9.51.0, lane SEC-C): the write-door credential-binding form —
+// sn_admin_render_mcp_rw_binding(), the ONE deliberate exception to this
+// leaf's prior read-only invariant (see the updated MIRROR RULE below). The
+// main $html above was rendered with the fixture Application Passwords set
+// (see the top of this file) and NOTHING bound yet — the default,
+// fresh-install state.
+// ══════════════════════════════════════════════════════════════════════════
+ok( sn_i18n_seen( 'Bind the write-door credential' ), 'binding-form heading translatable' );
+
+// ── Unbound state (default): the door is explicitly called out as INACTIVE ──
+ok( stripos( $html, 'The write door is INACTIVE' ) !== false, 'unbound state: the door is explicitly called out as INACTIVE' );
+ok( stripos( $html, 'every call to /mcp-rw is denied' ) !== false, 'unbound state: explains that every call is denied until bound' );
+
+// ── The form mechanics: nonce, sn_action, method=post ──
+ok( false !== strpos( $html, 'test-nonce-for-sn_theme_options_nonce' ), 'binding form carries a wp_nonce_field(\'sn_theme_options_nonce\') nonce' );
+ok( false !== strpos( $html, '<input type="hidden" name="sn_action" value="bind_mcp_rw_credential">' ), 'binding form carries the sn_action hidden field' );
+ok( false !== strpos( $html, '<form method="post">' ), 'binding form is a real <form method="post">' );
+
+// ── The <select> of the current user's own Application Passwords ──
+ok( false !== strpos( $html, '<select id="sn_mcp_rw_uuid" name="sn_mcp_rw_uuid">' ), 'binding form renders the Application Password <select>' );
+ok( false !== strpos( $html, '<option value="' . $uuid_a . '"' ), 'select carries the first fixture UUID as an option value' );
+ok( false !== strpos( $html, '<option value="' . $uuid_b . '"' ), 'select carries the second fixture UUID as an option value' );
+ok( false !== strpos( $html, '<option value="">' ), 'select offers an explicit empty-value "Unbind" option' );
+ok( stripos( $html, 'Unbind' ) !== false, 'the unbind option is labeled' );
+ok( false !== strpos( $html, 'Claude Code' ), 'the first fixture Application Password name is rendered' );
+
+// ── Escaping: a name carrying quotes/angle-brackets must render escaped, never raw ──
+ok( false !== strpos( $html, htmlspecialchars( $escaping_name, ENT_QUOTES ) ), 'the escaping-sensitive fixture name is rendered ESCAPED' );
+ok( false === strpos( $html, $escaping_name ), 'REGRESSION: the raw unescaped fixture name never reaches the page' );
+ok( false === strpos( $html, '<admin>' ), 'REGRESSION: no raw unescaped tag from a password name reaches the page' );
+
+// ── Bound + resolvable: binds to a fixture UUID, re-renders in isolation ──
+ok( sn_mcp_set_rw_bound_uuid( $uuid_a ), 'sanity: binding the first fixture UUID succeeds' );
+ob_start();
+sn_admin_render_mcp_rw_binding();
+$bound_html = ob_get_clean();
+ok( stripos( $bound_html, 'The write door is INACTIVE' ) === false, 'bound state: the INACTIVE notice is gone' );
+ok( false !== strpos( $bound_html, 'bound to <strong>Claude Code</strong>' ), 'bound state: names the bound Application Password by name' );
+ok( false !== strpos( $bound_html, 'Last used 3 days ago' ), 'bound state: shows the last-used relative time via human_time_diff()' );
+ok( false !== strpos( $bound_html, 'selected="selected"' ), 'bound state: the matching <option> carries selected="selected"' );
+ok( false !== strpos( $bound_html, 'Rotate this Application Password' ), 'bound state: carries the rotation reminder' );
+
+// ── Bound but NEVER used (last_used null): "Never used yet", no crash ──
+ok( sn_mcp_set_rw_bound_uuid( $uuid_b ), 'sanity: binding the second (never-used) fixture UUID succeeds' );
+ob_start();
+sn_admin_render_mcp_rw_binding();
+$never_used_html = ob_get_clean();
+ok( stripos( $never_used_html, 'Never used yet' ) !== false, 'bound-but-never-used state: shows "Never used yet" rather than a bogus relative time' );
+
+// ── Bound but UNRESOLVABLE: the bound UUID matches none of this user's own passwords ──
+$unresolvable_uuid = '99999999-9999-9999-9999-999999999999';
+ok( sn_mcp_set_rw_bound_uuid( $unresolvable_uuid ), 'sanity: setting an unresolvable (but well-formed) UUID succeeds at the guard layer' );
+ob_start();
+sn_admin_render_mcp_rw_binding();
+$unresolvable_html = ob_get_clean();
+ok( stripos( $unresolvable_html, 'INACTIVE' ) === false, 'unresolvable state is NOT rendered as the unbound/INACTIVE case' );
+ok( stripos( $unresolvable_html, 'no longer matches any of your own Application Passwords' ) !== false, 'unresolvable state: explains the UUID no longer matches an owned Application Password' );
+
+// ── No Application Passwords at all: points at the profile screen, renders no <select> ──
+$GLOBALS['__opts']          = array();
+$GLOBALS['__app_passwords'] = array();
+ob_start();
+sn_admin_render_mcp_rw_binding();
+$no_passwords_html = ob_get_clean();
+ok( stripos( $no_passwords_html, 'create one under' ) !== false, 'no-passwords state: points the owner at creating one first' );
+ok( false === strpos( $no_passwords_html, '<select' ), 'no-passwords state: renders no <select> (nothing to pick from)' );
+ok( false === strpos( $no_passwords_html, '<form' ), 'no-passwords state: renders no <form> either (nothing submittable)' );
+
+// Restore the fixture + unbound state so the MIRROR RULE assertion below
+// exercises the SAME default rendering the top-of-file $html already used.
+$GLOBALS['__opts']          = array();
+$GLOBALS['__app_passwords'] = array(
+	array( 'uuid' => $uuid_a, 'name' => 'Claude Code', 'created' => 1700000000, 'last_used' => 1700100000 ),
+	array( 'uuid' => $uuid_b, 'name' => $escaping_name, 'created' => 1700000000, 'last_used' => null ),
+);
+
+// ── MIRROR RULE, updated for R9: the binding form is the ONE deliberate
+// write surface on this leaf — assert there is EXACTLY one <form>, and that
+// its action is the credential-bind action (never some other, unreviewed
+// write surface slipping in unnoticed). ──
+ok( 1 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly ONE <form> on the whole leaf (the R9 binding form)' );
+ok( 1 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly ONE <select> on the whole leaf' );
+ok( 1 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly ONE <button> on the whole leaf' );
+ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> anywhere in the leaf' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

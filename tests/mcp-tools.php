@@ -13,25 +13,64 @@ define( 'SN_MCP_TEST', true );
 if ( ! class_exists( 'WP_Error' ) ) {
 	class WP_Error { public $code; public $message;
 		public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
-		public function get_error_message() { return $this->message; } }
+		public function get_error_message() { return $this->message; }
+		public function get_error_code() { return $this->code; } }
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 
+// v9.51.0 (lane SEC-B): stubs required by inc/mcp/mcp-rw-audit.php, loaded
+// below alongside mcp-tools.php so sn_mcp_call_tool()'s rw-gated audit call
+// site (its tail — see that file) is exercised end-to-end, not just unit-
+// tested in isolation (tests/mcp-rw-audit.php covers the isolated unit).
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+$GLOBALS['__opts'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
+if ( ! function_exists( 'rest_get_authenticated_app_password' ) ) { function rest_get_authenticated_app_password() { return 'test-uuid'; } }
+if ( ! function_exists( 'is_email' ) ) { function is_email( $e ) { return false !== strpos( (string) $e, '@' ); } }
+if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k ) { return 'Test Site'; } }
+if ( ! function_exists( 'wp_mail' ) ) { function wp_mail( $to, $subject, $body ) { return true; } }
+if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
+if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $v ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', (string) $v ) ); } }
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+
+// v9.51.0 (lane SEC-C, R7): stubs required by inc/mcp/mcp-rw-guard.php's rate
+// limiter (object-cache-or-transient storage abstraction), loaded below
+// alongside the rest of the rw plumbing so sn_mcp_call_tool()'s rate-limit
+// call site is exercised end-to-end (the isolated unit lives in
+// tests/mcp-rw-guard.php).
+$GLOBALS['__wp_cache']              = array();
+$GLOBALS['__transients']            = array();
+$GLOBALS['__using_ext_object_cache'] = false;
+if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache() { return $GLOBALS['__using_ext_object_cache']; } }
+if ( ! function_exists( 'wp_cache_get' ) ) { function wp_cache_get( $k, $g = '' ) { return array_key_exists( "$g:$k", $GLOBALS['__wp_cache'] ) ? $GLOBALS['__wp_cache']["$g:$k"] : false; } }
+if ( ! function_exists( 'wp_cache_set' ) ) { function wp_cache_set( $k, $v, $g = '', $ttl = 0 ) { $GLOBALS['__wp_cache']["$g:$k"] = $v; return true; } }
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__transients'] ) ? $GLOBALS['__transients'][ $k ] : false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $s = 'auth' ) { return 'test-salt'; } }
+
 // A lightweight WP_Ability stand-in + a registry wp_get_ability() reads.
 class SN_Test_Ability {
-	private $n, $label, $desc, $in, $out, $perm, $result;
+	private $n, $label, $desc, $in, $out, $perm, $result, $meta;
 	public function __construct( $n, $args ) {
 		$this->n = $n; $this->label = $args['label'] ?? ''; $this->desc = $args['description'] ?? '';
 		$this->in = $args['input_schema'] ?? array(); $this->out = $args['output_schema'] ?? array();
 		$this->perm = $args['perm'] ?? true; $this->result = $args['result'] ?? null;
+		// v9.51.0 (lane SEC-C, R6): optional injected meta (annotations…), mirroring
+		// what a real WP_Ability's get_meta() returns. Absent by default — most
+		// fixtures don't need it, and the "no declared meta at all" default path
+		// (get-health-scan above) is itself a pinned case.
+		$this->meta = $args['meta'] ?? array();
 	}
 	public function get_name() { return $this->n; }
 	public function get_label() { return $this->label; }
 	public function get_description() { return $this->desc; }
 	public function get_input_schema() { return $this->in; }
 	public function get_output_schema() { return $this->out; }
+	public function get_meta() { return $this->meta; }
 	public function check_permissions( $i = null ) { return $this->perm; }
 	public function execute( $i = null ) { return $this->result; }
 }
@@ -39,7 +78,9 @@ $GLOBALS['__abilities'] = array();
 if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
+require __DIR__ . '/../inc/mcp/mcp-rw-guard.php'; // v9.51.0 (lane SEC-C, R7): sn_mcp_call_tool()'s top calls sn_mcp_rw_rate_limit_gate() on the rw door.
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
+require __DIR__ . '/../inc/mcp/mcp-rw-audit.php'; // v9.51.0 (lane SEC-B): sn_mcp_call_tool()'s tail calls into this on the rw door.
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -189,9 +230,16 @@ ok( ( $read_tool['annotations']['readOnlyHint'] ?? null ) === true, 'read-door p
 $read_tool_explicit = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'], SN_MCP_DOOR_READ );
 ok( ( $read_tool_explicit['annotations']['readOnlyHint'] ?? null ) === true, 'read-door projection (explicit door): annotations.readOnlyHint is true' );
 
-// --- D4: rw-door tools carry NO annotations in v1 (don't launder known-wrong ones) ---
+// --- v9.51.0 (lane SEC-C, R6): rw-door tools now DO carry a fully-populated,
+//     curated annotations object (readOnlyHint/destructiveHint/idempotentHint)
+//     — see the R6 section below. get-health-scan has no 'annotations' meta at
+//     all in this fixture (SN_Test_Ability's get_meta() isn't even defined),
+//     so it exercises the fully-absent-meta default path. ---
 $rw_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'], SN_MCP_DOOR_RW );
-ok( ! isset( $rw_tool['annotations'] ), 'rw-door projection: no annotations key at all (v1)' );
+ok( isset( $rw_tool['annotations'] ), 'rw-door projection (R6): DOES carry an annotations key now (v2 — no longer omitted)' );
+ok( ( $rw_tool['annotations']['readOnlyHint'] ?? null ) === false, 'no declared meta: readOnlyHint defaults false (MCP\'s own default)' );
+ok( ( $rw_tool['annotations']['destructiveHint'] ?? null ) === true, 'no declared meta + no per-slug override: destructiveHint defaults true (MCP\'s own maximally-cautious default — Finding B, unchanged for a slug nobody has reviewed)' );
+ok( ( $rw_tool['annotations']['idempotentHint'] ?? null ) === false, 'no declared meta: idempotentHint defaults false (MCP\'s own default)' );
 
 // --- tools/list is door-aware: only projects abilities on the resolved door's
 //     allowlist, and only those that resolve via wp_get_ability ---
@@ -207,7 +255,8 @@ $rw_names = array_column( $rw_list['tools'], 'name' );
 ok( in_array( 'signal-noise__ai-alt-suggest', $rw_names, true ), 'tools/list(rw): the rw-only ability IS projected' );
 ok( ! in_array( 'signal-noise__get-health-scan', $rw_names, true ), 'tools/list(rw): a read-only ability is not projected (no duplication across doors)' );
 foreach ( $rw_list['tools'] as $t ) {
-	ok( ! isset( $t['annotations'] ), "tools/list(rw): projected tool '{$t['name']}' carries no annotations" );
+	ok( isset( $t['annotations']['readOnlyHint'], $t['annotations']['destructiveHint'], $t['annotations']['idempotentHint'] ),
+		"tools/list(rw): projected tool '{$t['name']}' carries a fully-populated annotations object (R6, v2)" );
 }
 
 // --- D6: per-door CALL gating — the security property holds at the call gate,
@@ -250,6 +299,164 @@ ok( in_array( 'signal-noise__get-analytics-events', $events_names, true ), 'D1: 
 $events_call = sn_mcp_call_tool( 'signal-noise__get-analytics-events', array(), SN_MCP_DOOR_READ );
 ok( ( $events_call['result']['structuredContent']['result'][0]['event'] ?? '' ) === 'talk_qr_scan', 'D1: get-analytics-events call end-to-end wraps structuredContent as {result:[...]}' );
 ok( ( $events_call['result']['annotations']['readOnlyHint'] ?? null ) === null, 'sanity: annotations live on the projected TOOL, not on the call RESULT' );
+
+// ============================================================
+// v9.51.0 — lane SEC-B: rw-gated audit log at sn_mcp_call_tool()'s tail
+// ============================================================
+echo "\nMCP tools — rw audit log integration (v9.51.0, lane SEC-B)\n\n";
+
+$GLOBALS['__opts'] = array(); // Fresh audit-log option state for this section.
+
+// --- READ DOOR IS BYTE-FROZEN: success, permission-denied, execute-error,
+//     AND unknown-tool calls on the read door must never create the rw audit
+//     option AT ALL (not "empty rows" — the option itself stays untouched). ---
+sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_READ );          // success
+sn_mcp_call_tool( 'signal-noise__get-insights', array(), SN_MCP_DOOR_READ );             // permission denied (perm=false fixture above)
+sn_mcp_call_tool( 'signal-noise__get-rss-stats', array(), SN_MCP_DOOR_READ );            // execute() WP_Error
+sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_READ );           // unknown tool (protocol error)
+ok( false === get_option( SN_MCP_RW_AUDIT_OPTION, false ), 'READ-DOOR-FROZEN: success/denied/error/unknown calls on the read door never create the rw audit-log option' );
+
+// --- RW DOOR: success outcome + redaction integration (a real content-
+//     bearing arg, alt_text, must never reach the stored row) ---
+$GLOBALS['__abilities']['signal-noise/ai-alt-apply'] = new SN_Test_Ability( 'signal-noise/ai-alt-apply', array(
+	'perm' => true, 'result' => array( 'ok' => true, 'attachment_id' => 9, 'written_alt' => 'a cat' ),
+) );
+sn_mcp_call_tool( 'signal-noise__ai-alt-apply', array( 'attachment_id' => 9, 'alt_text' => 'a cat sitting on a fence' ), SN_MCP_DOOR_RW );
+$blob = get_option( SN_MCP_RW_AUDIT_OPTION );
+ok( is_array( $blob ) && 1 === count( $blob['rows'] ), 'RW DOOR: a successful rw call appends exactly one audit row' );
+$row0 = $blob['rows'][0];
+ok( 'signal-noise/ai-alt-apply' === $row0['slug'] && 'ok' === $row0['outcome'], 'the row records the slug + ok outcome' );
+ok( ( $row0['args_redacted']['attachment_id'] ?? null ) === 9, 'the row keeps the safe scalar key (attachment_id)' );
+ok( ! array_key_exists( 'alt_text', $row0['args_redacted'] ), 'PROBE PIN: the row NEVER contains the real content-bearing arg (alt_text), end-to-end from the call site' );
+
+// --- RW DOOR: permission-denied outcome ---
+$GLOBALS['__abilities']['signal-noise/prune-unused-tags'] = new SN_Test_Ability( 'signal-noise/prune-unused-tags', array( 'perm' => false, 'result' => array( 'ok' => true ) ) );
+sn_mcp_call_tool( 'signal-noise__prune-unused-tags', array(), SN_MCP_DOOR_RW );
+$blob = get_option( SN_MCP_RW_AUDIT_OPTION );
+$row1 = $blob['rows'][1];
+ok( 'denied' === $row1['outcome'] && 'permission_denied' === ( $row1['error_code'] ?? null ), 'RW DOOR: a permission-denied call is audited with outcome=denied + error_code=permission_denied' );
+
+// --- RW DOOR: execute() WP_Error outcome ---
+$GLOBALS['__abilities']['signal-noise/run-narration'] = new SN_Test_Ability( 'signal-noise/run-narration', array( 'perm' => true, 'result' => new WP_Error( 'ai_unavailable', 'AI client unreachable' ) ) );
+sn_mcp_call_tool( 'signal-noise__run-narration', array(), SN_MCP_DOOR_RW );
+$blob = get_option( SN_MCP_RW_AUDIT_OPTION );
+$row2 = $blob['rows'][2];
+ok( 'error' === $row2['outcome'] && 'ai_unavailable' === ( $row2['error_code'] ?? null ), 'RW DOOR: an execute() WP_Error is audited with outcome=error + the WP_Error\'s own code' );
+
+ok( 3 === count( $blob['rows'] ), 'exactly 3 rw-door rows total after 3 rw calls — the earlier read-door calls contributed none' );
+
+// --- Judgment call, pinned explicitly: a protocol-level rejection on the rw
+//     door (unknown/un-allowlisted tool name — before the ability even
+//     resolves) is NOT audited. sn_mcp_call_tool()'s tail (where SEC-B's
+//     audit call lives) is never reached for this branch; see mcp-tools.php's
+//     top-of-function early returns, untouched by lane SEC-B. ---
+sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_RW );
+$blob = get_option( SN_MCP_RW_AUDIT_OPTION );
+ok( 3 === count( $blob['rows'] ), 'JUDGMENT CALL PIN: an unknown-tool call on the rw door does NOT add an audit row (protocol rejection happens before the tail)' );
+
+// ============================================================
+// v9.51.0 — lane SEC-C, R6: rw-door tool annotations (WP -> MCP translation
+// + the known-wrong per-slug override map)
+// ============================================================
+echo "\nMCP tools — R6 rw-door annotations (v9.51.0, lane SEC-C)\n\n";
+
+// --- A slug whose own meta.annotations is trustworthy AS-IS (declares all
+//     three keys) passes through untranslated-in-substance, just relabeled
+//     to the Hint vocabulary. R6 pin: "a destructive tool (e.g.
+//     prune-unused-tags) advertises destructiveHint:true". ---
+$GLOBALS['__abilities']['signal-noise/prune-unused-tags'] = new SN_Test_Ability( 'signal-noise/prune-unused-tags', array(
+	'result' => array( 'ok' => true ),
+	'meta'   => array( 'annotations' => array( 'destructive' => true, 'idempotent' => false ) ),
+) );
+$prune_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/prune-unused-tags'], SN_MCP_DOOR_RW );
+ok( true === ( $prune_tool['annotations']['destructiveHint'] ?? null ), 'R6 PIN: prune-unused-tags (declares destructive:true) advertises destructiveHint:true' );
+ok( false === ( $prune_tool['annotations']['readOnlyHint'] ?? null ), 'prune-unused-tags: no readonly declared -> readOnlyHint false' );
+ok( false === ( $prune_tool['annotations']['idempotentHint'] ?? null ), 'prune-unused-tags: declares idempotent:false -> idempotentHint false' );
+
+// --- R6 pin: "an AI generator advertises non-readonly + non-destructive +
+//     idempotent-false" — the theme's 5 return-only AI-generation abilities.
+//     Their OWN meta declares readonly:false + idempotent:false but NO
+//     destructive key at all; without the override map they would inherit
+//     MCP's maximally-cautious absent-key default (destructiveHint:true). ---
+$GLOBALS['__abilities']['signal-and-noise/ai-generate-page-note-summary'] = new SN_Test_Ability( 'signal-and-noise/ai-generate-page-note-summary', array(
+	'result' => array( 'summary' => 'text' ),
+	'meta'   => array( 'annotations' => array( 'readonly' => false, 'idempotent' => false ) ),
+) );
+$ai_gen_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-and-noise/ai-generate-page-note-summary'], SN_MCP_DOOR_RW );
+ok( false === ( $ai_gen_tool['annotations']['readOnlyHint'] ?? null ), 'R6 PIN: AI generator (theme) advertises readOnlyHint:false (trusted from its own declaration)' );
+ok( false === ( $ai_gen_tool['annotations']['destructiveHint'] ?? null ), 'R6 PIN: AI generator (theme) advertises destructiveHint:false (KNOWN-WRONG override — no destructive key declared, would otherwise default true)' );
+ok( false === ( $ai_gen_tool['annotations']['idempotentHint'] ?? null ), 'R6 PIN: AI generator (theme) advertises idempotentHint:false (trusted from its own declaration)' );
+
+// --- The plugin's AI-BILLED "*-suggest" verdict family: NO annotations key
+//     declares 'destructive' OR 'readonly' at all (only 'idempotent'). Without
+//     the override, destructiveHint would wrongly default true for a call that
+//     only returns a suggestion and never touches WP state. ---
+$GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array(
+	'result' => array( 'suggestion' => 'a cat' ),
+	'meta'   => array( 'annotations' => array( 'idempotent' => true ) ),
+) );
+$suggest_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/ai-alt-suggest'], SN_MCP_DOOR_RW );
+ok( false === ( $suggest_tool['annotations']['destructiveHint'] ?? null ), 'KNOWN-WRONG override: ai-alt-suggest (AI-BILLED verdict, no destructive declared) advertises destructiveHint:false, not the dangerous absent-key default' );
+ok( true === ( $suggest_tool['annotations']['idempotentHint'] ?? null ), 'ai-alt-suggest: declares idempotent:true -> idempotentHint true (trusted)' );
+
+// --- A read-only ability (readonly:true declared) cannot be destructive by
+//     definition — destructiveHint resolves to false even with no explicit
+//     'destructive' key and no per-slug override entry needed. ---
+$GLOBALS['__abilities']['signal-noise/get-audit-log'] = new SN_Test_Ability( 'signal-noise/get-audit-log', array(
+	'result' => array( 'view' => 'summary' ),
+	'meta'   => array( 'annotations' => array( 'readonly' => true, 'idempotent' => true ) ),
+) );
+$audit_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-audit-log'], SN_MCP_DOOR_RW );
+ok( true === ( $audit_tool['annotations']['readOnlyHint'] ?? null ), 'get-audit-log (PII-gated onto the rw door, but genuinely PURE-READ): readOnlyHint true' );
+ok( false === ( $audit_tool['annotations']['destructiveHint'] ?? null ), 'a declared-readonly ability is never destructive, even absent an explicit destructive:false' );
+
+// --- The read door's annotations are UNCHANGED by any of this (byte-frozen) ---
+$read_tool_after_r6 = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-health-scan'], SN_MCP_DOOR_READ );
+ok( array( 'readOnlyHint' => true ) === $read_tool_after_r6['annotations'], 'READ-DOOR-FROZEN: read-door annotations are still the single readOnlyHint:true shape, untouched by R6' );
+
+// ============================================================
+// v9.51.0 — lane SEC-C, R7: rate limit gate at sn_mcp_call_tool()'s top,
+// rw-door only. The predicate/identity/storage layer lives in
+// inc/mcp/mcp-rw-guard.php (see tests/mcp-rw-guard.php); this suite proves
+// the CALL-SITE wiring — gated on $door, never touching the read door.
+// ============================================================
+echo "\nMCP tools — R7 rate limit call-site gate (v9.51.0, lane SEC-C)\n\n";
+
+// Fresh rate-limit bucket: every rw call earlier in this suite (SEC-B's
+// section, the D6 cross-door pins) already consumed some of the shared
+// 'uuid:test-uuid' identity's budget in this same 60s window — clear the
+// backing store so this section starts from an empty bucket.
+$GLOBALS['__transients'] = array();
+$GLOBALS['__wp_cache']   = array();
+
+$GLOBALS['__abilities']['signal-noise/dismiss-candidate'] = new SN_Test_Ability( 'signal-noise/dismiss-candidate', array( 'result' => array( 'ok' => true ) ) );
+
+// Drain the per-minute cap for a fresh identity by calling the rw door
+// SN_MCP_RW_RATE_LIMIT_PER_MINUTE times — every one of those must still
+// succeed (each is a legitimate, allowed call).
+for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE; $i++ ) {
+	$r = sn_mcp_call_tool( 'signal-noise__dismiss-candidate', array(), SN_MCP_DOOR_RW );
+	ok( isset( $r['result'] ) && false === $r['result']['isError'], "R7: rw call " . ( $i + 1 ) . " within the cap succeeds" );
+}
+// The next one, same identity (same test-uuid from the stub), must be a
+// JSON-RPC error carrying a retry hint — never a silent execute().
+$over = sn_mcp_call_tool( 'signal-noise__dismiss-candidate', array(), SN_MCP_DOOR_RW );
+ok( isset( $over['error'] ), 'R7: the call past the per-minute cap on the rw door returns a JSON-RPC error, not a result' );
+ok( false !== stripos( $over['error']['message'] ?? '', 'rate limit' ) || false !== stripos( $over['error']['message'] ?? '', 'Retry' ), 'R7: the rate-limit error message is identifiable as a rate-limit denial' );
+ok( isset( $over['error']['data']['retry_after'] ) && $over['error']['data']['retry_after'] > 0, 'R7: the error carries a retry_after hint in its data (JSON-RPC has no HTTP header seam mid-batch)' );
+
+// --- READ-DOOR-FROZEN: hammering the read door the same number of times
+//     (well past the rw cap) must NEVER trip a rate limit — the read door is
+//     explicitly exempt from this measure. ---
+$GLOBALS['__abilities']['signal-noise/get-deploy-status'] = new SN_Test_Ability( 'signal-noise/get-deploy-status', array( 'result' => array( 'ok' => true ) ) );
+for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 10; $i++ ) {
+	$r = sn_mcp_call_tool( 'signal-noise__get-deploy-status', array(), SN_MCP_DOOR_READ );
+	if ( isset( $r['error'] ) ) {
+		ok( false, "READ-DOOR-FROZEN: read-door call " . ( $i + 1 ) . " unexpectedly rate-limited" );
+		break;
+	}
+}
+ok( true, 'READ-DOOR-FROZEN: ' . ( SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 10 ) . ' read-door calls (well past the rw cap) all succeeded — the read door is never rate-limited' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -149,7 +149,11 @@ if ( function_exists( 'snt_ability_get_audit_log' ) ) {
 
 	$out = snt_ability_get_audit_log( array( 'view' => 'logins' ) );
 	t_eq( 30, $GLOBALS['__audit_logins_days'], 'B.6 days defaults to 30 for logins' );
-	t( is_array( $out['logins'] ?? null ) && 'juan' === ( $out['logins'][0]['user'] ?? '' ), 'B.7 logins payload passthrough' );
+	// R8 (v9.51.0): get-audit-log lives on the rw door BECAUSE its login rows carry
+	// plaintext usernames — so a default call must MASK them, matching export-audit-log.
+	t( is_array( $out['logins'] ?? null ) && 'j***' === ( $out['logins'][0]['user'] ?? '' ), 'B.7 logins usernames MASKED by default (PII cap)' );
+	$out_pii = snt_ability_get_audit_log( array( 'view' => 'logins', 'include_pii' => true ) );
+	t( 'juan' === ( $out_pii['logins'][0]['user'] ?? '' ), 'B.7b include_pii:true reveals plaintext username' );
 
 	$out = snt_ability_get_audit_log( array( 'view' => 'nope' ) );
 	t( is_wp_error( $out ), 'B.8 unknown view → WP_Error (defense in depth beyond schema enum)' );
