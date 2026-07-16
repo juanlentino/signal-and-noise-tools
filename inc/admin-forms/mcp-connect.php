@@ -2,14 +2,14 @@
 /**
  * Signal & Noise — Tools → Connect an MCP client.
  *
- * A read-only reference leaf (same anatomy as inc/admin-forms/links.php — no
- * form, no side effects, no save button) documenting the MCP servers this
- * site can answer through and how to point an external client (Claude Code,
- * Claude Desktop, …) at one of them. All content is static + escaped at the
- * point of output (the inc/analytics-maturity-page.php idiom); every tool
- * list and count on this page is read LIVE from the allowlist functions
- * (sn_mcp_allowlist(), sn_mcp_rw_allowlist()) so it can never drift from what
- * tools/list actually advertises on either door.
+ * A mostly-read-only reference leaf (same anatomy as inc/admin-forms/links.php
+ * — no side effects outside the one exception below) documenting the MCP
+ * servers this site can answer through and how to point an external client
+ * (Claude Code, Claude Desktop, …) at one of them. All content is static +
+ * escaped at the point of output (the inc/analytics-maturity-page.php idiom);
+ * every tool list and count on this page is read LIVE from the allowlist
+ * functions (sn_mcp_allowlist(), sn_mcp_rw_allowlist()) so it can never drift
+ * from what tools/list actually advertises on either door.
  *
  * v9.50.0: the native server grows a second door — /mcp-rw, gated by the same
  * manage_options + Application Password floor, exposing a read-write tool set
@@ -20,6 +20,17 @@
  * read-only: it can mutate content and it spends the site's AI budget, and it
  * names the four abilities withheld from it so that gap is a stated choice,
  * not something the owner has to go find in an audit doc.
+ *
+ * v9.51.0 (R9, lane SEC-C): the ONE deliberate exception to "no form" above —
+ * sn_admin_render_mcp_rw_binding() adds the credential-binding form the write
+ * door needs to ever leave its deny-closed default (inc/mcp/mcp-rw-guard.php's
+ * R1: an unbound sn_mcp_rw_app_password_uuid option denies every /mcp-rw call,
+ * by design). This is still the one place every other write-door fact lives,
+ * so it is also where the owner turns the door on. Submits to
+ * sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions.php), which is
+ * the ONLY function in this whole file's dependency chain that mutates
+ * anything — see that handler's own docblock for the ownership check that
+ * keeps a POSTed UUID from binding a credential this user doesn't hold.
  *
  * @package SignalNoiseTools
  * @since 9.47.0
@@ -129,7 +140,111 @@ function sn_admin_render_mcp_door_native_write() {
 	) . '</p>';
 
 	sn_admin_render_mcp_withheld_slugs();
+	sn_admin_render_mcp_rw_binding();
 	echo '</div>';
+}
+
+/**
+ * R9 (v9.51.0, lane SEC-C): the write-door credential-binding form — the ONE
+ * form on this otherwise read-only leaf (see the file docblock). Reads the
+ * bound state through sn_mcp_rw_bound_uuid() (inc/mcp/mcp-rw-guard.php, lane
+ * SEC-A — called via a function_exists() guard, never required directly,
+ * exactly like every other cross-lane call in this file) and cross-references
+ * it against the CURRENT user's own Application Passwords
+ * (WP_Application_Passwords::get_user_application_passwords()) so the owner
+ * sees WHICH credential — by name and last-used — is actually bound, not a
+ * bare UUID. Three bound states are distinguished on purpose: unbound (door
+ * inactive), bound-and-resolvable (name + last-used shown), and bound-but-
+ * unresolvable (the UUID no longer matches any of this user's own Application
+ * Passwords — revoked, or another user's — re-bind is the only path out).
+ *
+ * Submits to sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions.php)
+ * via the plugin's standard sn_theme_options_nonce + sn_action POST contract
+ * (see inc/admin-forms/login.php for the same minimal shape — no hidden
+ * tab/sub fields needed, since a same-URL POST already carries them via the
+ * query string).
+ */
+function sn_admin_render_mcp_rw_binding() {
+	$bound_uuid = function_exists( 'sn_mcp_rw_bound_uuid' ) ? sn_mcp_rw_bound_uuid() : '';
+	$passwords  = class_exists( 'WP_Application_Passwords' )
+		? (array) WP_Application_Passwords::get_user_application_passwords( get_current_user_id() )
+		: array();
+
+	$bound_password = null;
+	if ( '' !== $bound_uuid ) {
+		foreach ( $passwords as $pw ) {
+			if ( is_array( $pw ) && ! empty( $pw['uuid'] ) && hash_equals( (string) $pw['uuid'], $bound_uuid ) ) {
+				$bound_password = $pw;
+				break;
+			}
+		}
+	}
+
+	echo '<p class="sn-callout-h">' . esc_html__( 'Bind the write-door credential', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.51.0', 'signal-and-noise-tools' ) . '</span></p>';
+
+	if ( '' === $bound_uuid ) {
+		echo '<p><strong>' . esc_html__( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one below to turn it on.', 'signal-and-noise-tools' ) . '</p>';
+	} elseif ( null !== $bound_password ) {
+		echo '<p>' . sprintf(
+			/* translators: %s: the bound Application Password's name, wrapped in <strong>. */
+			esc_html__( 'The write door is bound to %s.', 'signal-and-noise-tools' ),
+			'<strong>' . esc_html( (string) ( $bound_password['name'] ?? '' ) ) . '</strong>'
+		) . '</p>';
+		$last_used = ! empty( $bound_password['last_used'] ) ? (int) $bound_password['last_used'] : 0;
+		if ( $last_used > 0 && function_exists( 'human_time_diff' ) ) {
+			echo '<p>' . sprintf(
+				/* translators: %s: a human-readable relative time, e.g. "3 days". */
+				esc_html__( 'Last used %s ago.', 'signal-and-noise-tools' ),
+				esc_html( human_time_diff( $last_used, time() ) )
+			) . '</p>';
+		} else {
+			echo '<p>' . esc_html__( 'Never used yet.', 'signal-and-noise-tools' ) . '</p>';
+		}
+		echo '<p>' . esc_html__( 'Rotate this Application Password periodically — anyone who holds it can call the write door.', 'signal-and-noise-tools' ) . '</p>';
+	} else {
+		echo '<p>' . esc_html__( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords — it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) . '</p>';
+	}
+
+	if ( empty( $passwords ) ) {
+		echo '<p>' . sprintf(
+			/* translators: %s: a link to the current user's Application Passwords section. */
+			esc_html__( 'You have no Application Passwords yet — create one under %s first.', 'signal-and-noise-tools' ),
+			'<a href="' . esc_url( get_edit_profile_url() . '#application-passwords-section' ) . '">' . esc_html__( 'your profile', 'signal-and-noise-tools' ) . '</a>'
+		) . '</p>';
+		return;
+	}
+
+	echo '<form method="post">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="bind_mcp_rw_credential">';
+
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_mcp_rw_uuid">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</label>';
+	echo '<select id="sn_mcp_rw_uuid" name="sn_mcp_rw_uuid">';
+	echo '<option value="">' . esc_html__( '— Unbind (deny every write-door call) —', 'signal-and-noise-tools' ) . '</option>';
+	foreach ( $passwords as $pw ) {
+		if ( ! is_array( $pw ) || empty( $pw['uuid'] ) ) {
+			continue;
+		}
+		$uuid  = (string) $pw['uuid'];
+		$label = isset( $pw['name'] ) ? (string) $pw['name'] : '';
+		if ( ! empty( $pw['created'] ) && function_exists( 'human_time_diff' ) ) {
+			$label .= ' — ' . sprintf(
+				/* translators: %s: a human-readable relative time, e.g. "3 days". */
+				__( 'created %s ago', 'signal-and-noise-tools' ),
+				human_time_diff( (int) $pw['created'], time() )
+			);
+		}
+		echo '<option value="' . esc_attr( $uuid ) . '"' . selected( $bound_uuid, $uuid, false ) . '>' . esc_html( $label ) . '</option>';
+	}
+	echo '</select>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'The same list as your profile’s Application Passwords — this only scopes one of them to the write door.', 'signal-and-noise-tools' ) . '</p>';
+	echo '</div>';
+
+	echo '<div class="sn-fieldset-actions">';
+	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save write-door credential', 'signal-and-noise-tools' ) . '</button>';
+	echo '</div>';
+	echo '</form>';
 }
 
 /**

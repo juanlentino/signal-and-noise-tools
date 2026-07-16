@@ -254,7 +254,9 @@ t( 'summary' === ( $out['view'] ?? null ) && $GLOBALS['__audit_summary_fixture']
 $out = snt_ability_get_audit_log( array( 'view' => 'counters', 'days' => 7 ) );
 t( is_array( $out['counters'] ?? null ), 'F.5 get-audit-log view=counters works' );
 $out = snt_ability_get_audit_log( array( 'view' => 'logins' ) );
-t( 'juan' === ( $out['logins'][0]['user'] ?? '' ), 'F.6 get-audit-log view=logins works' );
+t( 'j***' === ( $out['logins'][0]['user'] ?? '' ), 'F.6 get-audit-log view=logins masks usernames by default (PII cap R8)' );
+$out = snt_ability_get_audit_log( array( 'view' => 'logins', 'include_pii' => true ) );
+t( 'juan' === ( $out['logins'][0]['user'] ?? '' ), 'F.6b get-audit-log include_pii:true reveals plaintext' );
 
 $out = snt_ability_list_cron_events( array( 'hook' => 'hook_a', 'args_signature' => 'sig2' ) );
 t( 1 === count( $out ) && 'sig2' === ( $out[0]['args_signature'] ?? '' ), 'F.7 list-cron-events hook+args_signature → the exact event (get-cron-event semantics)' );

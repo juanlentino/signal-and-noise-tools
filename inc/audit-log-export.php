@@ -24,6 +24,78 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v9.51.0 (lane SEC-C, R8): PII minimization on the ABILITY surface only — the
+// admin_post download handler below (a human, wp-admin-cookie-authenticated
+// click) is untouched and still returns full plaintext via
+// sn_audit_export_render()/sn_audit_export_build_view(). A per-call page-size
+// cap, independent of the storage/retention window, plus default-redacted
+// usernames unless the ability call explicitly passes include_pii:true.
+const SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP = 500; // Same magnitude as inc/audit-log.php's SN_AUDIT_LOGIN_SUCCESS_CAP; an independent constant per this file's own "duplicate the tiny constant" convention (see inc/mcp/mcp-rw-audit.php's docblock for the same rationale elsewhere in this arc).
+
+/**
+ * Mask a plaintext username for the PII-capped ability surface: keep the
+ * first character, star the rest (at least one star even for a 1-char
+ * username). Deterministic and reversible-proof (never logs/stores the
+ * unmasked value anywhere this function touches).
+ *
+ * @param string $username
+ * @return string
+ */
+function sn_audit_export_pii_mask_username( $username ) {
+	$username = (string) $username;
+	$len      = strlen( $username );
+	if ( 0 === $len ) {
+		return '';
+	}
+	// A 1-char username fully masks (revealing it would defeat the point of
+	// masking at all for the shortest possible name) — first-char-preserved
+	// masking only applies from length 2 up.
+	if ( 1 === $len ) {
+		return '*';
+	}
+	return substr( $username, 0, 1 ) . str_repeat( '*', $len - 1 );
+}
+
+/**
+ * Redact the 'user' field of every row in a login-successes array, UNLESS
+ * $include_pii is true. Default-drop-to-masked, not default-plaintext — the
+ * caller must explicitly opt in per call.
+ *
+ * @param array<int,array> $rows
+ * @param bool              $include_pii
+ * @return array<int,array>
+ */
+function sn_audit_export_redact_login_rows( array $rows, $include_pii ) {
+	if ( (bool) $include_pii ) {
+		return $rows;
+	}
+	return array_map( function( $row ) {
+		if ( isset( $row['user'] ) ) {
+			$row['user'] = sn_audit_export_pii_mask_username( $row['user'] );
+		}
+		return $row;
+	}, $rows );
+}
+
+/**
+ * Cap a rows array to at most $cap entries, keeping the FIRST N — the
+ * login-successes source impl (inc/audit-log.php's
+ * snt_audit_get_login_successes_impl()) already returns newest-first, so
+ * "first N" is "N most recent", independent of whatever retention/days window
+ * produced the full array.
+ *
+ * @param array<int,array> $rows
+ * @param int               $cap
+ * @return array<int,array>
+ */
+function sn_audit_export_cap_rows( array $rows, $cap ) {
+	$cap = (int) $cap;
+	if ( count( $rows ) <= $cap ) {
+		return $rows;
+	}
+	return array_slice( $rows, 0, $cap );
+}
+
 /**
  * Assemble the export view: retention window + counters + login successes.
  *
@@ -189,17 +261,29 @@ function sn_audit_export_render( $format ) {
  * Returns the export payload as a string alongside the resolved format.
  * Registered in inc/abilities-audit.php.
  *
+ * v9.51.0 (lane SEC-C, R8): builds its OWN view (rather than calling
+ * sn_audit_export_render(), which the admin_post download handler still uses
+ * for the full-plaintext, human-authenticated path) so the page-size cap and
+ * PII redaction apply HERE — the MCP/ability surface — without touching the
+ * download handler at all. Default include_pii is false: a caller must name
+ * the argument explicitly to get real usernames back.
+ *
  * @since 4.10.0
- * @param array|null $input { format?: 'csv'|'json' }.
+ * @param array|null $input { format?: 'csv'|'json', include_pii?: bool }.
  * @return array { format, content }
  */
 function snt_ability_export_audit_log( $input = null ) {
-	$format = is_array( $input ) && isset( $input['format'] ) ? $input['format'] : 'json';
-	$format = sn_audit_export_normalize_format( $format );
+	$format      = is_array( $input ) && isset( $input['format'] ) ? $input['format'] : 'json';
+	$format      = sn_audit_export_normalize_format( $format );
+	$include_pii = is_array( $input ) && ! empty( $input['include_pii'] );
+
+	$view                     = sn_audit_export_build_view();
+	$view['login_successes'] = sn_audit_export_cap_rows( (array) ( $view['login_successes'] ?? array() ), SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP );
+	$view['login_successes'] = sn_audit_export_redact_login_rows( $view['login_successes'], $include_pii );
 
 	return array(
 		'format'  => $format,
-		'content' => sn_audit_export_render( $format ),
+		'content' => 'csv' === $format ? sn_audit_export_build_csv( $view ) : sn_audit_export_build_json( $view ),
 	);
 }
 

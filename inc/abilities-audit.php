@@ -22,6 +22,71 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v9.51.0 (lane SEC-C, R8): PII minimization on get-audit-log's view=logins
+// rows — a per-call page-size cap (independent of the days/retention window)
+// + default-redacted usernames unless include_pii:true is explicitly passed.
+// Independent, tiny duplicate of inc/audit-log-export.php's own
+// mask/cap/redact helpers (same file-independence rationale as
+// inc/mcp/mcp-rw-audit.php's docblock elsewhere in this arc) — this is a
+// separate ability with its own input_schema and its own callers.
+const SNT_AUDIT_LOG_LOGINS_PAGE_CAP = 500; // Same magnitude as inc/audit-log.php's SN_AUDIT_LOGIN_SUCCESS_CAP.
+
+/**
+ * Mask a plaintext username: keep the first character, star the rest (fully
+ * star a 1-char username). See inc/audit-log-export.php's
+ * sn_audit_export_pii_mask_username() for the identical rationale — this file
+ * owns its own copy rather than cross-depending on that one.
+ *
+ * @param string $username
+ * @return string
+ */
+function snt_audit_log_pii_mask_username( $username ) {
+	$username = (string) $username;
+	$len      = strlen( $username );
+	if ( 0 === $len ) {
+		return '';
+	}
+	if ( 1 === $len ) {
+		return '*';
+	}
+	return substr( $username, 0, 1 ) . str_repeat( '*', $len - 1 );
+}
+
+/**
+ * Redact the 'user' field of every login row, unless $include_pii is true.
+ *
+ * @param array<int,array> $rows
+ * @param bool              $include_pii
+ * @return array<int,array>
+ */
+function snt_audit_log_redact_login_rows( array $rows, $include_pii ) {
+	if ( (bool) $include_pii ) {
+		return $rows;
+	}
+	return array_map( function( $row ) {
+		if ( isset( $row['user'] ) ) {
+			$row['user'] = snt_audit_log_pii_mask_username( $row['user'] );
+		}
+		return $row;
+	}, $rows );
+}
+
+/**
+ * Cap a rows array to at most $cap entries, keeping the first N — the source
+ * impl (snt_audit_get_login_successes_impl()) already returns newest-first.
+ *
+ * @param array<int,array> $rows
+ * @param int               $cap
+ * @return array<int,array>
+ */
+function snt_audit_log_cap_rows( array $rows, $cap ) {
+	$cap = (int) $cap;
+	if ( count( $rows ) <= $cap ) {
+		return $rows;
+	}
+	return array_slice( $rows, 0, $cap );
+}
+
 add_action( 'wp_abilities_api_init', function() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -52,6 +117,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'maximum'     => 90,
 					'default'     => 30,
 					'description' => 'Window for counters/logins views (ignored by summary).',
+				),
+				'include_pii' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'v9.51.0: when false (default), view=logins usernames are masked (first char + stars) and capped to the most recent ' . SNT_AUDIT_LOG_LOGINS_PAGE_CAP . ' rows. Pass true to receive real plaintext usernames.',
 				),
 			),
 			'additionalProperties' => false,
@@ -85,7 +155,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/export-audit-log', array(
 		'label'               => 'Export login-audit log',
-		'description'         => 'Returns the full login-audit log (per-day counters + successful-login rows over the retention window) as a downloadable CSV or JSON payload. NOTE: the payload contains plaintext usernames. Read-only.',
+		'description'         => 'Returns the full login-audit log (per-day counters + successful-login rows over the retention window) as a downloadable CSV or JSON payload. v9.51.0: usernames are masked by default (first char + stars) and login rows are capped independent of the retention window — pass include_pii:true for real plaintext. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_export_audit_log',
@@ -96,6 +166,16 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'    => 'string',
 					'enum'    => array( 'json', 'csv' ),
 					'default' => 'json',
+				),
+				'include_pii' => array(
+					'type'        => 'boolean',
+					'default'     => false,
+					// Deliberately a literal, not a cross-file constant reference:
+					// SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP lives in inc/audit-log-export.php,
+					// which this file's own wp_abilities_api_init closure must not
+					// hard-depend on having loaded first (see that constant's own
+					// value — kept in sync by hand, same magnitude, on purpose).
+					'description' => 'v9.51.0: when false (default), login-row usernames are masked and capped to the most recent 500 rows. Pass true to receive real plaintext usernames.',
 				),
 			),
 			'additionalProperties' => false,
@@ -189,7 +269,11 @@ function snt_ability_get_audit_log( $input ) {
 			if ( ! function_exists( 'snt_audit_get_login_successes_impl' ) ) {
 				return new WP_Error( 'snt_audit_unavailable', 'Audit log module not loaded.', array( 'status' => 500 ) );
 			}
-			$out['logins'] = snt_audit_get_login_successes_impl( $days );
+			// R8 (v9.51.0): login rows carry plaintext usernames — the reason this
+			// ability is rw-door-only. Cap the page, then mask usernames unless the
+			// caller explicitly asks for PII (default-drop, mirroring export-audit-log).
+			$rows          = snt_audit_log_cap_rows( (array) snt_audit_get_login_successes_impl( $days ), SNT_AUDIT_LOG_LOGINS_PAGE_CAP );
+			$out['logins'] = snt_audit_log_redact_login_rows( $rows, ! empty( $input['include_pii'] ) );
 			return $out;
 	}
 

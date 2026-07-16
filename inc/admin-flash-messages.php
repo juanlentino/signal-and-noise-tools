@@ -121,6 +121,10 @@ function sn_admin_flash_messages() {
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
 		'schedule_swap_fired'         => array( 'success', 'Version swap fired &mdash; the old version hid, the new one revealed, one edge purge dispatched.' ),
 		'schedule_invalid'            => array( 'error', 'That scheduled-content row was not found.' ),
+		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding.
+		'mcp_rw_bound'                => array( 'success', 'Write-door credential bound. <code>/mcp-rw</code> now accepts calls authenticated with that Application Password.' ),
+		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound &mdash; every call to <code>/mcp-rw</code> is denied until you bind one again.' ),
+		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password &mdash; it doesn&rsquo;t belong to your account, or no longer exists.' ),
 	);
 }
 

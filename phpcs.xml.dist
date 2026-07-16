@@ -99,6 +99,7 @@
 		<exclude-pattern>*/inc/post-settings.php</exclude-pattern>
 		<exclude-pattern>*/inc/audit-log.php</exclude-pattern>
 		<exclude-pattern>*/inc/rss-feed-tracker.php</exclude-pattern>
+		<exclude-pattern>*/inc/mcp/mcp-rw-audit.php</exclude-pattern>
 	</rule>
 
 	<!--
