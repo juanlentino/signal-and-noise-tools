@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.54.1] - 2026-07-16: A GitHub blip shouldn't cost an hour of blindness
+
+**Headline:** v9.54.0 shipped, was installed, and immediately answered the question we'd spent an hour inferring. The card said it plainly:
+
+> GitHub returned an unexpected HTTP 503
+
+At **22:51 UTC** GitHub declared [**Degraded REST API Availability**](https://www.githubstatus.com) — *"approximately 35% of REST API requests to fail… requests are not consistently reaching the application layer."* The owner's first screenshot was 22:55 UTC. **Four minutes after GitHub broke.** Not the token, not a timeout, not this plugin.
+
+**The 503 was GitHub's. The sixty minutes of blindness were ours.** Any failure cached the empty sentinel for `HOUR_IN_SECONDS`, so a blip lasting one second cost a full hour — and the next hourly poll had another ~35% chance of re-arming it. The dashboard could stay dark for an entire incident and well past its end.
+
+**The tell was on the same screen the whole time.** "Recent deploys" stayed live and correct throughout, because its sibling fetch ([inc/github-actions-api.php](inc/github-actions-api.php)) caches failures for **five minutes** and self-heals. Same host, same token, same 5s timeout — **only the failure TTL differed**. That asymmetry, sitting one file over, was the answer while we theorised about credentials, response sizes and timeouts.
+
+**Failures are now cached in proportion to how likely they are to still be true later:**
+
+| Failure | Class | Cached | Retry? |
+|---|---|---|---|
+| 5xx, 429, network/timeout | **transient** — the far end is unwell; it recovers | **5 min** (matches the sibling that rode out this incident) | **once** |
+| 401, 404 | **durable** — a dead credential or deleted repo answers identically in five minutes | 1 hour | never |
+| 200 + unparseable body | **transient** — we reached *something* that wasn't GitHub's API | 5 min | once |
+| 200 + no `vX.Y.Z` tags | **durable** — GitHub answered correctly; there's simply nothing tagged | 1 hour | never |
+
+The single retry matters more than it looks: against ~35% independent failures, retrying once recovers ~65% of the polls that would otherwise have gone dark.
+
+**Test-harness note.** The suite's `wp_remote_get` stub returned one fixed response, which cannot express *"flaky"* — a retry test written against it would pass without a retry ever happening. It now models the real incident (503, then 200 on the second call), so the recovery path is actually exercised. Verified RED first; mutation-checked (collapse the TTLs back to durable-only → the split's assertions go red). Two suites needed a `MINUTE_IN_SECONDS` define — the same new-WP-constant trap as v9.54.0's `human_time_diff`, caught again by the full 302-suite sweep.
+
 ## [9.54.0] - 2026-07-16: The update checker stops failing silently
 
 **Headline:** Both Dashboard version cards showed a red **"unknown"** and nothing, anywhere, said why.

@@ -50,6 +50,15 @@ const SN_GH_PLUGIN_LAST_SEEN_OPT  = 'sn_last_seen_plugin_version';
  * @since 9.54.0
  */
 const SN_GH_PLUGIN_ERROR_KEY      = 'sn_gh_latest_plugin_error';
+/**
+ * Failure-cache TTLs, split by whether re-asking could get a different answer.
+ * Transient mirrors github-actions-api.php's SNT_GH_RUNS_FAIL_TTL — the value
+ * that rode out the 2026-07-16 GitHub incident without ever going dark.
+ *
+ * @since 9.54.1
+ */
+const SN_GH_FAIL_TTL_TRANSIENT    = 5 * MINUTE_IN_SECONDS;
+const SN_GH_FAIL_TTL_DURABLE      = HOUR_IN_SECONDS;
 
 /**
  * Turn a failed tags fetch into a short sentence a human can act on.
@@ -139,10 +148,65 @@ function sn_gh_redact_secrets( $message ) {
  * @param string $reason
  * @return null Always null — callers `return sn_gh_record_fetch_failure(...)`.
  */
-function sn_gh_record_fetch_failure( $reason ) {
-	set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
-	set_site_transient( SN_GH_PLUGIN_ERROR_KEY, $reason, HOUR_IN_SECONDS );
+function sn_gh_record_fetch_failure( $reason, $code = null ) {
+	$ttl = sn_gh_failure_ttl( $code );
+	set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', $ttl );
+	set_site_transient( SN_GH_PLUGIN_ERROR_KEY, $reason, $ttl );
 	return null;
+}
+
+/**
+ * Will this failure plausibly have fixed itself in five minutes?
+ *
+ * WHY THIS EXISTS (v9.54.1, after a live incident)
+ *
+ * 2026-07-16 22:51 UTC, GitHub declared "Degraded REST API Availability" —
+ * ~35% of REST requests failing, "not consistently reaching the application
+ * layer". Our tags fetch caught a 503 and both version cards went red four
+ * minutes later.
+ *
+ * The 503 was GitHub's. The SIXTY MINUTES of blindness was ours: any failure
+ * cached the empty sentinel for HOUR_IN_SECONDS, so a blip lasting one second
+ * cost a full hour — then the next hourly poll had another 35% chance of
+ * re-arming it. The dashboard could stay dark for the entire incident and
+ * beyond.
+ *
+ * The tell sat on the same screen the whole time: "Recent deploys" stayed live
+ * and correct throughout, because its sibling fetch (github-actions-api.php)
+ * caches failures for FIVE MINUTES and self-heals. Same host, same token, same
+ * 5s timeout — only the failure TTL differed. (Worth remembering: we first
+ * blamed the token, then the response size, then the timeout. The asymmetry was
+ * a constant, one file over.)
+ *
+ * So classify by whether re-asking could plausibly get a different answer:
+ *   - 5xx / network / timeout → the far end is unwell. It recovers on its own.
+ *   - 401 / 404               → nothing changes in an hour. Don't hammer it.
+ *
+ * @since 9.54.1
+ * @param int|null $code HTTP status, 0 for a WP_Error, null when unknown.
+ * @return bool
+ */
+function sn_gh_failure_is_transient( $code ) {
+	$code = (int) $code;
+	// 0 = WP_Error: timeout, DNS, TLS, connection reset. The box may just be
+	// busy — treat as transient. Same for anything the far end calls a server
+	// error (500/502/503/504) and for 429 (explicit "come back shortly").
+	return 0 === $code || 429 === $code || $code >= 500;
+}
+
+/**
+ * How long to hold a failure before asking GitHub again.
+ *
+ * @since 9.54.1
+ * @param int|null $code HTTP status, 0 for a WP_Error, null when unknown.
+ * @return int Seconds.
+ */
+function sn_gh_failure_ttl( $code ) {
+	// Transient: match github-actions-api.php's SNT_GH_RUNS_FAIL_TTL, the value
+	// that demonstrably rode out the 2026-07-16 incident without ever going
+	// dark. Durable: an hour, because a dead credential or a deleted repo will
+	// answer identically five minutes from now and the poll is pure noise.
+	return sn_gh_failure_is_transient( $code ) ? SN_GH_FAIL_TTL_TRANSIENT : SN_GH_FAIL_TTL_DURABLE;
 }
 
 /**
@@ -189,21 +253,39 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 	if ( defined( 'SNT_GITHUB_TOKEN' ) && SNT_GITHUB_TOKEN ) {
 		$headers['Authorization'] = 'Bearer ' . SNT_GITHUB_TOKEN;
 	}
-	$response = wp_remote_get( $url, array(
+	$args = array(
 		'timeout'     => 5,
 		'headers'     => $headers,
 		// v8.8.x: forbid redirects — the SNT_GITHUB_TOKEN bearer must never be
 		// re-sent to a 3xx target (outbound-hardening convention, v8.7.1).
 		'redirection' => 0,
-	) );
+	);
 
-	if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ) );
+	$response = wp_remote_get( $url, $args );
+	$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+
+	// v9.54.1: ONE retry, transient failures only. During the 2026-07-16 GitHub
+	// incident (~35% of REST requests failing, independently) a single retry
+	// recovers ~65% of the polls that would otherwise have blinded the cards.
+	// Durable failures (401/404) are never retried — the second answer is the
+	// first answer, and hammering a dead credential is pure noise.
+	if ( 200 !== $code && sn_gh_failure_is_transient( $code ) ) {
+		$response = wp_remote_get( $url, $args );
+		$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+	}
+
+	if ( 200 !== $code ) {
+		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ), $code );
 	}
 
 	$tags = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( ! is_array( $tags ) ) {
-		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ) );
+		// A 200 whose body isn't a tag list means we reached SOMETHING that
+		// wasn't GitHub's API — an intermediary, a captive portal, an incident
+		// error page. Far likelier a blip than a permanent contract change, so
+		// classify TRANSIENT (0 = "no usable answer"). The reason string still
+		// reports the literal 200 we saw; the code only drives retry policy.
+		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ), 0 );
 	}
 
 	$highest = '';
@@ -221,8 +303,11 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 		// Distinct from "no update available": we reached GitHub and it had
 		// nothing shaped like a release. Say so — a silent null here reads
 		// identically to a dead token on the card.
+		// DURABLE: we reached GitHub, it answered correctly, and the repo simply
+		// has no vX.Y.Z tags. Re-asking in five minutes gets the same answer.
 		return sn_gh_record_fetch_failure(
-			__( 'GitHub returned no tags matching vX.Y.Z — nothing to compare against', 'signal-and-noise-tools' )
+			__( 'GitHub returned no tags matching vX.Y.Z — nothing to compare against', 'signal-and-noise-tools' ),
+			200
 		);
 	}
 

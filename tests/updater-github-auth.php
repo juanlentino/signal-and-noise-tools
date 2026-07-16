@@ -23,6 +23,8 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 
 define( 'ABSPATH', '/' );
 define( 'HOUR_IN_SECONDS', 3600 );
+// v9.54.1: the transient/durable failure TTLs are expressed in minutes.
+define( 'MINUTE_IN_SECONDS', 60 );
 
 // ── Capture buffer: every wp_remote_get records its $args here. ──
 $GLOBALS['__captured_requests'] = array();

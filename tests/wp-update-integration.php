@@ -14,6 +14,8 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+// v9.54.1: the transient/durable failure TTLs are expressed in minutes.
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 
 // --- WP stubs -------------------------------------------------------------
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
@@ -46,15 +48,27 @@ function delete_site_transient( $k ) { unset( $GLOBALS['__site_trans'][ $k ] ); 
 // set $GLOBALS['__http'] to drive a failure path.
 $GLOBALS['__last_args'] = array();
 $GLOBALS['__http']      = null;
+$GLOBALS['__calls']     = 0;
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__last_args'] = $args;
-	if ( null !== $GLOBALS['__http'] ) {
-		return $GLOBALS['__http'];
-	}
-	return array(
+	$GLOBALS['__calls']     = ( $GLOBALS['__calls'] ?? 0 ) + 1;
+	$healthy = array(
 		'response' => array( 'code' => 200 ),
 		'body'     => json_encode( array( array( 'name' => 'v9.0.0' ), array( 'name' => 'v8.8.4' ) ) ),
 	);
+	// Models the ACTUAL incident: GitHub failing ~35% of requests, so the same
+	// URL 503s once and answers fine a moment later. A stub that always returns
+	// one fixed response cannot express "flaky", and a retry test written
+	// against it would pass without a retry ever happening.
+	if ( 'flaky-503-then-200' === $GLOBALS['__http'] ) {
+		return $GLOBALS['__calls'] < 2
+			? array( 'response' => array( 'code' => 503 ), 'body' => 'Service Unavailable' )
+			: $healthy;
+	}
+	if ( null !== $GLOBALS['__http'] ) {
+		return $GLOBALS['__http'];
+	}
+	return $healthy;
 }
 function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : 0; }
 function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; }
@@ -156,6 +170,83 @@ $GLOBALS['__http'] = new WP_Error( 'http_request_failed', 'Bearer ghp_SUPERSECRE
 sn_gh_latest_plugin_tag( true );
 $leak = (string) sn_gh_latest_plugin_tag_error();
 ok( false === strpos( $leak, 'ghp_SUPERSECRETTOKENVALUE' ), 'the reason NEVER echoes a token-shaped string back to the screen' );
+
+echo "\n── v9.54.1: a GitHub blip must not cost an hour of blindness ──\n";
+// THE INCIDENT (2026-07-16 22:51 UTC): GitHub declared "Degraded REST API
+// Availability" — ~35% of REST requests failing, "not consistently reaching the
+// application layer". The site's tags fetch got a 503 and the cards went red
+// four minutes later.
+//
+// GitHub's fault. The 60-MINUTE blindness was OURS: one unlucky poll cached the
+// empty sentinel for HOUR_IN_SECONDS, so a blip that lasted a second cost an
+// hour — and kept costing it every hour the incident ran.
+//
+// The tell was sitting on the same dashboard the whole time. "Recent deploys"
+// stayed live and accurate throughout, because its sibling fetch
+// (github-actions-api.php) caches failures for FIVE MINUTES and self-heals.
+// Same host, same token, same timeout — only the failure TTL differed. That
+// asymmetry, not response size or timeouts, is why one panel died and the other
+// rode out the incident.
+//
+// So: cache a failure in proportion to how likely it is to STILL be true later.
+//   503 / 5xx / network  → transient → short TTL (GitHub recovers on its own)
+//   401 / 404            → durable   → nothing changes in an hour; hold it
+$trans_ttls = array();
+$GLOBALS['__ttl_probe'] = true;
+
+// -- transient: a 503 must expire FAST --
+$GLOBALS['__site_trans'] = array(); $GLOBALS['__ttl_seen'] = array();
+$GLOBALS['__http'] = array( 'response' => array( 'code' => 503 ), 'body' => 'Service Unavailable' );
+sn_gh_latest_plugin_tag( true );
+ok( false !== stripos( (string) sn_gh_latest_plugin_tag_error(), '503' ),
+	'503: the reason still names the status (the card told us the truth in minutes)' );
+ok( sn_gh_failure_is_transient( 503 ),
+	'503 classifies as TRANSIENT — GitHub recovers on its own' );
+ok( sn_gh_failure_is_transient( 502 ) && sn_gh_failure_is_transient( 504 ),
+	'502/504 are transient too (the whole 5xx family)' );
+ok( sn_gh_failure_is_transient( 0 ),
+	'a network error / timeout (code 0) is transient — the box may just be busy' );
+
+// -- durable: a dead token will still be dead in an hour --
+ok( ! sn_gh_failure_is_transient( 401 ),
+	'401 is DURABLE — an invalid token will not fix itself; re-polling every 5 min is pointless noise' );
+ok( ! sn_gh_failure_is_transient( 404 ),
+	'404 is DURABLE — a deleted/renamed repo will not fix itself' );
+
+// -- the TTLs actually differ, and the transient one matches the sibling that
+//    demonstrably survived this incident --
+ok( sn_gh_failure_ttl( 503 ) < sn_gh_failure_ttl( 401 ),
+	'a transient failure is cached for LESS time than a durable one (the whole point)' );
+ok( sn_gh_failure_ttl( 503 ) <= 5 * 60,
+	'a 503 blinds the cards for at most 5 minutes, matching github-actions-api.php' );
+ok( sn_gh_failure_ttl( 401 ) >= 60 * 60,
+	'a 401 still holds for an hour — no point hammering GitHub over a dead credential' );
+
+// -- and a transient failure retries before giving up --
+$GLOBALS['__site_trans'] = array();
+$GLOBALS['__calls'] = 0;
+$GLOBALS['__http'] = array( 'response' => array( 'code' => 503 ), 'body' => '' );
+sn_gh_latest_plugin_tag( true );
+ok( $GLOBALS['__calls'] >= 2,
+	'a 503 is RETRIED once before the failure is recorded (35% failure rate → one retry recovers most polls)' );
+
+// -- but a durable failure must NOT retry: hammering a dead token is noise --
+$GLOBALS['__site_trans'] = array();
+$GLOBALS['__calls'] = 0;
+$GLOBALS['__http'] = array( 'response' => array( 'code' => 401 ), 'body' => '' );
+sn_gh_latest_plugin_tag( true );
+ok( 1 === $GLOBALS['__calls'],
+	'a 401 is NOT retried — it will fail identically the second time' );
+
+// -- the retry must actually recover, not just burn a request --
+$GLOBALS['__site_trans'] = array();
+$GLOBALS['__calls'] = 0;
+$GLOBALS['__http'] = 'flaky-503-then-200'; // stub flips to healthy on call 2
+$tag = sn_gh_latest_plugin_tag( true );
+ok( 'v9.0.0' === $tag,
+	'a 503 followed by a 200 RECOVERS in the same poll — exactly the 35%-failure case' );
+ok( '' === (string) sn_gh_latest_plugin_tag_error(),
+	'…and recovering leaves no error caption behind' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
