@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.52.2] - 2026-07-16: Widgets come off the rail, and Quick Actions stops shouting
+
+**Headline:** With the widgets finally rendering (v9.52.1), two things were obviously wrong on the glass. **All six cards are now `movable` + `resizable`** — drag one out of the right-side column and put it anywhere on the desktop. Both flags default `false`, so until now every card was rail-locked. `movable` makes desktop-mode render a thin chrome header (grip + label + remove) and drag initiates *only* from that chrome, so SN Quick Actions' buttons stay clickable while the card is draggable. Each card declares a `min_*` floor (a drag can't collapse it into a sliver) and a `default_*` size that applies the first time it floats — the column drives geometry while docked. SN Site Views gets a taller floor than its siblings: a sparkline needs vertical room before it reads as a trend rather than a smudge.
+
+**And Quick Actions stops looking like a bug report.** It was styled for a white admin page — opaque `#fff` buttons with `#1d2327` text, pastel `#dff4dc` / `#fbe2e2` toasts — sitting on a dark glass card, rendering as three glaring white slabs. It now reads light-on-dark: translucent-white buttons (`rgba(255,255,255,.06)`) on hairline borders, text inheriting the card's own white instead of restating a colour, tinted toasts, a lightened danger red (`#ff9d94` — the `#c9503f` used for chart deltas is legible as a 1px line but muddy as 13px text), and **real hover states** (the `transition` was already declared; nothing had ever changed on hover).
+
+> **Why PATCH:** `movable`/`resizable` are flags on existing widgets and the rest is a colour correction. No new surface.
+
+### The `--wpd-color-*` trap (worth knowing before touching widget CSS)
+desktop-mode's first-party widget CSS consumes `--wpd-color-text` / `-text-subtle` / `-border` / `-accent` / `-surface`, and its starter-widget docblock states the shell "sets these variables on the card body element". **It does not.** In v0.9.5 they are **defined nowhere** — no `:root` rule, no `setProperty` — so `var(--wpd-color-text, …)` always resolves to its fallback. The tell: their own `widget-starter.css` falls back to near-black (`#1a1a1a`) while `widget-jazz-quote.css` falls back to near-white (`#e2e8f0`). Two first-party widgets assuming opposite themes only happens when the variable never resolves. The real contract is `.desktop-mode-widgets__card` in `assets/css/desktop.css`: fixed dark glass — `rgba(20,20,22,.55)` + `backdrop-filter: blur(18px)`, `color: #fff`. It is **not** theme-switchable. Style light-on-dark against the card that exists, and let text inherit.
+
+### Changed
+- All six widgets: `movable: true`, `resizable: true`, plus per-widget `min_width`/`min_height`/`default_width`/`default_height`.
+- [assets/desktop-mode-widget-actions.js](assets/desktop-mode-widget-actions.js) re-themed for the glass card — layout, copy and behaviour untouched.
+
+### Tests
+`tests/desktop-mode-integration.php` → **149 asserts**. Pins drag/resize + sizing on every widget (including that no `default_*` sits below its own `min_*`), and pins the theming as a contract: no `background:#fff`, no `#1d2327` text, no pastel toast fills, translucent-white present, hover wired. Full sweep 303 files / **9,744 asserts** / 0 failed · phpcs 234 clean · PHPStan clean.
+
 ## [9.52.1] - 2026-07-16: The widgets register on the wrong hook — nothing SN ever reached Desktop Mode
 
 **Headline:** v9.52.0 fixed the widgets' *mount contract* and they still didn't appear, because a **second, upstream bug** was hiding behind it: **every SN widget and all 29 Cmd+K commands were registered too late to exist.** desktop-mode builds its `serverWidgets` / `serverCommands` payload inside `desktop_mode_enqueue_assets()`, hooked on `admin_enqueue_scripts` at **default priority 10**, and reads the registries **eagerly** right there (`$payload[$k] = $builder();`). WordPress runs equal-priority callbacks in **insertion order**, and `active_plugins` is sorted alphabetically — `desktop-mode` sorts before `signal-and-noise-tools` — so desktop-mode's priority-10 callback is *always* added, and therefore runs, **before** any priority-10 callback of ours. Registering from our own `admin_enqueue_scripts:10` closure was unwinnable: by the time we called `desktop_mode_register_widget()`, the payload had already been built from an empty registry. Nothing we registered there ever reached the shell — not for years.
