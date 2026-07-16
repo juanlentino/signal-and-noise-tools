@@ -728,6 +728,82 @@ $nested = apply_filters( 'desktop_mode_ai_tools', array(
 ok( isset( $nested[0]['parameters']['properties']['mode']['oneOf'] ),
 	'a NESTED oneOf inside a property is left intact (only the top level is constrained)' );
 
+// v9.53.1 — THE THIRD VIOLATION, and the end of the skip.
+//   tools.12 …type: Input should be 'object'                        (v9.52.5)
+//   tools.29 …: does not support oneOf/allOf/anyOf at the top level (v9.53.0)
+//   tools.30 …properties: Input should be an object                 (this)
+// An ability that takes no arguments naturally writes 'properties' => array().
+// PHP has no empty-map literal, so that encodes to JSON `[]`, and the provider
+// requires `{}`. 13 abilities across the plugin + theme declare exactly that.
+//
+// The normalizer already handled it. The SKIP was the bug — twice now. It asked
+// "is this one of the wrong shapes I know about?" and skipped anything that
+// wasn't, so each newly-discovered shape sailed through untouched and the 400
+// simply moved to the next tool. Enumerating what's broken cannot work; the
+// list is the provider's, not ours, and we learn it one 400 at a time.
+// v9.53.1 deletes the skip: ALWAYS normalize. The function is idempotent and
+// costs a few array ops on a payload we already build per request.
+$props_tools = apply_filters( 'desktop_mode_ai_tools', array(
+	// The exact shape the old skip called "conformant" and shipped broken.
+	array( 'type' => 'function', 'name' => 'get_theme_version', 'parameters' => array(
+		'type'                 => 'object',
+		'properties'           => array(),
+		'additionalProperties' => false,
+	) ),
+) );
+ok( is_object( $props_tools[0]['parameters']['properties'] ),
+	'an EMPTY properties array is cast to an object — PHP array() encodes as [], the provider needs {}' );
+ok( json_encode( $props_tools[0]['parameters']['properties'] ) === '{}',
+	'…and it actually serialises to {} (the thing the provider checks)' );
+ok( ( $props_tools[0]['parameters']['additionalProperties'] ?? null ) === false,
+	'casting empty properties preserves the rest of the schema' );
+
+// A NON-empty properties map must survive untouched — it already encodes as an
+// object, and rewriting it would be gratuitous.
+$keep = apply_filters( 'desktop_mode_ai_tools', array(
+	array( 'name' => 'x', 'parameters' => array( 'type' => 'object', 'properties' => array( 'a' => array( 'type' => 'string' ) ) ) ),
+) );
+ok( ( $keep[0]['parameters']['properties']['a']['type'] ?? '' ) === 'string',
+	'a non-empty properties map passes through unchanged' );
+
+// v9.53.1 — CONFORMANCE, checked against every shape our repos ACTUALLY declare.
+// Three releases each fixed one rule and claimed victory; each time the 400 just
+// moved to the next tool. So stop asserting individual fixes and assert the
+// PROPERTY: every real shape, after normalization, satisfies all three rules at
+// once. Each rule below cost a live 400 to learn.
+function sn_anthropic_conformance( $schema ) {
+	$s = (array) $schema;
+	if ( ( $s['type'] ?? null ) !== 'object' ) { return 'type is not the literal "object"'; }
+	foreach ( array( 'oneOf', 'allOf', 'anyOf' ) as $k ) {
+		if ( isset( $s[ $k ] ) ) { return "top-level $k"; }
+	}
+	// The check that matters most, and the subtlest: an empty PHP array
+	// serialises to [] and the provider demands {}.
+	if ( isset( $s['properties'] ) && is_array( $s['properties'] ) && array() === $s['properties'] ) {
+		return 'properties encodes as [] not {}';
+	}
+	return true;
+}
+
+$real_shapes = array(
+	'union type + props'       => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'range' => array( 'type' => array( 'string', 'integer' ) ) ), 'additionalProperties' => false ),
+	'union type + EMPTY props' => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+	'object + EMPTY props'     => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+	'object + props + anyOf'   => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'slug' => array( 'type' => 'string' ) ), 'anyOf' => array( array( 'required' => array( 'post_id' ) ), array( 'required' => array( 'slug' ) ) ), 'additionalProperties' => false ),
+	'object + props (already ok)' => array( 'type' => 'object', 'properties' => array( 'q' => array( 'type' => 'string' ) ) ),
+	'empty schema'             => array(),
+);
+foreach ( $real_shapes as $label => $shape ) {
+	$verdict = sn_anthropic_conformance( sn_mcp_normalize_schema( $shape ) );
+	ok( true === $verdict, "normalized shape is provider-conformant: $label" . ( true === $verdict ? '' : " [$verdict]" ) );
+}
+
+// Idempotence is what makes "always normalize, never skip" safe: a conformant
+// schema in must be an identical schema out.
+$already = array( 'type' => 'object', 'properties' => array( 'q' => array( 'type' => 'string' ) ) );
+ok( sn_mcp_normalize_schema( sn_mcp_normalize_schema( $already ) ) === sn_mcp_normalize_schema( $already ),
+	'sn_mcp_normalize_schema() is idempotent — normalizing twice equals normalizing once' );
+
 // THE GUARD. v9.52.5 shipped claiming "Ask AI works" after testing the fix
 // against a FIXTURE. The real tool list had a SECOND violation class the
 // fixture didn't contain, so the 400 merely moved (tools.12 → tools.29) and the

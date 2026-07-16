@@ -1175,22 +1175,29 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 		if ( ! is_array( $tool ) || ! isset( $tool['parameters'] ) || ! is_array( $tool['parameters'] ) ) {
 			continue;
 		}
-		// Already conformant — touch nothing.
+		// v9.53.1 — NO SKIP. Normalize unconditionally.
 		//
-		// v9.53.0: "conformant" is NOT just type==='object'. This skip is what
-		// let the second violation through: the theme's
-		// get-active-template-structure already declared type 'object', so the
-		// filter bailed here and never saw its top-level anyOf — and Ask AI kept
-		// 400ing, just further down the tool list (tools.12 → tools.29). A
-		// top-level oneOf/allOf/anyOf is equally fatal, so a schema is only
-		// conformant when it has neither problem.
-		$p = $tool['parameters'];
-		$conformant = ( isset( $p['type'] ) && 'object' === $p['type'] )
-			&& ! isset( $p['oneOf'] ) && ! isset( $p['allOf'] ) && ! isset( $p['anyOf'] );
-		if ( $conformant ) {
-			continue;
-		}
-		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $p );
+		// There used to be an "already conformant, touch nothing" guard here. It
+		// was the bug, twice. It asked "is this one of the wrong shapes I know
+		// about?" and skipped everything else — so each shape we hadn't met yet
+		// sailed through untouched and the provider's 400 simply moved to the
+		// next tool:
+		//
+		//   tools.12 …type: Input should be 'object'                    (v9.52.5)
+		//   tools.29 …does not support oneOf/allOf/anyOf at the top level (v9.53.0)
+		//   tools.30 …properties: Input should be an object              (v9.53.1)
+		//
+		// Each time, the normalizer already handled the shape — it just never
+		// ran, because the guard had judged the schema fine by the only criteria
+		// it knew. Enumerating what's broken cannot work: the list of
+		// unsupported constructs belongs to the provider, not to us, and we
+		// learn it one 400 at a time.
+		//
+		// So: always normalize. sn_mcp_normalize_schema() is idempotent — a
+		// conformant schema goes in and comes out identical — and it costs a few
+		// array ops on a payload we already build per request. That is cheaper
+		// than being wrong a fourth time.
+		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $tool['parameters'] );
 	}
 
 	return $tools;
