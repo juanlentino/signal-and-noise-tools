@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.49.1
+ * Version:     9.50.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -177,9 +177,12 @@ require_once SNT_PATH . 'inc/analytics-refresh-rest.php'; // v9.27.0: token-gate
 // v9.22.0: native MCP server — POST /wp-json/signal-noise/v1/mcp exposes a
 // read-only allowlist of Abilities as MCP tools (machine-readability program,
 // sub-project B). Required AFTER rest-api.php so SN_REST_NAMESPACE is defined.
-// Load order = capabilities → tools → server → endpoint (dependency order).
+// Load order = capabilities → tools → resources → prompts → server → endpoint
+// (dependency order — mcp-server.php's router calls into all four).
 require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
 require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
+require_once SNT_PATH . 'inc/mcp/mcp-resources.php'; // v9.50.0: resources/list + resources/read (lane PROTO)
+require_once SNT_PATH . 'inc/mcp/mcp-prompts.php';   // v9.50.0: prompts/list + prompts/get (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)

@@ -3,12 +3,23 @@
  * Signal & Noise — Tools → Connect an MCP client.
  *
  * A read-only reference leaf (same anatomy as inc/admin-forms/links.php — no
- * form, no side effects, no save button) documenting the two MCP servers this
+ * form, no side effects, no save button) documenting the MCP servers this
  * site can answer through and how to point an external client (Claude Code,
  * Claude Desktop, …) at one of them. All content is static + escaped at the
- * point of output (the inc/analytics-maturity-page.php idiom); the native
- * server's tool list is read LIVE from sn_mcp_allowlist() so this page can
- * never drift from what tools/list actually advertises.
+ * point of output (the inc/analytics-maturity-page.php idiom); every tool
+ * list and count on this page is read LIVE from the allowlist functions
+ * (sn_mcp_allowlist(), sn_mcp_rw_allowlist()) so it can never drift from what
+ * tools/list actually advertises on either door.
+ *
+ * v9.50.0: the native server grows a second door — /mcp-rw, gated by the same
+ * manage_options + Application Password floor, exposing a read-write tool set
+ * (sn_mcp_rw_allowlist(), owned by inc/mcp/mcp-capabilities.php — this file
+ * never defines it, only calls it through a function_exists() guard, exactly
+ * as it has always done for sn_mcp_allowlist()). This leaf is the one place
+ * that must document, in the owner's own voice, that the write door is NOT
+ * read-only: it can mutate content and it spends the site's AI budget, and it
+ * names the four abilities withheld from it so that gap is a stated choice,
+ * not something the owner has to go find in an audit doc.
  *
  * @package SignalNoiseTools
  * @since 9.47.0
@@ -23,9 +34,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sn_admin_render_section() callback for the 'mcp-connect' sub-tab.
  */
 function sn_admin_render_mcp_connect_section() {
-	echo '<p>' . esc_html__( 'Two MCP servers can answer for this site. Both are read-only from an external client’s point of view — they can look, not write — and both sit behind your own WordPress login, never a shared secret.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site — two native, one third-party — and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
 
 	sn_admin_render_mcp_door_native();
+	sn_admin_render_mcp_door_native_write();
+	sn_admin_render_mcp_resources_prompts();
 	sn_admin_render_mcp_door_adapter();
 	sn_admin_render_mcp_owner_steps();
 
@@ -67,6 +80,107 @@ function sn_admin_render_mcp_door_native() {
 		echo '<li><code>' . esc_html( $slug ) . '</code></li>';
 	}
 	echo '</ul>';
+	echo '<p>' . esc_html__( 'This door never mutates anything, by construction — see the write door below for actions.', 'signal-and-noise-tools' ) . '</p>';
+	echo '</div>';
+}
+
+/**
+ * Door 1b — the native write door (new in v9.50.0): the same JSON-RPC 2.0
+ * server, the same manage_options + Application Password floor, at a second
+ * route — /mcp-rw. Slugs are read LIVE from sn_mcp_rw_allowlist()
+ * (inc/mcp/mcp-capabilities.php, owned by a different lane — this file only
+ * calls it through a function_exists() guard, never defines or edits it,
+ * exactly like the read door treats sn_mcp_allowlist() above). Its tools/list
+ * intentionally does not repeat the read door's tools (documented explicitly
+ * below), and the honesty requirement here is non-negotiable: this door can
+ * change content and spend AI budget, using the SAME credential as the read
+ * door — say so plainly rather than letting "MCP door" read as uniformly
+ * safe.
+ */
+function sn_admin_render_mcp_door_native_write() {
+	$url        = ( function_exists( 'rest_url' ) && function_exists( 'sn_mcp_namespace' ) )
+		? (string) rest_url( sn_mcp_namespace() . '/mcp-rw' )
+		: '';
+	$rw_slugs   = function_exists( 'sn_mcp_rw_allowlist' ) ? sn_mcp_rw_allowlist() : array();
+	$read_slugs = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
+
+	echo '<div class="sn-callout">';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1b — the native write door', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p>' . sprintf(
+		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
+		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door above — there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
+		'<code>manage_options</code>'
+	) . '</p>';
+	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p>' . sprintf(
+		/* translators: %d: the live count of allowlisted read-write tools. */
+		esc_html__( '%d read-write tools exposed:', 'signal-and-noise-tools' ),
+		count( $rw_slugs )
+	) . '</p>';
+	echo '<ul class="sn-mcp-tool-list">';
+	foreach ( $rw_slugs as $slug ) {
+		echo '<li><code>' . esc_html( $slug ) . '</code></li>';
+	}
+	echo '</ul>';
+	echo '<p>' . sprintf(
+		/* translators: %d: the live count of read-only tools on the read door. */
+		esc_html__( 'This door’s tools/list does not repeat the %d read-only tools above — if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ),
+		count( $read_slugs )
+	) . '</p>';
+
+	sn_admin_render_mcp_withheld_slugs();
+	echo '</div>';
+}
+
+/**
+ * The four abilities the owner has deliberately kept off the write door —
+ * named here so the gap is a stated choice, not something the owner has to
+ * go find in an audit doc. run-cron-event is a hard, permanent exclusion
+ * (unbounded do_action() dispatch on any hook, not just this plugin's own);
+ * the other three are otherwise-qualifying candidates the owner HELD pending
+ * an explicit future opt-in because each carries an unusually wide or
+ * irreversible blast radius. Static content — these slugs never come from a
+ * live allowlist call, precisely because they are absent from it.
+ */
+function sn_admin_render_mcp_withheld_slugs() {
+	$withheld = array(
+		'signal-noise/run-cron-event'          => array(
+			'badge'  => __( 'never', 'signal-and-noise-tools' ),
+			'reason' => __( 'synchronously fires do_action() on any non-sn_* hook you name — an unbounded blast radius across the whole site, not just this plugin', 'signal-and-noise-tools' ),
+		),
+		'signal-noise/ai-orphan-apply'         => array(
+			'badge'  => __( 'held', 'signal-and-noise-tools' ),
+			'reason' => __( 'force-deletes an orphaned attachment and skips the trash — no undo', 'signal-and-noise-tools' ),
+		),
+		'signal-noise/merge-tags'              => array(
+			'badge'  => __( 'held', 'signal-and-noise-tools' ),
+			'reason' => __( 'reassigns and deletes taxonomy terms sitewide — a wide blast radius for one call', 'signal-and-noise-tools' ),
+		),
+		'signal-noise/clear-template-overrides' => array(
+			'badge'  => __( 'held', 'signal-and-noise-tools' ),
+			'reason' => __( 'deletes Site Editor template, part, and nav overrides — can regress the whole site design', 'signal-and-noise-tools' ),
+		),
+	);
+
+	echo '<p>' . esc_html__( 'Four abilities never reach this door — one permanently, three pending an explicit future opt-in:', 'signal-and-noise-tools' ) . '</p>';
+	echo '<ul class="sn-mcp-tool-list">';
+	foreach ( $withheld as $slug => $info ) {
+		echo '<li><code>' . esc_html( $slug ) . '</code> <span class="sn-badge">' . esc_html( $info['badge'] ) . '</span> — ' . esc_html( $info['reason'] ) . '</li>';
+	}
+	echo '</ul>';
+}
+
+/**
+ * Resources & prompts (v9.50.0, lane PROTO — inc/mcp/mcp-resources.php +
+ * inc/mcp/mcp-prompts.php): both native doors serve the same read-only set.
+ * One sentence per category, per the leaf's scope — the detailed shapes live
+ * in the protocol lane's own code and tests, not here.
+ */
+function sn_admin_render_mcp_resources_prompts() {
+	echo '<div class="sn-callout">';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Resources & prompts', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p>' . esc_html__( 'Both native doors also serve four read-only MCP resources — sn://abilities-catalog, sn://changelog-latest, sn://design-tokens, and sn://llms-txt — a client can fetch any of them directly without calling a tool.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Two ready-made prompts, weekly-report and content-audit, chain several read tools together into one owner-voiced synthesis your client can run in a single step.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
 

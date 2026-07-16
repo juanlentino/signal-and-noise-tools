@@ -1,11 +1,13 @@
 <?php
 /**
  * Render + registry tests for Tools → Connect an MCP client
- * (inc/admin-forms/mcp-connect.php, v9.47.0) — the read-only doc leaf
- * pointing an external MCP client at this site's two servers. Drives the
- * REAL sn_mcp_allowlist() (inc/mcp/mcp-capabilities.php is loaded unguarded
- * by the bootstrap, so it must never be re-stubbed here — redeclare fatal)
- * so the tool list on the page can never silently drift from what
+ * (inc/admin-forms/mcp-connect.php, v9.47.0, widened v9.50.0) — the doc leaf
+ * (no form, no side effects) pointing an external MCP client at this site's
+ * three doors: the native read door, the new native write door, and the
+ * third-party adapter. Drives the REAL sn_mcp_allowlist() AND
+ * sn_mcp_rw_allowlist() (both inc/mcp/mcp-capabilities.php, loaded unguarded
+ * by the bootstrap, so neither is ever re-stubbed here — redeclare fatal) so
+ * neither door's rendered tool list/count can silently drift from what
  * tools/list actually advertises. i18n uses the tests/analytics-i18n.php
  * recording-stub idiom; esc_url use is proven the same way (a recording
  * stub, not a pass-through), so a dropped esc_url() call would fail here.
@@ -43,7 +45,7 @@ function get_edit_profile_url( $user_id = 0 ) { return 'https://example.test/wp-
 function apply_filters( $tag, $value ) { return $value; } // sn_mcp_allowlist() filters through 'sn_mcp_allowlist'; no filters registered here.
 
 require __DIR__ . '/../inc/admin-tabs-data.php';
-require __DIR__ . '/../inc/mcp/mcp-capabilities.php'; // the REAL sn_mcp_allowlist() — never stub this.
+require __DIR__ . '/../inc/mcp/mcp-capabilities.php'; // the REAL sn_mcp_allowlist() + sn_mcp_rw_allowlist() — never stub either.
 require __DIR__ . '/../inc/mcp/mcp-endpoint.php';      // the REAL sn_mcp_namespace().
 require __DIR__ . '/../inc/admin-forms/mcp-connect.php';
 
@@ -73,13 +75,16 @@ ob_start();
 sn_admin_render_mcp_connect_section();
 $html = ob_get_clean();
 
-// The live allowlist — 15 tools as of v9.22.0, but this suite asserts against
-// the REAL function's output so a future addition/removal is caught, not hidden.
+// The live allowlist — this suite asserts against the REAL function's output
+// (never a hardcoded number) so a future addition/removal is caught, not
+// hidden, and so this suite doesn't race lane DOORS' own D1 widening (15→23)
+// of the same function — that exact count is tests/mcp-capabilities.php's pin.
 $slugs = sn_mcp_allowlist();
-ok( 15 === count( $slugs ), 'sanity: sn_mcp_allowlist() is still the documented 15-slug v1 list' );
+ok( count( $slugs ) > 0, 'sanity: sn_mcp_allowlist() returns a non-empty read-door list' );
 foreach ( $slugs as $slug ) {
 	ok( false !== strpos( $html, '<code>' . htmlspecialchars( $slug, ENT_QUOTES ) . '</code>' ), "allowlist slug rendered: $slug" );
 }
+ok( false !== strpos( $html, (string) count( $slugs ) . ' read-only tools exposed' ), 'read-door tool count is live-rendered from sn_mcp_allowlist(), not hardcoded' );
 
 // ── Both endpoint URLs are esc_url'd from rest_url() ──
 $native_url  = 'https://example.test/wp-json/signal-noise/v1/mcp';
@@ -154,6 +159,63 @@ ok( 1 === substr_count( $html, '<pre>' ), 'exactly ONE <pre> copy-paste block' )
 // ── Deep links ──
 ok( false !== strpos( $html, 'https://example.test/wp-admin/tools.php' ), 'Abilities Explorer falls back to the generic Tools menu (no guessed slug)' );
 ok( false !== strpos( $html, 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/ai-abilities-catalog.md' ), 'links to the Abilities catalog doc' );
+
+// ── Write door (v9.50.0): live-rendered from sn_mcp_rw_allowlist() ──
+$rw_slugs = sn_mcp_rw_allowlist();
+ok( count( $rw_slugs ) > 0, 'sanity: the rw fixture is non-empty' );
+foreach ( $rw_slugs as $slug ) {
+	ok( false !== strpos( $html, '<code>' . htmlspecialchars( $slug, ENT_QUOTES ) . '</code>' ), "rw allowlist slug rendered: $slug" );
+}
+ok( false !== strpos( $html, (string) count( $rw_slugs ) . ' read-write tools exposed' ), 'rw tool count is live-rendered from sn_mcp_rw_allowlist(), not hardcoded' );
+
+$rw_url = 'https://example.test/wp-json/signal-noise/v1/mcp-rw';
+ok( in_array( $rw_url, $GLOBALS['__esc_url_calls'], true ), 'write door URL passed through esc_url()' );
+ok( false !== strpos( $html, $rw_url ), 'write door URL rendered' );
+ok( false !== strpos( $html, 'read-write' ), 'write door carries a read-write badge, not read-only' );
+ok( sn_i18n_seen( 'Door 1b — the native write door' ), 'write door heading translatable' );
+
+// ── Write-door honesty: same credentials, content mutation, AI budget ──
+ok( stripos( $html, 'same Application Password' ) !== false, 'write door states it uses the SAME Application Password as the read door' );
+ok( stripos( $html, 'modify your content' ) !== false, 'write door states it can modify content' );
+ok( stripos( $html, 'spend the AI budget' ) !== false, 'write door states it can spend the AI budget' );
+// The real rw allowlist includes two PURE-READ, PII-flagged tools
+// (get-audit-log/export-audit-log — plaintext usernames) alongside the
+// content-mutating/AI-billed ones — a blanket "every tool here mutates or
+// spends budget" claim would overclaim, so the copy must not say "every".
+ok( in_array( 'signal-noise/get-audit-log', $rw_slugs, true ), 'sanity: the real rw allowlist includes the PII-flagged get-audit-log' );
+ok( stripos( $html, 'plaintext usernames' ) !== false, 'write door discloses the plaintext-username audit-log exception honestly' );
+ok( stripos( $html, 'every tool here can modify' ) === false, 'write door does not overclaim that EVERY rw tool mutates or spends budget' );
+
+// ── The write door does not duplicate read-door tools; points readers back ──
+ok( stripos( $html, 'read door instead' ) !== false, 'write door tells a read-only client to use the read door instead' );
+
+// ── The four withheld slugs, named with one-line reasons (honesty, not a hidden gap) ──
+$withheld_slugs = array(
+	'signal-noise/run-cron-event',
+	'signal-noise/ai-orphan-apply',
+	'signal-noise/merge-tags',
+	'signal-noise/clear-template-overrides',
+);
+foreach ( $withheld_slugs as $slug ) {
+	ok( false !== strpos( $html, '<code>' . htmlspecialchars( $slug, ENT_QUOTES ) . '</code>' ), "withheld slug named: $slug" );
+	ok( ! in_array( $slug, $rw_slugs, true ), "sanity: withheld slug $slug is absent from the (fixture) rw allowlist" );
+}
+ok( stripos( $html, 'unbounded' ) !== false, 'run-cron-event reason cites the unbounded do_action() risk' );
+ok( stripos( $html, 'no undo' ) !== false, 'ai-orphan-apply reason cites no undo' );
+ok( stripos( $html, 'sitewide' ) !== false, 'merge-tags reason cites the sitewide blast radius' );
+ok( stripos( $html, 'Site Editor' ) !== false, 'clear-template-overrides reason cites Site Editor regression risk' );
+
+// ── Resources & prompts: one sentence each (v9.50.0) ──
+ok( sn_i18n_seen( 'Resources & prompts' ), 'resources/prompts heading translatable' );
+ok( stripos( $html, 'sn://abilities-catalog' ) !== false, 'resources sentence names sn://abilities-catalog' );
+ok( stripos( $html, 'sn://changelog-latest' ) !== false, 'resources sentence names sn://changelog-latest' );
+ok( stripos( $html, 'sn://design-tokens' ) !== false, 'resources sentence names sn://design-tokens' );
+ok( stripos( $html, 'sn://llms-txt' ) !== false, 'resources sentence names sn://llms-txt' );
+ok( stripos( $html, 'weekly-report' ) !== false, 'prompts sentence names weekly-report' );
+ok( stripos( $html, 'content-audit' ) !== false, 'prompts sentence names content-audit' );
+
+// ── REGRESSION: the old "both native doors are uniformly read-only" claim must be gone ──
+ok( false === strpos( $html, 'Both are read-only' ), 'REGRESSION: intro no longer claims both native doors are read-only' );
 
 // ── MIRROR RULE: read-only, no write surface of any kind ──
 ok( strpos( $html, '<input' ) === false && strpos( $html, '<button' ) === false
