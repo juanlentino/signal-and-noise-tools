@@ -34,6 +34,7 @@ if ( ! function_exists( 'is_email' ) ) { function is_email( $e ) { return false 
 if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k ) { return 'Test Site'; } }
 if ( ! function_exists( 'wp_mail' ) ) { function wp_mail( $to, $subject, $body ) { return true; } }
 if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
+if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $v ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', (string) $v ) ); } }
 $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
 
 // v9.51.0 (lane SEC-C, R7): stubs required by inc/mcp/mcp-rw-guard.php's rate

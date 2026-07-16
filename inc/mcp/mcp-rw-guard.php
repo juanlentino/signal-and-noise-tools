@@ -405,14 +405,19 @@ function sn_mcp_rw_hash_ip( $ip ) {
 }
 
 /**
- * The current request's remote IP, unslashed. '' when unavailable (CLI, test
- * harness) — sn_mcp_rw_rate_limit_identity() turns that into 'ip:unknown'
- * rather than skipping the check.
+ * The current request's remote IP, unslashed + sanitized. '' when unavailable
+ * (CLI, test harness) — sn_mcp_rw_rate_limit_identity() turns that into
+ * 'ip:unknown' rather than skipping the check. The value is only ever hashed
+ * into a rate-limit bucket key, never rendered, but it is a security surface,
+ * so it is sanitized at the boundary (this file is NOT phpcs-excluded, unlike
+ * the sibling audit reads).
  *
  * @return string
  */
 function sn_mcp_rw_rate_limit_current_ip() {
-	return isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
+	return isset( $_SERVER['REMOTE_ADDR'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+		: '';
 }
 
 /**

@@ -57,6 +57,7 @@ if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { ret
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $s = 'auth' ) { return 'test-salt'; } }
 if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
+if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $v ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', (string) $v ) ); } }
 $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
 
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
