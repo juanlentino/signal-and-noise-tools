@@ -37,6 +37,12 @@ if ( ! function_exists( 'get_site_transient' ) ) {
 if ( ! function_exists( 'set_site_transient' ) ) {
     function set_site_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
 }
+// v9.54.0: a successful fetch now CLEARS the recorded failure reason, so the
+// updater reaches for delete_site_transient(). Without this the suite fatals on
+// a function WP core has always provided.
+if ( ! function_exists( 'delete_site_transient' ) ) {
+    function delete_site_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+}
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return $t instanceof WP_Error; } }
 if ( ! function_exists( 'wp_remote_get' ) ) {
     function wp_remote_get( $url, $args = array() ) {

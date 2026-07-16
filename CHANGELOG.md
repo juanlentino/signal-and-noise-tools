@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.54.0] - 2026-07-16: The update checker stops failing silently
+
+**Headline:** Both Dashboard version cards showed a red **"unknown"** and nothing, anywhere, said why.
+
+A dead `SNT_GITHUB_TOKEN` (401), a rate limit (403), a deleted repo (404), and a 5-second timeout all collapsed into the same `return null`:
+
+```php
+if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+    set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
+    return null;   // ← the reason, discarded
+}
+```
+
+Diagnosing a live occurrence meant reading this source, timing the endpoint from a laptop, and probing GitHub's 401 header behaviour — to recover a fact the code had held in its hand and dropped. The fetch still fails the same way; it just no longer throws away **why**.
+
+**The card now names the cause**, and for the one failure a site owner can fix in 30 seconds it names the constant:
+
+> GitHub rejected the credential (401) — SNT_GITHUB_TOKEN in wp-config.php is invalid, expired, or revoked
+
+401 / 403 / 404 / network-timeout / unparseable-body / no-semver-tags each read differently. A `WP_Error` carries the real driver message (`cURL error 28: Operation timed out after 5001 ms`) rather than a generic "network error" — the number in it *is* the diagnosis. Reasons are redacted against token-shaped strings before they can reach a screen, and **success clears the reason** — otherwise the fix becomes the next bug, with a stale error captioning a card after the token was rotated.
+
+Surfaces on the Dashboard card (`meta_html` sub-line), on the Desktop Mode Deploy Status widget (the `?` glyph gets a tooltip, plus a reason line — deduped, because theme and plugin authenticate with the *same* constant and would otherwise stutter the same sentence twice), and over MCP/REST via `snt_deploy_status_for()`'s new `reason` key.
+
+**The dashboard's healthiest-looking number was the most misleading thing on the page.** "GitHub API: 4,971/5,000" is recorded only from responses that *carry* `x-ratelimit-*` headers — and GitHub's 401 for a bad credential carries **none**, while a `WP_Error` never reaches the `http_response` filter at all. So it sat frozen at the last success while every call failed. It now always prints its age (*"as of 6 hours ago"*). **A number that can only update on success must show its age, or it is a fossil posing as a live reading.**
+
+**Test-harness fixes, without which none of this could be tested honestly.** The suite's `WP_Error` stub took a code and message and **threw both away**, with no accessors — so any network-failure test would have fataled on `get_error_message()` or asserted against a fiction. It now models the real class. `wp_remote_get` became drivable so failure paths can actually be exercised. Verified RED first; the 401 assertions were mutation-checked (make the reason generic → they go red). Two sibling suites needed `human_time_diff()` / `delete_site_transient()` stubs — new WP-core calls, caught by the full 302-suite sweep rather than by the feature's own tests.
+
+Same rule as the v9.47.2 janitor, and the same rule we asked of desktop-mode in [#362](https://github.com/WordPress/desktop-mode/issues/362) (*"name the culprit"*): **never silent.**
+
 ## [9.53.2] - 2026-07-16: The normalizer has to run last, or it doesn't run at all
 
 **Headline:** v9.53.1 made the Copilot schema normalizer unconditional. It was still registered at the default priority 10 — so it was unconditional only over the tools it happened to *see*.
