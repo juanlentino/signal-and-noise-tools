@@ -46,11 +46,20 @@ define( 'MINUTE_IN_SECONDS', 60 ); // WP core constant, absent from a standalone
 $GLOBALS['__actions'] = array();
 function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; }
 
+// The stub HONOURS priority. It used to drop $p on the floor and replay
+// callbacks in registration order, which made any ordering assertion vacuous —
+// the harness could not express "runs last", so a test claiming it would have
+// passed against code that ran first. Real WP sorts by priority ascending and
+// keeps registration order within a priority; so does this.
 $GLOBALS['__filters'] = array();
-function add_filter( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; }
+function add_filter( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $hook ][ $p ][] = $cb; }
 function apply_filters( $hook, $value ) {
-	foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) {
-		$value = $cb( $value );
+	$by_priority = $GLOBALS['__filters'][ $hook ] ?? array();
+	ksort( $by_priority, SORT_NUMERIC );
+	foreach ( $by_priority as $cbs ) {
+		foreach ( $cbs as $cb ) {
+			$value = $cb( $value );
+		}
 	}
 	return $value;
 }
@@ -716,6 +725,50 @@ ok( isset( $anyof_tools[0]['parameters']['properties']['post_id'], $anyof_tools[
 	'stripping the combinator keeps every property — the tool still takes its arguments' );
 ok( ( $anyof_tools[0]['parameters']['additionalProperties'] ?? null ) === false,
 	'stripping the combinator preserves the rest of the schema' );
+
+echo "\n── v9.53.2: the normalizer must run LAST, or it doesn't run at all ──\n";
+// Same lesson as the skip, one level up. v9.53.1 made the normalizer
+// unconditional over the tools it SEES — but it was registered at the default
+// priority 10, so it only ever saw the tools that existed at priority 10.
+// desktop_mode_ai_tools is a public, documented, "Stable" filter whose whole
+// stated purpose is "injecting synthetic command tools". Anything hooking it
+// later than us lands its tools downstream of the normalizer, and ONE
+// non-conformant tool 400s the entire assistant — not just its own tool.
+//
+// We cannot know who else hooks this filter or at what priority. So don't
+// guess: run last. PHP_INT_MAX is the only priority that cannot be outrun.
+//
+// This is deliberately defensive beyond our own abilities. A third-party
+// plugin's bad schema kills Ask AI for the whole SITE, and normalizing it costs
+// a few array ops and weakens nothing (execute-time validation is untouched).
+// It is the same fix we proposed upstream in WordPress/desktop-mode#362.
+$GLOBALS['__filters']['desktop_mode_ai_tools'][ 999 ][] = static function ( $tools ) {
+	// A late-registering plugin injecting a synthetic tool — exactly what the
+	// filter's own docblock invites. All three killer shapes at once.
+	$tools[] = array(
+		'type'       => 'function',
+		'name'       => 'late_injected_tool',
+		'parameters' => array(
+			'type'       => array( 'object', 'null' ),
+			'properties' => array(),
+			'anyOf'      => array( array( 'required' => array( 'x' ) ) ),
+		),
+	);
+	return $tools;
+};
+$late = apply_filters( 'desktop_mode_ai_tools', array() );
+$injected = null;
+foreach ( $late as $t ) {
+	if ( 'late_injected_tool' === ( $t['name'] ?? '' ) ) { $injected = $t; }
+}
+ok( null !== $injected, 'the late-injected tool reaches the tool list (harness sanity — the filter honours priority)' );
+ok( 'object' === ( $injected['parameters']['type'] ?? null ),
+	'a tool injected by a LATER filter still has its union type normalized (we run after it)' );
+ok( ! isset( $injected['parameters']['anyOf'] ),
+	'a tool injected by a LATER filter still has its top-level anyOf stripped' );
+ok( ( $injected['parameters']['properties'] ?? null ) instanceof stdClass,
+	'a tool injected by a LATER filter still has empty properties cast to {} not []' );
+unset( $GLOBALS['__filters']['desktop_mode_ai_tools'][ 999 ] );
 
 // Nested combinators are FINE — the provider only rejects them at the TOP
 // level, and a property's oneOf is a real constraint worth keeping.

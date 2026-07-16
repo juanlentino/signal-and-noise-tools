@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.53.2] - 2026-07-16: The normalizer has to run last, or it doesn't run at all
+
+**Headline:** v9.53.1 made the Copilot schema normalizer unconditional. It was still registered at the default priority 10 — so it was unconditional only over the tools it happened to *see*.
+
+`desktop_mode_ai_tools` is a public, documented, Stable filter, and its own docblock invites other plugins to hook it ("injecting synthetic command tools"). Anything registered at a later priority lands its tools **downstream of the normalizer**, and one non-conformant tool 400s the entire assistant — not just its own tool. The normalizer now runs at `PHP_INT_MAX`.
+
+This is the same lesson as the skip that caused three releases, one level up. The skip asked *"is this one of the wrong shapes I know about?"*; the priority asked *"are these all the tools there are?"* Both guessed at something owned by somebody else. We cannot enumerate who hooks a public filter or when — so don't guess: run last.
+
+Deliberately, this normalizes **every** tool on the site, not just ours. A third-party plugin's bad schema kills Ask AI for the whole install, normalizing it costs a few array ops on a payload already being built, and it weakens nothing (execute-time validation and `permission_callback` are untouched). It's the fix we proposed upstream in [WordPress/desktop-mode#362](https://github.com/WordPress/desktop-mode/issues/362), applied at our own boundary while that issue is open.
+
+**Also fixed — a comment that stated the opposite of the truth.** The normalizer's loop claimed *"Command tools carry no `parameters`"*. They do: `search.php` builds every command tool a full object schema with a required `args` string. The code was right (they're conformant, so normalizing is a no-op) but the stated reason was wrong — and a wrong reason is how the next person justifies the next skip.
+
+**The test harness could not have caught this.** Its `add_filter` stub dropped the priority argument on the floor and replayed callbacks in registration order, so the suite had no way to express "runs last" — any ordering assertion would have passed against code that ran first. The stub now honours priority the way WordPress does (ascending, registration order within a priority), and the new tests inject a tool at priority 999 and prove it still gets normalized. Verified RED before the fix.
+
+**Compatibility audit (no code change).** Everything else was checked against the real desktop-mode 0.9.5 source and holds: every API we call exists upstream, all six widgets have valid mount contracts and registered handles, all 17 commands have matching `run()` handlers in both directions, registration timing is correct, and every integration is `function_exists`-gated. Upstream #362 is still unfixed, so our boundary normalizer stays load-bearing.
+
 ## [9.53.1] - 2026-07-16: Stop enumerating what's broken — always normalize
 
 **Headline:** The third and final Ask AI schema violation, and the removal of the thing that caused two of the three.
