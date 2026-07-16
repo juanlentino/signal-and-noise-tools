@@ -1051,3 +1051,66 @@ add_filter( 'desktop_mode_living_tree_traffic', function( $views ) {
 	$totals = sn_analytics_range_totals( $from, $today, 'human' );
 	return (int) ( $totals['views'] ?? $views );
 } );
+
+/**
+ * v9.52.5 — Repair the AI Copilot's tool schemas at the boundary.
+ *
+ * THE BUG (owner-reported, live): clicking Ask AI returned
+ *
+ *     Bad Request (400) - tools.12.custom.input_schema.type: Input should be 'object'
+ *
+ * and the Copilot was DEAD — not degraded. One malformed tool fails the whole
+ * request, so every SN ability took the assistant down with it.
+ *
+ * CAUSE. desktop-mode 0.9.4 made the Copilot's tools WordPress Abilities and
+ * offers EVERY read-only ability on the site as a tool automatically — no
+ * opt-in (includes/ai-copilot/abilities.php). Its converter then passes the
+ * ability's input_schema through RAW as the tool's `parameters`
+ * (includes/ai-copilot/search.php:743). Our abilities deliberately declare a
+ * ['object','null'] union — that IS their GET/null run-path — and Anthropic
+ * requires input_schema.type to be the literal string "object".
+ * desktop-mode's own abilities all use a plain 'object', so their Copilot
+ * never trips over it; only a third-party union-typed ability breaks it. We
+ * were enrolled into a contract we never agreed to, and only a live click
+ * surfaced it.
+ *
+ * WHY NOT "JUST FIX THE SCHEMAS". The union is load-bearing: MCP and the REST
+ * GET path rely on being callable with null input. The schemas are correct;
+ * the BOUNDARY was missing.
+ *
+ * THE FIX. We already own the normalizer — sn_mcp_normalize_schema()
+ * (inc/mcp/mcp-tools.php), which does exactly this for our own MCP door and
+ * whose comment predicted this error verbatim: "strict MCP hosts (e.g. the
+ * Anthropic tool-schema validator that a client forwards to) reject". It was
+ * simply never wired into a path nobody knew existed. desktop_mode_ai_tools
+ * exists to "transform the full tool list just before it goes to the provider"
+ * — the right seam.
+ *
+ * Applied to EVERY tool, not just ours: a top-level union is always invalid for
+ * the provider, so this is strictly a repair, and it keeps Ask AI alive if
+ * another plugin registers the same shape. Nested property unions are left
+ * alone — the provider only constrains the top level, and rewriting them would
+ * silently narrow an ability's real contract.
+ *
+ * Upstream: desktop-mode's converter arguably ought to normalize here itself;
+ * any plugin with a union-typed read-only ability kills its Copilot.
+ */
+add_filter( 'desktop_mode_ai_tools', function( $tools ) {
+	if ( ! is_array( $tools ) || ! function_exists( 'sn_mcp_normalize_schema' ) ) {
+		return $tools;
+	}
+
+	foreach ( $tools as $i => $tool ) {
+		// Command tools carry no `parameters`; never fabricate a schema for them.
+		if ( ! is_array( $tool ) || ! isset( $tool['parameters'] ) || ! is_array( $tool['parameters'] ) ) {
+			continue;
+		}
+		// Already conformant — touch nothing.
+		if ( isset( $tool['parameters']['type'] ) && 'object' === $tool['parameters']['type'] ) {
+			continue;
+		}
+		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $tool['parameters'] );
+	}
+
+	return $tools;
+} );

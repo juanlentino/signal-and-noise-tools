@@ -540,6 +540,75 @@ ok( snt_desktop_delta_pct( 100, 100 ) === 0.0,   '0% when flat' );
 ok( snt_desktop_delta_pct( 10, 0 ) === null,     'null (not INF) when prior window is zero — no divide-by-zero' );
 ok( snt_desktop_delta_pct( 0, 0 ) === null,      'null when both windows are zero' );
 
+echo "\n── v9.52.5: the AI Copilot tool-schema normalizer ──\n";
+// THE BUG (owner-reported, live): clicking Ask AI returned
+//   Bad Request (400) - tools.12.custom.input_schema.type: Input should be 'object'
+// …and the Copilot was dead — not degraded, DEAD, because one malformed tool
+// fails the whole request.
+//
+// Cause: desktop-mode 0.9.4 made the Copilot's tools WordPress Abilities and
+// offers EVERY read-only ability on the site automatically, with no opt-in. Its
+// converter (includes/ai-copilot/search.php) passes the ability's input_schema
+// through RAW as the tool's `parameters`. Our abilities deliberately declare a
+// ['object','null'] union — that's their GET/null run-path — and Anthropic
+// requires input_schema.type to be the literal string "object". desktop-mode's
+// own abilities all use plain 'object', so their Copilot never trips on this;
+// only a third-party union-typed ability breaks it, and it takes the whole
+// request down.
+//
+// The schemas are NOT wrong and are not changed: MCP and REST rely on that null
+// run-path. The missing piece was the BOUNDARY. We already own the fix —
+// sn_mcp_normalize_schema() (inc/mcp/mcp-tools.php), whose own comment predicted
+// this error verbatim ("strict MCP hosts (e.g. the Anthropic tool-schema
+// validator that a client forwards to) reject"). It was simply never wired into
+// a path nobody knew existed. desktop_mode_ai_tools exists to "transform the
+// full tool list just before it goes to the provider" — that's the seam.
+require_once __DIR__ . '/../inc/mcp/mcp-tools.php';
+
+ok( isset( $GLOBALS['__filters']['desktop_mode_ai_tools'] ), 'the desktop_mode_ai_tools filter is registered' );
+
+// The real broken shape, straight from inc/abilities-analytics.php.
+$tools_in = array(
+	array( 'type' => 'function', 'name' => 'search_posts', 'parameters' => array( 'type' => 'object', 'properties' => array( 'query' => array( 'type' => 'string' ) ) ) ),
+	array( 'type' => 'function', 'name' => 'get_analytics_summary', 'parameters' => array(
+		'type'                 => array( 'object', 'null' ),
+		'properties'           => array( 'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ) ),
+		'additionalProperties' => false,
+	) ),
+	// A command tool: no `parameters` at all. Must not fatal.
+	array( 'type' => 'function', 'name' => 'sn_cmd_nav_dashboard' ),
+);
+$tools_out = apply_filters( 'desktop_mode_ai_tools', $tools_in );
+
+ok( is_array( $tools_out ) && count( $tools_out ) === 3, 'the filter returns every tool it was given' );
+ok( ( $tools_out[1]['parameters']['type'] ?? null ) === 'object',
+	'a union ["object","null"] input schema is normalized to the literal "object" (the 400 that killed Ask AI)' );
+ok( isset( $tools_out[1]['parameters']['properties']['range'] ),
+	'normalizing preserves the properties — the tool keeps its arguments' );
+ok( ( $tools_out[1]['parameters']['additionalProperties'] ?? null ) === false,
+	'normalizing preserves the rest of the schema' );
+ok( ( $tools_out[0]['parameters']['type'] ?? null ) === 'object',
+	'an already-valid tool passes through unharmed' );
+ok( ( $tools_out[0]['parameters']['properties']['query']['type'] ?? null ) === 'string',
+	'an already-valid tool keeps its properties untouched' );
+ok( ! isset( $tools_out[2]['parameters'] ),
+	'a tool with no parameters (a command tool) is left alone, not given a fabricated schema' );
+
+// Nested property unions are FINE — Anthropic only constrains the TOP level.
+// Rewriting them would silently narrow the ability's real contract.
+ok( ( $tools_out[1]['parameters']['properties']['range']['type'] ?? null ) === array( 'string', 'integer' ),
+	'nested property unions are left intact (only the top-level type is constrained)' );
+
+// Degenerate inputs must never fatal a whole Copilot request.
+$weird = apply_filters( 'desktop_mode_ai_tools', array( 'not-an-array', array( 'name' => 'x', 'parameters' => 'not-an-array' ) ) );
+ok( is_array( $weird ) && count( $weird ) === 2, 'malformed tool entries pass through without fataling' );
+
+// And the abilities themselves must KEEP their union — the fix is at the
+// boundary, not in the contract. Changing these would break the GET/null path.
+$analytics_src = file_get_contents( __DIR__ . '/../inc/abilities-analytics.php' );
+ok( strpos( $analytics_src, "array( 'object', 'null' )" ) !== false,
+	'the abilities KEEP their ["object","null"] union — normalization happens at the boundary, not by rewriting contracts MCP/REST depend on' );
+
 echo "\n── living-tree filter ──\n";
 ok( isset( $GLOBALS['__filters']['desktop_mode_living_tree_traffic'] ), 'living-tree filter is registered' );
 $GLOBALS['__totals'] = array( '*' => array( 'views' => 1234, 'visits' => 900, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );

@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.52.5] - 2026-07-16: Our abilities were killing Desktop Mode's Ask AI
+
+**Headline:** Clicking **Ask AI** returned `Bad Request (400) - tools.12.custom.input_schema.type: Input should be 'object'` and the Copilot was **dead** — not degraded. One malformed tool fails the whole request, so our abilities took the assistant down with them.
+
+**Cause.** desktop-mode 0.9.4 made the Copilot's tools WordPress Abilities and offers **every read-only ability on the site automatically — no opt-in**. Its converter then passes the ability's `input_schema` through **raw** as the tool's `parameters` ([`includes/ai-copilot/search.php:743`](https://github.com/WordPress/desktop-mode)). Our abilities deliberately declare a `['object','null']` union — that *is* their GET/null run-path — and Anthropic requires `input_schema.type` to be the literal string `"object"`. desktop-mode's own abilities all use a plain `'object'`, so their Copilot never trips over it: **only a third-party union-typed ability breaks it, and it takes the entire request down.**
+
+**The part that stings:** we already owned the fix, and our own code predicted this error *verbatim*. `sn_mcp_normalize_schema()` ([inc/mcp/mcp-tools.php](inc/mcp/mcp-tools.php)) does exactly this normalization for our own MCP door, and its comment reads: *"strict MCP hosts (e.g. **the Anthropic tool-schema validator** that a client forwards to) reject"*. It was simply never wired into a path nobody knew existed — the Copilot integration was celebrated as free capability without ever being clicked.
+
+**Why not "just fix the schemas".** The union is load-bearing: MCP and the REST GET path rely on the abilities being callable with null input. **The schemas are correct; the boundary was missing.** So this normalizes at `desktop_mode_ai_tools` — the filter that exists to "transform the full tool list just before it goes to the provider" — and changes no ability contract. 49 abilities before and after; the unions stay declared.
+
+> **Why PATCH:** repairs a third-party surface our abilities were breaking. No SN behaviour changes.
+
+### Fixed
+- **Ask AI works again.** A `desktop_mode_ai_tools` filter runs each tool's `parameters` through `sn_mcp_normalize_schema()`. Applied to **every** tool, not just ours — a top-level union is always invalid for the provider, so it's strictly a repair and keeps the Copilot alive if another plugin registers the same shape. Nested property unions are deliberately **left intact**: the provider only constrains the top level, and rewriting them would silently narrow an ability's real contract. Tools with no `parameters` (command tools) are never given a fabricated schema.
+
+### Tests
+11 new asserts (**178** on this file): the union normalizes to the literal `"object"`; properties and the rest of the schema survive; already-valid tools pass through unharmed; command tools are left alone; nested unions stay; malformed entries don't fatal a whole request; and — the one that matters most — **the abilities still declare their union**, pinning that the fix lives at the boundary rather than by rewriting contracts MCP and REST depend on. Full sweep 302 files / **9,736 asserts** / 0 failed · phpcs 234 clean · PHPStan clean.
+
+### Note
+Third owner-found bug in this arc that no test could have caught, because all three were "a surface silently does nothing / breaks" rather than "an assertion is wrong". Auto-discovery cuts both ways: *"no opt-in — register a read-only ability and the assistant can use it"* also means you cannot opt out of breaking it. **Upstream:** desktop-mode's converter arguably ought to normalize here itself — any plugin registering a union-typed read-only ability kills its Copilot.
+
 ## [9.52.4] - 2026-07-16: The chrome owns the title — and the last two widgets stop assuming a white page
 
 **Headline:** Two consequences of v9.52.2, both caught by an owner screenshot rather than by any test.
