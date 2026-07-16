@@ -101,5 +101,82 @@ ok( $ct['inputSchema']['type'] === 'object', 'union [object,null] type normalize
 $enc = wp_json_encode( $ct['inputSchema'] );
 ok( strpos( $enc, '"properties":{}' ) !== false && strpos( $enc, '"properties":[]' ) === false, 'empty properties encodes as {} not [] (MCP-conformant)' );
 
+// --- P1: sn_mcp_schema_needs_wrap — false ONLY for an exact "object" root
+//     ('object' string or a single-element ['object'] union). Everything else
+//     (other unions, array roots, scalars, missing) needs wrapping: MCP requires
+//     structuredContent to be a JSON object, and only an exact-object root
+//     guarantees the ability's raw output always is one. ---
+ok( false === sn_mcp_schema_needs_wrap( array( 'type' => 'object' ) ), 'wrap rule: "object" string root does not need wrapping' );
+ok( false === sn_mcp_schema_needs_wrap( array( 'type' => array( 'object' ) ) ), 'wrap rule: single-element ["object"] union does not need wrapping' );
+ok( true === sn_mcp_schema_needs_wrap( array( 'type' => array( 'object', 'null' ) ) ), 'wrap rule: ["object","null"] union needs wrapping (the get-narration/get-insights class)' );
+ok( true === sn_mcp_schema_needs_wrap( array( 'type' => 'array' ) ), 'wrap rule: array root needs wrapping (the list-cron-events/get-cron-history class)' );
+ok( true === sn_mcp_schema_needs_wrap( array( 'type' => 'string' ) ), 'wrap rule: scalar root needs wrapping' );
+ok( true === sn_mcp_schema_needs_wrap( array() ), 'wrap rule: missing/empty schema needs wrapping (safe default)' );
+// Flagged in lane notes: signal-noise/get-health-scan's REAL registered output_schema
+// (inc/abilities-health.php) is ['object','null'] — it returns null pre-scan. It is NOT
+// one of the 4 confirmed-live failures (a scan had already run in the live repro), but it
+// is the SAME class of bug; the deterministic rule closes it too and its envelope will
+// change shape. Pinned here directly against the real schema shape.
+ok( true === sn_mcp_schema_needs_wrap( array( 'type' => array( 'object', 'null' ), 'properties' => array( 'finding_total' => array( 'type' => 'integer' ) ) ) ), 'get-health-scan\'s real ["object","null"] root also needs wrapping (latent bug the rule catches)' );
+
+// --- P5 pin: the pure-object fixture above (signal-noise/get-health-scan, declared
+//     type:object) must stay a byte-identical passthrough — protects the 9 working tools. ---
+ok( ! isset( $tool['outputSchema']['properties']['result'] ), 'pure-object ability: advertised outputSchema is not wrapped' );
+ok( ! array_key_exists( 'result', $call['result']['structuredContent'] ), 'pure-object ability: call structuredContent is not wrapped' );
+
+// --- P2/P3: array-rooted ability (list-cron-events) wraps both the advertised schema
+//     and the call result; the original array schema rides untouched inside properties.result ---
+$GLOBALS['__abilities']['signal-noise/list-cron-events'] = new SN_Test_Ability( 'signal-noise/list-cron-events', array(
+	'label' => 'List cron events', 'description' => 'Scheduled cron events.',
+	'output_schema' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+	'result' => array( array( 'hook' => 'sn_daily' ) ),
+) );
+$lt = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/list-cron-events'] );
+ok( ( $lt['outputSchema']['type'] ?? '' ) === 'object', 'array-rooted ability: advertised outputSchema wraps to type object' );
+ok( ( $lt['outputSchema']['properties']['result']['type'] ?? '' ) === 'array', 'array-rooted ability: wrapped schema keeps the original array type untouched inside properties.result' );
+ok( in_array( 'result', $lt['outputSchema']['required'] ?? array(), true ), 'array-rooted ability: wrapped schema requires "result"' );
+$lt_enc = wp_json_encode( $lt['outputSchema'] );
+ok( strpos( $lt_enc, '"properties":{"result":' ) !== false, 'wrapped outputSchema properties encodes as an object keyed by "result" (not a list)' );
+
+$lc = sn_mcp_call_tool( 'signal-noise__list-cron-events', array() );
+ok( ( $lc['result']['structuredContent']['result'][0]['hook'] ?? '' ) === 'sn_daily', 'array-rooted ability: call wraps structuredContent as {result:[...]}' );
+ok( strpos( $lc['result']['content'][0]['text'], '"result"' ) !== false, 'array-rooted ability: text content block reflects the wrapped value too' );
+
+// --- Probe fold: a wrapped ability whose result is an EMPTY PHP array must
+//     encode the INNER value as {} (object), not [] — {"result":[]} would
+//     violate the advertised properties.result ["object","null"] union the
+//     same way the top-level belt already prevents for passthrough tools. ---
+$GLOBALS['__abilities']['signal-noise/get-insights'] = new SN_Test_Ability( 'signal-noise/get-insights', array(
+	'label' => 'Get insights', 'description' => 'Cached insights, or null pre-scan.',
+	'output_schema' => array( 'type' => array( 'object', 'null' ) ),
+	'result' => array(),
+) );
+$ic = sn_mcp_call_tool( 'signal-noise__get-insights', array() );
+ok( is_object( $ic['result']['structuredContent']['result'] ?? null ), 'wrapped empty-array result: inner value casts to an object so it encodes {} not []' );
+
+// --- P2/P3: object|null-rooted ability returning null wraps too — null stays legal
+//     INSIDE properties.result (the get-narration/get-insights no-scan-yet class) ---
+$GLOBALS['__abilities']['signal-noise/get-narration'] = new SN_Test_Ability( 'signal-noise/get-narration', array(
+	'label' => 'Get narration', 'description' => 'Cached narration, or null pre-generation.',
+	'output_schema' => array(
+		'type'       => array( 'object', 'null' ),
+		'properties' => array( 'headline' => array( 'type' => array( 'string', 'null' ) ) ),
+	),
+	'result' => null,
+) );
+$nt = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-narration'] );
+ok( ( $nt['outputSchema']['type'] ?? '' ) === 'object', 'object|null-rooted ability: advertised outputSchema wraps to type object' );
+$result_schema_type = $nt['outputSchema']['properties']['result']['type'] ?? null;
+ok( is_array( $result_schema_type ) && in_array( 'null', $result_schema_type, true ) && in_array( 'object', $result_schema_type, true ), 'wrapped schema properties.result still allows the original ["object","null"] union untouched' );
+
+$nc = sn_mcp_call_tool( 'signal-noise__get-narration', array() );
+ok( array_key_exists( 'result', $nc['result']['structuredContent'] ?? array() ) && null === $nc['result']['structuredContent']['result'], 'object|null-rooted ability returning null: call wraps to {result:null}, never bare null' );
+
+// --- P4: empty-array structuredContent must encode {} not [] ---
+$empty_result = sn_mcp_success_result( array() );
+ok( is_object( $empty_result['structuredContent'] ), 'sn_mcp_success_result: empty-array structuredContent is cast to an object' );
+ok( '{}' === wp_json_encode( $empty_result['structuredContent'] ), 'empty structuredContent encodes as {} not []' );
+ok( '[]' === $empty_result['content'][0]['text'], 'the text content block still shows [] (only structuredContent gets the object-cast belt)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
