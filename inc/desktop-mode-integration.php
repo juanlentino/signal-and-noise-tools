@@ -1171,7 +1171,12 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 	}
 
 	foreach ( $tools as $i => $tool ) {
-		// Command tools carry no `parameters`; never fabricate a schema for them.
+		// Skip anything without an array `parameters` — never fabricate a schema
+		// for a tool that declares none. (This once claimed "command tools carry
+		// no parameters". They do: search.php builds every command tool a full
+		// object schema with a required `args` string. They're conformant already,
+		// so normalizing them is a no-op — but the stated reason was wrong, and a
+		// wrong reason is how the next person justifies the next skip.)
 		if ( ! is_array( $tool ) || ! isset( $tool['parameters'] ) || ! is_array( $tool['parameters'] ) ) {
 			continue;
 		}
@@ -1197,8 +1202,15 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 		// conformant schema goes in and comes out identical — and it costs a few
 		// array ops on a payload we already build per request. That is cheaper
 		// than being wrong a fourth time.
+		//
+		// v9.53.2 — the same lesson, one level up: normalizing unconditionally
+		// only helps for tools we SEE. At the default priority 10 we saw only the
+		// tools that existed at priority 10, and this filter's own docblock
+		// invites others to inject tools ("injecting synthetic command tools").
+		// Anything hooked later landed downstream of us. Hence PHP_INT_MAX below:
+		// we cannot enumerate who else hooks this or when, so we simply run last.
 		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $tool['parameters'] );
 	}
 
 	return $tools;
-} );
+}, PHP_INT_MAX );
