@@ -10,7 +10,20 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 define( 'SN_MCP_TEST', true );
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '9.22.0' ); }
 if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k = '' ) { return 'name' === $k ? 'Signal & Noise' : ''; } }
-if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
+// Registry-aware apply_filters stub: with no filter registered it returns $v
+// unchanged (identical to the old pass-through, so every existing filter-less
+// assertion is unaffected); add_test_filter() lets the serverInfo-label test
+// exercise the real override path. Extra args (e.g. the $door passed alongside
+// the base) are ignored by the stub, matching WP's tolerant calling convention.
+$GLOBALS['__filters'] = array();
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $h, $v ) {
+		foreach ( $GLOBALS['__filters'][ $h ] ?? array() as $cb ) { $v = $cb( $v ); }
+		return $v;
+	}
+}
+function add_test_filter( $h, $cb ) { $GLOBALS['__filters'][ $h ][] = $cb; }
+function clear_test_filters() { $GLOBALS['__filters'] = array(); }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -47,7 +60,7 @@ ok( sn_mcp_is_allowed( 'signal-noise/get-narration' ) === true, 'is_allowed true
 ok( sn_mcp_is_allowed( 'signal-noise/run-narration' ) === false, 'is_allowed false for a non-allowlisted slug' );
 
 $info = sn_mcp_server_info();
-ok( ( $info['name'] ?? '' ) === 'Signal & Noise', 'server_info carries the site name' );
+ok( ( $info['name'] ?? '' ) === 'Signal & Noise (Read)', 'read-door server_info name = branded base + door label' );
 ok( ( $info['version'] ?? '' ) === '9.22.0', 'server_info carries SNT_VERSION' );
 
 ok( sn_mcp_negotiate_version( '2025-06-18' ) === '2025-06-18', 'negotiate echoes a supported client version' );
@@ -127,10 +140,14 @@ foreach ( $excluded as $slug ) {
 // --- serverInfo distinguishes the rw door ---
 $read_info = sn_mcp_server_info( SN_MCP_DOOR_READ );
 $rw_info   = sn_mcp_server_info( SN_MCP_DOOR_RW );
-ok( $read_info['name'] === 'Signal & Noise', 'read-door server_info name is unchanged (default door)' );
+ok( $read_info['name'] === 'Signal & Noise (Read)', 'read-door server_info name = base + (Read)' );
+ok( $rw_info['name'] === 'Signal & Noise (Write)', 'rw-door server_info name = base + (Write)' );
 ok( $rw_info['name'] !== $read_info['name'], 'rw-door server_info name differs from the read door' );
-ok( strpos( $rw_info['name'], 'Signal & Noise' ) === 0, 'rw-door server_info name still carries the site name' );
-ok( stripos( $rw_info['name'], 'read-write' ) !== false, 'rw-door server_info name is distinguished as read-write' );
+ok( strpos( $rw_info['name'], 'Signal & Noise' ) === 0, 'rw-door server_info name still carries the branded base' );
+// The branded base is filterable so an owner can rename both doors at once.
+add_test_filter( 'sn_mcp_server_label', function () { return 'Juanlentino'; } );
+ok( sn_mcp_server_info( SN_MCP_DOOR_READ )['name'] === 'Juanlentino (Read)', 'sn_mcp_server_label filter renames the base on both doors' );
+clear_test_filters();
 ok( $rw_info['version'] === $read_info['version'], 'both doors report the same plugin version' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
