@@ -46,6 +46,17 @@ $GLOBALS['__cron'] = array();
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $h ) { return $GLOBALS['__cron'][ $h ] ?? false; } }
 if ( ! function_exists( 'wp_schedule_event' ) ) { function wp_schedule_event( $ts, $rec, $h ) { $GLOBALS['__cron'][ $h ] = $ts; return true; } }
 if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $ts, $h ) { unset( $GLOBALS['__cron'][ $h ] ); return true; } }
+// v9.51.2: single-event scheduler recorder (the existing single-arg
+// wp_next_scheduled above reads $__cron, which the schedule tests drive
+// directly to simulate "already queued") + http_request_timeout filter recorder.
+$GLOBALS['__single'] = array();
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $ts, $h, $args = array() ) { $GLOBALS['__single'][] = array( $h, $args, $ts ); return true; }
+}
+$GLOBALS['__filters_added']   = array();
+$GLOBALS['__filters_removed'] = array();
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters_added'][] = array( $h, $cb ); return true; } }
+if ( ! function_exists( 'remove_filter' ) ) { function remove_filter( $h, $cb, $p = 10 ) { $GLOBALS['__filters_removed'][] = array( $h, $cb ); return true; } }
 
 // ── analytics reader stubs (canned shapes mirror the real accessors) ──
 $GLOBALS['__edge_pageviews'] = 0; // 0 => machine block omitted (unconfigured/graceful)
@@ -298,6 +309,38 @@ ok( is_array( $p2 ) && 'A steady week' === ( $p2['headline'] ?? null ), 'preambl
 echo "\nTest: unsalvageable truncation (no complete paragraph) → WP_Error\n";
 $tooshort = '{"headline":"A quiet week","paragraphs":["Overall activity grew modest';
 ok( is_wp_error( snt_narration_parse_response( $tooshort ) ), 'no complete paragraph → WP_Error (honest, never fabricated)' );
+
+// ── v9.51.2: async generation (schedule + cron handler) + scoped AI timeout ──
+echo "\nTest: snt_narration_schedule queues a deduped single event\n";
+$GLOBALS['__single'] = array();
+unset( $GLOBALS['__cron'][ SN_NARRATION_HOOK ] ); // nothing pending
+ok( true === snt_narration_schedule( true ), 'schedule returns true when no event is pending' );
+ok( 1 === count( $GLOBALS['__single'] ) && SN_NARRATION_HOOK === $GLOBALS['__single'][0][0] && array( true ) === $GLOBALS['__single'][0][1], 'a single event is queued on SN_NARRATION_HOOK with the force arg' );
+$GLOBALS['__cron'][ SN_NARRATION_HOOK ] = time(); // simulate "already pending" (harness wp_next_scheduled reads __cron)
+$GLOBALS['__single'] = array();
+ok( false === snt_narration_schedule( true ), 'schedule dedupes: returns false when an event is already pending' );
+ok( 0 === count( $GLOBALS['__single'] ), 'no second event queued when one is pending' );
+unset( $GLOBALS['__cron'][ SN_NARRATION_HOOK ] );
+
+echo "\nTest: SN_NARRATION_HOOK runs the generator off the request path\n";
+ok( in_array( 'snt_narration_cron_run', $GLOBALS['__acts'][ SN_NARRATION_HOOK ] ?? array(), true )
+	|| function_exists( 'snt_narration_cron_run' ), 'the cron handler is registered / callable' );
+$GLOBALS['__ai_calls'] = 0;
+$GLOBALS['__transients'] = array(); // no cache → generation must run
+snt_narration_cron_run( true );
+ok( $GLOBALS['__ai_calls'] >= 1, 'the cron handler drives a real generation (AI call fires cron-side)' );
+
+echo "\nTest: the AI call raises then removes the http_request_timeout (scoped, no leak)\n";
+$GLOBALS['__filters_added'] = array();
+$GLOBALS['__filters_removed'] = array();
+snt_narration_call_ai( array( 'window' => array( 'days' => 7 ) ) );
+$added_timeout = null;
+foreach ( $GLOBALS['__filters_added'] as $f ) { if ( 'http_request_timeout' === $f[0] ) { $added_timeout = $f[1]; } }
+ok( null !== $added_timeout, 'http_request_timeout filter is added around the AI call' );
+ok( is_callable( $added_timeout ) && SN_NARRATION_HTTP_TIMEOUT === $added_timeout(), 'the added filter raises the timeout to SN_NARRATION_HTTP_TIMEOUT (120s)' );
+$removed_same = false;
+foreach ( $GLOBALS['__filters_removed'] as $f ) { if ( 'http_request_timeout' === $f[0] && $f[1] === $added_timeout ) { $removed_same = true; } }
+ok( $removed_same, 'the SAME filter is removed after the call (never left registered → no leak onto other requests)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
