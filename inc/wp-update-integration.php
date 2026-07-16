@@ -43,6 +43,118 @@ const SN_GH_PLUGIN_CACHE_TTL      = HOUR_IN_SECONDS; // v1.11.1: 12h → 1h
 const SN_GH_PLUGIN_BASENAME       = 'signal-and-noise-tools/signal-and-noise-tools.php';
 const SN_GH_PLUGIN_SLUG           = 'signal-and-noise-tools';
 const SN_GH_PLUGIN_LAST_SEEN_OPT  = 'sn_last_seen_plugin_version';
+/**
+ * Why the last tag fetch failed, in prose, for the Dashboard card. Lives beside
+ * the negative cache and shares its lifetime. See sn_gh_record_fetch_failure().
+ *
+ * @since 9.54.0
+ */
+const SN_GH_PLUGIN_ERROR_KEY      = 'sn_gh_latest_plugin_error';
+
+/**
+ * Turn a failed tags fetch into a short sentence a human can act on.
+ *
+ * WHY THIS EXISTS (v9.54.0, after a live incident)
+ *
+ * Both Dashboard cards showed a red "unknown" and nothing, anywhere, said why.
+ * A 401 (dead/expired SNT_GITHUB_TOKEN), a 403 (rate limit), a 404 (repo gone)
+ * and a network timeout all collapsed into the same `return null`. Diagnosing it
+ * meant reading this source, timing the endpoint from a laptop, and probing
+ * GitHub's 401 header behaviour — to recover a fact this function had in its
+ * hand and dropped.
+ *
+ * It was worse than uninformative. The Dashboard's "GitHub API: 4,971/5,000"
+ * readout still looked healthy, because the rate monitor only records a
+ * snapshot from responses that CARRY x-ratelimit-* headers — and GitHub's 401
+ * for a bad credential carries none, while a WP_Error never reaches the
+ * http_response filter at all. So the one number on screen that looked like
+ * evidence was a fossil of the last success. A cache that only updates on
+ * success cannot report failure; it poses as healthy exactly when it isn't.
+ *
+ * Same rule as the v9.47.2 janitor: never silent. The fetch still fails the
+ * same way — this only stops the REASON from being thrown away.
+ *
+ * @since 9.54.0
+ * @param array|WP_Error $response The wp_remote_get() return.
+ * @return string A short human-readable reason. Never contains a credential.
+ */
+function sn_gh_fetch_failure_reason( $response ) {
+	if ( is_wp_error( $response ) ) {
+		// No HTTP response at all — timeout, DNS, TLS. This is the case the
+		// frozen rate readout hides best, so carry the real driver message
+		// ("cURL error 28: Operation timed out after 5001 ms") rather than a
+		// generic "network error": the number in it is the actual diagnosis.
+		return sn_gh_redact_secrets( sprintf(
+			/* translators: %s: underlying HTTP error message. */
+			__( 'could not reach GitHub — %s', 'signal-and-noise-tools' ),
+			$response->get_error_message()
+		) );
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	switch ( $code ) {
+		case 401:
+			// The one failure a site owner can fix in 30 seconds, and the one
+			// the old code hid most completely. Name the constant.
+			return __( 'GitHub rejected the credential (401) — SNT_GITHUB_TOKEN in wp-config.php is invalid, expired, or revoked', 'signal-and-noise-tools' );
+		case 403:
+			return __( 'GitHub refused the request (403) — usually a rate limit; set SNT_GITHUB_TOKEN in wp-config.php to raise 60/h to 5000/h', 'signal-and-noise-tools' );
+		case 404:
+			return __( 'GitHub returned 404 — the repository was renamed, deleted, or made private', 'signal-and-noise-tools' );
+		case 200:
+			return __( 'GitHub returned 200 but the body was not a readable tag list', 'signal-and-noise-tools' );
+		default:
+			return sprintf(
+				/* translators: %d: HTTP status code. */
+				__( 'GitHub returned an unexpected HTTP %d', 'signal-and-noise-tools' ),
+				$code
+			);
+	}
+}
+
+/**
+ * Strip anything token-shaped out of a message before it can reach a screen.
+ *
+ * The reason string is rendered in wp-admin and exposed over MCP/REST. An HTTP
+ * driver message is not ours and could, in principle, quote a request header
+ * back at us. Redact defensively rather than reason about whether cURL ever
+ * does: the cost is a regex, and the failure mode is a leaked credential.
+ *
+ * @since 9.54.0
+ * @param string $message
+ * @return string
+ */
+function sn_gh_redact_secrets( $message ) {
+	return (string) preg_replace(
+		'/\b(gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|Bearer\s+\S+)/i',
+		'[redacted]',
+		(string) $message
+	);
+}
+
+/**
+ * Record why a fetch failed, alongside the empty-sentinel negative cache.
+ *
+ * @since 9.54.0
+ * @param string $reason
+ * @return null Always null — callers `return sn_gh_record_fetch_failure(...)`.
+ */
+function sn_gh_record_fetch_failure( $reason ) {
+	set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
+	set_site_transient( SN_GH_PLUGIN_ERROR_KEY, $reason, HOUR_IN_SECONDS );
+	return null;
+}
+
+/**
+ * Why the last tag fetch failed, or '' if the last one succeeded.
+ *
+ * @since 9.54.0
+ * @return string
+ */
+function sn_gh_latest_plugin_tag_error() {
+	$reason = get_site_transient( SN_GH_PLUGIN_ERROR_KEY );
+	return is_string( $reason ) ? $reason : '';
+}
 
 /**
  * Fetch the highest semver-formatted tag from GitHub. Returns the tag
@@ -86,14 +198,12 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 	) );
 
 	if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-		set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
-		return null;
+		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ) );
 	}
 
 	$tags = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( ! is_array( $tags ) ) {
-		set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
-		return null;
+		return sn_gh_record_fetch_failure( sn_gh_fetch_failure_reason( $response ) );
 	}
 
 	$highest = '';
@@ -108,10 +218,18 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 	}
 
 	if ( $highest === '' ) {
-		set_site_transient( SN_GH_PLUGIN_CACHE_KEY, '', HOUR_IN_SECONDS );
-		return null;
+		// Distinct from "no update available": we reached GitHub and it had
+		// nothing shaped like a release. Say so — a silent null here reads
+		// identically to a dead token on the card.
+		return sn_gh_record_fetch_failure(
+			__( 'GitHub returned no tags matching vX.Y.Z — nothing to compare against', 'signal-and-noise-tools' )
+		);
 	}
 
+	// Success CLEARS the reason. Without this the fix becomes the next bug: a
+	// stale error would sit on the card after the token was rotated, and the
+	// owner would rotate a working token again.
+	delete_site_transient( SN_GH_PLUGIN_ERROR_KEY );
 	set_site_transient( SN_GH_PLUGIN_CACHE_KEY, $highest, SN_GH_PLUGIN_CACHE_TTL );
 	return $highest;
 }

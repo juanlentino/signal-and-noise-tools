@@ -33,6 +33,10 @@ if ( ! function_exists( 'esc_url' ) )    { function esc_url( $s ) { return $s; }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = '' ) { return $s; } }
 if ( ! function_exists( '__' ) )         { function __( $s, $d = '' ) { return $s; } }
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
+// v9.54.0: the API summary now prints each snapshot's age — a rate readout that
+// can only update on success must show how old it is, or it poses as live while
+// every call fails (the 2026-07-16 incident).
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $from, $to = 0 ) { return floor( abs( ( $to ?: time() ) - $from ) / 60 ) . ' mins'; } }
 if ( ! function_exists( 'admin_url' ) )  { function admin_url( $p = '' ) { return 'http://example.test/wp-admin/' . $p; } }
 if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $u, $a = -1, $n = '_wpnonce' ) { return $u . '&_n=1'; } }
 

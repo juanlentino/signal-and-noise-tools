@@ -266,5 +266,45 @@ $tab = ob_get_clean();
 dg_contains( $tab, '<div class="sn-glance">', 'dashboard tab opens with the glance grid' );
 dg_contains( $tab, 'sn-dash-glance', 'glance section carries the dashboard-scoped 2×5 wrapper class' );
 
+echo "\nTest Z: v9.54.0 — an \"unknown\" version card must say WHY\n";
+// THE INCIDENT (2026-07-16): both cards showed a red "unknown" and nothing
+// anywhere said why. A dead SNT_GITHUB_TOKEN (401), a rate limit (403), a
+// deleted repo (404) and a 5s timeout were indistinguishable on screen. The
+// pill is the alarm; without a reason it's an alarm with no address.
+$why = 'GitHub rejected the credential (401) — SNT_GITHUB_TOKEN in wp-config.php is invalid, expired, or revoked';
+
+$unknown_card = snt_dashboard_version_card( 'Plugin', array(
+	'current' => '9.53.1',
+	'latest'  => '',
+	'state'   => 'unknown',
+	'reason'  => $why,
+) );
+dg_assert( 'unknown' === ( $unknown_card['pill']['text'] ?? '' ), 'an unresolved fetch still reads "unknown" (pill unchanged)' );
+dg_assert( 'err' === ( $unknown_card['pill']['kind'] ?? '' ), 'and still renders as an error pill' );
+dg_contains( (string) ( $unknown_card['meta_html'] ?? '' ), '401', 'the card now carries the REASON, not just the alarm' );
+dg_contains( (string) ( $unknown_card['meta_html'] ?? '' ), 'SNT_GITHUB_TOKEN', 'the reason names the exact constant to rotate' );
+
+// A healthy card must stay clean — the reason line is an exception surface, not
+// permanent furniture on a working dashboard.
+$ok_card = snt_dashboard_version_card( 'Plugin', array(
+	'current' => '9.53.1',
+	'latest'  => '9.53.1',
+	'state'   => 'ok',
+	'reason'  => '',
+) );
+dg_assert( ! isset( $ok_card['meta_html'] ), 'an up-to-date card renders NO reason line (no permanent clutter)' );
+
+// An unknown state with no recorded reason must not print an empty line.
+$bare = snt_dashboard_version_card( 'Theme', array(
+	'current' => '10.42.2',
+	'latest'  => '',
+	'state'   => 'unknown',
+) );
+dg_assert( ! isset( $bare['meta_html'] ), 'unknown with no recorded reason degrades to the old bare card (no empty meta line)' );
+
+// snt_deploy_status_for() must never leak a reason onto a resolved package:
+// a stale error from an hour ago must not caption a card that just succeeded.
+dg_assert( '' === ( $theme['reason'] ?? 'MISSING' ), 'deploy_status_for always returns a reason key (empty when there is nothing to say)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

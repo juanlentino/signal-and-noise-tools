@@ -109,13 +109,33 @@
 				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
 				text:  info.current || '—',
 			} ) );
-			grid.appendChild( el( 'span', {
+			var glyphEl = el( 'span', {
 				style: 'color:' + glyph.color + ';font-weight:600;',
 				text:  glyph.label,
-			} ) );
+			} );
+			// v9.54.0: a bare '?' is a dead end. When the fetch layer recorded
+			// why, hang it on the glyph so hovering explains it even before the
+			// line below is read.
+			if ( info.reason ) { glyphEl.title = info.reason; }
+			grid.appendChild( glyphEl );
 		} );
 
 		wrap.appendChild( grid );
+
+		// v9.54.0: print WHY, not just '?'. Theme and plugin authenticate with
+		// the SAME wp-config constant, so a dead token yields two identical
+		// reasons — say it once rather than stuttering the same sentence twice.
+		var reasons = [];
+		[ 'theme', 'plugin' ].forEach( function ( pkg ) {
+			var reason = ( status[ pkg ] || {} ).reason;
+			if ( reason && reasons.indexOf( reason ) === -1 ) { reasons.push( reason ); }
+		} );
+		reasons.forEach( function ( reason ) {
+			wrap.appendChild( el( 'p', {
+				style: 'margin:8px 0 0;font-size:11px;line-height:1.4;color:#ff9d94;',
+				text:  reason,
+			} ) );
+		} );
 
 		wrap.appendChild( el( 'p', {
 			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.14);font-size:11px;opacity:.6;',

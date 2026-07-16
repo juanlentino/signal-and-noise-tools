@@ -70,11 +70,16 @@ function snt_deploy_status_for( $package ) {
 		// the theme happens to be active on this install; the filter pattern is
 		// tolerant of theme-absent/inactive by design.
 		$latest  = apply_filters( 'sn_gh_latest_theme_tag_result', null );
+		// v9.54.0: the theme owns its own fetch, so it must volunteer its own
+		// reason. Absent listener → '' → the card falls back to the generic
+		// "unknown", exactly as before. Same contract shape as the tag filter.
+		$reason  = (string) apply_filters( 'sn_gh_latest_theme_tag_error_result', '' );
 	} else {
 		$current = defined( 'SNT_VERSION' ) ? SNT_VERSION : '';
 		// sn_gh_latest_plugin_tag is plugin-owned (inc/wp-update-integration.php) —
 		// calling it directly is fine; same repo as the caller.
 		$latest  = function_exists( 'sn_gh_latest_plugin_tag' ) ? sn_gh_latest_plugin_tag() : null;
+		$reason  = function_exists( 'sn_gh_latest_plugin_tag_error' ) ? sn_gh_latest_plugin_tag_error() : '';
 	}
 	$latest_version = $latest ? ltrim( $latest, 'v' ) : '';
 	$state          = 'unknown';
@@ -86,6 +91,10 @@ function snt_deploy_status_for( $package ) {
 		'latest'  => $latest_version,
 		'state'   => $state,
 		'repo'    => SNT_DEPLOY_REPOS[ $package ] ?? '',
+		// v9.54.0: WHY it's unknown. Empty unless state === 'unknown' AND the
+		// fetch layer recorded a cause. A red dot that can't say why is what
+		// turned a 30-second wp-config fix into a source-reading exercise.
+		'reason'  => 'unknown' === $state ? $reason : '',
 	);
 }
 
@@ -449,11 +458,19 @@ function snt_dashboard_version_card( $label, $pkg ) {
 	} elseif ( 'available' === ( $pkg['state'] ?? '' ) ) {
 		$pill = array( 'kind' => 'warn', 'text' => 'v' . (string) ( $pkg['latest'] ?? '' ) . ' available' );
 	}
-	return array(
+	$card = array(
 		'label' => $label,
 		'value' => ( $pkg['current'] ?? '' ) ?: '—',
 		'pill'  => $pill,
 	);
+	// v9.54.0: an "unknown" pill that can't say why is a dead end. When the
+	// fetch layer recorded a cause, print it under the card — this is the
+	// difference between "something's wrong" and "rotate SNT_GITHUB_TOKEN".
+	$reason = (string) ( $pkg['reason'] ?? '' );
+	if ( '' !== $reason ) {
+		$card['meta_html'] = esc_html( $reason );
+	}
+	return $card;
 }
 
 /**
@@ -723,12 +740,32 @@ function snt_dashboard_render_api_summary() {
 		} elseif ( $pct < 0.25 ) {
 			$state_cls .= ' sn-api-summary__item--warn';
 		}
+		// v9.54.0: ALWAYS print the snapshot's age. This readout is recorded
+		// only from responses that CARRY x-ratelimit-* headers — so a 401 (bad
+		// credential: GitHub sends no rate headers) and a WP_Error (timeout:
+		// never reaches the http_response filter) both leave it frozen at the
+		// last success. During the 2026-07-16 incident it showed a confident
+		// "4,971/5,000" while every single call was failing, and it was the most
+		// misleading thing on the page. A number that can only update on success
+		// must show its age, or it is a fossil posing as a live reading.
+		$age_html = '';
+		if ( ! empty( $snap['fetched_at'] ) ) {
+			$age_html = sprintf(
+				' <span class="sn-api-summary__age">%s</span>',
+				esc_html( sprintf(
+					/* translators: %s: human-readable time difference, e.g. "5 mins". */
+					__( 'as of %s ago', 'signal-and-noise-tools' ),
+					human_time_diff( (int) $snap['fetched_at'], time() )
+				) )
+			);
+		}
 		$items[] = sprintf(
-			'<span class="%s">%s: <span class="sn-mono">%s/%s</span></span>',
+			'<span class="%s">%s: <span class="sn-mono">%s/%s</span>%s</span>',
 			esc_attr( $state_cls ),
 			esc_html( $label ),
 			esc_html( number_format_i18n( $snap['remaining'] ) ),
-			esc_html( number_format_i18n( $snap['limit'] ) )
+			esc_html( number_format_i18n( $snap['limit'] ) ),
+			$age_html // Already escaped above.
 		);
 	}
 
