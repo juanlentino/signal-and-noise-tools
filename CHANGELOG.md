@@ -21,6 +21,21 @@ All notable changes to Signal & Noise Tools are documented here.
 ### Removed
 - `snt_uptime_summary_for_localize()` and the `uptimeSummary` localize field. **Pulse was its only consumer.** Leaving it would have run a Better Stack API call on **every wp-admin page load** for a payload nothing reads — exactly the cost this file's data rule exists to prevent. (Review caught it; the tests had been extended to assert the orphan was *correctly* present, which would have locked the dead code in.)
 
+### Fixed — Ask AI, again (v9.52.5 was a half-fix, and its tag overclaims)
+**v9.52.5's changelog and tag say "Ask AI works again". That was false**, and the correction belongs on the record. It fixed the `['object','null']` type union — verified against a **fixture**, never against the real tool list — so the live error did not vanish, it **moved**:
+
+```
+v9.52.4:  tools.12.custom.input_schema.type: Input should be 'object'          ← fixed
+v9.52.5:  tools.29.custom.input_schema: does not support oneOf, allOf,
+                                        or anyOf at the top level              ← this
+```
+
+The theme's `signal-and-noise/get-active-template-structure` declares a **top-level `anyOf`** ("supply `post_id` OR `slug`") — perfectly good JSON Schema that Anthropic rejects at the top level of `input_schema`. Two of my own mistakes compounded: the normalizer only forced `type`, and the filter **skipped any tool whose type was already `'object'`** — which this schema's was, so it was never inspected.
+
+- `sn_mcp_normalize_schema()` now strips top-level `oneOf`/`allOf`/`anyOf`. **This also repairs a latent bug on our own MCP read door**, which exposes that same ability (`inc/mcp/mcp-capabilities.php:69`) through the same projection.
+- Nothing is weakened: the function projects an ability into a **tool schema**, it does not touch the ability. Execute-time validation still enforces `post_id`-or-`slug` server-side, and the description already states it — the model is still told, in prose instead of schema. Combinators **nested inside a property** are left intact; only the top level is constrained.
+- **A guard so this can't recur:** the suite now scans what the abilities *actually* declare at the top level of their `input_schema` and fails if any of it is a class the normalizer can't handle. An audit across **both repos** found exactly two classes — union `type` (×21) and `anyOf` (×1) — both now handled; a future `$ref` / `not` / `if-then-else` trips the build instead of silently killing the Copilot.
+
 ### Fixed (review-caught, pre-merge)
 - **The honesty tooltips never rendered.** `el()` in the views + health widgets handled `style`/`text`/`href` but **not `title`**, so every explainer passed to it was silently discarded at element-creation — including the one defining what `confidence` means and the one saying advisories aren't faults. The *mechanisms meant to prevent misreading* were the things being dropped. The uptime widget, written fresh, had the branch; the older two were a copy-paste gap.
 

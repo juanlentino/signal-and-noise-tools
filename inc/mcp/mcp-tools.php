@@ -82,6 +82,25 @@ function sn_mcp_normalize_schema( $schema ) {
 	// which strict MCP hosts (e.g. the Anthropic tool-schema validator that a
 	// client forwards to) reject. Force the scalar "object".
 	$schema['type'] = 'object';
+
+	// v9.53.0: strip TOP-LEVEL oneOf / allOf / anyOf. The same strict validator
+	// rejects them outright —
+	//   "input_schema does not support oneOf, allOf, or anyOf at the top level"
+	// — and one malformed tool fails the ENTIRE request, not just its own tool.
+	// The theme's signal-and-noise/get-active-template-structure has exactly
+	// this: a top-level anyOf meaning "supply post_id OR slug".
+	//
+	// Nothing is weakened by dropping it HERE. This function projects an ability
+	// into a TOOL schema; it does not touch the ability. The ability's own
+	// execute-time validation still enforces the constraint server-side, and its
+	// description already states it — so the model is still told, in prose
+	// instead of schema, and an invalid call is still rejected.
+	//
+	// Only the top level: a combinator nested inside a property is a real
+	// constraint the provider accepts, and rewriting those would silently narrow
+	// the ability's contract.
+	unset( $schema['oneOf'], $schema['allOf'], $schema['anyOf'] );
+
 	// An empty PHP array encodes to JSON as [] — an object schema needs {}.
 	if ( isset( $schema['properties'] ) && array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();

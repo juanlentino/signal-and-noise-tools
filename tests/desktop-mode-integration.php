@@ -675,6 +675,84 @@ ok( ! isset( $tools_out[2]['parameters'] ),
 ok( ( $tools_out[1]['parameters']['properties']['range']['type'] ?? null ) === array( 'string', 'integer' ),
 	'nested property unions are left intact (only the top-level type is constrained)' );
 
+// v9.53.0 — THE SECOND VIOLATION. v9.52.5 fixed the type union and the live
+// error MOVED rather than vanished:
+//   tools.12.custom.input_schema.type: Input should be 'object'      (fixed)
+//   tools.29.custom.input_schema: does not support oneOf, allOf, or anyOf
+//                                 at the top level                   (this)
+// The theme's signal-and-noise/get-active-template-structure declares a
+// top-level anyOf — "supply post_id OR slug" — which is perfectly good JSON
+// Schema that Anthropic simply rejects at the top level of input_schema.
+//
+// Two of my own mistakes compounded: the normalizer only forced `type`, and the
+// filter SKIPPED any tool whose type was already 'object' — which this schema's
+// was, so it was never even inspected.
+//
+// Stripping the combinator does NOT weaken anything: the ability's own
+// execute-time validation still enforces post_id-or-slug server-side, and its
+// description already states the requirement, so the model is still told — in
+// prose instead of schema.
+$anyof_tools = apply_filters( 'desktop_mode_ai_tools', array(
+	array( 'type' => 'function', 'name' => 'get_active_template_structure', 'parameters' => array(
+		'type'       => 'object', // ALREADY valid — the old skip condition bailed here
+		'properties' => array(
+			'post_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+			'slug'    => array( 'type' => 'string' ),
+		),
+		'anyOf'                => array( array( 'required' => array( 'post_id' ) ), array( 'required' => array( 'slug' ) ) ),
+		'additionalProperties' => false,
+	) ),
+	array( 'type' => 'function', 'name' => 'combo_all', 'parameters' => array(
+		'type'  => 'object',
+		'oneOf' => array( array( 'required' => array( 'a' ) ) ),
+		'allOf' => array( array( 'required' => array( 'b' ) ) ),
+	) ),
+) );
+ok( ! isset( $anyof_tools[0]['parameters']['anyOf'] ),
+	'a top-level anyOf is stripped even when type is ALREADY "object" (the skip condition that let it through)' );
+ok( ! isset( $anyof_tools[1]['parameters']['oneOf'] ) && ! isset( $anyof_tools[1]['parameters']['allOf'] ),
+	'top-level oneOf and allOf are stripped too' );
+ok( isset( $anyof_tools[0]['parameters']['properties']['post_id'], $anyof_tools[0]['parameters']['properties']['slug'] ),
+	'stripping the combinator keeps every property — the tool still takes its arguments' );
+ok( ( $anyof_tools[0]['parameters']['additionalProperties'] ?? null ) === false,
+	'stripping the combinator preserves the rest of the schema' );
+
+// Nested combinators are FINE — the provider only rejects them at the TOP
+// level, and a property's oneOf is a real constraint worth keeping.
+$nested = apply_filters( 'desktop_mode_ai_tools', array(
+	array( 'name' => 'x', 'parameters' => array(
+		'type'       => array( 'object', 'null' ),
+		'properties' => array( 'mode' => array( 'oneOf' => array( array( 'type' => 'string' ), array( 'type' => 'integer' ) ) ) ),
+	) ),
+) );
+ok( isset( $nested[0]['parameters']['properties']['mode']['oneOf'] ),
+	'a NESTED oneOf inside a property is left intact (only the top level is constrained)' );
+
+// THE GUARD. v9.52.5 shipped claiming "Ask AI works" after testing the fix
+// against a FIXTURE. The real tool list had a SECOND violation class the
+// fixture didn't contain, so the 400 merely moved (tools.12 → tools.29) and the
+// claim was false. This scans what the plugin's abilities ACTUALLY declare at
+// the top level of their input_schema and fails if any of it is a class the
+// normalizer doesn't handle — so the next ability to use an exotic top-level
+// keyword ($ref, not, if/then/else, const…) trips the build here instead of
+// silently killing the Copilot for every user.
+$handled = array( 'oneOf', 'allOf', 'anyOf' ); // + a union `type`, handled separately
+$risky   = array( '$ref', 'not', 'if', 'then', 'else' );
+$unhandled = array();
+foreach ( glob( __DIR__ . '/../inc/*.php' ) as $abil_file ) {
+	$src = (string) file_get_contents( $abil_file );
+	if ( strpos( $src, "'input_schema'" ) === false ) { continue; }
+	foreach ( $risky as $kw ) {
+		// Only flag a top-level-looking occurrence inside an input_schema block.
+		if ( preg_match( "/'input_schema'\s*=>\s*array\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*'" . preg_quote( $kw, '/' ) . "'\s*=>/s", $src ) ) {
+			$unhandled[] = basename( $abil_file ) . ':' . $kw;
+		}
+	}
+}
+ok( empty( $unhandled ),
+	'no ability declares a top-level input_schema keyword the normalizer cannot handle'
+		. ( $unhandled ? ' [' . implode( ', ', array_unique( $unhandled ) ) . ']' : '' ) );
+
 // Degenerate inputs must never fatal a whole Copilot request.
 $weird = apply_filters( 'desktop_mode_ai_tools', array( 'not-an-array', array( 'name' => 'x', 'parameters' => 'not-an-array' ) ) );
 ok( is_array( $weird ) && count( $weird ) === 2, 'malformed tool entries pass through without fataling' );

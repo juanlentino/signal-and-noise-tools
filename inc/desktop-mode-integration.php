@@ -1176,10 +1176,21 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 			continue;
 		}
 		// Already conformant — touch nothing.
-		if ( isset( $tool['parameters']['type'] ) && 'object' === $tool['parameters']['type'] ) {
+		//
+		// v9.53.0: "conformant" is NOT just type==='object'. This skip is what
+		// let the second violation through: the theme's
+		// get-active-template-structure already declared type 'object', so the
+		// filter bailed here and never saw its top-level anyOf — and Ask AI kept
+		// 400ing, just further down the tool list (tools.12 → tools.29). A
+		// top-level oneOf/allOf/anyOf is equally fatal, so a schema is only
+		// conformant when it has neither problem.
+		$p = $tool['parameters'];
+		$conformant = ( isset( $p['type'] ) && 'object' === $p['type'] )
+			&& ! isset( $p['oneOf'] ) && ! isset( $p['allOf'] ) && ! isset( $p['anyOf'] );
+		if ( $conformant ) {
 			continue;
 		}
-		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $tool['parameters'] );
+		$tools[ $i ]['parameters'] = sn_mcp_normalize_schema( $p );
 	}
 
 	return $tools;
