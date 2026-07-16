@@ -58,8 +58,58 @@ function sn_mcp_normalize_schema( $schema ) {
 }
 
 /**
- * Project a WP_Ability into an MCP Tool. inputSchema/outputSchema pass through
- * the ability's own JSON Schema; outputSchema is included only when declared.
+ * Whether an ability's raw output must be wrapped as {result: <output>} before
+ * it can serve as MCP structuredContent. MCP requires structuredContent to be a
+ * JSON object; only a schema root of exactly "object" (the literal string, or a
+ * single-element ["object"] union) guarantees the ability's raw output is
+ * always one. Array roots, nullable unions (the abilities' GET/null run-path),
+ * scalars, and missing/undeclared schemas can all produce a non-object
+ * structuredContent at runtime — wrap all of those.
+ *
+ * @param mixed $output_schema The ability's raw (un-normalized) output_schema.
+ * @return bool
+ */
+function sn_mcp_schema_needs_wrap( $output_schema ) {
+	if ( ! is_array( $output_schema ) || empty( $output_schema ) ) {
+		return true;
+	}
+	$type = $output_schema['type'] ?? null;
+	if ( 'object' === $type ) {
+		return false;
+	}
+	if ( is_array( $type ) && array( 'object' ) === array_values( $type ) ) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Project an ability's output_schema into the advertised MCP outputSchema. When
+ * the root already guarantees an object (sn_mcp_schema_needs_wrap is false),
+ * normalize as before. Otherwise wrap it: {type:object, properties:{result:
+ * <the original schema, untouched — unions/null stay legal inside>},
+ * required:[result]}. The "result" key on $out is never empty, so it always
+ * encodes as a JSON object (no [] vs {} ambiguity to belt here).
+ *
+ * @param array<string,mixed> $out The ability's declared output_schema.
+ * @return array<string,mixed>
+ */
+function sn_mcp_project_output_schema( $out ) {
+	if ( ! sn_mcp_schema_needs_wrap( $out ) ) {
+		return sn_mcp_normalize_schema( $out );
+	}
+	return array(
+		'type'       => 'object',
+		'properties' => array( 'result' => $out ),
+		'required'   => array( 'result' ),
+	);
+}
+
+/**
+ * Project a WP_Ability into an MCP Tool. inputSchema passes through the
+ * ability's own JSON Schema; outputSchema is included only when declared, and
+ * is wrapped (sn_mcp_project_output_schema) when its root isn't guaranteed to
+ * already be a JSON object.
  *
  * @param object $ability A WP_Ability (or test stand-in) exposing the accessors.
  * @return array<string,mixed>
@@ -74,7 +124,7 @@ function sn_mcp_project_tool( $ability ) {
 	);
 	$out = $ability->get_output_schema();
 	if ( is_array( $out ) && ! empty( $out ) ) {
-		$tool['outputSchema'] = sn_mcp_normalize_schema( $out );
+		$tool['outputSchema'] = sn_mcp_project_output_schema( $out );
 	}
 	return $tool;
 }
@@ -99,15 +149,20 @@ function sn_mcp_list_tools() {
  * A successful MCP tool result: both a text block (human) and structuredContent
  * (agent). isError:false.
  *
+ * MCP requires structuredContent to be a JSON object: a PHP empty array encodes
+ * to [] via wp_json_encode, so it must be cast to an object here to encode as
+ * {}. The text block is unaffected — it stays the plain JSON-encoded $data.
+ *
  * @param mixed $data
  * @return array<string,mixed>
  */
 function sn_mcp_success_result( $data ) {
+	$structured = ( is_array( $data ) && empty( $data ) ) ? (object) array() : $data;
 	return array(
 		'content'           => array(
 			array( 'type' => 'text', 'text' => (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ),
 		),
-		'structuredContent' => $data,
+		'structuredContent' => $structured,
 		'isError'           => false,
 	);
 }
@@ -163,6 +218,19 @@ function sn_mcp_call_tool( $tool_name, $arguments ) {
 	$out = $ability->execute( $args );
 	if ( is_wp_error( $out ) ) {
 		return array( 'result' => sn_mcp_error_result( $out->get_error_message() ) );
+	}
+
+	// Same rule as the advertised schema (sn_mcp_project_output_schema): wrap the
+	// raw output in {result: ...} when its schema root doesn't guarantee an
+	// object, so the two representations (advertised schema vs. actual call
+	// result) never disagree on shape. Wrapping BEFORE sn_mcp_success_result()
+	// keeps the text content block and structuredContent consistent — both are
+	// built from the same (possibly wrapped) $out.
+	if ( sn_mcp_schema_needs_wrap( $ability->get_output_schema() ) ) {
+		// The inner value gets the same empty-array→{} discipline as the top
+		// level: an object|null-union ability returning an EMPTY object would
+		// otherwise wrap as {"result":[]} and fail its own advertised schema.
+		$out = array( 'result' => ( is_array( $out ) && array() === $out ) ? (object) array() : $out );
 	}
 
 	return array( 'result' => sn_mcp_success_result( $out ) );

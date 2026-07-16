@@ -21,10 +21,13 @@ if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k = '' ) { 
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 
 class SN_Test_Ability {
-	private $n, $result; public function __construct( $n, $a ) { $this->n = $n; $this->result = $a['result'] ?? null; }
+	private $n, $result, $out;
+	// output_schema defaults to array() (unchanged prior behavior) unless a test
+	// supplies one — needed to exercise the P1-P3 wrap rule end-to-end.
+	public function __construct( $n, $a ) { $this->n = $n; $this->result = $a['result'] ?? null; $this->out = $a['output_schema'] ?? array(); }
 	public function get_name() { return $this->n; } public function get_label() { return 'L'; }
 	public function get_description() { return 'D'; } public function get_input_schema() { return array(); }
-	public function get_output_schema() { return array(); }
+	public function get_output_schema() { return $this->out; }
 	public function check_permissions( $i = null ) { return true; } public function execute( $i = null ) { return $this->result; }
 }
 $GLOBALS['__abilities'] = array( 'signal-noise/get-health-scan' => new SN_Test_Ability( 'signal-noise/get-health-scan', array( 'result' => array( 'status' => 'green' ) ) ) );
@@ -73,6 +76,24 @@ ok( null === $r, 'a notification (no id) yields no response' );
 // bad envelope (missing jsonrpc) → -32600
 $r = sn_mcp_handle_request( array( 'id' => 7, 'method' => 'ping' ) );
 ok( ( $r['error']['code'] ?? null ) === -32600, 'missing jsonrpc version → -32600 invalid request' );
+
+// --- end-to-end wrap belt: an array-rooted tool called through the full JSON-RPC
+//     path wraps structuredContent (the class of bug that broke list-cron-events /
+//     get-cron-history live — see inc/mcp/mcp-tools.php sn_mcp_schema_needs_wrap) ---
+$GLOBALS['__abilities']['signal-noise/list-cron-events'] = new SN_Test_Ability( 'signal-noise/list-cron-events', array(
+	'output_schema' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+	'result'        => array( array( 'hook' => 'sn_daily' ) ),
+) );
+$r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 8, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__list-cron-events', 'arguments' => array() ) ) );
+ok( ( $r['result']['structuredContent']['result'][0]['hook'] ?? '' ) === 'sn_daily', 'array-rooted tool called end-to-end wraps structuredContent as {result:[...]}' );
+
+// --- end-to-end passthrough pin: an object-rooted tool stays unwrapped ---
+$GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'signal-noise/get-rss-stats', array(
+	'output_schema' => array( 'type' => 'object' ),
+	'result'        => array( 'ok' => true ),
+) );
+$r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__get-rss-stats', 'arguments' => array() ) ) );
+ok( ( $r['result']['structuredContent']['ok'] ?? null ) === true && ! array_key_exists( 'result', $r['result']['structuredContent'] ), 'object-rooted tool called end-to-end stays a byte-identical passthrough' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
