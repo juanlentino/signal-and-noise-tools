@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.52.4] - 2026-07-16: The chrome owns the title — and the last two widgets stop assuming a white page
+
+**Headline:** Two consequences of v9.52.2, both caught by an owner screenshot rather than by any test.
+
+**Doubled titles.** `movable: true` doesn't just enable dragging — it makes desktop-mode render its own chrome header (grip + **label** + remove) above every card body. The three pre-v9.52.0 widgets each painted their own title *inside* the body, which was correct when no chrome existed and became a duplicate the instant dragging was enabled: the card read **"SN Quick Actions"** directly above **"QUICK ACTIONS"**. Those body headings are gone; the label registered in PHP is now the single source of truth for a card's name. (The three v9.52.0 widgets never had a body heading, which is exactly why they read clean — the tell was on screen.)
+
+**The half-finished theming.** v9.52.2 re-themed Quick Actions because that was the reported symptom — three opaque white slabs. The same light-theme palette was still sitting in **Deploy Status** and **RSS Subscribers**: `#1d2327` near-black text, `#646970` labels, `#e0e0e0` rules, `#2271b1` links. They hid because grey-on-dark reads as *dim* rather than *broken*. Same bug, quieter — which is the more dangerous version. Both now inherit the card's white, mute with opacity, use a translucent-white hairline, and move their status glyphs onto the same semantics the v9.52.0 widgets use (`#3fb950` / `#d29922` / `#ff9d94`).
+
+> **Why PATCH:** corrects presentation regressions from v9.52.2. No new surface, no behaviour change.
+
+### Fixed
+- Removed the duplicate body headings from [desktop-mode-widget.js](assets/desktop-mode-widget.js) ("Signal & Noise"), [-actions.js](assets/desktop-mode-widget-actions.js) ("Quick actions"), [-rss.js](assets/desktop-mode-widget-rss.js) ("RSS subscribers").
+- Re-themed Deploy Status + RSS Subscribers for the dark glass card, completing the sweep v9.52.2 started.
+
+### Tests
+`tests/desktop-mode-integration.php` → **167 asserts**. Two new contracts across **all six** widget scripts: none paints an uppercase title row (the chrome owns the label), and none carries any colour from the light-theme palette (`#1d2327`, `#646970`, `#8c8f94`, `#c3c4c7`, `#2271b1`, `#dff4dc`, `#fbe2e2`) — so the next widget can't quietly reintroduce either. Full sweep 302 files / **9,725 asserts** / 0 failed · phpcs 234 clean · PHPStan clean.
+
+### Note
+Neither of these was catchable by the tests as they stood — they assert registration and contracts, not "does this look right". Both came from an owner looking at the screen. That's the argument for the live-check step, not against the tests.
+
 ## [9.52.3] - 2026-07-16: The 12 dead Cmd+K commands retire — the capability already moved to Ask AI
 
 **Headline:** Twelve theme-ability launcher commands were registered in PHP but **never wired to a JS `run()`** — each rendered a real, clickable palette entry that did nothing. They're gone. **No ability is removed: the count is 49 before and after, and the diff contains zero `wp_register_ability` lines.** This retires 12 inert labels, not capability.

@@ -166,11 +166,10 @@
 			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
 		} );
 
-		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 10px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;opacity:.6;',
-			text:  'Quick actions',
-		} ) );
-
+		// v9.52.4: no title row. Since v9.52.2's movable:true, desktop-mode
+		// renders its own chrome header (grip + label + remove) above this body,
+		// so painting "Quick actions" here put the card's name on screen twice.
+		// The label registered in PHP is the single source of truth.
 		var btnStyle = 'display:block;width:100%;margin:0 0 6px;padding:8px 10px;background:' + SURFACE +
 			';color:inherit;border:1px solid ' + HAIRLINE +
 			';border-radius:8px;font:13px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;text-align:left;' +

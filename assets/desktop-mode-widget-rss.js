@@ -15,6 +15,14 @@
  *
  * Pattern matches assets/desktop-mode-widget.js exactly.
  *
+ * v9.52.4: re-themed for the dark glass card. This was styled for a white
+ * admin page (#1d2327 text, #646970 labels, #2271b1 links) — legible-but-dim
+ * on `.desktop-mode-widgets__card`, which is fixed dark glass with color:#fff
+ * and is NOT theme-switchable. Text now inherits the card's white and muting
+ * is done with opacity, so the card owns the palette. (Not using
+ * --wpd-color-*: first-party CSS consumes those tokens but desktop-mode v0.9.5
+ * defines them nowhere, so var() always hits its fallback.)
+ *
  * @since plugin v2.1.0
  */
 ( function() {
@@ -57,7 +65,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;color:#646970;',
+			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;opacity:.6;',
 			text:  'Loading RSS activity…',
 		} ) );
 	}
@@ -65,7 +73,7 @@
 	function renderError( container, message ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#cc1818;',
+			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#ff9d94;',
 			text:  'RSS fetch failed: ' + ( message || 'unknown' ),
 		} ) );
 	}
@@ -74,16 +82,15 @@
 		clearChildren( container );
 
 		var wrap = el( 'div', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:#1d2327;',
+			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
 		} );
 
-		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 4px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#646970;',
-			text:  'RSS subscribers',
-		} ) );
+		// v9.52.4: no title row — desktop-mode's chrome header (grip + label +
+		// remove), rendered since movable:true in v9.52.2, already shows this
+		// card's name. Painting it here printed "RSS Subscribers" twice.
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 10px;font-size:11px;color:#8c8f94;',
+			style: 'margin:0 0 10px;font-size:11px;opacity:.5;',
 			text:  stats.last_request_relative
 				? 'Last request: ' + stats.last_request_relative
 				: 'No requests yet',
@@ -101,7 +108,7 @@
 		].forEach( function( w ) {
 			var bucket = windows[ w.key ] || { total: 0, uniques: 0 };
 			grid.appendChild( el( 'span', {
-				style: 'color:#646970;',
+				style: 'opacity:.6;',
 				text:  w.label,
 			} ) );
 			grid.appendChild( el( 'span', {
@@ -109,7 +116,7 @@
 				text:  Number( bucket.total || 0 ).toLocaleString() + ' req',
 			} ) );
 			grid.appendChild( el( 'span', {
-				style: 'font-variant-numeric:tabular-nums;color:#646970;',
+				style: 'font-variant-numeric:tabular-nums;opacity:.75;',
 				text:  Number( bucket.uniques || 0 ).toLocaleString() + ' uniq',
 			} ) );
 		} );
@@ -118,7 +125,7 @@
 
 		if ( rssPageUrl ) {
 			wrap.appendChild( el( 'a', {
-				style: 'display:inline-block;margin-top:10px;font-size:11px;color:#2271b1;text-decoration:none;',
+				style: 'display:inline-block;margin-top:10px;font-size:11px;color:#4a9eff;text-decoration:none;',
 				text:  'Open RSS tab →',
 				href:  rssPageUrl,
 			} ) );
