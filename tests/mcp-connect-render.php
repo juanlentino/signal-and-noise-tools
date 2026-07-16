@@ -89,9 +89,30 @@ ok( in_array( $adapter_url, $GLOBALS['__esc_url_calls'], true ), 'adapter endpoi
 ok( false !== strpos( $html, $native_url ), 'native endpoint URL rendered' );
 ok( false !== strpos( $html, $adapter_url ), 'adapter endpoint URL rendered' );
 
-// ── Adapter door is honest: not detected in this test env → hedged wording ──
+// ── Adapter door is honest: not detected in this test env → absent wording ──
+// v9.48.1: the old copy attributed the MCP Adapter to the wp.org "AI" plugin.
+// Ground-truthed 2026-07-15: the AI plugin does NOT bundle the adapter (its
+// MCP integration is "coming soon"); the adapter is a separate GitHub-only
+// plugin. The door must say the adapter is absent, name it as its own plugin,
+// and never imply the AI plugin provides it.
 ok( ! class_exists( 'WP\\MCP\\Core\\McpAdapter' ), 'sanity: the adapter class is not defined in this test env' );
-ok( stripos( $html, 'if the wp.org' ) !== false, 'adapter block uses hedged "if…active" phrasing when undetected' );
+ok( stripos( $html, 'No MCP Adapter is installed' ) !== false, 'adapter block states the adapter is absent on this site' );
+ok( stripos( $html, 'coming soon' ) !== false, 'adapter block names the AI plugin\'s MCP integration as roadmap-only' );
+ok( stripos( $html, 'separate WordPress plugin' ) !== false, 'adapter block names the adapter as its own separate plugin' );
+ok( stripos( $html, 'If the wp.org “AI” plugin is active on this site, its MCP Adapter' ) === false, 'REGRESSION: the false "AI plugin ships the adapter" attribution is gone' );
+
+// ── Claude desktop app section (v9.49.0) ──
+// The owner connects from the Claude APP, not the CLI. The officially
+// documented app path for a Basic-auth (application-password) endpoint is
+// the LOCAL config file + stdio proxy; the app's "Add custom connector"
+// (remote) flow is OAuth-only — the section must say both, honestly.
+ok( false !== strpos( $html, 'claude_desktop_config.json' ), 'app section names the config file' );
+ok( false !== strpos( $html, 'Library/Application Support/Claude' ), 'app section gives the macOS config path' );
+ok( false !== strpos( $html, '%APPDATA%' ), 'app section gives the Windows config path' );
+ok( stripos( $html, 'restart' ) !== false, 'app section says to fully restart the app' );
+ok( stripos( $html, 'Node.js' ) !== false, 'app section names the Node.js/npx requirement for the proxy' );
+ok( stripos( $html, 'OAuth' ) !== false, 'app section warns the remote custom-connector flow is OAuth-only' );
+ok( stripos( $html, 'application password will not work there' ) !== false, 'app section explicitly closes the wrong door' );
 
 // ── Placeholders present, never a real-looking secret ──
 ok( false !== strpos( $html, '&lt;admin-username&gt;' ), 'WP_API_USERNAME placeholder present' );
