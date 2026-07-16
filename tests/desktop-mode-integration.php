@@ -210,6 +210,50 @@ foreach ( $widgets as $id => $args ) {
 ok( array_keys( $widgets ) === array( 'sn-pulse', 'sn-site-views', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-health' ),
 	'widgets register in intended display order (Pulse first) — registration order IS the picker order' );
 
+echo "\n── v9.52.2: drag-and-drop + sizing ──\n";
+// movable:true lets the user drag a card out of the right-side column and
+// place it anywhere; desktop-mode then renders a chrome header (grip + label +
+// remove) and drag initiates only from that chrome. resizable:true adds the 8
+// grip handles. Both default FALSE, so without these the cards are locked to
+// the column. Sizes matter once a card floats: the column drives geometry
+// while docked, but a floating card falls back to defaults, and min_* stops a
+// drag collapsing a card into an unreadable sliver.
+foreach ( $widgets as $id => $args ) {
+	ok( ( $args['movable'] ?? false ) === true,   "$id is movable (drag out of the column)" );
+	ok( ( $args['resizable'] ?? false ) === true, "$id is resizable" );
+	ok( ( $args['min_width'] ?? 0 ) > 0 && ( $args['min_height'] ?? 0 ) > 0,
+		"$id declares a min size (a drag can't collapse it to a sliver)" );
+	ok( ( $args['default_width'] ?? 0 ) > 0 && ( $args['default_height'] ?? 0 ) > 0,
+		"$id declares a default floating size" );
+	ok( ( $args['default_width'] ?? 0 ) >= ( $args['min_width'] ?? 0 ),
+		"$id default width is not below its own minimum" );
+	ok( ( $args['default_height'] ?? 0 ) >= ( $args['min_height'] ?? 0 ),
+		"$id default height is not below its own minimum" );
+}
+
+echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
+// .desktop-mode-widgets__card is NOT theme-switchable: it is fixed dark glass
+// — background rgba(20,20,22,.55) + backdrop-filter blur, color:#fff
+// (assets/css/desktop.css). The card sets white text and every SN widget
+// inherits it. desktop-mode's own --wpd-color-* tokens are a RED HERRING here:
+// they are consumed by first-party widget CSS but DEFINED NOWHERE in v0.9.5
+// (no :root rule, no setProperty), so var(--wpd-color-text, …) always resolves
+// to its fallback — which is why widget-starter.css falls back to near-black
+// while widget-jazz-quote.css falls back to near-white. Style against the card
+// that actually exists: light-on-dark.
+$aj = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' );
+$aj_code = strip_js_comments( $aj );
+ok( strpos( $aj_code, 'background:#fff' ) === false,
+	'Quick Actions buttons are not opaque white blocks on the dark glass card' );
+ok( strpos( $aj_code, 'color:#1d2327' ) === false,
+	'Quick Actions uses no near-black text (invisible on a dark card)' );
+ok( strpos( $aj_code, '#dff4dc' ) === false && strpos( $aj_code, '#fbe2e2' ) === false,
+	'Quick Actions toasts are not light pastel fills on dark glass' );
+ok( preg_match( '/rgba\(\s*255\s*,\s*255\s*,\s*255/', $aj_code ) === 1,
+	'Quick Actions styles light-on-dark (translucent white), matching the card idiom' );
+ok( strpos( $aj_code, 'mouseenter' ) !== false || strpos( $aj_code, 'mouseover' ) !== false,
+	'Quick Actions buttons have a real hover state (the transition existed but nothing changed on hover)' );
+
 echo "\n── Widget registration gate ──\n";
 fire( 'admin_enqueue_scripts' );
 $widgets = $GLOBALS['__dm_widgets'];

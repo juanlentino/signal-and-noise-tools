@@ -58,13 +58,60 @@
 		while ( node.firstChild ) { node.removeChild( node.firstChild ); }
 	}
 
+	/*
+	 * v9.52.2 — PALETTE. The widget card is FIXED DARK GLASS, not a themeable
+	 * surface: `.desktop-mode-widgets__card` is background rgba(20,20,22,.55)
+	 * + backdrop-filter blur(18px) with `color: #fff`
+	 * (desktop-mode/assets/css/desktop.css). Everything here is therefore
+	 * light-on-dark, and text simply inherits the card's white rather than
+	 * restating it.
+	 *
+	 * NOT using desktop-mode's --wpd-color-* tokens: first-party widget CSS
+	 * consumes them, but v0.9.5 DEFINES them nowhere (no :root rule, no
+	 * setProperty), so var(--wpd-color-text, …) always resolves to its
+	 * fallback. That's why their own widget-starter.css falls back to
+	 * near-black while widget-jazz-quote.css falls back to near-white — the
+	 * two disagree because the variable never resolves. Style against the card
+	 * that exists.
+	 *
+	 * Pre-v9.52.2 this widget was styled for a white admin page — opaque #fff
+	 * buttons with #1d2327 text — which rendered as three glaring white slabs
+	 * on the glass.
+	 */
+	var SURFACE      = 'rgba(255,255,255,0.06)';
+	var SURFACE_HOVER = 'rgba(255,255,255,0.13)';
+	var HAIRLINE     = 'rgba(255,255,255,0.14)';
+	var OK_FG        = '#3fb950';
+	var OK_BG        = 'rgba(63,185,80,0.14)';
+	var OK_LINE      = 'rgba(63,185,80,0.32)';
+	// Danger text is lightened from the #c9503f used for chart deltas: the
+	// same hue is legible as a 1px line but muddy as 13px text on dark glass.
+	var DANGER_FG    = '#ff9d94';
+	var DANGER_BG    = 'rgba(201,80,63,0.16)';
+	var DANGER_LINE  = 'rgba(201,80,63,0.45)';
+	var DANGER_HOVER = 'rgba(201,80,63,0.22)';
+
+	/** Hover feedback for an inline-styled button (no stylesheet here). */
+	function hoverable( btn, restBg, hoverBg ) {
+		btn.addEventListener( 'mouseenter', function() {
+			if ( btn.dataset.snBusy === '1' ) { return; }
+			btn.style.background = hoverBg;
+		} );
+		btn.addEventListener( 'mouseleave', function() {
+			btn.style.background = restBg;
+		} );
+	}
+
 	function toast( widget, message, success ) {
 		var existing = widget.querySelector( '.sn-dm-toast' );
 		if ( existing ) { existing.remove(); }
 
 		var t = el( 'div', {
 			className: 'sn-dm-toast',
-			style:     'margin-top:10px;padding:8px 10px;border-radius:3px;font-size:11px;line-height:1.35;background:' + ( success ? '#dff4dc' : '#fbe2e2' ) + ';color:' + ( success ? '#0a5a1a' : '#8b1a1a' ) + ';',
+			style:     'margin-top:10px;padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.35;' +
+				'background:' + ( success ? OK_BG : DANGER_BG ) + ';' +
+				'color:' + ( success ? OK_FG : DANGER_FG ) + ';' +
+				'border:1px solid ' + ( success ? OK_LINE : DANGER_LINE ) + ';',
 			text:      message,
 		} );
 		widget.appendChild( t );
@@ -113,17 +160,22 @@
 		if ( ! container ) { return function() {}; }
 		clearChildren( container );
 
+		// color:inherit — the card already sets #fff; restating a colour here
+		// is what made this widget assume a white page.
 		var wrap = el( 'div', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:#1d2327;',
+			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
 		} );
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 10px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#646970;',
+			style: 'margin:0 0 10px;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;opacity:.6;',
 			text:  'Quick actions',
 		} ) );
 
-		var btnStyle = 'display:block;width:100%;margin:0 0 6px;padding:7px 10px;background:#fff;color:#1d2327;border:1px solid #c3c4c7;border-radius:3px;font:13px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;text-align:left;transition:background 120ms ease;';
-		var dangerStyle = btnStyle + 'border-color:#a04848;';
+		var btnStyle = 'display:block;width:100%;margin:0 0 6px;padding:8px 10px;background:' + SURFACE +
+			';color:inherit;border:1px solid ' + HAIRLINE +
+			';border-radius:8px;font:13px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;text-align:left;' +
+			'transition:background 120ms ease,border-color 120ms ease;';
+		var dangerStyle = btnStyle + 'color:' + DANGER_FG + ';border-color:' + DANGER_LINE + ';';
 
 		var btnPurge = el( 'button', {
 			text:  'Purge all caches',
@@ -133,6 +185,7 @@
 		btnPurge.addEventListener( 'click', function() {
 			runAction( wrap, btnPurge, 'purge-caches', 'Purging…', 'Caches purged.' );
 		} );
+		hoverable( btnPurge, SURFACE, SURFACE_HOVER );
 		wrap.appendChild( btnPurge );
 
 		var btnClear = el( 'button', {
@@ -143,6 +196,7 @@
 		btnClear.addEventListener( 'click', function() {
 			runAction( wrap, btnClear, 'clear-overrides', 'Clearing…', 'Overrides cleared.' );
 		} );
+		hoverable( btnClear, SURFACE, SURFACE_HOVER );
 		wrap.appendChild( btnClear );
 
 		var btnReset = el( 'button', {
@@ -153,10 +207,11 @@
 		btnReset.addEventListener( 'click', function() {
 			runAction( wrap, btnReset, 'full-reset', 'Resetting…', 'Full reset complete.' );
 		} );
+		hoverable( btnReset, SURFACE, DANGER_HOVER );
 		wrap.appendChild( btnReset );
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:8px 0 0;font-size:10px;color:#8c8f94;',
+			style: 'margin:8px 0 0;font-size:10px;opacity:.5;',
 			text:  'Same actions as S&N → Dashboard → Maintenance',
 		} ) );
 

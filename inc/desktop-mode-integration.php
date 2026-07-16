@@ -318,52 +318,90 @@ add_action( 'init', function() {
 		// the intended order is expressed by registering in it: the Pulse
 		// command-center read first, then Site Views, then the three older
 		// utility cards, then Health.
-		desktop_mode_register_widget( 'sn-pulse', array(
-			'label'       => 'SN Pulse',
-			'description' => 'Views, uptime and content health in one tile.',
-			'icon'        => 'dashicons-heart',
-			'script'      => 'sn-desktop-mode-widget-pulse',
-		) );
+		// v9.52.2: every card is movable + resizable — drag it out of the
+		// right-side column and place it anywhere on the desktop. Both default
+		// FALSE, so until now the cards were locked to the column. `movable`
+		// makes desktop-mode render a thin chrome header (grip + label +
+		// remove) and drag initiates ONLY from that chrome, so the buttons
+		// inside SN Quick Actions stay clickable; `resizable` adds the 8 grip
+		// handles. The column drives geometry while a card is docked — the
+		// default_* sizes apply the first time a card floats, and the min_*
+		// floor stops a drag collapsing one into an unreadable sliver.
+		$sn_drag = array( 'movable' => true, 'resizable' => true );
 
-		desktop_mode_register_widget( 'sn-site-views', array(
-			'label'       => 'SN Site Views',
-			'description' => 'A 14-day first-party pageview sparkline.',
-			'icon'        => 'dashicons-chart-area',
-			'script'      => 'sn-desktop-mode-widget-views',
-		) );
+		desktop_mode_register_widget( 'sn-pulse', array_merge( $sn_drag, array(
+			'label'          => 'SN Pulse',
+			'description'    => 'Views, uptime and content health in one tile.',
+			'icon'           => 'dashicons-heart',
+			'script'         => 'sn-desktop-mode-widget-pulse',
+			'min_width'      => 220,
+			'min_height'     => 120,
+			'default_width'  => 300,
+			'default_height' => 150,
+		) ) );
 
-		desktop_mode_register_widget( 'sn-deploy-status', array(
-			'label'       => 'SN Deploy Status',
-			'description' => 'Theme + plugin version and last deploy time.',
-			'icon'        => 'dashicons-update',
-			'script'      => 'sn-desktop-mode-widget',
-		) );
+		desktop_mode_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
+			'label'          => 'SN Site Views',
+			'description'    => 'A 14-day first-party pageview sparkline.',
+			'icon'           => 'dashicons-chart-area',
+			'script'         => 'sn-desktop-mode-widget-views',
+			// Taller floor than its siblings: the sparkline needs vertical room
+			// before it reads as a trend rather than a smudge.
+			'min_width'      => 240,
+			'min_height'     => 170,
+			'default_width'  => 320,
+			'default_height' => 220,
+		) ) );
+
+		desktop_mode_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
+			'label'          => 'SN Deploy Status',
+			'description'    => 'Theme + plugin version and last deploy time.',
+			'icon'           => 'dashicons-update',
+			'script'         => 'sn-desktop-mode-widget',
+			'min_width'      => 220,
+			'min_height'     => 140,
+			'default_width'  => 300,
+			'default_height' => 190,
+		) ) );
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
 		// S&N → Dashboard → Maintenance with single-click access from desktop.
-		desktop_mode_register_widget( 'sn-quick-actions', array(
-			'label'       => 'SN Quick Actions',
-			'description' => 'One-click purge, clear overrides, force update-check.',
-			'icon'        => 'dashicons-controls-repeat',
-			'script'      => 'sn-desktop-mode-widget-actions',
-		) );
+		desktop_mode_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
+			'label'          => 'SN Quick Actions',
+			'description'    => 'One-click purge, clear overrides, force update-check.',
+			'icon'           => 'dashicons-controls-repeat',
+			'script'         => 'sn-desktop-mode-widget-actions',
+			// Three stacked buttons + the toast slot.
+			'min_width'      => 220,
+			'min_height'     => 190,
+			'default_width'  => 300,
+			'default_height' => 240,
+		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
 		// was previously buried under S&N → RSS tab + a single line on the
 		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
-		desktop_mode_register_widget( 'sn-rss-subscribers', array(
-			'label'       => 'SN RSS Subscribers',
-			'description' => 'Unique feed subscribers over 24h / 7d / 30d.',
-			'icon'        => 'dashicons-rss',
-			'script'      => 'sn-desktop-mode-widget-rss',
-		) );
+		desktop_mode_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
+			'label'          => 'SN RSS Subscribers',
+			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
+			'icon'           => 'dashicons-rss',
+			'script'         => 'sn-desktop-mode-widget-rss',
+			'min_width'      => 220,
+			'min_height'     => 150,
+			'default_width'  => 300,
+			'default_height' => 200,
+		) ) );
 
-		desktop_mode_register_widget( 'sn-health', array(
-			'label'       => 'SN Health',
-			'description' => 'Content-health checks passing, and when last scanned.',
-			'icon'        => 'dashicons-shield-alt',
-			'script'      => 'sn-desktop-mode-widget-health',
-		) );
+		desktop_mode_register_widget( 'sn-health', array_merge( $sn_drag, array(
+			'label'          => 'SN Health',
+			'description'    => 'Content-health checks passing, and when last scanned.',
+			'icon'           => 'dashicons-shield-alt',
+			'script'         => 'sn-desktop-mode-widget-health',
+			'min_width'      => 220,
+			'min_height'     => 110,
+			'default_width'  => 300,
+			'default_height' => 150,
+		) ) );
 	}
 }, 6 );
 
