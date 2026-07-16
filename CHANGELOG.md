@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.53.0] - 2026-07-16: One widget per domain, each as deep as its data allows
+
+**Headline:** **SN Pulse is retired.** It carried views + a delta (Site Views' job) and the health ratio (Health's job), so on a desktop with every card enabled the same numbers rendered twice. The one row it alone carried — uptime — becomes **SN Uptime**. Six widgets, one per domain, each going deep instead of three going shallow.
+
+### Added
+- **SN Uptime** ([assets/desktop-mode-widget-uptime.js](assets/desktop-mode-widget-uptime.js)) — per-monitor status, **30-day availability**, and average response time, via the existing `signal-noise/uptime-status` ability with `{detail:true}`. Not localized: unlike health (one durable option read), uptime detail makes **Better Stack API calls** (statuses 90s, availability 1h/6h, response 15min), so it's fetch-on-render. `configured:false` renders as an honest "not configured", never a green "Up" for monitors that don't exist; any stat tier may be null and its row is omitted rather than filled with a placeholder that reads like a measurement.
+- **SN Site Views** — now carries **visits**, **bot share**, **top page**, and a **7-day forecast**.
+- **SN Health** — now shows **which checks failed**, ranked worst-first, capped at 4 with "+N more". Advisories (`external_links`, `link_opportunities`) are counted **separately and never as faults** — they carry findings by nature, so folding them in would render a healthy site as permanently alarming.
+
+### The forecast, and why it can't lie
+`sn_analytics_forecast_of()` already encodes the discipline, so the widget's only job is not to undo it: below **21** points of history → `null`; zero median level → `null`; and `confidence` is the backtest's **measured interval coverage**, not a vibe. We pass its verdict through **unchanged** and never synthesise a fallback.
+
+**The fit window is the subtle part.** `SN_ANALYTICS_FORECAST_MIN_POINTS = 21`, so fitting on the **14-day display window would have returned `null` every single time** — a forecast that never once rendered. The engine's own `sn_analytics_signal_forecasts()` already solves this the same way ("trailing fit history ending `$to`, **decoupled from the display range**"), so the endpoint fetches **one 60-day series** and slices the last 14 for the sparkline: one query, not two.
+
+**The interval gets equal billing with the point.** On real low-volume traffic a point of ≈21/day can carry a 0–87 interval — rendering "21/day" large with the range hidden would read as precision the model never claimed. The UI also names what `confidence` measures: *"how often reality landed inside this band"*, not *"how accurate the number is"*. A wide band with high coverage is honest uncertainty.
+
+### Removed
+- `snt_uptime_summary_for_localize()` and the `uptimeSummary` localize field. **Pulse was its only consumer.** Leaving it would have run a Better Stack API call on **every wp-admin page load** for a payload nothing reads — exactly the cost this file's data rule exists to prevent. (Review caught it; the tests had been extended to assert the orphan was *correctly* present, which would have locked the dead code in.)
+
+### Fixed — Ask AI, again (v9.52.5 was a half-fix, and its tag overclaims)
+**v9.52.5's changelog and tag say "Ask AI works again". That was false**, and the correction belongs on the record. It fixed the `['object','null']` type union — verified against a **fixture**, never against the real tool list — so the live error did not vanish, it **moved**:
+
+```
+v9.52.4:  tools.12.custom.input_schema.type: Input should be 'object'          ← fixed
+v9.52.5:  tools.29.custom.input_schema: does not support oneOf, allOf,
+                                        or anyOf at the top level              ← this
+```
+
+The theme's `signal-and-noise/get-active-template-structure` declares a **top-level `anyOf`** ("supply `post_id` OR `slug`") — perfectly good JSON Schema that Anthropic rejects at the top level of `input_schema`. Two of my own mistakes compounded: the normalizer only forced `type`, and the filter **skipped any tool whose type was already `'object'`** — which this schema's was, so it was never inspected.
+
+- `sn_mcp_normalize_schema()` now strips top-level `oneOf`/`allOf`/`anyOf`. **This also repairs a latent bug on our own MCP read door**, which exposes that same ability (`inc/mcp/mcp-capabilities.php:69`) through the same projection.
+- Nothing is weakened: the function projects an ability into a **tool schema**, it does not touch the ability. Execute-time validation still enforces `post_id`-or-`slug` server-side, and the description already states it — the model is still told, in prose instead of schema. Combinators **nested inside a property** are left intact; only the top level is constrained.
+- **A guard so this can't recur:** the suite now scans what the abilities *actually* declare at the top level of their `input_schema` and fails if any of it is a class the normalizer can't handle. An audit across **both repos** found exactly two classes — union `type` (×21) and `anyOf` (×1) — both now handled; a future `$ref` / `not` / `if-then-else` trips the build instead of silently killing the Copilot.
+
+### Fixed (review-caught, pre-merge)
+- **The honesty tooltips never rendered.** `el()` in the views + health widgets handled `style`/`text`/`href` but **not `title`**, so every explainer passed to it was silently discarded at element-creation — including the one defining what `confidence` means and the one saying advisories aren't faults. The *mechanisms meant to prevent misreading* were the things being dropped. The uptime widget, written fresh, had the branch; the older two were a copy-paste gap.
+
+### Tests
+**186 asserts** on this file. The one that matters: the forecast **success path now actually executes**. It previously could not — the stub ignores `$from`/`$to` and returned a 14-day series for any range, capping the 60-day fit below MIN_POINTS, so only the `null` branch ever ran and the `is_array()` assertions were **dead code passing vacuously**. The seed is now 60 days of **noisy** data (perfectly linear data yields sigma=0 and a degenerate `low==high` interval — a broken interval would have looked fine). Fourth false-pass of this class caught in this arc. Full sweep 302 files / **9,744 asserts** / 0 failed · phpcs 234 clean · PHPStan clean · **49 abilities untouched**.
+
 ## [9.52.5] - 2026-07-16: Our abilities were killing Desktop Mode's Ask AI
 
 **Headline:** Clicking **Ask AI** returned `Bad Request (400) - tools.12.custom.input_schema.type: Input should be 'object'` and the Copilot was **dead** — not degraded. One malformed tool fails the whole request, so our abilities took the assistant down with them.

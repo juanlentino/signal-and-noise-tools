@@ -106,6 +106,14 @@ class WP_Error {
 // inc/uptime-status.php. Stubbed here so the suite stays standalone.
 $GLOBALS['__series'] = array();
 $GLOBALS['__totals'] = array();
+// Shapes copied from the REAL @return docblocks (inc/analytics-read.php), not
+// imagined — the v9.52.0 review caught two HIGH bugs born of invented stubs.
+//   class_series → array{day:string, total:int, bot:int, bot_pct:int}
+//   top_paths    → array{path:string, views:int, visits:int, scroll_avg:float, time_avg:float}
+$GLOBALS['__classes'] = array();
+$GLOBALS['__top']     = array();
+function sn_analytics_class_series( $from, $to, $granularity = 'day' ) { return $GLOBALS['__classes']; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return array_slice( $GLOBALS['__top'], 0, $limit ); }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) { return $GLOBALS['__series']; }
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	$key = $from . '|' . $to;
@@ -117,6 +125,15 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 // imagined. (v9.52.0 review caught exactly that: an invented `passed` key on
 // each check, a shape sn_health_run_scan() has never produced.)
 require_once __DIR__ . '/../inc/health-summary.php';
+
+// Same rule for the forecast engine: inc/analytics-signals.php is pure array
+// maths (its only WP touchpoints are apply_filters + wp_parse_url, both stubbed
+// above), so load the REAL sn_analytics_forecast_of() rather than inventing a
+// forecast shape. This is what caught the fit-window bug: MIN_POINTS is 21, so
+// fitting on the 14-day display window returns null EVERY time — a stub would
+// have happily returned a Signal and the widget would have shipped a forecast
+// that never once rendered.
+require_once __DIR__ . '/../inc/analytics-signals.php';
 
 /**
  * A REAL sn_health_last_scan() payload. Shape per sn_health_run_scan()
@@ -196,7 +213,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( count( $widgets ) === 6, 'all six widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 17, 'all 17 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
-foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-pulse', 'sn-desktop-mode-widget-health' ) as $h ) {
+foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
 	ok( isset( $GLOBALS['__scripts'][ $h ] ), "script handle $h is registered by the end of init (desktop-mode enqueues widget scripts at admin_enqueue_scripts:20)" );
 }
 
@@ -207,8 +224,14 @@ foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-w
 foreach ( $widgets as $id => $args ) {
 	ok( ! array_key_exists( 'sort', $args ), "$id passes no dead 'sort' key (desktop-mode ignores it)" );
 }
-ok( array_keys( $widgets ) === array( 'sn-pulse', 'sn-site-views', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-health' ),
-	'widgets register in intended display order (Pulse first) — registration order IS the picker order' );
+// v9.53.0: SN Pulse is RETIRED. It duplicated Site Views (views + delta) and
+// Health (the ratio) on a site where both already have dedicated cards, so the
+// same numbers rendered twice. One widget per domain now, each enriched; the
+// one row Pulse alone carried — uptime — becomes its own SN Uptime widget.
+// Registration order IS picker order: traffic, then site condition, then ops.
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers' ),
+	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
+ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 
 echo "\n── v9.52.3: no dead commands (every palette entry must DO something) ──\n";
 // The class of bug this pins: a command registered in PHP with no matching
@@ -272,7 +295,7 @@ $sn_widget_js = array(
 	'desktop-mode-widget-actions.js' => 'Quick actions',
 	'desktop-mode-widget-rss.js'     => 'RSS subscribers',
 	'desktop-mode-widget-views.js'   => null,
-	'desktop-mode-widget-pulse.js'   => null,
+	'desktop-mode-widget-uptime.js'  => null,
 	'desktop-mode-widget-health.js'  => null,
 );
 foreach ( $sn_widget_js as $file => $old_heading ) {
@@ -336,24 +359,24 @@ fire( 'admin_enqueue_scripts' );
 $widgets = $GLOBALS['__dm_widgets'];
 
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
-ok( isset( $widgets['sn-pulse'] ),      'W2: registers the sn-pulse widget' );
+ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
 ok( count( $widgets ) === 6, 'all six widgets register (3 pre-existing + 3 new), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
-ok( ( $widgets['sn-pulse']['label'] ?? '' ) === 'SN Pulse',           'W2 carries its label' );
+ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
 ok( ( $widgets['sn-health']['label'] ?? '' ) === 'SN Health',         'W3 carries its label' );
 
 // desktop-mode's picker shows description + icon; a missing icon fails
 // WIDGET_CHECKS on the client-side path and renders a generic tile here.
-foreach ( array( 'sn-site-views', 'sn-pulse', 'sn-health' ) as $id ) {
+foreach ( array( 'sn-site-views', 'sn-uptime', 'sn-health' ) as $id ) {
 	ok( ! empty( $widgets[ $id ]['description'] ?? '' ), "$id declares a picker description" );
 	ok( ! empty( $widgets[ $id ]['icon'] ?? '' ),        "$id declares a dashicon" );
 }
 
 ok( ( $widgets['sn-site-views']['script'] ?? '' ) === 'sn-desktop-mode-widget-views', 'W1 names its script handle' );
 ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-views'] ), 'W1 script handle is registered' );
-ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-pulse'] ), 'W2 script handle is registered' );
+ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-uptime'] ), 'W2 script handle is registered' );
 ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script handle is registered' );
 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
@@ -365,8 +388,11 @@ ok( strpos( $src, "function_exists( 'desktop_mode_register_widget' )" ) !== fals
 echo "\n── Localized \$shared ──\n";
 $shared = $GLOBALS['__localized']['snDesktopData'] ?? array();
 ok( ! empty( $shared['pages']['analytics'] ?? '' ), 'pages map gains an analytics deep-link' );
-ok( array_key_exists( 'uptimeSummary', $shared ), 'shared carries uptimeSummary' );
 ok( array_key_exists( 'healthSummary', $shared ), 'shared carries healthSummary' );
+// v9.53.0: uptimeSummary is REMOVED. Pulse was its only consumer; SN Uptime
+// fetches live via the ability. Keeping it would have run a Better Stack API
+// call on every wp-admin page load for a payload nothing reads.
+ok( ! array_key_exists( 'uptimeSummary', $shared ), 'uptimeSummary is gone — no consumer since Pulse retired' );
 // Cheap-data-only rule: the views SERIES must never be localized (it would
 // run two aggregate SQL queries on EVERY admin page load, for a widget that
 // may not even be mounted). It goes over REST, fetch-on-render.
@@ -384,8 +410,6 @@ $GLOBALS['__cap'] = false; // a non-admin admin-screen visitor
 $GLOBALS['__localized'] = array();
 fire( 'admin_enqueue_scripts' );
 $non_admin = $GLOBALS['__localized']['snDesktopData'] ?? array();
-ok( array_key_exists( 'uptimeSummary', $non_admin ) && $non_admin['uptimeSummary'] === null,
-	'uptimeSummary is withheld (null) from a non-manage_options user' );
 ok( array_key_exists( 'healthSummary', $non_admin ) && $non_admin['healthSummary'] === null,
 	'healthSummary is withheld (null) from a non-manage_options user' );
 
@@ -393,7 +417,6 @@ $GLOBALS['__cap'] = true; // the owner
 $GLOBALS['__localized'] = array();
 fire( 'admin_enqueue_scripts' );
 $owner = $GLOBALS['__localized']['snDesktopData'] ?? array();
-ok( is_array( $owner['uptimeSummary'] ?? null ), 'the owner DOES receive uptimeSummary' );
 ok( is_array( $owner['healthSummary'] ?? null ), 'the owner DOES receive healthSummary' );
 
 // Reset to the absent-source baseline for the degradation checks below.
@@ -409,14 +432,12 @@ echo "\n── Graceful degradation of the summaries ──\n";
 // also passes when the key was never set at all (undefined index → null + a
 // warning), i.e. it would go green against an unimplemented feature. Assert the
 // key is PRESENT and null — "explicitly nothing", not "absent".
-ok( array_key_exists( 'uptimeSummary', $shared ) && $shared['uptimeSummary'] === null,
-	'uptimeSummary is present-and-null when uptime is unconfigured' );
 ok( array_key_exists( 'healthSummary', $shared ) && $shared['healthSummary'] === null,
 	'healthSummary is present-and-null when no scan has run' );
 
 echo "\n── Summary helper shapes ──\n";
 ok( function_exists( 'snt_health_summary_for_localize' ), 'snt_health_summary_for_localize() exists' );
-ok( function_exists( 'snt_uptime_summary_for_localize' ), 'snt_uptime_summary_for_localize() exists' );
+ok( ! function_exists( 'snt_uptime_summary_for_localize' ), 'snt_uptime_summary_for_localize() is gone with its only consumer' );
 
 // A scan with one real fault (broken_links=3) among four checks.
 $GLOBALS['__health_scan'] = fixture_scan( array(
@@ -457,35 +478,13 @@ ok( ( $adv['all_passed'] ?? false ) === true, 'advisory findings alone do not fa
 $GLOBALS['__health_scan'] = null;
 ok( snt_health_summary_for_localize() === null, 'health summary is null with no scan (never a fake pass)' );
 
-$GLOBALS['__uptime_configured'] = false;
-ok( snt_uptime_summary_for_localize() === null, 'uptime summary is null when unconfigured (fetch returns WP_Error)' );
-
-// THE OTHER REGRESSION: the snapshot is {fetched_at, rows} — iterating the
-// OUTER array finds no 'level' key, so every monitor defaulted to 'ok' and the
-// tile showed green through a real outage.
-$GLOBALS['__uptime_configured'] = true;
-$GLOBALS['__uptime_snapshot']   = uptime_snapshot( array(
-	array( 'name' => 'site', 'status' => 'up',   'level' => 'ok' ),
-	array( 'name' => 'api',  'status' => 'down', 'level' => 'alert' ),
-) );
-$u = snt_uptime_summary_for_localize();
-ok( is_array( $u ), 'uptime summary returns an array when configured' );
-ok( ( $u['level'] ?? '' ) === 'alert', 'a DOWN monitor surfaces as alert — worst level wins, never a false green' );
-ok( ( $u['status'] ?? '' ) === 'down', 'uptime summary carries the failing monitor status' );
-
-$GLOBALS['__uptime_snapshot'] = uptime_snapshot( array(
-	array( 'name' => 'site', 'status' => 'up', 'level' => 'ok' ),
-	array( 'name' => 'api',  'status' => 'up', 'level' => 'ok' ),
-) );
-ok( ( snt_uptime_summary_for_localize()['level'] ?? '' ) === 'ok', 'all monitors up reads as ok' );
-
-$GLOBALS['__uptime_snapshot'] = uptime_snapshot( array(
-	array( 'name' => 'site', 'status' => 'paused', 'level' => 'warn' ),
-) );
-ok( ( snt_uptime_summary_for_localize()['level'] ?? '' ) === 'warn', 'a paused monitor reads as warn, not ok' );
-
-$GLOBALS['__uptime_snapshot'] = uptime_snapshot( array() );
-ok( snt_uptime_summary_for_localize() === null, 'an empty snapshot yields null, not a fabricated ok' );
+// v9.53.0: the snt_uptime_summary_for_localize() block is gone with the function.
+// It existed to feed SN Pulse's uptime row; Pulse is retired and SN Uptime reads
+// the signal-noise/uptime-status ability live instead (inc/uptime-status.php owns
+// that contract and tests/uptime-status.php covers it). The v9.52.0 regression it
+// guarded — iterating the {fetched_at, rows} snapshot instead of ['rows'], so every
+// monitor defaulted to 'ok' and the tile showed GREEN THROUGH A REAL OUTAGE — is
+// now structurally impossible here: nothing in this file reads uptime rows.
 
 echo "\n── site-views REST endpoint ──\n";
 fire( 'rest_api_init' );
@@ -514,6 +513,83 @@ ok( ( $body['days'][0]['date'] ?? '' ) === '2026-07-15', 'each day carries a dat
 ok( ( $body['days'][0]['views'] ?? null ) === 10, 'each day carries an int views key' );
 ok( ( $body['total'] ?? null ) === 40, 'payload total comes from range totals' );
 ok( array_key_exists( 'delta_pct', $body ), 'payload carries delta_pct' );
+
+echo "\n── v9.53.0: Site Views enrichment ──\n";
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+// 60 days of NOISY history. Two reasons this shape matters:
+//   1. The stub ignores $from/$to and returns this global for any range, so a
+//      14-day seed capped the 60-day FIT at 14 — below MIN_POINTS (21) — and
+//      the forecast success path below never executed. Review caught that: the
+//      is_array() assertions were dead code passing vacuously.
+//   2. Perfectly linear data yields sigma=0 and a DEGENERATE interval
+//      (low==high), which would let a broken interval look fine. Noise gives a
+//      real band.
+$GLOBALS['__series'] = array();
+$noise = array( 12,19,9,22,15,31,8,17,25,11,28,14,20,9,33,16,21,13,27,10,24,18,30,12,26,15,22,19,29,17,
+                14,23,11,26,18,9,31,20,13,28,16,22,10,25,19,30,12,27,15,21,17,24,13,29,11,26,20,14,23,18 );
+foreach ( $noise as $i => $v ) {
+	$GLOBALS['__series'][] = array( 'day' => gmdate( 'Y-m-d', strtotime( '2026-07-16 -' . ( 59 - $i ) . ' days' ) ), 'views' => $v, 'visits' => (int) round( $v * 0.6 ) );
+}
+$GLOBALS['__totals']  = array( '*' => array( 'views' => 189, 'visits' => 98, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
+$GLOBALS['__classes'] = array(
+	array( 'day' => '2026-07-13', 'total' => 100, 'bot' => 25, 'bot_pct' => 25 ),
+	array( 'day' => '2026-07-14', 'total' => 100, 'bot' => 35, 'bot_pct' => 35 ),
+);
+$GLOBALS['__top']     = array( array( 'path' => '/notes/provenance', 'views' => 42, 'visits' => 30, 'scroll_avg' => 0.7, 'time_avg' => 90.0 ) );
+$res  = call_user_func( $route['callback'] );
+$body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
+
+ok( ( $body['visits'] ?? null ) === 98, 'payload carries visits alongside views' );
+ok( ( $body['bot_pct'] ?? null ) === 30, 'payload carries the window bot share (weighted across the class series, not the last day)' );
+ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance', 'payload carries the top path' );
+ok( ( $body['top_path']['views'] ?? null ) === 42, 'the top path carries its view count' );
+
+echo "\n── v9.53.0: the forecast, and its honesty gates ──\n";
+// sn_analytics_forecast_of() already encodes the discipline: below
+// SN_ANALYTICS_FORECAST_MIN_POINTS → null, zero median level → null, and
+// `confidence` comes from the backtest's MEASURED coverage — not a vibe. The
+// widget's job is to not undo that: ship the interval WITH the number, or ship
+// nothing. A bare point forecast is the dishonest version.
+ok( array_key_exists( 'forecast', $body ), 'payload carries a forecast key' );
+if ( is_array( $body['forecast'] ) ) {
+	ok( isset( $body['forecast']['value'] ), 'forecast carries a point value' );
+	ok( isset( $body['forecast']['interval']['low'], $body['forecast']['interval']['high'] ),
+		'forecast ALWAYS carries its interval — a bare point forecast is the dishonest version' );
+	ok( in_array( $body['forecast']['confidence'] ?? '', array( 'high', 'medium', 'low' ), true ),
+		'forecast carries measured-backtest confidence' );
+	ok( ( $body['forecast']['interval']['low'] ?? 1 ) <= ( $body['forecast']['value'] ?? 0 )
+		&& ( $body['forecast']['value'] ?? 0 ) <= ( $body['forecast']['interval']['high'] ?? -1 ),
+		'the point sits inside its own interval' );
+} else {
+	ok( $body['forecast'] === null, 'forecast is null when it cannot be produced honestly' );
+}
+
+// Too little history → the engine returns null → the payload says null, and the
+// widget must render NOTHING rather than invent a number.
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+$GLOBALS['__series'] = array( array( 'day' => '2026-07-15', 'views' => 10, 'visits' => 5 ) );
+$res2  = call_user_func( $route['callback'] );
+$body2 = $res2 instanceof WP_REST_Response ? $res2->get_data() : $res2;
+ok( array_key_exists( 'forecast', $body2 ) && $body2['forecast'] === null,
+	'one day of history yields NO forecast (present-and-null) — never a fabricated number' );
+
+echo "\n── v9.53.0: Health enrichment — which checks actually failed ──\n";
+$GLOBALS['__health_scan'] = fixture_scan( array(
+	'missing_alt'        => 0,
+	'broken_links'       => 3,
+	'stale_posts'        => 7,
+	'color_drift'        => 0,
+	'external_links'     => 42, // advisory — must NOT read as a failure
+	'link_opportunities' => 5,  // advisory
+) );
+$h = snt_health_summary_for_localize();
+ok( is_array( $h['flagged'] ?? null ), 'health summary carries the flagged checks' );
+ok( count( $h['flagged'] ) === 2, 'only the two real faults are flagged (advisories excluded), got ' . count( (array) ( $h['flagged'] ?? array() ) ) );
+ok( ( $h['flagged'][0]['count'] ?? 0 ) === 7, 'flagged checks are ranked by count, worst first' );
+ok( ( $h['flagged'][0]['label'] ?? '' ) !== '', 'each flagged check carries a human label — "what is wrong", not just a key' );
+ok( ( $h['findings_total'] ?? null ) === 10, 'findings_total sums the fault-tier findings (3 + 7)' );
+ok( ( $h['advisory_total'] ?? null ) === 47, 'advisory_total is reported separately (42 + 5) — advisories are not faults' );
+ok( ( $h['all_passed'] ?? true ) === false, 'a scan with faults is not all_passed' );
 
 echo "\n── site-views fail-soft (the REAL failure mode: empty rollup, not AE) ──\n";
 // inc/analytics-read.php reads the durable wp_sn_analytics_daily table via
@@ -599,6 +675,84 @@ ok( ! isset( $tools_out[2]['parameters'] ),
 ok( ( $tools_out[1]['parameters']['properties']['range']['type'] ?? null ) === array( 'string', 'integer' ),
 	'nested property unions are left intact (only the top-level type is constrained)' );
 
+// v9.53.0 — THE SECOND VIOLATION. v9.52.5 fixed the type union and the live
+// error MOVED rather than vanished:
+//   tools.12.custom.input_schema.type: Input should be 'object'      (fixed)
+//   tools.29.custom.input_schema: does not support oneOf, allOf, or anyOf
+//                                 at the top level                   (this)
+// The theme's signal-and-noise/get-active-template-structure declares a
+// top-level anyOf — "supply post_id OR slug" — which is perfectly good JSON
+// Schema that Anthropic simply rejects at the top level of input_schema.
+//
+// Two of my own mistakes compounded: the normalizer only forced `type`, and the
+// filter SKIPPED any tool whose type was already 'object' — which this schema's
+// was, so it was never even inspected.
+//
+// Stripping the combinator does NOT weaken anything: the ability's own
+// execute-time validation still enforces post_id-or-slug server-side, and its
+// description already states the requirement, so the model is still told — in
+// prose instead of schema.
+$anyof_tools = apply_filters( 'desktop_mode_ai_tools', array(
+	array( 'type' => 'function', 'name' => 'get_active_template_structure', 'parameters' => array(
+		'type'       => 'object', // ALREADY valid — the old skip condition bailed here
+		'properties' => array(
+			'post_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+			'slug'    => array( 'type' => 'string' ),
+		),
+		'anyOf'                => array( array( 'required' => array( 'post_id' ) ), array( 'required' => array( 'slug' ) ) ),
+		'additionalProperties' => false,
+	) ),
+	array( 'type' => 'function', 'name' => 'combo_all', 'parameters' => array(
+		'type'  => 'object',
+		'oneOf' => array( array( 'required' => array( 'a' ) ) ),
+		'allOf' => array( array( 'required' => array( 'b' ) ) ),
+	) ),
+) );
+ok( ! isset( $anyof_tools[0]['parameters']['anyOf'] ),
+	'a top-level anyOf is stripped even when type is ALREADY "object" (the skip condition that let it through)' );
+ok( ! isset( $anyof_tools[1]['parameters']['oneOf'] ) && ! isset( $anyof_tools[1]['parameters']['allOf'] ),
+	'top-level oneOf and allOf are stripped too' );
+ok( isset( $anyof_tools[0]['parameters']['properties']['post_id'], $anyof_tools[0]['parameters']['properties']['slug'] ),
+	'stripping the combinator keeps every property — the tool still takes its arguments' );
+ok( ( $anyof_tools[0]['parameters']['additionalProperties'] ?? null ) === false,
+	'stripping the combinator preserves the rest of the schema' );
+
+// Nested combinators are FINE — the provider only rejects them at the TOP
+// level, and a property's oneOf is a real constraint worth keeping.
+$nested = apply_filters( 'desktop_mode_ai_tools', array(
+	array( 'name' => 'x', 'parameters' => array(
+		'type'       => array( 'object', 'null' ),
+		'properties' => array( 'mode' => array( 'oneOf' => array( array( 'type' => 'string' ), array( 'type' => 'integer' ) ) ) ),
+	) ),
+) );
+ok( isset( $nested[0]['parameters']['properties']['mode']['oneOf'] ),
+	'a NESTED oneOf inside a property is left intact (only the top level is constrained)' );
+
+// THE GUARD. v9.52.5 shipped claiming "Ask AI works" after testing the fix
+// against a FIXTURE. The real tool list had a SECOND violation class the
+// fixture didn't contain, so the 400 merely moved (tools.12 → tools.29) and the
+// claim was false. This scans what the plugin's abilities ACTUALLY declare at
+// the top level of their input_schema and fails if any of it is a class the
+// normalizer doesn't handle — so the next ability to use an exotic top-level
+// keyword ($ref, not, if/then/else, const…) trips the build here instead of
+// silently killing the Copilot for every user.
+$handled = array( 'oneOf', 'allOf', 'anyOf' ); // + a union `type`, handled separately
+$risky   = array( '$ref', 'not', 'if', 'then', 'else' );
+$unhandled = array();
+foreach ( glob( __DIR__ . '/../inc/*.php' ) as $abil_file ) {
+	$src = (string) file_get_contents( $abil_file );
+	if ( strpos( $src, "'input_schema'" ) === false ) { continue; }
+	foreach ( $risky as $kw ) {
+		// Only flag a top-level-looking occurrence inside an input_schema block.
+		if ( preg_match( "/'input_schema'\s*=>\s*array\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*'" . preg_quote( $kw, '/' ) . "'\s*=>/s", $src ) ) {
+			$unhandled[] = basename( $abil_file ) . ':' . $kw;
+		}
+	}
+}
+ok( empty( $unhandled ),
+	'no ability declares a top-level input_schema keyword the normalizer cannot handle'
+		. ( $unhandled ? ' [' . implode( ', ', array_unique( $unhandled ) ) . ']' : '' ) );
+
 // Degenerate inputs must never fatal a whole Copilot request.
 $weird = apply_filters( 'desktop_mode_ai_tools', array( 'not-an-array', array( 'name' => 'x', 'parameters' => 'not-an-array' ) ) );
 ok( is_array( $weird ) && count( $weird ) === 2, 'malformed tool entries pass through without fataling' );
@@ -626,7 +780,7 @@ $js_map = array(
 	'sn-quick-actions'   => 'desktop-mode-widget-actions.js',
 	'sn-rss-subscribers' => 'desktop-mode-widget-rss.js',
 	'sn-site-views'      => 'desktop-mode-widget-views.js',
-	'sn-pulse'           => 'desktop-mode-widget-pulse.js',
+	'sn-uptime'          => 'desktop-mode-widget-uptime.js',
 	'sn-health'          => 'desktop-mode-widget-health.js',
 );
 /**

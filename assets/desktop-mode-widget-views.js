@@ -39,6 +39,11 @@
 		if ( opts.style ) { node.setAttribute( 'style', opts.style ); }
 		if ( opts.text != null ) { node.textContent = opts.text; }
 		if ( opts.href != null ) { node.href = opts.href; }
+		// v9.53.0: title carries the honesty explainers (what `confidence`
+		// actually measures; that advisories are not faults) and the hover
+		// text for ellipsised rows. Without this branch every title: passed
+		// to el() was silently discarded — the explainers never rendered.
+		if ( opts.title != null ) { node.title = opts.title; }
 		return node;
 	}
 
@@ -93,6 +98,69 @@
 		return node;
 	}
 
+	/** A label/value row for the secondary stats. */
+	function statRow( label, value, valueStyle ) {
+		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		row.appendChild( el( 'span', { text: label, style: 'opacity:.55;' } ) );
+		row.appendChild( el( 'span', {
+			text:  value,
+			style: 'font-variant-numeric:tabular-nums;font-weight:600;' + ( valueStyle || '' )
+		} ) );
+		return row;
+	}
+
+	/**
+	 * v9.53.0 — the forecast.
+	 *
+	 * THE INTERVAL IS THE STORY, not a footnote. sn_analytics_forecast_of()
+	 * returns a ~95% interval whose width is honest about how noisy the traffic
+	 * is: on real low-volume data a point of ~21/day can carry a 0–87 interval.
+	 * Rendering "21/day" large with the range hidden would be the dishonest
+	 * version — it reads as precision the model never claimed. So the range gets
+	 * equal billing, and `confidence` is shown for what it actually is: the
+	 * backtest's MEASURED interval coverage ("how often reality landed inside
+	 * this band"), NOT "how accurate the number is".
+	 *
+	 * The server sends null when the engine suppressed (under 21 days of
+	 * history, or a zero median level). We render NOTHING then — never a
+	 * fabricated number.
+	 */
+	function forecastBlock( f ) {
+		if ( ! f || typeof f.value === 'undefined' || ! f.interval ) {
+			return null;
+		}
+		var wrap = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+
+		var arrow = ( 'up' === f.direction ) ? '▲' : ( ( 'down' === f.direction ) ? '▼' : '→' );
+		var tint  = ( 'up' === f.direction ) ? '#3fb950' : ( ( 'down' === f.direction ) ? '#c9503f' : 'inherit' );
+
+		wrap.appendChild( el( 'div', {
+			text:  'Next 7 days',
+			style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+		} ) );
+
+		var line = el( 'div', { style: 'display:flex;align-items:baseline;gap:6px;' } );
+		line.appendChild( el( 'span', {
+			text:  arrow + ' ≈' + Math.round( f.value ) + '/day',
+			style: 'font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:' + tint + ';'
+		} ) );
+		line.appendChild( el( 'span', {
+			text:  Math.round( f.interval.low ) + '–' + Math.round( f.interval.high ),
+			style: 'font-size:12px;opacity:.75;font-variant-numeric:tabular-nums;'
+		} ) );
+		wrap.appendChild( line );
+
+		wrap.appendChild( el( 'div', {
+			// Name what `confidence` measures. "high" here means the interval
+			// reliably contained reality in backtesting — not that ≈N is exact.
+			text:  '95% interval · ' + String( f.confidence ) + ' interval coverage',
+			title: 'Coverage is measured by backtesting the forecast against history: how often the real value landed inside this band. A wide band with high coverage means honest uncertainty, not precision.',
+			style: 'font-size:10px;opacity:.45;margin-top:2px;'
+		} ) );
+
+		return wrap;
+	}
+
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
 		var aborted = false;
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
@@ -127,6 +195,48 @@
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct ) );
+
+			// ── v9.53.0 secondary stats ──
+			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+
+			if ( typeof payload.visits === 'number' ) {
+				stats.appendChild( statRow( 'Visits', String( payload.visits ) ) );
+			}
+
+			// bot_pct is null (not 0) when there was nothing to divide by —
+			// "no data" is not "0% bots", so omit the row rather than claim a
+			// clean feed we never measured.
+			if ( payload.bot_pct !== null && typeof payload.bot_pct !== 'undefined' ) {
+				stats.appendChild( statRow(
+					'Bot share',
+					payload.bot_pct + '%',
+					// Not an alarm — the beacon already excludes bots from the
+					// human class. This is a data-quality read, so it only tints
+					// once it's high enough to be worth a glance.
+					payload.bot_pct >= 50 ? 'color:#d29922;' : ''
+				) );
+			}
+
+			if ( payload.top_path && payload.top_path.path ) {
+				var top = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+				top.appendChild( el( 'span', {
+					text:  payload.top_path.path,
+					title: payload.top_path.path,
+					style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+				} ) );
+				top.appendChild( el( 'span', {
+					text:  String( payload.top_path.views ),
+					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
+				} ) );
+				stats.appendChild( top );
+			}
+
+			if ( stats.childNodes.length ) {
+				body.appendChild( stats );
+			}
+
+			var fc = forecastBlock( payload.forecast );
+			if ( fc ) { body.appendChild( fc ); }
 		}
 
 		function fail() {
