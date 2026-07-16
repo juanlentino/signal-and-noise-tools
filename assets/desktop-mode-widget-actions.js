@@ -18,9 +18,17 @@
 ( function() {
 	'use strict';
 
-	if ( typeof window === 'undefined' || ! window.wp || ! window.wp.desktop || typeof window.wp.desktop.registerWidget !== 'function' ) {
+	// v9.52.0 — MOUNT CONTRACT FIX. PHP-declared widgets mount via
+	// desktop-mode's server-sync, which reads the callback off
+	// window.desktopModeWidgets[ id ]. The previous
+	// wp.desktop.registerWidget({id, render}) call used the client-side path
+	// with a shape it rejects (requires id + label + description + icon +
+	// mount, throws otherwise), so this widget never registered.
+	if ( typeof window === 'undefined' ) {
 		return;
 	}
+
+	window.desktopModeWidgets = window.desktopModeWidgets || {};
 
 	var data    = window.snDesktopData || {};
 	// v6.55.0: dispatch each maintenance action via its ability run-path.
@@ -97,8 +105,12 @@
 			} );
 	}
 
-	function render( container ) {
-		if ( ! container ) { return; }
+	/**
+	 * v9.52.0: mount( container, ctx ) → teardown. No timers here (the card is
+	 * static buttons), so teardown just detaches what we painted.
+	 */
+	function mount( container, ctx ) {
+		if ( ! container ) { return function() {}; }
 		clearChildren( container );
 
 		var wrap = el( 'div', {
@@ -149,11 +161,12 @@
 		} ) );
 
 		container.appendChild( wrap );
+
+		return function teardown() {
+			clearChildren( container );
+		};
 	}
 
-	window.wp.desktop.registerWidget( {
-		id:     'sn-quick-actions',
-		render: render,
-	} );
+	window.desktopModeWidgets['sn-quick-actions'] = mount;
 
 } )();
