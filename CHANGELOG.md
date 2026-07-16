@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.52.3] - 2026-07-16: The 12 dead Cmd+K commands retire — the capability already moved to Ask AI
+
+**Headline:** Twelve theme-ability launcher commands were registered in PHP but **never wired to a JS `run()`** — each rendered a real, clickable palette entry that did nothing. They're gone. **No ability is removed: the count is 49 before and after, and the diff contains zero `wp_register_ability` lines.** This retires 12 inert labels, not capability.
+
+They were parked as display-only pending `desktop_mode_register_ai_tool()`, the server-side AI tool registry the v3.8.0 plan targeted. **desktop-mode removed that API in 0.9.4** and replaced it with WordPress Abilities — so the thing they waited on is never coming.
+
+**Nothing is lost, because the replacement is already live and strictly better.** desktop-mode's AI Copilot offers **every** read-only ability (`meta.annotations.readonly`) as a tool **automatically** — no opt-in, the ability's own `permission_callback` still gating execution — and it dispatches them **with structured arguments**, which a bare launcher label never could. So `get-design-tokens`, `list-block-patterns`, `get-active-template-structure`, `get-theme-version`, `get-page-notes-pillars`, `get-design-system-summary` and `get-reading-time-for-slug` already answer through **Ask AI** today. `reading-time` is the neat case: its required slug argument is precisely why it was left display-only ("sequential `window.prompt()` forms are worse than no UX") — and it's exactly what the Copilot's structured-argument dispatch handles.
+
+The 5 `ai-*` abilities are write-path and are correctly **excluded** from the Copilot — a search turn can be driven by attacker-controlled content (a comment or post body landing in a tool result), so the model is never handed anything that can change the site. They remain available over the MCP write door. That boundary is deliberate and unchanged.
+
+> **Why PATCH:** removes UI that never functioned. Nothing anyone could depend on changes.
+
+### Removed
+- The 12 inert launcher commands: `sn-cmd-{get-design-tokens, list-block-patterns, get-template-structure, theme-version, page-notes-pillars, reading-time, design-summary, ai-page-note-summary, ai-suggest-pattern, ai-brand-validate, ai-pattern-content, ai-rewrite-voice}`. The palette goes 29 → **17**, and every remaining entry does something.
+- `tests/theme-ability-commands.php` (217 lines, 37 asserts) — it existed solely to pin those 12 launchers' shape, so its subject is gone. Its own docblock had already drifted, describing `render_mode` / `input_fields` / `ai_callable` fields that a buried note admitted "v3.7.4 strips… they're discarded by `desktop_mode_register_command()`". Command coverage now lives in `tests/desktop-mode-integration.php` under a stronger contract.
+
+### Added — the contract that makes this un-repeatable
+`tests/desktop-mode-integration.php` now **fails the build if any registered command lacks a JS `run()`**, by diffing the PHP-registered slugs against the slugs `assets/desktop-mode.js` actually implements (comment-stripped). It pins the converse too: no JS handler orphaned without a PHP registration. This is the check that would have caught all 12 the day they shipped — and it only became observable at all once v9.52.1 fixed the registration hook, which is why they hid for years: **no command reached the palette, so nothing looked broken.**
+
+Full sweep 302 files / **9,710 asserts** / 0 failed · phpcs 234 clean · PHPStan clean.
+
 ## [9.52.2] - 2026-07-16: Widgets come off the rail, and Quick Actions stops shouting
 
 **Headline:** With the widgets finally rendering (v9.52.1), two things were obviously wrong on the glass. **All six cards are now `movable` + `resizable`** — drag one out of the right-side column and put it anywhere on the desktop. Both flags default `false`, so until now every card was rail-locked. `movable` makes desktop-mode render a thin chrome header (grip + label + remove) and drag initiates *only* from that chrome, so SN Quick Actions' buttons stay clickable while the card is draggable. Each card declares a `min_*` floor (a drag can't collapse it into a sliver) and a `default_*` size that applies the first time it floats — the column drives geometry while docked. SN Site Views gets a taller floor than its siblings: a sparkline needs vertical room before it reads as a trend rather than a smudge.

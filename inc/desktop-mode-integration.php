@@ -265,30 +265,35 @@ add_action( 'init', function() {
 		array( 'slug' => 'sn-cmd-audit-summary',       'label' => 'SN: Audit log summary',        'description' => 'Toast last-24h totals, 7-day trend, unique IPs, LLA lockout count.', 'icon' => 'dashicons-shield-alt' ),
 		array( 'slug' => 'sn-cmd-audit-recent-logins', 'label' => 'SN: Recent successful logins', 'description' => 'Toast last 10 successful login timestamps + usernames.',              'icon' => 'dashicons-admin-users' ),
 
-		// ─── Theme-ability ⌘K launcher commands (12 total) ─────────────────
-		// Pure launcher entries — slug/label/description/icon only. These
-		// surface the theme's WP 7.0 abilities in the Command Palette for
-		// discoverability. v3.8.0 wires real invocation via the
-		// desktop_mode_register_ai_tool() server-side AI tool registry +
-		// an Anthropic provider (desktop_mode_register_ai_provider()) so
-		// the AI Copilot can dispatch them with structured arguments.
+		// v9.52.3: the 12 theme-ability ⌘K launcher commands are GONE.
 		//
-		// Until v3.8.0 lands, these are display-only entries — clicking a
-		// command does nothing beyond the desktop-mode default behavior
-		// (no JS run() registered). That's intentional: the wrong UX
-		// (sequential window.prompt() forms) is worse than no UX.
-		array( 'slug' => 'sn-cmd-get-design-tokens',        'label' => 'SN: Show design tokens',          'description' => 'Theme palette + typography + spacing scale.',           'icon' => 'dashicons-art' ),
-		array( 'slug' => 'sn-cmd-list-block-patterns',      'label' => 'SN: List block patterns',         'description' => 'All registered patterns with category + keywords.',     'icon' => 'dashicons-screenoptions' ),
-		array( 'slug' => 'sn-cmd-get-template-structure',   'label' => 'SN: Inspect active template',     'description' => 'FSE block tree for the current page.',                  'icon' => 'dashicons-layout' ),
-		array( 'slug' => 'sn-cmd-theme-version',            'label' => 'SN: Theme version info',          'description' => 'Theme + WP version + block-theme flags.',               'icon' => 'dashicons-info-outline' ),
-		array( 'slug' => 'sn-cmd-page-notes-pillars',       'label' => 'SN: List /notes pillars',         'description' => 'Pillar essay metadata for the /notes catalog.',         'icon' => 'dashicons-book' ),
-		array( 'slug' => 'sn-cmd-reading-time',             'label' => 'SN: Reading time for slug',       'description' => 'Computed minutes for a given post slug.',               'icon' => 'dashicons-clock' ),
-		array( 'slug' => 'sn-cmd-design-summary',           'label' => 'SN: Design-system summary',       'description' => 'Formatted overview optimized for AI prompts.',          'icon' => 'dashicons-edit-page' ),
-		array( 'slug' => 'sn-cmd-ai-page-note-summary',     'label' => 'SN: Generate page-note summary',  'description' => 'AI-summarize the current post in /notes catalog voice.', 'icon' => 'dashicons-text' ),
-		array( 'slug' => 'sn-cmd-ai-suggest-pattern',       'label' => 'SN: Suggest block pattern',       'description' => 'AI recommends patterns for a draft.',                   'icon' => 'dashicons-screenoptions' ),
-		array( 'slug' => 'sn-cmd-ai-brand-validate',        'label' => 'SN: Validate brand alignment',    'description' => 'AI checks if content fits SN voice + palette.',         'icon' => 'dashicons-yes-alt' ),
-		array( 'slug' => 'sn-cmd-ai-pattern-content',       'label' => 'SN: Generate pattern content',    'description' => 'Fill a pattern with brand-voiced copy.',                'icon' => 'dashicons-format-aside' ),
-		array( 'slug' => 'sn-cmd-ai-rewrite-voice',         'label' => 'SN: Rewrite in brand voice',      'description' => 'Transform external copy into SN voice.',                'icon' => 'dashicons-edit' ),
+		// They were registered but never wired — no JS run() — so each rendered a
+		// real, clickable palette entry that did nothing. They were parked as
+		// display-only pending desktop_mode_register_ai_tool(), the server-side AI
+		// tool registry the v3.8.0 plan targeted. desktop-mode REMOVED that API in
+		// 0.9.4 and replaced it with WordPress Abilities, so the thing they waited
+		// for is never coming.
+		//
+		// Nothing is lost: the replacement is already live and strictly better.
+		// desktop-mode's AI Copilot offers EVERY read-only ability
+		// (meta.annotations.readonly) as a tool automatically — no opt-in, the
+		// ability's own permission_callback still gates execution — and it can
+		// dispatch them with STRUCTURED ARGUMENTS, which is exactly what a bare
+		// launcher label never could. That's why 7 of these (get-design-tokens,
+		// list-block-patterns, get-active-template-structure, get-theme-version,
+		// get-page-notes-pillars, get-reading-time-for-slug,
+		// get-design-system-summary) already answer through Ask AI today, and why
+		// reading-time — whose required slug argument is the reason it was left
+		// display-only ("sequential window.prompt() forms are worse than no UX")
+		// — now works there.
+		//
+		// The 5 ai-* abilities are write-path and correctly excluded from the
+		// Copilot (a search turn can be driven by attacker-controlled content), but
+		// remain available over the MCP write door.
+		//
+		// EVERY ABILITY IS UNTOUCHED. This removes 12 inert labels, not capability.
+		// tests/desktop-mode-integration.php now fails the build if any registered
+		// command lacks a JS run().
 	);
 
 	foreach ( $commands as $cmd ) {

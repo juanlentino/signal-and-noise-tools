@@ -194,7 +194,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
 ok( count( $widgets ) === 6, 'all six widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
-ok( count( $GLOBALS['__dm_commands'] ) === 29, 'all 29 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
+ok( count( $GLOBALS['__dm_commands'] ) === 17, 'all 17 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-pulse', 'sn-desktop-mode-widget-health' ) as $h ) {
 	ok( isset( $GLOBALS['__scripts'][ $h ] ), "script handle $h is registered by the end of init (desktop-mode enqueues widget scripts at admin_enqueue_scripts:20)" );
@@ -209,6 +209,35 @@ foreach ( $widgets as $id => $args ) {
 }
 ok( array_keys( $widgets ) === array( 'sn-pulse', 'sn-site-views', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-health' ),
 	'widgets register in intended display order (Pulse first) — registration order IS the picker order' );
+
+echo "\n── v9.52.3: no dead commands (every palette entry must DO something) ──\n";
+// The class of bug this pins: a command registered in PHP with no matching
+// JS run() renders a real, clickable palette entry that does nothing. Twelve
+// of those shipped for years — invisible only because the registration hook
+// was ALSO wrong (v9.52.1), so no command reached the palette at all. The
+// moment the hook was fixed, 29 entries appeared and 12 were inert.
+//
+// They were launchers for theme abilities, held display-only pending
+// desktop_mode_register_ai_tool() — an API desktop-mode REMOVED in 0.9.4 and
+// replaced with Abilities. The replacement is already live and strictly
+// better: every read-only ability (meta.annotations.readonly) is offered to
+// the AI Copilot automatically, with structured arguments, which is exactly
+// what those launchers could never do. The abilities are untouched; only the
+// inert UI is gone.
+$dm_js   = strip_js_comments( file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) );
+preg_match_all( "/registerCommand\(\s*\{\s*slug:\s*'([a-z0-9-]+)'/", $dm_js, $m );
+$wired      = array_values( array_unique( $m[1] ) );
+$registered = array_keys( $GLOBALS['__dm_commands'] );
+$dead       = array_values( array_diff( $registered, $wired ) );
+ok( empty( $dead ),
+	'every registered command has a JS run() — no dead palette entries' . ( $dead ? ' [DEAD: ' . implode( ', ', $dead ) . ']' : '' ) );
+ok( count( $registered ) === 17,
+	'17 commands registered (the 12 inert theme-ability launchers retired in v9.52.3), got ' . count( $registered ) );
+// The converse: a JS run() with no PHP registration is equally dead (it can
+// never be invoked, because nothing puts it in the palette).
+$orphan = array_values( array_diff( $wired, $registered ) );
+ok( empty( $orphan ),
+	'no JS command handler is orphaned without a PHP registration' . ( $orphan ? ' [ORPHAN: ' . implode( ', ', $orphan ) . ']' : '' ) );
 
 echo "\n── v9.52.2: drag-and-drop + sizing ──\n";
 // movable:true lets the user drag a card out of the right-side column and
