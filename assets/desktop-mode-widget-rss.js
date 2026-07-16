@@ -20,9 +20,20 @@
 ( function() {
 	'use strict';
 
-	if ( typeof window === 'undefined' || ! window.wp || ! window.wp.desktop || typeof window.wp.desktop.registerWidget !== 'function' ) {
+	// v9.52.0 — MOUNT CONTRACT FIX. This widget is PHP-declared via
+	// desktop_mode_register_widget(), so desktop-mode's server-sync loads this
+	// script and then reads the mount callback off window.desktopModeWidgets[ id ].
+	// Until v9.52.0 this file called wp.desktop.registerWidget({id, render}) —
+	// the OTHER (client-side) path, and with the wrong shape: that path
+	// hard-validates id + label + description + icon + mount and THROWS
+	// otherwise, so this widget never registered on either path. It was
+	// silently dead. Gate on nothing but `window`: the global is ours to own,
+	// and wp.desktop need not exist yet when this script runs.
+	if ( typeof window === 'undefined' ) {
 		return;
 	}
+
+	window.desktopModeWidgets = window.desktopModeWidgets || {};
 
 	var data        = window.snDesktopData || {};
 	var rssPageUrl  = ( data.pages && data.pages.rss ) || '';
@@ -116,12 +127,19 @@
 		container.appendChild( wrap );
 	}
 
-	function render( container ) {
-		if ( ! container ) { return; }
+	/**
+	 * v9.52.0: mount( container, ctx ) → teardown. `torn` also gates the
+	 * async callbacks: an in-flight sntAbilityRun that resolves after the
+	 * user removes the widget must not repaint a detached container.
+	 */
+	function mount( container, ctx ) {
+		if ( ! container ) { return function() {}; }
 
+		var torn = false;
 		renderLoading( container );
 
 		function refresh() {
+			if ( torn ) { return; }
 			if ( ! window.sntAbilityRun ) {
 				renderError( container, 'sntAbilityRun unavailable' );
 				return;
@@ -129,29 +147,28 @@
 			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
 			window.sntAbilityRun( 'get-rss-stats' )
 				.then( function( res ) {
+					if ( torn ) { return; }
 					if ( res && res.data ) {
 						renderCard( container, res.data );
 					}
 				} )
 				.catch( function( err ) {
+					if ( torn ) { return; }
 					renderError( container, err && err.message ? err.message : 'unknown' );
 				} );
 		}
 
 		refresh();
 
-		var intervalId = window.setInterval( function() {
-			if ( ! container.isConnected ) {
-				window.clearInterval( intervalId );
-				return;
-			}
-			refresh();
-		}, REFRESH_MS );
+		var intervalId = window.setInterval( refresh, REFRESH_MS );
+
+		return function teardown() {
+			torn = true;
+			window.clearInterval( intervalId );
+			container.textContent = '';
+		};
 	}
 
-	window.wp.desktop.registerWidget( {
-		id:     'sn-rss-subscribers',
-		render: render,
-	} );
+	window.desktopModeWidgets['sn-rss-subscribers'] = mount;
 
 } )();

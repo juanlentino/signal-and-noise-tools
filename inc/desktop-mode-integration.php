@@ -9,15 +9,32 @@
  *      tabs (via the desktop_mode_dock_items filter).
  *   2. Two desktop icons (Dashboard + Identity — the most-frequent
  *      surfaces) via desktop_mode_register_icon().
- *   3. Thirteen Cmd+K command-palette commands via
- *      desktop_mode_register_command() — 4 maintenance actions (REST-
- *      backed AJAX), 7 navigation shortcuts, 2 info commands.
- *   4. One desktop widget "SN Deploy Status" via
- *      desktop_mode_register_widget() — small floating card showing
- *      theme + plugin version + last deploy time.
+ *   3. Twenty-nine Cmd+K command-palette commands via
+ *      desktop_mode_register_command() — 4 maintenance actions (Abilities
+ *      run-path), 6 navigation shortcuts, 2 version/info, 2 cron, 1
+ *      insights, 2 audit-log, and 12 display-only theme-ability launchers.
+ *   4. Six desktop widgets via desktop_mode_register_widget():
+ *      SN Deploy Status, SN Quick Actions, SN RSS Subscribers, and (v9.52.0)
+ *      SN Pulse, SN Site Views, SN Health.
+ *   5. (v9.52.0) The desktop_mode_living_tree_traffic filter, so the
+ *      wallpaper tree's wind responds to real 14-day traffic.
  *
  * EVERY integration is gated on function_exists() — the plugin behaves
  * identically when desktop-mode is inactive or uninstalled.
+ *
+ * THE WIDGET MOUNT CONTRACT (v9.52.0 — the fix that made widgets work):
+ * desktop-mode offers two widget paths. Ours is the PHP-declared one:
+ * desktop_mode_register_widget() publishes label/description/icon
+ * server-side, then desktop-mode's server-sync loads the widget's script and
+ * reads its mount callback from `window.desktopModeWidgets[ id ]`
+ * (mount( container, ctx ) → teardown). The OTHER path,
+ * wp.desktop.registerWidget( def ), is for pure client-side widgets and
+ * hard-validates the def (id + label + description + icon + mount), throwing
+ * otherwise. Before v9.52.0 all three widget scripts called the client-side
+ * path with `{ id, render }` — wrong path AND wrong shape — so they failed
+ * validation and never set the global either. All three were silently dead;
+ * the file had no tests to notice. tests/desktop-mode-integration.php now
+ * pins the contract for all six.
  *
  * The maintenance commands fire without page navigation via the Abilities
  * run-path (assets/desktop-commands.js run() → sntAbilityRun): purge-all-caches
@@ -96,16 +113,43 @@ add_action( 'admin_enqueue_scripts', function() {
 		true
 	);
 
+	// v9.52.0: three analytics widgets. These read the site-views REST
+	// endpoint (below) rather than the ability run-path, so they depend on
+	// wp-api-fetch only — no snt-ability-run.
+	foreach ( array( 'views', 'pulse', 'health' ) as $sn_widget ) {
+		wp_register_script(
+			'sn-desktop-mode-widget-' . $sn_widget,
+			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+			array( 'wp-api-fetch' ),
+			SNT_VERSION,
+			true
+		);
+	}
+
 
 	// Shared data — both scripts read from window.snDesktopData.
 	$theme  = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'theme' ) : array();
 	$plugin = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
+	// v9.52.0: this hook fires on EVERY wp-admin screen, so it runs for any
+	// role that can reach one (a Contributor, or a Subscriber on their own
+	// profile). The two operational summaries below are owner data and are
+	// gated accordingly — non-admins receive nulls and the widgets render their
+	// honest empty state. (The fields above predate this gate and keep their
+	// existing exposure; this release does not widen them.)
+	$sn_is_owner = current_user_can( 'manage_options' );
 	$shared = array(
 		'restNamespace' => 'signal-noise/v1',
 		'theme'         => $theme,
 		'plugin'        => $plugin,
 		'cronSummary'   => function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array(),
 		'insightsSummary' => function_exists( 'snt_insights_summary_for_localize' ) ? snt_insights_summary_for_localize() : null,
+		// v9.52.0: cheap/durable summaries for the Pulse + Health widgets.
+		// Both are a single option read; both return null (never a fabricated
+		// zero or a fake pass) when their source is absent, so the widget can
+		// render an honest "not configured" / "not scanned yet" state.
+		// The views SERIES is deliberately NOT here — see the REST endpoint.
+		'uptimeSummary' => $sn_is_owner ? snt_uptime_summary_for_localize() : null,
+		'healthSummary' => $sn_is_owner ? snt_health_summary_for_localize() : null,
 		'pages'         => array(
 			'dashboard'    => admin_url( 'admin.php?page=sn-theme-options' ),
 			'identity'     => admin_url( 'admin.php?page=sn-identity' ),
@@ -115,6 +159,7 @@ add_action( 'admin_enqueue_scripts', function() {
 			'insights'     => admin_url( 'admin.php?page=sn-insights' ),
 			'rss'          => admin_url( 'admin.php?page=sn-rss' ),
 			'reading_time' => admin_url( 'admin.php?page=sn-reading-time' ),
+			'analytics'    => admin_url( 'admin.php?page=sn-analytics' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and
@@ -199,27 +244,64 @@ add_action( 'admin_enqueue_scripts', function() {
 	// Independent function_exists check — desktop-mode could theoretically
 	// ship commands without widgets (defensive, mirrors the pre-v4.1.6 split).
 	if ( function_exists( 'desktop_mode_register_widget' ) ) {
+		// v9.52.0: every entry now carries description + icon. desktop-mode's
+		// server-sync copies both straight onto the widget def and its picker
+		// lists them under the label; without them the picker showed an empty
+		// blurb and the generic fallback dashicon.
 		desktop_mode_register_widget( 'sn-deploy-status', array(
-			'label'  => 'SN Deploy Status',
-			'script' => 'sn-desktop-mode-widget',
-			'sort'   => 50,
+			'label'       => 'SN Deploy Status',
+			'description' => 'Theme + plugin version and last deploy time.',
+			'icon'        => 'dashicons-update',
+			'script'      => 'sn-desktop-mode-widget',
+			'sort'        => 50,
 		) );
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
 		// S&N → Dashboard → Maintenance with single-click access from desktop.
 		desktop_mode_register_widget( 'sn-quick-actions', array(
-			'label'  => 'SN Quick Actions',
-			'script' => 'sn-desktop-mode-widget-actions',
-			'sort'   => 55,
+			'label'       => 'SN Quick Actions',
+			'description' => 'One-click purge, clear overrides, force update-check.',
+			'icon'        => 'dashicons-controls-repeat',
+			'script'      => 'sn-desktop-mode-widget-actions',
+			'sort'        => 55,
 		) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
 		// was previously buried under S&N → RSS tab + a single line on the
 		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
 		desktop_mode_register_widget( 'sn-rss-subscribers', array(
-			'label'  => 'SN RSS Subscribers',
-			'script' => 'sn-desktop-mode-widget-rss',
-			'sort'   => 60,
+			'label'       => 'SN RSS Subscribers',
+			'description' => 'Unique feed subscribers over 24h / 7d / 30d.',
+			'icon'        => 'dashicons-rss',
+			'script'      => 'sn-desktop-mode-widget-rss',
+			'sort'        => 60,
+		) );
+
+		// ── v9.52.0: the three analytics widgets ──
+		// Sort order puts Pulse first (the command-center read), then Site
+		// Views, then Health.
+		desktop_mode_register_widget( 'sn-pulse', array(
+			'label'       => 'SN Pulse',
+			'description' => 'Views, uptime and content health in one tile.',
+			'icon'        => 'dashicons-heart',
+			'script'      => 'sn-desktop-mode-widget-pulse',
+			'sort'        => 40,
+		) );
+
+		desktop_mode_register_widget( 'sn-site-views', array(
+			'label'       => 'SN Site Views',
+			'description' => 'A 14-day first-party pageview sparkline.',
+			'icon'        => 'dashicons-chart-area',
+			'script'      => 'sn-desktop-mode-widget-views',
+			'sort'        => 45,
+		) );
+
+		desktop_mode_register_widget( 'sn-health', array(
+			'label'       => 'SN Health',
+			'description' => 'Content-health checks passing, and when last scanned.',
+			'icon'        => 'dashicons-shield-alt',
+			'script'      => 'sn-desktop-mode-widget-health',
+			'sort'        => 65,
 		) );
 	}
 } );
@@ -645,3 +727,223 @@ else{init();}
 </script>
 	<?php
 }, 99 );
+
+/* ─────────────────────────────────────────────────────────────────────
+ * v9.52.0 — analytics widget data layer
+ *
+ * Three widgets (Pulse, Site Views, Health) need three shapes of data.
+ * The split follows the plugin-wide "keep it off the request path"
+ * discipline:
+ *
+ *   - CHEAP + DURABLE (health scan, uptime last-good) → localized into
+ *     window.snDesktopData. Each is one non-autoloaded option read, and
+ *     the payload rides a <script> tag we already emit.
+ *   - The 14-DAY VIEW SERIES → REST, fetched on render. It is NOT
+ *     expensive in the Analytics-Engine sense (inc/analytics-read.php
+ *     reads the durable wp_sn_analytics_daily rollup table via $wpdb;
+ *     the AE path is sn_analytics_query() in inc/analytics-api.php and
+ *     is never touched here). It stays out of the localize because it
+ *     costs TWO aggregate SQL queries — a SUM over the window and a
+ *     GROUP BY series — and localizing would spend them on EVERY
+ *     wp-admin page load, for a widget the user may not have enabled.
+ *     Fetch-on-render spends them only when a widget actually mounts.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/**
+ * Percentage change between two windows.
+ *
+ * Returns null rather than INF/NAN when the prior window is zero: there is
+ * no meaningful "percent up from nothing", and a JSON-encoded INF is not
+ * valid JSON. The widget renders a bare total when delta_pct is null.
+ *
+ * @param int|float $current Current-window total.
+ * @param int|float $prior   Prior-window total.
+ * @return float|null Signed percentage, or null when incomputable.
+ */
+function snt_desktop_delta_pct( $current, $prior ) {
+	if ( ! is_numeric( $current ) || ! is_numeric( $prior ) || (float) $prior === 0.0 ) {
+		return null;
+	}
+	return round( ( ( (float) $current - (float) $prior ) / (float) $prior ) * 100, 1 );
+}
+
+/**
+ * Content-health summary for the localize payload.
+ *
+ * DERIVES pass/fail through the existing single-source-of-truth helpers in
+ * inc/health-summary.php rather than re-deriving it here. A scan's `checks`
+ * is a MAP of key => { count, findings, label, fix_hint } — there is no
+ * "passed" flag in the model; "passed" means a check with zero findings, and
+ * advisory-tier checks (external_links, link_opportunities) carry findings by
+ * nature and must never read as failures. sn_health_flagged_checks() already
+ * encodes both rules, so use it.
+ *
+ * NULL when no scan has ever run — deliberately not a synthetic "0/0 passed",
+ * which would render as a green all-clear and tell the owner the opposite of
+ * the truth. (Same silent-wrong-answer class as the v10.42.2 reading-time
+ * "5 min" fallback.)
+ *
+ * @return array{passed:int,total:int,all_passed:bool,scanned_at:int}|null
+ */
+function snt_health_summary_for_localize() {
+	if ( ! function_exists( 'sn_health_last_scan' ) || ! function_exists( 'sn_health_check_total' ) || ! function_exists( 'sn_health_flagged_checks' ) ) {
+		return null;
+	}
+	$scan = sn_health_last_scan();
+	if ( ! is_array( $scan ) || empty( $scan['checks'] ) || ! is_array( $scan['checks'] ) ) {
+		return null;
+	}
+
+	$total   = sn_health_check_total( $scan );
+	$flagged = count( sn_health_flagged_checks( $scan ) );
+	$passed  = max( 0, $total - $flagged );
+
+	return array(
+		'passed'     => $passed,
+		'total'      => $total,
+		'all_passed' => 0 === $flagged,
+		// sn_health_run_scan() stores scanned_at as time() — an INT timestamp.
+		'scanned_at' => (int) ( $scan['scanned_at'] ?? 0 ),
+	);
+}
+
+/**
+ * Uptime summary for the localize payload.
+ *
+ * NULL when Better Stack is unconfigured (no token) so the Pulse widget
+ * omits the row entirely rather than showing a misleading "down".
+ *
+ * @return array{level:string,status:string}|null
+ */
+function snt_uptime_summary_for_localize() {
+	if ( ! function_exists( 'sn_uptime_status_configured' ) || ! sn_uptime_status_configured() ) {
+		return null;
+	}
+	if ( ! function_exists( 'sn_uptime_status_fetch' ) ) {
+		return null;
+	}
+
+	// sn_uptime_status_fetch() returns a SNAPSHOT — array{fetched_at:int,
+	// rows:array} — or a WP_Error when unconfigured / the API call fails. The
+	// monitor rows live under ['rows']; iterating the snapshot itself finds no
+	// 'level' key on anything, which would silently default every monitor to
+	// 'ok' and paint the tile green straight through an outage. The
+	// !is_array() guard also absorbs the WP_Error case (it's an object).
+	$snap = sn_uptime_status_fetch();
+	if ( ! is_array( $snap ) || empty( $snap['rows'] ) || ! is_array( $snap['rows'] ) ) {
+		return null;
+	}
+
+	// Worst level wins — one monitor down means the site is not "ok".
+	$rank   = array( 'ok' => 0, 'warn' => 1, 'alert' => 2 );
+	$worst  = null;
+	$status = '';
+	foreach ( $snap['rows'] as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$level = (string) ( $row['level'] ?? 'ok' );
+		if ( null === $worst || ( $rank[ $level ] ?? 0 ) > ( $rank[ $worst ] ?? 0 ) ) {
+			$worst  = $level;
+			$status = (string) ( $row['status'] ?? $level );
+		}
+	}
+
+	if ( null === $worst ) {
+		return null;
+	}
+
+	return array( 'level' => $worst, 'status' => $status );
+}
+
+/**
+ * The 14-day view series behind the Site Views + Pulse widgets.
+ *
+ * Transient-cached for 15 minutes: several widgets can mount in the same
+ * shell and each calls this endpoint once, and the underlying rollup only
+ * changes when the rollup cron runs.
+ *
+ * Fail-soft shape: an empty rollup (fresh install, table not yet created,
+ * or simply no traffic in the window) returns days:[] / total:0 /
+ * delta_pct:null — an honest empty state, never a warning or a hang.
+ *
+ * @return WP_REST_Response
+ */
+function snt_desktop_site_views_payload() {
+	$today = substr( (string) current_time( 'mysql' ), 0, 10 );
+	$from  = gmdate( 'Y-m-d', strtotime( $today . ' -13 days' ) );
+
+	// Date-stamped key: a flat key cached at 23:58 would keep serving the
+	// PREVIOUS day's 14-day window for up to 15 minutes after local midnight.
+	// Stamping the local day makes the rollover exact and self-expiring.
+	$cache_key = 'sn_desktop_site_views_' . $today;
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		return new WP_REST_Response( $cached, 200 );
+	}
+
+	$days = array();
+	if ( function_exists( 'sn_analytics_daily_series' ) ) {
+		$series = sn_analytics_daily_series( $from, $today, 'human', 'day' );
+		if ( is_array( $series ) ) {
+			foreach ( $series as $row ) {
+				$days[] = array(
+					'date'  => (string) ( $row['day'] ?? '' ),
+					'views' => (int) ( $row['views'] ?? 0 ),
+				);
+			}
+		}
+	}
+
+	$total     = 0;
+	$delta_pct = null;
+	if ( function_exists( 'sn_analytics_range_totals' ) ) {
+		$this_window = sn_analytics_range_totals( $from, $today, 'human' );
+		$total       = (int) ( $this_window['views'] ?? 0 );
+
+		// Prior 14-day window, for the week-over-week style delta.
+		$prior_to   = gmdate( 'Y-m-d', strtotime( $from . ' -1 day' ) );
+		$prior_from = gmdate( 'Y-m-d', strtotime( $from . ' -14 days' ) );
+		$prior      = sn_analytics_range_totals( $prior_from, $prior_to, 'human' );
+		$delta_pct  = snt_desktop_delta_pct( $total, (int) ( $prior['views'] ?? 0 ) );
+	}
+
+	$payload = array(
+		'days'      => $days,
+		'total'     => $total,
+		'delta_pct' => $delta_pct,
+	);
+
+	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
+	return new WP_REST_Response( $payload, 200 );
+}
+
+add_action( 'rest_api_init', function() {
+	register_rest_route( 'signal-noise/v1', '/desktop/site-views', array(
+		'methods'             => 'GET',
+		'callback'            => 'snt_desktop_site_views_payload',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+	) );
+} );
+
+/**
+ * Living-tree traffic.
+ *
+ * desktop-mode's wallpaper renders a tree whose wind responds to site
+ * traffic, and its docs invite analytics plugins to supply the real
+ * number via this filter. Feed it our 14-day first-party human view
+ * total so the desktop breathes with the actual site.
+ *
+ * Cast to int: desktop-mode types the filtered value as int.
+ */
+add_filter( 'desktop_mode_living_tree_traffic', function( $views ) {
+	if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
+		return (int) $views;
+	}
+	$today  = substr( (string) current_time( 'mysql' ), 0, 10 );
+	$from   = gmdate( 'Y-m-d', strtotime( $today . ' -13 days' ) );
+	$totals = sn_analytics_range_totals( $from, $today, 'human' );
+	return (int) ( $totals['views'] ?? $views );
+} );

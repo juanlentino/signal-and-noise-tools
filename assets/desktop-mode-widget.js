@@ -22,9 +22,17 @@
 ( function() {
 	'use strict';
 
-	if ( typeof window === 'undefined' || ! window.wp || ! window.wp.desktop || typeof window.wp.desktop.registerWidget !== 'function' ) {
+	// v9.52.0 — MOUNT CONTRACT FIX. PHP-declared widgets are mounted by
+	// desktop-mode's server-sync, which reads the callback off
+	// window.desktopModeWidgets[ id ]. This file previously called
+	// wp.desktop.registerWidget({id, render}) — the client-side path, and with
+	// a shape that path rejects (it requires id + label + description + icon +
+	// mount, and throws otherwise). The widget never registered either way.
+	if ( typeof window === 'undefined' ) {
 		return;
 	}
+
+	window.desktopModeWidgets = window.desktopModeWidgets || {};
 
 	var data = window.snDesktopData || {};
 	var dashboardUrl = ( data.pages && data.pages.dashboard ) || '';
@@ -126,12 +134,18 @@
 		container.appendChild( wrap );
 	}
 
-	function render( container ) {
-		if ( ! container ) { return; }
+	/**
+	 * v9.52.0: mount( container, ctx ) → teardown. See the contract note at
+	 * the top of this file.
+	 */
+	function mount( container, ctx ) {
+		if ( ! container ) { return function() {}; }
 
+		var torn = false;
 		renderLoading( container );
 
 		function refresh() {
+			if ( torn ) { return; }
 			if ( ! window.sntAbilityRun ) {
 				renderError( container, 'sntAbilityRun unavailable' );
 				return;
@@ -139,6 +153,7 @@
 			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
 			window.sntAbilityRun( 'get-deploy-status' )
 				.then( function( res ) {
+					if ( torn ) { return; }
 					// The ability returns { theme, plugin, last_deploy } at the root
 					// (no legacy { ok, data } envelope).
 					if ( res && res.theme ) {
@@ -146,24 +161,22 @@
 					}
 				} )
 				.catch( function( err ) {
+					if ( torn ) { return; }
 					renderError( container, err && err.message ? err.message : 'unknown' );
 				} );
 		}
 
 		refresh();
 
-		var intervalId = window.setInterval( function() {
-			if ( ! container.isConnected ) {
-				window.clearInterval( intervalId );
-				return;
-			}
-			refresh();
-		}, REFRESH_MS );
+		var intervalId = window.setInterval( refresh, REFRESH_MS );
+
+		return function teardown() {
+			torn = true;
+			window.clearInterval( intervalId );
+			container.textContent = '';
+		};
 	}
 
-	window.wp.desktop.registerWidget( {
-		id:     'sn-deploy-status',
-		render: render,
-	} );
+	window.desktopModeWidgets['sn-deploy-status'] = mount;
 
 } )();
