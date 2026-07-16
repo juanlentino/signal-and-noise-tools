@@ -2,6 +2,29 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.52.1] - 2026-07-16: The widgets register on the wrong hook — nothing SN ever reached Desktop Mode
+
+**Headline:** v9.52.0 fixed the widgets' *mount contract* and they still didn't appear, because a **second, upstream bug** was hiding behind it: **every SN widget and all 29 Cmd+K commands were registered too late to exist.** desktop-mode builds its `serverWidgets` / `serverCommands` payload inside `desktop_mode_enqueue_assets()`, hooked on `admin_enqueue_scripts` at **default priority 10**, and reads the registries **eagerly** right there (`$payload[$k] = $builder();`). WordPress runs equal-priority callbacks in **insertion order**, and `active_plugins` is sorted alphabetically — `desktop-mode` sorts before `signal-and-noise-tools` — so desktop-mode's priority-10 callback is *always* added, and therefore runs, **before** any priority-10 callback of ours. Registering from our own `admin_enqueue_scripts:10` closure was unwinnable: by the time we called `desktop_mode_register_widget()`, the payload had already been built from an empty registry. Nothing we registered there ever reached the shell — not for years.
+
+Registration now happens on **`init`** (scripts at 5, widgets + commands at 6), exactly as desktop-mode's own [`docs/examples/register-widget.md`](https://github.com/WordPress/desktop-mode) prescribes. `admin_enqueue_scripts` keeps only the `snDesktopData` localize, which is per-handle script data WordPress prints at enqueue time — not a registry read at :10.
+
+**The tell was in this file all along:** the two desktop **icons** always worked, because they were already registered on `init`. Widgets and commands sat on `admin_enqueue_scripts`. A working sibling beside a broken one.
+
+> **Why PATCH:** fixes surfaces that never functioned. No behaviour anyone could depend on changes.
+
+### Fixed
+- **Widgets + Cmd+K commands now actually reach Desktop Mode.** Moved to `init:5` (scripts) / `init:6` (widgets + commands). `init` additionally covers the chromeless / live-refresh path, which rebuilds the same payload **outside** `admin_enqueue_scripts` entirely — and where server-sync *unregisters* any id missing from a refresh, so a late registry doesn't merely fail to add widgets, it can actively remove live ones.
+- **The dead `'sort'` key is gone.** `desktop_mode_register_widget()` has no `sort` arg — absent from its `$defaults` *and* the stored `$entry` in both v0.8.9 and v0.9.5 — so `wp_parse_args()` kept it and the registry dropped it. It looked like it controlled layout and controlled nothing. Order is **registration order** (`seed.push( def )`), so the intended order is now expressed by registering in it: Pulse, Site Views, Deploy Status, Quick Actions, RSS Subscribers, Health.
+- **Widget scripts now declare their real dependency** on `sn-desktop-mode`, which carries the `window.snDesktopData` localize they read. The prior comment claimed a shared `wp-api-fetch` dependency ordered them; sharing a dependency orders nothing. Naming the real edge lets WordPress guarantee the data global is printed first.
+
+### Tests
+`tests/desktop-mode-integration.php` grows to **108 asserts**, pinning the timing contract by name: *"all six widgets are registered by the end of init (NOT admin_enqueue_scripts)"*, *"all 29 Cmd+K commands are registered by the end of init"*, and — as the control — *"both desktop icons are registered on init (this part was always correct)"*. Also pins the absence of `sort` and the registration order. `tests/theme-ability-commands.php` updated to fire `init` before `admin_enqueue_scripts`, as WordPress does; the full sweep caught that regression immediately.
+
+### Engineering note — verify against the real source
+v9.52.0's mount-contract fix was validated against a **stale, remote-less local checkout** of desktop-mode (v0.8.9, 2026-05-23) that happened to agree with the truth. The real repo is [WordPress/desktop-mode](https://github.com/WordPress/desktop-mode) — v0.9.5 at `2378e9d`. The mount contract was right; the hook was never checked, because nothing prompted checking it. Two bugs were stacked, and fixing the visible one produced a confident, wrong "shipped" claim. **A fix is not verified until the behaviour is observed.**
+
+Full sweep 303 files / **9,703 asserts** / 0 failed · phpcs 234 files clean · PHPStan clean.
+
 ## [9.52.0] - 2026-07-16: Desktop Mode learns to read the analytics — and the old widgets start working
 
 **Headline:** Three new Desktop Mode widgets — **SN Pulse** (views + uptime + health in one tile), **SN Site Views** (a 14-day first-party sparkline), and **SN Health** (pass/fail ratio + scan age) — plus the `desktop_mode_living_tree_traffic` filter, so the wallpaper tree's wind now responds to real traffic. The stock "Site Views" tile could never show our numbers: it reads Jetpack or `_post_views_*` postmeta and we write neither by design, so our views live in the edge beacon → AE → `wp_sn_analytics_daily` rollup. Registering our own widget is the only way in.

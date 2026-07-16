@@ -135,7 +135,15 @@ if ( ! defined( 'SN_GH_PLUGIN_BASENAME' ) ) { define( 'SN_GH_PLUGIN_BASENAME', '
 
 require_once __DIR__ . '/../inc/desktop-mode-integration.php';
 
-// Fire the admin_enqueue_scripts callbacks so registrations + localize land.
+// v9.52.1: script + command + widget registration moved to `init` (5 / 6);
+// desktop-mode builds its serverCommands payload at admin_enqueue_scripts:10
+// and — loading alphabetically before us — always beat a same-priority
+// callback of ours, so nothing we registered there ever reached the palette.
+// `admin_enqueue_scripts` now carries only the snDesktopData localize.
+// Fire BOTH, in the order WordPress does.
+foreach ( $GLOBALS['__test_action_callbacks']['init'] ?? array() as $cb ) {
+	$cb();
+}
 foreach ( $GLOBALS['__test_action_callbacks']['admin_enqueue_scripts'] ?? array() as $cb ) {
 	$cb();
 }
