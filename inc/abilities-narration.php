@@ -27,7 +27,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/run-narration', array(
 		'label'               => 'Generate Weekly Analytics Digest',
-		'description'         => 'Generates a fresh weekly analytics narration — a short prose "what happened this week" digest (headline + 2-3 paragraphs + terse numeric highlights) over the last 7 days of first-party analytics: totals, week-over-week deltas, engagement, top pages/sources/events, and (when present) non-human edge traffic. Cookieless: only aggregate counts, never sessions or per-visitor journeys. Cached for 7 days; pass force=true to bypass the cache and regenerate.',
+		'description'         => 'QUEUES a fresh weekly analytics narration — a short prose "what happened this week" digest (headline + 2-3 paragraphs + terse numeric highlights) over the last 7 days of first-party analytics: totals, week-over-week deltas, engagement, top pages/sources/events, and (when present) non-human edge traffic. Generation runs in the BACKGROUND (a large AI call that would exceed a request timeout inline), so this returns immediately with a queued status — read the finished digest with get-narration a moment later. Cookieless: only aggregate counts, never sessions or per-visitor journeys. Cached for 7 days; if a digest is already cached this reports so instead of regenerating — pass force=true to regenerate anyway.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_run_narration',
@@ -45,11 +45,9 @@ add_action( 'wp_abilities_api_init', function() {
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
-				'generated_at' => array( 'type' => 'integer' ),
-				'elapsed_ms'   => array( 'type' => 'integer' ),
-				'headline'     => array( 'type' => 'string' ),
-				'paragraphs'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
-				'highlights'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
+				'scheduled' => array( 'type' => 'boolean', 'description' => 'True if a background generation was newly queued by this call.' ),
+				'cached'    => array( 'type' => 'boolean', 'description' => 'True if a digest is already cached — read it with get-narration.' ),
+				'message'   => array( 'type' => 'string', 'description' => 'Human-readable status pointing at get-narration.' ),
 			),
 		),
 		'meta'                => array(
@@ -103,11 +101,33 @@ add_action( 'wp_abilities_api_init', function() {
  * @return array|WP_Error The generated digest, or WP_Error.
  */
 function snt_ability_run_narration( $input ) {
-	if ( ! function_exists( 'snt_narration_run' ) ) {
+	if ( ! function_exists( 'snt_narration_schedule' ) ) {
 		return new WP_Error( 'snt_narration_unavailable', 'Narration module not loaded.', array( 'status' => 500 ) );
 	}
-	$force = is_array( $input ) && ! empty( $input['force'] );
-	return snt_narration_run( $force );
+	$force  = is_array( $input ) && ! empty( $input['force'] );
+	$cached = function_exists( 'snt_narration_last' ) ? snt_narration_last() : null;
+
+	// v9.51.2: this ability is a TRIGGER, not the generator. The digest is the
+	// plugin's largest AI call and must never run in this (MCP/REST) request —
+	// it would exceed the provider HTTP timeout. Queue a background generation
+	// and return immediately; get-narration reads the result once it lands. Not
+	// forced + already cached ⇒ nothing to do, just point the caller at the read.
+	if ( ! $force && is_array( $cached ) ) {
+		return array(
+			'scheduled' => false,
+			'cached'    => true,
+			'message'   => 'A weekly digest is already cached. Read it with get-narration, or pass force=true to regenerate.',
+		);
+	}
+
+	$scheduled = snt_narration_schedule( $force );
+	return array(
+		'scheduled' => (bool) $scheduled,
+		'cached'    => is_array( $cached ),
+		'message'   => $scheduled
+			? 'Digest generation queued (runs in the background). Call get-narration in a moment to read the result.'
+			: 'Digest generation was already queued. Call get-narration in a moment to read the result.',
+	);
 }
 
 /**

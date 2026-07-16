@@ -37,6 +37,19 @@ define( 'SN_NARRATION_MAX_TOKENS', 1024 );
 // confirmed truncation fix). Consumed by the next admin render; short TTL.
 define( 'SN_NARRATION_LAST_ERROR_KEY', 'sn_narration_last_error' );
 
+// v9.51.2: the digest MUST generate off the request path. snt_narration_run()
+// gathers signals (several 6s-capped AE queries) and then makes the plugin's
+// single largest AI call (1024 completion tokens over a big signals prompt) —
+// which, non-streamed, runs past WordPress's default 30s HTTP timeout on the
+// provider ("cURL error 28 ... 0 bytes received", the reason this digest never
+// generated when run-narration invoked it inline). Generation now rides a
+// near-term single-event cron (snt_narration_schedule → SN_NARRATION_HOOK), and
+// the provider call raises its HTTP timeout for that one call (below). Distinct
+// from the retired weekly-cron hook (sn_insights_narration_weekly, cleared in
+// v9.5.0 by inc/narration-cron-cleanup.php).
+define( 'SN_NARRATION_HOOK', 'sn_insights_narration_generate' );
+define( 'SN_NARRATION_HTTP_TIMEOUT', 120 );
+
 /**
  * Record the most recent digest failure (code + message + bounded raw model
  * output when the error carries it) for the admin notice. Non-errors ignored.
@@ -251,7 +264,65 @@ function snt_narration_call_ai( $signals ) {
 	if ( ! is_string( $prompt ) ) {
 		return new WP_Error( 'snt_narration_encode_failed', 'Failed to encode signals as JSON.' );
 	}
-	return snt_ai_generate_with_constraints( $prompt, snt_narration_system_instruction(), SN_NARRATION_MAX_TOKENS, 'insights_narration' );
+
+	// v9.51.2: raise the provider HTTP timeout for THIS call only — the 1024-token
+	// digest overruns the 30s default. Added then removed (never left registered),
+	// so no other outbound request is affected. Best-effort: only takes when the
+	// AI client routes through the WP HTTP API; harmless otherwise. This runs
+	// cron-side (snt_narration_schedule), so a long wait blocks nothing.
+	$raise    = static function () { return SN_NARRATION_HTTP_TIMEOUT; };
+	$has_hook = function_exists( 'add_filter' ) && function_exists( 'remove_filter' );
+	if ( $has_hook ) {
+		add_filter( 'http_request_timeout', $raise, 100 );
+	}
+	try {
+		$result = snt_ai_generate_with_constraints( $prompt, snt_narration_system_instruction(), SN_NARRATION_MAX_TOKENS, 'insights_narration' );
+	} finally {
+		// finally, not a trailing remove — the raised timeout must NEVER outlive
+		// this one call, even if the generate path throws.
+		if ( $has_hook ) {
+			remove_filter( 'http_request_timeout', $raise, 100 );
+		}
+	}
+	return $result;
+}
+
+/**
+ * Queue a background (cron-side) digest generation, deduped per force value so
+ * repeated run-narration calls don't stack events. Returns true if a NEW event
+ * was scheduled, false if one was already pending or cron is unavailable. The
+ * heavy AI call NEVER runs in the calling request — see snt_narration_call_ai.
+ *
+ * @param bool $force Bypass the cache when the event fires.
+ * @return bool
+ */
+function snt_narration_schedule( $force = false ) {
+	if ( ! function_exists( 'wp_schedule_single_event' ) || ! function_exists( 'wp_next_scheduled' ) ) {
+		return false;
+	}
+	$args = array( (bool) $force );
+	if ( false !== wp_next_scheduled( SN_NARRATION_HOOK, $args ) ) {
+		return false;
+	}
+	return (bool) wp_schedule_single_event( time(), SN_NARRATION_HOOK, $args );
+}
+
+/**
+ * SN_NARRATION_HOOK cron callback: run the (heavy) generation off the request
+ * path. Result lands in the 7-day cache; get-narration / the admin surface read
+ * it. Errors are already recorded by snt_narration_run's own diagnostics.
+ *
+ * @param bool $force
+ * @return void
+ */
+function snt_narration_cron_run( $force = false ) {
+	if ( function_exists( 'snt_narration_run' ) ) {
+		snt_narration_run( (bool) $force );
+	}
+}
+
+if ( function_exists( 'add_action' ) ) {
+	add_action( SN_NARRATION_HOOK, 'snt_narration_cron_run', 10, 1 );
 }
 
 /**

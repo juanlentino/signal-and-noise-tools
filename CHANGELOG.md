@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.51.2] - 2026-07-16: The weekly digest generates off the request path
+
+**Headline:** `run-narration` (over the MCP write door) failed with `cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received`, and — the real tell — the weekly digest had **never once generated** (`get-narration` always returned null). Root cause, traced through the AI Request Logs (which showed a healthy 99.3% success rate at ~2s, ruling out connectivity): the digest is the plugin's **single largest AI call** — `SN_NARRATION_MAX_TOKENS = 1024` over a big signals prompt — and `run-narration` ran it **synchronously, inline** in the request ([inc/abilities-narration.php](inc/abilities-narration.php)). Non-streamed, a 1024-token completion runs past WordPress's **30s HTTP timeout** on the provider call, so it never returned bytes. The dashboard narrator moved cron-side in v9.47.1; this digest was the one AI path still running in-request. **(1)** `run-narration` is now a **trigger, not the generator**: it queues a near-term single-event cron ([inc/insights-narration.php](inc/insights-narration.php) `snt_narration_schedule` → `SN_NARRATION_HOOK`) and returns immediately with a queued status; `get-narration` reads the result a moment later. **(2)** The provider call **raises its HTTP timeout to 120s** for that one cron-side call (scoped `add`/`remove` in a `finally`, so it can never leak onto another request) — best-effort, applying when the AI client routes through the WP HTTP API.
+
+> **Why PATCH:** fixes a tool that always errored. `run-narration`'s return shape changes from the digest to a `{scheduled, cached, message}` queued status — a fix, not a break, since it never once returned a digest; `get-narration` is unchanged and remains the read path.
+
+### Fixed
+- The digest now generates in the background instead of dying on a 30s inline timeout. [tests/abilities-narration.php](tests/abilities-narration.php) (async contract: schedules, queued status, cached short-circuit, already-queued) + [tests/insights-narration.php](tests/insights-narration.php) (deduped scheduler, cron handler drives generation, the scoped timeout raise is added AND removed — no leak). RED-verified by reverting the impl; full sweep 302 files / **9,595 asserts** / 0 failed.
+
 ## [9.51.1] - 2026-07-16: MCP server names get door labels
 
 **Headline:** Both native MCP doors now report a clearer `serverInfo.name` on connect: the read door as **"<site> (Read)"** and the write door as **"<site> (Write)"** — replacing the read door's bare site title and the write door's `"<site> (read-write)"`. The base defaults to the WordPress site title (falling back to "Signal & Noise" when blank) and is filterable via a new `sn_mcp_server_label` hook, so an owner can rename both doors at once without editing the plugin. Clients that surface the in-protocol server name (rather than the connection's own config key) now show two clearly-distinguished, human-readable doors.
