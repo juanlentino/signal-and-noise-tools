@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.53.1] - 2026-07-16: Stop enumerating what's broken — always normalize
+
+**Headline:** The third and final Ask AI schema violation, and the removal of the thing that caused two of the three.
+
+```
+tools.12 …input_schema.type: Input should be 'object'                    → v9.52.5
+tools.29 …input_schema: does not support oneOf, allOf, or anyOf at the top level → v9.53.0
+tools.30 …input_schema.properties: Input should be an object             → v9.53.1  (this)
+```
+
+An ability that takes no arguments naturally writes `'properties' => array()`. PHP has no empty-map literal, so that serialises to JSON `[]` — and the provider requires `{}`. **13 abilities across the plugin + theme declare exactly that.**
+
+**The normalizer already handled it.** It has cast empty properties to `(object) array()` since v9.49. The bug was the **skip** — an "already conformant, touch nothing" guard in the `desktop_mode_ai_tools` filter. It asked *"is this one of the wrong shapes I know about?"* and skipped everything else, so each shape we hadn't met yet passed through untouched and the 400 simply moved to the next tool. It caused the `anyOf` miss in v9.53.0 (that schema's `type` was already `'object'`, so it bailed) and this one.
+
+**Enumerating what's broken cannot work: the list of unsupported constructs belongs to the provider, not to us, and we learn it one live 400 at a time.** So the skip is gone. `sn_mcp_normalize_schema()` now runs on every tool, unconditionally — it's idempotent (pinned by test), and it costs a few array ops on a payload already built per request. Cheaper than being wrong a fourth time.
+
+### Fixed
+- Empty `properties` now reaches the normalizer and serialises as `{}`. Non-empty maps pass through unchanged.
+- The `desktop_mode_ai_tools` filter no longer skips "conformant-looking" schemas.
+
+### Tests
+Stopped asserting individual fixes and started asserting the **property**: every shape our repos actually declare — union `type` + props, union `type` + empty props, `object` + empty props, `object` + props + `anyOf`, an already-fine schema, and an empty schema — is checked against all three provider rules **at once** after normalization. Plus idempotence, which is what makes "always normalize" safe. **196 asserts** on this file; full sweep 302 files / **9,761 asserts** / 0 failed · phpcs 234 clean · PHPStan clean · **49 abilities untouched**.
+
+### Upstream
+This is Desktop Mode's bug as much as ours: its converter passes a plugin's `input_schema` through raw ([`includes/ai-copilot/search.php:743-751`](https://github.com/WordPress/desktop-mode)) while its own fallback one line below already casts empty properties to `(object) array()` — the knowledge is there, it just never reaches the branch that needs it. Its own abilities all use plain `type: 'object'` with non-empty properties, so **only third-party abilities trigger this**, and the 400 names a tool **index** rather than the culprit. A write-up is drafted for the owner to file.
+
 ## [9.53.0] - 2026-07-16: One widget per domain, each as deep as its data allows
 
 **Headline:** **SN Pulse is retired.** It carried views + a delta (Site Views' job) and the health ratio (Health's job), so on a desktop with every card enabled the same numbers rendered twice. The one row it alone carried — uptime — becomes **SN Uptime**. Six widgets, one per domain, each going deep instead of three going shallow.
