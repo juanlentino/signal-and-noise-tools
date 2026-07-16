@@ -32,6 +32,11 @@
 		if ( opts.style ) { node.setAttribute( 'style', opts.style ); }
 		if ( opts.text != null ) { node.textContent = opts.text; }
 		if ( opts.href != null ) { node.href = opts.href; }
+		// v9.53.0: title carries the honesty explainers (what `confidence`
+		// actually measures; that advisories are not faults) and the hover
+		// text for ellipsised rows. Without this branch every title: passed
+		// to el() was silently discarded — the explainers never rendered.
+		if ( opts.title != null ) { node.title = opts.title; }
 		return node;
 	}
 
@@ -88,6 +93,47 @@
 			style: 'font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;'
 		} ) );
 		wrap.appendChild( row );
+
+		// ── v9.53.0: WHICH checks failed ──
+		// "11/11" answers "is anything wrong". This answers "what". The server
+		// sends them already ranked count-desc with the advisory tier excluded
+		// (sn_health_flagged_checks), capped at 4 with the remainder counted —
+		// the card is a glance, not the Health tab.
+		var flagged = summary.flagged || [];
+		if ( flagged.length ) {
+			var list = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+			flagged.forEach( function( f ) {
+				var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+				row.appendChild( el( 'span', {
+					text:  String( f.label ),
+					title: String( f.label ),
+					style: 'opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+				} ) );
+				row.appendChild( el( 'span', {
+					text:  String( f.count ),
+					style: 'font-variant-numeric:tabular-nums;font-weight:600;color:#d29922;flex:0 0 auto;'
+				} ) );
+				list.appendChild( row );
+			} );
+			if ( summary.flagged_more > 0 ) {
+				list.appendChild( el( 'div', {
+					text:  '+' + summary.flagged_more + ' more',
+					style: 'font-size:10px;opacity:.45;margin-top:2px;'
+				} ) );
+			}
+			wrap.appendChild( list );
+		}
+
+		// Advisories are reported apart from faults, never folded in:
+		// external_links / link_opportunities carry findings by nature, so
+		// counting them as problems would make a healthy site read as alarming.
+		if ( summary.advisory_total > 0 ) {
+			wrap.appendChild( el( 'div', {
+				text:  summary.advisory_total + ' advisories (not faults)',
+				title: 'Advisory checks — external links and link opportunities — always carry findings. They are informational, not problems.',
+				style: 'font-size:10px;opacity:.45;margin-top:6px;'
+			} ) );
+		}
 
 		var age = ago( summary.scanned_at );
 		wrap.appendChild( el( 'div', {

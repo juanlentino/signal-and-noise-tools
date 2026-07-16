@@ -14,8 +14,9 @@
  *      run-path), 6 navigation shortcuts, 2 version/info, 2 cron, 1
  *      insights, 2 audit-log, and 12 display-only theme-ability launchers.
  *   4. Six desktop widgets via desktop_mode_register_widget():
- *      SN Deploy Status, SN Quick Actions, SN RSS Subscribers, and (v9.52.0)
- *      SN Pulse, SN Site Views, SN Health.
+ *      SN Site Views, SN Health, SN Uptime, SN Deploy Status, SN Quick
+ *      Actions, SN RSS Subscribers — one per domain since v9.53.0 (SN Pulse
+ *      retired: it duplicated Site Views + Health).
  *   5. (v9.52.0) The desktop_mode_living_tree_traffic filter, so the
  *      wallpaper tree's wind responds to real 14-day traffic.
  *
@@ -152,7 +153,7 @@ add_action( 'init', function() {
 	// (wp-api-fetch) never ordered them — the pre-v9.52.1 comment claiming it
 	// did was wrong — so name the real edge and let WP guarantee the data
 	// global is printed before any widget script runs.
-	foreach ( array( 'views', 'pulse', 'health' ) as $sn_widget ) {
+	foreach ( array( 'views', 'health', 'uptime' ) as $sn_widget ) {
 		wp_register_script(
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
@@ -198,7 +199,12 @@ add_action( 'admin_enqueue_scripts', function() {
 		// zero or a fake pass) when their source is absent, so the widget can
 		// render an honest "not configured" / "not scanned yet" state.
 		// The views SERIES is deliberately NOT here — see the REST endpoint.
-		'uptimeSummary' => $sn_is_owner ? snt_uptime_summary_for_localize() : null,
+		// v9.53.0: uptimeSummary is GONE. SN Pulse was its only consumer, and
+		// Pulse is retired; the new SN Uptime widget fetches live via the
+		// uptime-status ability instead. Leaving it here would have run
+		// sn_uptime_status_fetch() — a Better Stack API call behind a 90s
+		// transient — on EVERY wp-admin page load, for a payload nothing reads.
+		// That is precisely the cost this file's data rule exists to prevent.
 		'healthSummary' => $sn_is_owner ? snt_health_summary_for_localize() : null,
 		'pages'         => array(
 			'dashboard'    => admin_url( 'admin.php?page=sn-theme-options' ),
@@ -325,37 +331,61 @@ add_action( 'init', function() {
 		// utility cards, then Health.
 		// v9.52.2: every card is movable + resizable — drag it out of the
 		// right-side column and place it anywhere on the desktop. Both default
-		// FALSE, so until now the cards were locked to the column. `movable`
+		// FALSE, so until v9.52.2 the cards were locked to the column. `movable`
 		// makes desktop-mode render a thin chrome header (grip + label +
 		// remove) and drag initiates ONLY from that chrome, so the buttons
 		// inside SN Quick Actions stay clickable; `resizable` adds the 8 grip
 		// handles. The column drives geometry while a card is docked — the
 		// default_* sizes apply the first time a card floats, and the min_*
 		// floor stops a drag collapsing one into an unreadable sliver.
+		//
+		// v9.53.0: ONE WIDGET PER DOMAIN. SN Pulse is retired — it carried
+		// views + a delta (Site Views' job) and the health ratio (Health's job),
+		// so on a desktop with all cards enabled the same numbers rendered
+		// twice. The one row it alone carried, uptime, is now SN Uptime. Each
+		// surviving card goes deep instead of three cards going shallow.
+		// desktop_mode_register_widget() has NO sort arg (absent from $defaults
+		// and the stored $entry in both v0.8.9 and v0.9.5) — order is
+		// REGISTRATION order (seed.push, src/widgets/registry.ts). Hence:
+		// traffic, then site condition, then ops.
 		$sn_drag = array( 'movable' => true, 'resizable' => true );
-
-		desktop_mode_register_widget( 'sn-pulse', array_merge( $sn_drag, array(
-			'label'          => 'SN Pulse',
-			'description'    => 'Views, uptime and content health in one tile.',
-			'icon'           => 'dashicons-heart',
-			'script'         => 'sn-desktop-mode-widget-pulse',
-			'min_width'      => 220,
-			'min_height'     => 120,
-			'default_width'  => 300,
-			'default_height' => 150,
-		) ) );
 
 		desktop_mode_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Site Views',
-			'description'    => 'A 14-day first-party pageview sparkline.',
+			'description'    => 'First-party traffic: 14-day sparkline, bot share, top page, forecast.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
 			// Taller floor than its siblings: the sparkline needs vertical room
-			// before it reads as a trend rather than a smudge.
+			// before it reads as a trend rather than a smudge, and v9.53.0 adds
+			// the visits/bot/top-path rows plus the forecast beneath it.
 			'min_width'      => 240,
-			'min_height'     => 170,
-			'default_width'  => 320,
-			'default_height' => 220,
+			'min_height'     => 220,
+			'default_width'  => 330,
+			'default_height' => 300,
+		) ) );
+
+		desktop_mode_register_widget( 'sn-health', array_merge( $sn_drag, array(
+			'label'          => 'SN Health',
+			'description'    => 'Content-health checks passing — and which ones are not.',
+			'icon'           => 'dashicons-shield-alt',
+			'script'         => 'sn-desktop-mode-widget-health',
+			'min_width'      => 220,
+			'min_height'     => 130,
+			'default_width'  => 300,
+			'default_height' => 190,
+		) ) );
+
+		// v9.53.0: new. Was one row inside Pulse; uptime deserves its own card
+		// once it can show 30d availability + response time.
+		desktop_mode_register_widget( 'sn-uptime', array_merge( $sn_drag, array(
+			'label'          => 'SN Uptime',
+			'description'    => 'Monitor status, 30-day availability and response time.',
+			'icon'           => 'dashicons-chart-bar',
+			'script'         => 'sn-desktop-mode-widget-uptime',
+			'min_width'      => 220,
+			'min_height'     => 120,
+			'default_width'  => 300,
+			'default_height' => 180,
 		) ) );
 
 		desktop_mode_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
@@ -376,7 +406,6 @@ add_action( 'init', function() {
 			'description'    => 'One-click purge, clear overrides, force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
-			// Three stacked buttons + the toast slot.
 			'min_width'      => 220,
 			'min_height'     => 190,
 			'default_width'  => 300,
@@ -395,17 +424,6 @@ add_action( 'init', function() {
 			'min_height'     => 150,
 			'default_width'  => 300,
 			'default_height' => 200,
-		) ) );
-
-		desktop_mode_register_widget( 'sn-health', array_merge( $sn_drag, array(
-			'label'          => 'SN Health',
-			'description'    => 'Content-health checks passing, and when last scanned.',
-			'icon'           => 'dashicons-shield-alt',
-			'script'         => 'sn-desktop-mode-widget-health',
-			'min_width'      => 220,
-			'min_height'     => 110,
-			'default_width'  => 300,
-			'default_height' => 150,
 		) ) );
 	}
 }, 6 );
@@ -835,7 +853,7 @@ else{init();}
 /* ─────────────────────────────────────────────────────────────────────
  * v9.52.0 — analytics widget data layer
  *
- * Three widgets (Pulse, Site Views, Health) need three shapes of data.
+ * The widgets need three shapes of data.
  * The split follows the plugin-wide "keep it off the request path"
  * discipline:
  *
@@ -898,66 +916,41 @@ function snt_health_summary_for_localize() {
 		return null;
 	}
 
-	$total   = sn_health_check_total( $scan );
-	$flagged = count( sn_health_flagged_checks( $scan ) );
-	$passed  = max( 0, $total - $flagged );
+	$total       = sn_health_check_total( $scan );
+	$flagged_map = sn_health_flagged_checks( $scan );
+	$flagged_n   = count( $flagged_map );
+	$passed      = max( 0, $total - $flagged_n );
+
+	// v9.53.0: WHICH checks failed, not just how many. sn_health_flagged_checks()
+	// already returns them count-desc and already excludes the advisory tier, so
+	// reuse its ranking rather than re-deriving one. Cap at 4: the card is a
+	// glance, and "+N more" is honest about the tail without pretending the
+	// widget is the Health tab.
+	$flagged = array();
+	foreach ( $flagged_map as $key => $check ) {
+		$flagged[] = array(
+			'key'   => (string) $key,
+			'label' => (string) ( $check['label'] ?? $key ),
+			'count' => (int) ( $check['count'] ?? 0 ),
+		);
+	}
+	$shown = array_slice( $flagged, 0, 4 );
 
 	return array(
-		'passed'     => $passed,
-		'total'      => $total,
-		'all_passed' => 0 === $flagged,
+		'passed'         => $passed,
+		'total'          => $total,
+		'all_passed'     => 0 === $flagged_n,
 		// sn_health_run_scan() stores scanned_at as time() — an INT timestamp.
-		'scanned_at' => (int) ( $scan['scanned_at'] ?? 0 ),
+		'scanned_at'     => (int) ( $scan['scanned_at'] ?? 0 ),
+		'flagged'        => $shown,
+		'flagged_more'   => max( 0, count( $flagged ) - count( $shown ) ),
+		// Advisories are reported SEPARATELY and never as faults: external_links
+		// and link_opportunities carry findings by nature (see
+		// sn_health_advisory_checks()), so folding them into the fault total
+		// would render a healthy site as permanently alarming.
+		'findings_total' => function_exists( 'sn_health_finding_total' ) ? (int) sn_health_finding_total( $scan ) : 0,
+		'advisory_total' => function_exists( 'sn_health_advisory_total' ) ? (int) sn_health_advisory_total( $scan ) : 0,
 	);
-}
-
-/**
- * Uptime summary for the localize payload.
- *
- * NULL when Better Stack is unconfigured (no token) so the Pulse widget
- * omits the row entirely rather than showing a misleading "down".
- *
- * @return array{level:string,status:string}|null
- */
-function snt_uptime_summary_for_localize() {
-	if ( ! function_exists( 'sn_uptime_status_configured' ) || ! sn_uptime_status_configured() ) {
-		return null;
-	}
-	if ( ! function_exists( 'sn_uptime_status_fetch' ) ) {
-		return null;
-	}
-
-	// sn_uptime_status_fetch() returns a SNAPSHOT — array{fetched_at:int,
-	// rows:array} — or a WP_Error when unconfigured / the API call fails. The
-	// monitor rows live under ['rows']; iterating the snapshot itself finds no
-	// 'level' key on anything, which would silently default every monitor to
-	// 'ok' and paint the tile green straight through an outage. The
-	// !is_array() guard also absorbs the WP_Error case (it's an object).
-	$snap = sn_uptime_status_fetch();
-	if ( ! is_array( $snap ) || empty( $snap['rows'] ) || ! is_array( $snap['rows'] ) ) {
-		return null;
-	}
-
-	// Worst level wins — one monitor down means the site is not "ok".
-	$rank   = array( 'ok' => 0, 'warn' => 1, 'alert' => 2 );
-	$worst  = null;
-	$status = '';
-	foreach ( $snap['rows'] as $row ) {
-		if ( ! is_array( $row ) ) {
-			continue;
-		}
-		$level = (string) ( $row['level'] ?? 'ok' );
-		if ( null === $worst || ( $rank[ $level ] ?? 0 ) > ( $rank[ $worst ] ?? 0 ) ) {
-			$worst  = $level;
-			$status = (string) ( $row['status'] ?? $level );
-		}
-	}
-
-	if ( null === $worst ) {
-		return null;
-	}
-
-	return array( 'level' => $worst, 'status' => $status );
 }
 
 /**
@@ -986,24 +979,42 @@ function snt_desktop_site_views_payload() {
 		return new WP_REST_Response( $cached, 200 );
 	}
 
-	$days = array();
+	// v9.53.0 — THE FIT WINDOW. The forecast engine suppresses below
+	// SN_ANALYTICS_FORECAST_MIN_POINTS (21), so fitting on the 14-day DISPLAY
+	// window would return null every single time and the forecast would never
+	// once render. sn_analytics_signal_forecasts() already solves this the same
+	// way: "trailing fit history ending $to, decoupled from the display range".
+	// So fetch ONE longer series and slice it — the last 14 days draw the
+	// sparkline, the whole 60 feed the fit. One query, not two.
+	$fit_from = gmdate( 'Y-m-d', strtotime( $today . ' -59 days' ) );
+
+	$fit_series = array();
 	if ( function_exists( 'sn_analytics_daily_series' ) ) {
-		$series = sn_analytics_daily_series( $from, $today, 'human', 'day' );
-		if ( is_array( $series ) ) {
-			foreach ( $series as $row ) {
-				$days[] = array(
-					'date'  => (string) ( $row['day'] ?? '' ),
-					'views' => (int) ( $row['views'] ?? 0 ),
-				);
-			}
+		$raw = sn_analytics_daily_series( $fit_from, $today, 'human', 'day' );
+		if ( is_array( $raw ) ) {
+			$fit_series = $raw;
+		}
+	}
+
+	// The sparkline shows only the display window.
+	$days = array();
+	foreach ( $fit_series as $row ) {
+		$day = (string) ( $row['day'] ?? '' );
+		if ( '' !== $day && $day >= $from ) {
+			$days[] = array(
+				'date'  => $day,
+				'views' => (int) ( $row['views'] ?? 0 ),
+			);
 		}
 	}
 
 	$total     = 0;
+	$visits    = 0;
 	$delta_pct = null;
 	if ( function_exists( 'sn_analytics_range_totals' ) ) {
 		$this_window = sn_analytics_range_totals( $from, $today, 'human' );
 		$total       = (int) ( $this_window['views'] ?? 0 );
+		$visits      = (int) ( $this_window['visits'] ?? 0 );
 
 		// Prior 14-day window, for the week-over-week style delta.
 		$prior_to   = gmdate( 'Y-m-d', strtotime( $from . ' -1 day' ) );
@@ -1012,10 +1023,69 @@ function snt_desktop_site_views_payload() {
 		$delta_pct  = snt_desktop_delta_pct( $total, (int) ( $prior['views'] ?? 0 ) );
 	}
 
+	// Bot share across the DISPLAY window, weighted by volume — a plain average
+	// of daily bot_pct would let a 3-view day count as much as a 300-view one.
+	// null (not 0) when there is nothing to divide by: "no data" is not "0% bots".
+	$bot_pct = null;
+	if ( function_exists( 'sn_analytics_class_series' ) ) {
+		$classes = sn_analytics_class_series( $from, $today, 'day' );
+		if ( is_array( $classes ) && $classes ) {
+			$tot = 0;
+			$bot = 0;
+			foreach ( $classes as $row ) {
+				$tot += (int) ( $row['total'] ?? 0 );
+				$bot += (int) ( $row['bot'] ?? 0 );
+			}
+			if ( $tot > 0 ) {
+				$bot_pct = (int) round( ( $bot / $tot ) * 100 );
+			}
+		}
+	}
+
+	$top_path = null;
+	if ( function_exists( 'sn_analytics_top_paths' ) ) {
+		$top = sn_analytics_top_paths( $from, $today, 'human', 1 );
+		if ( is_array( $top ) && isset( $top[0]['path'] ) ) {
+			$top_path = array(
+				'path'  => (string) $top[0]['path'],
+				'views' => (int) ( $top[0]['views'] ?? 0 ),
+			);
+		}
+	}
+
+	// The forecast, or nothing. sn_analytics_forecast_of() already encodes the
+	// honesty gates — under 21 points → null, zero median level → null, and
+	// `confidence` is the backtest's MEASURED interval coverage, not a vibe.
+	// We pass its verdict through UNCHANGED and never synthesise a fallback:
+	// a point without an interval, or a number invented from thin history, is
+	// the dishonest version of this feature.
+	$forecast = null;
+	if ( function_exists( 'sn_analytics_forecast_of' ) && $fit_series ) {
+		$signal = sn_analytics_forecast_of( 'site_views', 'Site views', $fit_series, $fit_from, $today );
+		if ( is_array( $signal ) && isset( $signal['value'], $signal['interval']['low'], $signal['interval']['high'] ) ) {
+			$forecast = array(
+				'value'      => $signal['value'],
+				'interval'   => array(
+					'low'  => $signal['interval']['low'],
+					'high' => $signal['interval']['high'],
+				),
+				'confidence' => (string) ( $signal['confidence'] ?? 'low' ),
+				'direction'  => (string) ( $signal['direction'] ?? 'flat' ),
+				// Mirrors the engine's SN_ANALYTICS_FORECAST_HORIZON default, which
+				// is what forecast_of() used above (we pass no $opts override).
+				'horizon'    => 7,
+			);
+		}
+	}
+
 	$payload = array(
 		'days'      => $days,
 		'total'     => $total,
+		'visits'    => $visits,
 		'delta_pct' => $delta_pct,
+		'bot_pct'   => $bot_pct,
+		'top_path'  => $top_path,
+		'forecast'  => $forecast,
 	);
 
 	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
