@@ -191,6 +191,13 @@ function ok( $cond, $label ) {
 	else { $fail++; echo "  FAIL— $label\n"; }
 }
 
+// v9.55.0: REQUIRE these, don't stub them. Both are pure array logic with no
+// requires and no top-level side effects, and they own the only truth about
+// which admin page slugs actually exist. A stubbed tab list is precisely how
+// the dead-link bug below survived — see [[test-stub-drift-invents-shapes]].
+require_once __DIR__ . '/../inc/admin-tabs-data.php';
+require_once __DIR__ . '/../inc/admin-legacy-redirect.php';
+
 require_once __DIR__ . '/../inc/desktop-mode-integration.php';
 
 /** Fire every callback registered on a hook. */
@@ -725,6 +732,73 @@ ok( isset( $anyof_tools[0]['parameters']['properties']['post_id'], $anyof_tools[
 	'stripping the combinator keeps every property — the tool still takes its arguments' );
 ok( ( $anyof_tools[0]['parameters']['additionalProperties'] ?? null ) === false,
 	'stripping the combinator preserves the rest of the schema' );
+
+echo "\n── v9.55.0: every desktop-mode admin link must reach a REGISTERED page ──\n";
+// THE BUG (owner-found by clicking, 2026-07-16): opening most SN windows in
+// Desktop Mode showed WP core's "Sorry, you are not allowed to access this
+// page." EIGHT of our NINE admin links pointed at slugs that do not exist.
+//
+// v3.8.1 cut the wp-admin submenu from the 12 legacy slugs to 6 top tabs
+// (add_submenu_page over sn_admin_top_tabs()). The desktop-mode icons and the
+// Cmd+K nav map kept hardcoding the RETIRED slugs — sn-identity, sn-login,
+// sn-cron, sn-rss… admin.php looks each up in $_registered_pages, doesn't find
+// it, and wp_die()s. The message is WP CORE's, not desktop-mode's and not
+// ours, which is exactly why no surface here ever noticed.
+//
+// And the legacy redirect cannot rescue them: sn_admin_maybe_redirect_legacy()
+// is called from INSIDE sn_theme_options_page() — the render callback of a page
+// that no longer exists. The rescue lives in the room that burned down. A
+// legacy URL only redirects if its slug is still registered; these aren't.
+//
+// So: never hardcode a page slug here. Route every link through the canonical
+// resolver the redirect itself uses, which always lands on the registered
+// parent (page=sn-theme-options&tab=…). This test pins the PROPERTY — every
+// emitted link resolves to a registered page — rather than a list of slugs
+// that would rot the same way the last one did.
+$sn_registered = array_merge(
+	array( 'sn-theme-options' ),
+	array_column( sn_admin_top_tabs(), 'slug' )
+);
+$sn_targets = array();
+foreach ( ( $GLOBALS['__localized']['snDesktopData']['pages'] ?? array() ) as $k => $u ) {
+	$sn_targets[ "pages.$k" ] = $u;
+}
+foreach ( $GLOBALS['__dm_icons'] as $id => $args ) {
+	$sn_targets[ "icon.$id" ] = $args['url'] ?? '';
+}
+ok( count( $sn_targets ) >= 10, 'sanity: the nav map + icons were captured (' . count( $sn_targets ) . ' links)' );
+foreach ( $sn_targets as $sn_label => $sn_url ) {
+	$sn_slug = preg_match( '/[?&]page=([a-z0-9-]+)/', (string) $sn_url, $m ) ? $m[1] : '';
+	// index.php?page=sn-analytics is legitimately registered — via
+	// add_dashboard_page(), under WP's Dashboard menu, not the SN menu.
+	$sn_ok = in_array( $sn_slug, $sn_registered, true )
+		|| ( 'sn-analytics' === $sn_slug && false !== strpos( (string) $sn_url, 'index.php?page=' ) );
+	ok( $sn_ok, "$sn_label → a REGISTERED page (got '" . ( $sn_slug ?: 'NONE' ) . "')" );
+}
+
+// "It loads" is NOT the property. Every link above now says page=sn-theme-options,
+// so the assertions would pass identically if all nine dumped the user on the
+// Dashboard — a link that resolves and goes to the wrong place. I wrote exactly
+// that test first and it went green. Assert the DESTINATION.
+$sn_expect = array(
+	'pages.dashboard'    => 'admin.php?page=sn-theme-options&tab=dashboard',
+	'pages.identity'     => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
+	'pages.login'        => 'admin.php?page=sn-theme-options&tab=security&sub=login',
+	'pages.cloudflare'   => 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare',
+	'pages.cron'         => 'admin.php?page=sn-theme-options&tab=connections&sub=cron',
+	'pages.insights'     => 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights',
+	'pages.rss'          => 'admin.php?page=sn-theme-options&tab=content&sub=rss',
+	'pages.reading_time' => 'admin.php?page=sn-theme-options&tab=content&sub=reading-time',
+	// NOT an SN tab: add_dashboard_page() puts it under index.php. The resolver
+	// alone sends it to tab=dashboard — loads fine, wrong page.
+	'pages.analytics'    => 'index.php?page=sn-analytics',
+	'icon.sn-icon-identity' => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
+);
+foreach ( $sn_expect as $sn_label => $sn_want ) {
+	$sn_got = (string) ( $sn_targets[ $sn_label ] ?? '' );
+	ok( false !== strpos( $sn_got, $sn_want ),
+		"$sn_label lands on its REAL destination (" . $sn_want . ')' );
+}
 
 echo "\n── v9.53.2: the normalizer must run LAST, or it doesn't run at all ──\n";
 // Same lesson as the skip, one level up. v9.53.1 made the normalizer

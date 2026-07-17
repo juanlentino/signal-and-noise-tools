@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.55.0] - 2026-07-16: Eight of nine Desktop Mode links went nowhere
+
+**Headline:** Opening most SN windows in Desktop Mode showed WordPress's own error:
+
+> Sorry, you are not allowed to access this page.
+
+**Eight of our nine admin links pointed at page slugs that no longer exist.** Only the Dashboard worked.
+
+**v3.8.1** cut the wp-admin submenu from the 12 legacy slugs down to 6 top tabs. The Desktop Mode icons and the Cmd+K nav map kept hardcoding the **retired** slugs — `sn-identity`, `sn-login`, `sn-cron`, `sn-rss`, `sn-insights`, `sn-cloudflare`, `sn-reading-time`. `admin.php` looks each up in `$_registered_pages`, doesn't find it, and `wp_die()`s.
+
+**Why nothing caught it:** the message is **WP core's** — not Desktop Mode's, not ours. No test asserted that a link we emit reaches a page we register, so CI stayed green while the surface was dead. The owner found it by clicking. Again.
+
+**And the safety net was in the room that burned down.** `sn_admin_maybe_redirect_legacy()` exists precisely to 301 old slugs to their new home — but it's called from *inside* `sn_theme_options_page()`, the render callback of a page that no longer exists. A legacy URL only redirects if its slug is still registered. These aren't.
+
+**The fix:** never hardcode a slug. `snt_desktop_admin_url()` routes every link through the same canonical resolver the redirect itself uses, always landing on the registered parent — so a future IA change can't re-rot them; they follow the tab data.
+
+| Link | Now lands on |
+|---|---|
+| identity | `tab=site&sub=identity-and-seo#sn-sec-identity` |
+| login | `tab=security&sub=login` |
+| cloudflare / cron | `tab=connections&sub=…` |
+| insights | `tab=monitoring&sub=insights` |
+| rss / reading_time | `tab=content&sub=…` |
+| **analytics** | **`index.php?page=sn-analytics`** |
+
+**Analytics is the interesting one.** It's registered with `add_dashboard_page()` — under WP's Dashboard menu, not the SN menu — so it isn't an SN tab at all. The resolver alone falls through to `tab=dashboard`: a link that **loads perfectly and goes to the wrong place**. The old hardcoded link was dead for the mirror-image reason: right slug, wrong parent.
+
+**Test note — the first version of this test was wrong and went green.** It asserted each link's `page=` was a *registered* slug. Every link now says `page=sn-theme-options`, so it would have passed identically had all nine dumped the user on the Dashboard. *"It loads"* is not the property; **the destination is**. The suite now pins all ten exact destinations, and is mutation-checked: drop the analytics special case and it goes red while the link still loads. It also `require`s the real tab data instead of stubbing it — a stubbed tab list is exactly how this rotted.
+
 ## [9.54.2] - 2026-07-16: A tag so the rewritten fallback can be proven — and the flaky guard it exposed
 
 **No plugin code change.** The payload is byte-identical to 9.54.1 apart from this version header. This tag exists so the emergency deploy workflow can be exercised at all — and it carries a real fix to that workflow, found by exercising its twin.
