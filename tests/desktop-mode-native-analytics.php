@@ -135,12 +135,34 @@ ok( strpos( $tpl, 'data-sn-hud="realtime"' ) !== false, 'template declares the r
 ok( strpos( $tpl, 'data-sn-hud="kpis"' ) !== false, 'template declares the kpis mount point' );
 ok( strpos( $tpl, 'data-sn-hud="top-content"' ) !== false, 'template declares the top-content mount point' );
 ok( strpos( $tpl, 'data-sn-hud="top-sources"' ) !== false, 'template declares the top-sources mount point' );
+ok( strpos( $tpl, 'data-sn-hud="root"' ) !== false, 'template declares the root mount point (the JS renders error states into it)' );
+ok( strpos( $tpl, 'data-sn-hud="full-link"' ) !== false, 'template declares the full-link mount point (the JS sets its href from config.fullUrl)' );
 
 // THE property: desktop-mode prints this template into the DOM ONCE at shell
 // render and clones it per open. Any number echoed here is frozen at page load
 // — realtime would be a lie with a fresh-looking label. So: no digits at all.
 ok( preg_match( '/\d/', strip_tags( $tpl ) ) !== 1,
 	'template body contains NO digits — it is a skeleton, not a snapshot' );
+
+echo "\n── DESTINATION (the v9.55.0 lesson: 'it loads' is not the property) ──\n";
+$cfg = $w['config'] ?? array();
+
+// Assert the EXACT destination. Asserting merely "page= is a registered slug"
+// would pass if this link dumped the user on the SN Dashboard — which is
+// exactly the wrong test that went green in v9.55.0.
+ok( ( $cfg['fullUrl'] ?? '' ) === 'https://example.test/wp-admin/index.php?page=sn-analytics',
+	'config.fullUrl is EXACTLY index.php?page=sn-analytics (add_dashboard_page home)' );
+
+// Mutation check: the resolver's generic path must NOT produce this URL, or the
+// assertion above would pass for the wrong reason.
+ok( snt_desktop_admin_url( 'sn-identity' ) !== ( $cfg['fullUrl'] ?? '' ),
+	'mutation: a non-analytics slug resolves somewhere else (fullUrl is not a constant)' );
+ok( strpos( (string) ( $cfg['fullUrl'] ?? '' ), 'tab=dashboard' ) === false,
+	'fullUrl did NOT fall through to the tab=dashboard default' );
+
+ok( ( $cfg['endpoint'] ?? '' ) === 'https://example.test/wp-json/signal-noise/v1/desktop/analytics-hud',
+	'config.endpoint points at the HUD route' );
+ok( ! empty( $cfg['nonce'] ), 'config.nonce is present' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
