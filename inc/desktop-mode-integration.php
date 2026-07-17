@@ -1125,6 +1125,32 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
+	// v9.57.0: top sources — the one thing the desktop had NO surface for. The
+	// retired sn-analytics-hud existed largely to show this; the rest of what it
+	// showed (views/visits) this tile already covered, better. Three rows, not
+	// five: a tile is a glance, and the full list is one click away on the
+	// analytics page.
+	//
+	// Row shape is the accessor's OWN: `value` / `views` / `visits` / `hosts`
+	// (inc/analytics-sources.php), sorted by views DESC. NOT `source` — that was
+	// an invented key that cost a release (v9.56.0). We surface `value` + `visits`
+	// to sit beside the tile's existing visits framing.
+	$top_sources = array();
+	if ( function_exists( 'sn_analytics_top_sources' ) ) {
+		$srcs = sn_analytics_top_sources( $from, $today, 'human', 3 );
+		if ( is_array( $srcs ) ) {
+			foreach ( $srcs as $src ) {
+				if ( ! is_array( $src ) || ! isset( $src['value'] ) ) {
+					continue;
+				}
+				$top_sources[] = array(
+					'value'  => (string) $src['value'],
+					'visits' => (int) ( $src['visits'] ?? 0 ),
+				);
+			}
+		}
+	}
+
 	// The forecast, or nothing. sn_analytics_forecast_of() already encodes the
 	// honesty gates — under 21 points → null, zero median level → null, and
 	// `confidence` is the backtest's MEASURED interval coverage, not a vibe.
@@ -1151,13 +1177,14 @@ function snt_desktop_site_views_payload() {
 	}
 
 	$payload = array(
-		'days'      => $days,
-		'total'     => $total,
-		'visits'    => $visits,
-		'delta_pct' => $delta_pct,
-		'bot_pct'   => $bot_pct,
-		'top_path'  => $top_path,
-		'forecast'  => $forecast,
+		'days'        => $days,
+		'total'       => $total,
+		'visits'      => $visits,
+		'delta_pct'   => $delta_pct,
+		'bot_pct'     => $bot_pct,
+		'top_path'    => $top_path,
+		'top_sources' => $top_sources,
+		'forecast'    => $forecast,
 	);
 
 	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );

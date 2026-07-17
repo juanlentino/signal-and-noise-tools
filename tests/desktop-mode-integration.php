@@ -119,10 +119,16 @@ $GLOBALS['__totals'] = array();
 // imagined — the v9.52.0 review caught two HIGH bugs born of invented stubs.
 //   class_series → array{day:string, total:int, bot:int, bot_pct:int}
 //   top_paths    → array{path:string, views:int, visits:int, scroll_avg:float, time_avg:float}
+//   top_sources  → array{value:string, views:int, visits:int, hosts:array}, views DESC
+//                  (inc/analytics-sources.php). `value`, NOT `source` — v9.56.0
+//                  invented `source`, the stub invented it too, and every row
+//                  rendered `undefined`. The stub is where that lie starts.
 $GLOBALS['__classes'] = array();
 $GLOBALS['__top']     = array();
+$GLOBALS['__sources'] = array();
 function sn_analytics_class_series( $from, $to, $granularity = 'day' ) { return $GLOBALS['__classes']; }
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return array_slice( $GLOBALS['__top'], 0, $limit ); }
+function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) { return array_slice( $GLOBALS['__sources'], 0, $limit ); }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) { return $GLOBALS['__series']; }
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	$key = $from . '|' . $to;
@@ -552,6 +558,14 @@ $GLOBALS['__classes'] = array(
 	array( 'day' => '2026-07-14', 'total' => 100, 'bot' => 35, 'bot_pct' => 35 ),
 );
 $GLOBALS['__top']     = array( array( 'path' => '/notes/provenance', 'views' => 42, 'visits' => 30, 'scroll_avg' => 0.7, 'time_avg' => 90.0 ) );
+// Four rows, views DESC — so the cap-at-3 assertion has something to cut, and
+// '(direct)' carries an empty hosts[] because it aggregates and is never drillable.
+$GLOBALS['__sources'] = array(
+	array( 'value' => '(direct)',    'views' => 50, 'visits' => 40, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 18, 'visits' => 13, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 9,  'visits' => 7,  'hosts' => array( 'news.ycombinator.com' ) ),
+	array( 'value' => 'Bing',        'views' => 2,  'visits' => 1,  'hosts' => array( 'bing.com' ) ),
+);
 $res  = call_user_func( $route['callback'] );
 $body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
 
@@ -559,6 +573,21 @@ ok( ( $body['visits'] ?? null ) === 98, 'payload carries visits alongside views'
 ok( ( $body['bot_pct'] ?? null ) === 30, 'payload carries the window bot share (weighted across the class series, not the last day)' );
 ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance', 'payload carries the top path' );
 ok( ( $body['top_path']['views'] ?? null ) === 42, 'the top path carries its view count' );
+
+echo "\n── v9.57.0: top sources (folded in from the retired sn-analytics-hud) ──\n";
+// The desktop had no surface for WHERE traffic comes from. The HUD existed
+// largely to show this; everything else it showed, this tile already covered.
+//
+// Row keys are the accessor's OWN: `value` / `visits` (inc/analytics-sources.php).
+// NOT `source` — that invented key shipped in v9.56.0 and rendered `undefined`
+// for every row, because the STUB invented the same wrong name. Pin the real one.
+ok( is_array( $body['top_sources'] ?? null ), 'payload carries top_sources' );
+ok( count( $body['top_sources'] ) === 3, 'top_sources is capped at 3 — a tile is a glance, not the full list' );
+ok( ( $body['top_sources'][0]['value'] ?? '' ) === '(direct)',
+	'top_sources rows use the REAL key `value` (inc/analytics-sources.php), never the invented `source`' );
+ok( ( $body['top_sources'][0]['visits'] ?? null ) === 40, 'top_sources rows carry visits' );
+ok( ! array_key_exists( 'source', $body['top_sources'][0] ),
+	'top_sources rows do NOT expose `source` — the accessor has never emitted that key' );
 
 echo "\n── v9.53.0: the forecast, and its honesty gates ──\n";
 // sn_analytics_forecast_of() already encodes the discipline: below
