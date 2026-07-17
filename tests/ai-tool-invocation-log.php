@@ -117,5 +117,54 @@ for ( $i = 0; $i < 250; $i++ ) {
 ok( count( snt_ai_tool_invocations() ) <= 200,
 	'the log is capped at 200 keys (bounded ~40-50 real tools; the cap guards against upstream churn)' );
 
+// Render stubs (real escaping so we can prove output is escaped).
+function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function esc_html__( $t, $d = null ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function __( $t, $d = null ) { return $t; }
+function number_format_i18n( $n ) { return number_format( (float) $n ); }
+
+echo "\n── ranked view: empty is a clean answer, not a crash ──\n";
+inv_reset();
+$r = snt_ai_tool_invocations_ranked();
+ok( $r['distinct'] === 0 && $r['calls'] === 0 && $r['tools'] === array(),
+	'ranked() on an empty log returns distinct=0, calls=0, tools=[] — the empty-state signal' );
+
+echo "\n── ranked view: sorts by count desc, sums calls ──\n";
+inv_reset();
+$GLOBALS['__options']['sn_ai_tool_invocations'] = array(
+	'get_analytics_summary' => array( 'n' => 2, 'first' => 100, 'last' => 200 ),
+	'search_posts'          => array( 'n' => 9, 'first' => 100, 'last' => 300 ),
+	'get_health_scan'       => array( 'n' => 9, 'first' => 100, 'last' => 250 ),
+);
+$r = snt_ai_tool_invocations_ranked();
+ok( $r['calls'] === 20, 'calls sums every tool\'s n (2+9+9)' );
+ok( $r['distinct'] === 3, 'distinct counts the tools seen' );
+ok( $r['tools'][0]['name'] === 'get_health_scan' && $r['tools'][1]['name'] === 'search_posts',
+	'ranked by count desc, ties broken by name asc (get_health_scan before search_posts at n=9)' );
+ok( $r['tools'][2]['name'] === 'get_analytics_summary', 'the lowest count sorts last' );
+
+echo "\n── the view RENDERS an empty state (the whole point of shipping it early) ──\n";
+inv_reset();
+ob_start();
+snt_ai_tool_invocations_render();
+$html_empty = (string) ob_get_clean();
+ok( strpos( $html_empty, 'No Ask AI tool calls recorded yet' ) !== false,
+	'with nothing accrued, the view shows a clean empty state — not a blank or a fatal' );
+ok( strpos( $html_empty, 'Copilot tool usage' ) !== false, 'the section still has its heading when empty' );
+
+echo "\n── the view RENDERS counts, escaped ──\n";
+inv_reset();
+$GLOBALS['__options']['sn_ai_tool_invocations'] = array(
+	'search_posts'        => array( 'n' => 9, 'first' => 100, 'last' => 300 ),
+	'<script>evil</script>' => array( 'n' => 1, 'first' => 100, 'last' => 100 ), // a hostile name must be escaped
+);
+ob_start();
+snt_ai_tool_invocations_render();
+$html = (string) ob_get_clean();
+ok( strpos( $html, 'search_posts' ) !== false, 'a used tool appears in the view' );
+ok( strpos( $html, '>9<' ) !== false || strpos( $html, '— 9' ) !== false, 'its call count is shown' );
+ok( strpos( $html, '<script>evil</script>' ) === false,
+	'a hostile tool name is ESCAPED — output goes through esc_html, never raw' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

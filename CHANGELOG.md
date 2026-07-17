@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.61.0] - 2026-07-17: The Copilot tool-usage view
+
+**Headline:** v9.60.0 started logging which Ask AI tools the model invokes. This shows them.
+
+The dashboard's Diagnostics area now lists the Copilot tools that have been called, ranked by count, from `snt_ai_tool_invocations()`.
+
+**It renders even with nothing accrued** — that's the point of shipping it now. Before any Copilot turn has run, it shows a clean empty state ("No Ask AI tool calls recorded yet…") rather than a blank or a fatal, so the surface exists and starts telling the story the moment data arrives.
+
+Every value is escaped: a tool name is a fixed identifier today, but the log stores whatever the upstream action sends, so the view never trusts it raw (a hostile name is asserted to be escaped, in test). The data-shaping (`snt_ai_tool_invocations_ranked()`) is split from the render and unit-tested for sort order, totals, and the empty-state signal.
+
+Still not a Copilot tool and still no new query — one option read, rendered where the owner already looks.
+
 ## [9.60.0] - 2026-07-17: The Copilot's tool use is now on the record
 
 **Headline:** v9.59.0's prune had to argue from redundancy and payload size because there was no data on which tools the Copilot actually uses. Now there is.
