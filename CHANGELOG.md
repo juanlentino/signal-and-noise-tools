@@ -37,7 +37,18 @@ The old code knew home was hostile and worked around it explicitly; the rewrite 
 
 Both workflows now stage in a **remote `mktemp -d /tmp/…`**: created `0700` and owned by us, so it's writable *and* safe from a symlink race on a shared host. Nothing is written to `$HOME`.
 
-**Two dispatches, two real bugs, zero impact on the live site** — both failed before touching a single file. That is the entire argument for exercising a dormant fallback on a quiet evening rather than during the next outage.
+**The third dispatch proved that story wrong, and found the real invariant.** With staging moved to `/tmp`:
+
+```
+Remote stage: /tmp/…-stage.uJf12C          ← ssh CREATED it, successfully
+scp: dest open "/tmp/…-stage.uJf12C/payload.tar.gz": No such file or directory
+```
+
+The `ssh` session created that directory; the `scp` a moment later couldn't see it. **`scp` runs over the SFTP subsystem, which on this host is jailed differently from the interactive SSH shell.** One cause explains both failures: `~` rejected as "Permission denied" (sftp's home isn't writable) *and* a `/tmp` path the shell had just created reported as missing. "Home isn't writable" was a story that fit the evidence and was **wrong**; the real invariant is that **anything `scp` touches is a different world from anything `ssh` touches.**
+
+**So: no `scp`, and no remote staging at all.** `rsync -e ssh` runs over the SSH *shell*, sidesteps the sftp jail entirely, and needs no staging area — extract on the runner, sync straight into the live directory. Simpler than what it replaces.
+
+**Three dispatches, three real bugs, zero impact on the live site** — every one failed before touching a single file. That is the entire argument for exercising a dormant fallback on a quiet evening rather than during the next outage.
 
 **Why a release for a workflow:** `deploy.yml` was rewritten to be archive-based ([#316](https://github.com/juanlentino/signal-and-noise-tools/pull/316), `ac60197`) and shipped as a `ci:` change with no version bump — correct by the repo's convention (6/6 prior workflow-only commits don't bump), and `.github/` is export-ignored so it ships nothing.
 
