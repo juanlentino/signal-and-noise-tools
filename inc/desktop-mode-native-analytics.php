@@ -70,3 +70,60 @@ add_action( 'init', function () {
 		),
 	) );
 }, 6 );
+
+/**
+ * The HUD's data payload.
+ *
+ * Composes existing sn_analytics_* accessors — no new SQL. The window is the
+ * trailing 7 LOCAL days inclusive of today: the rollups and the live filter
+ * agree on the local day, and a UTC "today" is the documented source of the
+ * off-by-one flicker.
+ *
+ * @since 9.56.0
+ * @return WP_REST_Response
+ */
+function snt_desktop_analytics_hud_payload() {
+	$to   = substr( (string) current_time( 'mysql' ), 0, 10 );
+	$from = gmdate( 'Y-m-d', strtotime( $to . ' -6 days' ) );
+
+	// Date-stamped key: a flat key warmed at 23:58 would keep serving the
+	// previous day's window past local midnight. Stamping the local day makes
+	// the rollover exact and self-expiring. TTL 5 min — below the 30s poll it
+	// would be pointless, above it the HUD visibly lags the full page.
+	$cache_key = 'sn_desktop_analytics_hud_' . $to;
+	$seven_day = get_transient( $cache_key );
+
+	if ( ! is_array( $seven_day ) ) {
+		$totals    = sn_analytics_range_totals( $from, $to, 'human' );
+		$seven_day = array(
+			'views'        => (int) ( $totals['views'] ?? 0 ),
+			'visits'       => (int) ( $totals['visits'] ?? 0 ),
+			'avg_scroll'   => (float) ( $totals['avg_scroll'] ?? 0 ),
+			'avg_time'     => (float) ( $totals['avg_time'] ?? 0 ),
+			'engaged_rate' => (float) sn_analytics_engaged_rate( $from, $to, 'human' ),
+			'deltas'       => (array) sn_analytics_period_deltas( $from, $to, 'human' ),
+		);
+		set_transient( $cache_key, $seven_day, 5 * MINUTE_IN_SECONDS );
+	}
+
+	return new WP_REST_Response( array(
+		// NEVER from the day-stamped cache: a 5-minute window behind a daily key
+		// is a stale number wearing a fresh label. Computed every request.
+		'realtime'    => (int) sn_analytics_realtime( 'human' ),
+		'seven_day'   => $seven_day,
+		'top_content' => array_values( (array) sn_analytics_top_paths( $from, $to, 'human', 5 ) ),
+		'top_sources' => array_values( (array) sn_analytics_top_sources( $from, $to, 'human', 5 ) ),
+		// No full_url here on purpose: it rides `config`, which the window already
+		// has at mount time. Shipping it again on every 30s poll is dead weight.
+	), 200 );
+}
+
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'signal-noise/v1', '/desktop/analytics-hud', array(
+		'methods'             => 'GET',
+		'callback'            => 'snt_desktop_analytics_hud_payload',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+	) );
+} );

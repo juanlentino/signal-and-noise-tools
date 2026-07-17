@@ -74,13 +74,47 @@ function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/
 function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
 function current_user_can( $cap ) { return true; }
 function current_time( $type, $gmt = 0 ) { return '2026-07-16 12:00:00'; }
-function get_transient( $k ) { return false; }
-function set_transient( $k, $v, $t = 0 ) { return true; }
 function esc_html( $t ) { return $t; }
 function esc_attr( $t ) { return $t; }
 function esc_url( $t ) { return $t; }
 function __( $t, $d = null ) { return $t; }
 function _e( $t, $d = null ) { echo $t; }
+
+$GLOBALS['__t'] = array();
+function get_transient( $k ) { return $GLOBALS['__t'][ $k ] ?? false; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__t'][ $k ] = $v; return true; }
+
+// Increments per call so a later test can prove realtime is never cached.
+$GLOBALS['__rt'] = 0;
+function sn_analytics_realtime( $class = 'human' ) { return ++$GLOBALS['__rt']; }
+
+function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
+	return array( 'views' => 1200, 'visits' => 800, 'avg_scroll' => 61.5, 'avg_time' => 74.2 );
+}
+function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null ) {
+	return array( 'views' => 12.5, 'visits' => -3.1 );
+}
+function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) { return 42.0; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
+	return array_slice( array(
+		array( 'path' => '/a', 'views' => 90 ), array( 'path' => '/b', 'views' => 80 ),
+		array( 'path' => '/c', 'views' => 70 ), array( 'path' => '/d', 'views' => 60 ),
+		array( 'path' => '/e', 'views' => 50 ), array( 'path' => '/f', 'views' => 40 ),
+	), 0, $limit );
+}
+function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
+	return array_slice( array(
+		array( 'source' => 'direct', 'visits' => 40 ), array( 'source' => 'rss', 'visits' => 30 ),
+		array( 'source' => 'hn', 'visits' => 20 ), array( 'source' => 'x', 'visits' => 10 ),
+		array( 'source' => 'g', 'visits' => 5 ), array( 'source' => 'b', 'visits' => 2 ),
+	), 0, $limit );
+}
+
+class WP_REST_Response {
+	public $data;
+	public function __construct( $data, $status = 200 ) { $this->data = $data; }
+	public function get_data() { return $this->data; }
+}
 
 // REQUIRE these, don't stub them — they own the only truth about which admin
 // page slugs actually exist. A stubbed tab list is precisely how the v9.55.0
@@ -163,6 +197,30 @@ ok( strpos( (string) ( $cfg['fullUrl'] ?? '' ), 'tab=dashboard' ) === false,
 ok( ( $cfg['endpoint'] ?? '' ) === 'https://example.test/wp-json/signal-noise/v1/desktop/analytics-hud',
 	'config.endpoint points at the HUD route' );
 ok( ! empty( $cfg['nonce'] ), 'config.nonce is present' );
+
+echo "\n── REST ROUTE ──\n";
+fire( 'rest_api_init' );
+$route = $GLOBALS['__routes']['signal-noise/v1/desktop/analytics-hud'] ?? null;
+ok( is_array( $route ), 'GET signal-noise/v1/desktop/analytics-hud is registered' );
+ok( ( $route['methods'] ?? '' ) === 'GET', 'route is GET' );
+ok( isset( $route['permission_callback'] ) && is_callable( $route['permission_callback'] ),
+	'route has a callable permission_callback (never __return_true)' );
+ok( isset( $route['callback'] ) && $route['callback'] === 'snt_desktop_analytics_hud_payload',
+	'route callback is snt_desktop_analytics_hud_payload' );
+
+echo "\n── PAYLOAD SHAPE (the keys the JS actually reads) ──\n";
+$payload = snt_desktop_analytics_hud_payload();
+$body    = is_object( $payload ) && method_exists( $payload, 'get_data' ) ? $payload->get_data() : $payload;
+foreach ( array( 'realtime', 'seven_day', 'top_content', 'top_sources' ) as $key ) {
+	ok( array_key_exists( $key, $body ), "payload exposes `$key`" );
+}
+// The link URL rides `config`, not the payload — the window already has it at
+// mount time, so shipping it again per-poll would be dead weight.
+ok( ! array_key_exists( 'full_url', $body ),
+	'payload does NOT duplicate fullUrl (config already carries it)' );
+ok( is_array( $body['seven_day'] ), 'seven_day is an array of KPIs' );
+ok( count( $body['top_content'] ) <= 5, 'top_content is capped at 5' );
+ok( count( $body['top_sources'] ) <= 5, 'top_sources is capped at 5' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
