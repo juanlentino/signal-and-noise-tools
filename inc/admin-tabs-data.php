@@ -192,6 +192,11 @@ function sn_admin_top_tabs() {
 				// (native JSON-RPC server + the wp.org AI plugin's Abilities-registry
 				// adapter). No form, no side effects — pure reference, like Links.
 				'mcp-connect'      => array( 'label' => 'MCP', 'render' => 'sn_admin_render_mcp_connect_section' ),
+				// v9.62.2: Copilot tool-usage diagnostic, moved off the Dashboard tab. It
+				// sits by MCP (both describe the AI/Copilot surface). 'wide' => true so the
+				// wrapper emits a bare .sn-section: the render fn owns its own .sn-card, so a
+				// capped .sn-fieldset here would nest a card inside a card.
+				'copilot-usage'    => array( 'label' => 'Copilot Usage', 'render' => 'snt_ai_tool_invocations_render', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'            => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),
