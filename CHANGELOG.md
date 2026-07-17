@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.58.0] - 2026-07-17: The desktop shows what needs attention
+
+**Headline:** The plugin has always had queues. The desktop could never see them.
+
+Health findings, block-migration candidates and pattern-adoption candidates all sat behind a tab until someone went looking. Desktop Mode has exposed `setBadge()` on three rails since 0.6.0, and we had never used it.
+
+### Added
+
+**The SN desktop icon now carries a count of things actually needing attention** — on all three rails (dock, sideDock, wallpaper icons), via the new `inc/desktop-mode-attention.php`.
+
+**It costs nothing.** Zero tokens — no AI is involved. Zero queries — every source is already cached (a 24-hour health scan, two 1-hour transients). Zero network calls — the count rides a `wp_localize_script` we already ship, so it is on the page before the shell boots. **The badge reads; it never computes.** A badge that triggered a scan would run a full post sweep on every shell load, and the test throws if it ever does.
+
+`inc/desktop-mode-integration.php` was not touched. It is 1,315 lines against a ~150-line house rule; a handle registered anywhere can be localized onto from anywhere.
+
+The 404 log and insights are deliberately **not** sources: neither has a cached count today, and a badge that costs a query per shell load isn't free.
+
+### Fixed — three ways this could have lied, all caught before shipping
+
+**`null` is not `0`.** All three accessors return `array|null` — null meaning *never scanned*. An unmeasured queue is **excluded** from the total, never zero-filled: a queue we haven't looked at is not an empty queue. A scanned-but-empty queue reports a real `0`, which clears the badge per the API's contract.
+
+**A malformed envelope no longer fabricates a count.** `(array) false` is `[false]`, not `[]` — so a `candidates` key holding any non-array scalar counted as **1 phantom item**, and an absent key reported a confident `0` ("measured, found nothing") for something never measured. Both now report `null`. This matches the guard already used at `inc/admin-bar.php:231` for the same envelope.
+
+**The badge would never have rendered at all.** `wp_localize_script()` string-casts every top-level scalar before `wp_json_encode` (`wp-includes/class-wp-scripts.php::localize`), so PHP's int `2` reaches JavaScript as the string `"2"`. The JS guarded `typeof att.total !== 'number'`, which rejects that on **every** load — `setBadge` would never have been called, for any count, with the whole suite green. The JS now coerces with `Number()` and validates with `Number.isFinite()`, correct whether the transport delivers `"2"` or `2`.
+
+That last one is why the test stub for `wp_localize_script` now applies core's cast itself. The old stub stored the PHP int the test inserted, so `$data['total'] === 2` passed while the browser would have received `"2"` — a stub faithful to the value and unfaithful to the transport. **A stub for a transport must model the transport's transform, not just record the call.**
+
+For the same reason the badge assertions strip comments before searching the asset: the JS docblock quotes the very strings under test, so a *comment* could satisfy an assertion about the *implementation* — and did, until mutation testing caught it.
+
 ## [9.57.0] - 2026-07-16: Top sources folds into the tile; the HUD is retired
 
 **Headline:** The analytics glance already had a home. It didn't need a second one.
