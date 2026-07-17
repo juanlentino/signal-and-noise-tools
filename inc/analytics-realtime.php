@@ -204,8 +204,25 @@ function sn_analytics_realtime_refresh() {
 			$counts[ (string) $row['class'] ] = max( 0, (int) $row['visitors'] );
 		}
 	}
-	if ( empty( $counts ) ) {
-		return; // nothing well-shaped — don't poison the transient
+	// An EMPTY result set is an ANSWER, not a failure: AE said nobody was here in
+	// the window. Transport failure was already caught above by `! is_array()`,
+	// so reaching this line means the query SUCCEEDED. Only a NON-EMPTY $rows
+	// that yielded no well-shaped entries is suspect.
+	//
+	// v9.56.2: this guard used to bail on `empty( $counts )` alone, so a quiet
+	// site — zero visitors in 5 minutes — never wrote the transient at all. It
+	// expired after RETENTION and sn_analytics_realtime() returned null, i.e.
+	// "never measured", for a real zero. The docblock's promise that "a warmed
+	// class with zero hits returns 0" was unreachable whenever the query returned
+	// no rows. It surfaced as "—" in the desktop HUD and the same hole sat in the
+	// wp-admin dashboard widget.
+	//
+	// It also cost queries: with no transient, age stayed PHP_INT_MAX, so every
+	// admin_init re-scheduled a refresh. The live cron history showed doubled
+	// firings minutes apart, each a wasted AE query — all success:true, because
+	// nothing ever threw.
+	if ( empty( $counts ) && ! empty( $rows ) ) {
+		return; // rows came back but none well-shaped — don't poison the transient
 	}
 
 	// Second, independent read: views so far today in the SITE timezone. Best
