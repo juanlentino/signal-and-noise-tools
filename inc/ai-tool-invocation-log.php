@@ -91,3 +91,70 @@ function snt_ai_tool_invocations() {
 	$log = get_option( SN_AI_TOOL_INVOCATIONS_OPT, array() );
 	return is_array( $log ) ? $log : array();
 }
+
+/**
+ * The invocation log shaped for display: tools ranked by call count (desc, ties
+ * by name), plus the total calls and distinct-tool count.
+ *
+ * `distinct === 0` is the empty-state signal the view keys on.
+ *
+ * @since 9.61.0
+ * @return array{tools:array<int,array{name:string,n:int,last:int}>,calls:int,distinct:int}
+ */
+function snt_ai_tool_invocations_ranked() {
+	$tools = array();
+	$calls = 0;
+	foreach ( snt_ai_tool_invocations() as $name => $rec ) {
+		$n      = (int) ( is_array( $rec ) ? ( $rec['n'] ?? 0 ) : 0 );
+		$calls += $n;
+		$tools[] = array(
+			'name' => (string) $name,
+			'n'    => $n,
+			'last' => (int) ( is_array( $rec ) ? ( $rec['last'] ?? 0 ) : 0 ),
+		);
+	}
+	usort( $tools, static function ( $a, $b ) {
+		return $b['n'] <=> $a['n'] ?: strcmp( $a['name'], $b['name'] );
+	} );
+	return array(
+		'tools'    => $tools,
+		'calls'    => $calls,
+		'distinct' => count( $tools ),
+	);
+}
+
+/**
+ * Render the Copilot tool-usage view: an owner-facing list of which Ask AI tools
+ * have been invoked and how often, for the dashboard Diagnostics area.
+ *
+ * Ships before there is data on purpose (the logger needs to accrue first), so
+ * the empty state is first-class: a clean note, never a blank or a fatal. Every
+ * value is escaped — a tool name is a fixed identifier today, but the log records
+ * whatever upstream sends, so it is never trusted raw.
+ *
+ * @since 9.61.0
+ * @return void
+ */
+function snt_ai_tool_invocations_render() {
+	$ranked = snt_ai_tool_invocations_ranked();
+
+	echo '<h2 class="sn-section-h">Copilot tool usage</h2>';
+
+	if ( 0 === $ranked['distinct'] ) {
+		echo '<p class="sn-muted">' . esc_html__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+
+	echo '<p class="sn-muted">' . esc_html( sprintf(
+		/* translators: 1: total AI tool calls, 2: distinct tool count. */
+		__( 'Calls: %1$s · Tools: %2$d', 'signal-and-noise-tools' ),
+		number_format_i18n( $ranked['calls'] ),
+		$ranked['distinct']
+	) ) . '</p>';
+
+	echo '<ul class="sn-ai-tool-usage">';
+	foreach ( $ranked['tools'] as $tool ) {
+		echo '<li><code>' . esc_html( $tool['name'] ) . '</code> — ' . esc_html( number_format_i18n( $tool['n'] ) ) . '</li>';
+	}
+	echo '</ul>';
+}
