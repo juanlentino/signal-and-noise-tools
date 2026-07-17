@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.62.3] - 2026-07-17: One nav in the Desktop Mode window (the duplicate top tabs are gone)
+
+### Fixed
+
+**The Signal & Noise window in Desktop Mode showed its top tabs twice.** Desktop Mode builds an in-window tab strip from a dock item's submenu and renders it as the window's nav — the same way it does for every other window. Our page then drew its own top-tab nav (`.nav-tab-wrapper.sn-nav-tabs`) on top, so the six/seven top tabs appeared once as DM's strip and again as our nav.
+
+The fix hides our page-level top-tab nav *only* inside a chromeless DM window, letting DM's strip be the single nav — so our window now behaves like the rest. It is one scoped rule in the already-enqueued, screen-gated `assets/admin.css`:
+
+```css
+body.desktop-mode-chromeless .sn-nav-tabs { display: none; }
+```
+
+Self-scoping and safe: `desktop-mode-chromeless` is added by DM (via `admin_body_class`) only inside a window, so normal wp-admin is untouched; the rule ships only in our own stylesheet, so no core or third-party window is affected; and it targets `.sn-nav-tabs` alone, so the subordinate `.sn-sub-tabs` pill nav (which DM does not duplicate) stays visible. The dock submenu is kept deliberately — it is what feeds DM's strip. No information is lost: our top-tab nav and DM's strip are the same tabs as plain labels (the update badge lives on the dock icon, not the tabs).
+
+Note on scope: this removes the duplicate on the windows this plugin owns. A blanket "hide every page's own nav" rule was rejected — on many pages `.nav-tab-wrapper` navigates different things than the DM strip, so a site-wide rule would break real navigation. Cross-plugin deduplication belongs in Desktop Mode itself.
+
 ## [9.62.2] - 2026-07-17: The Copilot tool-usage card moves to its own Tools sub-tab
 
 ### Changed
