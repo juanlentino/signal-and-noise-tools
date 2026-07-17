@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.62.0] - 2026-07-17: A one-time, click-to-run Copilot tool audit (temporary)
+
+**Headline:** The v9.59.0 audit needed a live measurement that previously meant a terminal. This makes it a button.
+
+A `manage_options`-gated panel on the dashboard runs the Copilot tool-budget audit on click and prints the sizes in the browser: it reconstructs the tool list from the live ability registry the way Desktop Mode does, runs it through the real `desktop_mode_ai_tools` filter chain (the prune + normalize, live), and reports before/after/delta and our %-share. No Ask AI turn, no writes — read-only, nonce-protected, output escaped.
+
+**This is temporary and will be removed next release.** It exists to capture the one grand-total number the source measurement can't reach (Desktop Mode's + the theme's contribution), from the browser instead of a shell. Command tools (client-supplied) aren't counted; the panel says so.
+
 ## [9.61.0] - 2026-07-17: The Copilot tool-usage view
 
 **Headline:** v9.60.0 started logging which Ask AI tools the model invokes. This shows them.
