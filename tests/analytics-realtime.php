@@ -187,6 +187,33 @@ $GLOBALS['__rt_query_return'] = array( array( 'wrong' => 1 ) );
 sn_analytics_realtime_refresh();
 ok( get_transient( SN_ANALYTICS_REALTIME_KEY ) === false, 'refresh: malformed AE rows → no write' );
 
+// ── An EMPTY result set is an ANSWER, not a failure (v9.56.2) ────────────────
+// AE returning zero rows means "nobody was here in the last 5 minutes" — the
+// correct answer for a quiet site, and juanlentino.com is quiet (~15 views/day).
+// The old guard bailed on `empty( $counts )` alone, so a quiet site NEVER wrote
+// the transient; it expired after RETENTION (5 min) and sn_analytics_realtime()
+// returned null — "never measured" — for a real zero. The HUD rendered "—" and
+// the wp-admin dashboard widget had the same hole.
+//
+// Transport failure is ALREADY caught above by `! is_array( $rows )`, so by this
+// point the query SUCCEEDED. Only a non-empty $rows that yielded no well-shaped
+// entries is suspect — that's the assertion directly above, and it must survive.
+//
+// Second cost, also fixed by writing: with no transient, age stays PHP_INT_MAX,
+// so EVERY admin_init re-scheduled a refresh — the live cron history showed
+// doubled firings (03:15:06 + 03:15:13, 03:20:03 + 03:20:08), each a wasted AE
+// query. All reported success:true, because the callback never threw.
+rt_reset();
+$GLOBALS['__rt_query_return'] = array(); // AE answered: nobody in the window.
+sn_analytics_realtime_refresh();
+$c = get_transient( SN_ANALYTICS_REALTIME_KEY );
+ok( is_array( $c ) && isset( $c['counts'] ) && is_array( $c['counts'] ),
+	'refresh: an EMPTY result set is a legitimate answer — the transient IS written' );
+ok( sn_analytics_realtime( 'human' ) === 0,
+	'a quiet site reads a real 0 — null must mean NEVER MEASURED, never "nobody here"' );
+ok( isset( $c['fetched'] ) && is_int( $c['fetched'] ),
+	'refresh: an empty result still stamps fetched — so the warmer stops re-scheduling on every admin_init' );
+
 // ── Warmer ────────────────────────────────────────────────────────────────────
 echo "\nGroup: warmer\n";
 // Stale (no cache) + capable + configured → schedule a single refresh.

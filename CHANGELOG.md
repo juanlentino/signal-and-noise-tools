@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.56.2] - 2026-07-16: A quiet site reported "never measured" instead of zero
+
+**Headline:** "Visitors now" showed nothing on a quiet site — because zero visitors was being reported as *no data*.
+
+The realtime query asks Analytics Engine for distinct visitors in the trailing 5 minutes. On a site at ~15 views/day, most 5-minute windows are genuinely empty — **AE returns zero rows, which is the correct answer**. But the refresh bailed on `empty( $counts )` and never wrote the transient. It then expired after `RETENTION` (5 min), and `sn_analytics_realtime()` returned `null` — *"never measured"* — for a real zero.
+
+The guard's comment read *"nothing well-shaped — don't poison the transient."* But transport failure is already caught one line above by `! is_array( $rows )`; by that point the query had **succeeded**. An empty array isn't malformed — it's the answer. The function's own docblock promises *"a warmed class with zero hits returns 0"*; that path was unreachable whenever the query returned no rows at all.
+
+**Two costs, both now fixed:**
+
+1. **`—` instead of `0`.** The desktop Analytics HUD rendered the null placeholder, and the wp-admin dashboard widget had the identical hole.
+2. **Wasted Analytics Engine queries.** With no transient, `age` stayed `PHP_INT_MAX`, so **every** `admin_init` re-scheduled a refresh. The live cron history showed doubled firings minutes apart (`03:15:06` + `03:15:13`, `03:20:03` + `03:20:08`) — each one a real AE query that found nothing and wrote nothing. A quiet site ran a small perpetual-motion machine.
+
+**And every firing reported `success: true`**, because the callback never threw. The cron readout was live, correct, and measuring a different question than the one being asked — the same shape as the rate-limit number that misled a whole hour of diagnosis in v9.54.
+
+Only a **non-empty** `$rows` that yields no well-shaped entries is now treated as suspect; that guard is unchanged and still asserted. Mutation-checked: restoring the old condition reddens exactly the three new assertions.
+
 ## [9.56.1] - 2026-07-16: The HUD rendered — as one run-on line
 
 **Headline:** v9.56.0's window opened, fetched, and rendered your real numbers. It just looked like this:
