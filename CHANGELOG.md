@@ -23,6 +23,22 @@ Under `set -o pipefail`, `grep -q` exits on its **first match**, `tar` takes SIG
 
 Reproduced deterministically by forcing the stream large: `seq 1 500000 | grep -q '^1$'` under pipefail **fails despite the match existing**; `L=$(seq 1 500000); grep -q '^1$' <<<"$L"` passes.
 
+**The second bug the next dispatch found — and the answer was in our own deleted comment.** With the guard fixed, the run got as far as shipping the payload and died:
+
+```
+scp: dest open "…-payload.tar.gz": Permission denied
+```
+
+**The SSH user's home is not writable.** The workflow this rewrite replaced *said so*, in a comment I removed along with the mechanism:
+
+> *"The deploy runs as Cloudways' restricted 'additional SSH user'. Their `~/.ssh` is root-owned and read-only, so the GitHub deploy key lives in the user-writable `~/.openssh/` directory (Cloudways convention)."*
+
+The old code knew home was hostile and worked around it explicitly; the rewrite `scp`'d into `~` **and** then `mktemp -d ~/…` on top of it — two writes to a directory that rejects them. The code being replaced was itself the documentation, and it was treated as obsolete rather than as evidence.
+
+Both workflows now stage in a **remote `mktemp -d /tmp/…`**: created `0700` and owned by us, so it's writable *and* safe from a symlink race on a shared host. Nothing is written to `$HOME`.
+
+**Two dispatches, two real bugs, zero impact on the live site** — both failed before touching a single file. That is the entire argument for exercising a dormant fallback on a quiet evening rather than during the next outage.
+
 **Why a release for a workflow:** `deploy.yml` was rewritten to be archive-based ([#316](https://github.com/juanlentino/signal-and-noise-tools/pull/316), `ac60197`) and shipped as a `ci:` change with no version bump — correct by the repo's convention (6/6 prior workflow-only commits don't bump), and `.github/` is export-ignored so it ships nothing.
 
 That convention turned out to have a hole. `workflow_dispatch --ref X` runs **the workflow file as it exists at ref X**, and the workflow **guards that the ref is a tag** (that guard is what stopped it shipping `main` on 2026-07-16). So:
