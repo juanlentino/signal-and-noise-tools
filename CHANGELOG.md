@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.60.0] - 2026-07-17: The Copilot's tool use is now on the record
+
+**Headline:** v9.59.0's prune had to argue from redundancy and payload size because there was no data on which tools the Copilot actually uses. Now there is.
+
+The plugin's own AI usage log records our first-party `generate_text_result()` calls by feature label — it never sees an Ask AI turn, because the Copilot dispatches its tools server-side inside Desktop Mode. So we had no way to know which of the ~18 auto-enrolled tools the model ever chooses.
+
+### Added
+
+**A Copilot tool-invocation log** (`inc/ai-tool-invocation-log.php`). It hooks Desktop Mode's Stable `desktop_mode_ai_tool_called` action (fires per tool call, in our request, before the ability runs) and records, per tool, a count and first/last-seen timestamps. Read it with `snt_ai_tool_invocations()`.
+
+**Names and counts only — never arguments.** The action also carries the tool's `args`, which can hold the user's query fragments or content. The logger takes the tool name and nothing else; a test walks the stored payload for a canary and is mutation-checked, so a future edit can't silently start persisting arguments.
+
+**It is not exposed as a Copilot tool.** A read-only ability to read this log would re-add exactly the per-turn rent v9.59.0 removed. The log is read via the accessor (and, later, the dashboard), never the Copilot.
+
+**The payoff is the next prune.** Once this has run for a while, a read-only tool the model has *never chosen* over 90+ days becomes an evidence-based cut — the invocation signal the v9.59.0 audit found missing, upgraded from "we think it's narrow" to "the model never picks it."
+
+A dashboard view of the counts is a deliberate fast-follow: the logger ships first so data starts accruing; there is nothing worth rendering until it has. For now, observe with `wp eval "print_r( snt_ai_tool_invocations() );"`.
+
 ## [9.59.0] - 2026-07-17: The AI Copilot pays less rent and speaks our dialect
 
 **Headline:** Every read-only ability is auto-enrolled as an Ask AI tool, serialized into every turn whether or not it is ever used. This release cuts the tools that can't earn that rent and teaches the Copilot the vocabulary the rest of them return.
