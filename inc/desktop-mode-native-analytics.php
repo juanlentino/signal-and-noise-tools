@@ -34,15 +34,27 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_desktop_analytics_hud_template() {
 	?>
-	<wpd-stack data-sn-hud="root">
-		<wpd-section>
-			<wpd-row><strong data-sn-hud="realtime">—</strong> <span>visitors now</span></wpd-row>
-		</wpd-section>
-		<wpd-section data-sn-hud="kpis"></wpd-section>
-		<wpd-section data-sn-hud="top-content"></wpd-section>
-		<wpd-section data-sn-hud="top-sources"></wpd-section>
-		<wpd-row><a data-sn-hud="full-link" href="#">Open full analytics</a></wpd-row>
-	</wpd-stack>
+	<div class="sn-hud" data-sn-hud="root">
+		<div class="sn-hud__realtime">
+			<strong class="sn-hud__realtime-value" data-sn-hud="realtime">—</strong>
+			<span class="sn-hud__realtime-label"><?php esc_html_e( 'visitors now', 'signal-and-noise-tools' ); ?></span>
+		</div>
+		<div class="sn-hud__section">
+			<h3 class="sn-hud__heading"><?php esc_html_e( 'Last 7 days', 'signal-and-noise-tools' ); ?></h3>
+			<div data-sn-hud="kpis"></div>
+		</div>
+		<div class="sn-hud__section">
+			<h3 class="sn-hud__heading"><?php esc_html_e( 'Top content', 'signal-and-noise-tools' ); ?></h3>
+			<div data-sn-hud="top-content"></div>
+		</div>
+		<div class="sn-hud__section">
+			<h3 class="sn-hud__heading"><?php esc_html_e( 'Top sources', 'signal-and-noise-tools' ); ?></h3>
+			<div data-sn-hud="top-sources"></div>
+		</div>
+		<div class="sn-hud__footer">
+			<a class="sn-hud__link" data-sn-hud="full-link" href="#"><?php esc_html_e( 'Open full analytics →', 'signal-and-noise-tools' ); ?></a>
+		</div>
+	</div>
 	<?php
 }
 
@@ -72,6 +84,25 @@ add_action( 'init', function () {
 		SNT_VERSION,
 		true
 	);
+
+	// v9.56.1: the HUD owns its own CSS. v9.56.0 leaned on <wpd-stack>/
+	// <wpd-section>/<wpd-row>, which are real tags but are "side-effect
+	// registered at import time, PER BUNDLE" (docs/components-reference.md) —
+	// the shell registers only a core subset, and a tag no loaded bundle has
+	// imported "renders INERT HTML". A plain IIFE with no build step cannot
+	// import from 'desktop-mode', so they never upgraded and the HUD collapsed
+	// to one inline run-on line. Plain HTML + this handle instead.
+	//
+	// The `style` arg below is what makes this reach the page on the
+	// mid-session-activation path too: the shell injects a <link> for it when a
+	// peer plugin is activated inside an already-open shell, where
+	// wp_print_styles has long since run for the parent page. (@since DM 0.7.0)
+	wp_register_style(
+		'sn-desktop-window-analytics',
+		plugins_url( 'assets/desktop-mode-window-analytics.css', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION
+	);
 }, 5 );
 
 add_action( 'init', function () {
@@ -84,6 +115,7 @@ add_action( 'init', function () {
 		'icon'         => 'dashicons-chart-area',
 		'template'     => 'snt_desktop_analytics_hud_template',
 		'script'       => 'sn-desktop-window-analytics',
+		'style'        => 'sn-desktop-window-analytics',
 		'placement'    => 'dock',
 		'capabilities' => array( 'manage_options' ),
 		'config'       => array(
