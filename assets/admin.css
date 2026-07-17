@@ -1875,6 +1875,20 @@
 	color: var(--sn-text);
 }
 
+/* ── v9.62.3 (Desktop Mode single nav): inside a DM chromeless window, DM builds
+   its own in-window tab strip from our dock submenu (the same top tabs), and
+   renders it as THE window nav — consistently with every other DM window. Our
+   page-level top-tab nav then duplicates it. Hide ours in that context only.
+   Self-scoping on three axes: `.desktop-mode-chromeless` (DM adds it via
+   admin_body_class only in a window, where the strip exists) means normal
+   wp-admin is untouched; this rule ships only in OUR screen-gated admin.css, so
+   no other plugin/core window is affected; and it targets `.sn-nav-tabs` alone,
+   so the subordinate `.sn-sub-tabs` pill nav (which DM does NOT duplicate) stays.
+   The dock submenu is intentionally KEPT — it is what feeds DM's strip. */
+body.desktop-mode-chromeless .sn-nav-tabs {
+	display: none;
+}
+
 /* ─────────────────────────────────────────────────────────────────────
  * Copilot tool usage (v9.62.1) — the invocation-count view in Diagnostics.
  * Was an unstyled bullet list; now a card with count chips on the shared
