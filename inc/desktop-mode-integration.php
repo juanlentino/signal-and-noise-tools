@@ -1269,6 +1269,36 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 		return $tools;
 	}
 
+	// v9.59.0: PRUNE before normalize. Every read-only ability is auto-enrolled
+	// as a Copilot tool with no opt-in, and its name + description + input_schema
+	// is serialized into EVERY Ask AI turn, before the user's question is read —
+	// rent paid forever, invoked or not. snt_dm_ai_pruned_abilities() lists the
+	// ones that cannot earn it (see that function). Pruning removes a tool from
+	// the COPILOT LIST ONLY; the ability stays registered, REST/MCP-callable and
+	// usable by the UI + the scan→suggest→apply pipeline. Reversible in one line.
+	//
+	// MATCH ON THE STRIPPED NAME. desktop-mode strips the namespace and
+	// underscores the slug (signal-noise/export-audit-log → export_audit_log) via
+	// desktop_mode_ai_ability_tool_name() BEFORE this filter sees the tool. We
+	// call that same function to compute our targets, so our match can never drift
+	// from desktop-mode's transform; if it is unavailable we skip pruning rather
+	// than guess. Caveat, documented in snt_dm_ai_pruned_abilities(): the
+	// namespace is gone at this seam, so a third-party tool with an identical
+	// stripped name would also drop — the names are SN-specific and the risk is
+	// theoretical, and there is no namespaced seam to prune at instead.
+	if ( function_exists( 'desktop_mode_ai_ability_tool_name' ) ) {
+		$prune = array();
+		foreach ( snt_dm_ai_pruned_abilities() as $ability ) {
+			$prune[ (string) desktop_mode_ai_ability_tool_name( $ability ) ] = true;
+		}
+		if ( $prune ) {
+			$tools = array_values( array_filter( $tools, static function ( $tool ) use ( $prune ) {
+				$name = ( is_array( $tool ) && isset( $tool['name'] ) ) ? (string) $tool['name'] : '';
+				return '' === $name || ! isset( $prune[ $name ] );
+			} ) );
+		}
+	}
+
 	foreach ( $tools as $i => $tool ) {
 		// Skip anything without an array `parameters` — never fabricate a schema
 		// for a tool that declares none. (This once claimed "command tools carry
@@ -1313,3 +1343,39 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 
 	return $tools;
 }, PHP_INT_MAX );
+
+/**
+ * Abilities dropped from the Copilot's per-turn tool list (v9.59.0).
+ *
+ * These three are read-only (so desktop-mode auto-enrols them as Copilot tools),
+ * but a conversational turn can never use them:
+ *   - signal-noise/pattern-adoption-suggest and signal-noise/block-migrations-suggest
+ *     each require a scan-generated block FINGERPRINT as input. The model cannot
+ *     produce a valid fingerprint from natural language, so it can never call them
+ *     correctly — they are pure per-turn rent.
+ *   - signal-noise/export-audit-log is an export/download action (a CSV/JSON blob).
+ *     A chat turn should not emit a download, and signal-noise/get-audit-log already
+ *     answers the readable "what's in the audit log" question — so it is redundant
+ *     for the Copilot and kept only for the wp-admin export button.
+ *
+ * Pruning removes them from the COPILOT's list only. Every one stays registered,
+ * REST-callable, MCP-exposed, and driven by the wp-admin UI + the
+ * scan→suggest→apply pipeline. To restore one, delete its line.
+ *
+ * OURS ONLY, with a seam caveat: the caller matches on the STRIPPED tool name
+ * desktop-mode produces, because the namespace is gone before any plugin can
+ * filter the tool list (desktop_mode_ai_search_ability_names() exposes no filter).
+ * A third-party ability whose slug stripped to one of these exact names would also
+ * be dropped. The names are SN-specific and the risk is theoretical; this is the
+ * best available match point.
+ *
+ * @since 9.59.0
+ * @return string[] Full SN ability names to drop from the Copilot tool list.
+ */
+function snt_dm_ai_pruned_abilities() {
+	return array(
+		'signal-noise/pattern-adoption-suggest',
+		'signal-noise/export-audit-log',
+		'signal-noise/block-migrations-suggest',
+	);
+}
