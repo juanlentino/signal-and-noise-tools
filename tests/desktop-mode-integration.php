@@ -1067,6 +1067,50 @@ $stacked = apply_filters( 'desktop_mode_ai_system_prompt_appendix', 'PRIOR-PLUGI
 ok( strpos( $stacked, 'PRIOR-PLUGIN-TEXT' ) === 0,
 	'the appendix STACKS onto a prior plugin\'s text (appends, never replaces)' );
 
+echo "\n── v9.59.0 safety lock: destructive commands must NEVER be aiCallable ──\n";
+// The v2.5.5 policy exposes safe commands to Ask AI (aiCallable: true) and
+// WITHHOLDS the destructive ones on purpose. Nothing tested that until now, so a
+// future edit could silently hand cache-purging / row-deletion to the AI. Lock it.
+//
+// Comments are stripped first: each destructive block carries an "aiCallable
+// INTENTIONALLY OMITTED" COMMENT right where the flag would go, and a naive
+// substring match would read that prose as the flag (the green-CI/dead-code shape
+// this repo keeps hitting). strip_js_comments() is the same guard the mount
+// contract uses below.
+$aic_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) );
+
+/**
+ * null  → the slug does not exist (guards against a typo'd, vacuous assertion)
+ * true  → the command is aiCallable
+ * false → the command is NOT aiCallable
+ *
+ * aiCallable, when present, always sits between `slug:` and `run:`, so the search
+ * is scoped to that window — a neighbouring command's flag can't leak in.
+ */
+$aic_state = static function ( $slug ) use ( $aic_js ) {
+	if ( ! preg_match( '/slug:\s*\'' . preg_quote( $slug, '/' ) . '\'(.*?)\brun:/s', $aic_js, $m ) ) {
+		return null;
+	}
+	return strpos( $m[1], 'aiCallable' ) !== false;
+};
+
+// Destructive / irreversible: purge every cache, delete template-override rows,
+// or both at once. An AI must never reach these from a chat turn.
+foreach ( array( 'sn-cmd-purge-caches', 'sn-cmd-clear-overrides', 'sn-cmd-full-reset' ) as $danger ) {
+	$state = $aic_state( $danger );
+	ok( null !== $state,
+		"the destructive command `$danger` still exists in the source (not a typo — the exclusion below is real, not vacuous)" );
+	ok( false === $state,
+		"`$danger` is NOT aiCallable — a destructive, irreversible action must never be invocable by Ask AI" );
+}
+
+// Positive control: the safe commands ARE aiCallable, so the exclusions above
+// redden because a command is withheld — not because the matcher never matches.
+foreach ( array( 'sn-cmd-force-check', 'sn-cmd-nav-dashboard' ) as $safe ) {
+	ok( true === $aic_state( $safe ),
+		"the safe command `$safe` IS aiCallable (positive control — proves the matcher can see the flag)" );
+}
+
 echo "\n── living-tree filter ──\n";
 ok( isset( $GLOBALS['__filters']['desktop_mode_living_tree_traffic'] ), 'living-tree filter is registered' );
 $GLOBALS['__totals'] = array( '*' => array( 'views' => 1234, 'visits' => 900, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
