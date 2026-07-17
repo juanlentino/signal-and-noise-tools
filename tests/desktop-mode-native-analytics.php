@@ -222,5 +222,17 @@ ok( is_array( $body['seven_day'] ), 'seven_day is an array of KPIs' );
 ok( count( $body['top_content'] ) <= 5, 'top_content is capped at 5' );
 ok( count( $body['top_sources'] ) <= 5, 'top_sources is capped at 5' );
 
+echo "\n── CACHE BOUNDARY ──\n";
+// Start clean: earlier assertions already warmed the cache.
+$GLOBALS['__t'] = array();
+
+$a = snt_desktop_analytics_hud_payload()->get_data(); // warms the 7d cache
+$b = snt_desktop_analytics_hud_payload()->get_data(); // must hit the 7d cache
+
+ok( $a['realtime'] !== $b['realtime'], 'realtime is recomputed every request (never day-cached)' );
+ok( $a['seven_day'] === $b['seven_day'], 'seven_day is served from the day-stamped cache' );
+ok( array_key_exists( 'sn_desktop_analytics_hud_2026-07-16', $GLOBALS['__t'] ),
+	'cache key is stamped with the LOCAL day (not a flat key)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
