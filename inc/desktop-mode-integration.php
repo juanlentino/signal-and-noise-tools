@@ -1379,3 +1379,34 @@ function snt_dm_ai_pruned_abilities() {
 		'signal-noise/block-migrations-suggest',
 	);
 }
+
+/**
+ * Teach the Copilot the analytics vocabulary its own tools return but never
+ * define (v9.59.0).
+ *
+ * desktop_mode_ai_system_prompt_appendix is Stable and STACKED across plugins
+ * (desktop-mode concatenates every plugin's appendix), so we append and keep to
+ * OUR nouns — the exact terms get-analytics-summary / get-analytics-events emit.
+ * EVERY WORD IS RENT: it ships on every Ask AI turn, forever, so there is no
+ * brand voice and no history here, only the definitions the tool outputs need. A
+ * test caps it at 600 chars.
+ *
+ * The definitions are the REAL ones (inc/analytics-rollup.php:34-42):
+ *   - visits = count(DISTINCT visitor-day hash) — approximate unique visitors,
+ *     NOT sessions. Telling the model "visits = sessions" would make it
+ *     confidently wrong, so it is stated explicitly.
+ *   - time_avg is mean dwell in MILLISECONDS; scroll_avg is a 0-100 percent.
+ *   - views is sample-corrected, visits is a raw distinct count, so their ratio
+ *     is an estimate.
+ *
+ * @since 9.59.0
+ */
+add_filter( 'desktop_mode_ai_system_prompt_appendix', function ( $appendix ) {
+	return trim( (string) $appendix . "\n" . implode( ' ', array(
+		'Signal & Noise analytics vocabulary.',
+		'Traffic is classed human, suspect, or bot; every reported figure is human-only unless a class is named.',
+		'"views" is sample-corrected pageviews; "visits" is approximate unique visitors (visitor-day hashes), NOT sessions — treat views and visits as estimates, not an exact ratio.',
+		'scroll_avg is mean scroll depth (0-100%); time_avg is mean dwell time in MILLISECONDS.',
+		'A null metric means never measured, not zero; a real zero is reported as 0.',
+	) ) );
+} );

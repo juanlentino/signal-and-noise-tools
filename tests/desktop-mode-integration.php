@@ -1047,6 +1047,26 @@ ok( in_array( 'get_active_template_structure', $prune_names, true ),
 ok( count( $prune_out ) === 3,
 	'exactly the three approved tools were removed; the other three survive' );
 
+echo "\n── v9.59.0: the analytics-vocabulary appendix (every word is rent) ──\n";
+ok( isset( $GLOBALS['__filters']['desktop_mode_ai_system_prompt_appendix'] ),
+	'the system-prompt appendix filter is registered' );
+$appendix = apply_filters( 'desktop_mode_ai_system_prompt_appendix', '' );
+ok( is_string( $appendix ) && '' !== $appendix,
+	'we contribute a system-prompt appendix' );
+// EVERY WORD IS RENT — this ships on every turn, forever. The cap is enforced,
+// not intended; a future edit that needs more room must argue for it here.
+ok( strlen( $appendix ) <= 600,
+	'the appendix is <= 600 chars (~150 tokens/turn, forever) — every word is rent [' . strlen( $appendix ) . ']' );
+ok( strpos( $appendix, 'suspect' ) !== false,
+	'it names the traffic classes the tools return but never define (human/suspect/bot)' );
+ok( strpos( $appendix, 'null' ) !== false,
+	'it states that null means never-measured, not zero — the distinction the payloads preserve' );
+// It STACKS onto whatever came before — desktop-mode concatenates appendices
+// across plugins, so we must append, never replace.
+$stacked = apply_filters( 'desktop_mode_ai_system_prompt_appendix', 'PRIOR-PLUGIN-TEXT' );
+ok( strpos( $stacked, 'PRIOR-PLUGIN-TEXT' ) === 0,
+	'the appendix STACKS onto a prior plugin\'s text (appends, never replaces)' );
+
 echo "\n── living-tree filter ──\n";
 ok( isset( $GLOBALS['__filters']['desktop_mode_living_tree_traffic'] ), 'living-tree filter is registered' );
 $GLOBALS['__totals'] = array( '*' => array( 'views' => 1234, 'visits' => 900, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
