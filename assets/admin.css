@@ -1874,3 +1874,61 @@
 	border-bottom: 2px solid var(--sn-link);
 	color: var(--sn-text);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Copilot tool usage (v9.62.1) — the invocation-count view in Diagnostics.
+ * Was an unstyled bullet list; now a card with count chips on the shared
+ * design tokens (light-only, like the rest of this admin sheet).
+ * ───────────────────────────────────────────────────────────────────── */
+.sn-ai-usage {
+	margin-top: var(--sn-space-3);
+	max-width: 42em;
+}
+.sn-ai-usage__empty {
+	margin: 0;
+	color: var(--sn-text-muted);
+}
+.sn-ai-usage__summary {
+	margin: 0 0 var(--sn-space-3);
+	color: var(--sn-text-muted);
+	font-size: 0.92em;
+}
+.sn-ai-usage__summary strong {
+	color: var(--sn-text);
+	font-variant-numeric: tabular-nums;
+}
+.sn-ai-usage__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.sn-ai-usage__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sn-space-3);
+	padding: var(--sn-space-2) 0;
+	border-top: 1px solid var(--sn-border);
+}
+.sn-ai-usage__row:first-child {
+	border-top: 0;
+}
+.sn-ai-usage__name {
+	background: transparent;
+	padding: 0;
+	font-size: 12px;
+	color: var(--sn-text);
+	word-break: break-all;
+}
+.sn-ai-usage__count {
+	flex: none;
+	min-width: 2.5em;
+	padding: 2px 10px;
+	border-radius: 4px;
+	background: rgba(0,0,0,0.04);
+	color: var(--sn-text-muted);
+	font-size: 0.82em;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}

@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.62.1] - 2026-07-17: The tool-usage view gets styled; the audit button is removed
+
+### Fixed
+
+**The Copilot tool-usage view was an unstyled bullet list.** It is now a card with a summary line and right-aligned count chips, built on the shared admin design tokens (`assets/admin.css`, enqueued and screen-gated like the rest — no inline CSS). The empty state is a proper muted card, not a bare paragraph.
+
+### Removed
+
+**The temporary v9.62.0 audit button**, its module, its test, and its require. The one-time measurement is captured (below); nothing durable is left behind.
+
+### The audit result (live, from the button before it was removed)
+
+- Full Copilot payload: **42 tools, 33,116 bytes (~8,279 tokens)** raw. Ours: **18 read-only tools, 10,868 bytes (~2,717 tokens) — 33%** of it. This confirms the v9.59.0 source measurement (18 tools; the byte figure was within 1%).
+- Our `desktop_mode_ai_tools` filter chain cuts the whole list from **33,116 → 23,071 bytes (−10,045, ~−2,511 tokens)**.
+- **Normalization saves roughly three times what the prune does.** WordPress Core's own `read_users` and `read_content` carry large top-level combinators; our boundary normalizer strips them (≈4.2 KB → a few hundred bytes each), which is what keeps Ask AI alive on this site — those Core tools would 400 the entire assistant unnormalized. Not a niche third-party issue; Core itself trips it. (See [WordPress/desktop-mode#366](https://github.com/WordPress/desktop-mode/pull/366).)
+
 ## [9.62.0] - 2026-07-17: A one-time, click-to-run Copilot tool audit (temporary)
 
 **Headline:** The v9.59.0 audit needed a live measurement that previously meant a terminal. This makes it a button.
