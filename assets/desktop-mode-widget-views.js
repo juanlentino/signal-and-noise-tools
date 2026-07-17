@@ -235,6 +235,46 @@
 				body.appendChild( stats );
 			}
 
+			// ── v9.57.0: top sources ──
+			// The desktop had no surface for WHERE traffic comes from. The retired
+			// sn-analytics-hud existed largely to show this; everything else it
+			// showed, this tile already covered — better. Three rows: a tile is a
+			// glance, and the full list is one click away on the analytics page.
+			//
+			// Rows are the accessor's own shape: `value` + `visits`
+			// (inc/analytics-sources.php), sorted by views DESC. NOT `source` —
+			// that invented key cost a release.
+			//
+			// An EMPTY array is a real answer ("no attributed sources yet"), not a
+			// failure, so it simply renders nothing rather than claiming anything.
+			if ( payload.top_sources && payload.top_sources.length ) {
+				var srcs = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+				// Sentence case at 11px/.55 — the same shape forecastBlock() uses for
+				// "Next 7 days". NOT uppercase: the suite forbids
+				// text-transform:uppercase in every widget file, because the label
+				// registered in PHP is the single source of truth for a card's name
+				// and the chrome header already paints it. A section heading is not
+				// a card title, but matching the house voice beats arguing the point.
+				srcs.appendChild( el( 'div', {
+					text:  'Top sources',
+					style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+				} ) );
+				payload.top_sources.forEach( function( src ) {
+					var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					row.appendChild( el( 'span', {
+						text:  src.value,
+						title: src.value,
+						style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					} ) );
+					row.appendChild( el( 'span', {
+						text:  String( src.visits ),
+						style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
+					} ) );
+					srcs.appendChild( row );
+				} );
+				body.appendChild( srcs );
+			}
+
 			var fc = forecastBlock( payload.forecast );
 			if ( fc ) { body.appendChild( fc ); }
 		}

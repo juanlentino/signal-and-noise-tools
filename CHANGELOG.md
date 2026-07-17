@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.57.0] - 2026-07-16: Top sources folds into the tile; the HUD is retired
+
+**Headline:** The analytics glance already had a home. It didn't need a second one.
+
+### Removed
+
+**`sn-analytics-hud`** — the native Desktop Mode window added in v9.56.0 — along with its script, stylesheet, and the `signal-noise/v1/desktop/analytics-hud` REST route.
+
+It was scoped as a *"focused HUD, single pane."* **That is the definition of a widget.** It wore window chrome around widget content, which is why it looked sparse: three KPIs and two short lists can't fill a window. Worse, `sn-site-views` already covered the glance — 14-day sparkline, WoW delta, visits, bot share, top page, forecast — and covered it better. The HUD's only genuinely new idea was **top sources**.
+
+There's also a structural argument that only became visible after shipping it. Desktop Mode's `<wpd-*>` primitives are side-effect registered *per bundle*; a plugin must `import 'desktop-mode'` to get them. This plugin has no build step, so **any native window we ship must hand-roll CSS that will drift from the shell's design language forever.** Native windows are structurally expensive here. That's a real finding, and it's the durable part of v9.56.x.
+
+### Added
+
+**Top sources in `sn-site-views`** — three rows, `value` + `visits`, sorted by views. Three, not five: a tile is a glance, and the full list is one click away.
+
+Rows use the accessor's **own** key — `value` (`inc/analytics-sources.php`), never the invented `source` that shipped in v9.56.0 and rendered `undefined` for every row. The test stub now mirrors the real shape, and the assertion is mutation-checked: emitting `source` reddens exactly two guards.
+
+The heading is sentence case at 11px/.55, matching `forecastBlock()`'s "Next 7 days" — **not** uppercase. The suite forbids `text-transform:uppercase` in every widget file, because the label registered in PHP is the single source of truth for a card's name and the chrome header already paints it. That rule caught this on the first run.
+
+### Why MINOR, not MAJOR
+
+Removing the REST route looks like *"removed public API"* — the project's own definition of breaking. It isn't, and `docs/VERSIONING.md` says why: the caps were dropped in 2026-05-26 precisely because they **"were producing fictional majors"**, citing a v5.0.0 scoped to *"1 REMOVE (orphaned option)"* that *"wasn't earned by the codebase's actual semantic state."*
+
+This is that case exactly. The route lived for roughly one hour across two patch tags, had exactly one consumer — our own asset, deleted in the same commit — and no external contract could have formed. Nothing breaks; nothing requires user action.
+
+**The MINOR is earned by the widget enrichment**, not by the removal.
+
 ## [9.56.2] - 2026-07-16: A quiet site reported "never measured" instead of zero
 
 **Headline:** "Visitors now" showed nothing on a quiet site — because zero visitors was being reported as *no data*.
