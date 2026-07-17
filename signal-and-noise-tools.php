@@ -269,6 +269,7 @@ require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';
 require_once __DIR__ . '/inc/desktop-mode-attention.php';
 require_once __DIR__ . '/inc/ai-bootstrap.php';
+require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
