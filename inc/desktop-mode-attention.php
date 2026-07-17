@@ -127,3 +127,26 @@ function snt_desktop_attention_total() {
 	}
 	return $total;
 }
+
+/**
+ * Ship the count to the shell.
+ *
+ * Localized onto 'sn-desktop-mode' — the handle inc/desktop-mode-integration.php
+ * ALREADY registers (:115) and already localizes snDesktopData onto (:233). A
+ * handle registered anywhere can be localized onto from anywhere, so this needs
+ * no change to that 1315-line file.
+ *
+ * No REST route, no fetch, no poll: the number is already on the page by the
+ * time the shell boots. That is what makes the badge free.
+ *
+ * @since 9.58.0
+ */
+add_action( 'admin_enqueue_scripts', function () {
+	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+		return;
+	}
+	wp_localize_script( 'sn-desktop-mode', 'snDesktopAttention', array(
+		'total'  => snt_desktop_attention_total(),
+		'iconId' => 'sn-icon-dashboard',
+	) );
+}, 20 );

@@ -48,12 +48,30 @@ function fire( $hook ) {
 }
 
 $GLOBALS['__localized'] = array();
-function wp_localize_script( $handle, $name, $data ) { $GLOBALS['__localized'][ $name ] = $data; return true; }
+// Record the HANDLE too, not just the payload. The first draft of this stub
+// discarded $handle, which left the handle completely unpinned: renaming
+// 'sn-desktop-mode' to anything else reddened NOTHING while the suite stayed
+// green. In production that is silent — wp_localize_script() returns false for
+// an unregistered handle and the payload simply never ships, so the badge would
+// never appear and no test would notice. Caught by mutation, not by reading.
+$GLOBALS['__localized_handles'] = array();
+function wp_localize_script( $handle, $name, $data ) {
+	$GLOBALS['__localized'][ $name ]         = $data;
+	$GLOBALS['__localized_handles'][ $name ] = $handle;
+	return true;
+}
 
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); }
 function esc_html( $t ) { return $t; }
 function __( $t, $d = null ) { return $t; }
 function current_user_can( $cap ) { return true; }
+
+// The localize is GATED on this — without desktop-mode there is no shell to
+// badge. Verified real: desktop_mode_is_enabled( $user_id = 0 ) is defined
+// upstream at includes/helpers.php:32 (desktop-mode v0.9.5). A gate on a
+// function that does not exist would be function_exists()-false forever and the
+// badge would silently never ship.
+function desktop_mode_is_enabled() { return true; }
 
 // ── The three cached sources, stubbed at their REAL shapes ───────────
 // Shapes read from source, NOT imagined:
@@ -231,6 +249,22 @@ $threw = false;
 try { snt_desktop_attention_total(); } catch ( RuntimeException $e ) { $threw = true; }
 ok( ! $threw, 'reading the total triggers NO scan — the scan stubs throw if called' );
 ok( $GLOBALS['__scan_calls'] > 0, 'it did read the CACHED accessors (sanity: the test is exercising something)' );
+
+echo "\n── LOCALIZE (rides the handle the integration already registers) ──\n";
+att_reset();
+$GLOBALS['__blockmig'] = array( 'candidates' => array( 1, 2 ) );
+fire( 'admin_enqueue_scripts' );
+$data = $GLOBALS['__localized']['snDesktopAttention'] ?? null;
+ok( is_array( $data ), 'snDesktopAttention is localized on admin_enqueue_scripts' );
+ok( ( $data['total'] ?? null ) === 2, 'the localized payload carries the total' );
+ok( ( $data['iconId'] ?? '' ) === 'sn-icon-dashboard',
+	'the payload names the icon to badge — the id inc/desktop-mode-integration.php already registers' );
+ok( ( $GLOBALS['__localized_handles']['snDesktopAttention'] ?? '' ) === 'sn-desktop-mode',
+	'localized onto the sn-desktop-mode handle inc/desktop-mode-integration.php registers (:115) — an unregistered handle makes wp_localize_script a SILENT no-op and the badge never ships' );
+
+$src = file_get_contents( __DIR__ . '/../inc/desktop-mode-attention.php' );
+ok( strpos( $src, "function_exists( 'desktop_mode_is_enabled' )" ) !== false,
+	'the localize is gated — without desktop-mode there is no shell to badge' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
