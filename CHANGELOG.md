@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.54.2] - 2026-07-16: A tag so the rewritten fallback can be proven — and the flaky guard it exposed
+
+**No plugin code change.** The payload is byte-identical to 9.54.1 apart from this version header. This tag exists so the emergency deploy workflow can be exercised at all — and it carries a real fix to that workflow, found by exercising its twin.
+
+**The bug the first real dispatch found.** The theme's identical workflow was dispatched for the first time and died at its own guard:
+
+```
+tar: stdout: write error
+##[error]payload has no style.css
+```
+
+The payload **contained** `style.css`. The guard was:
+
+```bash
+tar -tzf payload.tar.gz | grep -q '^…/style.css$' || { echo "::error::…"; exit 1; }
+```
+
+Under `set -o pipefail`, `grep -q` exits on its **first match**, `tar` takes SIGPIPE, and pipefail propagates **tar's** failure even though grep **succeeded**. It's a **race** — it depends on whether tar finished writing before grep quit — so it passed local verification on a small payload and failed on the runner. **A guard that fires at random is worse than no guard: it reads as "CI being weird."** Both workflows had the pattern; both now capture the listing once and match against the variable, which has no pipe from the producer and no race.
+
+Reproduced deterministically by forcing the stream large: `seq 1 500000 | grep -q '^1$'` under pipefail **fails despite the match existing**; `L=$(seq 1 500000); grep -q '^1$' <<<"$L"` passes.
+
+**Why a release for a workflow:** `deploy.yml` was rewritten to be archive-based ([#316](https://github.com/juanlentino/signal-and-noise-tools/pull/316), `ac60197`) and shipped as a `ci:` change with no version bump — correct by the repo's convention (6/6 prior workflow-only commits don't bump), and `.github/` is export-ignored so it ships nothing.
+
+That convention turned out to have a hole. `workflow_dispatch --ref X` runs **the workflow file as it exists at ref X**, and the workflow **guards that the ref is a tag** (that guard is what stopped it shipping `main` on 2026-07-16). So:
+
+- `--ref v9.54.1` runs the **old**, broken, `.git`-dependent workflow — `v9.54.1` predates the rewrite.
+- `--ref main` is rejected by the tag guard, as designed.
+
+**A tag-guarded deploy workflow can only ever be exercised by a tag cut after it lands.** The convention is right for `ci.yml` and `gitleaks.yml`, which are never dispatched by tag; it is wrong for `deploy.yml`, which can *only* be reached that way. This tag closes that gap.
+
+**What it proves once dispatched** (`gh workflow run deploy.yml --ref v9.54.2`): the payload builds from `git archive` with export-ignore applied, all four guards pass, the rsync lands as the restricted `sn-plugin` SSH user with no `.git` anywhere on the server, and the deployed `Version:` header equals the dispatched tag. Today's incident showed a dormant fallback fails precisely when it's needed — this is the cheapest possible moment to find out whether the replacement works.
+
 ## [9.54.1] - 2026-07-16: A GitHub blip shouldn't cost an hour of blindness
 
 **Headline:** v9.54.0 shipped, was installed, and immediately answered the question we'd spent an hour inferring. The card said it plainly:
