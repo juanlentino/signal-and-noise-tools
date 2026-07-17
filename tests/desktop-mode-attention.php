@@ -80,7 +80,7 @@ function snt_pattern_adoption_last_scan() { $GLOBALS['__scan_calls']++; return $
 //   snt_pattern_adoption_run_scan()   inc/pattern-adoption-detect.php:135
 // A sentinel named after a function that does not exist protects nothing. This
 // house guards every cross-module call with function_exists() — the module below
-// does it five times — so the realistic wrong-code path is a GUARDED call to the
+// does so throughout — so the realistic wrong-code path is a GUARDED call to the
 // real trigger. Under a misnamed sentinel, function_exists() returns false, the
 // call is skipped, and the suite goes GREEN while production sweeps every post on
 // every shell load. That is the failure this file exists to prevent.
@@ -137,6 +137,53 @@ $srcs = snt_desktop_attention_sources();
 ok( ( $srcs['block_migrations']['count'] ?? 'missing' ) === 0,
 	'a scan that found nothing reports 0 — NOT null. Measured-zero and never-measured are different answers' );
 ok( snt_desktop_attention_total() === 0, 'a measured-empty queue adds 0 to the total' );
+
+echo "\n── pattern_adoption obeys the SAME measured-empty rule ──\n";
+// The block_migrations / pattern_adoption logic is duplicated, and duplicated
+// logic drifts. Exercise BOTH, or a divergence in the untested twin ships green.
+att_reset();
+$GLOBALS['__pattern'] = array( 'candidates' => array() ); // scanned; found nothing
+$srcs = snt_desktop_attention_sources();
+ok( ( $srcs['pattern_adoption']['count'] ?? 'missing' ) === 0,
+	'pattern_adoption reports a REAL 0 when scanned and empty — the twin of the block_migrations rule' );
+ok( snt_desktop_attention_total() === 0, 'a measured-empty pattern_adoption adds 0 to the total' );
+
+echo "\n── a MALFORMED envelope is unmeasured, never a fabricated count ──\n";
+// (array) $scalar WRAPS rather than empties: (array) false === array( false ),
+// so a blind cast counted a malformed envelope as 1 and badged one thing that
+// does not exist. Verified by execution: false / 0 / "" each fabricated 1.
+// A module whose whole purpose is to never invent a count must answer null here:
+// a malformed envelope means we DO NOT KNOW, and 0 would assert a measurement
+// we never made.
+foreach ( array(
+	'false'          => false,
+	'the int 0'      => 0,
+	'an empty string' => '',
+	'a scalar string' => 'nope',
+) as $label => $malformed ) {
+	att_reset();
+	$GLOBALS['__blockmig'] = array( 'candidates' => $malformed );
+	$GLOBALS['__pattern']  = array( 'candidates' => $malformed );
+	$srcs = snt_desktop_attention_sources();
+	ok( att_is_unmeasured( $srcs['block_migrations'] ?? null ),
+		"block_migrations with candidates = $label is UNMEASURED, not a fabricated 1" );
+	ok( att_is_unmeasured( $srcs['pattern_adoption'] ?? null ),
+		"pattern_adoption with candidates = $label is UNMEASURED, not a fabricated 1" );
+	ok( snt_desktop_attention_total() === 0, "a malformed envelope ($label) badges nothing" );
+}
+
+// The candidates key missing entirely — an envelope that is an array but not the
+// shape we expect. A blind cast answered 0 here: "scanned, nothing found", from
+// an envelope we could not read. Also unmeasured.
+att_reset();
+$GLOBALS['__blockmig'] = array( 'counts' => array(), 'scanned_at' => 123 ); // no candidates key
+$GLOBALS['__pattern']  = array( 'counts' => array(), 'scanned_at' => 123 );
+$srcs = snt_desktop_attention_sources();
+ok( att_is_unmeasured( $srcs['block_migrations'] ?? null ),
+	'block_migrations with NO candidates key is UNMEASURED — an unreadable envelope is not a measured zero' );
+ok( att_is_unmeasured( $srcs['pattern_adoption'] ?? null ),
+	'pattern_adoption with NO candidates key is UNMEASURED — an unreadable envelope is not a measured zero' );
+ok( snt_desktop_attention_total() === 0, 'an envelope missing candidates badges nothing' );
 
 echo "\n── health counts FLAGGED checks, and NEVER advisory ones ──\n";
 // Check keys are the REAL ones from sn_health_run_scan() (inc/health-checks.php:100-110).
