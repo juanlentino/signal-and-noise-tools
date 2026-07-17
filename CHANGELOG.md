@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.59.0] - 2026-07-17: The AI Copilot pays less rent and speaks our dialect
+
+**Headline:** Every read-only ability is auto-enrolled as an Ask AI tool, serialized into every turn whether or not it is ever used. This release cuts the tools that can't earn that rent and teaches the Copilot the vocabulary the rest of them return.
+
+### Changed
+
+**Pruned three tools from the Copilot's per-turn list.** Read-only abilities are auto-enrolled as Copilot tools with no opt-in, so each one's name + description + schema ships on every Ask AI turn, forever. Three cannot be used from a conversational turn and were pure rent:
+
+- `signal-noise/pattern-adoption-suggest` and `signal-noise/block-migrations-suggest` — each needs a scan-generated block *fingerprint* as input, which the model cannot produce from natural language.
+- `signal-noise/export-audit-log` — an export/download action; `get-audit-log` already answers the readable question, so the Copilot never needed the CSV variant.
+
+**Pruning removes them from the Copilot list only.** All three stay registered, REST-callable, MCP-exposed, and driven by the wp-admin UI and the scan→suggest→apply pipeline. The prune matches the namespace-stripped tool name desktop-mode produces (`signal-noise/export-audit-log` → `export_audit_log`), computed via desktop-mode's own transform so it can't drift.
+
+### Added
+
+**A size-capped analytics vocabulary for the Copilot** (`desktop_mode_ai_system_prompt_appendix`), defining the terms `get-analytics-summary` / `get-analytics-events` emit but never explain: the human/suspect/bot traffic classes (human is the default for every figure), that **views are pageviews and visits are approximate unique visitors — not sessions**, that `scroll_avg` is 0–100% and `time_avg` is in milliseconds, and that a null metric means *never measured*, not zero. Definitions verified against `inc/analytics-rollup.php`; capped at 600 chars by test because every word ships on every turn.
+
+### The economics (measured, not estimated)
+
+Source-measured across our abilities — the live grand-total and %-share await a `wp eval-file` audit, but our contribution is already net-negative:
+
+| | Tools | Per-turn bytes |
+|---|---|---|
+| Our read-only Copilot tools before | 18 | 10,796 (~2,699 tokens) |
+| After the prune | 15 | 8,598 (~2,150 tokens) |
+| Prune saving | −3 | **−2,198 bytes** |
+| Appendix added (system prompt) | — | +478 chars (~120 tokens) |
+| **Net** | | **≈ −1,720 bytes / −430 tokens per turn** |
+
+Two premises were corrected by measuring rather than assuming: our read-only tool count is **18, not the 28** an earlier estimate carried (28 was the *write* count, and write abilities are never auto-enrolled), and the per-call usage log records a feature label, not tool identity — and never sees Copilot turns — so the prune was argued from redundancy and payload size, not invocation data.
+
+**AI-invocable commands were left unchanged.** The command policy set in v2.5.5 already exposes the safe read/navigation commands as `aiCallable` and deliberately withholds the three destructive ones (purge caches, clear overrides, full reset). That policy is correct and was not touched.
+
 ## [9.58.0] - 2026-07-17: The desktop shows what needs attention
 
 **Headline:** The plugin has always had queues. The desktop could never see them.
