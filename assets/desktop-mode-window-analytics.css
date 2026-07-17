@@ -1,0 +1,147 @@
+/**
+ * Signal & Noise Tools — the "Analytics" native desktop-mode window.
+ *
+ * WHY THIS FILE EXISTS (v9.56.1): v9.56.0's template was composed from
+ * <wpd-stack>/<wpd-section>/<wpd-row>. Those tags are REAL, but per
+ * docs/components-reference.md they are "side-effect registered at import time,
+ * PER BUNDLE" — the shell bundle registers only a core subset, and "emitting a
+ * <wpd-foo> tag that no loaded bundle has imported renders INERT HTML". Our
+ * asset is a plain IIFE with no build step, so it can never import from
+ * 'desktop-mode' to register them. Result: every tag stayed an unknown element,
+ * inherited display:inline, and the whole HUD collapsed into one run-on line
+ * ("Views109Visits147Engaged32%"). Owner-observed, because nothing in CI can
+ * see a rendered window.
+ *
+ * So: plain semantic HTML + this stylesheet, shipped via the `style` arg on
+ * desktop_mode_register_window(). That arg also fixes mid-session activation —
+ * the shell injects a <link> for it when a peer plugin is activated inside an
+ * open shell, where wp_print_styles has already run for the parent page.
+ *
+ * THEMING: desktop-mode's window body is `--desktop-mode-window-bg: #fff` and
+ * it exposes no dark switch (assets/css/variables.css defines everything under
+ * :root only). Analytics is LIGHT-ONLY by decision, so this is light-on-white
+ * by design, not by omission. The one colour we inherit is the admin accent —
+ * `--wp-admin-theme-color` — which is why the title bar picks up the owner's
+ * scheme. Never hardcode it.
+ *
+ * @since plugin v9.56.1
+ */
+
+.sn-hud {
+	/* The shell owns the window chrome; we own the body. */
+	box-sizing: border-box;
+	padding: 14px 16px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #1d2327;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.sn-hud *,
+.sn-hud *::before,
+.sn-hud *::after {
+	box-sizing: inherit;
+}
+
+/* ── Realtime ─────────────────────────────────────────────────────── */
+
+.sn-hud__realtime {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.sn-hud__realtime-value {
+	font-size: 30px;
+	font-weight: 600;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+
+.sn-hud__realtime-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #646970;
+}
+
+/* ── Sections ─────────────────────────────────────────────────────── */
+
+.sn-hud__section {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.sn-hud__heading {
+	margin: 0 0 4px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #646970;
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────── */
+
+.sn-hud__row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 3px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.sn-hud__row:last-child {
+	border-bottom: 0;
+}
+
+.sn-hud__row-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: #50575e;
+}
+
+.sn-hud__row-value {
+	flex: 0 0 auto;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── Error notice ─────────────────────────────────────────────────── */
+
+/* A failure must never read as "no traffic" — see clearFailure() in the JS:
+   a successful poll retires this row first. */
+.sn-hud__error {
+	padding: 8px 10px;
+	border-radius: 4px;
+	background: #fcf0f1;
+	border: 1px solid #f0b3b8;
+	color: #8a2424;
+	font-size: 12px;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+
+.sn-hud__footer {
+	margin-top: auto;
+	padding-top: 4px;
+}
+
+.sn-hud__link {
+	color: var(--wp-admin-theme-color, #2271b1);
+	font-size: 12px;
+	text-decoration: none;
+}
+
+.sn-hud__link:hover,
+.sn-hud__link:focus {
+	text-decoration: underline;
+}

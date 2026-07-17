@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.56.1] - 2026-07-16: The HUD rendered — as one run-on line
+
+**Headline:** v9.56.0's window opened, fetched, and rendered your real numbers. It just looked like this:
+
+> `Views109Visits147Engaged32%`
+
+The template was composed from Desktop Mode's `<wpd-stack>` / `<wpd-section>` / `<wpd-row>` layout primitives. Those tags are **real** — a reviewer confirmed they exist upstream, and they do. **Existing was not the property.**
+
+Per Desktop Mode's own `docs/components-reference.md`, components are *"side-effect registered at import time, **per bundle**"*. The shell bundle registers only a core subset; *"emitting a `<wpd-foo>` tag that no loaded bundle has imported renders **inert HTML**"*. Plugin bundles are expected to `import 'desktop-mode'` to register the rest.
+
+Our asset is a plain IIFE with **no build step** — so it can never import anything. Every tag stayed an unknown element, inherited `display: inline`, and the entire HUD collapsed into one line.
+
+**Three choices, each fine alone, fatal together:** compose from `wpd-*` primitives · ship vanilla JS with no bundler · omit the optional `style` handle.
+
+**The fix:** plain semantic HTML plus our own stylesheet, shipped via the `style` arg on `desktop_mode_register_window()`. That arg also earns its keep on the mid-session-activation path — the shell injects a `<link>` for it when a peer plugin is activated inside an already-open shell, where `wp_print_styles` has long since run.
+
+Light-on-white by design, not omission: Desktop Mode's window body is `--desktop-mode-window-bg: #fff` and it ships no dark switch, and Analytics is light-only by decision. The one colour inherited is `--wp-admin-theme-color`, the admin accent — never hardcoded.
+
+**Why no test caught it.** The suite regexes source; it cannot render a window. It proved the tags were *emitted*, never that they would *upgrade*. It now asserts the thing we can actually control: **we never emit a tag whose registration we don't own** — not in the template, not via `createElement`, and not for the error notice (the last row that should ever be invisible). Mutation-checked: restoring `<wpd-stack>` reddens exactly that guard.
+
+Also fixed a self-inflicted over-tight assertion: *"template contains no digits"* reddened the instant a static "Last 7 days" heading was added. A constant heading is not a snapshot. It now pins the real contract — every data mount point ships **empty**, and realtime ships as the em-dash placeholder.
+
+Everything expensive from v9.56.0 was already proven correct by that ugly screenshot: registration, `init` timing, the `( body )` mount contract, `desktopModeWindowConfig`, the REST fetch and nonce, the real accessor keys, and the null path rendering `—`. This was a cosmetic layer over a working feature.
+
 ## [9.56.0] - 2026-07-16: Analytics gets a native Desktop Mode window
 
 **Headline:** Analytics in Desktop Mode was a wp-admin page in an iframe. Now it's a real window.

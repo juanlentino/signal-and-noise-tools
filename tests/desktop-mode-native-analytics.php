@@ -86,6 +86,9 @@ function register_rest_route( $ns, $route, $args = array() ) { $GLOBALS['__route
 $GLOBALS['__scripts'] = array();
 function wp_register_script( $h, $src = '', $deps = array(), $ver = false, $footer = false ) { $GLOBALS['__scripts'][ $h ] = $src; }
 
+$GLOBALS['__styles'] = array();
+function wp_register_style( $h, $src = '', $deps = array(), $ver = false, $media = 'all' ) { $GLOBALS['__styles'][ $h ] = $src; }
+
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); }
 function rest_url( $path = '' ) { return 'https://example.test/wp-json/' . ltrim( $path, '/' ); }
 function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/signal-and-noise-tools/' . ltrim( $path, '/' ); }
@@ -93,6 +96,7 @@ function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
 function current_user_can( $cap ) { return true; }
 function current_time( $type, $gmt = 0 ) { return '2026-07-16 12:00:00'; }
 function esc_html( $t ) { return $t; }
+function esc_html_e( $t, $d = null ) { echo $t; }
 function esc_attr( $t ) { return $t; }
 function esc_url( $t ) { return $t; }
 function __( $t, $d = null ) { return $t; }
@@ -242,11 +246,42 @@ ok( strpos( $tpl, 'data-sn-hud="top-sources"' ) !== false, 'template declares th
 ok( strpos( $tpl, 'data-sn-hud="root"' ) !== false, 'template declares the root mount point (the JS renders error states into it)' );
 ok( strpos( $tpl, 'data-sn-hud="full-link"' ) !== false, 'template declares the full-link mount point (the JS sets its href from config.fullUrl)' );
 
+// v9.56.1 — THE HOLE THAT SHIPPED. v9.56.0's template used <wpd-stack>/
+// <wpd-section>/<wpd-row>. Those tags are REAL upstream, and a reviewer
+// confirmed they exist — but existing is not the property. Per
+// docs/components-reference.md they are "side-effect registered at import time,
+// PER BUNDLE": the shell registers only a core subset, and a tag no loaded
+// bundle has imported "renders INERT HTML". Our asset is an IIFE with no build
+// step, so it can never import from 'desktop-mode' to register them. Every tag
+// stayed an unknown element at display:inline and the whole HUD collapsed into
+// one run-on line — owner-observed, because no test here can render a window.
+//
+// We cannot assert "the tag upgrades" from PHP. We CAN assert we never emit a
+// tag whose upgrade we don't control. That is the real contract for a
+// no-build-step asset.
+ok( strpos( $tpl, '<wpd-' ) === false,
+	'template emits NO <wpd-*> tags — they side-effect register per bundle, and a no-build-step IIFE cannot import them (v9.56.0 shipped inert markup)' );
+ok( strpos( $tpl, 'class="sn-hud' ) !== false,
+	'template uses our own sn-hud classes, whose styling we ship ourselves' );
+
 // THE property: desktop-mode prints this template into the DOM ONCE at shell
-// render and clones it per open. Any number echoed here is frozen at page load
-// — realtime would be a lie with a fresh-looking label. So: no digits at all.
-ok( preg_match( '/\d/', strip_tags( $tpl ) ) !== 1,
-	'template body contains NO digits — it is a skeleton, not a snapshot' );
+// render and clones it per open, so any DATA echoed here freezes at page load —
+// realtime especially would be a lie wearing a fresh-looking label.
+//
+// v9.56.1 — the earlier "no digits anywhere" version of this check was
+// OVER-TIGHT and reddened the moment a static "Last 7 days" heading was added.
+// A constant heading is not a snapshot; it cannot go stale. That check tested
+// the wording, not the contract — the same mistake as pinning a literal
+// priority instead of the ordering it stood for.
+//
+// The contract is: every data mount point ships EMPTY, and realtime ships as
+// the placeholder. Both are false the instant someone server-renders a value.
+foreach ( array( 'kpis', 'top-content', 'top-sources' ) as $slot ) {
+	ok( preg_match( '/data-sn-hud="' . $slot . '"[^>]*>\s*<\//', $tpl ) === 1,
+		"template ships the `$slot` mount point EMPTY — its data arrives from the poll, never frozen at shell render" );
+}
+ok( preg_match( '/data-sn-hud="realtime"[^>]*>\s*—\s*</u', $tpl ) === 1,
+	'realtime ships as the em-dash placeholder, never a number frozen at shell render' );
 
 echo "\n── DESTINATION (the v9.55.0 lesson: 'it loads' is not the property) ──\n";
 $cfg = $w['config'] ?? array();
@@ -389,6 +424,15 @@ ok( preg_match( "/data\.top_content,\s*'path'/", $js ) === 1,
 ok( strpos( $js, "'—'" ) !== false,
 	'null renders as an em dash — never as 0 (never-measured is not zero)' );
 
+// v9.56.1: same hole as the template, one layer over. The JS builds rows AND
+// the error notice with createElement — a 'wpd-row' there is just as inert.
+ok( preg_match( "/createElement\(\s*'wpd-/", $js ) !== 1,
+	'the JS never createElement()s a <wpd-*> tag — it cannot register them without a bundler, so they would render inert (v9.56.0)' );
+ok( strpos( $js, "'sn-hud__row'" ) !== false,
+	'rows carry our own class, whose styling ships with the window' );
+ok( strpos( $js, "'sn-hud__error'" ) !== false,
+	'the error notice carries our own class — the error row is the LAST thing that should be invisible' );
+
 // ── A RESOLVED FAILURE MUST NOT POSE AS AN ONGOING ONE ──
 //
 // fail() paints a persistent [data-sn-hud="error"] row. A render() that never
@@ -417,6 +461,18 @@ ok( strpos( $js, 'missing configuration' ) !== false,
 	'a failed config injection REPORTS instead of no-opping on the skeleton forever (silent failure)' );
 
 echo "\n── SCRIPT HANDLE ──\n";
+// v9.56.1: the HUD ships its own CSS, because it cannot use the shell's
+// <wpd-*> primitives without a bundler. The `style` arg is also what gets the
+// stylesheet onto the mid-session-activation path — the shell injects a <link>
+// for it when a peer plugin is activated inside an already-open shell, where
+// wp_print_styles has already run for the parent page (@since DM 0.7.0).
+ok( isset( $GLOBALS['__styles']['sn-desktop-window-analytics'] ),
+	'the sn-desktop-window-analytics STYLE handle is registered on init' );
+ok( strpos( (string) ( $GLOBALS['__styles']['sn-desktop-window-analytics'] ?? '' ), 'desktop-mode-window-analytics.css' ) !== false,
+	'the style handle points at assets/desktop-mode-window-analytics.css' );
+ok( ( $w['style'] ?? '' ) === 'sn-desktop-window-analytics',
+	'the window names the style handle — without it the HUD renders unstyled (v9.56.0)' );
+
 ok( isset( $GLOBALS['__scripts']['sn-desktop-window-analytics'] ),
 	'the sn-desktop-window-analytics handle is registered on init' );
 ok( strpos( (string) ( $GLOBALS['__scripts']['sn-desktop-window-analytics'] ?? '' ), 'desktop-mode-window-analytics.js' ) !== false,

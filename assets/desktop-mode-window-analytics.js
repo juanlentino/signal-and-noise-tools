@@ -48,14 +48,28 @@
 		while ( node.firstChild ) { node.removeChild( node.firstChild ); }
 	}
 
-	/** Renders one label/value <wpd-row> per item of `rows` into `node`. */
+	/**
+	 * Renders one label/value row per item of `rows` into `node`.
+	 *
+	 * Plain <div>s, NOT <wpd-row>. Those tags are real but are side-effect
+	 * registered per bundle (docs/components-reference.md); the shell registers
+	 * only a core subset, and a tag no loaded bundle has imported renders INERT
+	 * HTML. This file is an IIFE with no build step, so it cannot import from
+	 * 'desktop-mode' to register them — in v9.56.0 every row silently inherited
+	 * display:inline and the HUD collapsed into one run-on line. Our own CSS
+	 * (assets/desktop-mode-window-analytics.css, shipped via the window's
+	 * `style` arg) owns the layout instead.
+	 */
 	function renderRows( node, rows, labelKey, valueKey ) {
 		if ( ! node ) { return; }
 		clearChildren( node );
 		( rows || [] ).forEach( function( row ) {
-			var line  = document.createElement( 'wpd-row' );
+			var line  = document.createElement( 'div' );
 			var label = document.createElement( 'span' );
 			var value = document.createElement( 'strong' );
+			line.className  = 'sn-hud__row';
+			label.className = 'sn-hud__row-label';
+			value.className = 'sn-hud__row-value';
 			label.textContent = String( row[ labelKey ] );
 			value.textContent = String( row[ valueKey ] );
 			line.appendChild( label );
@@ -92,7 +106,11 @@
 			if ( ! root ) { return; }
 			var note = errorNote();
 			if ( ! note ) {
-				note = document.createElement( 'wpd-row' );
+				// A plain <div>, for the same reason as renderRows(): a <wpd-row>
+				// no bundle imported renders inert. The error row is the LAST
+				// thing that should be invisible.
+				note = document.createElement( 'div' );
+				note.className = 'sn-hud__error';
 				note.setAttribute( 'data-sn-hud', 'error' );
 				root.appendChild( note );
 			}
