@@ -117,6 +117,15 @@ foreach ( array( 'custom_element', 'render', 'module', 'scripts', 'styles', 'cap
 	ok( ! array_key_exists( $ghost, $w ), "does not use the historical-RFC arg `$ghost`" );
 }
 
+echo "\n── The gate: no desktop-mode, no registration ──\n";
+// Re-running the hook with the registry fn absent must be a no-op. We can't
+// un-define a function, so assert the guard is present in the source instead.
+// Every assertion above defines the stub, so without this the guard could be
+// deleted and the suite would stay green — while every site WITHOUT
+// desktop-mode fataled on each request. This module is optional, additive.
+$src = file_get_contents( __DIR__ . '/../inc/desktop-mode-native-analytics.php' );
+ok( strpos( $src, "function_exists( 'desktop_mode_register_window' )" ) !== false, 'window block is function_exists-gated' );
+
 echo "\n── TEMPLATE IS A SKELETON (data would freeze at shell render) ──\n";
 ob_start();
 call_user_func( $w['template'] );
