@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.56.0] - 2026-07-16: Analytics gets a native Desktop Mode window
+
+**Headline:** Analytics in Desktop Mode was a wp-admin page in an iframe. Now it's a real window.
+
+Desktop Mode ships **two** window types. Every SN destination used the first: a chromeless **iframe** of a wp-admin page. The second — a **native window**, rendering straight into the shell's DOM — is what a desktop-first HUD actually wants, and we'd never used it.
+
+**`sn-analytics-hud`** shows visitors-right-now plus the 7-day KPI block and top content/sources, on a 30s poll that runs **only while the window is open** (the teardown guarantees it). The full 9-view analytics page is untouched and one click away — this is **additive**: the existing icon still opens it, so nothing that worked can regress.
+
+### The trap: a doc that reads like the API
+
+Desktop Mode's `docs/native-windows-proposal.md` reads exactly like current API docs. It is a **historical RFC**, and its argument surface is wrong — `custom_element`/`render`/`module`, `scripts`/`styles` arrays, singular `capability`, `show_in_dock`, 420×320 defaults. Building to it registers **nothing, silently**. Every line here was read from the **v0.9.5 tag** instead:
+
+| | Widgets (what we knew) | Native windows (what's true) |
+|---|---|---|
+| JS global | `desktopModeWidgets[id]` | `desktopModeNativeWindows[id]` |
+| Callback | `( container, ctx )` | `( body )` — single arg |
+| Config | `snDesktopData` | `desktopModeWindowConfig[id]` |
+
+Registration rides `init:6` for the same reason the widgets do: Desktop Mode builds its `nativeWindows` payload **eagerly** at `admin_enqueue_scripts:10`, and alphabetical `active_plugins` ordering means its callback always runs before ours. The script handle registers at `:5` — Desktop Mode enqueues it for us at `:20` and injects `config` via `wp_add_inline_script( <handle>, …, 'before' )`, which requires the handle to already exist.
+
+### Two bugs caught in review, both of which would have shipped silently
+
+**A fabricated 0%.** The payload read `avg_scroll`/`avg_time` — keys `sn_analytics_range_totals()` has never emitted. It returns `scroll_avg`/`time_avg` (14 and 13 usages elsewhere in this plugin). Every request would have rendered 0% scroll and 0s time, indistinguishable from real no-engagement. **41 green assertions sailed past it because the test stubs invented the same wrong keys** — the stub agreed with the code while both disagreed with the accessor.
+
+**A resolved failure posing as an ongoing one.** One transient 500 out of the ~120 polls/hour a left-open HUD fires pinned "Analytics unavailable" to the window permanently, beside numbers that were updating correctly. A successful poll now retires the notice first.
+
+Both are the same disease as the fabricated zero: a UI stating something confidently untrue. **`realtime` and `engaged_rate` are now nullable end-to-end** and render `—`, never `0` — because "never measured" and "measured zero" are genuinely different, and a quiet-but-warmed site really does return `0`.
+
+### Also
+
+- `realtime` is never served from the day-stamped cache — a 5-minute window behind a daily key is a stale number wearing a fresh label. Only the 7-day block is cached (5-min TTL, local-day-stamped so midnight rollover is exact).
+- The full-analytics link routes through `snt_desktop_admin_url()`, never a literal: analytics is an `add_dashboard_page()`, so `index.php?page=sn-analytics` is the one slug the tab resolver alone gets wrong.
+- 76 assertions, mutation-checked. `inc/desktop-mode-integration.php` untouched.
+
 ## [9.55.0] - 2026-07-16: Eight of nine Desktop Mode links went nowhere
 
 **Headline:** Opening most SN windows in Desktop Mode showed WordPress's own error:
