@@ -332,5 +332,37 @@ ok( $a['seven_day'] === $b['seven_day'], 'seven_day is served from the day-stamp
 ok( array_key_exists( 'sn_desktop_analytics_hud_2026-07-16', $GLOBALS['__t'] ),
 	'cache key is stamped with the LOCAL day (not a flat key)' );
 
+echo "\n── JS CONTRACT (v0.9.5: window.desktopModeNativeWindows[id] = ( body ) => teardown) ──\n";
+$js_path = __DIR__ . '/../assets/desktop-mode-window-analytics.js';
+ok( file_exists( $js_path ), 'assets/desktop-mode-window-analytics.js exists' );
+$js = file_exists( $js_path ) ? (string) file_get_contents( $js_path ) : '';
+
+ok( strpos( $js, 'desktopModeNativeWindows' ) !== false,
+	'uses the NATIVE-WINDOW global desktopModeNativeWindows (not desktopModeWidgets)' );
+ok( strpos( $js, 'desktopModeWidgets' ) === false,
+	'does NOT use the widget global (wrong path for a native window)' );
+ok( strpos( $js, 'wp.desktop.registerWindow' ) === false,
+	'does NOT use the JS-runtime path (the window is PHP-declared)' );
+ok( preg_match( '/desktopModeNativeWindows\[\s*[\'"]sn-analytics-hud[\'"]\s*\]\s*=/', $js ) === 1,
+	'assigns the callback at the registered id' );
+ok( preg_match( '/=\s*(async\s+)?function\s*\(\s*body\s*\)|=\s*(async\s+)?\(\s*body\s*\)\s*=>/', $js ) === 1,
+	'callback takes a single ( body ) arg (NOT the widgets\' (container, ctx))' );
+ok( strpos( $js, 'desktopModeWindowConfig' ) !== false,
+	'reads config from window.desktopModeWindowConfig[id]' );
+ok( strpos( $js, '30000' ) !== false, 'polls on a 30s interval' );
+ok( strpos( $js, 'clearInterval' ) !== false,
+	'returns a teardown that clears the interval (poll is open-window-only)' );
+
+// The accessor-shape guard. The HUD shipped `avg_scroll`/`avg_time` and
+// `source` once — invented keys the real accessors never emit — and 41 green
+// assertions sailed straight past it because the STUBS invented the same
+// shapes. Pin the real keys on the JS side too.
+ok( preg_match( "/data\.top_sources,\s*'value'/", $js ) === 1,
+	"top-sources rows read the REAL key `value` (inc/analytics-sources.php), not the invented `source`" );
+ok( preg_match( "/data\.top_content,\s*'path'/", $js ) === 1,
+	"top-content rows read the REAL key `path` (inc/analytics-read.php)" );
+ok( strpos( $js, "'—'" ) !== false,
+	'null renders as an em dash — never as 0 (never-measured is not zero)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
