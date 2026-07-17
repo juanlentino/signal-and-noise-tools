@@ -55,7 +55,40 @@ $GLOBALS['__localized'] = array();
 // an unregistered handle and the payload simply never ships, so the badge would
 // never appear and no test would notice. Caught by mutation, not by reading.
 $GLOBALS['__localized_handles'] = array();
+/**
+ * FAITHFUL to WP core — it string-casts every top-level scalar.
+ *
+ * wp-includes/class-wp-scripts.php::localize() (verified verbatim @ WP 6.8.1):
+ *
+ *     foreach ( $l10n as $key => $value ) {
+ *         if ( ! is_scalar( $value ) ) { continue; }
+ *         $l10n[ $key ] = html_entity_decode( (string) $value, ENT_QUOTES, 'UTF-8' );
+ *     }
+ *     $script = "var $object_name = " . wp_json_encode( $l10n ) . ';';
+ *
+ * So a PHP int 2 reaches the browser as the STRING "2":
+ *     var snDesktopAttention = {"total":"2","iconId":"sn-icon-dashboard"};
+ *
+ * The first draft of this stub stored $data verbatim, so `$data['total'] === 2`
+ * passed against the int the TEST inserted — never exercising core's cast. Task
+ * 3's JS then guarded `typeof att.total !== 'number'`, which rejects "2" on every
+ * load: setBadge would NEVER have been called, and v9.58.0 would have shipped a
+ * dead badge with every test green. That is the v9.52.0 / v9.56.0 shape, twice
+ * shipped already. A stub that is unfaithful to the real callee is not a test.
+ *
+ * Note nested arrays are NOT cast (`! is_scalar` → continue). Do not exploit
+ * that to smuggle an int through — it is a core implementation detail and a trap
+ * for the next reader. The JS coerces with Number() instead.
+ */
 function wp_localize_script( $handle, $name, $data ) {
+	if ( is_array( $data ) ) {
+		foreach ( $data as $k => $v ) {
+			if ( ! is_scalar( $v ) ) {
+				continue;
+			}
+			$data[ $k ] = html_entity_decode( (string) $v, ENT_QUOTES, 'UTF-8' );
+		}
+	}
 	$GLOBALS['__localized'][ $name ]         = $data;
 	$GLOBALS['__localized_handles'][ $name ] = $handle;
 	return true;
@@ -256,7 +289,8 @@ $GLOBALS['__blockmig'] = array( 'candidates' => array( 1, 2 ) );
 fire( 'admin_enqueue_scripts' );
 $data = $GLOBALS['__localized']['snDesktopAttention'] ?? null;
 ok( is_array( $data ), 'snDesktopAttention is localized on admin_enqueue_scripts' );
-ok( ( $data['total'] ?? null ) === 2, 'the localized payload carries the total' );
+ok( ( $data['total'] ?? null ) === '2',
+	'the payload carries the total as the STRING "2" — wp_localize_script string-casts every top-level scalar, so the JS MUST coerce and must never test typeof === number' );
 ok( ( $data['iconId'] ?? '' ) === 'sn-icon-dashboard',
 	'the payload names the icon to badge — the id inc/desktop-mode-integration.php already registers' );
 ok( ( $GLOBALS['__localized_handles']['snDesktopAttention'] ?? '' ) === 'sn-desktop-mode',
