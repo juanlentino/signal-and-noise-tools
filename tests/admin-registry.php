@@ -39,6 +39,7 @@ function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:s
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
 function sn_admin_render_mcp_connect_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_mcp_connect_section'; } // v9.47.0: Tools → Connect an MCP client
+function snt_ai_tool_invocations_render() { $GLOBALS['__calls'][] = 'fn:snt_ai_tool_invocations_render'; } // v9.62.2: Tools → Copilot Usage (real fn lives in inc/ai-tool-invocation-log.php)
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
 function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
@@ -96,8 +97,10 @@ ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'w
 	'connections leaves: cloudflare, webhooks, indexnow, redirects, cron, scheduled-content' );
 ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
 	'monitoring leaves: analytics, insights, health (login-defense moved to the Analytics dashboard)' );
-ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'provenance', 'mcp-connect', 'links' ),
-	'tools leaves: block-migrations, release-notes, provenance, mcp-connect, links (links last)' );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'block-migrations', 'release-notes', 'provenance', 'mcp-connect', 'copilot-usage', 'links' ),
+	'tools leaves: block-migrations, release-notes, provenance, mcp-connect, copilot-usage, links (links last)' );
+ok( ! empty( $by_tab['tools']['sub_tabs']['copilot-usage']['wide'] ),
+	'copilot-usage leaf is wide (bare .sn-section — no card-in-a-card around the fn’s own .sn-card)' );
 ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),
 	'security leaves: login, login-defense, audit-log' );
 
@@ -119,6 +122,12 @@ $GLOBALS['__calls'] = array();
 sn_admin_render_active_tab( 'content', 'music' );
 ok( $GLOBALS['__calls'] === array( 'subtabs:content', 'section:music', 'fn:sn_admin_render_music_section' ),
 	'route content/music → nav + section(music) + music renderer' );
+
+// tools/copilot-usage: function-backed leaf (v9.62.2, wide) — section-wrapped, then the renderer fires.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'tools', 'copilot-usage' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:tools', 'section:copilot-usage', 'fn:snt_ai_tool_invocations_render' ),
+	'route tools/copilot-usage → nav + section(copilot-usage) + usage renderer' );
 
 // dashboard: no sub-tab nav, tab-level render only.
 $GLOBALS['__calls'] = array();

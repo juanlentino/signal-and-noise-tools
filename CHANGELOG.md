@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.62.2] - 2026-07-17: The Copilot tool-usage card moves to its own Tools sub-tab
+
+### Changed
+
+**The "Copilot tool usage" diagnostic left the Dashboard for its own home under Tools → Copilot Usage.** It is a diagnostic, not a first-glance metric, so it no longer sits on the main Dashboard. The render itself (`snt_ai_tool_invocations_render`) is unchanged — only its location moved: removed from `snt_dashboard_tab_render` (`inc/admin-tab-dashboard.php`), registered as a Tools leaf in `inc/admin-tabs-data.php`.
+
+The new leaf is marked `'wide' => true` so the section dispatcher wraps it in a bare `.sn-section` rather than the capped `.sn-fieldset` card. The render fn already owns its own `.sn-card`, so the default wrapper would have nested a card inside a card; the bare wrapper reproduces the exact single-card look shipped in v9.62.1. The contract test (`tests/admin-registry.php`) pins both the new leaf order (links stays last) and the `wide` flag.
+
 ## [9.62.1] - 2026-07-17: The tool-usage view gets styled; the audit button is removed
 
 ### Fixed

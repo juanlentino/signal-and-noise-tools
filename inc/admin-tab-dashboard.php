@@ -282,13 +282,9 @@ function snt_dashboard_tab_render() {
 		echo '</ul>';
 		echo '</details>';
 	}
-
-	// ── Copilot tool usage (v9.61.0): which Ask AI tools have been invoked, and
-	// how often. Renders its own empty state, so it appears even before any
-	// Copilot turn has run — the point of shipping the logger ahead of the data.
-	if ( function_exists( 'snt_ai_tool_invocations_render' ) ) {
-		snt_ai_tool_invocations_render();
-	}
+	// v9.62.2: the Copilot tool-usage card moved to its own Tools → Copilot Usage
+	// sub-tab (a diagnostic, off the main Dashboard). Rendered there via the
+	// registry leaf 'copilot-usage' (snt_ai_tool_invocations_render).
 }
 
 /* ════════════════════════════════════════════════════════════════════════
