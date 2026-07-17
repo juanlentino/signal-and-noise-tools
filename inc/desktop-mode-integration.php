@@ -206,16 +206,21 @@ add_action( 'admin_enqueue_scripts', function() {
 		// transient — on EVERY wp-admin page load, for a payload nothing reads.
 		// That is precisely the cost this file's data rule exists to prevent.
 		'healthSummary' => $sn_is_owner ? snt_health_summary_for_localize() : null,
+		// v9.55.0: resolve every link instead of hardcoding a slug. These all
+		// pointed at the pre-v3.8.1 legacy slugs (sn-identity, sn-login, …),
+		// which stopped being registered when the submenu was cut to 6 top
+		// tabs — so every one of them wp_die()'d "Sorry, you are not allowed
+		// to access this page." See snt_desktop_admin_url().
 		'pages'         => array(
-			'dashboard'    => admin_url( 'admin.php?page=sn-theme-options' ),
-			'identity'     => admin_url( 'admin.php?page=sn-identity' ),
-			'login'        => admin_url( 'admin.php?page=sn-login' ),
-			'cloudflare'   => admin_url( 'admin.php?page=sn-cloudflare' ),
-			'cron'         => admin_url( 'admin.php?page=sn-cron' ),
-			'insights'     => admin_url( 'admin.php?page=sn-insights' ),
-			'rss'          => admin_url( 'admin.php?page=sn-rss' ),
-			'reading_time' => admin_url( 'admin.php?page=sn-reading-time' ),
-			'analytics'    => admin_url( 'admin.php?page=sn-analytics' ),
+			'dashboard'    => snt_desktop_admin_url( 'sn-theme-options' ),
+			'identity'     => snt_desktop_admin_url( 'sn-identity' ),
+			'login'        => snt_desktop_admin_url( 'sn-login' ),
+			'cloudflare'   => snt_desktop_admin_url( 'sn-cloudflare' ),
+			'cron'         => snt_desktop_admin_url( 'sn-cron' ),
+			'insights'     => snt_desktop_admin_url( 'sn-insights' ),
+			'rss'          => snt_desktop_admin_url( 'sn-rss' ),
+			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
+			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and
@@ -542,6 +547,73 @@ function snt_desktop_dock_badge() {
 /**
  * Desktop icons — Dashboard + Identity (the two most-frequent surfaces).
  */
+/**
+ * Resolve any SN admin page slug — current OR retired — to a URL that actually
+ * loads.
+ *
+ * WHY THIS EXISTS (v9.55.0, owner-found by clicking)
+ *
+ * Opening most SN windows in Desktop Mode showed WP core's "Sorry, you are not
+ * allowed to access this page." EIGHT of our NINE admin links were dead.
+ *
+ * v3.8.1 cut the wp-admin submenu from the 12 legacy slugs to 6 top tabs
+ * (inc/admin-menu.php registers add_submenu_page over sn_admin_top_tabs()).
+ * The icons and the Cmd+K nav map kept hardcoding the RETIRED slugs —
+ * sn-identity, sn-login, sn-cron, sn-rss, sn-insights, sn-analytics,
+ * sn-cloudflare, sn-reading-time. admin.php looks each up in
+ * $_registered_pages, doesn't find it, and wp_die()s. The message is WP CORE's
+ * — not desktop-mode's, not ours — which is exactly why no surface here ever
+ * noticed, and why CI stayed green for releases on end.
+ *
+ * The legacy redirect could not rescue them, though it looks like it should:
+ * sn_admin_maybe_redirect_legacy() is called from INSIDE sn_theme_options_page(),
+ * the render callback of a page that no longer exists. A legacy URL only ever
+ * 301s if its slug is still registered. These are not. The rescue lived in the
+ * room that burned down.
+ *
+ * So route through the same canonical resolver the redirect itself uses. It
+ * always lands on the registered parent (page=sn-theme-options&tab=…), so a
+ * future IA change cannot re-rot these links: they follow the tab data.
+ *
+ * @since 9.55.0
+ * @param string $slug Any SN admin page slug, current or retired.
+ * @return string An admin URL whose `page=` is always a registered page.
+ */
+function snt_desktop_admin_url( $slug ) {
+	// SPECIAL CASE, and the one the resolver alone gets wrong: the analytics
+	// page is registered with add_dashboard_page() — i.e. under index.php, NOT
+	// the SN menu — so its real home is `index.php?page=sn-analytics`. It is not
+	// an SN tab at all, and sn_admin_page_tab_for_slug() has no entry for it, so
+	// it would fall through to the 'dashboard' default and land the user on the
+	// SN Dashboard: a link that loads perfectly and goes to the wrong place.
+	// (The old hardcoded `admin.php?page=sn-analytics` was dead for the opposite
+	// reason — right slug, wrong parent.)
+	if ( 'sn-analytics' === $slug ) {
+		return admin_url( 'index.php?page=sn-analytics' );
+	}
+
+	// Guarded because this file is loaded on every admin request and the tab
+	// data lives in a sibling module; a missing resolver must degrade to the
+	// one slug that is always registered, never to a fatal.
+	if ( ! function_exists( 'sn_admin_page_tab_for_slug' ) || ! function_exists( 'sn_admin_canonical_destination' ) ) {
+		return admin_url( 'admin.php?page=sn-theme-options' );
+	}
+
+	$tab  = sn_admin_page_tab_for_slug( $slug );
+	// null = the tab is already canonical; otherwise it maps a legacy tab to
+	// its post-v3.8 home (and may carry a sub-leaf or an anchor).
+	$dest = sn_admin_canonical_destination( $tab );
+
+	$url = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $dest ? $dest['tab'] : $tab ) );
+	if ( $dest && ! empty( $dest['sub'] ) ) {
+		$url .= '&sub=' . rawurlencode( $dest['sub'] );
+	}
+	if ( $dest && ! empty( $dest['anchor'] ) ) {
+		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
+	}
+	return $url;
+}
+
 add_action( 'init', function() {
 	if ( ! function_exists( 'desktop_mode_register_icon' ) ) {
 		return;
@@ -556,7 +628,7 @@ add_action( 'init', function() {
 	desktop_mode_register_icon( 'sn-icon-identity', array(
 		'title' => 'SN Identity',
 		'icon'  => 'dashicons-id',
-		'url'   => admin_url( 'admin.php?page=sn-identity' ),
+		'url'   => snt_desktop_admin_url( 'sn-identity' ),
 	) );
 } );
 
