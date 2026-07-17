@@ -84,29 +84,81 @@ $GLOBALS['__t'] = array();
 function get_transient( $k ) { return $GLOBALS['__t'][ $k ] ?? false; }
 function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__t'][ $k ] = $v; return true; }
 
-// Increments per call so a later test can prove realtime is never cached.
-$GLOBALS['__rt'] = 0;
-function sn_analytics_realtime( $class = 'human' ) { return ++$GLOBALS['__rt']; }
+// ── ANALYTICS ACCESSOR STUBS ─────────────────────────────────────────
+// These shapes MIRROR THE REAL ACCESSORS — each was copied from the source
+// below, not invented. A stub that returns a shape the real callee never
+// produces makes every green assertion prove nothing; that is exactly how this
+// HUD once emitted `avg_scroll`/`avg_time` (keys that exist NOWHERE in the
+// codebase) and rendered a fabricated 0% forever. Copy from reality:
+//
+//   sn_analytics_realtime      inc/analytics-realtime.php:137
+//                              → int|null  (null = transient never warmed;
+//                                 a warmed class with no hits is a REAL 0)
+//   sn_analytics_range_totals  inc/analytics-read.php:82
+//                              → {views:int, visits:int, scroll_avg:float, time_avg:float}
+//   sn_analytics_top_paths     inc/analytics-read.php:26
+//                              → rows of {path, views, visits, scroll_avg, time_avg}
+//   sn_analytics_top_sources   inc/analytics-sources.php:211
+//                              → rows of {value, views, visits, hosts[]}  — `value`, NOT `source`
+//   sn_analytics_period_deltas inc/analytics-derived.php:275
+//                              → per metric (views/visits/scroll_avg/time_avg):
+//                                {current, previous, pct, dir}  — nested, not flat
+//   sn_analytics_engaged_rate  inc/analytics-derived.php:220
+//                              → int|null  (null = no timed pageviews to divide by)
 
+// __rt increments per call so the cache tests can prove realtime is recomputed
+// every request. __rt_null flips it to its documented null return (PHP cannot
+// redeclare a function, so the null path rides a global switch).
+$GLOBALS['__rt']      = 0;
+$GLOBALS['__rt_null'] = false;
+function sn_analytics_realtime( $class = 'human' ) {
+	$GLOBALS['__rt']++;
+	return $GLOBALS['__rt_null'] ? null : $GLOBALS['__rt'];
+}
+
+// __totals_calls counts invocations: the KPI stubs are deterministic, so
+// comparing two payloads' seven_day would pass whether or not the cache works.
+// Counting the calls is what actually pins the get_transient() short-circuit.
+$GLOBALS['__totals_calls'] = 0;
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
-	return array( 'views' => 1200, 'visits' => 800, 'avg_scroll' => 61.5, 'avg_time' => 74.2 );
+	$GLOBALS['__totals_calls']++;
+	return array( 'views' => 1200, 'visits' => 800, 'scroll_avg' => 61.5, 'time_avg' => 74.2 );
 }
+
 function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null ) {
-	return array( 'views' => 12.5, 'visits' => -3.1 );
+	return array(
+		'views'      => array( 'current' => 1200, 'previous' => 1067, 'pct' => 12, 'dir' => 'up' ),
+		'visits'     => array( 'current' => 800, 'previous' => 826, 'pct' => -3, 'dir' => 'down' ),
+		'scroll_avg' => array( 'current' => 61.5, 'previous' => 60.0, 'pct' => 3, 'dir' => 'up' ),
+		'time_avg'   => array( 'current' => 74.2, 'previous' => 74.2, 'pct' => 0, 'dir' => 'flat' ),
+	);
 }
-function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) { return 42.0; }
+
+$GLOBALS['__engaged_null'] = false;
+function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) {
+	return $GLOBALS['__engaged_null'] ? null : 42;
+}
+
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
 	return array_slice( array(
-		array( 'path' => '/a', 'views' => 90 ), array( 'path' => '/b', 'views' => 80 ),
-		array( 'path' => '/c', 'views' => 70 ), array( 'path' => '/d', 'views' => 60 ),
-		array( 'path' => '/e', 'views' => 50 ), array( 'path' => '/f', 'views' => 40 ),
+		array( 'path' => '/a', 'views' => 90, 'visits' => 70, 'scroll_avg' => 66.0, 'time_avg' => 81.0 ),
+		array( 'path' => '/b', 'views' => 80, 'visits' => 62, 'scroll_avg' => 64.0, 'time_avg' => 79.0 ),
+		array( 'path' => '/c', 'views' => 70, 'visits' => 55, 'scroll_avg' => 62.0, 'time_avg' => 77.0 ),
+		array( 'path' => '/d', 'views' => 60, 'visits' => 48, 'scroll_avg' => 60.0, 'time_avg' => 75.0 ),
+		array( 'path' => '/e', 'views' => 50, 'visits' => 40, 'scroll_avg' => 58.0, 'time_avg' => 73.0 ),
+		array( 'path' => '/f', 'views' => 40, 'visits' => 32, 'scroll_avg' => 56.0, 'time_avg' => 71.0 ),
 	), 0, $limit );
 }
+
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 	return array_slice( array(
-		array( 'source' => 'direct', 'visits' => 40 ), array( 'source' => 'rss', 'visits' => 30 ),
-		array( 'source' => 'hn', 'visits' => 20 ), array( 'source' => 'x', 'visits' => 10 ),
-		array( 'source' => 'g', 'visits' => 5 ), array( 'source' => 'b', 'visits' => 2 ),
+		// '(direct)' aggregates but is never drillable → always an empty hosts[].
+		array( 'value' => '(direct)', 'views' => 40, 'visits' => 33, 'hosts' => array() ),
+		array( 'value' => 'Hacker News', 'views' => 30, 'visits' => 25, 'hosts' => array( 'news.ycombinator.com' ) ),
+		array( 'value' => 'RSS', 'views' => 20, 'visits' => 16, 'hosts' => array( 'rss.example.test' ) ),
+		array( 'value' => 'X', 'views' => 10, 'visits' => 8, 'hosts' => array( 't.co', 'x.com' ) ),
+		array( 'value' => 'Google', 'views' => 5, 'visits' => 4, 'hosts' => array( 'google.com' ) ),
+		array( 'value' => 'Bing', 'views' => 2, 'visits' => 2, 'hosts' => array( 'bing.com' ) ),
 	), 0, $limit );
 }
 
@@ -222,12 +274,58 @@ ok( is_array( $body['seven_day'] ), 'seven_day is an array of KPIs' );
 ok( count( $body['top_content'] ) <= 5, 'top_content is capped at 5' );
 ok( count( $body['top_sources'] ) <= 5, 'top_sources is capped at 5' );
 
+echo "\n── seven_day's INNER KEYS (asserting only is_array() is what let the bug ship) ──\n";
+foreach ( array( 'views', 'visits', 'scroll_avg', 'time_avg', 'engaged_rate', 'deltas' ) as $k ) {
+	ok( array_key_exists( $k, $body['seven_day'] ), "seven_day exposes `$k`" );
+}
+// The regression that shipped green: the accessor emits scroll_avg (14 usages
+// across inc/) and time_avg (13). Reading avg_scroll let `?? 0` swallow the
+// miss and render a fabricated 0% — indistinguishable from real "no engagement".
+ok( ! array_key_exists( 'avg_scroll', $body['seven_day'] ),
+	'seven_day does NOT use avg_scroll — the real accessor emits scroll_avg (14 usages) and this HUD once got it wrong' );
+ok( ! array_key_exists( 'avg_time', $body['seven_day'] ),
+	'seven_day does NOT use avg_time — the real accessor emits time_avg (13 usages)' );
+// Pin the VALUES too: a key that exists but reads 0 IS the failure mode above.
+// The stub returns non-zero, so a swallowed miss cannot hide behind `?? 0`.
+ok( 61.5 === $body['seven_day']['scroll_avg'], 'scroll_avg carries the accessor value (61.5), not a swallowed 0' );
+ok( 74.2 === $body['seven_day']['time_avg'], 'time_avg carries the accessor value (74.2), not a swallowed 0' );
+
+echo "\n── NULL IS NOT ZERO (never-measured ≠ measured-zero) ──\n";
+// Both accessors document int|null. Casting null to 0 fabricates a confident
+// number, and once cast the distinction is unrecoverable downstream.
+$GLOBALS['__rt_null'] = true;
+$null_rt = snt_desktop_analytics_hud_payload()->get_data();
+ok( null === $null_rt['realtime'],
+	'realtime preserves null when the realtime transient was never warmed (not cast to 0)' );
+$GLOBALS['__rt_null'] = false;
+
+// engaged_rate lives INSIDE the cached block, so the cache must be cleared or
+// the recompute is not observable at all.
+$GLOBALS['__t']            = array();
+$GLOBALS['__engaged_null'] = true;
+$null_eng = snt_desktop_analytics_hud_payload()->get_data();
+ok( null === $null_eng['seven_day']['engaged_rate'],
+	'engaged_rate preserves null when there are no timed pageviews (not cast to 0)' );
+$GLOBALS['__engaged_null'] = false;
+
 echo "\n── CACHE BOUNDARY ──\n";
-// Start clean: earlier assertions already warmed the cache.
-$GLOBALS['__t'] = array();
+// Start clean: earlier assertions already warmed the cache and moved the counters.
+$GLOBALS['__t']            = array();
+$GLOBALS['__totals_calls'] = 0;
+$GLOBALS['__rt']           = 0;
 
 $a = snt_desktop_analytics_hud_payload()->get_data(); // warms the 7d cache
 $b = snt_desktop_analytics_hud_payload()->get_data(); // must hit the 7d cache
+
+// THE assertion that pins the short-circuit. The two below it compare payload
+// values, and the KPI stubs are deterministic — so a regression that kept
+// set_transient() but dropped the get_transient() short-circuit (recomputing
+// every request, defeating the cache entirely) would leave them both green.
+// Only the call count can tell "cached" from "recomputed to the same answer".
+ok( 1 === $GLOBALS['__totals_calls'],
+	'seven_day is cached: sn_analytics_range_totals() ran EXACTLY once across two payload calls (got ' . $GLOBALS['__totals_calls'] . ')' );
+ok( 2 === $GLOBALS['__rt'],
+	'realtime is NOT cached: sn_analytics_realtime() ran on BOTH payload calls (got ' . $GLOBALS['__rt'] . ')' );
 
 ok( $a['realtime'] !== $b['realtime'], 'realtime is recomputed every request (never day-cached)' );
 ok( $a['seven_day'] === $b['seven_day'], 'seven_day is served from the day-stamped cache' );

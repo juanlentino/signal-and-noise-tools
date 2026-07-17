@@ -94,22 +94,40 @@ function snt_desktop_analytics_hud_payload() {
 	$seven_day = get_transient( $cache_key );
 
 	if ( ! is_array( $seven_day ) ) {
-		$totals    = sn_analytics_range_totals( $from, $to, 'human' );
+		$totals = sn_analytics_range_totals( $from, $to, 'human' );
+
+		// null is PRESERVED, never cast. sn_analytics_engaged_rate() returns
+		// int|null, and null means "no timed pageviews to divide by" — a state
+		// distinct from a measured 0%. (int) would fabricate a confident zero
+		// that no downstream consumer could tell apart from real disengagement,
+		// and once cast the distinction is unrecoverable.
+		$engaged = sn_analytics_engaged_rate( $from, $to, 'human' );
+
 		$seven_day = array(
+			// scroll_avg / time_avg are the accessor's OWN key names
+			// (inc/analytics-read.php:82) — NOT avg_scroll/avg_time, which exist
+			// nowhere in the codebase and would leave `?? 0` rendering a
+			// fabricated 0% scroll / 0s time forever. `deltas` below keys the
+			// same two metrics the same way; one concept, one spelling.
 			'views'        => (int) ( $totals['views'] ?? 0 ),
 			'visits'       => (int) ( $totals['visits'] ?? 0 ),
-			'avg_scroll'   => (float) ( $totals['avg_scroll'] ?? 0 ),
-			'avg_time'     => (float) ( $totals['avg_time'] ?? 0 ),
-			'engaged_rate' => (float) sn_analytics_engaged_rate( $from, $to, 'human' ),
+			'scroll_avg'   => (float) ( $totals['scroll_avg'] ?? 0 ),
+			'time_avg'     => (float) ( $totals['time_avg'] ?? 0 ),
+			'engaged_rate' => null === $engaged ? null : (int) $engaged,
 			'deltas'       => (array) sn_analytics_period_deltas( $from, $to, 'human' ),
 		);
 		set_transient( $cache_key, $seven_day, 5 * MINUTE_IN_SECONDS );
 	}
 
+	// Same null discipline, and NEVER from the day-stamped cache: realtime is a
+	// 5-minute window, so a daily key would make it a stale number wearing a
+	// fresh label. null = the realtime transient was never warmed ("never
+	// measured"), which the template already renders as —. A warmed but quiet
+	// site returns a real 0, and the two must stay distinguishable.
+	$realtime = sn_analytics_realtime( 'human' );
+
 	return new WP_REST_Response( array(
-		// NEVER from the day-stamped cache: a 5-minute window behind a daily key
-		// is a stale number wearing a fresh label. Computed every request.
-		'realtime'    => (int) sn_analytics_realtime( 'human' ),
+		'realtime'    => null === $realtime ? null : (int) $realtime,
 		'seven_day'   => $seven_day,
 		'top_content' => array_values( (array) sn_analytics_top_paths( $from, $to, 'human', 5 ) ),
 		'top_sources' => array_values( (array) sn_analytics_top_sources( $from, $to, 'human', 5 ) ),
