@@ -94,14 +94,26 @@ jobs:
           # NOT — see inc/wp-update-integration.php.)
           git archive --format=tar.gz --prefix=signal-and-noise-tools/ HEAD -o payload.tar.gz
           echo "Payload: $(du -h payload.tar.gz | cut -f1)"
+          # Capture the listing ONCE, then match against the variable.
+          #
+          # NEVER `tar -tzf … | grep -q …` under `set -o pipefail`: grep -q exits
+          # on its first match, tar takes SIGPIPE ("tar: stdout: write error"),
+          # and pipefail propagates TAR's failure even though grep SUCCEEDED. It
+          # is a race — it depends on whether tar finished writing first — so it
+          # passes locally on a small payload and fails on the runner. A guard
+          # that fires at random is worse than no guard: it reads as "CI being
+          # weird". The theme's first real dispatch (2026-07-16) died exactly
+          # this way, on a payload that did contain the file it claimed was
+          # missing.
+          PAYLOAD_LIST=$(tar -tzf payload.tar.gz)
           # Fail loudly if export-ignore ever stops applying: shipping tests/ to
           # a live site is the exact thing this change retires.
-          if tar -tzf payload.tar.gz | grep -qE '^signal-and-noise-tools/(tests|\.github|docs)/'; then
+          if grep -qE '^signal-and-noise-tools/(tests|\.github|docs)/' <<<"$PAYLOAD_LIST"; then
             echo "::error::payload contains dev-only paths — .gitattributes export-ignore is not applying"
             exit 1
           fi
           # Sanity: the payload must actually be the plugin.
-          tar -tzf payload.tar.gz | grep -q '^signal-and-noise-tools/signal-and-noise-tools.php$' \
+          grep -q '^signal-and-noise-tools/signal-and-noise-tools.php$' <<<"$PAYLOAD_LIST" \
             || { echo "::error::payload has no main plugin file"; exit 1; }
 
       - name: Configure SSH for Cloudways
@@ -117,59 +129,55 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Ship the payload + rsync into place
+      - name: Rsync the payload into place
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           TAG_REF: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          scp -q payload.tar.gz "$SSH_USER@$SSH_HOST:~/sn-deploy-payload.tar.gz"
-          # TAG_REF goes as a positional arg so the local shell never expands it
-          # into the heredoc body.
-          ssh "$SSH_USER@$SSH_HOST" bash -s -- "$TAG_REF" <<'REMOTE'
-          set -euo pipefail
-          TAG_REF="$1"
-          # Auto-discover the plugin path — Cloudways uses random per-app dir
-          # names (e.g. nffqxsrgxz). Surviving an app migration is worth one ls.
-          PLUGIN_DIR=$(ls -d /home/master/applications/*/public_html/wp-content/plugins/signal-and-noise-tools 2>/dev/null | head -1)
-          [ -z "$PLUGIN_DIR" ] && { echo "ERROR: plugin dir not found"; exit 1; }
+          # NO scp, NO remote staging. Two dispatches died proving why:
+          #
+          #   scp: dest open "~/payload.tar.gz": Permission denied
+          #   scp: dest open "/tmp/…-stage.uJf12C/payload.tar.gz": No such file or directory
+          #
+          # The second is the tell: the ssh session had JUST created that /tmp
+          # dir successfully, and scp could not see it. scp runs over the SFTP
+          # SUBSYSTEM, which on this host is jailed differently from the
+          # interactive SSH shell — so anything scp touches is a different world
+          # from anything ssh touches. (The first failure looked like "home is
+          # not writable"; that story fit the evidence and was wrong.)
+          #
+          # rsync -e ssh runs over the SSH SHELL, so it sidesteps the sftp jail
+          # entirely AND needs no staging area: extract on the runner, sync
+          # straight into the live directory.
+          mkdir -p stage
+          tar -xzf payload.tar.gz -C stage
+          [ -f "stage/signal-and-noise-tools/signal-and-noise-tools.php" ] || { echo "::error::payload did not extract as expected"; exit 1; }
+
+          PLUGIN_DIR=$(ssh "$SSH_USER@$SSH_HOST" 'ls -d /home/master/applications/*/public_html/wp-content/plugins/signal-and-noise-tools 2>/dev/null | head -1')
+          [ -n "$PLUGIN_DIR" ] || { echo "::error::plugin dir not found on the server"; exit 1; }
           echo "Plugin dir: $PLUGIN_DIR"
-          echo "Before: $(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php" || echo '(unreadable)')"
+          ssh "$SSH_USER@$SSH_HOST" "command -v rsync >/dev/null 2>&1" \
+            || { echo "::error::rsync not on PATH for the remote user"; exit 1; }
+          echo "Before: $(ssh "$SSH_USER@$SSH_HOST" "grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' '$PLUGIN_DIR/signal-and-noise-tools.php' || echo '(unreadable)'")"
 
-          command -v rsync >/dev/null 2>&1 || { echo "ERROR: rsync not on PATH"; exit 1; }
-
-          STAGE=$(mktemp -d ~/sn-deploy-stage.XXXXXX)
-          # shellcheck disable=SC2064
-          trap "rm -rf '$STAGE' ~/sn-deploy-payload.tar.gz" EXIT
-          tar -xzf ~/sn-deploy-payload.tar.gz -C "$STAGE"
-          [ -f "$STAGE/signal-and-noise-tools/signal-and-noise-tools.php" ] || { echo "ERROR: payload did not extract as expected"; exit 1; }
-
-          # --delete makes this a CLEAN install: anything not in the tag payload
-          # goes, which is what WP's own updater does (clear_destination) and is
-          # exactly how the footprint stays at the ~2.9 MB the janitor targets.
-          # It also means a stray .git can never come back and re-break this.
-          # Note the trailing slashes — without them rsync nests the directory.
           # -rlptD, NOT -a: `-a` implies -o/-g (owner/group), which only work as
-          # root. This deploy runs as Cloudways' restricted sn-plugin user, and
-          # file ownership is precisely what defeated the footprint janitor for
-          # weeks (a PHP-user file the SSH user could not unlink). Ask for only
-          # what a non-root user can actually set.
-          rsync -rlptD --delete "$STAGE/signal-and-noise-tools/" "$PLUGIN_DIR/"
+          # root, and this runs as Cloudways' restricted app-scoped SSH user —
+          # file ownership is exactly what defeated the footprint janitor.
+          rsync -rlptD --delete -e ssh "stage/signal-and-noise-tools/" "$SSH_USER@$SSH_HOST:$PLUGIN_DIR/"
 
-          echo "After:  $(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php")"
-          # Verify the deployed version matches the tag we were asked to ship.
+          AFTER=$(ssh "$SSH_USER@$SSH_HOST" "grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' '$PLUGIN_DIR/signal-and-noise-tools.php'")
+          echo "After:  $AFTER"
           # A deploy that silently lands the wrong code is worse than one that
-          # fails: it looks successful. (The theme's deploy could do exactly
-          # that until 2026-07-16 — see its workflow header.)
-          DEPLOYED=$(grep -m1 -E '^[[:space:]]*\*?[[:space:]]*Version:' "$PLUGIN_DIR/signal-and-noise-tools.php" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          # fails: it looks successful. Prove the landed code IS the tag.
+          DEPLOYED=$(printf '%s' "$AFTER" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
           EXPECTED="${TAG_REF#v}"
           if [ "$DEPLOYED" != "$EXPECTED" ]; then
-            echo "ERROR: deployed $DEPLOYED but expected $EXPECTED from tag $TAG_REF"
+            echo "::error::deployed $DEPLOYED but expected $EXPECTED from tag $TAG_REF"
             exit 1
           fi
           echo "OK: $PLUGIN_DIR is now $DEPLOYED (tag $TAG_REF)"
-          REMOTE
 
       - name: Purge caches via WP-CLI in-process (no App Password required)
         # v3.7.3 architecture change: replaces the HTTP REST-based purge that
