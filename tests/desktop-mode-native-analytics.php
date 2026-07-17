@@ -56,6 +56,24 @@ function fire( $hook ) {
 	}
 }
 
+/**
+ * Fire every callback registered STRICTLY BEFORE $ceiling on a hook.
+ *
+ * A ceiling, not an exact priority: the property under test is "the handle
+ * exists before the window names it", and any priority < the window's satisfies
+ * that. Firing one exact bucket would instead pin the handle to a literal
+ * number, reddening the suite for a correct :4 refactor — testing the
+ * convention rather than the contract.
+ */
+function fire_below( $hook, $ceiling ) {
+	$by_priority = $GLOBALS['__actions'][ $hook ] ?? array();
+	ksort( $by_priority, SORT_NUMERIC );
+	foreach ( $by_priority as $p => $cbs ) {
+		if ( $p >= $ceiling ) { break; }
+		foreach ( $cbs as $cb ) { $cb(); }
+	}
+}
+
 $GLOBALS['__dm_windows'] = array();
 function desktop_mode_register_window( $id, $args = array() ) {
 	$GLOBALS['__dm_windows'][ $id ] = $args;
@@ -397,6 +415,39 @@ ok( preg_match( '/data\.seven_day\s*\|\|\s*\{\}/', $js ) === 1,
 
 ok( strpos( $js, 'missing configuration' ) !== false,
 	'a failed config injection REPORTS instead of no-opping on the skeleton forever (silent failure)' );
+
+echo "\n── SCRIPT HANDLE ──\n";
+ok( isset( $GLOBALS['__scripts']['sn-desktop-window-analytics'] ),
+	'the sn-desktop-window-analytics handle is registered on init' );
+ok( strpos( (string) ( $GLOBALS['__scripts']['sn-desktop-window-analytics'] ?? '' ), 'desktop-mode-window-analytics.js' ) !== false,
+	'the handle points at assets/desktop-mode-window-analytics.js' );
+ok( ( $w['script'] ?? '' ) === 'sn-desktop-window-analytics',
+	'the window names the registered handle' );
+
+echo "\n── REGISTRATION ORDER (the handle exists before the window names it) ──\n";
+// Assert an ORDER-DEPENDENT SIDE EFFECT, not mere key existence. The sibling
+// module this suite requires (inc/desktop-mode-integration.php) registers its
+// own init callbacks at 5/6/10/99, so "priority 5 exists" is true no matter
+// what THIS feature does — a vacuous assertion, caught in review.
+//
+// Fire everything BELOW the window's priority: our script handle must already
+// exist, and the window itself must NOT yet. desktop-mode's
+// wp_add_inline_script( <handle>, …, 'before' ) at admin_enqueue_scripts:20
+// REQUIRES that handle to be registered, so this ordering is load-bearing.
+//
+// The ceiling is deliberately the WINDOW's priority, not the literal 5: what
+// must hold is "handle before window", and :5 is convention (matching the
+// widgets), not a hard requirement. Pinning the exact number would red this
+// suite for a correct :4 move — testing the convention, not the contract.
+$window_priority = 6;
+$GLOBALS['__scripts']    = array();
+$GLOBALS['__dm_windows'] = array();
+fire_below( 'init', $window_priority );
+
+ok( isset( $GLOBALS['__scripts']['sn-desktop-window-analytics'] ),
+	'ordering: the HUD script handle is registered BEFORE init:' . $window_priority . ' (where the window names it)' );
+ok( ! isset( $GLOBALS['__dm_windows']['sn-analytics-hud'] ),
+	'ordering: the window has NOT registered yet — it comes at :' . $window_priority . ' and names the handle above' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

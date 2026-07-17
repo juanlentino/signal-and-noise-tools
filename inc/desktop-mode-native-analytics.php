@@ -46,6 +46,34 @@ function snt_desktop_analytics_hud_template() {
 	<?php
 }
 
+// Scripts at :5, the window at :6 — the window names this handle, so it must
+// exist first.
+//
+// REGISTER ONLY, never enqueue. Verified in the desktop-mode v0.9.5 source:
+// desktop_mode_enqueue_native_window_scripts() (includes/registries/
+// native-windows.php:685) runs on admin_enqueue_scripts:20 and does
+// wp_enqueue_script( $entry['script'] ) for us (:709), then
+// wp_add_inline_script( …, 'before' ) to ship `config` as
+// window.desktopModeWindowConfig[ id ] (:745-752) — which REQUIRES the handle to
+// be registered, hence :5. Enqueueing it ourselves would load the HUD's JS on
+// every admin page.
+//
+// NO deps, deliberately. The sibling widget scripts declare
+// array( 'wp-api-fetch', 'snt-ability-run' ) because they CALL ABILITIES. This
+// one doesn't: it uses window.fetch and reads its config from
+// window.desktopModeWindowConfig, which desktop-mode injects onto THIS handle —
+// so it is printed before our file with no dependency needed. It does not read
+// window.snDesktopData either. Adding deps here would only load dead weight.
+add_action( 'init', function () {
+	wp_register_script(
+		'sn-desktop-window-analytics',
+		plugins_url( 'assets/desktop-mode-window-analytics.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+}, 5 );
+
 add_action( 'init', function () {
 	if ( ! function_exists( 'desktop_mode_register_window' ) ) {
 		return;
