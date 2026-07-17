@@ -995,6 +995,78 @@ $analytics_src = file_get_contents( __DIR__ . '/../inc/abilities-analytics.php' 
 ok( strpos( $analytics_src, "array( 'object', 'null' )" ) !== false,
 	'the abilities KEEP their ["object","null"] union — normalization happens at the boundary, not by rewriting contracts MCP/REST depend on' );
 
+echo "\n── v9.59.0: the Copilot tool list is PRUNED — ours only, matched by stripped name ──\n";
+/**
+ * VERBATIM copy of desktop-mode's ability→tool-name transform
+ * (includes/ai-copilot/abilities.php:99, v0.9.5). desktop-mode strips the
+ * namespace and normalizes the slug BEFORE our filter sees the tool, so
+ * `signal-noise/export-audit-log` arrives as `export_audit_log`. The prune must
+ * match that stripped name or it silently matches nothing — this is the shape the
+ * real callee produces, not one we imagined. Production calls desktop-mode's OWN
+ * function (so it can't drift); this copy lets the standalone suite exercise it.
+ */
+function desktop_mode_ai_ability_tool_name( $ability_name ) {
+	$slug = (string) $ability_name;
+	$pos  = strpos( $slug, '/' );
+	if ( false !== $pos ) {
+		$slug = substr( $slug, $pos + 1 );
+	}
+	$slug = strtolower( str_replace( '-', '_', $slug ) );
+	$slug = preg_replace( '/[^a-z0-9_]+/', '_', $slug );
+	return trim( (string) $slug, '_' );
+}
+
+ok( desktop_mode_ai_ability_tool_name( 'signal-noise/export-audit-log' ) === 'export_audit_log',
+	'sanity: the tool-name transform strips the namespace and underscores the slug (the real shape the prune must match)' );
+
+// Feed the STRIPPED names the filter actually receives (as the existing normalizer
+// test above does with search_posts / get_analytics_summary).
+$prune_in    = array(
+	array( 'type' => 'function', 'name' => 'pattern_adoption_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
+	array( 'type' => 'function', 'name' => 'export_audit_log',              'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
+	array( 'type' => 'function', 'name' => 'block_migrations_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
+	array( 'type' => 'function', 'name' => 'get_analytics_summary',         'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — EARNS its rent, keep
+	array( 'type' => 'function', 'name' => 'search_posts',                  'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // desktop-mode's own, keep
+	array( 'type' => 'function', 'name' => 'get_active_template_structure', 'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // the THEME's, keep
+);
+$prune_out   = apply_filters( 'desktop_mode_ai_tools', $prune_in );
+$prune_names = array_map( static function ( $t ) { return is_array( $t ) ? ( $t['name'] ?? '' ) : ''; }, $prune_out );
+
+ok( ! in_array( 'pattern_adoption_suggest', $prune_names, true ),
+	'pattern_adoption_suggest is pruned — needs a scan-generated block fingerprint, unusable from natural language' );
+ok( ! in_array( 'export_audit_log', $prune_names, true ),
+	'export_audit_log is pruned — an export/download action; get-audit-log already answers the readable question' );
+ok( ! in_array( 'block_migrations_suggest', $prune_names, true ),
+	'block_migrations_suggest is pruned — needs a scan-generated block fingerprint, unusable from natural language' );
+ok( in_array( 'get_analytics_summary', $prune_names, true ),
+	'a tool that EARNS its rent survives the prune (we cut the narrow ones, not the useful ones)' );
+ok( in_array( 'search_posts', $prune_names, true ),
+	"desktop-mode's OWN tool is never pruned — we prune only ours" );
+ok( in_array( 'get_active_template_structure', $prune_names, true ),
+	"the THEME's tool is never pruned either — not ours to cut" );
+ok( count( $prune_out ) === 3,
+	'exactly the three approved tools were removed; the other three survive' );
+
+echo "\n── v9.59.0: the analytics-vocabulary appendix (every word is rent) ──\n";
+ok( isset( $GLOBALS['__filters']['desktop_mode_ai_system_prompt_appendix'] ),
+	'the system-prompt appendix filter is registered' );
+$appendix = apply_filters( 'desktop_mode_ai_system_prompt_appendix', '' );
+ok( is_string( $appendix ) && '' !== $appendix,
+	'we contribute a system-prompt appendix' );
+// EVERY WORD IS RENT — this ships on every turn, forever. The cap is enforced,
+// not intended; a future edit that needs more room must argue for it here.
+ok( strlen( $appendix ) <= 600,
+	'the appendix is <= 600 chars (~150 tokens/turn, forever) — every word is rent [' . strlen( $appendix ) . ']' );
+ok( strpos( $appendix, 'suspect' ) !== false,
+	'it names the traffic classes the tools return but never define (human/suspect/bot)' );
+ok( strpos( $appendix, 'null' ) !== false,
+	'it states that null means never-measured, not zero — the distinction the payloads preserve' );
+// It STACKS onto whatever came before — desktop-mode concatenates appendices
+// across plugins, so we must append, never replace.
+$stacked = apply_filters( 'desktop_mode_ai_system_prompt_appendix', 'PRIOR-PLUGIN-TEXT' );
+ok( strpos( $stacked, 'PRIOR-PLUGIN-TEXT' ) === 0,
+	'the appendix STACKS onto a prior plugin\'s text (appends, never replaces)' );
+
 echo "\n── living-tree filter ──\n";
 ok( isset( $GLOBALS['__filters']['desktop_mode_living_tree_traffic'] ), 'living-tree filter is registered' );
 $GLOBALS['__totals'] = array( '*' => array( 'views' => 1234, 'visits' => 900, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
