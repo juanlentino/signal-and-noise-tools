@@ -141,20 +141,26 @@ function snt_ai_tool_invocations_render() {
 	echo '<h2 class="sn-section-h">Copilot tool usage</h2>';
 
 	if ( 0 === $ranked['distinct'] ) {
-		echo '<p class="sn-muted">' . esc_html__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' ) . '</p>';
+		echo '<div class="sn-card sn-ai-usage sn-ai-usage--empty">';
+		echo '<p class="sn-ai-usage__empty">' . esc_html__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' ) . '</p>';
+		echo '</div>';
 		return;
 	}
 
-	echo '<p class="sn-muted">' . esc_html( sprintf(
-		/* translators: 1: total AI tool calls, 2: distinct tool count. */
-		__( 'Calls: %1$s · Tools: %2$d', 'signal-and-noise-tools' ),
-		number_format_i18n( $ranked['calls'] ),
-		$ranked['distinct']
-	) ) . '</p>';
-
-	echo '<ul class="sn-ai-tool-usage">';
+	echo '<div class="sn-card sn-ai-usage">';
+	echo '<p class="sn-ai-usage__summary">' . sprintf(
+		/* translators: 1: total AI tool calls, 2: distinct tool count. Both wrapped in <strong>. */
+		esc_html__( '%1$s calls across %2$s tools', 'signal-and-noise-tools' ),
+		'<strong>' . esc_html( number_format_i18n( $ranked['calls'] ) ) . '</strong>',
+		'<strong>' . esc_html( number_format_i18n( $ranked['distinct'] ) ) . '</strong>'
+	) . '</p>';
+	echo '<ul class="sn-ai-usage__list">';
 	foreach ( $ranked['tools'] as $tool ) {
-		echo '<li><code>' . esc_html( $tool['name'] ) . '</code> — ' . esc_html( number_format_i18n( $tool['n'] ) ) . '</li>';
+		echo '<li class="sn-ai-usage__row">';
+		echo '<code class="sn-ai-usage__name">' . esc_html( $tool['name'] ) . '</code>';
+		echo '<span class="sn-ai-usage__count">' . esc_html( number_format_i18n( $tool['n'] ) ) . '</span>';
+		echo '</li>';
 	}
 	echo '</ul>';
+	echo '</div>';
 }
