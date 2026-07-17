@@ -315,4 +315,48 @@
 		}
 	} );
 
+	/**
+	 * Attention badge.
+	 *
+	 * desktop-mode exposes the SAME setBadge( id, count ) on three rails — dock
+	 * (bottom), sideDock (Classic left rail) and icons (wallpaper tiles) — one id
+	 * space, idempotent, 0 clears, >99 renders 99+. Stable since 0.6.0.
+	 *
+	 * Optional-chained on every rail because which rails exist depends on the
+	 * user's layout — that is the docs' own example shape
+	 * (docs/examples/dock-badge.md), not defensive noise.
+	 *
+	 * The count is already on the page via wp_localize_script — no fetch, no
+	 * poll. It is accurate as of shell load, which is as fresh as the sources
+	 * get: they are cached for an hour or a day anyway.
+	 *
+	 * total ARRIVES AS A STRING. wp_localize_script() string-casts every
+	 * top-level scalar (wp-includes/class-wp-scripts.php::localize — verified
+	 * verbatim @ WP 6.8.1), so PHP's int 2 lands here as "2":
+	 *     var snDesktopAttention = {"total":"2","iconId":"sn-icon-dashboard"};
+	 * An earlier draft guarded `typeof att.total !== 'number'`, which rejects "2"
+	 * on EVERY load — setBadge would never have been called and the badge would
+	 * never have rendered, with every PHP test green. Coerce with Number() and
+	 * validate with Number.isFinite(): correct whether the transport hands us a
+	 * string or a number, so it cannot rot if core ever stops casting.
+	 */
+	( function setAttentionBadge() {
+		var att = window.snDesktopAttention;
+		if ( ! att || ! att.iconId ) {
+			return;
+		}
+		var total = Number( att.total );
+		if ( ! Number.isFinite( total ) ) {
+			return;
+		}
+		if ( ! window.wp || ! window.wp.desktop ) {
+			return;
+		}
+		// 0 clears the badge — that is the API's contract, and a measured zero
+		// SHOULD clear it.
+		wp.desktop.dock?.setBadge?.( att.iconId, total );
+		wp.desktop.sideDock?.setBadge?.( att.iconId, total );
+		wp.desktop.icons?.setBadge?.( att.iconId, total );
+	}() );
+
 } )();

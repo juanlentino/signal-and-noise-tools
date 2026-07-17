@@ -300,5 +300,55 @@ $src = file_get_contents( __DIR__ . '/../inc/desktop-mode-attention.php' );
 ok( strpos( $src, "function_exists( 'desktop_mode_is_enabled' )" ) !== false,
 	'the localize is gated — without desktop-mode there is no shell to badge' );
 
+echo "\n── BADGE CONTRACT (source-level only — no JS harness exists here) ──\n";
+$js_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' );
+
+/**
+ * Assert against CODE, not prose.
+ *
+ * Every assertion below is a substring/regex search, and the badge's own
+ * docblock necessarily QUOTES the very strings under test — it documents the
+ * transport bug by naming `Number.isFinite`, `snDesktopAttention`, and the
+ * banned typeof guard. Searching the raw file therefore reads the comment as if
+ * it were the implementation, in BOTH directions:
+ *
+ *   - FALSE PASS: deleting the real `Number.isFinite` guard, or pointing the
+ *     code at `window.somethingElseEntirely`, left the suite 43/0 GREEN — the
+ *     docblock alone satisfied both assertions. Proven by mutation; the badge
+ *     was dead and nothing reddened.
+ *   - FALSE FAIL: the docblock explaining the banned typeof guard tripped the
+ *     ban assertion, so the plan's verbatim Step 3 could never reach 43/0.
+ *
+ * Stripping comments first makes each assertion mean what its label claims.
+ * Safe here: this file has no '/*' or '//' inside any string literal (checked).
+ * A prose mention can no longer stand in for an implementation.
+ */
+$js = preg_replace( '#/\*.*?\*/#s', '', $js_raw );   // block comments (the docblocks)
+$js = preg_replace( '#^\s*//.*$#m', '', (string) $js ); // line comments
+$js = (string) $js;
+
+ok( strpos( $js, 'snDesktopAttention' ) !== false, 'the shell script reads the localized payload' );
+// v0.9.5 docs/examples/dock-badge.md: three rails, same setBadge( id, count )
+// shape, optional-chained in the docs' OWN example because which rails exist
+// depends on layout. Call all three.
+foreach ( array( 'dock', 'sideDock', 'icons' ) as $rail ) {
+	ok( preg_match( '/wp\.desktop\.' . $rail . '\?\.\s*setBadge\?\.\s*\(/', $js ) === 1,
+		"badges the `$rail` rail with the verified optional-chained setBadge shape" );
+}
+ok( strpos( $js, 'wp.desktop.badge' ) === false,
+	'does NOT invent a wp.desktop.badge() — the real API is <rail>.setBadge( id, count )' );
+
+// THE STRING-CAST GUARD. wp_localize_script() string-casts every top-level
+// scalar (class-wp-scripts.php::localize @ 6.8.1), so att.total arrives as "2".
+// A `typeof att.total !== 'number'` check rejects that on EVERY load and the
+// badge never renders — with every PHP test green. This repo has shipped that
+// exact "green CI, dead feature" shape twice (v9.52.0, v9.56.0). Pin it.
+ok( strpos( $js, "typeof att.total !== 'number'" ) === false,
+	'does NOT gate on typeof att.total === number — the transport delivers a STRING and that guard would kill the badge on every load' );
+ok( preg_match( '/Number\(\s*att\.total\s*\)/', $js ) === 1,
+	'coerces att.total with Number() — correct whether the transport hands us "2" or 2' );
+ok( strpos( $js, 'Number.isFinite' ) !== false,
+	'validates the coerced total with Number.isFinite — a non-numeric payload must not reach setBadge' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
