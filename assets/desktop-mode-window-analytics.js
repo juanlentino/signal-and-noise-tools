@@ -66,8 +66,9 @@
 
 	// Literal id at the assignment site — the ONE window this file registers.
 	window.desktopModeNativeWindows[ 'sn-analytics-hud' ] = function( body ) {
-		var cfg     = ( window.desktopModeWindowConfig || {} )[ WINDOW_ID ] || {};
-		var stopped = false;
+		var cfg              = ( window.desktopModeWindowConfig || {} )[ WINDOW_ID ] || {};
+		var stopped          = false;
+		var reportedNoConfig = false;
 
 		function mount( name ) {
 			return body.querySelector( '[data-sn-hud="' + name + '"]' );
@@ -78,13 +79,18 @@
 			link.href = cfg.fullUrl;
 		}
 
+		function errorNote() {
+			var root = mount( 'root' );
+			return root ? root.querySelector( '[data-sn-hud="error"]' ) : null;
+		}
+
 		function fail( message ) {
 			// Report, never swallow. A silent zero reads identically to "no
 			// traffic" — this row exists so a fetch/parse failure is visible
 			// instead of quietly leaving the last good render on screen.
 			var root = mount( 'root' );
 			if ( ! root ) { return; }
-			var note = root.querySelector( '[data-sn-hud="error"]' );
+			var note = errorNote();
 			if ( ! note ) {
 				note = document.createElement( 'wpd-row' );
 				note.setAttribute( 'data-sn-hud', 'error' );
@@ -93,16 +99,41 @@
 			note.textContent = message;
 		}
 
+		/**
+		 * A successful poll RETIRES any previous failure notice.
+		 *
+		 * Without this, one transient 500 out of the ~120 polls/hour a
+		 * left-open HUD fires would pin "Analytics unavailable" to the window
+		 * permanently, beside numbers that are updating correctly. That is a
+		 * resolved failure posing as an ongoing one — the same class of lying
+		 * UI as the fabricated 0% this branch exists to fix, just inverted.
+		 */
+		function clearFailure() {
+			var note = errorNote();
+			if ( note && note.parentNode ) {
+				note.parentNode.removeChild( note );
+			}
+		}
+
 		function render( data ) {
+			clearFailure();
+
 			var realtime = mount( 'realtime' );
 			if ( realtime ) {
 				realtime.textContent = show( data.realtime );
 			}
 
+			// Guarded like every other field. renderRows() already defends its
+			// arrays with ( rows || [] ); an unguarded data.seven_day.views
+			// would throw mid-render — AFTER realtime was written — leaving a
+			// half-updated window behind a generic outer catch. The PHP
+			// contract always populates it, but the defence is free and the
+			// inconsistency is the kind that rots.
+			var kpis = data.seven_day || {};
 			renderRows( mount( 'kpis' ), [
-				{ label: 'Views',   display: show( data.seven_day.views ) },
-				{ label: 'Visits',  display: show( data.seven_day.visits ) },
-				{ label: 'Engaged', display: show( data.seven_day.engaged_rate, '%' ) }
+				{ label: 'Views',   display: show( kpis.views ) },
+				{ label: 'Visits',  display: show( kpis.visits ) },
+				{ label: 'Engaged', display: show( kpis.engaged_rate, '%' ) }
 			], 'label', 'display' );
 
 			// Row keys mirror the REAL accessors, verified against source:
@@ -115,7 +146,23 @@
 		}
 
 		function refresh() {
-			if ( stopped || ! cfg.endpoint ) { return; }
+			// `stopped` returns silently — a torn-down window has nothing to
+			// report to and nowhere to report it.
+			if ( stopped ) { return; }
+
+			// A missing endpoint means config injection failed (window-id
+			// mismatch, handle not registered). Say so: no-opping forever
+			// leaves the HUD sitting on its skeleton with no explanation,
+			// which is the silent failure this file's every other branch
+			// refuses. Reported ONCE — the condition cannot self-heal, so
+			// repainting it every 30s adds nothing.
+			if ( ! cfg.endpoint ) {
+				if ( ! reportedNoConfig ) {
+					reportedNoConfig = true;
+					fail( 'Analytics unavailable: missing configuration' );
+				}
+				return;
+			}
 
 			window.fetch( cfg.endpoint, {
 				headers:     { 'X-WP-Nonce': cfg.nonce || '' },

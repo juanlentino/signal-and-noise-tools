@@ -339,6 +339,13 @@ $js = file_exists( $js_path ) ? (string) file_get_contents( $js_path ) : '';
 
 ok( strpos( $js, 'desktopModeNativeWindows' ) !== false,
 	'uses the NATIVE-WINDOW global desktopModeNativeWindows (not desktopModeWidgets)' );
+
+// GUARD-RAILS, not contract proof: both absence assertions below pass trivially
+// against an empty file, so they cannot demonstrate the file does the right
+// thing — only that it hasn't started doing a specific wrong thing. The
+// positive file_exists + regex assertions carry the real weight. Kept because
+// they earned their place: the first one caught a doc-comment that merely NAMED
+// the widget global in prose.
 ok( strpos( $js, 'desktopModeWidgets' ) === false,
 	'does NOT use the widget global (wrong path for a native window)' );
 ok( strpos( $js, 'wp.desktop.registerWindow' ) === false,
@@ -363,6 +370,33 @@ ok( preg_match( "/data\.top_content,\s*'path'/", $js ) === 1,
 	"top-content rows read the REAL key `path` (inc/analytics-read.php)" );
 ok( strpos( $js, "'—'" ) !== false,
 	'null renders as an em dash — never as 0 (never-measured is not zero)' );
+
+// ── A RESOLVED FAILURE MUST NOT POSE AS AN ONGOING ONE ──
+//
+// fail() paints a persistent [data-sn-hud="error"] row. A render() that never
+// retires it pins "Analytics unavailable: HTTP 500" to the window forever after
+// ONE transient blip — beside numbers that are updating correctly. On a HUD
+// designed to be left open (~120 polls/hour) that blip is a matter of when, not
+// if. Same class of lying UI as the fabricated 0%, just inverted.
+//
+// WHAT THIS ASSERTION PROVES — AND DOES NOT. It is a REGEX OVER SOURCE. This
+// repo has no JS runtime harness (no node test runner, no jsdom), so nothing
+// here executes the DOM. It proves only that render()'s FIRST statement is a
+// call to the clearing helper — i.e. that the call has not been deleted or
+// reordered below the data writes. It does NOT prove the node is actually
+// removed on a recovery poll; clearFailure()'s own body could be gutted and
+// this would stay green. The behaviour itself rides the owner-observed check at
+// release. Recorded as a limitation rather than papered over.
+ok( preg_match( '/function clearFailure\(\)\s*\{/', $js ) === 1,
+	'a failure-clearing helper exists' );
+ok( preg_match( '/function render\(\s*data\s*\)\s*\{\s*clearFailure\(\);/', $js ) === 1,
+	'render() calls clearFailure() FIRST — a successful poll retires a stale error row (source-level only; see note)' );
+
+ok( preg_match( '/data\.seven_day\s*\|\|\s*\{\}/', $js ) === 1,
+	'seven_day is guarded like every other field — renderRows already defends its arrays with ( rows || [] )' );
+
+ok( strpos( $js, 'missing configuration' ) !== false,
+	'a failed config injection REPORTS instead of no-opping on the skeleton forever (silent failure)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
