@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **Status: SCAFFOLD.** Task decomposition, file map, candidate SQL, null-discipline rules, and the trap checklist are FINAL. Per-step code blocks must be grounded against the real files named in each task at execution time (this scaffold was written deliberately without re-reading them, at 83% context under the 5-hour limit). Before executing any task, read the files in its **Files:** list first.
+> **Status: EXECUTED (v9.63.0).** All tasks + two adversarial-review fix rounds landed on `feat/analytics-integrity`. Kept for the execution record: P0 live-probe results (§P0 results), the trap checklist, and the post-review amendments (five-column v5 schema; site-local day windows). Remaining owner step: the one-time reroll (Task 6 runbook).
 
 **Goal:** Ship the approved Phase A spec ([analytics-integrity-design.md](analytics-integrity-design.md)): honest metric naming, pageview-gated headline visits, viewless count, exact + `_sample_interval`-weighted engagement, never-invert integrity guard, trailing-≤90d backfill.
 

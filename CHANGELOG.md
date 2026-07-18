@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — Analytics Integrity Phase A (feat/analytics-integrity)
+## [9.63.0] - 2026-07-18: Analytics integrity — honest metric vocabulary, gated visits, exact engagement (Phase A)
 
 ### Added
 

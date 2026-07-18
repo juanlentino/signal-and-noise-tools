@@ -1,7 +1,7 @@
 # Analytics integrity — design spec
 
 **Date:** 2026-07-17
-**Status:** Approved (design); pending owner spec-review before planning
+**Status:** Implemented — v9.63.0 (see `docs/analytics-integrity-plan.md` for execution record + P0 live-probe results)
 **Target version:** MINOR — tentatively v9.63.0 (confirm against the theme's `docs/VERSIONING.md` before the bump; bump/tag/Canny at end of session only)
 **Origin:** Phase 1 audit of the `views < visits` anomaly in `get-analytics-summary` (findings preserved in the `analytics-views-visits-misnamed-root-cause` memory).
 
