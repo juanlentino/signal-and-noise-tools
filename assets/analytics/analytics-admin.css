@@ -667,3 +667,27 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-rightnow .sn-kpi-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .sn-an-rightnow .sn-kpi { flex: 0 1 240px; }
 @media screen and (max-width: 960px) { .sn-an-overview-bento { grid-template-columns: 1fr; } }
+
+/* ── Attention layer (v9.69.0): amber NOTABLE chip, needs-attention strip,
+   and the anchor wrapper flagged panels promote inside. Reads the shared warn
+   tokens (--sn-an-warn-bg/-border/-text, analytics-tokens.css) — semantic
+   amber, light-only like the rest of the surface. */
+.sn-an-attn-strip { margin: 0 0 16px; padding: 8px 14px; background: var(--sn-an-warn-bg); border: 1px solid var(--sn-an-warn-border); border-left: 4px solid var(--sn-an-warn-text); border-radius: var(--sn-an-radius); font-size: 13px; color: var(--sn-an-text); }
+.sn-an-attn-label { font-weight: 600; color: var(--sn-an-warn-text); text-transform: uppercase; font-size: 11px; letter-spacing: var(--sn-an-kicker-track); margin-right: 2px; }
+.sn-an-attn-strip .sn-an-attn-link { font-weight: 600; text-decoration: none; }
+/* An anchor-less strip flag (review r1 F1: the flagged panel FOLDED — total
+   collapse — so no jump target exists): same weight, plainly not a link. */
+.sn-an-attn-strip .sn-an-attn-flag { font-weight: 600; }
+.sn-an-attn-strip .sn-an-attn-fact { font-variant-numeric: tabular-nums; }
+.sn-an-attn-chip { display: inline-block; padding: 0 6px; border: 1px solid var(--sn-an-warn-border); border-radius: var(--sn-an-radius); background: var(--sn-an-warn-bg); color: var(--sn-an-warn-text); font-size: 10px; font-weight: 700; line-height: 16px; text-transform: uppercase; letter-spacing: 0.05em; vertical-align: 1px; }
+/* Anchor jumps land under the sticky admin bar — give the target headroom. */
+.sn-an-attn-anchor { scroll-margin-top: 46px; }
+/* Review r1 F2: a promoted pair whose other half folded holds ONE child — the
+   anchor DIV, not a .postbox — so the lone-panel span rule above
+   (.sn-an-grid > .postbox:last-child:nth-child(odd)) misses it and the lone
+   flagged panel would sit half-width beside an empty column. Same idiom,
+   anchor-aware. */
+.sn-an-grid > .sn-an-attn-anchor:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* Review r1 F3: three promoted minis leave ONE quiet bento column — span it
+   so the lone mini never sits beside an empty half. */
+.sn-an-overview-bento > .sn-an-bento-col:only-child { grid-column: 1 / -1; }

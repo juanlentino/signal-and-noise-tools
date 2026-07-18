@@ -387,20 +387,27 @@ ok( strpos( $html, 'Headline' ) === false, 'graduated: no duplicate Headline pan
 ok( strpos( $html, '<p class="sn-kpi-label">Views</p>' ) === false, 'graduated: no duplicate Views KPI in the body (lives in the shared header)' );
 
 echo "\nGroup: window + class contract (recorded accessor args)\n";
+// v9.69.0: every panel gains ONE bounded prior-window read on EVERY render —
+// compare OFF included — because the attention signals compare against the
+// previous period regardless of the header's compare control (that control
+// only governs the visible delta chips). Windows via the real
+// snt_analytics_compare_window(...,'prev'): zero new date math.
 $sr = ov_calls( 'sn_session_rollup_read' );
-ok( 2 === count( $sr ), 'rollup: exactly two reads (range KPIs + fixed trend window)' );
+ok( 3 === count( $sr ), 'rollup: exactly three reads (range KPIs + fixed trend window + the attention prior window)' );
 ok( array( 'sn_session_rollup_read', '2026-07-11', '2026-07-17', 'human' ) === $sr[0], 'rollup: KPI read uses the header window + class' );
 ok( array( 'sn_session_rollup_read', '2026-05-23', '2026-07-17', 'human' ) === $sr[1], 'rollup: trend read uses the fixed 56-day window ending at $to' );
+ok( array( 'sn_session_rollup_read', '2026-07-04', '2026-07-10', 'human' ) === $sr[2], 'rollup: the attention read uses the REAL compare-window prev math, same class' );
 $src = ov_calls( 'sn_analytics_top_sources' );
-ok( 1 === count( $src ) && '2026-07-11' === $src[0][1] && '2026-07-17' === $src[0][2] && 'human' === $src[0][3], 'sources: header window + class' );
+ok( 2 === count( $src ) && '2026-07-11' === $src[0][1] && '2026-07-17' === $src[0][2] && 'human' === $src[0][3], 'sources: header window + class' );
+ok( '2026-07-04' === $src[1][1] && '2026-07-10' === $src[1][2] && 'human' === $src[1][3] && 50 === $src[1][4], 'sources: attention prior read at depth 50 (the movers idiom — bounded like the v9.68.0 prior reads)' );
 $utm = ov_calls( 'sn_analytics_top_utm_campaigns' );
-ok( 1 === count( $utm ) && '2026-07-11' === $utm[0][1] && 'human' === $utm[0][3], 'campaigns: header window + class' );
+ok( 2 === count( $utm ) && '2026-07-11' === $utm[0][1] && 'human' === $utm[0][3] && '2026-07-04' === $utm[1][1] && 50 === $utm[1][4], 'campaigns: header window + class, then the attention prior at depth 50' );
 $dims = ov_calls( 'sn_analytics_top_dimension' );
-ok( 2 === count( $dims ) && 'country' === $dims[0][1] && 'device' === $dims[1][1], 'dims: exactly country + device pulled' );
-ok( 'human' === $dims[0][4] && 'human' === $dims[1][4], 'dims: class passed through' );
+ok( 4 === count( $dims ) && 'country' === $dims[0][1] && 'country' === $dims[1][1] && 'device' === $dims[2][1] && 'device' === $dims[3][1], 'dims: country + device each read current-then-prior (reads stay adjacent per panel)' );
+ok( 'human' === $dims[0][4] && 'human' === $dims[2][4] && '2026-07-04' === $dims[1][2] && '2026-07-04' === $dims[3][2], 'dims: class passed through; prior reads use the prev window' );
 $rt = ov_calls( 'sn_analytics_realtime' );
-ok( 1 === count( $rt ) && 'human' === $rt[0][1], 'realtime: called once with the header class' );
-ok( 1 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ) && 1 === count( ov_calls( 'sn_analytics_top_exit_pages' ) ), 'pageroles: entry + exit read once each' );
+ok( 1 === count( $rt ) && 'human' === $rt[0][1], 'realtime: called once with the header class (instantaneous — no prior window exists for it)' );
+ok( 2 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ) && 2 === count( ov_calls( 'sn_analytics_top_exit_pages' ) ), 'pageroles: entry + exit read current + attention prior each' );
 
 echo "\nGroup: LOAD-COST RULE — no live AE on the landing render\n";
 ok( 0 === count( ov_calls( 'sn_analytics_fetch_session_events' ) ), 'load-cost: the live session-engine AE fetch (50k cap) is NEVER called — it stays on the Sessions tab' );
@@ -658,9 +665,39 @@ function ov_seed_priors( $pf = '2026-07-04', $pt = '2026-07-10' ) {
 	);
 }
 
+/**
+ * Seed QUIET priors (v9.69.0): every movement sits below BOTH attention bars
+ * (prior ≈ current), so the always-on signal machinery runs and must stay
+ * invisible. Prior KPIs: sessions 40 (current 44 = +10%, under the 25% bar),
+ * weighted bounce 60.0 (+1.4 pts, under 10), ppv 1.5 (ppv flags only when
+ * FALLING), median of daily medians 65 (flat). Prior tables mirror the current
+ * fixtures exactly → every row Δ0.
+ */
+function ov_seed_priors_quiet( $pf = '2026-07-04', $pt = '2026-07-10' ) {
+	$pw = $pf . '|' . $pt;
+	$GLOBALS['__ov']['session_rollup'][ $pw ] = array(
+		array( 'day' => $pf, 'visits' => 20, 'bounce_pct' => 60.0, 'ppv' => 1.5, 'median_dur' => 60 ),
+		array( 'day' => $pt, 'visits' => 20, 'bounce_pct' => 60.0, 'ppv' => 1.5, 'median_dur' => 70 ),
+	);
+	$GLOBALS['__ov']['win'] = array(
+		'sources'   => array( $pw => $GLOBALS['__ov']['sources'] ),
+		'campaigns' => array( $pw => $GLOBALS['__ov']['campaigns'] ),
+		'dims'      => array(
+			'country|' . $pw => $GLOBALS['__ov']['dims']['country'],
+			'device|' . $pw  => $GLOBALS['__ov']['dims']['device'],
+		),
+		'entries'   => array( $pw => $GLOBALS['__ov']['entries'] ),
+		'exits'     => array( $pw => $GLOBALS['__ov']['exits'] ),
+	);
+}
+
 echo "\nGroup: PART A — every panel a doorway (the tab strip's exact href discipline)\n";
 ov_seed_current();
-ov_seed_priors();
+// v9.69.0: QUIET priors here — this group pins href discipline and the
+// canonical doorway ORDER; a flagged fixture would promote panels and turn
+// reordering noise into false href-order failures (promotion has its own
+// PART C groups).
+ov_seed_priors_quiet();
 $_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics&sn_view=overview&sn_range=30&sn_class=human&sn_compare=prev&sn_drill=' . rawurlencode( 'referrer:Google' );
 $html_a = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
 preg_match_all( '/class="sn-an-head-link" href="([^"]+)"/', $html_a, $ovm );
@@ -835,26 +872,46 @@ ov_seed_priors( '2025-07-11', '2025-07-17' );
 ov_reset_calls();
 $html_y = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'yoy' ); } );
 $sr_y = ov_calls( 'sn_session_rollup_read' );
-ok( array( 'sn_session_rollup_read', '2025-07-11', '2025-07-17', 'human' ) === ( $sr_y[2] ?? null ),
-	'yoy: the prior window is the SAME dates one year earlier (the reused helper, mode-threaded)' );
+// v9.69.0: yoy mode carries TWO prior reads per panel — the attention signal
+// ALWAYS compares against the adjacent prev window (the header control only
+// governs the chips), while the chip basis reads the yoy window.
+ok( array( 'sn_session_rollup_read', '2026-07-04', '2026-07-10', 'human' ) === ( $sr_y[2] ?? null ),
+	'yoy: the attention signal still reads the adjacent PREV window (signals ignore the compare control by design)' );
+ok( array( 'sn_session_rollup_read', '2025-07-11', '2025-07-17', 'human' ) === ( $sr_y[3] ?? null ),
+	'yoy: the chip basis window is the SAME dates one year earlier (the reused helper, mode-threaded)' );
+ok( 3 === count( ov_calls( 'sn_analytics_top_sources' ) ), 'yoy: sources = current + prev(signal) + yoy(chips)' );
 ok( strpos( $html_y, 'title="same period last year: 40"' ) !== false,
 	'yoy: the chip tooltip names the yoy basis — window and label switch from the SAME mode (the D2 one-frame rule)' );
 ok( strpos( $html_y, 'title="previous period:' ) === false, 'yoy: no stray prev-basis tooltips' );
 
-echo "\nGroup: PART B — compare Off: byte-identical body, zero prior reads (the default-view shield)\n";
+echo "\nGroup: QUIET-WEEK SHIELD — no flags → byte-identical v9.68.1 body (compare Off)\n";
+// v9.69.0 regression pin: the attention machinery must be INVISIBLE without a
+// reason. With every movement below both bars, the rendered body is
+// byte-for-byte the v9.68.1 output — pinned against a golden captured AT
+// v9.68.1 (tests/fixtures/overview-quiet-week.html, committed; regenerate
+// ONLY for deliberate copy changes via SN_OV_REGEN_GOLDEN=1). The prior-window
+// signal reads still happen underneath — running them on every render,
+// compare Off included, IS the feature — they just may not leave a byte.
 ov_seed_current();
-ov_seed_priors(); // present but MUST NOT be read
+ov_seed_priors_quiet();
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 $html_off3 = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
 ov_reset_calls();
 $html_off5 = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '7', 'off' ); } );
-ok( $html_off3 === $html_off5, 'off: the 5-arg off render is BYTE-IDENTICAL to the legacy 3-arg render — the entire compare feature contributes zero bytes' );
-ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ) && 1 === count( ov_calls( 'sn_analytics_top_sources' ) )
-	&& 2 === count( ov_calls( 'sn_analytics_top_dimension' ) ) && 1 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ),
-	'off: zero prior-window reads — the read pattern is exactly the pre-part-4 one' );
+ok( $html_off3 === $html_off5, 'off: the 5-arg off render is BYTE-IDENTICAL to the legacy 3-arg render' );
+$ov_golden_path = __DIR__ . '/fixtures/overview-quiet-week.html';
+if ( getenv( 'SN_OV_REGEN_GOLDEN' ) ) { file_put_contents( $ov_golden_path, $html_off3 ); echo "  (golden regenerated at " . gmdate( 'Y-m-d' ) . ")\n"; }
+ok( (string) file_get_contents( $ov_golden_path ) === $html_off3,
+	'shield: a no-flags render is byte-identical to the committed v9.68.1 golden — reordering machinery contributes ZERO bytes without a reason' );
+ok( 3 === count( ov_calls( 'sn_session_rollup_read' ) ) && 2 === count( ov_calls( 'sn_analytics_top_sources' ) )
+	&& 4 === count( ov_calls( 'sn_analytics_top_dimension' ) ) && 2 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ),
+	'shield: the prior-window signal reads DID run with compare Off (the feature\'s point) yet stayed invisible' );
 ok( strpos( $html_off5, 'sn-an-prior-note' ) === false && strpos( $html_off5, 'title="previous period' ) === false
 	&& strpos( $html_off5, 'sn-an-delta--' ) === false && strpos( $html_off5, 'sn-delta-up' ) === false && strpos( $html_off5, 'sn-delta-down' ) === false,
-	'off: no chips, no notes, no basis tooltips' );
+	'off: no chips, no notes, no basis tooltips (compare chips stay a compare-on feature)' );
 ok( strpos( $html_off5, 'single-page sessions · weighted' ) !== false, 'off: the static sub descriptors still hold the KPI slots' );
+ok( strpos( $html_off5, 'sn-an-attn-' ) === false && strpos( $html_off5, 'sn-ov-' ) === false,
+	'off: no attention markup of any kind on a quiet week (no strip, no chip, no anchors)' );
 
 echo "\nGroup: PART B — range=all suppresses compare entirely (the shared card's exact gate)\n";
 ov_reset_calls();
@@ -863,14 +920,298 @@ ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ) && 1 === count( ov_calls
 	'all: no prior reads — no adjacent window exists for all-history (the header suppresses its deltas at all too)' );
 ok( strpos( $html_all, 'sn-an-prior-note' ) === false && strpos( $html_all, 'sn-an-delta--' ) === false, 'all: no compare markup' );
 
-echo "\nGroup: PART B — a folded (empty-current) panel triggers no prior read\n";
+echo "\nGroup: REVIEW R1 F1 — an EMPTY current window keeps its prior read (total-collapse detection)\n";
+// v9.69.0 review round 1: the old economy pin ("current-empty → prior read
+// skipped") inverted the feature at its most attention-worthy input — an empty
+// window is an ANSWER (0), and 40 → none must out-flag 40 → 11. The prior read
+// now runs whenever the CURRENT read SUCCEEDED ([] included); only a FAILED
+// current read (unknown — no real 0 to claim) skips it.
 ov_seed_current();
-ov_seed_priors();
-$GLOBALS['__ov']['sources'] = array();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['sources'] = array(); // current sources window empty; the quiet-prior override (36 total views) was captured above
 ov_reset_calls();
-capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+$html_tc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( 2 === count( ov_calls( 'sn_analytics_top_sources' ) ),
+	'reads: a current-empty panel KEEPS its attention prior read — an empty window is an answer, not a missing surface' );
+ok( 1 === substr_count( $html_tc, 'sn-an-attn-strip' ), 'collapse: the strip renders' );
+ok( strpos( $html_tc, '<span class="sn-an-attn-flag">Top sources</span>' ) !== false,
+	'collapse: the folded panel is named as a plain flag (no anchor surface exists — strip-only)' );
+ok( strpos( $html_tc, 'views 36 → none recorded' ) !== false,
+	'collapse: the fact aggregates the prior window (18+11+7 = 36 views → none recorded)' );
+ok( strpos( $html_tc, 'id="sn-ov-sources"' ) === false && strpos( $html_tc, 'href="#"' ) === false,
+	'collapse: no anchor id, no dead link — the strip informs without a panel target' );
+ok( 0 === substr_count( $html_tc, 'sn-an-attn-chip' ), 'collapse: no chip — a folded panel has no header to wear one' );
+ok( 2 === substr_count( $html_tc, 'sn-an-bento-col' ),
+	'collapse: strip-only flags never promote — the bento keeps its v9.68.1 two-column packing' );
+ok( strpos( $html_tc, 'No referrer rows in the durable rollup' ) !== false,
+	'collapse: the panel\'s own empty fold still tells the panel story at the bottom' );
+// The session-quality mirror: an empty current rollup window vs 40 prior sessions.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = array();
+ov_reset_calls();
+$html_sc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 3 === count( ov_calls( 'sn_session_rollup_read' ) ),
+	'reads: the session attention prior read still runs on an empty current window' );
+ok( strpos( $html_sc, '<span class="sn-an-attn-flag">Session quality</span>' ) !== false && strpos( $html_sc, 'sessions 40 → 0' ) !== false,
+	'session collapse: 40 → 0 flags the strip (louder than 40 → 11 — the feature\'s own rationale, now honored at zero)' );
+ok( strpos( $html_sc, 'id="sn-ov-quality"' ) === false, 'session collapse: the folded panel carries no anchor' );
+ok( strpos( $html_sc, 'No rolled-up days in this window yet' ) !== false,
+	'session collapse: the panel\'s own empty fold still renders' );
+// The ZERO-VISIT-ROWS mirror (converged review, LOW): sn_session_rollup_run
+// writes a per-day row for EVERY class even at 0 sessions, so a total collapse
+// can arrive as rows-non-empty/visits-all-zero — the KPIs aggregate to null and
+// the panel FOLDS exactly like the rows-[] shape above (its pin), so this flag
+// must be STRIP-ONLY too: rows-non-empty alone ($sess_ok) must not promise a
+// panel target. (The healthy anchored-link shape is pinned in the PART C
+// worsening-bounce group — all three collapse/flag shapes hold together.)
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = array(
+	array( 'day' => '2026-07-11', 'visits' => 0, 'bounce_pct' => 0.0, 'ppv' => 0.0, 'median_dur' => 0 ),
+	array( 'day' => '2026-07-12', 'visits' => 0, 'bounce_pct' => 0.0, 'ppv' => 0.0, 'median_dur' => 0 ),
+);
+$html_zv = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_zv, '<span class="sn-an-attn-flag">Session quality</span>' ) !== false && strpos( $html_zv, 'sessions 40 → 0' ) !== false,
+	'zero-visit rows: the collapse flags the strip as a PLAIN flag — the panel folds, so no anchor surface exists' );
+ok( strpos( $html_zv, '<a class="sn-an-attn-link" href="#sn-ov-quality">' ) === false,
+	'zero-visit rows: no anchored link — rows-non-empty alone must not promise a panel target' );
+ok( strpos( $html_zv, 'id="sn-ov-quality"' ) === false,
+	'zero-visit rows: no empty-target anchor div wraps the fold' );
+ok( strpos( $html_zv, 'No rolled-up days in this window yet' ) !== false,
+	'zero-visit rows: the panel\'s own empty fold still renders at the bottom' );
+// The economy line that REMAINS: a FAILED current read is unknown — no real 0
+// exists to claim a collapse against, so its prior read is skipped.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['fail'] = array( 'sources' => array( '2026-07-11|2026-07-17' ) );
+ov_reset_calls();
+$html_fc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
 ok( 1 === count( ov_calls( 'sn_analytics_top_sources' ) ),
-	'economy: a current-empty panel folds — no rows to chip, so its prior read is skipped entirely' );
+	'economy: a FAILED current read (unknown) skips its prior read — no collapse claim without a real 0' );
+ok( strpos( $html_fc, 'sn-an-attn-' ) === false, 'failed current: no attention claim of any kind' );
+$GLOBALS['__ov']['fail'] = array();
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = null;
+ov_reset_calls();
+capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ),
+	'economy: a FAILED current rollup read skips the session attention prior read too' );
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v9.69.0 PART C — the Overview learns to triage: attention chips, strip,
+// and promotion reordering (owner-approved AFTER geometry, generalized).
+// ═══════════════════════════════════════════════════════════════════════════
+
+echo "\nGroup: PART C — signals fire with compare OFF (the feature's point)\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+// Two movements clear BOTH bars: Google collapses 40 → 11 (-73%, max 40 ≥ 5)
+// and mobile surges 2 → 17 (+750%, max 17 ≥ 5). Everything else stays quiet.
+$GLOBALS['__ov']['win']['sources']['2026-07-04|2026-07-10'] = array(
+	array( 'value' => '(direct)',    'views' => 18, 'visits' => 16, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 40, 'visits' => 30, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 7,  'visits' => 6,  'hosts' => array( 'news.ycombinator.com' ) ),
+);
+$GLOBALS['__ov']['win']['dims']['device|2026-07-04|2026-07-10'] = array(
+	array( 'value' => 'desktop', 'views' => 30, 'visits' => 26 ),
+	array( 'value' => 'mobile',  'views' => 2,  'visits' => 2 ),
+);
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
+ov_reset_calls();
+$html_c = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 1 === substr_count( $html_c, 'sn-an-attn-strip' ), 'strip: renders exactly once' );
+$p_strip = strpos( $html_c, 'sn-an-attn-strip' );
+ok( false !== $p_strip && $p_strip < strpos( $html_c, 'Session quality' ), 'strip: sits at the very top of the body, before every panel' );
+ok( strpos( $html_c, 'Needs attention:' ) !== false, 'strip: leads with the triage label' );
+ok( strpos( $html_c, '<a class="sn-an-attn-link" href="#sn-ov-sources">Top sources</a>' ) !== false, 'strip: in-page anchor link to the flagged Top sources panel' );
+ok( strpos( $html_c, '<a class="sn-an-attn-link" href="#sn-ov-devices">Devices</a>' ) !== false, 'strip: in-page anchor link to the flagged Devices panel' );
+ok( 2 === substr_count( $html_c, 'sn-an-attn-link' ), 'strip: exactly two flagged panels named — quiet panels never appear' );
+ok( strpos( $html_c, 'Google: views 40 → 11' ) !== false, 'strip: the sources driving fact (largest absolute movement in the panel)' );
+ok( strpos( $html_c, 'mobile: views 2 → 17' ) !== false, 'strip: the devices driving fact' );
+ok( 2 === substr_count( $html_c, 'sn-an-attn-chip' ), 'chips: amber NOTABLE chip in BOTH flagged panel headers, nowhere else' );
+ok( 2 === substr_count( $html_c, 'sn-an-attn-anchor' ), 'anchors: exactly two anchor wrappers (the flagged panels)' );
+ok( strpos( $html_c, 'id="sn-ov-sources"' ) !== false && strpos( $html_c, 'id="sn-ov-devices"' ) !== false, 'anchors: flagged panels carry their anchor ids' );
+ok( strpos( $html_c, 'id="sn-ov-quality"' ) === false && strpos( $html_c, 'id="sn-ov-campaigns"' ) === false
+	&& strpos( $html_c, 'id="sn-ov-entry"' ) === false && strpos( $html_c, 'id="sn-ov-exit"' ) === false,
+	'anchors: unflagged panels carry none' );
+$c_sq    = strpos( $html_c, 'Session quality', (int) $p_strip + 20 );
+$c_src   = strpos( $html_c, 'id="sn-ov-sources"' );
+$c_dev   = strpos( $html_c, 'id="sn-ov-devices"' );
+$c_rn    = strpos( $html_c, 'Right now' );
+$c_bento = strpos( $html_c, 'sn-an-overview-bento' );
+$c_pair  = strpos( $html_c, 'sn-an-overview-pair' );
+ok( false !== $c_sq && false !== $c_src && false !== $c_dev && false !== $c_rn && false !== $c_bento && false !== $c_pair
+	&& $c_sq < $c_src && $c_src < $c_dev && $c_dev < $c_rn && $c_rn < $c_bento && $c_bento < $c_pair,
+	'geometry: session quality (ALWAYS first) → promoted sources → promoted devices (canonical relative order) → right now → bento → pair — the approved AFTER layout, generalized' );
+ok( $c_src < $c_bento, 'promotion: flagged minis sit OUTSIDE (above) the bento — full width, not a grid cell' );
+ok( 2 === substr_count( $html_c, 'sn-an-bento-col' ), 'bento: the two unflagged minis re-pack into the standard two columns' );
+$c_col1 = strpos( $html_c, 'sn-an-bento-col' );
+$c_col2 = strpos( $html_c, 'sn-an-bento-col', $c_col1 + 1 );
+$c_utm  = strpos( $html_c, 'Campaigns (UTM)' );
+$c_geo  = strpos( $html_c, 'Geography' );
+ok( $c_col1 < $c_utm && $c_utm < $c_col2 && $c_col2 < $c_geo, 'bento: campaigns left, geography right (halves packing keeps the canonical reading order)' );
+$slice_src = substr( $html_c, $c_src, $c_dev - $c_src );
+ok( strpos( $slice_src, 'sn-an-head-link' ) !== false && strpos( $slice_src, 'sn_view=content' ) !== false,
+	'promotion: the promoted sources panel keeps its Content doorway' );
+ok( strpos( $slice_src, 'sn-an-attn-chip' ) !== false && strpos( $slice_src, 'Top sources' ) !== false,
+	'promotion: the chip rides the promoted panel\'s own header (header_meta seam, coexisting with the doorway)' );
+ok( strpos( $html_c, 'sn-an-delta--' ) === false && strpos( $html_c, 'title="previous period' ) === false,
+	'compare stays OFF: signals never leak compare chips (the header control owns those)' );
+$c_srcalls = ov_calls( 'sn_analytics_top_sources' );
+ok( 2 === count( $c_srcalls ) && '2026-07-04' === $c_srcalls[1][1] && 50 === $c_srcalls[1][4],
+	'reads: the sources prior-window signal read ran at depth 50 with compare OFF (the feature\'s point)' );
+
+echo "\nGroup: PART C — session quality flags on WORSENING bounce (and never on improvement)\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-04|2026-07-10'] = array( // weighted bounce 45.0 → current 61.4 = +16.4 pts (worsening)
+	array( 'day' => '2026-07-04', 'visits' => 20, 'bounce_pct' => 45.0, 'ppv' => 1.5, 'median_dur' => 60 ),
+	array( 'day' => '2026-07-10', 'visits' => 20, 'bounce_pct' => 45.0, 'ppv' => 1.5, 'median_dur' => 70 ),
+);
+$html_sq2 = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 1 === substr_count( $html_sq2, 'sn-an-attn-strip' ) && strpos( $html_sq2, '<a class="sn-an-attn-link" href="#sn-ov-quality">Session quality</a>' ) !== false,
+	'bounce worsening (+16.4 pts): session quality flags into the strip' );
+ok( strpos( $html_sq2, 'bounce 45.0% → 61.4%' ) !== false, 'strip: the driving fact is the point-anchored bounce move' );
+ok( strpos( $html_sq2, 'id="sn-ov-quality"' ) !== false, 'anchor: the session-quality panel is link-targetable' );
+ok( 1 === substr_count( $html_sq2, 'sn-an-attn-chip' ), 'chip: exactly one (session quality) — the quiet minis stay unmarked' );
+$sq_head = substr( $html_sq2, strpos( $html_sq2, 'id="sn-ov-quality"' ), 1500 );
+ok( strpos( $sq_head, 'sn-an-attn-chip' ) !== false && strpos( $sq_head, 'within-day sessions' ) !== false && strpos( $sq_head, 'sn-an-head-link' ) !== false,
+	'chip: coexists with the units note AND the doorway in the same header_meta seam' );
+ok( strpos( $html_sq2, 'sn-an-attn-strip' ) < strpos( $html_sq2, 'id="sn-ov-quality"' )
+	&& strpos( $html_sq2, 'id="sn-ov-quality"' ) < strpos( $html_sq2, 'Right now' ),
+	'geometry: session quality STAYS first (flagged or not) — it never re-orders, only gains the chip + anchor' );
+// The other direction: bounce IMPROVING by 18.6 pts is good news, not attention.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-04|2026-07-10'] = array(
+	array( 'day' => '2026-07-04', 'visits' => 20, 'bounce_pct' => 80.0, 'ppv' => 1.5, 'median_dur' => 60 ),
+	array( 'day' => '2026-07-10', 'visits' => 20, 'bounce_pct' => 80.0, 'ppv' => 1.5, 'median_dur' => 70 ),
+);
+$html_imp = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_imp, 'sn-an-attn-' ) === false, 'bounce IMPROVING: no strip, no chip — attention means "needs you", not "changed"' );
+ok( (string) file_get_contents( $ov_golden_path ) === $html_imp,
+	'bounce improving: byte-identical to the quiet-week golden (a good week renders exactly like a quiet one)' );
+
+echo "\nGroup: PART C — entry/exit promote as a PAIR when either flags\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['win']['exits']['2026-07-04|2026-07-10'] = array( // /notes/ 20 → 7 = -65% (flags); /provhub/ 11 → 11 flat
+	array( 'path' => '/provhub/', 'views' => 11, 'visits' => 10 ),
+	array( 'path' => '/notes/',   'views' => 20, 'visits' => 16 ),
+);
+$html_px = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_px, '<a class="sn-an-attn-link" href="#sn-ov-exit">Exit pages</a>' ) !== false && strpos( $html_px, '/notes/: views 20 → 7' ) !== false,
+	'exit flags: the strip names Exit pages with its driving fact' );
+ok( 1 === substr_count( $html_px, 'sn-an-overview-pair' ), 'pair: rendered exactly once (promoted, never duplicated below)' );
+$px_pair  = strpos( $html_px, 'sn-an-overview-pair' );
+$px_rn    = strpos( $html_px, 'Right now' );
+$px_bento = strpos( $html_px, 'sn-an-overview-bento' );
+ok( false !== $px_pair && false !== $px_rn && false !== $px_bento && $px_pair < $px_rn && $px_rn < $px_bento,
+	'pair: promotes as a UNIT above Right now (entry rides along); the untouched bento stays below' );
+$px_entry = strpos( $html_px, 'Entry pages' );
+ok( false !== $px_entry && $px_entry > $px_pair && $px_entry < $px_rn, 'pair: the unflagged entry partner still renders inside the promoted pair' );
+ok( strpos( $html_px, 'id="sn-ov-exit"' ) !== false && strpos( $html_px, 'id="sn-ov-entry"' ) === false, 'pair: only the FLAGGED half carries the anchor' );
+ok( 1 === substr_count( $html_px, 'sn-an-attn-chip' ), 'pair: one chip (exit only)' );
+ok( 2 === substr_count( $html_px, 'sn-an-bento-col' ) && strpos( $html_px, 'Top sources' ) > $px_rn,
+	'pair: the four quiet minis keep the full standard bento below Right now' );
+
+echo "\nGroup: REVIEW R1 F2 — a lone promoted pair-half spans the full pair width\n";
+// Entry empty (prior empty too — quiet, no collapse noise) while exit flags:
+// the promoted pair grid holds ONE child, and that child is the anchor DIV,
+// not a .postbox — so the lone-panel span rule needs an anchor-aware sibling.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['entries'] = array();
+$GLOBALS['__ov']['win']['entries']['2026-07-04|2026-07-10'] = array();
+$GLOBALS['__ov']['win']['exits']['2026-07-04|2026-07-10'] = array(
+	array( 'path' => '/provhub/', 'views' => 11, 'visits' => 10 ),
+	array( 'path' => '/notes/',   'views' => 20, 'visits' => 16 ),
+);
+$html_lp = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_lp, 'id="sn-ov-exit"' ) !== false && strpos( $html_lp, 'id="sn-ov-entry"' ) === false,
+	'lone half: exit promotes anchored; the empty entry half defers to the fold (no grid child)' );
+ok( 1 === substr_count( $html_lp, 'sn-an-overview-pair' ), 'lone half: the pair still renders exactly once (promoted)' );
+ok( strpos( $css, '.sn-an-grid > .sn-an-attn-anchor:last-child:nth-child(odd)' ) !== false,
+	'css: a lone anchored panel in a pair grid spans full width — the lone-panel idiom extended to anchor wrappers (review r1 F2)' );
+
+echo "\nGroup: REVIEW R1 F3 — three promoted minis leave a full-width lone bento column\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$pw3 = '2026-07-04|2026-07-10';
+$GLOBALS['__ov']['win']['sources'][ $pw3 ] = array( // Google 40 → 11 = -73% (flags)
+	array( 'value' => '(direct)',    'views' => 18, 'visits' => 16, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 40, 'visits' => 30, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 7,  'visits' => 6,  'hosts' => array( 'news.ycombinator.com' ) ),
+);
+$GLOBALS['__ov']['win']['campaigns'][ $pw3 ] = array( // qr-provhub 20 → 6 = -70% (flags)
+	array( 'value' => 'qr-provhub', 'views' => 20, 'visits' => 16 ),
+	array( 'value' => 'newsletter', 'views' => 3,  'visits' => 3 ),
+);
+$GLOBALS['__ov']['win']['dims'][ 'country|' . $pw3 ] = array( // AR 40 → 14 = -65% (flags)
+	array( 'value' => 'AR', 'views' => 40, 'visits' => 34 ),
+	array( 'value' => 'US', 'views' => 9,  'visits' => 8 ),
+);
+$html_3p = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_3p, 'id="sn-ov-sources"' ) !== false && strpos( $html_3p, 'id="sn-ov-campaigns"' ) !== false
+	&& strpos( $html_3p, 'id="sn-ov-geography"' ) !== false && strpos( $html_3p, 'id="sn-ov-devices"' ) === false,
+	'three flags: sources + campaigns + geography promote; devices stays quiet' );
+ok( 1 === substr_count( $html_3p, 'sn-an-bento-col' ), 'bento: the lone quiet mini (Devices) renders in a single column' );
+$p3_dev = strpos( $html_3p, 'Devices' );
+ok( false !== $p3_dev && $p3_dev > strpos( $html_3p, 'sn-an-overview-bento' ), 'bento: Devices sits inside the lone column' );
+ok( strpos( $css, '.sn-an-overview-bento > .sn-an-bento-col:only-child' ) !== false,
+	'css: a lone bento column spans the full row — no half-empty right column (review r1 F3)' );
+
+echo "\nGroup: REVIEW R1 F4 — the view threads the prior depth cap into every table signal\n";
+$rr_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
+preg_match_all( '/snt_analytics_attn_resolve_table\( [^)]*SN_OVERVIEW_PRIOR_LIMIT \)/', $rr_src, $m_rr );
+ok( 6 === count( $m_rr[0] ),
+	'source: all six resolve calls pass SN_OVERVIEW_PRIOR_LIMIT — the truncated-prior bound is live wherever the prior read is depth-capped' );
+
+echo "\nGroup: PART C — a FAILED prior read = attention UNKNOWN (silence, never false calm)\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$pw_c = '2026-07-04|2026-07-10';
+$GLOBALS['__ov']['session_rollup'][ $pw_c ] = null;
+$GLOBALS['__ov']['fail'] = array(
+	'sources'   => array( $pw_c ),
+	'campaigns' => array( $pw_c ),
+	'dims'      => array( 'country|' . $pw_c, 'device|' . $pw_c ),
+	'entries'   => array( $pw_c ),
+	'exits'     => array( $pw_c ),
+);
+$html_unk = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_unk, 'sn-an-attn-' ) === false, 'unknown: no chip, no strip — a failed prior read never claims attention' );
+ok( (string) file_get_contents( $ov_golden_path ) === $html_unk,
+	'unknown: byte-identical to the quiet golden — and no false "all calm" claim either (the documented choice: unknown renders as silence)' );
+$GLOBALS['__ov']['fail'] = array();
+
+echo "\nGroup: PART C — a promoted panel keeps its doorway AND its compare chips (compare on)\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['win']['sources']['2026-07-04|2026-07-10'] = array(
+	array( 'value' => '(direct)',    'views' => 18, 'visits' => 16, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 40, 'visits' => 30, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 7,  'visits' => 6,  'hosts' => array( 'news.ycombinator.com' ) ),
+);
+ov_reset_calls();
+$html_pc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+$pc_a = strpos( $html_pc, 'id="sn-ov-sources"' );
+ok( false !== $pc_a, 'compare on: sources still promotes' );
+$pc_slice = substr( $html_pc, (int) $pc_a, (int) strpos( $html_pc, 'Right now' ) - (int) $pc_a );
+ok( strpos( $pc_slice, 'sn-an-head-link' ) !== false, 'promoted: the doorway keeps working in the promoted position' );
+ok( strpos( $pc_slice, 'data-colname="Views">11 <span class="sn-an-delta sn-an-delta--down">▼ -73%</span></td>' ) !== false,
+	'promoted: the compare chip renders inside the promoted table (Google 11 vs 40 → ▼ -73%) — promotion changes position, never content (the spec pin)' );
+ok( strpos( $pc_slice, 'sn-an-attn-chip' ) !== false, 'promoted: attention chip + doorway + compare chips coexist in one panel' );
+ok( 2 === count( ov_calls( 'sn_analytics_top_sources' ) ), 'economy: compare=prev REUSES the attention read as the chip basis (no third query)' );
+
+echo "\nGroup: PART C — attention styles + module wiring (source pins)\n";
+ok( strpos( $css, '.sn-an-attn-chip' ) !== false, 'css: the amber chip rule exists in the enqueued stylesheet' );
+ok( strpos( $css, '.sn-an-attn-strip' ) !== false, 'css: the strip rule exists' );
+ok( strpos( $css, '.sn-an-attn-anchor' ) !== false, 'css: the anchor rule exists (scroll offset under the admin bar)' );
+ok( strpos( (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' ), 'analytics-overview-attention.php' ) !== false,
+	'source: the view loads the attention module' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
