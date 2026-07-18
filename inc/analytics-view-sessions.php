@@ -121,9 +121,12 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
  *               why (a failed read is NOT an empty window);
  *   []        → the nightly rollup has written nothing in this window — fold;
  *   1 row     → a trend needs two points — fold says so, not "no data";
- *   >=2 rows  → the panel. The axis spans the FIRST..LAST rolled-up day (not
- *               the requested window), and the unit note states the count, so
- *               cron gaps are visible instead of silently compressed.
+ *   >=2 rows  → the panel. snt_an_trend_svg positions points by ARRAY INDEX,
+ *               so a missing day leaves no positional hole — gaps DO compress
+ *               on the line itself. What keeps them inferable is the framing:
+ *               the axis endpoints span the FIRST..LAST rolled-up day and the
+ *               unit note states how many days actually rolled up, so a count
+ *               short of the axis span betrays skipped nights.
  *
  * Unit is explicit (sessions ≠ visitor-days — the Part 3 contract): these are
  * within-day sessions from the session engine's nightly snapshot, a different

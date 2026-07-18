@@ -12,9 +12,13 @@
  * it" while the alarm rang into a void. This is the reader.
  *
  * Behavior matrix:
- *   - option absent            → check PASSES ("no violations recorded").
+ *   - option absent (get_option's false default) → check PASSES ("no
+ *     violations recorded").
  *   - option present (any age) → check FLAGS, surfacing when (age + UTC stamp)
  *                                and what inverted (values + day/path or range).
+ *   - option present but NOT an array (mangled import, serialized garbage)
+ *     → check FLAGS as unreadable/corrupt. The alarm's only reader must never
+ *       fail toward silence: present-but-unreadable is not "no alarm".
  *   - a violation record NEVER auto-expires: a stale record still flags, and
  *     the finding says "last violation Xd ago" rather than pretending none
  *     happened. Clearing is the owner's explicit call (delete the option)
@@ -46,15 +50,35 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array[] Zero or one finding row.
  */
 function sn_health_analytics_integrity_findings( $alert, $now ) {
-	if ( ! is_array( $alert ) ) {
-		// Absent (false) or corrupt — not a recorded violation. The guards only
-		// ever write a full array payload.
+	if ( false === $alert ) {
+		// Absent — get_option's false default: nothing was ever recorded.
 		return array();
 	}
+	if ( ! is_array( $alert ) ) {
+		// PRESENT but not the array the guards write (mangled import,
+		// serialized garbage): FLAG, never pass — a corrupt alarm record is
+		// not "no alarm".
+		return array(
+			array(
+				'subject_type'  => 'analytics_integrity',
+				'subject_id'    => 0,
+				'subject_url'   => '',
+				'subject_label' => 'corrupt alert record',
+				'edit_url'      => '',
+				'note'          => 'integrity alert record present but unreadable (corrupt) — investigate; clear with wp option delete sn_analytics_integrity_alert',
+			),
+		);
+	}
 
-	$views = (int) ( $alert['views'] ?? 0 );
-	$gated = (int) ( $alert['pageview_visits'] ?? 0 );
-	$class = (string) ( $alert['class'] ?? 'human' );
+	// Values, stated honestly: '?? 0' would fabricate "(0 < 0)" evidence when a
+	// payload lacks the keys — mirror the timestamp path instead
+	// (array_key_exists; absent renders "unknown", never an invented number).
+	$views_s = array_key_exists( 'views', $alert ) ? (string) (int) $alert['views'] : 'unknown';
+	$gated_s = array_key_exists( 'pageview_visits', $alert ) ? (string) (int) $alert['pageview_visits'] : 'unknown';
+	$values  = ( 'unknown' === $views_s || 'unknown' === $gated_s )
+		? sprintf( '(views %s, pageview_visits %s)', $views_s, $gated_s )
+		: sprintf( '(%s < %s)', $views_s, $gated_s );
+	$class   = (string) ( $alert['class'] ?? 'human' );
 
 	// Scope: the read guard stamps scope=read-range with from/to; the rollup
 	// guard carries day/path.
@@ -87,9 +111,8 @@ function sn_health_analytics_integrity_findings( $alert, $now ) {
 			'subject_label' => $scope,
 			'edit_url'      => '',
 			'note'          => sprintf(
-				'The never-invert guard recorded views < pageview_visits (%1$d < %2$d) for %3$s (class %4$s) — %5$s. That inequality is impossible by construction, so this is a genuine rollup/sampling bug; the values were served un-clamped and the record stays until cleared.',
-				$views,
-				$gated,
+				'The never-invert guard recorded views < pageview_visits %1$s for %2$s (class %3$s) — %4$s. That inequality is impossible by construction, so this is a genuine rollup/sampling bug; the values were served un-clamped and the record stays until cleared.',
+				$values,
 				$scope,
 				$class,
 				$age
@@ -109,7 +132,10 @@ function sn_health_check_analytics_integrity() {
 	$opt   = defined( 'SN_ANALYTICS_INTEGRITY_ALERT_OPT' ) ? SN_ANALYTICS_INTEGRITY_ALERT_OPT : 'sn_analytics_integrity_alert';
 	$alert = get_option( $opt );
 
-	if ( ! is_array( $alert ) ) {
+	// Only ABSENT (get_option's false default) passes. A present-but-corrupt
+	// value falls through to the findings builder, which flags it — the
+	// alarm's only reader must never fail toward silence.
+	if ( false === $alert ) {
 		return sn_health_pack_check(
 			$label,
 			array(),

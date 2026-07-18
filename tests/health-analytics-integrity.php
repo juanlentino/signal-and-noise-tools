@@ -49,9 +49,15 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m
 $NOW = 1789000000; // fixed clock for the pure builder
 
 // ── Pure findings builder ────────────────────────────────────────────────────
-echo "\nGroup: findings builder — no violation recorded\n";
-ok( array() === sn_health_analytics_integrity_findings( false, $NOW ), 'absent option (false) → zero findings' );
-ok( array() === sn_health_analytics_integrity_findings( 'corrupt', $NOW ), 'corrupt non-array option → zero findings (not a recorded violation)' );
+echo "\nGroup: findings builder — absent passes, present-but-corrupt FLAGS\n";
+ok( array() === sn_health_analytics_integrity_findings( false, $NOW ), 'absent option (false, get_option\'s default) → zero findings' );
+// A PRESENT-but-non-array value (mangled import, serialized garbage) is NOT
+// "no violations": the alarm's only reader must never fail toward silence.
+$corrupt_f = sn_health_analytics_integrity_findings( 'corrupt', $NOW );
+ok( 1 === count( $corrupt_f ), 'present-but-non-array option → one finding (corrupt record flags, never a green pass)' );
+ok( false !== strpos( $corrupt_f[0]['note'] ?? '', 'unreadable (corrupt)' ), 'corrupt finding says the record is present but unreadable' );
+ok( false !== strpos( $corrupt_f[0]['note'] ?? '', 'wp option delete sn_analytics_integrity_alert' ), 'corrupt finding names the explicit clear command' );
+ok( 'analytics_integrity' === ( $corrupt_f[0]['subject_type'] ?? '' ), 'corrupt finding carries the analytics_integrity subject type' );
 
 echo "\nGroup: findings builder — rollup-shape payload (fresh)\n";
 $rollup_alert = array(
@@ -94,6 +100,19 @@ $f3      = sn_health_analytics_integrity_findings( $no_time, $NOW );
 ok( 1 === count( $f3 ), 'a payload without a timestamp still counts as a violation' );
 ok( false !== strpos( $f3[0]['note'], 'unknown time' ), 'missing timestamp reads "unknown time" — never a fabricated age' );
 
+echo "\nGroup: findings builder — value keys missing (no fabricated 0s)\n";
+// '?? 0' would render "(0 < 0)" — invented evidence. Mirror the timestamp
+// path's honesty: array_key_exists, absent renders "unknown".
+$no_values = array( 'time' => $NOW - 3600, 'day' => '2026-07-10', 'path' => '/x', 'class' => 'human' );
+$f4 = sn_health_analytics_integrity_findings( $no_values, $NOW );
+ok( 1 === count( $f4 ), 'a payload without views/pageview_visits still counts as a violation' );
+ok( false !== strpos( $f4[0]['note'], '(views unknown, pageview_visits unknown)' ), 'absent value keys render "unknown" — the timestamp path\'s honesty, mirrored' );
+ok( false === strpos( $f4[0]['note'], '(0 < 0)' ), 'no fabricated "(0 < 0)" evidence from ?? 0 defaults' );
+$one_value          = $no_values;
+$one_value['views'] = 1;
+$f5 = sn_health_analytics_integrity_findings( $one_value, $NOW );
+ok( false !== strpos( $f5[0]['note'], '(views 1, pageview_visits unknown)' ), 'one absent key → the present value pins, the absent one reads unknown' );
+
 // ── The real check callback: behavior matrix ────────────────────────────────
 echo "\nGroup: sn_health_check_analytics_integrity — no option\n";
 $GLOBALS['__hai_options'] = array();
@@ -120,10 +139,12 @@ $check3 = sn_health_check_analytics_integrity();
 ok( 1 === $check3['count'], 'a 30-day-old record still FLAGS — no silent age cutoff' );
 ok( false !== strpos( $check3['findings'][0]['note'], '30d ago' ), 'the check says "last violation 30d ago" instead of pretending none happened' );
 
-echo "\nGroup: sn_health_check_analytics_integrity — corrupt option\n";
+echo "\nGroup: sn_health_check_analytics_integrity — corrupt option FLAGS\n";
 $GLOBALS['__hai_options'] = array( 'sn_analytics_integrity_alert' => 'garbage' );
 $check4 = sn_health_check_analytics_integrity();
-ok( 0 === $check4['count'], 'corrupt (non-array) option → passes: not a recorded violation' );
+ok( 1 === $check4['count'], 'present-but-corrupt (non-array) option FLAGS — the docblock matrix says present (any shape) is never a green pass' );
+ok( false !== strpos( $check4['findings'][0]['note'] ?? '', 'unreadable (corrupt)' ), 'the corrupt-state finding surfaces through the real check callback' );
+ok( 'garbage' === $GLOBALS['__hai_options']['sn_analytics_integrity_alert'], 'read-only even when corrupt: the check never clears the mangled record' );
 
 // ── Wiring pins (source containment — the harness can't boot the full scan) ─
 echo "\nGroup: wiring — registration + loader\n";

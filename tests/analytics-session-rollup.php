@@ -25,6 +25,14 @@ class SR_Stub_wpdb {
 	// they exercise the accessor's deliberate re-typing, not a convenient
 	// pre-typed shape the transport never produces.
 	public $results = array();
+	// Failure shape, modeled like REAL wpdb: a FAILED query (missing/corrupt
+	// table) sets ->last_error non-empty and get_results() returns array() —
+	// NOT null. null comes back only when the query string itself was falsy
+	// (prepare() failed). Set $fail_with to simulate a failed query; a stub
+	// returning null on failure would fabricate a transform the real callee
+	// never produces (test-stub drift).
+	public $last_error = '';
+	public $fail_with  = '';
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
@@ -40,7 +48,14 @@ class SR_Stub_wpdb {
 		}, $query );
 	}
 	public function query( $sql ) { $this->queries[] = $sql; return 1; }
-	public function get_results( $sql, $output = OBJECT ) { $this->queries[] = $sql; return $this->results; }
+	public function get_results( $sql, $output = OBJECT ) {
+		$this->queries[]  = $sql;
+		$this->last_error = $this->fail_with; // real wpdb resets last_error per query, then sets it on failure.
+		if ( '' !== $this->fail_with ) {
+			return array(); // the REAL failed-query shape: [], with last_error set.
+		}
+		return $this->results;
+	}
 }
 if ( ! defined( 'OBJECT' ) )  { define( 'OBJECT', 'OBJECT' ); }
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
@@ -145,10 +160,22 @@ echo "\nGroup: sn_session_rollup_read (empty vs failed vs invalid)\n";
 $GLOBALS['wpdb']          = new SR_Stub_wpdb();
 $GLOBALS['wpdb']->results = array();
 $empty = sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' );
-ok( array() === $empty, 'read: an EMPTY result set is an ANSWER — [] (no rolled-up days), not null' );
+ok( array() === $empty && '' === $GLOBALS['wpdb']->last_error,
+	'read: an EMPTY result set WITH an empty last_error is an ANSWER — [] (no rolled-up days), not null' );
+// The REAL failed-query shape (missing/corrupt wp_sn_session_daily): wpdb sets
+// ->last_error non-empty and get_results() returns [] — indistinguishable from
+// an honest empty window unless the accessor consults last_error. Served as []
+// the trend panel would render "no rolled-up days" instead of "could not be
+// read" — failure served as an answer.
+$GLOBALS['wpdb']            = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->fail_with = "Table 'wp.wp_sn_session_daily' doesn't exist";
+ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' ),
+	'read: a FAILED query (last_error set, get_results returns []) is null ("don\'t know") — failure never served as an empty window' );
+// The only shape real wpdb reports as null: a falsy query string (prepare()
+// failed) — get_results( null ) short-circuits. The is_array guard stays.
 $GLOBALS['wpdb']          = new SR_Stub_wpdb();
-$GLOBALS['wpdb']->results = null; // wpdb returns null on a failed query.
-ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' ), 'read: a FAILED query is null ("don\'t know"), never a fabricated empty window' );
+$GLOBALS['wpdb']->results = null;
+ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' ), 'read: a null get_results (falsy query — prepare() failed) is null too' );
 $GLOBALS['wpdb'] = new SR_Stub_wpdb();
 ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'martian' ), 'read: unknown class → null' );
 ok( array() === $GLOBALS['wpdb']->queries, 'read: unknown class never reaches the DB' );

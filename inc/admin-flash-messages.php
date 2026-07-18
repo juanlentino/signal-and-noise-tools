@@ -94,7 +94,7 @@ function sn_admin_flash_messages() {
 		'analytics_tuning_saved'     => array( 'success', 'Engine tuning saved. Signals recompute on the next dashboard load.' ),
 		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
 		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
-		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Visits view reflects them on the next load.' ),
+		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ),
 		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved — try again.' ),
 		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		// v7.2.2: dropped the "or check that an AI provider is configured" clause —

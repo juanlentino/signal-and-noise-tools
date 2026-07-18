@@ -142,9 +142,14 @@ add_action( SN_SESSION_ROLLUP_HOOK, 'sn_session_rollup_run' );
  * Null discipline (realtime-zero-vs-null): absent days stay ABSENT from the
  * result (never fabricated 0-rows — a night the cron skipped is "not
  * measured", not "zero sessions"); an EMPTY result set is a real answer ([]);
- * a FAILED query or invalid input returns null ("don't know"). wpdb
- * transports every selected column as a numeric STRING — the rows are
- * deliberately re-typed here so consumers get the writer's types back.
+ * a FAILED query or invalid input returns null ("don't know"). Real wpdb
+ * reports a FAILED query as [] WITH $wpdb->last_error set (get_results()
+ * yields null only when prepare() failed and the query string was falsy), so
+ * the accessor consults last_error after the read — otherwise a missing/
+ * corrupt table would be indistinguishable from an honest empty window and
+ * failure would be served as an answer. wpdb transports every selected
+ * column as a numeric STRING — the rows are deliberately re-typed here so
+ * consumers get the writer's types back.
  *
  * @since 9.65.0
  * @param string $from  Window start (Y-m-d, UTC day — the writer's key).
@@ -176,7 +181,12 @@ function sn_session_rollup_read( $from, $to, $class ) {
 		$class
 	), ARRAY_A );
 	if ( ! is_array( $rows ) ) {
-		return null; // query failed — unknown is not an empty window.
+		return null; // falsy query (prepare() failed) — the only shape wpdb reports as null.
+	}
+	if ( '' !== (string) $wpdb->last_error ) {
+		// A FAILED query (missing/corrupt table) comes back as [] with
+		// last_error set — unknown is not an empty window.
+		return null;
 	}
 
 	$out = array();
