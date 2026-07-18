@@ -126,6 +126,10 @@
 }
 .sn-delta-down { color: var(--sn-an-down); }
 .sn-delta-up   { color: var(--sn-an-up); }
+/* Sentiment classes (v9.68.0 review 2, F1): a lower-is-better KPI (bounce)
+   colors by whether the CHANGE is good — the arrow keeps the real direction. */
+.sn-delta-good { color: var(--sn-an-up); }
+.sn-delta-bad  { color: var(--sn-an-down); }
 .sn-delta-flat { color: #646970; font-weight: 400; }
 .sn-delta-arrow { font-size: 11px; vertical-align: middle; }
 
@@ -502,6 +506,9 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* ── v8.5.0: rail tiles + movers ─────────────────────────────────────────── */
 .sn-an-rail-tile .inside { padding: 8px 14px 10px; }
 .sn-an-head-meta { margin-left: auto; padding-right: 12px; align-self: center; color: var(--sn-text-muted, #646970); font-size: 11px; }
+/* v9.68.0 part 4: the panel-header doorway link (→ full view) riding the head-meta seam. */
+.sn-an-head-meta .sn-an-head-link { white-space: nowrap; text-decoration: none; }
+.sn-an-head-meta .sn-an-head-link:hover { text-decoration: underline; }
 .sn-an-movers-list { margin: 0; }
 .sn-an-movers-list li { display: flex; justify-content: space-between; gap: 8px; margin: 0; padding: 3px 0; border-bottom: 1px solid #f6f7f7; font-variant-numeric: tabular-nums; }
 .sn-an-movers-list li:last-child { border-bottom: 0; }
@@ -649,9 +656,14 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-uptime[open] > summary::after { content: "▾ detail"; }
 .sn-an-uptime > .sn-uptime-status[data-sn-uptime-lazy-detail] { border-top: 1px solid #dcdcde; margin-top: 8px; padding-top: 8px; }
 
-/* ── Overview (preview) lab (v9.67.0): the flag-gated static design mock. ──
-   The badge must be unmissable in a screenshot — a warning-yellow chip on
-   EVERY panel header (rides the panel primitive's header_meta slot); the
-   footer note reuses the muted diagnostic voice. Light-only, per the lock. */
-.sn-an-lab-badge { display: inline-block; padding: 1px 8px; border: 1px solid #dba617; border-radius: var(--sn-an-radius); background: #fcf9e8; color: #8a6116; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
-.sn-an-lab-note { margin: 16px 0 4px; color: #646970; font-size: 12px; max-width: 72em; }
+/* ── Overview landing (v9.68.0): the wired default tab's layout. ──
+   Balanced bento midsection (sources + campaigns left, geography + devices
+   right), a compact realtime strip, and the entry/exit pair. Light-only. */
+.sn-an-overview-bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.sn-an-bento-col { min-width: 0; display: grid; gap: 18px; align-content: start; }
+.sn-an-bento-col > .postbox { margin-bottom: 0; }
+.sn-an-overview-pair { margin-top: 18px; }
+/* Compact "Right now": two slim cards, not the full six-column KPI grid. */
+.sn-an-rightnow .sn-kpi-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.sn-an-rightnow .sn-kpi { flex: 0 1 240px; }
+@media screen and (max-width: 960px) { .sn-an-overview-bento { grid-template-columns: 1fr; } }

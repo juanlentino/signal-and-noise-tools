@@ -59,14 +59,32 @@ function snt_analytics_render_paths_table( $paths ) {
  * @param array  $rows   [{value,views,visits}]
  * @param string $empty  Empty-state copy.
  * @param array  $series Optional value-keyed series map for sparklines.
+ * @param string $drill_dim Optional drill dimension for primary-cell links.
+ * @param int    $visible   Rows visible while clamped.
+ * @param array  $opts   {
+ *     Optional seams (v9.68.0 part 4, the Overview landing). Every default
+ *     renders byte-identically for existing callers.
+ *     @type string     $header_meta Forwarded to snt_an_panel_open (kses'd there).
+ *     @type array|null $deltas      Value-keyed {pct,dir,previous?} arrays: a
+ *                                   matched row's chip renders inline beside its
+ *                                   Views figure via snt_an_delta_badge.
+ *     @type string     $prior_note  One muted line after the table ('' = none)
+ *                                   — the Overview's once-per-panel prior-window
+ *                                   honesty note.
+ * }
  */
-function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5 ) {
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5, $opts = array() ) {
 	if ( empty( $rows ) ) {
 		snt_an_note_empty( $title, $empty );
 		return;
 	}
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	$panel_args = array( 'inside_class' => 'inside sn-an-table-inside' );
+	if ( ! empty( $opts['header_meta'] ) ) {
+		$panel_args['header_meta'] = (string) $opts['header_meta'];
+	}
+	snt_an_panel_open( $title, $panel_args );
 	$has_spark = ! empty( $series );
+	$deltas    = ( isset( $opts['deltas'] ) && is_array( $opts['deltas'] ) ) ? $opts['deltas'] : null;
 	snt_an_clamp_open( count( $rows ), (int) $visible ); // v8.5.0 (content view passes 10 for sources — column balance)
 	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
@@ -86,11 +104,18 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		if ( $has_spark ) {
 			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: an SVG with esc_attr'd path d + a per-call gradient id minted by the helper.
 		}
-		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>';
+		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) );
+		if ( null !== $deltas && isset( $deltas[ $v ] ) ) {
+			snt_an_delta_badge( $deltas[ $v ] ); // inline variant — leading space is the badge's own.
+		}
+		echo '</td>';
 		echo '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
 	snt_an_clamp_close( count( $rows ), (int) $visible );
+	if ( ! empty( $opts['prior_note'] ) ) {
+		echo '<p class="sn-an-compare-note sn-an-prior-note">' . esc_html( (string) $opts['prior_note'] ) . '</p>';
+	}
 	snt_an_panel_close();
 }
 
@@ -190,10 +215,21 @@ function snt_analytics_render_lowengage( $rows ) {
  * .inside.sn-an-table-inside + .wp-list-table.widefat.striped). Reuses existing
  * CSS — no new stylesheet rule needed.
  *
- * @param array  $rows [{path,views,visits}]
- * @param string $role 'entry' | 'exit'.
+ * @param array  $rows        [{path,views,visits}]
+ * @param string $role        'entry' | 'exit'.
+ * @param string $header_meta Optional small muted note right of the panel
+ *                            title (forwarded to snt_an_panel_open; kses'd
+ *                            there). '' = omitted — byte-identical output for
+ *                            the existing callers. The Overview landing uses
+ *                            it to label these tables human-only (v9.68.0).
+ * @param array  $opts        {
+ *     Optional seams (v9.68.0 part 4) — defaults render byte-identically.
+ *     @type array|null $deltas     Path-keyed {pct,dir,previous?} arrays →
+ *                                  inline chips beside the Views figures.
+ *     @type string     $prior_note One muted line after the table ('' = none).
+ * }
  */
-function snt_analytics_render_pageroles_table( $rows, $role ) {
+function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', $opts = array() ) {
 	$is_exit = ( 'exit' === $role );
 	$title   = $is_exit ? __( 'Exit pages', 'signal-and-noise-tools' ) : __( 'Entry pages', 'signal-and-noise-tools' );
 	$caption = $is_exit
@@ -207,8 +243,13 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 		snt_an_note_empty( $title, $empty );
 		return;
 	}
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	$panel_args = array( 'inside_class' => 'inside sn-an-table-inside' );
+	if ( '' !== (string) $header_meta ) {
+		$panel_args['header_meta'] = (string) $header_meta;
+	}
+	snt_an_panel_open( $title, $panel_args );
 	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
+	$deltas = ( isset( $opts['deltas'] ) && is_array( $opts['deltas'] ) ) ? $opts['deltas'] : null;
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
@@ -216,13 +257,21 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
+		$path = (string) $r['path'];
 		echo '<tr>'
-			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
-			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( $path ) . '</strong></td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) );
+		if ( null !== $deltas && isset( $deltas[ $path ] ) ) {
+			snt_an_delta_badge( $deltas[ $path ] ); // inline variant — leading space is the badge's own.
+		}
+		echo '</td>'
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
 			. '</tr>';
 	}
 	echo '</tbody></table>';
 	snt_an_clamp_close( count( $rows ), 5 );
+	if ( ! empty( $opts['prior_note'] ) ) {
+		echo '<p class="sn-an-compare-note sn-an-prior-note">' . esc_html( (string) $opts['prior_note'] ) . '</p>';
+	}
 	snt_an_panel_close();
 }
