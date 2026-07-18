@@ -201,7 +201,10 @@ function sn_salt_window_probe() {
 
 /**
  * Transient-cached probe result (~10 min on success, shorter after a failure so
- * a blip retries sooner). $force bypasses the cache — a test seam.
+ * a blip retries sooner). $force bypasses the cache — the renderer wires it to
+ * the worker-version card's nonce-verified "Re-check now", so one click
+ * refreshes BOTH readouts of the shared /_sn/version endpoint (adjacent cards
+ * from one endpoint must never disagree after an explicit re-check).
  *
  * @since 9.71.0
  * @param bool $force Bypass the transient and probe live.
@@ -247,8 +250,13 @@ function sn_salt_window_format_expiry( $ts ) {
 /**
  * Render the "Identity salt window" readout into the analytics settings
  * reference column (after the worker-version card). Calm and informational —
- * an info notice at best, an em-dash when the worker could not be read; never
- * a red alarm, never a fabricated date. Admin-only.
+ * an info notice at best, an em-dash line per failure state; never a red
+ * alarm, never a fabricated date. The failure states stay DISTINCT: kv-failed
+ * (the worker answered; its own KV list failed) never wears the failed-fetch
+ * copy — "could not read the worker" would be factually false there and send
+ * the operator curling a healthy endpoint. The worker-version card's
+ * nonce-verified "Re-check now" (rendered directly above) forces a live probe
+ * here too. Admin-only.
  *
  * @since 9.71.0
  */
@@ -257,7 +265,9 @@ function sn_salt_window_render_card() {
 		return;
 	}
 
-	$result = sn_salt_window_get();
+	$result = sn_salt_window_get(
+		function_exists( 'sn_worker_version_recheck_requested' ) && sn_worker_version_recheck_requested()
+	);
 	$state  = is_array( $result ) && array_key_exists( 'state', $result ) ? (string) $result['state'] : 'unreachable';
 
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Identity salt window', 'signal-and-noise-tools' ) . '</h3>';
@@ -265,6 +275,14 @@ function sn_salt_window_render_card() {
 
 	if ( 'old-worker' === $state ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Worker predates the salt window readout (needs v1.14.0+).', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+	if ( 'kv-failed' === $state ) {
+		// The worker WAS read — a 200 with valid JSON whose "salt" is null means
+		// its own KV list failed at the edge. Saying "could not read the worker"
+		// here would be false and misdirect the diagnosis (a curl of /_sn/version
+		// comes back clean while the card claims unreachable).
+		echo '<p class="sn-an-empty">' . esc_html__( '— worker reachable, but it could not list its salt keys (KV read failed at the edge).', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 	if ( 'ok' !== $state || ! is_array( $result['window'] ) ) {

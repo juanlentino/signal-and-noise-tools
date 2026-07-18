@@ -18,10 +18,15 @@
  *     within the window, absent fields degrade to null, never to invented values.
  *   - probe: the shared outbound gate (https-only + wp_http_validate_url +
  *     sn_ssrf_host_blocked + redirection=0); WP_Error → unreachable.
- *   - get: ~10-min transient cache — a warm cache serves with ZERO new fetches.
+ *   - get: ~10-min transient cache — a warm cache serves with ZERO new fetches;
+ *     the worker-version card's nonce-verified "Re-check now" forces a live
+ *     probe here too (one click refreshes BOTH readouts of the shared endpoint).
  *   - render: value-pinned strings for every state — full healthy, prev-expired,
  *     today-not-minted, no-expiry-recorded, past-expiry, salt:null, WP_Error,
  *     non-200, old-worker — plus the manage_options gate and real escaping.
+ *     kv-failed ("salt": null) and unreachable (transport failure) render
+ *     DISTINCT copy: the worker WAS read in the former, and saying otherwise
+ *     sends the operator diagnosing in the wrong direction.
  *
  * The wp_remote_get stub models the transport's REAL shapes (WP_Error object,
  * array with response.code + body, non-200) — the transport-transform rule.
@@ -49,6 +54,7 @@ $GLOBALS['__test_transients']     = array();
 $GLOBALS['__test_transient_ttls'] = array();
 $GLOBALS['__test_options']        = array();
 $GLOBALS['__test_can']            = true;
+$GLOBALS['__test_nonce_valid']    = true;   // wp_verify_nonce stub return
 
 // ── WP function stubs (the tests/worker-version.php known-good set) ────
 function sn_rss_tracker_settings() {
@@ -139,6 +145,13 @@ function current_user_can( $cap ) {
 function human_time_diff( $from, $to = 0 ) {
 	return '2 days';
 }
+// Re-check control stubs (the shared force-bypass wiring — tests/worker-version.php set).
+function wp_unslash( $v ) {
+	return $v;
+}
+function wp_verify_nonce( $nonce, $action = -1 ) {
+	return ! empty( $GLOBALS['__test_nonce_valid'] ) ? 1 : false;
+}
 // Site-local formatter: deterministic UTC in the harness (the site tz seam).
 function wp_date( $format, $ts = null ) {
 	return gmdate( $format, null === $ts ? time() : (int) $ts );
@@ -194,6 +207,8 @@ function sw_reset() {
 	$GLOBALS['__test_transient_ttls'] = array();
 	$GLOBALS['__test_options']        = array();
 	$GLOBALS['__test_can']            = true;
+	$GLOBALS['__test_nonce_valid']    = true;
+	unset( $_GET['sn_worker_recheck'], $_GET['_wpnonce'] );
 }
 
 // The FIXED /_sn/version "salt" contract shape (both sides build to this exactly).
@@ -387,20 +402,25 @@ $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => $past ) 
 $html = sw_render();
 sw_true( false !== strpos( $html, 'Yesterday’s salt: 2026-07-17 — expires ' . gmdate( 'Y-m-d H:i', $past ) . ' (2 days ago).' ), 'past expiry: relative flips to "ago"' );
 
-// 6. "salt": null (KV list failure) → honest em-dash, no fabricated dates.
+// 6. "salt": null (KV list failure) → honest em-dash, DISTINCT from a failed
+// fetch: the worker WAS read here — "could not read the worker" would be false
+// and send the operator curling a healthy endpoint (the update-checker-failure-
+// modes class). The copy names the real failure: the worker's own KV list.
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( null );
 $html = sw_render();
-sw_true( false !== strpos( $html, '— could not read the worker.' ), 'salt:null → em-dash + could-not-read (verbatim)' );
+sw_true( false !== strpos( $html, '— worker reachable, but it could not list its salt keys (KV read failed at the edge).' ), 'salt:null → em-dash + the KV-failure copy (verbatim)' );
+sw_true( false === strpos( $html, 'could not read the worker' ), 'salt:null → NOT the failed-fetch copy (the worker WAS read)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'salt:null → no fabricated today line' );
 sw_true( false === strpos( $html, 'notice-error' ) && false === strpos( $html, 'notice-warning' ), 'salt:null → never a red alarm (readout, not monitoring)' );
 sw_true( false !== strpos( $html, 'Identity salt window' ), 'salt:null → the heading still frames the readout' );
 
-// 7. Fetch WP_Error → same honest state.
+// 7. Fetch WP_Error → the failed-fetch state (and NOT the kv-failed copy).
 sw_reset();
 $GLOBALS['__test_http'] = new WP_Error( 'http_request_failed', 'timeout' );
 $html = sw_render();
 sw_true( false !== strpos( $html, '— could not read the worker.' ), 'WP_Error → em-dash + could-not-read' );
+sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'WP_Error → NOT the kv-failed copy (nothing answered)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'WP_Error → no fabricated dates' );
 
 // 8. Old worker (no "salt" member) → the version-gap message, NOT the error copy.
@@ -410,11 +430,12 @@ $html = sw_render();
 sw_true( false !== strpos( $html, 'Worker predates the salt window readout (needs v1.14.0+).' ), 'old-worker: message pinned verbatim' );
 sw_true( false === strpos( $html, 'could not read the worker' ), 'old-worker: NOT conflated with a read failure' );
 
-// 9. Non-200 → the honest error state.
+// 9. Non-200 → the honest error state (and NOT the kv-failed copy).
 sw_reset();
 $GLOBALS['__test_http'] = array( 'response' => array( 'code' => 503 ), 'body' => 'edge sad' );
 $html = sw_render();
 sw_true( false !== strpos( $html, '— could not read the worker.' ), 'non-200 → em-dash + could-not-read' );
+sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'non-200 → NOT the kv-failed copy (no valid answer)' );
 
 // 10. Transient-cache pin: a SECOND render costs zero fetches.
 sw_reset();
@@ -457,6 +478,52 @@ sw_true( false === strpos( $html, '<img' ), 'XSS in today_day → raw <img NOT p
 // prev_present null (absent upstream) → the yesterday line is SKIPPED, not invented.
 sw_true( false === strpos( $html, 'Yesterday’s salt' ), 'prev_present null → no yesterday line fabricated' );
 sw_true( false === strpos( $html, 'salt key' ), 'key_count null → no count line fabricated' );
+
+// ─── Group F: "Re-check now" refreshes THIS card too ──────────────────
+// The worker-version card's nonce-verified re-check link probes the SAME
+// /_sn/version endpoint. Both cards must refresh on one click — otherwise the
+// version card flips to the new deploy while the salt card serves a stale
+// transient for up to 10 minutes (adjacent cards from one endpoint disagreeing).
+echo "\nGroup F: Re-check now — the shared force flag drives the salt card too\n";
+
+// A verified re-check bypasses a warm (stale) transient.
+sw_reset();
+$GLOBALS['__test_transients'][ SN_SALT_WINDOW_TRANSIENT ] = array(
+	'state'      => 'old-worker', // cached before the worker deploy
+	'window'     => null,
+	'url'        => 'https://juanlentino.com/_sn/version',
+	'fetched_at' => time() - 60,
+);
+$GLOBALS['__test_http']    = sw_http( sw_salt() ); // the freshly deployed worker
+$_GET['sn_worker_recheck'] = '1';
+$_GET['_wpnonce']          = 'testnonce';
+$html = sw_render();
+sw_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'verified re-check → warm cache bypassed, one live GET' );
+sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18' ), 're-check → renders the LIVE window, not the stale transient' );
+sw_true( false === strpos( $html, 'predates the salt window readout' ), 're-check → the stale old-worker line is gone (cards agree again)' );
+
+// The re-probe refreshed the transient: dropping the trigger serves from cache.
+unset( $_GET['sn_worker_recheck'], $_GET['_wpnonce'] );
+$html2 = sw_render();
+sw_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'after re-check, a plain render is cache-served (transient refreshed)' );
+sw_eq( $html, $html2, 'the cache-served render matches the re-checked one byte-for-byte' );
+
+// A FORGED re-check (bad nonce) must not bypass the cache — the nonce gate is
+// the worker-version card's own, verified before any effect.
+sw_reset();
+$GLOBALS['__test_transients'][ SN_SALT_WINDOW_TRANSIENT ] = array(
+	'state'      => 'old-worker',
+	'window'     => null,
+	'url'        => 'https://juanlentino.com/_sn/version',
+	'fetched_at' => time() - 60,
+);
+$GLOBALS['__test_http']        = sw_http( sw_salt() );
+$_GET['sn_worker_recheck']     = '1';
+$_GET['_wpnonce']              = 'forged';
+$GLOBALS['__test_nonce_valid'] = false;
+$html = sw_render();
+sw_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'forged re-check → no live probe (nonce gate holds)' );
+sw_true( false !== strpos( $html, 'Worker predates the salt window readout (needs v1.14.0+).' ), 'forged re-check → served from the cached transient' );
 
 // ─── Group E: wiring — mount + loader source contracts ────────────────
 echo "\nGroup E: wiring — settings-column mount + loader require\n";
