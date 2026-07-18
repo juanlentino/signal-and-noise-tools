@@ -145,7 +145,8 @@
 		run: function() {
 			callRest( 'force-check' )
 				// v7.7.0: get-deploy-status returns { theme, plugin, last_deploy }
-				// (no message field) — build the toast from the fresh states.
+				// (no message field; + last_gha_run since v9.63.3) — build the
+				// toast from the fresh states.
 				.then( function( res ) {
 					var detail = ( res && res.theme && res.plugin )
 						? ' Theme ' + res.theme.current + ' (' + res.theme.state + '), plugin ' + res.plugin.current + ' (' + res.plugin.state + ').'

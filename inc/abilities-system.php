@@ -115,7 +115,11 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'last_deploy' => array(
 					'type'        => 'string',
-					'description' => 'Relative time of the most recent deploy GHA run across both repos (e.g. "3 hours ago"); empty string if unknown. Added v6.55.0.',
+					'description' => 'Relative time of the most recent deploy across both repos (e.g. "3 hours ago") from the MERGED feed — wp-admin Updates installs + deploy GHA runs, the same source as the admin Dashboard. Empty string if unknown. Added v6.55.0; reads the merged feed since v9.63.3 (GHA-only before, which froze once deploy.yml went workflow_dispatch-only).',
+				),
+				'last_gha_run' => array(
+					'type'        => 'string',
+					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
 				),
 			),
 		),
@@ -276,28 +280,58 @@ function snt_ability_get_deploy_status( $input = null ) {
 		snt_cmd_impl_force_check();
 	}
 
-	// v6.55.0: fold in last_deploy (relative time of the most recent merged GHA
-	// run across both repos) so the desktop-mode deploy-status widget keeps its
-	// "Last deploy: … ago" line after migrating off the legacy /cmd/status route.
-	// snt_gh_recent_runs_merged is cache-backed (the widget's 60s cadence matches
-	// its TTL), so this stays cheap. Empty string when the runs helper is
-	// unavailable or has no data — same fallback the legacy handler used.
-	$last_deploy = '';
+	// v6.55.0: fold in last_deploy so the desktop-mode deploy-status widget
+	// keeps its "Last deploy: … ago" line after migrating off /cmd/status.
+	//
+	// v9.63.3: last_deploy now reads the MERGED deploy feed (wp-admin Updates
+	// installs recorded by inc/deploy-history.php + GHA runs) — the same source
+	// the admin Dashboard switched to in v4.1.4. The GHA-only reading froze
+	// forever once deploy.yml went workflow_dispatch-only (v1.10.1; emergency
+	// fallback), because real releases land via wp-admin → Updates and never
+	// fire a workflow run. The GHA-only datum is NOT dropped: it ships
+	// additively as last_gha_run (consumers pin last_deploy; its meaning —
+	// "when did the last deploy happen" — is unchanged, only the broken source
+	// is fixed). snt_gh_recent_runs_merged is cache-backed (the widget's 60s
+	// cadence matches its TTL), so both reads stay cheap.
+	$repos        = array( 'juanlentino/signal-and-noise', 'juanlentino/signal-and-noise-tools' );
+	$last_gha_run = '';
 	if ( function_exists( 'snt_gh_recent_runs_merged' ) ) {
-		$runs = snt_gh_recent_runs_merged( array( 'juanlentino/signal-and-noise', 'juanlentino/signal-and-noise-tools' ), 1 );
-		if ( ! empty( $runs[0]['created_at'] ) ) {
-			$t = strtotime( $runs[0]['created_at'] );
-			if ( $t ) {
-				$last_deploy = human_time_diff( $t, time() ) . ' ago';
-			}
-		}
+		$last_gha_run = snt_deploy_runs_age_label( snt_gh_recent_runs_merged( $repos, 1 ) );
+	}
+
+	if ( function_exists( 'snt_deploy_history_merged' ) ) {
+		$last_deploy = snt_deploy_runs_age_label( snt_deploy_history_merged( $repos, 1 ) );
+	} else {
+		// Degraded fallback (deploy-history module absent): the pre-v9.63.3
+		// GHA-only reading — stale-prone but better than nothing.
+		$last_deploy = $last_gha_run;
 	}
 
 	return array(
-		'theme'       => snt_deploy_status_for( 'theme' ),
-		'plugin'      => snt_deploy_status_for( 'plugin' ),
-		'last_deploy' => $last_deploy,
+		'theme'        => snt_deploy_status_for( 'theme' ),
+		'plugin'       => snt_deploy_status_for( 'plugin' ),
+		'last_deploy'  => $last_deploy,
+		'last_gha_run' => $last_gha_run,
 	);
+}
+
+/**
+ * "X ago" label for the newest record in a deploy-runs list, or '' if the
+ * list is empty / carries no parseable created_at. Shared by the merged-feed
+ * and GHA-only readings in snt_ability_get_deploy_status().
+ *
+ * @since 9.63.3
+ * @param array $runs Records in the snt_gh_recent_runs_merged() shape, newest first.
+ * @return string
+ */
+function snt_deploy_runs_age_label( $runs ) {
+	if ( is_array( $runs ) && ! empty( $runs[0]['created_at'] ) ) {
+		$t = strtotime( (string) $runs[0]['created_at'] );
+		if ( $t ) {
+			return human_time_diff( $t, time() ) . ' ago';
+		}
+	}
+	return '';
 }
 
 /**

@@ -173,8 +173,11 @@
 			window.sntAbilityRun( 'get-deploy-status' )
 				.then( function( res ) {
 					if ( torn ) { return; }
-					// The ability returns { theme, plugin, last_deploy } at the root
-					// (no legacy { ok, data } envelope).
+					// The ability returns { theme, plugin, last_deploy, last_gha_run }
+					// at the root (no legacy { ok, data } envelope). v9.63.3:
+					// last_deploy reads the MERGED feed (wp-admin installs + GHA
+					// runs), so wp-admin Updates installs finally move this line;
+					// last_gha_run is the old GHA-only reading, kept additively.
 					if ( res && res.theme ) {
 						renderCard( container, res );
 					}
