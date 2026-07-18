@@ -69,3 +69,25 @@ function sn_migrate_remove_plausible_orphans() {
 	update_option( 'sn_plausible_orphans_removed_v6', 1, false );
 }
 add_action( 'admin_init', 'sn_migrate_remove_plausible_orphans' );
+
+/**
+ * Delete the retired Overview landing-preview flag once (v9.68.0).
+ *
+ * v9.67.0 shipped the flag-gated "Overview (preview)" tab behind the
+ * `sn_analytics_landing_preview` option; v9.68.0 graduated the tab to the
+ * permanent default landing and removed the whole flag machinery (the option
+ * reader, its filter seam, the settings fold, and the save handler). A site
+ * that had the preview ON keeps a dormant option row nothing reads anymore —
+ * the save handler deleted the row only when toggled OFF, so upgrading with
+ * the flag still on strands it. Deleted here exactly once.
+ *
+ * @since 9.68.0
+ */
+function sn_migrate_remove_landing_preview_orphan() {
+	if ( get_option( 'sn_orphan_options_removed_v968' ) ) {
+		return;
+	}
+	delete_option( 'sn_analytics_landing_preview' );
+	update_option( 'sn_orphan_options_removed_v968', 1, false );
+}
+add_action( 'admin_init', 'sn_migrate_remove_landing_preview_orphan' );

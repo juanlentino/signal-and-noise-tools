@@ -13,12 +13,18 @@
  *    wp_sn_analytics_pageroles) + the cron-warmed realtime transient — the
  *    live session-engine AE fetch (50k cap) and every other AE path are
  *    NEVER called on render.
- *  - NULL DISCIPLINE per panel: a failed read renders "could not be read"
- *    (never an empty week); an empty result folds honestly; realtime null is
- *    "warming", never a fabricated 0.
+ *  - NULL DISCIPLINE per panel: the session-rollup panels distinguish a
+ *    failed read (accessor null) from an empty window ([]); the six dim/UTM/
+ *    pageroles minis — whose accessors return [] for BOTH — are bracketed
+ *    view-locally with a $wpdb->last_error before/after snapshot, so a failed
+ *    read renders "could not be read" (never an empty week) while empty +
+ *    no-error keeps the empty-window copy; realtime null is "warming", never
+ *    a fabricated 0.
  *  - Window/class contract: panels pass the header's $from/$to/$class where
- *    their accessor supports it; the 8-week session trend is a FIXED window
- *    (labeled); entry/exit + views-today are human-only (labeled).
+ *    their accessor supports it; the 8-week session trend is a fixed-LENGTH
+ *    window ANCHORED at the range end (labeled with its actual endpoint;
+ *    partial ISO weeks handled honestly — trailing annotated, leading
+ *    trimmed); entry/exit + views-today are human-only (labeled).
  *  - Pure aggregation helpers (session KPIs, weekly bounce) are value-pinned.
  *
  * Stubs mirror the REAL accessor contracts (typed rows, null-on-failure —
@@ -54,6 +60,20 @@ function add_query_arg( $args, $url = null ) {
 	return $url . $sep . http_build_query( $args );
 }
 
+// ---- wpdb stub: F1 view-local failure detection reads $wpdb->last_error ----
+// Models REAL wpdb (wp-includes/class-wpdb.php, verified): query() calls
+// flush() FIRST, and flush() resets last_error to '' — so after any query,
+// last_error reflects THAT query alone (a successful read CLEARS a stale
+// error); a FAILED query comes back from get_results(ARRAY_A) as [] WITH
+// last_error set; and num_queries increments unconditionally per executed
+// query (wpdb::_do_query()) — the disambiguator when two consecutive reads
+// of the SAME table fail with byte-identical messages. ov_db_read() applies
+// that transform to every durable-table accessor stub below (a stub for a
+// transport must model the transport's TRANSFORM, not just record the call).
+$GLOBALS['wpdb']              = new stdClass();
+$GLOBALS['wpdb']->last_error  = '';
+$GLOBALS['wpdb']->num_queries = 0;
+
 // ---- Accessor seams: REAL return shapes, call-recorded ---------------------
 // Every stub records ($fn, args) so the window/class + load-cost groups can
 // pin exactly what the render read — and what it never touched.
@@ -66,7 +86,19 @@ $GLOBALS['__ov'] = array(
 	'views_today'    => null,
 	'entries'        => array(),
 	'exits'          => array(),
+	'fail'           => array(), // keyed by accessor family: true = the wpdb read fails
 );
+
+/** Model one wpdb-backed read: flush (clears last_error), count the query, then fixture-driven failure ([] + last_error set) or success. */
+function ov_db_read( $fn, $result ) {
+	$GLOBALS['wpdb']->last_error = ''; // wpdb::query() → flush() resets it per query.
+	++$GLOBALS['wpdb']->num_queries; // wpdb::_do_query() counts every executed query.
+	if ( ! empty( $GLOBALS['__ov']['fail'][ $fn ] ) ) {
+		$GLOBALS['wpdb']->last_error = "Table 'wp_sn_" . $fn . "' doesn't exist";
+		return array(); // real get_results(ARRAY_A) failure shape: [] beside last_error.
+	}
+	return $result;
+}
 $GLOBALS['__ov_calls'] = array();
 function ov_reset_calls() { $GLOBALS['__ov_calls'] = array(); }
 function ov_calls( $fn ) {
@@ -74,29 +106,36 @@ function ov_calls( $fn ) {
 }
 
 // Durable session rollup (inc/analytics-session-rollup.php contract: typed
-// day-ascending rows, [] = no days rolled, null = failed read).
+// day-ascending rows, [] = no days rolled, null = failed read). The REAL
+// accessor queries (so a stale last_error is flushed away), consults
+// last_error ITSELF, and resolves a failed read to null before returning —
+// modeled here: a null fixture leaves last_error set, exactly like production.
 function sn_session_rollup_read( $from, $to, $class ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_session_rollup_read', $from, $to, $class );
-	$key = $from . '|' . $to;
-	return array_key_exists( $key, $GLOBALS['__ov']['session_rollup'] ) ? $GLOBALS['__ov']['session_rollup'][ $key ] : array();
+	$key  = $from . '|' . $to;
+	$rows = array_key_exists( $key, $GLOBALS['__ov']['session_rollup'] ) ? $GLOBALS['__ov']['session_rollup'][ $key ] : array();
+	++$GLOBALS['wpdb']->num_queries;
+	$GLOBALS['wpdb']->last_error = ( null === $rows ) ? "Table 'wp_sn_session_daily' doesn't exist" : '';
+	return $rows;
 }
 // Canonical sources over the durable dims table (inc/analytics-sources.php).
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_sources', $from, $to, $class, $limit );
-	return $GLOBALS['__ov']['sources'];
+	return ov_db_read( 'sources', $GLOBALS['__ov']['sources'] );
 }
 // Durable UTM rollup (inc/analytics-utm.php).
 function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_utm_campaigns', $from, $to, $class, $limit );
-	return $GLOBALS['__ov']['campaigns'];
+	return ov_db_read( 'campaigns', $GLOBALS['__ov']['campaigns'] );
 }
 // Durable dims rollup (inc/analytics-dims.php).
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25, $refresh = false ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_dimension', $dim, $from, $to, $class, $limit );
-	return $GLOBALS['__ov']['dims'][ $dim ] ?? array();
+	return ov_db_read( 'dims', $GLOBALS['__ov']['dims'][ $dim ] ?? array() );
 }
 // Cron-warmed realtime transient (inc/analytics-realtime.php: int, or null =
-// never warmed).
+// never warmed). Transient reads are NOT modeled through ov_db_read — they
+// have no wpdb failure channel and must never disturb last_error here.
 function sn_analytics_realtime( $class = 'human' ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_realtime', $class );
 	return $GLOBALS['__ov']['realtime'];
@@ -108,11 +147,11 @@ function sn_analytics_views_today() {
 // Durable pageroles rollup (inc/analytics-pageroles.php: human-only, no class).
 function sn_analytics_top_entry_pages( $from, $to, $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_entry_pages', $from, $to, $limit );
-	return $GLOBALS['__ov']['entries'];
+	return ov_db_read( 'entries', $GLOBALS['__ov']['entries'] );
 }
 function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_exit_pages', $from, $to, $limit );
-	return $GLOBALS['__ov']['exits'];
+	return ov_db_read( 'exits', $GLOBALS['__ov']['exits'] );
 }
 
 // FORBIDDEN on the landing render (the load-cost rule): the live session-engine
@@ -190,6 +229,69 @@ ok( 2 === count( $w0 ), 'weekly: a zero-visit week is SKIPPED, not fabricated (b
 ok( array() === snt_analytics_overview_weekly_bounce( array() ), 'weekly: [] → []' );
 ok( array() === snt_analytics_overview_weekly_bounce( null ), 'weekly: null → [] (render decides the failure copy)' );
 
+echo "\nGroup: F4 — window-bounded weekly buckets (partial-ISO-week honesty)\n";
+// The 56-day window rarely starts on a Monday and (unless $to is a Sunday)
+// always ends mid-week — a cut bucket holds only its in-window days, so
+// drawing it as a full weekly point lies. Chosen shape: the TRAILING partial
+// is FLAGGED (the trend meta names the latest point, so annotation is clean);
+// a LEADING partial is TRIMMED (the first point has no per-point label
+// surface — the axis is a bare Monday date — so it cannot be annotated).
+$wb = snt_analytics_overview_weekly_bounce( $TREND_ROWS, '2026-05-23', '2026-07-17' );
+ok( 2 === count( $wb ), 'bounds: fixture window keeps both buckets (first data week starts inside the window — nothing to trim)' );
+ok( false === ( $wb[0]['partial'] ?? null ), 'bounds: W28 (Mon 07-06 … Sun 07-12) lies fully inside the window — complete' );
+ok( true === ( $wb[1]['partial'] ?? null ), 'bounds: W29 is cut at $to = Fri 2026-07-17 (its Sunday is 07-19) — flagged partial' );
+$wb2 = snt_analytics_overview_weekly_bounce( $TREND_ROWS, '2026-05-25', '2026-07-19' );
+ok( false === ( $wb2[1]['partial'] ?? null ), 'bounds: a window ending ON a Sunday (2026-07-19) leaves the trailing week complete — no false flag' );
+$wb3 = snt_analytics_overview_weekly_bounce( $TREND_ROWS, '2026-07-08', '2026-07-17' );
+ok( 1 === count( $wb3 ) && '2026-07-13' === ( $wb3[0]['week_start'] ?? '' ),
+	'bounds: a LEADING partial (bucket Monday 07-06 precedes $from = Wed 07-08) is TRIMMED, never drawn as a full week' );
+$wb4 = snt_analytics_overview_weekly_bounce( $TREND_ROWS );
+ok( 2 === count( $wb4 ) && false === ( $wb4[0]['partial'] ?? null ) && false === ( $wb4[1]['partial'] ?? null ),
+	'bounds: no bounds given → no trimming, no partial flags (back-compat; the typed shape still carries partial:false)' );
+
+echo "\nGroup: F1 unit — snt_analytics_overview_read_guarded (the last_error bracket)\n";
+// The dims/UTM/pageroles accessors return [] for BOTH a failed read and an
+// empty window; real wpdb reports failure as [] + last_error, reset per query
+// by flush(). The bracket treats only a CHANGED/newly-set value as THIS
+// read's failure, so a stale error from an earlier unrelated query is never
+// inherited (the clear-read baseline).
+$GLOBALS['wpdb']->last_error = '';
+$g = snt_analytics_overview_read_guarded( function () {
+	$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
+	return array();
+} );
+ok( true === $g['failed'] && array() === $g['rows'], 'guard: a read that newly sets last_error beside [] is a FAILURE, not an empty window' );
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+$g = snt_analytics_overview_read_guarded( function () {
+	return array(); // performs no query at all (memo hit / early return) — last_error untouched.
+} );
+ok( false === $g['failed'], 'guard: an UNCHANGED stale error is NOT this read\'s failure (clear-read baseline)' );
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+$g = snt_analytics_overview_read_guarded( function () {
+	$GLOBALS['wpdb']->last_error = ''; // real wpdb: a successful query flush()es the stale error away.
+	return array( array( 'value' => 'x', 'views' => 1, 'visits' => 1 ) );
+} );
+ok( false === $g['failed'] && 1 === count( $g['rows'] ), 'guard: a successful query CLEARS a stale error (wpdb flush per query) — rows served, no failure' );
+$GLOBALS['wpdb']->last_error = 'error A';
+$g = snt_analytics_overview_read_guarded( function () {
+	$GLOBALS['wpdb']->last_error = 'error B';
+	return array();
+} );
+ok( true === $g['failed'], 'guard: a CHANGED error is this read\'s own failure (a different query failed here)' );
+$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
+$g = snt_analytics_overview_read_guarded( function () {
+	// A SECOND failing read of the SAME table (the Geography→Devices case):
+	// flush clears, the fresh query re-sets the byte-IDENTICAL message — only
+	// the query counter betrays that a new query ran and failed.
+	++$GLOBALS['wpdb']->num_queries;
+	$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
+	return array();
+} );
+ok( true === $g['failed'], 'guard: an IDENTICAL message from a FRESH query is still this read\'s failure (num_queries tiebreaker — consecutive same-table failures)' );
+$g = snt_analytics_overview_read_guarded( function () { return null; } );
+ok( array() === $g['rows'], 'guard: a non-array accessor result normalizes to [] (defence in depth)' );
+$GLOBALS['wpdb']->last_error = '';
+
 echo "\nGroup: full render — every panel wired to its accessor\n";
 $GLOBALS['__ov']['session_rollup'] = array(
 	'2026-07-11|2026-07-17' => $RANGE_ROWS,  // header window
@@ -236,10 +338,11 @@ ok( strpos( $html, '<p class="sn-kpi-value">65s</p>' ) !== false, 'session quali
 ok( strpos( $html, 'median of daily medians' ) !== false, 'session quality: the median aggregate names itself honestly' );
 ok( strpos( $html, 'within-day sessions' ) !== false, 'session quality: unit disambiguated from the headline\'s visitor-day Visits (the v9.65.0 lesson)' );
 ok( strpos( $html, 'nightly rollup' ) !== false, 'session quality: names its durable source' );
-// The 8-week bounce trend: fixed window, labeled, weekly-bucketed.
+// The 8-week bounce trend: fixed LENGTH, anchored at $to, labeled truthfully.
 ok( strpos( $html, 'snSparkFillOvBounce' ) !== false, 'trend: bounce sparkline rendered with its own gradient id' );
-ok( strpos( $html, 'last 8 weeks' ) !== false, 'trend: the FIXED 8-week window is labeled explicitly (not the range control\'s window)' );
-ok( strpos( $html, 'latest 61.4%' ) !== false, 'trend: meta pins the latest weekly weighted bounce' );
+ok( strpos( $html, 'Bounce — 8 weeks to 2026-07-17' ) !== false, 'trend: the label names its ACTUAL endpoint — the range control\'s $to (anchored, not independent)' );
+ok( strpos( $html, 'last 8 weeks' ) === false, 'trend: the old "last 8 weeks" independence claim is gone (F2 — the words now match the anchoring)' );
+ok( strpos( $html, 'latest 61.4% (partial week)' ) !== false, 'trend: meta pins the latest weekly weighted bounce AND flags it partial (W29 is cut at Fri $to — F4)' );
 ok( strpos( $html, '2026-07-06' ) !== false && strpos( $html, '2026-07-13' ) !== false, 'trend: axis spans first→last rolled-up ISO-week Monday' );
 
 // Right now: cron-warmed transient only, windows labeled.
@@ -384,6 +487,81 @@ foreach ( array( 'Top sources', 'Campaigns (UTM)', 'Geography', 'Devices', 'Entr
 	ok( strpos( $html_folds, $t ) !== false, "folds: '$t' named in the fold (not silently dropped)" );
 }
 ok( substr_count( $html_folds, 'sn-an-postbox' ) <= 3, 'folds: no hollow mini panels drawn (only session quality + right now stay open)' );
+
+echo "\nGroup: F1 — a FAILED mini read says so (view-local last_error bracketing)\n";
+// The six dim/UTM/pageroles minis' accessors return [] for both failure and
+// empty; before this fix a failed wpdb read was served as an honest-empty
+// window. Pinned both directions per panel family.
+// (a) dims family (sources + campaigns + geography + devices): last_error
+// newly set + [] returned → "could not be read", NOT the empty-window copy.
+$GLOBALS['__ov']['session_rollup'] = array(
+	'2026-07-11|2026-07-17' => $RANGE_ROWS,
+	'2026-05-23|2026-07-17' => $TREND_ROWS,
+);
+$GLOBALS['__ov']['entries'] = array( array( 'path' => '/', 'views' => 16, 'visits' => 14 ) );
+$GLOBALS['__ov']['exits']   = array( array( 'path' => '/provhub/', 'views' => 11, 'visits' => 10 ) );
+$GLOBALS['__ov']['fail']    = array( 'sources' => true, 'campaigns' => true, 'dims' => true );
+$html_dbfail = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_dbfail, 'The durable referrer rollup could not be read' ) !== false, 'fail: Top sources renders the read-failure fold' );
+ok( strpos( $html_dbfail, 'The durable UTM rollup could not be read' ) !== false, 'fail: Campaigns renders the read-failure fold' );
+ok( strpos( $html_dbfail, 'The durable country rollup could not be read' ) !== false, 'fail: Geography renders the read-failure fold' );
+ok( strpos( $html_dbfail, 'The durable device rollup could not be read' ) !== false, 'fail: Devices renders the read-failure fold' );
+ok( strpos( $html_dbfail, 'No referrer rows in the durable rollup' ) === false
+	&& strpos( $html_dbfail, 'No UTM-tagged traffic in the durable rollup' ) === false
+	&& strpos( $html_dbfail, 'No country rows in the durable rollup' ) === false
+	&& strpos( $html_dbfail, 'No device rows in the durable rollup' ) === false,
+	'fail: the empty-window copy is NEVER served for a failed read (the F1 lie, pinned dead)' );
+ok( strpos( $html_dbfail, '/provhub/' ) !== false, 'fail: the pageroles panels (whose reads succeeded) still render their rows' );
+
+// (b) pageroles family: entry + exit failures report independently.
+$GLOBALS['__ov']['sources'] = array( array( 'value' => '(direct)', 'views' => 18, 'visits' => 16, 'hosts' => array() ) );
+$GLOBALS['__ov']['dims']    = array( 'country' => array( array( 'value' => 'AR', 'views' => 14, 'visits' => 12 ) ) );
+$GLOBALS['__ov']['fail']    = array( 'entries' => true, 'exits' => true );
+$html_prfail = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_prfail, 'The durable entry-pages rollup could not be read' ) !== false, 'fail: Entry pages renders the read-failure fold' );
+ok( strpos( $html_prfail, 'The durable exit-pages rollup could not be read' ) !== false, 'fail: Exit pages renders the read-failure fold' );
+ok( strpos( $html_prfail, 'No entry pages in this range yet' ) === false && strpos( $html_prfail, 'No exit pages in this range yet' ) === false,
+	'fail: the pageroles empty copy is not served for a failed read' );
+ok( strpos( $html_prfail, 'Entry pages' ) !== false && strpos( $html_prfail, 'Exit pages' ) !== false,
+	'fail: the failed panels are still NAMED in the fold (never silently dropped)' );
+
+// (c) mixed: one failure never bleeds into a neighbor's SUCCESSFUL empty read
+// (per-read bracketing — last_error is snapshotted around EACH call).
+$GLOBALS['__ov']['campaigns'] = array();
+$GLOBALS['__ov']['fail']      = array( 'sources' => true );
+$html_mixed = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_mixed, 'The durable referrer rollup could not be read' ) !== false, 'mixed: the failed read reports failure' );
+ok( strpos( $html_mixed, 'No UTM-tagged traffic in the durable rollup' ) !== false, 'mixed: the neighboring successful-but-empty read keeps its honest empty-window copy' );
+ok( strpos( $html_mixed, 'The durable UTM rollup could not be read' ) === false, 'mixed: the neighbor is NOT contaminated by the earlier panel\'s error (per-read baseline)' );
+
+// (d) empty + no error: the empty-window copy stays (the other direction).
+$GLOBALS['__ov']['sources'] = array();
+$GLOBALS['__ov']['dims']    = array();
+$GLOBALS['__ov']['entries'] = array();
+$GLOBALS['__ov']['exits']   = array();
+$GLOBALS['__ov']['fail']    = array();
+$html_ok = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_ok, 'could not be read' ) === false, 'ok: no read-failure copy anywhere when every read succeeds' );
+ok( strpos( $html_ok, 'No referrer rows in the durable rollup' ) !== false && strpos( $html_ok, 'No entry pages in this range yet' ) !== false,
+	'ok: successful-but-empty reads keep the empty-window copy (both directions pinned)' );
+
+// (e) a STALE last_error left by an earlier unrelated query is never
+// inherited: every read here succeeds (each query flushes), so nothing fails.
+$GLOBALS['wpdb']->last_error = 'stale error from a pre-render query';
+$html_stale = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_stale, 'could not be read' ) === false, 'stale: a pre-render last_error is not misattributed to any panel (clear-read baseline)' );
+
+echo "\nGroup: F4 — a Sunday-ending window draws an unannotated trailing week\n";
+// $to = 2026-07-19 (a Sunday): the 56-day window is exactly 8 ISO weeks, so
+// no partial exists and the meta must NOT cry partial (no false flag).
+$GLOBALS['__ov']['session_rollup'] = array(
+	'2026-07-13|2026-07-19' => $RANGE_ROWS,  // header window (KPIs)
+	'2026-05-25|2026-07-19' => $TREND_ROWS,  // 8-week trend window, Monday→Sunday aligned
+);
+$html_sun = capture( function () { snt_analytics_render_view_overview( '2026-07-13', '2026-07-19', 'human' ); } );
+ok( strpos( $html_sun, 'Bounce — 8 weeks to 2026-07-19' ) !== false, 'sunday: the label still names the actual endpoint' );
+ok( strpos( $html_sun, 'latest 61.4%' ) !== false && strpos( $html_sun, '(partial week)' ) === false,
+	'sunday: a complete trailing ISO week carries NO partial annotation' );
 
 echo "\nGroup: source pins — the graduated file carries no flag machinery\n";
 $src_file = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );

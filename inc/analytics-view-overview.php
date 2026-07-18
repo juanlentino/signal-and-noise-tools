@@ -18,9 +18,23 @@
  * on render — the session engine's capped live fetch stays on the Sessions
  * tab, where paying that cost is a deliberate click.
  *
- * NULL DISCIPLINE per panel: a failed read renders "could not be read" (the
- * v9.65.0 lesson — never served as an empty week), an empty window folds
- * honestly, and a cold realtime transient is "warming", never a fabricated 0.
+ * NULL DISCIPLINE per panel — exactly what each one distinguishes:
+ *  - Session quality (KPIs + trend): its accessor consults $wpdb->last_error
+ *    itself and returns null on a FAILED read vs [] for an empty window, so
+ *    failure renders "could not be read" (the v9.65.0 lesson — never served
+ *    as an empty week) and [] folds honestly.
+ *  - The six minis (sources, UTM, geography, devices, entry, exit): their
+ *    accessors return [] for BOTH failure and empty (their existing contract,
+ *    unchanged here), so this view brackets each call with a
+ *    $wpdb->last_error + num_queries before/after snapshot (real wpdb clears
+ *    last_error per query via flush() and counts every executed query); an
+ *    error this read newly set — changed message, or same message from a
+ *    fresh query — renders that panel's "could not be read" fold, [] without
+ *    one folds as an honest empty window. A stale pre-existing error with no
+ *    query run is never inherited.
+ *  - Right now: a cold cron-warmed transient is "warming", never a fabricated
+ *    0, and a warmed 0 is a real 0 — but a transient read has no failure
+ *    channel, so "warming" honestly covers never-warmed and lost alike.
  *
  * Composition: existing snt_an_* primitives + the existing dim/pageroles
  * table renderers. Light-only, no JS, no <wpd-*> — a wp-admin view, not a
@@ -37,9 +51,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-panels.php';        // panel chrome + KPI row + trend + empty-fold primitives
 require_once __DIR__ . '/analytics-render-tables.php'; // snt_analytics_render_dim_table + snt_analytics_render_pageroles_table
 
-// The session-quality bounce trend reads a FIXED trailing window (weeks),
-// independent of the range control — long enough to show drift, short enough
-// to stay glanceable. The panel labels the window explicitly.
+// The session-quality bounce trend reads a fixed-LENGTH trailing window (8 ISO
+// weeks) ANCHORED at the range control's end date ($to) — deliberate: a
+// historical range shows the 8 weeks leading up to ITS end, so the trend stays
+// coherent with the header window. Long enough to show drift, short enough to
+// stay glanceable; the panel label renders the actual endpoint.
 const SN_OVERVIEW_TREND_WEEKS = 8;
 
 /**
@@ -102,11 +118,24 @@ function snt_analytics_overview_session_kpis( $rows ) {
  * A week whose rolled-up days carry zero sessions is SKIPPED: bounce over 0
  * sessions is undefined, and a fabricated point would bend the trend line.
  *
+ * Window honesty (v9.68.0 pre-merge review, F4): the trend window's bounds
+ * rarely align with ISO weeks — the 56-day window seldom starts on a Monday
+ * and (unless $to is a Sunday) always ends mid-week, so a bucket the window
+ * CUTS holds only its in-window days and would otherwise draw as a silent
+ * full weekly point. When bounds are given: a TRAILING cut bucket is flagged
+ * partial:true (the trend meta names the latest point, so annotation is
+ * clean there); a LEADING cut bucket is TRIMMED — the first point has no
+ * per-point label surface (the axis is a bare Monday date), so it cannot be
+ * annotated honestly. Without bounds: no trimming, no flags (back-compat).
+ *
  * @since 9.68.0
  * @param array|null $rows sn_session_rollup_read() rows.
- * @return array<int, array{week_start:string, bounce_pct:float, visits:int}>
+ * @param string     $from Optional window start (Y-m-d) for partial-week
+ *                         detection. '' = boundless.
+ * @param string     $to   Optional inclusive window end (Y-m-d). '' = boundless.
+ * @return array<int, array{week_start:string, bounce_pct:float, visits:int, partial:bool}>
  */
-function snt_analytics_overview_weekly_bounce( $rows ) {
+function snt_analytics_overview_weekly_bounce( $rows, $from = '', $to = '' ) {
 	if ( ! is_array( $rows ) ) {
 		return array();
 	}
@@ -139,14 +168,73 @@ function snt_analytics_overview_weekly_bounce( $rows ) {
 			'week_start' => (string) $monday,
 			'bounce_pct' => $w['weighted'] / $w['visits'],
 			'visits'     => (int) $w['visits'],
+			'partial'    => false,
 		);
+	}
+	// Leading partial: the first bucket's Monday precedes the window start, so
+	// the window cut its early days — trimmed (no label surface to annotate).
+	if ( array() !== $out && '' !== (string) $from && (string) $out[0]['week_start'] < (string) $from ) {
+		array_shift( $out );
+	}
+	// Trailing partial: the last bucket's Sunday exceeds the window end, so
+	// the window cut its late days — flagged for the meta annotation.
+	if ( array() !== $out && '' !== (string) $to ) {
+		$last_i  = count( $out ) - 1;
+		$mon_ts  = strtotime( (string) $out[ $last_i ]['week_start'] . ' 00:00:00 UTC' );
+		if ( false !== $mon_ts && gmdate( 'Y-m-d', $mon_ts + 6 * DAY_IN_SECONDS ) > (string) $to ) {
+			$out[ $last_i ]['partial'] = true;
+		}
 	}
 	return $out;
 }
 
 /**
+ * Bracket ONE durable-table accessor call with a $wpdb->last_error baseline
+ * (v9.68.0 pre-merge review, F1). The dims/UTM/pageroles accessors return []
+ * for BOTH a failed read and an empty window (their existing contract —
+ * deliberately not changed here; that ripple is a future wave), so [] alone
+ * cannot distinguish "no rows" from "the table is missing/corrupt". Real wpdb
+ * reports a failed query as [] from get_results(ARRAY_A) WITH
+ * $wpdb->last_error set, and wpdb::query() calls flush() first — which resets
+ * last_error to '' per query — so immediately after the call, last_error
+ * reflects the accessor's OWN read (a successful read even CLEARS a stale
+ * error). The before-snapshot guards the one gap: an accessor that performs
+ * NO query (memo hit, early return) leaves an EARLIER unrelated query's error
+ * in place — a stale value must never count as this read's failure.
+ *
+ * A changed/newly-set message alone is NOT enough: two consecutive failing
+ * reads of the SAME table (Geography then Devices both read wp_sn_analytics_
+ * dims) produce IDENTICAL messages, so "unchanged" would misread the second
+ * failure as an empty window. Real wpdb exposes the disambiguator:
+ * $wpdb->num_queries increments unconditionally per executed query
+ * (wpdb::_do_query()), so queries-ran + non-empty last_error = the call's
+ * last query failed, no matter whether the message matches the baseline.
+ *
+ * @since 9.68.0
+ * @param callable $read The accessor call, closed over its args.
+ * @return array{rows:array, failed:bool} rows: the accessor result,
+ *                                        normalized to an array; failed: true
+ *                                        iff $wpdb->last_error is non-empty
+ *                                        after the call AND either changed
+ *                                        from the baseline or at least one
+ *                                        query ran during the call.
+ */
+function snt_analytics_overview_read_guarded( $read ) {
+	$before   = isset( $GLOBALS['wpdb']->last_error ) ? (string) $GLOBALS['wpdb']->last_error : '';
+	$q_before = isset( $GLOBALS['wpdb']->num_queries ) ? (int) $GLOBALS['wpdb']->num_queries : 0;
+	$rows     = $read();
+	$after    = isset( $GLOBALS['wpdb']->last_error ) ? (string) $GLOBALS['wpdb']->last_error : '';
+	$q_after  = isset( $GLOBALS['wpdb']->num_queries ) ? (int) $GLOBALS['wpdb']->num_queries : 0;
+	return array(
+		'rows'   => is_array( $rows ) ? $rows : array(),
+		'failed' => ( '' !== $after && ( $after !== $before || $q_after > $q_before ) ),
+	);
+}
+
+/**
  * Session quality panel: window KPIs from the durable nightly rollup + the
- * fixed 8-week bounce trend. Full-width under the shared header.
+ * 8-week bounce trend anchored at the range end. Full-width under the shared
+ * header.
  *
  * Honest states, one per input shape (the v9.65.0 trend-panel contract):
  *   null rows  → "could not be read" fold (a read failure is NOT an empty
@@ -159,9 +247,13 @@ function snt_analytics_overview_weekly_bounce( $rows ) {
  * @since 9.68.0
  * @param array|null|false $range_rows Rollup rows for the header window
  *                                     (false = accessor absent, harness only).
- * @param array|null|false $trend_rows Rollup rows for the fixed trend window.
+ * @param array|null|false $trend_rows Rollup rows for the trend window.
+ * @param string           $trend_from Trend window start (Y-m-d) — for
+ *                                     partial-week detection.
+ * @param string           $trend_to   Trend window end (Y-m-d) — the range
+ *                                     control's $to; rendered in the label.
  */
-function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows ) {
+function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $trend_from, $trend_to ) {
 	$title = __( 'Session quality', 'signal-and-noise-tools' );
 	if ( false === $range_rows ) {
 		return; // rollup module absent — production loads it unconditionally.
@@ -209,21 +301,31 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 		array( 'empty_slot' => 'omit' )
 	);
 
-	// The fixed-window bounce trend — its states are independent of the KPI
-	// read above (two reads of the same table can fail separately).
+	// The 8-week bounce trend — its states are independent of the KPI read
+	// above (two reads of the same table can fail separately). The window is a
+	// fixed LENGTH (8 ISO weeks) ANCHORED at the range control's $to — the
+	// label renders the actual endpoint rather than claiming an independence
+	// it doesn't have (v9.68.0 pre-merge review, F2).
 	if ( false !== $trend_rows ) {
 		if ( null === $trend_rows ) {
 			echo '<p class="sn-an-empty">' . esc_html__( 'The 8-week bounce trend could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) . '</p>';
 		} else {
-			$weekly = snt_analytics_overview_weekly_bounce( $trend_rows );
+			$weekly = snt_analytics_overview_weekly_bounce( $trend_rows, $trend_from, $trend_to );
 			if ( count( $weekly ) < 2 ) {
 				echo '<p class="sn-an-empty">' . esc_html( sprintf(
 					/* translators: %d: number of rolled-up ISO weeks available so far. */
-					__( 'The bounce trend needs at least two rolled-up weeks — %d so far in the fixed 8-week window.', 'signal-and-noise-tools' ),
+					__( 'The bounce trend needs at least two rolled-up weeks — %d so far in the 8-week window.', 'signal-and-noise-tools' ),
 					count( $weekly )
 				) ) . '</p>';
 			} else {
 				$last = $weekly[ count( $weekly ) - 1 ];
+				// A trailing ISO week the window cuts mid-week is annotated in
+				// the meta, never drawn as a silent full weekly point (F4).
+				$meta = ! empty( $last['partial'] )
+					/* translators: %s: visits-weighted bounce percentage of the most recent rolled-up week (an incomplete ISO week — the window ends mid-week). */
+					? sprintf( __( 'latest %s%% (partial week)', 'signal-and-noise-tools' ), number_format_i18n( (float) $last['bounce_pct'], 1 ) )
+					/* translators: %s: visits-weighted bounce percentage of the most recent rolled-up week. */
+					: sprintf( __( 'latest %s%%', 'signal-and-noise-tools' ), number_format_i18n( (float) $last['bounce_pct'], 1 ) );
 				snt_an_trend_svg(
 					array_map(
 						static function ( $w ) {
@@ -232,10 +334,9 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 						$weekly
 					),
 					array(
-						// The window is FIXED (not the range control's) — the label says so.
-						'head'      => __( 'Bounce rate — last 8 weeks', 'signal-and-noise-tools' ),
-						/* translators: %s: visits-weighted bounce percentage of the most recent rolled-up week. */
-						'meta'      => sprintf( __( 'latest %s%%', 'signal-and-noise-tools' ), number_format_i18n( (float) $last['bounce_pct'], 1 ) ),
+						/* translators: %s: the trend window's inclusive end date (Y-m-d) — the range control's end date. */
+						'head'      => sprintf( __( 'Bounce — 8 weeks to %s', 'signal-and-noise-tools' ), $trend_to ),
+						'meta'      => $meta,
 						'axis'      => array( (string) $weekly[0]['week_start'], (string) $last['week_start'] ),
 						'id_suffix' => 'OvBounce',
 					)
@@ -290,12 +391,12 @@ function snt_analytics_render_overview_rightnow( $now, $today ) {
  */
 function snt_analytics_render_view_overview( $from, $to, $class ) {
 	// ── Session quality: two reads of the durable wp_sn_session_daily table —
-	// the header window (KPIs) + the fixed 8-week trend window.
+	// the header window (KPIs) + the 8-week trend window anchored at $to.
 	$has_rollup = function_exists( 'sn_session_rollup_read' );
 	$range_rows = $has_rollup ? sn_session_rollup_read( $from, $to, $class ) : false;
 	$t8_from    = gmdate( 'Y-m-d', strtotime( $to . ' 00:00:00 UTC' ) - ( SN_OVERVIEW_TREND_WEEKS * 7 - 1 ) * DAY_IN_SECONDS );
 	$trend_rows = $has_rollup ? sn_session_rollup_read( $t8_from, $to, $class ) : false;
-	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows );
+	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $t8_from, $to );
 
 	// ── Right now: the cron-warmed transient pair (realtime is class-aware;
 	// views-today is human-only by construction and its card says so).
@@ -305,34 +406,82 @@ function snt_analytics_render_view_overview( $from, $to, $class ) {
 	);
 
 	// ── Balanced bento: acquisition left (sources + UTM), audience right
-	// (countries + devices) — all four from durable rollup tables. These
-	// accessors return [] for both an empty window and a failed read (their
-	// existing contract), so the honest copy names the rollup, not the window.
-	$sources   = function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, $class, 5 ) : array();
-	$campaigns = function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $from, $to, $class, 5 ) : array();
-	$countries = function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, $class, 5 ) : array();
-	$devices   = function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $from, $to, $class, 5 ) : array();
+	// (countries + devices) — all four from durable rollup tables. Their
+	// accessors return [] for BOTH an empty window and a failed read (their
+	// existing contract, deliberately untouched), so each call is bracketed by
+	// snt_analytics_overview_read_guarded(): a read that newly set
+	// $wpdb->last_error folds as "could not be read", never as an empty week.
+	$sources   = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, $class, 5 ) : array();
+	} );
+	$campaigns = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $from, $to, $class, 5 ) : array();
+	} );
+	$countries = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, $class, 5 ) : array();
+	} );
+	$devices   = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $from, $to, $class, 5 ) : array();
+	} );
 
 	echo '<div class="sn-an-overview-bento">';
 	echo '<div class="sn-an-bento-col">';
-	snt_analytics_render_dim_table( __( 'Top sources', 'signal-and-noise-tools' ), $sources, __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ) );
-	snt_analytics_render_dim_table( __( 'Campaigns (UTM)', 'signal-and-noise-tools' ), $campaigns, __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' ) );
+	snt_analytics_render_dim_table(
+		__( 'Top sources', 'signal-and-noise-tools' ),
+		$sources['rows'],
+		$sources['failed']
+			? __( 'The durable referrer rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+	);
+	snt_analytics_render_dim_table(
+		__( 'Campaigns (UTM)', 'signal-and-noise-tools' ),
+		$campaigns['rows'],
+		$campaigns['failed']
+			? __( 'The durable UTM rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+	);
 	echo '</div>';
 	echo '<div class="sn-an-bento-col">';
-	snt_analytics_render_dim_table( __( 'Geography', 'signal-and-noise-tools' ), $countries, __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ) );
-	snt_analytics_render_dim_table( __( 'Devices', 'signal-and-noise-tools' ), $devices, __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ) );
+	snt_analytics_render_dim_table(
+		__( 'Geography', 'signal-and-noise-tools' ),
+		$countries['rows'],
+		$countries['failed']
+			? __( 'The durable country rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+	);
+	snt_analytics_render_dim_table(
+		__( 'Devices', 'signal-and-noise-tools' ),
+		$devices['rows'],
+		$devices['failed']
+			? __( 'The durable device rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+	);
 	echo '</div>';
 	echo '</div>';
 
 	// ── Entry + exit pages, PAIRED — the durable pageroles rollup (exits fed
 	// nightly by the session bridge since v9.66.0). Human-only tables: their
 	// rollup carries no class column, so the class control does not apply and
-	// the header meta says so.
-	$entries = function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
-	$exits   = function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $from, $to, 10 ) : array();
+	// the header meta says so. Same last_error bracketing as the bento: a
+	// failed read folds as "could not be read" via the panel's own title (the
+	// shared renderer's empty copy is reserved for a truly empty window).
+	$entries = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
+	} );
+	$exits   = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $from, $to, 10 ) : array();
+	} );
 	echo '<div class="sn-an-grid sn-an-overview-pair">';
-	snt_analytics_render_pageroles_table( $entries, 'entry', __( 'human traffic · durable rollup', 'signal-and-noise-tools' ) );
-	snt_analytics_render_pageroles_table( $exits, 'exit', __( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) );
+	if ( $entries['failed'] ) {
+		snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), __( 'The durable entry-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+	} else {
+		snt_analytics_render_pageroles_table( $entries['rows'], 'entry', __( 'human traffic · durable rollup', 'signal-and-noise-tools' ) );
+	}
+	if ( $exits['failed'] ) {
+		snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), __( 'The durable exit-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+	} else {
+		snt_analytics_render_pageroles_table( $exits['rows'], 'exit', __( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) );
+	}
 	echo '</div>';
 
 	snt_an_flush_empty_fold();
