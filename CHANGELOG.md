@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.71.0] - 2026-07-18: The salt rotation window, visible — a date readout on the analytics settings
+
+MINOR (new user-visible capability, owner-approved). The forward-secrecy salt rotation (worker v1.13.0) has been invisible from wp-admin — verifiable only by curling the edge. This release adds a PASSIVE date-window readout (NOT a Health check, NOT an alarm) to the Monitoring → Analytics settings reference column, right under the worker-version card.
+
+### The fixed contract (both sides build to this exactly)
+
+`/_sn/version`'s JSON gains a top-level `"salt"` object (worker v1.14.0+): `{ rotate_tz, today_day, today_present, today_expires_at, prev_day, prev_present, prev_expires_at, next_present, key_count }`. Salt VALUES never appear anywhere — key names are dates, expirations are unix seconds; public by design (the transparency artifact). On a KV list failure the whole `"salt"` member is **null** (never a fabricated shape).
+
+### Added — `inc/analytics-salt-window.php` (NEW)
+
+- **Fetch**: the established worker-status idiom, followed exactly — the URL derived via `sn_worker_version_endpoint_url()` (collector-base origin, hairpin-safe, so both readouts can never probe different origins), the shared outbound gate (https-only + `wp_http_validate_url()` + `sn_ssrf_host_blocked()` + `redirection=0`), short timeout, ~10-min transient cache (2-min retry TTL after a failure) — readout freshness, not monitoring. Admin-only render; a second render costs zero fetches.
+- **Absent-vs-null discipline** via `array_key_exists` throughout: a MISSING `"salt"` member (worker predates v1.14.0) and `"salt": null` (the worker answered but could not list its keys) are DIFFERENT answers, rendered differently. Within the window, absent fields degrade to null and the renderer SKIPS the line — nothing is ever invented. Strict types: a non-bool presence flag or non-numeric expiry → null, no coercion.
+- **Render** (calm, informational, site-local dates in the deploy widget's "X ago" voice): today's salt day + "rotates at midnight ({tz})" (with a not-minted parenthetical only on an explicit `today_present: false`); yesterday's salt "expires {site-local date time} (in {relative} / {relative} ago)" via `wp_date()` + `human_time_diff()`, or "already expired — forward secrecy holding" when `prev_present` is false, or "no expiry recorded" on a present key with a null expiry; the key count; "Checked N ago." Honest states, each DISTINCT (never fabricated dates, never a red alarm): fetch failed → em-dash + "could not read the worker"; `"salt": null` → em-dash + "worker reachable, but it could not list its salt keys (KV read failed at the edge)" — the worker WAS read there, and the failed-fetch copy would be false; old worker (no `salt` member) → "Worker predates the salt window readout (needs v1.14.0+)."
+
+### Tests (`tests/analytics-salt-window.php`, NEW — RED committed before the implementation)
+
+91 assertions: value-pinned renders for every state (full healthy, prev-expired, today-not-minted, no-expiry-recorded, past-expiry "ago" branch, `salt: null`, fetch `WP_Error`, old-worker missing key, non-200) — with kv-failed vs failed-fetch copy pinned distinct in BOTH directions — the transient-cache pin (second render, zero fetches, byte-identical), the parse-level absent-vs-null matrix (missing member → old-worker vs null → kv-failed — the `??`/`isset()` trap pinned), the shared outbound gate (SSRF-blocked/plaintext base → zero GETs; `redirection === 0`), the "Re-check now" force wiring (verified re-check bypasses a warm stale transient and refreshes it; a forged nonce does not), warm-transient XSS escaping (render-side `esc_html` proven independently of the parse-side sanitizer), the `manage_options` gate, and mount/loader source contracts. The fetch stub models `wp_remote_get`'s REAL shapes — `WP_Error` object, `['response' => ['code' => …], 'body' => …]`, non-200 — the transport-transform rule.
+
+### Wiring
+
+Loader: `inc/analytics-salt-window.php` requires after `inc/worker-version.php` (its endpoint-derivation dependency). Mount: `snt_analytics_render_settings_section()` (inc/analytics-admin.php) calls `sn_salt_window_render_card()` behind a `function_exists` guard, directly after the worker-version card in the read-only reference column.
+
+Note: the readout ships ahead of the worker — until worker v1.14.0 deploys, a live site shows the honest "Worker predates the salt window readout (needs v1.14.0+)" line, which is the correct current answer.
+
+### Fixed (pre-merge review)
+
+- **kv-failed rendered as unreachable (MEDIUM, honest-states contract)** — the parse layer distinguished four states via `array_key_exists`, but the renderer collapsed `kv-failed` (`"salt": null` — the worker answered 200 with valid JSON; its own KV list failed) into the byte-identical "— could not read the worker." string used for a genuinely failed fetch. For kv-failed that copy is factually false — the worker WAS read — and it misdirects the diagnosis: a KV namespace unbind after a worker deploy would show "could not read the worker" while a curl of `/_sn/version` comes back clean (the exact update-checker-failure-modes class). The state now renders its own copy: "— worker reachable, but it could not list its salt keys (KV read failed at the edge)." RED-first: the salt:null render pin flipped to the new string plus both-direction distinctness pins (kv-failed never wears the failed-fetch copy; `WP_Error`/non-200 never wear the KV copy).
+- **"Re-check now" refreshed only half the endpoint's readouts (LOW)** — the worker-version card's nonce-verified re-check link forced a live probe of `/_sn/version` for the version card, but the salt card (same endpoint, rendered directly below) kept serving its own transient for up to 10 min — so after a worker deploy + re-check, the version card could flip to v1.14.0 while the salt card still said "Worker predates the salt window readout". The renderer now passes `sn_worker_version_recheck_requested()` (behind `function_exists`) as the force flag to `sn_salt_window_get()`: one click refreshes BOTH cards. RED-first: a verified re-check bypasses a warm stale transient (one live GET, transient refreshed, next plain render cache-served byte-identical); a forged nonce probes nothing and serves the cache.
+
+Sweep: 311 suites / 11,146 assertions green; `composer run lint` clean.
+
 ## [9.70.0] - 2026-07-18: The maturity explainer catches up with the integrity arc — refreshed tiers, format attribute, styled output
 
 MINOR (new user-visible capability, owner-approved). The PUBLIC portfolio shortcode `[sn_analytics_maturity]` (`inc/analytics-maturity-page.php`) predated the 2026-07 analytics-integrity arc (13 releases, v9.63.0→v9.69.0) — its copy still described the pre-arc stack. The file's design contract is preserved untouched: STATIC only, no live metrics, no per-person data, public-page safe, everything i18n-wrapped and escaped at the point of build, the function returns (never echoes).

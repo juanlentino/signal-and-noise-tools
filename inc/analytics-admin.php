@@ -634,6 +634,12 @@ function snt_analytics_render_settings_section() {
 	if ( function_exists( 'sn_worker_version_render_card' ) ) {
 		sn_worker_version_render_card();
 	}
+	// v9.71.0: the rotating identity-salt window — a passive date readout from
+	// the same /_sn/version endpoint (worker v1.14.0+), right under the card
+	// that already shows what's deployed there. Never an alarm.
+	if ( function_exists( 'sn_salt_window_render_card' ) ) {
+		sn_salt_window_render_card();
+	}
 	// v9.36.0: shared config shown read-only with deep links (mirror rule:
 	// display-only — one write surface per option, on its own tab).
 	if ( function_exists( 'snt_analytics_render_mirrors' ) ) {
