@@ -177,20 +177,52 @@ function sn_analytics_last_error() {
 }
 
 /**
+ * Request-scoped row-cap truncation flag for the most recent
+ * sn_analytics_query() call.
+ *
+ * AE responses carry {rows, rows_before_limit_at_least}: when the latter
+ * exceeds the former the result set was ROW-CAP TRUNCATED — the returned rows
+ * are real, but the set is INCOMPLETE, so any "absent = zero" reasoning over
+ * it is invalid. sn_analytics_query() re-records the verdict on EVERY call
+ * (false on failure paths — a null return already carries no completeness
+ * claim; false when the envelope carries no counters — no evidence).
+ * Consumers that reason from absence (the gated pageview_visits merge via
+ * sn_analytics_rollup_gated_query()) must check this immediately after their
+ * query call, before issuing another.
+ *
+ * @param bool|null $set Internal (sn_analytics_query only): record a verdict.
+ *                       Callers pass nothing.
+ * @return bool True when the last response was row-cap truncated.
+ */
+function sn_analytics_last_result_truncated( $set = null ) {
+	static $truncated = false;
+	if ( null !== $set ) {
+		$truncated = (bool) $set;
+	}
+	return $truncated;
+}
+
+/**
  * Run a SQL query against the Cloudflare Analytics Engine SQL API.
  *
  * The AE SQL API accepts the query as the raw POST body (not a JSON envelope).
  * The response shape is:
- *   { "meta": [...], "data": [ {row}, ... ], "rows": N }
+ *   { "meta": [...], "data": [ {row}, ... ], "rows": N,
+ *     "rows_before_limit_at_least": M }
  *
  * On any failure (transport error, non-200, JSON parse error) the failure
  * context is captured in the SN_ANALYTICS_ERR_KEY transient and null is
- * returned. On success the prior error transient is cleared.
+ * returned. On success the prior error transient is cleared and the row-cap
+ * truncation verdict is recorded (sn_analytics_last_result_truncated()).
  *
  * @param string $sql Raw SQL string accepted by the AE SQL API.
  * @return array|null Array of row objects (may be empty), or null on failure.
  */
 function sn_analytics_query( $sql ) {
+	// The truncation flag always describes THIS call: reset before anything
+	// can fail, so a stale verdict from a previous response never leaks.
+	sn_analytics_last_result_truncated( false );
+
 	$cfg = sn_analytics_config();
 	if ( ! $cfg ) {
 		return null;
@@ -230,6 +262,14 @@ function sn_analytics_query( $sql ) {
 
 	// Success — clear any stale error.
 	delete_transient( SN_ANALYTICS_ERR_KEY );
+
+	// Record the row-cap truncation verdict from the envelope counters (only
+	// when both are present and numeric — an envelope without them carries no
+	// truncation evidence and the flag stays false from the reset above).
+	if ( isset( $decoded['rows'], $decoded['rows_before_limit_at_least'] )
+		&& is_numeric( $decoded['rows'] ) && is_numeric( $decoded['rows_before_limit_at_least'] ) ) {
+		sn_analytics_last_result_truncated( (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows'] );
+	}
 
 	return $decoded['data'] ?? null;
 }

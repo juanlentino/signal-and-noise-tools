@@ -18,6 +18,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Pure derive layer (Phase A spec §4) — zero WP calls, function_exists-guarded,
+// so this require is safe both under the plugin loader (already loaded) and in
+// the standalone CLI test harness (loads only this file).
+require_once __DIR__ . '/analytics-derive.php';
+
+// Backfill discontinuity marker (Phase A spec §8): set by the owner-run
+// trailing-≤90d re-roll (Task 6) to the first day whose rows carry the exact
+// v5 metrics. Read by the summary path so a mixed legacy range can say WHY its
+// exact fields are null. Null (option unset) until the backfill has run.
+const SN_ANALYTICS_EXACT_SINCE_OPT = 'sn_analytics_exact_metrics_since';
+
 /**
  * Top pages over [$from,$to] for one class, with views-weighted scroll/time.
  *
@@ -65,8 +76,24 @@ function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
 }
 
 /**
- * Range totals for the stat cards: summed views/visits + views-weighted
- * scroll/time across all paths for one class.
+ * Range totals for the stat cards + the get-analytics-summary ability: summed
+ * views/visits + views-weighted scroll/time across all paths for one class,
+ * MERGED (Phase A spec §4) with the honest derived vocabulary — every
+ * sn_analytics_derive_metrics() field plus `exact_metrics_since` — beside the
+ * kept-deprecated legacy quartet (views/visits/scroll_avg/time_avg, untouched).
+ *
+ * Range aggregation is honest by construction: views, the four engagement
+ * sums/counts, `pageview_visits`, and `visits` (≡ unique visitor-DAYS) are all
+ * per-day additive units, so daily rows SUM across the range and the derive
+ * layer runs ONCE on the totals. Mixed-range rule: if ANY row in range lacks
+ * the v5 sums (legacy, pre-backfill), the exact engagement + gated fields are
+ * null for the whole range — SQL SUM() skips NULLs, and an honest null beats a
+ * silently partial denominator; `exact_metrics_since` says why. An EMPTY range
+ * is an ANSWER (zero traffic): real 0 counts, null ratios (never invent a rate
+ * from nothing). Day-boundary parity: this layer adds NO date math — it
+ * filters the stored `day` keys (rolled by the site-local-else-UTC boundary
+ * the rollup used) as inclusive Y-m-d strings, so it can never disagree with
+ * the rollup's boundary; callers own computing [$from,$to] in that same zone.
  *
  * Request-scope memo (D5 §5 perf): the header region
  * (inc/analytics-header-region.php:38), the insights band
@@ -77,7 +104,15 @@ function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
  * must force a fresh read within the same request (e.g. CLI/tests).
  *
  * @param bool $refresh Bypass and re-prime the memo for this key.
- * @return array{views:int, visits:int, scroll_avg:float, time_avg:float}
+ * @return array{
+ *     views:int, visits:int, scroll_avg:float, time_avg:float,
+ *     unique_visitor_days:int|null, pageview_visits:int|null,
+ *     viewless_visits:int|null, view_visit_ratio:float|null,
+ *     pageviews_per_visitor_day:float|null,
+ *     scroll_avg_per_view:float|null, time_avg_per_view:float|null,
+ *     scroll_avg_per_visit:float|null, time_avg_per_visit:float|null,
+ *     integrity_violation:bool, exact_metrics_since:string|null
+ * }
  */
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
@@ -93,11 +128,21 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
+	// COUNT(col) counts non-null rows only — exact_rows/gated_rows vs
+	// COUNT(*) is how the mixed-range rule detects legacy (pre-v5) rows.
 	$row = $wpdb->get_results( $wpdb->prepare(
 		"SELECT SUM(views)  AS views,
 		        SUM(visits) AS visits,
 		        SUM(scroll_avg * views) / NULLIF(SUM(views), 0) AS scroll_avg,
-		        SUM(time_avg  * views) / NULLIF(SUM(views), 0) AS time_avg
+		        SUM(time_avg  * views) / NULLIF(SUM(views), 0) AS time_avg,
+		        SUM(scroll_sum)        AS scroll_sum,
+		        SUM(scroll_events)     AS scroll_events,
+		        SUM(time_sum)          AS time_sum,
+		        SUM(time_events)       AS time_events,
+		        SUM(pageview_visits)   AS pageview_visits,
+		        COUNT(*)               AS row_count,
+		        COUNT(scroll_sum)      AS exact_rows,
+		        COUNT(pageview_visits) AS gated_rows
 		 FROM {$table}
 		 WHERE day >= %s AND day <= %s AND class = %s",
 		(string) $from,
@@ -105,14 +150,185 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 		$class
 	), ARRAY_A );
 
-	$r = ( is_array( $row ) && isset( $row[0] ) && is_array( $row[0] ) ) ? $row[0] : array();
-	$memo[ $key ] = array(
+	// Transport failure is NOT an answer (the realtime-zero-vs-null rule, read
+	// side): a FAILED $wpdb read leaves last_error set and an EMPTY result —
+	// indistinguishable from a real zero-traffic range without this check. On
+	// failure the NEW honest fields must all read null ("never measured"),
+	// never fabricated measured zeros; the legacy quartet keeps its
+	// long-standing zero shape (back-compat, deliberately unaltered). isset()
+	// keeps sibling test harnesses with minimal wpdb stubs warning-free; the
+	// real wpdb always declares last_error (reset per query).
+	$read_failed = isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error;
+	if ( $read_failed ) {
+		error_log( sprintf(
+			'[sn-analytics] range totals read failed for %s..%s class %s — %s — serving null derived fields (a transport failure is NOT an answer)',
+			(string) $from,
+			(string) $to,
+			$class,
+			(string) $wpdb->last_error
+		) );
+	}
+
+	$r = ( ! $read_failed && is_array( $row ) && isset( $row[0] ) && is_array( $row[0] ) ) ? $row[0] : array();
+
+	// Kept-deprecated legacy quartet — semantics UNALTERED (spec §4: nothing
+	// removed, nothing silently redefined). `?? 0` is correct HERE: these map
+	// NOT NULL columns, so a SQL NULL only ever means "zero rows in range" —
+	// and on a failed read the quartet has ALWAYS read zeros (kept as-is).
+	$legacy = array(
 		'views'      => (int) ( $r['views'] ?? 0 ),
 		'visits'     => (int) ( $r['visits'] ?? 0 ),
 		'scroll_avg' => (float) ( $r['scroll_avg'] ?? 0 ),
 		'time_avg'   => (float) ( $r['time_avg'] ?? 0 ),
 	);
+
+	$input   = sn_analytics_range_derive_input( $r, $legacy['views'], $legacy['visits'], $read_failed );
+	$derived = sn_analytics_derive_metrics( $input );
+	if ( ! $read_failed ) {
+		// Guard skipped on a failed read: with every input unknown there is no
+		// verdict to check and no payload worth recording (no alert churn).
+		sn_analytics_read_integrity_guard( $from, $to, $class, $input, $derived );
+	}
+
+	$memo[ $key ] = array_merge( $legacy, $derived, array(
+		'exact_metrics_since' => sn_analytics_exact_metrics_since(),
+	) );
 	return $memo[ $key ];
+}
+
+/**
+ * Build the sn_analytics_derive_metrics() input from the extended range-totals
+ * row — the null-discipline gate for range aggregation.
+ *
+ *   - Zero rows: an empty range is an ANSWER (zero traffic) — every count is a
+ *     REAL 0; the derive layer nulls the ratios (÷0). Never null a real 0.
+ *   - Mixed range (any row with NULL scroll_sum — legacy, pre-backfill): the
+ *     exact engagement + gated fields are null for the WHOLE range. SQL SUM()
+ *     skips NULLs, so the transported sums exist but are silently PARTIAL —
+ *     honest null beats a partial denominator. Never 0 a null.
+ *   - Gated-partial (engagement sums complete but some row's pageview_visits
+ *     is NULL — a gated-query-failed day): same rule, per family — the gated
+ *     fields null while exact engagement survives.
+ *   - FAILED read ($read_failed): a transport failure is NOT an answer — every
+ *     input is returned ABSENT (including views/visits, so the new vocabulary
+ *     never launders the legacy back-compat zeros into confident
+ *     unique_visitor_days/ratio values the read never measured) and the derive
+ *     layer nulls every derived field. Never the zero-rows branch's real 0s.
+ *
+ * @param array $r           Extended totals row (may be empty on a failed read).
+ * @param int   $views       Coerced legacy views total.
+ * @param int   $visits      Coerced legacy visits total (≡ unique visitor-days).
+ * @param bool  $read_failed The $wpdb read errored (last_error was set).
+ * @return array Derive-layer input (rollup column spellings).
+ */
+function sn_analytics_range_derive_input( $r, $views, $visits, $read_failed = false ) {
+	if ( $read_failed ) {
+		return array(); // every key absent ≡ "never measured" → all-null derive.
+	}
+
+	$rows  = (int) ( $r['row_count'] ?? 0 );
+	$exact = (int) ( $r['exact_rows'] ?? 0 );
+	$gated = (int) ( $r['gated_rows'] ?? 0 );
+
+	$input = array(
+		'views'  => $views,
+		'visits' => $visits,
+	);
+
+	if ( 0 === $rows ) {
+		return array_merge( $input, array(
+			'pageview_visits' => 0,
+			'scroll_sum'      => 0.0,
+			'scroll_events'   => 0,
+			'time_sum'        => 0.0,
+			'time_events'     => 0,
+		) );
+	}
+
+	$all_exact = ( $exact === $rows );
+	$all_gated = ( $gated === $rows );
+
+	// The transported sums pass through raw (wpdb numeric strings are fine —
+	// the derive layer normalizes); the gates above decide null vs value.
+	return array_merge( $input, array(
+		'scroll_sum'      => $all_exact ? ( $r['scroll_sum'] ?? null ) : null,
+		'scroll_events'   => $all_exact ? ( $r['scroll_events'] ?? null ) : null,
+		'time_sum'        => $all_exact ? ( $r['time_sum'] ?? null ) : null,
+		'time_events'     => $all_exact ? ( $r['time_events'] ?? null ) : null,
+		'pageview_visits' => ( $all_exact && $all_gated ) ? ( $r['pageview_visits'] ?? null ) : null,
+	) );
+}
+
+/**
+ * Read-side defensive integrity guard (Phase A spec §5) — mirrors the rollup
+ * guard: a human range with views < pageview_visits (both known) is
+ * arithmetically impossible, so surface it via error_log + the SAME
+ * sn_analytics_integrity_alert option the Health scan reads — and still serve
+ * the values UN-clamped. The alarm is the feature. Idempotent: the same
+ * violation (timestamp aside) never churns the option on repeat reads.
+ *
+ * @param string $from    Range start (Y-m-d).
+ * @param string $to      Range end (Y-m-d).
+ * @param string $class   Traffic class (side effect fires for 'human' only,
+ *                        matching the rollup guard's gate; the response still
+ *                        REPORTS integrity_violation honestly for any class).
+ * @param array  $input   Derive input (the range totals fed to the verdict).
+ * @param array  $derived Derive output (carries integrity_violation).
+ */
+function sn_analytics_read_integrity_guard( $from, $to, $class, $input, $derived ) {
+	if ( 'human' !== $class || true !== ( $derived['integrity_violation'] ?? false ) ) {
+		return;
+	}
+
+	// The option constant lives in inc/analytics-rollup.php (loaded before this
+	// file in production); the fallback literal keeps this module loadable
+	// standalone in the CLI test harness.
+	$opt     = defined( 'SN_ANALYTICS_INTEGRITY_ALERT_OPT' ) ? SN_ANALYTICS_INTEGRITY_ALERT_OPT : 'sn_analytics_integrity_alert';
+	$payload = array(
+		'time'            => time(),
+		'scope'           => 'read-range',
+		'from'            => (string) $from,
+		'to'              => (string) $to,
+		'class'           => (string) $class,
+		'views'           => (int) $input['views'],
+		'pageview_visits' => (int) $input['pageview_visits'],
+	);
+
+	$existing = get_option( $opt );
+	if ( is_array( $existing ) ) {
+		$prev = $existing;
+		$next = $payload;
+		unset( $prev['time'], $next['time'] );
+		ksort( $prev );
+		ksort( $next );
+		if ( $prev === $next ) {
+			return; // same violation already recorded — don't churn the option.
+		}
+	}
+
+	error_log( sprintf(
+		'[sn-analytics] integrity violation: views < pageview_visits for range %s..%s class %s (%d < %d) — read-side defensive guard, values served unmodified',
+		$payload['from'],
+		$payload['to'],
+		$payload['class'],
+		$payload['views'],
+		$payload['pageview_visits']
+	) );
+	update_option( $opt, $payload, false );
+}
+
+/**
+ * The exact-metrics discontinuity date (Phase A spec §8), or null.
+ *
+ * Null means "the trailing-≤90d backfill has not run" — callers must render
+ * that as unknown, never as a fabricated date. A malformed option value is
+ * treated the same (fail toward honesty).
+ *
+ * @return string|null Y-m-d, or null when unset/malformed.
+ */
+function sn_analytics_exact_metrics_since() {
+	$since = get_option( SN_ANALYTICS_EXACT_SINCE_OPT );
+	return ( is_string( $since ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $since ) ) ? $since : null;
 }
 
 /**

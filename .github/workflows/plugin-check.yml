@@ -73,10 +73,13 @@ jobs:
           # Dev/test trees that are not shipped runtime code (mirrors
           # security-review.yml's exclusions). tests/ is standalone fixtures that
           # stub WP functions and would emit irrelevant escaping/function findings.
+          # tools/ is owner-run `wp eval-file` CLI (raw echo, not HTML) and is
+          # export-ignored via .gitattributes — never present in the shipped zip.
           exclude-directories: |
             vendor
             node_modules
             tests
+            tools
           # phpstan-bootstrap.php is dev-only PHPStan tooling (referenced by
           # phpstan.neon `bootstrapFiles`, NEVER loaded by WordPress). Its whole
           # job is `defined('ABSPATH') || define('ABSPATH', '/')`, so the

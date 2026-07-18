@@ -380,6 +380,52 @@ ae_reset();
 $GLOBALS['__ae_wp_error_mode'] = true;
 ok( sn_analytics_probe() === false, 'probe: false when query returns null (WP_Error)' );
 
+// ── Row-cap truncation flag (adversarial finding 3) ───────────────────────────
+// AE responses carry {rows, rows_before_limit_at_least}: when the latter
+// exceeds the former the result set was ROW-CAP TRUNCATED — the returned rows
+// are real but the set is INCOMPLETE, so any "absent = zero" reasoning over it
+// (the gated pageview_visits merge) is invalid. The flag is request-scoped,
+// re-recorded on EVERY call, and false on every failure path (a null return
+// already carries no completeness claim).
+echo "\nGroup: row-cap truncation flag (sn_analytics_last_result_truncated)\n";
+ok( function_exists( 'sn_analytics_last_result_truncated' ), 'truncation: sn_analytics_last_result_truncated() exists' );
+
+ae_reset();
+$GLOBALS['__ae_mock_code'] = 200;
+$GLOBALS['__ae_mock_body'] = json_encode( array(
+	'meta' => array( array( 'name' => 'pageview_visits', 'type' => 'UInt64' ) ),
+	'data' => array( array( 'day' => '2026-07-15', 'path' => '/', 'class' => 'human', 'pageview_visits' => '4' ) ),
+	'rows' => 1,
+	'rows_before_limit_at_least' => 5,
+) );
+$result = sn_analytics_query( 'SELECT 1' );
+ok( is_array( $result ) && 1 === count( $result ), 'truncation: a truncated 200 still returns its (real) rows' );
+ok( true === sn_analytics_last_result_truncated(), 'truncation: rows_before_limit_at_least (5) > rows (1) → flagged TRUE' );
+
+$GLOBALS['__ae_mock_body'] = json_encode( array(
+	'meta' => array(),
+	'data' => array( array( 'n' => 1 ), array( 'n' => 2 ) ),
+	'rows' => 2,
+	'rows_before_limit_at_least' => 2,
+) );
+sn_analytics_query( 'SELECT 1' );
+ok( false === sn_analytics_last_result_truncated(), 'truncation: rows === rows_before_limit_at_least → complete → FALSE' );
+
+// Counters absent (the pre-pinned $AE_GOOD_BODY shape) → no evidence → false.
+$GLOBALS['__ae_mock_body'] = $AE_GOOD_BODY;
+sn_analytics_query( 'SELECT 1' );
+ok( false === sn_analytics_last_result_truncated(), 'truncation: envelope without counters → no truncation evidence → FALSE' );
+
+// A failure RESETS a stale truncated verdict — the flag always describes the
+// LAST call, never a previous response.
+$GLOBALS['__ae_mock_body'] = json_encode( array( 'meta' => array(), 'data' => array(), 'rows' => 0, 'rows_before_limit_at_least' => 9 ) );
+sn_analytics_query( 'SELECT 1' );
+ok( true === sn_analytics_last_result_truncated(), 'truncation: seeded a truncated verdict (0 returned of ≥9)' );
+$GLOBALS['__ae_mock_code'] = 401;
+$GLOBALS['__ae_mock_body'] = '{"errors":[{"code":10000,"message":"Authentication error"}]}';
+sn_analytics_query( 'SELECT 1' );
+ok( false === sn_analytics_last_result_truncated(), 'truncation: a failed call (401 → null) resets the flag to FALSE' );
+
 // ── Site timezone name (AE tz-aware bucketing, v9.26.4) ───────────────────────
 echo "\nGroup: sn_analytics_site_tz_name\n";
 $GLOBALS['__ae_tz_string'] = 'America/New_York';

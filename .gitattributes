@@ -3,6 +3,7 @@
 # never belongs inside wp-content/plugins on a live install. Repo contents are unaffected.
 # v9.42.0 (S2 §7): tests/ alone was 3.1 MB of the 7.6 MB tracked tree — bigger than inc/.
 tests/            export-ignore
+tools/            export-ignore
 .github/          export-ignore
 docs/             export-ignore
 CHANGELOG.md      export-ignore

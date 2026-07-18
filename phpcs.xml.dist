@@ -21,6 +21,12 @@
 	<file>.</file>
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
+	<!-- tools/ holds owner-run `wp eval-file` dev tools (never bundled — tools/
+	     is export-ignored like tests/; never registered by the loader; never in
+	     the CI test sweep, which globs tests/*.php only). They echo raw CLI
+	     diagnostics by design, so WPCS escaping sniffs are noise here — same
+	     rationale as the tests/ exclusion above. -->
+	<exclude-pattern>*/tools/*</exclude-pattern>
 	<exclude-pattern>*/assets/*</exclude-pattern>
 	<exclude-pattern>*/seed-content/*</exclude-pattern>
 	<exclude-pattern>*/.git/*</exclude-pattern>
