@@ -67,12 +67,14 @@ const SN_OVERVIEW_PRIOR_LIMIT = 50;
 /**
  * PART A (v9.68.0 part 4): one panel-header doorway to a full tab. Built
  * EXACTLY like the tab strip's links (snt_analytics_render_view_tabs): the
- * same base — current URL minus the window/view/view-local params, with
- * sn_compare deliberately NOT stripped so the active compare mode rides along
- * — the same sn_view param, and the same snt_analytics_window_args() carry
- * (sn_range + sn_class; sn_from/sn_to for custom ranges only). The label is
- * the target tab's registry label, so the doorway reads exactly like the tab
- * it opens (the v9.65.0 slug/label split honored: 'visits' renders "Sessions").
+ * same base — current URL minus the SHARED reset list
+ * (snt_analytics_view_reset_params(), the one source of truth both builders
+ * consume since review 2, F2; sn_compare deliberately not in it, so the
+ * active compare mode rides along) — the same sn_view param, and the same
+ * snt_analytics_window_args() carry (sn_range + sn_class; sn_from/sn_to for
+ * custom ranges only). The label is the target tab's registry label, so the
+ * doorway reads exactly like the tab it opens (the v9.65.0 slug/label split
+ * honored: 'visits' renders "Sessions").
  *
  * @since 9.68.0
  * @param string     $slug  Target view slug.
@@ -92,7 +94,9 @@ function snt_analytics_overview_tab_doorway( $slug, $label, $range, $class, $fro
 			$label = (string) $views[ $slug ];
 		}
 	}
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ), add_query_arg( array() ) );
+	$base = function_exists( 'snt_analytics_view_reset_params' )
+		? remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )
+		: ''; // partial harness without analytics-admin.php — fall through to the canonical route.
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}
@@ -436,9 +440,14 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 			'sub'      => sprintf( __( '%d rolled-up days', 'signal-and-noise-tools' ), (int) $kpis['days'] ),
 		),
 		array(
-			'l'   => __( 'Bounce', 'signal-and-noise-tools' ),
-			'n'   => number_format_i18n( (float) $kpis['bounce_pct'], 1 ) . '%',
-			'sub' => __( 'single-page sessions · weighted', 'signal-and-noise-tools' ),
+			'l'         => __( 'Bounce', 'signal-and-noise-tools' ),
+			'n'         => number_format_i18n( (float) $kpis['bounce_pct'], 1 ) . '%',
+			'sub'       => __( 'single-page sessions · weighted', 'signal-and-noise-tools' ),
+			// The ONE lower-is-better KPI in this strip (review 2, F1): its chip
+			// colors by sentiment — rising bounce = red ▲, falling = green ▼.
+			// Sessions/pages-per-session/median-duration are up-is-good (audited)
+			// and keep the default direction colors.
+			'sentiment' => 'down_good',
 		),
 		array(
 			'l'   => __( 'Pages / session', 'signal-and-noise-tools' ),

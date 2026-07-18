@@ -126,6 +126,10 @@
 }
 .sn-delta-down { color: var(--sn-an-down); }
 .sn-delta-up   { color: var(--sn-an-up); }
+/* Sentiment classes (v9.68.0 review 2, F1): a lower-is-better KPI (bounce)
+   colors by whether the CHANGE is good — the arrow keeps the real direction. */
+.sn-delta-good { color: var(--sn-an-up); }
+.sn-delta-bad  { color: var(--sn-an-down); }
 .sn-delta-flat { color: #646970; font-weight: 400; }
 .sn-delta-arrow { font-size: 11px; vertical-align: middle; }
 

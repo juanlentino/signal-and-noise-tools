@@ -37,6 +37,33 @@ echo "\nGroup: snt_an_delta_badge — inline variant\n";
 $h = cap( function () { snt_an_delta_badge( array( 'pct' => -8, 'dir' => 'down' ) ); } );
 ok( false !== strpos( $h, 'sn-an-delta sn-an-delta--down' ) && false !== strpos( $h, '-8%' ), 'inline down: legacy classes + signed pct (default variant)' );
 
+echo "\nGroup: snt_an_delta_badge — sentiment opt (v9.68.0 review 2, F1: lower-is-better metrics)\n";
+// down_good decouples COLOR from direction: the arrow + sign keep the real
+// direction, the class says whether the change is GOOD. Both directions
+// value-pinned (class + arrow + sign).
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => 23, 'dir' => 'up', 'previous' => 50 ), array( 'variant' => 'kpi', 'sentiment' => 'down_good' ) ); } );
+ok( false !== strpos( $h, 'sn-kpi-delta sn-delta-bad' ) && false === strpos( $h, 'sn-delta-up' ), 'sentiment down_good + dir up: BAD class, never the green up class' );
+ok( false !== strpos( $h, '▲' ) && false !== strpos( $h, '+23%' ), 'sentiment down_good + dir up: arrow + sign still show the REAL direction (▲ +23%)' );
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => -23, 'dir' => 'down', 'previous' => 80 ), array( 'variant' => 'kpi', 'sentiment' => 'down_good' ) ); } );
+ok( false !== strpos( $h, 'sn-kpi-delta sn-delta-good' ) && false === strpos( $h, 'sn-delta-down' ), 'sentiment down_good + dir down: GOOD class, never the red down class' );
+ok( false !== strpos( $h, '▼' ) && false !== strpos( $h, '-23%' ), 'sentiment down_good + dir down: arrow + sign still show the REAL direction (▼ -23%)' );
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => 0, 'dir' => 'flat' ), array( 'variant' => 'kpi', 'sentiment' => 'down_good' ) ); } );
+ok( false !== strpos( $h, 'sn-delta-flat' ) && false !== strpos( $h, '■' ), 'sentiment down_good + flat: stays the neutral flat class' );
+// Default pin: every existing caller is unchanged — omitted sentiment and
+// explicit 'up_good' are byte-identical, and both keep the legacy classes.
+$h_default = cap( function () { snt_an_delta_badge( array( 'pct' => 12, 'dir' => 'up', 'previous' => 1000 ), array( 'variant' => 'kpi' ) ); } );
+$h_upgood  = cap( function () { snt_an_delta_badge( array( 'pct' => 12, 'dir' => 'up', 'previous' => 1000 ), array( 'variant' => 'kpi', 'sentiment' => 'up_good' ) ); } );
+ok( $h_default === $h_upgood && false !== strpos( $h_default, 'sn-delta-up' ), 'sentiment default: omitted === explicit up_good, byte-identical legacy output (every existing caller unchanged)' );
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => 12, 'dir' => 'up' ), array( 'variant' => 'kpi', 'sentiment' => 'bogus' ) ); } );
+ok( false !== strpos( $h, 'sn-delta-up' ) && false === strpos( $h, 'sn-delta-bad' ), 'sentiment: an unknown value falls back to up_good (whitelist discipline)' );
+// Scope pin: the inline variant's ONE class is the direction marker consumed by
+// existing CSS — sentiment is a kpi-variant option and inline ignores it.
+$h = cap( function () { snt_an_delta_badge( array( 'pct' => 8, 'dir' => 'up' ), array( 'sentiment' => 'down_good' ) ); } );
+ok( false !== strpos( $h, 'sn-an-delta sn-an-delta--up' ) && false === strpos( $h, 'sn-delta-bad' ), 'sentiment: the inline variant ignores it (its class IS the direction marker)' );
+// The row loop forwards a per-card sentiment to the badge (the Bounce KPI's seam).
+$h = cap( function () { snt_an_kpi_row( array( array( 'l' => 'Bounce', 'n' => '61.4%', 'delta' => array( 'pct' => 23, 'dir' => 'up' ), 'sentiment' => 'down_good' ) ) ); } );
+ok( false !== strpos( $h, 'sn-delta-bad' ) && false !== strpos( $h, '▲' ), 'kpi row: a card-level sentiment key reaches the badge (rising bounce = red ▲)' );
+
 echo "\nGroup: snt_an_kpi_row — the ONE card loop\n";
 $cards = array(
 	array( 'l' => 'Views', 'n' => '1,234', 'delta' => array( 'pct' => 5, 'dir' => 'up' ), 'promoted' => true ),

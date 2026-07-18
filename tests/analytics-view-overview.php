@@ -711,6 +711,25 @@ ok( 'custom' === ( $qc['sn_range'] ?? '' ) && '2026-07-11' === ( $qc['sn_from'] 
 	'doorways: a custom range carries sn_from/sn_to exactly as the tab strip does (dates ARE the token there)' );
 ok( strpos( $css, '.sn-an-head-link' ) !== false, 'doorways: the head-link class exists in the enqueued stylesheet' );
 
+echo "\nGroup: doorway base — ONE reset list shared with the tab strip (review 2, F2)\n";
+// The 8-param strip list was duplicated verbatim between the tab strip
+// (inc/analytics-admin.php) and the doorway builder — a drift hazard: a future
+// param added to one silently diverges the other. ONE helper now owns it;
+// both call sites are source-pinned to consume it, and the literal list is
+// pinned to live exactly ONCE (inside the helper), so the drift class is
+// structurally dead.
+ok( function_exists( 'snt_analytics_view_reset_params' )
+	&& array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ) === snt_analytics_view_reset_params(),
+	'reset params: the shared helper returns the tab strip\'s exact 8-param strip list (sn_compare deliberately absent — compare rides along)' );
+$rp_view_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
+$rp_adm_src  = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+ok( strpos( $rp_view_src, 'remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )' ) !== false,
+	'parity: the doorway builder consumes the shared helper (source pin)' );
+ok( strpos( $rp_adm_src, 'remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )' ) !== false,
+	'parity: the tab strip consumes the SAME helper (source pin)' );
+ok( 1 === substr_count( $rp_adm_src, "'sn_lg_range'" ) && false === strpos( $rp_view_src, "'sn_lg_range'" ),
+	'parity: the reset-list literal lives exactly ONCE — inside the helper; neither call site carries its own copy' );
+
 echo "\nGroup: PART B — compare window derivation (the shared card's helpers, reused)\n";
 ok( array( '2026-07-04', '2026-07-10' ) === snt_analytics_compare_window( '2026-07-11', '2026-07-17', 'prev' ),
 	'derivation: prev = the adjacent same-length window (the REAL snt_analytics_compare_window — never reimplemented)' );
@@ -747,6 +766,36 @@ ok( strpos( $html_p, 'title="previous period: 60"' ) !== false && strpos( $html_
 ok( 4 === substr_count( $html_p, 'title="previous period:' ), 'kpi chips: exactly four — one per KPI, none invented elsewhere' );
 ok( strpos( $html_p, '3 rolled-up days' ) === false && strpos( $html_p, 'single-page sessions · weighted' ) === false,
 	'kpi chips: the delta slot REPLACES the static descriptor while compare is on (the primitive\'s live>delta>sub precedence — the shared card\'s exact behavior)' );
+
+echo "\nGroup: bounce is lower-is-better — the chip colors by sentiment, arrows by direction (review 2, F1)\n";
+// Bounce is the FIRST lower-is-better metric to wear a delta chip: a RISING
+// bounce must be a RED chip with a real ▲ (never a green "improvement"), a
+// FALLING one a GREEN chip with ▼. Full-string pins, both directions, plus an
+// up-is-good control (Sessions) proving the other three KPIs keep direction
+// colors. $html_p above: bounce 61.4% vs prior 50 → rising.
+ok( strpos( $html_p, '<span class="sn-kpi-delta sn-delta-bad" title="previous period: 50"><span class="sn-delta-arrow">▲</span> +23%</span>' ) !== false,
+	'bounce rising: red BAD chip, real ▲ arrow, signed +23% (full-string pin)' );
+ok( strpos( $html_p, 'sn-delta-up" title="previous period: 50"' ) === false,
+	'bounce rising: the green up class never touches the bounce chip' );
+ok( strpos( $html_p, '<span class="sn-kpi-delta sn-delta-up" title="previous period: 40"><span class="sn-delta-arrow">▲</span> +10%</span>' ) !== false,
+	'control: Sessions (up-is-good) keeps the green ▲ +10% chip untouched' );
+// Falling bounce: re-seed the prior rollup at weighted bounce 80 (sessions 40,
+// ppv 1.5, median 60 unchanged) → 61.4 vs 80 = ▼ -23%, GOOD.
+ov_seed_current();
+ov_seed_priors();
+$GLOBALS['__ov']['session_rollup']['2026-07-04|2026-07-10'] = array(
+	array( 'day' => '2026-07-04', 'visits' => 20, 'bounce_pct' => 80.0, 'ppv' => 1.25, 'median_dur' => 50 ),
+	array( 'day' => '2026-07-10', 'visits' => 20, 'bounce_pct' => 80.0, 'ppv' => 1.75, 'median_dur' => 70 ),
+);
+$html_bf = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( strpos( $html_bf, '<span class="sn-kpi-delta sn-delta-good" title="previous period: 80"><span class="sn-delta-arrow">▼</span> -23%</span>' ) !== false,
+	'bounce falling: green GOOD chip, real ▼ arrow, signed -23% (full-string pin)' );
+ok( strpos( $html_bf, 'sn-delta-down" title="previous period: 80"' ) === false,
+	'bounce falling: the red down class never touches the bounce chip' );
+ok( 3 === substr_count( $html_bf, 'sn-delta-up' ) && 1 === substr_count( $html_bf, 'sn-delta-good' ) && 0 === substr_count( $html_bf, 'sn-delta-bad' ),
+	'audit: sessions/ppv/median-duration stay up-is-good (three direction-colored up chips) — bounce is the only sentiment-colored KPI' );
+ok( strpos( $css, '.sn-delta-good' ) !== false && strpos( $css, '.sn-delta-bad' ) !== false,
+	'css: the good/bad sentiment classes exist in the enqueued stylesheet (the badge CSS idiom)' );
 
 echo "\nGroup: PART B — per-row mini-table chips (rows matched by dimension key)\n";
 ok( strpos( $html_p, 'data-colname="Views">11 <span class="sn-an-delta sn-an-delta--up">▲ +120%</span></td>' ) !== false,

@@ -116,6 +116,23 @@ function snt_analytics_view_owns_chrome( $view ) {
 }
 
 /**
+ * THE view-reset param list (v9.68.0 review 2, F2): the window/view/view-local
+ * params a tab-switch strips from the current URL before re-adding its own
+ * carry. ONE source of truth — the tab strip below AND the Overview doorway
+ * builder (snt_analytics_overview_tab_doorway, which builds its hrefs exactly
+ * like tab links) both consume it, so a future param cannot silently diverge
+ * the two lists (parity-pinned at the source level).
+ *
+ * sn_compare is deliberately ABSENT: the active compare mode rides along.
+ *
+ * @since 9.68.0
+ * @return string[]
+ */
+function snt_analytics_view_reset_params() {
+	return array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' );
+}
+
+/**
  * Render the WP-native tab strip for the dashboard views. Each tab link is the
  * current page with sn_view set + the active sn_range/sn_class preserved, so
  * switching tabs keeps the window + class filter. Mirrors the SN top-tab nav
@@ -132,7 +149,7 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 	// matching table (the panel render is also dim/view-gated as a backstop). This is
 	// the ONE reset point in the param-carry matrix (v9.39.0 D3) — every other builder
 	// preserves these across window/class/compare changes.
-	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ), add_query_arg( array() ) );
+	$base = remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
 		$base = admin_url( 'index.php?page=sn-analytics' );
 	}

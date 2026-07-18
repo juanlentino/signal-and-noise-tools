@@ -240,8 +240,17 @@ function snt_analytics_tier_badge( $tier ) {
  * 'inline' (default) = the legacy annotation style (.sn-an-delta--dir).
  * Colors come from --sn-an-up/--sn-an-down only. Silent no-op on bad input.
  *
+ * 'sentiment' (kpi variant only; v9.68.0 review 2, F1) decouples the COLOR
+ * class from the arrow for lower-is-better metrics: 'down_good' maps
+ * up→.sn-delta-bad / down→.sn-delta-good (a rising bounce is a RED chip with a
+ * real ▲ — never a green "improvement"); the 'up_good' default keeps the
+ * legacy direction classes byte-identically, so every existing caller is
+ * unchanged. The inline variant ignores it — its one class IS the direction
+ * marker existing CSS consumes.
+ *
  * @param array|null $delta {pct:?int, dir:string, previous?:numeric}
- * @param array      $opts  {variant?:'inline'|'kpi', basis_label?:string}
+ * @param array      $opts  {variant?:'inline'|'kpi', basis_label?:string,
+ *                          sentiment?:'up_good'|'down_good'}
  */
 function snt_an_delta_badge( $delta, $opts = array() ) {
 	if ( ! is_array( $delta ) || ! isset( $delta['dir'] ) ) {
@@ -254,7 +263,12 @@ function snt_an_delta_badge( $delta, $opts = array() ) {
 		? ( 'up' === $dir ? 'new' : '—' )
 		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
 	if ( 'kpi' === ( $opts['variant'] ?? 'inline' ) ) {
-		$cls        = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );
+		$cls = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );
+		if ( 'down_good' === ( $opts['sentiment'] ?? 'up_good' ) ) {
+			// Lower is better: color says whether the CHANGE is good; the
+			// arrow above keeps the real direction untouched.
+			$cls = 'up' === $dir ? 'sn-delta-bad' : ( 'down' === $dir ? 'sn-delta-good' : 'sn-delta-flat' );
+		}
 		$prev_title = '';
 		if ( isset( $delta['previous'] ) && is_numeric( $delta['previous'] ) ) {
 			$prev        = (float) $delta['previous'];
@@ -275,8 +289,10 @@ function snt_an_delta_badge( $delta, $opts = array() ) {
  * l (label), n (value), promoted?, live?, delta? (badge array), sub? (flat
  * descriptor), sub_class? (CSS class for the sub descriptor; default
  * 'sn-delta-flat' — lets a clone color its text descriptor, e.g. sn-delta-down,
- * without needing a real {pct,dir} delta). Slot precedence live > delta > sub >
- * default. Malformed cards are skipped silently.
+ * without needing a real {pct,dir} delta), sentiment? ('up_good' default |
+ * 'down_good' — forwarded to the badge so a lower-is-better KPI's chip colors
+ * by goodness, not direction; v9.68.0 review 2, F1). Slot precedence live >
+ * delta > sub > default. Malformed cards are skipped silently.
  *
  * @param array $cards
  * @param array $opts {empty_slot?:'no-change'|'omit', row_class?:string, basis_label?:string}
@@ -293,7 +309,7 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
 		if ( ! empty( $c['live'] ) ) {
 			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
 		} elseif ( ! empty( $c['delta'] ) ) {
-			snt_an_delta_badge( $c['delta'], array( 'variant' => 'kpi', 'basis_label' => (string) ( $opts['basis_label'] ?? '' ) ) );
+			snt_an_delta_badge( $c['delta'], array( 'variant' => 'kpi', 'basis_label' => (string) ( $opts['basis_label'] ?? '' ), 'sentiment' => (string) ( $c['sentiment'] ?? 'up_good' ) ) );
 		} elseif ( isset( $c['sub'] ) && '' !== (string) $c['sub'] ) {
 			echo '<span class="sn-kpi-delta ' . esc_attr( (string) ( $c['sub_class'] ?? 'sn-delta-flat' ) ) . '">' . esc_html( (string) $c['sub'] ) . '</span>';
 		} elseif ( 'omit' !== ( $opts['empty_slot'] ?? 'no-change' ) ) {
