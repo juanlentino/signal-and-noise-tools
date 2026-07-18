@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.65.0] - 2026-07-18: Session trends served, integrity alert wired to Health, sessions vs visitor-days disambiguated
+
+Three parts from the 2026-07-18 dashboard audit.
+
+### Part 1 — the dormant durable session rollup gets its reader
+
+`wp_sn_session_daily` (written nightly by `sn_session_rollup_run()` since v8.8.0 for "long-term trend lines beyond AE's ~90-day raw retention") was read by NOTHING — a table of trend data and no trend.
+
+- **Added `sn_session_rollup_read( $from, $to, $class )`** (`inc/analytics-session-rollup.php`): day-ascending typed per-day rows `{day, visits:int, bounce_pct:float, ppv:float, median_dur:int}`. Null discipline throughout: absent days stay ABSENT (a night the cron skipped is "not measured", never a fabricated 0-row); an empty result is a real `[]` answer; a failed query or invalid input returns `null` — unknown is not an empty window. wpdb transports every column as a numeric STRING; the accessor re-types deliberately, and the test stub models that exact transport transform (all-string associative rows). Day keys follow the WRITER's convention (UTC `gmdate('Y-m-d')` — read before written).
+- **Added the "Session quality trend" panel** to the Visits tab (`inc/analytics-view-sessions.php`): three sparklines (bounce %, pages/session, median duration) over the rolled-up days in the selected window, all through the existing `snt_an_*` primitives (`snt_an_panel_open`/`snt_an_trend_svg` with distinct gradient ids) — no new JS, no new CSS, LIGHT-ONLY. Four honest states: read failed → empty-fold "could not be read" (not "no data"); zero rolled-up days → fold with why; one day → fold saying a trend needs two points; ≥2 days → the panel, with the axis spanning the first..last ROLLED-UP day and the note stating how many days actually rolled up, so cron gaps stay visible. The unit line is explicit per Part 3: "within-day sessions … a different unit from the Overview headline's visitor-day Visits."
+- Legacy `snt_analytics_render_summary_panels()` callers (no 6th arg) render byte-identically — pinned.
+
+### Part 2 — Phase A's P0.4 closed for real: the integrity alert gets its reader
+
+`sn_analytics_integrity_alert` (written by the never-invert guard, rollup + read side, since v9.63.0) had NO consumer — `inc/analytics-read.php`'s docblock claimed "the Health scan reads it", which was false; the guard alarmed into a void.
+
+- **New 12th Content-Health check** (`inc/health-analytics-integrity.php`, registered in `sn_health_run_scan()` — the "N/N checks passed" widget and `get-health-scan` ability inherit it automatically via `checks_total`): option absent → check passes ("no violations recorded"); option present → check FLAGS, surfacing the stored timestamped payload — the inverted values (`views < pageview_visits`, e.g. "2 < 5"), the scope (rollup shape: day + path; read shape: from..to range), and the age.
+- **Staleness handled honestly:** a violation record NEVER auto-expires — a 30-day-old record still flags, and the finding says "last violation 30d ago (Y-m-d H:i UTC)" rather than pretending none happened; a payload without a timestamp reads "unknown time", never a fabricated age. Clearing is the owner's explicit call (`wp option delete sn_analytics_integrity_alert`) after investigating; the check itself is strictly read-only (pinned: it never mutates the option).
+- Pure findings builder (`sn_health_analytics_integrity_findings`, clock injected) handles both writer payload shapes; detection-only (not in the AI-suggest set, like the CF-headers/edge-workers checks).
+- Docblocks corrected to match reality: `inc/analytics-read.php` + `inc/analytics-rollup.php` now name the real consumer instead of a phantom "Health surface".
+
+### Part 3 — the units collision killed by LABELING (no metric changed)
+
+One dashboard, one word "Visits", two units: the tab's number is pv-gated within-day SESSIONS (live session engine), the shared Overview headline's "Visits" is gated visitor-DAYS (durable, v9.64.0) — which undid the honest-naming goal on its own surface.
+
+- **Tab label** `SN_ANALYTICS_VIEWS['visits']`: "Visits" → **"Sessions"**. The SLUG stays `visits` — dispatch, drilldown links, and `?sn_view=` key on it (verified by grep; renaming the label is free, renaming the slug is not). Pinned in tests both ways (label = Sessions, slug unchanged).
+- **Panel + KPI headings speak sessions**: "Visit quality" → "Session quality"; KPI cards "Visits" → "Sessions", "single-page visits" → "single-page sessions", "Pages / visit" → "Pages / session", "per visit" → "per session"; the AE gate and empty states follow. One-line unit note in the panel header: "within-day sessions · reset at UTC midnight — a different unit from the Overview headline's visitor-day Visits." The Part-1 trend panel already carries the same explicit unit.
+- **Ability wording tightened additively** (`get-analytics-summary` description): a parenthetical now states the wp-admin Sessions tab is a third unit (within-day sessions, live session engine) that no response field carries — no schema field renamed.
+- Version 9.64.2 → 9.65.0 (MINOR: new user-visible capabilities — the trend panel + the 12th health check).
+
+### Fixed (pre-merge review)
+
+Six findings from the adversarial pre-merge review of this release, all fixed RED→GREEN before merge.
+
+- **`sn_session_rollup_read()` served a failed query as an honest-empty window** (HIGH, F1+F2 — one root: the wpdb failure shape). Real `wpdb::get_results( $sql, ARRAY_A )` returns `array()` on a FAILED query with `$wpdb->last_error` set — `null` only when `prepare()` failed and the query string was falsy — so a missing/corrupt `wp_sn_session_daily` table made the trend panel render the honest-empty "no rolled-up days" state instead of the designed "could not be read" state. The accessor now consults `$wpdb->last_error` after the read (non-empty → `null`), keeping the falsy-query guard. The test stub's "wpdb returns null on a failed query" comment was FALSE and fabricated that transform; it now models reality (failure → `last_error` set + `[]` returned), and the converse is pinned: an empty result WITH an empty `last_error` stays a real `[]` — empty is an answer. *A stub for a transport must model the transport's transform.*
+- **A corrupt integrity-alert record no longer passes green** (MEDIUM, F3): a PRESENT-but-non-array `sn_analytics_integrity_alert` (mangled import, serialized garbage) hit `! is_array()` and returned "no violations recorded" — the alarm's only reader failing toward silence, contradicting its own docblock matrix. `get_option`'s `false` default now separates absent (pass) from corrupt (FLAG: "integrity alert record present but unreadable (corrupt) — investigate; clear with `wp option delete sn_analytics_integrity_alert`"). The test pin of the silent pass is inverted.
+- **No more fabricated "(0 < 0)" evidence** (LOW, F4): the integrity finding's `?? 0` defaults invented values when a payload lacked `views`/`pageview_visits`; absent keys now render "unknown" (e.g. "(views unknown, pageview_visits unknown)") via `array_key_exists` — mirroring the timestamp path's honesty. Value-pinned, including the one-sided case.
+- **Stale "Visits view" display copy → "Sessions view"** (LOW, F5): two funnel help strings (`inc/analytics-render-settings.php`) and the `analytics_funnels_saved` flash message (`inc/admin-flash-messages.php`) still named the tab's pre-Part-3 label. Display copy only — slugs/IDs untouched, per the Part 3 contract.
+- **Trend-panel docblock no longer overstates gap visibility** (LOW, F6): `snt_an_trend_svg` positions points by array index, so cron gaps DO compress positionally on the sparkline; the docblock now says gap visibility rests on the axis endpoints + the day-count note, matching the actual render. No code change.
+
 ## [9.64.2] - 2026-07-18: The digest learns to write — plain-prose voice contract + markdown stripping
 
 v9.64.1 fixed the digest's FACTS; the owner's live screenshot (2026-07-18 07:30, plugin 9.64.1 installed) showed the result was **correct but unreadable**: the insights band opened with a literal "**Weekly Analytics Digest**" (raw markdown rendered as text, asterisks visible in both the collapsed band and the expanded panel), and the prose read like a stats appendix — "(3.7σ-robust, medium confidence)", "backtest 99% in-interval", "high backtest reliability (99% and 98% in-interval respectively)", "the point estimate is effectively flat/near-zero, but the interval leaves room for meaningful variation". Every one of those figures is ALREADY rendered by the deterministic signal chips + the transparency footer directly below the digest — the prose was duplicating the machinery instead of summarizing the week. This release changes VOICE only; every v9.64.1 vocabulary + structural-not-anomaly rule is kept intact (pinned).

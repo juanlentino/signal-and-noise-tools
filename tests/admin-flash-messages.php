@@ -140,7 +140,7 @@ fm_eq( false, isset( $static['narration_generated'] ), 'R2: narration_generated 
 fm_eq( false, false !== strpos( $static['release_notes_failed'][1], 'AI provider is configured' ), 'release_notes_failed copy no longer blames AI config' );
 
 echo "\nTest 7: analytics_funnels static codes (S2 §3)\n";
-fm_eq( array( 'success', 'Session funnels saved. The Visits view reflects them on the next load.' ), sn_admin_flash_to_notice( 'analytics_funnels_saved' ), 'analytics_funnels_saved' );
+fm_eq( array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ), sn_admin_flash_to_notice( 'analytics_funnels_saved' ), 'analytics_funnels_saved' );
 fm_eq( array( 'error', 'Session funnels could not be saved — try again.' ), sn_admin_flash_to_notice( 'analytics_funnels_failed' ), 'analytics_funnels_failed' );
 
 echo "\nTest 8: analytics_funnels_invalid prefix branch (S2 §3 + T2-review hardening)\n";

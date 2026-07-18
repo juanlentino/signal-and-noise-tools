@@ -75,10 +75,11 @@ snt_analytics_render_summary_panels(
 );
 $out = ob_get_clean();
 ok( is_string( $out ), 'render produced output without fatal' );
-// D4 §4: a dataless Visit-quality panel now folds instead of opening a postbox
-// with an inline empty message — no visits this range means no postbox at all.
-ok( false === strpos( $out, 'postbox' ), 'no visits: no .postbox panel emitted (folds instead, D4 §4)' );
-ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Visit quality' ), 'no visits: title survives into the empty fold' );
+// D4 §4: a dataless Session-quality panel now folds instead of opening a postbox
+// with an inline empty message — no sessions this range means no postbox at all.
+ok( false === strpos( $out, 'postbox' ), 'no sessions: no .postbox panel emitted (folds instead, D4 §4)' );
+ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Session quality' ), 'no sessions: title survives into the empty fold (v9.65.0 sessions naming)' );
+ok( false !== strpos( $out, 'No sessions in this range yet.' ), 'no sessions: the empty why speaks sessions too' );
 
 // Regression guard for the funnel/transition empty-state delegation: a visible
 // transition row PLUS a funnel whose report is all-zero (nobody reached step 1).
@@ -94,10 +95,21 @@ snt_analytics_render_summary_panels(
 );
 $out2 = ob_get_clean();
 ok( false !== strpos( $out2, '[dim-panel:Top paths:1]' ), 'non-empty transition rendered as a titled "Top paths" panel with its 1 row' );
-ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'visit quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
+ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'session quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
 // v9.40.0 D4: the cards now route through the shared snt_an_kpi_row primitive —
 // pin its flat sub-descriptor rendering (the sole slot shape this view uses).
 ok( false !== strpos( $out2, 'sn-delta-flat">with a pageview' ), 'shared row primitive renders the sub descriptor with its flat class' );
+// v9.65.0 units-collision fix (Part 3): one dashboard, one word "Visits", two
+// units — the tab's live-session-engine number is within-day SESSIONS, while
+// the shared Overview headline's "Visits" is gated visitor-DAYS. The tab now
+// says what it counts. LABELS ONLY — no metric changed.
+ok( false !== strpos( $out2, '<span>Session quality</span>' ), 'units: the KPI panel heading says "Session quality" (was "Visit quality")' );
+ok( false !== strpos( $out2, 'sn-kpi-label">Sessions<' ), 'units: the headline KPI card is labeled "Sessions" (was "Visits")' );
+ok( false === strpos( $out2, 'sn-kpi-label">Visits<' ), 'units: no KPI card on this tab is labeled bare "Visits" anymore' );
+ok( false !== strpos( $out2, 'Pages / session' ) && false !== strpos( $out2, 'single-page sessions' ) && false !== strpos( $out2, 'per session' ),
+	'units: the sibling cards speak sessions too (pages/session, single-page sessions, per session)' );
+ok( false !== strpos( $out2, 'within-day sessions' ) && false !== strpos( $out2, 'visitor-day' ),
+	'units: the panel carries a one-line unit note distinguishing sessions from the Overview headline\'s visitor-days' );
 // The OLD hollow-panel bug emitted a real .postbox with the funnel name in its
 // hndle heading (<h2 class="hndle"><span>Empty funnel</span></h2>) wrapping an
 // empty body. Assert that exact markup is gone.
@@ -160,8 +172,8 @@ ob_start();
 snt_analytics_render_view_sessions( '2026-07-01', '2026-07-07', 'human' );
 $gate = (string) ob_get_clean();
 ok( false !== strpos( $gate, 'sn-an-gate' ), 'AE gate: unified gate marker present (upgrade from the old titleless bare <p>)' );
-ok( false !== strpos( $gate, 'Visit analytics need live Analytics Engine data for this window.' ), 'AE gate: exact original message preserved' );
-ok( false !== strpos( $gate, '<span>Visits</span>' ), 'AE gate: carries a title' );
+ok( false !== strpos( $gate, 'Session analytics need live Analytics Engine data for this window.' ), 'AE gate: message speaks sessions (v9.65.0 units fix)' );
+ok( false !== strpos( $gate, '<span>Sessions</span>' ), 'AE gate: carries the "Sessions" title (was "Visits")' );
 
 // S2 §3 T2/T3-review hardening: a corrupt analytics.funnels setting must not
 // reach sn_funnel_report() malformed — the resolver falls back to the hardcoded
@@ -203,6 +215,72 @@ $out7 = ob_get_clean();
 ok( is_string( $out7 ), 'the Visits view renders without a fatal when the funnels setting was corrupt' );
 ok( false !== strpos( $out7, '[dist-panel:Home → post → subscribe:3]' ), 'the fallback funnel renders as a titled panel with its 3 completed steps (the matcher output reached the view)' );
 $GLOBALS['__vs_settings'] = array();
+
+// ── v9.65.0: long-term session-quality trend panel (durable rollup) ──────────
+// Fed by sn_session_rollup_read() (wp_sn_session_daily — written nightly since
+// v8.8.0, read by NOTHING until now). Four input states, each with its own
+// honest rendering: false = legacy caller / module absent (render NOTHING —
+// byte-parity for old callers), null = read failed (fold, "couldn't read"),
+// <2 rows = fold ("not enough rolled-up days"), >=2 rows = the real panel.
+echo "\nGroup: session-quality trend panel (durable rollup)\n";
+$__quiet_metrics = array( 'visits' => 2, 'bounce_rate' => 0.0, 'pages_per_visit' => 2.0, 'median_duration' => 30, 'engaged_visits' => 1, 'engaged_rate' => 0.5 );
+
+// Legacy 5-arg call (all the assertions above) never mentions the panel; pin it.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array() );
+$t0 = ob_get_clean();
+ok( false === strpos( $t0, 'Session quality trend' ), 'trend: legacy caller (no 6th arg) renders no trend panel and no fold entry' );
+
+// null = the accessor could not read the table — fold with an honest "failed" why.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), null );
+$t1 = ob_get_clean();
+ok( false === strpos( $t1, '<span>Session quality trend</span>' ), 'trend: failed read emits no titled panel' );
+ok( false !== strpos( $t1, 'Session quality trend' ) && false !== strpos( $t1, 'could not be read' ),
+	'trend: failed read folds with a "could not be read" why (unknown is not an empty window)' );
+
+// [] = the nightly rollup has written nothing in this window — fold, honest why.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), array() );
+$t2 = ob_get_clean();
+ok( false === strpos( $t2, '<span>Session quality trend</span>' ), 'trend: zero rolled-up days emits no titled panel' );
+ok( false !== strpos( $t2, 'Session quality trend' ) && false !== strpos( $t2, 'no rolled-up days' ),
+	'trend: zero rows folds with the "no rolled-up days" why' );
+
+// One row cannot draw a trend — fold says so instead of pretending "no data".
+$__one_day = array( array( 'day' => '2026-06-01', 'visits' => 12, 'bounce_pct' => 42.5, 'ppv' => 1.75, 'median_dur' => 55 ) );
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), $__one_day );
+$t3 = ob_get_clean();
+ok( false === strpos( $t3, '<span>Session quality trend</span>' ), 'trend: a single rolled-up day emits no titled panel' );
+ok( false !== strpos( $t3, 'needs at least two' ), 'trend: single-day fold says the trend needs at least two days (not "no data")' );
+
+// >=2 rows: the real panel — three sparklines, explicit sessions unit, pinned values.
+$__trend_rows = array(
+	array( 'day' => '2026-06-01', 'visits' => 12, 'bounce_pct' => 42.5, 'ppv' => 1.75, 'median_dur' => 55 ),
+	array( 'day' => '2026-06-02', 'visits' => 9,  'bounce_pct' => 50.0, 'ppv' => 1.5,  'median_dur' => 30 ),
+	array( 'day' => '2026-06-04', 'visits' => 20, 'bounce_pct' => 35.5, 'ppv' => 2.1,  'median_dur' => 61 ),
+);
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), $__trend_rows );
+$t4 = ob_get_clean();
+ok( false !== strpos( $t4, '<span>Session quality trend</span>' ), 'trend: >=2 rolled-up days renders the titled postbox panel' );
+ok( false !== strpos( $t4, 'Bounce rate' ) && false !== strpos( $t4, 'Pages / session' ) && false !== strpos( $t4, 'Median duration' ),
+	'trend: all three metric sparklines carry their heads' );
+ok( 3 === substr_count( $t4, '<svg class="sn-spark"' ), 'trend: exactly three sparkline SVGs' );
+ok( false !== strpos( $t4, 'snSparkFillSessBounce' ) && false !== strpos( $t4, 'snSparkFillSessPpv' ) && false !== strpos( $t4, 'snSparkFillSessDur' ),
+	'trend: the three gradients carry DISTINCT ids (three svgs share one page)' );
+// Value pins from the fixture's LAST row (not label echoes).
+ok( false !== strpos( $t4, 'latest 35.5%' ), 'trend: bounce meta pins the last day\'s real value' );
+ok( false !== strpos( $t4, 'latest 2.10' ), 'trend: pages/session meta pins the last day\'s real value' );
+ok( false !== strpos( $t4, 'latest 61s' ), 'trend: median-duration meta pins the last day\'s real value' );
+// Axis = the ACTUAL rolled-up day span (not the requested window) — honest about gaps.
+ok( false !== strpos( $t4, '<span>2026-06-01</span>' ) && false !== strpos( $t4, '<span>2026-06-04</span>' ),
+	'trend: the axis spans the first..last ROLLED-UP day' );
+// The unit is explicit: sessions, not the Overview headline's visitor-days (Part 3 contract).
+ok( false !== strpos( $t4, 'within-day sessions' ) && false !== strpos( $t4, 'visitor-day' ),
+	'trend: the unit note names within-day sessions AND distinguishes them from visitor-days' );
+ok( false !== strpos( $t4, '3 rolled-up days' ), 'trend: the note states how many days actually rolled up' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

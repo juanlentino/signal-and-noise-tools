@@ -131,6 +131,88 @@ function sn_session_rollup_run() {
 add_action( SN_SESSION_ROLLUP_HOOK, 'sn_session_rollup_run' );
 
 /**
+ * Read per-day session-quality rows back from the durable rollup table.
+ *
+ * The read half the table waited for since v8.8.0 (until v9.65.0 the nightly
+ * writer had NO consumer). Day keys follow the WRITER's convention exactly:
+ * sn_session_rollup_run() buckets by gmdate('Y-m-d') — a UTC day string —
+ * matching the Visits view's "resets at UTC midnight" window and the UTC
+ * snt_analytics_range_dates() bounds callers pass in.
+ *
+ * Null discipline (realtime-zero-vs-null): absent days stay ABSENT from the
+ * result (never fabricated 0-rows — a night the cron skipped is "not
+ * measured", not "zero sessions"); an EMPTY result set is a real answer ([]);
+ * a FAILED query or invalid input returns null ("don't know"). Real wpdb
+ * reports a FAILED query as [] WITH $wpdb->last_error set (get_results()
+ * yields null only when prepare() failed and the query string was falsy), so
+ * the accessor consults last_error after the read — otherwise a missing/
+ * corrupt table would be indistinguishable from an honest empty window and
+ * failure would be served as an answer. wpdb transports every selected
+ * column as a numeric STRING — the rows are deliberately re-typed here so
+ * consumers get the writer's types back.
+ *
+ * @since 9.65.0
+ * @param string $from  Window start (Y-m-d, UTC day — the writer's key).
+ * @param string $to    Window end (Y-m-d, inclusive).
+ * @param string $class Traffic class (human|suspect|bot).
+ * @return array|null Day-ascending list of typed rows
+ *                    {day:string, visits:int, bounce_pct:float, ppv:float,
+ *                    median_dur:int}, [] when no days rolled up in the
+ *                    window, or null on invalid input / a failed query.
+ */
+function sn_session_rollup_read( $from, $to, $class ) {
+	global $wpdb;
+	$from    = trim( (string) $from );
+	$to      = trim( (string) $to );
+	$class   = (string) $class;
+	$allowed = defined( 'SN_ANALYTICS_CLASSES' ) ? SN_ANALYTICS_CLASSES : array( 'human', 'suspect', 'bot' );
+	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from )
+		|| 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to )
+		|| ! in_array( $class, $allowed, true ) ) {
+		return null;
+	}
+
+	$table = $wpdb->prefix . SN_SESSION_ROLLUP_TABLE;
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- static SELECT template; $table is $wpdb->prefix + a plugin constant and every value binds via prepare(); reads the plugin-owned rollup table (no core API exists for it).
+	$rows = $wpdb->get_results( $wpdb->prepare(
+		"SELECT day, visits, bounce_pct, ppv, median_dur FROM {$table} WHERE day >= %s AND day <= %s AND class = %s ORDER BY day ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see above.
+		$from,
+		$to,
+		$class
+	), ARRAY_A );
+	if ( ! is_array( $rows ) ) {
+		return null; // falsy query (prepare() failed) — the only shape wpdb reports as null.
+	}
+	if ( '' !== (string) $wpdb->last_error ) {
+		// A FAILED query (missing/corrupt table) comes back as [] with
+		// last_error set — unknown is not an empty window.
+		return null;
+	}
+
+	$out = array();
+	foreach ( $rows as $r ) {
+		if ( ! is_array( $r ) ) {
+			continue;
+		}
+		// A malformed row (a selected column missing) is DROPPED, never padded
+		// with fabricated 0s (array_key_exists — absent is not null is not 0).
+		foreach ( array( 'day', 'visits', 'bounce_pct', 'ppv', 'median_dur' ) as $k ) {
+			if ( ! array_key_exists( $k, $r ) ) {
+				continue 2;
+			}
+		}
+		$out[] = array(
+			'day'        => (string) $r['day'],
+			'visits'     => max( 0, (int) $r['visits'] ),
+			'bounce_pct' => (float) $r['bounce_pct'],
+			'ppv'        => (float) $r['ppv'],
+			'median_dur' => max( 0, (int) $r['median_dur'] ),
+		);
+	}
+	return $out;
+}
+
+/**
  * Batch INSERT ... ON DUPLICATE KEY UPDATE the clean records.
  *
  * @param array $clean Records from sn_session_rollup_normalize().
