@@ -43,6 +43,12 @@
  *
  * Every day echoes a result line — NEVER silent (a success:true that wrote
  * nothing is a known failure shape here; an empty day is an ANSWER and says so).
+ * A 0-AE-row day is AMBIGUOUS, though: genuinely quiet vs aged out of AE's
+ * ~90d retention (the offset-89 boundary). It counts as fully OK only when the
+ * durable table also has no LEGACY rows (scroll_sum IS NULL) for that day —
+ * otherwise (this site's daily RSS srv:1 beacon rows guarantee real days have
+ * rows) it is excluded from the streak, so exact_metrics_since never claims
+ * coverage over a day whose range still reads null exact fields.
  * On completion it sets the option `sn_analytics_exact_metrics_since` (Y-m-d,
  * read by inc/analytics-read.php) to the earliest day of the UNBROKEN fully-OK
  * streak ending today — on full success that is the earliest re-rolled day
@@ -164,6 +170,34 @@ function sn_reroll_gated_day_sql( $base, $lower, $upper ) {
 }
 
 /**
+ * Is a 0-AE-row day safe to count toward the exact_metrics_since streak?
+ *
+ * 0 AE rows is AMBIGUOUS: a genuinely quiet day looks identical to a day that
+ * aged out of AE's ~90d retention (the offset-89 boundary). On this site every
+ * real day has durable rows (the daily RSS srv:1 beacon class), so an aged-out
+ * day still carries LEGACY rows (scroll_sum IS NULL — pre-v5, never
+ * backfilled) in wp_sn_analytics_daily. Counting such a day streak-OK would
+ * let exact_metrics_since claim coverage over a day whose range reads null
+ * exact fields (the read layer's mixed-range rule) — so it is streak-OK ONLY
+ * when the durable table provably has NO legacy rows for it; otherwise the
+ * day is not-ok and `since` lands after it. A failed COUNT read returns a
+ * non-numeric value → unknown → NOT ok (fail toward honesty, matching the
+ * missing-'ok'-key rule in sn_reroll_since_day()).
+ *
+ * @param object $db    wpdb (injected, so this helper stays unit-testable).
+ * @param string $table Durable daily table name (prefix included).
+ * @param string $label Day label (Y-m-d).
+ * @return bool True only when provably zero legacy rows exist for the day.
+ */
+function sn_reroll_empty_day_ok( $db, $table, $label ) {
+	$count = $db->get_var( $db->prepare(
+		"SELECT COUNT(*) FROM {$table} WHERE day = %s AND scroll_sum IS NULL",
+		(string) $label
+	) );
+	return is_numeric( $count ) && 0 === (int) $count;
+}
+
+/**
  * The exact_metrics_since value: the earliest day of the unbroken fully-OK
  * streak ending at the LAST (most recent) result. Null when the last day
  * failed (a "since" date over a broken tail would be a lie) or the list is
@@ -208,6 +242,7 @@ foreach ( array(
 	'sn_analytics_rollup_sql',
 	'sn_analytics_rollup_gated_sql',
 	'sn_analytics_rollup_window_exprs',
+	'sn_analytics_rollup_gated_query',
 	'sn_analytics_rollup_merge_gated',
 	'sn_analytics_rollup_upsert',
 ) as $sn_reroll_fn ) {
@@ -294,8 +329,16 @@ foreach ( sn_reroll_bounded_offsets( 90 ) as $sn_reroll_k ) {
 		continue;
 	}
 	if ( array() === $sn_reroll_rows ) {
-		echo "{$sn_reroll_label}  OK    0 rows — quiet or AE-aged-out day; nothing to write (empty is an ANSWER)\n";
-		$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
+		// 0 AE rows is ambiguous — quiet day vs aged-out-of-retention. Streak-OK
+		// only when the durable table has no legacy (scroll_sum IS NULL) rows for
+		// the day; otherwise `since` must land after it (mixed-range honesty).
+		if ( sn_reroll_empty_day_ok( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label ) ) {
+			echo "{$sn_reroll_label}  OK    0 AE rows, no durable legacy rows — genuinely quiet day; nothing to write (empty is an ANSWER)\n";
+			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
+		} else {
+			echo "{$sn_reroll_label}  WARN  0 AE rows but durable LEGACY rows exist (scroll_sum NULL) — aged out of AE retention (or the legacy check failed); day EXCLUDED from exact_metrics_since\n";
+			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
+		}
 		continue;
 	}
 
@@ -315,7 +358,10 @@ foreach ( sn_reroll_bounded_offsets( 90 ) as $sn_reroll_k ) {
 		continue;
 	}
 
-	$sn_reroll_gated    = sn_analytics_query( $sn_reroll_gated_sql );
+	// The wrapper refuses a row-cap-TRUNCATED gated set (treated as failed —
+	// pageview_visits stays NULL), so the merge's missing-key-is-0 rule only
+	// ever runs over a provably complete result.
+	$sn_reroll_gated    = sn_analytics_rollup_gated_query( $sn_reroll_gated_sql );
 	$sn_reroll_gated_ok = is_array( $sn_reroll_gated );
 	$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ) );
 
@@ -349,8 +395,15 @@ if ( ! is_array( $sn_reroll_rows ) ) {
 	}
 } elseif ( array() === $sn_reroll_rows ) {
 	foreach ( $sn_reroll_tail_labels as $sn_reroll_label ) {
-		echo "{$sn_reroll_label}  OK    0 rows — quiet day; nothing to write (empty is an ANSWER)\n";
-		$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
+		// Same 0-AE-row ambiguity rule as the bounded loop (yesterday/today can't
+		// age out, but a legacy row here would still make the coverage claim a lie).
+		if ( sn_reroll_empty_day_ok( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label ) ) {
+			echo "{$sn_reroll_label}  OK    0 AE rows, no durable legacy rows — quiet day; nothing to write (empty is an ANSWER)\n";
+			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
+		} else {
+			echo "{$sn_reroll_label}  WARN  0 AE rows but durable LEGACY rows exist (scroll_sum NULL) — day EXCLUDED from exact_metrics_since\n";
+			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
+		}
 	}
 } else {
 	$sn_reroll_mismatch = 0;
@@ -365,7 +418,7 @@ if ( ! is_array( $sn_reroll_rows ) ) {
 			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
 		}
 	} else {
-		$sn_reroll_gated    = sn_analytics_query( sn_analytics_rollup_gated_sql( 1, $sn_reroll_tz ) );
+		$sn_reroll_gated    = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 1, $sn_reroll_tz ) );
 		$sn_reroll_gated_ok = is_array( $sn_reroll_gated );
 		$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ) );
 		$sn_reroll_tail_ok  = $sn_reroll_gated_ok && $sn_reroll_written > 0;

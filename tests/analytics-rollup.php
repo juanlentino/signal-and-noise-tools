@@ -119,14 +119,36 @@ function sn_analytics_config() {
 // transport's TRUE types — UInt64 counts as JSON STRINGS ("views":"6"),
 // Float64 sums as numbers, avgIf null beside 0 sums — the transform a
 // transport stub must model (wp_localize / stub-drift memories).
+// Truncation flag stub — models the REAL client's contract exactly
+// (inc/analytics-api.php sn_analytics_last_result_truncated): request-scoped,
+// re-recorded on every sn_analytics_query() call from the envelope counters
+// (rows_before_limit_at_least > rows), false on failure paths and on
+// envelopes without counters. The real implementation is pinned by
+// tests/analytics-api.php; this stub only has to carry the same verdict so
+// the rollup module's consumers of the flag are drivable here.
+$GLOBALS['__ar_last_truncated'] = false;
+function sn_analytics_last_result_truncated( $set = null ) {
+	if ( null !== $set ) {
+		$GLOBALS['__ar_last_truncated'] = (bool) $set;
+	}
+	return $GLOBALS['__ar_last_truncated'];
+}
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__ar_query_calls'][] = $sql;
+	sn_analytics_last_result_truncated( false ); // the real client resets per call.
 	$ret = ( false !== strpos( (string) $sql, 'AS pageview_visits' ) )
 		? $GLOBALS['__ar_gated_return']
 		: $GLOBALS['__ar_query_return'];
 	if ( is_string( $ret ) ) {
 		$decoded = json_decode( $ret, true );
-		return is_array( $decoded ) ? ( $decoded['data'] ?? null ) : null;
+		if ( ! is_array( $decoded ) ) {
+			return null;
+		}
+		if ( isset( $decoded['rows'], $decoded['rows_before_limit_at_least'] )
+			&& is_numeric( $decoded['rows'] ) && is_numeric( $decoded['rows_before_limit_at_least'] ) ) {
+			sn_analytics_last_result_truncated( (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows'] );
+		}
+		return $decoded['data'] ?? null;
 	}
 	return $ret; // array = legacy direct-rows fixture; null = transport failure.
 }
@@ -249,6 +271,7 @@ function ar_reset() {
 	$GLOBALS['__ar_dbdelta_calls']     = array();
 	$GLOBALS['__ar_query_fail']        = false;
 	$GLOBALS['__ar_dims_called']       = 0;
+	$GLOBALS['__ar_last_truncated']    = false;
 	$GLOBALS['wpdb']                   = new AR_Stub_wpdb();
 }
 
@@ -764,6 +787,81 @@ ok( strpos( (string) @file_get_contents( $guard_log2 ), '[sn-analytics] integrit
 ok( strpos( $GLOBALS['wpdb']->queries[0] ?? '', "('2026-07-16', '/', 'human', 2, 5, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 5)" ) !== false,
 	'inverted-stub: the row is STILL written, un-clamped' );
 @unlink( $guard_log2 );
+
+// ── Finding 3: a row-cap-TRUNCATED gated result is refused, never trusted ─────
+echo "\nGroup: gated query wrapper — truncation refusal (finding 3)\n";
+// "Missing key on a successful gated result = real 0" is only sound while the
+// gated set is COMPLETE. The two queries order differently (views DESC vs
+// pageview_visits DESC), so AE's row cap can truncate them ASYMMETRICALLY —
+// a (day, path, class) merely cut from the gated tail would be fabricated
+// into a measured-0 pageview_visits. When the envelope says
+// rows_before_limit_at_least > rows, the whole gated result degrades to the
+// FAILED shape (null → keys absent → upsert binds SQL NULL, "never measured").
+ok( function_exists( 'sn_analytics_rollup_gated_query' ), 'wrapper: sn_analytics_rollup_gated_query() exists (shared by cron + reroll tool)' );
+
+$trunc_gated_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
+	. '{"name":"class","type":"String"},{"name":"pageview_visits","type":"UInt64"}],'
+	. '"data":[{"day":"2026-07-15","path":"/","class":"human","pageview_visits":"4"}],'
+	. '"rows":1,"rows_before_limit_at_least":3}';
+
+if ( function_exists( 'sn_analytics_rollup_gated_query' ) ) {
+	// Transport failure passes through as null (unchanged semantics).
+	ar_reset();
+	$GLOBALS['__ar_gated_return'] = null;
+	ok( null === sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 7 ) ),
+		'wrapper: transport failure (null) → null' );
+
+	// Complete envelope → the rows pass through untouched.
+	ar_reset();
+	$GLOBALS['__ar_gated_return'] = $gated_envelope;
+	$w_rows = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 7 ) );
+	ok( is_array( $w_rows ) && '4' === ( $w_rows[0]['pageview_visits'] ?? null ),
+		'wrapper: complete envelope (rows === rows_before_limit_at_least) → rows returned intact' );
+
+	// Truncated envelope → refused (null) + logged, never a partial set.
+	ar_reset();
+	$GLOBALS['__ar_gated_return'] = $trunc_gated_envelope;
+	$trunc_log     = tempnam( sys_get_temp_dir(), 'sn_trunc' );
+	$old_trunc_log = ini_set( 'error_log', $trunc_log );
+	$w_trunc       = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 7 ) );
+	ini_set( 'error_log', (string) $old_trunc_log );
+	ok( null === $w_trunc, 'wrapper: truncated envelope (rows_before_limit_at_least 3 > rows 1) → refused as FAILED (null)' );
+	ok( strpos( (string) @file_get_contents( $trunc_log ), '[sn-analytics]' ) !== false
+		&& strpos( (string) @file_get_contents( $trunc_log ), 'truncated' ) !== false,
+		'wrapper: the refusal is never silent — error_log names the truncation' );
+	@unlink( $trunc_log );
+}
+
+echo "\nGroup: run_rollup — truncated gated envelope binds NULL end-to-end (finding 3)\n";
+// The finding's exact scenario: the main set is complete (2 rows) but the
+// gated set was row-capped (1 returned of ≥3). BOTH written rows must bind
+// pageview_visits NULL — the row missing from the gated set (the fabricated-0
+// hazard) AND the row present in it (a truncated set carries no completeness
+// claim at all).
+ar_reset();
+$GLOBALS['__ar_query_return'] = $main_envelope;
+$GLOBALS['__ar_gated_return'] = $trunc_gated_envelope;
+sn_analytics_run_rollup();
+ok( count( $GLOBALS['wpdb']->queries ) === 1, 'truncated-e2e: main rows still write (degrade, not corrupt)' );
+$qt = $GLOBALS['wpdb']->queries[0] ?? '';
+ok( strpos( $qt, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, NULL)" ) !== false,
+	'truncated-e2e: the row MISSING from the truncated gated set binds NULL — never the fabricated measured 0' );
+ok( strpos( $qt, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, NULL)" ) !== false,
+	'truncated-e2e: even the row PRESENT in the truncated set binds NULL (the whole set is refused)' );
+ok( strpos( $qt, ', 4)' ) === false && strpos( $qt, ', 0)' ) === false,
+	'truncated-e2e: no tuple carries a numeric pageview_visits anywhere in the write' );
+
+// Control: the SAME data with a complete (non-truncated) gated envelope keeps
+// the existing behavior — matched key '4', missing key real 0. Pinned so the
+// truncation gate cannot over-fire.
+ar_reset();
+$GLOBALS['__ar_query_return'] = $main_envelope;
+$GLOBALS['__ar_gated_return'] = $gated_envelope;
+sn_analytics_run_rollup();
+$qc = $GLOBALS['wpdb']->queries[0] ?? '';
+ok( strpos( $qc, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false
+	&& strpos( $qc, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
+	'truncated-e2e control: a complete gated envelope keeps matched 4 + real 0 exactly as before' );
 
 // Not configured → AE query returns null → no upsert, no fresh stamp.
 ar_reset();

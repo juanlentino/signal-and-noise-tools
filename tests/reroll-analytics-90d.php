@@ -188,6 +188,79 @@ reroll_assert( null === sn_reroll_since_day( array() ), 'empty results → null'
 reroll_assert( '2026-07-17' === sn_reroll_since_day( array( array( 'day' => '2026-07-17', 'ok' => true ) ) ), 'single OK day → that day' );
 reroll_assert( null === sn_reroll_since_day( array( array( 'day' => '2026-07-17' ) ) ), 'missing ok key → treated as NOT ok (fail toward honesty), never a fabricated success' );
 
+// ── Group: empty-day retention disambiguation (adversarial finding 1) ─────────
+// 0 AE rows is AMBIGUOUS: a genuinely quiet day looks identical to a day that
+// aged out of AE's ~90d retention (the offset-89 boundary). On this site every
+// real day has durable rows (the daily RSS srv:1 beacon class), so an aged-out
+// day still carries LEGACY rows (scroll_sum IS NULL) in wp_sn_analytics_daily —
+// and counting it streak-OK would let exact_metrics_since claim coverage over a
+// day whose range reads null exact fields (the read layer's mixed-range rule).
+// A 0-AE-row day is streak-OK ONLY when the durable table provably has no
+// legacy rows for it.
+echo "\nGroup: empty-day retention disambiguation\n";
+
+reroll_assert( function_exists( 'sn_reroll_empty_day_ok' ), 'sn_reroll_empty_day_ok() exists (the 0-AE-row disambiguation helper)' );
+
+/**
+ * Minimal wpdb stub for the legacy-row COUNT read — models the transport:
+ * COUNT(*) travels back as a numeric STRING; a failed read returns null.
+ */
+class RR_Empty_Stub_wpdb {
+	public $prefix     = 'wp_';
+	public $var_return = '0';
+	public $queries    = array();
+	public function prepare( $query, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
+		$i = 0;
+		return preg_replace_callback( '/%[sdf]/', function ( $m ) use ( &$i, $args ) {
+			$a = $args[ $i ] ?? ''; ++$i;
+			switch ( $m[0] ) { case '%d': return (string) (int) $a; case '%f': return (string) (float) $a; default: return "'" . addslashes( (string) $a ) . "'"; }
+		}, $query );
+	}
+	public function get_var( $sql ) {
+		$this->queries[] = $sql;
+		return $this->var_return;
+	}
+}
+
+$rr_db             = new RR_Empty_Stub_wpdb();
+$rr_db->var_return = '0';
+reroll_assert( true === sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' ),
+	'0 AE rows + 0 durable legacy rows → streak-OK (a genuinely quiet day; empty is an ANSWER)' );
+$rr_sql = (string) end( $rr_db->queries );
+reroll_assert( false !== strpos( $rr_sql, 'wp_sn_analytics_daily' )
+	&& false !== strpos( $rr_sql, "day = '2026-04-19'" )
+	&& false !== strpos( $rr_sql, 'scroll_sum IS NULL' ),
+	'legacy check reads the durable table for scroll_sum IS NULL rows on that exact day' );
+
+$rr_db->var_return = '3';
+reroll_assert( false === sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' ),
+	'0 AE rows + durable legacy rows (the RSS srv:1 class guarantees them) → NOT ok — aged out of retention, not quiet' );
+
+$rr_db->var_return = null;
+reroll_assert( false === sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' ),
+	'failed COUNT read (null) → NOT ok — unknown fails toward honesty, matching the missing-ok-key rule' );
+
+// Composition with the streak rule: the finding's exact scenario. Day-89
+// returns 0 AE rows but the durable table holds a legacy row → the day is
+// not-ok → since lands AFTER it, so exact_metrics_since never claims coverage
+// over legacy NULL scroll_sum rows.
+$rr_db->var_return = '5';
+$rr_aged_out_ok    = sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' );
+reroll_assert( '2026-04-20' === sn_reroll_since_day( array(
+	array( 'day' => '2026-04-19', 'ok' => $rr_aged_out_ok ),
+	array( 'day' => '2026-04-20', 'ok' => true ),
+	array( 'day' => '2026-04-21', 'ok' => true ),
+) ), 'aged-out day-89 (0 AE rows, durable legacy row) is EXCLUDED: since = day-88, a range over day-89 stays honestly pre-discontinuity' );
+
+$rr_db->var_return = '0';
+$rr_quiet_ok       = sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' );
+reroll_assert( '2026-04-19' === sn_reroll_since_day( array(
+	array( 'day' => '2026-04-19', 'ok' => $rr_quiet_ok ),
+	array( 'day' => '2026-04-20', 'ok' => true ),
+	array( 'day' => '2026-04-21', 'ok' => true ),
+) ), 'genuinely quiet day-89 (0 AE rows, no durable legacy rows) stays streak-OK: since = day-89' );
+
 // ── Group: owner-run contract (the binding run-location requirement) ─────────
 echo "\nGroup: owner-run contract\n";
 
@@ -195,6 +268,17 @@ $tool_src = (string) file_get_contents( $tool );
 reroll_assert( false !== strpos( $tool_src, 'public_html' ), 'header documents running FROM public_html (Cloudways requires the WP root cwd)' );
 reroll_assert( false !== strpos( $tool_src, 'wp eval-file' ), 'header documents the wp eval-file invocation' );
 reroll_assert( false !== strpos( $tool_src, 'sn_analytics_exact_metrics_since' ), 'tool sets the sn_analytics_exact_metrics_since option the read layer consumes' );
+// Finding 3 inheritance: the gated queries must ride the truncation-refusing
+// wrapper (sn_analytics_rollup_gated_query), never raw sn_analytics_query() —
+// a row-cap-truncated gated set would otherwise fabricate measured-0
+// pageview_visits through the merge's missing-key-is-0 rule.
+reroll_assert( substr_count( $tool_src, 'sn_analytics_rollup_gated_query(' ) >= 2,
+	'both gated query call sites go through the truncation-refusing wrapper' );
+reroll_assert( false === strpos( $tool_src, 'sn_analytics_query( $sn_reroll_gated_sql' )
+	&& false === strpos( $tool_src, 'sn_analytics_query( sn_analytics_rollup_gated_sql' ),
+	'no raw sn_analytics_query() call remains for the gated SQL' );
+reroll_assert( false !== strpos( $tool_src, "'sn_analytics_rollup_gated_query'," ),
+	'the wrapper is in the tool\'s required-functions pre-flight list' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

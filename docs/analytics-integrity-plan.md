@@ -114,8 +114,8 @@ Function: `sn_analytics_derive_metrics( array $daily ): array`. Input keys: `vie
 
 **Files:** Create `tools/reroll-analytics-90d.php` (dev-only; CI-excluded; never bundled).
 
-- [ ] Loop `$day = today−89 … today` (UTC, matching the rollup's boundary) calling the existing per-day rollup function; echo per-day result (never silent — a `success:true` cron that writes nothing is a known failure shape).
-- [ ] On completion set option `sn_analytics_exact_metrics_since = (today − 89d)` (Y-m-d, UTC).
+- [ ] Loop `$day = today−89 … today` (**SITE-LOCAL day**, matching the rollup's boundary — the rollup buckets by the site zone via `sn_analytics_site_tz_name()` since the v9.26.4 migration, America/New_York on live; the UTC path only when the site zone is a manual offset. This step originally said "UTC" — stale, corrected: a re-roll bucketed differently from the durable history would write adjacent-day rows beside it instead of overwriting) calling the existing per-day rollup function; echo per-day result (never silent — a `success:true` cron that writes nothing is a known failure shape).
+- [ ] On completion set option `sn_analytics_exact_metrics_since = (today − 89d)` (Y-m-d, site-local day).
 - [ ] Owner runs via `wp eval-file` on live. Idempotence already covered by Task 3's test. Commit + CHANGELOG.
 
 ### Task 7 — Close-out
@@ -132,7 +132,7 @@ Function: `sn_analytics_derive_metrics( array $daily ): array`. Input keys: `vie
 - **Stub drift**: stubs mirror the RAW AE JSON from P0.2 and the real callee's names (`scroll_avg` not `avg_scroll`). A transport stub must model the transport's TRANSFORM.
 - **Vacuous assertions**: pin values, counts, order — not labels the fixture supplies for free.
 - **`wpdb %f`**: FLOAT binds via `number_format(...,'.','')` → `%s` (four new columns!).
-- **Upsert chunking at 100**; **UTC day-boundary parity** between rollup and read.
+- **Upsert chunking at 100**; **day-boundary parity** between rollup and read (SITE-LOCAL day via `sn_analytics_site_tz_name()` since v9.26.4 — not UTC).
 - **Full test sweep** before PR — registry tests break on unrelated edits.
 - **CI boots no WP**: `tools/*.php` stay excluded like `contracts-smoke.php`.
 - **No JS this phase** → the `wp_localize_script` string-cast trap doesn't bite; if a widget later consumes these fields, re-read that memory first.

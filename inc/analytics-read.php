@@ -150,11 +150,31 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 		$class
 	), ARRAY_A );
 
-	$r = ( is_array( $row ) && isset( $row[0] ) && is_array( $row[0] ) ) ? $row[0] : array();
+	// Transport failure is NOT an answer (the realtime-zero-vs-null rule, read
+	// side): a FAILED $wpdb read leaves last_error set and an EMPTY result —
+	// indistinguishable from a real zero-traffic range without this check. On
+	// failure the NEW honest fields must all read null ("never measured"),
+	// never fabricated measured zeros; the legacy quartet keeps its
+	// long-standing zero shape (back-compat, deliberately unaltered). isset()
+	// keeps sibling test harnesses with minimal wpdb stubs warning-free; the
+	// real wpdb always declares last_error (reset per query).
+	$read_failed = isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error;
+	if ( $read_failed ) {
+		error_log( sprintf(
+			'[sn-analytics] range totals read failed for %s..%s class %s — %s — serving null derived fields (a transport failure is NOT an answer)',
+			(string) $from,
+			(string) $to,
+			$class,
+			(string) $wpdb->last_error
+		) );
+	}
+
+	$r = ( ! $read_failed && is_array( $row ) && isset( $row[0] ) && is_array( $row[0] ) ) ? $row[0] : array();
 
 	// Kept-deprecated legacy quartet — semantics UNALTERED (spec §4: nothing
 	// removed, nothing silently redefined). `?? 0` is correct HERE: these map
-	// NOT NULL columns, so a SQL NULL only ever means "zero rows in range".
+	// NOT NULL columns, so a SQL NULL only ever means "zero rows in range" —
+	// and on a failed read the quartet has ALWAYS read zeros (kept as-is).
 	$legacy = array(
 		'views'      => (int) ( $r['views'] ?? 0 ),
 		'visits'     => (int) ( $r['visits'] ?? 0 ),
@@ -162,9 +182,13 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 		'time_avg'   => (float) ( $r['time_avg'] ?? 0 ),
 	);
 
-	$input   = sn_analytics_range_derive_input( $r, $legacy['views'], $legacy['visits'] );
+	$input   = sn_analytics_range_derive_input( $r, $legacy['views'], $legacy['visits'], $read_failed );
 	$derived = sn_analytics_derive_metrics( $input );
-	sn_analytics_read_integrity_guard( $from, $to, $class, $input, $derived );
+	if ( ! $read_failed ) {
+		// Guard skipped on a failed read: with every input unknown there is no
+		// verdict to check and no payload worth recording (no alert churn).
+		sn_analytics_read_integrity_guard( $from, $to, $class, $input, $derived );
+	}
 
 	$memo[ $key ] = array_merge( $legacy, $derived, array(
 		'exact_metrics_since' => sn_analytics_exact_metrics_since(),
@@ -185,13 +209,23 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
  *   - Gated-partial (engagement sums complete but some row's pageview_visits
  *     is NULL — a gated-query-failed day): same rule, per family — the gated
  *     fields null while exact engagement survives.
+ *   - FAILED read ($read_failed): a transport failure is NOT an answer — every
+ *     input is returned ABSENT (including views/visits, so the new vocabulary
+ *     never launders the legacy back-compat zeros into confident
+ *     unique_visitor_days/ratio values the read never measured) and the derive
+ *     layer nulls every derived field. Never the zero-rows branch's real 0s.
  *
- * @param array $r      Extended totals row (may be empty on a failed read).
- * @param int   $views  Coerced legacy views total.
- * @param int   $visits Coerced legacy visits total (≡ unique visitor-days).
+ * @param array $r           Extended totals row (may be empty on a failed read).
+ * @param int   $views       Coerced legacy views total.
+ * @param int   $visits      Coerced legacy visits total (≡ unique visitor-days).
+ * @param bool  $read_failed The $wpdb read errored (last_error was set).
  * @return array Derive-layer input (rollup column spellings).
  */
-function sn_analytics_range_derive_input( $r, $views, $visits ) {
+function sn_analytics_range_derive_input( $r, $views, $visits, $read_failed = false ) {
+	if ( $read_failed ) {
+		return array(); // every key absent ≡ "never measured" → all-null derive.
+	}
+
 	$rows  = (int) ( $r['row_count'] ?? 0 );
 	$exact = (int) ( $r['exact_rows'] ?? 0 );
 	$gated = (int) ( $r['gated_rows'] ?? 0 );

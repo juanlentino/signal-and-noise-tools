@@ -32,6 +32,11 @@ class RD_Stub_wpdb {
 	public $prefix = 'wp_';
 	public $queries = array();
 	public $rows = array();
+	// Models the real wpdb error channel: a failed query sets last_error and
+	// (for ARRAY_A) get_results returns an EMPTY array — indistinguishable from
+	// a genuinely empty result WITHOUT checking last_error. That transport
+	// transform is exactly what the failed-read group exercises.
+	public $last_error = '';
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		$i = 0;
@@ -42,6 +47,7 @@ class RD_Stub_wpdb {
 	}
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
+		if ( '' !== $this->last_error ) { return array(); } // real wpdb: failed query → last_error set, empty ARRAY_A result.
 		if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
 		$rows = isset( $this->rows[ $tm[1] ] ) ? $this->rows[ $tm[1] ] : array();
 		if ( preg_match( "/class = '([^']*)'/", $sql, $cm ) ) {
@@ -427,6 +433,65 @@ $logged = (string) @file_get_contents( $guard_log );
 ok( strpos( $logged, '[sn-analytics] integrity violation' ) !== false && strpos( $logged, '2027-01-01' ) !== false,
 	'guard: error_log records the violation with the offending range' );
 @unlink( $guard_log );
+
+echo "\nGroup: range_totals failed wpdb read (adversarial finding 2)\n";
+// A FAILED $wpdb read (last_error set) yields an empty result set — which the
+// zero-rows branch would otherwise read as a real zero-traffic ANSWER and
+// fabricate measured zeros (pageview_visits => 0, scroll_sum => 0.0) on the
+// new honest-vocabulary fields. Transport failure is NOT an answer: the new
+// fields must all be null, the guard must not fire, and the legacy quartet
+// keeps its long-standing pre-existing zero shape (back-compat, unchanged).
+unset( $GLOBALS['__rd_options']['sn_analytics_integrity_alert'] );
+$GLOBALS['__rd_options']['sn_analytics_exact_metrics_since'] = '2026-04-19';
+// Fixture rows that WOULD produce non-zero totals — proving the nulls come
+// from the failure gate, not from an empty fixture.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2027-02-01', 'path' => '/a', 'class' => 'human', 'views' => 100, 'visits' => 50, 'scroll_avg' => 60, 'time_avg' => 120, 'scroll_sum' => 6000.0, 'scroll_events' => 90, 'time_sum' => 12000.0, 'time_events' => 80, 'pageview_visits' => 45 ),
+);
+$GLOBALS['wpdb']->last_error = "Table 'wp.wp_sn_analytics_daily' doesn't exist";
+$fail_log      = tempnam( sys_get_temp_dir(), 'sn-rd-fail' );
+$old_fail_log  = ini_set( 'error_log', $fail_log );
+$writes_before = $GLOBALS['__rd_option_writes'];
+$tf            = sn_analytics_range_totals( '2027-02-01', '2027-02-07', 'human' );
+ini_set( 'error_log', (string) $old_fail_log );
+ok( $tf['views'] === 0 && $tf['visits'] === 0 && $tf['scroll_avg'] === 0.0 && $tf['time_avg'] === 0.0,
+	'failed-read: legacy quartet keeps its pre-existing zero shape (back-compat unchanged)' );
+foreach ( array(
+	'unique_visitor_days', 'pageview_visits', 'viewless_visits',
+	'view_visit_ratio', 'pageviews_per_visitor_day',
+	'scroll_avg_per_view', 'time_avg_per_view',
+	'scroll_avg_per_visit', 'time_avg_per_visit',
+) as $rd_k ) {
+	ok( array_key_exists( $rd_k, $tf ) && null === $tf[ $rd_k ],
+		"failed-read: $rd_k is null — a transport failure is NOT an answer, never a fabricated measured 0" );
+}
+ok( $tf['integrity_violation'] === false, 'failed-read: integrity_violation false (no verdict without inputs)' );
+ok( $GLOBALS['__rd_option_writes'] === $writes_before, 'failed-read: no option write — the read-side guard is skipped' );
+ok( get_option( 'sn_analytics_integrity_alert' ) === false, 'failed-read: no alert option appears' );
+ok( $tf['exact_metrics_since'] === '2026-04-19', 'failed-read: exact_metrics_since still serves the option (independent of the wpdb read)' );
+ok( array_keys( $tf ) === array(
+	'views', 'visits', 'scroll_avg', 'time_avg',
+	'unique_visitor_days', 'pageview_visits', 'viewless_visits',
+	'view_visit_ratio', 'pageviews_per_visitor_day',
+	'scroll_avg_per_view', 'time_avg_per_view',
+	'scroll_avg_per_visit', 'time_avg_per_visit',
+	'integrity_violation', 'exact_metrics_since',
+), 'failed-read: full key contract unchanged (nulls, never missing keys)' );
+$fail_logged = (string) @file_get_contents( $fail_log );
+ok( strpos( $fail_logged, '[sn-analytics]' ) !== false && strpos( $fail_logged, '2027-02-01' ) !== false
+	&& strpos( $fail_logged, "doesn't exist" ) !== false,
+	'failed-read: error_log records the failed read with the range and the wpdb error' );
+@unlink( $fail_log );
+
+// The mirror image must NOT regress: last_error EMPTY with genuinely 0 rows is
+// an ANSWER (zero traffic) — real 0 counts survive, never nulled.
+$GLOBALS['wpdb']->last_error = '';
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array();
+$te = sn_analytics_range_totals( '2027-03-01', '2027-03-07', 'human' );
+ok( $te['unique_visitor_days'] === 0 && $te['pageview_visits'] === 0 && $te['viewless_visits'] === 0,
+	'empty-not-failed: real 0 counts survive (empty is an ANSWER — the zero-rows branch is untouched)' );
+ok( null === $te['view_visit_ratio'] && null === $te['scroll_avg_per_view'],
+	'empty-not-failed: ratios stay null over ÷0 exactly as before' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

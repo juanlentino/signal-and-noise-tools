@@ -348,6 +348,40 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 }
 
 /**
+ * Run the gated pageview_visits query, REFUSING a row-cap-truncated result.
+ *
+ * The merge (sn_analytics_rollup_merge_gated) treats a key missing from a
+ * SUCCESSFUL gated result as a REAL 0 (empty is an answer) — sound only while
+ * the gated set is COMPLETE. The two rollup queries order differently (views
+ * DESC vs pageview_visits DESC), so AE's row cap can truncate them
+ * ASYMMETRICALLY: a (day, path, class) present in the main set but cut from
+ * the gated tail would be fabricated into a measured-0 pageview_visits. When
+ * the response envelope says rows_before_limit_at_least > rows, the WHOLE
+ * gated result degrades to the FAILED shape (null → keys stay absent → the
+ * upsert binds SQL NULL, "never measured") — degrade, don't corrupt; the next
+ * roll self-corrects. Shared by the cron (sn_analytics_run_rollup) and the
+ * owner-run reroll tool so both inherit the same fail-safe. Never silent: the
+ * refusal is error_log'd.
+ *
+ * @param string $sql Gated query SQL (sn_analytics_rollup_gated_sql() output,
+ *                    or the reroll tool's bounded-window transform of it).
+ * @return array|null Rows, or null on transport failure OR truncation.
+ */
+function sn_analytics_rollup_gated_query( $sql ) {
+	$rows = sn_analytics_query( $sql );
+	if ( ! is_array( $rows ) ) {
+		return null;
+	}
+	// function_exists is defence in depth for a half-wired install; in
+	// production the loader requires inc/analytics-api.php before this module.
+	if ( function_exists( 'sn_analytics_last_result_truncated' ) && sn_analytics_last_result_truncated() ) {
+		error_log( '[sn-analytics] gated pageview_visits result truncated by the AE row cap (rows_before_limit_at_least > rows) — treated as failed; pageview_visits stays NULL, never a fabricated 0' );
+		return null;
+	}
+	return $rows;
+}
+
+/**
  * Merge the gated second-query result into the main rollup rows.
  *
  * Null discipline (the realtime-zero-vs-null rule, both directions):
@@ -642,10 +676,11 @@ function sn_analytics_run_rollup() {
 		// merged per (day, path, class) in PHP. It runs with the SAME zone the
 		// main query actually succeeded with — if the zoned main query fell back
 		// to UTC, a zoned gated query would bucket different "day" keys and the
-		// merge would silently miss. A gated failure leaves pageview_visits
+		// merge would silently miss. A gated failure — transport OR a row-cap-
+		// truncated result (the wrapper refuses those) — leaves pageview_visits
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
-		$gated = sn_analytics_query( sn_analytics_rollup_gated_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $used_tz ) );
+		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $used_tz ) );
 		sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 	}
 
