@@ -228,10 +228,12 @@ $rr_db->var_return = '0';
 reroll_assert( true === sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' ),
 	'0 AE rows + 0 durable legacy rows → streak-OK (a genuinely quiet day; empty is an ANSWER)' );
 $rr_sql = (string) end( $rr_db->queries );
-reroll_assert( false !== strpos( $rr_sql, 'wp_sn_analytics_daily' )
-	&& false !== strpos( $rr_sql, "day = '2026-04-19'" )
-	&& false !== strpos( $rr_sql, 'scroll_sum IS NULL' ),
-	'legacy check reads the durable table for scroll_sum IS NULL rows on that exact day' );
+// v9.63.2 UNIFICATION: the legacy check rides the same row-level completeness
+// predicate as the post-write check below — scroll_sum-only would miss the
+// scroll-written/gated-NULL shape (run N's main query succeeded, its gated
+// query failed, and the key vanished from AE before run N+1).
+reroll_assert( "SELECT COUNT(*) FROM wp_sn_analytics_daily WHERE day = '2026-04-19' AND (scroll_sum IS NULL OR pageview_visits IS NULL)" === $rr_sql,
+	'legacy check === pinned full SQL — the UNIFIED completeness predicate (scroll_sum OR pageview_visits NULL) on that exact day' );
 
 $rr_db->var_return = '3';
 reroll_assert( false === sn_reroll_empty_day_ok( $rr_db, 'wp_sn_analytics_daily', '2026-04-19' ),
@@ -261,6 +263,141 @@ reroll_assert( '2026-04-19' === sn_reroll_since_day( array(
 	array( 'day' => '2026-04-21', 'ok' => true ),
 ) ), 'genuinely quiet day-89 (0 AE rows, no durable legacy rows) stays streak-OK: since = day-89' );
 
+// ── Group: row-level completeness (2026-07-18 production discovery) ──────────
+// A day can upsert every AE-returned row successfully and STILL be incomplete:
+// the durable table holds "stale sibling" rows the original nightly cron wrote
+// when the day's events were fresh, whose (day, path, class) keys AE has since
+// consolidated away. Production diagnostic (2026-07-18, on live v9.63.1):
+// 36 such rows since 2026-06-13 — e.g. day 2026-06-13 holds 6 durable rows
+// while the reroll's bounded window returned only 3; the other 3 keep NULL
+// scroll_sum/pageview_visits forever (their AE source is gone; they hold real
+// legacy views/visits — never delete, never fabricate 0s). Day-level success
+// ≠ row-level completeness: exact_metrics_since must be earned by the TABLE,
+// not the run, so a post-write COUNT over the unified predicate
+// (scroll_sum IS NULL OR pageview_visits IS NULL) gates the streak.
+echo "\nGroup: row-level completeness\n";
+
+reroll_assert( function_exists( 'sn_reroll_incomplete_rows' ), 'sn_reroll_incomplete_rows() exists (the post-write row-level completeness helper)' );
+
+/**
+ * Row-store wpdb stub: models the durable table AFTER a day's upsert, plus the
+ * transport's transform — COUNT(*) travels back as a numeric STRING; a failed
+ * read returns null. get_var evaluates the received SQL's `col IS NULL` terms
+ * (OR-combined — MySQL's semantics for this query shape) over PHP-null row
+ * values, so a predicate mutation (e.g. reverting to scroll_sum-only) changes
+ * the COUNT and fails the OR-case assertion below; the exact-SQL pins guard
+ * the predicate string itself.
+ */
+class RR_RowStore_Stub_wpdb {
+	public $prefix   = 'wp_';
+	public $rows     = array();
+	public $fail_var = false;
+	public $queries  = array();
+	public function prepare( $query, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
+		$i = 0;
+		return preg_replace_callback( '/%[sdf]/', function ( $m ) use ( &$i, $args ) {
+			$a = $args[ $i ] ?? ''; ++$i;
+			switch ( $m[0] ) { case '%d': return (string) (int) $a; case '%f': return (string) (float) $a; default: return "'" . addslashes( (string) $a ) . "'"; }
+		}, $query );
+	}
+	public function get_var( $sql ) {
+		$this->queries[] = $sql;
+		if ( $this->fail_var ) { return null; }
+		if ( ! preg_match( "/day = '([^']+)'/", $sql, $m ) ) { return null; }
+		preg_match_all( '/(\w+) IS NULL/', $sql, $terms );
+		$count = 0;
+		foreach ( $this->rows as $r ) {
+			if ( ! is_array( $r ) || ( $r['day'] ?? null ) !== $m[1] ) { continue; }
+			foreach ( $terms[1] as $col ) {
+				if ( array_key_exists( $col, $r ) && null === $r[ $col ] ) { ++$count; break; }
+			}
+		}
+		return (string) $count;
+	}
+}
+
+$rr_store = new RR_RowStore_Stub_wpdb();
+
+// (a) The production day itself: 3 fresh fully-written rows beside 3 stale
+// cron-era siblings (both exact columns NULL — the pre-v5 cron never measured
+// them and their AE keys are gone). A day-of-another-day row must not leak in.
+$rr_store->rows = array(
+	array( 'day' => '2026-06-13', 'path' => '/', 'scroll_sum' => 812.5, 'pageview_visits' => 4 ),
+	array( 'day' => '2026-06-13', 'path' => '/notes/', 'scroll_sum' => 90.0, 'pageview_visits' => 1 ),
+	array( 'day' => '2026-06-13', 'path' => '/feed/', 'scroll_sum' => 0.0, 'pageview_visits' => 0 ),
+	array( 'day' => '2026-06-13', 'path' => '/old-a/', 'scroll_sum' => null, 'pageview_visits' => null ),
+	array( 'day' => '2026-06-13', 'path' => '/old-b/', 'scroll_sum' => null, 'pageview_visits' => null ),
+	array( 'day' => '2026-06-13', 'path' => '/old-c/', 'scroll_sum' => null, 'pageview_visits' => null ),
+	array( 'day' => '2026-06-14', 'path' => '/', 'scroll_sum' => null, 'pageview_visits' => null ),
+);
+reroll_assert( 3 === sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-06-13' ),
+	'(a) upsert-OK day with 3 stale cron-era siblings → 3 incomplete rows (the live 2026-06-13 shape: 6 durable rows, reroll saw 3; other days do not leak in)' );
+$rr_sql = (string) end( $rr_store->queries );
+reroll_assert( "SELECT COUNT(*) FROM wp_sn_analytics_daily WHERE day = '2026-06-13' AND (scroll_sum IS NULL OR pageview_visits IS NULL)" === $rr_sql,
+	'completeness COUNT === pinned full SQL (unified OR predicate, exact day key, durable table)' );
+
+// (b) The OR arm: scroll_sum was written by run N's main query but the gated
+// query failed and the (day,path,class) key vanished from AE before run N+1 —
+// pageview_visits NULL forever. A scroll_sum-only predicate calls this day
+// complete; the OR predicate must not.
+$rr_store->rows = array(
+	array( 'day' => '2026-06-20', 'path' => '/', 'scroll_sum' => 44.0, 'pageview_visits' => 7 ),
+	array( 'day' => '2026-06-20', 'path' => '/talks/', 'scroll_sum' => 3.0, 'pageview_visits' => null ),
+);
+reroll_assert( 1 === sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-06-20' ),
+	'(b) sibling with scroll_sum=3.0 but pageview_visits NULL → 1 incomplete row (the OR arm: gated-NULL alone breaks completeness)' );
+
+// (c) Fully clean day — including measured-0 rows (0 is an ANSWER, not NULL).
+$rr_store->rows = array(
+	array( 'day' => '2026-07-01', 'path' => '/', 'scroll_sum' => 100.0, 'pageview_visits' => 12 ),
+	array( 'day' => '2026-07-01', 'path' => '/feed/', 'scroll_sum' => 0.0, 'pageview_visits' => 0 ),
+);
+reroll_assert( 0 === sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-07-01' ),
+	'(c) fully clean day (measured-0 rows included) → 0 incomplete rows — streak-OK unchanged' );
+
+// (d) A failed COUNT (wpdb returns null) is NOT a clean answer.
+$rr_store->fail_var = true;
+reroll_assert( null === sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-07-01' ),
+	'(d) failed COUNT read (wpdb null) → null, never a fabricated clean 0 — unknown is not an answer' );
+$rr_store->fail_var = false;
+
+// Composition with the streak rule — the fix's exact production consequence:
+// the upsert succeeded on 2026-06-13 but stale siblings remain, so the day is
+// NOT streak-OK and `since` lands AFTER it. exact_metrics_since stops claiming
+// exactness the durable table cannot support (the read layer nulls exact
+// fields over that day either way — the marker lied, the read layer did not).
+$rr_store->rows = array(
+	array( 'day' => '2026-06-13', 'path' => '/', 'scroll_sum' => 812.5, 'pageview_visits' => 4 ),
+	array( 'day' => '2026-06-13', 'path' => '/old-a/', 'scroll_sum' => null, 'pageview_visits' => null ),
+);
+$rr_stale = sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-06-13' );
+reroll_assert( '2026-06-14' === sn_reroll_since_day( array(
+	array( 'day' => '2026-06-13', 'ok' => 0 === $rr_stale ),
+	array( 'day' => '2026-06-14', 'ok' => true ),
+) ), '(a) composition: stale-sibling day EXCLUDED from the streak → since moves FORWARD to the truly-clean boundary (honest > flattering)' );
+
+$rr_store->fail_var = true;
+$rr_unknown = sn_reroll_incomplete_rows( $rr_store, 'wp_sn_analytics_daily', '2026-06-13' );
+$rr_store->fail_var = false;
+reroll_assert( '2026-06-14' === sn_reroll_since_day( array(
+	array( 'day' => '2026-06-13', 'ok' => 0 === $rr_unknown ),
+	array( 'day' => '2026-06-14', 'ok' => true ),
+) ), '(d) composition: a failed completeness COUNT excludes the day too (0 === null is false) — never silently OK' );
+
+// The 0-AE-row legacy check is UNIFIED onto the same predicate: an empty day
+// whose only durable row is scroll-written/gated-NULL is NOT ok either.
+$rr_store->rows = array(
+	array( 'day' => '2026-04-19', 'path' => '/t/', 'scroll_sum' => 3.0, 'pageview_visits' => null ),
+);
+reroll_assert( false === sn_reroll_empty_day_ok( $rr_store, 'wp_sn_analytics_daily', '2026-04-19' ),
+	'sn_reroll_empty_day_ok() rides the unified predicate: a scroll-written/gated-NULL row excludes an empty day (scroll_sum-only would have passed it)' );
+$rr_store->rows = array(
+	array( 'day' => '2026-04-19', 'path' => '/t/', 'scroll_sum' => 3.0, 'pageview_visits' => 5 ),
+);
+reroll_assert( true === sn_reroll_empty_day_ok( $rr_store, 'wp_sn_analytics_daily', '2026-04-19' ),
+	'sn_reroll_empty_day_ok() with a fully-written row → still ok (unification changes the predicate, not the convention)' );
+
 // ── Group: owner-run contract (the binding run-location requirement) ─────────
 echo "\nGroup: owner-run contract\n";
 
@@ -279,6 +416,17 @@ reroll_assert( false === strpos( $tool_src, 'sn_analytics_query( $sn_reroll_gate
 	'no raw sn_analytics_query() call remains for the gated SQL' );
 reroll_assert( false !== strpos( $tool_src, "'sn_analytics_rollup_gated_query'," ),
 	'the wrapper is in the tool\'s required-functions pre-flight list' );
+// v9.63.2 row-level completeness (2026-07-18 production discovery — 36 stale
+// sibling rows since 2026-06-13): both write paths must run the post-write
+// completeness check, the WARN wording must name the stale-sibling cause, and
+// the old scroll_sum-only predicate must be GONE (one unified predicate — two
+// diverging checks would reopen the gap).
+reroll_assert( substr_count( $tool_src, "sn_reroll_incomplete_rows( \$GLOBALS['wpdb']" ) >= 2,
+	'both write paths (bounded loop + trailing-2 production window) run the post-write row-level completeness check' );
+reroll_assert( false !== strpos( $tool_src, 'stale cron-era rows remain' ),
+	'WARN wording names the stale-sibling cause (keys AE no longer returns) and the exclusion' );
+reroll_assert( false === strpos( $tool_src, 'AND scroll_sum IS NULL' ),
+	'the old scroll_sum-only predicate is gone — the legacy 0-AE-row check and the post-write check share ONE unified predicate' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

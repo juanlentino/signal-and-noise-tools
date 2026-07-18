@@ -36,6 +36,10 @@ All three probes need a booted live WP (AE creds live server-side). Batch them i
 - Probe result sets were LIMIT-ed samples (`rows_before_limit_at_least` 29/225 vs rows 10/20) — fine for dialect probing; the production rollup's own limits are unchanged by this.
 - P0.4 guard surface: no owner objection raised → proceed with the default (`error_log` + `sn_analytics_integrity_alert` option read by Health). P0.3 (VERSIONING.md double-check) still pending, trivial.
 
+### Post-release discovery (2026-07-18): stale sibling rows
+
+The production reroll surfaced a marker-honesty gap the day-level streak could not see: `wp_sn_analytics_daily` can hold MORE rows for a day than AE still returns for it — "stale sibling" rows the original nightly cron wrote when the day's events were fresh, whose `(day, path, class)` keys AE has since consolidated away. Production diagnostic (2026-07-18): **36 such rows since 2026-06-13** — e.g. day 2026-06-13 holds 6 durable rows while the reroll's bounded window returned only 3. The reroll upserts everything AE returns and marks the day streak-OK, but the unmatched siblings keep NULL `scroll_sum`/`pageview_visits` forever (their AE source is gone; they hold real legacy views/visits — never delete, never fabricate 0s), so the read layer correctly nulls exact fields for any range touching the day while `exact_metrics_since` claims it. **Day-level success ≠ row-level completeness; `exact_metrics_since` must be earned by the table, not the run.** Fixed in v9.63.2: after each day's write path the tool COUNTs durable rows `WHERE day = %s AND (scroll_sum IS NULL OR pageview_visits IS NULL)` — the same unified predicate now behind the 0-AE-row legacy check (previously `scroll_sum IS NULL` only, which missed the scroll-written/gated-NULL shape) — and any hit (or a failed COUNT: unknown is not a clean answer) WARNs and excludes the day from the streak. The stale rows themselves are unrecoverable and stay; re-running the idempotent reroll moves `exact_metrics_since` FORWARD to the truly-clean boundary.
+
 ## File map
 
 | Action | Path | Responsibility |
