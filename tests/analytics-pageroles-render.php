@@ -62,7 +62,10 @@ ok( 1 === count( $noted ) && 'Entry pages' === $noted[0]['title'] && false !== s
 echo "\nGroup: exit panel\n";
 $html = capture( function () use ( $rows ) { snt_analytics_render_pageroles_table( $rows, 'exit' ); } );
 ok( strpos( $html, 'Exit pages' ) !== false, 'exit: panel heading "Exit pages"' );
-ok( strpos( $html, 'session model' ) !== false, 'exit: caption notes live exit awaits the session model' );
+// v9.66.0: exits are FED LIVE by the nightly session rollup bridge — the old
+// "await the session model" caption is now false and must not render.
+ok( strpos( $html, 'session model' ) === false, 'exit: stale "awaits the session model" caption is gone (exits are live since v9.66.0)' );
+ok( strpos( $html, 'last page of each visit' ) !== false, 'exit: caption states the live unit (last page of each visit, nightly)' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_pageroles_table( array(), 'exit' ); } );
 ok( '' === $html, 'exit: empty rows fold instead of rendering inline (D4 §4)' );

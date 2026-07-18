@@ -200,8 +200,18 @@ class AR_Stub_wpdb {
 
 	public function query( $sql ) {
 		$this->queries[] = $sql;
-		// Fail-mode lets a test exercise the write-failure accounting path.
-		return ! empty( $GLOBALS['__ar_query_fail'] ) ? false : 1;
+		// Real wpdb flush()es last_error at the START of every query, then sets
+		// it on failure and returns false — the REAL failure shape a transport
+		// stub must model (never a bare false beside a stale-empty last_error).
+		// Fail-mode: truthy → fail; a STRING carries the simulated last_error.
+		$this->last_error = '';
+		if ( ! empty( $GLOBALS['__ar_query_fail'] ) ) {
+			$this->last_error = is_string( $GLOBALS['__ar_query_fail'] )
+				? $GLOBALS['__ar_query_fail']
+				: 'Lock wait timeout exceeded; try restarting transaction';
+			return false;
+		}
+		return 1;
 	}
 
 	public function get_results( $sql, $output = ARRAY_A ) {
@@ -591,9 +601,12 @@ sn_analytics_rollup_upsert( array(
 	),
 ) );
 $qfloat = $GLOBALS['wpdb']->queries[0];
-ok( strpos( $qfloat, "'190.5000'" ) !== false && strpos( $qfloat, "'294971.2500'" ) !== false,
-	'upsert: v5 FLOAT sums bind as 4dp dot-decimal %s strings' );
-ok( strpos( $qfloat, '190,5' ) === false && strpos( $qfloat, '294971,25' ) === false && strpos( $qfloat, '294,971' ) === false,
+// v9.66.0 (schema v6): the STORED scroll_sum is the depth identity 25 ×
+// scroll_events (25 × 4 = 100.0000), NOT the transported raw milestone-point
+// sum (190.5). time_sum is genuinely event-summed ms — passthrough untouched.
+ok( strpos( $qfloat, "'100.0000'" ) !== false && strpos( $qfloat, "'294971.2500'" ) !== false,
+	'upsert: v5 FLOAT sums bind as 4dp dot-decimal %s strings (scroll_sum in true depth units)' );
+ok( strpos( $qfloat, '100,0' ) === false && strpos( $qfloat, '294971,25' ) === false && strpos( $qfloat, '294,971' ) === false,
 	'upsert: no comma decimal/thousands in the v5 sums under a de_DE LC_NUMERIC' );
 if ( false !== $__saved_numeric_v5 ) { setlocale( LC_NUMERIC, $__saved_numeric_v5 ); }
 
@@ -612,8 +625,52 @@ sn_analytics_rollup_upsert( array(
 	),
 ) );
 $qw = $GLOBALS['wpdb']->queries[0];
-ok( strpos( $qw, "'2026-06-11', '/w', 'human', 4, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4" ) !== false,
-	'upsert: legacy avgs = weighted sum/events (47.50 not the transported 40; 0 events → 0.00 not 999)' );
+// The RAW transported sum (190) still weights the legacy scroll_avg (190/4 =
+// 47.50) while the STORED scroll_sum column carries the depth identity
+// (25 × 4 = 100.0000) — both on the same tuple, so a passthrough store OR a
+// legacy avg computed from the re-based sum (25) would each fail this pin.
+ok( strpos( $qw, "'2026-06-11', '/w', 'human', 4, 4, '47.50', '0.00', '100.0000', 4, '0.0000', 0, 4" ) !== false,
+	'upsert: legacy avgs = weighted RAW sum/events (47.50 not 40 or 25.00); stored scroll_sum = 25 x events (100.0000, not 190)' );
+
+// ── v9.66.0: stored scroll_sum invariant — 25 × scroll_events or NULL ─────────
+echo "\nGroup: stored scroll_sum = 25 x scroll_events (true depth units, v9.66.0)\n";
+// scroll_events known but the raw scroll_sum key ABSENT (legacy caller shape):
+// the identity needs only the event count — the stored column still gets it.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/x', 'class' => 'human',
+		'views' => 3, 'visits' => 2, 'scroll_avg' => 40, 'time_avg' => 0,
+		'scroll_events' => '4',
+	),
+) );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'2026-06-11', '/x', 'human', 3, 2, '40.00', '0.00', '100.0000', 4, NULL, NULL, NULL" ) !== false,
+	'identity: events known + raw sum absent → stored scroll_sum still 25 x events (100.0000); legacy avg falls back to transported' );
+// scroll_events NULL beside a present raw sum: the identity is unknown — the
+// stored column binds NULL. Storing the raw 190 milestone-point sum again
+// would silently reintroduce the shipped-113% unit.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/x', 'class' => 'human',
+		'views' => 3, 'visits' => 2, 'scroll_avg' => 40, 'time_avg' => 0,
+		'scroll_sum' => 190, 'scroll_events' => null,
+	),
+) );
+$qi = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $qi, "'40.00', '0.00', NULL, NULL" ) !== false && strpos( $qi, "'190.0000'" ) === false,
+	'identity: events NULL → stored scroll_sum NULL (raw milestone-points are NEVER stored again)' );
+// Measured-zero events → a REAL 0.0000 depth sum (identity holds at 0), never NULL.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/x', 'class' => 'human',
+		'views' => 3, 'visits' => 2, 'scroll_avg' => 0, 'time_avg' => 0,
+		'scroll_sum' => '0', 'scroll_events' => '0',
+	),
+) );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'0.00', '0.00', '0.0000', 0, NULL, NULL, NULL" ) !== false,
+	'identity: measured-zero events → stored scroll_sum is a real 0.0000 (25 x 0), never NULL' );
 
 // ── Task 3: rollup-side never-invert guard (human class) ─────────────────────
 echo "\nGroup: integrity guard (Task 3)\n";
@@ -761,10 +818,12 @@ sn_analytics_run_rollup();
 ok( count( $GLOBALS['__ar_query_calls'] ) === 2, 'raw-merge: two AE queries issued' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'raw-merge: one batched upsert' );
 $qm = $GLOBALS['wpdb']->queries[0];
-// "/" — merged gated 4; weighted scroll_avg 190/4=47.50 (not the transported
-// 40); time pair measured-zero → time_avg 0.00 beside real 0 sums.
-ok( strpos( $qm, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false,
-	'raw-merge: "/" tuple pins numeric-string coercion, weighted avgs, 4dp sums, merged pageview_visits' );
+// "/" — merged gated 4; weighted scroll_avg from the RAW transported sum
+// (190/4 = 47.50, not the transported 40); stored scroll_sum re-based to the
+// depth identity (25 × 4 = 100.0000, v9.66.0); time pair measured-zero →
+// time_avg 0.00 beside real 0 sums.
+ok( strpos( $qm, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '100.0000', 4, '0.0000', 0, 4)" ) !== false,
+	'raw-merge: "/" tuple pins numeric-string coercion, weighted avgs, true-unit scroll_sum, merged pageview_visits' );
 // "/feed/" — the viewless class: views 0, visits 3, no gated row → REAL 0.
 ok( strpos( $qm, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
 	'raw-merge: viewless "/feed/" tuple gets pageview_visits 0 (absent from a successful gated result)' );
@@ -887,7 +946,7 @@ ok( count( $GLOBALS['wpdb']->queries ) === 1, 'truncated-e2e: main rows still wr
 $qt = $GLOBALS['wpdb']->queries[0] ?? '';
 ok( strpos( $qt, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, NULL)" ) !== false,
 	'truncated-e2e: the row MISSING from the truncated gated set binds NULL — never the fabricated measured 0' );
-ok( strpos( $qt, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, NULL)" ) !== false,
+ok( strpos( $qt, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '100.0000', 4, '0.0000', 0, NULL)" ) !== false,
 	'truncated-e2e: even the row PRESENT in the truncated set binds NULL (the whole set is refused)' );
 ok( strpos( $qt, ', 4)' ) === false && strpos( $qt, ', 0)' ) === false,
 	'truncated-e2e: no tuple carries a numeric pageview_visits anywhere in the write' );
@@ -900,7 +959,7 @@ $GLOBALS['__ar_query_return'] = $main_envelope;
 $GLOBALS['__ar_gated_return'] = $gated_envelope;
 sn_analytics_run_rollup();
 $qc = $GLOBALS['wpdb']->queries[0] ?? '';
-ok( strpos( $qc, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false
+ok( strpos( $qc, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '100.0000', 4, '0.0000', 0, 4)" ) !== false
 	&& strpos( $qc, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
 	'truncated-e2e control: a complete gated envelope keeps matched 4 + real 0 exactly as before' );
 
@@ -919,7 +978,7 @@ $GLOBALS['__ar_query_return'] = $main_envelope;
 $GLOBALS['__ar_gated_return'] = $quirk_gated_envelope;
 sn_analytics_run_rollup();
 $qq = $GLOBALS['wpdb']->queries[0] ?? '';
-ok( strpos( $qq, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false
+ok( strpos( $qq, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '100.0000', 4, '0.0000', 0, 4)" ) !== false
 	&& strpos( $qq, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
 	'misfire-e2e: a below-cap GROUP BY-quirk gated envelope (rows 1, before 3) is TRUSTED — matched 4 + real 0, no fabricated NULLs' );
 
@@ -1055,7 +1114,7 @@ ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 0, 'maybe_install: current version → no dbDelta' );
-ok( SN_ANALYTICS_DAILY_DB_VERSION === '5', 'db version is 5 (nullable engagement-sum columns)' );
+ok( SN_ANALYTICS_DAILY_DB_VERSION === '6', 'db version is 6 (scroll_sum re-based to true depth units)' );
 
 // Upgrading from a pre-v2 version drops the old table (dbDelta cannot rotate the
 // unique key) then recreates. The stub records the DROP via query().
@@ -1068,7 +1127,7 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( $dropped, 'maybe_install: pre-v2 upgrade drops the old table before recreating' );
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: pre-v2 upgrade runs dbDelta to recreate' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: stamps the current db version (5)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'maybe_install: stamps the current db version (6)' );
 
 // v2→v3 must NOT drop the table (it now holds real history). It runs a targeted
 // one-time DELETE of the admin/login rows that leaked in before the ingestion
@@ -1084,7 +1143,7 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( ! $dropped_v3, 'maybe_install: v2→v3 does NOT drop the populated table' );
 ok( $purged, 'maybe_install: v2→v3 purges admin/login rows with a targeted DELETE' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: upgrading past v3 stamps the current db version (5)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'maybe_install: upgrading past v3 stamps the current db version (6)' );
 
 // v3→v4: the rollup day boundary moved from UTC to the SITE-LOCAL day. No drop, no
 // purge — just schedule a one-time re-roll so the trailing window is overwritten
@@ -1102,7 +1161,7 @@ ok( ! $dropped_v4 && ! $purged_v4, 'maybe_install: v3→v4 neither drops nor pur
 ok( count( $GLOBALS['__ar_single_events'] ) === 1
 	&& $GLOBALS['__ar_single_events'][0]['hook'] === SN_ANALYTICS_ROLLUP_HOOK,
 	'maybe_install: v3→v4 schedules a one-time re-roll' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: the v3→v4 path stamps the current db version (5)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'maybe_install: the v3→v4 path stamps the current db version (6)' );
 
 // v4→v5: purely additive — dbDelta ADDs the four nullable engagement-sum
 // columns from the schema string. No drop, no purge, and NO install-side
@@ -1122,7 +1181,41 @@ ok( count( $GLOBALS['__ar_single_events'] ) === 0, 'maybe_install: v4→v5 sched
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1
 	&& strpos( $GLOBALS['__ar_dbdelta_calls'][0], 'scroll_sum FLOAT NULL DEFAULT NULL' ) !== false,
 	'maybe_install: v4→v5 runs dbDelta with the nullable engagement-column schema' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: v4→v5 stamps db version 5' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'maybe_install: v4→v5 upgrades stamp the current db version (6)' );
+
+// v5→v6 (v9.66.0): scroll_sum re-based to TRUE depth units. dbDelta cannot run
+// UPDATEs, so the install runs the retroactive repair explicitly post-dbDelta:
+// UPDATE ... SET scroll_sum = 25 * scroll_events WHERE scroll_events IS NOT
+// NULL — an exact identity (both columns come from the same 'sc' events), a
+// fixed point (idempotent by construction), and NULL rows stay NULL.
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '5' );
+sn_analytics_daily_maybe_install();
+$rebased_v6 = false;
+$dropped_v6 = false;
+$purged_v6  = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'UPDATE wp_sn_analytics_daily' ) !== false
+		&& stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false
+		&& stripos( $q, 'scroll_events IS NOT NULL' ) !== false ) { $rebased_v6 = true; }
+	if ( stripos( $q, 'DROP TABLE' ) !== false ) { $dropped_v6 = true; }
+	if ( stripos( $q, 'DELETE FROM wp_sn_analytics_daily' ) !== false ) { $purged_v6 = true; }
+}
+ok( $rebased_v6, 'maybe_install: v5→v6 runs the one-time scroll_sum = 25 * scroll_events repair (scroll_events IS NOT NULL gate)' );
+ok( ! $dropped_v6 && ! $purged_v6, 'maybe_install: v5→v6 neither drops nor purges the populated table' );
+ok( count( $GLOBALS['__ar_single_events'] ) === 0, 'maybe_install: v5→v6 schedules no install-side re-roll (the identity repairs in place)' );
+ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: v5→v6 still runs dbDelta first (schema unchanged, additive-safe)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'maybe_install: v5→v6 stamps db version 6' );
+
+// Re-running with the option already at 6 must NOT repeat the repair (the
+// UPDATE is idempotent anyway — 25*events is a fixed point — but the gate is
+// the machinery under test).
+sn_analytics_daily_maybe_install();
+$update_count = 0;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false ) { ++$update_count; }
+}
+ok( 1 === $update_count, 'maybe_install: at version 6 the repair does not run again (gated exactly once)' );
 
 // Option absent → install runs dbDelta with the schema + stamps the version.
 ar_reset();
@@ -1130,6 +1223,46 @@ sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: missing version → runs dbDelta' );
 ok( strpos( $GLOBALS['__ar_dbdelta_calls'][0], 'wp_sn_analytics_daily' ) !== false, 'maybe_install: dbDelta gets the CREATE TABLE' );
 ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === SN_ANALYTICS_DAILY_DB_VERSION, 'maybe_install: stamps the db version option' );
+$fresh_rebase = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false ) { $fresh_rebase = true; }
+}
+ok( ! $fresh_rebase, 'maybe_install: a FRESH install (option absent, no data) skips the v6 repair UPDATE' );
+
+// ── v6 repair failure — no stamp, logged, retried (pre-merge review F1) ───────
+// A transient UPDATE failure (lock wait, crashed table) must NOT be stamped
+// over: stamping '6' unconditionally makes maybe_install never re-enter, so the
+// repair would be permanently and invisibly skipped. On failure the option must
+// stay at the PRIOR value (the next init retries — the UPDATE is an idempotent
+// fixed point, so re-running is safe, and dbDelta re-running is harmless) and
+// the failure must be error_log'd WITH $wpdb->last_error (never-silent rule:
+// never swallow the failure reason).
+echo "\nGroup: v6 repair failure gating\n";
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '5' );
+$GLOBALS['__ar_query_fail'] = 'Lock wait timeout exceeded; try restarting transaction';
+$v6_fail_log = tempnam( sys_get_temp_dir(), 'sn_v6fail' );
+$old_v6_log  = ini_set( 'error_log', $v6_fail_log );
+sn_analytics_daily_maybe_install();
+ini_set( 'error_log', (string) $old_v6_log );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5',
+	'v6 repair failure: the version option is NOT stamped (stays 5 → maybe_install retries on the next init)' );
+$v6_fail_out = (string) @file_get_contents( $v6_fail_log );
+@unlink( $v6_fail_log );
+ok( strpos( $v6_fail_out, '[sn-analytics] v6 scroll_sum repair failed' ) !== false,
+	'v6 repair failure: the failure is error_log\'d (never silent)' );
+ok( strpos( $v6_fail_out, 'Lock wait timeout exceeded' ) !== false,
+	'v6 repair failure: the log carries $wpdb->last_error (the reason is never swallowed)' );
+// Next init: the transient failure has cleared → maybe_install re-enters
+// (option still '5'), re-runs the idempotent UPDATE, and stamps 6 on success.
+$GLOBALS['__ar_query_fail'] = false;
+sn_analytics_daily_maybe_install();
+$v6_retry_updates = 0;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false ) { ++$v6_retry_updates; }
+}
+ok( 2 === $v6_retry_updates, 'v6 repair retry: the next init re-runs the repair UPDATE (fixed point — retry is safe)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'v6 repair retry: success stamps db version 6' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
