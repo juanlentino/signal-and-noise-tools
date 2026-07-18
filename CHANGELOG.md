@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — Analytics Integrity Phase A (feat/analytics-integrity)
+
+### Added
+
+**Analytics daily schema v5 — four nullable engagement-sum columns** (`inc/analytics-rollup.php`). `wp_sn_analytics_daily` gains `scroll_sum FLOAT`, `scroll_events INT UNSIGNED`, `time_sum FLOAT`, `time_events INT UNSIGNED`, all `NULL DEFAULT NULL`, so exact per-view and per-visit engagement denominators can be derived instead of relying on the stored per-event means (`scroll_avg`/`time_avg`, which stay populated for back-compat). `SN_ANALYTICS_DAILY_DB_VERSION` bumps 4→5; the migration is purely additive via dbDelta — no drop, no purge, no install-side re-roll (the trailing-≤90d backfill is a separate owner-run tool).
+
+The nullability is deliberate and load-bearing: legacy rows rolled before v5 read NULL ("never measured"), never a fabricated 0, so downstream derivation can tell "no data" from a real zero. The rollup test pins the four column declarations as nullable, the v4→v5 migration path (no DROP, no DELETE, no scheduled re-roll, version stamped), and the updated version constant.
+
 ## [9.62.3] - 2026-07-17: One nav in the Desktop Mode window (the duplicate top tabs are gone)
 
 ### Fixed

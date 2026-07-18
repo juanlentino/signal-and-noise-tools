@@ -247,6 +247,17 @@ ok( strpos( $schema, 'UNIQUE KEY' ) !== false, 'schema: declares a UNIQUE KEY' )
 foreach ( array( 'day', 'path', 'views', 'visits', 'scroll_avg', 'time_avg' ) as $col ) {
 	ok( preg_match( '/\b' . $col . '\b/', $schema ) === 1, "schema: declares the $col column" );
 }
+// v5 — engagement-sum columns. NULLABLE is load-bearing: legacy rows (rolled
+// before v5) must read NULL ("never measured"), never a fabricated 0, so the
+// derive layer can tell "no data" from a real zero (realtime-zero-vs-null).
+foreach ( array(
+	'scroll_sum FLOAT NULL DEFAULT NULL',
+	'scroll_events INT UNSIGNED NULL DEFAULT NULL',
+	'time_sum FLOAT NULL DEFAULT NULL',
+	'time_events INT UNSIGNED NULL DEFAULT NULL',
+) as $decl ) {
+	ok( strpos( $schema, $decl ) !== false, "schema: declares nullable engagement column: $decl" );
+}
 ok( strpos( $schema, 'utf8mb4' ) !== false, 'schema: includes the charset collate' );
 ok( preg_match( '/\bclass\b/', $schema ) === 1, 'schema: declares the class column' );
 ok( preg_match( '/UNIQUE KEY\s+\w+\s*\(\s*day\s*,\s*path\s*,\s*class\s*\)/', $schema ),
@@ -571,7 +582,7 @@ ar_reset();
 update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 sn_analytics_daily_maybe_install();
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 0, 'maybe_install: current version → no dbDelta' );
-ok( SN_ANALYTICS_DAILY_DB_VERSION === '4', 'db version is 4 (site-local-day rollup)' );
+ok( SN_ANALYTICS_DAILY_DB_VERSION === '5', 'db version is 5 (nullable engagement-sum columns)' );
 
 // Upgrading from a pre-v2 version drops the old table (dbDelta cannot rotate the
 // unique key) then recreates. The stub records the DROP via query().
@@ -584,7 +595,7 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( $dropped, 'maybe_install: pre-v2 upgrade drops the old table before recreating' );
 ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1, 'maybe_install: pre-v2 upgrade runs dbDelta to recreate' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: stamps the current db version' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: stamps the current db version (5)' );
 
 // v2→v3 must NOT drop the table (it now holds real history). It runs a targeted
 // one-time DELETE of the admin/login rows that leaked in before the ingestion
@@ -600,7 +611,7 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( ! $dropped_v3, 'maybe_install: v2→v3 does NOT drop the populated table' );
 ok( $purged, 'maybe_install: v2→v3 purges admin/login rows with a targeted DELETE' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: upgrading past v3 stamps the current db version (4)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: upgrading past v3 stamps the current db version (5)' );
 
 // v3→v4: the rollup day boundary moved from UTC to the SITE-LOCAL day. No drop, no
 // purge — just schedule a one-time re-roll so the trailing window is overwritten
@@ -618,7 +629,27 @@ ok( ! $dropped_v4 && ! $purged_v4, 'maybe_install: v3→v4 neither drops nor pur
 ok( count( $GLOBALS['__ar_single_events'] ) === 1
 	&& $GLOBALS['__ar_single_events'][0]['hook'] === SN_ANALYTICS_ROLLUP_HOOK,
 	'maybe_install: v3→v4 schedules a one-time re-roll' );
-ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '4', 'maybe_install: v3→v4 stamps db version 4' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: the v3→v4 path stamps the current db version (5)' );
+
+// v4→v5: purely additive — dbDelta ADDs the four nullable engagement-sum
+// columns from the schema string. No drop, no purge, and NO install-side
+// re-roll: the trailing-90d backfill is an explicit owner-run tool (Task 6),
+// never an install side effect.
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '4' );
+sn_analytics_daily_maybe_install();
+$dropped_v5 = false;
+$purged_v5  = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'DROP TABLE' ) !== false ) { $dropped_v5 = true; }
+	if ( stripos( $q, 'DELETE FROM wp_sn_analytics_daily' ) !== false ) { $purged_v5 = true; }
+}
+ok( ! $dropped_v5 && ! $purged_v5, 'maybe_install: v4→v5 neither drops nor purges the populated table' );
+ok( count( $GLOBALS['__ar_single_events'] ) === 0, 'maybe_install: v4→v5 schedules no install-side re-roll (backfill is owner-run)' );
+ok( count( $GLOBALS['__ar_dbdelta_calls'] ) === 1
+	&& strpos( $GLOBALS['__ar_dbdelta_calls'][0], 'scroll_sum FLOAT NULL DEFAULT NULL' ) !== false,
+	'maybe_install: v4→v5 runs dbDelta with the nullable engagement-column schema' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5', 'maybe_install: v4→v5 stamps db version 5' );
 
 // Option absent → install runs dbDelta with the schema + stamps the version.
 ar_reset();

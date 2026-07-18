@@ -69,7 +69,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
 // v3: one-time purge of admin/login rows that leaked in before the ingestion
 // guard (sn_analytics_is_excluded_path) existed. Data-only — no schema change.
-const SN_ANALYTICS_DAILY_DB_VERSION     = '4';
+// v5: additive engagement-sum columns (scroll_sum/scroll_events/time_sum/
+// time_events) for exact per-view / per-visit denominators (Phase A spec §6).
+// NULL DEFAULT NULL is load-bearing: legacy rows must read NULL ("never
+// measured"), never a fabricated 0 — the derive layer distinguishes the two.
+const SN_ANALYTICS_DAILY_DB_VERSION     = '5';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
 // SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
@@ -116,6 +120,11 @@ function sn_analytics_is_excluded_path( $path ) {
  * UNIQUE(day, path, class) key is 763 bytes — inside InnoDB's 767-byte prefix.
  * Paths longer than 180 chars are truncated at write time (rare on this site).
  *
+ * The v5 engagement-sum columns (scroll_sum/scroll_events/time_sum/time_events)
+ * are NULL DEFAULT NULL on purpose: a legacy row that predates them must read
+ * NULL ("never measured"), never a fabricated 0 — downstream derivation treats
+ * null and zero as different answers.
+ *
  * @return string CREATE TABLE statement.
  */
 function sn_analytics_daily_schema_sql() {
@@ -132,6 +141,10 @@ function sn_analytics_daily_schema_sql() {
 		visits INT UNSIGNED NOT NULL DEFAULT 0,
 		scroll_avg FLOAT NOT NULL DEFAULT 0,
 		time_avg FLOAT NOT NULL DEFAULT 0,
+		scroll_sum FLOAT NULL DEFAULT NULL,
+		scroll_events INT UNSIGNED NULL DEFAULT NULL,
+		time_sum FLOAT NULL DEFAULT NULL,
+		time_events INT UNSIGNED NULL DEFAULT NULL,
 		PRIMARY KEY  (id),
 		UNIQUE KEY day_path_class (day, path, class)
 	) {$charset};";
@@ -191,6 +204,11 @@ function sn_analytics_daily_install() {
 			wp_schedule_single_event( time(), SN_ANALYTICS_ROLLUP_HOOK );
 		}
 	}
+
+	// v4→v5 needs no gated step: dbDelta above ADDs the four nullable engagement
+	// columns (scroll_sum/scroll_events/time_sum/time_events) additively. Legacy
+	// rows keep NULL there — "never measured" — and the trailing-≤90d backfill is
+	// an explicit owner-run tool, deliberately NOT an install side effect.
 
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 }
