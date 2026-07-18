@@ -380,27 +380,75 @@ ae_reset();
 $GLOBALS['__ae_wp_error_mode'] = true;
 ok( sn_analytics_probe() === false, 'probe: false when query returns null (WP_Error)' );
 
-// ── Row-cap truncation flag (adversarial finding 3) ───────────────────────────
-// AE responses carry {rows, rows_before_limit_at_least}: when the latter
-// exceeds the former the result set was ROW-CAP TRUNCATED — the returned rows
-// are real but the set is INCOMPLETE, so any "absent = zero" reasoning over it
-// (the gated pageview_visits merge) is invalid. The flag is request-scoped,
-// re-recorded on EVERY call, and false on every failure path (a null return
-// already carries no completeness claim).
+// ── Row-cap truncation flag (adversarial finding 3; verdict fixed v9.63.1) ────
+// AE responses carry {rows, rows_before_limit_at_least}. ClickHouse computes
+// rows_before_limit_at_least BEFORE the final GROUP BY merge, so on GROUP BY
+// queries it can exceed rows WITHOUT any truncation (pre-merge aggregation
+// partials are counted). Proven live by the owner's 2026-07-18 production
+// reroll run: the bare before>rows verdict flagged 25 of 35 days "truncated"
+// on gated GROUP BY results holding only 3–36 rows — impossible truncation,
+// the AE SQL API's applied cap (its default LIMIT of 10,000 rows =
+// SN_ANALYTICS_AE_ROW_CAP; neither of our queries sets an explicit LIMIT) was
+// never reached — and their complete gated data was discarded. Truncation
+// therefore requires BOTH: the result actually HIT the cap
+// (rows >= SN_ANALYTICS_AE_ROW_CAP) AND before > rows. The flag stays
+// request-scoped, re-recorded on EVERY call, and false on every failure path
+// (a null return already carries no completeness claim).
 echo "\nGroup: row-cap truncation flag (sn_analytics_last_result_truncated)\n";
 ok( function_exists( 'sn_analytics_last_result_truncated' ), 'truncation: sn_analytics_last_result_truncated() exists' );
+ok( defined( 'SN_ANALYTICS_AE_ROW_CAP' ) && 10000 === SN_ANALYTICS_AE_ROW_CAP,
+	'truncation: SN_ANALYTICS_AE_ROW_CAP pins the AE SQL API default LIMIT (10000)' );
 
+// (a) The live-misfire fixture — the 2026-07-18 production reroll shape: a
+// gated GROUP BY day returned its COMPLETE result set (here 5 rows) with
+// rows_before_limit_at_least 7 from pre-merge aggregation partials. 25 of 35
+// days matched this shape and were wrongly discarded (pageview_visits stayed
+// NULL, exact_metrics_since landed at 2026-07-17 instead of ~2026-06-12).
+// NOT truncated: the cap was never reached.
 ae_reset();
 $GLOBALS['__ae_mock_code'] = 200;
 $GLOBALS['__ae_mock_body'] = json_encode( array(
 	'meta' => array( array( 'name' => 'pageview_visits', 'type' => 'UInt64' ) ),
-	'data' => array( array( 'day' => '2026-07-15', 'path' => '/', 'class' => 'human', 'pageview_visits' => '4' ) ),
-	'rows' => 1,
-	'rows_before_limit_at_least' => 5,
+	'data' => array(
+		array( 'day' => '2026-06-20', 'path' => '/', 'class' => 'human', 'pageview_visits' => '4' ),
+		array( 'day' => '2026-06-20', 'path' => '/notes/', 'class' => 'human', 'pageview_visits' => '2' ),
+		array( 'day' => '2026-06-20', 'path' => '/about/', 'class' => 'human', 'pageview_visits' => '1' ),
+		array( 'day' => '2026-06-20', 'path' => '/', 'class' => 'bot', 'pageview_visits' => '3' ),
+		array( 'day' => '2026-06-20', 'path' => '/feed/', 'class' => 'bot', 'pageview_visits' => '1' ),
+	),
+	'rows' => 5,
+	'rows_before_limit_at_least' => 7,
 ) );
 $result = sn_analytics_query( 'SELECT 1' );
-ok( is_array( $result ) && 1 === count( $result ), 'truncation: a truncated 200 still returns its (real) rows' );
-ok( true === sn_analytics_last_result_truncated(), 'truncation: rows_before_limit_at_least (5) > rows (1) → flagged TRUE' );
+ok( is_array( $result ) && 5 === count( $result ), 'truncation: the GROUP BY-quirk 200 returns its complete rows' );
+ok( false === sn_analytics_last_result_truncated(),
+	'truncation: rows (5) below the cap with before (7) > rows → NOT truncated (2026-07-18 live misfire, 25/35 days)' );
+
+// (b) A REAL cap hit: rows landed exactly on the applied cap and the source
+// held more → truncated. (Fixture abbreviates the 10,000-row data body — the
+// envelope COUNTERS are the transport contract the verdict reads.)
+$GLOBALS['__ae_mock_body'] = json_encode( array(
+	'meta' => array( array( 'name' => 'pageview_visits', 'type' => 'UInt64' ) ),
+	'data' => array( array( 'day' => '2026-07-15', 'path' => '/', 'class' => 'human', 'pageview_visits' => '4' ) ),
+	'rows' => 10000,
+	'rows_before_limit_at_least' => 12000,
+) );
+$result = sn_analytics_query( 'SELECT 1' );
+ok( is_array( $result ), 'truncation: a truncated 200 still returns its (real) rows' );
+ok( true === sn_analytics_last_result_truncated(),
+	'truncation: rows (10000) reached the cap AND before (12000) > rows → truncated TRUE' );
+
+// (c) One row short of the cap — the cap was NEVER reached, so before>rows can
+// only be the GROUP BY quirk, not truncation.
+$GLOBALS['__ae_mock_body'] = json_encode( array(
+	'meta' => array(),
+	'data' => array( array( 'n' => 1 ) ),
+	'rows' => 9999,
+	'rows_before_limit_at_least' => 12000,
+) );
+sn_analytics_query( 'SELECT 1' );
+ok( false === sn_analytics_last_result_truncated(),
+	'truncation: rows (9999) one short of the cap with before (12000) → NOT truncated (cap never reached)' );
 
 $GLOBALS['__ae_mock_body'] = json_encode( array(
 	'meta' => array(),
@@ -417,10 +465,10 @@ sn_analytics_query( 'SELECT 1' );
 ok( false === sn_analytics_last_result_truncated(), 'truncation: envelope without counters → no truncation evidence → FALSE' );
 
 // A failure RESETS a stale truncated verdict — the flag always describes the
-// LAST call, never a previous response.
-$GLOBALS['__ae_mock_body'] = json_encode( array( 'meta' => array(), 'data' => array(), 'rows' => 0, 'rows_before_limit_at_least' => 9 ) );
+// LAST call, never a previous response. The seed is a genuine cap-hit envelope.
+$GLOBALS['__ae_mock_body'] = json_encode( array( 'meta' => array(), 'data' => array(), 'rows' => 10000, 'rows_before_limit_at_least' => 12000 ) );
 sn_analytics_query( 'SELECT 1' );
-ok( true === sn_analytics_last_result_truncated(), 'truncation: seeded a truncated verdict (0 returned of ≥9)' );
+ok( true === sn_analytics_last_result_truncated(), 'truncation: seeded a truncated verdict (cap-hit 10000 of ≥12000)' );
 $GLOBALS['__ae_mock_code'] = 401;
 $GLOBALS['__ae_mock_body'] = '{"errors":[{"code":10000,"message":"Authentication error"}]}';
 sn_analytics_query( 'SELECT 1' );

@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.63.1] - 2026-07-18: AE truncation verdict requires the row cap to be reached
+
+### Fixed
+
+**The row-cap truncation verdict misfired on GROUP BY results that were never truncated, and the owner's production reroll paid for it** (`inc/analytics-api.php`, wrapper wording in `inc/analytics-rollup.php`; tests extended in `tests/analytics-api.php` + `tests/analytics-rollup.php`). `sn_analytics_query()` recorded the verdict as bare `rows_before_limit_at_least > rows` — but ClickHouse computes `rows_before_limit_at_least` BEFORE the final GROUP BY merge, so on GROUP BY queries it counts pre-merge aggregation partials and can exceed the final row count with NO truncation whatsoever. Proven live by the owner's 2026-07-18 production reroll run (v9.63.0): the bare verdict fired on **25 of 35 days** whose gated GROUP BY results held only **3–36 rows** — impossible truncation, since the AE SQL API's applied cap (its default LIMIT of 10,000 rows; neither of our queries sets an explicit LIMIT) was never reached. `sn_analytics_rollup_gated_query()` then dutifully refused those 25 complete gated result sets as "truncated", `pageview_visits` stayed NULL on every affected day, and `exact_metrics_since` landed at 2026-07-17 instead of ~2026-06-12 — the fail-safe designed against fabricated zeros instead fabricated a month of "never measured".
+
+The one-line fix: truncation can only have occurred if the result actually HIT the applied cap. New `SN_ANALYTICS_AE_ROW_CAP = 10000` (documented as the AE SQL API default LIMIT) and the verdict becomes `rows >= SN_ANALYTICS_AE_ROW_CAP && rows_before_limit_at_least > rows`. Everything around it is deliberately unchanged: the reset-per-call discipline (the flag always describes THIS call), the both-counters-present gate (no counters → no evidence → false), and the consumer's fail-toward-NULL behavior in `sn_analytics_rollup_gated_query()` (a genuinely truncated gated set still degrades to NULL, never a fabricated 0).
+
+Tests (TDD, red first — three failing assertions against the old verdict): (a) the live-misfire fixture, rows 5 / before 7 → NOT truncated, with the wrapper passing the 5 complete rows through intact and a run_rollup e2e control proving the gated data is USED (matched 4 + real 0, no fabricated NULLs); (b) a real cap hit, rows 10,000 / before 12,000 → truncated, with the e2e truncated flow still binding NULL end-to-end; (c) the boundary, rows 9,999 / before 12,000 → NOT truncated (cap never reached). The rollup suite's transport stub was updated to carry the real client's new verdict rule (stubs model the transport's transform, never invent one — the existing truncated-path fixtures now use realistic cap-hit envelopes), and `tests/analytics-api.php` pins the constant itself. The reroll tool is idempotent, so re-running it after installing this fix recovers the 25 discarded days.
+
 ## [9.63.0] - 2026-07-18: Analytics integrity — honest metric vocabulary, gated visits, exact engagement (Phase A)
 
 ### Added
