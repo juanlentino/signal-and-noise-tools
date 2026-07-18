@@ -156,6 +156,7 @@ function sn_session_exit_page_rows( array $summaries, $day ) {
  * (190) and 100-row chunking are the upsert's job (sn_analytics_pageroles_upsert).
  */
 function sn_session_rollup_run() {
+	global $wpdb;
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return;
 	}
@@ -166,6 +167,14 @@ function sn_session_rollup_run() {
 		$data = sn_analytics_fetch_session_events( $day, $day, $class );
 		if ( empty( $data['configured'] ) ) {
 			continue;
+		}
+		// A row-cap-hit fetch sessionizes a TRUNCATED event set: the durable
+		// exits/quality written from it may undercount. The interactive Visits
+		// view warns on this same flag — the nightly writer must not stay
+		// silent where the live view speaks. Still write below: the data is
+		// the best available; the log marks it, never blocks it.
+		if ( ! empty( $data['capped'] ) ) {
+			error_log( '[sn-analytics] session rollup for ' . $day . ' ran on a row-capped event set — durable rows may undercount' );
 		}
 		// A "visit" requires >= 1 pageview. Filter pageview-less groups (RSS srv:1
 		// 'ce' polls, orphan scroll/timing beacons) BEFORE aggregating — exactly as
@@ -190,7 +199,22 @@ function sn_session_rollup_run() {
 		if ( 'human' === $class && function_exists( 'sn_analytics_pageroles_upsert' ) ) {
 			$exit_rows = sn_session_exit_page_rows( $visits, $day );
 			if ( ! empty( $exit_rows ) ) {
-				sn_analytics_pageroles_upsert( $exit_rows );
+				$written = sn_analytics_pageroles_upsert( $exit_rows );
+				// The schedule only ever computes YESTERDAY — no self-heal
+				// window: a silently failed write night leaves this UTC-day's
+				// exits permanently absent with zero signal. Consult the
+				// upsert's row count AND $wpdb->last_error (a per-chunk count
+				// can mask a last-chunk error). No in-process retry — the
+				// error_log IS the signal (never-silent rule).
+				if ( false === $written || (int) $written < count( $exit_rows ) || '' !== (string) $wpdb->last_error ) {
+					error_log( sprintf(
+						'[sn-analytics] exit-page bridge wrote %d of %d rows for %s: %s',
+						(int) $written,
+						count( $exit_rows ),
+						$day,
+						(string) $wpdb->last_error
+					) );
+				}
 			}
 		}
 	}

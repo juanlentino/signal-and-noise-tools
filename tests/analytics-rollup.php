@@ -200,8 +200,18 @@ class AR_Stub_wpdb {
 
 	public function query( $sql ) {
 		$this->queries[] = $sql;
-		// Fail-mode lets a test exercise the write-failure accounting path.
-		return ! empty( $GLOBALS['__ar_query_fail'] ) ? false : 1;
+		// Real wpdb flush()es last_error at the START of every query, then sets
+		// it on failure and returns false — the REAL failure shape a transport
+		// stub must model (never a bare false beside a stale-empty last_error).
+		// Fail-mode: truthy → fail; a STRING carries the simulated last_error.
+		$this->last_error = '';
+		if ( ! empty( $GLOBALS['__ar_query_fail'] ) ) {
+			$this->last_error = is_string( $GLOBALS['__ar_query_fail'] )
+				? $GLOBALS['__ar_query_fail']
+				: 'Lock wait timeout exceeded; try restarting transaction';
+			return false;
+		}
+		return 1;
 	}
 
 	public function get_results( $sql, $output = ARRAY_A ) {
@@ -1218,6 +1228,41 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 	if ( stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false ) { $fresh_rebase = true; }
 }
 ok( ! $fresh_rebase, 'maybe_install: a FRESH install (option absent, no data) skips the v6 repair UPDATE' );
+
+// ── v6 repair failure — no stamp, logged, retried (pre-merge review F1) ───────
+// A transient UPDATE failure (lock wait, crashed table) must NOT be stamped
+// over: stamping '6' unconditionally makes maybe_install never re-enter, so the
+// repair would be permanently and invisibly skipped. On failure the option must
+// stay at the PRIOR value (the next init retries — the UPDATE is an idempotent
+// fixed point, so re-running is safe, and dbDelta re-running is harmless) and
+// the failure must be error_log'd WITH $wpdb->last_error (never-silent rule:
+// never swallow the failure reason).
+echo "\nGroup: v6 repair failure gating\n";
+ar_reset();
+update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, '5' );
+$GLOBALS['__ar_query_fail'] = 'Lock wait timeout exceeded; try restarting transaction';
+$v6_fail_log = tempnam( sys_get_temp_dir(), 'sn_v6fail' );
+$old_v6_log  = ini_set( 'error_log', $v6_fail_log );
+sn_analytics_daily_maybe_install();
+ini_set( 'error_log', (string) $old_v6_log );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '5',
+	'v6 repair failure: the version option is NOT stamped (stays 5 → maybe_install retries on the next init)' );
+$v6_fail_out = (string) @file_get_contents( $v6_fail_log );
+@unlink( $v6_fail_log );
+ok( strpos( $v6_fail_out, '[sn-analytics] v6 scroll_sum repair failed' ) !== false,
+	'v6 repair failure: the failure is error_log\'d (never silent)' );
+ok( strpos( $v6_fail_out, 'Lock wait timeout exceeded' ) !== false,
+	'v6 repair failure: the log carries $wpdb->last_error (the reason is never swallowed)' );
+// Next init: the transient failure has cleared → maybe_install re-enters
+// (option still '5'), re-runs the idempotent UPDATE, and stamps 6 on success.
+$GLOBALS['__ar_query_fail'] = false;
+sn_analytics_daily_maybe_install();
+$v6_retry_updates = 0;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'scroll_sum = 25 * scroll_events' ) !== false ) { ++$v6_retry_updates; }
+}
+ok( 2 === $v6_retry_updates, 'v6 repair retry: the next init re-runs the repair UPDATE (fixed point — retry is safe)' );
+ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'v6 repair retry: success stamps db version 6' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

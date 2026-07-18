@@ -115,11 +115,15 @@ function sn_analytics_fetch_session_events( $from, $to, $class ) {
 }
 // v9.66.0 exit-bridge spy: records every pageroles upsert the run issues. The
 // real callee (inc/analytics-pageroles.php) is NOT loaded here, so the run's
-// function_exists guard sees THIS spy and the wiring becomes drivable.
-$GLOBALS['__sr_exit_upserts'] = array();
+// function_exists guard sees THIS spy and the wiring becomes drivable. Return
+// models the real callee's contract — an INT count of rows written (0 when
+// every chunk's query failed; short when a chunk failed) — and is driveable
+// via $GLOBALS['__sr_upsert_return'] so the failed-write signal is testable.
+$GLOBALS['__sr_exit_upserts']  = array();
+$GLOBALS['__sr_upsert_return'] = null; // null → full count (the healthy default).
 function sn_analytics_pageroles_upsert( $rows ) {
 	$GLOBALS['__sr_exit_upserts'][] = $rows;
-	return count( (array) $rows );
+	return $GLOBALS['__sr_upsert_return'] ?? count( (array) $rows );
 }
 // Real filter semantics (mirrors inc/analytics-sessions.php::sn_pageview_visits).
 function sn_pageview_visits( array $summaries ) {
@@ -209,6 +213,99 @@ foreach ( (array) $up as $r ) {
 }
 ok( $day_ok, "run: every upserted row keys the engine's UTC yesterday ($expected_day) with role=exit — the pageroles (UTC) day convention" );
 unset( $GLOBALS['__sr_fetch'] );
+
+// ── run() surfaces a failed/short exit-bridge write (pre-merge review F3) ────
+// The schedule only ever computes YESTERDAY — there is no self-heal window: a
+// single failed write night leaves that UTC-day's exits permanently absent.
+// The run must consult the upsert's return (rows written) + $wpdb->last_error
+// and error_log the shortfall. No in-process retry — the log IS the signal
+// (never-silent rule); a silent discard is the bug under pin.
+echo "\nGroup: run() logs a failed exit-bridge write (F3)\n";
+$sr_bridge_fetch = array( 'configured' => true, 'summaries' => array(
+	array( 'pageviews' => 2, 'duration' => 40, 'engaged' => 1, 'exit' => '/notes/a' ),
+	array( 'pageviews' => 3, 'duration' => 60, 'engaged' => 1, 'exit' => '/about/' ),
+) );
+// (a) Every chunk failed → the upsert counts 0 written of 2 asked.
+$GLOBALS['__sr_exit_upserts']  = array();
+$GLOBALS['wpdb']               = new SR_Stub_wpdb();
+$GLOBALS['__sr_fetch']         = $sr_bridge_fetch;
+$GLOBALS['__sr_upsert_return'] = 0;
+$bridge_log     = tempnam( sys_get_temp_dir(), 'sn_bridge' );
+$old_bridge_log = ini_set( 'error_log', $bridge_log );
+sn_session_rollup_run();
+ini_set( 'error_log', (string) $old_bridge_log );
+$bridge_out = (string) @file_get_contents( $bridge_log );
+@unlink( $bridge_log );
+ok( strpos( $bridge_out, "[sn-analytics] exit-page bridge wrote 0 of 2 rows for $expected_day" ) !== false,
+	'run: a fully failed exit-bridge write (0 of 2) is error_log\'d with counts + the day (the log IS the signal)' );
+// (b) last_error leg: rows counted written but wpdb reports an error — still a
+// signal (the real callee's per-chunk accounting can mask a last-chunk error).
+$GLOBALS['__sr_exit_upserts']   = array();
+$GLOBALS['wpdb']                = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->last_error    = 'Deadlock found when trying to get lock';
+$GLOBALS['__sr_fetch']          = $sr_bridge_fetch;
+$GLOBALS['__sr_upsert_return']  = null; // full count — only last_error signals.
+$bridge_log2     = tempnam( sys_get_temp_dir(), 'sn_bridge2' );
+$old_bridge_log2 = ini_set( 'error_log', $bridge_log2 );
+sn_session_rollup_run();
+ini_set( 'error_log', (string) $old_bridge_log2 );
+$bridge_out2 = (string) @file_get_contents( $bridge_log2 );
+@unlink( $bridge_log2 );
+ok( strpos( $bridge_out2, "[sn-analytics] exit-page bridge wrote 2 of 2 rows for $expected_day" ) !== false
+	&& strpos( $bridge_out2, 'Deadlock found when trying to get lock' ) !== false,
+	'run: a non-empty $wpdb->last_error after the upsert is logged even beside a full count (reason never swallowed)' );
+// (c) The healthy path stays QUIET — a full write with no error logs nothing.
+$GLOBALS['__sr_exit_upserts']  = array();
+$GLOBALS['wpdb']               = new SR_Stub_wpdb();
+$GLOBALS['__sr_fetch']         = $sr_bridge_fetch;
+$GLOBALS['__sr_upsert_return'] = null;
+$bridge_log3     = tempnam( sys_get_temp_dir(), 'sn_bridge3' );
+$old_bridge_log3 = ini_set( 'error_log', $bridge_log3 );
+sn_session_rollup_run();
+ini_set( 'error_log', (string) $old_bridge_log3 );
+$bridge_out3 = (string) @file_get_contents( $bridge_log3 );
+@unlink( $bridge_log3 );
+ok( strpos( $bridge_out3, 'exit-page bridge' ) === false,
+	'run: a healthy full write logs NOTHING (the signal fires only on failure)' );
+unset( $GLOBALS['__sr_fetch'] );
+
+// ── run() warns when the fetch was row-capped (pre-merge review F4) ──────────
+// A row-cap-hit day sessionizes a TRUNCATED event set: exits/quality written
+// from it may undercount. The interactive Visits view warns on the same flag —
+// the durable writer must too. It STILL writes (the data is the best
+// available; the log marks it), and an uncapped fetch stays quiet.
+echo "\nGroup: run() warns on a row-capped fetch (F4)\n";
+$GLOBALS['__sr_exit_upserts'] = array();
+$GLOBALS['wpdb']              = new SR_Stub_wpdb();
+$GLOBALS['__sr_fetch']        = array( 'configured' => true, 'capped' => true, 'summaries' => array(
+	array( 'pageviews' => 2, 'duration' => 40, 'engaged' => 1 ),
+	array( 'pageviews' => 1, 'duration' => 5,  'engaged' => 0 ),
+) );
+$capped_log     = tempnam( sys_get_temp_dir(), 'sn_capped' );
+$old_capped_log = ini_set( 'error_log', $capped_log );
+sn_session_rollup_run();
+ini_set( 'error_log', (string) $old_capped_log );
+$capped_out = (string) @file_get_contents( $capped_log );
+@unlink( $capped_log );
+ok( strpos( $capped_out, "[sn-analytics] session rollup for $expected_day ran on a row-capped event set — durable rows may undercount" ) !== false,
+	'run: a capped fetch is error_log\'d (the durable writer warns like the interactive Visits view)' );
+$capped_wrote = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	if ( stripos( $q, 'INSERT INTO wp_sn_session_daily' ) !== false ) { $capped_wrote = true; }
+}
+ok( $capped_wrote, 'run: the capped day is STILL written (best-available data; the log marks it, never blocks it)' );
+// Uncapped (the default fixture carries no capped flag) → no warning.
+unset( $GLOBALS['__sr_fetch'] );
+$GLOBALS['__sr_exit_upserts'] = array();
+$GLOBALS['wpdb']              = new SR_Stub_wpdb();
+$quiet_log     = tempnam( sys_get_temp_dir(), 'sn_quiet' );
+$old_quiet_log = ini_set( 'error_log', $quiet_log );
+sn_session_rollup_run();
+ini_set( 'error_log', (string) $old_quiet_log );
+$quiet_out = (string) @file_get_contents( $quiet_log );
+@unlink( $quiet_log );
+ok( strpos( $quiet_out, 'row-capped' ) === false,
+	'run: an uncapped fetch logs NO cap warning (the signal is specific, not noise)' );
 
 // ── sn_session_rollup_read: the durable-table accessor (v9.65.0) ─────────────
 // The writer (sn_session_rollup_run) keys rows by gmdate('Y-m-d') — a UTC day

@@ -250,7 +250,20 @@ function sn_analytics_daily_install() {
 	// '' !== $prev so a fresh install (no data) skips it.
 	if ( '' !== $prev && version_compare( $prev, '6', '<' ) ) {
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- static one-time migration UPDATE; $table is $wpdb->prefix + a plugin constant; no external input.
-		$wpdb->query( "UPDATE {$table} SET scroll_sum = 25 * scroll_events WHERE scroll_events IS NOT NULL" );
+		$repair = $wpdb->query( "UPDATE {$table} SET scroll_sum = 25 * scroll_events WHERE scroll_events IS NOT NULL" );
+		if ( false === $repair || '' !== (string) $wpdb->last_error ) {
+			// A transient failure (lock wait, crashed table) must NOT be stamped
+			// over: stamping '6' regardless would make maybe_install never
+			// re-enter and the repair would be skipped permanently AND
+			// invisibly. Leave the option at $prev so the next init retries —
+			// the UPDATE is an idempotent fixed point (25 × events), so
+			// re-running is safe, and dbDelta re-running above is harmless.
+			// Never-silent: the failure reason is logged, never swallowed.
+			$repair_err = (string) $wpdb->last_error;
+			error_log( '[sn-analytics] v6 scroll_sum repair failed (version left at ' . $prev . ' for retry on next init): '
+				. ( '' !== $repair_err ? $repair_err : 'wpdb::query returned false' ) );
+			return;
+		}
 	}
 
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
