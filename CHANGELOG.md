@@ -23,6 +23,15 @@ Three parts from the 2026-07-18 dashboard audit.
 - Pure findings builder (`sn_health_analytics_integrity_findings`, clock injected) handles both writer payload shapes; detection-only (not in the AI-suggest set, like the CF-headers/edge-workers checks).
 - Docblocks corrected to match reality: `inc/analytics-read.php` + `inc/analytics-rollup.php` now name the real consumer instead of a phantom "Health surface".
 
+### Part 3 — the units collision killed by LABELING (no metric changed)
+
+One dashboard, one word "Visits", two units: the tab's number is pv-gated within-day SESSIONS (live session engine), the shared Overview headline's "Visits" is gated visitor-DAYS (durable, v9.64.0) — which undid the honest-naming goal on its own surface.
+
+- **Tab label** `SN_ANALYTICS_VIEWS['visits']`: "Visits" → **"Sessions"**. The SLUG stays `visits` — dispatch, drilldown links, and `?sn_view=` key on it (verified by grep; renaming the label is free, renaming the slug is not). Pinned in tests both ways (label = Sessions, slug unchanged).
+- **Panel + KPI headings speak sessions**: "Visit quality" → "Session quality"; KPI cards "Visits" → "Sessions", "single-page visits" → "single-page sessions", "Pages / visit" → "Pages / session", "per visit" → "per session"; the AE gate and empty states follow. One-line unit note in the panel header: "within-day sessions · reset at UTC midnight — a different unit from the Overview headline's visitor-day Visits." The Part-1 trend panel already carries the same explicit unit.
+- **Ability wording tightened additively** (`get-analytics-summary` description): a parenthetical now states the wp-admin Sessions tab is a third unit (within-day sessions, live session engine) that no response field carries — no schema field renamed.
+- Version 9.64.2 → 9.65.0 (MINOR: new user-visible capabilities — the trend panel + the 12th health check).
+
 ## [9.64.2] - 2026-07-18: The digest learns to write — plain-prose voice contract + markdown stripping
 
 v9.64.1 fixed the digest's FACTS; the owner's live screenshot (2026-07-18 07:30, plugin 9.64.1 installed) showed the result was **correct but unreadable**: the insights band opened with a literal "**Weekly Analytics Digest**" (raw markdown rendered as text, asterisks visible in both the collapsed band and the expanded panel), and the prose read like a stats appendix — "(3.7σ-robust, medium confidence)", "backtest 99% in-interval", "high backtest reliability (99% and 98% in-interval respectively)", "the point estimate is effectively flat/near-zero, but the interval leaves room for meaningful variation". Every one of those figures is ALREADY rendered by the deterministic signal chips + the transparency footer directly below the digest — the prose was duplicating the machinery instead of summarizing the week. This release changes VOICE only; every v9.64.1 vocabulary + structural-not-anomaly rule is kept intact (pinned).

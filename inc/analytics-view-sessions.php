@@ -1,10 +1,12 @@
 <?php
 /**
- * Signal & Noise Tools — Analytics view: Visits (cookieless within-day) (v8.8.0).
+ * Signal & Noise Tools — Analytics view: Sessions (cookieless within-day) (v8.8.0).
  *
- * Renders within-day visit quality, engaged-read, transitions, and funnels from
- * the session engine (inc/analytics-sessions.php). "Visits" is a within-day
- * approximation that resets at UTC midnight — never a cross-day identity.
+ * Renders within-day session quality, engaged-read, transitions, and funnels
+ * from the session engine (inc/analytics-sessions.php). Labeled "Sessions"
+ * since v9.65.0 (slug stays 'visits'): the tab counts within-day sessions that
+ * reset at UTC midnight — never a cross-day identity, and a DIFFERENT unit
+ * from the shared Overview headline's pageview-gated visitor-day "Visits".
  *
  * @package SignalNoiseTools
  * @since 8.8.0
@@ -31,18 +33,23 @@ require_once __DIR__ . '/analytics-panels.php';
  */
 function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array(), $trend_rows = false ) {
 	if ( (int) $metrics['visits'] < 1 ) {
-		snt_an_note_empty( __( 'Visit quality', 'signal-and-noise-tools' ), __( 'No visits in this range yet.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( __( 'Session quality', 'signal-and-noise-tools' ), __( 'No sessions in this range yet.', 'signal-and-noise-tools' ) );
 	} else {
-		snt_an_panel_open( __( 'Visit quality', 'signal-and-noise-tools' ), array( 'header_meta' => 'within-day · resets at UTC midnight' ) );
+		// v9.65.0 units fix: this tab counts within-day SESSIONS (live session
+		// engine) — a different unit from the shared Overview headline's
+		// "Visits" (pageview-gated visitor-DAYS, durable rollup). Same word on
+		// one dashboard undid the honest-naming goal; the heading + one-line
+		// unit note below say which unit this is. Labels only — no metric changed.
+		snt_an_panel_open( __( 'Session quality', 'signal-and-noise-tools' ), array( 'header_meta' => 'within-day sessions · reset at UTC midnight — a different unit from the Overview headline&#8217;s visitor-day Visits' ) );
 		snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 		// Cohesive with the Overview KPI strip — now literally shares snt_an_kpi_row.
 		// No period-over-period delta here yet, so the delta slot carries a muted
 		// descriptor (matches the strip's three-line card rhythm).
 		$cards = array(
-			array( 'l' => __( 'Visits', 'signal-and-noise-tools' ),          'n' => number_format_i18n( (int) $metrics['visits'] ),                'sub' => __( 'with a pageview', 'signal-and-noise-tools' ),    'promoted' => true ),
-			array( 'l' => __( 'Bounce rate', 'signal-and-noise-tools' ),     'n' => number_format_i18n( $metrics['bounce_rate'] * 100, 1 ) . '%',  'sub' => __( 'single-page visits', 'signal-and-noise-tools' ) ),
-			array( 'l' => __( 'Pages / visit', 'signal-and-noise-tools' ),   'n' => number_format_i18n( $metrics['pages_per_visit'], 2 ),          'sub' => __( 'mean', 'signal-and-noise-tools' ),               'promoted' => true ),
-			array( 'l' => __( 'Median duration', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $metrics['median_duration'] ) . 's', 'sub' => __( 'per visit', 'signal-and-noise-tools' ) ),
+			array( 'l' => __( 'Sessions', 'signal-and-noise-tools' ),        'n' => number_format_i18n( (int) $metrics['visits'] ),                'sub' => __( 'with a pageview', 'signal-and-noise-tools' ),    'promoted' => true ),
+			array( 'l' => __( 'Bounce rate', 'signal-and-noise-tools' ),     'n' => number_format_i18n( $metrics['bounce_rate'] * 100, 1 ) . '%',  'sub' => __( 'single-page sessions', 'signal-and-noise-tools' ) ),
+			array( 'l' => __( 'Pages / session', 'signal-and-noise-tools' ), 'n' => number_format_i18n( $metrics['pages_per_visit'], 2 ),          'sub' => __( 'mean', 'signal-and-noise-tools' ),               'promoted' => true ),
+			array( 'l' => __( 'Median duration', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $metrics['median_duration'] ) . 's', 'sub' => __( 'per session', 'signal-and-noise-tools' ) ),
 			array( 'l' => __( 'Engaged reads', 'signal-and-noise-tools' ),   'n' => number_format_i18n( $metrics['engaged_rate'] * 100, 1 ) . '%', 'sub' => __( 'scroll + dwell', 'signal-and-noise-tools' ) ),
 		);
 		snt_an_kpi_row( $cards );
@@ -185,7 +192,7 @@ function snt_analytics_render_session_trend( $rows ) {
 function snt_analytics_render_view_sessions( $from, $to, $class ) {
 	$data = sn_analytics_fetch_session_events( $from, $to, $class );
 	if ( empty( $data['configured'] ) ) {
-		snt_an_gate( __( 'Visits', 'signal-and-noise-tools' ), __( 'Visit analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) );
+		snt_an_gate( __( 'Sessions', 'signal-and-noise-tools' ), __( 'Session analytics need live Analytics Engine data for this window.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	// A "visit" requires >= 1 pageview: server events (srv:1 / RSS ce) and orphan

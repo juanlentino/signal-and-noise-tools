@@ -99,6 +99,10 @@ foreach ( array(
 	'25 * scroll_events'       => 'the depth identity (25 * scroll_events / denominator) is stated',
 	'max scroll depth'         => 'the unit is named a true mean max scroll depth',
 	'milestone'                => 'the cumulative-milestone beacon mechanics are stated',
+	// v9.65.0 (Part 3): the wp-admin Sessions tab counts within-day sessions —
+	// a THIRD unit an AI caller could confuse with either visits field. Stated
+	// additively (no schema field renamed).
+	'within-day sessions'      => 'the Sessions tab\'s distinct unit is stated',
 ) as $needle => $label ) {
 	ok( false !== strpos( $desc, $needle ), "description: $label ('$needle')" );
 }

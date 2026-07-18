@@ -75,10 +75,11 @@ snt_analytics_render_summary_panels(
 );
 $out = ob_get_clean();
 ok( is_string( $out ), 'render produced output without fatal' );
-// D4 §4: a dataless Visit-quality panel now folds instead of opening a postbox
-// with an inline empty message — no visits this range means no postbox at all.
-ok( false === strpos( $out, 'postbox' ), 'no visits: no .postbox panel emitted (folds instead, D4 §4)' );
-ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Visit quality' ), 'no visits: title survives into the empty fold' );
+// D4 §4: a dataless Session-quality panel now folds instead of opening a postbox
+// with an inline empty message — no sessions this range means no postbox at all.
+ok( false === strpos( $out, 'postbox' ), 'no sessions: no .postbox panel emitted (folds instead, D4 §4)' );
+ok( false !== strpos( $out, 'sn-an-empty-fold' ) && false !== strpos( $out, 'Session quality' ), 'no sessions: title survives into the empty fold (v9.65.0 sessions naming)' );
+ok( false !== strpos( $out, 'No sessions in this range yet.' ), 'no sessions: the empty why speaks sessions too' );
 
 // Regression guard for the funnel/transition empty-state delegation: a visible
 // transition row PLUS a funnel whose report is all-zero (nobody reached step 1).
@@ -94,10 +95,21 @@ snt_analytics_render_summary_panels(
 );
 $out2 = ob_get_clean();
 ok( false !== strpos( $out2, '[dim-panel:Top paths:1]' ), 'non-empty transition rendered as a titled "Top paths" panel with its 1 row' );
-ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'visit quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
+ok( false !== strpos( $out2, 'sn-kpi-row' ) && false !== strpos( $out2, 'sn-kpi-value' ), 'session quality renders as cohesive KPI cards (sn-kpi), not the bare stat list' );
 // v9.40.0 D4: the cards now route through the shared snt_an_kpi_row primitive —
 // pin its flat sub-descriptor rendering (the sole slot shape this view uses).
 ok( false !== strpos( $out2, 'sn-delta-flat">with a pageview' ), 'shared row primitive renders the sub descriptor with its flat class' );
+// v9.65.0 units-collision fix (Part 3): one dashboard, one word "Visits", two
+// units — the tab's live-session-engine number is within-day SESSIONS, while
+// the shared Overview headline's "Visits" is gated visitor-DAYS. The tab now
+// says what it counts. LABELS ONLY — no metric changed.
+ok( false !== strpos( $out2, '<span>Session quality</span>' ), 'units: the KPI panel heading says "Session quality" (was "Visit quality")' );
+ok( false !== strpos( $out2, 'sn-kpi-label">Sessions<' ), 'units: the headline KPI card is labeled "Sessions" (was "Visits")' );
+ok( false === strpos( $out2, 'sn-kpi-label">Visits<' ), 'units: no KPI card on this tab is labeled bare "Visits" anymore' );
+ok( false !== strpos( $out2, 'Pages / session' ) && false !== strpos( $out2, 'single-page sessions' ) && false !== strpos( $out2, 'per session' ),
+	'units: the sibling cards speak sessions too (pages/session, single-page sessions, per session)' );
+ok( false !== strpos( $out2, 'within-day sessions' ) && false !== strpos( $out2, 'visitor-day' ),
+	'units: the panel carries a one-line unit note distinguishing sessions from the Overview headline\'s visitor-days' );
 // The OLD hollow-panel bug emitted a real .postbox with the funnel name in its
 // hndle heading (<h2 class="hndle"><span>Empty funnel</span></h2>) wrapping an
 // empty body. Assert that exact markup is gone.
@@ -160,8 +172,8 @@ ob_start();
 snt_analytics_render_view_sessions( '2026-07-01', '2026-07-07', 'human' );
 $gate = (string) ob_get_clean();
 ok( false !== strpos( $gate, 'sn-an-gate' ), 'AE gate: unified gate marker present (upgrade from the old titleless bare <p>)' );
-ok( false !== strpos( $gate, 'Visit analytics need live Analytics Engine data for this window.' ), 'AE gate: exact original message preserved' );
-ok( false !== strpos( $gate, '<span>Visits</span>' ), 'AE gate: carries a title' );
+ok( false !== strpos( $gate, 'Session analytics need live Analytics Engine data for this window.' ), 'AE gate: message speaks sessions (v9.65.0 units fix)' );
+ok( false !== strpos( $gate, '<span>Sessions</span>' ), 'AE gate: carries the "Sessions" title (was "Visits")' );
 
 // S2 §3 T2/T3-review hardening: a corrupt analytics.funnels setting must not
 // reach sn_funnel_report() malformed — the resolver falls back to the hardcoded

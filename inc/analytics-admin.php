@@ -54,7 +54,11 @@ const SN_ANALYTICS_VIEWS = array(
 	'technology' => 'Technology',
 	'geography'  => 'Geography',
 	'engagement' => 'Engagement',
-	'visits'     => 'Visits',
+	// v9.65.0 units fix: LABEL says what the tab counts (within-day SESSIONS,
+	// live session engine) vs the Overview headline's visitor-day "Visits".
+	// The SLUG stays 'visits' — dispatch, drilldown links, and ?sn_view= key
+	// on it (renaming the slug breaks them; renaming the label is free).
+	'visits'     => 'Sessions',
 	'quality'    => 'Quality',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',

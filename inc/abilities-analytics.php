@@ -67,6 +67,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only. '
 			. 'Denominators, honestly named: `visits` is DEPRECATED — an approximate count of unique visitor-days (distinct IP+date), NOT sessions; '
 			. 'it includes visitor-days that fired no pageview (e.g. feed/beacon-only), so it can exceed `views`; `unique_visitor_days` is its honest alias. '
+			. '(The wp-admin Sessions tab is a third unit again: within-day sessions from the live session engine, resetting at UTC midnight — no field here carries it.) '
 			. '`pageview_visits` is the headline visit metric: visitor-days with at least one pageview — `views >= pageview_visits` holds by construction, so this ratio cannot invert '
 			. '(`integrity_violation: true` means a genuine rollup bug upstream, values served unclamped). '
 			. '`viewless_visits` = unique_visitor_days - pageview_visits (visitor-days with zero pageviews). '

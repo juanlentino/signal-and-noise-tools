@@ -547,6 +547,12 @@ foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
 	++$tab_count;
 }
 ok( 11 === $tab_count, 'unconfigured: sanity — the registry still has all 11 views (test isn\'t vacuous)' );
+// v9.65.0 units-collision fix: the tab LABEL says what its number counts
+// (within-day sessions from the live session engine), while the SLUG stays
+// 'visits' — cache keys, ?sn_view= links, and the dispatch switch all key on
+// the slug, so renaming it would break them. Label free, slug frozen.
+ok( array_key_exists( 'visits', SN_ANALYTICS_VIEWS ), 'views registry: the \'visits\' SLUG is unchanged (drilldown links + dispatch key on it)' );
+ok( 'Sessions' === SN_ANALYTICS_VIEWS['visits'], 'views registry: the visits tab is LABELED "Sessions" (units fix — the Overview headline\'s "Visits" counts visitor-days)' );
 ok( strpos( $html, 'nav-tab" href="' ) !== false, 'unconfigured: tab links carry a real, working href (not a bare <a>)' );
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured: exactly one active tab (content default)' );
 ok( strpos( $html, 'sn-an-gate' ) !== false, 'unconfigured: the gate card still renders alongside the tabs' );
