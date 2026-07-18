@@ -639,8 +639,16 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 			: sn_session_rollup_read( $cwin[0], $cwin[1], $class );
 	}
 	$sq_signal = array( 'state' => 'none', 'fact' => '' );
+	$sq_synth  = false;
 	if ( false !== $sig_sess ) {
 		$cur_kpis = snt_analytics_overview_session_kpis( $range_rows );
+		// Track the synthesis (converged review, LOW): null KPIs can arrive from
+		// rows-[] OR from zero-visit rows (the rollup writes a per-day row for
+		// every class even at 0 sessions) — rows-non-empty ($sess_ok) alone
+		// cannot tell the second shape from a healthy window, but the renderer
+		// folds on BOTH (its own null-KPIs gate), so a collapse flag from either
+		// must stay strip-only: no anchor to a folded panel.
+		$sq_synth = ( null === $cur_kpis );
 		if ( null === $cur_kpis ) {
 			// An EMPTY current rollup window (the read succeeded — $sig_sess only
 			// exists when $range_rows is an array) is an ANSWER: zero sessions,
@@ -758,7 +766,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	// from a truncated read is bounded, never read as a real 0 (review r1 F4).
 	$flags = array();
 	if ( 'notable' === $sq_signal['state'] ) {
-		$flags['quality'] = array( 'label' => __( 'Session quality', 'signal-and-noise-tools' ), 'anchor' => $sess_ok ? 'sn-ov-quality' : '', 'fact' => $sq_signal['fact'] );
+		$flags['quality'] = array( 'label' => __( 'Session quality', 'signal-and-noise-tools' ), 'anchor' => ( $sess_ok && ! $sq_synth ) ? 'sn-ov-quality' : '', 'fact' => $sq_signal['fact'] );
 	}
 	foreach ( array(
 		'sources'   => array( __( 'Top sources', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $sources['rows'], $sources_sig, 'value', 5, SN_OVERVIEW_PRIOR_LIMIT ), array() !== $sources['rows'] ),

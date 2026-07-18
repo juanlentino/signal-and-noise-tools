@@ -958,6 +958,28 @@ ok( strpos( $html_sc, '<span class="sn-an-attn-flag">Session quality</span>' ) !
 ok( strpos( $html_sc, 'id="sn-ov-quality"' ) === false, 'session collapse: the folded panel carries no anchor' );
 ok( strpos( $html_sc, 'No rolled-up days in this window yet' ) !== false,
 	'session collapse: the panel\'s own empty fold still renders' );
+// The ZERO-VISIT-ROWS mirror (converged review, LOW): sn_session_rollup_run
+// writes a per-day row for EVERY class even at 0 sessions, so a total collapse
+// can arrive as rows-non-empty/visits-all-zero — the KPIs aggregate to null and
+// the panel FOLDS exactly like the rows-[] shape above (its pin), so this flag
+// must be STRIP-ONLY too: rows-non-empty alone ($sess_ok) must not promise a
+// panel target. (The healthy anchored-link shape is pinned in the PART C
+// worsening-bounce group — all three collapse/flag shapes hold together.)
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = array(
+	array( 'day' => '2026-07-11', 'visits' => 0, 'bounce_pct' => 0.0, 'ppv' => 0.0, 'median_dur' => 0 ),
+	array( 'day' => '2026-07-12', 'visits' => 0, 'bounce_pct' => 0.0, 'ppv' => 0.0, 'median_dur' => 0 ),
+);
+$html_zv = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_zv, '<span class="sn-an-attn-flag">Session quality</span>' ) !== false && strpos( $html_zv, 'sessions 40 → 0' ) !== false,
+	'zero-visit rows: the collapse flags the strip as a PLAIN flag — the panel folds, so no anchor surface exists' );
+ok( strpos( $html_zv, '<a class="sn-an-attn-link" href="#sn-ov-quality">' ) === false,
+	'zero-visit rows: no anchored link — rows-non-empty alone must not promise a panel target' );
+ok( strpos( $html_zv, 'id="sn-ov-quality"' ) === false,
+	'zero-visit rows: no empty-target anchor div wraps the fold' );
+ok( strpos( $html_zv, 'No rolled-up days in this window yet' ) !== false,
+	'zero-visit rows: the panel\'s own empty fold still renders at the bottom' );
 // The economy line that REMAINS: a FAILED current read is unknown — no real 0
 // exists to claim a collapse against, so its prior read is skipped.
 ov_seed_current();
