@@ -648,3 +648,10 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-uptime > summary::after { content: "▸ detail"; display: inline-block; margin-top: 4px; font-size: 11px; color: #646970; }
 .sn-an-uptime[open] > summary::after { content: "▾ detail"; }
 .sn-an-uptime > .sn-uptime-status[data-sn-uptime-lazy-detail] { border-top: 1px solid #dcdcde; margin-top: 8px; padding-top: 8px; }
+
+/* ── Overview (preview) lab (v9.67.0): the flag-gated static design mock. ──
+   The badge must be unmissable in a screenshot — a warning-yellow chip on
+   EVERY panel header (rides the panel primitive's header_meta slot); the
+   footer note reuses the muted diagnostic voice. Light-only, per the lock. */
+.sn-an-lab-badge { display: inline-block; padding: 1px 8px; border: 1px solid #dba617; border-radius: var(--sn-an-radius); background: #fcf9e8; color: #8a6116; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+.sn-an-lab-note { margin: 16px 0 4px; color: #646970; font-size: 12px; max-width: 72em; }
