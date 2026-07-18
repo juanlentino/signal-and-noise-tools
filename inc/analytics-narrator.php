@@ -73,6 +73,41 @@ function sn_analytics_ai_schedule( $hook, $args ) {
 	}
 }
 
+/**
+ * Read one numeric summary field, or null when absent / null / non-numeric.
+ * Absent ≡ null ≡ "not known" is DELIBERATE here (this layer only selects
+ * wording): both route to the honest degraded phrasing — a number is never
+ * fabricated from an unknown, and an unknown never suppresses a known one.
+ *
+ * @param mixed  $summary Range-totals summary (any caller shape).
+ * @param string $key     Field name.
+ * @return int|null
+ */
+function sn_analytics_summary_num( $summary, $key ) {
+	return ( is_array( $summary ) && isset( $summary[ $key ] ) && is_numeric( $summary[ $key ] ) ) ? (int) $summary[ $key ] : null;
+}
+
+/**
+ * The four honest-vocabulary counts (spec §4) from a summary, with the legacy
+ * ungated `visits` honoured for what it always WAS: unique visitor-DAYS.
+ *
+ * @param mixed $summary Range-totals summary.
+ * @return array{views:?int, gated:?int, days:?int, viewless:?int, violation:bool}
+ */
+function sn_analytics_summary_vocabulary( $summary ) {
+	$days = sn_analytics_summary_num( $summary, 'unique_visitor_days' );
+	if ( null === $days ) {
+		$days = sn_analytics_summary_num( $summary, 'visits' ); // legacy ungated count ≡ visitor-days.
+	}
+	return array(
+		'views'     => sn_analytics_summary_num( $summary, 'views' ),
+		'gated'     => sn_analytics_summary_num( $summary, 'pageview_visits' ),
+		'days'      => $days,
+		'viewless'  => sn_analytics_summary_num( $summary, 'viewless_visits' ),
+		'violation' => is_array( $summary ) && ! empty( $summary['integrity_violation'] ),
+	);
+}
+
 /** Deterministic narrative from signals' plain_labels. Always available (the floor). */
 function sn_analytics_narrate_fallback( $summary, $signals ) {
 	if ( empty( $signals ) ) {
@@ -106,7 +141,9 @@ function sn_analytics_narrate_ai_prompt( $signals ) {
 	foreach ( $signals as $s ) {
 		$facts[] = '- ' . (string) ( $s['plain_label'] ?? '' ) . ' [' . (string) ( $s['kind'] ?? '' ) . ', confidence ' . (string) ( $s['confidence'] ?? '' ) . ']';
 	}
-	$system = 'You are an analytics narrator. Narrate ONLY the signals given as bullet facts. NEVER invent or estimate a number that is not present. State uncertainty plainly. 2-3 sentences: what happened, why it may matter, one concrete next step. Plain text.';
+	$system = 'You are an analytics narrator. Narrate ONLY the signals given as bullet facts. NEVER invent or estimate a number that is not present. State uncertainty plainly.'
+		. ' In these signals "visits" counts unique visitor-days (any beacon day, including feed readers with zero pageviews), not pageview-gated visits; visitor-days exceeding views is structural, never an anomaly.'
+		. ' 2-3 sentences: what happened, why it may matter, one concrete next step. Plain text.';
 	$prompt = "Signals:\n" . implode( "\n", $facts ) . "\n\nWrite the brief.";
 	return array( $prompt, $system );
 }
@@ -167,14 +204,34 @@ add_action( SN_ANALYTICS_NARRATE_HOOK, 'sn_analytics_narrate_ai_run', 10, 2 );
  * Always available; the AI path composes richer prose over the same facts.
  */
 function sn_analytics_digest_fallback( $summary, $signals ) {
-	$head = '';
-	if ( is_array( $summary ) && ( isset( $summary['views'] ) || isset( $summary['visits'] ) ) ) {
-		$head = '<p class="sn-an-digest-head">' . esc_html( sprintf(
-			'This period: %s views, %s visits.',
-			number_format( (float) ( $summary['views'] ?? 0 ) ),
-			number_format( (float) ( $summary['visits'] ?? 0 ) )
-		) ) . '</p>';
+	// v9.64.1 honest vocabulary (spec §4): "visits" is ONLY the gated
+	// pageview_visits (the number the Overview KPI shows); the ungated count is
+	// unique visitor-DAYS and is named exactly that. A legacy summary carrying
+	// only the deprecated pair degrades to "views across visitor-days" — it
+	// never re-labels the ungated count "visits".
+	$v    = sn_analytics_summary_vocabulary( $summary );
+	$line = '';
+	if ( null !== $v['views'] && null !== $v['gated'] && null !== $v['days'] && null !== $v['viewless'] ) {
+		$line = sprintf(
+			'This period: %s views, %s visits (%s visitor-days, %s of them viewless).',
+			number_format( (float) $v['views'] ),
+			number_format( (float) $v['gated'] ),
+			number_format( (float) $v['days'] ),
+			number_format( (float) $v['viewless'] )
+		);
+	} elseif ( null !== $v['views'] && null !== $v['days'] ) {
+		$line = sprintf( 'This period: %s views across %s visitor-days.', number_format( (float) $v['views'] ), number_format( (float) $v['days'] ) );
+	} elseif ( null !== $v['views'] ) {
+		$line = sprintf( 'This period: %s views.', number_format( (float) $v['views'] ) );
+	} elseif ( null !== $v['days'] ) {
+		$line = sprintf( 'This period: %s visitor-days.', number_format( (float) $v['days'] ) );
 	}
+	if ( '' !== $line && $v['violation'] ) {
+		// The impossible case (views < pageview_visits) — the ONLY branch where
+		// anomaly/alert language is honest (spec §5: the alarm is the feature).
+		$line .= ' Integrity alert: views fell below pageview visits — arithmetically impossible; investigate the rollup.';
+	}
+	$head = '' !== $line ? '<p class="sn-an-digest-head">' . esc_html( $line ) . '</p>' : '';
 	if ( empty( $signals ) ) {
 		return $head . '<p class="sn-an-note">No standout signals in this window — nothing needs attention right now.</p>';
 	}
@@ -190,11 +247,38 @@ function sn_analytics_digest_fallback( $summary, $signals ) {
 
 /** Pure prompt/system builder for the digest artifact — no I/O, no AI call. Shared by the cache-check and the out-of-band generator so they can never drift out of sync (same inputs → same key). */
 function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
+	// v9.64.1 honest vocabulary: every count reaches the model WITH its
+	// definition, and the views-vs-visitor-days gap arrives pre-explained (the
+	// structural note) — so generated prose can never honestly claim "no
+	// explanation is given in the data". Anomaly language is reserved for the
+	// arithmetically impossible integrity_violation case alone.
 	$facts = array();
-	if ( is_array( $summary ) ) {
-		foreach ( array( 'views', 'visits' ) as $k ) {
-			if ( isset( $summary[ $k ] ) ) { $facts[] = '- ' . ucfirst( $k ) . ' this period: ' . (string) (int) $summary[ $k ]; }
-		}
+	$v     = sn_analytics_summary_vocabulary( $summary );
+	if ( null !== $v['views'] ) {
+		$facts[] = '- Views this period: ' . $v['views'];
+	}
+	if ( null !== $v['gated'] ) {
+		$facts[] = '- Visits this period (visitor-days with at least one pageview — the gated headline metric): ' . $v['gated'];
+	}
+	if ( null !== $v['days'] ) {
+		$facts[] = ( null !== $v['gated'] )
+			? '- Unique visitor-days this period (any beacon activity, including feed/RSS reads with zero pageviews): ' . $v['days']
+			: '- Visitor-days this period (unique visitor-days — may include viewless feed/RSS days; NOT pageview-gated visits): ' . $v['days'];
+	}
+	if ( null !== $v['viewless'] ) {
+		$facts[] = '- Viewless visitor-days (feed readers and beacon-only visits — no pageview): ' . $v['viewless'];
+	}
+	if ( $v['violation'] ) {
+		$facts[] = '- DATA INTEGRITY ANOMALY: views' . ( null !== $v['views'] ? ' (' . $v['views'] . ')' : '' )
+			. ' fell below pageview visits' . ( null !== $v['gated'] ? ' (' . $v['gated'] . ')' : '' )
+			. ' — arithmetically impossible for this pipeline; a genuine anomaly worth flagging.';
+	} elseif ( null !== $v['views'] && null !== $v['days'] && null !== $v['viewless'] && $v['days'] > $v['views'] && $v['viewless'] > 0 ) {
+		$facts[] = sprintf(
+			'- Structural note: %d visitor-days exceed %d views because %d visitor-days were viewless (feed readers and beacon-only visits) — a structural property of the measurement, fully explained by the data, not an anomaly.',
+			$v['days'],
+			$v['views'],
+			$v['viewless']
+		);
 	}
 	foreach ( $signals as $s ) {
 		$facts[] = '- ' . (string) ( $s['plain_label'] ?? '' ) . ' [' . (string) ( $s['kind'] ?? '' ) . ', confidence ' . (string) ( $s['confidence'] ?? '' ) . ']';
@@ -202,7 +286,11 @@ function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
 	if ( '' !== trim( (string) $top_action ) ) {
 		$facts[] = '- Top recommended action: ' . trim( (string) $top_action );
 	}
-	$system = 'You are writing a weekly analytics executive digest. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present. State uncertainty plainly. Two short paragraphs: (1) what happened and why it matters; (2) what to do next, concretely. Plain text.';
+	$system = 'You are writing a weekly analytics executive digest. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present. State uncertainty plainly.'
+		. ' Vocabulary: "visits" means visitor-days with at least one pageview; "visitor-days" is the ungated unique visitor-day count and is never to be called "visits".'
+		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count — state that explanation; NEVER describe the gap as unusual, unexplained, or an anomaly.'
+		. ' The ONLY genuine anomaly is a DATA INTEGRITY ANOMALY fact; flag it plainly when present.'
+		. ' Two short paragraphs: (1) what happened and why it matters; (2) what to do next, concretely. Plain text.';
 	$prompt = "Facts:\n" . implode( "\n", $facts ) . "\n\nWrite the weekly digest.";
 	return array( $prompt, $system );
 }

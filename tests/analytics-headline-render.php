@@ -48,7 +48,7 @@ $long = str_repeat( 'word ', 40 ) . 'end.';
 $clamped = snt_analytics_headline_lead( $long );
 ok( mb_strwidth( $clamped, 'UTF-8' ) <= 140 && '…' === mb_substr( $clamped, -1, 1, 'UTF-8' ), 'lead: >140-char sentence clamps to <=140 display width ending in the ellipsis' );
 ok( 'Tráfico aumentó 42% — señal clara.' === snt_analytics_headline_lead( 'Tráfico aumentó 42% — señal clara. Más contexto aquí.' ), 'lead: mb-safe on multibyte narrative' );
-ok( 'This period: 1,204 views, 389 visits.' === snt_analytics_headline_lead( '<p class="sn-an-digest-head">This period: 1,204 views, 389 visits.</p><p class="sn-an-note">No standout signals in this window.</p>' ), 'lead: adjacent block elements do not glue sentences (the real fallback-digest shape)' );
+ok( 'This period: 47 views, 40 visits (90 visitor-days, 50 of them viewless).' === snt_analytics_headline_lead( '<p class="sn-an-digest-head">This period: 47 views, 40 visits (90 visitor-days, 50 of them viewless).</p><p class="sn-an-note">No standout signals in this window.</p>' ), 'lead: adjacent block elements do not glue sentences (the real v9.64.1 fallback-digest shape)' );
 ok( "The site's traffic didn't change much this week." === snt_analytics_headline_lead( '<p>The site&#039;s traffic didn&#039;t change much this week. More detail.</p>' ), 'lead: pre-escaped digest entities decode once (no double-encode garble)' );
 
 echo "\nGroup: chip glyph a11y (D1 §6)\n";

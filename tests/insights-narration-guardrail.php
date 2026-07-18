@@ -13,6 +13,12 @@ ok( false !== stripos( $src, 'within-day' ), 'permits within-day framing explici
 ok( false !== stripos( $src, 'never a cross-day identity' ) || false !== stripos( $src, 'across days' ), 'still forbids cross-day identity' );
 ok( false !== stripos( $src, 'new-vs-returning' ), 'still forbids new-vs-returning' );
 
+echo "\nGroup: honest vocabulary (v9.64.1) — the explained is no anomaly\n";
+ok( false !== strpos( $src, 'pageview_visits' ), 'instruction defines the gated visits field' );
+ok( false !== stripos( $src, 'viewless' ), 'instruction defines the viewless visitor-days' );
+ok( false !== stripos( $src, 'structural' ), 'instruction names the views-vs-visitor-days gap structural' );
+ok( false !== strpos( $src, 'integrity_violation' ), 'genuine-anomaly branch is scoped to integrity_violation only' );
+
 echo "\nGroup: narrator anomaly-flags wiring\n";
 ok( false !== stripos( $src, 'anomaly_flags' ), 'prompt/collector reference the anomaly_flags block' );
 ok( false !== stripos( $src, 'typical' ), 'prompt frames anomalies as a typical-range comparison' );

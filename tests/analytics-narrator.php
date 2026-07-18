@@ -127,14 +127,40 @@ $GLOBALS['__ai_calls'] = 0;
 $r6 = sn_analytics_narrate( array(), array() );
 ok( 'fallback' === $r6['source'] && 0 === $GLOBALS['__ai_calls'], 'narrate: no signals → fallback empty-state, no AI call' );
 
-echo "\nGroup: weekly digest — deterministic fallback\n";
+echo "\nGroup: weekly digest — deterministic fallback (honest vocabulary, v9.64.1)\n";
+// Legacy caller shape: only the deprecated ungated pair — the ungated count is
+// unique visitor-DAYS (analytics-integrity spec §1), so the head must say
+// "visitor-days" and never call it "visits".
 $digest_summary = array( 'views' => 1204, 'visits' => 389 );
 $dh = sn_analytics_digest_fallback( $digest_summary, $signals );
-ok( false !== strpos( $dh, '1,204 views' ) && false !== strpos( $dh, '389 visits' ), 'digest fallback: leads with the descriptive summary line' );
+ok( false !== strpos( $dh, 'This period: 1,204 views across 389 visitor-days.' ), 'digest fallback (legacy summary): ungated count is called visitor-days, value-for-value' );
+ok( false === strpos( $dh, '389 visits' ), 'digest fallback (legacy summary): never labels the ungated count "visits"' );
 ok( false !== strpos( $dh, 'sn-an-digest-list' ) && false !== strpos( $dh, 'decaying' ) && false !== strpos( $dh, 'Start here:' ), 'digest fallback: signal list + a concrete start-here line' );
 ok( false !== strpos( sn_analytics_digest_fallback( array(), array() ), 'nothing needs attention' ), 'digest fallback: graceful empty without summary' );
 $many = array(); for ( $i = 0; $i < 10; $i++ ) { $many[] = array( 'plain_label' => 'signal number ' . $i ); }
 ok( 8 === substr_count( sn_analytics_digest_fallback( array(), $many ), '<li>' ), 'digest fallback: caps the list at 8 items' );
+
+// The LIVE 7d fixture (owner screenshots 2026-07-18): views 47, gated visits 40,
+// 90 unique visitor-days of which 50 viewless. The real sn_analytics_range_totals()
+// shape (post-v9.63.0) carries all four + the strict integrity_violation bool.
+$honest_summary = array(
+	'views' => 47, 'visits' => 90, 'scroll_avg' => 62.0, 'time_avg' => 41.0,
+	'unique_visitor_days' => 90, 'pageview_visits' => 40, 'viewless_visits' => 50,
+	'view_visit_ratio' => 1.175, 'pageviews_per_visitor_day' => 0.522,
+	'scroll_avg_per_view' => 58.0, 'time_avg_per_view' => 39.0,
+	'scroll_avg_per_visit' => 30.0, 'time_avg_per_visit' => 20.0,
+	'integrity_violation' => false, 'exact_metrics_since' => '2026-07-01',
+);
+$hh = sn_analytics_digest_fallback( $honest_summary, $signals );
+ok( false !== strpos( $hh, 'This period: 47 views, 40 visits (90 visitor-days, 50 of them viewless).' ), 'digest fallback (honest summary): gated visits headline + visitor-day breakdown, value-for-value' );
+ok( false === strpos( $hh, '90 visits' ), 'digest fallback (honest summary): the ungated 90 is never called "visits"' );
+ok( false === strpos( $hh, 'Integrity alert' ), 'digest fallback (honest summary): no integrity alert when the invariant holds' );
+
+// The impossible case (integrity_violation): views < pageview_visits — the ONLY
+// branch where "anomaly"/alert language is correct.
+$violation_summary = array_merge( $honest_summary, array( 'views' => 30, 'integrity_violation' => true ) );
+$vh = sn_analytics_digest_fallback( $violation_summary, $signals );
+ok( false !== strpos( $vh, 'Integrity alert' ) && false !== strpos( $vh, 'impossible' ), 'digest fallback (integrity violation): still narrates as an alert-worthy anomaly' );
 
 echo "\nGroup: digest — cache miss NEVER calls the AI client\n";
 $GLOBALS['__ai_calls'] = 0;
@@ -151,6 +177,38 @@ ok( false !== strpos( $dp2, 'Top recommended action: 3 cooling posts worth a ref
 $k1 = sn_analytics_ai_cache_key( 'digest', $dp1, $ds1, 'analytics_digest_weekly' );
 $k2 = sn_analytics_ai_cache_key( 'digest', $dp2, $ds2, 'analytics_digest_weekly' );
 ok( $k1 !== $k2, 'different top_action → different cache key (would otherwise serve stale-wrong text)' );
+
+echo "\nGroup: digest prompt — honest vocabulary + the explained is no anomaly (v9.64.1)\n";
+// Live fixture (47/40/90/50): the prompt must feed the model the gated visits,
+// the visitor-day totals WITH their definitions, and the structural explanation
+// for visitor-days > views — the model can then never honestly claim "no
+// explanation is given in the data".
+list( $hp, $hs ) = sn_analytics_digest_ai_prompt( $honest_summary, $signals, '' );
+ok( false !== strpos( $hp, '- Views this period: 47' ), 'honest prompt: views fact kept' );
+ok( false !== strpos( $hp, 'visitor-days with at least one pageview' ) && false !== strpos( $hp, ': 40' ), 'honest prompt: gated visits fact carries its definition + the KPI-matching 40' );
+ok( false !== strpos( $hp, 'including feed/RSS reads with zero pageviews' ) && false !== strpos( $hp, ': 90' ), 'honest prompt: unique visitor-days fact carries its definition + the 90' );
+ok( false !== strpos( $hp, 'Viewless visitor-days' ) && false !== strpos( $hp, ': 50' ), 'honest prompt: viewless fact present with the 50' );
+ok( false === strpos( $hp, '- Visits this period: 90' ), 'honest prompt: the ungated 90 is NEVER labeled "Visits" (the v9.64.0-era fact is gone)' );
+ok( false !== strpos( $hp, 'Structural note: 90 visitor-days exceed 47 views because 50 visitor-days were viewless' ), 'honest prompt: the structural explanation is IN the payload, value-for-value' );
+ok( false !== strpos( $hp, 'not an anomaly' ), 'honest prompt: the structural note names itself not-an-anomaly' );
+ok( false !== strpos( $hs, 'NEVER describe the gap as unusual, unexplained, or an anomaly' ), 'honest system: forbids the "unexplained anomaly" claim for the structural case' );
+ok( false !== strpos( $hs, 'never to be called "visits"' ), 'honest system: visitor-days are never to be called "visits"' );
+
+// Genuine-anomaly branch: ONLY the impossible views < pageview_visits case.
+list( $vp, ) = sn_analytics_digest_ai_prompt( $violation_summary, $signals, '' );
+ok( false !== strpos( $vp, 'DATA INTEGRITY ANOMALY' ), 'violation prompt: integrity_violation still narrates as a genuine anomaly' );
+ok( false === strpos( $vp, 'Structural note' ), 'violation prompt: the structural not-an-anomaly note is suppressed' );
+
+// Legacy summary (no gated fields): the ungated count degrades to visitor-days
+// vocabulary — never to "Visits".
+list( $lp, ) = sn_analytics_digest_ai_prompt( $digest_summary, $signals, '' );
+ok( false !== strpos( $lp, 'Visitor-days this period' ) && false !== strpos( $lp, ': 389' ), 'legacy prompt: ungated count is labeled visitor-days' );
+ok( false === strpos( $lp, '- Visits this period: 389' ), 'legacy prompt: ungated count is never labeled "Visits"' );
+
+echo "\nGroup: narrate system — signal vocabulary (v9.64.1)\n";
+list( , $nsys ) = sn_analytics_narrate_ai_prompt( $signals );
+ok( false !== strpos( $nsys, 'unique visitor-days' ), 'narrate system: defines signal "visits" as unique visitor-days' );
+ok( false !== strpos( $nsys, 'never an anomaly' ), 'narrate system: visitor-days exceeding views is structural, never an anomaly' );
 
 echo "\nGroup: digest — the event handler is the ONLY caller of the AI client\n";
 $GLOBALS['__ai_return'] = "Strong week. Views spiked on the 20th.\n\nNext: refresh /notes/x.";

@@ -82,8 +82,12 @@ an_eq( null, sn_annotation_lifecycle( $sum( 2, 5, 1, 12 ) ), 'no strong signal -
 
 echo "\noverview\n";
 $dv = function ( $pct, $dir ) { return array( 'views' => array( 'pct' => $pct, 'dir' => $dir ) ); };
-an_eq( 'Views up 38%, but engaged rate slipped: more traffic, shallower visits.', sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'down' ) ), 'up-views / down-engagement divergence' );
-an_eq( 'Views down 22%, but engaged rate rose: fewer visits, but stickier.', sn_annotation_overview( $dv( 22, 'down' ), array( 'dir' => 'up' ) ), 'down-views / up-engagement divergence' );
+an_eq( 'Views up 38%, but engaged rate slipped: more traffic, shallower reads.', sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'down' ) ), 'up-views / down-engagement divergence' );
+an_eq( 'Views down 22%, but engaged rate rose: less traffic, but stickier reads.', sn_annotation_overview( $dv( 22, 'down' ), array( 'dir' => 'up' ) ), 'down-views / up-engagement divergence' );
+// v9.64.1 honest vocabulary: the resolver's datum is VIEWS deltas — it holds no
+// visit count, gated or otherwise, so the read must never claim "visits" moved.
+an_true( false === stripos( (string) sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'down' ) ), 'visits' ), 'up-branch read never claims "visits" from views-only data' );
+an_true( false === stripos( (string) sn_annotation_overview( $dv( 22, 'down' ), array( 'dir' => 'up' ) ), 'visits' ), 'down-branch read never claims "visits" from views-only data' );
 an_eq( null, sn_annotation_overview( $dv( 38, 'up' ), array( 'dir' => 'up' ) ), 'same direction -> null' );
 an_eq( null, sn_annotation_overview( $dv( 5, 'up' ), array( 'dir' => 'down' ) ), 'below views threshold -> null' );
 an_eq( null, sn_annotation_overview( array(), array( 'dir' => 'down' ) ), 'no deltas (all range) -> null' );

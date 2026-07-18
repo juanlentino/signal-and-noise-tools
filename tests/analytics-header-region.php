@@ -113,7 +113,7 @@ ok( is_array( $totals ) && 1284 === ( $totals['views'] ?? 0 ), 'region returns t
 // Overview panel emits the callout. Proves the render passes $deltas + $engaged
 // to the resolver in order (an arg swap would not produce this exact sentence).
 ok( false !== strpos( $html, 'sn-an-note' ), 'render integration: diverging overview emits the annotation callout' );
-ok( false !== strpos( $html, 'Views up 40%, but engaged rate slipped: more traffic, shallower visits.' ), 'render integration: callout carries the overview read (deltas + engaged passed correctly)' );
+ok( false !== strpos( $html, 'Views up 40%, but engaged rate slipped: more traffic, shallower reads.' ), 'render integration: callout carries the overview read (deltas + engaged passed correctly)' );
 
 echo "\nTest: unconfigured uptime degrades to movers-only rail\n";
 $GLOBALS['__uptime_on'] = false;

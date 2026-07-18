@@ -199,16 +199,19 @@ function sn_annotation_overview( $deltas, $engaged ) {
 	if ( ! $is_move || ! $diverges ) {
 		return null;
 	}
+	// v9.64.1 honest vocabulary: this resolver's datum is VIEWS deltas — it holds
+	// no visit count (gated or otherwise), so the read speaks in traffic/reads
+	// and never claims "visits" moved (the deprecated ungated vocabulary).
 	if ( 'up' === $vdir ) {
 		return sprintf(
 			/* translators: %d is the percent rise in views */
-			__( 'Views up %d%%, but engaged rate slipped: more traffic, shallower visits.', 'signal-and-noise-tools' ),
+			__( 'Views up %d%%, but engaged rate slipped: more traffic, shallower reads.', 'signal-and-noise-tools' ),
 			abs( $vpct )
 		);
 	}
 	return sprintf(
 		/* translators: %d is the percent fall in views */
-		__( 'Views down %d%%, but engaged rate rose: fewer visits, but stickier.', 'signal-and-noise-tools' ),
+		__( 'Views down %d%%, but engaged rate rose: less traffic, but stickier reads.', 'signal-and-noise-tools' ),
 		abs( $vpct )
 	);
 }

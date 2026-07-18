@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.64.1] - 2026-07-18: Insights narration speaks the honest vocabulary — the explained is no longer an anomaly
+
+Live screenshots (7d human range: views 47, pageview_visits 40, unique_visitor_days 90, viewless_visits 50) caught the narration/insight layer still speaking the deprecated ungated vocabulary the v9.64.0 Overview had just retired — and, worse, flagging as an "unexplained anomaly" the exact views-vs-visitor-days gap its own payload explains (viewless visitor-days, structural since v9.63.0). Wording + input-sourcing only: no stored data, no ability schemas, no forecast behavior touched.
+
+### Fixed — deterministic templates (generator kind a)
+
+- **Overview "Read" line** (`sn_annotation_overview`, `inc/analytics-annotations.php`): the resolver's datum is VIEWS deltas — it holds no visit count — so both branches stop claiming "visits" moved. Down: "Views down N%, but engaged rate rose: **less traffic, but stickier reads**" (was "fewer visits, but stickier"); up: "…**more traffic, shallower reads**" (was "shallower visits").
+- **Weekly-digest deterministic fallback head** (`sn_analytics_digest_fallback`, `inc/analytics-narrator.php`): now "This period: 47 views, **40 visits (90 visitor-days, 50 of them viewless)**" — "visits" is the gated `pageview_visits` matching the Overview KPI. A legacy summary (deprecated pair only) degrades to "1,204 views **across 389 visitor-days**" — the ungated count is never re-labeled "visits". An `integrity_violation` summary appends an explicit integrity alert (the only honest anomaly case).
+
+### Fixed — AI narration inputs (generator kind b — the fix lives in payload + instructions, never post-editing model output)
+
+- **Insights-band digest prompt** (`sn_analytics_digest_ai_prompt`, `inc/analytics-narrator.php`) — the generator behind the live "This period saw 47 views and 90 visits" / "no explanation is given in the data" prose. The ungated "- Visits this period: 90" fact is GONE. The model now receives each count WITH its definition (gated visits 40, unique visitor-days 90, viewless 50) plus a pre-computed **Structural note** ("90 visitor-days exceed 47 views because 50 visitor-days were viewless … not an anomaly") whenever viewless accounts for the gap — which the derive layer guarantees outside `integrity_violation`. The system instruction defines the vocabulary and forbids "unusual/unexplained/anomaly" framing for the structural case. The genuine-anomaly branch survives ONLY as the impossible `views < pageview_visits` case, fed as a "DATA INTEGRITY ANOMALY" fact. New shared pure readers `sn_analytics_summary_num()` / `sn_analytics_summary_vocabulary()` (absent ≡ null ≡ unknown — deliberate: wording selection only, numbers never fabricated). Prompt changes bust the AI cache key by construction, so stale wrong prose regenerates.
+- **Narrate artifact system instruction** (`sn_analytics_narrate_ai_prompt`): signal facts labeled "Visits" (daily-series metric = visitor-days) are now defined as unique visitor-days; visitor-days exceeding views declared structural, never an anomaly.
+- **Weekly digest ability narration** (`snt_narration_system_instruction`, `inc/insights-narration.php` — get-narration/run-narration): the totals payload already carries the honest fields via the real `sn_analytics_range_totals()` pass-through (pinned); the instruction now defines `pageview_visits` / `unique_visitor_days` / `viewless_visits` (and the deltas mirror), mandates the structural explanation, forbids "no explanation exists" claims, and scopes anomaly language to `integrity_violation=true`.
+
+### Tests
+
+TDD, red first: **34 failing assertions** across 5 suites before implementation (annotations 4, header-region 1, narrator 18, insights-narration 7, guardrail 4). Value-for-value pins on the live 47/40/90/50 fixture (fallback head sentence, structural-note fact); ungated-90-never-"Visits" negative pins; integrity_violation-still-an-anomaly pins (fallback + prompt); narrate/digest/narration instruction vocabulary pins; payload-key pins against the REAL post-v9.63.0 `sn_analytics_range_totals()` shape — the legacy-quartet-only stubs in `tests/insights-narration.php` / `tests/analytics-insights.php` were reshaped to the real contract (the stub-drift trap).
+
 ## [9.64.0] - 2026-07-18: The Overview speaks the honest vocabulary; scroll depth gets its true unit
 
 ### Changed — SCROLL DEPTH UNIT REDEFINED (read this before comparing scroll numbers across versions)

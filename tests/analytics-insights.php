@@ -47,7 +47,19 @@ if ( ! function_exists( 'sn_analytics_digest' ) ) {
 	function sn_analytics_digest( $summary, $signals, $top_action = '' ) { $GLOBALS['__digest_in'] = array( $summary, $signals, $top_action ); return $GLOBALS['__digest']; }
 }
 if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
-	function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return array( 'views' => 1204, 'visits' => 389 ); }
+	// Mirrors the REAL post-v9.63.0 merged shape (inc/analytics-read.php @return)
+	// so the pass-through pin below proves the digest receives the honest
+	// vocabulary, not just the legacy quartet (the stub-drift trap).
+	function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
+		return array(
+			'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 41.0,
+			'unique_visitor_days' => 389, 'pageview_visits' => 350, 'viewless_visits' => 39,
+			'view_visit_ratio' => 3.44, 'pageviews_per_visitor_day' => 3.095,
+			'scroll_avg_per_view' => 58.0, 'time_avg_per_view' => 39.0,
+			'scroll_avg_per_visit' => 52.0, 'time_avg_per_visit' => 35.0,
+			'integrity_violation' => false, 'exact_metrics_since' => '2026-07-01',
+		);
+	}
 }
 // v9.38.0 (D2): the band feeds the digest the top deterministic recommendation
 // card's title. Guarded stub so callers without the recs engine loaded degrade.
@@ -59,6 +71,7 @@ $GLOBALS['__digest'] = array( 'digest' => '<p>Weekly digest body: refresh /notes
 ob_start(); snt_analytics_render_insights_band( '2026-07-06', '2026-07-12', 'human', 'day' ); $wd = ob_get_clean();
 ok( false !== strpos( $wd, 'Weekly digest body' ) && false !== strpos( $wd, 'data-source="ai"' ), 'band: narrative slot renders the weekly digest + its source' );
 ok( is_array( $GLOBALS['__digest_in'] ) && 1204 === ( $GLOBALS['__digest_in'][0]['views'] ?? 0 ) && 'anomaly' === ( $GLOBALS['__digest_in'][1][0]['kind'] ?? '' ), 'band: digest receives the real range totals + the signals' );
+ok( 350 === ( $GLOBALS['__digest_in'][0]['pageview_visits'] ?? null ) && 39 === ( $GLOBALS['__digest_in'][0]['viewless_visits'] ?? null ), 'band: the honest vocabulary fields reach the digest untouched (v9.64.1)' );
 
 // v9.38.0 (D2): the band feeds the digest the top deterministic recommendation
 // card's title so the start-here thread survives the recs-brief retirement.
