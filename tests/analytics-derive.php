@@ -62,11 +62,40 @@ ok( 4 === $a['pageview_visits'], '(a) pageview_visits === 4 (int passthrough)' )
 ok( 1 === $a['viewless_visits'], '(a) viewless_visits === 1 (5 − 4)' );
 ok( 2.0 === $a['view_visit_ratio'], '(a) view_visit_ratio === 2.0 (8 / 4, float)' );
 ok( 1.6 === $a['pageviews_per_visitor_day'], '(a) pageviews_per_visitor_day === 1.6 (8 / 5)' );
-ok( 55.0 === $a['scroll_avg_per_view'], '(a) scroll_avg_per_view === 55.0 (440 / 8)' );
-ok( 12000.0 === $a['time_avg_per_view'], '(a) time_avg_per_view === 12000.0 (96000 / 8)' );
-ok( 88.0 === $a['scroll_avg_per_visit'], '(a) scroll_avg_per_visit === 88.0 (440 / 5)' );
+ok( 18.75 === $a['scroll_avg_per_view'], '(a) scroll_avg_per_view === 18.75 (25 × 6 events / 8 views — v9.64.0 true mean max depth, NOT scroll_sum/views)' );
+ok( 12000.0 === $a['time_avg_per_view'], '(a) time_avg_per_view === 12000.0 (96000 / 8 — time stays sum-driven, untouched)' );
+ok( 30.0 === $a['scroll_avg_per_visit'], '(a) scroll_avg_per_visit === 30.0 (25 × 6 / 5 visitor-days — same depth identity, diluted denominator)' );
 ok( 19200.0 === $a['time_avg_per_visit'], '(a) time_avg_per_visit === 19200.0 (96000 / 5)' );
 ok( false === $a['integrity_violation'], '(a) integrity_violation === false on valid data (8 ≥ 4)' );
+
+echo "\nGroup (a2): the v9.64.0 scroll-depth identity — 25 × scroll_events / denominator\n";
+// The beacon fires one CUMULATIVE 'sc' per milestone (25/50/75/100), each at
+// most once per view, so a full-depth single view stores scroll_sum = 250
+// milestone POINTS (the unit behind the shipped 113% readout) but exactly 4
+// events. 25 × events is the sum of per-view max depths; over 1 view the mean
+// max depth must be EXACTLY 100.0 — never the old 250.0.
+$a2 = sn_analytics_derive_metrics( array(
+	'views'           => 1,
+	'visits'          => 1,
+	'pageview_visits' => 1,
+	'scroll_sum'      => 250.0, // 25+50+75+100 cumulative milestone points
+	'scroll_events'   => 4,
+	'time_sum'        => 5000.0,
+	'time_events'     => 1,
+) );
+ok( 100.0 === $a2['scroll_avg_per_view'], '(a2) full-depth single view === exactly 100.0 (4 milestones × 25 / 1 view) — never 250.0' );
+ok( 100.0 === $a2['scroll_avg_per_visit'], '(a2) per-visit identity matches on a single visitor-day (100.0)' );
+ok( 5000.0 === $a2['time_avg_per_view'], '(a2) time_avg_per_view untouched by the scroll redefinition (5000/1)' );
+// Mutation pin: the depth ratio must be scroll_events-driven — a poisoned
+// scroll_sum must not leak in (scroll_sum stays stored/exposed as the RAW
+// milestone-point sum only; it feeds NO derived ratio anymore).
+$a3 = sn_analytics_derive_metrics( array( 'views' => 2, 'visits' => 2, 'scroll_sum' => 999999.0, 'scroll_events' => 3 ) );
+ok( 37.5 === $a3['scroll_avg_per_view'], '(a2) absurd scroll_sum ignored: scroll_avg_per_view === 37.5 (25 × 3 / 2) — events-driven, not sum-driven' );
+// scroll_events known with scroll_sum null: the depth IS derivable — its only
+// inputs are the event count and the denominator (per-family null discipline).
+$a4 = sn_analytics_derive_metrics( array( 'views' => 4, 'visits' => 4, 'scroll_sum' => null, 'scroll_events' => 8 ) );
+ok( 50.0 === $a4['scroll_avg_per_view'], '(a2) null scroll_sum does not null the depth: 25 × 8 / 4 = 50.0' );
+ok( 50.0 === $a4['scroll_avg_per_visit'], '(a2) per-visit likewise: 25 × 8 / 4 visitor-days = 50.0' );
 
 echo "\nGroup (b): legacy row (NULL sums, NULL pageview_visits) — nulls, passthrough intact\n";
 $b = sn_analytics_derive_metrics( array(
@@ -85,7 +114,7 @@ ok( has_null( $b, 'viewless_visits' ), '(b) viewless_visits null — one operand
 ok( has_null( $b, 'view_visit_ratio' ), '(b) view_visit_ratio null — gated denominator unknown' );
 ok( is_float( $b['pageviews_per_visitor_day'] ) && abs( $b['pageviews_per_visitor_day'] - 0.6641221374045801 ) < 1e-12,
 	'(b) pageviews_per_visitor_day ≈ 0.664122 (87 / 131 — both live in legacy rows, "show the most")' );
-ok( has_null( $b, 'scroll_avg_per_view' ), '(b) scroll_avg_per_view null (scroll_sum never measured)' );
+ok( has_null( $b, 'scroll_avg_per_view' ), '(b) scroll_avg_per_view null (scroll_events never measured)' );
 ok( has_null( $b, 'time_avg_per_view' ), '(b) time_avg_per_view null' );
 ok( has_null( $b, 'scroll_avg_per_visit' ), '(b) scroll_avg_per_visit null' );
 ok( has_null( $b, 'time_avg_per_visit' ), '(b) time_avg_per_visit null' );
@@ -122,7 +151,7 @@ $c2 = sn_analytics_derive_metrics( array(
 	'time_sum'        => 0.0,
 	'time_events'     => 0,
 ) );
-ok( 0.0 === $c2['scroll_avg_per_view'], '(c) measured scroll_sum=0 over views=10 → 0.0, never cast to null' );
+ok( 0.0 === $c2['scroll_avg_per_view'], '(c) measured scroll_events=0 over views=10 → 0.0 depth, never cast to null' );
 ok( 0.0 === $c2['time_avg_per_visit'], '(c) measured time_sum=0 over 10 visitor-days → 0.0, never null' );
 ok( 1.0 === $c2['view_visit_ratio'], '(c) view_visit_ratio === 1.0 (10 / 10)' );
 ok( 0 === $c2['viewless_visits'], '(c) viewless_visits === 0 (10 − 10)' );
@@ -185,7 +214,7 @@ ok( 5 === $f['unique_visitor_days'], '(f) string "5" → int 5 (real int, not th
 ok( 4 === $f['pageview_visits'], '(f) string "4" → int 4' );
 ok( 1 === $f['viewless_visits'], '(f) viewless from strings === int 1' );
 ok( 2.0 === $f['view_visit_ratio'], '(f) ratio from strings === float 2.0' );
-ok( 55.0 === $f['scroll_avg_per_view'], '(f) scroll_avg_per_view from strings === 55.0' );
+ok( 18.75 === $f['scroll_avg_per_view'], '(f) scroll_avg_per_view from strings === 18.75 (25 × "6" / "8")' );
 ok( false === $f['integrity_violation'], '(f) no violation on valid string row' );
 $f2 = sn_analytics_derive_metrics( array( 'views' => '3', 'visits' => '6', 'pageview_visits' => '5' ) );
 ok( true === $f2['integrity_violation'], '(f) inverted string row ("3" < "5") → violation true (numeric compare)' );

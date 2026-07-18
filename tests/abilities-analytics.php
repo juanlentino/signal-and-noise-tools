@@ -94,6 +94,11 @@ foreach ( array(
 	'cannot invert'            => 'the never-invert property is stated',
 	'diluted by viewless days' => 'per_visit dilution is stated',
 	'views-weighted'           => 'legacy scroll_avg/time_avg denominators are stated',
+	// v9.64.0 scroll-unit redefinition: the depth identity must be documented
+	// so an AI caller can never re-derive the shipped-113% scroll_sum unit.
+	'25 * scroll_events'       => 'the depth identity (25 * scroll_events / denominator) is stated',
+	'max scroll depth'         => 'the unit is named a true mean max scroll depth',
+	'milestone'                => 'the cumulative-milestone beacon mechanics are stated',
 ) as $needle => $label ) {
 	ok( false !== strpos( $desc, $needle ), "description: $label ('$needle')" );
 }
@@ -206,9 +211,9 @@ ok( 30 === ( $out['pageview_visits'] ?? null ), 'pageview_visits === 30 (headlin
 ok( 10 === ( $out['viewless_visits'] ?? null ), 'viewless_visits === 10 (40 − 30)' );
 ok( is_float( $out['view_visit_ratio'] ?? null ) && abs( $out['view_visit_ratio'] - 100 / 30 ) < 1e-12, 'view_visit_ratio === 100/30' );
 ok( 2.5 === ( $out['pageviews_per_visitor_day'] ?? null ), 'pageviews_per_visitor_day === 2.5 (100/40)' );
-ok( 25.0 === ( $out['scroll_avg_per_view'] ?? null ), 'scroll_avg_per_view === 25.0 (2500/100 exact)' );
+ok( 20.0 === ( $out['scroll_avg_per_view'] ?? null ), 'scroll_avg_per_view === 20.0 (25×80 events/100 views — v9.64.0 depth unit)' );
 ok( 3000.0 === ( $out['time_avg_per_view'] ?? null ), 'time_avg_per_view === 3000.0 (300000/100 exact)' );
-ok( 62.5 === ( $out['scroll_avg_per_visit'] ?? null ), 'scroll_avg_per_visit === 62.5 (2500/40, diluted denominator)' );
+ok( 50.0 === ( $out['scroll_avg_per_visit'] ?? null ), 'scroll_avg_per_visit === 50.0 (25×80/40, diluted denominator)' );
 ok( 7500.0 === ( $out['time_avg_per_visit'] ?? null ), 'time_avg_per_visit === 7500.0 (300000/40)' );
 ok( false === ( $out['integrity_violation'] ?? null ), 'integrity_violation === false (strict bool, valid data)' );
 ok( '2026-04-19' === ( $out['exact_metrics_since'] ?? null ), 'exact_metrics_since passes the option through' );

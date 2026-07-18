@@ -53,10 +53,12 @@ Phase A: the API is a superset of today — nothing removed, nothing silently re
 | `viewless_visits` | `unique_visitor_days − pageview_visits` | the phantom count, derived |
 | `view_visit_ratio` | `views / pageview_visits` (≥1) | the meaningful "pageviews per real visit" |
 | `pageviews_per_visitor_day` | `views / unique_visitor_days` (may be <1) | raw ratio, exposed for transparency ("show the most") |
-| `scroll_avg_per_view` | `scroll_sum / views` (exact) | honest engagement |
+| `scroll_avg_per_view` | ~~`scroll_sum / views`~~ → `25 × scroll_events / views` (v9.64.0) | honest engagement — see addendum below |
 | `time_avg_per_view` | `time_sum / views` (exact) | honest engagement |
-| `scroll_avg_per_visit` | `scroll_sum / unique_visitor_days` (exact) | **labeled "diluted by viewless days"** |
+| `scroll_avg_per_visit` | ~~`scroll_sum / unique_visitor_days`~~ → `25 × scroll_events / unique_visitor_days` (v9.64.0) | **labeled "diluted by viewless days"** |
 | `time_avg_per_visit` | `time_sum / unique_visitor_days` (exact) | **labeled "diluted by viewless days"** |
+
+> **Addendum (v9.64.0, owner-approved 2026-07-18) — scroll-depth unit redefinition.** The beacon fires one **cumulative** `sc` event per milestone (25/50/75/100), each at most once per view, so `scroll_sum` sums milestone *points* (a full-depth view contributes 25+50+75+100 = 250) and the original `scroll_sum / views` ratio read **113% live**. Because milestones are evenly spaced and fire at most once per view, `25 × scroll_events` **is** the sum of per-view max depths, so the redefined ratios are the true mean max scroll depth (0–100). Redefinition beat deprecation: the fields were one day old with zero consumers. `scroll_sum` stays stored + exposed as the documented raw milestone-point sum; `time_*` untouched.
 | `scroll_avg`, `time_avg` | today's views-weighted approximation | **kept, deprecated**; denominator documented; not silently changed |
 
 ## 5. The never-invert guard
