@@ -19,6 +19,12 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m
 class SR_Stub_wpdb {
 	public $prefix  = 'wp_';
 	public $queries = array();
+	// Canned get_results() payload. REAL wpdb transports every column of an
+	// ARRAY_A row as a STRING ("12", "42.50", "2026-06-01") regardless of the
+	// column type — the read-accessor tests below MUST feed string values so
+	// they exercise the accessor's deliberate re-typing, not a convenient
+	// pre-typed shape the transport never produces.
+	public $results = array();
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
@@ -34,7 +40,10 @@ class SR_Stub_wpdb {
 		}, $query );
 	}
 	public function query( $sql ) { $this->queries[] = $sql; return 1; }
+	public function get_results( $sql, $output = OBJECT ) { $this->queries[] = $sql; return $this->results; }
 }
+if ( ! defined( 'OBJECT' ) )  { define( 'OBJECT', 'OBJECT' ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 $GLOBALS['wpdb'] = new SR_Stub_wpdb();
 
 echo "\nGroup: sn_session_rollup_normalize\n";
@@ -105,6 +114,56 @@ ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 3 !== max( $GLOBALS['__sr_metrics_
 	'run: metrics never see the raw (unfiltered) 3-group set' );
 ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 2 === max( $GLOBALS['__sr_metrics_pv'] ),
 	'run: metrics computed over the 2 pageview visits (phantom pageview-less group dropped)' );
+
+// ── sn_session_rollup_read: the durable-table accessor (v9.65.0) ─────────────
+// The writer (sn_session_rollup_run) keys rows by gmdate('Y-m-d') — a UTC day
+// string — and MySQL/wpdb transports every selected column back as a STRING.
+// The accessor must (a) never fabricate rows for absent days, (b) re-type the
+// numeric strings deliberately, (c) return null (not []) when the query FAILS
+// or the input is invalid — unknown is not an empty window.
+echo "\nGroup: sn_session_rollup_read (typed rows, absent days absent)\n";
+$GLOBALS['wpdb']          = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->results = array(
+	// Day 2026-06-02 is deliberately MISSING (the cron skipped a night).
+	array( 'day' => '2026-06-01', 'visits' => '12', 'bounce_pct' => '42.50', 'ppv' => '1.75', 'median_dur' => '55' ),
+	array( 'day' => '2026-06-03', 'visits' => '7',  'bounce_pct' => '0.00',  'ppv' => '2.10', 'median_dur' => '61' ),
+);
+$rows = sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' );
+ok( is_array( $rows ) && 2 === count( $rows ), 'read: two stored days → exactly two rows (absent 2026-06-02 stays ABSENT, never a fabricated 0-row)' );
+ok( array( '2026-06-01', '2026-06-03' ) === array_column( (array) $rows, 'day' ), 'read: day keys pass through as the writer\'s Y-m-d strings, ascending' );
+ok( 12 === $rows[0]['visits'] && is_int( $rows[0]['visits'] ), 'read: visits re-typed to int (wpdb transported "12")' );
+ok( 42.5 === $rows[0]['bounce_pct'] && is_float( $rows[0]['bounce_pct'] ), 'read: bounce_pct re-typed to float (wpdb transported "42.50")' );
+ok( 1.75 === $rows[0]['ppv'] && is_float( $rows[0]['ppv'] ), 'read: ppv re-typed to float' );
+ok( 55 === $rows[0]['median_dur'] && is_int( $rows[0]['median_dur'] ), 'read: median_dur re-typed to int' );
+ok( 0.0 === $rows[1]['bounce_pct'], 'read: a stored "0.00" comes back as a REAL 0.0 (zero is an answer)' );
+$sql = end( $GLOBALS['wpdb']->queries );
+ok( false !== strpos( $sql, "'2026-06-01'" ) && false !== strpos( $sql, "'2026-06-03'" ) && false !== strpos( $sql, "'human'" ),
+	'read: the generated SQL binds both day bounds and the class' );
+ok( false !== stripos( $sql, 'ORDER BY day ASC' ), 'read: rows come back day-ascending (trend order)' );
+
+echo "\nGroup: sn_session_rollup_read (empty vs failed vs invalid)\n";
+$GLOBALS['wpdb']          = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->results = array();
+$empty = sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' );
+ok( array() === $empty, 'read: an EMPTY result set is an ANSWER — [] (no rolled-up days), not null' );
+$GLOBALS['wpdb']          = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->results = null; // wpdb returns null on a failed query.
+ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' ), 'read: a FAILED query is null ("don\'t know"), never a fabricated empty window' );
+$GLOBALS['wpdb'] = new SR_Stub_wpdb();
+ok( null === sn_session_rollup_read( '2026-06-01', '2026-06-03', 'martian' ), 'read: unknown class → null' );
+ok( array() === $GLOBALS['wpdb']->queries, 'read: unknown class never reaches the DB' );
+ok( null === sn_session_rollup_read( 'junk', '2026-06-03', 'human' ), 'read: malformed from-day → null' );
+ok( null === sn_session_rollup_read( '2026-06-01', '03-06-2026', 'human' ), 'read: malformed to-day → null' );
+ok( array() === $GLOBALS['wpdb']->queries, 'read: malformed days never reach the DB' );
+// A malformed row (missing a selected column) is dropped, not padded with 0s.
+$GLOBALS['wpdb']          = new SR_Stub_wpdb();
+$GLOBALS['wpdb']->results = array(
+	array( 'day' => '2026-06-01', 'visits' => '12', 'bounce_pct' => '42.50', 'ppv' => '1.75', 'median_dur' => '55' ),
+	array( 'day' => '2026-06-02', 'visits' => '3', 'bounce_pct' => '10.00' ), // ppv + median_dur missing
+);
+$rows2 = sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' );
+ok( is_array( $rows2 ) && 1 === count( $rows2 ) && '2026-06-01' === $rows2[0]['day'],
+	'read: a malformed row is DROPPED (never padded with fabricated 0s)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -24,8 +24,12 @@ require_once __DIR__ . '/analytics-panels.php';
  * @param array $funnels List of array{title:string,report:array} (from sn_funnel_report()).
  * @param bool  $capped  Whether the raw row cap was hit.
  * @param array $attribution From sn_goal_attribution(): array{entry,conversions} rows.
+ * @param array|null|false $trend_rows From sn_session_rollup_read(): typed
+ *                    per-day rows (v9.65.0 trend panel), null when that read
+ *                    FAILED, or false (default) when the caller didn't fetch —
+ *                    legacy callers render byte-identically.
  */
-function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array() ) {
+function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $capped, $attribution = array(), $trend_rows = false ) {
 	if ( (int) $metrics['visits'] < 1 ) {
 		snt_an_note_empty( __( 'Visit quality', 'signal-and-noise-tools' ), __( 'No visits in this range yet.', 'signal-and-noise-tools' ) );
 	} else {
@@ -46,6 +50,12 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 			echo '<p class="sn-an-empty">' . esc_html__( 'Results capped for this window — narrow the date range for exact figures.', 'signal-and-noise-tools' ) . '</p>';
 		}
 		snt_an_panel_close();
+	}
+
+	// Long-term session-quality trend from the durable nightly rollup
+	// (wp_sn_session_daily) — false = legacy caller / module absent, skip.
+	if ( false !== $trend_rows ) {
+		snt_analytics_render_session_trend( $trend_rows );
 	}
 
 	// Transitions — the table helper owns its own panel chrome + empty-state, so
@@ -93,6 +103,79 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 }
 
 /**
+ * Long-term session-quality trend panel (v9.65.0) — the first reader of the
+ * durable wp_sn_session_daily rollup (written nightly since v8.8.0, read by
+ * nothing until now). Three sparklines (bounce %, pages/session, median
+ * duration) over the rolled-up days in the selected window, via the shared
+ * snt_an_trend_svg primitive — no new JS, no new CSS.
+ *
+ * Honest states, one per input shape (never a fabricated flat line):
+ *   null      → the table could not be read — fold with a "could not be read"
+ *               why (a failed read is NOT an empty window);
+ *   []        → the nightly rollup has written nothing in this window — fold;
+ *   1 row     → a trend needs two points — fold says so, not "no data";
+ *   >=2 rows  → the panel. The axis spans the FIRST..LAST rolled-up day (not
+ *               the requested window), and the unit note states the count, so
+ *               cron gaps are visible instead of silently compressed.
+ *
+ * Unit is explicit (sessions ≠ visitor-days — the Part 3 contract): these are
+ * within-day sessions from the session engine's nightly snapshot, a different
+ * unit from the Overview headline's visitor-day Visits.
+ *
+ * @since 9.65.0
+ * @param array|null $rows sn_session_rollup_read() output (or null on failure).
+ */
+function snt_analytics_render_session_trend( $rows ) {
+	$title = __( 'Session quality trend', 'signal-and-noise-tools' );
+	if ( ! is_array( $rows ) ) {
+		snt_an_note_empty( $title, __( 'The durable session rollup table could not be read — this is a read failure, not an empty window.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	if ( 0 === count( $rows ) ) {
+		snt_an_note_empty( $title, __( 'The nightly session rollup has no rolled-up days in this window yet — it writes one row per day and class after each UTC day closes.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	if ( count( $rows ) < 2 ) {
+		snt_an_note_empty( $title, __( 'Only one rolled-up day in this window — the trend needs at least two.', 'signal-and-noise-tools' ) );
+		return;
+	}
+
+	$rows   = array_values( $rows );
+	$last   = $rows[ count( $rows ) - 1 ];
+	$bounce = array_map( static function ( $r ) { return (float) $r['bounce_pct']; }, $rows );
+	$ppv    = array_map( static function ( $r ) { return (float) $r['ppv']; }, $rows );
+	$dur    = array_map( static function ( $r ) { return (float) $r['median_dur']; }, $rows );
+
+	snt_an_panel_open( $title, array( 'header_meta' => 'sessions · nightly rollup' ) );
+	// The explicit unit line (Part 3): sessions, not the headline's visitor-days.
+	echo '<p class="sn-an-empty">' . esc_html( sprintf(
+		/* translators: %d: number of days the nightly rollup has written in this window */
+		__( 'Counts within-day sessions (reset at UTC midnight) across %d rolled-up days — a different unit from the Overview headline\'s visitor-day Visits.', 'signal-and-noise-tools' ),
+		count( $rows )
+	) ) . '</p>';
+	snt_an_trend_svg( $bounce, array(
+		'head'      => __( 'Bounce rate', 'signal-and-noise-tools' ),
+		/* translators: %s: bounce percentage of the most recent rolled-up day */
+		'meta'      => sprintf( __( 'latest %s%%', 'signal-and-noise-tools' ), number_format_i18n( (float) $last['bounce_pct'], 1 ) ),
+		'id_suffix' => 'SessBounce',
+	) );
+	snt_an_trend_svg( $ppv, array(
+		'head'      => __( 'Pages / session', 'signal-and-noise-tools' ),
+		/* translators: %s: pages-per-session of the most recent rolled-up day */
+		'meta'      => sprintf( __( 'latest %s', 'signal-and-noise-tools' ), number_format_i18n( (float) $last['ppv'], 2 ) ),
+		'id_suffix' => 'SessPpv',
+	) );
+	snt_an_trend_svg( $dur, array(
+		'head'      => __( 'Median duration', 'signal-and-noise-tools' ),
+		/* translators: %s: median session duration (seconds) of the most recent rolled-up day */
+		'meta'      => sprintf( __( 'latest %ss', 'signal-and-noise-tools' ), number_format_i18n( (int) $last['median_dur'] ) ),
+		'id_suffix' => 'SessDur',
+		'axis'      => array( (string) $rows[0]['day'], (string) $last['day'] ),
+	) );
+	snt_an_panel_close();
+}
+
+/**
  * View entry point — dispatched from snt_analytics_render_dashboard().
  *
  * @param string $from  Window start (Y-m-d).
@@ -123,5 +206,11 @@ function snt_analytics_render_view_sessions( $from, $to, $class ) {
 	// contact-<alias> per /contact email link). Computed from the same visits — no
 	// extra query. Overridable prefix stays internal; the panel is contact-scoped.
 	$attribution = sn_goal_attribution( $visits, 'contact-' );
-	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ), $attribution );
+	// Durable long-term trend (v9.65.0): the read half of the nightly
+	// wp_sn_session_daily rollup. function_exists is defence in depth for a
+	// half-wired install; production loads the rollup module unconditionally.
+	$trend_rows = function_exists( 'sn_session_rollup_read' )
+		? sn_session_rollup_read( $from, $to, $class )
+		: false;
+	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ), $attribution, $trend_rows );
 }

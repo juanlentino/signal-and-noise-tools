@@ -204,5 +204,71 @@ ok( is_string( $out7 ), 'the Visits view renders without a fatal when the funnel
 ok( false !== strpos( $out7, '[dist-panel:Home → post → subscribe:3]' ), 'the fallback funnel renders as a titled panel with its 3 completed steps (the matcher output reached the view)' );
 $GLOBALS['__vs_settings'] = array();
 
+// ── v9.65.0: long-term session-quality trend panel (durable rollup) ──────────
+// Fed by sn_session_rollup_read() (wp_sn_session_daily — written nightly since
+// v8.8.0, read by NOTHING until now). Four input states, each with its own
+// honest rendering: false = legacy caller / module absent (render NOTHING —
+// byte-parity for old callers), null = read failed (fold, "couldn't read"),
+// <2 rows = fold ("not enough rolled-up days"), >=2 rows = the real panel.
+echo "\nGroup: session-quality trend panel (durable rollup)\n";
+$__quiet_metrics = array( 'visits' => 2, 'bounce_rate' => 0.0, 'pages_per_visit' => 2.0, 'median_duration' => 30, 'engaged_visits' => 1, 'engaged_rate' => 0.5 );
+
+// Legacy 5-arg call (all the assertions above) never mentions the panel; pin it.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array() );
+$t0 = ob_get_clean();
+ok( false === strpos( $t0, 'Session quality trend' ), 'trend: legacy caller (no 6th arg) renders no trend panel and no fold entry' );
+
+// null = the accessor could not read the table — fold with an honest "failed" why.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), null );
+$t1 = ob_get_clean();
+ok( false === strpos( $t1, '<span>Session quality trend</span>' ), 'trend: failed read emits no titled panel' );
+ok( false !== strpos( $t1, 'Session quality trend' ) && false !== strpos( $t1, 'could not be read' ),
+	'trend: failed read folds with a "could not be read" why (unknown is not an empty window)' );
+
+// [] = the nightly rollup has written nothing in this window — fold, honest why.
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), array() );
+$t2 = ob_get_clean();
+ok( false === strpos( $t2, '<span>Session quality trend</span>' ), 'trend: zero rolled-up days emits no titled panel' );
+ok( false !== strpos( $t2, 'Session quality trend' ) && false !== strpos( $t2, 'no rolled-up days' ),
+	'trend: zero rows folds with the "no rolled-up days" why' );
+
+// One row cannot draw a trend — fold says so instead of pretending "no data".
+$__one_day = array( array( 'day' => '2026-06-01', 'visits' => 12, 'bounce_pct' => 42.5, 'ppv' => 1.75, 'median_dur' => 55 ) );
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), $__one_day );
+$t3 = ob_get_clean();
+ok( false === strpos( $t3, '<span>Session quality trend</span>' ), 'trend: a single rolled-up day emits no titled panel' );
+ok( false !== strpos( $t3, 'needs at least two' ), 'trend: single-day fold says the trend needs at least two days (not "no data")' );
+
+// >=2 rows: the real panel — three sparklines, explicit sessions unit, pinned values.
+$__trend_rows = array(
+	array( 'day' => '2026-06-01', 'visits' => 12, 'bounce_pct' => 42.5, 'ppv' => 1.75, 'median_dur' => 55 ),
+	array( 'day' => '2026-06-02', 'visits' => 9,  'bounce_pct' => 50.0, 'ppv' => 1.5,  'median_dur' => 30 ),
+	array( 'day' => '2026-06-04', 'visits' => 20, 'bounce_pct' => 35.5, 'ppv' => 2.1,  'median_dur' => 61 ),
+);
+ob_start();
+snt_analytics_render_summary_panels( $__quiet_metrics, array(), array(), false, array(), $__trend_rows );
+$t4 = ob_get_clean();
+ok( false !== strpos( $t4, '<span>Session quality trend</span>' ), 'trend: >=2 rolled-up days renders the titled postbox panel' );
+ok( false !== strpos( $t4, 'Bounce rate' ) && false !== strpos( $t4, 'Pages / session' ) && false !== strpos( $t4, 'Median duration' ),
+	'trend: all three metric sparklines carry their heads' );
+ok( 3 === substr_count( $t4, '<svg class="sn-spark"' ), 'trend: exactly three sparkline SVGs' );
+ok( false !== strpos( $t4, 'snSparkFillSessBounce' ) && false !== strpos( $t4, 'snSparkFillSessPpv' ) && false !== strpos( $t4, 'snSparkFillSessDur' ),
+	'trend: the three gradients carry DISTINCT ids (three svgs share one page)' );
+// Value pins from the fixture's LAST row (not label echoes).
+ok( false !== strpos( $t4, 'latest 35.5%' ), 'trend: bounce meta pins the last day\'s real value' );
+ok( false !== strpos( $t4, 'latest 2.10' ), 'trend: pages/session meta pins the last day\'s real value' );
+ok( false !== strpos( $t4, 'latest 61s' ), 'trend: median-duration meta pins the last day\'s real value' );
+// Axis = the ACTUAL rolled-up day span (not the requested window) — honest about gaps.
+ok( false !== strpos( $t4, '<span>2026-06-01</span>' ) && false !== strpos( $t4, '<span>2026-06-04</span>' ),
+	'trend: the axis spans the first..last ROLLED-UP day' );
+// The unit is explicit: sessions, not the Overview headline's visitor-days (Part 3 contract).
+ok( false !== strpos( $t4, 'within-day sessions' ) && false !== strpos( $t4, 'visitor-day' ),
+	'trend: the unit note names within-day sessions AND distinguishes them from visitor-days' );
+ok( false !== strpos( $t4, '3 rolled-up days' ), 'trend: the note states how many days actually rolled up' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

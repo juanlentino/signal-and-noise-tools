@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.65.0] - 2026-07-18: Session trends served, integrity alert wired to Health, sessions vs visitor-days disambiguated
+
+Three parts from the 2026-07-18 dashboard audit.
+
+### Part 1 — the dormant durable session rollup gets its reader
+
+`wp_sn_session_daily` (written nightly by `sn_session_rollup_run()` since v8.8.0 for "long-term trend lines beyond AE's ~90-day raw retention") was read by NOTHING — a table of trend data and no trend.
+
+- **Added `sn_session_rollup_read( $from, $to, $class )`** (`inc/analytics-session-rollup.php`): day-ascending typed per-day rows `{day, visits:int, bounce_pct:float, ppv:float, median_dur:int}`. Null discipline throughout: absent days stay ABSENT (a night the cron skipped is "not measured", never a fabricated 0-row); an empty result is a real `[]` answer; a failed query or invalid input returns `null` — unknown is not an empty window. wpdb transports every column as a numeric STRING; the accessor re-types deliberately, and the test stub models that exact transport transform (all-string associative rows). Day keys follow the WRITER's convention (UTC `gmdate('Y-m-d')` — read before written).
+- **Added the "Session quality trend" panel** to the Visits tab (`inc/analytics-view-sessions.php`): three sparklines (bounce %, pages/session, median duration) over the rolled-up days in the selected window, all through the existing `snt_an_*` primitives (`snt_an_panel_open`/`snt_an_trend_svg` with distinct gradient ids) — no new JS, no new CSS, LIGHT-ONLY. Four honest states: read failed → empty-fold "could not be read" (not "no data"); zero rolled-up days → fold with why; one day → fold saying a trend needs two points; ≥2 days → the panel, with the axis spanning the first..last ROLLED-UP day and the note stating how many days actually rolled up, so cron gaps stay visible. The unit line is explicit per Part 3: "within-day sessions … a different unit from the Overview headline's visitor-day Visits."
+- Legacy `snt_analytics_render_summary_panels()` callers (no 6th arg) render byte-identically — pinned.
+
 ## [9.64.2] - 2026-07-18: The digest learns to write — plain-prose voice contract + markdown stripping
 
 v9.64.1 fixed the digest's FACTS; the owner's live screenshot (2026-07-18 07:30, plugin 9.64.1 installed) showed the result was **correct but unreadable**: the insights band opened with a literal "**Weekly Analytics Digest**" (raw markdown rendered as text, asterisks visible in both the collapsed band and the expanded panel), and the prose read like a stats appendix — "(3.7σ-robust, medium confidence)", "backtest 99% in-interval", "high backtest reliability (99% and 98% in-interval respectively)", "the point estimate is effectively flat/near-zero, but the interval leaves room for meaningful variation". Every one of those figures is ALREADY rendered by the deterministic signal chips + the transparency footer directly below the digest — the prose was duplicating the machinery instead of summarizing the week. This release changes VOICE only; every v9.64.1 vocabulary + structural-not-anomaly rule is kept intact (pinned).
