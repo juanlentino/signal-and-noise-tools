@@ -111,6 +111,46 @@ ok( array( '2025-07-06', '2025-07-12' ) === sn_analytics_resolve_cwin( array( '2
 ok( array( '2026-06-29', '2026-07-05' ) === sn_analytics_resolve_cwin( null, '2026-07-06', '2026-07-12' ), 'resolve_cwin: null falls back to the prior window' );
 $GLOBALS['__totals_by_window'] = array();
 
+echo "\nGroup: nullable Phase A delta metrics (v9.64.0 — the honest Overview's badges)\n";
+// range_totals has carried the spec-§4 derived fields since v9.63.0; the
+// deltas layer now mirrors three of them for the Overview strip. These are
+// NULLABLE (legacy / pre-backfill / failed read = "never measured"): the
+// verdict follows the engaged-rate precedent — no verdict unless BOTH sides
+// are known, and null is NEVER coerced to a confident 0.
+$GLOBALS['__de_totals']['2026-08-08|2026-08-14'] = array(
+	'views' => 300, 'visits' => 90, 'scroll_avg' => 50, 'time_avg' => 100,
+	'pageview_visits' => 60, 'scroll_avg_per_view' => 40.0, 'time_avg_per_view' => 12000.0,
+);
+$GLOBALS['__de_totals']['2026-08-01|2026-08-07'] = array(
+	'views' => 200, 'visits' => 80, 'scroll_avg' => 50, 'time_avg' => 100,
+	'pageview_visits' => 50, 'scroll_avg_per_view' => 50.0, 'time_avg_per_view' => 10000.0,
+);
+$dn = sn_analytics_period_deltas( '2026-08-08', '2026-08-14', 'human' );
+ok( 60 === ( $dn['pageview_visits']['current'] ?? null ) && 50 === ( $dn['pageview_visits']['previous'] ?? null ), 'nullable: pageview_visits current/previous carried as ints' );
+ok( 20 === ( $dn['pageview_visits']['pct'] ?? null ) && 'up' === ( $dn['pageview_visits']['dir'] ?? '' ), 'nullable: pageview_visits +20% up (both sides known)' );
+ok( -20 === ( $dn['scroll_avg_per_view']['pct'] ?? null ) && 'down' === ( $dn['scroll_avg_per_view']['dir'] ?? '' ), 'nullable: scroll_avg_per_view -20% down (40 vs 50, the v9.64.0 depth unit)' );
+ok( 20 === ( $dn['time_avg_per_view']['pct'] ?? null ) && 'up' === ( $dn['time_avg_per_view']['dir'] ?? '' ), 'nullable: time_avg_per_view +20% up' );
+ok( 40.0 === ( $dn['scroll_avg_per_view']['current'] ?? null ) && is_float( $dn['scroll_avg_per_view']['current'] ), 'nullable: engagement current stays a float' );
+// Legacy quartet untouched by the extension.
+ok( 50 === (int) ( $dn['views']['pct'] ?? -1 ) && 'up' === ( $dn['views']['dir'] ?? '' ), 'nullable: legacy views delta unchanged beside the new keys (300 vs 200 → +50%)' );
+// Prior window pre-backfill (derived keys ABSENT ≡ never measured): current is
+// kept, previous is null (never a fabricated 0), and there is NO verdict.
+$GLOBALS['__de_totals']['2026-09-08|2026-09-14'] = array(
+	'views' => 100, 'visits' => 40, 'scroll_avg' => 50, 'time_avg' => 100,
+	'pageview_visits' => 30, 'scroll_avg_per_view' => 45.0, 'time_avg_per_view' => 9000.0,
+);
+// (prior window 2026-09-01|2026-09-07 unset → the stub's legacy-quartet default)
+$dl = sn_analytics_period_deltas( '2026-09-08', '2026-09-14', 'human' );
+// array_key_exists, never `??` — ( null ?? 'MISSING' ) === null is
+// UNSATISFIABLE (the exact trap in project memory, caught here in RED).
+$dl_pv = is_array( $dl['pageview_visits'] ?? null ) ? $dl['pageview_visits'] : array();
+ok( 30 === ( $dl_pv['current'] ?? null ) && array_key_exists( 'previous', $dl_pv ) && null === $dl_pv['previous'], 'nullable: unknown prior side → previous null, never 0' );
+ok( array_key_exists( 'pct', $dl_pv ) && null === $dl_pv['pct'] && 'flat' === ( $dl_pv['dir'] ?? '' ), 'nullable: no verdict without both sides (pct null, dir flat — the engaged-rate precedent)' );
+ok( is_array( $dl['scroll_avg_per_view'] ?? null ) && array_key_exists( 'previous', $dl['scroll_avg_per_view'] ) && null === $dl['scroll_avg_per_view']['previous'], 'nullable: engagement previous null via array_key_exists (present-but-null, not missing)' );
+// Both sides unknown (all-legacy windows): every slot null/flat, keys present.
+$dz = sn_analytics_period_deltas( '2026-10-08', '2026-10-14', 'human' );
+ok( array_key_exists( 'pageview_visits', $dz ) && null === $dz['pageview_visits']['current'] && null === $dz['pageview_visits']['previous'] && null === $dz['pageview_visits']['pct'] && 'flat' === $dz['pageview_visits']['dir'], 'nullable: all-legacy windows → fully null entry, keys still present' );
+
 echo "\nGroup: bot breakdown\n";
 $GLOBALS['__de_class'] = array(
 	'human'   => array( 'views' => 1000, 'visits' => 400 ),

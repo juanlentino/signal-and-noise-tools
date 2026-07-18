@@ -572,6 +572,10 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-spark-wrap{position:relative;cursor:crosshair;touch-action:none}
 .sn-brush-sel{display:none;position:absolute;top:0;bottom:0;background:rgba(34,113,177,.12);border-left:1px solid #2271b1;border-right:1px solid #2271b1;pointer-events:none}
 .sn-an-compare-note{margin:4px 8px 8px;font-size:12px;color:#646970}
+/* v9.64.0 honest Overview: the visitor-day secondary line under the KPI strip
+   (same muted hairline treatment as the compare note; kept a separate class so
+   the compare-off oracle stays unambiguous). */
+.sn-an-visitor-note{margin:6px 14px 8px;font-size:12px;color:#646970}
 
 /* v9.35.0 maturity tier badges (I6) */
 .sn-an-tier{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:var(--sn-an-kicker-track);padding:1px 7px;border-radius:999px;border:1px solid var(--sn-an-hairline);color:var(--sn-an-tier-text);background:var(--sn-an-surface-2)}

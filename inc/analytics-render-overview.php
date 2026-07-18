@@ -101,26 +101,61 @@ function snt_analytics_render_delta_badge_kpi( $delta, $basis_label = '' ) {
 }
 
 /**
- * Fused dense KPI strip: Views + Visits (promoted), Now, Avg scroll, Avg time,
- * and optionally Engaged. Views/Visits/Avg scroll/Avg time carry a
- * period-over-period delta badge when $deltas is given. "Now" is always live.
- * Wraps in a native .postbox (no collapse toggle — clean static header).
+ * Fused dense KPI strip — the honest vocabulary (v9.64.0, spec §4): Views +
+ * Visits (promoted; Visits IS the gated `pageview_visits`, which cannot exceed
+ * views by construction), Now, exact Scroll / view + Time / view (the
+ * v9.64.0-corrected depth unit and exact ms-per-view), and optionally Engaged.
+ * A secondary hairline line under the strip surfaces the raw
+ * `unique_visitor_days` + `viewless_visits` counts ("show the most").
+ *
+ * Null discipline: a derived field may be ABSENT (legacy caller) or NULL (the
+ * selected range predates `exact_metrics_since`, or the read failed) — both
+ * mean "never measured" and render an em-dash with a caveat naming the
+ * discontinuity date, NEVER a fabricated 0. array_key_exists, not
+ * isset()/`??` — both are blind to a present-but-null key. The deprecated
+ * ungated `visits` and per-event `scroll_avg`/`time_avg` no longer render
+ * here (their delta keys are deliberately not wired onto the exact cards —
+ * a different unit's verdict would lie).
  *
  * @param int|null   $now         Realtime visitor count (null = not available).
- * @param array      $totals      {views,visits,scroll_avg,time_avg}
- * @param array      $deltas      {views,visits,scroll_avg,time_avg} => {pct,dir}
+ * @param array      $totals      The full sn_analytics_range_totals() contract
+ *                                (legacy quartet + spec-§4 derived fields +
+ *                                exact_metrics_since). Legacy quartet-only
+ *                                arrays degrade gracefully (em-dash + caveat).
+ * @param array      $deltas      sn_analytics_period_deltas() output
+ *                                (views/pageview_visits/scroll_avg_per_view/
+ *                                time_avg_per_view are the wired keys).
  * @param array{current:?int,previous?:?int,pct?:?int,dir?:string}|null $engaged Engaged-rate data,
  *                                                                                or null to omit the card.
  * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
  */
 function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null, $basis_label = '' ) {
-	$cards = array(
-		array( 'l' => 'Views',      'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ),  'delta' => $deltas['views'] ?? null,      'promoted' => true ),
-		array( 'l' => 'Visits',     'n' => number_format_i18n( (int) ( $totals['visits'] ?? 0 ) ), 'delta' => $deltas['visits'] ?? null,     'promoted' => true ),
-		array( 'l' => 'Now',        'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true ),
-		array( 'l' => 'Avg scroll', 'n' => (int) round( (float) ( $totals['scroll_avg'] ?? 0 ) ) . '%', 'delta' => $deltas['scroll_avg'] ?? null ),
-		array( 'l' => 'Avg time',   'n' => snt_analytics_fmt_time( (float) ( $totals['time_avg'] ?? 0 ) ), 'delta' => $deltas['time_avg'] ?? null ),
+	$totals = is_array( $totals ) ? $totals : array();
+	$known  = function ( $key ) use ( $totals ) {
+		return array_key_exists( $key, $totals ) && null !== $totals[ $key ];
+	};
+	// The em-dash caveat: WHY an exact value is unknown. When the backfill
+	// marker exists the range predates it (the read layer nulls exactly then);
+	// without a marker there is no date to name — say so, never invent one.
+	$since  = ( $known( 'exact_metrics_since' ) && is_string( $totals['exact_metrics_since'] ) ) ? $totals['exact_metrics_since'] : '';
+	$caveat = ( '' !== $since )
+		/* translators: %s: first day carrying exact metrics (Y-m-d). */
+		? sprintf( __( 'exact since %s', 'signal-and-noise-tools' ), $since )
+		: __( 'no exact data yet', 'signal-and-noise-tools' );
+
+	$cards   = array(
+		array( 'l' => 'Views', 'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'delta' => $deltas['views'] ?? null, 'promoted' => true ),
 	);
+	$cards[] = $known( 'pageview_visits' )
+		? array( 'l' => 'Visits', 'n' => number_format_i18n( (int) $totals['pageview_visits'] ), 'delta' => $deltas['pageview_visits'] ?? null, 'promoted' => true )
+		: array( 'l' => 'Visits', 'n' => '—', 'sub' => $caveat, 'promoted' => true );
+	$cards[] = array( 'l' => 'Now', 'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true );
+	$cards[] = $known( 'scroll_avg_per_view' )
+		? array( 'l' => 'Scroll / view', 'n' => (int) round( (float) $totals['scroll_avg_per_view'] ) . '%', 'delta' => $deltas['scroll_avg_per_view'] ?? null )
+		: array( 'l' => 'Scroll / view', 'n' => '—', 'sub' => $caveat );
+	$cards[] = $known( 'time_avg_per_view' )
+		? array( 'l' => 'Time / view', 'n' => snt_analytics_fmt_time( (float) $totals['time_avg_per_view'] ), 'delta' => $deltas['time_avg_per_view'] ?? null )
+		: array( 'l' => 'Time / view', 'n' => '—', 'sub' => $caveat );
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
 		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}
@@ -131,6 +166,26 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	// are already primitive-compatible; its default slot prints "no change"
 	// exactly like the old else-branch.
 	snt_an_kpi_row( $cards, array( 'basis_label' => $basis_label ) );
+
+	// The visitor-day secondary line (spec §4 "show the most"): the raw
+	// visitor-day count the deprecated 'visits' used to headline, plus its
+	// viewless share. Muted hairline note (the compare-note idiom). Renders
+	// only what is KNOWN — a null viewless count omits the clause, never 0.
+	if ( $known( 'unique_visitor_days' ) ) {
+		$note = sprintf(
+			/* translators: %s: unique visitor-day count. */
+			__( '%s visitor-days', 'signal-and-noise-tools' ),
+			number_format_i18n( (int) $totals['unique_visitor_days'] )
+		);
+		if ( $known( 'viewless_visits' ) ) {
+			$note .= ' · ' . sprintf(
+				/* translators: %s: count of visitor-days that fired no pageview. */
+				__( '%s viewless (no pageview)', 'signal-and-noise-tools' ),
+				number_format_i18n( (int) $totals['viewless_visits'] )
+			);
+		}
+		echo '<p class="sn-an-visitor-note">' . esc_html( $note ) . '</p>';
+	}
 }
 
 /**
