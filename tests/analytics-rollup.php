@@ -247,16 +247,20 @@ ok( strpos( $schema, 'UNIQUE KEY' ) !== false, 'schema: declares a UNIQUE KEY' )
 foreach ( array( 'day', 'path', 'views', 'visits', 'scroll_avg', 'time_avg' ) as $col ) {
 	ok( preg_match( '/\b' . $col . '\b/', $schema ) === 1, "schema: declares the $col column" );
 }
-// v5 — engagement-sum columns. NULLABLE is load-bearing: legacy rows (rolled
-// before v5) must read NULL ("never measured"), never a fabricated 0, so the
-// derive layer can tell "no data" from a real zero (realtime-zero-vs-null).
+// v5 — engagement-sum columns + the gated pageview_visits denominator (five
+// columns total; pageview_visits was amended in post-review — spec §4/§8 store
+// it per daily row so the read layer can range-sum it). NULLABLE is load-
+// bearing: legacy rows (rolled before v5) must read NULL ("never measured"),
+// never a fabricated 0, so the derive layer can tell "no data" from a real
+// zero (realtime-zero-vs-null).
 foreach ( array(
 	'scroll_sum FLOAT NULL DEFAULT NULL',
 	'scroll_events INT UNSIGNED NULL DEFAULT NULL',
 	'time_sum FLOAT NULL DEFAULT NULL',
 	'time_events INT UNSIGNED NULL DEFAULT NULL',
+	'pageview_visits INT UNSIGNED NULL DEFAULT NULL',
 ) as $decl ) {
-	ok( strpos( $schema, $decl ) !== false, "schema: declares nullable engagement column: $decl" );
+	ok( strpos( $schema, $decl ) !== false, "schema: declares nullable v5 column: $decl" );
 }
 ok( strpos( $schema, 'utf8mb4' ) !== false, 'schema: includes the charset collate' );
 ok( preg_match( '/\bclass\b/', $schema ) === 1, 'schema: declares the class column' );

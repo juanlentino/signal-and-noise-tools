@@ -6,9 +6,11 @@
  * range total shaped like one): the honest denominators (`unique_visitor_days`,
  * `pageview_visits`, `viewless_visits`), the transparent ratios, exact
  * per-view / per-visit engagement, and the never-invert `integrity_violation`
- * flag. Input keys mirror the real rollup surface (inc/analytics-rollup.php):
- * views / visits / pageview_visits / scroll_sum / scroll_events / time_sum /
- * time_events — any of which may be ABSENT or NULL.
+ * flag. Input-key spellings match the rollup columns (inc/analytics-rollup.php)
+ * — NOT invented names. Today's rollup SELECT emits only views / visits /
+ * scroll_avg / time_avg; pageview_visits / scroll_sum / scroll_events /
+ * time_sum / time_events are schema-v5 columns that Task 3 will populate.
+ * Any key may be ABSENT or NULL.
  *
  * ── PURE MODULE — the load-bearing constraint ────────────────────────────────
  *
@@ -33,7 +35,7 @@
  *     the alarm is the feature.
  *
  * @package SignalNoiseTools
- * @since 9.62.3
+ * @since 9.63.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

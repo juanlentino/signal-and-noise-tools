@@ -31,7 +31,7 @@ All three probes need a booted live WP (AE creds live server-side). Batch them i
 
 | Action | Path | Responsibility |
 |---|---|---|
-| Modify | `inc/analytics-rollup.php` | installer (+4 cols, DB v4→5), rollup query, upsert, rollup-side guard |
+| Modify | `inc/analytics-rollup.php` | installer (+5 cols — four engagement + `pageview_visits INT UNSIGNED NULL`, amended post-review; DB v4→5), rollup query, upsert, rollup-side guard |
 | Create | `inc/analytics-derive.php` | pure derive functions — **no WP calls**, `require()`-able by tests directly |
 | Modify | `inc/analytics-read.php` | summary assembly: merge derive output, null discipline, read-side defensive guard |
 | Modify | ability file registering `get-analytics-summary` (locate: `grep -rn "get-analytics-summary" inc/`) | description + output schema |
@@ -43,12 +43,14 @@ All three probes need a booted live WP (AE creds live server-side). Batch them i
 
 ---
 
-### Task 1 — Schema: four nullable columns, DB v5
+### Task 1 — Schema: five nullable columns, DB v5
+
+> **Amended post-review:** the v5 schema is **FIVE** columns, not four — the four engagement sums below **plus `pageview_visits INT UNSIGNED NULL DEFAULT NULL`** (spec §4/§8 store it per daily row: the Task 3 upsert writes it, the Task 4 read layer range-sums it). The original scaffold omitted it; the adversarial review of the Task 1 commit caught the gap. DB version stays '5' (unreleased — nothing has shipped it).
 
 **Files:** Modify `inc/analytics-rollup.php` (installer `sn_analytics_daily_install()`, const `SN_ANALYTICS_DAILY_DB_VERSION`). Test: locate the existing install/migration test in `tests/`; extend it (else add assertions to the rollup test).
 
 - [ ] Read the installer + CREATE TABLE block.
-- [ ] Add `scroll_sum FLOAT NULL DEFAULT NULL`, `scroll_events INT UNSIGNED NULL DEFAULT NULL`, `time_sum FLOAT NULL DEFAULT NULL`, `time_events INT UNSIGNED NULL DEFAULT NULL`. **NULLABLE is load-bearing:** legacy rows must read NULL ("never measured"), never a fabricated 0 (`realtime-zero-vs-null` memory). Mind dbDelta's whitespace/KEY quirks — mirror the existing column formatting exactly.
+- [ ] Add `scroll_sum FLOAT NULL DEFAULT NULL`, `scroll_events INT UNSIGNED NULL DEFAULT NULL`, `time_sum FLOAT NULL DEFAULT NULL`, `time_events INT UNSIGNED NULL DEFAULT NULL`, `pageview_visits INT UNSIGNED NULL DEFAULT NULL`. **NULLABLE is load-bearing:** legacy rows must read NULL ("never measured"), never a fabricated 0 (`realtime-zero-vs-null` memory). Mind dbDelta's whitespace/KEY quirks — mirror the existing column formatting exactly.
 - [ ] Bump `SN_ANALYTICS_DAILY_DB_VERSION` `4` → `5`. Never drop/recreate — the table holds real history since v2.
 - [ ] Test asserts the CREATE TABLE string contains the four columns as nullable; run it; commit (`feat: analytics daily schema v5 — engagement sum columns (nullable)` + CHANGELOG).
 
@@ -76,6 +78,10 @@ Function: `sn_analytics_derive_metrics( array $daily ): array`. Input keys: `vie
 - [ ] Upsert writes the four new columns + `pageview_visits`. **`wpdb %f` locale hazard applies to the new FLOAT columns:** bind as `number_format($v, 4, '.', '')` → `%s`, never `%f`. Keep the 100-row upsert chunking unchanged.
 - [ ] Rollup-side guard (human class): if `views < pageview_visits` → `error_log` + set `sn_analytics_integrity_alert` option; **still write the row** — the alarm is the feature, never clamp or skip.
 - [ ] Tests: stub mirrors the RAW AE JSON captured in P0.2 (the transport's real shape — `test-stub-drift-invents-shapes` memory; real names: `scroll_avg`, NOT `avg_scroll`); assert upsert receives the new columns with pinned values; re-roll same day twice → identical row (idempotence); inverted stub → alert option set AND row still written. Commit + CHANGELOG.
+
+> **⚠ Warning (post-review, upsert coercion):** `sn_analytics_rollup_upsert()` today coerces missing keys via `?? 0` — e.g. `(float) ( $r['views'] ?? 0 )` (`inc/analytics-rollup.php:311-314`). That is correct for the legacy NOT NULL DEFAULT 0 columns, but do **NOT** copy the pattern for the five new nullable columns: `?? 0` turns absent/null into a fabricated 0, defeating the nullable schema and the whole null-vs-zero discipline. Use `array_key_exists()` + explicit NULL binding (write SQL NULL when the key is absent or null) so a row with no engagement data stays "never measured".
+>
+> **⚠ Warning (post-review, coupled tests):** `tests/ae-dialect-probe.php` is deliberately coupled to the CURRENT rollup SELECT shape (its transforms are grounded against the real `sn_analytics_rollup_sql()` output). When Task 3 extends the SELECT it WILL fail loudly — that is by design: re-verify its needles against the new SQL, or retire it if the probe has served its purpose. And if the live P0.1 verdict is "use primary", `tests/analytics-sql-dialect.php`'s ban on `count(DISTINCT <expr>)` (it allows only a bare column) must be relaxed for that exact proven form — `count(DISTINCT if(blob1 = 'pv', index1, NULL))` — before the rollup SQL can carry it.
 
 ### Task 4 — Read layer: summary assembly
 

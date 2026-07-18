@@ -120,10 +120,11 @@ function sn_analytics_is_excluded_path( $path ) {
  * UNIQUE(day, path, class) key is 763 bytes — inside InnoDB's 767-byte prefix.
  * Paths longer than 180 chars are truncated at write time (rare on this site).
  *
- * The v5 engagement-sum columns (scroll_sum/scroll_events/time_sum/time_events)
- * are NULL DEFAULT NULL on purpose: a legacy row that predates them must read
- * NULL ("never measured"), never a fabricated 0 — downstream derivation treats
- * null and zero as different answers.
+ * The five v5 columns (scroll_sum/scroll_events/time_sum/time_events plus the
+ * gated pageview_visits denominator, stored per daily row so the read layer
+ * can range-sum it — spec §4/§8) are NULL DEFAULT NULL on purpose: a legacy
+ * row that predates them must read NULL ("never measured"), never a fabricated
+ * 0 — downstream derivation treats null and zero as different answers.
  *
  * @return string CREATE TABLE statement.
  */
@@ -145,6 +146,7 @@ function sn_analytics_daily_schema_sql() {
 		scroll_events INT UNSIGNED NULL DEFAULT NULL,
 		time_sum FLOAT NULL DEFAULT NULL,
 		time_events INT UNSIGNED NULL DEFAULT NULL,
+		pageview_visits INT UNSIGNED NULL DEFAULT NULL,
 		PRIMARY KEY  (id),
 		UNIQUE KEY day_path_class (day, path, class)
 	) {$charset};";

@@ -16,7 +16,7 @@
  *   - a real measured 0 stays 0 (never null), null never becomes 0.
  *
  * Run: php tests/analytics-derive.php
- * @since plugin v9.62.3 (Analytics Integrity Phase A, Task 2)
+ * @since plugin v9.63.0 (Analytics Integrity Phase A, Task 2)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
