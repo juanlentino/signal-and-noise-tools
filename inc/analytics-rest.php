@@ -113,12 +113,24 @@ function sn_analytics_rest_series( $request ) {
  * GET /analytics/dimension/<dim>
  * Returns the top-25 entries for the requested dimension.
  *
+ * v9.68.1: the accessor reports a FAILED durable read as null — surfaced here
+ * as an explicit 500, never a silent [] (an unknown dim still returns [] from
+ * the accessor: a known-empty answer, served as such).
+ *
  * @param WP_REST_Request $request
- * @return array
+ * @return array|WP_Error
  */
 function sn_analytics_rest_dimension( $request ) {
 	list( $from, $to, $class ) = sn_analytics_rest_window( $request );
-	return sn_analytics_top_dimension( (string) $request->get_param( 'dim' ), $from, $to, $class, 25 );
+	$rows = sn_analytics_top_dimension( (string) $request->get_param( 'dim' ), $from, $to, $class, 25 );
+	if ( ! is_array( $rows ) ) {
+		return new WP_Error(
+			'sn_analytics_read_failed',
+			'The dimension table could not be read (a read failure, not an empty window).',
+			array( 'status' => 500 )
+		);
+	}
+	return $rows;
 }
 
 /**

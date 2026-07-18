@@ -43,15 +43,22 @@ function sn_analytics_referrer_category( $host ) {
  * Fold the referrer dimension into the 4 source categories (all returned,
  * zero-filled, in a stable order). Reads up to 500 referrer rows for the window.
  *
+ * Contract (v9.68.1): null = the underlying dims read FAILED (propagated —
+ * four fabricated zero-filled categories would impersonate a quiet window);
+ * an empty read still returns the 4 zero-filled categories (a real answer).
+ *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
- * @return array<int, array{category:string, label:string, views:int, visits:int}>
+ * @return array<int, array{category:string, label:string, views:int, visits:int}>|null
  */
 function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 	$rows = function_exists( 'sn_analytics_top_dimension' )
 		? sn_analytics_top_dimension( 'referrer', $from, $to, $class, 500 )
 		: array();
+	if ( null === $rows ) {
+		return null; // v9.68.1: the accessor's failed-read verdict propagates.
+	}
 
 	$cats = array(
 		'search' => array( 'label' => 'Search', 'views' => 0, 'visits' => 0 ),
@@ -328,10 +335,14 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null 
  * Human / suspect / bot split for the window, plus the top bot ASNs (from the
  * NEW network dimension filtered to class='bot') — the "who's scraping me" view.
  *
+ * v9.68.1: `top_bot_networks` carries the dims accessor's contract through —
+ * null = that read FAILED (the renderer says so), [] = no bot networks seen.
+ * The class totals come from a different table and keep their own verdict.
+ *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max bot networks to return.
- * @return array{totals:array{human:int,suspect:int,bot:int,total:int}, top_bot_networks:array}
+ * @return array{totals:array{human:int,suspect:int,bot:int,total:int}, top_bot_networks:array|null}
  */
 function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 	$class_totals = function_exists( 'sn_analytics_class_totals' )
@@ -353,7 +364,9 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 			'bot'     => $bot,
 			'total'   => $human + $suspect + $bot,
 		),
-		'top_bot_networks' => is_array( $networks ) ? $networks : array(),
+		// null (the accessor's failed-read verdict) passes through; any other
+		// non-array (accessor absent in a partial harness) degrades to [].
+		'top_bot_networks' => ( is_array( $networks ) || null === $networks ) ? $networks : array(),
 	);
 }
 

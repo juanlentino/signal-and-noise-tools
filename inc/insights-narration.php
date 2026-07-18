@@ -107,6 +107,11 @@ function snt_narration_collect_signals() {
 	$to   = gmdate( 'Y-m-d' );
 	$from = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ); // inclusive 7-day window
 
+	// v9.68.1: top_sources reports a FAILED durable read as null — this payload
+	// feeds an AI prompt, so it degrades to [] (the safe prompt shape); the
+	// dashboard surfaces carry the honest read-failure fold instead.
+	$top_sources = function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', 10 ) : array();
+
 	$signals = array(
 		'site'         => array(
 			'name'        => (string) sn_setting( 'identity.site_name', get_bloginfo( 'name' ) ),
@@ -122,7 +127,7 @@ function snt_narration_collect_signals() {
 		'deltas'       => function_exists( 'sn_analytics_period_deltas' ) ? sn_analytics_period_deltas( $from, $to, 'human' ) : array(),
 		'engaged_rate' => function_exists( 'sn_analytics_engaged_rate_delta' ) ? sn_analytics_engaged_rate_delta( $from, $to, 'human' ) : array(),
 		'top_paths'    => function_exists( 'sn_analytics_top_paths' ) ? sn_analytics_top_paths( $from, $to, 'human', 10 ) : array(),
-		'top_sources'  => function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', 10 ) : array(),
+		'top_sources'  => is_array( $top_sources ) ? $top_sources : array(),
 		'top_events'   => function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 10 ) : array(),
 		'collected_at' => time(),
 	);

@@ -23,15 +23,14 @@
  *    itself and returns null on a FAILED read vs [] for an empty window, so
  *    failure renders "could not be read" (the v9.65.0 lesson — never served
  *    as an empty week) and [] folds honestly.
- *  - The six minis (sources, UTM, geography, devices, entry, exit): their
- *    accessors return [] for BOTH failure and empty (their existing contract,
- *    unchanged here), so this view brackets each call with a
- *    $wpdb->last_error + num_queries before/after snapshot (real wpdb clears
- *    last_error per query via flush() and counts every executed query); an
- *    error this read newly set — changed message, or same message from a
- *    fresh query — renders that panel's "could not be read" fold, [] without
- *    one folds as an honest empty window. A stale pre-existing error with no
- *    query run is never inherited.
+ *  - The six minis (sources, UTM, geography, devices, entry, exit): since
+ *    v9.68.1 their accessors speak the SAME contract (null = failed wpdb
+ *    read, [] = empty window — upgraded at the source, so the OLDER tabs
+ *    inherit the honesty too), so this view simply resolves the accessor's
+ *    own verdict: null renders that panel's "could not be read" fold, []
+ *    folds as an honest empty window. (The v9.68.0 view-local last_error +
+ *    num_queries bracket this view carried while the accessors conflated the
+ *    two is retired — the accessor verdict is the one failure signal.)
  *  - Right now: a cold cron-warmed transient is "warming", never a fabricated
  *    0, and a warmed 0 is a real 0 — but a transient read has no failure
  *    channel, so "warming" honestly covers never-warmed and lost alike.
@@ -311,45 +310,30 @@ function snt_analytics_overview_weekly_bounce( $rows, $from = '', $to = '' ) {
 }
 
 /**
- * Bracket ONE durable-table accessor call with a $wpdb->last_error baseline
- * (v9.68.0 pre-merge review, F1). The dims/UTM/pageroles accessors return []
- * for BOTH a failed read and an empty window (their existing contract —
- * deliberately not changed here; that ripple is a future wave), so [] alone
- * cannot distinguish "no rows" from "the table is missing/corrupt". Real wpdb
- * reports a failed query as [] from get_results(ARRAY_A) WITH
- * $wpdb->last_error set, and wpdb::query() calls flush() first — which resets
- * last_error to '' per query — so immediately after the call, last_error
- * reflects the accessor's OWN read (a successful read even CLEARS a stale
- * error). The before-snapshot guards the one gap: an accessor that performs
- * NO query (memo hit, early return) leaves an EARLIER unrelated query's error
- * in place — a stale value must never count as this read's failure.
- *
- * A changed/newly-set message alone is NOT enough: two consecutive failing
- * reads of the SAME table (Geography then Devices both read wp_sn_analytics_
- * dims) produce IDENTICAL messages, so "unchanged" would misread the second
- * failure as an empty window. Real wpdb exposes the disambiguator:
- * $wpdb->num_queries increments unconditionally per executed query
- * (wpdb::_do_query()), so queries-ran + non-empty last_error = the call's
- * last query failed, no matter whether the message matches the baseline.
+ * Normalize ONE durable-table accessor result to {rows, failed}. Since
+ * v9.68.1 the dims/UTM/pageroles accessors (and their sources/entry/exit
+ * wrappers) consult $wpdb->last_error THEMSELVES and self-report a FAILED
+ * read as null ([] stays the honest empty window), so the v9.68.0
+ * last_error/num_queries bracket this helper used to carry is retired:
+ * nothing here needs the transport channel anymore — the accessor's own
+ * verdict is the one failure signal, and it cannot inherit a stale error or
+ * miss a same-message consecutive failure by construction. Kept as a helper
+ * (rather than inlined) so every mini panel resolves the tri-state the same
+ * way and the render code below keeps its exact shape.
  *
  * @since 9.68.0
  * @param callable $read The accessor call, closed over its args.
- * @return array{rows:array, failed:bool} rows: the accessor result,
- *                                        normalized to an array; failed: true
- *                                        iff $wpdb->last_error is non-empty
- *                                        after the call AND either changed
- *                                        from the baseline or at least one
- *                                        query ran during the call.
+ * @return array{rows:array, failed:bool} rows: the accessor result normalized
+ *                                        to an array; failed: true iff the
+ *                                        accessor did not return an array
+ *                                        (its null-on-failure contract —
+ *                                        unknown is never an empty window).
  */
 function snt_analytics_overview_read_guarded( $read ) {
-	$before   = isset( $GLOBALS['wpdb']->last_error ) ? (string) $GLOBALS['wpdb']->last_error : '';
-	$q_before = isset( $GLOBALS['wpdb']->num_queries ) ? (int) $GLOBALS['wpdb']->num_queries : 0;
-	$rows     = $read();
-	$after    = isset( $GLOBALS['wpdb']->last_error ) ? (string) $GLOBALS['wpdb']->last_error : '';
-	$q_after  = isset( $GLOBALS['wpdb']->num_queries ) ? (int) $GLOBALS['wpdb']->num_queries : 0;
+	$rows = $read();
 	return array(
 		'rows'   => is_array( $rows ) ? $rows : array(),
-		'failed' => ( '' !== $after && ( $after !== $before || $q_after > $q_before ) ),
+		'failed' => ! is_array( $rows ),
 	);
 }
 
@@ -485,7 +469,7 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 	// it doesn't have (v9.68.0 pre-merge review, F2).
 	if ( false !== $trend_rows ) {
 		if ( null === $trend_rows ) {
-			echo '<p class="sn-an-empty">' . esc_html__( 'The 8-week bounce trend could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) . '</p>';
+			echo '<p class="sn-an-empty">' . esc_html( snt_an_read_failed_copy( __( 'The 8-week bounce trend', 'signal-and-noise-tools' ) ) ) . '</p>';
 		} else {
 			$weekly = snt_analytics_overview_weekly_bounce( $trend_rows, $trend_from, $trend_to );
 			if ( count( $weekly ) < 2 ) {
@@ -615,11 +599,11 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	);
 
 	// ── Balanced bento: acquisition left (sources + UTM), audience right
-	// (countries + devices) — all four from durable rollup tables. Their
-	// accessors return [] for BOTH an empty window and a failed read (their
-	// existing contract, deliberately untouched), so each call is bracketed by
-	// snt_analytics_overview_read_guarded(): a read that newly set
-	// $wpdb->last_error folds as "could not be read", never as an empty week.
+	// (countries + devices) — all four from durable rollup tables. Since
+	// v9.68.1 their accessors self-report a failed read as null ([] = empty
+	// window), and snt_analytics_overview_read_guarded() resolves that
+	// verdict: a failed read folds as "could not be read", never as an empty
+	// week.
 	// Each mini's prior-window read (PART B) sits right beside its current read:
 	// same accessor, same guarded bracket, prior window, depth SN_OVERVIEW_PRIOR_
 	// LIMIT — and only when the current read produced rows for chips to sit on
@@ -664,7 +648,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		__( 'Top sources', 'signal-and-noise-tools' ),
 		$sources['rows'],
 		$sources['failed']
-			? __( 'The durable referrer rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			? snt_an_read_failed_copy( __( 'The durable referrer rollup', 'signal-and-noise-tools' ) )
 			: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
 		array(),
 		'',
@@ -679,7 +663,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		__( 'Campaigns (UTM)', 'signal-and-noise-tools' ),
 		$campaigns['rows'],
 		$campaigns['failed']
-			? __( 'The durable UTM rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			? snt_an_read_failed_copy( __( 'The durable UTM rollup', 'signal-and-noise-tools' ) )
 			: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
 		array(),
 		'',
@@ -696,7 +680,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		__( 'Geography', 'signal-and-noise-tools' ),
 		$countries['rows'],
 		$countries['failed']
-			? __( 'The durable country rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			? snt_an_read_failed_copy( __( 'The durable country rollup', 'signal-and-noise-tools' ) )
 			: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
 		array(),
 		'',
@@ -711,7 +695,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		__( 'Devices', 'signal-and-noise-tools' ),
 		$devices['rows'],
 		$devices['failed']
-			? __( 'The durable device rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
+			? snt_an_read_failed_copy( __( 'The durable device rollup', 'signal-and-noise-tools' ) )
 			: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
 		array(),
 		'',
@@ -728,9 +712,10 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	// ── Entry + exit pages, PAIRED — the durable pageroles rollup (exits fed
 	// nightly by the session bridge since v9.66.0). Human-only tables: their
 	// rollup carries no class column, so the class control does not apply and
-	// the header meta says so. Same last_error bracketing as the bento: a
-	// failed read folds as "could not be read" via the panel's own title (the
-	// shared renderer's empty copy is reserved for a truly empty window).
+	// the header meta says so. Same null-verdict resolution as the bento: a
+	// failed read (accessor null) folds as "could not be read" via the panel's
+	// own title (the shared renderer's empty copy is reserved for a truly
+	// empty window).
 	$entries       = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
 		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
 	} );
@@ -747,7 +732,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	$ext_cmp       = snt_analytics_overview_row_deltas( $exits['rows'], $exits_prior, 'path' );
 	echo '<div class="sn-an-grid sn-an-overview-pair">';
 	if ( $entries['failed'] ) {
-		snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), __( 'The durable entry-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable entry-pages rollup', 'signal-and-noise-tools' ) ) );
 	} else {
 		snt_analytics_render_pageroles_table(
 			$entries['rows'],
@@ -760,7 +745,7 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		);
 	}
 	if ( $exits['failed'] ) {
-		snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), __( 'The durable exit-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable exit-pages rollup', 'signal-and-noise-tools' ) ) );
 	} else {
 		snt_analytics_render_pageroles_table(
 			$exits['rows'],

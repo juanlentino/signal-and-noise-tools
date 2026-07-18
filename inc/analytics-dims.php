@@ -247,13 +247,19 @@ function sn_analytics_dims_run_rollup() {
  * so distinct dims/limits/classes each get their own read — only truly
  * identical calls dedupe.
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set — a
+ * missing/corrupt table must never impersonate a quiet window); [] = an empty
+ * window, which is an ANSWER. An unknown $dim also returns [] (no query is
+ * issued — a known-empty answer, not a failure). Failures are never memoized:
+ * the next caller re-asks instead of inheriting a cached failure.
+ *
  * @param string $dim     'referrer' | 'country' | 'device'.
  * @param string $from    Inclusive start day, YYYY-MM-DD.
  * @param string $to      Inclusive end day, YYYY-MM-DD.
  * @param string $class   Traffic class (default 'human').
  * @param int    $limit   Max rows (1..500).
  * @param bool   $refresh Bypass and re-prime the memo for this key.
- * @return array<int, array{value:string, views:int, visits:int}>
+ * @return array<int, array{value:string, views:int, visits:int}>|null
  */
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25, $refresh = false ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
@@ -287,15 +293,22 @@ function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit 
 		$limit
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: real wpdb reports a FAILED query as [] from
+	// get_results(ARRAY_A) WITH $wpdb->last_error set (query() flush()es it
+	// first, so after the call it reflects THIS read alone). Without this
+	// consult a missing/corrupt table would be served as a quiet window (the
+	// v9.65.0 conflation class). Not memoized — the next caller re-asks.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$out = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$out[] = array(
-				'value'  => (string) $r['value'],
-				'views'  => (int) $r['views'],
-				'visits' => (int) $r['visits'],
-			);
-		}
+	foreach ( $results as $r ) {
+		$out[] = array(
+			'value'  => (string) $r['value'],
+			'views'  => (int) $r['views'],
+			'visits' => (int) $r['visits'],
+		);
 	}
 	$memo[ $key ] = $out;
 	return $memo[ $key ];

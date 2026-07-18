@@ -52,8 +52,15 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> ' . esc_html__( 'Bot', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $bot ) );
 	echo '</p>';
 
-	$nets = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
-	if ( ! empty( $nets ) ) {
+	// v9.68.1: a NULL networks list is the dims accessor's failed-read verdict
+	// (carried through sn_analytics_bot_breakdown) — say so instead of a quiet
+	// omission. array_key_exists, not isset: isset(null) is false (the ??/isset
+	// trap), and absent-vs-null are different answers here.
+	$nets_failed = is_array( $bb ) && array_key_exists( 'top_bot_networks', $bb ) && null === $bb['top_bot_networks'];
+	$nets        = ( isset( $bb['top_bot_networks'] ) && is_array( $bb['top_bot_networks'] ) ) ? $bb['top_bot_networks'] : array();
+	if ( $nets_failed ) {
+		echo '<p class="sn-an-empty">' . esc_html( snt_an_read_failed_copy( __( 'The top-bot-networks list', 'signal-and-noise-tools' ) ) ) . '</p>';
+	} elseif ( ! empty( $nets ) ) {
 		echo '<h4 class="sn-an-subh">' . esc_html__( 'Top bot networks', 'signal-and-noise-tools' ) . '</h4><table class="sn-an-table wp-list-table widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Network', 'signal-and-noise-tools' ) . '</th><th scope="col" class="num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 		foreach ( $nets as $n ) {
 			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'

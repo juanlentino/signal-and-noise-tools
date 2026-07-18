@@ -49,8 +49,21 @@ class AU_Stub_wpdb {
 			}
 		}, $query );
 	}
+	// v9.68.1: model the REAL wpdb error channel (a transport stub must model
+	// the transport's FAILURE shape too): query() flush()es last_error per
+	// query, and a FAILED read is [] from get_results(ARRAY_A) WITH last_error set.
+	public $last_error = '';
+	public $fail_reads = false;
 	public function query( $sql ) { $this->queries[] = $sql; return empty( $GLOBALS['__au_query_fail'] ) ? 1 : false; }
-	public function get_results( $sql, $output = ARRAY_A ) { $this->queries[] = $sql; return $this->results; }
+	public function get_results( $sql, $output = ARRAY_A ) {
+		$this->queries[] = $sql;
+		$this->last_error = '';
+		if ( $this->fail_reads ) {
+			$this->last_error = "Table 'wp_sn_analytics_utm' doesn't exist";
+			return array();
+		}
+		return $this->results;
+	}
 }
 $GLOBALS['wpdb'] = new AU_Stub_wpdb();
 
@@ -196,6 +209,26 @@ ok( isset( $ser2['google / cpc'] ), 'series[source_medium]: maps by the composit
 au_reset();
 $empty = sn_analytics_utm_series( 'campaign', array(), '2026-07-01', '2026-07-11' );
 ok( $empty === array() && count( $GLOBALS['wpdb']->queries ) === 0, 'series: no values → empty map, no query issued' );
+
+echo "\nGroup: v9.68.1 null-on-failure contract (failed read must not impersonate a quiet window)\n";
+au_reset();
+$GLOBALS['wpdb']->fail_reads = true;
+ok( null === sn_analytics_top_utm_campaigns( '2026-09-01', '2026-09-07' ),
+	'campaigns: a failed read ([] + last_error) returns NULL, never an empty-window []' );
+ok( null === sn_analytics_top_utm_sources( '2026-09-01', '2026-09-07' ),
+	'sources: a failed read returns NULL too' );
+ok( null === sn_analytics_utm_series( 'campaign', array( 'summer_sale' ), '2026-09-01', '2026-09-07' ),
+	'series: a failed read returns NULL too' );
+$q_before_empty = count( $GLOBALS['wpdb']->queries );
+ok( array() === sn_analytics_utm_series( 'campaign', array(), '2026-09-01', '2026-09-07' )
+	&& count( $GLOBALS['wpdb']->queries ) === $q_before_empty,
+	'series: an empty $values set still returns [] with NO query — a known-empty answer, not a failure' );
+$GLOBALS['wpdb']->fail_reads = false;
+ok( array() === sn_analytics_top_utm_campaigns( '2026-09-01', '2026-09-07' ),
+	'recovery: the table healed → the same window reads [] (a real empty window is an ANSWER)' );
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+ok( array() === sn_analytics_top_utm_sources( '2026-09-02', '2026-09-08' ),
+	'stale: a successful read flushes a pre-existing last_error — [] stays an empty window' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

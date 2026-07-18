@@ -12,6 +12,7 @@ function esc_html( $s ) { return $s; }
 function esc_attr( $s ) { return $s; }
 function number_format_i18n( $n ) { return (string) (int) $n; }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return $s; } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // v9.68.1: the read-failure fold copy
 
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: renderers emit chrome via the panel primitive
 require __DIR__ . '/../inc/analytics-admin-render.php';
@@ -42,6 +43,16 @@ ok( '' === trim( $he ), 'empty dim table renders no panel markup' );
 $noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted ) && 'Edge locations' === $noted[0]['title'], 'empty dim table registers its title' );
 ok( 'No edge-location data yet.' === $noted[0]['why'], 'empty dim table carries its $empty copy as the fold why (D4 §4)' );
+
+echo "\nGroup: v9.68.1 — NULL rows (the accessors' failed-read verdict) fold with the read-failure copy\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
+ob_start(); snt_analytics_render_dim_table( 'Browsers', null, 'No browser data in this range yet.' ); $hn = ob_get_clean();
+ok( '' === trim( $hn ), 'failed: renders no panel markup (folds like empty)' );
+$noted_n = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_n ) && 'Browsers' === $noted_n[0]['title'], 'failed: registers its title in the fold' );
+ok( 'Browsers could not be read (read failure — not an empty window).' === ( $noted_n[0]['why'] ?? '' ),
+	'failed: the fold why is the shared read-failure sentence — NEVER the empty-window copy' );
+ok( false === strpos( (string) ( $noted_n[0]['why'] ?? '' ), 'No browser data' ), 'failed: the $empty copy is not served for a failed read' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

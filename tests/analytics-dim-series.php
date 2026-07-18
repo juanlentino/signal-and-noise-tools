@@ -25,6 +25,10 @@ class DS_Stub_wpdb {
 	public $prefix  = 'wp_';
 	public $queries = array();
 	public $rows    = array();
+	// v9.68.1: model the REAL wpdb error channel — query() flush()es last_error
+	// per query; a FAILED read is [] from get_results(ARRAY_A) WITH last_error set.
+	public $last_error = '';
+	public $fail_reads = false;
 
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
@@ -42,6 +46,11 @@ class DS_Stub_wpdb {
 
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
+		$this->last_error = '';
+		if ( $this->fail_reads ) {
+			$this->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
+			return array();
+		}
 
 		if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) {
 			return array();
@@ -112,6 +121,19 @@ ok( strpos( $sql, "value IN ('Chrome','Firefox')" ) !== false, 'values batched v
 ok( isset( $map['Chrome'] ) && isset( $map['Firefox'] ), 'returns a per-value series map' );
 ok( $map['Chrome'][1]['views'] === 7, 'series carries per-bucket views' );
 ok( sn_analytics_dimension_series( 'browser', array(), 'a', 'b' ) === array(), 'empty value list → empty map (no query)' );
+
+echo "\nGroup: v9.68.1 null-on-failure contract\n";
+$GLOBALS['wpdb']->fail_reads = true;
+ok( null === sn_analytics_dimension_series( 'browser', array( 'Chrome' ), '2026-06-01', '2026-06-12' ),
+	'failure: a failed read ([] + last_error) returns NULL, never an empty series map' );
+$q_before_ds = count( $GLOBALS['wpdb']->queries );
+ok( array() === sn_analytics_dimension_series( 'browser', array(), '2026-06-01', '2026-06-12' )
+	&& count( $GLOBALS['wpdb']->queries ) === $q_before_ds,
+	'failure: an empty value list still short-circuits to [] with NO query (a known-empty answer)' );
+$GLOBALS['wpdb']->fail_reads = false;
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+$ok_map = sn_analytics_dimension_series( 'browser', array( 'Chrome' ), '2026-06-01', '2026-06-12' );
+ok( is_array( $ok_map ) && isset( $ok_map['Chrome'] ), 'recovery: a successful read flushes a stale last_error and serves the map' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

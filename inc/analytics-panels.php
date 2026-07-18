@@ -141,6 +141,23 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
  *                       Default '' — panel stays summary-only in the fold.
  * @return void
  */
+/**
+ * The ONE read-failure sentence (v9.68.1). Every panel that distinguishes a
+ * FAILED durable-table read (accessor null) from an empty window ([]) speaks
+ * it identically — extracted from the v9.68.0 Overview folds so the wording
+ * can never fork per surface. A database failure must never impersonate a
+ * quiet range (the v9.65.0 conflation class).
+ *
+ * @since 9.68.1
+ * @param string $subject What could not be read (a panel title like
+ *                        "Browsers", or a phrase like "Referrer categories").
+ * @return string Translated copy.
+ */
+function snt_an_read_failed_copy( $subject ) {
+	/* translators: %s: the table/panel that could not be read (e.g. "Browsers", "Referrer categories"). */
+	return sprintf( __( '%s could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ), (string) $subject );
+}
+
 function snt_an_note_empty( $title, $why = '' ) {
 	if ( ! isset( $GLOBALS['sn_an_empty_panels'] ) || ! is_array( $GLOBALS['sn_an_empty_panels'] ) ) {
 		$GLOBALS['sn_an_empty_panels'] = array();

@@ -93,10 +93,14 @@ function snt_insights_collect_signals() {
 	$an_from  = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ); // inclusive 7-day window
 	$an_pages = function_exists( 'sn_analytics_top_paths' ) ? sn_analytics_top_paths( $an_from, $an_to, 'human', 100 ) : array();
 	$an_pages = is_array( $an_pages ) ? $an_pages : array();
+	// v9.68.1: the dims accessor reports a FAILED read as null — this payload
+	// feeds an AI prompt, so it degrades to [] (the safe prompt shape); the
+	// dashboard surfaces carry the honest read-failure fold instead.
+	$an_sources       = function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'referrer', $an_from, $an_to, 'human', 20 ) : array();
 	$out['analytics'] = array(
 		'aggregate' => function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $an_from, $an_to, 'human' ) : array(),
 		'pages'     => $an_pages,
-		'sources'   => function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'referrer', $an_from, $an_to, 'human', 20 ) : array(),
+		'sources'   => is_array( $an_sources ) ? $an_sources : array(),
 	);
 
 	// Build a quick {relative-permalink-path => views_7d} map for the post-list

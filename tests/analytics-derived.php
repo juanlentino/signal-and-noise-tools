@@ -25,8 +25,10 @@ $GLOBALS['__de_dim_calls'] = array();
 $GLOBALS['__totals_by_window'] = array(); // D2: explicit-cwin override, keyed "$from|$to" — takes priority over __de_totals
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
 	$GLOBALS['__de_dim_calls'][] = array( $dim, $from, $to, $class, $limit );
+	// array_key_exists, not ?? — a stored NULL is the v9.68.1 failed-read
+	// verdict and must reach the caller (?? would silently swap it for []).
 	$key = $dim . '|' . $class;
-	return $GLOBALS['__de_dim'][ $key ] ?? array();
+	return array_key_exists( $key, $GLOBALS['__de_dim'] ) ? $GLOBALS['__de_dim'][ $key ] : array();
 }
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
 	$key = "$from|$to";
@@ -167,6 +169,21 @@ ok( $bb['totals']['total'] === 1420, 'bot-breakdown: total = human+suspect+bot' 
 ok( count( $bb['top_bot_networks'] ) === 2 && $bb['top_bot_networks'][0]['value'] === 'Amazon.com, Inc.', 'bot-breakdown: top bot ASNs from the network dim (class=bot)' );
 $last = end( $GLOBALS['__de_dim_calls'] );
 ok( $last[0] === 'network' && $last[3] === 'bot', 'bot-breakdown: queries network dim filtered to class=bot' );
+
+echo "\nGroup: v9.68.1 null-on-failure propagation\n";
+$GLOBALS['__de_dim']['referrer|human'] = null; // the accessor's failed-read verdict
+ok( null === sn_analytics_referrer_categories( '2026-09-01', '2026-09-07', 'human' ),
+	'categories: a failed dims read propagates as NULL — never four fabricated zero-filled categories' );
+unset( $GLOBALS['__de_dim']['referrer|human'] );
+$empty_cats = sn_analytics_referrer_categories( '2026-09-01', '2026-09-07', 'human' );
+ok( is_array( $empty_cats ) && 4 === count( $empty_cats ),
+	'categories: an empty (successful) read still returns the 4 zero-filled categories — a real quiet window' );
+$GLOBALS['__de_dim']['network|bot'] = null; // the bot-networks read fails; class totals still read fine
+$bb_f = sn_analytics_bot_breakdown( '2026-09-01', '2026-09-07', 10 );
+ok( 1420 === $bb_f['totals']['total'], 'bot-breakdown: the class totals (their own table) still serve' );
+ok( array_key_exists( 'top_bot_networks', $bb_f ) && null === $bb_f['top_bot_networks'],
+	'bot-breakdown: a failed networks read carries NULL through — never a quiet empty list' );
+unset( $GLOBALS['__de_dim']['network|bot'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

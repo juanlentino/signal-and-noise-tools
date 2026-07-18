@@ -36,6 +36,12 @@ class AD_Stub_wpdb {
     public $prefix = 'wp_';
     public $queries = array();
     public $rows = array();
+    // v9.68.1: model the REAL wpdb error channel (the 3rd-bite lesson — a
+    // transport stub must model the transport's FAILURE shape too): query()
+    // flush()es last_error per query, and a FAILED read comes back from
+    // get_results(ARRAY_A) as [] WITH last_error set.
+    public $last_error = '';
+    public $fail_reads = false;
     public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
     public function prepare( $query, ...$args ) {
         if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
@@ -52,6 +58,11 @@ class AD_Stub_wpdb {
     public function query( $sql ) { $this->queries[] = $sql; return empty( $GLOBALS['__ad_query_fail'] ) ? 1 : false; }
     public function get_results( $sql, $output = ARRAY_A ) {
         $this->queries[] = $sql;
+        $this->last_error = ''; // real wpdb: query() flush()es last_error before every query.
+        if ( $this->fail_reads ) {
+            $this->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
+            return array(); // real get_results(ARRAY_A) failure shape: [] beside last_error.
+        }
         if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
         $rows = isset( $this->rows[ $tm[1] ] ) ? $this->rows[ $tm[1] ] : array();
         foreach ( array( 'dim', 'class' ) as $f ) {
@@ -252,6 +263,26 @@ ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 4, 'top_dimension: a 
 $m6 = sn_analytics_top_dimension( 'referrer', '2026-08-01', '2026-08-31', 'human', 10, true );
 ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 5, 'top_dimension: $refresh=true re-primes the memo (fifth read)' );
 ok( $m6 === $m1, 'top_dimension: refreshed read still shapes an identical result over unchanged fixture data' );
+
+echo "\nGroup: v9.68.1 null-on-failure contract (failed read must not impersonate a quiet window)\n";
+ad_reset();
+$GLOBALS['wpdb']->fail_reads = true;
+ok( null === sn_analytics_top_dimension( 'referrer', '2026-09-01', '2026-09-07' ),
+	'failure: a failed read ([] + last_error, the real wpdb shape) returns NULL, never an empty-window []' );
+$q_after_fail = count( $GLOBALS['wpdb']->queries );
+ok( null === sn_analytics_top_dimension( 'referrer', '2026-09-01', '2026-09-07' )
+	&& count( $GLOBALS['wpdb']->queries ) === $q_after_fail + 1,
+	'failure: never memoized — the identical repeat call re-queries instead of inheriting a cached failure' );
+$GLOBALS['wpdb']->fail_reads = false;
+ok( array() === sn_analytics_top_dimension( 'referrer', '2026-09-01', '2026-09-07' ),
+	'recovery: the table healed → the same window reads [] (a real empty window is an ANSWER)' );
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+ok( array() === sn_analytics_top_dimension( 'referrer', '2026-09-02', '2026-09-08' ),
+	'stale: a successful read flushes a pre-existing last_error (wpdb flush-per-query) — [] stays an empty window' );
+$GLOBALS['wpdb']->fail_reads = true;
+ok( array() === sn_analytics_top_dimension( 'martian', '2026-09-01', '2026-09-07' ),
+	'unknown dim: still [] with NO query — a known-empty answer, not a read failure' );
+$GLOBALS['wpdb']->fail_reads = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -219,5 +219,17 @@ $GLOBALS['__sig'] = array();
 $ov0 = cap( 'sn_aw_overview' );
 ok( strpos( $ov0, 'sn-aw-insight' ) === false && strpos( $ov0, 'Right now' ) !== false, 'overview: no signals → header hidden, KPIs exactly as today' );
 
+echo "\nGroup: v9.68.1 — a FAILED dims read (top_sources null) says so, never an empty-referrers week\n";
+$GLOBALS['__pw']['refs'] = null; // sn_analytics_top_dimension's failed-read verdict → real top_sources propagates null
+$src_fail = cap( 'sn_aw_sources' );
+ok( strpos( $src_fail, 'could not be read (read failure — not an empty window)' ) !== false,
+	'sources widget: a failed read renders the read-failure line' );
+ok( strpos( $src_fail, 'No referrers in the last 7 days.' ) === false,
+	'sources widget: the empty-week copy is never served for a failed read' );
+$GLOBALS['__pw']['refs'] = array();
+$src_empty = cap( 'sn_aw_sources' );
+ok( strpos( $src_empty, 'No referrers in the last 7 days.' ) !== false && strpos( $src_empty, 'could not be read' ) === false,
+	'sources widget: [] keeps the honest empty-week copy (both directions pinned)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

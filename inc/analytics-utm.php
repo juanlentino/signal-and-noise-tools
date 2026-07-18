@@ -237,11 +237,14 @@ function sn_analytics_utm_run_rollup() {
  * Read accessor: top campaigns across an inclusive [$from,$to] day range,
  * filtered to a single class (default human), ordered by views.
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set — never
+ * served as an empty window); [] = an empty window, which is an ANSWER.
+ *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
  * @param int    $limit Max rows (1..500).
- * @return array<int, array{value:string, views:int, visits:int}>
+ * @return array<int, array{value:string, views:int, visits:int}>|null
  */
 function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 25 ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
@@ -265,15 +268,19 @@ function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 
 		$limit
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: a FAILED query is [] + $wpdb->last_error set
+	// (flush-per-query, so it reflects THIS read) — never an empty window.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$out = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$out[] = array(
-				'value'  => (string) $r['value'],
-				'views'  => (int) $r['views'],
-				'visits' => (int) $r['visits'],
-			);
-		}
+	foreach ( $results as $r ) {
+		$out[] = array(
+			'value'  => (string) $r['value'],
+			'views'  => (int) $r['views'],
+			'visits' => (int) $r['visits'],
+		);
 	}
 	return $out;
 }
@@ -284,11 +291,14 @@ function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 
  * by views. Each row carries the raw source + medium plus a composed
  * "source / medium" label for the table.
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set — never
+ * served as an empty window); [] = an empty window, which is an ANSWER.
+ *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
  * @param int    $limit Max rows (1..500).
- * @return array<int, array{value:string, source:string, medium:string, views:int, visits:int}>
+ * @return array<int, array{value:string, source:string, medium:string, views:int, visits:int}>|null
  */
 function sn_analytics_top_utm_sources( $from, $to, $class = 'human', $limit = 25 ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
@@ -312,19 +322,23 @@ function sn_analytics_top_utm_sources( $from, $to, $class = 'human', $limit = 25
 		$limit
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: a FAILED query is [] + $wpdb->last_error set —
+	// never an empty window.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$out = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$source = (string) $r['source'];
-			$medium = (string) $r['medium'];
-			$out[]  = array(
-				'value'  => $source . ' / ' . $medium,
-				'source' => $source,
-				'medium' => $medium,
-				'views'  => (int) $r['views'],
-				'visits' => (int) $r['visits'],
-			);
-		}
+	foreach ( $results as $r ) {
+		$source = (string) $r['source'];
+		$medium = (string) $r['medium'];
+		$out[]  = array(
+			'value'  => $source . ' / ' . $medium,
+			'source' => $source,
+			'medium' => $medium,
+			'views'  => (int) $r['views'],
+			'visits' => (int) $r['visits'],
+		);
 	}
 	return $out;
 }
@@ -336,13 +350,16 @@ function sn_analytics_top_utm_sources( $from, $to, $class = 'human', $limit = 25
  * series keys on: 'campaign' → the campaign column; 'source_medium' → the same
  * "source / medium" label the read accessor composes. Returns value => [{day,views}].
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set); [] = no
+ * series (including an empty $values set, which issues no query at all).
+ *
  * @param string   $mode        'campaign' | 'source_medium'.
  * @param string[] $values      Already-trusted top-N values (from the read accessor).
  * @param string   $from        Inclusive start day, YYYY-MM-DD.
  * @param string   $to          Inclusive end day, YYYY-MM-DD.
  * @param string   $class       Traffic class (default 'human').
  * @param string   $granularity 'day' | 'week'.
- * @return array<string, array<int, array{day:string, views:int}>>
+ * @return array<string, array<int, array{day:string, views:int}>>|null
  */
 function sn_analytics_utm_series( $mode, $values, $from, $to, $class = 'human', $granularity = 'day' ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
@@ -370,12 +387,16 @@ function sn_analytics_utm_series( $mode, $values, $from, $to, $class = 'human', 
 		$args
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: a FAILED query is [] + $wpdb->last_error set —
+	// never an empty series map.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$map = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$v           = (string) $r['value'];
-			$map[ $v ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
-		}
+	foreach ( $results as $r ) {
+		$v           = (string) $r['value'];
+		$map[ $v ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
 	}
 	return $map;
 }
