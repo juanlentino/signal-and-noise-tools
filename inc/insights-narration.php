@@ -23,7 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SN_NARRATION_CACHE_KEY',  'sn_insights_narration' );
+// v9.64.2: key versioned _v2 — this cache is a FIXED key (not prompt-hashed
+// like the analytics-narrator artifacts), so the voice-contract change could
+// not bust it; the bump orphans any pre-voice digest (the old transient just
+// expires within its 7-day TTL).
+define( 'SN_NARRATION_CACHE_KEY',  'sn_insights_narration_v2' );
 define( 'SN_NARRATION_CACHE_TTL',  7 * DAY_IN_SECONDS );
 // v9.2.1: raised 512 -> 1024. On real traffic data the model's digest overran
 // 512 completion tokens and the JSON truncated mid-response, hard-failing the
@@ -233,7 +237,7 @@ Write a short, plain digest of what happened this week. Return ONLY a JSON objec
 
 {
   "headline": "<one-line summary of the week; max 120 chars>",
-  "paragraphs": ["<2-3 short paragraphs of prose, each 1-3 sentences>"],
+  "paragraphs": ["<1-2 short paragraphs of plain prose>"],
   "highlights": ["<2-4 terse bullet facts, each citing a specific number>"]
 }
 
@@ -247,6 +251,8 @@ Rules:
 - VOCABULARY (the totals block; v9.64.1): "views" counts pageviews. "pageview_visits" counts visitor-days with at least one pageview — this is the ONLY number to call "visits". "visits" and "unique_visitor_days" count unique visitor-DAYS with ANY beacon activity, including feed/RSS reads with zero pageviews — call them "visitor-days", never "visits". "viewless_visits" = unique_visitor_days minus pageview_visits (feed readers and beacon-only visits). The same applies in "deltas": its "visits" series compares visitor-days; its "pageview_visits" series is the honest visits delta.
 - STRUCTURAL, NOT AN ANOMALY: visitor-days exceeding views is a structural property of this measurement, fully explained by viewless_visits. When you mention the gap, state that explanation (e.g. "90 visitor-days exceed 47 views because 50 visitor-days were viewless — feed readers and beacon-only visits"). NEVER call it unusual, unexplained, or an anomaly, and never write that no explanation exists. The ONLY genuine anomaly of this kind is integrity_violation=true (views below pageview_visits — arithmetically impossible; a data bug worth flagging plainly).
 - COOKIELESS DATA — visit metrics (bounce rate, pages/visit, engaged-read %, funnel completion) are WITHIN-DAY aggregates only; describe them as aggregate rates. A "visit" resets at UTC midnight and is never a cross-day identity. NEVER infer or mention new-vs-returning visitors, per-person identity, or following any individual across days.
+- VOICE (v9.64.2): the audience is the site owner glancing at this on a phone. Plain English only. NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate — the analytics screen's chips and footer carry that machinery. State numbers plainly (47 views, 40 visits). Keep the prose to at most 4-5 short plain-English sentences across all paragraphs; the final paragraph may be one line starting "Worth a look:". Mention a forecast only when it is actionable, in plain words ("expect a quiet week") — never as numbers with intervals. A genuine anomaly gets at most one plain sentence.
+- NO MARKDOWN in any string value: no asterisks, no underscores, no heading marks, no bullet characters, no emojis — plain prose only.
 - Keep the ENTIRE response under 200 words total (headline + all paragraphs + all highlights combined). This is a glance digest, not a report: prefer 2 short paragraphs and 3 highlights over exhausting every signal.
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
@@ -428,7 +434,10 @@ function snt_narration_parse_response( $raw ) {
 		);
 	}
 
-	$headline = ( isset( $decoded['headline'] ) && is_string( $decoded['headline'] ) ) ? trim( $decoded['headline'] ) : '';
+	// v9.64.2: the digest strings are rendered as plain text, so markdown marks
+	// the model emitted despite the instruction ban are REMOVED here (never
+	// escaped) — the single parse boundary every digest passes through.
+	$headline = ( isset( $decoded['headline'] ) && is_string( $decoded['headline'] ) ) ? trim( snt_ai_strip_markdown( $decoded['headline'] ) ) : '';
 	if ( '' === $headline ) {
 		return new WP_Error( 'snt_narration_no_headline', 'AI digest is missing a headline.' );
 	}
@@ -439,8 +448,9 @@ function snt_narration_parse_response( $raw ) {
 	$paragraphs = array();
 	if ( isset( $decoded['paragraphs'] ) && is_array( $decoded['paragraphs'] ) ) {
 		foreach ( $decoded['paragraphs'] as $p ) {
-			if ( is_string( $p ) && '' !== trim( $p ) ) {
-				$paragraphs[] = trim( $p );
+			$p = is_string( $p ) ? trim( snt_ai_strip_markdown( $p ) ) : '';
+			if ( '' !== $p ) {
+				$paragraphs[] = $p;
 			}
 			if ( count( $paragraphs ) >= 4 ) {
 				break;
@@ -454,8 +464,9 @@ function snt_narration_parse_response( $raw ) {
 	$highlights = array();
 	if ( isset( $decoded['highlights'] ) && is_array( $decoded['highlights'] ) ) {
 		foreach ( $decoded['highlights'] as $h ) {
-			if ( is_string( $h ) && '' !== trim( $h ) ) {
-				$highlights[] = trim( $h );
+			$h = is_string( $h ) ? trim( snt_ai_strip_markdown( $h ) ) : '';
+			if ( '' !== $h ) {
+				$highlights[] = $h;
 			}
 			if ( count( $highlights ) >= 6 ) {
 				break;

@@ -53,6 +53,7 @@ function wp_next_scheduled( $hook, $args = array() ) {
 }
 function add_action( $h, $c = null, $p = 10, $a = 1 ) { /* module-scope registration only; tests call *_ai_run() directly */ }
 
+require __DIR__ . '/../inc/ai-markdown-strip.php'; // real shared stripper (v9.64.2) — the run paths call it
 require __DIR__ . '/../inc/analytics-narrator.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -238,6 +239,58 @@ echo "\nGroup: digest() seam — no signals\n";
 $GLOBALS['__ai_calls'] = 0;
 ok( 'fallback' === sn_analytics_digest( $digest_summary, array() )['source'], 'digest: no signals → fallback empty-state' );
 ok( 0 === $GLOBALS['__ai_calls'], 'no-signals path makes zero AI-client calls' );
+
+echo "\nGroup: v9.64.2 voice contract — digest system instruction (P1a + P2)\n";
+list( , $vs ) = sn_analytics_digest_ai_prompt( $honest_summary, $signals, '' );
+ok( false !== strpos( $vs, 'NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'digest system: forbids markdown entirely (P1a)' );
+ok( false !== strpos( $vs, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'digest system: bans the stats-appendix jargon — the chips carry that machinery (P2)' );
+ok( false !== strpos( $vs, 'at most 4-5 short plain-English sentences' ), 'digest system: sentence budget for a phone-glance summary' );
+ok( false !== strpos( $vs, '"Worth a look:"' ), 'digest system: the optional Worth-a-look closer' );
+ok( false !== strpos( $vs, 'State numbers plainly (47 views, 40 visits)' ), 'digest system: numbers stated plainly, no interval dressing' );
+ok( false !== strpos( $vs, '("expect a quiet week")' ) && false !== strpos( $vs, 'never as numbers with intervals' ), 'digest system: forecasts only in plain words, never numbers-with-intervals' );
+ok( false !== strpos( $vs, 'at most one plain sentence' ), 'digest system: a genuine anomaly gets one plain sentence, max' );
+ok( false !== strpos( $vs, 'NEVER describe the gap as unusual, unexplained, or an anomaly' ), 'digest system: v9.64.1 structural-not-anomaly rule kept intact (voice change, not facts)' );
+ok( false !== strpos( $vs, 'never to be called "visits"' ), 'digest system: v9.64.1 honest vocabulary kept intact' );
+
+echo "\nGroup: v9.64.2 voice contract — narrate system instruction\n";
+list( , $vns ) = sn_analytics_narrate_ai_prompt( $signals );
+ok( false !== strpos( $vns, 'NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'narrate system: forbids markdown entirely' );
+ok( false !== strpos( $vns, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'narrate system: bans the stats-appendix jargon' );
+ok( false !== strpos( $vns, 'unique visitor-days' ) && false !== strpos( $vns, 'never an anomaly' ), 'narrate system: v9.64.1 vocabulary + structural rules kept intact' );
+
+echo "\nGroup: v9.64.2 — an instruction change busts the AI cache key (P3)\n";
+ok( sn_analytics_ai_cache_key( 'digest', $dp1, 'system text A', 'analytics_digest_weekly' )
+	!== sn_analytics_ai_cache_key( 'digest', $dp1, 'system text B', 'analytics_digest_weekly' ),
+	'cache key is a function of the system instruction — the voice-contract change orphans the stored pre-voice digest' );
+
+echo "\nGroup: v9.64.2 — markdown stripper, exact transforms (P1b)\n";
+ok( 'Weekly Analytics Digest' === snt_ai_strip_markdown( '**Weekly Analytics Digest**' ), 'stripper: **bold** marks REMOVED, text kept (the live headline)' );
+ok( 'Head' === snt_ai_strip_markdown( '## Head' ), 'stripper: heading marker removed' );
+ok( 'x' === snt_ai_strip_markdown( '*x*' ), 'stripper: *italic* marks removed' );
+ok( '25 × 4' === snt_ai_strip_markdown( '25 × 4' ), 'stripper: multiplication sign untouched' );
+ok( '2 * 3' === snt_ai_strip_markdown( '2 * 3' ), 'stripper: spaced-asterisk arithmetic untouched' );
+ok( 'bold' === snt_ai_strip_markdown( '__bold__' ), 'stripper: __bold__ marks removed' );
+ok( 'emphasis' === snt_ai_strip_markdown( '_emphasis_' ), 'stripper: _italic_ marks removed' );
+ok( 'pageview_visits stayed flat' === snt_ai_strip_markdown( 'pageview_visits stayed flat' ), 'stripper: intra-word underscores (field names) untouched' );
+ok( "Weekly\nViews rose." === snt_ai_strip_markdown( "### Weekly\nViews rose." ), 'stripper: multiline heading marker removed, body kept' );
+
+echo "\nGroup: v9.64.2 — the run paths store STRIPPED text (defense-in-depth, P1b)\n";
+$GLOBALS['__ai_calls']  = 0;
+$GLOBALS['__ai_return'] = "**Weekly Analytics Digest**\n\nViews rose to *47* this week.";
+$md_signals = array( array( 'kind' => 'anomaly', 'confidence' => 'high', 'plain_label' => 'A markdown-prone signal' ) );
+sn_analytics_digest_ai_run( $digest_summary, $md_signals, '' );
+list( $mdp, $mds ) = sn_analytics_digest_ai_prompt( $digest_summary, $md_signals, '' );
+$md_cached = get_transient( sn_analytics_ai_cache_key( 'digest', $mdp, $mds, 'analytics_digest_weekly' ) );
+ok( is_array( $md_cached ) && false !== strpos( (string) $md_cached['digest'], 'Weekly Analytics Digest' ), 'digest run: the heading TEXT survives stripping' );
+ok( is_array( $md_cached ) && false === strpos( (string) $md_cached['digest'], '**' ), 'digest run: no ** ever reaches the stored digest' );
+ok( is_array( $md_cached ) && false !== strpos( (string) $md_cached['digest'], 'to 47 this week' ), 'digest run: italic marks removed, the number kept' );
+
+$GLOBALS['__ai_return'] = '**Views spiked.** Refresh _the notes_.';
+sn_analytics_narrate_ai_run( array(), $md_signals );
+list( $mnp, $mns ) = sn_analytics_narrate_ai_prompt( $md_signals );
+$mn_cached = get_transient( sn_analytics_ai_cache_key( 'narrate', $mnp, $mns, 'analytics_digest' ) );
+ok( is_array( $mn_cached ) && false !== strpos( (string) $mn_cached['narrative'], 'Views spiked. Refresh the notes.' ), 'narrate run: bold + italic marks removed, prose intact' );
+ok( is_array( $mn_cached ) && false === strpos( (string) $mn_cached['narrative'], '**' ) && false === strpos( (string) $mn_cached['narrative'], '_the' ), 'narrate run: no emphasis marks reach the stored narrative' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

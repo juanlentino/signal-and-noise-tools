@@ -19,6 +19,10 @@ ok( false !== stripos( $src, 'viewless' ), 'instruction defines the viewless vis
 ok( false !== stripos( $src, 'structural' ), 'instruction names the views-vs-visitor-days gap structural' );
 ok( false !== strpos( $src, 'integrity_violation' ), 'genuine-anomaly branch is scoped to integrity_violation only' );
 
+echo "\nGroup: plain-prose voice contract (v9.64.2)\n";
+ok( false !== strpos( $src, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'jargon ban present in the instruction source' );
+ok( false !== strpos( $src, 'NO MARKDOWN' ), 'markdown ban present in the instruction source' );
+
 echo "\nGroup: narrator anomaly-flags wiring\n";
 ok( false !== stripos( $src, 'anomaly_flags' ), 'prompt/collector reference the anomaly_flags block' );
 ok( false !== stripos( $src, 'typical' ), 'prompt frames anomalies as a typical-range comparison' );

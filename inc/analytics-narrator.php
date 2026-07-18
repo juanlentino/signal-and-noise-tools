@@ -141,9 +141,11 @@ function sn_analytics_narrate_ai_prompt( $signals ) {
 	foreach ( $signals as $s ) {
 		$facts[] = '- ' . (string) ( $s['plain_label'] ?? '' ) . ' [' . (string) ( $s['kind'] ?? '' ) . ', confidence ' . (string) ( $s['confidence'] ?? '' ) . ']';
 	}
-	$system = 'You are an analytics narrator. Narrate ONLY the signals given as bullet facts. NEVER invent or estimate a number that is not present. State uncertainty plainly.'
+	$system = 'You are an analytics narrator. Narrate ONLY the signals given as bullet facts. NEVER invent or estimate a number that is not present.'
 		. ' In these signals "visits" counts unique visitor-days (any beacon day, including feed readers with zero pageviews), not pageview-gated visits; visitor-days exceeding views is structural, never an anomaly.'
-		. ' 2-3 sentences: what happened, why it may matter, one concrete next step. Plain text.';
+		. ' 2-3 short plain-English sentences: what happened, why it may matter, one concrete next step. State numbers plainly.'
+		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate.'
+		. ' Plain prose only: NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Signals:\n" . implode( "\n", $facts ) . "\n\nWrite the brief.";
 	return array( $prompt, $system );
 }
@@ -192,7 +194,10 @@ function sn_analytics_narrate_ai_run( $summary, $signals ) {
 	$key     = sn_analytics_ai_cache_key( 'narrate', $prompt, $system, $feature );
 	$text    = snt_ai_generate_with_constraints( $prompt, $system, 220, $feature );
 	if ( ! is_string( $text ) || '' === trim( $text ) ) { return; }
-	$payload = array( 'narrative' => '<p>' . esc_html( trim( $text ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
+	// v9.64.2: the render path outputs plain text, so markdown marks must be
+	// REMOVED (never escaped) before the text is stored — defense-in-depth
+	// behind the instruction's markdown ban.
+	$payload = array( 'narrative' => '<p>' . esc_html( trim( snt_ai_strip_markdown( trim( $text ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 	set_transient( $key, $payload, SN_ANALYTICS_AI_CACHE_TTL );
 	update_option( SN_ANALYTICS_NARRATE_LASTGOOD_OPT, array_merge( $payload, array( 'key' => $key ) ), false );
 }
@@ -286,11 +291,19 @@ function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
 	if ( '' !== trim( (string) $top_action ) ) {
 		$facts[] = '- Top recommended action: ' . trim( (string) $top_action );
 	}
-	$system = 'You are writing a weekly analytics executive digest. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present. State uncertainty plainly.'
+	// v9.64.2 voice contract: the facts were right (v9.64.1) but the prose read
+	// like a stats appendix and rendered raw markdown. The audience is the site
+	// owner glancing at a phone; the deterministic signal chips + transparency
+	// footer directly below the digest already carry every σ/backtest/interval —
+	// prose that repeats them is duplication, not information.
+	$system = 'You are writing a weekly analytics digest for the site owner, who reads it at a glance on a phone. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present.'
 		. ' Vocabulary: "visits" means visitor-days with at least one pageview; "visitor-days" is the ungated unique visitor-day count and is never to be called "visits".'
-		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count — state that explanation; NEVER describe the gap as unusual, unexplained, or an anomaly.'
-		. ' The ONLY genuine anomaly is a DATA INTEGRITY ANOMALY fact; flag it plainly when present.'
-		. ' Two short paragraphs: (1) what happened and why it matters; (2) what to do next, concretely. Plain text.';
+		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count — give that explanation in one short clause; NEVER describe the gap as unusual, unexplained, or an anomaly.'
+		. ' The ONLY genuine anomaly is a DATA INTEGRITY ANOMALY fact; when present, flag it in at most one plain sentence.'
+		. ' Voice: at most 4-5 short plain-English sentences, plus optionally one final line starting "Worth a look:". State numbers plainly (47 views, 40 visits).'
+		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate — the signal chips and transparency footer under this digest already carry that machinery.'
+		. ' Mention a forecast only when it is actionable, in plain words ("expect a quiet week") — never as numbers with intervals.'
+		. ' Plain prose only: NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Facts:\n" . implode( "\n", $facts ) . "\n\nWrite the weekly digest.";
 	return array( $prompt, $system );
 }
@@ -346,7 +359,8 @@ function sn_analytics_digest_ai_run( $summary, $signals, $top_action = '' ) {
 	$key     = sn_analytics_ai_cache_key( 'digest', $prompt, $system, $feature );
 	$text    = snt_ai_generate_with_constraints( $prompt, $system, 500, $feature );
 	if ( ! is_string( $text ) || '' === trim( $text ) ) { return; }
-	$payload = array( 'digest' => '<p>' . nl2br( esc_html( trim( $text ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
+	// v9.64.2: strip markdown before storing (see sn_analytics_narrate_ai_run).
+	$payload = array( 'digest' => '<p>' . nl2br( esc_html( trim( snt_ai_strip_markdown( trim( $text ) ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 	set_transient( $key, $payload, SN_ANALYTICS_AI_CACHE_TTL );
 	update_option( SN_ANALYTICS_DIGEST_LASTGOOD_OPT, array_merge( $payload, array( 'key' => $key ) ), false );
 }

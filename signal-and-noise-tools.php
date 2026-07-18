@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.64.1
+ * Version:     9.64.2
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -135,6 +135,7 @@ require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A
 require_once SNT_PATH . 'inc/analytics-posts-lifecycle-admin.php'; // v8.11.0 (A4): "Lifecycle at scale" render
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
 require_once SNT_PATH . 'inc/analytics-signals.php';   // v9.30.0: predictive signal engine
+require_once SNT_PATH . 'inc/ai-markdown-strip.php';   // v9.64.2: shared markdown stripper for AI prose (narrator + narration)
 require_once SNT_PATH . 'inc/analytics-narrator.php';  // v9.30.0: diagnostic/prescriptive narrator
 require_once SNT_PATH . 'inc/analytics-insights.php';  // v9.30.0: the Insights band
 require_once SNT_PATH . 'inc/analytics-maturity-page.php'; // v9.35.0: [sn_analytics_maturity] public explainer (I6)
