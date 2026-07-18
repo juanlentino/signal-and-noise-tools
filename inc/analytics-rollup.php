@@ -35,6 +35,14 @@
  *   scroll_avg = avgIf(double1, blob1 = 'sc')            mean scroll milestone
  *   time_avg   = avgIf(double2, blob1 = 'tm')            mean visible ms per exit
  *
+ * Phase A (schema v5) adds the exact weighted engagement sums to the same
+ * SELECT — scroll_sum/scroll_events/time_sum/time_events, every one
+ * _sample_interval-weighted — and a SECOND query for pageview_visits (distinct
+ * visitor-days with ≥1 pv), merged per (day, path, class) in PHP, because the
+ * single-query gated distinct 422s on live AE (P0.1, docs/analytics-integrity-plan.md).
+ * The stored scroll_avg/time_avg now come from the weighted ratio sum/events
+ * (identical to avgIf at sample interval 1; correct under sampling).
+ *
  * Note: `views` is sample-corrected (×_sample_interval) but `visits` is a raw
  * distinct count of the hashes that survived sampling — under AE sampling the
  * two diverge (views/visit inflates). This site's volume rarely trips sampling
@@ -91,6 +99,11 @@ const SN_ANALYTICS_ROLLUP_FRESH_KEY    = 'sn_analytics_rollup_fresh';
 const SN_ANALYTICS_ROLLUP_TTL          = 15 * MINUTE_IN_SECONDS;  // freshness target for the admin warmer
 const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness stamp outlives the TTL
 const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
+// Never-invert integrity alarm (Phase A spec §5): set by the upsert guard when
+// a human row arrives with views < pageview_visits (arithmetically impossible —
+// a genuine rollup/sampling bug), read by the Health surface. The row is still
+// written un-clamped; the alarm is the feature.
+const SN_ANALYTICS_INTEGRITY_ALERT_OPT = 'sn_analytics_integrity_alert';
 
 /**
  * Is this an admin/login path that should never be counted as a human pageview?
@@ -236,6 +249,46 @@ add_action( 'init', 'sn_analytics_daily_maybe_install' );
  * @return string AE SQL.
  */
 function sn_analytics_rollup_sql( $days, $tz = '' ) {
+	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( $days, $tz );
+
+	// The four weighted engagement columns beside the kept avgIf pair are the
+	// EXACT P0.2 shape live AE parsed on 2026-07-17 (docs/analytics-integrity-plan.md,
+	// "P0 results"). Event counts are the WEIGHTED sumIf(_sample_interval, cond)
+	// — never a raw countIf: under sampling a count is sum(_sample_interval).
+	// pageview_visits deliberately does NOT live here: the gated single-query
+	// form count(DISTINCT if(...)) 422s on live AE (P0.1) — it comes from the
+	// second query below (sn_analytics_rollup_gated_sql), merged in PHP.
+	return implode( ' ', array(
+		"SELECT {$day_col} AS day,",
+		'blob2 AS path,',
+		'blob7 AS class,',
+		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
+		'count(DISTINCT index1) AS visits,',
+		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
+		"avgIf(double2, blob1 = 'tm') AS time_avg,",
+		"sumIf(double1 * _sample_interval, blob1 = 'sc') AS scroll_sum,",
+		"sumIf(_sample_interval, blob1 = 'sc') AS scroll_events,",
+		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
+		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
+		'FROM ' . SN_ANALYTICS_DATASET,
+		"WHERE timestamp >= {$lower}",
+		'GROUP BY day, path, class',
+		'ORDER BY day DESC, views DESC',
+	) );
+}
+
+/**
+ * Shared window expressions for the two rollup queries: the day-bucket column
+ * and the floored lower bound. Extracted so the gated pageview_visits query
+ * (P0.1 Fallback A) buckets and floors IDENTICALLY to the main query — the
+ * PHP-side merge joins on (day, path, class), so a drift here would silently
+ * mis-key the merge.
+ *
+ * @param int    $days Trailing window in days (floored to >= 1).
+ * @param string $tz   Optional IANA zone (charset-guarded; invalid → UTC path).
+ * @return array{0:string,1:string} [ $day_col, $lower ].
+ */
+function sn_analytics_rollup_window_exprs( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
 	// Bucket each row by the SITE-LOCAL calendar day when a named IANA zone is
 	// available (v9.26.4), so the durable "day" matches the site's day — and the live
@@ -244,7 +297,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	// toStartOfInterval() take an optional timezone arg (added 2025-11-12). The zone
 	// is charset-guarded before interpolation as defence in depth; the caller already
 	// validates it via sn_analytics_site_tz_name(). Empty/invalid → the UTC path.
-	$tz      = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', $tz ) ) ? $tz : '';
+	$tz      = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', (string) $tz ) ) ? (string) $tz : '';
 	$day_col = '' !== $tz
 		? "formatDateTime(timestamp, '%Y-%m-%d', '{$tz}')"
 		: "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')";
@@ -257,19 +310,139 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$days}' DAY"
 		: "toStartOfDay(now() - INTERVAL '{$days}' DAY)";
 
+	return array( $day_col, $lower );
+}
+
+/**
+ * Build the SECOND rollup query: pageview-gated distinct visitor-days.
+ *
+ * P0.1 verdict (live probe, 2026-07-17): the single-query gated distinct
+ * count(DISTINCT if(blob1 = 'pv', index1, NULL)) is rejected by live AE
+ * (HTTP 422 — IF() branches must share a type), and the dialect guard's ban on
+ * count(DISTINCT <expr>) STAYS. Fallback A passed: the existing verified
+ * visits shape with AND blob1 = 'pv' in WHERE and a bare-column
+ * count(DISTINCT index1). Results merge into the main rows per
+ * (day, path, class) in sn_analytics_rollup_merge_gated().
+ *
+ * ORDER BY uses the pageview_visits alias — AE resolves aliases only, and the
+ * `views` alias does not exist in this SELECT (alias-only ORDER BY gotcha).
+ *
+ * @param int    $days Trailing window in days (floored to >= 1).
+ * @param string $tz   Optional IANA zone — MUST match the main query's zone.
+ * @return string AE SQL.
+ */
+function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
+	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( $days, $tz );
+
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		'blob7 AS class,',
-		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
-		'count(DISTINCT index1) AS visits,',
-		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
-		"avgIf(double2, blob1 = 'tm') AS time_avg",
+		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE timestamp >= {$lower}",
+		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
-		'ORDER BY day DESC, views DESC',
+		'ORDER BY day DESC, pageview_visits DESC',
 	) );
+}
+
+/**
+ * Merge the gated second-query result into the main rollup rows.
+ *
+ * Null discipline (the realtime-zero-vs-null rule, both directions):
+ *   - Gated query FAILED (non-array): pageview_visits stays ABSENT on every
+ *     row → the upsert binds SQL NULL ("never measured") — a failure must
+ *     never fabricate a 0.
+ *   - Gated query SUCCEEDED: a (day, path, class) with no gated row had zero
+ *     pageview-gated visitor-days — a REAL 0 (an empty result is an ANSWER;
+ *     this is exactly the viewless srv-beacon class) — never null.
+ *
+ * Pure and immutable: returns a new array; the inputs are not mutated.
+ *
+ * @param array      $rows  Main rollup rows (day/path/class/... keys).
+ * @param array|null $gated Gated query rows, or null/non-array on failure.
+ * @return array Merged rows.
+ */
+function sn_analytics_rollup_merge_gated( $rows, $gated ) {
+	if ( ! is_array( $rows ) ) {
+		return array();
+	}
+	if ( ! is_array( $gated ) ) {
+		return $rows; // gated query failed — leave pageview_visits absent (NULL), never 0.
+	}
+
+	$map = array();
+	foreach ( $gated as $g ) {
+		if ( is_array( $g ) && array_key_exists( 'pageview_visits', $g ) ) {
+			$map[ sn_analytics_rollup_row_key( $g ) ] = $g['pageview_visits'];
+		}
+	}
+
+	$merged = array();
+	foreach ( $rows as $r ) {
+		if ( is_array( $r ) ) {
+			$key                   = sn_analytics_rollup_row_key( $r );
+			$r['pageview_visits']  = array_key_exists( $key, $map ) ? $map[ $key ] : 0;
+		}
+		$merged[] = $r;
+	}
+	return $merged;
+}
+
+/**
+ * The merge join key. Mirrors the upsert's normalization (class defaults to
+ * 'human') so both queries' rows key identically.
+ *
+ * @param array $row AE row with day/path/class keys.
+ * @return string
+ */
+function sn_analytics_rollup_row_key( $row ) {
+	$class = isset( $row['class'] ) && '' !== (string) $row['class'] ? (string) $row['class'] : 'human';
+	return trim( (string) ( $row['day'] ?? '' ) ) . '|' . (string) ( $row['path'] ?? '' ) . '|' . $class;
+}
+
+/**
+ * Read one of the five v5 nullable metrics from an AE row, preserving the
+ * absent/null/non-numeric ⇒ null ("never measured") distinction. Uses
+ * array_key_exists — `??`/isset() cannot tell a present-but-null key from an
+ * absent one and would silently conflate the two. Numeric strings (AE returns
+ * UInt64 as JSON strings) pass through untouched; the caller casts per column.
+ *
+ * @param array  $row AE result row.
+ * @param string $key Column key.
+ * @return int|float|string|null Numeric value (possibly a numeric string), or null.
+ */
+function sn_analytics_rollup_nullable_num( $row, $key ) {
+	if ( ! array_key_exists( $key, $row ) ) {
+		return null;
+	}
+	$value = $row[ $key ];
+	return ( null === $value || ! is_numeric( $value ) ) ? null : $value;
+}
+
+/**
+ * The legacy scroll_avg/time_avg value for one row.
+ *
+ * When BOTH the weighted sum and the weighted event count are known, the
+ * stored mean is the weighted ratio sum/events — identical to the transported
+ * avgIf at sample interval 1 (no visible change) and correct under sampling,
+ * where the unweighted avgIf is wrong. Zero events ⇒ the ratio is undefined
+ * (null), which the NOT NULL legacy column stores as 0 — exactly what the old
+ * `avgIf → null → ?? 0` path produced. When either weighted input is unknown
+ * (legacy caller shape), the transported value passes through as before.
+ *
+ * @param int|float|string|null $sum         Weighted sum, or null.
+ * @param int|float|string|null $events      Weighted event count, or null.
+ * @param mixed                 $transported The row's transported avg (legacy fallback).
+ * @return float Rounded to 2dp.
+ */
+function sn_analytics_rollup_legacy_avg( $sum, $events, $transported ) {
+	if ( null !== $sum && null !== $events ) {
+		$ratio = (float) $events > 0 ? (float) $sum / (float) $events : null; // guard ÷0 — null when no events.
+		return round( null === $ratio ? 0.0 : $ratio, 2 );
+	}
+	return round( (float) ( is_numeric( $transported ) ? $transported : 0 ), 2 );
 }
 
 /**
@@ -306,15 +479,60 @@ function sn_analytics_rollup_upsert( $rows ) {
 		if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 			continue; // defensive: never store an unexpected class
 		}
-		$clean[] = array(
-			'day'        => $day,
-			'path'       => substr( $path, 0, 180 ),
-			'class'      => $class,
-			'views'      => max( 0, (int) round( (float) ( $r['views'] ?? 0 ) ) ),
-			'visits'     => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
-			'scroll_avg' => round( (float) ( $r['scroll_avg'] ?? 0 ), 2 ),
-			'time_avg'   => round( (float) ( $r['time_avg'] ?? 0 ), 2 ),
+
+		// The five v5 nullable columns: absent ≡ null ≡ "never measured" (kept
+		// null through to a literal SQL NULL bind), read via array_key_exists —
+		// NEVER the legacy `?? 0`, which would fabricate a measurement. A real
+		// transported 0 (incl. AE's UInt64-as-string "0") stays a real 0.
+		$scroll_sum      = sn_analytics_rollup_nullable_num( $r, 'scroll_sum' );
+		$scroll_events   = sn_analytics_rollup_nullable_num( $r, 'scroll_events' );
+		$time_sum        = sn_analytics_rollup_nullable_num( $r, 'time_sum' );
+		$time_events     = sn_analytics_rollup_nullable_num( $r, 'time_events' );
+		$pageview_visits = sn_analytics_rollup_nullable_num( $r, 'pageview_visits' );
+
+		$c = array(
+			'day'             => $day,
+			'path'            => substr( $path, 0, 180 ),
+			'class'           => $class,
+			'views'           => max( 0, (int) round( (float) ( $r['views'] ?? 0 ) ) ),
+			'visits'          => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
+			// Legacy avgs switch to the weighted ratio sum/events when both are
+			// known (identical to avgIf at sample interval 1, correct under
+			// sampling); legacy passthrough otherwise. See the helper for the
+			// 0-events (division-by-zero) rule.
+			'scroll_avg'      => sn_analytics_rollup_legacy_avg( $scroll_sum, $scroll_events, $r['scroll_avg'] ?? 0 ),
+			'time_avg'        => sn_analytics_rollup_legacy_avg( $time_sum, $time_events, $r['time_avg'] ?? 0 ),
+			'scroll_sum'      => null === $scroll_sum ? null : max( 0.0, (float) $scroll_sum ),
+			'scroll_events'   => null === $scroll_events ? null : max( 0, (int) round( (float) $scroll_events ) ),
+			'time_sum'        => null === $time_sum ? null : max( 0.0, (float) $time_sum ),
+			'time_events'     => null === $time_events ? null : max( 0, (int) round( (float) $time_events ) ),
+			'pageview_visits' => null === $pageview_visits ? null : max( 0, (int) round( (float) $pageview_visits ) ),
 		);
+
+		// Never-invert guard (spec §5, human class): views ≥ pageview_visits
+		// holds by construction, so an inversion is a genuine rollup/sampling
+		// bug. Surface it — error_log + a timestamped option the Health scan
+		// reads — and STILL write the row un-clamped. The alarm is the feature;
+		// a clamp or skip would silently serve corrupt arithmetic as clean.
+		if ( 'human' === $c['class'] && null !== $c['pageview_visits'] && $c['views'] < $c['pageview_visits'] ) {
+			error_log( sprintf(
+				'[sn-analytics] integrity violation: views < pageview_visits for %s %s (%d < %d) — row written unmodified',
+				$c['day'],
+				$c['path'],
+				$c['views'],
+				$c['pageview_visits']
+			) );
+			update_option( SN_ANALYTICS_INTEGRITY_ALERT_OPT, array(
+				'time'            => time(),
+				'day'             => $c['day'],
+				'path'            => $c['path'],
+				'class'           => $c['class'],
+				'views'           => $c['views'],
+				'pageview_visits' => $c['pageview_visits'],
+			), false );
+		}
+
+		$clean[] = $c;
 	}
 	if ( empty( $clean ) ) {
 		return 0;
@@ -328,13 +546,13 @@ function sn_analytics_rollup_upsert( $rows ) {
 		$placeholders = array();
 		$values       = array();
 		foreach ( $chunk as $c ) {
-			// scroll_avg / time_avg bind as %s carrying a number_format()'d string,
+			// FLOAT columns bind as %s carrying a number_format()'d string,
 			// NOT %f. %f routes through $wpdb->prepare()'s vsprintf(), which honours
 			// LC_NUMERIC — under a comma-decimal server locale (de_DE, pt_BR, …) it
 			// would emit "1,50" and corrupt the SQL. number_format( …, '.', '' )
 			// forces a '.' decimal and empty thousands separator regardless of
 			// locale, and MySQL coerces the quoted numeric string into the FLOAT column.
-			$placeholders[] = '(%s, %s, %s, %d, %d, %s, %s)';
+			$tuple = '(%s, %s, %s, %d, %d, %s, %s';
 			array_push(
 				$values,
 				$c['day'],
@@ -345,10 +563,33 @@ function sn_analytics_rollup_upsert( $rows ) {
 				number_format( (float) $c['scroll_avg'], 2, '.', '' ),
 				number_format( (float) $c['time_avg'], 2, '.', '' )
 			);
+			// The five v5 nullable columns: null binds a LITERAL SQL NULL (no
+			// placeholder, no value) so "never measured" survives the write;
+			// known values bind %s (4dp dot-decimal, same locale rule) for the
+			// FLOAT sums and %d for the INT counts.
+			foreach ( array(
+				'scroll_sum'      => 'float',
+				'scroll_events'   => 'int',
+				'time_sum'        => 'float',
+				'time_events'     => 'int',
+				'pageview_visits' => 'int',
+			) as $col => $type ) {
+				if ( null === $c[ $col ] ) {
+					$tuple .= ', NULL';
+				} elseif ( 'float' === $type ) {
+					$tuple   .= ', %s';
+					$values[] = number_format( (float) $c[ $col ], 4, '.', '' );
+				} else {
+					$tuple   .= ', %d';
+					$values[] = (int) $c[ $col ];
+				}
+			}
+			$placeholders[] = $tuple . ')';
 		}
-		$sql = "INSERT INTO {$table} (day, path, class, views, visits, scroll_avg, time_avg) VALUES "
+		$sql = "INSERT INTO {$table} (day, path, class, views, visits, scroll_avg, time_avg, scroll_sum, scroll_events, time_sum, time_events, pageview_visits) VALUES "
 			. implode( ', ', $placeholders )
-			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits), scroll_avg=VALUES(scroll_avg), time_avg=VALUES(time_avg)';
+			. ' ON DUPLICATE KEY UPDATE views=VALUES(views), visits=VALUES(visits), scroll_avg=VALUES(scroll_avg), time_avg=VALUES(time_avg),'
+			. ' scroll_sum=VALUES(scroll_sum), scroll_events=VALUES(scroll_events), time_sum=VALUES(time_sum), time_events=VALUES(time_events), pageview_visits=VALUES(pageview_visits)';
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
@@ -385,17 +626,27 @@ function sn_analytics_run_rollup() {
 	// never goes stale on account of the zone syntax alone — it degrades to the
 	// pre-v9.26.4 behaviour, no worse. A successful-but-empty zoned result is []
 	// (is_array), so the fallback only fires on a real failure.
-	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
-	$rows = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	$tz      = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$used_tz = $tz;
+	$rows    = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
 	if ( '' !== $tz && ! is_array( $rows ) ) {
-		$rows = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+		$used_tz = '';
+		$rows    = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
 	}
 	if ( ! is_array( $rows ) ) {
 		return; // transport / non-200 / parse failure — already captured by the read-client.
 	}
 
 	if ( ! empty( $rows ) ) {
-		sn_analytics_rollup_upsert( $rows );
+		// Second query (P0.1 Fallback A): pageview-gated distinct visitor-days,
+		// merged per (day, path, class) in PHP. It runs with the SAME zone the
+		// main query actually succeeded with — if the zoned main query fell back
+		// to UTC, a zoned gated query would bucket different "day" keys and the
+		// merge would silently miss. A gated failure leaves pageview_visits
+		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
+		// rows still write, so a flaky second query degrades, not corrupts.
+		$gated = sn_analytics_query( sn_analytics_rollup_gated_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $used_tz ) );
+		sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 	}
 
 	// P3: roll the referrer/country/device breakdowns in the same pass (their

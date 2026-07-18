@@ -101,7 +101,8 @@ function dbDelta( $sql ) {
 // run_rollup() depends on sn_analytics_query() + sn_analytics_config(); in
 // production the main loader requires analytics-api.php first. Here we stub
 // them so we can drive run_rollup's orchestration deterministically.
-$GLOBALS['__ar_query_return']  = null;  // what sn_analytics_query() returns
+$GLOBALS['__ar_query_return']  = null;  // main rollup query result (rows array | RAW envelope JSON string | null)
+$GLOBALS['__ar_gated_return']  = null;  // gated pageview_visits query result (same forms)
 $GLOBALS['__ar_query_calls']   = array();
 $GLOBALS['__ar_config_present'] = true;
 function sn_analytics_config() {
@@ -109,9 +110,25 @@ function sn_analytics_config() {
 		? array( 'account_id' => 'acct', 'token' => 'tok' )
 		: null;
 }
+// Task 3 stub: routes the SECOND (pv-gated) rollup query to its own fixture,
+// and — when the fixture is a STRING — models the RAW AE transport pinned in
+// the plan's P0 results: the envelope {meta,data,rows,rows_before_limit_at_least}
+// travels as JSON and the real client (inc/analytics-api.php) returns
+// json_decode(body, true)['data'] ?? null. Decoding here (instead of handing
+// the module pre-cooked PHP arrays) means the rows under test carry the
+// transport's TRUE types — UInt64 counts as JSON STRINGS ("views":"6"),
+// Float64 sums as numbers, avgIf null beside 0 sums — the transform a
+// transport stub must model (wp_localize / stub-drift memories).
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__ar_query_calls'][] = $sql;
-	return $GLOBALS['__ar_query_return'];
+	$ret = ( false !== strpos( (string) $sql, 'AS pageview_visits' ) )
+		? $GLOBALS['__ar_gated_return']
+		: $GLOBALS['__ar_query_return'];
+	if ( is_string( $ret ) ) {
+		$decoded = json_decode( $ret, true );
+		return is_array( $decoded ) ? ( $decoded['data'] ?? null ) : null;
+	}
+	return $ret; // array = legacy direct-rows fixture; null = transport failure.
 }
 
 // ── wpdb stub ────────────────────────────────────────────────────────────────
@@ -226,6 +243,7 @@ function ar_reset() {
 	$GLOBALS['__ar_recurring_events']  = array();
 	$GLOBALS['__ar_cap']               = true;
 	$GLOBALS['__ar_query_return']      = null;
+	$GLOBALS['__ar_gated_return']      = null;
 	$GLOBALS['__ar_query_calls']       = array();
 	$GLOBALS['__ar_config_present']    = true;
 	$GLOBALS['__ar_dbdelta_calls']     = array();
@@ -308,6 +326,108 @@ $eviltz = sn_analytics_rollup_sql( 7, "UTC'; DROP TABLE x --" );
 ok( strpos( $eviltz, 'DROP TABLE' ) === false && strpos( $eviltz, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false,
 	'rollup-sql: an injectable zone string is rejected → UTC path' );
 
+// ── Task 3: weighted engagement columns on the main SELECT (P0.2 live-verified) ─
+// The extended SELECT is EXACTLY the probe's P0.2 weighted shape that returned
+// HTTP 200 on live AE: the four weighted columns appended after the kept avgIf
+// pair. Event counts are the WEIGHTED sumIf(_sample_interval, cond) — never a
+// raw countIf (under sampling, counts are sum(_sample_interval)).
+echo "\nGroup: rollup SQL — weighted engagement columns (Task 3)\n";
+$sql = sn_analytics_rollup_sql( 7 );
+ok( strpos( $sql, "sumIf(double1 * _sample_interval, blob1 = 'sc') AS scroll_sum" ) !== false,
+	'rollup-sql: scroll_sum = sumIf(double1 * _sample_interval, sc) — the P0.2 multiplication form' );
+ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'sc') AS scroll_events" ) !== false,
+	'rollup-sql: scroll_events = sumIf(_sample_interval, sc) — weighted count, not countIf' );
+ok( strpos( $sql, "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum" ) !== false,
+	'rollup-sql: time_sum = sumIf(double2 * _sample_interval, tm)' );
+ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'tm') AS time_events" ) !== false,
+	'rollup-sql: time_events = sumIf(_sample_interval, tm)' );
+// Pin the FULL live-verified SELECT: kept avgIf pair, then the four weighted
+// columns, in this exact order — the query AE parsed on 2026-07-17.
+$expected_main = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
+	. 'blob2 AS path, blob7 AS class, '
+	. "sumIf(_sample_interval, blob1 = 'pv') AS views, "
+	. 'count(DISTINCT index1) AS visits, '
+	. "avgIf(double1, blob1 = 'sc') AS scroll_avg, "
+	. "avgIf(double2, blob1 = 'tm') AS time_avg, "
+	. "sumIf(double1 * _sample_interval, blob1 = 'sc') AS scroll_sum, "
+	. "sumIf(_sample_interval, blob1 = 'sc') AS scroll_events, "
+	. "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum, "
+	. "sumIf(_sample_interval, blob1 = 'tm') AS time_events "
+	. 'FROM sn_pageviews '
+	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '7' DAY) "
+	. 'GROUP BY day, path, class '
+	. 'ORDER BY day DESC, views DESC';
+ok( $expected_main === $sql, 'rollup-sql: FULL SELECT === the pinned P0.2 live-verified shape' );
+// The banned dialect form must never sneak in — live AE 422s it (v5.2.0 +
+// re-confirmed by the P0.1 primary probe); the dialect guard ban STAYS.
+ok( strpos( $sql, 'count(DISTINCT if(' ) === false, 'rollup-sql: no count(DISTINCT <expr>) — the banned 422 form' );
+
+// ── Task 3: gated pageview_visits SQL (P0.1 verdict: FALLBACK A — second query) ─
+// The live P0.1 probe rejected the single-query gated distinct (HTTP 422:
+// IF() branches must share a type — String vs Null), so pageview_visits comes
+// from a SECOND query: the existing verified visits shape with AND blob1='pv'
+// in WHERE and count(DISTINCT index1) — the exact form that returned HTTP 200.
+echo "\nGroup: gated pageview_visits SQL builder (Task 3)\n";
+$gated_sql = sn_analytics_rollup_gated_sql( 7 );
+$expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
+	. 'blob2 AS path, blob7 AS class, '
+	. 'count(DISTINCT index1) AS pageview_visits '
+	. 'FROM sn_pageviews '
+	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '7' DAY) "
+	. "AND blob1 = 'pv' "
+	. 'GROUP BY day, path, class '
+	. 'ORDER BY day DESC, pageview_visits DESC';
+ok( $expected_gated === $gated_sql, 'gated-sql: FULL SELECT === the pinned P0.1 Fallback A live-verified shape' );
+// Alias-only ORDER BY gotcha: the `views` alias does not exist in this SELECT,
+// so ordering by it would 422 — the ORDER BY must use the defined alias.
+// (Substring-match `AS views` / `views DESC`, not bare `views` — the dataset
+// name sn_pageviews legitimately contains it.)
+ok( strpos( $gated_sql, 'AS views' ) === false && strpos( $gated_sql, 'views DESC' ) === false,
+	'gated-sql: no stale `views` alias in SELECT or ORDER BY' );
+ok( strpos( $gated_sql, 'avgIf' ) === false && strpos( $gated_sql, 'count(DISTINCT if(' ) === false,
+	'gated-sql: no engagement aggregates, no banned gated-distinct form' );
+// Same window/zone plumbing as the main query — keys must align for the merge.
+$gated_tz = sn_analytics_rollup_gated_sql( 7, 'America/New_York' );
+ok( strpos( $gated_tz, "formatDateTime(timestamp, '%Y-%m-%d', 'America/New_York')" ) !== false
+	&& strpos( $gated_tz, "toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York') - INTERVAL '7' DAY" ) !== false,
+	'gated-sql: zoned day bucket + floored lower bound mirror the main query exactly' );
+$gated_evil = sn_analytics_rollup_gated_sql( '7; DROP TABLE x', "UTC'; DROP TABLE x --" );
+ok( strpos( $gated_evil, 'DROP TABLE' ) === false && preg_match( "/INTERVAL '7' DAY/", $gated_evil ) === 1,
+	'gated-sql: $days integer-cast and injectable zone rejected (same guards as main)' );
+
+// ── Task 3: merging the gated second query into the main rows ─────────────────
+echo "\nGroup: gated merge (Task 3)\n";
+$main_rows = array(
+	array( 'day' => '2026-07-15', 'path' => '/',      'class' => 'human', 'views' => '6', 'visits' => '4' ),
+	array( 'day' => '2026-07-15', 'path' => '/feed/', 'class' => 'human', 'views' => '0', 'visits' => '3' ),
+	array( 'day' => '2026-07-15', 'path' => '/',      'class' => 'bot',   'views' => '9', 'visits' => '2' ),
+);
+// Gated query FAILED (null): pageview_visits must stay ABSENT on every row —
+// never a fabricated 0 ("we did not measure" ≠ "we measured zero").
+$merged_fail = sn_analytics_rollup_merge_gated( $main_rows, null );
+ok( count( $merged_fail ) === 3 && ! array_key_exists( 'pageview_visits', $merged_fail[0] )
+	&& ! array_key_exists( 'pageview_visits', $merged_fail[1] ),
+	'merge: gated-query failure (null) leaves pageview_visits ABSENT on every row' );
+// Gated query SUCCEEDED: matched keys take the gated value; a (day,path,class)
+// with no gated row means genuinely zero pv-gated visitor-days — a REAL 0
+// (empty result is an ANSWER), not null.
+$gated_rows = array(
+	array( 'day' => '2026-07-15', 'path' => '/', 'class' => 'human', 'pageview_visits' => '4' ),
+);
+$merged = sn_analytics_rollup_merge_gated( $main_rows, $gated_rows );
+ok( ( $merged[0]['pageview_visits'] ?? null ) === '4',
+	'merge: matched (day, path, class) key carries the gated value (transport numeric-string intact)' );
+ok( array_key_exists( 'pageview_visits', $merged[1] ) && 0 === $merged[1]['pageview_visits'],
+	'merge: key absent from a SUCCESSFUL gated result = REAL 0 (viewless row), never null' );
+ok( 0 === ( $merged[2]['pageview_visits'] ?? null ),
+	'merge: class is part of the key — a human gated row does not attach to the bot row' );
+// Empty gated result (quiet window) → every row gets the real 0.
+$merged_empty = sn_analytics_rollup_merge_gated( $main_rows, array() );
+ok( 0 === $merged_empty[0]['pageview_visits'] && 0 === $merged_empty[1]['pageview_visits'],
+	'merge: empty gated result (an ANSWER) → real 0 on every row' );
+// Immutability: the input array is not mutated.
+ok( ! array_key_exists( 'pageview_visits', $main_rows[0] ), 'merge: input rows are not mutated (new array returned)' );
+
 // ── Upsert ────────────────────────────────────────────────────────────────────
 echo "\nGroup: upsert\n";
 ar_reset();
@@ -329,10 +449,15 @@ ok( stripos( $q, 'ON DUPLICATE KEY UPDATE' ) !== false, 'upsert: uses ON DUPLICA
 ok( strpos( $q, "'2026-06-11', '/notes/a', 'human', 42, 30, '58.50', '12345.00'" ) !== false,
 	'upsert: binds (day, path, class, views, visits, scroll_avg, time_avg) in exact order' );
 // Every metric column is refreshed on conflict, not just views — this is the
-// recomputed-partial-day self-correction guarantee.
-foreach ( array( 'views', 'visits', 'scroll_avg', 'time_avg' ) as $col ) {
+// recomputed-partial-day self-correction guarantee. The five v5 columns join
+// the refresh set so a re-roll updates them too.
+foreach ( array( 'views', 'visits', 'scroll_avg', 'time_avg', 'scroll_sum', 'scroll_events', 'time_sum', 'time_events', 'pageview_visits' ) as $col ) {
 	ok( strpos( $q, "{$col}=VALUES({$col})" ) !== false, "upsert: ON DUPLICATE refreshes $col" );
 }
+// Legacy rows (the five v5 keys ABSENT) bind literal NULL — "never measured" —
+// NOT the `?? 0` fabricated zero the four NOT NULL legacy columns rightly use.
+ok( strpos( $q, "'2026-06-11', '/notes/a', 'human', 42, 30, '58.50', '12345.00', NULL, NULL, NULL, NULL, NULL" ) !== false,
+	'upsert: v5 keys absent → the five nullable columns bind literal NULL (never a fabricated 0)' );
 
 // Malformed rows are skipped, not written.
 ar_reset();
@@ -384,6 +509,115 @@ $nf = sn_analytics_rollup_upsert( array(
 	array( 'day' => '2026-06-11', 'path' => '/x', 'views' => 1, 'visits' => 1, 'scroll_avg' => 1, 'time_avg' => 1 ),
 ) );
 ok( 0 === $nf, 'upsert: a failed write (query returns false) is not counted' );
+
+// ── Task 3: v5 nullable-column binding discipline ─────────────────────────────
+echo "\nGroup: upsert v5 columns — NULL vs 0 discipline (Task 3)\n";
+// Present-but-NULL is the same answer as absent: literal NULL, never 0.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/x', 'class' => 'human',
+		'views' => 1, 'visits' => 1, 'scroll_avg' => 2.5, 'time_avg' => 100,
+		'scroll_sum' => null, 'scroll_events' => null, 'time_sum' => null, 'time_events' => null, 'pageview_visits' => null,
+	),
+) );
+$qnull = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $qnull, "'2026-06-11', '/x', 'human', 1, 1, '2.50', '100.00', NULL, NULL, NULL, NULL, NULL" ) !== false,
+	'upsert: present-but-NULL v5 keys bind literal NULL (absent ≡ null ≡ never measured)' );
+ok( strpos( $qnull, "'0.0000'" ) === false, 'upsert: a NULL sum is never rewritten as a 0.0000 string' );
+// When the weighted inputs are unknown, the legacy scroll_avg/time_avg pass
+// through unchanged (2.50 / 100.00 above) — the weighted switch needs BOTH
+// the sum and the event count.
+
+// Real zeros are a MEASURED answer: bound as 0, never erased into NULL.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/quiet', 'class' => 'human',
+		'views' => 0, 'visits' => 2, 'scroll_avg' => null, 'time_avg' => null,
+		'scroll_sum' => 0, 'scroll_events' => '0', 'time_sum' => 0, 'time_events' => '0', 'pageview_visits' => 0,
+	),
+) );
+$qzero = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $qzero, "'2026-06-11', '/quiet', 'human', 0, 2, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0" ) !== false,
+	'upsert: measured zeros (incl. transport "0" strings) bind as real 0s — never NULL' );
+
+// FLOAT sums bind as 4dp dot-decimal strings via %s — the %f LC_NUMERIC hazard
+// applies to the new columns exactly as it does to the legacy averages.
+ar_reset();
+$__saved_numeric_v5 = setlocale( LC_NUMERIC, '0' );
+setlocale( LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.ISO8859-1' ); // no-op if uninstalled
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/x', 'class' => 'human',
+		'views' => 3, 'visits' => 2, 'scroll_avg' => 0, 'time_avg' => 0,
+		'scroll_sum' => 190.5, 'scroll_events' => 4, 'time_sum' => 294971.25, 'time_events' => 3, 'pageview_visits' => 2,
+	),
+) );
+$qfloat = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $qfloat, "'190.5000'" ) !== false && strpos( $qfloat, "'294971.2500'" ) !== false,
+	'upsert: v5 FLOAT sums bind as 4dp dot-decimal %s strings' );
+ok( strpos( $qfloat, '190,5' ) === false && strpos( $qfloat, '294971,25' ) === false && strpos( $qfloat, '294,971' ) === false,
+	'upsert: no comma decimal/thousands in the v5 sums under a de_DE LC_NUMERIC' );
+if ( false !== $__saved_numeric_v5 ) { setlocale( LC_NUMERIC, $__saved_numeric_v5 ); }
+
+// Legacy scroll_avg/time_avg switch to the weighted ratio sum/events when both
+// are known — identical to avgIf at sample interval 1. The fixture's transported
+// avgIf (40) deliberately DIFFERS from the weighted ratio (190/4 = 47.5) so a
+// passthrough that skips the switch cannot pass. Zero events → ratio undefined
+// (null) → the NOT NULL legacy column's 0, exactly what avgIf-null → `?? 0`
+// produced before — no visible change at interval 1.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-06-11', 'path' => '/w', 'class' => 'human',
+		'views' => 4, 'visits' => 4, 'scroll_avg' => 40, 'time_avg' => 999,
+		'scroll_sum' => 190, 'scroll_events' => '4', 'time_sum' => 0, 'time_events' => '0', 'pageview_visits' => 4,
+	),
+) );
+$qw = $GLOBALS['wpdb']->queries[0];
+ok( strpos( $qw, "'2026-06-11', '/w', 'human', 4, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4" ) !== false,
+	'upsert: legacy avgs = weighted sum/events (47.50 not the transported 40; 0 events → 0.00 not 999)' );
+
+// ── Task 3: rollup-side never-invert guard (human class) ─────────────────────
+echo "\nGroup: integrity guard (Task 3)\n";
+// views < pageview_visits on a human row is arithmetically impossible (spec §5)
+// — if it happens the ALARM is the feature: error_log + a timestamped option
+// payload, and the row is STILL WRITTEN unmodified. Never clamp, never skip.
+ar_reset();
+$guard_log = tempnam( sys_get_temp_dir(), 'sn_guard' );
+$old_error_log = ini_set( 'error_log', $guard_log );
+$n = sn_analytics_rollup_upsert( array(
+	array(
+		'day' => '2026-07-16', 'path' => '/', 'class' => 'human',
+		'views' => 2, 'visits' => 5, 'scroll_avg' => null, 'time_avg' => null,
+		'scroll_sum' => 0, 'scroll_events' => '0', 'time_sum' => 0, 'time_events' => '0', 'pageview_visits' => '5',
+	),
+) );
+ini_set( 'error_log', (string) $old_error_log );
+ok( 1 === $n, 'guard: the inverted row is STILL WRITTEN (return counts it)' );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'2026-07-16', '/', 'human', 2, 5, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 5" ) !== false,
+	'guard: the written tuple carries the raw inverted values un-clamped (views 2, pageview_visits 5)' );
+$alert = get_option( 'sn_analytics_integrity_alert' );
+ok( is_array( $alert ) && is_int( $alert['time'] ?? null )
+	&& '2026-07-16' === ( $alert['day'] ?? '' ) && '/' === ( $alert['path'] ?? '' )
+	&& 2 === ( $alert['views'] ?? null ) && 5 === ( $alert['pageview_visits'] ?? null ),
+	'guard: sn_analytics_integrity_alert option holds the timestamped violation payload' );
+$logged = (string) @file_get_contents( $guard_log );
+ok( strpos( $logged, '[sn-analytics] integrity violation' ) !== false && strpos( $logged, '2026-07-16' ) !== false,
+	'guard: error_log records the violation with the offending (day, path)' );
+@unlink( $guard_log );
+
+// The guard is HUMAN-class only, and silent when pageview_visits is NULL or
+// the arithmetic holds — no alert on healthy or unmeasured rows.
+ar_reset();
+sn_analytics_rollup_upsert( array(
+	array( 'day' => '2026-07-16', 'path' => '/b', 'class' => 'bot', 'views' => 1, 'visits' => 3, 'scroll_avg' => 0, 'time_avg' => 0, 'scroll_sum' => 0, 'scroll_events' => 0, 'time_sum' => 0, 'time_events' => 0, 'pageview_visits' => 3 ),
+	array( 'day' => '2026-07-16', 'path' => '/ok', 'class' => 'human', 'views' => 9, 'visits' => 4, 'scroll_avg' => 0, 'time_avg' => 0, 'scroll_sum' => 0, 'scroll_events' => 0, 'time_sum' => 0, 'time_events' => 0, 'pageview_visits' => 4 ),
+	array( 'day' => '2026-07-16', 'path' => '/legacy', 'class' => 'human', 'views' => 1, 'visits' => 5, 'scroll_avg' => 0, 'time_avg' => 0 ),
+) );
+ok( false === get_option( 'sn_analytics_integrity_alert' ),
+	'guard: silent for bot inversion, healthy human rows, and NULL (unmeasured) pageview_visits' );
 
 // ── Admin/login path exclusion (ingestion guard) ──────────────────────────────
 // Admin & login paths are never real human pageviews — the front-end beacon can't
@@ -450,10 +684,86 @@ $GLOBALS['__ar_query_return']   = array(
 	array( 'day' => '2026-06-11', 'path' => '/', 'views' => 9, 'visits' => 7, 'scroll_avg' => 50, 'time_avg' => 3000 ),
 );
 sn_analytics_run_rollup();
-ok( count( $GLOBALS['__ar_query_calls'] ) === 1, 'run_rollup: issues exactly one AE query' );
+// Task 3: a non-empty main result triggers the SECOND (pv-gated) query — the
+// P0.1 Fallback A verdict made two queries the production shape.
+ok( count( $GLOBALS['__ar_query_calls'] ) === 2, 'run_rollup: issues two AE queries (main + gated pageview_visits)' );
+ok( strpos( $GLOBALS['__ar_query_calls'][1], "AND blob1 = 'pv'" ) !== false
+	&& strpos( $GLOBALS['__ar_query_calls'][1], 'AS pageview_visits' ) !== false,
+	'run_rollup: the second query is the pv-gated Fallback A shape' );
 ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run_rollup: upserts the returned rows' );
+// Gated fixture defaulted to null (failure) → the row writes pageview_visits
+// as literal NULL, never a fabricated 0.
+ok( strpos( $GLOBALS['wpdb']->queries[0], 'NULL)' ) !== false,
+	'run_rollup: gated-query failure → pageview_visits binds NULL on the written row' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) !== false, 'run_rollup: stamps the freshness transient on success' );
 ok( $GLOBALS['__ar_dims_called'] === 1, 'run_rollup: drives the dims roll on a configured success' );
+
+// ── Task 3: full two-query merge over the RAW P0-pinned transport ────────────
+echo "\nGroup: run_rollup — raw-envelope merge (Task 3)\n";
+// Fixtures are the RAW AE envelope from the live P0 probe run: meta/data/rows/
+// rows_before_limit_at_least; UInt64 as JSON STRINGS ("views":"6"), Float64 as
+// numbers (scroll_sum:190), avgIf null beside 0 sums on the same row ("/feed/"
+// and the time_* pair on "/"). The transported scroll_avg (40) deliberately
+// differs from the weighted ratio (190/4 = 47.5) to pin the weighted switch.
+$main_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
+	. '{"name":"class","type":"String"},{"name":"views","type":"UInt64"},{"name":"visits","type":"UInt64"},'
+	. '{"name":"scroll_avg","type":"Float64"},{"name":"time_avg","type":"Float64"},'
+	. '{"name":"scroll_sum","type":"Float64"},{"name":"scroll_events","type":"UInt64"},'
+	. '{"name":"time_sum","type":"Float64"},{"name":"time_events","type":"UInt64"}],'
+	. '"data":['
+	. '{"day":"2026-07-15","path":"/","class":"human","views":"6","visits":"4","scroll_avg":40,"time_avg":null,"scroll_sum":190,"scroll_events":"4","time_sum":0,"time_events":"0"},'
+	. '{"day":"2026-07-15","path":"/feed/","class":"human","views":"0","visits":"3","scroll_avg":null,"time_avg":null,"scroll_sum":0,"scroll_events":"0","time_sum":0,"time_events":"0"}'
+	. '],"rows":2,"rows_before_limit_at_least":2}';
+$gated_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
+	. '{"name":"class","type":"String"},{"name":"pageview_visits","type":"UInt64"}],'
+	. '"data":[{"day":"2026-07-15","path":"/","class":"human","pageview_visits":"4"}],'
+	. '"rows":1,"rows_before_limit_at_least":1}';
+ar_reset();
+$GLOBALS['__ar_query_return'] = $main_envelope;
+$GLOBALS['__ar_gated_return'] = $gated_envelope;
+sn_analytics_run_rollup();
+ok( count( $GLOBALS['__ar_query_calls'] ) === 2, 'raw-merge: two AE queries issued' );
+ok( count( $GLOBALS['wpdb']->queries ) === 1, 'raw-merge: one batched upsert' );
+$qm = $GLOBALS['wpdb']->queries[0];
+// "/" — merged gated 4; weighted scroll_avg 190/4=47.50 (not the transported
+// 40); time pair measured-zero → time_avg 0.00 beside real 0 sums.
+ok( strpos( $qm, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false,
+	'raw-merge: "/" tuple pins numeric-string coercion, weighted avgs, 4dp sums, merged pageview_visits' );
+// "/feed/" — the viewless class: views 0, visits 3, no gated row → REAL 0.
+ok( strpos( $qm, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
+	'raw-merge: viewless "/feed/" tuple gets pageview_visits 0 (absent from a successful gated result)' );
+ok( false === get_option( 'sn_analytics_integrity_alert' ),
+	'raw-merge: no integrity alert on healthy data (views ≥ pageview_visits everywhere)' );
+
+// Idempotent re-roll: the same day rolled twice writes IDENTICAL rows.
+sn_analytics_run_rollup();
+ok( count( $GLOBALS['wpdb']->queries ) === 2 && $GLOBALS['wpdb']->queries[0] === $GLOBALS['wpdb']->queries[1],
+	'raw-merge: re-rolling the same day twice produces an identical upsert (idempotent)' );
+
+// ── Task 3: the guard fires end-to-end on an inverted RAW stub ────────────────
+echo "\nGroup: run_rollup — inverted stub fires the guard (Task 3)\n";
+// The live inversion shape ("/": views 2, visits 5) with a gated count of 5 —
+// views < pageview_visits on a human row. The alarm fires AND the row writes.
+$inverted_main = '{"meta":[],"data":[{"day":"2026-07-16","path":"/","class":"human","views":"2","visits":"5",'
+	. '"scroll_avg":null,"time_avg":null,"scroll_sum":0,"scroll_events":"0","time_sum":0,"time_events":"0"}],'
+	. '"rows":1,"rows_before_limit_at_least":1}';
+$inverted_gated = '{"meta":[],"data":[{"day":"2026-07-16","path":"/","class":"human","pageview_visits":"5"}],'
+	. '"rows":1,"rows_before_limit_at_least":1}';
+ar_reset();
+$GLOBALS['__ar_query_return'] = $inverted_main;
+$GLOBALS['__ar_gated_return'] = $inverted_gated;
+$guard_log2 = tempnam( sys_get_temp_dir(), 'sn_guard' );
+$old_error_log2 = ini_set( 'error_log', $guard_log2 );
+sn_analytics_run_rollup();
+ini_set( 'error_log', (string) $old_error_log2 );
+$alert2 = get_option( 'sn_analytics_integrity_alert' );
+ok( is_array( $alert2 ) && 2 === ( $alert2['views'] ?? null ) && 5 === ( $alert2['pageview_visits'] ?? null ),
+	'inverted-stub: the alert option carries the inverted pair (2 < 5)' );
+ok( strpos( (string) @file_get_contents( $guard_log2 ), '[sn-analytics] integrity violation' ) !== false,
+	'inverted-stub: error_log fired' );
+ok( strpos( $GLOBALS['wpdb']->queries[0] ?? '', "('2026-07-16', '/', 'human', 2, 5, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 5)" ) !== false,
+	'inverted-stub: the row is STILL written, un-clamped' );
+@unlink( $guard_log2 );
 
 // Not configured → AE query returns null → no upsert, no fresh stamp.
 ar_reset();
@@ -471,6 +781,7 @@ $GLOBALS['__ar_config_present'] = true;
 $GLOBALS['__ar_query_return']   = array();
 sn_analytics_run_rollup();
 ok( count( $GLOBALS['wpdb']->queries ) === 0, 'run_rollup: empty AE result → no upsert' );
+ok( count( $GLOBALS['__ar_query_calls'] ) === 1, 'run_rollup: empty main result skips the gated query (nothing to merge)' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) !== false, 'run_rollup: empty-but-successful result still stamps fresh' );
 
 // Configured but the AE query FAILS (null: transport / non-200 / parse error).
