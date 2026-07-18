@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.70.0] - 2026-07-18: The maturity explainer catches up with the integrity arc — refreshed tiers, format attribute, styled output
+
+MINOR (new user-visible capability, owner-approved). The PUBLIC portfolio shortcode `[sn_analytics_maturity]` (`inc/analytics-maturity-page.php`) predated the 2026-07 analytics-integrity arc (13 releases, v9.63.0→v9.69.0) — its copy still described the pre-arc stack. The file's design contract is preserved untouched: STATIC only, no live metrics, no per-person data, public-page safe, everything i18n-wrapped and escaped at the point of build, the function returns (never echoes).
+
+### Changed — the content refresh (every claim verified against `docs/analytics-integrity-design.md` §3–§5 + CHANGELOG [9.63.0]..[9.69.0] before writing)
+
+- **Intro**: the diagnostic/prescriptive clause now says the AI seat is "governed by explicit input and voice contracts" (v9.64.1 + v9.64.2) — the deterministic-fallback claim ("every surface renders with AI off") kept verbatim.
+- **Descriptive engine**: speaks the honest vocabulary — pageview-gated visits vs unique visitor-days, viewless days counted, per-view and per-visit engagement "exact from a stated date" (the `exact_metrics_since` discontinuity, spec §8: a data boundary stated instead of silently mixed precision), plus the durable session-quality and entry/exit history beyond the edge store's 90-day retention (v9.65.0 Part 1 + v9.66.0 Part 1).
+- **Diagnostic engine**: names the TWO contracts governing AI narration — the input contract (defined counts + the structural explanation travel in the prompt, so the explained can never be narrated as an anomaly; v9.64.1) and the voice contract (plain prose, no jargon; v9.64.2) — with the deterministic template still stated as the floor.
+- **Predictive engine**: unchanged wording (the engines didn't change): "Transparent statistics: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts."
+- **Prescriptive engine**: the Overview now TRIAGES (v9.69.0) — threshold-gated attention flags (a percentage bar AND an absolute floor, sentiment-aware: only changes that need a human) reorder the landing surface; rules-built action cards unchanged; the "AI can never invent an action" invariant kept.
+- **Honesty principles 6 → 12**: the original six all still hold and stay (robust stats, minimum-sample floors, window-end anchoring, measured backtest calibration, deterministic floor + budget cap, first-party/cookieless). The arc's earned six join them: views can never undercount visits by construction and the impossible case trips a **monitored alarm, never a silent clamp** (spec §5, v9.63.0, the v9.65.0 Health check); a failed read renders "could not be read" — **failure never impersonates a quiet week** (v9.68.1); **zero, null, and absent are three different answers** end to end; **every unit is named** — sessions ≠ visitor-days ≠ views (v9.65.0 Part 3); **visitor identity is forward-secret** — each day's salt is deleted at rotation, so yesterday's visitors are unrecoverable even by the operator (worker v1.13.0, per `docs/cookieless-analytics-research.md`); even **chart colors carry meaning honestly** — a worsening metric is never painted green (the v9.68.0 sentiment-aware delta badge).
+
+### Added — the `format` attribute
+
+`[sn_analytics_maturity format="…"]` via `shortcode_atts`, exact-match whitelisted (`SN_MATURITY_FORMATS`): **`full`** (default — intro + tier table + principles, the existing shape), **`table`** (tier table only), **`principles`** (the "Honest by construction" section only), **`compact`** (one intro sentence + a single-line tier strip of badges — the `snt_analytics_tier_badge` markup idiom on this surface's own public classes, `.sn-maturity-badge--{slug}`). Unknown values fall back to `full` — pinned, including a hostile attribute value and case-sensitivity — and the raw attribute never reaches the class attribute. The root div gains `sn-maturity--{format}`. The section builders are extracted into pure helpers (`sn_analytics_maturity_intro_html` / `_table_html` / `_principles_html` / `_compact_html`); the tier-slug array still mirrors the shared badge whitelist (pinned in order).
+
+### Added — front-end styling (`assets/maturity-front.css`)
+
+The shortcode previously emitted bare classed markup. Now a small stylesheet, scoped entirely to `.sn-maturity`, in the site's public look: white-first brutalist — hard 2px `currentColor` frames, square corners, mono uppercase kickers (table headers, badges), a ruled principles list with a mono dash gutter, generous cell spacing — inheriting the theme's typography and colors (`currentColor`/opacity only, no palette of its own), light-only like the site. Enqueued via the plugin's established front-end idiom (`inc/provenance-render.php` → `sn-provenance-front`): `wp_enqueue_style( 'sn-maturity-front', … , SNT_VERSION )` — but called from INSIDE the shortcode callback, so the CSS ships only when the explainer actually renders (mid-page style enqueues print via the footer queue; repeat renders are core-deduped by handle). Never inline.
+
+### Tests (`tests/analytics-maturity-page.php`, RED-first: 33 failing assertions committed before the implementation)
+
+9 → 57 assertions: structural pins per format (each variant renders ONLY its section; compact pinned byte-for-byte as a whole), the whitelist fallback pinned byte-identical to full (bogus + hostile-injection + bare-'' + case-sensitivity), escaping pins on the new quoted/apostrophed strings (`&quot;could not be read&quot;`, `yesterday&#039;s`), the arc-copy claim pins, exactly-12-principles count, the enqueue contract (nothing on file load; handle + src + on-disk file on render; only ever the one handle), tier-slug/badge-whitelist mirror, return-never-echoes via output buffering, and the existing static-by-design no-live-metrics regex kept. The stub set gains core-faithful `shortcode_atts` (only default keys survive) and recording `wp_enqueue_style`/`plugins_url`.
+
+### Fixed (pre-merge review)
+
+- **Compact-intro margin lost its cascade fight (LOW)** — `.sn-maturity-compact-intro{margin:0 0 .75rem}` was a dead rule: at specificity 0,1,0 it is permanently overridden by the generic `.sn-maturity p{margin:0 0 1.25rem}` (0,1,1), so the compact variant's intro rendered with the full-format 1.25rem gap instead of the tighter .75rem designed for the one-sentence + badge-strip shape. The selector now carries the element — `.sn-maturity p.sn-maturity-compact-intro` (0,2,1) — winning without touching the generic paragraph rule the full format relies on. RED-first: three stylesheet pins join the compact group (57 → 60 assertions) — the winning selector verbatim, the dead bare-class form regex-pinned OUT, and the generic p rule pinned intact.
+
+Sweep: 310 suites / 11,055 assertions green; `composer run lint` clean.
+
 ## [9.69.0] - 2026-07-18: The Overview learns to triage — attention chips, strip, and promotion reordering
 
 MINOR (new user-visible capability, owner-approved — the design passed a rendered before/after review; the REORDERED variant won). The Overview landing now weighs every panel's headline movement against the PREVIOUS period on **every render — compare Off included** (that is the feature's point; the header's compare control keeps governing only the visible delta chips), marks notable panels, and reorders the body so what needs attention sits on top.
