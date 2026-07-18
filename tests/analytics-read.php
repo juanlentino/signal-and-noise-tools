@@ -316,9 +316,9 @@ ok( array_key_exists( 'pageview_visits', $t ) && $t['pageview_visits'] === 130, 
 ok( array_key_exists( 'viewless_visits', $t ) && $t['viewless_visits'] === 20, 'modern: viewless_visits = 20 (150 − 130)' );
 ok( array_key_exists( 'view_visit_ratio', $t ) && is_float( $t['view_visit_ratio'] ) && abs( $t['view_visit_ratio'] - 400 / 130 ) < 1e-9, 'modern: view_visit_ratio = 400/130 ≈ 3.0769' );
 ok( array_key_exists( 'pageviews_per_visitor_day', $t ) && is_float( $t['pageviews_per_visitor_day'] ) && abs( $t['pageviews_per_visitor_day'] - 400 / 150 ) < 1e-9, 'modern: pageviews_per_visitor_day = 400/150 ≈ 2.6667' );
-ok( array_key_exists( 'scroll_avg_per_view', $t ) && is_float( $t['scroll_avg_per_view'] ) && abs( $t['scroll_avg_per_view'] - 40.0 ) < 1e-9, 'modern: scroll_avg_per_view = 16000/400 = 40.0 (exact, from summed scroll_sum)' );
+ok( array_key_exists( 'scroll_avg_per_view', $t ) && is_float( $t['scroll_avg_per_view'] ) && abs( $t['scroll_avg_per_view'] - 15.0 ) < 1e-9, 'modern: scroll_avg_per_view = 25×240/400 = 15.0 (v9.64.0 depth unit, from summed scroll_events)' );
 ok( array_key_exists( 'time_avg_per_view', $t ) && is_float( $t['time_avg_per_view'] ) && abs( $t['time_avg_per_view'] - 97.5 ) < 1e-9, 'modern: time_avg_per_view = 39000/400 = 97.5 (exact)' );
-ok( array_key_exists( 'scroll_avg_per_visit', $t ) && is_float( $t['scroll_avg_per_visit'] ) && abs( $t['scroll_avg_per_visit'] - 16000 / 150 ) < 1e-9, 'modern: scroll_avg_per_visit = 16000/150 ≈ 106.67 (diluted by viewless days)' );
+ok( array_key_exists( 'scroll_avg_per_visit', $t ) && is_float( $t['scroll_avg_per_visit'] ) && abs( $t['scroll_avg_per_visit'] - 40.0 ) < 1e-9, 'modern: scroll_avg_per_visit = 25×240/150 = 40.0 (diluted by viewless days)' );
 ok( array_key_exists( 'time_avg_per_visit', $t ) && is_float( $t['time_avg_per_visit'] ) && abs( $t['time_avg_per_visit'] - 260.0 ) < 1e-9, 'modern: time_avg_per_visit = 39000/150 = 260.0' );
 ok( array_key_exists( 'integrity_violation', $t ) && $t['integrity_violation'] === false, 'modern: integrity_violation === false (views 400 ≥ pageview_visits 130)' );
 ok( array_key_exists( 'exact_metrics_since', $t ) && $t['exact_metrics_since'] === '2026-04-18', 'modern: exact_metrics_since carries the option value' );
@@ -350,7 +350,7 @@ $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
 );
 $t2 = sn_analytics_range_totals( '2026-10-01', '2026-10-02', 'human' );
 ok( $t2['views'] === 150 && $t2['visits'] === 100, 'mixed: legacy views/visits still real sums (150/100)' );
-ok( array_key_exists( 'scroll_avg_per_view', $t2 ) && null === $t2['scroll_avg_per_view'], 'mixed: scroll_avg_per_view null — NOT the partial 3000/150=20.0' );
+ok( array_key_exists( 'scroll_avg_per_view', $t2 ) && null === $t2['scroll_avg_per_view'], 'mixed: scroll_avg_per_view null — NOT the silently-partial 25×45/150=7.5' );
 ok( array_key_exists( 'time_avg_per_view', $t2 ) && null === $t2['time_avg_per_view'], 'mixed: time_avg_per_view null' );
 ok( array_key_exists( 'scroll_avg_per_visit', $t2 ) && null === $t2['scroll_avg_per_visit'], 'mixed: scroll_avg_per_visit null' );
 ok( array_key_exists( 'time_avg_per_visit', $t2 ) && null === $t2['time_avg_per_visit'], 'mixed: time_avg_per_visit null' );
@@ -371,7 +371,7 @@ $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
 	array( 'day' => '2026-11-02', 'path' => '/a', 'class' => 'human', 'views' => 40, 'visits' => 20, 'scroll_avg' => 55, 'time_avg' => 85, 'scroll_sum' => 800.0,  'scroll_events' => 10, 'time_sum' => 3200.0, 'time_events' => 30, 'pageview_visits' => null ),
 );
 $t3 = sn_analytics_range_totals( '2026-11-01', '2026-11-02', 'human' );
-ok( array_key_exists( 'scroll_avg_per_view', $t3 ) && is_float( $t3['scroll_avg_per_view'] ) && abs( $t3['scroll_avg_per_view'] - 20.0 ) < 1e-9, 'gated-partial: scroll_avg_per_view = 2000/100 = 20.0 (exact engagement survives)' );
+ok( array_key_exists( 'scroll_avg_per_view', $t3 ) && is_float( $t3['scroll_avg_per_view'] ) && abs( $t3['scroll_avg_per_view'] - 7.5 ) < 1e-9, 'gated-partial: scroll_avg_per_view = 25×30/100 = 7.5 (exact engagement survives)' );
 ok( array_key_exists( 'time_avg_per_view', $t3 ) && is_float( $t3['time_avg_per_view'] ) && abs( $t3['time_avg_per_view'] - 80.0 ) < 1e-9, 'gated-partial: time_avg_per_view = 8000/100 = 80.0' );
 ok( array_key_exists( 'pageview_visits', $t3 ) && null === $t3['pageview_visits'], 'gated-partial: pageview_visits null — NOT the partial 25' );
 ok( array_key_exists( 'viewless_visits', $t3 ) && null === $t3['viewless_visits'], 'gated-partial: viewless_visits null' );

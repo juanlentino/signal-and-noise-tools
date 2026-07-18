@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.64.0] - 2026-07-18: The Overview speaks the honest vocabulary; scroll depth gets its true unit
+
+### Changed — SCROLL DEPTH UNIT REDEFINED (read this before comparing scroll numbers across versions)
+
+**`scroll_avg_per_view` and `scroll_avg_per_visit` no longer divide `scroll_sum` — they are now `25 × scroll_events / views` and `25 × scroll_events / unique_visitor_days`** (`inc/analytics-derive.php`; ability description in `inc/abilities-analytics.php`; spec addendum in `docs/analytics-integrity-design.md`).
+
+- **What the 113% was:** the beacon fires one **cumulative** `sc` event per milestone reached (25/50/75/100), each at most once per view. `scroll_sum` therefore sums milestone *points*, not depths — a single full-depth view contributes 25+50+75+100 = **250 points**, and the day-old `scroll_sum / views` ratio dutifully read **113% "average scroll depth"** on live data. Arithmetically faithful, semantically absurd: a depth cannot exceed 100%.
+- **The true unit:** because the milestones are evenly spaced and each fires at most once per view, `25 × scroll_events` **is** the sum of per-view max depths. Divided by views (or visitor-days) it is the **true mean max scroll depth, bounded 0–100**. A full-depth single-view fixture now derives **exactly 100.0** — pinned in tests, alongside a poisoned-`scroll_sum` mutation pin proving the ratio is events-driven, not sum-driven.
+- **Why redefinition beat deprecation:** the two fields were **one day old (v9.63.0) with zero consumers** — owner call 2026-07-18. Deprecating a day-old field and shipping a third scroll vocabulary would have been ceremony without a protected consumer.
+- **What did NOT change:** `scroll_sum` stays stored and passed through as-is, documented as the raw milestone-point sum (it feeds no derived ratio anymore); legacy `scroll_avg` (per-event views-weighted mean) untouched; every `time_*` field untouched (`time_sum` is a real ms sum).
+
+### Added — the Overview KPI strip speaks spec §4 (`inc/analytics-render-overview.php`)
+
+The shared Overview strip (rendered by `inc/analytics-header-region.php` on every shared-chrome Analytics view) stops rendering the deprecated ungated `visits`:
+
+- **Headline "Visits" is now `pageview_visits`** — visitor-days with ≥1 pageview, the metric that cannot exceed views by construction. Promoted card, own period-over-period delta.
+- **`unique_visitor_days` + `viewless_visits` surfaced** as a muted secondary line under the strip (`.sn-an-visitor-note`, the compare-note idiom): "N visitor-days · M viewless (no pageview)".
+- **Exact engagement replaces the per-event approximations:** "Scroll / view" renders the v9.64.0-corrected `scroll_avg_per_view`; "Time / view" renders `time_avg_per_view`. The legacy `visits`/`scroll_avg`/`time_avg` delta keys are deliberately NOT wired onto these cards — a different unit's verdict would lie.
+- **Honest nulls:** when the selected range predates `exact_metrics_since` (the read layer already nulls exactly then), the affected cards render an **em-dash + a caveat naming the discontinuity date** ("exact since Y-m-d"; "no exact data yet" when the backfill marker is absent) — never a fabricated 0% / 0s. Absent key ≡ null value via `array_key_exists` (the `??`/isset trap in project memory — which bit once more in this session's RED tests and was caught there).
+- `sn_analytics_period_deltas()` (`inc/analytics-derived.php`) additively gains the nullable trio `pageview_visits` / `scroll_avg_per_view` / `time_avg_per_view`: no verdict unless both windows are known (pct null, dir flat — the engaged-rate precedent), null never coerced to 0.
+
+### Tests
+
+TDD both parts, red first: Part 1 — 16 failing assertions (derive 8, read 3, abilities 5) before the redefinition; Part 2 — 26 failing assertions (derived-deltas 9, cards-render 17) before the render/deltas work. Full-depth-single-view = exactly 100.0 pin; poisoned-scroll_sum mutation pin; ability-description identity assertions (`25 * scroll_events`, "max scroll depth", "milestone"); honest-strip pins for the modern, pre-backfill-null, and absent-key (legacy caller, zero notices) shapes; delta-wiring negative pins. Dashboard-suite stubs (`tests/analytics-admin.php`, `tests/preview-dashboard.php`) updated to the REAL post-v9.63.0 `sn_analytics_range_totals()` contract (the stub-drift trap, pre-empted). Full sweep: 307 suites, 10,354 assertions, 0 failures; PHPCS clean.
+
 ## [9.63.3] - 2026-07-18: Last-deploy widget reads the merged deploy feed — wp-admin installs finally move "Last deploy: X ago"
 
 ### Fixed

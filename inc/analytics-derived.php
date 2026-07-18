@@ -264,13 +264,22 @@ function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human', $cwin = 
 
 /**
  * Period-over-period deltas: the current [$from,$to] window vs the immediately-
- * preceding window of equal length, for views / visits / scroll_avg / time_avg.
+ * preceding window of equal length, for views / visits / scroll_avg / time_avg
+ * plus (v9.64.0) the nullable Phase A trio the honest Overview strip badges:
+ * pageview_visits / scroll_avg_per_view / time_avg_per_view.
+ *
+ * The trio is NULLABLE — null means "never measured" (legacy pre-backfill rows
+ * or a failed read), so the verdict follows the engaged-rate precedent
+ * (sn_analytics_engaged_rate_delta): no verdict unless BOTH sides are known
+ * (pct null, dir 'flat'), and null is never coerced to a confident 0.
+ * Absent key ≡ null value — array_key_exists, not `??` (blind to
+ * present-but-null, the shipped-bug class in project memory).
  *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param string $class Traffic class (default 'human').
  * @param array{0:string,1:string}|null $cwin Explicit comparison window (v9.38.0 one-frame); null = the adjacent prior window.
- * @return array<string, array{current:int|float, previous:int|float, pct:?int, dir:string}>
+ * @return array<string, array{current:int|float|null, previous:int|float|null, pct:?int, dir:string}>
  */
 function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null ) {
 	$cur = function_exists( 'sn_analytics_range_totals' )
@@ -293,6 +302,23 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null 
 			'previous' => in_array( $m, $int_metrics, true ) ? (int) $p : (float) $p,
 			'pct'      => $delta['pct'],
 			'dir'      => $delta['dir'],
+		);
+	}
+
+	// The nullable Phase A trio (additive — consumers read by key).
+	foreach ( array( 'pageview_visits' => 'int', 'scroll_avg_per_view' => 'float', 'time_avg_per_view' => 'float' ) as $m => $type ) {
+		$c = ( is_array( $cur ) && array_key_exists( $m, $cur ) && is_numeric( $cur[ $m ] ) ) ? $cur[ $m ] : null;
+		$p = ( is_array( $prev ) && array_key_exists( $m, $prev ) && is_numeric( $prev[ $m ] ) ) ? $prev[ $m ] : null;
+		$c = null === $c ? null : ( 'int' === $type ? (int) $c : (float) $c );
+		$p = null === $p ? null : ( 'int' === $type ? (int) $p : (float) $p );
+		$d = ( null === $c || null === $p )
+			? array( 'pct' => null, 'dir' => 'flat' ) // no verdict without both sides.
+			: sn_analytics_delta( $c, $p );
+		$out[ $m ] = array(
+			'current'  => $c,
+			'previous' => $p,
+			'pct'      => $d['pct'],
+			'dir'      => $d['dir'],
 		);
 	}
 	return $out;

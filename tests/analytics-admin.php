@@ -96,10 +96,14 @@ function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit 
 // Derived + buckets seams (the dashboard composes these; isolated here).
 function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
 	return array(
-		'views'      => array( 'current' => 1204, 'previous' => 600, 'pct' => 101, 'dir' => 'up' ),
-		'visits'     => array( 'current' => 389,  'previous' => 400, 'pct' => -3,  'dir' => 'down' ),
-		'scroll_avg' => array( 'current' => 62.0, 'previous' => 62.0, 'pct' => 0,  'dir' => 'flat' ),
-		'time_avg'   => array( 'current' => 108.0, 'previous' => 90.0, 'pct' => 20, 'dir' => 'up' ),
+		'views'               => array( 'current' => 1204, 'previous' => 600, 'pct' => 101, 'dir' => 'up' ),
+		'visits'              => array( 'current' => 389,  'previous' => 400, 'pct' => -3,  'dir' => 'down' ),
+		'scroll_avg'          => array( 'current' => 62.0, 'previous' => 62.0, 'pct' => 0,  'dir' => 'flat' ),
+		'time_avg'            => array( 'current' => 108.0, 'previous' => 90.0, 'pct' => 20, 'dir' => 'up' ),
+		// v9.64.0 nullable trio (the keys the honest Overview actually wires).
+		'pageview_visits'     => array( 'current' => 340, 'previous' => 371, 'pct' => -8, 'dir' => 'down' ),
+		'scroll_avg_per_view' => array( 'current' => 55.0, 'previous' => 50.0, 'pct' => 10, 'dir' => 'up' ),
+		'time_avg_per_view'   => array( 'current' => 98000.0, 'previous' => 90000.0, 'pct' => 9, 'dir' => 'up' ),
 	);
 }
 function sn_analytics_hour_dow_grid( $from, $to, $class = 'human' ) {
@@ -248,7 +252,18 @@ function aa_fill_data() {
 	$GLOBALS['__aa_config']          = true;
 	$GLOBALS['__aa_error']           = null;
 	$GLOBALS['__aa']['realtime']     = 7;
-	$GLOBALS['__aa']['totals']       = array( 'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 108.0 );
+	// The REAL sn_analytics_range_totals() contract since v9.63.0: legacy
+	// quartet + the spec-§4 derived fields + exact_metrics_since (a legacy-only
+	// stub here is exactly the stub-drift trap — the honest Overview reads the
+	// derived keys).
+	$GLOBALS['__aa']['totals']       = array(
+		'views' => 1204, 'visits' => 389, 'scroll_avg' => 62.0, 'time_avg' => 108.0,
+		'unique_visitor_days' => 389, 'pageview_visits' => 340, 'viewless_visits' => 49,
+		'view_visit_ratio' => 1204 / 340, 'pageviews_per_visitor_day' => 1204 / 389,
+		'scroll_avg_per_view' => 55.0, 'time_avg_per_view' => 98000.0,
+		'scroll_avg_per_visit' => 48.0, 'time_avg_per_visit' => 85000.0,
+		'integrity_violation' => false, 'exact_metrics_since' => '2026-04-18',
+	);
 	$GLOBALS['__aa']['class_totals'] = array( 'human' => array( 'views' => 1204, 'visits' => 389 ), 'bot' => array( 'views' => 268, 'visits' => 12 ), 'suspect' => array( 'views' => 44, 'visits' => 9 ) );
 	$GLOBALS['__aa']['series']       = array( array( 'day' => '2026-06-10', 'views' => 100, 'visits' => 40 ), array( 'day' => '2026-06-11', 'views' => 300, 'visits' => 90 ) );
 	$GLOBALS['__aa']['paths']        = array( array( 'path' => '/notes/x', 'views' => 412, 'visits' => 158, 'scroll_avg' => 71.0, 'time_avg' => 150.0 ) );

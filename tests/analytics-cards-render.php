@@ -41,6 +41,93 @@ ok( strpos( $h2, 'Engaged' ) === false, 'no engaged card when null' );
 ob_start(); snt_analytics_render_cards( 3, $totals, array(), array( 'current' => null ) ); $h3 = ob_get_clean();
 ok( strpos( $h3, 'Engaged' ) === false, "array('current'=>null) (all-range, no timed data) hides the card" );
 
+// ─── v9.64.0: the Overview speaks the honest vocabulary (spec §4) ────────────
+// $totals is the FULL sn_analytics_range_totals() merge in production; these
+// fixtures model that real contract (legacy quartet + derived + since marker).
+
+echo "\nGroup: honest strip — modern range (every value pinned)\n";
+$modern = array(
+	'views'                     => 400,
+	'visits'                    => 150,
+	'scroll_avg'                => 62.5,
+	'time_avg'                  => 102.5,
+	'unique_visitor_days'       => 150,
+	'pageview_visits'           => 130,
+	'viewless_visits'           => 20,
+	'view_visit_ratio'          => 400 / 130,
+	'pageviews_per_visitor_day' => 400 / 150,
+	'scroll_avg_per_view'       => 15.0,
+	'time_avg_per_view'         => 12000.0,
+	'scroll_avg_per_visit'      => 40.0,
+	'time_avg_per_visit'        => 32000.0,
+	'integrity_violation'       => false,
+	'exact_metrics_since'       => '2026-04-18',
+);
+ob_start(); snt_analytics_render_cards( 7, $modern, array(), null ); $hm = ob_get_clean();
+ok( strpos( $hm, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">130</p>' ) !== false, 'headline Visits card renders pageview_visits (130), NOT deprecated ungated visits (150)' );
+ok( strpos( $hm, '<p class="sn-kpi-value">150</p>' ) === false, 'the ungated 150 is not any card value (it moves to the secondary line)' );
+ok( strpos( $hm, '<p class="sn-kpi-label">Views</p><p class="sn-kpi-value">400</p>' ) !== false, 'Views card unchanged' );
+ok( strpos( $hm, 'sn-an-visitor-note' ) !== false, 'visitor-day secondary line present' );
+ok( strpos( $hm, '150 visitor-days' ) !== false && strpos( $hm, '20 viewless (no pageview)' ) !== false, 'secondary line surfaces unique_visitor_days + viewless_visits' );
+ok( strpos( $hm, '<p class="sn-kpi-label">Scroll / view</p><p class="sn-kpi-value">15%</p>' ) !== false, 'exact scroll depth per view (the v9.64.0-corrected unit), not legacy scroll_avg 62.5' );
+ok( strpos( $hm, '<p class="sn-kpi-label">Time / view</p><p class="sn-kpi-value">12s</p>' ) !== false, 'exact time per view (12000 ms → 12s), not legacy time_avg' );
+ok( strpos( $hm, 'Avg scroll' ) === false && strpos( $hm, 'Avg time' ) === false, 'deprecated per-event labels are gone from the strip' );
+ok( substr_count( $hm, 'sn-kpi-promoted' ) === 2, 'exactly Views + Visits stay promoted' );
+
+echo "\nGroup: honest strip — delta wiring for the new metrics\n";
+$deltas = array(
+	'views'               => array( 'pct' => 12, 'dir' => 'up' ),
+	'pageview_visits'     => array( 'pct' => -8, 'dir' => 'down', 'previous' => 141 ),
+	'scroll_avg_per_view' => array( 'pct' => 25, 'dir' => 'up' ),
+	'time_avg_per_view'   => array( 'pct' => null, 'dir' => 'flat' ),
+	// Legacy keys still arrive from sn_analytics_period_deltas — they must NOT
+	// be wired onto the exact cards (a different unit's verdict would lie).
+	'visits'              => array( 'pct' => 99, 'dir' => 'up' ),
+	'scroll_avg'          => array( 'pct' => 77, 'dir' => 'up' ),
+	'time_avg'            => array( 'pct' => 66, 'dir' => 'up' ),
+);
+ob_start(); snt_analytics_render_cards( 7, $modern, $deltas, null ); $hd = ob_get_clean();
+ok( strpos( $hd, '-8%' ) !== false, 'Visits card carries the pageview_visits delta (-8%)' );
+ok( strpos( $hd, '+25%' ) !== false, 'Scroll/view card carries the scroll_avg_per_view delta (+25%)' );
+ok( strpos( $hd, '+99%' ) === false && strpos( $hd, '+77%' ) === false && strpos( $hd, '+66%' ) === false, 'legacy visits/scroll_avg/time_avg deltas are NOT wired onto the honest cards' );
+
+echo "\nGroup: honest strip — pre-backfill range (nulls degrade to em-dash + caveat, never 0)\n";
+$legacy_range = array(
+	'views'                     => 87,
+	'visits'                    => 131,
+	'scroll_avg'                => 44.0,
+	'time_avg'                  => 90000.0,
+	'unique_visitor_days'       => 131,
+	'pageview_visits'           => null,
+	'viewless_visits'           => null,
+	'view_visit_ratio'          => null,
+	'pageviews_per_visitor_day' => 87 / 131,
+	'scroll_avg_per_view'       => null,
+	'time_avg_per_view'         => null,
+	'scroll_avg_per_visit'      => null,
+	'time_avg_per_visit'        => null,
+	'integrity_violation'       => false,
+	'exact_metrics_since'       => '2026-04-18',
+);
+ob_start(); snt_analytics_render_cards( null, $legacy_range, array(), null ); $hl = ob_get_clean();
+ok( strpos( $hl, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">—</p>' ) !== false, 'null pageview_visits → em-dash, never the ungated 131 and never a fabricated 0' );
+ok( strpos( $hl, 'exact since 2026-04-18' ) !== false, 'the exact_metrics_since caveat names the discontinuity date' );
+ok( strpos( $hl, '<p class="sn-kpi-label">Scroll / view</p><p class="sn-kpi-value">—</p>' ) !== false, 'null scroll depth → em-dash' );
+ok( strpos( $hl, '<p class="sn-kpi-label">Time / view</p><p class="sn-kpi-value">—</p>' ) !== false, 'null time per view → em-dash' );
+ok( strpos( $hl, '0%' ) === false && strpos( $hl, '>0s<' ) === false, 'no fabricated 0% / 0s anywhere on the null range' );
+ok( strpos( $hl, '131 visitor-days' ) !== false, 'visitor-day line still renders (visits is known even pre-backfill)' );
+ok( strpos( $hl, 'viewless' ) === false, 'null viewless_visits → the viewless clause is omitted, not zeroed' );
+
+echo "\nGroup: honest strip — legacy caller (derived keys ABSENT) degrades without notices\n";
+$notices = 0;
+set_error_handler( function ( $errno, $errstr ) use ( &$notices ) { ++$notices; return true; } );
+ob_start(); snt_analytics_render_cards( 3, $totals, array(), null ); $ha = ob_get_clean();
+restore_error_handler();
+ok( 0 === $notices, 'absent derived keys raise no notices (array_key_exists discipline)' );
+ok( strpos( $ha, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">—</p>' ) !== false, 'absent pageview_visits behaves exactly like null (em-dash)' );
+ok( strpos( $ha, 'no exact data yet' ) !== false, 'no since marker → the caveat says so instead of inventing a date' );
+ok( strpos( $ha, 'sn-an-visitor-note' ) === false, 'absent unique_visitor_days → no visitor-day line (nothing fabricated)' );
+
 echo "\nGroup: inline sparkline — smooth SVG mini-area\n";
 $sp = snt_analytics_sparkline( array(
 	array( 'day' => '2026-06-09', 'views' => 3 ),

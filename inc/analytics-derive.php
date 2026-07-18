@@ -34,12 +34,32 @@
  *     rollup/sampling bug upstream). Values are still reported un-clamped;
  *     the alarm is the feature.
  *
+ * ── Scroll-depth unit (v9.64.0 redefinition — owner call 2026-07-18) ────────
+ *
+ * The beacon fires one CUMULATIVE 'sc' event per milestone reached
+ * (25/50/75/100), each at most once per view. `scroll_sum` therefore sums
+ * milestone POINTS, not depths: a full-depth view contributes 25+50+75+100 =
+ * 250, and the original `scroll_sum / views` ratio read 113% live. Because the
+ * milestones are evenly spaced and fire at most once per view,
+ * 25 × scroll_events IS the sum of per-view max depths, so
+ * `scroll_avg_per_view` = 25 × scroll_events / views is the TRUE mean max
+ * scroll depth (0–100) — same identity per visitor-day for
+ * `scroll_avg_per_visit`. `scroll_sum` stays stored and passed through
+ * upstream as-is (the documented raw milestone-point sum) but feeds no
+ * derived ratio. `time_*` fields are untouched (time_sum is a real ms sum).
+ *
  * @package SignalNoiseTools
  * @since 9.63.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+if ( ! defined( 'SN_ANALYTICS_SCROLL_MILESTONE_STEP' ) ) {
+	// One 'sc' beacon milestone = 25 scroll-depth points (milestones fire at
+	// 25/50/75/100% and at most once each per view) — see the module header.
+	define( 'SN_ANALYTICS_SCROLL_MILESTONE_STEP', 25 );
 }
 
 if ( ! function_exists( 'sn_analytics_derive_num' ) ) {
@@ -94,17 +114,25 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 	 *     @type int|null   $viewless_visits           unique_visitor_days − pageview_visits.
 	 *     @type float|null $view_visit_ratio          views / pageview_visits.
 	 *     @type float|null $pageviews_per_visitor_day views / unique_visitor_days.
-	 *     @type float|null $scroll_avg_per_view       scroll_sum / views (exact).
+	 *     @type float|null $scroll_avg_per_view       25 × scroll_events / views (true mean max depth, 0–100).
 	 *     @type float|null $time_avg_per_view         time_sum / views (exact).
-	 *     @type float|null $scroll_avg_per_visit      scroll_sum / unique_visitor_days (diluted by viewless days).
+	 *     @type float|null $scroll_avg_per_visit      25 × scroll_events / unique_visitor_days (diluted by viewless days).
 	 *     @type float|null $time_avg_per_visit        time_sum / unique_visitor_days (diluted by viewless days).
 	 *     @type bool       $integrity_violation       true iff both known AND views < pageview_visits.
 	 * }
 	 */
 	function sn_analytics_derive_metrics( array $daily ) {
-		$views      = sn_analytics_derive_num( $daily, 'views' );
-		$scroll_sum = sn_analytics_derive_num( $daily, 'scroll_sum' );
-		$time_sum   = sn_analytics_derive_num( $daily, 'time_sum' );
+		$views         = sn_analytics_derive_num( $daily, 'views' );
+		$scroll_events = sn_analytics_derive_num( $daily, 'scroll_events' );
+		$time_sum      = sn_analytics_derive_num( $daily, 'time_sum' );
+
+		// v9.64.0 depth identity (module header): 25 × scroll_events = the sum
+		// of per-view max depths, because milestones are evenly spaced and each
+		// fires at most once per view. scroll_sum (raw milestone POINTS — a
+		// full-depth view contributes 250) deliberately feeds no ratio here.
+		$scroll_depth_points = ( null === $scroll_events )
+			? null
+			: SN_ANALYTICS_SCROLL_MILESTONE_STEP * $scroll_events;
 
 		$visitor_days = sn_analytics_derive_num( $daily, 'visits' );
 		$gated        = sn_analytics_derive_num( $daily, 'pageview_visits' );
@@ -117,9 +145,9 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 			'viewless_visits'           => ( null !== $visitor_days && null !== $gated ) ? $visitor_days - $gated : null,
 			'view_visit_ratio'          => sn_analytics_derive_ratio( $views, $gated ),
 			'pageviews_per_visitor_day' => sn_analytics_derive_ratio( $views, $visitor_days ),
-			'scroll_avg_per_view'       => sn_analytics_derive_ratio( $scroll_sum, $views ),
+			'scroll_avg_per_view'       => sn_analytics_derive_ratio( $scroll_depth_points, $views ),
 			'time_avg_per_view'         => sn_analytics_derive_ratio( $time_sum, $views ),
-			'scroll_avg_per_visit'      => sn_analytics_derive_ratio( $scroll_sum, $visitor_days ),
+			'scroll_avg_per_visit'      => sn_analytics_derive_ratio( $scroll_depth_points, $visitor_days ),
 			'time_avg_per_visit'        => sn_analytics_derive_ratio( $time_sum, $visitor_days ),
 			'integrity_violation'       => null !== $views && null !== $gated && $views < $gated,
 		);
