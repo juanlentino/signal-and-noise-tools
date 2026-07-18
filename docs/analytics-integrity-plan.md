@@ -27,6 +27,15 @@ All three probes need a booted live WP (AE creds live server-side). Batch them i
 - [ ] **P0.3 — Versioning confirm.** Read the theme repo's `docs/VERSIONING.md`; confirm MINOR → v9.63.0. (Additive schema + new user-visible fields = MINOR under the global rules; this is a cheap double-check, not a decision.)
 - [ ] **P0.4 — Guard surface (recommendation: default, don't block).** `error_log('[sn-analytics] integrity violation …')` + set option `sn_analytics_integrity_alert` (timestamped payload) read by the Health scan (`get-health-scan` surface). Insights deferred. Proceed with this default unless the owner objects.
 
+## P0 results (live probe, owner-run 2026-07-17, `wp eval-file` on juanlentino.com)
+
+- **P0.1 verdict: USE FALLBACK A.** Primary rejected — HTTP 422: *"the 2nd and 3rd arguments to IF() function must have the same type but instead had String and Null"* (consistent with the v5.2.0 rejection; the `count(DISTINCT <expr>)` dialect-guard ban STAYS — do not relax it). Fallback A passed (HTTP 200, `pageview_visits` UInt64). → **Task 3 adds a SECOND rollup query**: the existing verified shape + `AND blob1 = 'pv'` in WHERE + `count(DISTINCT index1) AS pageview_visits`, merged per `(day, path, class)` key in PHP.
+- **P0.2 verdict: multiplication form OK.** `sumIf(double1 * _sample_interval, blob1='sc')`, the `tm` twin, and the weighted event counts all parsed (HTTP 200). No `sum(if(...))` fallback needed.
+- **Transport shape for the Task 3 stub (from the raw live response — the stub MUST model these):** envelope `{meta:[{name,type}…], data:[…], rows, rows_before_limit_at_least}`; **UInt64 columns come back as JSON STRINGS** (`"views":"1"`, `"scroll_events":"0"`, `"pageview_visits":"11"`) while Float64 come back as numbers (`scroll_sum:3250`, `time_sum:294971`); `avgIf` with zero matching events returns `null` while the weighted sums return `0` for the same rows — numeric-string counts, null avgs, zero sums, all in one response.
+- **Live validation bonus:** the viewless mechanism is directly visible in the probe window — feed paths with `views=0, visits≥1` (the RSS `srv:1` beacon class) and `/` human 2026-07-16 showing `views=2, visits=5` (the inversion, live).
+- Probe result sets were LIMIT-ed samples (`rows_before_limit_at_least` 29/225 vs rows 10/20) — fine for dialect probing; the production rollup's own limits are unchanged by this.
+- P0.4 guard surface: no owner objection raised → proceed with the default (`error_log` + `sn_analytics_integrity_alert` option read by Health). P0.3 (VERSIONING.md double-check) still pending, trivial.
+
 ## File map
 
 | Action | Path | Responsibility |
