@@ -18,16 +18,28 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 
-// UTM accessors — recorders; the view's composition is under test.
-$GLOBALS['__camp'] = null;
-$GLOBALS['__src']  = null;
-function sn_analytics_top_utm_campaigns( $f, $t, $c = 'human', $l = 25 ) { return $GLOBALS['__camp'] ?? array( array( 'value' => 'summer_sale', 'views' => 12, 'visits' => 9 ) ); }
-function sn_analytics_top_utm_sources( $f, $t, $c = 'human', $l = 25 ) { return $GLOBALS['__src'] ?? array( array( 'value' => 'google / cpc', 'source' => 'google', 'medium' => 'cpc', 'views' => 9, 'visits' => 7 ) ); }
+// UTM accessors — recorders; the view's composition is under test. v9.68.1:
+// the real accessors return NULL for a FAILED wpdb read ([] = empty window) —
+// the fail flags mirror that verdict (a ?? default cannot store null).
+$GLOBALS['__camp']      = null;
+$GLOBALS['__src']       = null;
+$GLOBALS['__camp_fail'] = false;
+$GLOBALS['__src_fail']  = false;
+function sn_analytics_top_utm_campaigns( $f, $t, $c = 'human', $l = 25 ) {
+	if ( $GLOBALS['__camp_fail'] ) { return null; }
+	return $GLOBALS['__camp'] ?? array( array( 'value' => 'summer_sale', 'views' => 12, 'visits' => 9 ) );
+}
+function sn_analytics_top_utm_sources( $f, $t, $c = 'human', $l = 25 ) {
+	if ( $GLOBALS['__src_fail'] ) { return null; }
+	return $GLOBALS['__src'] ?? array( array( 'value' => 'google / cpc', 'source' => 'google', 'medium' => 'cpc', 'views' => 9, 'visits' => 7 ) );
+}
 $GLOBALS['__series_modes'] = array();
-function sn_analytics_utm_series( $mode, $vals, $f, $t, $c = 'human', $g = 'day' ) { $GLOBALS['__series_modes'][] = (string) $mode; return array(); }
+$GLOBALS['__series_vals']  = array();
+function sn_analytics_utm_series( $mode, $vals, $f, $t, $c = 'human', $g = 'day' ) { $GLOBALS['__series_modes'][] = (string) $mode; $GLOBALS['__series_vals'][ (string) $mode ] = (array) $vals; return array(); }
 
-// Renderer recorder — the dim-table panel has its own suite.
-function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '', $visible = 5 ) { echo '<!--DIM:' . esc_html( $title ) . '-->'; }
+// Renderer recorder — the dim-table panel has its own suite (its NULL-rows
+// read-failure fold included; here only the handoff shape is pinned).
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '', $visible = 5 ) { echo '<!--DIM:' . esc_html( $title ) . ( null === $rows ? ':NULL' : '' ) . '-->'; }
 
 require_once __DIR__ . '/../inc/analytics-panels.php'; // provides snt_an_flush_empty_fold()
 require_once __DIR__ . '/../inc/analytics-view-campaigns.php';
@@ -60,6 +72,21 @@ ok( false !== strpos( $empty, '<!--DIM:Campaigns-->' ), 'Campaigns panel still r
 ok( false !== strpos( $empty, '<!--DIM:Source / Medium-->' ), 'Source/Medium panel still renders with no data' );
 $GLOBALS['__camp'] = null;
 $GLOBALS['__src']  = null;
+
+echo "\nTest: v9.68.1 — FAILED UTM reads (accessor null) reach the renderer as null, no fatal, no fabricated series keys\n";
+$GLOBALS['__camp_fail']    = true;
+$GLOBALS['__src_fail']     = true;
+$GLOBALS['__series_modes'] = array();
+$GLOBALS['__series_vals']  = array();
+ob_start();
+snt_analytics_render_view_campaigns( '2026-07-01', '2026-07-11', 'human', 'day' );
+$hfail = (string) ob_get_clean();
+ok( false !== strpos( $hfail, '<!--DIM:Campaigns:NULL-->' ), 'Campaigns renderer receives NULL (its read-failure fold owns the copy) — never an array_map fatal' );
+ok( false !== strpos( $hfail, '<!--DIM:Source / Medium:NULL-->' ), 'Source/Medium renderer receives NULL too' );
+ok( array() === ( $GLOBALS['__series_vals']['campaign'] ?? array() ) && array() === ( $GLOBALS['__series_vals']['source_medium'] ?? array() ),
+	'no series values are fabricated from a failed top-N read (empty key set → the series accessor short-circuits)' );
+$GLOBALS['__camp_fail'] = false;
+$GLOBALS['__src_fail']  = false;
 
 echo "\nTest: partial-install guard\n";
 $src_txt = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-campaigns.php' );

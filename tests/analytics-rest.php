@@ -23,7 +23,8 @@ function add_action( $h, $c = null, $p = 10, $a = 1 ) { if ( 'rest_api_init' ===
 // read-accessor + resolver stubs (production shapes):
 function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 7, 'visits' => 9, 'scroll_avg' => 50.0, 'time_avg' => 1000.0 ); }
 function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) { return array(); }
-function sn_analytics_top_dimension( $d, $f, $t, $c = 'human', $l = 25 ) { return array(); }
+$GLOBALS['__rest_dim'] = array(); // v9.68.1: null models the accessor's failed-read verdict
+function sn_analytics_top_dimension( $d, $f, $t, $c = 'human', $l = 25 ) { return $GLOBALS['__rest_dim']; }
 function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) { return array(); }
 function sn_analytics_granularity( $d ) { return ( (int) $d > 90 ) ? 'week' : 'day'; }
 function snt_analytics_resolve_range( $r ) { return 'all' === (string) $r ? 'all' : ( (int) $r ?: 30 ); }
@@ -60,6 +61,18 @@ ok( isset( $ep_args['methods'] ) && $ep_args['methods'] === 'GET', 'event-props 
 ok( isset( $ep_args['permission_callback'] ) && $ep_args['permission_callback'] === 'sn_analytics_rest_can_read', 'event-props permission_callback is sn_analytics_rest_can_read' );
 $ep_resp = sn_analytics_rest_event_props( new WP_REST_Request( array( 'range' => 30, 'property' => 'page' ) ) );
 ok( is_array( $ep_resp ) && isset( $ep_resp[0]['property'] ) && $ep_resp[0]['property'] === 'page', 'event-props callback passes property param through' );
+
+echo "\nGroup: v9.68.1 — dimension route: a FAILED read is an explicit error, never a silent []\n";
+$GLOBALS['__rest_dim'] = array( array( 'value' => 'AR', 'views' => 3, 'visits' => 2 ) );
+$dim_ok = sn_analytics_rest_dimension( new WP_REST_Request( array( 'range' => 30, 'dim' => 'country' ) ) );
+ok( is_array( $dim_ok ) && 'AR' === ( $dim_ok[0]['value'] ?? '' ), 'dimension: healthy rows pass through' );
+$GLOBALS['__rest_dim'] = null; // the accessor's failed-read verdict
+$dim_fail = sn_analytics_rest_dimension( new WP_REST_Request( array( 'range' => 30, 'dim' => 'country' ) ) );
+ok( $dim_fail instanceof WP_Error, 'dimension: a failed read (accessor null) returns a WP_Error — never an empty-window []' );
+ok( 500 === (int) ( $dim_fail->d['status'] ?? 0 ), 'dimension: the error carries HTTP 500 (a server-side read fault)' );
+$GLOBALS['__rest_dim'] = array();
+ok( array() === sn_analytics_rest_dimension( new WP_REST_Request( array( 'range' => 30, 'dim' => 'country' ) ) ),
+	'dimension: an EMPTY window still serves [] (an answer, not an error)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

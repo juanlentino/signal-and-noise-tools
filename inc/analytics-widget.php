@@ -239,6 +239,17 @@ function sn_aw_sources( $standalone = true ) {
 		return;
 	}
 	list( $from, $to ) = sn_aw_window7();
+	// v9.68.1: null = the durable dims read FAILED (the accessors' contract) —
+	// say so instead of impersonating a referrer-less week; [] keeps the
+	// honest empty copy below. (Also keeps array_map off a null.)
+	$srcs = sn_analytics_top_sources( $from, $to, 'human', 7 );
+	if ( ! is_array( $srcs ) ) {
+		sn_aw_kv_list( array(), __( 'The durable referrer rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+		if ( $standalone ) {
+			sn_aw_footer();
+		}
+		return;
+	}
 	// Brand-folded sources (self-referrals + www + multi-host providers collapsed).
 	// A source with member hosts deep-links into the full Analytics page drilled to
 	// that source ("Top pages where source = X"); (direct) has no hosts → plain text.
@@ -250,7 +261,7 @@ function sn_aw_sources( $standalone = true ) {
 			)
 			: '';
 		return array( 'k' => $r['value'], 'v' => $r['views'], 'href' => $href );
-	}, sn_analytics_top_sources( $from, $to, 'human', 7 ) );
+	}, $srcs );
 	sn_aw_kv_list( $rows, __( 'No referrers in the last 7 days.', 'signal-and-noise-tools' ) );
 	if ( $standalone ) {
 		sn_aw_footer();

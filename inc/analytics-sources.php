@@ -202,16 +202,23 @@ function sn_analytics_source_category_of_label( $label ) {
  * and slices to $limit. '(direct)' never carries member hosts — it aggregates but
  * is not drillable.
  *
+ * Contract (v9.68.1): null = the underlying dims read FAILED (propagated —
+ * a database failure must not fold into an empty source list); [] = an empty
+ * window, which is an ANSWER.
+ *
  * @param string $from  YYYY-MM-DD.
  * @param string $to    YYYY-MM-DD.
  * @param string $class Traffic class.
  * @param int    $limit Max rows (1..500).
- * @return array<int, array{value:string, views:int, visits:int, hosts:array<int,string>}>
+ * @return array<int, array{value:string, views:int, visits:int, hosts:array<int,string>}>|null
  */
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 	$raw = function_exists( 'sn_analytics_top_dimension' )
 		? sn_analytics_top_dimension( 'referrer', $from, $to, $class, 500 )
 		: array();
+	if ( null === $raw ) {
+		return null; // v9.68.1: the accessor's failed-read verdict propagates.
+	}
 	$self = function_exists( 'sn_analytics_self_hosts' ) ? sn_analytics_self_hosts() : array();
 
 	$acc = array();
@@ -268,7 +275,14 @@ function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
  * @return array<int, string>
  */
 function sn_analytics_source_hosts( $label, $from, $to, $class = 'human' ) {
-	foreach ( sn_analytics_top_sources( $from, $to, $class, 500 ) as $row ) {
+	$rows = sn_analytics_top_sources( $from, $to, $class, 500 );
+	if ( ! is_array( $rows ) ) {
+		// v9.68.1 fail-CLOSED: on a failed read the whitelist cannot be
+		// verified, so no label resolves — the drill-down rejects (its own
+		// null/empty state) rather than querying AE on a guessed host set.
+		return array();
+	}
+	foreach ( $rows as $row ) {
 		if ( (string) $row['value'] === (string) $label ) {
 			return $row['hosts'];
 		}

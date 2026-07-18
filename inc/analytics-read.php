@@ -423,10 +423,13 @@ function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity =
  * Per-bucket view series for a set of dimension values, in ONE batched query
  * (avoids an N+1 across table rows). Returns value => [{day,views}, …].
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set); [] = no
+ * series (including an empty $values set, which issues no query at all).
+ *
  * @param string   $dim
  * @param string[] $values      already-trusted top-N dimension values
  * @param string   $granularity 'day' | 'week'
- * @return array<string, array<int, array{day:string, views:int}>>
+ * @return array<string, array<int, array{day:string, views:int}>>|null
  */
 function sn_analytics_dimension_series( $dim, $values, $from, $to, $class = 'human', $granularity = 'day' ) {
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
@@ -453,12 +456,16 @@ function sn_analytics_dimension_series( $dim, $values, $from, $to, $class = 'hum
 		$args
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: a FAILED query is [] + $wpdb->last_error set
+	// (flush-per-query, so it reflects THIS read) — never an empty series map.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$map = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$v         = (string) $r['value'];
-			$map[ $v ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
-		}
+	foreach ( $results as $r ) {
+		$v           = (string) $r['value'];
+		$map[ $v ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
 	}
 	return $map;
 }

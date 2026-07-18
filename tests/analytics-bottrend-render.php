@@ -53,5 +53,22 @@ ob_start(); snt_analytics_render_bot_trend( array( array( 'day' => '2026-06-11',
 ok( strpos( $h1, ' C ' ) !== false, 'single day → visible flat line' );
 ok( strpos( $h1, 'peak 12% bot' ) !== false, 'single day → peak labelled (i18n-wrapped)' );
 
+echo "\nGroup: v9.68.1 — bot breakdown: a NULL networks list (failed dims read) says so, never a quiet omission\n";
+$bb_fail = array(
+	'totals'           => array( 'human' => 100, 'suspect' => 10, 'bot' => 30, 'total' => 140 ),
+	'top_bot_networks' => null, // sn_analytics_bot_breakdown carries the accessor's failed-read verdict through
+);
+ob_start(); snt_analytics_render_bot_breakdown( $bb_fail ); $hbf = ob_get_clean();
+ok( strpos( $hbf, 'Traffic quality' ) !== false, 'breakdown: the class totals (their own table) still render' );
+ok( strpos( $hbf, 'could not be read (read failure — not an empty window).' ) !== false,
+	'breakdown: the failed networks read renders the shared read-failure line' );
+ok( strpos( $hbf, 'Top bot networks' ) === false, 'breakdown: no half-table drawn from a failed read' );
+$bb_empty = array(
+	'totals'           => array( 'human' => 100, 'suspect' => 10, 'bot' => 30, 'total' => 140 ),
+	'top_bot_networks' => array(),
+);
+ob_start(); snt_analytics_render_bot_breakdown( $bb_empty ); $hbe = ob_get_clean();
+ok( strpos( $hbe, 'could not be read' ) === false, 'breakdown: an EMPTY networks list stays a quiet omission (the pre-existing honest shape)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

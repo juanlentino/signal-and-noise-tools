@@ -33,9 +33,19 @@ class PR_Stub_wpdb {
 			switch ( $m[0] ) { case '%d': return (string) (int) $a; case '%f': return (string) (float) $a; default: return "'" . addslashes( (string) $a ) . "'"; }
 		}, $query );
 	}
+	// v9.68.1: model the REAL wpdb error channel (a transport stub must model
+	// the transport's FAILURE shape too): query() flush()es last_error per
+	// query, and a FAILED read is [] from get_results(ARRAY_A) WITH last_error set.
+	public $last_error = '';
+	public $fail_reads = false;
 	public function query( $sql ) { $this->queries[] = $sql; return true; }
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
+		$this->last_error = '';
+		if ( $this->fail_reads ) {
+			$this->last_error = "Table 'wp_sn_analytics_page_roles' doesn't exist";
+			return array();
+		}
 		if ( ! preg_match( '/FROM\s+(\S+)/i', $sql, $tm ) ) { return array(); }
 		$rows = $this->rows[ $tm[1] ] ?? array();
 		// Filter by role if "AND role = '...'" present.
@@ -176,6 +186,26 @@ $GLOBALS['wpdb']->queries = array();
 $GLOBALS['_pr_unconfigured'] = true; // flips config stub below
 // Re-point config to return false via a swappable global.
 ok( true, 'run_rollup: unconfigured guard exercised by config()/query() function_exists checks' );
+
+echo "\nGroup: v9.68.1 null-on-failure contract (failed read must not impersonate a quiet window)\n";
+$GLOBALS['wpdb']->rows = array(); // fresh empty table — this group pins the failed-vs-empty split
+$GLOBALS['wpdb']->fail_reads = true;
+ok( null === sn_analytics_pageroles_top( 'entry', '2026-09-01', '2026-09-07' ),
+	'pageroles_top: a failed read ([] + last_error) returns NULL, never an empty-window []' );
+ok( null === sn_analytics_top_entry_pages( '2026-09-01', '2026-09-07' ),
+	'top_entry_pages: the wrapper propagates the null verdict' );
+ok( null === sn_analytics_top_exit_pages( '2026-09-01', '2026-09-07' ),
+	'top_exit_pages: the wrapper propagates the null verdict' );
+$q_before_role = count( $GLOBALS['wpdb']->queries );
+ok( array() === sn_analytics_pageroles_top( 'martian', '2026-09-01', '2026-09-07' )
+	&& count( $GLOBALS['wpdb']->queries ) === $q_before_role,
+	'unknown role: still [] with NO query — a known-empty answer, not a failure' );
+$GLOBALS['wpdb']->fail_reads = false;
+ok( array() === sn_analytics_pageroles_top( 'entry', '2026-09-01', '2026-09-07' ),
+	'recovery: the table healed → the same window reads [] (a real empty window is an ANSWER)' );
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+ok( array() === sn_analytics_pageroles_top( 'exit', '2026-09-02', '2026-09-08' ),
+	'stale: a successful read flushes a pre-existing last_error — [] stays an empty window' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

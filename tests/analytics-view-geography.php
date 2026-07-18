@@ -17,14 +17,18 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } } // snt_an_annotation's "Read" label
 
 $GLOBALS['__country_calls'] = 0;
+$GLOBALS['__geo_fail']      = false; // v9.68.1: true → the accessor returns NULL (its failed-read verdict; [] = empty window)
 function sn_analytics_top_dimension( $d, $f, $t, $c = 'human', $l = 25 ) {
 	if ( 'country' === $d ) {
 		++$GLOBALS['__country_calls'];
 	}
+	if ( $GLOBALS['__geo_fail'] ) {
+		return null;
+	}
 	return $GLOBALS['__geo'] ?? array( array( 'value' => 'AR', 'views' => 1, 'visits' => 1 ) );
 }
-function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '' ) { echo '<!--DIM:' . $title . '-->'; }
-function snt_analytics_render_choropleth( $title, $rows, $empty ) { echo '<!--MAP-->'; }
+function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '' ) { echo '<!--DIM:' . $title . ( null === $rows ? ':NULL' : '' ) . '-->'; }
+function snt_analytics_render_choropleth( $title, $rows, $empty ) { echo '<!--MAP' . ( null === $rows ? ':NULL' : '' ) . '-->'; }
 
 require_once __DIR__ . '/../inc/analytics-annotations.php'; // v9.5.0: the geography read resolver
 require_once __DIR__ . '/../inc/analytics-view-geography.php';
@@ -73,6 +77,19 @@ $all_empty = (string) ob_get_clean();
 ok( false === strpos( $all_empty, 'style="margin-top:20px"' ), 'all-empty range: no inline margin-top style on the tiles wrapper' );
 ok( false !== strpos( $all_empty, 'class="sn-geo-tiles"' ), 'tiles wrapper still renders (CSS :empty rule owns the gutter, not PHP)' );
 $GLOBALS['__geo'] = null;
+
+echo "\nTest: v9.68.1 — a FAILED dims read (accessor null) reaches every renderer as null, no fatal\n";
+$GLOBALS['__geo_fail'] = true;
+ob_start();
+snt_analytics_render_view_geography( '2026-07-01', '2026-07-07', 'human' );
+$hf = (string) ob_get_clean();
+ok( false !== strpos( $hf, '<!--MAP:NULL-->' ), 'choropleth receives NULL (its read-failure fold owns the copy)' );
+ok( false !== strpos( $hf, '<!--DIM:Countries:NULL-->' ), 'Countries table receives NULL — never an array_slice fatal, never the empty copy' );
+foreach ( array( 'Cities', 'Regions', 'Networks', 'Edge locations', 'Time zones' ) as $t ) {
+	ok( false !== strpos( $hf, '<!--DIM:' . $t . ':NULL-->' ), $t . ' tile receives NULL' );
+}
+ok( false === strpos( $hf, 'class="sn-an-note"' ), 'no annotation read is fabricated from a failed pull' );
+$GLOBALS['__geo_fail'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

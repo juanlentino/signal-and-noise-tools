@@ -76,5 +76,20 @@ echo "\nGroup: escaping\n";
 $html = capture( function () { snt_analytics_render_pageroles_table( array( array( 'path' => '/x"<script>', 'views' => 1, 'visits' => 1 ) ), 'entry' ); } );
 ok( strpos( $html, '<script>' ) === false, 'render: path is escaped' );
 
+echo "\nGroup: v9.68.1 — NULL rows (the accessor's failed-read verdict) fold with the read-failure copy\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
+$html = capture( function () { snt_analytics_render_pageroles_table( null, 'entry' ); } );
+ok( '' === $html, 'entry failed: renders no panel markup (folds like empty)' );
+$noted_n = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_n ) && 'Entry pages' === $noted_n[0]['title'], 'entry failed: registers its title in the fold' );
+ok( 'Entry pages could not be read (read failure — not an empty window).' === ( $noted_n[0]['why'] ?? '' ),
+	'entry failed: the fold why is the shared read-failure sentence — never the empty copy' );
+unset( $GLOBALS['sn_an_empty_panels'] );
+capture( function () { snt_analytics_render_pageroles_table( null, 'exit' ); } );
+$noted_x = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_x ) && 'Exit pages' === $noted_x[0]['title']
+	&& 'Exit pages could not be read (read failure — not an empty window).' === ( $noted_x[0]['why'] ?? '' ),
+	'exit failed: same treatment under the exit title' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

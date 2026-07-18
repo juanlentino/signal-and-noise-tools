@@ -41,15 +41,20 @@ function snt_analytics_render_view_campaigns( $from, $to, $class, $granularity )
 		? sn_analytics_top_utm_sources( $from, $to, $class, 25 )
 		: array();
 
-	// Trend sparklines: one batched series query per panel, keyed by the rows above.
-	$camp_values = array_map( static function ( $r ) { return (string) $r['value']; }, $campaigns );
-	$src_values  = array_map( static function ( $r ) { return (string) $r['value']; }, $sources );
+	// Trend sparklines: one batched series query per panel, keyed by the rows
+	// above. v9.68.1: a FAILED top-N read (accessor null) keys NO series
+	// (array_map over null would fatal; the renderer's read-failure fold owns
+	// the panel), and a null series result degrades to no sparklines.
+	$camp_values = is_array( $campaigns ) ? array_map( static function ( $r ) { return (string) $r['value']; }, $campaigns ) : array();
+	$src_values  = is_array( $sources ) ? array_map( static function ( $r ) { return (string) $r['value']; }, $sources ) : array();
 	$camp_series = function_exists( 'sn_analytics_utm_series' )
 		? sn_analytics_utm_series( 'campaign', $camp_values, $from, $to, $class, $granularity )
 		: array();
 	$src_series = function_exists( 'sn_analytics_utm_series' )
 		? sn_analytics_utm_series( 'source_medium', $src_values, $from, $to, $class, $granularity )
 		: array();
+	$camp_series = is_array( $camp_series ) ? $camp_series : array();
+	$src_series  = is_array( $src_series ) ? $src_series : array();
 
 	// Raw text per the collector contract — snt_an_note_empty()/flush own the
 	// escaping (esc_html__ here would double-escape the why in the fold).

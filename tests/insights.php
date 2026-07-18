@@ -184,7 +184,9 @@ if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
 }
 if ( ! function_exists( 'sn_analytics_top_dimension' ) ) {
 	function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
-		return isset( $GLOBALS['__test_an_sources'] ) ? $GLOBALS['__test_an_sources'] : array();
+		// array_key_exists, not isset — a stored NULL models the v9.68.1
+		// failed-read verdict and must reach the caller.
+		return array_key_exists( '__test_an_sources', $GLOBALS ) ? $GLOBALS['__test_an_sources'] : array();
 	}
 }
 if ( ! function_exists( 'get_bloginfo' ) ) {
@@ -974,6 +976,13 @@ $still = snt_insights_last_error();
 ins_eq( 'snt_insights_invalid_json', $still['code'], 'non-WP_Error store is a no-op (prior error untouched)' );
 snt_insights_clear_last_error();
 ins_eq( null, snt_insights_last_error(), 'clear removes the stored error' );
+
+// ─── v9.68.1: a FAILED dims read degrades to [] in the prompt payload ──
+echo "\nTest: v9.68.1 — a failed sources read (accessor null) degrades to [] in the analytics payload, no fatal\n";
+$GLOBALS['__test_an_sources'] = null; // the accessor's failed-read verdict
+$signals = snt_insights_collect_signals();
+ins_eq( array(), $signals['analytics']['sources'], 'analytics.sources is [] (safe prompt shape), never null leaking into the prompt builder' );
+unset( $GLOBALS['__test_an_sources'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

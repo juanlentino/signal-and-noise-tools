@@ -18,6 +18,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this view emits into
 
 /**
+ * One dimension panel: the top-10 rows plus (rows permitting) the batched
+ * trend series. v9.68.1: a FAILED rows read (accessor null) skips the series
+ * read (there is nothing to key it on — and array_map over null would fatal)
+ * and hands null to the renderer, whose read-failure fold owns the copy. A
+ * null SERIES (its own failed read) degrades to no sparklines — the rows
+ * table still renders.
+ *
+ * @since 9.68.1
+ * @param string $dim         Dimension key (also the drill dim).
+ * @param string $title       Panel title.
+ * @param string $empty       Empty-window copy.
+ * @param string $from        Window start (Y-m-d).
+ * @param string $to          Window end (Y-m-d).
+ * @param string $class       Traffic class.
+ * @param string $granularity 'day' | 'week' | 'month'.
+ */
+function snt_analytics_tech_dim_panel( $dim, $title, $empty, $from, $to, $class, $granularity ) {
+	$rows = sn_analytics_top_dimension( $dim, $from, $to, $class, 10 );
+	$ser  = array();
+	if ( is_array( $rows ) ) {
+		$vals = array_map( static function ( $r ) { return (string) $r['value']; }, $rows );
+		$ser  = sn_analytics_dimension_series( $dim, $vals, $from, $to, $class, $granularity );
+	}
+	snt_analytics_render_dim_table( $title, $rows, $empty, is_array( $ser ) ? $ser : array(), $dim );
+}
+
+/**
  * Render the Technology view body.
  *
  * @param string $from        Window start (Y-m-d).
@@ -27,26 +54,11 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  */
 function snt_analytics_render_view_technology( $from, $to, $class, $granularity ) {
 	echo '<div class="sn-an-grid">';
-	$brow_rows = sn_analytics_top_dimension( 'browser', $from, $to, $class, 10 );
-	$brow_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $brow_rows );
-	$brow_ser  = sn_analytics_dimension_series( 'browser', $brow_vals, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( __( 'Browsers', 'signal-and-noise-tools' ), $brow_rows, __( 'No browser data in this range yet.', 'signal-and-noise-tools' ), $brow_ser, 'browser' );
-	$os_rows = sn_analytics_top_dimension( 'os', $from, $to, $class, 10 );
-	$os_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $os_rows );
-	$os_ser  = sn_analytics_dimension_series( 'os', $os_vals, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( __( 'Operating systems', 'signal-and-noise-tools' ), $os_rows, __( 'No OS data in this range yet.', 'signal-and-noise-tools' ), $os_ser, 'os' );
-	$dev_rows = sn_analytics_top_dimension( 'device', $from, $to, $class, 10 );
-	$dev_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $dev_rows );
-	$dev_ser  = sn_analytics_dimension_series( 'device', $dev_vals, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( __( 'Devices', 'signal-and-noise-tools' ), $dev_rows, __( 'No device data in this range.', 'signal-and-noise-tools' ), $dev_ser, 'device' );
-	$pro_rows = sn_analytics_top_dimension( 'protocol', $from, $to, $class, 10 );
-	$pro_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $pro_rows );
-	$pro_ser  = sn_analytics_dimension_series( 'protocol', $pro_vals, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( __( 'Protocols', 'signal-and-noise-tools' ), $pro_rows, __( 'No protocol data in this range yet.', 'signal-and-noise-tools' ), $pro_ser, 'protocol' );
-	$tls_rows = sn_analytics_top_dimension( 'tls', $from, $to, $class, 10 );
-	$tls_vals = array_map( static function ( $r ) { return (string) $r['value']; }, $tls_rows );
-	$tls_ser  = sn_analytics_dimension_series( 'tls', $tls_vals, $from, $to, $class, $granularity );
-	snt_analytics_render_dim_table( __( 'TLS versions', 'signal-and-noise-tools' ), $tls_rows, __( 'No TLS data in this range yet.', 'signal-and-noise-tools' ), $tls_ser, 'tls' );
+	snt_analytics_tech_dim_panel( 'browser', __( 'Browsers', 'signal-and-noise-tools' ), __( 'No browser data in this range yet.', 'signal-and-noise-tools' ), $from, $to, $class, $granularity );
+	snt_analytics_tech_dim_panel( 'os', __( 'Operating systems', 'signal-and-noise-tools' ), __( 'No OS data in this range yet.', 'signal-and-noise-tools' ), $from, $to, $class, $granularity );
+	snt_analytics_tech_dim_panel( 'device', __( 'Devices', 'signal-and-noise-tools' ), __( 'No device data in this range.', 'signal-and-noise-tools' ), $from, $to, $class, $granularity );
+	snt_analytics_tech_dim_panel( 'protocol', __( 'Protocols', 'signal-and-noise-tools' ), __( 'No protocol data in this range yet.', 'signal-and-noise-tools' ), $from, $to, $class, $granularity );
+	snt_analytics_tech_dim_panel( 'tls', __( 'TLS versions', 'signal-and-noise-tools' ), __( 'No TLS data in this range yet.', 'signal-and-noise-tools' ), $from, $to, $class, $granularity );
 	echo '</div>';
 	snt_an_flush_empty_fold();
 }

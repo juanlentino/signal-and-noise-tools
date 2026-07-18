@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.68.1] - 2026-07-18: Durable-table accessors learn null-on-failure — failed reads stop impersonating quiet weeks
+
+PATCH (failure-honesty fix, owner-approved). The durable-table top-N accessors returned `[]` for BOTH a failed wpdb read and an empty window, so every OLDER tab (Content, Campaigns, Geography, Technology, the Quality bot-networks list, the dashboard sources widget, the REST dimension route) rendered a database failure as a quiet period — the v9.65.0 conflation class. The v9.68.0 Overview guarded against it view-locally with a `last_error`/`num_queries` bracket; this release upgrades the CONTRACT at the source instead, so every surface inherits the honesty.
+
+### The contract (upgraded at the source)
+
+Every read accessor over `wp_sn_analytics_dims` / `wp_sn_analytics_utm` / `wp_sn_analytics_page_roles` now consults `$wpdb->last_error` after its query (real wpdb reports a FAILED read as `[]` from `get_results(ARRAY_A)` WITH `last_error` set, flushed per query so it reflects that read alone) and returns **null = failed read, `[]` = empty window (an ANSWER)**:
+
+- `sn_analytics_top_dimension()` (`inc/analytics-dims.php`) — failures never memoized (the next caller re-asks; a stored null would be invisible to the `isset()` memo anyway); an unknown dim stays `[]` (no query — a known-empty answer).
+- `sn_analytics_dimension_series()` (`inc/analytics-read.php`) — an empty value list stays `[]` with no query.
+- `sn_analytics_top_utm_campaigns()`, `sn_analytics_top_utm_sources()`, `sn_analytics_utm_series()` (`inc/analytics-utm.php`).
+- `sn_analytics_pageroles_top()` + the `sn_analytics_top_entry_pages()` / `sn_analytics_top_exit_pages()` wrappers (`inc/analytics-pageroles.php`) — an unknown role stays `[]`.
+- Derived wrappers propagate: `sn_analytics_top_sources()` → null (a failed dims read must not fold into an empty source list); `sn_analytics_referrer_categories()` → null (never four fabricated zero-filled categories); `sn_analytics_bot_breakdown()` carries `top_bot_networks: null` through beside its independently-read class totals. `sn_analytics_source_hosts()` fails CLOSED to `[]` (an unverifiable whitelist resolves no label — the drill-down rejects instead of querying AE on a guess).
+
+### Every caller null-safe (a missed one would fatal on `foreach`/`array_map`)
+
+- **One shared sentence** — `snt_an_read_failed_copy()` (`inc/analytics-panels.php`), extracted from the v9.68.0 Overview folds ("… could not be read (read failure — not an empty window)."), so the wording can never fork per surface; the Overview's own fold copy now composes through it, byte-identical.
+- **Renderers own the fold**: `snt_analytics_render_dim_table()`, `snt_analytics_render_pageroles_table()`, `snt_analytics_render_choropleth()`, `snt_analytics_render_referrer_categories()` fold null rows with the read-failure copy (never the empty-window copy); `snt_analytics_render_bot_breakdown()` prints the failure line for a null networks list instead of a quiet omission (`array_key_exists`, not `isset` — the null-vs-absent rule).
+- **Views hand null through and skip dependent reads**: Technology (new `snt_analytics_tech_dim_panel()` — a failed top-N skips its series read; a failed series degrades to no sparklines), Geography (the 250-row country pull guarded — `array_slice` over null was a fatal), Campaigns (`array_map` guards + series normalization), Content (null-safe via the renderers; verified, no code change needed).
+- **Overview simplification**: `snt_analytics_overview_read_guarded()` drops the `last_error`/`num_queries` bracket entirely — the accessors' own verdict is the one failure signal (nothing else needed the transport channel); same `{rows, failed}` shape, so the render body is untouched.
+- **Dashboard sources widget** (`sn_aw_sources`): a failed read renders the read-failure line, never "No referrers in the last 7 days."
+- **REST** `GET /analytics/dimension/<dim>`: a failed read returns `WP_Error sn_analytics_read_failed` (HTTP 500), never a silent `[]`; an empty window still serves `[]`.
+- **AI prompt payloads** (`inc/insights.php`, `inc/insights-narration.php`): a failed read degrades to `[]` (the safe prompt shape — the dashboard carries the honest fold). Audited no-change: `inc/analytics-signals.php` (`(array)` casts + `?? array()`), `inc/analytics-drilldown.php` (fails closed via the whitelist), `inc/desktop-mode-integration.php` (already `is_array`-guarded). No `get-analytics-*` ability calls these accessors (verified by grep) — MCP surfaces are untouched.
+
+### Tests (RED-first)
+
+~90 new/updated assertions across 21 suites: every accessor's wpdb stub now models the REAL failure shape (`[]` + `last_error` set, flush-per-query — the transport-transform rule), and pins cover null-on-failure, no-memoized-failure, empty-still-`[]`, stale-error flushing, renderer fold copy both directions, view null-handoff + skipped series reads, widget/REST/drilldown/insights degradation, and the simplified Overview guard. Fixture stubs that stored fixtures behind `??`/`isset()` switched to `array_key_exists` so a stored null (the failed-read verdict) actually reaches the caller. Full sweep: 309 suites, 10,862 assertions, green; phpcs clean.
+
 ## [9.68.0] - 2026-07-18: The Overview lands — wired, tightened, default
 
 The product payoff of the analytics-integrity arc. Everything the arc built — the honest v9.63 vocabulary (v9.63.0→v9.64.0), the served session trends + the disambiguated units (v9.65.0), the durable exit-page feed (v9.66.0), and the owner-approved v9.67.0 design mock — now composes into ONE default landing surface: open Dashboard → Analytics and the whole site is in front of you, every number real, every unknown honest. MINOR: a new default user-visible surface; no API/schema breaks (retired slugs fall back, existing tabs untouched).

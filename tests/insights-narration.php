@@ -92,7 +92,12 @@ if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 	function sn_analytics_top_paths( $f, $t, $c = 'human', $l = 25 ) { return array( array( 'path' => '/notes/x', 'views' => 420, 'visits' => 300, 'scroll_avg' => 70, 'time_avg' => 55 ) ); }
 }
 if ( ! function_exists( 'sn_analytics_top_sources' ) ) {
-	function sn_analytics_top_sources( $f, $t, $c = 'human', $l = 10 ) { return array( array( 'value' => 'Hacker News', 'views' => 210, 'visits' => 180, 'hosts' => array( 'news.ycombinator.com' ) ) ); }
+	function sn_analytics_top_sources( $f, $t, $c = 'human', $l = 10 ) {
+		// array_key_exists, not ?? — a stored NULL models the v9.68.1 failed-read verdict.
+		return array_key_exists( '__nar_top_sources', $GLOBALS )
+			? $GLOBALS['__nar_top_sources']
+			: array( array( 'value' => 'Hacker News', 'views' => 210, 'visits' => 180, 'hosts' => array( 'news.ycombinator.com' ) ) );
+	}
 }
 if ( ! function_exists( 'sn_analytics_top_events' ) ) {
 	function sn_analytics_top_events( $f, $t, $l = 25 ) { return array( array( 'name' => 'RSS Feed Request', 'events' => 90, 'visitors' => 40 ) ); }
@@ -407,6 +412,13 @@ ok( is_callable( $added_timeout ) && SN_NARRATION_HTTP_TIMEOUT === $added_timeou
 $removed_same = false;
 foreach ( $GLOBALS['__filters_removed'] as $f ) { if ( 'http_request_timeout' === $f[0] && $f[1] === $added_timeout ) { $removed_same = true; } }
 ok( $removed_same, 'the SAME filter is removed after the call (never left registered → no leak onto other requests)' );
+
+// ── v9.68.1: a FAILED sources read degrades to [] in the prompt signals ──
+echo "\nTest: v9.68.1 — a failed top_sources read (accessor null) degrades to [] in the signals, no fatal\n";
+$GLOBALS['__nar_top_sources'] = null;
+$s = snt_narration_collect_signals();
+eq( array(), $s['top_sources'], 'top_sources is [] (safe prompt shape) when the durable read failed' );
+unset( $GLOBALS['__nar_top_sources'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

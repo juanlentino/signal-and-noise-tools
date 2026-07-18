@@ -30,11 +30,15 @@ function snt_analytics_render_view_geography( $from, $to, $class ) {
 	// a couple of markets; D5 §5: sn_analytics_top_dimension() orders by
 	// views DESC in SQL before LIMIT, so the first 10 of this 250-pull are
 	// exactly the top 10 by views — identical to a standalone limit-10 pull).
+	// v9.68.1: the accessor returns NULL for a FAILED read ([] = empty window).
+	// The annotation resolver is null-safe internally; the choropleth + the
+	// Countries table each own a read-failure fold, so null passes straight
+	// through (array_slice over null would fatal — hence the guard).
 	$countries = sn_analytics_top_dimension( 'country', $from, $to, $class, 250 );
 	snt_an_annotation( sn_annotation_geography( $countries ) );
 	echo '<div class="sn-geo-split">';
 	snt_analytics_render_choropleth( __( 'World map', 'signal-and-noise-tools' ), $countries, __( 'No country data in this range yet.', 'signal-and-noise-tools' ) );
-	snt_analytics_render_dim_table( __( 'Countries', 'signal-and-noise-tools' ), array_slice( $countries, 0, 10 ), __( 'No country data in this range.', 'signal-and-noise-tools' ), array(), 'country' );
+	snt_analytics_render_dim_table( __( 'Countries', 'signal-and-noise-tools' ), is_array( $countries ) ? array_slice( $countries, 0, 10 ) : $countries, __( 'No country data in this range.', 'signal-and-noise-tools' ), array(), 'country' );
 	echo '</div>';
 	// D5 §6: the 20px gutter above this grid lives in CSS (.sn-geo-tiles), not an
 	// inline style — assets/analytics/analytics-admin.css collapses it via

@@ -105,6 +105,12 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
  *                           cannot be stubbed). Null loads the vendored asset.
  */
 function snt_analytics_render_choropleth( $title, $rows, $empty, $svg = null ) {
+	if ( null === $rows ) {
+		// v9.68.1: null = the accessor's failed-read verdict — the read-failure
+		// fold, never the empty-window copy.
+		snt_an_note_empty( $title, snt_an_read_failed_copy( $title ) );
+		return;
+	}
 	$views = array();
 	$names = array();
 	foreach ( (array) $rows as $r ) {

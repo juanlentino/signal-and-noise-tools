@@ -74,6 +74,14 @@ function snt_analytics_render_paths_table( $paths ) {
  * }
  */
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill_dim = '', $visible = 5, $opts = array() ) {
+	if ( null === $rows ) {
+		// v9.68.1: the accessors report a FAILED wpdb read as null ([] stays
+		// the honest empty window) — fold with the shared read-failure copy,
+		// never the $empty copy (a database failure must not impersonate a
+		// quiet range).
+		snt_an_note_empty( $title, snt_an_read_failed_copy( $title ) );
+		return;
+	}
 	if ( empty( $rows ) ) {
 		snt_an_note_empty( $title, $empty );
 		return;
@@ -239,6 +247,12 @@ function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', 
 		? __( 'No exit pages in this range yet.', 'signal-and-noise-tools' )
 		: __( 'No entry pages in this range yet.', 'signal-and-noise-tools' );
 
+	if ( null === $rows ) {
+		// v9.68.1: null = the accessor's failed-read verdict — the read-failure
+		// fold, never the empty-window copy.
+		snt_an_note_empty( $title, snt_an_read_failed_copy( $title ) );
+		return;
+	}
 	if ( empty( $rows ) ) {
 		snt_an_note_empty( $title, $empty );
 		return;

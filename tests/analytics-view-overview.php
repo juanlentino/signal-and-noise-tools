@@ -14,12 +14,12 @@
  *    live session-engine AE fetch (50k cap) and every other AE path are
  *    NEVER called on render.
  *  - NULL DISCIPLINE per panel: the session-rollup panels distinguish a
- *    failed read (accessor null) from an empty window ([]); the six dim/UTM/
- *    pageroles minis — whose accessors return [] for BOTH — are bracketed
- *    view-locally with a $wpdb->last_error before/after snapshot, so a failed
- *    read renders "could not be read" (never an empty week) while empty +
- *    no-error keeps the empty-window copy; realtime null is "warming", never
- *    a fabricated 0.
+ *    failed read (accessor null) from an empty window ([]); since v9.68.1 the
+ *    six dim/UTM/pageroles minis' accessors self-report the same contract
+ *    (null = failed wpdb read, [] = empty window — the v9.68.0 view-local
+ *    last_error bracket is retired), so a failed read renders "could not be
+ *    read" (never an empty week) while [] keeps the empty-window copy;
+ *    realtime null is "warming", never a fabricated 0.
  *  - Window/class contract: panels pass the header's $from/$to/$class where
  *    their accessor supports it; the 8-week session trend is a fixed-LENGTH
  *    window ANCHORED at the range end (labeled with its actual endpoint;
@@ -72,16 +72,14 @@ function remove_query_arg( $keys, $url ) {
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
 $_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 
-// ---- wpdb stub: F1 view-local failure detection reads $wpdb->last_error ----
-// Models REAL wpdb (wp-includes/class-wpdb.php, verified): query() calls
-// flush() FIRST, and flush() resets last_error to '' — so after any query,
-// last_error reflects THAT query alone (a successful read CLEARS a stale
-// error); a FAILED query comes back from get_results(ARRAY_A) as [] WITH
-// last_error set; and num_queries increments unconditionally per executed
-// query (wpdb::_do_query()) — the disambiguator when two consecutive reads
-// of the SAME table fail with byte-identical messages. ov_db_read() applies
-// that transform to every durable-table accessor stub below (a stub for a
-// transport must model the transport's TRANSFORM, not just record the call).
+// ---- wpdb stub -------------------------------------------------------------
+// Since v9.68.1 the durable-table accessors consult $wpdb->last_error
+// THEMSELVES and resolve a failed read to null before returning, so the view
+// no longer reads last_error — but the stub still models the real transport
+// underneath (flush-per-query, [] + last_error on failure, num_queries
+// increment) so a stale error can never be misread by anything downstream
+// (a stub for a transport must model the transport's TRANSFORM, not just
+// record the call).
 $GLOBALS['wpdb']              = new stdClass();
 $GLOBALS['wpdb']->last_error  = '';
 $GLOBALS['wpdb']->num_queries = 0;
@@ -102,14 +100,14 @@ $GLOBALS['__ov'] = array(
 	'win'            => array(), // family => "from|to" => rows: per-window overrides (part 4: prior windows carry their own fixture)
 );
 
-/** Model one wpdb-backed read: flush (clears last_error), count the query, then fixture-driven failure ([] + last_error set) or success. */
+/** Model one wpdb-backed read the v9.68.1 way: flush (clears last_error), count the query, then fixture-driven failure (the transport's [] + last_error, which the REAL accessor resolves to NULL before returning) or success. */
 function ov_db_read( $fn, $win, $result ) {
 	$GLOBALS['wpdb']->last_error = ''; // wpdb::query() → flush() resets it per query.
 	++$GLOBALS['wpdb']->num_queries; // wpdb::_do_query() counts every executed query.
 	$fail = $GLOBALS['__ov']['fail'][ $fn ] ?? false;
 	if ( true === $fail || ( is_array( $fail ) && in_array( $win, $fail, true ) ) ) {
-		$GLOBALS['wpdb']->last_error = "Table 'wp_sn_" . $fn . "' doesn't exist";
-		return array(); // real get_results(ARRAY_A) failure shape: [] beside last_error.
+		$GLOBALS['wpdb']->last_error = "Table 'wp_sn_" . $fn . "' doesn't exist"; // the transport shape underneath ([] + last_error)…
+		return null; // …which the accessor's own last_error consult resolves to null (the v9.68.1 contract).
 	}
 	if ( isset( $GLOBALS['__ov']['win'][ $fn ][ $win ] ) ) {
 		return $GLOBALS['__ov']['win'][ $fn ][ $win ];
@@ -272,48 +270,27 @@ $wb4 = snt_analytics_overview_weekly_bounce( $TREND_ROWS );
 ok( 2 === count( $wb4 ) && false === ( $wb4[0]['partial'] ?? null ) && false === ( $wb4[1]['partial'] ?? null ),
 	'bounds: no bounds given → no trimming, no partial flags (back-compat; the typed shape still carries partial:false)' );
 
-echo "\nGroup: F1 unit — snt_analytics_overview_read_guarded (the last_error bracket)\n";
-// The dims/UTM/pageroles accessors return [] for BOTH a failed read and an
-// empty window; real wpdb reports failure as [] + last_error, reset per query
-// by flush(). The bracket treats only a CHANGED/newly-set value as THIS
-// read's failure, so a stale error from an earlier unrelated query is never
-// inherited (the clear-read baseline).
-$GLOBALS['wpdb']->last_error = '';
+echo "\nGroup: F1 unit — snt_analytics_overview_read_guarded (accessor null-on-failure, v9.68.1)\n";
+// Since v9.68.1 the dims/UTM/pageroles accessors consult $wpdb->last_error
+// themselves and return null for a FAILED read ([] = the honest empty
+// window), so the v9.68.0 last_error/num_queries bracket is retired: the
+// helper only normalizes the accessor's own tri-state verdict.
+$g = snt_analytics_overview_read_guarded( function () { return null; } );
+ok( true === $g['failed'] && array() === $g['rows'], 'guard: an accessor null (its failed-read verdict) is a FAILURE, rows normalized to []' );
+$g = snt_analytics_overview_read_guarded( function () { return array(); } );
+ok( false === $g['failed'] && array() === $g['rows'], 'guard: [] is an honest EMPTY window, never a failure' );
 $g = snt_analytics_overview_read_guarded( function () {
-	$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
-	return array();
-} );
-ok( true === $g['failed'] && array() === $g['rows'], 'guard: a read that newly sets last_error beside [] is a FAILURE, not an empty window' );
-$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
-$g = snt_analytics_overview_read_guarded( function () {
-	return array(); // performs no query at all (memo hit / early return) — last_error untouched.
-} );
-ok( false === $g['failed'], 'guard: an UNCHANGED stale error is NOT this read\'s failure (clear-read baseline)' );
-$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
-$g = snt_analytics_overview_read_guarded( function () {
-	$GLOBALS['wpdb']->last_error = ''; // real wpdb: a successful query flush()es the stale error away.
 	return array( array( 'value' => 'x', 'views' => 1, 'visits' => 1 ) );
 } );
-ok( false === $g['failed'] && 1 === count( $g['rows'] ), 'guard: a successful query CLEARS a stale error (wpdb flush per query) — rows served, no failure' );
-$GLOBALS['wpdb']->last_error = 'error A';
-$g = snt_analytics_overview_read_guarded( function () {
-	$GLOBALS['wpdb']->last_error = 'error B';
-	return array();
-} );
-ok( true === $g['failed'], 'guard: a CHANGED error is this read\'s own failure (a different query failed here)' );
-$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
-$g = snt_analytics_overview_read_guarded( function () {
-	// A SECOND failing read of the SAME table (the Geography→Devices case):
-	// flush clears, the fresh query re-sets the byte-IDENTICAL message — only
-	// the query counter betrays that a new query ran and failed.
-	++$GLOBALS['wpdb']->num_queries;
-	$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_dims' doesn't exist";
-	return array();
-} );
-ok( true === $g['failed'], 'guard: an IDENTICAL message from a FRESH query is still this read\'s failure (num_queries tiebreaker — consecutive same-table failures)' );
-$g = snt_analytics_overview_read_guarded( function () { return null; } );
-ok( array() === $g['rows'], 'guard: a non-array accessor result normalizes to [] (defence in depth)' );
+ok( false === $g['failed'] && 1 === count( $g['rows'] ), 'guard: rows pass through untouched' );
+// A stale pre-existing wpdb error is structurally invisible now: the verdict
+// is the accessor's OWN return value, so nothing can be inherited.
+$GLOBALS['wpdb']->last_error = 'stale error from an EARLIER unrelated query';
+$g = snt_analytics_overview_read_guarded( function () { return array(); } );
+ok( false === $g['failed'], 'guard: a stale last_error cannot be misattributed — only the accessor verdict counts' );
 $GLOBALS['wpdb']->last_error = '';
+$g = snt_analytics_overview_read_guarded( function () { return false; } );
+ok( true === $g['failed'] && array() === $g['rows'], 'guard: any non-array result reads as a failure, never as an empty window (unknown is not a clean answer)' );
 
 echo "\nGroup: full render — every panel wired to its accessor\n";
 $GLOBALS['__ov']['session_rollup'] = array(
@@ -511,12 +488,12 @@ foreach ( array( 'Top sources', 'Campaigns (UTM)', 'Geography', 'Devices', 'Entr
 }
 ok( substr_count( $html_folds, 'sn-an-postbox' ) <= 3, 'folds: no hollow mini panels drawn (only session quality + right now stay open)' );
 
-echo "\nGroup: F1 — a FAILED mini read says so (view-local last_error bracketing)\n";
-// The six dim/UTM/pageroles minis' accessors return [] for both failure and
-// empty; before this fix a failed wpdb read was served as an honest-empty
-// window. Pinned both directions per panel family.
-// (a) dims family (sources + campaigns + geography + devices): last_error
-// newly set + [] returned → "could not be read", NOT the empty-window copy.
+echo "\nGroup: F1 — a FAILED mini read says so (accessor null-on-failure, v9.68.1)\n";
+// The six dim/UTM/pageroles minis' accessors self-report a failed wpdb read
+// as null ([] = the honest empty window); before v9.68.0 a failed read was
+// served as an honest-empty window. Pinned both directions per panel family.
+// (a) dims family (sources + campaigns + geography + devices): accessor null
+// → "could not be read", NOT the empty-window copy.
 $GLOBALS['__ov']['session_rollup'] = array(
 	'2026-07-11|2026-07-17' => $RANGE_ROWS,
 	'2026-05-23|2026-07-17' => $TREND_ROWS,
@@ -549,7 +526,7 @@ ok( strpos( $html_prfail, 'Entry pages' ) !== false && strpos( $html_prfail, 'Ex
 	'fail: the failed panels are still NAMED in the fold (never silently dropped)' );
 
 // (c) mixed: one failure never bleeds into a neighbor's SUCCESSFUL empty read
-// (per-read bracketing — last_error is snapshotted around EACH call).
+// (each accessor returns its OWN verdict — nothing shared to contaminate).
 $GLOBALS['__ov']['campaigns'] = array();
 $GLOBALS['__ov']['fail']      = array( 'sources' => true );
 $html_mixed = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );

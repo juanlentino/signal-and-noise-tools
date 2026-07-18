@@ -95,5 +95,14 @@ ok( strpos( $real, 'class="postbox sn-an-postbox sn-an-choropleth"' ) !== false,
 	'render: choropleth panel adopts the primitive and keeps its sn-an-choropleth class' );
 ok( strpos( $real, '<span>Countries map</span>' ) !== false, 'render: choropleth title stays pinned' );
 
+echo "\nGroup: v9.68.1 — NULL rows (the accessor's failed-read verdict) fold with the read-failure copy\n";
+unset( $GLOBALS['sn_an_empty_panels'] );
+$failed = capture( function () { snt_analytics_render_choropleth( 'Countries map', null, 'No country data in this range yet.' ); } );
+ok( '' === trim( $failed ), 'render: null rows → folds, no panel, no fatal' );
+$noted_f = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
+ok( 1 === count( $noted_f ) && 'Countries map' === $noted_f[0]['title'], 'render: null rows → title noted for the fold' );
+ok( 'Countries map could not be read (read failure — not an empty window).' === ( $noted_f[0]['why'] ?? '' ),
+	'render: null rows → the shared read-failure sentence, never the empty-window copy' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

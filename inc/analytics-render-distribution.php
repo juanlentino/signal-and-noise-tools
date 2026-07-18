@@ -24,6 +24,16 @@ require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_fmt_tim
  * @param array $cats [{category,label,views,visits}]
  */
 function snt_analytics_render_referrer_categories( $cats ) {
+	if ( null === $cats ) {
+		// v9.68.1: null = the underlying dims read FAILED (propagated by
+		// sn_analytics_referrer_categories) — the read-failure fold, never
+		// the "No referrer data" empty copy.
+		snt_an_note_empty(
+			__( 'Referrer categories', 'signal-and-noise-tools' ),
+			snt_an_read_failed_copy( __( 'Referrer categories', 'signal-and-noise-tools' ) )
+		);
+		return;
+	}
 	$total = 0;
 	foreach ( (array) $cats as $c ) {
 		$total += (int) ( $c['views'] ?? 0 );

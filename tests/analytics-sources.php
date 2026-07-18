@@ -21,7 +21,10 @@ $GLOBALS['__src_series'] = array();   // host → [{day,views}]
 $GLOBALS['__src_dim_calls'] = array();
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) {
 	$GLOBALS['__src_dim_calls'][] = array( $dim, $from, $to, $class, $limit );
-	return $GLOBALS['__src_dim'][ $dim . '|' . $class ] ?? array();
+	// array_key_exists, not ?? — a stored NULL is the v9.68.1 failed-read
+	// verdict and must reach the caller (?? would silently swap it for []).
+	$key = $dim . '|' . $class;
+	return array_key_exists( $key, $GLOBALS['__src_dim'] ) ? $GLOBALS['__src_dim'][ $key ] : array();
 }
 function sn_analytics_dimension_series( $dim, $values, $from, $to, $class = 'human', $granularity = 'day' ) {
 	$out = array();
@@ -134,6 +137,18 @@ foreach ( $ser['Google'] as $pt ) { $g[ $pt['day'] ] = $pt['views']; }
 ok( $g['2026-06-01'] === 70 && $g['2026-06-02'] === 40, 'series: Google sums google.com + news.google.com per day' );
 ok( isset( $ser['X'] ) && $ser['X'][0]['views'] === 50, 'series: X from t.co' );
 ok( ! isset( $ser['(direct)'] ), 'series: (direct) has no member hosts → no series row' );
+
+echo "\nGroup: v9.68.1 null-on-failure propagation (failed dims read must not fold into a quiet source list)\n";
+$GLOBALS['__src_dim']['referrer|human'] = null; // the accessor's failed-read verdict
+ok( null === sn_analytics_top_sources( '2026-09-01', '2026-09-07', 'human', 5 ),
+	'top_sources: a failed underlying dims read (null) propagates as NULL — never an empty source list' );
+ok( array() === sn_analytics_source_hosts( 'Google', '2026-09-01', '2026-09-07', 'human' ),
+	'source_hosts: fail-CLOSED [] on a failed read (the whitelist cannot be verified → no label resolves, no fatal)' );
+ok( array() === sn_analytics_top_sources_series( null, '2026-09-01', '2026-09-07', 'human', 'day' ),
+	'top_sources_series: null rows input → [] (no hosts to series), no fatal' );
+unset( $GLOBALS['__src_dim']['referrer|human'] );
+ok( array() === sn_analytics_top_sources( '2026-09-01', '2026-09-07', 'human', 5 ),
+	'recovery: an empty (successful) dims read still folds to [] — a real empty window stays an ANSWER' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

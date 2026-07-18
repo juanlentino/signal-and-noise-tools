@@ -157,11 +157,15 @@ function sn_analytics_pageroles_upsert( $rows ) {
  * Read accessor: top paths for one $role across an inclusive [$from,$to] day
  * range, ordered by views descending.
  *
+ * Contract (v9.68.1): null = the read FAILED ($wpdb->last_error set — never
+ * served as an empty window); [] = an empty window, which is an ANSWER. An
+ * unknown $role also returns [] (no query — a known-empty answer).
+ *
  * @param string $role  'entry' | 'exit'.
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max rows (1..500).
- * @return array<int, array{path:string, views:int, visits:int}>
+ * @return array<int, array{path:string, views:int, visits:int}>|null
  */
 function sn_analytics_pageroles_top( $role, $from, $to, $limit = 25 ) {
 	if ( ! in_array( $role, SN_ANALYTICS_PAGEROLES_ROLES, true ) ) {
@@ -185,38 +189,44 @@ function sn_analytics_pageroles_top( $role, $from, $to, $limit = 25 ) {
 		$limit
 	), ARRAY_A );
 
+	// v9.68.1 failure honesty: a FAILED query is [] + $wpdb->last_error set
+	// (flush-per-query, so it reflects THIS read) — never an empty window.
+	if ( ! is_array( $results ) || '' !== (string) $wpdb->last_error ) {
+		return null;
+	}
+
 	$out = array();
-	if ( is_array( $results ) ) {
-		foreach ( $results as $r ) {
-			$out[] = array(
-				'path'   => (string) $r['path'],
-				'views'  => (int) $r['views'],
-				'visits' => (int) $r['visits'],
-			);
-		}
+	foreach ( $results as $r ) {
+		$out[] = array(
+			'path'   => (string) $r['path'],
+			'views'  => (int) $r['views'],
+			'visits' => (int) $r['visits'],
+		);
 	}
 	return $out;
 }
 
 /**
- * Top entry (landing) pages — convenience wrapper over sn_analytics_pageroles_top().
+ * Top entry (landing) pages — convenience wrapper over sn_analytics_pageroles_top()
+ * (v9.68.1 contract propagated: null = failed read, [] = empty window).
  *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max rows (1..500), default 25.
- * @return array<int, array{path:string, views:int, visits:int}>
+ * @return array<int, array{path:string, views:int, visits:int}>|null
  */
 function sn_analytics_top_entry_pages( $from, $to, $limit = 25 ) {
 	return sn_analytics_pageroles_top( 'entry', $from, $to, $limit );
 }
 
 /**
- * Top exit pages — convenience wrapper over sn_analytics_pageroles_top().
+ * Top exit pages — convenience wrapper over sn_analytics_pageroles_top()
+ * (v9.68.1 contract propagated: null = failed read, [] = empty window).
  *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max rows (1..500), default 25.
- * @return array<int, array{path:string, views:int, visits:int}>
+ * @return array<int, array{path:string, views:int, visits:int}>|null
  */
 function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
 	return sn_analytics_pageroles_top( 'exit', $from, $to, $limit );

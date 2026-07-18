@@ -160,5 +160,14 @@ ok( null === sn_analytics_drilldown( 'referrer', '(direct)', '2026-06-01', '2026
 ok( null === sn_analytics_drilldown( 'referrer', 'Nope', '2026-06-01', '2026-06-30', 'human' ), 'referrer: a label not in current top sources → null (whitelist)' );
 ok( count( $GLOBALS['__dd_query_calls'] ) === 0, 'referrer: non-resolvable labels never reach AE' );
 
+echo "\nGroup: v9.68.1 — a FAILED durable read (accessor null) fails CLOSED, no fatal\n";
+dd_reset();
+$GLOBALS['__dd_top'] = null; // the accessor's failed-read verdict
+ok( null === sn_analytics_drilldown( 'country', 'US', '2026-06-01', '2026-06-07' ),
+	'drilldown: a failed whitelist read rejects (null) — never a fatal, never an unverified AE query' );
+ok( array() === $GLOBALS['__dd_query_calls'], 'drilldown: no AE query is issued when the whitelist cannot be verified' );
+ok( null === sn_analytics_drilldown( 'referrer', 'Google', '2026-06-01', '2026-06-07' ),
+	'drilldown: the referrer path (source_hosts over a failed top_sources) also fails closed to null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
