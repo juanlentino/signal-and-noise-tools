@@ -190,10 +190,15 @@ function snt_analytics_render_lowengage( $rows ) {
  * .inside.sn-an-table-inside + .wp-list-table.widefat.striped). Reuses existing
  * CSS — no new stylesheet rule needed.
  *
- * @param array  $rows [{path,views,visits}]
- * @param string $role 'entry' | 'exit'.
+ * @param array  $rows        [{path,views,visits}]
+ * @param string $role        'entry' | 'exit'.
+ * @param string $header_meta Optional small muted note right of the panel
+ *                            title (forwarded to snt_an_panel_open; kses'd
+ *                            there). '' = omitted — byte-identical output for
+ *                            the existing callers. The Overview landing uses
+ *                            it to label these tables human-only (v9.68.0).
  */
-function snt_analytics_render_pageroles_table( $rows, $role ) {
+function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '' ) {
 	$is_exit = ( 'exit' === $role );
 	$title   = $is_exit ? __( 'Exit pages', 'signal-and-noise-tools' ) : __( 'Entry pages', 'signal-and-noise-tools' );
 	$caption = $is_exit
@@ -207,7 +212,11 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 		snt_an_note_empty( $title, $empty );
 		return;
 	}
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	$panel_args = array( 'inside_class' => 'inside sn-an-table-inside' );
+	if ( '' !== (string) $header_meta ) {
+		$panel_args['header_meta'] = (string) $header_meta;
+	}
+	snt_an_panel_open( $title, $panel_args );
 	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'

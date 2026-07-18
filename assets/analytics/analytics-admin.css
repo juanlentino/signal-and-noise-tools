@@ -655,3 +655,15 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
    footer note reuses the muted diagnostic voice. Light-only, per the lock. */
 .sn-an-lab-badge { display: inline-block; padding: 1px 8px; border: 1px solid #dba617; border-radius: var(--sn-an-radius); background: #fcf9e8; color: #8a6116; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
 .sn-an-lab-note { margin: 16px 0 4px; color: #646970; font-size: 12px; max-width: 72em; }
+
+/* ── Overview landing (v9.68.0): the wired default tab's layout. ──
+   Balanced bento midsection (sources + campaigns left, geography + devices
+   right), a compact realtime strip, and the entry/exit pair. Light-only. */
+.sn-an-overview-bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.sn-an-bento-col { min-width: 0; display: grid; gap: 18px; align-content: start; }
+.sn-an-bento-col > .postbox { margin-bottom: 0; }
+.sn-an-overview-pair { margin-top: 18px; }
+/* Compact "Right now": two slim cards, not the full six-column KPI grid. */
+.sn-an-rightnow .sn-kpi-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.sn-an-rightnow .sn-kpi { flex: 0 1 240px; }
+@media screen and (max-width: 960px) { .sn-an-overview-bento { grid-template-columns: 1fr; } }
