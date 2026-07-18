@@ -44,9 +44,14 @@
  * 25 × scroll_events IS the sum of per-view max depths, so
  * `scroll_avg_per_view` = 25 × scroll_events / views is the TRUE mean max
  * scroll depth (0–100) — same identity per visitor-day for
- * `scroll_avg_per_visit`. `scroll_sum` stays stored and passed through
- * upstream as-is (the documented raw milestone-point sum) but feeds no
- * derived ratio. `time_*` fields are untouched (time_sum is a real ms sum).
+ * `scroll_avg_per_visit`. Since v9.66.0 (daily schema v6) the STORED
+ * `scroll_sum` column is re-based to the SAME identity (25 × scroll_events,
+ * true depth units; the v5-era raw milestone-point rows were repaired by the
+ * one-time v6 migration) — only the AE-transported alias still carries raw
+ * milestone points, and it feeds nothing but the legacy weighted scroll_avg
+ * in the rollup. This layer keeps deriving from `scroll_events`, so it is
+ * correct against BOTH eras and `scroll_sum` still feeds no ratio here.
+ * `time_*` fields are untouched (time_sum is a real ms sum).
  *
  * @package SignalNoiseTools
  * @since 9.63.0
@@ -128,8 +133,10 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 
 		// v9.64.0 depth identity (module header): 25 × scroll_events = the sum
 		// of per-view max depths, because milestones are evenly spaced and each
-		// fires at most once per view. scroll_sum (raw milestone POINTS — a
-		// full-depth view contributes 250) deliberately feeds no ratio here.
+		// fires at most once per view. scroll_sum deliberately feeds no ratio
+		// here: deriving from scroll_events is correct against BOTH storage
+		// eras (v5 rows held raw milestone points — 250 for a full-depth view —
+		// until the v6 repair re-based them to this same 25 × events identity).
 		$scroll_depth_points = ( null === $scroll_events )
 			? null
 			: SN_ANALYTICS_SCROLL_MILESTONE_STEP * $scroll_events;

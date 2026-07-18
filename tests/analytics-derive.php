@@ -88,7 +88,8 @@ ok( 100.0 === $a2['scroll_avg_per_visit'], '(a2) per-visit identity matches on a
 ok( 5000.0 === $a2['time_avg_per_view'], '(a2) time_avg_per_view untouched by the scroll redefinition (5000/1)' );
 // Mutation pin: the depth ratio must be scroll_events-driven — a poisoned
 // scroll_sum must not leak in (scroll_sum stays stored/exposed as the RAW
-// milestone-point sum only; it feeds NO derived ratio anymore).
+// milestone-point sum in the v5 era, the same 25 x events identity since the
+// v6 re-base; either way it feeds NO derived ratio).
 $a3 = sn_analytics_derive_metrics( array( 'views' => 2, 'visits' => 2, 'scroll_sum' => 999999.0, 'scroll_events' => 3 ) );
 ok( 37.5 === $a3['scroll_avg_per_view'], '(a2) absurd scroll_sum ignored: scroll_avg_per_view === 37.5 (25 × 3 / 2) — events-driven, not sum-driven' );
 // scroll_events known with scroll_sum null: the depth IS derivable — its only

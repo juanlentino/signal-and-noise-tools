@@ -43,6 +43,15 @@
  * The stored scroll_avg/time_avg now come from the weighted ratio sum/events
  * (identical to avgIf at sample interval 1; correct under sampling).
  *
+ * v9.66.0 (schema v6): the STORED scroll_sum column is re-based in PHP to TRUE
+ * depth units — 25 × scroll_events, the exact sum of per-view max scroll
+ * depths (the beacon's cumulative milestones are evenly spaced and fire at
+ * most once per view; see inc/analytics-derive.php). The SELECT's raw
+ * sumIf(double1 * _sample_interval, 'sc') alias stays UNCHANGED (the AE query
+ * gains no new arithmetic forms — dialect-guard / live-AE zero-risk path) but
+ * now feeds ONLY the weighted legacy scroll_avg; it is never stored. time_sum
+ * is genuinely event-summed ms — untouched.
+ *
  * Note: `views` is sample-corrected (×_sample_interval) but `visits` is a raw
  * distinct count of the hashes that survived sampling — under AE sampling the
  * two diverge (views/visit inflates). This site's volume rarely trips sampling
@@ -81,7 +90,10 @@ const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
 // time_events) for exact per-view / per-visit denominators (Phase A spec §6).
 // NULL DEFAULT NULL is load-bearing: legacy rows must read NULL ("never
 // measured"), never a fabricated 0 — the derive layer distinguishes the two.
-const SN_ANALYTICS_DAILY_DB_VERSION     = '5';
+// v6 (v9.66.0): scroll_sum re-based to TRUE depth units via the one-time
+// repair UPDATE scroll_sum = 25 * scroll_events (exact identity — both
+// columns come from the same 'sc' events; NULL rows stay NULL). Data-only.
+const SN_ANALYTICS_DAILY_DB_VERSION     = '6';
 const SN_ANALYTICS_DAILY_DB_VERSION_OPT = 'sn_analytics_daily_db_version';
 
 // SN_ANALYTICS_DATASET (the AE "sn_pageviews" dataset) is defined by the
@@ -226,6 +238,21 @@ function sn_analytics_daily_install() {
 	// rows keep NULL there — "never measured" — and the trailing-≤90d backfill is
 	// an explicit owner-run tool, deliberately NOT an install side effect.
 
+	// v6 (v9.66.0): re-base stored scroll_sum to TRUE depth units. The beacon
+	// fires one CUMULATIVE milestone event per 25/50/75/100% reached, so the raw
+	// milestone-point sum stored through v5 read 250 for a full-depth view (the
+	// shipped-113% unit). Because milestones are evenly spaced and fire at most
+	// once per view, 25 × scroll_events IS the sum of per-view max depths — an
+	// EXACT identity (both columns aggregate the same 'sc' events), not an
+	// estimate. dbDelta cannot run UPDATEs, so the repair runs explicitly
+	// post-dbDelta; it is idempotent by construction (25 × events is a fixed
+	// point) and NULL rows stay NULL ("never measured" survives). Gated on
+	// '' !== $prev so a fresh install (no data) skips it.
+	if ( '' !== $prev && version_compare( $prev, '6', '<' ) ) {
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- static one-time migration UPDATE; $table is $wpdb->prefix + a plugin constant; no external input.
+		$wpdb->query( "UPDATE {$table} SET scroll_sum = 25 * scroll_events WHERE scroll_events IS NOT NULL" );
+	}
+
 	update_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT, SN_ANALYTICS_DAILY_DB_VERSION );
 }
 
@@ -259,6 +286,10 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	// pageview_visits deliberately does NOT live here: the gated single-query
 	// form count(DISTINCT if(...)) 422s on live AE (P0.1) — it comes from the
 	// second query below (sn_analytics_rollup_gated_sql), merged in PHP.
+	// The scroll_sum alias transports the RAW milestone-point sum and since
+	// v9.66.0 feeds ONLY the weighted legacy scroll_avg — the STORED scroll_sum
+	// is re-based to 25 × scroll_events in the upsert (PHP-side on purpose: no
+	// new SQL arithmetic forms enter this live-AE-verified query).
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
@@ -521,11 +552,25 @@ function sn_analytics_rollup_upsert( $rows ) {
 		// null through to a literal SQL NULL bind), read via array_key_exists —
 		// NEVER the legacy `?? 0`, which would fabricate a measurement. A real
 		// transported 0 (incl. AE's UInt64-as-string "0") stays a real 0.
-		$scroll_sum      = sn_analytics_rollup_nullable_num( $r, 'scroll_sum' );
+		// $scroll_sum_raw is the TRANSPORTED milestone-point sum (a full-depth
+		// view contributes 25+50+75+100 = 250): since v9.66.0 it feeds ONLY the
+		// weighted legacy scroll_avg — the STORED scroll_sum column is re-based
+		// below to the depth identity 25 × scroll_events (the sum of per-view
+		// max depths; see inc/analytics-derive.php's module header).
+		$scroll_sum_raw  = sn_analytics_rollup_nullable_num( $r, 'scroll_sum' );
 		$scroll_events   = sn_analytics_rollup_nullable_num( $r, 'scroll_events' );
 		$time_sum        = sn_analytics_rollup_nullable_num( $r, 'time_sum' );
 		$time_events     = sn_analytics_rollup_nullable_num( $r, 'time_events' );
 		$pageview_visits = sn_analytics_rollup_nullable_num( $r, 'pageview_visits' );
+
+		// Normalized event count first: the stored scroll_sum derives from THIS
+		// value so the 25×scroll_events invariant holds exactly row-by-row.
+		// Unknown events ⇒ unknown identity ⇒ NULL — a present raw sum alone is
+		// NEVER stored (it would reintroduce the shipped-113% milestone-point
+		// unit). The step constant lives in inc/analytics-derive.php (loaded in
+		// production; the literal fallback keeps this module standalone-testable).
+		$scroll_events_n = null === $scroll_events ? null : max( 0, (int) round( (float) $scroll_events ) );
+		$scroll_step     = defined( 'SN_ANALYTICS_SCROLL_MILESTONE_STEP' ) ? SN_ANALYTICS_SCROLL_MILESTONE_STEP : 25;
 
 		$c = array(
 			'day'             => $day,
@@ -535,12 +580,17 @@ function sn_analytics_rollup_upsert( $rows ) {
 			'visits'          => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
 			// Legacy avgs switch to the weighted ratio sum/events when both are
 			// known (identical to avgIf at sample interval 1, correct under
-			// sampling); legacy passthrough otherwise. See the helper for the
-			// 0-events (division-by-zero) rule.
-			'scroll_avg'      => sn_analytics_rollup_legacy_avg( $scroll_sum, $scroll_events, $r['scroll_avg'] ?? 0 ),
+			// sampling); legacy passthrough otherwise. scroll_avg deliberately
+			// weights the RAW milestone-point sum — its per-event-mean semantics
+			// are unchanged by the v6 re-base. See the helper for the 0-events
+			// (division-by-zero) rule.
+			'scroll_avg'      => sn_analytics_rollup_legacy_avg( $scroll_sum_raw, $scroll_events, $r['scroll_avg'] ?? 0 ),
 			'time_avg'        => sn_analytics_rollup_legacy_avg( $time_sum, $time_events, $r['time_avg'] ?? 0 ),
-			'scroll_sum'      => null === $scroll_sum ? null : max( 0.0, (float) $scroll_sum ),
-			'scroll_events'   => null === $scroll_events ? null : max( 0, (int) round( (float) $scroll_events ) ),
+			// v9.66.0 (schema v6): stored in TRUE depth units — 25 × scroll_events
+			// (the exact sum of per-view max depths) or NULL, never the raw
+			// milestone-point sum. time_sum is genuinely event-summed ms — untouched.
+			'scroll_sum'      => null === $scroll_events_n ? null : (float) ( $scroll_step * $scroll_events_n ),
+			'scroll_events'   => $scroll_events_n,
 			'time_sum'        => null === $time_sum ? null : max( 0.0, (float) $time_sum ),
 			'time_events'     => null === $time_events ? null : max( 0, (int) round( (float) $time_events ) ),
 			'pageview_visits' => null === $pageview_visits ? null : max( 0, (int) round( (float) $pageview_visits ) ),
