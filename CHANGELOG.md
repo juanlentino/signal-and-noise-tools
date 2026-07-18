@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.68.0] - 2026-07-18: The Overview lands — wired, tightened, default
+
+The product payoff of the analytics-integrity arc. Everything the arc built — the honest v9.63 vocabulary (v9.63.0→v9.64.0), the served session trends + the disambiguated units (v9.65.0), the durable exit-page feed (v9.66.0), and the owner-approved v9.67.0 design mock — now composes into ONE default landing surface: open Dashboard → Analytics and the whole site is in front of you, every number real, every unknown honest. MINOR: a new default user-visible surface; no API/schema breaks (retired slugs fall back, existing tabs untouched).
+
+### The wired view (`inc/analytics-view-overview.php`, replacing the lab mock)
+
+- **Shared chrome inherited, not duplicated**: `overview` is NOT in `SN_ANALYTICS_OWNS_CHROME`, so the range/class/compare controls, insights band, the shared Overview KPI card (which already speaks the honest vocabulary and IS the headline), and the movers rail all render above the body. The mock's duplicate "Headline" panel is gone with the mock. (Verified structurally: the header grid — movers rail included — fully closes before the view body opens, so the new body cannot disturb the rail.)
+- **Session quality (full-width)** — `sn_session_rollup_read()` over the header window (durable `wp_sn_session_daily`, v9.65.0): sessions, visits-WEIGHTED bounce + pages/session (a naive day-mean would let a 2-session day outvote a 30-session day), and median duration labeled for what it is ("median of daily medians" — the one aggregate dailies cannot make exact). Unit disambiguation carried forward from v9.65.0: the header meta says *within-day sessions* — a different unit from the headline's visitor-day Visits. Plus a **fixed 8-week bounce trend** (weekly ISO buckets, visits-weighted, zero-session weeks skipped rather than fabricated), labeled as a fixed window independent of the range control.
+- **Right now (compact)** — the cron-warmed realtime transient + views-today: `null` renders an em-dash + "warming" (never a blocking query, never a fabricated 0); a warmed 0 is a real 0. Both cards label their true windows (5-minute active window; human pageviews, site-local day).
+- **Balanced bento midsection** — Top sources (canonical labels) + Campaigns (UTM) stacked left; Geography + Devices right. All four read durable rollup tables via the existing accessors and render through the existing dim-table primitive.
+- **Entry + Exit pages, paired** — the durable pageroles rollup (exits fed nightly since v9.66.0), via the existing renderer + a new optional `header_meta` seam ('' = byte-identical for existing callers) labeling both tables human-only.
+
+### The rules it ships under
+
+- **Load-cost rule (hard, test-enforced)**: the default landing renders on every Analytics visit, so the body reads ONLY durable rollup tables + cron-warmed transients. The live session-engine AE fetch (50k cap) stays on the Sessions tab; the test suite pins ZERO calls to it, to the raw AE transport, and to a redundant range-totals re-fetch — and a source-level pin keeps those call names out of the file entirely.
+- **Null discipline per panel (the v9.65.0 lesson)**: a failed rollup read renders "could not be read — a read failure, not an empty window"; an empty window folds honestly into the shared collector; the KPI and trend reads report their failures independently; a <2-week trend says so instead of drawing a one-point line.
+
+### The promotion
+
+- `SN_ANALYTICS_VIEWS` leads with `'overview' => 'Overview'` (12 views) and `snt_analytics_resolve_view()` defaults to it — no `?sn_view` lands on the Overview; unknown and retired slugs (`intelligence`, `overview-lab`) fall back to it; Content becomes a normal tab; every existing slug (and its drilldown links) is untouched. The sn-analytics POST redirect follows the default (`sn_view=overview`).
+- **The experiment graduates — nothing flag-gated remains**: `inc/analytics-view-overview-lab.php` deleted (static fixture, PREVIEW badges, settings fold, save handler); the `sn_analytics_landing_preview` option/filter machinery removed (`snt_analytics_views()` returns the const again); admin-post map 52 → 51; flash codes removed; `docs/FILTERS.md` row removed (the parity suite caught the phantom doc); `.sn-an-lab-*` CSS replaced by the landing's bento/compact/pair rules.
+
+### Tests
+
+- New `tests/analytics-view-overview.php` (96 asserts, RED-first): value-pinned weighted aggregation + weekly bucketing (pure fns), recorded accessor args (window/class contract incl. the fixed trend window), the zero-live-AE load-cost pins, every null/empty/warming/zero state, bento/pair layout order, and graduated-surface negatives.
+- `tests/analytics-admin.php` re-pinned RED-first (11 failures against the unpromoted code): registry 12 views + overview-first, resolver defaults, junk-slug fallback, a new default-landing group (active tab + inherited chrome + wired body), the D1 order anchor moved off the bare word "Overview" (now also a tab label). `tests/admin-post-actions.php`: map 51 + the redirect default. `tests/preview-dashboard.php`: overview smoke group + realistic rollup/UTM/views-today seams (and its `number_format_i18n` stub now honors decimals, matching core). `tests/analytics-view-overview-lab.php` deleted with its surface.
+- Full sweep: 309 suites, 10,672+ assertions, 0 failed; PHPCS clean.
+
 ## [9.67.0] - 2026-07-18: Overview landing surface — flag-gated static mock for design review
 
 Assembly **option C**'s prescribed first step from the 2026-07-18 dashboard audit: *"a static mock render fn behind a feature-flagged tab slug in SN_ANALYTICS_VIEWS for owner review before any data wiring."* MINOR: a new (flag-gated) user-visible surface; zero behavior change while the flag is off.

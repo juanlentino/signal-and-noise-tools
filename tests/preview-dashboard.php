@@ -24,7 +24,7 @@ function esc_url( $s ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function esc_attr__( $s, $d = null ) { return (string) $s; }
-function number_format_i18n( $n ) { return number_format( (float) $n ); }
+function number_format_i18n( $n, $decimals = 0 ) { return number_format( (float) $n, (int) $decimals ); }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
 function add_query_arg( $args, $url = null ) {
 	if ( null === $url ) { $url = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/wp-admin/admin.php?page=sn-analytics'; }
@@ -145,6 +145,33 @@ function sn_analytics_dimension_series( $dim, $vals, $f, $t, $c = 'human', $g = 
 function sn_analytics_class_series( $f, $t, $g = 'day' ) { return array( array( 'day' => '2026-06-09', 'bot_pct' => 28, 'total' => 80 ), array( 'day' => '2026-06-10', 'bot_pct' => 30, 'total' => 90 ), array( 'day' => '2026-06-11', 'bot_pct' => 25, 'total' => 70 ) ); }
 function sn_analytics_top_events( $f, $t, $l = 25 ) { return $GLOBALS['__aa']['events']; }
 function sn_analytics_top_event_props( $f, $t, $prop = '', $l = 50 ) { return $GLOBALS['__aa']['event_props']; }
+// v9.68.0 Overview landing seams: the durable session rollup (typed rows —
+// the real sn_session_rollup_read contract), the UTM campaigns rollup, and
+// the cron-warmed views-today. Realistic small-site numbers.
+function sn_session_rollup_read( $from, $to, $class ) {
+	// Fixed trend window (56d) vs header window: return 8 weekly-ish days for
+	// the long window, the last 4 for the short one.
+	$rows = array();
+	$anchor = strtotime( '2026-06-11 00:00:00 UTC' );
+	for ( $i = 7; $i >= 0; $i-- ) {
+		$rows[] = array(
+			'day'        => gmdate( 'Y-m-d', $anchor - $i * 7 * DAY_IN_SECONDS ),
+			'visits'     => 30 + ( $i % 3 ) * 9,
+			'bounce_pct' => 64.0 - $i * 1.5,
+			'ppv'        => 1.3 + 0.05 * ( $i % 4 ),
+			'median_dur' => 48 + 4 * ( $i % 3 ),
+		);
+	}
+	$days = (int) floor( ( strtotime( $to ) - strtotime( $from ) ) / DAY_IN_SECONDS ) + 1;
+	return ( $days > 30 ) ? $rows : array_slice( $rows, -4 );
+}
+function sn_analytics_top_utm_campaigns( $f, $t, $c = 'human', $l = 25 ) {
+	return array(
+		array( 'value' => 'qr-provhub', 'views' => 6, 'visits' => 5 ),
+		array( 'value' => 'newsletter', 'views' => 3, 'visits' => 3 ),
+	);
+}
+function sn_analytics_views_today() { return 6; }
 
 // Canonical-source mapper (the content view's Top sources fold) — real module
 // over the stubbed read accessors; its WP-seam calls are function_exists-guarded.
@@ -165,6 +192,7 @@ require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 require_once __DIR__ . '/../inc/analytics-view-content.php';
+require_once __DIR__ . '/../inc/analytics-view-overview.php'; // v9.68.0: the default landing
 require_once __DIR__ . '/../inc/analytics-view-technology.php';
 require_once __DIR__ . '/../inc/analytics-view-geography.php';
 require_once __DIR__ . '/../inc/analytics-view-engagement.php';
@@ -257,6 +285,15 @@ ok( strpos( $geo, 'handlediv' ) === false, 'no JS collapse toggles shipped' );
 
 $content = snt_preview_render( 'content' );
 ok( strpos( $content, '/notes/x' ) !== false, 'content tab: top pages rendered' );
+
+// v9.68.0: the default landing renders under the shared chrome with the
+// wired body (session quality + right now + bento + entry/exit pair).
+$overview = snt_preview_render( 'overview' );
+ok( strpos( $overview, 'postbox sn-overview' ) !== false, 'overview tab: shared Overview KPI card inherited (headline)' );
+ok( strpos( $overview, 'sn-an-movers' ) !== false, 'overview tab: movers rail renders beside the shared card' );
+ok( strpos( $overview, 'Session quality' ) !== false, 'overview tab: session quality panel rendered' );
+ok( strpos( $overview, 'sn-an-overview-bento' ) !== false, 'overview tab: bento midsection rendered' );
+ok( strpos( $overview, 'sn-an-overview-pair' ) !== false, 'overview tab: entry/exit pair rendered' );
 
 // Write the visual preview file (CLI arg picks the tab; default geography) for browser comparison.
 // v6.5.1: the dense layout CSS is now an external enqueued stylesheet, not an inline
