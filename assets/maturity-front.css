@@ -25,6 +25,6 @@
 .sn-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.5}
 
 /* The compact strip: one sentence, then four hard-edged mono badges. */
-.sn-maturity-compact-intro{margin:0 0 .75rem}
+.sn-maturity p.sn-maturity-compact-intro{margin:0 0 .75rem}
 .sn-maturity-strip{display:flex;flex-wrap:wrap;gap:.5em}
 .sn-maturity-badge{display:inline-flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}

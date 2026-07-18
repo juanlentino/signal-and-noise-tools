@@ -123,6 +123,14 @@ $expected_compact = '<div class="sn-maturity sn-maturity--compact">'
 	. '<span class="sn-maturity-badge sn-maturity-badge--prescriptive">Prescriptive</span>'
 	. '</div></div>';
 ok( $expected_compact === $c, 'compact variant is byte-identical to the pinned shape (one sentence + badge strip)' );
+// The intro margin must WIN its cascade fight: the generic `.sn-maturity p` rule
+// is 0,1,1 and a bare class selector is only 0,1,0 — permanently overridden, a
+// dead rule. The override needs the element in its selector (0,2,1). Pin the
+// winning form in, pin the dead form out, and keep the generic rule for full.
+$css = (string) file_get_contents( SNT_PATH . 'assets/maturity-front.css' );
+ok( false !== strpos( $css, '.sn-maturity p.sn-maturity-compact-intro{margin:0 0 .75rem}' ), 'stylesheet carries the compact-intro margin at winning specificity (0,2,1 beats the generic p rule)' );
+ok( 0 === preg_match( '/(?<!p)\.sn-maturity-compact-intro\s*\{/', $css ), 'the dead 0,1,0 form (.sn-maturity-compact-intro as a bare class selector) is gone' );
+ok( false !== strpos( $css, '.sn-maturity p{margin:0 0 1.25rem}' ), 'the generic paragraph rule stays intact for the full format' );
 
 echo "\nGroup: whitelist fallback (pinned)\n";
 $bogus = sn_analytics_maturity_shortcode( array( 'format' => 'bogus' ) );

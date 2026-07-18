@@ -27,6 +27,12 @@ The shortcode previously emitted bare classed markup. Now a small stylesheet, sc
 
 9 → 57 assertions: structural pins per format (each variant renders ONLY its section; compact pinned byte-for-byte as a whole), the whitelist fallback pinned byte-identical to full (bogus + hostile-injection + bare-'' + case-sensitivity), escaping pins on the new quoted/apostrophed strings (`&quot;could not be read&quot;`, `yesterday&#039;s`), the arc-copy claim pins, exactly-12-principles count, the enqueue contract (nothing on file load; handle + src + on-disk file on render; only ever the one handle), tier-slug/badge-whitelist mirror, return-never-echoes via output buffering, and the existing static-by-design no-live-metrics regex kept. The stub set gains core-faithful `shortcode_atts` (only default keys survive) and recording `wp_enqueue_style`/`plugins_url`.
 
+### Fixed (pre-merge review)
+
+- **Compact-intro margin lost its cascade fight (LOW)** — `.sn-maturity-compact-intro{margin:0 0 .75rem}` was a dead rule: at specificity 0,1,0 it is permanently overridden by the generic `.sn-maturity p{margin:0 0 1.25rem}` (0,1,1), so the compact variant's intro rendered with the full-format 1.25rem gap instead of the tighter .75rem designed for the one-sentence + badge-strip shape. The selector now carries the element — `.sn-maturity p.sn-maturity-compact-intro` (0,2,1) — winning without touching the generic paragraph rule the full format relies on. RED-first: three stylesheet pins join the compact group (57 → 60 assertions) — the winning selector verbatim, the dead bare-class form regex-pinned OUT, and the generic p rule pinned intact.
+
+Sweep: 310 suites / 11,055 assertions green; `composer run lint` clean.
+
 ## [9.69.0] - 2026-07-18: The Overview learns to triage — attention chips, strip, and promotion reordering
 
 MINOR (new user-visible capability, owner-approved — the design passed a rendered before/after review; the REORDERED variant won). The Overview landing now weighs every panel's headline movement against the PREVIOUS period on **every render — compare Off included** (that is the feature's point; the header's compare control keeps governing only the visible delta chips), marks notable panels, and reorders the body so what needs attention sits on top.
