@@ -502,6 +502,9 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* ── v8.5.0: rail tiles + movers ─────────────────────────────────────────── */
 .sn-an-rail-tile .inside { padding: 8px 14px 10px; }
 .sn-an-head-meta { margin-left: auto; padding-right: 12px; align-self: center; color: var(--sn-text-muted, #646970); font-size: 11px; }
+/* v9.68.0 part 4: the panel-header doorway link (→ full view) riding the head-meta seam. */
+.sn-an-head-meta .sn-an-head-link { white-space: nowrap; text-decoration: none; }
+.sn-an-head-meta .sn-an-head-link:hover { text-decoration: underline; }
 .sn-an-movers-list { margin: 0; }
 .sn-an-movers-list li { display: flex; justify-content: space-between; gap: 8px; margin: 0; padding: 3px 0; border-bottom: 1px solid #f6f7f7; font-variant-numeric: tabular-nums; }
 .sn-an-movers-list li:last-child { border-bottom: 0; }

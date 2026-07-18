@@ -54,11 +54,23 @@ function esc_attr__( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n, $decimals = 0 ) { return number_format( (float) $n, (int) $decimals ); }
 function sanitize_title( $s ) { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', (string) $s ) ), '-' ); }
 function wp_kses_post( $s ) { return (string) $s; }
+// v9.68.0 part 4 (doorways): the tests/analytics-admin.php URL-stub idiom —
+// add_query_arg(array()) must return the CURRENT URL (the tab-strip base read),
+// and remove_query_arg must really strip keys, or the doorway hrefs can't be pinned.
 function add_query_arg( $args, $url = null ) {
-	if ( null === $url ) { $url = '/wp-admin/index.php?page=sn-analytics'; }
+	if ( null === $url ) { $url = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/wp-admin/index.php?page=sn-analytics'; }
 	$sep = ( strpos( (string) $url, '?' ) !== false ) ? '&' : '?';
 	return $url . $sep . http_build_query( $args );
 }
+function remove_query_arg( $keys, $url ) {
+	$parts = explode( '?', (string) $url, 2 );
+	if ( ! isset( $parts[1] ) ) { return $url; }
+	parse_str( $parts[1], $q );
+	foreach ( (array) $keys as $k ) { unset( $q[ $k ] ); }
+	return $q ? $parts[0] . '?' . http_build_query( $q ) : $parts[0];
+}
+function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 
 // ---- wpdb stub: F1 view-local failure detection reads $wpdb->last_error ----
 // Models REAL wpdb (wp-includes/class-wpdb.php, verified): query() calls
@@ -86,16 +98,21 @@ $GLOBALS['__ov'] = array(
 	'views_today'    => null,
 	'entries'        => array(),
 	'exits'          => array(),
-	'fail'           => array(), // keyed by accessor family: true = the wpdb read fails
+	'fail'           => array(), // keyed by accessor family: true = EVERY read fails; array of "from|to" keys = only those windows fail (part 4: prior-window-only failures)
+	'win'            => array(), // family => "from|to" => rows: per-window overrides (part 4: prior windows carry their own fixture)
 );
 
 /** Model one wpdb-backed read: flush (clears last_error), count the query, then fixture-driven failure ([] + last_error set) or success. */
-function ov_db_read( $fn, $result ) {
+function ov_db_read( $fn, $win, $result ) {
 	$GLOBALS['wpdb']->last_error = ''; // wpdb::query() → flush() resets it per query.
 	++$GLOBALS['wpdb']->num_queries; // wpdb::_do_query() counts every executed query.
-	if ( ! empty( $GLOBALS['__ov']['fail'][ $fn ] ) ) {
+	$fail = $GLOBALS['__ov']['fail'][ $fn ] ?? false;
+	if ( true === $fail || ( is_array( $fail ) && in_array( $win, $fail, true ) ) ) {
 		$GLOBALS['wpdb']->last_error = "Table 'wp_sn_" . $fn . "' doesn't exist";
 		return array(); // real get_results(ARRAY_A) failure shape: [] beside last_error.
+	}
+	if ( isset( $GLOBALS['__ov']['win'][ $fn ][ $win ] ) ) {
+		return $GLOBALS['__ov']['win'][ $fn ][ $win ];
 	}
 	return $result;
 }
@@ -121,17 +138,17 @@ function sn_session_rollup_read( $from, $to, $class ) {
 // Canonical sources over the durable dims table (inc/analytics-sources.php).
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_sources', $from, $to, $class, $limit );
-	return ov_db_read( 'sources', $GLOBALS['__ov']['sources'] );
+	return ov_db_read( 'sources', $from . '|' . $to, $GLOBALS['__ov']['sources'] );
 }
 // Durable UTM rollup (inc/analytics-utm.php).
 function sn_analytics_top_utm_campaigns( $from, $to, $class = 'human', $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_utm_campaigns', $from, $to, $class, $limit );
-	return ov_db_read( 'campaigns', $GLOBALS['__ov']['campaigns'] );
+	return ov_db_read( 'campaigns', $from . '|' . $to, $GLOBALS['__ov']['campaigns'] );
 }
 // Durable dims rollup (inc/analytics-dims.php).
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25, $refresh = false ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_dimension', $dim, $from, $to, $class, $limit );
-	return ov_db_read( 'dims', $GLOBALS['__ov']['dims'][ $dim ] ?? array() );
+	return ov_db_read( 'dims', $dim . '|' . $from . '|' . $to, $GLOBALS['__ov']['dims'][ $dim ] ?? array() );
 }
 // Cron-warmed realtime transient (inc/analytics-realtime.php: int, or null =
 // never warmed). Transient reads are NOT modeled through ov_db_read — they
@@ -147,11 +164,11 @@ function sn_analytics_views_today() {
 // Durable pageroles rollup (inc/analytics-pageroles.php: human-only, no class).
 function sn_analytics_top_entry_pages( $from, $to, $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_entry_pages', $from, $to, $limit );
-	return ov_db_read( 'entries', $GLOBALS['__ov']['entries'] );
+	return ov_db_read( 'entries', $from . '|' . $to, $GLOBALS['__ov']['entries'] );
 }
 function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_top_exit_pages', $from, $to, $limit );
-	return ov_db_read( 'exits', $GLOBALS['__ov']['exits'] );
+	return ov_db_read( 'exits', $from . '|' . $to, $GLOBALS['__ov']['exits'] );
 }
 
 // FORBIDDEN on the landing render (the load-cost rule): the live session-engine
@@ -174,6 +191,12 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) {
 require_once __DIR__ . '/../inc/analytics-panels.php';        // real panel primitives
 require_once __DIR__ . '/../inc/analytics-render-tables.php'; // real dim + pageroles tables
 require_once __DIR__ . '/../inc/analytics-view-overview.php';
+// v9.68.0 part 4 REAL callees — required, never stubbed (the stub-drift rule):
+// the tab strip's window args, the shared card's compare-window date math +
+// the view registry (doorway labels), and the delta math the chips ride on.
+require_once __DIR__ . '/../inc/analytics-render-controls.php'; // snt_analytics_window_args
+require_once __DIR__ . '/../inc/analytics-admin.php';           // snt_analytics_compare_window + snt_analytics_views
+require_once __DIR__ . '/../inc/analytics-derived.php';         // sn_analytics_delta
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
@@ -576,6 +599,252 @@ ok( strpos( $css, '.sn-an-overview-bento' ) !== false, 'css: bento grid rule pre
 ok( strpos( $css, '.sn-an-bento-col' ) !== false, 'css: bento column rule present' );
 ok( strpos( $css, '.sn-an-rightnow' ) !== false, 'css: compact right-now rule present' );
 ok( strpos( $css, '.sn-an-overview-pair' ) !== false, 'css: entry/exit pair rule present' );
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v9.68.0 PART 4 — every panel a doorway: routing links + compare-deltas.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Re-seed the standard CURRENT-window fixtures (the "full render" group's shapes). */
+function ov_seed_current() {
+	$GLOBALS['__ov']['session_rollup'] = array(
+		'2026-07-11|2026-07-17' => $GLOBALS['__ov_range_rows'],
+		'2026-05-23|2026-07-17' => $GLOBALS['__ov_trend_rows'],
+	);
+	$GLOBALS['__ov']['sources'] = array(
+		array( 'value' => '(direct)',    'views' => 18, 'visits' => 16, 'hosts' => array() ),
+		array( 'value' => 'Google',      'views' => 11, 'visits' => 9,  'hosts' => array( 'google.com' ) ),
+		array( 'value' => 'Hacker News', 'views' => 7,  'visits' => 6,  'hosts' => array( 'news.ycombinator.com' ) ),
+	);
+	$GLOBALS['__ov']['campaigns'] = array(
+		array( 'value' => 'qr-provhub', 'views' => 6, 'visits' => 5 ),
+		array( 'value' => 'newsletter', 'views' => 3, 'visits' => 3 ),
+	);
+	$GLOBALS['__ov']['dims'] = array(
+		'country' => array(
+			array( 'value' => 'AR', 'views' => 14, 'visits' => 12 ),
+			array( 'value' => 'US', 'views' => 9,  'visits' => 8 ),
+		),
+		'device'  => array(
+			array( 'value' => 'desktop', 'views' => 29, 'visits' => 24 ),
+			array( 'value' => 'mobile',  'views' => 17, 'visits' => 15 ),
+		),
+	);
+	$GLOBALS['__ov']['realtime']    = 2;
+	$GLOBALS['__ov']['views_today'] = 6;
+	$GLOBALS['__ov']['entries']     = array(
+		array( 'path' => '/',         'views' => 16, 'visits' => 14 ),
+		array( 'path' => '/provhub/', 'views' => 9,  'visits' => 8 ),
+	);
+	$GLOBALS['__ov']['exits'] = array(
+		array( 'path' => '/provhub/', 'views' => 11, 'visits' => 10 ),
+		array( 'path' => '/notes/',   'views' => 7,  'visits' => 6 ),
+	);
+	$GLOBALS['__ov']['fail']     = array();
+	$GLOBALS['__ov']['win']      = array();
+	$GLOBALS['wpdb']->last_error = '';
+}
+$GLOBALS['__ov_range_rows'] = $RANGE_ROWS;
+$GLOBALS['__ov_trend_rows'] = $TREND_ROWS;
+
+/** Seed the standard PRIOR-window fixtures (default: the prev window of the 07-11..07-17 range). */
+function ov_seed_priors( $pf = '2026-07-04', $pt = '2026-07-10' ) {
+	$pw = $pf . '|' . $pt;
+	// Prior rollup: sessions 40, weighted bounce 50.0, weighted ppv 1.5, median 60.
+	$GLOBALS['__ov']['session_rollup'][ $pw ] = array(
+		array( 'day' => $pf, 'visits' => 20, 'bounce_pct' => 55.0, 'ppv' => 1.25, 'median_dur' => 50 ),
+		array( 'day' => $pt, 'visits' => 20, 'bounce_pct' => 45.0, 'ppv' => 1.75, 'median_dur' => 70 ),
+	);
+	$GLOBALS['__ov']['win'] = array(
+		'sources'   => array( $pw => array(
+			array( 'value' => '(direct)', 'views' => 20, 'visits' => 18, 'hosts' => array() ),
+			array( 'value' => 'Google',   'views' => 5,  'visits' => 4,  'hosts' => array( 'google.com' ) ),
+			// Hacker News deliberately ABSENT → its row must read "new".
+		) ),
+		'campaigns' => array( $pw => array(
+			array( 'value' => 'qr-provhub', 'views' => 6, 'visits' => 5 ), // unchanged → flat 0%
+		) ),
+		'dims'      => array(
+			'country|' . $pw => array(
+				array( 'value' => 'AR', 'views' => 7, 'visits' => 6 ),
+				array( 'value' => 'US', 'views' => 9, 'visits' => 8 ),
+			),
+			'device|' . $pw  => array(
+				array( 'value' => 'desktop', 'views' => 30, 'visits' => 26 ),
+			),
+		),
+		'entries'   => array( $pw => array(
+			array( 'path' => '/', 'views' => 10, 'visits' => 9 ),
+		) ),
+		'exits'     => array( $pw => array(
+			array( 'path' => '/notes/', 'views' => 14, 'visits' => 12 ),
+		) ),
+	);
+}
+
+echo "\nGroup: PART A — every panel a doorway (the tab strip's exact href discipline)\n";
+ov_seed_current();
+ov_seed_priors();
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics&sn_view=overview&sn_range=30&sn_class=human&sn_compare=prev&sn_drill=' . rawurlencode( 'referrer:Google' );
+$html_a = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+preg_match_all( '/class="sn-an-head-link" href="([^"]+)"/', $html_a, $ovm );
+$ov_hrefs = $ovm[1];
+ok( 7 === count( $ov_hrefs ), 'doorways: exactly seven — session quality + the six minis ("Right now" is instantaneous; no fuller view exists for it)' );
+$ov_views = array_map( function ( $h ) { parse_str( (string) parse_url( $h, PHP_URL_QUERY ), $q ); return (string) ( $q['sn_view'] ?? '' ); }, $ov_hrefs );
+ok( array( 'visits', 'content', 'campaigns', 'geography', 'technology', 'content', 'content' ) === $ov_views,
+	'doorways: the panel→tab map — session quality→visits(Sessions), sources→content, campaigns→campaigns, geography→geography, devices→technology, entry/exit→content' );
+$ov_carry = true; $ov_drill = false; $ov_dates = false;
+foreach ( $ov_hrefs as $h ) {
+	parse_str( (string) parse_url( $h, PHP_URL_QUERY ), $q );
+	if ( '30' !== ( $q['sn_range'] ?? '' ) || 'human' !== ( $q['sn_class'] ?? '' ) || 'prev' !== ( $q['sn_compare'] ?? '' ) || 'sn-analytics' !== ( $q['page'] ?? '' ) ) { $ov_carry = false; }
+	if ( isset( $q['sn_drill'] ) ) { $ov_drill = true; }
+	if ( isset( $q['sn_from'] ) || isset( $q['sn_to'] ) ) { $ov_dates = true; }
+}
+ok( $ov_carry, 'doorways: every href carries the ACTIVE window (sn_range=30), class AND compare mode — the tab strip\'s exact param carry, same page route' );
+ok( ! $ov_drill, 'doorways: the view-local sn_drill filter is STRIPPED (the tab strip\'s one reset point in the param-carry matrix)' );
+ok( ! $ov_dates, 'doorways: a non-custom range carries no sn_from/sn_to (the snt_analytics_window_args contract)' );
+ok( strpos( $html_a, '>Sessions &rarr;</a>' ) !== false, 'doorways: the session-quality doorway wears its tab\'s REGISTRY label ("Sessions" — the v9.65.0 slug/label split honored)' );
+ok( strpos( $html_a, '>Technology &rarr;</a>' ) !== false, 'doorways: the devices doorway names the Technology tab' );
+$html_ac = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', 'custom', 'prev' ); } );
+preg_match_all( '/class="sn-an-head-link" href="([^"]+)"/', $html_ac, $ovmc );
+parse_str( (string) parse_url( $ovmc[1][0] ?? '', PHP_URL_QUERY ), $qc );
+ok( 'custom' === ( $qc['sn_range'] ?? '' ) && '2026-07-11' === ( $qc['sn_from'] ?? '' ) && '2026-07-17' === ( $qc['sn_to'] ?? '' ),
+	'doorways: a custom range carries sn_from/sn_to exactly as the tab strip does (dates ARE the token there)' );
+ok( strpos( $css, '.sn-an-head-link' ) !== false, 'doorways: the head-link class exists in the enqueued stylesheet' );
+
+echo "\nGroup: PART B — compare window derivation (the shared card's helpers, reused)\n";
+ok( array( '2026-07-04', '2026-07-10' ) === snt_analytics_compare_window( '2026-07-11', '2026-07-17', 'prev' ),
+	'derivation: prev = the adjacent same-length window (the REAL snt_analytics_compare_window — never reimplemented)' );
+ok( array( '2025-07-11', '2025-07-17' ) === snt_analytics_compare_window( '2026-07-11', '2026-07-17', 'yoy' ),
+	'derivation: yoy = the same dates one year earlier' );
+ov_seed_current();
+ov_seed_priors();
+$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
+ov_reset_calls();
+$html_p = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+$sr_p = ov_calls( 'sn_session_rollup_read' );
+ok( 3 === count( $sr_p ) && array( 'sn_session_rollup_read', '2026-07-04', '2026-07-10', 'human' ) === $sr_p[2],
+	'prior reads: the session rollup gains exactly ONE extra read — the derived prior window, same class' );
+$src_p = ov_calls( 'sn_analytics_top_sources' );
+ok( 2 === count( $src_p ) && '2026-07-04' === $src_p[1][1] && '2026-07-10' === $src_p[1][2] && 'human' === $src_p[1][3] && 50 === $src_p[1][4],
+	'prior reads: sources read once more over the prior window at depth 50 (the movers idiom — wider than the visible top-5, so a prior rank-6 row is matched, never misread as "new")' );
+$utm_p = ov_calls( 'sn_analytics_top_utm_campaigns' );
+ok( 2 === count( $utm_p ) && '2026-07-04' === $utm_p[1][1] && 50 === $utm_p[1][4], 'prior reads: campaigns second read = prior window, depth 50' );
+$dims_p = ov_calls( 'sn_analytics_top_dimension' );
+ok( 4 === count( $dims_p ) && 'country' === $dims_p[1][1] && '2026-07-04' === $dims_p[1][2] && 'device' === $dims_p[3][1] && '2026-07-04' === $dims_p[3][2],
+	'prior reads: country + device each read once more over the prior window' );
+ok( 2 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ) && 2 === count( ov_calls( 'sn_analytics_top_exit_pages' ) ), 'prior reads: entry + exit pages read once more each' );
+ok( 1 === count( ov_calls( 'sn_analytics_realtime' ) ), 'no compare on Right now: instantaneous — realtime still read exactly once' );
+ok( 0 === count( ov_calls( 'sn_analytics_fetch_session_events' ) ) && 0 === count( ov_calls( 'sn_analytics_query' ) ) && 0 === count( ov_calls( 'sn_analytics_range_totals' ) ),
+	'load-cost: compare adds durable-table reads ONLY — still zero live AE on the landing' );
+
+echo "\nGroup: PART B — session-quality KPI delta chips (the shared card's exact idiom)\n";
+ok( strpos( $html_p, '<span class="sn-kpi-delta sn-delta-up" title="previous period: 40"><span class="sn-delta-arrow">▲</span> +10%</span>' ) !== false,
+	'kpi chips: Sessions 44 vs 40 → ▲ +10%, tooltip names the basis + prior value (snt_an_kpi_row\'s real delta slot)' );
+ok( strpos( $html_p, 'title="previous period: 50"' ) !== false && strpos( $html_p, '+23%' ) !== false,
+	'kpi chips: bounce 61.4% vs 50% → +23% against the raw weighted prior' );
+ok( strpos( $html_p, 'title="previous period: 1.5"' ) !== false && strpos( $html_p, '+3%' ) !== false, 'kpi chips: pages/session 1.55 vs 1.5 → +3%' );
+ok( strpos( $html_p, 'title="previous period: 60"' ) !== false && strpos( $html_p, '+8%' ) !== false, 'kpi chips: median duration 65s vs 60s → +8%' );
+ok( 4 === substr_count( $html_p, 'title="previous period:' ), 'kpi chips: exactly four — one per KPI, none invented elsewhere' );
+ok( strpos( $html_p, '3 rolled-up days' ) === false && strpos( $html_p, 'single-page sessions · weighted' ) === false,
+	'kpi chips: the delta slot REPLACES the static descriptor while compare is on (the primitive\'s live>delta>sub precedence — the shared card\'s exact behavior)' );
+
+echo "\nGroup: PART B — per-row mini-table chips (rows matched by dimension key)\n";
+ok( strpos( $html_p, 'data-colname="Views">11 <span class="sn-an-delta sn-an-delta--up">▲ +120%</span></td>' ) !== false,
+	'rows: Google 11 vs 5 → ▲ +120% chip beside the Views figure' );
+ok( strpos( $html_p, 'data-colname="Views">18 <span class="sn-an-delta sn-an-delta--down">▼ -10%</span></td>' ) !== false,
+	'rows: (direct) 18 vs 20 → ▼ -10%' );
+ok( strpos( $html_p, '>7 <span class="sn-an-delta sn-an-delta--up">▲ new</span></td>' ) !== false,
+	'rows: Hacker News absent from a NON-EMPTY prior window → "new" (sn_analytics_delta\'s no-division rule — never a fabricated +∞%)' );
+ok( strpos( $html_p, '>6 <span class="sn-an-delta sn-an-delta--flat">■ 0%</span></td>' ) !== false,
+	'rows: qr-provhub 6 vs 6 → flat 0% (an unchanged row is still an answer)' );
+ok( strpos( $html_p, '>14 <span class="sn-an-delta sn-an-delta--up">▲ +100%</span></td>' ) !== false, 'rows: AR 14 vs 7 → +100% (geography matched by country key)' );
+ok( strpos( $html_p, '>29 <span class="sn-an-delta sn-an-delta--down">▼ -3%</span></td>' ) !== false, 'rows: desktop 29 vs 30 → -3% (devices)' );
+ok( strpos( $html_p, '>16 <span class="sn-an-delta sn-an-delta--up">▲ +60%</span></td>' ) !== false, 'rows: entry "/" 16 vs 10 → +60% (pageroles matched by path)' );
+ok( strpos( $html_p, '>7 <span class="sn-an-delta sn-an-delta--down">▼ -50%</span></td>' ) !== false, 'rows: exit /notes/ 7 vs 14 → -50%' );
+ok( strpos( $html_p, 'sn-an-prior-note' ) === false, 'rows: healthy priors → no prior-window notes anywhere' );
+
+echo "\nGroup: PART B — an EMPTY prior window says \"no prior data\" once per panel (no per-row new-spam)\n";
+ov_seed_current();
+$ov_pw = '2026-07-04|2026-07-10';
+$GLOBALS['__ov']['session_rollup'][ $ov_pw ] = array();
+$GLOBALS['__ov']['win'] = array(
+	'sources'   => array( $ov_pw => array() ),
+	'campaigns' => array( $ov_pw => array() ),
+	'dims'      => array( 'country|' . $ov_pw => array(), 'device|' . $ov_pw => array() ),
+	'entries'   => array( $ov_pw => array() ),
+	'exits'     => array( $ov_pw => array() ),
+);
+$html_ep = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( 7 === substr_count( $html_ep, 'No prior data in the comparison window yet.' ),
+	'empty prior: ONE "no prior data" note per panel (session quality + six minis) — the decided copy, pinned' );
+ok( strpos( $html_ep, '▲ new' ) === false && strpos( $html_ep, 'sn-an-delta--' ) === false,
+	'empty prior: ZERO chips — an empty prior window never manufactures per-row "new" spam' );
+ok( strpos( $html_ep, 'title="previous period:' ) === false, 'empty prior: no KPI chips either' );
+ok( strpos( $html_ep, '<p class="sn-kpi-value">44</p>' ) !== false && strpos( $html_ep, 'Google' ) !== false,
+	'empty prior: the current window still renders in full' );
+
+echo "\nGroup: PART B — a FAILED prior read suppresses deltas honestly (current data intact)\n";
+ov_seed_current();
+$GLOBALS['__ov']['session_rollup'][ $ov_pw ] = null; // the prior rollup read fails
+$GLOBALS['__ov']['fail'] = array(
+	'sources'   => array( $ov_pw ),
+	'campaigns' => array( $ov_pw ),
+	'dims'      => array( 'country|' . $ov_pw, 'device|' . $ov_pw ),
+	'entries'   => array( $ov_pw ),
+	'exits'     => array( $ov_pw ),
+);
+$html_fp = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( 7 === substr_count( $html_fp, 'The prior window could not be read — deltas suppressed (read failure, not an empty window).' ),
+	'failed prior: one small note per panel — the decided copy, pinned' );
+ok( strpos( $html_fp, 'sn-an-delta--' ) === false && strpos( $html_fp, 'title="previous period:' ) === false, 'failed prior: zero chips' );
+ok( strpos( $html_fp, '<p class="sn-kpi-value">44</p>' ) !== false && strpos( $html_fp, 'Google' ) !== false && strpos( $html_fp, '/provhub/' ) !== false,
+	'failed prior: the CURRENT window still renders in full — only the comparison is suppressed' );
+ok( strpos( $html_fp, 'No referrer rows in the durable rollup' ) === false && strpos( $html_fp, 'The durable referrer rollup could not be read' ) === false,
+	'failed prior: a failed PRIOR read is never misreported as a failed/empty CURRENT read' );
+ok( strpos( $html_fp, 'No prior data in the comparison window yet.' ) === false, 'failed prior: failure copy ≠ empty copy (both directions pinned)' );
+
+echo "\nGroup: PART B — yoy basis (window + label switch together)\n";
+ov_seed_current();
+ov_seed_priors( '2025-07-11', '2025-07-17' );
+ov_reset_calls();
+$html_y = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'yoy' ); } );
+$sr_y = ov_calls( 'sn_session_rollup_read' );
+ok( array( 'sn_session_rollup_read', '2025-07-11', '2025-07-17', 'human' ) === ( $sr_y[2] ?? null ),
+	'yoy: the prior window is the SAME dates one year earlier (the reused helper, mode-threaded)' );
+ok( strpos( $html_y, 'title="same period last year: 40"' ) !== false,
+	'yoy: the chip tooltip names the yoy basis — window and label switch from the SAME mode (the D2 one-frame rule)' );
+ok( strpos( $html_y, 'title="previous period:' ) === false, 'yoy: no stray prev-basis tooltips' );
+
+echo "\nGroup: PART B — compare Off: byte-identical body, zero prior reads (the default-view shield)\n";
+ov_seed_current();
+ov_seed_priors(); // present but MUST NOT be read
+$html_off3 = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ov_reset_calls();
+$html_off5 = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '7', 'off' ); } );
+ok( $html_off3 === $html_off5, 'off: the 5-arg off render is BYTE-IDENTICAL to the legacy 3-arg render — the entire compare feature contributes zero bytes' );
+ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ) && 1 === count( ov_calls( 'sn_analytics_top_sources' ) )
+	&& 2 === count( ov_calls( 'sn_analytics_top_dimension' ) ) && 1 === count( ov_calls( 'sn_analytics_top_entry_pages' ) ),
+	'off: zero prior-window reads — the read pattern is exactly the pre-part-4 one' );
+ok( strpos( $html_off5, 'sn-an-prior-note' ) === false && strpos( $html_off5, 'title="previous period' ) === false
+	&& strpos( $html_off5, 'sn-an-delta--' ) === false && strpos( $html_off5, 'sn-delta-up' ) === false && strpos( $html_off5, 'sn-delta-down' ) === false,
+	'off: no chips, no notes, no basis tooltips' );
+ok( strpos( $html_off5, 'single-page sessions · weighted' ) !== false, 'off: the static sub descriptors still hold the KPI slots' );
+
+echo "\nGroup: PART B — range=all suppresses compare entirely (the shared card's exact gate)\n";
+ov_reset_calls();
+$html_all = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', 'all', 'prev' ); } );
+ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ) && 1 === count( ov_calls( 'sn_analytics_top_sources' ) ),
+	'all: no prior reads — no adjacent window exists for all-history (the header suppresses its deltas at all too)' );
+ok( strpos( $html_all, 'sn-an-prior-note' ) === false && strpos( $html_all, 'sn-an-delta--' ) === false, 'all: no compare markup' );
+
+echo "\nGroup: PART B — a folded (empty-current) panel triggers no prior read\n";
+ov_seed_current();
+ov_seed_priors();
+$GLOBALS['__ov']['sources'] = array();
+ov_reset_calls();
+capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( 1 === count( ov_calls( 'sn_analytics_top_sources' ) ),
+	'economy: a current-empty panel folds — no rows to chip, so its prior read is skipped entirely' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

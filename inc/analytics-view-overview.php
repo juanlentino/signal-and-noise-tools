@@ -58,6 +58,124 @@ require_once __DIR__ . '/analytics-render-tables.php'; // snt_analytics_render_d
 // stay glanceable; the panel label renders the actual endpoint.
 const SN_OVERVIEW_TREND_WEEKS = 8;
 
+// Prior-window read depth for the mini-table compare (v9.68.0 part 4) — WIDER
+// than any visible top-N so a row at prior rank 6 is matched by key instead of
+// misread as "new". The movers idiom (sn_analytics_movers_uncached reads both
+// windows at 50 and diffs in memory); durable-table reads, so depth is cheap.
+const SN_OVERVIEW_PRIOR_LIMIT = 50;
+
+/**
+ * PART A (v9.68.0 part 4): one panel-header doorway to a full tab. Built
+ * EXACTLY like the tab strip's links (snt_analytics_render_view_tabs): the
+ * same base — current URL minus the window/view/view-local params, with
+ * sn_compare deliberately NOT stripped so the active compare mode rides along
+ * — the same sn_view param, and the same snt_analytics_window_args() carry
+ * (sn_range + sn_class; sn_from/sn_to for custom ranges only). The label is
+ * the target tab's registry label, so the doorway reads exactly like the tab
+ * it opens (the v9.65.0 slug/label split honored: 'visits' renders "Sessions").
+ *
+ * @since 9.68.0
+ * @param string     $slug  Target view slug.
+ * @param string     $label Fallback label (partial harnesses only — production
+ *                          always resolves the registry label).
+ * @param int|string $range Active range token.
+ * @param string     $class Active traffic class.
+ * @param string     $from  Window start (Y-m-d).
+ * @param string     $to    Window end (Y-m-d).
+ * @return string Pre-escaped <a> markup for the panel primitive's header_meta
+ *                seam (kses'd there; href esc_url'd + label esc_html'd here).
+ */
+function snt_analytics_overview_tab_doorway( $slug, $label, $range, $class, $from, $to ) {
+	if ( function_exists( 'snt_analytics_views' ) ) {
+		$views = snt_analytics_views();
+		if ( isset( $views[ $slug ] ) ) {
+			$label = (string) $views[ $slug ];
+		}
+	}
+	$base = remove_query_arg( array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ), add_query_arg( array() ) );
+	if ( '' === (string) $base ) {
+		$base = admin_url( 'index.php?page=sn-analytics' );
+	}
+	$args = array( 'sn_view' => (string) $slug );
+	if ( function_exists( 'snt_analytics_window_args' ) ) {
+		$args += snt_analytics_window_args( $range, $class, $from, $to );
+	}
+	return '<a class="sn-an-head-link" href="' . esc_url( add_query_arg( $args, $base ) ) . '">' . esc_html( $label ) . ' &rarr;</a>';
+}
+
+/**
+ * PART B (v9.68.0 part 4): the once-per-panel prior-window note copy — ONE
+ * pair of strings for every panel, so the whole body speaks the same two
+ * sentences about its comparison basis. '' state = no note.
+ *
+ * @since 9.68.0
+ * @param string $state '' | 'failed' | 'empty' (snt_analytics_overview_row_deltas states).
+ * @return string Translated copy, or '' for the no-note state.
+ */
+function snt_analytics_overview_prior_note_copy( $state ) {
+	if ( 'failed' === $state ) {
+		return __( 'The prior window could not be read — deltas suppressed (read failure, not an empty window).', 'signal-and-noise-tools' );
+	}
+	if ( 'empty' === $state ) {
+		return __( 'No prior data in the comparison window yet.', 'signal-and-noise-tools' );
+	}
+	return '';
+}
+
+/**
+ * PART B (v9.68.0 part 4): per-row change-vs-prior for one mini table. Pure —
+ * both guarded reads already happened at the caller.
+ *
+ * The honesty rules, one per input shape:
+ *  - $prior null (compare off / no prior read) → no deltas, no note;
+ *  - prior read FAILED → deltas suppressed, state 'failed' — the current rows
+ *    still render, only the comparison goes quiet;
+ *  - prior window EMPTY ([] with no error) → state 'empty' ONCE per panel,
+ *    never a column of fabricated per-row "new" chips;
+ *  - otherwise every current row is matched by $key_field; a row absent from a
+ *    NON-EMPTY prior window deltas against 0, which sn_analytics_delta()
+ *    resolves to {pct:null, dir:'up'} — the badge renders "new", never a
+ *    divided-by-zero +∞%. A row that vanished from the current top-N simply
+ *    does not appear: the current window drives the table.
+ *
+ * @since 9.68.0
+ * @param array      $rows      Current-window rows.
+ * @param array|null $prior     snt_analytics_overview_read_guarded() result for
+ *                              the prior window, or null when compare is off.
+ * @param string     $key_field Dimension key field ('value' | 'path').
+ * @return array{deltas: array<string,array>|null, state: string}
+ */
+function snt_analytics_overview_row_deltas( $rows, $prior, $key_field ) {
+	if ( ! is_array( $prior ) ) {
+		return array( 'deltas' => null, 'state' => '' );
+	}
+	if ( ! empty( $prior['failed'] ) ) {
+		return array( 'deltas' => null, 'state' => 'failed' );
+	}
+	$prior_rows = ( isset( $prior['rows'] ) && is_array( $prior['rows'] ) ) ? $prior['rows'] : array();
+	if ( array() === $prior_rows ) {
+		return array( 'deltas' => null, 'state' => 'empty' );
+	}
+	$prior_views = array();
+	foreach ( $prior_rows as $r ) {
+		if ( is_array( $r ) && isset( $r[ $key_field ] ) ) {
+			$prior_views[ (string) $r[ $key_field ] ] = (int) ( $r['views'] ?? 0 );
+		}
+	}
+	$deltas = array();
+	foreach ( (array) $rows as $r ) {
+		if ( ! is_array( $r ) || ! isset( $r[ $key_field ] ) ) {
+			continue;
+		}
+		$key            = (string) $r[ $key_field ];
+		$prev           = (int) ( $prior_views[ $key ] ?? 0 );
+		$d              = sn_analytics_delta( (int) ( $r['views'] ?? 0 ), $prev );
+		$d['previous']  = $prev;
+		$deltas[ $key ] = $d;
+	}
+	return array( 'deltas' => $deltas, 'state' => '' );
+}
+
 /**
  * Aggregate the durable per-day session rollup rows into window KPIs. Pure —
  * no WP calls, unit-testable in isolation.
@@ -252,8 +370,18 @@ function snt_analytics_overview_read_guarded( $read ) {
  *                                     partial-week detection.
  * @param string           $trend_to   Trend window end (Y-m-d) — the range
  *                                     control's $to; rendered in the label.
+ * @param array|null|false $prior_rows Rollup rows for the COMPARE window
+ *                                     (v9.68.0 part 4): false = compare off
+ *                                     (byte-identical legacy body), null = the
+ *                                     prior read FAILED, [] = empty prior
+ *                                     window, rows = delta chips render.
+ * @param array            $opts       {
+ *     @type string $basis_label Chip-tooltip basis (the shared card's exact
+ *                               strings: previous period / same period last year).
+ *     @type string $doorway     Pre-escaped doorway <a> for the header_meta seam.
+ * }
  */
-function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $trend_from, $trend_to ) {
+function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $trend_from, $trend_to, $prior_rows = false, $opts = array() ) {
 	$title = __( 'Session quality', 'signal-and-noise-tools' );
 	if ( false === $range_rows ) {
 		return; // rollup module absent — production loads it unconditionally.
@@ -268,38 +396,78 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 		return;
 	}
 
-	snt_an_panel_open( $title, array(
-		// The v9.65.0 units lesson: same dashboard, same word, two units — say
-		// which one this is. (Sessions here ≠ the headline's visitor-day Visits.)
-		'header_meta' => __( 'within-day sessions · nightly rollup — a different unit from the Overview headline&#8217;s visitor-day Visits', 'signal-and-noise-tools' ),
-	) );
-	snt_an_kpi_row(
+	// The v9.65.0 units lesson: same dashboard, same word, two units — say
+	// which one this is. (Sessions here ≠ the headline's visitor-day Visits.)
+	$header_meta = __( 'within-day sessions · nightly rollup — a different unit from the Overview headline&#8217;s visitor-day Visits', 'signal-and-noise-tools' );
+	$doorway     = (string) ( $opts['doorway'] ?? '' );
+	if ( '' !== $doorway ) {
+		$header_meta .= ' · ' . $doorway; // PART A: the doorway to the full Sessions tab.
+	}
+	snt_an_panel_open( $title, array( 'header_meta' => $header_meta ) );
+
+	// PART B: KPI chips vs the prior window — the same null discipline as the
+	// panel's own read (false = compare off, null = failed read, [] aggregates
+	// to null = no prior sessions), resolved to the same two note sentences the
+	// mini tables use. Delta math is sn_analytics_delta() (no division by a
+	// zero prior — its own contract).
+	$prior_state = '';
+	$prior_kpis  = null;
+	if ( false !== $prior_rows ) {
+		if ( null === $prior_rows ) {
+			$prior_state = 'failed';
+		} else {
+			$prior_kpis = snt_analytics_overview_session_kpis( $prior_rows );
+			if ( null === $prior_kpis ) {
+				$prior_state = 'empty';
+			}
+		}
+	}
+	$sq_chip = static function ( $cur, $prev ) {
+		$d             = sn_analytics_delta( (float) $cur, (float) $prev );
+		$d['previous'] = $prev;
+		return $d;
+	};
+	$cards = array(
 		array(
-			array(
-				'l'        => __( 'Sessions', 'signal-and-noise-tools' ),
-				'n'        => number_format_i18n( (int) $kpis['sessions'] ),
-				'promoted' => true,
-				/* translators: %d: number of days the nightly rollup has written in this window. */
-				'sub'      => sprintf( __( '%d rolled-up days', 'signal-and-noise-tools' ), (int) $kpis['days'] ),
-			),
-			array(
-				'l'   => __( 'Bounce', 'signal-and-noise-tools' ),
-				'n'   => number_format_i18n( (float) $kpis['bounce_pct'], 1 ) . '%',
-				'sub' => __( 'single-page sessions · weighted', 'signal-and-noise-tools' ),
-			),
-			array(
-				'l'   => __( 'Pages / session', 'signal-and-noise-tools' ),
-				'n'   => number_format_i18n( (float) $kpis['ppv'], 2 ),
-				'sub' => __( 'weighted mean', 'signal-and-noise-tools' ),
-			),
-			array(
-				'l'   => __( 'Median duration', 'signal-and-noise-tools' ),
-				'n'   => number_format_i18n( (int) $kpis['median_dur'] ) . 's',
-				'sub' => __( 'median of daily medians', 'signal-and-noise-tools' ),
-			),
+			'l'        => __( 'Sessions', 'signal-and-noise-tools' ),
+			'n'        => number_format_i18n( (int) $kpis['sessions'] ),
+			'promoted' => true,
+			/* translators: %d: number of days the nightly rollup has written in this window. */
+			'sub'      => sprintf( __( '%d rolled-up days', 'signal-and-noise-tools' ), (int) $kpis['days'] ),
 		),
-		array( 'empty_slot' => 'omit' )
+		array(
+			'l'   => __( 'Bounce', 'signal-and-noise-tools' ),
+			'n'   => number_format_i18n( (float) $kpis['bounce_pct'], 1 ) . '%',
+			'sub' => __( 'single-page sessions · weighted', 'signal-and-noise-tools' ),
+		),
+		array(
+			'l'   => __( 'Pages / session', 'signal-and-noise-tools' ),
+			'n'   => number_format_i18n( (float) $kpis['ppv'], 2 ),
+			'sub' => __( 'weighted mean', 'signal-and-noise-tools' ),
+		),
+		array(
+			'l'   => __( 'Median duration', 'signal-and-noise-tools' ),
+			'n'   => number_format_i18n( (int) $kpis['median_dur'] ) . 's',
+			'sub' => __( 'median of daily medians', 'signal-and-noise-tools' ),
+		),
 	);
+	if ( null !== $prior_kpis ) {
+		// The primitive's slot precedence (live > delta > sub) swaps the static
+		// descriptor for the chip while compare is on — the shared Overview
+		// card's exact behavior; the descriptor returns the moment compare is off.
+		$cards[0]['delta'] = $sq_chip( (int) $kpis['sessions'], (int) $prior_kpis['sessions'] );
+		$cards[1]['delta'] = $sq_chip( (float) $kpis['bounce_pct'], (float) $prior_kpis['bounce_pct'] );
+		$cards[2]['delta'] = $sq_chip( (float) $kpis['ppv'], (float) $prior_kpis['ppv'] );
+		$cards[3]['delta'] = $sq_chip( (int) $kpis['median_dur'], (int) $prior_kpis['median_dur'] );
+	}
+	snt_an_kpi_row( $cards, array(
+		'empty_slot'  => 'omit',
+		'basis_label' => (string) ( $opts['basis_label'] ?? '' ),
+	) );
+	$sq_note = snt_analytics_overview_prior_note_copy( $prior_state );
+	if ( '' !== $sq_note ) {
+		echo '<p class="sn-an-compare-note sn-an-prior-note">' . esc_html( $sq_note ) . '</p>';
+	}
 
 	// The 8-week bounce trend — its states are independent of the KPI read
 	// above (two reads of the same table can fail separately). The window is a
@@ -384,19 +552,51 @@ function snt_analytics_render_overview_rightnow( $now, $today ) {
  * — see the file header's load-cost contract. function_exists guards are
  * defence in depth for partial harnesses; production loads every module.
  *
+ * v9.68.0 part 4: $range + $compare arrive from the dispatcher so the body can
+ * (a) build doorway links that carry the window exactly as the tab strip does,
+ * and (b) render change-vs-prior when the header's compare control is on. Both
+ * default to the legacy landing ('7' / 'off') so every existing caller renders
+ * byte-identically (test-pinned).
+ *
  * @since 9.68.0
- * @param string $from  Window start (Y-m-d).
- * @param string $to    Window end (Y-m-d).
- * @param string $class Traffic class.
+ * @param string     $from    Window start (Y-m-d).
+ * @param string     $to      Window end (Y-m-d).
+ * @param string     $class   Traffic class.
+ * @param int|string $range   Active range token (doorway param carry).
+ * @param string     $compare Compare mode: 'prev' | 'yoy' | 'off' (default).
  */
-function snt_analytics_render_view_overview( $from, $to, $class ) {
+function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $compare = 'off' ) {
+	// ── PART B frame: mode + prior window derive EXACTLY as the shared
+	// Overview card's one comparison frame does (inc/analytics-header-region.php
+	// v9.38.0 D2): the same sn_compare vocabulary, the same range=all gate, and
+	// the SAME snt_analytics_compare_window() date math — never reimplemented.
+	// The prior-window READS stay durable-table-only (the load-cost rule) and
+	// ride the same guarded-read bracket as the current reads.
+	$compare    = (string) $compare;
+	$compare_on = ( 'off' !== $compare && 'all' !== (string) $range
+		&& function_exists( 'snt_analytics_compare_window' )
+		&& function_exists( 'sn_analytics_delta' ) );
+	$cwin        = $compare_on ? snt_analytics_compare_window( $from, $to, $compare ) : array( '', '' );
+	$basis_label = ( 'yoy' === $compare )
+		? __( 'same period last year', 'signal-and-noise-tools' )
+		: __( 'previous period', 'signal-and-noise-tools' );
+
 	// ── Session quality: two reads of the durable wp_sn_session_daily table —
-	// the header window (KPIs) + the 8-week trend window anchored at $to.
+	// the header window (KPIs) + the 8-week trend window anchored at $to — and,
+	// with compare on, ONE more for the prior window (the trend stays single:
+	// it is already temporal). A prior read is only worth its query when the
+	// current window produced rows the chips could sit on.
 	$has_rollup = function_exists( 'sn_session_rollup_read' );
 	$range_rows = $has_rollup ? sn_session_rollup_read( $from, $to, $class ) : false;
 	$t8_from    = gmdate( 'Y-m-d', strtotime( $to . ' 00:00:00 UTC' ) - ( SN_OVERVIEW_TREND_WEEKS * 7 - 1 ) * DAY_IN_SECONDS );
 	$trend_rows = $has_rollup ? sn_session_rollup_read( $t8_from, $to, $class ) : false;
-	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $t8_from, $to );
+	$prior_rows = ( $compare_on && $has_rollup && is_array( $range_rows ) && array() !== $range_rows )
+		? sn_session_rollup_read( $cwin[0], $cwin[1], $class )
+		: false;
+	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $t8_from, $to, $prior_rows, array(
+		'basis_label' => $basis_label,
+		'doorway'     => snt_analytics_overview_tab_doorway( 'visits', __( 'Sessions', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
+	) );
 
 	// ── Right now: the cron-warmed transient pair (realtime is class-aware;
 	// views-today is human-only by construction and its card says so).
@@ -411,18 +611,43 @@ function snt_analytics_render_view_overview( $from, $to, $class ) {
 	// existing contract, deliberately untouched), so each call is bracketed by
 	// snt_analytics_overview_read_guarded(): a read that newly set
 	// $wpdb->last_error folds as "could not be read", never as an empty week.
-	$sources   = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	// Each mini's prior-window read (PART B) sits right beside its current read:
+	// same accessor, same guarded bracket, prior window, depth SN_OVERVIEW_PRIOR_
+	// LIMIT — and only when the current read produced rows for chips to sit on
+	// (a folded panel has nothing to compare). null prior = compare off.
+	$sources       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, $class, 5 ) : array();
 	} );
-	$campaigns = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$sources_prior = ( $compare_on && array() !== $sources['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$campaigns       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $from, $to, $class, 5 ) : array();
 	} );
-	$countries = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$campaigns_prior = ( $compare_on && array() !== $campaigns['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$countries       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, $class, 5 ) : array();
 	} );
-	$devices   = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$countries_prior = ( $compare_on && array() !== $countries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$devices       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $from, $to, $class, 5 ) : array();
 	} );
+	$devices_prior = ( $compare_on && array() !== $devices['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+
+	$src_cmp = snt_analytics_overview_row_deltas( $sources['rows'], $sources_prior, 'value' );
+	$utm_cmp = snt_analytics_overview_row_deltas( $campaigns['rows'], $campaigns_prior, 'value' );
+	$geo_cmp = snt_analytics_overview_row_deltas( $countries['rows'], $countries_prior, 'value' );
+	$dev_cmp = snt_analytics_overview_row_deltas( $devices['rows'], $devices_prior, 'value' );
+
+	// PART A doorways: sources/entry/exit all open the Content tab (one href,
+	// built once); the other minis each open their own tab.
+	$doorway_content = snt_analytics_overview_tab_doorway( 'content', __( 'Content', 'signal-and-noise-tools' ), $range, $class, $from, $to );
 
 	echo '<div class="sn-an-overview-bento">';
 	echo '<div class="sn-an-bento-col">';
@@ -431,14 +656,30 @@ function snt_analytics_render_view_overview( $from, $to, $class ) {
 		$sources['rows'],
 		$sources['failed']
 			? __( 'The durable referrer rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
-			: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+			: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+		array(),
+		'',
+		5,
+		array(
+			'header_meta' => $doorway_content,
+			'deltas'      => $src_cmp['deltas'],
+			'prior_note'  => snt_analytics_overview_prior_note_copy( $src_cmp['state'] ),
+		)
 	);
 	snt_analytics_render_dim_table(
 		__( 'Campaigns (UTM)', 'signal-and-noise-tools' ),
 		$campaigns['rows'],
 		$campaigns['failed']
 			? __( 'The durable UTM rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
-			: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+			: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+		array(),
+		'',
+		5,
+		array(
+			'header_meta' => snt_analytics_overview_tab_doorway( 'campaigns', __( 'Campaigns', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
+			'deltas'      => $utm_cmp['deltas'],
+			'prior_note'  => snt_analytics_overview_prior_note_copy( $utm_cmp['state'] ),
+		)
 	);
 	echo '</div>';
 	echo '<div class="sn-an-bento-col">';
@@ -447,14 +688,30 @@ function snt_analytics_render_view_overview( $from, $to, $class ) {
 		$countries['rows'],
 		$countries['failed']
 			? __( 'The durable country rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
-			: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+			: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+		array(),
+		'',
+		5,
+		array(
+			'header_meta' => snt_analytics_overview_tab_doorway( 'geography', __( 'Geography', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
+			'deltas'      => $geo_cmp['deltas'],
+			'prior_note'  => snt_analytics_overview_prior_note_copy( $geo_cmp['state'] ),
+		)
 	);
 	snt_analytics_render_dim_table(
 		__( 'Devices', 'signal-and-noise-tools' ),
 		$devices['rows'],
 		$devices['failed']
 			? __( 'The durable device rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' )
-			: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' )
+			: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+		array(),
+		'',
+		5,
+		array(
+			'header_meta' => snt_analytics_overview_tab_doorway( 'technology', __( 'Technology', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
+			'deltas'      => $dev_cmp['deltas'],
+			'prior_note'  => snt_analytics_overview_prior_note_copy( $dev_cmp['state'] ),
+		)
 	);
 	echo '</div>';
 	echo '</div>';
@@ -465,22 +722,46 @@ function snt_analytics_render_view_overview( $from, $to, $class ) {
 	// the header meta says so. Same last_error bracketing as the bento: a
 	// failed read folds as "could not be read" via the panel's own title (the
 	// shared renderer's empty copy is reserved for a truly empty window).
-	$entries = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+	$entries       = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
 		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
 	} );
-	$exits   = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+	$entries_prior = ( $compare_on && array() !== $entries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
+		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$exits         = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
 		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $from, $to, 10 ) : array();
 	} );
+	$exits_prior   = ( $compare_on && array() !== $exits['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
+		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$ent_cmp       = snt_analytics_overview_row_deltas( $entries['rows'], $entries_prior, 'path' );
+	$ext_cmp       = snt_analytics_overview_row_deltas( $exits['rows'], $exits_prior, 'path' );
 	echo '<div class="sn-an-grid sn-an-overview-pair">';
 	if ( $entries['failed'] ) {
 		snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), __( 'The durable entry-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
 	} else {
-		snt_analytics_render_pageroles_table( $entries['rows'], 'entry', __( 'human traffic · durable rollup', 'signal-and-noise-tools' ) );
+		snt_analytics_render_pageroles_table(
+			$entries['rows'],
+			'entry',
+			__( 'human traffic · durable rollup', 'signal-and-noise-tools' ) . ' · ' . $doorway_content,
+			array(
+				'deltas'     => $ent_cmp['deltas'],
+				'prior_note' => snt_analytics_overview_prior_note_copy( $ent_cmp['state'] ),
+			)
+		);
 	}
 	if ( $exits['failed'] ) {
 		snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), __( 'The durable exit-pages rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
 	} else {
-		snt_analytics_render_pageroles_table( $exits['rows'], 'exit', __( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) );
+		snt_analytics_render_pageroles_table(
+			$exits['rows'],
+			'exit',
+			__( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) . ' · ' . $doorway_content,
+			array(
+				'deltas'     => $ext_cmp['deltas'],
+				'prior_note' => snt_analytics_overview_prior_note_copy( $ext_cmp['state'] ),
+			)
+		);
 	}
 	echo '</div>';
 

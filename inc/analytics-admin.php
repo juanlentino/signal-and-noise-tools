@@ -513,7 +513,10 @@ function snt_analytics_render_dashboard() {
 			// v9.68.0: the wired landing surface (the v9.67.0 mock, graduated)
 			// — inc/analytics-view-overview.php. Default on purpose: it is
 			// also where resolve_view sends every unknown/retired slug.
-			snt_analytics_render_view_overview( $from, $to, $class );
+			// Part 4: the body also receives the range token (doorway links
+			// carry the window exactly as the tab strip does) and the compare
+			// mode (change-vs-prior chips follow the header control).
+			snt_analytics_render_view_overview( $from, $to, $class, $range, $compare );
 			break;
 	}
 	echo '</div>';
