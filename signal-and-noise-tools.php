@@ -102,6 +102,7 @@ require_once SNT_PATH . 'inc/analytics-widget.php';
 // read-client; analytics-rollup.php (its first consumer) must load after it.
 require_once SNT_PATH . 'inc/analytics-api.php';
 require_once SNT_PATH . 'inc/analytics-rollup.php';
+require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
 require_once SNT_PATH . 'inc/analytics-sessions.php';       // within-day session engine (pure)
