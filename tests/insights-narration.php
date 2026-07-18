@@ -61,10 +61,29 @@ if ( ! function_exists( 'remove_filter' ) ) { function remove_filter( $h, $cb, $
 // ── analytics reader stubs (canned shapes mirror the real accessors) ──
 $GLOBALS['__edge_pageviews'] = 0; // 0 => machine block omitted (unconfigured/graceful)
 if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
-	function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 1430, 'visits' => 880, 'scroll_avg' => 62.0, 'time_avg' => 41.0 ); }
+	// Mirrors the REAL post-v9.63.0 merged shape (inc/analytics-read.php @return):
+	// legacy quartet + every derive-layer honest field + exact_metrics_since. A
+	// legacy-quartet-only stub here would green a payload that silently dropped
+	// the honest vocabulary (the stub-drift trap).
+	function sn_analytics_range_totals( $f, $t, $c = 'human' ) {
+		return array(
+			'views' => 1430, 'visits' => 880, 'scroll_avg' => 62.0, 'time_avg' => 41.0,
+			'unique_visitor_days' => 880, 'pageview_visits' => 800, 'viewless_visits' => 80,
+			'view_visit_ratio' => 1.7875, 'pageviews_per_visitor_day' => 1.625,
+			'scroll_avg_per_view' => 58.0, 'time_avg_per_view' => 39.0,
+			'scroll_avg_per_visit' => 52.0, 'time_avg_per_visit' => 35.0,
+			'integrity_violation' => false, 'exact_metrics_since' => '2026-07-01',
+		);
+	}
 }
 if ( ! function_exists( 'sn_analytics_period_deltas' ) ) {
-	function sn_analytics_period_deltas( $f, $t, $c = 'human' ) { return array( 'views' => array( 'current' => 1430, 'previous' => 1280, 'pct' => 12, 'dir' => 'up' ) ); }
+	function sn_analytics_period_deltas( $f, $t, $c = 'human' ) {
+		return array(
+			'views'           => array( 'current' => 1430, 'previous' => 1280, 'pct' => 12, 'dir' => 'up' ),
+			'visits'          => array( 'current' => 880, 'previous' => 840, 'pct' => 5, 'dir' => 'up' ),
+			'pageview_visits' => array( 'current' => 800, 'previous' => 760, 'pct' => 5, 'dir' => 'up' ),
+		);
+	}
 }
 if ( ! function_exists( 'sn_analytics_engaged_rate_delta' ) ) {
 	function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 48, 'previous' => 44, 'pct' => 9, 'dir' => 'up' ); }
@@ -184,6 +203,25 @@ $sys = snt_narration_system_instruction();
 ok( false !== stripos( $sys, 'COOKIELESS' ), 'mentions COOKIELESS' );
 ok( false !== stripos( $sys, 'new-vs-returning' ), 'forbids new-vs-returning / cross-day identity' );
 ok( false !== stripos( $sys, 'Output JSON only' ), 'JSON-only instruction present' );
+
+// ── Test 7b: honest vocabulary (v9.64.1) — payload carries the fields, the
+// instruction defines them, and the structural gap is never "unexplained" ──
+echo "\nTest 7b: honest-vocabulary payload keys + instruction rules (v9.64.1)\n";
+$sig7b = snt_narration_collect_signals();
+ok( array_key_exists( 'pageview_visits', $sig7b['totals'] ), 'totals payload carries pageview_visits (the gated headline visits)' );
+ok( array_key_exists( 'unique_visitor_days', $sig7b['totals'] ), 'totals payload carries unique_visitor_days' );
+ok( array_key_exists( 'viewless_visits', $sig7b['totals'] ), 'totals payload carries viewless_visits' );
+ok( array_key_exists( 'integrity_violation', $sig7b['totals'] ), 'totals payload carries the integrity_violation flag' );
+eq( 800, $sig7b['totals']['pageview_visits'], 'pageview_visits passes through un-mangled' );
+eq( 80, $sig7b['totals']['viewless_visits'], 'viewless_visits passes through un-mangled' );
+$sys7b = snt_narration_system_instruction();
+ok( false !== strpos( $sys7b, 'pageview_visits' ), 'instruction defines pageview_visits' );
+ok( false !== strpos( $sys7b, 'viewless_visits' ), 'instruction defines viewless_visits' );
+ok( false !== stripos( $sys7b, 'visitor-days' ), 'instruction speaks the visitor-day vocabulary' );
+ok( false !== stripos( $sys7b, 'structural' ), 'instruction names the views-vs-visitor-days gap STRUCTURAL' );
+ok( false !== strpos( $sys7b, 'NEVER call it unusual, unexplained, or an anomaly' ), 'instruction forbids the "unexplained anomaly" framing for the structural gap' );
+ok( false !== strpos( $sys7b, 'integrity_violation' ), 'instruction keeps a genuine-anomaly branch ONLY for integrity_violation' );
+ok( false !== stripos( $sys7b, 'never call' ) || false !== stripos( $sys7b, 'never "visits"' ), 'instruction forbids calling visitor-days "visits"' );
 
 // ── Test 8: collect_signals machine block graceful ──
 echo "\nTest 8: machine block omitted when edge idle, present when it saw hits\n";
