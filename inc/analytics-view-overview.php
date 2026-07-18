@@ -35,6 +35,26 @@
  *    0, and a warmed 0 is a real 0 — but a transient read has no failure
  *    channel, so "warming" honestly covers never-warmed and lost alike.
  *
+ * ATTENTION LAYER (v9.69.0, owner-approved): every panel's headline movement
+ * is judged vs the PREVIOUS period on EVERY render — compare Off included
+ * (that is the feature's point; the header's compare control governs only the
+ * visible delta chips). Prior windows come from the real
+ * snt_analytics_compare_window(...,'prev') — zero new date math — and the
+ * prior reads stay durable-table-only, bounded like the v9.68.0 compare reads.
+ * Flagged panels wear the amber NOTABLE chip (header_meta seam, beside the
+ * doorway) and are named in one needs-attention strip at the very top of the
+ * body, with in-page anchor links. Reordering (the approved AFTER geometry,
+ * generalized): Session quality ALWAYS first; flagged minis promote out of
+ * the bento to full width directly beneath it, in canonical relative order;
+ * entry/exit promote as a PAIR if either flags; Right now never promotes
+ * (instantaneous — no prior period exists for it). Thresholds, sentiment
+ * table and null discipline live in inc/analytics-overview-attention.php.
+ * DOCUMENTED CHOICE — a FAILED prior read is attention UNKNOWN: no chip, no
+ * strip mention, and no false "all calm" claim either; unknown renders as
+ * silence, byte-identical to a quiet week, because claiming either state
+ * would fabricate knowledge. QUIET-WEEK SHIELD: when nothing flags, the body
+ * is byte-identical to the v9.68.1 output (golden-pinned in tests).
+ *
  * Composition: existing snt_an_* primitives + the existing dim/pageroles
  * table renderers. Light-only, no JS, no <wpd-*> — a wp-admin view, not a
  * desktop-mode window (widgets stay widgets).
@@ -49,6 +69,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-panels.php';        // panel chrome + KPI row + trend + empty-fold primitives
 require_once __DIR__ . '/analytics-render-tables.php'; // snt_analytics_render_dim_table + snt_analytics_render_pageroles_table
+require_once __DIR__ . '/analytics-overview-attention.php'; // v9.69.0 attention signals + chip + strip (pure)
 
 // The session-quality bounce trend reads a fixed-LENGTH trailing window (8 ISO
 // weeks) ANCHORED at the range control's end date ($to) — deliberate: a
@@ -367,6 +388,9 @@ function snt_analytics_overview_read_guarded( $read ) {
  *     @type string $basis_label Chip-tooltip basis (the shared card's exact
  *                               strings: previous period / same period last year).
  *     @type string $doorway     Pre-escaped doorway <a> for the header_meta seam.
+ *     @type bool   $attn_chip   v9.69.0: prepend the amber NOTABLE chip to the
+ *                               header meta (the panel's attention signal
+ *                               flagged). Default false — byte-identical.
  * }
  */
 function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $trend_from, $trend_to, $prior_rows = false, $opts = array() ) {
@@ -390,6 +414,11 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 	$doorway     = (string) ( $opts['doorway'] ?? '' );
 	if ( '' !== $doorway ) {
 		$header_meta .= ' · ' . $doorway; // PART A: the doorway to the full Sessions tab.
+	}
+	if ( ! empty( $opts['attn_chip'] ) ) {
+		// v9.69.0: the amber NOTABLE chip leads the meta, coexisting with the
+		// units note and the doorway in the one header_meta seam.
+		$header_meta = snt_analytics_attn_chip() . ' · ' . $header_meta;
 	}
 	snt_an_panel_open( $title, array( 'header_meta' => $header_meta ) );
 
@@ -574,190 +603,351 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 		? __( 'same period last year', 'signal-and-noise-tools' )
 		: __( 'previous period', 'signal-and-noise-tools' );
 
-	// ── Session quality: two reads of the durable wp_sn_session_daily table —
-	// the header window (KPIs) + the 8-week trend window anchored at $to — and,
-	// with compare on, ONE more for the prior window (the trend stays single:
-	// it is already temporal). A prior read is only worth its query when the
-	// current window produced rows the chips could sit on.
+	// ── PART C frame (v9.69.0): the attention window is ALWAYS the adjacent
+	// prev window, whatever the compare control says — signals run on EVERY
+	// render, compare Off included (the feature's point; the compare control
+	// governs only the visible chips). range=all has no adjacent window (the
+	// shared card's exact gate), so attention is off there — and so is "Right
+	// now" always: an instantaneous reading has no prior period.
+	$attn_on = ( 'all' !== (string) $range && function_exists( 'snt_analytics_compare_window' ) );
+	$awin    = $attn_on ? snt_analytics_compare_window( $from, $to, 'prev' ) : array( '', '' );
+
+	// ── Session quality reads: the header window (KPIs) + the 8-week trend
+	// window anchored at $to + (attention) the prev window; in prev compare
+	// mode the chips REUSE the attention read — one query serves both — while
+	// yoy adds its own chip-basis read. Prior reads only when the current
+	// window produced rows (a folded panel has nothing to compare or flag).
 	$has_rollup = function_exists( 'sn_session_rollup_read' );
 	$range_rows = $has_rollup ? sn_session_rollup_read( $from, $to, $class ) : false;
 	$t8_from    = gmdate( 'Y-m-d', strtotime( $to . ' 00:00:00 UTC' ) - ( SN_OVERVIEW_TREND_WEEKS * 7 - 1 ) * DAY_IN_SECONDS );
 	$trend_rows = $has_rollup ? sn_session_rollup_read( $t8_from, $to, $class ) : false;
-	$prior_rows = ( $compare_on && $has_rollup && is_array( $range_rows ) && array() !== $range_rows )
-		? sn_session_rollup_read( $cwin[0], $cwin[1], $class )
-		: false;
-	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $t8_from, $to, $prior_rows, array(
-		'basis_label' => $basis_label,
-		'doorway'     => snt_analytics_overview_tab_doorway( 'visits', __( 'Sessions', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
-	) );
+	$sess_ok    = ( $has_rollup && is_array( $range_rows ) && array() !== $range_rows );
+	$sig_sess   = ( $attn_on && $sess_ok ) ? sn_session_rollup_read( $awin[0], $awin[1], $class ) : false; // false = never attempted; null = the read FAILED.
+	$prior_rows = false;
+	if ( $compare_on && $sess_ok ) {
+		$prior_rows = ( 'prev' === $compare && false !== $sig_sess )
+			? $sig_sess
+			: sn_session_rollup_read( $cwin[0], $cwin[1], $class );
+	}
+	$sq_signal = array( 'state' => 'none', 'fact' => '' );
+	if ( false !== $sig_sess ) {
+		$sq_signal = snt_analytics_attn_session_signal(
+			snt_analytics_overview_session_kpis( $range_rows ),
+			is_array( $sig_sess ) ? snt_analytics_overview_session_kpis( $sig_sess ) : null,
+			null === $sig_sess
+		);
+	}
 
-	// ── Right now: the cron-warmed transient pair (realtime is class-aware;
-	// views-today is human-only by construction and its card says so).
-	snt_analytics_render_overview_rightnow(
-		function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null,
-		function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null
-	);
-
-	// ── Balanced bento: acquisition left (sources + UTM), audience right
-	// (countries + devices) — all four from durable rollup tables. Since
-	// v9.68.1 their accessors self-report a failed read as null ([] = empty
-	// window), and snt_analytics_overview_read_guarded() resolves that
-	// verdict: a failed read folds as "could not be read", never as an empty
-	// week.
-	// Each mini's prior-window read (PART B) sits right beside its current read:
-	// same accessor, same guarded bracket, prior window, depth SN_OVERVIEW_PRIOR_
-	// LIMIT — and only when the current read produced rows for chips to sit on
-	// (a folded panel has nothing to compare). null prior = compare off.
-	$sources       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	// ── Mini reads: current window (top-N), then the attention prev window
+	// (depth SN_OVERVIEW_PRIOR_LIMIT, the same guarded bracket), then the
+	// compare-chip basis (reused in prev mode; its own read in yoy). Since
+	// v9.68.1 the accessors self-report a failed read as null ([] = empty
+	// window) and snt_analytics_overview_read_guarded() resolves that verdict.
+	$sources     = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, $class, 5 ) : array();
 	} );
-	$sources_prior = ( $compare_on && array() !== $sources['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
-		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	$sources_sig = ( $attn_on && array() !== $sources['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin, $class ) {
+		return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $awin[0], $awin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
 	} ) : null;
-	$campaigns       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$sources_prior = null;
+	if ( $compare_on && array() !== $sources['rows'] ) {
+		$sources_prior = ( 'prev' === $compare && null !== $sources_sig ) ? $sources_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+			return function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
+	$campaigns     = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $from, $to, $class, 5 ) : array();
 	} );
-	$campaigns_prior = ( $compare_on && array() !== $campaigns['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
-		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	$campaigns_sig = ( $attn_on && array() !== $campaigns['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin, $class ) {
+		return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $awin[0], $awin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
 	} ) : null;
-	$countries       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$campaigns_prior = null;
+	if ( $compare_on && array() !== $campaigns['rows'] ) {
+		$campaigns_prior = ( 'prev' === $compare && null !== $campaigns_sig ) ? $campaigns_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+			return function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
+	$countries     = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, $class, 5 ) : array();
 	} );
-	$countries_prior = ( $compare_on && array() !== $countries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
-		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	$countries_sig = ( $attn_on && array() !== $countries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $awin[0], $awin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
 	} ) : null;
-	$devices       = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
+	$countries_prior = null;
+	if ( $compare_on && array() !== $countries['rows'] ) {
+		$countries_prior = ( 'prev' === $compare && null !== $countries_sig ) ? $countries_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+			return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
+	$devices     = snt_analytics_overview_read_guarded( static function () use ( $from, $to, $class ) {
 		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $from, $to, $class, 5 ) : array();
 	} );
-	$devices_prior = ( $compare_on && array() !== $devices['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
-		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	$devices_sig = ( $attn_on && array() !== $devices['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin, $class ) {
+		return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $awin[0], $awin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
 	} ) : null;
+	$devices_prior = null;
+	if ( $compare_on && array() !== $devices['rows'] ) {
+		$devices_prior = ( 'prev' === $compare && null !== $devices_sig ) ? $devices_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin, $class ) {
+			return function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'device', $cwin[0], $cwin[1], $class, SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
+
+	// ── Entry + exit pages (read before render since v9.69.0 — their signals
+	// join the same roll-up): the durable pageroles rollup, human-only (their
+	// rollup carries no class column; the header meta says so).
+	$entries     = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
+	} );
+	$entries_sig = ( $attn_on && array() !== $entries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin ) {
+		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $awin[0], $awin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$entries_prior = null;
+	if ( $compare_on && array() !== $entries['rows'] ) {
+		$entries_prior = ( 'prev' === $compare && null !== $entries_sig ) ? $entries_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
+			return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
+	$exits     = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
+		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $from, $to, 10 ) : array();
+	} );
+	$exits_sig = ( $attn_on && array() !== $exits['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $awin ) {
+		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $awin[0], $awin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+	} ) : null;
+	$exits_prior = null;
+	if ( $compare_on && array() !== $exits['rows'] ) {
+		$exits_prior = ( 'prev' === $compare && null !== $exits_sig ) ? $exits_sig : snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
+			return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
+		} );
+	}
 
 	$src_cmp = snt_analytics_overview_row_deltas( $sources['rows'], $sources_prior, 'value' );
 	$utm_cmp = snt_analytics_overview_row_deltas( $campaigns['rows'], $campaigns_prior, 'value' );
 	$geo_cmp = snt_analytics_overview_row_deltas( $countries['rows'], $countries_prior, 'value' );
 	$dev_cmp = snt_analytics_overview_row_deltas( $devices['rows'], $devices_prior, 'value' );
+	$ent_cmp = snt_analytics_overview_row_deltas( $entries['rows'], $entries_prior, 'path' );
+	$ext_cmp = snt_analytics_overview_row_deltas( $exits['rows'], $exits_prior, 'path' );
 
-	// PART A doorways: sources/entry/exit all open the Content tab (one href,
-	// built once); the other minis each open their own tab.
+	// ── The attention roll-up, canonical panel order. 'unknown' (a FAILED
+	// prior read) contributes nothing: no chip, no strip mention — and no
+	// false "all calm" either; unknown renders as silence (see file header).
+	$flags = array();
+	if ( 'notable' === $sq_signal['state'] ) {
+		$flags['quality'] = array( 'label' => __( 'Session quality', 'signal-and-noise-tools' ), 'anchor' => 'sn-ov-quality', 'fact' => $sq_signal['fact'] );
+	}
+	foreach ( array(
+		'sources'   => array( __( 'Top sources', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $sources['rows'], $sources_sig, 'value', 5 ) ),
+		'campaigns' => array( __( 'Campaigns (UTM)', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $campaigns['rows'], $campaigns_sig, 'value', 5 ) ),
+		'geography' => array( __( 'Geography', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $countries['rows'], $countries_sig, 'value', 5 ) ),
+		'devices'   => array( __( 'Devices', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $devices['rows'], $devices_sig, 'value', 5 ) ),
+		'entry'     => array( __( 'Entry pages', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $entries['rows'], $entries_sig, 'path', 10 ) ),
+		'exit'      => array( __( 'Exit pages', 'signal-and-noise-tools' ), snt_analytics_attn_resolve_table( $exits['rows'], $exits_sig, 'path', 10 ) ),
+	) as $slug => $pair ) {
+		if ( 'notable' === $pair[1]['state'] ) {
+			$flags[ $slug ] = array( 'label' => $pair[0], 'anchor' => 'sn-ov-' . $slug, 'fact' => $pair[1]['fact'] );
+		}
+	}
+
+	// ── The strip: one triage line at the very top of the body, in-page
+	// anchor links to the flagged panels. No flags → no strip at all.
+	if ( array() !== $flags ) {
+		snt_analytics_attn_render_strip( array_values( $flags ) );
+	}
+
+	// ── Session quality: ALWAYS first, flagged or not — flagging only gains
+	// it the chip + anchor, never a new position.
+	if ( isset( $flags['quality'] ) ) {
+		echo '<div class="sn-an-attn-anchor" id="sn-ov-quality">';
+	}
+	snt_analytics_render_overview_session_quality( $range_rows, $trend_rows, $t8_from, $to, $prior_rows, array(
+		'basis_label' => $basis_label,
+		'doorway'     => snt_analytics_overview_tab_doorway( 'visits', __( 'Sessions', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
+		'attn_chip'   => isset( $flags['quality'] ),
+	) );
+	if ( isset( $flags['quality'] ) ) {
+		echo '</div>';
+	}
+
+	// ── Mini renderers, defined ONCE and placed by the promotion geometry: a
+	// closure per panel so the promoted and bento placements emit byte-identical
+	// panel markup — promotion changes position, never content. PART A doorways:
+	// sources/entry/exit all open the Content tab (one href, built once); the
+	// other minis each open their own tab.
 	$doorway_content = snt_analytics_overview_tab_doorway( 'content', __( 'Content', 'signal-and-noise-tools' ), $range, $class, $from, $to );
+	$attn_meta       = static function ( $chip, $meta ) {
+		return ( $chip ? snt_analytics_attn_chip() . ' · ' : '' ) . $meta;
+	};
+	$mini_render = array(
+		'sources'   => function ( $chip ) use ( $sources, $src_cmp, $doorway_content, $attn_meta ) {
+			snt_analytics_render_dim_table(
+				__( 'Top sources', 'signal-and-noise-tools' ),
+				$sources['rows'],
+				$sources['failed']
+					? snt_an_read_failed_copy( __( 'The durable referrer rollup', 'signal-and-noise-tools' ) )
+					: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+				array(),
+				'',
+				5,
+				array(
+					'header_meta' => $attn_meta( $chip, $doorway_content ),
+					'deltas'      => $src_cmp['deltas'],
+					'prior_note'  => snt_analytics_overview_prior_note_copy( $src_cmp['state'] ),
+				)
+			);
+		},
+		'campaigns' => function ( $chip ) use ( $campaigns, $utm_cmp, $range, $class, $from, $to, $attn_meta ) {
+			snt_analytics_render_dim_table(
+				__( 'Campaigns (UTM)', 'signal-and-noise-tools' ),
+				$campaigns['rows'],
+				$campaigns['failed']
+					? snt_an_read_failed_copy( __( 'The durable UTM rollup', 'signal-and-noise-tools' ) )
+					: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+				array(),
+				'',
+				5,
+				array(
+					'header_meta' => $attn_meta( $chip, snt_analytics_overview_tab_doorway( 'campaigns', __( 'Campaigns', 'signal-and-noise-tools' ), $range, $class, $from, $to ) ),
+					'deltas'      => $utm_cmp['deltas'],
+					'prior_note'  => snt_analytics_overview_prior_note_copy( $utm_cmp['state'] ),
+				)
+			);
+		},
+		'geography' => function ( $chip ) use ( $countries, $geo_cmp, $range, $class, $from, $to, $attn_meta ) {
+			snt_analytics_render_dim_table(
+				__( 'Geography', 'signal-and-noise-tools' ),
+				$countries['rows'],
+				$countries['failed']
+					? snt_an_read_failed_copy( __( 'The durable country rollup', 'signal-and-noise-tools' ) )
+					: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+				array(),
+				'',
+				5,
+				array(
+					'header_meta' => $attn_meta( $chip, snt_analytics_overview_tab_doorway( 'geography', __( 'Geography', 'signal-and-noise-tools' ), $range, $class, $from, $to ) ),
+					'deltas'      => $geo_cmp['deltas'],
+					'prior_note'  => snt_analytics_overview_prior_note_copy( $geo_cmp['state'] ),
+				)
+			);
+		},
+		'devices'   => function ( $chip ) use ( $devices, $dev_cmp, $range, $class, $from, $to, $attn_meta ) {
+			snt_analytics_render_dim_table(
+				__( 'Devices', 'signal-and-noise-tools' ),
+				$devices['rows'],
+				$devices['failed']
+					? snt_an_read_failed_copy( __( 'The durable device rollup', 'signal-and-noise-tools' ) )
+					: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
+				array(),
+				'',
+				5,
+				array(
+					'header_meta' => $attn_meta( $chip, snt_analytics_overview_tab_doorway( 'technology', __( 'Technology', 'signal-and-noise-tools' ), $range, $class, $from, $to ) ),
+					'deltas'      => $dev_cmp['deltas'],
+					'prior_note'  => snt_analytics_overview_prior_note_copy( $dev_cmp['state'] ),
+				)
+			);
+		},
+	);
 
-	echo '<div class="sn-an-overview-bento">';
-	echo '<div class="sn-an-bento-col">';
-	snt_analytics_render_dim_table(
-		__( 'Top sources', 'signal-and-noise-tools' ),
-		$sources['rows'],
-		$sources['failed']
-			? snt_an_read_failed_copy( __( 'The durable referrer rollup', 'signal-and-noise-tools' ) )
-			: __( 'No referrer rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
-		array(),
-		'',
-		5,
-		array(
-			'header_meta' => $doorway_content,
-			'deltas'      => $src_cmp['deltas'],
-			'prior_note'  => snt_analytics_overview_prior_note_copy( $src_cmp['state'] ),
-		)
-	);
-	snt_analytics_render_dim_table(
-		__( 'Campaigns (UTM)', 'signal-and-noise-tools' ),
-		$campaigns['rows'],
-		$campaigns['failed']
-			? snt_an_read_failed_copy( __( 'The durable UTM rollup', 'signal-and-noise-tools' ) )
-			: __( 'No UTM-tagged traffic in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
-		array(),
-		'',
-		5,
-		array(
-			'header_meta' => snt_analytics_overview_tab_doorway( 'campaigns', __( 'Campaigns', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
-			'deltas'      => $utm_cmp['deltas'],
-			'prior_note'  => snt_analytics_overview_prior_note_copy( $utm_cmp['state'] ),
-		)
-	);
-	echo '</div>';
-	echo '<div class="sn-an-bento-col">';
-	snt_analytics_render_dim_table(
-		__( 'Geography', 'signal-and-noise-tools' ),
-		$countries['rows'],
-		$countries['failed']
-			? snt_an_read_failed_copy( __( 'The durable country rollup', 'signal-and-noise-tools' ) )
-			: __( 'No country rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
-		array(),
-		'',
-		5,
-		array(
-			'header_meta' => snt_analytics_overview_tab_doorway( 'geography', __( 'Geography', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
-			'deltas'      => $geo_cmp['deltas'],
-			'prior_note'  => snt_analytics_overview_prior_note_copy( $geo_cmp['state'] ),
-		)
-	);
-	snt_analytics_render_dim_table(
-		__( 'Devices', 'signal-and-noise-tools' ),
-		$devices['rows'],
-		$devices['failed']
-			? snt_an_read_failed_copy( __( 'The durable device rollup', 'signal-and-noise-tools' ) )
-			: __( 'No device rows in the durable rollup for this range yet.', 'signal-and-noise-tools' ),
-		array(),
-		'',
-		5,
-		array(
-			'header_meta' => snt_analytics_overview_tab_doorway( 'technology', __( 'Technology', 'signal-and-noise-tools' ), $range, $class, $from, $to ),
-			'deltas'      => $dev_cmp['deltas'],
-			'prior_note'  => snt_analytics_overview_prior_note_copy( $dev_cmp['state'] ),
-		)
-	);
-	echo '</div>';
-	echo '</div>';
+	// ── Entry + exit as ONE placeable unit (they promote as a PAIR if either
+	// flags — the owner-approved geometry). Same null-verdict resolution as
+	// the bento: a failed read (accessor null) folds as "could not be read".
+	$pair_render = function () use ( $entries, $exits, $ent_cmp, $ext_cmp, $doorway_content, $flags, $attn_meta ) {
+		echo '<div class="sn-an-grid sn-an-overview-pair">';
+		if ( $entries['failed'] ) {
+			snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable entry-pages rollup', 'signal-and-noise-tools' ) ) );
+		} else {
+			if ( isset( $flags['entry'] ) ) {
+				echo '<div class="sn-an-attn-anchor" id="sn-ov-entry">';
+			}
+			snt_analytics_render_pageroles_table(
+				$entries['rows'],
+				'entry',
+				$attn_meta( isset( $flags['entry'] ), __( 'human traffic · durable rollup', 'signal-and-noise-tools' ) . ' · ' . $doorway_content ),
+				array(
+					'deltas'     => $ent_cmp['deltas'],
+					'prior_note' => snt_analytics_overview_prior_note_copy( $ent_cmp['state'] ),
+				)
+			);
+			if ( isset( $flags['entry'] ) ) {
+				echo '</div>';
+			}
+		}
+		if ( $exits['failed'] ) {
+			snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable exit-pages rollup', 'signal-and-noise-tools' ) ) );
+		} else {
+			if ( isset( $flags['exit'] ) ) {
+				echo '<div class="sn-an-attn-anchor" id="sn-ov-exit">';
+			}
+			snt_analytics_render_pageroles_table(
+				$exits['rows'],
+				'exit',
+				$attn_meta( isset( $flags['exit'] ), __( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) . ' · ' . $doorway_content ),
+				array(
+					'deltas'     => $ext_cmp['deltas'],
+					'prior_note' => snt_analytics_overview_prior_note_copy( $ext_cmp['state'] ),
+				)
+			);
+			if ( isset( $flags['exit'] ) ) {
+				echo '</div>';
+			}
+		}
+		echo '</div>';
+	};
 
-	// ── Entry + exit pages, PAIRED — the durable pageroles rollup (exits fed
-	// nightly by the session bridge since v9.66.0). Human-only tables: their
-	// rollup carries no class column, so the class control does not apply and
-	// the header meta says so. Same null-verdict resolution as the bento: a
-	// failed read (accessor null) folds as "could not be read" via the panel's
-	// own title (the shared renderer's empty copy is reserved for a truly
-	// empty window).
-	$entries       = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
-		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $from, $to, 10 ) : array();
-	} );
-	$entries_prior = ( $compare_on && array() !== $entries['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
-		return function_exists( 'sn_analytics_top_entry_pages' ) ? sn_analytics_top_entry_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
-	} ) : null;
-	$exits         = snt_analytics_overview_read_guarded( static function () use ( $from, $to ) {
-		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $from, $to, 10 ) : array();
-	} );
-	$exits_prior   = ( $compare_on && array() !== $exits['rows'] ) ? snt_analytics_overview_read_guarded( static function () use ( $cwin ) {
-		return function_exists( 'sn_analytics_top_exit_pages' ) ? sn_analytics_top_exit_pages( $cwin[0], $cwin[1], SN_OVERVIEW_PRIOR_LIMIT ) : array();
-	} ) : null;
-	$ent_cmp       = snt_analytics_overview_row_deltas( $entries['rows'], $entries_prior, 'path' );
-	$ext_cmp       = snt_analytics_overview_row_deltas( $exits['rows'], $exits_prior, 'path' );
-	echo '<div class="sn-an-grid sn-an-overview-pair">';
-	if ( $entries['failed'] ) {
-		snt_an_note_empty( __( 'Entry pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable entry-pages rollup', 'signal-and-noise-tools' ) ) );
-	} else {
-		snt_analytics_render_pageroles_table(
-			$entries['rows'],
-			'entry',
-			__( 'human traffic · durable rollup', 'signal-and-noise-tools' ) . ' · ' . $doorway_content,
-			array(
-				'deltas'     => $ent_cmp['deltas'],
-				'prior_note' => snt_analytics_overview_prior_note_copy( $ent_cmp['state'] ),
-			)
-		);
+	// ── Promotion (the approved AFTER geometry, generalized): flagged minis
+	// leave the bento for FULL WIDTH directly beneath Session quality, in
+	// canonical relative order; the entry/exit pair promotes as a unit.
+	$mini_order = array( 'sources', 'campaigns', 'geography', 'devices' );
+	foreach ( $mini_order as $slug ) {
+		if ( isset( $flags[ $slug ] ) ) {
+			echo '<div class="sn-an-attn-anchor" id="sn-ov-' . esc_attr( $slug ) . '">';
+			$mini_render[ $slug ]( true );
+			echo '</div>';
+		}
 	}
-	if ( $exits['failed'] ) {
-		snt_an_note_empty( __( 'Exit pages', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'The durable exit-pages rollup', 'signal-and-noise-tools' ) ) );
-	} else {
-		snt_analytics_render_pageroles_table(
-			$exits['rows'],
-			'exit',
-			__( 'human traffic · nightly session bridge', 'signal-and-noise-tools' ) . ' · ' . $doorway_content,
-			array(
-				'deltas'     => $ext_cmp['deltas'],
-				'prior_note' => snt_analytics_overview_prior_note_copy( $ext_cmp['state'] ),
-			)
-		);
+	$pair_promoted = ( isset( $flags['entry'] ) || isset( $flags['exit'] ) );
+	if ( $pair_promoted ) {
+		$pair_render();
 	}
-	echo '</div>';
+
+	// ── Right now: the cron-warmed transient pair (realtime is class-aware;
+	// views-today is human-only by construction and its card says so). Never
+	// promotes: instantaneous — it cannot be notable vs a prior period.
+	snt_analytics_render_overview_rightnow(
+		function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null,
+		function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null
+	);
+
+	// ── The bento: the UNFLAGGED minis, re-packed into the standard two
+	// columns (first half left, rest right). With all four unflagged this is
+	// byte-identical to the v9.68.1 layout — sources + campaigns left,
+	// geography + devices right (the quiet-week shield).
+	$bento = array_values( array_filter( $mini_order, static function ( $slug ) use ( $flags ) {
+		return ! isset( $flags[ $slug ] );
+	} ) );
+	if ( array() !== $bento ) {
+		$left  = array_slice( $bento, 0, (int) ceil( count( $bento ) / 2 ) );
+		$right = array_slice( $bento, count( $left ) );
+		echo '<div class="sn-an-overview-bento">';
+		echo '<div class="sn-an-bento-col">';
+		foreach ( $left as $slug ) {
+			$mini_render[ $slug ]( false );
+		}
+		echo '</div>';
+		if ( array() !== $right ) {
+			echo '<div class="sn-an-bento-col">';
+			foreach ( $right as $slug ) {
+				$mini_render[ $slug ]( false );
+			}
+			echo '</div>';
+		}
+		echo '</div>';
+	}
+
+	// ── Entry + exit in their standard spot when neither flags.
+	if ( ! $pair_promoted ) {
+		$pair_render();
+	}
 
 	snt_an_flush_empty_fold();
 }
+

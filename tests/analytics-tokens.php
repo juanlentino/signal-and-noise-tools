@@ -265,7 +265,7 @@ foreach ( $admin_kicker_selectors_spaced as $sel ) {
 $tier_admin_kicker = tok_block( $an, '.sn-an-tier{' );
 ok( '' !== $tier_admin_kicker, 'admin kicker rule found: .sn-an-tier{' );
 ok( false !== strpos( $tier_admin_kicker, 'letter-spacing:var(--sn-an-kicker-track)' ), 'admin kicker reads --sn-an-kicker-track: .sn-an-tier{' );
-ok( substr_count( $an, 'letter-spacing: var(--sn-an-kicker-track)' ) + substr_count( $an, 'letter-spacing:var(--sn-an-kicker-track)' ) === 10, 'admin: exactly 10 kicker declarations read the token (no strays, no doubles)' );
+ok( substr_count( $an, 'letter-spacing: var(--sn-an-kicker-track)' ) + substr_count( $an, 'letter-spacing:var(--sn-an-kicker-track)' ) === 11, 'admin: exactly 11 kicker declarations read the token (no strays, no doubles; +1 v9.69.0 — the attention strip\'s .sn-an-attn-label uppercase kicker)' );
 
 // Every declaration in analytics-widget.css is written condensed (no space
 // after ':') — match that file's convention throughout.
