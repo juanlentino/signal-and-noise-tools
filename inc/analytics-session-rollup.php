@@ -93,7 +93,67 @@ function sn_session_rollup_normalize( $rows ) {
 }
 
 /**
+ * Derive durable exit-page rows from pv-gated visit summaries (v9.66.0).
+ *
+ * The bridge the exit half of inc/analytics-pageroles.php waited for since
+ * v6.10.0: role='exit' had NO live source (true live exit needs the session
+ * model — which has existed since v8.8.0 and computes every visit's exit in
+ * sn_visit_summary()). Each visit ends on exactly ONE page (its last
+ * pageview), so a path's nightly exit count is simultaneously its exit
+ * pageviews and its exiting visits: views == visits == count. Note the unit:
+ * "visits" here are gap-split within-day SESSIONS (the engine's unit), not
+ * the distinct visitor-days the entry feed counts — summaries carry no
+ * visitor hash, and for exits the session is the honest unit anyway.
+ *
+ * Day-key convention (resolved, not invented): the session engine buckets at
+ * UTC midnight (the caller passes gmdate('Y-m-d')), and the pageroles table's
+ * OWN live feed — the entry rollup, sn_analytics_pageroles_rollup_sql() —
+ * also buckets at UTC midnight (toStartOfDay(timestamp) with NO timezone
+ * arg; unlike wp_sn_analytics_daily, pageroles never migrated to the
+ * site-local day). Engine day == pageroles day, so the caller's $day passes
+ * straight through — no conversion, no third convention.
+ *
+ * Pure (no WP calls): blank exits (pageview-less groups — sn_visit_summary()
+ * returns '' when a group has no pageview) and malformed summaries are
+ * skipped. No summaries → no rows → the caller writes NOTHING for the day
+ * (an absent day is "not measured", never a fabricated zero-row).
+ *
+ * @since 9.66.0
+ * @param array  $summaries Pv-gated visit summaries (sn_pageview_visits() output).
+ * @param string $day       UTC day key (Y-m-d) — the engine's bucket.
+ * @return array<int, array{day:string, role:string, path:string, views:int, visits:int}>
+ */
+function sn_session_exit_page_rows( array $summaries, $day ) {
+	$counts = array();
+	foreach ( $summaries as $s ) {
+		$exit = is_array( $s ) ? trim( (string) ( $s['exit'] ?? '' ) ) : '';
+		if ( '' === $exit ) {
+			continue; // pageview-less group or malformed summary — never an exit.
+		}
+		$counts[ $exit ] = (int) ( $counts[ $exit ] ?? 0 ) + 1;
+	}
+
+	$rows = array();
+	foreach ( $counts as $path => $n ) {
+		$rows[] = array(
+			'day'    => (string) $day,
+			'role'   => 'exit',
+			'path'   => (string) $path,
+			'views'  => $n,
+			'visits' => $n,
+		);
+	}
+	return $rows;
+}
+
+/**
  * Compute yesterday's per-class visit-quality and upsert it.
+ *
+ * v9.66.0: the human-class pass ALSO bridges exit pages into the durable
+ * pageroles table (see sn_session_exit_page_rows) — human-only because
+ * pageroles has no class column (entry/exit are human-only by design,
+ * consistent with the entry feed and the Plausible history). Path truncation
+ * (190) and 100-row chunking are the upsert's job (sn_analytics_pageroles_upsert).
  */
 function sn_session_rollup_run() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
@@ -122,6 +182,17 @@ function sn_session_rollup_run() {
 			'ppv'        => $m['pages_per_visit'],
 			'median_dur' => $m['median_duration'],
 		);
+		// v9.66.0 exit bridge: derive per-path exit counts from the SAME pv-gated
+		// visit set and upsert them into pageroles (role='exit'). Zero rows →
+		// nothing written (absent day, never zero-rows); the nightly re-run of a
+		// complete UTC day recomputes and overwrites idempotently (ON DUPLICATE
+		// KEY in the upsert). function_exists-guarded like every cross-module wire.
+		if ( 'human' === $class && function_exists( 'sn_analytics_pageroles_upsert' ) ) {
+			$exit_rows = sn_session_exit_page_rows( $visits, $day );
+			if ( ! empty( $exit_rows ) ) {
+				sn_analytics_pageroles_upsert( $exit_rows );
+			}
+		}
 	}
 	$clean = sn_session_rollup_normalize( $records );
 	if ( ! empty( $clean ) ) {

@@ -180,9 +180,11 @@ function snt_analytics_render_lowengage( $rows ) {
 /**
  * Entry/exit pages panel (path · views · visits). $role drives the title and
  * captions: 'entry' = landing pages (arrivals from search/links/direct, merged
- * live + historical); 'exit' = last-page-of-visit (historical only — true live
- * exit awaits the deferred session model). Human-only: no traffic-class control
- * applies here, consistent with the human-only Plausible history.
+ * live + historical); 'exit' = last-page-of-visit, fed nightly since v9.66.0
+ * by the session-rollup bridge (sn_session_exit_page_rows — one exit per
+ * visit), merged with the older Plausible history. Human-only: no
+ * traffic-class control applies here, consistent with the human-only
+ * Plausible history.
  *
  * Clones snt_analytics_render_paths_table()'s WP-native markup (.postbox +
  * .inside.sn-an-table-inside + .wp-list-table.widefat.striped). Reuses existing
@@ -195,7 +197,7 @@ function snt_analytics_render_pageroles_table( $rows, $role ) {
 	$is_exit = ( 'exit' === $role );
 	$title   = $is_exit ? __( 'Exit pages', 'signal-and-noise-tools' ) : __( 'Entry pages', 'signal-and-noise-tools' );
 	$caption = $is_exit
-		? __( 'Where visits ended (historical) — live exit pages await the session model.', 'signal-and-noise-tools' )
+		? __( 'Where visits ended — the last page of each visit, rolled up nightly.', 'signal-and-noise-tools' )
 		: __( 'Where visits began — arrivals from search, links, or direct.', 'signal-and-noise-tools' );
 	$empty   = $is_exit
 		? __( 'No exit pages in this range yet.', 'signal-and-noise-tools' )

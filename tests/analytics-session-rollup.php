@@ -105,12 +105,21 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 $GLOBALS['__sr_metrics_pv'] = array();
 function sn_analytics_config() { return array( 'account_id' => 'a', 'token' => 't' ); }
 function sn_analytics_fetch_session_events( $from, $to, $class ) {
-	// Two real pageview visits + one pageview-less server/RSS group (the phantom).
-	return array( 'configured' => true, 'summaries' => array(
+	// Global-driven so later groups can vary the fetched day. Default: two real
+	// pageview visits + one pageview-less server/RSS group (the phantom).
+	return $GLOBALS['__sr_fetch'] ?? array( 'configured' => true, 'summaries' => array(
 		array( 'pageviews' => 2, 'duration' => 40, 'engaged' => 1 ),
 		array( 'pageviews' => 1, 'duration' => 5,  'engaged' => 0 ),
 		array( 'pageviews' => 0, 'duration' => 0,  'engaged' => 0 ), // RSS 'ce' poll — NOT a visit
 	) );
+}
+// v9.66.0 exit-bridge spy: records every pageroles upsert the run issues. The
+// real callee (inc/analytics-pageroles.php) is NOT loaded here, so the run's
+// function_exists guard sees THIS spy and the wiring becomes drivable.
+$GLOBALS['__sr_exit_upserts'] = array();
+function sn_analytics_pageroles_upsert( $rows ) {
+	$GLOBALS['__sr_exit_upserts'][] = $rows;
+	return count( (array) $rows );
 }
 // Real filter semantics (mirrors inc/analytics-sessions.php::sn_pageview_visits).
 function sn_pageview_visits( array $summaries ) {
@@ -129,6 +138,77 @@ ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 3 !== max( $GLOBALS['__sr_metrics_
 	'run: metrics never see the raw (unfiltered) 3-group set' );
 ok( ! empty( $GLOBALS['__sr_metrics_pv'] ) && 2 === max( $GLOBALS['__sr_metrics_pv'] ),
 	'run: metrics computed over the 2 pageview visits (phantom pageview-less group dropped)' );
+// The default fixture's summaries carry NO exit paths → the bridge derives zero
+// rows → pageroles is never touched (absent days write nothing, never 0-rows).
+ok( array() === $GLOBALS['__sr_exit_upserts'],
+	'run: no exit paths in the summaries → no pageroles upsert at all (nothing written)' );
+
+// ── sn_session_exit_page_rows: the durable exit-pages bridge (v9.66.0) ───────
+// Pure derivation: pv-gated visit summaries → pageroles-shaped role='exit'
+// rows. Each visit ends on exactly ONE page (its last pageview), so a path's
+// exit count is both its exit pageviews and its exiting visits: views ==
+// visits == count. Day-key: the caller passes the session engine's UTC day
+// (gmdate) — the SAME convention the pageroles table's live entry feed uses
+// (sn_analytics_pageroles_rollup_sql buckets by toStartOfDay(timestamp), UTC
+// midnight, no tz arg) — matching, not inventing a third convention.
+echo "\nGroup: sn_session_exit_page_rows (pure exit-bridge derivation)\n";
+$exit_rows = sn_session_exit_page_rows( array(
+	array( 'exit' => '/notes/a', 'pageviews' => 2 ),
+	array( 'exit' => '/notes/a', 'pageviews' => 1 ),
+	array( 'exit' => '/about/',  'pageviews' => 1 ),
+	array( 'exit' => '',         'pageviews' => 0 ), // pageview-less group: sn_visit_summary yields exit '' — skipped
+	'not-an-array',                                   // malformed summary — skipped, never fatal
+), '2026-06-01' );
+ok( is_array( $exit_rows ) && 2 === count( $exit_rows ), 'exit-rows: two distinct exit paths → exactly two rows (blank exits + junk skipped)' );
+$by_path = array();
+foreach ( (array) $exit_rows as $r ) { $by_path[ $r['path'] ] = $r; }
+ok( isset( $by_path['/notes/a'] ) && 2 === $by_path['/notes/a']['views'] && 2 === $by_path['/notes/a']['visits'],
+	'exit-rows: /notes/a counted twice (views == visits == exit count)' );
+ok( isset( $by_path['/about/'] ) && 1 === $by_path['/about/']['views'] && 1 === $by_path['/about/']['visits'],
+	'exit-rows: /about/ counted once' );
+ok( is_int( $by_path['/notes/a']['views'] ?? null ) && is_int( $by_path['/notes/a']['visits'] ?? null ),
+	'exit-rows: counts are real ints (upsert-ready)' );
+$shape_ok = true;
+foreach ( (array) $exit_rows as $r ) {
+	if ( ! is_array( $r ) || '2026-06-01' !== ( $r['day'] ?? '' ) || 'exit' !== ( $r['role'] ?? '' ) ) { $shape_ok = false; }
+}
+ok( $shape_ok, 'exit-rows: every row carries the caller\'s day and role=exit (pageroles upsert shape)' );
+ok( array() === sn_session_exit_page_rows( array(), '2026-06-01' ), 'exit-rows: no summaries → no rows (an absent day writes NOTHING)' );
+ok( array() === sn_session_exit_page_rows( array( array( 'exit' => '', 'pageviews' => 0 ) ), '2026-06-01' ),
+	'exit-rows: only blank exits → no rows (never a zero-row)' );
+
+// ── run() wires the exit bridge: human-only, pv-gated, engine day-key ────────
+echo "\nGroup: run() upserts exit pages into pageroles (v9.66.0 bridge)\n";
+$GLOBALS['__sr_exit_upserts'] = array();
+$GLOBALS['wpdb']              = new SR_Stub_wpdb();
+$GLOBALS['__sr_fetch']        = array( 'configured' => true, 'summaries' => array(
+	array( 'pageviews' => 2, 'duration' => 40, 'engaged' => 1, 'exit' => '/notes/a' ),
+	array( 'pageviews' => 1, 'duration' => 5,  'engaged' => 0, 'exit' => '/notes/a' ),
+	array( 'pageviews' => 3, 'duration' => 60, 'engaged' => 1, 'exit' => '/about/' ),
+	// pv-less group with a (theoretically impossible) non-blank exit: pins that
+	// the bridge consumes the pv-GATED visit set, not the raw summaries.
+	array( 'pageviews' => 0, 'duration' => 0,  'engaged' => 0, 'exit' => '/phantom' ),
+) );
+$expected_day = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+sn_session_rollup_run();
+ok( 1 === count( $GLOBALS['__sr_exit_upserts'] ),
+	'run: pageroles upsert called EXACTLY once (human class only — not once per class)' );
+$up = $GLOBALS['__sr_exit_upserts'][0] ?? array();
+ok( is_array( $up ) && 2 === count( $up ), 'run: two exit paths upserted' );
+$up_by_path = array();
+foreach ( (array) $up as $r ) { $up_by_path[ $r['path'] ] = $r; }
+ok( isset( $up_by_path['/notes/a'] ) && 2 === $up_by_path['/notes/a']['views'] && 2 === $up_by_path['/notes/a']['visits'],
+	'run: /notes/a exits twice across the two visits ending there' );
+ok( isset( $up_by_path['/about/'] ) && 1 === $up_by_path['/about/']['views'] && 1 === $up_by_path['/about/']['visits'],
+	'run: /about/ exits once' );
+ok( ! isset( $up_by_path['/phantom'] ),
+	'run: the pageview-less group NEVER reaches pageroles (bridge feeds on sn_pageview_visits output)' );
+$day_ok = true;
+foreach ( (array) $up as $r ) {
+	if ( ( $r['day'] ?? '' ) !== $expected_day || 'exit' !== ( $r['role'] ?? '' ) ) { $day_ok = false; }
+}
+ok( $day_ok, "run: every upserted row keys the engine's UTC yesterday ($expected_day) with role=exit — the pageroles (UTC) day convention" );
+unset( $GLOBALS['__sr_fetch'] );
 
 // ── sn_session_rollup_read: the durable-table accessor (v9.65.0) ─────────────
 // The writer (sn_session_rollup_run) keys rows by gmdate('Y-m-d') — a UTC day

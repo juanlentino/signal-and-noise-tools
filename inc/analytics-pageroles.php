@@ -7,9 +7,16 @@
  *                  or direct. Fed live by a daily AE rollup (see Task 2) wired
  *                  into the existing rollup cron, AND (historically) back-
  *                  filled from Plausible CSV (importer retired at 9.0.0).
- *   role='exit'  — last page of a visit. NO live source (true live exit needs a
- *                  session id, which breaks cookieless — deferred). Historical
- *                  only (the Plausible CSV back-fill importer was retired at 9.0.0).
+ *   role='exit'  — last page of a visit. Fed live since v9.66.0 by the nightly
+ *                  session-rollup bridge (sn_session_rollup_run →
+ *                  sn_session_exit_page_rows in inc/analytics-session-rollup.php):
+ *                  the cookieless session model gap-splits within-day visits and
+ *                  each visit's last pageview is its exit — views == visits ==
+ *                  exit count per path/day. UTC-day-keyed like the entry feed
+ *                  below (both bucket at UTC midnight — the engine via
+ *                  gmdate('Y-m-d'), the entry SQL via toStartOfDay with no tz
+ *                  arg). Older rows: Plausible CSV history (importer retired
+ *                  at 9.0.0).
  *
  * Entry/exit are HUMAN-ONLY (no traffic-class column): the dashboard class pill
  * does not apply, consistent with the Events tab and the human-only Plausible

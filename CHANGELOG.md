@@ -2,7 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [9.65.0] - 2026-07-18: Session trends served, integrity alert wired to Health, sessions vs visitor-days disambiguated
+## [9.66.0] - 2026-07-18: Exit pages get a durable feed; scroll_sum stored in true depth units
+
+Two parts from the 2026-07-18 dashboard audit (gap 5 + the beacon audit's scroll fix).
+
+### Part 1 — durable exit-pages bridge (the small bridge the audit prescribed)
+
+`sn_visit_summary()` has computed every visit's real exit page live since v8.8.0, yet `inc/analytics-pageroles.php`'s `role='exit'` stayed "historical only — NO live source". The bridge: the nightly session rollup now feeds it.
+
+- **Added `sn_session_exit_page_rows( $summaries, $day )`** (`inc/analytics-session-rollup.php`, pure): pv-gated visit summaries → pageroles-shaped `role='exit'` rows. Each visit ends on exactly ONE page (its last pageview), so per path/day **views == visits == exit count** (the engine's within-day-session unit; summaries carry no visitor hash, so distinct visitor-days is not derivable — stated, not fudged). Blank exits (pageview-less groups) and malformed summaries are skipped; **zero rows → nothing written** (an absent day is "not measured", never a fabricated zero-row).
+- **Wired into `sn_session_rollup_run()`** — human-class pass only (pageroles has no class column; entry/exit are human-only by design), consuming the SAME `sn_pageview_visits()`-filtered set as the quality metrics (a pageview-less RSS/server group can never become an exit — pinned). Upsert via the EXISTING `sn_analytics_pageroles_upsert()` (its 190-char path truncation + 100-row chunking + ON DUPLICATE KEY overwrite apply unchanged); the nightly re-run of a complete UTC day is idempotent.
+- **Day-key convention resolved, not invented**: the session engine buckets at UTC midnight (`gmdate('Y-m-d')`); the pageroles table's OWN live feed (the entry rollup SQL) ALSO buckets at UTC midnight (`toStartOfDay(timestamp)` with no timezone arg — pageroles never migrated to the site-local day the way `wp_sn_analytics_daily` did at v9.26.4). Engine day == pageroles day; the `$day` passes straight through.
+- **The existing read surface lights up on its own**: the Content tab's "Exit pages" panel (`inc/analytics-view-content.php` → `sn_analytics_top_exit_pages()` → `snt_analytics_render_pageroles_table()`) starts filling as nightly rows land — no new UI. Its stale caption ("live exit pages await the session model") corrected to "Where visits ended — the last page of each visit, rolled up nightly"; module headers in `analytics-pageroles.php` / `analytics-render-tables.php` updated to match reality.
 
 Three parts from the 2026-07-18 dashboard audit.
 
