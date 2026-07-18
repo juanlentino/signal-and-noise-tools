@@ -1,0 +1,30 @@
+/* Signal & Noise — [sn_analytics_maturity] front-end styling (v9.70.0).
+   White-first brutalist to match the public site: hard borders, square corners,
+   generous spacing, mono accents. Inherits the theme's typography and colors
+   (currentColor throughout) — light-only, like the site. Everything scoped to
+   .sn-maturity; enqueued only when the shortcode renders. */
+.sn-maturity{margin:2rem 0;line-height:1.6}
+.sn-maturity h2{margin:0 0 .75rem}
+.sn-maturity h3{margin:2.25rem 0 .75rem}
+.sn-maturity p{margin:0 0 1.25rem}
+
+/* The tier table: one hard frame, mono kicker headers, breathing-room cells. */
+.sn-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;font-size:.85rem}
+.sn-maturity-table th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em}
+.sn-maturity-table td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
+.sn-maturity-table tbody tr:last-child td{border-bottom:0}
+/* Tier + question columns stay compact so the engine column carries the prose. */
+.sn-maturity-table td:first-child{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;font-weight:600;white-space:nowrap}
+.sn-maturity-table td:nth-child(2){white-space:nowrap;font-style:italic;opacity:.75}
+@media (max-width:600px){.sn-maturity-table td:nth-child(2){white-space:normal}}
+
+/* The principles: a spaced, ruled list with a mono dash in the gutter. */
+.sn-maturity-principles{list-style:none;margin:0;padding:0;font-size:.9rem}
+.sn-maturity-principles li{position:relative;padding:.6em 0 .6em 1.5em;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-maturity-principles li:last-child{border-bottom:0}
+.sn-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.5}
+
+/* The compact strip: one sentence, then four hard-edged mono badges. */
+.sn-maturity-compact-intro{margin:0 0 .75rem}
+.sn-maturity-strip{display:flex;flex-wrap:wrap;gap:.5em}
+.sn-maturity-badge{display:inline-flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
