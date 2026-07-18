@@ -20,6 +20,12 @@
  *  - The out-of-top bound: a key absent from the current top-N is only known
  *    to sit at-or-below the table's minimum visible views, so a collapse is
  *    claimed ONLY when even that upper bound proves the percentage bar.
+ *  - Review r1 F1 (TOTAL collapse): an EMPTY current window against a prior
+ *    that cleared the views floor is the STRONGEST collapse — it flags
+ *    (strip-only at the caller; the folded panel offers no anchor surface).
+ *  - Review r1 F4 (truncated-prior bound): a key absent from a DEPTH-CAPPED
+ *    prior read is only known ≤ the read's minimum visible views — the surge
+ *    is claimed against that bound, and the fact never fabricates a "0".
  *
  * Run: php tests/analytics-overview-attention.php
  * @since plugin v9.69.0
@@ -60,10 +66,22 @@ $s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 9 ) ), null, 'value'
 ok( 'unknown' === $s['state'] && '' === $s['fact'], 'prior null (failed read) → UNKNOWN: no flag AND no all-calm claim' );
 $s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 900 ) ), array(), 'value', 5 );
 ok( 'none' === $s['state'], 'prior [] (empty window) → no basis, never a fabricated "surge vs nothing"' );
-$s = snt_analytics_attn_table_signal( array(), rows_v( array( 'a' => 900 ) ), 'value', 5 );
-ok( 'none' === $s['state'], 'current [] (folded panel) → no surface to flag' );
 $s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 9, 'b' => 6 ) ), rows_v( array( 'a' => 9, 'b' => 6 ) ), 'value', 5 );
 ok( 'none' === $s['state'], 'prior == current → quiet' );
+
+echo "\nGroup: table signal — TOTAL collapse (review r1 F1: an empty current window is an ANSWER)\n";
+$s = snt_analytics_attn_table_signal( array(), rows_v( array( 'Google' => 40 ) ), 'value', 5 );
+ok( 'notable' === $s['state'] && 'views 40 → none recorded' === $s['fact'],
+	'current [] vs a prior with real views: the STRONGEST collapse flags — an empty window is an answer (0), not a missing surface' );
+$s = snt_analytics_attn_table_signal( array(), rows_v( array( 'a' => 3, 'b' => 3 ) ), 'value', 5 );
+ok( 'notable' === $s['state'] && 'views 6 → none recorded' === $s['fact'],
+	'collapse fact aggregates the whole prior window (6 total views → none recorded)' );
+$s = snt_analytics_attn_table_signal( array(), rows_v( array( 'a' => 4 ) ), 'value', 5 );
+ok( 'none' === $s['state'], 'a prior below the views floor (4 < 5) folds quietly — the 1→2 shield holds at zero too' );
+$s = snt_analytics_attn_table_signal( array(), null, 'value', 5 );
+ok( 'unknown' === $s['state'], 'current [] + FAILED prior read → unknown (guard order: the prior verdict resolves first — no collapse claim without a known prior)' );
+$s = snt_analytics_attn_table_signal( array(), array(), 'value', 5 );
+ok( 'none' === $s['state'], 'current [] + empty prior [] → none (two real zeros — nothing moved)' );
 
 echo "\nGroup: table signal — BOTH bars must clear (the 1→2 shield)\n";
 $s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 2 ) ), rows_v( array( 'a' => 1 ) ), 'value', 5 );
@@ -97,6 +115,17 @@ $s = snt_analytics_attn_table_signal(
 ok( 'none' === $s['state'],
 	'a missing prior row whose provable drop is only 10% (20 → ≤18) stays quiet — the bound is sound, never an assumed collapse to 0' );
 
+echo "\nGroup: table signal — the truncated-prior bound (review r1 F4: absence from a CAPPED read is not a 0)\n";
+$s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 20 ) ), rows_v( array( 'x' => 9, 'y' => 8, 'z' => 7 ) ), 'value', 5, 3 );
+ok( 'notable' === $s['state'] && 'a: below the prior top 3 → views 20' === $s['fact'],
+	'a key absent from a DEPTH-CAPPED prior read is only known ≤ the read minimum (7): the surge is provable against that bound (+186% ≥ 25%) and the fact never fabricates a "0"' );
+$s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 10, 'b' => 50 ) ), rows_v( array( 'b' => 50, 'c' => 9, 'd' => 9 ) ), 'value', 5, 3 );
+ok( 'none' === $s['state'],
+	'truncated prior: a rise NOT provable against the bound (10 vs ≤9 = +11% < 25%) stays quiet — never a fabricated "views 0 → 10"' );
+$s = snt_analytics_attn_table_signal( rows_v( array( 'a' => 7, 'b' => 5 ) ), rows_v( array( 'b' => 5 ) ), 'value', 5, 50 );
+ok( 'notable' === $s['state'] && 'a: views 0 → 7' === $s['fact'],
+	'a prior read BELOW its depth cap was exhaustive — absence still reads as a real 0 (the honest "new" fact keeps its figures)' );
+
 echo "\nGroup: table signal — driving fact = the largest absolute movement\n";
 $s = snt_analytics_attn_table_signal(
 	rows_v( array( 'a' => 10, 'b' => 40 ) ),
@@ -118,6 +147,14 @@ $s = snt_analytics_attn_session_signal( null, kpis_of( 44, 61.4, 1.5, 65 ), fals
 ok( 'none' === $s['state'], 'no current KPIs (folded/empty panel) → none' );
 $s = snt_analytics_attn_session_signal( kpis_of( 400, 61.4, 1.5, 65 ), null, false );
 ok( 'none' === $s['state'], 'empty prior window (aggregates to null) → no basis, never a fabricated surge' );
+
+echo "\nGroup: session signal — TOTAL collapse (review r1 F1: the zero shape the view synthesizes)\n";
+$zero_kpis = array( 'sessions' => 0, 'bounce_pct' => 0.0, 'ppv' => 0.0, 'median_dur' => 0 );
+$s = snt_analytics_attn_session_signal( $zero_kpis, kpis_of( 40, 50.0, 1.5, 60 ), false );
+ok( 'notable' === $s['state'] && 'sessions 40 → 0' === $s['fact'],
+	'sessions 40 → 0 (an EMPTY current window is a real zero, not a missing surface) flags the total collapse' );
+$s = snt_analytics_attn_session_signal( $zero_kpis, kpis_of( 8, 90.0, 1.0, 10 ), false );
+ok( 'none' === $s['state'], 'a quiet prior (8 < the 10-session floor) keeps a zero week quiet — the tiny-site shield holds at zero too' );
 
 echo "\nGroup: session signal — sessions volume (both directions, floored)\n";
 $s = snt_analytics_attn_session_signal( kpis_of( 60, 50.0, 1.5, 60 ), kpis_of( 40, 50.0, 1.5, 60 ), false );
@@ -178,6 +215,17 @@ $xss = capture( function () {
 	) );
 } );
 ok( strpos( $xss, '<script>' ) === false && strpos( $xss, '<b>' ) === false, 'strip: labels + facts are escaped (no raw markup passes through)' );
+$flat = capture( function () {
+	snt_analytics_attn_render_strip( array(
+		array( 'label' => 'Top sources', 'anchor' => '', 'fact' => 'views 36 → none recorded' ),
+		array( 'label' => 'Devices', 'anchor' => 'sn-ov-devices', 'fact' => 'mobile: views 2 → 17' ),
+	) );
+} );
+ok( strpos( $flat, '<span class="sn-an-attn-flag">Top sources</span>' ) !== false,
+	'strip: an anchor-less item (a FOLDED panel — total collapse) renders as a plain flag, never a dead link (review r1 F1)' );
+ok( strpos( $flat, 'href="#"' ) === false, 'strip: no empty-anchor href anywhere' );
+ok( strpos( $flat, '<span class="sn-an-attn-fact">views 36 → none recorded</span>' ) !== false, 'strip: the collapse fact rides beside the plain flag' );
+ok( strpos( $flat, '<a class="sn-an-attn-link" href="#sn-ov-devices">Devices</a>' ) !== false, 'strip: anchored items keep their links beside a flat one' );
 
 echo "\nGroup: resolve helper (the view's one-line bridge)\n";
 $r = snt_analytics_attn_resolve_table( rows_v( array( 'a' => 10 ) ), null, 'value', 5 );
@@ -186,6 +234,12 @@ $r = snt_analytics_attn_resolve_table( rows_v( array( 'a' => 10 ) ), array( 'row
 ok( 'unknown' === $r['state'], 'resolve: a guarded FAILED read → unknown (the guard shape unwrapped honestly)' );
 $r = snt_analytics_attn_resolve_table( rows_v( array( 'a' => 10 ) ), array( 'rows' => rows_v( array( 'a' => 5 ) ), 'failed' => false ), 'value', 5 );
 ok( 'notable' === $r['state'] && 'a: views 5 → 10' === $r['fact'], 'resolve: a guarded successful read passes its rows through' );
+$r = snt_analytics_attn_resolve_table( rows_v( array( 'a' => 20 ) ), array( 'rows' => rows_v( array( 'x' => 9, 'y' => 8, 'z' => 7 ) ), 'failed' => false ), 'value', 5, 3 );
+ok( 'notable' === $r['state'] && 'a: below the prior top 3 → views 20' === $r['fact'],
+	'resolve: the prior depth cap threads through to the truncated-prior bound (review r1 F4)' );
+$r = snt_analytics_attn_resolve_table( array(), array( 'rows' => rows_v( array( 'Google' => 40 ) ), 'failed' => false ), 'value', 5 );
+ok( 'notable' === $r['state'] && 'views 40 → none recorded' === $r['fact'],
+	'resolve: an empty CURRENT window still judges — the total collapse reaches the strip through the bridge (review r1 F1)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

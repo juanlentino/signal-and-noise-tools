@@ -27,20 +27,27 @@
  *   Right now              → never judged: instantaneous readings have no
  *                            prior period to be notable against.
  *
- * NULL DISCIPLINE — three different non-answers, three different renders:
+ * NULL DISCIPLINE — the non-answers, each with its own render:
  *   FAILED prior read → attention UNKNOWN: no chip, no strip mention, and no
  *     false "all calm" claim either — unknown renders as silence, exactly like
  *     a quiet week, because claiming EITHER state would fabricate knowledge.
  *   EMPTY prior window ([]) → no comparison basis: indistinguishable from
  *     pre-feature history, so a "surge vs nothing" would manufacture
  *     attention. Never a flag.
- *   Folded current panel ([] / failed) → no surface to flag; the panel's own
- *     empty/failure fold already tells that story.
+ *   FAILED current read → none: unknown current — no real 0 exists to claim a
+ *     collapse against; the panel's own failure fold tells that story.
+ *   EMPTY current window ([], read succeeded) → an ANSWER, not a missing
+ *     surface (review r1 F1): the STRONGEST collapse. It flags when the prior
+ *     window cleared the views floor — strip-only at the caller (the folded
+ *     panel offers no anchor/chip surface), fact "views N → none recorded".
  *
  * THE OUT-OF-TOP BOUND — a key absent from the current top-N is only known to
  * sit at-or-below the table's minimum visible views, so its collapse is
  * claimed ONLY when even that upper bound proves the percentage bar (a sound
- * lower bound on the drop — never an assumed fall to zero).
+ * lower bound on the drop — never an assumed fall to zero). Mirrored on the
+ * prior side (review r1 F4): a key absent from a DEPTH-CAPPED prior read is
+ * only known ≤ that read's minimum visible views, so its surge is claimed
+ * against that bound and the fact never fabricates a "views 0 → N".
  *
  * Pure functions: no WP reads, no wpdb — require()-able by tests directly.
  * i18n + escaping helpers are the only WP surface.
@@ -81,18 +88,45 @@ const SN_OVERVIEW_ATTN_MIN_SESSIONS = 10;
  *                               caller), or null = the prior read FAILED.
  * @param string     $key_field  Dimension key field ('value' | 'path').
  * @param int        $top_n      The visible top-N (names the out-of-top fact).
+ * @param int        $prior_cap  The prior read's depth cap (review r1 F4):
+ *                               when the read returned cap-many rows it may be
+ *                               TRUNCATED, so absence stops meaning "a real 0"
+ *                               and becomes "≤ the read's minimum". 0 (the
+ *                               default) = treat the read as exhaustive.
  * @return array{state:string, fact:string} state ∈ 'unknown'|'none'|'notable';
  *                                          fact '' unless notable.
  */
-function snt_analytics_attn_table_signal( $rows, $prior_rows, $key_field, $top_n ) {
+function snt_analytics_attn_table_signal( $rows, $prior_rows, $key_field, $top_n, $prior_cap = 0 ) {
 	if ( ! is_array( $prior_rows ) ) {
 		return array( 'state' => 'unknown', 'fact' => '' ); // failed prior read — no claim either way.
 	}
 	if ( array() === $prior_rows ) {
 		return array( 'state' => 'none', 'fact' => '' ); // empty prior window — no basis, never a fabricated surge.
 	}
-	if ( ! is_array( $rows ) || array() === $rows ) {
-		return array( 'state' => 'none', 'fact' => '' ); // folded current panel — no surface to flag.
+	if ( ! is_array( $rows ) ) {
+		return array( 'state' => 'none', 'fact' => '' ); // defensive: not a read verdict — nothing to judge.
+	}
+	$pri = array();
+	foreach ( $prior_rows as $r ) {
+		if ( is_array( $r ) && isset( $r[ $key_field ] ) ) {
+			$pri[ (string) $r[ $key_field ] ] = max( 0, (int) ( $r['views'] ?? 0 ) );
+		}
+	}
+	if ( array() === $rows ) {
+		// Review r1 F1 — an EMPTY current window (the read SUCCEEDED) is an
+		// ANSWER: zero views recorded, the STRONGEST possible collapse. It must
+		// out-flag a partial one (40 → none is louder than 40 → 11), floored on
+		// the prior window's total so a nothing-week prior stays quiet. The
+		// panel itself folds, so the caller surfaces this strip-only (no anchor).
+		$total = array_sum( $pri );
+		if ( $total >= SN_OVERVIEW_ATTN_VIEWS_FLOOR ) {
+			return array(
+				'state' => 'notable',
+				/* translators: %s: total prior-window views across the whole table (the current window recorded none). */
+				'fact'  => sprintf( __( 'views %s → none recorded', 'signal-and-noise-tools' ), number_format_i18n( $total ) ),
+			);
+		}
+		return array( 'state' => 'none', 'fact' => '' ); // a sub-floor prior folds quietly — the 1→2 shield holds at zero.
 	}
 	$cur     = array();
 	$cur_min = null;
@@ -104,20 +138,39 @@ function snt_analytics_attn_table_signal( $rows, $prior_rows, $key_field, $top_n
 		$cur[ (string) $r[ $key_field ] ] = $v;
 		$cur_min                        = ( null === $cur_min ) ? $v : min( $cur_min, $v );
 	}
-	$pri = array();
-	foreach ( $prior_rows as $r ) {
-		if ( is_array( $r ) && isset( $r[ $key_field ] ) ) {
-			$pri[ (string) $r[ $key_field ] ] = max( 0, (int) ( $r['views'] ?? 0 ) );
-		}
-	}
 	if ( array() === $cur || array() === $pri ) {
 		return array( 'state' => 'none', 'fact' => '' );
 	}
 
+	// Review r1 F4 — a prior read that returned cap-many rows may be TRUNCATED:
+	// a key absent from it is only known to sit ≤ the read's minimum visible
+	// views (the out-of-top bound, mirrored onto the prior side).
+	$pri_min       = (int) min( $pri );
+	$pri_truncated = ( $prior_cap > 0 && count( $pri ) >= $prior_cap );
+
 	$best_mag  = 0;
 	$best_fact = '';
 	foreach ( $cur as $key => $c ) {
-		$p = $pri[ $key ] ?? 0; // absent from a NON-empty prior window = a real 0 (the chips' "new" semantics).
+		if ( ! isset( $pri[ $key ] ) && $pri_truncated ) {
+			// The key's true prior views are unknown but provably ≤ $pri_min:
+			// claim the surge ONLY when even that upper bound proves the bar,
+			// and never let the fact fabricate a "views 0 → N".
+			$bound = max( 0, $pri_min );
+			$rise  = $c - $bound; // a sound LOWER bound on the rise.
+			if ( $c < SN_OVERVIEW_ATTN_VIEWS_FLOOR || $rise <= 0 ) {
+				continue;
+			}
+			if ( $bound > 0 && $rise * 100 < SN_OVERVIEW_ATTN_PCT * $bound ) {
+				continue;
+			}
+			if ( $rise > $best_mag ) {
+				$best_mag  = $rise;
+				/* translators: 1: dimension value (a referrer, country, device, campaign, or path). 2: the prior-window read depth. 3: current-window views. */
+				$best_fact = sprintf( __( '%1$s: below the prior top %2$s → views %3$s', 'signal-and-noise-tools' ), (string) $key, number_format_i18n( $prior_cap ), number_format_i18n( $c ) );
+			}
+			continue;
+		}
+		$p = $pri[ $key ] ?? 0; // absent from an EXHAUSTIVE (below-cap) prior read = a real 0 (the chips' "new" semantics).
 		if ( max( $c, $p ) < SN_OVERVIEW_ATTN_VIEWS_FLOOR ) {
 			continue; // the absolute floor: percentages on nothing never flag.
 		}
@@ -236,21 +289,25 @@ function snt_analytics_attn_session_signal( $kpis, $prior_kpis, $prior_failed ) 
 /**
  * Bridge a mini panel's guarded prev-window read (snt_analytics_overview_
  * read_guarded shape) into the table signal: null = no read attempted
- * (attention gated off, or the current panel folded) → none; a guarded FAILED
- * read → unknown; success → the rows judge.
+ * (attention gated off, or the current read FAILED — unknown current, no real
+ * 0 to claim a collapse against) → none; a guarded FAILED prior read →
+ * unknown; success → the rows judge (an empty CURRENT window included: the
+ * total-collapse answer travels through this bridge, review r1 F1).
  *
  * @since 9.69.0
  * @param array      $rows      Current-window rows.
  * @param array|null $sig_read  {rows, failed} or null when never attempted.
  * @param string     $key_field Dimension key field.
  * @param int        $top_n     Visible row count.
+ * @param int        $prior_cap The prior read's depth cap (review r1 F4 — see
+ *                              snt_analytics_attn_table_signal()).
  * @return array{state:string, fact:string}
  */
-function snt_analytics_attn_resolve_table( $rows, $sig_read, $key_field, $top_n ) {
+function snt_analytics_attn_resolve_table( $rows, $sig_read, $key_field, $top_n, $prior_cap = 0 ) {
 	if ( ! is_array( $sig_read ) ) {
 		return array( 'state' => 'none', 'fact' => '' );
 	}
-	return snt_analytics_attn_table_signal( $rows, ! empty( $sig_read['failed'] ) ? null : ( $sig_read['rows'] ?? array() ), $key_field, $top_n );
+	return snt_analytics_attn_table_signal( $rows, ! empty( $sig_read['failed'] ) ? null : ( $sig_read['rows'] ?? array() ), $key_field, $top_n, $prior_cap );
 }
 
 /**
@@ -273,7 +330,10 @@ function snt_analytics_attn_chip() {
  *
  * @since 9.69.0
  * @param array $items List of {label:string, anchor:string, fact:string}, in
- *                     canonical panel order (the caller owns the order).
+ *                     canonical panel order (the caller owns the order). An
+ *                     EMPTY anchor marks a flag from a FOLDED panel (total
+ *                     collapse, review r1 F1): no surface exists to jump to,
+ *                     so it renders as a plain flag — never a dead "#" link.
  * @return void
  */
 function snt_analytics_attn_render_strip( $items ) {
@@ -283,7 +343,10 @@ function snt_analytics_attn_render_strip( $items ) {
 		if ( ! is_array( $item ) || '' === (string) ( $item['label'] ?? '' ) ) {
 			continue;
 		}
-		$part = '<a class="sn-an-attn-link" href="' . esc_url( '#' . (string) ( $item['anchor'] ?? '' ) ) . '">' . esc_html( (string) $item['label'] ) . '</a>';
+		$anchor = (string) ( $item['anchor'] ?? '' );
+		$part   = ( '' !== $anchor )
+			? '<a class="sn-an-attn-link" href="' . esc_url( '#' . $anchor ) . '">' . esc_html( (string) $item['label'] ) . '</a>'
+			: '<span class="sn-an-attn-flag">' . esc_html( (string) $item['label'] ) . '</span>';
 		if ( '' !== (string) ( $item['fact'] ?? '' ) ) {
 			$part .= ' — <span class="sn-an-attn-fact">' . esc_html( (string) $item['fact'] ) . '</span>';
 		}

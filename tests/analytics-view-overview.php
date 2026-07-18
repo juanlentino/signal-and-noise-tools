@@ -920,14 +920,62 @@ ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ) && 1 === count( ov_calls
 	'all: no prior reads — no adjacent window exists for all-history (the header suppresses its deltas at all too)' );
 ok( strpos( $html_all, 'sn-an-prior-note' ) === false && strpos( $html_all, 'sn-an-delta--' ) === false, 'all: no compare markup' );
 
-echo "\nGroup: PART B — a folded (empty-current) panel triggers no prior read\n";
+echo "\nGroup: REVIEW R1 F1 — an EMPTY current window keeps its prior read (total-collapse detection)\n";
+// v9.69.0 review round 1: the old economy pin ("current-empty → prior read
+// skipped") inverted the feature at its most attention-worthy input — an empty
+// window is an ANSWER (0), and 40 → none must out-flag 40 → 11. The prior read
+// now runs whenever the CURRENT read SUCCEEDED ([] included); only a FAILED
+// current read (unknown — no real 0 to claim) skips it.
 ov_seed_current();
-ov_seed_priors();
-$GLOBALS['__ov']['sources'] = array();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['sources'] = array(); // current sources window empty; the quiet-prior override (36 total views) was captured above
 ov_reset_calls();
-capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+$html_tc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human', '30', 'prev' ); } );
+ok( 2 === count( ov_calls( 'sn_analytics_top_sources' ) ),
+	'reads: a current-empty panel KEEPS its attention prior read — an empty window is an answer, not a missing surface' );
+ok( 1 === substr_count( $html_tc, 'sn-an-attn-strip' ), 'collapse: the strip renders' );
+ok( strpos( $html_tc, '<span class="sn-an-attn-flag">Top sources</span>' ) !== false,
+	'collapse: the folded panel is named as a plain flag (no anchor surface exists — strip-only)' );
+ok( strpos( $html_tc, 'views 36 → none recorded' ) !== false,
+	'collapse: the fact aggregates the prior window (18+11+7 = 36 views → none recorded)' );
+ok( strpos( $html_tc, 'id="sn-ov-sources"' ) === false && strpos( $html_tc, 'href="#"' ) === false,
+	'collapse: no anchor id, no dead link — the strip informs without a panel target' );
+ok( 0 === substr_count( $html_tc, 'sn-an-attn-chip' ), 'collapse: no chip — a folded panel has no header to wear one' );
+ok( 2 === substr_count( $html_tc, 'sn-an-bento-col' ),
+	'collapse: strip-only flags never promote — the bento keeps its v9.68.1 two-column packing' );
+ok( strpos( $html_tc, 'No referrer rows in the durable rollup' ) !== false,
+	'collapse: the panel\'s own empty fold still tells the panel story at the bottom' );
+// The session-quality mirror: an empty current rollup window vs 40 prior sessions.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = array();
+ov_reset_calls();
+$html_sc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 3 === count( ov_calls( 'sn_session_rollup_read' ) ),
+	'reads: the session attention prior read still runs on an empty current window' );
+ok( strpos( $html_sc, '<span class="sn-an-attn-flag">Session quality</span>' ) !== false && strpos( $html_sc, 'sessions 40 → 0' ) !== false,
+	'session collapse: 40 → 0 flags the strip (louder than 40 → 11 — the feature\'s own rationale, now honored at zero)' );
+ok( strpos( $html_sc, 'id="sn-ov-quality"' ) === false, 'session collapse: the folded panel carries no anchor' );
+ok( strpos( $html_sc, 'No rolled-up days in this window yet' ) !== false,
+	'session collapse: the panel\'s own empty fold still renders' );
+// The economy line that REMAINS: a FAILED current read is unknown — no real 0
+// exists to claim a collapse against, so its prior read is skipped.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['fail'] = array( 'sources' => array( '2026-07-11|2026-07-17' ) );
+ov_reset_calls();
+$html_fc = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
 ok( 1 === count( ov_calls( 'sn_analytics_top_sources' ) ),
-	'economy: a current-empty panel folds — no rows to chip, so its prior read is skipped entirely' );
+	'economy: a FAILED current read (unknown) skips its prior read — no collapse claim without a real 0' );
+ok( strpos( $html_fc, 'sn-an-attn-' ) === false, 'failed current: no attention claim of any kind' );
+$GLOBALS['__ov']['fail'] = array();
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['session_rollup']['2026-07-11|2026-07-17'] = null;
+ov_reset_calls();
+capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( 2 === count( ov_calls( 'sn_session_rollup_read' ) ),
+	'economy: a FAILED current rollup read skips the session attention prior read too' );
 
 // ═══════════════════════════════════════════════════════════════════════════
 // v9.69.0 PART C — the Overview learns to triage: attention chips, strip,
@@ -1046,6 +1094,58 @@ ok( strpos( $html_px, 'id="sn-ov-exit"' ) !== false && strpos( $html_px, 'id="sn
 ok( 1 === substr_count( $html_px, 'sn-an-attn-chip' ), 'pair: one chip (exit only)' );
 ok( 2 === substr_count( $html_px, 'sn-an-bento-col' ) && strpos( $html_px, 'Top sources' ) > $px_rn,
 	'pair: the four quiet minis keep the full standard bento below Right now' );
+
+echo "\nGroup: REVIEW R1 F2 — a lone promoted pair-half spans the full pair width\n";
+// Entry empty (prior empty too — quiet, no collapse noise) while exit flags:
+// the promoted pair grid holds ONE child, and that child is the anchor DIV,
+// not a .postbox — so the lone-panel span rule needs an anchor-aware sibling.
+ov_seed_current();
+ov_seed_priors_quiet();
+$GLOBALS['__ov']['entries'] = array();
+$GLOBALS['__ov']['win']['entries']['2026-07-04|2026-07-10'] = array();
+$GLOBALS['__ov']['win']['exits']['2026-07-04|2026-07-10'] = array(
+	array( 'path' => '/provhub/', 'views' => 11, 'visits' => 10 ),
+	array( 'path' => '/notes/',   'views' => 20, 'visits' => 16 ),
+);
+$html_lp = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_lp, 'id="sn-ov-exit"' ) !== false && strpos( $html_lp, 'id="sn-ov-entry"' ) === false,
+	'lone half: exit promotes anchored; the empty entry half defers to the fold (no grid child)' );
+ok( 1 === substr_count( $html_lp, 'sn-an-overview-pair' ), 'lone half: the pair still renders exactly once (promoted)' );
+ok( strpos( $css, '.sn-an-grid > .sn-an-attn-anchor:last-child:nth-child(odd)' ) !== false,
+	'css: a lone anchored panel in a pair grid spans full width — the lone-panel idiom extended to anchor wrappers (review r1 F2)' );
+
+echo "\nGroup: REVIEW R1 F3 — three promoted minis leave a full-width lone bento column\n";
+ov_seed_current();
+ov_seed_priors_quiet();
+$pw3 = '2026-07-04|2026-07-10';
+$GLOBALS['__ov']['win']['sources'][ $pw3 ] = array( // Google 40 → 11 = -73% (flags)
+	array( 'value' => '(direct)',    'views' => 18, 'visits' => 16, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 40, 'visits' => 30, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 7,  'visits' => 6,  'hosts' => array( 'news.ycombinator.com' ) ),
+);
+$GLOBALS['__ov']['win']['campaigns'][ $pw3 ] = array( // qr-provhub 20 → 6 = -70% (flags)
+	array( 'value' => 'qr-provhub', 'views' => 20, 'visits' => 16 ),
+	array( 'value' => 'newsletter', 'views' => 3,  'visits' => 3 ),
+);
+$GLOBALS['__ov']['win']['dims'][ 'country|' . $pw3 ] = array( // AR 40 → 14 = -65% (flags)
+	array( 'value' => 'AR', 'views' => 40, 'visits' => 34 ),
+	array( 'value' => 'US', 'views' => 9,  'visits' => 8 ),
+);
+$html_3p = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
+ok( strpos( $html_3p, 'id="sn-ov-sources"' ) !== false && strpos( $html_3p, 'id="sn-ov-campaigns"' ) !== false
+	&& strpos( $html_3p, 'id="sn-ov-geography"' ) !== false && strpos( $html_3p, 'id="sn-ov-devices"' ) === false,
+	'three flags: sources + campaigns + geography promote; devices stays quiet' );
+ok( 1 === substr_count( $html_3p, 'sn-an-bento-col' ), 'bento: the lone quiet mini (Devices) renders in a single column' );
+$p3_dev = strpos( $html_3p, 'Devices' );
+ok( false !== $p3_dev && $p3_dev > strpos( $html_3p, 'sn-an-overview-bento' ), 'bento: Devices sits inside the lone column' );
+ok( strpos( $css, '.sn-an-overview-bento > .sn-an-bento-col:only-child' ) !== false,
+	'css: a lone bento column spans the full row — no half-empty right column (review r1 F3)' );
+
+echo "\nGroup: REVIEW R1 F4 — the view threads the prior depth cap into every table signal\n";
+$rr_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
+preg_match_all( '/snt_analytics_attn_resolve_table\( [^)]*SN_OVERVIEW_PRIOR_LIMIT \)/', $rr_src, $m_rr );
+ok( 6 === count( $m_rr[0] ),
+	'source: all six resolve calls pass SN_OVERVIEW_PRIOR_LIMIT — the truncated-prior bound is live wherever the prior read is depth-capped' );
 
 echo "\nGroup: PART C — a FAILED prior read = attention UNKNOWN (silence, never false calm)\n";
 ov_seed_current();
