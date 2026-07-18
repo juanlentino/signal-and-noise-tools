@@ -356,7 +356,9 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
  * DESC vs pageview_visits DESC), so AE's row cap can truncate them
  * ASYMMETRICALLY: a (day, path, class) present in the main set but cut from
  * the gated tail would be fabricated into a measured-0 pageview_visits. When
- * the response envelope says rows_before_limit_at_least > rows, the WHOLE
+ * the client's verdict says truncated (v9.63.1: the result reached the applied
+ * cap, rows >= SN_ANALYTICS_AE_ROW_CAP, AND rows_before_limit_at_least > rows
+ * — see sn_analytics_last_result_truncated for the GROUP BY quirk), the WHOLE
  * gated result degrades to the FAILED shape (null → keys stay absent → the
  * upsert binds SQL NULL, "never measured") — degrade, don't corrupt; the next
  * roll self-corrects. Shared by the cron (sn_analytics_run_rollup) and the
@@ -375,7 +377,7 @@ function sn_analytics_rollup_gated_query( $sql ) {
 	// function_exists is defence in depth for a half-wired install; in
 	// production the loader requires inc/analytics-api.php before this module.
 	if ( function_exists( 'sn_analytics_last_result_truncated' ) && sn_analytics_last_result_truncated() ) {
-		error_log( '[sn-analytics] gated pageview_visits result truncated by the AE row cap (rows_before_limit_at_least > rows) — treated as failed; pageview_visits stays NULL, never a fabricated 0' );
+		error_log( '[sn-analytics] gated pageview_visits result truncated by the AE row cap (hit the applied cap with rows_before_limit_at_least > rows) — treated as failed; pageview_visits stays NULL, never a fabricated 0' );
 		return null;
 	}
 	return $rows;

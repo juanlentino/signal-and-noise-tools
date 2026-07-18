@@ -121,11 +121,21 @@ function sn_analytics_config() {
 // transport stub must model (wp_localize / stub-drift memories).
 // Truncation flag stub — models the REAL client's contract exactly
 // (inc/analytics-api.php sn_analytics_last_result_truncated): request-scoped,
-// re-recorded on every sn_analytics_query() call from the envelope counters
-// (rows_before_limit_at_least > rows), false on failure paths and on
-// envelopes without counters. The real implementation is pinned by
-// tests/analytics-api.php; this stub only has to carry the same verdict so
-// the rollup module's consumers of the flag are drivable here.
+// re-recorded on every sn_analytics_query() call from the envelope counters —
+// truncated iff rows >= SN_ANALYTICS_AE_ROW_CAP AND
+// rows_before_limit_at_least > rows (v9.63.1: ClickHouse's before-counter can
+// exceed rows on GROUP BY queries WITHOUT truncation — pre-merge aggregation
+// partials are counted — so truncation requires the applied cap to have been
+// REACHED); false on failure paths and on envelopes without counters. The
+// real implementation is pinned by tests/analytics-api.php; this stub only
+// has to carry the same verdict so the rollup module's consumers of the flag
+// are drivable here.
+// Mirrors inc/analytics-api.php SN_ANALYTICS_AE_ROW_CAP (the AE SQL API's
+// default LIMIT — neither rollup query sets an explicit LIMIT). That module
+// is deliberately NOT loaded here, so the mirror cannot collide with it.
+if ( ! defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ) {
+	define( 'SN_ANALYTICS_AE_ROW_CAP', 10000 );
+}
 $GLOBALS['__ar_last_truncated'] = false;
 function sn_analytics_last_result_truncated( $set = null ) {
 	if ( null !== $set ) {
@@ -146,7 +156,10 @@ function sn_analytics_query( $sql ) {
 		}
 		if ( isset( $decoded['rows'], $decoded['rows_before_limit_at_least'] )
 			&& is_numeric( $decoded['rows'] ) && is_numeric( $decoded['rows_before_limit_at_least'] ) ) {
-			sn_analytics_last_result_truncated( (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows'] );
+			sn_analytics_last_result_truncated(
+				(int) $decoded['rows'] >= SN_ANALYTICS_AE_ROW_CAP
+				&& (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows']
+			);
 		}
 		return $decoded['data'] ?? null;
 	}
@@ -789,20 +802,40 @@ ok( strpos( $GLOBALS['wpdb']->queries[0] ?? '', "('2026-07-16', '/', 'human', 2,
 @unlink( $guard_log2 );
 
 // ── Finding 3: a row-cap-TRUNCATED gated result is refused, never trusted ─────
-echo "\nGroup: gated query wrapper — truncation refusal (finding 3)\n";
+echo "\nGroup: gated query wrapper — truncation refusal (finding 3, verdict fixed v9.63.1)\n";
 // "Missing key on a successful gated result = real 0" is only sound while the
 // gated set is COMPLETE. The two queries order differently (views DESC vs
 // pageview_visits DESC), so AE's row cap can truncate them ASYMMETRICALLY —
 // a (day, path, class) merely cut from the gated tail would be fabricated
-// into a measured-0 pageview_visits. When the envelope says
+// into a measured-0 pageview_visits. When the result actually HIT the applied
+// cap (rows >= SN_ANALYTICS_AE_ROW_CAP) AND the envelope says
 // rows_before_limit_at_least > rows, the whole gated result degrades to the
 // FAILED shape (null → keys absent → upsert binds SQL NULL, "never measured").
+// A bare before>rows envelope BELOW the cap is the ClickHouse GROUP BY quirk
+// (pre-merge aggregation partials), NOT truncation — the 2026-07-18 production
+// reroll misfired on 25 of 35 days exactly there.
 ok( function_exists( 'sn_analytics_rollup_gated_query' ), 'wrapper: sn_analytics_rollup_gated_query() exists (shared by cron + reroll tool)' );
 
+// A REAL cap hit: rows landed on the applied cap (10000) with more behind it.
+// (Fixture abbreviates the 10,000-row data body — the envelope COUNTERS are
+// the transport contract the verdict reads.)
 $trunc_gated_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
 	. '{"name":"class","type":"String"},{"name":"pageview_visits","type":"UInt64"}],'
 	. '"data":[{"day":"2026-07-15","path":"/","class":"human","pageview_visits":"4"}],'
-	. '"rows":1,"rows_before_limit_at_least":3}';
+	. '"rows":10000,"rows_before_limit_at_least":12000}';
+
+// The live-misfire envelope (2026-07-18 production reroll): a complete gated
+// GROUP BY result far below the cap, with the before-counter inflated by
+// pre-merge partials. Must pass through INTACT — refusing it discarded 25
+// complete days and pinned exact_metrics_since at 2026-07-17.
+$misfire_gated_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
+	. '{"name":"class","type":"String"},{"name":"pageview_visits","type":"UInt64"}],'
+	. '"data":[{"day":"2026-06-20","path":"/","class":"human","pageview_visits":"4"},'
+	. '{"day":"2026-06-20","path":"/notes/","class":"human","pageview_visits":"2"},'
+	. '{"day":"2026-06-20","path":"/about/","class":"human","pageview_visits":"1"},'
+	. '{"day":"2026-06-20","path":"/","class":"bot","pageview_visits":"3"},'
+	. '{"day":"2026-06-20","path":"/feed/","class":"bot","pageview_visits":"1"}],'
+	. '"rows":5,"rows_before_limit_at_least":7}';
 
 if ( function_exists( 'sn_analytics_rollup_gated_query' ) ) {
 	// Transport failure passes through as null (unchanged semantics).
@@ -818,14 +851,22 @@ if ( function_exists( 'sn_analytics_rollup_gated_query' ) ) {
 	ok( is_array( $w_rows ) && '4' === ( $w_rows[0]['pageview_visits'] ?? null ),
 		'wrapper: complete envelope (rows === rows_before_limit_at_least) → rows returned intact' );
 
-	// Truncated envelope → refused (null) + logged, never a partial set.
+	// The live-misfire envelope → NOT refused: below-cap before>rows is the
+	// GROUP BY quirk, and the 5 complete rows must survive.
+	ar_reset();
+	$GLOBALS['__ar_gated_return'] = $misfire_gated_envelope;
+	$w_misfire = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 7 ) );
+	ok( is_array( $w_misfire ) && 5 === count( $w_misfire ),
+		'wrapper: below-cap GROUP BY quirk (rows 5, before 7) → rows returned intact, NOT refused (2026-07-18 live misfire)' );
+
+	// Truncated (cap-hit) envelope → refused (null) + logged, never a partial set.
 	ar_reset();
 	$GLOBALS['__ar_gated_return'] = $trunc_gated_envelope;
 	$trunc_log     = tempnam( sys_get_temp_dir(), 'sn_trunc' );
 	$old_trunc_log = ini_set( 'error_log', $trunc_log );
 	$w_trunc       = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 7 ) );
 	ini_set( 'error_log', (string) $old_trunc_log );
-	ok( null === $w_trunc, 'wrapper: truncated envelope (rows_before_limit_at_least 3 > rows 1) → refused as FAILED (null)' );
+	ok( null === $w_trunc, 'wrapper: cap-hit envelope (rows 10000, rows_before_limit_at_least 12000) → refused as FAILED (null)' );
 	ok( strpos( (string) @file_get_contents( $trunc_log ), '[sn-analytics]' ) !== false
 		&& strpos( (string) @file_get_contents( $trunc_log ), 'truncated' ) !== false,
 		'wrapper: the refusal is never silent — error_log names the truncation' );
@@ -834,10 +875,10 @@ if ( function_exists( 'sn_analytics_rollup_gated_query' ) ) {
 
 echo "\nGroup: run_rollup — truncated gated envelope binds NULL end-to-end (finding 3)\n";
 // The finding's exact scenario: the main set is complete (2 rows) but the
-// gated set was row-capped (1 returned of ≥3). BOTH written rows must bind
-// pageview_visits NULL — the row missing from the gated set (the fabricated-0
-// hazard) AND the row present in it (a truncated set carries no completeness
-// claim at all).
+// gated set was row-capped (10,000 returned of ≥12,000 — a REAL cap hit).
+// BOTH written rows must bind pageview_visits NULL — the row missing from the
+// gated set (the fabricated-0 hazard) AND the row present in it (a truncated
+// set carries no completeness claim at all).
 ar_reset();
 $GLOBALS['__ar_query_return'] = $main_envelope;
 $GLOBALS['__ar_gated_return'] = $trunc_gated_envelope;
@@ -862,6 +903,25 @@ $qc = $GLOBALS['wpdb']->queries[0] ?? '';
 ok( strpos( $qc, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false
 	&& strpos( $qc, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
 	'truncated-e2e control: a complete gated envelope keeps matched 4 + real 0 exactly as before' );
+
+// Live-misfire control (v9.63.1): the SAME data with the gated envelope in the
+// 2026-07-18 production-reroll shape — its complete rows carried, before-
+// counter inflated by GROUP BY pre-merge partials (rows 1 < cap, before 3).
+// The gated data must be USED: matched key binds 4, missing key binds the real
+// 0 — NEVER the NULLs the old bare before>rows verdict fabricated on 25 of 35
+// reroll days.
+$quirk_gated_envelope = '{"meta":[{"name":"day","type":"String"},{"name":"path","type":"String"},'
+	. '{"name":"class","type":"String"},{"name":"pageview_visits","type":"UInt64"}],'
+	. '"data":[{"day":"2026-07-15","path":"/","class":"human","pageview_visits":"4"}],'
+	. '"rows":1,"rows_before_limit_at_least":3}';
+ar_reset();
+$GLOBALS['__ar_query_return'] = $main_envelope;
+$GLOBALS['__ar_gated_return'] = $quirk_gated_envelope;
+sn_analytics_run_rollup();
+$qq = $GLOBALS['wpdb']->queries[0] ?? '';
+ok( strpos( $qq, "('2026-07-15', '/', 'human', 6, 4, '47.50', '0.00', '190.0000', 4, '0.0000', 0, 4)" ) !== false
+	&& strpos( $qq, "('2026-07-15', '/feed/', 'human', 0, 3, '0.00', '0.00', '0.0000', 0, '0.0000', 0, 0)" ) !== false,
+	'misfire-e2e: a below-cap GROUP BY-quirk gated envelope (rows 1, before 3) is TRUSTED — matched 4 + real 0, no fabricated NULLs' );
 
 // Not configured → AE query returns null → no upsert, no fresh stamp.
 ar_reset();

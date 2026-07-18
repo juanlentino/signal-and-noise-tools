@@ -75,6 +75,16 @@ const SN_ANALYTICS_DATASET = 'sn_pageviews';
 const SN_ANALYTICS_ERR_KEY = 'sn_analytics_last_error';
 
 /**
+ * The row cap the AE SQL API applies to our queries: its default LIMIT of
+ * 10,000 rows — neither of our queries (the main rollup query nor the gated
+ * pageview_visits query) sets an explicit LIMIT. A result can only have been
+ * row-cap TRUNCATED if it actually reached this cap; see
+ * sn_analytics_last_result_truncated() for why rows_before_limit_at_least
+ * alone is NOT truncation evidence.
+ */
+const SN_ANALYTICS_AE_ROW_CAP = 10000;
+
+/**
  * Admin-saved fallback options (used only when the wp-config constant is absent).
  * The read token is saved non-autoloaded by the settings-save handler; the account
  * ID is an identifier, not a secret. The constant always wins, so wp-config can
@@ -180,15 +190,23 @@ function sn_analytics_last_error() {
  * Request-scoped row-cap truncation flag for the most recent
  * sn_analytics_query() call.
  *
- * AE responses carry {rows, rows_before_limit_at_least}: when the latter
- * exceeds the former the result set was ROW-CAP TRUNCATED — the returned rows
- * are real, but the set is INCOMPLETE, so any "absent = zero" reasoning over
- * it is invalid. sn_analytics_query() re-records the verdict on EVERY call
- * (false on failure paths — a null return already carries no completeness
- * claim; false when the envelope carries no counters — no evidence).
- * Consumers that reason from absence (the gated pageview_visits merge via
- * sn_analytics_rollup_gated_query()) must check this immediately after their
- * query call, before issuing another.
+ * AE responses carry {rows, rows_before_limit_at_least}. The result set was
+ * ROW-CAP TRUNCATED — the returned rows are real, but the set is INCOMPLETE,
+ * so any "absent = zero" reasoning over it is invalid — only when BOTH hold:
+ * rows >= SN_ANALYTICS_AE_ROW_CAP (the applied cap was actually reached) AND
+ * rows_before_limit_at_least > rows. The bare before>rows comparison is NOT
+ * truncation evidence: ClickHouse computes rows_before_limit_at_least before
+ * the final GROUP BY merge, so on GROUP BY queries it can exceed the final
+ * row count WITHOUT any truncation (pre-merge aggregation partials are
+ * counted). The owner's 2026-07-18 production reroll proved this live — the
+ * bare verdict fired on 25 of 35 days whose gated GROUP BY results held only
+ * 3–36 rows (impossible truncation; the cap was never reached) and their
+ * complete gated data was discarded. sn_analytics_query() re-records the
+ * verdict on EVERY call (false on failure paths — a null return already
+ * carries no completeness claim; false when the envelope carries no counters
+ * — no evidence). Consumers that reason from absence (the gated
+ * pageview_visits merge via sn_analytics_rollup_gated_query()) must check
+ * this immediately after their query call, before issuing another.
  *
  * @param bool|null $set Internal (sn_analytics_query only): record a verdict.
  *                       Callers pass nothing.
@@ -266,9 +284,16 @@ function sn_analytics_query( $sql ) {
 	// Record the row-cap truncation verdict from the envelope counters (only
 	// when both are present and numeric — an envelope without them carries no
 	// truncation evidence and the flag stays false from the reset above).
+	// Truncation requires the applied cap to have actually been REACHED:
+	// on GROUP BY queries ClickHouse's rows_before_limit_at_least counts
+	// pre-merge aggregation partials and can exceed rows with NO truncation
+	// (see sn_analytics_last_result_truncated() — the 2026-07-18 reroll misfire).
 	if ( isset( $decoded['rows'], $decoded['rows_before_limit_at_least'] )
 		&& is_numeric( $decoded['rows'] ) && is_numeric( $decoded['rows_before_limit_at_least'] ) ) {
-		sn_analytics_last_result_truncated( (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows'] );
+		sn_analytics_last_result_truncated(
+			(int) $decoded['rows'] >= SN_ANALYTICS_AE_ROW_CAP
+			&& (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows']
+		);
 	}
 
 	return $decoded['data'] ?? null;
