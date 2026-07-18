@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.69.0] - 2026-07-18: The Overview learns to triage — attention chips, strip, and promotion reordering
+
+MINOR (new user-visible capability, owner-approved — the design passed a rendered before/after review; the REORDERED variant won). The Overview landing now weighs every panel's headline movement against the PREVIOUS period on **every render — compare Off included** (that is the feature's point; the header's compare control keeps governing only the visible delta chips), marks notable panels, and reorders the body so what needs attention sits on top.
+
+### Signals (`inc/analytics-overview-attention.php`, NEW — pure, `require()`-able by tests)
+
+A panel is NOTABLE only when its headline movement clears **both a percentage bar and an absolute floor** — 1 view → 2 views must never flag:
+
+- `SN_OVERVIEW_ATTN_PCT = 25` — the relative bar: a quarter-shift vs the prev window; anything less is week-to-week noise on a small site.
+- `SN_OVERVIEW_ATTN_VIEWS_FLOOR = 5` — table rows: `max(current, prior)` views must reach it, so a percentage on a nothing base can never flag.
+- `SN_OVERVIEW_ATTN_BOUNCE_PTS = 10.0` — bounce moves in percentage POINTS (a relative bar on a ratio double-counts: 50%→62.5% is "+25% relative" but only 12.5 pts).
+- `SN_OVERVIEW_ATTN_MIN_SESSIONS = 10` — sessions volume needs `max(cur, prior) ≥ 10`; the session-quality RATIOS (bounce, ppv, median duration) need `min(cur, prior) ≥ 10` — a ratio over a handful of sessions swings wildly.
+
+**Sentiment table** (attention means "needs you", not "changed"): sessions + table views flag in BOTH directions (a surge may be bots or a hit, a collapse may be breakage); bounce flags on RISE only; pages/session and median duration flag on FALL only; Right now is never judged (instantaneous — no prior period exists for it). Driving-fact priority inside Session quality: sessions > bounce > ppv > median duration (volume outranks the ratios it distorts). Table driving fact = the largest absolute movement; a key that fell off the visible top-N flags only when even its provable upper bound (the table's minimum visible views) clears the bar — a sound lower bound on the drop, never an assumed collapse to 0, rendered as "… → out of the top N".
+
+**Null discipline**: a FAILED prior read = attention **UNKNOWN** — no chip, no strip mention, and no false "all calm" claim either (unknown renders as silence, byte-identical to a quiet week; documented in the view header). An EMPTY prior window = no comparison basis (indistinguishable from pre-feature history), never a fabricated "surge vs nothing".
+
+### Attention layer + reordering (`inc/analytics-view-overview.php`)
+
+- Prior windows via the real `snt_analytics_compare_window($from,$to,'prev')` — zero new date math; reads stay durable-table-only through the existing accessor contracts (null = failed), bounded at `SN_OVERVIEW_PRIOR_LIMIT` (50) like the v9.68.0 compare reads. `compare=prev` REUSES the signal read as the chip basis (no extra query); yoy adds its own; `range=all` gates attention off (no adjacent window exists — the shared card's exact gate).
+- Amber "▲ NOTABLE" chip in flagged panels' headers (the `header_meta` seam, coexisting with the doorway link) + ONE strip at the very top of the body — "Needs attention: {Panel} — {driving fact} · …" — with in-page anchor links (`#sn-ov-*`) to the flagged panels. No flags → no strip.
+- **Reordering (the approved AFTER geometry, generalized)**: Session quality ALWAYS renders first (flagged or not — it only ever gains the chip + anchor); flagged minis promote out of the bento to FULL WIDTH directly beneath it, in canonical relative order (closure-per-panel, so promoted and bento placements emit byte-identical panel markup — position changes, content never does); entry/exit promote as a PAIR if either flags; unflagged minis re-pack the standard bento below Right now (halves packing — all four unflagged reproduces the v9.68.1 layout exactly); Right now never promotes.
+- **QUIET-WEEK SHIELD (regression pin)**: when nothing flags, the rendered body is BYTE-IDENTICAL to the v9.68.1 output — pinned against a golden captured at v9.68.1 (`tests/fixtures/overview-quiet-week.html`, regenerate only deliberately via `SN_OV_REGEN_GOLDEN=1`). The same equality holds for failed-prior (unknown) and improving-bounce renders.
+- Layout reuses the existing bento/full-width classes; promoted panels keep their doorways and (compare-on) delta chips working — pinned on one promoted render carrying both.
+
+### Styles (`assets/analytics/analytics-admin.css`)
+
+`.sn-an-attn-chip` / `.sn-an-attn-strip` / `.sn-an-attn-label` / `.sn-an-attn-fact` on the shared warn tokens (`--sn-an-warn-bg/-border/-text`) + `--sn-an-radius`; `.sn-an-attn-anchor { scroll-margin-top: 46px }` so anchor jumps clear the admin bar. Light-only, like the rest of the surface. (`tests/analytics-tokens.php` kicker census 10 → 11 — the strip label is a real new uppercase-kicker adopter.)
+
+### Tests (RED-first: golden captured at v9.68.1 pre-implementation, 45 failing asserts committed before the code)
+
+- `tests/analytics-overview-attention.php` (NEW, 48 asserts): constants, the 1→2 shield, both-bars logic, the out-of-top bound (flag + not-provable), driving-fact ranking, the full sentiment table, ratio gates, null discipline, chip/strip markup + escaping.
+- `tests/analytics-view-overview.php` (241 asserts): PART C render groups — strip position/content/anchors, chip placement beside doorway + units note, promotion geometry (order pins), pair promotion with the unflagged partner riding along, unknown-silence golden equality, promoted-panel-with-compare-chips, read-count economy (prev reuse; yoy = two prior reads; range=all = none; folded panel = none) — plus the updated read-count pins (every panel now reads its prev window on every render).
+
+Sweep: 310 suites / 10,962 assertions green; `composer run lint` clean.
+
 ## [9.68.1] - 2026-07-18: Durable-table accessors learn null-on-failure — failed reads stop impersonating quiet weeks
 
 PATCH (failure-honesty fix, owner-approved). The durable-table top-N accessors returned `[]` for BOTH a failed wpdb read and an empty window, so every OLDER tab (Content, Campaigns, Geography, Technology, the Quality bot-networks list, the dashboard sources widget, the REST dimension route) rendered a database failure as a quiet period — the v9.65.0 conflation class. The v9.68.0 Overview guarded against it view-locally with a `last_error`/`num_queries` bracket; this release upgrades the CONTRACT at the source instead, so every surface inherits the honesty.
