@@ -45,18 +45,28 @@
  * nothing is a known failure shape here; an empty day is an ANSWER and says so).
  * A 0-AE-row day is AMBIGUOUS, though: genuinely quiet vs aged out of AE's
  * ~90d retention (the offset-89 boundary). It counts as fully OK only when the
- * durable table also has no LEGACY rows (scroll_sum IS NULL) for that day —
- * otherwise (this site's daily RSS srv:1 beacon rows guarantee real days have
- * rows) it is excluded from the streak, so exact_metrics_since never claims
- * coverage over a day whose range still reads null exact fields.
+ * durable table also has no INCOMPLETE rows (scroll_sum OR pageview_visits
+ * NULL) for that day — otherwise (this site's daily RSS srv:1 beacon rows
+ * guarantee real days have rows) it is excluded from the streak, so
+ * exact_metrics_since never claims coverage over a day whose range still reads
+ * null exact fields.
  * On completion it sets the option `sn_analytics_exact_metrics_since` (Y-m-d,
  * read by inc/analytics-read.php) to the earliest day of the UNBROKEN fully-OK
  * streak ending today — on full success that is the earliest re-rolled day
- * (today − 89d). A day only counts as fully OK when BOTH queries succeeded and
- * the upsert wrote; a gated-query failure leaves pageview_visits NULL ("never
- * measured", matching the cron's degrade-not-corrupt rule) and excludes the day
- * from the streak. If today itself failed, the option is NOT set — fix and
- * re-run; the whole tool is idempotent.
+ * (today − 89d). A day only counts as fully OK when BOTH queries succeeded, the
+ * upsert wrote, AND the post-write row-level completeness check passes: the
+ * durable table can hold MORE rows for a day than AE still returns — "stale
+ * sibling" rows the original nightly cron wrote when the day's events were
+ * fresh, whose (day, path, class) keys AE has since consolidated away
+ * (production diagnostic 2026-07-18: 36 such rows since 2026-06-13). Those
+ * siblings keep NULL scroll_sum/pageview_visits forever (their AE source is
+ * gone; they hold real legacy views/visits — never delete, never fabricate
+ * 0s), so day-level success ≠ row-level completeness and the streak must be
+ * earned by the TABLE, not the run. A gated-query failure likewise leaves
+ * pageview_visits NULL ("never measured", matching the cron's
+ * degrade-not-corrupt rule) and excludes the day from the streak. If today
+ * itself failed, the option is NOT set — fix and re-run; the whole tool is
+ * idempotent.
  *
  * Do not start a run within ~30 minutes of local midnight: the day labels are
  * computed once at start while each AE window is relative to now() at query
@@ -170,31 +180,62 @@ function sn_reroll_gated_day_sql( $base, $lower, $upper ) {
 }
 
 /**
+ * Durable-table row-level completeness COUNT for one day: how many rows still
+ * lack an exact column (scroll_sum IS NULL OR pageview_visits IS NULL)?
+ *
+ * Day-level success ≠ row-level completeness (production diagnostic
+ * 2026-07-18: 36 such rows since 2026-06-13). The durable table can hold MORE
+ * rows for a day than AE still returns — "stale sibling" rows the original
+ * nightly cron wrote when the day's events were fresh, whose (day, path,
+ * class) keys AE has since consolidated away. The re-roll upserts everything
+ * AE returns and the day looks OK, yet the unmatched siblings keep NULL
+ * scroll_sum/pageview_visits forever (their AE source is gone; they hold real
+ * legacy views/visits — never delete, never fabricate 0s), and the read layer
+ * correctly nulls exact fields for any range touching the day. So the streak
+ * must be earned by the TABLE, not the run. The OR arm also catches a
+ * scroll-written/gated-NULL row: run N's main query succeeded (scroll_sum
+ * written), its gated query failed, and the key vanished from AE before run
+ * N+1 — pageview_visits stays NULL with no source left to measure it.
+ *
+ * @param object $db    wpdb (injected, so this helper stays unit-testable).
+ * @param string $table Durable daily table name (prefix included).
+ * @param string $label Day label (Y-m-d).
+ * @return int|null Incomplete-row count, or null when the COUNT read failed —
+ *                  an unknown is NOT a clean answer (callers must never treat
+ *                  null as 0; fail toward honesty, matching the
+ *                  missing-'ok'-key rule in sn_reroll_since_day()).
+ */
+function sn_reroll_incomplete_rows( $db, $table, $label ) {
+	$count = $db->get_var( $db->prepare(
+		"SELECT COUNT(*) FROM {$table} WHERE day = %s AND (scroll_sum IS NULL OR pageview_visits IS NULL)",
+		(string) $label
+	) );
+	return is_numeric( $count ) ? (int) $count : null;
+}
+
+/**
  * Is a 0-AE-row day safe to count toward the exact_metrics_since streak?
  *
  * 0 AE rows is AMBIGUOUS: a genuinely quiet day looks identical to a day that
  * aged out of AE's ~90d retention (the offset-89 boundary). On this site every
  * real day has durable rows (the daily RSS srv:1 beacon class), so an aged-out
- * day still carries LEGACY rows (scroll_sum IS NULL — pre-v5, never
+ * day still carries LEGACY rows (both exact columns NULL — pre-v5, never
  * backfilled) in wp_sn_analytics_daily. Counting such a day streak-OK would
  * let exact_metrics_since claim coverage over a day whose range reads null
  * exact fields (the read layer's mixed-range rule) — so it is streak-OK ONLY
- * when the durable table provably has NO legacy rows for it; otherwise the
- * day is not-ok and `since` lands after it. A failed COUNT read returns a
- * non-numeric value → unknown → NOT ok (fail toward honesty, matching the
- * missing-'ok'-key rule in sn_reroll_since_day()).
+ * when the durable table provably has NO incomplete rows for it; otherwise the
+ * day is not-ok and `since` lands after it. Rides the SAME unified predicate
+ * as the post-write completeness check (sn_reroll_incomplete_rows) — two
+ * diverging predicates would reopen the stale-sibling gap. Null (failed COUNT)
+ * !== 0, so unknown stays NOT ok.
  *
  * @param object $db    wpdb (injected, so this helper stays unit-testable).
  * @param string $table Durable daily table name (prefix included).
  * @param string $label Day label (Y-m-d).
- * @return bool True only when provably zero legacy rows exist for the day.
+ * @return bool True only when provably zero incomplete rows exist for the day.
  */
 function sn_reroll_empty_day_ok( $db, $table, $label ) {
-	$count = $db->get_var( $db->prepare(
-		"SELECT COUNT(*) FROM {$table} WHERE day = %s AND scroll_sum IS NULL",
-		(string) $label
-	) );
-	return is_numeric( $count ) && 0 === (int) $count;
+	return 0 === sn_reroll_incomplete_rows( $db, $table, $label );
 }
 
 /**
@@ -330,13 +371,14 @@ foreach ( sn_reroll_bounded_offsets( 90 ) as $sn_reroll_k ) {
 	}
 	if ( array() === $sn_reroll_rows ) {
 		// 0 AE rows is ambiguous — quiet day vs aged-out-of-retention. Streak-OK
-		// only when the durable table has no legacy (scroll_sum IS NULL) rows for
-		// the day; otherwise `since` must land after it (mixed-range honesty).
+		// only when the durable table has no incomplete rows (the unified
+		// scroll_sum-or-pageview_visits-NULL predicate) for the day; otherwise
+		// `since` must land after it (mixed-range honesty).
 		if ( sn_reroll_empty_day_ok( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label ) ) {
-			echo "{$sn_reroll_label}  OK    0 AE rows, no durable legacy rows — genuinely quiet day; nothing to write (empty is an ANSWER)\n";
+			echo "{$sn_reroll_label}  OK    0 AE rows, no durable incomplete rows — genuinely quiet day; nothing to write (empty is an ANSWER)\n";
 			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
 		} else {
-			echo "{$sn_reroll_label}  WARN  0 AE rows but durable LEGACY rows exist (scroll_sum NULL) — aged out of AE retention (or the legacy check failed); day EXCLUDED from exact_metrics_since\n";
+			echo "{$sn_reroll_label}  WARN  0 AE rows but durable INCOMPLETE rows exist (scroll_sum or pageview_visits NULL) — aged out of AE retention (or the completeness check failed); day EXCLUDED from exact_metrics_since\n";
 			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
 		}
 		continue;
@@ -377,6 +419,18 @@ foreach ( sn_reroll_bounded_offsets( 90 ) as $sn_reroll_k ) {
 		continue;
 	}
 
+	// Post-write row-level completeness: the upsert can only touch keys AE still
+	// returns — stale cron-era siblings (keys AE consolidated away) survive it
+	// with permanent-NULL exact columns, so the day's streak claim must be
+	// earned by the durable TABLE, not by this run. A failed COUNT (null) is
+	// not a clean answer — excluded, same as a positive count.
+	$sn_reroll_stale = sn_reroll_incomplete_rows( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label );
+	if ( 0 !== $sn_reroll_stale ) {
+		echo "{$sn_reroll_label}  WARN  " . ( null === $sn_reroll_stale ? 'row-level completeness COUNT failed (unknown is not a clean answer)' : "{$sn_reroll_stale} stale cron-era rows remain (keys AE no longer returns; engagement/gated unmeasurable)" ) . " — day EXCLUDED from exact_metrics_since (AE rows=" . count( $sn_reroll_rows ) . " written={$sn_reroll_written})\n";
+		$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
+		continue;
+	}
+
 	echo "{$sn_reroll_label}  OK    rows=" . count( $sn_reroll_rows ) . " written={$sn_reroll_written} views=" . sn_reroll_sum_col( $sn_reroll_rows, 'views' ) . ' pageview_visits=' . sn_reroll_sum_col( $sn_reroll_gated, 'pageview_visits' ) . "\n";
 	$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
 }
@@ -396,12 +450,12 @@ if ( ! is_array( $sn_reroll_rows ) ) {
 } elseif ( array() === $sn_reroll_rows ) {
 	foreach ( $sn_reroll_tail_labels as $sn_reroll_label ) {
 		// Same 0-AE-row ambiguity rule as the bounded loop (yesterday/today can't
-		// age out, but a legacy row here would still make the coverage claim a lie).
+		// age out, but an incomplete row here would still make the claim a lie).
 		if ( sn_reroll_empty_day_ok( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label ) ) {
-			echo "{$sn_reroll_label}  OK    0 AE rows, no durable legacy rows — quiet day; nothing to write (empty is an ANSWER)\n";
+			echo "{$sn_reroll_label}  OK    0 AE rows, no durable incomplete rows — quiet day; nothing to write (empty is an ANSWER)\n";
 			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => true );
 		} else {
-			echo "{$sn_reroll_label}  WARN  0 AE rows but durable LEGACY rows exist (scroll_sum NULL) — day EXCLUDED from exact_metrics_since\n";
+			echo "{$sn_reroll_label}  WARN  0 AE rows but durable INCOMPLETE rows exist (scroll_sum or pageview_visits NULL) — day EXCLUDED from exact_metrics_since\n";
 			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => false );
 		}
 	}
@@ -433,12 +487,21 @@ if ( ! is_array( $sn_reroll_rows ) ) {
 			$sn_reroll_gated_day_rows = ! $sn_reroll_gated_ok ? array() : array_values( array_filter( $sn_reroll_gated, function ( $r ) use ( $sn_reroll_label ) {
 				return is_array( $r ) && trim( (string) ( $r['day'] ?? '' ) ) === $sn_reroll_label;
 			} ) );
+			$sn_reroll_day_ok = $sn_reroll_tail_ok;
 			if ( $sn_reroll_tail_ok ) {
-				echo "{$sn_reroll_label}  OK    rows=" . count( $sn_reroll_day_rows ) . ' views=' . sn_reroll_sum_col( $sn_reroll_day_rows, 'views' ) . ' pageview_visits=' . sn_reroll_sum_col( $sn_reroll_gated_day_rows, 'pageview_visits' ) . " (trailing-1 production window, written={$sn_reroll_written} combined)\n";
+				// Same post-write row-level completeness gate as the bounded loop —
+				// stale cron-era siblings survive the trailing-1 upsert identically.
+				$sn_reroll_stale = sn_reroll_incomplete_rows( $GLOBALS['wpdb'], $GLOBALS['wpdb']->prefix . SN_ANALYTICS_DAILY_TABLE, $sn_reroll_label );
+				if ( 0 !== $sn_reroll_stale ) {
+					echo "{$sn_reroll_label}  WARN  " . ( null === $sn_reroll_stale ? 'row-level completeness COUNT failed (unknown is not a clean answer)' : "{$sn_reroll_stale} stale cron-era rows remain (keys AE no longer returns; engagement/gated unmeasurable)" ) . ' — day EXCLUDED from exact_metrics_since (AE rows=' . count( $sn_reroll_day_rows ) . ", trailing-1 production window)\n";
+					$sn_reroll_day_ok = false;
+				} else {
+					echo "{$sn_reroll_label}  OK    rows=" . count( $sn_reroll_day_rows ) . ' views=' . sn_reroll_sum_col( $sn_reroll_day_rows, 'views' ) . ' pageview_visits=' . sn_reroll_sum_col( $sn_reroll_gated_day_rows, 'pageview_visits' ) . " (trailing-1 production window, written={$sn_reroll_written} combined)\n";
+				}
 			} else {
 				echo "{$sn_reroll_label}  " . ( $sn_reroll_gated_ok ? 'FAIL  upsert wrote 0 rows — DB write failure' : 'WARN  written without pageview_visits (NULL, never measured) — day EXCLUDED from exact_metrics_since' ) . "\n";
 			}
-			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => $sn_reroll_tail_ok );
+			$sn_reroll_results[] = array( 'day' => $sn_reroll_label, 'ok' => $sn_reroll_day_ok );
 		}
 	}
 }
