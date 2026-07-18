@@ -47,7 +47,10 @@ function snt_analytics_resolve_class( $raw ) {
 // The tabbed views of the read-only dashboard, in display order (slug → label).
 // The detailed dimension/derived panels live under one of these; the headline
 // (controls + delta cards + trend) is persistent above the tabs.
+// v9.68.0: 'overview' leads — the wired landing surface (the v9.67.0 preview
+// mock, graduated) and the DEFAULT tab; Content is a normal tab now.
 const SN_ANALYTICS_VIEWS = array(
+	'overview'   => 'Overview',
 	'content'    => 'Content',
 	'campaigns'  => 'Campaigns',
 	'posts'      => 'Posts',
@@ -66,28 +69,22 @@ const SN_ANALYTICS_VIEWS = array(
 );
 
 /**
- * The EFFECTIVE view registry (v9.67.0): SN_ANALYTICS_VIEWS, plus the
- * flag-gated "Overview (preview)" static-mock tab (assembly option C's first
- * step) registered FIRST when — and only when — the sn_analytics_landing_preview
- * option is on. Flag off (the default): byte-identical to the const, so the
- * preview tab exists nowhere (registry, tab strip, resolver, drilldowns,
- * abilities all untouched). Guarded so harnesses that load this file without
- * inc/analytics-view-overview-lab.php keep today's exact behavior.
+ * The view registry accessor. v9.68.0: the v9.67.0 flag branch is gone — the
+ * "Overview (preview)" experiment graduated into the permanent 'overview'
+ * slug inside SN_ANALYTICS_VIEWS itself, so the effective registry IS the
+ * const again. Kept as the one lookup seam the tab strip + resolver share.
  *
  * @since 9.67.0
  * @return array<string,string> slug => label, display order.
  */
 function snt_analytics_views() {
-	if ( function_exists( 'snt_analytics_landing_preview_enabled' ) && snt_analytics_landing_preview_enabled() ) {
-		return array( 'overview-lab' => 'Overview (preview)' ) + SN_ANALYTICS_VIEWS;
-	}
 	return SN_ANALYTICS_VIEWS;
 }
 
 /**
- * Whitelist the ?sn_view GET value to a known tab; default 'content'.
- * v9.67.0: keys off the effective registry (snt_analytics_views()) so the
- * flag-gated preview tab resolves only while its flag is on.
+ * Whitelist the ?sn_view GET value to a known tab; default 'overview' — the
+ * wired landing surface (v9.68.0; was 'content'). Retired slugs
+ * ('intelligence', 'overview-lab') fall back here too.
  *
  * @param mixed $raw
  * @return string
@@ -95,16 +92,17 @@ function snt_analytics_views() {
 function snt_analytics_resolve_view( $raw ) {
 	$v     = (string) $raw;
 	$views = snt_analytics_views();
-	return isset( $views[ $v ] ) ? $v : 'content';
+	return isset( $views[ $v ] ) ? $v : 'overview';
 }
 
 // Views that render their own complete chrome (own KPI cards, trend, range control)
 // and therefore opt OUT of the shared pageview header. login-defense brings its
 // own KPI/trend. 'edge' deliberately keeps the shared header it ships today
-// (changing it would be a regression). overview-lab (v9.67.0) IS the assembled
-// overview — stacking the shared KPI strip above its mock headline would double
-// the surface it exists to preview (unreachable while its flag is off).
-const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense', 'overview-lab' );
+// (changing it would be a regression). v9.68.0: the wired 'overview' INHERITS
+// the shared header (the v9.67.0 mock owned its chrome only because its static
+// Headline panel would have doubled the real KPI strip — the wired tab drops
+// that panel and lets the shared Overview card be the headline).
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
 
 /**
  * True iff $view brings its own chrome, so the shared pageview header (controls +
@@ -375,7 +373,7 @@ function snt_analytics_render_dashboard() {
 	$to_raw    = isset( $_GET['sn_to'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_to'] ) ) : '';
 	$class     = snt_analytics_resolve_class( isset( $_GET['sn_class'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_class'] ) ) : 'human' );
 	$compare   = snt_analytics_resolve_compare( isset( $_GET['sn_compare'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_compare'] ) ) : '' );
-	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'content' );
+	$view      = snt_analytics_resolve_view( isset( $_GET['sn_view'] ) ? sanitize_text_field( wp_unslash( $_GET['sn_view'] ) ) : 'overview' );
 
 	// Window resolution is date math + GET whitelisting with no AE/config-gated
 	// accessor reads — so it's safe (and now necessary) to resolve BEFORE the
@@ -499,23 +497,23 @@ function snt_analytics_render_dashboard() {
 			sn_login_defense_render_body();
 			break;
 
-		case 'overview-lab':
-			// v9.67.0: the flag-gated STATIC MOCK of the assembled landing
-			// surface (assembly option C) — design-review artifact, sample
-			// data only. Reachable only while snt_analytics_views() carries
-			// the slug (resolve_view rejects it otherwise).
-			snt_analytics_render_view_overview_lab();
-			break;
-
 		case 'campaigns':
 			// v9.29.0: UTM campaign attribution — inc/analytics-view-campaigns.php.
 			snt_analytics_render_view_campaigns( $from, $to, $class, $granularity );
 			break;
 
 		case 'content':
-		default:
-			// v8.5.0: regrouped landing — inc/analytics-view-content.php.
+			// v8.5.0 regrouped content view (the landing until v9.68.0) —
+			// inc/analytics-view-content.php.
 			snt_analytics_render_view_content( $from, $to, $class, $granularity );
+			break;
+
+		case 'overview':
+		default:
+			// v9.68.0: the wired landing surface (the v9.67.0 mock, graduated)
+			// — inc/analytics-view-overview.php. Default on purpose: it is
+			// also where resolve_view sends every unknown/retired slug.
+			snt_analytics_render_view_overview( $from, $to, $class );
 			break;
 	}
 	echo '</div>';
@@ -605,16 +603,6 @@ function snt_analytics_render_settings_section() {
 			snt_an_funnels_snapshot(),
 			false,
 			'snt_analytics_render_funnels'
-		);
-	}
-	// v9.67.0: the Overview (preview) landing-surface flag — shows/hides the
-	// flag-gated static design mock (assembly option C). Default closed + off.
-	if ( function_exists( 'snt_analytics_render_landing_preview' ) ) {
-		snt_an_settings_fold(
-			__( 'Landing preview', 'signal-and-noise-tools' ),
-			snt_an_landing_preview_snapshot(),
-			false,
-			'snt_analytics_render_landing_preview'
 		);
 	}
 	echo '</div>';

@@ -75,10 +75,6 @@ function sn_admin_post_handlers() {
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',
 		'analytics_funnels_save'     => 'sn_handle_analytics_funnels_save',
-		// v9.67.0: Overview (preview) landing-surface flag toggle (handler
-		// body lives with its subsystem in inc/analytics-view-overview-lab.php,
-		// the schedule-admin precedent).
-		'analytics_landing_preview_save' => 'sn_handle_analytics_landing_preview_save',
 		'analytics_export'           => 'sn_handle_analytics_export',
 		// Scheduled-content ops (Task 8). Handler bodies live in
 		// inc/schedule-admin.php to keep the subsystem cohesive.
@@ -128,7 +124,7 @@ function sn_admin_post_dashboard_redirect_url( $current_page, $flash ) {
 	return add_query_arg(
 		array(
 			'page'     => 'sn-analytics',
-			'sn_view'  => 'content',
+			'sn_view'  => 'overview', // the default landing tab (v9.68.0; 'content' before).
 			'sn_flash' => $flash,
 		),
 		admin_url( 'index.php' )

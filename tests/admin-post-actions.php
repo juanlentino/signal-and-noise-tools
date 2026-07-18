@@ -120,11 +120,10 @@ require_once __DIR__ . '/../inc/schedule-admin.php';
 // above). Its only load-time side effect is one add_action() for the render
 // hook (add_action is stubbed above), so requiring it in isolation is safe.
 require_once __DIR__ . '/../inc/redirects-admin.php';
-// v9.67.0: the analytics_landing_preview_save map entry points at a handler
-// body in inc/analytics-view-overview-lab.php (same subsystem-cohesion
-// pattern). Load-time surface: one require_once of analytics-panels.php
-// (function defs only) + a const — no hooks registered, safe in isolation.
-require_once __DIR__ . '/../inc/analytics-view-overview-lab.php';
+// v9.68.0: the analytics_landing_preview_save entry (and the whole
+// flag-gated Overview (preview) lab it pointed into) is GONE — the mock
+// graduated to the permanent, default 'overview' tab, which carries no
+// admin-post surface of its own.
 
 $pass = 0; $fail = 0;
 function pa_eq( $e, $a, $msg ) {
@@ -478,7 +477,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 52, count( $map ), 'map has 52 actions' ); // v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lives in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
+pa_eq( 51, count( $map ), 'map has 51 actions' ); // v9.68.0: -1 analytics_landing_preview_save (the flag-gated Overview (preview) graduated to the permanent default tab — no flag, no toggle) · v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lived in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
@@ -616,7 +615,7 @@ $durl = sn_admin_post_dashboard_redirect_url( 'sn-analytics', 'analytics_saved' 
 pa_eq( true, null !== $durl, 'dashboard redirect url returned for sn-analytics' );
 pa_eq( true, strpos( (string) $durl, 'index.php' ) !== false, 'redirect targets index.php not admin.php' );
 pa_eq( true, strpos( (string) $durl, 'page=sn-analytics' ) !== false, 'redirect keeps the page' );
-pa_eq( true, strpos( (string) $durl, 'sn_view=content' ) !== false, 'R2: redirect lands on the content default (intelligence retired)' );
+pa_eq( true, strpos( (string) $durl, 'sn_view=overview' ) !== false, 'redirect lands on the default tab (overview since v9.68.0; content before; intelligence retired at R2)' );
 pa_eq( true, strpos( (string) $durl, 'sn_flash=analytics_saved' ) !== false, 'redirect carries the flash' );
 pa_eq( null, sn_admin_post_dashboard_redirect_url( 'sn-theme-options', 'x' ), 'non-dashboard page returns null (falls through to admin.php path)' );
 pa_eq( true, in_array( 'sn-analytics', sn_admin_post_allowed_pages(), true ), 'sn-analytics is an allowed POST page' );

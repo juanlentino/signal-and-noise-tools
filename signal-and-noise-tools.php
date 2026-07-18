@@ -118,7 +118,7 @@ require_once SNT_PATH . 'inc/analytics-view-geography.php';  // v8.5.0 extractio
 require_once SNT_PATH . 'inc/analytics-view-engagement.php'; // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-quality.php';    // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
-require_once SNT_PATH . 'inc/analytics-view-overview-lab.php'; // v9.67.0: flag-gated "Overview (preview)" static mock (assembly option C, design review)
+require_once SNT_PATH . 'inc/analytics-view-overview.php';   // v9.68.0: the wired Overview landing (default tab — the v9.67.0 mock, graduated)
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-utm.php';    // v9.28.0: UTM campaign attribution (packed blob20 → Source/Medium + Campaign)

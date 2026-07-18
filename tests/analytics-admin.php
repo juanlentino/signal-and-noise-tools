@@ -190,6 +190,7 @@ require_once __DIR__ . '/../inc/analytics-annotations.php';
 require_once __DIR__ . '/../inc/analytics-movers.php';
 require_once __DIR__ . '/../inc/analytics-header-region.php';
 require_once __DIR__ . '/../inc/analytics-view-content.php';
+require_once __DIR__ . '/../inc/analytics-view-overview.php'; // v9.68.0: the default landing view
 require_once __DIR__ . '/../inc/analytics-view-technology.php';
 require_once __DIR__ . '/../inc/analytics-view-geography.php';
 require_once __DIR__ . '/../inc/analytics-view-engagement.php';
@@ -239,8 +240,9 @@ ok( snt_analytics_resolve_range( "7); DROP" ) === 7, 'resolve_range: junk → de
 ok( snt_analytics_resolve_class( 'bot' ) === 'bot', 'resolve_class: bot allowed' );
 ok( snt_analytics_resolve_class( 'martian' ) === 'human', 'resolve_class: unknown → human' );
 ok( snt_analytics_resolve_view( 'technology' ) === 'technology', 'resolve_view: known view allowed' );
-ok( snt_analytics_resolve_view( 'martian' ) === 'content', 'resolve_view: unknown → content default' );
-ok( snt_analytics_resolve_view( '' ) === 'content', 'resolve_view: empty → content default' );
+ok( snt_analytics_resolve_view( 'martian' ) === 'overview', 'resolve_view: unknown → overview default (v9.68.0 promotion)' );
+ok( snt_analytics_resolve_view( '' ) === 'overview', 'resolve_view: empty → overview default' );
+ok( snt_analytics_resolve_view( 'content' ) === 'content', 'resolve_view: content still resolves (a normal tab now)' );
 
 echo "\nGroup: date math\n";
 list( $from, $to ) = snt_analytics_range_dates( 7, gmmktime( 0, 0, 0, 6, 11, 2026 ) );
@@ -274,7 +276,11 @@ function aa_fill_data() {
 
 echo "\nGroup: dashboard — core render\n";
 aa_fill_data();
-// Raw (unstripped) body: the default 'content' view renders no choropleth SVG, so
+// v9.68.0: the default landing is now the Overview view, so this group (the
+// CONTENT view's shared-header pins, e.g. the /notes/x top-paths row) selects
+// its view explicitly. The overview-default render has its own group below.
+$_GET['sn_view'] = 'content';
+// Raw (unstripped) body: the content view renders no choropleth SVG, so
 // ANY <style> here would be the regressed inline echo. The CSS must come from the
 // enqueued external stylesheet, never the body.
 ob_start(); snt_analytics_render_dashboard(); $raw_body = (string) ob_get_clean();
@@ -331,10 +337,39 @@ ok( strpos( $html, 'sn_view=campaigns' ) !== false && strpos( $html, '>Campaigns
 $tabs = strpos( $html, 'sn-an-view-tabs' );
 $band = strpos( $html, 'sn-an-headline' );
 $tool = strpos( $html, 'sn-toolbar' );
-$ov   = strpos( $html, 'Overview' );
+// v9.68.0: 'Overview' now also appears as a tab LABEL in the strip above, so
+// anchor on the Overview panel's own postbox class, not the bare word.
+$ov   = strpos( $html, 'postbox sn-overview' );
 ok( false !== $tabs && false !== $band && $tabs < $band, 'D1 order: tabs above the headline band' );
 ok( false !== $tool && $band < $tool, 'D1 order: headline band above the toolbar' );
 ok( false !== $ov && $tool < $ov, 'D1 order: toolbar above the Overview' );
+
+echo "\nGroup: v9.68.0 — the Overview is the DEFAULT landing (promoted, wired, shared chrome)\n";
+// Registry: the permanent 'overview' slug leads the registry; the flag-gated
+// preview machinery is GONE (the experiment graduated).
+ok( 'overview' === array_key_first( SN_ANALYTICS_VIEWS ), 'registry: overview is FIRST' );
+ok( 'Overview' === ( SN_ANALYTICS_VIEWS['overview'] ?? '' ), 'registry: labeled "Overview"' );
+ok( 12 === count( SN_ANALYTICS_VIEWS ), 'registry: 12 views (11 + the promoted overview)' );
+ok( snt_analytics_views() === SN_ANALYTICS_VIEWS, 'effective registry: identical to the const — no flag branch left' );
+ok( ! function_exists( 'snt_analytics_landing_preview_enabled' ), 'flag: the sn_analytics_landing_preview helper no longer exists' );
+ok( 'overview' === snt_analytics_resolve_view( 'overview' ), 'resolve_view: overview resolves' );
+ok( 'overview' === snt_analytics_resolve_view( 'overview-lab' ), 'resolve_view: the retired lab slug falls back to the new default' );
+ok( false === snt_analytics_view_owns_chrome( 'overview' ), 'owns_chrome: overview INHERITS the shared header (the mock owned its chrome; the wired tab does not)' );
+// Render with NO ?sn_view: the overview tab is active, the shared chrome
+// renders above it, and the wired body renders below.
+aa_fill_data();
+unset( $_GET['sn_view'] );
+$html_ovd = capture( 'snt_analytics_render_dashboard' );
+ok( preg_match( '/nav-tab nav-tab-active" href="[^"]*sn_view=overview(&|")/', $html_ovd ) === 1, 'default: the Overview tab is the active tab with no ?sn_view' );
+ok( substr_count( $html_ovd, 'nav-tab-active' ) === 1, 'default: exactly one active tab' );
+ok( strpos( $html_ovd, 'sn-toolbar' ) !== false, 'default: inherits the shared range/class/compare controls' );
+ok( strpos( $html_ovd, 'sn-an-headline' ) !== false, 'default: inherits the insights band' );
+ok( strpos( $html_ovd, 'postbox sn-overview' ) !== false, 'default: inherits the shared Overview KPI card (the headline — no duplicate in the body)' );
+ok( strpos( $html_ovd, 'sn-an-movers' ) !== false, 'default: inherits the movers rail' );
+ok( strpos( $html_ovd, 'Right now' ) !== false, 'default: the wired body renders below the shared header' );
+ok( strpos( $html_ovd, 'Hacker News' ) !== false, 'default: the sources mini is wired through the canonical mapper (news.ycombinator.com → Hacker News)' );
+ok( strpos( $html_ovd, 'sn-an-lab-badge' ) === false && strpos( $html_ovd, 'PREVIEW' ) === false, 'default: no preview badge anywhere (graduated)' );
+ok( strpos( $html_ovd, 'sn_view=content' ) !== false, 'default: Content remains a normal tab in the strip' );
 
 echo "\nGroup: D1 — headline band gating\n";
 if ( ! function_exists( 'snt_edge_render_view' ) ) {
@@ -509,7 +544,7 @@ $_GET['sn_view'] = 'content';
 echo "\nGroup: dashboard — view param whitelist + escaping\n";
 $_GET['sn_view'] = '../../etc/passwd';
 $html = capture( 'snt_analytics_render_dashboard' );
-ok( strpos( $html, 'Top pages' ) !== false, 'view: junk sn_view falls back to content (default)' );
+ok( strpos( $html, 'Right now' ) !== false, 'view: junk sn_view falls back to the overview default (v9.68.0)' );
 $_GET['sn_view'] = 'content';
 $GLOBALS['__aa']['paths'] = array( array( 'path' => '/x"<script>', 'views' => 1, 'visits' => 1, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
 $html = capture( 'snt_analytics_render_dashboard' );
@@ -546,7 +581,7 @@ foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
 	ok( strpos( $html, 'sn_view=' . $slug ) !== false, "unconfigured: tab link to '$slug' present" );
 	++$tab_count;
 }
-ok( 11 === $tab_count, 'unconfigured: sanity — the registry still has all 11 views (test isn\'t vacuous)' );
+ok( 12 === $tab_count, 'unconfigured: sanity — the registry has all 12 views incl. the promoted overview (test isn\'t vacuous)' );
 // v9.65.0 units-collision fix: the tab LABEL says what its number counts
 // (within-day sessions from the live session engine), while the SLUG stays
 // 'visits' — cache keys, ?sn_view= links, and the dispatch switch all key on
@@ -554,7 +589,7 @@ ok( 11 === $tab_count, 'unconfigured: sanity — the registry still has all 11 v
 ok( array_key_exists( 'visits', SN_ANALYTICS_VIEWS ), 'views registry: the \'visits\' SLUG is unchanged (drilldown links + dispatch key on it)' );
 ok( 'Sessions' === SN_ANALYTICS_VIEWS['visits'], 'views registry: the visits tab is LABELED "Sessions" (units fix — the Overview headline\'s "Visits" counts visitor-days)' );
 ok( strpos( $html, 'nav-tab" href="' ) !== false, 'unconfigured: tab links carry a real, working href (not a bare <a>)' );
-ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured: exactly one active tab (content default)' );
+ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured: exactly one active tab (the overview default)' );
 ok( strpos( $html, 'sn-an-gate' ) !== false, 'unconfigured: the gate card still renders alongside the tabs' );
 ok( strpos( $html, 'button button-primary' ) !== false, 'unconfigured: the gate CTA keeps its cta_primary weight' );
 ok( strpos( $html, 'sn-toolbar' ) === false, 'unconfigured: NO .sn-toolbar (controls stay gated behind config)' );
@@ -681,7 +716,7 @@ ok( snt_analytics_view_owns_chrome( 'martian' ) === false, 'owns_chrome: unknown
 // v9.5.0 (annotations R2): the Intelligence tab / weekly-digest surface was retired.
 // The view is gone from the registry, resolves to the default, and no longer owns chrome.
 ok( ! array_key_exists( 'intelligence', SN_ANALYTICS_VIEWS ), 'R2: intelligence view removed from the registry' );
-ok( snt_analytics_resolve_view( 'intelligence' ) === 'content', 'R2: retired intelligence resolves to the content default' );
+ok( snt_analytics_resolve_view( 'intelligence' ) === 'overview', 'R2: retired intelligence resolves to the default (overview since v9.68.0)' );
 ok( snt_analytics_view_owns_chrome( 'intelligence' ) === false, 'R2: retired intelligence no longer owns chrome' );
 
 echo "\nGroup: login-defense dashboard dispatch + chrome suppression\n";
