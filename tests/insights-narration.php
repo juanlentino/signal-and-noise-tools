@@ -151,6 +151,7 @@ if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 	}
 }
 
+require_once __DIR__ . '/../inc/ai-markdown-strip.php'; // real shared stripper (v9.64.2) — the parse boundary calls it
 require_once __DIR__ . '/../inc/insights-narration.php';
 
 $pass = 0; $fail = 0;
@@ -222,6 +223,33 @@ ok( false !== stripos( $sys7b, 'structural' ), 'instruction names the views-vs-v
 ok( false !== strpos( $sys7b, 'NEVER call it unusual, unexplained, or an anomaly' ), 'instruction forbids the "unexplained anomaly" framing for the structural gap' );
 ok( false !== strpos( $sys7b, 'integrity_violation' ), 'instruction keeps a genuine-anomaly branch ONLY for integrity_violation' );
 ok( false !== stripos( $sys7b, 'never call' ) || false !== stripos( $sys7b, 'never "visits"' ), 'instruction forbids calling visitor-days "visits"' );
+
+// ── Test 7c: v9.64.2 plain-prose voice contract in the instruction ──
+echo "\nTest 7c: v9.64.2 voice contract pins (P1a + P2)\n";
+$sys7c = snt_narration_system_instruction();
+ok( false !== strpos( $sys7c, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'instruction bans the stats-appendix jargon (P2)' );
+ok( false !== strpos( $sys7c, 'NO MARKDOWN' ), 'instruction forbids markdown (P1a)' );
+ok( false !== strpos( $sys7c, 'no asterisks, no underscores' ), 'markdown ban names the emphasis marks' );
+ok( false !== strpos( $sys7c, 'no emojis' ), 'markdown ban covers emojis' );
+ok( false !== strpos( $sys7c, 'at most 4-5 short plain-English sentences' ), 'sentence budget for a phone-glance summary' );
+ok( false !== strpos( $sys7c, '"Worth a look:"' ), 'the optional Worth-a-look closer' );
+ok( false !== strpos( $sys7c, 'State numbers plainly (47 views, 40 visits)' ), 'numbers stated plainly' );
+ok( false !== strpos( $sys7c, '("expect a quiet week")' ) && false !== strpos( $sys7c, 'never as numbers with intervals' ), 'forecast rule: plain words only, never numbers-with-intervals' );
+ok( false !== strpos( $sys7c, 'at most one plain sentence' ), 'a genuine anomaly gets one plain sentence, max' );
+
+// ── Test 7d: v9.64.2 markdown stripped at the parse boundary (P1b) ──
+echo "\nTest 7d: markdown marks REMOVED (not escaped) from parsed digest strings\n";
+$mdp = snt_narration_parse_response( '{"headline":"**Weekly Analytics Digest**","paragraphs":["## Head","Views rose to *47*.","2 * 3 stays"],"highlights":["25 × 4 stays"]}' );
+ok( is_array( $mdp ), 'markdown-laden digest still parses' );
+eq( 'Weekly Analytics Digest', $mdp['headline'] ?? null, 'headline: ** marks removed, text kept (the live render bug)' );
+eq( 'Head', $mdp['paragraphs'][0] ?? null, 'paragraph: heading marker removed' );
+eq( 'Views rose to 47.', $mdp['paragraphs'][1] ?? null, 'paragraph: italic marks removed, number kept' );
+eq( '2 * 3 stays', $mdp['paragraphs'][2] ?? null, 'paragraph: spaced-asterisk arithmetic untouched' );
+eq( '25 × 4 stays', $mdp['highlights'][0] ?? null, 'highlight: multiplication sign untouched' );
+
+// ── Test 7e: v9.64.2 cache key versioned — the stored pre-voice digest is orphaned (P3) ──
+echo "\nTest 7e: narration cache key versioned (P3)\n";
+eq( 'sn_insights_narration_v2', SN_NARRATION_CACHE_KEY, 'fixed cache key bumped to _v2 — a pre-voice cached digest can never be served again' );
 
 // ── Test 8: collect_signals machine block graceful ──
 echo "\nTest 8: machine block omitted when edge idle, present when it saw hits\n";

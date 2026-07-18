@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.64.2] - 2026-07-18: The digest learns to write — plain-prose voice contract + markdown stripping
+
+v9.64.1 fixed the digest's FACTS; the owner's live screenshot (2026-07-18 07:30, plugin 9.64.1 installed) showed the result was **correct but unreadable**: the insights band opened with a literal "**Weekly Analytics Digest**" (raw markdown rendered as text, asterisks visible in both the collapsed band and the expanded panel), and the prose read like a stats appendix — "(3.7σ-robust, medium confidence)", "backtest 99% in-interval", "high backtest reliability (99% and 98% in-interval respectively)", "the point estimate is effectively flat/near-zero, but the interval leaves room for meaningful variation". Every one of those figures is ALREADY rendered by the deterministic signal chips + the transparency footer directly below the digest — the prose was duplicating the machinery instead of summarizing the week. This release changes VOICE only; every v9.64.1 vocabulary + structural-not-anomaly rule is kept intact (pinned).
+
+### Added — the plain-prose voice contract (both system instructions)
+
+The same contract now governs `sn_analytics_digest_ai_prompt()` (insights-band weekly digest, `inc/analytics-narrator.php`), `sn_analytics_narrate_ai_prompt()` (narrate artifact, same file), and `snt_narration_system_instruction()` (run-narration/get-narration digest, `inc/insights-narration.php`):
+
+- **Audience**: the site owner reading a weekly summary at a glance on a phone.
+- **Budget**: at most 4-5 short plain-English sentences, plus optionally one final "Worth a look:" line (the narrate artifact keeps its tighter 2-3 sentences).
+- **Numbers stated plainly** (47 views, 40 visits); viewless explained in one short clause.
+- **Jargon ban**: never σ/sigma, backtest, interval, robust, confidence, or point estimate in prose — the chips and transparency footer carry that machinery.
+- **Forecasts** only when actionable and in plain words ("expect a quiet week"), never as numbers-with-intervals; a genuine anomaly gets at most one plain sentence.
+- **Markdown forbidden entirely**: no asterisks, underscores, headings, bullet lists, or emojis — plain prose only.
+- The v9.64.1 "State uncertainty plainly" clause was retired from both narrator instructions — it is what invited the interval-and-confidence dressing the chips already render.
+
+### Added — server-side markdown stripping (defense-in-depth, `inc/ai-markdown-strip.php`)
+
+New shared pure helper `snt_ai_strip_markdown()`: removes ATX heading markers (`## Head` → `Head`) and emphasis marks (`**x**`/`__x__`/`*x*`/`_x_` → `x`) — REMOVED, not escaped, because every render path outputs plain text. Deliberately conservative: spaced asterisks (`2 * 3`), `25 × 4`, and intra-word underscores (`pageview_visits`) pass through untouched (emphasis must sit flush against its text; underscore emphasis only at word boundaries — the CommonMark rule). Applied at the two storage choke points (`sn_analytics_digest_ai_run()` / `sn_analytics_narrate_ai_run()`) and at the narration parse boundary (`snt_narration_parse_response()`, covering headline, paragraphs, and highlights before caching).
+
+### Fixed — the stored awful digest regenerates
+
+- **Insights-band digest + narrate artifacts**: the cache key hashes prompt + system instruction + feature + model (`sn_analytics_ai_cache_key()`), so the instruction change orphans the pre-voice cached text by construction — now pinned in a test (system-A vs system-B keys differ). The same-key last-good degrade also misses (key mismatch), so the band shows the deterministic fallback until the out-of-band generator refills the cache under the new contract.
+- **Narration digest** (`SN_NARRATION_CACHE_KEY`): this cache is a FIXED key with a 7-day TTL — a prompt change alone could NOT bust it — so the key is versioned to `sn_insights_narration_v2` (pinned); the orphaned pre-voice transient simply expires.
+
+### Reviewed — deterministic fallback voice
+
+`sn_analytics_digest_fallback()` already speaks the contract ("This period: 47 views, 40 visits (90 visitor-days, 50 of them viewless)." — terse, plain, no markdown); untouched. The σ occasionally visible in its signal list comes from signal `plain_label`s — the chips' own vocabulary, not digest prose.
+
+### Tests
+
+TDD, red first: **28 failing assertions** (narrator 13, insights-narration 13, guardrail 2) plus initial fatals on the missing stripper file, before implementation. Value-pinned: exact stripper transforms ("**Weekly Analytics Digest**" → "Weekly Analytics Digest", "## Head" → "Head", "*x*" → "x", "2 * 3" and "25 × 4" untouched, `pageview_visits` untouched); instruction substrings (the markdown ban, the jargon ban verbatim, the 4-5-sentence budget, the "Worth a look:" closer, plain-words forecasts); run-path stores stripped text (no `**` in the cached payloads); parse-boundary stripping value-for-value; the P3 cache-key pins; and negative pins that every v9.64.1 vocabulary/structural rule survived the rewrite. Full sweep: 307 suites, 10,439 assertions, 0 failed.
+
 ## [9.64.1] - 2026-07-18: Insights narration speaks the honest vocabulary — the explained is no longer an anomaly
 
 Live screenshots (7d human range: views 47, pageview_visits 40, unique_visitor_days 90, viewless_visits 50) caught the narration/insight layer still speaking the deprecated ungated vocabulary the v9.64.0 Overview had just retired — and, worse, flagging as an "unexplained anomaly" the exact views-vs-visitor-days gap its own payload explains (viewless visitor-days, structural since v9.63.0). Wording + input-sourcing only: no stored data, no ability schemas, no forecast behavior touched.
