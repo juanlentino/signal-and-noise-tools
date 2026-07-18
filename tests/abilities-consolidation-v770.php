@@ -201,7 +201,7 @@ t( 'boolean' === ( $fr['type'] ?? '' ) && false === ( $fr['default'] ?? null ), 
 $GLOBALS['__force_check_calls'] = 0;
 $out = snt_ability_get_deploy_status( array() );
 t_eq( 0, $GLOBALS['__force_check_calls'], 'D.2 plain read does NOT clear update transients' );
-t( isset( $out['theme'], $out['plugin'] ) && array_key_exists( 'last_deploy', $out ), 'D.3 plain read output shape intact' );
+t( isset( $out['theme'], $out['plugin'] ) && array_key_exists( 'last_deploy', $out ) && array_key_exists( 'last_gha_run', $out ), 'D.3 plain read output shape intact (incl. v9.63.3 last_gha_run)' );
 
 $out = snt_ability_get_deploy_status( array( 'force_refresh' => true ) );
 t_eq( 1, $GLOBALS['__force_check_calls'], 'D.4 force_refresh=true clears update transients first (subsumes force-check-updates)' );

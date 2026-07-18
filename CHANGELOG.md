@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.63.3] - 2026-07-18: Last-deploy widget reads the merged deploy feed — wp-admin installs finally move "Last deploy: X ago"
+
+### Fixed
+
+**The desktop-mode deploy-status widget's "Last deploy: X ago" line was frozen at the last emergency GHA dispatch forever** (`inc/abilities-system.php`, tested by new `tests/deploy-status-merged-feed.php`). `snt_ability_get_deploy_status()` derived `last_deploy` from `snt_gh_recent_runs_merged()` — GitHub-Actions workflow runs ONLY. But deploy.yml has been workflow_dispatch-only since v1.10.1 (the emergency fallback; releases actually ship via wp-admin → Updates), so no real release ever fires a workflow run and the widget's timestamp could only move on a manual dispatch. The admin Dashboard was cured of the same disease in v4.1.4 via `snt_deploy_history_merged()` (inc/deploy-history.php records wp-admin installs off `upgrader_process_complete` + the admin_init version-check, then merges them with GHA runs); the ability payload never followed.
+
+The fix points `last_deploy` at that same merged feed — its meaning ("when did the last deploy happen") is unchanged, only the broken source is fixed — via new shared helper `snt_deploy_runs_age_label()`. The GHA-run datum is NOT dropped: it ships additively as **`last_gha_run`** (new output field + schema property, clearly documented as the GHA-only reading that moves only on manual dispatches). If the deploy-history module is ever absent, `last_deploy` degrades to the old GHA-only reading rather than going empty. Consumers checked: `assets/desktop-mode-widget.js` reads `status.last_deploy` over REST JSON (no `wp_localize_script` scalar-cast surface — both fields are strings by construction, and the test pins the wire type); `assets/desktop-mode.js`'s force-check toast reads only theme/plugin; the Dashboard already used the merged feed. Payload-shape comments in both JS files updated.
+
+Tests (TDD, red first — 6 failing assertions against v9.63.2, including the frozen-widget repro: a freshly recorded wp-admin install left `last_deploy` at "30 days ago"): 11 assertions driving the REAL `inc/deploy-history.php` + `inc/abilities-system.php` (harness idiom copied from tests/deploy-history-rollover.php; the GHA stub models the real transport's record shape from inc/github-actions-api.php, never an invented one). Covered: schema declares `last_gha_run` and keeps `last_deploy`; empty local history degrades both fields to the GHA run (proving the fix did not redefine `last_deploy` as wp-admin-only); a REAL `snt_deploy_history_record()` install MOVES `last_deploy` while `last_gha_run` honestly stays stale; both fields are strings on the wire. `tests/abilities-integration.php` + `tests/abilities-consolidation-v770.php` extended to pin the additive key and the degraded fallback path their harnesses exercise.
+
 ## [9.63.2] - 2026-07-18: Reroll streak requires row-level completeness — stale cron-era sibling rows no longer inflate exact_metrics_since
 
 ### Fixed
