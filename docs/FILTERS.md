@@ -20,6 +20,7 @@ Linked from the leaf's "Developer filter seams →" line
 | `sn_analytics_refresh_secret` | Override the cron-refresh auth secret (default SN_SRV_TOKEN). |
 | `sn_beacon_token` | Override the beacon/collector token (default SN_BEACON_TOKEN). |
 | `sn_analytics_self_hosts` | Hosts folded as self-referrals in Sources. |
+| `sn_analytics_landing_preview_enabled` | Force the flag-gated "Overview (preview)" mock tab on/off (default: the `sn_analytics_landing_preview` option). |
 | `snt_ai_model_preference` | Route AI features to a specific model. |
 | `snt_ai_economy_features` | Which AI features ride the economy tier. |
 | `snt_ai_economy_model` | Which model the economy tier uses. |

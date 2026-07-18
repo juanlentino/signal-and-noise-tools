@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.67.0] - 2026-07-18: Overview landing surface — flag-gated static mock for design review
+
+Assembly **option C**'s prescribed first step from the 2026-07-18 dashboard audit: *"a static mock render fn behind a feature-flagged tab slug in SN_ANALYTICS_VIEWS for owner review before any data wiring."* MINOR: a new (flag-gated) user-visible surface; zero behavior change while the flag is off.
+
+### The tab (flag ON only)
+
+- **New `inc/analytics-view-overview-lab.php`** — an "Overview (preview)" tab registered FIRST in the effective view registry, rendering the full research-§6 menu in ONE glance as a STATIC MOCK: honest headline KPIs in the v9.63 vocabulary (Views 47 · gated Visits 40 · 91 visitor-days / 51 viewless · exact-since footnote), session-quality strip (within-day engine KPIs + the durable `wp_sn_session_daily` bounce-trend mini nothing reads today), top sources + UTM mini (incl. the real `qr-provhub` campaign shape), geography + device minis, realtime tile, entry/exit minis, and a footer docs note stating that data wiring is a separate follow-up decision. All numbers are hardcoded sample data shaped like the real site — the tab reads **no analytics accessor**.
+- **Every panel carries a warning-yellow "PREVIEW — sample data" badge** (`.sn-an-lab-badge`, riding the panel primitive's `header_meta` slot) so a screenshot can never pass as real numbers — honesty rules apply to fake data too. Badge + footer-note styles appended to the existing enqueued `assets/analytics/analytics-admin.css` (external, screen-gated — never inline); radius uses the `--sn-an-radius` token.
+- Composition is EXCLUSIVELY the existing `snt_an_*` primitives (panel/KPI-row/trend-SVG/k-v table). Light-only, no new JS, no `<wpd-*>`. The tab owns its chrome (`SN_ANALYTICS_OWNS_CHROME`) — it IS the assembled overview, so the shared KPI header is suppressed rather than doubled.
+
+### The flag (default OFF — the tab exists nowhere)
+
+- **`sn_analytics_landing_preview` option** read by `snt_analytics_landing_preview_enabled()` (+ `sn_analytics_landing_preview_enabled` filter seam, documented in docs/FILTERS.md). New `snt_analytics_views()` effective-registry accessor in `inc/analytics-admin.php`: flag off → byte-identical to `SN_ANALYTICS_VIEWS` (still 11 views; registry, tab strip, resolver, drilldowns, and abilities all untouched — pinned); flag on → the preview slug prepends.
+- **Toggle**: `wp option update sn_analytics_landing_preview 1` (on) / `wp option delete sn_analytics_landing_preview` (off — the handler DELETES the row rather than storing 0), or the new Monitoring → Analytics **"Landing preview" fold** (checkbox + allow-listed `analytics_landing_preview_save` action; handler lives with its subsystem in the view file, the schedule-admin precedent; flash codes added).
+
+### Tests
+
+- New `tests/analytics-view-overview-lab.php` (72 asserts): flag-off absence pinned on BOTH the registry and the rendered admin page; flag-on presence/render; badge count == panel count (every panel marked); no accessor reads (undefined-fn tripwire); settings fold + save handler (absent-vs-stored-0 discipline); dispatch-map + flash-code pins; abilities surface untouched (source pins). `tests/admin-post-actions.php` map pin 51 → 52.
+
 ## [9.66.0] - 2026-07-18: Exit pages get a durable feed; scroll_sum stored in true depth units
 
 Two parts from the 2026-07-18 dashboard audit (gap 5 + the beacon audit's scroll fix).

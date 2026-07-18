@@ -75,6 +75,10 @@ function sn_admin_post_handlers() {
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',
 		'analytics_funnels_save'     => 'sn_handle_analytics_funnels_save',
+		// v9.67.0: Overview (preview) landing-surface flag toggle (handler
+		// body lives with its subsystem in inc/analytics-view-overview-lab.php,
+		// the schedule-admin precedent).
+		'analytics_landing_preview_save' => 'sn_handle_analytics_landing_preview_save',
 		'analytics_export'           => 'sn_handle_analytics_export',
 		// Scheduled-content ops (Task 8). Handler bodies live in
 		// inc/schedule-admin.php to keep the subsystem cohesive.
