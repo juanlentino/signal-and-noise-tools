@@ -12,6 +12,22 @@ define( 'SN_ANALYTICS_DAILY_TABLE', 'sn_analytics_daily' );
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
 
+// Options (Phase A Task 4): sn_analytics_range_totals() reads the
+// sn_analytics_exact_metrics_since discontinuity marker, and the read-side
+// integrity guard reads + writes sn_analytics_integrity_alert. A write COUNTER
+// makes guard idempotence assertable as a call count (mutation-resistant),
+// not a label the fixture supplies for free.
+$GLOBALS['__rd_options']       = array();
+$GLOBALS['__rd_option_writes'] = 0;
+function get_option( $key, $default = false ) {
+	return array_key_exists( $key, $GLOBALS['__rd_options'] ) ? $GLOBALS['__rd_options'][ $key ] : $default;
+}
+function update_option( $key, $value, $autoload = null ) {
+	$GLOBALS['__rd_options'][ $key ] = $value;
+	++$GLOBALS['__rd_option_writes'];
+	return true;
+}
+
 class RD_Stub_wpdb {
 	public $prefix = 'wp_';
 	public $queries = array();
@@ -70,6 +86,45 @@ class RD_Stub_wpdb {
 			}
 			ksort( $agg );
 			return array_values( $agg );
+		}
+		// Extended range-totals SELECT (Phase A Task 4) → single aggregate row.
+		// Models the wpdb TRANSPORT, not a convenient shape: every value comes
+		// back as a STRING (wpdb does not use native int/float results) and a
+		// SQL NULL comes back as PHP null. SQL semantics modeled: SUM() skips
+		// NULLs and is NULL over zero non-null inputs; COUNT(col) counts
+		// non-null only; COUNT(*) counts rows.
+		if ( stripos( $sql, 'row_count' ) !== false ) {
+			$sum = function ( $key ) use ( $rows ) {
+				$acc = null;
+				foreach ( $rows as $r ) {
+					$val = array_key_exists( $key, $r ) ? $r[ $key ] : null;
+					if ( null !== $val ) { $acc = ( null === $acc ? 0 : $acc ) + (float) $val; }
+				}
+				return $acc;
+			};
+			$cnt = function ( $key ) use ( $rows ) {
+				$c = 0;
+				foreach ( $rows as $r ) { if ( null !== ( array_key_exists( $key, $r ) ? $r[ $key ] : null ) ) { ++$c; } }
+				return $c;
+			};
+			$str = function ( $val ) { return null === $val ? null : (string) $val; };
+			$v = $sum( 'views' );
+			$sw = 0.0; $tw = 0.0;
+			foreach ( $rows as $r ) { $sw += (float) ( $r['scroll_avg'] ?? 0 ) * (int) ( $r['views'] ?? 0 ); $tw += (float) ( $r['time_avg'] ?? 0 ) * (int) ( $r['views'] ?? 0 ); }
+			return array( array(
+				'views'           => $str( $v ),
+				'visits'          => $str( $sum( 'visits' ) ),
+				'scroll_avg'      => ( null !== $v && $v > 0 ) ? (string) ( $sw / $v ) : null,
+				'time_avg'        => ( null !== $v && $v > 0 ) ? (string) ( $tw / $v ) : null,
+				'scroll_sum'      => $str( $sum( 'scroll_sum' ) ),
+				'scroll_events'   => $str( $sum( 'scroll_events' ) ),
+				'time_sum'        => $str( $sum( 'time_sum' ) ),
+				'time_events'     => $str( $sum( 'time_events' ) ),
+				'pageview_visits' => $str( $sum( 'pageview_visits' ) ),
+				'row_count'       => (string) count( $rows ),
+				'exact_rows'      => (string) $cnt( 'scroll_sum' ),
+				'gated_rows'      => (string) $cnt( 'pageview_visits' ),
+			) );
 		}
 		// No GROUP BY → range totals (single aggregate row).
 		$v = 0; $vi = 0; $sw = 0.0; $tw = 0.0;
@@ -231,6 +286,147 @@ ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 3, 'daily_series: a d
 $d5 = sn_analytics_daily_series( '2026-08-01', '2026-08-07', 'human', 'day', true );
 ok( count( $GLOBALS['wpdb']->queries ) === $reads_before + 4, 'daily_series: $refresh=true re-primes the memo (fourth read)' );
 ok( $d5 === $d1, 'daily_series: refreshed read still shapes an identical result over unchanged fixture data' );
+
+// ── Phase A Task 4: derived metrics merged into the range totals ─────────────
+// Distinct windows per group: sn_analytics_range_totals() memoizes per
+// [from,to,class], so window reuse would serve a stale fixture.
+
+echo "\nGroup: range_totals derived metrics — all-modern range (Phase A)\n";
+$GLOBALS['__rd_options']['sn_analytics_exact_metrics_since'] = '2026-04-18';
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2026-09-01', 'path' => '/a', 'class' => 'human', 'views' => 100, 'visits' => 50, 'scroll_avg' => 60, 'time_avg' => 120, 'scroll_sum' => 6000.0, 'scroll_events' => 90,  'time_sum' => 12000.0, 'time_events' => 80,  'pageview_visits' => 45 ),
+	array( 'day' => '2026-09-02', 'path' => '/a', 'class' => 'human', 'views' => 200, 'visits' => 70, 'scroll_avg' => 70, 'time_avg' => 100, 'scroll_sum' => 8000.0, 'scroll_events' => 110, 'time_sum' => 20000.0, 'time_events' => 150, 'pageview_visits' => 60 ),
+	array( 'day' => '2026-09-03', 'path' => '/b', 'class' => 'human', 'views' => 100, 'visits' => 30, 'scroll_avg' => 50, 'time_avg' => 90,  'scroll_sum' => 2000.0, 'scroll_events' => 40,  'time_sum' => 7000.0,  'time_events' => 70,  'pageview_visits' => 25 ),
+	array( 'day' => '2026-09-02', 'path' => '/a', 'class' => 'bot',   'views' => 500, 'visits' => 500, 'scroll_avg' => 0, 'time_avg' => 0,   'scroll_sum' => 1.0,    'scroll_events' => 1,   'time_sum' => 1.0,     'time_events' => 1,   'pageview_visits' => 500 ),
+);
+$t = sn_analytics_range_totals( '2026-09-01', '2026-09-03', 'human' );
+// Kept-deprecated legacy quartet: values and semantics UNALTERED by the merge.
+ok( $t['views'] === 400 && $t['visits'] === 150, 'modern: legacy views/visits kept unaltered (400/150, bot excluded)' );
+ok( abs( $t['scroll_avg'] - 62.5 ) < 0.01, 'modern: legacy scroll_avg still views-weighted ((60*100+70*200+50*100)/400=62.5)' );
+ok( abs( $t['time_avg'] - 102.5 ) < 0.01, 'modern: legacy time_avg still views-weighted ((120*100+100*200+90*100)/400=102.5)' );
+// Derived — every value pinned from the RANGE TOTALS (derive runs ONCE on sums).
+ok( array_key_exists( 'unique_visitor_days', $t ) && $t['unique_visitor_days'] === 150, 'modern: unique_visitor_days = 150 (int, honest alias of summed visits)' );
+ok( array_key_exists( 'pageview_visits', $t ) && $t['pageview_visits'] === 130, 'modern: pageview_visits = 130 (int, 45+60+25 summed across days)' );
+ok( array_key_exists( 'viewless_visits', $t ) && $t['viewless_visits'] === 20, 'modern: viewless_visits = 20 (150 − 130)' );
+ok( array_key_exists( 'view_visit_ratio', $t ) && is_float( $t['view_visit_ratio'] ) && abs( $t['view_visit_ratio'] - 400 / 130 ) < 1e-9, 'modern: view_visit_ratio = 400/130 ≈ 3.0769' );
+ok( array_key_exists( 'pageviews_per_visitor_day', $t ) && is_float( $t['pageviews_per_visitor_day'] ) && abs( $t['pageviews_per_visitor_day'] - 400 / 150 ) < 1e-9, 'modern: pageviews_per_visitor_day = 400/150 ≈ 2.6667' );
+ok( array_key_exists( 'scroll_avg_per_view', $t ) && is_float( $t['scroll_avg_per_view'] ) && abs( $t['scroll_avg_per_view'] - 40.0 ) < 1e-9, 'modern: scroll_avg_per_view = 16000/400 = 40.0 (exact, from summed scroll_sum)' );
+ok( array_key_exists( 'time_avg_per_view', $t ) && is_float( $t['time_avg_per_view'] ) && abs( $t['time_avg_per_view'] - 97.5 ) < 1e-9, 'modern: time_avg_per_view = 39000/400 = 97.5 (exact)' );
+ok( array_key_exists( 'scroll_avg_per_visit', $t ) && is_float( $t['scroll_avg_per_visit'] ) && abs( $t['scroll_avg_per_visit'] - 16000 / 150 ) < 1e-9, 'modern: scroll_avg_per_visit = 16000/150 ≈ 106.67 (diluted by viewless days)' );
+ok( array_key_exists( 'time_avg_per_visit', $t ) && is_float( $t['time_avg_per_visit'] ) && abs( $t['time_avg_per_visit'] - 260.0 ) < 1e-9, 'modern: time_avg_per_visit = 39000/150 = 260.0' );
+ok( array_key_exists( 'integrity_violation', $t ) && $t['integrity_violation'] === false, 'modern: integrity_violation === false (views 400 ≥ pageview_visits 130)' );
+ok( array_key_exists( 'exact_metrics_since', $t ) && $t['exact_metrics_since'] === '2026-04-18', 'modern: exact_metrics_since carries the option value' );
+// The FULL key contract, order pinned — the exact response keys Task 4 adds.
+ok( array_keys( $t ) === array(
+	'views', 'visits', 'scroll_avg', 'time_avg',
+	'unique_visitor_days', 'pageview_visits', 'viewless_visits',
+	'view_visit_ratio', 'pageviews_per_visitor_day',
+	'scroll_avg_per_view', 'time_avg_per_view',
+	'scroll_avg_per_visit', 'time_avg_per_visit',
+	'integrity_violation', 'exact_metrics_since',
+), 'modern: exact key set + order — legacy quartet first, spec-§4 fields, exact_metrics_since last' );
+ok( get_option( 'sn_analytics_integrity_alert' ) === false, 'modern: guard silent on healthy data (no alert option)' );
+$sql = end( $GLOBALS['wpdb']->queries );
+ok( preg_match( '/SUM\(\s*scroll_sum\s*\)\s+AS\s+scroll_sum/i', $sql ) === 1, 'modern SQL: SUM(scroll_sum) AS scroll_sum' );
+ok( preg_match( '/SUM\(\s*pageview_visits\s*\)\s+AS\s+pageview_visits/i', $sql ) === 1, 'modern SQL: SUM(pageview_visits) AS pageview_visits' );
+ok( preg_match( '/COUNT\(\s*\*\s*\)\s+AS\s+row_count/i', $sql ) === 1, 'modern SQL: COUNT(*) AS row_count' );
+ok( preg_match( '/COUNT\(\s*scroll_sum\s*\)\s+AS\s+exact_rows/i', $sql ) === 1, 'modern SQL: COUNT(scroll_sum) AS exact_rows (non-null = modern rows)' );
+ok( preg_match( '/COUNT\(\s*pageview_visits\s*\)\s+AS\s+gated_rows/i', $sql ) === 1, 'modern SQL: COUNT(pageview_visits) AS gated_rows' );
+
+echo "\nGroup: range_totals mixed legacy+modern range (Phase A)\n";
+// One legacy (pre-v5, NULL sums) + one modern row. The mixed-range rule: ANY
+// NULL scroll_sum row nulls the exact engagement + gated fields for the WHOLE
+// range — SQL SUM() would happily skip the NULLs and serve a silently partial
+// denominator (3000/150 = 20.0 here); honest null beats that.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2026-10-01', 'path' => '/a', 'class' => 'human', 'views' => 50,  'visits' => 80, 'scroll_avg' => 40, 'time_avg' => 70, 'scroll_sum' => null,   'scroll_events' => null, 'time_sum' => null,    'time_events' => null, 'pageview_visits' => null ),
+	array( 'day' => '2026-10-02', 'path' => '/a', 'class' => 'human', 'views' => 100, 'visits' => 20, 'scroll_avg' => 60, 'time_avg' => 90, 'scroll_sum' => 3000.0, 'scroll_events' => 45,   'time_sum' => 9000.0,  'time_events' => 60,   'pageview_visits' => 15 ),
+);
+$t2 = sn_analytics_range_totals( '2026-10-01', '2026-10-02', 'human' );
+ok( $t2['views'] === 150 && $t2['visits'] === 100, 'mixed: legacy views/visits still real sums (150/100)' );
+ok( array_key_exists( 'scroll_avg_per_view', $t2 ) && null === $t2['scroll_avg_per_view'], 'mixed: scroll_avg_per_view null — NOT the partial 3000/150=20.0' );
+ok( array_key_exists( 'time_avg_per_view', $t2 ) && null === $t2['time_avg_per_view'], 'mixed: time_avg_per_view null' );
+ok( array_key_exists( 'scroll_avg_per_visit', $t2 ) && null === $t2['scroll_avg_per_visit'], 'mixed: scroll_avg_per_visit null' );
+ok( array_key_exists( 'time_avg_per_visit', $t2 ) && null === $t2['time_avg_per_visit'], 'mixed: time_avg_per_visit null' );
+ok( array_key_exists( 'pageview_visits', $t2 ) && null === $t2['pageview_visits'], 'mixed: pageview_visits null — NOT the partial 15' );
+ok( array_key_exists( 'viewless_visits', $t2 ) && null === $t2['viewless_visits'], 'mixed: viewless_visits null (gated unknown)' );
+ok( array_key_exists( 'view_visit_ratio', $t2 ) && null === $t2['view_visit_ratio'], 'mixed: view_visit_ratio null (gated unknown)' );
+ok( array_key_exists( 'unique_visitor_days', $t2 ) && $t2['unique_visitor_days'] === 100, 'mixed: unique_visitor_days = 100 stays known (visits is NOT NULL legacy)' );
+ok( array_key_exists( 'pageviews_per_visitor_day', $t2 ) && is_float( $t2['pageviews_per_visitor_day'] ) && abs( $t2['pageviews_per_visitor_day'] - 1.5 ) < 1e-9, 'mixed: pageviews_per_visitor_day = 150/100 = 1.5 stays exact (both denominators legacy-known)' );
+ok( array_key_exists( 'integrity_violation', $t2 ) && $t2['integrity_violation'] === false, 'mixed: integrity_violation false (gated unknown → no verdict)' );
+ok( array_key_exists( 'exact_metrics_since', $t2 ) && $t2['exact_metrics_since'] === '2026-04-18', 'mixed: exact_metrics_since present — says WHY the exact fields are null' );
+
+echo "\nGroup: range_totals gated-partial range (Phase A)\n";
+// Engagement sums known on EVERY row, but one row's pageview_visits is NULL
+// (a gated-query-failed day). Engagement stays exact; the gated family nulls —
+// the partial SUM(pageview_visits)=25 would fake view_visit_ratio 100/25=4.0.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2026-11-01', 'path' => '/a', 'class' => 'human', 'views' => 60, 'visits' => 30, 'scroll_avg' => 50, 'time_avg' => 80, 'scroll_sum' => 1200.0, 'scroll_events' => 20, 'time_sum' => 4800.0, 'time_events' => 40, 'pageview_visits' => 25 ),
+	array( 'day' => '2026-11-02', 'path' => '/a', 'class' => 'human', 'views' => 40, 'visits' => 20, 'scroll_avg' => 55, 'time_avg' => 85, 'scroll_sum' => 800.0,  'scroll_events' => 10, 'time_sum' => 3200.0, 'time_events' => 30, 'pageview_visits' => null ),
+);
+$t3 = sn_analytics_range_totals( '2026-11-01', '2026-11-02', 'human' );
+ok( array_key_exists( 'scroll_avg_per_view', $t3 ) && is_float( $t3['scroll_avg_per_view'] ) && abs( $t3['scroll_avg_per_view'] - 20.0 ) < 1e-9, 'gated-partial: scroll_avg_per_view = 2000/100 = 20.0 (exact engagement survives)' );
+ok( array_key_exists( 'time_avg_per_view', $t3 ) && is_float( $t3['time_avg_per_view'] ) && abs( $t3['time_avg_per_view'] - 80.0 ) < 1e-9, 'gated-partial: time_avg_per_view = 8000/100 = 80.0' );
+ok( array_key_exists( 'pageview_visits', $t3 ) && null === $t3['pageview_visits'], 'gated-partial: pageview_visits null — NOT the partial 25' );
+ok( array_key_exists( 'viewless_visits', $t3 ) && null === $t3['viewless_visits'], 'gated-partial: viewless_visits null' );
+ok( array_key_exists( 'view_visit_ratio', $t3 ) && null === $t3['view_visit_ratio'], 'gated-partial: view_visit_ratio null — NOT the fake 100/25=4.0' );
+ok( array_key_exists( 'integrity_violation', $t3 ) && $t3['integrity_violation'] === false, 'gated-partial: integrity_violation false (gated unknown)' );
+
+echo "\nGroup: range_totals zero-traffic range (Phase A)\n";
+// An EMPTY range is an ANSWER (zero traffic): every count is a REAL 0, every
+// ratio is null (÷0) — never invent a rate from nothing, never null a real 0.
+unset( $GLOBALS['__rd_options']['sn_analytics_exact_metrics_since'] );
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array();
+$t4 = sn_analytics_range_totals( '2026-12-01', '2026-12-07', 'human' );
+ok( $t4['views'] === 0 && $t4['visits'] === 0 && $t4['scroll_avg'] === 0.0 && $t4['time_avg'] === 0.0, 'zero: legacy quartet reads real 0s' );
+ok( array_key_exists( 'unique_visitor_days', $t4 ) && $t4['unique_visitor_days'] === 0, 'zero: unique_visitor_days = 0 (real 0, not null)' );
+ok( array_key_exists( 'pageview_visits', $t4 ) && $t4['pageview_visits'] === 0, 'zero: pageview_visits = 0 (real 0, not null)' );
+ok( array_key_exists( 'viewless_visits', $t4 ) && $t4['viewless_visits'] === 0, 'zero: viewless_visits = 0' );
+ok( array_key_exists( 'view_visit_ratio', $t4 ) && null === $t4['view_visit_ratio'], 'zero: view_visit_ratio null (÷0 — never a fabricated rate)' );
+ok( array_key_exists( 'pageviews_per_visitor_day', $t4 ) && null === $t4['pageviews_per_visitor_day'], 'zero: pageviews_per_visitor_day null' );
+ok( array_key_exists( 'scroll_avg_per_view', $t4 ) && null === $t4['scroll_avg_per_view'], 'zero: scroll_avg_per_view null' );
+ok( array_key_exists( 'time_avg_per_view', $t4 ) && null === $t4['time_avg_per_view'], 'zero: time_avg_per_view null' );
+ok( array_key_exists( 'scroll_avg_per_visit', $t4 ) && null === $t4['scroll_avg_per_visit'], 'zero: scroll_avg_per_visit null' );
+ok( array_key_exists( 'time_avg_per_visit', $t4 ) && null === $t4['time_avg_per_visit'], 'zero: time_avg_per_visit null' );
+ok( array_key_exists( 'integrity_violation', $t4 ) && $t4['integrity_violation'] === false, 'zero: integrity_violation false' );
+ok( array_key_exists( 'exact_metrics_since', $t4 ) && null === $t4['exact_metrics_since'], 'zero: exact_metrics_since null while the option is unset' );
+
+echo "\nGroup: read-side integrity guard (Phase A)\n";
+// Inverted human range (views < pageview_visits — arithmetically impossible,
+// so a genuine upstream bug): the guard mirrors the rollup's — error_log +
+// the SAME sn_analytics_integrity_alert option — and the values are served
+// UN-clamped. Idempotent: the same violation must not churn the option.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2027-01-01', 'path' => '/a', 'class' => 'human', 'views' => 2, 'visits' => 9, 'scroll_avg' => 10, 'time_avg' => 10, 'scroll_sum' => 20.0, 'scroll_events' => 2, 'time_sum' => 40.0, 'time_events' => 2, 'pageview_visits' => 5 ),
+);
+$guard_log     = tempnam( sys_get_temp_dir(), 'sn-rd-guard' );
+$old_error_log = ini_set( 'error_log', $guard_log );
+$writes_before = $GLOBALS['__rd_option_writes'];
+$tg            = sn_analytics_range_totals( '2027-01-01', '2027-01-01', 'human' );
+ok( $tg['integrity_violation'] === true, 'guard: integrity_violation === true on the inverted range' );
+ok( $tg['views'] === 2 && $tg['pageview_visits'] === 5, 'guard: values served UN-clamped (2 < 5 still visible)' );
+$alert = get_option( 'sn_analytics_integrity_alert' );
+ok( is_array( $alert ) && ( $alert['views'] ?? null ) === 2 && ( $alert['pageview_visits'] ?? null ) === 5
+	&& ( $alert['from'] ?? null ) === '2027-01-01' && ( $alert['to'] ?? null ) === '2027-01-01'
+	&& ( $alert['scope'] ?? null ) === 'read-range',
+	'guard: sn_analytics_integrity_alert holds the read-range violation payload' );
+ok( $GLOBALS['__rd_option_writes'] === $writes_before + 1, 'guard: exactly one option write for the violation' );
+// Same violation again ($refresh bypasses the memo): NO second write.
+sn_analytics_range_totals( '2027-01-01', '2027-01-01', 'human', true );
+ok( $GLOBALS['__rd_option_writes'] === $writes_before + 1, 'guard: idempotent — re-reading the same violation does not churn the option' );
+// Non-human class: derive still reports honestly, but the alert is human-only
+// (mirrors the rollup guard's class gate).
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2027-01-02', 'path' => '/x', 'class' => 'bot', 'views' => 1, 'visits' => 9, 'scroll_avg' => 0, 'time_avg' => 0, 'scroll_sum' => 0.0, 'scroll_events' => 0, 'time_sum' => 0.0, 'time_events' => 0, 'pageview_visits' => 7 ),
+);
+$tb = sn_analytics_range_totals( '2027-01-02', '2027-01-02', 'bot' );
+ini_set( 'error_log', (string) $old_error_log );
+ok( $tb['integrity_violation'] === true, 'guard: bot inversion still REPORTED honestly in the response' );
+ok( $GLOBALS['__rd_option_writes'] === $writes_before + 1, 'guard: bot inversion does NOT write the alert (human-only side effect)' );
+$logged = (string) @file_get_contents( $guard_log );
+ok( strpos( $logged, '[sn-analytics] integrity violation' ) !== false && strpos( $logged, '2027-01-01' ) !== false,
+	'guard: error_log records the violation with the offending range' );
+@unlink( $guard_log );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
