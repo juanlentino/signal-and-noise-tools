@@ -263,9 +263,11 @@ function sn_analytics_range_derive_input( $r, $views, $visits, $read_failed = fa
  * Read-side defensive integrity guard (Phase A spec §5) — mirrors the rollup
  * guard: a human range with views < pageview_visits (both known) is
  * arithmetically impossible, so surface it via error_log + the SAME
- * sn_analytics_integrity_alert option the Health scan reads — and still serve
- * the values UN-clamped. The alarm is the feature. Idempotent: the same
- * violation (timestamp aside) never churns the option on repeat reads.
+ * sn_analytics_integrity_alert option, surfaced since v9.65.0 by the
+ * Content-Health scan's analytics_integrity check
+ * (inc/health-analytics-integrity.php; before that the option had NO reader) —
+ * and still serve the values UN-clamped. The alarm is the feature. Idempotent:
+ * the same violation (timestamp aside) never churns the option on repeat reads.
  *
  * @param string $from    Range start (Y-m-d).
  * @param string $to      Range end (Y-m-d).

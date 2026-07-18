@@ -110,6 +110,9 @@ function sn_health_run_scan() {
 			'link_opportunities'  => sn_health_check_link_opportunities(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
+			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
+			// the never-invert guard's alarm finally lands somewhere.
+			'analytics_integrity' => sn_health_check_analytics_integrity(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );

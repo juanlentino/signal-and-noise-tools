@@ -101,8 +101,9 @@ const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness s
 const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
 // Never-invert integrity alarm (Phase A spec §5): set by the upsert guard when
 // a human row arrives with views < pageview_visits (arithmetically impossible —
-// a genuine rollup/sampling bug), read by the Health surface. The row is still
-// written un-clamped; the alarm is the feature.
+// a genuine rollup/sampling bug), read by the Content-Health scan's
+// analytics_integrity check (inc/health-analytics-integrity.php, v9.65.0).
+// The row is still written un-clamped; the alarm is the feature.
 const SN_ANALYTICS_INTEGRITY_ALERT_OPT = 'sn_analytics_integrity_alert';
 
 /**
