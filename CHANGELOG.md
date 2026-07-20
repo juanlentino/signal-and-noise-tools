@@ -10,6 +10,11 @@ first 50. The plugin updater also rejects anonymous `?force-check=1` cache
 bypasses while preserving WordPress' trusted update-check constant and the
 authorized Updates screen flow. No provenance record content is changed.
 
+Repository hardening in the same release makes PHPStan a blocking CI gate and
+enables GitHub secret scanning, push protection, and Dependabot security
+updates. The existing main-branch deletion and history-rewrite protections
+remain active.
+
 ## [9.72.0] - 2026-07-20: External provenance key pin
 
 MINOR (new public trust surface). `/.well-known/provenance-keys.json` now
