@@ -14,6 +14,7 @@ if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 
 if ( ! function_exists( 'status_header' ) ) { function status_header( $c ) { $GLOBALS['__status'] = (int) $c; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
 // stub the plugin's pubkey accessor: a deterministic 32-byte Ed25519 public key
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
@@ -37,6 +38,15 @@ ok( ( $vm['publicKeyJwk']['kty'] ?? '' ) === 'OKP' && ( $vm['publicKeyJwk']['crv
 ok( ( $vm['publicKeyJwk']['x'] ?? '' ) === sn_prov_base64url( str_repeat( "\x01", 32 ) ), 'JWK x is base64url of the 32-byte key' );
 ok( ( $vm['id'] ?? '' ) === 'did:web:juanlentino.com#prov-key-1' && in_array( 'did:web:juanlentino.com#prov-key-1', $doc['assertionMethod'], true ), 'key id is referenced in assertionMethod' );
 
+// off-ledger key mirror: exact key, id, and raw-key SHA-256 fingerprint.
+$key_doc = sn_prov_key_document();
+$key = $key_doc['keys'][0] ?? array();
+ok( ( $key_doc['schema'] ?? '' ) === 'sn-provenance-keys-v1', 'key mirror has a versioned schema' );
+ok( ( $key_doc['domain'] ?? '' ) === 'juanlentino.com', 'key mirror pins the site domain' );
+ok( ( $key['id'] ?? '' ) === 'sn-ed25519-2026-07', 'key mirror publishes the stable key id' );
+ok( ( $key['public_key_base64'] ?? '' ) === $GLOBALS['__pub'], 'key mirror publishes the exact configured key' );
+ok( ( $key['sha256_fingerprint'] ?? '' ) === hash( 'sha256', str_repeat( "\x01", 32 ) ), 'key mirror fingerprint hashes the raw 32-byte key' );
+
 // no key configured → null → 404
 $GLOBALS['__pub'] = '';
 ok( sn_prov_did_document() === null, 'no pubkey → null document' );
@@ -53,11 +63,17 @@ $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 ok( sn_prov_did_is_request( '/.well-known/did.json' ) === true, 'matches /.well-known/did.json' );
 ok( sn_prov_did_is_request( '/.well-known/did.json?x=1' ) === true, 'matches with a query string' );
 ok( sn_prov_did_is_request( '/did.json' ) === false, 'rejects /did.json outside .well-known' );
+ok( sn_prov_keys_is_request( '/.well-known/provenance-keys.json' ) === true, 'matches the provenance key mirror route' );
+ok( sn_prov_keys_is_request( '/.well-known/provenance-keys.json?x=1' ) === true, 'key mirror route permits a query string' );
+ok( sn_prov_keys_is_request( '/provenance-keys.json' ) === false, 'rejects key mirror outside .well-known' );
 
 // send emits 200 + valid JSON
 $GLOBALS['__status'] = 0; ob_start(); sn_prov_did_send(); $out = ob_get_clean();
 ok( $GLOBALS['__status'] === 200, 'send() with a key → 200' );
 ok( is_array( json_decode( $out, true ) ), 'send() emits valid JSON' );
+$GLOBALS['__status'] = 0; ob_start(); sn_prov_keys_send(); $keys_out = ob_get_clean();
+ok( $GLOBALS['__status'] === 200, 'key mirror send() with a key → 200' );
+ok( is_array( json_decode( $keys_out, true ) ), 'key mirror send() emits valid JSON' );
 
 $report = ob_get_clean(); echo $report;
 echo "\nResult: $pass passed, $fail failed.\n";

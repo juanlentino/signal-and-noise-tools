@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.72.0] - 2026-07-20: External provenance key pin
+
+MINOR (new public trust surface). `/.well-known/provenance-keys.json` now
+publishes the active Ed25519 key id, base64 key, raw-key SHA-256 fingerprint,
+status, and introduction date from the same validated 32-byte key source as the
+existing DID document. The postless route is flush-free, returns a truthful 404
+when the key is absent or malformed, and is independently mirrored by the DNS
+TXT record at `_provenance.juanlentino.com`. This moves key trust off the ledger
+repository's compromise surface without touching any Note content or confirmed
+record. The provenance DID standalone suite adds exact key/fingerprint, route,
+and JSON-response coverage.
+
 ## [9.71.0] - 2026-07-18: The salt rotation window, visible — a date readout on the analytics settings
 
 MINOR (new user-visible capability, owner-approved). The forward-secrecy salt rotation (worker v1.13.0) has been invisible from wp-admin — verifiable only by curling the edge. This release adds a PASSIVE date-window readout (NOT a Health check, NOT an alarm) to the Monitoring → Analytics settings reference column, right under the worker-version card.

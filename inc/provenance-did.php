@@ -75,6 +75,38 @@ function sn_prov_did_document() {
 	);
 }
 
+/** @return string Stable public identifier for the active signing key. */
+function sn_prov_key_id() {
+	return (string) apply_filters( 'sn_prov_pubkey_id', 'sn-ed25519-2026-07' );
+}
+
+/**
+ * Off-ledger HTTPS mirror of the active provenance key.
+ *
+ * @return array<string,mixed>|null
+ */
+function sn_prov_key_document() {
+	$b64 = function_exists( 'sn_prov_pubkey_b64' ) ? trim( (string) sn_prov_pubkey_b64() ) : '';
+	$raw = base64_decode( $b64, true );
+	if ( false === $raw || 32 !== strlen( $raw ) ) {
+		return null;
+	}
+	return array(
+		'schema' => 'sn-provenance-keys-v1',
+		'domain' => sn_prov_did_domain(),
+		'keys'   => array(
+			array(
+				'id'                 => sn_prov_key_id(),
+				'algorithm'          => 'Ed25519',
+				'public_key_base64'  => $b64,
+				'sha256_fingerprint' => hash( 'sha256', $raw ),
+				'status'             => 'active',
+				'introduced_at'      => '2026-07-09',
+			),
+		),
+	);
+}
+
 /**
  * Is this request for /.well-known/did.json? Pure (takes the path).
  *
@@ -85,6 +117,13 @@ function sn_prov_did_is_request( $uri ) {
 	$path = strtok( (string) $uri, '?' );
 	$path = '/' . trim( (string) $path, '/' );
 	return ( '/.well-known/did.json' === $path );
+}
+
+/** @param string $uri @return bool */
+function sn_prov_keys_is_request( $uri ) {
+	$path = strtok( (string) $uri, '?' );
+	$path = '/' . trim( (string) $path, '/' );
+	return ( '/.well-known/provenance-keys.json' === $path );
 }
 
 /**
@@ -107,16 +146,37 @@ function sn_prov_did_send() {
 	echo wp_json_encode( $doc, JSON_UNESCAPED_SLASHES );
 }
 
+/** Emit the off-ledger key mirror, or a truthful 404 without a valid key. */
+function sn_prov_keys_send() {
+	$doc = sn_prov_key_document();
+	if ( null === $doc ) {
+		if ( function_exists( 'status_header' ) ) {
+			status_header( 404 );
+		}
+		return;
+	}
+	if ( function_exists( 'status_header' ) ) {
+		status_header( 200 );
+	}
+	header( 'Content-Type: application/json; charset=utf-8' );
+	header( 'Cache-Control: public, max-age=300' );
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON endpoint; HTML escaping would corrupt the key.
+	echo wp_json_encode( $doc, JSON_UNESCAPED_SLASHES );
+}
+
 /**
  * template_redirect handler.
  */
 function sn_prov_did_maybe_serve() {
 	$req = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-	if ( ! sn_prov_did_is_request( $req ) ) {
-		return;
+	if ( sn_prov_did_is_request( $req ) ) {
+		sn_prov_did_send();
+		exit;
 	}
-	sn_prov_did_send();
-	exit;
+	if ( sn_prov_keys_is_request( $req ) ) {
+		sn_prov_keys_send();
+		exit;
+	}
 }
 
 if ( ! defined( 'SN_PROV_DID_TEST' ) || ! SN_PROV_DID_TEST ) {
