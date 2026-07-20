@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.72.1] - 2026-07-20: Provenance reconciliation and updater hardening
+
+PATCH. The hourly public-provenance reconciliation sweep now walks every
+published Note in stable 50-post pages instead of silently stopping at the
+first 50. The plugin updater also rejects anonymous `?force-check=1` cache
+bypasses while preserving WordPress' trusted update-check constant and the
+authorized Updates screen flow. No provenance record content is changed.
+
 ## [9.72.0] - 2026-07-20: External provenance key pin
 
 MINOR (new public trust surface). `/.well-known/provenance-keys.json` now

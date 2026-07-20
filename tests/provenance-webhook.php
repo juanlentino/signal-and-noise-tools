@@ -13,6 +13,8 @@ if ( ! defined( 'SNT_PATH' ) ) {
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_http']    = array(); // captured wp_remote_post calls
+$GLOBALS['__pv_get_posts_pages'] = array();
+$GLOBALS['__pv_get_posts_calls'] = array();
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {
@@ -118,13 +120,18 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 }
 if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( $args ) {
+		$GLOBALS['__pv_get_posts_calls'][] = $args;
 		$want = $args['meta_value'] ?? null;
-		foreach ( $GLOBALS['__pv_meta'] as $pid => $meta ) {
-			if ( ( $meta[ SN_PROV_UID_META ] ?? null ) === $want ) {
-				return array( (int) $pid );
+		if ( null !== $want ) {
+			foreach ( $GLOBALS['__pv_meta'] as $pid => $meta ) {
+				if ( ( $meta[ SN_PROV_UID_META ] ?? null ) === $want ) {
+					return array( (int) $pid );
+				}
 			}
+			return array();
 		}
-		return array();
+		$page = (int) ( $args['paged'] ?? 1 );
+		return $GLOBALS['__pv_get_posts_pages'][ $page ] ?? array();
 	}
 }
 
@@ -338,6 +345,19 @@ wh_eq( 'pending', $chain[0]['status'], 'reconcile flips unanchored -> pending' )
 $GLOBALS['__pv_http'] = array();
 sn_prov_reconcile_post( 77 );
 wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'already-pending commit not re-dispatched' );
+
+// The cron sweep must not silently stop after the first 50 Notes.
+$GLOBALS['__pv_get_posts_pages'] = array(
+	1 => range( 1000, 1049 ),
+	2 => range( 1050, 1099 ),
+	3 => range( 1100, 1119 ),
+);
+$GLOBALS['__pv_get_posts_calls'] = array();
+sn_prov_reconcile_sweep();
+wh_eq( 3, count( $GLOBALS['__pv_get_posts_calls'] ), 'sweep paginates through every Note batch' );
+wh_eq( 3, $GLOBALS['__pv_get_posts_calls'][2]['paged'] ?? 0, 'sweep requests the final partial page' );
+wh_eq( 'ID', $GLOBALS['__pv_get_posts_calls'][0]['orderby'] ?? '', 'sweep ordering is stable across pages' );
+$GLOBALS['__pv_get_posts_pages'] = array();
 
 echo "\nTask 6: manual sweep trigger (sn_prov_run_sweep)\n";
 $GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/';

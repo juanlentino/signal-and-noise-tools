@@ -320,6 +320,22 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 }
 
 /**
+ * Whether this request is allowed to bypass the cached GitHub tag result.
+ *
+ * WordPress' constant is trusted internal state. The public query flag is
+ * honored only for users who can update plugins, preventing anonymous cache
+ * churn while preserving the core Updates screen's Check Again flow.
+ */
+function sn_plugin_update_force_refresh_requested() {
+	if ( defined( 'WP_FORCE_UPDATE_CHECK' ) && WP_FORCE_UPDATE_CHECK ) {
+		return true;
+	}
+
+	return ! empty( $_GET['force-check'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- authorization-gated read-only cache bypass.
+		&& current_user_can( 'update_plugins' );
+}
+
+/**
  * Register the plugin with WP's update transient. WP renders it on
  * wp-admin/update-core.php and Plugins → Installed Plugins from this data.
  *
@@ -335,8 +351,7 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	// constant during the wp-admin/update-core.php?force-check=1 flow.
 	// Without this, our 12h-cached value persists even when the user
 	// explicitly asks for a fresh check.
-	$force_refresh = ( defined( 'WP_FORCE_UPDATE_CHECK' ) && WP_FORCE_UPDATE_CHECK )
-		|| ! empty( $_GET['force-check'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only cache-buster; presence-only boolean, no state change.
+	$force_refresh = sn_plugin_update_force_refresh_requested();
 
 	$latest_tag = sn_gh_latest_plugin_tag( $force_refresh );
 	if ( $latest_tag === null ) {

@@ -9,11 +9,8 @@ name: PHPStan
 # get_queried_object_id()) resolves to nothing and errors HERE, in CI, before it
 # can fatal in production.
 #
-# SOFT LAUNCH (cycle 1): the job is `continue-on-error: true` — it RUNS and
-# surfaces findings as PR annotations (--error-format=github) but does NOT block
-# merges yet. Once the baseline is trusted and the signal stays quiet, delete
-# that one line (and optionally climb `level` in phpstan.neon) to make it a hard
-# gate. This is the code gate's sibling — deployment stays manual (deploy.yml).
+# The committed baseline is established, so findings are a hard CI failure.
+# This is the code gate's sibling — deployment stays manual (deploy.yml).
 #
 # Runs on PHP 8.5 to match production (Cloudways: PHP 8.5 / WordPress 7.0.x) so
 # analysis reflects the deployed runtime.
@@ -38,10 +35,6 @@ jobs:
   phpstan:
     name: PHPStan static analysis
     runs-on: ubuntu-latest
-    # SOFT LAUNCH (cycle 1): surface findings without blocking merges. The
-    # committed baseline already makes a clean tree exit 0; this line only keeps
-    # NEW findings non-fatal for the first cycle. Remove it to harden the gate.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

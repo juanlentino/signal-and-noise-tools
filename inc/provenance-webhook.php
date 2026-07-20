@@ -394,16 +394,24 @@ function sn_prov_reconcile_post( $post_id ) {
  * Cron sweep: reconcile every Note that still has an unanchored commit.
  */
 function sn_prov_reconcile_sweep() {
-	$ids = get_posts( array(
-		'post_type'   => 'post',
-		'post_status' => 'publish',
-		'numberposts' => 50,
-		'fields'      => 'ids',
-		'meta_key'    => SN_PROV_UID_META,
-	) );
-	foreach ( $ids as $id ) {
-		sn_prov_reconcile_post( (int) $id );
-	}
+	$page       = 1;
+	$batch_size = 50;
+	do {
+		$ids = get_posts( array(
+			'post_type'      => 'post',
+			'post_status'    => 'publish',
+			'posts_per_page' => $batch_size,
+			'paged'          => $page,
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'meta_key'       => SN_PROV_UID_META,
+		) );
+		foreach ( $ids as $id ) {
+			sn_prov_reconcile_post( (int) $id );
+		}
+		++$page;
+	} while ( count( $ids ) === $batch_size );
 }
 add_action( SN_PROV_CONFIRM_HOOK, 'sn_prov_reconcile_sweep' );
 

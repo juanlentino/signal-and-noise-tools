@@ -38,6 +38,12 @@ if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return '
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'sprintf_placeholder' ) ) { /* no-op guard */ }
+$GLOBALS['__can_update_plugins'] = false;
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( $capability ) {
+		return 'update_plugins' === $capability && ! empty( $GLOBALS['__can_update_plugins'] );
+	}
+}
 
 $GLOBALS['__site_trans'] = array();
 function get_site_transient( $k ) { return $GLOBALS['__site_trans'][ $k ] ?? false; }
@@ -79,6 +85,13 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 echo "Plugin self-updater tag fetch — outbound hardening\n\n";
+
+$_GET['force-check'] = '1';
+$GLOBALS['__can_update_plugins'] = false;
+ok( false === sn_plugin_update_force_refresh_requested(), 'query force-check is ignored without update_plugins capability' );
+$GLOBALS['__can_update_plugins'] = true;
+ok( true === sn_plugin_update_force_refresh_requested(), 'authorized Updates screen may force a fresh check' );
+unset( $_GET['force-check'] );
 
 $GLOBALS['__site_trans'] = array(); // force a cache miss → live fetch
 $GLOBALS['__last_args']  = array();
