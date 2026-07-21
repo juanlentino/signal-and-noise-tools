@@ -402,7 +402,10 @@
 			} catch ( e ) {
 				signedContent = '';
 			}
-			var liveRaw = ( res.json && ( res.json.content || ( res.json.provenance && res.json.provenance.content ) ) ) || '';
+			// The theme's .json twin schema carries content_text / content_html —
+		// there is NO bare `content` field (reading one made this check report
+		// "edited since signing" on every Note, always; caught live 2026-07-21).
+		var liveRaw = ( res.json && ( res.json.content_text || res.json.content || '' ) ) || '';
 			var liveNormalized = roughNormalize( liveRaw );
 			var matches = !! signedContent && liveNormalized === roughNormalize( signedContent );
 			setCheck(
@@ -446,6 +449,27 @@
 				if ( recHash2 && credHash2 && recHash2 !== credHash2 ) {
 					setCheck( 'anchor', STATE.FAIL, 'The independent ledger record contradicts this credential\'s content hash.' );
 					return;
+				}
+				// The ledger may carry the aggregation txid the credential's own
+				// chain data predates. When it does AND its hash attests this
+				// content, complete the triangle: mempool must confirm the
+				// ledger-supplied tx at the very block this credential claims.
+				var ledgerTxid = String( ( rec2.ots && rec2.ots.bitcoin_txid ) || '' ).toLowerCase();
+				if ( ledgerTxid && recHash2 && recHash2 === credHash2 ) {
+					var ledgerTxUrl = config.mempoolBase.replace( /\/?$/, '' ) + '/tx/' + encodeURIComponent( ledgerTxid ) + '/status';
+					return fetchJSON( ledgerTxUrl ).then( function ( txRes2 ) {
+						if ( ! txRes2.ok ) {
+							setCheck( 'anchor', STATE.NOTE, blockNote + ' The independent ledger record attests the same content hash (its transaction could not be cross-checked on the mempool explorer).' );
+							return;
+						}
+						var confirmed2 = !! ( txRes2.json && txRes2.json.confirmed );
+						var blockOk2 = confirmed2 && txRes2.json.block_height === anchor.block;
+						if ( blockOk2 ) {
+							setCheck( 'anchor', STATE.PASS, 'The ledger record supplies the aggregation transaction; Bitcoin confirms it at block ' + anchor.block + ', and the ledger attests the same content hash (an attestation, not a cryptographic inclusion proof).' );
+							return;
+						}
+						setCheck( 'anchor', STATE.FAIL, 'The ledger-supplied transaction does not confirm at the block this credential claims.' );
+					} );
 				}
 				setCheck( 'anchor', STATE.NOTE, blockNote + ( recHash2 && recHash2 === credHash2 ? ' The independent ledger record attests the same content hash.' : '' ) );
 			} );
