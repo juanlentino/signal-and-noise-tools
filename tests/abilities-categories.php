@@ -110,5 +110,27 @@ call_user_func( $categories_cb );
 ok_eq( 6, count( $GLOBALS['__acg_cats'] ), 'a second hook fire leaves the registered set unchanged' );
 ok_eq( 6, count( $GLOBALS['__acg_register_calls'] ), 'a second hook fire makes ZERO new wp_register_ability_category() calls (wp_has_ability_category() gate holds)' );
 
+// ════ Group D: cited-category completeness — DYNAMIC (v9.78.1) ══════════
+// The v9.78.0 regression this closes: signal-noise/anchor-status shipped
+// citing category 'monitoring', which this registrar never registers —
+// WP 6.9's _doing_it_wrong fired on every live shell request (owner-caught
+// via Query Monitor). The pre-ship check had grepped USAGE counts, which
+// self-confirms: the new file's own citation was the one hit. The gate that
+// can't be fooled scans every inc/abilities-*.php for cited categories and
+// asserts each one is in the REGISTERED set — a new citation of an
+// unregistered category now fails this suite instead of the live site.
+echo "\nGroup D: every category cited by any abilities file is registered\n";
+$cited = array();
+foreach ( glob( __DIR__ . '/../inc/abilities-*.php' ) as $abilities_file ) {
+	if ( preg_match_all( "/'category'\s*=>\s*'([a-z0-9-]+)'/", (string) file_get_contents( $abilities_file ), $m ) ) {
+		foreach ( $m[1] as $slug ) { $cited[ $slug ][] = basename( $abilities_file ); }
+	}
+}
+ok( count( $cited ) >= 5, 'the scan found a plausible citation set (got ' . count( $cited ) . ' distinct categories)' );
+foreach ( $cited as $slug => $files ) {
+	ok( isset( $GLOBALS['__acg_cats'][ $slug ] ),
+		"cited category '$slug' is registered (cited by " . implode( ', ', array_unique( $files ) ) . ')' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

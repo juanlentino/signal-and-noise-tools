@@ -98,7 +98,12 @@ function snt_abilities_provenance_register() {
 	wp_register_ability( 'signal-noise/anchor-status', array(
 		'label'               => 'Provenance anchor overview',
 		'description'         => 'Aggregates every Note\'s latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts.',
-		'category'            => 'monitoring',
+		// 'diagnostics', from the registrar's REGISTERED set (inc/
+		// abilities-categories.php) — beside get-deploy-status. v9.78.0
+		// shipped 'monitoring', a category no registrar registers: WP 6.9's
+		// _doing_it_wrong fired on every shell request and the registry
+		// silently refused the ability (owner-caught live via Query Monitor).
+		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_anchor_status',
 		'input_schema'        => array(

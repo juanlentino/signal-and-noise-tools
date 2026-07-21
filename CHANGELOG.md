@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.78.1] - 2026-07-21: anchor-status joins a registered category — and unregistered categories can't ship again
+
+**Headline:** v9.78.0's anchor-status ability cited category `monitoring`, which the category registrar never registers — WP 6.9's `_doing_it_wrong` fired on every desktop-shell request and the registry silently refused the ability (owner-caught live via Query Monitor). Fixed to `diagnostics`, and the test gate is now structural.
+
+### Fixed
+
+- [inc/abilities-provenance.php](inc/abilities-provenance.php): `anchor-status` now cites `diagnostics` (beside get-deploy-status), from the registrar's actual registered set. The pre-ship check had grepped category usage counts, which self-confirms: the new file's own citation was the one hit it found.
+- [tests/abilities-categories.php](tests/abilities-categories.php) gains Group D: a dynamic completeness gate that scans every inc/abilities-*.php for cited categories and asserts each is in the REGISTERED set — a citation of an unregistered category now fails the suite instead of the live site. RED-verified against the v9.78.0 bug before the fix.
+
+> **Why PATCH:** one-word category fix to a just-shipped ability + a test gate; no behavior change beyond the ability actually registering.
+
 ## [9.78.0] - 2026-07-21: The mirror map closes — anchors get their glanceable, one-shots get their palette
 
 **Headline:** the Desktop Mode integration settles on its principle (glance = widget/badge, one-shot = ⌘K command, review/config = iframe) and closes both real gaps: the SN Anchors widget (the one glanceable with no mirror) and five palette commands for the one-shot abilities that had none. The workbench window is removed — its two queues were the near-empty scanners, and review flows belong in the iframe tier.
