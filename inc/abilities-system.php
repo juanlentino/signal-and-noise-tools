@@ -240,7 +240,64 @@ add_action( 'wp_abilities_api_init', function() {
 			),
 		),
 	) );
+
+	// v9.78.0: the health scan is cached 24h with manual re-scan only — the
+	// re-scan lived exclusively behind the admin page button, making it the
+	// one one-shot maintenance action with no ability (and so no ⌘K mirror).
+	wp_register_ability( 'signal-noise/run-health-scan', array(
+		'label'               => 'Run a health scan now',
+		'description'         => 'Runs the full site-health check suite immediately instead of waiting on the 24h cache, and stores the scan for the Health tab, widget, and attention badge.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_run_health_scan',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array(),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'      => array( 'type' => 'boolean' ),
+				'total'   => array( 'type' => 'integer' ),
+				'flagged' => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
 } );
+
+/**
+ * Execute callback for signal-noise/run-health-scan.
+ *
+ * Returns the scan's own summary shape (total + flagged) so a ⌘K toast
+ * can say something useful without a second read.
+ *
+ * @since 9.78.0
+ * @param array $input Validated against input_schema above (empty object).
+ * @return array{ok:bool,total:int,flagged:int}
+ */
+function snt_ability_run_health_scan( $input = array() ) {
+	if ( ! function_exists( 'sn_health_run_scan' ) ) {
+		return array( 'ok' => false, 'total' => 0, 'flagged' => 0 );
+	}
+	$scan = sn_health_run_scan();
+	if ( ! is_array( $scan ) ) {
+		return array( 'ok' => false, 'total' => 0, 'flagged' => 0 );
+	}
+	return array(
+		'ok'      => true,
+		'total'   => function_exists( 'sn_health_check_total' ) ? (int) sn_health_check_total( $scan ) : 0,
+		'flagged' => function_exists( 'sn_health_flagged_checks' ) ? count( (array) sn_health_flagged_checks( $scan ) ) : 0,
+	);
+}
 
 /**
  * Execute callback for signal-noise/purge-all-caches.

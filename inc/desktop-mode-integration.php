@@ -146,6 +146,18 @@ add_action( 'init', function() {
 		true
 	);
 
+	// v9.78.0: SN Anchors widget — everything rides the abilities run-path
+	// (anchor-status read + anchor-sweep action), so snt-ability-run is the
+	// sole real dependency; sn-desktop-mode orders the snDesktopData global
+	// it reads for the dashboard link.
+	wp_register_script(
+		'sn-desktop-mode-widget-anchors',
+		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'snt-ability-run', 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
 	// v9.52.0: three analytics widgets. These read the site-views REST
 	// endpoint (below) rather than the ability run-path, so they depend on
 	// wp-api-fetch only — no snt-ability-run.
@@ -277,6 +289,14 @@ add_action( 'init', function() {
 		// Audit log (v3.8.3).
 		array( 'slug' => 'sn-cmd-audit-summary',       'label' => 'SN: Audit log summary',        'description' => 'Toast last-24h totals, 7-day trend, unique IPs, LLA lockout count.', 'icon' => 'dashicons-shield-alt' ),
 		array( 'slug' => 'sn-cmd-audit-recent-logins', 'label' => 'SN: Recent successful logins', 'description' => 'Toast last 10 successful login timestamps + usernames.',              'icon' => 'dashicons-admin-users' ),
+
+		// v9.78.0: the mirror-map gap — every one-shot ability gets a ⌘K entry
+		// (glance = widget/badge, one-shot = command, review/config = iframe).
+		array( 'slug' => 'sn-cmd-health-scan',    'label' => 'SN: Run health scan',      'description' => 'Run the full check suite now instead of waiting on the 24h cache.',        'icon' => 'dashicons-heart' ),
+		array( 'slug' => 'sn-cmd-insights-scan',  'label' => 'SN: Run insights scan',    'description' => 'Refresh the AI insights corpus scan now.',                                  'icon' => 'dashicons-lightbulb' ),
+		array( 'slug' => 'sn-cmd-narration',      'label' => 'SN: Run narration',        'description' => 'Regenerate the analytics narration now.',                                   'icon' => 'dashicons-format-chat' ),
+		array( 'slug' => 'sn-cmd-prune-tags',     'label' => 'SN: Prune unused tags',    'description' => 'Delete tags with zero published posts.',                                    'icon' => 'dashicons-tag' ),
+		array( 'slug' => 'sn-cmd-anchor-sweep',   'label' => 'SN: Sweep anchors',        'description' => 'Ask the provenance Worker to upgrade pending Bitcoin anchors now.',         'icon' => 'dashicons-admin-links' ),
 
 		// v9.52.3: the 12 theme-ability ⌘K launcher commands are GONE.
 		//
@@ -431,6 +451,23 @@ add_action( 'init', function() {
 			'min_height'     => 150,
 			'default_width'  => 300,
 			'default_height' => 200,
+		) ) );
+
+		// v9.78.0: SN Anchors — the one glanceable that had no mirror.
+		// Pending Notes with their live in-flight Bitcoin tx (N/6, captured
+		// by the worker's pending callbacks) + a Sweep action; idles at an
+		// honest "N notes anchored". Fetch-on-render via the anchor-status
+		// ability — the aggregate walks every Note's chain meta, which must
+		// never ride a page-load localize.
+		desktop_mode_register_widget( 'sn-anchors', array_merge( $sn_drag, array(
+			'label'          => 'SN Anchors',
+			'description'    => 'Provenance anchor status: pending Bitcoin confirmations + on-demand sweep.',
+			'icon'           => 'dashicons-admin-links',
+			'script'         => 'sn-desktop-mode-widget-anchors',
+			'min_width'      => 220,
+			'min_height'     => 150,
+			'default_width'  => 300,
+			'default_height' => 220,
 		) ) );
 	}
 }, 6 );

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.77.0
+ * Version:     9.78.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -279,7 +279,6 @@ require_once __DIR__ . '/inc/api-rate-monitor.php';
 require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';
 require_once __DIR__ . '/inc/desktop-mode-attention.php';
-require_once __DIR__ . '/inc/desktop-mode-workbench.php';
 require_once __DIR__ . '/inc/desktop-mode-dropzone.php';
 require_once __DIR__ . '/inc/ai-bootstrap.php';
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
@@ -307,6 +306,7 @@ require_once __DIR__ . '/inc/block-migrations-suggest.php';
 require_once __DIR__ . '/inc/block-migrations-apply.php';
 require_once __DIR__ . '/inc/block-migrations-admin.php';
 require_once __DIR__ . '/inc/abilities-block-migrations.php';
+require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-status + anchor-sweep
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identity — normalized release store (cron is sole writer)
