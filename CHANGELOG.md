@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.77.0] - 2026-07-21: The Workbench earns the window — and the desktop learns to catch files
+
+**Headline:** the v9.76.0 monitor window is replaced by two Desktop Mode surfaces that do what existing chrome can't: the S&N Workbench (every scanner suggestion in one native triage queue with preview→apply→dismiss) and drop-to-draft (drop a markdown/text file anywhere on the desktop, get a drafted Note).
+
+### New
+
+- **S&N Workbench** ([inc/desktop-mode-workbench.php](inc/desktop-mode-workbench.php) + [assets/desktop-workbench.js](assets/desktop-workbench.js)/[.css](assets/desktop-workbench.css)): a native window with the Migrations queue as its main tab and Patterns as a second, one engine driving both. Each candidate row: post link + finding label, then Preview (the suggest ability renders the exact replacement markup inline — nothing mutates unseen), an Apply armed only by a successful preview, and Dismiss through the canonical dismiss-candidate dispatcher. Transport is exclusively the abilities run-path via sntAbilityRun with the pinned contracts (scan → candidates; suggest {post_id, block_fingerprint, type} → suggestion_markup; apply adds replacement_markup; dismiss {surface, post_id, block_fingerprint, candidate_type}). Owner-gated, pure no-op without Desktop Mode. Pinned in [tests/desktop-mode-workbench.php](tests/desktop-mode-workbench.php) (27 assertions).
+- **Drop-to-draft** ([inc/desktop-mode-dropzone.php](inc/desktop-mode-dropzone.php) + [assets/desktop-dropzone.js](assets/desktop-dropzone.js)): hooks the shell's OS-file-drop pipeline at the `desktop-mode.drop.files-detected` filter (which fires before the MIME gate), claims .md/.txt files into drafted Notes via core REST (md-lite conversion: #-headings → core/heading clamped h2–h4, paragraphs → core/paragraph — always valid serialized blocks, never recovery bait; title from the first # heading or the filename), and passes every other file through untouched to the shell's own Media Library dialog. Success/failure lands as a desktop notification, click-through opens the draft. Gated per-user (desktop_mode_is_enabled) + edit_posts. Pinned in [tests/desktop-mode-dropzone.php](tests/desktop-mode-dropzone.php) (9 assertions).
+
+### Removed
+
+- **The v9.76.0 S&N Monitor window** (inc/desktop-mode-window.php + assets + fixture): shipped hours earlier, it re-plated the six desktop widgets at window size — failing the standing "a new element must do something existing chrome can't" rule (owner call). The Workbench takes its slot; the widgets remain the glanceable readouts they already were.
+
+> **Why MINOR:** two new user-visible capabilities; the removed window was a UI surface, not an API — nothing external consumed it.
+
 ## [9.76.0] - 2026-07-21: S&N Monitor — the first tier-1 native Desktop Mode window
 
 **Headline:** Signal & Noise gets a native Desktop Mode window: "S&N Monitor", a four-pane read-mostly dashboard (Analytics, Health, Uptime, Deploy) rendered in the desktop shell's own DOM instead of the iframe compat fallback. Built against the upstream WordPress/desktop-mode contract (trunk @ 0.9.5) and pure no-op when Desktop Mode is absent.

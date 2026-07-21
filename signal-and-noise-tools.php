@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.76.0
+ * Version:     9.77.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -279,7 +279,8 @@ require_once __DIR__ . '/inc/api-rate-monitor.php';
 require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';
 require_once __DIR__ . '/inc/desktop-mode-attention.php';
-require_once __DIR__ . '/inc/desktop-mode-window.php';
+require_once __DIR__ . '/inc/desktop-mode-workbench.php';
+require_once __DIR__ . '/inc/desktop-mode-dropzone.php';
 require_once __DIR__ . '/inc/ai-bootstrap.php';
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
