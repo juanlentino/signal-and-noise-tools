@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.76.0] - 2026-07-21: S&N Monitor — the first tier-1 native Desktop Mode window
+
+**Headline:** Signal & Noise gets a native Desktop Mode window: "S&N Monitor", a four-pane read-mostly dashboard (Analytics, Health, Uptime, Deploy) rendered in the desktop shell's own DOM instead of the iframe compat fallback. Built against the upstream WordPress/desktop-mode contract (trunk @ 0.9.5) and pure no-op when Desktop Mode is absent.
+
+### New
+
+- [inc/desktop-mode-window.php](inc/desktop-mode-window.php): registers the `sn-monitor` native window via `desktop_mode_register_window()` (Analytics as the main tab) plus three `desktop_mode_register_window_tab()` panes (Health, Uptime, Deploy) and a desktop tile via `desktop_mode_register_icon()`. Owner-gated (`manage_options`, matching the healthSummary localize gate and the site-views REST permission). The registration and args/tabs builders are pure functions, pinned in [tests/desktop-mode-window.php](tests/desktop-mode-window.php) (35 assertions: absent-DM no-op, idempotence, tab binding, handle deps, mount-point contracts).
+- [assets/desktop-window.js](assets/desktop-window.js) + [assets/desktop-window.css](assets/desktop-window.css): the render bundle on the shell's mount contract (`window.desktopModeNativeWindows['sn-monitor']`, teardown on close). Every pane reuses the existing widget plumbing wholesale — site-views REST (14-day bar series, totals, delta, bot share, top page/source), `snDesktopData.healthSummary`, the `uptime-status` ability via `sntAbilityRun` on the widgets' 2-minute cadence, and `snDesktopData.theme`/`.plugin` — no new queries, and the widgets' honesty rule carries over (null data renders an honest empty state, never a fabricated zero).
+
+> **Why MINOR:** a new user-visible capability (the native monitoring window); no API changes, no schema changes.
+
 ## [9.75.1] - 2026-07-21: The no-credential status line survives the run's finish
 
 **Headline:** live verification of v9.75.0 caught the settled docket's one loose end — on the no-credential path the closing "Done." overwrote the specific "No public credential exists for this Note." status line.
