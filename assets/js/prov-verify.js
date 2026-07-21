@@ -645,7 +645,7 @@
 			if ( ! credRes.ok ) {
 				setStatusLine( 404 === credRes.status ? 'No public credential exists for this Note.' : 'Could not reach this site\'s credential endpoint.' );
 				settlePendingChecks( 'Could not run — no credential to check.' );
-				return null;
+				return 'failed'; // keep the specific status line — no "Done." overwrite
 			}
 			var cred = credRes.json;
 			setStatusLine( 'Checking…' );
@@ -677,8 +677,10 @@
 
 				return Promise.all( [ signatureDone, checkContentHash( cred ), checkLiveMatch( cred ), checkAnchor( cred, uid, effectiveVersion ) ] );
 			} );
-		} ).then( function () {
-			setStatusLine( 'Done.' );
+		} ).then( function ( outcome ) {
+			if ( 'failed' !== outcome ) {
+				setStatusLine( 'Done.' );
+			}
 		} ).catch( function () {
 			setStatusLine( 'Something went wrong while running these checks.' );
 			settlePendingChecks( 'This check could not be completed.' );

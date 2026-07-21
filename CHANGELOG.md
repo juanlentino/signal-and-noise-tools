@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.75.1] - 2026-07-21: The no-credential status line survives the run's finish
+
+**Headline:** live verification of v9.75.0 caught the settled docket's one loose end — on the no-credential path the closing "Done." overwrote the specific "No public credential exists for this Note." status line.
+
+### Fixed
+
+- [assets/js/prov-verify.js](assets/js/prov-verify.js): a failed credential fetch now returns a sentinel through the promise chain so the final "Done." only writes on runs that actually ran; the specific error message (the only context besides the four UNREACHABLE stamps) stays on screen.
+
+> **Why PATCH:** one-line UX fix to shipped behavior, caught by post-deploy live verification.
+
 ## [9.75.0] - 2026-07-21: The docket never strands, paste-a-URL resolves, and a match finally stamps PASS
 
 **Headline:** refinement sweep across the /verify docket, the provenance chip, titles, and the Desktop Mode integration — every failure path now settles to an honest verdict, the paste-a-URL affordance actually works (with theme v10.45.0's twin uid), and a full live match earns the PASS stamp instead of an unexplained NOTE.
