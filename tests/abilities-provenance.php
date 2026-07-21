@@ -89,7 +89,7 @@ $st = $GLOBALS['__abilities']['signal-noise/anchor-status'];
 $sw = $GLOBALS['__abilities']['signal-noise/anchor-sweep'];
 ok( 'snt_ability_perm_manage_options' === $st['permission_callback'] && 'snt_ability_perm_manage_options' === $sw['permission_callback'],
 	'both abilities are owner-gated' );
-ok( 'monitoring' === $st['category'] && 'maintenance' === $sw['category'], 'categories come from the registered vocabulary' );
+ok( 'diagnostics' === $st['category'] && 'maintenance' === $sw['category'], 'categories come from the REGISTERED set in inc/abilities-categories.php (v9.78.0 shipped the unregistered \'monitoring\' — caught live)' );
 ok( true === ( $st['meta']['annotations']['readonly'] ?? null ), 'anchor-status is annotated readonly (GET run-path)' );
 ok( false === ( $sw['meta']['annotations']['readonly'] ?? null ) && true === ( $sw['meta']['annotations']['idempotent'] ?? null ),
 	'anchor-sweep is non-readonly but idempotent' );
