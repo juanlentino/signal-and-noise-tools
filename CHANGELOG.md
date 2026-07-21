@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.73.0] - 2026-07-21: Anyone can verify a Note — the /verify page
+
+**Headline:** a human-facing provenance verifier at `/verify`: four checks run in the reader's own browser with plain-language verdicts, and every provenance chip links to it.
+
+### New
+
+- `/verify` virtual route ([inc/provenance-verify.php](inc/provenance-verify.php)): a standalone, noindex page that verifies any public Note client-side — the site only serves data; the reader's browser judges. Four checks, each pending → PASS / FAIL / UNREACHABLE: (1) Ed25519 signature over the credential's carried canonical payload via WebCrypto, with the did.json key cross-checked byte-for-byte against `/.well-known/provenance-keys.json` AND the independent GitHub ledger's `keys/` copy; (2) SHA-256 content hash; (3) live-content match against the Note's `.json` twin (informational — a post-edit mismatch names the proven version, never fails); (4) Bitcoin anchor: mempool.space confirms the tx and block, and the ledger record independently attests this hash ↔ this txid (wording claims attestation, not inclusion proof — the OTS proof walk is explicit future work).
+- [assets/js/prov-verify.js](assets/js/prov-verify.js) (vanilla, zero dependencies, all config via data attributes) + [assets/css/prov-verify.css](assets/css/prov-verify.css) (scoped `.sn-verify`). Unreachable origins are never conflated with cryptographic failure; browsers without Ed25519 WebCrypto get the credential's facts and links, no fake verdicts. Paste-a-URL mode resolves the Note via its `.json` twin, same-origin only.
+- Every linked provenance chip ([inc/provenance-render.php](inc/provenance-render.php)) gains a sibling "Verify" link carrying the exact uid (and version, when shown). Unlinked chips (pending, no txid) stay plain per the shipped chip contract.
+
+> **Why MINOR:** a new user-visible capability (the public /verify surface); no API, schema, or floor change — the credential endpoint, DID document, and key mirror are consumed read-only exactly as shipped.
+
 ## [9.72.1] - 2026-07-20: Provenance reconciliation and updater hardening
 
 PATCH. The hourly public-provenance reconciliation sweep now walks every
