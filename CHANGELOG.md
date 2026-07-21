@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.73.2] - 2026-07-21: The anchor check stops failing honest proofs
+
+**Headline:** the hardening sweep found the anchor check rendering a red FAIL on 4 of 5 live Notes — every OTS block-anchored proof without an extracted aggregation txid. That shape is the normal one, and it now renders as an honest block-anchored NOTE with a ledger hash cross-attest.
+
+### Fixed
+
+- [assets/js/prov-verify.js](assets/js/prov-verify.js): a confirmed anchor with a block but no txid (20+ of 25 live ledger records) no longer FAILs — the mempool cross-check is impossible without a tx, which is a gap, not a contradiction. The check now cross-attests the content hash against the ledger record and renders NOTE naming the OpenTimestamps block. The ledger tie-check goes per-field: only a PRESENT field that contradicts may FAIL; an absent field renders partial attestation. All txid/hash comparisons case-normalized (matching checkContentHash).
+
+> **Why PATCH:** correctness fix to shipped v9.73.x behavior; no new capability.
+
 ## [9.73.1] - 2026-07-21: The anchor check learns the ledger's real shape
 
 **Headline:** the live post-deploy run caught the /verify anchor check reading fields the real ledger records don't have — fixed against the actual repo layout.

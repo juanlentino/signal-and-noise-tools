@@ -423,9 +423,32 @@
 			setCheck( 'anchor', STATE.NOTE, 'Awaiting Bitcoin confirmation — not a failure, just not yet on-chain.' );
 			return Promise.resolve();
 		}
-		if ( 'confirmed' !== anchor.status || ! anchor.txid ) {
+		if ( 'confirmed' !== anchor.status || ( ! anchor.txid && ! anchor.block ) ) {
 			setCheck( 'anchor', STATE.FAIL, 'This credential does not carry a confirmed Bitcoin anchor.' );
 			return Promise.resolve();
+		}
+		if ( ! anchor.txid ) {
+			// The NORMAL shape for most Notes: OTS block-anchored, with no
+			// aggregation transaction id extracted. There is no tx to look up on
+			// the mempool explorer — a missing cross-check, never a contradiction
+			// (the same principle as the ledger schema guard below). The ledger
+			// record can still cross-attest the content hash, so do that instead.
+			var ledgerOnlyUrl = config.ledgerBase.replace( /\/?$/, '' ) + '/notes/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || evidence.version || 0 ) + '.json';
+			return fetchJSON( ledgerOnlyUrl ).then( function ( ledgerRes ) {
+				var blockNote = 'Block-anchored via OpenTimestamps at block ' + anchor.block + '; no aggregation transaction id was extracted, so an independent mempool cross-check is not possible for this proof.';
+				var rec2      = ( ledgerRes.ok && ledgerRes.json ) || {};
+				var recHash2  = String( rec2.content_hash || '' ).replace( /^sha256:/, '' ).toLowerCase();
+				var credHash2 = String( evidence.contentHash || '' ).replace( /^sha256:/, '' ).toLowerCase();
+				if ( ! ledgerRes.ok ) {
+					setCheck( 'anchor', STATE.NOTE, blockNote + ' The independent ledger record could not be reached to cross-attest the content hash.' );
+					return;
+				}
+				if ( recHash2 && credHash2 && recHash2 !== credHash2 ) {
+					setCheck( 'anchor', STATE.FAIL, 'The independent ledger record contradicts this credential\'s content hash.' );
+					return;
+				}
+				setCheck( 'anchor', STATE.NOTE, blockNote + ( recHash2 && recHash2 === credHash2 ? ' The independent ledger record attests the same content hash.' : '' ) );
+			} );
 		}
 
 		var txStatusUrl = config.mempoolBase.replace( /\/?$/, '' ) + '/tx/' + encodeURIComponent( anchor.txid ) + '/status';
@@ -452,23 +475,30 @@
 			// Real ledger record shape (notes/<uid>/v<n>.json): content_hash at the
 			// top level, the txid nested under ots. Keep the legacy top-level txid
 			// as a fallback so a future flattening doesn't break the check.
-			var rec       = ledgerRes.json || {};
-			var recTxid   = String( ( rec.ots && rec.ots.bitcoin_txid ) || rec.bitcoin_txid || '' );
-			var recHash   = String( rec.content_hash || '' ).replace( /^sha256:/, '' );
-			var credHash  = String( evidence.contentHash || '' ).replace( /^sha256:/, '' );
+			var rec        = ledgerRes.json || {};
+			var anchorTxid = String( anchor.txid || '' ).toLowerCase();
+			var recTxid    = String( ( rec.ots && rec.ots.bitcoin_txid ) || rec.bitcoin_txid || '' ).toLowerCase();
+			var recHash    = String( rec.content_hash || '' ).replace( /^sha256:/, '' ).toLowerCase();
+			var credHash   = String( evidence.contentHash || '' ).replace( /^sha256:/, '' ).toLowerCase();
 			if ( ! recTxid && ! recHash ) {
 				// A record that carries no comparable fields is a schema mismatch,
 				// not a contradiction — never render it as FAIL.
 				setCheck( 'anchor', STATE.UNREACHABLE, 'Bitcoin confirms the anchor, but the ledger record carries no comparable fields to cross-attest it (schema mismatch).' );
 				return;
 			}
-			var ledgerTiesIt = recTxid === String( anchor.txid ) && recHash === credHash;
+			// A PRESENT field that disagrees is a contradiction; an ABSENT field
+			// is a gap. Only contradictions may FAIL.
+			if ( ( recTxid && recTxid !== anchorTxid ) || ( recHash && credHash && recHash !== credHash ) ) {
+				setCheck( 'anchor', STATE.FAIL, 'Bitcoin confirms a transaction, but the independent ledger record does not tie it to this same content.' );
+				return;
+			}
+			var ledgerTiesIt = recTxid === anchorTxid && '' !== recHash && recHash === credHash;
 			setCheck(
 				'anchor',
-				ledgerTiesIt ? STATE.PASS : STATE.FAIL,
+				ledgerTiesIt ? STATE.PASS : STATE.NOTE,
 				ledgerTiesIt
 					? 'Confirmed on Bitcoin and attested by the independent ledger record (this is an attestation, not a cryptographic inclusion proof).'
-					: 'Bitcoin confirms a transaction, but the independent ledger record does not tie it to this same content.'
+					: 'Confirmed on Bitcoin; the ledger record partially attests it (one field is absent from the record) with no contradiction found.'
 			);
 		} );
 	}

@@ -392,6 +392,13 @@ vv_true(
 	'JS has an UNREACHABLE state distinct from, and alongside, FAIL'
 );
 vv_true( '' !== $js && false !== strpos( $js, 'sha256:' ), "JS strips the 'sha256:' content-hash prefix" );
+// v9.73.2: the anchor check must treat the NORMAL no-txid shape (OTS
+// block-anchored, no aggregation tx extracted — 20+ of 25 live ledger records)
+// as a NOTE with a ledger hash cross-attest, NEVER a FAIL; FAIL is reserved
+// for a PRESENT field that contradicts.
+vv_true( '' !== $js && false !== strpos( $js, 'Block-anchored via OpenTimestamps at block' ), 'JS renders the no-txid confirmed anchor as a block-anchored NOTE, not FAIL' );
+vv_true( '' !== $js && false !== strpos( $js, 'A PRESENT field that disagrees is a contradiction; an ABSENT field' ), 'JS pins the contradiction-only-FAIL principle for the ledger tie-check' );
+vv_true( '' !== $js && preg_match( '/anchorTxid = String\( anchor\.txid \|\| .. \)\.toLowerCase\(\)/', $js ) === 1, 'JS case-normalizes the anchor txid before comparison' );
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),
