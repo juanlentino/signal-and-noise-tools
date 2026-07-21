@@ -19,8 +19,14 @@
    own look; the pointer cursor signals it's clickable. */
 .sn-prov-chip-link{text-decoration:none;color:inherit;cursor:pointer}
 /* The linked chip's "opens the public ledger" affordance: a subtle ↗ that
-   inherits the chip colour, so it reads as a way out without shouting. */
-.sn-prov-chip-ext{font-size:.85em;opacity:.55}
+   inherits the chip colour, so it reads as a way out without shouting.
+   .96em, not smaller: the chip runs .72rem, and .85em of that landed at 9.8px —
+   under the 11px sitewide type floor. Subtlety comes from opacity, not size. */
+.sn-prov-chip-ext{font-size:.96em;opacity:.55}
+/* Hit-area, not layout: the linked chip pill measures ~19px tall, below the
+   24px minimum for a standalone target. Vertical padding cancelled by equal
+   negative margins expands the clickable box without moving the byline. */
+.sn-prov-chip-link{padding:.3em 0;margin:-.3em 0}
 /* The lead, plainly-worded on-chain link — the entry point for a reader who's
    never heard of a block explorer. Regular weight, red, underlined: it reads
    like the panel's sibling action links (Download proof / Git ledger / Verify),
@@ -34,5 +40,8 @@
 /* The chip's "Verify" affordance (v9.74.0): a quiet mono action link beside
    the chip, in the same red-action vocabulary as .sn-prov-onchain-cta — reads
    as a sibling action, not part of the chip pill itself. */
-.sn-prov-chip-verify{font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#e00404;text-decoration:underline;text-underline-offset:3px;margin-left:.15em;white-space:nowrap}
+/* .7rem, not .68: keeps the quiet mono look while clearing the 11px type
+   floor. The padding/negative-margin pair expands the ~15px-tall link to a
+   ≥24px hit target without shifting the byline's layout. */
+.sn-prov-chip-verify{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#e00404;text-decoration:underline;text-underline-offset:3px;margin-left:.15em;white-space:nowrap;padding:.55em .2em;margin-top:-.55em;margin-bottom:-.55em}
 .sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#ff4c47}

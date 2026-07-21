@@ -284,12 +284,13 @@
 		}
 		if ( url.origin !== location.origin ) {
 			setStatusLine( 'Only links to this site are supported here — paste the note id instead, or open the note and use its own Verify link.' );
-			return Promise.resolve( null );
+			return Promise.resolve( { handled: true } );
 		}
 		var twinUrl = url.href.replace( /[#?].*$/, '' ).replace( /\/?$/, '' ) + '.json';
 		return fetchJSON( twinUrl ).then( function ( res ) {
 			if ( ! res.ok || ! res.json ) {
-				return null;
+				setStatusLine( 'That page has no public credential twin — open the note and use its own Verify link.' );
+				return { handled: true };
 			}
 			// The exact key the theme's content twin uses for its provenance
 			// ref isn't pinned across repos, so probe the plausible shapes.
@@ -299,7 +300,25 @@
 				j.note_uid ||
 				( j.provenance && j.provenance.uid ) ||
 				'';
-			return uid ? { uid: String( uid ).toLowerCase(), version: 0 } : null;
+			var version = 0;
+			if ( ! uid && j.provenance && j.provenance.verify_url ) {
+				// The one provenance field every deployed twin DOES carry is its own
+				// verify_url ("/verify?note=<uid>&v=<n>") — read the uid back out of
+				// it, so pasting a Note URL works against twins that predate the
+				// theme emitting note_uid directly.
+				try {
+					var vu = new URL( j.provenance.verify_url, location.href );
+					uid = vu.searchParams.get( 'note' ) || '';
+					version = parseInt( vu.searchParams.get( 'v' ) || '0', 10 ) || 0;
+				} catch ( e ) {
+					uid = '';
+				}
+			}
+			if ( ! uid ) {
+				setStatusLine( 'That page\'s public twin carries no note id — open the note and use its own Verify link.' );
+				return { handled: true };
+			}
+			return { uid: String( uid ).toLowerCase(), version: version };
 		} );
 	}
 
@@ -330,8 +349,17 @@
 			}
 
 			var proof = cred.proof || {};
-			var payloadBytes = base64ToBytes( proof.signedPayloadB64 );
-			var sigBytes      = base64ToBytes( proof.proofValue );
+			var payloadBytes, sigBytes;
+			try {
+				payloadBytes = base64ToBytes( proof.signedPayloadB64 );
+				sigBytes      = base64ToBytes( proof.proofValue );
+			} catch ( e ) {
+				// Malformed base64 must be a verdict, not an uncaught throw that
+				// strands the docket mid-run — this page's whole job is judging
+				// possibly-bad data.
+				setCheck( 'signature', STATE.FAIL, 'This credential is malformed and cannot be decoded.' );
+				return false;
+			}
 
 			return window.crypto.subtle
 				.importKey( 'jwk', jwk, { name: 'Ed25519' }, false, [ 'verify' ] )
@@ -362,7 +390,16 @@
 			return Promise.resolve( false );
 		}
 		var proof = cred.proof || {};
-		var payloadBytes = base64ToBytes( proof.signedPayloadB64 );
+		var payloadBytes;
+		try {
+			payloadBytes = base64ToBytes( proof.signedPayloadB64 );
+		} catch ( e ) {
+			// A synchronous throw here would abort the whole Promise.all argument
+			// list in runVerification (checks 03 and 04 never even start) — decode
+			// failure is a FAIL verdict for THIS check, nothing more.
+			setCheck( 'content-hash', STATE.FAIL, 'This credential is malformed and cannot be decoded.' );
+			return Promise.resolve( false );
+		}
 		var evidence = ( cred.evidence && cred.evidence[ 0 ] ) || {};
 		var claimed = String( evidence.contentHash || '' ).replace( /^sha256:/, '' ).toLowerCase();
 
@@ -401,21 +438,31 @@
 			}
 			var evidence = ( cred.evidence && cred.evidence[ 0 ] ) || {};
 			var signedContent = '';
+			var decodeFailed = false;
 			try {
 				var payload = JSON.parse( atob( String( ( cred.proof && cred.proof.signedPayloadB64 ) || '' ) ) );
 				signedContent = String( payload.content || '' );
 			} catch ( e ) {
-				signedContent = '';
+				decodeFailed = true;
+			}
+			if ( decodeFailed || ! signedContent ) {
+				// An undecodable payload is NOT evidence of an edit — asserting
+				// "edited since signing" here would claim something never established.
+				setCheck( 'live-match', STATE.NOTE, 'The signed payload could not be decoded for comparison — no edit claim either way.' );
+				return;
 			}
 			// The theme's .json twin schema carries content_text / content_html —
-		// there is NO bare `content` field (reading one made this check report
-		// "edited since signing" on every Note, always; caught live 2026-07-21).
-		var liveRaw = ( res.json && ( res.json.content_text || res.json.content || '' ) ) || '';
+			// there is NO bare `content` field (reading one made this check report
+			// "edited since signing" on every Note, always; caught live 2026-07-21).
+			var liveRaw = ( res.json && ( res.json.content_text || res.json.content || '' ) ) || '';
 			var liveNormalized = roughNormalize( liveRaw );
-			var matches = !! signedContent && liveNormalized === roughNormalize( signedContent );
+			var matches = liveNormalized === roughNormalize( signedContent );
+			// A full match is the good outcome this check exists to report — stamp
+			// it PASS. Only the mismatch stays NOTE (honest post-edit dating, still
+			// never a FAIL: a newer signed version may already exist).
 			setCheck(
 				'live-match',
-				STATE.NOTE,
+				matches ? STATE.PASS : STATE.NOTE,
 				matches
 					? 'This matches the currently published content.'
 					: 'Content edited since signing — this credential proves version ' + ( evidence.version || '?' ) + ' as of ' + ( cred.validFrom || 'its signing date' ) + '. A newer signed version may already exist.'
@@ -553,7 +600,9 @@
 			p.textContent = line;
 			factsEl.appendChild( p );
 		} );
-		if ( anchor.explorer ) {
+		// The one raw URL sink in an otherwise textContent-only renderer:
+		// http(s) only, so a poisoned credential can't plant a javascript: link.
+		if ( anchor.explorer && /^https?:\/\//i.test( String( anchor.explorer ) ) ) {
 			var a = document.createElement( 'a' );
 			a.href = anchor.explorer;
 			a.rel = 'nofollow noopener';
@@ -573,6 +622,18 @@
 		}
 	}
 
+	/** A run that dies before (or while) the checks resolve must not leave any
+	 *  check blinking "pending" forever — settle every still-pending check to
+	 *  UNREACHABLE so the docket reads as finished, honestly. */
+	function settlePendingChecks( detail ) {
+		[ 'signature', 'content-hash', 'live-match', 'anchor' ].forEach( function ( key ) {
+			var li = root.querySelector( '.sn-verify-check[data-check="' + key + '"]' );
+			if ( li && STATE.PENDING === li.getAttribute( 'data-state' ) ) {
+				setCheck( key, STATE.UNREACHABLE, detail );
+			}
+		} );
+	}
+
 	/** Orchestrate the whole run for a resolved { uid, version }. */
 	function runVerification( uid, version ) {
 		resetChecks();
@@ -583,6 +644,7 @@
 		fetchJSON( credUrl ).then( function ( credRes ) {
 			if ( ! credRes.ok ) {
 				setStatusLine( 404 === credRes.status ? 'No public credential exists for this Note.' : 'Could not reach this site\'s credential endpoint.' );
+				settlePendingChecks( 'Could not run — no credential to check.' );
 				return null;
 			}
 			var cred = credRes.json;
@@ -619,6 +681,7 @@
 			setStatusLine( 'Done.' );
 		} ).catch( function () {
 			setStatusLine( 'Something went wrong while running these checks.' );
+			settlePendingChecks( 'This check could not be completed.' );
 		} );
 	}
 
@@ -627,9 +690,11 @@
 			evt.preventDefault();
 			var value = input ? input.value : '';
 			resolvePasted( value ).then( function ( resolved ) {
-				if ( resolved ) {
+				if ( resolved && resolved.uid ) {
 					runVerification( resolved.uid, resolved.version );
-				} else if ( value.trim() ) {
+				} else if ( ! resolved && value.trim() ) {
+					// resolved === {handled:true} means a specific status line was
+					// already set — don't clobber it with the generic one.
 					setStatusLine( 'That does not look like a note id or a link on this site.' );
 				}
 			} );

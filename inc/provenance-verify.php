@@ -31,7 +31,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_prov_verify_is_request( $uri ) {
 	$path = strtok( (string) $uri, '?' );
 	$path = '/' . trim( (string) $path, '/' );
-	return ( '/verify' === $path );
+	// Compare against home_url()'s own path so a subdirectory install
+	// (REQUEST_URI "/blog/verify") matches the same /verify the chip links
+	// point at via home_url( '/verify?…' ). Root installs reduce to '/verify'.
+	$home_path = ( function_exists( 'home_url' ) && function_exists( 'wp_parse_url' ) )
+		? (string) wp_parse_url( home_url( '/verify' ), PHP_URL_PATH )
+		: '/verify';
+	$home_path = '/' . trim( $home_path, '/' );
+	return ( $path === $home_path );
 }
 
 /**
@@ -124,7 +131,7 @@ function sn_prov_verify_send() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Verify a Note &mdash; Signal &amp; Noise</title>
+<title>Verify a Note &mdash; <?php echo esc_html( function_exists( 'get_bloginfo' ) ? get_bloginfo( 'name' ) : 'Signal & Noise' ); ?></title>
 <link rel="stylesheet" href="<?php echo esc_url( $css_url ); ?>">
 <?php if ( '' !== $fonts_base ) : ?>
 <link rel="preload" href="<?php echo esc_url( $fonts_base . '/bebas-neue-latin.woff2' ); ?>" as="font" type="font/woff2" crossorigin>
@@ -159,7 +166,11 @@ function sn_prov_verify_send() {
 		<button type="submit">Verify</button>
 	</form>
 
-	<p class="sn-verify-status-line" data-role="status-line" aria-hidden="true"></p>
+	<?php // Its own polite live region: every status message ("No public credential
+	// exists…", "Could not reach…", "Done.") must reach screen readers — on the
+	// error paths this line is the ONLY feedback a run produces. The verdict
+	// announcements coalesce in a separate region, so no double-reads. ?>
+	<p class="sn-verify-status-line" data-role="status-line" aria-live="polite"></p>
 
 	<ol class="sn-verify-checks" data-role="checks">
 		<li class="sn-verify-check" data-check="signature">

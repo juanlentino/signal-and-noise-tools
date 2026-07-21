@@ -86,7 +86,9 @@ function snt_desktop_attention_sources() {
 			? count( (array) sn_health_flagged_checks( $health ) )
 			: null,
 		'label' => __( 'Health findings', 'signal-and-noise-tools' ),
-		'url'   => function_exists( 'snt_desktop_admin_url' ) ? snt_desktop_admin_url( 'sn-monitoring' ) : '',
+		// sub=health, explicitly: sn-monitoring's first leaf is Analytics, so
+		// the bare tab URL would land a "health findings" click one tab short.
+		'url'   => function_exists( 'snt_desktop_admin_url' ) ? add_query_arg( 'sub', 'health', snt_desktop_admin_url( 'sn-monitoring' ) ) : '',
 	);
 
 	// Block migrations — cached 1h transient; array|null.
@@ -102,7 +104,9 @@ function snt_desktop_attention_sources() {
 	$out['pattern_adoption'] = array(
 		'count' => snt_desktop_attention_candidate_count( $pa ),
 		'label' => __( 'Pattern adoption', 'signal-and-noise-tools' ),
-		'url'   => function_exists( 'snt_desktop_admin_url' ) ? snt_desktop_admin_url( 'sn-tools' ) : '',
+		// The pattern-adoption Opportunities UI renders under Monitoring →
+		// Health (inc/health-checks-admin.php), not under Tools.
+		'url'   => function_exists( 'snt_desktop_admin_url' ) ? add_query_arg( 'sub', 'health', snt_desktop_admin_url( 'sn-monitoring' ) ) : '',
 	);
 
 	return $out;
@@ -132,9 +136,9 @@ function snt_desktop_attention_total() {
  * Ship the count to the shell.
  *
  * Localized onto 'sn-desktop-mode' — the handle inc/desktop-mode-integration.php
- * ALREADY registers (:115) and already localizes snDesktopData onto (:233). A
- * handle registered anywhere can be localized onto from anywhere, so this needs
- * no change to that 1315-line file.
+ * ALREADY registers and already localizes snDesktopData onto. A handle
+ * registered anywhere can be localized onto from anywhere, so this needs
+ * no change to that file.
  *
  * No REST route, no fetch, no poll: the number is already on the page by the
  * time the shell boots. That is what makes the badge free.

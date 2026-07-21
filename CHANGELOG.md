@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.75.0] - 2026-07-21: The docket never strands, paste-a-URL resolves, and a match finally stamps PASS
+
+**Headline:** refinement sweep across the /verify docket, the provenance chip, titles, and the Desktop Mode integration — every failure path now settles to an honest verdict, the paste-a-URL affordance actually works (with theme v10.45.0's twin uid), and a full live match earns the PASS stamp instead of an unexplained NOTE.
+
+### New
+
+- **Live match stamps PASS on a full match** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): check 03 stamped NOTE unconditionally — a verdict whose only sentence said the content matches, reading like a mistake. A match is now PASS; only the mismatch keeps the informational NOTE (honest post-edit dating, still never a FAIL).
+- **Paste-a-URL resolution works** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): the resolver reads the uid from the twin's `provenance.note_uid` (theme v10.45.0 emits it) and, failing that, parses it out of `provenance.verify_url`'s own query string. Each dead end now gets specific copy ("no public credential twin" / "twin carries no note id") instead of the generic "does not look like a note id", and specific copy is never clobbered by the generic fallback.
+
+### Fixed
+
+- **Malformed credentials become verdicts, not stuck dockets** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): corrupt base64 in `signedPayloadB64`/`proofValue` threw out of `atob()` — rejecting the signature check's promise and synchronously aborting checks 03/04 before they started, leaving the docket blinking "pending" forever. Both decode sites now catch and stamp FAIL "This credential is malformed and cannot be decoded."
+- **A dead credential fetch settles the docket** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): fetch failure/404 only set the status line, leaving all four checks blinking forever; they now settle to UNREACHABLE ("Could not run — no credential to check."), and the global catch settles any still-pending check the same way.
+- **An undecodable payload no longer masquerades as an edit** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): `checkLiveMatch` forced `matches=false` on decode failure and asserted "Content edited since signing" — an edit never established. It now renders a distinct NOTE ("no edit claim either way").
+- **Status line reaches screen readers** ([inc/provenance-verify.php](inc/provenance-verify.php)): it carried `aria-hidden="true"`, silencing every message — on the error paths the ONLY feedback a run produces. Now its own `aria-live="polite"` region (verdicts coalesce in a separate region; no double-reads).
+- **Explorer link scheme guard** ([assets/js/prov-verify.js](assets/js/prov-verify.js)): the fallback facts panel's one raw URL sink now accepts http(s) only, so a poisoned credential can't plant a `javascript:` link.
+- **/verify route survives subdirectory installs** ([inc/provenance-verify.php](inc/provenance-verify.php)): the path compare now derives from `home_url('/verify')` instead of a literal `'/verify'`, matching how the chip builds its links.
+- **Keyboard focus is distinguishable from hover on the docket button** ([assets/css/prov-verify.css](assets/css/prov-verify.css)): `:focus-visible` had `outline:none` with the identical background swap as `:hover`; it now gets the input's blood-outline treatment.
+- **Titles**: 404 pages joined with WP's default hyphen ("Page not found - …") — the one title breaking the site's em-dash convention; [inc/seo.php](inc/seo.php) now emits "Page not found — Site". The /verify page suffixed "Signal & Noise" while every other page suffixes the site name; it now uses `get_bloginfo('name')` ([inc/provenance-verify.php](inc/provenance-verify.php)).
+- **Type floor + tap targets on the chip and docket** ([assets/provenance-front.css](assets/provenance-front.css), [assets/css/prov-verify.css](assets/css/prov-verify.css)): the chip's ↗ glyph computed to 9.8px and the Verify link to 10.9px — both under the 11px floor (now ≥11px; subtlety via opacity, not size); the docket form label sat at 9.9px (now .7rem). The chip pill and Verify link reach the 24px hit-target minimum via padding cancelled by negative margins.
+- **Desktop Mode attention deep links** ([inc/desktop-mode-attention.php](inc/desktop-mode-attention.php)): the health source linked the bare Monitoring tab (first leaf = Analytics, one tab short of Health) and pattern adoption linked Tools (its Opportunities UI lives under Monitoring → Health); both now carry `sub=health`.
+
+### Improvements
+
+- **Desktop Mode footer patch respects the per-user toggle** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)): the installed-view MutationObserver installed for every admin whenever DM was active — now it also requires `desktop_mode_is_enabled()`, sparing non-DM sessions the document.body subtree observer on Gutenberg's mutation storms.
+
+### Removed
+
+- **Dead command impls** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)): `snt_cmd_impl_purge_caches` / `snt_cmd_impl_clear_overrides` had zero callers (their ability callbacks apply the filters directly; the legacy /cmd/* routes left in v7.0.0) — under a section header claiming they were the single source of truth. Both deleted; the header now tells the truth, and the stale "REST ENDPOINTS stay wired" comment block describing routes that no longer exist is gone. Drifted hardcoded counts in the DM/admin-menu headers replaced with "derived from sn_admin_top_tabs()" phrasing.
+
+> **Why MINOR:** new user-visible behavior (live-match PASS stamp; working paste-a-URL resolution) on top of a fix set that alone would be PATCH.
+
 ## [9.74.2] - 2026-07-21: Live match stops failing on paragraph structure
 
 **Headline:** the live-match comparison preserved newline structure, but the twin's `content_text` is the document flattened to one line while the signed payload keeps its 35-line paragraphs — the comparison could never match. Normalization now collapses all whitespace; "same words in the same order, case-sensitive" is the match semantic.

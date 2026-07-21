@@ -385,6 +385,12 @@ add_filter( 'document_title_parts', function( $parts ) {
 
 	list( $title, , ) = sn_seo_meta_for_current_view();
 	if ( '' === $title ) {
+		// 404s carry no view meta, and WP's fallback joins with its default
+		// hyphen — the one title on the site that broke the em-dash
+		// convention ("Page not found - …"). Keep the "Page — Site" shape.
+		if ( is_404() ) {
+			return array( 'title' => 'Page not found — ' . get_bloginfo( 'name' ) );
+		}
 		return $parts;
 	}
 

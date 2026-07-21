@@ -5,14 +5,16 @@
  * Makes the SN plugin a first-class participant in desktop-mode (when
  * installed + active). Adds:
  *
- *   1. A dock icon "Signal & Noise" with a submenu of all 8 SN settings
- *      tabs (via the desktop_mode_dock_items filter).
+ *   1. A dock icon "Signal & Noise" with a submenu of every SN settings
+ *      tab — derived from sn_admin_top_tabs(), never a hardcoded count
+ *      (via the desktop_mode_dock_items filter).
  *   2. Two desktop icons (Dashboard + Identity — the most-frequent
  *      surfaces) via desktop_mode_register_icon().
- *   3. Twenty-nine Cmd+K command-palette commands via
- *      desktop_mode_register_command() — 4 maintenance actions (Abilities
- *      run-path), 6 navigation shortcuts, 2 version/info, 2 cron, 1
- *      insights, 2 audit-log, and 12 display-only theme-ability launchers.
+ *   3. The Cmd+K command-palette commands via
+ *      desktop_mode_register_command() — maintenance actions (Abilities
+ *      run-path), navigation shortcuts, version/info, cron, insights, and
+ *      audit-log. (The display-only theme-ability launchers were removed
+ *      in v9.52.3; the registration loop below is the source of truth.)
  *   4. Six desktop widgets via desktop_mode_register_widget():
  *      SN Site Views, SN Health, SN Uptime, SN Deploy Status, SN Quick
  *      Actions, SN RSS Subscribers — one per domain since v9.53.0 (SN Pulse
@@ -635,9 +637,12 @@ add_action( 'init', function() {
 /* ════════════════════════════════════════════════════════════════════════
  * COMMAND IMPLEMENTATIONS
  *
- * Each operation lives in a pure function returning array (success payload)
- * or WP_Error. Both the legacy REST handler AND the new abilities (v2.5.0+)
- * call these — single source of truth.
+ * Pure functions returning array (success payload) or WP_Error. Only the
+ * impls with live callers remain: snt_cmd_impl_force_check (dashboard
+ * button + ability) and snt_cmd_impl_rss_stats (abilities-content). The
+ * purge-caches / clear-overrides siblings were deleted in v9.75.0 — their
+ * ability execute callbacks apply the sn_*_result filters directly, and
+ * the legacy /cmd/* REST routes that once shared them left in v7.0.0.
  *
  * @since v2.5.0 — extracted from snt_desktop_cmd_handler for the
  * abilities-first refactor.
@@ -661,24 +666,6 @@ function snt_cmd_impl_force_check() {
 	return array(
 		'ok'      => true,
 		'message' => 'Update caches cleared. Next page-load fetches fresh data from GitHub.',
-	);
-}
-
-function snt_cmd_impl_purge_caches( $include_template_overrides = false ) {
-	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => (bool) $include_template_overrides ) );
-	return array(
-		'ok'      => true,
-		'message' => 'All caches purged.',
-		'data'    => array( 'count' => $count ),
-	);
-}
-
-function snt_cmd_impl_clear_overrides() {
-	$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
-	return array(
-		'ok'      => true,
-		'message' => sprintf( '%d database override%s cleared.', $count, 1 === $count ? '' : 's' ),
-		'data'    => array( 'count' => $count ),
 	);
 }
 
@@ -707,19 +694,6 @@ function snt_cmd_impl_rss_stats() {
 		),
 	);
 }
-
-/* ════════════════════════════════════════════════════════════════════════
- * REST ENDPOINTS — signal-noise/v1/cmd/*
- *
- * @deprecated since 2.5.0 — prefer the abilities REST surface at
- * /wp-abilities/v1/signal-noise/<ability>/run. These endpoints stay
- * wired for back-compat with the desktop-mode plugin's own command
- * palette which still calls /cmd/* directly. Each handler now delegates
- * to a snt_cmd_impl_* pure function shared with the new ability execute
- * callbacks (single source of truth).
- *
- * Response shape: { ok: bool, message: string, data?: object }
- * ════════════════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════════════════════
  * v2.1.3 — Desktop Mode Plugins-window fixes
@@ -875,6 +849,13 @@ add_action( 'admin_print_footer_scripts', function() {
 	// Only fire when Desktop Mode is active — no point patching pages
 	// it doesn't render.
 	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+		return;
+	}
+	// …and only for a user who actually has DM turned on: DM is per-user
+	// opt-in, and this installs a document.body subtree MutationObserver —
+	// on Gutenberg's mutation-storm that's real idle churn for a non-DM
+	// session patching pages DM never renders.
+	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
 		return;
 	}
 	?>
