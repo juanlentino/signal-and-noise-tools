@@ -2,8 +2,11 @@
 /**
  * Signal & Noise — admin menu registration + asset enqueue.
  *
- * Registers the top-level "Signal & Noise" menu and its 6 submenu entries
- * (admin_menu), caches the resulting hook suffixes (sn_admin_page_hooks), and
+ * Registers the top-level "Signal & Noise" menu and one submenu entry per
+ * sn_admin_top_tabs() tab — the count is derived, never hardcoded, because
+ * desktop-mode renders these entries as a horizontal top nav that must
+ * mirror the in-page tab strip 1:1 (the v3.8.0 duplicate-nav lesson).
+ * Caches the resulting hook suffixes (sn_admin_page_hooks), and
  * enqueues admin.css/admin.js + the per-tab Suggest+Apply scripts
  * (admin_enqueue_scripts). Extracted from inc/admin-page.php in v4.5.4.
  *

@@ -26,12 +26,16 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 
 /* ---- intake form ---------------------------------------------------- */
 .sn-verify-form{display:flex;gap:0;flex-wrap:wrap;margin:0 0 .9rem;border:2px solid var(--bone)}
-.sn-verify-form label{flex:1 1 100%;font-size:.62rem;font-weight:500;text-transform:uppercase;letter-spacing:.22em;color:var(--rust);padding:.7em 1em .55em;border-bottom:1px solid var(--asphalt)}
+/* .7rem, not smaller: 11px is the type floor sitewide, uppercase micro-labels included. */
+.sn-verify-form label{flex:1 1 100%;font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.22em;color:var(--rust);padding:.7em 1em .55em;border-bottom:1px solid var(--asphalt)}
 .sn-verify-form input{flex:1 1 220px;min-width:0;font:inherit;font-size:.85rem;padding:.85em 1em;border:0;border-radius:0;background:var(--void);color:inherit}
 .sn-verify-form input:focus{outline:3px solid var(--blood);outline-offset:-3px}
 .sn-verify-form input::placeholder{color:var(--concrete)}
 .sn-verify-form button{font-family:'Bebas Neue',Impact,sans-serif;font-size:1.15rem;letter-spacing:.09em;padding:.4em 1.6em .3em;border:0;border-left:2px solid var(--bone);background:var(--bone);color:var(--void);cursor:pointer;transition:background .12s ease}
-.sn-verify-form button:hover,.sn-verify-form button:focus-visible{background:var(--signal);color:var(--void);outline:none}
+.sn-verify-form button:hover{background:var(--signal);color:var(--void)}
+/* Keyboard focus must be distinguishable from a coincidental hover — same
+   blood outline vocabulary as the input, on top of the hover background. */
+.sn-verify-form button:focus-visible{background:var(--signal);color:var(--void);outline:3px solid var(--blood);outline-offset:-3px}
 
 .sn-verify-status-line{min-height:1.2em;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--concrete);margin:0 0 2.2rem}
 .sn-verify-status-line:empty{margin:0 0 1.4rem}
