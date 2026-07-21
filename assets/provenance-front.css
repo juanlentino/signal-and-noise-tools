@@ -30,3 +30,9 @@
 .sn-prov-onchain-host{opacity:.6}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
 .sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}
+
+/* The chip's "Verify" affordance (v9.74.0): a quiet mono action link beside
+   the chip, in the same red-action vocabulary as .sn-prov-onchain-cta — reads
+   as a sibling action, not part of the chip pill itself. */
+.sn-prov-chip-verify{font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#e00404;text-decoration:underline;text-underline-offset:3px;margin-left:.15em;white-space:nowrap}
+.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#ff4c47}
