@@ -399,6 +399,14 @@ vv_true( '' !== $js && false !== strpos( $js, 'sha256:' ), "JS strips the 'sha25
 vv_true( '' !== $js && false !== strpos( $js, 'Block-anchored via OpenTimestamps at block' ), 'JS renders the no-txid confirmed anchor as a block-anchored NOTE, not FAIL' );
 vv_true( '' !== $js && false !== strpos( $js, 'A PRESENT field that disagrees is a contradiction; an ABSENT field' ), 'JS pins the contradiction-only-FAIL principle for the ledger tie-check' );
 vv_true( '' !== $js && preg_match( '/anchorTxid = String\( anchor\.txid \|\| .. \)\.toLowerCase\(\)/', $js ) === 1, 'JS case-normalizes the anchor txid before comparison' );
+// v9.74.1: the live-match check reads the twin's REAL schema field. The theme's
+// .json twin carries content_text/content_html — no bare `content`; reading one
+// made live-match report "edited since signing" on EVERY Note, always.
+vv_true( '' !== $js && false !== strpos( $js, 'content_text' ), 'JS live-match reads the twin schema field content_text (a bare `content` field does not exist)' );
+// v9.74.1: when the ledger carries the aggregation txid the credential's chain
+// data predates, the triangle completes: mempool must confirm the LEDGER's tx
+// at the credential's claimed block before the anchor may PASS.
+vv_true( '' !== $js && false !== strpos( $js, 'The ledger record supplies the aggregation transaction' ), 'JS completes the anchor triangle via a ledger-supplied txid when hash-attested' );
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),

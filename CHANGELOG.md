@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.74.1] - 2026-07-21: Live match reads the twin's real schema; the anchor completes the triangle
+
+**Headline:** the live-match check compared against a `content` field the .json twin never had — it reported "edited since signing" on every Note, always. It now reads `content_text`, and the anchor check learns to complete verification through a ledger-supplied txid.
+
+### Fixed
+
+- [assets/js/prov-verify.js](assets/js/prov-verify.js): live-match reads the twin's real `content_text` field (the theme's .json twin schema has content_text/content_html, no bare `content`) — unedited Notes now correctly report "matches the currently published content."
+- Anchor: when the credential's chain data predates the worker's txid capture but the LEDGER record carries `ots.bitcoin_txid` AND attests the same content hash, the verifier completes the triangle — mempool must confirm the ledger-supplied tx at the credential's claimed block for a PASS; a block mismatch is a contradiction (FAIL); an unreachable explorer stays an honest NOTE.
+
+> **Why PATCH:** correctness fixes to shipped verifier behavior; no new surface.
+
 ## [9.74.0] - 2026-07-21: The verifier learns to dress — the docket redesign
 
 **Headline:** /verify now speaks the site's own language: Bebas Neue + DM Mono from the theme's fonts, the site palette only, and verdicts that land as rotated rubber stamps on a numbered docket.
