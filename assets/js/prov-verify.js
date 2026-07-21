@@ -123,7 +123,11 @@
 		if ( detailEl && undefined !== detail ) {
 			detailEl.textContent = detail;
 		}
-		announce( detail || state );
+		// Initial pending states are visual scaffolding, not verdicts — announcing
+		// them just pads the coalesced screen-reader message with noise.
+		if ( STATE.PENDING !== state ) {
+			announce( detail || state );
+		}
 	}
 
 	/** Standard base64 (NOT base64url) -> bytes. proof.signedPayloadB64 and
@@ -445,10 +449,20 @@
 				setCheck( 'anchor', STATE.UNREACHABLE, 'Bitcoin confirms the anchor, but the independent ledger record could not be reached to cross-attest it.' );
 				return;
 			}
-			var ledgerTiesIt =
-				ledgerRes.json &&
-				String( ledgerRes.json.bitcoin_txid || '' ) === String( anchor.txid ) &&
-				String( ledgerRes.json.content_hash || '' ).replace( /^sha256:/, '' ) === String( evidence.contentHash || '' ).replace( /^sha256:/, '' );
+			// Real ledger record shape (notes/<uid>/v<n>.json): content_hash at the
+			// top level, the txid nested under ots. Keep the legacy top-level txid
+			// as a fallback so a future flattening doesn't break the check.
+			var rec       = ledgerRes.json || {};
+			var recTxid   = String( ( rec.ots && rec.ots.bitcoin_txid ) || rec.bitcoin_txid || '' );
+			var recHash   = String( rec.content_hash || '' ).replace( /^sha256:/, '' );
+			var credHash  = String( evidence.contentHash || '' ).replace( /^sha256:/, '' );
+			if ( ! recTxid && ! recHash ) {
+				// A record that carries no comparable fields is a schema mismatch,
+				// not a contradiction — never render it as FAIL.
+				setCheck( 'anchor', STATE.UNREACHABLE, 'Bitcoin confirms the anchor, but the ledger record carries no comparable fields to cross-attest it (schema mismatch).' );
+				return;
+			}
+			var ledgerTiesIt = recTxid === String( anchor.txid ) && recHash === credHash;
 			setCheck(
 				'anchor',
 				ledgerTiesIt ? STATE.PASS : STATE.FAIL,
@@ -515,7 +529,7 @@
 			var cred = credRes.json;
 			setStatusLine( 'Checking…' );
 
-			var ledgerKeysUrl = config.ledgerBase.replace( /\/?$/, '' ) + '/keys/keys.json';
+			var ledgerKeysUrl = config.ledgerBase.replace( /\/?$/, '' ) + '/keys/provenance-keys.json';
 			return Promise.all( [ fetchJSON( config.didUrl ), fetchJSON( config.keysUrl ), fetchJSON( ledgerKeysUrl ) ] ).then( function ( results ) {
 				var didRes = results[ 0 ];
 				var siteKeysRes = results[ 1 ];

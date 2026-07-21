@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.73.1] - 2026-07-21: The anchor check learns the ledger's real shape
+
+**Headline:** the live post-deploy run caught the /verify anchor check reading fields the real ledger records don't have — fixed against the actual repo layout.
+
+### Fixed
+
+- [assets/js/prov-verify.js](assets/js/prov-verify.js): the ledger cross-attest read `bitcoin_txid` at the record's top level, but real records (`notes/<uid>/v<n>.json`) nest it under `ots.` — the check now reads `ots.bitcoin_txid` with a top-level fallback, and a record carrying no comparable fields renders UNREACHABLE (schema mismatch), never FAIL (contradiction). The independent key cross-check fetched `keys/keys.json`; the real file is `keys/provenance-keys.json`.
+- Screen-reader announcements no longer include the four initial "pending" scaffolding states in the coalesced message.
+
+> **Why PATCH:** fixes to the just-shipped 9.73.0 feature's live behavior; no new capability, no API change.
+
 ## [9.73.0] - 2026-07-21: Anyone can verify a Note — the /verify page
 
 **Headline:** a human-facing provenance verifier at `/verify`: four checks run in the reader's own browser with plain-language verdicts, and every provenance chip links to it.
