@@ -1,0 +1,58 @@
+/* Signal & Noise — /verify (Notes provenance verifier), v9.73.0.
+   Standalone route: no theme stylesheet loads here, so this file also carries
+   the page-level baseline (html/body/box-sizing) it would otherwise inherit.
+   White-first brutalist to match the public site: hard borders, square
+   corners, generous spacing, mono accents, currentColor-driven — light-only,
+   like the maturity explainer (assets/maturity-front.css) and the provenance
+   chip (assets/provenance-front.css). Everything scoped to .sn-verify except
+   the unavoidable html/body reset. */
+
+*,*::before,*::after{box-sizing:border-box}
+html{background:#fff;color:#111}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#111;background:#fff}
+
+.sn-verify{max-width:640px;margin:0 auto;padding:3rem 1.5rem 5rem}
+
+.sn-verify-head{margin:0 0 2.5rem}
+.sn-verify-kicker{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;opacity:.6;margin:0 0 .5rem}
+.sn-verify h1{font-size:1.75rem;line-height:1.2;margin:0 0 .85rem}
+.sn-verify-lede{font-size:.92rem;line-height:1.6;opacity:.75;margin:0}
+
+.sn-verify-form{display:flex;gap:.6rem;flex-wrap:wrap;margin:0 0 1rem;padding:1.25rem;border:2px solid currentColor}
+.sn-verify-form label{flex:1 1 100%;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.65}
+.sn-verify-form input{flex:1 1 220px;min-width:0;font:inherit;font-size:.88rem;padding:.6em .75em;border:1px solid rgba(0,0,0,.28);border-radius:0;background:#fff;color:inherit}
+.sn-verify-form input:focus{outline:2px solid currentColor;outline-offset:1px}
+.sn-verify-form button{font:inherit;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:.6em 1.4em;border:2px solid currentColor;background:#111;color:#fff;cursor:pointer}
+.sn-verify-form button:hover,.sn-verify-form button:focus-visible{background:#fff;color:#111}
+
+.sn-verify-status-line{min-height:1.2em;font-size:.8rem;opacity:.7;margin:0 0 1.5rem}
+.sn-verify-status-line:empty{margin:0}
+
+.sn-verify-checks{list-style:none;margin:0 0 1.5rem;padding:0;border:2px solid currentColor}
+.sn-verify-check{padding:.9em 1.1em;border-bottom:1px solid rgba(0,0,0,.16)}
+.sn-verify-check:last-child{border-bottom:0}
+
+.sn-verify-check-state{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:.15em .55em;margin:0 .6em 0 0;border:1px solid currentColor}
+.sn-verify-check[data-state="PASS"] .sn-verify-check-state{color:#1f9d55;border-color:rgba(52,199,89,.5)}
+.sn-verify-check[data-state="FAIL"] .sn-verify-check-state{color:#c0392b;border-color:rgba(192,57,43,.5)}
+.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-state{color:#c98a12;border-color:rgba(255,176,32,.5)}
+.sn-verify-check[data-state="NOTE"] .sn-verify-check-state{color:#6b7280;border-color:rgba(128,128,128,.4)}
+.sn-verify-check[data-state="pending"] .sn-verify-check-state{opacity:.5}
+
+.sn-verify-check-name{font-weight:600;font-size:.9rem}
+.sn-verify-check-detail{margin:.4em 0 0;font-size:.8rem;line-height:1.5;opacity:.75}
+.sn-verify-check-detail:empty{margin:0}
+
+.sn-verify-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.sn-verify-facts{border:1px solid rgba(0,0,0,.24);padding:1rem 1.15rem;font-size:.82rem;margin:0 0 1.5rem}
+.sn-verify-facts p{margin:0 0 .5em}
+.sn-verify-facts p:last-child{margin-bottom:0}
+.sn-verify-facts a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+
+.sn-verify-noscript{font-size:.78rem;opacity:.65;font-style:italic;margin:0}
+
+@media (max-width:480px){
+	.sn-verify{padding:2rem 1.1rem 3.5rem}
+	.sn-verify-form{flex-direction:column;align-items:stretch}
+}

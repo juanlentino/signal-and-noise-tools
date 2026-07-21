@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.72.1
+ * Version:     9.73.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -79,6 +79,7 @@ require_once SNT_PATH . 'inc/provenance-render.php'; // Notes provenance: public
 require_once SNT_PATH . 'inc/provenance-admin.php'; // Notes provenance: admin surface (Plan 6)
 require_once SNT_PATH . 'inc/provenance-did.php';        // v9.23.0: did:web DID document (verifiable provenance D1)
 require_once SNT_PATH . 'inc/provenance-credential.php'; // v9.23.0: per-Note Verifiable Credential + REST route (D1)
+require_once SNT_PATH . 'inc/provenance-verify.php';     // v9.73.0: human-facing /verify client-side verifier
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each
 // window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn

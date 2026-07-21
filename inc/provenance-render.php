@@ -236,11 +236,26 @@ function sn_prov_render_chip( $post_id ) {
 		$suffix,
 		$ext
 	);
+
+	// The Verify link is a SIBLING of the chip, never nested inside it: the chip
+	// itself may already be wrapped in an <a> (the on-chain explorer link below),
+	// and an <a> inside an <a> is invalid HTML. It carries the version only when
+	// the chip shows a specific one (not the founding-snapshot/genesis-only case),
+	// so it always points at the exact commit the reader is looking at.
+	$verify_href = home_url( '/verify?note=' . rawurlencode( (string) $vm['note_uid'] ) );
+	if ( ! $vm['is_genesis_only'] ) {
+		$verify_href .= '&v=' . (int) $vm['version'];
+	}
+	$verify_link = ' <a class="sn-prov-chip-verify" href="' . esc_url( $verify_href ) . '">Verify</a>';
+
 	if ( '' === $href ) {
+		// Unlinked chip states (pending with no txid) stay a plain span: the
+		// shipped contract (tests/provenance-render.php) is ZERO anchors here.
+		// The Verify affordance appears once the chip itself is linkable.
 		return $chip;
 	}
 	$cta = sn_prov_explorer_cta( $explorer['kind'] ) . ' (mempool.space)';
-	return '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $cta ) . '" aria-label="' . esc_attr( $cta ) . '">' . $chip . '</a>';
+	return '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $cta ) . '" aria-label="' . esc_attr( $cta ) . '">' . $chip . '</a>' . $verify_link;
 }
 
 /**
