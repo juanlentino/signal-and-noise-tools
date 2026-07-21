@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.74.2] - 2026-07-21: Live match stops failing on paragraph structure
+
+**Headline:** the live-match comparison preserved newline structure, but the twin's `content_text` is the document flattened to one line while the signed payload keeps its 35-line paragraphs — the comparison could never match. Normalization now collapses all whitespace; "same words in the same order, case-sensitive" is the match semantic.
+
+### Fixed
+
+- [assets/js/prov-verify.js](assets/js/prov-verify.js): `roughNormalize` gains a final whole-string whitespace collapse. Verified against live data: the sampled Note's payload and twin now compare equal, case-sensitively.
+
+> **Why PATCH:** correctness fix to the just-shipped live-match repair.
+
 ## [9.74.1] - 2026-07-21: Live match reads the twin's real schema; the anchor completes the triangle
 
 **Headline:** the live-match check compared against a `content` field the .json twin never had — it reported "edited since signing" on every Note, always. It now reads `content_text`, and the anchor check learns to complete verification through a ledger-supplied txid.

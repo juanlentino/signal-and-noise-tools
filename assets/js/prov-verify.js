@@ -250,7 +250,12 @@
 			.split( '\n' )
 			.map( function ( line ) { return line.replace( /[ \t ]+/g, ' ' ).trim(); } )
 			.join( '\n' );
-		s = s.replace( /\n{3,}/g, '\n\n' ).trim();
+		// Final collapse: ALL whitespace including newlines. The canonical
+		// payload keeps its paragraph structure (35 lines) while the twin's
+		// content_text is the document flattened to ONE line — line-preserving
+		// comparison can never match them. "Same words in the same order" is
+		// the honest match semantic; paragraph breaks carry no provenance.
+		s = s.replace( /\s+/g, ' ' ).trim();
 		return s;
 	}
 
