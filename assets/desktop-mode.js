@@ -316,6 +316,68 @@
 		}
 	} );
 
+	// v9.78.0: the mirror-map gap — every one-shot ability gets a ⌘K entry.
+	// All five ride callRest (CMD_ABILITY falls through to the slug itself)
+	// and toast the ability's own summary; deliberate manual actions, so
+	// aiCallable is omitted throughout (the Copilot already has the abilities).
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-health-scan',
+		run: function() {
+			callRest( 'run-health-scan' )
+				.then( function( res ) {
+					toast( res && res.ok
+						? 'Health scan done: ' + res.flagged + ' flagged of ' + res.total + ' checks.'
+						: 'Health scan could not run.', res && res.ok && 0 === res.flagged ? 'info' : undefined );
+				} )
+				.catch( function( err ) { toast( 'Health scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+		},
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-insights-scan',
+		run: function() {
+			callRest( 'run-insights-scan' )
+				.then( function() { toast( 'Insights scan complete.' ); } )
+				.catch( function( err ) { toast( 'Insights scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+		},
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-narration',
+		run: function() {
+			callRest( 'run-narration' )
+				.then( function() { toast( 'Narration regenerated.' ); } )
+				.catch( function( err ) { toast( 'Narration failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+		},
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-prune-tags',
+		run: function() {
+			callRest( 'prune-unused-tags' )
+				.then( function( res ) {
+					// Output contract: { ok, deleted: string[], count: int }.
+					var n = res && 'number' === typeof res.count ? res.count : null;
+					toast( null === n ? 'Unused tags pruned.' : n + ' unused tag' + ( 1 === n ? '' : 's' ) + ' pruned.' );
+				} )
+				.catch( function( err ) { toast( 'Tag prune failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+		},
+	} );
+
+	window.wp.desktop.registerCommand( {
+		slug: 'sn-cmd-anchor-sweep',
+		run: function() {
+			callRest( 'anchor-sweep' )
+				.then( function( res ) {
+					toast( res && res.ok
+						? 'Anchor sweep: ' + res.upgraded + ' upgraded, ' + res.still_pending + ' still pending.'
+						: 'Anchor sweep could not run (' + ( ( res && res.error ) || 'unknown' ) + ').' );
+				} )
+				.catch( function( err ) { toast( 'Anchor sweep failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+		},
+	} );
+
 	/**
 	 * Attention badge.
 	 *

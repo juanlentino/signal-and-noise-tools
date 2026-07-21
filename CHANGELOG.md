@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.78.0] - 2026-07-21: The mirror map closes — anchors get their glanceable, one-shots get their palette
+
+**Headline:** the Desktop Mode integration settles on its principle (glance = widget/badge, one-shot = ⌘K command, review/config = iframe) and closes both real gaps: the SN Anchors widget (the one glanceable with no mirror) and five palette commands for the one-shot abilities that had none. The workbench window is removed — its two queues were the near-empty scanners, and review flows belong in the iframe tier.
+
+### New
+
+- **SN Anchors widget** ([assets/desktop-mode-widget-anchors.js](assets/desktop-mode-widget-anchors.js)): provenance anchor state on the desktop — pending Notes with their live in-flight Bitcoin transaction (confirmations N/6 from the worker's pending callbacks; a missing count renders the txid, never a fabricated 0/6), a Sweep-now button, and the honest idle state "N of N notes anchored". Fetch-on-render via the new anchor-status ability (the aggregate walks every Note's chain meta and must never ride a page-load localize).
+- **Two provenance abilities** ([inc/abilities-provenance.php](inc/abilities-provenance.php)): `signal-noise/anchor-status` (read; aggregates latest chain entries into pending rows + confirmed/total) and `signal-noise/anchor-sweep` (idempotent write wrapping the existing `sn_prov_run_sweep()` seam the admin button uses). Pinned in [tests/abilities-provenance.php](tests/abilities-provenance.php) (20 assertions: latest-entry semantics, null-not-zero confirmations, chainless exclusion, honest degradation, annotations).
+- **`signal-noise/run-health-scan`** ([inc/abilities-system.php](inc/abilities-system.php)): the health re-scan was the one one-shot action living exclusively behind an admin button with no ability. Returns the scan's own summary (total + flagged) so a toast can say something useful. Pinned in [tests/abilities-run-health-scan.php](tests/abilities-run-health-scan.php).
+- **Five ⌘K commands** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php) + [assets/desktop-mode.js](assets/desktop-mode.js)): SN: Run health scan, Run insights scan, Run narration, Prune unused tags, Sweep anchors — the mirror-map gap where existing one-shot abilities had no palette entry. All ride the existing callRest → sntAbilityRun transport and toast the ability's own summary (the prune toast reads the contract's `count`, not the `deleted` array). Command roster 17 → 22, widget roster 6 → 7, both re-pinned in [tests/desktop-mode-integration.php](tests/desktop-mode-integration.php).
+
+### Removed
+
+- **The v9.77.0 S&N Workbench window** (inc/desktop-mode-workbench.php + assets + fixture): its two queues (block migrations, pattern adoption) are rare-event scanners that idle empty — a workbench of empty queues is chrome, not capability (owner call; the queue choice was implementation-led). Review flows stay in the iframe tier where they already work; drop-to-draft ships on unchanged.
+
+> **Why MINOR:** new user-visible capabilities (widget, three abilities, five commands); the removed window was a UI surface, not an API.
+
 ## [9.77.0] - 2026-07-21: The Workbench earns the window — and the desktop learns to catch files
 
 **Headline:** the v9.76.0 monitor window is replaced by two Desktop Mode surfaces that do what existing chrome can't: the S&N Workbench (every scanner suggestion in one native triage queue with preview→apply→dismiss) and drop-to-draft (drop a markdown/text file anywhere on the desktop, get a drafted Note).
