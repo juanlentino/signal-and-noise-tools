@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.74.0] - 2026-07-21: The verifier learns to dress — the docket redesign
+
+**Headline:** /verify now speaks the site's own language: Bebas Neue + DM Mono from the theme's fonts, the site palette only, and verdicts that land as rotated rubber stamps on a numbered docket.
+
+### Improvements
+
+- [assets/css/prov-verify.css](assets/css/prov-verify.css): full redesign. Massive Bebas masthead with the blood rule, DM Mono body, numbered docket rows with state-colored ghost numerals, and stamp verdicts — bone-ink PASS (no green exists in this palette), blood FAIL, rust NOTE, dashed-concrete UNREACHABLE — each landing with a scale-settle stamp animation (disabled under prefers-reduced-motion; states remain word+shape distinct, never color-only).
+- [inc/provenance-verify.php](inc/provenance-verify.php): the page @font-faces the THEME's own woff2 files (the OG generator precedent) with preloads; docket numerals and a footer (site + Git ledger) added to the markup. All data-role/data-check JS hooks unchanged — zero JS changes.
+- [assets/provenance-front.css](assets/provenance-front.css): the chip's Verify link styled as a quiet mono action link in the red-action vocabulary (was an unstyled anchor).
+
+> **Why MINOR:** user-visible redesign of a shipped surface (the open-wide admin redesign precedent); no API, route, or behavior change.
+
 ## [9.73.2] - 2026-07-21: The anchor check stops failing honest proofs
 
 **Headline:** the hardening sweep found the anchor check rendering a red FAIL on 4 of 5 live Notes — every OTS block-anchored proof without an extracted aggregation txid. That shape is the normal one, and it now renders as an honest block-anchored NOTE with a ledger hash cross-attest.

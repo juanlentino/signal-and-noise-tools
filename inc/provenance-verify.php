@@ -107,6 +107,12 @@ function sn_prov_verify_send() {
 	$css_url = sn_prov_verify_asset_url( 'assets/css/prov-verify.css' );
 	$js_url  = sn_prov_verify_asset_url( 'assets/js/prov-verify.js' );
 
+	// The page speaks the site's own type: Bebas Neue + DM Mono, served from
+	// the THEME's font files (same origin; the OG card generator already leans
+	// on these exact woff2 files). If a different theme were ever active the
+	// fallbacks (Impact / Courier New) carry the same intent.
+	$fonts_base = function_exists( 'get_template_directory_uri' ) ? get_template_directory_uri() . '/assets/fonts' : '';
+
 	if ( function_exists( 'status_header' ) ) {
 		status_header( 200 ); // required: a postless path 404s by default via template_redirect.
 	}
@@ -120,6 +126,16 @@ function sn_prov_verify_send() {
 <meta name="robots" content="noindex, nofollow">
 <title>Verify a Note &mdash; Signal &amp; Noise</title>
 <link rel="stylesheet" href="<?php echo esc_url( $css_url ); ?>">
+<?php if ( '' !== $fonts_base ) : ?>
+<link rel="preload" href="<?php echo esc_url( $fonts_base . '/bebas-neue-latin.woff2' ); ?>" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="<?php echo esc_url( $fonts_base . '/dm-mono-300-latin.woff2' ); ?>" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:'Bebas Neue';font-weight:400;font-style:normal;font-display:swap;src:url('<?php echo esc_url( $fonts_base . '/bebas-neue-latin.woff2' ); ?>') format('woff2')}
+@font-face{font-family:'DM Mono';font-weight:300;font-style:normal;font-display:swap;src:url('<?php echo esc_url( $fonts_base . '/dm-mono-300-latin.woff2' ); ?>') format('woff2')}
+@font-face{font-family:'DM Mono';font-weight:400;font-style:normal;font-display:swap;src:url('<?php echo esc_url( $fonts_base . '/dm-mono-400-latin.woff2' ); ?>') format('woff2')}
+@font-face{font-family:'DM Mono';font-weight:500;font-style:normal;font-display:swap;src:url('<?php echo esc_url( $fonts_base . '/dm-mono-500-latin.woff2' ); ?>') format('woff2')}
+</style>
+<?php endif; ?>
 </head>
 <body>
 <div class="sn-verify"
@@ -147,23 +163,27 @@ function sn_prov_verify_send() {
 
 	<ol class="sn-verify-checks" data-role="checks">
 		<li class="sn-verify-check" data-check="signature">
-			<span class="sn-verify-check-state" data-role="state">pending</span>
+			<span class="sn-verify-check-no" aria-hidden="true">01</span>
 			<span class="sn-verify-check-name">Signature</span>
+			<span class="sn-verify-check-state" data-role="state">pending</span>
 			<p class="sn-verify-check-detail" data-role="detail"></p>
 		</li>
 		<li class="sn-verify-check" data-check="content-hash">
-			<span class="sn-verify-check-state" data-role="state">pending</span>
+			<span class="sn-verify-check-no" aria-hidden="true">02</span>
 			<span class="sn-verify-check-name">Content hash</span>
+			<span class="sn-verify-check-state" data-role="state">pending</span>
 			<p class="sn-verify-check-detail" data-role="detail"></p>
 		</li>
 		<li class="sn-verify-check" data-check="live-match">
-			<span class="sn-verify-check-state" data-role="state">pending</span>
+			<span class="sn-verify-check-no" aria-hidden="true">03</span>
 			<span class="sn-verify-check-name">Live match</span>
+			<span class="sn-verify-check-state" data-role="state">pending</span>
 			<p class="sn-verify-check-detail" data-role="detail"></p>
 		</li>
 		<li class="sn-verify-check" data-check="anchor">
-			<span class="sn-verify-check-state" data-role="state">pending</span>
+			<span class="sn-verify-check-no" aria-hidden="true">04</span>
 			<span class="sn-verify-check-name">Bitcoin anchor</span>
+			<span class="sn-verify-check-state" data-role="state">pending</span>
 			<p class="sn-verify-check-detail" data-role="detail"></p>
 		</li>
 	</ol>
@@ -171,6 +191,12 @@ function sn_prov_verify_send() {
 	<p class="sn-verify-live" data-role="announce" aria-live="polite"></p>
 
 	<section class="sn-verify-facts" data-role="facts" hidden></section>
+
+	<footer class="sn-verify-foot">
+		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">juanlentino.com</a>
+		<span aria-hidden="true">&middot;</span>
+		<a href="<?php echo esc_url( 'https://github.com/' . $owner . '/' . $repo ); ?>" rel="noopener">Git ledger</a>
+	</footer>
 
 	<p class="sn-verify-noscript"><noscript>Verification runs in JavaScript, in your own browser. Enable it to run the checks &mdash; nothing is sent anywhere by doing so.</noscript></p>
 </div>
