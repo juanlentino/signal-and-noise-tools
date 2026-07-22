@@ -1,0 +1,24 @@
+{
+	"payload": {
+		"algo": "sn-normalize-v1",
+		"author": "Juan Lentino",
+		"content": "The verifier is the trust surface, and this fixture is its witness.\n\nFive hotfixes landed in its decision paths in one day. Every one was caught live, after deploy, by a person reading a docket.\n\nThis record exists so the sixth is caught here, offline, before a deploy.\n\nSame words in the same order. That is the whole match semantic; paragraph breaks carry no provenance.",
+		"note_uid": "3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42",
+		"parent": "60425e2688f1cf17ca6066c71b7ddf2b8a3d9a4cc4bcd96390ac7de9d0696301",
+		"published_at": "2026-07-21T12:00:00Z",
+		"title": "Fixture: the docket witness",
+		"version": 1
+	},
+	"content_hash": "e06d431f19bc1eb0f382efa0068a45071a428f1b591dc3b692aca9f4a1c5bf12",
+	"signature": "wWRG6sARPUsMHw2RSdA4ZXZAuTf2dDC+vRG3QIwJ2m/6y7tXqa6+jnUSO/OGfObc7M/p22iPHUaUZ2dzxhoaIA==",
+	"pubkey_id": "sn-ed25519-2026-07",
+	"ots": {
+		"status": "confirmed",
+		"calendars": [
+			"alice.btc.calendar.opentimestamps.org"
+		],
+		"bitcoin_txid": "84b546128123ec01e6088b5d5b18960dcd150fd2c550af21b571ffaf9ebd4e2c",
+		"confirmations": 2,
+		"bitcoin_block": 958897
+	}
+}
