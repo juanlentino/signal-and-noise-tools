@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. Operational tooling: REST surface, first-party edge analytics, security headers, Cloudflare purge, admin UI, RSS subscriber tracker. Self-updater migrates in Phase 2.
- * Version:     9.79.0
+ * Version:     9.79.1
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -316,6 +316,7 @@ require_once __DIR__ . '/inc/discography-sync.php';    // v4.13.0: Music Identit
 require_once __DIR__ . '/inc/seo-schema-music.php';    // v4.13.0: Music Identity — MusicAlbum/MusicRecording JSON-LD on /music
 require_once __DIR__ . '/inc/music-featured.php';      // v4.14.0: settings-driven featured release (sn_music_featured filter)
 require_once __DIR__ . '/inc/post-settings.php';
+require_once __DIR__ . '/inc/pillar-meta-seed.php'; // v9.79.1: one-time flag+designation seed for the three known essays
 require_once __DIR__ . '/inc/post-evergreen.php'; // v8.11.0 (B5): evergreen flag accessor + Posts list column
 require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
