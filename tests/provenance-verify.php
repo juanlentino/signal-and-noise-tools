@@ -296,6 +296,25 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 	vv_eq( 200, $GLOBALS['__vv_status'], 'send() with no query params still emits 200' );
 	vv_true( false !== strpos( $html_empty, 'data-note=""' ), 'no ?note= -> blank data-note' );
 	vv_true( false !== strpos( $html_empty, 'data-version="0"' ), 'no ?v= -> data-version="0"' );
+
+	// v9.79.2: the pure decision core is a separate script and a hard
+	// dependency of the page script — the shell must emit BOTH tags, core
+	// FIRST (both defer: deferred scripts execute in document order, the
+	// load-order guarantee this enqueue-free route uses in place of WP's
+	// dependency graph), both cache-busted with the same ?ver= param.
+	$core_tag_pos = strpos( $html_empty, 'assets/js/prov-verify-core.js?ver=' );
+	$page_tag_pos = strpos( $html_empty, 'assets/js/prov-verify.js?ver=' );
+	vv_true( false !== $core_tag_pos, 'shell emits the prov-verify-core.js script tag with the ?ver= cache-buster' );
+	vv_true( false !== $page_tag_pos, 'shell emits the prov-verify.js script tag with the ?ver= cache-buster' );
+	vv_true(
+		false !== $core_tag_pos && false !== $page_tag_pos && $core_tag_pos < $page_tag_pos,
+		'the core script tag precedes the page script tag (dependency order)'
+	);
+	vv_true(
+		(bool) preg_match( '/<script src="[^"]*prov-verify-core\.js[^"]*" defer>/', $html_empty )
+			&& (bool) preg_match( '/<script src="[^"]*prov-verify\.js[^"]*" defer>/', $html_empty ),
+		'both script tags are defer (document-order execution keeps the dependency guarantee)'
+	);
 }
 
 echo "\nTask 6: chip Verify-link (sn_prov_render_chip, real module — GREEN not yet done)\n";
@@ -379,39 +398,59 @@ vv_true(
 	'an unlinked chip stays plain — no Verify link, no anchors at all (shipped plain-chip contract)'
 );
 
-echo "\nTask 7: JS contract pins (assets/js/prov-verify.js)\n";
-$js_path   = SNT_PATH . 'assets/js/prov-verify.js';
-$js_exists = file_exists( $js_path );
+echo "\nTask 7: JS contract pins (assets/js/prov-verify.js + assets/js/prov-verify-core.js)\n";
+// v9.79.2 layout: the page script keeps DOM/fetch/WebCrypto orchestration;
+// every pure decision moved VERBATIM into prov-verify-core.js (executable
+// under Node — tests/js/prov-verify-core.test.mjs — relayed into this sweep
+// by tests/provenance-verify-core.php). Pins that follow moved logic now
+// grep the CORE file; environmental pins stay on the page file.
+$js_path     = SNT_PATH . 'assets/js/prov-verify.js';
+$js_exists   = file_exists( $js_path );
+$core_path   = SNT_PATH . 'assets/js/prov-verify-core.js';
+$core_exists = file_exists( $core_path );
 vv_true( $js_exists, 'assets/js/prov-verify.js exists' );
-$js = $js_exists ? (string) file_get_contents( $js_path ) : '';
+vv_true( $core_exists, 'assets/js/prov-verify-core.js exists' );
+$js   = $js_exists ? (string) file_get_contents( $js_path ) : '';
+$core = $core_exists ? (string) file_get_contents( $core_path ) : '';
 
 vv_true( '' !== $js && false !== strpos( $js, 'Ed25519' ), "JS references the 'Ed25519' algorithm literal" );
 vv_true( '' !== $js && false !== strpos( $js, 'SHA-256' ), "JS references the 'SHA-256' digest literal" );
 vv_true(
-	'' !== $js && false !== strpos( $js, 'UNREACHABLE' ) && false !== strpos( $js, 'FAIL' ),
-	'JS has an UNREACHABLE state distinct from, and alongside, FAIL'
+	'' !== $core && false !== strpos( $core, 'UNREACHABLE' ) && false !== strpos( $core, 'FAIL' ),
+	'core has an UNREACHABLE state distinct from, and alongside, FAIL'
 );
-vv_true( '' !== $js && false !== strpos( $js, 'sha256:' ), "JS strips the 'sha256:' content-hash prefix" );
+vv_true( '' !== $core && false !== strpos( $core, 'sha256:' ), "core strips the 'sha256:' content-hash prefix" );
 // v9.73.2: the anchor check must treat the NORMAL no-txid shape (OTS
 // block-anchored, no aggregation tx extracted — 20+ of 25 live ledger records)
 // as a NOTE with a ledger hash cross-attest, NEVER a FAIL; FAIL is reserved
 // for a PRESENT field that contradicts.
-vv_true( '' !== $js && false !== strpos( $js, 'Block-anchored via OpenTimestamps at block' ), 'JS renders the no-txid confirmed anchor as a block-anchored NOTE, not FAIL' );
-vv_true( '' !== $js && false !== strpos( $js, 'A PRESENT field that disagrees is a contradiction; an ABSENT field' ), 'JS pins the contradiction-only-FAIL principle for the ledger tie-check' );
-vv_true( '' !== $js && preg_match( '/anchorTxid = String\( anchor\.txid \|\| .. \)\.toLowerCase\(\)/', $js ) === 1, 'JS case-normalizes the anchor txid before comparison' );
+vv_true( '' !== $core && false !== strpos( $core, 'Block-anchored via OpenTimestamps at block' ), 'core renders the no-txid confirmed anchor as a block-anchored NOTE, not FAIL' );
+vv_true( '' !== $core && false !== strpos( $core, 'A PRESENT field that disagrees is a contradiction; an ABSENT field' ), 'core pins the contradiction-only-FAIL principle for the ledger tie-check' );
+vv_true( '' !== $core && preg_match( '/anchorTxid = String\( anchor\.txid \|\| .. \)\.toLowerCase\(\)/', $core ) === 1, 'core case-normalizes the anchor txid before comparison' );
 // v9.74.1: the live-match check reads the twin's REAL schema field. The theme's
 // .json twin carries content_text/content_html — no bare `content`; reading one
 // made live-match report "edited since signing" on EVERY Note, always.
-vv_true( '' !== $js && false !== strpos( $js, 'content_text' ), 'JS live-match reads the twin schema field content_text (a bare `content` field does not exist)' );
+vv_true( '' !== $core && false !== strpos( $core, 'content_text' ), 'core live-match reads the twin schema field content_text (a bare `content` field does not exist)' );
 // v9.74.1: when the ledger carries the aggregation txid the credential's chain
 // data predates, the triangle completes: mempool must confirm the LEDGER's tx
 // at the credential's claimed block before the anchor may PASS.
-vv_true( '' !== $js && false !== strpos( $js, 'The ledger record supplies the aggregation transaction' ), 'JS completes the anchor triangle via a ledger-supplied txid when hash-attested' );
+vv_true( '' !== $core && false !== strpos( $core, 'The ledger record supplies the aggregation transaction' ), 'core completes the anchor triangle via a ledger-supplied txid when hash-attested' );
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),
 	'JS hardcodes zero https:// URLs (every endpoint comes from data attributes)'
 );
+vv_true(
+	'' !== $core && false === strpos( $core, 'https://' ),
+	'core hardcodes zero https:// URLs (bases always arrive as arguments)'
+);
+// The split contract itself: core defines the single namespaced global plus
+// the CommonJS guard (Node require()s the same classic script); the page
+// consumes the global and never redefines the moved logic.
+vv_true( '' !== $core && false !== strpos( $core, 'window.SNProvVerifyCore' ), 'core assigns the window.SNProvVerifyCore global' );
+vv_true( '' !== $core && false !== strpos( $core, "typeof module !== 'undefined' && module.exports" ), 'core carries the CommonJS export guard for Node' );
+vv_true( '' !== $js && false !== strpos( $js, 'window.SNProvVerifyCore' ), 'page script consumes the SNProvVerifyCore global' );
+vv_true( '' !== $js && false === strpos( $js, 'function roughNormalize' ), 'page script no longer defines the moved normalization (single source in the core)' );
 
 $report = ob_get_clean();
 echo $report;

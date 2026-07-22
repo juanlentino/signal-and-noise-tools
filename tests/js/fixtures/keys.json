@@ -1,0 +1,14 @@
+{
+	"schema": "sn-provenance-keys-v1",
+	"domain": "juanlentino.com",
+	"keys": [
+		{
+			"id": "sn-ed25519-2026-07",
+			"algorithm": "Ed25519",
+			"public_key_base64": "+aDvAWcZA6awAX3+y76cteKbIGKyVLDjpG7rp7IVNWs=",
+			"sha256_fingerprint": "973e572578919916d93bbe37dbf3a3539b4e1bc1b19d235a7610cc734cae674a",
+			"status": "active",
+			"introduced_at": "2026-07-09"
+		}
+	]
+}

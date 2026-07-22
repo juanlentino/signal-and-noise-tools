@@ -1,0 +1,46 @@
+{
+	"@context": [
+		"https://www.w3.org/ns/credentials/v2",
+		"https://schema.org/"
+	],
+	"type": [
+		"VerifiableCredential",
+		"AuthorshipCredential"
+	],
+	"issuer": "did:web:juanlentino.com",
+	"validFrom": "2026-07-21T08:00:00-04:00",
+	"credentialSubject": {
+		"id": "https://juanlentino.com/notes/fixture-docket-witness/",
+		"type": "CreativeWork",
+		"name": "Fixture: the docket witness",
+		"url": "https://juanlentino.com/notes/fixture-docket-witness/",
+		"datePublished": "2026-07-21T08:00:00-04:00",
+		"author": {
+			"type": "Person",
+			"name": "Juan Lentino",
+			"url": "https://juanlentino.com/about/"
+		}
+	},
+	"evidence": [
+		{
+			"type": "BitcoinAnchor",
+			"contentHash": "sha256:e06d431f19bc1eb0f382efa0068a45071a428f1b591dc3b692aca9f4a1c5bf12",
+			"version": 1,
+			"anchor": {
+				"chain": "bitcoin",
+				"txid": "84b546128123ec01e6088b5d5b18960dcd150fd2c550af21b571ffaf9ebd4e2c",
+				"block": 958897,
+				"status": "confirmed"
+			}
+		}
+	],
+	"proof": {
+		"type": "DataIntegrityProof",
+		"cryptosuite": "sn-ed25519-canonical-2026",
+		"verificationMethod": "did:web:juanlentino.com#prov-key-1",
+		"proofPurpose": "assertionMethod",
+		"proofValue": "wWRG6sARPUsMHw2RSdA4ZXZAuTf2dDC+vRG3QIwJ2m/6y7tXqa6+jnUSO/OGfObc7M/p22iPHUaUZ2dzxhoaIA==",
+		"signedPayloadB64": "eyJhbGdvIjoic24tbm9ybWFsaXplLXYxIiwiYXV0aG9yIjoiSnVhbiBMZW50aW5vIiwiY29udGVudCI6IlRoZSB2ZXJpZmllciBpcyB0aGUgdHJ1c3Qgc3VyZmFjZSwgYW5kIHRoaXMgZml4dHVyZSBpcyBpdHMgd2l0bmVzcy5cblxuRml2ZSBob3RmaXhlcyBsYW5kZWQgaW4gaXRzIGRlY2lzaW9uIHBhdGhzIGluIG9uZSBkYXkuIEV2ZXJ5IG9uZSB3YXMgY2F1Z2h0IGxpdmUsIGFmdGVyIGRlcGxveSwgYnkgYSBwZXJzb24gcmVhZGluZyBhIGRvY2tldC5cblxuVGhpcyByZWNvcmQgZXhpc3RzIHNvIHRoZSBzaXh0aCBpcyBjYXVnaHQgaGVyZSwgb2ZmbGluZSwgYmVmb3JlIGEgZGVwbG95LlxuXG5TYW1lIHdvcmRzIGluIHRoZSBzYW1lIG9yZGVyLiBUaGF0IGlzIHRoZSB3aG9sZSBtYXRjaCBzZW1hbnRpYzsgcGFyYWdyYXBoIGJyZWFrcyBjYXJyeSBubyBwcm92ZW5hbmNlLiIsIm5vdGVfdWlkIjoiM2Y3YzJhMTAtOWQ0ZS00YjZmLThhMjEtNWUwYzliN2QxZjQyIiwicGFyZW50IjoiNjA0MjVlMjY4OGYxY2YxN2NhNjA2NmM3MWI3ZGRmMmI4YTNkOWE0Y2M0YmNkOTYzOTBhYzdkZTlkMDY5NjMwMSIsInB1Ymxpc2hlZF9hdCI6IjIwMjYtMDctMjFUMTI6MDA6MDBaIiwidGl0bGUiOiJGaXh0dXJlOiB0aGUgZG9ja2V0IHdpdG5lc3MiLCJ2ZXJzaW9uIjoxfQ==",
+		"verificationProcedure": "https://juanlentino.com/provenance/verify"
+	}
+}

@@ -111,8 +111,9 @@ function sn_prov_verify_send() {
 	$ledger_base  = "https://raw.githubusercontent.com/{$owner}/{$repo}/main/";
 	$mempool_base = 'https://mempool.space/api/';
 
-	$css_url = sn_prov_verify_asset_url( 'assets/css/prov-verify.css' );
-	$js_url  = sn_prov_verify_asset_url( 'assets/js/prov-verify.js' );
+	$css_url  = sn_prov_verify_asset_url( 'assets/css/prov-verify.css' );
+	$core_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-core.js' );
+	$js_url   = sn_prov_verify_asset_url( 'assets/js/prov-verify.js' );
 
 	// The page speaks the site's own type: Bebas Neue + DM Mono, served from
 	// the THEME's font files (same origin; the OG card generator already leans
@@ -211,6 +212,14 @@ function sn_prov_verify_send() {
 
 	<p class="sn-verify-noscript"><noscript>Verification runs in JavaScript, in your own browser. Enable it to run the checks &mdash; nothing is sent anywhere by doing so.</noscript></p>
 </div>
+<?php // The pure decision core is a hard dependency of the page script — it
+// MUST load first. This standalone route never runs the wp_enqueue_scripts
+// lifecycle (the page exits at template_redirect), so the dependency is
+// expressed the way this shell already expresses assets: emitted in order,
+// both `defer` (deferred scripts execute in document order per spec — the
+// same load-order guarantee WP's dependency graph would provide), both
+// cache-busted via sn_prov_verify_asset_url()'s ?ver=SNT_VERSION param. ?>
+<script src="<?php echo esc_url( $core_url ); ?>" defer></script>
 <script src="<?php echo esc_url( $js_url ); ?>" defer></script>
 </body>
 </html>

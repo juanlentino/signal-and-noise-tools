@@ -132,5 +132,89 @@ foreach ( $cited as $slug => $files ) {
 		"cited category '$slug' is registered (cited by " . implode( ', ', array_unique( $files ) ) . ')' );
 }
 
+// ════ Group E: read-ability null-input schema — STRUCTURAL (v9.79.2) ════
+// The trap this generalizes bit THREE times (get-deploy-status, the v9.78.1
+// widget reads, anchor-status — closed v9.78.2): a readonly ability rides
+// the GET run-path, a caller that omits ?input= delivers NULL, and a plain
+// 'object' input schema rejects every such call ("input is not of type
+// object"). Each bite was fixed by pinning ONE ability. The structural rule:
+// EVERY ability annotated readonly whose input schema declares no `required`
+// list (i.e. it is legally callable bodyless) MUST type its input as the
+// array( 'object', 'null' ) union. Abilities with a `required` list are
+// exempt (a bodyless call is invalid for them anyway), as are write-verb
+// (readonly=false) abilities (POST run-path always carries a body).
+// Scans every inc/*.php wp_register_ability() call site with balanced-paren
+// extraction, same spirit as Group D: a new read ability shipped with a
+// write ability's schema shape now fails this suite instead of the live site.
+echo "\nGroup E: every no-required readonly ability declares the [object,null] input union\n";
+$acg_sites = array();
+foreach ( glob( __DIR__ . '/../inc/*.php' ) as $acg_file ) {
+	$acg_src    = (string) file_get_contents( $acg_file );
+	$acg_offset = 0;
+	while ( preg_match( "/wp_register_ability\(\s*'([^']+)'/", $acg_src, $acg_m, PREG_OFFSET_CAPTURE, $acg_offset ) ) {
+		$acg_start = $acg_m[0][1];
+		$acg_open  = strpos( $acg_src, '(', $acg_start );
+		$acg_depth = 0;
+		$acg_i     = $acg_open;
+		$acg_len   = strlen( $acg_src );
+		while ( $acg_i < $acg_len ) {
+			$acg_c = $acg_src[ $acg_i ];
+			if ( '(' === $acg_c ) { $acg_depth++; }
+			if ( ')' === $acg_c ) { $acg_depth--; if ( 0 === $acg_depth ) { break; } }
+			$acg_i++;
+		}
+		$acg_sites[] = array(
+			'file'  => basename( $acg_file ),
+			'slug'  => $acg_m[1][0],
+			'block' => substr( $acg_src, $acg_start, $acg_i - $acg_start + 1 ),
+		);
+		$acg_offset = $acg_i;
+	}
+}
+// Sanity floor: the registrar surface is 40+ abilities; a broken scan that
+// finds a handful must fail loudly, not vacuously pass an empty loop.
+ok( count( $acg_sites ) >= 40, 'the scan found the full ability surface (got ' . count( $acg_sites ) . ' call sites)' );
+
+$acg_read_bodyless = 0;
+foreach ( $acg_sites as $acg_site ) {
+	$acg_block = $acg_site['block'];
+	if ( ! preg_match( "/'readonly'\s*=>\s*true/", $acg_block ) ) {
+		continue; // write-verb: POST run-path, body always present.
+	}
+	// Extract the input_schema sub-array (balanced from its own paren).
+	$acg_schema = '';
+	if ( preg_match( "/'input_schema'\s*=>\s*array\s*\(/", $acg_block, $acg_sm, PREG_OFFSET_CAPTURE ) ) {
+		$acg_sopen = strpos( $acg_block, '(', $acg_sm[0][1] + strlen( "'input_schema'" ) );
+		$acg_depth = 0;
+		$acg_i     = $acg_sopen;
+		$acg_len   = strlen( $acg_block );
+		while ( $acg_i < $acg_len ) {
+			$acg_c = $acg_block[ $acg_i ];
+			if ( '(' === $acg_c ) { $acg_depth++; }
+			if ( ')' === $acg_c ) { $acg_depth--; if ( 0 === $acg_depth ) { break; } }
+			$acg_i++;
+		}
+		$acg_schema = substr( $acg_block, $acg_sopen, $acg_i - $acg_sopen + 1 );
+	}
+	ok( '' !== $acg_schema, "readonly ability '{$acg_site['slug']}' declares an input_schema at all ({$acg_site['file']})" );
+	if ( preg_match( "/'required'\s*=>/", $acg_schema ) ) {
+		continue; // a required list makes a bodyless call invalid anyway.
+	}
+	$acg_read_bodyless++;
+	// The schema's TOP-LEVEL type is its first 'type' key (house style puts
+	// it first; nested property types only ever appear later).
+	$acg_union = preg_match( "/'type'\s*=>\s*array\s*\(\s*'object'\s*,\s*'null'\s*\)/", $acg_schema )
+		&& preg_match( "/'type'\s*=>\s*(array|')/", $acg_schema, $acg_tm, PREG_OFFSET_CAPTURE )
+		&& preg_match( "/^'type'\s*=>\s*array\s*\(\s*'object'\s*,\s*'null'\s*\)/", substr( $acg_schema, $acg_tm[0][1] ) );
+	ok(
+		(bool) $acg_union,
+		"readonly, no-required ability '{$acg_site['slug']}' types its input array('object','null') — bodyless GET delivers null ({$acg_site['file']})"
+	);
+}
+// The rule currently covers the 12 shipped read surfaces (get-deploy-status,
+// anchor-status, uptime-status, the get-* readers...). Pin the floor so a
+// scan regression that silently skips the readonly filter can't pass green.
+ok( $acg_read_bodyless >= 12, "the gate actually exercised the read surface (got $acg_read_bodyless no-required readonly abilities)" );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

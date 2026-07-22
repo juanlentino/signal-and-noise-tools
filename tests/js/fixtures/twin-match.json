@@ -1,0 +1,17 @@
+{
+	"url": "https://juanlentino.com/notes/fixture-docket-witness/",
+	"type": "note",
+	"title": "Fixture: the docket witness",
+	"date_published": "2026-07-21T08:00:00-04:00",
+	"author": {
+		"name": "Juan Lentino",
+		"url": "https://juanlentino.com/about/"
+	},
+	"content_html": "<p class=\"wp-block-paragraph\">The verifier is the trust surface, and this fixture is its witness.</p>\n<p class=\"wp-block-paragraph\">Five hotfixes landed in its decision paths in one day. Every one was caught live, after deploy, by a person reading a docket.</p>\n<p class=\"wp-block-paragraph\">This record exists so the sixth is caught here, offline, before a deploy.</p>\n<p class=\"wp-block-paragraph\">Same words in the same order. That is the whole match semantic; paragraph breaks carry no provenance.</p>",
+	"content_text": "The verifier is the trust surface, and this fixture is its witness. Five hotfixes landed in its decision paths in one day. Every one was caught live, after deploy, by a person reading a docket. This record exists so the sixth is caught here, offline, before a deploy. Same words in the same order. That is the whole match semantic; paragraph breaks carry no provenance.",
+	"provenance": {
+		"verify_url": "https://juanlentino.com/verify?note=3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42",
+		"note": "This Note carries a Bitcoin-anchored authorship proof.",
+		"note_uid": "3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42"
+	}
+}
