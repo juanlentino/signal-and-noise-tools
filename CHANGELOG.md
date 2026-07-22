@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.79.1] - 2026-07-21: The three designations seed themselves
+
+**Headline:** v9.79.0 expected the owner to hand-enter the three known designations in the panel; live, the panel stayed empty and the rail fell back to date order (owner-caught same day). A one-time seed now writes the flag plus designation for the three known essays (over-detection = 1.00, cheap-option = 1.01, as-substrate = 2.00) on the first wp-admin visit, and owner edits always win.
+
+### Fixed
+
+- [inc/pillar-meta-seed.php](inc/pillar-meta-seed.php) (new): one-shot seed on `admin_init` behind an autoload=no option sentinel (install hooks cannot observe WP UI deploys). Skips any page already carrying either pillar key (no partial writes), password-protected pages (matching the theme rail's gate), and missing pages; a visit without `edit_pages` retries later instead of burning the sentinel. Pinned in [tests/pillar-meta-seed.php](tests/pillar-meta-seed.php) (19 assertions).
+
+> **Why PATCH:** repairs the v9.79.0 rollout gap (no new capability; the keys and panel are unchanged). Pairs with theme v10.47.1 (the designation-fit and editor-preview fixes).
+
 ## [9.79.0] - 2026-07-21: The pillar rail gets its curation surface
 
 **Headline:** the theme's pillar essay rail (theme v10.47.0, the paired release shipping alongside this one) derives from per-Page meta this plugin now owns: a "Feature as a pillar essay" flag and a free-text editorial designation (the owner's major.minor numbering, for example over-detection = 1.00, cheap-option = 1.01, as-substrate = 2.00). Both live in the existing Signal & Noise meta box on Page edit screens; the owner hand-enters the three designations after install (deliberate: no migration or backfill code).
