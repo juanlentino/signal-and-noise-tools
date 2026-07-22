@@ -91,6 +91,8 @@ ok( 'snt_ability_perm_manage_options' === $st['permission_callback'] && 'snt_abi
 	'both abilities are owner-gated' );
 ok( 'diagnostics' === $st['category'] && 'maintenance' === $sw['category'], 'categories come from the REGISTERED set in inc/abilities-categories.php (v9.78.0 shipped the unregistered \'monitoring\' — caught live)' );
 ok( true === ( $st['meta']['annotations']['readonly'] ?? null ), 'anchor-status is annotated readonly (GET run-path)' );
+ok( array( 'object', 'null' ) === ( $st['input_schema']['type'] ?? null ),
+	'anchor-status input accepts the null a bodyless GET delivers (the [object,null] union — a plain object shipped in v9.78.1 rejected every widget read live)' );
 ok( false === ( $sw['meta']['annotations']['readonly'] ?? null ) && true === ( $sw['meta']['annotations']['idempotent'] ?? null ),
 	'anchor-sweep is non-readonly but idempotent' );
 ok( false === ( $sw['meta']['annotations']['destructive'] ?? null ), 'anchor-sweep is annotated non-destructive' );

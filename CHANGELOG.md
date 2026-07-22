@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.78.2] - 2026-07-21: anchor-status accepts the null a bodyless GET delivers
+
+**Headline:** the SN Anchors widget's read was still dead after v9.78.1 — anchor-status is readonly (GET run-path), a caller that omits `?input=` delivers null, and the ability's plain `'object'` input schema rejected it ("input is not of type object", owner-caught live). Third bite of this exact trap; the schema now uses the house `[object, null]` union.
+
+### Fixed
+
+- [inc/abilities-provenance.php](inc/abilities-provenance.php): anchor-status `input_schema.type` → `array( 'object', 'null' )`, matching every other read ability (the get-deploy-status precedent and its v2.5.4 comment). Pinned in [tests/abilities-provenance.php](tests/abilities-provenance.php) with the failure spelled out, so a future read ability copying a write ability's plain-object schema fails the suite.
+
+> **Why PATCH:** one schema union on a just-shipped ability; no behavior change beyond the read actually validating.
+
 ## [9.78.1] - 2026-07-21: anchor-status joins a registered category — and unregistered categories can't ship again
 
 **Headline:** v9.78.0's anchor-status ability cited category `monitoring`, which the category registrar never registers — WP 6.9's `_doing_it_wrong` fired on every desktop-shell request and the registry silently refused the ability (owner-caught live via Query Monitor). Fixed to `diagnostics`, and the test gate is now structural.
