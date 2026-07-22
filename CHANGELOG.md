@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.79.0] - 2026-07-21: The pillar rail gets its curation surface
+
+**Headline:** the theme's pillar essay rail (theme v10.47.0, the paired release shipping alongside this one) derives from per-Page meta this plugin now owns: a "Feature as a pillar essay" flag and a free-text editorial designation (the owner's major.minor numbering, for example over-detection = 1.00, cheap-option = 1.01, as-substrate = 2.00). Both live in the existing Signal & Noise meta box on Page edit screens; the owner hand-enters the three designations after install (deliberate: no migration or backfill code).
+
+### New
+
+- [inc/post-settings.php](inc/post-settings.php): registers `_sn_pillar` (boolean feature flag, stored as `'1'` when checked and deleted when not) and `_sn_pillar_designation` (free text, `sanitize_text_field` + trim, empty deletes the key: the numbering scheme is the owner's editorial data, so the field is never format-validated) on Pages only, never on posts. Two deliberate divergences from the file's older keys: `show_in_rest => false` (the classic meta-box bridge saves via POST; flip only when a React sidebar actually needs REST) and a per-resource auth callback (`edit_post` on the object id, using the real six-argument signature WP passes registered auth callbacks, not the older blanket `edit_posts` closure). The meta box grows two "Pillar essay" fields rendered only on Page edit screens, as flat `.sn-field` sections matching every sibling field in the box (the box deliberately has no section headings: admin.css does not load on the edit screens, so heading markup would render as raw wp-admin h2), and the save path guards both writes on `get_post_type( $post_id ) === 'page'` so a crafted POST against a post can never set page-only meta. Pinned in [tests/post-settings-pillar.php](tests/post-settings-pillar.php) (33 assertions: page-only registration, types, sanitizers, `show_in_rest` false, the auth callback's cap + object id, render gate + escaping, and the full save path including the post-type guard).
+
+> **Why MINOR:** a new user-visible capability (the pillar curation surface in the per-post settings panel); existing keys, routes, and behavior are untouched.
+
 ## [9.78.2] - 2026-07-21: anchor-status accepts the null a bodyless GET delivers
 
 **Headline:** the SN Anchors widget's read was still dead after v9.78.1 — anchor-status is readonly (GET run-path), a caller that omits `?input=` delivers null, and the ability's plain `'object'` input schema rejected it ("input is not of type object", owner-caught live). Third bite of this exact trap; the schema now uses the house `[object, null]` union.

@@ -1,17 +1,19 @@
 <?php
 /**
- * Signal & Noise Tools — Per-post SEO settings.
+ * Signal & Noise Tools — Per-post settings meta box.
  *
- * Three meta keys, written via the meta box on post + page edit screens:
- *   _sn_noindex            — robots noindex toggle (reader: inc/seo.php
- *                            since v1.6.0; write path added here)
- *   _sn_meta_description   — custom <meta name="description"> override
- *   _sn_og_image_url       — custom OG image URL override (highest priority)
+ * SEO/robots/OG override keys on posts + pages (grown from the original
+ * three to nine: _sn_noindex, _sn_noarchive, _sn_noimageindex,
+ * _sn_evergreen, _sn_meta_description, _sn_canonical_url,
+ * _sn_og_image_url, _sn_og_card_title, _sn_seo_title), plus the pillar
+ * curation pair on Pages ONLY (v9.79.0): _sn_pillar +
+ * _sn_pillar_designation, consumed by the theme's pillar essay rail.
  *
  * Architecture: classic add_meta_box() auto-converts to a block editor
- * sidebar panel via WP's legacy-meta-box bridge. Plus register_post_meta()
- * with show_in_rest=true future-proofs storage for a React sidebar later
- * (no migration). Same pattern Yoast uses at scale.
+ * sidebar panel via WP's legacy-meta-box bridge. The SEO-era keys carry
+ * register_post_meta() show_in_rest=true (future React sidebar seam); the
+ * pillar keys deliberately do NOT (the meta-box bridge saves via POST, so
+ * REST exposure would be surface without a consumer).
  *
  * Added in v1.10.0 (2026-05-16).
  *
@@ -26,11 +28,13 @@ const SN_POST_SETTINGS_NONCE      = 'sn_post_settings_save';
 const SN_POST_SETTINGS_POST_TYPES = array( 'post', 'page' );
 
 /**
- * Register the 3 post meta keys with REST exposure.
+ * Register the meta keys.
  *
- * register_post_meta is per-post-type — loop over our supported types.
- * auth_callback enforces edit_posts for REST writes (without it, non-
- * admin users could bypass the save_post cap check via REST).
+ * register_post_meta is per-post-type — the SEO-era keys loop over both
+ * supported types with show_in_rest=true and a blanket edit_posts
+ * auth_callback (their original contract, kept stable). The pillar pair
+ * (v9.79.0) registers on 'page' only, show_in_rest=false, with a
+ * per-resource edit_post auth_callback on the object id.
  */
 function sn_post_settings_register_meta() {
 	$auth_cb = function () {
@@ -79,6 +83,45 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_og_card_title',    $text_args );
 		register_post_meta( $post_type, '_sn_seo_title',        $title_args ); // v9.3.0
 	}
+
+	// v9.79.0: pillar essay curation, Pages ONLY (pillars are Pages; the
+	// theme's pillar rail derives from this meta). Two deliberate divergences
+	// from the older keys above:
+	//   show_in_rest => false: the classic meta-box bridge saves via POST,
+	//   so REST exposure buys nothing today; flip to true only when a React
+	//   sidebar actually needs REST.
+	//   auth_callback: per-resource edit_post on the object id, using the
+	//   real signature WP passes registered auth callbacks
+	//   ($allowed, $meta_key, $object_id, $user_id, $cap, $caps), not the
+	//   blanket edit_posts closure above.
+	$pillar_auth_cb = function ( $allowed, $meta_key, $object_id, $user_id, $cap, $caps ) {
+		return current_user_can( 'edit_post', $object_id );
+	};
+
+	register_post_meta(
+		'page',
+		'_sn_pillar',
+		array(
+			'show_in_rest'      => false,
+			'single'            => true,
+			'type'              => 'boolean',
+			'default'           => false,
+			'auth_callback'     => $pillar_auth_cb,
+			'sanitize_callback' => 'rest_sanitize_boolean',
+		)
+	);
+	register_post_meta(
+		'page',
+		'_sn_pillar_designation',
+		array(
+			'show_in_rest'      => false,
+			'single'            => true,
+			'type'              => 'string',
+			'default'           => '',
+			'auth_callback'     => $pillar_auth_cb,
+			'sanitize_callback' => 'sanitize_text_field',
+		)
+	);
 }
 add_action( 'init', 'sn_post_settings_register_meta' );
 
@@ -200,6 +243,29 @@ function sn_post_settings_render( $post ) {
 	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only — the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. Aim for 60-90 chars for the punchiest card.</p>';
 	echo '</div>';
 
+	// ─── Pillar essay (v9.79.0, Pages only) ───
+	// Flat .sn-field sections like every sibling above: this box never
+	// grew section headings, and admin.css does not load on the edit
+	// screens, so heading markup would render as a raw wp-admin h2.
+	if ( 'page' === $post->post_type ) {
+		$pillar      = (bool) get_post_meta( $post->ID, '_sn_pillar', true );
+		$designation = (string) get_post_meta( $post->ID, '_sn_pillar_designation', true );
+
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label sn-field-label--inline">';
+		echo '<input type="checkbox" name="sn_pillar" value="1"' . checked( $pillar, true, false ) . '> ';
+		echo 'Feature as a pillar essay';
+		echo '</label>';
+		echo '<p class="sn-field-helper">Surfaces this Page in the theme&rsquo;s pillar essay rail.</p>';
+		echo '</div>';
+
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label" for="sn_pillar_designation">Pillar designation</label>';
+		echo '<input type="text" id="sn_pillar_designation" name="sn_pillar_designation" value="' . esc_attr( $designation ) . '" placeholder="1.01">';
+		echo '<p class="sn-field-helper">Editorial number, for example <code>1.01</code>. The pillar rail sorts numerically by major.minor.</p>';
+		echo '</div>';
+	}
+
 	echo '</div>';
 }
 
@@ -291,6 +357,25 @@ function sn_post_settings_save( $post_id ) {
 			update_post_meta( $post_id, $meta_key, $url );
 		} else {
 			delete_post_meta( $post_id, $meta_key );
+		}
+	}
+
+	// v9.79.0: pillar essay curation, Pages ONLY. The post-type guard means
+	// a crafted POST against a post can never set page-only meta.
+	if ( 'page' === get_post_type( $post_id ) ) {
+		if ( ! empty( $_POST['sn_pillar'] ) ) {
+			update_post_meta( $post_id, '_sn_pillar', '1' );
+		} else {
+			delete_post_meta( $post_id, '_sn_pillar' );
+		}
+
+		$designation = isset( $_POST['sn_pillar_designation'] )
+			? trim( sanitize_text_field( wp_unslash( $_POST['sn_pillar_designation'] ) ) )
+			: '';
+		if ( '' !== $designation ) {
+			update_post_meta( $post_id, '_sn_pillar_designation', $designation );
+		} else {
+			delete_post_meta( $post_id, '_sn_pillar_designation' );
 		}
 	}
 
