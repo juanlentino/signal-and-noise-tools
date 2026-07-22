@@ -107,7 +107,12 @@ function snt_abilities_provenance_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_anchor_status',
 		'input_schema'        => array(
-			'type'                 => 'object',
+			// The [object,null] union, per the house rule for READ abilities
+			// (see get-deploy-status): readonly ⇒ GET run-path ⇒ a caller that
+			// omits ?input= delivers NULL, and a plain 'object' rejects every
+			// such call ("input is not of type object" — v9.78.1, caught live
+			// on the SN Anchors widget; third bite of this exact trap).
+			'type'                 => array( 'object', 'null' ),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
