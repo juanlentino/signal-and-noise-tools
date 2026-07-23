@@ -113,6 +113,10 @@ function sn_health_run_scan() {
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
 			// the never-invert guard's alarm finally lands somewhere.
 			'analytics_integrity' => sn_health_check_analytics_integrity(),
+			// 13th check (v9.80.0): the server-side provenance integrity sweep —
+			// bounded, rotating triangle check (payload hash / live .json twin /
+			// public ledger + key file) over the anchored-Note fleet.
+			'provenance_integrity' => sn_health_check_provenance_integrity(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
