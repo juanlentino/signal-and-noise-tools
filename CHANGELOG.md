@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.82.0] - 2026-07-24: Three abilities walk through the door
+
+**Headline:** four abilities shipped between v9.78.0 and v9.81.0 and then sat undoored — registered, tested, reachable by WP-CLI and REST, invisible to an agent. Three of them go through now: the two provenance status reads onto the read door, the anchor sweep onto the read-write door. The fourth stays out on purpose, and the reason is now written down where the list lives.
+
+> **Why MINOR:** new capability reachable through the agent surface (three abilities an MCP client could not see before are now advertised and callable); nothing was removed, renamed, or reshaped.
+
+### New
+
+- **`signal-noise/anchor-status` and `signal-noise/provenance-integrity-status` on the read door** ([inc/mcp/mcp-capabilities.php](inc/mcp/mcp-capabilities.php)): both are readonly, both answer in well under a second, and what they return is operational status — pending anchors with their in-flight Bitcoin transaction and confirmation count, and the latest integrity sweep's per-leg verdicts. An agent asked to say whether the trust surface is healthy should be able to look for itself instead of being told. The read door is 23 → 25 slugs (15 plugin + 10 theme); the read-only-by-construction guarantee is unchanged.
+- **`signal-noise/anchor-sweep` on the read-write door** ([inc/mcp/mcp-capabilities.php](inc/mcp/mcp-capabilities.php)): not readonly, but idempotent — a single bounded `wp_remote_post` (timeout 20) asking the provenance Worker to upgrade pending OpenTimestamps proofs now rather than at the next hourly cron, and only genuinely Bitcoin-confirmed proofs flip. The rw door's kill switch, app-password binding, rate limit, and audit trail are exactly the envelope an action like this wants. The rw door is 34 → 35 slugs (30 plugin + 5 theme).
+
+### Changed
+
+- **`signal-noise/run-health-scan` stays off both doors, and now says why** ([inc/mcp/mcp-capabilities.php](inc/mcp/mcp-capabilities.php)): the MCP layer dispatches synchronously with no timeout and no execution budget; the scan takes roughly 35 seconds today and up to ~105 during an outage, with Cloudflare's ~100s edge cap sitting in front of it. Doored, it would hand an agent a tool that hangs and then dies at the edge with nothing to show for the wait. Nothing is lost by holding it back — the results are already reachable through the doored read ability `get-health-scan`, and the scan runs on cron whether or not anyone asks. The exclusion is documented at the exclusion site alongside the other four held-back slugs, and pinned by the suite: [tests/mcp-capabilities.php](tests/mcp-capabilities.php) now asserts its absence from BOTH doors and its rejection by both call gates, so a future dooring goes red rather than through.
+- **Read-door namespace split is pinned, not just the total** ([tests/mcp-capabilities.php](tests/mcp-capabilities.php)): 15 plugin + 10 theme, so a slug added under the wrong namespace can't hide inside a still-correct count. Catalog totals refreshed ([docs/ai-abilities-catalog.md](docs/ai-abilities-catalog.md)): 25 read + 35 read-write + 7 off both doors = 67.
+
 ## [9.81.0] - 2026-07-23: The trust surface answers "what changed?"
 
 **Headline:** the /verify docket grows a version-compare diff — the chain stores every signed version and the credential route serves any of them, so two version numbers now render a word-level, anchor-labeled diff right on the page. Around it, a consistency batch across the verifier, the pre-publish gate, the analytics dashboard, the 404 log, the integrity sweep, and two new readonly abilities.
