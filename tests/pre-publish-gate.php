@@ -171,5 +171,17 @@ pg_fire( 'post.php' );
 pg_true( isset( $GLOBALS['__test_registered']['snt-pre-publish-gate'] ), 'enqueues even when snt_ai_is_available() is false' );
 pg_true( false === $GLOBALS['__test_ai_available_called'], 'the gate never calls snt_ai_is_available() (client-side, no AI)' );
 
+// ─── Test 6: v9.81.0 advisory additions (JS source pins) ──────────────
+echo "\nTest 6: missing-alt + empty-excerpt advisories, still advisory-only\n";
+$gate_js = (string) file_get_contents( __DIR__ . '/../assets/pre-publish-gate.js' );
+pg_true( '' !== $gate_js, 'assets/pre-publish-gate.js readable' );
+pg_true( false !== strpos( $gate_js, 'countImgsWithoutAlt' ), 'JS counts img tags without alt (missing-alt advisory)' );
+pg_true( false !== strpos( $gate_js, '\\balt\\s*=' ), 'the alt detection mirrors sn_health_extract_inline_imgs_without_alt (any alt= attribute passes)' );
+pg_true( false !== strpos( $gate_js, "getEditedPostAttribute( 'content' )" ), 'content is read via wp.data (getEditedPostAttribute), no network' );
+pg_true( false !== strpos( $gate_js, "getEditedPostAttribute( 'excerpt' )" ), 'excerpt is read via wp.data (empty-excerpt advisory)' );
+pg_true( false !== strpos( $gate_js, 'No excerpt set' ), 'the empty-excerpt advisory copy exists' );
+pg_true( false === strpos( $gate_js, 'lockPostSaving(' ), 'the gate NEVER calls lockPostSaving — advisory only, forever (the docblock may name it, code may not)' );
+pg_true( false === strpos( $gate_js, 'apiFetch' ), 'the gate makes zero network calls (wp.data only)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

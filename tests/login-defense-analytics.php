@@ -157,6 +157,12 @@ ok( strpos( $hd, 'button-group' ) !== false && strpos( $hd, 'button button-small
 	'header: range control uses the shared pill markup (button-group + button-small + active)' );
 ok( strpos( $hd, 'postbox sn-overview' ) !== false && strpos( $hd, 'sn-an-breakdown' ) !== false,
 	'header: renders the Overview postbox + breakdown pills' );
+// v9.81.0: the worker's 'failopen' decision (guard errored, let the request
+// through) gets its own breakdown pill — a failing-open guard must be visible.
+ok( strpos( $hd, '>failopen ' ) !== false, 'header: the failopen decision has its own breakdown pill' );
+foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $sn_lg_d ) {
+	ok( strpos( $hd, '>' . $sn_lg_d . ' ' ) !== false, "header: the $sn_lg_d decision pill survives" );
+}
 ok( strpos( $hd, 'Top attacker networks' ) === false,
 	'header: does NOT render the attacker tables (body-only)' );
 

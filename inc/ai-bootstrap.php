@@ -958,3 +958,51 @@ function snt_register_status_script() {
 	);
 }
 add_action( 'admin_enqueue_scripts', 'snt_register_status_script' );
+
+/**
+ * Shared editor-asset enqueue for the gen-1 per-post AI buttons (v9.81.0).
+ *
+ * ai-excerpt.php, ai-meta-description.php, and ai-og-card-title.php each
+ * carried a near-identical ~35-line admin_enqueue_scripts closure that had
+ * already drifted (inconsistent function_exists guards around the AI gate).
+ * This helper is the single copy: post-edit screens only, gated on
+ * snt_ai_is_available() + edit_posts, base dep set (wp-api-fetch, wp-i18n,
+ * snt-status for window.sntSetStatus, snt-ability-run for the ability
+ * transport) plus per-caller extras, localization, and script translations.
+ *
+ * @param string $hook_suffix The admin_enqueue_scripts hook suffix.
+ * @param string $handle      Script handle to register/enqueue.
+ * @param string $file        Filename under assets/.
+ * @param string $object_name JS object name for wp_localize_script.
+ * @param array  $data        Localized data.
+ * @param array  $extra_deps  Per-caller deps appended to the base set.
+ * @return void
+ *
+ * @since 9.81.0
+ */
+function snt_ai_enqueue_editor_script( $hook_suffix, $handle, $file, $object_name, $data, $extra_deps = array() ) {
+	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
+		return;
+	}
+	if ( ! snt_ai_is_available() ) {
+		return; // Skip enqueue entirely — no button, no JS, no overhead.
+	}
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return;
+	}
+
+	wp_register_script(
+		$handle,
+		plugins_url( 'assets/' . $file, SNT_PATH . 'signal-and-noise-tools.php' ),
+		array_merge( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ), $extra_deps ),
+		SNT_VERSION,
+		true
+	);
+
+	wp_localize_script( $handle, $object_name, $data );
+	wp_enqueue_script( $handle );
+
+	if ( function_exists( 'wp_set_script_translations' ) ) {
+		wp_set_script_translations( $handle, 'signal-and-noise-tools' );
+	}
+}

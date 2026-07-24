@@ -36,6 +36,7 @@ if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlsp
 if ( ! function_exists( 'time' ) ) { function time() { return 1; } }
 if ( ! function_exists( 'sn_now_page_sections' ) ) { function sn_now_page_sections() { return $GLOBALS['__now_sections']; } }
 
+require_once SNT_PATH . 'inc/page-sync-engine.php'; // live Now/Uses sync engine (v9.81.0 split)
 require_once SNT_PATH . 'inc/content-migrations.php';
 
 $pass = 0; $fail = 0;

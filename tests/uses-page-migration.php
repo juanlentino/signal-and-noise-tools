@@ -46,6 +46,7 @@ if ( ! function_exists( 'time' ) ) { function time() { return 1; } }
 if ( ! function_exists( 'sn_uses_page_get' ) ) { function sn_uses_page_get() { return null === $GLOBALS['__uses_raw'] ? null : array( 'raw' => (string) $GLOBALS['__uses_raw'], 'updated' => '2026-07-10' ); } }
 if ( ! function_exists( 'sn_uses_parse_groups' ) ) { function sn_uses_parse_groups( $raw ) { return $GLOBALS['__uses_groups']; } }
 
+require_once SNT_PATH . 'inc/page-sync-engine.php'; // live Now/Uses sync engine (v9.81.0 split)
 require_once SNT_PATH . 'inc/content-migrations.php';
 
 $pass = 0; $fail = 0;

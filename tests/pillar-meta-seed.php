@@ -58,8 +58,14 @@ function reset_world() {
 require __DIR__ . '/../inc/pillar-meta-seed.php';
 
 echo "Group: wiring\n";
-ok( in_array( 'sn_pillar_meta_seed', $GLOBALS['__hooks']['admin_init'] ?? array(), true ),
-	'seed runs on admin_init (install hooks cannot observe WP UI deploys)' );
+// v9.81.0: the seed's own admin_init hook collapsed behind the content-
+// migrations master sentinel — this module must register NO hook of its own;
+// sn_run_content_migrations() (inc/content-migrations.php, itself on
+// admin_init) drives it. tests/content-migrations-master.php pins that drive.
+ok( ! in_array( 'sn_pillar_meta_seed', $GLOBALS['__hooks']['admin_init'] ?? array(), true ),
+	'seed registers NO admin_init hook of its own (the migrations master drives it)' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/content-migrations.php' ), 'sn_pillar_meta_seed' ),
+	'the master runner references sn_pillar_meta_seed()' );
 
 echo "\nGroup: happy path seeds the three essays once\n";
 reset_world();

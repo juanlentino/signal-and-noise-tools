@@ -58,5 +58,15 @@ $deps = $GLOBALS['__enqueued']['sn-desktop-dropzone']['deps'] ?? array();
 ok( in_array( 'wp-hooks', $deps, true ), 'depends on wp-hooks (the drop pipeline is a JS filter)' );
 ok( in_array( 'wp-api-fetch', $deps, true ), 'depends on wp-api-fetch (drafts via core REST)' );
 
+// --- v9.81.0: byte ceiling (JS source pins) ------------------------------
+// The files-detected filter fires BEFORE the shell's MIME/size gate and
+// FileReader reads whole files — above the ceiling the file must pass
+// through to the shell's own gate instead of being read unbounded here.
+$dz = (string) file_get_contents( dirname( __DIR__ ) . '/assets/desktop-dropzone.js' );
+ok( '' !== $dz, 'assets/desktop-dropzone.js readable' );
+ok( false !== strpos( $dz, 'MAX_BYTES = 2 * 1024 * 1024' ), 'a named 2MB byte ceiling exists' );
+ok( false !== strpos( $dz, '( file.size || 0 ) <= MAX_BYTES' ), 'the claim branch checks file.size BEFORE any read' );
+ok( strpos( $dz, 'MAX_BYTES' ) < strpos( $dz, 'readAsText' ), 'the ceiling gates ahead of the unbounded readAsText' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -44,6 +44,22 @@
 		return;
 	}
 
+	// Count <img> tags with no alt attribute in serialized content — the SAME
+	// semantic as the server-side Content-Health extractor
+	// (sn_health_extract_inline_imgs_without_alt, inc/health-check-missing-alt.php):
+	// an alt= attribute of ANY value passes; only a missing attribute counts.
+	// Covers plain images and gallery items alike (both serialize to <img>).
+	function countImgsWithoutAlt( content ) {
+		var count = 0;
+		var matches = String( content || '' ).match( /<img\b[^>]*>/gi ) || [];
+		matches.forEach( function( tag ) {
+			if ( ! /\balt\s*=/i.test( tag ) ) {
+				count++;
+			}
+		} );
+		return count;
+	}
+
 	// Compute the advisory warning strings from an editor-store selector.
 	// Returns a (possibly empty) array of plain strings. Takes the selected
 	// `core/editor` store object so the caller can subscribe via useSelect.
@@ -67,12 +83,35 @@
 			warnings.push( __( 'No meta description set. Search engines will guess one from the body.', 'signal-noise-tools' ) );
 		}
 
+		// Images (incl. gallery items) without alt — posts AND pages. wp.data
+		// only: reads the edited serialized content; the regex mirrors the
+		// server-side sn_health_extract_inline_imgs_without_alt semantics, so
+		// the editor advisory and the Health scan can never disagree.
+		var content = editor.getEditedPostAttribute( 'content' );
+		if ( 'function' === typeof content ) {
+			content = ''; // unsaved-block edge: content may be a serializer fn — skip, never call it here.
+		}
+		var missingAlt = countImgsWithoutAlt( content );
+		if ( missingAlt > 0 ) {
+			warnings.push(
+				1 === missingAlt
+					? __( '1 image has no alt text. Screen readers and search engines see nothing.', 'signal-noise-tools' )
+					: missingAlt + ' ' + __( 'images have no alt text. Screen readers and search engines see nothing.', 'signal-noise-tools' )
+			);
+		}
+
 		// Zero tags — posts only (pages aren’t tagged).
 		if ( 'post' === postType ) {
 			var tags = editor.getEditedPostAttribute( 'tags' );
 			var tagCount = Array.isArray( tags ) ? tags.length : 0;
 			if ( tagCount === 0 ) {
 				warnings.push( __( 'No tags assigned. Tags help readers discover related posts.', 'signal-noise-tools' ) );
+			}
+
+			// Empty excerpt — posts only (the theme's cards + feeds lean on it).
+			var excerpt = editor.getEditedPostAttribute( 'excerpt' );
+			if ( ! excerpt || ! String( excerpt ).trim() ) {
+				warnings.push( __( 'No excerpt set. Cards, feeds, and the .json twin fall back to a truncated body.', 'signal-noise-tools' ) );
 			}
 		}
 

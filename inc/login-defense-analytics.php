@@ -176,7 +176,10 @@ function sn_login_defense_render_header() {
 	snt_an_panel_close();
 
 	echo '<p class="sn-an-breakdown">';
-	foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $d ) {
+	// 'failopen' (worker v1.3.0+): the guard hit an internal error and let the
+	// request through rather than lock the owner out — surfaced here so a
+	// failing-open guard is visible, not silent.
+	foreach ( array( 'block', 'pass', 'bypass', 'killswitch', 'failopen' ) as $d ) {
 		echo '<span class="sn-pill">' . esc_html( $d ) . ' '
 			. esc_html( number_format_i18n( (int) ( $kpis['breakdown'][ $d ] ?? 0 ) ) ) . '</span> ';
 	}

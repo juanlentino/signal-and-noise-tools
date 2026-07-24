@@ -114,5 +114,57 @@ $log = sn_404_log_all();
 ok( count( $log ) === SN_404_LOG_MAX, 'cap: log is bounded at SN_404_LOG_MAX' );
 ok( ! isset( $log['/miss0'] ), 'cap: FIFO drops the oldest distinct path' );
 
+// ── v9.81.0: deterministic redirect-target suggestion (classical distance) ──
+echo "\n";
+$cands = array( '/notes/design-tokens', '/notes/pillar-essays', '/about', '/uses' );
+ok( '/notes/design-tokens' === sn_404_suggest_target( '/notes/desing-tokens', $cands ),
+	'suggest: a transposed slug resolves to the published slug (levenshtein rank)' );
+ok( '/about' === sn_404_suggest_target( '/abuot', $cands ), 'suggest: a short typo\'d path resolves' );
+ok( '' === sn_404_suggest_target( '/totally-unrelated-zzz', $cands ),
+	'suggest: nothing clears the similarity floor -> empty (an empty box beats a wrong guess)' );
+ok( '' === sn_404_suggest_target( '/notes/design-tokens', $cands ),
+	'suggest: a path identical to a candidate suggests nothing (it would 404 the same)' );
+ok( '' === sn_404_suggest_target( '/', $cands ), 'suggest: the root path suggests nothing' );
+ok( '' === sn_404_suggest_target( '/x', array() ), 'suggest: an empty candidate set suggests nothing' );
+
+// ── v9.81.0: the readonly get-404-log ability ──
+$GLOBALS['__abilities'] = array();
+$GLOBALS['__actions']   = array();
+function wp_register_ability( $slug, $args ) { $GLOBALS['__abilities'][ $slug ] = $args; return true; }
+function add_action( $tag, $cb = null ) { $GLOBALS['__actions'][ $tag ][] = $cb; return true; }
+function get_posts( $args = array() ) { return array(); } // ability path: suggestion candidates come from here.
+function get_permalink( $id ) { return ''; }
+
+// Re-include registers the hook now that add_action exists (the first include
+// ran before the stub, so the registrar call was skipped as undefined).
+// Registration itself is exercised directly:
+snt_abilities_404_log_register();
+$ab = $GLOBALS['__abilities']['signal-noise/get-404-log'] ?? null;
+ok( is_array( $ab ), 'ability: signal-noise/get-404-log registered (no bare REST route)' );
+ok( array( 'object', 'null' ) === ( $ab['input_schema']['type'] ?? null ),
+	'ability: input schema types the [object,null] union (bodyless GET law)' );
+ok( true === ( $ab['meta']['annotations']['readonly'] ?? null ), 'ability: annotated readonly' );
+ok( 'snt_ability_perm_manage_options' === ( $ab['permission_callback'] ?? '' ), 'ability: manage_options-gated' );
+
+$GLOBALS['__opts'] = array();
+sn_404_log_record( '/first-broken', 'https://ref.example/a' );
+sn_404_log_record( '/second-broken', '' );
+sn_404_log_record( '/second-broken', '' );
+$res = snt_ability_get_404_log( null );
+ok( 2 === ( $res['total'] ?? 0 ), 'ability: total counts the actionable log' );
+ok( 2 === count( $res['entries'] ?? array() ), 'ability: entries returned' );
+$paths = array_map( static function ( $r ) { return $r['path']; }, $res['entries'] );
+ok( in_array( '/first-broken', $paths, true ) && in_array( '/second-broken', $paths, true ), 'ability: rows carry the broken paths' );
+$row0 = $res['entries'][0];
+ok( isset( $row0['count'], $row0['first_seen'], $row0['last_seen'], $row0['referer'], $row0['suggested'] ),
+	'ability: each row carries count/first_seen/last_seen/referer/suggested' );
+
+// Cap: never more than SN_404_LOG_ABILITY_MAX entries.
+$GLOBALS['__opts'] = array();
+for ( $i = 0; $i < SN_404_LOG_ABILITY_MAX + 20; $i++ ) { sn_404_log_record( '/cap-miss-' . $i, '' ); }
+$res = snt_ability_get_404_log( null );
+ok( SN_404_LOG_ABILITY_MAX === count( $res['entries'] ), 'ability: entries capped at SN_404_LOG_ABILITY_MAX' );
+ok( $res['total'] >= SN_404_LOG_ABILITY_MAX, 'ability: total still reports the full actionable size' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

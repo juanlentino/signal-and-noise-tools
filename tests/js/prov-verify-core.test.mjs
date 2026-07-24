@@ -353,5 +353,78 @@ console.log( '\nGroup 12: isSafeExplorerUrl (9.75.0 — no javascript: links fro
 	ok( ! core.isSafeExplorerUrl( 'data:text/html,x' ), 'data: is rejected' );
 }
 
+// ─── Group 13: corrupted ledger/site keys — 9.81.0 (distinct KEY-CORRUPT
+//     verdict, never an uncaught atob throw → generic UNREACHABLE noise) ──
+console.log( '\nGroup 13: deriveKeyAgreement corrupt-key decodes (9.81.0 — a corrupt key is a verdict, not a throw)' );
+{
+	const did = fx( 'did.json' );
+	const keys = fx( 'keys.json' );
+	const corrupt = fx( 'keys-corrupt.json' );
+
+	let threw = false;
+	let r;
+	try { r = core.deriveKeyAgreement( did, keys, corrupt ); } catch ( e ) { threw = true; }
+	ok( ! threw, 'a corrupt LEDGER key never throws out of deriveKeyAgreement (pre-fix: bare atob threw)' );
+	eq( core.STATE.FAIL, r.verdict.state, 'a corrupt ledger key settles as a verdict' );
+	ok( r.verdict.detail.includes( 'Key corrupt' ) && r.verdict.detail.includes( 'ledger' ),
+		'the verdict is the DISTINCT key-corrupt outcome naming the ledger copy (not generic unreachable noise)' );
+
+	const r2 = core.deriveKeyAgreement( did, corrupt, keys );
+	eq( core.STATE.FAIL, r2.verdict.state, 'a corrupt SITE-mirror key settles as a verdict too' );
+	ok( r2.verdict.detail.includes( 'Key corrupt' ) && r2.verdict.detail.includes( 'site' ),
+		'the site-mirror corrupt verdict names the site mirror' );
+
+	const didCorrupt = JSON.parse( JSON.stringify( did ) );
+	didCorrupt.verificationMethod[ 0 ].publicKeyJwk.x = '%%%not-base64url%%%';
+	let threw3 = false;
+	let r3;
+	try { r3 = core.deriveKeyAgreement( didCorrupt, keys, keys ); } catch ( e ) { threw3 = true; }
+	ok( ! threw3 && r3.verdict.state === core.STATE.FAIL && r3.verdict.detail.includes( 'did document' ),
+		'a corrupt did-document key is its own key-corrupt FAIL, no throw' );
+
+	const clean = core.deriveKeyAgreement( did, keys, keys );
+	ok( ! clean.verdict && !! clean.jwk, 'well-formed keys still agree after the hardening (no behavior change on the happy path)' );
+}
+
+// ─── Group 14: diffWords — 9.81.0 version compare (pure word-level LCS) ──
+console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare docket\'s pure diff)' );
+{
+	const same = core.diffWords( 'a b c', 'a b c' );
+	eq( 1, same.length, 'identical texts collapse to one run' );
+	eq( 'same', same[ 0 ].op, 'that run is same-op' );
+	eq( 'a b c', same[ 0 ].text, 'consecutive same-op words join with single spaces' );
+
+	const edit = core.diffWords( 'the quick brown fox', 'the slow brown fox jumps' );
+	eq( JSON.stringify( [
+		{ op: 'same', text: 'the' },
+		{ op: 'del', text: 'quick' },
+		{ op: 'add', text: 'slow' },
+		{ op: 'same', text: 'brown fox' },
+		{ op: 'add', text: 'jumps' }
+	] ), JSON.stringify( edit ), 'a substitution + a tail addition diff word-by-word' );
+
+	eq( 'add', core.diffWords( '', 'new words' )[ 0 ].op, 'an empty A side is all additions' );
+	eq( 'del', core.diffWords( 'old words', '' )[ 0 ].op, 'an empty B side is all deletions' );
+	eq( 0, core.diffWords( '', '' ).length, 'two empty sides diff to zero runs' );
+	eq( 1, core.diffWords( 'a  b\n\nc', 'a b c' ).length, 'whitespace runs never fabricate a diff (split on all whitespace)' );
+
+	// Fixture-backed: the real twin-match vs twin-edited content_text pair.
+	const a = fx( 'twin-match.json' ).content_text;
+	const b = fx( 'twin-edited.json' ).content_text;
+	const runs = core.diffWords( a, b );
+	ok( runs.some( ( r ) => 'del' === r.op ) || runs.some( ( r ) => 'add' === r.op ),
+		'the edited twin fixture produces at least one changed run against the matching one' );
+	ok( runs.filter( ( r ) => 'same' === r.op ).length > 0, 'unchanged words survive as same-op runs' );
+	const reassembledB = runs.filter( ( r ) => 'del' !== r.op ).map( ( r ) => r.text ).join( ' ' );
+	eq( b.split( /\s+/ ).filter( Boolean ).join( ' ' ), reassembledB,
+		'dropping deletions reassembles side B exactly (the diff loses no words)' );
+	const reassembledA = runs.filter( ( r ) => 'add' !== r.op ).map( ( r ) => r.text ).join( ' ' );
+	eq( a.split( /\s+/ ).filter( Boolean ).join( ' ' ), reassembledA,
+		'dropping additions reassembles side A exactly' );
+
+	const big = new Array( core.DIFF_MAX_WORDS + 1 ).fill( 'w' ).join( ' ' );
+	eq( null, core.diffWords( big, 'a' ), 'an over-cap side returns null (refuse honestly, never hang the page)' );
+}
+
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );
 process.exit( fail > 0 ? 1 : 0 );

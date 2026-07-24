@@ -5,7 +5,7 @@
  * Owner direction 2026-07-01: /uses gets the same plugin-managed content
  * behavior as /now. /about/uses is a real CMS child Page whose post_content is
  * regenerated from this editor on every save (sn_uses_page_save() drives the
- * builder in inc/content-migrations.php via sn_uses_sync_page()), mirroring
+ * builder in inc/page-sync-engine.php via sn_uses_sync_page()), mirroring
  * inc/now-page.php:
  *
  *   - durable autoload=no OPTION (sn_uses_page) holding the raw document +
@@ -138,7 +138,7 @@ function sn_uses_page_save( $raw ) {
 	// v9.20.0: this plain-text box is the canonical /uses editor, and
 	// /about/uses is now a real CMS child Page. Regenerate the Page body on
 	// every save. Guarded so the editor's own unit tests exercise the option
-	// layer in isolation (the page builder in inc/content-migrations.php loads
+	// layer in isolation (the page builder in inc/page-sync-engine.php loads
 	// after this file; it is present at save time on a live request).
 	if ( function_exists( 'sn_uses_sync_page' ) ) {
 		sn_uses_sync_page();
