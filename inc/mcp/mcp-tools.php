@@ -223,7 +223,7 @@ function sn_mcp_rw_annotation_destructive_overrides() {
  *
  * Precedence per key:
  *   - readOnlyHint: the ability's own 'readonly' if declared, else false
- *     (MCP's own default — nothing to override here across the 34 rw slugs).
+ *     (MCP's own default — nothing to override here across the 35 rw slugs).
  *   - idempotentHint: the ability's own 'idempotent' if declared, else false
  *     (MCP's own default — every rw-door ability in this codebase declares
  *     one, but the fallback exists for a future addition that doesn't).
@@ -299,7 +299,7 @@ function sn_mcp_project_tool( $ability, $door = SN_MCP_DOOR_READ ) {
 /**
  * Build the tools/list result: project every allowlisted ability (for the
  * given door) that resolves. The rw door's tools/list is the rw allowlist
- * ONLY — the read-door 23 are never duplicated into it; a client wanting
+ * ONLY — the read-door 25 are never duplicated into it; a client wanting
  * reads uses the read door.
  *
  * @param string $door SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.

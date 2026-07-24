@@ -39,8 +39,9 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * rejects anything not here (per sn_mcp_is_allowed, for the read door).
  * Cross-namespace (plugin + theme) resolves through the one global
  * WP_Abilities_Registry. Widened 15 → 23 in v9.50.0 (docs/ai-abilities-catalog
- * audit); the read-only-by-construction guarantee is unchanged — every slug
- * here is PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
+ * audit) and 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status);
+ * the read-only-by-construction guarantee is unchanged — every slug here is
+ * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
  *
  * @return string[]
@@ -61,6 +62,10 @@ function sn_mcp_allowlist() {
 		'signal-noise/block-migrations-scan',
 		'signal-noise/pattern-adoption-scan',
 		'signal-noise/list-template-overrides',
+		// v9.82.0 — operational status. Both readonly, both sub-second, and what
+		// they return is status an agent should be able to see for itself.
+		'signal-noise/anchor-status',
+		'signal-noise/provenance-integrity-status',
 		// Theme (signal-and-noise/) — identity + design system.
 		'signal-and-noise/get-theme-version',
 		'signal-and-noise/get-latest-theme-tag',
@@ -92,9 +97,9 @@ function sn_mcp_allowlist() {
  * surface: unbounded do_action() on any non-sn_* hook), PLUS the two
  * audit-log reads the owner chose to gate behind the rw door instead of the
  * read door (plaintext usernames — see the audit's PII flags on
- * get-audit-log/export-audit-log). 34 slugs total (29 plugin + 5 theme); the
- * read-door 23 are never duplicated in here — a client wanting reads uses the
- * read door.
+ * get-audit-log/export-audit-log). Widened to 35 in v9.82.0 by anchor-sweep
+ * (30 plugin + 5 theme); the read-door 25 are never duplicated in here — a
+ * client wanting reads uses the read door.
  *
  * Held OUT on purpose (present on neither door — verify with
  * sn_mcp_is_allowed before ever touching this list):
@@ -102,12 +107,20 @@ function sn_mcp_allowlist() {
  *   - signal-noise/ai-orphan-apply       — permanent delete, skips trash, no undo.
  *   - signal-noise/merge-tags            — sitewide term reassign + delete.
  *   - signal-noise/clear-template-overrides — wipes Site Editor template rows.
+ *   - signal-noise/run-health-scan       — too slow to survive the wire. The MCP
+ *     layer dispatches synchronously with no timeout and no execution budget;
+ *     the scan takes roughly 35s today and up to ~105s when something is
+ *     actually down, and Cloudflare's ~100s edge cap sits in front of it. Doored,
+ *     it would hand an agent a tool that hangs and then dies at the edge with
+ *     nothing to show for the wait. Nothing is lost by holding it back: the
+ *     results are already reachable through the doored read ability
+ *     get-health-scan, and the scan runs on cron whether or not anyone asks.
  *
  * @return string[]
  */
 function sn_mcp_rw_allowlist() {
 	$slugs = array(
-		// Plugin (signal-noise/) — 29.
+		// Plugin (signal-noise/) — 30.
 		'signal-noise/ai-alt-suggest',
 		'signal-noise/ai-alt-apply',
 		'signal-noise/ai-drift-suggest',
@@ -137,6 +150,11 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/prepop-dismiss',
 		'signal-noise/draft-release-notes',
 		'signal-noise/purge-all-caches',
+		// v9.82.0 — not readonly, but idempotent: one bounded wp_remote_post
+		// (timeout 20) asking the provenance Worker to upgrade already-confirmed
+		// proofs. The rw door's kill switch, app-password binding, rate limit,
+		// and audit trail are exactly the envelope this wants.
+		'signal-noise/anchor-sweep',
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 		'signal-and-noise/ai-generate-page-note-summary',
 		'signal-and-noise/ai-suggest-block-pattern',

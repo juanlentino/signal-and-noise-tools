@@ -33,7 +33,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 23, 'read-door allowlist has exactly 23 slugs (widened 15 -> 23 in v9.50.0)' );
+ok( is_array( $list ) && count( $list ) === 25, 'read-door allowlist has exactly 25 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0)' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 ok( in_array( 'signal-and-noise/get-design-tokens', $list, true ), 'theme read is allowlisted (cross-namespace)' );
 ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability is NOT allowlisted on the read door' );
@@ -56,6 +56,25 @@ foreach ( $new_read_slugs as $slug ) {
 	ok( in_array( $slug, $list, true ), "D1 new read-door slug present: $slug" );
 }
 
+// --- v9.82.0: the two operational-status reads doored this release ---
+$v9820_read_slugs = array(
+	'signal-noise/anchor-status',
+	'signal-noise/provenance-integrity-status',
+);
+foreach ( $v9820_read_slugs as $slug ) {
+	ok( in_array( $slug, $list, true ), "v9.82.0 new read-door slug present: $slug" );
+	ok( sn_mcp_is_allowed( $slug, SN_MCP_DOOR_READ ) === true, "v9.82.0 read-door slug passes the call gate: $slug" );
+}
+
+// The read door splits 15 plugin + 10 theme. Pinning the split (not just the
+// total) means a slug added to the wrong namespace block can't hide inside a
+// still-correct count.
+$read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
+$read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
+ok( count( $read_plugin ) === 15, 'read door carries exactly 15 plugin slugs (13 -> 15 in v9.82.0)' );
+ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged in v9.82.0)' );
+ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
+
 ok( sn_mcp_is_allowed( 'signal-noise/get-narration' ) === true, 'is_allowed true for an allowlisted slug' );
 ok( sn_mcp_is_allowed( 'signal-noise/run-narration' ) === false, 'is_allowed false for a non-allowlisted slug' );
 
@@ -72,9 +91,9 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 34, 'rw allowlist is exactly 34 slugs (recounted against the audit; the spec draft\'s own arithmetic totals 34, not the Architecture summary\'s stale 33)' );
+ok( is_array( $rw ) && count( $rw ) === 35, 'rw allowlist is exactly 35 slugs (34 from the v9.50.0 audit recount, + anchor-sweep in v9.82.0)' );
 
-// --- exact membership: the 29 plugin + 5 theme slugs, pinned individually ---
+// --- exact membership: the 30 plugin + 5 theme slugs, pinned individually ---
 $rw_plugin = array(
 	'signal-noise/ai-alt-suggest', 'signal-noise/ai-alt-apply',
 	'signal-noise/ai-drift-suggest', 'signal-noise/ai-drift-apply',
@@ -91,8 +110,9 @@ $rw_plugin = array(
 	'signal-noise/run-insights-scan', 'signal-noise/run-narration',
 	'signal-noise/prepop-dismiss', 'signal-noise/draft-release-notes',
 	'signal-noise/purge-all-caches',
+	'signal-noise/anchor-sweep',
 );
-ok( count( $rw_plugin ) === 29, 'sanity: the pinned plugin rw list itself is 29' );
+ok( count( $rw_plugin ) === 30, 'sanity: the pinned plugin rw list itself is 30' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }
@@ -121,6 +141,23 @@ foreach ( $excluded as $slug ) {
 	ok( ! in_array( $slug, $rw, true ), "excluded slug absent from rw door: $slug" );
 	ok( ! in_array( $slug, sn_mcp_allowlist(), true ), "excluded slug absent from read door too: $slug" );
 }
+
+// --- v9.82.0: run-health-scan stays off BOTH doors, on purpose ---
+// The MCP layer dispatches synchronously with no timeout or execution budget;
+// the scan is ~35s today and up to ~105s during an outage, behind Cloudflare's
+// ~100s edge cap. Pinned here so the exclusion is a decision, not an oversight
+// — if someone doors it, this suite goes red and they have to read the WHY
+// comment on sn_mcp_rw_allowlist() before overriding it.
+ok( ! in_array( 'signal-noise/run-health-scan', $rw, true ), 'run-health-scan absent from the rw door (sync dispatch vs the ~100s edge cap)' );
+ok( ! in_array( 'signal-noise/run-health-scan', sn_mcp_allowlist(), true ), 'run-health-scan absent from the read door too (it is not a read)' );
+ok( sn_mcp_is_allowed( 'signal-noise/run-health-scan', SN_MCP_DOOR_READ ) === false, 'run-health-scan rejected by the read-door call gate' );
+ok( sn_mcp_is_allowed( 'signal-noise/run-health-scan', SN_MCP_DOOR_RW ) === false, 'run-health-scan rejected by the rw-door call gate' );
+// Its results stay reachable: the doored read ability serves the cached scan.
+ok( in_array( 'signal-noise/get-health-scan', sn_mcp_allowlist(), true ), 'get-health-scan IS doored — run-health-scan results stay agent-reachable without the long call' );
+
+// anchor-sweep is the one non-readonly slug doored in v9.82.0: rw only.
+ok( sn_mcp_is_allowed( 'signal-noise/anchor-sweep', SN_MCP_DOOR_RW ) === true, 'anchor-sweep IS allowed on the rw door (v9.82.0)' );
+ok( sn_mcp_is_allowed( 'signal-noise/anchor-sweep', SN_MCP_DOOR_READ ) === false, 'anchor-sweep is NOT allowed on the read door (it acts, it does not read)' );
 
 // --- sn_mcp_allowlist_for_door: the one door -> allowlist resolver ---
 ok( sn_mcp_allowlist_for_door( SN_MCP_DOOR_READ ) === sn_mcp_allowlist(), 'allowlist_for_door(read) resolves to the read allowlist' );

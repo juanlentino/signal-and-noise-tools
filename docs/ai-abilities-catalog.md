@@ -33,8 +33,8 @@ This is the canonical reference for the 65 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/list-cron-events` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-cron-history` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-health-scan` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/anchor-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
-| `signal-noise/provenance-integrity-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
+| `signal-noise/anchor-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
+| `signal-noise/provenance-integrity-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
@@ -77,10 +77,10 @@ This is the canonical reference for the 65 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/draft-release-notes` | `manage_options` | content | — | RW-DOOR |
 | `signal-noise/purge-all-caches` | `manage_options` | maintenance | — | RW-DOOR |
 | `signal-noise/run-cron-event` | `manage_options` | maintenance | — | ⛔ EXCLUDED (unbounded dispatch) |
-| `signal-noise/run-health-scan` | `manage_options` | maintenance | — | NOT YET DOORED |
-| `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | NOT YET DOORED |
+| `signal-noise/run-health-scan` | `manage_options` | maintenance | — | ⛔ EXCLUDED (too slow for a synchronous call) |
+| `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | RW-DOOR (v9.82.0) |
 
-**Totals:** 67 abilities (15 theme + 52 plugin); 23 on the read door; 34 on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads); 10 off both doors — 1 hard-excluded (run-cron-event) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + 6 registered v9.78.0–v9.81.0 but not yet door-curated (anchor-status, anchor-sweep, run-health-scan, provenance-integrity-status, get-404-log, get-collector-status). 23 + 34 + 10 = 67.
+**Totals:** 67 abilities (15 theme + 52 plugin); 25 on the read door; 35 on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads); 7 off both doors — 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + 2 registered v9.81.0 but not yet door-curated (get-404-log, get-collector-status). 25 + 35 + 7 = 67.
 
 ## How to use this catalog
 
@@ -92,7 +92,7 @@ wp ability run <slug> --input='{"post_id": 42}'
 
 **REST API** — POST to `/wp-json/wp-abilities/v1/abilities/<slug>/run` with `wordpress_logged_in_*` session cookie and `X-WP-Nonce` header for write operations. The MCP doors expose subsets of these abilities via their respective allowlists.
 
-**MCP client (v9.50.0+)** — Query `sn://abilities-catalog` resource on either door (read or read-write) for the live registry snapshot. The read door offers 23 tools (read-only); the read-write door offers 34 tools (includes state-modifying actions). Same credentials; different risk profile.
+**MCP client (v9.50.0+)** — Query `sn://abilities-catalog` resource on either door (read or read-write) for the live registry snapshot. The read door offers 25 tools (read-only); the read-write door offers 35 tools (includes state-modifying actions). Same credentials; different risk profile.
 
 ## Detailed reference (selected abilities)
 
@@ -128,12 +128,12 @@ Cached Content-Health scan (all posts for link/attachment/formatting issues). Re
 #### `signal-noise/anchor-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
-Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is the `[object,null]` union (GET run-path safe). Not yet on an MCP door.
+Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is the `[object,null]` union (GET run-path safe). On the **read door** since v9.82.0.
 
 #### `signal-noise/provenance-integrity-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
 
-Latest server-side provenance integrity sweep: summary counts (fleet, checked, clean, failed, unreachable, ledger-key verdict) plus every Note failing a triangle leg, each naming WHICH leg (hash mismatch, twin drift, twin unreachable, ledger missing, ledger contradiction). Returns null before the first sweep. Read-only — never triggers a sweep (the Content-Health scan owns that). Not yet on an MCP door.
+Latest server-side provenance integrity sweep: summary counts (fleet, checked, clean, failed, unreachable, ledger-key verdict) plus every Note failing a triangle leg, each naming WHICH leg (hash mismatch, twin drift, twin unreachable, ledger missing, ledger contradiction). Returns null before the first sweep. Read-only — never triggers a sweep (the Content-Health scan owns that). On the **read door** since v9.82.0.
 
 #### `signal-noise/get-404-log`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
@@ -307,9 +307,9 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 - `signal-noise/run-insights-scan` | `manage_options` — Trigger cross-system synthesis scan (AI call, cached 7d)
 - `signal-noise/run-narration` | `manage_options` — Generate weekly analytics digest (AI call, cached)
 
-#### Health + Provenance Actions (2 abilities, v9.78.0 — not yet doored)
-- `signal-noise/run-health-scan` | `manage_options` — Run the full site-health check suite now (bypasses the 24h cache; stores the scan for the Health tab, widget, and attention badge; returns `{ok,total,flagged}`)
-- `signal-noise/anchor-sweep` | `manage_options` — Ask the provenance Worker to upgrade pending OpenTimestamps proofs now instead of waiting for the hourly cron (idempotent: only genuinely Bitcoin-confirmed proofs flip)
+#### Health + Provenance Actions (2 abilities, v9.78.0)
+- `signal-noise/run-health-scan` | `manage_options` — Run the full site-health check suite now (bypasses the 24h cache; stores the scan for the Health tab, widget, and attention badge; returns `{ok,total,flagged}`). **Off both doors on purpose:** MCP dispatches synchronously with no execution budget, the scan runs ~35s (up to ~105s during an outage), and Cloudflare's ~100s edge cap would kill the request — so an agent would get a hang and then a 524. Read the cached result through `get-health-scan` instead; the scan runs on cron regardless.
+- `signal-noise/anchor-sweep` | `manage_options` — Ask the provenance Worker to upgrade pending OpenTimestamps proofs now instead of waiting for the hourly cron (idempotent: only genuinely Bitcoin-confirmed proofs flip). On the **read-write door** since v9.82.0 — one bounded `wp_remote_post` (timeout 20) inside the rw door's kill switch, app-password binding, rate limit, and audit trail.
 
 #### Post Metadata Maintenance (1 ability)
 - `signal-noise/dismiss-candidate` | `edit_post` — Dismiss a scan candidate (idempotent postmeta write)
@@ -350,9 +350,9 @@ These 4 abilities are NOT exposed on any MCP door:
 
 ## Per-door visibility (v9.50.0+)
 
-**READ door** (`/wp-json/signal-noise/v1/mcp`) — 23 tools: all currently allowlisted abilities + 8 new read-only candidates. Same `manage_options` permission floor. All tools advertise `readOnlyHint: true`.
+**READ door** (`/wp-json/signal-noise/v1/mcp`) — 25 tools: the v9.50.0 twenty-three plus the two v9.82.0 operational-status reads (anchor-status, provenance-integrity-status). Same `manage_options` permission floor. All tools advertise `readOnlyHint: true`.
 
-**READ-WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 34 tools: all 23 from read door EXCLUDED; only the RW-approved subset. Same `manage_options` permission floor; edit_post abilities require scoped post edit capability. No annotations in v1.
+**READ-WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 35 tools: all 25 from the read door EXCLUDED; only the RW-approved subset, plus anchor-sweep from v9.82.0. Same `manage_options` permission floor; edit_post abilities require scoped post edit capability. No annotations in v1.
 
 Both doors share the same JSON-RPC plumbing, wrap rule (handles array-rooted output), and envelope contract. The door context is resolved per-request and flows through dispatch — never global state.
 
