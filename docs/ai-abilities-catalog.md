@@ -1,10 +1,10 @@
 # Signal & Noise AI Abilities Catalog
 
-This is the canonical reference for the 61 Signal & Noise WordPress 7.0 Abilities (46 plugin + 15 theme) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and MCP-enabled clients.
+This is the canonical reference for the 65 Signal & Noise WordPress 7.0 Abilities (50 plugin + 15 theme) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and MCP-enabled clients.
 
 **Machine-readable source (v9.50.0+):** The live registry is now surfaced as an MCP resource at `sn://abilities-catalog` (on both read and read-write doors). This document provides human-readable context and use-case guidance; for schema details and programmatic access, query the resource directly.
 
-**Verified** against theme v10.42.0 + plugin current. Last regenerated **2026-07-15**. Rendered slugs are stable; capability requirements (permissions) are read from the active registrations at query time.
+**Verified** against theme v10.42.0 + plugin current. Last regenerated **2026-07-24** (added the v9.78.0–v9.81.0 abilities: anchor-status, anchor-sweep, run-health-scan, provenance-integrity-status, get-404-log, get-collector-status). Rendered slugs are stable; capability requirements (permissions) are read from the active registrations at query time.
 
 ## Quick reference
 
@@ -33,6 +33,10 @@ This is the canonical reference for the 61 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/list-cron-events` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-cron-history` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-health-scan` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/anchor-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
+| `signal-noise/provenance-integrity-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
+| `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
+| `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-narration` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
@@ -73,8 +77,10 @@ This is the canonical reference for the 61 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/draft-release-notes` | `manage_options` | content | — | RW-DOOR |
 | `signal-noise/purge-all-caches` | `manage_options` | maintenance | — | RW-DOOR |
 | `signal-noise/run-cron-event` | `manage_options` | maintenance | — | ⛔ EXCLUDED (unbounded dispatch) |
+| `signal-noise/run-health-scan` | `manage_options` | maintenance | — | NOT YET DOORED |
+| `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | NOT YET DOORED |
 
-**Totals:** 61 abilities (15 theme + 46 plugin); 23 on the read door; 34 on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads); 4 off both doors — 1 hard-excluded (run-cron-event) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides). 23 + 34 + 4 = 61.
+**Totals:** 67 abilities (15 theme + 52 plugin); 23 on the read door; 34 on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads); 10 off both doors — 1 hard-excluded (run-cron-event) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + 6 registered v9.78.0–v9.81.0 but not yet door-curated (anchor-status, anchor-sweep, run-health-scan, provenance-integrity-status, get-404-log, get-collector-status). 23 + 34 + 10 = 67.
 
 ## How to use this catalog
 
@@ -117,7 +123,27 @@ Current theme + plugin versions + latest GitHub releases. Confirms deploys lande
 #### `signal-noise/get-health-scan`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
 
-Cached Content-Health scan (all posts for link/attachment/formatting issues). Regenerates on-demand if stale. Returns null if never scanned.
+Cached Content-Health scan (all posts for link/attachment/formatting issues). Regenerates on-demand if stale. Returns null if never scanned. Pair with `run-health-scan` to force a fresh scan.
+
+#### `signal-noise/anchor-status`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is the `[object,null]` union (GET run-path safe). Not yet on an MCP door.
+
+#### `signal-noise/provenance-integrity-status`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
+
+Latest server-side provenance integrity sweep: summary counts (fleet, checked, clean, failed, unreachable, ledger-key verdict) plus every Note failing a triangle leg, each naming WHICH leg (hash mismatch, twin drift, twin unreachable, ledger missing, ledger contradiction). Returns null before the first sweep. Read-only — never triggers a sweep (the Content-Health scan owns that). Not yet on an MCP door.
+
+#### `signal-noise/get-404-log`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Recent actionable front-end 404 log (bot/probe noise filtered), most-recently-seen first, capped at 50: path, hit count, first/last seen, latest referring host, and a deterministic redirect-target suggestion from published slugs (classical string distance, similarity-floored). Read-only — redirects are still created through the audited admin form. Input is the `[object,null]` union. Not yet on an MCP door.
+
+#### `signal-noise/get-collector-status`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Fetches the analytics worker's public `/_sn/version` and evaluates NAMED invariants: `config_bindings` (every self-reported binding true), `salt_window` (today's rotating identity salt present), `version_present`, `cron_fresh` (scheduled refresh ok within ~2h). Returns `{healthy, worker, invariants:[{name, ok, detail}]}`; optional `worker` input (enum, default `analytics`) reserves room for sibling workers. Not yet on an MCP door.
 
 #### `signal-noise/get-insights`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
@@ -280,6 +306,10 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 - `signal-noise/run-audit-prune` | `manage_options` — Drop old audit counters (destructive)
 - `signal-noise/run-insights-scan` | `manage_options` — Trigger cross-system synthesis scan (AI call, cached 7d)
 - `signal-noise/run-narration` | `manage_options` — Generate weekly analytics digest (AI call, cached)
+
+#### Health + Provenance Actions (2 abilities, v9.78.0 — not yet doored)
+- `signal-noise/run-health-scan` | `manage_options` — Run the full site-health check suite now (bypasses the 24h cache; stores the scan for the Health tab, widget, and attention badge; returns `{ok,total,flagged}`)
+- `signal-noise/anchor-sweep` | `manage_options` — Ask the provenance Worker to upgrade pending OpenTimestamps proofs now instead of waiting for the hourly cron (idempotent: only genuinely Bitcoin-confirmed proofs flip)
 
 #### Post Metadata Maintenance (1 ability)
 - `signal-noise/dismiss-candidate` | `edit_post` — Dismiss a scan candidate (idempotent postmeta write)

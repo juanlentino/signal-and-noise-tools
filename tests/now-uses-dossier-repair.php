@@ -44,6 +44,7 @@ if ( ! function_exists( 'sn_now_page_sections' ) ) { function sn_now_page_sectio
 if ( ! function_exists( 'sn_uses_page_get' ) ) { function sn_uses_page_get() { return $GLOBALS['__uses_box']; } }
 if ( ! function_exists( 'sn_uses_page_save' ) ) { function sn_uses_page_save( $raw ) { $GLOBALS['__saved'] = (string) $raw; return true; } }
 
+require_once SNT_PATH . 'inc/page-sync-engine.php'; // live Now/Uses sync engine (v9.81.0 split)
 require_once SNT_PATH . 'inc/content-migrations.php';
 
 $pass = 0; $fail = 0;

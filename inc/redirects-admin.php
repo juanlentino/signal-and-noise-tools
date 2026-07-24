@@ -103,7 +103,11 @@ function sn_redirects_render_admin_tab() {
 
 		// Busiest first.
 		uasort( $log, function ( $a, $b ) { return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 ); } );
+		// v9.81.0: deterministic slug suggestions (classical string distance
+		// against published slugs — suggest-only; the write path is unchanged).
+		$sn_404_candidates = function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array();
 		foreach ( $log as $path => $e ) {
+			$sn_404_suggested = function_exists( 'sn_404_suggest_target' ) ? sn_404_suggest_target( (string) $path, $sn_404_candidates ) : '';
 			echo '<form method="post"><div class="sn-fieldset">';
 			wp_nonce_field( 'sn_theme_options_nonce' );
 			echo '<input type="hidden" name="source" value="' . esc_attr( $path ) . '">';
@@ -115,7 +119,10 @@ function sn_redirects_render_admin_tab() {
 			echo '</p>';
 			echo '<div class="sn-field sn-field-w-lg">';
 			echo '<label class="sn-field-label">Redirect to</label>';
-			echo '<input type="text" name="target" placeholder="/new-page  or  https://…" class="sn-mono">';
+			echo '<input type="text" name="target" value="' . esc_attr( $sn_404_suggested ) . '" placeholder="/new-page  or  https://…" class="sn-mono">';
+			if ( '' !== $sn_404_suggested ) {
+				echo '<p class="sn-field-helper">Suggested from your published slugs (closest match) &mdash; review before creating.</p>';
+			}
 			echo '</div>';
 			echo '<div class="sn-fieldset-actions">';
 			echo '<button type="submit" name="sn_action" value="redirect_add" class="button button-primary">Create redirect</button>';

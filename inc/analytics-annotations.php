@@ -65,6 +65,62 @@ const SN_ANNOTATION_QUALITY_MIN_VISITS = 20;
 const SN_ANNOTATION_CONV_DOMINANCE = 0.60;
 const SN_ANNOTATION_CONV_MIN       = 3;
 
+// Deploys: never name more than this many releases in the one-sentence read.
+const SN_ANNOTATION_DEPLOYS_NAMED_MAX = 3;
+
+/**
+ * Deploys read: releases (theme/plugin installs, recorded by
+ * inc/deploy-history.php) that landed inside the selected range — the "did we
+ * ship something?" context a traffic move often needs. PURE: takes the history
+ * rows + the range bounds; zero queries of its own. Null when nothing shipped
+ * in range or the range is unbounded/blank ('all' has no deploy story to tell
+ * against a specific window).
+ *
+ * @since 9.81.0
+ * @param array  $history Rows from snt_deploy_history_get() ({ repo, ref, created_at ISO }).
+ * @param string $from    Range start, 'Y-m-d'.
+ * @param string $to      Range end, 'Y-m-d'.
+ * @return string|null
+ */
+function sn_annotation_deploys( $history, $from, $to ) {
+	$from = (string) $from;
+	$to   = (string) $to;
+	if ( '' === $from || '' === $to || ! is_array( $history ) ) {
+		return null;
+	}
+	$labels = array();
+	foreach ( $history as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$day = substr( (string) ( $row['created_at'] ?? '' ), 0, 10 );
+		if ( '' === $day || $day < $from || $day > $to ) {
+			continue;
+		}
+		$repo     = (string) ( $row['repo'] ?? '' );
+		$short    = '' !== $repo ? (string) basename( $repo ) : '';
+		$ref      = (string) ( $row['ref'] ?? '' );
+		$labels[] = trim( $short . ' ' . $ref );
+	}
+	$labels = array_values( array_unique( array_filter( $labels ) ) );
+	$count  = count( $labels );
+	if ( 0 === $count ) {
+		return null;
+	}
+	$named = array_slice( $labels, 0, SN_ANNOTATION_DEPLOYS_NAMED_MAX );
+	$tail  = $count > SN_ANNOTATION_DEPLOYS_NAMED_MAX
+		/* translators: %d is the count of releases beyond the named ones */
+		? ' ' . sprintf( __( 'and %d more', 'signal-and-noise-tools' ), $count - SN_ANNOTATION_DEPLOYS_NAMED_MAX )
+		: '';
+	return sprintf(
+		/* translators: 1: release count, 2: named releases, 3: optional "and N more" tail */
+		_n( '%1$d release shipped in this range: %2$s%3$s.', '%1$d releases shipped in this range: %2$s%3$s.', $count, 'signal-and-noise-tools' ),
+		$count,
+		implode( ', ', $named ),
+		$tail
+	);
+}
+
 /**
  * Movers read: state the direction of movement when it clearly skews one way.
  * Uses only { path, views, delta }, with no post age (age would need a per-path

@@ -38,11 +38,34 @@
 		return;
 	}
 
+	var root = document.querySelector( '.sn-verify' );
+	if ( ! root ) {
+		return;
+	}
+
 	/** The pure decision core (assets/js/prov-verify-core.js), loaded before
 	 *  this file by the page shell. Without it no verdict can be derived —
-	 *  bail out entirely rather than run a half-verifier. */
+	 *  but a bare return here left four perpetual "pending" stamps and zero
+	 *  feedback (a cached/blocked core script looked like a hung run). Paint
+	 *  a VISIBLE could-not-load state instead, then stop. */
 	var Core = window.SNProvVerifyCore;
 	if ( ! Core ) {
+		var failLine = root.querySelector( '[data-role="status-line"]' );
+		if ( failLine ) {
+			failLine.textContent = 'Could not load the verifier — reload the page.';
+		}
+		var pendingChecks = root.querySelectorAll( '.sn-verify-check' );
+		Array.prototype.forEach.call( pendingChecks, function ( li ) {
+			li.setAttribute( 'data-state', 'UNREACHABLE' );
+			var st = li.querySelector( '[data-role="state"]' );
+			if ( st ) {
+				st.textContent = '⚠ UNREACHABLE';
+			}
+			var dt = li.querySelector( '[data-role="detail"]' );
+			if ( dt ) {
+				dt.textContent = 'The verifier script did not load, so this check could not run.';
+			}
+		} );
 		return;
 	}
 
@@ -59,11 +82,6 @@
 		UNREACHABLE: '⚠',
 		NOTE:        'ℹ'
 	};
-
-	var root = document.querySelector( '.sn-verify' );
-	if ( ! root ) {
-		return;
-	}
 
 	var config = {
 		credentialBase: root.getAttribute( 'data-credential-base' ) || '',
@@ -291,6 +309,19 @@
 		var twinUrl = Core.liveMatchTwinUrl( cred );
 		if ( ! twinUrl ) {
 			setCheck( 'live-match', STATE.UNREACHABLE, 'This credential does not carry a live URL to compare against.' );
+			return Promise.resolve();
+		}
+		// Same origin pin resolvePasted() enforces: the credential's claimed
+		// live URL is attacker-influenceable data, so a foreign origin is
+		// never fetched — skipping the comparison, not probing another host.
+		var twinOrigin = '';
+		try {
+			twinOrigin = new URL( twinUrl, location.href ).origin;
+		} catch ( e ) {
+			twinOrigin = '';
+		}
+		if ( twinOrigin !== location.origin ) {
+			setCheck( 'live-match', STATE.NOTE, 'This credential\'s live URL is not on this site — skipping the live comparison rather than fetching a foreign origin.' );
 			return Promise.resolve();
 		}
 		return fetchJSON( twinUrl ).then( function ( res ) {

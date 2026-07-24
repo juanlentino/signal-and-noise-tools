@@ -70,4 +70,6 @@ function sn_pillar_meta_seed() {
 	}
 	update_option( SN_PILLAR_SEED_OPTION, '9.79.1', false );
 }
-add_action( 'admin_init', 'sn_pillar_meta_seed' );
+// No admin_init hook of its own since v9.81.0: the seed runs as part of the
+// spent-migration set behind sn_run_content_migrations()'s master sentinel
+// (inc/content-migrations.php).

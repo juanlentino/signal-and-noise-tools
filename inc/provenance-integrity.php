@@ -59,6 +59,12 @@ const SN_PROV_INTEGRITY_NOTES_PER_RUN = 10;
 /** Per-fetch timeout (seconds) for the twin/ledger/key requests. */
 const SN_PROV_INTEGRITY_FETCH_TIMEOUT = 5;
 
+/** Consecutive-sweep 404s (a REAL "absent" answer, vs a network error) on the
+ *  keys file or a twin before the outage verdict escalates to the distinct
+ *  keys_missing / twin_missing finding. One 404 can be an edge blip or a
+ *  mid-deploy window; three consecutive sweeps saying "absent" is absence. */
+const SN_PROV_INTEGRITY_404_STREAK = 3;
+
 /**
  * The whitespace-collapse comparison form: the SHARED sn-normalize-v1
  * pipeline (inc/provenance-core.php — comments, tags, entities, NFC, line
@@ -205,14 +211,30 @@ function sn_prov_integrity_select_batch( array $ids, array $last_checked, $cap )
  * @return string 'ok' | 'key_mismatch' | 'keys_unreachable' | 'skipped' (no key configured).
  */
 function sn_prov_integrity_keys_verdict( $fetcher ) {
+	return sn_prov_integrity_keys_probe( $fetcher )['verdict'];
+}
+
+/**
+ * The keys verdict PLUS the raw HTTP code, so the sweep can distinguish a
+ * 404 (a real "the file is absent" answer) from a network error and escalate
+ * a PERSISTENT 404 to keys_missing after SN_PROV_INTEGRITY_404_STREAK
+ * consecutive sweeps.
+ *
+ * @since 9.81.0
+ * @param callable $fetcher
+ * @return array{verdict:string,code:int}
+ */
+function sn_prov_integrity_keys_probe( $fetcher ) {
 	$key_id  = function_exists( 'sn_prov_key_id' ) ? (string) sn_prov_key_id() : '';
 	$pub_b64 = function_exists( 'sn_prov_pubkey_b64' ) ? trim( (string) sn_prov_pubkey_b64() ) : '';
 	if ( '' === $key_id && '' === $pub_b64 ) {
-		return 'skipped'; // no published key to hold the ledger to.
+		return array( 'verdict' => 'skipped', 'code' => 0 ); // no published key to hold the ledger to.
 	}
 	$res = sn_prov_integrity_fetch_json( sn_prov_integrity_ledger_base() . 'keys/provenance-keys.json', $fetcher );
 	if ( ! is_array( $res['json'] ) || ! isset( $res['json']['keys'] ) || ! is_array( $res['json']['keys'] ) ) {
-		return 'keys_unreachable'; // network-dead, 404, or un-decodable — an outage/unknown, never a rotation claim.
+		// network-dead, 404, or un-decodable — an outage/unknown THIS sweep,
+		// never a rotation claim; the sweep escalates a persistent 404.
+		return array( 'verdict' => 'keys_unreachable', 'code' => (int) $res['code'] );
 	}
 	foreach ( $res['json']['keys'] as $entry ) {
 		if ( ! is_array( $entry ) ) {
@@ -226,9 +248,9 @@ function sn_prov_integrity_keys_verdict( $fetcher ) {
 		if ( '' !== $pub_b64 && isset( $entry['public_key_base64'] ) && trim( (string) $entry['public_key_base64'] ) !== $pub_b64 ) {
 			continue;
 		}
-		return 'ok';
+		return array( 'verdict' => 'ok', 'code' => (int) $res['code'] );
 	}
-	return 'key_mismatch';
+	return array( 'verdict' => 'key_mismatch', 'code' => (int) $res['code'] );
 }
 
 /**
@@ -308,7 +330,11 @@ function sn_prov_integrity_check_note( $post_id, $fetcher ) {
 			// or bare (assets/js/prov-verify-core.js reads it identically).
 			$rec_hash    = strtolower( (string) preg_replace( '/^sha256:/', '', (string) ( $ledger['json']['content_hash'] ?? '' ) ) );
 			$commit_hash = strtolower( (string) ( $anchored['content_hash'] ?? '' ) );
-			if ( '' !== $rec_hash && '' !== $commit_hash && $rec_hash !== $commit_hash ) {
+			if ( '' === $rec_hash ) {
+				// The record EXISTS but attests nothing — a malformed ledger
+				// write is a real finding, never silence (v9.81.0).
+				$failures[] = 'ledger_record_malformed';
+			} elseif ( '' !== $commit_hash && $rec_hash !== $commit_hash ) {
 				$failures[] = 'ledger_hash_mismatch'; // a PRESENT field that disagrees is a contradiction; an absent one is a gap.
 			}
 		}
@@ -320,6 +346,7 @@ function sn_prov_integrity_check_note( $post_id, $fetcher ) {
 		'version'          => (int) ( $latest['version'] ?? 0 ),
 		'anchored_version' => null !== $anchored ? (int) $anchored['version'] : 0,
 		'failures'         => $failures,
+		'twin_code'        => (int) $twin['code'], // v9.81.0: the sweep tracks consecutive twin 404s for escalation.
 	);
 }
 
@@ -360,7 +387,17 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 	}
 
 	$batch = sn_prov_integrity_select_batch( $ids, $last_checked, SN_PROV_INTEGRITY_NOTES_PER_RUN );
-	$keys  = array() !== $ids ? sn_prov_integrity_keys_verdict( $fetcher ) : 'skipped';
+	$keys_probe = array() !== $ids ? sn_prov_integrity_keys_probe( $fetcher ) : array( 'verdict' => 'skipped', 'code' => 0 );
+	$kv_result       = (string) $keys_probe['verdict'];
+	// v9.81.0 escalation: a 404 is a real "absent" answer. Persisted across
+	// SN_PROV_INTEGRITY_404_STREAK CONSECUTIVE sweeps it stops being an outage
+	// and becomes the distinct keys_missing finding. Any non-404 sweep
+	// (success, network error, 5xx) resets the streak.
+	$file404_streak = ( 404 === (int) $keys_probe['code'] ) ? (int) ( $state['keys_404_streak'] ?? 0 ) + 1 : 0;
+	$escalate_404 = ( $file404_streak >= SN_PROV_INTEGRITY_404_STREAK );
+	if ( $escalate_404 && 'keys_unreachable' === $kv_result ) {
+		$kv_result = 'keys_missing';
+	}
 	$now   = time();
 
 	$clean       = 0;
@@ -369,6 +406,15 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 	foreach ( $batch as $pid ) {
 		$result   = sn_prov_integrity_check_note( $pid, $fetcher );
 		$failures = null !== $result ? $result['failures'] : array();
+
+		// Twin 404 escalation (same consecutive-sweep rule as the keys file).
+		$twin_streak = ( null !== $result && 404 === (int) ( $result['twin_code'] ?? 0 ) )
+			? (int) ( $notes[ $pid ]['twin_404_streak'] ?? 0 ) + 1
+			: 0;
+		if ( $twin_streak >= SN_PROV_INTEGRITY_404_STREAK && in_array( 'twin_unreachable', $failures, true ) ) {
+			$failures = array_values( array_diff( $failures, array( 'twin_unreachable' ) ) );
+			$failures[] = 'twin_missing';
+		}
 
 		$mismatches = array_values( array_filter( $failures, static function ( $c ) { return ! sn_prov_integrity_is_outage( $c ); } ) );
 		if ( array() === $failures ) {
@@ -380,12 +426,13 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 		}
 
 		$notes[ $pid ] = array(
-			'uid'          => null !== $result ? $result['uid'] : (string) get_post_meta( (int) $pid, SN_PROV_UID_META, true ),
-			'title'        => (string) get_the_title( (int) $pid ),
-			'url'          => (string) get_permalink( (int) $pid ),
-			'version'      => null !== $result ? $result['version'] : 0,
-			'last_checked' => $now,
-			'failures'     => $failures,
+			'uid'             => null !== $result ? $result['uid'] : (string) get_post_meta( (int) $pid, SN_PROV_UID_META, true ),
+			'title'           => (string) get_the_title( (int) $pid ),
+			'url'             => (string) get_permalink( (int) $pid ),
+			'version'         => null !== $result ? $result['version'] : 0,
+			'last_checked'    => $now,
+			'failures'        => $failures,
+			'twin_404_streak' => $twin_streak,
 		);
 	}
 
@@ -396,11 +443,12 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 		'clean'       => $clean,
 		'failed'      => $failed,
 		'unreachable' => $unreachable,
-		'keys'        => $keys,
+		'keys'        => $kv_result,
 	);
 
-	$state['notes']      = $notes;
-	$state['last_sweep'] = $summary;
+	$state['notes']           = $notes;
+	$state['keys_404_streak'] = $file404_streak;
+	$state['last_sweep']      = $summary;
 	update_option( SN_PROV_INTEGRITY_OPT, $state, false ); // autoload=no: only read on Health surfaces + the status ability.
 
 	return $summary;
@@ -433,9 +481,11 @@ function sn_prov_integrity_findings( $state ) {
 		'hash_mismatch'        => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
 		'twin_drift'           => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
 		'twin_unreachable'     => 'the published .json twin could not be fetched (unreachable — an outage, not drift)',
+		'twin_missing'         => 'the published .json twin has 404ed for three consecutive sweeps (twin missing — the public twin is gone, not blipping)',
 		'ledger_missing'       => 'the public ledger record notes/<uid>/v<n>.json is absent (ledger missing)',
 		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable — an outage, not drift)',
 		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
+		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record — it attests nothing)',
 	);
 
 	$out   = array();
@@ -464,8 +514,8 @@ function sn_prov_integrity_findings( $state ) {
 	}
 
 	// Fleet-level key attestation from the last sweep.
-	$keys = (string) ( $state['last_sweep']['keys'] ?? '' );
-	if ( 'key_mismatch' === $keys ) {
+	$kv_result = (string) ( $state['last_sweep']['keys'] ?? '' );
+	if ( 'key_mismatch' === $kv_result ) {
 		$out[] = array(
 			'subject_type'  => 'provenance_integrity',
 			'subject_id'    => 0,
@@ -474,7 +524,16 @@ function sn_prov_integrity_findings( $state ) {
 			'edit_url'      => '',
 			'note'          => 'The public ledger\'s keys/provenance-keys.json no longer serves the published key id with the published key bytes (key mismatch) — readers can no longer independently verify signatures.',
 		);
-	} elseif ( 'keys_unreachable' === $keys ) {
+	} elseif ( 'keys_missing' === $kv_result ) {
+		$out[] = array(
+			'subject_type'  => 'provenance_integrity',
+			'subject_id'    => 0,
+			'subject_url'   => '',
+			'subject_label' => 'ledger key file',
+			'edit_url'      => '',
+			'note'          => 'The public ledger\'s keys/provenance-keys.json has 404ed for three consecutive sweeps — the key file is absent from the ledger, not blipping. Readers cannot independently cross-check signatures until it is restored.',
+		);
+	} elseif ( 'keys_unreachable' === $kv_result ) {
 		$out[] = array(
 			'subject_type'  => 'provenance_integrity',
 			'subject_id'    => 0,

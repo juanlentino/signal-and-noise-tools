@@ -25,6 +25,13 @@
 
 	var TEXT_EXT = /\.(md|markdown|txt)$/i;
 
+	// Byte ceiling for files THIS filter claims. It fires BEFORE the shell's
+	// own MIME/size gate, and the FileReader below reads the whole file into
+	// memory — so anything above the ceiling is passed through untouched to
+	// the shell's pipeline (which applies its own gate) instead of being read
+	// unbounded here. 2 MB is far beyond any real markdown note.
+	var MAX_BYTES = 2 * 1024 * 1024;
+
 	function isTextDoc( file ) {
 		if ( TEXT_EXT.test( file.name || '' ) ) {
 			return true;
@@ -124,7 +131,7 @@
 		function ( files ) {
 			var pass = [];
 			( files || [] ).forEach( function ( file ) {
-				if ( isTextDoc( file ) ) {
+				if ( isTextDoc( file ) && ( file.size || 0 ) <= MAX_BYTES ) {
 					draftFrom( file );
 				} else {
 					pass.push( file );

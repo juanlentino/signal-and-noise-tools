@@ -7,6 +7,12 @@
  * option flag (defined in content-surfaces.php). Migrations run
  * exactly once per environment; idempotent re-runs are no-ops.
  *
+ * v9.81.0: the whole set is SPENT on the live site, so the individual
+ * admin_init hooks collapsed behind ONE master sentinel — see
+ * sn_run_content_migrations() at the bottom of this file. The live
+ * Now/Uses page-sync engine that used to share this file moved verbatim
+ * to inc/page-sync-engine.php.
+ *
  * Body loaders read HTML from inc/seed-content/ — moved from theme
  * to plugin alongside this file in Phase 3.
  *
@@ -142,8 +148,6 @@ function sn_load_music_below() {
  *     overwrites prose someone has already added.
  *   - The flag is set even on no-op paths so we don't keep checking.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_body' );
-
 function sn_migrate_provenance_body() {
 	if ( get_option( SN_PROV_BODY_MIGRATED_OPT ) ) {
 		return;
@@ -194,8 +198,6 @@ function sn_migrate_provenance_body() {
  * fresh install creates them WITH the excerpt via sn_ensure_* — and the flag is
  * still set so we stop scanning every admin_init.
  */
-add_action( 'admin_init', 'sn_migrate_seed_page_excerpts' );
-
 function sn_migrate_seed_page_excerpts() {
 	if ( get_option( SN_SEED_EXCERPTS_BACKFILL_OPT ) ) {
 		return;
@@ -225,8 +227,6 @@ function sn_migrate_seed_page_excerpts() {
  * hardcoded description map. Same safety as sn_migrate_provenance_body():
  * runs once, only writes when the field is genuinely empty.
  */
-add_action( 'admin_init', 'sn_migrate_about_body' );
-
 function sn_migrate_about_body() {
 	if ( get_option( SN_ABOUT_BODY_MIGRATED_OPT ) ) {
 		return;
@@ -275,8 +275,6 @@ function sn_migrate_about_body() {
  * hardcoded description map. Same safety as sn_migrate_about_body(): runs
  * once, only writes when the field is genuinely empty.
  */
-add_action( 'admin_init', 'sn_migrate_contact_body' );
-
 function sn_migrate_contact_body() {
 	if ( get_option( SN_CONTACT_BODY_MIGRATED_OPT ) ) {
 		return;
@@ -325,8 +323,6 @@ function sn_migrate_contact_body() {
  * hardcoded description map. Same safety as sn_migrate_about_body(): runs
  * once, only writes when the field is genuinely empty.
  */
-add_action( 'admin_init', 'sn_migrate_services_body' );
-
 function sn_migrate_services_body() {
 	if ( get_option( SN_SERVICES_BODY_MIGRATED_OPT ) ) {
 		return;
@@ -386,8 +382,6 @@ function sn_migrate_services_body() {
  *     future admin_init retries once the seed lands.
  *   - Never overwrites an existing excerpt — only seeds one when empty.
  */
-add_action( 'admin_init', 'sn_migrate_resume_body' );
-
 function sn_migrate_resume_body() {
 	if ( get_option( SN_RESUME_BODY_MERGED_OPT ) ) {
 		return;
@@ -441,8 +435,6 @@ function sn_migrate_resume_body() {
  * safety semantics, gated by SN_MUSIC_BODY_MERGED_OPT and the hero
  * eyebrow sentinel.
  */
-add_action( 'admin_init', 'sn_migrate_music_body' );
-
 function sn_migrate_music_body() {
 	if ( get_option( SN_MUSIC_BODY_MERGED_OPT ) ) {
 		return;
@@ -501,8 +493,6 @@ function sn_migrate_music_body() {
  * paragraphs are never touched. Safe to re-run; in practice runs once
  * per site (guarded by SN_PROV_REFINE_MIGR_OPT).
  */
-add_action( 'admin_init', 'sn_migrate_provenance_refinements' );
-
 function sn_migrate_provenance_refinements() {
 	if ( get_option( SN_PROV_REFINE_MIGR_OPT ) ) {
 		return;
@@ -562,8 +552,6 @@ function sn_migrate_provenance_refinements() {
  * marker (paste-by-hand defensive). Gated by SN_PROV_BYLINE_RT_MIGR_OPT
  * so it only runs once per install.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_byline_reading_time' );
-
 function sn_migrate_provenance_byline_reading_time() {
 	if ( get_option( SN_PROV_BYLINE_RT_MIGR_OPT ) ) {
 		return;
@@ -631,8 +619,6 @@ function sn_migrate_provenance_byline_reading_time() {
  *     parent body is rewritten.
  *   - Gated by SN_PROV_SPLIT_MIGR_OPT, runs at most once per install.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_split' );
-
 function sn_migrate_provenance_split() {
 	if ( get_option( SN_PROV_SPLIT_MIGR_OPT ) ) {
 		return;
@@ -696,8 +682,6 @@ function sn_migrate_provenance_split() {
  * Idempotent on multiple axes: bails if the dedicated flag is set, and
  * `sn_ensure_as_substrate_page()` itself bails if the child page exists.
  */
-add_action( 'admin_init', 'sn_migrate_as_substrate_seed' );
-
 function sn_migrate_as_substrate_seed() {
 	if ( get_option( SN_AS_SUBSTRATE_SEED_OPT ) ) {
 		return;
@@ -726,8 +710,6 @@ function sn_migrate_as_substrate_seed() {
  * Idempotent on multiple axes: bails if the dedicated flag is set, and
  * `sn_ensure_verify_page()` itself bails if the child page exists.
  */
-add_action( 'admin_init', 'sn_migrate_verify_page_seed' );
-
 function sn_migrate_verify_page_seed() {
 	if ( get_option( SN_PROV_VERIFY_PAGE_MIGR_OPT ) ) {
 		return;
@@ -767,8 +749,6 @@ function sn_migrate_verify_page_seed() {
  * for the post-migration Card 2 shape, so seeing it means the work is
  * already done.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_card2_longform' );
-
 function sn_migrate_provenance_card2_longform() {
 	if ( get_option( SN_PROV_CARD2_LF_MIGR_OPT ) ) {
 		return;
@@ -825,8 +805,6 @@ function sn_migrate_provenance_card2_longform() {
  * shortcode token `[sn_reading_time slug=` — the unique marker for the
  * post-migration shape.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_card_readtimes_dynamic' );
-
 function sn_migrate_provenance_card_readtimes_dynamic() {
 	if ( get_option( SN_PROV_RT_DYNAMIC_OPT ) ) {
 		return;
@@ -878,8 +856,6 @@ function sn_migrate_provenance_card_readtimes_dynamic() {
  * `sn-catalog-number` — the unique marker for the post-migration
  * shape.
  */
-add_action( 'admin_init', 'sn_migrate_provenance_catalog_numbers' );
-
 function sn_migrate_provenance_catalog_numbers() {
 	if ( get_option( SN_PROV_CATALOG_NUMBERS_OPT ) ) {
 		return;
@@ -934,8 +910,6 @@ function sn_migrate_provenance_catalog_numbers() {
  * match (e.g., admin edited the post-date block separately), bails
  * WITHOUT flagging so the migration can complete after recovery.
  */
-add_action( 'admin_init', 'sn_migrate_as_substrate_post_date_displaytype' );
-
 function sn_migrate_as_substrate_post_date_displaytype() {
 	if ( get_option( SN_AS_DATE_DISPLAYTYPE_OPT ) ) {
 		return;
@@ -996,8 +970,6 @@ function sn_migrate_as_substrate_post_date_displaytype() {
  * regex finds no `A short read · N min` pattern (admin already
  * customised the eyebrow), bails WITHOUT flagging.
  */
-add_action( 'admin_init', 'sn_migrate_over_detection_eyebrow_dynamic' );
-
 function sn_migrate_over_detection_eyebrow_dynamic() {
 	if ( get_option( SN_OD_EYEBROW_DYN_OPT ) ) {
 		return;
@@ -1074,8 +1046,6 @@ function sn_migrate_over_detection_eyebrow_dynamic() {
  * existence (some WP setups may not have block-theme support
  * registered when this fires).
  */
-add_action( 'admin_init', 'sn_migrate_clear_notes_template_override' );
-
 function sn_migrate_clear_notes_template_override() {
 	if ( get_option( SN_NOTES_TPL_OVERRIDE_CLEARED_OPT ) ) {
 		return;
@@ -1117,160 +1087,6 @@ function sn_migrate_clear_notes_template_override() {
 }
 
 /**
- * Render one dossier <section> for /now or /uses: the section-head (Bebas
- * label + mono count badge) and the hairline-row <ul>. Reproduces the theme's
- * original virtual-route markup verbatim so now.css/uses.css (and any
- * Site-Editor global styles targeting these classes) render it identically.
- *
- * @param string $prefix     'now' | 'uses' (drives the sn-{prefix}-* classes).
- * @param int    $index      Section index (for the aria id).
- * @param string $label      Section label (raw; escaped here).
- * @param string $items_html Pre-rendered, already-escaped <li> markup.
- * @param int    $count      Item count for the mono badge.
- * @return string
- */
-function sn_dossier_section_html( $prefix, $index, $label, $items_html, $count ) {
-	$p  = 'sn-' . $prefix;
-	$id = $p . '-h-' . (int) $index;
-	return '<section class="' . $p . '-section" aria-labelledby="' . esc_attr( $id ) . '">'
-		. '<div class="' . $p . '-section-head">'
-		. '<h2 class="' . $p . '-section-label" id="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</h2>'
-		. '<span class="' . $p . '-section-count">' . esc_html( sprintf( '%02d', (int) $count ) ) . '</span>'
-		. '</div>'
-		. '<ul class="' . $p . '-list">' . $items_html . '</ul>'
-		. '</section>';
-}
-
-/**
- * Render the /now dossier body (hero + sections) as a core/html block for
- * post_content. Reproduces the theme's /now route markup (sn-now-* classes) so
- * now.css renders it identically; the text box stays the editor, so the body
- * is generated HTML, not hand-edited blocks. The "Updated" line uses the given
- * date (stamped at save time). Returns '' when no section has items.
- *
- * @param array<int,array{label:string,items:array<int,string>}> $sections
- * @param string $updated Display date for the "Updated" line.
- * @return string
- */
-function sn_now_dossier_html( $sections, $updated ) {
-	if ( empty( $sections ) || ! is_array( $sections ) ) {
-		return '';
-	}
-
-	$sections_html = '';
-	foreach ( array_values( $sections ) as $i => $section ) {
-		$label = (string) ( $section['label'] ?? '' );
-		if ( '' === trim( $label ) ) {
-			continue;
-		}
-		$items_html = '';
-		$count      = 0;
-		foreach ( (array) ( $section['items'] ?? array() ) as $item ) {
-			$item = (string) $item;
-			if ( '' === trim( $item ) ) {
-				continue;
-			}
-			$items_html .= '<li class="sn-now-item"><span class="sn-now-item-text">' . esc_html( $item ) . '</span></li>';
-			++$count;
-		}
-		if ( 0 === $count ) {
-			continue;
-		}
-		$sections_html .= sn_dossier_section_html( 'now', $i, $label, $items_html, $count );
-	}
-
-	if ( '' === $sections_html ) {
-		return '';
-	}
-
-	$hero = '<header class="sn-now-hero">'
-		. '<p class="sn-now-eyebrow">Now &middot; What I&rsquo;m focused on</p>'
-		. '<h1 class="sn-now-headline">Now.</h1>'
-		. '<p class="sn-now-dek">A public answer to &ldquo;what are you doing these days?&rdquo; &mdash; the projects, writing, and inputs that have my attention right now.</p>'
-		. '<p class="sn-now-meta">Updated ' . esc_html( $updated ) . '</p>'
-		. '</header>';
-
-	return "<!-- wp:html -->\n<div class=\"sn-now-page\">" . $hero . $sections_html . "</div>\n<!-- /wp:html -->";
-}
-
-/**
- * Build the /now Page body from parsed text-box sections. Returns '' when the
- * sections produce no usable content, so callers never blank the page. The
- * "Updated" line is stamped with the current site-timezone date at build time
- * (the automatic replacement for the old sn_now_updated stamp).
- *
- * @param array<int,array{label:string,items:array<int,string>}> $sections
- * @return string
- */
-function sn_now_build_body( $sections ) {
-	$updated = function_exists( 'wp_date' ) ? (string) wp_date( 'F j, Y' ) : gmdate( 'F j, Y' );
-	return sn_now_dossier_html( $sections, $updated );
-}
-
-/**
- * Create-or-update the /now Page with the given body. Creates it (published,
- * bound to page-now, with a seeded Excerpt) when absent; otherwise replaces
- * post_content (the text box is the canonical editor, so a regenerate is a full
- * replace) and seeds the Excerpt only when still empty. Returns the Page ID, or
- * 0 on failure / empty body.
- *
- * @param string $body Full post_content (the core/html dossier block).
- * @return int
- */
-function sn_now_upsert_page( $body ) {
-	if ( '' === trim( (string) $body ) ) {
-		return 0;
-	}
-
-	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
-	$page    = get_page_by_path( SN_NOW_SLUG );
-
-	if ( $page ) {
-		$update = array(
-			'ID'           => $page->ID,
-			'post_content' => $body,
-		);
-		if ( '' === trim( (string) $page->post_excerpt ) ) {
-			$update['post_excerpt'] = $excerpt;
-		}
-		wp_update_post( $update );
-		return (int) $page->ID;
-	}
-
-	$new_id = wp_insert_post(
-		array(
-			'post_title'    => 'Now',
-			'post_name'     => SN_NOW_SLUG,
-			'post_parent'   => 0,
-			'post_status'   => 'publish',
-			'post_type'     => 'page',
-			'post_content'  => $body,
-			'post_excerpt'  => $excerpt,
-			'page_template' => 'page-now',
-		),
-		false
-	);
-
-	return is_int( $new_id ) && $new_id > 0 ? $new_id : 0;
-}
-
-/**
- * Regenerate the /now Page from the current Content → Now Page text box. Wired
- * to the editor's save (sn_now_page_save), so the plain-text box stays the
- * authoring surface while the Page is the rendered artifact + SEO/URL surface.
- * No-op (never blanks the page) when the text box has no usable sections.
- */
-function sn_now_sync_page() {
-	if ( ! function_exists( 'sn_now_page_sections' ) ) {
-		return;
-	}
-	$body = sn_now_build_body( sn_now_page_sections() );
-	if ( '' !== $body ) {
-		sn_now_upsert_page( $body );
-	}
-}
-
-/**
  * One-time migration: flip /now from a postless virtual route to a real CMS
  * Page, populating it from the current Content → Now Page text box. Ongoing
  * edits flow through sn_now_sync_page() on save; this performs the initial
@@ -1280,8 +1096,6 @@ function sn_now_sync_page() {
  * real text-box content are both present. Never clobbers an existing,
  * owner-edited Page.
  */
-add_action( 'admin_init', 'sn_migrate_now_page' );
-
 function sn_migrate_now_page() {
 	if ( get_option( SN_NOW_PAGE_MIGRATED_OPT ) ) {
 		return;
@@ -1306,143 +1120,6 @@ function sn_migrate_now_page() {
 	update_option( SN_NOW_PAGE_MIGRATED_OPT, time(), true );
 }
 
-/**
- * Render the /uses dossier body (hero + gear sections) as a core/html block
- * for post_content. Reproduces the theme's /about/uses route markup
- * (sn-uses-* classes, a name plus an optional note per item) so uses.css
- * renders it identically. The meta line is the total item count. Returns ''
- * when no group has items.
- *
- * @param array<int,array{label:string,items:array<int,array{name:string,note:string}>}> $groups
- * @return string
- */
-function sn_uses_dossier_html( $groups ) {
-	if ( empty( $groups ) || ! is_array( $groups ) ) {
-		return '';
-	}
-
-	$sections_html = '';
-	$total         = 0;
-	foreach ( array_values( $groups ) as $i => $group ) {
-		$label = (string) ( $group['label'] ?? '' );
-		if ( '' === trim( $label ) ) {
-			continue;
-		}
-		$items_html = '';
-		$count      = 0;
-		foreach ( (array) ( $group['items'] ?? array() ) as $item ) {
-			$name = (string) ( is_array( $item ) ? ( $item['name'] ?? '' ) : $item );
-			if ( '' === trim( $name ) ) {
-				continue;
-			}
-			$note        = is_array( $item ) ? (string) ( $item['note'] ?? '' ) : '';
-			$items_html .= '<li class="sn-uses-item"><span class="sn-uses-item-name">' . esc_html( $name ) . '</span>';
-			if ( '' !== trim( $note ) ) {
-				$items_html .= '<span class="sn-uses-item-note">' . esc_html( $note ) . '</span>';
-			}
-			$items_html .= '</li>';
-			++$count;
-		}
-		if ( 0 === $count ) {
-			continue;
-		}
-		$total         += $count;
-		$sections_html .= sn_dossier_section_html( 'uses', $i, $label, $items_html, $count );
-	}
-
-	if ( '' === $sections_html ) {
-		return '';
-	}
-
-	$meta = $total . ' ' . ( 1 === $total ? 'item' : 'items' );
-	$hero = '<header class="sn-uses-hero">'
-		. '<p class="sn-uses-eyebrow">Uses &middot; The kit behind the work</p>'
-		. '<h1 class="sn-uses-headline">Uses.</h1>'
-		. '<p class="sn-uses-dek">The hardware and software I actually reach for &mdash; the studio, the instruments, and the tools that keep the signal clean.</p>'
-		. '<p class="sn-uses-meta">' . esc_html( $meta ) . '</p>'
-		. '</header>';
-
-	return "<!-- wp:html -->\n<div class=\"sn-uses-page\">" . $hero . $sections_html . "</div>\n<!-- /wp:html -->";
-}
-
-/**
- * The current /uses Page body from the Content → Uses Page text box (parsed
- * groups → dossier HTML). '' when nothing usable is saved.
- *
- * @return string
- */
-function sn_uses_current_body() {
-	if ( ! function_exists( 'sn_uses_page_get' ) || ! function_exists( 'sn_uses_parse_groups' ) ) {
-		return '';
-	}
-	$page   = sn_uses_page_get();
-	$groups = $page ? sn_uses_parse_groups( $page['raw'] ) : array();
-	return sn_uses_dossier_html( $groups );
-}
-
-/**
- * Create-or-update the /about/uses CHILD Page with the given body. Creates it
- * as a child of the About Page (published, bound to page-uses, Excerpt seeded)
- * when absent; otherwise replaces post_content (the text box is canonical) and
- * seeds the Excerpt only when still empty. Returns the Page ID, or 0 on empty
- * body / the About parent not existing yet (retry-safe).
- *
- * @param string $body Full post_content (the core/html dossier block).
- * @return int
- */
-function sn_uses_upsert_page( $body ) {
-	if ( '' === trim( (string) $body ) ) {
-		return 0;
-	}
-
-	$excerpt = 'The hardware, software, and instruments behind the work: what Juan Lentino actually uses, grouped and listed.';
-	$page    = get_page_by_path( SN_ABOUT_SLUG . '/' . SN_USES_SLUG );
-
-	if ( $page ) {
-		$update = array(
-			'ID'           => $page->ID,
-			'post_content' => $body,
-		);
-		if ( '' === trim( (string) $page->post_excerpt ) ) {
-			$update['post_excerpt'] = $excerpt;
-		}
-		wp_update_post( $update );
-		return (int) $page->ID;
-	}
-
-	$parent = get_page_by_path( SN_ABOUT_SLUG );
-	if ( ! $parent ) {
-		return 0; // About parent not ready — retry on the next admin_init.
-	}
-
-	$new_id = wp_insert_post(
-		array(
-			'post_title'    => 'Uses',
-			'post_name'     => SN_USES_SLUG,
-			'post_parent'   => (int) $parent->ID,
-			'post_status'   => 'publish',
-			'post_type'     => 'page',
-			'post_content'  => $body,
-			'post_excerpt'  => $excerpt,
-			'page_template' => 'page-uses',
-		),
-		false
-	);
-
-	return is_int( $new_id ) && $new_id > 0 ? $new_id : 0;
-}
-
-/**
- * Regenerate the /about/uses Page from the current Content → Uses Page text
- * box. Wired to the editor's save (sn_uses_page_save). No-op when the box has
- * no usable groups (never blanks the page).
- */
-function sn_uses_sync_page() {
-	$body = sn_uses_current_body();
-	if ( '' !== $body ) {
-		sn_uses_upsert_page( $body );
-	}
-}
 
 /**
  * One-time migration: flip /about/uses from a postless virtual route to a real
@@ -1454,8 +1131,6 @@ function sn_uses_sync_page() {
  * content AND the About parent Page exists. Never clobbers an existing,
  * owner-edited Page.
  */
-add_action( 'admin_init', 'sn_migrate_uses_page' );
-
 function sn_migrate_uses_page() {
 	if ( get_option( SN_USES_PAGE_MIGRATED_OPT ) ) {
 		return;
@@ -1507,8 +1182,6 @@ function sn_load_uses_default() {
  * and the Uses box is only seeded when it is genuinely empty (never clobbers a
  * saved box).
  */
-add_action( 'admin_init', 'sn_migrate_now_uses_dossier_repair' );
-
 function sn_migrate_now_uses_dossier_repair() {
 	if ( get_option( SN_NOW_USES_DOSSIER_REPAIR_OPT ) ) {
 		return;
@@ -1577,8 +1250,6 @@ function sn_load_personal_body() {
  * once the route-meta handler is retired theme-side). Retry-safe: does nothing
  * and does NOT flag while the seed file is missing.
  */
-add_action( 'admin_init', 'sn_migrate_accessibility_page' );
-
 function sn_migrate_accessibility_page() {
 	if ( get_option( SN_A11Y_PAGE_MIGRATED_OPT ) ) {
 		return;
@@ -1637,8 +1308,6 @@ function sn_migrate_accessibility_page() {
  * ID (mirrors sn_uses_upsert_page). Retry-safe: does nothing and does NOT flag
  * while the seed file is missing OR the Contact parent does not exist yet.
  */
-add_action( 'admin_init', 'sn_migrate_personal_page' );
-
 function sn_migrate_personal_page() {
 	if ( get_option( SN_PERSONAL_PAGE_MIGRATED_OPT ) ) {
 		return;
@@ -1694,3 +1363,80 @@ function sn_migrate_personal_page() {
 
 	update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
 }
+
+// ── MASTER SENTINEL (v9.81.0) ────────────────────────────────────────
+//
+// Every migration above is SPENT on the live site — each has burned its
+// individual flag long ago. Instead of 24 admin_init hooks re-checking 24
+// options on every wp-admin pageload, ONE master sentinel short-circuits
+// the whole set. Each spent body stays callable and keeps its own flag, so
+// a fresh install still runs the full ordered set idempotently; the master
+// flag is only stamped once every individual flag is present (several
+// migrations are retry-safe and deliberately withhold their flag until
+// their preconditions land — the master respects that and keeps retrying).
+
+const SN_CONTENT_MIGRATIONS_MASTER_OPT = 'sn_content_migrations_complete_v1';
+
+/**
+ * The spent one-shot migrations, in their original hook order, mapped to
+ * the per-migration sentinel option each one burns. The pillar meta seed
+ * (inc/pillar-meta-seed.php, v9.79.1) joins the set under the same master.
+ *
+ * @return array<string, string> callback => sentinel option name.
+ */
+function sn_content_migrations_registry() {
+	return array(
+		'sn_migrate_provenance_body'                    => SN_PROV_BODY_MIGRATED_OPT,
+		'sn_migrate_seed_page_excerpts'                 => SN_SEED_EXCERPTS_BACKFILL_OPT,
+		'sn_migrate_about_body'                         => SN_ABOUT_BODY_MIGRATED_OPT,
+		'sn_migrate_contact_body'                       => SN_CONTACT_BODY_MIGRATED_OPT,
+		'sn_migrate_services_body'                      => SN_SERVICES_BODY_MIGRATED_OPT,
+		'sn_migrate_resume_body'                        => SN_RESUME_BODY_MERGED_OPT,
+		'sn_migrate_music_body'                         => SN_MUSIC_BODY_MERGED_OPT,
+		'sn_migrate_provenance_refinements'             => SN_PROV_REFINE_MIGR_OPT,
+		'sn_migrate_provenance_byline_reading_time'     => SN_PROV_BYLINE_RT_MIGR_OPT,
+		'sn_migrate_provenance_split'                   => SN_PROV_SPLIT_MIGR_OPT,
+		'sn_migrate_as_substrate_seed'                  => SN_AS_SUBSTRATE_SEED_OPT,
+		'sn_migrate_verify_page_seed'                   => SN_PROV_VERIFY_PAGE_MIGR_OPT,
+		'sn_migrate_provenance_card2_longform'          => SN_PROV_CARD2_LF_MIGR_OPT,
+		'sn_migrate_provenance_card_readtimes_dynamic'  => SN_PROV_RT_DYNAMIC_OPT,
+		'sn_migrate_provenance_catalog_numbers'         => SN_PROV_CATALOG_NUMBERS_OPT,
+		'sn_migrate_as_substrate_post_date_displaytype' => SN_AS_DATE_DISPLAYTYPE_OPT,
+		'sn_migrate_over_detection_eyebrow_dynamic'     => SN_OD_EYEBROW_DYN_OPT,
+		'sn_migrate_clear_notes_template_override'      => SN_NOTES_TPL_OVERRIDE_CLEARED_OPT,
+		'sn_migrate_now_page'                           => SN_NOW_PAGE_MIGRATED_OPT,
+		'sn_migrate_uses_page'                          => SN_USES_PAGE_MIGRATED_OPT,
+		'sn_migrate_now_uses_dossier_repair'            => SN_NOW_USES_DOSSIER_REPAIR_OPT,
+		'sn_migrate_accessibility_page'                 => SN_A11Y_PAGE_MIGRATED_OPT,
+		'sn_migrate_personal_page'                      => SN_PERSONAL_PAGE_MIGRATED_OPT,
+		'sn_pillar_meta_seed'                          => 'sn_pillar_meta_seeded',
+	);
+}
+
+/**
+ * The one admin_init entry point for the whole spent set. On a site where
+ * the set has completed (master flag present) this is a single option read.
+ * Otherwise it runs each still-unflagged migration (each body re-checks its
+ * own flag, preserving per-migration idempotence), then stamps the master
+ * only when every individual flag is present.
+ */
+function sn_run_content_migrations() {
+	if ( get_option( SN_CONTENT_MIGRATIONS_MASTER_OPT ) ) {
+		return;
+	}
+
+	$complete = true;
+	foreach ( sn_content_migrations_registry() as $callback => $flag ) {
+		if ( ! get_option( $flag ) && function_exists( $callback ) ) {
+			$callback();
+		}
+		if ( ! get_option( $flag ) ) {
+			$complete = false; // Retry-safe migration still waiting — no master.
+		}
+	}
+
+	if ( $complete ) {
+		update_option( SN_CONTENT_MIGRATIONS_MASTER_OPT, time(), false );
+	}
+}
+add_action( 'admin_init', 'sn_run_content_migrations' );

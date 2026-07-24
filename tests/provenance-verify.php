@@ -70,6 +70,12 @@ if ( ! function_exists( 'home_url' ) ) {
 	function home_url( $p = '' ) {
 		return 'https://example.com' . $p; }
 }
+if ( ! function_exists( 'rest_url' ) ) {
+	// v9.81.0: the credential base derives via rest_url() so a customized rest
+	// prefix survives; the stub mirrors the default /wp-json/ prefix.
+	function rest_url( $p = '' ) {
+		return 'https://example.com/wp-json/' . ltrim( (string) $p, '/' ); }
+}
 if ( ! function_exists( 'esc_html' ) ) {
 	function esc_html( $t ) {
 		return htmlspecialchars( (string) $t, ENT_QUOTES ); }
@@ -451,6 +457,51 @@ vv_true( '' !== $core && false !== strpos( $core, 'window.SNProvVerifyCore' ), '
 vv_true( '' !== $core && false !== strpos( $core, "typeof module !== 'undefined' && module.exports" ), 'core carries the CommonJS export guard for Node' );
 vv_true( '' !== $js && false !== strpos( $js, 'window.SNProvVerifyCore' ), 'page script consumes the SNProvVerifyCore global' );
 vv_true( '' !== $js && false === strpos( $js, 'function roughNormalize' ), 'page script no longer defines the moved normalization (single source in the core)' );
+
+echo "\nTask 8: v9.81.0 consistency batch (rest_url base; visible core-missing state; live-match origin pin; version-compare diff)\n";
+// (1c) The credential base must derive via rest_url(), never a hand-built
+// /wp-json/ prefix (which dies silently under a customized rest prefix).
+$verify_src = (string) file_get_contents( SNT_PATH . 'inc/provenance-verify.php' );
+vv_true( false !== strpos( $verify_src, 'rest_url(' ), 'credential base derives via rest_url() (a customized rest prefix survives)' );
+vv_true( false === strpos( $verify_src, "'/wp-json/" ), 'no hand-built /wp-json/ prefix remains in the module' );
+
+// (2) A missing SNProvVerifyCore global paints a VISIBLE could-not-load state
+// (status line + settled checks), never a bare silent return that leaves four
+// perpetual pending stamps.
+vv_true( '' !== $js && false !== strpos( $js, 'Could not load the verifier' ), 'shell paints a visible could-not-load status line when the core global is missing' );
+vv_true( '' !== $js && false !== strpos( $js, 'The verifier script did not load' ), 'the four checks settle with a named detail instead of blinking pending forever' );
+
+// (1b) checkLiveMatch pins the twin fetch to this origin — the same pin
+// resolvePasted() enforces (the credential's live URL is untrusted data).
+vv_true( '' !== $js && false !== strpos( $js, 'skipping the live comparison rather than fetching a foreign origin' ),
+	'live-match refuses a foreign-origin twin URL instead of fetching it' );
+
+// (1a) Core key decodes are wrapped: a corrupt published key is a DISTINCT
+// key-corrupt verdict, not an uncaught atob throw.
+vv_true( '' !== $core && false !== strpos( $core, 'Key corrupt' ), 'core derives a distinct key-corrupt verdict for undecodable ledger/site keys' );
+
+// (3) Version compare: the pure word-diff lives in the core; the UI is its own
+// classic-IIFE asset, escaped by construction (createElement/textContent, no
+// innerHTML with payload text); the shell emits its script tag after the page's.
+vv_true( '' !== $core && false !== strpos( $core, 'diffWords' ), 'core exports the pure word-level diffWords()' );
+$diff_path   = SNT_PATH . 'assets/js/prov-verify-diff.js';
+$diff_exists = file_exists( $diff_path );
+vv_true( $diff_exists, 'assets/js/prov-verify-diff.js exists (its own small UI asset)' );
+$diff = $diff_exists ? (string) file_get_contents( $diff_path ) : '';
+vv_true( '' !== $diff && false !== strpos( $diff, 'createElement' ) && false !== strpos( $diff, 'textContent' ), 'diff UI builds DOM via createElement/textContent' );
+vv_true( '' !== $diff && false === strpos( $diff, 'innerHTML' ), 'diff UI never touches innerHTML (payload text is untrusted)' );
+vv_true( '' !== $diff && false === strpos( $diff, 'https://' ), 'diff UI hardcodes zero https:// URLs (the credential base comes from the data attribute)' );
+if ( function_exists( 'sn_prov_verify_send' ) ) {
+	$_GET = array();
+	ob_start();
+	sn_prov_verify_send();
+	$html_diff = ob_get_clean();
+	$page_pos  = strpos( $html_diff, 'assets/js/prov-verify.js?ver=' );
+	$diff_pos  = strpos( $html_diff, 'assets/js/prov-verify-diff.js?ver=' );
+	vv_true( false !== $diff_pos, 'shell emits the prov-verify-diff.js script tag with the ?ver= cache-buster' );
+	vv_true( false !== $page_pos && false !== $diff_pos && $page_pos < $diff_pos, 'the diff script tag follows the page script tag' );
+	vv_true( false !== strpos( $html_diff, 'data-role="compare"' ), 'shell renders the compare section' );
+}
 
 $report = ob_get_clean();
 echo $report;

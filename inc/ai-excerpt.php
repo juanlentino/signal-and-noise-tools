@@ -14,14 +14,15 @@
  *
  * Two surfaces, both gated on snt_ai_is_available():
  *
- *   1. REST endpoint:  POST signal-noise/v1/ai/generate-excerpt
- *      Body: { post_id: int }
- *      Returns: { ok: true, excerpt: string, length: int }
- *      Permission: edit_post for the given post_id
+ *   1. Ability: signal-noise/ai-generate-excerpt (registered in
+ *      inc/abilities-ai-post-editor.php; the bespoke REST route was removed
+ *      in v5.0.0 — abilities' /wp-json/abilities/v1 run path is the only
+ *      transport). Input: { post_id: int, concise?: bool }. Returns
+ *      { ok, excerpt, length, words }. Permission: edit_post for the post.
  *
  *   2. Meta-box button: rendered inside the per-post SN meta box at the
- *      bottom. JS at assets/ai-excerpt.js calls the REST endpoint via
- *      wp.apiFetch, then writes the result back to the WP excerpt field
+ *      bottom. JS at assets/ai-excerpt.js runs the ability via
+ *      sntAbilityRun, then writes the result back to the WP excerpt field
  *      via wp.data.dispatch('core/editor').editPost({ excerpt }) — works
  *      regardless of whether the Excerpt panel is currently expanded.
  *
@@ -73,8 +74,8 @@ const SNT_AI_EXCERPT_MAX_TOKENS_CONCISE = 120;
 /**
  * Generate a 2-3 sentence post excerpt via the WP AI Client.
  *
- * Pure function called by both the (@deprecated since 2.5.0) REST handler
- * AND the signal-noise/ai-generate-excerpt ability execute callback.
+ * Pure function behind the signal-noise/ai-generate-excerpt ability's
+ * execute callback (the pre-v5.0.0 bespoke REST handler is gone).
  *
  * @param int $post_id
  * @return array{ok:bool,excerpt:string,length:int,words:int}|WP_Error
@@ -125,32 +126,9 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
-		return;
-	}
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		return;
-	}
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
-	}
-
-	wp_register_script(
-		'snt-ai-excerpt',
-		plugins_url( 'assets/ai-excerpt.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-		array( 'wp-api-fetch', 'wp-i18n', 'wp-data', 'snt-status', 'snt-ability-run' ),
-		SNT_VERSION,
-		true
-	);
-
-	wp_localize_script( 'snt-ai-excerpt', 'sntAiExcerpt', array(
-		'metaBoxClass'  => 'sn-post-settings',
-	) );
-
-	wp_enqueue_script( 'snt-ai-excerpt' );
-
-	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-excerpt', 'signal-and-noise-tools' );
-	}
+	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	// wp-data extra dep: editPost() writes the excerpt back into the editor store.
+	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-excerpt', 'ai-excerpt.js', 'sntAiExcerpt', array(
+		'metaBoxClass' => 'sn-post-settings',
+	), array( 'wp-data' ) );
 } );

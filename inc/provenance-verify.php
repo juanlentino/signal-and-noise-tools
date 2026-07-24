@@ -100,8 +100,11 @@ function sn_prov_verify_send() {
 	$uid         = sn_prov_verify_sanitize_uid( $raw_note );
 	$version     = sn_prov_verify_sanitize_version( $raw_version );
 
-	$ns              = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
-	$credential_base = home_url( '/wp-json/' . $ns . '/credential/' );
+	$ns = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
+	// rest_url(), never a hand-built /wp-json/ prefix: a site with a customized
+	// rest prefix (rest_url_prefix filter) serves REST somewhere else entirely,
+	// and the hardcoded path dies silently there.
+	$credential_base = rest_url( $ns . '/credential/' );
 	$did_url         = home_url( '/.well-known/did.json' );
 	$keys_url        = home_url( '/.well-known/provenance-keys.json' );
 	// Same filters sn_prov_ledger_note_url() uses, so the ledger base the JS
@@ -114,6 +117,7 @@ function sn_prov_verify_send() {
 	$css_url  = sn_prov_verify_asset_url( 'assets/css/prov-verify.css' );
 	$core_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-core.js' );
 	$js_url   = sn_prov_verify_asset_url( 'assets/js/prov-verify.js' );
+	$diff_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-diff.js' );
 
 	// The page speaks the site's own type: Bebas Neue + DM Mono, served from
 	// the THEME's font files (same origin; the OG card generator already leans
@@ -204,6 +208,21 @@ function sn_prov_verify_send() {
 
 	<section class="sn-verify-facts" data-role="facts" hidden></section>
 
+	<section class="sn-verify-compare" data-role="compare">
+		<h2>Compare two versions</h2>
+		<p class="sn-verify-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them &mdash; each side labeled by its own anchor state.</p>
+		<form class="sn-verify-form" data-role="compare-form">
+			<label for="sn-compare-uid">Note id</label>
+			<input id="sn-compare-uid" name="compare_uid" type="text" autocomplete="off" spellcheck="false" value="<?php echo esc_attr( $uid ); ?>">
+			<label for="sn-compare-a">From version</label>
+			<input id="sn-compare-a" name="compare_a" type="number" min="1" step="1" value="1">
+			<label for="sn-compare-b">To version</label>
+			<input id="sn-compare-b" name="compare_b" type="number" min="1" step="1" value="2">
+			<button type="submit">Compare</button>
+		</form>
+		<div class="sn-verify-compare-out" data-role="compare-out" aria-live="polite"></div>
+	</section>
+
 	<footer class="sn-verify-foot">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">juanlentino.com</a>
 		<span aria-hidden="true">&middot;</span>
@@ -221,6 +240,7 @@ function sn_prov_verify_send() {
 // cache-busted via sn_prov_verify_asset_url()'s ?ver=SNT_VERSION param. ?>
 <script src="<?php echo esc_url( $core_url ); ?>" defer></script>
 <script src="<?php echo esc_url( $js_url ); ?>" defer></script>
+<script src="<?php echo esc_url( $diff_url ); ?>" defer></script>
 </body>
 </html>
 	<?php

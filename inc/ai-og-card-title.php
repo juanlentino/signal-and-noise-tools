@@ -15,17 +15,18 @@
  *
  * Two surfaces, both gated on snt_ai_is_available():
  *
- *   1. REST endpoint:  POST signal-noise/v1/ai/generate-og-card-title
- *      Body: { post_id: int }
- *      Returns: { ok: true, title: string, card_url: string|null }
- *      Side effect: writes _sn_og_card_title AND re-runs sn_generate_og_card
- *                   so the PNG on disk picks up the new title immediately.
- *      Permission: edit_post for the given post_id
+ *   1. Ability: signal-noise/ai-generate-og-card-title (registered in
+ *      inc/abilities-ai-post-editor.php; the bespoke REST route was removed
+ *      in v5.0.0 — abilities' /wp-json/abilities/v1 run path is the only
+ *      transport). Input: { post_id: int }. Returns { ok, title, length,
+ *      card_regenerated, card_url }. Side effect: writes _sn_og_card_title
+ *      AND re-runs sn_generate_og_card so the PNG on disk picks up the new
+ *      title immediately. Permission: edit_post for the given post_id.
  *
  *   2. Meta-box button: rendered inside the per-post SN meta box next to
  *      the OG card title textarea (post-settings.php:OG card title). JS
- *      at assets/ai-og-card-title.js calls the REST endpoint via
- *      wp.apiFetch, fills the textarea on success, shows inline status.
+ *      at assets/ai-og-card-title.js runs the ability via sntAbilityRun,
+ *      fills the textarea on success, shows inline status.
  *
  * Prompt design:
  *   - 60-90 chars (vs meta description's 140-160)
@@ -73,10 +74,10 @@ add_filter( 'sn_og_card_title', function( $default, $post_id ) {
 /**
  * USER-facing entry: generate an OG card title for a post the caller may edit.
  *
- * Called by the (@deprecated since 2.5.0) REST handler AND the
- * signal-noise/ai-generate-og-card-title ability execute callback — both of
- * which already gate on edit_post upstream (REST permission_callback / ability
- * cap). v6.39.2 adds an internal per-post cap check as defense-in-depth so the
+ * Called by the signal-noise/ai-generate-og-card-title ability execute
+ * callback (the pre-v5.0.0 bespoke REST handler is gone), which already
+ * gates on edit_post upstream via the ability permission callback.
+ * v6.39.2 adds an internal per-post cap check as defense-in-depth so the
  * impl can never write meta / regenerate a card for a post the current user
  * cannot edit, regardless of how it is reached.
  *
@@ -185,32 +186,8 @@ function snt_ai_og_card_title_write( $post_id ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
-		return;
-	}
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		return;
-	}
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
-	}
-
-	wp_register_script(
-		'snt-ai-og-card-title',
-		plugins_url( 'assets/ai-og-card-title.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-		array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ),
-		SNT_VERSION,
-		true
-	);
-
-	wp_localize_script( 'snt-ai-og-card-title', 'sntAiOgCardTitle', array(
+	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-og-card-title', 'ai-og-card-title.js', 'sntAiOgCardTitle', array(
 		'targetId' => 'sn_og_card_title',
 	) );
-
-	wp_enqueue_script( 'snt-ai-og-card-title' );
-
-	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-og-card-title', 'signal-and-noise-tools' );
-	}
 } );

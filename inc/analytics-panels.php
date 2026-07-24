@@ -92,6 +92,24 @@ function snt_an_annotation( $text ) {
 }
 
 /**
+ * Deploy-marker annotation for the Overview: renders the sn_annotation_deploys()
+ * read (releases recorded by inc/deploy-history.php that landed inside the
+ * selected range) through the standard annotation callout. Quiet when nothing
+ * shipped in range — same draw-on-content contract as every other read.
+ *
+ * @since 9.81.0
+ * @param string $from Range start, 'Y-m-d'.
+ * @param string $to   Range end, 'Y-m-d'.
+ * @return void
+ */
+function snt_an_deploys_annotation( $from, $to ) {
+	if ( ! function_exists( 'sn_annotation_deploys' ) || ! function_exists( 'snt_deploy_history_get' ) ) {
+		return;
+	}
+	snt_an_annotation( sn_annotation_deploys( snt_deploy_history_get(), $from, $to ) );
+}
+
+/**
  * Open a row-clamp region around a long table. Full rows stay in the DOM
  * (already fetched — clamping is display-only, zero extra queries); CSS hides
  * rows past $visible; assets/admin.js toggles .sn-an-clamp--open.

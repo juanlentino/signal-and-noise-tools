@@ -7,15 +7,16 @@
  *
  * Two surfaces, both gated on snt_ai_is_available():
  *
- *   1. REST endpoint:  POST signal-noise/v1/ai/generate-meta-description
- *      Body: { post_id: int }
- *      Returns: { ok: true, description: string } or WP_Error
- *      Permission: edit_post for the given post_id
+ *   1. Ability: signal-noise/ai-generate-meta-description (registered in
+ *      inc/abilities-ai-post-editor.php; the bespoke REST route was removed
+ *      in v5.0.0 — abilities' /wp-json/abilities/v1 run path is the only
+ *      transport). Input: { post_id: int, concise?: bool }. Returns
+ *      { ok, description, length }. Permission: edit_post for the post.
  *
  *   2. Meta-box button: rendered inside the existing per-post SN meta box
  *      (next to the meta description textarea, post-settings.php). JS in
- *      assets/ai-meta-description.js calls the REST endpoint via
- *      wp.apiFetch, fills the textarea on success, shows error inline.
+ *      assets/ai-meta-description.js runs the ability via sntAbilityRun,
+ *      fills the textarea on success, shows error inline.
  *
  * Prompt design — see docs/WP-7.0-AI-API-MAP.md in theme repo §SN-specific
  * use cases for the full reasoning. Short version: 140-160 chars, active
@@ -78,9 +79,9 @@ function snt_ai_truncate_meta_description( $text, $max = 155 ) {
 /**
  * Generate a meta description for a post via the WP AI Client.
  *
- * Pure function called by both the (@deprecated since 2.5.0) REST handler
- * AND the signal-noise/ai-generate-meta-description ability execute
- * callback. Single source of truth.
+ * Pure function behind the signal-noise/ai-generate-meta-description
+ * ability's execute callback (the pre-v5.0.0 bespoke REST handler is
+ * gone). Single source of truth.
  *
  * @param int $post_id
  * @return array{ok:bool,description:string,length:int}|WP_Error
@@ -144,35 +145,8 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// Only on post edit screens (block editor + classic editor both fire this).
-	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
-		return;
-	}
-	if ( ! snt_ai_is_available() ) {
-		return; // Skip enqueue entirely — no button, no JS, no overhead.
-	}
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
-	}
-
-	wp_register_script(
-		'snt-ai-meta-description',
-		plugins_url( 'assets/ai-meta-description.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		// v4.1.6 (U-15): snt-status provides window.sntSetStatus (replaces local setStatus copy).
-		array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ),
-		SNT_VERSION,
-		true
-	);
-
-	wp_localize_script( 'snt-ai-meta-description', 'sntAiMetaDesc', array(
+	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-meta-description', 'ai-meta-description.js', 'sntAiMetaDesc', array(
 		'targetId' => 'sn_meta_description', // matches inc/post-settings.php:146
 	) );
-
-	wp_enqueue_script( 'snt-ai-meta-description' );
-
-	// Set translations on the script for wp.i18n.__ — only effective if
-	// the .pot/.po files exist; otherwise falls back to the source string.
-	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'snt-ai-meta-description', 'signal-and-noise-tools' );
-	}
 } );

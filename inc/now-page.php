@@ -5,7 +5,7 @@
  * Owner direction 2026-07-01: /now content should be edited in the plugin
  * admin, not hardcoded in a theme file release. /now is a real CMS Page whose
  * post_content is regenerated from this editor on every save — the page builder
- * lives in inc/content-migrations.php and sn_now_page_save() drives it via
+ * lives in inc/page-sync-engine.php and sn_now_page_save() drives it via
  * sn_now_sync_page(). This module is that editor's data layer:
  *
  *   - one durable autoload=no OPTION (sn_now_page) holding the owner's raw
@@ -134,7 +134,7 @@ function sn_now_page_save( $raw ) {
 	// a real CMS Page. Regenerate the Page body (hero + these sections as blocks)
 	// on every save — the Page is the rendered artifact + Excerpt/SEO/URL surface.
 	// Guarded so the editor's own unit tests exercise the option layer in
-	// isolation (the page builder lives in inc/content-migrations.php, loaded
+	// isolation (the page builder lives in inc/page-sync-engine.php, loaded
 	// after this file; it is present at save time on a live request).
 	if ( function_exists( 'sn_now_sync_page' ) ) {
 		sn_now_sync_page();

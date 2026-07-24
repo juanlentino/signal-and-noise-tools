@@ -155,15 +155,39 @@
 		if ( ! jwk || ! jwk.x ) {
 			return { verdict: { state: STATE.FAIL, detail: 'No public key is published at the did document — nothing to verify against.' } };
 		}
-		var didKeyBytes = base64urlToBytes( jwk.x );
+		// Every decode below is wrapped: a corrupted published key must be a
+		// DISTINCT key-corrupt verdict, never an uncaught atob throw that the
+		// caller can only render as generic UNREACHABLE noise.
+		var didKeyBytes;
+		try {
+			didKeyBytes = base64urlToBytes( jwk.x );
+		} catch ( e ) {
+			return { verdict: { state: STATE.FAIL, detail: 'Key corrupt: the did document\'s published key cannot be decoded.' } };
+		}
 
 		var siteKeyB64   = siteKeys && siteKeys.keys && siteKeys.keys[ 0 ] && siteKeys.keys[ 0 ].public_key_base64;
 		var ledgerKeyB64 = ledgerKeys && ledgerKeys.keys && ledgerKeys.keys[ 0 ] && ledgerKeys.keys[ 0 ].public_key_base64;
-		if ( siteKeyB64 && ! bytesEqual( didKeyBytes, base64ToBytes( siteKeyB64 ) ) ) {
-			return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: the did document and this site\'s own key mirror disagree.' } };
+		if ( siteKeyB64 ) {
+			var siteKeyBytes;
+			try {
+				siteKeyBytes = base64ToBytes( siteKeyB64 );
+			} catch ( e2 ) {
+				return { verdict: { state: STATE.FAIL, detail: 'Key corrupt: this site\'s own key mirror copy cannot be decoded.' } };
+			}
+			if ( ! bytesEqual( didKeyBytes, siteKeyBytes ) ) {
+				return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: the did document and this site\'s own key mirror disagree.' } };
+			}
 		}
-		if ( ledgerKeyB64 && ! bytesEqual( didKeyBytes, base64ToBytes( ledgerKeyB64 ) ) ) {
-			return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: the did document and the independent ledger copy of the key disagree.' } };
+		if ( ledgerKeyB64 ) {
+			var ledgerKeyBytes;
+			try {
+				ledgerKeyBytes = base64ToBytes( ledgerKeyB64 );
+			} catch ( e3 ) {
+				return { verdict: { state: STATE.FAIL, detail: 'Key corrupt: the independent ledger copy of the key cannot be decoded.' } };
+			}
+			if ( ! bytesEqual( didKeyBytes, ledgerKeyBytes ) ) {
+				return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: the did document and the independent ledger copy of the key disagree.' } };
+			}
 		}
 		return { jwk: jwk };
 	}
@@ -433,6 +457,74 @@
 		return { uid: String( uid ).toLowerCase(), version: version };
 	}
 
+	/** Above this many words per side the LCS table is not worth building —
+	 *  the caller renders a "too large to diff" note instead. */
+	var DIFF_MAX_WORDS = 4000;
+
+	/**
+	 * Word-level diff of two content_text payloads (the /verify version-compare
+	 * docket). PURE: split both sides on whitespace, LCS over the word arrays,
+	 * emit runs of { op: 'same'|'del'|'add', text } with consecutive same-op
+	 * words joined by single spaces. Returns null when either side exceeds
+	 * DIFF_MAX_WORDS (quadratic table — refuse honestly rather than hang the
+	 * page). The output is DATA ONLY — the UI asset builds DOM via
+	 * createElement/textContent, never markup from these strings.
+	 */
+	function diffWords( aText, bText ) {
+		var a = String( aText || '' ).split( /\s+/ ).filter( function ( w ) { return '' !== w; } );
+		var b = String( bText || '' ).split( /\s+/ ).filter( function ( w ) { return '' !== w; } );
+		if ( a.length > DIFF_MAX_WORDS || b.length > DIFF_MAX_WORDS ) {
+			return null;
+		}
+		// LCS length table (single allocation, (a+1)x(b+1)).
+		var w = b.length + 1;
+		var table = new Array( ( a.length + 1 ) * w );
+		var i, j;
+		for ( j = 0; j <= b.length; j++ ) {
+			table[ j ] = 0;
+		}
+		for ( i = 1; i <= a.length; i++ ) {
+			table[ i * w ] = 0;
+			for ( j = 1; j <= b.length; j++ ) {
+				table[ i * w + j ] = a[ i - 1 ] === b[ j - 1 ]
+					? table[ ( i - 1 ) * w + ( j - 1 ) ] + 1
+					: Math.max( table[ ( i - 1 ) * w + j ], table[ i * w + ( j - 1 ) ] );
+			}
+		}
+		// Backtrack into reversed op list.
+		var ops = [];
+		i = a.length;
+		j = b.length;
+		while ( i > 0 && j > 0 ) {
+			if ( a[ i - 1 ] === b[ j - 1 ] ) {
+				ops.push( { op: 'same', text: a[ i - 1 ] } );
+				i--; j--;
+			} else if ( table[ ( i - 1 ) * w + j ] > table[ i * w + ( j - 1 ) ] ) {
+				// Strict >: on a tie take the add branch first, so a plain
+				// substitution reads del-then-add after the final reverse.
+				ops.push( { op: 'del', text: a[ i - 1 ] } );
+				i--;
+			} else {
+				ops.push( { op: 'add', text: b[ j - 1 ] } );
+				j--;
+			}
+		}
+		while ( i > 0 ) { ops.push( { op: 'del', text: a[ i - 1 ] } ); i--; }
+		while ( j > 0 ) { ops.push( { op: 'add', text: b[ j - 1 ] } ); j--; }
+		ops.reverse();
+		// Merge consecutive same-op words into runs.
+		var runs = [];
+		ops.forEach( function ( o ) {
+			var last = runs[ runs.length - 1 ];
+			if ( last && last.op === o.op ) {
+				last.text += ' ' + o.text;
+			} else {
+				runs.push( { op: o.op, text: o.text } );
+			}
+		} );
+		return runs;
+	}
+
 	/** The one raw URL sink in an otherwise textContent-only renderer:
 	 *  http(s) only, so a poisoned credential can't plant a javascript: link. */
 	function isSafeExplorerUrl( url ) {
@@ -464,6 +556,8 @@
 		deriveBlockOnlyAnchor:    deriveBlockOnlyAnchor,
 		deriveLedgerTxAnchor:     deriveLedgerTxAnchor,
 		deriveTxAnchor:           deriveTxAnchor,
+		DIFF_MAX_WORDS:           DIFF_MAX_WORDS,
+		diffWords:                diffWords,
 		pastedTwinUrl:            pastedTwinUrl,
 		resolveTwinRef:           resolveTwinRef,
 		isSafeExplorerUrl:        isSafeExplorerUrl

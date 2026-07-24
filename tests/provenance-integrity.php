@@ -394,5 +394,101 @@ ok( false === strpos( $module_src, 'wp_schedule_event' ), 'no parallel cron inve
 ok( false === strpos( $module_src, 'register_rest_route' ), 'no new bare REST route — the ability is the only new surface' );
 ok( false === strpos( $module_src, 'set_transient' ), 'durable state never rides flush-volatile transients' );
 
+// ── Group: v9.81.0 — persistent-404 escalation + malformed ledger record ────
+echo "\nGroup: v9.81.0 — a ledger record that EXISTS but lacks content_hash is a finding, not silence\n";
+pi_note( 401, $UID1, array( pi_commit( $UID1, 1, $PARAS, 'confirmed' ) ) );
+$r = sn_prov_integrity_check_note( 401, pi_fetcher( array(
+	'/notes/note-401.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'ots' => array( 'bitcoin_txid' => 'ab12' ) ) ), // record EXISTS, no content_hash
+) ) );
+ok( in_array( 'ledger_record_malformed', $r['failures'], true ),
+	'a ledger record without content_hash → ledger_record_malformed (was silent)' );
+ok( ! in_array( 'ledger_hash_mismatch', $r['failures'], true ), 'malformed is not a hash contradiction' );
+ok( ! sn_prov_integrity_is_outage( 'ledger_record_malformed' ), 'ledger_record_malformed classifies as real drift, not outage' );
+
+echo "\nGroup: v9.81.0 — three consecutive twin 404s escalate to twin_missing\n";
+ok( 3 === SN_PROV_INTEGRITY_404_STREAK, 'the escalation threshold is a named constant (3)' );
+$GLOBALS['__pi_options'] = array();
+$GLOBALS['__pi_meta']    = array();
+pi_note( 501, $UID1, array( pi_commit( $UID1, 1, $PARAS, 'confirmed' ) ) );
+$hash501 = sn_prov_get_chain( 501 )[0]['content_hash'];
+$GLOBALS['__pi_fleet'] = array( 501 );
+$twin404_fetch = pi_fetcher( array(
+	'keys/provenance-keys.json'    => $KEYS_OK,
+	'/notes/note-501.json'         => array( 'code' => 404, 'body' => '' ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hash501 ) ),
+) );
+sn_prov_integrity_run_sweep( $twin404_fetch );
+$row = get_option( SN_PROV_INTEGRITY_OPT )['notes'][501];
+ok( in_array( 'twin_unreachable', $row['failures'], true ) && ! in_array( 'twin_missing', $row['failures'], true ),
+	'sweep 1: a twin 404 stays an outage-class twin_unreachable' );
+sn_prov_integrity_run_sweep( $twin404_fetch );
+$row = get_option( SN_PROV_INTEGRITY_OPT )['notes'][501];
+ok( ! in_array( 'twin_missing', $row['failures'], true ), 'sweep 2: still not escalated' );
+sn_prov_integrity_run_sweep( $twin404_fetch );
+$row = get_option( SN_PROV_INTEGRITY_OPT )['notes'][501];
+ok( in_array( 'twin_missing', $row['failures'], true ) && ! in_array( 'twin_unreachable', $row['failures'], true ),
+	'sweep 3: three consecutive 404s escalate to the REAL twin_missing finding (replacing the outage code)' );
+ok( ! sn_prov_integrity_is_outage( 'twin_missing' ), 'twin_missing classifies as real drift, not outage' );
+$mf = sn_prov_integrity_findings( sn_prov_integrity_state() );
+$m501 = null;
+foreach ( $mf as $f ) { if ( 501 === (int) $f['subject_id'] ) { $m501 = $f; } }
+ok( null !== $m501 && false !== strpos( $m501['note'], 'missing' ) && false === strpos( $m501['note'], 'outage, not drift' ),
+	'the twin_missing finding speaks as a real finding, not outage wording' );
+
+// A network error (code 0) between 404s resets the streak — CONSECUTIVE means consecutive.
+$twin_net_fetch = pi_fetcher( array(
+	'keys/provenance-keys.json'    => $KEYS_OK,
+	'/notes/note-501.json'         => array( 'code' => 0, 'body' => '' ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hash501 ) ),
+) );
+sn_prov_integrity_run_sweep( $twin_net_fetch );
+sn_prov_integrity_run_sweep( $twin404_fetch );
+$row = get_option( SN_PROV_INTEGRITY_OPT )['notes'][501];
+ok( ! in_array( 'twin_missing', $row['failures'], true ),
+	'a network error resets the 404 streak (an outage between 404s never counts toward escalation)' );
+
+// A recovered twin clears both the streak and the failure.
+$twin_ok_fetch = pi_fetcher( array(
+	'keys/provenance-keys.json'    => $KEYS_OK,
+	'/notes/note-501.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hash501 ) ),
+) );
+sn_prov_integrity_run_sweep( $twin_ok_fetch );
+$row = get_option( SN_PROV_INTEGRITY_OPT )['notes'][501];
+ok( array() === $row['failures'], 'a recovered twin clears the note clean again' );
+
+echo "\nGroup: v9.81.0 — three consecutive keys-file 404s escalate to keys_missing\n";
+$GLOBALS['__pi_options'] = array();
+$keys404_fetch = pi_fetcher( array(
+	'/notes/note-501.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hash501 ) ),
+	// keys/provenance-keys.json intentionally unmatched → the stub's default 404.
+) );
+$s = sn_prov_integrity_run_sweep( $keys404_fetch );
+ok( 'keys_unreachable' === $s['keys'], 'sweep 1: a keys 404 stays keys_unreachable' );
+$s = sn_prov_integrity_run_sweep( $keys404_fetch );
+ok( 'keys_unreachable' === $s['keys'], 'sweep 2: still not escalated' );
+$s = sn_prov_integrity_run_sweep( $keys404_fetch );
+ok( 'keys_missing' === $s['keys'], 'sweep 3: three consecutive 404s escalate to keys_missing' );
+ok( ! sn_prov_integrity_is_outage( 'keys_missing' ), 'keys_missing classifies as real drift, not outage' );
+$kf2 = sn_prov_integrity_findings( sn_prov_integrity_state() );
+$key_rows2 = array_values( array_filter( $kf2, static function ( $f ) { return 0 === (int) $f['subject_id']; } ) );
+ok( 1 === count( $key_rows2 ) && false !== strpos( $key_rows2[0]['note'], 'provenance-keys.json' )
+	&& false !== strpos( $key_rows2[0]['note'], 'absent' ),
+	'keys_missing yields a fleet-level finding naming the absent key file' );
+// A network error resets the keys streak too.
+$keys_net_fetch = pi_fetcher( array(
+	'keys/provenance-keys.json'    => array( 'code' => 0, 'body' => '' ),
+	'/notes/note-501.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hash501 ) ),
+) );
+sn_prov_integrity_run_sweep( $keys_net_fetch );
+$s = sn_prov_integrity_run_sweep( $keys404_fetch );
+ok( 'keys_unreachable' === $s['keys'], 'a keys network error resets the 404 streak' );
+// Recovery clears the streak + verdict.
+$s = sn_prov_integrity_run_sweep( $twin_ok_fetch );
+ok( 'ok' === $s['keys'], 'a recovered keys file goes back to ok' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

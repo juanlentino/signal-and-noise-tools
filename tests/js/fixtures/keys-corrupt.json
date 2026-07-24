@@ -1,0 +1,4 @@
+{
+  "schema": "sn-provenance-keys-v1",
+  "keys": [ { "id": "sn-ed25519-2026-07", "public_key_base64": "%%%corrupt-not-base64%%%" } ]
+}

@@ -17,6 +17,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $d = null ) { return $s; }
 }
+if ( ! function_exists( '_n' ) ) {
+	function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }
+}
 if ( ! function_exists( 'number_format_i18n' ) ) {
 	function number_format_i18n( $n ) { return number_format( (float) $n ); }
 }
@@ -148,6 +151,41 @@ an_eq( 'Most contacts enter on /contact/: 80% of conversions land there first.',
 an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 4 ), array( 'entry' => '/services/', 'conversions' => 3 ), array( 'entry' => '/about/', 'conversions' => 3 ) ) ), 'conversions spread -> null' );
 an_eq( null, sn_annotation_conversions( array( array( 'entry' => '/contact/', 'conversions' => 2 ) ) ), 'too few conversions -> null' );
 an_eq( null, sn_annotation_conversions( array() ), 'no conversions in range -> null' );
+
+echo "\ndeploys (v9.81.0)\n";
+// snt_deploy_history_get rows: { repo, ref, created_at ISO }. Pure resolver:
+// releases whose created_at day falls inside [from, to] make the read.
+$dep = function ( $repo, $ref, $day ) { return array( 'repo' => $repo, 'ref' => $ref, 'created_at' => $day . 'T12:00:00Z' ); };
+an_eq(
+	'1 release shipped in this range: signal-and-noise-tools v9.81.0.',
+	sn_annotation_deploys( array( $dep( 'juanlentino/signal-and-noise-tools', 'v9.81.0', '2026-07-20' ) ), '2026-07-15', '2026-07-22' ),
+	'one in-range release -> singular read naming repo short-name + ref'
+);
+an_eq(
+	'2 releases shipped in this range: signal-and-noise-tools v9.81.0, signal-and-noise v10.47.1.',
+	sn_annotation_deploys(
+		array(
+			$dep( 'juanlentino/signal-and-noise-tools', 'v9.81.0', '2026-07-20' ),
+			$dep( 'juanlentino/signal-and-noise', 'v10.47.1', '2026-07-21' ),
+			$dep( 'juanlentino/signal-and-noise', 'v10.40.0', '2026-06-01' ),
+		),
+		'2026-07-15',
+		'2026-07-22'
+	),
+	'only in-range releases count; out-of-range ones are silent'
+);
+an_eq( null, sn_annotation_deploys( array( $dep( 'a/b', 'v1', '2026-06-01' ) ), '2026-07-15', '2026-07-22' ), 'nothing shipped in range -> null (quiet)' );
+an_eq( null, sn_annotation_deploys( array( $dep( 'a/b', 'v1', '2026-07-20' ) ), '', '' ), 'an unbounded/blank range -> null (the all range tells no deploy story)' );
+an_eq( null, sn_annotation_deploys( array(), '2026-07-15', '2026-07-22' ), 'no history -> null' );
+an_eq( null, sn_annotation_deploys( 'not-an-array', '2026-07-15', '2026-07-22' ), 'garbage history -> null, no notice' );
+$many = array();
+foreach ( array( 'v1', 'v2', 'v3', 'v4', 'v5' ) as $i => $ref ) { $many[] = $dep( 'o/repo', $ref, '2026-07-2' . $i ); }
+$read = sn_annotation_deploys( $many, '2026-07-15', '2026-07-29' );
+an_true( is_string( $read ) && false !== strpos( $read, '5 releases' ) && false !== strpos( $read, 'and 2 more' ), 'more than 3 releases name 3 and fold the rest into "and N more"' );
+an_true(
+	1 === substr_count( (string) sn_annotation_deploys( array( $dep( 'o/r', 'v1', '2026-07-20' ), $dep( 'o/r', 'v1', '2026-07-20' ) ), '2026-07-15', '2026-07-22' ), 'r v1' ),
+	'duplicate (repo, ref) rows dedupe to one named release'
+);
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
