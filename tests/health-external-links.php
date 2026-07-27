@@ -183,7 +183,7 @@ $GLOBALS['__ext']['http']['https://flap.example/x']     = 'ERR';
 $GLOBALS['__ext']['http_get']['https://flap.example/x'] = 'ERR';
 $s = sn_health_external_link_status( 'https://flap.example/x' );
 ok( false === $s['ok'] && 0 === $s['code'], 'flap.example errors (code 0) on first probe' );
-ok( ! isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://flap.example/x' )] ), 'a code-0 network error is NOT cached (a transient is never frozen for 24h)' );
+ok( ! isset( $GLOBALS['__ext']['transient'][ sn_health_probe_cache_key( 'sn_extlink_', 'https://flap.example/x' ) ] ), 'a code-0 network error is NOT cached (a transient is never frozen for 24h)' );
 // Host recovers — the very next probe must re-verify (not serve a cached failure).
 $GLOBALS['__ext']['http']['https://flap.example/x']     = array( 'code' => 200 );
 $GLOBALS['__ext']['http_get']['https://flap.example/x'] = array( 'code' => 200 );
@@ -194,15 +194,25 @@ ok( true === $s2['ok'] && 200 === $s2['code'] && empty( $s2['cached'] ), 'next s
 $GLOBALS['__resolve']['stillgone.example']        = '93.184.216.34';
 $GLOBALS['__ext']['http']['https://stillgone.example/d'] = array( 'code' => 404 );
 sn_health_external_link_status( 'https://stillgone.example/d' );
-ok( isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://stillgone.example/d' )] ), 'a deterministic 404 IS still cached (only code-0 network errors are left uncached)' );
+ok( isset( $GLOBALS['__ext']['transient'][ sn_health_probe_cache_key( 'sn_extlink_', 'https://stillgone.example/d' ) ] ), 'a deterministic 404 IS still cached (only code-0 network errors are left uncached)' );
 
 // 2g. Cache hit → cached flag, no new probe.
-$GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://cached.example/e' )] = array( 'ok' => false, 'code' => 503 );
+$GLOBALS['__ext']['transient'][ sn_health_probe_cache_key( 'sn_extlink_', 'https://cached.example/e' ) ] = array( 'ok' => false, 'code' => 503 );
 $s = sn_health_external_link_status( 'https://cached.example/e' );
 ok( false === $s['ok'] && 503 === $s['code'] && ! empty( $s['cached'] ), 'cache hit returns cached result with cached=true' );
 
 // 2h. Separate cache-key prefix (must NOT collide with the internal probe's 'sn_health_link_').
-ok( isset( $GLOBALS['__ext']['transient']['sn_extlink_' . md5( 'https://good.example/a' )] ), 'external probe caches under the sn_extlink_ prefix (not sn_health_link_)' );
+ok( isset( $GLOBALS['__ext']['transient'][ sn_health_probe_cache_key( 'sn_extlink_', 'https://good.example/a' ) ] ), 'external probe caches under the sn_extlink_ prefix (not sn_health_link_)' );
+
+// 2i. The key is namespaced by classifier revision, so widening a skip bucket
+// self-invalidates every verdict cached under the old rules instead of leaving
+// a now-misclassified URL flagged for the rest of its 24h TTL.
+$rev_key = sn_health_probe_cache_key( 'sn_extlink_', 'https://good.example/a' );
+ok( $rev_key !== 'sn_extlink_' . md5( 'https://good.example/a' ), 'probe cache key is NOT the bare prefix+md5 — it carries a classifier revision' );
+ok( 0 === strpos( $rev_key, 'sn_extlink_' . md5( 'https://good.example/a' ) ), 'the revision is a SUFFIX (prefix+md5 still identifies the URL)' );
+ok( false !== strpos( $rev_key, '_c' . SN_HEALTH_PROBE_CLASSIFY_REV ), 'the key carries the current SN_HEALTH_PROBE_CLASSIFY_REV' );
+ok( sn_health_probe_cache_key( 'sn_extlink_', 'https://a.example/' ) !== sn_health_probe_cache_key( 'sn_health_link_', 'https://a.example/' ), 'external and internal probes still key separately for the same URL' );
+ok( strlen( $rev_key ) <= 172, 'key stays within WP\'s 172-char transient-name limit' );
 
 // The bot-challenge CLASSIFIER unit tests (sn_health_is_bot_challenge, incl. the
 // ArrayAccess/CaseInsensitiveDictionary production path) live in their own suite,
@@ -264,6 +274,46 @@ ok( ! empty( $s['skipped'] ), 'HTTP 999 (LinkedIn anti-bot) is SKIPPED, not rott
 ok( 'nonstandard_status' === ( $s['reason'] ?? '' ), 'skip reason is nonstandard_status' );
 ok( true === $s['ok'], 'a 999 link is treated as ok (produces no finding)' );
 ok( 999 === $s['code'], '999 code is preserved' );
+
+// ─── 2k. REGRESSION: a Vercel Security Checkpoint (HTTP 429 + x-vercel-mitigated:
+// challenge) is a LIVE page, not rot. Reported by the owner 2026-07-27 against a
+// cited venturebeat.com article that renders fine in a browser; the probe recorded
+// "HTTP 429 on probe" and the check called it rot. The response slipped past all
+// three skip buckets at once: 429 was not in the challenge code allowlist (403/503),
+// the header is x-vercel-mitigated not cf-mitigated, there is no Cloudflare
+// fingerprint for the edge-gate bucket (server: Vercel, no cf-ray), and 429 < 600 so
+// the non-standard bucket ignored it. Live capture of the real response shape. ───
+$GLOBALS['__resolve']['venturebeat.example'] = '93.184.216.34';
+$GLOBALS['__ext']['transient'] = array(); // uncached
+$GLOBALS['__ext']['http']['https://venturebeat.example/security/ai-tool-poisoning'] = array(
+	'code'    => 429,
+	'headers' => array(
+		'server'                   => 'Vercel',
+		'x-vercel-mitigated'       => 'challenge',
+		'x-vercel-challenge-token' => '2.1785187818.60.YWY4…',
+		'content-type'             => 'text/html; charset=utf-8',
+	),
+);
+$s = sn_health_external_link_status( 'https://venturebeat.example/security/ai-tool-poisoning' );
+ok( ! empty( $s['skipped'] ), 'Vercel checkpoint (429) is SKIPPED, not rotted' );
+ok( 'bot_challenge' === ( $s['reason'] ?? '' ), 'skip reason is bot_challenge (same bucket as a Cloudflare challenge)' );
+ok( true === $s['ok'], 'a Vercel-challenged link is treated as ok (produces no finding)' );
+ok( 429 === $s['code'], '429 code is preserved for the record' );
+
+// The guard that keeps this honest: a Vercel-HOSTED 404 is still rot. Vercel is an
+// ORIGIN host for millions of sites, not a pure reverse proxy like Cloudflare, so
+// `server: Vercel` alone must never buy a skip — only the explicit mitigation header.
+$GLOBALS['__resolve']['vercel-gone.example'] = '93.184.216.34';
+$GLOBALS['__ext']['transient'] = array();
+$GLOBALS['__ext']['http']['https://vercel-gone.example/removed'] = array( 'code' => 404, 'headers' => array( 'server' => 'Vercel' ) );
+$s = sn_health_external_link_status( 'https://vercel-gone.example/removed' );
+ok( empty( $s['skipped'] ) && false === $s['ok'], 'a Vercel-hosted 404 is STILL rot (server:Vercel alone buys no skip)' );
+
+$GLOBALS['__resolve']['vercel-denied.example'] = '93.184.216.34';
+$GLOBALS['__ext']['transient'] = array();
+$GLOBALS['__ext']['http']['https://vercel-denied.example/x'] = array( 'code' => 403, 'headers' => array( 'server' => 'Vercel' ) );
+$s = sn_health_external_link_status( 'https://vercel-denied.example/x' );
+ok( empty( $s['skipped'] ) && false === $s['ok'], 'a Vercel-hosted bare 403 (WAF deny, no challenge header) is STILL rot' );
 
 // ─── 3. The check: report rotted external links, skip good/SSRF-unsafe ───
 ok( function_exists( 'sn_health_check_external_links' ), 'sn_health_check_external_links() defined' );

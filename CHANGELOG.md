@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.82.1] - 2026-07-27: A checkpoint is not a tombstone
+
+**Headline:** the link-rot check called a live VentureBeat article dead. It was not dead; it was behind a Vercel Security Checkpoint, which answers an automated probe with `429` and an `x-vercel-mitigated: challenge` header. The classifier knew that shape only in Cloudflare's dialect, so the response fell through all three skip buckets at once and landed in "rot". Challenge detection is now vendor-agnostic, and the verdict cache carries a revision so a rules change can no longer leave yesterday's misjudgment frozen for a day.
+
+> **Why PATCH:** a false-positive fix plus the cache-invalidation seam that makes it take effect. No new capability, no removed or renamed API, no settings-schema change.
+
+### Fixed
+- **A live page behind a Vercel checkpoint was reported as a rotted citation.** `sn_health_is_bot_challenge()` matched only Cloudflare's `cf-mitigated: challenge` on a 403/503. Vercel emits the same convention under a different name (`x-vercel-mitigated: challenge`) and serves it with `429`, so the response missed the challenge bucket on both the header and the status; missed the edge-gate bucket, which requires a Cloudflare fingerprint (`cf-ray` / `server: cloudflare`) and sees `server: Vercel`; and missed the non-standard-status bucket, which starts at 600. Detection now walks a table of vendor `*-mitigated` headers, and the challenge-bearing status allowlist covers 403/429/503 — the codes that mean "restricted" or "try again". 404 and 410, the only codes that mean *gone*, still rot regardless of any header.
+- **A Vercel-hosted 404 or bare 403 still rots.** Unlike Cloudflare, Vercel is an origin host as well as an edge, so `server: Vercel` on its own proves nothing about liveness and buys no skip. Only the explicit `challenge` mitigation does — the same discipline that has always kept a plain non-CF 403 flagged.
+
+### Improvements
+- **Probe verdicts are namespaced by classifier revision.** Both link probes cache per URL for 24h, so widening a skip bucket previously did nothing for URLs already judged under the old rules — the stale verdict stood for the rest of its TTL, and "Re-run scan" replayed it instead of re-probing. Keys now carry `SN_HEALTH_PROBE_CLASSIFY_REV`, bumped in the same commit as any rules change, so a correction applies on the next scan instead of the next day. Orphaned entries expire on their own.
+- Health copy names the behavior rather than one vendor: bot-challenged URLs are now described as "a Cloudflare or Vercel checkpoint answering an automated probe with 403/429/503".
+
+### Tests
+- `tests/health-probe-classify.php` — 10 new assertions covering the Vercel dialect (live-captured response shape, case-insensitivity, the `ArrayAccess` production path, `deny` not mistaken for `challenge`) and the 404/410-still-rot guard for both vendors. 41 passing.
+- `tests/health-external-links.php` — end-to-end regression through the real probe: a 429 checkpoint is skipped with reason `bot_challenge`, while a Vercel-hosted 404 and a bare Vercel 403 stay rot. Plus cache-key namespacing, separation between the two probes, and the 172-char transient-name bound. 62 passing.
+
 ## [9.82.0] - 2026-07-24: Three abilities walk through the door
 
 **Headline:** four abilities shipped between v9.78.0 and v9.81.0 and then sat undoored — registered, tested, reachable by WP-CLI and REST, invisible to an agent. Three of them go through now: the two provenance status reads onto the read door, the anchor sweep onto the read-write door. The fourth stays out on purpose, and the reason is now written down where the list lives.

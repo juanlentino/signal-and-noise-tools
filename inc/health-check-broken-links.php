@@ -107,7 +107,7 @@ function sn_health_extract_internal_links( $content, $site_host ) {
  * challenged citation (see sn_health_is_bot_challenge() in health-probe-classify.php).
  */
 function sn_health_link_status( $url ) {
-	$cache_key = 'sn_health_link_' . md5( $url );
+	$cache_key = sn_health_probe_cache_key( 'sn_health_link_', $url );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return $cached;

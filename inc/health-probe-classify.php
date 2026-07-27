@@ -20,42 +20,95 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Revision of the classification RULES below. Both probes cache their verdict
+ * per URL for 24h, so widening a skip bucket does NOT retroactively clear the
+ * verdicts it would now classify differently — a URL judged "rot" under the old
+ * rules stays flagged for the rest of its TTL, and "Re-run scan" returns the
+ * stale verdict instead of re-probing. Namespacing the cache key with this
+ * revision makes a rules change self-invalidating: bump it in the same commit
+ * that changes a classifier and every prior verdict is bypassed immediately.
+ * Orphaned entries under the old revision expire on their own within the TTL.
+ *
+ * 1 — original (Cloudflare challenge / CF edge-gate / non-standard status).
+ * 2 — challenge detection generalized to any vendor `*-mitigated: challenge`
+ *     header (adds Vercel) and the status allowlist widened to 403/429/503.
+ */
+if ( ! defined( 'SN_HEALTH_PROBE_CLASSIFY_REV' ) ) {
+	define( 'SN_HEALTH_PROBE_CLASSIFY_REV', 2 );
+}
+
+/**
+ * Probe-cache transient key for a URL, namespaced by classifier revision.
+ *
+ * @param string $prefix Per-probe key prefix ('sn_extlink_' | 'sn_health_link_').
+ * @param string $url    URL being probed.
+ * @return string Transient key (well under WP's 172-char limit).
+ */
+function sn_health_probe_cache_key( $prefix, $url ) {
+	return $prefix . md5( (string) $url ) . '_c' . SN_HEALTH_PROBE_CLASSIFY_REV;
+}
+
+/**
+ * Response headers by which a CDN declares "I served a bot challenge here."
+ *
+ * Both Cloudflare and Vercel converged on the same convention — a purpose-built
+ * `*-mitigated` header carrying the action the edge took — so one lookup table
+ * covers both, and a third vendor adopting it is a one-line addition:
+ *
+ *   - `cf-mitigated: challenge`         Cloudflare Managed Challenge / Turnstile.
+ *   - `x-vercel-mitigated: challenge`   Vercel Security Checkpoint (Attack Mode /
+ *                                       a WAF `challenge` rule).
+ *
+ * What makes these headers safe to trust is that the edge emits them ONLY on
+ * responses IT generated — never on an origin 4xx merely passed through — and it
+ * names the action, so a `deny` is distinguishable from a `challenge`.
+ *
+ * @return string[] Lowercase header names, in match order.
+ */
+function sn_health_challenge_headers() {
+	return array( 'cf-mitigated', 'x-vercel-mitigated' );
+}
+
+/**
  * Is a probe response a bot-challenge interstitial rather than a dead link?
  *
- * A live page gated behind a challenge (Cloudflare Managed Challenge / Turnstile)
- * answers an automated HEAD/GET with a 4xx/5xx + a JS interstitial — the resource
- * is NOT gone, the edge is gating non-browser clients. Flagging it as broken/rot
- * is a false positive: a human in a browser solves the challenge and reaches it.
+ * A live page gated behind a challenge answers an automated HEAD/GET with a
+ * 4xx/5xx + a JS interstitial — the resource is NOT gone, the edge is gating
+ * non-browser clients. Flagging it as broken/rot is a false positive: a human in
+ * a browser solves the challenge and reaches it.
  *
- * Detection keys on Cloudflare's purpose-built `cf-mitigated` header, which CF
- * emits ONLY on responses it generated itself, with the value `challenge` for an
- * interstitial. That disambiguates a CF-issued challenge from an origin 4xx merely
- * passed THROUGH Cloudflare — so this never masks a genuinely forbidden or removed
- * origin resource (those carry no cf-mitigated header). The status is constrained
- * to the challenge-bearing codes (403 managed/Turnstile, 503 legacy IUAM) so a real
- * 404/410 stays a dead link even if a stray header ever appeared.
+ * Detection keys on the vendor's purpose-built mitigation header (see
+ * sn_health_challenge_headers()) carrying the value `challenge`. That
+ * disambiguates an edge-ISSUED challenge from an origin 4xx merely passed THROUGH
+ * the CDN — so this never masks a genuinely forbidden or removed origin resource
+ * (those carry no mitigation header), and never swallows a `deny`.
+ *
+ * The status allowlist exists for exactly one reason: keep a genuinely GONE
+ * resource rotting even if a stray/spoofed header ever appeared. "Gone" in HTTP
+ * is 404/410 and nothing else (RFC 9110 §15.5), so the allowlist is the set of
+ * access-restricted / try-again codes these vendors actually serve challenges
+ * with — 403 (CF managed/Turnstile), 429 (Vercel checkpoint), 503 (CF legacy
+ * IUAM). None of the three can mean "removed", so admitting all three for either
+ * vendor costs nothing in safety.
  *
  * @param int   $code    HTTP status code from the probe.
  * @param mixed $headers Response header bag (array or WP CaseInsensitiveDictionary).
  * @return bool True when the response is a bot challenge (treat as unverifiable).
  */
 function sn_health_is_bot_challenge( $code, $headers ) {
-	if ( 403 !== (int) $code && 503 !== (int) $code ) {
+	$code = (int) $code;
+	if ( 403 !== $code && 429 !== $code && 503 !== $code ) {
 		return false;
 	}
-	$mitigated = '';
-	if ( is_array( $headers ) ) {
-		foreach ( $headers as $name => $value ) {
-			if ( 'cf-mitigated' === strtolower( (string) $name ) ) {
-				$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
-				break;
-			}
+	foreach ( sn_health_challenge_headers() as $header ) {
+		// sn_health_probe_header() resolves either bag shape (plain array or WP's
+		// ArrayAccess CaseInsensitiveDictionary) case-insensitively.
+		$mitigated = sn_health_probe_header( $headers, $header );
+		if ( false !== strpos( strtolower( trim( $mitigated ) ), 'challenge' ) ) {
+			return true;
 		}
-	} elseif ( $headers instanceof ArrayAccess && isset( $headers['cf-mitigated'] ) ) {
-		$value     = $headers['cf-mitigated']; // WP's CaseInsensitiveDictionary resolves the key case-insensitively.
-		$mitigated = is_array( $value ) ? implode( ',', $value ) : (string) $value;
 	}
-	return false !== strpos( strtolower( trim( $mitigated ) ), 'challenge' );
+	return false;
 }
 
 /**
