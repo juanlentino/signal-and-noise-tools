@@ -44,9 +44,33 @@ ok( true  === sn_health_is_bot_challenge( 403, array( 'cf-mitigated' => 'challen
 ok( true  === sn_health_is_bot_challenge( 503, array( 'cf-mitigated' => 'challenge' ) ), '503 + cf-mitigated:challenge → bot challenge (legacy IUAM)' );
 ok( true  === sn_health_is_bot_challenge( 403, array( 'CF-Mitigated' => 'Challenge' ) ), 'header name + value match is case-insensitive' );
 ok( false === sn_health_is_bot_challenge( 403, array( 'server' => 'cloudflare' ) ), 'CF 403 WITHOUT cf-mitigated → NOT a challenge (it is a CF block; edge-gated detection handles it, see below)' );
-ok( false === sn_health_is_bot_challenge( 404, array( 'cf-mitigated' => 'challenge' ) ), '404 stays real rot even with a challenge header (code allowlist 403/503)' );
+ok( false === sn_health_is_bot_challenge( 404, array( 'cf-mitigated' => 'challenge' ) ), '404 stays real rot even with a challenge header (code allowlist 403/429/503)' );
 ok( false === sn_health_is_bot_challenge( 200, array() ), 'healthy 200 → not a challenge' );
 ok( false === sn_health_is_bot_challenge( 403, array() ), 'bare 403, empty headers → still rot' );
+
+// ─── Vercel Security Checkpoint (the SECOND vendor speaking this dialect) ───
+// Vercel's firewall answers a non-browser client with an `x-vercel-mitigated:
+// challenge` interstitial — the exact structural twin of Cloudflare's
+// `cf-mitigated: challenge`, but served with HTTP 429 and fingerprinted
+// `server: Vercel` (no cf-ray). That combination slipped past ALL THREE prior
+// classifiers: not 403/503 + not cf-mitigated (bot_challenge), no Cloudflare
+// fingerprint (edge_gated), and 429 < 600 (nonstandard_status) — so a LIVE
+// article was recorded as rot. Live capture, venturebeat.com, 2026-07-27:
+//   HTTP/2 429 · server: Vercel · x-vercel-mitigated: challenge
+//   x-vercel-challenge-token: … · content-type: text/html
+ok( true  === sn_health_is_bot_challenge( 429, array( 'x-vercel-mitigated' => 'challenge' ) ), 'Vercel: 429 + x-vercel-mitigated:challenge → bot challenge (the venturebeat.com false positive)' );
+ok( true  === sn_health_is_bot_challenge( 429, array( 'server' => 'Vercel', 'x-vercel-mitigated' => 'challenge', 'x-vercel-challenge-token' => '2.178…' ) ), 'Vercel: the full live response shape classifies as a challenge' );
+ok( true  === sn_health_is_bot_challenge( 403, array( 'x-vercel-mitigated' => 'challenge' ) ), 'Vercel: a challenge served with 403 is still a challenge' );
+ok( true  === sn_health_is_bot_challenge( 429, array( 'X-Vercel-Mitigated' => 'Challenge' ) ), 'Vercel: header name + value match is case-insensitive' );
+ok( false === sn_health_is_bot_challenge( 404, array( 'x-vercel-mitigated' => 'challenge' ) ), 'Vercel: 404 stays real rot even with a challenge header (GONE beats gated)' );
+ok( false === sn_health_is_bot_challenge( 410, array( 'x-vercel-mitigated' => 'challenge' ) ), 'Vercel: 410 stays real rot (GONE beats gated)' );
+ok( false === sn_health_is_bot_challenge( 403, array( 'server' => 'Vercel' ) ), 'Vercel-hosted 403 WITHOUT the challenge header → still rot (Vercel is an ORIGIN host, not a pure proxy — server:Vercel alone proves nothing)' );
+ok( false === sn_health_is_bot_challenge( 429, array( 'x-vercel-mitigated' => 'deny' ) ), 'a NON-challenge vercel mitigation (deny) → not a challenge' );
+ok( true  === sn_health_is_bot_challenge( 429, new SN_CI_Headers( array( 'X-Vercel-Mitigated' => 'challenge' ) ) ), 'Vercel: detected through the ArrayAccess CaseInsensitiveDictionary (real WP path)' );
+
+// A CF challenge served with 429 is now admitted too — the code allowlist exists
+// to protect 404/410 ("gone"), and 429 means "try again", never "gone".
+ok( true  === sn_health_is_bot_challenge( 429, array( 'cf-mitigated' => 'challenge' ) ), 'Cloudflare: 429 + cf-mitigated:challenge → bot challenge (429 is access-restricted, not gone)' );
 
 // ─── Production path: a CaseInsensitiveDictionary-style ArrayAccess bag ───
 ok( true  === sn_health_is_bot_challenge( 403, new SN_CI_Headers( array( 'CF-Mitigated' => 'challenge' ) ) ), 'detects a challenge through an ArrayAccess (CaseInsensitiveDictionary) bag — the real WP path' );

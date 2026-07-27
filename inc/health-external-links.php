@@ -6,8 +6,9 @@
  * broken-links check (sn_health_check_broken_links) deliberately DROPS off-host
  * links — so cited external sources rot unwatched. This check extracts the
  * off-host links and HEAD-probes them, flagging 4xx/5xx/network failures. A
- * bot-challenge interstitial (a 403/503 carrying `cf-mitigated: challenge`, e.g.
- * Cloudflare-gated academic hosts like SSRN) is treated as unverifiable rather
+ * bot-challenge interstitial (a 403/429/503 carrying a vendor `*-mitigated:
+ * challenge` header — Cloudflare-gated academic hosts like SSRN, or a Vercel
+ * Security Checkpoint in front of a news site) is treated as unverifiable rather
  * than rot — the page is live, the edge is gating automated clients. See
  * sn_health_is_bot_challenge().
  *
@@ -109,7 +110,7 @@ function sn_health_external_link_status( $url ) {
 		return array( 'ok' => true, 'code' => 0, 'skipped' => true, 'cached' => false );
 	}
 
-	$cache_key = 'sn_extlink_' . md5( $url );
+	$cache_key = sn_health_probe_cache_key( 'sn_extlink_', $url );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		$cached['cached'] = true;
@@ -212,7 +213,7 @@ function sn_health_check_external_links() {
 	global $wpdb;
 
 	$label     = 'External link rot';
-	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local), bot-challenged (e.g. Cloudflare-gated), or anti-bot-refused (e.g. LinkedIn returns HTTP 999) URLs are skipped, not flagged. An "Unreachable" result is a network error (timeout / DNS / connection) — the probe retries once with GET and never caches the failure, so a transient blip clears on the next scan; only a persistently unreachable link is genuinely rotted.';
+	$fix_hint  = 'Update or remove each rotted citation in the editor. Probe results cache for 24h; unverifiable (private/link-local), bot-challenged (e.g. a Cloudflare or Vercel checkpoint answering an automated probe with 403/429/503), or anti-bot-refused (e.g. LinkedIn returns HTTP 999) URLs are skipped, not flagged. An "Unreachable" result is a network error (timeout / DNS / connection) — the probe retries once with GET and never caches the failure, so a transient blip clears on the next scan; only a persistently unreachable link is genuinely rotted.';
 	$findings  = array();
 	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $site_host ) {
@@ -248,7 +249,7 @@ function sn_health_check_external_links() {
 		// Bound the synchronous scan: skip NEW network probes once either the
 		// per-run cap OR the cumulative wall-clock budget is hit. Already-cached
 		// URLs stay free and remain reportable regardless.
-		if ( false === get_transient( 'sn_extlink_' . md5( $url ) )
+		if ( false === get_transient( sn_health_probe_cache_key( 'sn_extlink_', $url ) )
 			&& ( $network_probes >= SN_HEALTH_EXTLINK_MAX_PROBES
 				|| ( microtime( true ) - $started ) > SN_HEALTH_EXTLINK_TIME_BUDGET )
 		) {
