@@ -51,7 +51,13 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ENTRY: ${{ steps.extract.outputs.entry }}
         run: |
-          SYSTEM="Rewrite this technical CHANGELOG entry as user-facing release notes for juanlentino.com. Keep the ### New / Improvements / Fixed / Cleanup / Removed / Deprecated category headers that apply. Lead with a one-line plain-language headline. Rewrite each bullet as a benefit to a reader — drop file paths, commit SHAs, function and symbol names, and internal jargon. Be concise and warm, not salesy. Output GitHub-flavored markdown only, no preamble."
+          # House style is enforced in the prompt, not post-processed: American
+          # English and NO em-dashes. Unstated, the model falls back to its own
+          # conventions and drifts (the v9.82.1 draft came back with 3 em-dashes
+          # plus "recognises" and "judgement"). The instruction below is itself
+          # written in that style on purpose: an em-dash sitting in the prompt
+          # models the very punctuation it is trying to forbid.
+          SYSTEM="Rewrite this technical CHANGELOG entry as user-facing release notes for juanlentino.com. Keep the ### New / Improvements / Fixed / Cleanup / Removed / Deprecated category headers that apply. Lead with a one-line plain-language headline. Rewrite each bullet as a benefit to a reader, dropping file paths, commit SHAs, function and symbol names, and internal jargon. Be concise and warm, not salesy. STYLE (strict): write American English, never British spellings (use 'recognize', 'behavior', 'judgment', 'organize'). Never use em-dashes or en-dashes; use periods, commas, colons, or parentheses instead. Output GitHub-flavored markdown only, no preamble."
           PAYLOAD=$(jq -n --arg system "$SYSTEM" --arg changelog "$ENTRY" \
             '{model:"claude-sonnet-4-6", max_tokens:2000, system:$system, messages:[{role:"user",content:$changelog}]}')
           RESP=$(curl -sS -w '\n%{http_code}' https://api.anthropic.com/v1/messages \
