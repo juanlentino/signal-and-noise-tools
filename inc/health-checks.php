@@ -117,6 +117,11 @@ function sn_health_run_scan() {
 			// bounded, rotating triangle check (payload hash / live .json twin /
 			// public ledger + key file) over the anchored-Note fleet.
 			'provenance_integrity' => sn_health_check_provenance_integrity(),
+			// 14th check (v9.85.0): the rights-signals drift probe. Verifies the
+			// Phase 1 rights surface live at the edge (tdmrep.json, license.xml,
+			// the robots.txt Content-Signal + License lines, TDM headers on HTML
+			// and /wp-json); a failure raises the standing attention chip.
+			'rights_signals'       => snt_health_check_rights_signals(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -157,6 +162,9 @@ require_once __DIR__ . '/health-check-drift-time-phrases.php';
 require_once __DIR__ . '/health-check-color-drift.php';
 require_once __DIR__ . '/health-check-unlinked-mentions.php';
 require_once __DIR__ . '/health-check-cf-security-headers.php';
+// v9.85.0 (Session 3 lane 3): the rights-signals drift probe, same pattern as
+// the cf-security-headers module above.
+require_once __DIR__ . '/health-check-rights-signals.php';
 
 /**
  * Common per-check result envelope used by 2-4.

@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.85.0] - 2026-07-28
+
+**Headline:** the Machine Readers surface lands as a preview — the plugin learns who reads the machine surfaces, whether the rights signals are still standing, and what sensor version is live. Flag-gated (the v9.67.0 Overview pattern): enable with option `sn_machine_readers_preview`; v10.0.0 flips it default.
+
+### New
+
+- **Machine Readers admin tab** ([inc/machine-readers-admin.php](inc/machine-readers-admin.php), spliced into the `sn_admin_top_tabs()` registry when the preview flag is on): the deployed-sensor card (version + deploy date, with an explicit "sensor outdated" warning when the live worker is below the v1.4.0 contract minimum), reads-per-family and reads-per-surface tables, the observed-vs-declared compliance read (declared AI-training families crossed with their reads of the rights surfaces — observation, never claimed as proof of identity), the weekly crawler-list drift card, and the settings sub-form (worker URL + write-only read token, constant-first via `SN_MR_READ_TOKEN`).
+- **Sensor read layer** ([inc/machine-readers-api.php](inc/machine-readers-api.php)): token-auth fetch of the `sn-rights-signals` v1.4.0 aggregates through the shared SSRF gate (https-only, `redirection=0` so the Bearer token cannot follow a redirect), fail-closed on non-200 or schema drift, every row allowlist-normalized against the fixed 18-family / 10-surface enums (an unknown value coerces to `other-bot`/`html`; no raw worker string can reach the page). Missing token is loud (`not_configured`), never a silent empty panel.
+- **Pure renderers** ([inc/machine-readers-render.php](inc/machine-readers-render.php)): house `wp-list-table` idiom, `esc_html` at every cell (defense in depth over the allowlists), fixture-driven with canned rows.
+- **Rights-signals drift probe** ([inc/health-check-rights-signals.php](inc/health-check-rights-signals.php)), the 14th Content Health check: tdmrep.json parses, license.xml parses, robots carries exactly one `Content-Signal` line with `ai-input=yes` AND `ai-train=no`, the `License:` line is present, and the TDM headers answer `1` on both HTML and `/wp-json` — value-checked, not just presence-checked, so an edge drift to the semantic inverse (`TDM-Reservation: 0`, `ai-train=yes`) fails the check instead of passing it. Origin-direct degenerate guard per the cf-security-headers precedent (an edge bypass yields an advisory, not five false findings).
+
+### Improvements
+
+- `tests/admin-post-actions.php` handler-map completeness pin 51 → 52 (`machine_readers_save`); four new fixtures (api 19, render 14, admin 9, probe 13 assertions) ride the standalone sweep — 327 fixtures green.
+
+> **Why MINOR:** one new (flag-gated) user-visible surface plus a new health check; nothing removed or changed. The GA flip, and the removals this surface's arrival justifies, are v10.0.0's.
+
 ## [9.84.0] - 2026-07-28
 
 **Headline:** the v10.0.0 ladder goes up — the four surfaces leaving in the major now say so, and nothing else changes.

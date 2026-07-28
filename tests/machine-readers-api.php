@@ -31,6 +31,13 @@ function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 function is_wp_error( $x ) { return false; }
 function get_transient( $k ) { return false; }
 function set_transient( $k, $v, $ttl = 0 ) { return true; }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
+function wp_http_validate_url( $url ) { return false !== filter_var( (string) $url, FILTER_VALIDATE_URL ) ? $url : false; }
+// Deterministic SSRF-guard seam (no DNS in tests): records every host consulted,
+// blocks only the empty host, mirroring the real guard's fail-closed edge.
+$GLOBALS['__ssrf_hosts'] = array();
+function sn_ssrf_host_blocked( $host ) { $GLOBALS['__ssrf_hosts'][] = (string) $host; return '' === (string) $host; }
 
 require __DIR__ . '/../inc/machine-readers-api.php';
 
@@ -67,9 +74,22 @@ $last = end( $GLOBALS['__requests'] );
 ok( $last && false !== strpos( (string) $last['url'], 'days=90' ), 'days clamps to 90 in the request' );
 $auth = $last['args']['headers']['Authorization'] ?? ( $last['args']['headers']['authorization'] ?? '' );
 ok( 'Bearer test-token' === $auth, 'Bearer token rides the request header' );
+ok( in_array( 'juanlentino.com', $GLOBALS['__ssrf_hosts'], true ), 'outbound host was consulted through the SSRF guard' );
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => '{"data":"not-an-array"}' );
 $r = snt_mr_fetch( 7 );
 ok( false === $r['ok'], 'schema mismatch fails closed (ok=false)' );
+
+echo "\nGroup: snt_mr_sensor_info — deployed-version read, fail-quiet\n";
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'version' => '1.4.0', 'deployed_at' => '2026-07-28T17:12:22.596257Z' ) ) );
+$info = snt_mr_sensor_info();
+ok( is_array( $info ) && '1.4.0' === ( $info['version'] ?? '' ), 'happy path returns the deployed version' );
+ok( '' !== (string) ( $info['deployed_at'] ?? '' ), 'deployed_at rides along' );
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'version' => '<b>evil</b>', 'deployed_at' => 'x' ) ) );
+ok( null === snt_mr_sensor_info(), 'hostile version string fails the allowlist and returns null' );
+$GLOBALS['__response'] = array( 'code' => 500, 'body' => '' );
+ok( null === snt_mr_sensor_info(), 'non-200 returns null (quiet dash, never fatal)' );
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => 'not json' );
+ok( null === snt_mr_sensor_info(), 'garbage body returns null' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

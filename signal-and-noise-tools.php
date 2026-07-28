@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     9.84.0
+ * Version:     9.85.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -200,6 +200,19 @@ require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools →
 // health-external-links all call sn_ssrf_host_blocked(). (v6.13.2: moved up from
 // the webhooks group so the earliest consumer, rss-feed-tracker, is covered.)
 require_once SNT_PATH . 'inc/ssrf-guard.php';
+
+// Machine Readers surface (v9.85.0, Session 3): the rights-signals sensor read
+// (Bearer-token worker fetch + enum-allowlist normalization), the pure table
+// renderers, and the Monitoring sub-tab registration + settings sub-form. The
+// tab is preview-flagged (sn_machine_readers_preview, the v9.67.0 Overview
+// pattern); the v10.0.0 GA flip makes it default. Loads AFTER ssrf-guard so
+// the function_exists-guarded sn_ssrf_host_blocked() call in the fetch path is
+// enforcing, never skipped. The companion drift probe
+// (inc/health-check-rights-signals.php) rides the inc/health-checks.php
+// orchestrator like every other health check.
+require_once SNT_PATH . 'inc/machine-readers-api.php';
+require_once SNT_PATH . 'inc/machine-readers-render.php';
+require_once SNT_PATH . 'inc/machine-readers-admin.php';
 
 // RSS feed-request tracker. (v1.1.0–v6.20.0 this was inc/rss-plausible-tracker.php,
 // migrated from a theme MU-plugin of the same name; the v1.1.0 MU-twin redeclare

@@ -53,5 +53,14 @@ $bad = good_responses(); unset( $bad['wpjson']['headers']['tdm-reservation'] );
 $v = snt_rights_probe_evaluate( $bad );
 ok( ( $v['headers']['ok'] ?? true ) === false, 'TDM header missing on /wp-json fails the headers check' );
 
+echo "\nGroup: inverted-value drift fails closed (presence alone is never enough)\n";
+$bad = good_responses(); $bad['robots']['body'] = str_replace( 'ai-train=no', 'ai-train=yes', $bad['robots']['body'] );
+$v = snt_rights_probe_evaluate( $bad );
+ok( ( $v['signal']['ok'] ?? true ) === false, 'ai-train=yes drift fails the signal check (the semantic inverse of Phase 1)' );
+
+$bad = good_responses(); $bad['wpjson']['headers']['tdm-reservation'] = '0';
+$v = snt_rights_probe_evaluate( $bad );
+ok( ( $v['headers']['ok'] ?? true ) === false, 'TDM-Reservation: 0 (rights NOT reserved) fails the headers check' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

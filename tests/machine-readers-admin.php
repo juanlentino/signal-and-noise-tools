@@ -15,6 +15,8 @@ function ok( $cond, $label ) {
 
 $GLOBALS['__opts'] = array( 'sn_machine_readers_preview' => '1' );
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
+// Storage-side URL sanitizer stub (lane 4): valid http(s) URL passes, else ''.
+function esc_url_raw( $url ) { $url = trim( (string) $url ); return false !== filter_var( $url, FILTER_VALIDATE_URL ) ? $url : ''; }
 
 require __DIR__ . '/../inc/machine-readers-admin.php';
 
@@ -23,6 +25,10 @@ $tabs_in = array( 'analytics' => array( 'label' => 'Analytics' ), 'tools' => arr
 $tabs = snt_mr_admin_register( $tabs_in );
 ok( false !== strpos( json_encode( $tabs ), 'machine-readers' ), 'flag ON: registry gains the machine-readers entry' );
 ok( isset( $tabs['analytics'], $tabs['tools'] ), 'existing entries preserved' );
+// Integration pin: the registry's declared render entrypoint must actually be
+// defined in this module, or the dispatcher's is_callable guard renders a
+// SILENTLY blank tab (no fatal, no error) when the preview flag is on.
+ok( 'snt_mr_render_tab' === ( $tabs['machine-readers']['render'] ?? '' ) && function_exists( 'snt_mr_render_tab' ), 'registry render entrypoint snt_mr_render_tab exists (no silently blank tab)' );
 $GLOBALS['__opts']['sn_machine_readers_preview'] = '';
 $tabs = snt_mr_admin_register( $tabs_in );
 ok( false === strpos( json_encode( $tabs ), 'machine-readers' ), 'flag OFF: registry unchanged (GA flip is v10.0.0\'s)' );
