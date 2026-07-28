@@ -95,5 +95,12 @@ ok( false === strpos( $tab, 'sn-an-worker-card' ), 'the invented gray worker-car
 // The strip carries the feed chip from the same tracker read the table uses.
 ok( 2 === substr_count( $tab, '946' ), 'the 30d feed total reaches the strip chip AND the feed table (one tracker read)' );
 
+echo "\nGroup: v10.2.6 — zebra tables carry gutters from the CENTRAL sheet\n";
+$sn_an_css = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-admin.css' );
+$sn_mr_css = (string) file_get_contents( __DIR__ . '/../assets/machine-readers.css' );
+ok( 1 === preg_match( '/\.sn-an-table\.widefat th,\s*\.sn-an-table\.widefat td \{ padding: 8px 12px; \}/', $sn_an_css ), 'central sheet gives striped sn-an-tables the dashboard cell gutters (the glued-text fix, plugin-wide)' );
+ok( false !== strpos( $sn_an_css, '.sn-an-table.widefat td:last-child { padding-right: 12px; }' ), 'the trailing number column keeps a right gutter (not glued to the card border)' );
+ok( false === strpos( $sn_mr_css, '6px 10px 6px 0' ), 'machine-readers.css no longer carries its own flush cell override (superseded by the central rule)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

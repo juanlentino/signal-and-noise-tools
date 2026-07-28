@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.6] - 2026-07-28
+
+### Fixed
+
+- **Zebra tables stop gluing text to their edges — plugin-wide, from the central sheet** ([assets/analytics/analytics-admin.css](assets/analytics/analytics-admin.css)): the owner's complaint, finally stated precisely, was that cell text sits pressed against the striped rows' edges ("glued to the table") — the v10.2.4/v10.2.5 flush-alignment passes were solving the wrong problem, and are removed. Root cause: the central `.sn-an-table` base strips cell padding (correct for the settings-leaf mirror tables), and the dashboard's padded `.sn-an-table-inside` override only exists inside postboxes — so every `widefat striped sn-an-table` outside a postbox rendered glued. New central rule: `.sn-an-table.widefat` cells get the dashboard's `8px 12px` gutters, including a right gutter on the trailing number column. Machine Readers sheds its scoped flush overrides (superseded); the caption-as-heading and KPI-strip treatments stay. Verified in a pixel reproduction against the live stylesheet stack before shipping; CSS contract pinned in tests/machine-readers-admin.php.
+
+> **Why PATCH:** CSS-only; supersedes two mis-aimed patches with the centrally-scoped fix.
+
 ## [10.2.5] - 2026-07-28
 
 ### Fixed
