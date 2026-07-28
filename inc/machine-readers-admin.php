@@ -151,6 +151,19 @@ function snt_mr_render_tab() {
 		echo '<div class="sn-fieldset"><p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the sensor panel below says why.', 'signal-and-noise-tools' ) . '</p></div>';
 	}
 
+	// v10.2.0: crawler-family delta cards. Rendered from the SAME fetch the
+	// tables above used (never a second outbound call — snt_mr_delta_cards()
+	// would fire its own, and inc/machine-readers-api.php caches only success,
+	// so a down sensor would cost a live request on every admin page load).
+	if ( ! empty( $result['ok'] ) && function_exists( 'snt_mr_split_windows' ) && function_exists( 'snt_mr_family_delta_cards' ) ) {
+		$sn_mr_rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
+		$sn_mr_win  = snt_mr_split_windows( $sn_mr_rows, 15, gmdate( 'Y-m-d' ) );
+		$sn_mr_cards = snt_mr_family_delta_cards( $sn_mr_win['current'] ?? array(), $sn_mr_win['prior'] ?? array(), 15 );
+		if ( ! empty( $sn_mr_cards ) ) {
+			echo snt_mr_render_delta_cards( $sn_mr_cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every field (fixture-pinned).
+		}
+	}
+
 	// ── Sensor status: the Analytics "Pipeline status" card, same pills, same
 	// warn lines. Copied idiom, not a new one. v10.1.1.
 	echo '<div class="sn-fieldset">';

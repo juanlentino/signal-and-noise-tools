@@ -182,6 +182,12 @@ foreach ( $removed as $i => $slug ) {
 // The 7 loaded files register exactly 18 abilities post-removal
 // (17 post-v8 + run-health-scan, added v9.78.0 for the DM mirror)
 // (system 5, cron 4, audit 3, block-migrations 3, pattern-adoption 1, dismiss 1).
+//
+// v10.1.0: signal-noise/get-machine-readers-summary joined the site-wide set
+// (inc/abilities-machine-readers.php, required from the orchestrator). The
+// count below is UNCHANGED on purpose: this fixture loads the 7 files named
+// above one by one, not the orchestrator, and the new file is not among them.
+// Bump this number only when one of THOSE 7 gains or loses an ability.
 t_eq( 17, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 17 abilities (v10.0.0 retired draft-release-notes; no stray additions, no over-removal)' );
 
 // ════ Group B: the `updates` category is retired ═════════════════════

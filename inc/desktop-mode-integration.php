@@ -1474,61 +1474,11 @@ add_filter( 'desktop_mode_ai_system_prompt_appendix', function ( $appendix ) {
  * @return array
  */
 function snt_desktop_machine_readers_payload() {
-	$days = 30;
-	if ( ! function_exists( 'snt_mr_fetch' ) ) {
-		return array( 'ok' => false, 'error' => 'unavailable', 'days' => $days );
+	// v10.2.0: delegates to the ONE builder (inc/machine-readers-api.php) that
+	// the get-machine-readers-summary ability also calls, so the tile and the
+	// ability can never drift.
+	if ( ! function_exists( 'snt_mr_summary_payload' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable', 'days' => 30 );
 	}
-	$result = snt_mr_fetch( $days );
-	if ( empty( $result['ok'] ) ) {
-		return array(
-			'ok'    => false,
-			'error' => (string) ( $result['error'] ?? 'unknown' ),
-			'days'  => $days,
-		);
-	}
-
-	$rows     = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
-	$totals   = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
-	$ai_set   = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
-	$total    = 0;
-	$ai_hits  = 0;
-	$ai_right = 0;
-	foreach ( $rows as $row ) {
-		$hits   = (int) ( $row['hits'] ?? 0 );
-		$total += $hits;
-		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
-			$ai_hits += $hits;
-			if ( 'rights' === (string) ( $row['surface'] ?? '' ) ) {
-				$ai_right += $hits;
-			}
-		}
-	}
-
-	$families = array();
-	foreach ( $totals as $family => $hits ) {
-		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits );
-		if ( count( $families ) >= 3 ) {
-			break; // A tile is a glance; the full table is one click away.
-		}
-	}
-
-	$info    = function_exists( 'snt_mr_sensor_info' ) ? snt_mr_sensor_info() : null;
-	$status  = function_exists( 'snt_mr_crawler_list_status' ) ? snt_mr_crawler_list_status() : null;
-	$verdict = null;
-	if ( is_array( $status ) && isset( $status['last_check_ok'] ) ) {
-		$c_ok    = '' !== (string) $status['last_check_ok'];
-		$c_drift = '' !== (string) ( $status['last_check_drift'] ?? '' );
-		$verdict = $c_ok ? ( $c_drift ? 'drift' : 'in sync' ) : 'check failed';
-	}
-
-	return array(
-		'ok'             => true,
-		'days'           => $days,
-		'total'          => $total,
-		'families'       => $families,
-		'ai_training'    => $ai_hits,
-		'ai_rights'      => $ai_right,
-		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
-		'crawler_list'   => $verdict,
-	);
+	return snt_mr_summary_payload( 30 );
 }

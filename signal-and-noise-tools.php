@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.1.1
+ * Version:     10.2.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -210,7 +210,16 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // (inc/health-check-rights-signals.php) rides the inc/health-checks.php
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-api.php';
+require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
+// The one-sentence summarizer, loaded AFTER the render module whose aggregate
+// helpers it reads. No side effects, no hooks: a pure string builder narrator
+// surfaces can call once they hold a payload.
+require_once SNT_PATH . 'inc/machine-readers-narration.php';
+// Crawler-family volume deltas as insight cards (R3). Loads AFTER the render
+// module too: it reuses that lane's one "reads per family" aggregator. Pure
+// detector plus one guarded fetch wrapper, no hooks, no side effects.
+require_once SNT_PATH . 'inc/machine-readers-insights.php';
 require_once SNT_PATH . 'inc/machine-readers-admin.php';
 
 // RSS feed-request tracker. (v1.1.0–v6.20.0 this was inc/rss-plausible-tracker.php,

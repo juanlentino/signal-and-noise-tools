@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.0] - 2026-07-28
+
+### New
+
+- **`signal-noise/get-machine-readers-summary`** ([inc/abilities-machine-readers.php](inc/abilities-machine-readers.php)): a read-only ability returning the machine-readership summary for a window (1-90 days, default 30) — total reads, top families, declared AI-training reads and their rights-surface slice, plus the sensor version and crawler-list verdict so the numbers can be judged. An unconfigured or unreachable sensor returns `{ok:false, error, days}` with **no** `total` — a zero would tell an agent "no crawler touched this site", which is a different and false claim from "we never asked".
+- **A machine-readership sentence for the narrator** ([inc/machine-readers-narration.php](inc/machine-readers-narration.php)): one honest line ("Machine readers read the site N times over the 30-day window; M of those came from declared AI-training families"), silent when there is no data. Crawler reads are never called visits, never called traffic, and never summed with human beacons.
+- **Crawler-family delta insight cards** ([inc/machine-readers-insights.php](inc/machine-readers-insights.php)): a family whose reads move materially between comparable windows raises a card. Requires a minimum absolute volume so a 1 → 3 jump does not shout.
+- **[docs/MACHINE-READERS.md](docs/MACHINE-READERS.md)**: the surface, the sensor contract (endpoint, auth, both enums), the privacy posture (aggregate-only, fixed enum, raw UA never stored, humans never recorded, never summed with beacons), the deploy and secret requirements, and an end-to-end verification walkthrough.
+
+### Fixed (found by the build's own adversarial review, before merge)
+
+- **`ai_rights` no longer describes a coverage it does not have.** The ability's description named "robots.txt, TDMRep, RSL, llms.txt", but the count only includes the `rights` surface class — `/robots.txt` and `/llms.txt` are their own classes. An agent reading `ai_rights: 0` for a window in which a crawler fetched robots.txt 40 times would have reported "it read none of our declarations". The prose now names exactly what is counted and says explicitly what is excluded; a fixture pins the description against the code.
+- **A vacuous test assertion is gone.** The window-clamp pin asserted `strpos( sentence(900), '90' )` — and `"900"` contains `"90"`, so it passed with the clamp deleted (proven by mutation). It now asserts the rendered `90-day` token, negatively asserts `900`, and covers the lower bound. The narrator's honesty vocabulary is now pinned on **both** prose branches, not just one.
+- **The payload had been forked in the same file that promised not to fork it.** The ability delegated to the desktop-tile route at 30 days and kept a byte-identical local copy for every other window. There is now ONE builder ([inc/machine-readers-summary.php](inc/machine-readers-summary.php)) that the ability and the tile route both call, and the fixture drives the real builder instead of comparing key lists typed into itself.
+- **A family that stops reading is now as reportable as one that starts.** The delta detector iterated the current window only, so a crawler going 900 reads → 0 never carded while a partial fall did. On a surface whose whole point is noticing whether crawlers backed off after we published TDMRep and RSL, the one silence was the flattering direction. It now iterates the union of both windows.
+- **The insight module was loaded on every request and called by nothing.** Its cards now render on the Machine Readers tab, from the fetch the tables already made — not a second outbound call, which would have cost a live request on every admin page load while the sensor was down (the read layer caches only success).
+- **Two more assertions that proved nothing:** a "payload is never mutated" pin that no implementation could fail (by-value array parameter), replaced with a real one; and a hostile `javascript:` URL row whose `esc_url` stub passed the scheme straight through, so the one sink it claimed to cover was untested.
+- **A partially observed prior window can no longer fabricate a trend.** The insight detector only skipped an *entirely* empty window, so a prior window observed on 5 of 30 days (sensor deployed mid-window) rendered "up 500%" from an identical per-day rate. It now requires the prior window to have been observed on at least half the days of the current one, and stays silent otherwise.
+
+> **Why MINOR:** three new user-visible capabilities plus a documented surface; nothing removed or changed. **The unified feed-fetcher column (R4) is NOT in this release** — its build lane died to a transient infrastructure error and was not retried; `rss-feed-tracker` remains the source of truth for feed stats and the Machine Readers tab does not yet mirror them.
+
 ## [10.1.1] - 2026-07-28
 
 ### Fixed
