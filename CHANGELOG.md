@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.2] - 2026-07-28
+
+### Improvements
+
+- **The Machine Readers tab composes as two aligned zones, one width** ([inc/machine-readers-admin.php](inc/machine-readers-admin.php)): the boxes really were all over the place — the page alternated full-width rows (KPI strip, family|surface pair, settings pair) with 820px-capped orphans (the compliance table, the feed table, the sensor status card), producing three different right edges down one page. The compliance read and the feed-fetch windows now share a second `.sn-2up` row under the family|surface pair — which is what R4's design intent said all along ("a second column beside the surface table") — so the data zone is two aligned two-column rows and nothing stacks capped under something wide.
+- **The sensor zone is now the Analytics settings-leaf shape wholesale**: wrapped in `.sn-an-settings-leaf` (so the token-card scoping applies), the status pills ride the `.sn-an-pipeline` hero strip (with `.sn-fieldset--wide`, because this leaf is data-wide above where the Analytics leaf is not), and BOTH settings columns are `.sn-fieldset` cards — the v10.1.1 copy had left the settings fold chromeless beside a lone card floating in the bottom-right corner.
+- **The KPI strip carries the feed half of the audience**: a fourth chip (feed fetches, 30d) from the same tracker read the feed table uses — one read, two sinks, and the two counts are never summed with crawler reads (`snt_mr_render_summary_chips` takes the total as an optional argument; null omits the chip). The strip's grid is now `auto-fit`, so three or four chips stay equal-width and wrap on narrow screens without re-stating the Analytics breakpoints.
+- **Table captions read as card headings** ([assets/machine-readers.css](assets/machine-readers.css)): left-aligned over a hairline rule (the `.sn-fieldset-h` anatomy) instead of UA-centered floats. The compliance table's paragraph-length caption became a heading-length title, with the observation-not-proof disclaimer moved to the house `sn-field-helper` line under the table — same words, right anatomy.
+- **The feed table stays honest when the sensor is down**: it renders from local WP data under the empty-state notice even when the edge read fails, instead of disappearing with the crawler tables.
+
+> **Why PATCH:** presentation recomposition of an existing tab; no API change, no data touched, no new capability beyond re-siting numbers the tab already fetched.
+
 ## [10.2.1] - 2026-07-28
 
 ### New

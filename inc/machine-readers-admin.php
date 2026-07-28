@@ -128,6 +128,14 @@ function snt_mr_settings_save( $post, $settings ) {
  * own card chrome. The pure renderers return pre-escaped HTML
  * (tests/machine-readers-render.php pins the escaping); the settings form is
  * rendered last and NEVER echoes the stored token (write-only contract).
+ *
+ * v10.2.2 (UI pass): two aligned zones, one width. Zone 1 is the readership
+ * data as TWO .sn-2up rows (family|surface, then compliance|feed — no more
+ * 820px-capped orphans under full-width rows) with the feed total joining the
+ * KPI strip. Zone 2 is the Analytics settings-leaf shape WHOLESALE
+ * (.sn-an-settings-leaf wrapper, the .sn-an-pipeline hero strip, both columns
+ * as fieldset cards) — the v10.1.1 copy had kept the pills in a capped plain
+ * card and left the fold column chromeless beside a lone corner card.
  */
 function snt_mr_render_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -138,22 +146,32 @@ function snt_mr_render_tab() {
 
 	echo '<p class="sn-prose">What machine readers do with the site: which crawler families read it, which machine surfaces they touch, and whether declared AI-training crawlers actually read the rights declarations that apply to them.</p>';
 
+	// One tracker read serves the strip chip AND the feed table (R4: the feed
+	// half of the machine audience; the two counts are never summed).
+	$sn_mr_feed  = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
+	$sn_mr_feed_total = isset( $sn_mr_feed['windows'][30]['total'] ) ? (int) $sn_mr_feed['windows'][30]['total'] : null;
+
 	// ── Zone 1: the readership data (what you came for) ──
 	if ( ! empty( $result['ok'] ) ) {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
-		echo snt_mr_render_summary_chips( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
+		echo snt_mr_render_summary_chips( $rows, $days, $sn_mr_feed_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
 		echo '<div class="sn-2up sn-mr-grid">';
 		echo '<div class="sn-fieldset">' . snt_mr_render_family_table( $rows, $days ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo '<div class="sn-fieldset">' . snt_mr_render_surface_table( $rows ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo '</div>';
+		// Second aligned row: the compliance read beside the feed fetchers,
+		// so no table ever stacks as an 820px orphan under a full-width pair.
+		echo '<div class="sn-2up sn-mr-grid">';
 		echo '<div class="sn-fieldset">' . snt_mr_render_compliance( $rows ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		// R4 (v10.2.1): the feed-fetcher half of the machine audience, from the
-		// EXISTING tracker. Never summed with crawler reads.
-		if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
-			echo '<div class="sn-fieldset">' . snt_mr_render_feed_table( sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		} // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		echo '<div class="sn-fieldset">' . snt_mr_render_feed_table( $sn_mr_feed ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		echo '</div>';
 	} else {
 		echo '<div class="sn-fieldset"><p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the sensor panel below says why.', 'signal-and-noise-tools' ) . '</p></div>';
+		// The feed tracker is local WP data — it stays honest even when the
+		// edge sensor is unreachable.
+		if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
+			echo '<div class="sn-fieldset">' . snt_mr_render_feed_table( $sn_mr_feed ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		}
 	}
 
 	// v10.2.0: crawler-family delta cards. Rendered from the SAME fetch the
@@ -169,9 +187,14 @@ function snt_mr_render_tab() {
 		}
 	}
 
-	// ── Sensor status: the Analytics "Pipeline status" card, same pills, same
-	// warn lines. Copied idiom, not a new one. v10.1.1.
-	echo '<div class="sn-fieldset">';
+	// ── Zone 2: the Analytics settings-leaf shape wholesale (v10.2.2) — the
+	// leaf wrapper scopes the token-card language, the pills ride the
+	// .sn-an-pipeline hero strip (full width: this leaf is data-wide above,
+	// so the hero earns .sn-fieldset--wide where Analytics keeps the cap),
+	// and BOTH columns below are fieldset cards, exactly like Analytics.
+	echo '<div class="sn-an-settings-leaf">';
+
+	echo '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Sensor status', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → this tab. Presence checks only, secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
 	$sn_mr_info   = snt_mr_sensor_info();
@@ -179,11 +202,10 @@ function snt_mr_render_tab() {
 	echo snt_mr_render_sensor_status( snt_mr_sensor_pills( $sn_mr_info, $sn_mr_status, $result ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
 	echo '</div>';
 
-	// ── Two columns, the Analytics settings-leaf shape: writable settings fold
-	// on the left, the read-only reference readout on the right.
 	echo '<div class="sn-2up">';
 
-	echo '<div>';
+	echo '<div class="sn-fieldset">';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Where this tab reads from: the Worker endpoint and the credential it presents. Constants in wp-config.php override both.', 'signal-and-noise-tools' ) . '</p>';
 	snt_mr_render_settings_form();
 	echo '</div>';
 
@@ -203,7 +225,8 @@ function snt_mr_render_tab() {
 	echo '</div>';
 	echo '</div>';
 
-	echo '</div>';
+	echo '</div>'; // .sn-2up
+	echo '</div>'; // .sn-an-settings-leaf
 }
 
 

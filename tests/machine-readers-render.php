@@ -50,6 +50,11 @@ ok( '' !== $html && false !== strpos( $html, 'openai' ), 'AI-training families a
 ok( false !== stripos( $html, 'observed' ) && false !== stripos( $html, 'declared' ), 'labeled observed-vs-declared' );
 ok( false === stripos( $html, 'verified' ), 'never claims verified identity (UAs are self-reported)' );
 ok( false === strpos( $html, 'uptime' ), 'non-AI families stay out of the compliance table' );
+// v10.2.2 UI pass: the caption is a heading-length title; the paragraph-length
+// observation-not-proof disclaimer moves to a helper line under the table.
+preg_match( '/<caption>(.*?)<\/caption>/s', $html, $sn_cap );
+ok( isset( $sn_cap[1] ) && false === stripos( $sn_cap[1], 'self-reported' ), 'caption is a title, not the paragraph-length disclaimer' );
+ok( false !== stripos( $html, 'self-reported' ) && false !== strpos( $html, 'sn-field-helper' ), 'the self-reported disclaimer still renders, as the house helper line' );
 
 echo "\nGroup: sensor card, deployed version vs the contract minimum\n";
 $html = snt_mr_render_sensor_card( array( 'version' => '1.4.0', 'deployed_at' => '2026-07-28T17:12:22Z' ) );
@@ -68,6 +73,14 @@ ok( false !== strpos( $html, '20' ), 'AI-training reads counted (openai 15 + ant
 $hostile = snt_mr_render_summary_chips( array( array( 'family' => 'openai', 'surface' => 'llms', 'day' => '<svg onload=x>', 'hits' => 2 ) ), 7 );
 ok( false === strpos( $hostile, '<svg' ), 'chips escape like every other sink' );
 ok( '' !== snt_mr_render_summary_chips( array(), 30 ), 'empty rows still render a strip, not a fatal' );
+
+echo "\nGroup: v10.2.2 — the strip carries the feed half of the audience (fourth chip)\n";
+$html = snt_mr_render_summary_chips( $rows, 30, 946 );
+ok( false !== strpos( $html, '946' ), 'feed-fetches chip renders the passed 30d total' );
+ok( false !== stripos( $html, 'fetch' ), 'labeled as fetches, not reads (the two acts are never conflated)' );
+ok( false === strpos( $html, '1,006' ), 'never summed with crawler reads (60 + 946 must not appear anywhere)' );
+$html = snt_mr_render_summary_chips( $rows, 30 );
+ok( false === stripos( $html, 'fetch' ), 'null feed total omits the chip entirely (three-chip strip unchanged)' );
 
 echo "\nGroup: v10.1.1 — the sensor block copies the Analytics idiom\n";
 $pills = snt_mr_sensor_pills(

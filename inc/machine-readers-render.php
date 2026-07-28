@@ -160,7 +160,9 @@ function snt_mr_render_compliance( $rows ) {
 		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No reads from declared AI-training families in this window.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	arsort( $totals );
-	$caption = __( 'Observed vs declared: read counts are what the edge observed; the AI-training class comes from public declarations. User agents are self-reported, so this is observation, not proof of identity.', 'signal-and-noise-tools' );
+	// v10.2.2: heading-length caption; the observation-not-proof disclaimer
+	// moves to the house helper line below the table (a caption is a title).
+	$caption = __( 'Observed vs declared: reads from AI-training crawler families.', 'signal-and-noise-tools' );
 	$out     = snt_mr_table_open( $caption, array(
 		__( 'Family', 'signal-and-noise-tools' )         => '',
 		__( 'Observed reads', 'signal-and-noise-tools' ) => 'num',
@@ -171,7 +173,8 @@ function snt_mr_render_compliance( $rows ) {
 			. '<td class="num" data-colname="Observed reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td>'
 			. '<td class="num" data-colname="Rights reads">' . esc_html( number_format_i18n( (int) ( $rights[ $family ] ?? 0 ) ) ) . '</td></tr>';
 	}
-	return $out . '</tbody></table>';
+	return $out . '</tbody></table>'
+		. '<p class="sn-field-helper">' . esc_html__( 'Read counts are what the edge observed; the AI-training class comes from public declarations. User agents are self-reported, so this is observation, not proof of identity.', 'signal-and-noise-tools' ) . '</p>';
 }
 
 /**
@@ -206,11 +209,17 @@ function snt_mr_render_sensor_card( $info ) {
  * the at-a-glance row above the tables. Pure; every value escaped; empty rows
  * still render the strip (zeros), never a fatal.
  *
- * @param array $rows Normalized rows.
- * @param int   $days Window the rows cover.
+ * v10.2.2: an optional fourth chip carries the feed-fetcher half of the
+ * machine audience (the R4 "one picture" intent reaching the strip). The two
+ * counts are never summed — a feed fetch is not a crawler read; the chip only
+ * sits beside the others. Null (tracker absent) omits the chip entirely.
+ *
+ * @param array    $rows       Normalized rows.
+ * @param int      $days       Window the rows cover.
+ * @param int|null $feed_total Feed fetches in the same window, or null to omit.
  * @return string HTML.
  */
-function snt_mr_render_summary_chips( $rows, $days ) {
+function snt_mr_render_summary_chips( $rows, $days, $feed_total = null ) {
 	$totals = snt_mr_sum_hits_by( $rows, 'family' );
 	$total  = 0;
 	foreach ( $totals as $hits ) {
@@ -231,6 +240,9 @@ function snt_mr_render_summary_chips( $rows, $days ) {
 		. $card( sprintf( /* translators: %s: window length in days. */ __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( $total ) )
 		. $card( __( 'top family', 'signal-and-noise-tools' ), '' === $top || '&mdash;' === $top ? '—' : $top )
 		. $card( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
+		. ( null !== $feed_total
+			? $card( sprintf( /* translators: %s: window length in days. */ __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( (int) $feed_total ) )
+			: '' )
 		. '</div>';
 }
 
