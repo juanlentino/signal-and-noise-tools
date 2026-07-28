@@ -28,7 +28,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/ai-generate-meta-description', array(
 		'label'               => 'Generate SEO meta description with AI',
-		'description'         => 'Generates a 140-160 character meta description from post content via the WP AI Client. Writes to the _sn_meta_description post meta override.',
+		'description'         => 'Generates a 140-160 character meta description from post content via the WP AI Client. Returns the text; the caller writes it to the _sn_meta_description post meta override.',
 		'category'            => 'ai-generation',
 		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_ai_generate_meta_description',

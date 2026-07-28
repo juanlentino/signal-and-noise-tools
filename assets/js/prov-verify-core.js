@@ -351,7 +351,9 @@
 		var ots      = rec.ots || {};
 
 		var norm     = function ( h ) { return String( h || '' ).replace( /^sha256:/, '' ).toLowerCase(); };
-		var siteHash = norm( evidence.content_hash || cred && cred.content_hash );
+		// The CREDENTIAL emits camelCase contentHash (inc/provenance-credential.php);
+		// snake_case content_hash is the LEDGER record's shape. Read both, credential first.
+		var siteHash = norm( evidence.contentHash || evidence.content_hash );
 		var ledgerHash = norm( rec.content_hash );
 		var hash     = ledgerHash || siteHash;
 		var hashSource;

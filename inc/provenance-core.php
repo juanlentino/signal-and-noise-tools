@@ -388,6 +388,13 @@ function sn_prov_on_after_insert( $post_id, $post, $update, $post_before ) {
 	if ( 'publish' !== $post->post_status ) {
 		return;
 	}
+	// v9.88.0: a password-protected post IS status=publish, and the commit
+	// payload carries the entire normalized post_content to a PUBLIC,
+	// append-only ledger (irreversible: git history + a Bitcoin anchor).
+	// sn_prov_credential() already gates on this; the recording leg did not.
+	if ( '' !== (string) ( $post->post_password ?? '' ) ) {
+		return;
+	}
 	if ( ! sn_prov_is_note( $post_id ) ) {
 		return;
 	}

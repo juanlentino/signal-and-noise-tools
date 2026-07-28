@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.88.0] - 2026-07-28
+
+**Headline:** the hardening gate's fixes — a public-ledger plaintext leak, a forgeable confirm callback, an OG card outliving its post, a clobbered sensor token, and two defects in yesterday's own proof walk. Plus the robots seam the theme needs.
+
+### Security
+
+- **A password-protected Note is no longer recorded to the public ledger** ([inc/provenance-core.php](inc/provenance-core.php)): a protected post IS `status=publish`, and the commit payload carries the entire normalized `post_content` to an append-only public ledger — irreversible once written (git history + a Bitcoin anchor). `sn_prov_credential()` already gated on this; the recording leg did not. The hourly sweep's reconcile leg ([inc/provenance-webhook.php](inc/provenance-webhook.php)) now bails the same way, so an already-recorded commit cannot be pushed later. Pinned in [tests/provenance-trigger.php](tests/provenance-trigger.php).
+- **The confirm webhook is no longer forgeable from the site's own public credential** ([inc/provenance-webhook.php](inc/provenance-webhook.php)): the Worker signs ledger payloads and confirm callbacks with one Ed25519 key and no domain separation, and a signed ledger payload is published unauthenticated — so replaying one as a confirm body verified. It carries no `content_hash` (the integrity check was `isset()`-conditional) and no `status` (which defaulted to `confirmed`), flipping any pending commit to Verified. Both are now required and validated; genuine callbacks always send both (`sweep.mjs:187`, checked against the Worker source). Four negative pins added. Durable follow-up for a paired Worker release: sign a context-prefixed message so a ledger signature can never validate as a callback.
+- **The OG card no longer outlives its post** ([inc/og-card-generator.php](inc/og-card-generator.php)): the PNG's provenance `iTXt` chunk carries the full post text at a guessable public URL, but only password-protection deleted it — unpublish, private, and trash merely skipped regeneration, and permanent delete never reached the hook at all. Leaving `publish` now deletes the card, and `before_delete_post` is wired. Same bug class as v9.25.2; third module.
+- **The MCP rw door can no longer reach the destruction it deliberately holds back** ([inc/mcp/mcp-tools.php](inc/mcp/mcp-tools.php)): `clear-template-overrides` is off both doors, but `purge-all-caches` advertises `include_template_overrides`, which reaches the same irreversible `wp_delete_post` sweep of every template/part/navigation row. The flag is scrubbed at the rw door; the cache purge stays usable.
+
+### Fixed
+
+- **The Machine Readers sensor token survives an Identity save** ([inc/settings.php](inc/settings.php)): `sn_settings_save()` rebuilds the option from scratch, and v9.85.0's `machine_readers` subtree had no preserve block — so saving Identity & SEO destroyed a write-only token the owner cannot re-read from the UI. Fifth subtree in this recurring class; pinned in [tests/settings-save-preserves-subtrees.php](tests/settings-save-preserves-subtrees.php).
+- **The v9.87.0 proof walk actually reads its witnesses** ([assets/js/prov-verify.js](assets/js/prov-verify.js), [assets/js/prov-verify-core.js](assets/js/prov-verify-core.js)): it was handed `fetchJSON` envelopes instead of the ledger record and tx status (so every independent-witness field read `undefined`), and it read `evidence.content_hash` when the credential emits `evidence[0].contentHash` (so step 01 rendered a blank hash under an authoritative "site credential" label). The harness fixtures had certified the invented shape; they now use the real credential's keys, plus a regression case.
+- `ai-generate-meta-description` no longer advertises a post-meta write it never performs ([inc/abilities-ai-post-editor.php](inc/abilities-ai-post-editor.php)) — it returns the text, like its `ai-generate-excerpt` sibling.
+- Literal backslashes in the /verify proof-walk lede ([inc/provenance-verify.php](inc/provenance-verify.php)).
+
+### New
+
+- **`sn_seo_robots_directives`** ([inc/seo.php](inc/seo.php)): the plugin removes core's `wp_robots` and emits the robots meta itself, so a theme-side `wp_robots` filter is dead code — which is exactly what theme v10.51.0's search-noindex was (live-verified inert). The directive list is now built by the testable `sn_seo_robots_directives()` and passed through this filter: the ninth cross-package listener seam. Listener returns are normalized (non-array ignored, duplicates collapsed, list-shaped). Theme v10.51.1 answers it. Pinned in the new [tests/seo-robots.php](tests/seo-robots.php).
+
+> **Why MINOR:** a new public filter seam (new capability) alongside the security fixes; no API removed, no behavior the owner must adapt to.
+
 ## [9.87.0] - 2026-07-28
 
 **Headline:** the /verify docket walks the whole proof — content hash to ledger leaf to Bitcoin transaction to block, each value labeled with which witness supplied it.

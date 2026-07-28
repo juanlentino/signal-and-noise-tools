@@ -410,6 +410,14 @@ function sn_settings_save( $raw ) {
 		$sanitized['analytics'] = $existing_settings['analytics'];
 	}
 
+	// v9.88.0: same hazard, machine_readers subtree (v9.85.0). Its read token is
+	// written by sn_handle_machine_readers_save() and is WRITE-ONLY in the UI, so
+	// an Identity save clobbering it destroys a value the owner cannot re-read —
+	// they must re-derive it from the Worker secret. Fifth subtree in this class.
+	if ( isset( $existing_settings['machine_readers'] ) && is_array( $existing_settings['machine_readers'] ) ) {
+		$sanitized['machine_readers'] = $existing_settings['machine_readers'];
+	}
+
 	$sanitized['seo_copy'] = array(
 		'home_title'             => sanitize_text_field( (string) ( $raw['seo_home_title'] ?? '' ) ),
 		'home_description'       => sanitize_textarea_field( (string) ( $raw['seo_home_description'] ?? '' ) ),

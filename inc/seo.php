@@ -308,15 +308,20 @@ add_action( 'wp_head', function() {
  *   _sn_noarchive     — adds 'noarchive'    (no cached copy)
  *   _sn_noimageindex  — adds 'noimageindex' (no Google Images)
  */
-add_action( 'wp_head', function() {
-	// v4.4.3: TSF coexistence defense-in-depth. TSF owns robots meta while
-	// active; our emitter defers. The init hook removes wp_robots() when TSF
-	// is inactive, but that removal only covers WP core's hook — without this
-	// gate, TSF + our emitter would both fire if TSF were reactivated.
-	if ( function_exists( 'the_seo_framework' ) ) {
-		return;
-	}
-
+/**
+ * Build the robots-meta directive list. Pure apart from its WP context reads,
+ * so it is fixture-testable (tests/seo-robots.php).
+ *
+ * v9.88.0: the list passes through the `sn_seo_robots_directives` filter. The
+ * plugin removes core's wp_robots and emits this tag itself, so a theme-side
+ * `wp_robots` filter is DEAD CODE (the theme's v10.51.0 search-noindex hooked
+ * exactly that and was live-verified inert). This is the seam a theme uses to
+ * add directives for the routes it owns. Listener returns are normalized: a
+ * non-array is ignored, duplicates collapse, the result stays list-shaped.
+ *
+ * @return string[]
+ */
+function sn_seo_robots_directives() {
 	$directives = array();
 
 	if ( is_singular() ) {
@@ -333,10 +338,16 @@ add_action( 'wp_head', function() {
 
 			// noarchive + noimageindex — v1.10.2 standalone flags. Layer
 			// on top of (or independent of) noindex.
-			if ( function_exists( 'sn_post_settings_get_noarchive' ) && sn_post_settings_get_noarchive( $post->ID ) ) {
+			$noarchive = function_exists( 'sn_post_settings_get_noarchive' )
+				? sn_post_settings_get_noarchive( $post->ID )
+				: ( '1' === (string) get_post_meta( $post->ID, '_sn_noarchive', true ) );
+			if ( $noarchive ) {
 				$directives[] = 'noarchive';
 			}
-			if ( function_exists( 'sn_post_settings_get_noimageindex' ) && sn_post_settings_get_noimageindex( $post->ID ) ) {
+			$noimageindex = function_exists( 'sn_post_settings_get_noimageindex' )
+				? sn_post_settings_get_noimageindex( $post->ID )
+				: ( '1' === (string) get_post_meta( $post->ID, '_sn_noimageindex', true ) );
+			if ( $noimageindex ) {
 				$directives[] = 'noimageindex';
 			}
 		}
@@ -347,7 +358,29 @@ add_action( 'wp_head', function() {
 	$directives[] = 'max-image-preview:large';
 	$directives[] = 'max-video-preview:-1';
 
-	echo '<meta name="robots" content="' . esc_attr( implode( ',', $directives ) ) . '">' . "\n";
+	$filtered = apply_filters( 'sn_seo_robots_directives', $directives );
+	if ( ! is_array( $filtered ) ) {
+		$filtered = $directives;
+	}
+	$clean = array();
+	foreach ( $filtered as $directive ) {
+		if ( is_scalar( $directive ) && '' !== (string) $directive ) {
+			$clean[] = (string) $directive;
+		}
+	}
+	return array_values( array_unique( $clean ) );
+}
+
+add_action( 'wp_head', function() {
+	// v4.4.3: TSF coexistence defense-in-depth. TSF owns robots meta while
+	// active; our emitter defers. The init hook removes wp_robots() when TSF
+	// is inactive, but that removal only covers WP core's hook — without this
+	// gate, TSF + our emitter would both fire if TSF were reactivated.
+	if ( function_exists( 'the_seo_framework' ) ) {
+		return;
+	}
+
+	echo '<meta name="robots" content="' . esc_attr( implode( ',', sn_seo_robots_directives() ) ) . '">' . "\n";
 }, 1 );
 
 /**

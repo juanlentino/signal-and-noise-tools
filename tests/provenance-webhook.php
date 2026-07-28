@@ -274,7 +274,7 @@ if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) {
 	$pk     = sodium_crypto_sign_publickey( $kp );
 	$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = base64_encode( $pk );
 
-	$body   = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed' ) );
+	$body   = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'content_hash' => 'aa', 'status' => 'confirmed' ) );
 	$goodsig = base64_encode( sodium_crypto_sign_detached( $body, $sk ) );
 
 	$req_ok  = new WP_REST_Request( array( 'x_sn_ed25519' => $goodsig ), $body );
@@ -284,7 +284,7 @@ if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) {
 	wh_true( sn_prov_confirm_permission( $req_bad ) instanceof WP_Error, 'forged signature rejected' );
 
 	// Tampered body: signature is valid for body-A, but the submitted request carries body-B.
-	$body_b       = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 1 ) );
+	$body_b       = wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'content_hash' => 'aa', 'status' => 'confirmed', 'bitcoin_block' => 1 ) );
 	$req_tampered = new WP_REST_Request( array( 'x_sn_ed25519' => $goodsig ), $body_b );
 	wh_true( sn_prov_confirm_permission( $req_tampered ) instanceof WP_Error, 'tampered body rejected even with a validly-formed signature' );
 
@@ -310,7 +310,7 @@ update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content
 update_post_meta( 42, SN_PROV_UID_META, 'u' );
 
 wh_eq( 42, sn_prov_post_by_uid( 'u' ), 'note_uid resolves to post id' );
-$applied = sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'confirmed', 'bitcoin_block' => 902417 ) );
+$applied = sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'confirmed', 'bitcoin_block' => 902417 ) );
 wh_eq( true, $applied, 'confirmation applied' );
 $chain = sn_prov_get_chain( 42 );
 wh_eq( 'confirmed', $chain[0]['status'], 'status is confirmed' );
@@ -321,7 +321,7 @@ wh_eq( false, sn_prov_apply_confirmation( 'nope', 1, array() ), 'unknown uid ret
 // still-pending commit (status stays pending); a malformed txid is rejected.
 update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
 $txid = str_repeat( 'ab', 32 );
-sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'pending', 'bitcoin_txid' => $txid, 'confirmations' => 3 ) );
+sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'pending', 'bitcoin_txid' => $txid, 'confirmations' => 3 ) );
 $pchain = sn_prov_get_chain( 42 );
 wh_eq( 'pending', $pchain[0]['status'], 'pending update keeps status pending' );
 wh_eq( $txid, $pchain[0]['bitcoin_txid'] ?? '', 'pending tx id recorded' );
@@ -472,6 +472,21 @@ wh_eq( array( 42 ), $GLOBALS['__pv_sched'][0]['args'] ?? null, 'scheduled event 
 // A second enqueue while one is pending dedups (reconcile catches all unanchored anyway).
 sn_prov_enqueue_dispatch( 42, array( 'version' => 1, 'content_hash' => 'aa' ), '{"x":1}' );
 wh_eq( 1, count( $GLOBALS['__pv_sched'] ), 'a second enqueue for the same post does not double-schedule' );
+
+// ── v9.88.0 (hardening gate): the confirm callback must not be forgeable ──
+// The Worker signs ledger payloads and confirm callbacks with ONE Ed25519 key
+// and no domain separation, and a signed ledger payload is published publicly
+// (credential proof.signedPayloadB64 + the GitHub ledger). Replaying one as a
+// confirm body used to verify: it carries no content_hash (the integrity belt
+// was isset()-conditional) and no status (which defaulted to 'confirmed'), so
+// it flipped any pending commit to Verified. Both holes are closed here.
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'status' => 'confirmed' ) ), 'a payload with NO content_hash is rejected (replayed ledger payload)' );
+$c = get_post_meta( 42, SN_PROV_CHAIN_META, true );
+wh_eq( 'pending', $c[0]['status'], 'the rejected replay left the commit pending' );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa' ) ), 'a payload with NO status is rejected (no defaulting to confirmed)' );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'bb', 'status' => 'confirmed' ) ), 'a payload whose content_hash disagrees is rejected' );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'nonsense' ) ), 'an out-of-allowlist status is rejected, not coerced' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

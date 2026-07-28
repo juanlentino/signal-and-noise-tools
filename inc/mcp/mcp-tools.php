@@ -404,6 +404,15 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 
 	$args = is_array( $arguments ) ? $arguments : array();
 
+	// v9.88.0 (hardening gate): clear-template-overrides is deliberately held off
+	// BOTH doors, but purge-all-caches advertises include_template_overrides,
+	// which reaches the same irreversible wp_delete_post sweep of every
+	// wp_template / wp_template_part / wp_navigation row. Scrub the flag at the
+	// rw door so the curation contract actually holds; cache purge stays usable.
+	if ( defined( 'SN_MCP_DOOR_RW' ) && SN_MCP_DOOR_RW === $door && 'signal-noise/purge-all-caches' === $slug ) {
+		unset( $args['include_template_overrides'] );
+	}
+
 	$perm = $ability->check_permissions( $args );
 	if ( is_wp_error( $perm ) || false === $perm ) {
 		// v9.51.0 (lane SEC-B, R4): rw-gated audit write, AFTER the permission
