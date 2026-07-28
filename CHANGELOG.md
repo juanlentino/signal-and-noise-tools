@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.86.0] - 2026-07-28
+
+**Headline:** the Machine Readers tab gets its at-a-glance layer — a summary stat strip, a real crawler-list verdict, and a dedicated stylesheet — and the crawler card stops dropping the one answer it exists to show.
+
+### New
+
+- **Summary stat strip** ([inc/machine-readers-render.php](inc/machine-readers-render.php)): total machine reads in the window, top family, and AI-training reads, rendered above the tables (`snt_mr_render_summary_chips`, pure, fixture-pinned including the escape path).
+- **Crawler-list verdict** ([inc/machine-readers-admin.php](inc/machine-readers-admin.php)): the card now leads with the weekly diff's actual answer — an `in sync` / `drift` / `check failed` pill with plain-language copy — instead of a bare worker name.
+- **assets/machine-readers.css**, enqueued via the provenance-admin precedent (`admin_enqueue_scripts` gated by `sn_admin_page_hooks()`, dependency on `sn-admin`): stat cards, table captions, numeric column alignment, dashed empty-state boxes, and a stacking breakpoint for the table grid.
+
+### Fixed
+
+- **`snt_mr_crawler_list_status()` no longer drops the status payload** ([inc/machine-readers-api.php](inc/machine-readers-api.php)): the worker nests its result under `last_check`, which the scalar-only cap silently discarded — the card could only ever show the worker's name (visible in owner UAT minutes after v9.85.1). Nested `last_check` scalars now flatten to `last_check_*` members (bools stringified), regression-pinned.
+
+> **Why MINOR:** new user-visible admin capability (the stat strip + verdict); the flatten fix rides along.
+
 ## [9.85.1] - 2026-07-28
 
 ### Fixed

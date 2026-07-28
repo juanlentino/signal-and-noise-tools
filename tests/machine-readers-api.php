@@ -103,5 +103,13 @@ ok( null === snt_mr_sensor_info(), 'non-200 returns null (quiet dash, never fata
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => 'not json' );
 ok( null === snt_mr_sensor_info(), 'garbage body returns null' );
 
+echo "\nGroup: v9.86.0 — crawler-list status flattens last_check into scalars\n";
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => array( 'ok' => true, 'drift' => false, 'checked_at' => '2026-07-27T07:23:00.000Z' ) ) ) );
+$st = snt_mr_crawler_list_status();
+ok( is_array( $st ) && 'sn-rights-signals' === ( $st['worker'] ?? '' ), 'scalar top-level members survive' );
+ok( '1' === (string) ( $st['last_check_ok'] ?? '' ) || 'yes' === ( $st['last_check_ok'] ?? '' ), 'nested last_check.ok flattens to a scalar' );
+ok( isset( $st['last_check_drift'] ), 'nested last_check.drift flattens' );
+ok( '2026-07-27T07:23:00.000Z' === ( $st['last_check_checked_at'] ?? '' ), 'nested last_check.checked_at flattens' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
