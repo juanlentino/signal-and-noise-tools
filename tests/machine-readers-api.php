@@ -79,6 +79,18 @@ $GLOBALS['__response'] = array( 'code' => 200, 'body' => '{"data":"not-an-array"
 $r = snt_mr_fetch( 7 );
 ok( false === $r['ok'], 'schema mismatch fails closed (ok=false)' );
 
+echo "\nGroup: v9.85.1 regression — a stored-blank worker_url means the default endpoint\n";
+// The settings form says "Blank uses the built-in live endpoint" and the save
+// handler stores '' — config must fall back, not read '' as unconfigured.
+$GLOBALS['__settings']['machine_readers.worker_url'] = '';
+$GLOBALS['__settings']['machine_readers.read_token'] = 'test-token';
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 7, 'data' => array() ) ) );
+$r = snt_mr_fetch( 7 );
+ok( true === $r['ok'], 'blank stored URL + token set: fetch works (the v9.85.0 yellow-banner bug)' );
+$last = end( $GLOBALS['__requests'] );
+ok( $last && 0 === strpos( (string) $last['url'], SN_MR_DEFAULT_ENDPOINT ), 'request went to the built-in default endpoint' );
+$GLOBALS['__settings']['machine_readers.worker_url'] = 'https://juanlentino.com/_sn/rights-signals/machine-readers';
+
 echo "\nGroup: snt_mr_sensor_info — deployed-version read, fail-quiet\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'version' => '1.4.0', 'deployed_at' => '2026-07-28T17:12:22.596257Z' ) ) );
 $info = snt_mr_sensor_info();

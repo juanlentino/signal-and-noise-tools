@@ -69,7 +69,15 @@ function snt_mr_config() {
 		? (string) SN_MR_WORKER_URL
 		: ( function_exists( 'sn_setting' ) ? (string) sn_setting( 'machine_readers.worker_url', SN_MR_DEFAULT_ENDPOINT ) : SN_MR_DEFAULT_ENDPOINT );
 
-	if ( '' === $token || '' === $url ) {
+	// v9.85.1: the settings form promises "blank uses the built-in live
+	// endpoint" and the save handler stores '' for a blank field — so a
+	// stored-empty URL means the default, not unconfigured. Only a missing
+	// token makes config null (the v9.85.0 yellow-banner bug).
+	if ( '' === $url ) {
+		$url = SN_MR_DEFAULT_ENDPOINT;
+	}
+
+	if ( '' === $token ) {
 		return null;
 	}
 	return array(

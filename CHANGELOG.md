@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.85.1] - 2026-07-28
+
+### Fixed
+
+- **The Machine Readers tab no longer claims "Sensor not configured" when the token is saved and the Worker URL field was left blank.** The settings form promises "blank uses the built-in live endpoint" and the save handler stores `''` for a blank field, but `snt_mr_config()` only applied the default endpoint when the key was absent — so the first save (with the URL sensibly left blank) stored an empty string that config read as unconfigured, and the yellow banner survived a correctly-saved token. Caught in owner UAT minutes after install. Config now treats a stored-blank URL as the built-in default; only a missing token is unconfigured. Regression pinned in [tests/machine-readers-api.php](tests/machine-readers-api.php).
+
+> **Why PATCH:** fixes a v9.85.0 feature that was inert in its most natural configuration; no new capability, no API change. Ships same-day under the batch rule's critical exception (the v10.48.1 precedent: a feature that never fires for its user does not wait).
+
 ## [9.85.0] - 2026-07-28
 
 **Headline:** the Machine Readers surface lands as a preview — the plugin learns who reads the machine surfaces, whether the rights signals are still standing, and what sensor version is live. Flag-gated (the v9.67.0 Overview pattern): enable with option `sn_machine_readers_preview`; v10.0.0 flips it default.
