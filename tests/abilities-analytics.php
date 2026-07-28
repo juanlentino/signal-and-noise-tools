@@ -86,6 +86,7 @@ foreach ( array(
 }
 foreach ( array(
 	'DEPRECATED'               => 'the visits deprecation is stated',
+	'(removed in v10.0.0)'     => 'the v10 removal window is stated',
 	'visitor-days'             => 'the visitor-day unit is stated',
 	'IP+date'                  => 'the IP+date approximation is stated',
 	'NOT sessions'             => 'visits ≠ sessions is stated',

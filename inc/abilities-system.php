@@ -167,7 +167,7 @@ add_action( 'wp_abilities_api_init', function() {
 	// do not copy `idempotent => true` from the neighbors above.
 	wp_register_ability( 'signal-noise/draft-release-notes', array(
 		'label'               => 'Draft release notes from a change log',
-		'description'         => 'Turns a pasted CHANGELOG delta (or a few bullets of what changed) into Mimestream-style, human-readable release notes (New / Improvements / Fixed sections) via the WP AI Client. Returns markdown; writes nothing. One on-demand AI call; input is hard-capped at ~4000 chars.',
+		'description'         => 'Turns a pasted CHANGELOG delta (or a few bullets of what changed) into Mimestream-style, human-readable release notes (New / Improvements / Fixed sections) via the WP AI Client. Returns markdown; writes nothing. One on-demand AI call; input is hard-capped at ~4000 chars. Retired in v10.0.0: release notes are owner-written; this drafter is redundant.',
 		// v7.7.0: recategorized diagnostics → ai-generation. It is a generative
 		// AI call, and agents discovering tools by category should find it with
 		// its AI siblings, not among the read-only diagnostics.

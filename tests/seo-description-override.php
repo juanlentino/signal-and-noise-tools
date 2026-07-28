@@ -23,6 +23,11 @@ $GLOBALS['__override'] = ''; // _sn_meta_description per-post override
 $GLOBALS['__filter']   = ''; // sn_seo_singular_description theme-route filter yield
 $GLOBALS['__qo']       = null; // get_queried_object() for the wire-through group
 function sn_post_settings_get_description( $id ) { return $GLOBALS['__override']; }
+// v9.84.0: sn_seo_route_meta is applied via apply_filters_deprecated now —
+// passthrough stub (no listener in this fixture, same as apply_filters).
+function apply_filters_deprecated( $tag, $args, $version = '', $replacement = '', $message = '' ) {
+	return apply_filters( $tag, ...$args );
+}
 function apply_filters( $tag, $value, $post = null ) {
 	if ( 'sn_seo_singular_description' === $tag ) { return $GLOBALS['__filter']; }
 	return $value; // sn_seo_route_meta (null) + sn_seo_singular_title ('') fall through

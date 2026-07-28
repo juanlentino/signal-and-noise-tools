@@ -79,7 +79,9 @@ function sn_seo_current_paged() {
 function sn_seo_route_meta() {
 	static $cached = false;
 	if ( false === $cached ) {
-		$meta   = apply_filters( 'sn_seo_route_meta', null );
+		// v9.84.0: deprecated ahead of its v10.0.0 removal (pages-to-CMS flip
+		// Phase 3). Silent unless a callback is hooked; the theme stopped answering.
+		$meta   = apply_filters_deprecated( 'sn_seo_route_meta', array( null ), '9.84.0', '', 'Removed in v10.0.0. Former virtual routes are real CMS Pages; is_singular SEO covers them.' );
 		$cached = is_array( $meta ) ? $meta : null;
 	}
 	return $cached;
