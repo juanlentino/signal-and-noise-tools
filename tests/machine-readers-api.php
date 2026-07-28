@@ -30,6 +30,9 @@ function wp_remote_retrieve_response_code( $r ) { return $r['response']['code'] 
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 function is_wp_error( $x ) { return false; }
 function get_transient( $k ) { return false; }
+$GLOBALS['__options'] = array();
+function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function set_transient( $k, $v, $ttl = 0 ) { return true; }
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
@@ -110,6 +113,26 @@ ok( is_array( $st ) && 'sn-rights-signals' === ( $st['worker'] ?? '' ), 'scalar 
 ok( '1' === (string) ( $st['last_check_ok'] ?? '' ) || 'yes' === ( $st['last_check_ok'] ?? '' ), 'nested last_check.ok flattens to a scalar' );
 ok( isset( $st['last_check_drift'] ), 'nested last_check.drift flattens' );
 ok( '2026-07-27T07:23:00.000Z' === ( $st['last_check_checked_at'] ?? '' ), 'nested last_check.checked_at flattens' );
+
+echo "\nGroup: v10.2.7 — last-known-good verdict (the SN_WORKER_VERSION_LASTGOOD pattern)\n";
+// A real verdict is remembered durably...
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => array( 'ok' => true, 'drift' => false, 'checked_at' => '2026-07-28T22:36:58.025Z' ) ) ) );
+$st = snt_mr_crawler_list_status();
+ok( isset( $GLOBALS['__options']['sn_mr_crawler_lastgood']['last_check_ok'] ), 'a completed verdict is stored as last-known-good' );
+// ...and a later null blip (fresh isolate, purged colo cache, deploy) serves it
+// instead of flickering the pill back to "unchecked".
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => null ) ) );
+$st = snt_mr_crawler_list_status();
+ok( is_array( $st ) && '1' === (string) ( $st['last_check_ok'] ?? '' ), 'a null-verdict response falls back to the stored verdict (no pill flicker)' );
+ok( '2026-07-28T22:36:58.025Z' === ( $st['last_check_checked_at'] ?? '' ), 'the fallback carries its own checked_at (honest about WHEN it was judged)' );
+// A site that has NEVER seen a verdict still says so honestly.
+$GLOBALS['__options'] = array();
+$st = snt_mr_crawler_list_status();
+ok( is_array( $st ) && ! isset( $st['last_check_ok'] ), 'no stored verdict + null response stays honestly unchecked' );
+// A NEWER verdict replaces the stored one (drift flip must not be masked).
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => array( 'ok' => true, 'drift' => true, 'checked_at' => '2026-08-03T07:23:00.000Z' ) ) ) );
+$st = snt_mr_crawler_list_status();
+ok( '1' === (string) ( $GLOBALS['__options']['sn_mr_crawler_lastgood']['last_check_drift'] ?? '' ), 'a newer verdict (incl. a drift flip) replaces the stored one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
