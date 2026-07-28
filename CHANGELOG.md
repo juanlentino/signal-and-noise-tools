@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.4] - 2026-07-28
+
+### Fixed
+
+- **Machine Readers tables: one deterministic left edge** ([assets/machine-readers.css](assets/machine-readers.css)): the tab's tables carry `.widefat`, and WP core's cell padding ties the central `.sn-an-table` flush-left rule at equal specificity — on the live cascade core was winning, indenting cell text ~10px from the captions and helper lines (owner-observed). A `(0,2,2)` rule scoped to the data card settles the tie regardless of stylesheet order: caption, headers, and cells share the card's left edge, and the trailing number column stays flush right.
+
+> **Why PATCH:** CSS specificity fix on one tab; no markup, API, or data change.
+
 ## [10.2.3] - 2026-07-28
 
 ### Improvements

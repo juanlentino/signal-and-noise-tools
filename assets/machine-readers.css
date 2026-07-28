@@ -32,6 +32,17 @@
 }
 .sn-mr-data .sn-kpi-row { margin-top: 4px; }
 
+/* v10.2.4: one deterministic left edge. The tables carry .widefat, and WP
+   core's cell padding ties the central .sn-an-table rule at (0,1,1) — when
+   core wins the cascade (owner-observed live), cell text sits ~10px right of
+   the captions and helper lines. (0,2,2) settles it regardless of load
+   order: caption, header, and cell text share the card's left edge, and the
+   trailing number column stays flush right. */
+.sn-mr-data table.sn-an-table th,
+.sn-mr-data table.sn-an-table td { padding: 6px 10px 6px 0; }
+.sn-mr-data table.sn-an-table th:last-child,
+.sn-mr-data table.sn-an-table td:last-child { padding-right: 0; }
+
 /* Settings fields inside the Analytics fold. */
 .sn-mr-settings { margin: 0; }
 .sn-mr-settings .sn-field { margin-bottom: 16px; }
