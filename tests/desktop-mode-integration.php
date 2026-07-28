@@ -232,7 +232,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 7, 'all seven widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 8, 'all eight widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
@@ -252,7 +252,7 @@ foreach ( $widgets as $id => $args ) {
 // one row Pulse alone carried — uptime — becomes its own SN Uptime widget.
 // Registration order IS picker order: traffic, then site condition, then ops.
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors' ),
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
 	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 
@@ -320,6 +320,7 @@ $sn_widget_js = array(
 	'desktop-mode-widget-views.js'   => null,
 	'desktop-mode-widget-uptime.js'  => null,
 	'desktop-mode-widget-health.js'  => null,
+	'desktop-mode-widget-machine-readers.js' => null,
 );
 foreach ( $sn_widget_js as $file => $old_heading ) {
 	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
@@ -384,7 +385,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
 ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 7, 'all seven widgets register (v9.78.0 adds SN Anchors), got ' . count( $widgets ) );
+ok( count( $widgets ) === 8, 'all eight widgets register (v10.1.0 adds SN Machine Readers), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
 ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
@@ -1158,6 +1159,18 @@ foreach ( $js_map as $id => $file ) {
 	ok( preg_match( '/(?:function\s+mount|desktopModeWidgets\[[^\]]+\]\s*=\s*function)\s*\(\s*container\s*,\s*ctx\s*\)/', $code ) === 1,
 		"$file's mount callback takes (container, ctx)" );
 }
+
+// ── v10.1.0: the Machine Readers tile (owner rule: new surfaces get a DM
+// surface where earned — this one is earned; the readership data is a glance).
+$mr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-machine-readers.js' ) );
+ok( false !== strpos( $mr_js, "window.desktopModeWidgets['sn-machine-readers']" ), 'tile assigns the PHP-declared mount global (not wp.desktop.registerWidget)' );
+ok( false !== strpos( $mr_js, 'return function teardown' ), 'tile returns a teardown' );
+ok( false !== strpos( $mr_js, 'AbortController' ), 'tile aborts its fetch on teardown (the site-views precedent)' );
+ok( false === strpos( $mr_js, 'innerHTML' ), 'tile never uses innerHTML — worker-derived strings reach the DOM as text only' );
+ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'tile reads its own desktop route, not the localize' );
+$dm_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
+ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
+ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

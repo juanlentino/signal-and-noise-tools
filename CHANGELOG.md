@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.1.0] - 2026-07-28
+
+### New
+
+- **SN Machine Readers desktop tile** ([assets/desktop-mode-widget-machine-readers.js](assets/desktop-mode-widget-machine-readers.js)): the machine half of the audience, on the Desktop Mode canvas — total machine reads in the window, the top three crawler families, declared AI-training reads (and how many of those touched the rights files), and the sensor's version + crawler-list verdict so a glance says whether to trust the numbers. Human readership stays the SN Site Views tile's job: beacons see people, the edge sensor sees crawlers, and the two are **never summed**.
+- **Design copied from the analytics tile, deliberately.** Same `el()` helper, same 26px tabular hero + 11px/.55 labels, same separator rule between sections, same ellipsised label/value rows, same "Open … →" footer — a tile should look like the tiles beside it, and the house rules for widget files (no `innerHTML`, no uppercase title row, mount via `window.desktopModeWidgets[id]`, return a teardown, abort the fetch) come along with the pattern.
+- `GET signal-noise/v1/desktop/machine-readers` ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)), `manage_options`-gated, mirroring `desktop/site-views`: fetch-on-render, because the aggregate is a worker round-trip and must never ride the page localize. An unconfigured or unreachable sensor returns `ok:false` with the reason so the tile **says so instead of painting a zero** — "no data" is not "no crawlers".
+
+> **Why MINOR:** one new user-visible surface (a desktop widget + its read route); nothing removed or changed.
+
 ## [10.0.1] - 2026-07-28
 
 ### Improvements

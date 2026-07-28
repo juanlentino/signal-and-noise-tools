@@ -151,6 +151,14 @@ add_action( 'init', function() {
 	// sole real dependency; sn-desktop-mode orders the snDesktopData global
 	// it reads for the dashboard link.
 	wp_register_script(
+		'sn-desktop-mode-widget-machine-readers',
+		plugins_url( 'assets/desktop-mode-widget-machine-readers.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
+	wp_register_script(
 		'sn-desktop-mode-widget-anchors',
 		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 		array( 'snt-ability-run', 'sn-desktop-mode' ),
@@ -235,6 +243,7 @@ add_action( 'admin_enqueue_scripts', function() {
 			'rss'          => snt_desktop_admin_url( 'sn-rss' ),
 			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
 			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
+			'machine_readers' => snt_desktop_admin_url( 'sn-theme-options&tab=monitoring&sub=machine-readers' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and
@@ -468,6 +477,20 @@ add_action( 'init', function() {
 			'min_height'     => 150,
 			'default_width'  => 300,
 			'default_height' => 220,
+		) ) );
+
+		// v10.1.0: the machine half of the audience. Human readership is
+		// sn-site-views' job (beacons); this reads the edge sensor, and the two
+		// are never summed.
+		desktop_mode_register_widget( 'sn-machine-readers', array_merge( $sn_drag, array(
+			'label'          => 'SN Machine Readers',
+			'description'    => 'AI crawler readership: top families, declared AI-training reads, sensor state.',
+			'icon'           => 'dashicons-visibility',
+			'script'         => 'sn-desktop-mode-widget-machine-readers',
+			'min_width'      => 220,
+			'min_height'     => 170,
+			'default_width'  => 300,
+			'default_height' => 260,
 		) ) );
 	}
 }, 6 );
@@ -1217,6 +1240,14 @@ add_action( 'rest_api_init', function() {
 			return current_user_can( 'manage_options' );
 		},
 	) );
+
+	register_rest_route( 'signal-noise/v1', '/desktop/machine-readers', array(
+		'methods'             => 'GET',
+		'callback'            => 'snt_desktop_machine_readers_payload',
+		'permission_callback' => function() {
+			return current_user_can( 'manage_options' );
+		},
+	) );
 } );
 
 /**
@@ -1428,3 +1459,76 @@ add_filter( 'desktop_mode_ai_system_prompt_appendix', function ( $appendix ) {
 		'A null metric means never measured, not zero; a real zero is reported as 0.',
 	) ) );
 } );
+
+/**
+ * Payload for the SN Machine Readers tile (v10.1.0).
+ *
+ * Shapes the same aggregates the Machine Readers tab renders into the small
+ * set a glance needs: total, the top three families, declared AI-training
+ * reads (and how many of those touched the rights files), plus the sensor's
+ * version and crawler-list verdict so the reader knows whether to trust the
+ * numbers. A failed/unconfigured read returns ok:false with the reason — the
+ * tile says so rather than painting a zero, because "no data" is not "no
+ * crawlers".
+ *
+ * @return array
+ */
+function snt_desktop_machine_readers_payload() {
+	$days = 30;
+	if ( ! function_exists( 'snt_mr_fetch' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable', 'days' => $days );
+	}
+	$result = snt_mr_fetch( $days );
+	if ( empty( $result['ok'] ) ) {
+		return array(
+			'ok'    => false,
+			'error' => (string) ( $result['error'] ?? 'unknown' ),
+			'days'  => $days,
+		);
+	}
+
+	$rows     = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
+	$totals   = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
+	$ai_set   = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
+	$total    = 0;
+	$ai_hits  = 0;
+	$ai_right = 0;
+	foreach ( $rows as $row ) {
+		$hits   = (int) ( $row['hits'] ?? 0 );
+		$total += $hits;
+		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
+			$ai_hits += $hits;
+			if ( 'rights' === (string) ( $row['surface'] ?? '' ) ) {
+				$ai_right += $hits;
+			}
+		}
+	}
+
+	$families = array();
+	foreach ( $totals as $family => $hits ) {
+		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits );
+		if ( count( $families ) >= 3 ) {
+			break; // A tile is a glance; the full table is one click away.
+		}
+	}
+
+	$info    = function_exists( 'snt_mr_sensor_info' ) ? snt_mr_sensor_info() : null;
+	$status  = function_exists( 'snt_mr_crawler_list_status' ) ? snt_mr_crawler_list_status() : null;
+	$verdict = null;
+	if ( is_array( $status ) && isset( $status['last_check_ok'] ) ) {
+		$c_ok    = '' !== (string) $status['last_check_ok'];
+		$c_drift = '' !== (string) ( $status['last_check_drift'] ?? '' );
+		$verdict = $c_ok ? ( $c_drift ? 'drift' : 'in sync' ) : 'check failed';
+	}
+
+	return array(
+		'ok'             => true,
+		'days'           => $days,
+		'total'          => $total,
+		'families'       => $families,
+		'ai_training'    => $ai_hits,
+		'ai_rights'      => $ai_right,
+		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
+		'crawler_list'   => $verdict,
+	);
+}
