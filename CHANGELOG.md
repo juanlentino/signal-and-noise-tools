@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.5] - 2026-07-28
+
+### Fixed
+
+- **Machine Readers: the KPI strip joins the card's left edge** ([assets/machine-readers.css](assets/machine-readers.css)): v10.2.4 flushed the table cells, but the stat strip's cells carry the Analytics 14px internal padding — invisible on the dashboard where every panel shares that gutter, but inside this flat card it left the strip as the one indented block above otherwise flush tables. Diagnosed this time in a pixel reproduction against the live stylesheet stack (caption/header/cell text measured flush at the same x; only the strip sat +14px). The first KPI cell sheds its left padding, the last its right; interior cells keep padding after their dividers.
+
+> **Why PATCH:** two-line CSS alignment fix, visually verified in a reproduction before shipping.
+
 ## [10.2.4] - 2026-07-28
 
 ### Fixed
