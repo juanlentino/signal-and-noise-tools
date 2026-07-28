@@ -627,7 +627,9 @@ function sn_resolve_og_image_url( $default, $post ) {
 		return $url;
 	}
 	// v9.3.0: theme-owned per-route fallback image; defaults to $default.
-	return (string) apply_filters( 'sn_seo_singular_og_image', $default, $post );
+	// v9.84.0: deprecated ahead of its v10.0.0 removal — shadowed dead code
+	// since the D2 generated card; the bespoke path is the _sn_og_image_url meta.
+	return (string) apply_filters_deprecated( 'sn_seo_singular_og_image', array( $default, $post ), '9.84.0', '', 'Removed in v10.0.0. Use the _sn_og_image_url post-meta override.' );
 }
 
 /**

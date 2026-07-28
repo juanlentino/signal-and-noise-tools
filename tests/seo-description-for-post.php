@@ -35,6 +35,12 @@ function apply_filters( $tag, $value, $post = null ) {
 	if ( 'sn_seo_singular_description' === $tag ) { return $GLOBALS['__filter']; }
 	return $value;
 }
+// v9.84.0 ladder: sn_seo_route_meta moves to apply_filters_deprecated.
+$GLOBALS['__deprecated_calls'] = array();
+function apply_filters_deprecated( $tag, $args, $version = '', $replacement = '', $message = '' ) {
+	$GLOBALS['__deprecated_calls'][] = array( 'tag' => $tag, 'version' => $version, 'message' => $message );
+	return apply_filters( $tag, ...$args );
+}
 function wp_strip_all_tags( $s ) { return trim( preg_replace( '/<[^>]*>/', '', (string) $s ) ); }
 // seo.php registers hooks on load — stub the hook API so the require is inert.
 function add_action() {} function add_filter() {}
@@ -90,6 +96,18 @@ $GLOBALS['__override'] = '';
 $GLOBALS['__filter']   = '';
 ok( '' === sn_seo_description_for_post( $mk( 383, 'home', '' ) ), 'with no static front page, a page named home is generic (excerpt path), empty here' );
 ok( '' === sn_seo_description_for_post( null ), 'non-object returns empty string' );
+
+echo "\nGroup: v10.0.0 deprecation ladder (v9.84.0)\n";
+// One direct call proves the wiring; the static memo means at most one
+// deprecated-apply per request regardless of how many emitters consult it.
+$route_meta = sn_seo_route_meta();
+ok( null === $route_meta, 'sn_seo_route_meta still returns null with no listener' );
+$dep = array_values( array_filter(
+	$GLOBALS['__deprecated_calls'],
+	function ( $c ) { return 'sn_seo_route_meta' === $c['tag']; }
+) );
+ok( count( $dep ) >= 1, 'sn_seo_route_meta is applied via apply_filters_deprecated' );
+ok( $dep && '9.84.0' === $dep[0]['version'] && false !== strpos( $dep[0]['message'], 'v10.0.0' ), 'marker names 9.84.0 and the v10.0.0 removal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

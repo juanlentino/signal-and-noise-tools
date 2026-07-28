@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.84.0] - 2026-07-28
+
+**Headline:** the v10.0.0 ladder goes up — the four surfaces leaving in the major now say so, and nothing else changes.
+
+### Deprecated
+
+- [inc/abilities-analytics.php](inc/abilities-analytics.php): the `get-analytics-summary` description now states that the kept-deprecated legacy quartet fields (`visits`, `scroll_avg`, `time_avg`) are **removed in v10.0.0**. The fields themselves, their semantics, and every behavioral pin are unchanged in 9.x; [tests/abilities-analytics.php](tests/abilities-analytics.php) pins the new removal-window language.
+- [inc/seo.php](inc/seo.php): the `sn_seo_route_meta` filter is now applied via `apply_filters_deprecated()` naming its v10.0.0 removal. Silent unless a callback is hooked — none is, since the pages-to-CMS flip made every former virtual route a real Page — and the existing per-request memo means at most one notice per request even then. Wiring pinned in [tests/seo-description-for-post.php](tests/seo-description-for-post.php).
+- [inc/og-card-generator.php](inc/og-card-generator.php): the `sn_seo_singular_og_image` theme seam, shadowed dead code since the auto-generated per-Page card, is now applied via `apply_filters_deprecated()` naming its v10.0.0 removal. The bespoke-card path remains the `_sn_og_image_url` post-meta override. Wiring pinned in [tests/og-card-dek-fallback.php](tests/og-card-dek-fallback.php).
+- [inc/abilities-system.php](inc/abilities-system.php): the `signal-noise/draft-release-notes` ability description now states its v10.0.0 retirement (release notes are owner-written; the drafter is redundant). The ability still works in 9.x.
+
+> **Why MINOR:** deprecation notices are additive metadata on public surfaces — no behavior changes, no removals; the removals themselves are v10.0.0's. This is the ladder rung the majors soak on.
+
 ## [9.83.0] - 2026-07-28: The signal has to travel with the copy
 
 **Headline:** `/wp/v2/posts` was serving the full corpus as clean, paginated JSON while every TDMRep and Content Signals declaration on the site lived on the HTML surface — a consumer taking the JSON route got everything with no reservation attached. The reservation headers now ride `rest_post_dispatch`, and the anonymous REST surface loses the three route families it had no business exposing. Core is patched against CVE-2026-63030 (WP2Shell); this narrows the surface that made the chain reachable, it does not fix anything still broken.

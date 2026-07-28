@@ -65,7 +65,7 @@ add_action( 'wp_abilities_api_init', function () {
 		// an AI caller must be able to pick the right field from this text
 		// alone, so each metric names its exact denominator and its traps.
 		'description'         => 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only. '
-			. 'Denominators, honestly named: `visits` is DEPRECATED — an approximate count of unique visitor-days (distinct IP+date), NOT sessions; '
+			. 'Denominators, honestly named: `visits` is DEPRECATED (removed in v10.0.0) — an approximate count of unique visitor-days (distinct IP+date), NOT sessions; '
 			. 'it includes visitor-days that fired no pageview (e.g. feed/beacon-only), so it can exceed `views`; `unique_visitor_days` is its honest alias. '
 			. '(The wp-admin Sessions tab is a third unit again: within-day sessions from the live session engine, resetting at UTC midnight — no field here carries it.) '
 			. '`pageview_visits` is the headline visit metric: visitor-days with at least one pageview — `views >= pageview_visits` holds by construction, so this ratio cannot invert '
@@ -75,7 +75,7 @@ add_action( 'wp_abilities_api_init', function () {
 			. 'Engagement in two exact denominations: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
 			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days) — the true mean max scroll depth (0-100), '
 			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units — a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
-			. 'Legacy `scroll_avg`/`time_avg` are DEPRECATED views-weighted approximations of per-event means. '
+			. 'Legacy `scroll_avg`/`time_avg` are DEPRECATED (removed in v10.0.0) views-weighted approximations of per-event means. '
 			. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run) — a data discontinuity, not an error.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',

@@ -27,6 +27,13 @@ function apply_filters( $tag, $value, $post = null ) {
 	}
 	return $value;
 }
+// v9.84.0 ladder: the theme-fallback seam moves to apply_filters_deprecated.
+// Recorder + passthrough that models real WP (deprecated apply still filters).
+$GLOBALS['__deprecated_calls'] = array();
+function apply_filters_deprecated( $tag, $args, $version = '', $replacement = '', $message = '' ) {
+	$GLOBALS['__deprecated_calls'][] = array( 'tag' => $tag, 'version' => $version, 'message' => $message );
+	return apply_filters( $tag, ...$args );
+}
 function strip_shortcodes( $s ) { return $s; }
 function wp_strip_all_tags( $s ) { return $s; }
 function wp_trim_words( $s, $n = 55, $more = '...' ) { return trim( $s ); }
@@ -74,6 +81,17 @@ ok( 'https://x/theme-route.png' === sn_resolve_og_image_url( 'site-default.png',
 $GLOBALS['__ogimage'] = '';
 ok( 'site-default.png' === sn_resolve_og_image_url( 'site-default.png', $p ), 'site default is the floor' );
 ok( 'site-default.png' === sn_resolve_og_image_url( 'site-default.png', null ), 'null post returns the default' );
+
+echo "\nGroup: v10.0.0 deprecation ladder (v9.84.0)\n";
+// The theme-fallback resolutions above must have flowed through
+// apply_filters_deprecated — the 9.x marker the v10.0.0 removal rides on.
+$og = array_values( array_filter(
+	$GLOBALS['__deprecated_calls'],
+	function ( $c ) { return 'sn_seo_singular_og_image' === $c['tag']; }
+) );
+ok( count( $og ) >= 1, 'sn_seo_singular_og_image is applied via apply_filters_deprecated' );
+ok( $og && '9.84.0' === $og[0]['version'], 'marker names 9.84.0 as the deprecating version' );
+ok( $og && false !== strpos( $og[0]['message'], 'v10.0.0' ), 'marker message names the v10.0.0 removal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

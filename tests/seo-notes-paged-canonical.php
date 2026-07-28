@@ -33,6 +33,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 // v6.24.0: seo.php now consults the sn_seo_route_meta / sn_seo_singular_description
 // filters — passthrough so no theme route is matched (returns the default).
+// v9.84.0: sn_seo_route_meta is applied via apply_filters_deprecated now.
+if ( ! function_exists( 'apply_filters_deprecated' ) ) {
+	function apply_filters_deprecated( $tag, $args, $version = '', $replacement = '', $message = '' ) { return apply_filters( $tag, ...$args ); }
+}
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value, ...$args ) { return $value; }
 }
