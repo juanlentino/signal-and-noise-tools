@@ -9,8 +9,23 @@
  * this file exists only for what genuinely has no home there.
  */
 
-/* The KPI row is built for six analytics columns; three cards want to sit left. */
-.sn-mr-kpi-row { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+/* The KPI row is built for six analytics columns; this strip carries three or
+   four (v10.2.2: + feed fetches when the tracker is present). auto-fit keeps
+   the cells equal either way and wraps them on narrow screens without needing
+   this sheet to re-state the analytics breakpoints. */
+.sn-mr-kpi-row { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+/* v10.2.2: table captions read as the card's heading (the .sn-fieldset-h
+   anatomy — left-aligned over a hairline rule), not a UA-centered float. The
+   four data tables are the only .sn-an-table captions in the plugin. */
+.sn-mr-grid .sn-an-table caption {
+	caption-side: top;
+	text-align: left;
+	font-weight: 600;
+	color: var(--sn-text);
+	padding: 0 0 8px;
+	border-bottom: 1px solid #f0f0f1;
+}
 
 /* The read-only worker readout (the Edge worker reference-card treatment). */
 .sn-an-worker-card { border-left: 3px solid #dcdcde; margin: 8px 0 0; padding: 2px 0 2px 12px; }
