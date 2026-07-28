@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.3] - 2026-07-28
+
+### Improvements
+
+- **The Machine Readers tab IS the Analytics leaf silhouette now** ([inc/machine-readers-admin.php](inc/machine-readers-admin.php)): owner UAT on v10.2.2 was blunt and correct — the tab still didn't look like the Analytics leaf at all, because two passes had copied its widgets without copying its skeleton. The skeleton is: ONE capped `.sn-an-pipeline` hero card first, then ONE `.sn-2up` of two flat cards, and every line of content inside a card. The tab now renders exactly that: Sensor status leads (connection state before data, like Pipeline status), the left card stacks ALL readership content as sections (KPI strip, the four tables with caption-headings, delta cards — the same many-sections-one-card pattern as Analytics' Edge worker / salt window / Configured elsewhere column), and the right card carries the Edge sensor readout over the settings fold. The bare intro paragraph, the naked full-width KPI strip, the four separate table cards, and the v10.2.2 `--wide` hero divergence are all gone.
+- **The Edge sensor readout uses the Analytics treatment for real**: the native `notice notice-info notice-alt inline` block `sn_worker_version_render_data()` paints (blue bar), replacing the invented gray `.sn-an-worker-card` — that class is deleted from [assets/machine-readers.css](assets/machine-readers.css), which shrank again.
+
+> **Why PATCH:** same-day UAT correction of v10.2.2's composition; no API change, no data touched. (Same-day patch class: owner-reported post-install.)
+
 ## [10.2.2] - 2026-07-28
 
 ### Improvements

@@ -2,23 +2,27 @@
  * Signal & Noise Tools — Machine Readers: the few rules the central Analytics
  * stylesheet has no equivalent for.
  *
- * v10.2.1: everything else was DELETED. The stat strip now uses .sn-kpi-row /
- * -label / -value, the tables use .sn-an-table, the empty states use
- * .sn-an-empty — all from assets/analytics/analytics-admin.css, which already
- * loads on every SN admin page. Two treatments for one problem is the cost;
- * this file exists only for what genuinely has no home there.
+ * v10.2.1: everything else was DELETED — the strip uses .sn-kpi-row, the
+ * tables .sn-an-table, the empty states .sn-an-empty, all from
+ * assets/analytics/analytics-admin.css (loads on every SN admin page).
+ * v10.2.3: the tab is the Analytics leaf silhouette (hero + one .sn-2up of two
+ * cards), so this file shrank again — the worker readout now uses the native
+ * notice-info treatment and needs no rule at all. Only the data card's
+ * internal rhythm lives here.
  */
 
-/* The KPI row is built for six analytics columns; this strip carries three or
-   four (v10.2.2: + feed fetches when the tracker is present). auto-fit keeps
-   the cells equal either way and wraps them on narrow screens without needing
-   this sheet to re-state the analytics breakpoints. */
-.sn-mr-kpi-row { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+/* The KPI row is built for six full-width analytics columns; inside the data
+   card it carries three or four chips (v10.2.2: + feed fetches when the
+   tracker is present). auto-fit keeps the cells equal either way and wraps on
+   narrow screens without re-stating the analytics breakpoints. */
+.sn-mr-kpi-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
-/* v10.2.2: table captions read as the card's heading (the .sn-fieldset-h
-   anatomy — left-aligned over a hairline rule), not a UA-centered float. The
-   four data tables are the only .sn-an-table captions in the plugin. */
-.sn-mr-grid .sn-an-table caption {
+/* Section rhythm inside the ONE data card (the Analytics many-sections-one-
+   card pattern): each table caption reads as the section heading — the
+   .sn-fieldset-h anatomy, left-aligned over a hairline — never a UA-centered
+   float, and each table clears the section above it. */
+.sn-mr-data .sn-an-table { margin-top: 20px; }
+.sn-mr-data .sn-an-table caption {
 	caption-side: top;
 	text-align: left;
 	font-weight: 600;
@@ -26,10 +30,7 @@
 	padding: 0 0 8px;
 	border-bottom: 1px solid #f0f0f1;
 }
-
-/* The read-only worker readout (the Edge worker reference-card treatment). */
-.sn-an-worker-card { border-left: 3px solid #dcdcde; margin: 8px 0 0; padding: 2px 0 2px 12px; }
-.sn-an-worker-card p { margin: 4px 0; }
+.sn-mr-data .sn-kpi-row { margin-top: 4px; }
 
 /* Settings fields inside the Analytics fold. */
 .sn-mr-settings { margin: 0; }
