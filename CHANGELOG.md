@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.7] - 2026-07-28
+
+### Fixed
+
+- **The crawler-list pill stops flickering after purges and deploys** ([inc/machine-readers-api.php](inc/machine-readers-api.php)): the owner caught it live — the pill went green, then reverted to "unchecked" right after the plugin update, because this site's zone purge (which every plugin update triggers, and the Purge-all quick action too) wipes the Worker's colo-cached verdict along with everything else, and the next poll caught the edge empty. The plugin now applies its own `SN_WORKER_VERSION_LASTGOOD` pattern: a completed verdict is stored durably (`sn_mr_crawler_lastgood`, autoload off), and a null-verdict response — the edge just lost its copy — serves the stored verdict with its own `checked_at` instead of downgrading the pill. A site that has never seen a verdict still reports honestly unchecked, and every newer verdict, including a drift flip, replaces the store.
+
+> **Why PATCH:** resilience fix for an existing readout; one new non-autoloaded option row, no API change.
+
 ## [10.2.6] - 2026-07-28
 
 ### Fixed

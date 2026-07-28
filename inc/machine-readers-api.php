@@ -309,6 +309,26 @@ function snt_mr_crawler_list_status() {
 		}
 	}
 
+	// v10.2.7: the last-known-good pattern (SN_WORKER_VERSION_LASTGOOD
+	// precedent). The edge stores its verdict in isolate memory + the colo
+	// cache, and BOTH are wiped by deploys and this site's own zone purges
+	// (every plugin update auto-purges) — so a null verdict here is usually
+	// "the edge just lost its copy", not "never checked". A completed verdict
+	// is remembered durably (autoload no); a null-verdict response serves it,
+	// with its own checked_at, instead of flickering the pill to "unchecked".
+	// A site that has never seen a verdict still reports honestly unchecked,
+	// and every NEWER verdict (including a drift flip) replaces the store.
+	if ( isset( $flat['last_check_ok'] ) ) {
+		if ( function_exists( 'update_option' ) ) {
+			update_option( 'sn_mr_crawler_lastgood', $flat, false );
+		}
+	} elseif ( function_exists( 'get_option' ) ) {
+		$lastgood = get_option( 'sn_mr_crawler_lastgood', null );
+		if ( is_array( $lastgood ) && isset( $lastgood['last_check_ok'] ) ) {
+			$flat = $lastgood;
+		}
+	}
+
 	set_transient( 'sn_mr_crawler_status', $flat, 15 * MINUTE_IN_SECONDS );
 	return $flat;
 }
