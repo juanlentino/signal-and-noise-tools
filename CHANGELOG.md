@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.1.1] - 2026-07-28
+
+### Fixed
+
+- **The Machine Readers tab now uses the Analytics settings idiom instead of a bespoke one.** v10.0.1 invented a "Sensor panel" (a callout, a `.sn-mr-meta` identity grid, its own classes) when the Analytics settings leaf had already solved the same problem. Reverted and rebuilt on the real thing:
+  - a **Sensor status** card carrying the same `.sn-an-pipeline-pills` / `.sn-an-pill--ok|warn|unknown` row Analytics uses for its pipeline, with the same ✓ marks and the same per-warning explanation lines beneath it. Four stages: the deployed sensor, the read token this side holds, the read itself, and the weekly crawler-list check.
+  - the settings form wrapped in **`snt_an_settings_fold()`** — the Analytics `<details>` fold whose summary always carries a one-line state snapshot ("token set" / "no token yet" / "token locked by constant"), so collapsing it never hides whether it is configured. It opens automatically while unconfigured, exactly like the Analytics credentials fold.
+  - a two-column layout matching the Analytics leaf: writable settings left, the read-only **Edge sensor** readout right (worker, version, deployed, source), in the same left-border reference-card treatment.
+  - `assets/machine-readers.css` drops every invented class; what remains is the two rules the Analytics sheet has no equivalent for. The Analytics stylesheet already loads on every SN admin page, so nothing new is enqueued.
+
+> **Why PATCH:** presentation only, on one tab. No capability, API, or data change.
+
 ## [10.1.0] - 2026-07-28
 
 ### New

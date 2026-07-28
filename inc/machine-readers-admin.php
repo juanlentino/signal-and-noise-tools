@@ -151,11 +151,41 @@ function snt_mr_render_tab() {
 		echo '<div class="sn-fieldset"><p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the sensor panel below says why.', 'signal-and-noise-tools' ) . '</p></div>';
 	}
 
-	// ── Zone 2: the sensor (identity + connection + crawler verdict + fields),
-	// one panel instead of three equal-weight boxes. v10.0.1.
-	echo snt_mr_render_sensor_panel( snt_mr_sensor_info(), snt_mr_crawler_list_status(), $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
+	// ── Sensor status: the Analytics "Pipeline status" card, same pills, same
+	// warn lines. Copied idiom, not a new one. v10.1.1.
+	echo '<div class="sn-fieldset">';
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Sensor status', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → this tab. Presence checks only, secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
+	$sn_mr_info   = snt_mr_sensor_info();
+	$sn_mr_status = snt_mr_crawler_list_status();
+	echo snt_mr_render_sensor_status( snt_mr_sensor_pills( $sn_mr_info, $sn_mr_status, $result ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
+	echo '</div>';
+
+	// ── Two columns, the Analytics settings-leaf shape: writable settings fold
+	// on the left, the read-only reference readout on the right.
+	echo '<div class="sn-2up">';
+
+	echo '<div>';
 	snt_mr_render_settings_form();
-	echo '</section>';
+	echo '</div>';
+
+	echo '<div class="sn-fieldset">';
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Edge sensor', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, read live from its version endpoint.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<div class="sn-an-worker-card">';
+	echo '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
+	if ( is_array( $sn_mr_info ) && isset( $sn_mr_info['version'] ) ) {
+		echo ' <code>v' . esc_html( (string) $sn_mr_info['version'] ) . '</code>';
+	}
+	echo '</p>';
+	if ( is_array( $sn_mr_info ) && '' !== (string) ( $sn_mr_info['deployed_at'] ?? '' ) ) {
+		echo '<p><strong>' . esc_html__( 'Deployed:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( (string) $sn_mr_info['deployed_at'] ) . '</p>';
+	}
+	echo '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
+	echo '</div>';
+	echo '</div>';
+
+	echo '</div>';
 }
 
 
@@ -174,10 +204,34 @@ function snt_mr_render_settings_form() {
 	$has_token    = function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' );
 	$default_url  = defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? SN_MR_DEFAULT_ENDPOINT : '';
 
+	// v10.1.1: the Analytics settings-fold idiom — the summary always carries a
+	// one-line snapshot, so collapsing never hides whether it is configured.
+	$snapshot = $token_locked
+		? __( 'token locked by constant', 'signal-and-noise-tools' )
+		: ( $has_token ? __( 'token set', 'signal-and-noise-tools' ) : __( 'no token yet', 'signal-and-noise-tools' ) );
+	if ( function_exists( 'snt_an_settings_fold' ) ) {
+		snt_an_settings_fold( __( 'Sensor settings', 'signal-and-noise-tools' ), $snapshot, ! $has_token && ! $token_locked, function () use ( $url_locked, $token_locked, $stored_url, $has_token, $default_url ) {
+			snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url );
+		} );
+		return;
+	}
+	snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url );
+}
+
+/**
+ * The fields themselves (v10.1.1 extraction, so the Analytics fold can wrap
+ * them without the form markup changing).
+ *
+ * @param bool   $url_locked   Worker URL locked by constant.
+ * @param bool   $token_locked Read token locked by constant.
+ * @param string $stored_url   Stored worker URL.
+ * @param bool   $has_token    Whether a token is stored.
+ * @param string $default_url  Built-in endpoint (placeholder).
+ */
+function snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url ) {
 	echo '<form method="post" class="sn-mr-settings"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="machine_readers_save">';
-	echo '<h3 class="sn-mr-settings-h">' . esc_html__( 'Settings', 'signal-and-noise-tools' ) . '</h3>';
 
 	echo '<div class="sn-field"><label class="sn-field-label" for="sn_mr_worker_url">Worker URL</label>';
 	echo '<input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="' . esc_attr( $stored_url ) . '" placeholder="' . esc_attr( $default_url ) . '"' . ( $url_locked ? ' disabled' : '' ) . '>';
