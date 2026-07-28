@@ -69,21 +69,29 @@ ok( json_encode( $settings_in ) === $snapshot, 'input settings array not mutated
 $out2 = snt_mr_settings_save( array( 'worker_url' => 'https://juanlentino.com/_sn/rights-signals/machine-readers', 'read_token' => '' ), $settings_in );
 ok( ( $out2['machine_readers']['read_token'] ?? '' ) === 'old-secret', 'blank token field keeps the stored token (write-only semantics)' );
 
-echo "\nGroup: v10.2.2 — the tab composes as two aligned zones (the width-zigzag fix)\n";
+echo "\nGroup: v10.2.3 — the tab IS the Analytics leaf silhouette (owner UAT, third pass)\n";
 ob_start();
 snt_mr_render_tab();
 $tab = ob_get_clean();
-// The two secondary tables share one two-column row instead of stacking as
-// 820px-capped orphans under the full-width family/surface pair.
-$sn_pair = '<div class="sn-2up sn-mr-grid"><div class="sn-fieldset">' . snt_mr_render_compliance( $GLOBALS['__mr_rows'] ) . '</div>'
-	. '<div class="sn-fieldset">' . snt_mr_render_feed_table( $GLOBALS['__mr_feed'] ) . '</div></div>';
-ok( false !== strpos( $tab, $sn_pair ), 'observed-vs-declared and feed fetches share one .sn-2up row' );
-ok( 2 === substr_count( $tab, '"sn-2up sn-mr-grid"' ), 'the data zone is exactly two aligned table rows' );
-// The sensor zone is the Analytics settings-leaf shape wholesale.
-ok( false !== strpos( $tab, 'sn-an-settings-leaf' ), 'sensor zone wrapped in the Analytics leaf class (token-card scoping applies)' );
-ok( false !== strpos( $tab, 'sn-fieldset sn-fieldset--wide sn-an-pipeline' ), 'sensor status is the full-width Analytics pipeline hero, not an 820px orphan' );
-preg_match( '/sn-an-settings-leaf(.*)$/s', $tab, $sn_leaf );
-ok( isset( $sn_leaf[1] ) && 2 === substr_count( $sn_leaf[1], '<div class="sn-fieldset">' ), 'settings row: BOTH columns are fieldset cards (no floating fold beside a corner card)' );
+// The Analytics leaf skeleton: one capped hero card, then ONE .sn-2up of two
+// flat cards, everything inside a card. Exactly three fieldsets, no more.
+ok( false !== strpos( $tab, 'sn-an-settings-leaf' ), 'whole tab wrapped in the Analytics leaf class' );
+ok( false !== strpos( $tab, '"sn-fieldset sn-an-pipeline"' ), 'sensor status is the capped Pipeline-status hero (no --wide divergence)' );
+ok( false === strpos( $tab, 'sn-fieldset--wide' ), 'no width modifiers — the Analytics leaf has exactly one width system' );
+ok( 1 === substr_count( $tab, 'sn-2up' ), 'exactly ONE two-column row, like Analytics' );
+ok( 3 === preg_match_all( '/<div class="sn-fieldset[" ]/', $tab ), 'exactly three cards: hero + data column + sensor column (sn-fieldset-actions is not a card)' );
+// Order: status first (like Pipeline status), then the data.
+ok( strpos( $tab, 'sn-an-pipeline' ) < strpos( $tab, 'sn-kpi-row' ), 'Sensor status renders ABOVE the readership data, like Analytics' );
+// Everything lives inside a card — no bare prose above the hero.
+ok( false === strpos( $tab, 'sn-prose' ), 'no bare intro paragraph; the intro is the data card help line' );
+// All four tables stack as sections INSIDE the left data card (one card, many
+// sections — the Analytics right-column pattern).
+preg_match( '/class="sn-fieldset sn-mr-data"(.*?)<div class="sn-fieldset">/s', $tab, $sn_data );
+ok( isset( $sn_data[1] ) && 4 === substr_count( $sn_data[1], '<table' ), 'all four tables are sections of the ONE data card' );
+// The sensor readout uses the Analytics Edge-worker treatment (native notice),
+// not the invented gray bar.
+ok( false !== strpos( $tab, 'notice notice-info notice-alt inline' ), 'Edge sensor readout is the Analytics notice-info treatment' );
+ok( false === strpos( $tab, 'sn-an-worker-card' ), 'the invented gray worker-card class is gone' );
 // The strip carries the feed chip from the same tracker read the table uses.
 ok( 2 === substr_count( $tab, '946' ), 'the 30d feed total reaches the strip chip AND the feed table (one tracker read)' );
 

@@ -35,7 +35,7 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **Monitoring, Machine Readers** (wp-admin tab) | Summary stat strip (machine reads, top family, AI-training reads, feed fetches), then two aligned two-column rows: reads per family beside reads per surface class, and the observed vs declared compliance read beside the feed-fetch windows (v10.2.1 R4; fetches are never summed with crawler reads). Below the data, the Analytics settings-leaf shape: the Sensor status pipeline strip (deployed sensor, read token, the read itself, crawler-list check), the folded Sensor settings, and the read-only Edge sensor readout side by side. |
+| **Monitoring, Machine Readers** (wp-admin tab) | The Analytics leaf silhouette (v10.2.3): the Sensor status pipeline hero first (deployed sensor, read token, the read itself, crawler-list check), then one two-column row. The left card stacks the readership data: summary stat strip incl. feed fetches, reads per family, reads per surface class, the observed vs declared compliance read, and the feed-fetch windows (fetches are never summed with crawler reads). The right card carries the read-only Edge sensor readout over the folded Sensor settings. |
 | **SN Machine Readers** (Desktop Mode tile, v10.1.0) | The same aggregates in tile form, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
