@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.0.1] - 2026-07-28
+
+### Improvements
+
+- **The Machine Readers tab reads as two zones instead of five floating boxes.** The readership data (stat strip, family and surface tables, the observed-vs-declared read) sits on top; everything about the plumbing now lives in ONE **Sensor** panel below it — worker identity, deployed version and date, the connection state, the crawler-list drift verdict, and the settings fields, in that order. Previously the sensor line floated as a bare paragraph at the very top, disconnected from the fields that configure it; the connection state only appeared as a notice above the data; and the crawler list sat in its own equal-weight box. Now the answer to "is this working, and what do I change" is in one place.
+- The panel is built from the **house vocabulary the MCP Connect page already established** for a credentialed connection surface — `.sn-callout` + `.sn-callout-h` for the state block, `.sn-pill--ok/--warn` for semantic status, `.sn-field` / `.sn-field-helper` for inputs — so it reads as native wp-admin, not a bespoke treatment. Only the layout (`.sn-mr-meta` identity grid, the settings rule) is new, and it lives in [assets/machine-readers.css](assets/machine-readers.css).
+- Settings are a section *inside* the panel (a rule and an `<h3>`), not a second bordered box; the constant-locked states render as disabled fields with their explanation, and the read token keeps its write-only "set / not set / constant" pill.
+- The empty state now points at the panel instead of leaving the reader with a bare notice: "No readership data yet — the sensor panel below says why."
+
+> **Why PATCH:** presentation and information architecture on one admin tab; no new capability, no API change, no data touched.
+
 ## [10.0.0] - 2026-07-28 — The Machine-Readership major
 
 **⚠️ Action required (agents and scripts only):** `get-analytics-summary` no longer returns `visits`, `scroll_avg`, or `time_avg`. If anything you run reads those fields, switch to the honest ones — `unique_visitor_days`, `pageview_visits`, `scroll_avg_per_view`, `scroll_avg_per_visit`, `time_avg_per_view`, `time_avg_per_visit` — which have carried the real semantics since v9.4x. **Requires PHP 8.3+.** No content, settings, or analytics data is touched by this upgrade.

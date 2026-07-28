@@ -79,3 +79,38 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* v10.0.1: the sensor panel — one zone for identity + connection + settings,
+   replacing three equal-weight boxes. Uses the house .sn-callout / .sn-pill /
+   .sn-field vocabulary (the mcp-connect precedent for a credentialed
+   connection surface); only the layout is new. */
+.sn-mr-panel { max-width: 820px; }
+.sn-mr-state { margin-bottom: 16px; }
+.sn-mr-state .sn-callout-h { align-items: center; display: flex; gap: 8px; margin: 0 0 4px; }
+.sn-mr-state p:last-child { margin: 0; }
+
+.sn-mr-meta {
+	display: grid;
+	gap: 0 24px;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	margin: 0 0 20px;
+}
+.sn-mr-meta > div {
+	border-top: 1px solid #f0f0f1;
+	padding: 8px 0;
+}
+.sn-mr-meta dt {
+	color: #646970;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	margin: 0 0 2px;
+	text-transform: uppercase;
+}
+.sn-mr-meta dd { margin: 0; }
+
+/* Settings live inside the panel: a rule, not a second box. */
+.sn-mr-settings { border-top: 1px solid #dcdcde; margin: 0; padding-top: 16px; }
+.sn-mr-settings-h { font-size: 13px; margin: 0 0 12px; }
+.sn-mr-settings .sn-field { margin-bottom: 16px; }
+.sn-mr-settings .sn-field-label { align-items: center; display: flex; gap: 8px; }
+.sn-mr-settings input:disabled { background: #f6f7f7; color: #8c8f94; }
