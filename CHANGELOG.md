@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.83.0] - 2026-07-28: The signal has to travel with the copy
+
+**Headline:** `/wp/v2/posts` was serving the full corpus as clean, paginated JSON while every TDMRep and Content Signals declaration on the site lived on the HTML surface — a consumer taking the JSON route got everything with no reservation attached. The reservation headers now ride `rest_post_dispatch`, and the anonymous REST surface loses the three route families it had no business exposing. Core is patched against CVE-2026-63030 (WP2Shell); this narrows the surface that made the chain reachable, it does not fix anything still broken.
+
+> **Why MINOR:** new user-visible behavior on a public surface (anonymous REST responses change shape and gain headers), with no removed or renamed plugin API, no settings-schema change, and no action required of the operator. The plugin's own namespaces are explicitly untouched.
+
+### New
+
+- **`inc/rest-hardening.php` + `inc/rest-hardening-policy.php`** — three anonymous-only controls behind one filterable policy array (`snt_rest_hardening_policy`). Nothing hardcodes a route; the decision layer is pure and hook-free so the suite drives production code rather than a stub of it. Registered from the bootstrap, which stays logic-free (a test asserts both halves of that).
+- **Route removal via `rest_endpoints`** — `/wp/v2/users` (+ `/{id}`), `/wp/v2/comments`, and `/batch/v1` leave the dispatch table for unauthenticated callers. Prefix-matched, so `/wp/v2/users/me` and the application-password subroutes go with them instead of standing as a cosmetic gap. `rest_endpoints` fires inside `dispatch()`, after `check_authentication()`, so the block editor, site editor and REST media flows — all cookie-authenticated — return on the filter's first line and see an untouched table.
+- **TDM reservation headers on every REST response** (`TDM-Reservation: 1`, `TDM-Policy: https://juanlentino.com/tdm-policy/`), set with `replace = true` so an edge rule carrying the same values yields one header, not two.
+
+### Fixed
+
+- **The reservation headers were bare on `/?rest_route=`.** Measured against production before the change: present on `/` and on `/wp-json/wp/v2/posts`, absent on `/?rest_route=/wp/v2/posts` — the exact spelling a consumer routing around a `/wp-json` block would reach for. The headers came from an edge rule, not this codebase. Emitting them from `rest_post_dispatch` makes them origin-owned and spelling-independent, because both URL forms converge on the same dispatch. (This corrects the assumption that they were HTML-only; they were REST-partial.)
+
+### Improvements
+
+- **`content.rendered` and `excerpt.rendered` are emptied for anonymous callers on posts and pages** — the routes stay registered, because killing them breaks legitimate discovery for no gain against content that is public HTML anyway. Keys are emptied rather than unset so schema-validating clients keep a well-formed response: the payload is the leak, not the shape. `title.rendered`, ids, slugs, dates, taxonomies and meta are untouched.
+- **`sn-prov/v1` and `signal-noise/v1` carry a protected veto** checked before the remove list, so neither the public cryptographic verifier nor the MCP tooling can be taken out by a future filter or a careless edit to the default array.
+- **`docs/REST-HARDENING.md`** records the rationale, the hook-order reasoning, the interaction with the older `rest_authentication_errors` guard in `inc/security-headers.php` (which stays), and the verification matrix — including why a status code cannot prove `/batch/v1` was removed.
+
+### Tests
+
+- `tests/rest-hardening.php` — 47 assertions: removal and survival across a route fixture copied from the live index, the logged-in no-op, the protected veto against a filter that explicitly tries to remove both owned namespaces, field stripping in both auth states, sparse-response and non-object passthrough, header values pinned by value with `replace = true`, and the deferral of the `rest_prepare_*` binds to `rest_api_init`. Includes a dead-code guard asserting the bootstrap actually requires the module — every other assertion passes even if it never loads. Verified by mutation: six deliberate defects each turn the suite red.
+
 ## [9.82.1] - 2026-07-27: A checkpoint is not a tombstone
 
 **Headline:** the link-rot check called a live VentureBeat article dead. It was not dead; it was behind a Vercel Security Checkpoint, which answers an automated probe with `429` and an `x-vercel-mitigated: challenge` header. The classifier knew that shape only in Cloudflare's dialect, so the response fell through all three skip buckets at once and landed in "rot". Challenge detection is now vendor-agnostic, and the verdict cache carries a revision so a rules change can no longer leave yesterday's misjudgment frozen for a day.

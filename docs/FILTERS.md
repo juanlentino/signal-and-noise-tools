@@ -28,3 +28,14 @@ Linked from the leaf's "Developer filter seams →" line
 calls in these namespaces and cross-checks this table both ways — a future
 filter #13 fails that suite until it's documented here (or explicitly
 allowlisted as intentionally undocumented, same as before).
+
+## Seams outside this table
+
+The table above is scoped to the analytics settings hub (prefixes
+`sn_analytics_`, `snt_ai_`, `sn_beacon_`), and the parity suite asserts every
+row is a real seam in those namespaces — so filters from other subsystems are
+documented with their subsystem, not added here.
+
+- `snt_rest_hardening_policy` — the routes removed, post types stripped,
+  namespaces protected, and headers emitted on the unauthenticated REST
+  surface. See [REST-HARDENING.md](REST-HARDENING.md).
