@@ -141,5 +141,14 @@ sn_migrate_verify_page_seed();
 vp_eq( 0, $GLOBALS['__pv_inserts'], 'no insert while the parent page is absent' );
 vp_true( (bool) get_option( SN_PROV_VERIFY_PAGE_MIGR_OPT ), 'flag still set so we stop scanning every admin_init' );
 
+// ── v9.87.0: the proof-walk section ships in the docket markup ──
+$sn_walk_src = (string) file_get_contents( __DIR__ . '/../inc/provenance-verify.php' );
+vp_true( false !== strpos( $sn_walk_src, 'data-role="walk"' ), 'proof-walk section present in the docket markup' );
+vp_true( false !== strpos( $sn_walk_src, 'data-role="walk-steps"' ), 'walk steps list present' );
+vp_true( false !== strpos( $sn_walk_src, 'Proof walk' ), 'walk heading present' );
+vp_true( 1 === preg_match( '/<section class="sn-verify-walk"[^>]*hidden/', $sn_walk_src ), 'walk hidden until the docket fills it' );
+$sn_walk_js = (string) file_get_contents( __DIR__ . '/../assets/js/prov-verify.js' );
+vp_true( false !== strpos( $sn_walk_js, 'renderProofWalk' ) && false !== strpos( $sn_walk_js, 'deriveProofWalk' ), 'docket JS renders the core-derived walk' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

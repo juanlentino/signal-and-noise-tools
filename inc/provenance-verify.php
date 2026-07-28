@@ -208,6 +208,12 @@ function sn_prov_verify_send() {
 
 	<section class="sn-verify-facts" data-role="facts" hidden></section>
 
+	<section class="sn-verify-walk" data-role="walk" hidden>
+		<h2>Proof walk</h2>
+		<p class="sn-verify-lede">The chain of custody, value by value: the hash this Note\'s signature covers, the independent ledger\'s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
+		<ol class="sn-verify-walk-steps" data-role="walk-steps"></ol>
+	</section>
+
 	<section class="sn-verify-compare" data-role="compare">
 		<h2>Compare two versions</h2>
 		<p class="sn-verify-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them &mdash; each side labeled by its own anchor state.</p>

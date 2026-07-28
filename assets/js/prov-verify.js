@@ -333,6 +333,55 @@
 		} );
 	}
 
+
+	/**
+	 * Proof walk (v9.87.0): render Core.deriveProofWalk() steps into the
+	 * docket. Values via textContent (ledger/chain data is untrusted);
+	 * hrefs only from the fixed explorer base the core builds. Section
+	 * stays hidden until steps exist.
+	 */
+	function renderProofWalk( cred, ledgerRes, txRes ) {
+		var section = document.querySelector( '[data-role="walk"]' );
+		var list    = document.querySelector( '[data-role="walk-steps"]' );
+		if ( ! section || ! list ) {
+			return;
+		}
+		var steps = Core.deriveProofWalk( cred, ledgerRes, txRes, config.mempoolBase );
+		list.textContent = '';
+		steps.forEach( function ( step, i ) {
+			var li = document.createElement( 'li' );
+			li.className = 'sn-verify-walk-step';
+			var no = document.createElement( 'span' );
+			no.className = 'sn-verify-walk-no';
+			no.setAttribute( 'aria-hidden', 'true' );
+			no.textContent = ( i < 9 ? '0' : '' ) + ( i + 1 );
+			var label = document.createElement( 'span' );
+			label.className = 'sn-verify-walk-label';
+			label.textContent = step.label;
+			var value = document.createElement( 'code' );
+			value.className = 'sn-verify-walk-value';
+			if ( step.href ) {
+				var a = document.createElement( 'a' );
+				a.href = step.href;
+				a.rel = 'noopener';
+				a.target = '_blank';
+				a.textContent = String( step.value );
+				value.appendChild( a );
+			} else {
+				value.textContent = String( step.value );
+			}
+			var source = document.createElement( 'span' );
+			source.className = 'sn-verify-walk-source';
+			source.textContent = step.source;
+			li.appendChild( no );
+			li.appendChild( label );
+			li.appendChild( value );
+			li.appendChild( source );
+			list.appendChild( li );
+		} );
+		section.hidden = false;
+	}
+
 	/** Anchor check: the Bitcoin confirmation, cross-attested against the independent ledger record. */
 	function checkAnchor( cred, uid, version ) {
 		var plan = Core.deriveAnchorPlan( cred );
@@ -349,11 +398,13 @@
 				var outcome = Core.deriveBlockOnlyAnchor( anchor, evidence, ledgerRes );
 				if ( outcome.verdict ) {
 					setVerdict( 'anchor', outcome.verdict );
+					renderProofWalk( cred, ledgerRes, null );
 					return;
 				}
 				var ledgerTxUrl = Core.mempoolTxStatusUrl( config.mempoolBase, outcome.followTxid );
 				return fetchJSON( ledgerTxUrl ).then( function ( txRes2 ) {
 					setVerdict( 'anchor', Core.deriveLedgerTxAnchor( anchor, outcome.blockNote, txRes2 ) );
+					renderProofWalk( cred, ledgerRes, txRes2 );
 				} );
 			} );
 		}
@@ -363,6 +414,7 @@
 
 		return Promise.all( [ fetchJSON( txStatusUrl ), fetchJSON( ledgerUrl ) ] ).then( function ( results ) {
 			setVerdict( 'anchor', Core.deriveTxAnchor( anchor, evidence, results[ 0 ], results[ 1 ] ) );
+			renderProofWalk( cred, results[ 1 ], results[ 0 ] );
 		} );
 	}
 
