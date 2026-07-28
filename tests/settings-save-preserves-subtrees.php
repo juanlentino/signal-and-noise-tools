@@ -138,5 +138,13 @@ assertEq( true, sn_setting( 'indexnow.enabled', false ), 'indexnow.enabled still
 assertEq( true, sn_setting( 'insights.weekly_cron_enabled', false ), 'insights.weekly_cron_enabled still survives after availability added' );
 assertEq( array( 'administrator' ), sn_setting( 'analytics.exclude_roles', array() ), 'analytics.exclude_roles still survives after availability added' );
 
+// v9.88.0 (hardening gate): machine_readers (v9.85.0). Its read token is
+// write-only in the UI, so an Identity save clobbering it destroyed a value the
+// owner cannot re-read. Fifth subtree in this recurring class.
+sn_setting_update( 'machine_readers.read_token', 'secret-token' );
+sn_settings_save( array( 'identity_site_name' => 'Another Save' ) );
+sn_setting_reset_cache();
+assertEq( 'secret-token', sn_setting( 'machine_readers.read_token', '' ), 'machine_readers.read_token survives an Identity save' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

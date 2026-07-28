@@ -429,7 +429,7 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 
 // ── Proof walk (v9.87.0): attestation → inclusion proof, honestly sourced ──
 {
-	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 'a1b2', block: 901000 }, content_hash: 'sha256:ABCD' } ] };
+	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 'a1b2', block: 901000 }, contentHash: 'sha256:ABCD' } ] };
 	const rec  = { content_hash: 'sha256:abcd', leaf_hash: 'leafbeef', ots: { bitcoin_txid: 'a1b2', bitcoin_block: 901000 } };
 	const tx   = { confirmed: true, block_height: 901000 };
 	const walk = core.deriveProofWalk( cred, rec, tx, 'https://mempool.space' );
@@ -444,7 +444,7 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 }
 {
 	// The block-only norm: most records carry no txid — never fabricate one.
-	const cred = { evidence: [ { anchor: { status: 'confirmed', block: 900123 }, content_hash: 'sha256:abcd' } ] };
+	const cred = { evidence: [ { anchor: { status: 'confirmed', block: 900123 }, contentHash: 'sha256:abcd' } ] };
 	const rec  = { content_hash: 'sha256:abcd', ots: { bitcoin_block: 900123 } };
 	const walk = core.deriveProofWalk( cred, rec, null, 'https://mempool.space' );
 	ok( /not extracted|block-only/i.test( walk[2].value ), 'block-only proof says so instead of faking a txid' );
@@ -454,10 +454,20 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 }
 {
 	// Hash disagreement is surfaced, never averaged away.
-	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 't' }, content_hash: 'sha256:aaaa' } ] };
+	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 't' }, contentHash: 'sha256:aaaa' } ] };
 	const rec  = { content_hash: 'sha256:bbbb', ots: {} };
 	const walk = core.deriveProofWalk( cred, rec, null, 'https://mempool.space' );
 	ok( /disagree|mismatch/i.test( walk[0].source ), 'site-vs-ledger hash mismatch is flagged in the source label' );
+}
+
+{
+	// v9.88.0 regression: the credential's REAL key is camelCase contentHash
+	// (inc/provenance-credential.php). The v9.87.0 fixtures invented snake_case
+	// and certified a shape production never emits — step 01 rendered blank.
+	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 'x' }, contentHash: 'sha256:DEAD' } ] };
+	const walk = core.deriveProofWalk( cred, { content_hash: 'sha256:dead' }, null, 'https://mempool.space' );
+	eq( 'dead', walk[0].value, 'credential contentHash (camelCase) is read' );
+	ok( /agree/i.test( walk[0].source ), 'credential and ledger agreement is detectable with the real key' );
 }
 
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );

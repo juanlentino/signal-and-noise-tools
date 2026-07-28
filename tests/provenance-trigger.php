@@ -146,5 +146,16 @@ sn_prov_on_after_insert( 15, tg_make_post( 15 ), true, null );
 tg_eq( 0, count( sn_prov_get_chain( 15 ) ), 'revision skipped' );
 $GLOBALS['__pv_revision'] = false;
 
+// ── v9.88.0 (hardening gate): a password-protected Note must never reach the
+// PUBLIC, append-only ledger. A protected post IS status=publish, and the
+// commit payload carries the entire normalized post_content — irreversible
+// once written (git history + a Bitcoin anchor). sn_prov_credential() already
+// gated on this; the RECORDING leg did not.
+$p = tg_make_post( 20 );
+$p->post_password = 'hunter2';
+$GLOBALS['__pv_terms'][20] = true;
+sn_prov_on_after_insert( 20, $p, true, null );
+tg_eq( 0, count( sn_prov_get_chain( 20 ) ), 'password-protected published Note is NOT recorded to the public ledger' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

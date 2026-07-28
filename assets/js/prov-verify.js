@@ -398,13 +398,13 @@
 				var outcome = Core.deriveBlockOnlyAnchor( anchor, evidence, ledgerRes );
 				if ( outcome.verdict ) {
 					setVerdict( 'anchor', outcome.verdict );
-					renderProofWalk( cred, ledgerRes, null );
+					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, null );
 					return;
 				}
 				var ledgerTxUrl = Core.mempoolTxStatusUrl( config.mempoolBase, outcome.followTxid );
 				return fetchJSON( ledgerTxUrl ).then( function ( txRes2 ) {
 					setVerdict( 'anchor', Core.deriveLedgerTxAnchor( anchor, outcome.blockNote, txRes2 ) );
-					renderProofWalk( cred, ledgerRes, txRes2 );
+					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, txRes2.ok && txRes2.json );
 				} );
 			} );
 		}
@@ -414,7 +414,7 @@
 
 		return Promise.all( [ fetchJSON( txStatusUrl ), fetchJSON( ledgerUrl ) ] ).then( function ( results ) {
 			setVerdict( 'anchor', Core.deriveTxAnchor( anchor, evidence, results[ 0 ], results[ 1 ] ) );
-			renderProofWalk( cred, results[ 1 ], results[ 0 ] );
+			renderProofWalk( cred, results[ 1 ].ok && results[ 1 ].json, results[ 0 ].ok && results[ 0 ].json );
 		} );
 	}
 

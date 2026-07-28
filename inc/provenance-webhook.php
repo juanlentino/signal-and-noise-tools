@@ -323,18 +323,26 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 		if ( (int) ( $entry['version'] ?? 0 ) !== (int) $version ) {
 			continue;
 		}
-		if ( isset( $data['content_hash'] ) && ( $entry['content_hash'] ?? null ) !== $data['content_hash'] ) {
+		// v9.88.0: UNCONDITIONAL. The Worker signs ledger payloads and confirm
+		// callbacks with one key and no domain separation, and a signed ledger
+		// payload is PUBLISHED publicly — so a replayed one verifies here. A
+		// genuine callback always carries content_hash (sweep.mjs), so requiring
+		// it costs nothing and makes the published payload non-replayable.
+		if ( ! isset( $data['content_hash'] ) || ( $entry['content_hash'] ?? null ) !== $data['content_hash'] ) {
 			return false;
 		}
 		break;
 	}
 
 	// Whitelist status: never store an arbitrary caller-supplied string.
+	// v9.88.0: never DEFAULT to 'confirmed' — an absent status used to promote a
+	// pending commit to verified. Genuine callbacks always send one.
 	$allowed_statuses = array( 'pending', 'confirmed', 'unanchored', 'genesis' );
-	$status           = (string) ( $data['status'] ?? 'confirmed' );
-	$fields           = array(
-		'status' => in_array( $status, $allowed_statuses, true ) ? $status : 'confirmed',
-	);
+	$status           = (string) ( $data['status'] ?? '' );
+	if ( ! in_array( $status, $allowed_statuses, true ) ) {
+		return false;
+	}
+	$fields = array( 'status' => $status );
 	if ( isset( $data['bitcoin_block'] ) ) {
 		$fields['bitcoin_block'] = (int) $data['bitcoin_block'];
 	}
@@ -381,6 +389,15 @@ function sn_prov_confirm_handler( $request ) {
  * @param int $post_id
  */
 function sn_prov_reconcile_post( $post_id ) {
+	// v9.88.0: mirror the recording gate — an already-recorded commit for a
+	// now-protected post must not be pushed later by the hourly sweep.
+	if ( function_exists( 'get_post' ) ) {
+		$sn_rp = get_post( $post_id );
+		if ( is_object( $sn_rp ) && '' !== (string) ( $sn_rp->post_password ?? '' ) ) {
+			return false;
+		}
+	}
+
 	foreach ( sn_prov_get_chain( $post_id ) as $commit ) {
 		if ( 'unanchored' !== ( $commit['status'] ?? '' ) ) {
 			continue;

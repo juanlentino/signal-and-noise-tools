@@ -484,6 +484,11 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	sn_og_sync_card_on_save( $post_id, $post );
 }, 20, 4 );
 
+// v9.88.0 (hardening gate): permanent delete never reaches the save hook, so
+// the public PNG — whose provenance iTXt chunk carries the full post text —
+// would outlive the post entirely at a guessable URL.
+add_action( 'before_delete_post', 'sn_og_delete_card', 10, 1 );
+
 /**
  * Backfill option flag — set to a unix timestamp once the migration
  * has scanned all published posts/pages and generated any missing

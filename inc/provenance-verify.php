@@ -210,7 +210,7 @@ function sn_prov_verify_send() {
 
 	<section class="sn-verify-walk" data-role="walk" hidden>
 		<h2>Proof walk</h2>
-		<p class="sn-verify-lede">The chain of custody, value by value: the hash this Note\'s signature covers, the independent ledger\'s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
+		<p class="sn-verify-lede">The chain of custody, value by value: the hash this Note&rsquo;s signature covers, the independent ledger&rsquo;s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
 		<ol class="sn-verify-walk-steps" data-role="walk-steps"></ol>
 	</section>
 
