@@ -69,5 +69,23 @@ $hostile = snt_mr_render_summary_chips( array( array( 'family' => 'openai', 'sur
 ok( false === strpos( $hostile, '<svg' ), 'chips escape like every other sink' );
 ok( '' !== snt_mr_render_summary_chips( array(), 30 ), 'empty rows still render a strip, not a fatal' );
 
+echo "\nGroup: v10.0.1 — the sensor panel (identity + connection + crawler verdict)\n";
+$panel = snt_mr_render_sensor_panel(
+	array( 'version' => '1.4.0', 'deployed_at' => '2026-07-28T18:02:43Z' ),
+	array( 'last_check_ok' => '1', 'last_check_drift' => '', 'last_check_checked_at' => '2026-07-27T07:23:00Z' ),
+	array( 'ok' => true, 'rows' => array(), 'error' => null )
+);
+ok( false !== strpos( $panel, '1.4.0' ), 'panel states the deployed sensor version' );
+ok( false !== strpos( $panel, 'sn-mr-panel' ), 'panel uses its own scoped class (one zone, not three boxes)' );
+ok( false !== stripos( $panel, 'connected' ), 'a healthy read reports the connection as connected' );
+ok( false !== stripos( $panel, 'in sync' ), 'the crawler-list verdict rides inside the panel' );
+ok( 1 === preg_match_all( '/<h2/', $panel ), 'exactly ONE h2 for the whole sensor zone (the hierarchy fix)' );
+
+$panel_bad = snt_mr_render_sensor_panel( null, null, array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' ) );
+ok( false !== stripos( $panel_bad, 'not configured' ), 'an unconfigured sensor says so IN the panel, next to the fields that fix it' );
+ok( false === strpos( $panel_bad, '<script' ) && false === strpos( $panel_bad, '<img' ), 'no unescaped markup leaks from absent data' );
+$panel_hostile = snt_mr_render_sensor_panel( array( 'version' => '1.4.0', 'deployed_at' => '<img src=x>' ), null, array( 'ok' => true ) );
+ok( false === strpos( $panel_hostile, '<img' ), 'worker-supplied values stay escaped in the panel' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

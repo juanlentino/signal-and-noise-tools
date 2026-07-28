@@ -231,3 +231,81 @@ function snt_mr_render_summary_chips( $rows, $days ) {
 		. $stat( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
 		. '</div>';
 }
+
+/**
+ * The sensor panel (v10.0.1): ONE zone for the plumbing — worker identity,
+ * connection state, and the crawler-list verdict — so the tab reads as
+ * "what machines did" above and "how we know" below, instead of three
+ * equal-weight boxes with no hierarchy. Pure: takes data, returns HTML,
+ * escapes every worker-supplied value (identity and status are remote JSON).
+ * The settings FORM is appended by the admin module inside this same zone.
+ *
+ * @param array|null $info   snt_mr_sensor_info() shape, or null.
+ * @param array|null $status snt_mr_crawler_list_status() shape, or null.
+ * @param array      $result snt_mr_fetch() result (for the connection state).
+ * @return string HTML (opening the panel; the caller closes it).
+ */
+function snt_mr_render_sensor_panel( $info, $status, $result ) {
+	$min      = defined( 'SN_MR_SENSOR_MIN' ) ? (string) SN_MR_SENSOR_MIN : '1.4.0';
+	$result   = (array) $result;
+	$ok       = ! empty( $result['ok'] );
+	$err      = (string) ( $result['error'] ?? '' );
+	$version  = ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : '';
+	$deployed = ( is_array( $info ) && isset( $info['deployed_at'] ) ) ? (string) $info['deployed_at'] : '';
+
+	// Connection state: the one line that answers "is this thing working?".
+	if ( $ok ) {
+		$conn = array( 'ok', __( 'connected', 'signal-and-noise-tools' ), __( 'The sensor answered and its aggregates are current.', 'signal-and-noise-tools' ) );
+	} elseif ( 'not_configured' === $err ) {
+		$conn = array( 'warn', __( 'not configured', 'signal-and-noise-tools' ), __( 'Save a read token below (or define SN_MR_READ_TOKEN in wp-config.php) to read the sensor.', 'signal-and-noise-tools' ) );
+	} else {
+		/* translators: %s: machine-readable error code from the sensor read. */
+		$conn = array( 'warn', __( 'unreachable', 'signal-and-noise-tools' ), sprintf( __( 'The last read failed (%s). The panel retries on the next load.', 'signal-and-noise-tools' ), $err !== '' ? $err : 'unknown' ) );
+	}
+
+	$out  = '<section class="sn-fieldset sn-mr-panel">';
+	$out .= '<h2 class="sn-fieldset-h">' . esc_html__( 'Sensor', 'signal-and-noise-tools' ) . '</h2>';
+
+	// Connection state as a callout — the mcp-connect precedent for "is this
+	// credentialed connection working", so the answer sits WITH the fields
+	// that fix it instead of in a notice at the top of the tab.
+	$out .= '<div class="sn-callout sn-mr-state">';
+	$out .= '<p class="sn-callout-h">' . esc_html__( 'Connection', 'signal-and-noise-tools' )
+		. ' <span class="sn-pill sn-pill--' . esc_attr( $conn[0] ) . '">' . esc_html( $conn[1] ) . '</span></p>';
+	$out .= '<p>' . esc_html( $conn[2] ) . '</p>';
+	$out .= '</div>';
+
+	// Identity: what is deployed at the edge, and is it new enough.
+	$out .= '<dl class="sn-mr-meta">';
+	$out .= '<div><dt>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</dt><dd><code>sn-rights-signals</code></dd></div>';
+	$out .= '<div><dt>' . esc_html__( 'Version', 'signal-and-noise-tools' ) . '</dt><dd>' . ( '' !== $version ? '<code>' . esc_html( $version ) . '</code>' : '&mdash;' ) . '</dd></div>';
+	$out .= '<div><dt>' . esc_html__( 'Deployed', 'signal-and-noise-tools' ) . '</dt><dd>' . ( '' !== $deployed ? esc_html( $deployed ) : '&mdash;' ) . '</dd></div>';
+
+	// Crawler-list drift verdict, folded in rather than floating in its own box.
+	$verdict = '&mdash;';
+	if ( is_array( $status ) && isset( $status['last_check_ok'] ) ) {
+		$c_ok    = '' !== (string) $status['last_check_ok'];
+		$c_drift = '' !== (string) ( $status['last_check_drift'] ?? '' );
+		if ( $c_ok && ! $c_drift ) {
+			$verdict = '<span class="sn-pill sn-pill--ok">' . esc_html__( 'in sync', 'signal-and-noise-tools' ) . '</span>';
+		} elseif ( $c_ok ) {
+			$verdict = '<span class="sn-pill sn-pill--warn">' . esc_html__( 'drift', 'signal-and-noise-tools' ) . '</span>';
+		} else {
+			$verdict = '<span class="sn-pill sn-pill--warn">' . esc_html__( 'check failed', 'signal-and-noise-tools' ) . '</span>';
+		}
+		$checked = (string) ( $status['last_check_checked_at'] ?? '' );
+		if ( '' !== $checked ) {
+			$verdict .= ' <span class="description">' . esc_html( $checked ) . '</span>';
+		}
+	}
+	$out .= '<div><dt>' . esc_html__( 'Crawler list', 'signal-and-noise-tools' ) . '</dt><dd>' . $verdict . '</dd></div>';
+	$out .= '</dl>';
+
+	if ( '' !== $version && version_compare( $version, $min, '<' ) ) {
+		$out .= '<div class="notice notice-warning notice-alt inline"><p><strong>' . esc_html__( 'Sensor outdated:', 'signal-and-noise-tools' ) . '</strong> '
+			/* translators: 1: deployed version, 2: required minimum version. */
+			. esc_html( sprintf( __( 'the deployed worker is v%1$s; these panels need v%2$s or newer. Deploy the sensor release.', 'signal-and-noise-tools' ), $version, $min ) )
+			. '</p></div>';
+	}
+	return $out;
+}

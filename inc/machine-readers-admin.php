@@ -136,18 +136,10 @@ function snt_mr_render_tab() {
 	$days   = 30;
 	$result = snt_mr_fetch( $days );
 
-	// Owner ask (2026-07-28): the deployed sensor version, visible in-admin.
-	echo snt_mr_render_sensor_card( snt_mr_sensor_info() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped pure renderer.
-
 	echo '<p class="sn-prose">What machine readers do with the site: which crawler families read it, which machine surfaces they touch, and whether declared AI-training crawlers actually read the rights declarations that apply to them.</p>';
 
-	if ( empty( $result['ok'] ) ) {
-		if ( 'not_configured' === ( $result['error'] ?? '' ) ) {
-			echo '<div class="notice notice-warning notice-alt inline"><p><strong>Sensor not configured.</strong> Save the read token below (or define <code>SN_MR_READ_TOKEN</code> in wp-config.php) to read the rights-signals sensor.</p></div>';
-		} else {
-			echo '<div class="notice notice-error notice-alt inline"><p><strong>Sensor read failed</strong> (<code>' . esc_html( (string) ( $result['error'] ?? 'unknown' ) ) . '</code>). The worker may be unreachable or answering with an unexpected shape; the panel retries on the next load.</p></div>';
-		}
-	} else {
+	// ── Zone 1: the readership data (what you came for) ──
+	if ( ! empty( $result['ok'] ) ) {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
 		echo snt_mr_render_summary_chips( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
 		echo '<div class="sn-2up sn-mr-grid">';
@@ -155,50 +147,17 @@ function snt_mr_render_tab() {
 		echo '<div class="sn-fieldset">' . snt_mr_render_surface_table( $rows ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo '</div>';
 		echo '<div class="sn-fieldset">' . snt_mr_render_compliance( $rows ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+	} else {
+		echo '<div class="sn-fieldset"><p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the sensor panel below says why.', 'signal-and-noise-tools' ) . '</p></div>';
 	}
 
-	snt_mr_render_crawler_status_card();
+	// ── Zone 2: the sensor (identity + connection + crawler verdict + fields),
+	// one panel instead of three equal-weight boxes. v10.0.1.
+	echo snt_mr_render_sensor_panel( snt_mr_sensor_info(), snt_mr_crawler_list_status(), $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
 	snt_mr_render_settings_form();
+	echo '</section>';
 }
 
-/**
- * The crawler-list card: the worker's public crawler-list-status document
- * (no auth), fetched through the shared outbound gate with a short transient
- * by snt_mr_crawler_list_status(). Degrades to a quiet dash on any failure.
- * Values are worker JSON, so both halves of every row are escaped here.
- */
-function snt_mr_render_crawler_status_card() {
-	$status = function_exists( 'snt_mr_crawler_list_status' ) ? snt_mr_crawler_list_status() : null;
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">Crawler list</h2>';
-	if ( ! is_array( $status ) || empty( $status ) ) {
-		echo '<p class="sn-field-helper">Crawler-list status: &mdash;</p>';
-		echo '</div>';
-		return;
-	}
-	// v9.86.0: headline verdict from the flattened last_check_* fields — the
-	// weekly diff's actual answer, not just the worker's name.
-	if ( isset( $status['last_check_ok'] ) ) {
-		$ok    = '' !== (string) $status['last_check_ok'];
-		$drift = '' !== (string) ( $status['last_check_drift'] ?? '' );
-		if ( $ok && ! $drift ) {
-			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--ok">in sync</span> ';
-			echo esc_html__( 'The hand-maintained crawler list matches Cloudflare\'s published managed-robots list.', 'signal-and-noise-tools' ) . '</p>';
-		} elseif ( $ok && $drift ) {
-			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--warn">drift</span> ';
-			echo esc_html__( 'Cloudflare\'s published list changed; robots-block.mjs needs a review.', 'signal-and-noise-tools' ) . '</p>';
-		} else {
-			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--warn">check failed</span> ';
-			echo esc_html__( 'The last weekly diff could not complete; it retries on its cron.', 'signal-and-noise-tools' ) . '</p>';
-		}
-	}
-	echo '<table class="form-table sn-status-table"><tbody>';
-	foreach ( $status as $key => $value ) {
-		echo '<tr><th>' . esc_html( ucwords( str_replace( array( '_', '-' ), ' ', (string) $key ) ) ) . '</th><td><code>' . esc_html( (string) $value ) . '</code></td></tr>';
-	}
-	echo '</tbody></table>';
-	echo '</div>';
-}
 
 /**
  * The settings sub-form: worker URL override + write-only read token, posted
@@ -215,10 +174,10 @@ function snt_mr_render_settings_form() {
 	$has_token    = function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' );
 	$default_url  = defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? SN_MR_DEFAULT_ENDPOINT : '';
 
-	echo '<form method="post" class="sn-fieldset"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
+	echo '<form method="post" class="sn-mr-settings"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="machine_readers_save">';
-	echo '<h2 class="sn-fieldset-h">Sensor settings</h2>';
+	echo '<h3 class="sn-mr-settings-h">' . esc_html__( 'Settings', 'signal-and-noise-tools' ) . '</h3>';
 
 	echo '<div class="sn-field"><label class="sn-field-label" for="sn_mr_worker_url">Worker URL</label>';
 	echo '<input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="' . esc_attr( $stored_url ) . '" placeholder="' . esc_attr( $default_url ) . '"' . ( $url_locked ? ' disabled' : '' ) . '>';
