@@ -160,16 +160,9 @@ function sn_seo_description_for_post( $post ) {
 }
 
 function sn_seo_meta_for_current_view() {
-	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
-	// title/description/url since WP has no post for it. Takes precedence.
-	if ( null !== $route ) {
-		return array(
-			(string) ( $route['title'] ?? '' ),
-			(string) ( $route['description'] ?? '' ),
-			(string) ( $route['url'] ?? '' ),
-		);
-	}
-
+	// v10.0.0: the virtual-route precedence branch is gone with the
+	// sn_seo_route_meta seam — every former virtual route is a real Page, so
+	// the conditionals below resolve them.
 	$title       = '';
 	$description = '';
 	$url         = '';
