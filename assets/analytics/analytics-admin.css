@@ -361,6 +361,17 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-table th { text-align: left; color: #646970; font-weight: 400; border-bottom: 1px solid #f0f0f1; padding: 6px 10px 6px 0; }
 .sn-an-table td { border-bottom: 1px solid #f0f0f1; padding: 6px 10px 6px 0; color: #1d2327; }
 .sn-an-table th:last-child, .sn-an-table td:last-child { padding-right: 0; }
+
+/* v10.2.6: the zebra variant. An .sn-an-table that opts into the widefat
+   striped look gets the dashboard cell gutters EVERYWHERE (the same 8px 12px
+   .sn-an-table-inside applies inside postboxes), not just there. The
+   flush-left base above serves the settings-leaf mirror tables; striped rows
+   need text inset from the stripe edge on BOTH sides — bare edges read as
+   "glued to the table" (owner, 2026-07-28). */
+.sn-an-table.widefat th,
+.sn-an-table.widefat td { padding: 8px 12px; }
+.sn-an-table.widefat th:last-child,
+.sn-an-table.widefat td:last-child { padding-right: 12px; }
 .sn-an-table td.num, .sn-an-table th.num { text-align: right; font-variant-numeric: tabular-nums; color: #646970; }
 .sn-an-table tr:last-child td { border-bottom: 0; }
 @media (max-width: 782px) {
