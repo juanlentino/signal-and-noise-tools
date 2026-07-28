@@ -150,7 +150,7 @@ function snt_mr_render_tab() {
 		// R4 (v10.2.1): the feed-fetcher half of the machine audience, from the
 		// EXISTING tracker. Never summed with crawler reads.
 		if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
-			echo '<div class="sn-fieldset">' . snt_mr_render_feed_table( sn_rss_tracker_window_stats_multi() ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+			echo '<div class="sn-fieldset">' . snt_mr_render_feed_table( sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		} // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 	} else {
 		echo '<div class="sn-fieldset"><p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the sensor panel below says why.', 'signal-and-noise-tools' ) . '</p></div>';
