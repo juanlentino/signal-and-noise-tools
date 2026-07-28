@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     9.82.1
+ * Version:     9.83.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.0
@@ -69,6 +69,7 @@ require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
+require_once SNT_PATH . 'inc/rest-hardening.php'; // v9.83.0: anonymous REST surface — route removal (users/comments/batch), rendered-field stripping on posts/pages, TDM headers on every dispatch
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
