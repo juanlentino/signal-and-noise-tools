@@ -312,3 +312,4 @@ function snt_mr_crawler_list_status() {
 	set_transient( 'sn_mr_crawler_status', $flat, 15 * MINUTE_IN_SECONDS );
 	return $flat;
 }
+

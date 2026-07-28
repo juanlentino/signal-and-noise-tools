@@ -57,6 +57,9 @@ function snt_mr_crawler_list_status() { return $GLOBALS['__status']; }
 // boundary would hide exactly the drift this file exists to catch.
 // inc/machine-readers-render.php only declares functions at load.
 require __DIR__ . '/../inc/machine-readers-render.php';
+// v10.2.0: the ONE shared builder lives here now (both this ability and the
+// desktop tile route call it), so the fixture drives the real thing.
+require __DIR__ . '/../inc/machine-readers-summary.php';
 
 require __DIR__ . '/../inc/abilities-machine-readers.php';
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) {
@@ -200,25 +203,22 @@ $input = array( 'days' => 7 );
 snt_ability_get_machine_readers_summary( $input );
 ok( array( 'days' => 7 ) === $input, 'the input array is never mutated' );
 
-echo "\nGroup J: delegation to the Desktop Mode tile route\n";
-// Declared HERE, inside a conditional block so PHP does not hoist it: every
-// group above had to exercise the standalone rebuild path, which only runs
-// while snt_desktop_machine_readers_payload() is absent.
-ok( ! function_exists( 'snt_desktop_machine_readers_payload' ), 'the groups above ran the standalone rebuild path' );
-if ( true ) {
-	function snt_desktop_machine_readers_payload() {
-		$GLOBALS['__dm_calls'] = ( $GLOBALS['__dm_calls'] ?? 0 ) + 1;
-		return array( 'ok' => true, 'days' => 30, 'total' => 999, 'families' => array(), 'ai_training' => 0, 'ai_rights' => 0, 'sensor_version' => 'dm', 'crawler_list' => null );
-	}
-}
-$GLOBALS['__dm_calls'] = 0;
-$out = snt_ability_get_machine_readers_summary( array( 'days' => 30 ) );
-ok( 1 === $GLOBALS['__dm_calls'] && 999 === ( $out['total'] ?? null ), 'days=30 delegates to the DM route (one payload builder, no second copy to drift)' );
-$out = snt_ability_get_machine_readers_summary( null );
-ok( 2 === $GLOBALS['__dm_calls'], 'the default window delegates too' );
-$out = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
-ok( 2 === $GLOBALS['__dm_calls'], 'a non-default window does NOT delegate (the DM route hardcodes 30 days)' );
-ok( 46 === ( $out['total'] ?? null ) && 7 === ( $out['days'] ?? null ), 'the non-default window rebuilds and answers for the window actually asked for' );
+echo "\nGroup: v10.2.0 — ONE builder, verified against the real thing\n";
+// The first draft delegated to the DM route at days=30 and kept a LOCAL COPY
+// for every other window — a fork its own review caught. There is now one
+// builder (inc/machine-readers-summary.php) that the ability AND the desktop
+// route both call, so these pins drive the REAL builder rather than comparing
+// key-list literals typed into this file.
+$mr_direct = snt_mr_summary_payload( 30 );
+$mr_via    = snt_ability_get_machine_readers_summary( array( 'days' => 30 ) );
+ok( $mr_direct === $mr_via, 'the ability returns exactly what the shared builder returns' );
+$mr_7 = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+ok( 7 === ( $mr_7['days'] ?? null ), 'a non-default window is honored (the old fork existed because the DM route hardcoded 30)' );
+ok( array_keys( $mr_direct ) === array_keys( $mr_7 ), 'every window returns the same shape' );
+$mr_src = (string) file_get_contents( __DIR__ . '/../inc/abilities-machine-readers.php' );
+ok( false === strpos( $mr_src, 'snt_ability_mr_summary_for' ), 'no second copy of the builder remains in the ability file' );
+$mr_dm = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
+ok( false !== strpos( $mr_dm, 'snt_mr_summary_payload( 30 )' ), 'the desktop route calls the same builder' );
 
 echo "\nGroup K: orchestrator wiring\n";
 $reg = (string) file_get_contents( __DIR__ . '/../inc/abilities-registration.php' );

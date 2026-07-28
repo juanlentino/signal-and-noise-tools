@@ -20,7 +20,14 @@ function ok( $cond, $label ) {
 
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
-function esc_url( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_url( $s ) {
+	// v10.2.0 (verifier finding): model the REAL esc_url protocol allowlist.
+	// The old htmlspecialchars-only stub passed `javascript:` straight through,
+	// so the fixture's hostile-URL row asserted nothing at the one sink it
+	// claimed to cover.
+	$s = (string) $s;
+	return preg_match( '#^(https?:|mailto:|/)#i', $s ) ? htmlspecialchars( $s, ENT_QUOTES ) : '';
+}
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function __( $s, $d = null ) { return $s; }
 function esc_html__( $s, $d = null ) { return esc_html( $s ); }
@@ -206,6 +213,18 @@ for ( $d = 1; $d <= 30; $d++ ) {
 	$mr_pri_full[] = array( 'family' => 'openai', 'surface' => 'llms', 'day' => sprintf( '2026-06-%02d', $d ), 'hits' => 2 );
 }
 ok( array() !== snt_mr_family_delta_cards( $mr_cur, $mr_pri_full, 30 ), 'a comparably observed prior window still yields a card' );
+
+echo "\nGroup: v10.2.0 — a family that STOPS is as reportable as one that rises\n";
+$mr_c = array(); $mr_p = array();
+for ( $d = 1; $d <= 30; $d++ ) {
+	$mr_c[] = array( 'family' => 'anthropic', 'surface' => 'html', 'day' => sprintf( '2026-07-%02d', $d ), 'hits' => 10 );
+	$mr_p[] = array( 'family' => 'anthropic', 'surface' => 'html', 'day' => sprintf( '2026-06-%02d', $d ), 'hits' => 10 );
+	$mr_p[] = array( 'family' => 'openai', 'surface' => 'llms', 'day' => sprintf( '2026-06-%02d', $d ), 'hits' => 30 );
+}
+$mr_cards = snt_mr_family_delta_cards( $mr_c, $mr_p, 30 );
+ok( false !== strpos( (string) json_encode( $mr_cards ), 'openai' ), 'a family that went to ZERO still cards (the largest fall used to be the one silence)' );
+
+ok( false === strpos( snt_mr_render_delta_cards( array( array( 'title' => 't', 'detail' => 'd', 'action_label' => 'a', 'action_url' => 'javascript:alert(1)' ) ) ), 'javascript:' ), 'a hostile action_url is stripped at the render sink (the row that used to assert nothing)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

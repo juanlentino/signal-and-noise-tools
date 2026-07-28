@@ -210,6 +210,7 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // (inc/health-check-rights-signals.php) rides the inc/health-checks.php
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-api.php';
+require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 // The one-sentence summarizer, loaded AFTER the render module whose aggregate
 // helpers it reads. No side effects, no hooks: a pure string builder narrator

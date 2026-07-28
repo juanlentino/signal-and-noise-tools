@@ -77,9 +77,14 @@ ok( 1 === substr_count( $quiet, '.' ), 'the zero-AI branch is still exactly one 
 echo "\nGroup: grammar and purity\n";
 $one = snt_mr_narration_sentence( array( 'ok' => true, 'rows' => array( array( 'family' => 'openai', 'surface' => 'rights', 'day' => '2026-07-28', 'hits' => 1 ) ), 'error' => null ), 1 );
 ok( false === strpos( $one, '1 times' ), 'a single read reads as "1 time", not "1 times"' );
-$before = $ok_result;
+// v10.2.0 (verifier finding): the old "payload is never mutated" pin was
+// unfalsifiable — $result is a by-value array param, so PHP copy-on-write
+// makes caller-visible mutation impossible for ANY implementation. Pin
+// something real instead: the rows the sentence counts are not reordered or
+// rewritten by the aggregation it delegates to.
+$rows_before = $ok_result['rows'];
 snt_mr_narration_sentence( $ok_result, 30 );
-ok( $before === $ok_result, 'pure: the payload is never mutated' );
+ok( $rows_before === $ok_result['rows'], 'the rows the sentence counts are left byte-identical (aggregation does not reorder them)' );
 ok( snt_mr_narration_sentence( $ok_result, 30 ) === $s, 'pure: same input, same sentence' );
 
 echo "\nGroup: the window is the caller's, clamped like the fetch it describes\n";

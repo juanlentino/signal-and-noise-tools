@@ -179,10 +179,22 @@ function snt_mr_family_delta_cards( $current_rows, $prior_rows, $days ) {
 		? admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=machine-readers' )
 		: '';
 	$cards = array();
-	foreach ( $cur_tot as $family => $current ) {
-		$family  = (string) $family;
-		$current = (int) $current;
-		$prior   = (int) ( $pri_tot[ $family ] ?? 0 );
+	// v10.2.0 (verifier finding): iterate the UNION, not just the current
+	// window. Iterating $cur_tot alone meant a family that stopped entirely
+	// (900 reads -> 0) never carded, while a partial fall (200 -> 40) did —
+	// the largest possible drop was the one silence, and it biased in the
+	// flattering direction on a surface whose whole point is noticing whether
+	// crawlers backed off after we published TDMRep/RSL.
+	$families = array_keys( $cur_tot );
+	foreach ( array_keys( $pri_tot ) as $pf ) {
+		if ( ! in_array( $pf, $families, true ) ) {
+			$families[] = $pf;
+		}
+	}
+	foreach ( $families as $family ) {
+		$current = (int) ( $cur_tot[ $family ] ?? 0 );
+		$family = (string) $family;
+		$prior  = (int) ( $pri_tot[ $family ] ?? 0 );
 		if ( $prior < 1 ) {
 			continue; // No baseline: a percentage against zero would be a fiction.
 		}
