@@ -69,23 +69,28 @@ $hostile = snt_mr_render_summary_chips( array( array( 'family' => 'openai', 'sur
 ok( false === strpos( $hostile, '<svg' ), 'chips escape like every other sink' );
 ok( '' !== snt_mr_render_summary_chips( array(), 30 ), 'empty rows still render a strip, not a fatal' );
 
-echo "\nGroup: v10.0.1 — the sensor panel (identity + connection + crawler verdict)\n";
-$panel = snt_mr_render_sensor_panel(
-	array( 'version' => '1.4.0', 'deployed_at' => '2026-07-28T18:02:43Z' ),
-	array( 'last_check_ok' => '1', 'last_check_drift' => '', 'last_check_checked_at' => '2026-07-27T07:23:00Z' ),
-	array( 'ok' => true, 'rows' => array(), 'error' => null )
+echo "\nGroup: v10.1.1 — the sensor block copies the Analytics idiom\n";
+$pills = snt_mr_sensor_pills(
+	array( 'version' => '1.4.0', 'deployed_at' => '2026-07-28T18:07:56Z' ),
+	array( 'last_check_ok' => '1', 'last_check_drift' => '' ),
+	array( 'ok' => true )
 );
-ok( false !== strpos( $panel, '1.4.0' ), 'panel states the deployed sensor version' );
-ok( false !== strpos( $panel, 'sn-mr-panel' ), 'panel uses its own scoped class (one zone, not three boxes)' );
-ok( false !== stripos( $panel, 'connected' ), 'a healthy read reports the connection as connected' );
-ok( false !== stripos( $panel, 'in sync' ), 'the crawler-list verdict rides inside the panel' );
-ok( 1 === preg_match_all( '/<h2/', $panel ), 'exactly ONE h2 for the whole sensor zone (the hierarchy fix)' );
+ok( is_array( $pills ) && count( $pills ) >= 3, 'a pill per pipeline stage, like Analytics' );
+foreach ( $pills as $p ) {
+	ok( in_array( $p[0], array( 'ok', 'warn', 'unknown' ), true ), 'pill state is the Analytics vocabulary: ' . $p[0] );
+}
+$html = snt_mr_render_sensor_status( $pills );
+ok( false !== strpos( $html, 'sn-an-pipeline-pills' ), 'uses the Analytics pill container class' );
+ok( false !== strpos( $html, 'sn-an-pill sn-an-pill--ok' ), 'uses the Analytics pill classes, not a bespoke one' );
+ok( false !== strpos( $html, 'sn-an-pill-mark' ), 'carries the Analytics check mark span' );
+ok( false === strpos( $html, 'sn-mr-panel' ), 'the invented v10.0.1 panel class is gone' );
 
-$panel_bad = snt_mr_render_sensor_panel( null, null, array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' ) );
-ok( false !== stripos( $panel_bad, 'not configured' ), 'an unconfigured sensor says so IN the panel, next to the fields that fix it' );
-ok( false === strpos( $panel_bad, '<script' ) && false === strpos( $panel_bad, '<img' ), 'no unescaped markup leaks from absent data' );
-$panel_hostile = snt_mr_render_sensor_panel( array( 'version' => '1.4.0', 'deployed_at' => '<img src=x>' ), null, array( 'ok' => true ) );
-ok( false === strpos( $panel_hostile, '<img' ), 'worker-supplied values stay escaped in the panel' );
+$warn = snt_mr_sensor_pills( null, null, array( 'ok' => false, 'error' => 'not_configured' ) );
+$states = array();
+foreach ( $warn as $p ) { $states[] = $p[0]; }
+ok( in_array( 'warn', $states, true ), 'an unconfigured sensor shows a warn pill' );
+$whtml = snt_mr_render_sensor_status( $warn );
+ok( false !== strpos( $whtml, 'sn-an-pipeline-warn' ), 'and its explanation renders in the Analytics warn line, below the pills' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
