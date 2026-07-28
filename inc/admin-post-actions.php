@@ -871,6 +871,30 @@ function sn_handle_analytics_save( $post ) {
 }
 
 /**
+ * v9.85.0 (Session 3): save the Machine Readers sensor settings (worker URL
+ * override + write-only read token) under the machine_readers subtree. The
+ * pure, subtree-preserving merge lives in snt_mr_settings_save()
+ * (inc/machine-readers-admin.php); this wrapper owns unslash/sanitize,
+ * persistence, and the sn_setting cache bust, and drops the tab's display
+ * transient so new credentials take effect on the next page load.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code: 'machine_readers_saved'.
+ */
+function sn_handle_machine_readers_save( $post ) {
+	$fields = array(
+		'worker_url' => isset( $post['sn_mr_worker_url'] ) ? sanitize_text_field( wp_unslash( $post['sn_mr_worker_url'] ) ) : '',
+		'read_token' => isset( $post['sn_mr_read_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_mr_read_token'] ) ) : '',
+	);
+	$stored = get_option( SN_SETTINGS_OPTION, array() );
+	update_option( SN_SETTINGS_OPTION, snt_mr_settings_save( $fields, is_array( $stored ) ? $stored : array() ) );
+	sn_setting_reset_cache();
+	// The tab's display window; other windows age out on their own short TTL.
+	delete_transient( 'sn_mr_rows_30' );
+	return 'machine_readers_saved';
+}
+
+/**
  * S2 (P2 analytics data layer): test the Cloudflare Analytics Engine credentials
  * via a lightweight probe query (admin "Test connection" button).
  *

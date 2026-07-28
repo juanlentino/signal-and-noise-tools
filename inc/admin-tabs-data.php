@@ -33,6 +33,32 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<int,array<string,mixed>>
  */
 function sn_admin_top_tabs() {
+	// Monitoring sub-tabs, built first so the Machine Readers preview leaf
+	// (v9.85.0, Session 3) can splice in through the pure registry callback in
+	// inc/machine-readers-admin.php. Behind the sn_machine_readers_preview flag
+	// the callback returns this map byte-identical, so the tab exists nowhere
+	// until the flag (or the v10.0.0 GA flip) turns it on. function_exists-
+	// guarded for the isolated harnesses that load this data file alone.
+	$monitoring_sub_tabs = array(
+		// Analytics SETTINGS-ONLY sub-tab (creds + Test connection + Worker
+		// setup); the read-only dashboard lives under the native WP Dashboard
+		// menu. Its forms post on the page=sn-theme-options route
+		// (sn_admin_render_sub_tabs hardcodes that slug) so sn_handle_admin_post()
+		// accepts analytics_save/_test unchanged. Now first leaf (v6.18.0).
+		// 'wide' (v6.44.0): lays out as an open-and-wide .sn-2up two-column grid
+		// (active settings | edge-worker reference); each column owns its own
+		// .sn-fieldset, so it opts out of the wrapper's default capped card.
+		'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section', 'wide' => true ),
+		// 'wide': Insights uses the full-width two-column sn_admin_shell;
+		// Health uses a full-width glance hero + findings cards (it dropped the
+		// shell in v6.44.0). Both opt out of the wrapper's default capped card.
+		'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section', 'wide' => true ),
+		'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section', 'wide' => true ),
+	);
+	if ( function_exists( 'snt_mr_admin_register' ) ) {
+		$monitoring_sub_tabs = snt_mr_admin_register( $monitoring_sub_tabs );
+	}
+
 	return array(
 		array(
 			'slug'     => 'sn-theme-options',
@@ -139,22 +165,8 @@ function sn_admin_top_tabs() {
 			'label'    => 'Monitoring',
 			'title'    => 'Signal & Noise — Monitoring',
 			'subtitle' => 'Analytics settings, AI insights, and content-health scans.',
-			'sub_tabs' => array(
-				// Analytics SETTINGS-ONLY sub-tab (creds + Test connection + Worker
-				// setup); the read-only dashboard lives under the native WP Dashboard
-				// menu. Its forms post on the page=sn-theme-options route
-				// (sn_admin_render_sub_tabs hardcodes that slug) so sn_handle_admin_post()
-				// accepts analytics_save/_test unchanged. Now first leaf (v6.18.0).
-				// 'wide' (v6.44.0): lays out as an open-and-wide .sn-2up two-column grid
-				// (active settings | edge-worker reference); each column owns its own
-				// .sn-fieldset, so it opts out of the wrapper's default capped card.
-				'analytics' => array( 'label' => 'Analytics', 'render' => 'snt_analytics_render_settings_section', 'wide' => true ),
-				// 'wide': Insights uses the full-width two-column sn_admin_shell;
-				// Health uses a full-width glance hero + findings cards (it dropped the
-				// shell in v6.44.0). Both opt out of the wrapper's default capped card.
-				'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section', 'wide' => true ),
-				'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section', 'wide' => true ),
-			),
+			// Built above so the Machine Readers preview leaf can splice in.
+			'sub_tabs' => $monitoring_sub_tabs,
 		),
 		array(
 			'slug'     => 'sn-security',
