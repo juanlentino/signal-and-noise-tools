@@ -54,10 +54,6 @@ function sn_admin_render_insights_section() {
 	do_action( 'sn_admin_insights_tab' );
 }
 
-/** Tools → Reading Time. */
-function sn_admin_render_reading_time_section() {
-	do_action( 'sn_admin_reading_time_tab' );
-}
 
 /** Tools → Block Migrations. */
 function sn_admin_render_block_migrations_section() {

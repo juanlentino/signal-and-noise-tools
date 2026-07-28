@@ -76,22 +76,20 @@ ok( 'https://x/card.png' === sn_resolve_og_image_url( 'site-default.png', $p ), 
 
 $GLOBALS['__resolved'] = null;
 $GLOBALS['__ogimage']  = 'https://x/theme-route.png';
-ok( 'https://x/theme-route.png' === sn_resolve_og_image_url( 'site-default.png', $p ), 'theme fallback seam before site default' );
+ok( 'site-default.png' === sn_resolve_og_image_url( 'site-default.png', $p ), 'v10.0.0: the sn_seo_singular_og_image seam is REMOVED — a listener can no longer influence the URL (it was shadowed dead code)' );
 
 $GLOBALS['__ogimage'] = '';
 ok( 'site-default.png' === sn_resolve_og_image_url( 'site-default.png', $p ), 'site default is the floor' );
 ok( 'site-default.png' === sn_resolve_og_image_url( 'site-default.png', null ), 'null post returns the default' );
 
-echo "\nGroup: v10.0.0 deprecation ladder (v9.84.0)\n";
+echo "\nGroup: v10.0.0 — the og seam is removed\n";
 // The theme-fallback resolutions above must have flowed through
 // apply_filters_deprecated — the 9.x marker the v10.0.0 removal rides on.
 $og = array_values( array_filter(
 	$GLOBALS['__deprecated_calls'],
 	function ( $c ) { return 'sn_seo_singular_og_image' === $c['tag']; }
 ) );
-ok( count( $og ) >= 1, 'sn_seo_singular_og_image is applied via apply_filters_deprecated' );
-ok( $og && '9.84.0' === $og[0]['version'], 'marker names 9.84.0 as the deprecating version' );
-ok( $og && false !== strpos( $og[0]['message'], 'v10.0.0' ), 'marker message names the v10.0.0 removal' );
+ok( 0 === count( $og ), 'v10.0.0: no deprecated-apply remains — the seam is gone, not merely marked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

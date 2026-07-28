@@ -3,10 +3,10 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     9.88.0
+ * Version:     10.0.0
  * Requires at least: 7.0
  * Tested up to: 7.0
- * Requires PHP: 8.0
+ * Requires PHP: 8.3
  * Author:      Juan Lentino
  * Author URI:  https://juanlentino.com
  * License:     GPL-2.0-or-later
@@ -166,7 +166,6 @@ require_once SNT_PATH . 'inc/admin-forms/identity-and-seo.php';
 require_once SNT_PATH . 'inc/admin-forms/login.php';
 require_once SNT_PATH . 'inc/admin-forms/links.php';
 require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools → Performance (Speculation Rules toggle)
-require_once SNT_PATH . 'inc/admin-forms/release-notes.php'; // v4.11.0 (T4): Tools → Release Notes (AI drafter)
 require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Tools → Front-End (theme render knobs)
 require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Monitoring → Music (Spotify creds + Muso profile + Sync now)
 require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
@@ -314,7 +313,6 @@ require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
 require_once __DIR__ . '/inc/ai-prepopulate.php';
 require_once __DIR__ . '/inc/ai-prepopulate-notice.php';
-require_once __DIR__ . '/inc/release-notes-draft.php'; // v4.11.0 (T4): AI release-notes drafter impl + ability wrapper
 require_once __DIR__ . '/inc/block-fingerprint-engine.php'; // v7.7.1: shared fingerprint locate/replace/sanitize/apply engine behind both surfaces below.
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';

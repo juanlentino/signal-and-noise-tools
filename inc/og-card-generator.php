@@ -607,7 +607,7 @@ function sn_migrate_purge_protected_og_cards() {
  */
 /**
  * Resolve the og:image URL for the current post. Precedence: _sn_og_image_url
- * override → featured image / generated card → sn_seo_singular_og_image theme
+ * override → featured image / generated card → site default
  * fallback (v9.3.0 seam, defaults to the passed site default) → site default.
  * Named so the chain is CLI-testable (the filter closure just forwards).
  *
@@ -634,7 +634,10 @@ function sn_resolve_og_image_url( $default, $post ) {
 	// v9.3.0: theme-owned per-route fallback image; defaults to $default.
 	// v9.84.0: deprecated ahead of its v10.0.0 removal — shadowed dead code
 	// since the D2 generated card; the bespoke path is the _sn_og_image_url meta.
-	return (string) apply_filters_deprecated( 'sn_seo_singular_og_image', array( $default, $post ), '9.84.0', '', 'Removed in v10.0.0. Use the _sn_og_image_url post-meta override.' );
+	// v10.0.0: the sn_seo_singular_og_image seam is REMOVED. It was shadowed
+	// dead code from the moment the generated per-Page card shipped — the
+	// bespoke path is the _sn_og_image_url post-meta override above.
+	return (string) $default;
 }
 
 /**

@@ -182,7 +182,7 @@ foreach ( $removed as $i => $slug ) {
 // The 7 loaded files register exactly 18 abilities post-removal
 // (17 post-v8 + run-health-scan, added v9.78.0 for the DM mirror)
 // (system 5, cron 4, audit 3, block-migrations 3, pattern-adoption 1, dismiss 1).
-t_eq( 18, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 18 abilities (17 post-v8 + v9.78.0 run-health-scan; no stray additions, no over-removal)' );
+t_eq( 17, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 17 abilities (v10.0.0 retired draft-release-notes; no stray additions, no over-removal)' );
 
 // ════ Group B: the `updates` category is retired ═════════════════════
 echo "\nGroup B: category retirement\n";

@@ -212,7 +212,7 @@ t( isset( $out['theme'], $out['plugin'] ), 'D.6 null input (?input= omitted) kee
 
 // ════ draft-release-notes — recategorization ═════════════════════════
 echo "\nGroup E: draft-release-notes hygiene\n";
-t_eq( 'ai-generation', $GLOBALS['__ab']['signal-noise/draft-release-notes']['category'] ?? '', 'E.1 category is ai-generation (was diagnostics)' );
+t_eq( null, $GLOBALS['__ab']['signal-noise/draft-release-notes']['category'] ?? null, 'E.1 v10.0.0: draft-release-notes is REMOVED (surface retired; release notes are owner-written)' );
 
 // ════ canonical paths never warn ═════════════════════════════════════
 echo "\nGroup F: canonical paths are deprecation-silent\n";

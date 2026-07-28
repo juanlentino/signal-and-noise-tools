@@ -28,9 +28,11 @@ const SN_MR_PREVIEW_OPT = 'sn_machine_readers_preview';
  * @return bool
  */
 function snt_mr_preview_enabled() {
-	$enabled = function_exists( 'get_option' )
-		? (bool) get_option( SN_MR_PREVIEW_OPT, false )
-		: false;
+	// v10.0.0 GA: the Machine Readers tab is a permanent surface. The flag is
+	// retired (its option row is deleted once by the orphan migration, the
+	// v9.68.0 F3 lesson); the filter seam stays so the tab can still be hidden
+	// by code if a future deployment needs it.
+	$enabled = true;
 	if ( function_exists( 'apply_filters' ) ) {
 		$enabled = (bool) apply_filters( 'sn_machine_readers_preview_enabled', $enabled );
 	}

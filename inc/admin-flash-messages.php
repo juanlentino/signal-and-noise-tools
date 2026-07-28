@@ -96,7 +96,6 @@ function sn_admin_flash_messages() {
 		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
 		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ),
 		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved — try again.' ),
-		'release_notes_drafted'     => array( 'success', 'Release notes drafted &mdash; copy them from the box below.' ),
 		// v7.2.2: dropped the "or check that an AI provider is configured" clause —
 		// the handler stores the real WP_Error and the box below shows it; blaming
 		// AI config for a drafting failure is the same misdirection the insights

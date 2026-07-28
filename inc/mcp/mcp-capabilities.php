@@ -148,7 +148,6 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/run-insights-scan',
 		'signal-noise/run-narration',
 		'signal-noise/prepop-dismiss',
-		'signal-noise/draft-release-notes',
 		'signal-noise/purge-all-caches',
 		// v9.82.0 — not readonly, but idempotent: one bounded wp_remote_post
 		// (timeout 20) asking the provenance Worker to upgrade already-confirmed

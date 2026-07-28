@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.0.0] - 2026-07-28 — The Machine-Readership major
+
+**⚠️ Action required (agents and scripts only):** `get-analytics-summary` no longer returns `visits`, `scroll_avg`, or `time_avg`. If anything you run reads those fields, switch to the honest ones — `unique_visitor_days`, `pageview_visits`, `scroll_avg_per_view`, `scroll_avg_per_visit`, `time_avg_per_view`, `time_avg_per_visit` — which have carried the real semantics since v9.4x. **Requires PHP 8.3+.** No content, settings, or analytics data is touched by this upgrade.
+
+**Headline:** the site learns to see its machine audience. v9.8x built the sensor and the surface behind a preview flag; v10.0.0 makes it permanent and takes out the surfaces it made redundant, the seams the pages-to-CMS flip emptied, and the analytics vocabulary that was always approximate.
+
+### Changed
+
+- **Machine Readers is a permanent tab** ([inc/machine-readers-admin.php](inc/machine-readers-admin.php)). The `sn_machine_readers_preview` flag is retired and its option row is deleted once by a sentinel-gated migration ([inc/migrate-orphan-options.php](inc/migrate-orphan-options.php)) — the v9.68.0 stranded-flag lesson applied at GA instead of discovered later. The `sn_machine_readers_preview_enabled` filter stays so code can still hide the tab.
+- **PHP floor raised to 8.3** (header, [inc/wp-update-integration.php](inc/wp-update-integration.php), `composer.json`, CI matrix). 8.0/8.1/8.2 are all past end of life; Cloudways runs 8.4.
+
+### Removed
+
+- **The deprecated analytics quartet leaves the public surface** ([inc/abilities-analytics.php](inc/abilities-analytics.php)): `visits`, `scroll_avg`, and `time_avg` are gone from `get-analytics-summary`'s output schema and description. `visits` was an approximate visitor-day count that agents read as sessions; the other two were views-weighted approximations of per-event means. **Scoped narrowly on purpose:** the strip happens at the ability boundary only — `sn_analytics_range_totals()` still returns all three, because the Dashboard widget renders them and annotations gate on `visits`. The original scope called them dead downstream; they were not, and the fixtures now pin both the removal and the internal guarantee.
+- **The `sn_seo_route_meta` seam** ([inc/seo.php](inc/seo.php), [inc/seo-schema.php](inc/seo-schema.php)): the function, its filter, the schema wrapper, and all three consumer branches. The pages-to-CMS flip made every former virtual route a real Page, so `is_singular()` covers them — the seam had no producer left. Phase 3 of that flip, closed.
+- **The `sn_seo_singular_og_image` seam** ([inc/og-card-generator.php](inc/og-card-generator.php)): shadowed dead code since the generated per-Page card shipped. The bespoke path remains the `_sn_og_image_url` post-meta override.
+- **The Release Notes surface**: the Tools leaf, its form, `inc/release-notes-draft.php`, the `signal-noise/draft-release-notes` ability, its MCP rw-door entry, the `release_notes_draft` POST action and handler, and the flash code. Release notes are owner-written; the drafter was redundant. **The `.github/workflows/release-notes.yml` CI job is deliberately KEPT** — it is CI, not a plugin surface.
+- **The Reading Time legacy-cleanup UI** ([inc/reading-time.php](inc/reading-time.php), Content leaf, POST action + handler): its "Run preview" link pointed at the `sn-reading-time` page slug retired in the v6.18.0 IA refactor, so the surface had been broken for versions. **The live feature is untouched** — `[sn_reading_time]` and the WPM setting stay. `sn_find_legacy_reading_time()` and `sn_apply_legacy_reading_time_cleanup()` are **deliberately kept** as the WP-CLI path: they are the only way to ever run the one-shot cleanup, and the live-database check that would say whether legacy strings remain cannot be run from a release worktree (see the note in the module).
+
+> **Why MAJOR:** removed public API — three fields from a published ability's output schema, two filter seams, and one whole ability — plus a PHP-floor raise. Every removal was verified caller-free (or, for the quartet, verified to have internal-only consumers that keep their data) before it was cut.
+
 ## [9.88.0] - 2026-07-28
 
 **Headline:** the hardening gate's fixes — a public-ledger plaintext leak, a forgeable confirm callback, an OG card outliving its post, a clobbered sensor token, and two defects in yesterday's own proof walk. Plus the robots seam the theme needs.

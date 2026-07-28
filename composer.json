@@ -10,7 +10,7 @@
 		}
 	],
 	"require": {
-		"php": ">=8.0"
+		"php": ">=8.3"
 	},
 	"require-dev": {
 		"squizlabs/php_codesniffer": "^3.13",
