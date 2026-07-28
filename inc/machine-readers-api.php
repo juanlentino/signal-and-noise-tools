@@ -292,6 +292,17 @@ function snt_mr_crawler_list_status() {
 		return null;
 	}
 	$flat = array();
+	// v9.86.0: the status endpoint nests its payload under last_check — flatten
+	// its scalar members (bools stringified) so the card can actually show the
+	// drift verdict instead of dropping the whole object at the scalar cap.
+	if ( isset( $decoded['last_check'] ) && is_array( $decoded['last_check'] ) ) {
+		foreach ( $decoded['last_check'] as $lk => $lv ) {
+			if ( is_scalar( $lv ) || null === $lv ) {
+				$decoded[ 'last_check_' . $lk ] = is_bool( $lv ) ? ( $lv ? '1' : '' ) : (string) $lv;
+			}
+		}
+		unset( $decoded['last_check'] );
+	}
 	foreach ( $decoded as $key => $value ) {
 		if ( is_scalar( $value ) && count( $flat ) < 8 ) {
 			$flat[ (string) $key ] = (string) $value;

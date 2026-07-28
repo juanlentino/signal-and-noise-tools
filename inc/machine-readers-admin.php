@@ -38,6 +38,22 @@ function snt_mr_preview_enabled() {
 }
 
 /**
+ * Enqueue the tab's stylesheet on SN admin pages (the provenance-admin.css
+ * precedent: admin_enqueue_scripts gated by sn_admin_page_hooks()).
+ *
+ * @param string $hook_suffix Current admin page hook.
+ */
+function snt_mr_admin_enqueue( $hook_suffix ) {
+	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+		return;
+	}
+	wp_enqueue_style( 'sn-machine-readers', plugins_url( 'assets/machine-readers.css', SNT_PATH . 'signal-and-noise-tools.php' ), array( 'sn-admin' ), SNT_VERSION );
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_enqueue_scripts', 'snt_mr_admin_enqueue' );
+}
+
+/**
  * Registry callback: add the machine-readers leaf entry when the preview flag
  * (or, post-GA, always) allows it. Receives and returns a sub_tabs-style map
  * (slug => leaf, the sn_admin_top_tabs() leaf shape the dispatcher reads:
@@ -131,7 +147,8 @@ function snt_mr_render_tab() {
 		}
 	} else {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
-		echo '<div class="sn-2up">';
+		echo snt_mr_render_summary_chips( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
+		echo '<div class="sn-2up sn-mr-grid">';
 		echo '<div class="sn-fieldset">' . snt_mr_render_family_table( $rows, $days ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo '<div class="sn-fieldset">' . snt_mr_render_surface_table( $rows ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo '</div>';
@@ -156,6 +173,22 @@ function snt_mr_render_crawler_status_card() {
 		echo '<p class="sn-field-helper">Crawler-list status: &mdash;</p>';
 		echo '</div>';
 		return;
+	}
+	// v9.86.0: headline verdict from the flattened last_check_* fields — the
+	// weekly diff's actual answer, not just the worker's name.
+	if ( isset( $status['last_check_ok'] ) ) {
+		$ok    = '' !== (string) $status['last_check_ok'];
+		$drift = '' !== (string) ( $status['last_check_drift'] ?? '' );
+		if ( $ok && ! $drift ) {
+			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--ok">in sync</span> ';
+			echo esc_html__( 'The hand-maintained crawler list matches Cloudflare\'s published managed-robots list.', 'signal-and-noise-tools' ) . '</p>';
+		} elseif ( $ok && $drift ) {
+			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--warn">drift</span> ';
+			echo esc_html__( 'Cloudflare\'s published list changed; robots-block.mjs needs a review.', 'signal-and-noise-tools' ) . '</p>';
+		} else {
+			echo '<p class="sn-mr-verdict"><span class="sn-pill sn-pill--warn">check failed</span> ';
+			echo esc_html__( 'The last weekly diff could not complete; it retries on its cron.', 'signal-and-noise-tools' ) . '</p>';
+		}
 	}
 	echo '<table class="form-table sn-status-table"><tbody>';
 	foreach ( $status as $key => $value ) {

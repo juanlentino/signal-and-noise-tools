@@ -200,3 +200,34 @@ function snt_mr_render_sensor_card( $info ) {
 	}
 	return $out;
 }
+
+/**
+ * Summary stat strip: total machine reads, top family, AI-training reads —
+ * the at-a-glance row above the tables. Pure; every value escaped; empty rows
+ * still render the strip (zeros), never a fatal.
+ *
+ * @param array $rows Normalized rows.
+ * @param int   $days Window the rows cover.
+ * @return string HTML.
+ */
+function snt_mr_render_summary_chips( $rows, $days ) {
+	$totals = snt_mr_sum_hits_by( $rows, 'family' );
+	$total  = 0;
+	foreach ( $totals as $hits ) {
+		$total += (int) $hits;
+	}
+	$top = '' !== (string) key( $totals ) && ! empty( $totals ) ? (string) key( $totals ) : '&mdash;';
+	$ai  = 0;
+	foreach ( snt_mr_ai_training_families() as $fam ) {
+		$ai += (int) ( $totals[ $fam ] ?? 0 );
+	}
+	$stat = function ( $label, $value, $raw = false ) {
+		return '<div class="sn-mr-stat"><span class="sn-mr-stat-v">' . ( $raw ? $value : esc_html( (string) $value ) ) . '</span>'
+			. '<span class="sn-mr-stat-l">' . esc_html( $label ) . '</span></div>';
+	};
+	return '<div class="sn-mr-stats">'
+		. $stat( sprintf( /* translators: %s: window length in days. */ __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( $total ) )
+		. $stat( __( 'top family', 'signal-and-noise-tools' ), '&mdash;' === $top ? $top : esc_html( $top ), '&mdash;' === $top )
+		. $stat( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
+		. '</div>';
+}

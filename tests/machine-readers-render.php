@@ -60,5 +60,14 @@ ok( false !== stripos( $html, 'outdated' ) && false !== strpos( $html, '1.4.0' )
 $html = snt_mr_render_sensor_card( null );
 ok( '' !== $html && false === stripos( $html, 'outdated' ), 'null info renders the quiet dash card, not a warning or a fatal' );
 
+echo "\nGroup: v9.86.0 — summary stat strip\n";
+$html = snt_mr_render_summary_chips( $rows, 30 );
+ok( '' !== $html && false !== strpos( $html, '60' ), 'total machine reads stated (12+3+5+40=60)' );
+ok( false !== strpos( $html, 'uptime' ), 'top family named (uptime, 40)' );
+ok( false !== strpos( $html, '20' ), 'AI-training reads counted (openai 15 + anthropic 5)' );
+$hostile = snt_mr_render_summary_chips( array( array( 'family' => 'openai', 'surface' => 'llms', 'day' => '<svg onload=x>', 'hits' => 2 ) ), 7 );
+ok( false === strpos( $hostile, '<svg' ), 'chips escape like every other sink' );
+ok( '' !== snt_mr_render_summary_chips( array(), 30 ), 'empty rows still render a strip, not a fatal' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -1,0 +1,81 @@
+/**
+ * Machine Readers tab (v9.86.0) — native wp-admin polish over the shared
+ * sn-admin vocabulary. Depends on sn-admin (pills, fieldsets).
+ */
+
+/* Summary stat strip */
+.sn-mr-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 4px 0 16px;
+}
+.sn-mr-stat {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 140px;
+	padding: 10px 14px;
+}
+.sn-mr-stat-v {
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+.sn-mr-stat-l {
+	color: #646970;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+/* Sensor line + crawler verdict */
+.sn-mr-sensor {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 0 4px;
+}
+.sn-mr-verdict {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+/* Tables grid: let the 2up breathe, stack under 1100px */
+.sn-mr-grid {
+	align-items: start;
+	gap: 16px;
+}
+.sn-mr-table caption {
+	caption-side: top;
+	color: #646970;
+	font-size: 12px;
+	padding: 6px 0;
+	text-align: left;
+}
+.sn-mr-table td.num,
+.sn-mr-table th.num {
+	text-align: right;
+	width: 90px;
+}
+.sn-mr-empty {
+	background: #f6f7f7;
+	border: 1px dashed #c3c4c7;
+	border-radius: 4px;
+	color: #50575e;
+	margin: 0;
+	padding: 14px 16px;
+}
+@media screen and (max-width: 1100px) {
+	.sn-mr-grid {
+		grid-template-columns: 1fr;
+	}
+}
