@@ -211,6 +211,14 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-api.php';
 require_once SNT_PATH . 'inc/machine-readers-render.php';
+// The one-sentence summarizer, loaded AFTER the render module whose aggregate
+// helpers it reads. No side effects, no hooks: a pure string builder narrator
+// surfaces can call once they hold a payload.
+require_once SNT_PATH . 'inc/machine-readers-narration.php';
+// Crawler-family volume deltas as insight cards (R3). Loads AFTER the render
+// module too: it reuses that lane's one "reads per family" aggregator. Pure
+// detector plus one guarded fetch wrapper, no hooks, no side effects.
+require_once SNT_PATH . 'inc/machine-readers-insights.php';
 require_once SNT_PATH . 'inc/machine-readers-admin.php';
 
 // RSS feed-request tracker. (v1.1.0–v6.20.0 this was inc/rss-plausible-tracker.php,
