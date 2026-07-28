@@ -91,3 +91,20 @@ function sn_migrate_remove_landing_preview_orphan() {
 	update_option( 'sn_orphan_options_removed_v968', 1, false );
 }
 add_action( 'admin_init', 'sn_migrate_remove_landing_preview_orphan' );
+
+/**
+ * v10.0.0: the Machine Readers preview flag graduated to the permanent tab, so
+ * `sn_machine_readers_preview` is a dormant row nothing reads. Deleted here
+ * exactly once — the same stranded-flag class as v9.68.0's landing preview
+ * (which is why that lesson is applied at GA rather than discovered later).
+ *
+ * @since 10.0.0
+ */
+function sn_migrate_remove_machine_readers_preview_orphan() {
+	if ( get_option( 'sn_orphan_options_removed_v1000' ) ) {
+		return;
+	}
+	delete_option( 'sn_machine_readers_preview' );
+	update_option( 'sn_orphan_options_removed_v1000', 1, false );
+}
+add_action( 'admin_init', 'sn_migrate_remove_machine_readers_preview_orphan' );

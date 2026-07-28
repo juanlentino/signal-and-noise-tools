@@ -412,7 +412,7 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	// what the View Details modal renders (plugins_api filter below).
 	$plugin_data->tested       = '7.0';
 	$plugin_data->requires     = '7.0';
-	$plugin_data->requires_php = '8.0';
+	$plugin_data->requires_php = '8.3';
 
 	if ( version_compare( $latest_version, $current_version, '>' ) ) {
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
@@ -557,7 +557,7 @@ add_filter( 'plugins_api', function( $result, $action, $args ) {
 	$info->homepage          = $repo_url;
 	$info->requires          = '7.0';
 	$info->tested            = '7.0';
-	$info->requires_php      = '8.0';
+	$info->requires_php      = '8.3';
 	$info->download_link     = $latest_tag ? $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip' : '';
 	$info->short_description = 'Operational + content tooling that powers juanlentino.com — SEO emission, cache controls, RSS subscriber tracking, OG card generation, GitHub-Actions deploy status, AI-assisted meta descriptions (WP 7.0+), and a WordPress/desktop-mode integration with on-desktop widgets.';
 	$info->sections          = array(

@@ -91,7 +91,7 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 35, 'rw allowlist is exactly 35 slugs (34 from the v9.50.0 audit recount, + anchor-sweep in v9.82.0)' );
+ok( is_array( $rw ) && count( $rw ) === 34, 'rw allowlist is exactly 34 slugs (v10.0.0 retired draft-release-notes)' );
 
 // --- exact membership: the 30 plugin + 5 theme slugs, pinned individually ---
 $rw_plugin = array(
@@ -108,11 +108,10 @@ $rw_plugin = array(
 	'signal-noise/prune-unused-tags', 'signal-noise/regenerate-og-card',
 	'signal-noise/unschedule-cron-event', 'signal-noise/dismiss-candidate',
 	'signal-noise/run-insights-scan', 'signal-noise/run-narration',
-	'signal-noise/prepop-dismiss', 'signal-noise/draft-release-notes',
 	'signal-noise/purge-all-caches',
 	'signal-noise/anchor-sweep',
 );
-ok( count( $rw_plugin ) === 30, 'sanity: the pinned plugin rw list itself is 30' );
+ok( count( $rw_plugin ) === 28, 'sanity: the pinned plugin rw list itself is 28 (v10.0.0 retired draft-release-notes)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }
@@ -186,6 +185,8 @@ add_test_filter( 'sn_mcp_server_label', function () { return 'Juanlentino'; } );
 ok( sn_mcp_server_info( SN_MCP_DOOR_READ )['name'] === 'Juanlentino (Read)', 'sn_mcp_server_label filter renames the base on both doors' );
 clear_test_filters();
 ok( $rw_info['version'] === $read_info['version'], 'both doors report the same plugin version' );
+
+ok( ! in_array( 'signal-noise/draft-release-notes', sn_mcp_rw_allowlist(), true ), 'v10.0.0: draft-release-notes is off the rw door (ability retired)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

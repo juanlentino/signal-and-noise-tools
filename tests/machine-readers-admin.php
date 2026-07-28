@@ -31,7 +31,7 @@ ok( isset( $tabs['analytics'], $tabs['tools'] ), 'existing entries preserved' );
 ok( 'snt_mr_render_tab' === ( $tabs['machine-readers']['render'] ?? '' ) && function_exists( 'snt_mr_render_tab' ), 'registry render entrypoint snt_mr_render_tab exists (no silently blank tab)' );
 $GLOBALS['__opts']['sn_machine_readers_preview'] = '';
 $tabs = snt_mr_admin_register( $tabs_in );
-ok( false === strpos( json_encode( $tabs ), 'machine-readers' ), 'flag OFF: registry unchanged (GA flip is v10.0.0\'s)' );
+ok( false !== strpos( json_encode( $tabs ), 'machine-readers' ), 'v10.0.0 GA: the tab no longer depends on the preview option (retired; its row is deleted by the orphan migration)' );
 $GLOBALS['__opts']['sn_machine_readers_preview'] = '1';
 
 echo "\nGroup: settings save — subtree preservation (the 4x-bitten class) + write-only token\n";

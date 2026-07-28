@@ -97,17 +97,13 @@ $GLOBALS['__filter']   = '';
 ok( '' === sn_seo_description_for_post( $mk( 383, 'home', '' ) ), 'with no static front page, a page named home is generic (excerpt path), empty here' );
 ok( '' === sn_seo_description_for_post( null ), 'non-object returns empty string' );
 
-echo "\nGroup: v10.0.0 deprecation ladder (v9.84.0)\n";
-// One direct call proves the wiring; the static memo means at most one
-// deprecated-apply per request regardless of how many emitters consult it.
-$route_meta = sn_seo_route_meta();
-ok( null === $route_meta, 'sn_seo_route_meta still returns null with no listener' );
-$dep = array_values( array_filter(
-	$GLOBALS['__deprecated_calls'],
-	function ( $c ) { return 'sn_seo_route_meta' === $c['tag']; }
-) );
-ok( count( $dep ) >= 1, 'sn_seo_route_meta is applied via apply_filters_deprecated' );
-ok( $dep && '9.84.0' === $dep[0]['version'] && false !== strpos( $dep[0]['message'], 'v10.0.0' ), 'marker names 9.84.0 and the v10.0.0 removal' );
+echo "\nGroup: v10.0.0 — the sn_seo_route_meta seam is removed\n";
+// The pages-to-CMS flip made every former virtual route a real Page, so the
+// postless-route seam had nothing left to answer. Pinned by absence: a
+// re-introduction would resurrect a seam with no producer.
+ok( ! function_exists( 'sn_seo_route_meta' ), 'sn_seo_route_meta() no longer exists' );
+$sn_seo_src = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
+ok( false === strpos( $sn_seo_src, "apply_filters( 'sn_seo_route_meta'" ), 'and the filter is not applied anywhere in seo.php' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

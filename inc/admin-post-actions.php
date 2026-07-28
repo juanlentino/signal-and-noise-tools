@@ -87,10 +87,6 @@ function sn_handle_cf_purge_now( $post ) {
 	return sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
 }
 
-function sn_handle_apply_reading_time_cleanup( $post ) {
-	$count = (int) sn_apply_legacy_reading_time_cleanup();
-	return 'rt_applied_' . $count;
-}
 
 function sn_handle_health_scan( $post ) {
 	// v3.5.1: route through the central dispatcher per the established pattern.

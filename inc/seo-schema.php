@@ -309,16 +309,6 @@ function sn_schema_article() {
 	return $article;
 }
 
-/**
- * The current theme-owned virtual route's meta, or null. Thin wrapper around
- * seo.php's sn_seo_route_meta() so the schema layer degrades gracefully when
- * loaded without seo.php (CLI test isolation). v6.24.0.
- *
- * @return array<string,mixed>|null
- */
-function sn_schema_route_meta() {
-	return function_exists( 'sn_seo_route_meta' ) ? sn_seo_route_meta() : null;
-}
 
 /**
  * Build the WebPage schema for the current singular view.
@@ -327,27 +317,9 @@ function sn_schema_route_meta() {
  * Added in v2.0.0 (Phase 13 TSF cutover).
  */
 function sn_schema_webpage() {
-	// v6.24.0: theme-owned virtual route (e.g. /about/uses) — build a WebPage
-	// from the route meta, connected to the WebSite/breadcrumb by @id like the
-	// singular branch below.
-	$route = sn_schema_route_meta();
-	if ( null !== $route && '' !== (string) ( $route['url'] ?? '' ) ) {
-		$url     = (string) $route['url'];
-		$webpage = array(
-			'@type'      => 'WebPage',
-			'@id'        => $url,
-			'url'        => $url,
-			'name'       => (string) ( $route['title'] ?? '' ),
-			'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
-			'isPartOf'   => array( '@id' => home_url( '/' ) . '#/schema/WebSite' ),
-			'breadcrumb' => array( '@id' => $url . '#breadcrumb' ),
-		);
-		$desc = (string) ( $route['description'] ?? '' );
-		if ( '' !== $desc ) {
-			$webpage['description'] = $desc;
-		}
-		return $webpage;
-	}
+	// v10.0.0: the virtual-route branch is retired with the sn_seo_route_meta
+	// seam — every former virtual route is a real Page, so the singular branch
+	// below builds its WebPage.
 
 	if ( ! is_singular() ) {
 		return null;
@@ -544,32 +516,6 @@ function sn_schema_breadcrumb_list() {
 	$position = 2;
 	$base_id  = '';
 
-	// v6.24.0: theme-owned virtual route supplies its own trail (Home → … →
-	// current) as [ 'name' => …, 'url' => … ] pairs.
-	$route = sn_schema_route_meta();
-	if ( null !== $route ) {
-		$base_id = (string) ( $route['url'] ?? '' );
-		$crumbs  = ( isset( $route['breadcrumb'] ) && is_array( $route['breadcrumb'] ) ) ? $route['breadcrumb'] : array();
-		foreach ( $crumbs as $crumb ) {
-			if ( ! is_array( $crumb ) || '' === (string) ( $crumb['url'] ?? '' ) ) {
-				continue;
-			}
-			$items[] = array(
-				'@type'    => 'ListItem',
-				'position' => $position++,
-				'item'     => (string) $crumb['url'],
-				'name'     => (string) ( $crumb['name'] ?? '' ),
-			);
-		}
-		if ( '' === $base_id || count( $items ) < 2 ) {
-			return null;
-		}
-		return array(
-			'@type'           => 'BreadcrumbList',
-			'@id'             => $base_id . '#breadcrumb',
-			'itemListElement' => $items,
-		);
-	}
 
 	if ( is_singular() ) {
 		$post    = get_queried_object();
@@ -625,8 +571,8 @@ function sn_schema_breadcrumb_list() {
  */
 add_action( 'wp_head', function() {
 	// Only emit on front page, /notes, /provenance, any singular content, and
-	// theme-owned virtual routes that supply sn_seo_route_meta (v6.24.0).
-	if ( ! is_front_page() && ! is_home() && ! is_singular() && null === sn_schema_route_meta() ) {
+	// v10.0.0: virtual-route seam retired; real Pages are is_singular().
+	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
 		return;
 	}
 

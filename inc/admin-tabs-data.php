@@ -117,7 +117,6 @@ function sn_admin_top_tabs() {
 			// so the desktop-mode submenu-count == top-tab-count invariant holds.
 			'sub_tabs' => array(
 				'front-end'    => array( 'label' => 'Front-End', 'render' => 'sn_admin_render_front_end_form', 'wide' => true ),
-				'reading-time' => array( 'label' => 'Reading Time', 'render' => 'sn_admin_render_reading_time_section', 'wide' => true ),
 				'performance'  => array( 'label' => 'Performance', 'render' => 'sn_admin_render_performance_section', 'wide' => true ),
 				// Music + RSS moved here from Monitoring in v6.18.0 (content surfaces,
 				// not observability).
@@ -193,11 +192,9 @@ function sn_admin_top_tabs() {
 			'tab'      => 'tools',
 			'label'    => 'Tools',
 			'title'    => 'Signal & Noise — Tools',
-			'subtitle' => 'Block migrations, AI release notes, MCP client setup, and external shortcuts.',
+			'subtitle' => 'Block migrations, MCP client setup, and external shortcuts.',
 			'sub_tabs' => array(
 				'block-migrations' => array( 'label' => 'Block Migrations', 'render' => 'sn_admin_render_block_migrations_section' ),
-				// v4.11.0 (T4): AI release-notes drafter.
-				'release-notes'    => array( 'label' => 'Release Notes', 'render' => 'sn_admin_render_release_notes_section' ),
 				// Notes provenance (Plan 6): live anchor-status stepper + public key.
 				'provenance'       => array( 'label' => 'Provenance', 'render' => 'sn_admin_render_provenance_section', 'wide' => true ),
 				// v9.47.0: read-only "how to connect an external MCP client" doc leaf

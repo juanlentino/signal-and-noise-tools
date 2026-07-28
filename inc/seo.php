@@ -66,26 +66,6 @@ function sn_seo_current_paged() {
  * generic excerpt fallback so the index pages get curated copy instead
  * of WP's auto-excerpt of an empty Page body.
  */
-/**
- * Meta for a theme-owned route that isn't a real WP query (postless virtual
- * routes like /about/uses). The companion theme returns an array
- * [ 'title' => …, 'description' => …, 'url' => …, 'breadcrumb' => [ … ] ] for
- * its own routes, or null to defer to the core WP conditionals below. Memoized
- * per request — the filter runs once even though several emitters consult it.
- *
- * @since 6.24.0
- * @return array<string,mixed>|null
- */
-function sn_seo_route_meta() {
-	static $cached = false;
-	if ( false === $cached ) {
-		// v9.84.0: deprecated ahead of its v10.0.0 removal (pages-to-CMS flip
-		// Phase 3). Silent unless a callback is hooked; the theme stopped answering.
-		$meta   = apply_filters_deprecated( 'sn_seo_route_meta', array( null ), '9.84.0', '', 'Removed in v10.0.0. Former virtual routes are real CMS Pages; is_singular SEO covers them.' );
-		$cached = is_array( $meta ) ? $meta : null;
-	}
-	return $cached;
-}
 
 /**
  * Resolve the singular page title for <title>/og:title/twitter:title.
@@ -182,7 +162,6 @@ function sn_seo_description_for_post( $post ) {
 function sn_seo_meta_for_current_view() {
 	// v6.24.0: a theme-owned virtual route (e.g. /about/uses) supplies its own
 	// title/description/url since WP has no post for it. Takes precedence.
-	$route = sn_seo_route_meta();
 	if ( null !== $route ) {
 		return array(
 			(string) ( $route['title'] ?? '' ),
@@ -539,8 +518,10 @@ function sn_seo_image_dimensions( $url ) {
  * touching theme code.
  */
 add_action( 'wp_head', function() {
-	// v6.24.0: also emit on theme-owned virtual routes (sn_seo_route_meta).
-	if ( ! is_front_page() && ! is_home() && ! is_singular() && null === sn_seo_route_meta() ) {
+	// v10.0.0: the sn_seo_route_meta virtual-route seam is retired — the
+	// pages-to-CMS flip made every former virtual route a real Page, so
+	// is_singular() covers them.
+	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
 		return;
 	}
 

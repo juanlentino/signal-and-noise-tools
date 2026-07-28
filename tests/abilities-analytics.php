@@ -44,9 +44,6 @@ ok( isset( $ae['permission_callback'] ) && $ae['permission_callback'] === 'snt_a
 
 $expected_types = array(
 	'views'                     => 'integer',
-	'visits'                    => 'integer',
-	'scroll_avg'                => 'number',
-	'time_avg'                  => 'number',
 	'unique_visitor_days'       => array( 'integer', 'null' ),
 	'pageview_visits'           => array( 'integer', 'null' ),
 	'viewless_visits'           => array( 'integer', 'null' ),
@@ -64,7 +61,7 @@ echo "\nGroup: summary output schema (Phase A spec-§4 contract)\n";
 $schema = isset( $a['output_schema'] ) && is_array( $a['output_schema'] ) ? $a['output_schema'] : array();
 ok( ( $schema['type'] ?? null ) === 'object', 'output schema type is object' );
 $props = ( isset( $schema['properties'] ) && is_array( $schema['properties'] ) ) ? $schema['properties'] : array();
-ok( array_keys( $props ) === array_keys( $expected_types ), 'schema property keys pin the FULL spec-§4 field list, in response order' );
+ok( array_keys( $props ) === array_keys( $expected_types ), 'schema property keys pin the FULL spec-§4 field list, in response order (v10.0.0: the deprecated quartet is gone)' );
 foreach ( $expected_types as $field => $type ) {
 	$label = is_array( $type ) ? implode( '|', $type ) : $type;
 	ok( array_key_exists( $field, $props ) && ( $props[ $field ]['type'] ?? null ) === $type, "schema declares $field as $label" );
@@ -85,16 +82,9 @@ foreach ( array(
 	ok( false !== strpos( $desc, $needle ), "description names $needle" );
 }
 foreach ( array(
-	'DEPRECATED'               => 'the visits deprecation is stated',
-	'(removed in v10.0.0)'     => 'the v10 removal window is stated',
 	'visitor-days'             => 'the visitor-day unit is stated',
-	'IP+date'                  => 'the IP+date approximation is stated',
-	'NOT sessions'             => 'visits ≠ sessions is stated',
-	'can exceed'               => 'visits-can-exceed-views is stated',
 	'headline'                 => 'pageview_visits is called the headline metric',
 	'cannot invert'            => 'the never-invert property is stated',
-	'diluted by viewless days' => 'per_visit dilution is stated',
-	'views-weighted'           => 'legacy scroll_avg/time_avg denominators are stated',
 	// v9.64.0 scroll-unit redefinition: the depth identity must be documented
 	// so an AI caller can never re-derive the shipped-113% scroll_sum unit.
 	'25 * scroll_events'       => 'the depth identity (25 * scroll_events / denominator) is stated',
@@ -208,9 +198,6 @@ $out = sn_ability_get_analytics_summary( array( 'range' => 30, 'class' => 'human
 ok( is_array( $out ), 'callback returns an array' );
 ok( array_keys( $out ) === array_keys( $props ), 'ACTUAL response keys === DECLARED schema keys (no contract drift)' );
 ok( 100 === ( $out['views'] ?? null ), 'views === 100 (int, legacy untouched)' );
-ok( 40 === ( $out['visits'] ?? null ), 'visits === 40 (int, kept-deprecated)' );
-ok( 25.0 === ( $out['scroll_avg'] ?? null ), 'scroll_avg === 25.0 (views-weighted legacy)' );
-ok( 3400.0 === ( $out['time_avg'] ?? null ), 'time_avg === 3400.0 (views-weighted legacy)' );
 ok( 40 === ( $out['unique_visitor_days'] ?? null ), 'unique_visitor_days === 40 (honest alias of visits)' );
 ok( 30 === ( $out['pageview_visits'] ?? null ), 'pageview_visits === 30 (headline, gated)' );
 ok( 10 === ( $out['viewless_visits'] ?? null ), 'viewless_visits === 10 (40 − 30)' );
@@ -232,9 +219,6 @@ $GLOBALS['wpdb']->rows = array(
 	array( 'class' => 'human', 'views' => 8,  'visits' => 10, 'scroll_avg' => 15.0, 'time_avg' => 2500.0, 'scroll_sum' => null, 'scroll_events' => null, 'time_sum' => null, 'time_events' => null, 'pageview_visits' => null ),
 );
 $out = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'human' ) ); // range 7 → fresh memo key
-ok( 18 === ( $out['views'] ?? null ) && 25 === ( $out['visits'] ?? null ), 'legacy quartet intact — and visits (25) EXCEEDS views (18), the documented deprecated semantics' );
-ok( is_float( $out['scroll_avg'] ?? null ) && abs( $out['scroll_avg'] - 320 / 18 ) < 1e-6, 'scroll_avg still views-weighted (320/18)' );
-ok( is_float( $out['time_avg'] ?? null ) && abs( $out['time_avg'] - 40000 / 18 ) < 1e-6, 'time_avg still views-weighted (40000/18)' );
 ok( 25 === ( $out['unique_visitor_days'] ?? null ), 'unique_visitor_days === 25 (from NOT NULL visits — known even pre-backfill)' );
 ok( array_key_exists( 'pageview_visits', $out ) && null === $out['pageview_visits'], 'pageview_visits null (never measured, not 0)' );
 ok( array_key_exists( 'viewless_visits', $out ) && null === $out['viewless_visits'], 'viewless_visits null' );
@@ -252,6 +236,21 @@ foreach ( $expected_types as $field => $type ) {
 		ok( is_array( $type ) && in_array( 'null', $type, true ), "legacy: $field is null AND its schema union allows null" );
 	}
 }
+
+echo "\nGroup: v10.0.0 — the deprecated quartet leaves the PUBLIC surface\n";
+foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {
+	ok( ! isset( $props[ $gone ] ), "removed from the ability schema: $gone" );
+	ok( false === strpos( $desc, '`' . $gone . '`' ), "the description no longer documents: $gone" );
+}
+ok( isset( $props['views'] ), 'views STAYS — it was never deprecated, only clarified' );
+// The removal is at the ABILITY boundary only: sn_analytics_range_totals()
+// still returns the quartet, because the Dashboard widget renders all three
+// (inc/analytics-widget.php) and annotations gate on visits. Pinned so a
+// future cleanup does not "finish the job" and break the owner's dashboard.
+$sn_impl = (string) file_get_contents( __DIR__ . '/../inc/analytics-read.php' );
+ok( false !== strpos( $sn_impl, "'visits'     => (int) ( \$r['visits'] ?? 0 )," ), 'sn_analytics_range_totals() still returns visits for internal consumers' );
+$sn_ab = (string) file_get_contents( __DIR__ . '/../inc/abilities-analytics.php' );
+ok( false !== strpos( $sn_ab, "unset( \$totals['visits'], \$totals['scroll_avg'], \$totals['time_avg'] );" ), 'the strip happens at the ability boundary' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -3,7 +3,7 @@
  * Standalone test: Content tab — open-and-wide Phase 4b layout (v6.46.0).
  *
  * Locks the registry + cross-cutting CSS for the final open-wide chunk:
- *   - every Content leaf (front-end, reading-time, performance, rss, tags, music)
+ *   - every Content leaf (front-end, performance, rss, tags, music; v10.0.0 retired reading-time)
  *     is marked 'wide' => true in the registry, so the dispatcher emits a bare
  *     full-width .sn-section instead of the 820px-capped .sn-fieldset card;
  *   - .sn-front-end-form .sn-fieldset is a full-width auto-fit field grid (the
@@ -30,7 +30,7 @@ foreach ( sn_admin_top_tabs() as $t ) {
 }
 ct_assert( is_array( $content ), 'content tab present in registry' );
 $subs = is_array( $content ) ? ( $content['sub_tabs'] ?? array() ) : array();
-foreach ( array( 'front-end', 'reading-time', 'performance', 'rss', 'tags', 'music' ) as $slug ) {
+foreach ( array( 'front-end', 'performance', 'rss', 'tags', 'music' ) as $slug ) {
 	ct_assert( ! empty( $subs[ $slug ]['wide'] ), "leaf '$slug' is marked wide" );
 }
 

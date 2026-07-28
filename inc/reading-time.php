@@ -340,113 +340,17 @@ function sn_apply_legacy_reading_time_cleanup() {
 }
 
 /**
- * Render the Reading Time admin UI on its dedicated tab. Hooked to
- * `sn_admin_reading_time_tab` emitted by inc/admin-page.php when the
- * user selects the Reading Time tab. This was once a card on the
- * Dashboard tab via `sn_admin_dashboard_extras`, moved to its own tab
- * as the Dashboard grew too big to hold every subsystem.
+ * v10.0.0: the legacy-cleanup ADMIN UI is removed. Its "Run preview" link
+ * pointed at the `sn-reading-time` page slug retired in the v6.18.0 IA
+ * refactor, so the surface had been broken for versions.
+ *
+ * sn_find_legacy_reading_time() and sn_apply_legacy_reading_time_cleanup()
+ * above are DELIBERATELY KEPT: they are the only way to ever run the one-shot
+ * cleanup, and the live-database check that would say whether legacy strings
+ * remain cannot be run from a release worktree. If a scan ever finds any:
+ *   wp eval 'print_r( sn_find_legacy_reading_time() );'
+ *   wp eval 'echo sn_apply_legacy_reading_time_cleanup();'
+ *
+ * The live feature — the [sn_reading_time] shortcode and the WPM setting —
+ * is untouched.
  */
-add_action( 'sn_admin_reading_time_tab', function() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-
-	// POST handling lives in sn_handle_admin_post() (admin_init, PRG).
-	// This callback is render-only. Preview is a GET-driven scan (read-
-	// only, no PRG needed).
-	$preview     = isset( $_GET['sn_rt_preview'] );
-	$base_url    = admin_url( 'admin.php?page=sn-reading-time' );
-	$preview_url = esc_url( add_query_arg( 'sn_rt_preview', '1', $base_url ) );
-	$report      = $preview ? sn_find_legacy_reading_time() : array();
-	$report_n    = count( $report );
-
-	// Phase 4b: full-width two-column shell — the cleanup tool + its (wide)
-	// matches table live in MAIN; a compact "how it works" readout in the rail.
-	// HARD shell contract: never return between open() and close(), so the old
-	// clean-state early return below is now an elseif branch.
-	sn_admin_shell_open();
-
-	// ── TOOL FIELDSET (main) ──
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">Legacy string cleanup</h2>';
-	echo '<p class="sn-fieldset-intro">Scan posts + pages for hand-typed reading-time strings; review the matches; apply the cleanup. The shortcode produces fresh values automatically — this tool only removes the legacy ones.</p>';
-
-	echo '<div class="sn-card-grid">';
-
-	// Preview card — always shown
-	echo '<div class="sn-card sn-card--narrow">';
-	echo '<strong>1 · Preview</strong>';
-	echo '<p class="sn-helper">Scan all posts and pages for legacy reading-time strings. Read-only.</p>';
-	echo '<a href="' . esc_url( $preview_url ) . '" class="button">' . ( $preview ? 'Re-run preview' : 'Run preview' ) . '</a>';
-	echo '</div>';
-
-	// Apply card — shown when preview has run
-	if ( $preview ) {
-		echo '<form method="post" class="sn-card sn-card--narrow">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<strong>2 · Apply</strong>';
-		if ( 0 === $report_n ) {
-			echo '<p class="sn-empty-note">No matches found — nothing to apply.</p>';
-		} else {
-			echo '<p class="sn-helper"><strong>Destructive.</strong> Removes the ' . (int) $report_n . ' match(es) below from post content / excerpts / meta. Cannot be undone — back up first.</p>';
-		}
-		// v4.5.2: gate this irreversible bulk content mutation behind the shared
-		// confirm modal (snt-confirm.js, enqueued on all SN pages) — matching
-		// every other destructive action in the plugin (webhook delete, insights
-		// dismiss, cron run/unschedule). Disabled when there are 0 matches.
-		echo '<button type="submit" name="sn_action" value="apply_reading_time_cleanup" class="button button-primary"'
-			. ( 0 === $report_n ? ' disabled' : '' )
-			. ' data-snt-confirm="' . esc_attr( sprintf( 'Removes legacy reading-time strings from %d post(s) — rewrites post content, excerpts, and meta. Cannot be undone.', (int) $report_n ) ) . '"'
-			. ' data-snt-confirm-title="' . esc_attr__( 'Apply reading-time cleanup?', 'signal-and-noise-tools' ) . '"'
-			. ' data-snt-confirm-label="' . esc_attr__( 'Apply', 'signal-and-noise-tools' ) . '"'
-			. ' data-snt-confirm-danger="1"'
-			. '>Apply to ' . (int) $report_n . ' post(s)</button>';
-		echo '</form>';
-	}
-
-	echo '</div>'; // .sn-card-grid
-	echo '</div>'; // .sn-fieldset
-
-	// ── PREVIEW RESULTS (main) ──
-	if ( $preview && 0 === $report_n ) {
-		echo '<div class="sn-status-box">';
-		echo '<div>';
-		echo '<p class="sn-status-box-title">Clean</p>';
-		echo '<p class="sn-status-box-body">No legacy reading-time strings found in any post, page, excerpt, or post meta.</p>';
-		echo '</div>';
-		echo '<span class="sn-pill sn-pill--ok">All clean</span>';
-		echo '</div>';
-	} elseif ( $preview ) {
-		echo '<div class="sn-fieldset">';
-		echo '<h2 class="sn-fieldset-h">Matches (' . (int) $report_n . ')</h2>';
-		echo '<p class="sn-fieldset-intro">Each row shows where a legacy string lives. The Apply action above removes all of them.</p>';
-		echo '<table class="widefat striped"><thead><tr><th class="column-id">ID</th><th>Title</th><th>Where</th><th>Match</th></tr></thead><tbody>';
-		foreach ( $report as $post_id => $entry ) {
-			$rows = array();
-			foreach ( $entry['content'] as $m ) $rows[] = array( 'content', $m );
-			foreach ( $entry['excerpt'] as $m ) $rows[] = array( 'excerpt', $m );
-			foreach ( $entry['meta'] as $key => $matches ) {
-				foreach ( $matches as $m ) $rows[] = array( 'meta:' . $key, $m );
-			}
-			foreach ( $rows as $i => $row ) {
-				echo '<tr>';
-				echo '<td>' . ( 0 === $i ? '<a href="' . esc_url( get_edit_post_link( $post_id ) ) . '">' . (int) $post_id . '</a>' : '' ) . '</td>';
-				echo '<td>' . ( 0 === $i ? esc_html( get_the_title( $post_id ) ) : '' ) . '</td>';
-				echo '<td><code>' . esc_html( $row[0] ) . '</code></td>';
-				echo '<td><span class="sn-pill sn-pill--err sn-mono">' . esc_html( $row[1]['match'] ) . '</span><br><small class="sn-helper sn-rt-snippet">' . esc_html( $row[1]['snippet'] ) . '</small></td>';
-				echo '</tr>';
-			}
-		}
-		echo '</tbody></table>';
-		echo '</div>'; // .sn-fieldset
-	}
-
-	// ── Rail: how reading time is computed (the old leading prose, now a readout). ──
-	sn_admin_shell_rail( 'Reading time' );
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">How it works</h2>';
-	echo '<p class="sn-field-helper">Word count ÷ ' . (int) SN_READING_TIME_DEFAULT_WPM . ' WPM, cached in <code>_sn_reading_time_minutes</code> post meta and rebuilt on every save.</p>';
-	echo '<p class="sn-field-helper">The cleanup tool to the left scans for hand-typed strings like &ldquo;8-minute read&rdquo; left over from before the shortcode existed. The <code>[sn_reading_time]</code> shortcode produces fresh values automatically.</p>';
-	echo '</div>';
-	sn_admin_shell_close();
-} );

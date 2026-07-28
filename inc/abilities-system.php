@@ -3,7 +3,7 @@
  * Signal & Noise Tools — Abilities API: system maintenance + deploy state.
  *
  * Five abilities covering cache/template/update housekeeping plus the
- * deploy-status + release-notes surfaces:
+ * deploy-status surfaces:
  *   - signal-noise/purge-all-caches         (destructive, idempotent; its
  *     include_template_overrides flag replaced the removed full-reset)
  *   - signal-noise/clear-template-overrides (destructive, idempotent)
@@ -11,7 +11,6 @@
  *   - signal-noise/get-deploy-status         (readonly, idempotent; force_refresh
  *     clears the update transients first — replaced the removed
  *     force-check-updates)
- *   - signal-noise/draft-release-notes       (readonly, NOT idempotent — AI draft;
  *     recategorized diagnostics → ai-generation in 7.7.0)
  *
  * v8.0.0 removed the three 7.7.0-deprecated abilities this file carried
@@ -162,45 +161,6 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
-	// v4.11.0 (T4): AI release-notes drafter. readonly (writes nothing) but
-	// NOT idempotent - a generative call returns different prose each time, so
-	// do not copy `idempotent => true` from the neighbors above.
-	wp_register_ability( 'signal-noise/draft-release-notes', array(
-		'label'               => 'Draft release notes from a change log',
-		'description'         => 'Turns a pasted CHANGELOG delta (or a few bullets of what changed) into Mimestream-style, human-readable release notes (New / Improvements / Fixed sections) via the WP AI Client. Returns markdown; writes nothing. One on-demand AI call; input is hard-capped at ~4000 chars. Retired in v10.0.0: release notes are owner-written; this drafter is redundant.',
-		// v7.7.0: recategorized diagnostics → ai-generation. It is a generative
-		// AI call, and agents discovering tools by category should find it with
-		// its AI siblings, not among the read-only diagnostics.
-		'category'            => 'ai-generation',
-		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_draft_release_notes',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'required'             => array( 'changelog_delta' ),
-			'properties'           => array(
-				'changelog_delta' => array(
-					'type'        => 'string',
-					'description' => 'Raw change log delta / notes describing what changed in this version.',
-					'minLength'   => 1,
-				),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok'       => array( 'type' => 'boolean' ),
-				'markdown' => array( 'type' => 'string', 'description' => 'The drafted release notes in GitHub-flavored markdown.' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => false,
-			),
-		),
-	) );
 
 	wp_register_ability( 'signal-noise/list-template-overrides', array(
 		'label'               => 'List database template overrides',
@@ -434,23 +394,3 @@ function snt_ability_list_template_overrides() {
 	);
 }
 
-/**
- * Ability execute callback: signal-noise/draft-release-notes.
- * Thin wrapper around snt_release_notes_draft_impl(); wraps the markdown string
- * into the { ok, markdown } output shape (or passes a WP_Error through).
- * @since 4.11.0
- */
-function snt_ability_draft_release_notes( $input ) {
-	if ( ! function_exists( 'snt_release_notes_draft_impl' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', 'Release-notes drafter helper unavailable.', array( 'status' => 500 ) );
-	}
-	$delta  = is_array( $input ) && isset( $input['changelog_delta'] ) ? (string) $input['changelog_delta'] : '';
-	$result = snt_release_notes_draft_impl( $delta );
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	return array(
-		'ok'       => true,
-		'markdown' => (string) $result,
-	);
-}
