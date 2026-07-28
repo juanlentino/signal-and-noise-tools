@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [9.87.0] - 2026-07-28
+
+**Headline:** the /verify docket walks the whole proof — content hash to ledger leaf to Bitcoin transaction to block, each value labeled with which witness supplied it.
+
+### New
+
+- **Proof walk on /verify** ([inc/provenance-verify.php](inc/provenance-verify.php) + [assets/js/prov-verify.js](assets/js/prov-verify.js) + pure `deriveProofWalk()` in [assets/js/prov-verify-core.js](assets/js/prov-verify-core.js)): once the anchor check resolves, the docket renders the chain of custody step by step — the hash the signature covers (with an explicit site-credential-vs-ledger agreement or DISAGREEMENT label), the independent ledger's leaf hash, the Bitcoin transaction (explorer-linked), and the block. Honest about the block-only norm: a proof with no aggregation txid says "not extracted", never fabricates one; a missing leaf says "not recorded", never renders blank. All values via `textContent` (ledger and chain data stay untrusted); links only from the fixed explorer base.
+- 13 new Node-harness assertions (txid path, the block-only norm, hash-mismatch flagging) ride the existing no-network fixture harness (140 total); the page fixture pins the section markup + the render wiring.
+
+### Session-5 scoping note
+
+The bundle's second seat — the Desktop Mode anchor-status widget — turned out to be **already shipped** (v9.78.0, "SN Anchors": pending N/6, Sweep action, honest idle state). The 2026-07-21 seed memory was stale within a week; verify-before-build caught it.
+
+> **Why MINOR:** one new user-visible capability on the public /verify docket; nothing removed or changed.
+
 ## [9.86.0] - 2026-07-28
 
 **Headline:** the Machine Readers tab gets its at-a-glance layer — a summary stat strip, a real crawler-list verdict, and a dedicated stylesheet — and the crawler card stops dropping the one answer it exists to show.

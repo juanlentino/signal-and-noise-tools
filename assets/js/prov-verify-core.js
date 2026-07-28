@@ -329,6 +329,69 @@
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/keys/provenance-keys.json';
 	}
 
+
+	/**
+	 * Proof walk (v9.87.0): the chain of custody from content hash to Bitcoin
+	 * block, each step carrying its VALUE and its SOURCE label (site
+	 * credential / independent ledger / Bitcoin chain) so the reader sees the
+	 * independence, not just a verdict. Pure. Honest about gaps: a block-only
+	 * proof says "not extracted", a missing leaf says "not recorded", and a
+	 * site-vs-ledger hash disagreement is flagged, never averaged away.
+	 *
+	 * @param {object} cred        The Note credential (evidence[0].anchor + content_hash).
+	 * @param {object} ledgerRec   The independent ledger record (may be null).
+	 * @param {object} txRes       Mempool tx status (may be null).
+	 * @param {string} mempoolBase Fixed explorer base for links.
+	 * @returns {Array<{key:string,label:string,value:*,source:string,href:string|null}>}
+	 */
+	function deriveProofWalk( cred, ledgerRec, txRes, mempoolBase ) {
+		var evidence = ( cred && cred.evidence && cred.evidence[ 0 ] ) || {};
+		var anchor   = evidence.anchor || {};
+		var rec      = ledgerRec || {};
+		var ots      = rec.ots || {};
+
+		var norm     = function ( h ) { return String( h || '' ).replace( /^sha256:/, '' ).toLowerCase(); };
+		var siteHash = norm( evidence.content_hash || cred && cred.content_hash );
+		var ledgerHash = norm( rec.content_hash );
+		var hash     = ledgerHash || siteHash;
+		var hashSource;
+		if ( siteHash && ledgerHash ) {
+			hashSource = siteHash === ledgerHash
+				? 'site credential + independent ledger agree'
+				: 'DISAGREEMENT: site credential and ledger record carry different hashes (mismatch)';
+		} else {
+			hashSource = ledgerHash ? 'independent ledger' : 'site credential';
+		}
+
+		var leaf = String( rec.leaf_hash || '' );
+		var txid = String( anchor.txid || ots.bitcoin_txid || '' ).toLowerCase();
+		var base = String( mempoolBase || '' ).replace( /\/?$/, '' );
+
+		var height = ( txRes && txRes.confirmed && txRes.block_height ) || anchor.block || ots.bitcoin_block || null;
+		var blockSource = ( txRes && txRes.confirmed )
+			? 'Bitcoin chain (mempool-confirmed)'
+			: ( ots.bitcoin_block ? 'independent ledger' : 'site credential' );
+
+		return [
+			{ key: 'content', label: 'Content hash', value: hash, source: hashSource, href: null },
+			{ key: 'leaf', label: 'Ledger leaf hash', value: leaf || 'not recorded', source: leaf ? 'independent ledger' : 'independent ledger (absent)', href: null },
+			{
+				key: 'tx',
+				label: 'Bitcoin transaction',
+				value: txid || 'not extracted (block-only OpenTimestamps proof)',
+				source: txid ? ( anchor.txid ? 'site credential' : 'independent ledger' ) : 'no aggregation txid in this proof',
+				href: txid ? base + '/tx/' + encodeURIComponent( txid ) : null
+			},
+			{
+				key: 'block',
+				label: 'Bitcoin block',
+				value: height || 'not recorded',
+				source: blockSource,
+				href: height ? base + '/block/' + encodeURIComponent( String( height ) ) : null
+			}
+		];
+	}
+
 	function mempoolTxStatusUrl( mempoolBase, txid ) {
 		return String( mempoolBase || '' ).replace( /\/?$/, '' ) + '/tx/' + encodeURIComponent( txid ) + '/status';
 	}
@@ -556,6 +619,7 @@
 		deriveBlockOnlyAnchor:    deriveBlockOnlyAnchor,
 		deriveLedgerTxAnchor:     deriveLedgerTxAnchor,
 		deriveTxAnchor:           deriveTxAnchor,
+		deriveProofWalk:          deriveProofWalk,
 		DIFF_MAX_WORDS:           DIFF_MAX_WORDS,
 		diffWords:                diffWords,
 		pastedTwinUrl:            pastedTwinUrl,

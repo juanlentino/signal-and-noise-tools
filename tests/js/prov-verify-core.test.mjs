@@ -426,5 +426,39 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	eq( null, core.diffWords( big, 'a' ), 'an over-cap side returns null (refuse honestly, never hang the page)' );
 }
 
+
+// ── Proof walk (v9.87.0): attestation → inclusion proof, honestly sourced ──
+{
+	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 'a1b2', block: 901000 }, content_hash: 'sha256:ABCD' } ] };
+	const rec  = { content_hash: 'sha256:abcd', leaf_hash: 'leafbeef', ots: { bitcoin_txid: 'a1b2', bitcoin_block: 901000 } };
+	const tx   = { confirmed: true, block_height: 901000 };
+	const walk = core.deriveProofWalk( cred, rec, tx, 'https://mempool.space' );
+	eq( 4, walk.length, 'proof walk: four steps' );
+	eq( 'abcd', walk[0].value, 'content hash normalized (sha256: stripped, lowercased)' );
+	ok( /site.*ledger|agree/i.test( walk[0].source ), 'content hash source states site+ledger agreement' );
+	eq( 'leafbeef', walk[1].value, 'ledger leaf hash surfaces' );
+	eq( 'a1b2', walk[2].value, 'txid surfaces' );
+	eq( 'https://mempool.space/tx/a1b2', walk[2].href, 'tx links to the fixed-base explorer' );
+	eq( 901000, walk[3].value, 'block height surfaces' );
+	ok( /chain/i.test( walk[3].source ), 'confirmed tx marks the block step chain-attested' );
+}
+{
+	// The block-only norm: most records carry no txid — never fabricate one.
+	const cred = { evidence: [ { anchor: { status: 'confirmed', block: 900123 }, content_hash: 'sha256:abcd' } ] };
+	const rec  = { content_hash: 'sha256:abcd', ots: { bitcoin_block: 900123 } };
+	const walk = core.deriveProofWalk( cred, rec, null, 'https://mempool.space' );
+	ok( /not extracted|block-only/i.test( walk[2].value ), 'block-only proof says so instead of faking a txid' );
+	ok( ! walk[2].href, 'no explorer link without a txid' );
+	ok( /not recorded/i.test( walk[1].value ), 'missing leaf hash is "not recorded", never blank' );
+	eq( 900123, walk[3].value, 'block still surfaces from the ledger/credential' );
+}
+{
+	// Hash disagreement is surfaced, never averaged away.
+	const cred = { evidence: [ { anchor: { status: 'confirmed', txid: 't' }, content_hash: 'sha256:aaaa' } ] };
+	const rec  = { content_hash: 'sha256:bbbb', ots: {} };
+	const walk = core.deriveProofWalk( cred, rec, null, 'https://mempool.space' );
+	ok( /disagree|mismatch/i.test( walk[0].source ), 'site-vs-ledger hash mismatch is flagged in the source label' );
+}
+
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );
 process.exit( fail > 0 ? 1 : 0 );

@@ -117,3 +117,17 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	.sn-verify-check-state,.sn-verify-check[data-state] .sn-verify-check-state{animation:none;transform:none}
 	.sn-verify-check-no{transition:none}
 }
+
+/* v9.87.0: the proof walk — same spec-column vocabulary as the checks list. */
+.sn-verify-walk-steps { list-style: none; margin: 1.5rem 0 0; padding: 0; }
+.sn-verify-walk-step {
+	border-top: 1px solid var(--sn-verify-rule, #d4d4d4);
+	display: grid;
+	gap: 0.35rem 1rem;
+	grid-template-columns: 2.5rem 1fr;
+	padding: 0.85rem 0;
+}
+.sn-verify-walk-no { font-size: 0.75rem; opacity: 0.55; }
+.sn-verify-walk-label { font-weight: 600; }
+.sn-verify-walk-value { grid-column: 2; overflow-wrap: anywhere; }
+.sn-verify-walk-source { font-size: 0.75rem; grid-column: 2; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.06em; }
