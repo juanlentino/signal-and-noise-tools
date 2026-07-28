@@ -1,96 +1,22 @@
 /**
- * Machine Readers tab (v9.86.0) — native wp-admin polish over the shared
- * sn-admin vocabulary. Depends on sn-admin (pills, fieldsets).
+ * Signal & Noise Tools — Machine Readers: the few rules the central Analytics
+ * stylesheet has no equivalent for.
+ *
+ * v10.2.1: everything else was DELETED. The stat strip now uses .sn-kpi-row /
+ * -label / -value, the tables use .sn-an-table, the empty states use
+ * .sn-an-empty — all from assets/analytics/analytics-admin.css, which already
+ * loads on every SN admin page. Two treatments for one problem is the cost;
+ * this file exists only for what genuinely has no home there.
  */
 
-/* Summary stat strip */
-.sn-mr-stats {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	margin: 4px 0 16px;
-}
-.sn-mr-stat {
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 4px;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	min-width: 140px;
-	padding: 10px 14px;
-}
-.sn-mr-stat-v {
-	font-size: 20px;
-	font-weight: 600;
-	line-height: 1.2;
-}
-.sn-mr-stat-l {
-	color: #646970;
-	font-size: 11px;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-}
+/* The KPI row is built for six analytics columns; three cards want to sit left. */
+.sn-mr-kpi-row { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
 
-/* Sensor line + crawler verdict */
-.sn-mr-sensor {
-	align-items: center;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin: 0 0 4px;
-}
-.sn-mr-verdict {
-	align-items: center;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin: 0 0 8px;
-}
-
-/* Tables grid: let the 2up breathe, stack under 1100px */
-.sn-mr-grid {
-	align-items: start;
-	gap: 16px;
-}
-.sn-mr-table caption {
-	caption-side: top;
-	color: #646970;
-	font-size: 12px;
-	padding: 6px 0;
-	text-align: left;
-}
-.sn-mr-table td.num,
-.sn-mr-table th.num {
-	text-align: right;
-	width: 90px;
-}
-.sn-mr-empty {
-	background: #f6f7f7;
-	border: 1px dashed #c3c4c7;
-	border-radius: 4px;
-	color: #50575e;
-	margin: 0;
-	padding: 14px 16px;
-}
-@media screen and (max-width: 1100px) {
-	.sn-mr-grid {
-		grid-template-columns: 1fr;
-	}
-}
-
-/* v10.1.1: the bespoke v10.0.1 panel is GONE. The sensor block now uses the
-   Analytics settings-leaf idiom directly (.sn-an-pipeline-pills / .sn-an-pill /
-   .sn-an-form-fold / .sn-an-settings-help, all from analytics-admin.css, which
-   already loads on every SN admin page). Only the two rules the Analytics
-   sheet has no equivalent for live here. */
-.sn-an-worker-card {
-	border-left: 3px solid #dcdcde;
-	margin: 8px 0 0;
-	padding: 2px 0 2px 12px;
-}
+/* The read-only worker readout (the Edge worker reference-card treatment). */
+.sn-an-worker-card { border-left: 3px solid #dcdcde; margin: 8px 0 0; padding: 2px 0 2px 12px; }
 .sn-an-worker-card p { margin: 4px 0; }
+
+/* Settings fields inside the Analytics fold. */
 .sn-mr-settings { margin: 0; }
 .sn-mr-settings .sn-field { margin-bottom: 16px; }
 .sn-mr-settings .sn-field-label { align-items: center; display: flex; gap: 8px; }

@@ -58,7 +58,7 @@ function snt_mr_sum_hits_by( $rows, $field ) {
  * @return string Opening HTML through <tbody>.
  */
 function snt_mr_table_open( $caption, $heads ) {
-	$out   = '<table class="wp-list-table widefat striped sn-mr-table">';
+	$out   = '<table class="wp-list-table widefat striped sn-an-table">';
 	$out  .= '<caption>' . esc_html( $caption ) . '</caption><thead><tr>';
 	$first = true;
 	foreach ( $heads as $label => $class ) {
@@ -80,7 +80,7 @@ function snt_mr_table_open( $caption, $heads ) {
 function snt_mr_render_family_table( $rows, $days ) {
 	$totals = snt_mr_sum_hits_by( $rows, 'family' );
 	if ( empty( $totals ) ) {
-		return '<p class="sn-mr-empty">' . esc_html__( 'No machine reads in this window yet.', 'signal-and-noise-tools' ) . '</p>';
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No machine reads in this window yet.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	// Last-seen day per family (max Y-m-d compares fine as a string). Escaped
 	// on output like every other cell: normalized shape or not.
@@ -119,7 +119,7 @@ function snt_mr_render_family_table( $rows, $days ) {
 function snt_mr_render_surface_table( $rows ) {
 	$totals = snt_mr_sum_hits_by( $rows, 'surface' );
 	if ( empty( $totals ) ) {
-		return '<p class="sn-mr-empty">' . esc_html__( 'No surface reads in this window yet.', 'signal-and-noise-tools' ) . '</p>';
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No surface reads in this window yet.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	$out = snt_mr_table_open( __( 'Reads per machine surface class.', 'signal-and-noise-tools' ), array(
 		__( 'Surface', 'signal-and-noise-tools' ) => '',
@@ -157,7 +157,7 @@ function snt_mr_render_compliance( $rows ) {
 		}
 	}
 	if ( empty( $totals ) ) {
-		return '<p class="sn-mr-empty">' . esc_html__( 'No reads from declared AI-training families in this window.', 'signal-and-noise-tools' ) . '</p>';
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No reads from declared AI-training families in this window.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	arsort( $totals );
 	$caption = __( 'Observed vs declared: read counts are what the edge observed; the AI-training class comes from public declarations. User agents are self-reported, so this is observation, not proof of identity.', 'signal-and-noise-tools' );
@@ -221,14 +221,16 @@ function snt_mr_render_summary_chips( $rows, $days ) {
 	foreach ( snt_mr_ai_training_families() as $fam ) {
 		$ai += (int) ( $totals[ $fam ] ?? 0 );
 	}
-	$stat = function ( $label, $value, $raw = false ) {
-		return '<div class="sn-mr-stat"><span class="sn-mr-stat-v">' . ( $raw ? $value : esc_html( (string) $value ) ) . '</span>'
-			. '<span class="sn-mr-stat-l">' . esc_html( $label ) . '</span></div>';
+	// v10.2.1: the Analytics KPI vocabulary (.sn-kpi-row / -label / -value),
+	// the same one snt_an_kpi_row() paints — not a second stat-card treatment.
+	$card = function ( $label, $value ) {
+		return '<div class="sn-kpi"><p class="sn-kpi-label">' . esc_html( $label ) . '</p>'
+			. '<p class="sn-kpi-value">' . esc_html( (string) $value ) . '</p></div>';
 	};
-	return '<div class="sn-mr-stats">'
-		. $stat( sprintf( /* translators: %s: window length in days. */ __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( $total ) )
-		. $stat( __( 'top family', 'signal-and-noise-tools' ), '&mdash;' === $top ? $top : esc_html( $top ), '&mdash;' === $top )
-		. $stat( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
+	return '<div class="sn-kpi-row sn-mr-kpi-row">'
+		. $card( sprintf( /* translators: %s: window length in days. */ __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( $total ) )
+		. $card( __( 'top family', 'signal-and-noise-tools' ), '' === $top || '&mdash;' === $top ? '—' : $top )
+		. $card( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
 		. '</div>';
 }
 
@@ -332,6 +334,48 @@ function snt_mr_render_sensor_status( $pills ) {
 		if ( 'warn' === $p[0] && '' !== (string) ( $p[2] ?? '' ) ) {
 			$out .= '<p class="sn-an-pipeline-warn">' . esc_html( (string) $p[1] ) . ' — ' . esc_html( (string) $p[2] ) . '</p>';
 		}
+	}
+	return $out;
+}
+
+/**
+ * R4 (v10.2.1): the feed-fetcher column — the EXISTING rss-feed-tracker stats
+ * rendered beside the surface table so the machine audience reads as one
+ * picture. inc/rss-feed-tracker.php stays the source of truth: this reads its
+ * accessor and re-implements nothing.
+ *
+ * Deliberate vocabulary: feed pulls are FETCHES, not "reads" — a reader app
+ * polling RSS on a schedule is a different act from a crawler reading a page,
+ * and the two counts are never summed (the same rule that keeps beacons and
+ * edge observations apart).
+ *
+ * @param array $stats sn_rss_tracker_window_stats_multi() shape:
+ *                     { most_recent, windows: { days: { total, uniques } } }.
+ * @return string HTML.
+ */
+function snt_mr_render_feed_table( $stats ) {
+	$stats   = (array) $stats;
+	$windows = isset( $stats['windows'] ) && is_array( $stats['windows'] ) ? $stats['windows'] : array();
+	if ( empty( $windows ) ) {
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No feed fetches recorded yet.', 'signal-and-noise-tools' ) . '</p>';
+	}
+	$out = snt_mr_table_open( __( 'Feed fetches per window (RSS and JSON Feed).', 'signal-and-noise-tools' ), array(
+		__( 'Window', 'signal-and-noise-tools' )   => '',
+		__( 'Fetches', 'signal-and-noise-tools' )  => 'num',
+		__( 'Fetchers', 'signal-and-noise-tools' ) => 'num',
+	) );
+	ksort( $windows );
+	foreach ( $windows as $days => $row ) {
+		$row  = (array) $row;
+		$out .= '<tr><td class="column-primary" data-colname="Window"><strong>'
+			/* translators: %s: window length in days. */
+			. esc_html( sprintf( __( 'last %s days', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) ) . '</strong></td>'
+			. '<td class="num" data-colname="Fetches">' . esc_html( number_format_i18n( (int) ( $row['total'] ?? 0 ) ) ) . '</td>'
+			. '<td class="num" data-colname="Fetchers">' . esc_html( number_format_i18n( (int) ( $row['uniques'] ?? 0 ) ) ) . '</td></tr>';
+	}
+	$out .= '</tbody></table>';
+	if ( '' !== (string) ( $stats['most_recent'] ?? '' ) ) {
+		$out .= '<p class="sn-field-helper">' . esc_html__( 'Most recent fetch:', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $stats['most_recent'] ) . '</p>';
 	}
 	return $out;
 }
