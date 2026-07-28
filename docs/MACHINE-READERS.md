@@ -35,7 +35,7 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **Monitoring, Machine Readers** (wp-admin tab) | Summary stat strip, reads per family, reads per surface class, the observed vs declared compliance read, and the Sensor panel (identity, connection state, crawler-list verdict, settings). |
+| **Monitoring, Machine Readers** (wp-admin tab) | Summary stat strip, reads per family, reads per surface class, the observed vs declared compliance read, and the Sensor status card (the Analytics pipeline-pill row: deployed sensor, read token, the read itself, crawler-list check), the folded Sensor settings, and the read-only Edge sensor readout. |
 | **SN Machine Readers** (Desktop Mode tile, v10.1.0) | The same aggregates in tile form, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
@@ -160,7 +160,7 @@ outbound request that must be gated.
 - **Fail closed, and loudly.** A missing token returns `not_configured`, not an
   empty result that would read as "no crawlers". The other terminal states are
   `blocked`, `network`, `http_<code>`, and `bad_schema`, and each one is
-  reported in the Sensor panel's connection line.
+  reported by the Sensor status pills.
 - **The token is write-only in the UI.** It is stored under the
   `machine_readers` subtree with `autoload=no`, never echoed back into the form,
   and preserved byte for byte by `sn_settings_save()` (pinned in
@@ -227,7 +227,7 @@ curl -s https://juanlentino.com/_sn/rights-signals/version
 
 Expect `"worker": "sn-rights-signals"` and a `version` at or above the
 `SN_MR_SENSOR_MIN` value above (`1.4.0`). A lower version is exactly what makes
-the Sensor panel show its "sensor outdated" warning.
+the Sensor status row show a warn pill naming the deployed version.
 
 **2. The crawler-list drift check has run.**
 
@@ -274,9 +274,9 @@ before treating an absent row as a failure.
 
 **6. The admin surface agrees.**
 
-In wp-admin, Monitoring, Machine Readers: the Sensor panel's connection pill
-should read `connected`, the version should match step 1, and the crawler list
-verdict should match step 2. If the pill reads `not configured`, the token is
+In wp-admin, Monitoring, Machine Readers: the Sensor status pills
+should all read with a check mark, the version should match step 1, and the crawler list
+verdict should match step 2. If a pill reads `Read token missing` or `Not configured`, the token is
 missing on the WordPress side, not on the Worker side.
 
 **7. The offline contract still holds.**
