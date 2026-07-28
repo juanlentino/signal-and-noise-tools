@@ -92,5 +92,14 @@ ok( in_array( 'warn', $states, true ), 'an unconfigured sensor shows a warn pill
 $whtml = snt_mr_render_sensor_status( $warn );
 ok( false !== strpos( $whtml, 'sn-an-pipeline-warn' ), 'and its explanation renders in the Analytics warn line, below the pills' );
 
+echo "\nGroup: v10.2.1 R4 — the feed-fetcher column (rss-feed-tracker stays the source)\n";
+$feed = snt_mr_render_feed_table( array( 'most_recent' => '2026-07-28 12:00:00', 'windows' => array( 7 => array( 'total' => 42, 'uniques' => 9 ), 30 => array( 'total' => 130, 'uniques' => 21 ) ) ) );
+ok( false !== strpos( $feed, 'sn-an-table' ), 'uses the central table class, like the surface table beside it' );
+ok( false !== strpos( $feed, '130' ) && false !== strpos( $feed, '21' ), 'renders the tracker window rows' );
+ok( false !== stripos( $feed, 'fetch' ), 'names them fetches, not reads or visits (a feed fetcher is not a crawler read)' );
+$hostile = snt_mr_render_feed_table( array( 'most_recent' => '<img src=x>', 'windows' => array( 7 => array( 'total' => 1, 'uniques' => 1 ) ) ) );
+ok( false === strpos( $hostile, '<img' ), 'tracker values are escaped at the sink' );
+ok( false !== strpos( snt_mr_render_feed_table( array() ), 'sn-an-empty' ), 'no tracker data renders the central empty state, not a fabricated zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.2.1] - 2026-07-28
+
+### New
+
+- **R4, the feed-fetcher column** ([inc/machine-readers-render.php](inc/machine-readers-render.php)): the existing `rss-feed-tracker` window stats now render beside the surface table, so the machine audience reads as one picture. The tracker stays the source of truth — this reads its accessor and re-implements nothing, and feed pulls are deliberately called **fetches**, never "reads": a reader app polling on a schedule is a different act from a crawler reading a page, and the two counts are never summed. This completes the stretch tier; it was the one lane that never built (its worker died to a transient infrastructure error).
+
+### Improvements
+
+- **The tab stopped carrying a second design system.** The stat strip now uses the Analytics KPI vocabulary (`.sn-kpi-row` / `-label` / `-value` — the same one `snt_an_kpi_row()` paints), the tables use `.sn-an-table`, and the empty states use `.sn-an-empty`. `assets/machine-readers.css` went from ~100 lines to 23: the KPI grid override, the read-only worker readout, and the fields inside the Analytics fold. Everything else was duplicating `assets/analytics/analytics-admin.css`, **which already loads on every SN admin page** — so the answer to "do we need a central CSS?" turned out to be "we have one, and this tab was ignoring half of it".
+
+> **Why PATCH:** one new panel on an existing tab plus presentation cleanup; no API change, no data touched.
+
 ## [10.2.0] - 2026-07-28
 
 ### New
