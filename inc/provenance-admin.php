@@ -252,6 +252,11 @@ function sn_admin_render_provenance_section() {
 	// close() no early return may occur (would unbalance the wrapper divs).
 	sn_admin_shell_open();
 	sn_prov_admin_render_commits_fieldset( $note_base );
+	// v10.3.0: the one-shot ledger backfill (renders only while candidates
+	// exist — after a clean import the section disappears).
+	if ( function_exists( 'sn_prov_backfill_render_fieldset' ) ) {
+		sn_prov_backfill_render_fieldset();
+	}
 	sn_admin_shell_rail( __( 'Provenance status', 'signal-and-noise-tools' ) );
 	sn_prov_admin_render_system_fieldset( $sys );
 	sn_prov_admin_render_genesis_fieldset( $sys );

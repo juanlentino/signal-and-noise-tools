@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.3.0] - 2026-07-28
+
+### New
+
+- **Ledger backfill: the 14 worker-anchored Notes finally exist WP-side** ([inc/provenance-chain-backfill.php](inc/provenance-chain-backfill.php)): the July worker-side backfill anchored 14 pre-existing Notes in the public ledger (all confirmed, block 958897) but never wrote their WP chain meta — so their confirm callbacks 404ed hourly (dropped since worker v1.8.2, with the sweep logs proving the 404s), their credential endpoint 404ed, and the Provenance panel counted them out. A one-shot **Import from ledger** button now appears on Tools → Provenance while candidates exist (published posts with a provenance UID and an EMPTY chain — a post with any chain is never touched). Every record is re-verified before anything is written: uid match, recomputed canonical hash equals the record's `content_hash` (the same `sn_prov_canonical_json` the dispatcher uses), OTS confirmed with a numeric block, v1 only. The imported commit reproduces the dispatcher's exact shape plus a `backfilled_at` marker; outages skip as `ledger_unreachable`, never imported as data. Fetches ride the integrity module's guarded fetcher (fixed host, `wp_safe_remote_get`).
+
+> **Why MINOR:** a new owner-facing capability (the import surface); no API change, no behavior change for chained posts.
+
 ## [10.2.7] - 2026-07-28
 
 ### Fixed
