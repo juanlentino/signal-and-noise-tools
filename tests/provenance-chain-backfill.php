@@ -152,10 +152,27 @@ bf_reset( array( 32 => 'bbbb8888-0000-4000-8000-000000000008' ) );
 $sum = sn_prov_backfill_run( 'bf_fetcher' ); // default stub answers 404
 ok( 1 === ( $sum['skipped']['ledger_missing'] ?? 0 ), '404 skips as ledger_missing (a real answer)' );
 
+echo "\nGroup: the v0-genesis gate (live miss, v10.3.1)\n";
+// Genesis seeded a v0 entry on every Note that existed at genesis time —
+// the 14 backfilled Notes have [v0]-only chains, NOT empty ones. A v0-only
+// chain still 404s confirms (no v1 entry), so it IS a candidate; the import
+// appends v1 AFTER the genesis entry, preserving v0 byte-identically.
+bf_reset( array( 51 => 'aaaa5151-0000-4000-8000-000000000051' ) );
+$v0 = array( 'version' => 0, 'status' => 'genesis', 'genesis' => true, 'content_hash' => 'leafleafleaf' );
+$GLOBALS['__meta'][51][ SN_PROV_CHAIN_META ] = array( $v0 );
+ok( array( 51 ) === sn_prov_backfill_candidates(), 'a v0-only genesis chain IS a candidate (it still lacks a v1)' );
+$rec51 = bf_record( 'aaaa5151-0000-4000-8000-000000000051' );
+$GLOBALS['__http']['notes/aaaa5151'] = array( 'code' => 200, 'body' => json_encode( $rec51 ) );
+$sum = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 1 === $sum['imported'], 'the v0-only candidate imports' );
+$chain51 = sn_prov_get_chain( 51 );
+ok( 2 === count( $chain51 ) && $chain51[0] === $v0, 'v1 appended AFTER the genesis v0, which stays byte-identical' );
+ok( 1 === $chain51[1]['version'] && $chain51[1]['parent'] === $rec51['payload']['parent'], 'the imported v1 keeps the RECORD-authoritative parent (what was actually hashed), never a recomputed one' );
+
 echo "\nGroup: idempotence\n";
 bf_reset( array( 41 => 'cccc9999-0000-4000-8000-000000000009' ) );
 $GLOBALS['__meta'][41][ SN_PROV_CHAIN_META ] = array( array( 'version' => 1, 'status' => 'confirmed' ) );
-ok( array() === sn_prov_backfill_candidates(), 'a post with ANY chain is never a candidate' );
+ok( array() === sn_prov_backfill_candidates(), 'a post with a REAL (v1+) commit is never a candidate' );
 bf_reset( array( 42 => 'dddd0000-0000-4000-8000-00000000000a' ) );
 $rec2 = bf_record( 'dddd0000-0000-4000-8000-00000000000a' );
 $GLOBALS['__http']['notes/dddd0000'] = array( 'code' => 200, 'body' => json_encode( $rec2 ) );

@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.3.1] - 2026-07-28
+
+### Fixed
+
+- **The ledger-backfill button actually appears** ([inc/provenance-chain-backfill.php](inc/provenance-chain-backfill.php)): v10.3.0 gated candidates on an EMPTY chain, but genesis seeded a v0 entry on every Note that existed at genesis time — so the 14 backfilled Notes carry [v0]-only chains, still 404 confirms (no v1 entry), and were invisible to the importer (owner-reported: no button on a fresh 10.3.0 install). Candidates are now posts whose chain has **no v1+ commit** (empty or genesis-v0-only); the import appends the verified v1 AFTER the genesis entry, preserving v0 byte-identically and keeping the record-authoritative parent.
+
+> **Why PATCH:** eligibility-gate fix for the feature shipped hours earlier; no new surface.
+
 ## [10.3.0] - 2026-07-28
 
 ### New
