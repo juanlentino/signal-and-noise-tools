@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.4.1] - 2026-07-29
+
+### Fixed
+
+- **`purge-all-caches` no longer claims "All caches purged." when its Cloudflare leg silently no-oped** ([inc/abilities-system.php](inc/abilities-system.php)): born from the 2026-07-29 resume-session incident — the CF PoP served stale CSS/HTML through multiple "successful" ability purges until a manual dashboard Purge Everything. The ability's filter dispatch never passed `verified => true`, so the theme's CF leg ran fire-and-forget `sn_cf_purge_everything()`: a silent `false` when no token/zone is configured, and a non-blocking POST whose response is never read when one is — the ability could not know whether CF purged anything, and asserted that it had. The dispatch now rides the verified path (the wp-admin "Purge All Caches" route since v8.7.0: blocking accept-confirmation + the theme's per-leg `sn_last_purge_report`), and the response carries an honest `cloudflare` verdict read back from that report: `confirmed` (CF answered `{success:true}`; `edge_fresh` surfaces the theme's post-purge route probes when present, with a stale-render warning in the message), `failed` (CF rejected the purge — `ok:false`, HTTP code in the message), `not_configured` (the purge never ran — `ok:false`, the message says why instead of claiming success), or `unconfirmed` (older theme wrote no verified report — dispatched, honestly unclaimed). A stale or auto-mode report never confirms a purge. The `count` field is unchanged — it counts template overrides cleared, which is why every incident response read `count:0` regardless of the CF leg. New fixture [tests/abilities-purge-cf-fail-loud.php](tests/abilities-purge-cf-fail-loud.php) pins all four verdicts, the verified dispatch flag, and the stale/auto-report guards; the desktop-mode Quick Actions toast keys off `ok`, so a failed CF purge now renders red with the real reason, no JS change needed.
+
+> **Why PATCH:** fix — the `ok` flag stops asserting a success it could not observe and the response gains an additive `cloudflare` field; no settings/schema migration, no removed API.
+
 ## [10.4.0] - 2026-07-29
 
 ### New

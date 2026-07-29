@@ -250,11 +250,16 @@ foreach ( $canonical as $i => $slug ) {
 // ════ Group F: canonical callbacks still work ════════════════════════
 echo "\nGroup F: replacement behavior\n";
 
+// No sn_cf_is_configured in this harness, so the v10.4.1 fail-loud contract
+// reports the CF leg as not_configured (ok=false); delegation + counts are
+// what Group F pins, and those are unchanged.
 $out = snt_ability_purge_all_caches( array( 'include_template_overrides' => true ) );
-t( true === ( $out['ok'] ?? null ) && 3 === ( $out['count'] ?? null ), 'F.1 purge-all-caches include_template_overrides=true → ok, override count (full-reset semantics)' );
+t( false === ( $out['ok'] ?? null ) && 3 === ( $out['count'] ?? null ) && 'not_configured' === ( $out['cloudflare']['status'] ?? null ),
+	'F.1 purge-all-caches include_template_overrides=true → override count + fail-loud CF verdict (full-reset semantics)' );
 t( true === ( $GLOBALS['__purge_filter_args']['template_overrides'] ?? null ), 'F.2 template_overrides=true reaches the theme filter' );
+t( true === ( $GLOBALS['__purge_filter_args']['verified'] ?? null ), 'F.2b verified=true reaches the theme filter (blocking CF leg, v10.4.1)' );
 $out = snt_ability_purge_all_caches( null );
-t( true === ( $out['ok'] ?? null ) && 0 === ( $out['count'] ?? null ), 'F.3 bare purge (null input) still works, clears no overrides' );
+t( false === ( $out['ok'] ?? null ) && 0 === ( $out['count'] ?? null ), 'F.3 bare purge (null input) still delegates, clears no overrides' );
 
 $out = snt_ability_get_audit_log( array( 'view' => 'summary' ) );
 t( 'summary' === ( $out['view'] ?? null ) && $GLOBALS['__audit_summary_fixture'] === ( $out['summary'] ?? null ), 'F.4 get-audit-log view=summary passthrough' );

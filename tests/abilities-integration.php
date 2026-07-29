@@ -811,10 +811,14 @@ echo "\nCategory: destructive ops — capability gating + idempotency\n";
 
 ap_reset_caps();
 
-// purge-all-caches: happy path (delegates through filter)
+// purge-all-caches: delegates through filter. This harness defines no
+// sn_cf_is_configured (CF module absent), so the v10.4.1 fail-loud contract
+// applies: the CF leg cannot run → ok=false + cloudflare.status=not_configured
+// (the pre-v10.4.1 blanket ok=true here was the 2026-07-29 stale-edge lie).
 $out1 = wp_get_ability( 'signal-noise/purge-all-caches' )->execute( array() );
-ap_true( is_array( $out1 ) && isset( $out1['ok'], $out1['message'], $out1['count'] ), 'purge-all-caches: required keys' );
-ap_eq( true, $out1['ok'], 'purge-all-caches: ok=true' );
+ap_true( is_array( $out1 ) && isset( $out1['ok'], $out1['message'], $out1['count'], $out1['cloudflare'] ), 'purge-all-caches: required keys' );
+ap_eq( false, $out1['ok'], 'purge-all-caches: ok=false when the CF leg cannot run (fail-loud, v10.4.1)' );
+ap_eq( 'not_configured', $out1['cloudflare']['status'], 'purge-all-caches: cloudflare.status=not_configured without the CF module' );
 ap_eq( 0, $out1['count'], 'purge-all-caches: count=0 without include_template_overrides' );
 
 // Idempotency: second call → same shape, same outcome

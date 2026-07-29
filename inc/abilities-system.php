@@ -38,7 +38,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/purge-all-caches', array(
 		'label'               => 'Purge all caches',
-		'description'         => 'Clears WordPress object cache, transients, Breeze page cache, Varnish, and Cloudflare edge cache. Use after deploys or when content appears stale.',
+		'description'         => 'Clears WordPress object cache, transients, Breeze page cache, Varnish, and Cloudflare edge cache. Use after deploys or when content appears stale. The response reports whether the Cloudflare zone purge was actually confirmed (v10.4.1); ok is false when the CF leg could not run or was rejected.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_purge_all_caches',
@@ -60,9 +60,18 @@ add_action( 'wp_abilities_api_init', function() {
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
-				'ok'      => array( 'type' => 'boolean' ),
+				'ok'      => array( 'type' => 'boolean', 'description' => 'False when the Cloudflare edge purge could not run (not configured) or was rejected by the API; origin caches are still purged in both cases (v10.4.1).' ),
 				'message' => array( 'type' => 'string' ),
 				'count'   => array( 'type' => 'integer', 'description' => 'Number of overrides cleared (0 if include_template_overrides was false).' ),
+				'cloudflare' => array(
+					'type'        => 'object',
+					'description' => 'Verdict for the CF edge leg (v10.4.1). status: confirmed = CF accepted the zone purge ({success:true}); failed = CF rejected it (see http); not_configured = no API token/zone, the purge never ran; unconfirmed = dispatched but no verified report came back (theme < 10.23.0).',
+					'properties'  => array(
+						'status'     => array( 'type' => 'string', 'enum' => array( 'confirmed', 'failed', 'not_configured', 'unconfirmed' ) ),
+						'http'       => array( 'type' => 'integer' ),
+						'edge_fresh' => array( 'type' => 'boolean', 'description' => 'Present when the theme probed routes post-purge: whether the edge served the fresh render epoch.' ),
+					),
+				),
 			),
 		),
 		'meta'                => array(
@@ -271,15 +280,97 @@ function snt_ability_purge_all_caches( $input ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Cache helper unavailable — theme module not loaded.', array( 'status' => 500 ) );
 	}
 
-	$count = (int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => $include_overrides ) );
+	// v10.4.1: verified => true routes the theme's CF leg through the BLOCKING
+	// sn_cf_purge_everything_verified() (the wp-admin "Purge All Caches" path
+	// since v8.7.0) and makes the theme write its per-leg sn_last_purge_report.
+	// Before this the ability's CF purge was fire-and-forget: unconfigured or
+	// rejected, it silently no-oped while this response still said "All caches
+	// purged." (2026-07-29 stale-edge incident).
+	$dispatched_at = time();
+	$count         = (int) apply_filters( 'sn_purge_all_caches_result', 0, array(
+		'template_overrides' => $include_overrides,
+		'verified'           => true,
+	) );
+
+	$cf = snt_purge_cf_verdict( $dispatched_at );
+	$ok = true;
+
+	switch ( $cf['status'] ) {
+		case 'confirmed':
+			$message = 'All caches purged; Cloudflare zone purge confirmed.';
+			if ( false === ( $cf['edge_fresh'] ?? null ) ) {
+				$message .= ' Warning: the post-purge probe still saw a stale render at the edge; give it a minute or purge again.';
+			}
+			break;
+		case 'failed':
+			$ok      = false;
+			$message = sprintf( 'Origin caches purged, but Cloudflare REJECTED the zone purge (HTTP %d); the edge may keep serving stale pages. Check the API token on the Cloudflare tab.', (int) $cf['http'] );
+			break;
+		case 'not_configured':
+			$ok      = false;
+			$message = 'Origin caches purged, but the Cloudflare purge could not run: no API token/zone configured (Signal & Noise, Cloudflare tab). The edge may keep serving stale pages.';
+			break;
+		default: // unconfirmed — dispatched, but no verified report to read back.
+			$message = 'Caches purged; the Cloudflare purge was dispatched but not confirmed (no verified purge report from the theme).';
+			break;
+	}
+
+	if ( $include_overrides ) {
+		$message .= sprintf( ' %d template override%s cleared.', $count, 1 === $count ? '' : 's' );
+	}
 
 	return array(
-		'ok'      => true,
-		'message' => $include_overrides
-			? sprintf( 'All caches purged; %d template override%s cleared.', $count, 1 === $count ? '' : 's' )
-			: 'All caches purged.',
-		'count'   => $count,
+		'ok'         => $ok,
+		'message'    => $message,
+		'count'      => $count,
+		'cloudflare' => $cf,
 	);
+}
+
+/**
+ * Verdict for the Cloudflare leg of a just-dispatched verified purge.
+ *
+ * Configuration is checked plugin-locally (sn_cf_is_configured, same package:
+ * inc/cloudflare-purge.php). The accept-confirmation is read back from the
+ * sn_last_purge_report option the THEME writes synchronously during the
+ * filter dispatch (theme inc/purge-verify.php, >= 10.23.0). The report is
+ * trusted only when it is fresh (written at/after this dispatch), verified-
+ * mode, and carries a cf_success leg; anything else degrades to
+ * 'unconfirmed' — never a fake success (the pre-v10.4.1 behavior this
+ * replaces was exactly that fake success).
+ *
+ * @since 10.4.1
+ * @param int $since Unix time captured immediately before the dispatch.
+ * @return array{status:string,http:int,edge_fresh?:bool} status is one of
+ *         'confirmed' | 'failed' | 'not_configured' | 'unconfirmed'.
+ */
+function snt_purge_cf_verdict( $since ) {
+	if ( ! function_exists( 'sn_cf_is_configured' ) || ! sn_cf_is_configured() ) {
+		return array( 'status' => 'not_configured', 'http' => 0 );
+	}
+
+	$report = get_option( 'sn_last_purge_report', array() );
+	$cf     = is_array( $report ) && isset( $report['legs']['cf'] ) && is_array( $report['legs']['cf'] )
+		? $report['legs']['cf']
+		: array();
+
+	$confirmable = is_array( $report )
+		&& (int) ( $report['time'] ?? 0 ) >= (int) $since
+		&& 'verified' === ( $report['mode'] ?? '' )
+		&& array_key_exists( 'cf_success', $cf );
+
+	if ( ! $confirmable ) {
+		return array( 'status' => 'unconfirmed', 'http' => 0 );
+	}
+
+	$out = array(
+		'status' => ! empty( $cf['cf_success'] ) ? 'confirmed' : 'failed',
+		'http'   => (int) ( $cf['http'] ?? 0 ),
+	);
+	if ( is_array( $report ) && array_key_exists( 'resolved', $report ) ) {
+		$out['edge_fresh'] = ! empty( $report['resolved'] );
+	}
+	return $out;
 }
 
 /**
