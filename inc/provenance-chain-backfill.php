@@ -17,8 +17,10 @@
  *   - the recomputed canonical hash equals the record's content_hash (the
  *     SAME sn_prov_canonical_json + sn_prov_content_hash the dispatcher uses);
  *   - the OTS status is `confirmed` with a numeric bitcoin_block;
- *   - the payload version is 1 and the post's chain is EMPTY (idempotent: a
- *     second run finds no candidates).
+ *   - the payload version is 1 and the post's chain carries NO v1+ commit
+ *     (v10.3.1: genesis seeded a v0 entry on every Note that existed at
+ *     genesis time, so the backfilled chains are [v0]-only, not empty — the
+ *     import appends v1 AFTER the genesis entry; idempotent either way).
  *
  * The fetch layer is the integrity module's guarded fetcher (fixed known
  * host, wp_safe_remote_get, bounded timeout). An unreachable ledger skips
@@ -36,10 +38,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_PROV_BACKFILL_CAP = 25;
 
 /**
+ * True when the chain already carries a REAL commit (version >= 1). A
+ * genesis-only [v0] chain does not count: v0 is the site-wide baseline
+ * genesis persisted onto every then-existing Note, and a chain without a v1
+ * is exactly the state that 404s confirm callbacks and credentials.
+ *
+ * @param array $chain sn_prov_get_chain() result.
+ * @return bool
+ */
+function sn_prov_backfill_chain_has_real_commit( $chain ) {
+	foreach ( (array) $chain as $entry ) {
+		if ( (int) ( $entry['version'] ?? 0 ) >= 1 ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Post IDs eligible for import: published posts carrying the provenance UID
- * meta whose chain meta is EMPTY. A post with ANY chain entries is never
- * touched — this module only fills the backfilled-Note gap, it never merges
- * into a live chain.
+ * meta whose chain has NO v1+ commit (empty, or genesis-v0-only). A post
+ * with any real commit is never touched — this module only fills the
+ * backfilled-Note gap, it never merges into a live chain.
  *
  * @return int[] Post IDs, capped.
  */
@@ -56,7 +76,7 @@ function sn_prov_backfill_candidates() {
 		if ( count( $out ) >= SN_PROV_BACKFILL_CAP ) {
 			break;
 		}
-		if ( array() === sn_prov_get_chain( (int) $id ) ) {
+		if ( ! sn_prov_backfill_chain_has_real_commit( sn_prov_get_chain( (int) $id ) ) ) {
 			$out[] = (int) $id;
 		}
 	}
@@ -151,9 +171,9 @@ function sn_prov_backfill_run( $fetcher = null ) {
 			$bump( (string) $built['reason'] );
 			continue;
 		}
-		// Re-check emptiness at write time: candidates were computed before the
-		// fetches, and this module never merges into a live chain.
-		if ( array() !== sn_prov_get_chain( $post_id ) ) {
+		// Re-check at write time: candidates were computed before the fetches,
+		// and this module never writes beside an existing real commit.
+		if ( sn_prov_backfill_chain_has_real_commit( sn_prov_get_chain( $post_id ) ) ) {
 			$bump( 'chain_no_longer_empty' );
 			continue;
 		}
