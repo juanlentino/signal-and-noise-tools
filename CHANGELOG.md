@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.4.0] - 2026-07-29
+
+### New
+
+- **15th health check: the public ledger's own CI** ([inc/health-check-ledger-ci.php](inc/health-check-ledger-ci.php)): born from a live incident — the provenance ledger's daily verification ran red for three days (Jul 25-28) while index rows and a dead verifier fallback drifted, because workflow failures live where nobody looks. The check reads the ledger repo's latest completed `verify.yml` run from the public GitHub API (fixed URL, no auth, self-identifying UA) and raises the standing Health attention chip when it is not green, linking straight to the failing run. An unreachable API is an advisory with zero findings — an outage is a gap in evidence, never evidence of a red ledger (the rights-drift check's own convention); cancelled and timed-out runs count as red, never silently green.
+
+> **Why MINOR:** a new health check surface; no API change.
+
 ## [10.3.1] - 2026-07-28
 
 ### Fixed
