@@ -300,7 +300,7 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 #### Template + Cache Maintenance
 - `signal-noise/list-template-overrides` | `manage_options` — Inspect DB template overrides
 - `signal-noise/clear-template-overrides` | **⛔ EXCLUDED** — Delete template overrides (Site Editor regression risk)
-- `signal-noise/purge-all-caches` | `manage_options` — Object cache + Breeze + Varnish + CF purge
+- `signal-noise/purge-all-caches` | `manage_options` — Object cache + Breeze + Varnish + CF purge (v10.4.1: CF leg runs verified/blocking; response carries a `cloudflare` verdict and `ok:false` when the CF purge could not run or was rejected)
 
 #### Content Scans (2 abilities)
 - `signal-noise/run-audit-prune` | `manage_options` — Drop old audit counters (destructive)
