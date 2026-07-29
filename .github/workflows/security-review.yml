@@ -8,6 +8,7 @@ jobs:
     # is empty), so this review can't run there — skip the bot's own PRs.
     if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       pull-requests: write
       contents: read
