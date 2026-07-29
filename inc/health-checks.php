@@ -122,6 +122,10 @@ function sn_health_run_scan() {
 			// the robots.txt Content-Signal + License lines, TDM headers on HTML
 			// and /wp-json); a failure raises the standing attention chip.
 			'rights_signals'       => snt_health_check_rights_signals(),
+			// 15th check (v10.4.0): the public ledger's own CI. Its daily verify
+			// ran red for three unseen days (2026-07-25..28) — workflow failures
+			// live where nobody looks; this surfaces them on the attention chip.
+			'ledger_ci'            => snt_health_check_ledger_ci(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -165,6 +169,8 @@ require_once __DIR__ . '/health-check-cf-security-headers.php';
 // v9.85.0 (Session 3 lane 3): the rights-signals drift probe, same pattern as
 // the cf-security-headers module above.
 require_once __DIR__ . '/health-check-rights-signals.php';
+// v10.4.0: the public ledger CI status probe (GitHub runs API, no auth).
+require_once __DIR__ . '/health-check-ledger-ci.php';
 
 /**
  * Common per-check result envelope used by 2-4.
