@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.13.0] - 2026-07-30
+
+### New
+
+- **[sn_colophon] — the colophon moves from theme template to CMS** ([inc/colophon-page.php](inc/colophon-page.php)): the /colophon/ content previously lived hard-coded in the theme's FSE template (rendering full while its post body read empty — the contentless-template-page class). Owner decision: CMS-own it via shortcode so the theme stays frozen and future edits are page edits or plugin releases. Content parity with the published page (platform, type, buildless stance, hosting, tooling, the AI-assistance credit) plus one new line closing the loop to the maturity index — resolved from the page itself per the never-hardcode-paths rule, rendering as plain text when unresolvable, never a dead link. Live version footer (theme via wp_get_theme, plugin via SNT_VERSION) keeps parity with what the old template already published. Items behind the `sn_colophon_items` filter; everything escaped at build (filtered items included — pinned); no stylesheet, semantic markup inherits the theme typography. New fixture [tests/colophon-page.php](tests/colophon-page.php) (15 asserts).
+
+> **Why MINOR:** a new user-visible shortcode; no API change; theme untouched.
+
 ## [10.12.0] - 2026-07-30
 
 ### New
