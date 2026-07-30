@@ -90,6 +90,18 @@ if ( ! function_exists( 'get_posts' ) ) {
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) { return $GLOBALS['__posts'][ (int) $id ] ?? null; } // Core: null for unknown.
 }
+if ( ! function_exists( 'get_permalink' ) ) {
+	// Core resolves the REAL permalink from rewrite rules; the fixture models
+	// only its contract surface used here: string URL for a known post, false
+	// for an unknown one (core's shape). NOTE: the impl's call site only
+	// reaches posts already validated by get_post(), so the false branch is
+	// structurally unreachable there — the impl's (string) cast is defensive
+	// PHP semantics, asserted nowhere because no input can drive it.
+	function get_permalink( $id ) {
+		$p = $GLOBALS['__posts'][ (int) $id ] ?? null;
+		return $p ? 'https://example.test/notes/' . $p->post_name . '/' : false;
+	}
+}
 if ( ! function_exists( 'get_post_status' ) ) {
 	function get_post_status( $id ) {
 		$p = $GLOBALS['__posts'][ (int) $id ] ?? null;
@@ -334,7 +346,8 @@ $GLOBALS['__meta'][201][ SNT_ML_RELATED_META ]  = array(
 $lc = snt_ml_link_candidates( 201 );
 ok( is_array( $lc ) && true === $lc['ok'] && 201 === $lc['post_id'] && 5 === $lc['limit'], 'link scan returns ok envelope with the default limit 5' );
 ok( 2 === $lc['count'] && 2 === count( $lc['candidates'] ), 'exactly the two publishable, not-yet-linked targets survive' );
-ok( array( 'post_id', 'title', 'slug', 'score' ) === array_keys( $lc['candidates'][0] ), 'candidate carries exactly post_id/title/slug/score' );
+ok( array( 'post_id', 'title', 'slug', 'url', 'score' ) === array_keys( $lc['candidates'][0] ), 'candidate carries exactly post_id/title/slug/url/score (v10.19.0: + url — the UI must never derive a path from the slug)' );
+ok( 'https://example.test/notes/fresh-target/' === $lc['candidates'][0]['url'], 'url is the resolved permalink, not a hand-built path' );
 ok( 204 === $lc['candidates'][0]['post_id'] && 'Fresh' === $lc['candidates'][0]['title'] && 'fresh-target' === $lc['candidates'][0]['slug'] && 0.7 === $lc['candidates'][0]['score'],
 	'top candidate is the 0.9-outranked fresh target — exclusions open slots, never shorten the answer' );
 ok( 205 === $lc['candidates'][1]['post_id'] && 0.6 === $lc['candidates'][1]['score'], 'second candidate follows score-descending' );
