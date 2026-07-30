@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.20.1] - 2026-07-30
+
+### Changed
+
+- **ML maturity scope: `Ranked search` flips planned → live** ([inc/ml-maturity-page.php](inc/ml-maturity-page.php)): theme v11.2.0 shipped the ⌘K ranked palette (all-notes client-side ranking, vanilla arithmetic — the no-model-in-the-reader's-browser `never` holds), and the maturity convention flips badges in the same release as the feature. Scope now 5 live / 2 planned / 3 never; pins updated in [tests/ml-maturity-page.php](tests/ml-maturity-page.php).
+
+> **Why PATCH:** a status-map calibration tracking a feature that shipped in the THEME repo; no plugin behavior change.
+
 ## [10.20.0] - 2026-07-30
 
 ### New

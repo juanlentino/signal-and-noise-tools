@@ -72,8 +72,8 @@ ok( 3 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--never' ), 'exa
 ok( false !== strpos( $scope_html, 'Provenance verdicts' ), 'never #1 present by name: provenance verdicts' );
 ok( false !== strpos( $scope_html, 'Reader profiling' ), 'never #2 present by name: reader profiling' );
 ok( false !== strpos( $scope_html, 'reader&#039;s browser' ) || false !== strpos( $scope_html, 'reader\'s browser' ), "never #3 present by name: models in the reader's browser" );
-ok( 4 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'four live consumers: related, cousins, keywords, links' );
-ok( 3 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--planned' ), 'three planned: analytics joins, ops cadence, ranked search' );
+ok( 5 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'five live consumers: related, cousins, keywords, links, ranked search (theme v11.2.0)' );
+ok( 2 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--planned' ), 'two planned: analytics joins, ops cadence' );
 
 echo "\nGroup: scope filter seam\n";
 add_filter( 'sn_ml_maturity_scope', function ( $scope ) {
