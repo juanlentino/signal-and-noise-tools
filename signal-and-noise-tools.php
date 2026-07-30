@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.8.0
+ * Version:     10.9.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -192,6 +192,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-resources.php'; // v9.50.0: resources/list 
 require_once SNT_PATH . 'inc/mcp/mcp-prompts.php';   // v9.50.0: prompts/list + prompts/get (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-rw-guard.php'; // v9.51.0: rw-door credential split + kill switch (lane SEC-A) — before mcp-endpoint.php, which calls it.
+require_once SNT_PATH . 'inc/mcp/mcp-read-guard.php'; // v10.9.0: read-door kill switch (isolated from the rw guard by design) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 

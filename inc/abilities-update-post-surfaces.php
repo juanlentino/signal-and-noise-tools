@@ -29,6 +29,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v10.9.0 hardening: per-post write throttle (the rw door rate-limits per
+// credential; this bounds churn on a single TARGET) and impl-level length
+// caps mirroring the input_schema — the schema validates the wire path, but
+// the impl must hold on its own for any caller that reaches it directly.
+const SNT_SURFACES_THROTTLE_MAX    = 5;    // successful writes per post…
+const SNT_SURFACES_THROTTLE_WINDOW = 600;  // …per rolling 10-minute window.
+const SNT_SURFACES_FIELD_CAPS      = array(
+	'excerpt'          => 1000,
+	'meta_description' => 300,
+	'og_card_title'    => 150,
+	'seo_title'        => 150,
+	'focus_keyword'    => 80,
+);
+
 add_action( 'wp_abilities_api_init', function() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -114,6 +128,48 @@ function snt_ability_update_post_surfaces( $input ) {
 		);
 	}
 
+	// Impl-level length caps (v10.9.0) — REJECT, never truncate: this is
+	// reviewed text, and silently altering it would defeat the review.
+	$fields = array(
+		'excerpt'          => $excerpt,
+		'meta_description' => $meta_desc,
+		'og_card_title'    => $og_title,
+		'seo_title'        => $seo_title,
+		'focus_keyword'    => $focus_kw,
+	);
+	foreach ( $fields as $field => $value ) {
+		if ( null !== $value && mb_strlen( $value ) > SNT_SURFACES_FIELD_CAPS[ $field ] ) {
+			return new WP_Error(
+				'snt_surfaces_too_long',
+				sprintf(
+					/* translators: 1: field name, 2: maximum length. */
+					__( 'Field "%1$s" exceeds its %2$d-character cap. Nothing was written.', 'signal-and-noise-tools' ),
+					$field,
+					SNT_SURFACES_FIELD_CAPS[ $field ]
+				),
+				array( 'status' => 422 )
+			);
+		}
+	}
+
+	// Per-post throttle (v10.9.0) — counts SUCCESSFUL writes only (a rejected
+	// call must not consume quota); the window slides forward on each write.
+	$throttle_key = 'snt_surfaces_writes_' . $post_id;
+	$write_count  = (int) get_transient( $throttle_key );
+	$write_cap    = (int) apply_filters( 'snt_surfaces_per_post_write_cap', SNT_SURFACES_THROTTLE_MAX, $post_id );
+	if ( $write_count >= $write_cap ) {
+		return new WP_Error(
+			'snt_surfaces_throttled',
+			sprintf(
+				/* translators: 1: writes allowed, 2: window in minutes. */
+				__( 'This post has reached its surface-write limit (%1$d writes per %2$d minutes). Nothing was written; retry after the window.', 'signal-and-noise-tools' ),
+				$write_cap,
+				(int) ( SNT_SURFACES_THROTTLE_WINDOW / 60 )
+			),
+			array( 'status' => 429 )
+		);
+	}
+
 	$updated          = array();
 	$card_regenerated = false;
 
@@ -158,6 +214,8 @@ function snt_ability_update_post_surfaces( $input ) {
 		update_post_meta( $post_id, '_sn_focus_keyword', $focus_kw );
 		$updated[] = 'focus_keyword';
 	}
+
+	set_transient( $throttle_key, $write_count + 1, SNT_SURFACES_THROTTLE_WINDOW );
 
 	return array(
 		'ok'               => true,

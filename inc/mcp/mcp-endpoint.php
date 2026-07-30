@@ -155,13 +155,18 @@ function sn_mcp_rw_rest_callback( $request ) {
  * Register the read-door MCP route on the shared plugin namespace.
  */
 function sn_mcp_register_route() {
+	// v10.9.0: the callback is now the layered read guard (kill switch →
+	// the byte-identical sn_mcp_permission() floor). The v9.51.0 freeze's
+	// real invariant — the read path never calls mcp-rw-guard.php — holds;
+	// see inc/mcp/mcp-read-guard.php and the amended pin in
+	// tests/mcp-endpoint.php.
 	register_rest_route(
 		sn_mcp_namespace(),
 		'/mcp',
 		array(
 			'methods'             => 'POST',
 			'callback'            => 'sn_mcp_rest_callback',
-			'permission_callback' => 'sn_mcp_permission',
+			'permission_callback' => 'sn_mcp_read_permission',
 		)
 	);
 }
