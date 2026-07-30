@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.10.0] - 2026-07-30
+
+### New
+
+- **The AI-maturity explainer: [sn_ai_maturity]** ([inc/ai-maturity-page.php](inc/ai-maturity-page.php)): the third maturity sibling, completing the public trust triptych — measurement ([sn_analytics_maturity]), integrity ([sn_provenance_maturity]), and now production: how AI participates in making the site and where it stops. Six-layer walk (spec → generate → check → review → mark → bound: the written voice spec, generators whose prompts carry it, the mechanical drift check, verbatim human review with reject-never-truncate, the unreviewed sentinel as a recorded state, and agent access through two isolated allowlisted doors), eight honesty principles ("AI drafts the surfaces around the work, never the work itself"; "no agent credential can disable its own leash"), and a coverage map whose status whitelist gains **`never`** — the one deliberate divergence from the siblings, because "Note bodies — never" is a commitment, not a roadmap gap (double-frame badge; the `sn_ai_maturity_scope` filter remains the expansion seam for live|planned). Same idioms throughout: whitelisted `format` attribute (full | table | principles | scope | compact), render-time-only stylesheet ([assets/ai-maturity-front.css](assets/ai-maturity-front.css)), static content, everything escaped at build, returns never echoes. **Security contract, test-enforced** ([tests/ai-maturity-page.php](tests/ai-maturity-page.php), 19 asserts): the page describes the MODEL, never the LEVERS — the fixture renders every format and asserts the absence of option names, wp-config constants, endpoint paths, tool slugs, meta keys, throttle numbers, and internal prefixes, so a future copy edit that leaks an operational lever reds CI. Kill-switch *existence* is published (deterrent); its levers are not.
+
+> **Why MINOR:** a new user-visible capability (the public explainer shortcode); no API change.
+
 ## [10.9.0] - 2026-07-30
 
 ### Security
