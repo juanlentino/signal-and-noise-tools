@@ -110,6 +110,12 @@ ok( $vec['rare'] > $vec['common'], '(c) rarer term (higher idf × tf 2) outweigh
 ok( array() === snt_ml_tfidf_vector( array(), $stats ), '(c) no tokens → empty vector (not a zero-filled vocab)' );
 $oov = snt_ml_tfidf_vector( array( 'unseen' ), $stats );
 ok( isset( $oov['unseen'] ) && feq( $oov['unseen'], 1.0 ), '(c) out-of-corpus term gets the df=0 smoothed idf and still normalizes to 1.0' );
+// Mutation-survivor fix (PR #410 review): a single-term vector normalizes to
+// 1.0 under ANY positive idf, so the assert above cannot pin the df=0
+// smoothing itself. A two-term vector can: the weight RATIO must equal
+// idf_oov/idf_common = (log(N+1)+1)/1.0 = log(4)+1 exactly.
+$two = snt_ml_tfidf_vector( array( 'common', 'unseen' ), $stats );
+ok( feq( $two['unseen'] / $two['common'], log( 4 ) + 1.0 ), '(c) OOV/in-corpus weight ratio pins the df=0 smoothed idf (log(N+1)+1)' );
 
 echo "\nGroup (d): cosine — identity, orthogonal, empty\n";
 ok( feq( snt_ml_cosine( $vec, $vec ), 1.0 ), '(d) identity: cos(v, v) ≈ 1.0' );
@@ -131,6 +137,12 @@ $bm_stats = snt_ml_corpus_stats( $bm_docs );
 $q        = array( 'espresso', 'crema' );
 ok( snt_ml_bm25_score( $q, $bm_docs['on'], $bm_stats ) > snt_ml_bm25_score( $q, $bm_docs['off'], $bm_stats ),
 	'(e) on-topic doc outranks the off-topic one' );
+// Mutation-survivor fix (PR #410 review): orderings alone let a per-term
+// constant scale (e.g. dropping the (k1+1) numerator) survive. This constant
+// was independently recomputed from the textbook Okapi formula (review's
+// Python derivation matches to 10dp) — it pins the exact formula, not the
+// implementation's echo.
+ok( feq( snt_ml_bm25_score( $q, $bm_docs['on'], $bm_stats ), 4.4723657671 ), '(e) exact-value pin: bm25(on-topic) === 4.4723657671 (independently derived)' );
 ok( 0.0 === snt_ml_bm25_score( $q, $bm_docs['off'], $bm_stats ), '(e) zero term overlap scores exactly 0.0' );
 // Length normalization: identical tf (apple ×2) — the shorter doc must win.
 $s_short = snt_ml_bm25_score( array( 'apple' ), $bm_docs['short'], $bm_stats );
@@ -178,6 +190,12 @@ $kernel_src = file_get_contents( __DIR__ . '/../inc/ml-kernel.php' );
 foreach ( array( 'apply_filters', 'get_posts', 'get_option', 'add_filter', 'add_action', 'do_action', 'get_transient', 'wp_cache' ) as $wp_fn ) {
 	ok( false === strpos( $kernel_src, $wp_fn ), "(h) kernel file text contains no '$wp_fn'" );
 }
+// PR #410 review: the name list above whitelists only 8 functions — a future
+// wp_json_encode()/esc_html() slip would pass it. Pin the whole wp_* CALL
+// namespace instead (the 'wp:' block-comment literal in the tokenizer's
+// docblock/regex is not a call and must not trip this).
+ok( 0 === preg_match( '/\bwp_\w+\s*\(/', $kernel_src ), '(h) no wp_*() call of ANY name in the kernel file' );
+ok( 0 === preg_match( '/\besc_\w+\s*\(/', $kernel_src ), '(h) no esc_*() call either — the kernel returns data, renderers escape' );
 
 echo "\nGroup (i): pipeline registry — shipped map, unknown slug, filter seam\n";
 $map = snt_ml_pipelines();

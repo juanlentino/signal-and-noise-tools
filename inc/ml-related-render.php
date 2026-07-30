@@ -49,6 +49,13 @@ if ( ! function_exists( 'snt_ml_related_render' ) ) {
 		if ( ! is_singular( 'post' ) || ! in_the_loop() || ! is_main_query() ) {
 			return $content;
 		}
+		// PR #410 review advisory: core wp_trim_excerpt() applies the_content,
+		// so a third-party auto-excerpt generated inside the singular main
+		// loop would pass all three guards above and leak the aside's text
+		// into the excerpt. No such caller exists today; this closes the door.
+		if ( function_exists( 'doing_filter' ) && doing_filter( 'get_the_excerpt' ) ) {
+			return $content;
+		}
 		$post_id = (int) get_the_ID();
 		if ( $post_id <= 0 || ! function_exists( 'snt_ml_related_for_post' ) ) {
 			return $content;
