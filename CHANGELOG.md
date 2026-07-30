@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.9.0] - 2026-07-30
+
+### Security
+
+The three residual hardening items from the v10.8.0 posture review, owner-approved as a batch:
+
+- **Read-door kill switch** ([inc/mcp/mcp-read-guard.php](inc/mcp/mcp-read-guard.php)): the rw door has had one since v9.51.0; the read door now gets its mirror — `SN_MCP_READ_DISABLED` wp-config constant (bulletproof, wins unconditionally) over the `sn_mcp_read_enabled` option (UI-reachable, fail-open-on-absence, same reasoning as rw). One flip darkens corpus visibility (draft/scheduled bodies, operational reads) without deauthing the app password or touching the rw door. The v9.51.0 BYTE-FROZEN pin on the read route is **deliberately amended**: the route's callback is now the layered `sn_mcp_read_permission()` (kill switch first, so tools/list can never leak while dark), whose floor is still the byte-identical `sn_mcp_permission()` — and the freeze's real invariant holds: the read path never calls `mcp-rw-guard.php`, in either direction, proven both ways in [tests/mcp-endpoint.php](tests/mcp-endpoint.php).
+- **Per-post write throttle on `update-post-surfaces`** ([inc/abilities-update-post-surfaces.php](inc/abilities-update-post-surfaces.php)): the rw door rate-limits per credential; this bounds churn on a single *target* — 5 successful writes per post per rolling 10-minute window (filterable via `snt_surfaces_per_post_write_cap`), 429-shaped rejection naming the window, rejected calls consume no quota. The full-catalog rollout shape (one write per post) is untouched.
+- **Impl-level length caps, reject-never-truncate**: the schema caps validate the wire path; the impl now enforces the same five caps itself (excerpt 1000 / meta 300 / OG 150 / SEO title 150 / keyword 80) with a 422 naming the offending field — silently truncating reviewed text would defeat the review, so nothing is ever altered or partially written.
+
+Fixture grows 26 → 34 asserts (throttle window, per-post isolation, no-quota-on-rejection, both cap rejections); [tests/mcp-endpoint.php](tests/mcp-endpoint.php) 36 → 45 (kill-switch truth table, fail-open-on-absence, pre-floor denial shape, two-way door isolation).
+
+> **Why MINOR:** new user-visible security controls (the read kill switch and its option/constant); throttle + impl caps enforce documented contracts more strictly, no API removed.
+
 ## [10.8.0] - 2026-07-30
 
 ### New

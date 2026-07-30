@@ -69,6 +69,16 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'sn_generate_og_card' ) ) {
 	function sn_generate_og_card( $id ) { $GLOBALS['__card_calls'][] = (int) $id; return true; }
 }
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $h, $v ) { return $v; }
+}
 // Corpus gates (SNT_CORPUS_STATUSES + snt_corpus_post_type_allowed) come from
 // the real corpus-inspect.php — the target contract is genuinely shared.
 if ( ! function_exists( 'post_type_exists' ) ) {
@@ -154,6 +164,28 @@ $r = snt_ability_update_post_surfaces( array( 'post_id' => 10, 'excerpt' => 'x',
 ok( is_wp_error( $r ) && 'db_update_error' === $r->get_error_code(), 'wp_update_post failure surfaces as the WP_Error, not swallowed' );
 ok( $GLOBALS['__meta'][10] === $before_meta, 'a failed excerpt write aborts before any meta writes land' );
 $GLOBALS['__wp_update_post_fail'] = false;
+
+// ── Impl-level length caps (v10.9.0): reject, never truncate ─────────
+$before_count = (int) ( $GLOBALS['__transients']['snt_surfaces_writes_12'] ?? 0 );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 12, 'excerpt' => str_repeat( 'x', 1001 ) ) );
+ok( is_wp_error( $r ) && 'snt_surfaces_too_long' === $r->get_error_code(), 'over-cap excerpt → 422 rejection, never silent truncation' );
+ok( false !== strpos( $r->message, 'excerpt' ), 'over-cap error names the offending field' );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 12, 'focus_keyword' => str_repeat( 'k', 81 ) ) );
+ok( is_wp_error( $r ) && 'snt_surfaces_too_long' === $r->get_error_code(), '81-char focus keyword → rejected at the impl even without schema validation' );
+ok( ( $GLOBALS['__transients']['snt_surfaces_writes_12'] ?? 0 ) === $before_count, 'rejected writes consume NO throttle quota' );
+
+// ── Per-post throttle (v10.9.0): 5 successful writes per window ──────
+$GLOBALS['__transients'] = array();
+for ( $i = 1; $i <= 5; $i++ ) {
+	$r = snt_ability_update_post_surfaces( array( 'post_id' => 12, 'meta_description' => "write $i" ) );
+	if ( ! is_array( $r ) || true !== ( $r['ok'] ?? false ) ) { ok( false, "throttle: write $i within the cap succeeds" ); }
+}
+ok( 5 === (int) ( $GLOBALS['__transients']['snt_surfaces_writes_12'] ?? 0 ), 'five successful writes counted in the per-post window' );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 12, 'meta_description' => 'write 6' ) );
+ok( is_wp_error( $r ) && 'snt_surfaces_throttled' === $r->get_error_code(), 'sixth write inside the window → 429 throttled' );
+ok( ( $r->data['status'] ?? 0 ) === 429, 'throttle rejection carries HTTP 429' );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 10, 'meta_description' => 'other post' ) );
+ok( is_array( $r ) && true === $r['ok'], 'the throttle is PER POST — a different post still writes' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

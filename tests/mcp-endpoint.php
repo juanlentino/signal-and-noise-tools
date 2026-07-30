@@ -52,6 +52,7 @@ require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
 require __DIR__ . '/../inc/mcp/mcp-server.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
+require __DIR__ . '/../inc/mcp/mcp-read-guard.php'; // v10.9.0: read kill switch
 require __DIR__ . '/../inc/mcp/mcp-endpoint.php';
 
 $pass = 0; $fail = 0;
@@ -107,10 +108,11 @@ ok( null !== $read_route, 'the read route (/mcp) is registered' );
 ok( null !== $rw_route, 'the new rw route (/mcp-rw) is registered' );
 ok( $rw_route['namespace'] === $read_route['namespace'], 'the rw route shares the same REST namespace as the read route' );
 ok( 'POST' === ( $rw_route['args']['methods'] ?? '' ), 'the rw route is POST, same as the read route' );
-// v9.51.0 (lane SEC-A): the routes no longer share a permission_callback — the
-// read floor is BYTE-FROZEN (still the literal 'sn_mcp_permission' string,
-// unchanged), while the rw floor is hardened with its own callback.
-ok( ( $read_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_permission', 'READ-DOOR-FROZEN: the read route\'s permission_callback is still the literal sn_mcp_permission string' );
+// v9.51.0 froze the read route on the literal 'sn_mcp_permission'; v10.9.0
+// AMENDS that pin deliberately (owner-requested read kill switch): the route
+// now uses the layered sn_mcp_read_permission(), whose floor is still the
+// byte-identical sn_mcp_permission() and which never calls mcp-rw-guard.php.
+ok( ( $read_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_read_permission', 'v10.9.0: the read route uses the layered read guard (kill switch → the unchanged sn_mcp_permission floor)' );
 ok( ( $rw_route['args']['permission_callback'] ?? '' ) === 'sn_mcp_rw_permission', 'v9.51.0: the rw route now uses its OWN hardened permission_callback, sn_mcp_rw_permission' );
 ok( ( $rw_route['args']['permission_callback'] ?? '' ) !== ( $read_route['args']['permission_callback'] ?? '' ),
 	'the two doors no longer share a permission_callback (the credential-split finding: a leaked read credential used to be exactly as dangerous as a write one)' );
@@ -206,6 +208,41 @@ ok( $out['status'] === 200 && isset( $out['payload']['result'] ), 'read-door fro
 
 $GLOBALS['__cap'] = false;
 ok( sn_mcp_permission() === false, 'read-door frozen: a non-admin still fails read-door permission regardless of rw-guard state' );
+sn_test_reset_rw_guard_state();
+
+// ============================================================
+// v10.9.0: read-door kill switch (mcp-read-guard.php)
+// ============================================================
+echo "\nRead-door kill switch (v10.9.0)\n\n";
+
+// Pure predicate truth table (mirror of the rw switch's semantics).
+ok( true === sn_mcp_read_kill_switch_decision( true, true ), 'constant disabled wins even when the option says enabled' );
+ok( true === sn_mcp_read_kill_switch_decision( false, false ), 'option off → disabled' );
+ok( false === sn_mcp_read_kill_switch_decision( false, true ), 'constant unset + option on → enabled' );
+
+$GLOBALS['__cap'] = true;
+unset( $GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] );
+ok( sn_mcp_read_permission() === true, 'absent option (owner never touched it) → read door open for an admin (fail-open-on-absence, same as rw)' );
+
+update_option( SN_MCP_READ_ENABLED_OPTION, false ); // read kill switch ON
+$deny = sn_mcp_read_permission();
+ok( $deny instanceof WP_Error && 'sn_mcp_read_disabled' === $deny->get_error_code(), 'engaged switch → WP_Error sn_mcp_read_disabled BEFORE the manage_options floor (tools/list can never leak while dark)' );
+
+// Door isolation, both directions: the read switch never touches the rw door…
+sn_test_reset_rw_guard_state();
+update_option( 'sn_mcp_rw_enabled', true );
+update_option( 'sn_mcp_rw_app_password_uuid', $uuid );
+$GLOBALS['__app_pw_uuid'] = $uuid;
+ok( sn_mcp_rw_permission() === true, 'read kill switch engaged does NOT close the rw door (guards are isolated by design)' );
+// …and the rw switch never touches the read door (re-proving the v9.51.0
+// frozen-proof under the NEW layered callback).
+update_option( SN_MCP_READ_ENABLED_OPTION, true );
+update_option( 'sn_mcp_rw_enabled', false ); // rw kill switch ON
+ok( sn_mcp_read_permission() === true, 'rw kill switch engaged does NOT close the read door (the layered callback preserves the frozen-proof)' );
+
+$GLOBALS['__cap'] = false;
+ok( sn_mcp_read_permission() === false, 'switch off + non-admin → the same plain false shape as the pre-v10.9.0 floor' );
+unset( $GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] );
 sn_test_reset_rw_guard_state();
 
 echo "\nResult: $pass passed, $fail failed.\n";
