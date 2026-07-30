@@ -208,6 +208,21 @@ ok( ! in_array( 'ledger of', $kw_terms, true ) && ! in_array( 'of music', $kw_te
 ok( ! in_array( 'ledger music', $kw_terms, true ),
 	'no bridging: dropping the stopword does not fabricate a "ledger music" phrase that never appears in the text' );
 
+// PR #412 review (MEDIUM, fixed): sentence/tag/comma boundaries must break
+// adjacency too — the reviewer's exact probe. Before the fix this body
+// yielded the fabricated bigrams 'here provenance', 'begins ledger', and
+// 'ledger music'; the real phrase 'music follows' must still qualify.
+$GLOBALS['__posts'][107] = tf_post( 107, 'publish', '<p>It ends here. Provenance begins.</p><h2>Ledger</h2><p>Music follows music follows.</p>' );
+$probe   = snt_ml_keyword_candidates( 107, 20 );
+$p_terms = terms_of( $probe );
+ok( ! in_array( 'here provenance', $p_terms, true )
+	&& ! in_array( 'begins ledger', $p_terms, true )
+	&& ! in_array( 'ledger music', $p_terms, true ),
+	'boundary probe: no bigram is fabricated across sentence-final punctuation or a tag boundary' );
+ok( in_array( 'music follows', $p_terms, true ),
+	'boundary probe: a genuinely adjacent in-sentence pair still forms its bigram' );
+unset( $GLOBALS['__posts'][107] );
+
 // ─── Limit clamps (observable via the envelope echo + count) ─────────
 $kw2 = snt_ml_keyword_candidates( 101, 2 );
 ok( 2 === $kw2['limit'] && 2 === $kw2['count'] && array( 'music provenance', 'provenance ledger' ) === terms_of( $kw2 ),

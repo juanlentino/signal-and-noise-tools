@@ -125,11 +125,17 @@ if ( ! function_exists( 'snt_ml_keyword_candidates' ) ) {
 		$weights = $vector; // term => weight; bigram keys carry a space so they never collide.
 
 		// Bigrams from the raw word stream — the same strip/lower/split steps
-		// snt_ml_tokenize applies BEFORE its survival filter, kept in lockstep.
+		// snt_ml_tokenize applies BEFORE its survival filter, kept in lockstep,
+		// PLUS adjacency breaks (PR #412 review): a bigram must be a phrase
+		// that literally appears, so tags and sentence-final punctuation
+		// become a break sentinel BEFORE the split — otherwise the last word
+		// of one sentence/heading and the first of the next read as adjacent
+		// ("…begins. Ledger…" must never yield "begins ledger").
 		$raw = preg_replace( '/<!--.*?-->/s', ' ', $content );
-		$raw = preg_replace( '/<[^>]*>/', ' ', (string) $raw );
+		$raw = preg_replace( '/<[^>]*>/', ' ¶ ', (string) $raw );
+		$raw = preg_replace( '/[.!?;:,]+/u', ' ¶ ', (string) $raw );
 		$raw = mb_strtolower( (string) $raw, 'UTF-8' );
-		$parts = preg_split( '/[^\p{L}\p{N}]+/u', $raw, -1, PREG_SPLIT_NO_EMPTY );
+		$parts = preg_split( '/[^\p{L}\p{N}¶]+/u', $raw, -1, PREG_SPLIT_NO_EMPTY );
 		$parts = is_array( $parts ) ? $parts : array();
 
 		$stop     = snt_ml_stopwords();
@@ -140,6 +146,9 @@ if ( ! function_exists( 'snt_ml_keyword_candidates' ) ) {
 		for ( $i = 0; $i < $n_parts - 1; $i++ ) {
 			$w1 = $parts[ $i ];
 			$w2 = $parts[ $i + 1 ];
+			if ( '¶' === $w1 || '¶' === $w2 ) {
+				continue; // Adjacency break: never pair across a sentence/tag boundary.
+			}
 			if ( ! $survives( $w1 ) || ! $survives( $w2 ) ) {
 				continue; // BOTH members must survive; no bridging across dropped words.
 			}
