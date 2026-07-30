@@ -68,6 +68,8 @@ echo "\nGroup: scope statuses + filter seam\n";
 $scope_html = sn_ai_maturity_shortcode( array( 'format' => 'scope' ) );
 ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--never' ), "Note bodies render with the 'never' badge" );
 ok( false !== strpos( $scope_html, 'Note bodies' ), 'the bodies commitment is present by name' );
+ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--never"><strong>Relevance ranking' ), "v10.18.0: 'Relevance ranking &amp; similarity' renders as a never — the deterministic tier below AI is named, so 'where AI stops' has a floor" );
+ok( 2 === substr_count( $scope_html, 'sn-ai-maturity-scope-badge--never' ), 'exactly two never badges on the AI page: bodies + ranking' );
 add_filter( 'sn_ai_maturity_scope', function ( $scope ) {
 	$scope['voice'] = array( 'Voice cloning', 'evil-raw-status' );
 	return $scope;

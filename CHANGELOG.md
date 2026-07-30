@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.18.0] - 2026-07-30
+
+### New
+
+- **The ML maturity page `[sn_ml_maturity]`** ([inc/ml-maturity-page.php](inc/ml-maturity-page.php)): the seventh member of the maturity family, shipped now that the kernel's ≥3-consumers bar is met (related notes, cousin pairs, keyword + link candidates all live). The AI-page skeleton exactly: format whitelist (full | table | principles | scope | compact, unknown → full), render-time-only stylesheet ([assets/ml-maturity-front.css](assets/ml-maturity-front.css)), returns-never-echoes, STATIC content. Six-layer walk (corpus → model → compute → surface → draft → decide), eight principles anchored by the program motto ("the kernel computes, the AI drafts, a person decides") plus the zero-vs-null discipline stated publicly ("empty is an answer… not-built — never zero"), and a scope map behind `sn_ml_maturity_scope` carrying four `live` consumers, three `planned` (topic-level analytics, ops cadence flags, ranked search), and the program's **THREE NEVER badges as commitments**: provenance verdicts, reader profiling, models in the reader's browser. SECURITY CONTRACT inherited from the AI page and test-enforced in [tests/ml-maturity-page.php](tests/ml-maturity-page.php) (23 asserts): the page names the MODEL (TF-IDF, BM25 — deliberate) and never the LEVERS — no meta keys, tool slugs, implementation file names, hook names, or tuned threshold numbers in any rendered format.
+
+- **Index card for the ML page** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): the family hub grows its seventh card ("Machine learning — What does the site compute about its own writing?"), targeting page slug `ml-maturity` through the hierarchy-proof resolver — until the owner creates the child page under /maturity/, the card renders unlinked, never dead. Family pins updated 6 → 7 in [tests/maturity-family.php](tests/maturity-family.php).
+
+### Changed
+
+- **The AI page names the floor under it** ([inc/ai-maturity-page.php](inc/ai-maturity-page.php)): one scope addition — `Relevance ranking & similarity — never`. Ranking belongs to the deterministic tier below the AI tier, so "where AI stops" now has a floor as well as a ceiling; the bodies `never` is untouched. Pinned in [tests/ai-maturity-page.php](tests/ai-maturity-page.php) (exactly two never badges: bodies + ranking).
+
+> **Why MINOR:** new user-visible capability (a new public maturity page + index card); additive, zero new services, theme untouched. The three ML releases (v10.15.0–v10.17.0) created maturity-page debt — the convention says badges flip with the features — and this release pays it.
+
 ## [10.17.0] - 2026-07-30
 
 ### New

@@ -30,6 +30,7 @@ function sn_maturity_index_items() {
 		'machine'    => array( __( 'Machine readability', 'signal-and-noise-tools' ), __( 'How do machines read this site?', 'signal-and-noise-tools' ), __( 'A crawler manifest in the site\'s own words, structured data, stamped artifacts, and a bounded agent door.', 'signal-and-noise-tools' ), 'machine-readability' ),
 		'ops'        => array( __( 'Operations', 'signal-and-noise-tools' ), __( 'How does the site run itself?', 'signal-and-noise-tools' ), __( 'Health scans, outside-in probes, overnight narration, housekeeping out loud, and gated change.', 'signal-and-noise-tools' ), 'ops-maturity' ),
 		'a11y'       => array( __( 'Accessibility', 'signal-and-noise-tools' ), __( 'Can everyone use it?', 'signal-and-noise-tools' ), __( 'A design-system requirement to a named standard, with the gaps published next to the wins.', 'signal-and-noise-tools' ), 'a11y-maturity' ),
+		'ml'         => array( __( 'Machine learning', 'signal-and-noise-tools' ), __( 'What does the site compute about its own writing?', 'signal-and-noise-tools' ), __( 'Deterministic corpus math computed in place: scored candidates, never actions, and no model ever ships to a reader.', 'signal-and-noise-tools' ), 'ml-maturity' ),
 	);
 	return apply_filters( 'sn_maturity_index_items', $items );
 }
