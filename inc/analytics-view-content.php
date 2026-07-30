@@ -42,6 +42,10 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	// Capture the rows so the annotation and the table share one query (v9.5.0 read).
 	$paths = sn_analytics_top_paths( $from, $to, $class, 25 );
 	snt_an_annotation( sn_annotation_top_pages( $paths ) );
+	// v10.14.0: the maturity family re-parented under /maturity/ on 2026-07-30
+	// and rollups are path-keyed, so affected pages' history splits there —
+	// annotate ranges that span the cliff and show an affected path.
+	snt_an_annotation( sn_annotation_maturity_migration( $paths, $from, $to ) );
 	snt_analytics_render_paths_table( $paths );
 	echo '</div>';
 

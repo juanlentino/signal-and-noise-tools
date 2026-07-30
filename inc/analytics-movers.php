@@ -121,6 +121,10 @@ function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mo
 			: esc_html__( 'vs prior period', 'signal-and-noise-tools' ),
 	) );
 	snt_an_annotation( sn_annotation_movers( $movers ) );
+	// v10.14.0: a maturity page moving here across the 2026-07-30 /maturity/
+	// re-parenting is (at least partly) the path-keyed history split, not a
+	// real audience move — say so when the range spans the cliff.
+	snt_an_annotation( sn_annotation_maturity_migration( $movers, $from, $to ) );
 	if ( empty( $movers ) ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No movement in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
