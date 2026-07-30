@@ -47,6 +47,15 @@ add_action( 'wp_abilities_api_init', function() {
 					'default'     => false,
 					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
 				),
+				// v10.6.1: the plugin stores no focus keyword, so a caller that
+				// knows it (agent, SEO grading workflow) passes it explicitly;
+				// the prompt requires it verbatim in the description. Absent,
+				// the generator falls back to the title's topic noun.
+				'focus_keyword' => array(
+					'type'        => 'string',
+					'description' => 'SEO focus keyword that must appear verbatim in the description.',
+					'maxLength'   => 80,
+				),
 			),
 			'additionalProperties' => false,
 		),
@@ -166,7 +175,11 @@ function snt_ability_ai_generate_meta_description( $input ) {
 	if ( ! function_exists( 'snt_ai_meta_desc_impl' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Meta-desc helper unavailable.', array( 'status' => 500 ) );
 	}
-	return snt_ai_meta_desc_impl( (int) $input['post_id'], ! empty( $input['concise'] ) );
+	return snt_ai_meta_desc_impl(
+		(int) $input['post_id'],
+		! empty( $input['concise'] ),
+		(string) ( $input['focus_keyword'] ?? '' )
+	);
 }
 
 /**

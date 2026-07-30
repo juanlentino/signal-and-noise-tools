@@ -31,10 +31,16 @@
  * may rerender it under different markup across Gutenberg versions.
  * editPost() is the canonical API and is version-stable.
  *
- * Prompt design:
- *   - 2-3 sentences, ~50-75 words
- *   - Hook-driven: capture the reader's reason to click
- *   - Source content's voice, not generic marketing
+ * Prompt design (rewritten v10.6.1 — the voice fix):
+ *   - The excerpt is the OPENING of the argument, not a summary of it.
+ *     The old "hook-driven / reason to click" instruction was the root
+ *     cause of the "This piece argues…" register: it told the model to
+ *     describe the note from outside. The new prompt encodes the positive
+ *     behavior (write from inside, state the claim, stop), anchors the
+ *     register with a verbatim example, and keeps the banned list as a
+ *     final check rather than the primary mechanism — a blocklist alone
+ *     just relocates the tell.
+ *   - 2-3 sentences, 50-75 words, no sentence over 35 words
  *   - Same provider-agnostic / no-temperature posture as the other AI
  *     surfaces in this plugin
  *
@@ -46,30 +52,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AI_EXCERPT_SYSTEM = 'Generate a WordPress excerpt for a published article. Constraints: ' .
-	'(1) 2-3 sentences, between 50 and 75 words total; ' .
-	'(2) Hook-driven — capture the single most useful reason a reader would click; ' .
-	'(3) Match the source article\'s voice — don\'t turn an editorial piece into generic marketing; ' .
-	'(4) Active voice. Declarative. No fluff; ' .
-	'(5) Avoid: amazing, ultimate, best, powerful, revolutionary, transformative, cutting-edge, dive into, unlock, unleash; ' .
-	'(6) No quotes, no preamble, no "Excerpt:" labels, no markdown. ' .
-	'Output ONLY the excerpt text.';
+const SNT_AI_EXCERPT_SYSTEM = 'You are writing the excerpt for an essay. ' .
+	'The excerpt is the opening of the argument, not a summary of it. Same voice as the body, continuous with it, shorter. ' .
+	'If a reader saw the excerpt and the essay\'s first paragraph side by side, one person should appear to have written both in one sitting. State the claim and stop. ' .
+	'Never refer to the essay as an object: no "this piece", "this note", "this article", "this essay", "we explore", "the author argues". ' .
+	'Never advertise its contents: no "offers a test", "explains why", "unpacks how". Write from inside the argument, not about it. ' .
+	'Form: 50-75 words, 2-3 sentences, no sentence over 35 words. Vary sentence length so the rhythm is uneven. Do not restate the title. End on the claim, not on a summary of it. ' .
+	'Banned outright: em dashes in any form or spacing; tricolons and three-part parallel lists; two consecutive sentences opening with the same word; ' .
+	'"not just X, but Y" and its variants; hedge stacking such as "may potentially" or "could arguably"; ' .
+	'the words delve, landscape, crucial, and leverage used as a verb; the phrases "in today\'s world", "it\'s worth noting", "at its core". ' .
+	'Example of the register, written for an essay arguing that signatures prove attribution rather than truth: ' .
+	'"Anyone can sign a false claim. The objection is correct, and the answer usually given to it has cost more than the objection ever did. ' .
+	'What a signature produces is not truth but attribution, which is a smaller promise and the one that survives contact with a dispute." ' .
+	'Output ONLY the excerpt text. No quotes, no preamble, no labels, no markdown.';
 
 const SNT_AI_EXCERPT_MAX_TOKENS    = 200;
 const SNT_AI_EXCERPT_INPUT_WORDS   = 1200;
 
-// v4.8.0: concise variant for auto-prepopulation. Tighter than the 50-75
-// word default — punchy, not comprehensive.
-const SNT_AI_EXCERPT_SYSTEM_CONCISE = 'Generate a WordPress excerpt for a published article. Constraints: ' .
-	'(1) Up to 3 SHORT sentences, 40-60 words total — punchy, not comprehensive; ' .
-	'(2) Hook-driven — capture the single most useful reason a reader would click; ' .
-	'(3) Match the source article\'s voice — don\'t turn an editorial piece into generic marketing; ' .
-	'(4) Active voice. Declarative. No fluff; ' .
-	'(5) Avoid: amazing, ultimate, best, powerful, revolutionary, transformative, cutting-edge, dive into, unlock, unleash; ' .
-	'(6) No quotes, no preamble, no "Excerpt:" labels, no markdown. ' .
-	'Output ONLY the excerpt text.';
+// v4.8.0 introduced a tighter concise variant for auto-prepopulation.
+// v10.6.1 unifies it with the default: the register spec is one design
+// (50-75 words, written from inside the argument) and two prompts drift.
+// The constant stays so the concise API contract (and the tests pinning
+// which constant each path selects) is unchanged.
+const SNT_AI_EXCERPT_SYSTEM_CONCISE = SNT_AI_EXCERPT_SYSTEM;
 
-const SNT_AI_EXCERPT_MAX_TOKENS_CONCISE = 120;
+// 75 words ≈ 110 tokens; the old 120 cap could clip the final sentence.
+const SNT_AI_EXCERPT_MAX_TOKENS_CONCISE = 160;
 
 /**
  * Generate a 2-3 sentence post excerpt via the WP AI Client.

@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.6.1] - 2026-07-29
+
+### Fixed
+
+- **The voice fix: all three AI generator prompts rewritten** — the excerpt generator's output read as machine-written (5 of 7 scheduled notes carried "This piece" + verb), and the root cause was the prompt itself, not model drift: "Hook-driven — capture the reason a reader would click" instructs the model to describe the note from outside, which is exactly the register that shipped. Per-surface changes:
+  - **Excerpt** ([inc/ai-excerpt.php](inc/ai-excerpt.php)): the excerpt is now specified as the *opening of the argument*, not a summary of it — same voice as the body, no reference to the note as an object, no advertising its contents, 50-75 words / 2-3 sentences / no sentence over 35 words, end on the claim. The register is anchored by a verbatim example (the owner's approved target for *Provenance signs the claim, not the truth*), and the banned list (em dashes, tricolons, repeated sentence openers, "not just X, but Y", hedge stacking, register tells) is the final check rather than the primary mechanism — a blocklist alone relocates the tell. The concise prepop variant now aliases the default (one register spec, two prompts drift); its token cap rises 120 → 160 so a 75-word excerpt is never clipped mid-sentence.
+  - **Meta description** ([inc/ai-meta-description.php](inc/ai-meta-description.php)): written for the results-page reader with no context beyond the title — states what is true, never what the note "will do" for the reader; 140-160 hard, finished sentence at 160. Two context lines the prompt keys off are now threaded by the impl: an optional **`focus_keyword`** ability input (new, additive — the plugin stores no focus keyword, so a caller that knows it passes it; absent, the prompt falls back to the title's topic noun) and the post's **existing excerpt** (an instruction not to open like the excerpt is unfollowable against text the model has never seen). Concise truncation backstop raised 155 → 160 to stop trimming a finished 158-char sentence mid-clause.
+  - **OG card title** ([inc/ai-og-card-title.php](inc/ai-og-card-title.php)): "punchier" (the clickbait pull, unopposed) replaced with the house rules by name — declarative restatement of the title's claim, no questions/curiosity gaps/numbered framing, no colon-as-hook, never a claim the note doesn't make nor a softened one it does, keep "provenance" when the title carries it, "proof of origin" never appears on this surface.
+  - Regenerated against the new spec: all three surfaces for the seven scheduled notes (*Provenance signs the claim, not the truth* first — publishes 2026-07-31; *The pen is not the notary* keeps its corrected argument with only banned-list fixes; *Trust doesn't disappear, it relocates* regenerated for consistency with keep-if-not-better). Outputs applied via the editor after owner review — published notes untouched pending the owner's separate decision.
+
+> **Why PATCH:** prompt calibration + a fix to the truncation backstop; the `focus_keyword` input is additive and optional; no schema migration, no removed API.
+
 ## [10.6.0] - 2026-07-29
 
 ### New
