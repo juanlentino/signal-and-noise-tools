@@ -24,8 +24,10 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 	 */
 	function snt_ml_pipelines() {
 		$pipelines = array(
-			'related'         => 'snt_ml_pipeline_related',
-			'near-duplicates' => 'snt_ml_pipeline_near_duplicates', // v10.16.0: cousin pairs (inc/ml-cousins.php).
+			'related'          => 'snt_ml_pipeline_related',
+			'near-duplicates'  => 'snt_ml_pipeline_near_duplicates', // v10.16.0: cousin pairs (inc/ml-cousins.php).
+			'extract-keywords' => 'snt_ml_pipeline_extract_keywords', // v10.17.0: TF-IDF keyword candidates (inc/ml-candidates.php).
+			'link-candidates'  => 'snt_ml_pipeline_link_candidates',  // v10.17.0: unlinked related-note candidates (inc/ml-candidates.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -154,5 +156,75 @@ if ( ! function_exists( 'snt_ml_pipeline_near_duplicates' ) ) {
 			? (float) $args['threshold']
 			: SNT_ML_COUSIN_THRESHOLD_DEFAULT;
 		return snt_ml_cousin_pairs( $threshold );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_extract_keywords' ) ) {
+	/**
+	 * 'extract-keywords' pipeline (v10.17.0): argument gate over
+	 * snt_ml_keyword_candidates() (inc/ml-candidates.php), which owns the
+	 * corpus walk, the bigram rule, and the 1..20 limit clamp. Mirrors the
+	 * related pipeline's post_id contract: missing/non-positive → 400.
+	 *
+	 * @param array $args { @type int $post_id Required. @type int $limit Default 8, clamped 1..20 by the impl. }
+	 * @return array|WP_Error Envelope from snt_ml_keyword_candidates(), or
+	 *                        snt_ml_invalid_args (400) / snt_ml_unavailable (500).
+	 */
+	function snt_ml_pipeline_extract_keywords( $args ) {
+		$args = (array) $args;
+		if ( ! function_exists( 'snt_ml_keyword_candidates' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Candidate-generation module (inc/ml-candidates.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
+		if ( $post_id <= 0 ) {
+			return new WP_Error(
+				'snt_ml_invalid_args',
+				'extract-keywords pipeline requires a positive integer post_id.',
+				array( 'status' => 400 )
+			);
+		}
+		$limit = isset( $args['limit'] ) && is_numeric( $args['limit'] )
+			? (int) $args['limit']
+			: SNT_ML_KEYWORD_LIMIT_DEFAULT;
+		return snt_ml_keyword_candidates( $post_id, $limit );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_link_candidates' ) ) {
+	/**
+	 * 'link-candidates' pipeline (v10.17.0): argument gate over
+	 * snt_ml_link_candidates() (inc/ml-candidates.php), which owns the
+	 * artifact read (503 when unbuilt — the related pipeline's contract),
+	 * the already-linked/unpublished exclusions, and the 1..10 limit clamp.
+	 *
+	 * @param array $args { @type int $post_id Required. @type int $limit Default 5, clamped 1..10 by the impl. }
+	 * @return array|WP_Error Envelope from snt_ml_link_candidates(), or
+	 *                        snt_ml_invalid_args (400) / snt_ml_unavailable (500).
+	 */
+	function snt_ml_pipeline_link_candidates( $args ) {
+		$args = (array) $args;
+		if ( ! function_exists( 'snt_ml_link_candidates' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Candidate-generation module (inc/ml-candidates.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
+		if ( $post_id <= 0 ) {
+			return new WP_Error(
+				'snt_ml_invalid_args',
+				'link-candidates pipeline requires a positive integer post_id.',
+				array( 'status' => 400 )
+			);
+		}
+		$limit = isset( $args['limit'] ) && is_numeric( $args['limit'] )
+			? (int) $args['limit']
+			: SNT_ML_LINK_LIMIT_DEFAULT;
+		return snt_ml_link_candidates( $post_id, $limit );
 	}
 }
