@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.12.0
+ * Version:     10.13.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -344,6 +344,7 @@ require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_ma
 require_once __DIR__ . '/inc/a11y-maturity-page.php';    // v10.11.0: [sn_a11y_maturity] — the /accessibility/ claims in the family skeleton
 require_once __DIR__ . '/inc/maturity-index-page.php';   // v10.11.0: [sn_maturity_index] — the family hub for /maturity/
 require_once __DIR__ . '/inc/maturity-legacy-redirects.php'; // v10.12.0: narrow 301 map for the family's dead top-level URLs (post re-parenting)
+require_once __DIR__ . '/inc/colophon-page.php';             // v10.13.0: [sn_colophon] — the colophon moves from theme template to CMS (theme stays frozen)
 require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-status + anchor-sweep
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';
