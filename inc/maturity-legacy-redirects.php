@@ -100,7 +100,10 @@ function sn_maturity_legacy_redirect_handler() {
 	if ( ! is_404() ) {
 		return;
 	}
-	$target = sn_maturity_legacy_redirect_decision( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), true );
+	$request = isset( $_SERVER['REQUEST_URI'] )
+		? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+		: '';
+	$target  = sn_maturity_legacy_redirect_decision( $request, true );
 	if ( '' === $target ) {
 		return;
 	}
