@@ -123,6 +123,12 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false, $focus_keyword = '' 
 	// opening like an excerpt the model has never seen.
 	$context       = '';
 	$focus_keyword = trim( (string) $focus_keyword );
+	// v10.7.0: fall back to the stored per-post keyword (written via the
+	// update-post-surfaces ability) so the SEO grading loop closes without
+	// every caller having to know the keyword.
+	if ( '' === $focus_keyword && function_exists( 'get_post_meta' ) ) {
+		$focus_keyword = trim( (string) get_post_meta( $post_id, '_sn_focus_keyword', true ) );
+	}
 	if ( '' !== $focus_keyword ) {
 		$context .= 'FOCUS KEYWORD (must appear verbatim): ' . $focus_keyword . "\n\n";
 	}

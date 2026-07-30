@@ -91,7 +91,7 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 34, 'rw allowlist is exactly 34 slugs (v10.0.0 retired draft-release-notes)' );
+ok( is_array( $rw ) && count( $rw ) === 35, 'rw allowlist is exactly 35 slugs (v10.0.0 retired draft-release-notes; v10.7.0 added update-post-surfaces)' );
 
 // --- exact membership: the 30 plugin + 5 theme slugs, pinned individually ---
 $rw_plugin = array(
@@ -110,8 +110,9 @@ $rw_plugin = array(
 	'signal-noise/run-insights-scan', 'signal-noise/run-narration',
 	'signal-noise/purge-all-caches',
 	'signal-noise/anchor-sweep',
+	'signal-noise/update-post-surfaces',
 );
-ok( count( $rw_plugin ) === 28, 'sanity: the pinned plugin rw list itself is 28 (v10.0.0 retired draft-release-notes)' );
+ok( count( $rw_plugin ) === 29, 'sanity: the pinned plugin rw list itself is 29 (v10.7.0 added update-post-surfaces)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }

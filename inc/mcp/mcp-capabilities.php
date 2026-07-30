@@ -157,6 +157,10 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/run-narration',
 		'signal-noise/prepop-dismiss',
 		'signal-noise/purge-all-caches',
+		// v10.7.0 — the reviewed-text apply step (draft → review → apply):
+		// writes excerpt/meta-desc/OG title to caller-supplied text. No AI,
+		// edit_post-gated, revision-creating; belongs on the rw envelope.
+		'signal-noise/update-post-surfaces',
 		// v9.82.0 — not readonly, but idempotent: one bounded wp_remote_post
 		// (timeout 20) asking the provenance Worker to upgrade already-confirmed
 		// proofs. The rw door's kill switch, app-password binding, rate limit,

@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.7.0] - 2026-07-30
+
+### New
+
+- **`signal-noise/update-post-surfaces` — the reviewed-text apply step on the rw door** ([inc/abilities-update-post-surfaces.php](inc/abilities-update-post-surfaces.php)): closes the write-door gap the v10.6.1 regeneration exposed — no ability accepted text a human had already approved (`ai-generate-og-card-title` writes only its own AI output, `ai-generate-meta-description` returns text and relies on editor JS to save it, and nothing wrote `post_excerpt` at all), so draft → review → apply workflows had no apply. One `edit_post`-gated, no-AI ability writes any combination of five surfaces: `post_excerpt` (through `wp_update_post`, so a revision is created and a failed write aborts before any meta lands), `_sn_meta_description`, `_sn_og_card_title` (+ immediate card-PNG regeneration, honestly reported), `_sn_seo_title`, and the new **`_sn_focus_keyword`** — which the meta-description generator now reads as its keyword fallback ([inc/ai-meta-description.php](inc/ai-meta-description.php)), closing the SEO grading loop without per-call parameters. Each written prepop surface clears its `_sn_autogen_*` sentinel: text arriving through this door was reviewed by a person, which is what the sentinel flags the absence of. Hardening inherited from the rw envelope (kill switch, app-password binding, rate limit, per-call audit trail) plus per-field length caps and core sanitization; the deliberately held-out destructive abilities stay off both doors, and robots flags / canonical URL stay manual — an agent flipping `noindex` is a deindex hazard, not a prose edit. rw door widens 34 → 35. New fixture [tests/abilities-update-post-surfaces.php](tests/abilities-update-post-surfaces.php) (24 asserts) pins the five-surface write, sentinel clearing, partial writes, sanitization, and the failure shapes (404, trash, nothing-to-write, `wp_update_post` WP_Error surfaced not swallowed).
+
+> **Why MINOR:** a new user-visible capability (reviewed-text writes over MCP); additive schema, no migration.
+
 ## [10.6.1] - 2026-07-29
 
 ### Fixed
