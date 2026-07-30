@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.14.0] - 2026-07-30
+
+### New
+
+- **Maturity-migration read on the path-keyed panels** ([inc/analytics-annotations.php](inc/analytics-annotations.php)): the 2026-07-30 re-parenting under /maturity/ split every affected page's PATH-KEYED rollup history — the old top-level path keeps the earlier history, the new child path starts fresh — so ranges spanning that day show an unexplained cliff on the old paths and an unexplained birth on the new ones. New rules-only resolver `sn_annotation_maturity_migration()` (same pure, zero-query contract as every other read): fires only when the range spans Jul 30, 2026 (a blank bound counts as spanning on its side, so the 'all' range gets the read) AND an affected path — the six old top-level URLs, their /maturity/ children, or the /maturity/ hub — is among the rows the panel already fetched. Rendered on the Content view's Top pages panel ([inc/analytics-view-content.php](inc/analytics-view-content.php)) and the Movers tile ([inc/analytics-movers.php](inc/analytics-movers.php)), where the split would otherwise read as a real audience move. 13 new asserts in [tests/analytics-annotations.php](tests/analytics-annotations.php).
+
+- **Compare-window coverage (in-wave review finding):** the Movers tile diffs against a prior window, so the annotation's span check covers BOTH windows at that call site (display, then the resolved compare window) — from Aug 1 on, a post-migration range still shows the old paths as negative movers precisely because the prior window straddles the cliff, and a display-only check would stay silent exactly then. The union's two halves are pinned in [tests/analytics-annotations.php](tests/analytics-annotations.php) (68 asserts).
+
+> **Why MINOR:** a new user-visible annotation; additive, no API change.
+
 ## [10.13.0] - 2026-07-30
 
 ### New

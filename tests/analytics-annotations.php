@@ -187,5 +187,35 @@ an_true(
 	'duplicate (repo, ref) rows dedupe to one named release'
 );
 
+echo "\nmaturity migration (v10.14.0)\n";
+// Path-keyed rollups split at the 2026-07-30 /maturity/ re-parenting: the read
+// fires only when the range spans that day AND an affected path (old top-level
+// or new /maturity/ child) is among the rows the panel already fetched.
+$mig_line = 'Maturity pages moved under /maturity/ on Jul 30, 2026 — history before that date lives on the old top-level paths, after it on the new ones.';
+$mig_rows = function ( array $paths ) { $r = array(); foreach ( $paths as $p ) { $r[] = array( 'path' => $p, 'views' => 10 ); } return $r; };
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/analytics/', '/notes/' ) ), '2026-07-01', '2026-08-15' ), 'old top-level path + spanning range -> read' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/maturity/proof-of-origin/' ) ), '2026-07-01', '2026-08-15' ), 'new /maturity/ child path -> read' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/maturity/' ) ), '2026-07-01', '2026-08-15' ), 'the /maturity/ hub itself -> read' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/a11y-maturity' ) ), '2026-07-01', '2026-08-15' ), 'trailing-slash-less row path still matches (normalization)' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/ops-maturity/' ) ), '', '' ), 'blank/unbounded range (all) spans the cliff -> read' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/machine-readability/' ) ), '2026-07-30', '2026-07-30' ), 'range that is exactly the migration day -> read' );
+an_eq( null, sn_annotation_maturity_migration( $mig_rows( array( '/analytics/' ) ), '2026-06-01', '2026-07-29' ), 'range entirely before the migration day -> null' );
+an_eq( null, sn_annotation_maturity_migration( $mig_rows( array( '/maturity/analytics/' ) ), '2026-07-31', '2026-08-15' ), 'range entirely after the migration day -> null' );
+an_eq( null, sn_annotation_maturity_migration( $mig_rows( array( '/notes/', '/contact/' ) ), '2026-07-01', '2026-08-15' ), 'no affected path in the rows -> null' );
+an_eq( null, sn_annotation_maturity_migration( $mig_rows( array( '/maturity/something-else/' ) ), '2026-07-01', '2026-08-15' ), 'an unmapped /maturity/ deep path -> null (exact list only)' );
+an_eq( null, sn_annotation_maturity_migration( array(), '2026-07-01', '2026-08-15' ), 'empty rows -> null' );
+an_eq( null, sn_annotation_maturity_migration( 'not-an-array', '2026-07-01', '2026-08-15' ), 'garbage rows -> null, no notice' );
+// Movers rows carry { path, views, delta } — the same resolver serves that panel.
+an_eq( $mig_line, sn_annotation_maturity_migration( array( array( 'path' => '/proof-of-origin/', 'views' => 5, 'delta' => -40 ) ), '2026-07-15', '2026-08-05' ), 'movers-shaped rows -> read (shared resolver)' );
+
+// The movers COMPARE-WINDOW case (review finding on PR #409): a post-migration
+// display range (Aug 1-14) stays silent by itself, but its prior compare window
+// (Jul 18-31) straddles the cliff and MUST produce the read — the movers call
+// site composes exactly these two calls (display ?? resolved-compare-window),
+// so this pair pins the union logic's both halves against the pure resolver.
+$mig_dropout = array( array( 'path' => '/analytics/', 'views' => 0, 'delta' => -120 ) ); // dropped-out prior-window path, views 0
+an_eq( null, sn_annotation_maturity_migration( $mig_dropout, '2026-08-01', '2026-08-14' ), 'movers display window after the cliff alone -> null (the silent half)' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_dropout, '2026-07-18', '2026-07-31' ), 'the resolved prior compare window straddles the cliff -> read (the rescuing half)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

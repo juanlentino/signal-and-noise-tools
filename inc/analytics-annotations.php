@@ -68,6 +68,11 @@ const SN_ANNOTATION_CONV_MIN       = 3;
 // Deploys: never name more than this many releases in the one-sentence read.
 const SN_ANNOTATION_DEPLOYS_NAMED_MAX = 3;
 
+// Maturity migration: the day the maturity family re-parented under /maturity/
+// (v10.11.0), splitting each affected page's PATH-KEYED rollup history between
+// its old top-level path and its new child path.
+const SN_ANNOTATION_MATURITY_MIGRATION_DAY = '2026-07-30';
+
 /**
  * Deploys read: releases (theme/plugin installs, recorded by
  * inc/deploy-history.php) that landed inside the selected range — the "did we
@@ -442,4 +447,75 @@ function sn_annotation_conversions( $attribution ) {
 		$top_entry,
 		(int) round( $share * 100 )
 	);
+}
+
+/**
+ * The paths whose rollup history split on the maturity migration day: the six
+ * old top-level URLs the family used to hold, plus their /maturity/ children
+ * and the /maturity/ hub itself. Normalized without trailing slashes.
+ *
+ * These are HISTORICAL analytics path strings, not live page URLs, so the
+ * "never hardcode a page path" rule (v10.11.2) does not apply: the old paths
+ * are dead facts frozen into the rollups, and the child paths are the keys the
+ * rollups started writing on the migration day. A later re-parenting would add
+ * a new migration read, not rewrite this one.
+ *
+ * @since 10.14.0
+ * @return string[]
+ */
+function sn_annotation_maturity_migration_path_list() {
+	$slugs = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity' );
+	$paths = array( '/maturity' );
+	foreach ( $slugs as $slug ) {
+		$paths[] = '/' . $slug;
+		$paths[] = '/maturity/' . $slug;
+	}
+	return $paths;
+}
+
+/**
+ * Maturity-migration read: the maturity family's pages re-parented under
+ * /maturity/ on 2026-07-30, and rollups are PATH-KEYED, so each affected
+ * page's traffic history splits at that date — the old path keeps the earlier
+ * history, the new child path starts fresh. Without this read, a range that
+ * spans the day shows an unexplained cliff on the old paths and an unexplained
+ * birth on the new ones. PURE: takes the path rows the panel already fetched
+ * plus the range bounds; zero queries, fully static (rules-only). Null when no
+ * affected path is in the rows or the range does not span the migration day
+ * (a blank/unbounded bound counts as spanning on its side, so the 'all' range
+ * — which always contains the cliff — still gets the read).
+ *
+ * @since 10.14.0
+ * @param array  $rows [ { path, ... } ] — any path-keyed panel rows (top paths, movers).
+ * @param string $from Range start, 'Y-m-d' ('' = unbounded).
+ * @param string $to   Range end, 'Y-m-d' ('' = unbounded).
+ * @return string|null
+ */
+function sn_annotation_maturity_migration( $rows, $from, $to ) {
+	$from = (string) $from;
+	$to   = (string) $to;
+	if ( ! is_array( $rows ) ) {
+		return null;
+	}
+	$spans = ( '' === $from || $from <= SN_ANNOTATION_MATURITY_MIGRATION_DAY )
+		&& ( '' === $to || $to >= SN_ANNOTATION_MATURITY_MIGRATION_DAY );
+	if ( ! $spans ) {
+		return null;
+	}
+	$affected = sn_annotation_maturity_migration_path_list();
+	$hit      = false;
+	foreach ( $rows as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$path = rtrim( (string) ( $row['path'] ?? '' ), '/' );
+		if ( '' !== $path && in_array( $path, $affected, true ) ) {
+			$hit = true;
+			break;
+		}
+	}
+	if ( ! $hit ) {
+		return null;
+	}
+	return __( 'Maturity pages moved under /maturity/ on Jul 30, 2026 — history before that date lives on the old top-level paths, after it on the new ones.', 'signal-and-noise-tools' );
 }

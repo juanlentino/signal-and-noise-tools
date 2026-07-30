@@ -121,6 +121,19 @@ function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mo
 			: esc_html__( 'vs prior period', 'signal-and-noise-tools' ),
 	) );
 	snt_an_annotation( sn_annotation_movers( $movers ) );
+	// v10.14.0: a maturity page moving here across the 2026-07-30 /maturity/
+	// re-parenting is (at least partly) the path-keyed history split, not a
+	// real audience move — say so when the range spans the cliff. Movers diff
+	// against a COMPARE window, so the check covers both windows: from Aug 1
+	// on, a post-migration display range still shows the old paths as
+	// unexplained negative movers because the PRIOR window straddles the
+	// cliff — the display-only check would stay silent exactly then.
+	$mig_note = sn_annotation_maturity_migration( $movers, $from, $to );
+	if ( null === $mig_note && function_exists( 'sn_analytics_resolve_cwin' ) ) {
+		list( $mig_pfrom, $mig_pto ) = sn_analytics_resolve_cwin( $cwin, $from, $to );
+		$mig_note                    = sn_annotation_maturity_migration( $movers, (string) $mig_pfrom, (string) $mig_pto );
+	}
+	snt_an_annotation( $mig_note );
 	if ( empty( $movers ) ) {
 		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html__( 'No movement in this range yet.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
