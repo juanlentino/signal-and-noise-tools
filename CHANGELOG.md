@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.11.2] - 2026-07-30
+
+### Fixed
+
+- **Maturity index resolves URLs from the pages themselves** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): two rounds of hardcoded-path drift in one evening (owner-chosen slugs, then the whole family re-parented as children of /maturity/) proved paths are the wrong data. Card targets are now page slugs resolved through `get_permalink()` at render, so hierarchy, re-parenting, and future moves can never break the index; explicit `/path/` and absolute-URL targets stay supported through the filter, and an unresolvable slug still renders an unlinked card, never a dead link. Fixture pins the child-of-/maturity/ resolution, both escape hatches, and the unresolvable branch.
+
+> **Why PATCH:** fix — link resolution; no behavior contract or API change.
+
 ## [10.11.1] - 2026-07-30
 
 ### Fixed

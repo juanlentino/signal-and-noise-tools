@@ -42,6 +42,16 @@ function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $m
 function plugins_url( $path = '', $plugin = '' ) {
 	return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' );
 }
+// Page store models the LIVE hierarchy: every family page is a CHILD of
+// /maturity/ (the drift that motivated slug resolution in v10.11.2).
+$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity' );
+function get_posts( $args ) {
+	$name = isset( $args['name'] ) ? (string) $args['name'] : '';
+	return in_array( $name, $GLOBALS['__pages'], true ) ? array( (object) array( 'post_name' => $name ) ) : array();
+}
+function get_permalink( $post ) {
+	return 'https://example.com/maturity/' . $post->post_name . '/';
+}
 
 require __DIR__ . '/../inc/machine-maturity-page.php';
 require __DIR__ . '/../inc/ops-maturity-page.php';
@@ -70,7 +80,10 @@ foreach ( array( 'machine' => 'sn_machine_maturity_shortcode', 'ops' => 'sn_ops_
 echo "\nGroup: index cards + filter seam\n";
 $idx = sn_maturity_index_shortcode();
 ok( 6 === substr_count( $idx, '<a class="sn-maturity-index-card' ), 'all six default cards are linked (every default path is set)' );
-ok( false !== strpos( $idx, 'https://example.com/ai-maturity/' ) && false !== strpos( $idx, 'https://example.com/machine-readability/' ) && false !== strpos( $idx, 'https://example.com/a11y-maturity/' ), 'links resolve through home_url to the owner-chosen slugs (v10.11.1)' );
+ok( false !== strpos( $idx, 'https://example.com/maturity/ai-maturity/' ) && false !== strpos( $idx, 'https://example.com/maturity/machine-readability/' ) && false !== strpos( $idx, 'https://example.com/maturity/analytics/' ), 'v10.11.2: links resolve from the PAGES (get_permalink) — hierarchy-proof, child-of-/maturity/ paths come out right' );
+ok( 'https://example.com/legacy/' === sn_maturity_index_resolve_url( '/legacy/' ), 'explicit path targets stay supported (filter escape hatch)' );
+ok( 'https://ext.example/x' === sn_maturity_index_resolve_url( 'https://ext.example/x' ), 'absolute URL targets pass through' );
+ok( '' === sn_maturity_index_resolve_url( 'no-such-page' ), 'unresolvable slug returns empty — the card renders unlinked, never dead' );
 add_filter( 'sn_maturity_index_items', function ( $items ) {
 	$items['future'] = array( 'Future moat', 'What next?', 'A page that does not exist yet.', '' );
 	return $items;
