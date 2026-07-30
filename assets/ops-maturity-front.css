@@ -1,0 +1,43 @@
+/* Signal & Noise — [sn_ops_maturity] front-end styling (v10.11.0).
+   The maturity-front.css skeleton on the AI explainer: white-first
+   brutalist to match the public site — hard borders, square corners, generous
+   spacing, mono accents. Inherits the theme's typography and colors
+   (currentColor throughout) — light-only, like the site. Everything scoped to
+   .sn-ops-maturity; enqueued only when the shortcode renders. */
+.sn-ops-maturity{margin:2rem 0;line-height:1.6}
+.sn-ops-maturity h2{margin:0 0 .75rem}
+.sn-ops-maturity h3{margin:2.25rem 0 .75rem}
+.sn-ops-maturity p{margin:0 0 1.25rem}
+
+/* The layer table: one hard frame, mono kicker headers, breathing-room cells. */
+.sn-ops-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;font-size:.85rem}
+.sn-ops-maturity-table th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em}
+.sn-ops-maturity-table td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
+.sn-ops-maturity-table tbody tr:last-child td{border-bottom:0}
+/* Layer + question columns stay compact so the engine column carries the prose. */
+.sn-ops-maturity-table td:first-child{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;font-weight:600;white-space:nowrap}
+.sn-ops-maturity-table td:nth-child(2){white-space:nowrap;font-style:italic;opacity:.75}
+@media (max-width:600px){.sn-ops-maturity-table td:nth-child(2){white-space:normal}}
+
+/* The principles: a spaced, ruled list with a mono dash in the gutter. */
+.sn-ops-maturity-principles{list-style:none;margin:0;padding:0;font-size:.9rem}
+.sn-ops-maturity-principles li{position:relative;padding:.6em 0 .6em 1.5em;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-ops-maturity-principles li:last-child{border-bottom:0}
+.sn-ops-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.5}
+
+/* The coverage badges: live = solid frame; planned = dashed + dimmed, so the
+   expansion flag is VISIBLE, not just semantic. */
+.sn-ops-maturity-scope{display:flex;flex-wrap:wrap;gap:.5em}
+.sn-ops-maturity-scope-badge{display:inline-flex;align-items:center;gap:.4em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
+.sn-ops-maturity-scope-badge strong{font-weight:700}
+.sn-ops-maturity-scope-badge--planned{border-style:dashed;opacity:.55}
+
+/* The compact strip: one sentence, then six hard-edged mono badges. The intro
+   margin needs the element in its selector (0,2,1) to beat the generic p rule. */
+.sn-ops-maturity p.sn-ops-maturity-compact-intro{margin:0 0 .75rem}
+.sn-ops-maturity-strip{display:flex;flex-wrap:wrap;gap:.5em}
+.sn-ops-maturity-badge{display:inline-flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
+
+/* The 'never' badge: a double frame, full-strength — a commitment, not a gap.
+   (This page's one divergence from the sibling scope idiom: live | planned | never.) */
+.sn-ops-maturity-scope-badge--never{border-style:double;border-width:4px;padding:.25em .65em}
