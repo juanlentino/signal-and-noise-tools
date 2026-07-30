@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.14.0
+ * Version:     10.15.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -338,6 +338,10 @@ require_once __DIR__ . '/inc/abilities-block-migrations.php';
 require_once __DIR__ . '/inc/corpus-inspect.php';      // v10.6.0: read-only corpus inspection impls (duplicate scan, listing, bounded content fetch)
 require_once __DIR__ . '/inc/abilities-corpus.php';    // v10.6.0: 3 abilities (duplicate-body-scan, list-posts, get-post-content) — sn read door only
 require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: reviewed-text write for excerpt/meta-desc/OG title — rw door
+require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
+require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
+require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build (per-post related meta + cron/publish triggers) + the contract reader (needs corpus-inspect.php above)
+require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facing "Related notes" aside (the_content @20, zero JS, render-time stylesheet)
 require_once __DIR__ . '/inc/ai-maturity-page.php'; // v10.10.0: [sn_ai_maturity] public explainer (third maturity sibling; leak-proof by test contract)
 require_once __DIR__ . '/inc/machine-maturity-page.php'; // v10.11.0: [sn_machine_maturity] — how machines read the site
 require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_maturity] — how the site runs itself

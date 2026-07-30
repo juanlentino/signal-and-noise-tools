@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.15.0] - 2026-07-30
+
+### New
+
+- **The SN ML kernel — pure corpus intelligence** ([inc/ml-kernel.php](inc/ml-kernel.php)): the site grows its own relatedness math as a PURE module (zero WP calls, the inc/analytics-derive.php model — the fixture grep-pins the file free of WP function names): deterministic unicode tokenizer (Gutenberg block-comment + tag stripping, 46-word stopword list), smoothed-IDF corpus stats, sparse L2-normalized TF-IDF, sparse-safe cosine, Okapi BM25 (k1=1.2, b=0.75), Jaccard graph signals (tag overlap, direction-agnostic direct link, co-link), and the blended `snt_ml_related_score()` (.55 lexical / .25 tags / .15 direct link / .05 co-link, weights as a plain argument — the pure layer never filters). 70 asserts in [tests/ml-kernel.php](tests/ml-kernel.php), including a set_error_handler that fails the suite on ANY notice.
+
+- **Pipeline registry** ([inc/ml-pipelines.php](inc/ml-pipelines.php)): a filterable slug=>callable map (`snt_ml_pipelines`) + one dispatcher `snt_ml_run()` (unknown slug → `snt_ml_unknown_pipeline`, 404-shaped), shipping the `related` pipeline whose docblock pins the artifact contract: `[]` is a real "nothing related" ANSWER, `null` means "artifacts not built" (→ `snt_ml_not_built`, 503-shaped) — zero and null are different answers, in both directions.
+
+- **The artifact layer** ([inc/ml-artifacts.php](inc/ml-artifacts.php)): `snt_ml_build_corpus()` walks the published posts through the existing corpus walk (`snt_corpus_fetch_posts`), tokenizes bodies, extracts internal /notes/ links and tags as graph inputs, scores ALL pairs with the kernel (weights filterable HERE via `snt_ml_related_weights`), and stores each post's top 10 positive-score matches in `_snt_ml_related` meta (4dp) plus a corpus fingerprint + built_at in `snt_ml_corpus_meta` — never silent: an empty corpus returns ok:true/posts:0 and still stamps the option ("built over nothing" ≠ "never built"). The reader `snt_ml_related_for_post()` implements the pipeline contract verbatim and re-gates every row on publish status at READ time, so an unpublished post vanishes from every list before any rebuild. Rebuilds: transition into/out of publish (posts only, revision/autosave-guarded) coalesced through a deduped single event, plus a daily recurring backstop on a deliberately SEPARATE hook (the analytics-rollup shared-hook lesson).
+
+- **Related notes on every note** ([inc/ml-related-render.php](inc/ml-related-render.php), [assets/ml-related-front.css](assets/ml-related-front.css)): a server-rendered `<aside class="snt-ml-related">` (mono kicker + up to 4 hard-framed links) appended via `the_content` @20, ONLY on singular main-query post views. Zero reader-facing JavaScript; stylesheet enqueues render-time only, brutalist idiom derived from maturity-index-front.css (hard borders, currentColor). Unbuilt artifacts and empty answers alike render NOTHING — build state is an admin concern, never a reader-visible error. 52 asserts in [tests/ml-artifacts.php](tests/ml-artifacts.php) model the real failure shapes: unbuilt (null), post unpublished since build, empty corpus, malformed meta rows, and core's `''`-for-absent-meta transform.
+
+> **Why MINOR:** new user-visible capability (the Related notes section) + new internal ML surface; additive, zero new REST routes, zero new services, theme untouched.
+
 ## [10.14.0] - 2026-07-30
 
 ### New
