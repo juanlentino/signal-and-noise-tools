@@ -34,7 +34,7 @@ The classifier (`human`/`suspect`/`bot` = `blob7`) is assigned **per-event in th
 **Non-goals (this phase)**
 - Worker-side previewer classification (Phase B — only if the derived label proves too coarse).
 - Any "fix" to the engagement dip — it is real traffic, correctly labeled.
-- The deploy-widget "Last deploy" fix — separate concern, separate PR (see §10).
+- ~~The deploy-widget "Last deploy" fix~~ — CLOSED in v9.63.3 (see §10).
 
 ## 3. Design principle — "show the most"
 
@@ -95,7 +95,7 @@ The plan must pick one with evidence from live AE, not assume.
 
 ## 10. Out of scope / separate work
 
-- **Deploy-widget "Last deploy"** (`deploy-widget-tracks-deploy-yml-only` memory): point the widget ability at `snt_deploy_history_merged()` (the merged feed the Dashboard got in v4.1.4). A PATCH fix in a different subsystem — **separate PR**, not this release.
+- **Deploy-widget "Last deploy"** — CLOSED in v9.63.3: `inc/abilities-system.php` reads `snt_deploy_history_merged()`; the GHA-only datum survives additively as `last_gha_run`; pinned by tests/deploy-status-merged-feed.php. (Recorded here 2026-07-30 by the aging-surface audit — this section previously framed it as open work.)
 - **Phase B — worker previewer classification.** Deferred; documented option.
 
 ## 11. Migration, versioning, testing

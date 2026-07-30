@@ -105,7 +105,7 @@ function sn_admin_top_tabs() {
 			// two-column or wide-table content (never a bare-stretched lone form):
 			//   front-end  → a .sn-front-end-form auto-fit FIELD grid (8-field form,
 			//                like Identity Phase 4a — the fields become the columns);
-			//   reading-time / performance → the two-column sn_admin_shell (work +
+			//   performance → the two-column sn_admin_shell (work +
 			//                a status/reference readout — a 1-toggle form earns width
 			//                only by adding a 2nd column, not by bare-stretching);
 			//   rss        → its activity hero + asymmetric .sn-2col (Recent table |

@@ -292,6 +292,26 @@ function snt_insights_collect_signals() {
 		}
 	}
 
+	// v10.24.0: attach the kernel's cadence verdicts so the advisor reasons
+	// about SURPRISE (z vs the rhythm's own history) instead of re-deriving
+	// staleness from raw minutes in-model. Additive; guarded; the raw
+	// cron_freshness rows above stay untouched.
+	if ( function_exists( 'snt_ml_cadence_flags' ) ) {
+		$cad = snt_ml_cadence_flags();
+		if ( is_array( $cad ) ) {
+			$out['cadence_flags'] = array(
+				'flags'        => array_map( static function ( $f ) {
+					return array(
+						'kind'    => (string) ( $f['kind'] ?? '' ),
+						'subject' => (string) ( $f['subject'] ?? '' ),
+						'z'       => round( (float) ( $f['z'] ?? 0 ), 2 ),
+					);
+				}, (array) ( $cad['flags'] ?? array() ) ),
+				'cron_skipped' => (bool) ( $cad['cron_skipped'] ?? false ),
+			);
+		}
+	}
+
 	return $out;
 }
 

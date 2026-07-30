@@ -20,6 +20,10 @@ function wp_strip_all_tags( $s ) { return $s; }
 $GLOBALS['__signal'] = 'TITLE: About'; // snt_ai_post_signal yield for empty body
 function snt_ai_post_signal( $post_id, $words = 1000 ) { return $GLOBALS['__signal']; }
 
+
+// v10.24.0: snt_word_count() is a real runtime dependency (pure module).
+require_once __DIR__ . '/../inc/word-count.php';
+
 require __DIR__ . '/../inc/ai-prepopulate.php';
 
 $min = 50;

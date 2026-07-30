@@ -47,7 +47,7 @@ function sn_admin_pages() {
 		array( 'slug' => 'sn-login',         'tab' => 'login',        'label' => 'Login',         'title' => 'Signal & Noise — Login',         'subtitle' => 'Custom login URL and emergency unlock for the WordPress admin.' ),
 		array( 'slug' => 'sn-cloudflare',    'tab' => 'cloudflare',   'label' => 'Cloudflare',    'title' => 'Signal & Noise — Cloudflare',    'subtitle' => 'API token and zone config for automatic edge-cache purges.' ),
 		array( 'slug' => 'sn-rss',           'tab' => 'rss',          'label' => 'RSS',           'title' => 'Signal & Noise — RSS',           'subtitle' => 'RSS subscriber tracking and feed-request analytics.' ),
-		array( 'slug' => 'sn-reading-time',  'tab' => 'reading-time', 'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Legacy reading-time-string cleanup tool for posts written before the shortcode existed.' ),
+		array( 'slug' => 'sn-reading-time',  'tab' => 'content',      'label' => 'Reading Time',  'title' => 'Signal & Noise — Reading Time',  'subtitle' => 'Retired cleanup tool (v10.0.0) — old bookmarks land on the Content tab.' ),
 		array( 'slug' => 'sn-cron',          'tab' => 'cron',         'label' => 'Cron',          'title' => 'Signal & Noise — Cron',          'subtitle' => 'Scheduled jobs — next run, recurrence, last fired, manual trigger.' ),
 		array( 'slug' => 'sn-webhooks',      'tab' => 'webhooks',     'label' => 'Webhooks',      'title' => 'Signal & Noise — Webhooks',      'subtitle' => 'Personal automation — fire HMAC-signed POSTs to your own endpoints when posts publish.' ),
 		array( 'slug' => 'sn-insights',      'tab' => 'insights',     'label' => 'Insights',      'title' => 'Signal & Noise — Insights',      'subtitle' => 'AI-synthesized recommendations from your analytics, publish history, and automation patterns.' ),
@@ -87,7 +87,7 @@ function sn_admin_legacy_redirect_map() {
 		'insights'     => array( 'tab' => 'monitoring',  'sub' => 'insights',          'anchor' => null ),
 		'health'       => array( 'tab' => 'monitoring',  'sub' => 'health',            'anchor' => null ),
 		'rss'          => array( 'tab' => 'content',     'sub' => 'rss',               'anchor' => null ),  // v6.18.0: Monitoring → Content
-		'reading-time' => array( 'tab' => 'content',     'sub' => 'reading-time',      'anchor' => null ),  // v6.18.0: Tools → Content
+		'reading-time' => array( 'tab' => 'content',     'sub' => null,                'anchor' => null ),  // v10.24.0: the cleanup tool retired in v10.0.0 — Content default, no ghost sub
 		'links'        => array( 'tab' => 'tools',       'sub' => 'links',             'anchor' => null ),
 		'automation'   => array( 'tab' => 'connections', 'sub' => null,                'anchor' => null ),  // v6.18.0: retired top tab → Connections
 	);
@@ -109,7 +109,7 @@ function sn_admin_subtab_moves() {
 		'automation/webhooks' => array( 'tab' => 'connections', 'sub' => 'webhooks' ),
 		'automation/cron'     => array( 'tab' => 'connections', 'sub' => 'cron' ),
 		'automation/indexnow' => array( 'tab' => 'connections', 'sub' => 'indexnow' ),
-		'tools/reading-time'  => array( 'tab' => 'content', 'sub' => 'reading-time' ),
+		'tools/reading-time'  => array( 'tab' => 'content', 'sub' => null ),           // v10.24.0: tool retired in v10.0.0
 		'tools/performance'   => array( 'tab' => 'content', 'sub' => 'performance' ),
 		'tools/front-end'     => array( 'tab' => 'content', 'sub' => 'front-end' ),
 		'monitoring/music'    => array( 'tab' => 'content', 'sub' => 'music' ),

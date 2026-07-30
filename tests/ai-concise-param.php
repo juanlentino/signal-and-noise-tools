@@ -68,6 +68,10 @@ if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) {
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 
+
+// v10.24.0: snt_word_count() is a real runtime dependency (pure module).
+require_once __DIR__ . '/../inc/word-count.php';
+
 require_once __DIR__ . '/../inc/ai-bootstrap.php';
 require_once __DIR__ . '/../inc/ai-meta-description.php';
 require_once __DIR__ . '/../inc/ai-excerpt.php';

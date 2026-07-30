@@ -283,7 +283,7 @@ function sn_schema_article() {
 	// missing source leaves the key absent rather than emitting an empty value.
 
 	// wordCount — strip shortcodes + tags before counting words.
-	$word_count = str_word_count( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) );
+	$word_count = snt_word_count( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) ); // v10.24.0: Unicode-safe — str_word_count published wrong schema.org numbers for digit-bearing prose.
 	if ( $word_count > 0 ) {
 		$article['wordCount'] = $word_count;
 	}

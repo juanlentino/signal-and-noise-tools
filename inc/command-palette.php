@@ -2,25 +2,27 @@
 /**
  * Signal & Noise Tools — WP 7.0 native Command Palette registration.
  *
- * Surfaces 5 SN actions in WordPress 7.0's built-in ⌘K/Ctrl+K command
+ * Surfaces the core SN actions in WordPress 7.0's built-in ⌘K/Ctrl+K command
  * palette via the @wordpress/commands package. WP 7.0 ships the commands
  * subsystem as JS-only (no PHP wrapper for registerCommand) — this file
  * just enqueues the JS that calls
  *   wp.data.dispatch( 'core/commands' ).registerCommand( ... )
  * with each command's metadata + REST callback.
  *
- * The 5 commands all hit existing REST endpoints under
- * signal-noise/v1/cmd/* registered by inc/desktop-mode-integration.php.
- * One endpoint set, three callers: admin UI, desktop-mode palette,
- * WP-native palette. Avoids duplicating business logic across surfaces.
+ * The commands run through window.sntAbilityRun (the shared Abilities
+ * transport) — the signal-noise/v1/cmd/* REST routes this file once relied
+ * on were removed in v7.0.0. One ability set, three callers (see assets/command-palette.js for the current roster — counts here went stale twice, so the property, not the number, is documented): admin UI,
+ * desktop-mode palette, WP-native palette — no duplicated business logic.
  *
  * Coexistence with the desktop-mode plugin's own palette:
  *   - desktop-mode's palette runs only when desktop-mode is the active
  *     experience (i.e. in the desktop-mode UI shell).
  *   - WP 7.0's palette runs in vanilla wp-admin everywhere.
  *   - Both can register the same actions without conflict — each addresses
- *     a different surface. We deliberately mirror the most-used 5 of the
- *     13 desktop-mode commands here; full parity isn't the goal.
+ *     a different surface. We deliberately mirror the most-used few of the
+ *     desktop-mode command set here (see the registration loop in
+ *     inc/desktop-mode-integration.php for the current roster); full
+ *     parity isn't the goal.
  *
  * Gated on:
  *   - is_admin() via the admin_enqueue_scripts hook context

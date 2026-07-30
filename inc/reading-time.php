@@ -19,8 +19,9 @@
  *      Preview/Apply pair that scans post_content/excerpt/custom fields
  *      for these patterns and offers to remove them. The
  *      `sn_admin_reading_time_tab` action hook was a cross-package contract
- *      in v1.2.0 (theme listening for plugin-fired action) — now intra-plugin
- *      after Phase 3 (theme v8.4.0 / plugin v1.3.0).
+ *      in v1.2.0 (theme listening for plugin-fired action), intra-plugin
+ *      after Phase 3, and RETIRED with the cleanup tab in v10.0.0 — it
+ *      fires nowhere today (the shortcode below is the living surface).
  *
  * The theme's `inc/page-notes-render.php` reads the `_sn_reading_time_minutes`
  * post meta directly (stable contract — same meta key as before the move).
@@ -71,7 +72,7 @@ function sn_calculate_reading_time( $post ) {
 	$content = strip_shortcodes( $content );
 	$content = wp_strip_all_tags( $content );
 
-	$words   = str_word_count( $content );
+	$words   = snt_word_count( $content );
 	$wpm     = (int) apply_filters( 'sn_reading_time_wpm', SN_READING_TIME_DEFAULT_WPM, $post );
 	$wpm     = max( 1, $wpm );
 	$minutes = max( 1, (int) ceil( $words / $wpm ) );
