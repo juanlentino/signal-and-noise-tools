@@ -47,6 +47,8 @@ function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) {
 // view's panels require) so the all-empty orphaned-label assertion below is a
 // genuine behavioral check, not a tautology.
 function snt_analytics_render_paths_table( $rows ) { echo '<!--PATHS-->'; }
+// v10.21.0: the Topics panel joins the main column below Top pages.
+function snt_analytics_render_topics( $from, $to ) { echo '<!--TOPICS-->'; }
 function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(), $drill = '' ) { echo '<!--DIM:' . esc_html( $title ) . ( null === $rows ? ':NULL' : '' ) . '-->'; }
 function snt_analytics_render_referrer_categories( $cats ) { echo '<!--REFCATS' . ( null === $cats ? ':NULL' : '' ) . '-->'; }
 function snt_analytics_render_lowengage( $rows ) {
@@ -101,6 +103,8 @@ $paths = strpos( $html, '<!--PATHS-->' );
 $dim   = strpos( $html, '<!--DIM:Top sources-->' );
 $cats  = strpos( $html, '<!--REFCATS-->' );
 ok( false !== $paths && $paths > $main && $paths < $side, 'Top pages lives in the main column' );
+$topics_pos = strpos( $html, '<!--TOPICS-->' );
+ok( false !== $topics_pos && $topics_pos > $paths && $topics_pos < $side, 'v10.21.0: Topics renders in the main column below Top pages' );
 ok( false !== $dim && false !== $cats && $dim > $side && $cats > $dim, 'Top sources then Referrer categories stack in the side column' );
 // v9.29.0: UTM moved to its own dedicated Campaigns dashboard tab
 // (inc/analytics-view-campaigns.php + tests/analytics-view-campaigns.php); the

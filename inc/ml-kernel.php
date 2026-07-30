@@ -315,3 +315,101 @@ if ( ! function_exists( 'snt_ml_related_score' ) ) {
 			+ (float) $w['co_link'] * (float) ( $signals['co_link'] ?? 0.0 );
 	}
 }
+
+if ( ! function_exists( 'snt_ml_topic_clusters' ) ) {
+	/**
+	 * Deterministic topic clustering: connected components over the cosine
+	 * graph (v10.21.0, pipeline #4). Two documents connect when their cosine
+	 * meets the threshold (inclusive); a topic is a component, not a clique —
+	 * A~B and B~C chain into one topic even when A and C sit apart. No k, no
+	 * seeds, no randomness: the same corpus always yields the same partition.
+	 *
+	 * Singletons are excluded — a topic needs at least two notes.
+	 *
+	 * @param array<int,array<string,float>> $vectors   Sparse L2 vectors keyed by document id.
+	 * @param float                          $threshold Cosine floor, inclusive.
+	 * @return array<int,array<int,int>> Clusters: members ascending; list
+	 *                                   ordered size-descending, then first
+	 *                                   member ascending. Empty input => [].
+	 */
+	function snt_ml_topic_clusters( $vectors, $threshold = 0.35 ) {
+		$ids = array_keys( (array) $vectors );
+		sort( $ids ); // Canonical walk order — determinism does not depend on input order.
+		$n = count( $ids );
+		if ( $n < 2 ) {
+			return array();
+		}
+
+		$parent = array();
+		foreach ( $ids as $id ) {
+			$parent[ $id ] = $id;
+		}
+		$find = static function ( $x ) use ( &$parent ) {
+			while ( $parent[ $x ] !== $x ) {
+				$parent[ $x ] = $parent[ $parent[ $x ] ]; // Path halving.
+				$x            = $parent[ $x ];
+			}
+			return $x;
+		};
+
+		for ( $i = 0; $i < $n; $i++ ) {
+			for ( $j = $i + 1; $j < $n; $j++ ) {
+				if ( snt_ml_cosine( $vectors[ $ids[ $i ] ], $vectors[ $ids[ $j ] ] ) >= $threshold ) {
+					$ra = $find( $ids[ $i ] );
+					$rb = $find( $ids[ $j ] );
+					if ( $ra !== $rb ) {
+						$parent[ max( $ra, $rb ) ] = min( $ra, $rb );
+					}
+				}
+			}
+		}
+
+		$components = array();
+		foreach ( $ids as $id ) {
+			$components[ $find( $id ) ][] = $id; // $ids sorted => members arrive ascending.
+		}
+
+		$clusters = array();
+		foreach ( $components as $members ) {
+			if ( count( $members ) >= 2 ) {
+				$clusters[] = $members;
+			}
+		}
+		usort( $clusters, static function ( $a, $b ) {
+			$by_size = count( $b ) <=> count( $a );
+			return 0 !== $by_size ? $by_size : ( $a[0] <=> $b[0] );
+		} );
+		return $clusters;
+	}
+}
+
+if ( ! function_exists( 'snt_ml_cluster_label' ) ) {
+	/**
+	 * Deterministic cluster label: the top terms by summed member weight,
+	 * middot-joined. Equal weights tie-break alphabetically, so a label can
+	 * never flap between rebuilds of an unchanged corpus.
+	 *
+	 * @param array<int,array<string,float>> $vectors Sparse vectors keyed by document id.
+	 * @param array<int,int>                 $members Cluster member ids.
+	 * @param int                            $terms   Label term count.
+	 * @return string '' when no member carries any term.
+	 */
+	function snt_ml_cluster_label( $vectors, $members, $terms = 2 ) {
+		$sum = array();
+		foreach ( (array) $members as $id ) {
+			foreach ( (array) ( $vectors[ $id ] ?? array() ) as $term => $weight ) {
+				$sum[ $term ] = ( $sum[ $term ] ?? 0.0 ) + (float) $weight;
+			}
+		}
+		if ( array() === $sum ) {
+			return '';
+		}
+		uksort( $sum, static function ( $a, $b ) use ( $sum ) {
+			if ( $sum[ $a ] === $sum[ $b ] ) {
+				return strcmp( $a, $b );
+			}
+			return $sum[ $b ] <=> $sum[ $a ];
+		} );
+		return implode( ' · ', array_slice( array_keys( $sum ), 0, max( 1, (int) $terms ) ) );
+	}
+}

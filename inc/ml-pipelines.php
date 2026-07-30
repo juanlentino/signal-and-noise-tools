@@ -28,6 +28,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'near-duplicates'  => 'snt_ml_pipeline_near_duplicates', // v10.16.0: cousin pairs (inc/ml-cousins.php).
 			'extract-keywords' => 'snt_ml_pipeline_extract_keywords', // v10.17.0: TF-IDF keyword candidates (inc/ml-candidates.php).
 			'link-candidates'  => 'snt_ml_pipeline_link_candidates',  // v10.17.0: unlinked related-note candidates (inc/ml-candidates.php).
+			'topic-clusters'   => 'snt_ml_pipeline_topic_clusters',   // v10.21.0: the stored topic partition (inc/ml-artifacts.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -226,5 +227,41 @@ if ( ! function_exists( 'snt_ml_pipeline_link_candidates' ) ) {
 			? (int) $args['limit']
 			: SNT_ML_LINK_LIMIT_DEFAULT;
 		return snt_ml_link_candidates( $post_id, $limit );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_topic_clusters' ) ) {
+	/**
+	 * 'topic-clusters' pipeline (v10.21.0): the STORED topic partition — reads
+	 * the artifact, never recomputes (the build owns the walk; this surface is
+	 * a read). 503 while unbuilt, per the related pipeline's exact contract.
+	 *
+	 * @param array $args Unused; present for the dispatcher signature.
+	 * @return array|WP_Error { ok, clusters, cluster_count, built_at } or
+	 *                        snt_ml_not_built (503) / snt_ml_unavailable (500).
+	 */
+	function snt_ml_pipeline_topic_clusters( $args ) {
+		if ( ! function_exists( 'snt_ml_topics_get' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'ML artifacts module (inc/ml-artifacts.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$clusters = snt_ml_topics_get();
+		if ( null === $clusters ) {
+			return new WP_Error(
+				'snt_ml_not_built',
+				'ML artifacts are not built yet; the topic index is unavailable.',
+				array( 'status' => 503 )
+			);
+		}
+		$stored = get_option( SNT_ML_TOPICS_OPT );
+		return array(
+			'ok'            => true,
+			'clusters'      => $clusters,
+			'cluster_count' => count( $clusters ),
+			'built_at'      => is_array( $stored ) ? (int) ( $stored['built_at'] ?? 0 ) : 0,
+		);
 	}
 }

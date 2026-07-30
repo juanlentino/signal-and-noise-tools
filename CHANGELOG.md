@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.21.0] - 2026-07-30
+
+### New
+
+- **Topic clustering — ML pipeline #4** ([inc/ml-kernel.php](inc/ml-kernel.php) + [inc/ml-artifacts.php](inc/ml-artifacts.php)): `snt_ml_topic_clusters()` — PURE, deterministic connected components over the cosine graph (inclusive threshold; components not cliques, so A~B~C chains into one topic; singletons excluded; members ascending, clusters size-desc then first-member-asc; no k, no seeds, no randomness) — plus `snt_ml_cluster_label()` (top terms by summed member weight, alphabetical tie-break so labels never flap between rebuilds). Computed INSIDE the existing artifact build pass (the vectors are already in memory — one extra upper-triangle walk), stored as the corpus-wide `autoload=no` option idiom with `{built_at, threshold, clusters:[{members,label}]}`; reader `snt_ml_topics_get()` holds the honest envelope (null = never built, [] = a real clusterless answer). Registered in the pipeline registry as `topic-clusters` (reads the stored partition, never recomputes; 503 while unbuilt) with a read-door ability `signal-noise/topic-clusters` (allowlist 31 → 32; pinned). Kernel +17 asserts incl. the inclusive-boundary probe at exactly 1/√2 and the transitivity pin.
+
+- **The Topics panel — "which arguments moved"** ([inc/analytics-topics.php](inc/analytics-topics.php) + [inc/analytics-render-topics.php](inc/analytics-render-topics.php)): `sn_analytics_topic_totals()` joins the stored partition with the durable path-keyed rollup table — ONE bounded local query over every member path (never Analytics Engine), members mapped via `sn_analytics_post_path()`, unmapped members shrinking their topic honestly, zero-traffic topics dropped (a movement report), views-descending with deterministic label ties, zero date math (callers own the window). Renders on the Content view's main column below Top pages, owning its THREE states: not-built folds with an empty note that SAYS not-built; a failed rollup read folds with the shared read-failure copy (the v9.68.1 idiom — unknown is spoken, never zeroed); rows render the standard panel with the maturity-migration annotation pass over member paths (topics aggregate paths, and the 2026-07-30 re-parenting splits path history). Aggregates ONLY — the ML program's reader-profiling `never` is structural: the join's inputs are post groupings and path totals, never reader data.
+
+- **ML maturity scope: `Topic-level analytics` flips planned → live** ([inc/ml-maturity-page.php](inc/ml-maturity-page.php)): badges flip with the feature. Scope now 6 live / 1 planned (ops cadence) / 3 never.
+
+> **Why MINOR:** new user-visible capability (a fourth ML pipeline, a new analytics panel, a new read-door tool); additive, zero new services, theme untouched. Tests: kernel 68 → 85, artifacts 54 → 61, new [tests/analytics-topics.php](tests/analytics-topics.php) (12) + [tests/analytics-render-topics.php](tests/analytics-render-topics.php) (9), content-view composition + allowlist + maturity pins updated.
+
 ## [10.20.1] - 2026-07-30
 
 ### Changed
