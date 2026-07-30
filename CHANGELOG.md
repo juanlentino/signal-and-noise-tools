@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.5.0] - 2026-07-29
+
+### New
+
+- **The provenance explainer: [sn_provenance_maturity]** ([inc/provenance-maturity-page.php](inc/provenance-maturity-page.php)): the analytics-maturity page's literal sibling for the provenance system — a static, public, portfolio-grade explainer of the four-layer walk (canonical → signed → anchored → verifiable, every engine claim checkable against the shipped modules), eight honesty principles ("provenance proves integrity and time, never truth"; "a site vouching for itself proves nothing"; "no certificate authority, no annual ritual"), and a **coverage map built as the expansion seam**: `sn_prov_maturity_scope()` runs through the `sn_prov_maturity_scope` filter with a live|planned status whitelist, so the planned site-provenance arcs (Pages, Media) flip a flag instead of re-coding markup — planned surfaces render as dashed, dimmed badges. Same idioms as `[sn_analytics_maturity]`: whitelisted `format` attribute (full | table | principles | scope | compact), render-time-only stylesheet ([assets/provenance-maturity-front.css](assets/provenance-maturity-front.css)), everything escaped at build, returns never echoes, no live counts on a public page.
+
+> **Why MINOR:** a new user-visible capability (the public explainer shortcode); no API change.
+
 ## [10.4.1] - 2026-07-29
 
 ### Fixed

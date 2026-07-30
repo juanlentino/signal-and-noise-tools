@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.4.1
+ * Version:     10.5.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -143,6 +143,7 @@ require_once SNT_PATH . 'inc/ai-markdown-strip.php';   // v9.64.2: shared markdo
 require_once SNT_PATH . 'inc/analytics-narrator.php';  // v9.30.0: diagnostic/prescriptive narrator
 require_once SNT_PATH . 'inc/analytics-insights.php';  // v9.30.0: the Insights band
 require_once SNT_PATH . 'inc/analytics-maturity-page.php'; // v9.35.0: [sn_analytics_maturity] public explainer (I6)
+require_once SNT_PATH . 'inc/provenance-maturity-page.php'; // v10.5.0: [sn_provenance_maturity] public explainer (analytics-maturity sibling)
 require_once SNT_PATH . 'inc/edge-analytics.php';  // v6.26.0: Cloudflare GraphQL zone-analytics client (edge traffic)
 require_once SNT_PATH . 'inc/edge-rollup.php';     // v6.26.0: edge daily/dims tables + daily GraphQL rollup cron
 require_once SNT_PATH . 'inc/edge-admin.php';      // v6.26.0: "Traffic & edge" Analytics view (presenter)
