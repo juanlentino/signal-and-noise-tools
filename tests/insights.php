@@ -125,7 +125,9 @@ class Stub_wpdb_insights {
 	}
 	public function get_results( $query, $output = OBJECT_K ) {
 		// Cron history query — distinct hooks with stats from snt_cron_history.
+		// Capture the query text so tests can pin its shape (no UNIX_TIMESTAMP).
 		if ( false !== strpos( $query, 'snt_cron_history' ) ) {
+			$GLOBALS['__test_cron_query'] = $query;
 			$rows = isset( $GLOBALS['__test_cron_history'] ) ? $GLOBALS['__test_cron_history'] : array();
 			return $rows;
 		}
@@ -406,16 +408,37 @@ ins_true( abs( $wh['success_rate'] - 0.6667 ) < 0.01, 'success_rate ≈ 0.67 (2 
 ins_true( $wh['last_attempt_ago_seconds'] >= 3600 - 1, 'last_attempt computed' );
 
 // ─── Test 7: cron freshness ──────────────────────────────────────────
-echo "\nTest 7: cron_freshness — last_fired + last_24h_count\n";
+// The table stores fired_at as UTC DATETIME strings (cron-history writes
+// gmdate). The query must return the RAW string and PHP converts with
+// strtotime($s . ' UTC') — the cron-history idiom — because MySQL's
+// UNIX_TIMESTAMP() interprets its argument in the SESSION timezone and
+// would silently shift last_fired_ago_minutes on any non-UTC session.
+// Fixture rows model the real DB shape: raw strings, numeric-string counts.
+echo "\nTest 7: cron_freshness — raw UTC fired_at strings, PHP-side conversion\n";
+$prev_tz = date_default_timezone_get();
+date_default_timezone_set( 'America/Argentina/Buenos_Aires' ); // UTC-3: a bare strtotime() here would shift by 180min
 $GLOBALS['__test_cron_history'] = array(
-	array( 'hook' => 'sn_analytics_rollup_daily', 'last_fired_ts' => time() - 240,   'fires_24h' => 288 ),
-	array( 'hook' => 'sn_rss_tracker_daily_prune',     'last_fired_ts' => time() - 43200, 'fires_24h' => 1 ),
+	array( 'hook' => 'sn_analytics_rollup_daily',  'last_fired_at' => gmdate( 'Y-m-d H:i:s', time() - 240 ),   'fires_24h' => '288' ),
+	array( 'hook' => 'sn_rss_tracker_daily_prune', 'last_fired_at' => gmdate( 'Y-m-d H:i:s', time() - 43200 ), 'fires_24h' => '1' ),
+	array( 'hook' => 'sn_never_fired',             'last_fired_at' => '',                                      'fires_24h' => '0' ),
 );
 $signals = snt_insights_collect_signals();
+date_default_timezone_set( $prev_tz );
 ins_true( isset( $signals['cron_freshness']['sn_analytics_rollup_daily'] ), 'analytics cron present' );
 $cron = $signals['cron_freshness']['sn_analytics_rollup_daily'];
-ins_eq( 4, $cron['last_fired_ago_minutes'], '240s ≈ 4min' );
-ins_eq( 288, $cron['last_24h_count'], '288 fires/24h echoed' );
+ins_eq( 4, $cron['last_fired_ago_minutes'], '240s ≈ 4min (unshifted under a UTC-3 PHP default tz)' );
+ins_eq( 288, $cron['last_24h_count'], '288 fires/24h echoed (numeric-string from DB cast to int)' );
+$cron2 = $signals['cron_freshness']['sn_rss_tracker_daily_prune'];
+ins_eq( 720, $cron2['last_fired_ago_minutes'], '43200s = 720min — any tz shift would move this by ±180' );
+ins_eq( null, $signals['cron_freshness']['sn_never_fired']['last_fired_ago_minutes'], 'empty fired_at → null, never a strtotime(" UTC") now-resolution' );
+
+// ─── Test 7b: cron query shape — no UNIX_TIMESTAMP ───────────────────
+echo "\nTest 7b: cron query avoids UNIX_TIMESTAMP + binds a UTC datetime cutoff\n";
+$q = isset( $GLOBALS['__test_cron_query'] ) ? $GLOBALS['__test_cron_query'] : '';
+ins_true( '' !== $q, 'cron query captured by the stub' );
+ins_true( false === stripos( $q, 'UNIX_TIMESTAMP' ), 'no UNIX_TIMESTAMP in the query (MySQL applies the SESSION tz to it)' );
+ins_true( false !== strpos( $q, 'MAX(fired_at)' ), 'raw MAX(fired_at) selected for PHP-side conversion' );
+ins_true( 1 === preg_match( "/fired_at >= '\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'/", $q ), '24h cutoff bound as a UTC datetime string comparable to the stored format, not an epoch int' );
 
 // ─── Test 8: AI call passes signals as JSON + correct system prompt ──
 echo "\nTest 8: snt_insights_call_ai builds correct prompt\n";

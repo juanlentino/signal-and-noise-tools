@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.22.1] - 2026-07-30
+
+### Fixed
+
+- **Cron-freshness signal: session-timezone shift in `last_fired_ago_minutes`** ([inc/insights.php](inc/insights.php)): the insights signal collector read `snt_cron_history.fired_at` via SQL `UNIX_TIMESTAMP(fired_at)`, but the column stores UTC strings (cron-history writes `gmdate`) while MySQL's `UNIX_TIMESTAMP()` interprets its argument in the SESSION timezone — any non-UTC session silently shifted `last_fired_ago_minutes` (and the 24h-count cutoff) by the session offset. Now selects the raw `MAX(fired_at)` string and converts PHP-side with `strtotime($s . ' UTC')` — the established `snt_cron_history_for_hook()` idiom — and binds the 24h cutoff as a UTC datetime string so it compares in the column's own representation. The empty string is guarded BEFORE appending `' UTC'` (a lone `strtotime(' UTC')` resolves to the current time — the schedule-block trap). Tests: the fixture now models the real DB shape (raw UTC strings, numeric-string counts) and asserts under a UTC-3 PHP default timezone, plus a query-shape pin that no `UNIX_TIMESTAMP` reappears (Tests 7/7b, insights 209 → 214 asserts). Flagged MEDIUM/pre-existing by the v10.22.0 adversarial review.
+
+> **Why PATCH:** a correctness fix to an existing signal; no new capability, no schema or API change.
+
 ## [10.22.0] - 2026-07-30
 
 ### New

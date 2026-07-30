@@ -261,12 +261,18 @@ function snt_insights_collect_signals() {
 	// ── 5. Cron freshness — query the snt_cron_history table ──
 	$out['cron_freshness'] = array();
 	$table = $wpdb->prefix . 'snt_cron_history';
-	$cutoff = time() - DAY_IN_SECONDS;
+	// fired_at is stored as a UTC DATETIME string (cron-history writes gmdate).
+	// Never UNIX_TIMESTAMP() it in SQL — MySQL interprets the argument in the
+	// SESSION timezone, silently shifting the math on any non-UTC session.
+	// Select the raw string and convert PHP-side with strtotime($s . ' UTC'),
+	// the same idiom as snt_cron_history_for_hook(). The cutoff is bound as a
+	// UTC datetime string so it compares in the column's own representation.
+	$cutoff = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
 	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is $wpdb->prefix + a plugin constant (no user input).
 	$cron_rows = $wpdb->get_results( $wpdb->prepare(
 		"SELECT hook,
-		        MAX(UNIX_TIMESTAMP(fired_at)) AS last_fired_ts,
-		        SUM(CASE WHEN UNIX_TIMESTAMP(fired_at) >= %d THEN 1 ELSE 0 END) AS fires_24h
+		        MAX(fired_at) AS last_fired_at,
+		        SUM(CASE WHEN fired_at >= %s THEN 1 ELSE 0 END) AS fires_24h
 		 FROM {$table}
 		 GROUP BY hook",
 		$cutoff
@@ -275,7 +281,10 @@ function snt_insights_collect_signals() {
 		foreach ( $cron_rows as $r ) {
 			$hook = isset( $r['hook'] ) ? (string) $r['hook'] : '';
 			if ( '' === $hook ) { continue; }
-			$last = isset( $r['last_fired_ts'] ) ? (int) $r['last_fired_ts'] : 0;
+			// Guard the empty string BEFORE appending ' UTC': strtotime(' UTC')
+			// resolves to the CURRENT time (the schedule-block trap).
+			$last_raw = isset( $r['last_fired_at'] ) ? trim( (string) $r['last_fired_at'] ) : '';
+			$last     = '' !== $last_raw ? (int) strtotime( $last_raw . ' UTC' ) : 0;
 			$out['cron_freshness'][ $hook ] = array(
 				'last_fired_ago_minutes' => $last > 0 ? (int) floor( ( time() - $last ) / 60 ) : null,
 				'last_24h_count'         => isset( $r['fires_24h'] ) ? (int) $r['fires_24h'] : 0,
