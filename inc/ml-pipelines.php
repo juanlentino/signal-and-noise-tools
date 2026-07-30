@@ -24,7 +24,8 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 	 */
 	function snt_ml_pipelines() {
 		$pipelines = array(
-			'related' => 'snt_ml_pipeline_related',
+			'related'         => 'snt_ml_pipeline_related',
+			'near-duplicates' => 'snt_ml_pipeline_near_duplicates', // v10.16.0: cousin pairs (inc/ml-cousins.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -123,5 +124,35 @@ if ( ! function_exists( 'snt_ml_pipeline_related' ) ) {
 			'ok'      => true,
 			'related' => $related,
 		);
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_near_duplicates' ) ) {
+	/**
+	 * 'near-duplicates' pipeline: cousin pairs across the full 'post' corpus.
+	 *
+	 * Thin argument gate over snt_ml_cousin_pairs() (inc/ml-cousins.php),
+	 * which owns the corpus walk, the byte-exact/empty-body exclusions, and
+	 * the 0.3..0.95 threshold clamp. A non-numeric threshold falls back to
+	 * the default rather than casting (a (float) cast of garbage would
+	 * silently mean 0.0 → clamped to 0.3 — a surprise widening, not a scan).
+	 *
+	 * @param array $args { @type float $threshold Default 0.6, clamped 0.3..0.95 by the impl. }
+	 * @return array|WP_Error Envelope from snt_ml_cousin_pairs(), or
+	 *                        snt_ml_unavailable (500) when the module is not loaded.
+	 */
+	function snt_ml_pipeline_near_duplicates( $args ) {
+		$args = (array) $args;
+		if ( ! function_exists( 'snt_ml_cousin_pairs' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Cousin-detection module (inc/ml-cousins.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$threshold = isset( $args['threshold'] ) && is_numeric( $args['threshold'] )
+			? (float) $args['threshold']
+			: SNT_ML_COUSIN_THRESHOLD_DEFAULT;
+		return snt_ml_cousin_pairs( $threshold );
 	}
 }

@@ -40,7 +40,8 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * Cross-namespace (plugin + theme) resolves through the one global
  * WP_Abilities_Registry. Widened 15 → 23 in v9.50.0 (docs/ai-abilities-catalog
  * audit), 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status),
- * and 25 → 28 in v10.6.0 (corpus inspection trio);
+ * 25 → 28 in v10.6.0 (corpus inspection trio), and 28 → 29 in v10.16.0
+ * (near-duplicate-scan);
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -74,6 +75,11 @@ function sn_mcp_allowlist() {
 		'signal-noise/duplicate-body-scan',
 		'signal-noise/list-posts',
 		'signal-noise/get-post-content',
+		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
+		// construction (kernel cosine over the same corpus walk, no writes);
+		// spans non-public statuses for the same pre-publish reason as the
+		// trio above. Read door 28 → 29.
+		'signal-noise/near-duplicate-scan',
 		// Theme (signal-and-noise/) — identity + design system.
 		'signal-and-noise/get-theme-version',
 		'signal-and-noise/get-latest-theme-tag',

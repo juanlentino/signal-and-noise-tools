@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.16.0] - 2026-07-30
+
+### New
+
+- **Near-duplicate COUSIN detection — ML pipeline #2** ([inc/ml-cousins.php](inc/ml-cousins.php)): the exact scan (`duplicate-body-scan`) catches byte-identical bodies only — a duplicated-then-lightly-edited post escapes it. `snt_ml_cousin_pairs( $threshold = 0.6 )` walks the FULL 'post' corpus (all five non-trash statuses via `snt_corpus_fetch_posts` — pre-publish collision checking is the point), tokenizes every body with the kernel, vectors them as L2-normalized TF-IDF against the corpus' own stats, and returns all pairs at/above the cosine threshold (clamped 0.3..0.95) — EXCLUDING byte-exact pairs (same `snt_corpus_content_hash`: those are the exact scan's finding, not a cousin), empty/whitespace-only bodies, and markup-only tokenless bodies. Each pair: `{ a: {post_id,title,slug,status}, b: {same}, cosine: 4dp }`, a = lower post_id, sorted cosine-descending. Computed on demand, NO caching — 34 posts is milliseconds, and fix-then-rescan honesty is the same reason the exact scan has none. Registered in the pipeline registry as `near-duplicates` next to `related` ([inc/ml-pipelines.php](inc/ml-pipelines.php)), whose wrapper accepts `{threshold}` and refuses to (float)-cast garbage (non-numeric → default, never a silent 0.0-clamped-to-0.3 widening).
+
+- **New READ-door ability `signal-noise/near-duplicate-scan`** ([inc/abilities-corpus.php](inc/abilities-corpus.php)): fourth sibling of the corpus trio — manage_options, category tools, readonly/idempotent annotations, `[object, null]` input type per the bodyless-GET contract, input `{threshold: number 0.3..0.95 default 0.6}` (no post_type this release), output `{ok, pairs, pair_count, threshold, posts_scanned, truncated, scanned_at}`. The ability routes through `snt_ml_run()` — the registry stays the single ML dispatch seam. Allowlisted on the sn read door 28 → 29 (19 plugin + 10 theme; [inc/mcp/mcp-capabilities.php](inc/mcp/mcp-capabilities.php)), pinned counts updated in [tests/mcp-capabilities.php](tests/mcp-capabilities.php). 44 asserts in [tests/ml-cousins.php](tests/ml-cousins.php): the cosine pin is HAND-DERIVED (a permuted token multiset ⇒ cosine ≡ 1.0 whatever the idf — never recomputed from the kernel, the echo-testing ban), the excluded byte-exact pair also has cosine 1.0 so its absence proves the hash exclusion, the origin scheduled-vs-published cousin is asserted cross-status, and threshold clamping is pinned at both bounds with exact pair counts.
+
+> **Why MINOR:** new user-visible capability (a second ML pipeline + a new read-door MCP tool); additive, zero new services, theme untouched.
+
 ## [10.15.0] - 2026-07-30
 
 ### New
