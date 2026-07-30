@@ -29,6 +29,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'extract-keywords' => 'snt_ml_pipeline_extract_keywords', // v10.17.0: TF-IDF keyword candidates (inc/ml-candidates.php).
 			'link-candidates'  => 'snt_ml_pipeline_link_candidates',  // v10.17.0: unlinked related-note candidates (inc/ml-candidates.php).
 			'topic-clusters'   => 'snt_ml_pipeline_topic_clusters',   // v10.21.0: the stored topic partition (inc/ml-artifacts.php).
+			'cadence-flags'    => 'snt_ml_pipeline_cadence_flags',    // v10.22.0: publish + cron rhythm deviations (inc/ml-cadence.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -263,5 +264,26 @@ if ( ! function_exists( 'snt_ml_pipeline_topic_clusters' ) ) {
 			'cluster_count' => count( $clusters ),
 			'built_at'      => is_array( $stored ) ? (int) ( $stored['built_at'] ?? 0 ) : 0,
 		);
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_cadence_flags' ) ) {
+	/**
+	 * 'cadence-flags' pipeline (v10.22.0): publish + cron rhythm deviations.
+	 * Computed on demand — bounded local reads only, no artifact required.
+	 *
+	 * @param array $args Unused; present for the dispatcher signature.
+	 * @return array|WP_Error Envelope from snt_ml_cadence_flags(), or
+	 *                        snt_ml_unavailable (500) when the module is not loaded.
+	 */
+	function snt_ml_pipeline_cadence_flags( $args ) {
+		if ( ! function_exists( 'snt_ml_cadence_flags' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Cadence module (inc/ml-cadence.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		return snt_ml_cadence_flags();
 	}
 }

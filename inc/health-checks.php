@@ -130,6 +130,9 @@ function sn_health_run_scan() {
 			// cycle — the cached count is what lets the attention badge and
 			// health widget show it without ever computing on a pageload.
 			'ml_cousins'           => sn_health_check_ml_cousins(),
+			// 17th check (v10.22.0): cadence deviations — the kernel's EWMA/z
+			// rhythm watch over publishing + recorded cron hooks.
+			'ml_cadence'           => sn_health_check_ml_cadence(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -177,6 +180,8 @@ require_once __DIR__ . '/health-check-rights-signals.php';
 require_once __DIR__ . '/health-check-ledger-ci.php';
 // v10.20.0: the ML near-duplicate cousin scan as a health check.
 require_once __DIR__ . '/health-check-ml-cousins.php';
+// v10.22.0: cadence deviations (publish + cron rhythms) as a health check.
+require_once __DIR__ . '/health-check-ml-cadence.php';
 
 /**
  * Common per-check result envelope used by 2-4.

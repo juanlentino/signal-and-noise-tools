@@ -33,8 +33,9 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 32, 'read-door allowlist has exactly 32 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0, -> 29 in v10.16.0, -> 31 in v10.17.0, -> 32 in v10.21.0 2026-07-30: topic-clusters)' );
+ok( is_array( $list ) && count( $list ) === 33, 'read-door allowlist has exactly 33 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0, -> 29 in v10.16.0, -> 31 in v10.17.0, -> 32 in v10.21.0, -> 33 in v10.22.0 2026-07-30: cadence-flags)' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
+ok( in_array( 'signal-noise/cadence-flags', $list, true ), 'v10.22.0: cadence-flags is allowlisted on the read door' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 ok( in_array( 'signal-and-noise/get-design-tokens', $list, true ), 'theme read is allowlisted (cross-namespace)' );
 ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability is NOT allowlisted on the read door' );
@@ -82,7 +83,7 @@ foreach ( array( 'signal-noise/keyword-candidates', 'signal-noise/link-candidate
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 22, 'read door carries exactly 22 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0 2026-07-30)' );
+ok( count( $read_plugin ) === 23, 'read door carries exactly 23 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0 2026-07-30)' );
 ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged in v9.82.0)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 

@@ -325,6 +325,33 @@ ok( '' === snt_ml_cluster_label( $label_vectors, array( 999 ) ), '(m) unknown me
 $flat = array( 1 => array( 'zeta' => 0.5, 'eta' => 0.5 ) );
 ok( 'eta · zeta' === snt_ml_cluster_label( $flat, array( 1 ) ), '(m) equal weights tie-break alphabetically — labels are build-stable' );
 
+echo "\nGroup (n): cadence deviation — EWMA + z-score, hand-derived (v10.22.0)\n";
+// Hand derivation (decimal-exact at 4dp): events 0,100,180,320,400; now 700.
+// intervals = [100, 80, 140, 80]
+// EWMA (alpha .3, seeded on the first interval):
+//   100 → .3*80+.7*100 = 94 → .3*140+.7*94 = 107.8 → .3*80+.7*107.8 = 99.46
+// population variance vs plain mean 100: (0+400+1600+400)/4 = 600 → std 24.4949
+// current gap = 700-400 = 300 → z = (300-99.46)/24.494897… = 8.1870 (4dp)
+$dev = snt_ml_cadence_deviation( array( 0, 100, 180, 320, 400 ), 700 );
+ok( is_array( $dev ) && 4 === $dev['intervals'], '(n) four intervals measured from five events' );
+ok( 99.46 === round( $dev['ewma'], 4 ), '(n) EWMA pinned by hand: 99.46' );
+ok( 24.4949 === round( $dev['std'], 4 ), '(n) population std pinned by hand: 24.4949' );
+ok( 300.0 === (float) $dev['current_gap'], '(n) current gap = now - last event' );
+ok( 8.187 === round( $dev['z'], 4 ), '(n) z pinned by hand: 8.187' );
+
+// Unsorted input yields the identical verdict — order is canonicalized inside.
+$dev2 = snt_ml_cadence_deviation( array( 320, 0, 400, 100, 180 ), 700 );
+ok( $dev === $dev2, '(n) input order never changes the verdict' );
+
+// History floor: fewer than five events is UNKNOWN, never a confident z.
+ok( null === snt_ml_cadence_deviation( array( 0, 100, 200, 300 ), 500 ), '(n) four events → null (not enough history — unknown, not zero)' );
+ok( null === snt_ml_cadence_deviation( array(), 500 ), '(n) empty history → null with zero notices' );
+
+// Zero spread: a metronome corpus measures no variance, so surprise is
+// unquantifiable — z is null (unknown), never infinity, never 0.
+$metro = snt_ml_cadence_deviation( array( 0, 100, 200, 300, 400 ), 1000 );
+ok( is_array( $metro ) && null === $metro['z'] && 0.0 === (float) $metro['std'], '(n) zero std → z null: an unquantifiable surprise is UNKNOWN, not a number' );
+
 echo "\nGroup (k): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(k) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

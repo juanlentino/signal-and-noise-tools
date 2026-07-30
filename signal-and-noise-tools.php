@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.21.0
+ * Version:     10.22.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -353,6 +353,7 @@ require_once __DIR__ . '/inc/maturity-index-page.php';   // v10.11.0: [sn_maturi
 require_once __DIR__ . '/inc/maturity-legacy-redirects.php'; // v10.12.0: narrow 301 map for the family's dead top-level URLs (post re-parenting)
 require_once __DIR__ . '/inc/ml-maturity-page.php';       // v10.18.0: [sn_ml_maturity] — the ML-kernel explainer (three never badges; leak-proof by test contract)
 require_once __DIR__ . '/inc/ml-candidates-ui.php';       // v10.19.0: editor buttons for keyword/link candidates (pure kernel — no AI gate; posts only)
+require_once __DIR__ . '/inc/ml-cadence.php';             // v10.22.0: cadence flags (publish + cron rhythm deviations — ML pipeline #5)
 require_once __DIR__ . '/inc/colophon-page.php';             // v10.13.0: [sn_colophon] — the colophon moves from theme template to CMS (theme stays frozen)
 require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-status + anchor-sweep
 require_once __DIR__ . '/inc/login-hide.php';
