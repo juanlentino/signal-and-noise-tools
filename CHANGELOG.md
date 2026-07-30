@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.11.1] - 2026-07-30
+
+### Fixed
+
+- **Maturity index defaults corrected to the owner-chosen slugs** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): the machine card now links `/machine-readability/` (was the guessed `/machine-maturity/`) and the accessibility card links the new dedicated `/a11y-maturity/` page (the owner created a family-format page rather than swapping `/accessibility/`, which keeps its prose). Pinned link assertions updated in [tests/maturity-family.php](tests/maturity-family.php).
+
+> **Why PATCH:** fix — two default link targets; no behavior or API change.
+
 ## [10.11.0] - 2026-07-30
 
 ### New

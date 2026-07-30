@@ -70,7 +70,7 @@ foreach ( array( 'machine' => 'sn_machine_maturity_shortcode', 'ops' => 'sn_ops_
 echo "\nGroup: index cards + filter seam\n";
 $idx = sn_maturity_index_shortcode();
 ok( 6 === substr_count( $idx, '<a class="sn-maturity-index-card' ), 'all six default cards are linked (every default path is set)' );
-ok( false !== strpos( $idx, 'https://example.com/ai-maturity/' ) && false !== strpos( $idx, 'https://example.com/machine-maturity/' ), 'links resolve through home_url' );
+ok( false !== strpos( $idx, 'https://example.com/ai-maturity/' ) && false !== strpos( $idx, 'https://example.com/machine-readability/' ) && false !== strpos( $idx, 'https://example.com/a11y-maturity/' ), 'links resolve through home_url to the owner-chosen slugs (v10.11.1)' );
 add_filter( 'sn_maturity_index_items', function ( $items ) {
 	$items['future'] = array( 'Future moat', 'What next?', 'A page that does not exist yet.', '' );
 	return $items;
