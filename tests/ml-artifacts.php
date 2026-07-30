@@ -350,6 +350,20 @@ ok( false === strpos( $capped, 'draft-note' ), '(f) the unpublished row never re
 // All rows unpublished → the section disappears entirely.
 update_post_meta( 1, SNT_ML_RELATED_META, array( array( 'post_id' => 5, 'score' => 0.9 ) ) );
 ok( 'BODY' === snt_ml_related_render( 'BODY' ), '(f) every row gated out → no empty shell, just the content' );
+
+// v10.20.0 THEME-OWNERSHIP GATE — MUST BE THE LAST (f) TEST: defining the
+// theme's renderer is one-way (function_exists never un-sees it). With a
+// fully renderable state (valid artifact, singular main-loop context), the
+// presence of the theme's native [sn_related_notes] renderer silences the
+// plugin's content-filter aside — one Related section, theme-placed.
+update_post_meta( 1, SNT_ML_RELATED_META, array( array( 'post_id' => 2, 'score' => 0.9 ) ) );
+ok( 0 === strpos( snt_ml_related_render( 'BODY' ), 'BODY<aside' ), '(f) control: this state DOES render before the theme fn exists' );
+if ( ! function_exists( 'sn_related_notes_shortcode' ) ) { // Block-wrapped: a bare top-level declaration is HOISTED at compile time and would trip the gate for every earlier (f) test.
+	function sn_related_notes_shortcode() { return ''; }
+}
+$GLOBALS['__enqueued'] = array();
+ok( 'BODY' === snt_ml_related_render( 'BODY' ), '(f) theme renderer present → the plugin aside stands down (no duplicate Related section)' );
+ok( array() === $GLOBALS['__enqueued'], '(f) …and no stylesheet ships for a surface the theme owns' );
 $GLOBALS['__ctx'] = array( 'singular' => false, 'loop' => false, 'main' => false, 'the_id' => 0 );
 
 // ─── (g) Rebuild triggers ────────────────────────────────────────────

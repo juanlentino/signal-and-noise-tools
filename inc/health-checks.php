@@ -126,6 +126,10 @@ function sn_health_run_scan() {
 			// ran red for three unseen days (2026-07-25..28) — workflow failures
 			// live where nobody looks; this surfaces them on the attention chip.
 			'ledger_ci'            => snt_health_check_ledger_ci(),
+			// 16th check (v10.20.0): the ML cousin scan rides the 24h health
+			// cycle — the cached count is what lets the attention badge and
+			// health widget show it without ever computing on a pageload.
+			'ml_cousins'           => sn_health_check_ml_cousins(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -171,6 +175,8 @@ require_once __DIR__ . '/health-check-cf-security-headers.php';
 require_once __DIR__ . '/health-check-rights-signals.php';
 // v10.4.0: the public ledger CI status probe (GitHub runs API, no auth).
 require_once __DIR__ . '/health-check-ledger-ci.php';
+// v10.20.0: the ML near-duplicate cousin scan as a health check.
+require_once __DIR__ . '/health-check-ml-cousins.php';
 
 /**
  * Common per-check result envelope used by 2-4.

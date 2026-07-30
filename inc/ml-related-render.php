@@ -49,6 +49,15 @@ if ( ! function_exists( 'snt_ml_related_render' ) ) {
 		if ( ! is_singular( 'post' ) || ! in_the_loop() || ! is_main_query() ) {
 			return $content;
 		}
+		// v10.20.0 THEME-OWNERSHIP GATE: when the active theme ships its own
+		// native Related Notes surface ([sn_related_notes] in single.html —
+		// which consumes the same kernel ranking from theme v11.2.0), this
+		// content-filter aside stands down. Before this gate, live note pages
+		// carried TWO related sections. On any theme without that renderer,
+		// the aside keeps working unchanged.
+		if ( function_exists( 'sn_related_notes_shortcode' ) ) {
+			return $content;
+		}
 		// PR #410 review advisory: core wp_trim_excerpt() applies the_content,
 		// so a third-party auto-excerpt generated inside the singular main
 		// loop would pass all three guards above and leak the aside's text
