@@ -413,3 +413,66 @@ if ( ! function_exists( 'snt_ml_cluster_label' ) ) {
 		return implode( ' · ', array_slice( array_keys( $sum ), 0, max( 1, (int) $terms ) ) );
 	}
 }
+
+if ( ! function_exists( 'snt_ml_cadence_deviation' ) ) {
+	/**
+	 * Cadence deviation (v10.22.0, pipeline #5): how surprising is the CURRENT
+	 * gap, given the rhythm of past events? EWMA over the inter-event
+	 * intervals (alpha-weighted, seeded on the first interval) supplies the
+	 * expected gap; a z-score of (now - last event) against the plain
+	 * population spread quantifies the surprise. Deterministic: same events +
+	 * same now, same verdict; input order is canonicalized away.
+	 *
+	 * Honest unknowns, never numbers: fewer than five events is too little
+	 * history (null verdict), and a zero-spread metronome history makes
+	 * surprise unquantifiable (z null — never infinity, never zero).
+	 *
+	 * @param array<int,int|float> $events Unix timestamps of past events.
+	 * @param int|float            $now    The observation instant.
+	 * @param float                $alpha  EWMA smoothing factor.
+	 * @return array{intervals:int,ewma:float,std:float,current_gap:float,z:float|null}|null
+	 */
+	function snt_ml_cadence_deviation( $events, $now, $alpha = 0.3 ) {
+		$ts = array();
+		foreach ( (array) $events as $t ) {
+			if ( is_numeric( $t ) ) {
+				$ts[] = (float) $t;
+			}
+		}
+		if ( count( $ts ) < 5 ) {
+			return null; // Too little history: unknown, not a verdict.
+		}
+		sort( $ts );
+
+		$intervals = array();
+		$n         = count( $ts );
+		for ( $i = 1; $i < $n; $i++ ) {
+			$intervals[] = $ts[ $i ] - $ts[ $i - 1 ];
+		}
+
+		$alpha = (float) $alpha;
+		$ewma  = $intervals[0];
+		$m     = count( $intervals );
+		for ( $i = 1; $i < $m; $i++ ) {
+			$ewma = $alpha * $intervals[ $i ] + ( 1.0 - $alpha ) * $ewma;
+		}
+
+		$mean = array_sum( $intervals ) / $m;
+		$var  = 0.0;
+		foreach ( $intervals as $x ) {
+			$var += ( $x - $mean ) * ( $x - $mean );
+		}
+		$var /= $m;
+		$std  = sqrt( $var );
+
+		$gap = (float) $now - $ts[ $n - 1 ];
+
+		return array(
+			'intervals'   => $m,
+			'ewma'        => $ewma,
+			'std'         => $std,
+			'current_gap' => $gap,
+			'z'           => $std > 0.0 ? ( $gap - $ewma ) / $std : null,
+		);
+	}
+}

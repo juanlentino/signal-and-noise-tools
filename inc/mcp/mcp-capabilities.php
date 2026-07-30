@@ -42,7 +42,8 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * audit), 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status),
  * 25 → 28 in v10.6.0 (corpus inspection trio), 28 → 29 in v10.16.0
  * (near-duplicate-scan), 29 → 31 in v10.17.0 (keyword-candidates,
- * link-candidates), and 31 → 32 in v10.21.0 (topic-clusters);
+ * link-candidates), 31 → 32 in v10.21.0 (topic-clusters), and 32 → 33 in
+ * v10.22.0 (cadence-flags);
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -89,6 +90,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/keyword-candidates',
 		'signal-noise/link-candidates',
 		'signal-noise/topic-clusters', // v10.21.0: the stored topic partition (ML pipeline #4).
+		'signal-noise/cadence-flags',  // v10.22.0: publish + cron rhythm deviations (ML pipeline #5).
 		// Theme (signal-and-noise/) — identity + design system.
 		'signal-and-noise/get-theme-version',
 		'signal-and-noise/get-latest-theme-tag',

@@ -231,6 +231,37 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	// ─── 1f. Cadence flags — v10.22.0 ───────────────────────────────
+	wp_register_ability( 'signal-noise/cadence-flags', array(
+		'label'               => 'Scan operational rhythms for cadence deviations',
+		'description'         => 'Deterministic rhythm watch, no AI: EWMA/z-score of the CURRENT gap against each rhythm\'s own history — the publishing cadence plus every cron hook with enough recorded firings. One-sided (late only; a burst never flags), conservative (three sigmas). Honest unknowns: thin history never flags, a zero-spread metronome is watched but unquantifiable, and a failed cron-history read skips that section and says so (cron_skipped). Computed on demand from bounded local reads.',
+		'category'            => 'tools',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_corpus_cadence_flags',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'properties'           => array(),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'flags'         => array( 'type' => 'array' ),
+				'watched_hooks' => array( 'type' => 'integer' ),
+				'cron_skipped'  => array( 'type' => 'boolean' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
 	// ─── 2. List posts ──────────────────────────────────────────────
 	wp_register_ability( 'signal-noise/list-posts', array(
 		'label'               => 'List corpus metadata for every post',
@@ -368,6 +399,22 @@ function snt_ability_corpus_topic_clusters( $input ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	return snt_ml_run( 'topic-clusters', array() );
+}
+
+/**
+ * Ability wrapper: routes through the ML pipeline registry to the cadence
+ * scan — the registry stays the single ML dispatch seam.
+ *
+ * @param array|null $input Validated against input_schema above (input-less).
+ * @return array|WP_Error
+ *
+ * @since 10.22.0
+ */
+function snt_ability_corpus_cadence_flags( $input ) {
+	if ( ! function_exists( 'snt_ml_run' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	return snt_ml_run( 'cadence-flags', array() );
 }
 
 /**

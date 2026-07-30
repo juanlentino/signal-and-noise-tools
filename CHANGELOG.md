@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.22.0] - 2026-07-30
+
+### New
+
+- **Cadence flags — ML pipeline #5** ([inc/ml-kernel.php](inc/ml-kernel.php) + [inc/ml-cadence.php](inc/ml-cadence.php)): `snt_ml_cadence_deviation()` — PURE EWMA/z-score of the CURRENT gap against a rhythm's own inter-event history (alpha-seeded EWMA supplies the expected gap; population spread quantifies surprise; input order canonicalized; hand-derived 4dp pins incl. z 8.187). Honest unknowns as first-class outcomes: fewer than five events → null verdict; a zero-spread metronome → z null (unquantifiable surprise is UNKNOWN — never infinity, never zero). `snt_ml_cadence_flags()` applies it one-sided (late only; a burst never flags) at a conservative three sigmas to the publishing rhythm + every cron hook with enough recorded firings ([inc/cron-history.php](inc/cron-history.php)'s table); a FAILED cron-history read skips that section and SAYS SO (`cron_skipped`) — a partial answer never poses as a full one.
+
+- **Health check #17: cadence deviations** ([inc/health-check-ml-cadence.php](inc/health-check-ml-cadence.php)): one finding per flag (subject, z, humanized expected/current gaps), riding the cached 24h scan into the Health tab, the desktop health widget, and the attention badge — zero pageload compute, the same pattern as check #16.
+
+- **Pipeline + read door**: registry slug `cadence-flags`, ability `signal-noise/cadence-flags` (allowlist 32 → 33, pinned). **ML maturity: `Ops cadence flags` flips planned → live — the launch scope map is now FULLY live (7 live / 0 planned / 3 never).** 15 asserts in [tests/ml-cadence.php](tests/ml-cadence.php) (both rhythm kinds, one-sidedness, thin-history and metronome unknowns, the spoken partial-answer envelope, adapter + registry route); kernel 85 → 94.
+
+> **Why MINOR:** new user-visible capability (a fifth ML pipeline, a 17th health check, a new read-door tool); additive, zero new services, theme untouched.
+
 ## [10.21.0] - 2026-07-30
 
 ### New
