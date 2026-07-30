@@ -62,7 +62,7 @@ function sn_ml_maturity_scope() {
 		'links'     => array( __( 'Link candidates', 'signal-and-noise-tools' ), 'live' ),
 		'analytics' => array( __( 'Topic-level analytics', 'signal-and-noise-tools' ), 'planned' ),
 		'cadence'   => array( __( 'Ops cadence flags', 'signal-and-noise-tools' ), 'planned' ),
-		'search'    => array( __( 'Ranked search', 'signal-and-noise-tools' ), 'planned' ),
+		'search'    => array( __( 'Ranked search', 'signal-and-noise-tools' ), 'live' ), // v10.20.1: flipped with theme v11.2.0's ⌘K ranked palette.
 		'verdicts'  => array( __( 'Provenance verdicts', 'signal-and-noise-tools' ), 'never' ),
 		'readers'   => array( __( 'Reader profiling', 'signal-and-noise-tools' ), 'never' ),
 		'browser'   => array( __( 'Models in the reader\'s browser', 'signal-and-noise-tools' ), 'never' ),
