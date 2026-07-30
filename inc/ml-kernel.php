@@ -344,7 +344,7 @@ if ( ! function_exists( 'snt_ml_topic_clusters' ) ) {
 		foreach ( $ids as $id ) {
 			$parent[ $id ] = $id;
 		}
-		$find = static function ( $x ) use ( &$parent, &$find ) {
+		$find = static function ( $x ) use ( &$parent ) {
 			while ( $parent[ $x ] !== $x ) {
 				$parent[ $x ] = $parent[ $parent[ $x ] ]; // Path halving.
 				$x            = $parent[ $x ];
