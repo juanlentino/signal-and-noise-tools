@@ -43,14 +43,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AI_OG_CARD_TITLE_SYSTEM = 'Generate a punchier, shorter version of an article title for a social-share card image. Constraints: ' .
-	'(1) 60-90 characters total — count carefully; ' .
-	'(2) Direct and declarative — active voice, no fluff; ' .
-	'(3) Drop subtitles after a colon if they pad length unnecessarily, but only if the meaning survives; ' .
-	'(4) Match the source title\'s voice — don\'t turn an editorial title into generic clickbait; ' .
-	'(5) Avoid words: amazing, ultimate, best, powerful, transformative, revolutionary, cutting-edge; ' .
-	'(6) No quotes, no preamble, no "OG title:" labels, no markdown. ' .
-	'Output ONLY the title text.';
+// v10.6.1 — the voice fix. The social card is where the pull toward
+// clickbait is strongest and does the most damage to a peer register, so
+// the prompt bans the clickbait shapes by name instead of asking for
+// "punchier" and hoping.
+const SNT_AI_OG_CARD_TITLE_SYSTEM = 'Rewrite an essay title for a social share card. ' .
+	'The card restates the title\'s claim in different words, in a declarative register written for peers. ' .
+	'Form: 60-90 characters total, count carefully. ' .
+	'No questions, no curiosity gaps, no "here\'s why", no "the truth about", no numbered framing. ' .
+	'No colon used as a hook: "Provenance: why the word is wrong" is the shape to avoid. ' .
+	'Never make a claim the essay does not make, and never soften a claim it does make. ' .
+	'If the title contains the word "provenance", the card title keeps the word "provenance". ' .
+	'Never use the phrase "proof of origin" in this title; that phrase belongs to prose and body headings only. ' .
+	'Banned outright: em dashes in any form or spacing; the words delve, landscape, crucial, and leverage used as a verb. ' .
+	'Output ONLY the title text. No quotes, no preamble, no labels, no markdown.';
 
 const SNT_AI_OG_CARD_TITLE_MAX_TOKENS = 60;
 
