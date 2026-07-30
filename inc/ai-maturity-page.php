@@ -58,6 +58,7 @@ function sn_ai_maturity_scope() {
 		'alt'      => array( __( 'Image alt text', 'signal-and-noise-tools' ), 'live' ),
 		'links'    => array( __( 'Internal link suggestions', 'signal-and-noise-tools' ), 'live' ),
 		'tags'     => array( __( 'Tag suggestions', 'signal-and-noise-tools' ), 'live' ),
+		'ranking'  => array( __( 'Relevance ranking & similarity', 'signal-and-noise-tools' ), 'never' ),
 		'bodies'   => array( __( 'Note bodies', 'signal-and-noise-tools' ), 'never' ),
 	);
 	return apply_filters( 'sn_ai_maturity_scope', $scope );
