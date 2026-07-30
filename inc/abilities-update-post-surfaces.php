@@ -85,7 +85,14 @@ function snt_ability_update_post_surfaces( $input ) {
 	$post_id = (int) ( $input['post_id'] ?? 0 );
 
 	$post = get_post( $post_id );
-	if ( ! $post || 'trash' === (string) $post->post_status ) {
+	// v10.8.0 hardening: same target contract as the corpus read tools —
+	// corpus statuses only (no trash, no revisions' 'inherit') and public
+	// post types only (no attachments/internal CPTs). One definition of a
+	// valid target across both doors, via the shared corpus-inspect gates.
+	$status_ok = $post && in_array( (string) $post->post_status, SNT_CORPUS_STATUSES, true );
+	$type_ok   = $post && function_exists( 'snt_corpus_post_type_allowed' )
+		&& snt_corpus_post_type_allowed( (string) $post->post_type );
+	if ( ! $status_ok || ! $type_ok ) {
 		return new WP_Error(
 			'snt_surfaces_post_not_found',
 			__( 'Post not found.', 'signal-and-noise-tools' ),

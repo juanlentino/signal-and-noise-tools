@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.8.0] - 2026-07-30
+
+### New
+
+- **Focus keyword field in the per-post SN meta box** ([inc/post-settings.php](inc/post-settings.php)): `_sn_focus_keyword` (the v10.7.0 meta key) gets its editor UI — a single-line field between the meta description and canonical URL, registered on posts + pages with the same `sanitize_text_field` shape as the SEO title. The save handler hard-caps at 80 chars via `mb_substr`, matching the `update-post-surfaces` ability schema so both write paths (editor meta box, rw door) enforce one limit. The AI meta-description generator already reads the key as its keyword fallback; the field's helper text says exactly that, and the value renders nowhere public. New fixture [tests/post-settings-focus-keyword.php](tests/post-settings-focus-keyword.php) pins registration, the sanitize transform, the 80-char cap, and empty-submit-deletes-the-key.
+
+### Security
+
+- **`update-post-surfaces` target contract tightened** ([inc/abilities-update-post-surfaces.php](inc/abilities-update-post-surfaces.php)): the v10.7.0 ability gated its target on trash-status only, so an agent on the rw door could technically write surface meta to an attachment, a revision, or any registered CPT object. It now enforces the same target contract as the corpus read tools — corpus statuses only (publish/future/draft/pending/private) and public post types only — via the shared `snt_corpus_post_type_allowed()` gate, so both doors carry ONE definition of a valid target. Rejections stay 404-shaped (no oracle about what exists outside the contract). Fixture grows to 26 asserts, pinning the revision and attachment rejections.
+
+> **Why MINOR:** new user-visible capability (the meta-box field); the target-contract tightening removes no documented behavior — writing to non-post/page objects was never in the ability's contract.
+
 ## [10.7.0] - 2026-07-30
 
 ### New

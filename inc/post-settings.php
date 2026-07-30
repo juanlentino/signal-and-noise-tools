@@ -3,9 +3,10 @@
  * Signal & Noise Tools — Per-post settings meta box.
  *
  * SEO/robots/OG override keys on posts + pages (grown from the original
- * three to nine: _sn_noindex, _sn_noarchive, _sn_noimageindex,
+ * three to ten: _sn_noindex, _sn_noarchive, _sn_noimageindex,
  * _sn_evergreen, _sn_meta_description, _sn_canonical_url,
- * _sn_og_image_url, _sn_og_card_title, _sn_seo_title), plus the pillar
+ * _sn_og_image_url, _sn_og_card_title, _sn_seo_title,
+ * _sn_focus_keyword), plus the pillar
  * curation pair on Pages ONLY (v9.79.0): _sn_pillar +
  * _sn_pillar_designation, consumed by the theme's pillar essay rail.
  *
@@ -82,6 +83,7 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_og_image_url',     $url_args );
 		register_post_meta( $post_type, '_sn_og_card_title',    $text_args );
 		register_post_meta( $post_type, '_sn_seo_title',        $title_args ); // v9.3.0
+		register_post_meta( $post_type, '_sn_focus_keyword',    $title_args ); // v10.8.0: SEO focus keyword (fed to the AI meta-description generator; also writable via the rw-door update-post-surfaces ability)
 	}
 
 	// v9.79.0: pillar essay curation, Pages ONLY (pillars are Pages; the
@@ -222,6 +224,14 @@ function sn_post_settings_render( $post ) {
 	echo '<p class="sn-field-helper">Overrides the post excerpt for <code>&lt;meta name=&quot;description&quot;&gt;</code>, OG description, and JSON-LD. Empty falls back to excerpt.</p>';
 	echo '</div>';
 
+	// ─── Focus keyword (v10.8.0) ───
+	$focus_kw = (string) get_post_meta( $post->ID, '_sn_focus_keyword', true );
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_focus_keyword">Focus keyword</label>';
+	echo '<input type="text" id="sn_focus_keyword" name="sn_focus_keyword" maxlength="80" value="' . esc_attr( $focus_kw ) . '" placeholder="music provenance">';
+	echo '<p class="sn-field-helper">The SEO keyword this post targets. The AI meta-description generator requires it verbatim in its output; empty falls back to the title&rsquo;s topic noun. Not rendered anywhere public.</p>';
+	echo '</div>';
+
 	// ─── Canonical URL ───
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_canonical_url">Canonical URL</label>';
@@ -342,6 +352,17 @@ function sn_post_settings_save( $post_id ) {
 		update_post_meta( $post_id, '_sn_seo_title', $seo_title );
 	} else {
 		delete_post_meta( $post_id, '_sn_seo_title' );
+	}
+
+	// Focus keyword (v10.8.0) — single-line; mb_substr caps at 80 to match
+	// the update-post-surfaces ability schema (one limit on both write paths).
+	$focus_kw = isset( $_POST['sn_focus_keyword'] )
+		? mb_substr( sanitize_text_field( wp_unslash( $_POST['sn_focus_keyword'] ) ), 0, 80 )
+		: '';
+	if ( '' !== $focus_kw ) {
+		update_post_meta( $post_id, '_sn_focus_keyword', $focus_kw );
+	} else {
+		delete_post_meta( $post_id, '_sn_focus_keyword' );
 	}
 
 	// URL fields — esc_url_raw strips invalid URLs to ''.

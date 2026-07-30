@@ -28,9 +28,11 @@ if ( ! function_exists( 'add_action' ) ) {
 
 // ── Fixture store ────────────────────────────────────────────────────
 $GLOBALS['__posts'] = array(
-	10 => (object) array( 'ID' => 10, 'post_status' => 'future', 'post_excerpt' => 'old' ),
-	11 => (object) array( 'ID' => 11, 'post_status' => 'trash', 'post_excerpt' => '' ),
-	12 => (object) array( 'ID' => 12, 'post_status' => 'publish', 'post_excerpt' => '' ),
+	10 => (object) array( 'ID' => 10, 'post_status' => 'future', 'post_type' => 'post', 'post_excerpt' => 'old' ),
+	11 => (object) array( 'ID' => 11, 'post_status' => 'trash', 'post_type' => 'post', 'post_excerpt' => '' ),
+	12 => (object) array( 'ID' => 12, 'post_status' => 'publish', 'post_type' => 'post', 'post_excerpt' => '' ),
+	13 => (object) array( 'ID' => 13, 'post_status' => 'inherit', 'post_type' => 'revision', 'post_excerpt' => '' ),
+	14 => (object) array( 'ID' => 14, 'post_status' => 'inherit', 'post_type' => 'attachment', 'post_excerpt' => '' ),
 );
 $GLOBALS['__meta']         = array();
 $GLOBALS['__meta_deleted'] = array();
@@ -67,7 +69,21 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'sn_generate_og_card' ) ) {
 	function sn_generate_og_card( $id ) { $GLOBALS['__card_calls'][] = (int) $id; return true; }
 }
+// Corpus gates (SNT_CORPUS_STATUSES + snt_corpus_post_type_allowed) come from
+// the real corpus-inspect.php — the target contract is genuinely shared.
+if ( ! function_exists( 'post_type_exists' ) ) {
+	function post_type_exists( $t ) { return in_array( $t, array( 'post', 'page', 'revision', 'attachment' ), true ); }
+}
+if ( ! function_exists( 'get_post_type_object' ) ) {
+	function get_post_type_object( $t ) {
+		if ( ! post_type_exists( $t ) ) { return null; }
+		$o = new stdClass();
+		$o->public = in_array( $t, array( 'post', 'page', 'attachment' ), true ); // attachment IS public in real WP
+		return $o;
+	}
+}
 
+require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/abilities-update-post-surfaces.php';
 
 $pass = 0; $fail = 0;
@@ -125,6 +141,10 @@ $r = snt_ability_update_post_surfaces( array( 'post_id' => 999, 'excerpt' => 'x'
 ok( is_wp_error( $r ) && 'snt_surfaces_post_not_found' === $r->get_error_code(), 'unknown post → 404 error' );
 $r = snt_ability_update_post_surfaces( array( 'post_id' => 11, 'excerpt' => 'x' ) );
 ok( is_wp_error( $r ), 'trashed post → error' );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 13, 'excerpt' => 'x' ) );
+ok( is_wp_error( $r ), 'revision (inherit status, internal type) → error, never writable' );
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 14, 'meta_description' => 'x' ) );
+ok( is_wp_error( $r ), 'attachment (public type but non-corpus status) → error — surfaces are a post/page contract' );
 $r = snt_ability_update_post_surfaces( array( 'post_id' => 10 ) );
 ok( is_wp_error( $r ) && 'snt_surfaces_nothing_to_write' === $r->get_error_code(), 'post_id alone → 422 nothing-to-write' );
 
