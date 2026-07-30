@@ -1,12 +1,16 @@
 <?php
 /**
- * Standalone fixture tests for the v8.1.0 link_opportunities Health check
- * (inc/health-link-opportunities.php): zero-AI semantic-pair candidates from
- * shared tags + lexical TF-IDF overlap, advisory tier, unlinked_mentions
- * dedupe (title-mention pairs stay with that check).
+ * Standalone fixture tests for the link_opportunities Health check
+ * (inc/health-link-opportunities.php). v10.23.0 re-based the CANDIDATE pass
+ * on the ML kernel's stored related artifact (snt_ml_related_for_post) —
+ * the v8.1.0 homegrown TF-IDF/tag scorer is gone. Everything else the check
+ * earned over v8.1.2..v8.4.5 is preserved and still pinned here verbatim:
+ * the unlinked_mentions partition, the already-linked skip (both
+ * directions), the per-source cap with judged-pairs-consume-slots (v8.4.4),
+ * ID-keyed verdicts surviving Apply (v8.4.5), and legacy-verdict migration.
  *
  * Run: php tests/health-link-opportunities.php
- * @since plugin v8.1.0
+ * @since plugin v8.1.0 (kernel re-base v10.23.0)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -51,6 +55,20 @@ class SnPairsWpdb {
 }
 $GLOBALS['wpdb'] = new SnPairsWpdb();
 
+// v10.23.0 KERNEL SEAM: candidates come from the stored related artifact.
+// null = artifact never built; [] = post unindexed; rows = {post_id, score}.
+$GLOBALS['__ml_related']       = array();
+$GLOBALS['__ml_artifact_null'] = false;
+function snt_ml_related_for_post( $id, $limit = 10 ) {
+	if ( $GLOBALS['__ml_artifact_null'] ) { return null; }
+	return array_slice( $GLOBALS['__ml_related'][ (int) $id ] ?? array(), 0, (int) $limit );
+}
+function rel( $pairs ) {
+	$out = array();
+	foreach ( $pairs as $pid => $score ) { $out[] = array( 'post_id' => $pid, 'score' => $score ); }
+	return $out;
+}
+
 require_once __DIR__ . '/../inc/health-checks.php';            // pack_check + contains_note_link + mention_target_eligible
 require_once __DIR__ . '/../inc/health-summary.php';           // advisory tier list
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';  // locate + fingerprint (nomination validation)
@@ -65,9 +83,10 @@ function mk_row( $id, $title, $name, $content, $modified = '' ) {
 	return array( 'ID' => $id, 'post_title' => $title, 'post_name' => $name, 'post_content' => $content, 'post_modified_gmt' => $modified );
 }
 
-// Distinctive-prose builders. Four terms (compression, sidechain, saturation,
-// headroom) appear ONLY in the two audio posts => df=2 of N => positive idf =>
-// both posts carry them in their top terms => 4 shared >= the 3-term floor.
+// Prose builders. Since the v10.23.0 kernel re-base the scan no longer
+// reads prose for SCORING (the stubs above carry the scores); bodies still
+// matter for the mention partition, the linked-pair skip, and ai-pair-
+// suggest's anchor-nomination validation ('compression' must exist in prose).
 $audio_prose_a = '<p>Notes on compression and sidechain moves. Compression with saturation for headroom. Sidechain saturation keeps headroom honest. Compression again.</p>';
 $audio_prose_b = '<p>Deep dive: compression basics, sidechain routing, saturation stages, headroom budgets. Compression sidechain saturation headroom throughout.</p>';
 $coffee_prose  = '<p>Grinder settings, bloom timing, pourover ratios, kettle temperature. Grinder bloom pourover kettle. Grinder pourover.</p>';
@@ -76,29 +95,49 @@ $generic_prose = '<p>Some thoughts about things that happened. Words about vario
 echo "link-opportunities suite - plugin v8.1.0\n";
 
 // ── Scenario 1: lexical pair (no shared tag) nominates; generic does not ──
-echo "\nTest: lexical-overlap pair nominates (the discovery win)\n";
+echo "\nTest: kernel-related pair nominates — no lexical or tag overlap required (the v10.23.0 re-base)\n";
 $GLOBALS['wpdb']->rows = array(
-	mk_row( 1, 'Mixing Vocals Loud', 'mixing-vocals-loud', $audio_prose_a ), // newest
-	mk_row( 2, 'Console Craft', 'console-craft', $audio_prose_b ),
+	mk_row( 1, 'Mixing Vocals Loud', 'mixing-vocals-loud', $generic_prose ), // newest — DELIBERATELY generic prose: the old TF-IDF engine could never pair these
+	mk_row( 2, 'Console Craft', 'console-craft', '<p>Wholly unrelated body with distinct wording throughout this note.</p>' ),
 	mk_row( 3, 'Coffee Brewing Notes', 'coffee-brewing', $coffee_prose ),
 	mk_row( 4, 'Sundry Observations', 'sundry', $generic_prose ),            // oldest
 );
 $GLOBALS['__tags'] = array();
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 2 => 0.41 ) ) );
 $check = sn_health_check_link_opportunities();
-ok( 1 === (int) $check['count'], 'exactly one candidate pair (the two audio notes)' );
+ok( 1 === (int) $check['count'], 'exactly one candidate pair — nominated by the KERNEL ranking alone' );
 $f = $check['findings'][0] ?? array();
 ok( 1 === ( $f['subject_id'] ?? 0 ), 'subject is the NEWER note (rows are date-DESC)' );
 ok( 2 === ( $f['target_id'] ?? 0 ), 'target is the older note' );
 ok( false !== strpos( (string) ( $f['note'] ?? '' ), 'Console Craft' ), 'note names the target' );
 ok( isset( $f['edit_url'] ) && false !== strpos( $f['edit_url'], 'post=1' ), 'edit link points at the source' );
 
-echo "\nTest: shared-tag pair nominates even without lexical overlap\n";
-$GLOBALS['__tags'] = array( 1 => array( 10 ), 3 => array( 10 ) ); // audio A + coffee share a tag
+echo "\nTest: multiple kernel candidates all nominate (tag signal now lives INSIDE the blended score)\n";
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 2 => 0.41, 3 => 0.2 ) ) );
 $check = sn_health_check_link_opportunities();
-ok( 2 === (int) $check['count'], 'tag pair joins the lexical pair (two candidates)' );
+ok( 2 === (int) $check['count'], 'both kernel candidates nominate' );
 $pairs = array();
 foreach ( $check['findings'] as $ff ) { $pairs[] = $ff['subject_id'] . '>' . $ff['target_id']; }
-ok( in_array( '1>3', $pairs, true ), 'tag-sibling pair (1,3) nominated with newer note as subject' );
+ok( in_array( '1>3', $pairs, true ), 'second-ranked pair (1,3) nominated with newer note as subject' );
+
+echo "\nTest: symmetric artifact rows report the pair ONCE, newer note as subject\n";
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 2 => 0.41 ) ), 2 => rel( array( 1 => 0.41 ) ) );
+$check = sn_health_check_link_opportunities();
+ok( 1 === (int) $check['count'] && 1 === (int) $check['findings'][0]['subject_id'], 'the artifact stores both directions; the check reports one pair, newer as source' );
+
+echo "\nTest: a pair crowded OUT of the newer note's top-10 still nominates via the OLDER note's list\n";
+// The reviewer's truncation trap: each side's artifact rows truncate to
+// top-10 INDEPENDENTLY, so a pair can survive only in the older post's
+// list. The check must consult both directions or that pair silently dies.
+$GLOBALS['__ml_related'] = array( 2 => rel( array( 1 => 0.41 ) ) ); // ONLY the older note lists the newer one.
+$check = sn_health_check_link_opportunities();
+ok( 1 === (int) $check['count'] && 1 === (int) $check['findings'][0]['subject_id'] && 2 === (int) $check['findings'][0]['target_id'], 'the pair survives via the older list, still reported newer-as-source' );
+
+echo "\nTest: unbuilt artifact = the advisory stays QUIET, never fatals\n";
+$GLOBALS['__ml_artifact_null'] = true;
+$check = sn_health_check_link_opportunities();
+ok( 0 === (int) $check['count'], 'artifact null (never built) → zero advisories — it builds on the next publish or overnight' );
+$GLOBALS['__ml_artifact_null'] = false;
 
 echo "\nTest: already-linked pairs are skipped (either direction)\n";
 $GLOBALS['wpdb']->rows = array(
@@ -106,6 +145,7 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 2, 'Console Craft', 'console-craft', $audio_prose_b ),
 );
 $GLOBALS['__tags'] = array();
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 2 => 0.41 ) ) );
 $check = sn_health_check_link_opportunities();
 ok( 0 === (int) $check['count'], 'source already links target: skipped' );
 $GLOBALS['wpdb']->rows = array(
@@ -120,6 +160,7 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 5, 'Fresh Note', 'fresh-note', $audio_prose_a . '<p>As I said in Console Craft earlier.</p>' ),
 	mk_row( 2, 'Console Craft', 'console-craft', $audio_prose_b ),
 );
+$GLOBALS['__ml_related'] = array( 5 => rel( array( 2 => 0.41 ) ) );
 $check = sn_health_check_link_opportunities();
 ok( 0 === (int) $check['count'], 'eligible title mention in source prose: pair skipped (unlinked_mentions territory)' );
 
@@ -134,6 +175,7 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 3, 'Coffee Brewing Notes', 'coffee-brewing', $coffee_prose ),
 	mk_row( 4, 'Sundry Observations', 'sundry', $generic_prose ),
 );
+$GLOBALS['__ml_related'] = array( 5 => rel( array( 6 => 0.41 ) ) );
 $check = sn_health_check_link_opportunities();
 ok( 1 === (int) $check['count'], 'ineligible-title target still nominates (no coverage gap between the two checks)' );
 
@@ -145,7 +187,8 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 23, 'Older Three', 'older-three', '<p>Entirely different words here, unrelated content follows.</p>' ),
 	mk_row( 24, 'Older Four', 'older-four', '<p>Another unrelated body of text with no overlap.</p>' ),
 );
-$GLOBALS['__tags'] = array( 1 => array( 10 ), 21 => array( 10 ), 22 => array( 10 ), 23 => array( 10 ), 24 => array( 10 ) );
+$GLOBALS['__tags'] = array();
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 21 => 0.4, 22 => 0.35, 23 => 0.3, 24 => 0.25 ) ) );
 $check = sn_health_check_link_opportunities();
 $from_one = 0;
 foreach ( $check['findings'] as $ff ) { if ( 1 === $ff['subject_id'] ) { $from_one++; } }
@@ -173,6 +216,7 @@ $GLOBALS['wpdb']->rows = array(
 // v8.4.3: one option row PER verdict (the key IS the option name).
 function seed_pair_verdict( $key, $entry ) { $GLOBALS['__options'] = array( $key => $entry ); }
 $GLOBALS['__tags'] = array();
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 2 => 0.41 ) ) );
 seed_pair_verdict( pair_key( 1, 2, '2026-07-01 10:00:00', '2026-07-01 11:00:00' ), array( 'verdict' => 'skip', 'reason' => 'r', 'anchor' => '' ) );
 $check = sn_health_check_link_opportunities();
 ok( 0 === (int) $check['count'], 'stored skip verdict suppresses the pair' );
@@ -216,13 +260,8 @@ $GLOBALS['wpdb']->rows = array(
 	mk_row( 33, 'Older Three', 'older-three', '<p>Entirely different words here, unrelated content follows.</p>', '2026-07-01 03:00:00' ),
 	mk_row( 34, 'Older Four', 'older-four', '<p>Another unrelated body of text with no overlap.</p>', '2026-07-01 04:00:00' ),
 );
-$GLOBALS['__tags'] = array(
-	1  => array( 10, 11, 12, 13 ),
-	31 => array( 10, 11, 12, 13 ),
-	32 => array( 10, 11, 12 ),
-	33 => array( 10, 11 ),
-	34 => array( 10 ),
-);
+$GLOBALS['__tags'] = array();
+$GLOBALS['__ml_related'] = array( 1 => rel( array( 31 => 0.45, 32 => 0.35, 33 => 0.25, 34 => 0.15 ) ) );
 function subject_one_targets( $check ) {
 	$t = array();
 	foreach ( $check['findings'] as $ff ) { if ( 1 === $ff['subject_id'] ) { $t[] = (int) $ff['target_id']; } }
