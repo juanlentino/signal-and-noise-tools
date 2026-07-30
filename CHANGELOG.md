@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.20.0] - 2026-07-30
+
+### New
+
+- **Health check #16: near-duplicate cousins** ([inc/health-check-ml-cousins.php](inc/health-check-ml-cousins.php)): the v10.16.0 ML cousin scan rides the 24h health cycle — one finding per pair (`subject_label` names both members, note carries the 4dp cosine + both statuses, edit link targets member A). Riding the CACHED scan is the design point: the count flows into the Health tab, the desktop health widget, and the attention badge with zero extra wiring, and no admin pageload ever tokenizes the corpus (the badge's never-computes contract holds). Zero pairs is a CLEAN check; malformed envelopes/rows yield no finding, never a fabricated one. 10 asserts in [tests/health-check-ml-cousins.php](tests/health-check-ml-cousins.php).
+
+### Changed
+
+- **The content-filter Related aside stands down when the theme owns the surface** ([inc/ml-related-render.php](inc/ml-related-render.php)): live note pages were carrying TWO related sections — the plugin's ML aside appended inside `the_content` (v10.15.0) AND the theme's native `[sn_related_notes]` footer (theme v9.10.0, tag-heuristic) in single.html. New gate: when `sn_related_notes_shortcode` exists, the aside returns the content untouched and ships no stylesheet — one Related section, theme-placed. The theme's footer consumes the same kernel ranking from theme v11.2.0 (guarded, heuristic fallback), so readers keep kernel-ranked related notes in the DESIGNED slot. On any theme without that renderer the aside keeps working unchanged. Gate pinned as the deliberately-last (f) test in [tests/ml-artifacts.php](tests/ml-artifacts.php) (defining the theme fn is one-way for `function_exists`; a bare top-level declaration would HOIST at compile time and poison every earlier test — block-wrapped).
+
+> **Why MINOR:** new user-visible capability (a 16th health check surfacing cousin pairs on the desktop) plus a deliberate surface handoff to the theme; additive and reversible (deactivate the theme renderer and the aside returns).
+
 ## [10.19.0] - 2026-07-30
 
 ### New
