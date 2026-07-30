@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.23.0] - 2026-07-30
+
+### Changed
+
+- **Link opportunities re-based on the ML kernel** ([inc/health-link-opportunities.php](inc/health-link-opportunities.php)): the owner's aging-surface audit found the check still running its v8.1.0 homegrown scorer — a private stopword list, private tokenizer, "lightweight TF-IDF," and tag-weight arithmetic, recomputed O(n²) over up to 500 posts on every scan — a pre-kernel proto-kernel duplicating (worse) what [inc/ml-kernel.php](inc/ml-kernel.php) has owned, tested to 10dp, since v10.15.0. The candidate pass now reads the STORED related artifact (`snt_ml_related_for_post`: blended cosine + tag overlap + link graph, precomputed at build time); ~110 lines of proto-kernel deleted along with four of its five knobs; BOTH directions of the artifact are consulted with normalize-and-dedupe, so a pair crowded out of one post's top-10 still nominates via the other's (the reviewer's truncation trap, closed pre-merge). Everything the check earned across v8.1.2–v8.4.5 is preserved verbatim and still pinned: the unlinked_mentions partition, the already-linked skip both directions, judged-noise suppression, the per-source cap with judged-pairs-consume-slots, ID-keyed verdicts surviving Apply, legacy-verdict migration. New honest state: an unbuilt artifact keeps the advisory QUIET (it builds on the next publish or overnight) instead of guessing; scoring ties now break deterministically. [tests/health-link-opportunities.php](tests/health-link-opportunities.php) rewritten scenario-side only (34 asserts) — including a pair with NO lexical or tag overlap that the old engine could never nominate, watched RED first.
+
+**Audit verdicts on the other candidates (no change, deliberate):** unlinked_mentions keeps its exact-title-mention finder (the kernel has no mention detector; the partition stands); ai-link-suggest / ai-pair-suggest keep the AI anchor-nomination step (the kernel ranks, it cannot nominate prose); duplicate-body-scan stays byte-exact beside the cousin scan (documented hash-vs-cosine partition); the theme's tag heuristic already converged in theme v11.2.0 (kept as the plugin-absent fallback).
+
+> **Why MINOR:** a behavioral upgrade to a user-visible surface (the advisory's candidate quality changes) plus a new honest unbuilt state; no schema change, no user action required.
+
 ## [10.22.1] - 2026-07-30
 
 ### Fixed
