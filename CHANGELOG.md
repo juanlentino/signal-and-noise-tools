@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.19.0] - 2026-07-30
+
+### New
+
+- **Editor buttons for the ML candidate pipelines** ([inc/ml-candidates-ui.php](inc/ml-candidates-ui.php) + [assets/ml-candidates-ui.js](assets/ml-candidates-ui.js)): the kernel's keyword and link candidates reach the place the writing happens — the Signal & Noise meta box, beside the AI buttons. **Suggest keywords** renders the ranked TF-IDF candidates as chips under the focus-keyword field; clicking a chip FILLS the input and fires input/change — the human still saves ("the kernel computes, a person decides"). **Suggest links** appends a new Link-candidates field: related-but-unlinked notes as anchors to their resolved permalinks plus a clipboard Copy button — nothing edits the body. Honest states throughout: zero keyword candidates renders as "the body may be empty", zero link candidates as "every related note is already linked", and the unbuilt-artifact 503 (`snt_ml_not_built`) as "builds on the next publish or overnight" — three DIFFERENT answers, never conflated. Deliberately NOT routed through `snt_ai_enqueue_editor_script()`: that helper gates on AI availability, and these are pure-kernel buttons that must appear without it (the fixture proves it structurally — `snt_ai_is_available` is never defined, so an impl consulting it would fatal). Gate pinned in [tests/ml-candidates-ui.php](tests/ml-candidates-ui.php) (14 asserts): post.php/post-new.php only, post type `post` only (absent typenow fails closed), edit_posts, transport dep on `snt-ability-run` (no hardcoded ability paths — the existing transport guard applies). Same JS discipline as the AI buttons: 10s poll for the async meta box, DOM-built, no innerHTML.
+
+### Changed
+
+- **`link-candidates` rows carry the resolved permalink** ([inc/ml-candidates.php](inc/ml-candidates.php)): candidates are now `{post_id, title, slug, url, score}` — `url` via `get_permalink()`, `(string)`-cast so an unresolvable target folds to `''` (never a boolean in JSON). Additive, no consumer breaks; added so no UI ever hand-builds a `/notes/` path from the slug (the never-hardcode-paths rule). Pinned in [tests/ml-candidates.php](tests/ml-candidates.php) (67 → 68 asserts; the `(string)`-fold of core's false-for-unresolvable is defensive PHP semantics — the call site only reaches already-validated posts, so the false branch is structurally unreachable and untested by design).
+
+> **Why MINOR:** new user-visible capability (two editor surfaces for the candidate pipelines); additive output-shape extension; zero new endpoints — the UI rides the existing abilities transport.
+
 ## [10.18.0] - 2026-07-30
 
 ### New

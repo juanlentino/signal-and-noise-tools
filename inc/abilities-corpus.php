@@ -161,7 +161,7 @@ add_action( 'wp_abilities_api_init', function() {
 	// Same plain-'object' input type as 1c: post_id is required.
 	wp_register_ability( 'signal-noise/link-candidates', array(
 		'label'               => 'Suggest related notes the post does not link to yet',
-		'description'         => 'Deterministic candidate generator, no AI: reads the prebuilt ML related index (_snt_ml_related) for the post and subtracts every target the body ALREADY links to (internal /notes/ hrefs, the same extractor the artifact build uses) and every non-published target. Returns {post_id, title, slug, score} rows, score-descending, for a human to turn into internal links — nothing auto-writes. Returns a 503 while the ML artifacts are unbuilt (same contract as the related pipeline); an empty result after exclusions is a real answer, not an error.',
+		'description'         => 'Deterministic candidate generator, no AI: reads the prebuilt ML related index (_snt_ml_related) for the post and subtracts every target the body ALREADY links to (internal /notes/ hrefs, the same extractor the artifact build uses) and every non-published target. Returns {post_id, title, slug, url, score} rows (url = resolved permalink), score-descending, for a human to turn into internal links — nothing auto-writes. Returns a 503 while the ML artifacts are unbuilt (same contract as the related pipeline); an empty result after exclusions is a real answer, not an error.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_corpus_link_candidates',

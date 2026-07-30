@@ -203,7 +203,7 @@ if ( ! function_exists( 'snt_ml_link_candidates' ) ) {
 	 *
 	 * @param int $post_id Target post ID.
 	 * @param int $limit   Max candidates, clamped 1..SNT_ML_LINK_LIMIT_MAX (default 5).
-	 * @return array|WP_Error { ok, post_id, candidates: list<{post_id,title,slug,score}>, count, limit }
+	 * @return array|WP_Error { ok, post_id, candidates: list<{post_id,title,slug,url,score}>, count, limit }
 	 *                        or snt_ml_no_post (404) / snt_ml_not_built (503).
 	 */
 	function snt_ml_link_candidates( $post_id, $limit = SNT_ML_LINK_LIMIT_DEFAULT ) {
@@ -255,6 +255,10 @@ if ( ! function_exists( 'snt_ml_link_candidates' ) ) {
 				'post_id' => (int) $target->ID,
 				'title'   => (string) ( $target->post_title ?? '' ),
 				'slug'    => $slug,
+				// v10.19.0: the resolved permalink, so no consumer ever
+				// hand-builds a path from the slug. (string) folds core's
+				// false-for-unresolvable into '' — never a boolean in JSON.
+				'url'     => (string) get_permalink( $target->ID ),
 				'score'   => (float) $row['score'],
 			);
 			if ( count( $candidates ) >= $limit ) {
