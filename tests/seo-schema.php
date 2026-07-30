@@ -136,6 +136,8 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 		return ( $thing instanceof WP_Error_Stub );
 	}
 }
+// v10.24.0: snt_word_count() is a real runtime dependency (pure module).
+require_once __DIR__ . '/../inc/word-count.php';
 if ( ! function_exists( 'sn_get_reading_time' ) ) {
 	function sn_get_reading_time( $post = null ) {
 		return (int) $GLOBALS['__ss']['reading_time'];
@@ -167,6 +169,7 @@ class WP_Error_Stub {}
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {}
 }
+
 
 require_once __DIR__ . '/../inc/seo-schema.php';
 

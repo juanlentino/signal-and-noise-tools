@@ -5,7 +5,7 @@
  * Holds sn_theme_options_page(), the render callback for the Signal & Noise
  * admin screens: it resolves the active tab, emits the page shell + top-tab
  * nav, and dispatches each tab to its renderer — most via do_action() hooks
- * (`sn_admin_cloudflare_tab`, `sn_admin_reading_time_tab`, …) so each subsystem
+ * (`sn_admin_cloudflare_tab`, `sn_admin_cron_tab`, …) so each subsystem
  * keeps its UI colocated with its logic, plus the Identity & SEO / Login /
  * Links sections via inc/admin-forms/*.php.
  *

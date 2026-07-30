@@ -106,7 +106,7 @@ add_action( 'transition_post_status', 'snt_prepop_on_transition', 10, 3 );
  * @return bool
  */
 function snt_prepop_passes_content_gate( $post, $min ) {
-	$words = str_word_count( wp_strip_all_tags( (string) $post->post_content ) );
+	$words = snt_word_count( wp_strip_all_tags( (string) $post->post_content ) ); // v10.24.0: Unicode-safe.
 	if ( $words >= $min ) {
 		return true;
 	}

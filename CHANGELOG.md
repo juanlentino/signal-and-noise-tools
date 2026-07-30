@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.24.0] - 2026-07-30
+
+### Fixed
+
+- **Unicode-safe word counting everywhere** ([inc/word-count.php](inc/word-count.php), new pure module): `str_word_count` is ASCII-only — accented letters split words apart and standalone numbers count as ZERO, so schema.org `wordCount` published wrong numbers for digit-bearing prose and reading times under-counted. `snt_word_count()` (any run of Unicode letters/numbers — what a reader counts) replaces it at all four sites: reading time, schema `wordCount`, the AI-prepop gate, AI excerpt length. Own tiny module so CLI fixtures load exactly it (13 asserts in [tests/word-count.php](tests/word-count.php), incl. interior-apostrophe/hyphen PARITY with the old counter — kept deliberately so reading times don't shift — and the invalid-UTF-8 never-zero guard); consumer fixtures gained the real dependency.
+
+- **The dead reading-time redirect tier** ([inc/admin-legacy-redirect.php](inc/admin-legacy-redirect.php)): the cleanup tool retired in v10.0.0, but three legacy-map rows still routed to its ghost `content/reading-time` sub (the dispatcher silently fell back). Old bookmarks now land on the Content tab default, honestly labeled; the desktop-mode nav pin updated to the real destination.
+
+- **Four stale/false claims retired**: [inc/analytics-recommendations.php](inc/analytics-recommendations.php)'s "O(n²) TF-IDF pass" description of unlinked_mentions (it is and always was an exact-title stripos sweep — the claim would mislead the next kernel audit); [inc/command-palette.php](inc/command-palette.php)'s docblock still selling the `signal-noise/v1/cmd/*` REST routes removed in v7.0.0 (the code migrated to `sntAbilityRun` correctly — only the story was stale); [inc/admin-page.php](inc/admin-page.php) + [inc/reading-time.php](inc/reading-time.php) naming the retired `sn_admin_reading_time_tab` hook as live; [docs/analytics-integrity-design.md](docs/analytics-integrity-design.md)'s "deploy-widget fix — separate PR" open item (CLOSED in v9.63.3; the doc now records the closure).
+
+### Added
+
+- **Kernel cadence verdicts ride the insights signal bundle** ([inc/insights.php](inc/insights.php)): the AI advisor's prompt now carries `cadence_flags` — subject + 2dp z from `snt_ml_cadence_flags()` — so it reasons about measured surprise instead of re-deriving staleness from raw minutes in-model. Additive and guarded; the raw `cron_freshness` rows are untouched (insights 214 → 219 asserts).
+
+> **Why MINOR:** first batch of the 2026-07-30 aging-surface audit — a real fix with observable output changes (word counts), retired dead surfaces, and one additive signal. All items ranked one-liner tier; the audit's larger batches (BM25 consumer, cron-staleness re-base, migrations/IA-tier retirements) follow separately.
+
 ## [10.23.0] - 2026-07-30
 
 ### Changed

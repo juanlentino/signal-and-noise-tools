@@ -125,7 +125,7 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
 		'ok'      => true,
 		'excerpt' => $excerpt,
 		'length'  => strlen( $excerpt ),
-		'words'   => str_word_count( $excerpt ),
+		'words'   => snt_word_count( $excerpt ), // v10.24.0: Unicode-safe.
 	);
 }
 

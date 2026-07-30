@@ -34,7 +34,7 @@ eq( array( 'tab' => 'content', 'sub' => 'music', 'anchor' => null ), sn_admin_ca
 eq( array( 'tab' => 'content', 'sub' => 'rss', 'anchor' => null ), sn_admin_canonical_destination( 'monitoring', 'rss' ), 'monitoring/rss → content/rss' );
 eq( array( 'tab' => 'content', 'sub' => 'performance', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'performance' ), 'tools/performance → content/performance' );
 eq( array( 'tab' => 'content', 'sub' => 'front-end', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'front-end' ), 'tools/front-end → content/front-end' );
-eq( array( 'tab' => 'content', 'sub' => 'reading-time', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'reading-time' ), 'tools/reading-time → content/reading-time' );
+eq( array( 'tab' => 'content', 'sub' => null, 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'reading-time' ), 'v10.24.0: tools/reading-time → Content tab DEFAULT (the cleanup tool retired in v10.0.0 — no ghost sub)' );
 eq( array( 'tab' => 'connections', 'sub' => 'webhooks', 'anchor' => null ), sn_admin_canonical_destination( 'automation', 'webhooks' ), 'automation/webhooks → connections/webhooks' );
 eq( array( 'tab' => 'connections', 'sub' => 'indexnow', 'anchor' => null ), sn_admin_canonical_destination( 'automation', 'indexnow' ), 'automation/indexnow → connections/indexnow' );
 

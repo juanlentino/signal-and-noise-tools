@@ -164,6 +164,7 @@ if ( ! function_exists( 'esc_html' ) ) {
 if ( ! defined( 'SNT_PATH' ) ) {
 	define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 }
+require_once __DIR__ . '/../inc/word-count.php'; // v10.24.0: reading-time's counter dependency (pure module).
 require_once __DIR__ . '/../inc/reading-time.php';
 
 $handler = $GLOBALS['__rt_shortcodes']['sn_reading_time'] ?? null;

@@ -68,7 +68,7 @@ function sn_analytics_rec_refresh() {
 /**
  * Unlinked-mentions rule: notes that title-mention another note without linking
  * it, read from the DURABLE cached Health scan (sn_health_last_scan() — a
- * get_option, never a live re-scan; the check itself is an O(n^2) TF-IDF pass).
+ * get_option, never a live re-scan; the check itself is an exact-title stripos sweep).
  * Deep-links to the Health tab where Suggest/Apply lives. Null when no scan or
  * zero mentions.
  *
