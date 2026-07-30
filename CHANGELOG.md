@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.12.0] - 2026-07-30
+
+### New
+
+- **Legacy 301s for the maturity family's dead top-level URLs** ([inc/maturity-legacy-redirects.php](inc/maturity-legacy-redirects.php)): the 2026-07-30 re-parenting moved every family page under /maturity/, 404ing the previously shared top-level URLs (/analytics/, /proof-of-origin/, /ai-maturity/) with nothing catching them — general 404-slug-guessing is deliberately disabled site-wide. This module is the narrow exception: a fixed, filterable map (`sn_maturity_legacy_redirects`) of old first-path-segments → page slugs, resolved through `get_permalink()` at request time (the v10.11.2 never-hardcode-paths rule), firing only on a 404, only for mapped single-segment paths, and only when the target is a publicly viewable published page — no generic guessing, no existence oracle. New fixture [tests/maturity-legacy-redirects.php](tests/maturity-legacy-redirects.php) (10 asserts) pins the 404-only gate, the fixed-map boundary, query-string tolerance, the viewability gate, and the silent-404 unresolvable branch.
+
+> **Why MINOR:** a new user-visible behavior (301s on previously dead URLs); additive, filterable, no API change.
+
 ## [10.11.2] - 2026-07-30
 
 ### Fixed
