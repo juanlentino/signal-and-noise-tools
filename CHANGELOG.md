@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.11.0] - 2026-07-30
+
+### New
+
+- **The maturity family completes: three new siblings + the hub** — per the standing convention (every moat gets a public maturity page; net-new features flip scope badges in the same release):
+  - **[sn_machine_maturity]** ([inc/machine-maturity-page.php](inc/machine-maturity-page.php)): how machines read the site — indexed → structured → summarized → stamped → agent-readable. The AEO story at the design level: the crawler manifest speaks in the site's own words, structured data describes what pages already say, artifacts leave carrying their origin, and agents get a door instead of a scrape.
+  - **[sn_ops_maturity]** ([inc/ops-maturity-page.php](inc/ops-maturity-page.php)): how the site runs itself — watch → probe → narrate → clean → gate. The principles are codified incident lessons ("a healthy readout must be able to go red"; "zero and unknown are different answers"; "nothing is deleted silently") — the page's authority is that each one was learned, not imagined.
+  - **[sn_a11y_maturity]** ([inc/a11y-maturity-page.php](inc/a11y-maturity-page.php)): the existing /accessibility/ claims restated in the family skeleton — reach → drive → calm → read → admit. Adds FORMAT, never new claims; the published gaps (SVG alt text, third-party embeds) render as `planned` badges so the coverage map mirrors the page's own honesty.
+  - **[sn_maturity_index]** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): the hub for /maturity/ — one hard-framed card per system naming the question its page answers, links resolved through home_url, items behind the `sn_maturity_index_items` filter (a new moat is a one-line addition; an empty path renders an unlinked card, never a dead link).
+  - Same idioms family-wide (whitelisted `format` attr, render-time-only stylesheets, static, escaped at build, returns never echoes) and the **security contract extends to every new surface**: [tests/maturity-family.php](tests/maturity-family.php) (20 asserts) renders every format of every new page and asserts the absence of option names, constants, endpoint paths, tool slugs, meta keys, hook prefixes, vendor/host names, and operational numbers.
+
+> **Why MINOR:** four new user-visible shortcodes; no API change.
+
 ## [10.10.0] - 2026-07-30
 
 ### New
