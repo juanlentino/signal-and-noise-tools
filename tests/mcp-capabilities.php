@@ -33,7 +33,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 25, 'read-door allowlist has exactly 25 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0)' );
+ok( is_array( $list ) && count( $list ) === 28, 'read-door allowlist has exactly 28 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0)' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 ok( in_array( 'signal-and-noise/get-design-tokens', $list, true ), 'theme read is allowlisted (cross-namespace)' );
 ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability is NOT allowlisted on the read door' );
@@ -71,7 +71,7 @@ foreach ( $v9820_read_slugs as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 15, 'read door carries exactly 15 plugin slugs (13 -> 15 in v9.82.0)' );
+ok( count( $read_plugin ) === 18, 'read door carries exactly 18 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0)' );
 ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged in v9.82.0)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 

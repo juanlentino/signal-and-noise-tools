@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.6.0] - 2026-07-29
+
+### New
+
+- **Corpus inspection: three read-only MCP tools on the sn read door** ([inc/corpus-inspect.php](inc/corpus-inspect.php), [inc/abilities-corpus.php](inc/abilities-corpus.php)): born from a live near-miss — a scheduled post carrying a different post's body verbatim (duplicate-to-seed, content never replaced), found two days before publish only by pasting bodies into claude.ai by hand. `signal-noise/duplicate-body-scan` hashes `md5(trim(post_content))` for every post across **all five non-trash statuses** (publish, future, draft, pending, private — pre-publish collision checking is the point) and returns groups where the same non-empty hash repeats, each member carrying ID/title/slug/status/date. Exact duplicates only, by design: raw hashing catches the duplicated-and-never-touched case; empty bodies never group (two blank drafts are not duplicates); the trim absorbs trailing-whitespace drift without drifting into near-match territory. `signal-noise/list-posts` is the metadata-only corpus listing (ID, title, slug, status, type, dates, categories, tags, word count, content hash, excerpt — manual excerpt else a 55-word strip-and-trim; **never a body**), because most collision checks resolve on title+tags+excerpt. `signal-noise/get-post-content` returns full bodies for a bounded 1-20 ID set, with unknown/trash/internal IDs reported in `missing` rather than silently dropped. Hardening throughout: all three gate on `manage_options` like the sibling scans (double-gated with the read door's own auth); a public-post-type gate keeps internal types (revisions would multiply every body into false duplicates) unwalkable even by an admin; the 2000-post query bound surfaces as an explicit `truncated` flag, never a silent cap; **no transients** — unlike the parse-heavy sibling scans these only hash strings, and the fix-then-rescan workflow makes a 1-hour stale cache a false alarm generator. Read door widens 25 → 28 (the rw door and `wp/v2` are untouched — the mutation surface does not grow). New fixture [tests/abilities-corpus.php](tests/abilities-corpus.php) (59 asserts) pins the hash primitive, cross-status grouping, the empty-body and internal-type exclusions, the missing-ID honesty, both caps, and the registration contract.
+
+> **Why MINOR:** new user-visible capability (three abilities + three read-door MCP tools); no API change, no schema migration.
+
 ## [10.5.0] - 2026-07-29
 
 ### New

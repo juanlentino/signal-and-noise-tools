@@ -39,7 +39,8 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * rejects anything not here (per sn_mcp_is_allowed, for the read door).
  * Cross-namespace (plugin + theme) resolves through the one global
  * WP_Abilities_Registry. Widened 15 → 23 in v9.50.0 (docs/ai-abilities-catalog
- * audit) and 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status);
+ * audit), 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status),
+ * and 25 → 28 in v10.6.0 (corpus inspection trio);
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -66,6 +67,13 @@ function sn_mcp_allowlist() {
 		// they return is status an agent should be able to see for itself.
 		'signal-noise/anchor-status',
 		'signal-noise/provenance-integrity-status',
+		// v10.6.0 — corpus inspection. All three PURE-READ by construction
+		// (inc/corpus-inspect.php never writes); they span non-public statuses
+		// (future/draft/pending/private) on purpose — pre-publish collision
+		// checking is the point — double-gated by manage_options + door auth.
+		'signal-noise/duplicate-body-scan',
+		'signal-noise/list-posts',
+		'signal-noise/get-post-content',
 		// Theme (signal-and-noise/) — identity + design system.
 		'signal-and-noise/get-theme-version',
 		'signal-and-noise/get-latest-theme-tag',
